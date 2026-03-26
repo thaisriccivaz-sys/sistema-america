@@ -3220,3 +3220,9 @@
 2026-03-26T11:58:28.247Z - Sucesso: Enviando arquivo C:\A\OneDrive - AMERICA RENTAL EQUIPAMENTOS LTDA\Documentos - America Rental\Diretoria\Teste Sistema\Colaboradores\TESTE_1\Fotos\FOTO_TESTE_1_01.jpg
 2026-03-26T14:35:46.000Z - Buscando foto: ID 1 -> Path: files/Colaboradores/TESTE_1/Fotos/FOTO_TESTE_1_01.jpg
 2026-03-26T14:35:46.004Z - Sucesso: Enviando arquivo C:\A\OneDrive - AMERICA RENTAL EQUIPAMENTOS LTDA\Documentos - America Rental\Diretoria\Teste Sistema\Colaboradores\TESTE_1\Fotos\FOTO_TESTE_1_01.jpg
+2026-03-26T21:26:04.283Z - Buscando foto: ID 1 -> Path: files/Colaboradores/TESTE_1/Fotos/FOTO_TESTE_1_01.jpg
+2026-03-26T21:26:04.295Z - Sucesso: Enviando arquivo C:\A\OneDrive - AMERICA RENTAL EQUIPAMENTOS LTDA\Documentos - America Rental\Diretoria\Teste Sistema\Colaboradores\TESTE_1\Fotos\FOTO_TESTE_1_01.jpg
+2026-03-26T21:26:04.299Z - Foto não encontrada no banco para ID 2
+2026-03-26T21:26:19.326Z - Buscando foto: ID 1 -> Path: files/Colaboradores/TESTE_1/Fotos/FOTO_TESTE_1_01.jpg
+2026-03-26T21:26:19.329Z - Sucesso: Enviando arquivo C:\A\OneDrive - AMERICA RENTAL EQUIPAMENTOS LTDA\Documentos - America Rental\Diretoria\Teste Sistema\Colaboradores\TESTE_1\Fotos\FOTO_TESTE_1_01.jpg
+2026-03-26T21:26:19.332Z - Foto não encontrada no banco para ID 2

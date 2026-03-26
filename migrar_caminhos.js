@@ -1,10 +1,11 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
-const db = new sqlite3.Database(path.join(__dirname, 'backend', 'hr_system_v2.sqlite'));
+const dbPath = path.join(__dirname, 'backend', 'data', 'hr_system_v2.sqlite');
+const db = new sqlite3.Database(dbPath);
 
-const PREFIXO_ANTIGO = 'C:\\A\\OneDrive - AMERICA RENTAL EQUIPAMENTOS LTDA\\Documentos - America Rental\\Diretoria\\Teste Sistema\\colaboradores\\';
-const PREFIXO_NOVO = 'data/colaboradores/';
+const PREFIXO_ANTIGO = 'C:\\A\\OneDrive - AMERICA RENTAL EQUIPAMENTOS LTDA\\Documentos - America Rental\\Diretoria\\Teste Sistema\\Colaboradores\\';
+const PREFIXO_NOVO = 'backend/data/Colaboradores/';
 
 db.serialize(() => {
 
