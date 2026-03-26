@@ -1,13 +1,22 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
+const fs = require('fs');
+
 // Usar v2 do banco para lidar com o novo schema expandido sem conflito
-const dbPath = path.resolve(__dirname, 'hr_system_v2.sqlite');
+// Caminho relativo compatível com Render/Linux
+const dataDir = path.join(process.cwd(), 'data');
+if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+}
+
+const dbPath = path.join(dataDir, 'hr_system_v2.sqlite');
 const db = new sqlite3.Database(dbPath, (err) => {
     if (err) {
         console.error('Erro ao conectar ao banco de dados SQLite:', err.message);
     } else {
         console.log('Conectado ao banco de dados SQLite (hr_system_v2).');
+        console.log('Caminho do Banco:', dbPath);
         
         db.serialize(() => {
             // Tabela de Usuários (Acesso)

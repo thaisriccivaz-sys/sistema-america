@@ -25,8 +25,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const SECRET_KEY = process.env.SECRET_KEY || 'america_rental_secret_key_123';
 
-// Configuração de Armazenamento (OneDrive Local)
-const BASE_PATH = path.resolve("C:/A/OneDrive - AMERICA RENTAL EQUIPAMENTOS LTDA/Documentos - America Rental/Diretoria/Teste Sistema/Colaboradores");
+// Configuração de Armazenamento (Dinâmico para Render/Linux)
+const BASE_PATH = path.join(process.cwd(), 'data', 'Colaboradores');
 const BASE_UPLOAD_PATH = BASE_PATH; // Mantendo compatibilidade
 
 function formatarNome(nome) {
@@ -1362,5 +1362,5 @@ async function salvarLinkAssinatura(assinafyDocId, link) {
 app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
     console.log(`Versão do Servidor: V5_ASO_YEARS_FIX`);
-    console.log(`OneDrive Sync Path: ${BASE_UPLOAD_PATH}`);
+    console.log(`Caminho de Armazenamento: ${BASE_UPLOAD_PATH}`);
 });
