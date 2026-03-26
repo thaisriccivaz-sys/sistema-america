@@ -4,163 +4,1590 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>América Rental - Gestão de Colaboradores</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Phosphor Icons para ícones modernos -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    
+    <!-- Login View (Initially hidden if using token) -->
+    <div id="view-login" class="view-section active">
+        <div class="login-container">
+            <div class="login-box">
+                <div class="logo-area">
+                    <h2>AMÉRICA RENTAL</h2>
+                    <p>Gestão de Colaboradores</p>
+                </div>
+                <form id="form-login">
+                    <div class="input-group">
+                        <label>Usuário</label>
+                        <input type="text" id="login-user" autocomplete="username">
+                    </div>
+                    <div class="input-group">
+                        <label>Senha</label>
+                        <input type="password" id="login-pass" autocomplete="current-password">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Entrar</button>
+                    <div id="login-error" class="error-msg"></div>
+                </form>
+            </div>
+        </div>
+    </div>
 
-    <div class="app-shell">
+    <!-- App Shell (ERP Layout) -->
+    <div id="app-shell" class="view-section">
         <!-- Sidebar -->
         <aside class="sidebar">
-            <div class="logo-area">
+            <div class="sidebar-header">
                 <h2>AMÉRICA RENTAL</h2>
             </div>
-            <nav class="nav-menu">
+            <nav class="sidebar-nav">
                 <a href="#" class="nav-item active" data-target="dashboard">
                     <i class="ph ph-squares-four"></i> Dashboard
                 </a>
                 <a href="#" class="nav-item" data-target="colaboradores">
                     <i class="ph ph-users"></i> Colaboradores
                 </a>
-                <a href="#" class="nav-item" data-target="config">
-                    <i class="ph ph-gear"></i> Configurações
+                <a href="#" class="nav-item" data-target="admissao">
+                    <i class="ph ph-list-checks"></i> Admissão
+                </a>
+                <a href="#" class="nav-item" data-target="cargos">
+                    <i class="ph ph-briefcase"></i> Cargos
+                </a>
+                <a href="#" class="nav-item" data-target="departamentos">
+                    <i class="ph ph-buildings"></i> Departamentos
+                </a>
+                <a href="#" class="nav-item" data-target="faculdade">
+                    <i class="ph ph-graduation-cap"></i> Faculdade
+                </a>
+                <a href="#" class="nav-item" data-target="chaves">
+                    <i class="ph ph-key"></i> Chaves
+                </a>
+                <a href="#" class="nav-item" data-target="geradores">
+                    <i class="ph ph-file-text"></i> Geradores
+                </a>
+                <a href="#" class="nav-item" id="btn-logout">
+                    <i class="ph ph-sign-out"></i> Sair
                 </a>
             </nav>
-            <div style="margin-top: auto;">
-                <button class="btn btn-secondary" style="width: 100%; border: 1px solid rgba(255,255,255,0.1);">
-                    <i class="ph ph-sign-out"></i> Logout
-                </button>
-            </div>
         </aside>
 
-        <!-- Main Content -->
-        <main class="main-wrapper">
-            
-            <!-- View: Dashboard -->
-            <section id="view-dashboard" class="content-view active">
-                <div class="header">
-                    <h1>Dashboard</h1>
+        <!-- Main Wrapper -->
+        <div class="main-wrapper">
+            <!-- Topbar -->
+            <header class="topbar">
+                <div class="topbar-search">
+                    <i class="ph ph-magnifying-glass"></i>
+                    <input type="text" id="global-search" placeholder="Buscar colaborador por nome ou CPF...">
                 </div>
-                
-                <div class="card" style="margin-bottom: 2rem;">
-                    <div style="display: flex; gap: 2rem; align-items: center;">
-                        <div style="flex: 1; padding: 1.5rem; text-align: center; border-right: 1px solid var(--border);">
-                            <span style="font-size: 0.875rem; color: var(--secondary); font-weight: 600;">Total Colaboradores</span>
-                            <h2 id="stat-total" style="font-size: 2.5rem; color: var(--primary);">0</h2>
-                        </div>
-                        <div style="flex: 1; padding: 1.5rem; text-align: center;">
-                            <span style="font-size: 0.875rem; color: var(--secondary); font-weight: 600;">Ativos</span>
-                            <h2 id="stat-ativos" style="font-size: 2.5rem; color: var(--success);">0</h2>
-                        </div>
+                <div class="topbar-user">
+                    <div class="user-info">
+                        <span id="logged-user-name">Usuário</span>
+                        <span id="logged-user-role" class="badge">RH</span>
+                    </div>
+                    <div class="user-avatar">
+                        <i class="ph ph-user-circle"></i>
                     </div>
                 </div>
+            </header>
 
-                <div class="card">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                        <h3 style="font-weight: 700;">Cadastro de Colaborador</h3>
+            <!-- Content Area -->
+            <main class="content-area">
+                
+                <!-- VIEW: DASHBOARD -->
+                <section id="view-dashboard" class="content-view active">
+                    <div class="page-header">
+                        <h2>Dashboard</h2>
+                    </div>
+                    <div class="dashboard-cards">
+                        <div class="card stat-card primary">
+                            <i class="ph ph-users"></i>
+                            <div class="stat-info">
+                                <h3>Total</h3>
+                                <p id="stat-total">0</p>
+                            </div>
+                        </div>
+                        <div class="card stat-card success">
+                            <i class="ph ph-check-circle"></i>
+                            <div class="stat-info">
+                                <h3>Ativos</h3>
+                                <p id="stat-ativos">0</p>
+                            </div>
+                        </div>
+                        <div class="card stat-card warning">
+                            <i class="ph ph-airplane-tilt"></i>
+                            <div class="stat-info">
+                                <h3>Em Férias</h3>
+                                <p id="stat-ferias">0</p>
+                            </div>
+                        </div>
+                        <div class="card stat-card danger">
+                            <i class="ph ph-x-circle"></i>
+                            <div class="stat-info">
+                                <h3>Desligados</h3>
+                                <p id="stat-desligados">0</p>
+                            </div>
+                        </div>
+                        <div class="card stat-card purple">
+                            <i class="ph ph-warning"></i>
+                            <div class="stat-info">
+                                <h3>Afastados</h3>
+                                <p id="stat-afastados">0</p>
+                            </div>
+                        </div>
                     </div>
                     
-                    <form id="form-colaborador" class="form-grid">
-                        <div class="input-group">
-                            <label>Nome Completo</label>
-                            <input type="text" id="ipt-nome" placeholder="Ex: João Silva" required>
+                    <div class="card mt-4">
+                        <div class="card-header flex-between">
+                            <h3>Acesso Rápido</h3>
+                            <button class="btn btn-primary" id="btn-novo-rapido"><i class="ph ph-plus"></i> Novo Colaborador</button>
                         </div>
-                        <div class="input-group">
-                            <label>CPF</label>
-                            <input type="text" id="ipt-cpf" placeholder="000.000.000-00" required>
+                    </div>
+                </section>
+
+                <!-- VIEW: LISTA DE COLABORADORES -->
+                <section id="view-colaboradores" class="content-view">
+                    <div class="page-header flex-between">
+                        <h2>Colaboradores</h2>
+                        <button class="btn btn-primary" id="btn-novo-colab"><i class="ph ph-plus"></i> Novo Colaborador</button>
+                    </div>
+                    <div class="card">
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Nome</th>
+                                        <th>CPF</th>
+                                        <th>Cargo</th>
+                                        <th>Admissão</th>
+                                        <th>Status</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-colaboradores">
+                                    <!-- Preenchido via JS -->
+                                </tbody>
+                            </table>
                         </div>
-                        <div class="input-group">
-                            <label>Cargo</label>
-                            <input type="text" id="ipt-cargo" placeholder="Ex: Motorista">
+                    </div>
+                </section>
+
+                <section id="view-cargos" class="content-view">
+                    <div class="page-header flex-between" style="position: sticky; top: 60px; z-index: 20; background: var(--bg-main); padding: 1rem 0; margin-top: -1.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color);">
+                        <div style="display: flex; align-items: center; gap: 1.5rem;">
+                            <!-- Ícone de Cargo -->
+                            <div style="width: 80px; height: 80px; border-radius: 50%; border: 2px dashed #cbd5e0; display: flex; align-items: center; justify-content: center; background: #f8fafc; color: #94a3b8; font-size: 2rem;">
+                                <i class="ph ph-briefcase"></i>
+                            </div>
+                            <div>
+                                <h2 style="margin: 0; font-size: 1.4rem;">Gestão de Cargos e Documentos</h2>
+                                <p style="margin: 4px 0 0; color: #64748b; font-size: 0.85rem;">Defina os contratos e termos exigidos por função.</p>
+                            </div>
                         </div>
-                        <div class="input-group">
-                            <label>Data de Admissão</label>
-                            <input type="date" id="ipt-admissao">
-                        </div>
-                        <div class="input-group">
-                            <label>Status</label>
-                            <select id="ipt-status">
-                                <option value="Ativo">Ativo</option>
-                                <option value="Férias">Férias</option>
-                                <option value="Desligado">Desligado</option>
-                            </select>
-                        </div>
-                        <div class="input-group" style="justify-content: flex-end; padding-top: 1.5rem;">
-                            <button type="submit" class="btn btn-primary" style="padding: 1rem 2rem;">
-                                <i class="ph ph-plus-circle"></i> Cadastrar
+                        <div id="cargo-header-actions" class="header-actions" style="display: none; gap: 0.75rem;">
+                            <button type="button" class="btn btn-danger" onclick="window.toggleCargoView('list')" style="font-weight: 600;">
+                                <i class="ph ph-x-circle"></i> Cancelar
+                            </button>
+                            <button type="button" class="btn btn-primary" onclick="window.saveCargoConfig()" style="font-weight: 600; background: #2563eb;">
+                                <i class="ph ph-floppy-disk"></i> Salvar Configuração
                             </button>
                         </div>
-                    </form>
-                </div>
-            </section>
-
-            <!-- View: Colaboradores -->
-            <section id="view-colaboradores" class="content-view">
-                <div class="header">
-                    <h1>Colaboradores</h1>
-                    <div style="display: flex; gap: 1rem;">
-                        <input type="text" id="ipt-search" placeholder="Buscar por nome..." style="width: 300px;">
                     </div>
-                </div>
+                    <div class="card p-4">
+                        <!-- CONTAINER 1: LISTA DE CARGOS -->
+                        <div id="cargo-list-container">
+                            <div class="flex-between mb-4">
+                                <h3 style="font-size: 1.1rem; color: #475569;">Lista de Cargos Cadastrados</h3>
+                                <button type="button" class="btn btn-secondary" onclick="toggleCargoView('new')" style="font-weight: 600;">
+                                    <i class="ph ph-plus-circle"></i> Novo Cargo
+                                </button>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Nome do Cargo</th>
+                                            <th style="text-align: right;">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="table-cargos-body">
+                                        <!-- Preenchido via JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
 
-                <div class="card">
-                    <div style="overflow-x: auto;">
-                        <table id="table-colaboradores">
+                        <!-- CONTAINER 2: FORMULÁRIO DE EDIÇÃO/CRIAÇÃO -->
+                        <div id="cargo-form-container" style="display:none;">
+                            <form id="form-manage-cargo">
+                                <input type="hidden" id="manage-cargo-id">
+                                <div class="form-grid mb-4" style="grid-template-columns: 2fr; max-width: 600px;">
+                                    <div class="input-group">
+                                        <label id="cargo-form-label">Nome do Cargo</label>
+                                        <input type="text" id="cargo-input-name" class="form-control" placeholder="Digite o nome do cargo..." style="flex-grow: 1;">
+                                    </div>
+                                </div>
+
+                                <div class="border-top pt-4">
+                                    <h4 class="mb-3" style="font-size: 1rem; color: var(--primary-color);">CONTRATOS E DOCUMENTOS EXIGIDOS:</h4>
+                                    <div id="cargo-checklist-main" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; padding: 1.5rem; background: #fdfdfd; border: 1px solid #e2e8f0; border-radius: 8px;">
+                                        <!-- Checkboxes preenchidos via JS -->
+                                    </div>
+                                </div>
+
+                                <div id="btn-cargo-delete-container" class="mt-4" style="text-align: left;">
+                                    <button type="button" class="btn btn-danger" id="btn-cargo-delete" style="display:none;" onclick="handleDeleteCargoUI()">Excluir este Cargo</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW: DEPARTAMENTOS -->
+                <section id="view-departamentos" class="content-view">
+                    <div class="page-header flex-between">
+                        <h2>Gestão de Departamentos</h2>
+                    </div>
+                    <div class="card mb-4 p-4">
+                        <form id="form-departamento" class="flex-between" style="gap: 1rem;">
+                            <input type="text" id="novo-departamento-nome" placeholder="Nome do Novo Departamento" style="flex-grow: 1;">
+                            <button type="submit" class="btn btn-primary"><i class="ph ph-plus"></i> Adicionar Depto</button>
+                        </form>
+                    </div>
+                    <div class="card">
+                        <table class="table">
+                            <thead><tr><th>ID</th><th>Nome do Departamento</th><th>Ações</th></tr></thead>
+                            <tbody id="table-departamentos"></tbody>
+                        </table>
+                    </div>
+                </section>
+                
+                <!-- VIEW: FACULDADE -->
+                <section id="view-faculdade" class="content-view">
+                    <div class="page-header flex-between">
+                        <h2>Gestão de Cursos de Faculdade</h2>
+                    </div>
+                    <div class="card mb-4 p-4">
+                        <h3 class="mb-3" id="faculdade-form-title">Cadastrar Novo Curso</h3>
+                        <form id="form-faculdade">
+                            <input type="hidden" id="faculdade-id">
+                            <div class="form-grid mb-3">
+                                <div class="input-group span-2">
+                                    <label>Nome do Curso</label>
+                                    <input type="text" id="faculdade-nome-curso" placeholder="Ex: Engenharia Civil" required>
+                                </div>
+                                <div class="input-group span-2">
+                                    <label>Nome da Instituição</label>
+                                    <input type="text" id="faculdade-instituicao" placeholder="Ex: USP, FAAP, etc" required>
+                                </div>
+                                <div class="input-group">
+                                    <label>Tempo de Curso (Semanas/Meses/Anos)</label>
+                                    <input type="text" id="faculdade-tempo" placeholder="Ex: 5 anos">
+                                </div>
+                                <div class="input-group">
+                                    <label>Valor da Mensalidade (R$)</label>
+                                    <input type="text" id="faculdade-mensalidade" placeholder="R$ 0,00" onkeyup="mascaraMoeda(this)">
+                                </div>
+                            </div>
+                            <div class="flex-between" style="justify-content: flex-end; gap: 1rem;">
+                                <button type="button" class="btn btn-secondary" onclick="resetFaculdadeForm()">Limpar</button>
+                                <button type="submit" class="btn btn-primary"><i class="ph ph-floppy-disk"></i> Salvar Curso</button>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="card">
+                        <table class="table">
                             <thead>
                                 <tr>
-                                    <th>Nome</th>
-                                    <th>CPF</th>
-                                    <th>Cargo</th>
-                                    <th>Admissão</th>
-                                    <th>Status</th>
+                                    <th>Curso / Instituição</th>
+                                    <th>Duração</th>
+                                    <th>Mensalidade</th>
                                     <th style="text-align: right;">Ações</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                <!-- Dinâmico via JS -->
+                            <tbody id="table-faculdade-body">
+                                <!-- Preenchido via JS -->
                             </tbody>
                         </table>
                     </div>
-                </div>
-            </section>
+                </section>
 
-        </main>
+                <!-- VIEW: CHAVES -->
+                <section id="view-chaves" class="content-view">
+                    <div class="page-header flex-between">
+                        <h2>Gestão de Chaves da Empresa</h2>
+                    </div>
+                    <div class="card mb-4 p-4">
+                        <h3 class="mb-3" id="chaves-form-title">Cadastrar Nova Chave</h3>
+                        <form id="form-chaves">
+                            <input type="hidden" id="chave-id">
+                            <div class="form-grid mb-3">
+                                <div class="input-group">
+                                    <label>Nome da Chave</label>
+                                    <input type="text" id="chave-nome" placeholder="Ex: Chave do Depósito 01" required>
+                                </div>
+                            </div>
+                            <div class="flex-between" style="justify-content: flex-end; gap: 1rem;">
+                                <button type="button" class="btn btn-secondary" onclick="resetChavesForm()">Limpar</button>
+                                <button type="submit" class="btn btn-primary"><i class="ph ph-floppy-disk"></i> Salvar Chave</button>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="card">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Nome da Chave</th>
+                                    <th style="text-align: right;">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-chaves-body">
+                                <!-- Preenchido via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- VIEW: CADASTRO / EDIÇÃO COLABORADOR -->
+                <section id="view-form-colaborador" class="content-view">
+                    <div class="page-header flex-between">
+                        <div style="display: flex; align-items: flex-start; gap: 1.5rem;">
+                            <!-- Photo and Badge Column -->
+                            <div style="display: flex; flex-direction: column; align-items: center; gap: 0.5rem; flex-shrink: 0;">
+                                <div class="photo-upload-container">
+                                    <!-- Estado 1: Novo -->
+                                    <div id="photo-state-new" title="Salve o colaborador antes de adicionar fotos">
+                                        <i class="ph ph-user"></i>
+                                    </div>
+                                    
+                                    <!-- Container Interativo -->
+                                    <label id="photo-state-uploadable" style="display:none; width:100%; height:100%; border-radius:50%;" title="Adicionar/Alterar Foto">
+                                        <div id="photo-state-saved" style="display:none;">
+                                            <i class="ph ph-camera"></i>
+                                        </div>
+                                        <img id="colab-foto-preview" src="" alt="Foto" style="display:none;">
+                                        <input type="file" id="colab-foto-input" accept="image/*" style="display:none;" onchange="previewFoto(this)" disabled>
+                                    </label>
+                                </div>
+                                <div id="probation-badge-container" style="text-align: center; width: 80px; min-height: 18px;">
+                                    <!-- Badge rendered via JS -->
+                                </div>
+                            </div>
+
+                            <!-- Title and Status Group -->
+                            <div style="padding-top: 4px;">
+                                <h1 id="form-colab-title" style="margin: 0; font-size: 1.85rem; font-weight: 700; color: #334155; letter-spacing: -0.02em;">Editar Colaborador</h1>
+                                <div class="status-chips mt-2" id="status-chips-container" style="display: flex; gap: 0.6rem;">
+                                    <div class="status-chip active" data-value="Aguardando início"><i class="ph ph-clock"></i> Aguardando</div>
+                                    <div class="status-chip" data-value="Processo iniciado"><i class="ph ph-hourglass"></i> Iniciado</div>
+                                    <div class="status-chip" data-value="Ativo"><i class="ph ph-check-circle"></i> Ativo</div>
+                                    <div class="status-chip" data-value="Férias"><i class="ph ph-airplane-tilt"></i> Férias</div>
+                                    <div class="status-chip" data-value="Afastado"><i class="ph ph-warning"></i> Afastado</div>
+                                    <div class="status-chip" data-value="Desligado"><i class="ph ph-x-circle"></i> Desligado</div>
+                                </div>
+                                <input type="hidden" id="colab-status" value="Aguardando início">
+                            </div>
+                        </div>
+
+                        <!-- Header Actions on the Right -->
+                        <div class="form-actions" style="display: flex; gap: 0.75rem; align-items: center;">
+                            <button type="button" class="btn-action btn-sm" id="btn-header-prontuario" onclick="openProntuarioFromCurrentForm()" style="display:none; background: #228be6; color: white; border-color: #1c7ed6; font-weight: 600;">
+                                <i class="ph ph-folder-open"></i> Prontuário Digital
+                            </button>
+                            <button type="button" class="btn-action btn-sm btn-cancelar" onclick="resetFormColaborador(); navigateTo('colaboradores');">
+                                <i class="ph ph-x-circle"></i> Cancelar
+                            </button>
+                            <button type="submit" class="btn-action btn-sm btn-parcial" id="btn-salvar-parcial" form="form-colaborador" formnovalidate>
+                                <i class="ph ph-floppy-disk"></i> Salvar Parcial
+                            </button>
+                            <button type="submit" class="btn-action btn-sm btn-salvar" id="btn-salvar-info" form="form-colaborador">
+                                <i class="ph ph-check-circle"></i> Salvar Informações
+                            </button>
+                        </div>
+                    </div>
+
+                <div class="admission-status-bar" id="admission-status-bar" style="display: none; background: #228be6; color: white; padding: 0.7rem 1.25rem; margin-bottom: 1.5rem; border-radius: 4px; align-items: center; justify-content: space-between; display: flex;">
+                    <span style="font-weight: 600; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.5px;">Situação Processo de Admissão: <span id="admission-status-text" style="font-weight: 400; margin-left: 0.5rem; background: rgba(255,255,255,0.15); padding: 2px 8px; border-radius: 4px;">Pendente</span></span>
+                    <button type="button" id="btn-iniciar-admissao" class="btn btn-sm" style="background: white; color: #228be6; font-weight: 700; border: none; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" onclick="navigateTo('admissao')">
+                        <i class="ph ph-arrow-right"></i> Página Admissão
+                    </button>
+                </div>
+
+                <form id="form-colaborador">
+                        <input type="hidden" id="colab-id">
+                        
+                        <!-- Novo Layout Grid ERP -->
+                        <div class="form-layout-erp">
+                            <!-- BLOCO ESQUERDA -->
+                            <div class="column-left">
+                                <!-- 1. Dados Pessoais -->
+                                <div class="card mb-4 p-4">
+                                    <h3 class="section-title"><i class="ph ph-identification-card"></i> 1. Dados Pessoais</h3>
+                                    <div class="form-grid">
+                                        <div class="input-group span-2">
+                                            <label>Nome Completo *</label>
+                                            <input type="text" id="colab-nome" required>
+                                        </div>
+                                        <div class="input-group">
+                                            <label>CPF * <small id="cpf-error" class="text-danger" style="display:none;">Inválido</small></label>
+                                            <input type="text" id="colab-cpf" placeholder="000.000.000-00" onkeyup="mascaraCPF(this)" maxlength="14" onblur="validarCPFCampo(this)" required>
+                                        </div>
+                                        <div class="input-group">
+                                            <label>Data de Nascimento</label>
+                                            <input type="date" id="colab-nascimento" >
+                                        </div>
+                                        <div class="input-group">
+                                            <label>Local Nascimento (Cidade-UF)</label>
+                                            <input type="text" id="colab-local-nascimento">
+                                        </div>
+                                        <div class="input-group">
+                                            <label>Estado Civil</label>
+                                            <select id="colab-estadocivil" onchange="toggleConjuge()" >
+                                                <option value="">Selecione</option>
+                                                <option value="Solteiro">Solteiro(a)</option>
+                                                <option value="Casado">Casado(a)</option>
+                                                <option value="Divorciado">Divorciado(a)</option>
+                                                <option value="Viúvo">Viúvo(a)</option>
+                                            </select>
+                                        </div>
+                                        
+                                        <!-- Cônjuge Section -->
+                                        <div id="section-conjuge" class="span-2" style="display:none; background: #f8f9fa; padding: 1.5rem; border-radius: 8px; border-left: 4px solid #6f42c1; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                                            <h4 class="mb-3 border-bottom pb-2" style="font-size: 0.95rem; color: #6f42c1;">Dados do Cônjuge</h4>
+                                            <input type="hidden" id="conjuge-id">
+                                            <div class="form-grid">
+                                                <div class="input-group span-2">
+                                                    <label>Nome do Cônjuge</label>
+                                                    <input type="text" id="conjuge-nome">
+                                                </div>
+                                                <div class="input-group span-2">
+                                                    <label>CPF do Cônjuge</label>
+                                                    <input type="text" id="conjuge-cpf" placeholder="000.000.000-00" onkeyup="mascaraCPF(this)" maxlength="14" onblur="validarCPFCampo(this)">
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="input-group">
+                                            <label>Sexo</label>
+                                            <select id="colab-sexo" >
+                                                <option value="">Selecionar</option>
+                                                <option value="Masculino">Masculino</option>
+                                                <option value="Feminino">Feminino</option>
+                                            </select>
+                                        </div>
+                                        <div class="input-group">
+                                            <label>Cor/Raça</label>
+                                            <select id="colab-cor-raca" >
+                                                <option value="">Selecionar</option>
+                                                <option value="Branca">Branca</option>
+                                                <option value="Preta">Preta</option>
+                                                <option value="Parda">Parda</option>
+                                                <option value="Amarela">Amarela</option>
+                                                <option value="Indígena">Indígena</option>
+                                            </select>
+                                        </div>
+                                        <div class="input-group">
+                                            <label>Nacionalidade</label>
+                                            <input type="text" id="colab-nacionalidade" value="Brasileira" >
+                                        </div>
+                                        <div class="input-group">
+                                            <label>Grau de Instrução</label>
+                                            <input type="text" id="colab-grau-instrucao" placeholder="Ex: Ens. Médio">
+                                        </div>
+                                        <div class="input-group span-2">
+                                            <label>Deficiência</label>
+                                            <input type="text" id="colab-deficiencia" placeholder="Não / Sim (Qual?)">
+                                        </div>
+                                        <div class="input-group span-2">
+                                            <label>Nome da Mãe</label>
+                                            <input type="text" id="colab-mae" >
+                                        </div>
+                                        <div class="input-group span-2">
+                                            <label>Nome do Pai</label>
+                                            <input type="text" id="colab-pai">
+                                        </div>
+                                        <div class="span-2" style="border-top: 1px solid var(--border-color); margin-top: 1rem; padding-top: 1rem;">
+                                            <h4 style="font-size: 0.95rem; color: var(--primary-color); margin-bottom: 1rem;">Documentação Pessoal</h4>
+                                            <div class="form-grid">
+                                                <div class="input-group">
+                                                    <label>Tipo de Documento</label>
+                                                    <select id="colab-rg-tipo" onchange="toggleTipoDocumento()">
+                                                        <option value="RG">RG Tradicional</option>
+                                                        <option value="CIN">CIN (Nova Identidade)</option>
+                                                    </select>
+                                                </div>
+                                                <div class="input-group">
+                                                    <label id="lbl-colab-rg">Número (RG)</label>
+                                                    <input type="text" id="colab-rg" onkeyup="mascaraRG(this)" maxlength="14">
+                                                </div>
+                                                <div class="input-group">
+                                                    <label>Data de Emissão</label>
+                                                    <input type="date" id="colab-rg-data">
+                                                </div>
+                                                <div class="input-group">
+                                                    <label>PIS</label>
+                                                    <input type="text" id="colab-pis" maxlength="14" onkeyup="mascaraPIS(this)" placeholder="000.00000.00-0">
+                                                </div>
+                                                <div class="input-group">
+                                                    <label>Título Eleitoral</label>
+                                                    <input type="text" id="colab-titulo" maxlength="14" onkeyup="mascaraTitulo(this)" placeholder="0000 0000 0000">
+                                                </div>
+                                                <div class="input-group">
+                                                    <label>Zona Eleitoral</label>
+                                                    <input type="text" id="colab-titulo-zona" maxlength="3" onkeyup="mascaraApenasNumeros(this)">
+                                                </div>
+                                                <div class="input-group">
+                                                    <label>Seção Eleitoral</label>
+                                                    <input type="text" id="colab-titulo-secao" maxlength="4" onkeyup="mascaraApenasNumeros(this)">
+                                                </div>
+                                                <div class="input-group">
+                                                    <label>Certificado Militar</label>
+                                                    <input type="text" id="colab-militar" maxlength="15" onkeyup="mascaraMilitar(this)">
+                                                </div>
+                                                <div class="input-group">
+                                                    <label>Número CTPS</label>
+                                                    <input type="text" id="colab-ctps">
+                                                </div>
+                                                <div class="input-group">
+                                                    <label>Série (CTPS)</label>
+                                                    <input type="text" id="colab-ctps-serie">
+                                                </div>
+                                                <div class="input-group">
+                                                    <label>UF (CTPS)</label>
+                                                    <input type="text" id="colab-ctps-uf">
+                                                </div>
+                                                <div class="input-group">
+                                                    <label>Data de Expedição (CTPS)</label>
+                                                    <input type="date" id="colab-ctps-data">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="card mb-4 p-4">
+                                    <h3 class="section-title"><i class="ph ph-address-book"></i> 2. Contato</h3>
+                                    <div class="form-grid">
+                                        <div class="input-group">
+                                            <label>Telefone</label>
+                                            <input type="text" id="colab-telefone" placeholder="(00) 00000-0000" onkeyup="mascaraTelefone(this)" maxlength="15" >
+                                        </div>
+                                        <div class="input-group">
+                                            <label>Email</label>
+                                            <input type="email" id="colab-email" >
+                                        </div>
+                                        <div class="input-group">
+                                            <label>Nome do Contato de Emergência</label>
+                                            <input type="text" id="colab-emergencia-nome" placeholder="Ex: Maria (Esposa)" >
+                                        </div>
+                                        <div class="input-group">
+                                            <label>Telefone C. de Emergência</label>
+                                            <input type="text" id="colab-emergencia-telefone" placeholder="(00) 00000-0000" onkeyup="mascaraTelefone(this)" maxlength="15" >
+                                        </div>
+                                        <div class="input-group span-2">
+                                            <label>Alergias</label>
+                                            <input type="text" id="colab-alergias" placeholder="Descreva aqui alergias, restrições ou intolerâncias...">
+                                        </div>
+                                        <div class="input-group span-2">
+                                            <label>Endereço Completo</label>
+                                            <input type="text" id="colab-endereco" >
+                                        </div>
+                                    </div>
+                                </div><!-- End Card Contato -->
+                            </div><!-- End column-left -->
+                            <!-- BLOCO DIREITA -->
+                            <div class="column-right">
+                                <!-- 3. Dados Profissionais -->
+                                <div class="card mb-4 p-4">
+                                    <h3 class="section-title"><i class="ph ph-briefcase"></i> 3. Dados Profissionais</h3>
+                                    <div class="form-grid">
+                                        <div class="input-group span-2">
+                                            <label>Matrícula eSocial</label>
+                                            <input type="text" id="colab-matricula-esocial">
+                                        </div>
+                                        <div class="input-group span-2">
+                                            <label>Departamento</label>
+                                            <select id="colab-departamento" >
+                                                <option value="" selected disabled>Selecionar</option>
+                                            </select>
+                                        </div>
+                                        <div class="input-group">
+                                            <label>Cargo</label>
+                                            <select id="colab-cargo" onchange="toggleMotorista()">
+                                                <option value="" selected disabled>Selecionar</option>
+                                            </select>
+                                        </div>
+                                        <div id="section-cnh" class="span-2" style="display:none; background: #fff3e6; padding: 1rem; border-radius: 8px; border-left: 4px solid #fd7e14; margin-top: 0.5rem;">
+                                            <label style="color: #fd7e14; font-weight: 600; font-size: 0.85rem; margin-bottom: 0.5rem; display: block;">Dados de CNH</label>
+                                            <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
+                                                <div class="input-group">
+                                                    <label>Número</label>
+                                                    <input type="text" id="colab-cnh-numero" onkeyup="mascaraCNH(this)" maxlength="11">
+                                                </div>
+                                                <div class="input-group">
+                                                    <label>Categoria</label>
+                                                    <select id="colab-cnh-categoria">
+                                                        <option value="" selected disabled>Selecionar</option>
+                                                        <option value="A">A</option>
+                                                        <option value="B">B</option>
+                                                        <option value="C">C</option>
+                                                        <option value="D">D</option>
+                                                        <option value="E">E</option>
+                                                        <option value="AB">AB</option>
+                                                        <option value="AC">AC</option>
+                                                        <option value="AD">AD</option>
+                                                        <option value="AE">AE</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="input-group span-2" style="position: relative;">
+                                            <label>CBO (Classificação Brasileira de Ocupações)</label>
+                                            <div style="display: flex; gap: 0.5rem;">
+                                                <input type="text" id="colab-cbo-codigo" placeholder="Código ex: 521105" style="width: 180px; flex-shrink: 0;" oninput="buscarCBO(this.value)" autocomplete="off">
+                                                <input type="text" id="colab-cbo" placeholder="Descrição da ocupação (preenchido automaticamente)" readonly style="flex: 1; background: #f8f9fa; color: #333;">
+                                            </div>
+                                            <div id="cbo-dropdown" style="display:none; position: absolute; top: 100%; left: 0; right: 0; z-index: 200; background: #fff; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.12); max-height: 260px; overflow-y: auto; margin-top: 2px;"></div>
+                                        </div>
+                                        <div class="input-group span-2">
+                                            <label>Data de Admissão</label>
+                                            <input type="date" id="colab-admissao" >
+                                        </div>
+                                        <div class="input-group">
+                                            <label>Venc. 1º 45 (Automático)</label>
+                                            <input type="text" id="colab-venc-1-45" readonly style="background: #f8f9fa; color: #666; font-weight: 500;">
+                                        </div>
+                                        <div class="input-group">
+                                            <label>Venc. 2º 45 (Automático)</label>
+                                            <input type="text" id="colab-venc-2-45" readonly style="background: #f8f9fa; color: #666; font-weight: 500;">
+                                        </div>
+                                        <div class="input-group">
+                                            <label>Tipo de Contrato</label>
+                                            <select id="colab-contrato" >
+                                                <option value="" selected disabled>Selecionar</option>
+                                                <option value="CLT">CLT</option>
+                                                <option value="PJ">PJ</option>
+                                                <option value="Estágio">Estágio</option>
+                                                <option value="Temporário">Temporário</option>
+                                                <option value="Intermitente">Intermitente</option>
+                                            </select>
+                                        </div>
+                                        <div class="input-group">
+                                            <label>Salário Base (R$)</label>
+                                            <input type="text" id="colab-salario" onkeyup="mascaraMoeda(this)" placeholder="R$ 0,00">
+                                        </div>
+                                        <div class="input-group">
+                                            <label>Meio de Transporte</label>
+                                            <select id="colab-meio-transporte" onchange="toggleTransporteValor(this.value)">
+                                                <option value="" selected disabled>Selecionar</option>
+                                                <option value="Vale Transporte (VT)">Vale Transporte (VT)</option>
+                                                <option value="Vale Combustível (VC)">Vale Combustível (VC)</option>
+                                                <option value="Outros">Outros</option>
+                                            </select>
+                                        </div>
+                                        <div class="input-group" id="group-valor-transporte" style="display:none;">
+                                            <label>Valor do Transporte (R$)</label>
+                                            <input type="text" id="colab-valor-transporte" onkeyup="mascaraMoeda(this)" placeholder="R$ 0,00">
+                                        </div>
+                                        
+                                        <div class="span-2" style="border-top: 1px solid var(--border-color); margin-top: 1rem; padding-top: 1rem;">
+                                            <h4 style="font-size: 0.95rem; color: var(--primary-color); margin-bottom: 1rem;">Escala e Horários de Trabalho</h4>
+                                            <div class="form-grid">
+                                                <div class="input-group span-2">
+                                                    <label>Padrão de Escala / Frequência</label>
+                                                    <select id="colab-escala-padrao" onchange="toggleFormEscalaTipo()" >
+                                                        <option value="" disabled selected>Selecionar Padrão</option>
+                                                        <option value="padrao_seis_dias">Seg à Sábado (Horas iguais)</option>
+                                                        <option value="padrao_sab_4h">Seg à Sexta e Sábado 4h</option>
+                                                        <option value="padrao_sab_alternado">Seg à Sexta e Sábados Alternados (Compensado)</option>
+                                                        <option value="escala_duas_folgas">Folga 2 Dias na Semana (Revezamento)</option>
+                                                    </select>
+                                                </div>
+                                                <div class="input-group span-2" id="colab-box-folgas" style="display:none; background: #fffcf8; padding: 1rem; border-radius: 4px; border: 1px solid #ffe8cc; margin-top: 0.5rem; margin-bottom: 0.5rem;">
+                                                    <label style="color: #fd7e14;"><i class="ph ph-calendar-plus"></i> Selecione os 2 dias de folga semanais deste colaborador</label>
+                                                    <div style="display:flex; flex-wrap:wrap; gap: 1rem; margin-top: 5px;">
+                                                        <label><input type="checkbox" class="cb-folga-colab" value="Seg"> Seg</label>
+                                                        <label><input type="checkbox" class="cb-folga-colab" value="Ter"> Ter</label>
+                                                        <label><input type="checkbox" class="cb-folga-colab" value="Qua"> Qua</label>
+                                                        <label><input type="checkbox" class="cb-folga-colab" value="Qui"> Qui</label>
+                                                        <label><input type="checkbox" class="cb-folga-colab" value="Sex"> Sex</label>
+                                                        <label><input type="checkbox" class="cb-folga-colab" value="Sab"> Sáb</label>
+                                                        <label><input type="checkbox" class="cb-folga-colab" value="Dom"> Dom</label>
+                                                    </div>
+                                                    <small class="text-muted d-block mt-2" style="font-size: 0.8rem;"><i class="ph ph-info"></i> Quando houver folga obrigatória de Domingo (revezamento), o sistema sobrepõe automaticamente a primeira folga da semana.</small>
+                                                </div>
+                                                <div class="input-group">
+                                                    <label>Entrada (Seg-Sex)</label>
+                                                    <input type="time" id="colab-entrada" onchange="calcularHorarioSaida()" >
+                                                </div>
+                                                <div class="input-group">
+                                                    <label>Saída (Seg-Sex) <small>(Automático)</small></label>
+                                                    <input type="time" id="colab-saida" readonly style="background: #f8f9fa;">
+                                                </div>
+                                                <div class="input-group">
+                                                    <label>Início Intervalo</label>
+                                                    <input type="time" id="colab-intervalo-entrada" onchange="calcularHorarioSaida()" >
+                                                </div>
+                                                <div class="input-group">
+                                                    <label>Fim Intervalo</label>
+                                                    <input type="time" id="colab-intervalo-saida" onchange="calcularHorarioSaida()" >
+                                                </div>
+                                                
+                                                <div class="input-group span-2" id="colab-box-sabado" style="display:none; background: #eef2f7; padding: 1rem; border-radius: 4px; border: 1px solid #d1d9e6; margin-top: 0.5rem;">
+                                                    <label style="color: #4c6ef5; font-weight: 600;"><i class="ph ph-calendar-star"></i> Horário de Sábado (4 horas)</label>
+                                                    <div class="form-grid" style="grid-template-columns: 1fr 1fr; margin-top: 5px;">
+                                                        <div class="input-group">
+                                                            <label>Entrada Sábado</label>
+                                                            <input type="time" id="colab-sabado-entrada" onchange="calcularHorarioSaida()">
+                                                        </div>
+                                                        <div class="input-group">
+                                                            <label>Saída Sábado (Automático)</label>
+                                                            <input type="time" id="colab-sabado-saida" readonly style="background: #f8f9fa;">
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="span-2" style="border-top: 1px solid var(--border-color); margin-top: 1rem; padding-top: 1rem;">
+                                                    <h4 style="font-size: 0.95rem; color: var(--primary-color); margin-bottom: 1rem;">Dados Bancários</h4>
+                                                    <div class="form-grid">
+                                                        <div class="input-group">
+                                                            <label>Nome do Banco</label>
+                                                            <input type="text" id="colab-banco-nome">
+                                                        </div>
+                                                        <div class="input-group">
+                                                            <label>Agência (com dígito)</label>
+                                                            <input type="text" id="colab-banco-agencia">
+                                                        </div>
+                                                        <div class="input-group span-2">
+                                                            <label>Conta Vinculada (com dígito)</label>
+                                                            <input type="text" id="colab-banco-conta">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div><!-- End Card Dados Profissionais -->
+
+                                <!-- 4. Férias -->
+                                <div class="card mb-4 p-4" id="module-ferias">
+                                    <h3 class="section-title"><i class="ph ph-airplane-tilt"></i> 4. Férias</h3>
+                                    
+                                    <div class="form-grid">
+                                        <div class="input-group">
+                                            <label>Início do Período Concessivo</label>
+                                            <input type="text" id="ferias-periodo-aquisitivo" readonly style="background: #f8f9fa; font-weight: 600; color: #495057;">
+                                        </div>
+                                        <div class="input-group">
+                                            <label>Máximo do Período Concessivo</label>
+                                            <input type="text" id="ferias-periodo-concessivo" readonly style="background: #f8f9fa; font-weight: 700; color: #e03131;">
+                                        </div>
+                                        
+                                        <!-- Alerta Concessivo -->
+                                        <div id="ferias-concessivo-indicator" class="span-2" style="display:none; background: #fff5f5; color: #c92a2a; padding: 1rem; border-radius: 8px; border: 1px solid #ffc9c9; font-weight: 600; font-size: 0.9rem; align-items: center; gap: 0.75rem;">
+                                            <i class="ph ph-warning-circle" style="font-size: 1.5rem;"></i>
+                                            <span>Atenção: Colaborador em período concessivo. As férias devem ser concedidas antes do prazo máximo!</span>
+                                        </div>
+
+                                         <div class="span-2" style="display: grid; grid-template-columns: 1.5fr 1.5fr 1fr; gap: 1rem; margin-top: 0.5rem;">
+                                            <div class="input-group">
+                                                <label>Data Início</label>
+                                                <input type="date" id="colab-ferias-programadas-inicio" onchange="calculateVacationDays()">
+                                            </div>
+                                            <div class="input-group">
+                                                <label>Data Fim</label>
+                                                <input type="date" id="colab-ferias-programadas-fim" onchange="calculateVacationDays()">
+                                            </div>
+                                            <div class="input-group">
+                                                <label>Total de Dias</label>
+                                                <input type="text" id="colab-ferias-total-dias" readonly style="background: #eef2f7; font-weight: 800; color: #1c7ed6; text-align: center; border: 1px solid #d1d9e6;">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                                            <!-- 5. Dependentes -->
+                                <div class="card mb-4 p-4" id="module-dependentes">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                                        <h3 class="section-title mb-0"><i class="ph ph-users"></i> 5. Dependentes</h3>
+                                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addDependenteRow()" style="border-radius: 50%; width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center;">
+                                            <i class="ph ph-plus" style="font-size: 1.2rem;"></i>
+                                        </button>
+                                    </div>
+                                    
+                                    <div id="dependentes-container" class="form-grid" style="grid-template-columns: 1fr;">
+                                        <!-- Linhas dinâmicas aqui -->
+                                    </div>
+                                    
+                                    <div id="no-dependentes-msg" class="text-center p-4" style="background: #f8fafc; border: 1.5px dashed #e2e8f0; border-radius: 8px;">
+                                        <p class="text-muted mb-0" style="font-size: 0.9rem;">Nenhum dependente adicionado.</p>
+                                    </div>
+                                </div>
+                            </div><!-- End column-right -->
+
+                             <!-- BLOCO FULL WIDTH -->
+                            <div class="column-full">
+                                <!-- 6. Opcionais -->
+                                <div class="card mb-4 p-4" id="module-opcionais">
+                                    <h3 class="section-title"><i class="ph ph-plus-circle"></i> 6. Opcionais</h3>
+                                    
+                                    <div class="opcionais-container">
+                                        <!-- 5.1 Faculdade -->
+                                        <div class="opcional-item">
+                                            <div class="opcional-info">
+                                                <h4><i class="ph ph-graduation-cap"></i> Faculdade</h4>
+                                                <div class="opcional-question-row">
+                                                    <span class="opcional-question">Participa do programa FormaAção?</span>
+                                                    <div class="radio-pill-group">
+                                                        <label><input type="radio" name="faculdade_participa" value="Não" checked onchange="toggleFormacaoFields(this.value)"> Não</label>
+                                                        <label><input type="radio" name="faculdade_participa" value="Sim" onchange="toggleFormacaoFields(this.value)"> Sim</label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div id="section-formacao" class="opcional-details-box" style="display:none;">
+                                                <div class="input-group">
+                                                    <label>Curso de Graduação</label>
+                                                    <select id="colab-faculdade-curso" class="form-control">
+                                                        <option value="">Selecionar curso cadastrado...</option>
+                                                    </select>
+                                                </div>
+                                                <div style="display: flex; gap: 1.5rem; width: 100%;">
+                                                    <div class="input-group" style="flex: 1;">
+                                                        <label style="min-width: 100px;">Data de Início</label>
+                                                        <input type="date" id="colab-faculdade-data-inicio">
+                                                    </div>
+                                                    <div class="input-group" style="flex: 1;">
+                                                        <label style="min-width: 140px;">Prevista de Término</label>
+                                                        <input type="date" id="colab-faculdade-data-termino">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- 5.2 Academia -->
+                                        <div class="opcional-item">
+                                            <div class="opcional-info">
+                                                <h4><i class="ph ph-barbell"></i> Academia</h4>
+                                                <div class="opcional-question-row">
+                                                    <span class="opcional-question">Acesso à Academia?</span>
+                                                    <div class="radio-pill-group">
+                                                        <label><input type="radio" name="academia_participa" value="Não" checked onchange="toggleAcademiaFields(this.value)"> Não</label>
+                                                        <label><input type="radio" name="academia_participa" value="Sim" onchange="toggleAcademiaFields(this.value)"> Sim</label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div id="section-academia" class="opcional-details-box" style="display:none;">
+                                                <div class="input-group">
+                                                    <label>Data de Início Academia</label>
+                                                    <input type="date" id="colab-academia-data-inicio">
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- 5.3 Terapia -->
+                                        <div class="opcional-item">
+                                            <div class="opcional-info">
+                                                <h4><i class="ph ph-heartbeat"></i> Terapia</h4>
+                                                <div class="opcional-question-row">
+                                                    <span class="opcional-question">Participa de Terapia em Grupo?</span>
+                                                    <div class="radio-pill-group">
+                                                        <label><input type="radio" name="terapia_participa" value="Não" checked onchange="toggleTerapiaFields(this.value)"> Não</label>
+                                                        <label><input type="radio" name="terapia_participa" value="Sim" onchange="toggleTerapiaFields(this.value)"> Sim</label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div id="section-terapia" class="opcional-details-box" style="display:none;">
+                                                <div class="input-group">
+                                                    <label>Data de Início</label>
+                                                    <input type="date" id="colab-terapia-data-inicio">
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- 5.4 Celular -->
+                                        <div class="opcional-item">
+                                            <div class="opcional-info">
+                                                <h4><i class="ph ph-device-mobile"></i> Celulares</h4>
+                                                <div class="opcional-question-row">
+                                                    <span class="opcional-question">Colaborador fará uso de Celular Corporativo?</span>
+                                                    <div class="radio-pill-group">
+                                                        <label><input type="radio" name="celular_participa" value="Não" checked onchange="toggleCelularFields(this.value)"> Não</label>
+                                                        <label><input type="radio" name="celular_participa" value="Sim" onchange="toggleCelularFields(this.value)"> Sim</label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div id="section-celular" class="opcional-details-box" style="display:none;">
+                                                <div class="input-group">
+                                                    <label>Data de Entrega</label>
+                                                    <input type="date" id="colab-celular-data">
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- 5.5 Chaves -->
+                                        <div class="opcional-item">
+                                            <div class="opcional-info">
+                                                <h4><i class="ph ph-key"></i> Chaves</h4>
+                                                <div class="opcional-question-row">
+                                                    <span class="opcional-question">Colaborador receberá chaves?</span>
+                                                    <div class="radio-pill-group">
+                                                        <label><input type="radio" name="chaves_participa" value="Não" checked onchange="toggleChavesColabFields(this.value)"> Não</label>
+                                                        <label><input type="radio" name="chaves_participa" value="Sim" onchange="toggleChavesColabFields(this.value)"> Sim</label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div id="section-chaves-colab" class="opcional-details-box" style="display:none; margin-top: 1rem; width: 100%; border-style: dashed; padding: 1.25rem;">
+                                                <div id="colab-chaves-rows-container" class="chaves-grid-container">
+                                                    <!-- Dynamic rows will be here -->
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div><!-- End module-opcionais card -->
+                            </div><!-- End column-full -->
+                        </div><!-- End form-layout-erp -->
+                    </form>
+                </section>
+
+                <!-- VIEW: PRONTUÁRIO DIGITAL -->
+                <section id="view-prontuario" class="content-view">
+                    <div class="page-header flex-between" style="position: sticky; top: 60px; z-index: 20; background: var(--bg-main); padding: 1.25rem 0; margin-top: -1.5rem; margin-bottom: 2rem; border-bottom: 1px solid var(--border-color); width: 100%;">
+                        <div style="display: flex; align-items: flex-start; gap: 1.5rem;">
+                            <!-- Photo and Badge Column (Prontuário) -->
+                            <div style="display: flex; flex-direction: column; align-items: center; gap: 0.5rem; flex-shrink: 0;">
+                                <div class="photo-upload-container">
+                                    <label style="display:block; width:100%; height:100%; border-radius:50%; cursor: pointer;" title="Alterar Foto">
+                                        <div id="prontuario-photo-placeholder" style="display:none; width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:#0056b3; color:#fff; border-radius:50%; font-size: 2rem;">
+                                            <i class="ph ph-camera"></i>
+                                        </div>
+                                        <img id="prontuario-foto-img" src="" alt="Foto" style="display:none; width:100%; height:100%; border-radius:50%; object-fit: cover; border: 2px dashed #2563eb;">
+                                        <input type="file" id="prontuario-foto-input" accept="image/*" style="display:none;" onchange="uploadFotoProntuario(this)">
+                                    </label>
+                                </div>
+                                <div id="prontuario-probation-badge-container" style="text-align: center; width: 80px; min-height: 18px;">
+                                    <!-- Badge rendered via JS -->
+                                </div>
+                            </div>
+
+                            <!-- Info Group -->
+                            <div style="padding-top: 4px;">
+                                <h1 id="prontuario-nome-title" style="margin: 0; font-size: 1.85rem; font-weight: 700; color: #334155; letter-spacing: -0.02em;">Nome do Colaborador</h1>
+                                <div style="display: flex; gap: 1rem; align-items: center; margin-top: 0.5rem;">
+                                    <p id="prontuario-cargo-info" style="margin: 0; color: #64748b; font-size: 1rem; font-weight: 500;">Cargo | CPF: 000.000.000-00</p>
+                                    <div id="prontuario-status-display"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Back Button -->
+                        <button class="btn btn-secondary" onclick="navigateTo('colaboradores')" style="font-weight: 600; padding: 0.75rem 1.5rem; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                            <i class="ph ph-arrow-left"></i> Voltar
+                        </button>
+                    </div>
+                    
+                    <div class="prontuario-layout">
+                        <!-- Abas Laterais do Prontuário -->
+                        <div class="prontuario-tabs card p-0">
+                            <ul id="tabs-list">
+                                <li data-tab="00.CheckList" class="active" style="background: #fff4e6; color: #fd7e14; font-weight: 700;">
+                                    <i class="ph ph-list-checks"></i> 00. CheckList
+                                </li>
+                                <li data-tab="01.Ficha Cadastral">01. Ficha Cadastral</li>
+                                <li data-tab="Advertências">Advertências</li>
+                                <li data-tab="ASO">ASO</li>
+                                <li data-tab="Atestados">Atestados</li>
+                                <li data-tab="Avaliação">Avaliação</li>
+                                <li data-tab="Boletim de ocorrência">Boletim de ocorrência</li>
+                                <li data-tab="Certificados">Certificados</li>
+                                <li data-tab="Conjuge">Conjuge</li>
+                                <li data-tab="Contratos">Contratos</li>
+                                <li data-tab="Dependentes">Dependentes</li>
+                                <li data-tab="Faculdade">Faculdade</li>
+                                <li data-tab="Ficha de EPI">Ficha de EPI</li>
+                                <li data-tab="Fotos">Fotos</li>
+                                <li data-tab="Multas">Multas</li>
+                                <li data-tab="NRs">NRs</li>
+                                <li data-tab="Pagamentos">Pagamentos</li>
+                                <li data-tab="Terapia">Terapia</li>
+                                <li data-tab="Treinamento">Treinamento</li>
+                            </ul>
+                        </div>
+
+                        <!-- Área de Conteúdo da Aba Selcionada -->
+                        <div class="prontuario-content card">
+                            <!-- Container dinâmico renderizado via JS baseado na aba -->
+                            <div id="tab-dynamic-content">
+                                <!-- Os slots de documentos e formulários aparecerão aqui -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW: ADMISSÃO (CHECKLIST) -->
+                <section id="view-admissao" class="content-view">
+                    <div class="page-header flex-between" style="position: sticky; top: 60px; z-index: 20; background: var(--bg-main); padding: 1.25rem 0; margin-top: -1.5rem; margin-bottom: 2rem; border-bottom: 1px solid var(--border-color);">
+                        <div style="display: flex; align-items: center; gap: 1.5rem;">
+                            <div style="width: 80px; height: 80px; border-radius: 50%; border: 2px dashed #334155; display: flex; align-items: center; justify-content: center; background: #f8fafc; color: #334155; font-size: 2rem;">
+                                <i class="ph ph-list-checks"></i>
+                            </div>
+                            <div>
+                                <h1 style="margin: 0; font-size: 1.85rem; font-weight: 700; color: #334155;">Processo de Admissão</h1>
+                                <p style="margin: 4px 0 0; color: #64748b; font-size: 0.9rem;">Siga o passo a passo para formalizar a contratação.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- BUSCA INICIAL -->
+                    <div class="card mb-4 p-4" id="admissao-search-container">
+                        <h3 class="section-title"><i class="ph ph-user-plus"></i> 1. Selecionar Colaborador Pré-Cadastrado</h3>
+                        <p class="text-muted mb-3">Selecione o colaborador que já possui os dados cadastrados no sistema para iniciar a conferência documental e ativação.</p>
+                        <div style="max-width: 500px;">
+                            <div class="input-group">
+                                <label>Pendente de Admissão</label>
+                                <select id="admissao-select-colab" class="form-control" onchange="window.initAdmissaoWorkflow(this.value)">
+                                    <option value="">Selecione um colaborador...</option>
+                                    <!-- Dinâmico via JS: Aguardando início ou Processo iniciado -->
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ESTADO INICIAL: BOTÃO INICIAR AGORA (OCULTO) -->
+                    <div id="admissao-start-action" class="card mb-4 p-5 text-center" style="display:none; border: 2px dashed #e2e8f0; background: #f8fafc;">
+                        <i class="ph ph-paper-plane-tilt" style="font-size: 4rem; color: var(--primary-color); margin-bottom: 1.5rem;"></i>
+                        <h2 style="color: #334155; margin-bottom: 0.5rem;">Pronto para iniciar a admissão de <strong id="admissao-start-name">...</strong>?</h2>
+                        <p class="text-muted mb-4">Ao iniciar, o status mudará para "Iniciado" e liberaremos o checklist de contratação.</p>
+                        <button class="btn btn-primary" style="padding: 1rem 2.5rem; font-size: 1.1rem; font-weight: 700;" onclick="window.startFinalAdmission()">
+                            <i class="ph ph-play"></i> Iniciar processo de admissão
+                        </button>
+                    </div>
+
+                    <!-- WORKFLOW (OCULTO INICIALMENTE) -->
+                    <div id="admissao-workflow" style="display:none;">
+                        <!-- Stepper UI -->
+                        <div class="admissao-stepper" id="admissao-stepper-main">
+                            <div class="admissao-progress-line">
+                                <div class="admissao-progress-bar" id="admissao-progress-bar" style="width: 0%;"></div>
+                            </div>
+                            <div class="step-item active" id="step-1" onclick="window.nextAdmissaoStep(1)">
+                                <div class="step-icon"><span class="num">1</span><span class="percent" id="step-1-pc">0%</span></div>
+                                <span class="step-label">Conferência</span>
+                            </div>
+                            <div class="step-item" id="step-2" onclick="window.nextAdmissaoStep(2)">
+                                <div class="step-icon"><span class="num">2</span><span class="percent" id="step-2-pc">0%</span></div>
+                                <span class="step-label">Assinaturas</span>
+                            </div>
+                            <div class="step-item" id="step-3" onclick="window.nextAdmissaoStep(3)">
+                                <div class="step-icon"><span class="num">3</span><span class="percent" id="step-3-pc">0%</span></div>
+                                <span class="step-label">Ficha Cad.</span>
+                            </div>
+                            <div class="step-item" id="step-4" onclick="window.nextAdmissaoStep(4)">
+                                <div class="step-icon"><span class="num">4</span><span class="percent" id="step-4-pc">0%</span></div>
+                                <span class="step-label">ASO</span>
+                            </div>
+                            <div class="step-item" id="step-5" onclick="window.nextAdmissaoStep(5)">
+                                <div class="step-icon"><span class="num">5</span><span class="percent" id="step-5-pc">0%</span></div>
+                                <span class="step-label">Contab.</span>
+                            </div>
+                            <div class="step-item" id="step-6" onclick="window.nextAdmissaoStep(6)">
+                                <div class="step-icon"><span class="num">6</span><span class="percent" id="step-6-pc">0%</span></div>
+                                <span class="step-label">Treinos</span>
+                            </div>
+                            <div class="step-item" id="step-7" onclick="window.nextAdmissaoStep(7)">
+                                <div class="step-icon"><span class="num">7</span><span class="percent" id="step-7-pc">0%</span></div>
+                                <span class="step-label">Certif.</span>
+                            </div>
+                            <div class="step-item" id="step-8" onclick="window.nextAdmissaoStep(8)">
+                                <div class="step-icon"><span class="num">8</span><span class="percent" id="step-8-pc">0%</span></div>
+                                <span class="step-label">Contratos</span>
+                            </div>
+                            <div class="step-item" id="step-9" onclick="window.nextAdmissaoStep(9)">
+                                <div class="step-icon"><span class="num">9</span><span class="percent" id="step-9-pc">0%</span></div>
+                                <span class="step-label">EPI</span>
+                            </div>
+                            <div class="step-item" id="step-10" onclick="window.nextAdmissaoStep(10)">
+                                <div class="step-icon"><span class="num">10</span><span class="percent" id="step-10-pc">0%</span></div>
+                                <span class="step-label">Finalizar</span>
+                            </div>
+                        </div>
+
+                        <!-- PANEL 1: CONFERÊNCIA DE DADOS -->
+                        <div class="admissao-panel active" id="panel-step-1">
+                            <div class="card p-4">
+                                <div class="flex-between mb-4">
+                                    <h3 class="section-title" style="margin:0;"><i class="ph ph-magnifying-glass"></i> Passo 1: Conferência de Dados</h3>
+                                    <div id="admissao-completion-badge" style="background:#f1f5f9; padding:0.5rem 1rem; border-radius:30px; font-weight:700; color:var(--primary-color);">
+                                        Qualidade do Cadastro: <span id="admissao-pc-total">0%</span>
+                                    </div>
+                                </div>
+                                
+                                <p class="text-muted mb-4">Verifique se as informações básicas do colaborador estão completas para prosseguir com a contratação.</p>
+                                
+                                <div id="admissao-missing-fields-alert" class="alert alert-warning mb-4" style="display:none; border-left: 5px solid #ef4444; background: #fef2f2;">
+                                    <div style="display:flex; align-items:center; gap:0.5rem; color:#b91c1c; font-weight:700; margin-bottom:0.5rem;">
+                                        <i class="ph ph-warning-circle" style="font-size:1.2rem;"></i> Campos Pendentes Identificados
+                                    </div>
+                                    <div id="admissao-missing-fields-list" style="color:#b91c1c; font-size:0.9rem; display:grid; grid-template-columns: 1fr 1fr; gap:0.25rem;">
+                                        <!-- Preenchido via JS -->
+                                    </div>
+                                </div>
+
+                                <div id="admissao-data-summary" class="mb-4" style="background: #fff; padding: 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
+                                    <!-- Preenchido via JS -->
+                                </div>
+
+                                <div class="flex-between" style="border-top:1px solid #f1f5f9; padding-top: 1rem; margin-top: 0.5rem;">
+                                    <div style="display:flex; gap:0.5rem;">
+                                        <button class="btn btn-secondary" onclick="window.resetAdmissao()"><i class="ph ph-arrow-left"></i> Trocar</button>
+                                        <button class="btn btn-outline" onclick="window.editColabFromAdmission()" style="border: 1px solid #cbd5e0;"><i class="ph ph-pencil"></i> Editar Cadastro</button>
+                                    </div>
+                                    <button class="btn btn-primary" id="btn-admissao-step1-next" onclick="window.nextAdmissaoStep(2)">Confirmar e Prosseguir <i class="ph ph-arrow-right"></i></button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- PANEL 1: CONFERÊNCIA (Keep as is) -->
+                        <div class="admissao-panel active" id="panel-step-1">
+                            <div class="card p-4">
+                                <h3 class="section-title"><i class="ph ph-check-square"></i> Passo 1: Conferência de Dados</h3>
+                                <div id="admissao-missing-fields-alert" class="alert alert-danger mb-4" style="display:none;">
+                                    <strong><i class="ph ph-warning-circle"></i> Atenção:</strong> Faltam dados essenciais no cadastro:
+                                    <div id="admissao-missing-fields-list" class="mt-2" style="font-size: 0.85rem;"></div>
+                                </div>
+                                <div id="admissao-data-summary" class="mb-4" style="background: #fff; padding: 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);"></div>
+                                <div class="flex-between">
+                                    <div style="display:flex; gap:0.5rem;">
+                                        <button class="btn btn-secondary" onclick="window.resetAdmissao()"><i class="ph ph-arrow-left"></i> Trocar</button>
+                                        <button class="btn btn-outline" onclick="window.editColabFromAdmission()"><i class="ph ph-pencil"></i> Editar Cadastro</button>
+                                    </div>
+                                    <button class="btn btn-primary" id="btn-admissao-step1-next" onclick="window.nextAdmissaoStep(2)">Próximo: Assinaturas <i class="ph ph-arrow-right"></i></button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- PANEL 2: ENVIO ASSINATURA -->
+                        <div class="admissao-panel" id="panel-step-2">
+                            <div class="card p-4">
+                                <h3 class="section-title"><i class="ph ph-signature"></i> Passo 2: Envio para Assinatura</h3>
+                                <p class="text-muted mb-4">Selecione os documentos disponíveis no prontuário para enviar ao colaborador.</p>
+                                
+                                <div class="search-box mb-3" style="width: 100%; background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 0 1rem; display: flex; align-items: center; height: 42px;">
+                                    <i class="ph ph-magnifying-glass" style="color: #94a3b8; font-size: 1.2rem; margin-right:0.5rem;"></i>
+                                    <input type="text" id="search-admissao-docs" placeholder="Pesquisar documento..." onkeyup="window.filterAdmissaoDocs()" style="border: none; outline: none; width: 100%; font-size: 0.95rem; background: transparent;">
+                                </div>
+
+                                <div id="admissao-signature-list" class="grid-checkboxes mb-4" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; max-height: 300px; overflow-y: auto; padding: 1rem; border: 1px solid #e2e8f0; border-radius: 8px;">
+                                    <!-- Dinâmico via JS a partir de DOCS_DISPONIVEIS -->
+                                </div>
+                                <div class="flex-between">
+                                    <button class="btn btn-secondary" onclick="window.nextAdmissaoStep(1)"><i class="ph ph-arrow-left"></i> Voltar</button>
+                                    <button class="btn btn-primary" onclick="window.nextAdmissaoStep(3)">Próximo: Ficha Cadastral <i class="ph ph-arrow-right"></i></button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- PANEL 3: FICHA CADASTRAL (Dynamic) -->
+                        <div class="admissao-panel" id="panel-step-3">
+                            <div class="card p-4">
+                                <h3 class="section-title"><i class="ph ph-identification-card"></i> Passo 3: Ficha Cadastral</h3>
+                                <p class="text-muted mb-4">Realize o upload dos documentos pessoais do colaborador.</p>
+                                
+                                <div id="admissao-checklist-step3" class="checklist-container mb-4">
+                                    <!-- Dinâmico via JS -->
+                                </div>
+
+                                <div class="flex-between">
+                                    <button class="btn btn-secondary" onclick="window.nextAdmissaoStep(2)"><i class="ph ph-arrow-left"></i> Voltar</button>
+                                    <button class="btn btn-primary" onclick="window.nextAdmissaoStep(4)">Próximo: ASO <i class="ph ph-arrow-right"></i></button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- PANEL 4: ASO -->
+                        <div class="admissao-panel" id="panel-step-4">
+                            <div class="card p-4">
+                                <h3 class="section-title"><i class="ph ph-heartbeat"></i> Passo 4: ASO</h3>
+                                <p class="text-muted mb-4">Upload do Exame Médico Admissional.</p>
+                                <div id="aso-email-notice" style="display:none; width: 100%; color: #059669; font-weight: 700; background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: 12px; padding: 12px; margin-bottom: 1.5rem; text-align: center;">
+                                    <i class="ph ph-check-circle" style="font-size: 1.3rem;"></i> 
+                                    ✔️ Seu e-mail foi enviado para a IACI dia <span id="aso-notice-date">--/--/--</span>
+                                    <br>
+                                    <small>O Colaborador fará o exame dia: <span id="aso-notice-agendada">--/--/--</span></small>
+                                </div>
+
+                                <div class="card p-3 mb-4" style="background: #f8fafc; border: 1.5px dashed #e2e8f0; border-radius: 12px;">
+                                    <h4 style="font-size: 0.9rem; color: #64748b; margin-bottom: 1rem; font-weight: 600;"><i class="ph ph-envelope-simple"></i> Enviar Solicitação de Exame</h4>
+                                    <div style="display: flex; gap: 0.75rem; align-items: flex-end;">
+                                        <div class="input-group" style="width: 140px; flex-shrink: 0; margin-bottom:0;">
+                                            <label style="font-size:0.75rem; font-weight:700;">Data Agendada</label>
+                                            <input type="date" id="aso-exame-data" style="padding: 0.5rem; font-size:0.85rem; height: 38px;">
+                                        </div>
+                                        <div class="input-group" style="flex: 1; margin-bottom:0;">
+                                            <label style="font-size:0.75rem; font-weight:700;">Destinatário</label>
+                                            <input type="email" id="aso-email-destinatario" value="thais.ricci@americarental.com.br" style="padding: 0.5rem; font-size:0.85rem; height: 38px;">
+                                        </div>
+                                        <button class="btn btn-primary" id="btn-enviar-aso-email" onclick="window.sendASOEmail()" style="height: 38px; white-space: nowrap; padding: 0 1.2rem; display: flex; align-items: center; gap: 8px;">
+                                            <i class="ph ph-paper-plane-tilt"></i> Enviar Solicitação
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <p class="text-muted mb-2" style="font-size: 0.85rem; font-weight: 700; color: #475569;">Checklist de Documentos</p>
+                                <div id="admissao-checklist-step4" class="checklist-container mb-4">
+                                    <div class="checklist-item no-click">
+                                        <div style="flex:1;"><label>ASO Admissional Apto</label></div>
+                                        <div style="display:flex; gap:0.5rem; align-items:center;">
+                                            <input type="file" id="file-aso-1" style="display:none;" onchange="window.uploadAdmissaoDoc(this, 'ASO Admissional', 'ASO')">
+                                            <button class="btn btn-sm" onclick="document.getElementById('file-aso-1').click()"><i class="ph ph-upload-simple"></i> Upload</button>
+                                            <span id="status-aso-1" class="upload-status" style="display:none;"><i class="ph ph-check-circle" style="color:var(--success-color);"></i></span>
+                                            
+                                            <div id="container-assinafy-1" class="assinafy-integrated-container" style="display:none; align-items:center; gap:0.5rem;">
+                                                <button class="btn btn-sm btn-assinafy" id="btn-assinafy-1" onclick="window.iniciarAssinafy('ASO Admissional', 'ASO', this)">
+                                                    <i class="ph ph-pen-nib"></i> Assinar p/ Assinafy
+                                                </button>
+                                                <span class="assinafy-status-badge" style="font-size:0.7rem; font-weight:700;"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="checklist-item no-click" id="row-aso-exames" style="display:none;">
+                                        <div style="flex:1;"><label>ASO Exames (Motorista)</label></div>
+                                        <div style="display:flex; gap:0.5rem; align-items:center;">
+                                            <input type="file" id="file-aso-exames" style="display:none;" onchange="window.uploadAdmissaoDoc(this, 'ASO Exames', 'ASO')">
+                                            <button class="btn btn-sm" onclick="document.getElementById('file-aso-exames').click()"><i class="ph ph-upload-simple"></i> Upload</button>
+                                            <span id="status-aso-exames" class="upload-status" style="display:none;"><i class="ph ph-check-circle" style="color:var(--success-color);"></i></span>
+
+                                            <div id="container-assinafy-exames" class="assinafy-integrated-container" style="display:none; align-items:center; gap:0.5rem;">
+                                                <button class="btn btn-sm btn-assinafy" id="btn-assinafy-exames" onclick="window.iniciarAssinafy('ASO Exames', 'ASO', this)">
+                                                    <i class="ph ph-pen-nib"></i> Assinar p/ Assinafy
+                                                </button>
+                                                <span class="assinafy-status-badge" style="font-size:0.7rem; font-weight:700;"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <div class="flex-between">
+                                    <button class="btn btn-secondary" onclick="window.nextAdmissaoStep(3)"><i class="ph ph-arrow-left"></i> Voltar</button>
+                                    <button class="btn btn-primary" onclick="window.nextAdmissaoStep(5)">Próximo: Contabilidade <i class="ph ph-arrow-right"></i></button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- PANEL 5: CONTABILIDADE -->
+                        <div class="admissao-panel" id="panel-step-5">
+                            <div class="card p-4">
+                                <h3 class="section-title"><i class="ph ph-calculator"></i> Passo 5: Envio Contabilidade</h3>
+                                <p class="text-muted mb-4">Upload do protocolo de envio ou confirmação da contabilidade.</p>
+                                <div id="admissao-checklist-step5" class="checklist-container mb-4">
+                                    <div class="checklist-item no-click">
+                                        <div style="flex:1;"><label>Confirmação de Envio / eSocial</label></div>
+                                        <div>
+                                            <input type="file" id="file-contab-1" style="display:none;" onchange="window.uploadAdmissaoDoc(this, 'Protocolo eSocial', 'OUTROS')">
+                                            <button class="btn btn-sm" onclick="document.getElementById('file-contab-1').click()"><i class="ph ph-upload-simple"></i> Upload</button>
+                                            <span id="status-contab-1" class="upload-status" style="display:none;"><i class="ph ph-check-circle" style="color:var(--success-color);"></i></span>
+                                            <div class="assinafy-integrated-container" style="display:none; align-items:center; gap:0.5rem;">
+                                                <button class="btn btn-sm btn-assinafy" onclick="window.iniciarAssinafy('Protocolo eSocial', 'OUTROS', this)">
+                                                    <i class="ph ph-pen-nib"></i> Assinar p/ Assinafy
+                                                </button>
+                                                <span class="assinafy-status-badge" style="font-size:0.7rem; font-weight:700;"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex-between">
+                                    <button class="btn btn-secondary" onclick="window.nextAdmissaoStep(4)"><i class="ph ph-arrow-left"></i> Voltar</button>
+                                    <button class="btn btn-primary" onclick="window.nextAdmissaoStep(6)">Próximo: Treinamentos <i class="ph ph-arrow-right"></i></button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- PANEL 6: TREINAMENTOS -->
+                        <div class="admissao-panel" id="panel-step-6">
+                            <div class="card p-4">
+                                <h3 class="section-title"><i class="ph ph-student"></i> Passo 6: Treinamentos</h3>
+                                <p class="text-muted mb-4">Upload de certificados de integração e treinamentos iniciais.</p>
+                                <div id="admissao-checklist-step6" class="checklist-container mb-4">
+                                    <div class="checklist-item no-click">
+                                        <div style="flex:1;"><label>Integração e Normas Internas</label></div>
+                                        <div>
+                                            <input type="file" id="file-tr-1" style="display:none;" onchange="window.uploadAdmissaoDoc(this, 'Integração', 'TREINAMENTO')">
+                                            <button class="btn btn-sm" onclick="document.getElementById('file-tr-1').click()"><i class="ph ph-upload-simple"></i> Upload</button>
+                                            <span id="status-tr-1" class="upload-status" style="display:none;"><i class="ph ph-check-circle" style="color:var(--success-color);"></i></span>
+                                            <div class="assinafy-integrated-container" style="display:none; align-items:center; gap:0.5rem;">
+                                                <button class="btn btn-sm btn-assinafy" onclick="window.iniciarAssinafy('Integração', 'TREINAMENTO', this)">
+                                                    <i class="ph ph-pen-nib"></i> Assinar p/ Assinafy
+                                                </button>
+                                                <span class="assinafy-status-badge" style="font-size:0.7rem; font-weight:700;"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex-between">
+                                    <button class="btn btn-secondary" onclick="window.nextAdmissaoStep(5)"><i class="ph ph-arrow-left"></i> Voltar</button>
+                                    <button class="btn btn-primary" onclick="window.nextAdmissaoStep(7)">Próximo: Certificados <i class="ph ph-arrow-right"></i></button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- PANEL 7: CERTIFICADOS -->
+                        <div class="admissao-panel" id="panel-step-7">
+                            <div class="card p-4">
+                                <h3 class="section-title"><i class="ph ph-certificate"></i> Passo 7: Certificados</h3>
+                                <p class="text-muted mb-4">Upload de diplomas e cursos complementares.</p>
+                                <div id="admissao-checklist-step7" class="checklist-container mb-4">
+                                    <div class="checklist-item no-click">
+                                        <div style="flex:1;"><label>Diplomas / Cursos</label></div>
+                                        <div>
+                                            <input type="file" id="file-cert-1" style="display:none;" onchange="window.uploadAdmissaoDoc(this, 'Diploma', 'CERTIFICADOS')">
+                                            <button class="btn btn-sm" onclick="document.getElementById('file-cert-1').click()"><i class="ph ph-upload-simple"></i> Upload</button>
+                                            <span id="status-cert-1" class="upload-status" style="display:none;"><i class="ph ph-check-circle" style="color:var(--success-color);"></i></span>
+                                            <div class="assinafy-integrated-container" style="display:none; align-items:center; gap:0.5rem;">
+                                                <button class="btn btn-sm btn-assinafy" onclick="window.iniciarAssinafy('Diploma', 'CERTIFICADOS', this)">
+                                                    <i class="ph ph-pen-nib"></i> Assinar p/ Assinafy
+                                                </button>
+                                                <span class="assinafy-status-badge" style="font-size:0.7rem; font-weight:700;"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex-between">
+                                    <button class="btn btn-secondary" onclick="window.nextAdmissaoStep(6)"><i class="ph ph-arrow-left"></i> Voltar</button>
+                                    <button class="btn btn-primary" onclick="window.nextAdmissaoStep(8)">Próximo: Contratos <i class="ph ph-arrow-right"></i></button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- PANEL 8: CONTRATOS -->
+                        <div class="admissao-panel" id="panel-step-8">
+                            <div class="card p-4">
+                                <h3 class="section-title"><i class="ph ph-file-pdf"></i> Passo 8: Contratos</h3>
+                                <p class="text-muted mb-4">Upload de contratos e termos assinados.</p>
+                                <div id="admissao-checklist-step8" class="checklist-container mb-4">
+                                    <div class="checklist-item no-click">
+                                        <div style="flex:1;"><label>Contrato de Trabalho</label></div>
+                                        <div>
+                                            <input type="file" id="file-cont-1" style="display:none;" onchange="window.uploadAdmissaoDoc(this, 'Contrato Detalhado', 'CONTRATOS')">
+                                            <button class="btn btn-sm" onclick="document.getElementById('file-cont-1').click()"><i class="ph ph-upload-simple"></i> Upload</button>
+                                            <span id="status-cont-1" class="upload-status" style="display:none;"><i class="ph ph-check-circle" style="color:var(--success-color);"></i></span>
+                                            <div class="assinafy-integrated-container" style="display:none; align-items:center; gap:0.5rem;">
+                                                <button class="btn btn-sm btn-assinafy" onclick="window.iniciarAssinafy('Contrato Detalhado', 'CONTRATOS', this)">
+                                                    <i class="ph ph-pen-nib"></i> Assinar p/ Assinafy
+                                                </button>
+                                                <span class="assinafy-status-badge" style="font-size:0.7rem; font-weight:700;"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex-between">
+                                    <button class="btn btn-secondary" onclick="window.nextAdmissaoStep(7)"><i class="ph ph-arrow-left"></i> Voltar</button>
+                                    <button class="btn btn-primary" onclick="window.nextAdmissaoStep(9)">Próximo: EPI <i class="ph ph-arrow-right"></i></button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- PANEL 9: EPI -->
+                        <div class="admissao-panel" id="panel-step-9">
+                            <div class="card p-4">
+                                <h3 class="section-title"><i class="ph ph-shield-check"></i> Passo 9: Ficha de EPI</h3>
+                                <p class="text-muted mb-4">Upload da ficha de entrega de EPIs assinada.</p>
+                                <div id="admissao-checklist-step9" class="checklist-container mb-4">
+                                    <div class="checklist-item no-click">
+                                        <div style="flex:1;"><label>Ficha de Entrega de EPI</label></div>
+                                        <div>
+                                            <input type="file" id="file-epi-1" style="display:none;" onchange="window.uploadAdmissaoDoc(this, 'Entrega EPI', 'FICHA_DE_EPI')">
+                                            <button class="btn btn-sm" onclick="document.getElementById('file-epi-1').click()"><i class="ph ph-upload-simple"></i> Upload</button>
+                                            <span id="status-epi-1" class="upload-status" style="display:none;"><i class="ph ph-check-circle" style="color:var(--success-color);"></i></span>
+                                            <div class="assinafy-integrated-container" style="display:none; align-items:center; gap:0.5rem;">
+                                                <button class="btn btn-sm btn-assinafy" onclick="window.iniciarAssinafy('Entrega EPI', 'FICHA_DE_EPI', this)">
+                                                    <i class="ph ph-pen-nib"></i> Assinar p/ Assinafy
+                                                </button>
+                                                <span class="assinafy-status-badge" style="font-size:0.7rem; font-weight:700;"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex-between">
+                                    <button class="btn btn-secondary" onclick="window.nextAdmissaoStep(8)"><i class="ph ph-arrow-left"></i> Voltar</button>
+                                    <button class="btn btn-primary" onclick="window.nextAdmissaoStep(10)">Próximo: Finalizar <i class="ph ph-arrow-right"></i></button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- PANEL 10: FINALIZAR -->
+                        <div class="admissao-panel" id="panel-step-10">
+                            <div class="card p-4 text-center">
+                                <h3 class="section-title justify-center"><i class="ph ph-check-circle"></i> Passo Final: Ativação no Sistema</h3>
+                                <div class="mb-4">
+                                    <i class="ph ph-confetti" style="font-size: 4rem; color: var(--success-color);"></i>
+                                    <p class="mt-3" style="font-size: 1.1rem; color: #334155;">Tudo pronto para a admissão de <strong id="admissao-nome-final">...</strong>!</p>
+                                    <p class="text-muted">Ao efetivar, o status mudará para "Ativo".</p>
+                                </div>
+                                <div style="display: flex; flex-direction: column; gap: 1rem; max-width: 400px; margin: 0 auto;">
+                                    <button class="btn btn-primary btn-block" style="padding: 1rem; font-size: 1.1rem;" onclick="window.finalizarAdmissao()">
+                                        <i class="ph ph-user-check"></i> Efetivar Admissão Agora
+                                    </button>
+                                    <button class="btn btn-secondary" onclick="window.nextAdmissaoStep(9)">Revisar Passos</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW: GERADORES -->
+                <section id="view-geradores" class="content-view">
+                    <div class="page-header flex-between">
+                        <div style="display: flex; align-items: center; gap: 1.5rem;">
+                            <!-- Ícone de Gerador -->
+                            <div style="width: 80px; height: 80px; border-radius: 50%; border: 2px dashed #cbd5e0; display: flex; align-items: center; justify-content: center; background: #f8fafc; color: #94a3b8; font-size: 2rem;">
+                                <i class="ph ph-file-text"></i>
+                            </div>
+                            <div>
+                                <h2 style="margin: 0; font-size: 1.4rem;">Geradores de Documentos</h2>
+                                <p style="margin: 4px 0 0; color: #64748b; font-size: 0.85rem;">Crie e gerencie modelos de documentos dinâmicos.</p>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; gap: 1rem; align-items: center;">
+                            <div class="search-box p-0" style="width: 350px; background: white; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 0 1.25rem; display: flex; align-items: center; height: 42px; transition: all 0.2s; box-shadow: inset 0 1px 2px rgba(0,0,0,0.02);">
+                                <i class="ph ph-magnifying-glass" style="color: #94a3b8; font-size: 1.2rem; margin-right: 0.75rem;"></i>
+                                <input type="text" id="search-geradores" placeholder="Pesquisar gerador..." onkeyup="window.filterGeradores()" style="border: none; outline: none; width: 100%; font-size: 0.95rem; color: #334155; background: transparent; height: 100%;">
+                            </div>
+                            <button class="btn btn-primary" onclick="window.openModalGerador()" style="height: 42px; display: flex; align-items: center; padding: 0 1.5rem; font-weight: 600; gap: 0.6rem; border-radius: 8px;">
+                                <i class="ph ph-plus" style="font-size: 1.1rem;"></i> Novo Gerador
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Nome do Documento</th>
+                                        <th>Criado em</th>
+                                        <th style="text-align: right;">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-geradores-body">
+                                    <!-- Dinâmico -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
     </div>
 
-    <!-- Modal Documentos -->
-    <div id="modal-documentos" class="modal">
-        <div class="modal-content">
-            <h2 id="modal-title" style="margin-bottom: 2rem;">Documentos de ...</h2>
-            
-            <form id="form-upload" style="margin-bottom: 2rem; padding-bottom: 2rem; border-bottom: 1px dashed var(--border);">
-                <input type="hidden" id="modal-colab-id">
-                <div class="form-grid">
-                    <div class="input-group">
-                        <label>Tipo de Documento</label>
-                        <select id="ipt-doc-tipo">
-                            <option value="ID/CPF">ID/CPF</option>
-                            <option value="ASO">ASO</option>
-                            <option value="Contrato">Contrato</option>
-                            <option value="EPI">EPI</option>
-                            <option value="Outros">Outros</option>
-                        </select>
-                    </div>
-                    <div class="input-group">
-                        <label>Arquivo (PDF)</label>
-                        <input type="file" id="ipt-doc-file" accept=".pdf">
-                    </div>
-                </div>
-                <button type="submit" class="btn btn-primary" style="margin-top: 1.5rem; width: 100%;">
-                    <i class="ph ph-upload-simple"></i> Enviar Documento
-                </button>
-            </form>
-
-            <div id="list-documentos" style="display: flex; flex-direction: column; gap: 0.75rem;">
-                <!-- Lista de Docs -->
+    <!-- MODAL: EDITOR DE GERADOR -->
+    <div id="modal-gerador" class="modal">
+        <div class="modal-content" style="max-width: 95%; width: 95%; margin: 2% auto;">
+            <div class="modal-header">
+                <h3 id="gerador-modal-title">Novo Gerador</h3>
+                <span class="close-modal" onclick="window.closeModalGerador()">&times;</span>
             </div>
+            <div class="modal-body">
+                <form id="form-gerador">
+                    <input type="hidden" id="gerador-id">
+                    <div class="input-group mb-4">
+                        <label>Nome do Gerador (Ex: Autorização de Imagem)</label>
+                        <input type="text" id="gerador-nome" required placeholder="Nome do documento">
+                    </div>
+                    
+                    <div class="input-group mb-2">
+                        <label>Conteúdo do Documento (Use ${VAR} para campos dinâmicos)</label>
+                        <div style="font-size: 0.75rem; color: #64748b; margin-bottom: 0.5rem; background: #f1f5f9; padding: 0.5rem; border-radius: 4px;">
+                            Variáveis disponíveis: <b>${NOME_COMPLETO}, ${CPF}, ${RG}, ${CARGO}, ${DATA_ADMISSAO}, ${ENDERECO}, ${PIS}, ${CTPS}, ${DATA_HOJE}, ${DIA}, ${MES}, ${ANO}, ${CIDADE}, ${INSTITUICAO}, ${CURSO}, ${DURACAO}, ${MENSALIDADE}</b>
+                        </div>
+                        <div class="editor-toolbar" style="display: flex; gap: 0.5rem; padding: 0.5rem; background: #f8fafc; border: 1px solid var(--border-color); border-bottom: none; border-radius: 8px 8px 0 0; flex-wrap: wrap;">
+                            <select onchange="formatDoc('fontName', this.value)" style="padding: 2px 5px; border-radius: 4px; border: 1px solid #ddd; font-size: 0.85rem;">
+                                <option value="Inter">Inter</option>
+                                <option value="Arial">Arial</option>
+                                <option value="Verdana">Verdana</option>
+                                <option value="Times New Roman">Times New Roman</option>
+                                <option value="Courier New">Courier New</option>
+                            </select>
+                            <select onchange="formatDoc('fontSize', this.value)" style="padding: 2px 5px; border-radius: 4px; border: 1px solid #ddd; font-size: 0.85rem;">
+                                <option value="3">Médio</option>
+                                <option value="1">Pequeno</option>
+                                <option value="5">Grande</option>
+                                <option value="7">Extra Grande</option>
+                            </select>
+                            <button type="button" class="btn-tool" onclick="formatDoc('bold')" title="Negrito"><i class="ph ph-text-b"></i></button>
+                            <button type="button" class="btn-tool" onclick="formatDoc('italic')" title="Itálico"><i class="ph ph-text-italic"></i></button>
+                            <button type="button" class="btn-tool" onclick="formatDoc('underline')" title="Sublinhado"><i class="ph ph-text-underline"></i></button>
+                            <div style="width: 1px; background: #ddd; margin: 0 5px;"></div>
+                            <button type="button" class="btn-tool" onclick="formatDoc('justifyLeft')" title="Alinhar Esquerda"><i class="ph ph-text-align-left"></i></button>
+                            <button type="button" class="btn-tool" onclick="formatDoc('justifyCenter')" title="Centralizar"><i class="ph ph-text-align-center"></i></button>
+                            <button type="button" class="btn-tool" onclick="formatDoc('justifyRight')" title="Alinhar Direita"><i class="ph ph-text-align-right"></i></button>
+                            <button type="button" class="btn-tool" onclick="formatDoc('justifyFull')" title="Justificar"><i class="ph ph-text-align-justify"></i></button>
+                            <div style="width: 1px; background: #ddd; margin: 0 5px;"></div>
+                            <button type="button" class="btn-tool" onclick="formatDoc('insertUnorderedList')" title="Lista"><i class="ph ph-list-bullets"></i></button>
+                            <button type="button" class="btn-tool" onclick="formatDoc('insertOrderedList')" title="Lista Numerada"><i class="ph ph-list-numbers"></i></button>
+                            <div style="width: 1px; background: #ddd; margin: 0 5px;"></div>
+                            <input type="color" onchange="formatDoc('foreColor', this.value)" style="width: 30px; height: 30px; padding: 0; border: none; cursor: pointer; background: transparent;" title="Cor da Fonte">
+                        </div>
+                        <div id="gerador-conteudo-editor" contenteditable="true" style="width: 100%; min-height: 500px; padding: 1.5rem; font-family: 'Inter', sans-serif; border: 1px solid var(--border-color); border-radius: 0 0 8px 8px; font-size: 0.95rem; line-height: 1.6; background: white; overflow-y: auto; outline: none;"></div>
+                        <textarea id="gerador-conteudo" style="display: none;"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="window.closeModalGerador()">Cancelar</button>
+                <button type="submit" form="form-gerador" class="btn btn-primary">Salvar Gerador</button>
+            </div>
+        </div>
+    </div>
 
-            <button onclick="closeModal()" class="btn btn-secondary" style="margin-top: 2rem; width: 100%;">Fechar</button>
+    <!-- MODAL: SELECIONAR COLABORADOR PARA GERAR -->
+    <div id="modal-selecionar-colab" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>Gerar Documento</h3>
+                <span class="close-modal" onclick="document.getElementById('modal-selecionar-colab').style.display='none'">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p class="mb-4">Selecione o colaborador para o qual deseja gerar este documento:</p>
+                <div class="input-group mb-4">
+                    <label>Colaborador</label>
+                    <select id="select-colab-gerar" class="form-control" style="width: 100%; padding: 0.6rem;"></select>
+                </div>
+                <div id="gerador-id-temp" style="display:none;"></div>
+                <button type="button" class="btn btn-primary btn-block" onclick="window.processarGeracao()">Gerar Agora</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: PREVIEW DO DOCUMENTO -->
+    <div id="modal-preview-doc" class="modal">
+        <div class="modal-content fullness">
+            <div class="modal-header">
+                <h3 id="preview-doc-title">Visualizar Documento</h3>
+                <div style="display: flex; gap: 1rem; align-items: center;">
+                    <button class="btn btn-secondary" onclick="document.getElementById('modal-preview-doc').style.display='none'"><i class="ph ph-x"></i> Fechar</button>
+                </div>
+            </div>
+            <div class="modal-body" style="padding: 2rem 0; background-color: #f4f6f9;">
+                <div id="preview-doc-body" style="background: white; margin: 0 auto; width: 21cm; min-height: 29.7cm; padding: 2cm; box-shadow: 0 0 20px rgba(0,0,0,0.1); border: 1px solid #ddd;">
+                    <!-- Conteúdo gerado aqui -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- Modal para visualização de documentos (PDF/IMG) -->
+    <div id="doc-modal" class="modal">
+        <div class="modal-content large">
+            <span class="close-modal">&times;</span>
+            <h3 id="modal-doc-title">Visualizar Documento</h3>
+            <div id="modal-doc-body" class="mt-3" style="height: 60vh;">
+                <!-- Iframe ou Img -->
+            </div>
+            <div class="form-actions mt-3">
+                <button class="btn btn-primary" id="btn-download-doc">Baixar Arquivo</button>
+            </div>
         </div>
     </div>
 
