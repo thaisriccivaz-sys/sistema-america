@@ -1,0 +1,55 @@
+﻿            for (let pid in remainingSteps) {
+                const config = remainingSteps[pid];
+                config.ids.forEach((sid, idx) => {
+                    const span = document.getElementById(sid);
+                    if (span) {
+                        const label = config.labels[idx];
+                        const docRecord = docs.find(d => d.tab_name === config.folder && d.document_type.includes(label));
+                        const has = !!docRecord;
+                        span.style.display = has ? 'inline-block' : 'none';
+                        const item = span.closest('.checklist-item');
+                        if (item) item.classList.toggle('checked', has);
+                        
+                        // Gerenciar container Assinafy integrado
+                        const containerAssinafy = span.nextElementSibling;
+                        if (containerAssinafy && containerAssinafy.classList.contains('assinafy-integrated-container')) {
+                            containerAssinafy.style.display = has ? 'flex' : 'none';
+                            const btnA = containerAssinafy.querySelector('.btn-assinafy');
+                            const badgeA = containerAssinafy.querySelector('.assinafy-status-badge');
+                            
+                            // Adicionar botÃ£o WhatsApp se nÃ£o existir
+                            let btnW = containerAssinafy.querySelector('.btn-whatsapp-integrated');
+                            
+                            const status = docRecord?.assinafy_status || 'Nenhum';
+                            const url = docRecord?.assinafy_url;
+
+                            if (btnA) {
+                                btnA.disabled = status === 'Assinado';
+                                btnA.innerHTML = status === 'Assinado' ? '<i class="ph ph-pen-nib"></i> Assinado' : '<i class="ph ph-pen-nib"></i> Assinar p/ Assinafy';
+                            }
+                            if (badgeA) {
+                                badgeA.innerText = status !== 'Nenhum' ? status.toUpperCase() : '';
+                                badgeA.className = 'assinafy-status-badge ' + status.toLowerCase();
+                            }
+
+                            if (url) {
+                                if (!btnW) {
+                                    btnW = document.createElement('button');
+                                    btnW.className = 'btn btn-sm btn-whatsapp-integrated';
+                                    btnW.style.cssText = 'background:#25D366; color:white; padding: 0.3rem 0.5rem;';
+                                    btnW.innerHTML = '<i class="ph ph-whatsapp-logo"></i>';
+                                    containerAssinafy.appendChild(btnW);
+                                }
+                                btnW.onclick = () => {
+                                    const tel = viewedColaborador?.telefone?.replace(/\D/g,'');
+                                    const msg = encodeURIComponent(`OlÃ¡, aqui estÃ¡ o link para vocÃª assinar o documento ${label}: ${url}`);
+                                    window.open(`https://wa.me/${tel}?text=${msg}`, '_blank');
+                                };
+                                btnW.style.display = 'inline-flex';
+                            } else if (btnW) {
+                                btnW.style.display = 'none';
+                            }
+                        }
+                    }
+                });
+            }
