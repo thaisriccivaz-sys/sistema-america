@@ -20,6 +20,7 @@ const SMTP_CONFIG = {
 };
 
 const db = require('./database');
+const onedrive = require('./utils/onedrive');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -295,6 +296,20 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
                 if (!fs.existsSync(subPath)) fs.mkdirSync(subPath, { recursive: true });
             });
         }
+        
+        // --- INTEGRAÇÃO ONEDRIVE (API) ---
+        // Caminho sugerido: RH/1.Colaboradores/Sistema/NOME_COLABORADOR
+        const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema";
+        const onedrivePath = `${onedriveBasePath}/${nomePasta}`;
+        
+        // Criar estrutura base no OneDrive
+        onedrive.ensureFolder(onedrivePath)
+            .then(() => {
+                // Criar subpastas
+                FOLDERS.forEach(f => onedrive.ensureFolder(`${onedrivePath}/${f}`));
+            })
+            .catch(e => console.error("Falha ao iniciar pastas no OneDrive:", e.message));
+
     } catch (erro) {
         console.error("ERRO AO CRIAR PASTAS DO COLABORADOR:", erro);
     }
@@ -667,6 +682,18 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
                         db.run("UPDATE colaboradores SET foto_path = ? WHERE id = ?", [file_path, colaborador_id]);
                     }
 
+                    // --- ESPELHAMENTO ONEDRIVE (API) ---
+                    try {
+                        const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema";
+                        const safeColab = formatarNome(req.body.colaborador_nome || "DESCONHECIDO");
+                        const safeTab = formatarPasta(tab_name).toUpperCase();
+                        let targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}`;
+                        if (year && year !== 'null' && year !== 'undefined' && year !== '') targetDir += `/${year.replace(/[^0-9]/g, '')}`;
+                        
+                        const fileBuffer = fs.readFileSync(file_path);
+                        onedrive.uploadToOneDrive(targetDir, file_name, fileBuffer).catch(e => console.error("Erro async OneDrive:", e.message));
+                    } catch (e) { console.error("Erro ao preparar upload OneDrive:", e.message); }
+
                     res.json({ message: 'Documento atualizado', id: row.id, file_path });
                 });
         } else {
@@ -681,6 +708,18 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
                     if (tab_name === 'Fotos' && ['.jpg', '.jpeg', '.png', '.webp'].includes(path.extname(file_path).toLowerCase())) {
                         db.run("UPDATE colaboradores SET foto_path = ? WHERE id = ?", [file_path, colaborador_id]);
                     }
+
+                    // --- ESPELHAMENTO ONEDRIVE (API) ---
+                    try {
+                        const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema";
+                        const safeColab = formatarNome(req.body.colaborador_nome || "DESCONHECIDO");
+                        const safeTab = formatarPasta(tab_name).toUpperCase();
+                        let targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}`;
+                        if (year && year !== 'null' && year !== 'undefined' && year !== '') targetDir += `/${year.replace(/[^0-9]/g, '')}`;
+                        
+                        const fileBuffer = fs.readFileSync(file_path);
+                        onedrive.uploadToOneDrive(targetDir, file_name, fileBuffer).catch(e => console.error("Erro async OneDrive:", e.message));
+                    } catch (e) { console.error("Erro ao preparar upload OneDrive:", e.message); }
 
                     res.status(201).json({ message: 'Documento salvo', id: this.lastID, file_path });
                 });
