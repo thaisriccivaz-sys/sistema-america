@@ -63,11 +63,12 @@ async function syncColaboradorOneDrive(nomeCompleto) {
     
     // Calcula o caminho ANTES para retornar na resposta
     const nomePasta = formatarNome(nomeCompleto);
-    const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema";
+    // V20: O raciocínio mudou. Foco total em 'My Files' para aparecer na pasta sincronizada do Windows.
+    const onedriveBasePath = "Documentos - America Rental/RH/1.Colaboradores/Sistema";
     const onedrivePath = `${onedriveBasePath}/${nomePasta}`;
     
     // DISPARAR TUDO EM MODO SEGUNDO PLANO (Zero Wait)
-    console.log(`[OneDrive V15] Comando recebido para ${nomeCompleto}. Base: ${onedriveBasePath}. Resposta imediata enviada.`);
+    console.log(`[OneDrive V20] Modo MyFiles ativo para ${nomeCompleto}. Alvo: ${onedriveBasePath}`);
 
     (async () => {
         try {
@@ -84,7 +85,7 @@ async function syncColaboradorOneDrive(nomeCompleto) {
         sucesso: true, 
         message: "Comando enviado à Microsoft! As pastas serão criadas em segundo plano. Verifique o seu OneDrive em alguns instantes.",
         caminho: onedrivePath,
-        versao: "V19_DEFINITIVE" 
+        versao: "V20_MYFILES_MODE" 
     };
 }
 
