@@ -72,8 +72,15 @@ const FOLDERS = [
     'TREINAMENTO'
 ];
 
-if (!fs.existsSync(BASE_UPLOAD_PATH)) {
-    fs.mkdirSync(BASE_UPLOAD_PATH, { recursive: true });
+try {
+    if (!fs.existsSync(BASE_UPLOAD_PATH)) {
+        fs.mkdirSync(BASE_UPLOAD_PATH, { recursive: true });
+        console.log("DIRETÓRIO BASE DE UPLOAD CRIADO:", BASE_UPLOAD_PATH);
+    }
+} catch (e) {
+    console.error("AVISO CRÍTICO: Não foi possível criar a pasta base de upload:", e.message);
+    console.error("Caminho tentado:", BASE_UPLOAD_PATH);
+    // Não encerramos o processo para permitir que o servidor suba em modo leitura ou com falhas parciais
 }
 
 const storage = multer.diskStorage({
