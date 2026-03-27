@@ -414,6 +414,55 @@ app.post('/api/maintenance/reset', authenticateToken, (req, res) => {
     });
 });
 
+// --- ROTA DE MANUTENÇÃO: LISTAR TODOS OS ARQUIVOS (Para Sincronização) ---
+app.get('/api/maintenance/sync-files', authenticateToken, (req, res) => {
+    const fileList = [];
+    
+    function walkDir(currentPath, relativePath = "") {
+        if (!fs.existsSync(currentPath)) return;
+        const files = fs.readdirSync(currentPath);
+        files.forEach(file => {
+            const fullPath = path.join(currentPath, file);
+            const relPath = path.join(relativePath, file);
+            if (fs.lstatSync(fullPath).isDirectory()) {
+                walkDir(fullPath, relPath);
+            } else {
+                fileList.push({
+                    name: file,
+                    path: relPath.replace(/\\/g, '/'),
+                    size: fs.statSync(fullPath).size,
+                    mtime: fs.statSync(fullPath).mtime
+                });
+            }
+        });
+    }
+
+    try {
+        walkDir(BASE_PATH);
+        res.json({ files: fileList });
+    } catch (err) {
+        res.status(500).json({ error: "Erro ao listar arquivos: " + err.message });
+    }
+});
+
+// --- ROTA PARA DOWNLOAD DIRETO POR CAMINHO RELATIVO ---
+app.get('/api/maintenance/download-sync', authenticateToken, (req, res) => {
+    const relPath = req.query.path;
+    if (!relPath) return res.status(400).send("Caminho não informado");
+    
+    const fullPath = path.join(BASE_PATH, relPath);
+    if (!fs.existsSync(fullPath)) return res.status(404).send("Arquivo não encontrado");
+    
+    res.download(fullPath);
+});
+
+// --- ROTA PARA BAIXAR O AGENTE DE SINCRONIZAÇÃO (Pelo usuário) ---
+app.get('/api/maintenance/download-agent', authenticateToken, (req, res) => {
+    const agentPath = path.join(__dirname, '..', 'scripts', 'sync_agent.js');
+    if (!fs.existsSync(agentPath)) return res.status(404).send("Agente não encontrado no servidor.");
+    res.download(agentPath, 'sync_america.js');
+});
+
 app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
     const data = req.body;
     const id = req.params.id;

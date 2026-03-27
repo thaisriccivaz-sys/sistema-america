@@ -178,6 +178,14 @@ function setupNavigation() {
         });
     }
 
+    const btnSyncPc = document.getElementById('btn-sync-pc');
+    if (btnSyncPc) {
+        btnSyncPc.addEventListener('click', () => {
+            alert("Vou baixar o arquivo 'sync_america.js'.\n\nInstruções:\n1. Salve-o na mesma pasta do seu projeto.\n2. Execute no terminal: 'node sync_america.js'\n3. Ele criará as pastas no caminho C:\\A\\OneDrive... automaticamente.");
+            window.open(`${API_URL}/maintenance/download-agent?token=${currentToken}`, '_blank');
+        });
+    }
+
     document.querySelectorAll('#tabs-list li').forEach(tab => {
         tab.addEventListener('click', (e) => {
             document.querySelectorAll('#tabs-list li').forEach(t => t.classList.remove('active'));
