@@ -62,30 +62,28 @@ async function syncColaboradorOneDrive(nomeCompleto) {
     }
     
     // DISPARAR TUDO EM MODO SEGUNDO PLANO (Zero Wait)
-    // Isso garante que o servidor responda instantaneamente e não trave o Render/Frontend
+    console.log(`[OneDrive V9] Comando recebido para ${nomeCompleto}. Base: ${onedriveBasePath}. Resposta imediata enviada.`);
+    
+    // Calcula o caminho ANTES para retornar na resposta
+    const nomePasta = formatarNome(nomeCompleto);
+    const onedrivePath = `${onedriveBasePath}/${nomePasta}`;
+
     (async () => {
         try {
-            const nomePasta = formatarNome(nomeCompleto);
-            const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema";
-            const onedrivePath = `${onedriveBasePath}/${nomePasta}`;
-            
-            console.log(`[OneDrive Background V8] Sincronizando ${nomeCompleto}...`);
-            
-            // Criação das pastas (isso pode levar tempo, mas agora roda no fundo)
+            console.log(`[OneDrive Background V9] Sincronizando ${nomeCompleto}...`);
             await onedrive.ensurePath(onedrivePath);
             await Promise.all(FOLDERS.map(f => onedrive.ensureFolder(`${onedrivePath}/${f}`)));
-            
-            console.log(`[OneDrive Background V8] SUCESSO COMPLETO para ${nomeCompleto}`);
+            console.log(`[OneDrive Background V9] SUCESSO COMPLETO para ${nomeCompleto}`);
         } catch (e) {
-            console.error(`[OneDrive Background V8 Error] ${nomeCompleto}:`, e.message);
+            console.error(`[OneDrive Background V9 Error] ${nomeCompleto}:`, e.message);
         }
     })();
 
-    console.log(`[OneDrive V8] Comando recebido para ${nomeCompleto}. Resposta imediata enviada.`);
     return { 
         sucesso: true, 
         message: "Comando enviado à Microsoft! As pastas serão criadas em segundo plano. Verifique o seu OneDrive em alguns instantes.",
-        versao: "V8_ZERO_WAIT" 
+        caminho: onedrivePath,
+        versao: "V9_LOCATOR" 
     };
 }
 
@@ -497,11 +495,15 @@ app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) =>
         res.json({ 
             sucesso: true, 
             message: "Conexão OneDrive OK!", 
-            driveName: driveInfo.name,
+            driveName: driveInfo.name || driveName,
             basePathItems: basePathItems,
-            sharedItems: sharedItems.slice(0, 5), 
-            foundSites: foundSites,
-            config: { ...config, clientSecret: "[OCULTO]", driveId: driveId }
+            config: { 
+                ...config, 
+                clientSecret: "[OCULTO]", 
+                driveId: driveId,
+                webUrl: infoPasta ? infoPasta.webUrl : "Pasta não localizada",
+                idReal: driveId || "Personal"
+            }
         });
     } catch (e) {
         console.error("OneDrive Test Failure:", e);
@@ -1631,59 +1633,6 @@ process.on('uncaughtException', (err) => {
 process.on('unhandledRejection', (reason, promise) => {
     console.error('--- PROMESSA NÃO TRATADA (Unhandled Rejection) ---');
     console.error(reason);
-});
-
-/**
- * DIAGNÓSTICO: Testar Conexão e Listar Base Path do OneDrive
- */
-app.get('/api/onedrive/test', authenticateToken, async (req, res) => {
-    if (!process.env.ONEDRIVE_CLIENT_ID) {
-        return res.status(500).json({ error: "OneDrive não configurado (Faltam Variáveis de Ambiente)" });
-    }
-
-    try {
-        const onedrive = require('./utils/onedrive');
-        const client = await onedrive.getGraphClient();
-        const userId = process.env.ONEDRIVE_USER_EMAIL;
-        const driveId = process.env.ONEDRIVE_DRIVE_ID;
-        const basePath = process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema";
-        
-        const drivePrefix = driveId ? `/drives/${driveId}/root` : `/users/${userId}/drive/root`;
-        const encodedPath = basePath.split('/').map(p => encodeURIComponent(p)).join('/');
-
-        console.log(`[Diagnostic] Testando conexão e listando: ${basePath}`);
-        
-        let children = [];
-        try {
-            const result = await client.api(`${drivePrefix}:/${encodedPath}:/children`).get();
-            children = result.value.map(item => ({
-                name: item.name,
-                folder: !!item.folder,
-                created: item.createdDateTime
-            }));
-        } catch (e) {
-            console.warn(`[Diagnostic] Pasta base não encontrada ou erro na listagem: ${e.message}`);
-        }
-
-        res.json({
-            sucesso: true,
-            status: "Conexão Microsoft Graph OK",
-            config: {
-                userId: userId,
-                driveId: driveId ? "Configurado (SharePoint)" : "Padrão (Personal)",
-                basePath: basePath
-            },
-            conteudo: children
-        });
-
-    } catch (e) {
-        console.error("[Diagnostic Error]:", e);
-        res.status(500).json({ 
-            error: "Erro na conexão com Microsoft Graph", 
-            message: e.message,
-            details: e.body ? (typeof e.body === 'string' ? JSON.parse(e.body) : e.body) : null
-        });
-    }
 });
 
 app.listen(PORT, () => {

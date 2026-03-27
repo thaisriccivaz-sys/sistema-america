@@ -4327,7 +4327,9 @@ window.testOneDriveConnection = async function() {
         if (data.sucesso) {
             let basePathList = data.basePathItems?.join(', ') || '(Pasta vazia)';
             let msg = `✅ CONEXÃO OK!\n\n` +
-                      `Drive Ativo: ${data.driveName}\n` +
+                      `Biblioteca: ${data.driveName}\n` +
+                      `ID Real: ${data.config.idReal}\n` +
+                      `Link Web: ${data.config.webUrl || 'N/A'}\n\n` +
                       `CONTEÚDO DA PASTA SISTEMA:\n${basePathList}\n\n` +
                       `CAMINHO: ${data.config.basePath}`;
             alert(msg);
