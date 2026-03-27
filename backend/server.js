@@ -65,9 +65,10 @@ async function syncColaboradorOneDrive(nomeCompleto) {
         
         console.log(`[OneDrive] Sincronizando pastas para: ${nomeCompleto} em ${onedrivePath}`);
         await onedrive.ensurePath(onedrivePath);
-        for (const f of FOLDERS) {
-            await onedrive.ensureFolder(`${onedrivePath}/${f}`);
-        }
+        
+        // Criar subpastas em paralelo para evitar timeout no Render
+        await Promise.all(FOLDERS.map(f => onedrive.ensureFolder(`${onedrivePath}/${f}`)));
+        
         console.log(`[OneDrive] Sincronização concluída para: ${nomeCompleto}`);
         return { sucesso: true, caminho: onedrivePath };
     } catch (e) {

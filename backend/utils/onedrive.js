@@ -33,13 +33,17 @@ async function getAccessToken() {
 /**
  * Inicializa o cliente do Microsoft Graph
  */
+let cachedClient = null;
+
 async function getGraphClient() {
+    if (cachedClient) return cachedClient;
     const accessToken = await getAccessToken();
-    return Client.init({
+    cachedClient = Client.init({
         authProvider: (done) => {
             done(null, accessToken);
         },
     });
+    return cachedClient;
 }
 
 /**
