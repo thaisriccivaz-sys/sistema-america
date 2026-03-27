@@ -84,7 +84,7 @@ async function syncColaboradorOneDrive(nomeCompleto) {
         sucesso: true, 
         message: "Comando enviado à Microsoft! As pastas serão criadas em segundo plano. Verifique o seu OneDrive em alguns instantes.",
         caminho: onedrivePath,
-        versao: "V16_HARDFIX" 
+        versao: "V18_FINAL" 
     };
 }
 
