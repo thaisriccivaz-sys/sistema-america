@@ -4310,16 +4310,18 @@ window.testOneDriveConnection = async function() {
         const data = await res.json();
         
         if (data.sucesso) {
-            let sitesList = data.foundSites.map(s => `• ${s.name} (ID: ${s.id})`).join('\n') || 'Nenhum';
+            let sitesList = data.foundSites.map(s => {
+                let dList = s.drives?.map(d => `  └─ ${d.name} (ID: ${d.id})`).join('\n') || '  (Sem bibliotecas)';
+                return `• SITE: ${s.name}\n${dList}`;
+            }).join('\n\n') || 'Nenhum';
+            
             let sharedList = data.sharedItems.map(i => `• ${i.name} (ID: ${i.driveId})`).join('\n') || 'Nenhum';
             let namedList = data.namedDrives.map(d => `• ${d.name} (ID: ${d.id})`).join('\n') || 'Nenhum';
 
             let msg = `✅ CONEXÃO OK!\n\n` +
-                      `1. SITES ENCONTRADOS (SharePoint):\n${sitesList}\n\n` +
+                      `1. ESTRUTURA SHAREPOINT:\n${sitesList}\n\n` +
                       `2. COMPARTILHADOS:\n${sharedList}\n\n` +
-                      `3. SUGERIDOS (Drive):\n${namedList}\n\n` +
-                      `4. DRIVE ATUAL: ${data.driveName}\n` +
-                      `ID Configurado: ${data.config.driveId || 'Padrão'}\n` +
+                      `3. DRIVE ATUAL: ${data.driveName}\n` +
                       `Caminho: ${data.config.basePath}`;
             alert(msg);
         } else {

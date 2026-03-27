@@ -473,16 +473,29 @@ app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) =>
         let foundSites = [];
         try {
             const sites = await client.api(`/sites?search=America`).get();
-            foundSites = sites.value?.map(s => ({ name: s.displayName, id: s.id })) || [];
+            const siteValues = sites.value || [];
+            
+            for (const s of siteValues) {
+                try {
+                    const sDrives = await client.api(`/sites/${s.id}/drives`).get();
+                    foundSites.push({
+                        name: s.displayName,
+                        id: s.id,
+                        drives: sDrives.value.map(d => ({ name: d.name, id: d.id }))
+                    });
+                } catch (dErr) {
+                    foundSites.push({ name: s.displayName, id: s.id, drives: [] });
+                }
+            }
         } catch (sErr) {
-            foundSites = [{ name: "⚠️ Sem Permissão Sites.Read.All", id: "erro" }];
+            foundSites = [{ name: "⚠️ Sem Permissão Sites.Read.All", id: "erro", drives: [] }];
         }
         
         res.json({ 
             sucesso: true, 
             message: "Conexão OneDrive OK!", 
             driveName: drive.name,
-            sharedItems: sharedItems.slice(0, 10), // Limitar para não estourar o alert
+            sharedItems: sharedItems.slice(0, 10), 
             allDrives: allDrives.value.map(d => ({ name: d.name, id: d.id })).slice(0, 10),
             namedDrives: namedDrives,
             foundSites: foundSites,
