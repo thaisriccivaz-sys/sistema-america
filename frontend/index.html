@@ -405,6 +405,10 @@
                             <button type="button" class="btn-action btn-sm" id="btn-header-prontuario" onclick="openProntuarioFromCurrentForm()" style="display:none; background: #228be6; color: white; border-color: #1c7ed6; font-weight: 600;">
                                 <i class="ph ph-folder-open"></i> Prontuário Digital
                             </button>
+                            <!-- Botão de Sincronização OneDrive no Form (Visível apenas em Edição) -->
+                            <button type="button" class="btn-action btn-sm" id="btn-form-sync-onedrive" style="display:none; background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; font-weight: 600;" onmouseover="this.style.color='#2563eb'" onmouseout="this.style.color='#64748b'">
+                                <i class="ph ph-cloud-arrow-up"></i> Sync OneDrive
+                            </button>
                             <button type="button" class="btn-action btn-sm btn-cancelar" onclick="resetFormColaborador(); navigateTo('colaboradores');">
                                 <i class="ph ph-x-circle"></i> Cancelar
                             </button>
@@ -985,6 +989,11 @@
                                 <div style="display: flex; gap: 1rem; align-items: center; margin-top: 0.5rem;">
                                     <p id="prontuario-cargo-info" style="margin: 0; color: #64748b; font-size: 1rem; font-weight: 500;">Cargo | CPF: 000.000.000-00</p>
                                     <div id="prontuario-status-display"></div>
+                                    
+                                    <!-- Botão de Sincronização OneDrive (Diagnóstico) -->
+                                    <button type="button" id="btn-sync-onedrive" class="btn btn-sm" style="background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; font-weight: 600; padding: 4px 12px; border-radius: 6px; display: flex; align-items: center; gap: 6px; transition: all 0.2s;" onmouseover="this.style.background='#f1f5f9'; this.style.color='#2563eb'" onmouseout="this.style.background='#f8fafc'; this.style.color='#64748b'">
+                                        <i class="ph ph-cloud-arrow-up" style="font-size: 1.1rem;"></i> Sincronizar OneDrive
+                                    </button>
                                 </div>
                             </div>
                         </div>

@@ -63,37 +63,16 @@ async function syncColaboradorOneDrive(nomeCompleto) {
         const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema";
         const onedrivePath = `${onedriveBasePath}/${nomePasta}`;
         
-        console.log(`[OneDrive] Sincronizando pastas para: ${nomeCompleto}`);
+        console.log(`[OneDrive] Sincronizando pastas para: ${nomeCompleto} em ${onedrivePath}`);
         await onedrive.ensurePath(onedrivePath);
         for (const f of FOLDERS) {
             await onedrive.ensureFolder(`${onedrivePath}/${f}`);
         }
         console.log(`[OneDrive] Sincronização concluída para: ${nomeCompleto}`);
+        return { sucesso: true, caminho: onedrivePath };
     } catch (e) {
         console.error(`[OneDrive] Erro na sincronização automática (${nomeCompleto}):`, e.message);
-    }
-}
-
-/**
- * Helper para sincronizar pastas no OneDrive automaticamente
- * @param {string} nomeCompleto 
- */
-async function syncColaboradorOneDrive(nomeCompleto) {
-    if (!process.env.ONEDRIVE_CLIENT_ID) return;
-    
-    try {
-        const nomePasta = formatarNome(nomeCompleto);
-        const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema";
-        const onedrivePath = `${onedriveBasePath}/${nomePasta}`;
-        
-        console.log(`[OneDrive] Sincronizando pastas para: ${nomeCompleto}`);
-        await onedrive.ensurePath(onedrivePath);
-        for (const f of FOLDERS) {
-            await onedrive.ensureFolder(`${onedrivePath}/${f}`);
-        }
-        console.log(`[OneDrive] Sincronização concluída para: ${nomeCompleto}`);
-    } catch (e) {
-        console.error(`[OneDrive] Erro na sincronização automática (${nomeCompleto}):`, e.message);
+        throw e;
     }
 }
 
@@ -631,6 +610,32 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
     });
 });
 
+
+/**
+ * Sincronização manual com OneDrive para um colaborador
+ */
+app.post('/api/colaboradores/:id/sync-onedrive', authenticateToken, async (req, res) => {
+    const id = req.params.id;
+    try {
+        db.get('SELECT nome_completo FROM colaboradores WHERE id = ?', [id], async (err, row) => {
+            if (err || !row) return res.status(404).json({ error: 'Colaborador não encontrado' });
+            
+            try {
+                const result = await syncColaboradorOneDrive(row.nome_completo);
+                res.json({ sucesso: true, message: "Pastas sincronizadas no OneDrive!", path: result.caminho });
+            } catch (e) {
+                console.error("Erro Sync Manual:", e);
+                res.status(500).json({ 
+                    error: "Falha na sincronização Microsoft Graph", 
+                    message: e.message,
+                    details: e.body ? JSON.parse(e.body) : null
+                });
+            }
+        });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
 
 app.delete('/api/colaboradores/:id', authenticateToken, (req, res) => {
     const id = req.params.id;

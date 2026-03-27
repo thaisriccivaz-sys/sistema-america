@@ -65,6 +65,10 @@ async function ensureFolder(folderPath) {
     try {
         const client = await getGraphClient();
         const userId = process.env.ONEDRIVE_USER_EMAIL;
+        const driveId = process.env.ONEDRIVE_DRIVE_ID;
+        
+        // Determina o prefixo da API (Drive específico ou Root do Usuário)
+        const drivePrefix = driveId ? `/drives/${driveId}/root` : `/users/${userId}/drive/root`;
         
         // Codifica cada parte do caminho para evitar erros com caracteres especiais
         const encodedPath = folderPath.split('/').map(p => encodeURIComponent(p)).join('/');
@@ -72,8 +76,7 @@ async function ensureFolder(folderPath) {
         console.log(`[OneDrive Debug] Verificando/Criando: ${folderPath} (URL Encoded: ${encodedPath})`);
 
         try {
-            await client.api(`/users/${userId}/drive/root:/${encodedPath}`).get();
-            // console.log(`[OneDrive Debug] Já existe: ${folderPath}`);
+            await client.api(`${drivePrefix}:/${encodedPath}`).get();
         } catch (error) {
             if (error.code === 'itemNotFound') {
                 const parts = folderPath.split('/');
@@ -82,8 +85,8 @@ async function ensureFolder(folderPath) {
                 const encodedParent = parentPath.split('/').map(p => encodeURIComponent(p)).join('/');
                 
                 const endpoint = parentPath 
-                    ? `/users/${userId}/drive/root:/${encodedParent}:/children`
-                    : `/users/${userId}/drive/root/children`;
+                    ? `${drivePrefix}:/${encodedParent}:/children`
+                    : `${drivePrefix}/children`;
 
                 await client.api(endpoint).post({
                     name: folderName,
@@ -112,13 +115,16 @@ async function uploadToOneDrive(remotePath, fileName, fileBuffer) {
     try {
         const client = await getGraphClient();
         const userId = process.env.ONEDRIVE_USER_EMAIL;
+        const driveId = process.env.ONEDRIVE_DRIVE_ID;
+
+        const drivePrefix = driveId ? `/drives/${driveId}/root` : `/users/${userId}/drive/root`;
         
         const encodedPath = remotePath.split('/').map(p => encodeURIComponent(p)).join('/');
         const encodedFileName = encodeURIComponent(fileName);
         
         console.log(`OneDrive: Uploading ${fileName} para ${remotePath}`);
         
-        await client.api(`/users/${userId}/drive/root:/${encodedPath}/${encodedFileName}:/content`)
+        await client.api(`${drivePrefix}:/${encodedPath}/${encodedFileName}:/content`)
             .put(fileBuffer);
             
         console.log(`OneDrive: Upload concluído -> ${fileName}`);
