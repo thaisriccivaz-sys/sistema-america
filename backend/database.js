@@ -4,13 +4,14 @@ const path = require('path');
 const fs = require('fs');
 
 // Usar v2 do banco para lidar com o novo schema expandido sem conflito
-// Caminho absoluto fixo para Render em backend/data/
-const dataDir = path.join(__dirname, 'data');
+// Caminho absoluto configurável via variável de ambiente (Render Disk)
+const dbPath = process.env.DATABASE_PATH || path.join(__dirname, 'data', 'hr_system_v2.sqlite');
+
+// Garantir que a pasta do banco existe
+const dataDir = path.dirname(dbPath);
 if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
 }
-
-const dbPath = path.join(dataDir, 'hr_system_v2.sqlite');
 
 // Verificação de Segurança
 if (!fs.existsSync(dbPath)) {

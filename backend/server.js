@@ -25,8 +25,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const SECRET_KEY = process.env.SECRET_KEY || 'america_rental_secret_key_123';
 
-// Configuração de Armazenamento (Dinâmico para Render/Linux em backend/data/)
-const BASE_PATH = path.join(__dirname, 'data', 'Colaboradores');
+// Configuração de Armazenamento (Dinâmico para Render/Linux ou Disco Persistente)
+const BASE_PATH = process.env.STORAGE_PATH || path.join(__dirname, 'data', 'Colaboradores');
 const BASE_UPLOAD_PATH = BASE_PATH; // Mantendo compatibilidade
 
 function formatarNome(nome) {
