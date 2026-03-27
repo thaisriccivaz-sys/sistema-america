@@ -633,7 +633,12 @@ app.post('/api/colaboradores/:id/sync-onedrive', authenticateToken, async (req, 
             }
         });
     } catch (e) {
-        res.status(500).json({ error: e.message });
+        console.error("[OneDrive Endpoint Error]:", e);
+        res.status(500).json({ 
+            error: "Erro na requisição de sincronização",
+            message: e.message,
+            details: e.body ? (typeof e.body === 'string' ? JSON.parse(e.body) : e.body) : null
+        });
     }
 });
 
@@ -1608,6 +1613,59 @@ process.on('uncaughtException', (err) => {
 process.on('unhandledRejection', (reason, promise) => {
     console.error('--- PROMESSA NÃO TRATADA (Unhandled Rejection) ---');
     console.error(reason);
+});
+
+/**
+ * DIAGNÓSTICO: Testar Conexão e Listar Base Path do OneDrive
+ */
+app.get('/api/onedrive/test', authenticateToken, async (req, res) => {
+    if (!process.env.ONEDRIVE_CLIENT_ID) {
+        return res.status(500).json({ error: "OneDrive não configurado (Faltam Variáveis de Ambiente)" });
+    }
+
+    try {
+        const onedrive = require('./utils/onedrive');
+        const client = await onedrive.getGraphClient();
+        const userId = process.env.ONEDRIVE_USER_EMAIL;
+        const driveId = process.env.ONEDRIVE_DRIVE_ID;
+        const basePath = process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema";
+        
+        const drivePrefix = driveId ? `/drives/${driveId}/root` : `/users/${userId}/drive/root`;
+        const encodedPath = basePath.split('/').map(p => encodeURIComponent(p)).join('/');
+
+        console.log(`[Diagnostic] Testando conexão e listando: ${basePath}`);
+        
+        let children = [];
+        try {
+            const result = await client.api(`${drivePrefix}:/${encodedPath}:/children`).get();
+            children = result.value.map(item => ({
+                name: item.name,
+                folder: !!item.folder,
+                created: item.createdDateTime
+            }));
+        } catch (e) {
+            console.warn(`[Diagnostic] Pasta base não encontrada ou erro na listagem: ${e.message}`);
+        }
+
+        res.json({
+            sucesso: true,
+            status: "Conexão Microsoft Graph OK",
+            config: {
+                userId: userId,
+                driveId: driveId ? "Configurado (SharePoint)" : "Padrão (Personal)",
+                basePath: basePath
+            },
+            conteudo: children
+        });
+
+    } catch (e) {
+        console.error("[Diagnostic Error]:", e);
+        res.status(500).json({ 
+            error: "Erro na conexão com Microsoft Graph", 
+            message: e.message,
+            details: e.body ? (typeof e.body === 'string' ? JSON.parse(e.body) : e.body) : null
+        });
+    }
 });
 
 app.listen(PORT, () => {

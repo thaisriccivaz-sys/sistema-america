@@ -102,6 +102,7 @@ async function ensureFolder(folderPath) {
     } catch (error) {
         if (error.code !== 'nameAlreadyExists') {
             console.error(`[OneDrive Critical] Erro fatal em ensureFolder (${folderPath}):`, error.message);
+            throw error; // Propaga para o diagnóstico capturar o erro real
         }
     }
 }
