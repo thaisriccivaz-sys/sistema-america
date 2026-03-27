@@ -1597,6 +1597,19 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: "Erro interno no servidor." });
 });
 
+// Tratamento de Exceções Globais para evitar 502 no Render
+process.on('uncaughtException', (err) => {
+    console.error('--- ERRO FATAL (Uncaught Exception) ---');
+    console.error(err);
+    // No Render, é melhor deixar o processo cair para ele reiniciar limpo se for erro grave,
+    // mas logamos tudo primeiro.
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('--- PROMESSA NÃO TRATADA (Unhandled Rejection) ---');
+    console.error(reason);
+});
+
 app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
     console.log(`Versão do Servidor: V5_AUTOMATIC_ONEDRIVE`);

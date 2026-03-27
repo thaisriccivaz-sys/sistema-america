@@ -1091,6 +1091,13 @@ window.resetFormColaborador = function() {
 };
 
 window.editColaborador = async function(id) {
+    // Vincular botão de sincronização no formulário IMEDIATAMENTE
+    const formSyncBtn = document.getElementById('btn-form-sync-onedrive');
+    if (formSyncBtn) {
+        formSyncBtn.style.display = 'flex';
+        formSyncBtn.onclick = function() { window.syncOneDriveManual(id, this); };
+    }
+
     try {
         await loadSelects();
         const c = await apiGet(`/colaboradores/${id}`);
@@ -1104,13 +1111,6 @@ window.editColaborador = async function(id) {
         const titleEl = document.getElementById('form-colab-title');
         if (titleEl) titleEl.textContent = c.nome_completo || `Colaborador #${c.id}`;
 
-        // Mostrar e vincular botão de sincronização no formulário
-        const formSyncBtn = document.getElementById('btn-form-sync-onedrive');
-        if (formSyncBtn) {
-            formSyncBtn.style.display = 'flex';
-            formSyncBtn.onclick = function() { window.syncOneDriveManual(id, this); };
-        }
-        
         document.getElementById('colab-id').value = c.id;
         document.getElementById('colab-nome').value = c.nome_completo || '';
         document.getElementById('colab-cpf').value = c.cpf || '';
@@ -1649,6 +1649,14 @@ window.openProntuarioFromCurrentForm = function() {
 
 // --- PRONTUÁRIO DIGITAL ---
 window.openProntuario = async function(id, nome, cargo, cpf, sexo = '', admissao = '', status = '', rgTipo = 'RG') {
+    viewedColaborador = { id, nome_completo: nome, cargo, cpf, sexo, data_admissao: admissao, status, rg_tipo: rgTipo };
+    
+    // Vincular botão IMEDIATAMENTE (antes de qualquer await)
+    const syncBtn = document.getElementById('btn-sync-onedrive');
+    if (syncBtn) {
+        syncBtn.onclick = function() { window.syncOneDriveManual(id, this); };
+    }
+
     // Buscar dados atualizados para garantir que temos o foto_path correto
     const c = await apiGet(`/colaboradores/${id}`);
     viewedColaborador = c || { id, nome, cargo, cpf, sexo, admissao, status, rgTipo };
@@ -1697,12 +1705,6 @@ window.openProntuario = async function(id, nome, cargo, cpf, sexo = '', admissao
     navigateTo('prontuario');
     await loadDocumentosList();
     window.renderTabContent('00.CheckList', '00. CheckList');
-
-    // Vincular botão de sincronização OneDrive
-    const syncBtn = document.getElementById('btn-sync-onedrive');
-    if (syncBtn) {
-        syncBtn.onclick = function() { window.syncOneDriveManual(id, this); };
-    }
 };
 
 window.uploadFotoProntuario = async function(input) {
