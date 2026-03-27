@@ -434,7 +434,9 @@ app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) =>
         const client = await onedrive.getGraphClient();
         const driveId = process.env.ONEDRIVE_DRIVE_ID;
         
-        // Testar acesso ao drive (Padrão ou SharePoint)
+        // Variáveis de diagnóstico
+        let driveName = driveId ? "Biblioteca de Documentos (SharePoint)" : "OneDrive Pessoal";
+        let infoPasta = null;
         let driveInfo = {};
         let basePathItems = [];
         try {
@@ -443,7 +445,11 @@ app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) =>
             
             // Tentar listar itens no caminho base configurado
             const encodedBasePath = config.basePath.split('/').map(p => encodeURIComponent(p)).join('/');
+            
             try {
+                // Tenta pegar metadados da pasta base
+                infoPasta = await client.api(`${drivePrefix}:/${encodedBasePath}`).get();
+                
                 const items = await client.api(`${drivePrefix}:/${encodedBasePath}:/children`).get();
                 basePathItems = items.value.map(i => i.name);
             } catch (pErr) {
