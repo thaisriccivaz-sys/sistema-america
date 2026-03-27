@@ -433,11 +433,20 @@ app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) =>
         const accessToken = await onedrive.getAccessToken();
         const client = await onedrive.getGraphClient();
         const driveId = process.env.ONEDRIVE_DRIVE_ID;
+        const drivePrefix = driveId ? `/drives/${driveId}/root` : `/users/${config.email}/drive/root`;
         
+        // 1. Tentar ler a RAIZ para ver o ponto de entrada real
+        let infoRaiz = null;
+        let rootItems = [];
+        try {
+            infoRaiz = await client.api(driveId ? `/drives/${driveId}/root` : `/users/${config.email}/drive/root`).get();
+            const resRaiz = await client.api(`${drivePrefix}/children`).get();
+            rootItems = (resRaiz.value || []).map(item => item.name);
+        } catch (rErr) { console.warn("Erro ao ler raiz:", rErr.message); }
+
         // Variáveis de diagnóstico
-        let driveName = driveId ? "Biblioteca de Documentos (SharePoint)" : "OneDrive Pessoal";
+        let driveName = infoRaiz ? (infoRaiz.name || (driveId ? "SharePoint" : "OneDrive")) : "OneDrive";
         let infoPasta = null;
-        let driveInfo = {};
         let basePathItems = [];
         try {
             const drivePrefix = driveId ? `/drives/${driveId}/root` : `/users/${config.email}/drive/root`;
@@ -501,13 +510,15 @@ app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) =>
         res.json({ 
             sucesso: true, 
             message: "Conexão OneDrive OK!", 
-            driveName: driveInfo.name || driveName,
+            driveName: driveName,
             basePathItems: basePathItems,
+            rootItems: rootItems,
             config: { 
                 ...config, 
                 clientSecret: "[OCULTO]", 
                 driveId: driveId,
-                webUrl: infoPasta ? infoPasta.webUrl : "Pasta não localizada",
+                webUrlBase: infoPasta ? infoPasta.webUrl : "Pasta não localizada",
+                webUrlRaiz: infoRaiz ? infoRaiz.webUrl : "N/A",
                 idReal: driveId || "Personal"
             }
         });

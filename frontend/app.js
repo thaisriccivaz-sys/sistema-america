@@ -4325,13 +4325,15 @@ window.testOneDriveConnection = async function() {
         const data = await res.json();
         
         if (data.sucesso) {
-            let basePathList = data.basePathItems?.join(', ') || '(Pasta vazia)';
+            let rootList = data.rootItems?.join(', ') || '(Vazia)';
+            let systemList = data.basePathItems?.join(', ') || '(Vazia)';
+            
             let msg = `✅ CONEXÃO OK!\n\n` +
                       `Biblioteca: ${data.driveName}\n` +
-                      `ID Real: ${data.config.idReal}\n` +
-                      `Link Web: ${data.config.webUrl || 'N/A'}\n\n` +
-                      `CONTEÚDO DA PASTA SISTEMA:\n${basePathList}\n\n` +
-                      `CAMINHO: ${data.config.basePath}`;
+                      `Link Raiz: ${data.config.webUrlRaiz || 'N/A'}\n` +
+                      `Link Sistema: ${data.config.webUrlBase || 'N/A'}\n\n` +
+                      `ARQUIVOS NA RAIZ:\n${rootList}\n\n` +
+                      `ARQUIVOS EM SISTEMA:\n${systemList}`;
             alert(msg);
         } else {
             let errorMsg = `❌ ${data.error}\n`;
