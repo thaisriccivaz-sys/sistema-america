@@ -12,6 +12,9 @@ const config = {
 };
 
 const cca = new msal.ConfidentialClientApplication(config);
+const CLIENT_ID = process.env.ONEDRIVE_CLIENT_ID;
+const USER_ID = process.env.ONEDRIVE_USER_EMAIL;
+const DRIVE_ID = process.env.ONEDRIVE_DRIVE_ID || "b!giGJ-6SQo0q01aZkBQjqEzgftfBe2OJGpvVeTh2YrbQTUqm85gobSoh8CtELSzAF";
 
 /**
  * Obtém o token de acesso para o Microsoft Graph
@@ -88,12 +91,12 @@ async function ensurePath(fullPath) {
  * Cria uma única pasta no OneDrive se não existir
  */
 async function ensureFolder(folderPath) {
-    if (!process.env.ONEDRIVE_CLIENT_ID) return;
+    if (!CLIENT_ID) return;
 
     try {
         const client = await getGraphClient();
-        const userId = process.env.ONEDRIVE_USER_EMAIL;
-        const driveId = process.env.ONEDRIVE_DRIVE_ID;
+        const userId = USER_ID;
+        const driveId = DRIVE_ID;
         
         // Determina o prefixo da API (Drive específico ou Root do Usuário)
         const drivePrefix = driveId ? `/drives/${driveId}/root` : `/users/${userId}/drive/root`;
@@ -139,12 +142,12 @@ async function ensureFolder(folderPath) {
  * Faz o upload de um arquivo para o OneDrive
  */
 async function uploadToOneDrive(remotePath, fileName, fileBuffer) {
-    if (!process.env.ONEDRIVE_CLIENT_ID) return;
+    if (!CLIENT_ID) return;
 
     try {
         const client = await getGraphClient();
-        const userId = process.env.ONEDRIVE_USER_EMAIL;
-        const driveId = process.env.ONEDRIVE_DRIVE_ID;
+        const userId = USER_ID;
+        const driveId = DRIVE_ID;
 
         const drivePrefix = driveId ? `/drives/${driveId}/root` : `/users/${userId}/drive/root`;
         
