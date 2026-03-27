@@ -4325,27 +4325,10 @@ window.testOneDriveConnection = async function() {
         const data = await res.json();
         
         if (data.sucesso) {
-            let rootList = data.rootItems?.join(', ') || '(Vazia)';
-            let systemList = data.basePathItems?.join(', ') || '(Vazia)';
-            
-            let msg = `✅ CONEXÃO OK!\n\n` +
-                      `Biblioteca Atual: ${data.driveName}\n` +
-                      `Link Raiz Atual: ${data.config.webUrlRaiz || 'N/A'}\n\n`;
-            
-            msg += `--- BUSCA DE BIBLIOTECAS (MEGA FINDER) ---\n`;
-            if (data.siteDiscovery && data.siteDiscovery.length > 0) {
-                data.siteDiscovery.forEach(site => {
-                    msg += `\nSite: ${site.siteName}\n`;
-                    site.drives.forEach(d => {
-                        msg += ` > ${d.name}\n   ID: ${d.id}\n`;
-                    });
-                });
-            } else {
-                msg += `Nenhuma biblioteca adicional encontrada.\n`;
-            }
-
-            msg += `\n--------------------------------------\n`;
-            msg += `ARQUIVOS NA BIBLIOTECA ATUAL:\n${rootList}`;
+            let msg = `✅ O OneDrive está CONECTADO corretamente!\n\n` +
+                      `Biblioteca: ${data.driveName}\n` +
+                      `Link Direto: ${data.config.webUrlBase || data.config.webUrlRaiz}\n\n` +
+                      `Tudo pronto para sincronizar colaboradores.`;
             alert(msg);
         } else {
             let errorMsg = `❌ ${data.error}\n`;
