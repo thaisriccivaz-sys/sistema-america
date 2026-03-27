@@ -451,7 +451,14 @@ app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) =>
         const allDrives = await client.api(`/users/${config.email}/drives`).get();
         
         // NOVO: Buscar sites com nome "America" para encontrar a biblioteca correta
-        const sites = await client.api(`/sites?search=America`).get();
+        let foundSites = [];
+        try {
+            const sites = await client.api(`/sites?search=America`).get();
+            foundSites = sites.value?.map(s => ({ name: s.displayName, id: s.id, url: s.webUrl })) || [];
+        } catch (sErr) {
+            console.warn("OneDrive Site Search Disabled/Failed (Permission needed: Sites.Read.All)");
+            foundSites = [{ name: "⚠️ Falha ao buscar Sites: Sem permissão Sites.Read.All no Azure", id: "error", url: null }];
+        }
         
         res.json({ 
             sucesso: true, 
@@ -460,7 +467,7 @@ app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) =>
             driveType: drive.driveType,
             rootItems: rootItems.value.map(i => i.name),
             allDrives: allDrives.value.map(d => ({ name: d.name, id: d.id, driveType: d.driveType })),
-            foundSites: sites.value?.map(s => ({ name: s.displayName, id: s.id, url: s.webUrl })) || [],
+            foundSites: foundSites,
             config: { ...config, clientSecret: "[OCULTO]" }
         });
     } catch (e) {
