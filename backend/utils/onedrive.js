@@ -43,37 +43,54 @@ async function getGraphClient() {
 }
 
 /**
- * Cria uma estrutura de pastas no OneDrive
- * Caminho esperado: RH/1.Colaboradores/Sistema/NOME_COLABORADOR/SUBPASTAS
+ * Garante que um caminho completo de pastas exista no OneDrive (Recursivo)
  */
-async function ensureFolder(path) {
-    if (!process.env.ONEDRIVE_CLIENT_ID) return; // Ignora se não houver configuração
+async function ensurePath(fullPath) {
+    if (!fullPath) return;
+    const parts = fullPath.split('/').filter(p => p !== "");
+    let currentPath = "";
+    
+    for (const part of parts) {
+        currentPath = currentPath ? `${currentPath}/${part}` : part;
+        await ensureFolder(currentPath);
+    }
+}
+
+/**
+ * Cria uma única pasta no OneDrive se não existir
+ */
+async function ensureFolder(folderPath) {
+    if (!process.env.ONEDRIVE_CLIENT_ID) return;
 
     try {
         const client = await getGraphClient();
         const userId = process.env.ONEDRIVE_USER_EMAIL;
         
-        // No Graph API, podemos criar pastas recursivamente ou uma a uma.
-        // O caminho deve ser relativo à raiz ou a um driveID.
-        // Ex: /users/{id}/drive/root:/RH/1.Colaboradores/Sistema:/children
-        
-        // Para simplificar: tentamos acessar a pasta. Se não existir, o Graph permite criar via PUT/POST.
-        // Como o caminho pode ser longo, o ideal é criar níveis.
-        
-        console.log(`Verificando/Criando pasta no OneDrive: ${path}`);
-        
-        // O Graph permite criar pastas usando a URL amigável:
-        // POST /me/drive/root:/Caminho/Para/NovaPasta:/children
-        await client.api(`/users/${userId}/drive/root:/${path}`).get();
-        
+        try {
+            await client.api(`/users/${userId}/drive/root:/${folderPath}`).get();
+        } catch (error) {
+            if (error.code === 'itemNotFound') {
+                const parts = folderPath.split('/');
+                const folderName = parts.pop();
+                const parentPath = parts.join('/');
+                
+                const endpoint = parentPath 
+                    ? `/users/${userId}/drive/root:/${parentPath}:/children`
+                    : `/users/${userId}/drive/root/children`;
+
+                await client.api(endpoint).post({
+                    name: folderName,
+                    folder: {},
+                    "@microsoft.graph.conflictBehavior": "fail"
+                });
+                console.log(`Pasta criada: ${folderPath}`);
+            } else {
+                throw error;
+            }
+        }
     } catch (error) {
-        if (error.code === 'itemNotFound') {
-            // Lógica de criação recursiva (simplificada para o escopo)
-            // ... (Pode ser implementado conforme a necessidade de profundidade)
-            console.log("Pasta não encontrada, criando...");
-            // Nota: O Graph permite criar via PATCH/POST em caminhos inexistentes em alguns contextos.
-        } else {
-            console.error("ERRO ONEDRIVE ENSURE FOLDER:", error.message);
+        if (error.code !== 'nameAlreadyExists') {
+            console.error(`ERRO ONEDRIVE AO GARANTIR PASTA (${folderPath}):`, error.message);
         }
     }
 }
@@ -106,5 +123,6 @@ async function uploadToOneDrive(remotePath, fileName, fileBuffer) {
 
 module.exports = {
     uploadToOneDrive,
-    ensureFolder
+    ensureFolder,
+    ensurePath
 };

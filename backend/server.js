@@ -302,8 +302,8 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
         const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema";
         const onedrivePath = `${onedriveBasePath}/${nomePasta}`;
         
-        // Criar estrutura base no OneDrive
-        onedrive.ensureFolder(onedrivePath)
+        // Criar estrutura base no OneDrive (Recursivo)
+        onedrive.ensurePath(onedrivePath)
             .then(() => {
                 // Criar subpastas
                 FOLDERS.forEach(f => onedrive.ensureFolder(`${onedrivePath}/${f}`));
