@@ -286,21 +286,31 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
 
     const nomePasta = formatarNome(nomeOriginal);
     const pastaColaborador = path.join(BASE_PATH, nomePasta);
+    
+    console.log("--- DEBUG CRIAÇÃO DE PASTA ---");
+    console.log("NOME ORIGINAL:", nomeOriginal);
+    console.log("BASE_PATH:", BASE_PATH);
+    console.log("PASTA FINAL:", pastaColaborador);
+    console.log("STATUS RECEBIDO:", data.status);
 
     if (data.status !== 'Incompleto') {
         try {
             if (!fs.existsSync(pastaColaborador)) {
-                console.log("CRIANDO ESTRUTURA DE PASTAS EM:", pastaColaborador);
+                console.log("EXECUTANDO: fs.mkdirSync em " + pastaColaborador);
                 fs.mkdirSync(pastaColaborador, { recursive: true });
                 FOLDERS.forEach(p => {
                     const subPath = path.join(pastaColaborador, p);
                     if (!fs.existsSync(subPath)) fs.mkdirSync(subPath, { recursive: true });
                 });
-                console.log("ESTRUTURA DE PASTAS OK.");
+                console.log("ESTRUTURA DE PASTAS CRIADA COM SUCESSO.");
+            } else {
+                console.log("AVISO: A pasta já existe, criação ignorada.");
             }
         } catch (erro) {
-            console.error("ERRO AO CRIAR PASTAS DO COLABORADOR:", erro);
+            console.error("ERRO FATAL AO CRIAR PASTAS DO COLABORADOR:", erro);
         }
+    } else {
+        console.log("AVISO: Status 'Incompleto' detectado, pulando criação de pastas.");
     }
 
     const colunas = [
