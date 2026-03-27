@@ -377,14 +377,17 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
 app.post('/api/colaboradores/:id/sync-onedrive', authenticateToken, async (req, res) => {
     try {
         const id = req.params.id;
-        db.get("SELECT nome FROM colaboradores WHERE id = ?", [id], async (err, colab) => {
-            if (err || !colab) return res.status(404).json({ error: 'Colaborador não encontrado' });
+        db.get("SELECT nome_completo FROM colaboradores WHERE id = ?", [id], async (err, colab) => {
+            if (err || !colab) {
+                console.error("Sync Error - DB:", err?.message || 'Colab não encontrado');
+                return res.status(404).json({ error: 'Colaborador não encontrado' });
+            }
             
-            const nomePasta = formatarNome(colab.nome);
+            const nomePasta = formatarNome(colab.nome_completo);
             const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema";
             const onedrivePath = `${onedriveBasePath}/${nomePasta}`;
             
-            console.log(`Solicitação de Sync OneDrive para: ${colab.nome}`);
+            console.log(`Solicitação de Sync OneDrive para: ${colab.nome_completo} (ID: ${id})`);
             
             try {
                 await onedrive.ensurePath(onedrivePath);
