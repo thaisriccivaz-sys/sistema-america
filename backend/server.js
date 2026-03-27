@@ -62,14 +62,16 @@ async function syncColaboradorOneDrive(nomeCompleto) {
         const nomePasta = formatarNome(nomeCompleto);
         const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema";
         const onedrivePath = `${onedriveBasePath}/${nomePasta}`;
-        
         console.log(`[OneDrive] Sincronizando pastas para: ${nomeCompleto} em ${onedrivePath}`);
         await onedrive.ensurePath(onedrivePath);
         
-        // Criar subpastas em paralelo para evitar timeout no Render
-        await Promise.all(FOLDERS.map(f => onedrive.ensureFolder(`${onedrivePath}/${f}`)));
+        // Disparar criação das 25 subpastas em background para não travar o Render/Frontend
+        // Elas aparecerão no OneDrive em alguns segundos
+        Promise.all(FOLDERS.map(f => onedrive.ensureFolder(`${onedrivePath}/${f}`)))
+            .then(() => console.log(`[OneDrive] Todas as subpastas criadas para: ${nomeCompleto}`))
+            .catch(err => console.error(`[OneDrive Background Error] ${nomeCompleto}:`, err.message));
         
-        console.log(`[OneDrive] Sincronização concluída para: ${nomeCompleto}`);
+        console.log(`[OneDrive] Pasta principal garantida. Resposta enviada.`);
         return { sucesso: true, caminho: onedrivePath };
     } catch (e) {
         console.error(`[OneDrive] Erro na sincronização automática (${nomeCompleto}):`, e.message);

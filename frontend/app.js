@@ -4355,10 +4355,16 @@ window.syncOneDriveManual = async function(id, btnElement = null) {
     }
 
     try {
+        // Timeout de 25 segundos para não travar o spinner se o Render demorar
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 25000);
+
         const res = await fetch(`${API_URL}/colaboradores/${id}/sync-onedrive`, {
             method: 'POST',
+            signal: controller.signal,
             headers: { 'Authorization': `Bearer ${currentToken}` }
         });
+        clearTimeout(timeoutId);
         const data = await res.json();
         
         if (data.sucesso) {

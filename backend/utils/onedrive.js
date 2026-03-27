@@ -34,16 +34,29 @@ async function getAccessToken() {
  * Inicializa o cliente do Microsoft Graph
  */
 let cachedClient = null;
+let clientInitPromise = null;
 
 async function getGraphClient() {
     if (cachedClient) return cachedClient;
-    const accessToken = await getAccessToken();
-    cachedClient = Client.init({
-        authProvider: (done) => {
-            done(null, accessToken);
-        },
-    });
-    return cachedClient;
+    
+    // Evita múltiplas inicializações simultâneas (Race Condition)
+    if (clientInitPromise) return clientInitPromise;
+
+    clientInitPromise = (async () => {
+        try {
+            const accessToken = await getAccessToken();
+            cachedClient = Client.init({
+                authProvider: (done) => {
+                    done(null, accessToken);
+                },
+            });
+            return cachedClient;
+        } finally {
+            clientInitPromise = null;
+        }
+    })();
+
+    return clientInitPromise;
 }
 
 /**
