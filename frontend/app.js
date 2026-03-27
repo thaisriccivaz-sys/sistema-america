@@ -4295,3 +4295,36 @@ window.iniciarAssinafy = async function(docType, tabName, btn) {
         btn.innerHTML = '<i class="ph ph-pen-nib"></i> Assinar p/ Assinafy';
     }
 };
+
+window.resetSystem = async function() {
+    const confirmation1 = confirm("🚨 ATENÇÃO: Você tem certeza que deseja LIMPAR TODOS os colaboradores do sistema?\n\nIsso apagará todos os dados do banco de dados (dependentes, fotos, documentos registrados). Os arquivos físicos no OneDrive não serão apagados por segurança.");
+    if (!confirmation1) return;
+
+    const confirmation2 = confirm("CONFIRMAÇÃO FINAL: Deseja realmente excluir permanentemente todos os registros de colaboradores?");
+    if (!confirmation2) return;
+
+    const btn = document.getElementById('btn-reset-sistema');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ph ph-spinner-gap spinning"></i> Limpando...';
+
+    try {
+        const res = await fetch(`${API_URL}/maintenance/reset`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${currentToken}` }
+        });
+        const data = await res.json();
+        
+        if (data.sucesso) {
+            alert("Sistema limpo com sucesso! A página será recarregada.");
+            location.reload();
+        } else {
+            alert("Erro ao resetar sistema: " + (data.error || "Erro desconhecido"));
+        }
+    } catch (e) {
+        alert("Erro de rede: " + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+};
