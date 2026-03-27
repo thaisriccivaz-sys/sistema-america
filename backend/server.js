@@ -432,7 +432,8 @@ app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) =>
 
         const accessToken = await onedrive.getAccessToken();
         const client = await onedrive.getGraphClient();
-        const driveId = process.env.ONEDRIVE_DRIVE_ID;
+        // PRIORIDADE: ID Real da América Rental encontrado pelo Mega Finder
+        const driveId = "b!giGJ-6SQo0q01aZkBQjqEzgftfBe2OJGpvVeTh2YrbQTUqm85gobSoh8CtELSzAF";
         const drivePrefix = driveId ? `/drives/${driveId}/root` : `/users/${config.email}/drive/root`;
         
         // 1. Tentar ler a RAIZ para ver o ponto de entrada real
