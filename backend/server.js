@@ -374,6 +374,34 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
     });
 });
 
+app.post('/api/colaboradores/:id/sync-onedrive', authenticateToken, async (req, res) => {
+    try {
+        const id = req.params.id;
+        db.get("SELECT nome FROM colaboradores WHERE id = ?", [id], async (err, colab) => {
+            if (err || !colab) return res.status(404).json({ error: 'Colaborador não encontrado' });
+            
+            const nomePasta = formatarNome(colab.nome);
+            const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema";
+            const onedrivePath = `${onedriveBasePath}/${nomePasta}`;
+            
+            console.log(`Solicitação de Sync OneDrive para: ${colab.nome}`);
+            
+            try {
+                await onedrive.ensurePath(onedrivePath);
+                for (const f of FOLDERS) {
+                    await onedrive.ensureFolder(`${onedrivePath}/${f}`);
+                }
+                res.json({ sucesso: true, message: 'Estrutura de pastas sincronizada no OneDrive.' });
+            } catch (syncErr) {
+                console.error("Erro no sync manual OneDrive:", syncErr.message);
+                res.status(500).json({ error: 'Falha ao sincronizar com OneDrive: ' + syncErr.message });
+            }
+        });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
     const data = req.body;
     const id = req.params.id;

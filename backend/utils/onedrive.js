@@ -66,16 +66,20 @@ async function ensureFolder(folderPath) {
         const client = await getGraphClient();
         const userId = process.env.ONEDRIVE_USER_EMAIL;
         
+        // Codifica cada parte do caminho para evitar erros com caracteres especiais
+        const encodedPath = folderPath.split('/').map(p => encodeURIComponent(p)).join('/');
+        
         try {
-            await client.api(`/users/${userId}/drive/root:/${folderPath}`).get();
+            await client.api(`/users/${userId}/drive/root:/${encodedPath}`).get();
         } catch (error) {
             if (error.code === 'itemNotFound') {
                 const parts = folderPath.split('/');
                 const folderName = parts.pop();
                 const parentPath = parts.join('/');
+                const encodedParent = parentPath.split('/').map(p => encodeURIComponent(p)).join('/');
                 
                 const endpoint = parentPath 
-                    ? `/users/${userId}/drive/root:/${parentPath}:/children`
+                    ? `/users/${userId}/drive/root:/${encodedParent}:/children`
                     : `/users/${userId}/drive/root/children`;
 
                 await client.api(endpoint).post({
@@ -83,7 +87,7 @@ async function ensureFolder(folderPath) {
                     folder: {},
                     "@microsoft.graph.conflictBehavior": "fail"
                 });
-                console.log(`Pasta criada: ${folderPath}`);
+                console.log(`OneDrive: Pasta criada -> ${folderPath}`);
             } else {
                 throw error;
             }
@@ -99,24 +103,23 @@ async function ensureFolder(folderPath) {
  * Faz o upload de um arquivo para o OneDrive
  */
 async function uploadToOneDrive(remotePath, fileName, fileBuffer) {
-    if (!process.env.ONEDRIVE_CLIENT_ID) {
-        console.log("OneDrive não configurado, pulando upload.");
-        return;
-    }
+    if (!process.env.ONEDRIVE_CLIENT_ID) return;
 
     try {
         const client = await getGraphClient();
         const userId = process.env.ONEDRIVE_USER_EMAIL;
         
-        console.log(`Fazendo upload para OneDrive: ${remotePath}/${fileName}`);
+        const encodedPath = remotePath.split('/').map(p => encodeURIComponent(p)).join('/');
+        const encodedFileName = encodeURIComponent(fileName);
         
-        // Upload simples (limite de 4MB)
-        await client.api(`/users/${userId}/drive/root:/${remotePath}/${fileName}:/content`)
+        console.log(`OneDrive: Uploading ${fileName} para ${remotePath}`);
+        
+        await client.api(`/users/${userId}/drive/root:/${encodedPath}/${encodedFileName}:/content`)
             .put(fileBuffer);
             
-        console.log("UPLOAD CONCLUÍDO NO ONEDRIVE.");
+        console.log(`OneDrive: Upload concluído -> ${fileName}`);
     } catch (error) {
-        console.error("ERRO NO UPLOAD ONEDRIVE:", error.message);
+        console.error(`ERRO UPLOAD ONEDRIVE (${fileName}):`, error.message);
         throw error;
     }
 }

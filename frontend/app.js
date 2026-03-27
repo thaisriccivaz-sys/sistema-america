@@ -1039,6 +1039,10 @@ window.resetFormColaborador = function() {
     
     document.querySelectorAll('.cb-folga-colab').forEach(cb => cb.checked = false);
     
+    // Reset Sync Button
+    const btnSync = document.getElementById('btn-sync-onedrive');
+    if (btnSync) btnSync.style.display = 'none';
+    
     if (document.getElementById('colab-cnh-documento')) document.getElementById('colab-cnh-documento').value = '';
     if (document.getElementById('colab-cnh-doc-id')) document.getElementById('colab-cnh-doc-id').value = '';
     if (document.getElementById('cnh-status-text')) document.getElementById('cnh-status-text').style.display = 'none';
@@ -1104,6 +1108,9 @@ window.editColaborador = async function(id) {
         const titleEl = document.getElementById('form-colab-title');
         if (titleEl) titleEl.textContent = c.nome_completo || `Colaborador #${c.id}`;
         
+        const btnSync = document.getElementById('btn-sync-onedrive');
+        if (btnSync) btnSync.style.display = 'flex';
+
         document.getElementById('colab-id').value = c.id;
         document.getElementById('colab-nome').value = c.nome_completo || '';
         document.getElementById('colab-cpf').value = c.cpf || '';
@@ -4293,5 +4300,34 @@ window.iniciarAssinafy = async function(docType, tabName, btn) {
         alert('Falha ao iniciar Assinafy: ' + e.message);
         btn.disabled = false;
         btn.innerHTML = '<i class="ph ph-pen-nib"></i> Assinar p/ Assinafy';
+    }
+};
+
+window.syncOneDriveManual = async function() {
+    const id = document.getElementById('colab-id').value;
+    if (!id) return;
+    
+    const btn = document.getElementById('btn-sync-onedrive');
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ph ph-spinner-gap spinning"></i> Sincronizando...';
+    
+    try {
+        const res = await fetch(`${API_URL}/colaboradores/${id}/sync-onedrive`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${currentToken}` }
+        });
+        const data = await res.json();
+        if (data.sucesso) {
+            alert('Sucesso! A estrutura de pastas foi verificada/criada no seu OneDrive. Verifique no seu PC em alguns instantes.');
+        } else {
+            alert('Erro: ' + (data.error || 'Falha na sincronização. Verifique se o OneDrive está configurado no Render.'));
+        }
+    } catch (e) {
+        console.error("Sync Error:", e);
+        alert('Erro de conexão: ' + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
     }
 };
