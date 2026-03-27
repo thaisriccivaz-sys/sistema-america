@@ -437,7 +437,7 @@ app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) =>
         const driveId = "b!giGJ-6SQo0q01aZkBQjqEzgftfBe2OJGpvVeTh2YrbQTUqm85gobSoh8CtELSzAF";
         const drivePrefix = driveId ? `/drives/${driveId}/root` : `/users/${config.email}/drive/root`;
         
-        // 1. Tentar ler a RAIZ para ver o ponto de entrada real
+        // Tentar ler a RAIZ para ver o ponto de entrada real
         let infoRaiz = null;
         let rootItems = [];
         try {
@@ -445,6 +445,20 @@ app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) =>
             const resRaiz = await client.api(`${drivePrefix}/children`).get();
             rootItems = (resRaiz.value || []).map(item => item.name);
         } catch (rErr) { console.warn("Erro ao ler raiz:", rErr.message); }
+
+        // 2. BUSCA GLOBAL (GPS) - Procurar pasta 'RH' em toda a organização
+        let rhLocation = null;
+        try {
+            const searchRH = await client.api(`/sites/root/drive/root/search(q='RH')`).get();
+            // Se não achar no root, tentar busca global de itens
+            const searchGlobal = await client.api(`/search/query`).post({
+                requests: [{
+                    entityTypes: ['driveItem'],
+                    query: { queryString: 'name:RH' }
+                }]
+            });
+            rhLocation = searchGlobal.value?.[0]?.hitsContainers?.[0]?.hits?.[0]?.resource || null;
+        } catch (gpsErr) { console.warn("Erro GPS:", gpsErr.message); }
 
         // Variáveis de diagnóstico
         let driveName = infoRaiz ? (infoRaiz.name || (driveId ? "SharePoint" : "OneDrive")) : "OneDrive";
@@ -489,6 +503,7 @@ app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) =>
             driveName: infoRaiz ? (infoRaiz.name || driveName) : driveName,
             basePathItems: basePathItems,
             rootItems: rootItems,
+            rhLocation: rhLocation,
             siteDiscovery: siteDrives,
             config: {
                 basePath: config.basePath,

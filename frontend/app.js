@@ -4325,10 +4325,17 @@ window.testOneDriveConnection = async function() {
         const data = await res.json();
         
         if (data.sucesso) {
+            let gpsRH = "";
+            if (data.rhLocation) {
+                let dId = data.rhLocation.parentReference?.driveId;
+                gpsRH = `\n\n⚠️ PASTA 'RH' ENCONTRADA EM OUTRO LUGAR:\nEndereço: ${data.rhLocation.webUrl}\nID Drive: ${dId}`;
+            }
+            
             let msg = `✅ O OneDrive está CONECTADO corretamente!\n\n` +
                       `Biblioteca: ${data.driveName}\n` +
-                      `Link Direto: ${data.config.webUrlBase || data.config.webUrlRaiz}\n\n` +
-                      `Tudo pronto para sincronizar colaboradores.`;
+                      `Link Direto: ${data.config.webUrlBase || data.config.webUrlRaiz}` +
+                      gpsRH + 
+                      `\n\nTudo pronto para sincronizar colaboradores.`;
             alert(msg);
         } else {
             let errorMsg = `❌ ${data.error}\n`;
