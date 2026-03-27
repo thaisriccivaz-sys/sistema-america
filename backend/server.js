@@ -26,7 +26,8 @@ const PORT = process.env.PORT || 3000;
 const SECRET_KEY = process.env.SECRET_KEY || 'america_rental_secret_key_123';
 
 // Configuração de Armazenamento (Dinâmico para Render/Linux ou Disco Persistente)
-const BASE_PATH = process.env.STORAGE_PATH || path.join(__dirname, 'data', 'Colaboradores');
+const LOCAL_ONEDRIVE_PATH = "C:\\A\\OneDrive - AMERICA RENTAL EQUIPAMENTOS LTDA\\Documentos - America Rental\\Diretoria\\Teste Sistema\\Colaboradores";
+const BASE_PATH = process.env.STORAGE_PATH || (process.platform === 'win32' ? LOCAL_ONEDRIVE_PATH : path.join(__dirname, 'data', 'Colaboradores'));
 const BASE_UPLOAD_PATH = BASE_PATH; // Mantendo compatibilidade
 
 function formatarNome(nome) {
@@ -97,10 +98,16 @@ const storage = multer.diskStorage({
         console.log("-----------------------------------------");
         console.log("UPLOAD DESTINATION:", finalDir);
         
-        if (!fs.existsSync(finalDir)) {
-            fs.mkdirSync(finalDir, { recursive: true });
+        try {
+            if (!fs.existsSync(finalDir)) {
+                fs.mkdirSync(finalDir, { recursive: true });
+                console.log("DIRETÓRIO CRIADO:", finalDir);
+            }
+            cb(null, finalDir);
+        } catch (err) {
+            console.error("ERRO AO CRIAR DIRETÓRIO DE UPLOAD:", err);
+            cb(new Error("Não foi possível criar a pasta de destino para o upload. Verifique as permissões de gravação."));
         }
-        cb(null, finalDir);
     },
     filename: function (req, file, cb) {
         const docType = req.body.document_type || 'DOCUMENTO';
@@ -276,11 +283,16 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
     if (data.status !== 'Incompleto') {
         try {
             if (!fs.existsSync(pastaColaborador)) {
+                console.log("CRIANDO ESTRUTURA DE PASTAS EM:", pastaColaborador);
                 fs.mkdirSync(pastaColaborador, { recursive: true });
-                FOLDERS.forEach(p => fs.mkdirSync(path.join(pastaColaborador, p), { recursive: true }));
+                FOLDERS.forEach(p => {
+                    const subPath = path.join(pastaColaborador, p);
+                    if (!fs.existsSync(subPath)) fs.mkdirSync(subPath, { recursive: true });
+                });
+                console.log("ESTRUTURA DE PASTAS OK.");
             }
         } catch (erro) {
-            console.error("ERRO AO CRIAR PASTAS:", erro);
+            console.error("ERRO AO CRIAR PASTAS DO COLABORADOR:", erro);
         }
     }
 
@@ -1358,6 +1370,18 @@ async function salvarLinkAssinatura(assinafyDocId, link) {
         );
     });
 }
+
+// Middleware de Erro Global (incluindo Multer e erros de filesystem)
+app.use((err, req, res, next) => {
+    console.error("--- ERRO DETECTADO NO SERVIDOR ---");
+    console.error(err);
+    
+    if (err instanceof multer.MulterError || err.message.includes("Não foi possível criar")) {
+        return res.status(500).json({ error: `Falha no Armazenamento: ${err.message}` });
+    }
+    
+    res.status(500).json({ error: "Erro interno no servidor." });
+});
 
 app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
