@@ -363,6 +363,41 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
     });
 });
 
+// --- ROTA DE MANUTENÇÃO: RESET TOTAL ---
+app.post('/api/maintenance/reset', authenticateToken, (req, res) => {
+    console.log("--- SOLICITAÇÃO DE RESET TOTAL RECEBIDA ---");
+    
+    db.serialize(() => {
+        try {
+            // 1. Limpar tabelas
+            db.run("DELETE FROM colaboradores");
+            db.run("DELETE FROM documentos");
+            db.run("DELETE FROM dependentes");
+            db.run("DELETE FROM colaborador_chaves");
+            db.run("DELETE FROM historico_logs");
+            
+            // 2. Limpar arquivos no disco
+            if (fs.existsSync(BASE_PATH)) {
+                const files = fs.readdirSync(BASE_PATH);
+                files.forEach(file => {
+                    const fullPath = path.join(BASE_PATH, file);
+                    if (fs.lstatSync(fullPath).isDirectory()) {
+                        fs.rmSync(fullPath, { recursive: true, force: true });
+                    } else {
+                        fs.unlinkSync(fullPath);
+                    }
+                });
+            }
+            
+            console.log("--- RESET CONCLUÍDO COM SUCESSO ---");
+            res.json({ success: true, message: "Sistema resetado com sucesso." });
+        } catch (err) {
+            console.error("ERRO NO RESET:", err);
+            res.status(500).json({ error: "Erro ao resetar dados: " + err.message });
+        }
+    });
+});
+
 app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
     const data = req.body;
     const id = req.params.id;

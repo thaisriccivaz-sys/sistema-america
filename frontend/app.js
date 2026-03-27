@@ -142,6 +142,42 @@ function setupNavigation() {
         });
     }
 
+    const btnResetSistema = document.getElementById('btn-reset-sistema');
+    if (btnResetSistema) {
+        btnResetSistema.addEventListener('click', async () => {
+            const confirm1 = confirm("ATENÇÃO: Você está prestes a apagar TODOS os colaboradores e documentos do sistema. Esta ação NÃO pode ser desfeita. Deseja continuar?");
+            if (confirm1) {
+                const senha = prompt("Para confirmar a exclusão total, digite a senha de segurança (america2026):");
+                if (senha === 'america2026') {
+                    try {
+                        btnResetSistema.disabled = true;
+                        btnResetSistema.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Resetando...';
+                        
+                        const res = await fetch(`${API_URL}/maintenance/reset`, {
+                            method: 'POST',
+                            headers: { 'Authorization': `Bearer ${currentToken}` }
+                        });
+                        const data = await res.json();
+                        
+                        if (res.ok) {
+                            alert("Sistema resetado com sucesso! Todos os dados foram apagados.");
+                            location.reload(); // Recarrega para limpar o estado global
+                        } else {
+                            throw new Error(data.error || "Erro ao resetar");
+                        }
+                    } catch (err) {
+                        alert("Falha no Reset: " + err.message);
+                    } finally {
+                        btnResetSistema.disabled = false;
+                        btnResetSistema.innerHTML = '<i class="ph ph-trash"></i> Limpar Tudo';
+                    }
+                } else if (senha !== null) {
+                    alert("Senha incorreta. Operação cancelada.");
+                }
+            }
+        });
+    }
+
     document.querySelectorAll('#tabs-list li').forEach(tab => {
         tab.addEventListener('click', (e) => {
             document.querySelectorAll('#tabs-list li').forEach(t => t.classList.remove('active'));
