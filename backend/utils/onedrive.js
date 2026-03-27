@@ -69,8 +69,11 @@ async function ensureFolder(folderPath) {
         // Codifica cada parte do caminho para evitar erros com caracteres especiais
         const encodedPath = folderPath.split('/').map(p => encodeURIComponent(p)).join('/');
         
+        console.log(`[OneDrive Debug] Verificando/Criando: ${folderPath} (URL Encoded: ${encodedPath})`);
+
         try {
             await client.api(`/users/${userId}/drive/root:/${encodedPath}`).get();
+            // console.log(`[OneDrive Debug] Já existe: ${folderPath}`);
         } catch (error) {
             if (error.code === 'itemNotFound') {
                 const parts = folderPath.split('/');
@@ -87,14 +90,15 @@ async function ensureFolder(folderPath) {
                     folder: {},
                     "@microsoft.graph.conflictBehavior": "fail"
                 });
-                console.log(`OneDrive: Pasta criada -> ${folderPath}`);
+                console.log(`[OneDrive Success] Pasta criada ok: ${folderPath}`);
             } else {
+                console.error(`[OneDrive Error] Falha ao verificar ${folderPath}:`, error.message);
                 throw error;
             }
         }
     } catch (error) {
         if (error.code !== 'nameAlreadyExists') {
-            console.error(`ERRO ONEDRIVE AO GARANTIR PASTA (${folderPath}):`, error.message);
+            console.error(`[OneDrive Critical] Erro fatal em ensureFolder (${folderPath}):`, error.message);
         }
     }
 }
