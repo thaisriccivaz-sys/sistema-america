@@ -450,25 +450,43 @@ app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) =>
         // Listar todos os drives (para encontrar SharePoint)
         const allDrives = await client.api(`/users/${config.email}/drives`).get();
         
+        // Listar Shared with me (caso seja um atalho)
+        let sharedItems = [];
+        try {
+            const shared = await client.api(`/users/${config.email}/drive/sharedWithMe`).get();
+            sharedItems = shared.value?.map(i => ({ name: i.name, driveId: i.remoteItem?.driveId })) || [];
+        } catch (shErr) {
+            console.warn("SharedWithMe check failed");
+        }
+
+        // NOVO: Buscar drives pelo nome diretamente
+        let namedDrives = [];
+        try {
+            // Nota: API Graph não tem busca direta de drive por nome em /users, 
+            // mas podemos filtrar na lista completa de drives da organização se tivermos permissão
+            // Por enquanto, vamos focar nos drives que o usuário 'vê'
+            namedDrives = allDrives.value?.filter(d => d.name.toLowerCase().includes("america") || d.name.toLowerCase().includes("documentos"))
+                .map(d => ({ name: d.name, id: d.id })) || [];
+        } catch (dErr) {}
+        
         // NOVO: Buscar sites com nome "America" para encontrar a biblioteca correta
         let foundSites = [];
         try {
             const sites = await client.api(`/sites?search=America`).get();
-            foundSites = sites.value?.map(s => ({ name: s.displayName, id: s.id, url: s.webUrl })) || [];
+            foundSites = sites.value?.map(s => ({ name: s.displayName, id: s.id })) || [];
         } catch (sErr) {
-            console.warn("OneDrive Site Search Disabled/Failed (Permission needed: Sites.Read.All)");
-            foundSites = [{ name: "⚠️ Falha ao buscar Sites: Sem permissão Sites.Read.All no Azure", id: "error", url: null }];
+            foundSites = [{ name: "⚠️ Sem Permissão Sites.Read.All", id: "erro" }];
         }
         
         res.json({ 
             sucesso: true, 
-            message: "Conexão com OneDrive OK!", 
+            message: "Conexão OneDrive OK!", 
             driveName: drive.name,
-            driveType: drive.driveType,
-            rootItems: rootItems.value.map(i => i.name),
-            allDrives: allDrives.value.map(d => ({ name: d.name, id: d.id, driveType: d.driveType })),
+            sharedItems: sharedItems.slice(0, 10), // Limitar para não estourar o alert
+            allDrives: allDrives.value.map(d => ({ name: d.name, id: d.id })).slice(0, 10),
+            namedDrives: namedDrives,
             foundSites: foundSites,
-            config: { ...config, clientSecret: "[OCULTO]" }
+            config: { ...config, clientSecret: "[OCULTO]", driveId: process.env.ONEDRIVE_DRIVE_ID }
         });
     } catch (e) {
         console.error("OneDrive Test Failure:", e);
