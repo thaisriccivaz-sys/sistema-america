@@ -142,50 +142,6 @@ function setupNavigation() {
         });
     }
 
-    const btnResetSistema = document.getElementById('btn-reset-sistema');
-    if (btnResetSistema) {
-        btnResetSistema.addEventListener('click', async () => {
-            const confirm1 = confirm("ATENÇÃO: Você está prestes a apagar TODOS os colaboradores e documentos do sistema. Esta ação NÃO pode ser desfeita. Deseja continuar?");
-            if (confirm1) {
-                const senha = prompt("Para confirmar a exclusão total, digite a senha de segurança (america2026):");
-                if (senha === 'america2026') {
-                    try {
-                        btnResetSistema.disabled = true;
-                        btnResetSistema.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Resetando...';
-                        
-                        const res = await fetch(`${API_URL}/maintenance/reset`, {
-                            method: 'POST',
-                            headers: { 'Authorization': `Bearer ${currentToken}` }
-                        });
-                        const data = await res.json();
-                        
-                        if (res.ok) {
-                            alert("Sistema resetado com sucesso! Todos os dados foram apagados.");
-                            location.reload(); // Recarrega para limpar o estado global
-                        } else {
-                            throw new Error(data.error || "Erro ao resetar");
-                        }
-                    } catch (err) {
-                        alert("Falha no Reset: " + err.message);
-                    } finally {
-                        btnResetSistema.disabled = false;
-                        btnResetSistema.innerHTML = '<i class="ph ph-trash"></i> Limpar Tudo';
-                    }
-                } else if (senha !== null) {
-                    alert("Senha incorreta. Operação cancelada.");
-                }
-            }
-        });
-    }
-
-    const btnSyncPc = document.getElementById('btn-sync-pc');
-    if (btnSyncPc) {
-        btnSyncPc.addEventListener('click', () => {
-            alert("Vou baixar o arquivo 'sync_america.js'.\n\nInstruções:\n1. Salve-o na mesma pasta do seu projeto.\n2. Execute no terminal: 'node sync_america.js'\n3. Ele criará as pastas no caminho C:\\A\\OneDrive... automaticamente.");
-            window.open(`${API_URL}/maintenance/download-agent?token=${currentToken}`, '_blank');
-        });
-    }
-
     document.querySelectorAll('#tabs-list li').forEach(tab => {
         tab.addEventListener('click', (e) => {
             document.querySelectorAll('#tabs-list li').forEach(t => t.classList.remove('active'));

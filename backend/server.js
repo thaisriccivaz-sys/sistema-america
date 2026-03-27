@@ -26,17 +26,7 @@ const PORT = process.env.PORT || 3000;
 const SECRET_KEY = process.env.SECRET_KEY || 'america_rental_secret_key_123';
 
 // Configuração de Armazenamento (Dinâmico para Render/Linux ou Disco Persistente)
-const LOCAL_ONEDRIVE_PATH = "C:\\A\\OneDrive - AMERICA RENTAL EQUIPAMENTOS LTDA\\Documentos - America Rental\\Diretoria\\Teste Sistema\\Colaboradores";
-
-let BASE_PATH;
-if (process.platform === 'win32') {
-    // No Windows, priorizamos o OneDrive se não houver variável explícita
-    BASE_PATH = process.env.STORAGE_PATH || LOCAL_ONEDRIVE_PATH;
-} else {
-    // No Linux/Render, usamos o caminho de variável ou o fallback local
-    BASE_PATH = process.env.STORAGE_PATH || path.join(__dirname, 'data', 'Colaboradores');
-}
-
+const BASE_PATH = process.env.STORAGE_PATH || path.join(__dirname, 'data', 'Colaboradores');
 const BASE_UPLOAD_PATH = BASE_PATH; // Mantendo compatibilidade
 
 function formatarNome(nome) {
@@ -296,27 +286,17 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
     const nomePasta = formatarNome(nomeOriginal);
     const pastaColaborador = path.join(BASE_PATH, nomePasta);
     
-    console.log("--- DEBUG CRIAÇÃO DE PASTA ---");
-    console.log("NOME ORIGINAL:", nomeOriginal);
-    console.log("BASE_PATH:", BASE_PATH);
-    console.log("PASTA FINAL:", pastaColaborador);
-    console.log("STATUS RECEBIDO:", data.status);
-
     // Criar pastas independemente do status para garantir que a estrutura exista
     try {
         if (!fs.existsSync(pastaColaborador)) {
-            console.log("EXECUTANDO: fs.mkdirSync em " + pastaColaborador);
             fs.mkdirSync(pastaColaborador, { recursive: true });
             FOLDERS.forEach(p => {
                 const subPath = path.join(pastaColaborador, p);
                 if (!fs.existsSync(subPath)) fs.mkdirSync(subPath, { recursive: true });
             });
-            console.log("ESTRUTURA DE PASTAS CRIADA COM SUCESSO.");
-        } else {
-            console.log("AVISO: A pasta já existe, criação ignorada.");
         }
     } catch (erro) {
-        console.error("ERRO FATAL AO CRIAR PASTAS DO COLABORADOR:", erro);
+        console.error("ERRO AO CRIAR PASTAS DO COLABORADOR:", erro);
     }
 
     const colunas = [
@@ -377,90 +357,6 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
 
         res.status(201).json({ id: newColabId, sucesso: true });
     });
-});
-
-// --- ROTA DE MANUTENÇÃO: RESET TOTAL ---
-app.post('/api/maintenance/reset', authenticateToken, (req, res) => {
-    console.log("--- SOLICITAÇÃO DE RESET TOTAL RECEBIDA ---");
-    
-    db.serialize(() => {
-        try {
-            // 1. Limpar tabelas
-            db.run("DELETE FROM colaboradores");
-            db.run("DELETE FROM documentos");
-            db.run("DELETE FROM dependentes");
-            db.run("DELETE FROM colaborador_chaves");
-            db.run("DELETE FROM historico_logs");
-            
-            // 2. Limpar arquivos no disco
-            if (fs.existsSync(BASE_PATH)) {
-                const files = fs.readdirSync(BASE_PATH);
-                files.forEach(file => {
-                    const fullPath = path.join(BASE_PATH, file);
-                    if (fs.lstatSync(fullPath).isDirectory()) {
-                        fs.rmSync(fullPath, { recursive: true, force: true });
-                    } else {
-                        fs.unlinkSync(fullPath);
-                    }
-                });
-            }
-            
-            console.log("--- RESET CONCLUÍDO COM SUCESSO ---");
-            res.json({ success: true, message: "Sistema resetado com sucesso." });
-        } catch (err) {
-            console.error("ERRO NO RESET:", err);
-            res.status(500).json({ error: "Erro ao resetar dados: " + err.message });
-        }
-    });
-});
-
-// --- ROTA DE MANUTENÇÃO: LISTAR TODOS OS ARQUIVOS (Para Sincronização) ---
-app.get('/api/maintenance/sync-files', authenticateToken, (req, res) => {
-    const fileList = [];
-    
-    function walkDir(currentPath, relativePath = "") {
-        if (!fs.existsSync(currentPath)) return;
-        const files = fs.readdirSync(currentPath);
-        files.forEach(file => {
-            const fullPath = path.join(currentPath, file);
-            const relPath = path.join(relativePath, file);
-            if (fs.lstatSync(fullPath).isDirectory()) {
-                walkDir(fullPath, relPath);
-            } else {
-                fileList.push({
-                    name: file,
-                    path: relPath.replace(/\\/g, '/'),
-                    size: fs.statSync(fullPath).size,
-                    mtime: fs.statSync(fullPath).mtime
-                });
-            }
-        });
-    }
-
-    try {
-        walkDir(BASE_PATH);
-        res.json({ files: fileList });
-    } catch (err) {
-        res.status(500).json({ error: "Erro ao listar arquivos: " + err.message });
-    }
-});
-
-// --- ROTA PARA DOWNLOAD DIRETO POR CAMINHO RELATIVO ---
-app.get('/api/maintenance/download-sync', authenticateToken, (req, res) => {
-    const relPath = req.query.path;
-    if (!relPath) return res.status(400).send("Caminho não informado");
-    
-    const fullPath = path.join(BASE_PATH, relPath);
-    if (!fs.existsSync(fullPath)) return res.status(404).send("Arquivo não encontrado");
-    
-    res.download(fullPath);
-});
-
-// --- ROTA PARA BAIXAR O AGENTE DE SINCRONIZAÇÃO (Pelo usuário) ---
-app.get('/api/maintenance/download-agent', authenticateToken, (req, res) => {
-    const agentPath = path.join(__dirname, '..', 'scripts', 'sync_agent.js');
-    if (!fs.existsSync(agentPath)) return res.status(404).send("Agente não encontrado no servidor.");
-    res.download(agentPath, 'sync_america.js');
 });
 
 app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
