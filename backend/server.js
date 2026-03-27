@@ -1491,6 +1491,9 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
-    console.log(`Versão do Servidor: V5_ASO_YEARS_FIX`);
-    console.log(`Caminho de Armazenamento: ${BASE_UPLOAD_PATH}`);
+    console.log(`Versão do Servidor: V5_AUTOMATIC_ONEDRIVE`);
+    console.log(`Caminho de Armazenamento Local: ${BASE_UPLOAD_PATH}`);
+    console.log(`OneDrive Base Path: ${process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema"}`);
+    console.log(`OneDrive User: ${process.env.ONEDRIVE_USER_EMAIL || "NÃO CONFIGURADO"}`);
+    if (!process.env.ONEDRIVE_CLIENT_ID) console.warn("AVISO: ONEDRIVE_CLIENT_ID não configurado no Render!");
 });
