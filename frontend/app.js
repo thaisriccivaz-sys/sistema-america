@@ -4310,11 +4310,14 @@ window.testOneDriveConnection = async function() {
         const data = await res.json();
         
         if (data.sucesso) {
+            let sitesList = data.foundSites.map(s => `- ${s.name} (ID: ${s.id})`).join('\n') || 'Nenhum';
+            let drivesList = data.allDrives.map(d => `- ${d.name} (ID: ${d.id})`).join('\n') || 'Nenhuma';
+
             let msg = `✅ ${data.message}\n` +
                       `Drive Atual: ${data.driveName} (${data.driveType})\n` +
                       `Itens na Raiz: ${data.rootItems.join(', ') || 'Vazio'}\n\n` +
-                      `BIBLIOTECAS ENCONTRADAS:\n` +
-                      (data.allDrives.map(d => `- ${d.name} (ID: ${d.id})`).join('\n') || 'Nenhuma') + `\n\n` +
+                      `SITES ENCONTRADOS (SharePoint):\n${sitesList}\n\n` +
+                      `BIBLIOTECAS (Drives):\n${drivesList}\n\n` +
                       `Caminho Base Configurado: ${data.config.basePath}`;
             alert(msg);
         } else {
