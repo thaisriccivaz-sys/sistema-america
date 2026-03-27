@@ -62,19 +62,23 @@ async function syncColaboradorOneDrive(nomeCompleto) {
         const nomePasta = formatarNome(nomeCompleto);
         const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema";
         const onedrivePath = `${onedriveBasePath}/${nomePasta}`;
-        console.log(`[OneDrive] Sincronizando pastas para: ${nomeCompleto} em ${onedrivePath}`);
-        await onedrive.ensurePath(onedrivePath);
+        console.log(`[OneDrive V7] Iniciando para ${nomeCompleto}. Base: ${onedriveBasePath}`);
         
-        // Disparar criação das 25 subpastas em background para não travar o Render/Frontend
-        // Elas aparecerão no OneDrive em alguns segundos
+        // Timeout de 15s para a criação da estrutura básica
+        const basicStructurePromise = onedrive.ensurePath(onedrivePath);
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout Estrutura Básica (15s)")), 15000));
+        
+        await Promise.race([basicStructurePromise, timeoutPromise]);
+        
+        // Criar subpastas em background (sem await) para liberar o usuário IMEDIATAMENTE
         Promise.all(FOLDERS.map(f => onedrive.ensureFolder(`${onedrivePath}/${f}`)))
-            .then(() => console.log(`[OneDrive] Todas as subpastas criadas para: ${nomeCompleto}`))
-            .catch(err => console.error(`[OneDrive Background Error] ${nomeCompleto}:`, err.message));
+            .then(() => console.log(`[OneDrive V7] Subpastas OK: ${nomeCompleto}`))
+            .catch(err => console.warn(`[OneDrive V7 Background Error] ${nomeCompleto}:`, err.message));
         
-        console.log(`[OneDrive] Pasta principal garantida. Resposta enviada.`);
-        return { sucesso: true, caminho: onedrivePath };
+        console.log(`[OneDrive V7] Resposta enviada OK.`);
+        return { sucesso: true, caminho: onedrivePath, versao: "V7_ULTRA_FAST" };
     } catch (e) {
-        console.error(`[OneDrive] Erro na sincronização automática (${nomeCompleto}):`, e.message);
+        console.error(`[OneDrive V7 Error] ${nomeCompleto}:`, e.message);
         throw e;
     }
 }
@@ -625,7 +629,12 @@ app.post('/api/colaboradores/:id/sync-onedrive', authenticateToken, async (req, 
             
             try {
                 const result = await syncColaboradorOneDrive(row.nome_completo);
-                res.json({ sucesso: true, message: "Pastas sincronizadas no OneDrive!", path: result.caminho });
+                res.json({ 
+                    sucesso: true, 
+                    message: "Pastas básicas criadas! (Subpastas seguem em background)", 
+                    path: result.caminho, 
+                    versao: result.versao || "V7_MANUAL" 
+                });
             } catch (e) {
                 console.error("Erro Sync Manual:", e);
                 res.status(500).json({ 

@@ -21,11 +21,22 @@ async function getAccessToken() {
         scopes: ['https://graph.microsoft.com/.default'],
     };
 
+    console.log(`[OneDrive-Auth] Requisitando token com timeout de 15s...`);
+    
+    // Promise com Timeout de 15s para não travar o processo
+    const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error("Timeout ao obter token Microsoft (15s)")), 15000);
+    });
+
     try {
-        const response = await cca.acquireTokenByClientCredential(tokenRequest);
+        const response = await Promise.race([
+            cca.acquireTokenByClientCredential(tokenRequest),
+            timeoutPromise
+        ]);
+        console.log(`[OneDrive-Auth] Token obtido com sucesso.`);
         return response.accessToken;
     } catch (error) {
-        console.error("ERRO AO OBTER TOKEN ONEDRIVE:", error);
+        console.error("ERRO AO OBTER TOKEN ONEDRIVE:", error.message);
         throw error;
     }
 }
@@ -152,10 +163,31 @@ async function uploadToOneDrive(remotePath, fileName, fileBuffer) {
     }
 }
 
+/**
+ * DIAGNÓSTICO: Listar itens da pasta raiz ou base
+ */
+async function listChildren(folderPath) {
+    try {
+        const client = await getGraphClient();
+        const driveId = process.env.ONEDRIVE_DRIVE_ID;
+        const drivePrefix = driveId ? `/drives/${driveId}/root` : `/users/${process.env.ONEDRIVE_USER_EMAIL}/drive/root`;
+        
+        const pathSuffix = folderPath ? `:/${folderPath.split('/').map(p => encodeURIComponent(p)).join('/')}:/children` : '/children';
+        const endpoint = `${drivePrefix}${pathSuffix}`;
+        
+        const result = await client.api(endpoint).get();
+        return result.value || [];
+    } catch (e) {
+        console.error(`[OneDrive Debug] Falha ao listar ${folderPath}:`, e.message);
+        throw e;
+    }
+}
+
 module.exports = {
     uploadToOneDrive,
     ensureFolder,
     ensurePath,
     getAccessToken,
-    getGraphClient
+    getGraphClient,
+    listChildren
 };
