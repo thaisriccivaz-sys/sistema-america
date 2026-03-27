@@ -467,56 +467,29 @@ app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) =>
         } catch (dErr) {
             driveInfo = { name: "ERRO", error: dErr.message };
         }
-        let sharedItems = [];
-        try {
-            const shared = await client.api(`/users/${config.email}/drive/sharedWithMe`).get();
-            sharedItems = shared.value?.map(i => ({ name: i.name, driveId: i.remoteItem?.driveId })) || [];
-        } catch (shErr) {
-            console.warn("SharedWithMe check failed");
-        }
-
-        // NOVO: Buscar drives pelo nome diretamente
-        let namedDrives = [];
-        try {
-            // Nota: API Graph não tem busca direta de drive por nome em /users, 
-            // mas podemos filtrar na lista completa de drives da organização se tivermos permissão
-            // Por enquanto, vamos focar nos drives que o usuário 'vê'
-            namedDrives = allDrives.value?.filter(d => d.name.toLowerCase().includes("america") || d.name.toLowerCase().includes("documentos"))
-                .map(d => ({ name: d.name, id: d.id })) || [];
-        } catch (dErr) {}
-        
-        // NOVO: Buscar sites com nome "America" para encontrar a biblioteca correta
-        let foundSites = [];
+        // 3. BUSCA PROFUNDA (MEGA FINDER) para encontrar o ID correto
+        let siteDrives = [];
         try {
             const sites = await client.api(`/sites?search=America`).get();
-            const siteValues = sites.value || [];
-            
-            for (const s of siteValues) {
+            for (const s of (sites.value || [])) {
                 try {
                     const sDrives = await client.api(`/sites/${s.id}/drives`).get();
-                    foundSites.push({
-                        name: s.displayName,
-                        id: s.id,
+                    siteDrives.push({
+                        siteName: s.displayName,
                         drives: sDrives.value.map(d => ({ name: d.name, id: d.id }))
                     });
-                } catch (dErr) {
-                    foundSites.push({ name: s.displayName, id: s.id, drives: [] });
-                }
+                } catch (dErr) { console.warn(`Erro no site ${s.displayName}:`, dErr.message); }
             }
-        } catch (sErr) {
-            foundSites = [{ name: "⚠️ Sem Permissão Sites.Read.All", id: "erro", drives: [] }];
-        }
-        
-        res.json({ 
-            sucesso: true, 
-            message: "Conexão OneDrive OK!", 
-            driveName: driveName,
+        } catch (sErr) { console.error("Erro na busca de sites:", sErr.message); }
+
+        res.json({
+            sucesso: true,
+            driveName: infoRaiz ? (infoRaiz.name || driveName) : driveName,
             basePathItems: basePathItems,
             rootItems: rootItems,
-            config: { 
-                ...config, 
-                clientSecret: "[OCULTO]", 
-                driveId: driveId,
+            siteDiscovery: siteDrives,
+            config: {
+                basePath: config.basePath,
                 webUrlBase: infoPasta ? infoPasta.webUrl : "Pasta não localizada",
                 webUrlRaiz: infoRaiz ? infoRaiz.webUrl : "N/A",
                 idReal: driveId || "Personal"
