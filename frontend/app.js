@@ -4310,14 +4310,14 @@ window.testOneDriveConnection = async function() {
         const data = await res.json();
         
         if (data.sucesso) {
-            let sitesList = data.foundSites.map(s => `• ${s.name}`).join(', ') || 'Nenhum';
+            let sitesList = data.foundSites.map(s => `• ${s.name} (ID: ${s.id})`).join('\n') || 'Nenhum';
             let sharedList = data.sharedItems.map(i => `• ${i.name} (ID: ${i.driveId})`).join('\n') || 'Nenhum';
             let namedList = data.namedDrives.map(d => `• ${d.name} (ID: ${d.id})`).join('\n') || 'Nenhum';
 
             let msg = `✅ CONEXÃO OK!\n\n` +
-                      `1. COMPARTILHADOS:\n${sharedList}\n\n` +
-                      `2. SUGERIDOS (Nome America):\n${namedList}\n\n` +
-                      `3. SITES:\n${sitesList}\n\n` +
+                      `1. SITES ENCONTRADOS (SharePoint):\n${sitesList}\n\n` +
+                      `2. COMPARTILHADOS:\n${sharedList}\n\n` +
+                      `3. SUGERIDOS (Drive):\n${namedList}\n\n` +
                       `4. DRIVE ATUAL: ${data.driveName}\n` +
                       `ID Configurado: ${data.config.driveId || 'Padrão'}\n` +
                       `Caminho: ${data.config.basePath}`;
