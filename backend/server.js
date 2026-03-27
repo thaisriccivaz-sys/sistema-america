@@ -442,15 +442,26 @@ app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) =>
 
         const accessToken = await onedrive.getAccessToken();
         const client = await onedrive.getGraphClient();
+        const driveId = process.env.ONEDRIVE_DRIVE_ID;
         
-        // Testar acesso à raiz
-        const drive = await client.api(`/users/${config.email}/drive`).get();
-        const rootItems = await client.api(`/users/${config.email}/drive/root/children`).top(5).get();
-        
-        // Listar todos os drives (para encontrar SharePoint)
-        const allDrives = await client.api(`/users/${config.email}/drives`).get();
-        
-        // Listar Shared with me (caso seja um atalho)
+        // Testar acesso ao drive (Padrão ou SharePoint)
+        let driveInfo = {};
+        let basePathItems = [];
+        try {
+            const drivePrefix = driveId ? `/drives/${driveId}/root` : `/users/${config.email}/drive/root`;
+            driveInfo = await client.api(driveId ? `/drives/${driveId}` : `/users/${config.email}/drive`).get();
+            
+            // Tentar listar itens no caminho base configurado
+            const encodedBasePath = config.basePath.split('/').map(p => encodeURIComponent(p)).join('/');
+            try {
+                const items = await client.api(`${drivePrefix}:/${encodedBasePath}:/children`).get();
+                basePathItems = items.value.map(i => i.name);
+            } catch (pErr) {
+                basePathItems = [`⚠️ Erro no caminho: ${pErr.message}`];
+            }
+        } catch (dErr) {
+            driveInfo = { name: "ERRO", error: dErr.message };
+        }
         let sharedItems = [];
         try {
             const shared = await client.api(`/users/${config.email}/drive/sharedWithMe`).get();
@@ -494,12 +505,11 @@ app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) =>
         res.json({ 
             sucesso: true, 
             message: "Conexão OneDrive OK!", 
-            driveName: drive.name,
-            sharedItems: sharedItems.slice(0, 10), 
-            allDrives: allDrives.value.map(d => ({ name: d.name, id: d.id })).slice(0, 10),
-            namedDrives: namedDrives,
+            driveName: driveInfo.name,
+            basePathItems: basePathItems,
+            sharedItems: sharedItems.slice(0, 5), 
             foundSites: foundSites,
-            config: { ...config, clientSecret: "[OCULTO]", driveId: process.env.ONEDRIVE_DRIVE_ID }
+            config: { ...config, clientSecret: "[OCULTO]", driveId: driveId }
         });
     } catch (e) {
         console.error("OneDrive Test Failure:", e);

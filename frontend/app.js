@@ -4310,19 +4310,11 @@ window.testOneDriveConnection = async function() {
         const data = await res.json();
         
         if (data.sucesso) {
-            let sitesList = data.foundSites.map(s => {
-                let dList = s.drives?.map(d => `  └─ ${d.name} (ID: ${d.id})`).join('\n') || '  (Sem bibliotecas)';
-                return `• SITE: ${s.name}\n${dList}`;
-            }).join('\n\n') || 'Nenhum';
-            
-            let sharedList = data.sharedItems.map(i => `• ${i.name} (ID: ${i.driveId})`).join('\n') || 'Nenhum';
-            let namedList = data.namedDrives.map(d => `• ${d.name} (ID: ${d.id})`).join('\n') || 'Nenhum';
-
+            let basePathList = data.basePathItems?.join(', ') || '(Pasta vazia)';
             let msg = `✅ CONEXÃO OK!\n\n` +
-                      `1. ESTRUTURA SHAREPOINT:\n${sitesList}\n\n` +
-                      `2. COMPARTILHADOS:\n${sharedList}\n\n` +
-                      `3. DRIVE ATUAL: ${data.driveName}\n` +
-                      `Caminho: ${data.config.basePath}`;
+                      `Drive Ativo: ${data.driveName}\n` +
+                      `CONTEÚDO DA PASTA SISTEMA:\n${basePathList}\n\n` +
+                      `CAMINHO: ${data.config.basePath}`;
             alert(msg);
         } else {
             let errorMsg = `❌ ${data.error}\n`;
