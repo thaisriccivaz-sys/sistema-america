@@ -27,7 +27,16 @@ const SECRET_KEY = process.env.SECRET_KEY || 'america_rental_secret_key_123';
 
 // Configuração de Armazenamento (Dinâmico para Render/Linux ou Disco Persistente)
 const LOCAL_ONEDRIVE_PATH = "C:\\A\\OneDrive - AMERICA RENTAL EQUIPAMENTOS LTDA\\Documentos - America Rental\\Diretoria\\Teste Sistema\\Colaboradores";
-const BASE_PATH = process.env.STORAGE_PATH || (process.platform === 'win32' ? LOCAL_ONEDRIVE_PATH : path.join(__dirname, 'data', 'Colaboradores'));
+
+let BASE_PATH;
+if (process.platform === 'win32') {
+    // No Windows, priorizamos o OneDrive se não houver variável explícita
+    BASE_PATH = process.env.STORAGE_PATH || LOCAL_ONEDRIVE_PATH;
+} else {
+    // No Linux/Render, usamos o caminho de variável ou o fallback local
+    BASE_PATH = process.env.STORAGE_PATH || path.join(__dirname, 'data', 'Colaboradores');
+}
+
 const BASE_UPLOAD_PATH = BASE_PATH; // Mantendo compatibilidade
 
 function formatarNome(nome) {
@@ -293,24 +302,21 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
     console.log("PASTA FINAL:", pastaColaborador);
     console.log("STATUS RECEBIDO:", data.status);
 
-    if (data.status !== 'Incompleto') {
-        try {
-            if (!fs.existsSync(pastaColaborador)) {
-                console.log("EXECUTANDO: fs.mkdirSync em " + pastaColaborador);
-                fs.mkdirSync(pastaColaborador, { recursive: true });
-                FOLDERS.forEach(p => {
-                    const subPath = path.join(pastaColaborador, p);
-                    if (!fs.existsSync(subPath)) fs.mkdirSync(subPath, { recursive: true });
-                });
-                console.log("ESTRUTURA DE PASTAS CRIADA COM SUCESSO.");
-            } else {
-                console.log("AVISO: A pasta já existe, criação ignorada.");
-            }
-        } catch (erro) {
-            console.error("ERRO FATAL AO CRIAR PASTAS DO COLABORADOR:", erro);
+    // Criar pastas independemente do status para garantir que a estrutura exista
+    try {
+        if (!fs.existsSync(pastaColaborador)) {
+            console.log("EXECUTANDO: fs.mkdirSync em " + pastaColaborador);
+            fs.mkdirSync(pastaColaborador, { recursive: true });
+            FOLDERS.forEach(p => {
+                const subPath = path.join(pastaColaborador, p);
+                if (!fs.existsSync(subPath)) fs.mkdirSync(subPath, { recursive: true });
+            });
+            console.log("ESTRUTURA DE PASTAS CRIADA COM SUCESSO.");
+        } else {
+            console.log("AVISO: A pasta já existe, criação ignorada.");
         }
-    } else {
-        console.log("AVISO: Status 'Incompleto' detectado, pulando criação de pastas.");
+    } catch (erro) {
+        console.error("ERRO FATAL AO CRIAR PASTAS DO COLABORADOR:", erro);
     }
 
     const colunas = [
