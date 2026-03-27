@@ -1103,6 +1103,13 @@ window.editColaborador = async function(id) {
 
         const titleEl = document.getElementById('form-colab-title');
         if (titleEl) titleEl.textContent = c.nome_completo || `Colaborador #${c.id}`;
+
+        // Mostrar e vincular botão de sincronização no formulário
+        const formSyncBtn = document.getElementById('btn-form-sync-onedrive');
+        if (formSyncBtn) {
+            formSyncBtn.style.display = 'flex';
+            formSyncBtn.onclick = function() { window.syncOneDriveManual(id, this); };
+        }
         
         document.getElementById('colab-id').value = c.id;
         document.getElementById('colab-nome').value = c.nome_completo || '';
@@ -1694,7 +1701,7 @@ window.openProntuario = async function(id, nome, cargo, cpf, sexo = '', admissao
     // Vincular botão de sincronização OneDrive
     const syncBtn = document.getElementById('btn-sync-onedrive');
     if (syncBtn) {
-        syncBtn.onclick = () => window.syncOneDriveManual(id);
+        syncBtn.onclick = function() { window.syncOneDriveManual(id, this); };
     }
 };
 
@@ -3338,32 +3345,7 @@ window.editGerador = async function(id) {
         }
         
         document.getElementById('gerador-conteudo-editor').innerHTML = finalContent;
-        document.getElementById('modal-gerador').style.display = 'block'; // Original line
-        // Assuming 'modal-detalhes' is part of the 'viewColaborador' function as per instruction.
-        // The provided snippet seems to be for a different function, but I will insert it here
-        // as it's the closest matching context based on the surrounding code.
-        // If 'modal-detalhes' is not in this context, this line will cause an error.
-        // However, the instruction explicitly states "Vincular syncOneDriveManual no viewColaborador."
-        // and the provided code snippet contains `document.getElementById('modal-detalhes').style.display = 'block';`.
-        // This suggests that the user intended to modify a `viewColaborador` function which is not present in the provided document.
-        // Since I must make the change faithfully, I will insert the provided snippet as is,
-        // assuming there's a `viewColaborador` function that uses `modal-detalhes` and `gerador-conteudo-editor`
-        // or that the user wants to change `modal-gerador` to `modal-detalhes` and add the sync button here.
-        // Given the instruction, I will assume the user wants to add this to a `viewColaborador` function.
-        // Since `viewColaborador` is not in the provided content, I cannot place it there.
-        // I will place it in `editGerador` as it's the only function that matches the surrounding context of the snippet.
-        // This might lead to a logical error if `modal-detalhes` is not part of `editGerador`.
-        // To be faithful to the instruction "Vincular syncOneDriveManual no viewColaborador",
-        // and the provided code snippet, I will assume the user wants to *replace* the `modal-gerador` line
-        // with the `modal-detalhes` line and add the sync button. This is the most faithful interpretation
-        // given the conflicting information.
-
-        // Replacing the original line with the one from the snippet and adding the sync button.
-        document.getElementById('modal-detalhes').style.display = 'block';
-
-        // Vincular botão de sync manual
-        const syncBtn = document.getElementById('btn-sync-onedrive-manual');
-        if (syncBtn) syncBtn.onclick = () => syncOneDriveManual(id);
+        document.getElementById('modal-gerador').style.display = 'block';
     } catch (e) { console.error(e); }
 };
 
@@ -4361,11 +4343,14 @@ window.testOneDriveConnection = async function() {
     }
 };
 
-window.syncOneDriveManual = async function(id) {
-    const btn = document.getElementById('btn-sync-onedrive-manual');
-    const originalHtml = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<i class="ph ph-spinner-gap spinning"></i> Sincronizando...';
+window.syncOneDriveManual = async function(id, btnElement = null) {
+    // Se não passou o elemento, tenta achar pelos IDs conhecidos
+    const btn = btnElement || document.getElementById('btn-sync-onedrive') || document.getElementById('btn-form-sync-onedrive');
+    const originalHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ph ph-spinner-gap ph-spin"></i> Sincronizando...';
+    }
 
     try {
         const res = await fetch(`${API_URL}/colaboradores/${id}/sync-onedrive`, {
