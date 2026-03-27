@@ -22,6 +22,81 @@ const SMTP_CONFIG = {
 const db = require('./database');
 const onedrive = require('./utils/onedrive');
 
+// --- CONFIGURAÇÃO DE PASTAS PADRÃO ---
+const FOLDERS = [
+    '00_CHECKLIST',
+    '01_FICHA_CADASTRAL',
+    'ADVERTENCIAS',
+    'ASO',
+    'ATESTADOS',
+    'AVALIACAO',
+    'BOLETIM_DE_OCORRENCIA',
+    'CERTIFICADOS',
+    'CONJUGE',
+    'CONTRATOS',
+    'DEPENDENTES',
+    'DOCUMENTOS PESSOAIS',
+    'EPI',
+    'EXAMES',
+    'FACULDADE',
+    'FICHA_DE_EPI',
+    'FOTOS',
+    'MULTAS',
+    'OUTROS',
+    'PAGAMENTOS',
+    'SUSPENSAO',
+    'TERAPIA',
+    'TERMOS',
+    'TREINAMENTO',
+    'VALE_TRANSPORTE'
+];
+
+/**
+ * Helper para sincronizar pastas no OneDrive automaticamente
+ * @param {string} nomeCompleto 
+ */
+async function syncColaboradorOneDrive(nomeCompleto) {
+    if (!process.env.ONEDRIVE_CLIENT_ID) return;
+    
+    try {
+        const nomePasta = formatarNome(nomeCompleto);
+        const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema";
+        const onedrivePath = `${onedriveBasePath}/${nomePasta}`;
+        
+        console.log(`[OneDrive] Sincronizando pastas para: ${nomeCompleto}`);
+        await onedrive.ensurePath(onedrivePath);
+        for (const f of FOLDERS) {
+            await onedrive.ensureFolder(`${onedrivePath}/${f}`);
+        }
+        console.log(`[OneDrive] Sincronização concluída para: ${nomeCompleto}`);
+    } catch (e) {
+        console.error(`[OneDrive] Erro na sincronização automática (${nomeCompleto}):`, e.message);
+    }
+}
+
+/**
+ * Helper para sincronizar pastas no OneDrive automaticamente
+ * @param {string} nomeCompleto 
+ */
+async function syncColaboradorOneDrive(nomeCompleto) {
+    if (!process.env.ONEDRIVE_CLIENT_ID) return;
+    
+    try {
+        const nomePasta = formatarNome(nomeCompleto);
+        const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema";
+        const onedrivePath = `${onedriveBasePath}/${nomePasta}`;
+        
+        console.log(`[OneDrive] Sincronizando pastas para: ${nomeCompleto}`);
+        await onedrive.ensurePath(onedrivePath);
+        for (const f of FOLDERS) {
+            await onedrive.ensureFolder(`${onedrivePath}/${f}`);
+        }
+        console.log(`[OneDrive] Sincronização concluída para: ${nomeCompleto}`);
+    } catch (e) {
+        console.error(`[OneDrive] Erro na sincronização automática (${nomeCompleto}):`, e.message);
+    }
+}
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 const SECRET_KEY = process.env.SECRET_KEY || 'america_rental_secret_key_123';
@@ -51,26 +126,6 @@ function formatarPasta(str) {
         .replace(/\s+/g, "_");
 }
 
-const FOLDERS = [
-    '00_CHECKLIST',
-    '01_FICHA_CADASTRAL',
-    'ADVERTENCIAS',
-    'ASO',
-    'ATESTADOS',
-    'AVALIACAO',
-    'BOLETIM_DE_OCORRENCIA',
-    'CERTIFICADOS',
-    'CONJUGE',
-    'CONTRATOS',
-    'DEPENDENTES',
-    'FACULDADE',
-    'FICHA_DE_EPI',
-    'FOTOS',
-    'MULTAS',
-    'PAGAMENTOS',
-    'TERAPIA',
-    'TREINAMENTO'
-];
 
 try {
     if (!fs.existsSync(BASE_UPLOAD_PATH)) {
@@ -297,21 +352,11 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
             });
         }
         
-        // --- INTEGRAÇÃO ONEDRIVE (API) ---
-        // Caminho sugerido: RH/1.Colaboradores/Sistema/NOME_COLABORADOR
-        const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema";
-        const onedrivePath = `${onedriveBasePath}/${nomePasta}`;
-        
-        // Criar estrutura base no OneDrive (Recursivo)
-        onedrive.ensurePath(onedrivePath)
-            .then(() => {
-                // Criar subpastas
-                FOLDERS.forEach(f => onedrive.ensureFolder(`${onedrivePath}/${f}`));
-            })
-            .catch(e => console.error("Falha ao iniciar pastas no OneDrive:", e.message));
+        // Ativar sincronização OneDrive em segundo plano
+        syncColaboradorOneDrive(nomeOriginal).catch(e => console.error("Erro async OneDrive:", e.message));
 
     } catch (erro) {
-        console.error("ERRO AO CRIAR PASTAS DO COLABORADOR:", erro);
+        console.error("ERRO AO CRIAR PASTAS LOCAIS:", erro);
     }
 
     const colunas = [
@@ -372,37 +417,6 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
 
         res.status(201).json({ id: newColabId, sucesso: true });
     });
-});
-
-app.post('/api/colaboradores/:id/sync-onedrive', authenticateToken, async (req, res) => {
-    try {
-        const id = req.params.id;
-        db.get("SELECT nome_completo FROM colaboradores WHERE id = ?", [id], async (err, colab) => {
-            if (err || !colab) {
-                console.error("Sync Error - DB:", err?.message || 'Colab não encontrado');
-                return res.status(404).json({ error: 'Colaborador não encontrado' });
-            }
-            
-            const nomePasta = formatarNome(colab.nome_completo);
-            const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema";
-            const onedrivePath = `${onedriveBasePath}/${nomePasta}`;
-            
-            console.log(`Solicitação de Sync OneDrive para: ${colab.nome_completo} (ID: ${id})`);
-            
-            try {
-                await onedrive.ensurePath(onedrivePath);
-                for (const f of FOLDERS) {
-                    await onedrive.ensureFolder(`${onedrivePath}/${f}`);
-                }
-                res.json({ sucesso: true, message: 'Estrutura de pastas sincronizada no OneDrive.' });
-            } catch (syncErr) {
-                console.error("Erro no sync manual OneDrive:", syncErr.message);
-                res.status(500).json({ error: 'Falha ao sincronizar com OneDrive: ' + syncErr.message });
-            }
-        });
-    } catch (e) {
-        res.status(500).json({ error: e.message });
-    }
 });
 
 app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
@@ -484,6 +498,9 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
                         if (!fs.existsSync(caminho)) fs.mkdirSync(caminho, { recursive: true });
                     });
                 } catch (erro) { console.error("ERRO AO GARANTIR PASTAS NO PUT:", erro); }
+                
+                // Sincronizar com OneDrive em segundo plano
+                syncColaboradorOneDrive(newName).catch(e => console.error("Erro sync update OneDrive:", e.message));
             }
 
             // Atualizar chaves
