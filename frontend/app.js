@@ -4311,8 +4311,10 @@ window.testOneDriveConnection = async function() {
         
         if (data.sucesso) {
             let msg = `✅ ${data.message}\n` +
-                      `Drive: ${data.driveName} (${data.driveType})\n` +
+                      `Drive Atual: ${data.driveName} (${data.driveType})\n` +
                       `Itens na Raiz: ${data.rootItems.join(', ') || 'Vazio'}\n\n` +
+                      `BIBLIOTECAS ENCONTRADAS:\n` +
+                      (data.allDrives.map(d => `- ${d.name} (ID: ${d.id})`).join('\n') || 'Nenhuma') + `\n\n` +
                       `Caminho Base Configurado: ${data.config.basePath}`;
             alert(msg);
         } else {

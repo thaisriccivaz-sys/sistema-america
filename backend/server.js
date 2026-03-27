@@ -447,12 +447,16 @@ app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) =>
         const drive = await client.api(`/users/${config.email}/drive`).get();
         const rootItems = await client.api(`/users/${config.email}/drive/root/children`).top(5).get();
         
+        // Listar todos os drives (para encontrar SharePoint)
+        const allDrives = await client.api(`/users/${config.email}/drives`).get();
+        
         res.json({ 
             sucesso: true, 
             message: "Conexão com OneDrive OK!", 
             driveName: drive.name,
             driveType: drive.driveType,
             rootItems: rootItems.value.map(i => i.name),
+            allDrives: allDrives.value.map(d => ({ name: d.name, id: d.id, driveType: d.driveType })),
             config: { ...config, clientSecret: "[OCULTO]" }
         });
     } catch (e) {
