@@ -131,5 +131,7 @@ async function uploadToOneDrive(remotePath, fileName, fileBuffer) {
 module.exports = {
     uploadToOneDrive,
     ensureFolder,
-    ensurePath
+    ensurePath,
+    getAccessToken,
+    getGraphClient
 };
