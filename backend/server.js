@@ -1449,6 +1449,22 @@ app.post("/webhook/assinafy", async (req, res) => {
 });
 
 /**
+ * ROTA TEMPORÁRIA: Reset de Sistema
+ * Limpa todos os colaboradores para testes
+ */
+app.post('/api/maintenance/reset', authenticateToken, (req, res) => {
+    db.serialize(() => {
+        db.run("DELETE FROM colaborador_chaves");
+        db.run("DELETE FROM dependentes");
+        db.run("DELETE FROM documentos");
+        db.run("DELETE FROM colaboradores", (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ sucesso: true, message: "Sistema resetado com sucesso." });
+        });
+    });
+});
+
+/**
  * Função para atualizar DB com link e status
  */
 async function salvarLinkAssinatura(assinafyDocId, link) {
