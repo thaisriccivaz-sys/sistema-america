@@ -56,31 +56,37 @@ const FOLDERS = [
  * @param {string} nomeCompleto 
  */
 async function syncColaboradorOneDrive(nomeCompleto) {
-    if (!process.env.ONEDRIVE_CLIENT_ID) return;
-    
-    try {
-        const nomePasta = formatarNome(nomeCompleto);
-        const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema";
-        const onedrivePath = `${onedriveBasePath}/${nomePasta}`;
-        console.log(`[OneDrive V7] Iniciando para ${nomeCompleto}. Base: ${onedriveBasePath}`);
-        
-        // Timeout de 15s para a criação da estrutura básica
-        const basicStructurePromise = onedrive.ensurePath(onedrivePath);
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout Estrutura Básica (15s)")), 15000));
-        
-        await Promise.race([basicStructurePromise, timeoutPromise]);
-        
-        // Criar subpastas em background (sem await) para liberar o usuário IMEDIATAMENTE
-        Promise.all(FOLDERS.map(f => onedrive.ensureFolder(`${onedrivePath}/${f}`)))
-            .then(() => console.log(`[OneDrive V7] Subpastas OK: ${nomeCompleto}`))
-            .catch(err => console.warn(`[OneDrive V7 Background Error] ${nomeCompleto}:`, err.message));
-        
-        console.log(`[OneDrive V7] Resposta enviada OK.`);
-        return { sucesso: true, caminho: onedrivePath, versao: "V7_ULTRA_FAST" };
-    } catch (e) {
-        console.error(`[OneDrive V7 Error] ${nomeCompleto}:`, e.message);
-        throw e;
+    if (!process.env.ONEDRIVE_CLIENT_ID) {
+        console.warn("[OneDrive] Pulando sincronização: ONEDRIVE_CLIENT_ID não configurado.");
+        return { sucesso: false, error: "OneDrive não configurado" };
     }
+    
+    // DISPARAR TUDO EM MODO SEGUNDO PLANO (Zero Wait)
+    // Isso garante que o servidor responda instantaneamente e não trave o Render/Frontend
+    (async () => {
+        try {
+            const nomePasta = formatarNome(nomeCompleto);
+            const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema";
+            const onedrivePath = `${onedriveBasePath}/${nomePasta}`;
+            
+            console.log(`[OneDrive Background V8] Sincronizando ${nomeCompleto}...`);
+            
+            // Criação das pastas (isso pode levar tempo, mas agora roda no fundo)
+            await onedrive.ensurePath(onedrivePath);
+            await Promise.all(FOLDERS.map(f => onedrive.ensureFolder(`${onedrivePath}/${f}`)));
+            
+            console.log(`[OneDrive Background V8] SUCESSO COMPLETO para ${nomeCompleto}`);
+        } catch (e) {
+            console.error(`[OneDrive Background V8 Error] ${nomeCompleto}:`, e.message);
+        }
+    })();
+
+    console.log(`[OneDrive V8] Comando recebido para ${nomeCompleto}. Resposta imediata enviada.`);
+    return { 
+        sucesso: true, 
+        message: "Comando enviado à Microsoft! As pastas serão criadas em segundo plano. Verifique o seu OneDrive em alguns instantes.",
+        versao: "V8_ZERO_WAIT" 
+    };
 }
 
 const app = express();
