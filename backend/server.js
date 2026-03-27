@@ -84,7 +84,7 @@ async function syncColaboradorOneDrive(nomeCompleto) {
         sucesso: true, 
         message: "Comando enviado à Microsoft! As pastas serão criadas em segundo plano. Verifique o seu OneDrive em alguns instantes.",
         caminho: onedrivePath,
-        versao: "V9_LOCATOR" 
+        versao: "V16_HARDFIX" 
     };
 }
 
@@ -633,7 +633,8 @@ app.post('/api/colaboradores/:id/sync-onedrive', authenticateToken, async (req, 
                     sucesso: true, 
                     message: "Pastas básicas criadas! (Subpastas seguem em background)", 
                     path: result.caminho, 
-                    versao: result.versao || "V7_MANUAL" 
+                    versao: "V16_HARDFIX",
+                    basePath: result.basePath
                 });
             } catch (e) {
                 console.error("Erro Sync Manual:", e);
