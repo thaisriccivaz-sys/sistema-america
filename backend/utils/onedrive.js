@@ -173,8 +173,9 @@ async function uploadToOneDrive(remotePath, fileName, fileBuffer) {
 async function listChildren(folderPath) {
     try {
         const client = await getGraphClient();
-        const driveId = process.env.ONEDRIVE_DRIVE_ID;
-        const drivePrefix = driveId ? `/drives/${driveId}/root` : `/users/${process.env.ONEDRIVE_USER_EMAIL}/drive/root`;
+        const userId = USER_ID;
+        const driveId = DRIVE_ID;
+        const drivePrefix = driveId ? `/drives/${driveId}/root` : `/users/${userId}/drive/root`;
         
         const pathSuffix = folderPath ? `:/${folderPath.split('/').map(p => encodeURIComponent(p)).join('/')}:/children` : '/children';
         const endpoint = `${drivePrefix}${pathSuffix}`;
