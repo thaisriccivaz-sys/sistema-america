@@ -61,12 +61,13 @@ async function syncColaboradorOneDrive(nomeCompleto) {
         return { sucesso: false, error: "OneDrive não configurado" };
     }
     
-    // DISPARAR TUDO EM MODO SEGUNDO PLANO (Zero Wait)
-    console.log(`[OneDrive V9] Comando recebido para ${nomeCompleto}. Base: ${onedriveBasePath}. Resposta imediata enviada.`);
-    
     // Calcula o caminho ANTES para retornar na resposta
     const nomePasta = formatarNome(nomeCompleto);
+    const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema";
     const onedrivePath = `${onedriveBasePath}/${nomePasta}`;
+    
+    // DISPARAR TUDO EM MODO SEGUNDO PLANO (Zero Wait)
+    console.log(`[OneDrive V15] Comando recebido para ${nomeCompleto}. Base: ${onedriveBasePath}. Resposta imediata enviada.`);
 
     (async () => {
         try {
