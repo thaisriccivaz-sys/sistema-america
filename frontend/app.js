@@ -4296,6 +4296,39 @@ window.iniciarAssinafy = async function(docType, tabName, btn) {
     }
 };
 
+window.testOneDriveConnection = async function() {
+    const btn = document.getElementById('btn-test-onedrive');
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ph ph-spinner-gap spinning"></i> Testando...';
+
+    try {
+        const res = await fetch(`${API_URL}/maintenance/onedrive-test`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${currentToken}` }
+        });
+        const data = await res.json();
+        
+        if (data.sucesso) {
+            let msg = `✅ ${data.message}\n` +
+                      `Drive: ${data.driveName} (${data.driveType})\n` +
+                      `Itens na Raiz: ${data.rootItems.join(', ') || 'Vazio'}\n\n` +
+                      `Caminho Base Configurado: ${data.config.basePath}`;
+            alert(msg);
+        } else {
+            let errorMsg = `❌ ${data.error}\n`;
+            if (data.code) errorMsg += `Código: ${data.code}\n`;
+            if (data.details) errorMsg += `Detalhes: ${JSON.stringify(data.details)}`;
+            alert(errorMsg);
+        }
+    } catch (e) {
+        alert("Erro na requisição: " + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+    }
+};
+
 window.resetSystem = async function() {
     const confirmation1 = confirm("🚨 ATENÇÃO: Você tem certeza que deseja LIMPAR TODOS os colaboradores do sistema?\n\nIsso apagará todos os dados do banco de dados (dependentes, fotos, documentos registrados). Os arquivos físicos no OneDrive não serão apagados por segurança.");
     if (!confirmation1) return;

@@ -419,6 +419,53 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
     });
 });
 
+/**
+ * ROTA DE DIAGNÓSTICO: Testar Conexão OneDrive
+ */
+app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) => {
+    try {
+        const config = {
+            clientId: !!process.env.ONEDRIVE_CLIENT_ID,
+            tenantId: !!process.env.ONEDRIVE_TENANT_ID,
+            clientSecret: !!process.env.ONEDRIVE_CLIENT_SECRET,
+            email: process.env.ONEDRIVE_USER_EMAIL,
+            basePath: process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema"
+        };
+
+        if (!config.clientId || !config.tenantId || !config.clientSecret) {
+            return res.status(400).json({ 
+                sucesso: false, 
+                error: "Configurações incompletas no Render. Verifique CLIENT_ID, TENANT_ID e SECRET.",
+                details: config
+            });
+        }
+
+        const accessToken = await onedrive.getAccessToken();
+        const client = await onedrive.getGraphClient();
+        
+        // Testar acesso à raiz
+        const drive = await client.api(`/users/${config.email}/drive`).get();
+        const rootItems = await client.api(`/users/${config.email}/drive/root/children`).top(5).get();
+        
+        res.json({ 
+            sucesso: true, 
+            message: "Conexão com OneDrive OK!", 
+            driveName: drive.name,
+            driveType: drive.driveType,
+            rootItems: rootItems.value.map(i => i.name),
+            config: { ...config, clientSecret: "[OCULTO]" }
+        });
+    } catch (e) {
+        console.error("OneDrive Test Failure:", e);
+        res.status(500).json({ 
+            sucesso: false, 
+            error: "Falha na conexão: " + e.message,
+            code: e.code,
+            details: e.body ? JSON.parse(e.body) : null
+        });
+    }
+});
+
 app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
     const data = req.body;
     const id = req.params.id;
