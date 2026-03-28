@@ -1795,6 +1795,8 @@ async function loadDocumentosList() {
     if (!viewedColaborador) return;
     const docs = await apiGet(`/colaboradores/${viewedColaborador.id}/documentos`);
     currentDocs = docs || [];
+    window.lastASODocs = null;
+    window.lastAtestadoDocs = null;
 }
 
 const FIXED_DOCS = {
@@ -2261,7 +2263,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         ${vencimentoInputHtml}
                         ${isSaved ? `
                             <button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height: 42px;"><i class="ph ph-eye"></i></button>
-                            <button type="button" class="btn btn-danger" onclick="deleteDoc(${existingDoc.id})" title="Excluir" style="height: 42px;"><i class="ph ph-trash"></i></button>
+                            <button type="button" class="btn btn-danger" onclick="deleteDoc(${existingDoc.id}, this)" title="Excluir" style="height: 42px;"><i class="ph ph-trash"></i></button>
                         ` : ''}
                         <label class="btn ${isSaved ? 'btn-warning' : 'btn-primary'}" title="${isSaved ? 'Substituir' : 'Fazer Upload'}" style="height: 42px; display: flex; align-items: center;">
                             <i class="ph ph-upload-simple"></i> ${isSaved ? 'Substituir' : 'Upload'}
@@ -2603,7 +2605,7 @@ window.saveVencimento = async function(docId, inputId) {
             await loadDocumentosList(); // Para atualizar a exibição do Venc: dd/mm/aaaa no texto
             
             const viewAdm = document.getElementById('view-admissao');
-            const isAdmActive = viewAdm && viewAdm.style.display !== 'none';
+            const isAdmActive = viewAdm && viewAdm.classList.contains('active');
             
             if (isAdmActive && viewedColaborador) {
                 updateAdmissaoStepPercentages();
@@ -2611,8 +2613,7 @@ window.saveVencimento = async function(docId, inputId) {
             } else {
                 const activeTab = document.querySelector('#tabs-list li.active');
                 if (activeTab) {
-                    if (activeTab.dataset.tab === '05_Pagamentos') renderPagamentosCompetencia();
-                    else renderTabContent(activeTab.dataset.tab, activeTab.textContent);
+                    renderTabContent(activeTab.dataset.tab, activeTab.textContent);
                 }
             }
         } else {
@@ -2700,17 +2701,17 @@ window.uploadDocument = async function(inputEl, tabId, docType, year = null, mon
             await loadDocumentosList();
             
             const viewAdm = document.getElementById('view-admissao');
-            const isAdmActive = viewAdm && viewAdm.style.display !== 'none';
-            
+            const viewPront = document.getElementById('view-prontuario');
+            const isAdmActive = viewAdm && viewAdm.classList.contains('active');
+            const isProntActive = viewPront && viewPront.classList.contains('active');
+
             if (isAdmActive && viewedColaborador) {
                 updateAdmissaoStepPercentages();
                 initAdmissaoWorkflow(viewedColaborador.id, window.currentActiveAdmissaoStep, true);
-            } else {
+            } else if (isProntActive) {
                 const activeTab = document.querySelector('#tabs-list li.active');
                 if(activeTab) {
-                    if (tabId === 'Pagamentos') renderPagamentosCompetencia();
-                    else if (tabId === 'ASO') renderASOAno();
-                    else renderTabContent(tabId, activeTab.textContent);
+                    renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
                 }
             }
         } else {
@@ -2726,29 +2727,57 @@ window.uploadDynamicDocument = function(inputEl, tabId) {
     uploadDocument(inputEl, tabId, docType);
 }
 
-window.deleteDoc = async function(docId) {
-    if(!confirm('Tem certeza que deseja excluir permanentemente este arquivo?')) return;
+window.deleteDoc = async function(docId, btnEl) {
+    // Remoção otimista: esconde o card imediatamente para feedback visual instantâneo
+    const docCard = btnEl ? btnEl.closest('.doc-item') : null;
+    if (docCard) {
+        docCard.style.transition = 'opacity 0.2s ease';
+        docCard.style.opacity = '0.3';
+        docCard.style.pointerEvents = 'none';
+    }
+
     try {
         const res = await fetch(`${API_URL}/documentos/${docId}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${currentToken}` }
         });
         if(res.ok) {
+            // Remover o card do DOM imediatamente
+            if (docCard) docCard.remove();
+
+            // Atualizar lista em memória e re-renderizar a aba em background
             await loadDocumentosList();
-            
+
             const viewAdm = document.getElementById('view-admissao');
-            const isAdmActive = viewAdm && viewAdm.style.display !== 'none';
-            
+            const viewPront = document.getElementById('view-prontuario');
+            const isAdmActive = viewAdm && viewAdm.classList.contains('active');
+            const isProntActive = viewPront && viewPront.classList.contains('active');
+
             if (isAdmActive && viewedColaborador) {
                 updateAdmissaoStepPercentages();
                 initAdmissaoWorkflow(viewedColaborador.id, window.currentActiveAdmissaoStep, true);
-            } else {
+            } else if (isProntActive) {
                 const activeTab = document.querySelector('#tabs-list li.active');
-                if (activeTab && activeTab.dataset.tab === '05_Pagamentos') renderPagamentosCompetencia();
-                else if (activeTab) renderTabContent(activeTab.dataset.tab, activeTab.textContent);
+                if (activeTab) {
+                    renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
+                }
             }
+        } else {
+            // Reverter a remoção otimista em caso de erro
+            if (docCard) {
+                docCard.style.opacity = '1';
+                docCard.style.pointerEvents = 'auto';
+            }
+            alert('Erro ao excluir o documento. Tente novamente.');
         }
-    } catch(e) { console.error(e); }
+    } catch(e) {
+        // Reverter em caso de falha de rede
+        if (docCard) {
+            docCard.style.opacity = '1';
+            docCard.style.pointerEvents = 'auto';
+        }
+        console.error(e);
+    }
 }
 
 window.viewDoc = async function(docId) {
