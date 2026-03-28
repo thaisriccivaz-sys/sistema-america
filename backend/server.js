@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
@@ -207,6 +207,9 @@ const uploadFoto = multer({ storage: storageFoto });
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+// ROTA DE VERSÃO (Para verificar implantação)
+app.get('/api/version', (req, res) => res.json({ version: 'V29_ASSINAFY_EMAIL_FIX_CHECK' }));
 
 // Middleware de AutenticaÃ§Ã£o (Bypass temporÃ¡rio para facilitar dev do frontend)
 const authenticateToken = (req, res, next) => {
