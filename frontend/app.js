@@ -1091,10 +1091,10 @@ window.resetFormColaborador = function() {
 };
 
 window.editColaborador = async function(id) {
-    // Vincular botão de sincronização no formulário IMEDIATAMENTE
+    // Botão de sincronização manual ocultado (a automação já faz isso ao salvar)
     const formSyncBtn = document.getElementById('btn-form-sync-onedrive');
     if (formSyncBtn) {
-        formSyncBtn.style.display = 'flex';
+        formSyncBtn.style.display = 'none';
         formSyncBtn.onclick = function() { window.syncOneDriveManual(id, this); };
     }
 
