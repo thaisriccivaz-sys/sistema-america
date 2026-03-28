@@ -1400,7 +1400,7 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
 const ASSINAFY_CONFIG = {
     apiKey: 'AxaT-FiXBckHqEYV0s_MtUhLF3pReRz3dX4zVpC173vmjDwzLGHYtDJuQje4-4Pd',
     accountId: '10237785fb23cf473d54845a013e',
-    baseUrl: 'https://api.assinafy.com.br/v1'
+    baseUrl: 'https://api.assinafy.com/v1'
 };
 
 /**
@@ -1463,6 +1463,7 @@ app.post('/api/assinafy/upload', async (req, res) => {
 
         const uploadData = await uploadRes.json();
         console.log(`[ASSINAFY] Resposta do Upload (Status ${uploadRes.status}):`, JSON.stringify(uploadData));
+        console.log(`[ASSINAFY] Headers da Resposta:`, JSON.stringify(Object.fromEntries(uploadRes.headers.entries())));
 
         if (!uploadRes.ok) {
             throw new Error(uploadData.message || `Erro no upload: Status ${uploadRes.status}`);
