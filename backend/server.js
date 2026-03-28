@@ -7,6 +7,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const sharp = require('sharp');
 const nodemailer = require('nodemailer');
+require('isomorphic-fetch');
 
 // --- CONFIGURAÇÃO SMTP (Preencher com dados reais para o e-mail funcionar) ---
 const SMTP_CONFIG = {
@@ -1457,7 +1458,10 @@ app.post('/api/assinafy/upload', async (req, res) => {
 
         const uploadRes = await fetch(targetUrl, {
             method: 'POST',
-            headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey },
+            headers: { 
+                'X-Api-Key': ASSINAFY_CONFIG.apiKey,
+                'User-Agent': 'AmericaRental-System/1.0'
+            },
             body: formData
         });
 
@@ -1492,7 +1496,10 @@ app.post('/api/assinafy/upload', async (req, res) => {
         let assinafySignerId = null;
         try {
             const searchRes = await fetch(`${ASSINAFY_CONFIG.baseUrl}/accounts/${ASSINAFY_CONFIG.accountId}/signers?tax_id=${cpfLimpo}`, {
-                headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey }
+                headers: { 
+                    'X-Api-Key': ASSINAFY_CONFIG.apiKey,
+                    'User-Agent': 'AmericaRental-System/1.0'
+                }
             });
             const searchData = await searchRes.json();
             const list = searchData.data || searchData;
@@ -1507,7 +1514,11 @@ app.post('/api/assinafy/upload', async (req, res) => {
             console.log("[ASSINAFY] Criando novo signatário...");
             const createRes = await fetch(`${ASSINAFY_CONFIG.baseUrl}/accounts/${ASSINAFY_CONFIG.accountId}/signers`, {
                 method: 'POST',
-                headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey, 'Content-Type': 'application/json' },
+                headers: { 
+                    'X-Api-Key': ASSINAFY_CONFIG.apiKey, 
+                    'Content-Type': 'application/json',
+                    'User-Agent': 'AmericaRental-System/1.0'
+                },
                 body: JSON.stringify({
                     full_name: colab.nome_completo,
                     email: emailObri,
@@ -1522,7 +1533,10 @@ app.post('/api/assinafy/upload', async (req, res) => {
                 console.warn('[ASSINAFY] Erro na criação direta:', createData.message);
                 // Tentar uma última vez buscar por email se o CPF falhou (raro)
                 const searchEmailRes = await fetch(`${ASSINAFY_CONFIG.baseUrl}/accounts/${ASSINAFY_CONFIG.accountId}/signers?email=${emailObri}`, {
-                    headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey }
+                    headers: { 
+                        'X-Api-Key': ASSINAFY_CONFIG.apiKey,
+                        'User-Agent': 'AmericaRental-System/1.0'
+                    }
                 });
                 const searchEmailData = await searchEmailRes.json();
                 const listE = searchEmailData.data || searchEmailData;
@@ -1544,7 +1558,11 @@ app.post('/api/assinafy/upload', async (req, res) => {
         // Tentamos primeiro o método 'virtual'. Nota: A URL deve incluir /accounts/{accountId}
         let assignmentRes = await fetch(`${ASSINAFY_CONFIG.baseUrl}/accounts/${ASSINAFY_CONFIG.accountId}/documents/${assinafyDocId}/assignments`, {
             method: 'POST',
-            headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey, 'Content-Type': 'application/json' },
+            headers: { 
+                'X-Api-Key': ASSINAFY_CONFIG.apiKey, 
+                'Content-Type': 'application/json',
+                'User-Agent': 'AmericaRental-System/1.0'
+            },
             body: JSON.stringify({
                 signers: [{ signer_id: assinafySignerId, email: emailObri, role: 'signer' }],
                 method: 'virtual'
