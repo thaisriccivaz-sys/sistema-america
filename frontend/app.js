@@ -2217,9 +2217,9 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
     let infoHtml = `
         <div class="doc-info ${isSaved ? 'has-file' : ''}">
             <i class="ph ${isSaved ? 'ph-check-circle' : 'ph-file-dashed'}"></i>
-            <div>
+            <div style="min-width:0; flex:1; overflow:hidden;">
                 <h4>${docType}</h4>
-                ${isSaved ? `<p>${existingDoc.file_name} (${dateStr})${vencStr}</p>` : '<p>Pendente</p>'}
+                ${isSaved ? `<div style="overflow-x:auto; white-space:nowrap; max-width:220px; scrollbar-width:thin; scrollbar-color:#cbd5e0 transparent; padding-bottom:2px;"><span style="font-size:0.78rem; color:#64748b; font-family:monospace;">${existingDoc.file_name}</span></div><p style="margin:2px 0 0; font-size:0.75rem; color:#94a3b8;">(${dateStr})${vencStr}</p>` : '<p>Pendente</p>'}
             </div>
         </div>
     `;
