@@ -3707,8 +3707,7 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
 
             // 1. Calcular Percentual do Passo 1 (Dados)
             const step1 = calculateAdmissaoStep1Completion(colab);
-            document.getElementById('step-1-pc').textContent = `${step1.percent}%`;
-            document.getElementById('admissao-pc-total').textContent = `${step1.percent}%`;
+            // Os valores reais serão preenchidos pela função updateAdmissaoStepPercentages(colab) ao final
             
             // Mostrar Alerta se faltar algo
             const alertEl = document.getElementById('admissao-missing-fields-alert');
@@ -4072,6 +4071,11 @@ function updateAdmissaoStepPercentages(colab) {
     }
 
     const avg = Math.round(totalPc / 10);
+    
+    // O usuário deseja que a etiqueta do Passo 1 reflita a Qualidade Global do Cadastro
+    const step1PcEl = document.getElementById('step-1-pc');
+    if (step1PcEl) step1PcEl.textContent = `${avg}%`;
+
     const totalEl = document.getElementById('admissao-pc-total');
     if (totalEl) totalEl.textContent = `${avg}%`;
     const bar = document.getElementById('admissao-progress-bar');
