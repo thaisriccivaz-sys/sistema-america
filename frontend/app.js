@@ -2796,18 +2796,19 @@ window.deleteDoc = async function(docId, btnEl) {
 }
 
 window.viewDoc = async function(docId) {
-    const url = `${API_URL}/documentos/download/${docId}?token=${currentToken}`;
+    const viewUrl     = `${API_URL}/documentos/view/${docId}?token=${currentToken}`;
+    const downloadUrl = `${API_URL}/documentos/download/${docId}?token=${currentToken}`;
 
     const modalBody = document.getElementById('modal-doc-body');
     if (modalBody) {
-        modalBody.innerHTML = `<iframe src="${url}" style="width:100%; height:100%; border:none; display:block;"></iframe>`;
+        modalBody.innerHTML = `<iframe src="${viewUrl}" style="width:100%; height:100%; border:none; display:block;"></iframe>`;
     }
 
     const btnDownload = document.getElementById('btn-download-doc');
     if (btnDownload) {
         btnDownload.onclick = () => {
             const a = document.createElement('a');
-            a.href = url;
+            a.href = downloadUrl;
             a.download = '';
             a.click();
         };

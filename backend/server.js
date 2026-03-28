@@ -1029,10 +1029,22 @@ app.delete('/api/documentos/:id', authenticateToken, (req, res) => {
 
 app.get('/api/documentos/download/:id', authenticateToken, (req, res) => {
     db.get('SELECT file_path, file_name FROM documentos WHERE id = ?', [req.params.id], (err, row) => {
-        if (err || !row) return res.status(404).json({ error: 'Documento nÃ£o encontrado' });
-        if (!fs.existsSync(row.file_path)) return res.status(404).json({ error: 'Arquivo fÃ­sico nÃ£o encontrado' });
+        if (err || !row) return res.status(404).json({ error: 'Documento não encontrado' });
+        if (!fs.existsSync(row.file_path)) return res.status(404).json({ error: 'Arquivo físico não encontrado' });
         
         res.download(row.file_path, row.file_name);
+    });
+});
+
+// Rota para VISUALIZAR inline no browser (sem forçar download)
+app.get('/api/documentos/view/:id', authenticateToken, (req, res) => {
+    db.get('SELECT file_path, file_name FROM documentos WHERE id = ?', [req.params.id], (err, row) => {
+        if (err || !row) return res.status(404).json({ error: 'Documento não encontrado' });
+        if (!fs.existsSync(row.file_path)) return res.status(404).json({ error: 'Arquivo físico não encontrado' });
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(row.file_name)}"`);
+        fs.createReadStream(row.file_path).pipe(res);
     });
 });
 
