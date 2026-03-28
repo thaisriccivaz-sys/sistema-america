@@ -1589,8 +1589,104 @@ app.get('/api/documentos/download-assinado/:id', authenticateToken, (req, res) =
         fs.createReadStream(row.signed_file_path).pipe(res);
     });
 });
+/**
+ * Verifica o status diretamente na API do Assinafy e atualiza localmente (Manual Sync)
+ */
+app.post('/api/documentos/:id/sync-assinafy', authenticateToken, async (req, res) => {
+    const docId = req.params.id;
+    try {
+        const doc = await new Promise((resolve, reject) => {
+            db.get(`SELECT id, file_name, assinafy_id, assinafy_status FROM documentos WHERE id = ?`, [docId], (err, row) => {
+                if (err) reject(err); else resolve(row);
+            });
+        });
 
+        if (!doc) return res.status(404).json({ error: 'Documento não encontrado.' });
+        if (!doc.assinafy_id) return res.status(400).json({ error: 'Documento não foi enviado ao Assinafy.' });
 
+        const { ASSINAFY_API_KEY, getAssinafyApiUrl } = require('./novo_processo_assinafy.js');
+
+        const https = require('https');
+        const fetchStatus = () => new Promise((resolve, reject) => {
+            const reqUrl = `${getAssinafyApiUrl()}/documents/${doc.assinafy_id}`;
+            const options = {
+                method: 'GET',
+                headers: {
+                    'X-Api-Key': ASSINAFY_API_KEY,
+                    'Accept': 'application/json'
+                }
+            };
+
+            const request = https.request(reqUrl, options, (response) => {
+                let data = '';
+                response.on('data', chunk => data += chunk);
+                response.on('end', () => resolve(JSON.parse(data)));
+            });
+
+            request.on('error', reject);
+            request.end();
+        });
+
+        const assinafyRes = await fetchStatus();
+        console.log(`[SYNC ASSINAFY] Retorno GET document ${doc.assinafy_id}:`, JSON.stringify(assinafyRes).substring(0, 200));
+
+        // Assinafy v1 retorna os dados normalmente no body (ex: assinafyRes.data ou direto)
+        const documentData = assinafyRes.data || assinafyRes;
+        
+        let newStatus = doc.assinafy_status;
+        let pStatus = (documentData.status || documentData.status_id || '').toString().toLowerCase();
+
+        // status possíveis no assinafy: completed, pending, waiting_signatures, error
+        if (pStatus.includes('complet') || pStatus === '4' || pStatus === 'assinado' || pStatus === 'concluído') {
+            newStatus = 'Assinado';
+        } else if (pStatus.includes('pend') || pStatus.includes('wait') || pStatus === '2' || pStatus === '3') {
+            newStatus = 'Pendente';
+        } else if (pStatus.includes('error') || pStatus.includes('fail')) {
+            newStatus = 'Erro';
+        }
+
+        // Se for assinado, pega o link e baixa se não tiver path ainda
+        let signedUrl = documentData.signed_file_url || documentData.download_url;
+        
+        if (newStatus === 'Assinado' && signedUrl) {
+            // Reaproveita logica de webhook de download e salvar status
+            const path = require('path');
+            const fs = require('fs');
+            const storagePath = process.env.STORAGE_PATH || path.join(__dirname, 'data', 'uploads');
+            const assDir = path.join(storagePath, 'assinados');
+            if (!fs.existsSync(assDir)) fs.mkdirSync(assDir, { recursive: true });
+            
+            const originalName = path.basename(doc.file_name || 'doc.pdf', '.pdf');
+            const finalPath = path.join(assDir, `ASSINADO_${originalName}_${Date.now()}.pdf`);
+            
+            await new Promise((resolve, reject) => {
+                const file = fs.createWriteStream(finalPath);
+                https.get(signedUrl, (response) => {
+                    response.pipe(file);
+                    file.on('finish', () => { file.close(); resolve(); });
+                }).on('error', (err) => { fs.unlink(finalPath, () => {}); reject(err); });
+            });
+
+            await new Promise((resolve, reject) => {
+                db.run(`UPDATE documentos SET assinafy_status = ?, signed_file_path = ? WHERE id = ?`, 
+                    [newStatus, finalPath, docId], err => err ? reject(err) : resolve());
+            });
+        } else {
+            // Apenas atualiza o status se mudou
+            if (newStatus !== doc.assinafy_status) {
+                await new Promise((resolve, reject) => {
+                    db.run(`UPDATE documentos SET assinafy_status = ? WHERE id = ?`, [newStatus, docId], 
+                        err => err ? reject(err) : resolve());
+                });
+            }
+        }
+
+        res.json({ sucesso: true, assinafy_id: doc.assinafy_id, status_antigo: doc.assinafy_status, status_novo: newStatus });
+    } catch (error) {
+        console.error('Erro na sincronizacao manual Assinafy:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 
 /**
  * ROTA TEMPORÃRIA: Reset de Sistema

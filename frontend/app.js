@@ -2275,14 +2275,17 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
     if (isSaved) {
         const st = existingDoc.assinafy_status || '';
         const enviado = !!existingDoc.assinafy_sent_at;
+        
+        const syncBtnHtml = `<button type="button" onclick="window.syncAssinafyStatus(${existingDoc.id}, this)" style="background:none; border:none; padding:0; cursor:pointer; color:#64748b; margin-left:3px;" title="Atualizar Status"><i class="ph ph-arrows-clockwise" style="font-size:1rem;"></i></button>`;
+        
         if (st === 'Assinado') {
             assStatusIcon = `<button onclick="window.downloadAssinado(${existingDoc.id})" style="display:inline-flex;align-items:center;gap:5px;background:#2f9e44;color:#fff;border:none;border-radius:6px;padding:0.3rem 0.75rem;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;" title="Baixar PDF Assinado"><i class="ph ph-download-simple" style="font-size:1rem;"></i> Baixar Assinado</button>`;
         } else if (st === 'Erro') {
-            assStatusIcon = `<span title="Erro" style="display:inline-flex;align-items:center;gap:3px;color:#e03131;font-size:0.78rem;font-weight:700;white-space:nowrap;"><i class="ph ph-warning-circle" style="font-size:1.1rem;"></i> Erro</span>`;
+            assStatusIcon = `<span title="Erro" style="display:inline-flex;align-items:center;gap:3px;color:#e03131;font-size:0.78rem;font-weight:700;white-space:nowrap;"><i class="ph ph-warning-circle" style="font-size:1.1rem;"></i> Erro</span>${syncBtnHtml}`;
         } else if (st === 'Pendente' && enviado) {
-            assStatusIcon = `<span title="E-mail enviado" style="display:inline-flex;align-items:center;gap:3px;color:#1971c2;font-size:0.78rem;font-weight:700;white-space:nowrap;"><i class="ph ph-paper-plane-tilt" style="font-size:1.1rem;"></i> Enviado</span>`;
+            assStatusIcon = `<span title="E-mail enviado" style="display:inline-flex;align-items:center;gap:3px;color:#1971c2;font-size:0.78rem;font-weight:700;white-space:nowrap;"><i class="ph ph-paper-plane-tilt" style="font-size:1.1rem;"></i> Enviado</span>${syncBtnHtml}`;
         } else if (st && st !== 'Nenhum') {
-            assStatusIcon = `<span title="${st}" style="display:inline-flex;align-items:center;gap:3px;color:#f59f00;font-size:0.78rem;font-weight:700;white-space:nowrap;"><i class="ph ph-hourglass" style="font-size:1.1rem;"></i> Aguardando</span>`;
+            assStatusIcon = `<span title="${st}" style="display:inline-flex;align-items:center;gap:3px;color:#f59f00;font-size:0.78rem;font-weight:700;white-space:nowrap;"><i class="ph ph-hourglass" style="font-size:1.1rem;"></i> Aguardando</span>${syncBtnHtml}`;
         }
     }
 
@@ -4506,6 +4509,50 @@ window.iniciarAssinafy = async function(docType, tabName, btn) {
         }
         btn.disabled = false;
         btn.innerHTML = '<i class="ph ph-pen-nib"></i> Assinar p/ Assinafy';
+    }
+};
+
+window.syncAssinafyStatus = async function(docId, btn) {
+    if (!docId) return;
+    
+    // Feedback visual rapido no proprio icone
+    const icon = btn.querySelector('i');
+    if (icon) {
+        icon.classList.remove('ph-arrows-clockwise');
+        icon.classList.add('ph-spinner', 'ph-spin');
+    }
+    
+    try {
+        const res = await fetch(`${API_URL}/documentos/${docId}/sync-assinafy`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${currentToken}` }
+        });
+        const data = await res.json();
+        
+        if (res.ok && data.sucesso) {
+            // Se o status mudou para Assinado localmente
+            if (data.status_novo === 'Assinado' && data.status_antigo !== 'Assinado') {
+                alert('O documento foi assinado! Atualizando a tela...');
+            } else {
+                console.log(`[SYNC ASSINAFY] doc ${docId} continua ${data.status_novo}`);
+            }
+            
+            // Recarrega a view para refletir estado (ou renderiza a aba de novo)
+            await loadDocumentosList();
+            const activeTab = document.querySelector('#tabs-list li.active');
+            if (activeTab) renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
+        } else {
+            console.warn('Erro sync manual:', data.error);
+            alert('Falha ao checar status: ' + (data.error || 'Erro desconhecido.'));
+        }
+    } catch (err) {
+        console.error('Erro requisição sync Assinafy:', err);
+    } finally {
+        // Redesenho da aba reescreverá o icone, mas por cautela revertermos a animacao se falhar
+        if (icon) {
+            icon.classList.remove('ph-spinner', 'ph-spin');
+            icon.classList.add('ph-arrows-clockwise');
+        }
     }
 };
 
