@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
@@ -9,7 +9,7 @@ const sharp = require('sharp');
 const nodemailer = require('nodemailer');
 // fetch nativo (Node 18+)
 
-// --- CONFIGURAÇÃO SMTP (Preencher com dados reais para o e-mail funcionar) ---
+// --- CONFIGURAÃ‡ÃƒO SMTP (Preencher com dados reais para o e-mail funcionar) ---
 const SMTP_CONFIG = {
     host: "smtp.gmail.com", 
     port: 465, 
@@ -23,7 +23,7 @@ const SMTP_CONFIG = {
 const db = require('./database');
 const onedrive = require('./utils/onedrive');
 
-// --- CONFIGURAÇÃO DE PASTAS PADRÃO ---
+// --- CONFIGURAÃ‡ÃƒO DE PASTAS PADRÃƒO ---
 const FOLDERS = [
     '00_CHECKLIST',
     '01_FICHA_CADASTRAL',
@@ -58,16 +58,16 @@ const FOLDERS = [
  */
 async function syncColaboradorOneDrive(nomeCompleto) {
     if (!process.env.ONEDRIVE_CLIENT_ID) {
-        console.warn("[OneDrive] Pulando sincronização: ONEDRIVE_CLIENT_ID não configurado.");
-        return { sucesso: false, error: "OneDrive não configurado" };
+        console.warn("[OneDrive] Pulando sincronizaÃ§Ã£o: ONEDRIVE_CLIENT_ID nÃ£o configurado.");
+        return { sucesso: false, error: "OneDrive nÃ£o configurado" };
     }
     
     // Calcula o caminho ANTES para retornar na resposta
     const nomePasta = formatarNome(nomeCompleto);
-    // V21: Usando ID do SharePoint diretamente. O Drive ID já é a pasta 'Documentos - America Rental'.
+    // V21: Usando ID do SharePoint diretamente. O Drive ID jÃ¡ Ã© a pasta 'Documentos - America Rental'.
     const onedriveBasePath = "RH/1.Colaboradores/Sistema";
     const onedrivePath = `${onedriveBasePath}/${nomePasta}`;
-    // DISPARAR MODO SINCRONO (O Render irá aguardar para não congelar o processo)
+    // DISPARAR MODO SINCRONO (O Render irÃ¡ aguardar para nÃ£o congelar o processo)
     console.log(`[OneDrive V24] Modo SharePoint ativo para ${nomeCompleto}. Alvo: ${onedriveBasePath}`);
 
     let msgRetorno = "Pastas do SharePoint criadas com sucesso!";
@@ -76,14 +76,14 @@ async function syncColaboradorOneDrive(nomeCompleto) {
         await onedrive.ensurePath(onedrivePath);
         await Promise.all(FOLDERS.map(f => onedrive.ensureFolder(`${onedrivePath}/${f}`)));
         
-        // Força o OneDrive a sincronizar a pasta em todos os computadores rapidamente
-        console.log(`[OneDrive API] Criando arquivo de inicialização para forçar sincronia...`);
-        await onedrive.uploadToOneDrive(onedrivePath, '_Sincronizado.txt', Buffer.from(`Pasta criada e sincronizada via Sistema América.\nColaborador: ${nomeCompleto}\nData: ${new Date().toLocaleString()}`, 'utf-8'));
+        // ForÃ§a o OneDrive a sincronizar a pasta em todos os computadores rapidamente
+        console.log(`[OneDrive API] Criando arquivo de inicializaÃ§Ã£o para forÃ§ar sincronia...`);
+        await onedrive.uploadToOneDrive(onedrivePath, '_Sincronizado.txt', Buffer.from(`Pasta criada e sincronizada via Sistema AmÃ©rica.\nColaborador: ${nomeCompleto}\nData: ${new Date().toLocaleString()}`, 'utf-8'));
         
         console.log(`[OneDrive API] SUCESSO COMPLETO para ${nomeCompleto}`);
     } catch (e) {
         console.error(`[OneDrive API Error] ${nomeCompleto}:`, e.message);
-        msgRetorno = "Atenção: A sincronização no OneDrive falhou, mas os dados foram salvos.";
+        msgRetorno = "AtenÃ§Ã£o: A sincronizaÃ§Ã£o no OneDrive falhou, mas os dados foram salvos.";
     }
 
     return { 
@@ -98,7 +98,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const SECRET_KEY = process.env.SECRET_KEY || 'america_rental_secret_key_123';
 
-// Configuração de Armazenamento (Dinâmico para Render/Linux ou Disco Persistente)
+// ConfiguraÃ§Ã£o de Armazenamento (DinÃ¢mico para Render/Linux ou Disco Persistente)
 const BASE_PATH = process.env.STORAGE_PATH || path.join(__dirname, 'data', 'Colaboradores');
 const BASE_UPLOAD_PATH = BASE_PATH; // Mantendo compatibilidade
 
@@ -127,17 +127,17 @@ function formatarPasta(str) {
 try {
     if (!fs.existsSync(BASE_UPLOAD_PATH)) {
         fs.mkdirSync(BASE_UPLOAD_PATH, { recursive: true });
-        console.log("DIRETÓRIO BASE DE UPLOAD CRIADO:", BASE_UPLOAD_PATH);
+        console.log("DIRETÃ“RIO BASE DE UPLOAD CRIADO:", BASE_UPLOAD_PATH);
     }
 } catch (e) {
-    console.error("AVISO CRÍTICO: Não foi possível criar a pasta base de upload:", e.message);
+    console.error("AVISO CRÃTICO: NÃ£o foi possÃ­vel criar a pasta base de upload:", e.message);
     console.error("Caminho tentado:", BASE_UPLOAD_PATH);
-    // Não encerramos o processo para permitir que o servidor suba em modo leitura ou com falhas parciais
+    // NÃ£o encerramos o processo para permitir que o servidor suba em modo leitura ou com falhas parciais
 }
 
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        // Garantindo que nomes de pastas sejam SEM ACENTOS e em MAIÚSCULO para compatibilidade total
+        // Garantindo que nomes de pastas sejam SEM ACENTOS e em MAIÃšSCULO para compatibilidade total
         const colab = req.body.colaborador_nome || 'DESCONHECIDO';
         const tab = req.body.tab_name || 'OUTROS';
         const year = req.body.year;
@@ -160,12 +160,12 @@ const storage = multer.diskStorage({
         try {
             if (!fs.existsSync(finalDir)) {
                 fs.mkdirSync(finalDir, { recursive: true });
-                console.log("DIRETÓRIO CRIADO:", finalDir);
+                console.log("DIRETÃ“RIO CRIADO:", finalDir);
             }
             cb(null, finalDir);
         } catch (err) {
-            console.error("ERRO AO CRIAR DIRETÓRIO DE UPLOAD:", err);
-            cb(new Error("Não foi possível criar a pasta de destino para o upload. Verifique as permissões de gravação."));
+            console.error("ERRO AO CRIAR DIRETÃ“RIO DE UPLOAD:", err);
+            cb(new Error("NÃ£o foi possÃ­vel criar a pasta de destino para o upload. Verifique as permissÃµes de gravaÃ§Ã£o."));
         }
     },
     filename: function (req, file, cb) {
@@ -183,7 +183,7 @@ const storage = multer.diskStorage({
             base = `${safeType}_${safeColab}`;
         }
 
-        // Timestamp formatado YYYYMMDD_HHMM para ser mais legível que milissegundos
+        // Timestamp formatado YYYYMMDD_HHMM para ser mais legÃ­vel que milissegundos
         const d = new Date();
         const ts = d.getFullYear() + 
                    String(d.getMonth() + 1).padStart(2, '0') + 
@@ -203,31 +203,31 @@ const storageFoto = multer.memoryStorage();
 const uploadFoto = multer({ storage: storageFoto });
 
 
-// --- CONFIGURAÇÃO DE MIDDLEWARES ---
+// --- CONFIGURAÃ‡ÃƒO DE MIDDLEWARES ---
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// Middleware de Autenticação (Bypass temporário para facilitar dev do frontend)
+// Middleware de AutenticaÃ§Ã£o (Bypass temporÃ¡rio para facilitar dev do frontend)
 const authenticateToken = (req, res, next) => {
     // const authHeader = req.headers['authorization'];
     // const token = authHeader && authHeader.split(' ')[1];
     // if (!token) return res.status(401).json({ error: 'Acesso negado' });
     // jwt.verify(token, SECRET_KEY, (err, user) => {
-    //     if (err) return res.status(403).json({ error: 'Token inválido' });
+    //     if (err) return res.status(403).json({ error: 'Token invÃ¡lido' });
     //     req.user = user;
     //     next();
     // });
     next(); 
 };
 
-// --- ROTAS DE AUTENTICAÇÃO ---
+// --- ROTAS DE AUTENTICAÃ‡ÃƒO ---
 app.post('/api/auth/login', (req, res) => {
     const { username, password } = req.body;
     db.get('SELECT * FROM usuarios WHERE username = ?', [username], (err, user) => {
-        if (err || !user) return res.status(401).json({ error: 'Usuário ou senha incorretos' });
+        if (err || !user) return res.status(401).json({ error: 'UsuÃ¡rio ou senha incorretos' });
         const valid = bcrypt.compareSync(password, user.password_hash);
-        if (!valid) return res.status(401).json({ error: 'Usuário ou senha incorretos' });
+        if (!valid) return res.status(401).json({ error: 'UsuÃ¡rio ou senha incorretos' });
         const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, SECRET_KEY, { expiresIn: '8h' });
         res.json({ token, user: { username: user.username, role: user.role } });
     });
@@ -283,19 +283,19 @@ app.get('/api/dashboard', authenticateToken, (req, res) => {
             stats.total += 1;
             let effectiveStatus = row.status || 'Ativo';
             
-            // Lógica de férias automática: Se status é Ativo/Férias e hoje está no período, muda para Férias
-            if (effectiveStatus === 'Ativo' || effectiveStatus === 'Férias') {
+            // LÃ³gica de fÃ©rias automÃ¡tica: Se status Ã© Ativo/FÃ©rias e hoje estÃ¡ no perÃ­odo, muda para FÃ©rias
+            if (effectiveStatus === 'Ativo' || effectiveStatus === 'FÃ©rias') {
                 if (row.ferias_programadas_inicio && row.ferias_programadas_fim) {
                     if (today >= row.ferias_programadas_inicio && today <= row.ferias_programadas_fim) {
-                        effectiveStatus = 'Férias';
-                    } else if (effectiveStatus === 'Férias') {
+                        effectiveStatus = 'FÃ©rias';
+                    } else if (effectiveStatus === 'FÃ©rias') {
                         effectiveStatus = 'Ativo';
                     }
                 }
             }
 
             if (effectiveStatus === 'Ativo') stats.ativos += 1;
-            else if (effectiveStatus === 'Férias') stats.ferias += 1;
+            else if (effectiveStatus === 'FÃ©rias') stats.ferias += 1;
             else if (effectiveStatus === 'Afastado') stats.afastados += 1;
             else if (effectiveStatus === 'Desligado') stats.desligados += 1;
         });
@@ -313,7 +313,7 @@ app.get('/api/colaboradores', authenticateToken, (req, res) => {
 
 app.get('/api/colaboradores/:id', authenticateToken, (req, res) => {
     db.get('SELECT * FROM colaboradores WHERE id = ?', [req.params.id], (err, row) => {
-        if (err || !row) return res.status(err ? 500 : 404).json({ error: err ? err.message : 'Não encontrado' });
+        if (err || !row) return res.status(err ? 500 : 404).json({ error: err ? err.message : 'NÃ£o encontrado' });
         
         db.all('SELECT chave_id, data_entrega FROM colaborador_chaves WHERE colaborador_id = ?', [req.params.id], (err2, chaves) => {
             if (err2) return res.status(500).json({ error: err2.message });
@@ -334,7 +334,7 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
     const nomeOriginal = data.nome_completo || data.nome;
 
     if (!nomeOriginal || !data.cpf) {
-        return res.status(400).json({ error: "Nome e CPF são campos obrigatórios" });
+        return res.status(400).json({ error: "Nome e CPF sÃ£o campos obrigatÃ³rios" });
     }
 
     const nomePasta = formatarNome(nomeOriginal);
@@ -352,7 +352,7 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
         console.error("ERRO AO CRIAR PASTAS LOCAIS:", erro);
     }
     
-    // (A Sincronização foi movida para o final do processo, após salvar no banco)
+    // (A SincronizaÃ§Ã£o foi movida para o final do processo, apÃ³s salvar no banco)
 
     const colunas = [
         'nome_completo', 'cpf', 'rg', 'data_nascimento', 'estado_civil', 'nacionalidade',
@@ -389,7 +389,7 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
     db.run(query, values, async function(err) {
         if (err) {
             console.error("ERRO AO SALVAR:", err);
-            const msg = err.message.includes("UNIQUE constraint failed") ? "Este CPF já está cadastrado." : err.message;
+            const msg = err.message.includes("UNIQUE constraint failed") ? "Este CPF jÃ¡ estÃ¡ cadastrado." : err.message;
             return res.status(400).json({ error: msg });
         }
         const newColabId = this.lastID;
@@ -426,7 +426,7 @@ app.get('/api/test/america', authenticateToken, async (req, res) => {
 });
 
 /**
- * ROTA DE DIAGNÓSTICO: Testar Conexão OneDrive
+ * ROTA DE DIAGNÃ“STICO: Testar ConexÃ£o OneDrive
  */
 app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) => {
     try {
@@ -441,14 +441,14 @@ app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) =>
         if (!config.clientId || !config.tenantId || !config.clientSecret) {
             return res.status(400).json({ 
                 sucesso: false, 
-                error: "Configurações incompletas no Render. Verifique CLIENT_ID, TENANT_ID e SECRET.",
+                error: "ConfiguraÃ§Ãµes incompletas no Render. Verifique CLIENT_ID, TENANT_ID e SECRET.",
                 details: config
             });
         }
 
         const accessToken = await onedrive.getAccessToken();
         const client = await onedrive.getGraphClient();
-        // PRIORIDADE: ID Real da América Rental encontrado pelo Mega Finder
+        // PRIORIDADE: ID Real da AmÃ©rica Rental encontrado pelo Mega Finder
         const driveId = "b!giGJ-6SQo0q01aZkBQjqEzgftfBe2OJGpvVeTh2YrbQTUqm85gobSoh8CtELSzAF";
         const drivePrefix = driveId ? `/drives/${driveId}/root` : `/users/${config.email}/drive/root`;
         
@@ -461,11 +461,11 @@ app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) =>
             rootItems = (resRaiz.value || []).map(item => item.name);
         } catch (rErr) { console.warn("Erro ao ler raiz:", rErr.message); }
 
-        // 2. BUSCA GLOBAL (GPS) - Procurar pasta 'RH' em toda a organização
+        // 2. BUSCA GLOBAL (GPS) - Procurar pasta 'RH' em toda a organizaÃ§Ã£o
         let rhLocation = null;
         try {
             const searchRH = await client.api(`/sites/root/drive/root/search(q='RH')`).get();
-            // Se não achar no root, tentar busca global de itens
+            // Se nÃ£o achar no root, tentar busca global de itens
             const searchGlobal = await client.api(`/search/query`).post({
                 requests: [{
                     entityTypes: ['driveItem'],
@@ -475,7 +475,7 @@ app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) =>
             rhLocation = searchGlobal.value?.[0]?.hitsContainers?.[0]?.hits?.[0]?.resource || null;
         } catch (gpsErr) { console.warn("Erro GPS:", gpsErr.message); }
 
-        // Variáveis de diagnóstico
+        // VariÃ¡veis de diagnÃ³stico
         let driveName = infoRaiz ? (infoRaiz.name || (driveId ? "SharePoint" : "OneDrive")) : "OneDrive";
         let infoPasta = null;
         let basePathItems = [];
@@ -493,7 +493,7 @@ app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) =>
                 const items = await client.api(`${drivePrefix}:/${encodedBasePath}:/children`).get();
                 basePathItems = items.value.map(i => i.name);
             } catch (pErr) {
-                basePathItems = [`⚠️ Erro no caminho: ${pErr.message}`];
+                basePathItems = [`âš ï¸ Erro no caminho: ${pErr.message}`];
             }
         } catch (dErr) {
             driveInfo = { name: "ERRO", error: dErr.message };
@@ -522,7 +522,7 @@ app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) =>
             siteDiscovery: siteDrives,
             config: {
                 basePath: config.basePath,
-                webUrlBase: infoPasta ? infoPasta.webUrl : "Pasta não localizada",
+                webUrlBase: infoPasta ? infoPasta.webUrl : "Pasta nÃ£o localizada",
                 webUrlRaiz: infoRaiz ? infoRaiz.webUrl : "N/A",
                 idReal: driveId || "Personal"
             }
@@ -531,7 +531,7 @@ app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) =>
         console.error("OneDrive Test Failure:", e);
         res.status(500).json({ 
             sucesso: false, 
-            error: "Falha na conexão: " + e.message,
+            error: "Falha na conexÃ£o: " + e.message,
             code: e.code,
             details: e.body ? JSON.parse(e.body) : null
         });
@@ -571,7 +571,7 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
     const updates = bodyKeys.filter(k => allowedColunas.includes(k));
     
     if (updates.length === 0) {
-        return res.json({ message: 'Nenhuma alteração enviada' });
+        return res.json({ message: 'Nenhuma alteraÃ§Ã£o enviada' });
     }
 
     const setClauses = updates.map(k => `${k} = ?`).join(', ');
@@ -584,7 +584,7 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
     console.log("EXEC VALUES:", values);
 
     db.get('SELECT nome_completo FROM colaboradores WHERE id = ?', [id], (err, oldColab) => {
-        if (err || !oldColab) return res.status(404).json({ error: err ? err.message : 'Não encontrado' });
+        if (err || !oldColab) return res.status(404).json({ error: err ? err.message : 'NÃ£o encontrado' });
         
         const oldName = oldColab.nome_completo;
         const newName = data.nome_completo || oldName;
@@ -648,19 +648,19 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
 
 
 /**
- * Sincronização manual com OneDrive para um colaborador
+ * SincronizaÃ§Ã£o manual com OneDrive para um colaborador
  */
 app.post('/api/colaboradores/:id/sync-onedrive', authenticateToken, async (req, res) => {
     const id = req.params.id;
     try {
         db.get('SELECT nome_completo FROM colaboradores WHERE id = ?', [id], async (err, row) => {
-            if (err || !row) return res.status(404).json({ error: 'Colaborador não encontrado' });
+            if (err || !row) return res.status(404).json({ error: 'Colaborador nÃ£o encontrado' });
             
             try {
                 const result = await syncColaboradorOneDrive(row.nome_completo);
                 res.json({ 
                     sucesso: true, 
-                    message: "Pastas básicas criadas! (Subpastas seguem em background)", 
+                    message: "Pastas bÃ¡sicas criadas! (Subpastas seguem em background)", 
                     path: result.caminho, 
                     versao: "V24_AUTO_SYNC",
                     basePath: result.basePath
@@ -668,7 +668,7 @@ app.post('/api/colaboradores/:id/sync-onedrive', authenticateToken, async (req, 
             } catch (e) {
                 console.error("Erro Sync Manual:", e);
                 res.status(500).json({ 
-                    error: "Falha na sincronização Microsoft Graph", 
+                    error: "Falha na sincronizaÃ§Ã£o Microsoft Graph", 
                     message: e.message,
                     details: e.body ? JSON.parse(e.body) : null
                 });
@@ -677,7 +677,7 @@ app.post('/api/colaboradores/:id/sync-onedrive', authenticateToken, async (req, 
     } catch (e) {
         console.error("[OneDrive Endpoint Error]:", e);
         res.status(500).json({ 
-            error: "Erro na requisição de sincronização",
+            error: "Erro na requisiÃ§Ã£o de sincronizaÃ§Ã£o",
             message: e.message,
             details: e.body ? (typeof e.body === 'string' ? JSON.parse(e.body) : e.body) : null
         });
@@ -688,7 +688,7 @@ app.delete('/api/colaboradores/:id', authenticateToken, (req, res) => {
     const id = req.params.id;
     
     db.get("SELECT status, nome_completo FROM colaboradores WHERE id = ?", [id], (err, row) => {
-        if (err || !row) return res.status(404).json({ error: 'Não encontrado' });
+        if (err || !row) return res.status(404).json({ error: 'NÃ£o encontrado' });
         
         if (row.status === 'Incompleto') {
             db.run("DELETE FROM dependentes WHERE colaborador_id = ?", [id]);
@@ -699,7 +699,7 @@ app.delete('/api/colaboradores/:id', authenticateToken, (req, res) => {
                     const pasta = path.join(BASE_PATH, formatarNome(row.nome_completo));
                     if (fs.existsSync(pasta)) fs.rmSync(pasta, { recursive: true, force: true });
                 } catch(e) {}
-                res.json({ message: 'Colaborador incompleto foi excluído definitivamente.' });
+                res.json({ message: 'Colaborador incompleto foi excluÃ­do definitivamente.' });
             });
         } else {
             db.run("UPDATE colaboradores SET status = 'Desligado' WHERE id = ?", [id], function(updateErr) {
@@ -710,7 +710,7 @@ app.delete('/api/colaboradores/:id', authenticateToken, (req, res) => {
     });
 });
 
-// Photo Upload Endpoint com Filtro de IA de Estúdio
+// Photo Upload Endpoint com Filtro de IA de EstÃºdio
 app.post('/api/upload-foto/:id', authenticateToken, uploadFoto.single('foto'), async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: "Nenhum arquivo enviado." });
@@ -718,7 +718,7 @@ app.post('/api/upload-foto/:id', authenticateToken, uploadFoto.single('foto'), a
         const id = req.params.id;
         let nome = req.body.nome;
         
-        // Se o nome não vier no body (upload direto), buscar no banco
+        // Se o nome nÃ£o vier no body (upload direto), buscar no banco
         if (!nome) {
             const colab = await new Promise((resolve, reject) => {
                 db.get("SELECT nome_completo FROM colaboradores WHERE id = ?", [id], (err, row) => {
@@ -728,13 +728,13 @@ app.post('/api/upload-foto/:id', authenticateToken, uploadFoto.single('foto'), a
             if (colab) nome = colab.nome_completo;
         }
 
-        if (!nome) return res.status(400).json({ error: "Nome do colaborador não identificado." });
+        if (!nome) return res.status(400).json({ error: "Nome do colaborador nÃ£o identificado." });
 
         const safeNome = formatarNome(nome);
         const pasta = path.join(BASE_PATH, safeNome, "FOTOS");
         if (!fs.existsSync(pasta)) fs.mkdirSync(pasta, { recursive: true });
 
-        // Timestamp garante unicidade mesmo em servidores efêmeros (Render)
+        // Timestamp garante unicidade mesmo em servidores efÃªmeros (Render)
         const timestamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14); // ex: 20260327230900
         const filename = `Foto_${safeNome}_${timestamp}.jpg`;
         const filepath = path.join(pasta, filename);
@@ -742,7 +742,7 @@ app.post('/api/upload-foto/:id', authenticateToken, uploadFoto.single('foto'), a
         const caminhoRelativo = path.posix.join('files', 'Colaboradores', safeNome, 'FOTOS', filename);
 
 
-        // Processamento Automático (Sharp) - buffer reutilizado para ambos os destinos
+        // Processamento AutomÃ¡tico (Sharp) - buffer reutilizado para ambos os destinos
         const processedBuffer = await sharp(req.file.buffer)
             .resize(800, 1000, {
                 fit: sharp.fit.cover,
@@ -751,22 +751,22 @@ app.post('/api/upload-foto/:id', authenticateToken, uploadFoto.single('foto'), a
             .jpeg({ quality: 95, mozjpeg: true })
             .toBuffer();
 
-        // 1. Histórico local em FOTOS/ (numerado)
+        // 1. HistÃ³rico local em FOTOS/ (numerado)
         fs.writeFileSync(filepath, processedBuffer);
-        console.log("Foto histórico salva localmente:", filepath);
+        console.log("Foto histÃ³rico salva localmente:", filepath);
 
         // 2. Foto principal (substituir) em 01_FICHA_CADASTRAL/
         const pastaFicha = path.join(BASE_PATH, safeNome, "01_FICHA_CADASTRAL");
         if (!fs.existsSync(pastaFicha)) fs.mkdirSync(pastaFicha, { recursive: true });
         const fichaFilepath = path.join(pastaFicha, `Foto_${safeNome}.jpg`);
         fs.writeFileSync(fichaFilepath, processedBuffer);
-        console.log("Foto principal salva/substituída:", fichaFilepath);
+        console.log("Foto principal salva/substituÃ­da:", fichaFilepath);
 
         // 3. Salva base64 e caminho no banco de dados (base64 persiste entre deploys)
         const base64Data = `data:image/jpeg;base64,${processedBuffer.toString('base64')}`;
         db.run("UPDATE colaboradores SET foto_path = ?, foto_base64 = ? WHERE id = ?", [caminhoRelativo, base64Data, id]);
 
-        // 4. Upload assíncrono para OneDrive
+        // 4. Upload assÃ­ncrono para OneDrive
         if (process.env.ONEDRIVE_CLIENT_ID) {
             (async () => {
                 try {
@@ -799,8 +799,8 @@ app.get('/api/colaboradores/foto/:id', (req, res) => {
 
     db.get('SELECT foto_path FROM colaboradores WHERE id = ?', [req.params.id], (err, row) => {
         if (err || !row || !row.foto_path) {
-            log(`Foto não encontrada no banco para ID ${req.params.id}`);
-            return res.status(404).json({ error: 'Foto não encontrada' });
+            log(`Foto nÃ£o encontrada no banco para ID ${req.params.id}`);
+            return res.status(404).json({ error: 'Foto nÃ£o encontrada' });
         }
         
         let file_path = row.foto_path;
@@ -819,8 +819,8 @@ app.get('/api/colaboradores/foto/:id', (req, res) => {
         }
         
         if (!fs.existsSync(file_path)) {
-            log(`Arquivo NÃO encontrado: ${file_path}`);
-            return res.status(404).json({ error: 'Arquivo físico não encontrado' });
+            log(`Arquivo NÃƒO encontrado: ${file_path}`);
+            return res.status(404).json({ error: 'Arquivo fÃ­sico nÃ£o encontrado' });
         }
         
         log(`Sucesso: Enviando arquivo ${file_path}`);
@@ -856,7 +856,7 @@ app.put('/api/dependentes/:id', authenticateToken, (req, res) => {
 app.delete('/api/dependentes/:id', authenticateToken, (req, res) => {
     db.run('DELETE FROM dependentes WHERE id = ?', [req.params.id], err => {
         if (err) return res.status(500).json({ error: err.message });
-        res.json({ message: 'Excluído com sucesso' });
+        res.json({ message: 'ExcluÃ­do com sucesso' });
     });
 });
 
@@ -886,12 +886,12 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
     db.get(checkSql, params, (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
         
-        // Abas que permitem múltiplos arquivos (histórico cumulativo)
-        const abasMultiplas = ['Advertências', 'Multas', 'Atestados', 'Boletim de ocorrência', 'Pagamentos', 'Terapia'];
+        // Abas que permitem mÃºltiplos arquivos (histÃ³rico cumulativo)
+        const abasMultiplas = ['AdvertÃªncias', 'Multas', 'Atestados', 'Boletim de ocorrÃªncia', 'Pagamentos', 'Terapia'];
         const isMultiplo = abasMultiplas.includes(tab_name);
 
         if (row && !isMultiplo) {
-            // Se já existe e NÃO é aba de histórico, atualiza (sobrescreve banco e apaga disco)
+            // Se jÃ¡ existe e NÃƒO Ã© aba de histÃ³rico, atualiza (sobrescreve banco e apaga disco)
             if (fs.existsSync(row.file_path)) {
                 try { fs.unlinkSync(row.file_path); } catch(e) {}
             }
@@ -919,7 +919,7 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
                     res.json({ message: 'Documento atualizado', id: row.id, file_path });
                 });
         } else {
-            // Se é aba de histórico OU não existia, insere novo registro
+            // Se Ã© aba de histÃ³rico OU nÃ£o existia, insere novo registro
             db.run(`INSERT INTO documentos (colaborador_id, tab_name, document_type, file_name, file_path, year, month, vencimento) 
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
                 [colaborador_id, tab_name, document_type, file_name, file_path, year || null, month || null, vencimento || null],
@@ -965,7 +965,7 @@ app.put('/api/documentos/:id/vencimento', authenticateToken, (req, res) => {
 
 app.delete('/api/documentos/:id', authenticateToken, (req, res) => {
     db.get('SELECT file_path FROM documentos WHERE id = ?', [req.params.id], (err, row) => {
-        if (err || !row) return res.status(404).json({ error: 'Documento não encontrado' });
+        if (err || !row) return res.status(404).json({ error: 'Documento nÃ£o encontrado' });
         
         if (fs.existsSync(row.file_path)) {
             try { fs.unlinkSync(row.file_path); } catch(e) {}
@@ -973,15 +973,15 @@ app.delete('/api/documentos/:id', authenticateToken, (req, res) => {
         
         db.run('DELETE FROM documentos WHERE id = ?', [req.params.id], deleteErr => {
             if (deleteErr) return res.status(500).json({ error: deleteErr.message });
-            res.json({ message: 'Documento excluído' });
+            res.json({ message: 'Documento excluÃ­do' });
         });
     });
 });
 
 app.get('/api/documentos/download/:id', authenticateToken, (req, res) => {
     db.get('SELECT file_path, file_name FROM documentos WHERE id = ?', [req.params.id], (err, row) => {
-        if (err || !row) return res.status(404).json({ error: 'Documento não encontrado' });
-        if (!fs.existsSync(row.file_path)) return res.status(404).json({ error: 'Arquivo físico não encontrado' });
+        if (err || !row) return res.status(404).json({ error: 'Documento nÃ£o encontrado' });
+        if (!fs.existsSync(row.file_path)) return res.status(404).json({ error: 'Arquivo fÃ­sico nÃ£o encontrado' });
         
         res.download(row.file_path, row.file_name);
     });
@@ -1010,7 +1010,7 @@ app.post('/api/cargos', authenticateToken, (req, res) => {
 
 app.put('/api/cargos/:id', authenticateToken, (req, res) => {
     const { nome, documentos_obrigatorios } = req.body;
-    console.log(`Recebida alteração para cargo ${req.params.id}:`, { nome, documentos_obrigatorios });
+    console.log(`Recebida alteraÃ§Ã£o para cargo ${req.params.id}:`, { nome, documentos_obrigatorios });
 
     db.get("SELECT nome FROM cargos WHERE id = ?", [req.params.id], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -1043,7 +1043,7 @@ app.delete('/api/cargos/:id', authenticateToken, (req, res) => {
     db.get("SELECT nome FROM cargos WHERE id = ?", [req.params.id], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
         if (row && row.nome.trim().toUpperCase() === 'MOTORISTA') {
-            return res.status(403).json({ error: 'O cargo Motorista é fixo e não pode ser apagado do sistema.' });
+            return res.status(403).json({ error: 'O cargo Motorista Ã© fixo e nÃ£o pode ser apagado do sistema.' });
         }
         db.serialize(() => {
             db.run("DELETE FROM cargo_documentos WHERE cargo_id = ?", [req.params.id]);
@@ -1069,7 +1069,7 @@ app.get('/api/cargos/:id/documentos', authenticateToken, (req, res) => {
 // Adicionar um documento a um cargo (idempotente - INSERT OR IGNORE)
 app.post('/api/cargos/:id/documentos', authenticateToken, (req, res) => {
     const { documento } = req.body;
-    if (!documento) return res.status(400).json({ error: 'documento obrigatório' });
+    if (!documento) return res.status(400).json({ error: 'documento obrigatÃ³rio' });
     db.run("INSERT OR IGNORE INTO cargo_documentos (cargo_id, documento) VALUES (?, ?)",
         [req.params.id, documento], function(err) {
         if (err) return res.status(500).json({ error: err.message });
@@ -1080,7 +1080,7 @@ app.post('/api/cargos/:id/documentos', authenticateToken, (req, res) => {
 // Remover um documento de um cargo
 app.delete('/api/cargos/:id/documentos', authenticateToken, (req, res) => {
     const { documento } = req.body;
-    if (!documento) return res.status(400).json({ error: 'documento obrigatório' });
+    if (!documento) return res.status(400).json({ error: 'documento obrigatÃ³rio' });
     db.run("DELETE FROM cargo_documentos WHERE cargo_id = ? AND documento = ?",
         [req.params.id, documento], function(err) {
         if (err) return res.status(500).json({ error: err.message });
@@ -1167,7 +1167,7 @@ app.get('/api/geradores', authenticateToken, (req, res) => {
 app.get('/api/geradores/:id', authenticateToken, (req, res) => {
     db.get("SELECT * FROM geradores WHERE id = ?", [req.params.id], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
-        if (!row) return res.status(404).json({ error: 'Gerador não encontrado' });
+        if (!row) return res.status(404).json({ error: 'Gerador nÃ£o encontrado' });
         res.json(row);
     });
 });
@@ -1197,12 +1197,12 @@ app.delete('/api/geradores/:id', authenticateToken, (req, res) => {
     });
 });
 
-// Endpoint de geração (Substituição de Variáveis)
+// Endpoint de geraÃ§Ã£o (SubstituiÃ§Ã£o de VariÃ¡veis)
 app.post('/api/geradores/:id/gerar/:colaborador_id', authenticateToken, (req, res) => {
     const { id, colaborador_id } = req.params;
     
     db.get("SELECT * FROM geradores WHERE id = ?", [id], (err, gerador) => {
-        if (err || !gerador) return res.status(404).json({ error: 'Gerador não encontrado' });
+        if (err || !gerador) return res.status(404).json({ error: 'Gerador nÃ£o encontrado' });
         
         // Busca o colaborador e tenta cruzar com cursos_faculdade
         const sql = `
@@ -1213,7 +1213,7 @@ app.post('/api/geradores/:id/gerar/:colaborador_id', authenticateToken, (req, re
         `;
         
         db.get(sql, [colaborador_id], (err, colaborador) => {
-            if (err || !colaborador) return res.status(404).json({ error: 'Colaborador não encontrado' });
+            if (err || !colaborador) return res.status(404).json({ error: 'Colaborador nÃ£o encontrado' });
             
             // Busca chaves do colaborador
             db.all(`
@@ -1226,7 +1226,7 @@ app.post('/api/geradores/:id/gerar/:colaborador_id', authenticateToken, (req, re
                 
                 let conteudoFinal = gerador.conteudo;
                 const dataAtual = new Date();
-                const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+                const meses = ["Janeiro", "Fevereiro", "MarÃ§o", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
                 
                 const mapping = {
                     'BASE_URL': `${req.protocol}://${req.get('host')}`,
@@ -1251,14 +1251,14 @@ app.post('/api/geradores/:id/gerar/:colaborador_id', authenticateToken, (req, re
                     'EMAIL': colaborador.email || '',
                     'SALARIO': colaborador.salario ? `R$ ${parseFloat(colaborador.salario).toLocaleString('pt-BR', {minimumFractionDigits: 2})}` : '---',
                     'CHAVES': listaChaves || 'Nenhuma chave cadastrada',
-                    // Variáveis de Faculdade
+                    // VariÃ¡veis de Faculdade
                     'INSTITUICAO': colaborador.f_inst || '---',
                     'CURSO': colaborador.f_nome || '---',
                     'DURACAO': colaborador.f_tempo || '---',
                     'MENSALIDADE': colaborador.f_valor ? `R$ ${parseFloat(colaborador.f_valor).toLocaleString('pt-BR', {minimumFractionDigits: 2})}` : '---'
                 };
                 
-                // Substituição bruta
+                // SubstituiÃ§Ã£o bruta
                 Object.keys(mapping).forEach(key => {
                     const regex = new RegExp(`\\$\\{${key}\\}`, 'g');
                     conteudoFinal = conteudoFinal.replace(regex, mapping[key]);
@@ -1274,8 +1274,8 @@ app.post('/api/geradores/:id/gerar/:colaborador_id', authenticateToken, (req, re
     });
 });
 
-// --- INTEGRAÇÃO ASSINAFY ---
-// Configuração Assinafy (Preencha aqui com sua chave de API e Account ID)
+// --- INTEGRAÃ‡ÃƒO ASSINAFY ---
+// ConfiguraÃ§Ã£o Assinafy (Preencha aqui com sua chave de API e Account ID)
 const ASSINAFY_CONFIG = {
     apiKey: 'AxaT-FiXBckHqEYV0s_MtUhLF3pReRz3dX4zVpC173vmjDwzLGHYtDJuQje4-4Pd',
     accountId: '10237785fb23cf473d54845a013e',
@@ -1289,11 +1289,11 @@ app.post('/api/assinafy/upload', async (req, res) => {
     const { document_id, colaborador_id } = req.body;
     
     if (!document_id || !colaborador_id) {
-        return res.status(400).json({ error: 'ID do documento e colaborador são obrigatórios.' });
+        return res.status(400).json({ error: 'ID do documento e colaborador sÃ£o obrigatÃ³rios.' });
     }
 
     if (ASSINAFY_CONFIG.apiKey === 'SUA_CHAVE_API_AQUI') {
-        return res.status(401).json({ error: 'Credenciais do Assinafy não configuradas no backend (server.js).' });
+        return res.status(401).json({ error: 'Credenciais do Assinafy nÃ£o configuradas no backend (server.js).' });
     }
 
     try {
@@ -1312,15 +1312,15 @@ app.post('/api/assinafy/upload', async (req, res) => {
             });
         });
 
-        if (!doc) throw new Error(`Documento ID ${document_id} não encontrado no banco.`);
-        if (!colab) throw new Error(`Colaborador ID ${colaborador_id} não encontrado no banco.`);
+        if (!doc) throw new Error(`Documento ID ${document_id} nÃ£o encontrado no banco.`);
+        if (!colab) throw new Error(`Colaborador ID ${colaborador_id} nÃ£o encontrado no banco.`);
         
         console.log(`[ASSINAFY] Documento encontrado: ${doc.file_name}. Caminho: ${doc.file_path}`);
 
         const filePath = path.resolve(doc.file_path);
         if (!fs.existsSync(filePath)) {
-            console.error(`[ASSINAFY] Arquivo físico não existe: ${filePath}`);
-            throw new Error(`Arquivo físico não encontrado no servidor: ${doc.file_path}`);
+            console.error(`[ASSINAFY] Arquivo fÃ­sico nÃ£o existe: ${filePath}`);
+            throw new Error(`Arquivo fÃ­sico nÃ£o encontrado no servidor: ${doc.file_path}`);
         }
 
         // 2. Upload do arquivo para o Assinafy
@@ -1357,7 +1357,7 @@ app.post('/api/assinafy/upload', async (req, res) => {
         // Evita o erro 'metadata_processing'
         await new Promise(resolve => setTimeout(resolve, 5000));
 
-        // 3. Criar/Encontrar e Atualizar Signatário (Colaborador)
+        // 3. Criar/Encontrar e Atualizar SignatÃ¡rio (Colaborador)
         const CENTRAL_EMAIL = 'americasistema48@gmail.com'; // Fallback centralizador
         const emailObri = colab.email || CENTRAL_EMAIL; // Usar e-mail do colaborador, fallback se vazio
         
@@ -1365,10 +1365,10 @@ app.post('/api/assinafy/upload', async (req, res) => {
         const foneLimpo = colab.telefone ? colab.telefone.replace(/\D/g, '') : null;
 
         if (!cpfLimpo) {
-            throw new Error(`O CPF é obrigatório para o Assinafy.`);
+            throw new Error(`O CPF Ã© obrigatÃ³rio para o Assinafy.`);
         }
 
-        console.log(`[ASSINAFY] Iniciando sincronização do colaborador: ${colab.nome_completo} (CPF: ${cpfLimpo})`);
+        console.log(`[ASSINAFY] Iniciando sincronizaÃ§Ã£o do colaborador: ${colab.nome_completo} (CPF: ${cpfLimpo})`);
 
         // Tentar buscar ID pelo CPF primeiro (mais robusto que tentar criar e pegar conflito)
         let assinafySignerId = null;
@@ -1383,13 +1383,13 @@ app.post('/api/assinafy/upload', async (req, res) => {
             const list = searchData.data || searchData;
             if (Array.isArray(list) && list.length > 0) {
                 assinafySignerId = list[0].id;
-                console.log(`[ASSINAFY] Signatário já existe com ID: ${assinafySignerId}`);
+                console.log(`[ASSINAFY] SignatÃ¡rio jÃ¡ existe com ID: ${assinafySignerId}`);
             }
         } catch (e) { console.warn('[ASSINAFY] Erro na busca por CPF:', e.message); }
 
         if (!assinafySignerId) {
-            // CRIAR NOVO se não encontrou
-            console.log("[ASSINAFY] Criando novo signatário...");
+            // CRIAR NOVO se nÃ£o encontrou
+            console.log("[ASSINAFY] Criando novo signatÃ¡rio...");
             const createRes = await fetch(`${ASSINAFY_CONFIG.baseUrl}/accounts/${ASSINAFY_CONFIG.accountId}/signers`, {
                 method: 'POST',
                 headers: { 
@@ -1408,8 +1408,8 @@ app.post('/api/assinafy/upload', async (req, res) => {
             if (createRes.ok) {
                 assinafySignerId = createData.data ? createData.data.id : createData.id;
             } else {
-                console.warn('[ASSINAFY] Erro na criação direta:', createData.message);
-                // Tentar uma última vez buscar por email se o CPF falhou (raro)
+                console.warn('[ASSINAFY] Erro na criaÃ§Ã£o direta:', createData.message);
+                // Tentar uma Ãºltima vez buscar por email se o CPF falhou (raro)
                 const searchEmailRes = await fetch(`${ASSINAFY_CONFIG.baseUrl}/accounts/${ASSINAFY_CONFIG.accountId}/signers?email=${emailObri}`, {
                     headers: { 
                         'X-Api-Key': ASSINAFY_CONFIG.apiKey,
@@ -1424,16 +1424,16 @@ app.post('/api/assinafy/upload', async (req, res) => {
             }
         }
 
-        if (!assinafySignerId) throw new Error('Não foi possível obter o ID do signatário no Assinafy. Verifique se o CPF e E-mail estão corretos.');
+        if (!assinafySignerId) throw new Error('NÃ£o foi possÃ­vel obter o ID do signatÃ¡rio no Assinafy. Verifique se o CPF e E-mail estÃ£o corretos.');
 
-        // 3.5. Nota: O Assinafy não permite atualizar (PUT) dados de signatários que 
-        // já possuem documentos pendentes vinculados (erro "Método inválido").
-        // Como o e-mail agora é repassado diretamente no passo 'Assignment' abaixo,
-        // não precisamos mais forçar o PUT no perfil global do signatário.
-        console.log(`[ASSINAFY] Prosseguindo para vinculação com E-mail: ${emailObri}`);
+        // 3.5. Nota: O Assinafy nÃ£o permite atualizar (PUT) dados de signatÃ¡rios que 
+        // jÃ¡ possuem documentos pendentes vinculados (erro "MÃ©todo invÃ¡lido").
+        // Como o e-mail agora Ã© repassado diretamente no passo 'Assignment' abaixo,
+        // nÃ£o precisamos mais forÃ§ar o PUT no perfil global do signatÃ¡rio.
+        console.log(`[ASSINAFY] Prosseguindo para vinculaÃ§Ã£o com E-mail: ${emailObri}`);
 
-        // 4. Criar a Solicitação de Assinatura (Assignment)
-        // Usamos o método 'virtual' com notificação explícita por 'Email'
+        // 4. Criar a SolicitaÃ§Ã£o de Assinatura (Assignment)
+        // Usamos o mÃ©todo 'virtual' com notificaÃ§Ã£o explÃ­cita por 'Email'
         const assignmentRes = await fetch(`${ASSINAFY_CONFIG.baseUrl}/accounts/${ASSINAFY_CONFIG.accountId}/documents/${assinafyDocId}/assignments`, {
             method: 'POST',
             headers: { 
@@ -1454,11 +1454,11 @@ app.post('/api/assinafy/upload', async (req, res) => {
         const assignmentData = await assignmentRes.json();
         
         if (!assignmentRes.ok) {
-            console.error('[ASSINAFY] Erro ao criar solicitação de assinatura:', assignmentData.message);
-            throw new Error(assignmentData.message || 'Erro ao criar solicitação de assinatura');
+            console.error('[ASSINAFY] Erro ao criar solicitaÃ§Ã£o de assinatura:', assignmentData.message);
+            throw new Error(assignmentData.message || 'Erro ao criar solicitaÃ§Ã£o de assinatura');
         }
 
-        // 5. Atualizar o banco de dados com ID (para permitir o vínculo via Webhook futuramente)
+        // 5. Atualizar o banco de dados com ID (para permitir o vÃ­nculo via Webhook futuramente)
         await new Promise((resolve, reject) => {
             db.run('UPDATE documentos SET assinafy_id = ?, assinafy_status = ? WHERE id = ?', 
                 [assinafyDocId, 'Aguardando Webhook', document_id], (err) => {
@@ -1473,8 +1473,8 @@ app.post('/api/assinafy/upload', async (req, res) => {
         });
 
     } catch (err) {
-        console.error('ERRO ASSINAFY INTEGRAÇÃO:', err);
-        // Retornar JSON sempre para o frontend não quebrar ao tentar dar .json() no erro
+        console.error('ERRO ASSINAFY INTEGRAÃ‡ÃƒO:', err);
+        // Retornar JSON sempre para o frontend nÃ£o quebrar ao tentar dar .json() no erro
         res.status(500).json({ error: err.message });
     }
 });
@@ -1506,11 +1506,11 @@ app.put('/api/chaves/:id', authenticateToken, (req, res) => {
 
 app.delete('/api/chaves/:id', authenticateToken, (req, res) => {
     db.get('SELECT 1 FROM colaboradores WHERE id IN (SELECT colaborador_id FROM colaborador_chaves WHERE chave_id = ?)', [req.params.id], (err, row) => {
-        // Por enquanto não temos a tabela de relacionamento, então vamos deletar direto.
+        // Por enquanto nÃ£o temos a tabela de relacionamento, entÃ£o vamos deletar direto.
         // Se no futuro houver chaves vinculadas, podemos avisar.
         db.run("DELETE FROM chaves WHERE id = ?", [req.params.id], function(err) {
             if (err) return res.status(500).json({ error: err.message });
-            res.json({ message: 'Chave excluída' });
+            res.json({ message: 'Chave excluÃ­da' });
         });
     });
 });
@@ -1520,12 +1520,12 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
     const { colaborador_id, email_to, data_exame, cc } = req.body;
     
     db.get('SELECT * FROM colaboradores WHERE id = ?', [colaborador_id], (err, colab) => {
-        if (err || !colab) return res.status(404).json({ error: 'Colaborador não encontrado' });
+        if (err || !colab) return res.status(404).json({ error: 'Colaborador nÃ£o encontrado' });
         
         const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
         const exames = (colab.cargo || '').toLowerCase().includes('motorista') 
             ? 'Audiometria, acuidade visual, E.E.G, E.C.G e Glicemia.' 
-            : 'Exame Padrão';
+            : 'Exame PadrÃ£o';
 
         // Formatar data: YYYY-MM-DD to DD/MM/YYYY
         const [y, m, d] = data_exame.split('-');
@@ -1537,13 +1537,13 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
                     <img src="cid:empresa-logo" style="max-height: 80px;">
                 </div>
                 <h2 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">Exame Admissional</h2>
-                <p>Segue abaixo as informações para a realização do exame Admissional do colaborador que deve comparecer.</p>
+                <p>Segue abaixo as informaÃ§Ãµes para a realizaÃ§Ã£o do exame Admissional do colaborador que deve comparecer.</p>
                 
                 <div style="background: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
                     <p><strong>Data:</strong> ${dataFormatada}</p>
                     <p><strong>Nome:</strong> ${colab.nome_completo}</p>
                     <p><strong>CPF:</strong> ${colab.cpf}</p>
-                    <p><strong>Função:</strong> ${colab.cargo || '-'}</p>
+                    <p><strong>FunÃ§Ã£o:</strong> ${colab.cargo || '-'}</p>
                     <p><strong>Departamento:</strong> ${colab.departamento || '-'}</p>
                 </div>
 
@@ -1552,21 +1552,21 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
 
                 <div style="margin-top: 30px; padding: 15px; border: 2px solid #e74c3c; border-radius: 8px; background: #fff5f5; text-align: center;">
                     <p style="color: #c0392b; font-weight: bold; font-size: 1.1rem; margin: 0;">
-                        ⚠️ IMPORTANTE:<br>Após o exame ficar pronto, favor enviar o documento por e-mail diretamente para:<br>
+                        âš ï¸ IMPORTANTE:<br>ApÃ³s o exame ficar pronto, favor enviar o documento por e-mail diretamente para:<br>
                         <span style="font-size: 1.2rem; color: #2c3e50;">rh@americarental.com.br</span>
                     </p>
                 </div>
 
-                <p style="margin-top: 30px; font-size: 0.9em; color: #7f8c8d;">Atenciosamente,<br>Equipe de RH - América Rental</p>
+                <p style="margin-top: 30px; font-size: 0.9em; color: #7f8c8d;">Atenciosamente,<br>Equipe de RH - AmÃ©rica Rental</p>
             </div>
         `;
 
         const transporter = nodemailer.createTransport(SMTP_CONFIG);
         const mailOptions = {
-            from: `"RH América Rental" <${SMTP_CONFIG.auth.user}>`,
+            from: `"RH AmÃ©rica Rental" <${SMTP_CONFIG.auth.user}>`,
             to: email_to,
             cc: cc || [],
-            subject: 'Solicitação de Exame Admissional',
+            subject: 'SolicitaÃ§Ã£o de Exame Admissional',
             html: htmlContent,
             attachments: [
                 {
@@ -1580,7 +1580,7 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
         transporter.sendMail(mailOptions, (error, info) => {
             if (error) {
                 console.error('ERRO NODEMAILER:', error);
-                return res.status(500).json({ sucesso: false, error: 'Erro ao enviar e-mail. Verifique a configuração SMTP no backend.' });
+                return res.status(500).json({ sucesso: false, error: 'Erro ao enviar e-mail. Verifique a configuraÃ§Ã£o SMTP no backend.' });
             }
             
             // Salvar a data de envio e a data agendada no banco de dados
@@ -1599,31 +1599,31 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
 });
 
 /**
- * WEBHOOK UNIFICADO: Escuta criação de links e conclusão de assinaturas
+ * WEBHOOK UNIFICADO: Escuta criaÃ§Ã£o de links e conclusÃ£o de assinaturas
  */
 app.post("/webhook/assinafy", async (req, res) => {
     try {
         const payload = req.body;
         console.log('--- WEBHOOK ASSINAFY RECEBIDO ---', JSON.stringify(payload));
 
-        // Tentar encontrar o ID do documento em várias estruturas possíveis
+        // Tentar encontrar o ID do documento em vÃ¡rias estruturas possÃ­veis
         const assinafyId = payload.document_id || payload.documentId || payload.id || 
                           (payload.data && (payload.data.document_id || payload.data.id)) || 
                           (payload.object && payload.object.id);
 
         if (!assinafyId) {
-            console.warn("[WEBHOOK] Recebido sem assinafyId identificável.");
+            console.warn("[WEBHOOK] Recebido sem assinafyId identificÃ¡vel.");
             return res.status(200).send("OK");
         }
 
-        // 1. Tratar status de conclusão (Assinado/Pronto)
+        // 1. Tratar status de conclusÃ£o (Assinado/Pronto)
         const event = (payload.event || '').toLowerCase();
         if (event.includes('ready') || event.includes('signed') || event.includes('completed')) {
             console.log(`[WEBHOOK] Documento ${assinafyId} marcado como ASSINADO.`);
             db.run('UPDATE documentos SET assinafy_status = ? WHERE assinafy_id = ?', ['Assinado', assinafyId]);
         }
 
-        // 2. Tratar captura de link (Criação/Envio)
+        // 2. Tratar captura de link (CriaÃ§Ã£o/Envio)
         let signLink = payload.sign_url || payload.signUrl;
         if (!signLink && payload.signers && payload.signers[0]) {
             signLink = payload.signers[0].sign_url || payload.signers[0].url;
@@ -1646,9 +1646,9 @@ app.post("/webhook/assinafy", async (req, res) => {
     }
 });
 
+
 /**
- * ROTA TEMPORÁRIA: Reset de Sistema
- * Limpa todos os colaboradores para testes
+ * ROTA TEMPORÃRIA: Reset de Sistema
  */
 app.post('/api/maintenance/reset', authenticateToken, (req, res) => {
     db.serialize(() => {
@@ -1663,7 +1663,7 @@ app.post('/api/maintenance/reset', authenticateToken, (req, res) => {
 });
 
 /**
- * Função para atualizar DB com link e status
+ * FunÃ§Ã£o para atualizar DB com link e status
  */
 async function salvarLinkAssinatura(assinafyDocId, link) {
     return new Promise((resolve, reject) => {
@@ -1675,36 +1675,30 @@ async function salvarLinkAssinatura(assinafyDocId, link) {
     });
 }
 
-// Middleware de Erro Global (incluindo Multer e erros de filesystem)
+// --- SERVIR ARQUIVOS ESTÃTICOS ---
+app.use(express.static(path.join(__dirname, '../frontend')));
+app.use('/files', express.static(path.join(__dirname, '..', '..'))); 
+
+// Middleware de Erro Global
 app.use((err, req, res, next) => {
     console.error("--- ERRO DETECTADO NO SERVIDOR ---");
     console.error(err);
-    
-    if (err instanceof multer.MulterError || err.message.includes("Não foi possível criar")) {
-        return res.status(500).json({ error: `Falha no Armazenamento: ${err.message}` });
-    }
-    
     res.status(500).json({ error: "Erro interno no servidor." });
 });
 
-// Tratamento de Exceções Globais para evitar 502 no Render
+// Tratamento de ExceÃ§Ãµes Globais
 process.on('uncaughtException', (err) => {
     console.error('--- ERRO FATAL (Uncaught Exception) ---');
     console.error(err);
-    // No Render, é melhor deixar o processo cair para ele reiniciar limpo se for erro grave,
-    // mas logamos tudo primeiro.
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-    console.error('--- PROMESSA NÃO TRATADA (Unhandled Rejection) ---');
+    console.error('--- PROMESSA NÃƒO TRATADA (Unhandled Rejection) ---');
     console.error(reason);
 });
 
 app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
-    console.log('Versão do Servidor: V27_FINAL_ASSINAFY');
+    console.log('VersÃ£o do Servidor: V28_FINAL_FIX');
     console.log(`Caminho de Armazenamento Local: ${BASE_UPLOAD_PATH}`);
-    console.log(`OneDrive Base Path: ${process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema"}`);
-    console.log(`OneDrive User: ${process.env.ONEDRIVE_USER_EMAIL || "NÃO CONFIGURADO"}`);
-    if (!process.env.ONEDRIVE_CLIENT_ID) console.warn("AVISO: ONEDRIVE_CLIENT_ID não configurado no Render!");
 });
