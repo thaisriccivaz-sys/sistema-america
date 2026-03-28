@@ -14,10 +14,9 @@ const config = {
 const cca = new msal.ConfidentialClientApplication(config);
 const CLIENT_ID = process.env.ONEDRIVE_CLIENT_ID;
 const USER_ID = process.env.ONEDRIVE_USER_EMAIL;
-// MUDANÇA DE RACIOCÍNIO V20: Alvo agora é o OneDrive PESSOAL (My Files) 
-// Isso garante que salve na pasta sincronizada 'OneDrive - AMERICA RENTAL LTDA'
-const DRIVE_ID = null; 
-const ONEDRIVE_FIXED_BASE = "Documentos - America Rental/RH/1.Colaboradores/Sistema";
+// O Drive ID correto da pasta "Documentos - America Rental" no SharePoint
+const DRIVE_ID = "b!giGJ-6SQo0q01aZkBQjqEzgftfBe2OJGpvVeTh2YrbQTUqm85gobSoh8CtELSzAF"; 
+const ONEDRIVE_FIXED_BASE = "RH/1.Colaboradores/Sistema";
 
 /**
  * Obtém o token de acesso para o Microsoft Graph
