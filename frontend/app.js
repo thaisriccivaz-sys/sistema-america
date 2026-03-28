@@ -1626,7 +1626,7 @@ if (formColab) {
             if (colabId) {
                 if (submitter) {
                     submitter.disabled = true;
-                    submitter.innerHTML = '<i class="ph ph-spinner-gap ph-spin"></i> Criando pastas no OneDrive...';
+                    submitter.innerHTML = '<i class="ph ph-spinner-gap ph-spin"></i> Salvar';
                 }
                 const syncRes = await fetch(`${API_URL}/colaboradores/${colabId}/sync-onedrive`, {
                     method: 'POST',
