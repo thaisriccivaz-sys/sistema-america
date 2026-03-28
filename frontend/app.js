@@ -1616,7 +1616,25 @@ if (formColab) {
                 if (res && res.id) colabId = res.id;
             }
 
-            alert('Colaborador salvo com sucesso!');
+            if (colabId) {
+                if (submitter) {
+                    submitter.disabled = true;
+                    submitter.innerHTML = '<i class="ph ph-spinner-gap ph-spin"></i> Criando pastas no OneDrive...';
+                }
+                const syncRes = await fetch(`${API_URL}/colaboradores/${colabId}/sync-onedrive`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
+                const dataSync = await syncRes.json();
+                if (dataSync.sucesso) {
+                    alert(`✅ Colaborador salvo e pastas criadas com sucesso!\nCaminho: ${dataSync.path}`);
+                } else {
+                    alert(`❌ Colaborador salvo, mas erro ao criar pastas no OneDrive:\n${dataSync.message || dataSync.error}`);
+                }
+            } else {
+                alert('Colaborador salvo com sucesso!');
+            }
+
             navigateTo('dashboard');
 
         } catch(err) {

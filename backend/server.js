@@ -408,13 +408,6 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
             });
         }
         
-        // AGUARDAR SINCRONIZAÇÃO AQUI ANTES DE RETORNAR A RESPOSTA
-        try {
-            await syncColaboradorOneDrive(nomeOriginal);
-        } catch (e) {
-            console.error("Erro no OneDrive Sync:", e.message);
-        }
-
         res.status(201).json({ id: newColabId, sucesso: true });
     });
 });
@@ -645,13 +638,6 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
                     });
                 }
             });
-            
-            // AGUARDAR SINCRONIZAÇÃO AQUI ANTES DE RETORNAR A RESPOSTA
-            if (data.status !== 'Incompleto') {
-                try {
-                    await syncColaboradorOneDrive(newName);
-                } catch(e) { console.error("Erro no OneDrive Sync PUT:", e.message); }
-            }
 
             res.json({ message: 'Colaborador atualizado com sucesso' });
         });
