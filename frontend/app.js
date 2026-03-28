@@ -4335,6 +4335,8 @@ window.iniciarAssinafy = async function(docType, tabName, btn) {
 
         // 1. Buscar o ID do documento local no banco (já que acabamos de fazer upload ou carregamos a página)
         const docs = await apiGet(`/colaboradores/${colabId}/documentos`);
+        if (!docs) throw new Error('Falha ao carregar lista de documentos. Tente novamente.');
+
         const docRecord = docs.find(d => d.tab_name === tabName && d.document_type === docType);
 
         if (!docRecord) throw new Error('Documento não encontrado no sistema. Faça o upload primeiro.');

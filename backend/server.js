@@ -7,7 +7,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const sharp = require('sharp');
 const nodemailer = require('nodemailer');
-require('isomorphic-fetch');
+// fetch nativo (Node 18+)
 
 // --- CONFIGURAÇÃO SMTP (Preencher com dados reais para o e-mail funcionar) ---
 const SMTP_CONFIG = {
@@ -202,11 +202,14 @@ const upload = multer({ storage: storage });
 const storageFoto = multer.memoryStorage();
 const uploadFoto = multer({ storage: storageFoto });
 
+
+// --- CONFIGURAÇÃO DE MIDDLEWARES ---
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
-app.use(express.static(path.join(__dirname, '../frontend')));
-app.use('/files', express.static(path.join(__dirname, '..', '..'))); // Exposes 'Teste Sistema'
+
+// ROTA DE DEBUG (Para testar conectividade básica)
+app.get('/api/debug-ping', (req, res) => res.json({ message: 'pong', status: 'OK', version: 'V26_DEBUG' }));
 
 // Middleware de Autenticação (Bypass temporário para facilitar dev do frontend)
 const authenticateToken = (req, res, next) => {
@@ -1274,10 +1277,211 @@ app.post('/api/geradores/:id/gerar/:colaborador_id', authenticateToken, (req, re
     });
 });
 
-app.use((err, req, res, next) => {
-    console.error('ERRO NO SERVIDOR:', err.stack);
-    res.status(500).json({ error: 'Erro interno no servidor', message: err.message });
+// --- INTEGRAÇÃO ASSINAFY ---
+// Configuração Assinafy (Preencha aqui com sua chave de API e Account ID)
+const ASSINAFY_CONFIG = {
+    apiKey: 'AxaT-FiXBckHqEYV0s_MtUhLF3pReRz3dX4zVpC173vmjDwzLGHYtDJuQje4-4Pd',
+    accountId: '10237785fb23cf473d54845a013e',
+    baseUrl: 'https://api.assinafy.com.br/v1'
+};
+
+/**
+ * Endpoint para fazer upload direto para o Assinafy e iniciar processo de assinatura
+ */
+app.post('/api/assinafy/upload', async (req, res) => {
+    const { document_id, colaborador_id } = req.body;
+    
+    if (!document_id || !colaborador_id) {
+        return res.status(400).json({ error: 'ID do documento e colaborador são obrigatórios.' });
+    }
+
+    if (ASSINAFY_CONFIG.apiKey === 'SUA_CHAVE_API_AQUI') {
+        return res.status(401).json({ error: 'Credenciais do Assinafy não configuradas no backend (server.js).' });
+    }
+
+    try {
+        console.log(`[ASSINAFY] Iniciando upload. DocID: ${document_id}, ColabID: ${colaborador_id}`);
+        
+        // 1. Buscar dados do documento e colaborador no nosso banco
+        const doc = await new Promise((resolve, reject) => {
+            db.get('SELECT * FROM documentos WHERE id = ?', [document_id], (err, row) => {
+                if (err) reject(err); else resolve(row);
+            });
+        });
+
+        const colab = await new Promise((resolve, reject) => {
+            db.get('SELECT * FROM colaboradores WHERE id = ?', [colaborador_id], (err, row) => {
+                if (err) reject(err); else resolve(row);
+            });
+        });
+
+        if (!doc) throw new Error(`Documento ID ${document_id} não encontrado no banco.`);
+        if (!colab) throw new Error(`Colaborador ID ${colaborador_id} não encontrado no banco.`);
+        
+        console.log(`[ASSINAFY] Documento encontrado: ${doc.file_name}. Caminho: ${doc.file_path}`);
+
+        const filePath = path.resolve(doc.file_path);
+        if (!fs.existsSync(filePath)) {
+            console.error(`[ASSINAFY] Arquivo físico não existe: ${filePath}`);
+            throw new Error(`Arquivo físico não encontrado no servidor: ${doc.file_path}`);
+        }
+
+        // 2. Upload do arquivo para o Assinafy
+        const fileContent = fs.readFileSync(filePath);
+        const fileName = doc.file_name;
+
+        const formData = new FormData();
+        const blob = new Blob([fileContent], { type: 'application/pdf' });
+        formData.append('file', blob, fileName);
+
+        const targetUrl = `${ASSINAFY_CONFIG.baseUrl}/accounts/${ASSINAFY_CONFIG.accountId}/documents`;
+        console.log(`[ASSINAFY] Fazendo POST para: ${targetUrl}`);
+
+        const uploadRes = await fetch(targetUrl, {
+            method: 'POST',
+            headers: { 
+                'X-Api-Key': ASSINAFY_CONFIG.apiKey,
+                'User-Agent': 'AmericaRental-System/1.0'
+            },
+            body: formData
+        });
+
+        const uploadData = await uploadRes.json();
+        console.log(`[ASSINAFY] Resposta do Upload (Status ${uploadRes.status}):`, JSON.stringify(uploadData));
+        console.log(`[ASSINAFY] Headers da Resposta:`, JSON.stringify(Object.fromEntries(uploadRes.headers.entries())));
+
+        if (!uploadRes.ok) {
+            throw new Error(uploadData.message || `Erro no upload (Status ${uploadRes.status}) para ${targetUrl}`);
+        }
+        
+        const assinafyDocId = uploadData.data ? uploadData.data.id : uploadData.id;
+
+        // Pequena pausa (5s) para garantir que o Assinafy processe o documento
+        // Evita o erro 'metadata_processing'
+        await new Promise(resolve => setTimeout(resolve, 5000));
+
+        // 3. Criar/Encontrar e Atualizar Signatário (Colaborador)
+        const CENTRAL_EMAIL = 'americasistema48@gmail.com'; // Fallback centralizador
+        const emailObri = colab.email || CENTRAL_EMAIL; // Usar e-mail do colaborador, fallback se vazio
+        
+        const cpfLimpo = colab.cpf ? colab.cpf.replace(/\D/g, '') : null;
+        const foneLimpo = colab.telefone ? colab.telefone.replace(/\D/g, '') : null;
+
+        if (!cpfLimpo) {
+            throw new Error(`O CPF é obrigatório para o Assinafy.`);
+        }
+
+        console.log(`[ASSINAFY] Iniciando sincronização do colaborador: ${colab.nome_completo} (CPF: ${cpfLimpo})`);
+
+        // Tentar buscar ID pelo CPF primeiro (mais robusto que tentar criar e pegar conflito)
+        let assinafySignerId = null;
+        try {
+            const searchRes = await fetch(`${ASSINAFY_CONFIG.baseUrl}/accounts/${ASSINAFY_CONFIG.accountId}/signers?tax_id=${cpfLimpo}`, {
+                headers: { 
+                    'X-Api-Key': ASSINAFY_CONFIG.apiKey,
+                    'User-Agent': 'AmericaRental-System/1.0'
+                }
+            });
+            const searchData = await searchRes.json();
+            const list = searchData.data || searchData;
+            if (Array.isArray(list) && list.length > 0) {
+                assinafySignerId = list[0].id;
+                console.log(`[ASSINAFY] Signatário já existe com ID: ${assinafySignerId}`);
+            }
+        } catch (e) { console.warn('[ASSINAFY] Erro na busca por CPF:', e.message); }
+
+        if (!assinafySignerId) {
+            // CRIAR NOVO se não encontrou
+            console.log("[ASSINAFY] Criando novo signatário...");
+            const createRes = await fetch(`${ASSINAFY_CONFIG.baseUrl}/accounts/${ASSINAFY_CONFIG.accountId}/signers`, {
+                method: 'POST',
+                headers: { 
+                    'X-Api-Key': ASSINAFY_CONFIG.apiKey, 
+                    'Content-Type': 'application/json',
+                    'User-Agent': 'AmericaRental-System/1.0'
+                },
+                body: JSON.stringify({
+                    full_name: colab.nome_completo,
+                    email: emailObri,
+                    tax_id: cpfLimpo,
+                    whatsapp_phone_number: foneLimpo
+                })
+            });
+            const createData = await createRes.json();
+            if (createRes.ok) {
+                assinafySignerId = createData.data ? createData.data.id : createData.id;
+            } else {
+                console.warn('[ASSINAFY] Erro na criação direta:', createData.message);
+                // Tentar uma última vez buscar por email se o CPF falhou (raro)
+                const searchEmailRes = await fetch(`${ASSINAFY_CONFIG.baseUrl}/accounts/${ASSINAFY_CONFIG.accountId}/signers?email=${emailObri}`, {
+                    headers: { 
+                        'X-Api-Key': ASSINAFY_CONFIG.apiKey,
+                        'User-Agent': 'AmericaRental-System/1.0'
+                    }
+                });
+                const searchEmailData = await searchEmailRes.json();
+                const listE = searchEmailData.data || searchEmailData;
+                if (Array.isArray(listE) && listE.length > 0) {
+                    assinafySignerId = listE[0].id;
+                }
+            }
+        }
+
+        if (!assinafySignerId) throw new Error('Não foi possível obter o ID do signatário no Assinafy. Verifique se o CPF e E-mail estão corretos.');
+
+        // 3.5. Nota: O Assinafy não permite atualizar (PUT) dados de signatários que 
+        // já possuem documentos pendentes vinculados (erro "Método inválido").
+        // Como o e-mail agora é repassado diretamente no passo 'Assignment' abaixo,
+        // não precisamos mais forçar o PUT no perfil global do signatário.
+        console.log(`[ASSINAFY] Prosseguindo para vinculação com E-mail: ${emailObri}`);
+
+        // 4. Criar a Solicitação de Assinatura (Assignment)
+        // Usamos o método 'virtual' com notificação explícita por 'Email'
+        const assignmentRes = await fetch(`${ASSINAFY_CONFIG.baseUrl}/accounts/${ASSINAFY_CONFIG.accountId}/documents/${assinafyDocId}/assignments`, {
+            method: 'POST',
+            headers: { 
+                'X-Api-Key': ASSINAFY_CONFIG.apiKey, 
+                'Content-Type': 'application/json',
+                'User-Agent': 'AmericaRental-System/1.0'
+            },
+            body: JSON.stringify({
+                signers: [{ 
+                    id: assinafySignerId, 
+                    role: 'signer',
+                    notification_methods: ["Email"]
+                }],
+                method: 'virtual'
+            })
+        });
+
+        const assignmentData = await assignmentRes.json();
+        
+        if (!assignmentRes.ok) {
+            console.error('[ASSINAFY] Erro ao criar solicitação de assinatura:', assignmentData.message);
+            throw new Error(assignmentData.message || 'Erro ao criar solicitação de assinatura');
+        }
+
+        // 5. Atualizar o banco de dados com ID (para permitir o vínculo via Webhook futuramente)
+        await new Promise((resolve, reject) => {
+            db.run('UPDATE documentos SET assinafy_id = ?, assinafy_status = ? WHERE id = ?', 
+                [assinafyDocId, 'Aguardando Webhook', document_id], (err) => {
+                if (err) reject(err); else resolve();
+            });
+        });
+
+        res.json({ 
+            sucesso: true, 
+            assinafy_id: assinafyDocId,
+            status: 'Aguardando Webhook'
+        });
+
+    } catch (err) {
+        console.error('ERRO ASSINAFY INTEGRAÇÃO:', err);
+        // Retornar JSON sempre para o frontend não quebrar ao tentar dar .json() no erro
+        res.status(500).json({ error: err.message });
+    }
 });
+
 
 // Chaves
 app.get('/api/chaves', authenticateToken, (req, res) => {
@@ -1396,216 +1600,6 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
         });
     });
 });
-// --- INTEGRAÇÃO ASSINAFY ---
-// Configuração Assinafy (Preencha aqui com sua chave de API e Account ID)
-const ASSINAFY_CONFIG = {
-    apiKey: 'AxaT-FiXBckHqEYV0s_MtUhLF3pReRz3dX4zVpC173vmjDwzLGHYtDJuQje4-4Pd',
-    accountId: '10237785fb23cf473d54845a013e',
-    baseUrl: 'https://api.assinafy.com.br/v1'
-};
-
-/**
- * Endpoint para fazer upload direto para o Assinafy e iniciar processo de assinatura
- */
-app.post('/api/assinafy/upload', async (req, res) => {
-    const { document_id, colaborador_id } = req.body;
-    
-    if (!document_id || !colaborador_id) {
-        return res.status(400).json({ error: 'ID do documento e colaborador são obrigatórios.' });
-    }
-
-    if (ASSINAFY_CONFIG.apiKey === 'SUA_CHAVE_API_AQUI') {
-        return res.status(401).json({ error: 'Credenciais do Assinafy não configuradas no backend (server.js).' });
-    }
-
-    try {
-        console.log(`[ASSINAFY] Iniciando upload. DocID: ${document_id}, ColabID: ${colaborador_id}`);
-        
-        // 1. Buscar dados do documento e colaborador no nosso banco
-        const doc = await new Promise((resolve, reject) => {
-            db.get('SELECT * FROM documentos WHERE id = ?', [document_id], (err, row) => {
-                if (err) reject(err); else resolve(row);
-            });
-        });
-
-        const colab = await new Promise((resolve, reject) => {
-            db.get('SELECT * FROM colaboradores WHERE id = ?', [colaborador_id], (err, row) => {
-                if (err) reject(err); else resolve(row);
-            });
-        });
-
-        if (!doc) throw new Error(`Documento ID ${document_id} não encontrado no banco.`);
-        if (!colab) throw new Error(`Colaborador ID ${colaborador_id} não encontrado no banco.`);
-        
-        console.log(`[ASSINAFY] Documento encontrado: ${doc.file_name}. Caminho: ${doc.file_path}`);
-
-        const filePath = path.resolve(doc.file_path);
-        if (!fs.existsSync(filePath)) {
-            console.error(`[ASSINAFY] Arquivo físico não existe: ${filePath}`);
-            throw new Error(`Arquivo físico não encontrado no servidor: ${doc.file_path}`);
-        }
-
-        // 2. Upload do arquivo para o Assinafy
-        const fileContent = fs.readFileSync(filePath);
-        const fileName = doc.file_name;
-
-        const formData = new FormData();
-        const blob = new Blob([fileContent], { type: 'application/pdf' });
-        formData.append('file', blob, fileName);
-
-        const targetUrl = `${ASSINAFY_CONFIG.baseUrl}/accounts/${ASSINAFY_CONFIG.accountId}/documents`;
-        console.log(`[ASSINAFY] Fazendo POST para: ${targetUrl}`);
-
-        const uploadRes = await fetch(targetUrl, {
-            method: 'POST',
-            headers: { 
-                'X-Api-Key': ASSINAFY_CONFIG.apiKey,
-                'User-Agent': 'AmericaRental-System/1.0'
-            },
-            body: formData
-        });
-
-        const uploadData = await uploadRes.json();
-        console.log(`[ASSINAFY] Resposta do Upload (Status ${uploadRes.status}):`, JSON.stringify(uploadData));
-        console.log(`[ASSINAFY] Headers da Resposta:`, JSON.stringify(Object.fromEntries(uploadRes.headers.entries())));
-
-        if (!uploadRes.ok) {
-            throw new Error(uploadData.message || `Erro no upload (Status ${uploadRes.status}) para ${targetUrl}`);
-        }
-        
-        const assinafyDocId = uploadData.data ? uploadData.data.id : uploadData.id;
-
-        // Pequena pausa (5s) para garantir que o Assinafy processe o documento
-        // Evita o erro 'metadata_processing'
-        await new Promise(resolve => setTimeout(resolve, 5000));
-
-        // 3. Criar/Encontrar e Atualizar Signatário (Colaborador)
-        const CENTRAL_EMAIL = 'americasistema48@gmail.com'; // E-mail fornecido pelo usuário
-        const emailObri = CENTRAL_EMAIL; // O usuário pediu para deixar APENAS este e-mail
-        
-        const cpfLimpo = colab.cpf ? colab.cpf.replace(/\D/g, '') : null;
-        const foneLimpo = colab.telefone ? colab.telefone.replace(/\D/g, '') : null;
-
-        if (!cpfLimpo) {
-            throw new Error(`O CPF é obrigatório para o Assinafy.`);
-        }
-
-        console.log(`[ASSINAFY] Iniciando sincronização do colaborador: ${colab.nome_completo} (CPF: ${cpfLimpo})`);
-
-        // Tentar buscar ID pelo CPF primeiro (mais robusto que tentar criar e pegar conflito)
-        let assinafySignerId = null;
-        try {
-            const searchRes = await fetch(`${ASSINAFY_CONFIG.baseUrl}/accounts/${ASSINAFY_CONFIG.accountId}/signers?tax_id=${cpfLimpo}`, {
-                headers: { 
-                    'X-Api-Key': ASSINAFY_CONFIG.apiKey,
-                    'User-Agent': 'AmericaRental-System/1.0'
-                }
-            });
-            const searchData = await searchRes.json();
-            const list = searchData.data || searchData;
-            if (Array.isArray(list) && list.length > 0) {
-                assinafySignerId = list[0].id;
-                console.log(`[ASSINAFY] Signatário já existe com ID: ${assinafySignerId}`);
-            }
-        } catch (e) { console.warn('[ASSINAFY] Erro na busca por CPF:', e.message); }
-
-        if (!assinafySignerId) {
-            // CRIAR NOVO se não encontrou
-            console.log("[ASSINAFY] Criando novo signatário...");
-            const createRes = await fetch(`${ASSINAFY_CONFIG.baseUrl}/accounts/${ASSINAFY_CONFIG.accountId}/signers`, {
-                method: 'POST',
-                headers: { 
-                    'X-Api-Key': ASSINAFY_CONFIG.apiKey, 
-                    'Content-Type': 'application/json',
-                    'User-Agent': 'AmericaRental-System/1.0'
-                },
-                body: JSON.stringify({
-                    full_name: colab.nome_completo,
-                    email: emailObri,
-                    tax_id: cpfLimpo,
-                    whatsapp_phone_number: foneLimpo
-                })
-            });
-            const createData = await createRes.json();
-            if (createRes.ok) {
-                assinafySignerId = createData.data ? createData.data.id : createData.id;
-            } else {
-                console.warn('[ASSINAFY] Erro na criação direta:', createData.message);
-                // Tentar uma última vez buscar por email se o CPF falhou (raro)
-                const searchEmailRes = await fetch(`${ASSINAFY_CONFIG.baseUrl}/accounts/${ASSINAFY_CONFIG.accountId}/signers?email=${emailObri}`, {
-                    headers: { 
-                        'X-Api-Key': ASSINAFY_CONFIG.apiKey,
-                        'User-Agent': 'AmericaRental-System/1.0'
-                    }
-                });
-                const searchEmailData = await searchEmailRes.json();
-                const listE = searchEmailData.data || searchEmailData;
-                if (Array.isArray(listE) && listE.length > 0) {
-                    assinafySignerId = listE[0].id;
-                }
-            }
-        }
-
-        if (!assinafySignerId) throw new Error('Não foi possível obter o ID do signatário no Assinafy. Verifique se o CPF e E-mail estão corretos.');
-
-        // 3.5. Nota: O Assinafy não permite atualizar (PUT) dados de signatários que 
-        // já possuem documentos pendentes vinculados (erro "Método inválido").
-        // Como o e-mail agora é repassado diretamente no passo 'Assignment' abaixo,
-        // não precisamos mais forçar o PUT no perfil global do signatário.
-        console.log(`[ASSINAFY] Prosseguindo para vinculação com E-mail: ${emailObri}`);
-
-        // 4. Criar a Solicitação de Assinatura (Assignment)
-        // Tentamos primeiro o método 'virtual'. Nota: A URL deve incluir /accounts/{accountId}
-        let assignmentRes = await fetch(`${ASSINAFY_CONFIG.baseUrl}/accounts/${ASSINAFY_CONFIG.accountId}/documents/${assinafyDocId}/assignments`, {
-            method: 'POST',
-            headers: { 
-                'X-Api-Key': ASSINAFY_CONFIG.apiKey, 
-                'Content-Type': 'application/json',
-                'User-Agent': 'AmericaRental-System/1.0'
-            },
-            body: JSON.stringify({
-                signers: [{ signer_id: assinafySignerId, email: emailObri, role: 'signer' }],
-                method: 'virtual'
-            })
-        });
-
-        let assignmentData = await assignmentRes.json();
-        
-        if (!assignmentRes.ok) {
-            console.warn('[ASSINAFY] Falha no método virtual, tentando método email:', assignmentData.message);
-            // Tentar novamente com método 'email'
-            assignmentRes = await fetch(`${ASSINAFY_CONFIG.baseUrl}/accounts/${ASSINAFY_CONFIG.accountId}/documents/${assinafyDocId}/assignments`, {
-                method: 'POST',
-                headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey, 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    signers: [{ signer_id: assinafySignerId, email: emailObri, role: 'signer' }],
-                    method: 'email'
-                })
-            });
-            assignmentData = await assignmentRes.json();
-            if (!assignmentRes.ok) throw new Error(assignmentData.message || 'Erro ao criar solicitação de assinatura');
-        }
-
-        // 5. Atualizar o banco de dados com ID (para permitir o vínculo via Webhook futuramente)
-        await new Promise((resolve, reject) => {
-            db.run('UPDATE documentos SET assinafy_id = ?, assinafy_status = ? WHERE id = ?', 
-                [assinafyDocId, 'Aguardando Webhook', document_id], (err) => {
-                if (err) reject(err); else resolve();
-            });
-        });
-
-        res.json({ 
-            sucesso: true, 
-            assinafy_id: assinafyDocId,
-            status: 'Aguardando Webhook'
-        });
-
-    } catch (err) {
-        console.error('ERRO ASSINAFY INTEGRAÇÃO:', err);
-        // Retornar JSON sempre para o frontend não quebrar ao tentar dar .json() no erro
-        res.status(500).json({ error: err.message });
-    }
-});
 
 /**
  * WEBHOOK UNIFICADO: Escuta criação de links e conclusão de assinaturas
@@ -1711,7 +1705,7 @@ process.on('unhandledRejection', (reason, promise) => {
 
 app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
-    console.log(`Versão do Servidor: V5_AUTOMATIC_ONEDRIVE`);
+    console.log(`Versão do Servidor: V26_AUTOMATIC_ONEDRIVE_ASSINAFY`);
     console.log(`Caminho de Armazenamento Local: ${BASE_UPLOAD_PATH}`);
     console.log(`OneDrive Base Path: ${process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema"}`);
     console.log(`OneDrive User: ${process.env.ONEDRIVE_USER_EMAIL || "NÃO CONFIGURADO"}`);
