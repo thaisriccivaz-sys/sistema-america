@@ -729,7 +729,7 @@ window.updateVacationInfo = function(admissaoStr) {
     
     if (!admissaoStr || !aqField || !concField) {
         if(aqField) aqField.value = '-';
-        if(concField) concField.value = '-';
+        if(concField) { concField.value = '-'; concField.style.color = '#495057'; }
         if(indicator) indicator.style.display = 'none';
         return;
     }
@@ -742,7 +742,7 @@ window.updateVacationInfo = function(admissaoStr) {
         const aqEnd = new Date(adm);
         aqEnd.setFullYear(adm.getFullYear() + 1);
         
-        // Período Concessivo: +2 anos (menos 1 dia para ser 28/02/YEAR+2 se adm foi 01/03/YEAR)
+        // Período Concessivo: +2 anos (menos 1 dia)
         const concEnd = new Date(aqEnd);
         concEnd.setFullYear(aqEnd.getFullYear() + 1);
         concEnd.setDate(concEnd.getDate() - 1);
@@ -750,10 +750,34 @@ window.updateVacationInfo = function(admissaoStr) {
         aqField.value = aqEnd.toLocaleDateString('pt-BR');
         concField.value = concEnd.toLocaleDateString('pt-BR');
 
-        // Mostrar indicador se já passou do período aquisitivo
         const today = new Date();
         today.setHours(0,0,0,0);
         
+        // --- Lógica condicional da cor vermelha ---
+        const inConcessivo = today >= aqEnd && today <= concEnd;
+        const diasRestantes = Math.floor((concEnd - today) / (1000 * 60 * 60 * 24));
+        
+        // Verificar se há férias programadas dentro do período concessivo
+        const fInicioEl = document.getElementById('colab-ferias-programadas-inicio');
+        const fFimEl = document.getElementById('colab-ferias-programadas-fim');
+        let feriasNoPeriodo = false;
+        if (fInicioEl && fInicioEl.value && fFimEl && fFimEl.value) {
+            const fInicio = new Date(fInicioEl.value + 'T12:00:00');
+            const fFim = new Date(fFimEl.value + 'T12:00:00');
+            // Férias estão dentro do período concessivo se houver sobreposição
+            feriasNoPeriodo = fInicio <= concEnd && fFim >= aqEnd;
+        }
+
+        // Pintar vermelho apenas se: em período concessivo, sem férias programadas, e ≤ 90 dias
+        if (inConcessivo && !feriasNoPeriodo && diasRestantes <= 90) {
+            concField.style.color = '#e03131';
+            concField.style.fontWeight = '700';
+        } else {
+            concField.style.color = '#495057';
+            concField.style.fontWeight = '600';
+        }
+
+        // Mostrar indicador de alerta se já passou do período aquisitivo
         if (today >= aqEnd) {
             indicator.style.display = 'flex';
         } else {
