@@ -1652,13 +1652,9 @@ if (formColab) {
                     headers: { 'Authorization': `Bearer ${currentToken}` }
                 });
                 const dataSync = await syncRes.json();
-                if (dataSync.sucesso) {
-                    alert(`✅ Colaborador salvo e pastas criadas com sucesso!\nCaminho: ${dataSync.path}`);
-                } else {
-                    alert(`❌ Colaborador salvo, mas erro ao criar pastas no OneDrive:\n${dataSync.message || dataSync.error}`);
-                }
+                // Navegação silenciosa — sem alertas de confirmação
             } else {
-                alert('Colaborador salvo com sucesso!');
+                // Colaborador salvo sem sync (novo colaborador)
             }
 
             navigateTo('dashboard');
