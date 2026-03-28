@@ -2271,13 +2271,18 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
     }
 
     // Status Assinafy: ícone ao lado do botão
-    // Apenas 'Assinado' (via webhook) conta como documento assinado
-    // 'Pendente', 'Processando' e 'Concluido' = aguardando assinatura do colaborador
+    // Pendente sem sent_at = ⏳ Aguardando | Pendente com sent_at = 👁️ Enviado
+    // Assinado = ✅ Assinado | Erro = ❌ Erro
     let assStatusIcon = '';
     if (isSaved) {
         const st = existingDoc.assinafy_status || '';
+        const enviado = !!existingDoc.assinafy_sent_at;
         if (st === 'Assinado') {
             assStatusIcon = `<span title="Assinado" style="display:inline-flex;align-items:center;gap:3px;color:#2f9e44;font-size:0.78rem;font-weight:700;white-space:nowrap;"><i class="ph ph-check-circle" style="font-size:1.1rem;"></i> Assinado</span>`;
+        } else if (st === 'Erro') {
+            assStatusIcon = `<span title="Erro" style="display:inline-flex;align-items:center;gap:3px;color:#e03131;font-size:0.78rem;font-weight:700;white-space:nowrap;"><i class="ph ph-warning-circle" style="font-size:1.1rem;"></i> Erro</span>`;
+        } else if (st === 'Pendente' && enviado) {
+            assStatusIcon = `<span title="E-mail enviado" style="display:inline-flex;align-items:center;gap:3px;color:#1971c2;font-size:0.78rem;font-weight:700;white-space:nowrap;"><i class="ph ph-paper-plane-tilt" style="font-size:1.1rem;"></i> Enviado</span>`;
         } else if (st && st !== 'Nenhum') {
             assStatusIcon = `<span title="${st}" style="display:inline-flex;align-items:center;gap:3px;color:#f59f00;font-size:0.78rem;font-weight:700;white-space:nowrap;"><i class="ph ph-hourglass" style="font-size:1.1rem;"></i> Aguardando</span>`;
         }
@@ -4372,59 +4377,70 @@ window.iniciarAssinafy = async function(docType, tabName, btn) {
     if (!viewedColaborador) return;
 
     const colabId = viewedColaborador.id;
-    
-    try {
-        // RECARREGAR DADOS DO COLABORADOR (Garante que pegamos o e-mail mais recente)
-        const freshColab = await apiGet(`/colaboradores/${colabId}`);
-        viewedColaborador = freshColab;
-    } catch(e) { console.warn('Falha ao atualizar dados em tempo real:', e); }
 
     const container = btn.closest('.assinafy-integrated-container');
-    const statusBadge = container.querySelector('.assinafy-status-badge');
-    
-    // O e-mail não é mais mandatório aqui pois o backend usa o e-mail centralizador de fallback
-    console.log('[ASSINAFY] Iniciando com e-mail do colaborador ou fallback central.');
 
     try {
         btn.disabled = true;
-        btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Iniciando...';
+        btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando...';
 
-        // 1. Buscar o ID do documento local no banco (já que acabamos de fazer upload ou carregamos a página)
+        // 1. Buscar o documento no banco
         const docs = await apiGet(`/colaboradores/${colabId}/documentos`);
         if (!docs) throw new Error('Falha ao carregar lista de documentos. Tente novamente.');
 
         const docRecord = docs.find(d => d.tab_name === tabName && d.document_type === docType);
-
         if (!docRecord) throw new Error('Documento não encontrado no sistema. Faça o upload primeiro.');
 
-        // 2. Chamar o backend
-        btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando...';
-
-        let res = await apiPost('/assinafy/upload', {
+        // 2. Chamar o backend (retorna imediatamente pois processa em background)
+        const res = await apiPost('/assinafy/upload', {
             document_id: docRecord.id,
             colaborador_id: colabId
         });
 
         if (res.sucesso) {
-            if (res.processando_em_background) {
-                alert('✅ ' + res.message);
-                btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Processando';
-            } else {
-                alert('✅ Documento enviado para assinatura!');
-                btn.innerHTML = '<i class="ph ph-check"></i> Enviado';
-            }
-            if (statusBadge) {
-                statusBadge.innerText = 'PROCESSANDO';
-                statusBadge.className = 'assinafy-status-badge pendente';
-            }
-            // Recarregar lista após 5s
-            setTimeout(async () => {
-                if (tabName === '00.CheckList' || (tabName === 'ASO' && document.getElementById('admissao-workflow')?.style.display !== 'none')) {
-                    await initAdmissaoWorkflow(viewedColaborador.id, window.currentActiveAdmissaoStep, true);
-                } else {
-                    await loadDocumentosList();
+            // Restaurar o botão imediatamente
+            btn.disabled = false;
+            btn.innerHTML = '<i class="ph ph-pen-nib"></i> Solicitar Assinatura';
+
+            // Atualizar o status e a data de envio no DOM imediatamente
+            const hoje = new Date().toLocaleDateString('pt-BR');
+            const docInfoDiv = btn.closest('.doc-item')?.querySelector('.doc-info div');
+            if (docInfoDiv) {
+                // Atualiza ou insere a linha de info abaixo do nome
+                let subInfoP = docInfoDiv.querySelector('p:nth-child(3), p.subinfo-line');
+                if (!subInfoP) {
+                    subInfoP = document.createElement('p');
+                    subInfoP.className = 'subinfo-line';
+                    subInfoP.style.cssText = 'margin:2px 0 0; font-size:0.78rem;';
+                    docInfoDiv.appendChild(subInfoP);
                 }
-            }, 5000);
+                // Preserva vencimento se existir e adiciona enviado
+                const vencSpan = subInfoP.querySelector('span[data-venc]') || subInfoP.firstElementChild;
+                const vencHtml = vencSpan ? vencSpan.outerHTML + ' <span style="color:#64748b;">|</span> ' : '';
+                subInfoP.innerHTML = vencHtml + `<span style="color:#2f9e44; font-weight:600;">Enviado: ${hoje}</span>`;
+            }
+
+            // Atualizar o ícone de status ao lado do botão para 'Enviado'
+            const existingIcon = container.querySelector('span[title]');
+            if (existingIcon) {
+                existingIcon.title = 'E-mail enviado';
+                existingIcon.style.color = '#1971c2';
+                existingIcon.innerHTML = '<i class="ph ph-paper-plane-tilt" style="font-size:1.1rem;"></i> Enviado';
+            } else {
+                const icon = document.createElement('span');
+                icon.title = 'E-mail enviado';
+                icon.style.cssText = 'display:inline-flex;align-items:center;gap:3px;color:#1971c2;font-size:0.78rem;font-weight:700;white-space:nowrap;';
+                icon.innerHTML = '<i class="ph ph-paper-plane-tilt" style="font-size:1.1rem;"></i> Enviado';
+                container.appendChild(icon);
+            }
+
+            // Recarregar a aba em background para sincronizar com o banco
+            setTimeout(async () => {
+                await loadDocumentosList();
+                const activeTab = document.querySelector('#tabs-list li.active');
+                if (activeTab) renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
+            }, 2000);
+
         } else {
             throw new Error(res.error || 'Erro na integração com Assinafy');
         }
