@@ -416,6 +416,17 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
     });
 });
 
+app.get('/api/test/america', authenticateToken, async (req, res) => {
+    try {
+        const client = await onedrive.getGraphClient();
+        const targetSite = await client.api(`/sites/americarentalltda.sharepoint.com:/sites/AmericaRental`).get();
+        const sDrives = await client.api(`/sites/${targetSite.id}/drives`).get();
+        res.json({ site: targetSite, drives: sDrives.value });
+    } catch(e) {
+        res.status(500).json({ error: e.message, code: e.code, body: e.body });
+    }
+});
+
 /**
  * ROTA DE DIAGNÓSTICO: Testar Conexão OneDrive
  */
