@@ -4374,7 +4374,7 @@ window.syncOneDriveManual = async function(id, btnElement = null) {
         const data = await res.json();
         
         if (data.sucesso) {
-            alert(`✅ SUCESSO TOTAL! [Versão: V19_DEFINITIVE]\n${data.message || ""}\nCaminho: ${data.path}`);
+            alert(`✅ SUCESSO TOTAL! [Versão: ${data.versao || 'N/A'}]\n${data.message || ""}\nCaminho: ${data.path}`);
         } else {
             let msg = `❌ Erro na Sincronização:\n${data.message || data.error}\n`;
             if (data.details) msg += `\nDetalhes Microsoft: ${JSON.stringify(data.details)}`;
