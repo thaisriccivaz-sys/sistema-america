@@ -4344,28 +4344,24 @@ window.iniciarAssinafy = async function(docType, tabName, btn) {
 
         if (!docRecord) throw new Error('Documento não encontrado no sistema. Faça o upload primeiro.');
 
-        // 2. Chamar o backend (pode levar até 60s - aguardar)
+        // 2. Chamar o backend
         btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando...';
 
-        // Timeout manual de 90s para não ficar preso eternamente
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 90000);
-
-        let res;
-        try {
-            res = await apiPost('/assinafy/upload', {
-                document_id: docRecord.id,
-                colaborador_id: colabId
-            }, { signal: controller.signal });
-        } finally {
-            clearTimeout(timeoutId);
-        }
+        let res = await apiPost('/assinafy/upload', {
+            document_id: docRecord.id,
+            colaborador_id: colabId
+        });
 
         if (res.sucesso) {
-            alert('✅ Documento enviado para assinatura!\n\n📧 O e-mail será enviado pelo Assinafy ao colaborador em instantes.\n\nO badge do documento será atualizado em 5 segundos.');
-            btn.innerHTML = '<i class="ph ph-check"></i> Enviado';
+            if (res.processando_em_background) {
+                alert('✅ ' + res.message);
+                btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Processando';
+            } else {
+                alert('✅ Documento enviado para assinatura!');
+                btn.innerHTML = '<i class="ph ph-check"></i> Enviado';
+            }
             if (statusBadge) {
-                statusBadge.innerText = 'PENDENTE';
+                statusBadge.innerText = 'PROCESSANDO';
                 statusBadge.className = 'assinafy-status-badge pendente';
             }
             // Recarregar lista após 5s

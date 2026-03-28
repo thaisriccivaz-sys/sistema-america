@@ -147,13 +147,13 @@ async function enviarDocumentoParaAssinafy(documentId, colaboradorId) {
 
     // 3. Aguardar processamento pelo Assinafy (polling até sair de metadata_processing)
     console.log(`[3] Aguardando documento ficar pronto...`);
-    for (let i = 1; i <= 20; i++) {
+    for (let i = 1; i <= 60; i++) {
         await new Promise(r => setTimeout(r, 3000)); // espera 3s entre cada verificação
 
         const statusRes = await req('GET', `/v1/documents/${assinafyDocId}`, null);
         const docStatus = (statusRes.json?.data?.status || statusRes.json?.status || '').toLowerCase();
 
-        console.log(`[POLL ${i}/20] status="${docStatus}"`);
+        console.log(`[POLL ${i}/60] status="${docStatus}"`);
 
         // Sai do loop se não estiver mais em processamento
         if (!docStatus.includes('processing') && !docStatus.includes('metadata')) {
@@ -161,7 +161,7 @@ async function enviarDocumentoParaAssinafy(documentId, colaboradorId) {
             break;
         }
 
-        if (i === 20) throw new Error('Timeout: documento ainda em processamento após 60s. Tente novamente.');
+        if (i === 60) throw new Error('Timeout: O Assinafy demorou mais de 3 minutos para processar o PDF. Excedeu tempo limite.');
     }
 
     // 4. Buscar ou criar signatário

@@ -218,12 +218,13 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // ROTA DE VERSÃO (Para verificar implantação)
-app.get('/api/version', (req, res) => res.json({ version: 'V37_ASSINAFY_SYNC_FINAL' }));
+app.get('/api/version', (req, res) => res.json({ version: 'V38_ASSINAFY_BG_EXTENDED' }));
 
 /**
- * ASSINAFY: Processamento síncrono.
- * O Assinafy envia o e-mail ao signatário automaticamente ao criar o assignment.
- * V37_ASSINAFY_SYNC_FINAL
+ * ASSINAFY: Background mode com Polling estendido
+ * O Assinafy processa documentos lentamente em alguns casos.
+ * Retornamos ok pro frontend logo e o processo duro ocorre no background.
+ * V38_ASSINAFY_BG_EXTENDED
  */
 app.post('/api/assinafy/upload', async (req, res) => {
     const { document_id, colaborador_id } = req.body;
@@ -233,23 +234,25 @@ app.post('/api/assinafy/upload', async (req, res) => {
         return res.status(400).json({ sucesso: false, error: 'document_id e colaborador_id sao obrigatorios.' });
     }
 
-    try {
-        const novoProcesso = require('./novo_processo_assinafy');
-        const resultado = await novoProcesso.enviarDocumentoParaAssinafy(document_id, colaborador_id);
+    // Processar em background (sem bloquear a resposta HTTP)
+    setImmediate(async () => {
+        try {
+            db.run("UPDATE documentos SET assinafy_status = 'Processando' WHERE id = ?", [document_id]);
+            const novoProcesso = require('./novo_processo_assinafy');
+            const resultado = await novoProcesso.enviarDocumentoParaAssinafy(document_id, colaborador_id);
+            console.log(`[ASSINAFY BG] Concluido! ID=${resultado?.assinafyDocId} URL=${resultado?.urlAssinatura}`);
+        } catch (error) {
+            console.error('[ASSINAFY BG] ERRO NO CONCLUIDO:', error.message);
+            // Marcar status de Erro pra depois sabermos
+            db.run("UPDATE documentos SET assinafy_status = 'Erro' WHERE id = ?", [document_id]);
+        }
+    });
 
-        console.log(`[ASSINAFY] Concluido! ID=${resultado?.assinafyDocId} URL=${resultado?.urlAssinatura}`);
-
-        res.json({
-            sucesso: true,
-            assinafy_id: resultado?.assinafyDocId || null,
-            assinafy_url: resultado?.urlAssinatura || null,
-            email_enviado: true
-        });
-
-    } catch (error) {
-        console.error('[ASSINAFY] ERRO:', error.message);
-        res.status(500).json({ sucesso: false, error: error.message });
-    }
+    res.json({
+        sucesso: true,
+        processando_em_background: true,
+        message: "A solicitação foi enviada. O e-mail será disparado logo que o Assinafy terminar de processar (pode demorar alguns minutos)."
+    });
 });
 
 // Middleware de Autenticação (Bypass temporário para facilitar dev do frontend)
