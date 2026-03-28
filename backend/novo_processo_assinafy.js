@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
-const FormData = require('form-data'); // já está em dependencies no package.json
+const FormData = require('form-data'); // em dependencies no package.json
 
 const db = require('./database');
 
@@ -11,250 +11,303 @@ const db = require('./database');
 const ASSINAFY_CONFIG = {
     apiKey: 'AxaT-FiXBckHqEYV0s_MtUhLF3pReRz3dX4zVpC173vmjDwzLGHYtDJuQje4-4Pd',
     accountId: '10237785fb23cf473d54845a013e',
-    baseUrl: 'https://api.assinafy.com.br'
+    hostname: 'api.assinafy.com.br'
 };
 
 // ============================================
-// HELPER: Requisição HTTPS com suporte a form-data e JSON
+// HELPERS HTTPS NATIVOS
 // ============================================
-function httpsRequest(options, bodyOrForm) {
-    return new Promise((resolve, reject) => {
-        const req = https.request(options, (res) => {
-            let data = '';
-            res.on('data', chunk => { data += chunk; });
-            res.on('end', () => {
-                let parsed;
-                try { parsed = JSON.parse(data); } catch(e) { parsed = data; }
-                resolve({ status: res.statusCode, data: parsed, raw: data });
-            });
-        });
-        req.on('error', reject);
-        req.setTimeout(30000, () => { req.destroy(new Error('Timeout de 30s ao chamar Assinafy')); });
 
-        if (bodyOrForm instanceof FormData) {
-            bodyOrForm.pipe(req);
-        } else if (bodyOrForm) {
-            req.write(bodyOrForm);
-            req.end();
-        } else {
-            req.end();
-        }
-    });
-}
-
-// POST JSON
-function assinafyPostJSON(endpoint, payload) {
-    const body = JSON.stringify(payload);
-    const options = {
-        hostname: 'api.assinafy.com.br',
-        path: endpoint,
-        method: 'POST',
-        headers: {
-            'X-Api-Key': ASSINAFY_CONFIG.apiKey,
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(body)
-        }
-    };
-    console.log(`[ASSINAFY POST JSON] ${endpoint}`);
-    return httpsRequest(options, body);
-}
-
-// PUT JSON
-function assinafyPutJSON(endpoint, payload) {
-    const body = JSON.stringify(payload);
-    const options = {
-        hostname: 'api.assinafy.com.br',
-        path: endpoint,
-        method: 'PUT',
-        headers: {
-            'X-Api-Key': ASSINAFY_CONFIG.apiKey,
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(body)
-        }
-    };
-    console.log(`[ASSINAFY PUT JSON] ${endpoint}`);
-    return httpsRequest(options, body);
-}
-
-// GET
-function assinafyGet(endpoint) {
-    const options = {
-        hostname: 'api.assinafy.com.br',
-        path: endpoint,
-        method: 'GET',
-        headers: {
-            'X-Api-Key': ASSINAFY_CONFIG.apiKey
-        }
-    };
-    console.log(`[ASSINAFY GET] ${endpoint}`);
-    return httpsRequest(options, null);
-}
-
-// POST Multipart (form-data)
-function assinafyPostForm(endpoint, form) {
+// POST Multipart (form-data para upload de arquivo)
+function httpsPostForm(urlPath, form) {
     return new Promise((resolve, reject) => {
         const formHeaders = form.getHeaders();
         const options = {
-            hostname: 'api.assinafy.com.br',
-            path: endpoint,
+            hostname: ASSINAFY_CONFIG.hostname,
+            path: urlPath,
             method: 'POST',
             headers: {
                 'X-Api-Key': ASSINAFY_CONFIG.apiKey,
                 ...formHeaders
             }
         };
-        console.log(`[ASSINAFY POST FORM] ${endpoint}`);
         const req = https.request(options, (res) => {
             let data = '';
             res.on('data', chunk => { data += chunk; });
             res.on('end', () => {
                 let parsed;
-                try { parsed = JSON.parse(data); } catch(e) { parsed = data; }
-                console.log(`[ASSINAFY FORM] Status: ${res.statusCode} | ${data.substring(0, 400)}`);
-                resolve({ status: res.statusCode, data: parsed, raw: data });
+                try { parsed = JSON.parse(data); } catch (e) { parsed = { raw: data }; }
+                console.log(`[POST FORM] ${urlPath} → ${res.statusCode} | ${data.substring(0, 300)}`);
+                resolve({ status: res.statusCode, data: parsed });
             });
         });
         req.on('error', reject);
-        req.setTimeout(30000, () => { req.destroy(new Error('Timeout de 30s no upload para Assinafy')); });
+        req.setTimeout(30000, () => req.destroy(new Error('Timeout ao fazer upload para Assinafy')));
         form.pipe(req);
     });
 }
 
+// POST JSON
+function httpsPostJSON(urlPath, payload) {
+    return new Promise((resolve, reject) => {
+        const body = JSON.stringify(payload);
+        const options = {
+            hostname: ASSINAFY_CONFIG.hostname,
+            path: urlPath,
+            method: 'POST',
+            headers: {
+                'X-Api-Key': ASSINAFY_CONFIG.apiKey,
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(body)
+            }
+        };
+        const req = https.request(options, (res) => {
+            let data = '';
+            res.on('data', chunk => { data += chunk; });
+            res.on('end', () => {
+                let parsed;
+                try { parsed = JSON.parse(data); } catch (e) { parsed = { raw: data }; }
+                console.log(`[POST JSON] ${urlPath} → ${res.statusCode} | ${data.substring(0, 300)}`);
+                resolve({ status: res.statusCode, data: parsed });
+            });
+        });
+        req.on('error', reject);
+        req.setTimeout(15000, () => req.destroy(new Error('Timeout chamada JSON Assinafy')));
+        req.write(body);
+        req.end();
+    });
+}
+
+// PUT JSON
+function httpsPutJSON(urlPath, payload) {
+    return new Promise((resolve, reject) => {
+        const body = JSON.stringify(payload);
+        const options = {
+            hostname: ASSINAFY_CONFIG.hostname,
+            path: urlPath,
+            method: 'PUT',
+            headers: {
+                'X-Api-Key': ASSINAFY_CONFIG.apiKey,
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(body)
+            }
+        };
+        const req = https.request(options, (res) => {
+            let data = '';
+            res.on('data', chunk => { data += chunk; });
+            res.on('end', () => {
+                let parsed;
+                try { parsed = JSON.parse(data); } catch (e) { parsed = { raw: data }; }
+                console.log(`[PUT JSON] ${urlPath} → ${res.statusCode}`);
+                resolve({ status: res.statusCode, data: parsed });
+            });
+        });
+        req.on('error', reject);
+        req.setTimeout(15000, () => req.destroy(new Error('Timeout PUT Assinafy')));
+        req.write(body);
+        req.end();
+    });
+}
+
+// GET JSON
+function httpsGetJSON(urlPath) {
+    return new Promise((resolve, reject) => {
+        const options = {
+            hostname: ASSINAFY_CONFIG.hostname,
+            path: urlPath,
+            method: 'GET',
+            headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey }
+        };
+        const req = https.request(options, (res) => {
+            let data = '';
+            res.on('data', chunk => { data += chunk; });
+            res.on('end', () => {
+                let parsed;
+                try { parsed = JSON.parse(data); } catch (e) { parsed = { raw: data }; }
+                console.log(`[GET] ${urlPath} → ${res.statusCode}`);
+                resolve({ status: res.statusCode, data: parsed });
+            });
+        });
+        req.on('error', reject);
+        req.setTimeout(15000, () => req.destroy(new Error('Timeout GET Assinafy')));
+        req.end();
+    });
+}
+
 // ============================================
-// FUNÇÃO PRINCIPAL DE ENVIO
+// FUNÇÃO PRINCIPAL
 // ============================================
 async function enviarDocumentoParaAssinafy(documentId, colaboradorId) {
-    console.log(`\n--- INICIANDO PROCESSO ASSINAFY ---`);
+    console.log(`\n--- PROCESSO ASSINAFY INICIADO ---`);
     console.log(`Doc ID: ${documentId} | Colaborador ID: ${colaboradorId}`);
 
     // 1. Buscar dados no banco
     const doc = await new Promise((resolve, reject) => {
-        db.get('SELECT * FROM documentos WHERE id = ?', [documentId], (err, row) => err ? reject(err) : resolve(row));
+        db.get('SELECT * FROM documentos WHERE id = ?', [documentId],
+            (err, row) => err ? reject(err) : resolve(row));
     });
     const colab = await new Promise((resolve, reject) => {
-        db.get('SELECT * FROM colaboradores WHERE id = ?', [colaboradorId], (err, row) => err ? reject(err) : resolve(row));
+        db.get('SELECT * FROM colaboradores WHERE id = ?', [colaboradorId],
+            (err, row) => err ? reject(err) : resolve(row));
     });
 
-    if (!doc) throw new Error("Documento não encontrado no banco de dados.");
-    if (!colab) throw new Error("Colaborador não encontrado no banco de dados.");
+    if (!doc) throw new Error('Documento não encontrado no banco de dados.');
+    if (!colab) throw new Error('Colaborador não encontrado no banco de dados.');
 
-    // 2. Validar e-mail
     const emailColaborador = colab.email ? colab.email.trim() : null;
     if (!emailColaborador) {
-        throw new Error(`O colaborador "${colab.nome_completo || 'Sem Nome'}" não tem e-mail cadastrado. Preencha o e-mail antes de enviar para o Assinafy.`);
+        throw new Error(`O colaborador "${colab.nome_completo}" não tem e-mail cadastrado. Preencha o e-mail antes de enviar.`);
     }
 
     const cpfLimpo = colab.cpf ? colab.cpf.replace(/\D/g, '') : null;
-    if (!cpfLimpo) throw new Error("CPF é obrigatório para o Assinafy.");
+    if (!cpfLimpo) throw new Error('CPF é obrigatório para o Assinafy.');
 
     const foneLimpo = colab.telefone ? colab.telefone.replace(/\D/g, '') : '';
     const nomeColab = colab.nome_completo || 'Colaborador';
 
     console.log(`[1] Para: ${nomeColab} <${emailColaborador}>`);
 
-    // 3. UPLOAD DO ARQUIVO
+    // 2. UPLOAD DO ARQUIVO
     const filePath = path.resolve(doc.file_path);
     if (!fs.existsSync(filePath)) throw new Error(`Arquivo não encontrado: ${filePath}`);
 
     const fileName = doc.file_name || path.basename(filePath);
     const fd = new FormData();
-    fd.append('file', fs.createReadStream(filePath), { filename: fileName, contentType: 'application/pdf' });
+    fd.append('file', fs.createReadStream(filePath), {
+        filename: fileName,
+        contentType: 'application/pdf'
+    });
 
-    console.log(`[2] Fazendo upload: "${fileName}"`);
-    const uploadRes = await assinafyPostForm(
+    console.log(`[2] Upload: "${fileName}"`);
+    // ENDPOINT CORRETO: /v1/accounts/{accountId}/documents
+    const uploadRes = await httpsPostForm(
         `/v1/accounts/${ASSINAFY_CONFIG.accountId}/documents`,
         fd
     );
 
     if (uploadRes.status < 200 || uploadRes.status >= 300) {
-        const msg = (uploadRes.data && (uploadRes.data.message || uploadRes.data.error)) || uploadRes.raw;
-        throw new Error(`Falha no upload do documento (HTTP ${uploadRes.status}): ${msg}`);
+        const msg = uploadRes.data?.message || uploadRes.data?.error || JSON.stringify(uploadRes.data);
+        throw new Error(`Falha no upload (HTTP ${uploadRes.status}): ${msg}`);
     }
 
     const uploadData = uploadRes.data;
-    const assinafyDocId = (uploadData.data && uploadData.data.id) ? uploadData.data.id : uploadData.id;
-    if (!assinafyDocId) throw new Error(`Upload OK mas ID não retornado. Resposta: ${JSON.stringify(uploadData).substring(0, 300)}`);
-    console.log(`[2] Upload OK. Doc ID Assinafy: ${assinafyDocId}`);
+    // O ID pode estar em data.id ou data.data.id
+    const assinafyDocId = (uploadData.data && uploadData.data.id)
+        ? uploadData.data.id
+        : uploadData.id;
 
-    // Aguardar processamento
-    await new Promise(r => setTimeout(r, 3000));
+    if (!assinafyDocId) {
+        throw new Error(`Upload OK mas ID não retornado. Body: ${JSON.stringify(uploadData).substring(0, 300)}`);
+    }
+    
+    // O link de assinatura já vem no upload (signing_url no objeto do documento)
+    const signingUrlFromUpload = (uploadData.data && uploadData.data.signing_url)
+        ? uploadData.data.signing_url
+        : uploadData.signing_url;
 
-    // 4. BUSCAR OU CRIAR SIGNATÁRIO
-    console.log(`[3] Resolvendo signatário (CPF: ${cpfLimpo})...`);
+    console.log(`[2] Upload OK. Doc ID: ${assinafyDocId} | signing_url: ${signingUrlFromUpload}`);
+
+    // Aguardar processamento do Assinafy
+    await new Promise(r => setTimeout(r, 2000));
+
+    // 3. BUSCAR OU CRIAR SIGNATÁRIO
+    console.log(`[3] Buscando signatário CPF: ${cpfLimpo}...`);
     let signerId = null;
 
-    const searchRes = await assinafyGet(
+    // ENDPOINT CORRETO: /v1/accounts/{accountId}/signers
+    const searchRes = await httpsGetJSON(
         `/v1/accounts/${ASSINAFY_CONFIG.accountId}/signers?tax_id=${cpfLimpo}`
     );
-    const searchData = searchRes.data;
-    const list = (searchData && searchData.data) ? searchData.data : (Array.isArray(searchData) ? searchData : []);
+    const searchList = searchRes.data?.data || [];
 
-    if (Array.isArray(list) && list.length > 0) {
-        signerId = list[0].id;
-        console.log(`[3] Signatário encontrado. ID: ${signerId}`);
+    if (Array.isArray(searchList) && searchList.length > 0) {
+        signerId = searchList[0].id;
+        console.log(`[3] Encontrado. ID: ${signerId} | E-mail atual: ${searchList[0].email}`);
 
-        if (list[0].email !== emailColaborador) {
+        if (searchList[0].email !== emailColaborador) {
             console.log(`[3] Atualizando e-mail...`);
-            await assinafyPutJSON(
+            await httpsPutJSON(
                 `/v1/accounts/${ASSINAFY_CONFIG.accountId}/signers/${signerId}`,
-                { full_name: nomeColab, email: emailColaborador, tax_id: cpfLimpo, whatsapp_phone_number: foneLimpo || undefined }
+                {
+                    full_name: nomeColab,
+                    email: emailColaborador,
+                    tax_id: cpfLimpo,
+                    ...(foneLimpo ? { whatsapp_phone_number: foneLimpo } : {})
+                }
             );
         }
     } else {
         console.log(`[3] Criando novo signatário...`);
-        const createRes = await assinafyPostJSON(
+        const createRes = await httpsPostJSON(
             `/v1/accounts/${ASSINAFY_CONFIG.accountId}/signers`,
-            { full_name: nomeColab, email: emailColaborador, tax_id: cpfLimpo, whatsapp_phone_number: foneLimpo || undefined }
+            {
+                full_name: nomeColab,
+                email: emailColaborador,
+                tax_id: cpfLimpo,
+                ...(foneLimpo ? { whatsapp_phone_number: foneLimpo } : {})
+            }
         );
 
         if (createRes.status < 200 || createRes.status >= 300) {
-            const msg = (createRes.data && (createRes.data.message || createRes.data.error)) || createRes.raw;
+            const msg = createRes.data?.message || createRes.data?.error || JSON.stringify(createRes.data);
             throw new Error(`Erro ao criar signatário (HTTP ${createRes.status}): ${msg}`);
         }
-        const createData = createRes.data;
-        signerId = (createData.data && createData.data.id) ? createData.data.id : createData.id;
-        console.log(`[3] Signatário criado. ID: ${signerId}`);
+        signerId = createRes.data?.data?.id || createRes.data?.id;
+        console.log(`[3] Criado. ID: ${signerId}`);
     }
 
-    if (!signerId) throw new Error("Não foi possível obter o ID do signatário.");
+    if (!signerId) throw new Error('Não foi possível obter o ID do signatário.');
 
-    // 5. CRIAR SOLICITAÇÃO DE ASSINATURA
-    console.log(`[4] Criando assignment...`);
-    const assignmentRes = await assinafyPostJSON(
-        `/v1/accounts/${ASSINAFY_CONFIG.accountId}/documents/${assinafyDocId}/assignments`,
+    // 4. CRIAR ASSIGNMENT
+    // ENDPOINT CORRETO: /v1/documents/{docId}/assignments (SEM /accounts/{accountId}/)
+    console.log(`[4] Criando assignment para doc ${assinafyDocId}...`);
+    const assignmentRes = await httpsPostJSON(
+        `/v1/documents/${assinafyDocId}/assignments`,
         {
-            signers: [{ id: signerId, role: 'signer', notification_methods: ["Email", "WhatsApp"] }],
+            signers: [{
+                id: signerId,
+                role: 'signer',
+                notification_methods: ['Email', 'WhatsApp']
+            }],
             method: 'virtual'
         }
     );
 
     if (assignmentRes.status < 200 || assignmentRes.status >= 300) {
-        const msg = (assignmentRes.data && (assignmentRes.data.message || assignmentRes.data.error)) || assignmentRes.raw;
-        throw new Error(`Erro ao criar solicitação de assinatura (HTTP ${assignmentRes.status}): ${msg}`);
+        const msg = assignmentRes.data?.message || assignmentRes.data?.error || JSON.stringify(assignmentRes.data);
+        throw new Error(`Erro ao criar assignment (HTTP ${assignmentRes.status}): ${msg}`);
     }
 
-    const assignmentData = assignmentRes.data;
-    const assignList = (assignmentData.data && Array.isArray(assignmentData.data))
-        ? assignmentData.data
-        : (Array.isArray(assignmentData) ? assignmentData : []);
+    // Extrair URL de assinatura do assignment ou do upload
+    const assignList = Array.isArray(assignmentRes.data?.data)
+        ? assignmentRes.data.data
+        : (Array.isArray(assignmentRes.data) ? assignmentRes.data : []);
 
     const urlAssinatura = assignList.length > 0
-        ? (assignList[0].signature_url || assignList[0].url || assignList[0].sign_url)
-        : null;
+        ? (assignList[0].signature_url || assignList[0].signing_url || assignList[0].url)
+        : signingUrlFromUpload; // fallback para o signing_url que veio no upload
 
-    console.log(`[4] OK! Link: ${urlAssinatura}`);
+    console.log(`[4] Assignment criado! URL: ${urlAssinatura}`);
 
-    // 6. SALVAR NO BANCO
+    // 5. SALVAR NO BANCO LOCAL
     await new Promise((resolve, reject) => {
         db.run(
             `UPDATE documentos SET assinafy_id = ?, assinafy_status = 'Pendente', assinafy_url = ? WHERE id = ?`,
             [assinafyDocId, urlAssinatura, documentId],
-            (err) => { if (err) { console.error("Erro ao salvar no banco:", err.message); reject(err); } else resolve(); }
+            (err) => {
+                if (err) { console.error('[5] Erro ao salvar banco:', err.message); reject(err); }
+                else { console.log('[5] Banco atualizado.'); resolve(); }
+            }
         );
     });
-    console.log(`[5] Salvo no banco.`);
 
-    return { assinafyDocId, urlAssinatura, emailColaborador, nomeColab, docType: doc.document_type };
+    return {
+        assinafyDocId,
+        urlAssinatura,
+        emailColaborador,
+        nomeColab,
+        docType: doc.document_type
+    };
 }
 
 module.exports = { enviarDocumentoParaAssinafy };
