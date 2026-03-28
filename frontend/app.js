@@ -2797,19 +2797,24 @@ window.deleteDoc = async function(docId, btnEl) {
 
 window.viewDoc = async function(docId) {
     const url = `${API_URL}/documentos/download/${docId}?token=${currentToken}`;
+
     const modalBody = document.getElementById('modal-doc-body');
     if (modalBody) {
-        // Depending on file type, iframe might trigger download instead of view in some browsers, but it's okay for prototype
-        modalBody.innerHTML = `<iframe src="${url}"></iframe>`;
+        modalBody.innerHTML = `<iframe src="${url}" style="width:100%; height:100%; border:none; display:block;"></iframe>`;
     }
-    
+
     const btnDownload = document.getElementById('btn-download-doc');
     if (btnDownload) {
-        btnDownload.onclick = () => window.open(url, '_blank');
+        btnDownload.onclick = () => {
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = '';
+            a.click();
+        };
     }
-    
+
     const modal = document.getElementById('doc-modal');
-    if (modal) modal.style.display = 'block';
+    if (modal) modal.style.display = 'flex';
 }
 
 // Custom UI Interactions and Helpers
