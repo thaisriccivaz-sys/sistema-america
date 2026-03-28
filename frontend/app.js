@@ -4348,19 +4348,27 @@ window.iniciarAssinafy = async function(docType, tabName, btn) {
         });
 
         if (res.sucesso) {
-            alert('Solicitação de assinatura enviada pelo Assinafy!');
-            btn.innerHTML = '<i class="ph ph-pen-nib"></i> Enviado';
+            // Mensagem clara sobre o processamento em background
+            if (res.processando) {
+                alert('✅ Solicitação iniciada!\n\nO documento está sendo enviado ao Assinafy em segundo plano.\n📧 O e-mail de assinatura chegará na caixa do colaborador em cerca de 1 minuto.\n\nRecarregue a página em alguns instantes para ver o status atualizado.');
+            } else {
+                alert('✅ Documento enviado para assinatura!\n📧 E-mail enviado ao colaborador com o link para assinar.');
+            }
+            btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Processando...';
+            btn.disabled = true;
             if (statusBadge) {
-                statusBadge.innerText = 'PENDENTE';
+                statusBadge.innerText = 'PROCESSANDO';
                 statusBadge.className = 'assinafy-status-badge pendente';
             }
             
-            // Recarregar para mostrar botão WhatsApp
-            if (tabName === '00.CheckList' || (tabName === 'ASO' && document.getElementById('admissao-workflow')?.style.display !== 'none')) {
-                await initAdmissaoWorkflow(viewedColaborador.id, window.currentActiveAdmissaoStep, true);
-            } else {
-                await loadDocumentosList();
-            }
+            // Recarregar após 5 segundos para mostrar status atualizado
+            setTimeout(async () => {
+                if (tabName === '00.CheckList' || (tabName === 'ASO' && document.getElementById('admissao-workflow')?.style.display !== 'none')) {
+                    await initAdmissaoWorkflow(viewedColaborador.id, window.currentActiveAdmissaoStep, true);
+                } else {
+                    await loadDocumentosList();
+                }
+            }, 5000);
         } else {
             throw new Error(res.error || 'Erro na integração');
         }
