@@ -282,6 +282,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     if (!cols.includes('assinafy_status')) db.run("ALTER TABLE documentos ADD COLUMN assinafy_status TEXT DEFAULT 'Nenhum'");
                     if (!cols.includes('assinafy_url')) db.run("ALTER TABLE documentos ADD COLUMN assinafy_url TEXT");
                     if (!cols.includes('assinafy_sent_at')) db.run("ALTER TABLE documentos ADD COLUMN assinafy_sent_at DATETIME");
+                    if (!cols.includes('signed_file_path')) db.run("ALTER TABLE documentos ADD COLUMN signed_file_path TEXT");
                 });
             });
 

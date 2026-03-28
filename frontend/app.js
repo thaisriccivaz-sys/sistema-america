@@ -2271,14 +2271,14 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
     }
 
     // Status Assinafy: ícone ao lado do botão
-    // Pendente sem sent_at = ⏳ Aguardando | Pendente com sent_at = 👁️ Enviado
-    // Assinado = ✅ Assinado | Erro = ❌ Erro
+    // Pendente sem sent_at = ⏳ Aguardando | Pendente com sent_at = ✈️ Enviado
+    // Assinado = botão verde Baixar Assinado | Erro = ❌ Erro
     let assStatusIcon = '';
     if (isSaved) {
         const st = existingDoc.assinafy_status || '';
         const enviado = !!existingDoc.assinafy_sent_at;
         if (st === 'Assinado') {
-            assStatusIcon = `<span title="Assinado" style="display:inline-flex;align-items:center;gap:3px;color:#2f9e44;font-size:0.78rem;font-weight:700;white-space:nowrap;"><i class="ph ph-check-circle" style="font-size:1.1rem;"></i> Assinado</span>`;
+            assStatusIcon = `<button onclick="window.downloadAssinado(${existingDoc.id})" style="display:inline-flex;align-items:center;gap:5px;background:#2f9e44;color:#fff;border:none;border-radius:6px;padding:0.3rem 0.75rem;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;" title="Baixar PDF Assinado"><i class="ph ph-download-simple" style="font-size:1rem;"></i> Baixar Assinado</button>`;
         } else if (st === 'Erro') {
             assStatusIcon = `<span title="Erro" style="display:inline-flex;align-items:center;gap:3px;color:#e03131;font-size:0.78rem;font-weight:700;white-space:nowrap;"><i class="ph ph-warning-circle" style="font-size:1.1rem;"></i> Erro</span>`;
         } else if (st === 'Pendente' && enviado) {
@@ -2863,7 +2863,27 @@ window.viewDoc = async function(docId) {
     if (modal) modal.style.display = 'flex';
 }
 
-// Custom UI Interactions and Helpers
+window.downloadAssinado = async function(docId) {
+    const url = `${API_URL}/documentos/download-assinado/${docId}?token=${currentToken}`;
+    try {
+        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${currentToken}` } });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            alert(err.error || 'PDF assinado ainda não disponível. O Assinafy pode levar alguns minutos para processar. Tente novamente em instantes.');
+            return;
+        }
+        const blob = await res.blob();
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `ASSINADO_documento_${docId}.pdf`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+    } catch(e) {
+        alert('Erro ao baixar o PDF assinado: ' + e.message);
+    }
+}
+
+
 function getEffectiveStatus(c) {
     if (!c) return 'Ativo';
     let status = c.status || 'Ativo';

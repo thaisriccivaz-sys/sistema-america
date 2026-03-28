@@ -1461,24 +1461,99 @@ app.post("/webhook/assinafy", async (req, res) => {
         const payload = req.body;
         console.log('--- WEBHOOK ASSINAFY RECEBIDO ---', JSON.stringify(payload));
 
-        // Tentar encontrar o ID do documento em vÃ¡rias estruturas possÃ­veis
-        const assinafyId = payload.document_id || payload.documentId || payload.id || 
-                          (payload.data && (payload.data.document_id || payload.data.id)) || 
+        // Tentar encontrar o ID do documento em várias estruturas possíveis
+        const assinafyId = payload.document_id || payload.documentId || payload.id ||
+                          (payload.data && (payload.data.document_id || payload.data.id)) ||
                           (payload.object && payload.object.id);
 
         if (!assinafyId) {
-            console.warn("[WEBHOOK] Recebido sem assinafyId identificÃ¡vel.");
+            console.warn("[WEBHOOK] Recebido sem assinafyId identificável.");
             return res.status(200).send("OK");
         }
 
-        // 1. Tratar status de conclusÃ£o (Assinado/Pronto)
+        // 1. Tratar status de conclusão (Assinado/Pronto) e baixar PDF assinado
         const event = (payload.event || '').toLowerCase();
         if (event.includes('ready') || event.includes('signed') || event.includes('completed')) {
-            console.log(`[WEBHOOK] Documento ${assinafyId} marcado como ASSINADO.`);
+            console.log(`[WEBHOOK] Documento ${assinafyId} ASSINADO - baixando PDF assinado...`);
+
+            // Marcar como assinado no banco
             db.run('UPDATE documentos SET assinafy_status = ? WHERE assinafy_id = ?', ['Assinado', assinafyId]);
+
+            // Baixar PDF assinado do Assinafy em background
+            setImmediate(async () => {
+                try {
+                    const https = require('https');
+                    const API_KEY = 'AxaT-FiXBckHqEYV0s_MtUhLF3pReRz3dX4zVpC173vmjDwzLGHYtDJuQje4-4Pd';
+
+                    // Buscar URL de download no Assinafy
+                    const downloadUrlRes = await new Promise((resolve, reject) => {
+                        const options = {
+                            hostname: 'api.assinafy.com.br',
+                            path: `/v1/documents/${assinafyId}`,
+                            method: 'GET',
+                            headers: { 'X-Api-Key': API_KEY, 'Accept': 'application/json' }
+                        };
+                        const req2 = https.request(options, (r) => {
+                            const chunks = [];
+                            r.on('data', c => chunks.push(c));
+                            r.on('end', () => {
+                                try { resolve(JSON.parse(Buffer.concat(chunks).toString())); }
+                                catch(e) { reject(e); }
+                            });
+                        });
+                        req2.on('error', reject);
+                        req2.end();
+                    });
+
+                    const signedUrl = downloadUrlRes?.data?.signed_file_url ||
+                                      downloadUrlRes?.data?.download_url ||
+                                      downloadUrlRes?.signed_file_url ||
+                                      downloadUrlRes?.download_url;
+
+                    if (!signedUrl) {
+                        console.warn('[WEBHOOK] PDF assinado: URL de download não encontrada na resposta:', JSON.stringify(downloadUrlRes).substring(0, 300));
+                        return;
+                    }
+
+                    // Buscar o registro do documento no banco para saber onde salvar
+                    const docRow = await new Promise((resolve, reject) => {
+                        db.get('SELECT * FROM documentos WHERE assinafy_id = ?', [assinafyId], (err, row) => {
+                            if (err) reject(err); else resolve(row);
+                        });
+                    });
+
+                    if (!docRow) { console.warn('[WEBHOOK] Documento não encontrado no banco.'); return; }
+
+                    // Definir caminho para salvar o PDF assinado
+                    const storagePath = process.env.STORAGE_PATH || path.join(__dirname, 'data', 'uploads');
+                    const signedDir = path.join(storagePath, 'assinados');
+                    if (!fs.existsSync(signedDir)) fs.mkdirSync(signedDir, { recursive: true });
+
+                    const signedFileName = `ASSINADO_${path.basename(docRow.file_name, '.pdf')}_${Date.now()}.pdf`;
+                    const signedFilePath = path.join(signedDir, signedFileName);
+
+                    // Baixar e salvar o arquivo
+                    await new Promise((resolve, reject) => {
+                        const urlObj = new URL(signedUrl);
+                        const proto = urlObj.protocol === 'https:' ? require('https') : require('http');
+                        const file = fs.createWriteStream(signedFilePath);
+                        proto.get(signedUrl, (response) => {
+                            response.pipe(file);
+                            file.on('finish', () => { file.close(); resolve(); });
+                        }).on('error', (err) => { fs.unlink(signedFilePath, () => {}); reject(err); });
+                    });
+
+                    // Salvar caminho do arquivo assinado no banco
+                    db.run('UPDATE documentos SET signed_file_path = ? WHERE assinafy_id = ?', [signedFilePath, assinafyId]);
+                    console.log(`[WEBHOOK] PDF assinado salvo em: ${signedFilePath}`);
+
+                } catch(err) {
+                    console.error('[WEBHOOK] Erro ao baixar PDF assinado:', err.message);
+                }
+            });
         }
 
-        // 2. Tratar captura de link (CriaÃ§Ã£o/Envio)
+        // 2. Tratar captura de link (Criação/Envio)
         let signLink = payload.sign_url || payload.signUrl;
         if (!signLink && payload.signers && payload.signers[0]) {
             signLink = payload.signers[0].sign_url || payload.signers[0].url;
@@ -1497,9 +1572,24 @@ app.post("/webhook/assinafy", async (req, res) => {
 
     } catch (error) {
         console.error("Erro processando webhook:", error);
-        res.status(200).send("OK"); // Respondemos 200 para evitar que o Assinafy fique repetindo erro
+        res.status(200).send("OK");
     }
 });
+
+// Rota para baixar o PDF ASSINADO (salvo automaticamente pelo webhook)
+app.get('/api/documentos/download-assinado/:id', authenticateToken, (req, res) => {
+    db.get('SELECT file_name, signed_file_path FROM documentos WHERE id = ?', [req.params.id], (err, row) => {
+        if (err || !row) return res.status(404).json({ error: 'Documento não encontrado' });
+        if (!row.signed_file_path || !fs.existsSync(row.signed_file_path)) {
+            return res.status(404).json({ error: 'PDF assinado ainda não disponível. Aguarde alguns instantes.' });
+        }
+        const signedName = `ASSINADO_${row.file_name}`;
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(signedName)}"`);
+        fs.createReadStream(row.signed_file_path).pipe(res);
+    });
+});
+
 
 
 /**
