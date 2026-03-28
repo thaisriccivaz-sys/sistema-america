@@ -228,25 +228,44 @@ app.post('/api/assinafy/upload', async (req, res) => {
     console.log(`[ASSINAFY] Rota Acionada. Doc: ${document_id}, Colab: ${colaborador_id}`);
 
     if (!document_id || !colaborador_id) {
-        return res.status(400).json({ error: 'ID do documento e colaborador são obrigatórios.' });
+        return res.status(400).json({ error: 'ID do documento e colaborador sao obrigatorios.' });
     }
 
     try {
         const novoProcesso = require('./novo_processo_assinafy');
-        const urls = await novoProcesso.enviarDocumentoParaAssinafy(document_id, colaborador_id);
-        
-        // Se a função não retornar nada (mas não deu throw), assume que foi processado
-        res.json({ 
-            sucesso: true, 
-            assinafy_id: urls ? urls.assinafyDocId : null, 
-            assinafy_url: urls ? urls.urlAssinatura : null 
+        const resultado = await novoProcesso.enviarDocumentoParaAssinafy(document_id, colaborador_id);
+
+        // Enviar e-mail com link de assinatura usando nodemailer do server.js
+        if (resultado && resultado.urlAssinatura && resultado.emailColaborador) {
+            const linkHtml = `<a href="${resultado.urlAssinatura}">${resultado.urlAssinatura}</a>`;
+            const htmlEmail = `<div style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:0 auto;border:1px solid #eee;padding:20px"><h2 style="color:#2c3e50;border-bottom:2px solid #3498db;padding-bottom:10px">Assinatura de Documento</h2><p>Ola, <strong>${resultado.nomeColab}</strong>!</p><p>Voce tem um documento pendente de assinatura eletronica:</p><div style="background:#f9f9f9;padding:15px;border-radius:5px;margin:20px 0"><p><strong>Documento:</strong> ${resultado.docType}</p></div><p style="text-align:center;margin:30px 0"><a href="${resultado.urlAssinatura}" style="background:#3498db;color:white;padding:14px 32px;border-radius:6px;text-decoration:none;font-weight:bold;font-size:1.05rem">Clique aqui para Assinar</a></p><p style="font-size:0.85em;color:#7f8c8d">Ou copie este link:<br>${linkHtml}</p><p style="margin-top:30px;font-size:0.9em;color:#7f8c8d">Atenciosamente,<br>Equipe de RH - America Rental</p></div>`;
+            try {
+                const transporter = nodemailer.createTransport(SMTP_CONFIG);
+                await transporter.sendMail({
+                    from: `"RH America Rental" <${SMTP_CONFIG.auth.user}>`,
+                    to: resultado.emailColaborador,
+                    cc: 'rh@americarental.com.br',
+                    subject: `Documento para assinar: ${resultado.docType}`,
+                    html: htmlEmail
+                });
+                console.log(`[ASSINAFY] E-mail enviado para: ${resultado.emailColaborador}`);
+            } catch (emailErr) {
+                console.error('[ASSINAFY] Falha no e-mail (nao critico):', emailErr.message);
+            }
+        }
+
+        res.json({
+            sucesso: true,
+            assinafy_id: resultado ? resultado.assinafyDocId : null,
+            assinafy_url: resultado ? resultado.urlAssinatura : null,
+            email_enviado: !!(resultado && resultado.urlAssinatura && resultado.emailColaborador)
         });
 
     } catch (error) {
         console.error('[ASSINAFY] ERRO FATAL NA ROTA:', error);
-        res.status(500).json({ 
-            sucesso: false, 
-            error: error.message 
+        res.status(500).json({
+            sucesso: false,
+            error: error.message
         });
     }
 });
