@@ -4530,13 +4530,8 @@ window.syncAssinafyStatus = async function(docId, btn) {
         const data = await res.json();
         
         if (res.ok && data.sucesso) {
-            if (data.status_novo === 'Assinado' && data.status_antigo !== 'Assinado') {
-                alert('O documento foi assinado! Atualizando a tela...');
-            } else if (data.status_novo === 'Pendente') {
-                alert('O documento ainda não foi finalizado. Status retornado: Aguardando Assinatura.');
-            } else {
-                console.log(`[SYNC ASSINAFY] doc ${docId} status_novo: ${data.status_novo}`);
-            }
+            // Apenas atualiza o log e a tela silenciosamente
+            console.log(`[SYNC ASSINAFY] doc ${docId} antigo: ${data.status_antigo} -> novo: ${data.status_novo}`);
             
             await loadDocumentosList();
             const activeTab = document.querySelector('#tabs-list li.active');
