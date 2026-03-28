@@ -237,7 +237,7 @@ app.post('/api/assinafy/upload', async (req, res) => {
     // Processar em background (sem bloquear a resposta HTTP)
     setImmediate(async () => {
         try {
-            db.run("UPDATE documentos SET assinafy_status = 'Processando' WHERE id = ?", [document_id]);
+            db.run("UPDATE documentos SET assinafy_status = 'Processando', assinafy_sent_at = CURRENT_TIMESTAMP WHERE id = ?", [document_id]);
             const novoProcesso = require('./novo_processo_assinafy');
             const resultado = await novoProcesso.enviarDocumentoParaAssinafy(document_id, colaborador_id);
             console.log(`[ASSINAFY BG] Concluido! ID=${resultado?.assinafyDocId} URL=${resultado?.urlAssinatura}`);
