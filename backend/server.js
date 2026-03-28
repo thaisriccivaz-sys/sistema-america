@@ -208,9 +208,6 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// ROTA DE DEBUG (Para testar conectividade básica)
-app.get('/api/debug-ping', (req, res) => res.json({ message: 'pong', status: 'OK', version: 'V26_DEBUG' }));
-
 // Middleware de Autenticação (Bypass temporário para facilitar dev do frontend)
 const authenticateToken = (req, res, next) => {
     // const authHeader = req.headers['authorization'];
@@ -1705,7 +1702,7 @@ process.on('unhandledRejection', (reason, promise) => {
 
 app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
-    console.log(`Versão do Servidor: V26_AUTOMATIC_ONEDRIVE_ASSINAFY`);
+    console.log('Versão do Servidor: V27_FINAL_ASSINAFY');
     console.log(`Caminho de Armazenamento Local: ${BASE_UPLOAD_PATH}`);
     console.log(`OneDrive Base Path: ${process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema"}`);
     console.log(`OneDrive User: ${process.env.ONEDRIVE_USER_EMAIL || "NÃO CONFIGURADO"}`);
