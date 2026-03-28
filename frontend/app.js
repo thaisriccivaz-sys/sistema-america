@@ -2682,6 +2682,7 @@ window.renderPagamentosCompetencia = function() {
     });
 };
 
+
 window.uploadDocument = async function(inputEl, tabId, docType, year = null, month = null, vencimento = null) {
     const file = inputEl.files[0];
     if (!file) return;
@@ -2698,16 +2699,24 @@ window.uploadDocument = async function(inputEl, tabId, docType, year = null, mon
         return;
     }
 
+    // Feedback visual imediato: spinner no botão de upload
+    const labelBtn = inputEl.closest('label');
+    const originalLabelHtml = labelBtn ? labelBtn.innerHTML : '';
+    if (labelBtn) {
+        labelBtn.style.pointerEvents = 'none';
+        labelBtn.style.opacity = '0.7';
+        labelBtn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando...';
+    }
+
     const formData = new FormData();
     formData.append('colaborador_id', viewedColaborador.id);
     formData.append('colaborador_nome', viewedColaborador.nome_completo || 'Desconhecido');
     formData.append('tab_name', tabId);
     formData.append('document_type', docType);
-    
-    // Tratando o ano e o mês que podem vir do createDocSlot com aspas simples ex: "'2026'"
+
     const cleanYear = year ? String(year).replace(/'/g, '').trim() : '';
     const cleanMonth = month ? String(month).replace(/'/g, '').trim() : '';
-    
+
     if(cleanYear && cleanYear !== 'null' && cleanYear !== 'undefined') formData.append('year', cleanYear);
     if(cleanMonth && cleanMonth !== 'null' && cleanMonth !== 'undefined') formData.append('month', cleanMonth);
     if(vencimento) formData.append('vencimento', vencimento);
@@ -2720,26 +2729,55 @@ window.uploadDocument = async function(inputEl, tabId, docType, year = null, mon
             body: formData
         });
         if(res.ok) {
-            await loadDocumentosList();
-            
-            const viewAdm = document.getElementById('view-admissao');
-            const viewPront = document.getElementById('view-prontuario');
-            const isAdmActive = viewAdm && viewAdm.classList.contains('active');
-            const isProntActive = viewPront && viewPront.classList.contains('active');
+            const newDoc = await res.json();
 
-            if (isAdmActive && viewedColaborador) {
-                updateAdmissaoStepPercentages();
-                initAdmissaoWorkflow(viewedColaborador.id, window.currentActiveAdmissaoStep, true);
-            } else if (isProntActive) {
-                const activeTab = document.querySelector('#tabs-list li.active');
-                if(activeTab) {
-                    renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
-                }
+            // Atualização otimista imediata: substitui o doc-item no DOM sem esperar loadDocumentosList
+            const docItem = inputEl.closest('.doc-item');
+            if (docItem && newDoc && newDoc.id) {
+                const fakeDoc = {
+                    id: newDoc.id,
+                    file_name: file.name,
+                    upload_date: new Date().toISOString(),
+                    vencimento: vencimento || null,
+                    assinafy_status: 'Nenhum',
+                    assinafy_sent_at: null,
+                    tab_name: tabId,
+                    document_type: docType
+                };
+                const newSlot = createDocSlot(tabId, docType, fakeDoc, year, month);
+                docItem.replaceWith(newSlot);
             }
+
+            // Sincronizar banco em background (sem bloquear a UI)
+            loadDocumentosList().then(() => {
+                const viewAdm = document.getElementById('view-admissao');
+                const viewPront = document.getElementById('view-prontuario');
+                const isAdmActive = viewAdm && viewAdm.classList.contains('active');
+                const isProntActive = viewPront && viewPront.classList.contains('active');
+
+                if (isAdmActive && viewedColaborador) {
+                    updateAdmissaoStepPercentages();
+                    initAdmissaoWorkflow(viewedColaborador.id, window.currentActiveAdmissaoStep, true);
+                } else if (isProntActive) {
+                    const activeTab = document.querySelector('#tabs-list li.active');
+                    if(activeTab) renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
+                }
+            });
         } else {
+            if (labelBtn) {
+                labelBtn.innerHTML = originalLabelHtml;
+                labelBtn.style.pointerEvents = '';
+                labelBtn.style.opacity = '';
+            }
             alert('Erro no upload.');
         }
-    } catch(e) { console.error(e); }
+    } catch(e) {
+        if (labelBtn) {
+            labelBtn.innerHTML = originalLabelHtml;
+            labelBtn.style.pointerEvents = '';
+            labelBtn.style.opacity = '';
+        }
+        console.error(e);
 }
 
 window.uploadDynamicDocument = function(inputEl, tabId) {
