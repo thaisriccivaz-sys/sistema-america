@@ -237,12 +237,11 @@ app.post('/api/assinafy/upload', async (req, res) => {
     // Processar em background (sem bloquear a resposta HTTP)
     setImmediate(async () => {
         try {
-            db.run("UPDATE documentos SET assinafy_status = 'Processando', assinafy_sent_at = CURRENT_TIMESTAMP WHERE id = ?", [document_id]);
+            db.run("UPDATE documentos SET assinafy_status = 'Pendente', assinafy_sent_at = CURRENT_TIMESTAMP WHERE id = ?", [document_id]);
             const novoProcesso = require('./novo_processo_assinafy');
             const resultado = await novoProcesso.enviarDocumentoParaAssinafy(document_id, colaborador_id);
-            console.log(`[ASSINAFY BG] Concluido! ID=${resultado?.assinafyDocId} URL=${resultado?.urlAssinatura}`);
-            // Marca sucesso no banco
-            db.run("UPDATE documentos SET assinafy_status = 'Concluido' WHERE id = ?", [document_id]);
+            console.log(`[ASSINAFY BG] Enviado! ID=${resultado?.assinafyDocId} URL=${resultado?.urlAssinatura}`);
+            // Mantém status 'Pendente' - só muda para 'Assinado' via webhook quando o colaborador assinar
         } catch (error) {
             console.error('[ASSINAFY BG] ERRO NO CONCLUIDO:', error.message);
             // Marcar status de Erro pra depois sabermos

@@ -2271,17 +2271,19 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
     }
 
     // Status Assinafy: ícone ao lado do botão
+    // Apenas 'Assinado' (via webhook) conta como documento assinado
+    // 'Pendente', 'Processando' e 'Concluido' = aguardando assinatura do colaborador
     let assStatusIcon = '';
     if (isSaved) {
         const st = existingDoc.assinafy_status || '';
-        if (st === 'Assinado' || st === 'Concluido') {
+        if (st === 'Assinado') {
             assStatusIcon = `<span title="Assinado" style="display:inline-flex;align-items:center;gap:3px;color:#2f9e44;font-size:0.78rem;font-weight:700;white-space:nowrap;"><i class="ph ph-check-circle" style="font-size:1.1rem;"></i> Assinado</span>`;
         } else if (st && st !== 'Nenhum') {
             assStatusIcon = `<span title="${st}" style="display:inline-flex;align-items:center;gap:3px;color:#f59f00;font-size:0.78rem;font-weight:700;white-space:nowrap;"><i class="ph ph-hourglass" style="font-size:1.1rem;"></i> Aguardando</span>`;
         }
     }
 
-    const isAssinado = isSaved && (existingDoc.assinafy_status === 'Assinado' || existingDoc.assinafy_status === 'Concluido');
+    const isAssinado = isSaved && existingDoc.assinafy_status === 'Assinado';
 
     let actionsHtml = `
         <div class="doc-actions" style="display: flex; align-items: flex-end; gap: 0.5rem;">
