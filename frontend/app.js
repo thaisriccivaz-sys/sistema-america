@@ -4341,27 +4341,31 @@ window.iniciarAssinafy = async function(docType, tabName, btn) {
 
         if (!docRecord) throw new Error('Documento não encontrado no sistema. Faça o upload primeiro.');
 
-        // 2. Chamar o backend para fazer o processo no Assinafy
-        const res = await apiPost('/assinafy/upload', {
-            document_id: docRecord.id,
-            colaborador_id: colabId
-        });
+        // 2. Chamar o backend (pode levar até 60s - aguardar)
+        btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando...';
+
+        // Timeout manual de 90s para não ficar preso eternamente
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 90000);
+
+        let res;
+        try {
+            res = await apiPost('/assinafy/upload', {
+                document_id: docRecord.id,
+                colaborador_id: colabId
+            }, { signal: controller.signal });
+        } finally {
+            clearTimeout(timeoutId);
+        }
 
         if (res.sucesso) {
-            // Mensagem clara sobre o processamento em background
-            if (res.processando) {
-                alert('✅ Solicitação iniciada!\n\nO documento está sendo enviado ao Assinafy em segundo plano.\n📧 O e-mail de assinatura chegará na caixa do colaborador em cerca de 1 minuto.\n\nRecarregue a página em alguns instantes para ver o status atualizado.');
-            } else {
-                alert('✅ Documento enviado para assinatura!\n📧 E-mail enviado ao colaborador com o link para assinar.');
-            }
-            btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Processando...';
-            btn.disabled = true;
+            alert('✅ Documento enviado para assinatura!\n\n📧 O e-mail será enviado pelo Assinafy ao colaborador em instantes.\n\nO badge do documento será atualizado em 5 segundos.');
+            btn.innerHTML = '<i class="ph ph-check"></i> Enviado';
             if (statusBadge) {
-                statusBadge.innerText = 'PROCESSANDO';
+                statusBadge.innerText = 'PENDENTE';
                 statusBadge.className = 'assinafy-status-badge pendente';
             }
-            
-            // Recarregar após 5 segundos para mostrar status atualizado
+            // Recarregar lista após 5s
             setTimeout(async () => {
                 if (tabName === '00.CheckList' || (tabName === 'ASO' && document.getElementById('admissao-workflow')?.style.display !== 'none')) {
                     await initAdmissaoWorkflow(viewedColaborador.id, window.currentActiveAdmissaoStep, true);
@@ -4370,12 +4374,16 @@ window.iniciarAssinafy = async function(docType, tabName, btn) {
                 }
             }, 5000);
         } else {
-            throw new Error(res.error || 'Erro na integração');
+            throw new Error(res.error || 'Erro na integração com Assinafy');
         }
 
     } catch (e) {
         console.error('Erro Assinafy:', e);
-        alert('Falha ao iniciar Assinafy: ' + e.message);
+        if (e.name === 'AbortError') {
+            alert('⏳ O processo está demorando mais que o esperado.\n\nO Assinafy pode já ter processado o documento. Aguarde 1 minuto e recarregue a página para verificar o status.');
+        } else {
+            alert('Falha ao iniciar Assinafy: ' + e.message);
+        }
         btn.disabled = false;
         btn.innerHTML = '<i class="ph ph-pen-nib"></i> Assinar p/ Assinafy';
     }
