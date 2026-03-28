@@ -187,14 +187,17 @@ async function apiGet(endpoint) {
     }
 }
 
-async function apiPost(endpoint, data) {
+async function apiPost(endpoint, data, options = {}) {
+    const { headers: customHeaders, ...restOptions } = options;
     const res = await fetch(`${API_URL}${endpoint}`, {
         method: 'POST',
         headers: { 
             'Authorization': `Bearer ${currentToken}`,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            ...(customHeaders || {})
         },
-        body: JSON.stringify(data)
+        body: JSON.stringify(data),
+        ...restOptions
     });
     
     // Check if response is JSON
