@@ -4532,8 +4532,10 @@ window.syncAssinafyStatus = async function(docId, btn) {
         if (res.ok && data.sucesso) {
             if (data.status_novo === 'Assinado' && data.status_antigo !== 'Assinado') {
                 alert('O documento foi assinado! Atualizando a tela...');
+            } else if (data.status_novo === 'Pendente') {
+                alert('O documento ainda não foi finalizado. Status retornado: Aguardando Assinatura.');
             } else {
-                alert(`O status no Assinafy atual é: "${data.status_assinafy}". Se deveria estar Assinado, precisamos mapear essa palavra. A API deles retornou:\n\n${JSON.stringify(data.raw).substring(0, 150)}`);
+                console.log(`[SYNC ASSINAFY] doc ${docId} status_novo: ${data.status_novo}`);
             }
             
             await loadDocumentosList();

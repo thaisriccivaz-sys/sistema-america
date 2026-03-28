@@ -1634,8 +1634,8 @@ app.post('/api/documentos/:id/sync-assinafy', authenticateToken, async (req, res
         let newStatus = doc.assinafy_status;
         let pStatus = (documentData.status || documentData.status_id || '').toString().toLowerCase();
 
-        // status possíveis no assinafy: completed, pending, waiting_signatures, error
-        if (pStatus.includes('complet') || pStatus === '4' || pStatus === 'assinado' || pStatus === 'concluído') {
+        // status possíveis no assinafy: certificated, completed, pending, waiting_signatures, error
+        if (pStatus.includes('certificat') || pStatus.includes('complet') || pStatus === '4' || pStatus === 'assinado' || pStatus === 'concluído') {
             newStatus = 'Assinado';
         } else if (pStatus.includes('pend') || pStatus.includes('wait') || pStatus === '2' || pStatus === '3') {
             newStatus = 'Pendente';
