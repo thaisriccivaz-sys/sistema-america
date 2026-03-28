@@ -1410,21 +1410,16 @@ if (formColab) {
 
         // Validações obrigatórias
         if (!isPartial) {
+            if (!nomeInput || !nomeInput.value.trim()) {
+                alert("Por favor, preencha o Nome Completo do colaborador.");
+                nomeInput && nomeInput.focus();
+                return;
+            }
             if (cpfInput && cpfInput.value.replace(/\D/g, '').length < 11) {
                 alert("CPF do Colaborador inválido ou incompleto.");
                 return;
             }
-            
-            if (estadoCivilInput.value === 'Casado' || estadoCivilInput.value === 'União Estável') {
-                if (!conjNome || !conjCpf) {
-                    alert('Por favor, preencha os dados obrigatórios do cônjuge (Nome e CPF).');
-                    return;
-                }
-                if (conjCpf.replace(/\D/g, '').length < 11) {
-                    alert('CPF do Cônjuge inválido ou incompleto.');
-                    return;
-                }
-            }
+            // Cônjuge e CNH: preenchimento opcional
         }
 
         const submitter = e.submitter;
