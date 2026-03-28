@@ -218,13 +218,13 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // ROTA DE VERSÃO (Para verificar implantação)
-app.get('/api/version', (req, res) => res.json({ version: 'V38_ASSINAFY_BG_EXTENDED' }));
+app.get('/api/version', (req, res) => res.json({ version: 'V39_ASSINAFY_BG_FIX_CONCLUIDO' }));
 
 /**
  * ASSINAFY: Background mode com Polling estendido
  * O Assinafy processa documentos lentamente em alguns casos.
  * Retornamos ok pro frontend logo e o processo duro ocorre no background.
- * V38_ASSINAFY_BG_EXTENDED
+ * V39_ASSINAFY_BG_FIX_CONCLUIDO
  */
 app.post('/api/assinafy/upload', async (req, res) => {
     const { document_id, colaborador_id } = req.body;
@@ -241,6 +241,8 @@ app.post('/api/assinafy/upload', async (req, res) => {
             const novoProcesso = require('./novo_processo_assinafy');
             const resultado = await novoProcesso.enviarDocumentoParaAssinafy(document_id, colaborador_id);
             console.log(`[ASSINAFY BG] Concluido! ID=${resultado?.assinafyDocId} URL=${resultado?.urlAssinatura}`);
+            // Marca sucesso no banco
+            db.run("UPDATE documentos SET assinafy_status = 'Concluido' WHERE id = ?", [document_id]);
         } catch (error) {
             console.error('[ASSINAFY BG] ERRO NO CONCLUIDO:', error.message);
             // Marcar status de Erro pra depois sabermos
