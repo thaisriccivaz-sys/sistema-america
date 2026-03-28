@@ -218,56 +218,67 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // ROTA DE VERSÃO (Para verificar implantação)
-app.get('/api/version', (req, res) => res.json({ version: 'V35_ASSINAFY_POLL_STATUS' }));
+app.get('/api/version', (req, res) => res.json({ version: 'V36_ASSINAFY_BACKGROUND' }));
 
 /**
- * Endpoint para fazer upload direto para o Assinafy e iniciar processo de assinatura
+ * Endpoint Assinafy: responde IMEDIATAMENTE e processa em background.
+ * Isso evita timeouts HTTP para documentos grandes ou que demoram no processamento.
  */
 app.post('/api/assinafy/upload', async (req, res) => {
     const { document_id, colaborador_id } = req.body;
-    console.log(`[ASSINAFY] Rota Acionada. Doc: ${document_id}, Colab: ${colaborador_id}`);
+    console.log(`[ASSINAFY] Iniciado. Doc: ${document_id}, Colab: ${colaborador_id}`);
 
     if (!document_id || !colaborador_id) {
-        return res.status(400).json({ error: 'ID do documento e colaborador sao obrigatorios.' });
+        return res.status(400).json({ sucesso: false, error: 'document_id e colaborador_id sao obrigatorios.' });
     }
 
-    try {
-        const novoProcesso = require('./novo_processo_assinafy');
-        const resultado = await novoProcesso.enviarDocumentoParaAssinafy(document_id, colaborador_id);
+    // Marcar o documento como "Em processamento" imediatamente
+    db.run(
+        "UPDATE documentos SET assinafy_status = 'Processando' WHERE id = ?",
+        [document_id],
+        (err) => { if (err) console.error('[ASSINAFY] Erro ao marcar processando:', err.message); }
+    );
 
-        // Enviar e-mail com link de assinatura usando nodemailer do server.js
-        if (resultado && resultado.urlAssinatura && resultado.emailColaborador) {
-            const linkHtml = `<a href="${resultado.urlAssinatura}">${resultado.urlAssinatura}</a>`;
-            const htmlEmail = `<div style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:0 auto;border:1px solid #eee;padding:20px"><h2 style="color:#2c3e50;border-bottom:2px solid #3498db;padding-bottom:10px">Assinatura de Documento</h2><p>Ola, <strong>${resultado.nomeColab}</strong>!</p><p>Voce tem um documento pendente de assinatura eletronica:</p><div style="background:#f9f9f9;padding:15px;border-radius:5px;margin:20px 0"><p><strong>Documento:</strong> ${resultado.docType}</p></div><p style="text-align:center;margin:30px 0"><a href="${resultado.urlAssinatura}" style="background:#3498db;color:white;padding:14px 32px;border-radius:6px;text-decoration:none;font-weight:bold;font-size:1.05rem">Clique aqui para Assinar</a></p><p style="font-size:0.85em;color:#7f8c8d">Ou copie este link:<br>${linkHtml}</p><p style="margin-top:30px;font-size:0.9em;color:#7f8c8d">Atenciosamente,<br>Equipe de RH - America Rental</p></div>`;
-            try {
-                const transporter = nodemailer.createTransport(SMTP_CONFIG);
-                await transporter.sendMail({
-                    from: `"RH America Rental" <${SMTP_CONFIG.auth.user}>`,
-                    to: resultado.emailColaborador,
-                    cc: 'rh@americarental.com.br',
-                    subject: `Documento para assinar: ${resultado.docType}`,
-                    html: htmlEmail
-                });
-                console.log(`[ASSINAFY] E-mail enviado para: ${resultado.emailColaborador}`);
-            } catch (emailErr) {
-                console.error('[ASSINAFY] Falha no e-mail (nao critico):', emailErr.message);
+    // Responder imediatamente - processamento segue em background
+    res.json({ sucesso: true, processando: true, message: 'Processamento iniciado! O e-mail sera enviado assim que concluido.' });
+
+    // Processar em background (sem bloquear a resposta HTTP)
+    setImmediate(async () => {
+        try {
+            const novoProcesso = require('./novo_processo_assinafy');
+            const resultado = await novoProcesso.enviarDocumentoParaAssinafy(document_id, colaborador_id);
+
+            // Enviar e-mail com link de assinatura
+            if (resultado && resultado.urlAssinatura && resultado.emailColaborador) {
+                const linkHtml = resultado.urlAssinatura;
+                const htmlEmail = `<div style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:0 auto;border:1px solid #eee;padding:20px"><h2 style="color:#2c3e50;border-bottom:2px solid #3498db;padding-bottom:10px">Assinatura de Documento</h2><p>Ola, <strong>${resultado.nomeColab}</strong>!</p><p>Voce tem um documento pendente de assinatura eletronica:</p><div style="background:#f9f9f9;padding:15px;border-radius:5px;margin:20px 0"><p><strong>Documento:</strong> ${resultado.docType}</p></div><p style="text-align:center;margin:30px 0"><a href="${linkHtml}" style="background:#3498db;color:white;padding:14px 32px;border-radius:6px;text-decoration:none;font-weight:bold;font-size:1.05rem">Clique aqui para Assinar</a></p><p style="font-size:0.85em;color:#7f8c8d">Ou copie: <a href="${linkHtml}">${linkHtml}</a></p><p style="margin-top:30px;font-size:0.9em;color:#7f8c8d">Atenciosamente,<br>Equipe de RH - America Rental</p></div>`;
+                try {
+                    const transporter = nodemailer.createTransport(SMTP_CONFIG);
+                    await transporter.sendMail({
+                        from: `"RH America Rental" <${SMTP_CONFIG.auth.user}>`,
+                        to: resultado.emailColaborador,
+                        cc: 'rh@americarental.com.br',
+                        subject: `Documento para assinar: ${resultado.docType}`,
+                        html: htmlEmail
+                    });
+                    console.log(`[ASSINAFY BG] E-mail enviado para: ${resultado.emailColaborador}`);
+                } catch (emailErr) {
+                    console.error('[ASSINAFY BG] Falha no e-mail (nao critico):', emailErr.message);
+                }
             }
+
+            console.log(`[ASSINAFY BG] Processo concluido. ID: ${resultado?.assinafyDocId} | URL: ${resultado?.urlAssinatura}`);
+
+        } catch (bgErr) {
+            console.error('[ASSINAFY BG] Erro no processamento em background:', bgErr.message);
+            // Marcar como erro no banco para o usuario saber
+            db.run(
+                "UPDATE documentos SET assinafy_status = 'Erro' WHERE id = ?",
+                [document_id],
+                (e) => { if (e) console.error('[ASSINAFY BG] Erro ao salvar status de erro:', e.message); }
+            );
         }
-
-        res.json({
-            sucesso: true,
-            assinafy_id: resultado ? resultado.assinafyDocId : null,
-            assinafy_url: resultado ? resultado.urlAssinatura : null,
-            email_enviado: !!(resultado && resultado.urlAssinatura && resultado.emailColaborador)
-        });
-
-    } catch (error) {
-        console.error('[ASSINAFY] ERRO FATAL NA ROTA:', error);
-        res.status(500).json({
-            sucesso: false,
-            error: error.message
-        });
-    }
+    });
 });
 
 // Middleware de Autenticação (Bypass temporário para facilitar dev do frontend)
