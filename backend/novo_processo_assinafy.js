@@ -155,8 +155,8 @@ async function enviarDocumentoParaAssinafy(documentId, colaboradorId) {
 
         console.log(`[POLL ${i}/60] status="${docStatus}"`);
 
-        // Sai do loop se não estiver mais em processamento
-        if (!docStatus.includes('processing') && !docStatus.includes('metadata')) {
+        // Sai do loop se não estiver mais em processamento (ex: 'metadata_ready' ou 'ready' ou '200')
+        if (!docStatus.includes('processing')) {
             console.log(`[3] Documento pronto!`);
             break;
         }
