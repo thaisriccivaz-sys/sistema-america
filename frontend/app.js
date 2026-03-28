@@ -2270,18 +2270,23 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
         `;
     }
 
-    // Status Assinafy: ícone ao lado do botão
+    // Status Assinafy: icone ao lado do botao
     let assStatusIcon = '';
     if (isSaved) {
         const st = existingDoc.assinafy_status || '';
-        if (st === 'Assinado' || st === 'Concluido') {
-            assStatusIcon = `<span title="Assinado" style="display:inline-flex;align-items:center;gap:3px;color:#2f9e44;font-size:0.78rem;font-weight:700;white-space:nowrap;"><i class="ph ph-check-circle" style="font-size:1.1rem;"></i> Assinado</span>`;
+        const enviado = !!existingDoc.assinafy_sent_at;
+        if (st === 'Assinado') {
+            assStatusIcon = `<button onclick="window.downloadAssinado(${existingDoc.id})" style="display:inline-flex;align-items:center;gap:5px;background:#2f9e44;color:#fff;border:none;border-radius:6px;padding:0.3rem 0.75rem;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;" title="Baixar PDF Assinado"><i class="ph ph-download-simple" style="font-size:1rem;"></i> Baixar Assinado</button>`;
+        } else if (st === 'Erro') {
+            assStatusIcon = `<span title="Erro" style="display:inline-flex;align-items:center;gap:3px;color:#e03131;font-size:0.78rem;font-weight:700;white-space:nowrap;"><i class="ph ph-warning-circle" style="font-size:1.1rem;"></i> Erro</span>`;
+        } else if (st === 'Pendente' && enviado) {
+            assStatusIcon = `<span title="E-mail enviado" style="display:inline-flex;align-items:center;gap:3px;color:#1971c2;font-size:0.78rem;font-weight:700;white-space:nowrap;"><i class="ph ph-paper-plane-tilt" style="font-size:1.1rem;"></i> Enviado</span>`;
         } else if (st && st !== 'Nenhum') {
             assStatusIcon = `<span title="${st}" style="display:inline-flex;align-items:center;gap:3px;color:#f59f00;font-size:0.78rem;font-weight:700;white-space:nowrap;"><i class="ph ph-hourglass" style="font-size:1.1rem;"></i> Aguardando</span>`;
         }
     }
 
-    const isAssinado = isSaved && (existingDoc.assinafy_status === 'Assinado' || existingDoc.assinafy_status === 'Concluido');
+    const isAssinado = isSaved && existingDoc.assinafy_status === 'Assinado';
 
     let actionsHtml = `
         <div class="doc-actions" style="display: flex; align-items: flex-end; gap: 0.5rem;">
@@ -2679,16 +2684,24 @@ window.uploadDocument = async function(inputEl, tabId, docType, year = null, mon
     const file = inputEl.files[0];
     if (!file) return;
 
-    // Obrigatório que seja em PDF (Exigência do Usuário)
     if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
-        alert('Atenção: Apenas arquivos PDF são permitidos para este documento.');
+        alert('Apenas arquivos PDF sao permitidos.');
         inputEl.value = '';
         return;
     }
 
     if (!viewedColaborador) {
-        alert('Erro: Colaborador não selecionado.');
+        alert('Colaborador nao selecionado.');
         return;
+    }
+
+    // Feedback visual imediato: spinner no label
+    const labelBtn = inputEl.closest('label');
+    const originalLabelHtml = labelBtn ? labelBtn.innerHTML : '';
+    if (labelBtn) {
+        labelBtn.style.pointerEvents = 'none';
+        labelBtn.style.opacity = '0.7';
+        labelBtn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando...';
     }
 
     const formData = new FormData();
@@ -2696,11 +2709,10 @@ window.uploadDocument = async function(inputEl, tabId, docType, year = null, mon
     formData.append('colaborador_nome', viewedColaborador.nome_completo || 'Desconhecido');
     formData.append('tab_name', tabId);
     formData.append('document_type', docType);
-    
-    // Tratando o ano e o mês que podem vir do createDocSlot com aspas simples ex: "'2026'"
+
     const cleanYear = year ? String(year).replace(/'/g, '').trim() : '';
     const cleanMonth = month ? String(month).replace(/'/g, '').trim() : '';
-    
+
     if(cleanYear && cleanYear !== 'null' && cleanYear !== 'undefined') formData.append('year', cleanYear);
     if(cleanMonth && cleanMonth !== 'null' && cleanMonth !== 'undefined') formData.append('month', cleanMonth);
     if(vencimento) formData.append('vencimento', vencimento);
@@ -2713,26 +2725,56 @@ window.uploadDocument = async function(inputEl, tabId, docType, year = null, mon
             body: formData
         });
         if(res.ok) {
-            await loadDocumentosList();
-            
-            const viewAdm = document.getElementById('view-admissao');
-            const viewPront = document.getElementById('view-prontuario');
-            const isAdmActive = viewAdm && viewAdm.classList.contains('active');
-            const isProntActive = viewPront && viewPront.classList.contains('active');
+            const newDoc = await res.json();
 
-            if (isAdmActive && viewedColaborador) {
-                updateAdmissaoStepPercentages();
-                initAdmissaoWorkflow(viewedColaborador.id, window.currentActiveAdmissaoStep, true);
-            } else if (isProntActive) {
-                const activeTab = document.querySelector('#tabs-list li.active');
-                if(activeTab) {
-                    renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
-                }
+            // Atualizacao otimista imediata do card no DOM
+            const docItem = inputEl.closest('.doc-item');
+            if (docItem && newDoc && newDoc.id) {
+                const fakeDoc = {
+                    id: newDoc.id,
+                    file_name: file.name,
+                    upload_date: new Date().toISOString(),
+                    vencimento: vencimento || null,
+                    assinafy_status: 'Nenhum',
+                    assinafy_sent_at: null,
+                    tab_name: tabId,
+                    document_type: docType
+                };
+                const newSlot = createDocSlot(tabId, docType, fakeDoc, year, month);
+                docItem.replaceWith(newSlot);
             }
+
+            // Sincronizar em background
+            loadDocumentosList().then(() => {
+                const viewAdm = document.getElementById('view-admissao');
+                const viewPront = document.getElementById('view-prontuario');
+                const isAdmActive = viewAdm && viewAdm.classList.contains('active');
+                const isProntActive = viewPront && viewPront.classList.contains('active');
+
+                if (isAdmActive && viewedColaborador) {
+                    updateAdmissaoStepPercentages();
+                    initAdmissaoWorkflow(viewedColaborador.id, window.currentActiveAdmissaoStep, true);
+                } else if (isProntActive) {
+                    const activeTab = document.querySelector('#tabs-list li.active');
+                    if(activeTab) renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
+                }
+            });
         } else {
+            if (labelBtn) {
+                labelBtn.innerHTML = originalLabelHtml;
+                labelBtn.style.pointerEvents = '';
+                labelBtn.style.opacity = '';
+            }
             alert('Erro no upload.');
         }
-    } catch(e) { console.error(e); }
+    } catch(e) {
+        if (labelBtn) {
+            labelBtn.innerHTML = originalLabelHtml;
+            labelBtn.style.pointerEvents = '';
+            labelBtn.style.opacity = '';
+        }
+        console.error(e);
+    }
 }
 
 window.uploadDynamicDocument = function(inputEl, tabId) {
@@ -2796,18 +2838,19 @@ window.deleteDoc = async function(docId, btnEl) {
 }
 
 window.viewDoc = async function(docId) {
-    const url = `${API_URL}/documentos/download/${docId}?token=${currentToken}`;
+    const viewUrl = `${API_URL}/documentos/view/${docId}?token=${currentToken}`;
+    const downloadUrl = `${API_URL}/documentos/download/${docId}?token=${currentToken}`;
 
     const modalBody = document.getElementById('modal-doc-body');
     if (modalBody) {
-        modalBody.innerHTML = `<iframe src="${url}" style="width:100%; height:100%; border:none; display:block;"></iframe>`;
+        modalBody.innerHTML = `<iframe src="${viewUrl}" style="width:100%; height:100%; border:none; display:block;"></iframe>`;
     }
 
     const btnDownload = document.getElementById('btn-download-doc');
     if (btnDownload) {
         btnDownload.onclick = () => {
             const a = document.createElement('a');
-            a.href = url;
+            a.href = downloadUrl;
             a.download = '';
             a.click();
         };
@@ -2815,6 +2858,26 @@ window.viewDoc = async function(docId) {
 
     const modal = document.getElementById('doc-modal');
     if (modal) modal.style.display = 'flex';
+}
+
+window.downloadAssinado = async function(docId) {
+    const url = `${API_URL}/documentos/download-assinado/${docId}`;
+    try {
+        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${currentToken}` } });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            alert(err.error || 'PDF assinado ainda nao disponivel. Aguarde alguns instantes e tente novamente.');
+            return;
+        }
+        const blob = await res.blob();
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'documento_assinado_' + docId + '.pdf';
+        a.click();
+        URL.revokeObjectURL(a.href);
+    } catch(e) {
+        alert('Erro ao baixar o PDF assinado: ' + e.message);
+    }
 }
 
 // Custom UI Interactions and Helpers
@@ -4363,67 +4426,75 @@ window.finalizarAdmissao = async function() {
 };
 
 /**
- * Inicia o processo de assinatura eletrônica via Assinafy para um documento específico
+ * Inicia o processo de assinatura eletronica via Assinafy
  */
 window.iniciarAssinafy = async function(docType, tabName, btn) {
     if (!viewedColaborador) return;
 
     const colabId = viewedColaborador.id;
-    
-    try {
-        // RECARREGAR DADOS DO COLABORADOR (Garante que pegamos o e-mail mais recente)
-        const freshColab = await apiGet(`/colaboradores/${colabId}`);
-        viewedColaborador = freshColab;
-    } catch(e) { console.warn('Falha ao atualizar dados em tempo real:', e); }
-
     const container = btn.closest('.assinafy-integrated-container');
-    const statusBadge = container.querySelector('.assinafy-status-badge');
-    
-    // O e-mail não é mais mandatório aqui pois o backend usa o e-mail centralizador de fallback
-    console.log('[ASSINAFY] Iniciando com e-mail do colaborador ou fallback central.');
 
     try {
         btn.disabled = true;
-        btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Iniciando...';
-
-        // 1. Buscar o ID do documento local no banco (já que acabamos de fazer upload ou carregamos a página)
-        const docs = await apiGet(`/colaboradores/${colabId}/documentos`);
-        if (!docs) throw new Error('Falha ao carregar lista de documentos. Tente novamente.');
-
-        const docRecord = docs.find(d => d.tab_name === tabName && d.document_type === docType);
-
-        if (!docRecord) throw new Error('Documento não encontrado no sistema. Faça o upload primeiro.');
-
-        // 2. Chamar o backend
         btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando...';
 
-        let res = await apiPost('/assinafy/upload', {
+        // 1. Buscar documento no banco
+        const docs = await apiGet(`/colaboradores/${colabId}/documentos`);
+        if (!docs) throw new Error('Falha ao carregar documentos.');
+
+        const docRecord = docs.find(d => d.tab_name === tabName && d.document_type === docType);
+        if (!docRecord) throw new Error('Documento nao encontrado. Faca o upload primeiro.');
+
+        // 2. Chamar backend (retorna imediatamente, processa em background)
+        const res = await apiPost('/assinafy/upload', {
             document_id: docRecord.id,
             colaborador_id: colabId
         });
 
         if (res.sucesso) {
-            if (res.processando_em_background) {
-                alert('✅ ' + res.message);
-                btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Processando';
-            } else {
-                alert('✅ Documento enviado para assinatura!');
-                btn.innerHTML = '<i class="ph ph-check"></i> Enviado';
-            }
-            if (statusBadge) {
-                statusBadge.innerText = 'PROCESSANDO';
-                statusBadge.className = 'assinafy-status-badge pendente';
-            }
-            // Recarregar lista após 5s
-            setTimeout(async () => {
-                if (tabName === '00.CheckList' || (tabName === 'ASO' && document.getElementById('admissao-workflow')?.style.display !== 'none')) {
-                    await initAdmissaoWorkflow(viewedColaborador.id, window.currentActiveAdmissaoStep, true);
-                } else {
-                    await loadDocumentosList();
+            // Restaurar botao
+            btn.disabled = false;
+            btn.innerHTML = '<i class="ph ph-pen-nib"></i> Solicitar Assinatura';
+
+            // Atualizar data de envio no DOM
+            const hoje = new Date().toLocaleDateString('pt-BR');
+            const docInfoDiv = btn.closest('.doc-item') && btn.closest('.doc-item').querySelector('.doc-info div');
+            if (docInfoDiv) {
+                let subInfoP = docInfoDiv.querySelector('p.subinfo-line');
+                if (!subInfoP) {
+                    subInfoP = document.createElement('p');
+                    subInfoP.className = 'subinfo-line';
+                    subInfoP.style.cssText = 'margin:2px 0 0; font-size:0.78rem;';
+                    docInfoDiv.appendChild(subInfoP);
                 }
-            }, 5000);
+                const vencSpan = subInfoP.firstElementChild;
+                const vencHtml = vencSpan ? vencSpan.outerHTML + ' <span style="color:#64748b;">|</span> ' : '';
+                subInfoP.innerHTML = vencHtml + '<span style="color:#2f9e44; font-weight:600;">Enviado: ' + hoje + '</span>';
+            }
+
+            // Atualizar icone de status para Enviado
+            const existingIcon = container ? container.querySelector('span[title]') : null;
+            if (existingIcon) {
+                existingIcon.title = 'E-mail enviado';
+                existingIcon.style.color = '#1971c2';
+                existingIcon.innerHTML = '<i class="ph ph-paper-plane-tilt" style="font-size:1.1rem;"></i> Enviado';
+            } else if (container) {
+                const icon = document.createElement('span');
+                icon.title = 'E-mail enviado';
+                icon.style.cssText = 'display:inline-flex;align-items:center;gap:3px;color:#1971c2;font-size:0.78rem;font-weight:700;white-space:nowrap;';
+                icon.innerHTML = '<i class="ph ph-paper-plane-tilt" style="font-size:1.1rem;"></i> Enviado';
+                container.appendChild(icon);
+            }
+
+            // Sincronizar em background
+            setTimeout(async () => {
+                await loadDocumentosList();
+                const activeTab = document.querySelector('#tabs-list li.active');
+                if (activeTab) renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
+            }, 2000);
+
         } else {
-            throw new Error(res.error || 'Erro na integração com Assinafy');
+            throw new Error(res.error || 'Erro na integracao com Assinafy');
         }
 
     } catch (e) {
