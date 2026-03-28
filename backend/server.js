@@ -216,7 +216,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // ROTA DE VERSÃO (Para verificar implantação)
-app.get('/api/version', (req, res) => res.json({ version: 'V30_ASSINAFY_LOGGING_FIX' }));
+app.get('/api/version', (req, res) => res.json({ version: 'V31_ASSINAFY_MULTIPART_FIX' }));
 
 /**
  * Endpoint para fazer upload direto para o Assinafy e iniciar processo de assinatura
@@ -265,22 +265,25 @@ app.post('/api/assinafy/upload', async (req, res) => {
             return res.status(404).json({ error: `Arquivo físico não encontrado no servidor: ${doc.file_path}` });
         }
 
-        // 2. Upload do arquivo para o Assinafy
+        // 2. Upload do arquivo para o Assinafy (Multipart/Form-Data)
         const fileContent = fs.readFileSync(filePath);
         const fileName = path.basename(filePath);
-        const targetUrl = `${ASSINAFY_CONFIG.baseUrl}/accounts/${ASSINAFY_CONFIG.accountId}/documents`;
         
-        console.log(`[ASSINAFY] Iniciando upload para: ${targetUrl}`);
+        const fd = new FormData();
+        const blob = new Blob([fileContent], { type: 'application/pdf' });
+        fd.append('file', blob, fileName);
+
+        const targetUrl = `${ASSINAFY_CONFIG.baseUrl}/accounts/${ASSINAFY_CONFIG.accountId}/documents`;
+        console.log(`[ASSINAFY] Iniciando upload (Multipart) para: ${targetUrl}`);
         
         const uploadRes = await fetch(targetUrl, {
             method: 'POST',
             headers: { 
                 'X-Api-Key': ASSINAFY_CONFIG.apiKey,
-                'Content-Type': 'application/pdf',
-                'User-Agent': 'AmericaRental-System/1.0',
-                'X-File-Name': fileName
+                'User-Agent': 'AmericaRental-System/1.0'
+                // Sem Content-Type manual para que o fetch gere a boundary do multipart
             },
-            body: fileContent
+            body: fd
         });
 
         const uploadData = await uploadRes.json();
