@@ -2203,9 +2203,8 @@ window.renderFaculdadeCompetencia = function() {
     docsMatch.filter(d => !required.includes(d.document_type)).forEach(d => {
         subContainer.appendChild(createDocSlot('Faculdade', d.document_type, d, `'${y}'`, `'${m}'`));
     });
-
-    // Removido o formulário dinâmico conforme solicitação
 }
+
 function createDocSlot(tabId, docType, existingDoc, year = null, month = null, blockReason = null) {
     const div = document.createElement('div');
     div.className = 'doc-item';
@@ -2214,12 +2213,16 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
     const dateStr = isSaved && existingDoc.upload_date ? new Date(existingDoc.upload_date).toLocaleDateString() : '';
     const vencStr = isSaved && existingDoc.vencimento ? ` | <b>Venc: ${new Date(existingDoc.vencimento + 'T12:00:00').toLocaleDateString()}</b>` : '';
     
+    // Limita o nome do arquivo a 40 caracteres
+    const rawFileName = isSaved ? (existingDoc.file_name || '') : '';
+    const displayFileName = rawFileName.length > 40 ? rawFileName.substring(0, 40) + '…' : rawFileName;
+
     let infoHtml = `
         <div class="doc-info ${isSaved ? 'has-file' : ''}">
             <i class="ph ${isSaved ? 'ph-check-circle' : 'ph-file-dashed'}"></i>
-            <div style="min-width:0; flex:1; overflow:hidden;">
+            <div>
                 <h4>${docType}</h4>
-                ${isSaved ? `<div style="overflow-x:auto; white-space:nowrap; max-width:220px; scrollbar-width:thin; scrollbar-color:#cbd5e0 transparent; padding-bottom:2px;"><span style="font-size:0.78rem; color:#64748b; font-family:monospace;">${existingDoc.file_name}</span></div><p style="margin:2px 0 0; font-size:0.75rem; color:#94a3b8;">(${dateStr})${vencStr}</p>` : '<p>Pendente</p>'}
+                ${isSaved ? `<p>${displayFileName} (${dateStr})${vencStr}</p>` : '<p>Pendente</p>'}
             </div>
         </div>
     `;
@@ -2231,7 +2234,6 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
 
     if (needsVencimento) {
         let existingVencimento = existingDoc && existingDoc.vencimento ? existingDoc.vencimento : '';
-        // Padrão de 1 ano para comprovante de endereço se estiver vazio
         if (!existingVencimento && docType === 'Comprovante de endereço') {
             const d = new Date();
             d.setFullYear(d.getFullYear() + 1);
@@ -2243,9 +2245,6 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                 <div style="display:flex; gap:0.25rem; align-items: center;">
                     <input type="date" id="venc-${tabId}-${safeDocType}" class="venc-input" value="${existingVencimento}" 
                            style="padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.9rem; font-family: inherit; color: var(--text-main); width: 145px; height: 42px;">
-                    <button type="button" class="btn btn-secondary btn-sm" onclick="${isSaved ? `saveVencimento(${existingDoc.id}, 'venc-${tabId}-${safeDocType}')` : `alert('Faça o upload do documento primeiro para salvar a validade permanente.')`}" title="Salvar alteração de validade" style="padding:0; width: 42px; height: 42px; justify-content: center;">
-                        <i class="ph ph-floppy-disk" style="color:var(--success-color); font-size: 1.2rem;"></i>
-                    </button>
                 </div>
             </div>
         `;
@@ -2274,26 +2273,11 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                     ${isSaved ? `
                         <div class="assinafy-integrated-container" style="display: flex; align-items: center; gap: 0.5rem;">
                             <button class="btn btn-sm btn-assinafy" style="flex:1;" onclick="window.iniciarAssinafy('${docType}', '${tabId}', this)" ${existingDoc.assinafy_status === 'Assinado' ? 'disabled' : ''}>
-                                <i class="ph ph-pen-nib"></i> ${existingDoc.assinafy_status === 'Assinado' ? 'Assinado' : 'Assinar p/ Assinafy'}
+                                <i class="ph ph-pen-nib"></i> ${existingDoc.assinafy_status === 'Assinado' ? 'Assinado' : 'Enviar para Assinafy'}
                             </button>
                             <span class="assinafy-status-badge ${existingDoc.assinafy_status?.toLowerCase().replace(/\s+/g, '-') || ''}" style="font-size:0.7rem; font-weight:700;">
                                 ${existingDoc.assinafy_status !== 'Nenhum' ? (existingDoc.assinafy_status || '').toUpperCase() : ''}
                             </span>
-                            ${existingDoc.assinafy_url ? `
-                                <div style="display: flex; flex-direction: column; gap: 0.2rem; min-width: 200px;">
-                                    <div style="display: flex; gap: 0.5rem;">
-                                        <button class="btn btn-sm" onclick="navigator.clipboard.writeText('${existingDoc.assinafy_url}'); alert('Link copiado para a área de transferência!');" title="Copiar Link" style="background:#007bff; color:white; padding: 0.3rem 0.6rem;">
-                                            <i class="ph ph-copy"></i> Copiar
-                                        </button>
-                                        <a href="https://wa.me/55${(viewedColaborador?.telefone || '').replace(/\D/g,'')}?text=${encodeURIComponent('Olá, ' + (viewedColaborador?.nome_completo || 'Colaborador') + '.\n\nSeu ' + (docType === 'ASO Admissional' ? 'Exame Admissional' : 'documento (' + docType + ')') + ' está disponível para assinatura digital.\n\nClique no link abaixo para assinar:\n' + existingDoc.assinafy_url + '\n\nAmérica Rental Equipamentos Ltda.')}" target="_blank" class="btn btn-sm" title="Enviar p/ WhatsApp" style="background:#25D366; color:white; padding: 0.3rem 0.6rem; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">
-                                            <i class="ph ph-whatsapp-logo"></i> WhatsApp
-                                        </a>
-                                    </div>
-                                    <div style="background: #f8f9fa; border: 1px dashed #ccc; padding: 4px; border-radius: 4px; margin-top: 4px;">
-                                        <code style="word-break: break-all; font-size: 0.7rem; color: #333;">${existingDoc.assinafy_url}</code>
-                                    </div>
-                                </div>
-                            ` : ''}
                         </div>
                     ` : ''}
                 </div>
