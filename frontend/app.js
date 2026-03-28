@@ -2209,20 +2209,40 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
     const div = document.createElement('div');
     div.className = 'doc-item';
     const isSaved = !!existingDoc;
-    
-    const dateStr = isSaved && existingDoc.upload_date ? new Date(existingDoc.upload_date).toLocaleDateString() : '';
-    const vencStr = isSaved && existingDoc.vencimento ? ` | <b>Venc: ${new Date(existingDoc.vencimento + 'T12:00:00').toLocaleDateString()}</b>` : '';
-    
+
     // Limita o nome do arquivo a 40 caracteres
     const rawFileName = isSaved ? (existingDoc.file_name || '') : '';
     const displayFileName = rawFileName.length > 40 ? rawFileName.substring(0, 40) + '…' : rawFileName;
+
+    // Vencimento com cor vermelha se estiver dentro de 30 dias
+    let vencInfoHtml = '';
+    if (isSaved && existingDoc.vencimento) {
+        const vencDate = new Date(existingDoc.vencimento + 'T12:00:00');
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const diasRestantes = Math.floor((vencDate - today) / (1000 * 60 * 60 * 24));
+        const vencColor = diasRestantes <= 30 ? '#e03131' : '#475569';
+        const vencFormatted = vencDate.toLocaleDateString('pt-BR');
+        vencInfoHtml += `<span style="color:${vencColor}; font-weight:600;">Venc.: ${vencFormatted}</span>`;
+    }
+
+    // Data de envio para assinatura (se existir)
+    let enviadoHtml = '';
+    if (isSaved && existingDoc.assinafy_sent_at) {
+        const enviadoDate = new Date(existingDoc.assinafy_sent_at).toLocaleDateString('pt-BR');
+        enviadoHtml = ` <span style="color:#64748b;">|</span> <span style="color:#2f9e44; font-weight:600;">Enviado: ${enviadoDate}</span>`;
+    }
+
+    const subInfoLine = (vencInfoHtml || enviadoHtml)
+        ? `<p style="margin:2px 0 0; font-size:0.78rem;">${vencInfoHtml}${enviadoHtml}</p>`
+        : '';
 
     let infoHtml = `
         <div class="doc-info ${isSaved ? 'has-file' : ''}">
             <i class="ph ${isSaved ? 'ph-check-circle' : 'ph-file-dashed'}"></i>
             <div>
                 <h4>${docType}</h4>
-                ${isSaved ? `<p>${displayFileName} (${dateStr})${vencStr}</p>` : '<p>Pendente</p>'}
+                ${isSaved ? `<p style="margin:0; font-size:0.82rem; color:#475569;">${displayFileName}</p>${subInfoLine}` : '<p>Pendente</p>'}
             </div>
         </div>
     `;
@@ -2243,12 +2263,25 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
             <div style="display: flex; flex-direction: column; gap: 0.2rem;">
                 <label style="font-size: 0.75rem; font-weight: 600; color: #64748b;">Vencimento</label>
                 <div style="display:flex; gap:0.25rem; align-items: center;">
-                    <input type="date" id="venc-${tabId}-${safeDocType}" class="venc-input" value="${existingVencimento}" 
+                    <input type="date" id="venc-${tabId}-${safeDocType}" class="venc-input" value="${existingVencimento}"
                            style="padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.9rem; font-family: inherit; color: var(--text-main); width: 145px; height: 42px;">
                 </div>
             </div>
         `;
     }
+
+    // Status Assinafy: ícone ao lado do botão
+    let assStatusIcon = '';
+    if (isSaved) {
+        const st = existingDoc.assinafy_status || '';
+        if (st === 'Assinado' || st === 'Concluido') {
+            assStatusIcon = `<span title="Assinado" style="display:inline-flex;align-items:center;gap:3px;color:#2f9e44;font-size:0.78rem;font-weight:700;white-space:nowrap;"><i class="ph ph-check-circle" style="font-size:1.1rem;"></i> Assinado</span>`;
+        } else if (st && st !== 'Nenhum') {
+            assStatusIcon = `<span title="${st}" style="display:inline-flex;align-items:center;gap:3px;color:#f59f00;font-size:0.78rem;font-weight:700;white-space:nowrap;"><i class="ph ph-hourglass" style="font-size:1.1rem;"></i> Aguardando</span>`;
+        }
+    }
+
+    const isAssinado = isSaved && (existingDoc.assinafy_status === 'Assinado' || existingDoc.assinafy_status === 'Concluido');
 
     let actionsHtml = `
         <div class="doc-actions" style="display: flex; align-items: flex-end; gap: 0.5rem;">
@@ -2269,15 +2302,13 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                             <input type="file" accept=".pdf" style="display:none;" onchange="const venc = this.closest('.doc-item').querySelector('.venc-input')?.value; if((${needsVencimento}) && !venc) { alert('Data de vencimento é obrigatória'); this.value=''; return; } uploadDocument(this, '${tabId}', '${docType}', ${year}, ${month}, venc)">
                         </label>
                     </div>
-                    
+
                     ${isSaved ? `
-                        <div class="assinafy-integrated-container" style="display: flex; align-items: center; gap: 0.5rem;">
-                            <button class="btn btn-sm btn-assinafy" style="flex:1;" onclick="window.iniciarAssinafy('${docType}', '${tabId}', this)" ${existingDoc.assinafy_status === 'Assinado' ? 'disabled' : ''}>
-                                <i class="ph ph-pen-nib"></i> ${existingDoc.assinafy_status === 'Assinado' ? 'Assinado' : 'Enviar para Assinafy'}
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <button class="btn btn-sm btn-assinafy" style="width: auto; padding: 0 0.85rem;" onclick="window.iniciarAssinafy('${docType}', '${tabId}', this)" ${isAssinado ? 'disabled' : ''}>
+                                <i class="ph ph-pen-nib"></i> Solicitar Assinatura
                             </button>
-                            <span class="assinafy-status-badge ${existingDoc.assinafy_status?.toLowerCase().replace(/\s+/g, '-') || ''}" style="font-size:0.7rem; font-weight:700;">
-                                ${existingDoc.assinafy_status !== 'Nenhum' ? (existingDoc.assinafy_status || '').toUpperCase() : ''}
-                            </span>
+                            ${assStatusIcon}
                         </div>
                     ` : ''}
                 </div>
