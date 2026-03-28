@@ -732,18 +732,13 @@ app.post('/api/upload-foto/:id', authenticateToken, uploadFoto.single('foto'), a
         const pasta = path.join(BASE_PATH, safeNome, "FOTOS");
         if (!fs.existsSync(pasta)) fs.mkdirSync(pasta, { recursive: true });
 
-        // Lógica de numeração sequencial (01, 02, 03...)
-        let index = 1;
-        let filename;
-        let filepath;
-        do {
-            const suffix = index.toString().padStart(2, '0');
-            filename = `Foto_${safeNome}_${suffix}.jpg`;
-            filepath = path.join(pasta, filename);
-            index++;
-        } while (fs.existsSync(filepath));
+        // Timestamp garante unicidade mesmo em servidores efêmeros (Render)
+        const timestamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14); // ex: 20260327230900
+        const filename = `Foto_${safeNome}_${timestamp}.jpg`;
+        const filepath = path.join(pasta, filename);
 
         const caminhoRelativo = path.posix.join('files', 'Colaboradores', safeNome, 'FOTOS', filename);
+
 
         // Processamento Automático (Sharp) - buffer reutilizado para ambos os destinos
         const processedBuffer = await sharp(req.file.buffer)
