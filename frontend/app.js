@@ -2304,7 +2304,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                     </div>
 
                     ${isSaved ? `
-                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <div class="assinafy-integrated-container" style="display: flex; align-items: center; gap: 0.5rem;">
                             <button class="btn btn-sm btn-assinafy" style="width: auto; padding: 0 0.85rem;" onclick="window.iniciarAssinafy('${docType}', '${tabId}', this)" ${isAssinado ? 'disabled' : ''}>
                                 <i class="ph ph-pen-nib"></i> Solicitar Assinatura
                             </button>
