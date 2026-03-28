@@ -760,8 +760,9 @@ app.post('/api/upload-foto/:id', authenticateToken, uploadFoto.single('foto'), a
         fs.writeFileSync(fichaFilepath, processedBuffer);
         console.log("Foto principal salva/substituída:", fichaFilepath);
 
-        // 3. Atualiza banco de dados
-        db.run("UPDATE colaboradores SET foto_path = ? WHERE id = ?", [caminhoRelativo, id]);
+        // 3. Salva base64 e caminho no banco de dados (base64 persiste entre deploys)
+        const base64Data = `data:image/jpeg;base64,${processedBuffer.toString('base64')}`;
+        db.run("UPDATE colaboradores SET foto_path = ?, foto_base64 = ? WHERE id = ?", [caminhoRelativo, base64Data, id]);
 
         // 4. Upload assíncrono para OneDrive
         if (process.env.ONEDRIVE_CLIENT_ID) {

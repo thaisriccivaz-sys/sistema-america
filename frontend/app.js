@@ -1297,7 +1297,14 @@ window.editColaborador = async function(id) {
         if (stateUploadable) stateUploadable.style.display = 'block';
         if (fotoInput) fotoInput.disabled = false;
         
-        if (c.foto_path) {
+        if (c.foto_base64) {
+            if (stateSaved) stateSaved.style.display = 'none';
+            if (fotoPreview) {
+                fotoPreview.style.display = 'block';
+                fotoPreview.src = c.foto_base64;
+            }
+        } else if (c.foto_path) {
+            // Fallback para URL do servidor (caso haja foto antiga sem base64)
             if (stateSaved) stateSaved.style.display = 'none';
             if (fotoPreview) {
                 fotoPreview.style.display = 'block';
