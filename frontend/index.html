@@ -405,8 +405,8 @@
                             <button type="button" class="btn-action btn-sm" id="btn-header-prontuario" onclick="openProntuarioFromCurrentForm()" style="display:none; background: #228be6; color: white; border-color: #1c7ed6; font-weight: 600;">
                                 <i class="ph ph-folder-open"></i> Prontuário Digital
                             </button>
-                            <!-- Botão de Sincronização OneDrive no Form (Visível apenas em Edição) -->
-                            <button type="button" class="btn-action btn-sm" id="btn-form-sync-onedrive" style="display:none; background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; font-weight: 600;" onmouseover="this.style.color='#2563eb'" onmouseout="this.style.color='#64748b'">
+                            <!-- Botão de Sincronização OneDrive no Form (Ocultado em favor da automação) -->
+                            <button type="button" class="btn-action btn-sm" id="btn-form-sync-onedrive" style="display:none !important;">
                                 <i class="ph ph-cloud-arrow-up"></i> Sync OneDrive
                             </button>
                             <button type="button" class="btn-action btn-sm btn-cancelar" onclick="resetFormColaborador(); navigateTo('colaboradores');">

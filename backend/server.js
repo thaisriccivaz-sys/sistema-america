@@ -729,7 +729,7 @@ app.post('/api/upload-foto/:id', authenticateToken, uploadFoto.single('foto'), a
         if (!nome) return res.status(400).json({ error: "Nome do colaborador não identificado." });
 
         const safeNome = formatarNome(nome);
-        const pasta = path.join(BASE_PATH, safeNome, "Fotos");
+        const pasta = path.join(BASE_PATH, safeNome, "FOTOS");
         if (!fs.existsSync(pasta)) fs.mkdirSync(pasta, { recursive: true });
 
         // Lógica de numeração sequencial (01, 02, 03...)
@@ -738,28 +738,51 @@ app.post('/api/upload-foto/:id', authenticateToken, uploadFoto.single('foto'), a
         let filepath;
         do {
             const suffix = index.toString().padStart(2, '0');
-            filename = `FOTO_${safeNome}_${suffix}.jpg`;
+            filename = `Foto_${safeNome}_${suffix}.jpg`;
             filepath = path.join(pasta, filename);
             index++;
         } while (fs.existsSync(filepath));
 
-        const caminhoRelativo = path.posix.join('files', 'Colaboradores', safeNome, 'Fotos', filename);
+        const caminhoRelativo = path.posix.join('files', 'Colaboradores', safeNome, 'FOTOS', filename);
 
-        // Processamento Automático (Sharp) - Apenas redimensionamento e recorte inteligente
-        await sharp(req.file.buffer)
+        // Processamento Automático (Sharp) - buffer reutilizado para ambos os destinos
+        const processedBuffer = await sharp(req.file.buffer)
             .resize(800, 1000, {
                 fit: sharp.fit.cover,
-                position: sharp.strategy.attention // Corta inteligentemente focando no rosto/atenção
+                position: sharp.strategy.attention
             })
             .jpeg({ quality: 95, mozjpeg: true })
-            .toFile(filepath);
+            .toBuffer();
 
-        console.log("Foto salva com padronização de tamanho em:", filepath);
+        // 1. Histórico local em FOTOS/ (numerado)
+        fs.writeFileSync(filepath, processedBuffer);
+        console.log("Foto histórico salva localmente:", filepath);
 
-        db.run(
-            "UPDATE colaboradores SET foto_path = ? WHERE id = ?",
-            [caminhoRelativo, id]
-        );
+        // 2. Foto principal (substituir) em 01_FICHA_CADASTRAL/
+        const pastaFicha = path.join(BASE_PATH, safeNome, "01_FICHA_CADASTRAL");
+        if (!fs.existsSync(pastaFicha)) fs.mkdirSync(pastaFicha, { recursive: true });
+        const fichaFilepath = path.join(pastaFicha, `Foto_${safeNome}.jpg`);
+        fs.writeFileSync(fichaFilepath, processedBuffer);
+        console.log("Foto principal salva/substituída:", fichaFilepath);
+
+        // 3. Atualiza banco de dados
+        db.run("UPDATE colaboradores SET foto_path = ? WHERE id = ?", [caminhoRelativo, id]);
+
+        // 4. Upload assíncrono para OneDrive
+        if (process.env.ONEDRIVE_CLIENT_ID) {
+            (async () => {
+                try {
+                    const onedriveBase = `RH/1.Colaboradores/Sistema/${safeNome}`;
+                    await onedrive.ensureFolder(`${onedriveBase}/01_FICHA_CADASTRAL`);
+                    await onedrive.uploadToOneDrive(`${onedriveBase}/01_FICHA_CADASTRAL`, `Foto_${safeNome}.jpg`, processedBuffer);
+                    await onedrive.ensureFolder(`${onedriveBase}/FOTOS`);
+                    await onedrive.uploadToOneDrive(`${onedriveBase}/FOTOS`, filename, processedBuffer);
+                    console.log(`[OneDrive] Foto sincronizada: ${filename} e Foto_${safeNome}.jpg`);
+                } catch (syncErr) {
+                    console.error("[OneDrive] Erro ao sincronizar foto:", syncErr.message);
+                }
+            })();
+        }
 
         res.json({ sucesso: true, caminho: caminhoRelativo });
     } catch (erro) {
