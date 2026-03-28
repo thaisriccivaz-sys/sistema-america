@@ -1604,15 +1604,13 @@ app.post('/api/documentos/:id/sync-assinafy', authenticateToken, async (req, res
         if (!doc) return res.status(404).json({ error: 'Documento não encontrado.' });
         if (!doc.assinafy_id) return res.status(400).json({ error: 'Documento não foi enviado ao Assinafy.' });
 
-        const { ASSINAFY_API_KEY, getAssinafyApiUrl } = require('./novo_processo_assinafy.js');
-
         const https = require('https');
         const fetchStatus = () => new Promise((resolve, reject) => {
-            const reqUrl = `${getAssinafyApiUrl()}/documents/${doc.assinafy_id}`;
+            const reqUrl = `https://api.assinafy.com.br/v1/documents/${doc.assinafy_id}`;
             const options = {
                 method: 'GET',
                 headers: {
-                    'X-Api-Key': ASSINAFY_API_KEY,
+                    'X-Api-Key': 'AxaT-FiXBckHqEYV0s_MtUhLF3pReRz3dX4zVpC173vmjDwzLGHYtDJuQje4-4Pd',
                     'Accept': 'application/json'
                 }
             };
