@@ -2808,11 +2808,13 @@ window.previewFoto = function(input) {
             .then(res => res.json())
             .then(data => {
                 if (data.sucesso) {
-                    // Atualiza src sem ser pego no Cache
+                    // A pré-visualização base64 já está correta no círculo.
+                    // Não substituímos src por URL do servidor (efêmero no Render).
+                    // Apenas garantimos que a foto seja visível após o upload.
                     const preview = document.getElementById('colab-foto-preview');
-                    if(preview && data.caminho) {
-                        preview.src = `${API_URL.replace('/api', '')}/${data.caminho}?t=${Date.now()}`;
-                    }
+                    const stateSaved = document.getElementById('photo-state-saved');
+                    if (preview) preview.style.display = 'block';
+                    if (stateSaved) stateSaved.style.display = 'none';
                 }
             })
             .catch(err => console.error("Erro no auto-upload de foto:", err));
