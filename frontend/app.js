@@ -3671,6 +3671,7 @@ window.sendAssinafyWhatsApp = async function(tipo, suffix) {
 
 window.currentActiveAdmissaoStep = 1;
 window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll = false) {
+    console.log(`[Admissao] Iniciando workflow para ID: ${id}, targetStep: ${targetStep}`);
     if (!id) {
         window.resetAdmissao();
         return;
@@ -3679,11 +3680,14 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
     try {
         const colab = await apiGet(`/colaboradores/${id}`);
         viewedColaborador = colab;
+        console.log(`[Admissao] Dados do colaborador carregados:`, colab.nome_completo, "Status:", colab.status);
         
         if (!preventScroll) {
             // Esconder tudo primeiro
-            document.getElementById('admissao-start-action').style.display = 'none';
-            document.getElementById('admissao-workflow').style.display = 'none';
+            const startAction = document.getElementById('admissao-start-action');
+            const workflow = document.getElementById('admissao-workflow');
+            if (startAction) startAction.style.display = 'none';
+            if (workflow) workflow.style.display = 'none';
         }
 
         if (colab.status === 'Aguardando início') {
@@ -3876,17 +3880,28 @@ function renderAdmissaoStep3(colab, docs) {
 
 
 window.startFinalAdmission = async function() {
-    if (!viewedColaborador) return;
+    console.log("[Admissao] Botão 'Iniciar' clicado. viewedColaborador:", viewedColaborador);
+    if (!viewedColaborador) {
+        alert("Erro: Nenhum colaborador selecionado.");
+        return;
+    }
     
     try {
-        await apiPut(`/colaboradores/${viewedColaborador.id}`, {
+        const res = await apiPut(`/colaboradores/${viewedColaborador.id}`, {
             ...viewedColaborador,
             status: 'Processo iniciado'
         });
+        console.log("[Admissao] Status atualizado no servidor:", res);
+        
+        // Atualiza estado local imediatamente
+        viewedColaborador.status = 'Processo iniciado';
         
         // Recarrega workflow para mostrar panes
         window.initAdmissaoWorkflow(viewedColaborador.id);
-    } catch (e) { alert('Erro ao iniciar processo: ' + e.message); }
+    } catch (e) { 
+        console.error("[Admissao] Erro ao iniciar:", e);
+        alert('Erro ao iniciar processo: ' + e.message); 
+    }
 };
 
 window.nextAdmissaoStep = function(step, preventScroll = false) {
