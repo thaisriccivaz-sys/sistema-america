@@ -68,13 +68,18 @@ async function syncColaboradorOneDrive(nomeCompleto) {
     const onedrivePath = `${onedriveBasePath}/${nomePasta}`;
     
     // DISPARAR TUDO EM MODO SEGUNDO PLANO (Zero Wait)
-    console.log(`[OneDrive V21] Modo SharePoint ativo para ${nomeCompleto}. Alvo: ${onedriveBasePath}`);
+    console.log(`[OneDrive V22] Modo SharePoint ativo para ${nomeCompleto}. Alvo: ${onedriveBasePath}`);
 
     (async () => {
         try {
             console.log(`[OneDrive Background] Sincronizando ${nomeCompleto}...`);
             await onedrive.ensurePath(onedrivePath);
             await Promise.all(FOLDERS.map(f => onedrive.ensureFolder(`${onedrivePath}/${f}`)));
+            
+            // Força o OneDrive a sincronizar a pasta em todos os computadores rapidamente
+            console.log(`[OneDrive Background] Criando arquivo de inicialização para forçar sincronia...`);
+            await onedrive.uploadToOneDrive(onedrivePath, '_Sincronizado.txt', Buffer.from(`Pasta criada e sincronizada via Sistema América.\nColaborador: ${nomeCompleto}\nData: ${new Date().toLocaleString()}`, 'utf-8'));
+            
             console.log(`[OneDrive Background] SUCESSO COMPLETO para ${nomeCompleto}`);
         } catch (e) {
             console.error(`[OneDrive Background Error] ${nomeCompleto}:`, e.message);
@@ -85,7 +90,7 @@ async function syncColaboradorOneDrive(nomeCompleto) {
         sucesso: true, 
         message: "Comando enviado à Microsoft! As pastas serão criadas em segundo plano. Verifique o seu OneDrive em alguns instantes.",
         caminho: onedrivePath,
-        versao: "V21_SHAREPOINT_MODE" 
+        versao: "V22_FILE_SYNC" 
     };
 }
 
@@ -649,7 +654,7 @@ app.post('/api/colaboradores/:id/sync-onedrive', authenticateToken, async (req, 
                     sucesso: true, 
                     message: "Pastas básicas criadas! (Subpastas seguem em background)", 
                     path: result.caminho, 
-                    versao: "V21_SHAREPOINT_MODE",
+                    versao: "V22_FILE_SYNC",
                     basePath: result.basePath
                 });
             } catch (e) {
