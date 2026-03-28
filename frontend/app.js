@@ -177,7 +177,8 @@ function setupNavigation() {
 async function apiGet(endpoint) {
     try {
         const res = await fetch(`${API_URL}${endpoint}`, {
-            headers: { 'Authorization': `Bearer ${currentToken}` }
+            headers: { 'Authorization': `Bearer ${currentToken}` },
+            cache: 'no-store'
         });
         if (!res.ok) throw new Error('Falha na requisição');
         return res.json();
