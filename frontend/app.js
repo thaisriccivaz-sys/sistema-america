@@ -3656,7 +3656,6 @@ window.sendAssinafyWhatsApp = async function(tipo, suffix) {
     const dbField = suffix === 1 ? 'aso_assinafy_link' : 'aso_exames_assinafy_link';
     try {
         await apiPut(`/colaboradores/${viewedColaborador.id}`, {
-            ...viewedColaborador,
             [dbField]: linkAssinafy
         });
         viewedColaborador[dbField] = linkAssinafy;
@@ -3888,7 +3887,6 @@ window.startFinalAdmission = async function() {
     
     try {
         const res = await apiPut(`/colaboradores/${viewedColaborador.id}`, {
-            ...viewedColaborador,
             status: 'Processo iniciado'
         });
         console.log("[Admissao] Status atualizado no servidor:", res);
@@ -4297,7 +4295,6 @@ window.finalizarAdmissao = async function() {
     try {
         // Atualizar status para Ativo
         await apiPut(`/colaboradores/${viewedColaborador.id}`, {
-            ...viewedColaborador,
             status: 'Ativo'
         });
         
