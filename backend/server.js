@@ -66,31 +66,30 @@ async function syncColaboradorOneDrive(nomeCompleto) {
     // V21: Usando ID do SharePoint diretamente. O Drive ID já é a pasta 'Documentos - America Rental'.
     const onedriveBasePath = "RH/1.Colaboradores/Sistema";
     const onedrivePath = `${onedriveBasePath}/${nomePasta}`;
-    
-    // DISPARAR TUDO EM MODO SEGUNDO PLANO (Zero Wait)
-    console.log(`[OneDrive V23] Modo SharePoint ativo para ${nomeCompleto}. Alvo: ${onedriveBasePath}`);
+    // DISPARAR MODO SINCRONO (O Render irá aguardar para não congelar o processo)
+    console.log(`[OneDrive V24] Modo SharePoint ativo para ${nomeCompleto}. Alvo: ${onedriveBasePath}`);
 
-    (async () => {
-        try {
-            console.log(`[OneDrive Background] Sincronizando ${nomeCompleto}...`);
-            await onedrive.ensurePath(onedrivePath);
-            await Promise.all(FOLDERS.map(f => onedrive.ensureFolder(`${onedrivePath}/${f}`)));
-            
-            // Força o OneDrive a sincronizar a pasta em todos os computadores rapidamente
-            console.log(`[OneDrive Background] Criando arquivo de inicialização para forçar sincronia...`);
-            await onedrive.uploadToOneDrive(onedrivePath, '_Sincronizado.txt', Buffer.from(`Pasta criada e sincronizada via Sistema América.\nColaborador: ${nomeCompleto}\nData: ${new Date().toLocaleString()}`, 'utf-8'));
-            
-            console.log(`[OneDrive Background] SUCESSO COMPLETO para ${nomeCompleto}`);
-        } catch (e) {
-            console.error(`[OneDrive Background Error] ${nomeCompleto}:`, e.message);
-        }
-    })();
+    let msgRetorno = "Pastas do SharePoint criadas com sucesso!";
+    try {
+        console.log(`[OneDrive API] Sincronizando ${nomeCompleto}...`);
+        await onedrive.ensurePath(onedrivePath);
+        await Promise.all(FOLDERS.map(f => onedrive.ensureFolder(`${onedrivePath}/${f}`)));
+        
+        // Força o OneDrive a sincronizar a pasta em todos os computadores rapidamente
+        console.log(`[OneDrive API] Criando arquivo de inicialização para forçar sincronia...`);
+        await onedrive.uploadToOneDrive(onedrivePath, '_Sincronizado.txt', Buffer.from(`Pasta criada e sincronizada via Sistema América.\nColaborador: ${nomeCompleto}\nData: ${new Date().toLocaleString()}`, 'utf-8'));
+        
+        console.log(`[OneDrive API] SUCESSO COMPLETO para ${nomeCompleto}`);
+    } catch (e) {
+        console.error(`[OneDrive API Error] ${nomeCompleto}:`, e.message);
+        msgRetorno = "Atenção: A sincronização no OneDrive falhou, mas os dados foram salvos.";
+    }
 
     return { 
         sucesso: true, 
-        message: "Comando enviado à Microsoft! As pastas serão criadas em segundo plano. Verifique o seu OneDrive em alguns instantes.",
+        message: msgRetorno,
         caminho: onedrivePath,
-        versao: "V23_CORRECT_SITE" 
+        versao: "V24_AUTO_SYNC" 
     };
 }
 
@@ -339,7 +338,6 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
     const nomePasta = formatarNome(nomeOriginal);
     const pastaColaborador = path.join(BASE_PATH, nomePasta);
     
-    // Criar pastas independemente do status para garantir que a estrutura exista
     try {
         if (!fs.existsSync(pastaColaborador)) {
             fs.mkdirSync(pastaColaborador, { recursive: true });
@@ -348,13 +346,11 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
                 if (!fs.existsSync(subPath)) fs.mkdirSync(subPath, { recursive: true });
             });
         }
-        
-        // Ativar sincronização OneDrive em segundo plano
-        syncColaboradorOneDrive(nomeOriginal).catch(e => console.error("Erro async OneDrive:", e.message));
-
     } catch (erro) {
         console.error("ERRO AO CRIAR PASTAS LOCAIS:", erro);
     }
+    
+    // (A Sincronização foi movida para o final do processo, após salvar no banco)
 
     const colunas = [
         'nome_completo', 'cpf', 'rg', 'data_nascimento', 'estado_civil', 'nacionalidade',
@@ -388,7 +384,7 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
 
     const query = `INSERT INTO colaboradores (${colunas.join(', ')}) VALUES (${Array(colunas.length).fill('?').join(', ')})`;
 
-    db.run(query, values, function(err) {
+    db.run(query, values, async function(err) {
         if (err) {
             console.error("ERRO AO SALVAR:", err);
             const msg = err.message.includes("UNIQUE constraint failed") ? "Este CPF já está cadastrado." : err.message;
@@ -410,6 +406,13 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
                 db.run("INSERT INTO dependentes (colaborador_id, nome, cpf, data_nascimento, grau_parentesco) VALUES (?, ?, ?, ?, ?)", 
                     [newColabId, dep.nome, dep.cpf, dep.data_nascimento, dep.grau_parentesco]);
             });
+        }
+        
+        // AGUARDAR SINCRONIZAÇÃO AQUI ANTES DE RETORNAR A RESPOSTA
+        try {
+            await syncColaboradorOneDrive(nomeOriginal);
+        } catch (e) {
+            console.error("Erro no OneDrive Sync:", e.message);
         }
 
         res.status(201).json({ id: newColabId, sucesso: true });
@@ -593,7 +596,7 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
         const oldSafeName = formatarNome(oldName);
         const newSafeName = formatarNome(newName);
 
-        db.run(query, values, function(updateErr) {
+        db.run(query, values, async function(updateErr) {
             if (updateErr) return res.status(400).json({ error: updateErr.message });
             
             const newDir = path.join(BASE_PATH, newSafeName);
@@ -620,8 +623,7 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
                     });
                 } catch (erro) { console.error("ERRO AO GARANTIR PASTAS NO PUT:", erro); }
                 
-                // Sincronizar com OneDrive em segundo plano
-                syncColaboradorOneDrive(newName).catch(e => console.error("Erro sync update OneDrive:", e.message));
+                // (Movidopara o final do fluxo PUT)
             }
 
             // Atualizar chaves
@@ -643,6 +645,13 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
                     });
                 }
             });
+            
+            // AGUARDAR SINCRONIZAÇÃO AQUI ANTES DE RETORNAR A RESPOSTA
+            if (data.status !== 'Incompleto') {
+                try {
+                    await syncColaboradorOneDrive(newName);
+                } catch(e) { console.error("Erro no OneDrive Sync PUT:", e.message); }
+            }
 
             res.json({ message: 'Colaborador atualizado com sucesso' });
         });
@@ -665,7 +674,7 @@ app.post('/api/colaboradores/:id/sync-onedrive', authenticateToken, async (req, 
                     sucesso: true, 
                     message: "Pastas básicas criadas! (Subpastas seguem em background)", 
                     path: result.caminho, 
-                    versao: "V23_CORRECT_SITE",
+                    versao: "V24_AUTO_SYNC",
                     basePath: result.basePath
                 });
             } catch (e) {
