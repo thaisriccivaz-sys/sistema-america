@@ -4530,14 +4530,12 @@ window.syncAssinafyStatus = async function(docId, btn) {
         const data = await res.json();
         
         if (res.ok && data.sucesso) {
-            // Se o status mudou para Assinado localmente
             if (data.status_novo === 'Assinado' && data.status_antigo !== 'Assinado') {
                 alert('O documento foi assinado! Atualizando a tela...');
             } else {
-                console.log(`[SYNC ASSINAFY] doc ${docId} continua ${data.status_novo}`);
+                alert(`O status no Assinafy atual é: "${data.status_assinafy}". Se deveria estar Assinado, precisamos mapear essa palavra. A API deles retornou:\n\n${JSON.stringify(data.raw).substring(0, 150)}`);
             }
             
-            // Recarrega a view para refletir estado (ou renderiza a aba de novo)
             await loadDocumentosList();
             const activeTab = document.querySelector('#tabs-list li.active');
             if (activeTab) renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);

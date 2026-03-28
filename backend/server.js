@@ -1643,7 +1643,7 @@ app.post('/api/documentos/:id/sync-assinafy', authenticateToken, async (req, res
             newStatus = 'Erro';
         }
 
-        // Se for assinado, pega o link e baixa se não tiver path ainda
+        // Se assinado, pega o link e baixa se não tiver path ainda
         let signedUrl = documentData.signed_file_url || documentData.download_url;
         
         if (newStatus === 'Assinado' && signedUrl) {
@@ -1679,7 +1679,7 @@ app.post('/api/documentos/:id/sync-assinafy', authenticateToken, async (req, res
             }
         }
 
-        res.json({ sucesso: true, assinafy_id: doc.assinafy_id, status_antigo: doc.assinafy_status, status_novo: newStatus });
+        res.json({ sucesso: true, assinafy_id: doc.assinafy_id, status_antigo: doc.assinafy_status, status_novo: newStatus, status_assinafy: pStatus, raw: documentData });
     } catch (error) {
         console.error('Erro na sincronizacao manual Assinafy:', error);
         res.status(500).json({ error: error.message });
