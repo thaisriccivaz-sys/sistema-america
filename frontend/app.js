@@ -1713,8 +1713,10 @@ window.openProntuario = async function(id, nome, cargo, cpf, sexo = '', admissao
     const fotoImg = document.getElementById('prontuario-foto-img');
     const fotoPlaceholder = document.getElementById('prontuario-photo-placeholder');
     if (fotoImg && fotoPlaceholder) {
-        if (viewedColaborador.foto_path) {
-            fotoImg.src = `${API_URL.replace('/api', '')}/${viewedColaborador.foto_path}?t=${Date.now()}`;
+        const fotoSrc = viewedColaborador.foto_base64 || 
+            (viewedColaborador.foto_path ? `${API_URL.replace('/api', '')}/${viewedColaborador.foto_path}?t=${Date.now()}` : null);
+        if (fotoSrc) {
+            fotoImg.src = fotoSrc;
             fotoImg.style.display = 'block';
             fotoPlaceholder.style.display = 'none';
         } else {
