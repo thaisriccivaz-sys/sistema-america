@@ -1418,6 +1418,8 @@ app.post('/api/assinafy/upload', async (req, res) => {
     }
 
     try {
+        console.log(`[ASSINAFY] Iniciando upload. DocID: ${document_id}, ColabID: ${colaborador_id}`);
+        
         // 1. Buscar dados do documento e colaborador no nosso banco
         const doc = await new Promise((resolve, reject) => {
             db.get('SELECT * FROM documentos WHERE id = ?', [document_id], (err, row) => {
@@ -1431,10 +1433,16 @@ app.post('/api/assinafy/upload', async (req, res) => {
             });
         });
 
-        if (!doc || !colab) throw new Error('Documento ou Colaborador não encontrado.');
+        if (!doc) throw new Error(`Documento ID ${document_id} não encontrado no banco.`);
+        if (!colab) throw new Error(`Colaborador ID ${colaborador_id} não encontrado no banco.`);
         
+        console.log(`[ASSINAFY] Documento encontrado: ${doc.file_name}. Caminho: ${doc.file_path}`);
+
         const filePath = path.resolve(doc.file_path);
-        if (!fs.existsSync(filePath)) throw new Error('Arquivo não encontrado no servidor.');
+        if (!fs.existsSync(filePath)) {
+            console.error(`[ASSINAFY] Arquivo físico não existe: ${filePath}`);
+            throw new Error(`Arquivo físico não encontrado no servidor: ${doc.file_path}`);
+        }
 
         // 2. Upload do arquivo para o Assinafy
         const fileContent = fs.readFileSync(filePath);
@@ -1444,14 +1452,21 @@ app.post('/api/assinafy/upload', async (req, res) => {
         const blob = new Blob([fileContent], { type: 'application/pdf' });
         formData.append('file', blob, fileName);
 
-        const uploadRes = await fetch(`${ASSINAFY_CONFIG.baseUrl}/accounts/${ASSINAFY_CONFIG.accountId}/documents`, {
+        const targetUrl = `${ASSINAFY_CONFIG.baseUrl}/accounts/${ASSINAFY_CONFIG.accountId}/documents`;
+        console.log(`[ASSINAFY] Fazendo POST para: ${targetUrl}`);
+
+        const uploadRes = await fetch(targetUrl, {
             method: 'POST',
             headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey },
             body: formData
         });
 
         const uploadData = await uploadRes.json();
-        if (!uploadRes.ok) throw new Error(uploadData.message || 'Erro no upload para Assinafy');
+        console.log(`[ASSINAFY] Resposta do Upload (Status ${uploadRes.status}):`, JSON.stringify(uploadData));
+
+        if (!uploadRes.ok) {
+            throw new Error(uploadData.message || `Erro no upload: Status ${uploadRes.status}`);
+        }
         
         const assinafyDocId = uploadData.data ? uploadData.data.id : uploadData.id;
 
