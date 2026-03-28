@@ -218,7 +218,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // ROTA DE VERSÃO (Para verificar implantação)
-app.get('/api/version', (req, res) => res.json({ version: 'V34_ASSINAFY_CORRECT_ENDPOINTS' }));
+app.get('/api/version', (req, res) => res.json({ version: 'V35_ASSINAFY_POLL_STATUS' }));
 
 /**
  * Endpoint para fazer upload direto para o Assinafy e iniciar processo de assinatura
