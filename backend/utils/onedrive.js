@@ -14,8 +14,8 @@ const config = {
 const cca = new msal.ConfidentialClientApplication(config);
 const CLIENT_ID = process.env.ONEDRIVE_CLIENT_ID;
 const USER_ID = process.env.ONEDRIVE_USER_EMAIL;
-// O Drive ID correto da pasta "Documentos - America Rental" no SharePoint
-const DRIVE_ID = "b!giGJ-6SQo0q01aZkBQjqEzgftfBe2OJGpvVeTh2YrbQTUqm85gobSoh8CtELSzAF"; 
+// O Drive ID correto da pasta "Documentos - America Rental" no SharePoint (Site AmericaRental)
+const DRIVE_ID = "b!Be9k6f_8_kmsGL8Mnu39wfJym1DJsPBBlDmJk3t4OhKZcofnrz5mTrfXg4xZqnTF"; 
 const ONEDRIVE_FIXED_BASE = "RH/1.Colaboradores/Sistema";
 
 /**

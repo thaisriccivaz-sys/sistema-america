@@ -68,7 +68,7 @@ async function syncColaboradorOneDrive(nomeCompleto) {
     const onedrivePath = `${onedriveBasePath}/${nomePasta}`;
     
     // DISPARAR TUDO EM MODO SEGUNDO PLANO (Zero Wait)
-    console.log(`[OneDrive V22] Modo SharePoint ativo para ${nomeCompleto}. Alvo: ${onedriveBasePath}`);
+    console.log(`[OneDrive V23] Modo SharePoint ativo para ${nomeCompleto}. Alvo: ${onedriveBasePath}`);
 
     (async () => {
         try {
@@ -90,7 +90,7 @@ async function syncColaboradorOneDrive(nomeCompleto) {
         sucesso: true, 
         message: "Comando enviado à Microsoft! As pastas serão criadas em segundo plano. Verifique o seu OneDrive em alguns instantes.",
         caminho: onedrivePath,
-        versao: "V22_FILE_SYNC" 
+        versao: "V23_CORRECT_SITE" 
     };
 }
 
@@ -665,7 +665,7 @@ app.post('/api/colaboradores/:id/sync-onedrive', authenticateToken, async (req, 
                     sucesso: true, 
                     message: "Pastas básicas criadas! (Subpastas seguem em background)", 
                     path: result.caminho, 
-                    versao: "V22_FILE_SYNC",
+                    versao: "V23_CORRECT_SITE",
                     basePath: result.basePath
                 });
             } catch (e) {
