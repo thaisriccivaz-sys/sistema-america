@@ -200,10 +200,12 @@ async function enviarDocumentoParaAssinafy(documentId, colaboradorId) {
 
     if (!signerId) throw new Error('ID do signatário não obtido.');
 
-    // 5. Criar assignment — ENDPOINT CONFIRMADO: /v1/documents/{docId}/assignments (SEM /accounts/)
-    console.log(`[5] Criando assignment doc=${assinafyDocId} signer=${signerId}...`);
+    // 5. Criar o Assignment (Assinador do Documento com E-mail Automático)
+    console.log(`[5] Criando assignment para o documento...`);
     const assignRes = await req('POST', `/v1/documents/${assinafyDocId}/assignments`, {
-        signers: [{ id: signerId, role: 'signer', notification_methods: ['Email', 'WhatsApp'] }],
+        signers: [
+            { id: signerId, role: 'signer', notification_methods: ['Email'] }
+        ],
         method: 'virtual'
     });
 
