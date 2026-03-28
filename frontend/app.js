@@ -2271,24 +2271,17 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
     }
 
     // Status Assinafy: ícone ao lado do botão
-    // Pendente sem sent_at = ⏳ Aguardando | Pendente com sent_at = ✈️ Enviado
-    // Assinado = botão verde Baixar Assinado | Erro = ❌ Erro
     let assStatusIcon = '';
     if (isSaved) {
         const st = existingDoc.assinafy_status || '';
-        const enviado = !!existingDoc.assinafy_sent_at;
-        if (st === 'Assinado') {
-            assStatusIcon = `<button onclick="window.downloadAssinado(${existingDoc.id})" style="display:inline-flex;align-items:center;gap:5px;background:#2f9e44;color:#fff;border:none;border-radius:6px;padding:0.3rem 0.75rem;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;" title="Baixar PDF Assinado"><i class="ph ph-download-simple" style="font-size:1rem;"></i> Baixar Assinado</button>`;
-        } else if (st === 'Erro') {
-            assStatusIcon = `<span title="Erro" style="display:inline-flex;align-items:center;gap:3px;color:#e03131;font-size:0.78rem;font-weight:700;white-space:nowrap;"><i class="ph ph-warning-circle" style="font-size:1.1rem;"></i> Erro</span>`;
-        } else if (st === 'Pendente' && enviado) {
-            assStatusIcon = `<span title="E-mail enviado" style="display:inline-flex;align-items:center;gap:3px;color:#1971c2;font-size:0.78rem;font-weight:700;white-space:nowrap;"><i class="ph ph-paper-plane-tilt" style="font-size:1.1rem;"></i> Enviado</span>`;
+        if (st === 'Assinado' || st === 'Concluido') {
+            assStatusIcon = `<span title="Assinado" style="display:inline-flex;align-items:center;gap:3px;color:#2f9e44;font-size:0.78rem;font-weight:700;white-space:nowrap;"><i class="ph ph-check-circle" style="font-size:1.1rem;"></i> Assinado</span>`;
         } else if (st && st !== 'Nenhum') {
             assStatusIcon = `<span title="${st}" style="display:inline-flex;align-items:center;gap:3px;color:#f59f00;font-size:0.78rem;font-weight:700;white-space:nowrap;"><i class="ph ph-hourglass" style="font-size:1.1rem;"></i> Aguardando</span>`;
         }
     }
 
-    const isAssinado = isSaved && existingDoc.assinafy_status === 'Assinado';
+    const isAssinado = isSaved && (existingDoc.assinafy_status === 'Assinado' || existingDoc.assinafy_status === 'Concluido');
 
     let actionsHtml = `
         <div class="doc-actions" style="display: flex; align-items: flex-end; gap: 0.5rem;">
@@ -2311,7 +2304,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                     </div>
 
                     ${isSaved ? `
-                        <div class="assinafy-integrated-container" style="display: flex; align-items: center; gap: 0.5rem;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
                             <button class="btn btn-sm btn-assinafy" style="width: auto; padding: 0 0.85rem;" onclick="window.iniciarAssinafy('${docType}', '${tabId}', this)" ${isAssinado ? 'disabled' : ''}>
                                 <i class="ph ph-pen-nib"></i> Solicitar Assinatura
                             </button>
@@ -2682,7 +2675,6 @@ window.renderPagamentosCompetencia = function() {
     });
 };
 
-
 window.uploadDocument = async function(inputEl, tabId, docType, year = null, month = null, vencimento = null) {
     const file = inputEl.files[0];
     if (!file) return;
@@ -2699,24 +2691,16 @@ window.uploadDocument = async function(inputEl, tabId, docType, year = null, mon
         return;
     }
 
-    // Feedback visual imediato: spinner no botão de upload
-    const labelBtn = inputEl.closest('label');
-    const originalLabelHtml = labelBtn ? labelBtn.innerHTML : '';
-    if (labelBtn) {
-        labelBtn.style.pointerEvents = 'none';
-        labelBtn.style.opacity = '0.7';
-        labelBtn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando...';
-    }
-
     const formData = new FormData();
     formData.append('colaborador_id', viewedColaborador.id);
     formData.append('colaborador_nome', viewedColaborador.nome_completo || 'Desconhecido');
     formData.append('tab_name', tabId);
     formData.append('document_type', docType);
-
+    
+    // Tratando o ano e o mês que podem vir do createDocSlot com aspas simples ex: "'2026'"
     const cleanYear = year ? String(year).replace(/'/g, '').trim() : '';
     const cleanMonth = month ? String(month).replace(/'/g, '').trim() : '';
-
+    
     if(cleanYear && cleanYear !== 'null' && cleanYear !== 'undefined') formData.append('year', cleanYear);
     if(cleanMonth && cleanMonth !== 'null' && cleanMonth !== 'undefined') formData.append('month', cleanMonth);
     if(vencimento) formData.append('vencimento', vencimento);
@@ -2729,55 +2713,26 @@ window.uploadDocument = async function(inputEl, tabId, docType, year = null, mon
             body: formData
         });
         if(res.ok) {
-            const newDoc = await res.json();
+            await loadDocumentosList();
+            
+            const viewAdm = document.getElementById('view-admissao');
+            const viewPront = document.getElementById('view-prontuario');
+            const isAdmActive = viewAdm && viewAdm.classList.contains('active');
+            const isProntActive = viewPront && viewPront.classList.contains('active');
 
-            // Atualização otimista imediata: substitui o doc-item no DOM sem esperar loadDocumentosList
-            const docItem = inputEl.closest('.doc-item');
-            if (docItem && newDoc && newDoc.id) {
-                const fakeDoc = {
-                    id: newDoc.id,
-                    file_name: file.name,
-                    upload_date: new Date().toISOString(),
-                    vencimento: vencimento || null,
-                    assinafy_status: 'Nenhum',
-                    assinafy_sent_at: null,
-                    tab_name: tabId,
-                    document_type: docType
-                };
-                const newSlot = createDocSlot(tabId, docType, fakeDoc, year, month);
-                docItem.replaceWith(newSlot);
-            }
-
-            // Sincronizar banco em background (sem bloquear a UI)
-            loadDocumentosList().then(() => {
-                const viewAdm = document.getElementById('view-admissao');
-                const viewPront = document.getElementById('view-prontuario');
-                const isAdmActive = viewAdm && viewAdm.classList.contains('active');
-                const isProntActive = viewPront && viewPront.classList.contains('active');
-
-                if (isAdmActive && viewedColaborador) {
-                    updateAdmissaoStepPercentages();
-                    initAdmissaoWorkflow(viewedColaborador.id, window.currentActiveAdmissaoStep, true);
-                } else if (isProntActive) {
-                    const activeTab = document.querySelector('#tabs-list li.active');
-                    if(activeTab) renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
+            if (isAdmActive && viewedColaborador) {
+                updateAdmissaoStepPercentages();
+                initAdmissaoWorkflow(viewedColaborador.id, window.currentActiveAdmissaoStep, true);
+            } else if (isProntActive) {
+                const activeTab = document.querySelector('#tabs-list li.active');
+                if(activeTab) {
+                    renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
                 }
-            });
-        } else {
-            if (labelBtn) {
-                labelBtn.innerHTML = originalLabelHtml;
-                labelBtn.style.pointerEvents = '';
-                labelBtn.style.opacity = '';
             }
+        } else {
             alert('Erro no upload.');
         }
-    } catch(e) {
-        if (labelBtn) {
-            labelBtn.innerHTML = originalLabelHtml;
-            labelBtn.style.pointerEvents = '';
-            labelBtn.style.opacity = '';
-        }
-        console.error(e);
+    } catch(e) { console.error(e); }
 }
 
 window.uploadDynamicDocument = function(inputEl, tabId) {
@@ -2841,19 +2796,18 @@ window.deleteDoc = async function(docId, btnEl) {
 }
 
 window.viewDoc = async function(docId) {
-    const viewUrl     = `${API_URL}/documentos/view/${docId}?token=${currentToken}`;
-    const downloadUrl = `${API_URL}/documentos/download/${docId}?token=${currentToken}`;
+    const url = `${API_URL}/documentos/download/${docId}?token=${currentToken}`;
 
     const modalBody = document.getElementById('modal-doc-body');
     if (modalBody) {
-        modalBody.innerHTML = `<iframe src="${viewUrl}" style="width:100%; height:100%; border:none; display:block;"></iframe>`;
+        modalBody.innerHTML = `<iframe src="${url}" style="width:100%; height:100%; border:none; display:block;"></iframe>`;
     }
 
     const btnDownload = document.getElementById('btn-download-doc');
     if (btnDownload) {
         btnDownload.onclick = () => {
             const a = document.createElement('a');
-            a.href = downloadUrl;
+            a.href = url;
             a.download = '';
             a.click();
         };
@@ -2863,27 +2817,7 @@ window.viewDoc = async function(docId) {
     if (modal) modal.style.display = 'flex';
 }
 
-window.downloadAssinado = async function(docId) {
-    const url = `${API_URL}/documentos/download-assinado/${docId}?token=${currentToken}`;
-    try {
-        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${currentToken}` } });
-        if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            alert(err.error || 'PDF assinado ainda não disponível. O Assinafy pode levar alguns minutos para processar. Tente novamente em instantes.');
-            return;
-        }
-        const blob = await res.blob();
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `ASSINADO_documento_${docId}.pdf`;
-        a.click();
-        URL.revokeObjectURL(a.href);
-    } catch(e) {
-        alert('Erro ao baixar o PDF assinado: ' + e.message);
-    }
-}
-
-
+// Custom UI Interactions and Helpers
 function getEffectiveStatus(c) {
     if (!c) return 'Ativo';
     let status = c.status || 'Ativo';
@@ -4435,70 +4369,59 @@ window.iniciarAssinafy = async function(docType, tabName, btn) {
     if (!viewedColaborador) return;
 
     const colabId = viewedColaborador.id;
+    
+    try {
+        // RECARREGAR DADOS DO COLABORADOR (Garante que pegamos o e-mail mais recente)
+        const freshColab = await apiGet(`/colaboradores/${colabId}`);
+        viewedColaborador = freshColab;
+    } catch(e) { console.warn('Falha ao atualizar dados em tempo real:', e); }
 
     const container = btn.closest('.assinafy-integrated-container');
+    const statusBadge = container.querySelector('.assinafy-status-badge');
+    
+    // O e-mail não é mais mandatório aqui pois o backend usa o e-mail centralizador de fallback
+    console.log('[ASSINAFY] Iniciando com e-mail do colaborador ou fallback central.');
 
     try {
         btn.disabled = true;
-        btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando...';
+        btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Iniciando...';
 
-        // 1. Buscar o documento no banco
+        // 1. Buscar o ID do documento local no banco (já que acabamos de fazer upload ou carregamos a página)
         const docs = await apiGet(`/colaboradores/${colabId}/documentos`);
         if (!docs) throw new Error('Falha ao carregar lista de documentos. Tente novamente.');
 
         const docRecord = docs.find(d => d.tab_name === tabName && d.document_type === docType);
+
         if (!docRecord) throw new Error('Documento não encontrado no sistema. Faça o upload primeiro.');
 
-        // 2. Chamar o backend (retorna imediatamente pois processa em background)
-        const res = await apiPost('/assinafy/upload', {
+        // 2. Chamar o backend
+        btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando...';
+
+        let res = await apiPost('/assinafy/upload', {
             document_id: docRecord.id,
             colaborador_id: colabId
         });
 
         if (res.sucesso) {
-            // Restaurar o botão imediatamente
-            btn.disabled = false;
-            btn.innerHTML = '<i class="ph ph-pen-nib"></i> Solicitar Assinatura';
-
-            // Atualizar o status e a data de envio no DOM imediatamente
-            const hoje = new Date().toLocaleDateString('pt-BR');
-            const docInfoDiv = btn.closest('.doc-item')?.querySelector('.doc-info div');
-            if (docInfoDiv) {
-                // Atualiza ou insere a linha de info abaixo do nome
-                let subInfoP = docInfoDiv.querySelector('p:nth-child(3), p.subinfo-line');
-                if (!subInfoP) {
-                    subInfoP = document.createElement('p');
-                    subInfoP.className = 'subinfo-line';
-                    subInfoP.style.cssText = 'margin:2px 0 0; font-size:0.78rem;';
-                    docInfoDiv.appendChild(subInfoP);
-                }
-                // Preserva vencimento se existir e adiciona enviado
-                const vencSpan = subInfoP.querySelector('span[data-venc]') || subInfoP.firstElementChild;
-                const vencHtml = vencSpan ? vencSpan.outerHTML + ' <span style="color:#64748b;">|</span> ' : '';
-                subInfoP.innerHTML = vencHtml + `<span style="color:#2f9e44; font-weight:600;">Enviado: ${hoje}</span>`;
-            }
-
-            // Atualizar o ícone de status ao lado do botão para 'Enviado'
-            const existingIcon = container.querySelector('span[title]');
-            if (existingIcon) {
-                existingIcon.title = 'E-mail enviado';
-                existingIcon.style.color = '#1971c2';
-                existingIcon.innerHTML = '<i class="ph ph-paper-plane-tilt" style="font-size:1.1rem;"></i> Enviado';
+            if (res.processando_em_background) {
+                alert('✅ ' + res.message);
+                btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Processando';
             } else {
-                const icon = document.createElement('span');
-                icon.title = 'E-mail enviado';
-                icon.style.cssText = 'display:inline-flex;align-items:center;gap:3px;color:#1971c2;font-size:0.78rem;font-weight:700;white-space:nowrap;';
-                icon.innerHTML = '<i class="ph ph-paper-plane-tilt" style="font-size:1.1rem;"></i> Enviado';
-                container.appendChild(icon);
+                alert('✅ Documento enviado para assinatura!');
+                btn.innerHTML = '<i class="ph ph-check"></i> Enviado';
             }
-
-            // Recarregar a aba em background para sincronizar com o banco
+            if (statusBadge) {
+                statusBadge.innerText = 'PROCESSANDO';
+                statusBadge.className = 'assinafy-status-badge pendente';
+            }
+            // Recarregar lista após 5s
             setTimeout(async () => {
-                await loadDocumentosList();
-                const activeTab = document.querySelector('#tabs-list li.active');
-                if (activeTab) renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
-            }, 2000);
-
+                if (tabName === '00.CheckList' || (tabName === 'ASO' && document.getElementById('admissao-workflow')?.style.display !== 'none')) {
+                    await initAdmissaoWorkflow(viewedColaborador.id, window.currentActiveAdmissaoStep, true);
+                } else {
+                    await loadDocumentosList();
+                }
+            }, 5000);
         } else {
             throw new Error(res.error || 'Erro na integração com Assinafy');
         }
