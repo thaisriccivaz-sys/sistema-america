@@ -2737,6 +2737,18 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                             ${assStatusIcon}
                         </div>` : (assStatusIcon ? `<div style="display:flex;align-items:center;gap:0.5rem;">${assStatusIcon}</div>` : '');
                     })()}
+
+                    ${(tabId === 'Atestados' && isSaved) ? `
+                    <div style="display:flex; gap:0.5rem; align-items:center; margin-top:0.35rem; flex-wrap:wrap;">
+                        <input type="email" id="contab-email-${existingDoc.id}"
+                               value="thais.ricci@americarental.com.br"
+                               style="height:36px; padding:0 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; width:230px; flex-shrink:0;">
+                        <button type="button"
+                                onclick="window.enviarAtestadoContabilidade(${existingDoc.id}, 'contab-email-${existingDoc.id}', this)"
+                                style="height:36px; display:flex; align-items:center; gap:6px; background:#0f4c81; color:#fff; border:none; border-radius:6px; padding:0 0.85rem; font-size:0.82rem; font-weight:600; cursor:pointer; white-space:nowrap;">
+                            <i class="ph ph-buildings"></i> Enviar para Contabilidade
+                        </button>
+                    </div>` : ''}
                 </div>
             `}
         </div>
@@ -3249,6 +3261,31 @@ window.saveVencimento = async function(docId, inputId) {
             alert('Erro ao salvar nova validade.');
         }
     } catch(e) { alert('Erro: ' + e.message); }
+};
+
+window.enviarAtestadoContabilidade = async function(docId, emailInputId, btn) {
+    const emailInput = document.getElementById(emailInputId);
+    const email = emailInput ? emailInput.value.trim() : '';
+    if (!email) { alert('Informe o e-mail da contabilidade.'); return; }
+
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando...';
+
+    try {
+        const res = await apiPost('/send-atestado-contabilidade', { document_id: docId, email_to: email });
+        if (res && res.sucesso) {
+            btn.innerHTML = '<i class="ph ph-check-circle"></i> Enviado!';
+            btn.style.background = '#2f9e44';
+            setTimeout(() => { btn.innerHTML = originalHtml; btn.style.background = ''; btn.disabled = false; }, 3000);
+        } else {
+            throw new Error(res?.error || 'Erro desconhecido');
+        }
+    } catch (e) {
+        alert('Erro ao enviar: ' + e.message);
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+    }
 };
 
 window.renderAtestadosAno = function() {

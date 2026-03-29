@@ -1572,6 +1572,107 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
     });
 });
 
+/**
+ * Envio de Atestado para a Contabilidade (eSocial)
+ */
+app.post('/api/send-atestado-contabilidade', authenticateToken, async (req, res) => {
+    const { document_id, email_to } = req.body;
+    if (!document_id || !email_to) {
+        return res.status(400).json({ sucesso: false, error: 'document_id e email_to são obrigatórios.' });
+    }
+
+    try {
+        const doc = await new Promise((resolve, reject) =>
+            db.get('SELECT * FROM documentos WHERE id = ?', [document_id], (err, row) => err ? reject(err) : resolve(row)));
+        if (!doc) return res.status(404).json({ sucesso: false, error: 'Documento não encontrado.' });
+
+        const colab = await new Promise((resolve, reject) =>
+            db.get('SELECT * FROM colaboradores WHERE id = ?', [doc.colaborador_id], (err, row) => err ? reject(err) : resolve(row)));
+        if (!colab) return res.status(404).json({ sucesso: false, error: 'Colaborador não encontrado.' });
+
+        // Verificar se o arquivo existe
+        const filePath = path.resolve(doc.file_path);
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({ sucesso: false, error: 'Arquivo do atestado não encontrado no servidor.' });
+        }
+
+        // Extrair CID e descrição de document_type (formato: "Z57 - Problemas laborais")
+        const docTypeParts = (doc.document_type || '').split(' - ');
+        const cidCode = docTypeParts[0] || '-';
+        const cidDesc = docTypeParts.slice(1).join(' - ') || '-';
+
+        // Formatar datas
+        const formatDate = (isoStr) => {
+            if (!isoStr) return '-';
+            if (isoStr.includes('-') && isoStr.length === 10) {
+                const [y, m, d] = isoStr.split('-');
+                return `${d}/${m}/${y}`;
+            }
+            return isoStr;
+        };
+        const dataInicio = formatDate(doc.atestado_inicio);
+        const dataFim = formatDate(doc.atestado_fim);
+        const tipo = doc.atestado_tipo === 'horas' ? 'horas' : 'dias';
+
+        // Nome do arquivo anexo: CID_DD-MM-YYYY_NomeColaborador.pdf
+        const hoje = new Date();
+        const dd = String(hoje.getDate()).padStart(2, '0');
+        const mm = String(hoje.getMonth() + 1).padStart(2, '0');
+        const yyyy = hoje.getFullYear();
+        const nomeNorm = (colab.nome_completo || 'Colaborador')
+            .toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]+/g, '_');
+        const attachmentName = `${cidCode}_${dd}-${mm}-${yyyy}_${nomeNorm}.pdf`;
+
+        const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+
+        const htmlContent = `
+            <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px; border-radius:8px;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <img src="cid:empresa-logo" style="max-height: 80px; max-width:100%;">
+                </div>
+                <h2 style="color: #0f4c81; border-bottom: 2px solid #0f4c81; padding-bottom: 10px;">📋 Atestado Médico — Inclusão eSocial</h2>
+                <p>Encaminhamos o atestado médico do colaborador abaixo para <strong>inclusão no cadastro do eSocial</strong>.</p>
+
+                <div style="background:#f1f5f9; padding:15px; border-radius:8px; margin:20px 0;">
+                    <p style="margin:4px 0;"><strong>Colaborador:</strong> ${colab.nome_completo}</p>
+                    <p style="margin:4px 0;"><strong>CPF:</strong> ${colab.cpf || '-'}</p>
+                    <p style="margin:4px 0;"><strong>Cargo:</strong> ${colab.cargo || '-'}</p>
+                    <p style="margin:4px 0;"><strong>Departamento:</strong> ${colab.departamento || '-'}</p>
+                </div>
+
+                <div style="background:#fff; border:1px solid #cbd5e1; padding:15px; border-radius:8px; margin:20px 0;">
+                    <p style="margin:4px 0;"><strong>CID:</strong> <span style="color:#0f4c81; font-weight:700;">${cidCode}</span> — ${cidDesc}</p>
+                    <p style="margin:4px 0;"><strong>Início do afastamento:</strong> ${dataInicio}</p>
+                    <p style="margin:4px 0;"><strong>Fim do afastamento:</strong> ${dataFim}</p>
+                    <p style="margin:4px 0;"><strong>Tipo:</strong> Atestado em ${tipo}</p>
+                </div>
+
+                <p>O documento em PDF está em anexo neste e-mail.</p>
+                <p style="margin-top:30px; font-size:0.9em; color:#7f8c8d;">Atenciosamente,<br>Equipe de RH — América Rental</p>
+            </div>
+        `;
+
+        const transporter = nodemailer.createTransport(SMTP_CONFIG);
+        await transporter.sendMail({
+            from: `"RH América Rental" <${SMTP_CONFIG.auth.user}>`,
+            to: email_to,
+            subject: `Atestado Médico eSocial — ${colab.nome_completo} (${cidCode})`,
+            html: htmlContent,
+            attachments: [
+                { filename: 'logo.png', path: logoPath, cid: 'empresa-logo' },
+                { filename: attachmentName, path: filePath, contentType: 'application/pdf' }
+            ]
+        });
+
+        console.log(`[ATESTADO CONTAB] Enviado para ${email_to} | Doc: ${document_id} | Colab: ${colab.nome_completo}`);
+        res.json({ sucesso: true, message: 'E-mail enviado com sucesso para a contabilidade!' });
+
+    } catch (error) {
+        console.error('[ATESTADO CONTAB] ERRO:', error.message);
+        res.status(500).json({ sucesso: false, error: error.message });
+    }
+});
+
 
 /**
  * WEBHOOK UNIFICADO: Escuta criação de links e conclusão de assinaturas
