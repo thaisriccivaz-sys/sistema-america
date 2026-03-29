@@ -2055,24 +2055,6 @@ window.abrirPreviewAdvertencia = function(data) {
     const footer = `
         <div style="margin-top:2rem;">
             <p style="font-weight:700; font-size:0.9rem;">Guarulhos, ${data.dataHojeExtenso}.</p>
-            <div style="margin-top:2.5rem; display:flex; justify-content:space-between; align-items:flex-end;">
-                <div style="text-align:center; width:45%;">
-                    <div style="border-top:1.5px solid #000; padding-top:0.25rem;">
-                        <span style="font-weight:700; font-size:0.85rem;">${data.colaborador.NOME_COMPLETO}</span><br>
-                        <span style="font-size:0.75rem; color:#555;">Colaborador(a)</span>
-                    </div>
-                </div>
-                <div style="text-align:center; width:45%;">
-                    <div style="margin-bottom:0.25rem;">
-                        <img src="${logoSrc}" style="height:25px; margin:0 auto; display:block;" onerror="this.style.display='none'">
-                        <p style="font-size:0.5rem; margin-top:1px; font-weight:700; line-height:1.1;">AMERICA RENTAL EQUIPAMENTOS LTDA<br>CNPJ: 03.434.448/0001-01</p>
-                    </div>
-                    <div style="border-top:1.5px solid #000; padding-top:0.25rem;">
-                        <span style="font-weight:700; font-size:0.85rem;">AMERICA RENTAL EQUIPAMENTOS LTDA</span><br>
-                        <span style="font-size:0.75rem; color:#555;">Empregador</span>
-                    </div>
-                </div>
-            </div>
         </div>
     `;
 

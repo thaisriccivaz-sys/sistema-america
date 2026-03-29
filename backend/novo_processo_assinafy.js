@@ -319,12 +319,15 @@ async function gerarLinkSemEmail(documentId, colaboradorId) {
 
     if (!signerId) throw new Error('ID do signatário não obtido.');
 
-    // Assignment SEM notificiação por e-mail
+    // Assignment SEM notificação por e-mail (usando as opções suportadas pelo Assinafy)
     const assignRes = await req('POST', `/v1/documents/${assinafyDocId}/assignments`, {
         signers: [
             { id: signerId, role: 'signer', notification_methods: [] }
         ],
-        method: 'virtual'
+        method: 'virtual',
+        notify: false,
+        send_email: false,
+        disable_notifications: true
     });
 
     if (assignRes.status < 200 || assignRes.status >= 300)
