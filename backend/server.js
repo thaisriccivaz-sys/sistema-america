@@ -1579,10 +1579,19 @@ app.post("/webhook/assinafy", async (req, res) => {
                             if (docRow.year && docRow.year !== 'null' && docRow.year !== 'undefined' && docRow.year !== '') {
                                 targetDir += `/${String(docRow.year).replace(/[^0-9]/g, '')}`;
                             }
+                            
+                            // Garantir que a pasta ASO/Ano existe antes de salvar
+                            await onedrive.ensurePath(targetDir);
+                            
                             const fBuffer = fs.readFileSync(signedFilePath);
-                            const cloudName = `Assinado_${docRow.document_type || path.basename(signedFilePath)}.pdf`;
-                            onedrive.uploadToOneDrive(targetDir, cloudName, fBuffer).catch(e => console.error("[OneDrive] Erro sync assinado WH:", e.message));
-                        } catch (e) { console.error("[OneDrive] Erro preparar upload assinado WH:", e.message); }
+                            const safeType = formatarPasta(docRow.document_type || 'Documento');
+                            const cloudName = `${safeType}_${docRow.year || new Date().getFullYear()}_${safeColab}.pdf`;
+                            
+                            await onedrive.uploadToOneDrive(targetDir, cloudName, fBuffer);
+                            console.log(`[OneDrive] Assinado sincronizado WH: ${cloudName}`);
+                        } catch (e) { 
+                            console.error("[OneDrive] Erro de sync assinado WH:", e.message); 
+                        }
                     }
 
                 } catch(err) {
@@ -1812,10 +1821,19 @@ app.post('/api/documentos/:id/sync-assinafy', authenticateToken, async (req, res
                     if (doc.year && doc.year !== 'null' && doc.year !== 'undefined' && doc.year !== '') {
                         targetDir += `/${String(doc.year).replace(/[^0-9]/g, '')}`;
                     }
+                    
+                    // Garantir que a pasta existe (por ex, pode nunca ter sido criada no upload)
+                    await onedrive.ensurePath(targetDir);
+
                     const fBuffer = fs.readFileSync(finalPath);
-                    const cloudName = `Assinado_${doc.document_type || path.basename(finalPath)}.pdf`;
-                    onedrive.uploadToOneDrive(targetDir, cloudName, fBuffer).catch(e => console.error("[OneDrive] Erro sync assinado (API):", e.message));
-                } catch (e) { console.error("[OneDrive] Erro preparar upload assinado (API):", e.message); }
+                    const safeType = formatarPasta(doc.document_type || 'Documento');
+                    const cloudName = `${safeType}_${doc.year || new Date().getFullYear()}_${safeColab}.pdf`;
+                    
+                    await onedrive.uploadToOneDrive(targetDir, cloudName, fBuffer);
+                    console.log(`[OneDrive] Assinado sincronizado (API): ${cloudName}`);
+                } catch (e) { 
+                    console.error("[OneDrive] Erro de sync assinado (API):", e.message); 
+                }
             }
         } else {
             // Apenas atualiza o status se mudou
