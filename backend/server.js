@@ -1907,15 +1907,23 @@ app.post('/api/documentos/:id/force-onedrive-sync', authenticateToken, async (re
 
         if (!doc) return res.status(404).json({ log, error: 'Documento não encontrado.' });
         addLog(`Doc id=${doc.id} | tab=${doc.tab_name} | type=${doc.document_type} | year=${doc.year} | colab=${doc.nome_completo} | status=${doc.assinafy_status}`);
-        addLog(`signed_file_path atual: ${doc.signed_file_path || 'VAZIO'}`);
-        addLog(`ONEDRIVE_BASE_PATH env: ${process.env.ONEDRIVE_BASE_PATH || '(não definido, usando padrão RH/1.Colaboradores/Sistema)'}`);
+        addLog(`file_path: ${doc.file_path || 'VAZIO'}`);
+        addLog(`signed_file_path: ${doc.signed_file_path || 'VAZIO'}`);
+        addLog(`ONEDRIVE_BASE_PATH env: ${process.env.ONEDRIVE_BASE_PATH || '(não definido, usando RH/1.Colaboradores/Sistema)'}`);
 
-        let localPath = doc.signed_file_path;
+        // Para docs não assinados (ex: Atestados), usa file_path diretamente
+        let localPath = doc.signed_file_path || null;
+        if (!localPath || !fs.existsSync(localPath)) {
+            if (doc.file_path && fs.existsSync(doc.file_path)) {
+                localPath = doc.file_path;
+                addLog(`Usando file_path regular: ${localPath}`);
+            }
+        }
 
         // Baixar do Assinafy se não tiver localmente
         if (!localPath || !fs.existsSync(localPath)) {
             addLog('Arquivo local ausente. Buscando URL no Assinafy...');
-            if (!doc.assinafy_id) return res.json({ log, error: 'Sem assinafy_id e sem arquivo local.' });
+            if (!doc.assinafy_id) return res.json({ log, error: 'Nenhum arquivo local encontrado e sem assinafy_id para baixar.' });
 
             const assinafyRes = await new Promise((resolve, reject) => {
                 const https = require('https');
@@ -1970,8 +1978,12 @@ app.post('/api/documentos/:id/force-onedrive-sync', authenticateToken, async (re
         const safeTab = formatarPasta(doc.tab_name || 'DOCUMENTOS').toUpperCase();
         const docYear = doc.year && doc.year !== 'null' && doc.year !== '' ? String(doc.year).replace(/[^0-9]/g, '') : String(new Date().getFullYear());
         const targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}/${docYear}`;
-        const safeType = formatarPasta(doc.document_type || doc.tab_name || 'Documento').replace(/\s+/g, '_');
-        const cloudName = `${safeType}_${docYear}_${safeColab}.pdf`;
+        // Para Atestados, usa o file_name que já foi gerado com o padrão Z01_DD-MM-AA
+        // Para docs assinados, usa o padrão TipoDoc_Ano_NomeColab.pdf
+        const isAtestado = (doc.tab_name === 'Atestados');
+        const cloudName = isAtestado
+            ? doc.file_name  // ex: Z01_29-03-26_THAIS_RICCI_20260329_001500.pdf
+            : `${formatarPasta(doc.document_type || doc.tab_name || 'Documento').replace(/\s+/g, '_')}_${docYear}_${safeColab}.pdf`;
 
         addLog(`Caminho OneDrive: ${targetDir}/${cloudName}`);
         addLog('Chamando ensurePath...');

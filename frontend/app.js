@@ -2720,8 +2720,25 @@ window.renderAtestadosAno = function() {
         return;
     }
 
+    // Botão "Sincronizar Todos no OneDrive"
+    const syncAllDiv = document.createElement('div');
+    syncAllDiv.style.cssText = 'text-align:right; margin-bottom:0.75rem;';
+    syncAllDiv.innerHTML = `<button type="button" class="btn btn-sm" style="background:#1c7ed6;color:#fff;border:none;border-radius:6px;padding:0.3rem 0.85rem;font-size:0.8rem;font-weight:600;cursor:pointer;" onclick="window.syncAllAtestados(${JSON.stringify(filteredByYear.map(d=>d.id))}, this)"><i class="ph ph-cloud-arrow-up"></i> Sincronizar todos no OneDrive</button>`;
+    listContainer.appendChild(syncAllDiv);
+
     filteredByYear.forEach(d => {
-        listContainer.appendChild(createDocSlot('Atestados', d.document_type, d, `'${y}'`));
+        const slot = createDocSlot('Atestados', d.document_type, d, `'${y}'`);
+        // Adicionar botão individual ☁ após o slot
+        const syncBtn = document.createElement('button');
+        syncBtn.type = 'button';
+        syncBtn.title = 'Salvar na pasta do colaborador (OneDrive)';
+        syncBtn.style.cssText = 'background:#1c7ed6;color:#fff;border:none;border-radius:6px;padding:0.25rem 0.6rem;font-size:0.75rem;font-weight:600;cursor:pointer;margin-left:6px;';
+        syncBtn.innerHTML = '<i class="ph ph-cloud-arrow-up"></i>';
+        syncBtn.onclick = function() { window.forceOnedriveSync(d.id, this); };
+        // Injetar o botão dentro do doc-actions do slot
+        const docActions = slot.querySelector('.doc-actions');
+        if (docActions) docActions.appendChild(syncBtn);
+        listContainer.appendChild(slot);
     });
 }
 
@@ -4680,6 +4697,26 @@ window.forceOnedriveSync = async function(docId, btn) {
         btn.disabled = false;
         btn.innerHTML = original;
     }
+};
+
+window.syncAllAtestados = async function(ids, btn) {
+    const original = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ph ph-spinner"></i> Sincronizando...';
+    let ok = 0, fail = 0;
+    for (const id of ids) {
+        try {
+            const res = await fetch(`${API_URL}/documentos/${id}/force-onedrive-sync`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${currentToken}` }
+            });
+            const data = await res.json();
+            if (data.sucesso) ok++; else fail++;
+        } catch { fail++; }
+    }
+    btn.disabled = false;
+    btn.innerHTML = original;
+    alert(`✅ Sincronização concluída!\n✓ Sucesso: ${ok}\n✗ Falha: ${fail}\n\nUse o botão ☁ individual para ver o log de cada falha.`);
 };
 
 window.testOneDriveConnection = async function() {
