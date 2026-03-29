@@ -1875,7 +1875,111 @@ app.post('/api/documentos/:id/sync-assinafy', authenticateToken, async (req, res
 });
 
 /**
- * ROTA TEMPORÃRIA: Reset de Sistema
+ * DIAGNÓSTICO: Força re-envio de documento assinado ao OneDrive e retorna log detalhado
+ */
+app.post('/api/documentos/:id/force-onedrive-sync', authenticateToken, async (req, res) => {
+    const docId = req.params.id;
+    const log = [];
+    const addLog = (msg) => { log.push(msg); console.log('[FORCE-OD]', msg); };
+
+    try {
+        const doc = await new Promise((resolve, reject) => {
+            db.get(`SELECT d.*, c.nome_completo
+                    FROM documentos d JOIN colaboradores c ON c.id = d.colaborador_id
+                    WHERE d.id = ?`, [docId], (err, row) => {
+                if (err) reject(err); else resolve(row);
+            });
+        });
+
+        if (!doc) return res.status(404).json({ log, error: 'Documento não encontrado.' });
+        addLog(`Doc id=${doc.id} | tab=${doc.tab_name} | type=${doc.document_type} | year=${doc.year} | colab=${doc.nome_completo} | status=${doc.assinafy_status}`);
+        addLog(`signed_file_path atual: ${doc.signed_file_path || 'VAZIO'}`);
+        addLog(`ONEDRIVE_BASE_PATH env: ${process.env.ONEDRIVE_BASE_PATH || '(não definido, usando padrão RH/1.Colaboradores/Sistema)'}`);
+
+        let localPath = doc.signed_file_path;
+
+        // Baixar do Assinafy se não tiver localmente
+        if (!localPath || !fs.existsSync(localPath)) {
+            addLog('Arquivo local ausente. Buscando URL no Assinafy...');
+            if (!doc.assinafy_id) return res.json({ log, error: 'Sem assinafy_id e sem arquivo local.' });
+
+            const assinafyRes = await new Promise((resolve, reject) => {
+                const https = require('https');
+                const opts = {
+                    hostname: 'api.assinafy.com.br', path: `/v1/documents/${doc.assinafy_id}`, method: 'GET',
+                    headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey, 'Accept': 'application/json' }
+                };
+                const r = https.request(opts, (resp) => {
+                    const chunks = [];
+                    resp.on('data', c => chunks.push(c));
+                    resp.on('end', () => { try { resolve(JSON.parse(Buffer.concat(chunks).toString())); } catch(e) { reject(e); } });
+                });
+                r.on('error', reject); r.end();
+            });
+
+            const docData = assinafyRes.data || assinafyRes;
+            addLog(`Status Assinafy: ${docData.status} | Keys: ${Object.keys(docData).join(',')}`);
+            addLog(`Artifacts: ${JSON.stringify(docData.artifacts || 'nenhum')}`);
+
+            const signedUrl = extractSignedUrl(docData);
+            addLog(`URL extraída: ${signedUrl || 'NENHUMA URL ENCONTRADA'}`);
+            if (!signedUrl) return res.json({ log, error: 'URL do PDF assinado não encontrada.', raw: docData });
+
+            const storagePath = process.env.STORAGE_PATH || path.join(__dirname, 'data', 'uploads');
+            const assDir = path.join(storagePath, 'assinados');
+            if (!fs.existsSync(assDir)) fs.mkdirSync(assDir, { recursive: true });
+            localPath = path.join(assDir, `ASSINADO_${path.basename(doc.file_name, '.pdf')}_${Date.now()}.pdf`);
+
+            await new Promise((resolve, reject) => {
+                const https = require('https');
+                const proto = signedUrl.startsWith('https') ? https : require('http');
+                const file = fs.createWriteStream(localPath);
+                proto.get(signedUrl, { headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey } }, (response) => {
+                    if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+                        proto.get(response.headers.location, (r2) => { r2.pipe(file); file.on('finish', () => { file.close(); resolve(); }); }).on('error', reject);
+                        return;
+                    }
+                    response.pipe(file);
+                    file.on('finish', () => { file.close(); resolve(); });
+                }).on('error', reject);
+            });
+            db.run('UPDATE documentos SET signed_file_path = ?, assinafy_signed_at = COALESCE(assinafy_signed_at, CURRENT_TIMESTAMP) WHERE id = ?', [localPath, docId]);
+            addLog(`PDF baixado: ${localPath}`);
+        } else {
+            addLog(`Arquivo local OK (${fs.statSync(localPath).size} bytes)`);
+        }
+
+        if (!onedrive) return res.json({ log, error: 'Módulo OneDrive não carregado no servidor.' });
+
+        const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || 'RH/1.Colaboradores/Sistema';
+        const safeColab = formatarNome(doc.nome_completo || 'DESCONHECIDO');
+        const safeTab = formatarPasta(doc.tab_name || 'DOCUMENTOS').toUpperCase();
+        const docYear = doc.year && doc.year !== 'null' && doc.year !== '' ? String(doc.year).replace(/[^0-9]/g, '') : String(new Date().getFullYear());
+        const targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}/${docYear}`;
+        const safeType = formatarPasta(doc.document_type || doc.tab_name || 'Documento').replace(/\s+/g, '_');
+        const cloudName = `${safeType}_${docYear}_${safeColab}.pdf`;
+
+        addLog(`Caminho OneDrive: ${targetDir}/${cloudName}`);
+        addLog('Chamando ensurePath...');
+        await onedrive.ensurePath(targetDir);
+        addLog('ensurePath OK. Iniciando upload...');
+
+        const fBuffer = fs.readFileSync(localPath);
+        addLog(`Buffer: ${fBuffer.length} bytes`);
+        await onedrive.uploadToOneDrive(targetDir, cloudName, fBuffer);
+        addLog(`✓ Upload concluído com sucesso!`);
+
+        res.json({ sucesso: true, log, targetDir, cloudName });
+
+    } catch (e) {
+        addLog(`ERRO FATAL: ${e.message}`);
+        console.error('[FORCE-OD] Stack:', e.stack);
+        res.json({ sucesso: false, log, error: e.message });
+    }
+});
+
+/**
+ * ROTA TEMPORÁRIA: Reset de Sistema
  */
 app.post('/api/maintenance/reset', authenticateToken, (req, res) => {
     db.serialize(() => {
