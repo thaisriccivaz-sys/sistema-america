@@ -1628,8 +1628,25 @@ app.get('/api/documentos/download-assinado/:id', authenticateToken, (req, res) =
                     const fileName = encodeURIComponent(`ASSINADO_${row.file_name}`);
                     
                     const getProtocol = targetUrl.startsWith('https') ? require('https') : require('http');
-                    getProtocol.get(targetUrl, (pdfRes) => {
-                        if (pdfRes.statusCode >= 400) return res.status(404).json({ error: 'Não foi possível baixar o PDF do provedor.' });
+                    const reqOptions = {
+                        headers: {
+                            'X-Api-Key': 'AxaT-FiXBckHqEYV0s_MtUhLF3pReRz3dX4zVpC173vmjDwzLGHYtDJuQje4-4Pd'
+                        }
+                    };
+                    
+                    getProtocol.get(targetUrl, reqOptions, (pdfRes) => {
+                        // Se houver um redirect da AWS/S3 (301, 302, 307)
+                        if (pdfRes.statusCode >= 300 && pdfRes.statusCode < 400 && pdfRes.headers.location) {
+                            getProtocol.get(pdfRes.headers.location, (redirectRes) => {
+                                if (redirectRes.statusCode >= 400) return res.status(redirectRes.statusCode).json({ error: 'Não foi possível baixar o PDF do provedor (redirect error).' });
+                                res.setHeader('Content-Type', 'application/pdf');
+                                res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+                                redirectRes.pipe(res);
+                            });
+                            return;
+                        }
+                        
+                        if (pdfRes.statusCode >= 400) return res.status(404).json({ error: 'Não foi possível baixar o PDF do provedor. Status ' + pdfRes.statusCode });
                         res.setHeader('Content-Type', 'application/pdf');
                         res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
                         pdfRes.pipe(res);
@@ -1724,9 +1741,21 @@ app.post('/api/documentos/:id/sync-assinafy', authenticateToken, async (req, res
             
             await new Promise((resolve, reject) => {
                 const file = fs.createWriteStream(finalPath);
-                https.get(signedUrl, (response) => {
-                    response.pipe(file);
-                    file.on('finish', () => { file.close(); resolve(); });
+                const reqOptions = { headers: { 'X-Api-Key': 'AxaT-FiXBckHqEYV0s_MtUhLF3pReRz3dX4zVpC173vmjDwzLGHYtDJuQje4-4Pd' } };
+                
+                https.get(signedUrl, reqOptions, (response) => {
+                    if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+                        https.get(response.headers.location, (redirRes) => {
+                            redirRes.pipe(file);
+                            file.on('finish', () => { file.close(); resolve(); });
+                        }).on('error', (err) => { fs.unlink(finalPath, () => {}); reject(err); });
+                    } else if (response.statusCode >= 400) {
+                        fs.unlink(finalPath, () => {});
+                        resolve(); // ignora o erro para não travar o sync
+                    } else {
+                        response.pipe(file);
+                        file.on('finish', () => { file.close(); resolve(); });
+                    }
                 }).on('error', (err) => { fs.unlink(finalPath, () => {}); reject(err); });
             });
 
