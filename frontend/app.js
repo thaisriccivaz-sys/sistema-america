@@ -2650,10 +2650,12 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
     // Suporte ao separador ### para Advertências: 'Título###TipoSimples'
     let docLabel = docType;
     let docBadge = '';
+    let tipoAdvSimples = '';
     if (docType && docType.includes('###')) {
         const parts = docType.split('###');
         docLabel = parts[0] || docType;
-        docBadge = parts[1] ? `<span style="display:inline-block; margin-top:3px; background:#fd7e14; color:#fff; padding:1px 8px; border-radius:10px; font-size:0.68rem; font-weight:700; letter-spacing:0.03em;">${parts[1]}</span>` : '';
+        tipoAdvSimples = parts[1] || '';
+        docBadge = tipoAdvSimples ? `<span style="display:inline-block; margin-top:3px; background:#64748b; color:#fff; padding:1px 8px; border-radius:10px; font-size:0.68rem; font-weight:700; letter-spacing:0.03em;">${tipoAdvSimples}</span>` : '';
     }
 
     let infoHtml = `
@@ -2732,14 +2734,19 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         ` : ''}
                     </div>
 
-                    ${(isSaved && tabId !== 'Advertências' && tabId !== 'Atestados') ? `
+                    ${(() => {
+                        // Advertencias: mostrar Assinafy so para Escrita e Suspensoes (nao Verbal)
+                        const isAdv = tabId === 'Advert\u00eancias';
+                        const tipoPermiteAssinar = tipoAdvSimples && !tipoAdvSimples.toLowerCase().includes('verbal');
+                        const showAssinafy = isSaved && (!isAdv || tipoPermiteAssinar) && tabId !== 'Atestados';
+                        return showAssinafy ? `
                         <div style="display: flex; align-items: center; gap: 0.5rem;">
                             <button class="btn btn-sm btn-assinafy" style="width: auto; padding: 0 0.85rem;" onclick="window.iniciarAssinafy('${docType}', '${tabId}', this)" ${isAssinado ? 'disabled' : ''}>
                                 <i class="ph ph-pen-nib"></i> Solicitar Assinatura
                             </button>
                             ${assStatusIcon}
-                        </div>
-                    ` : ''}
+                        </div>` : (assStatusIcon ? `<div style="display:flex;align-items:center;gap:0.5rem;">${assStatusIcon}</div>` : '');
+                    })()}
                 </div>
             `}
         </div>
