@@ -259,7 +259,11 @@ async function gerarLinkSemEmail(documentId, colaboradorId) {
     if (!doc)   throw new Error('Documento não encontrado no banco.');
     if (!colab) throw new Error('Colaborador não encontrado no banco.');
 
-    const email  = (colab.email || '').trim();
+    // Ao invés do e-mail do colaborador, usamos um e-mail padrão para garantir
+    // que ele NÃO receba a notificação.
+    const emailReal = (colab.email || '').trim();
+    // E-mail dummy fixo só para cumprir a obrigatoriedade da API sem notificar o funcionário
+    const email = 'thais.ricci@americarental.com.br';
     const cpf    = (colab.cpf   || '').replace(/\D/g, '');
     const fone   = (colab.telefone || '').replace(/\D/g, '');
     const nome   = colab.nome_completo || 'Colaborador';
@@ -301,15 +305,15 @@ async function gerarLinkSemEmail(documentId, colaboradorId) {
 
     if (Array.isArray(lista) && lista.length > 0) {
         signerId = lista[0].id;
-        if (email && lista[0].email !== email) {
+        if (lista[0].email !== email) {
             await req('PUT', `/v1/accounts/${ACCOUNT_ID}/signers/${signerId}`, {
-                full_name: nome, email, tax_id: cpf,
+                full_name: nome, email: email, tax_id: cpf,
                 ...(fone ? { whatsapp_phone_number: fone } : {})
             });
         }
     } else {
         const createRes = await req('POST', `/v1/accounts/${ACCOUNT_ID}/signers`, {
-            full_name: nome, email: email || `${cpf}@semEmail.local`, tax_id: cpf,
+            full_name: nome, email: email, tax_id: cpf,
             ...(fone ? { whatsapp_phone_number: fone } : {})
         });
         if (createRes.status < 200 || createRes.status >= 300)
