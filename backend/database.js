@@ -284,6 +284,10 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     if (!cols.includes('assinafy_sent_at')) db.run("ALTER TABLE documentos ADD COLUMN assinafy_sent_at DATETIME");
                     if (!cols.includes('signed_file_path')) db.run("ALTER TABLE documentos ADD COLUMN signed_file_path TEXT");
                     if (!cols.includes('assinafy_signed_at')) db.run("ALTER TABLE documentos ADD COLUMN assinafy_signed_at DATETIME");
+                    // Campos de período do atestado
+                    if (!cols.includes('atestado_tipo'))  db.run("ALTER TABLE documentos ADD COLUMN atestado_tipo TEXT");  // 'dias' | 'horas'
+                    if (!cols.includes('atestado_inicio')) db.run("ALTER TABLE documentos ADD COLUMN atestado_inicio TEXT"); // data ISO ou HH:MM
+                    if (!cols.includes('atestado_fim'))    db.run("ALTER TABLE documentos ADD COLUMN atestado_fim TEXT");   // data ISO ou HH:MM
                 });
             });
 

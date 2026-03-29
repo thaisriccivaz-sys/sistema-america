@@ -997,7 +997,7 @@ app.get('/api/colaboradores/:id/documentos', authenticateToken, (req, res) => {
 app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
     
-    const { colaborador_id, tab_name, document_type, year, month, vencimento } = req.body;
+    const { colaborador_id, tab_name, document_type, year, month, vencimento, atestado_tipo, atestado_inicio, atestado_fim } = req.body;
     const file_path = req.file.path;
     const file_name = req.file.originalname;
 
@@ -1021,8 +1021,8 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
             if (fs.existsSync(row.file_path)) {
                 try { fs.unlinkSync(row.file_path); } catch(e) {}
             }
-            db.run('UPDATE documentos SET file_name = ?, file_path = ?, upload_date = CURRENT_TIMESTAMP, vencimento = ? WHERE id = ?',
-                [file_name, file_path, vencimento || null, row.id], function(updateErr) {
+            db.run('UPDATE documentos SET file_name = ?, file_path = ?, upload_date = CURRENT_TIMESTAMP, vencimento = ?, atestado_tipo = ?, atestado_inicio = ?, atestado_fim = ? WHERE id = ?',
+                [file_name, file_path, vencimento || null, atestado_tipo || null, atestado_inicio || null, atestado_fim || null, row.id], function(updateErr) {
                     if (updateErr) return res.status(500).json({ error: updateErr.message });
                     
                     // Sincronizar com foto de perfil se for na aba "Fotos"
@@ -1054,10 +1054,10 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
                     res.json({ message: 'Documento atualizado', id: row.id, file_path });
                 });
         } else {
-            // Se Ã© aba de histÃ³rico OU nÃ£o existia, insere novo registro
-            db.run(`INSERT INTO documentos (colaborador_id, tab_name, document_type, file_name, file_path, year, month, vencimento) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-                [colaborador_id, tab_name, document_type, file_name, file_path, year || null, month || null, vencimento || null],
+            // Se é aba de histórico OU não existia, insere novo registro
+            db.run(`INSERT INTO documentos (colaborador_id, tab_name, document_type, file_name, file_path, year, month, vencimento, atestado_tipo, atestado_inicio, atestado_fim) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [colaborador_id, tab_name, document_type, file_name, file_path, year || null, month || null, vencimento || null, atestado_tipo || null, atestado_inicio || null, atestado_fim || null],
                 function(insertErr) {
                     if (insertErr) return res.status(500).json({ error: insertErr.message });
 
@@ -1071,6 +1071,14 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
                     const newDocId = this.lastID;
                     if (tab_name !== 'ASO') {
                         setImmediate(() => uploadDocToOneDrive(newDocId));
+                    }
+
+                    // --- ATUALIZA STATUS PARA AFASTADO SE ATESTADO VIGENTE ---
+                    if (tab_name === 'Atestados' && atestado_tipo === 'dias' && atestado_inicio && atestado_fim) {
+                        const today = new Date().toISOString().split('T')[0];
+                        if (today >= atestado_inicio && today <= atestado_fim) {
+                            db.run("UPDATE colaboradores SET status = 'Afastado' WHERE id = ?", [colaborador_id]);
+                        }
                     }
 
                     res.status(201).json({ message: 'Documento salvo', id: newDocId, file_path });

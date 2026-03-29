@@ -2265,8 +2265,19 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
         }
     }
 
-    const subInfoLine = (vencInfoHtml || enviadoHtml)
-        ? `<p style="margin:2px 0 0; font-size:0.78rem;">${vencInfoHtml}${enviadoHtml}</p>`
+    let atestadoInfoHtml = '';
+    if (isSaved && existingDoc.atestado_tipo) {
+        if (existingDoc.atestado_tipo === 'dias') {
+            const ini = existingDoc.atestado_inicio ? existingDoc.atestado_inicio.split('-').reverse().join('/') : '';
+            const fim = existingDoc.atestado_fim ? existingDoc.atestado_fim.split('-').reverse().join('/') : '';
+            atestadoInfoHtml = ` <span style="color:#d9480f; font-weight:600;"><i class="ph ph-calendar"></i> ${ini} até ${fim}</span> `;
+        } else {
+            atestadoInfoHtml = ` <span style="color:#1098ad; font-weight:600;"><i class="ph ph-clock"></i> ${existingDoc.atestado_inicio} às ${existingDoc.atestado_fim}</span> `;
+        }
+    }
+
+    const subInfoLine = (vencInfoHtml || enviadoHtml || atestadoInfoHtml)
+        ? `<p style="margin:2px 0 0; font-size:0.78rem;">${atestadoInfoHtml}${vencInfoHtml}${enviadoHtml}</p>`
         : '';
 
     let infoHtml = `
@@ -2642,7 +2653,7 @@ window.renderAtestadosTab = function(container, filteredDocs) {
 
     container.innerHTML = `
         <div class="card p-3 mb-4 bg-light">
-            <div style="display:flex; gap:1rem; align-items:flex-end; flex-wrap:wrap;">
+            <div style="display:flex; gap:1rem; align-items:flex-end; flex-wrap:wrap; margin-bottom: 1rem;">
                 <div style="flex-shrink:0;">
                     <label style="font-size:0.75rem; font-weight:600; color:#64748b; margin-bottom:3px; display:block;">Ano</label>
                     <select id="atestados_year" class="form-control" style="padding:0.4rem; width:110px;" onchange="renderAtestadosAno()">
@@ -2656,14 +2667,51 @@ window.renderAtestadosTab = function(container, filteredDocs) {
                     <div id="cid-dropdown" class="cid-dropdown" style="display:none;"></div>
                 </div>
                 <div id="cid-selected-badge" style="display:none; align-self:flex-end; margin-bottom:4px;"></div>
-                <!-- Input real separado do botão -->
-                <input type="file" id="cid-file-input" accept=".pdf,image/*" style="display:none;" onchange="uploadAtestadoWithCID(this)">
-                <button type="button" id="cid-upload-label" style="display:none; align-self:flex-end; margin-bottom:0;" class="btn btn-primary"
-                        onclick="document.getElementById('cid-file-input').click()">
-                    <i class="ph ph-upload-simple" id="cid-upload-icon"></i> <span id="cid-upload-text">Enviar Atestado</span>
-                </button>
-                <p id="cid-hint" style="font-size:.8rem; color:#666; align-self:flex-end; margin:0 0 4px;">Selecione um CID para liberar o upload.</p>
             </div>
+
+            <!-- Formulário extra para tipo de Atestado -->
+            <div id="atestado-period-form" style="display:none; gap:1rem; align-items:flex-end; flex-wrap:wrap; padding: 1rem; background:white; border:1px solid #e2e8f0; border-radius:8px; margin-bottom:1rem;">
+                <div style="flex-shrink:0;">
+                    <label style="font-size:0.75rem; font-weight:600; color:#64748b; margin-bottom:3px; display:block;">Tipo de Atestado</label>
+                    <select id="atestado_tipo" class="form-control" style="padding:0.4rem; width:120px;" onchange="toggleAtestadoPeriodFields()">
+                        <option value="dias">Dias</option>
+                        <option value="horas">Horas</option>
+                    </select>
+                </div>
+                
+                <!-- Campos Dias -->
+                <div id="atestado-dias-fields" style="display:flex; gap:1rem; flex-wrap:wrap;">
+                    <div>
+                        <label style="font-size:0.75rem; font-weight:600; color:#64748b; margin-bottom:3px; display:block;">Data Início</label>
+                        <input type="date" id="atestado_inicio_dia" class="form-control" style="padding:0.4rem; width:140px;">
+                    </div>
+                    <div>
+                        <label style="font-size:0.75rem; font-weight:600; color:#64748b; margin-bottom:3px; display:block;">Data Fim</label>
+                        <input type="date" id="atestado_fim_dia" class="form-control" style="padding:0.4rem; width:140px;">
+                    </div>
+                </div>
+
+                <!-- Campos Horas -->
+                <div id="atestado-horas-fields" style="display:none; gap:1rem; flex-wrap:wrap;">
+                    <div>
+                        <label style="font-size:0.75rem; font-weight:600; color:#64748b; margin-bottom:3px; display:block;">Horário Início</label>
+                        <input type="time" id="atestado_inicio_hora" class="form-control" style="padding:0.4rem; width:120px;">
+                    </div>
+                    <div>
+                        <label style="font-size:0.75rem; font-weight:600; color:#64748b; margin-bottom:3px; display:block;">Horário Fim</label>
+                        <input type="time" id="atestado_fim_hora" class="form-control" style="padding:0.4rem; width:120px;">
+                    </div>
+                </div>
+
+                <div style="flex-grow:1; display:flex; justify-content:flex-end;">
+                    <input type="file" id="cid-file-input" accept=".pdf,image/*" style="display:none;" onchange="uploadAtestadoWithCID(this)">
+                    <button type="button" id="cid-upload-label" class="btn btn-primary" onclick="document.getElementById('cid-file-input').click()">
+                        <i class="ph ph-upload-simple" id="cid-upload-icon"></i> <span id="cid-upload-text">Enviar Atestado</span>
+                    </button>
+                </div>
+            </div>
+            
+            <p id="cid-hint" style="font-size:.8rem; color:#666; margin:0;">Selecione um CID para preencher os dados do atestado e liberar o upload.</p>
         </div>
         <div id="atestados-list-container"></div>
     `;
@@ -2696,8 +2744,25 @@ window.selectCID = function(code, desc) {
     const badge = document.getElementById('cid-selected-badge');
     badge.innerHTML = `<span class="cid-badge">${code}</span>`;
     badge.style.display = 'inline-block';
-    document.getElementById('cid-upload-label').style.display = 'flex';
+    // Mostra form de período
+    document.getElementById('atestado-period-form').style.display = 'flex';
     document.getElementById('cid-hint').style.display = 'none';
+
+    // Preenche a data de início com a data de hoje para facilitar
+    const todayStr = new Date().toISOString().split('T')[0];
+    document.getElementById('atestado_inicio_dia').value = todayStr;
+    document.getElementById('atestado_fim_dia').value = todayStr;
+}
+
+window.toggleAtestadoPeriodFields = function() {
+    const tipo = document.getElementById('atestado_tipo').value;
+    if (tipo === 'dias') {
+        document.getElementById('atestado-dias-fields').style.display = 'flex';
+        document.getElementById('atestado-horas-fields').style.display = 'none';
+    } else {
+        document.getElementById('atestado-dias-fields').style.display = 'none';
+        document.getElementById('atestado-horas-fields').style.display = 'flex';
+    }
 }
 
 window.uploadAtestadoWithCID = async function(inputEl) {
@@ -2722,15 +2787,28 @@ window.uploadAtestadoWithCID = async function(inputEl) {
         .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]+/g, '_');
     const customName = `${selectedCID.code}_${dd}-${mm}-${aa}_${nomeNorm}`;
 
+    const typeIn = `${selectedCID.code} - ${selectedCID.desc.substring(0, 60)}`;
     const year = document.getElementById('atestados_year') ? document.getElementById('atestados_year').value : today.getFullYear().toString();
 
     const formData = new FormData();
     formData.append('colaborador_id', viewedColaborador.id);
     formData.append('colaborador_nome', viewedColaborador.nome || 'Desconhecido');
     formData.append('tab_name', 'Atestados');
-    formData.append('document_type', `${selectedCID.code} - ${selectedCID.desc.substring(0, 60)}`);
+    formData.append('document_type', typeIn);
     formData.append('custom_name', customName);
     formData.append('year', year);
+
+    // Campos de período
+    const tipo = document.getElementById('atestado_tipo').value;
+    formData.append('atestado_tipo', tipo);
+    if (tipo === 'dias') {
+        formData.append('atestado_inicio', document.getElementById('atestado_inicio_dia').value);
+        formData.append('atestado_fim', document.getElementById('atestado_fim_dia').value);
+    } else {
+        formData.append('atestado_inicio', document.getElementById('atestado_inicio_hora').value);
+        formData.append('atestado_fim', document.getElementById('atestado_fim_hora').value);
+    }
+
     formData.append('file', file);
 
     try {
@@ -2743,8 +2821,18 @@ window.uploadAtestadoWithCID = async function(inputEl) {
             selectedCID = null;
             document.getElementById('cid-search').value = '';
             document.getElementById('cid-selected-badge').style.display = 'none';
-            document.getElementById('cid-upload-label').style.display = 'none';
+            document.getElementById('atestado-period-form').style.display = 'none';
             document.getElementById('cid-hint').style.display = '';
+            // Atualizar status no objeto local e forçar re-render da barra de título se no futuro/hoje
+            const inicio = document.getElementById('atestado_inicio_dia').value;
+            const fim = document.getElementById('atestado_fim_dia').value;
+            if (tipo === 'dias' && inicio && fim) {
+                const todayStr = new Date().toISOString().split('T')[0];
+                if (todayStr >= inicio && todayStr <= fim) {
+                    viewedColaborador.status = 'Afastado';
+                    renderColaboradorHeader(); // renderiza a barra no topo
+                }
+            }
             await loadDocumentosList();
             renderAtestadosAno();
         } else {
