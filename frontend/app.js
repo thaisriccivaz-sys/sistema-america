@@ -2878,23 +2878,58 @@ window.viewDoc = async function(docId) {
     const modal = document.getElementById('doc-modal');
     if (modal) modal.style.display = 'flex';
 }
-
 window.downloadAssinado = async function(docId) {
     const url = `${API_URL}/documentos/download-assinado/${docId}`;
     try {
+        let handle = null;
+        // Pede a pasta ao usuário antes do fetch para garantir que não perde o foco/evento de clique do navegador (exigência de segurança do Chrome)
+        if (window.showSaveFilePicker) {
+            try {
+                handle = await window.showSaveFilePicker({
+                    suggestedName: 'Documento_Assinado_' + docId + '.pdf',
+                    types: [{ description: 'Documento PDF', accept: { 'application/pdf': ['.pdf'] } }]
+                });
+            } catch (e) {
+                if (e.name === 'AbortError') return; // Usuário cancelou a janela Salvar Como
+            }
+        }
+
+        // Adiciona um aviso visual (cursor carregando) caso o download demore
+        document.body.style.cursor = 'wait';
+
         const res = await fetch(url, { headers: { 'Authorization': `Bearer ${currentToken}` } });
         if (!res.ok) {
+            document.body.style.cursor = 'default';
             const err = await res.json().catch(() => ({}));
-            alert(err.error || 'PDF assinado ainda nao disponivel. Aguarde alguns instantes e tente novamente.');
+            alert(err.error || 'PDF assinado ainda não está pronto para download. Tente via Atualizar.');
             return;
         }
+
         const blob = await res.blob();
+        document.body.style.cursor = 'default';
+
+        if (handle) {
+            const writable = await handle.createWritable();
+            await writable.write(blob);
+            await writable.close();
+            return; // Sucesso, arquivo salvo onde o usuário quis
+        }
+
+        // Fallback: se o navegador não suportar a janela Salvar Como (ex: Safari antigo, Firefox padrão)
+        let fileName = 'documento_assinado_' + docId + '.pdf';
+        const disposition = res.headers.get('content-disposition');
+        if (disposition && disposition.indexOf('filename=') !== -1) {
+            const match = disposition.match(/filename="?([^"]+)"?/);
+            if (match && match[1]) fileName = decodeURIComponent(match[1]);
+        }
+        
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = 'documento_assinado_' + docId + '.pdf';
+        a.download = fileName;
         a.click();
         URL.revokeObjectURL(a.href);
     } catch(e) {
+        document.body.style.cursor = 'default';
         alert('Erro ao baixar o PDF assinado: ' + e.message);
     }
 }
