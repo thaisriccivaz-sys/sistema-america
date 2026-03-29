@@ -172,16 +172,26 @@ async function enviarDocumentoParaAssinafy(documentId, colaboradorId) {
     const lista = searchRes.json?.data || [];
 
     if (Array.isArray(lista) && lista.length > 0) {
-        signerId = lista[0].id;
-        console.log(`[4] Signatário existente ID=${signerId} email=${lista[0].email}`);
-
-        // Atualizar e-mail se diferente
-        if (lista[0].email !== email) {
-            console.log(`[4] Atualizando e-mail para ${email}...`);
-            await req('PUT', `/v1/accounts/${ACCOUNT_ID}/signers/${signerId}`, {
+        // Encontrar aquele que tem o e-mail EXATO, caso exista mais de um para o mesmo CPF
+        const exactSigner = lista.find(s => s.email.toLowerCase() === email.toLowerCase());
+        
+        if (exactSigner) {
+            signerId = exactSigner.id;
+            console.log(`[4] Signatário exato encontrado! ID=${signerId} email=${exactSigner.email}`);
+        } else {
+            // Se nenhum tiver o e-mail desejado, pega o primeiro e tenta atualizar
+            signerId = lista[0].id;
+            console.log(`[4] Signatário existente ID=${signerId} email=${lista[0].email}`);
+            console.log(`[4] Tentando atualizar e-mail para ${email}...`);
+            const putRes = await req('PUT', `/v1/accounts/${ACCOUNT_ID}/signers/${signerId}`, {
                 full_name: nome, email, tax_id: cpf,
                 ...(fone ? { whatsapp_phone_number: fone } : {})
             });
+            if (putRes.status >= 300) {
+                console.error(`[PUT FAILED] Erro ao atualizar e-mail no Assinafy (status ${putRes.status}):`, putRes.raw);
+                // Se falhar a atualização, ele prosseguirá com o email antigo/outro email do signatário, 
+                // devido à rigidez da API. Mas pelo menos registramos no LOG.
+            }
         }
     } else {
         console.log(`[4] Criando signatário ${nome}...`);
