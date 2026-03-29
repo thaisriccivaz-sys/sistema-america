@@ -2252,7 +2252,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
     `;
 
     let vencimentoInputHtml = '';
-    const needsVencimentoList = ['ASO', 'CNH', 'Audiometria', 'RG-CPF', 'CIN-CPF', 'Comprovante de endereço'];
+    const needsVencimentoList = ['ASO', 'CNH', 'Exames Complementares', 'RG-CPF', 'CIN-CPF', 'Comprovante de endereço'];
     const needsVencimento = needsVencimentoList.includes(docType) || tabId === 'ASO';
     const safeDocType = docType.replace(/\s+/g, '-');
 
@@ -2476,7 +2476,7 @@ window.renderASOAno = function() {
 
     // Documentos obrigatórios
     const list = ['ASO Padrão'];
-    if (isMotorista) list.push('Audiometria');
+    if (isMotorista) list.push('Exames Complementares');
     if (isDesligado) list.push('ASO Demissional');
 
     list.forEach(docType => {
@@ -4343,7 +4343,7 @@ window.sendASOEmail = async function() {
     const dt = `${d}/${m}/${y}`;
     const cargo = (viewedColaborador.cargo || '').toLowerCase();
     const exames = cargo.includes('motorista') 
-        ? 'Audiometria, acuidade visual, E.E.G, E.C.G e Glicemia.' 
+        ? 'Exames Complementares, acuidade visual, E.E.G, E.C.G e Glicemia.' 
         : 'Exame Padrão';
 
     const mailBody = `Título: Exame Admissional\n\nSegue abaixo as informações para a realização do exame Admissional do colaborador que deve comparecer.\n\nData: ${dt}\n\nNome: ${viewedColaborador.nome_completo}\nCPF: ${viewedColaborador.cpf}\nFunção: ${viewedColaborador.cargo || '-'}\nDepartamento: ${viewedColaborador.departamento || '-'}\n\nExames:\n${exames}\n\n⚠️ IMPORTANTE:\nApós o exame ficar pronto, favor enviar o documento por e-mail diretamente para: rh@americarental.com.br`;

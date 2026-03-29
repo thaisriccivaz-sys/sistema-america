@@ -21,6 +21,13 @@ const SMTP_CONFIG = {
 };
 
 const db = require('./database');
+
+// MIGRATION: Atualizar antigos registros "Audiometria" para "Exames Complementares"
+db.run("UPDATE documentos SET document_type = 'Exames Complementares' WHERE document_type = 'Audiometria'", (err) => {
+    if (err) console.error("Erro na migration Exames Complementares:", err);
+    else console.log("Migration 'Audiometria -> Exames Complementares' executada (se houver registros).");
+});
+
 // OneDrive TEMPORARIAMENTE DESABILITADO (credenciais Azure inválidas)
 // const onedrive = require('./utils/onedrive');
 const onedrive = null;
