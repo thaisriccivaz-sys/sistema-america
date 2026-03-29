@@ -2155,20 +2155,47 @@ window.anexarAdvertenciaAoProntuario = async function() {
             body: formData
         });
 
-        if (!response.ok) throw new Error('Erro ao anexar documento no servidor.');
+        // O servidor pode retornar 5xx se o OneDrive falhar, mas o doc JÁ foi salvo no banco.
+        // Só consideramos falha real se não houver resposta ou status 400.
+        const resData = await response.json().catch(() => ({}));
+        if (response.status === 400) throw new Error(resData.error || 'Arquivo não recebido pelo servidor.');
 
-        alert('Documento anexado com sucesso ao prontuário!');
+        // Fechar modal
         document.getElementById('modal-preview-doc').style.display = 'none';
-        
-        // Atualiza a visualização
-        loadColaborador(viewedColaborador.id);
+
+        // Feedback visual sem alert
+        if (btn) {
+            btn.innerHTML = '<i class="ph ph-check-circle"></i> Anexado!';
+            btn.style.background = '#2f9e44';
+            btn.disabled = true;
+        }
+
+        // Recarregar documentos e re-renderizar a aba Advertências
+        try {
+            const docs = await apiGet(`/colaboradores/${viewedColaborador.id}/documentos`);
+            if (docs) {
+                currentDocs = docs;
+                const activeTab = document.querySelector('#tabs-list li.active');
+                if (activeTab) {
+                    renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
+                } else {
+                    renderTabContent('Advertências', 'Advertências', true);
+                }
+            }
+        } catch (refreshErr) {
+            console.warn('Aviso: não foi possível atualizar a lista automaticamente.', refreshErr);
+        }
 
     } catch (e) {
         console.error(e);
-        alert('Falha ao anexar documento: ' + e.message);
         if (btn) {
-            btn.innerHTML = '<i class="ph ph-paperclip"></i> Tentar Novamente';
+            btn.innerHTML = '<i class="ph ph-warning"></i> ' + (e.message || 'Erro ao anexar');
+            btn.style.background = '#e03131';
             btn.disabled = false;
+            setTimeout(() => {
+                btn.innerHTML = '<i class="ph ph-paperclip"></i> Tentar Novamente';
+                btn.style.background = '#2f9e44';
+            }, 3000);
         }
     }
 };
