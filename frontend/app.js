@@ -1906,11 +1906,6 @@ window.renderAdvertenciasTab = function(listContainer, filteredDocs) {
                 <textarea id="adv-motivo" rows="3" class="form-control" placeholder="Descreva o motivo da advertência..." style="padding:0.5rem; border:1px solid #fdba74; border-radius:6px; font-size:0.9rem; resize:vertical; width:100%; box-sizing:border-box;"></textarea>
             </div>
 
-            <div style="margin-bottom:1rem;">
-                <label style="font-size:0.75rem; font-weight:700; color:#92400e; display:block; margin-bottom:4px;">Base Legal / Cláusula Infringida <span style="color:#9ca3af; font-weight:400;">(opcional)</span></label>
-                <input type="text" id="adv-base-legal" class="form-control" placeholder="Ex: Art. 482 CLT, Cláusula 5 do Contrato..." style="padding:0.5rem; border:1px solid #fdba74; border-radius:6px; font-size:0.9rem;">
-            </div>
-
             <div style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
                 <button onclick="window.gerarAdvertencia()" class="btn btn-primary" style="background:#fd7e14; border-color:#fd7e14; display:flex; align-items:center; gap:6px; font-weight:700;">
                     <i class="ph ph-file-text"></i> Gerar Documento
@@ -1943,7 +1938,6 @@ window.gerarAdvertencia = function() {
     const dataOcorrencia = document.getElementById('adv-data').value;
     const titulo = document.getElementById('adv-titulo').value.trim();
     const motivo = document.getElementById('adv-motivo').value.trim();
-    const baseLegal = document.getElementById('adv-base-legal').value.trim();
 
     if (!motivo) { alert('Por favor, descreva o motivo da advertência.'); document.getElementById('adv-motivo').focus(); return; }
 
@@ -1980,10 +1974,6 @@ window.gerarAdvertencia = function() {
             sem remuneração, a contar da data da ciência deste documento.
         </p>` : '';
 
-    const baseLegalParag = baseLegal ? `
-        <p style="margin-top:1rem; text-align:justify;">
-            <strong>Base legal / cláusula infringida:</strong> ${baseLegal}
-        </p>` : '';
 
     const htmlDoc = `
         <p style="margin-top:1.5rem; text-align:justify;">
@@ -1998,7 +1988,6 @@ window.gerarAdvertencia = function() {
             <strong>Motivo / Infração cometida:</strong><br>
             ${motivo.replace(/\n/g, '<br>')}
         </p>
-        ${baseLegalParag}
         ${suspensaoParag}
         <p style="margin-top:1rem; text-align:justify;">
             Informamos que esta é <strong>uma medida disciplinar</strong> e que reincidências poderão acarretar
@@ -2122,8 +2111,24 @@ window.anexarAdvertenciaAoProntuario = async function() {
     try {
         const element = document.getElementById('preview-doc-body');
 
-        // Remove acentos para nomes de arquivo seguros
-        const semAcentos = (str) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]/g, '_');
+        // Mapeamento explícito de acentos - mais confiável que normalize() em alguns ambientes
+        const semAcentos = (str) => {
+            const map = {
+                '\u00e0':'a','\u00e1':'a','\u00e2':'a','\u00e3':'a','\u00e4':'a','\u00e5':'a',
+                '\u00c0':'A','\u00c1':'A','\u00c2':'A','\u00c3':'A','\u00c4':'A','\u00c5':'A',
+                '\u00e8':'e','\u00e9':'e','\u00ea':'e','\u00eb':'e',
+                '\u00c8':'E','\u00c9':'E','\u00ca':'E','\u00cb':'E',
+                '\u00ec':'i','\u00ed':'i','\u00ee':'i','\u00ef':'i',
+                '\u00cc':'I','\u00cd':'I','\u00ce':'I','\u00cf':'I',
+                '\u00f2':'o','\u00f3':'o','\u00f4':'o','\u00f5':'o','\u00f6':'o',
+                '\u00d2':'O','\u00d3':'O','\u00d4':'O','\u00d5':'O','\u00d6':'O',
+                '\u00f9':'u','\u00fa':'u','\u00fb':'u','\u00fc':'u',
+                '\u00d9':'U','\u00da':'U','\u00db':'U','\u00dc':'U',
+                '\u00e7':'c','\u00c7':'C','\u00f1':'n','\u00d1':'N',
+                '\u2014':'_','\u2013':'_'
+            };
+            return str.split('').map(c => map[c] !== undefined ? map[c] : c).join('').replace(/[^a-zA-Z0-9]/g, '_');
+        };
         const nomeArquivo = `${semAcentos(window._advertenciaData.gerador_nome)}_${semAcentos(window._advertenciaData.colaborador.NOME_COMPLETO)}.pdf`;
 
         const opt = {
@@ -2141,8 +2146,10 @@ window.anexarAdvertenciaAoProntuario = async function() {
         formData.append('file', file);
         formData.append('colaborador_id', viewedColaborador.id);
         formData.append('tab_name', 'Advertências');
-        // Title case correto com acentos: split por espaço, capitaliza primeira letra de cada palavra
-        const docType = window._advertenciaData.gerador_nome.split(' ')
+        // docType sem acentos para evitar corrupção no banco/filename
+        const docType = semAcentos(window._advertenciaData.gerador_nome)
+            .replace(/_+/g, ' ').trim()
+            .split(' ')
             .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
             .join(' ');
         formData.append('document_type', docType);
