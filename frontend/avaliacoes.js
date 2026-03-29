@@ -466,13 +466,13 @@ window.renderAvaliacaoTab = async function(container) {
 
             <!-- Charts Container -->
             <div style="display:flex; gap:1.5rem; margin-bottom:2rem; flex-wrap:wrap;">
-                <div style="flex:1; min-width:300px; background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:1.5rem;">
-                    <h5 style="margin:0 0 1rem; text-align:center; color:#334155;">Categorias (${year}) - ${tipo === 'desempenho' ? 'Desempenho' : 'Satisfação'}</h5>
-                    <div style="position:relative; height:250px;"><canvas id="chart-competencias"></canvas></div>
+                <div style="flex:1; min-width:300px; background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+                    <h5 style="margin:0 0 1rem; text-align:center; color:#334155; font-size:1.1rem;">Desempenho por Categoria</h5>
+                    <div style="position:relative; height:350px;"><canvas id="chart-competencias"></canvas></div>
                 </div>
-                <div style="flex:1; min-width:300px; background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:1.5rem;">
-                    <h5 style="margin:0 0 1rem; text-align:center; color:#334155;">Média Geral</h5>
-                    <div style="position:relative; height:250px;"><canvas id="chart-medias"></canvas></div>
+                <div style="flex:1; min-width:300px; background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+                    <h5 style="margin:0 0 1rem; text-align:center; color:#334155; font-size:1.1rem;">Evolução Trimestral</h5>
+                    <div style="position:relative; height:350px;"><canvas id="chart-medias"></canvas></div>
                 </div>
             </div>
 
@@ -483,40 +483,78 @@ window.renderAvaliacaoTab = async function(container) {
         setTimeout(() => {
             if (typeof Chart === 'undefined') return;
             
-            const doughnutLabels = categories;
-            const doughnutData = categories.map(cat => {
+            const catLabels = categories;
+            const catData = categories.map(cat => {
                 let sum = 0, count = 0;
                 [1,2,3,4].forEach(t => { if(trimestersData[t][cat]){ sum+=trimestersData[t][cat]; count++; } });
-                return count > 0 ? (sum/count).toFixed(2) : 0;
+                return count > 0 ? parseFloat((sum/count).toFixed(2)) : 0;
             });
-            const doughnutColors = ['#0ea5e9', '#ef4444', '#84cc16', '#8b5cf6', '#f59e0b', '#10b981', '#f43f5e', '#64748b', '#14b8a6', '#f97316', '#6366f1', '#a855f7', '#fbbf24', '#34d399', '#f87171', '#818cf8', '#a78bfa', '#f472b6', '#38bdf8', '#fb923c'];
 
             if (chartDonut) chartDonut.destroy();
             const ctxDonut = document.getElementById('chart-competencias')?.getContext('2d');
             if (ctxDonut) {
+                // Gráfico 1: Média por Categoria (Radar ou Barra Horizontal)
                 chartDonut = new Chart(ctxDonut, {
-                    type: 'doughnut',
+                    type: 'bar',
                     data: {
-                        labels: doughnutLabels,
-                        datasets: [{ data: doughnutData, backgroundColor: doughnutColors.slice(0, doughnutLabels.length), borderWidth: 1 }]
+                        labels: catLabels,
+                        datasets: [{
+                            label: 'Média Anual',
+                            data: catData,
+                            backgroundColor: 'rgba(14, 165, 233, 0.2)',
+                            borderColor: '#0ea5e9',
+                            borderWidth: 2,
+                            borderRadius: 4,
+                            hoverBackgroundColor: 'rgba(14, 165, 233, 0.4)'
+                        }]
                     },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 10 } } } } }
+                    options: { 
+                        indexAxis: 'y', // Barra Horizontal para leitura fácil das categorias
+                        responsive: true, 
+                        maintainAspectRatio: false, 
+                        scales: { 
+                            x: { beginAtZero: true, max: 5, ticks: { stepSize: 1 } },
+                            y: { ticks: { font: { size: 10 } } }
+                        },
+                        plugins: { 
+                            legend: { display: false },
+                            tooltip: { callbacks: { label: function(c) { return 'Média: ' + c.raw; } } }
+                        } 
+                    }
                 });
             }
 
             if (chartBar) chartBar.destroy();
             const ctxBar = document.getElementById('chart-medias')?.getContext('2d');
             if (ctxBar) {
+                // Gráfico 2: Evolução (Linha)
                 chartBar = new Chart(ctxBar, {
-                    type: 'bar',
+                    type: 'line',
                     data: {
                         labels: [trimestreToMonth[1], trimestreToMonth[2], trimestreToMonth[3], trimestreToMonth[4]],
-                        datasets: [{ label: 'Média', data: [trimestersOverall[1], trimestersOverall[2], trimestersOverall[3], trimestersOverall[4]], backgroundColor: '#3b82f6', borderRadius: 4 }]
+                        datasets: [{ 
+                            label: 'Média Geral', 
+                            data: [trimestersOverall[1], trimestersOverall[2], trimestersOverall[3], trimestersOverall[4]], 
+                            borderColor: '#10b981', 
+                            backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                            borderWidth: 3,
+                            pointBackgroundColor: '#ffffff',
+                            pointBorderColor: '#10b981',
+                            pointBorderWidth: 2,
+                            pointRadius: 5,
+                            pointHoverRadius: 7,
+                            fill: true,
+                            tension: 0.4 // Linha suave
+                        }]
                     },
                     options: { 
-                        responsive: true, maintainAspectRatio: false, 
-                        scales: { y: { beginAtZero: true, max: 5 } },
-                        plugins: { legend: { display: false } }
+                        responsive: true, 
+                        maintainAspectRatio: false, 
+                        scales: { y: { beginAtZero: true, max: 5, ticks: { stepSize: 1 } } },
+                        plugins: { 
+                            legend: { display: false },
+                            tooltip: { callbacks: { label: function(c) { return 'Nota: ' + (c.raw ? c.raw.toFixed(2) : '0'); } } }
+                        }
                     }
                 });
             }
