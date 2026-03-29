@@ -8,6 +8,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Phosphor Icons para ícones modernos -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Chart.js para dashboards de avaliação -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -1016,8 +1018,8 @@
                                 <li data-tab="ASO">ASO</li>
                                 <li data-tab="Atestados">Atestados</li>
                                 <li data-tab="Faltas">Faltas</li>
-                                <li data-tab="Advertências">Advertências</li>
                                 <li data-tab="Avaliação">Avaliação</li>
+                                <li data-tab="Advertências">Advertências</li>
                                 <li data-tab="Boletim de ocorrência">Boletim de ocorrência</li>
                                 <li data-tab="Certificados">Certificados</li>
                                 <li id="tab-conjuge" data-tab="Conjuge" style="display:none;">Conjuge</li>
@@ -1594,6 +1596,7 @@
 
     <!-- Gerador PDF client-side -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="avaliacoes.js"></script>
     <script src="app.js?v=33"></script>
 </body>
 </html>

@@ -1514,6 +1514,30 @@ app.delete('/api/faltas/:id', authenticateToken, (req, res) => {
     });
 });
 
+// --- ROTAS DE AVALIAÇÃO ---
+app.get('/api/colaboradores/:id/avaliacoes', authenticateToken, (req, res) => {
+    db.all('SELECT * FROM avaliacoes WHERE colaborador_id = ? ORDER BY ano DESC, trimestre ASC', [req.params.id], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+app.post('/api/avaliacoes', authenticateToken, (req, res) => {
+    const { colaborador_id, ano, trimestre, respostas_json } = req.body;
+    if (!colaborador_id || !ano || !trimestre) return res.status(400).json({ error: 'colaborador_id, ano e trimestre são obrigatórios.' });
+    
+    // Upsert (atualiza se já existir para o mesmo colaborador/ano/trimestre)
+    db.run(`
+        INSERT INTO avaliacoes (colaborador_id, ano, trimestre, respostas_json)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(colaborador_id, ano, trimestre) 
+        DO UPDATE SET respostas_json=excluded.respostas_json, created_at=CURRENT_TIMESTAMP
+    `, [colaborador_id, ano, trimestre, (respostas_json || '{}')], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true, changes: this.changes });
+    });
+});
+
 // --- ROTA DE ENVIO DE E-MAIL ASO ---
 app.post('/api/send-aso-email', authenticateToken, (req, res) => {
     const { colaborador_id, email_to, data_exame, cc } = req.body;

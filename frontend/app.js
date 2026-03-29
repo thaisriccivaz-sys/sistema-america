@@ -2328,6 +2328,8 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
         renderAtestadosTab(listContainer, filteredDocs);
     } else if (tabId === 'Faltas') {
         renderFaltasTab(listContainer);
+    } else if (tabId === 'Avaliação') {
+        if (window.renderAvaliacaoTab) window.renderAvaliacaoTab(listContainer);
     } else if (tabId === 'Advertências') {
         renderAdvertenciasTab(listContainer, filteredDocs);
     } else if (tabId === '01.Ficha Cadastral') {

@@ -263,9 +263,29 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 )
             `);
 
+            // Tabela de Avaliações
+            db.run(`
+                CREATE TABLE IF NOT EXISTS avaliacoes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    colaborador_id INTEGER NOT NULL,
+                    ano INTEGER NOT NULL,
+                    trimestre INTEGER NOT NULL,
+                    respostas_json TEXT NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(colaborador_id, ano, trimestre),
+                    FOREIGN KEY (colaborador_id) REFERENCES colaboradores (id) ON DELETE CASCADE
+                )
+            `);
+
             // Inserir Cargo "Motorista" fixo se não existir
             db.run("INSERT INTO cargos (nome) SELECT 'Motorista' WHERE NOT EXISTS (SELECT 1 FROM cargos WHERE nome='Motorista')", (err) => {});
             
+            // Inserir departamentos padrões
+            const depts = ['Motorista', 'Ajudante', 'Manutenção', 'Financeiro', 'Comercial', 'Administrativo', 'Logística', 'Recursos Humanos', 'Liderança'];
+            depts.forEach(d => {
+                db.run("INSERT INTO departamentos (nome) SELECT ? WHERE NOT EXISTS (SELECT 1 FROM departamentos WHERE nome=?)", [d, d]);
+            });
+
             // Migrações para adicionar colunas se não existirem
             db.serialize(() => {
                 // Colaborador_chaves
