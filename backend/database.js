@@ -250,6 +250,19 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 )
             `);
 
+            // Tabela de Faltas (ausências sem justificativa)
+            db.run(`
+                CREATE TABLE IF NOT EXISTS faltas (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    colaborador_id INTEGER NOT NULL,
+                    data_falta TEXT NOT NULL,
+                    turno TEXT NOT NULL DEFAULT 'Dia todo',
+                    observacao TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (colaborador_id) REFERENCES colaboradores (id) ON DELETE CASCADE
+                )
+            `);
+
             // Inserir Cargo "Motorista" fixo se não existir
             db.run("INSERT INTO cargos (nome) SELECT 'Motorista' WHERE NOT EXISTS (SELECT 1 FROM cargos WHERE nome='Motorista')", (err) => {});
             

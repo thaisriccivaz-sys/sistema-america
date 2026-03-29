@@ -1487,6 +1487,33 @@ app.delete('/api/chaves/:id', authenticateToken, (req, res) => {
     });
 });
 
+// --- ROTAS DE FALTAS ---
+app.get('/api/colaboradores/:id/faltas', authenticateToken, (req, res) => {
+    db.all('SELECT * FROM faltas WHERE colaborador_id = ? ORDER BY data_falta DESC', [req.params.id], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+app.post('/api/faltas', authenticateToken, (req, res) => {
+    const { colaborador_id, data_falta, turno, observacao } = req.body;
+    if (!colaborador_id || !data_falta) return res.status(400).json({ error: 'colaborador_id e data_falta são obrigatórios.' });
+    db.run('INSERT INTO faltas (colaborador_id, data_falta, turno, observacao) VALUES (?, ?, ?, ?)',
+        [colaborador_id, data_falta, turno || 'Dia todo', observacao || ''],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ id: this.lastID, colaborador_id, data_falta, turno: turno || 'Dia todo', observacao: observacao || '' });
+        }
+    );
+});
+
+app.delete('/api/faltas/:id', authenticateToken, (req, res) => {
+    db.run('DELETE FROM faltas WHERE id = ?', [req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ deleted: this.changes });
+    });
+});
+
 // --- ROTA DE ENVIO DE E-MAIL ASO ---
 app.post('/api/send-aso-email', authenticateToken, (req, res) => {
     const { colaborador_id, email_to, data_exame, cc } = req.body;

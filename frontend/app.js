@@ -2326,6 +2326,8 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
         renderASOTab(listContainer, filteredDocs);
     } else if (tabId === 'Atestados') {
         renderAtestadosTab(listContainer, filteredDocs);
+    } else if (tabId === 'Faltas') {
+        renderFaltasTab(listContainer);
     } else if (tabId === 'Advertências') {
         renderAdvertenciasTab(listContainer, filteredDocs);
     } else if (tabId === '01.Ficha Cadastral') {
@@ -3047,6 +3049,114 @@ window.renderASOAno = function() {
     };
     container.appendChild(form);
 }
+
+async function renderFaltasTab(container) {
+    if (!viewedColaborador) return;
+    const colabId = viewedColaborador.id;
+
+    container.innerHTML = '<p style="color:#64748b; padding:1rem;">Carregando faltas...</p>';
+
+    const faltas = await apiGet(`/colaboradores/${colabId}/faltas`).catch(() => []);
+
+    const formatDateBR = (iso) => {
+        if (!iso) return '-';
+        const [y, m, d] = iso.split('-');
+        return `${d}/${m}/${y}`;
+    };
+
+    const turnoColor = { 'Dia todo': '#e03131', 'Manhã': '#f08c00', 'Tarde': '#1971c2' };
+
+    const tableRows = faltas.length === 0
+        ? `<tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:1.5rem;">Nenhuma falta registrada.</td></tr>`
+        : faltas.map(f => `
+            <tr style="border-bottom:1px solid #f1f5f9;">
+                <td style="padding:0.65rem 0.75rem; font-weight:600;">${formatDateBR(f.data_falta)}</td>
+                <td style="padding:0.65rem 0.75rem;">
+                    <span style="background:${turnoColor[f.turno] || '#64748b'}; color:#fff; padding:2px 10px; border-radius:10px; font-size:0.75rem; font-weight:700;">${f.turno}</span>
+                </td>
+                <td style="padding:0.65rem 0.75rem; color:#475569; font-size:0.88rem;">${f.observacao || '—'}</td>
+                <td style="padding:0.65rem 0.75rem; text-align:right;">
+                    <button onclick="window.deletarFalta(${f.id}, this)" style="background:none; border:none; cursor:pointer; color:#e03131;" title="Excluir">
+                        <i class="ph ph-trash" style="font-size:1.1rem;"></i>
+                    </button>
+                </td>
+            </tr>`).join('');
+
+    container.innerHTML = `
+        <!-- Formulário de registro -->
+        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:1.25rem; margin-bottom:1.5rem;">
+            <h4 style="margin:0 0 1rem; font-size:1rem; color:#1e293b; display:flex; align-items:center; gap:8px;">
+                <i class="ph ph-calendar-x" style="color:#e03131;"></i> Registrar Falta
+            </h4>
+            <div style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:flex-end;">
+                <div style="display:flex; flex-direction:column; gap:0.25rem;">
+                    <label style="font-size:0.8rem; font-weight:600; color:#475569;">Data da Falta</label>
+                    <input type="date" id="falta-data" style="height:38px; padding:0 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.9rem;">
+                </div>
+                <div style="display:flex; flex-direction:column; gap:0.25rem;">
+                    <label style="font-size:0.8rem; font-weight:600; color:#475569;">Turno</label>
+                    <select id="falta-turno" style="height:38px; padding:0 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.9rem;">
+                        <option value="Dia todo">Dia todo</option>
+                        <option value="Manhã">Manhã</option>
+                        <option value="Tarde">Tarde</option>
+                    </select>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:0.25rem; flex:1; min-width:180px;">
+                    <label style="font-size:0.8rem; font-weight:600; color:#475569;">Observação (opcional)</label>
+                    <input type="text" id="falta-obs" placeholder="Ex: não comunicou, sem justificativa..." style="height:38px; padding:0 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.9rem;">
+                </div>
+                <button onclick="window.registrarFalta()" style="height:38px; background:#e03131; color:#fff; border:none; border-radius:6px; padding:0 1.2rem; font-size:0.88rem; font-weight:700; cursor:pointer; white-space:nowrap; display:inline-flex; align-items:center; gap:6px;">
+                    <i class="ph ph-plus"></i> Registrar
+                </button>
+            </div>
+        </div>
+
+        <!-- Lista de faltas -->
+        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; overflow:hidden;">
+            <div style="padding:0.85rem 1rem; background:#fef2f2; border-bottom:1px solid #fce7e7; display:flex; align-items:center; gap:8px;">
+                <i class="ph ph-calendar-x" style="color:#e03131;"></i>
+                <span style="font-weight:700; color:#1e293b;">Faltas Registradas</span>
+                <span style="margin-left:auto; background:#e03131; color:#fff; border-radius:12px; padding:1px 10px; font-size:0.8rem; font-weight:700;">${faltas.length} falta${faltas.length !== 1 ? 's' : ''}</span>
+            </div>
+            <table style="width:100%; border-collapse:collapse; font-size:0.9rem;">
+                <thead>
+                    <tr style="background:#f8fafc; text-align:left;">
+                        <th style="padding:0.6rem 0.75rem; color:#64748b; font-size:0.78rem; text-transform:uppercase;">Data</th>
+                        <th style="padding:0.6rem 0.75rem; color:#64748b; font-size:0.78rem; text-transform:uppercase;">Turno</th>
+                        <th style="padding:0.6rem 0.75rem; color:#64748b; font-size:0.78rem; text-transform:uppercase;">Observação</th>
+                        <th style="padding:0.6rem 0.75rem;"></th>
+                    </tr>
+                </thead>
+                <tbody>${tableRows}</tbody>
+            </table>
+        </div>
+    `;
+}
+
+window.registrarFalta = async function() {
+    const data = document.getElementById('falta-data')?.value;
+    const turno = document.getElementById('falta-turno')?.value;
+    const obs = document.getElementById('falta-obs')?.value || '';
+    if (!data) { alert('Informe a data da falta.'); return; }
+    if (!viewedColaborador) return;
+
+    try {
+        await apiPost('/faltas', { colaborador_id: viewedColaborador.id, data_falta: data, turno, observacao: obs });
+        // Recarregar aba
+        const listContainer = document.getElementById('docs-list-container');
+        if (listContainer) await renderFaltasTab(listContainer);
+    } catch(e) { alert('Erro ao registrar falta: ' + e.message); }
+};
+
+window.deletarFalta = async function(id, btn) {
+    if (!confirm('Excluir esta falta?')) return;
+    btn.disabled = true;
+    try {
+        await apiDelete(`/faltas/${id}`);
+        const listContainer = document.getElementById('docs-list-container');
+        if (listContainer) await renderFaltasTab(listContainer);
+    } catch(e) { alert('Erro ao excluir: ' + e.message); btn.disabled = false; }
+};
 
 window.renderAtestadosTab = function(container, filteredDocs) {
     const selected = window.tabPersistence ? window.tabPersistence['atestados_year'] : null;
