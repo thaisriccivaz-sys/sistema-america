@@ -2757,7 +2757,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         </button>
                     </div>` : ''}
 
-                    ${(tabId === 'Advertências' && isSaved && tipoAdvSimples && tipoAdvSimples.toLowerCase().includes('suspens')) ? `
+                    ${(tabId === 'Advertências' && isSaved && isAssinado && tipoAdvSimples && tipoAdvSimples.toLowerCase().includes('suspens')) ? `
                     <div style="display:flex; flex-direction:column; gap:0.35rem; margin-top:0.35rem; align-items:flex-end;">
                         <input type="email" id="susp-contab-email-${existingDoc.id}"
                                value="thais.ricci@americarental.com.br"

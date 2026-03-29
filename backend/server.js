@@ -1721,19 +1721,24 @@ app.post('/api/send-suspensao-contabilidade', authenticateToken, async (req, res
             ? new Date(doc.upload_date).toLocaleDateString('pt-BR')
             : new Date().toLocaleDateString('pt-BR');
 
-        // Arquivo em anexo
+        // Garantir que o documento está assinado
+        if (doc.assinafy_status !== 'Assinado' || !doc.signed_file_path) {
+            return res.status(400).json({ sucesso: false, error: 'O documento ainda não foi assinado. Aguarde a assinatura antes de enviar para a contabilidade.' });
+        }
+
+        // Arquivo assinado em anexo
         const attachments = [];
-        if (doc.file_path) {
-            const filePath = path.resolve(doc.file_path);
-            if (fs.existsSync(filePath)) {
-                const nomeNorm = (colab.nome_completo || 'Colaborador')
-                    .toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]+/g, '_');
-                const hoje = new Date();
-                const dd = String(hoje.getDate()).padStart(2, '0');
-                const mm = String(hoje.getMonth() + 1).padStart(2, '0');
-                const yyyy = hoje.getFullYear();
-                attachments.push({ filename: `Suspensao_${dd}-${mm}-${yyyy}_${nomeNorm}.pdf`, path: filePath, contentType: 'application/pdf' });
-            }
+        const signedFilePath = path.resolve(doc.signed_file_path);
+        if (fs.existsSync(signedFilePath)) {
+            const nomeNorm = (colab.nome_completo || 'Colaborador')
+                .toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]+/g, '_');
+            const hoje = new Date();
+            const dd = String(hoje.getDate()).padStart(2, '0');
+            const mm = String(hoje.getMonth() + 1).padStart(2, '0');
+            const yyyy = hoje.getFullYear();
+            attachments.push({ filename: `Suspensao_Assinada_${dd}-${mm}-${yyyy}_${nomeNorm}.pdf`, path: signedFilePath, contentType: 'application/pdf' });
+        } else {
+            return res.status(404).json({ sucesso: false, error: 'Arquivo PDF assinado não encontrado no servidor.' });
         }
 
         const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
