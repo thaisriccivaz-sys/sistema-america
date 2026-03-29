@@ -2644,7 +2644,18 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
         const parts = docType.split('###');
         docLabel = parts[0] || docType;
         tipoAdvSimples = parts[1] || '';
-        docBadge = tipoAdvSimples ? `<span style="display:inline-block; margin-top:3px; background:#64748b; color:#fff; padding:1px 8px; border-radius:10px; font-size:0.68rem; font-weight:700; letter-spacing:0.03em;">${tipoAdvSimples}</span>` : '';
+        docBadge = tipoAdvSimples ? (() => {
+            const t = tipoAdvSimples.toLowerCase();
+            let bg, color;
+            if (t.includes('verbal'))              { bg = '#ffd43b'; color = '#5c3d00'; }
+            else if (t.includes('escrita') || t.includes('escrito')) { bg = '#fd7e14'; color = '#fff'; }
+            else if (t.includes('suspens') && t.includes('1')) { bg = '#ff8787'; color = '#5c0000'; }
+            else if (t.includes('suspens') && t.includes('2')) { bg = '#e03131'; color = '#fff'; }
+            else if (t.includes('suspens') && t.includes('3')) { bg = '#862e2e'; color = '#fff'; }
+            else if (t.includes('suspens'))        { bg = '#e03131'; color = '#fff'; }
+            else                                   { bg = '#64748b'; color = '#fff'; }
+            return `<span style="display:inline-block; margin-top:3px; background:${bg}; color:${color}; padding:1px 8px; border-radius:10px; font-size:0.68rem; font-weight:700; letter-spacing:0.03em;">${tipoAdvSimples}</span>`;
+        })() : '';
     }
 
     // Icone esquerdo: amarelo=criado, azul aviao=enviado, verde caneta=assinado
@@ -2700,7 +2711,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
     if (isSaved) {
         const st = existingDoc.assinafy_status || '';
         if (st === 'Assinado') {
-            assStatusIcon = `<button onclick="window.downloadAssinado(${existingDoc.id})" style="display:inline-flex;align-items:center;gap:5px;background:#2f9e44;color:#fff;border:none;border-radius:6px;padding:0.3rem 0.75rem;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;" title="Baixar PDF Assinado"><i class="ph ph-download-simple" style="font-size:1rem;"></i> Baixar Assinado</button>`;
+            assStatusIcon = `<button onclick="window.viewAssinado(${existingDoc.id})" style="display:inline-flex;align-items:center;gap:5px;background:#2f9e44;color:#fff;border:none;border-radius:6px;padding:0.3rem 0.75rem;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;" title="Visualizar/Baixar PDF Assinado"><i class="ph ph-file-pdf" style="font-size:1rem;"></i> Ver Assinado</button>`;
         } else if (st === 'Erro') {
             assStatusIcon = `<span title="Erro ao enviar" style="display:inline-flex;align-items:center;gap:3px;color:#e03131;font-size:0.78rem;font-weight:700;white-space:nowrap;"><i class="ph ph-warning-circle" style="font-size:1.1rem;"></i> Erro</span>`;
         }
@@ -2720,7 +2731,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                     <div style="display: flex; gap: 0.5rem; align-items: flex-end;">
                         ${vencimentoInputHtml}
                         ${isSaved ? `
-                            ${!(isAssinado && tabId === 'Advertências') ? `<button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height: 42px;"><i class="ph ph-eye"></i></button>` : ''}
+                            ${!isAssinado ? `<button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height: 42px;"><i class="ph ph-eye"></i></button>` : ''}
                             ${!isAssinado ? `<button type="button" class="btn btn-danger" onclick="deleteDoc(${existingDoc.id}, this)" title="Excluir" style="height: 42px;"><i class="ph ph-trash"></i></button>` : ''}
                         ` : ''}
                         ${!isAssinado ? `
@@ -3554,6 +3565,58 @@ window.viewDoc = async function(docId) {
     const modal = document.getElementById('doc-modal');
     if (modal) modal.style.display = 'flex';
 }
+window.viewAssinado = async function(docId) {
+    const url = `${API_URL}/documentos/download-assinado/${docId}`;
+    try {
+        document.body.style.cursor = 'wait';
+        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${currentToken}` } });
+        document.body.style.cursor = 'default';
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            alert(err.error || 'PDF assinado ainda não está disponível.');
+            return;
+        }
+        const blob = await res.blob();
+        const blobUrl = URL.createObjectURL(blob);
+
+        // Obter filename do header
+        let fileName = `Documento_Assinado_${docId}.pdf`;
+        const cd = res.headers.get('content-disposition');
+        if (cd) { const m = cd.match(/filename=\"?([^\"]+)\"?/); if (m && m[1]) fileName = decodeURIComponent(m[1]); }
+
+        // Criar overlay fullscreen
+        const overlay = document.createElement('div');
+        overlay.id = 'pdf-signed-overlay';
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:99999;background:rgba(0,0,0,0.92);display:flex;flex-direction:column;';
+        overlay.innerHTML = `
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:0.75rem 1.25rem;background:#1e293b;flex-shrink:0;">
+                <span style="color:#fff;font-weight:700;font-size:0.95rem;"><i class="ph ph-file-pdf" style="color:#2f9e44;margin-right:6px;"></i>${fileName}</span>
+                <div style="display:flex;gap:0.75rem;align-items:center;">
+                    <button id="btn-download-signed-pdf" style="display:inline-flex;align-items:center;gap:6px;background:#2f9e44;color:#fff;border:none;border-radius:6px;padding:0.4rem 1rem;font-size:0.85rem;font-weight:700;cursor:pointer;">
+                        <i class="ph ph-download-simple"></i> Baixar PDF
+                    </button>
+                    <button onclick="document.getElementById('pdf-signed-overlay').remove(); URL.revokeObjectURL('${blobUrl}');" style="display:inline-flex;align-items:center;gap:6px;background:#475569;color:#fff;border:none;border-radius:6px;padding:0.4rem 0.9rem;font-size:0.85rem;font-weight:700;cursor:pointer;">
+                        <i class="ph ph-x"></i> Fechar
+                    </button>
+                </div>
+            </div>
+            <iframe src="${blobUrl}" style="flex:1;width:100%;border:none;"></iframe>
+        `;
+        document.body.appendChild(overlay);
+
+        // Botão de download
+        document.getElementById('btn-download-signed-pdf').addEventListener('click', () => {
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = fileName;
+            a.click();
+        });
+    } catch(e) {
+        document.body.style.cursor = 'default';
+        alert('Erro ao abrir o PDF assinado: ' + e.message);
+    }
+};
+
 window.downloadAssinado = async function(docId) {
     const url = `${API_URL}/documentos/download-assinado/${docId}`;
     try {
