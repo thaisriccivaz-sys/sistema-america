@@ -1898,6 +1898,11 @@ window.renderAdvertenciasTab = function(listContainer, filteredDocs) {
             </div>
 
             <div style="margin-bottom:1rem;">
+                <label style="font-size:0.75rem; font-weight:700; color:#92400e; display:block; margin-bottom:4px;">Título da Advertência <span style="color:#9ca3af; font-weight:400;">(opcional)</span></label>
+                <input type="text" id="adv-titulo" class="form-control" placeholder="Ex: Desrespeito às normas internas, Atraso reiterado..." style="padding:0.5rem; border:1px solid #fdba74; border-radius:6px; font-size:0.9rem;">
+            </div>
+
+            <div style="margin-bottom:1rem;">
                 <label style="font-size:0.75rem; font-weight:700; color:#92400e; display:block; margin-bottom:4px;">Motivo / Descrição da Infração <span style="color:#ef4444;">*</span></label>
                 <textarea id="adv-motivo" rows="3" class="form-control" placeholder="Descreva o motivo da advertência..." style="padding:0.5rem; border:1px solid #fdba74; border-radius:6px; font-size:0.9rem; resize:vertical; width:100%; box-sizing:border-box;"></textarea>
             </div>
@@ -1946,6 +1951,7 @@ window.gerarAdvertencia = function() {
 
     const tipo = document.getElementById('adv-tipo').value;
     const dataOcorrencia = document.getElementById('adv-data').value;
+    const titulo = document.getElementById('adv-titulo').value.trim();
     const motivo = document.getElementById('adv-motivo').value.trim();
     const baseLegal = document.getElementById('adv-base-legal').value.trim();
 
@@ -1996,6 +2002,7 @@ window.gerarAdvertencia = function() {
             vem por meio deste documento aplicar ao(à) colaborador(a) <strong>${nomeColab}</strong> a presente
             <strong>${tipoTexto}</strong>.
         </p>
+        ${titulo ? `<p style="margin-top:0.75rem; text-align:center; font-size:1rem; font-weight:700; color:#92400e; text-transform:uppercase; letter-spacing:0.04em; border-bottom:1px solid #fdba74; padding-bottom:0.4rem;">${titulo}</p>` : ''}
 
         <p style="margin-top:1rem; text-align:justify;">
             <strong>Motivo / Infração cometida:</strong><br>
