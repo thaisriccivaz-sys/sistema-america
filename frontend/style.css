@@ -493,7 +493,7 @@ body {
     border-color: #ffeeba; background-color: #fff3cd; color: #856404; /* Mantemos o texto escuro para legibilidade no fundo amarelo */
 }
 .status-chip[data-value="Afastado"] { 
-    border-color: #d1d9e6; background-color: #e2d9f3; color: #6f42c1; /* Roxo para Afastados conforme Dashboard */
+    border-color: #ffd8a8; background-color: #ffe8cc; color: #d9480f; /* Laranja para Afastados */
 }
 .status-chip[data-value="Desligado"] { 
     border-color: #f5c6cb; background-color: #f8d7da; color: var(--danger-color); 
@@ -508,7 +508,7 @@ body {
 /* Active State - Stronger Colors/Borders */
 .status-chip.active[data-value="Ativo"] { border-color: var(--success-color); background-color: #d4edda; }
 .status-chip.active[data-value="Férias"] { border-color: var(--warning-color); background-color: #fff3cd; }
-.status-chip.active[data-value="Afastado"] { border-color: #6f42c1; background-color: #e2d9f3; }
+.status-chip.active[data-value="Afastado"] { border-color: #d9480f; background-color: #ffe8cc; }
 .status-chip.active[data-value="Desligado"] { border-color: var(--danger-color); background-color: #f8d7da; }
 .status-chip.active[data-value="Aguardando início"] { border-color: #64748b; background-color: #f1f5f9; }
 .status-chip.active[data-value="Processo iniciado"] { border-color: #228be6; background-color: #e3f2fd; }
@@ -616,7 +616,7 @@ body {
 }
 .status-badge.Ativo { background-color: #d4edda; color: var(--success-color); }
 .status-badge.Férias { background-color: #fff3cd; color: #856404; }
-.status-badge.Afastado { background-color: #e2d9f3; color: #6f42c1; }
+.status-badge.Afastado { background-color: #ffe8cc; color: #d9480f; }
 .status-badge.Desligado { background-color: #f8d7da; color: var(--danger-color); }
 
 /* Prontuário layout */

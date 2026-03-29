@@ -2270,7 +2270,11 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
         if (existingDoc.atestado_tipo === 'dias') {
             const ini = existingDoc.atestado_inicio ? existingDoc.atestado_inicio.split('-').reverse().join('/') : '';
             const fim = existingDoc.atestado_fim ? existingDoc.atestado_fim.split('-').reverse().join('/') : '';
-            atestadoInfoHtml = ` <span style="color:#d9480f; font-weight:600;"><i class="ph ph-calendar"></i> ${ini} até ${fim}</span> `;
+            const hojeStr = new Date().toISOString().split('T')[0];
+            const isColabAfastado = viewedColaborador && viewedColaborador.status === 'Afastado';
+            const isAtivo = (isColabAfastado && existingDoc.atestado_inicio && existingDoc.atestado_fim && existingDoc.atestado_inicio <= hojeStr && hojeStr <= existingDoc.atestado_fim);
+            const corText = isAtivo ? '#d9480f' : '#868e96';
+            atestadoInfoHtml = ` <span style="color:${corText}; font-weight:600;"><i class="ph ph-warning"></i> ${ini} até ${fim}</span> `;
         } else {
             atestadoInfoHtml = ` <span style="color:#1098ad; font-weight:600;"><i class="ph ph-clock"></i> ${existingDoc.atestado_inicio} às ${existingDoc.atestado_fim}</span> `;
         }
@@ -2644,8 +2648,8 @@ window.renderAtestadosTab = function(container, filteredDocs) {
         s.id = 'cid-style';
         s.textContent = `
             .cid-wrap { position:relative; display:flex; gap:.75rem; align-items:flex-start; flex-wrap:wrap; }
-            .cid-input-group { position:relative; flex:1; min-width:220px; }
-            .cid-dropdown { position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid #ccc; border-radius:4px; z-index:999; max-height:220px; overflow-y:auto; box-shadow:0 4px 12px rgba(0,0,0,.12); }
+            .cid-input-group { position:relative; flex:2; min-width:350px; z-index: 1000; }
+            .cid-dropdown { position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid #ccc; border-radius:4px; z-index:99999; max-height:220px; overflow-y:auto; box-shadow:0 4px 12px rgba(0,0,0,.12); }
             .cid-option { padding:.55rem .85rem; cursor:pointer; font-size:.85rem; line-height:1.4; }
             .cid-option:hover, .cid-option.selected { background:#e8f0fe; }
             .cid-option strong { color:#1a73e8; }
@@ -2666,7 +2670,7 @@ window.renderAtestadosTab = function(container, filteredDocs) {
                 </div>
                 
                 <!-- CID-10 -->
-                <div class="cid-input-group" style="flex:1; min-width:220px; position:relative;">
+                <div class="cid-input-group" style="flex:2; min-width:350px; position:relative;">
                     <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;"><i class="ph ph-magnifying-glass"></i> CID-10</label>
                     <input type="text" id="cid-search" class="form-control" placeholder="J06 - Outros exames..." autocomplete="off" oninput="searchCID(this.value)" style="padding:.4rem;">
                     <div id="cid-dropdown" class="cid-dropdown" style="display:none;"></div>
