@@ -2251,6 +2251,11 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
         const enviadoDate = `${dd}/${mm}/${yyyy} - ${h}h${min}m`;
         enviadoHtml = ` <span style="color:#64748b;">|</span> <span style="color:#2f9e44; font-weight:600;">Enviado: ${enviadoDate}</span>`;
         
+        // Link de assinatura (abaixo da data de envio)
+        if (existingDoc.assinafy_url) {
+            enviadoHtml += `<br><a href="${existingDoc.assinafy_url}" target="_blank" rel="noopener" style="color:#1971c2; font-weight:600; font-size:0.75rem; display:inline-flex; align-items:center; gap:3px; text-decoration:none;"><i class="ph ph-link" style="font-size:0.9rem;"></i> Link para assinatura</a>`;
+        }
+        
         if (existingDoc.assinafy_signed_at) {
             let sda = existingDoc.assinafy_signed_at;
             if (!sda.includes('T')) sda = sda.replace(' ', 'T');
@@ -2261,7 +2266,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
             const syyyy = signedObj.getFullYear();
             const sh = String(signedObj.getHours()).padStart(2, '0');
             const smin = String(signedObj.getMinutes()).padStart(2, '0');
-            enviadoHtml += `<br><span style="color:#1c7ed6; font-weight:600;">Assinado: ${sdd}/${smm}/${syyyy} - ${sh}h${smin}m</span>`;
+            enviadoHtml += `<br><span style="color:#1c7ed6; font-weight:600;"><i class="ph ph-check-circle" style="font-size:0.9rem;"></i> Assinado: ${sdd}/${smm}/${syyyy} - ${sh}h${smin}m</span>`;
         }
     }
 
@@ -4756,7 +4761,11 @@ window.iniciarAssinafy = async function(docType, tabName, btn) {
                 }
                 const vencSpan = subInfoP.firstElementChild;
                 const vencHtml = vencSpan ? vencSpan.outerHTML + ' <span style="color:#64748b;">|</span> ' : '';
-                subInfoP.innerHTML = vencHtml + '<span style="color:#2f9e44; font-weight:600;">Enviado: ' + hojeFormatado + '</span>';
+                const urlAssinatura = res.urlAssinatura || null;
+                const linkHtml = urlAssinatura
+                    ? `<br><a href="${urlAssinatura}" target="_blank" rel="noopener" style="color:#1971c2; font-weight:600; font-size:0.75rem; display:inline-flex; align-items:center; gap:3px; text-decoration:none;"><i class="ph ph-link" style="font-size:0.9rem;"></i> Link para assinatura</a>`
+                    : '';
+                subInfoP.innerHTML = vencHtml + '<span style="color:#2f9e44; font-weight:600;">Enviado: ' + hojeFormatado + '</span>' + linkHtml;
             }
 
             // Atualizar icone de status para Enviado

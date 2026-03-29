@@ -312,6 +312,7 @@ app.post('/api/assinafy/upload', async (req, res) => {
         res.json({
             sucesso: true,
             processando_em_background: false,
+            urlAssinatura: resultado?.urlAssinatura || null,
             message: "O documento foi enviado com sucesso para assinatura no Assinafy!"
         });
     } catch (error) {
