@@ -1579,26 +1579,29 @@ app.post("/webhook/assinafy", async (req, res) => {
                     db.run('UPDATE documentos SET signed_file_path = ?, assinafy_signed_at = COALESCE(assinafy_signed_at, CURRENT_TIMESTAMP) WHERE assinafy_id = ?', [signedFilePath, assinafyId]);
                     console.log(`[WEBHOOK] PDF assinado salvo em: ${signedFilePath}`);
 
-                    // AUTOMATIC ONEDRIVE SYNC FOR ASSINADO
+                    // AUTOMATIC ONEDRIVE SYNC FOR ASSINADO (Webhook)
                     if (onedrive) {
                         try {
                             const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema";
                             const safeColab = formatarNome(docRow.nome_completo || "DESCONHECIDO");
-                            const safeTab = formatarPasta(docRow.tab_name).toUpperCase();
-                            let targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}`;
-                            if (docRow.year && docRow.year !== 'null' && docRow.year !== 'undefined' && docRow.year !== '') {
-                                targetDir += `/${String(docRow.year).replace(/[^0-9]/g, '')}`;
-                            }
+                            // Pasta = tab_name normalizado (ex: ASO, EXAMES_COMPLEMENTARES)
+                            const safeTab = formatarPasta(docRow.tab_name || 'DOCUMENTOS').toUpperCase();
+                            const docYear = docRow.year && docRow.year !== 'null' && docRow.year !== '' ? String(docRow.year).replace(/[^0-9]/g, '') : String(new Date().getFullYear());
+                            // Caminho: Base/NOME_COLAB/TAB/ANO
+                            const targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}/${docYear}`;
                             
-                            // Garantir que a pasta ASO/Ano existe antes de salvar
+                            console.log(`[OneDrive WH] Sincronizando para: ${targetDir}`);
+
+                            // Garantir que a pasta existe antes de salvar
                             await onedrive.ensurePath(targetDir);
                             
                             const fBuffer = fs.readFileSync(signedFilePath);
-                            const safeType = formatarPasta(docRow.document_type || 'Documento');
-                            const cloudName = `${safeType}_${docRow.year || new Date().getFullYear()}_${safeColab}.pdf`;
+                            // Nome padrão: TipoDoc_Ano_NomeColab.pdf
+                            const safeType = formatarPasta(docRow.document_type || docRow.tab_name || 'Documento').replace(/\s+/g, '_');
+                            const cloudName = `${safeType}_${docYear}_${safeColab}.pdf`;
                             
                             await onedrive.uploadToOneDrive(targetDir, cloudName, fBuffer);
-                            console.log(`[OneDrive] Assinado sincronizado WH: ${cloudName}`);
+                            console.log(`[OneDrive] ✓ Assinado sincronizado WH: ${cloudName}`);
                         } catch (e) { 
                             console.error("[OneDrive] Erro de sync assinado WH:", e.message); 
                         }
@@ -1738,7 +1741,10 @@ app.post('/api/documentos/:id/sync-assinafy', authenticateToken, async (req, res
     const docId = req.params.id;
     try {
         const doc = await new Promise((resolve, reject) => {
-            db.get(`SELECT id, file_name, assinafy_id, assinafy_status FROM documentos WHERE id = ?`, [docId], (err, row) => {
+            db.get(`SELECT d.id, d.file_name, d.assinafy_id, d.assinafy_status, d.tab_name, d.document_type, d.year, d.colaborador_id, c.nome_completo
+                    FROM documentos d
+                    JOIN colaboradores c ON c.id = d.colaborador_id
+                    WHERE d.id = ?`, [docId], (err, row) => {
                 if (err) reject(err); else resolve(row);
             });
         });
@@ -1825,27 +1831,30 @@ app.post('/api/documentos/:id/sync-assinafy', authenticateToken, async (req, res
             });
 
             // AUTOMATIC ONEDRIVE SYNC FOR ASSINADO
-            if (onedrive) {
+            if (onedrive && fs.existsSync(finalPath)) {
                 try {
                     const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema";
                     const safeColab = formatarNome(doc.nome_completo || "DESCONHECIDO");
-                    const safeTab = formatarPasta(doc.tab_name).toUpperCase();
-                    let targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}`;
-                    if (doc.year && doc.year !== 'null' && doc.year !== 'undefined' && doc.year !== '') {
-                        targetDir += `/${String(doc.year).replace(/[^0-9]/g, '')}`;
-                    }
+                    // Pasta = tab_name normalizado (ex: ASO, EXAMES_COMPLEMENTARES)
+                    const safeTab = formatarPasta(doc.tab_name || 'DOCUMENTOS').toUpperCase();
+                    const docYear = doc.year && doc.year !== 'null' && doc.year !== '' ? String(doc.year).replace(/[^0-9]/g, '') : String(new Date().getFullYear());
+                    // Caminho: Base/NOME_COLAB/TAB/ANO
+                    const targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}/${docYear}`;
                     
-                    // Garantir que a pasta existe (por ex, pode nunca ter sido criada no upload)
+                    console.log(`[OneDrive Sync] Sincronizando para: ${targetDir}`);
+
+                    // Garantir que a pasta existe (cria se necessário)
                     await onedrive.ensurePath(targetDir);
 
                     const fBuffer = fs.readFileSync(finalPath);
-                    const safeType = formatarPasta(doc.document_type || 'Documento');
-                    const cloudName = `${safeType}_${doc.year || new Date().getFullYear()}_${safeColab}.pdf`;
+                    // Nome padrão: TipoDoc_Ano_NomeColab.pdf
+                    const safeType = formatarPasta(doc.document_type || doc.tab_name || 'Documento').replace(/\s+/g, '_');
+                    const cloudName = `${safeType}_${docYear}_${safeColab}.pdf`;
                     
                     await onedrive.uploadToOneDrive(targetDir, cloudName, fBuffer);
-                    console.log(`[OneDrive] Assinado sincronizado (API): ${cloudName}`);
+                    console.log(`[OneDrive] ✓ Assinado sincronizado (API Sync): ${cloudName}`);
                 } catch (e) { 
-                    console.error("[OneDrive] Erro de sync assinado (API):", e.message); 
+                    console.error("[OneDrive] Erro de sync assinado (API Sync):", e.message); 
                 }
             }
         } else {
