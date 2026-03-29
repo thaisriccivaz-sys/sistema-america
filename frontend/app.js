@@ -2121,22 +2121,30 @@ window.anexarAdvertenciaAoProntuario = async function() {
 
     try {
         const element = document.getElementById('preview-doc-body');
+
+        // Remove acentos para nomes de arquivo seguros
+        const semAcentos = (str) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]/g, '_');
+        const nomeArquivo = `${semAcentos(window._advertenciaData.gerador_nome)}_${semAcentos(window._advertenciaData.colaborador.NOME_COMPLETO)}.pdf`;
+
         const opt = {
             margin:       [1.5, 1.5, 1.5, 1.5],
-            filename:     `${window._advertenciaData.gerador_nome.replace(/ /g, '_')}_${window._advertenciaData.colaborador.NOME_COMPLETO.replace(/ /g, '_')}.pdf`,
+            filename:     nomeArquivo,
             image:        { type: 'jpeg', quality: 0.98 },
             html2canvas:  { scale: 2 },
             jsPDF:        { unit: 'cm', format: 'a4', orientation: 'portrait' }
         };
 
         const pdfBlob = await html2pdf().set(opt).from(element).output('blob');
-        const file = new File([pdfBlob], opt.filename, { type: 'application/pdf' });
+        const file = new File([pdfBlob], nomeArquivo, { type: 'application/pdf' });
 
         const formData = new FormData();
         formData.append('file', file);
         formData.append('colaborador_id', viewedColaborador.id);
         formData.append('tab_name', 'Advertências');
-        const docType = window._advertenciaData.gerador_nome.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+        // Title case correto com acentos: split por espaço, capitaliza primeira letra de cada palavra
+        const docType = window._advertenciaData.gerador_nome.split(' ')
+            .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+            .join(' ');
         formData.append('document_type', docType);
         formData.append('year', new Date().getFullYear().toString());
         formData.append('colaborador_nome', viewedColaborador.nome_completo || viewedColaborador.nome || '');
