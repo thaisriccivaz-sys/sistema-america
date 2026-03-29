@@ -2251,9 +2251,10 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
         const enviadoDate = `${dd}/${mm}/${yyyy} - ${h}h${min}m`;
         enviadoHtml = ` <span style="color:#64748b;">|</span> <span style="color:#2f9e44; font-weight:600;">Enviado: ${enviadoDate}</span>`;
         
-        // Link de assinatura (abaixo da data de envio)
+        // Link de assinatura (abaixo da data de envio) - clique copia para clipboard
         if (existingDoc.assinafy_url) {
-            enviadoHtml += `<br><a href="${existingDoc.assinafy_url}" target="_blank" rel="noopener" style="color:#1971c2; font-weight:600; font-size:0.75rem; display:inline-flex; align-items:center; gap:3px; text-decoration:none;"><i class="ph ph-link" style="font-size:0.9rem;"></i> Link para assinatura</a>`;
+            const safeUrl = existingDoc.assinafy_url.replace(/'/g, "\\'");
+            enviadoHtml += `<br><span onclick="navigator.clipboard.writeText('${safeUrl}').then(()=>{const el=this;const orig=el.innerHTML;el.innerHTML='<i class=\'ph ph-check\' style=\'font-size:0.9rem;\'></i> Copiado!';setTimeout(()=>{el.innerHTML=orig;},1500);})" style="color:#64748b; font-size:0.75rem; display:inline-flex; align-items:center; gap:3px; cursor:pointer;" title="Clique para copiar o link"><i class="ph ph-copy" style="font-size:0.9rem;"></i> Link para assinatura</span>`;
         }
         
         if (existingDoc.assinafy_signed_at) {
@@ -4763,7 +4764,7 @@ window.iniciarAssinafy = async function(docType, tabName, btn) {
                 const vencHtml = vencSpan ? vencSpan.outerHTML + ' <span style="color:#64748b;">|</span> ' : '';
                 const urlAssinatura = res.urlAssinatura || null;
                 const linkHtml = urlAssinatura
-                    ? `<br><a href="${urlAssinatura}" target="_blank" rel="noopener" style="color:#1971c2; font-weight:600; font-size:0.75rem; display:inline-flex; align-items:center; gap:3px; text-decoration:none;"><i class="ph ph-link" style="font-size:0.9rem;"></i> Link para assinatura</a>`
+                    ? `<br><span onclick="navigator.clipboard.writeText('${urlAssinatura}').then(()=>{const el=this;const orig=el.innerHTML;el.innerHTML='<i class=\'ph ph-check\' style=\'font-size:0.9rem;\'></i> Copiado!';setTimeout(()=>{el.innerHTML=orig;},1500);})" style="color:#64748b; font-size:0.75rem; display:inline-flex; align-items:center; gap:3px; cursor:pointer;" title="Clique para copiar o link"><i class="ph ph-copy" style="font-size:0.9rem;"></i> Link para assinatura</span>`
                     : '';
                 subInfoP.innerHTML = vencHtml + '<span style="color:#2f9e44; font-weight:600;">Enviado: ' + hojeFormatado + '</span>' + linkHtml;
             }
