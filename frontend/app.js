@@ -1858,7 +1858,272 @@ function getAnosAdmissaoOptions(selectedYear = null) {
     return optionsHtml;
 }
 
+// ============================================================
+// GERADOR DE ADVERTÊNCIA - Renderiza painel na aba Advertências
+// ============================================================
+window.renderAdvertenciasTab = function(listContainer, filteredDocs) {
+    const safeTabId = 'Advert_ncias';
+    const selected = window.tabPersistence ? window.tabPersistence[`temporal_year_${safeTabId}`] : null;
+    const optionsHtml = getAnosAdmissaoOptions(selected);
+
+    // Painel gerador no topo
+    const geradorPanel = document.createElement('div');
+    geradorPanel.innerHTML = `
+        <div class="card p-4 mb-4" style="background: linear-gradient(135deg, #fff9f0 0%, #fff3e0 100%); border: 1.5px solid #fd7e14; border-radius: 12px;">
+            <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:1.25rem;">
+                <div style="background:#fd7e14; border-radius:8px; width:36px; height:36px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                    <i class="ph ph-warning" style="color:#fff; font-size:1.3rem;"></i>
+                </div>
+                <div>
+                    <h4 style="margin:0; font-size:1rem; font-weight:700; color:#92400e;">Gerar Documento de Advertência</h4>
+                    <p style="margin:0; font-size:0.8rem; color:#b45309;">Preencha os campos e gere o documento já com os dados do colaborador</p>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem;">
+                <div>
+                    <label style="font-size:0.75rem; font-weight:700; color:#92400e; display:block; margin-bottom:4px;">Tipo de Advertência</label>
+                    <select id="adv-tipo" class="form-control" style="padding:0.5rem; border:1px solid #fdba74; border-radius:6px; font-size:0.9rem;">
+                        <option value="verbal">Advertência Verbal</option>
+                        <option value="escrita">Advertência Escrita</option>
+                        <option value="suspensao_1">Suspensão — 1 dia</option>
+                        <option value="suspensao_2">Suspensão — 2 dias</option>
+                        <option value="suspensao_3">Suspensão — 3 dias</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:0.75rem; font-weight:700; color:#92400e; display:block; margin-bottom:4px;">Data da Ocorrência</label>
+                    <input type="date" id="adv-data" class="form-control" value="${new Date().toISOString().split('T')[0]}" style="padding:0.5rem; border:1px solid #fdba74; border-radius:6px; font-size:0.9rem;">
+                </div>
+            </div>
+
+            <div style="margin-bottom:1rem;">
+                <label style="font-size:0.75rem; font-weight:700; color:#92400e; display:block; margin-bottom:4px;">Motivo / Descrição da Infração <span style="color:#ef4444;">*</span></label>
+                <textarea id="adv-motivo" rows="3" class="form-control" placeholder="Descreva o motivo da advertência..." style="padding:0.5rem; border:1px solid #fdba74; border-radius:6px; font-size:0.9rem; resize:vertical; width:100%; box-sizing:border-box;"></textarea>
+            </div>
+
+            <div style="margin-bottom:1rem;">
+                <label style="font-size:0.75rem; font-weight:700; color:#92400e; display:block; margin-bottom:4px;">Base Legal / Cláusula Infringida <span style="color:#9ca3af; font-weight:400;">(opcional)</span></label>
+                <input type="text" id="adv-base-legal" class="form-control" placeholder="Ex: Art. 482 CLT, Cláusula 5 do Contrato..." style="padding:0.5rem; border:1px solid #fdba74; border-radius:6px; font-size:0.9rem;">
+            </div>
+
+            <div style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
+                <button onclick="window.gerarAdvertencia()" class="btn btn-primary" style="background:#fd7e14; border-color:#fd7e14; display:flex; align-items:center; gap:6px; font-weight:700;">
+                    <i class="ph ph-file-text"></i> Gerar Documento
+                </button>
+                <span id="adv-feedback" style="font-size:0.82rem; color:#059669; display:none; align-items:center; gap:4px;">
+                    <i class="ph ph-check-circle"></i> Documento gerado!
+                </span>
+            </div>
+
+            <!-- Área de preview/download após gerar -->
+            <div id="adv-preview-area" style="display:none; margin-top:1.25rem; padding:1rem; background:#fff; border:1px solid #fdba74; border-radius:8px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+                    <span style="font-weight:700; color:#92400e; font-size:0.9rem;"><i class="ph ph-file-text"></i> Documento Gerado</span>
+                    <button onclick="window.downloadAdvertencia()" class="btn btn-primary" style="background:#fd7e14; border-color:#fd7e14; display:flex; align-items:center; gap:6px; font-weight:700;">
+                        <i class="ph ph-printer"></i> Imprimir / Baixar PDF
+                    </button>
+                </div>
+                <div id="adv-preview-content" style="font-size:0.82rem; color:#475569; max-height:250px; overflow-y:auto; border:1px solid #f0f0f0; padding:1rem; border-radius:6px; line-height:1.5;"></div>
+            </div>
+        </div>
+
+        <!-- Seletor de ano + lista de documentos -->
+        <div class="card p-3 mb-4 bg-light" style="display:flex; gap:1.5rem; align-items:center;">
+            <label style="margin:0; font-weight:600;">Ano referente:</label>
+            <select id="temporal_year_Advert_ncias" class="form-control" style="padding:0.4rem; max-width:120px;" onchange="renderTemporalAno('Advertências')">
+                ${optionsHtml}
+            </select>
+        </div>
+        <div id="temporal_ano_container_Advert_ncias"></div>
+    `;
+    listContainer.appendChild(geradorPanel);
+    renderTemporalAno('Advertências');
+};
+
+window.gerarAdvertencia = function() {
+    if (!viewedColaborador) { alert('Nenhum colaborador selecionado.'); return; }
+
+    const tipo = document.getElementById('adv-tipo').value;
+    const dataOcorrencia = document.getElementById('adv-data').value;
+    const motivo = document.getElementById('adv-motivo').value.trim();
+    const baseLegal = document.getElementById('adv-base-legal').value.trim();
+
+    if (!motivo) { alert('Por favor, descreva o motivo da advertência.'); document.getElementById('adv-motivo').focus(); return; }
+
+    const tipoMap = {
+        verbal: 'ADVERTÊNCIA VERBAL',
+        escrita: 'ADVERTÊNCIA ESCRITA',
+        suspensao_1: 'SUSPENSÃO DISCIPLINAR — 1 DIA',
+        suspensao_2: 'SUSPENSÃO DISCIPLINAR — 2 DIAS',
+        suspensao_3: 'SUSPENSÃO DISCIPLINAR — 3 DIAS'
+    };
+    const tipoTexto = tipoMap[tipo] || 'ADVERTÊNCIA';
+    const isSuspensao = tipo.startsWith('suspensao');
+    const diasSuspensao = tipo === 'suspensao_1' ? 1 : tipo === 'suspensao_2' ? 2 : tipo === 'suspensao_3' ? 3 : 0;
+
+    const [ay, am, ad] = (dataOcorrencia || new Date().toISOString().split('T')[0]).split('-');
+    const dataFormatada = `${ad}/${am}/${ay}`;
+    const meses = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+    const dataExtenso = `${parseInt(ad)} de ${meses[parseInt(am)-1]} de ${ay}`;
+    const dataHoje = new Date();
+    const dataHojeFormatada = `${String(dataHoje.getDate()).padStart(2,'0')}/${String(dataHoje.getMonth()+1).padStart(2,'0')}/${dataHoje.getFullYear()}`;
+    const dataHojeExtenso = `${dataHoje.getDate()} de ${meses[dataHoje.getMonth()]} de ${dataHoje.getFullYear()}`;
+
+    const c = viewedColaborador;
+    const nomeColab = c.nome_completo || c.nome || '';
+    const cpfColab = c.cpf || '---';
+    const cargoCOlab = c.cargo || '---';
+    const deptColab = c.departamento || '---';
+    const admissaoColab = c.data_admissao ? new Date(c.data_admissao + 'T12:00:00').toLocaleDateString('pt-BR') : '---';
+
+    const suspensaoParag = isSuspensao ? `
+        <p style="margin-top:1rem; text-align:justify;">
+            Em decorrência da gravidade da infração cometida, o(a) colaborador(a) cumprirá
+            <strong>suspensão disciplinar de ${diasSuspensao} (${diasSuspensao === 1 ? 'um' : diasSuspensao === 2 ? 'dois' : 'três'}) dia(s)</strong>,
+            sem remuneração, a contar da data da ciência deste documento.
+        </p>` : '';
+
+    const baseLegalParag = baseLegal ? `
+        <p style="margin-top:1rem; text-align:justify;">
+            <strong>Base legal / cláusula infringida:</strong> ${baseLegal}
+        </p>` : '';
+
+    const htmlDoc = `
+        <p style="margin-top:1.5rem; text-align:justify;">
+            A empresa <strong>AMERICA RENTAL EQUIPAMENTOS LTDA</strong>, inscrita no CNPJ sob o nº 03.434.448/0001-01,
+            situada na Rua Salto da Divisa, nº 97, CEP 07252-300, Parque Alvorada – Guarulhos/SP,
+            vem por meio deste documento aplicar ao(à) colaborador(a) <strong>${nomeColab}</strong> a presente
+            <strong>${tipoTexto}</strong>.
+        </p>
+
+        <p style="margin-top:1rem; text-align:justify;">
+            <strong>Motivo / Infração cometida:</strong><br>
+            ${motivo.replace(/\n/g, '<br>')}
+        </p>
+        ${baseLegalParag}
+        ${suspensaoParag}
+        <p style="margin-top:1rem; text-align:justify;">
+            Informamos que esta é <strong>uma medida disciplinar</strong> e que reincidências poderão acarretar
+            penalidades mais severas, inclusive a rescisão do contrato de trabalho por justa causa,
+            nos termos do artigo 482 da Consolidação das Leis do Trabalho (CLT).
+        </p>
+
+        <p style="margin-top:1rem; text-align:justify;">
+            O(A) colaborador(a) declara, com sua assinatura, estar ciente do conteúdo desta advertência
+            e de que a mesma será arquivada em seu prontuário.
+        </p>
+    `;
+
+    // Montar dados do colaborador para o padrão do preview
+    window._advertenciaData = {
+        html: htmlDoc,
+        gerador_nome: tipoTexto,
+        dataOcorrencia: dataFormatada,
+        dataHojeExtenso,
+        colaborador: {
+            NOME_COMPLETO: nomeColab,
+            CPF: cpfColab,
+            CARGO: cargoCOlab,
+            DEPARTAMENTO: deptColab,
+            DATA_ADMISSAO: admissaoColab,
+            ENDERECO: c.endereco || '---',
+            TELEFONE: c.telefone || '---',
+            EMAIL: c.email || '---',
+            SALARIO: c.salario || '---'
+        }
+    };
+
+    // Mostrar preview resumido na aba
+    const previewArea = document.getElementById('adv-preview-area');
+    const previewContent = document.getElementById('adv-preview-content');
+    if (previewArea && previewContent) {
+        previewContent.innerHTML = `
+            <strong>${tipoTexto}</strong> — ${nomeColab} — Data da ocorrência: ${dataFormatada}<br><br>
+            ${motivo.replace(/\n/g, '<br>')}
+        `;
+        previewArea.style.display = 'block';
+    }
+
+    const fb = document.getElementById('adv-feedback');
+    if (fb) { fb.style.display = 'inline-flex'; setTimeout(() => { fb.style.display = 'none'; }, 3000); }
+};
+
+window.downloadAdvertencia = function() {
+    const data = window._advertenciaData;
+    if (!data) { alert('Gere o documento primeiro.'); return; }
+
+    const apiBase = API_URL.replace('/api', '');
+    const logoSrc = `${apiBase}/assets/logo-header.png`;
+
+    const logoBanner = `<div style="margin-bottom:1rem;"><img src="${logoSrc}" style="width:100%; display:block;" onerror="this.style.display='none'"></div>`;
+    const colabInfo = `
+        <h1 style="text-align:center; color:#1e293b; margin-top:0.2rem; font-size:1.25rem; text-transform:uppercase;">${data.gerador_nome}</h1>
+        <p style="margin-top:0.75rem; font-size:1rem;"><b>COLABORADOR:</b> ${data.colaborador.NOME_COMPLETO}</p>
+        <div style="border:1px solid #000; padding:0.75rem; margin-top:0.5rem; line-height:1.4; font-size:0.85rem;">
+            <p style="margin-bottom:0.2rem; font-size:0.8rem;"><b>DADOS DO COLABORADOR:</b></p>
+            <div style="display:flex; gap:2rem; flex-wrap:wrap;">
+                <span>CPF: <b>${data.colaborador.CPF}</b></span>
+                <span>CARGO: <b>${data.colaborador.CARGO}</b></span>
+                <span>ADMISSÃO: <b>${data.colaborador.DATA_ADMISSAO}</b></span>
+            </div>
+            <p style="margin-top:0.25rem;">DEPARTAMENTO: ${data.colaborador.DEPARTAMENTO}</p>
+        </div>
+    `;
+    const conteudo = `<div style="margin-top:1rem; text-align:justify; line-height:1.5; font-size:0.9rem;">${data.html}</div>`;
+    const footer = `
+        <div style="margin-top:2rem;">
+            <p style="font-weight:700; font-size:0.9rem;">Guarulhos, ${data.dataHojeExtenso}.</p>
+            <div style="margin-top:2.5rem; display:flex; justify-content:space-between; align-items:flex-end;">
+                <div style="text-align:center; width:45%;">
+                    <div style="border-top:1.5px solid #000; padding-top:0.25rem;">
+                        <span style="font-weight:700; font-size:0.85rem;">${data.colaborador.NOME_COMPLETO}</span><br>
+                        <span style="font-size:0.75rem; color:#555;">Colaborador(a)</span>
+                    </div>
+                </div>
+                <div style="text-align:center; width:45%;">
+                    <div style="margin-bottom:0.25rem;">
+                        <img src="${logoSrc}" style="height:25px; margin:0 auto; display:block;" onerror="this.style.display='none'">
+                        <p style="font-size:0.5rem; margin-top:1px; font-weight:700; line-height:1.1;">AMERICA RENTAL EQUIPAMENTOS LTDA<br>CNPJ: 03.434.448/0001-01</p>
+                    </div>
+                    <div style="border-top:1.5px solid #000; padding-top:0.25rem;">
+                        <span style="font-weight:700; font-size:0.85rem;">AMERICA RENTAL EQUIPAMENTOS LTDA</span><br>
+                        <span style="font-size:0.75rem; color:#555;">Empregador</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    const win = window.open('', '_blank');
+    win.document.write(`
+        <html>
+            <head>
+                <title>${data.gerador_nome} - ${data.colaborador.NOME_COMPLETO}</title>
+                <style>
+                    body { font-family: 'Segoe UI', Arial, sans-serif; padding:0; margin:0; }
+                    @page { size: A4; margin: 0; }
+                    .print-container { width:21cm; min-height:29.7cm; padding:2cm; box-sizing:border-box; margin:0 auto; }
+                    img { max-width:100%; }
+                    @media print { .no-print { display:none !important; } }
+                </style>
+            </head>
+            <body>
+                <div class="no-print" style="position:fixed; top:0; left:0; right:0; background:#1e293b; color:#fff; padding:0.75rem 1.5rem; display:flex; justify-content:space-between; align-items:center; z-index:9999; font-family:sans-serif;">
+                    <span style="font-weight:700; font-size:0.95rem;">📄 ${data.gerador_nome} — ${data.colaborador.NOME_COMPLETO}</span>
+                    <button onclick="window.print()" style="background:#fd7e14; color:#fff; border:none; padding:0.5rem 1.25rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.9rem;">🖨️ Imprimir / Salvar PDF</button>
+                </div>
+                <div class="print-container" style="margin-top:3.5rem;">
+                    ${logoBanner}${colabInfo}${conteudo}${footer}
+                </div>
+            </body>
+        </html>
+    `);
+    win.document.close();
+};
+
 window.renderTemporalTab = function(listContainer, tabId, tabTitle) {
+
     const safeTabId = tabId.replace(/[^a-zA-Z0-9]/g, '_');
     const selId = `temporal_year_${safeTabId}`;
     const selected = (window.tabPersistence && window.tabPersistence[selId]) ? window.tabPersistence[selId] : null;
@@ -1976,13 +2241,8 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
         renderASOTab(listContainer, filteredDocs);
     } else if (tabId === 'Atestados') {
         renderAtestadosTab(listContainer, filteredDocs);
-    } else if (['Advertências', 'Avaliação', 'Ficha de EPI', 'Multas', 'Boletim de ocorrência', 'Certificados'].includes(tabId)) {
-        const isMotorista = viewedColaborador && (viewedColaborador.cargo || '').toUpperCase().includes('MOTORISTA');
-        if (['Multas', 'Boletim de ocorrência'].includes(tabId) && !isMotorista) {
-            listContainer.innerHTML = '<div class="alert alert-info"><i class="ph ph-info"></i> Esta aba está disponível apenas para colaboradores com cargo de Motorista.</div>';
-            return;
-        }
-        renderTemporalTab(listContainer, tabId, tabTitle);
+    } else if (tabId === 'Advertências') {
+        renderAdvertenciasTab(listContainer, filteredDocs);
     } else if (tabId === '01.Ficha Cadastral') {
         const fixed = getFichaCadastralDocs();
         fixed.forEach(docType => {  
