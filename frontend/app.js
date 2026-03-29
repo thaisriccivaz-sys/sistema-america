@@ -2250,6 +2250,19 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
         
         const enviadoDate = `${dd}/${mm}/${yyyy} - ${h}h${min}m`;
         enviadoHtml = ` <span style="color:#64748b;">|</span> <span style="color:#2f9e44; font-weight:600;">Enviado: ${enviadoDate}</span>`;
+        
+        if (existingDoc.assinafy_signed_at) {
+            let sda = existingDoc.assinafy_signed_at;
+            if (!sda.includes('T')) sda = sda.replace(' ', 'T');
+            if (!sda.endsWith('Z')) sda += 'Z';
+            const signedObj = new Date(sda);
+            const sdd = String(signedObj.getDate()).padStart(2, '0');
+            const smm = String(signedObj.getMonth()+1).padStart(2, '0');
+            const syyyy = signedObj.getFullYear();
+            const sh = String(signedObj.getHours()).padStart(2, '0');
+            const smin = String(signedObj.getMinutes()).padStart(2, '0');
+            enviadoHtml += `<br><span style="color:#1c7ed6; font-weight:600;">Assinado: ${sdd}/${smm}/${syyyy} - ${sh}h${smin}m</span>`;
+        }
     }
 
     const subInfoLine = (vencInfoHtml || enviadoHtml)

@@ -1575,8 +1575,8 @@ app.post("/webhook/assinafy", async (req, res) => {
                         }).on('error', (err) => { fs.unlink(signedFilePath, () => {}); reject(err); });
                     });
 
-                    // Salvar caminho do arquivo assinado no banco
-                    db.run('UPDATE documentos SET signed_file_path = ? WHERE assinafy_id = ?', [signedFilePath, assinafyId]);
+                    // Salvar caminho do arquivo assinado no banco + data
+                    db.run('UPDATE documentos SET signed_file_path = ?, assinafy_signed_at = COALESCE(assinafy_signed_at, CURRENT_TIMESTAMP) WHERE assinafy_id = ?', [signedFilePath, assinafyId]);
                     console.log(`[WEBHOOK] PDF assinado salvo em: ${signedFilePath}`);
 
                     // AUTOMATIC ONEDRIVE SYNC FOR ASSINADO
@@ -1693,7 +1693,7 @@ app.get('/api/documentos/download-assinado/:id', authenticateToken, (req, res) =
                                 redRes.pipe(file);
                                 file.on('finish', () => {
                                     file.close();
-                                    db.run('UPDATE documentos SET signed_file_path = ? WHERE id = ?', [newPath, req.params.id]);
+                                    db.run('UPDATE documentos SET signed_file_path = ?, assinafy_signed_at = COALESCE(assinafy_signed_at, CURRENT_TIMESTAMP) WHERE id = ?', [newPath, req.params.id]);
                                     res.setHeader('Content-Type', 'application/pdf');
                                     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
                                     require('fs').createReadStream(newPath).pipe(res);
@@ -1708,7 +1708,7 @@ app.get('/api/documentos/download-assinado/:id', authenticateToken, (req, res) =
                         file.on('finish', () => {
                             file.close();
                             // Atualiza o banco e serve
-                            db.run('UPDATE documentos SET signed_file_path = ? WHERE id = ?', [newPath, req.params.id]);
+                            db.run('UPDATE documentos SET signed_file_path = ?, assinafy_signed_at = COALESCE(assinafy_signed_at, CURRENT_TIMESTAMP) WHERE id = ?', [newPath, req.params.id]);
                             res.setHeader('Content-Type', 'application/pdf');
                             res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
                             require('fs').createReadStream(newPath).pipe(res);
@@ -1820,7 +1820,7 @@ app.post('/api/documentos/:id/sync-assinafy', authenticateToken, async (req, res
             });
 
             await new Promise((resolve, reject) => {
-                db.run(`UPDATE documentos SET assinafy_status = ?, signed_file_path = ? WHERE id = ?`, 
+                db.run(`UPDATE documentos SET assinafy_status = ?, signed_file_path = ?, assinafy_signed_at = COALESCE(assinafy_signed_at, CURRENT_TIMESTAMP) WHERE id = ?`, 
                     [newStatus, finalPath, docId], err => err ? reject(err) : resolve());
             });
 
