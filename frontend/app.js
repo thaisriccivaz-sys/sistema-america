@@ -2569,7 +2569,7 @@ window.renderAtestadosTab = function(container, filteredDocs) {
                     <div id="cid-dropdown" class="cid-dropdown" style="display:none;"></div>
                 </div>
                 <div id="cid-selected-badge" style="display:none; align-self:flex-end; margin-bottom:4px;"></div>
-                <label class="btn btn-primary" id="cid-upload-label" style="display:none; align-self:flex-end; margin-bottom:0;" onclick="document.getElementById('cid-file-input').click(); event.preventDefault();">
+                <label class="btn btn-primary" id="cid-upload-label" style="display:none; align-self:flex-end; margin-bottom:0;">
                     <i class="ph ph-upload-simple" id="cid-upload-icon"></i> <span id="cid-upload-text">Enviar Atestado</span>
                     <input type="file" id="cid-file-input" accept=".pdf,image/*" style="display:none;"
                            onchange="uploadAtestadoWithCID(this)">
