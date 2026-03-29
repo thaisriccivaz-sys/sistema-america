@@ -2236,7 +2236,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
     }
 
     let enviadoHtml = '';
-    if (isSaved && existingDoc.assinafy_sent_at) {
+    if (isSaved && existingDoc.assinafy_sent_at && existingDoc.assinafy_status !== 'Erro') {
         let sd = existingDoc.assinafy_sent_at;
         if (!sd.includes('T')) sd = sd.replace(' ', 'T');
         if (!sd.endsWith('Z')) sd += 'Z';
