@@ -1974,7 +1974,9 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
         renderCargoDocsChecklist(listContainer);
     } else if (tabId === 'ASO') {
         renderASOTab(listContainer, filteredDocs);
-    } else if (['Advertências', 'Atestados', 'Avaliação', 'Ficha de EPI', 'Multas', 'Boletim de ocorrência', 'Certificados'].includes(tabId)) {
+    } else if (tabId === 'Atestados') {
+        renderAtestadosTab(listContainer, filteredDocs);
+    } else if (['Advertências', 'Avaliação', 'Ficha de EPI', 'Multas', 'Boletim de ocorrência', 'Certificados'].includes(tabId)) {
         const isMotorista = viewedColaborador && (viewedColaborador.cargo || '').toUpperCase().includes('MOTORISTA');
         if (['Multas', 'Boletim de ocorrência'].includes(tabId) && !isMotorista) {
             listContainer.innerHTML = '<div class="alert alert-info"><i class="ph ph-info"></i> Esta aba está disponível apenas para colaboradores com cargo de Motorista.</div>';
