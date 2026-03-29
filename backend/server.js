@@ -138,6 +138,19 @@ function formatarPasta(str) {
         .replace(/\s+/g, "_");
 }
 
+function extractSignedUrl(docData) {
+    if (!docData) return null;
+    let u = docData.certificated_file_url || docData.report_url || docData.bundle_url || docData.signature_report_url || docData.artifacts?.certificated || docData.artifacts?.bundle || docData.artifacts?.signed_file || docData.signed_file_url;
+    if (u) return u;
+    
+    const jsonStr = JSON.stringify(docData);
+    const matches = jsonStr.match(/https:\/\/[^"]+\.pdf[^"]*/gi);
+    if (matches && matches.length) {
+        return matches.find(l => /cert|bundle|report|sign|assinad/i.test(l)) || matches[matches.length - 1];
+    }
+    return docData.download_link || docData.download_url || null;
+}
+
 
 try {
     if (!fs.existsSync(BASE_UPLOAD_PATH)) {
@@ -1527,10 +1540,7 @@ app.post("/webhook/assinafy", async (req, res) => {
                         req2.end();
                     });
 
-                    const signedUrl = downloadUrlRes?.data?.signed_file_url ||
-                                      downloadUrlRes?.data?.download_url ||
-                                      downloadUrlRes?.signed_file_url ||
-                                      downloadUrlRes?.download_url;
+                    const signedUrl = extractSignedUrl(downloadUrlRes?.data || downloadUrlRes);
 
                     if (!signedUrl) {
                         console.warn('[WEBHOOK] PDF assinado: URL de download não encontrada na resposta:', JSON.stringify(downloadUrlRes).substring(0, 300));
@@ -1657,23 +1667,11 @@ app.get('/api/documentos/download-assinado/:id', authenticateToken, (req, res) =
                 const assinafyRes = await getDocData();
                 const docData = assinafyRes.data || assinafyRes;
                 
-                // Mapear propriedades possíveis na V1 do Assinafy para o PDF
-                let targetUrl = docData.artifacts?.certificated || docData.artifacts?.bundle || docData.signed_file_url || docData.download_url;
-                
-                // Em alguns casos do Assinafy está dentro de "files" ou "documents" ou no `download_link`
-                if (!targetUrl && docData.download_link) targetUrl = docData.download_link;
-                if (!targetUrl) {
-                    // Tenta ver se tem um array e pegar de lá
-                    const jsonStr = JSON.stringify(docData);
-                    const match = jsonStr.match(/https:\/\/[^"]+\.pdf[^"]*/i);
-                    if (match) targetUrl = match[0];
-                }
+                // Forçar o recálculo da melhor URL pra evitar cache do antigo (sem certificado)
+                let targetUrl = extractSignedUrl(docData);
 
                 if (targetUrl) {
-                    // Ao invés de tentar baixar no backend e servir, pode ser mais seguro redirecionar o usuário
-                    // Mas como é um blob no frontend, devolver a stream é o ideal
                     const fileName = encodeURIComponent(`ASSINADO_${row.file_name}`);
-                    
                     const getProtocol = targetUrl.startsWith('https') ? require('https') : require('http');
                     const reqOptions = {
                         headers: {
@@ -1681,28 +1679,48 @@ app.get('/api/documentos/download-assinado/:id', authenticateToken, (req, res) =
                         }
                     };
                     
-                    getProtocol.get(targetUrl, reqOptions, (pdfRes) => {
-                        // Se houver um redirect da AWS/S3 (301, 302, 307)
-                        if (pdfRes.statusCode >= 300 && pdfRes.statusCode < 400 && pdfRes.headers.location) {
-                            getProtocol.get(pdfRes.headers.location, (redirectRes) => {
-                                if (redirectRes.statusCode >= 400) return res.status(redirectRes.statusCode).json({ error: 'Não foi possível baixar o PDF do provedor (redirect error).' });
-                                res.setHeader('Content-Type', 'application/pdf');
-                                res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-                                redirectRes.pipe(res);
+                    // Como queremos forçar que o arquivo atualize, salvamos local
+                    const storagePath = process.env.STORAGE_PATH || path.join(__dirname, 'data', 'uploads');
+                    const assDir = path.join(storagePath, 'assinados');
+                    if (!require('fs').existsSync(assDir)) require('fs').mkdirSync(assDir, { recursive: true });
+                    const newPath = path.join(assDir, `ASSINADO_${row.file_name.replace('.pdf', '')}_${Date.now()}.pdf`);
+                    
+                    const file = require('fs').createWriteStream(newPath);
+                    getProtocol.get(targetUrl, reqOptions, (response) => {
+                        // Tratar redirecionamento automático (Amazon S3)
+                        if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+                            getProtocol.get(response.headers.location, (redRes) => {
+                                redRes.pipe(file);
+                                file.on('finish', () => {
+                                    file.close();
+                                    db.run('UPDATE documentos SET signed_file_path = ? WHERE id = ?', [newPath, req.params.id]);
+                                    res.setHeader('Content-Type', 'application/pdf');
+                                    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+                                    require('fs').createReadStream(newPath).pipe(res);
+                                });
+                            }).on('error', (err) => {
+                                require('fs').unlink(newPath, () => {}); res.status(500).json({ error: 'Erro no redirecionamento S3.' });
                             });
                             return;
                         }
-                        
-                        if (pdfRes.statusCode >= 400) return res.status(404).json({ error: 'Não foi possível baixar o PDF do provedor. Status ' + pdfRes.statusCode });
-                        res.setHeader('Content-Type', 'application/pdf');
-                        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-                        pdfRes.pipe(res);
-                    }).on('error', () => {
-                        res.status(500).json({ error: 'Erro de conexão com o repositório de assinaturas.' });
+
+                        response.pipe(file);
+                        file.on('finish', () => {
+                            file.close();
+                            // Atualiza o banco e serve
+                            db.run('UPDATE documentos SET signed_file_path = ? WHERE id = ?', [newPath, req.params.id]);
+                            res.setHeader('Content-Type', 'application/pdf');
+                            res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+                            require('fs').createReadStream(newPath).pipe(res);
+                        });
+                    }).on('error', (err) => {
+                        require('fs').unlink(newPath, () => {});
+                        res.status(500).json({ error: 'Falha ao baixar do Assinafy' });
                     });
-                    return;
+                    
+                    return; // Retorna para não executar o bloco else
                 } else {
-                    return res.status(404).json({ error: `O link do PDF assinado não foi encontrado na resposta do Assinafy. Detalhes: ${JSON.stringify(docData).substring(0, 100)}` });
+                    return res.status(404).json({ error: 'URL do PDF assinado não encontrada no Assinafy' });
                 }
 
             } catch (e) {
@@ -1768,12 +1786,7 @@ app.post('/api/documentos/:id/sync-assinafy', authenticateToken, async (req, res
         }
 
         // Se assinado, pega o link e baixa se não tiver path ainda
-        let signedUrl = documentData.artifacts?.certificated || documentData.artifacts?.bundle || documentData.signed_file_url || documentData.download_url;
-        if (!signedUrl && documentData.download_link) signedUrl = documentData.download_link;
-        if (!signedUrl) {
-            const match = JSON.stringify(documentData).match(/https:\/\/[^"]+\.pdf[^"]*/i);
-            if (match) signedUrl = match[0];
-        }
+        let signedUrl = extractSignedUrl(documentData);
         
         if (newStatus === 'Assinado' && signedUrl) {
             // Reaproveita logica de webhook de download e salvar status
