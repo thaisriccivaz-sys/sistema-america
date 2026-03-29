@@ -1880,7 +1880,7 @@ window.renderAdvertenciasTab = function(listContainer, filteredDocs) {
                 </div>
             </div>
 
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem;">
+            <div style="display:grid; grid-template-columns:1.5fr 2fr 1fr; gap:1rem; margin-bottom:1rem;">
                 <div>
                     <label style="font-size:0.75rem; font-weight:700; color:#92400e; display:block; margin-bottom:4px;">Tipo de Advertência</label>
                     <select id="adv-tipo" class="form-control" style="padding:0.5rem; border:1px solid #fdba74; border-radius:6px; font-size:0.9rem;">
@@ -1892,14 +1892,13 @@ window.renderAdvertenciasTab = function(listContainer, filteredDocs) {
                     </select>
                 </div>
                 <div>
-                    <label style="font-size:0.75rem; font-weight:700; color:#92400e; display:block; margin-bottom:4px;">Data da Ocorrência</label>
+                    <label style="font-size:0.75rem; font-weight:700; color:#92400e; display:block; margin-bottom:4px;">Título da Advertência <span style="color:#9ca3af; font-weight:400;">(opcional)</span></label>
+                    <input type="text" id="adv-titulo" class="form-control" placeholder="Ex: Desrespeito às normas internas..." style="padding:0.5rem; border:1px solid #fdba74; border-radius:6px; font-size:0.9rem;">
+                </div>
+                <div>
+                    <label style="font-size:0.75rem; font-weight:700; color:#92400e; display:block; margin-bottom:4px;">Data Ocorrência</label>
                     <input type="date" id="adv-data" class="form-control" value="${new Date().toISOString().split('T')[0]}" style="padding:0.5rem; border:1px solid #fdba74; border-radius:6px; font-size:0.9rem;">
                 </div>
-            </div>
-
-            <div style="margin-bottom:1rem;">
-                <label style="font-size:0.75rem; font-weight:700; color:#92400e; display:block; margin-bottom:4px;">Título da Advertência <span style="color:#9ca3af; font-weight:400;">(opcional)</span></label>
-                <input type="text" id="adv-titulo" class="form-control" placeholder="Ex: Desrespeito às normas internas, Atraso reiterado..." style="padding:0.5rem; border:1px solid #fdba74; border-radius:6px; font-size:0.9rem;">
             </div>
 
             <div style="margin-bottom:1rem;">
