@@ -1747,7 +1747,14 @@ window.openProntuario = async function(id, nome, cargo, cpf, sexo = '', admissao
     document.querySelectorAll('#tabs-list li').forEach(t => t.classList.remove('active'));
     const firstTab = document.querySelector('#tabs-list li[data-tab="00.CheckList"]');
     if (firstTab) firstTab.classList.add('active');
-    
+
+    // Exibir aba Cônjuge apenas para Casado ou União Estável
+    const tabConjuge = document.getElementById('tab-conjuge');
+    if (tabConjuge) {
+        const ec = (viewedColaborador.estado_civil || '').trim();
+        tabConjuge.style.display = (ec === 'Casado' || ec === 'União Estável') ? '' : 'none';
+    }
+
     navigateTo('prontuario');
     await loadDocumentosList();
     window.renderTabContent('00.CheckList', '00. CheckList');
