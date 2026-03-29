@@ -1614,6 +1614,27 @@ app.post('/api/send-atestado-contabilidade', authenticateToken, async (req, res)
         const dataFim = formatDate(doc.atestado_fim);
         const tipo = doc.atestado_tipo === 'horas' ? 'horas' : 'dias';
 
+        // Calcular duração em dias
+        let duracaoDias = 0;
+        if (doc.atestado_inicio && doc.atestado_fim && doc.atestado_tipo !== 'horas') {
+            const dtInicio = new Date(doc.atestado_inicio);
+            const dtFim = new Date(doc.atestado_fim);
+            duracaoDias = Math.round((dtFim - dtInicio) / (1000 * 60 * 60 * 24)) + 1; // inclusivo
+        }
+        const ehEsocial = duracaoDias >= 16;
+
+        // Textos dinâmicos conforme período
+        const emailTitulo = ehEsocial
+            ? '📋 Atestado Médico — Inclusão eSocial'
+            : '📋 Atestado Médico — Controle Interno';
+        const emailSubject = ehEsocial
+            ? `Atestado Médico eSocial — ${colab.nome_completo} (${cidCode})`
+            : `Atestado Médico (Controle) — ${colab.nome_completo} (${cidCode})`;
+        const emailIntro = ehEsocial
+            ? `Encaminhamos o atestado médico do colaborador abaixo para <strong>inclusão no cadastro do eSocial</strong>, pois o período de afastamento é de <strong style="color:#0f4c81;">${duracaoDias} dia(s)</strong>, atingindo o limite de 16 dias exigido pelo eSocial.`
+            : `Encaminhamos o atestado médico do colaborador abaixo <strong>apenas para controle interno</strong>. O período de afastamento de <strong>${duracaoDias > 0 ? duracaoDias + ' dia(s)' : tipo}</strong> não atinge o mínimo de 16 dias exigido pelo eSocial e <strong>não requer lançamento</strong>.`;
+        const tituloColor = ehEsocial ? '#0f4c81' : '#64748b';
+
         // Nome do arquivo anexo: CID_DD-MM-YYYY_NomeColaborador.pdf
         const hoje = new Date();
         const dd = String(hoje.getDate()).padStart(2, '0');
@@ -1630,8 +1651,8 @@ app.post('/api/send-atestado-contabilidade', authenticateToken, async (req, res)
                 <div style="text-align: center; margin-bottom: 20px;">
                     <img src="cid:empresa-logo" style="max-height: 80px; max-width:100%;">
                 </div>
-                <h2 style="color: #0f4c81; border-bottom: 2px solid #0f4c81; padding-bottom: 10px;">📋 Atestado Médico — Inclusão eSocial</h2>
-                <p>Encaminhamos o atestado médico do colaborador abaixo para <strong>inclusão no cadastro do eSocial</strong>.</p>
+                <h2 style="color: ${tituloColor}; border-bottom: 2px solid ${tituloColor}; padding-bottom: 10px;">${emailTitulo}</h2>
+                <p>${emailIntro}</p>
 
                 <div style="background:#f1f5f9; padding:15px; border-radius:8px; margin:20px 0;">
                     <p style="margin:4px 0;"><strong>Colaborador:</strong> ${colab.nome_completo}</p>
@@ -1641,10 +1662,10 @@ app.post('/api/send-atestado-contabilidade', authenticateToken, async (req, res)
                 </div>
 
                 <div style="background:#fff; border:1px solid #cbd5e1; padding:15px; border-radius:8px; margin:20px 0;">
-                    <p style="margin:4px 0;"><strong>CID:</strong> <span style="color:#0f4c81; font-weight:700;">${cidCode}</span> — ${cidDesc}</p>
+                    <p style="margin:4px 0;"><strong>CID:</strong> <span style="color:${tituloColor}; font-weight:700;">${cidCode}</span> — ${cidDesc}</p>
                     <p style="margin:4px 0;"><strong>Início do afastamento:</strong> ${dataInicio}</p>
                     <p style="margin:4px 0;"><strong>Fim do afastamento:</strong> ${dataFim}</p>
-                    <p style="margin:4px 0;"><strong>Tipo:</strong> Atestado em ${tipo}</p>
+                    <p style="margin:4px 0;"><strong>Tipo:</strong> Atestado em ${tipo}${duracaoDias > 0 ? ` (${duracaoDias} dia(s))` : ''}</p>
                 </div>
 
                 <p>O documento em PDF está em anexo neste e-mail.</p>
@@ -1656,7 +1677,7 @@ app.post('/api/send-atestado-contabilidade', authenticateToken, async (req, res)
         await transporter.sendMail({
             from: `"RH América Rental" <${SMTP_CONFIG.auth.user}>`,
             to: email_to,
-            subject: `Atestado Médico eSocial — ${colab.nome_completo} (${cidCode})`,
+            subject: emailSubject,
             html: htmlContent,
             attachments: [
                 { filename: 'logo.png', path: logoPath, cid: 'empresa-logo' },
