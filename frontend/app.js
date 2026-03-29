@@ -2648,7 +2648,7 @@ window.renderAtestadosTab = function(container, filteredDocs) {
         s.id = 'cid-style';
         s.textContent = `
             .cid-wrap { position:relative; display:flex; gap:.75rem; align-items:flex-start; flex-wrap:wrap; }
-            .cid-input-group { position:relative; flex:2; min-width:150px; z-index: 1000; }
+            .cid-input-group { position:relative; flex:2; min-width:150px; z-index: 8; }
             .cid-dropdown { position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid #ccc; border-radius:4px; z-index:99999; max-height:220px; overflow-y:auto; box-shadow:0 4px 12px rgba(0,0,0,.12); }
             .cid-option { padding:.55rem .85rem; cursor:pointer; font-size:.85rem; line-height:1.4; }
             .cid-option:hover, .cid-option.selected { background:#e8f0fe; }
