@@ -2133,15 +2133,15 @@ window.anexarAdvertenciaAoProntuario = async function() {
         const file = new File([pdfBlob], opt.filename, { type: 'application/pdf' });
 
         const formData = new FormData();
-        formData.append('document', file);
-        formData.append('tabName', 'Advertências');
-        // Usa o nome do gerador (ex: ADVERTÊNCIA VERBAL, SUSPENSÃO DISCIPLINAR...) em "Title Case"
+        formData.append('file', file);
+        formData.append('colaborador_id', viewedColaborador.id);
+        formData.append('tab_name', 'Advertências');
         const docType = window._advertenciaData.gerador_nome.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
-        formData.append('docType', docType);
+        formData.append('document_type', docType);
         formData.append('year', new Date().getFullYear().toString());
-        formData.append('customName', '');
+        formData.append('colaborador_nome', viewedColaborador.nome_completo || viewedColaborador.nome || '');
 
-        const response = await fetch(`${API_URL}/colaboradores/${viewedColaborador.id}/documentos`, {
+        const response = await fetch(`${API_URL}/documentos`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${currentToken}` },
             body: formData
