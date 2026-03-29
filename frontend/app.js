@@ -2556,24 +2556,25 @@ window.renderAtestadosTab = function(container, filteredDocs) {
     container.innerHTML = `
         <div class="card p-3 mb-4 bg-light">
             <div style="display:flex; gap:1rem; align-items:flex-end; flex-wrap:wrap;">
-                <div>
+                <div style="flex-shrink:0;">
                     <label style="font-size:0.75rem; font-weight:600; color:#64748b; margin-bottom:3px; display:block;">Ano</label>
                     <select id="atestados_year" class="form-control" style="padding:0.4rem; width:110px;" onchange="renderAtestadosAno()">
                         ${optionsHtml}
                     </select>
                 </div>
-                <div class="cid-input-group" style="flex:1; min-width:220px; position:relative;">
+                <div class="cid-input-group" style="flex:3; min-width:300px; position:relative;">
                     <label style="font-size:0.75rem; font-weight:600; color:#64748b; margin-bottom:3px; display:block;"><i class="ph ph-magnifying-glass"></i> CID-10</label>
-                    <input type="text" id="cid-search" class="form-control" placeholder="Código (J06) ou palavra-chave..." autocomplete="off"
+                    <input type="text" id="cid-search" class="form-control" placeholder="Código CID (J06) ou palavra-chave (gripe, lombar, fratura...)" autocomplete="off"
                            oninput="searchCID(this.value)" style="padding:.5rem;">
                     <div id="cid-dropdown" class="cid-dropdown" style="display:none;"></div>
                 </div>
                 <div id="cid-selected-badge" style="display:none; align-self:flex-end; margin-bottom:4px;"></div>
-                <label class="btn btn-primary" id="cid-upload-label" style="display:none; align-self:flex-end; margin-bottom:0;">
+                <!-- Input real separado do botão -->
+                <input type="file" id="cid-file-input" accept=".pdf,image/*" style="display:none;" onchange="uploadAtestadoWithCID(this)">
+                <button type="button" id="cid-upload-label" style="display:none; align-self:flex-end; margin-bottom:0;" class="btn btn-primary"
+                        onclick="document.getElementById('cid-file-input').click()">
                     <i class="ph ph-upload-simple" id="cid-upload-icon"></i> <span id="cid-upload-text">Enviar Atestado</span>
-                    <input type="file" id="cid-file-input" accept=".pdf,image/*" style="display:none;"
-                           onchange="uploadAtestadoWithCID(this)">
-                </label>
+                </button>
                 <p id="cid-hint" style="font-size:.8rem; color:#666; align-self:flex-end; margin:0 0 4px;">Selecione um CID para liberar o upload.</p>
             </div>
         </div>
