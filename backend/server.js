@@ -1523,16 +1523,16 @@ app.get('/api/colaboradores/:id/avaliacoes', authenticateToken, (req, res) => {
 });
 
 app.post('/api/avaliacoes', authenticateToken, (req, res) => {
-    const { colaborador_id, ano, trimestre, respostas_json } = req.body;
-    if (!colaborador_id || !ano || !trimestre) return res.status(400).json({ error: 'colaborador_id, ano e trimestre são obrigatórios.' });
+    const { colaborador_id, tipo, ano, trimestre, respostas_json } = req.body;
+    if (!colaborador_id || !tipo || !ano || !trimestre) return res.status(400).json({ error: 'colaborador_id, tipo, ano e trimestre são obrigatórios.' });
     
-    // Upsert (atualiza se já existir para o mesmo colaborador/ano/trimestre)
+    // Upsert (atualiza se já existir para o mesmo colaborador/ano/trimestre/tipo)
     db.run(`
-        INSERT INTO avaliacoes (colaborador_id, ano, trimestre, respostas_json)
-        VALUES (?, ?, ?, ?)
-        ON CONFLICT(colaborador_id, ano, trimestre) 
+        INSERT INTO avaliacoes (colaborador_id, tipo, ano, trimestre, respostas_json)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(colaborador_id, ano, trimestre, tipo) 
         DO UPDATE SET respostas_json=excluded.respostas_json, created_at=CURRENT_TIMESTAMP
-    `, [colaborador_id, ano, trimestre, (respostas_json || '{}')], function(err) {
+    `, [colaborador_id, tipo, ano, trimestre, (respostas_json || '{}')], function(err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ success: true, changes: this.changes });
     });

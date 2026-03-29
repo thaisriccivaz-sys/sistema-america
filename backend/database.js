@@ -268,11 +268,12 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 CREATE TABLE IF NOT EXISTS avaliacoes (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     colaborador_id INTEGER NOT NULL,
+                    tipo TEXT NOT NULL DEFAULT 'desempenho',
                     ano INTEGER NOT NULL,
                     trimestre INTEGER NOT NULL,
                     respostas_json TEXT NOT NULL,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    UNIQUE(colaborador_id, ano, trimestre),
+                    UNIQUE(colaborador_id, ano, trimestre, tipo),
                     FOREIGN KEY (colaborador_id) REFERENCES colaboradores (id) ON DELETE CASCADE
                 )
             `);
