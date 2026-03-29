@@ -2044,24 +2044,24 @@ window.abrirPreviewAdvertencia = function(data) {
     const apiBase = API_URL.replace('/api', '');
     const logoSrc = `${apiBase}/assets/logo-header.png`;
 
-    const logoBanner = `<div style="margin-bottom:1rem;"><img src="${logoSrc}" style="width:100%; display:block;" onerror="this.style.display='none'"></div>`;
+    const logoBanner = `<div style="margin-bottom:0.5rem;"><img src="${logoSrc}" style="width:100%; display:block;" onerror="this.style.display='none'"></div>`;
     const colabInfo = `
-        <h1 style="text-align:center; color:#1e293b; margin-top:0.2rem; font-size:1.25rem; text-transform:uppercase;">${data.gerador_nome}</h1>
-        <p style="margin-top:0.75rem; font-size:1rem;"><b>COLABORADOR:</b> ${data.colaborador.NOME_COMPLETO}</p>
-        <div style="border:1px solid #000; padding:0.75rem; margin-top:0.5rem; line-height:1.4; font-size:0.85rem;">
-            <p style="margin-bottom:0.2rem; font-size:0.8rem;"><b>DADOS DO COLABORADOR:</b></p>
-            <div style="display:flex; gap:2rem; flex-wrap:wrap;">
+        <h1 style="text-align:center; color:#1e293b; margin-top:0.1rem; margin-bottom:0.3rem; font-size:1.1rem; text-transform:uppercase;">${data.gerador_nome}</h1>
+        <p style="margin:0.2rem 0; font-size:0.85rem;"><b>COLABORADOR:</b> ${data.colaborador.NOME_COMPLETO}</p>
+        <div style="border:1px solid #000; padding:0.4rem 0.6rem; margin-top:0.3rem; line-height:1.3; font-size:0.78rem;">
+            <p style="margin:0 0 0.1rem 0; font-size:0.75rem;"><b>DADOS DO COLABORADOR:</b></p>
+            <div style="display:flex; gap:1.5rem; flex-wrap:wrap;">
                 <span>CPF: <b>${data.colaborador.CPF}</b></span>
                 <span>CARGO: <b>${data.colaborador.CARGO}</b></span>
                 <span>ADMISSÃO: <b>${data.colaborador.DATA_ADMISSAO}</b></span>
             </div>
-            <p style="margin-top:0.25rem;">DEPARTAMENTO: ${data.colaborador.DEPARTAMENTO}</p>
+            <p style="margin:0.1rem 0 0;">DEPARTAMENTO: ${data.colaborador.DEPARTAMENTO}</p>
         </div>
     `;
-    const conteudo = `<div style="margin-top:1rem; text-align:justify; line-height:1.5; font-size:0.9rem;">${data.html}</div>`;
+    const conteudo = `<div style="margin-top:0.6rem; text-align:justify; line-height:1.35; font-size:0.8rem;">${data.html}</div>`;
     const footer = `
-        <div style="margin-top:2rem;">
-            <p style="font-weight:700; font-size:0.9rem;">Guarulhos, ${data.dataHojeExtenso}.</p>
+        <div style="margin-top:1rem;">
+            <p style="font-weight:700; font-size:0.85rem;">Guarulhos, ${data.dataHojeExtenso}.</p>
         </div>
     `;
 
@@ -4407,10 +4407,14 @@ window.imprimirDocumento = function() {
             <head>
                 <title>Imprimir Documento</title>
                 <style>
-                    body { font-family: 'Inter', sans-serif; padding: 0; margin: 0; }
+                    * { box-sizing: border-box; }
+                    body { font-family: 'Inter', Arial, sans-serif; padding: 0; margin: 0; }
                     @page { size: A4; margin: 1.5cm; }
-                    .print-container { width: 21cm; min-height: 29.7cm; padding: 2cm; box-sizing: border-box; margin: 0 auto; }
+                    .print-container { width: 100%; border: none !important; box-shadow: none !important; }
+                    .print-container * { border-color: #000 !important; }
                     img { max-width: 100%; }
+                    /* Forcar uma pagina */
+                    body { height: 100%; overflow: hidden; }
                 </style>
             </head>
             <body onload="window.print(); window.close();">
