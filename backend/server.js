@@ -1673,6 +1673,101 @@ app.post('/api/send-atestado-contabilidade', authenticateToken, async (req, res)
     }
 });
 
+/**
+ * Envio de Suspensão para a Contabilidade (Fechamento de Folha)
+ */
+app.post('/api/send-suspensao-contabilidade', authenticateToken, async (req, res) => {
+    const { document_id, email_to } = req.body;
+    if (!document_id || !email_to) {
+        return res.status(400).json({ sucesso: false, error: 'document_id e email_to são obrigatórios.' });
+    }
+
+    try {
+        const doc = await new Promise((resolve, reject) =>
+            db.get('SELECT * FROM documentos WHERE id = ?', [document_id], (err, row) => err ? reject(err) : resolve(row)));
+        if (!doc) return res.status(404).json({ sucesso: false, error: 'Documento não encontrado.' });
+
+        const colab = await new Promise((resolve, reject) =>
+            db.get('SELECT * FROM colaboradores WHERE id = ?', [doc.colaborador_id], (err, row) => err ? reject(err) : resolve(row)));
+        if (!colab) return res.status(404).json({ sucesso: false, error: 'Colaborador não encontrado.' });
+
+        // Extrair tipo da suspensão do document_type (formato: "Título###Suspensão X dias")
+        const parts = (doc.document_type || '').split('###');
+        const tipoSuspensao = parts[1] || parts[0] || 'Suspensão';
+
+        // Data do documento
+        const dataDoc = doc.upload_date
+            ? new Date(doc.upload_date).toLocaleDateString('pt-BR')
+            : new Date().toLocaleDateString('pt-BR');
+
+        // Arquivo em anexo
+        const attachments = [];
+        if (doc.file_path) {
+            const filePath = path.resolve(doc.file_path);
+            if (fs.existsSync(filePath)) {
+                const nomeNorm = (colab.nome_completo || 'Colaborador')
+                    .toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]+/g, '_');
+                const hoje = new Date();
+                const dd = String(hoje.getDate()).padStart(2, '0');
+                const mm = String(hoje.getMonth() + 1).padStart(2, '0');
+                const yyyy = hoje.getFullYear();
+                attachments.push({ filename: `Suspensao_${dd}-${mm}-${yyyy}_${nomeNorm}.pdf`, path: filePath, contentType: 'application/pdf' });
+            }
+        }
+
+        const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+        attachments.unshift({ filename: 'logo.png', path: logoPath, cid: 'empresa-logo' });
+
+        const htmlContent = `
+            <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px; border-radius:8px;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <img src="cid:empresa-logo" style="max-height: 80px; max-width:100%;">
+                </div>
+                <h2 style="color: #c0392b; border-bottom: 2px solid #c0392b; padding-bottom: 10px;">⚠️ Advertência — Suspensão Disciplinar</h2>
+                <p>Informamos que o colaborador abaixo recebeu uma <strong>suspensão disciplinar</strong> que deve ser <strong>considerada no fechamento da folha de pagamento</strong>.</p>
+
+                <div style="background:#f1f5f9; padding:15px; border-radius:8px; margin:20px 0;">
+                    <p style="margin:4px 0;"><strong>Colaborador:</strong> ${colab.nome_completo}</p>
+                    <p style="margin:4px 0;"><strong>CPF:</strong> ${colab.cpf || '-'}</p>
+                    <p style="margin:4px 0;"><strong>Cargo:</strong> ${colab.cargo || '-'}</p>
+                    <p style="margin:4px 0;"><strong>Departamento:</strong> ${colab.departamento || '-'}</p>
+                </div>
+
+                <div style="background:#fff5f5; border:2px solid #e74c3c; padding:15px; border-radius:8px; margin:20px 0;">
+                    <p style="margin:4px 0;"><strong>Tipo:</strong> <span style="color:#c0392b; font-weight:700;">${tipoSuspensao}</span></p>
+                    <p style="margin:4px 0;"><strong>Data do registro:</strong> ${dataDoc}</p>
+                </div>
+
+                <div style="background:#fff3cd; border:1px solid #ffc107; padding:15px; border-radius:8px; margin:20px 0; text-align:center;">
+                    <p style="margin:0; color:#856404; font-weight:700; font-size:1rem;">
+                        📌 Atenção: Esta suspensão deve ser descontada na folha de pagamento do colaborador.<br>
+                        Favor considerar para o fechamento do mês.
+                    </p>
+                </div>
+
+                ${attachments.length > 1 ? '<p>O documento de advertência está em anexo neste e-mail.</p>' : ''}
+                <p style="margin-top:30px; font-size:0.9em; color:#7f8c8d;">Atenciosamente,<br>Equipe de RH — América Rental</p>
+            </div>
+        `;
+
+        const transporter = nodemailer.createTransport(SMTP_CONFIG);
+        await transporter.sendMail({
+            from: `"RH América Rental" <${SMTP_CONFIG.auth.user}>`,
+            to: email_to,
+            subject: `⚠️ Suspensão para Folha — ${colab.nome_completo} (${tipoSuspensao})`,
+            html: htmlContent,
+            attachments
+        });
+
+        console.log(`[SUSPENSAO CONTAB] Enviado para ${email_to} | Doc: ${document_id} | Colab: ${colab.nome_completo}`);
+        res.json({ sucesso: true, message: 'E-mail de suspensão enviado com sucesso para a contabilidade!' });
+
+    } catch (error) {
+        console.error('[SUSPENSAO CONTAB] ERRO:', error.message);
+        res.status(500).json({ sucesso: false, error: error.message });
+    }
+});
+
 
 /**
  * WEBHOOK UNIFICADO: Escuta criação de links e conclusão de assinaturas
