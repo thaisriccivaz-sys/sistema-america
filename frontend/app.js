@@ -2315,7 +2315,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         </label>
                     </div>
 
-                    ${isSaved ? `
+                    ${(isSaved && tabId !== 'Advertências') ? `
                         <div style="display: flex; align-items: center; gap: 0.5rem;">
                             <button class="btn btn-sm btn-assinafy" style="width: auto; padding: 0 0.85rem;" onclick="window.iniciarAssinafy('${docType}', '${tabId}', this)" ${isAssinado ? 'disabled' : ''}>
                                 <i class="ph ph-pen-nib"></i> Solicitar Assinatura
@@ -2333,6 +2333,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
 }
 
 function createDynamicUploadForm(tabId, btnLabel, defaultDocType = '') {
+    const showVencimento = tabId !== 'Advertências';
     const div = document.createElement('div');
     div.className = 'mb-4 card p-3 bg-light form-dyn';
     div.innerHTML = `
@@ -2340,10 +2341,12 @@ function createDynamicUploadForm(tabId, btnLabel, defaultDocType = '') {
             <div style="flex: 2; min-width: 200px;">
                 <input type="text" id="dyn-doc-type-${tabId}" class="form-control" placeholder="Nome do Documento / Motivo" value="${defaultDocType}" style="padding: 0.5rem; border-radius:4px; border:1px solid #ccc; width: 100%;">
             </div>
+            ${showVencimento ? `
             <div style="flex: 1; min-width: 140px;">
                 <label style="font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 2px; display: block;">Vencimento (opcional)</label>
                 <input type="date" id="dyn-doc-venc-${tabId}" class="form-control" style="padding: 0.5rem; border-radius:4px; border:1px solid #ccc; width: 100%;">
             </div>
+            ` : ''}
             <div>
                 <label class="btn btn-primary" style="margin-bottom: 0px; height: 38px; display: flex; align-items: center;">
                     <i class="ph ph-plus"></i> ${btnLabel}
