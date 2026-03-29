@@ -1524,7 +1524,7 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
         transporter.sendMail(mailOptions, (error, info) => {
             if (error) {
                 console.error('ERRO NODEMAILER:', error);
-                return res.status(500).json({ sucesso: false, error: 'Erro ao enviar e-mail. Verifique a configuraÃ§Ã£o SMTP no backend.' });
+                return res.status(500).json({ sucesso: false, error: `Erro SMTP: ${error.message}` });
             }
             
             // Salvar a data de envio e a data agendada no banco de dados
