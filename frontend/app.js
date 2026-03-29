@@ -2311,10 +2311,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
         const syncBtnHtml = `<button type="button" onclick="window.syncAssinafyStatus(${existingDoc.id}, this)" style="background:none; border:none; padding:0; cursor:pointer; color:#64748b; margin-left:3px;" title="Atualizar Status"><i class="ph ph-arrows-clockwise" style="font-size:1rem;"></i></button>`;
         
         if (st === 'Assinado') {
-            assStatusIcon = `
-                <button onclick="window.downloadAssinado(${existingDoc.id})" style="display:inline-flex;align-items:center;gap:5px;background:#2f9e44;color:#fff;border:none;border-radius:6px;padding:0.3rem 0.75rem;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;" title="Baixar PDF Assinado"><i class="ph ph-download-simple" style="font-size:1rem;"></i> Baixar Assinado</button>
-                <button onclick="window.forceOnedriveSync(${existingDoc.id}, this)" style="display:inline-flex;align-items:center;gap:4px;background:#1c7ed6;color:#fff;border:none;border-radius:6px;padding:0.3rem 0.6rem;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;" title="Forçar sincronização na pasta do colaborador"><i class="ph ph-cloud-arrow-up" style="font-size:1rem;"></i> Salvar OneDrive</button>
-            `;
+            assStatusIcon = `<button onclick="window.downloadAssinado(${existingDoc.id})" style="display:inline-flex;align-items:center;gap:5px;background:#2f9e44;color:#fff;border:none;border-radius:6px;padding:0.3rem 0.75rem;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;" title="Baixar PDF Assinado"><i class="ph ph-download-simple" style="font-size:1rem;"></i> Baixar Assinado</button>`;
         } else if (st === 'Erro') {
             assStatusIcon = `<span title="Erro" style="display:inline-flex;align-items:center;gap:3px;color:#e03131;font-size:0.78rem;font-weight:700;white-space:nowrap;"><i class="ph ph-warning-circle" style="font-size:1.1rem;"></i> Erro</span>${syncBtnHtml}`;
         } else if (st === 'Pendente' && enviado) {
