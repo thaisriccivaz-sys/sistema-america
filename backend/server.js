@@ -328,6 +328,28 @@ app.post('/api/assinafy/upload', async (req, res) => {
     }
 });
 
+// Gera link de assinatura SEM enviar e-mail (usado na aba Advertências)
+app.post('/api/assinafy/gerar-link', async (req, res) => {
+    const { document_id, colaborador_id } = req.body;
+    if (!document_id || !colaborador_id) {
+        return res.status(400).json({ sucesso: false, error: 'document_id e colaborador_id sao obrigatorios.' });
+    }
+    try {
+        db.run("UPDATE documentos SET assinafy_status = 'Pendente', assinafy_sent_at = CURRENT_TIMESTAMP WHERE id = ?", [document_id]);
+        const novoProcesso = require('./novo_processo_assinafy');
+        const resultado = await novoProcesso.gerarLinkSemEmail(document_id, colaborador_id);
+        res.json({
+            sucesso: true,
+            urlAssinatura: resultado.urlAssinatura,
+            message: 'Link de assinatura gerado com sucesso!'
+        });
+    } catch (error) {
+        console.error('[ASSINAFY LINK] ERRO:', error.message);
+        db.run("UPDATE documentos SET assinafy_status = 'Erro' WHERE id = ?", [document_id]);
+        res.status(400).json({ sucesso: false, error: error.message });
+    }
+});
+
 // Middleware de Autenticação (Bypass temporário para facilitar dev do frontend)
 const authenticateToken = (req, res, next) => {
     // const authHeader = req.headers['authorization'];
