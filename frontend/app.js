@@ -2764,8 +2764,8 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                                style="height:36px; padding:0 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; width:100%; min-width:230px; max-width:250px;">
                         <button type="button"
                                 onclick="window.enviarSuspensaoContabilidade(${existingDoc.id}, 'susp-contab-email-${existingDoc.id}', this)"
-                                style="height:36px; display:flex; align-items:center; justify-content:center; gap:6px; background:#c0392b; color:#fff; border:none; border-radius:6px; padding:0 0.85rem; font-size:0.82rem; font-weight:600; cursor:pointer; white-space:nowrap; width:100%; min-width:230px; max-width:250px;">
-                            <i class="ph ph-buildings"></i> Enviar Suspensão para Contabilidade
+                                style="height:36px; display:flex; align-items:center; justify-content:center; gap:6px; background:#0f4c81; color:#fff; border:none; border-radius:6px; padding:0 0.85rem; font-size:0.82rem; font-weight:600; cursor:pointer; white-space:nowrap; width:100%; min-width:230px; max-width:250px;">
+                            <i class="ph ph-buildings"></i> Enviar para Contabilidade
                         </button>
                     </div>` : ''}
                 </div>
