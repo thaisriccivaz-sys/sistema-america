@@ -2232,10 +2232,20 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
         vencInfoHtml += `<span style="color:${vencColor}; font-weight:600;">Venc.: ${vencFormatted}</span>`;
     }
 
-    // Data de envio para assinatura (se existir)
     let enviadoHtml = '';
     if (isSaved && existingDoc.assinafy_sent_at) {
-        const enviadoDate = new Date(existingDoc.assinafy_sent_at).toLocaleDateString('pt-BR');
+        let sd = existingDoc.assinafy_sent_at;
+        if (!sd.includes('T')) sd = sd.replace(' ', 'T');
+        if (!sd.endsWith('Z')) sd += 'Z';
+        const sentDateObj = new Date(sd);
+        
+        const dd = String(sentDateObj.getDate()).padStart(2, '0');
+        const mm = String(sentDateObj.getMonth()+1).padStart(2, '0');
+        const yyyy = sentDateObj.getFullYear();
+        const h = String(sentDateObj.getHours()).padStart(2, '0');
+        const min = String(sentDateObj.getMinutes()).padStart(2, '0');
+        
+        const enviadoDate = `${dd}/${mm}/${yyyy} - ${h}h${min}m`;
         enviadoHtml = ` <span style="color:#64748b;">|</span> <span style="color:#2f9e44; font-weight:600;">Enviado: ${enviadoDate}</span>`;
     }
 
@@ -4516,7 +4526,14 @@ window.iniciarAssinafy = async function(docType, tabName, btn) {
             btn.innerHTML = '<i class="ph ph-pen-nib"></i> Solicitar Assinatura';
 
             // Atualizar data de envio no DOM
-            const hoje = new Date().toLocaleDateString('pt-BR');
+            const now = new Date();
+            const dd = String(now.getDate()).padStart(2, '0');
+            const mm = String(now.getMonth()+1).padStart(2, '0');
+            const yyyy = now.getFullYear();
+            const h = String(now.getHours()).padStart(2, '0');
+            const min = String(now.getMinutes()).padStart(2, '0');
+            const hojeFormatado = `${dd}/${mm}/${yyyy} - ${h}h${min}m`;
+            
             const docInfoDiv = btn.closest('.doc-item') && btn.closest('.doc-item').querySelector('.doc-info div');
             if (docInfoDiv) {
                 let subInfoP = docInfoDiv.querySelector('p.subinfo-line');
@@ -4528,7 +4545,7 @@ window.iniciarAssinafy = async function(docType, tabName, btn) {
                 }
                 const vencSpan = subInfoP.firstElementChild;
                 const vencHtml = vencSpan ? vencSpan.outerHTML + ' <span style="color:#64748b;">|</span> ' : '';
-                subInfoP.innerHTML = vencHtml + '<span style="color:#2f9e44; font-weight:600;">Enviado: ' + hoje + '</span>';
+                subInfoP.innerHTML = vencHtml + '<span style="color:#2f9e44; font-weight:600;">Enviado: ' + hojeFormatado + '</span>';
             }
 
             // Atualizar icone de status para Enviado
