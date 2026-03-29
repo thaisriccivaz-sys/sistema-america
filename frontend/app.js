@@ -2739,13 +2739,13 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                     })()}
 
                     ${(tabId === 'Atestados' && isSaved) ? `
-                    <div style="display:flex; gap:0.5rem; align-items:center; margin-top:0.35rem; flex-wrap:wrap;">
+                    <div style="display:flex; flex-direction:column; gap:0.35rem; margin-top:0.35rem; align-items:flex-end;">
                         <input type="email" id="contab-email-${existingDoc.id}"
                                value="thais.ricci@americarental.com.br"
-                               style="height:36px; padding:0 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; width:230px; flex-shrink:0;">
+                               style="height:36px; padding:0 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; width:100%; min-width:230px; max-width:250px;">
                         <button type="button"
                                 onclick="window.enviarAtestadoContabilidade(${existingDoc.id}, 'contab-email-${existingDoc.id}', this)"
-                                style="height:36px; display:flex; align-items:center; gap:6px; background:#0f4c81; color:#fff; border:none; border-radius:6px; padding:0 0.85rem; font-size:0.82rem; font-weight:600; cursor:pointer; white-space:nowrap;">
+                                style="height:36px; display:flex; align-items:center; justify-content:center; gap:6px; background:#0f4c81; color:#fff; border:none; border-radius:6px; padding:0 0.85rem; font-size:0.82rem; font-weight:600; cursor:pointer; white-space:nowrap; width:100%; min-width:230px; max-width:250px;">
                             <i class="ph ph-buildings"></i> Enviar para Contabilidade
                         </button>
                     </div>` : ''}
