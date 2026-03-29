@@ -102,6 +102,53 @@ async function syncColaboradorOneDrive(nomeCompleto) {
     };
 }
 
+/**
+ * Faz upload de um documento (por ID) para o OneDrive.
+ * Reutiliza exatamente a mesma lógica do force-onedrive-sync que está comprovada.
+ */
+async function uploadDocToOneDrive(docId) {
+    if (!onedrive || !process.env.ONEDRIVE_CLIENT_ID) return;
+
+    try {
+        const doc = await new Promise((resolve, reject) => {
+            db.get(`SELECT d.*, c.nome_completo FROM documentos d
+                    JOIN colaboradores c ON c.id = d.colaborador_id
+                    WHERE d.id = ?`, [docId], (err, row) => {
+                if (err) reject(err); else resolve(row);
+            });
+        });
+
+        if (!doc) { console.error(`[OD-AUTO] Doc ${docId} não encontrado no DB`); return; }
+        if (doc.tab_name === 'ASO') return; // ASO tem fluxo próprio
+
+        const localPath = doc.signed_file_path && require('fs').existsSync(doc.signed_file_path)
+            ? doc.signed_file_path
+            : (doc.file_path && require('fs').existsSync(doc.file_path) ? doc.file_path : null);
+
+        if (!localPath) { console.error(`[OD-AUTO] Arquivo não encontrado para doc ${docId}`); return; }
+
+        const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || 'RH/1.Colaboradores/Sistema';
+        const safeColab = formatarNome(doc.nome_completo || 'DESCONHECIDO');
+        const safeTab   = formatarPasta(doc.tab_name || 'DOCUMENTOS').toUpperCase();
+        const docYear   = doc.year && doc.year !== 'null' ? String(doc.year).replace(/[^0-9]/g, '') : String(new Date().getFullYear());
+        const targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}/${docYear}`;
+
+        // Para Atestados, strip o timestamp do file_name: CID_DD-MM-AA_Nome_YYYYMMDD_HHMMSS.pdf → CID_DD-MM-AA_Nome.pdf
+        const isAtestado = doc.tab_name === 'Atestados';
+        const cloudName = isAtestado
+            ? doc.file_name.replace(/_\d{8}_\d{6}(\.\w+)$/, '$1')
+            : `${formatarPasta(doc.document_type || doc.tab_name).replace(/\s+/g, '_')}_${docYear}_${safeColab}.pdf`;
+
+        console.log(`[OD-AUTO] doc=${docId} tab=${doc.tab_name} → ${targetDir}/${cloudName}`);
+        await onedrive.ensurePath(targetDir);
+        const fileBuffer = require('fs').readFileSync(localPath);
+        await onedrive.uploadToOneDrive(targetDir, cloudName, fileBuffer);
+        console.log(`[OD-AUTO] ✓ Upload OK: ${cloudName}`);
+    } catch (e) {
+        console.error(`[OD-AUTO ERROR] doc=${docId}:`, e.message);
+    }
+}
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 const SECRET_KEY = process.env.SECRET_KEY || 'america_rental_secret_key_123';
@@ -1019,36 +1066,14 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
                         db.run("UPDATE colaboradores SET foto_path = ? WHERE id = ?", [file_path, colaborador_id]);
                     }
 
-                    // --- ESPELHAMENTO ONEDRIVE (API) ---
-                    // Capturar valores do req ANTES da IIFE para evitar GC do request
-                    const od_colab_nome = req.body.colaborador_nome || 'DESCONHECIDO';
-                    const od_custom_name = req.body.custom_name || null;
-                    const od_tab = tab_name;
-                    const od_year = year;
-                    const od_file_path = file_path;
-
-                    if (onedrive && od_tab !== 'ASO') {
-                        (async () => {
-                            try {
-                                const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || 'RH/1.Colaboradores/Sistema';
-                                const safeColab = formatarNome(od_colab_nome);
-                                const safeTab = formatarPasta(od_tab).toUpperCase();
-                                let targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}`;
-                                if (od_year && od_year !== 'null' && od_year !== 'undefined' && od_year !== '') targetDir += `/${od_year.replace(/[^0-9]/g, '')}`;
-                                console.log(`[OneDrive AUTO] targetDir=${targetDir} | custom_name=${od_custom_name}`);
-                                await onedrive.ensurePath(targetDir);
-                                const fileBuffer = fs.readFileSync(od_file_path);
-                                // Para Atestados usa o custom_name exato (CID_DD-MM-AA_Nome); outros usam file_name do multer
-                                const cloudFileName = (od_tab === 'Atestados' && od_custom_name)
-                                    ? `${od_custom_name}.pdf`
-                                    : path.basename(od_file_path);
-                                await onedrive.uploadToOneDrive(targetDir, cloudFileName, fileBuffer);
-                                console.log(`[OneDrive AUTO] Upload OK (insert): ${cloudFileName}`);
-                            } catch (e) { console.error('[OneDrive AUTO ERROR]', e.message); }
-                        })();
+                    // --- ESPELHAMENTO ONEDRIVE ---
+                    // Usa a mesma lógica do force-onedrive-sync (comprovada) com o ID real do doc
+                    const newDocId = this.lastID;
+                    if (tab_name !== 'ASO') {
+                        setImmediate(() => uploadDocToOneDrive(newDocId));
                     }
 
-                    res.status(201).json({ message: 'Documento salvo', id: this.lastID, file_path });
+                    res.status(201).json({ message: 'Documento salvo', id: newDocId, file_path });
                 });
         }
     });
