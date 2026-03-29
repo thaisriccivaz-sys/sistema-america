@@ -2122,7 +2122,7 @@ window.anexarAdvertenciaAoProntuario = async function() {
     try {
         const element = document.getElementById('preview-doc-body');
         const opt = {
-            margin:       0,
+            margin:       [1.5, 1.5, 1.5, 1.5],
             filename:     `${window._advertenciaData.gerador_nome.replace(/ /g, '_')}_${window._advertenciaData.colaborador.NOME_COMPLETO.replace(/ /g, '_')}.pdf`,
             image:        { type: 'jpeg', quality: 0.98 },
             html2canvas:  { scale: 2 },
@@ -4268,7 +4268,7 @@ window.imprimirDocumento = function() {
                 <title>Imprimir Documento</title>
                 <style>
                     body { font-family: 'Inter', sans-serif; padding: 0; margin: 0; }
-                    @page { size: A4; margin: 0; }
+                    @page { size: A4; margin: 1.5cm; }
                     .print-container { width: 21cm; min-height: 29.7cm; padding: 2cm; box-sizing: border-box; margin: 0 auto; }
                     img { max-width: 100%; }
                 </style>
