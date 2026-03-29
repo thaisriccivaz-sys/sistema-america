@@ -1529,7 +1529,9 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
             
             // Salvar a data de envio e a data agendada no banco de dados
             const hoje = new Date();
-            const dataEnvioStr = `${String(hoje.getDate()).padStart(2, '0')}/${String(hoje.getMonth() + 1).padStart(2, '0')}/${hoje.getFullYear()}`;
+            const horas = String(hoje.getHours()).padStart(2, '0');
+            const minutos = String(hoje.getMinutes()).padStart(2, '0');
+            const dataEnvioStr = `${String(hoje.getDate()).padStart(2, '0')}/${String(hoje.getMonth() + 1).padStart(2, '0')}/${hoje.getFullYear()} - ${horas}h${minutos}m`;
             
             const [y, m, d] = data_exame.split('-');
             const dataAgendadaStr = `${d}/${m}/${y}`;

@@ -2493,9 +2493,12 @@ window.renderASOTab = function(container, filteredDocs) {
     const emailEnviado = viewedColaborador ? viewedColaborador.aso_email_enviado : null;
     const exameData    = viewedColaborador ? viewedColaborador.aso_exame_data : null;
     const noticeHtml = emailEnviado
-        ? `<div style="display:flex; align-items:center; gap:8px; background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:10px; padding:10px 14px; margin-bottom:1rem; font-size:0.85rem; color:#059669; font-weight:600;">
-               <i class="ph ph-check-circle" style="font-size:1.2rem;"></i>
-               E-mail enviado para a IACI em <strong>${emailEnviado}</strong>${exameData ? ` · Exame agendado: <strong>${exameData}</strong>` : ''}
+        ? `<div style="display:flex; align-items:center; flex-wrap:wrap; gap:8px; background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:10px; padding:10px 14px; margin-bottom:1rem; font-size:0.85rem; font-weight:600;">
+               <div style="display:flex; align-items:center; gap:6px; color:#059669;">
+                   <i class="ph ph-check-circle" style="font-size:1.2rem;"></i>
+                   <span>E-mail enviado para a IACI em <strong>${emailEnviado}</strong></span>
+               </div>
+               ${exameData ? `<span style="color:#64748b;">-</span><div style="display:flex; align-items:center; gap:4px; color:#1d4ed8;"><i class="ph ph-calendar-blank" style="font-size:1.1rem;"></i> <span>Exame agendado: <strong>${exameData}</strong></span></div>` : ''}
            </div>`
         : '';
 
