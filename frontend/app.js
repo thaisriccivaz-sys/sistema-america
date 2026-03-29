@@ -2209,6 +2209,10 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
     const div = document.createElement('div');
     div.className = 'doc-item';
     const isSaved = !!existingDoc;
+    if (isSaved) {
+        div.setAttribute('data-doc-id', existingDoc.id);
+        div.setAttribute('data-assinafy-status', existingDoc.assinafy_status || 'Nenhum');
+    }
 
     // Limita o nome do arquivo a 40 caracteres
     const rawFileName = isSaved ? (existingDoc.file_name || '') : '';
@@ -4660,3 +4664,52 @@ window.resetSystem = async function() {
         btn.innerHTML = originalText;
     }
 };
+
+/**
+ * Auto-polling de status Assinafy a cada 30s.
+ * Verifica os documentos pendentes que estao visiveis na aba de prontuario.
+ */
+setInterval(async () => {
+    // Busca na tela os cards de documentos que estão com status Pendente ou Aguardando
+    const pendingDocs = Array.from(document.querySelectorAll('.doc-item[data-assinafy-status="Pendente"], .doc-item[data-assinafy-status="Aguardando"]'));
+    if (pendingDocs.length === 0) return;
+
+    let updatedAny = false;
+    for (const docEl of pendingDocs) {
+        const docId = docEl.getAttribute('data-doc-id');
+        if (!docId) continue;
+        
+        try {
+            const res = await fetch(`${API_URL}/documentos/${docId}/sync-assinafy`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${currentToken}` }
+            });
+            const data = await res.json();
+            
+            if (res.ok && data.sucesso) {
+                if (data.status_novo === 'Assinado' && data.status_antigo !== 'Assinado') {
+                    // Impede repetição do poll até o redesenho se a DOM não tiver girado ainda
+                    docEl.setAttribute('data-assinafy-status', 'Assinado');
+                    updatedAny = true;
+                }
+            }
+        } catch (e) {
+            console.error('Polling: erro checando doc ' + docId, e);
+        }
+    }
+    
+    // Se algum atualizar pra valer, redesenhar aba do prontuario
+    if (updatedAny) {
+        await loadDocumentosList();
+        
+        // Reflete pro workflow de admissão ou prontuário normal
+        const activeTab = document.querySelector('#tabs-list li.active');
+        if (activeTab) {
+            renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
+        } else {
+            initAdmissaoWorkflow(viewedColaborador.id, window.currentActiveAdmissaoStep, true).catch(() => {});
+        }
+        
+        console.log('[POLLING] Documento(s) detectado(s) como Assinado(s). Tela atualizada com sucesso.');
+    }
+}, 30000);
