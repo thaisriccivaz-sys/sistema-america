@@ -216,7 +216,8 @@ async function enviarDocumentoParaAssinafy(documentId, colaboradorId) {
         signers: [
             { id: signerId, role: 'signer', notification_methods: ['Email'] }
         ],
-        method: 'virtual'
+        method: 'virtual',
+        copy_receivers: ['americasistema48@gmail.com']  // cópia de todos os envios de assinatura
     });
 
     if (assignRes.status < 200 || assignRes.status >= 300) {
