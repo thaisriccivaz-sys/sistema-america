@@ -2724,7 +2724,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         return showAssinafy ? `
                         <div style="display: flex; align-items: center; gap: 0.5rem;">
                             <button class="btn btn-sm btn-assinafy" style="width: auto; padding: 0 0.85rem;" onclick="window.iniciarAssinafy('${docType}', '${tabId}', this)" ${isAssinado ? 'disabled' : ''}>
-                                <i class="ph ${isAdv ? 'ph-link' : 'ph-pen-nib'}"></i> ${isAdv ? 'Gerar Link' : 'Solicitar Assinatura'}
+                                <i class="ph ph-pen-nib"></i> Solicitar Assinatura
                             </button>
                             ${assStatusIcon}
                         </div>` : (assStatusIcon ? `<div style="display:flex;align-items:center;gap:0.5rem;">${assStatusIcon}</div>` : '');
@@ -5114,14 +5114,8 @@ window.iniciarAssinafy = async function(docType, tabName, btn) {
         const docRecord = docs.find(d => d.tab_name === tabName && d.document_type === docType);
         if (!docRecord) throw new Error('Documento nao encontrado. Faca o upload primeiro.');
 
-        // Para Advertências: gerar link sem enviar e-mail; demais: enviar normalmente
-        const isAdv = tabName === 'Advertências';
-        const endpoint = isAdv ? '/assinafy/gerar-link' : '/assinafy/upload';
-        btn.innerHTML = isAdv
-            ? '<i class="ph ph-spinner ph-spin"></i> Gerando link...'
-            : '<i class="ph ph-spinner ph-spin"></i> Enviando...';
-
-        const res = await apiPost(endpoint, {
+        // 2. Chamar backend (retorna imediatamente, processa em background)
+        const res = await apiPost('/assinafy/upload', {
             document_id: docRecord.id,
             colaborador_id: colabId
         });
@@ -5129,9 +5123,7 @@ window.iniciarAssinafy = async function(docType, tabName, btn) {
         if (res.sucesso) {
             // Restaurar botao
             btn.disabled = false;
-            btn.innerHTML = isAdv
-                ? '<i class="ph ph-link"></i> Gerar Link'
-                : '<i class="ph ph-pen-nib"></i> Solicitar Assinatura';
+            btn.innerHTML = '<i class="ph ph-pen-nib"></i> Solicitar Assinatura';
 
             // Atualizar data de envio no DOM
             const now = new Date();
