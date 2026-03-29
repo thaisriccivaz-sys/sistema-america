@@ -308,6 +308,33 @@ app.post('/api/assinafy/upload', async (req, res) => {
         const resultado = await novoProcesso.enviarDocumentoParaAssinafy(document_id, colaborador_id);
         
         console.log(`[ASSINAFY SYNC] Enviado! ID=${resultado?.assinafyDocId} URL=${resultado?.urlAssinatura}`);
+
+        // Enviar cópia de notificação para o sistema via SMTP
+        try {
+            const transporter = nodemailer.createTransport(SMTP_CONFIG);
+            await transporter.sendMail({
+                from: `"RH América Rental" <${SMTP_CONFIG.auth.user}>`,
+                to: 'americasistema48@gmail.com',
+                subject: `📋 Assinatura solicitada: ${resultado?.docType?.split('###')[0] || 'Documento'} - ${resultado?.nomeColab}`,
+                html: `
+                    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;border:1px solid #e0e0e0;border-radius:8px;">
+                        <h2 style="color:#1a1a2e;border-bottom:2px solid #e07b39;padding-bottom:10px;">📋 Documento Enviado para Assinatura</h2>
+                        <table style="width:100%;border-collapse:collapse;">
+                            <tr><td style="padding:8px;color:#666;width:35%"><strong>Colaborador:</strong></td><td style="padding:8px;">${resultado?.nomeColab}</td></tr>
+                            <tr style="background:#f9f9f9"><td style="padding:8px;color:#666"><strong>E-mail:</strong></td><td style="padding:8px;">${resultado?.emailColaborador}</td></tr>
+                            <tr><td style="padding:8px;color:#666"><strong>Documento:</strong></td><td style="padding:8px;">${resultado?.docType?.split('###')[0] || '-'}</td></tr>
+                            <tr style="background:#f9f9f9"><td style="padding:8px;color:#666"><strong>Link de acesso:</strong></td><td style="padding:8px;"><a href="${resultado?.urlAssinatura}" style="color:#e07b39;">${resultado?.urlAssinatura}</a></td></tr>
+                            <tr><td style="padding:8px;color:#666"><strong>Enviado em:</strong></td><td style="padding:8px;">${new Date().toLocaleString('pt-BR')}</td></tr>
+                        </table>
+                        <p style="margin-top:20px;font-size:12px;color:#999;">Este é um e-mail automático do Sistema América Rental.</p>
+                    </div>
+                `
+            });
+            console.log('[ASSINAFY] Cópia de notificação enviada para americasistema48@gmail.com');
+        } catch (mailErr) {
+            console.error('[ASSINAFY] Falha ao enviar cópia de notificação:', mailErr.message);
+            // Não bloqueia o fluxo principal
+        }
         
         res.json({
             sucesso: true,
