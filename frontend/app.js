@@ -2002,9 +2002,12 @@ window.gerarAdvertencia = function() {
     `;
 
     // Montar dados do colaborador para o padrão do preview
+    const tipoSimples = { verbal: 'Advertência Verbal', escrita: 'Advertência Escrita', suspensao_1: 'Suspensão 1 dia', suspensao_2: 'Suspensão 2 dias', suspensao_3: 'Suspensão 3 dias' }[tipo] || tipoTexto;
     window._advertenciaData = {
         html: htmlDoc,
         gerador_nome: tipoTexto,
+        titulo: titulo || tipoSimples,
+        tipoSimples,
         dataOcorrencia: dataFormatada,
         dataHojeExtenso,
         colaborador: {
@@ -2129,7 +2132,19 @@ window.anexarAdvertenciaAoProntuario = async function() {
             };
             return str.split('').map(c => map[c] !== undefined ? map[c] : c).join('').replace(/[^a-zA-Z0-9]/g, '_');
         };
-        const nomeArquivo = `${semAcentos(window._advertenciaData.gerador_nome)}_${semAcentos(window._advertenciaData.colaborador.NOME_COMPLETO)}.pdf`;
+
+        // Padrão: Titulo_TipoSimples_DD-MM-YYYY_Nome_Colaborador.pdf
+        const hoje = new Date();
+        const dd = String(hoje.getDate()).padStart(2, '0');
+        const mm = String(hoje.getMonth() + 1).padStart(2, '0');
+        const yyyy = hoje.getFullYear();
+        const dataHoje = `${dd}-${mm}-${yyyy}`;
+        const nomeArquivo = [
+            semAcentos(window._advertenciaData.titulo),
+            semAcentos(window._advertenciaData.tipoSimples),
+            dataHoje,
+            semAcentos(window._advertenciaData.colaborador.NOME_COMPLETO)
+        ].join('_').replace(/_+/g, '_') + '.pdf';
 
         const opt = {
             margin:       [1.5, 1.5, 1.5, 1.5],
@@ -2146,12 +2161,8 @@ window.anexarAdvertenciaAoProntuario = async function() {
         formData.append('file', file);
         formData.append('colaborador_id', viewedColaborador.id);
         formData.append('tab_name', 'Advertências');
-        // docType sem acentos para evitar corrupção no banco/filename
-        const docType = semAcentos(window._advertenciaData.gerador_nome)
-            .replace(/_+/g, ' ').trim()
-            .split(' ')
-            .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-            .join(' ');
+        // document_type = 'Titulo###TipoSimples' para exibir badge no prontuário
+        const docType = `${window._advertenciaData.titulo}###${window._advertenciaData.tipoSimples}`;
         formData.append('document_type', docType);
         formData.append('year', new Date().getFullYear().toString());
         formData.append('colaborador_nome', viewedColaborador.nome_completo || viewedColaborador.nome || '');
@@ -2636,11 +2647,20 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
         ? `<p style="margin:2px 0 0; font-size:0.78rem;">${atestadoInfoHtml}${vencInfoHtml}${enviadoHtml}</p>${linkAssinaturaHtml}`
         : '';
 
+    // Suporte ao separador ### para Advertências: 'Título###TipoSimples'
+    let docLabel = docType;
+    let docBadge = '';
+    if (docType && docType.includes('###')) {
+        const parts = docType.split('###');
+        docLabel = parts[0] || docType;
+        docBadge = parts[1] ? `<span style="display:inline-block; margin-top:3px; background:#fd7e14; color:#fff; padding:1px 8px; border-radius:10px; font-size:0.68rem; font-weight:700; letter-spacing:0.03em;">${parts[1]}</span>` : '';
+    }
+
     let infoHtml = `
         <div class="doc-info ${isSaved ? 'has-file' : ''}">
             <i class="ph ${isSaved ? 'ph-check-circle' : 'ph-file-dashed'}"></i>
             <div>
-                <h4>${docType}</h4>
+                <h4>${docLabel}${docBadge ? '<br>' + docBadge : ''}</h4>
                 ${isSaved ? `<p style="margin:0; font-size:0.82rem; color:#475569;">${displayFileName}</p>${subInfoLine}` : '<p>Pendente</p>'}
             </div>
         </div>
