@@ -1920,16 +1920,7 @@ window.renderAdvertenciasTab = function(listContainer, filteredDocs) {
                 </span>
             </div>
 
-            <!-- Área de preview/download após gerar -->
-            <div id="adv-preview-area" style="display:none; margin-top:1.25rem; padding:1rem; background:#fff; border:1px solid #fdba74; border-radius:8px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
-                    <span style="font-weight:700; color:#92400e; font-size:0.9rem;"><i class="ph ph-file-text"></i> Documento Gerado</span>
-                    <button onclick="window.downloadAdvertencia()" class="btn btn-primary" style="background:#fd7e14; border-color:#fd7e14; display:flex; align-items:center; gap:6px; font-weight:700;">
-                        <i class="ph ph-printer"></i> Imprimir / Baixar PDF
-                    </button>
-                </div>
-                <div id="adv-preview-content" style="font-size:0.82rem; color:#475569; max-height:250px; overflow-y:auto; border:1px solid #f0f0f0; padding:1rem; border-radius:6px; line-height:1.5;"></div>
-            </div>
+            <!-- O painel de preview inline foi removido, pois agora abrirá no modal -->
         </div>
 
         <!-- Seletor de ano + lista de documentos -->
@@ -2040,24 +2031,16 @@ window.gerarAdvertencia = function() {
         }
     };
 
-    // Mostrar preview resumido na aba
-    const previewArea = document.getElementById('adv-preview-area');
-    const previewContent = document.getElementById('adv-preview-content');
-    if (previewArea && previewContent) {
-        previewContent.innerHTML = `
-            <strong>${tipoTexto}</strong> — ${nomeColab} — Data da ocorrência: ${dataFormatada}<br><br>
-            ${motivo.replace(/\n/g, '<br>')}
-        `;
-        previewArea.style.display = 'block';
-    }
-
+    // Mostrar no modal em tela cheia em vez do preview resumido
+    window.abrirPreviewAdvertencia(window._advertenciaData);
+    
     const fb = document.getElementById('adv-feedback');
     if (fb) { fb.style.display = 'inline-flex'; setTimeout(() => { fb.style.display = 'none'; }, 3000); }
 };
 
-window.downloadAdvertencia = function() {
-    const data = window._advertenciaData;
-    if (!data) { alert('Gere o documento primeiro.'); return; }
+window.abrirPreviewAdvertencia = function(data) {
+    const container = document.getElementById('preview-doc-body');
+    if (!container) return;
 
     const apiBase = API_URL.replace('/api', '');
     const logoSrc = `${apiBase}/assets/logo-header.png`;
@@ -2101,31 +2084,85 @@ window.downloadAdvertencia = function() {
         </div>
     `;
 
-    const win = window.open('', '_blank');
-    win.document.write(`
-        <html>
-            <head>
-                <title>${data.gerador_nome} - ${data.colaborador.NOME_COMPLETO}</title>
-                <style>
-                    body { font-family: 'Segoe UI', Arial, sans-serif; padding:0; margin:0; }
-                    @page { size: A4; margin: 0; }
-                    .print-container { width:21cm; min-height:29.7cm; padding:2cm; box-sizing:border-box; margin:0 auto; }
-                    img { max-width:100%; }
-                    @media print { .no-print { display:none !important; } }
-                </style>
-            </head>
-            <body>
-                <div class="no-print" style="position:fixed; top:0; left:0; right:0; background:#1e293b; color:#fff; padding:0.75rem 1.5rem; display:flex; justify-content:space-between; align-items:center; z-index:9999; font-family:sans-serif;">
-                    <span style="font-weight:700; font-size:0.95rem;">📄 ${data.gerador_nome} — ${data.colaborador.NOME_COMPLETO}</span>
-                    <button onclick="window.print()" style="background:#fd7e14; color:#fff; border:none; padding:0.5rem 1.25rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.9rem;">🖨️ Imprimir / Salvar PDF</button>
-                </div>
-                <div class="print-container" style="margin-top:3.5rem;">
-                    ${logoBanner}${colabInfo}${conteudo}${footer}
-                </div>
-            </body>
-        </html>
-    `);
-    win.document.close();
+    container.innerHTML = logoBanner + colabInfo + conteudo + footer;
+    document.getElementById('preview-doc-title').textContent = `${data.gerador_nome} - ${data.colaborador.NOME_COMPLETO}`;
+
+    // Configurar botões customizados para Advertência
+    const btnsContainer = document.getElementById('preview-doc-buttons');
+    if (btnsContainer) {
+        btnsContainer.innerHTML = `
+            <button onclick="window.anexarAdvertenciaAoProntuario()" id="btn-anexar-adv" class="btn btn-primary" style="background:#2f9e44; border-color:#2b8a3e; align-items:center; gap:5px;">
+                <i class="ph ph-paperclip"></i> Anexar ao Prontuário
+            </button>
+            <button onclick="window.imprimirDocumento()" class="btn btn-primary" style="align-items:center; gap:5px;">
+                <i class="ph ph-printer"></i> Imprimir/PDF
+            </button>
+            <button class="btn btn-secondary" onclick="document.getElementById('modal-preview-doc').style.display='none'">
+                <i class="ph ph-x"></i> Fechar
+            </button>
+        `;
+    }
+
+    document.getElementById('modal-preview-doc').style.display = 'block';
+};
+
+window.anexarAdvertenciaAoProntuario = async function() {
+    if (!viewedColaborador || !window._advertenciaData) return;
+    if (typeof html2pdf === 'undefined') {
+        alert('A biblioteca de PDF ainda não foi carregada. Tente imprimir como PDF nativo.');
+        return;
+    }
+
+    const btn = document.getElementById('btn-anexar-adv');
+    if (btn) {
+        btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Anexando...';
+        btn.disabled = true;
+    }
+
+    try {
+        const element = document.getElementById('preview-doc-body');
+        const opt = {
+            margin:       0,
+            filename:     `${window._advertenciaData.gerador_nome.replace(/ /g, '_')}_${window._advertenciaData.colaborador.NOME_COMPLETO.replace(/ /g, '_')}.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2 },
+            jsPDF:        { unit: 'cm', format: 'a4', orientation: 'portrait' }
+        };
+
+        const pdfBlob = await html2pdf().set(opt).from(element).output('blob');
+        const file = new File([pdfBlob], opt.filename, { type: 'application/pdf' });
+
+        const formData = new FormData();
+        formData.append('document', file);
+        formData.append('tabName', 'Advertências');
+        // Usa o nome do gerador (ex: ADVERTÊNCIA VERBAL, SUSPENSÃO DISCIPLINAR...) em "Title Case"
+        const docType = window._advertenciaData.gerador_nome.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+        formData.append('docType', docType);
+        formData.append('year', new Date().getFullYear().toString());
+        formData.append('customName', '');
+
+        const response = await fetch(`${API_URL}/colaboradores/${viewedColaborador.id}/documentos`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${currentToken}` },
+            body: formData
+        });
+
+        if (!response.ok) throw new Error('Erro ao anexar documento no servidor.');
+
+        alert('Documento anexado com sucesso ao prontuário!');
+        document.getElementById('modal-preview-doc').style.display = 'none';
+        
+        // Atualiza a visualização
+        loadColaborador(viewedColaborador.id);
+
+    } catch (e) {
+        console.error(e);
+        alert('Falha ao anexar documento: ' + e.message);
+        if (btn) {
+            btn.innerHTML = '<i class="ph ph-paperclip"></i> Tentar Novamente';
+            btn.disabled = false;
+        }
+    }
 };
 
 window.renderTemporalTab = function(listContainer, tabId, tabTitle) {

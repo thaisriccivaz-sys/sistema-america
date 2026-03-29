@@ -1561,7 +1561,7 @@
         <div class="modal-content fullness">
             <div class="modal-header">
                 <h3 id="preview-doc-title">Visualizar Documento</h3>
-                <div style="display: flex; gap: 1rem; align-items: center;">
+                <div id="preview-doc-buttons" style="display: flex; gap: 1rem; align-items: center;">
                     <button class="btn btn-secondary" onclick="document.getElementById('modal-preview-doc').style.display='none'"><i class="ph ph-x"></i> Fechar</button>
                 </div>
             </div>
@@ -1591,6 +1591,8 @@
         </div>
     </div>
 
+    <!-- Gerador PDF client-side -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="app.js?v=33"></script>
 </body>
 </html>
