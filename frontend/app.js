@@ -2720,7 +2720,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                     <div style="display: flex; gap: 0.5rem; align-items: flex-end;">
                         ${vencimentoInputHtml}
                         ${isSaved ? `
-                            <button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height: 42px;"><i class="ph ph-eye"></i></button>
+                            ${!(isAssinado && tabId === 'Advertências') ? `<button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height: 42px;"><i class="ph ph-eye"></i></button>` : ''}
                             ${!isAssinado ? `<button type="button" class="btn btn-danger" onclick="deleteDoc(${existingDoc.id}, this)" title="Excluir" style="height: 42px;"><i class="ph ph-trash"></i></button>` : ''}
                         ` : ''}
                         ${!isAssinado ? `
