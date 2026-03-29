@@ -2640,9 +2640,24 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
         docBadge = tipoAdvSimples ? `<span style="display:inline-block; margin-top:3px; background:#64748b; color:#fff; padding:1px 8px; border-radius:10px; font-size:0.68rem; font-weight:700; letter-spacing:0.03em;">${tipoAdvSimples}</span>` : '';
     }
 
+    // Icone esquerdo: amarelo=criado, azul aviao=enviado, verde caneta=assinado
+    const assinafyStatus = isSaved ? (existingDoc.assinafy_status || '') : '';
+    const foiEnviado = isSaved && !!existingDoc.assinafy_sent_at;
+    let docIconClass, docIconColor;
+    if (assinafyStatus === 'Assinado') {
+        docIconClass = 'ph-pen-nib';
+        docIconColor = '#2f9e44'; // verde
+    } else if (foiEnviado || assinafyStatus === 'Pendente') {
+        docIconClass = 'ph-paper-plane-tilt';
+        docIconColor = '#1971c2'; // azul
+    } else {
+        docIconClass = 'ph-file-text';
+        docIconColor = isSaved ? '#e8a000' : '#94a3b8'; // amarelo=salvo, cinza=pendente
+    }
+
     let infoHtml = `
         <div class="doc-info ${isSaved ? 'has-file' : ''}">
-            <i class="ph ${isSaved ? 'ph-check-circle' : 'ph-file-dashed'}"></i>
+            <i class="ph ${isSaved ? docIconClass : 'ph-file-dashed'}" style="color:${isSaved ? docIconColor : ''}; font-size:1.3rem;"></i>
             <div>
                 <h4>${docLabel}${docBadge ? '<br>' + docBadge : ''}</h4>
                 ${isSaved ? `<p style="margin:0; font-size:0.82rem; color:#475569;">${displayFileName}</p>${subInfoLine}` : '<p>Pendente</p>'}
@@ -2673,23 +2688,16 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
         `;
     }
 
-    // Status Assinafy: icone ao lado do botao
+    // Status Assinafy: apenas botão de baixar quando assinado
     let assStatusIcon = '';
     if (isSaved) {
         const st = existingDoc.assinafy_status || '';
-        const enviado = !!existingDoc.assinafy_sent_at;
-        
-        const syncBtnHtml = `<button type="button" onclick="window.syncAssinafyStatus(${existingDoc.id}, this)" style="background:none; border:none; padding:0; cursor:pointer; color:#64748b; margin-left:3px;" title="Atualizar Status"><i class="ph ph-arrows-clockwise" style="font-size:1rem;"></i></button>`;
-        
         if (st === 'Assinado') {
             assStatusIcon = `<button onclick="window.downloadAssinado(${existingDoc.id})" style="display:inline-flex;align-items:center;gap:5px;background:#2f9e44;color:#fff;border:none;border-radius:6px;padding:0.3rem 0.75rem;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;" title="Baixar PDF Assinado"><i class="ph ph-download-simple" style="font-size:1rem;"></i> Baixar Assinado</button>`;
         } else if (st === 'Erro') {
-            assStatusIcon = `<span title="Erro" style="display:inline-flex;align-items:center;gap:3px;color:#e03131;font-size:0.78rem;font-weight:700;white-space:nowrap;"><i class="ph ph-warning-circle" style="font-size:1.1rem;"></i> Erro</span>${syncBtnHtml}`;
-        } else if (st === 'Pendente' && enviado) {
-            assStatusIcon = `<span title="E-mail enviado" style="display:inline-flex;align-items:center;gap:3px;color:#1971c2;font-size:0.78rem;font-weight:700;white-space:nowrap;"><i class="ph ph-paper-plane-tilt" style="font-size:1.1rem;"></i> Enviado</span>${syncBtnHtml}`;
-        } else if (st && st !== 'Nenhum') {
-            assStatusIcon = `<span title="${st}" style="display:inline-flex;align-items:center;gap:3px;color:#f59f00;font-size:0.78rem;font-weight:700;white-space:nowrap;"><i class="ph ph-hourglass" style="font-size:1.1rem;"></i> Aguardando</span>${syncBtnHtml}`;
+            assStatusIcon = `<span title="Erro ao enviar" style="display:inline-flex;align-items:center;gap:3px;color:#e03131;font-size:0.78rem;font-weight:700;white-space:nowrap;"><i class="ph ph-warning-circle" style="font-size:1.1rem;"></i> Erro</span>`;
         }
+        // Status Pendente/Enviado: sem ícone de texto — o ícone azul do avião no canto esquerdo já indica
     }
 
     const isAssinado = isSaved && existingDoc.assinafy_status === 'Assinado';
