@@ -2274,7 +2274,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
             const isColabAfastado = viewedColaborador && viewedColaborador.status === 'Afastado';
             const isAtivo = (isColabAfastado && existingDoc.atestado_inicio && existingDoc.atestado_fim && existingDoc.atestado_inicio <= hojeStr && hojeStr <= existingDoc.atestado_fim);
             const corText = isAtivo ? '#d9480f' : '#868e96';
-            atestadoInfoHtml = ` <span style="color:${corText}; font-weight:600;"><i class="ph ph-warning"></i> ${ini} até ${fim}</span> `;
+            atestadoInfoHtml = ` <span style="color:${corText}; font-weight:600;"><i class="ph ph-warning" style="font-size:0.9em; color:${corText}; margin-right:2px;"></i> ${ini} até ${fim}</span> `;
         } else {
             atestadoInfoHtml = ` <span style="color:#1098ad; font-weight:600;"><i class="ph ph-clock"></i> ${existingDoc.atestado_inicio} às ${existingDoc.atestado_fim}</span> `;
         }
@@ -2659,8 +2659,8 @@ window.renderAtestadosTab = function(container, filteredDocs) {
     }
 
     container.innerHTML = `
-        <div class="card p-3 mb-4 bg-light" style="overflow-x: auto;">
-            <div style="display:flex; gap:1rem; align-items:flex-end; flex-wrap:nowrap; min-width: 800px;">
+        <div class="card p-3 mb-4 bg-light" style="overflow: visible;">
+            <div style="display:flex; gap:1rem; align-items:flex-end; flex-wrap:wrap;">
                 <!-- Ano -->
                 <div style="flex-shrink:0;">
                     <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">Ano</label>
