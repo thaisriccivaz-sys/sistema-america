@@ -2660,7 +2660,7 @@ window.renderAtestadosTab = function(container, filteredDocs) {
 
     container.innerHTML = `
         <div class="card p-3 mb-4 bg-light" style="overflow: visible;">
-            <div style="display:flex; gap:1rem; align-items:flex-end; flex-wrap:wrap;">
+            <div style="display:flex; gap:1rem; align-items:flex-end; flex-wrap:nowrap; min-width: 100%;">
                 <!-- Ano -->
                 <div style="flex-shrink:0;">
                     <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">Ano</label>
