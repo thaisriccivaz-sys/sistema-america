@@ -2236,6 +2236,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
     }
 
     let enviadoHtml = '';
+    let linkAssinaturaHtml = '';
     if (isSaved && existingDoc.assinafy_sent_at && existingDoc.assinafy_status !== 'Erro') {
         let sd = existingDoc.assinafy_sent_at;
         if (!sd.includes('T')) sd = sd.replace(' ', 'T');
@@ -2251,10 +2252,10 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
         const enviadoDate = `${dd}/${mm}/${yyyy} - ${h}h${min}m`;
         enviadoHtml = ` <span style="color:#64748b;">|</span> <span style="color:#2f9e44; font-weight:600;">Enviado: ${enviadoDate}</span>`;
         
-        // Link de assinatura (abaixo da data de envio) - clique copia para clipboard
+        // Link de assinatura em linha própria abaixo do Enviado
         if (existingDoc.assinafy_url) {
-            const safeUrl = existingDoc.assinafy_url.replace(/'/g, "\\'");
-            enviadoHtml += `<br><span onclick="navigator.clipboard.writeText('${safeUrl}').then(()=>{const el=this;const orig=el.innerHTML;el.innerHTML='<i class=\'ph ph-check\' style=\'font-size:0.9rem;\'></i> Copiado!';setTimeout(()=>{el.innerHTML=orig;},1500);})" style="color:#64748b; font-size:0.75rem; display:inline-flex; align-items:center; gap:3px; cursor:pointer;" title="Clique para copiar o link"><i class="ph ph-copy" style="font-size:0.9rem;"></i> Link para assinatura</span>`;
+            const encodedUrl = encodeURIComponent(existingDoc.assinafy_url);
+            linkAssinaturaHtml = `<p style="margin:1px 0 0; font-size:0.75rem;"><span data-copy-url="${encodedUrl}" onclick="copiarLinkAssinafy(this)" style="color:#64748b; display:inline-flex; align-items:center; gap:3px; cursor:pointer;" title="Clique para copiar o link de assinatura"><i class="ph ph-copy" style="font-size:0.9rem;"></i> Link para assinatura</span></p>`;
         }
         
         if (existingDoc.assinafy_signed_at) {
@@ -2287,7 +2288,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
     }
 
     const subInfoLine = (vencInfoHtml || enviadoHtml || atestadoInfoHtml)
-        ? `<p style="margin:2px 0 0; font-size:0.78rem;">${atestadoInfoHtml}${vencInfoHtml}${enviadoHtml}</p>`
+        ? `<p style="margin:2px 0 0; font-size:0.78rem;">${atestadoInfoHtml}${vencInfoHtml}${enviadoHtml}</p>${linkAssinaturaHtml}`
         : '';
 
     let infoHtml = `
@@ -4712,6 +4713,34 @@ window.finalizarAdmissao = async function() {
 };
 
 /**
+ * Copia o link de assinatura para a área de transferência
+ */
+function copiarLinkAssinafy(el) {
+    const url = decodeURIComponent(el.getAttribute('data-copy-url') || '');
+    if (!url) return;
+    navigator.clipboard.writeText(url).then(() => {
+        const orig = el.innerHTML;
+        el.innerHTML = '<i class="ph ph-check" style="font-size:0.9rem;"></i> Copiado!';
+        el.style.color = '#2f9e44';
+        setTimeout(() => { el.innerHTML = orig; el.style.color = '#64748b'; }, 1800);
+    }).catch(() => {
+        // fallback para navegadores sem clipboard API
+        const ta = document.createElement('textarea');
+        ta.value = url;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        const orig = el.innerHTML;
+        el.innerHTML = '<i class="ph ph-check" style="font-size:0.9rem;"></i> Copiado!';
+        el.style.color = '#2f9e44';
+        setTimeout(() => { el.innerHTML = orig; el.style.color = '#64748b'; }, 1800);
+    });
+}
+
+/**
  * Inicia o processo de assinatura eletronica via Assinafy
  */
 window.iniciarAssinafy = async function(docType, tabName, btn) {
@@ -4753,6 +4782,7 @@ window.iniciarAssinafy = async function(docType, tabName, btn) {
             
             const docInfoDiv = btn.closest('.doc-item') && btn.closest('.doc-item').querySelector('.doc-info div');
             if (docInfoDiv) {
+                // Atualizar ou criar o parágrafo de data de envio
                 let subInfoP = docInfoDiv.querySelector('p.subinfo-line');
                 if (!subInfoP) {
                     subInfoP = document.createElement('p');
@@ -4762,11 +4792,21 @@ window.iniciarAssinafy = async function(docType, tabName, btn) {
                 }
                 const vencSpan = subInfoP.firstElementChild;
                 const vencHtml = vencSpan ? vencSpan.outerHTML + ' <span style="color:#64748b;">|</span> ' : '';
+                subInfoP.innerHTML = vencHtml + '<span style="color:#2f9e44; font-weight:600;">Enviado: ' + hojeFormatado + '</span>';
+
+                // Link de assinatura em parágrafo separado abaixo
                 const urlAssinatura = res.urlAssinatura || null;
-                const linkHtml = urlAssinatura
-                    ? `<br><span onclick="navigator.clipboard.writeText('${urlAssinatura}').then(()=>{const el=this;const orig=el.innerHTML;el.innerHTML='<i class=\'ph ph-check\' style=\'font-size:0.9rem;\'></i> Copiado!';setTimeout(()=>{el.innerHTML=orig;},1500);})" style="color:#64748b; font-size:0.75rem; display:inline-flex; align-items:center; gap:3px; cursor:pointer;" title="Clique para copiar o link"><i class="ph ph-copy" style="font-size:0.9rem;"></i> Link para assinatura</span>`
-                    : '';
-                subInfoP.innerHTML = vencHtml + '<span style="color:#2f9e44; font-weight:600;">Enviado: ' + hojeFormatado + '</span>' + linkHtml;
+                if (urlAssinatura) {
+                    // Remover link antigo se existir
+                    const oldLink = docInfoDiv.querySelector('p.assinafy-link-p');
+                    if (oldLink) oldLink.remove();
+                    const linkP = document.createElement('p');
+                    linkP.className = 'assinafy-link-p';
+                    linkP.style.cssText = 'margin:1px 0 0; font-size:0.75rem;';
+                    const encodedUrl = encodeURIComponent(urlAssinatura);
+                    linkP.innerHTML = `<span data-copy-url="${encodedUrl}" onclick="copiarLinkAssinafy(this)" style="color:#64748b; display:inline-flex; align-items:center; gap:3px; cursor:pointer;" title="Clique para copiar o link de assinatura"><i class="ph ph-copy" style="font-size:0.9rem;"></i> Link para assinatura</span>`;
+                    docInfoDiv.appendChild(linkP);
+                }
             }
 
             // Atualizar icone de status para Enviado
