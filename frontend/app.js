@@ -2348,7 +2348,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         ` : ''}
                     </div>
 
-                    ${(isSaved && tabId !== 'Advertências') ? `
+                    ${(isSaved && tabId !== 'Advertências' && tabId !== 'Atestados') ? `
                         <div style="display: flex; align-items: center; gap: 0.5rem;">
                             <button class="btn btn-sm btn-assinafy" style="width: auto; padding: 0 0.85rem;" onclick="window.iniciarAssinafy('${docType}', '${tabId}', this)" ${isAssinado ? 'disabled' : ''}>
                                 <i class="ph ph-pen-nib"></i> Solicitar Assinatura
@@ -2575,8 +2575,8 @@ window.renderAtestadosTab = function(container, filteredDocs) {
                     <div id="cid-dropdown" class="cid-dropdown" style="display:none;"></div>
                 </div>
                 <div id="cid-selected-badge" style="display:none; align-self:center;"></div>
-                <label class="btn btn-primary" id="cid-upload-label" style="display:none;">
-                    <i class="ph ph-upload-simple"></i> Enviar Atestado
+                <label class="btn btn-primary" id="cid-upload-label" style="display:none;" onclick="document.getElementById('cid-file-input').click(); event.preventDefault();">
+                    <i class="ph ph-upload-simple" id="cid-upload-icon"></i> <span id="cid-upload-text">Enviar Atestado</span>
                     <input type="file" id="cid-file-input" accept=".pdf,image/*" style="display:none;"
                            onchange="uploadAtestadoWithCID(this)">
                 </label>
@@ -2623,18 +2623,30 @@ window.uploadAtestadoWithCID = async function(inputEl) {
     if (!file || !selectedCID) return;
     if (!viewedColaborador) { alert('Colaborador não selecionado.'); return; }
 
+    // Loading state
+    const uploadLabel = document.getElementById('cid-upload-label');
+    const uploadIcon  = document.getElementById('cid-upload-icon');
+    const uploadText  = document.getElementById('cid-upload-text');
+    if (uploadLabel) { uploadLabel.style.opacity = '0.7'; uploadLabel.style.pointerEvents = 'none'; }
+    if (uploadIcon)  uploadIcon.className = 'ph ph-spinner';
+    if (uploadText)  uploadText.textContent = 'Carregando...';
+
+    // Gerar nome no padrão Z01_DD-MM-AA_NomeColab
+    const today = new Date();
+    const dd  = String(today.getDate()).padStart(2, '0');
+    const mm  = String(today.getMonth() + 1).padStart(2, '0');
+    const aa  = String(today.getFullYear()).slice(2);
     const nomeNorm = (viewedColaborador.nome || 'COLAB').toUpperCase()
         .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]+/g, '_');
-    const descNorm = selectedCID.desc.toUpperCase()
-        .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]+/g, '_').substring(0, 40);
-    const customName = `${selectedCID.code}_${descNorm}_${nomeNorm}`;
+    const customName = `Z01_${dd}-${mm}-${aa}_${nomeNorm}`;
+
+    const year = document.getElementById('atestados_year') ? document.getElementById('atestados_year').value : today.getFullYear().toString();
 
     const formData = new FormData();
-    const year = document.getElementById('atestados_year') ? document.getElementById('atestados_year').value : new Date().getFullYear().toString();
     formData.append('colaborador_id', viewedColaborador.id);
     formData.append('colaborador_nome', viewedColaborador.nome || 'Desconhecido');
     formData.append('tab_name', 'Atestados');
-    formData.append('document_type', `${selectedCID.code} - ${selectedCID.desc.substring(0,60)}`);
+    formData.append('document_type', `${selectedCID.code} - ${selectedCID.desc.substring(0, 60)}`);
     formData.append('custom_name', customName);
     formData.append('year', year);
     formData.append('file', file);
@@ -2656,7 +2668,11 @@ window.uploadAtestadoWithCID = async function(inputEl) {
         } else {
             alert('Erro ao enviar atestado.');
         }
-    } catch (e) { alert('Erro: ' + e.message); }
+    } catch (e) { alert('Erro: ' + e.message); } finally {
+        if (uploadLabel) { uploadLabel.style.opacity = ''; uploadLabel.style.pointerEvents = ''; }
+        if (uploadIcon)  uploadIcon.className = 'ph ph-upload-simple';
+        if (uploadText)  uploadText.textContent = 'Enviar Atestado';
+    }
 }
 
 window.saveVencimento = async function(docId, inputId) {

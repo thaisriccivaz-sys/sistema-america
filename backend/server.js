@@ -985,16 +985,23 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
 
                     // --- ESPELHAMENTO ONEDRIVE (API) ---
                     if (onedrive && tab_name !== 'ASO') {
-                        try {
-                            const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema";
-                            const safeColab = formatarNome(req.body.colaborador_nome || "DESCONHECIDO");
-                            const safeTab = formatarPasta(tab_name).toUpperCase();
-                            let targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}`;
-                            if (year && year !== 'null' && year !== 'undefined' && year !== '') targetDir += `/${year.replace(/[^0-9]/g, '')}`;
-                            
-                            const fileBuffer = fs.readFileSync(file_path);
-                            onedrive.uploadToOneDrive(targetDir, file_name, fileBuffer).catch(e => console.error("Erro async OneDrive:", e.message));
-                        } catch (e) { console.error("Erro ao preparar upload OneDrive:", e.message); }
+                        (async () => {
+                            try {
+                                const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema";
+                                const safeColab = formatarNome(req.body.colaborador_nome || "DESCONHECIDO");
+                                const safeTab = formatarPasta(tab_name).toUpperCase();
+                                let targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}`;
+                                if (year && year !== 'null' && year !== 'undefined' && year !== '') targetDir += `/${year.replace(/[^0-9]/g, '')}`;
+                                await onedrive.ensurePath(targetDir);
+                                const fileBuffer = fs.readFileSync(file_path);
+                                // Para Atestados usa o custom_name exato; outros usam file_name do multer
+                                const cloudFileName = (tab_name === 'Atestados' && req.body.custom_name)
+                                    ? `${req.body.custom_name}.pdf`
+                                    : path.basename(file_path);
+                                await onedrive.uploadToOneDrive(targetDir, cloudFileName, fileBuffer);
+                                console.log(`[OneDrive] Upload OK: ${cloudFileName}`);
+                            } catch (e) { console.error("Erro async OneDrive (update):", e.message); }
+                        })();
                     }
 
                     res.json({ message: 'Documento atualizado', id: row.id, file_path });
@@ -1014,16 +1021,23 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
 
                     // --- ESPELHAMENTO ONEDRIVE (API) ---
                     if (onedrive && tab_name !== 'ASO') {
-                        try {
-                            const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema";
-                            const safeColab = formatarNome(req.body.colaborador_nome || "DESCONHECIDO");
-                            const safeTab = formatarPasta(tab_name).toUpperCase();
-                            let targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}`;
-                            if (year && year !== 'null' && year !== 'undefined' && year !== '') targetDir += `/${year.replace(/[^0-9]/g, '')}`;
-                            
-                            const fileBuffer = fs.readFileSync(file_path);
-                            onedrive.uploadToOneDrive(targetDir, file_name, fileBuffer).catch(e => console.error("Erro async OneDrive:", e.message));
-                        } catch (e) { console.error("Erro ao preparar upload OneDrive:", e.message); }
+                        (async () => {
+                            try {
+                                const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema";
+                                const safeColab = formatarNome(req.body.colaborador_nome || "DESCONHECIDO");
+                                const safeTab = formatarPasta(tab_name).toUpperCase();
+                                let targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}`;
+                                if (year && year !== 'null' && year !== 'undefined' && year !== '') targetDir += `/${year.replace(/[^0-9]/g, '')}`;
+                                await onedrive.ensurePath(targetDir);
+                                const fileBuffer = fs.readFileSync(file_path);
+                                // Para Atestados usa o custom_name exato; outros usam file_name do multer
+                                const cloudFileName = (tab_name === 'Atestados' && req.body.custom_name)
+                                    ? `${req.body.custom_name}.pdf`
+                                    : path.basename(file_path);
+                                await onedrive.uploadToOneDrive(targetDir, cloudFileName, fileBuffer);
+                                console.log(`[OneDrive] Upload OK (insert): ${cloudFileName}`);
+                            } catch (e) { console.error("Erro async OneDrive (insert):", e.message); }
+                        })();
                     }
 
                     res.status(201).json({ message: 'Documento salvo', id: this.lastID, file_path });
