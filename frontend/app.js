@@ -2648,7 +2648,7 @@ window.renderAtestadosTab = function(container, filteredDocs) {
         s.id = 'cid-style';
         s.textContent = `
             .cid-wrap { position:relative; display:flex; gap:.75rem; align-items:flex-start; flex-wrap:wrap; }
-            .cid-input-group { position:relative; flex:2; min-width:350px; z-index: 1000; }
+            .cid-input-group { position:relative; flex:2; min-width:150px; z-index: 1000; }
             .cid-dropdown { position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid #ccc; border-radius:4px; z-index:99999; max-height:220px; overflow-y:auto; box-shadow:0 4px 12px rgba(0,0,0,.12); }
             .cid-option { padding:.55rem .85rem; cursor:pointer; font-size:.85rem; line-height:1.4; }
             .cid-option:hover, .cid-option.selected { background:#e8f0fe; }
@@ -2660,7 +2660,7 @@ window.renderAtestadosTab = function(container, filteredDocs) {
 
     container.innerHTML = `
         <div class="card p-3 mb-4 bg-light" style="overflow: visible;">
-            <div style="display:flex; gap:1rem; align-items:flex-end; flex-wrap:nowrap; min-width: 100%;">
+            <div style="display:flex; gap:0.75rem; align-items:flex-end; flex-wrap:nowrap; width:100%;">
                 <!-- Ano -->
                 <div style="flex-shrink:0;">
                     <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">Ano</label>
@@ -2670,7 +2670,7 @@ window.renderAtestadosTab = function(container, filteredDocs) {
                 </div>
                 
                 <!-- CID-10 -->
-                <div class="cid-input-group" style="flex:2; min-width:350px; position:relative;">
+                <div class="cid-input-group" style="flex:2; min-width:150px; position:relative;">
                     <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;"><i class="ph ph-magnifying-glass"></i> CID-10</label>
                     <input type="text" id="cid-search" class="form-control" placeholder="J06 - Outros exames..." autocomplete="off" oninput="searchCID(this.value)" style="padding:.4rem;">
                     <div id="cid-dropdown" class="cid-dropdown" style="display:none;"></div>
@@ -2689,11 +2689,11 @@ window.renderAtestadosTab = function(container, filteredDocs) {
                 <div id="atestado-dias-fields" style="display:flex; gap:1rem; flex-shrink:0;">
                     <div>
                         <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">Data Início</label>
-                        <input type="date" id="atestado_inicio_dia" class="form-control" style="padding:0.4rem; width:135px;">
+                        <input type="date" id="atestado_inicio_dia" class="form-control" style="padding:0.4rem; width:125px;">
                     </div>
                     <div>
                         <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">Data Fim</label>
-                        <input type="date" id="atestado_fim_dia" class="form-control" style="padding:0.4rem; width:135px;">
+                        <input type="date" id="atestado_fim_dia" class="form-control" style="padding:0.4rem; width:125px;">
                     </div>
                 </div>
 
