@@ -2633,7 +2633,7 @@ window.uploadAtestadoWithCID = async function(inputEl) {
     const aa  = String(today.getFullYear()).slice(2);
     const nomeNorm = (viewedColaborador.nome || 'COLAB').toUpperCase()
         .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]+/g, '_');
-    const customName = `Z01_${dd}-${mm}-${aa}_${nomeNorm}`;
+    const customName = `${selectedCID.code}_${dd}-${mm}-${aa}_${nomeNorm}`;
 
     const year = document.getElementById('atestados_year') ? document.getElementById('atestados_year').value : today.getFullYear().toString();
 

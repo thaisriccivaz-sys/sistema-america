@@ -1020,23 +1020,31 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
                     }
 
                     // --- ESPELHAMENTO ONEDRIVE (API) ---
-                    if (onedrive && tab_name !== 'ASO') {
+                    // Capturar valores do req ANTES da IIFE para evitar GC do request
+                    const od_colab_nome = req.body.colaborador_nome || 'DESCONHECIDO';
+                    const od_custom_name = req.body.custom_name || null;
+                    const od_tab = tab_name;
+                    const od_year = year;
+                    const od_file_path = file_path;
+
+                    if (onedrive && od_tab !== 'ASO') {
                         (async () => {
                             try {
-                                const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema";
-                                const safeColab = formatarNome(req.body.colaborador_nome || "DESCONHECIDO");
-                                const safeTab = formatarPasta(tab_name).toUpperCase();
+                                const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || 'RH/1.Colaboradores/Sistema';
+                                const safeColab = formatarNome(od_colab_nome);
+                                const safeTab = formatarPasta(od_tab).toUpperCase();
                                 let targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}`;
-                                if (year && year !== 'null' && year !== 'undefined' && year !== '') targetDir += `/${year.replace(/[^0-9]/g, '')}`;
+                                if (od_year && od_year !== 'null' && od_year !== 'undefined' && od_year !== '') targetDir += `/${od_year.replace(/[^0-9]/g, '')}`;
+                                console.log(`[OneDrive AUTO] targetDir=${targetDir} | custom_name=${od_custom_name}`);
                                 await onedrive.ensurePath(targetDir);
-                                const fileBuffer = fs.readFileSync(file_path);
-                                // Para Atestados usa o custom_name exato; outros usam file_name do multer
-                                const cloudFileName = (tab_name === 'Atestados' && req.body.custom_name)
-                                    ? `${req.body.custom_name}.pdf`
-                                    : path.basename(file_path);
+                                const fileBuffer = fs.readFileSync(od_file_path);
+                                // Para Atestados usa o custom_name exato (CID_DD-MM-AA_Nome); outros usam file_name do multer
+                                const cloudFileName = (od_tab === 'Atestados' && od_custom_name)
+                                    ? `${od_custom_name}.pdf`
+                                    : path.basename(od_file_path);
                                 await onedrive.uploadToOneDrive(targetDir, cloudFileName, fileBuffer);
-                                console.log(`[OneDrive] Upload OK (insert): ${cloudFileName}`);
-                            } catch (e) { console.error("Erro async OneDrive (insert):", e.message); }
+                                console.log(`[OneDrive AUTO] Upload OK (insert): ${cloudFileName}`);
+                            } catch (e) { console.error('[OneDrive AUTO ERROR]', e.message); }
                         })();
                     }
 
@@ -1981,8 +1989,9 @@ app.post('/api/documentos/:id/force-onedrive-sync', authenticateToken, async (re
         // Para Atestados, usa o file_name que já foi gerado com o padrão Z01_DD-MM-AA
         // Para docs assinados, usa o padrão TipoDoc_Ano_NomeColab.pdf
         const isAtestado = (doc.tab_name === 'Atestados');
+        // Para atestados, strip o sufixo de timestamp do file_name: CID_DD-MM-AA_Nome_YYYYMMDD_HHMMSS.pdf → CID_DD-MM-AA_Nome.pdf
         const cloudName = isAtestado
-            ? doc.file_name  // ex: Z01_29-03-26_THAIS_RICCI_20260329_001500.pdf
+            ? doc.file_name.replace(/_\d{8}_\d{6}(\.\w+)$/, '$1')
             : `${formatarPasta(doc.document_type || doc.tab_name || 'Documento').replace(/\s+/g, '_')}_${docYear}_${safeColab}.pdf`;
 
         addLog(`Caminho OneDrive: ${targetDir}/${cloudName}`);
