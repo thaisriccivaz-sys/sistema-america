@@ -28,9 +28,8 @@ db.run("UPDATE documentos SET document_type = 'Exames Complementares' WHERE docu
     else console.log("Migration 'Audiometria -> Exames Complementares' executada (se houver registros).");
 });
 
-// OneDrive TEMPORARIAMENTE DESABILITADO (credenciais Azure inválidas)
-// const onedrive = require('./utils/onedrive');
-const onedrive = null;
+// Reativado a Sincronização do OneDrive (via SharePoint)
+const onedrive = require('./utils/onedrive');
 
 // --- CONFIGURAÃ‡ÃƒO DE PASTAS PADRÃƒO ---
 const FOLDERS = [
@@ -241,26 +240,31 @@ app.post('/api/assinafy/upload', async (req, res) => {
         return res.status(400).json({ sucesso: false, error: 'document_id e colaborador_id sao obrigatorios.' });
     }
 
-    // Processar em background (sem bloquear a resposta HTTP)
-    setImmediate(async () => {
-        try {
-            db.run("UPDATE documentos SET assinafy_status = 'Pendente', assinafy_sent_at = CURRENT_TIMESTAMP WHERE id = ?", [document_id]);
-            const novoProcesso = require('./novo_processo_assinafy');
-            const resultado = await novoProcesso.enviarDocumentoParaAssinafy(document_id, colaborador_id);
-            console.log(`[ASSINAFY BG] Enviado! ID=${resultado?.assinafyDocId} URL=${resultado?.urlAssinatura}`);
-            // Mantém status 'Pendente' - só muda para 'Assinado' via webhook quando o colaborador assinar
-        } catch (error) {
-            console.error('[ASSINAFY BG] ERRO NO CONCLUIDO:', error.message);
-            // Marcar status de Erro pra depois sabermos
-            db.run("UPDATE documentos SET assinafy_status = 'Erro' WHERE id = ?", [document_id]);
-        }
-    });
-
-    res.json({
-        sucesso: true,
-        processando_em_background: true,
-        message: "A solicitação foi enviada. O e-mail será disparado logo que o Assinafy terminar de processar (pode demorar alguns minutos)."
-    });
+    try {
+        // Marca como pendente provisoriamente
+        db.run("UPDATE documentos SET assinafy_status = 'Pendente', assinafy_sent_at = CURRENT_TIMESTAMP WHERE id = ?", [document_id]);
+        
+        const novoProcesso = require('./novo_processo_assinafy');
+        const resultado = await novoProcesso.enviarDocumentoParaAssinafy(document_id, colaborador_id);
+        
+        console.log(`[ASSINAFY SYNC] Enviado! ID=${resultado?.assinafyDocId} URL=${resultado?.urlAssinatura}`);
+        
+        res.json({
+            sucesso: true,
+            processando_em_background: false,
+            message: "O documento foi enviado com sucesso para assinatura no Assinafy!"
+        });
+    } catch (error) {
+        console.error('[ASSINAFY SYNC] ERRO:', error.message);
+        
+        // Retorna para o status de erro
+        db.run("UPDATE documentos SET assinafy_status = 'Erro' WHERE id = ?", [document_id]);
+        
+        res.status(400).json({
+            sucesso: false,
+            error: error.message
+        });
+    }
 });
 
 // Middleware de Autenticação (Bypass temporário para facilitar dev do frontend)
@@ -465,7 +469,14 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
             });
         }
         
-        res.status(201).json({ id: newColabId, sucesso: true });
+        let syncStatus = "Sincronização local";
+        if (onedrive) {
+            // Disparar sync no OneDrive sem bloquear a resposta HTTP
+            syncColaboradorOneDrive(nomeOriginal).catch(e => console.error("[OneDrive] Erro de Sync POST Async:", e));
+            syncStatus = "Sincronização SharePoint iniciada";
+        }
+
+        res.status(201).json({ id: newColabId, sucesso: true, syncMsg: syncStatus });
     });
 });
 
