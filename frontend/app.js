@@ -2579,7 +2579,7 @@ window.sendASOEmailTab = async function() {
             throw new Error(res.error || 'Erro no servidor');
         }
     } catch (e) {
-        if (confirm('Não foi possível enviar automaticamente. Deseja abrir seu e-mail com o texto preenchido?')) {
+        if (confirm(`Não foi possível enviar automaticamente. Erro do Servidor:\n\n${e.message}\n\nDeseja abrir seu e-mail com o texto preenchido?`)) {
             window.location.href = `mailto:${destinatario}?cc=rh@americarental.com.br,rh2@americarental.com.br&subject=Exame Médico - ${viewedColaborador.nome_completo || viewedColaborador.nome}&body=${encodeURIComponent(mailBody)}`;
         }
     } finally {
@@ -4616,7 +4616,7 @@ window.sendASOEmail = async function() {
         }
     } catch (e) {
         console.error('Erro ao enviar e-mail ASO:', e);
-        if (confirm('Não foi possível enviar automaticamente pelo servidor. Deseja abrir o seu programa de e-mail (Outlook/Gmail) com o texto já preenchido?')) {
+        if (confirm(`Não foi possível enviar automaticamente pelo servidor. Erro do Servidor:\n\n${e.message}\n\nDeseja abrir o seu programa de e-mail (Outlook/Gmail) com o texto já preenchido?`)) {
             const mailtoUrl = `mailto:${destinatario}?cc=rh@americarental.com.br,rh2@americarental.com.br&subject=Exame Admissional - ${viewedColaborador.nome_completo}&body=${encodeURIComponent(mailBody)}`;
             window.location.href = mailtoUrl;
         }
