@@ -263,7 +263,7 @@ async function gerarLinkSemEmail(documentId, colaboradorId) {
     // que ele NÃO receba a notificação.
     const emailReal = (colab.email || '').trim();
     // E-mail dummy fixo só para cumprir a obrigatoriedade da API sem notificar o funcionário
-    const email = 'thais.ricci@americarental.com.br';
+    const email = 'rh@americarental.com.br';
     const cpf    = (colab.cpf   || '').replace(/\D/g, '');
     const fone   = (colab.telefone || '').replace(/\D/g, '');
     const nome   = colab.nome_completo || 'Colaborador';
