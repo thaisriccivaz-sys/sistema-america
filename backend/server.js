@@ -1611,7 +1611,7 @@ app.get('/api/documentos/download-assinado/:id', authenticateToken, (req, res) =
                 const docData = assinafyRes.data || assinafyRes;
                 
                 // Mapear propriedades possíveis na V1 do Assinafy para o PDF
-                let targetUrl = docData.signed_file_url || docData.download_url || docData.signed_url || docData.file_url;
+                let targetUrl = docData.artifacts?.certificated || docData.artifacts?.bundle || docData.signed_file_url || docData.download_url;
                 
                 // Em alguns casos do Assinafy está dentro de "files" ou "documents" ou no `download_link`
                 if (!targetUrl && docData.download_link) targetUrl = docData.download_link;
@@ -1704,7 +1704,12 @@ app.post('/api/documentos/:id/sync-assinafy', authenticateToken, async (req, res
         }
 
         // Se assinado, pega o link e baixa se não tiver path ainda
-        let signedUrl = documentData.signed_file_url || documentData.download_url;
+        let signedUrl = documentData.artifacts?.certificated || documentData.artifacts?.bundle || documentData.signed_file_url || documentData.download_url;
+        if (!signedUrl && documentData.download_link) signedUrl = documentData.download_link;
+        if (!signedUrl) {
+            const match = JSON.stringify(documentData).match(/https:\/\/[^"]+\.pdf[^"]*/i);
+            if (match) signedUrl = match[0];
+        }
         
         if (newStatus === 'Assinado' && signedUrl) {
             // Reaproveita logica de webhook de download e salvar status
