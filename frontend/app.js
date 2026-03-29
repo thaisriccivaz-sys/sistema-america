@@ -2558,30 +2558,27 @@ window.renderAtestadosTab = function(container, filteredDocs) {
 
     container.innerHTML = `
         <div class="card p-3 mb-4 bg-light">
-            <h1 style="font-size: 1.25rem; margin-bottom: 1rem; color: var(--primary-color);">Ano do Atestado</h1>
-            <div style="display:flex; gap:1.5rem; align-items:center;">
-                <select id="atestados_year" class="form-control" style="padding:0.4rem; max-width:120px;" onchange="renderAtestadosAno()">
-                    ${optionsHtml}
-                </select>
-            </div>
-        </div>
-
-        <div class="card p-3 mb-4 bg-light">
-            <h5 style="margin-bottom:.75rem; color:var(--primary-color);"><i class="ph ph-magnifying-glass"></i> Buscar CID-10 para nomear o atestado</h5>
-            <div class="cid-wrap">
-                <div class="cid-input-group">
-                    <input type="text" id="cid-search" class="form-control" placeholder="Digite o código (J06) ou palavra-chave (gripe, lombar...)" autocomplete="off"
+            <div style="display:flex; gap:1rem; align-items:flex-end; flex-wrap:wrap;">
+                <div>
+                    <label style="font-size:0.75rem; font-weight:600; color:#64748b; margin-bottom:3px; display:block;">Ano</label>
+                    <select id="atestados_year" class="form-control" style="padding:0.4rem; width:110px;" onchange="renderAtestadosAno()">
+                        ${optionsHtml}
+                    </select>
+                </div>
+                <div class="cid-input-group" style="flex:1; min-width:220px; position:relative;">
+                    <label style="font-size:0.75rem; font-weight:600; color:#64748b; margin-bottom:3px; display:block;"><i class="ph ph-magnifying-glass"></i> CID-10</label>
+                    <input type="text" id="cid-search" class="form-control" placeholder="Código (J06) ou palavra-chave..." autocomplete="off"
                            oninput="searchCID(this.value)" style="padding:.5rem;">
                     <div id="cid-dropdown" class="cid-dropdown" style="display:none;"></div>
                 </div>
-                <div id="cid-selected-badge" style="display:none; align-self:center;"></div>
-                <label class="btn btn-primary" id="cid-upload-label" style="display:none;" onclick="document.getElementById('cid-file-input').click(); event.preventDefault();">
+                <div id="cid-selected-badge" style="display:none; align-self:flex-end; margin-bottom:4px;"></div>
+                <label class="btn btn-primary" id="cid-upload-label" style="display:none; align-self:flex-end; margin-bottom:0;" onclick="document.getElementById('cid-file-input').click(); event.preventDefault();">
                     <i class="ph ph-upload-simple" id="cid-upload-icon"></i> <span id="cid-upload-text">Enviar Atestado</span>
                     <input type="file" id="cid-file-input" accept=".pdf,image/*" style="display:none;"
                            onchange="uploadAtestadoWithCID(this)">
                 </label>
+                <p id="cid-hint" style="font-size:.8rem; color:#666; align-self:flex-end; margin:0 0 4px;">Selecione um CID para liberar o upload.</p>
             </div>
-            <p id="cid-hint" style="margin-top:.5rem; font-size:.8rem; color:#666;">Selecione um CID para liberar o botão de upload.</p>
         </div>
         <div id="atestados-list-container"></div>
     `;
