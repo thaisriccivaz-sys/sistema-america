@@ -308,6 +308,29 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     if (!cols.includes('foto_base64')) db.run("ALTER TABLE colaboradores ADD COLUMN foto_base64 TEXT");
                 });
 
+                // Avaliacoes (Migracao estrutural para Drop and Recreate caso a tabela antiga nao tenha 'tipo')
+                db.all("PRAGMA table_info(avaliacoes)", (err, rows) => {
+                    if (err || !rows) return;
+                    const cols = rows.map(r => r.name);
+                    if (rows.length > 0 && !cols.includes('tipo')) {
+                        db.run("DROP TABLE IF EXISTS avaliacoes", () => {
+                            db.run(`
+                                CREATE TABLE IF NOT EXISTS avaliacoes (
+                                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                    colaborador_id INTEGER NOT NULL,
+                                    tipo TEXT NOT NULL DEFAULT 'desempenho',
+                                    ano INTEGER NOT NULL,
+                                    trimestre INTEGER NOT NULL,
+                                    respostas_json TEXT NOT NULL,
+                                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                                    UNIQUE(colaborador_id, ano, trimestre, tipo),
+                                    FOREIGN KEY (colaborador_id) REFERENCES colaboradores (id) ON DELETE CASCADE
+                                )
+                            `);
+                        });
+                    }
+                });
+
                 // Documentos
                 db.all("PRAGMA table_info(documentos)", (err, rows) => {
                     if (err || !rows) return;
