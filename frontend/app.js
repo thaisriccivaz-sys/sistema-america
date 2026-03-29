@@ -2652,27 +2652,26 @@ window.renderAtestadosTab = function(container, filteredDocs) {
     }
 
     container.innerHTML = `
-        <div class="card p-3 mb-4 bg-light">
-            <div style="display:flex; gap:1rem; align-items:flex-end; flex-wrap:wrap; margin-bottom: 1rem;">
+        <div class="card p-3 mb-4 bg-light" style="overflow-x: auto;">
+            <div style="display:flex; gap:1rem; align-items:flex-end; flex-wrap:nowrap; min-width: 800px;">
+                <!-- Ano -->
                 <div style="flex-shrink:0;">
-                    <label style="font-size:0.75rem; font-weight:600; color:#64748b; margin-bottom:3px; display:block;">Ano</label>
-                    <select id="atestados_year" class="form-control" style="padding:0.4rem; width:110px;" onchange="renderAtestadosAno()">
+                    <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">Ano</label>
+                    <select id="atestados_year" class="form-control" style="padding:0.4rem; width:80px;" onchange="renderAtestadosAno()">
                         ${optionsHtml}
                     </select>
                 </div>
-                <div class="cid-input-group" style="flex:3; min-width:300px; position:relative;">
-                    <label style="font-size:0.75rem; font-weight:600; color:#64748b; margin-bottom:3px; display:block;"><i class="ph ph-magnifying-glass"></i> CID-10</label>
-                    <input type="text" id="cid-search" class="form-control" placeholder="Código CID (J06) ou palavra-chave (gripe, lombar, fratura...)" autocomplete="off"
-                           oninput="searchCID(this.value)" style="padding:.5rem;">
+                
+                <!-- CID-10 -->
+                <div class="cid-input-group" style="flex:1; min-width:220px; position:relative;">
+                    <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;"><i class="ph ph-magnifying-glass"></i> CID-10</label>
+                    <input type="text" id="cid-search" class="form-control" placeholder="J06 - Outros exames..." autocomplete="off" oninput="searchCID(this.value)" style="padding:.4rem;">
                     <div id="cid-dropdown" class="cid-dropdown" style="display:none;"></div>
                 </div>
-                <div id="cid-selected-badge" style="display:none; align-self:flex-end; margin-bottom:4px;"></div>
-            </div>
 
-            <!-- Formulário extra para tipo de Atestado -->
-            <div id="atestado-period-form" style="display:none; gap:1rem; align-items:flex-end; flex-wrap:wrap; padding: 1rem; background:white; border:1px solid #e2e8f0; border-radius:8px; margin-bottom:1rem;">
+                <!-- Tipo de Atestado -->
                 <div style="flex-shrink:0;">
-                    <label style="font-size:0.75rem; font-weight:600; color:#64748b; margin-bottom:3px; display:block;">Tipo de Atestado</label>
+                    <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">Tipo de Atestado</label>
                     <select id="atestado_tipo" class="form-control" style="padding:0.4rem; width:120px;" onchange="toggleAtestadoPeriodFields()">
                         <option value="dias">Dias</option>
                         <option value="horas">Horas</option>
@@ -2680,38 +2679,38 @@ window.renderAtestadosTab = function(container, filteredDocs) {
                 </div>
                 
                 <!-- Campos Dias -->
-                <div id="atestado-dias-fields" style="display:flex; gap:1rem; flex-wrap:wrap;">
+                <div id="atestado-dias-fields" style="display:flex; gap:1rem; flex-shrink:0;">
                     <div>
-                        <label style="font-size:0.75rem; font-weight:600; color:#64748b; margin-bottom:3px; display:block;">Data Início</label>
-                        <input type="date" id="atestado_inicio_dia" class="form-control" style="padding:0.4rem; width:140px;">
+                        <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">Data Início</label>
+                        <input type="date" id="atestado_inicio_dia" class="form-control" style="padding:0.4rem; width:135px;">
                     </div>
                     <div>
-                        <label style="font-size:0.75rem; font-weight:600; color:#64748b; margin-bottom:3px; display:block;">Data Fim</label>
-                        <input type="date" id="atestado_fim_dia" class="form-control" style="padding:0.4rem; width:140px;">
+                        <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">Data Fim</label>
+                        <input type="date" id="atestado_fim_dia" class="form-control" style="padding:0.4rem; width:135px;">
                     </div>
                 </div>
 
                 <!-- Campos Horas -->
-                <div id="atestado-horas-fields" style="display:none; gap:1rem; flex-wrap:wrap;">
+                <div id="atestado-horas-fields" style="display:none; gap:1rem; flex-shrink:0;">
                     <div>
-                        <label style="font-size:0.75rem; font-weight:600; color:#64748b; margin-bottom:3px; display:block;">Horário Início</label>
-                        <input type="time" id="atestado_inicio_hora" class="form-control" style="padding:0.4rem; width:120px;">
+                        <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">Horário Início</label>
+                        <input type="time" id="atestado_inicio_hora" class="form-control" style="padding:0.4rem; width:110px;">
                     </div>
                     <div>
-                        <label style="font-size:0.75rem; font-weight:600; color:#64748b; margin-bottom:3px; display:block;">Horário Fim</label>
-                        <input type="time" id="atestado_fim_hora" class="form-control" style="padding:0.4rem; width:120px;">
+                        <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">Horário Fim</label>
+                        <input type="time" id="atestado_fim_hora" class="form-control" style="padding:0.4rem; width:110px;">
                     </div>
                 </div>
 
-                <div style="flex-grow:1; display:flex; justify-content:flex-end;">
+                <!-- Upload Button -->
+                <div style="flex-shrink:0;">
                     <input type="file" id="cid-file-input" accept=".pdf,image/*" style="display:none;" onchange="uploadAtestadoWithCID(this)">
-                    <button type="button" id="cid-upload-label" class="btn btn-primary" onclick="document.getElementById('cid-file-input').click()">
-                        <i class="ph ph-upload-simple" id="cid-upload-icon"></i> <span id="cid-upload-text">Enviar Atestado</span>
+                    <button type="button" id="cid-upload-btn" class="btn btn-primary" onclick="window.triggerAtestadoUpload()"
+                            style="height:38px; width:45px; display:flex; align-items:center; justify-content:center; padding:0; border-radius:6px; font-size:1.2rem; background:#0056b3; border:none; margin-bottom: 2px;">
+                        <i class="ph ph-upload-simple" id="cid-upload-icon"></i>
                     </button>
                 </div>
             </div>
-            
-            <p id="cid-hint" style="font-size:.8rem; color:#666; margin:0;">Selecione um CID para preencher os dados do atestado e liberar o upload.</p>
         </div>
         <div id="atestados-list-container"></div>
     `;
@@ -2741,17 +2740,20 @@ window.selectCID = function(code, desc) {
     selectedCID = { code, desc };
     document.getElementById('cid-dropdown').style.display = 'none';
     document.getElementById('cid-search').value = `${code} — ${desc}`;
-    const badge = document.getElementById('cid-selected-badge');
-    badge.innerHTML = `<span class="cid-badge">${code}</span>`;
-    badge.style.display = 'inline-block';
-    // Mostra form de período
-    document.getElementById('atestado-period-form').style.display = 'flex';
-    document.getElementById('cid-hint').style.display = 'none';
-
-    // Preenche a data de início com a data de hoje para facilitar
+    
     const todayStr = new Date().toISOString().split('T')[0];
     document.getElementById('atestado_inicio_dia').value = todayStr;
     document.getElementById('atestado_fim_dia').value = todayStr;
+}
+
+window.triggerAtestadoUpload = function() {
+    if (!selectedCID) {
+        alert('Selecione primeiro qual é o CID (código) do atestado digitando na barra de busca!');
+        const s = document.getElementById('cid-search');
+        if (s) { s.focus(); s.style.border = '2px solid red'; setTimeout(()=> s.style.border='', 2000); }
+        return;
+    }
+    document.getElementById('cid-file-input').click();
 }
 
 window.toggleAtestadoPeriodFields = function() {
@@ -2771,12 +2773,10 @@ window.uploadAtestadoWithCID = async function(inputEl) {
     if (!viewedColaborador) { alert('Colaborador não selecionado.'); return; }
 
     // Loading state
-    const uploadLabel = document.getElementById('cid-upload-label');
+    const uploadBtn   = document.getElementById('cid-upload-btn');
     const uploadIcon  = document.getElementById('cid-upload-icon');
-    const uploadText  = document.getElementById('cid-upload-text');
-    if (uploadLabel) { uploadLabel.style.opacity = '0.7'; uploadLabel.style.pointerEvents = 'none'; }
-    if (uploadIcon)  uploadIcon.className = 'ph ph-spinner';
-    if (uploadText)  uploadText.textContent = 'Carregando...';
+    if (uploadBtn) { uploadBtn.style.opacity = '0.7'; uploadBtn.style.pointerEvents = 'none'; }
+    if (uploadIcon)  uploadIcon.className = 'ph ph-spinner ph-spin';
 
     // Gerar nome no padrão Z01_DD-MM-AA_NomeColab
     const today = new Date();
@@ -2820,9 +2820,6 @@ window.uploadAtestadoWithCID = async function(inputEl) {
         if (res.ok) {
             selectedCID = null;
             document.getElementById('cid-search').value = '';
-            document.getElementById('cid-selected-badge').style.display = 'none';
-            document.getElementById('atestado-period-form').style.display = 'none';
-            document.getElementById('cid-hint').style.display = '';
             // Atualizar status no objeto local e forçar re-render da barra de título se no futuro/hoje
             const inicio = document.getElementById('atestado_inicio_dia').value;
             const fim = document.getElementById('atestado_fim_dia').value;
@@ -2839,9 +2836,8 @@ window.uploadAtestadoWithCID = async function(inputEl) {
             alert('Erro ao enviar atestado.');
         }
     } catch (e) { alert('Erro: ' + e.message); } finally {
-        if (uploadLabel) { uploadLabel.style.opacity = ''; uploadLabel.style.pointerEvents = ''; }
+        if (uploadBtn) { uploadBtn.style.opacity = ''; uploadBtn.style.pointerEvents = ''; }
         if (uploadIcon)  uploadIcon.className = 'ph ph-upload-simple';
-        if (uploadText)  uploadText.textContent = 'Enviar Atestado';
     }
 }
 
@@ -2895,24 +2891,8 @@ window.renderAtestadosAno = function() {
         return;
     }
 
-    // Botão "Sincronizar Todos no OneDrive"
-    const syncAllDiv = document.createElement('div');
-    syncAllDiv.style.cssText = 'text-align:right; margin-bottom:0.75rem;';
-    syncAllDiv.innerHTML = `<button type="button" class="btn btn-sm" style="background:#1c7ed6;color:#fff;border:none;border-radius:6px;padding:0.3rem 0.85rem;font-size:0.8rem;font-weight:600;cursor:pointer;" onclick="window.syncAllAtestados(${JSON.stringify(filteredByYear.map(d=>d.id))}, this)"><i class="ph ph-cloud-arrow-up"></i> Sincronizar todos no OneDrive</button>`;
-    listContainer.appendChild(syncAllDiv);
-
     filteredByYear.forEach(d => {
         const slot = createDocSlot('Atestados', d.document_type, d, `'${y}'`);
-        // Adicionar botão individual ☁ após o slot
-        const syncBtn = document.createElement('button');
-        syncBtn.type = 'button';
-        syncBtn.title = 'Salvar na pasta do colaborador (OneDrive)';
-        syncBtn.style.cssText = 'background:#1c7ed6;color:#fff;border:none;border-radius:6px;padding:0.25rem 0.6rem;font-size:0.75rem;font-weight:600;cursor:pointer;margin-left:6px;';
-        syncBtn.innerHTML = '<i class="ph ph-cloud-arrow-up"></i>';
-        syncBtn.onclick = function() { window.forceOnedriveSync(d.id, this); };
-        // Injetar o botão dentro do doc-actions do slot
-        const docActions = slot.querySelector('.doc-actions');
-        if (docActions) docActions.appendChild(syncBtn);
         listContainer.appendChild(slot);
     });
 }
