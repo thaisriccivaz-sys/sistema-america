@@ -2336,12 +2336,20 @@ function createDynamicUploadForm(tabId, btnLabel, defaultDocType = '') {
     const div = document.createElement('div');
     div.className = 'mb-4 card p-3 bg-light form-dyn';
     div.innerHTML = `
-        <div class="flex-between">
-            <input type="text" id="dyn-doc-type-${tabId}" class="form-control" placeholder="Nome do Documento / Motivo" value="${defaultDocType}" style="flex:1; margin-right: 1rem; padding: 0.5rem; border-radius:4px; border:1px solid #ccc;">
-            <label class="btn btn-primary">
-                <i class="ph ph-plus"></i> ${btnLabel}
-                <input type="file" accept=".pdf" style="display:none;" onchange="uploadDynamicDocument(this, '${tabId}')">
-            </label>
+        <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end;">
+            <div style="flex: 2; min-width: 200px;">
+                <input type="text" id="dyn-doc-type-${tabId}" class="form-control" placeholder="Nome do Documento / Motivo" value="${defaultDocType}" style="padding: 0.5rem; border-radius:4px; border:1px solid #ccc; width: 100%;">
+            </div>
+            <div style="flex: 1; min-width: 140px;">
+                <label style="font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 2px; display: block;">Vencimento (opcional)</label>
+                <input type="date" id="dyn-doc-venc-${tabId}" class="form-control" style="padding: 0.5rem; border-radius:4px; border:1px solid #ccc; width: 100%;">
+            </div>
+            <div>
+                <label class="btn btn-primary" style="margin-bottom: 0px; height: 38px; display: flex; align-items: center;">
+                    <i class="ph ph-plus"></i> ${btnLabel}
+                    <input type="file" accept=".pdf" style="display:none;" onchange="uploadDynamicDocument(this, '${tabId}')">
+                </label>
+            </div>
         </div>
     `;
     return div;
@@ -2786,9 +2794,13 @@ window.uploadDocument = async function(inputEl, tabId, docType, year = null, mon
 
 window.uploadDynamicDocument = function(inputEl, tabId) {
     const docTypeInput = document.getElementById(`dyn-doc-type-${tabId}`);
+    const docVencInput = document.getElementById(`dyn-doc-venc-${tabId}`);
+    
     const docType = docTypeInput ? docTypeInput.value.trim() : 'Documento Extra';
+    const vencimento = docVencInput && docVencInput.value ? docVencInput.value : null;
+
     if (!docType) return alert('Insira o nome ou motivo do documento.');
-    uploadDocument(inputEl, tabId, docType);
+    uploadDocument(inputEl, tabId, docType, null, null, vencimento);
 }
 
 window.deleteDoc = async function(docId, btnEl) {
