@@ -224,17 +224,23 @@ async function enviarDocumentoParaAssinafy(documentId, colaboradorId) {
         throw new Error(`Erro ao criar assignment (HTTP ${assignRes.status}): ${assignRes.json?.message || assignRes.raw.substring(0, 150)}`);
     }
 
-    // Extrair URL de assinatura
-    const assignData = assignRes.json?.data;
-    const assignList = Array.isArray(assignData) ? assignData : (assignData ? [assignData] : []);
+    // Buscar o signing_url correto via GET no documento
+    // (o campo 'url' do assignment retorna /release/... que apenas reenvía o e-mail)
+    console.log(`[5b] Buscando signing_url do documento...`);
+    const docInfoRes = await req('GET', `/v1/documents/${assinafyDocId}`, null);
+    const docInfo = docInfoRes.json?.data || docInfoRes.json;
+
+    // signing_urls[].url → link direto com ?email= embutido (melhor opção)
+    // signing_url       → link direto sem o e-mail embutido
+    // fallback          → construído manualmente
     const urlAssinatura = (
-        assignList[0]?.signature_url ||
-        assignList[0]?.signing_url   ||
-        assignList[0]?.url           ||
+        docInfo?.signing_urls?.[0]?.url ||
+        docInfo?.signing_url           ||
         `https://app.assinafy.com.br/sign/${assinafyDocId}`
     );
 
-    console.log(`[5] Assignment criado! URL: ${urlAssinatura}`);
+    console.log(`[5b] signing_url correto: ${urlAssinatura}`);
+
 
     // 6. Salvar no banco
     await new Promise((res, rej) =>
