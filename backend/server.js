@@ -1539,7 +1539,7 @@ app.post("/webhook/assinafy", async (req, res) => {
 
                     // Buscar o registro do documento no banco para saber onde salvar
                     const docRow = await new Promise((resolve, reject) => {
-                        db.get('SELECT * FROM documentos WHERE assinafy_id = ?', [assinafyId], (err, row) => {
+                        db.get('SELECT d.*, c.nome_completo FROM documentos d JOIN colaboradores c ON c.id = d.colaborador_id WHERE d.assinafy_id = ?', [assinafyId], (err, row) => {
                             if (err) reject(err); else resolve(row);
                         });
                     });
@@ -1568,6 +1568,22 @@ app.post("/webhook/assinafy", async (req, res) => {
                     // Salvar caminho do arquivo assinado no banco
                     db.run('UPDATE documentos SET signed_file_path = ? WHERE assinafy_id = ?', [signedFilePath, assinafyId]);
                     console.log(`[WEBHOOK] PDF assinado salvo em: ${signedFilePath}`);
+
+                    // AUTOMATIC ONEDRIVE SYNC FOR ASSINADO
+                    if (onedrive) {
+                        try {
+                            const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema";
+                            const safeColab = formatarNome(docRow.nome_completo || "DESCONHECIDO");
+                            const safeTab = formatarPasta(docRow.tab_name).toUpperCase();
+                            let targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}`;
+                            if (docRow.year && docRow.year !== 'null' && docRow.year !== 'undefined' && docRow.year !== '') {
+                                targetDir += `/${String(docRow.year).replace(/[^0-9]/g, '')}`;
+                            }
+                            const fBuffer = fs.readFileSync(signedFilePath);
+                            const cloudName = `Assinado_${docRow.document_type || path.basename(signedFilePath)}.pdf`;
+                            onedrive.uploadToOneDrive(targetDir, cloudName, fBuffer).catch(e => console.error("[OneDrive] Erro sync assinado WH:", e.message));
+                        } catch (e) { console.error("[OneDrive] Erro preparar upload assinado WH:", e.message); }
+                    }
 
                 } catch(err) {
                     console.error('[WEBHOOK] Erro ao baixar PDF assinado:', err.message);
@@ -1785,6 +1801,22 @@ app.post('/api/documentos/:id/sync-assinafy', authenticateToken, async (req, res
                 db.run(`UPDATE documentos SET assinafy_status = ?, signed_file_path = ? WHERE id = ?`, 
                     [newStatus, finalPath, docId], err => err ? reject(err) : resolve());
             });
+
+            // AUTOMATIC ONEDRIVE SYNC FOR ASSINADO
+            if (onedrive) {
+                try {
+                    const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema";
+                    const safeColab = formatarNome(doc.nome_completo || "DESCONHECIDO");
+                    const safeTab = formatarPasta(doc.tab_name).toUpperCase();
+                    let targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}`;
+                    if (doc.year && doc.year !== 'null' && doc.year !== 'undefined' && doc.year !== '') {
+                        targetDir += `/${String(doc.year).replace(/[^0-9]/g, '')}`;
+                    }
+                    const fBuffer = fs.readFileSync(finalPath);
+                    const cloudName = `Assinado_${doc.document_type || path.basename(finalPath)}.pdf`;
+                    onedrive.uploadToOneDrive(targetDir, cloudName, fBuffer).catch(e => console.error("[OneDrive] Erro sync assinado (API):", e.message));
+                } catch (e) { console.error("[OneDrive] Erro preparar upload assinado (API):", e.message); }
+            }
         } else {
             // Apenas atualiza o status se mudou
             if (newStatus !== doc.assinafy_status) {
