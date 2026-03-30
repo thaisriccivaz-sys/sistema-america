@@ -754,9 +754,11 @@ async function generateAndUploadEvaluationPDF(colabId, nome, tipo, ano, trimestr
     });
     const overallAvg = totalQuestions > 0 ? (totalScore / totalQuestions).toFixed(2) : '0.00';
 
-    // Montar div REAL no DOM (oculto) para html2canvas capturar corretamente
+    // Montar div REAL no DOM para html2canvas capturar corretamente
+    // position:absolute no scroll atual, opacity quase-zero (não aparece para o user, mas html2canvas renderiza)
     const wrapper = document.createElement('div');
-    wrapper.style.cssText = 'position:fixed; left:-9999px; top:0; width:794px; background:#fff; font-family:Arial,sans-serif; color:#333; padding:20px; box-sizing:border-box;';
+    const scrollY = window.scrollY || 0;
+    wrapper.style.cssText = `position:absolute; left:0; top:${scrollY}px; width:794px; background:#fff; font-family:Arial,sans-serif; color:#333; padding:20px; box-sizing:border-box; opacity:0.01; pointer-events:none; z-index:-1;`;
 
     let inner = '';
     if (logoBase64) inner += `<div style="margin-bottom:10px;"><img src="${logoBase64}" style="width:100%; max-height:110px; object-fit:contain; display:block;"></div>`;
@@ -795,7 +797,7 @@ async function generateAndUploadEvaluationPDF(colabId, nome, tipo, ano, trimestr
             margin:      [0, 0, 0, 0],
             filename:    fileName,
             image:       { type: 'jpeg', quality: 0.97 },
-            html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff', windowWidth: 794 },
+            html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff', windowWidth: 794, scrollX: 0, scrollY: -scrollY },
             jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
             pagebreak:   { mode: ['css', 'legacy'], avoid: 'div' }
         };
@@ -893,7 +895,8 @@ window.viewAvaliacaoPDF = async function(tipo, ano, trimestre, groupKey) {
     const overallAvg = totalQuestions > 0 ? (totalScore / totalQuestions).toFixed(2) : '0.00';
 
     const wrapper = document.createElement('div');
-    wrapper.style.cssText = 'position:fixed; left:-9999px; top:0; width:794px; background:#fff; font-family:Arial,sans-serif; color:#333; padding:20px; box-sizing:border-box;';
+    const scrollY2 = window.scrollY || 0;
+    wrapper.style.cssText = `position:absolute; left:0; top:${scrollY2}px; width:794px; background:#fff; font-family:Arial,sans-serif; color:#333; padding:20px; box-sizing:border-box; opacity:0.01; pointer-events:none; z-index:-1;`;
 
     let inner = '';
     if (logoBase64) inner += `<div style="margin-bottom:10px;"><img src="${logoBase64}" style="width:100%; max-height:110px; object-fit:contain; display:block;"></div>`;
@@ -930,7 +933,7 @@ window.viewAvaliacaoPDF = async function(tipo, ano, trimestre, groupKey) {
             margin:      [0, 0, 0, 0],
             filename:    fileName,
             image:       { type: 'jpeg', quality: 0.97 },
-            html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff', windowWidth: 794 },
+            html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff', windowWidth: 794, scrollX: 0, scrollY: -scrollY2 },
             jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
             pagebreak:   { mode: ['css', 'legacy'], avoid: 'div' }
         };
