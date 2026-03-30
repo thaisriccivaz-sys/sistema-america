@@ -5855,32 +5855,31 @@ window.abrirModalAssinaturaTestemunhas = async function(docId) {
     formArea.style.display = 'none';
     modal.style.display = 'block';
 
-    const baseUrlAPI = API_URL;
     let cols = [];
     try {
-        const res = await fetch(`${baseUrlAPI}/colaboradores`, {
+        const res = await fetch(`${API_URL}/colaboradores`, {
             headers: { 'Authorization': `Bearer ${currentToken}` }
         });
         if (res.ok) {
             cols = await res.json();
+        } else {
+            console.error("Falha ao buscar colaboradores - status:", res.status);
         }
     } catch (e) {
         console.error("Erro ao buscar colaboradores", e);
     }
     
-    // Filter active
-    const ativos = (cols || []).filter(c => {
-        let st = c.status;
-        if (!st) st = (c.data_admissao && new Date(c.data_admissao + 'T12:00:00') > new Date()) ? 'Aguardando início' : 'Ativo';
-        return st === 'Ativo' || st === 'Férias' || st === 'Afastado';
-    });
-    ativos.sort((a,b) => (a.nome_completo||a.nome||'').localeCompare(b.nome_completo||b.nome||''));
+    console.log('[Testemunhas] Total colaboradores carregados:', cols.length);
+    
+    // Mostrar todos os colaboradores cadastrados como possíveis testemunhas
+    const todos = (cols || []).filter(c => (c.nome_completo || c.nome || '').trim() !== '');
+    todos.sort((a,b) => (a.nome_completo||a.nome||'').localeCompare(b.nome_completo||b.nome||''));
 
     let options = '<option value="">Selecione uma testemunha...</option>';
-    ativos.forEach(c => {
+    todos.forEach(c => {
         const nome = c.nome_completo || c.nome || '';
         const cpf = c.cpf || '';
-        options += `<option value="${nome}###${cpf}">${nome}</option>`;
+        options += `<option value="${nome}###${cpf}">${nome} ${cpf ? '(' + cpf + ')' : ''}</option>`;
     });
 
     document.getElementById('select-testemunha-1').innerHTML = options;
