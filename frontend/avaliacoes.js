@@ -366,41 +366,6 @@ window.renderAvaliacaoTab = async function(container) {
             4: 'Dezembro (4º Trim.)'
         };
 
-        let tableHtml = `
-            <table style="width:100%; border-collapse:collapse; font-size:0.85rem; background:#fff; margin-bottom:1.5rem;">
-                <thead>
-                    <tr style="background:#0284c7; color:#fff;">
-                        <th style="padding:0.6rem; text-align:left; border:1px solid #0369a1;">Competências / Categorias</th>
-                        <th style="padding:0.6rem; text-align:center; border:1px solid #0369a1; width:15%;">${trimestreToMonth[1]}</th>
-                        <th style="padding:0.6rem; text-align:center; border:1px solid #0369a1; width:15%;">${trimestreToMonth[2]}</th>
-                        <th style="padding:0.6rem; text-align:center; border:1px solid #0369a1; width:15%;">${trimestreToMonth[3]}</th>
-                        <th style="padding:0.6rem; text-align:center; border:1px solid #0369a1; width:15%;">${trimestreToMonth[4]}</th>
-                    </tr>
-                </thead>
-                <tbody>
-        `;
-
-        categories.forEach(cat => {
-            tableHtml += `<tr>
-                <td style="padding:0.5rem; border:1px solid #e2e8f0; font-weight:600; color:#334155; background:#f8fafc;">${cat}</td>
-                <td style="padding:0.5rem; text-align:center; border:1px solid #e2e8f0; ${trimestersData[1][cat]?'color:#16a34a;font-weight:700;':''}">${trimestersData[1][cat]?.toFixed(2) || '#REF!'}</td>
-                <td style="padding:0.5rem; text-align:center; border:1px solid #e2e8f0; ${trimestersData[2][cat]?'color:#16a34a;font-weight:700;':''}">${trimestersData[2][cat]?.toFixed(2) || '#REF!'}</td>
-                <td style="padding:0.5rem; text-align:center; border:1px solid #e2e8f0; ${trimestersData[3][cat]?'color:#16a34a;font-weight:700;':''}">${trimestersData[3][cat]?.toFixed(2) || '#REF!'}</td>
-                <td style="padding:0.5rem; text-align:center; border:1px solid #e2e8f0; ${trimestersData[4][cat]?'color:#16a34a;font-weight:700;':''}">${trimestersData[4][cat]?.toFixed(2) || '#REF!'}</td>
-            </tr>`;
-        });
-
-        tableHtml += `
-            <tr style="background:#0ea5e9; color:#fff; font-weight:700;">
-                <td style="padding:0.6rem; border:1px solid #0284c7; text-align:right;">Média Geral:</td>
-                <td style="padding:0.6rem; text-align:center; border:1px solid #0284c7;">${trimestersOverall[1]?.toFixed(2) || '#REF!'}</td>
-                <td style="padding:0.6rem; text-align:center; border:1px solid #0284c7;">${trimestersOverall[2]?.toFixed(2) || '#REF!'}</td>
-                <td style="padding:0.6rem; text-align:center; border:1px solid #0284c7;">${trimestersOverall[3]?.toFixed(2) || '#REF!'}</td>
-                <td style="padding:0.6rem; text-align:center; border:1px solid #0284c7;">${trimestersOverall[4]?.toFixed(2) || '#REF!'}</td>
-            </tr>
-            </tbody></table>
-        `;
-
         // Action Steps
         let actionsHtml = `<div style="display:flex; gap:1rem; flex-wrap:wrap; margin-bottom:2rem;">`;
         for (let t=1; t<=4; t++) {
@@ -462,17 +427,15 @@ window.renderAvaliacaoTab = async function(container) {
                 </div>
             </div>
 
-            ${tableHtml}
-
             <!-- Charts Container -->
             <div style="display:flex; gap:1.5rem; margin-bottom:2rem; flex-wrap:wrap;">
                 <div style="flex:1; min-width:300px; background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
-                    <h5 style="margin:0 0 1rem; text-align:center; color:#334155; font-size:1.1rem;">Desempenho por Categoria</h5>
-                    <div style="position:relative; height:350px;"><canvas id="chart-competencias"></canvas></div>
+                    <h5 style="margin:0 0 1rem; text-align:center; color:#334155; font-size:1.1rem;">Desempenho por Categoria Trimestral</h5>
+                    <div style="position:relative; height:500px;"><canvas id="chart-competencias"></canvas></div>
                 </div>
                 <div style="flex:1; min-width:300px; background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
-                    <h5 style="margin:0 0 1rem; text-align:center; color:#334155; font-size:1.1rem;">Evolução Trimestral</h5>
-                    <div style="position:relative; height:350px;"><canvas id="chart-medias"></canvas></div>
+                    <h5 style="margin:0 0 1rem; text-align:center; color:#334155; font-size:1.1rem;">Evolução Trimestral Geral</h5>
+                    <div style="position:relative; height:500px;"><canvas id="chart-medias"></canvas></div>
                 </div>
             </div>
 
@@ -483,33 +446,41 @@ window.renderAvaliacaoTab = async function(container) {
         setTimeout(() => {
             if (typeof Chart === 'undefined') return;
             
-            const catLabels = categories;
-            const catData = categories.map(cat => {
-                let sum = 0, count = 0;
-                [1,2,3,4].forEach(t => { if(trimestersData[t][cat]){ sum+=trimestersData[t][cat]; count++; } });
-                return count > 0 ? parseFloat((sum/count).toFixed(2)) : 0;
+            const categoriesList = categories;
+            const datasetsBar = [];
+            const barColors = [
+                { bg: 'rgba(56, 189, 248, 0.8)', border: '#38bdf8' }, // 1º Trim
+                { bg: 'rgba(14, 165, 233, 0.8)',  border: '#0ea5e9' }, // 2º Trim
+                { bg: 'rgba(2, 132, 199, 0.8)', border: '#0284c7' }, // 3º Trim
+                { bg: 'rgba(7, 89, 133, 0.8)',  border: '#075985' }  // 4º Trim
+            ];
+
+            [1, 2, 3, 4].forEach(t => {
+                const dataPoints = categories.map(cat => trimestersData[t][cat] ? parseFloat(trimestersData[t][cat].toFixed(2)) : null); // null para nao desenhar barra se nao preenchido
+                datasetsBar.push({
+                    label: trimestreToMonth[t],
+                    data: dataPoints,
+                    backgroundColor: barColors[t-1].bg,
+                    borderColor: barColors[t-1].border,
+                    borderWidth: 1,
+                    borderRadius: 3,
+                    barPercentage: 0.8,
+                    categoryPercentage: 0.8
+                });
             });
 
             if (chartDonut) chartDonut.destroy();
             const ctxDonut = document.getElementById('chart-competencias')?.getContext('2d');
             if (ctxDonut) {
-                // Gráfico 1: Média por Categoria (Radar ou Barra Horizontal)
+                // Gráfico 1: Desempenho por Categoria Cruzada (Agrupado por Trimestre)
                 chartDonut = new Chart(ctxDonut, {
                     type: 'bar',
                     data: {
-                        labels: catLabels,
-                        datasets: [{
-                            label: 'Média Anual',
-                            data: catData,
-                            backgroundColor: 'rgba(14, 165, 233, 0.2)',
-                            borderColor: '#0ea5e9',
-                            borderWidth: 2,
-                            borderRadius: 4,
-                            hoverBackgroundColor: 'rgba(14, 165, 233, 0.4)'
-                        }]
+                        labels: categoriesList,
+                        datasets: datasetsBar
                     },
                     options: { 
-                        indexAxis: 'y', // Barra Horizontal para leitura fácil das categorias
+                        indexAxis: 'y', 
                         responsive: true, 
                         maintainAspectRatio: false, 
                         scales: { 
@@ -517,8 +488,8 @@ window.renderAvaliacaoTab = async function(container) {
                             y: { ticks: { font: { size: 10 } } }
                         },
                         plugins: { 
-                            legend: { display: false },
-                            tooltip: { callbacks: { label: function(c) { return 'Média: ' + c.raw; } } }
+                            legend: { display: true, position: 'top', labels: { boxWidth: 12, font: { size: 11, weight: 'bold' } } },
+                            tooltip: { callbacks: { label: function(c) { return c.dataset.label + ': ' + (c.raw ? c.raw : '0'); } } }
                         } 
                     }
                 });
