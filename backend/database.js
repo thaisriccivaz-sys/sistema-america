@@ -357,6 +357,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     if (!cols.includes('atestado_tipo'))  db.run("ALTER TABLE documentos ADD COLUMN atestado_tipo TEXT");  // 'dias' | 'horas'
                     if (!cols.includes('atestado_inicio')) db.run("ALTER TABLE documentos ADD COLUMN atestado_inicio TEXT"); // data ISO ou HH:MM
                     if (!cols.includes('atestado_fim'))    db.run("ALTER TABLE documentos ADD COLUMN atestado_fim TEXT");   // data ISO ou HH:MM
+                    if (!cols.includes('atestado_contab_enviado_em')) db.run("ALTER TABLE documentos ADD COLUMN atestado_contab_enviado_em DATETIME"); // timestamp envio contabilidade
                 });
             });
 

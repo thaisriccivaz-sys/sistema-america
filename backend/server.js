@@ -1821,7 +1821,14 @@ app.post('/api/send-atestado-contabilidade', authenticateToken, async (req, res)
         });
 
         console.log(`[ATESTADO CONTAB] Enviado para ${email_to} | Doc: ${document_id} | Colab: ${colab.nome_completo}`);
-        res.json({ sucesso: true, message: 'E-mail enviado com sucesso para a contabilidade!' });
+
+        // Salvar timestamp do envio no documento
+        const agora = new Date().toISOString();
+        await new Promise((resolve, reject) =>
+            db.run('UPDATE documentos SET atestado_contab_enviado_em = ? WHERE id = ?',
+                [agora, document_id], (err) => err ? reject(err) : resolve()));
+
+        res.json({ sucesso: true, message: 'E-mail enviado com sucesso para a contabilidade!', enviado_em: agora });
 
     } catch (error) {
         console.error('[ATESTADO CONTAB] ERRO:', error.message);
