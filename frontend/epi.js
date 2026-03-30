@@ -532,8 +532,8 @@ function pdfColabBox(doc, W, margin, y, colab) {
 }
 
 function pdfEntregaTable(doc, W, margin, y, numRows) {
-    const colW = [28, 28, 84, W - margin * 2 - 140];
-    const heads = ['DATA', 'QUANTIDADE', 'DESCRIÇÃO DE E.P.I', 'ASSINATURA DO COLABORADOR'];
+    const colW = [30, 100, W - margin * 2 - 130];
+    const heads = ['DATA', 'DESCRIÇÃO DE E.P.I', 'Ass. do Colaborador'];
     const hH = 8, rH = 7.5;
     let cx = margin;
     doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(0, 0, 0);
@@ -610,7 +610,7 @@ function gerarDocEpi(template, colab, jsPDF) {
 
     y = y + bodyH + 4;
     doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(0, 0, 0);
-    doc.text('DESCRIMINAR COM DATA, DESCRIÇÃO, QTD. Nº C.A E ASSINATURA DO RECEBEDOR ABAIXO.', W / 2, y, { align: 'center' });
+    doc.text('DISCRIMINAR COM DATA, DESCRIÇÃO, Nº C.A E ASSINATURA DO RECEBEDOR ABAIXO.', W / 2, y, { align: 'center' });
     y += 6;
 
     const availableHFront = 297 - 12 - y - 10;
@@ -634,15 +634,11 @@ function gerarDocEpi(template, colab, jsPDF) {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
     doc.text(template.rodape_texto || 'LIBERAÇÃO DO EQUIPAMENTO DE SEGURANÇA SOMENTE APÓS ASSINATURA DESTE TERMO.', W / 2, y, { align: 'center' });
     y += 10;
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(0, 0, 0);
-    doc.text('Conferência:', margin, y); y += 4;
     
     // Configurações do Carimbo simulando a imagem em anexo
     const stampW = 85;
     const stampH = 26;
     const stampX = doc.internal.pageSize.width / 2 - stampW / 2;
-    doc.setLineWidth(0.4);
-    doc.rect(stampX, y, stampW, stampH);
     
     if (headerLogoBase64 && headerLogoAspect) {
         let slW = 42;
