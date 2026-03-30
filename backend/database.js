@@ -282,7 +282,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
             db.run("INSERT INTO cargos (nome) SELECT 'Motorista' WHERE NOT EXISTS (SELECT 1 FROM cargos WHERE nome='Motorista')", (err) => {});
             
             // Inserir departamentos padrões
-            const depts = ['Motorista', 'Ajudante', 'Manutenção', 'Financeiro', 'Comercial', 'Administrativo', 'Logística', 'Recursos Humanos', 'Liderança'];
+            const depts = ['Motorista', 'Ajudante', 'Ajudante Pátio', 'Manutenção', 'Financeiro', 'Comercial', 'Administrativo', 'Logística', 'Recursos Humanos', 'Liderança', 'Limpeza'];
             depts.forEach(d => {
                 db.run("INSERT INTO departamentos (nome) SELECT ? WHERE NOT EXISTS (SELECT 1 FROM departamentos WHERE nome=?)", [d, d]);
             });
@@ -358,6 +358,71 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     if (!cols.includes('atestado_inicio')) db.run("ALTER TABLE documentos ADD COLUMN atestado_inicio TEXT"); // data ISO ou HH:MM
                     if (!cols.includes('atestado_fim'))    db.run("ALTER TABLE documentos ADD COLUMN atestado_fim TEXT");   // data ISO ou HH:MM
                     if (!cols.includes('atestado_contab_enviado_em')) db.run("ALTER TABLE documentos ADD COLUMN atestado_contab_enviado_em DATETIME"); // timestamp envio contabilidade
+                });
+            });
+
+            // Tabela de Templates de EPI por departamento
+            db.run(`
+                CREATE TABLE IF NOT EXISTS epi_templates (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    grupo TEXT NOT NULL UNIQUE,
+                    departamentos_json TEXT NOT NULL,
+                    epis_json TEXT NOT NULL,
+                    termo_texto TEXT,
+                    rodape_texto TEXT,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            `, (err) => {
+                if (err) return;
+                // Seeds: inserir templates padrão se não existirem
+                const TERMO_PADRAO = '•Confirmo perante minha assinatura que recebi o Equipamento de Proteção Individual - EPI, da Empresa: AMERICA RENTAL EQUIPAMENTOS LTDA. Vinculada ao CNPJ: 03.434.448/0001-01 de Inscrição estadual IE: 336.715.410.116 conforme descrito abaixo, para uso exclusivo no local de trabalho, conforme regulamentação da Norma Regulamentadora Nº 6, do Ministério do Trabalho e Emprego.\n•Declaro que estou ciente da obrigatoriedade do uso do EPI e da responsabilidade de usá-lo e conservá-lo. Minha recusa injustificada na utilização deste equipamento ou seu mau uso, constitui ato faltoso, conforme disposto no artigo 158 da CLT.\n•Declaro estar ciente da obrigatoriedade da devolução do Equipamento atual, quando da troca ou substituição dos mesmos.';
+                const RODAPE_PADRAO = 'LIBERAÇÃO DO EQUIPAMENTO DE SEGURANÇA SOMENTE APÓS ASSINATURA DESTE TERMO.';
+
+                const seeds = [
+                    {
+                        grupo: 'Escritório',
+                        departamentos_json: JSON.stringify(['Recursos Humanos', 'Financeiro', 'Logística', 'Administrativo', 'Comercial']),
+                        epis_json: JSON.stringify(['BONÉ', 'CAMISETA POLO PRETA', 'CAMISETA POLO PRETA MANGA LONGA', 'CAMISETA POLO ROXA', 'PORTA CANETAS', 'PORTA ARQUIVOS DE MESA', 'MOUSE PAD ERGONÔMICO', 'APOIO ERGONÔMICO DE TECLADO', 'SUPORTE ERGONÔMICO DE PÉS', 'APOIO NOTEBOOK']),
+                        termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO
+                    },
+                    {
+                        grupo: 'Manutenção',
+                        departamentos_json: JSON.stringify(['Manutenção']),
+                        epis_json: JSON.stringify(['AVENTAL DE RASPA', 'BOTA BICO DE AÇO CA 43.339', 'BONÉ', 'LUVA DE RASPA CA 34.106', 'PROTETOR AUDITIVO CA 36.817', 'CALÇA', 'CAMISETA MANGA CURTA', 'CAMISETA MANGA LONGA', 'PROTETOR SOLAR FPS30', 'RESPIRADOR PURIFICADOR DE AR AZUL CA 39.238', 'ÓCULOS CA 19.176', 'MÁSCARA DE SOLDA CA 45.596', 'LUVA NITRILICA CA 38.975']),
+                        termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO
+                    },
+                    {
+                        grupo: 'Limpeza',
+                        departamentos_json: JSON.stringify(['Limpeza']),
+                        epis_json: JSON.stringify(['AVENTAL DE PLÁSTICO', 'LUVA DE NEOLATEX M', 'CALÇA', 'AVENTAL', 'SAPATO ANTIDERRAPANTE']),
+                        termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO
+                    },
+                    {
+                        grupo: 'Motorista',
+                        departamentos_json: JSON.stringify(['Motorista']),
+                        epis_json: JSON.stringify(['BOTA DE PVC CA 42.291', 'BOTA BICO DE AÇO CA 43.339', 'CAPACETE CA 31.469', 'CAPA DE CHUVA CA 31.413', 'ÓCULOS DE PROTEÇÃO CA 19.176', 'LUVA DE PVC VERDE CA34570', 'LUVA DE NEOLATEX CURTA EXG CA 5.774', 'RESPIRADOR PURIFICADOR DE AR CA 14.781', 'RESPIRADOR PURIFICADOR DE AR AZUL CA 39.238', 'REFIL DO RESPIRADOR', 'PROTETOR SOLAR FPS30', 'PROTETOR AUDITIVO CA 36.817', 'BONÉ', 'CALÇA', 'CAMISETA MANGA CURTA', 'CAMISETA MANGA LONGA', 'LUVA DE HELANCA CA 37.931', 'LUVA NITRILICA CA 38.975']),
+                        termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO
+                    },
+                    {
+                        grupo: 'Ajudante',
+                        departamentos_json: JSON.stringify(['Ajudante']),
+                        epis_json: JSON.stringify(['BOTA DE PVC CA 42.291', 'BOTA BICO DE AÇO CA 43.339', 'CAPACETE CA 31.469', 'CAPA DE CHUVA CA 31.413', 'ÓCULOS DE PROTEÇÃO CA 19.176', 'LUVA DE PVC VERDE CA34570', 'LUVA DE NEOLATEX CURTA EXG CA 5.774', 'RESPIRADOR PURIFICADOR DE AR CA 14.781', 'PROTETOR SOLAR FPS30', 'PROTETOR AUDITIVO CA 36.817', 'BONÉ', 'CALÇA', 'CAMISETA MANGA CURTA', 'CAMISETA MANGA LONGA']),
+                        termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO
+                    },
+                    {
+                        grupo: 'Ajudante Pátio',
+                        departamentos_json: JSON.stringify(['Ajudante Pátio']),
+                        epis_json: JSON.stringify(['BOTA DE PVC CA 42.291', 'BOTA BICO DE AÇO CA 43.339', 'CAPACETE CA 31.469', 'CAPA DE CHUVA CA 31.413', 'ÓCULOS DE PROTEÇÃO CA 19.176', 'LUVA DE PVC VERDE CA34570', 'LUVA DE NEOLATEX CURTA EXG CA 5.774', 'RESPIRADOR PURIFICADOR DE AR CA 14.781', 'PROTETOR SOLAR FPS30', 'PROTETOR AUDITIVO CA 36.817', 'BONÉ', 'CALÇA', 'CAMISETA MANGA CURTA', 'CAMISETA MANGA LONGA']),
+                        termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO
+                    }
+                ];
+                seeds.forEach(s => {
+                    db.get('SELECT id FROM epi_templates WHERE grupo = ?', [s.grupo], (err, row) => {
+                        if (!row) {
+                            db.run('INSERT INTO epi_templates (grupo, departamentos_json, epis_json, termo_texto, rodape_texto) VALUES (?,?,?,?,?)',
+                                [s.grupo, s.departamentos_json, s.epis_json, s.termo_texto, s.rodape_texto]);
+                        }
+                    });
                 });
             });
 

@@ -117,6 +117,8 @@ function navigateTo(target) {
         loadChaves();
     } else if (target === 'admissao') {
         loadAdmissaoSelect();
+    } else if (target === 'ficha-epi') {
+        if (typeof window.initEpiModule === 'function') window.initEpiModule();
     }
 }
 

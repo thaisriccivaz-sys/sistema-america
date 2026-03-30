@@ -2473,6 +2473,51 @@ async function salvarLinkAssinatura(assinafyDocId, link) {
 app.use(express.static(path.join(__dirname, '../frontend')));
 app.use('/files', express.static(path.join(__dirname, '..', '..'))); 
 
+// ====================================================================
+// EPI TEMPLATES - CRUD
+// ====================================================================
+app.get('/api/epi-templates', authenticateToken, (req, res) => {
+    db.all('SELECT * FROM epi_templates ORDER BY grupo', [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows.map(r => ({
+            ...r,
+            departamentos: JSON.parse(r.departamentos_json || '[]'),
+            epis: JSON.parse(r.epis_json || '[]')
+        })));
+    });
+});
+
+app.put('/api/epi-templates/:id', authenticateToken, (req, res) => {
+    const { grupo, departamentos, epis, termo_texto, rodape_texto } = req.body;
+    db.run(
+        `UPDATE epi_templates SET grupo=?, departamentos_json=?, epis_json=?, termo_texto=?, rodape_texto=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+        [grupo, JSON.stringify(departamentos || []), JSON.stringify(epis || []), termo_texto, rodape_texto, req.params.id],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true });
+        }
+    );
+});
+
+app.post('/api/epi-templates', authenticateToken, (req, res) => {
+    const { grupo, departamentos, epis, termo_texto, rodape_texto } = req.body;
+    db.run(
+        `INSERT INTO epi_templates (grupo, departamentos_json, epis_json, termo_texto, rodape_texto) VALUES (?,?,?,?,?)`,
+        [grupo, JSON.stringify(departamentos || []), JSON.stringify(epis || []), termo_texto, rodape_texto],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ id: this.lastID });
+        }
+    );
+});
+
+app.delete('/api/epi-templates/:id', authenticateToken, (req, res) => {
+    db.run('DELETE FROM epi_templates WHERE id=?', [req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true });
+    });
+});
+
 // Middleware de Erro Global
 app.use((err, req, res, next) => {
     console.error("--- ERRO DETECTADO NO SERVIDOR ---");
