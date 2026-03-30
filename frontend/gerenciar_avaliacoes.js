@@ -54,12 +54,15 @@ window.renderGerenciarAvaliacoes = async function () {
     const dbKeys = new Set(gaTemplates.map(t => `${t.tipo}:${t.grupo_key}`));
     const defaultTemplates = [];
 
+    let hiddenDefaults = [];
+    try { hiddenDefaults = JSON.parse(localStorage.getItem('ga_hidden_defaults') || '[]'); } catch(e){}
+
     if (typeof AVALIACAO_QUESTIONS !== 'undefined') {
         ['satisfacao', 'desempenho', 'experiencia'].forEach(tipo => {
             const grupos = AVALIACAO_QUESTIONS[tipo] || {};
             Object.keys(grupos).forEach(grupo_key => {
                 const compositeKey = `${tipo}:${grupo_key}`;
-                if (!dbKeys.has(compositeKey)) {
+                if (!dbKeys.has(compositeKey) && !hiddenDefaults.includes(compositeKey)) {
                     defaultTemplates.push({
                         id: null, // não está no banco ainda
                         nome: (GA_FRIENDLY_NAMES[tipo] && GA_FRIENDLY_NAMES[tipo][grupo_key]) ? GA_FRIENDLY_NAMES[tipo][grupo_key] : `${tipo.charAt(0).toUpperCase() + tipo.slice(1)} - ${grupo_key.charAt(0).toUpperCase() + grupo_key.slice(1)}`,
@@ -178,12 +181,11 @@ function renderGaCards(templates, tipo) {
             window._gaCardMap[mapKey] = { id: t.id, nome: t.nome, tipo: t.tipo, grupo_key: t.grupo_key, categorias_json: t.categorias_json };
 
             return `
-                <div style="background:#fff;border:1.5px solid ${isPadrao ? '#fed7aa' : '#e2e8f0'};border-radius:12px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,0.05);transition:box-shadow 0.2s;" onmouseover="this.style.boxShadow='0 6px 20px rgba(0,0,0,0.1)'" onmouseout="this.style.boxShadow='0 2px 6px rgba(0,0,0,0.05)'">
-                    <div style="background:${isPadrao ? '#fff7ed' : bg};border-bottom:1.5px solid ${isPadrao ? '#fed7aa' : '#e2e8f0'};padding:0.9rem 1.1rem;display:flex;justify-content:space-between;align-items:center;">
+                <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,0.05);transition:box-shadow 0.2s;" onmouseover="this.style.boxShadow='0 6px 20px rgba(0,0,0,0.1)'" onmouseout="this.style.boxShadow='0 2px 6px rgba(0,0,0,0.05)'">
+                    <div style="background:${bg};border-bottom:1.5px solid #e2e8f0;padding:0.9rem 1.1rem;display:flex;justify-content:space-between;align-items:center;">
                         <div style="flex:1;min-width:0;">
                             <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
                                 <p style="margin:0;font-weight:700;color:#0f172a;font-size:0.97rem;">${t.nome}</p>
-                                ${isPadrao ? `<span style="background:#f59e0b;color:#fff;font-size:0.68rem;padding:1px 7px;border-radius:999px;font-weight:700;">Padrão</span>` : ''}
                             </div>
                             <span style="font-size:0.75rem;color:#64748b;">Chave: <code style="background:#e2e8f0;padding:1px 6px;border-radius:4px;">${t.grupo_key}</code></span>
                         </div>
@@ -194,9 +196,9 @@ function renderGaCards(templates, tipo) {
                             <button onclick="window.gaAbrirFormEditarTemplate('${mapKey}')" title="${isPadrao ? 'Personalizar e Salvar' : 'Editar'}" style="background:${color};color:#fff;border:none;width:34px;height:34px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:0.95rem;transition:opacity 0.2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
                                 <i class="ph ph-pencil-simple"></i>
                             </button>
-                            ${!isPadrao ? `<button onclick="window.gaExcluirTemplate(${t.id},'${safeNome}')" title="Excluir" style="background:#ef4444;color:#fff;border:none;width:34px;height:34px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:0.95rem;transition:opacity 0.2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+                            <button onclick="window.gaExcluirTemplate(${t.id},'${safeNome}','${mapKey}')" title="Excluir" style="background:#ef4444;color:#fff;border:none;width:34px;height:34px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:0.95rem;transition:opacity 0.2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
                                 <i class="ph ph-trash"></i>
-                            </button>` : ''}
+                            </button>
                         </div>
                     </div>
                     <div style="padding:0.75rem 1.1rem;">
@@ -475,7 +477,19 @@ window.gaSalvarTemplate = async function () {
 // ============================================================
 // EXCLUIR TEMPLATE
 // ============================================================
-window.gaExcluirTemplate = async function (id, nome) {
+window.gaExcluirTemplate = async function (id, nome, mapKey) {
+    if (!id) {
+        if (!confirm(`Deseja ocultar definitivamente o template base: "${nome}"?`)) return;
+        const t = window._gaCardMap[mapKey];
+        if (t) {
+            let hidden = [];
+            try { hidden = JSON.parse(localStorage.getItem('ga_hidden_defaults') || '[]'); } catch(e){}
+            hidden.push(`${t.tipo}:${t.grupo_key}`);
+            localStorage.setItem('ga_hidden_defaults', JSON.stringify(hidden));
+            window.renderGerenciarAvaliacoes();
+        }
+        return;
+    }
     if (!confirm(`Excluir o template "${nome}"?\n\nIsso NÃO apaga avaliações já realizadas, apenas o template de perguntas.`)) return;
     try {
         await gaApiCall('DELETE', id, null);
