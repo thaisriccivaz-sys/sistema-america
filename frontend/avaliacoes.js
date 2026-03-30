@@ -723,11 +723,16 @@ async function generateAndUploadEvaluationPDF(colabId, nome, tipo, ano, trimestr
     const safeNome = nome.replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_]/g, '');
     const fileName = `${nomeBase}_${trimestre}_${ano}_${safeNome.toUpperCase()}.pdf`;
 
+    const graph1Canvas = document.getElementById('chart-competencias');
+    const graph2Canvas = document.getElementById('chart-medias');
+    const graph1img = graph1Canvas ? graph1Canvas.toDataURL('image/png') : '';
+    const graph2img = graph2Canvas ? graph2Canvas.toDataURL('image/png') : '';
+
     let totalScore = 0;
     let totalQuestions = 0;
 
     let html = `
-        <div style="font-family: Arial, sans-serif; padding: 0 40px 40px; color: #333; width: 800px; box-sizing: border-box; background: #fff;">
+        <div style="font-family: Arial, sans-serif; padding: 20px; color: #333; width: 750px; box-sizing: border-box; background: #fff; margin: 0 auto;">
             <div style="text-align:center; margin-bottom: 20px;">
                 <img src="/assets/logo-header.png" style="width:100%; max-height:120px; object-fit:cover; margin-bottom: 15px;" onerror="this.src='/logo.png'">
                 <h2 style="color: #0f4c81; font-size: 24px; margin: 0 0 5px;">${tipoText}</h2>
@@ -752,7 +757,7 @@ async function generateAndUploadEvaluationPDF(colabId, nome, tipo, ano, trimestr
                 catTotal += parseFloat(notaRaw);
                 catCount++;
             }
-            return `<tr>
+            return `<tr style="page-break-inside: avoid;">
                 <td style="padding: 6px 10px; border-bottom:1px solid #e2e8f0; width:85%; color: #475569;">${q}</td>
                 <td style="padding: 6px 10px; border-bottom:1px solid #e2e8f0; font-weight:bold; text-align:center; color: #0f4c81;">Nota: ${notaFormatada}</td>
             </tr>`;
@@ -762,27 +767,42 @@ async function generateAndUploadEvaluationPDF(colabId, nome, tipo, ano, trimestr
         totalScore += catTotal;
         totalQuestions += catCount;
 
-        html += `<div style="background:#f8fafc; padding:8px 12px; margin-top:15px; border-left: 4px solid #0f4c81; display:flex; justify-content:space-between; align-items:center;">
+        html += `
+            <div style="page-break-inside: avoid; margin-bottom: 15px;">
+                <div style="background:#f8fafc; padding:8px 12px; border-left: 4px solid #0f4c81; display:flex; justify-content:space-between; align-items:center;">
                     <h4 style="margin:0; color:#0f4c81; font-size: 14px;">${cIdx+1}. ${cat}</h4>
                     <span style="font-weight:bold; color:#0f4c81; font-size:12px;">Média da Categoria: ${catAvg}</span>
-                </div>`;
-        html += `<table style="width:100%; border-collapse: collapse; font-size:11px; margin-bottom: 10px;">${rowsHtml}</table>`;
+                </div>
+                <table style="width:100%; border-collapse: collapse; font-size:11px;">${rowsHtml}</table>
+            </div>`;
     });
 
     const overallAvg = totalQuestions > 0 ? (totalScore / totalQuestions).toFixed(2) : '0.00';
     html += `
-        <div style="margin-top: 25px; text-align: right; background:#0f4c81; color:#fff; padding: 10px 20px; border-radius:6px;">
+        <div style="page-break-inside: avoid; margin-top: 15px; margin-bottom: 30px; text-align: right; background:#0f4c81; color:#fff; padding: 10px 20px; border-radius:6px;">
             <strong style="font-size: 18px;">Média Total Alcançada: ${overallAvg}</strong>
-        </div>
-    </div>`;
+        </div>`;
+
+    if (graph1img || graph2img) {
+        html += `
+            <div style="page-break-before: always; padding-top: 20px;">
+                <h3 style="color: #0f4c81; text-align: center; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;">Análise Gráfica dos Resultados</h3>
+                ${graph1img ? `<div style="page-break-inside: avoid; margin-bottom: 30px; text-align:center;"><h4 style="color:#475569; margin-bottom:10px;">Desempenho por Categoria</h4><img src="${graph1img}" style="width:100%; max-width:700px; height:auto; border:1px solid #cbd5e1; border-radius:8px; padding:10px; background:#fff;"></div>` : ''}
+                ${graph2img ? `<div style="page-break-inside: avoid; margin-bottom: 30px; text-align:center;"><h4 style="color:#475569; margin-bottom:10px;">Evolução Trimestral Geral</h4><img src="${graph2img}" style="width:100%; max-width:700px; height:auto; border:1px solid #cbd5e1; border-radius:8px; padding:10px; background:#fff;"></div>` : ''}
+            </div>
+        `;
+    }
+
+    html += `</div>`;
 
     try {
         const pdFOpt = {
             margin:       0.3,
             filename:     fileName,
             image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true, logging: true },
-            jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+            html2canvas:  { scale: 2, useCORS: true, logging: false },
+            jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' },
+            pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
         };
         // O from() processa diretamente a string HTML sem precisar embutir na DOM da tela principal, evitando telas brancas (viewport cortado).
         const pdfBlob = await html2pdf().set(pdFOpt).from(html).output('blob');
@@ -852,9 +872,14 @@ window.viewAvaliacaoPDF = async function(tipo, ano, trimestre, groupKey) {
     const safeNome = nome.replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_]/g, '');
     const fileName = `${nomeBase}_${trimestre}_${ano}_${safeNome.toUpperCase()}.pdf`;
 
+    const graph1Canvas = document.getElementById('chart-competencias');
+    const graph2Canvas = document.getElementById('chart-medias');
+    const graph1img = graph1Canvas ? graph1Canvas.toDataURL('image/png') : '';
+    const graph2img = graph2Canvas ? graph2Canvas.toDataURL('image/png') : '';
+
     let totalScore = 0; let totalQuestions = 0;
     let html = `
-        <div style="font-family: Arial, sans-serif; padding: 0 40px 40px; color: #333; width: 800px; box-sizing: border-box; background: #fff;">
+        <div style="font-family: Arial, sans-serif; padding: 20px; color: #333; width: 750px; box-sizing: border-box; background: #fff; margin: 0 auto;">
             <div style="text-align:center; margin-bottom: 20px;">
                 <img src="/assets/logo-header.png" style="width:100%; max-height:120px; object-fit:cover; margin-bottom: 15px;" onerror="this.src='/logo.png'">
                 <h2 style="color: #0f4c81; font-size: 24px; margin: 0 0 5px;">${tipoText}</h2>
@@ -872,21 +897,36 @@ window.viewAvaliacaoPDF = async function(tipo, ano, trimestre, groupKey) {
             const notaRaw = respostas[cat] ? respostas[cat][i] : null;
             let notaFormatada = '-';
             if (notaRaw) { notaFormatada = notaRaw; catTotal += parseFloat(notaRaw); catCount++; }
-            return `<tr><td style="padding: 6px 10px; border-bottom:1px solid #e2e8f0; width:85%; color: #475569;">${q}</td><td style="padding: 6px 10px; border-bottom:1px solid #e2e8f0; font-weight:bold; text-align:center; color: #0f4c81;">Nota: ${notaFormatada}</td></tr>`;
+            return `<tr style="page-break-inside: avoid;"><td style="padding: 6px 10px; border-bottom:1px solid #e2e8f0; width:85%; color: #475569;">${q}</td><td style="padding: 6px 10px; border-bottom:1px solid #e2e8f0; font-weight:bold; text-align:center; color: #0f4c81;">Nota: ${notaFormatada}</td></tr>`;
         }).join('');
         const catAvg = catCount > 0 ? (catTotal / catCount).toFixed(2) : '0.00';
         totalScore += catTotal; totalQuestions += catCount;
-        html += `<div style="background:#f8fafc; padding:8px 12px; margin-top:15px; border-left: 4px solid #0f4c81; display:flex; justify-content:space-between; align-items:center;">
-                    <h4 style="margin:0; color:#0f4c81; font-size: 14px;">${cIdx+1}. ${cat}</h4>
-                    <span style="font-weight:bold; color:#0f4c81; font-size:12px;">Média da Categoria: ${catAvg}</span>
-                </div><table style="width:100%; border-collapse: collapse; font-size:11px; margin-bottom: 10px;">${rowsHtml}</table>`;
+        html += `<div style="page-break-inside: avoid; margin-bottom: 15px;">
+                    <div style="background:#f8fafc; padding:8px 12px; border-left: 4px solid #0f4c81; display:flex; justify-content:space-between; align-items:center;">
+                        <h4 style="margin:0; color:#0f4c81; font-size: 14px;">${cIdx+1}. ${cat}</h4>
+                        <span style="font-weight:bold; color:#0f4c81; font-size:12px;">Média da Categoria: ${catAvg}</span>
+                    </div>
+                    <table style="width:100%; border-collapse: collapse; font-size:11px;">${rowsHtml}</table>
+                </div>`;
     });
 
     const overallAvg = totalQuestions > 0 ? (totalScore / totalQuestions).toFixed(2) : '0.00';
-    html += `<div style="margin-top: 25px; text-align: right; background:#0f4c81; color:#fff; padding: 10px 20px; border-radius:6px;"><strong style="font-size: 18px;">Média Total Alcançada: ${overallAvg}</strong></div></div>`;
+    html += `<div style="page-break-inside: avoid; margin-top: 15px; margin-bottom: 30px; text-align: right; background:#0f4c81; color:#fff; padding: 10px 20px; border-radius:6px;"><strong style="font-size: 18px;">Média Total Alcançada: ${overallAvg}</strong></div>`;
+
+    if (graph1img || graph2img) {
+        html += `
+            <div style="page-break-before: always; padding-top: 20px;">
+                <h3 style="color: #0f4c81; text-align: center; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;">Análise Gráfica dos Resultados</h3>
+                ${graph1img ? `<div style="page-break-inside: avoid; margin-bottom: 30px; text-align:center;"><h4 style="color:#475569; margin-bottom:10px;">Desempenho por Categoria</h4><img src="${graph1img}" style="width:100%; max-width:700px; height:auto; border:1px solid #cbd5e1; border-radius:8px; padding:10px; background:#fff;"></div>` : ''}
+                ${graph2img ? `<div style="page-break-inside: avoid; margin-bottom: 30px; text-align:center;"><h4 style="color:#475569; margin-bottom:10px;">Evolução Trimestral Geral</h4><img src="${graph2img}" style="width:100%; max-width:700px; height:auto; border:1px solid #cbd5e1; border-radius:8px; padding:10px; background:#fff;"></div>` : ''}
+            </div>
+        `;
+    }
+
+    html += `</div>`;
 
     try {
-        const pdFOpt = { margin: 0.3, filename: fileName, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true, logging: false }, jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' } };
+        const pdFOpt = { margin: 0.3, filename: fileName, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true, logging: false }, jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }, pagebreak: { mode: ['avoid-all', 'css', 'legacy'] } };
         const pdfBlob = await html2pdf().set(pdFOpt).from(html).output('blob');
         const blobUrl = URL.createObjectURL(pdfBlob);
         
