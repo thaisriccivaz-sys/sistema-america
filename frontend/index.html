@@ -1648,24 +1648,24 @@
     </div>
 
     <!-- MODAL: ASSINATURA DO COLABORADOR -->
-    <div id="modal-assinatura-colaborador" class="modal">
-        <div class="modal-content" style="max-width: 800px; display:flex; flex-direction:column; max-height: 90vh;">
-            <div class="modal-header">
+    <div id="modal-assinatura-colaborador" class="modal" style="align-items:flex-start;">
+        <div class="modal-content" style="width:100%; max-width:100%; height:100vh; max-height:100vh; margin:0; border-radius:0; display:flex; flex-direction:column;">
+            <div class="modal-header" style="flex-shrink:0;">
                 <h3>Assinatura do Colaborador</h3>
                 <span class="close-modal" onclick="document.getElementById('modal-assinatura-colaborador').style.display='none'">&times;</span>
             </div>
             <div class="modal-body" style="background:#f4f6f9; padding: 1.5rem; overflow-y: auto; flex:1; display:flex; flex-direction:column;">
-                <p style="font-size:0.85rem; color:#475569; margin-bottom:1rem;">Leia o documento abaixo. O quadro para assinatura será liberado ao rolar a página até o final.</p>
+                <p style="font-size:0.85rem; color:#475569; margin-bottom:1rem;">Leia o documento abaixo. O quadro para assinatura ser&aacute; liberado ao rolar a p&aacute;gina at&eacute; o final.</p>
                 
-                <div id="pdf-viewer-colaborador" style="width:100%; height:400px; overflow-y:scroll; background:#333; margin-bottom:1rem; border:1px solid #ccc; text-align:center;">
+                <div id="pdf-viewer-colaborador" style="width:100%; flex:1; min-height:350px; overflow-y:scroll; background:#333; margin-bottom:1rem; border:1px solid #ccc; text-align:center;">
                 </div>
 
-                <div id="area-assinatura-colaborador" style="display:none; transition: opacity 0.5s;">
+                <div id="area-assinatura-colaborador" style="display:none;">
                     <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:1rem; margin-bottom:1rem;">
-                        <label style="font-weight:600; font-size:0.85rem;">Assinatura: <span id="nome-assinatura-colab"></span></label>
-                        <div style="border: 1px dashed #cbd5e1; background:#f8fafc; border-radius:4px; margin-bottom:0.5rem; margin-top:0.5rem;">
-                            <canvas id="canvas-colaborador" style="width:100%; height:150px; cursor:crosshair; touch-action:none;"></canvas>
+                        <div style="border: 1px dashed #cbd5e1; background:#f8fafc; border-radius:4px; margin-bottom:0.5rem;">
+                            <canvas id="canvas-colaborador" style="width:100%; height:180px; cursor:crosshair; touch-action:none;"></canvas>
                         </div>
+                        <p style="font-size:0.8rem; color:#64748b; margin:0.25rem 0 0.5rem 0;">Assinatura de: <strong><span id="nome-assinatura-colab"></span></strong></p>
                         <button type="button" class="btn btn-sm btn-secondary" onclick="limparCanvasColaborador()">Limpar Assinatura</button>
                     </div>
 
