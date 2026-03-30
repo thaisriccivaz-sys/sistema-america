@@ -2757,7 +2757,33 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                 <div style="font-size: 0.85rem; color: #64748b; font-style: italic; background: #f1f5f9; padding: 0.6rem 1rem; border-radius: 6px; display: flex; align-items: center; gap: 0.5rem; min-width: 300px;">
                     <i class="ph ph-info" style="font-size: 1.1rem;"></i> ${blockReason}
                 </div>
-            ` : (tabId === 'Advertências' || tabId === 'Certificados') ? `
+            ` : (tabId === 'Certificados') ? `
+                <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: nowrap;">
+                    ${vencimentoInputHtml}
+
+                    ${isSaved ? `
+                        <button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height: 42px;"><i class="ph ph-eye"></i></button>
+                    ` : ''}
+
+                    ${(isSaved && stMain !== 'NAO_EXIGE') ? `
+                        <button class="btn btn-assinafy" style="height: 42px; display:flex; align-items:center; padding:0 0.85rem; white-space:nowrap;" onclick="window.iniciarAssinafy('${docType}', '${tabId}', this)" ${isAssinado ? 'disabled' : ''}>
+                            <i class="ph ph-pen-nib"></i> Solicitar Assinatura
+                        </button>
+                        ${assStatusIcon}
+                    ` : ''}
+
+                    ${(!isAssinado) ? `
+                    <label class="btn ${isSaved ? 'btn-warning' : 'btn-primary'}" title="${isSaved ? 'Substituir' : 'Fazer Upload'}" style="height: 42px; display: flex; align-items: center; margin: 0; white-space:nowrap;">
+                        <i class="ph ph-upload-simple"></i> ${isSaved ? 'Substituir' : 'Upload'}
+                        <input type="file" accept=".pdf" style="display:none;" onchange="let assStatus = confirm('Este certificado exige assinatura do colaborador? (OK para Sim, Cancelar para N\u00e3o)') ? 'PENDENTE' : 'NAO_EXIGE'; uploadDocument(this, '${tabId}', '${docType}', ${year}, ${month}, null, assStatus)">
+                    </label>
+                    ` : ''}
+
+                    ${isSaved && !isAssinado ? `
+                        <button type="button" class="btn btn-danger" onclick="deleteDoc(${existingDoc.id}, this)" title="Excluir" style="height: 42px;"><i class="ph ph-trash"></i></button>
+                    ` : ''}
+                </div>
+            ` : (tabId === 'Advertências') ? `
                 <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
                     ${vencimentoInputHtml}
 
@@ -2780,25 +2806,10 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         </button>` : ''}
                     ` : ''}
 
-                    ${(tabId === 'Certificados' && isSaved && stMain !== 'NAO_EXIGE') ? `
-                        <button class="btn btn-assinafy" style="height: 42px; display:flex; align-items:center; padding:0 0.85rem;" onclick="window.iniciarAssinafy('${docType}', '${tabId}', this)" ${isAssinado ? 'disabled' : ''}>
-                            <i class="ph ph-pen-nib"></i> Solicitar Assinatura
-                        </button>
-                        ${assStatusIcon}
-                    ` : ''}
-
                     ${(!isAssinado) ? `
                     <label class="btn ${isSaved ? 'btn-warning' : 'btn-primary'}" title="${isSaved ? 'Substituir' : 'Fazer Upload'}" style="height: 42px; display: flex; align-items: center; margin: 0;">
                         <i class="ph ph-upload-simple"></i> ${isSaved ? 'Substituir' : 'Upload'}
-                        <input type="file" accept=".pdf" style="display:none;" onchange="
-                            const venc = this.closest('.doc-item').querySelector('.venc-input')?.value; 
-                            if((${needsVencimento}) && !venc) { alert('Data de vencimento é obrigatória'); this.value=''; return; } 
-                            let assStatus = null;
-                            if('${tabId}' === 'Certificados'){
-                                assStatus = confirm('Este certificado exige assinatura do colaborador? (OK para Sim, Cancelar para Não)') ? 'PENDENTE' : 'NAO_EXIGE';
-                            }
-                            uploadDocument(this, '${tabId}', '${docType}', ${year}, ${month}, venc, assStatus)
-                        ">
+                        <input type="file" accept=".pdf" style="display:none;" onchange="const venc = this.closest('.doc-item').querySelector('.venc-input')?.value; if((${needsVencimento}) && !venc) { alert('Data de vencimento é obrigatória'); this.value=''; return; } uploadDocument(this, '${tabId}', '${docType}', ${year}, ${month}, venc, null)">
                     </label>
                     ` : ''}
 
