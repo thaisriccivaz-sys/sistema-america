@@ -406,10 +406,13 @@ window.renderAvaliacaoTab = async function(container) {
                     <h6 style="margin:0 0 0.3rem; color:#0f4c81; font-size:0.75rem; text-transform:uppercase; opacity:0.8;">${tipo==='desempenho'?'Avaliação de Desempenho':'Avaliação de Satisfação'}</h6>
                     <h5 style="margin:0 0 0.5rem; color:#334155;">${trimestreToMonth[t]}</h5>
                     ${hasData ? `<p style="font-size:1.5rem; font-weight:800; color:#16a34a; margin:0 0 1rem;">${trimestersOverall[t].toFixed(1)} <sub style="font-size:0.7rem;color:#64748b;">Média</sub></p>` : `<p style="font-size:0.85rem; color:#94a3b8; margin:0 0 1rem;">Disponível para Preenchimento</p>`}
-                    <div style="display:flex; gap:0.5rem; justify-content:center;">
+                    <div style="display:flex; gap:0.5rem; justify-content:center; flex-wrap:wrap;">
                         <button onclick="openFormAvaliacao('${tipo}', ${year}, ${t}, '${groupKey}')" style="background:${isFull?'#0f4c81':'#0ea5e9'}; color:#fff; border:none; padding:0.4rem 0.8rem; border-radius:4px; cursor:pointer; font-size:0.8rem; flex:1;">
                             <i class="ph ph-note-pencil"></i> ${hasData ? (isFull ? 'Editar' : 'Continuar') : 'Preencher'}
                         </button>
+                        ${isFull ? `<button onclick="viewAvaliacaoPDF('${tipo}', ${year}, ${t}, '${groupKey}')" style="background:#10b981; color:#fff; border:none; padding:0.4rem 0.8rem; border-radius:4px; cursor:pointer; font-size:0.8rem; display:flex; align-items:center; justify-content:center; gap:0.25rem; flex:1;" title="Visualizar Avaliação em PDF">
+                            <i class="ph ph-eye"></i> Visualizar
+                        </button>` : ''}
                     </div>
                 </div>
             `;
@@ -804,6 +807,109 @@ async function generateAndUploadEvaluationPDF(colabId, nome, tipo, ano, trimestr
         console.log("PDF generated and uploaded via API successfully.");
     } catch(e) {
         console.error("Erro ao gerar PDF da Avaliação:", e);
+    }
+}
+
+window.viewAvaliacaoPDF = async function(tipo, ano, trimestre, groupKey) {
+    if (typeof html2pdf === 'undefined') {
+        alert("A ferramenta de PDF ainda não foi carregada. Tente novamente em instantes.");
+        return;
+    }
+
+    const categories = Object.keys(AVALIACAO_QUESTIONS[tipo][groupKey]);
+    
+    // Pegar respostas da memória (avYear)
+    const av = avYear.find(a => a.trimestre === trimestre);
+    if (!av || !av.respostas_json) {
+        alert("Respostas não encontradas para gerar a visualização.");
+        return;
+    }
+    const respostas = JSON.parse(av.respostas_json);
+    
+    // Create an overlay UI while generating
+    const overlay = document.createElement('div');
+    overlay.id = 'pdf-preview-avaliacao-overlay';
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0'; overlay.style.left = '0'; overlay.style.width = '100vw'; overlay.style.height = '100vh';
+    overlay.style.backgroundColor = 'rgba(15, 23, 42, 0.95)';
+    overlay.style.zIndex = '999999';
+    overlay.style.display = 'flex'; overlay.style.flexDirection = 'column';
+    overlay.style.alignItems = 'center'; overlay.style.justifyContent = 'center';
+    
+    overlay.innerHTML = `<div style="color:#fff; font-size:1.2rem; display:flex; flex-direction:column; align-items:center; gap:1rem;">
+                            <i class="ph ph-spinner ph-spin" style="font-size:3rem; color:#0ea5e9;"></i>
+                            <span style="font-weight:600;">Processando a avaliação visual...</span>
+                         </div>`;
+    document.body.appendChild(overlay);
+
+    // Reuse the HTML generator logic
+    const nomeBase = tipo === 'desempenho' ? 'Avaliacao_de_Desempenho' : 'Avaliacao_de_Satisfacao';
+    const tipoText = tipo === 'desempenho' ? 'Avaliação de Desempenho' : 'Avaliação de Satisfação';
+    const nome = viewedColaborador.nome_completo;
+    const safeNome = nome.replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_]/g, '');
+    const fileName = `${nomeBase}_${trimestre}_${ano}_${safeNome.toUpperCase()}.pdf`;
+
+    let totalScore = 0; let totalQuestions = 0;
+    let html = `
+        <div style="font-family: Arial, sans-serif; padding: 0 40px 40px; color: #333; width: 800px; box-sizing: border-box; background: #fff;">
+            <div style="text-align:center; margin-bottom: 20px;">
+                <img src="/assets/logo-header.png" style="width:100%; max-height:120px; object-fit:cover; margin-bottom: 15px;" onerror="this.src='/logo.png'">
+                <h2 style="color: #0f4c81; font-size: 24px; margin: 0 0 5px;">${tipoText}</h2>
+                <h4 style="color: #64748b; font-size: 16px; margin: 0; font-weight: 500;">
+                    Colaborador: <b>${nome}</b> | Ano: <b>${ano}</b> | Trimestre: <b>${trimestre}º</b>
+                </h4>
+            </div>
+            <hr style="border: 0; border-top: 1px solid #cbd5e1; margin-bottom: 20px;">
+    `;
+    
+    cats = Object.keys(AVALIACAO_QUESTIONS[tipo][groupKey]);
+    cats.forEach((cat, cIdx) => {
+        let catTotal = 0; let catCount = 0;
+        const rowsHtml = AVALIACAO_QUESTIONS[tipo][groupKey][cat].map((q, i) => {
+            const notaRaw = respostas[cat] ? respostas[cat][i] : null;
+            let notaFormatada = '-';
+            if (notaRaw) { notaFormatada = notaRaw; catTotal += parseFloat(notaRaw); catCount++; }
+            return `<tr><td style="padding: 6px 10px; border-bottom:1px solid #e2e8f0; width:85%; color: #475569;">${q}</td><td style="padding: 6px 10px; border-bottom:1px solid #e2e8f0; font-weight:bold; text-align:center; color: #0f4c81;">Nota: ${notaFormatada}</td></tr>`;
+        }).join('');
+        const catAvg = catCount > 0 ? (catTotal / catCount).toFixed(2) : '0.00';
+        totalScore += catTotal; totalQuestions += catCount;
+        html += `<div style="background:#f8fafc; padding:8px 12px; margin-top:15px; border-left: 4px solid #0f4c81; display:flex; justify-content:space-between; align-items:center;">
+                    <h4 style="margin:0; color:#0f4c81; font-size: 14px;">${cIdx+1}. ${cat}</h4>
+                    <span style="font-weight:bold; color:#0f4c81; font-size:12px;">Média da Categoria: ${catAvg}</span>
+                </div><table style="width:100%; border-collapse: collapse; font-size:11px; margin-bottom: 10px;">${rowsHtml}</table>`;
+    });
+
+    const overallAvg = totalQuestions > 0 ? (totalScore / totalQuestions).toFixed(2) : '0.00';
+    html += `<div style="margin-top: 25px; text-align: right; background:#0f4c81; color:#fff; padding: 10px 20px; border-radius:6px;"><strong style="font-size: 18px;">Média Total Alcançada: ${overallAvg}</strong></div></div>`;
+
+    try {
+        const pdFOpt = { margin: 0.3, filename: fileName, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true, logging: false }, jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' } };
+        const pdfBlob = await html2pdf().set(pdFOpt).from(html).output('blob');
+        const blobUrl = URL.createObjectURL(pdfBlob);
+        
+        overlay.style.justifyContent = 'flex-start'; // Ajusta container pra usar toda tela
+        overlay.innerHTML = `
+            <div style="width:100%; padding:15px 30px; background:#1e293b; display:flex; justify-content:space-between; align-items:center; box-shadow:0 4px 10px rgba(0,0,0,0.5); z-index:2;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <i class="ph ph-file-pdf" style="color:#0ea5e9; font-size:1.8rem;"></i>
+                    <h3 style="margin:0; color:#fff; font-size:1.1rem; font-weight:600;">${fileName}</h3>
+                </div>
+                <div style="display:flex; gap:15px; align-items:center;">
+                    <a href="${blobUrl}" download="${fileName}" style="background:#10b981; color:#fff; border:none; padding:8px 20px; border-radius:6px; font-weight:700; cursor:pointer; text-decoration:none; display:flex; align-items:center; gap:8px; font-size:0.95rem; transition:all 0.2s; box-shadow:0 2px 4px rgba(16,185,129,0.4);">
+                        <i class="ph ph-download-simple"></i> Baixar e Compartilhar
+                    </a>
+                    <button onclick="document.getElementById('pdf-preview-avaliacao-overlay').remove(); URL.revokeObjectURL('${blobUrl}');" style="background:#ef4444; color:#fff; border:none; padding:8px 20px; border-radius:6px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:8px; font-size:0.95rem; transition:all 0.2s; box-shadow:0 2px 4px rgba(239,68,68,0.4);">
+                        <i class="ph ph-x"></i> Fechar Prévia
+                    </button>
+                </div>
+            </div>
+            <div style="flex:1; width:100%; display:flex; justify-content:center; padding:20px; box-sizing:border-box;">
+                <iframe src="${blobUrl}#view=FitH" style="width:100%; max-width:1000px; height:100%; border:none; border-radius:8px; background:#fff; box-shadow:0 10px 40px rgba(0,0,0,0.4);"></iframe>
+            </div>
+        `;
+    } catch(e) {
+        alert("Erro ao montar PDF para visualização: " + e.message);
+        if(document.body.contains(overlay)) overlay.remove();
     }
 }
 
