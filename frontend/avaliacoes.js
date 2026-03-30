@@ -503,7 +503,7 @@ window.renderAvaliacaoTab = async function(container) {
                     ${perc > 0 ? `<div style="position:absolute; top:-10px; right:-10px; background:${isFull?'#16a34a':'#f59e0b'}; color:#fff; width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(0,0,0,0.2); font-size:0.7rem; font-weight:700;">${perc}%</div>` : ''}
                     <h6 style="margin:0 0 0.3rem; color:#0f4c81; font-size:0.75rem; text-transform:uppercase; opacity:0.8;">${tipo==='desempenho'?'Avaliação de Desempenho':(tipo==='experiencia'?'Avaliação de Experiência':'Avaliação de Satisfação')}</h6>
                     <h5 style="margin:0 0 0.5rem; color:#334155;">${tipo==='experiencia' ? 'Realizar Avaliação' : trimestreToMonth[t]}</h5>
-                    ${hasData ? `<p style="font-size:1.5rem; font-weight:800; color:#16a34a; margin:0 0 1rem;">${tipo==='experiencia' ? Math.round(trimestersOverall[t]) : trimestersOverall[t].toFixed(1)} <sub style="font-size:0.7rem;color:#64748b;">${tipo==='experiencia'?'Soma Total':'Média'}</sub></p>` : `<p style="font-size:0.85rem; color:#94a3b8; margin:0 0 1rem;">Disponível para Preenchimento</p>`}
+                    ${hasData ? `<p style="font-size:1.5rem; font-weight:800; color:#475569; margin:0 0 1rem;">${tipo==='experiencia' ? Math.round(trimestersOverall[t]) : trimestersOverall[t].toFixed(1)} <sub style="font-size:0.7rem;color:#64748b;">${tipo==='experiencia'?'Soma Total':'Média'}</sub></p>` : `<p style="font-size:0.85rem; color:#94a3b8; margin:0 0 1rem;">Disponível para Preenchimento</p>`}
                     <div style="display:flex; gap:0.5rem; justify-content:center; flex-wrap:wrap;">
                         <button onclick="openFormAvaliacao('${tipo}', ${year}, ${t}, '${safeGroupKey}')" style="background:${isFull?'#0f4c81':'#0ea5e9'}; color:#fff; border:none; padding:0.4rem 0.8rem; border-radius:4px; cursor:pointer; font-size:0.8rem; flex:1;">
                             <i class="ph ph-note-pencil"></i> ${hasData ? (isFull ? 'Editar' : 'Continuar') : 'Preencher'}
@@ -692,7 +692,13 @@ window.openFormAvaliacao = async function(tipo, ano, trimestre, groupKey) {
     const avaliacoes = await apiGet(`/colaboradores/${colabId}/avaliacoes`).catch(() => []);
     const existing = avaliacoes.find(a => Number(a.ano) === Number(ano) && Number(a.trimestre) === Number(trimestre) && a.tipo === tipo);
     let savedAnswers = {};
-    if (existing) savedAnswers = JSON.parse(existing.respostas_json);
+    let savedObs = {};
+    if (existing) {
+        savedAnswers = JSON.parse(existing.respostas_json);
+        if (savedAnswers.__obs__) {
+            savedObs = savedAnswers.__obs__;
+        }
+    }
 
     const questions = AVALIACAO_QUESTIONS[tipo][groupKey];
     const categories = Object.keys(questions);
@@ -712,8 +718,8 @@ window.openFormAvaliacao = async function(tipo, ano, trimestre, groupKey) {
     const titleStr = tipo === 'experiencia' ? 'Avaliação de Experiência' : ((tipo === 'desempenho' ? 'Avaliação de Desempenho' : 'Avaliação de Satisfação') + ' - ' + trimestreToMonth[trimestre] + ' / ' + ano);
 
     let html = `
-        <div style="background:#fff; border-radius:12px; max-width:900px; width:95%; max-height:90vh; display:flex; flex-direction:column; box-shadow:0 10px 25px rgba(0,0,0,0.5);">
-            <div style="padding:1.5rem; background:#0f4c81; color:#fff; border-radius:12px 12px 0 0; display:flex; justify-content:space-between; align-items:center;">
+        <div style="background:#fff; border-radius:0; width:100%; height:100%; display:flex; flex-direction:column; box-shadow:0 10px 25px rgba(0,0,0,0.5);">
+            <div style="padding:1.5rem; background:#0f4c81; color:#fff; display:flex; justify-content:space-between; align-items:center;">
                 <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
                     <h3 style="margin:0; font-size:1.25rem;">${titleStr}</h3>
                     <span id="global-perc-badge" style="background:${globalColor_init}; border-radius:20px; padding:4px 12px; font-size:0.85rem; font-weight:700; transition:background 0.3s, color 0.3s;">${globalPerc_init}% Concluído</span>
@@ -722,7 +728,7 @@ window.openFormAvaliacao = async function(tipo, ano, trimestre, groupKey) {
             </div>
             <div style="padding:2rem; overflow-y:auto; flex:1; background:#f8fafc;">
                 <p style="margin-top:0; margin-bottom:1.5rem; color:#0f4c81; font-size:1.05rem; font-weight:700; background:#e0f2fe; padding:12px 16px; border-radius:8px; border-left:5px solid #0ea5e9; box-shadow:0 2px 4px rgba(14,165,233,0.15);">
-                    Avalie cada critério (1 Muito ruim - 2 Ruim - 3 Médio - 4 Bom - 5 Muito bom)
+                    Avalie cada critério (1 Muito ruim - 2 Ruim - 3 Médio - 4 Bom - 5 Muito bom) e adicione uma observação caso aplicável.
                 </p>
                 <form id="form-avaliacao-perguntas">
     `;
@@ -751,10 +757,12 @@ window.openFormAvaliacao = async function(tipo, ano, trimestre, groupKey) {
         `;
         questions[cat].forEach((q, i) => {
             const val = savedAnswers[cat] ? savedAnswers[cat][i] : null;
+            const obsStr = (savedObs[cat] && savedObs[cat][i]) ? savedObs[cat][i] : '';
             html += `
-                <div style="display:flex; justify-content:space-between; align-items:center; padding:0.75rem 0; border-bottom:1px dashed #e2e8f0;">
-                    <div style="flex:1; padding-right:1rem; font-size:0.9rem; color:#475569; font-weight:500;">${q}</div>
-                    <div style="display:flex; gap:0.35rem;">
+                <div style="display:flex; flex-direction:column; padding:0.75rem 0; border-bottom:1px dashed #e2e8f0;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div style="flex:1; padding-right:1rem; font-size:0.9rem; color:#475569; font-weight:500;">${q}</div>
+                        <div style="display:flex; gap:0.35rem;">
             `;
             for(let v=1; v<=5; v++) {
                 const checked = (val == v) ? 'checked' : '';
@@ -768,7 +776,13 @@ window.openFormAvaliacao = async function(tipo, ano, trimestre, groupKey) {
                     </label>
                 `;
             }
-            html += `</div></div>`;
+            html += `           </div>
+                    </div>
+                    <div style="margin-top:0.65rem; display:flex; align-items:center; gap:0.5rem;">
+                        <i class="ph ph-list-plus" style="color:#94a3b8; font-size:1.1rem;"></i>
+                        <input type="text" name="av_obs_${catIdx}_${i}" value="${obsStr}" placeholder="Adicionar observação (opcional)" style="flex:1; padding:0.4rem 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; outline:none; color:#334155;">
+                    </div>
+                </div>`;
         });
         html += `</div></div>`;
     });
@@ -788,7 +802,7 @@ window.openFormAvaliacao = async function(tipo, ano, trimestre, groupKey) {
 
     const overlay = document.createElement('div');
     overlay.id = 'modal-avaliacao';
-    overlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; display:flex; align-items:center; justify-content:center; padding:1rem; box-sizing:border-box;';
+    overlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; display:flex; align-items:center; justify-content:center; padding:0; box-sizing:border-box;';
     overlay.innerHTML = html;
     document.body.appendChild(overlay);
 };
@@ -828,7 +842,7 @@ window.updateAvaliacaoProgress = function(catIdx, totalQ) {
 window.saveAvaliacao = async function(tipo, ano, trimestre, groupKey) {
     const categories = Object.keys(AVALIACAO_QUESTIONS[tipo][groupKey]);
     const form = document.getElementById('form-avaliacao-perguntas');
-    const respostas = {};
+    const respostas = { __obs__: {} };
     const errSpan = document.getElementById('form-av-error');
     
     let totalQ = 0;
@@ -836,6 +850,7 @@ window.saveAvaliacao = async function(tipo, ano, trimestre, groupKey) {
 
     categories.forEach((cat, catIdx) => {
         respostas[cat] = {};
+        respostas.__obs__[cat] = {};
         AVALIACAO_QUESTIONS[tipo][groupKey][cat].forEach((q, i) => {
             totalQ++;
             const rads = form.elements[`av_${catIdx}_${i}`];
@@ -845,6 +860,10 @@ window.saveAvaliacao = async function(tipo, ano, trimestre, groupKey) {
                     respostas[cat][i] = selected.value;
                     ansQ++;
                 }
+            }
+            const obsInput = form.elements[`av_obs_${catIdx}_${i}`];
+            if (obsInput && obsInput.value.trim().length > 0) {
+                respostas.__obs__[cat][i] = obsInput.value.trim();
             }
         });
     });
@@ -865,7 +884,7 @@ window.saveAvaliacao = async function(tipo, ano, trimestre, groupKey) {
         if (modal) modal.remove();
         
         renderAvaliacaoTab(document.getElementById('docs-list-container'));
-        alert('Avaliação do ' + trimestre + 'º trimestre salva!');
+        alert(tipo === 'experiencia' ? 'Avaliação de experiência salva com sucesso!' : 'Avaliação do ' + trimestre + 'º trimestre salva!');
     } catch(e) {
         errSpan.textContent = '';
         alert('Erro ao salvar avaliação: ' + e.message);
