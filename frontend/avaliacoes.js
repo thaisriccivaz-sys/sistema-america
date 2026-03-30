@@ -723,110 +723,103 @@ async function generateAndUploadEvaluationPDF(colabId, nome, tipo, ano, trimestr
     const safeNome = nome.replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_]/g, '');
     const fileName = `${nomeBase}_${trimestre}_${ano}_${safeNome.toUpperCase()}.pdf`;
 
+    // Capturar gráficos ANTES (estão visíveis no DOM agora)
     const graph1Canvas = document.getElementById('chart-competencias');
     const graph2Canvas = document.getElementById('chart-medias');
     const graph1img = graph1Canvas ? graph1Canvas.toDataURL('image/png') : '';
     const graph2img = graph2Canvas ? graph2Canvas.toDataURL('image/png') : '';
 
-    let totalScore = 0;
-    let totalQuestions = 0;
+    // Capturar logo como base64 para evitar problema CORS no html2canvas
+    let logoBase64 = '';
+    try {
+        const resp = await fetch('/assets/logo-header.png');
+        const blob = await resp.blob();
+        logoBase64 = await new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(blob); });
+    } catch(e) { logoBase64 = ''; }
 
-    let html = `
-        <div style="font-family: Arial, sans-serif; padding: 20px; color: #333; width: 750px; box-sizing: border-box; background: #fff; margin: 0 auto;">
-            <div style="text-align:center; margin-bottom: 20px;">
-                <img src="/assets/logo-header.png" style="width:100%; max-height:120px; object-fit:cover; margin-bottom: 15px;" onerror="this.src='/logo.png'">
-                <h2 style="color: #0f4c81; font-size: 24px; margin: 0 0 5px;">${tipoText}</h2>
-                <h4 style="color: #64748b; font-size: 16px; margin: 0; font-weight: 500;">
-                    Colaborador: <b>${nome}</b> | Ano: <b>${ano}</b> | Trimestre: <b>${trimestre}º</b>
-                </h4>
-            </div>
-            <hr style="border: 0; border-top: 1px solid #cbd5e1; margin-bottom: 20px;">
-    `;
-    
-    // iterate over questions and answers
+    // Calcular médias
+    let totalScore = 0, totalQuestions = 0;
     const cats = Object.keys(AVALIACAO_QUESTIONS[tipo][groupKey]);
-    cats.forEach((cat, cIdx) => {
-        let catTotal = 0;
-        let catCount = 0;
-        
-        const rowsHtml = AVALIACAO_QUESTIONS[tipo][groupKey][cat].map((q, i) => {
+    const catStats = cats.map((cat, cIdx) => {
+        let catTotal = 0, catCount = 0;
+        const questions = AVALIACAO_QUESTIONS[tipo][groupKey][cat];
+        const rows = questions.map((q, i) => {
             const notaRaw = respostas[cat] ? respostas[cat][i] : null;
-            let notaFormatada = '-';
-            if (notaRaw) {
-                notaFormatada = notaRaw;
-                catTotal += parseFloat(notaRaw);
-                catCount++;
-            }
-            return `<tr style="page-break-inside: avoid;">
-                <td style="padding: 6px 10px; border-bottom:1px solid #e2e8f0; width:85%; color: #475569;">${q}</td>
-                <td style="padding: 6px 10px; border-bottom:1px solid #e2e8f0; font-weight:bold; text-align:center; color: #0f4c81;">Nota: ${notaFormatada}</td>
-            </tr>`;
-        }).join('');
-
+            if (notaRaw) { catTotal += parseFloat(notaRaw); catCount++; }
+            return { q, nota: notaRaw || '-' };
+        });
         const catAvg = catCount > 0 ? (catTotal / catCount).toFixed(2) : '0.00';
-        totalScore += catTotal;
-        totalQuestions += catCount;
+        totalScore += catTotal; totalQuestions += catCount;
+        return { cat, catAvg, rows, cIdx };
+    });
+    const overallAvg = totalQuestions > 0 ? (totalScore / totalQuestions).toFixed(2) : '0.00';
 
-        html += `
-            <div style="page-break-inside: avoid; margin-bottom: 15px;">
-                <div style="background:#f8fafc; padding:8px 12px; border-left: 4px solid #0f4c81; display:flex; justify-content:space-between; align-items:center;">
-                    <h4 style="margin:0; color:#0f4c81; font-size: 14px;">${cIdx+1}. ${cat}</h4>
-                    <span style="font-weight:bold; color:#0f4c81; font-size:12px;">Média da Categoria: ${catAvg}</span>
-                </div>
-                <table style="width:100%; border-collapse: collapse; font-size:11px;">${rowsHtml}</table>
-            </div>`;
+    // Montar div REAL no DOM (oculto) para html2canvas capturar corretamente
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'position:fixed; left:-9999px; top:0; width:794px; background:#fff; font-family:Arial,sans-serif; color:#333; padding:20px; box-sizing:border-box;';
+
+    let inner = '';
+    if (logoBase64) inner += `<div style="margin-bottom:10px;"><img src="${logoBase64}" style="width:100%; max-height:110px; object-fit:contain; display:block;"></div>`;
+    inner += `<h2 style="color:#0f4c81;font-size:20px;margin:0 0 4px;text-align:center;">${tipoText}</h2>`;
+    inner += `<p style="color:#64748b;font-size:13px;margin:0 0 12px;text-align:center;">Colaborador: <b>${nome}</b> | Ano: <b>${ano}</b> | ${trimestre}º Trimestre</p>`;
+    inner += `<hr style="border:0;border-top:1px solid #cbd5e1;margin-bottom:14px;">`;
+
+    catStats.forEach(({ cat, catAvg, rows, cIdx }) => {
+        inner += `<div style="page-break-inside:avoid;margin-bottom:12px;">`;
+        inner += `<div style="background:#f0f7ff;padding:6px 10px;border-left:4px solid #0f4c81;display:flex;justify-content:space-between;align-items:center;margin-bottom:0;">`;
+        inner += `<span style="font-weight:700;color:#0f4c81;font-size:12px;">${cIdx+1}. ${cat}</span>`;
+        inner += `<span style="font-weight:700;color:#0f4c81;font-size:11px;">Média: ${catAvg}</span></div>`;
+        inner += `<table style="width:100%;border-collapse:collapse;font-size:10px;">`;
+        rows.forEach(({ q, nota }) => {
+            inner += `<tr style="page-break-inside:avoid;"><td style="padding:4px 8px;border-bottom:1px solid #e2e8f0;color:#475569;">${q}</td><td style="padding:4px 8px;border-bottom:1px solid #e2e8f0;font-weight:700;text-align:right;color:#0f4c81;white-space:nowrap;">Nota: ${nota}</td></tr>`;
+        });
+        inner += `</table></div>`;
     });
 
-    const overallAvg = totalQuestions > 0 ? (totalScore / totalQuestions).toFixed(2) : '0.00';
-    html += `
-        <div style="page-break-inside: avoid; margin-top: 15px; margin-bottom: 30px; text-align: right; background:#0f4c81; color:#fff; padding: 10px 20px; border-radius:6px;">
-            <strong style="font-size: 18px;">Média Total Alcançada: ${overallAvg}</strong>
-        </div>`;
+    inner += `<div style="page-break-inside:avoid;margin-top:14px;background:#0f4c81;color:#fff;padding:10px 16px;border-radius:6px;text-align:right;">`;
+    inner += `<strong style="font-size:16px;">Média Total Alcançada: ${overallAvg}</strong></div>`;
 
     if (graph1img || graph2img) {
-        html += `
-            <div style="page-break-before: always; padding-top: 20px;">
-                <h3 style="color: #0f4c81; text-align: center; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;">Análise Gráfica dos Resultados</h3>
-                ${graph1img ? `<div style="page-break-inside: avoid; margin-bottom: 30px; text-align:center;"><h4 style="color:#475569; margin-bottom:10px;">Desempenho por Categoria</h4><img src="${graph1img}" style="width:100%; max-width:700px; height:auto; border:1px solid #cbd5e1; border-radius:8px; padding:10px; background:#fff;"></div>` : ''}
-                ${graph2img ? `<div style="page-break-inside: avoid; margin-bottom: 30px; text-align:center;"><h4 style="color:#475569; margin-bottom:10px;">Evolução Trimestral Geral</h4><img src="${graph2img}" style="width:100%; max-width:700px; height:auto; border:1px solid #cbd5e1; border-radius:8px; padding:10px; background:#fff;"></div>` : ''}
-            </div>
-        `;
+        inner += `<div style="page-break-before:always;padding-top:16px;">`;
+        inner += `<h3 style="color:#0f4c81;text-align:center;margin-bottom:16px;border-bottom:2px solid #e2e8f0;padding-bottom:8px;">Análise Gráfica dos Resultados</h3>`;
+        if (graph1img) inner += `<div style="page-break-inside:avoid;margin-bottom:24px;text-align:center;"><p style="color:#475569;font-weight:700;margin-bottom:8px;">Desempenho por Categoria</p><img src="${graph1img}" style="width:100%;height:auto;"></div>`;
+        if (graph2img) inner += `<div style="page-break-inside:avoid;text-align:center;"><p style="color:#475569;font-weight:700;margin-bottom:8px;">Evolução Trimestral Geral</p><img src="${graph2img}" style="width:100%;height:auto;"></div>`;
+        inner += `</div>`;
     }
 
-    html += `</div>`;
+    wrapper.innerHTML = inner;
+    document.body.appendChild(wrapper);
 
     try {
         const pdFOpt = {
-            margin:       0.3,
-            filename:     fileName,
-            image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true, logging: false },
-            jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' },
-            pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
+            margin:      [0, 0, 0, 0],
+            filename:    fileName,
+            image:       { type: 'jpeg', quality: 0.97 },
+            html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff', windowWidth: 794 },
+            jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            pagebreak:   { mode: ['css', 'legacy'], avoid: 'div' }
         };
-        // O from() processa diretamente a string HTML sem precisar embutir na DOM da tela principal, evitando telas brancas (viewport cortado).
-        const pdfBlob = await html2pdf().set(pdFOpt).from(html).output('blob');
-        
+        const pdfBlob = await html2pdf().set(pdFOpt).from(wrapper).output('blob');
+        document.body.removeChild(wrapper);
+
         // upload to API
         const formData = new FormData();
         formData.append('file', new File([pdfBlob], fileName, { type: 'application/pdf' }));
         formData.append('colaborador_id', colabId.toString());
         formData.append('document_type', tipo === 'desempenho' ? 'Avaliação de Desempenho' : 'Avaliação de Satisfação');
-        formData.append('tab_name', 'AVALIACAO'); // folder mapping no OneDrive
+        formData.append('tab_name', 'AVALIACAO');
         formData.append('year', ano.toString());
-        formData.append('month', trimestre.toString()); // Diferencia no DB para evitar sobreescrição entre trimestres
+        formData.append('month', trimestre.toString());
 
         const response = await fetch(`/api/documentos`, {
             method: 'POST',
             headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') },
             body: formData
         });
-        
-        if (!response.ok) {
-            throw new Error(`Falha no upload: ${response.statusText}`);
-        }
-        console.log("PDF generated and uploaded via API successfully.");
+        if (!response.ok) throw new Error(`Falha no upload: ${response.statusText}`);
+        console.log("PDF gerado e enviado com sucesso.");
     } catch(e) {
+        if (wrapper.parentNode) document.body.removeChild(wrapper);
         console.error("Erro ao gerar PDF da Avaliação:", e);
     }
 }
@@ -877,60 +870,75 @@ window.viewAvaliacaoPDF = async function(tipo, ano, trimestre, groupKey) {
     const graph1img = graph1Canvas ? graph1Canvas.toDataURL('image/png') : '';
     const graph2img = graph2Canvas ? graph2Canvas.toDataURL('image/png') : '';
 
-    let totalScore = 0; let totalQuestions = 0;
-    let html = `
-        <div style="font-family: Arial, sans-serif; padding: 20px; color: #333; width: 750px; box-sizing: border-box; background: #fff; margin: 0 auto;">
-            <div style="text-align:center; margin-bottom: 20px;">
-                <img src="/assets/logo-header.png" style="width:100%; max-height:120px; object-fit:cover; margin-bottom: 15px;" onerror="this.src='/logo.png'">
-                <h2 style="color: #0f4c81; font-size: 24px; margin: 0 0 5px;">${tipoText}</h2>
-                <h4 style="color: #64748b; font-size: 16px; margin: 0; font-weight: 500;">
-                    Colaborador: <b>${nome}</b> | Ano: <b>${ano}</b> | Trimestre: <b>${trimestre}º</b>
-                </h4>
-            </div>
-            <hr style="border: 0; border-top: 1px solid #cbd5e1; margin-bottom: 20px;">
-    `;
-    
-    cats = Object.keys(AVALIACAO_QUESTIONS[tipo][groupKey]);
-    cats.forEach((cat, cIdx) => {
-        let catTotal = 0; let catCount = 0;
-        const rowsHtml = AVALIACAO_QUESTIONS[tipo][groupKey][cat].map((q, i) => {
+    let logoBase64 = '';
+    try {
+        const resp = await fetch('/assets/logo-header.png');
+        const blob = await resp.blob();
+        logoBase64 = await new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(blob); });
+    } catch(e) { logoBase64 = ''; }
+
+    let totalScore = 0, totalQuestions = 0;
+    const cats = Object.keys(AVALIACAO_QUESTIONS[tipo][groupKey]);
+    const catStats = cats.map((cat, cIdx) => {
+        let catTotal = 0, catCount = 0;
+        const rows = AVALIACAO_QUESTIONS[tipo][groupKey][cat].map((q, i) => {
             const notaRaw = respostas[cat] ? respostas[cat][i] : null;
-            let notaFormatada = '-';
-            if (notaRaw) { notaFormatada = notaRaw; catTotal += parseFloat(notaRaw); catCount++; }
-            return `<tr style="page-break-inside: avoid;"><td style="padding: 6px 10px; border-bottom:1px solid #e2e8f0; width:85%; color: #475569;">${q}</td><td style="padding: 6px 10px; border-bottom:1px solid #e2e8f0; font-weight:bold; text-align:center; color: #0f4c81;">Nota: ${notaFormatada}</td></tr>`;
-        }).join('');
+            if (notaRaw) { catTotal += parseFloat(notaRaw); catCount++; }
+            return { q, nota: notaRaw || '-' };
+        });
         const catAvg = catCount > 0 ? (catTotal / catCount).toFixed(2) : '0.00';
         totalScore += catTotal; totalQuestions += catCount;
-        html += `<div style="page-break-inside: avoid; margin-bottom: 15px;">
-                    <div style="background:#f8fafc; padding:8px 12px; border-left: 4px solid #0f4c81; display:flex; justify-content:space-between; align-items:center;">
-                        <h4 style="margin:0; color:#0f4c81; font-size: 14px;">${cIdx+1}. ${cat}</h4>
-                        <span style="font-weight:bold; color:#0f4c81; font-size:12px;">Média da Categoria: ${catAvg}</span>
-                    </div>
-                    <table style="width:100%; border-collapse: collapse; font-size:11px;">${rowsHtml}</table>
-                </div>`;
+        return { cat, catAvg, rows, cIdx };
     });
-
     const overallAvg = totalQuestions > 0 ? (totalScore / totalQuestions).toFixed(2) : '0.00';
-    html += `<div style="page-break-inside: avoid; margin-top: 15px; margin-bottom: 30px; text-align: right; background:#0f4c81; color:#fff; padding: 10px 20px; border-radius:6px;"><strong style="font-size: 18px;">Média Total Alcançada: ${overallAvg}</strong></div>`;
+
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'position:fixed; left:-9999px; top:0; width:794px; background:#fff; font-family:Arial,sans-serif; color:#333; padding:20px; box-sizing:border-box;';
+
+    let inner = '';
+    if (logoBase64) inner += `<div style="margin-bottom:10px;"><img src="${logoBase64}" style="width:100%; max-height:110px; object-fit:contain; display:block;"></div>`;
+    inner += `<h2 style="color:#0f4c81;font-size:20px;margin:0 0 4px;text-align:center;">${tipoText}</h2>`;
+    inner += `<p style="color:#64748b;font-size:13px;margin:0 0 12px;text-align:center;">Colaborador: <b>${nome}</b> | Ano: <b>${ano}</b> | ${trimestre}º Trimestre</p>`;
+    inner += `<hr style="border:0;border-top:1px solid #cbd5e1;margin-bottom:14px;">`;
+
+    catStats.forEach(({ cat, catAvg, rows, cIdx }) => {
+        inner += `<div style="page-break-inside:avoid;margin-bottom:12px;">`;
+        inner += `<div style="background:#f0f7ff;padding:6px 10px;border-left:4px solid #0f4c81;display:flex;justify-content:space-between;align-items:center;">`;
+        inner += `<span style="font-weight:700;color:#0f4c81;font-size:12px;">${cIdx+1}. ${cat}</span>`;
+        inner += `<span style="font-weight:700;color:#0f4c81;font-size:11px;">Média: ${catAvg}</span></div>`;
+        inner += `<table style="width:100%;border-collapse:collapse;font-size:10px;">`;
+        rows.forEach(({ q, nota }) => {
+            inner += `<tr style="page-break-inside:avoid;"><td style="padding:4px 8px;border-bottom:1px solid #e2e8f0;color:#475569;">${q}</td><td style="padding:4px 8px;border-bottom:1px solid #e2e8f0;font-weight:700;text-align:right;color:#0f4c81;white-space:nowrap;">Nota: ${nota}</td></tr>`;
+        });
+        inner += `</table></div>`;
+    });
+    inner += `<div style="page-break-inside:avoid;margin-top:14px;background:#0f4c81;color:#fff;padding:10px 16px;border-radius:6px;text-align:right;"><strong style="font-size:16px;">Média Total Alcançada: ${overallAvg}</strong></div>`;
 
     if (graph1img || graph2img) {
-        html += `
-            <div style="page-break-before: always; padding-top: 20px;">
-                <h3 style="color: #0f4c81; text-align: center; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;">Análise Gráfica dos Resultados</h3>
-                ${graph1img ? `<div style="page-break-inside: avoid; margin-bottom: 30px; text-align:center;"><h4 style="color:#475569; margin-bottom:10px;">Desempenho por Categoria</h4><img src="${graph1img}" style="width:100%; max-width:700px; height:auto; border:1px solid #cbd5e1; border-radius:8px; padding:10px; background:#fff;"></div>` : ''}
-                ${graph2img ? `<div style="page-break-inside: avoid; margin-bottom: 30px; text-align:center;"><h4 style="color:#475569; margin-bottom:10px;">Evolução Trimestral Geral</h4><img src="${graph2img}" style="width:100%; max-width:700px; height:auto; border:1px solid #cbd5e1; border-radius:8px; padding:10px; background:#fff;"></div>` : ''}
-            </div>
-        `;
+        inner += `<div style="page-break-before:always;padding-top:16px;">`;
+        inner += `<h3 style="color:#0f4c81;text-align:center;margin-bottom:16px;border-bottom:2px solid #e2e8f0;padding-bottom:8px;">Análise Gráfica dos Resultados</h3>`;
+        if (graph1img) inner += `<div style="page-break-inside:avoid;margin-bottom:24px;text-align:center;"><p style="color:#475569;font-weight:700;margin-bottom:8px;">Desempenho por Categoria</p><img src="${graph1img}" style="width:100%;height:auto;"></div>`;
+        if (graph2img) inner += `<div style="page-break-inside:avoid;text-align:center;"><p style="color:#475569;font-weight:700;margin-bottom:8px;">Evolução Trimestral Geral</p><img src="${graph2img}" style="width:100%;height:auto;"></div>`;
+        inner += `</div>`;
     }
 
-    html += `</div>`;
+    wrapper.innerHTML = inner;
+    document.body.appendChild(wrapper);
 
     try {
-        const pdFOpt = { margin: 0.3, filename: fileName, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true, logging: false }, jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }, pagebreak: { mode: ['avoid-all', 'css', 'legacy'] } };
-        const pdfBlob = await html2pdf().set(pdFOpt).from(html).output('blob');
+        const pdFOpt = {
+            margin:      [0, 0, 0, 0],
+            filename:    fileName,
+            image:       { type: 'jpeg', quality: 0.97 },
+            html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff', windowWidth: 794 },
+            jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            pagebreak:   { mode: ['css', 'legacy'], avoid: 'div' }
+        };
+        const pdfBlob = await html2pdf().set(pdFOpt).from(wrapper).output('blob');
+        document.body.removeChild(wrapper);
+
         const blobUrl = URL.createObjectURL(pdfBlob);
-        
-        overlay.style.justifyContent = 'flex-start'; // Ajusta container pra usar toda tela
+        overlay.style.justifyContent = 'flex-start';
         overlay.innerHTML = `
             <div style="width:100%; padding:15px 30px; background:#1e293b; display:flex; justify-content:space-between; align-items:center; box-shadow:0 4px 10px rgba(0,0,0,0.5); z-index:2;">
                 <div style="display:flex; align-items:center; gap:10px;">
@@ -938,10 +946,10 @@ window.viewAvaliacaoPDF = async function(tipo, ano, trimestre, groupKey) {
                     <h3 style="margin:0; color:#fff; font-size:1.1rem; font-weight:600;">${fileName}</h3>
                 </div>
                 <div style="display:flex; gap:15px; align-items:center;">
-                    <a href="${blobUrl}" download="${fileName}" style="background:#10b981; color:#fff; border:none; padding:8px 20px; border-radius:6px; font-weight:700; cursor:pointer; text-decoration:none; display:flex; align-items:center; gap:8px; font-size:0.95rem; transition:all 0.2s; box-shadow:0 2px 4px rgba(16,185,129,0.4);">
+                    <a href="${blobUrl}" download="${fileName}" style="background:#10b981; color:#fff; border:none; padding:8px 20px; border-radius:6px; font-weight:700; cursor:pointer; text-decoration:none; display:flex; align-items:center; gap:8px; font-size:0.95rem;">
                         <i class="ph ph-download-simple"></i> Baixar e Compartilhar
                     </a>
-                    <button onclick="document.getElementById('pdf-preview-avaliacao-overlay').remove(); URL.revokeObjectURL('${blobUrl}');" style="background:#ef4444; color:#fff; border:none; padding:8px 20px; border-radius:6px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:8px; font-size:0.95rem; transition:all 0.2s; box-shadow:0 2px 4px rgba(239,68,68,0.4);">
+                    <button onclick="document.getElementById('pdf-preview-avaliacao-overlay').remove(); URL.revokeObjectURL('${blobUrl}');" style="background:#ef4444; color:#fff; border:none; padding:8px 20px; border-radius:6px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:8px; font-size:0.95rem;">
                         <i class="ph ph-x"></i> Fechar Prévia
                     </button>
                 </div>
@@ -951,6 +959,7 @@ window.viewAvaliacaoPDF = async function(tipo, ano, trimestre, groupKey) {
             </div>
         `;
     } catch(e) {
+        if (wrapper.parentNode) document.body.removeChild(wrapper);
         alert("Erro ao montar PDF para visualização: " + e.message);
         if(document.body.contains(overlay)) overlay.remove();
     }
