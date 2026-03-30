@@ -431,10 +431,6 @@ window.renderAvaliacaoTab = async function(container) {
         // Renderizar a tela de fato
         container.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0; flex-wrap:wrap; gap:1rem;">
-                <div style="display:flex; align-items:center; gap:0.5rem;">
-                    <i class="ph ph-chart-bar" style="color:#0ea5e9; font-size: 1.5rem;"></i>
-                    <h4 style="margin:0; color:#1e293b;">Painel de Avaliações</h4>
-                </div>
                 
                 <div style="display:flex; align-items:center; gap:0.5rem; background:#fff; padding:0.3rem; border-radius:8px; border:1px solid #cbd5e1; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
                     <button onclick="window.tabPersistence['av-tipo-select']='desempenho'; renderAvaliacaoTab(document.getElementById('docs-list-container'));" 
