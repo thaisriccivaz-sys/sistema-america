@@ -1492,32 +1492,25 @@
                                     Lista de EPIs <span style="font-weight:400; color:#94a3b8;">(arraste para reordenar)</span>
                                 </label>
 
-                                <!-- Campo de busca por CA -->
-                                <div style="background:#f0f7ff; border:1.5px solid #bfdbfe; border-radius:8px; padding:0.75rem 1rem; margin-bottom:0.75rem;">
-                                    <label style="font-size:0.78rem; font-weight:700; color:#1e40af; display:block; margin-bottom:6px;">
-                                        <i class="ph ph-magnifying-glass"></i> Buscar EPI pelo número do CA
-                                    </label>
-                                    <div style="display:flex; gap:0.5rem; align-items:center;">
-                                        <div style="display:flex; align-items:center; gap:0.4rem; width:130px; background:#fff; border:1.5px solid #bfdbfe; border-radius:8px; padding:0 0.75rem; height:38px; flex-shrink:0;">
-                                            <span style="font-size:0.8rem; color:#64748b; white-space:nowrap; font-weight:600;">CA</span>
-                                            <input type="text" id="ca-numero-input"
-                                                   placeholder="Nº CA..."
-                                                   oninput="window.onCaInput(this)"
-                                                   onkeydown="if(event.key==='Enter' && !document.getElementById('ca-add-btn').disabled){ event.preventDefault(); window.addCaToList(); }"
-                                                   style="border:none; outline:none; font-size:0.88rem; flex:1; background:transparent; height:100%; min-width:0;">
-                                        </div>
-                                        <input type="text" id="ca-nome-readonly" readonly
-                                               placeholder="Nome do EPI aparecerá aqui..."
-                                               style="flex:1; height:38px; background:#e2e8f0; border:1.5px solid #cbd5e1; border-radius:8px; padding:0 0.75rem; font-size:0.85rem; color:#334155; outline:none; font-weight:700;">
-                                        <button type="button" id="ca-add-btn" onclick="window.addCaToList()" disabled
-                                                class="btn btn-primary" style="height:38px; padding:0 1rem; font-size:0.83rem; white-space:nowrap; flex-shrink:0;">
-                                            <i class="ph ph-plus"></i> Adicionar
-                                        </button>
+                                <!-- Adicionar EPI manualmente -->
+                                <div style="display:flex; gap:0.5rem; align-items:center; margin-bottom:0.75rem;">
+                                    <div style="display:flex; align-items:center; gap:0.4rem; width:110px; background:#fff; border:1.5px solid #e2e8f0; border-radius:8px; padding:0 0.75rem; height:38px; flex-shrink:0;">
+                                        <span style="font-size:0.8rem; color:#64748b; white-space:nowrap; font-weight:600;">CA</span>
+                                        <input type="text" id="ca-manual-input"
+                                               placeholder="Nº CA"
+                                               style="border:none; outline:none; font-size:0.88rem; flex:1; background:transparent; height:100%; min-width:0;">
                                     </div>
-                                    <p id="ca-lookup-hint" style="margin:5px 0 0; font-size:0.8rem; font-weight:600; min-height:16px;"></p>
+                                    <input type="text" id="epi-nome-manual"
+                                           placeholder="Nome do EPI..."
+                                           onkeydown="if(event.key==='Enter'){ event.preventDefault(); window.addEpiManual(); }"
+                                           style="flex:1; height:38px; border:1.5px solid #e2e8f0; border-radius:8px; padding:0 0.75rem; font-size:0.85rem; color:#334155; outline:none;">
+                                    <button type="button" onclick="window.addEpiManual()"
+                                            class="btn btn-primary" style="height:38px; padding:0 1rem; font-size:0.83rem; white-space:nowrap; flex-shrink:0;">
+                                        <i class="ph ph-plus"></i> Adicionar
+                                    </button>
                                 </div>
 
-                                <!-- Lista de itens manuais -->
+                                <!-- Lista de itens -->
                                 <div id="epi-items-list" style="max-height:240px; overflow-y:auto; margin-bottom:0.5rem;"></div>
                                 <button type="button" onclick="window.addEpiItemRow()" class="btn btn-secondary"
                                         style="height:34px; font-size:0.82rem; display:flex; align-items:center; gap:5px;">
@@ -1829,7 +1822,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="avaliacoes.js?v=6"></script>
     <script src="gerenciar_avaliacoes.js?v=2"></script>
-    <script src="epi.js?v=7"></script>
+    <script src="epi.js?v=8"></script>
     <script src="app.js?v=36"></script>
 </body>
 </html>

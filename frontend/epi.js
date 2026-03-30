@@ -411,6 +411,18 @@ function addEpiRow(value = '') {
 
 window.addEpiItemRow = function() { addEpiRow(); };
 
+window.addEpiManual = function() {
+    const caInput = document.getElementById('ca-manual-input');
+    const nomeInput = document.getElementById('epi-nome-manual');
+    const ca = (caInput ? caInput.value.trim() : '');
+    const nome = (nomeInput ? nomeInput.value.trim() : '');
+    if (!nome) { if(nomeInput) nomeInput.focus(); return; }
+    const label = ca ? `${nome} CA ${ca}` : nome;
+    addEpiRow(label);
+    if(caInput) caInput.value = '';
+    if(nomeInput) { nomeInput.value = ''; nomeInput.focus(); }
+};
+
 window.closeEpiModal = function() {
     const modal = document.getElementById('modal-epi');
     if (modal) modal.style.display = 'none';
