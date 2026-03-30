@@ -2122,45 +2122,36 @@ window.anexarAdvertenciaAoProntuario = async function() {
         const logoSrc = `${apiBase}/assets/logo-header.png`;
         const data = window._advertenciaData;
         
-        const a4 = document.createElement('div');
-        a4.style.cssText = 'width:794px;min-height:1123px;' +
-            'padding:48px 56px;box-sizing:border-box;background:#fff;color:#111;' +
-            'font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.5;';
-
-        a4.innerHTML = `
-            <div style="margin-bottom:10px;">
-                <img src="${logoSrc}" style="width:100%;max-width:682px;display:block;" onerror="this.style.display='none'">
-            </div>
-            <h1 style="text-align:center;font-size:15px;text-transform:uppercase;margin:8px 0 6px;color:#1e293b;">${data.gerador_nome}</h1>
-            <p style="margin:4px 0;font-size:13px;"><b>COLABORADOR:</b> ${data.colaborador.NOME_COMPLETO}</p>
-            <div style="border:1px solid #000;padding:6px 10px;margin:6px 0;font-size:11.5px;line-height:1.4;">
-                <p style="margin:0 0 3px;font-size:11px;"><b>DADOS DO COLABORADOR:</b></p>
-                <div style="display:flex;gap:24px;flex-wrap:wrap;">
-                    <span>CPF: <b>${data.colaborador.CPF}</b></span>
-                    <span>CARGO: <b>${data.colaborador.CARGO}</b></span>
-                    <span>ADMISSAO: <b>${data.colaborador.DATA_ADMISSAO}</b></span>
+        const htmlTemplate = `
+            <div style="width:794px;min-height:1123px;padding:48px 56px;box-sizing:border-box;background:#fff;color:#111;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.5;">
+                <div style="margin-bottom:10px;">
+                    <img src="${logoSrc}" style="width:100%;max-width:682px;display:block;" onerror="this.style.display='none'">
                 </div>
-                <p style="margin:3px 0 0;">DEPARTAMENTO: ${data.colaborador.DEPARTAMENTO}</p>
-            </div>
-            <div style="margin-top:10px;text-align:justify;line-height:1.5;font-size:12.5px;">${data.html}</div>
-            <div style="margin-top:14px;">
-                <p style="font-weight:700;font-size:13px;">Guarulhos, ${data.dataHojeExtenso}.</p>
+                <h1 style="text-align:center;font-size:15px;text-transform:uppercase;margin:8px 0 6px;color:#1e293b;">${data.gerador_nome}</h1>
+                <p style="margin:4px 0;font-size:13px;"><b>COLABORADOR:</b> ${data.colaborador.NOME_COMPLETO}</p>
+                <div style="border:1px solid #000;padding:6px 10px;margin:6px 0;font-size:11.5px;line-height:1.4;">
+                    <p style="margin:0 0 3px;font-size:11px;"><b>DADOS DO COLABORADOR:</b></p>
+                    <div style="display:flex;gap:24px;flex-wrap:wrap;">
+                        <span>CPF: <b>${data.colaborador.CPF}</b></span>
+                        <span>CARGO: <b>${data.colaborador.CARGO}</b></span>
+                        <span>ADMISSAO: <b>${data.colaborador.DATA_ADMISSAO}</b></span>
+                    </div>
+                    <p style="margin:3px 0 0;">DEPARTAMENTO: ${data.colaborador.DEPARTAMENTO}</p>
+                </div>
+                <div style="margin-top:10px;text-align:justify;line-height:1.5;font-size:12.5px;">${data.html}</div>
+                <div style="margin-top:14px;">
+                    <p style="font-weight:700;font-size:13px;">Guarulhos, ${data.dataHojeExtenso}.</p>
+                </div>
             </div>
         `;
 
-        // Anexar temporariamente ao DOM por trás do modal (z-index negativo e fixo) 
-        // para garantir que o html2canvas capture 100% sem cortes
-        a4.style.position = 'fixed';
-        a4.style.left = '0';
-        a4.style.top = '0';
-        a4.style.zIndex = '-9999';
-        document.body.appendChild(a4);
-
-        // Aguardar logo carregar
-        const logoImg = a4.querySelector('img');
+        // Pré-carregar a imagem na memória (cache do navegador) para garantir que apareça no iframe isolado do html2pdf
+        const imgPreload = new Image();
+        imgPreload.src = logoSrc;
         await new Promise(resolve => {
-            if (!logoImg || logoImg.complete) return resolve();
-            logoImg.onload = resolve; logoImg.onerror = resolve;
+            if (imgPreload.complete) return resolve();
+            imgPreload.onload = resolve;
+            imgPreload.onerror = resolve;
             setTimeout(resolve, 2000);
         });
 
@@ -2172,8 +2163,7 @@ window.anexarAdvertenciaAoProntuario = async function() {
             jsPDF:        { unit: 'px', format: [794, 1123], orientation: 'portrait' }
         };
 
-        const pdfBlob = await html2pdf().set(opt).from(a4).output('blob');
-        document.body.removeChild(a4);
+        const pdfBlob = await html2pdf().set(opt).from(htmlTemplate).output('blob');
         const file = new File([pdfBlob], nomeArquivo, { type: 'application/pdf' });
 
         const formData = new FormData();
