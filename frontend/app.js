@@ -5888,8 +5888,7 @@ window.abrirModalAssinaturaTestemunhas = async function(docId) {
     document.getElementById('cpf-t1').innerText = '';
     document.getElementById('cpf-t2').innerText = '';
 
-    const baseUrl = API_URL.replace('/api', '');
-    const pdfUrl = `${baseUrl}/${currentDocDataForWitness.file_path}?t=${Date.now()}`;
+    const pdfUrl = `${API_URL}/documentos/view/${docId}?token=${currentToken}`;
     
     renderPdfToContainer(pdfUrl, 'pdf-viewer-testemunhas', () => {
         formArea.style.display = 'block';
@@ -5928,8 +5927,7 @@ window.salvarAssinaturasTestemunhas = async function() {
         btn.disabled = true;
         btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Processando PDF...';
 
-        const baseUrl = API_URL.replace('/api', '');
-        const pdfUrl = `${baseUrl}/${doc.file_path}?t=${Date.now()}`;
+        const pdfUrl = `${API_URL}/documentos/download/${doc.id}?token=${currentToken}`;
         const pdfResp = await fetch(pdfUrl);
         if(!pdfResp.ok) throw new Error('Não foi possível baixar o PDF original.');
         const existingPdfBytes = await pdfResp.arrayBuffer();
@@ -6024,8 +6022,7 @@ window.abrirModalAssinaturaColaborador = async function(docId) {
 
     document.getElementById('nome-assinatura-colab').innerText = viewedColaborador.nome_completo || 'Colaborador';
 
-    const baseUrl = API_URL.replace('/api', '');
-    const pdfUrl = `${baseUrl}/${doc.file_path}?t=${Date.now()}`;
+    const pdfUrl = `${API_URL}/documentos/view/${docId}?token=${currentToken}`;
     
     renderPdfToContainer(pdfUrl, 'pdf-viewer-colaborador', () => {
         formArea.style.display = 'block';
@@ -6056,8 +6053,7 @@ window.salvarAssinaturaColaborador = async function() {
         btn.disabled = true;
         btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Processando...';
 
-        const baseUrl = API_URL.replace('/api', '');
-        const pdfUrl = `${baseUrl}/${doc.file_path}?t=${Date.now()}`;
+        const pdfUrl = `${API_URL}/documentos/download/${doc.id}?token=${currentToken}`;
         const pdfResp = await fetch(pdfUrl);
         if(!pdfResp.ok) throw new Error('Não foi possível baixar o PDF original.');
         const existingPdfBytes = await pdfResp.arrayBuffer();
