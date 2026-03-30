@@ -147,12 +147,20 @@ function renderGaCards(templates, tipo) {
     const color = tipo === 'satisfacao' ? '#8b5cf6' : '#0f4c81';
     const bg    = tipo === 'satisfacao' ? '#faf5ff' : '#eff6ff';
 
+    // Usar mapa estático global para evitar erro de aspas no onclick do HTML
+    if (!window._gaCardMap) window._gaCardMap = {};
+
     return `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:1rem;">
         ${templates.map(t => {
             let cats = [];
             try { cats = Object.keys(JSON.parse(t.categorias_json)); } catch(e) {}
             const isPadrao = !!t._isPadrao;
             const safeNome = (t.nome || '').replace(/'/g, "\\'");
+            
+            // Cadastrar objeto no mapa 
+            const mapKey = 't_' + Math.random().toString(36).substr(2, 9);
+            window._gaCardMap[mapKey] = { id: t.id, nome: t.nome, tipo: t.tipo, grupo_key: t.grupo_key, categorias_json: t.categorias_json };
+
             return `
                 <div style="background:#fff;border:1.5px solid ${isPadrao ? '#fed7aa' : '#e2e8f0'};border-radius:12px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,0.05);transition:box-shadow 0.2s;" onmouseover="this.style.boxShadow='0 6px 20px rgba(0,0,0,0.1)'" onmouseout="this.style.boxShadow='0 2px 6px rgba(0,0,0,0.05)'">
                     <div style="background:${isPadrao ? '#fff7ed' : bg};border-bottom:1.5px solid ${isPadrao ? '#fed7aa' : '#e2e8f0'};padding:0.9rem 1.1rem;display:flex;justify-content:space-between;align-items:center;">
@@ -164,7 +172,7 @@ function renderGaCards(templates, tipo) {
                             <span style="font-size:0.75rem;color:#64748b;">Chave: <code style="background:#e2e8f0;padding:1px 6px;border-radius:4px;">${t.grupo_key}</code></span>
                         </div>
                         <div style="display:flex;gap:0.5rem;flex-shrink:0;">
-                            <button onclick="window.gaAbrirFormEditarTemplate(${JSON.stringify({ id: t.id, nome: t.nome, tipo: t.tipo, grupo_key: t.grupo_key, categorias_json: t.categorias_json })})" title="${isPadrao ? 'Personalizar e Salvar' : 'Editar'}" style="background:${color};color:#fff;border:none;width:34px;height:34px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:0.95rem;transition:opacity 0.2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+                            <button onclick="window.gaAbrirFormEditarTemplate('${mapKey}')" title="${isPadrao ? 'Personalizar e Salvar' : 'Editar'}" style="background:${color};color:#fff;border:none;width:34px;height:34px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:0.95rem;transition:opacity 0.2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
                                 <i class="ph ph-pencil-simple"></i>
                             </button>
                             ${!isPadrao ? `<button onclick="window.gaExcluirTemplate(${t.id},'${safeNome}')" title="Excluir" style="background:#ef4444;color:#fff;border:none;width:34px;height:34px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:0.95rem;transition:opacity 0.2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
@@ -184,9 +192,10 @@ function renderGaCards(templates, tipo) {
     </div>`;
 }
 
-// Suporte a edição de templates com ou sem ID (padrão e salvos)
-window.gaAbrirFormEditarTemplate = function(tObj) {
-    if (typeof tObj === 'string') { try { tObj = JSON.parse(tObj); } catch(e) { return; } }
+// Suporte a edição de templates referenciando o map cacheado
+window.gaAbrirFormEditarTemplate = function(mapKey) {
+    const tObj = window._gaCardMap[mapKey];
+    if (!tObj) return;
     gaEditingId = tObj.id || null; // null = padrão ainda não salvo
     renderGaForm(tObj);
 };
