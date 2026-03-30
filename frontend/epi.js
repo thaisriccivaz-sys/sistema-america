@@ -89,6 +89,7 @@ window.addCaToList = function() {
 };
 
 let headerLogoBase64 = null;
+let headerLogoAspect = 0.11;
 
 window.initEpiModule = function() {
     loadEpiTemplates();
@@ -104,6 +105,7 @@ window.initEpiModule = function() {
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0);
         headerLogoBase64 = canvas.toDataURL('image/png');
+        headerLogoAspect = img.height / img.width;
     };
 };
 
@@ -461,9 +463,12 @@ function fmtData(str) {
 function pdfHeader(doc, W) {
     let y = 14;
     
-    if (headerLogoBase64) {
-        doc.addImage(headerLogoBase64, 'PNG', 13, y, W - 26, (W - 26) * 0.11);
-        y += ((W - 26) * 0.11) + 8;
+    if (headerLogoBase64 && headerLogoAspect) {
+        let lW = W - 26;
+        let lH = lW * headerLogoAspect;
+        if (lH > 35) { lH = 35; lW = lH / headerLogoAspect; }
+        doc.addImage(headerLogoBase64, 'PNG', W/2 - lW/2, y, lW, lH);
+        y += lH + 8;
     } else {
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(14);
@@ -529,13 +534,13 @@ function pdfColabBox(doc, W, margin, y, colab) {
 function pdfEntregaTable(doc, W, margin, y, numRows) {
     const colW = [28, 28, 84, W - margin * 2 - 140];
     const heads = ['DATA', 'QUANTIDADE', 'DESCRIÇÃO DE E.P.I', 'ASSINATURA DO COLABORADOR'];
-    const hH = 7, rH = 6;
+    const hH = 8, rH = 7.5;
     doc.setFillColor(228, 235, 245);
     let cx = margin;
     heads.forEach((h, i) => {
         doc.setLineWidth(0.3); doc.rect(cx, y, colW[i], hH, 'FD');
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(0, 0, 0);
-        doc.text(h, cx + colW[i] / 2, y + 4.5, { align: 'center' }); cx += colW[i];
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(0, 0, 0);
+        doc.text(h, cx + colW[i] / 2, y + 5, { align: 'center' }); cx += colW[i];
     });
     y += hH;
     for (let r = 0; r < numRows; r++) {
@@ -556,7 +561,7 @@ function gerarDocEpi(template, colab, jsPDF) {
 
     const epis = template.epis || [];
     const colMid = W / 2 + 4;
-    const hdrH = 7, rowH = 5.5;
+    const hdrH = 8, rowH = 6.8;
     const numBodyRows = Math.max(epis.length + 5, 14);
     const bodyH = numBodyRows * rowH;
     const tableTop = y;
@@ -566,9 +571,9 @@ function gerarDocEpi(template, colab, jsPDF) {
     doc.setLineWidth(0.3);
     doc.rect(margin, tableTop, colMid - margin, hdrH, 'FD');
     doc.rect(colMid, tableTop, W - margin - colMid, hdrH, 'FD');
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(0, 0, 0);
-    doc.text('LISTA DE E.P.I NESCESSÁRIO', (margin + colMid) / 2, tableTop + 4.5, { align: 'center' });
-    doc.text('TERMO DE RESPONSABILIDADE', (colMid + W - margin) / 2, tableTop + 4.5, { align: 'center' });
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(0, 0, 0);
+    doc.text('LISTA DE E.P.I NESCESSÁRIO', (margin + colMid) / 2, tableTop + 5.5, { align: 'center' });
+    doc.text('TERMO DE RESPONSABILIDADE', (colMid + W - margin) / 2, tableTop + 5.5, { align: 'center' });
     y = tableTop + hdrH;
 
     doc.setLineWidth(0.25);
@@ -576,9 +581,9 @@ function gerarDocEpi(template, colab, jsPDF) {
     doc.rect(colMid, y, W - margin - colMid, bodyH);
 
     // Lista EPIs
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
     epis.forEach((epi, i) => {
-        const ry = y + (i * rowH) + rowH - 1.5;
+        const ry = y + (i * rowH) + rowH - 2;
         doc.text(epi, margin + 2, ry);
         doc.setLineWidth(0.1);
         doc.line(margin, y + (i + 1) * rowH, colMid, y + (i + 1) * rowH);
@@ -586,22 +591,22 @@ function gerarDocEpi(template, colab, jsPDF) {
 
     // Termo
     const termoItems = (template.termo_texto || TERMO_PADRAO).split('\n');
-    let termoY = y + 4;
-    doc.setFontSize(7.2);
+    let termoY = y + 5;
+    doc.setFontSize(8.5);
     termoItems.forEach(linha => {
-        const wrapped = doc.splitTextToSize(linha, W - margin - colMid - 4);
+        const wrapped = doc.splitTextToSize(linha, W - margin - colMid - 5);
         wrapped.forEach(l => {
-            if (termoY < y + bodyH - 20) { doc.text(l, colMid + 2, termoY); termoY += 3.5; }
+            if (termoY < y + bodyH - 20) { doc.text(l, colMid + 2.5, termoY); termoY += 4.2; }
         });
-        termoY += 1;
+        termoY += 2;
     });
 
     // Assinatura
-    const assinY = y + bodyH - 12;
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5);
+    const assinY = y + bodyH - 8;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
     doc.text('X', colMid + 8, assinY - 1);
     doc.setLineWidth(0.3); doc.line(colMid + 8, assinY, W - margin - 4, assinY);
-    doc.text('ASSINATURA DO EMPREGADO', (colMid + W - margin) / 2, assinY + 4, { align: 'center' });
+    doc.text('ASSINATURA DO EMPREGADO', (colMid + W - margin) / 2, assinY + 5, { align: 'center' });
 
     y = y + bodyH + 4;
     doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(0, 0, 0);
@@ -622,13 +627,32 @@ function gerarDocEpi(template, colab, jsPDF) {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
     doc.text(template.rodape_texto || 'LIBERAÇÃO DO EQUIPAMENTO DE SEGURANÇA SOMENTE APÓS ASSINATURA DESTE TERMO.', W / 2, y, { align: 'center' });
     y += 10;
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(0, 0, 0);
-    doc.text('Conferência:', margin, y); y += 5;
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(13, 71, 161);
-    doc.text('AMERICA RENTAL EQUIPAMENTOS LTDA', W / 2, y, { align: 'center' }); y += 5;
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(80, 80, 80);
-    doc.text('CNPJ: 03.434.449/0001-01', W / 2, y, { align: 'center' }); y += 3;
-    doc.setLineWidth(0.5); doc.line(W / 2 - 30, y, W / 2 + 30, y);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(0, 0, 0);
+    doc.text('Conferência:', margin, y); y += 4;
+    
+    // Configurações do Carimbo simulando a imagem em anexo
+    const stampW = 85;
+    const stampH = 26;
+    const stampX = doc.internal.pageSize.width / 2 - stampW / 2;
+    doc.setLineWidth(0.4);
+    doc.rect(stampX, y, stampW, stampH);
+    
+    if (headerLogoBase64 && headerLogoAspect) {
+        let slW = 42;
+        let slH = slW * headerLogoAspect;
+        if (slH > 14) { slH = 14; slW = slH / headerLogoAspect; }
+        doc.addImage(headerLogoBase64, 'PNG', stampX + stampW/2 - slW/2, y + 2.5, slW, slH);
+        let my = y + 2.5 + slH + 4;
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(0, 0, 0);
+        doc.text('AMÉRICA RENTAL EQUIPAMENTOS LTDA - ME', stampX + stampW/2, my, { align: 'center' });
+        doc.setFontSize(7);
+        doc.text('CNPJ: 03.434.448/0001-01', stampX + stampW/2, my + 4, { align: 'center' });
+    } else {
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(0, 0, 0);
+        doc.text('AMERICA RENTAL EQUIPAMENTOS LTDA', stampX + stampW/2, y + 10, { align: 'center' });
+        doc.setFontSize(7.5);
+        doc.text('CNPJ: 03.434.448/0001-01', stampX + stampW/2, y + 15, { align: 'center' });
+    }
 
     return doc;
 }
