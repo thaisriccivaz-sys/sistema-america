@@ -2737,10 +2737,10 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                     <div style="display: flex; gap: 0.5rem; align-items: flex-end;">
                         ${vencimentoInputHtml}
                         ${isSaved ? `
-                            ${!isAssinado ? `<button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height: 42px;"><i class="ph ph-eye"></i></button>` : ''}
-                            ${!isAssinado ? `<button type="button" class="btn btn-danger" onclick="deleteDoc(${existingDoc.id}, this)" title="Excluir" style="height: 42px;"><i class="ph ph-trash"></i></button>` : ''}
+                            ${(!isAssinado && !(tabId === 'Atestados' && isSaved)) ? `<button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height: 42px;"><i class="ph ph-eye"></i></button>` : ''}
+                            ${(!isAssinado && !(tabId === 'Atestados' && isSaved)) ? `<button type="button" class="btn btn-danger" onclick="deleteDoc(${existingDoc.id}, this)" title="Excluir" style="height: 42px;"><i class="ph ph-trash"></i></button>` : ''}
                         ` : ''}
-                        ${!isAssinado ? `
+                        ${(!isAssinado && !(tabId === 'Atestados' && isSaved)) ? `
                         <label class="btn ${isSaved ? 'btn-warning' : 'btn-primary'}" title="${isSaved ? 'Substituir' : 'Fazer Upload'}" style="height: 42px; display: flex; align-items: center;">
                             <i class="ph ph-upload-simple"></i> ${isSaved ? 'Substituir' : 'Upload'}
                             <input type="file" accept=".pdf" style="display:none;" onchange="const venc = this.closest('.doc-item').querySelector('.venc-input')?.value; if((${needsVencimento}) && !venc) { alert('Data de vencimento é obrigatória'); this.value=''; return; } uploadDocument(this, '${tabId}', '${docType}', ${year}, ${month}, venc)">
@@ -3318,6 +3318,18 @@ window.toggleAtestadoPeriodFields = function() {
     }
 }
 
+// Calcula data de término automaticamente
+window.calcAtestadoFim = function() {
+    const inicio = document.getElementById('atestado_inicio_dia')?.value;
+    const qtd = parseInt(document.getElementById('atestado_qtd_dias')?.value, 10) || 1;
+    const fimEl = document.getElementById('atestado_fim_dia');
+    if (!fimEl) return;
+    if (!inicio) { fimEl.value = ''; return; }
+    const d = new Date(inicio + 'T12:00:00');
+    d.setDate(d.getDate() + qtd - 1);
+    fimEl.value = d.toISOString().split('T')[0];
+};
+
 window.uploadAtestadoWithCID = async function(inputEl) {
     const file = inputEl.files[0];
     if (!file || !selectedCID) return;
@@ -3334,9 +3346,9 @@ window.uploadAtestadoWithCID = async function(inputEl) {
     const dd  = String(today.getDate()).padStart(2, '0');
     const mm  = String(today.getMonth() + 1).padStart(2, '0');
     const aa  = String(today.getFullYear()).slice(2);
-    const nomeNorm = (viewedColaborador.nome || 'COLAB').toUpperCase()
-        .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]+/g, '_');
-    const customName = `${selectedCID.code}_${dd}-${mm}-${aa}_${nomeNorm}`;
+    const nomeColabNorm = (viewedColaborador.nome_completo || viewedColaborador.nome || 'COLAB')
+        .toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]+/g, '_');
+    const customName = `${selectedCID.code}_${dd}-${mm}-${aa}_${nomeColabNorm}`;
 
     const typeIn = `${selectedCID.code} - ${selectedCID.desc.substring(0, 60)}`;
     const year = document.getElementById('atestados_year') ? document.getElementById('atestados_year').value : today.getFullYear().toString();
@@ -3372,26 +3384,39 @@ window.uploadAtestadoWithCID = async function(inputEl) {
             body: formData
         });
         if (res.ok) {
+            const inicioSaved = formData.get('atestado_inicio');
+            const fimSaved    = formData.get('atestado_fim');
             selectedCID = null;
             document.getElementById('cid-search').value = '';
-            // Atualizar status no objeto local e forçar re-render da barra de título se no futuro/hoje
-            const inicio = document.getElementById('atestado_inicio_dia').value;
-            const fim = document.getElementById('atestado_fim_dia').value;
-            if (tipo === 'dias' && inicio && fim) {
+            document.getElementById('atestado_inicio_dia').value = '';
+            if (document.getElementById('atestado_qtd_dias')) document.getElementById('atestado_qtd_dias').value = '1';
+            document.getElementById('atestado_fim_dia').value = '';
+
+            // Atualizar badge de status se atestado cobre hoje
+            if (tipo === 'dias' && inicioSaved && fimSaved) {
                 const todayStr = new Date().toISOString().split('T')[0];
-                if (todayStr >= inicio && todayStr <= fim) {
+                if (todayStr >= inicioSaved && todayStr <= fimSaved) {
                     viewedColaborador.status = 'Afastado';
-                    renderColaboradorHeader(); // renderiza a barra no topo
                 }
             }
+
             await loadDocumentosList();
             renderAtestadosAno();
+
+            // Toast de sucesso
+            const toast = document.createElement('div');
+            toast.innerHTML = '<i class="ph ph-check-circle"></i> Atestado enviado com sucesso!';
+            toast.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#2f9e44;color:#fff;padding:0.75rem 1.75rem;border-radius:10px;font-weight:600;font-size:0.95rem;z-index:99999;box-shadow:0 6px 20px rgba(0,0,0,0.25);display:flex;align-items:center;gap:0.5rem;';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3500);
+
         } else {
-            alert('Erro ao enviar atestado.');
+            const errData = await res.json().catch(() => ({}));
+            alert('Erro ao enviar atestado: ' + (errData.error || res.statusText));
         }
     } catch (e) { alert('Erro: ' + e.message); } finally {
         if (uploadBtn) { uploadBtn.style.opacity = ''; uploadBtn.style.pointerEvents = ''; }
-        if (uploadIcon)  uploadIcon.className = 'ph ph-upload-simple';
+        if (uploadIcon) uploadIcon.className = 'ph ph-upload-simple';
     }
 }
 
