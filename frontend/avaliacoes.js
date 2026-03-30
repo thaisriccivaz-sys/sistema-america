@@ -1,4 +1,4 @@
-const AVALIACAO_QUESTIONS = {
+﻿const AVALIACAO_QUESTIONS = {
     satisfacao: {
         motorista: {
             'Ambiente de trabalho': [
@@ -717,94 +717,209 @@ window.saveAvaliacao = async function(tipo, ano, trimestre, groupKey) {
     }
 };
 
-async function generateAndUploadEvaluationPDF(colabId, nome, tipo, ano, trimestre, groupKey, respostas) {
-    const nomeBase = tipo === 'desempenho' ? 'Avaliacao_de_Desempenho' : 'Avaliacao_de_Satisfacao';
-    const tipoText = tipo === 'desempenho' ? 'Avaliação de Desempenho' : 'Avaliação de Satisfação';
-    const safeNome = nome.replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_]/g, '');
-    const fileName = `${nomeBase}_${trimestre}_${ano}_${safeNome.toUpperCase()}.pdf`;
+// ============================================================
+// MOTOR DE PDF - usa jsPDF DIRETAMENTE (sem html2canvas)
+// Solução definitiva: gera o PDF programaticamente, sem DOM
+// ============================================================
+async function buildAvaliacaoPDF(nome, tipo, ano, trimestre, groupKey, respostas) {
+    // jsPDF está bundled no html2pdf.bundle.min.js como window.jspdf.jsPDF
+    const JsPDF = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+    if (!JsPDF) throw new Error('jsPDF não encontrado. Verifique se html2pdf.bundle.min.js está carregado.');
 
-    // Capturar gráficos ANTES (estão visíveis no DOM agora)
-    const graph1Canvas = document.getElementById('chart-competencias');
-    const graph2Canvas = document.getElementById('chart-medias');
-    const graph1img = graph1Canvas ? graph1Canvas.toDataURL('image/png') : '';
-    const graph2img = graph2Canvas ? graph2Canvas.toDataURL('image/png') : '';
+    const doc = new JsPDF('p', 'mm', 'a4');
+    const PW = 210; // largura A4 mm
+    const PH = 297; // altura A4 mm
+    const ML = 14;  // margem esquerda
+    const MR = 14;  // margem direita
+    const CW = PW - ML - MR; // largura do conteúdo
+    let y = 12;
 
-    // Capturar logo como base64 para evitar problema CORS no html2canvas
-    let logoBase64 = '';
+    // Cores
+    const C_BLUE   = [15, 76, 129];
+    const C_LBLUE  = [240, 247, 255];
+    const C_GRAY   = [71, 85, 105];
+    const C_LGRAY  = [248, 250, 252];
+    const C_WHITE  = [255, 255, 255];
+    const C_LINE   = [203, 213, 225];
+
+    const checkPage = (needed) => {
+        if (y + needed > PH - 12) { doc.addPage(); y = 12; }
+    };
+
+    // --- LOGO ---
     try {
         const resp = await fetch('/assets/logo-header.png');
         const blob = await resp.blob();
-        logoBase64 = await new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(blob); });
-    } catch(e) { logoBase64 = ''; }
+        const logoB64 = await new Promise(res => {
+            const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(blob);
+        });
+        const logoH = 22;
+        doc.addImage(logoB64, 'PNG', ML, y, CW, logoH);
+        y += logoH + 4;
+    } catch(e) { y += 3; }
 
-    // Calcular médias
-    let totalScore = 0, totalQuestions = 0;
+    // --- TÍTULO ---
+    const tipoText = tipo === 'desempenho' ? 'Avaliação de Desempenho' : 'Avaliação de Satisfação';
+    doc.setFontSize(15);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...C_BLUE);
+    doc.text(tipoText, PW / 2, y, { align: 'center' });
+    y += 6;
+
+    // --- SUBTÍTULO ---
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...C_GRAY);
+    doc.text(`Colaborador: ${nome}  |  Ano: ${ano}  |  ${trimestre}º Trimestre`, PW / 2, y, { align: 'center' });
+    y += 4;
+
+    // --- DIVISOR ---
+    doc.setDrawColor(...C_LINE);
+    doc.setLineWidth(0.4);
+    doc.line(ML, y, PW - MR, y);
+    y += 5;
+
+    // --- CATEGORIAS ---
     const cats = Object.keys(AVALIACAO_QUESTIONS[tipo][groupKey]);
-    const catStats = cats.map((cat, cIdx) => {
-        let catTotal = 0, catCount = 0;
+    let totalScore = 0, totalQs = 0;
+
+    cats.forEach((cat, cIdx) => {
         const questions = AVALIACAO_QUESTIONS[tipo][groupKey][cat];
+        let catTotal = 0, catCount = 0;
+
         const rows = questions.map((q, i) => {
-            const notaRaw = respostas[cat] ? respostas[cat][i] : null;
-            if (notaRaw) { catTotal += parseFloat(notaRaw); catCount++; }
-            return { q, nota: notaRaw || '-' };
+            const nota = respostas[cat] ? respostas[cat][i] : null;
+            if (nota) { catTotal += parseFloat(nota); catCount++; }
+            return { q: q || '', nota: nota || '-' };
         });
         const catAvg = catCount > 0 ? (catTotal / catCount).toFixed(2) : '0.00';
-        totalScore += catTotal; totalQuestions += catCount;
-        return { cat, catAvg, rows, cIdx };
-    });
-    const overallAvg = totalQuestions > 0 ? (totalScore / totalQuestions).toFixed(2) : '0.00';
+        totalScore += catTotal; totalQs += catCount;
 
-    // Montar div REAL no DOM para html2canvas capturar corretamente
-    // position:absolute no scroll atual, opacity quase-zero (não aparece para o user, mas html2canvas renderiza)
-    const wrapper = document.createElement('div');
-    const scrollY = window.scrollY || 0;
-    wrapper.style.cssText = `position:absolute; left:0; top:${scrollY}px; width:794px; background:#fff; font-family:Arial,sans-serif; color:#333; padding:20px; box-sizing:border-box; opacity:0.01; pointer-events:none; z-index:-1;`;
+        // Calcular altura necessária da categoria
+        const rowHeight = 7.5;
+        const catBlockH = 8 + rows.length * rowHeight;
+        checkPage(catBlockH);
 
-    let inner = '';
-    if (logoBase64) inner += `<div style="margin-bottom:10px;"><img src="${logoBase64}" style="width:100%; max-height:110px; object-fit:contain; display:block;"></div>`;
-    inner += `<h2 style="color:#0f4c81;font-size:20px;margin:0 0 4px;text-align:center;">${tipoText}</h2>`;
-    inner += `<p style="color:#64748b;font-size:13px;margin:0 0 12px;text-align:center;">Colaborador: <b>${nome}</b> | Ano: <b>${ano}</b> | ${trimestre}º Trimestre</p>`;
-    inner += `<hr style="border:0;border-top:1px solid #cbd5e1;margin-bottom:14px;">`;
+        // Cabeçalho da categoria
+        doc.setFillColor(...C_LBLUE);
+        doc.roundedRect(ML, y, CW, 8, 1.5, 1.5, 'F');
+        doc.setFontSize(9.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...C_BLUE);
+        doc.text(`${cIdx + 1}. ${cat}`, ML + 3, y + 5.5);
+        doc.text(`Média: ${catAvg}`, PW - MR - 3, y + 5.5, { align: 'right' });
+        y += 9;
 
-    catStats.forEach(({ cat, catAvg, rows, cIdx }) => {
-        inner += `<div style="page-break-inside:avoid;margin-bottom:12px;">`;
-        inner += `<div style="background:#f0f7ff;padding:6px 10px;border-left:4px solid #0f4c81;display:flex;justify-content:space-between;align-items:center;margin-bottom:0;">`;
-        inner += `<span style="font-weight:700;color:#0f4c81;font-size:12px;">${cIdx+1}. ${cat}</span>`;
-        inner += `<span style="font-weight:700;color:#0f4c81;font-size:11px;">Média: ${catAvg}</span></div>`;
-        inner += `<table style="width:100%;border-collapse:collapse;font-size:10px;">`;
-        rows.forEach(({ q, nota }) => {
-            inner += `<tr style="page-break-inside:avoid;"><td style="padding:4px 8px;border-bottom:1px solid #e2e8f0;color:#475569;">${q}</td><td style="padding:4px 8px;border-bottom:1px solid #e2e8f0;font-weight:700;text-align:right;color:#0f4c81;white-space:nowrap;">Nota: ${nota}</td></tr>`;
+        // Linhas de perguntas
+        rows.forEach(({ q, nota }, qi) => {
+            checkPage(rowHeight + 2);
+
+            // Fundo alternado
+            if (qi % 2 === 0) {
+                doc.setFillColor(...C_LGRAY);
+                doc.rect(ML, y - 1, CW, rowHeight, 'F');
+            }
+
+            // Texto da pergunta (com quebra de linha automática)
+            const maxQW = CW - 22;
+            const lines = doc.splitTextToSize(q, maxQW);
+            const rowH = Math.max(rowHeight, lines.length * 4 + 2);
+
+            // Verificar quebra de página para linhas longas
+            if (y + rowH > PH - 12) { doc.addPage(); y = 12; }
+
+            doc.setFontSize(8.5);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(...C_GRAY);
+            doc.text(lines, ML + 2, y + 4);
+
+            // Nota alinhada à direita
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(...C_BLUE);
+            doc.text(`Nota: ${nota}`, PW - MR - 2, y + 4, { align: 'right' });
+
+            // Linha separadora sutil
+            doc.setDrawColor(...C_LINE);
+            doc.setLineWidth(0.15);
+            doc.line(ML, y + rowH - 0.5, PW - MR, y + rowH - 0.5);
+
+            y += rowH;
         });
-        inner += `</table></div>`;
+
+        y += 3; // espaço entre categorias
     });
 
-    inner += `<div style="page-break-inside:avoid;margin-top:14px;background:#0f4c81;color:#fff;padding:10px 16px;border-radius:6px;text-align:right;">`;
-    inner += `<strong style="font-size:16px;">Média Total Alcançada: ${overallAvg}</strong></div>`;
+    // --- MÉDIA TOTAL ---
+    const overallAvg = totalQs > 0 ? (totalScore / totalQs).toFixed(2) : '0.00';
+    checkPage(14);
+    doc.setFillColor(...C_BLUE);
+    doc.roundedRect(ML, y, CW, 12, 2, 2, 'F');
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...C_WHITE);
+    doc.text(`Média Total Alcançada: ${overallAvg}`, PW - MR - 5, y + 8, { align: 'right' });
+    y += 16;
 
-    if (graph1img || graph2img) {
-        inner += `<div style="page-break-before:always;padding-top:16px;">`;
-        inner += `<h3 style="color:#0f4c81;text-align:center;margin-bottom:16px;border-bottom:2px solid #e2e8f0;padding-bottom:8px;">Análise Gráfica dos Resultados</h3>`;
-        if (graph1img) inner += `<div style="page-break-inside:avoid;margin-bottom:24px;text-align:center;"><p style="color:#475569;font-weight:700;margin-bottom:8px;">Desempenho por Categoria</p><img src="${graph1img}" style="width:100%;height:auto;"></div>`;
-        if (graph2img) inner += `<div style="page-break-inside:avoid;text-align:center;"><p style="color:#475569;font-weight:700;margin-bottom:8px;">Evolução Trimestral Geral</p><img src="${graph2img}" style="width:100%;height:auto;"></div>`;
-        inner += `</div>`;
+    // --- GRÁFICOS (nova página) ---
+    const graph1Canvas = document.getElementById('chart-competencias');
+    const graph2Canvas = document.getElementById('chart-medias');
+
+    if (graph1Canvas || graph2Canvas) {
+        doc.addPage();
+        y = 12;
+
+        doc.setFontSize(13);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...C_BLUE);
+        doc.text('Análise Gráfica dos Resultados', PW / 2, y, { align: 'center' });
+        y += 5;
+        doc.setDrawColor(...C_LINE);
+        doc.setLineWidth(0.4);
+        doc.line(ML, y, PW - MR, y);
+        y += 8;
+
+        const addGraph = (canvas, label) => {
+            if (!canvas) return;
+            try {
+                const imgData = canvas.toDataURL('image/png');
+                const ratio = canvas.width / canvas.height;
+                const maxW = CW;
+                const maxH = 90;
+                let imgW = maxW;
+                let imgH = imgW / ratio;
+                if (imgH > maxH) { imgH = maxH; imgW = imgH * ratio; }
+
+                checkPage(imgH + 15);
+                doc.setFontSize(9.5);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(...C_GRAY);
+                doc.text(label, PW / 2, y, { align: 'center' });
+                y += 5;
+
+                doc.addImage(imgData, 'PNG', ML + (CW - imgW) / 2, y, imgW, imgH);
+                y += imgH + 10;
+            } catch(e) { console.warn('Gráfico não pôde ser inserido:', e); }
+        };
+
+        addGraph(graph1Canvas, 'Desempenho por Categoria');
+        addGraph(graph2Canvas, 'Evolução Trimestral Geral');
     }
 
-    wrapper.innerHTML = inner;
-    document.body.appendChild(wrapper);
+    return doc;
+}
+
+// ============================================================
+// FUNÇÃO DE SALVAR (Upload automático)
+// ============================================================
+async function generateAndUploadEvaluationPDF(colabId, nome, tipo, ano, trimestre, groupKey, respostas) {
+    const nomeBase = tipo === 'desempenho' ? 'Avaliacao_de_Desempenho' : 'Avaliacao_de_Satisfacao';
+    const safeNome = nome.replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_]/g, '');
+    const fileName = `${nomeBase}_${trimestre}_${ano}_${safeNome.toUpperCase()}.pdf`;
 
     try {
-        const pdFOpt = {
-            margin:      [0, 0, 0, 0],
-            filename:    fileName,
-            image:       { type: 'jpeg', quality: 0.97 },
-            html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff', windowWidth: 794, scrollX: 0, scrollY: -scrollY },
-            jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
-            pagebreak:   { mode: ['css', 'legacy'], avoid: 'div' }
-        };
-        const pdfBlob = await html2pdf().set(pdFOpt).from(wrapper).output('blob');
-        document.body.removeChild(wrapper);
+        const doc = await buildAvaliacaoPDF(nome, tipo, ano, trimestre, groupKey, respostas);
+        const pdfBlob = doc.output('blob');
 
-        // upload to API
         const formData = new FormData();
         formData.append('file', new File([pdfBlob], fileName, { type: 'application/pdf' }));
         formData.append('colaborador_id', colabId.toString());
@@ -813,167 +928,81 @@ async function generateAndUploadEvaluationPDF(colabId, nome, tipo, ano, trimestr
         formData.append('year', ano.toString());
         formData.append('month', trimestre.toString());
 
-        const response = await fetch(`/api/documentos`, {
+        const response = await fetch('/api/documentos', {
             method: 'POST',
             headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') },
             body: formData
         });
         if (!response.ok) throw new Error(`Falha no upload: ${response.statusText}`);
-        console.log("PDF gerado e enviado com sucesso.");
+        console.log('PDF gerado e enviado com sucesso:', fileName);
     } catch(e) {
-        if (wrapper.parentNode) document.body.removeChild(wrapper);
-        console.error("Erro ao gerar PDF da Avaliação:", e);
+        console.error('Erro ao gerar PDF da Avaliação:', e);
     }
 }
 
+// ============================================================
+// BOTÃO VISUALIZAR - Abre PDF para download/preview
+// ============================================================
 window.viewAvaliacaoPDF = async function(tipo, ano, trimestre, groupKey) {
-    if (typeof html2pdf === 'undefined') {
-        alert("A ferramenta de PDF ainda não foi carregada. Tente novamente em instantes.");
+    if (typeof window.jspdf === 'undefined' && typeof window.jsPDF === 'undefined') {
+        alert('A biblioteca de PDF ainda não foi carregada. Aguarde e tente novamente.');
         return;
     }
 
-    const categories = Object.keys(AVALIACAO_QUESTIONS[tipo][groupKey]);
-    
-    // Pegar respostas fresco da API (ReferenceError fix)
     const colabId = viewedColaborador.id;
     const avaliacoes = await apiGet(`/colaboradores/${colabId}/avaliacoes`).catch(() => []);
     const av = avaliacoes.find(a => Number(a.ano) === Number(ano) && Number(a.trimestre) === Number(trimestre) && a.tipo === tipo);
     if (!av || !av.respostas_json) {
-        alert("Respostas não encontradas no servidor para gerar a visualização.");
+        alert('Respostas não encontradas no servidor para gerar a visualização.');
         return;
     }
     const respostas = JSON.parse(av.respostas_json);
-    
-    // Create an overlay UI while generating
+
+    // Overlay de carregamento
     const overlay = document.createElement('div');
     overlay.id = 'pdf-preview-avaliacao-overlay';
-    overlay.style.position = 'fixed';
-    overlay.style.top = '0'; overlay.style.left = '0'; overlay.style.width = '100vw'; overlay.style.height = '100vh';
-    overlay.style.backgroundColor = 'rgba(15, 23, 42, 0.95)';
-    overlay.style.zIndex = '999999';
-    overlay.style.display = 'flex'; overlay.style.flexDirection = 'column';
-    overlay.style.alignItems = 'center'; overlay.style.justifyContent = 'center';
-    
-    overlay.innerHTML = `<div style="color:#fff; font-size:1.2rem; display:flex; flex-direction:column; align-items:center; gap:1rem;">
-                            <i class="ph ph-spinner ph-spin" style="font-size:3rem; color:#0ea5e9;"></i>
-                            <span style="font-weight:600;">Processando a avaliação visual...</span>
-                         </div>`;
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(15,23,42,0.95);z-index:999999;display:flex;flex-direction:column;align-items:center;justify-content:center;';
+    overlay.innerHTML = `<div style="color:#fff;font-size:1.1rem;display:flex;flex-direction:column;align-items:center;gap:1rem;">
+        <div style="width:40px;height:40px;border:4px solid #0ea5e9;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+        <span style="font-weight:600;">Gerando PDF...</span>
+    </div>
+    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>`;
     document.body.appendChild(overlay);
 
-    // Reuse the HTML generator logic
-    const nomeBase = tipo === 'desempenho' ? 'Avaliacao_de_Desempenho' : 'Avaliacao_de_Satisfacao';
-    const tipoText = tipo === 'desempenho' ? 'Avaliação de Desempenho' : 'Avaliação de Satisfação';
-    const nome = viewedColaborador.nome_completo;
-    const safeNome = nome.replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_]/g, '');
-    const fileName = `${nomeBase}_${trimestre}_${ano}_${safeNome.toUpperCase()}.pdf`;
-
-    const graph1Canvas = document.getElementById('chart-competencias');
-    const graph2Canvas = document.getElementById('chart-medias');
-    const graph1img = graph1Canvas ? graph1Canvas.toDataURL('image/png') : '';
-    const graph2img = graph2Canvas ? graph2Canvas.toDataURL('image/png') : '';
-
-    let logoBase64 = '';
     try {
-        const resp = await fetch('/assets/logo-header.png');
-        const blob = await resp.blob();
-        logoBase64 = await new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(blob); });
-    } catch(e) { logoBase64 = ''; }
+        const nome = viewedColaborador.nome_completo;
+        const safeNome = nome.replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_]/g, '');
+        const nomeBase = tipo === 'desempenho' ? 'Avaliacao_de_Desempenho' : 'Avaliacao_de_Satisfacao';
+        const fileName = `${nomeBase}_${trimestre}_${ano}_${safeNome.toUpperCase()}.pdf`;
 
-    let totalScore = 0, totalQuestions = 0;
-    const cats = Object.keys(AVALIACAO_QUESTIONS[tipo][groupKey]);
-    const catStats = cats.map((cat, cIdx) => {
-        let catTotal = 0, catCount = 0;
-        const rows = AVALIACAO_QUESTIONS[tipo][groupKey][cat].map((q, i) => {
-            const notaRaw = respostas[cat] ? respostas[cat][i] : null;
-            if (notaRaw) { catTotal += parseFloat(notaRaw); catCount++; }
-            return { q, nota: notaRaw || '-' };
-        });
-        const catAvg = catCount > 0 ? (catTotal / catCount).toFixed(2) : '0.00';
-        totalScore += catTotal; totalQuestions += catCount;
-        return { cat, catAvg, rows, cIdx };
-    });
-    const overallAvg = totalQuestions > 0 ? (totalScore / totalQuestions).toFixed(2) : '0.00';
-
-    const wrapper = document.createElement('div');
-    const scrollY2 = window.scrollY || 0;
-    wrapper.style.cssText = `position:absolute; left:0; top:${scrollY2}px; width:794px; background:#fff; font-family:Arial,sans-serif; color:#333; padding:20px; box-sizing:border-box; opacity:0.01; pointer-events:none; z-index:-1;`;
-
-    let inner = '';
-    if (logoBase64) inner += `<div style="margin-bottom:10px;"><img src="${logoBase64}" style="width:100%; max-height:110px; object-fit:contain; display:block;"></div>`;
-    inner += `<h2 style="color:#0f4c81;font-size:20px;margin:0 0 4px;text-align:center;">${tipoText}</h2>`;
-    inner += `<p style="color:#64748b;font-size:13px;margin:0 0 12px;text-align:center;">Colaborador: <b>${nome}</b> | Ano: <b>${ano}</b> | ${trimestre}º Trimestre</p>`;
-    inner += `<hr style="border:0;border-top:1px solid #cbd5e1;margin-bottom:14px;">`;
-
-    catStats.forEach(({ cat, catAvg, rows, cIdx }) => {
-        inner += `<div style="page-break-inside:avoid;margin-bottom:12px;">`;
-        inner += `<div style="background:#f0f7ff;padding:6px 10px;border-left:4px solid #0f4c81;display:flex;justify-content:space-between;align-items:center;">`;
-        inner += `<span style="font-weight:700;color:#0f4c81;font-size:12px;">${cIdx+1}. ${cat}</span>`;
-        inner += `<span style="font-weight:700;color:#0f4c81;font-size:11px;">Média: ${catAvg}</span></div>`;
-        inner += `<table style="width:100%;border-collapse:collapse;font-size:10px;">`;
-        rows.forEach(({ q, nota }) => {
-            inner += `<tr style="page-break-inside:avoid;"><td style="padding:4px 8px;border-bottom:1px solid #e2e8f0;color:#475569;">${q}</td><td style="padding:4px 8px;border-bottom:1px solid #e2e8f0;font-weight:700;text-align:right;color:#0f4c81;white-space:nowrap;">Nota: ${nota}</td></tr>`;
-        });
-        inner += `</table></div>`;
-    });
-    inner += `<div style="page-break-inside:avoid;margin-top:14px;background:#0f4c81;color:#fff;padding:10px 16px;border-radius:6px;text-align:right;"><strong style="font-size:16px;">Média Total Alcançada: ${overallAvg}</strong></div>`;
-
-    if (graph1img || graph2img) {
-        inner += `<div style="page-break-before:always;padding-top:16px;">`;
-        inner += `<h3 style="color:#0f4c81;text-align:center;margin-bottom:16px;border-bottom:2px solid #e2e8f0;padding-bottom:8px;">Análise Gráfica dos Resultados</h3>`;
-        if (graph1img) inner += `<div style="page-break-inside:avoid;margin-bottom:24px;text-align:center;"><p style="color:#475569;font-weight:700;margin-bottom:8px;">Desempenho por Categoria</p><img src="${graph1img}" style="width:100%;height:auto;"></div>`;
-        if (graph2img) inner += `<div style="page-break-inside:avoid;text-align:center;"><p style="color:#475569;font-weight:700;margin-bottom:8px;">Evolução Trimestral Geral</p><img src="${graph2img}" style="width:100%;height:auto;"></div>`;
-        inner += `</div>`;
-    }
-
-    wrapper.innerHTML = inner;
-    document.body.appendChild(wrapper);
-
-    try {
-        const pdFOpt = {
-            margin:      [0, 0, 0, 0],
-            filename:    fileName,
-            image:       { type: 'jpeg', quality: 0.97 },
-            html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff', windowWidth: 794, scrollX: 0, scrollY: -scrollY2 },
-            jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
-            pagebreak:   { mode: ['css', 'legacy'], avoid: 'div' }
-        };
-        const pdfBlob = await html2pdf().set(pdFOpt).from(wrapper).output('blob');
-        document.body.removeChild(wrapper);
-
+        const doc = await buildAvaliacaoPDF(nome, tipo, ano, trimestre, groupKey, respostas);
+        const pdfBlob = doc.output('blob');
         const blobUrl = URL.createObjectURL(pdfBlob);
+
         overlay.style.justifyContent = 'flex-start';
         overlay.innerHTML = `
-            <div style="width:100%; padding:15px 30px; background:#1e293b; display:flex; justify-content:space-between; align-items:center; box-shadow:0 4px 10px rgba(0,0,0,0.5); z-index:2;">
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <i class="ph ph-file-pdf" style="color:#0ea5e9; font-size:1.8rem;"></i>
-                    <h3 style="margin:0; color:#fff; font-size:1.1rem; font-weight:600;">${fileName}</h3>
+            <div style="width:100%;padding:14px 28px;background:#1e293b;display:flex;justify-content:space-between;align-items:center;box-shadow:0 4px 10px rgba(0,0,0,0.5);flex-shrink:0;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <i class="ph ph-file-pdf" style="color:#0ea5e9;font-size:1.8rem;"></i>
+                    <h3 style="margin:0;color:#fff;font-size:1rem;font-weight:600;">${fileName}</h3>
                 </div>
-                <div style="display:flex; gap:15px; align-items:center;">
-                    <a href="${blobUrl}" download="${fileName}" style="background:#10b981; color:#fff; border:none; padding:8px 20px; border-radius:6px; font-weight:700; cursor:pointer; text-decoration:none; display:flex; align-items:center; gap:8px; font-size:0.95rem;">
-                        <i class="ph ph-download-simple"></i> Baixar e Compartilhar
+                <div style="display:flex;gap:12px;align-items:center;">
+                    <a href="${blobUrl}" download="${fileName}" style="background:#10b981;color:#fff;border:none;padding:8px 18px;border-radius:7px;font-weight:700;cursor:pointer;text-decoration:none;display:flex;align-items:center;gap:7px;font-size:0.9rem;">
+                        <i class="ph ph-download-simple"></i> Baixar PDF
                     </a>
-                    <button onclick="document.getElementById('pdf-preview-avaliacao-overlay').remove(); URL.revokeObjectURL('${blobUrl}');" style="background:#ef4444; color:#fff; border:none; padding:8px 20px; border-radius:6px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:8px; font-size:0.95rem;">
-                        <i class="ph ph-x"></i> Fechar Prévia
+                    <button onclick="document.getElementById('pdf-preview-avaliacao-overlay').remove();URL.revokeObjectURL('${blobUrl}');" style="background:#ef4444;color:#fff;border:none;padding:8px 18px;border-radius:7px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:7px;font-size:0.9rem;">
+                        <i class="ph ph-x"></i> Fechar
                     </button>
                 </div>
             </div>
-            <div style="flex:1; width:100%; display:flex; justify-content:center; padding:20px; box-sizing:border-box;">
-                <iframe src="${blobUrl}#view=FitH" style="width:100%; max-width:1000px; height:100%; border:none; border-radius:8px; background:#fff; box-shadow:0 10px 40px rgba(0,0,0,0.4);"></iframe>
+            <div style="flex:1;width:100%;display:flex;justify-content:center;padding:20px;box-sizing:border-box;">
+                <iframe src="${blobUrl}" style="width:100%;max-width:1000px;height:100%;border:none;border-radius:8px;box-shadow:0 10px 40px rgba(0,0,0,0.4);"></iframe>
             </div>
         `;
     } catch(e) {
-        if (wrapper.parentNode) document.body.removeChild(wrapper);
-        alert("Erro ao montar PDF para visualização: " + e.message);
-        if(document.body.contains(overlay)) overlay.remove();
+        alert('Erro ao gerar PDF: ' + e.message);
+        if (document.body.contains(overlay)) overlay.remove();
     }
 }
 
-window.deleteAvaliacao = async function(id) {
-    if (!confirm('Deseja realmente apagar a avaliação? Todos os dados serão perdidos.')) return;
-    try {
-        await apiDelete(`/avaliacoes/${id}`);
-        renderAvaliacaoTab(document.getElementById('docs-list-container'));
-    } catch(e) {
-        alert('Erro ao deletar: ' + e.message);
-    }
-};
+win
