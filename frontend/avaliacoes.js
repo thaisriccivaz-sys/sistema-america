@@ -477,7 +477,8 @@ window.renderAvaliacaoTab = async function(container) {
         const anoAtual = dateRightNow.getFullYear();
         const mesAtual = dateRightNow.getMonth() + 1; // 1 a 12
 
-        for (let t=1; t<=4; t++) {
+        const maxTrim = tipo === 'experiencia' ? 1 : 4;
+        for (let t=1; t<=maxTrim; t++) {
             // Todos os trimestres ficam liberados para preenchimento a pedido do usuário
             const hasData = trimestersOverall[t] !== null;
 
@@ -501,7 +502,7 @@ window.renderAvaliacaoTab = async function(container) {
                 <div style="flex:1; min-width:200px; background:#fff; border:1px solid ${hasData?'#0ea5e9':'#cbd5e1'}; border-radius:8px; padding:1.2rem; text-align:center; box-shadow:0 2px 4px rgba(0,0,0,0.05); position:relative;">
                     ${perc > 0 ? `<div style="position:absolute; top:-10px; right:-10px; background:${isFull?'#16a34a':'#f59e0b'}; color:#fff; width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(0,0,0,0.2); font-size:0.7rem; font-weight:700;">${perc}%</div>` : ''}
                     <h6 style="margin:0 0 0.3rem; color:#0f4c81; font-size:0.75rem; text-transform:uppercase; opacity:0.8;">${tipo==='desempenho'?'Avaliação de Desempenho':(tipo==='experiencia'?'Avaliação de Experiência':'Avaliação de Satisfação')}</h6>
-                    <h5 style="margin:0 0 0.5rem; color:#334155;">${trimestreToMonth[t]}</h5>
+                    <h5 style="margin:0 0 0.5rem; color:#334155;">${tipo==='experiencia' ? 'Realizar Avaliação' : trimestreToMonth[t]}</h5>
                     ${hasData ? `<p style="font-size:1.5rem; font-weight:800; color:#16a34a; margin:0 0 1rem;">${tipo==='experiencia' ? Math.round(trimestersOverall[t]) : trimestersOverall[t].toFixed(1)} <sub style="font-size:0.7rem;color:#64748b;">${tipo==='experiencia'?'Soma Total':'Média'}</sub></p>` : `<p style="font-size:0.85rem; color:#94a3b8; margin:0 0 1rem;">Disponível para Preenchimento</p>`}
                     <div style="display:flex; gap:0.5rem; justify-content:center; flex-wrap:wrap;">
                         <button onclick="openFormAvaliacao('${tipo}', ${year}, ${t}, '${safeGroupKey}')" style="background:${isFull?'#0f4c81':'#0ea5e9'}; color:#fff; border:none; padding:0.4rem 0.8rem; border-radius:4px; cursor:pointer; font-size:0.8rem; flex:1;">
@@ -545,8 +546,8 @@ window.renderAvaliacaoTab = async function(container) {
                             <i class="ph ph-medal" style="font-size:1.2rem;"></i> Experiência
                         </button>
                     </div>
-                    <!-- Departamento / Grupo de perguntas -->
-                    <div style="display:flex; align-items:center; gap:0.6rem;">
+                    <!-- Departamento / Grupo de perguntas - REMOVIDO CONFORME SOLICITACAO -->
+                    <div style="display:none; align-items:center; gap:0.6rem;">
                         <i class="ph ph-buildings" style="color:#0f4c81; font-size:1.1rem;"></i>
                         <label style="font-size:0.85rem; font-weight:700; color:#0f4c81; white-space:nowrap;">Formulário para:</label>
                         <select onchange="window.tabPersistence['${tipo === 'satisfacao' ? pkSat : (tipo === 'experiencia' ? pkExp : pkDes)}']=this.value; renderAvaliacaoTab(document.getElementById('docs-list-container'));" style="padding:0.4rem 0.75rem; border-radius:6px; border:1.5px solid #0f4c81; font-weight:600; background:#eff6ff; color:#0f4c81; cursor:pointer; font-size:0.88rem;">
@@ -565,14 +566,16 @@ window.renderAvaliacaoTab = async function(container) {
 
             <!-- Charts Container -->
             <div style="display:flex; gap:1.5rem; margin-bottom:2rem; flex-wrap:wrap;">
-                <div style="flex:1; min-width:300px; background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
-                    <h5 style="margin:0 0 1rem; text-align:center; color:#334155; font-size:1.1rem;">Desempenho por Categoria Trimestral</h5>
+                <div style="flex:${tipo === 'experiencia' ? 'none; width:100%' : '1; min-width:300px'}; background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+                    <h5 style="margin:0 0 1rem; text-align:center; color:#334155; font-size:1.1rem;">${tipo === 'experiencia' ? 'Desempenho por Categoria' : 'Desempenho por Categoria Trimestral'}</h5>
                     <div style="position:relative; height:500px;"><canvas id="chart-competencias"></canvas></div>
                 </div>
+                ${tipo === 'experiencia' ? '' : `
                 <div style="flex:1; min-width:300px; background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
                     <h5 style="margin:0 0 1rem; text-align:center; color:#334155; font-size:1.1rem;">Evolução Trimestral Geral</h5>
                     <div style="position:relative; height:500px;"><canvas id="chart-medias"></canvas></div>
                 </div>
+                `}
             </div>
 
             ${actionsHtml}
@@ -592,10 +595,13 @@ window.renderAvaliacaoTab = async function(container) {
             ];
             const legendLabelsTrim = { 1: '1º Trimestre', 2: '2º Trimestre', 3: '3º Trimestre', 4: '4º Trimestre' };
 
-            [1, 2, 3, 4].forEach(t => {
-                const dataPoints = categories.map(cat => trimestersData[t][cat] ? parseFloat(trimestersData[t][cat].toFixed(2)) : null); // null para nao desenhar barra se nao preenchido
+            const maxDatasetTrim = tipo === 'experiencia' ? 1 : 4;
+            const trimsArray = Array.from({length: maxDatasetTrim}, (_, i) => i + 1);
+
+            trimsArray.forEach(t => {
+                const dataPoints = categories.map(cat => trimestersData[t][cat] ? parseFloat(trimestersData[t][cat].toFixed(2)) : null);
                 datasetsBar.push({
-                    label: legendLabelsTrim[t],
+                    label: tipo === 'experiencia' ? 'Pontuação Oitda' : legendLabelsTrim[t],
                     data: dataPoints,
                     backgroundColor: barColors[t-1].bg,
                     borderColor: barColors[t-1].border,
@@ -609,11 +615,20 @@ window.renderAvaliacaoTab = async function(container) {
             if (chartDonut) chartDonut.destroy();
             const ctxDonut = document.getElementById('chart-competencias')?.getContext('2d');
             if (ctxDonut) {
-                // Gráfico 1: Desempenho por Categoria Cruzada (Agrupado por Trimestre)
+                // Formatação multi-linhas (split em duas partes se >2 palavras)
+                const formattedLabels = categoriesList.map(c => {
+                    const words = c.trim().split(/\s+/);
+                    if (words.length > 2) {
+                        const mid = Math.ceil(words.length / 2);
+                        return [words.slice(0, mid).join(' '), words.slice(mid).join(' ')];
+                    }
+                    return c;
+                });
+
                 chartDonut = new Chart(ctxDonut, {
                     type: 'bar',
                     data: {
-                        labels: categoriesList,
+                        labels: formattedLabels,
                         datasets: datasetsBar
                     },
                     options: { 
