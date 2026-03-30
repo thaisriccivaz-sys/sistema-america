@@ -5855,7 +5855,19 @@ window.abrirModalAssinaturaTestemunhas = async function(docId) {
     formArea.style.display = 'none';
     modal.style.display = 'block';
 
-    const cols = await apiGet('/colaboradores');
+    const baseUrlAPI = API_URL;
+    let cols = [];
+    try {
+        const res = await fetch(`${baseUrlAPI}/colaboradores`, {
+            headers: { 'Authorization': `Bearer ${currentToken}` }
+        });
+        if (res.ok) {
+            cols = await res.json();
+        }
+    } catch (e) {
+        console.error("Erro ao buscar colaboradores", e);
+    }
+    
     // Filter active
     const ativos = (cols || []).filter(c => {
         let st = c.status;
