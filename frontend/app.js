@@ -2122,8 +2122,11 @@ window.anexarAdvertenciaAoProntuario = async function() {
         const logoSrc = `${apiBase}/assets/logo-header.png`;
         const data = window._advertenciaData;
 
+        const wrapper = document.createElement('div');
+        wrapper.style.cssText = 'position:absolute; width:0; height:0; overflow:hidden; z-index:-9999; left:0; top:0;';
+        
         const a4 = document.createElement('div');
-        a4.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;min-height:1123px;' +
+        a4.style.cssText = 'width:794px;min-height:1123px;' +
             'padding:48px 56px;box-sizing:border-box;background:#fff;color:#111;' +
             'font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.5;';
 
@@ -2148,7 +2151,8 @@ window.anexarAdvertenciaAoProntuario = async function() {
             </div>
         `;
 
-        document.body.appendChild(a4);
+        wrapper.appendChild(a4);
+        document.body.appendChild(wrapper);
 
         // Aguardar logo carregar
         const logoImg = a4.querySelector('img');
@@ -2162,12 +2166,12 @@ window.anexarAdvertenciaAoProntuario = async function() {
             margin:       [0,0,0,0],
             filename:     nomeArquivo,
             image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true, width: 794, windowWidth: 794 },
+            html2canvas:  { scale: 2, useCORS: true, width: 794, windowWidth: 794, scrollX: 0, scrollY: 0 },
             jsPDF:        { unit: 'px', format: [794, 1123], orientation: 'portrait' }
         };
 
         const pdfBlob = await html2pdf().set(opt).from(a4).output('blob');
-        document.body.removeChild(a4);
+        document.body.removeChild(wrapper);
         const file = new File([pdfBlob], nomeArquivo, { type: 'application/pdf' });
 
         const formData = new FormData();
