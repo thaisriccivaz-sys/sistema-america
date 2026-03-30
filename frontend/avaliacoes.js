@@ -403,13 +403,13 @@ window.renderAvaliacaoTab = async function(container) {
             actionsHtml += `
                 <div style="flex:1; min-width:200px; background:#fff; border:1px solid ${hasData?'#0ea5e9':'#cbd5e1'}; border-radius:8px; padding:1.2rem; text-align:center; box-shadow:0 2px 4px rgba(0,0,0,0.05); position:relative;">
                     ${perc > 0 ? `<div style="position:absolute; top:-10px; right:-10px; background:${isFull?'#16a34a':'#f59e0b'}; color:#fff; width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(0,0,0,0.2); font-size:0.7rem; font-weight:700;">${perc}%</div>` : ''}
+                    <h6 style="margin:0 0 0.3rem; color:#0f4c81; font-size:0.75rem; text-transform:uppercase; opacity:0.8;">${tipo==='desempenho'?'Avaliação de Desempenho':'Avaliação de Satisfação'}</h6>
                     <h5 style="margin:0 0 0.5rem; color:#334155;">${trimestreToMonth[t]}</h5>
                     ${hasData ? `<p style="font-size:1.5rem; font-weight:800; color:#16a34a; margin:0 0 1rem;">${trimestersOverall[t].toFixed(1)} <sub style="font-size:0.7rem;color:#64748b;">Média</sub></p>` : `<p style="font-size:0.85rem; color:#94a3b8; margin:0 0 1rem;">Disponível para Preenchimento</p>`}
                     <div style="display:flex; gap:0.5rem; justify-content:center;">
                         <button onclick="openFormAvaliacao('${tipo}', ${year}, ${t}, '${groupKey}')" style="background:${isFull?'#0f4c81':'#0ea5e9'}; color:#fff; border:none; padding:0.4rem 0.8rem; border-radius:4px; cursor:pointer; font-size:0.8rem; flex:1;">
                             <i class="ph ph-note-pencil"></i> ${hasData ? (isFull ? 'Editar' : 'Continuar') : 'Preencher'}
                         </button>
-                        ${hasData ? `<button onclick="deleteAvaliacao(${avId})" style="background:#ef4444; color:#fff; border:none; padding:0.4rem; border-radius:4px; cursor:pointer; font-size:1rem; display:flex; align-items:center;"><i class="ph ph-trash"></i></button>` : ''}
                     </div>
                 </div>
             `;
@@ -669,20 +669,36 @@ window.saveAvaliacao = async function(tipo, ano, trimestre, groupKey) {
     const respostas = {};
     const errSpan = document.getElementById('form-av-error');
     
+    let totalQ = 0;
+    let ansQ = 0;
+
     categories.forEach((cat, catIdx) => {
         respostas[cat] = {};
         AVALIACAO_QUESTIONS[tipo][groupKey][cat].forEach((q, i) => {
+            totalQ++;
             const rads = form.elements[`av_${catIdx}_${i}`];
             if (rads && rads.length) {
                 const selected = Array.from(rads).find(r => r.checked);
-                if (selected) respostas[cat][i] = selected.value;
+                if (selected) {
+                    respostas[cat][i] = selected.value;
+                    ansQ++;
+                }
             }
         });
     });
 
+    const is100Percent = (totalQ > 0 && ansQ === totalQ);
+
     try {
         errSpan.textContent = 'Salvando...';
         await apiPost('/avaliacoes', { colaborador_id: viewedColaborador.id, tipo, ano, trimestre, respostas_json: JSON.stringify(respostas) });
+        
+        // Se estiver 100%, gera o PDF e salva
+        if (is100Percent && typeof html2pdf !== 'undefined') {
+            errSpan.textContent = 'Gerando PDF...';
+            await generateAndUploadEvaluationPDF(viewedColaborador.id, viewedColaborador.nome_completo, tipo, ano, trimestre, groupKey, respostas);
+        }
+
         document.getElementById('modal-avaliacao').remove();
         renderAvaliacaoTab(document.getElementById('docs-list-container'));
         alert('Avaliação do ' + trimestre + 'º trimestre salva!');
@@ -691,6 +707,78 @@ window.saveAvaliacao = async function(tipo, ano, trimestre, groupKey) {
         alert('Erro ao salvar avaliação: ' + e.message);
     }
 };
+
+async function generateAndUploadEvaluationPDF(colabId, nome, tipo, ano, trimestre, groupKey, respostas) {
+    const tipoText = tipo === 'desempenho' ? 'Avaliação de Desempenho' : 'Avaliação de Satisfação';
+    let html = `
+        <div style="font-family: Arial, sans-serif; padding: 40px; color: #333; width: 800px; box-sizing: border-box; background: #fff;">
+            <div style="text-align:center; margin-bottom: 30px;">
+                <img src="/logo.png" style="max-width:200px; max-height:80px;" onerror="this.style.display='none'">
+                <h2 style="color: #0f4c81; font-size: 24px; margin: 15px 0 5px;">${tipoText}</h2>
+                <h4 style="color: #64748b; font-size: 16px; margin: 0; font-weight: 500;">
+                    Colaborador: <b>${nome}</b> | Ano: <b>${ano}</b> | Trimestre: <b>${trimestre}º</b>
+                </h4>
+            </div>
+            <hr style="border: 0; border-top: 1px solid #cbd5e1; margin-bottom: 20px;">
+    `;
+    
+    // iterate over questions and answers
+    const cats = Object.keys(AVALIACAO_QUESTIONS[tipo][groupKey]);
+    cats.forEach((cat, cIdx) => {
+        html += `<h4 style="background:#f8fafc; color:#0f4c81; padding:8px 12px; margin-top:20px; font-size: 14px; border-left: 4px solid #0f4c81; margin-bottom: 5px;">${cIdx+1}. ${cat}</h4>`;
+        html += `<table style="width:100%; border-collapse: collapse; font-size:12px; margin-bottom: 10px;">`;
+        AVALIACAO_QUESTIONS[tipo][groupKey][cat].forEach((q, i) => {
+            const nota = respostas[cat] ? respostas[cat][i] : '-';
+            html += `<tr>
+                <td style="padding: 8px 10px; border-bottom:1px solid #e2e8f0; width:85%; color: #475569;">${q}</td>
+                <td style="padding: 8px 10px; border-bottom:1px solid #e2e8f0; font-weight:bold; text-align:center; color: #0f4c81;">Nota: ${nota}</td>
+            </tr>`;
+        });
+        html += `</table>`;
+    });
+    html += `</div>`;
+
+    const el = document.createElement('div');
+    el.innerHTML = html;
+    // O html2pdf exige que o elemento seja acessível mas pode estar fora da visão
+    el.style.position = 'absolute';
+    el.style.top = '-9999px';
+    document.body.appendChild(el);
+
+    const safeNome = nome.replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_]/g, '');
+    const fileName = tipo === 'desempenho' 
+        ? `Desempenho${trimestre}_${safeNome}.pdf` 
+        : `Satisfacao${trimestre}_${safeNome}.pdf`;
+
+    try {
+        const pdFOpt = {
+            margin:       0.5,
+            filename:     fileName,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true },
+            jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+        };
+        const pdfBlob = await html2pdf().set(pdFOpt).from(el).output('blob');
+        
+        // upload to API
+        const formData = new FormData();
+        formData.append('document', new File([pdfBlob], fileName, { type: 'application/pdf' }));
+        formData.append('document_type', tipo === 'desempenho' ? 'Avaliação de Desempenho' : 'Avaliação de Satisfação');
+        formData.append('tab_name', 'AVALIACAO'); // AVALIACAO se tornará o folder da tab
+        formData.append('year', ano.toString());
+
+        await fetch(`/api/colaboradores/${colabId}/documentos`, {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') },
+            body: formData
+        });
+        console.log("PDF generated and uploaded via API successfully.");
+    } catch(e) {
+        console.error("Erro ao gerar PDF da Avaliação:", e);
+    } finally {
+        if(document.body.contains(el)) document.body.removeChild(el);
+    }
+}
 
 window.deleteAvaliacao = async function(id) {
     if (!confirm('Deseja realmente apagar a avaliação? Todos os dados serão perdidos.')) return;
