@@ -424,26 +424,28 @@ window.renderAvaliacaoTab = async function(container) {
 
         // Renderizar a tela de fato
         container.innerHTML = `
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0; flex-wrap:wrap; gap:1rem;">
                 <div style="display:flex; align-items:center; gap:0.5rem;">
                     <i class="ph ph-chart-bar" style="color:#0ea5e9; font-size: 1.5rem;"></i>
                     <h4 style="margin:0; color:#1e293b;">Painel de Avaliações</h4>
                 </div>
                 
-                <div style="display:flex; align-items:center; gap:1rem;">
-                    <div style="display:flex; align-items:center; gap:0.5rem;">
-                        <label style="font-size:0.9rem; font-weight:600; color:#475569;">Tipo:</label>
-                        <select id="av-tipo-select" style="padding:0.4rem; border-radius:6px; border:1px solid #cbd5e1; font-weight:500;" onchange="window.tabPersistence['av-tipo-select']=this.value; renderAvaliacaoTab(document.getElementById('docs-list-container'));">
-                            <option value="desempenho" ${tipo==='desempenho'?'selected':''}>Avaliação de Desempenho</option>
-                            <option value="satisfacao" ${tipo==='satisfacao'?'selected':''}>Avaliação de Satisfação</option>
-                        </select>
-                    </div>
-                    <div style="display:flex; align-items:center; gap:0.5rem;">
-                        <label style="font-size:0.9rem; font-weight:600; color:#475569;">Ano:</label>
-                        <select id="av-year-select" style="padding:0.4rem; border-radius:6px; border:1px solid #cbd5e1; font-weight:500;" onchange="window.tabPersistence['av-year-select']=this.value; renderAvaliacaoTab(document.getElementById('docs-list-container'));">
-                            ${anos.map(y => `<option value="${y}" ${year===y?'selected':''}>${y}</option>`).join('')}
-                        </select>
-                    </div>
+                <div style="display:flex; align-items:center; gap:0.5rem; background:#fff; padding:0.3rem; border-radius:8px; border:1px solid #cbd5e1; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                    <button onclick="window.tabPersistence['av-tipo-select']='desempenho'; renderAvaliacaoTab(document.getElementById('docs-list-container'));" 
+                            style="display:flex; align-items:center; gap:0.5rem; border:none; border-radius:6px; padding:0.6rem 1rem; font-weight:600; cursor:pointer; transition:all 0.2s; font-size:0.9rem; ${tipo === 'desempenho' ? 'background:#0ea5e9; color:#fff; box-shadow:0 2px 4px rgba(14,165,233,0.3);' : 'background:transparent; color:#64748b;'}">
+                        <i class="ph ph-trend-up" style="font-size:1.2rem;"></i> Avaliação de Desempenho
+                    </button>
+                    <button onclick="window.tabPersistence['av-tipo-select']='satisfacao'; renderAvaliacaoTab(document.getElementById('docs-list-container'));" 
+                            style="display:flex; align-items:center; gap:0.5rem; border:none; border-radius:6px; padding:0.6rem 1rem; font-weight:600; cursor:pointer; transition:all 0.2s; font-size:0.9rem; ${tipo === 'satisfacao' ? 'background:#8b5cf6; color:#fff; box-shadow:0 2px 4px rgba(139,92,246,0.3);' : 'background:transparent; color:#64748b;'}">
+                        <i class="ph ph-smiley" style="font-size:1.2rem;"></i> Avaliação de Satisfação
+                    </button>
+                </div>
+                
+                <div style="display:flex; align-items:center; gap:0.5rem;">
+                    <label style="font-size:0.9rem; font-weight:600; color:#475569;">Ano Base:</label>
+                    <select id="av-year-select" style="padding:0.5rem; border-radius:6px; border:1px solid #cbd5e1; font-weight:600; background:#fff; color:#334155; cursor:pointer;" onchange="window.tabPersistence['av-year-select']=this.value; renderAvaliacaoTab(document.getElementById('docs-list-container'));">
+                        ${anos.map(y => `<option value="${y}" ${year===y?'selected':''}>${y}</option>`).join('')}
+                    </select>
                 </div>
             </div>
 
@@ -469,16 +471,17 @@ window.renderAvaliacaoTab = async function(container) {
             const categoriesList = categories;
             const datasetsBar = [];
             const barColors = [
-                { bg: 'rgba(56, 189, 248, 0.8)', border: '#38bdf8' }, // 1º Trim
-                { bg: 'rgba(14, 165, 233, 0.8)',  border: '#0ea5e9' }, // 2º Trim
-                { bg: 'rgba(2, 132, 199, 0.8)', border: '#0284c7' }, // 3º Trim
-                { bg: 'rgba(7, 89, 133, 0.8)',  border: '#075985' }  // 4º Trim
+                { bg: 'rgba(14, 165, 233, 0.9)', border: '#0ea5e9' }, // 1º Trim: Azul
+                { bg: 'rgba(168, 85, 247, 0.9)', border: '#a855f7' }, // 2º Trim: Roxo
+                { bg: 'rgba(34, 197, 94, 0.9)', border: '#22c55e' }, // 3º Trim: Verde
+                { bg: 'rgba(236, 72, 153, 0.9)', border: '#ec4899' }  // 4º Trim: Rosa
             ];
+            const legendLabelsTrim = { 1: '1º Trimestre', 2: '2º Trimestre', 3: '3º Trimestre', 4: '4º Trimestre' };
 
             [1, 2, 3, 4].forEach(t => {
                 const dataPoints = categories.map(cat => trimestersData[t][cat] ? parseFloat(trimestersData[t][cat].toFixed(2)) : null); // null para nao desenhar barra se nao preenchido
                 datasetsBar.push({
-                    label: trimestreToMonth[t],
+                    label: legendLabelsTrim[t],
                     data: dataPoints,
                     backgroundColor: barColors[t-1].bg,
                     borderColor: barColors[t-1].border,
