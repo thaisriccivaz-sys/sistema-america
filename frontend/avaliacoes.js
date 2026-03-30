@@ -1,4 +1,4 @@
-﻿const AVALIACAO_QUESTIONS = {
+const AVALIACAO_QUESTIONS = {
     satisfacao: {
         motorista: {
             'Ambiente de trabalho': [
@@ -304,29 +304,45 @@ window.renderAvaliacaoTab = async function(container) {
     if (!viewedColaborador) return;
     const colabId = viewedColaborador.id;
     const dept = viewedColaborador.departamento || viewedColaborador.cargo || '';
-    
-    // Identificar qual grupo usar
-    let selectedGroupSatisfacao = 'escritorio';
-    let selectedGroupDesempenho = 'geral';
+
+    // Identificar qual grupo usar para satisfação e desempenho (auto-detectado pelo departamento)
+    let defaultSatisfacao = 'escritorio';
+    let defaultDesempenho = 'geral';
     const dLower = dept.toLowerCase();
-    
-    if (dLower.includes('motorista') || dLower.includes('ajudante')) selectedGroupSatisfacao = 'motorista';
-    else if (dLower.includes('manuten')) selectedGroupSatisfacao = 'manutencao';
-    
-    if (dLower.includes('lideran') || dLower.includes('líder')) selectedGroupDesempenho = 'lideranca';
-    
-    // Persistencia do tipo e ano selecionado
+    if (dLower.includes('motorista') || dLower.includes('ajudante')) defaultSatisfacao = 'motorista';
+    else if (dLower.includes('manuten')) defaultSatisfacao = 'manutencao';
+    if (dLower.includes('lideran') || dLower.includes('líder') || dLower.includes('lider')) defaultDesempenho = 'lideranca';
+
+    // Montar lista de grupos disponíveis por tipo
+    const groupOptionsSatisfacao = Object.keys(AVALIACAO_QUESTIONS.satisfacao);
+    const groupOptionsDesempenho = Object.keys(AVALIACAO_QUESTIONS.desempenho);
+
+    // Persistência de tipo, ano e grupo
+    if (!window.tabPersistence) window.tabPersistence = {};
     const currentYear = new Date().getFullYear();
     const dataAdmissao = viewedColaborador.data_admissao ? new Date(viewedColaborador.data_admissao).getFullYear() : currentYear;
     const anos = [];
     for (let y = dataAdmissao; y <= currentYear; y++) anos.push(y);
     if (!anos.includes(currentYear)) anos.push(currentYear);
-    
-    let selectedYear = window.tabPersistence && window.tabPersistence['av-year-select'] ? parseInt(window.tabPersistence['av-year-select']) : currentYear;
-    let selectedTipo = window.tabPersistence && window.tabPersistence['av-tipo-select'] ? window.tabPersistence['av-tipo-select'] : 'desempenho';
 
-    const groupKey = selectedTipo === 'satisfacao' ? selectedGroupSatisfacao : selectedGroupDesempenho;
-    const questions = AVALIACAO_QUESTIONS[selectedTipo][groupKey];
+    let selectedYear = window.tabPersistence['av-year-select'] ? parseInt(window.tabPersistence['av-year-select']) : currentYear;
+    let selectedTipo = window.tabPersistence['av-tipo-select'] || 'desempenho';
+
+    // Grupo persistido ou padrão pelo departamento
+    const pkSat = `av-group-satisfacao-${colabId}`;
+    const pkDes = `av-group-desempenho-${colabId}`;
+    if (!window.tabPersistence[pkSat]) window.tabPersistence[pkSat] = defaultSatisfacao;
+    if (!window.tabPersistence[pkDes]) window.tabPersistence[pkDes] = defaultDesempenho;
+
+    const groupKey = selectedTipo === 'satisfacao'
+        ? (window.tabPersistence[pkSat] || defaultSatisfacao)
+        : (window.tabPersistence[pkDes] || defaultDesempenho);
+
+    // Garantir que o groupKey existe em AVALIACAO_QUESTIONS
+    const safeGroupKey = AVALIACAO_QUESTIONS[selectedTipo][groupKey] ? groupKey
+        : (selectedTipo === 'satisfacao' ? defaultSatisfacao : defaultDesempenho);
+
+    const questions = AVALIACAO_QUESTIONS[selectedTipo][safeGroupKey];
     const categories = Object.keys(questions);
 
     container.innerHTML = '<p style="color:#64748b; padding:1rem;">Carregando avaliações...</p>';
@@ -407,7 +423,7 @@ window.renderAvaliacaoTab = async function(container) {
                     <h5 style="margin:0 0 0.5rem; color:#334155;">${trimestreToMonth[t]}</h5>
                     ${hasData ? `<p style="font-size:1.5rem; font-weight:800; color:#16a34a; margin:0 0 1rem;">${trimestersOverall[t].toFixed(1)} <sub style="font-size:0.7rem;color:#64748b;">Média</sub></p>` : `<p style="font-size:0.85rem; color:#94a3b8; margin:0 0 1rem;">Disponível para Preenchimento</p>`}
                     <div style="display:flex; gap:0.5rem; justify-content:center; flex-wrap:wrap;">
-                        <button onclick="openFormAvaliacao('${tipo}', ${year}, ${t}, '${groupKey}')" style="background:${isFull?'#0f4c81':'#0ea5e9'}; color:#fff; border:none; padding:0.4rem 0.8rem; border-radius:4px; cursor:pointer; font-size:0.8rem; flex:1;">
+                        <button onclick="openFormAvaliacao('${tipo}', ${year}, ${t}, '${safeGroupKey}')" style="background:${isFull?'#0f4c81':'#0ea5e9'}; color:#fff; border:none; padding:0.4rem 0.8rem; border-radius:4px; cursor:pointer; font-size:0.8rem; flex:1;">
                             <i class="ph ph-note-pencil"></i> ${hasData ? (isFull ? 'Editar' : 'Continuar') : 'Preencher'}
                         </button>
                         ${isFull ? `<button onclick="viewAvaliacaoPDF('${tipo}', ${year}, ${t}, '${groupKey}')" style="background:#10b981; color:#fff; border:none; padding:0.4rem 0.8rem; border-radius:4px; cursor:pointer; font-size:0.8rem; display:flex; align-items:center; justify-content:center; gap:0.25rem; flex:1;" title="Visualizar Avaliação em PDF">
@@ -430,17 +446,28 @@ window.renderAvaliacaoTab = async function(container) {
 
         // Renderizar a tela de fato
         container.innerHTML = `
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0; flex-wrap:wrap; gap:1rem;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1.5rem; background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0; flex-wrap:wrap; gap:1rem;">
                 
-                <div style="display:flex; align-items:center; gap:0.5rem; background:#fff; padding:0.3rem; border-radius:8px; border:1px solid #cbd5e1; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-                    <button onclick="window.tabPersistence['av-tipo-select']='desempenho'; renderAvaliacaoTab(document.getElementById('docs-list-container'));" 
-                            style="display:flex; align-items:center; gap:0.5rem; border:none; border-radius:6px; padding:0.6rem 1rem; font-weight:600; cursor:pointer; transition:all 0.2s; font-size:0.9rem; ${tipo === 'desempenho' ? 'background:#0ea5e9; color:#fff; box-shadow:0 2px 4px rgba(14,165,233,0.3);' : 'background:transparent; color:#64748b;'}">
-                        <i class="ph ph-trend-up" style="font-size:1.2rem;"></i> Avaliação de Desempenho
-                    </button>
-                    <button onclick="window.tabPersistence['av-tipo-select']='satisfacao'; renderAvaliacaoTab(document.getElementById('docs-list-container'));" 
-                            style="display:flex; align-items:center; gap:0.5rem; border:none; border-radius:6px; padding:0.6rem 1rem; font-weight:600; cursor:pointer; transition:all 0.2s; font-size:0.9rem; ${tipo === 'satisfacao' ? 'background:#8b5cf6; color:#fff; box-shadow:0 2px 4px rgba(139,92,246,0.3);' : 'background:transparent; color:#64748b;'}">
-                        <i class="ph ph-smiley" style="font-size:1.2rem;"></i> Avaliação de Satisfação
-                    </button>
+                <div style="display:flex; flex-direction:column; gap:0.75rem;">
+                    <!-- Tipo de Avaliacao -->
+                    <div style="display:flex; align-items:center; gap:0.5rem; background:#fff; padding:0.3rem; border-radius:8px; border:1px solid #cbd5e1; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                        <button onclick="window.tabPersistence['av-tipo-select']='desempenho'; renderAvaliacaoTab(document.getElementById('docs-list-container'));" 
+                                style="display:flex; align-items:center; gap:0.5rem; border:none; border-radius:6px; padding:0.6rem 1rem; font-weight:600; cursor:pointer; transition:all 0.2s; font-size:0.9rem; ${tipo === 'desempenho' ? 'background:#0ea5e9; color:#fff; box-shadow:0 2px 4px rgba(14,165,233,0.3);' : 'background:transparent; color:#64748b;'}">
+                            <i class="ph ph-trend-up" style="font-size:1.2rem;"></i> Avaliação de Desempenho
+                        </button>
+                        <button onclick="window.tabPersistence['av-tipo-select']='satisfacao'; renderAvaliacaoTab(document.getElementById('docs-list-container'));" 
+                                style="display:flex; align-items:center; gap:0.5rem; border:none; border-radius:6px; padding:0.6rem 1rem; font-weight:600; cursor:pointer; transition:all 0.2s; font-size:0.9rem; ${tipo === 'satisfacao' ? 'background:#8b5cf6; color:#fff; box-shadow:0 2px 4px rgba(139,92,246,0.3);' : 'background:transparent; color:#64748b;'}">
+                            <i class="ph ph-smiley" style="font-size:1.2rem;"></i> Avaliação de Satisfação
+                        </button>
+                    </div>
+                    <!-- Departamento / Grupo de perguntas -->
+                    <div style="display:flex; align-items:center; gap:0.6rem;">
+                        <i class="ph ph-buildings" style="color:#0f4c81; font-size:1.1rem;"></i>
+                        <label style="font-size:0.85rem; font-weight:700; color:#0f4c81; white-space:nowrap;">Formulário para:</label>
+                        <select onchange="window.tabPersistence['${tipo === 'satisfacao' ? pkSat : pkDes}']=this.value; renderAvaliacaoTab(document.getElementById('docs-list-container'));" style="padding:0.4rem 0.75rem; border-radius:6px; border:1.5px solid #0f4c81; font-weight:600; background:#eff6ff; color:#0f4c81; cursor:pointer; font-size:0.88rem;">
+                            ${(tipo === 'satisfacao' ? groupOptionsSatisfacao : groupOptionsDesempenho).map(g => `<option value="${g}" ${g === safeGroupKey ? 'selected':''}>${g.charAt(0).toUpperCase()+g.slice(1).replace(/_/g,' ')}</option>`).join('')}
+                        </select>
+                    </div>
                 </div>
                 
                 <div style="display:flex; align-items:center; gap:0.5rem;">

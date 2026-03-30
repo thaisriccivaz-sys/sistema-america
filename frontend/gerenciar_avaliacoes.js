@@ -1,37 +1,19 @@
-/**
- * gerenciar_avaliacoes.js
- * Módulo de Gerenciamento de Templates de Avaliação
- * Permite criar, editar e excluir templates de avaliações por departamento/grupo.
- */
+// Nomes amigáveis para os grupos padrão
+const GA_FRIENDLY_NAMES = {
+    satisfacao: {
+        motorista:  'Satisfação - Motoristas e Ajudantes',
+        manutencao: 'Satisfação - Manutenção',
+        escritorio: 'Satisfação - Escritório'
+    },
+    desempenho: {
+        geral:     'Desempenho - Geral',
+        lideranca: 'Desempenho - Liderança'
+    }
+};
 
-// ============================================================
-// ESTADO DO MÓDULO
-// ============================================================
 let gaTemplates = [];   // lista de templates carregados da API
 let gaEditingId = null; // id do template em edição (null = novo)
 
-// ============================================================
-// INICIALIZAÇÃO DA TELA
-// ============================================================
-window.renderGerenciarAvaliacoes = async function () {
-    const container = document.getElementById('gerenciar-avaliacoes-container');
-    if (!container) return;
-
-    container.innerHTML = `<p style="padding:2rem;color:#94a3b8;">Carregando templates...</p>`;
-
-    try {
-        gaTemplates = await fetchGaTemplates();
-    } catch (e) {
-        container.innerHTML = `<p style="padding:2rem;color:#ef4444;">Erro ao carregar templates: ${e.message}</p>`;
-        return;
-    }
-
-    renderGaListPage();
-};
-
-// ============================================================
-// FETCH HELPERS
-// ============================================================
 function fetchGaTemplates() {
     return fetch('/api/avaliacao-templates', {
         headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
@@ -50,15 +32,59 @@ function gaApiCall(method, id, body) {
     }).then(r => r.json());
 }
 
+window.renderGerenciarAvaliacoes = async function () {
+    const container = document.getElementById('gerenciar-avaliacoes-container');
+    if (!container) return;
+
+    container.innerHTML = `<p style="padding:2rem;color:#94a3b8;">Carregando templates...</p>`;
+
+    try {
+        gaTemplates = await fetchGaTemplates();
+    } catch (e) {
+        container.innerHTML = `<p style="padding:2rem;color:#ef4444;">Erro ao carregar templates: ${e.message}</p>`;
+        return;
+    }
+
+    // Mesclar com os templates padrão do AVALIACAO_QUESTIONS
+    // Grupos que já estão no banco não serão duplicados (usa grupo_key como chave única)
+    const dbKeys = new Set(gaTemplates.map(t => `${t.tipo}:${t.grupo_key}`));
+    const defaultTemplates = [];
+
+    if (typeof AVALIACAO_QUESTIONS !== 'undefined') {
+        ['satisfacao', 'desempenho'].forEach(tipo => {
+            const grupos = AVALIACAO_QUESTIONS[tipo] || {};
+            Object.keys(grupos).forEach(grupo_key => {
+                const compositeKey = `${tipo}:${grupo_key}`;
+                if (!dbKeys.has(compositeKey)) {
+                    defaultTemplates.push({
+                        id: null, // não está no banco ainda
+                        nome: (GA_FRIENDLY_NAMES[tipo] && GA_FRIENDLY_NAMES[tipo][grupo_key]) || `${tipo} - ${grupo_key}`,
+                        tipo,
+                        grupo_key,
+                        categorias_json: JSON.stringify(grupos[grupo_key]),
+                        _isPadrao: true
+                    });
+                }
+            });
+        });
+    }
+
+    // Lista completa: banco + padrões não salvos
+    const allTemplates = [...gaTemplates, ...defaultTemplates];
+
+    renderGaListPage(allTemplates);
+};
+
 // ============================================================
 // PÁGINA DE LISTAGEM
 // ============================================================
-function renderGaListPage() {
+function renderGaListPage(allTemplates) {
     const container = document.getElementById('gerenciar-avaliacoes-container');
+    const templates = allTemplates || gaTemplates;
 
     // Separar por tipo
-    const satisfacao = gaTemplates.filter(t => t.tipo === 'satisfacao');
-    const desempenho = gaTemplates.filter(t => t.tipo === 'desempenho');
+    const satisfacao = templates.filter(t => t.tipo === 'satisfacao');
+    const desempenho = templates.filter(t => t.tipo === 'desempenho');
 
     container.innerHTML = `
         <div style="padding:1.5rem;">
@@ -82,8 +108,8 @@ function renderGaListPage() {
             <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:0.9rem 1.2rem;margin-bottom:1.5rem;display:flex;align-items:flex-start;gap:0.75rem;">
                 <i class="ph ph-info" style="color:#3b82f6;font-size:1.3rem;flex-shrink:0;margin-top:1px;"></i>
                 <div style="font-size:0.87rem;color:#1e3a5f;line-height:1.5;">
-                    <strong>Como funciona:</strong> Cada template representa um grupo de colaboradores (ex: Motoristas, Manutenção, Escritório). O sistema usa o campo <em>Chave do Grupo</em> para associar automaticamente ao cargo/departamento do colaborador.
-                    <br>Cada template contém <strong>categorias</strong>, e cada categoria tem exatamente <strong>4 perguntas</strong>.
+                    <strong>Como funciona:</strong> Cada template representa um grupo de colaboradores (ex: Motoristas, Manutenção, Escritório). A <em>Chave do Grupo</em> é usada para associar ao cargo/departamento.
+                    Templates com badge <span style="background:#f59e0b;color:#fff;font-size:0.7rem;padding:1px 6px;border-radius:999px;">Padrão</span> são os templates do sistema — clique em <strong>Editar</strong> para personalizar e salvar.
                 </div>
             </div>
 
@@ -119,26 +145,31 @@ function renderGaCards(templates, tipo) {
     }
 
     const color = tipo === 'satisfacao' ? '#8b5cf6' : '#0f4c81';
-    const bg = tipo === 'satisfacao' ? '#faf5ff' : '#eff6ff';
+    const bg    = tipo === 'satisfacao' ? '#faf5ff' : '#eff6ff';
 
     return `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:1rem;">
         ${templates.map(t => {
             let cats = [];
             try { cats = Object.keys(JSON.parse(t.categorias_json)); } catch(e) {}
+            const isPadrao = !!t._isPadrao;
+            const safeNome = (t.nome || '').replace(/'/g, "\\'");
             return `
-                <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,0.05);transition:box-shadow 0.2s;" onmouseover="this.style.boxShadow='0 6px 20px rgba(0,0,0,0.1)'" onmouseout="this.style.boxShadow='0 2px 6px rgba(0,0,0,0.05)'">
-                    <div style="background:${bg};border-bottom:1.5px solid #e2e8f0;padding:0.9rem 1.1rem;display:flex;justify-content:space-between;align-items:center;">
-                        <div>
-                            <p style="margin:0;font-weight:700;color:#0f172a;font-size:0.97rem;">${t.nome}</p>
+                <div style="background:#fff;border:1.5px solid ${isPadrao ? '#fed7aa' : '#e2e8f0'};border-radius:12px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,0.05);transition:box-shadow 0.2s;" onmouseover="this.style.boxShadow='0 6px 20px rgba(0,0,0,0.1)'" onmouseout="this.style.boxShadow='0 2px 6px rgba(0,0,0,0.05)'">
+                    <div style="background:${isPadrao ? '#fff7ed' : bg};border-bottom:1.5px solid ${isPadrao ? '#fed7aa' : '#e2e8f0'};padding:0.9rem 1.1rem;display:flex;justify-content:space-between;align-items:center;">
+                        <div style="flex:1;min-width:0;">
+                            <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+                                <p style="margin:0;font-weight:700;color:#0f172a;font-size:0.97rem;">${t.nome}</p>
+                                ${isPadrao ? `<span style="background:#f59e0b;color:#fff;font-size:0.68rem;padding:1px 7px;border-radius:999px;font-weight:700;">Padrão</span>` : ''}
+                            </div>
                             <span style="font-size:0.75rem;color:#64748b;">Chave: <code style="background:#e2e8f0;padding:1px 6px;border-radius:4px;">${t.grupo_key}</code></span>
                         </div>
-                        <div style="display:flex;gap:0.5rem;">
-                            <button onclick="window.gaAbrirFormEditar(${t.id})" title="Editar" style="background:${color};color:#fff;border:none;width:34px;height:34px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:0.95rem;transition:opacity 0.2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+                        <div style="display:flex;gap:0.5rem;flex-shrink:0;">
+                            <button onclick="window.gaAbrirFormEditarTemplate(${JSON.stringify({ id: t.id, nome: t.nome, tipo: t.tipo, grupo_key: t.grupo_key, categorias_json: t.categorias_json })})" title="${isPadrao ? 'Personalizar e Salvar' : 'Editar'}" style="background:${color};color:#fff;border:none;width:34px;height:34px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:0.95rem;transition:opacity 0.2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
                                 <i class="ph ph-pencil-simple"></i>
                             </button>
-                            <button onclick="window.gaExcluirTemplate(${t.id},'${t.nome.replace(/'/g, "\\'")}')" title="Excluir" style="background:#ef4444;color:#fff;border:none;width:34px;height:34px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:0.95rem;transition:opacity 0.2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+                            ${!isPadrao ? `<button onclick="window.gaExcluirTemplate(${t.id},'${safeNome}')" title="Excluir" style="background:#ef4444;color:#fff;border:none;width:34px;height:34px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:0.95rem;transition:opacity 0.2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
                                 <i class="ph ph-trash"></i>
-                            </button>
+                            </button>` : ''}
                         </div>
                     </div>
                     <div style="padding:0.75rem 1.1rem;">
@@ -152,6 +183,14 @@ function renderGaCards(templates, tipo) {
         }).join('')}
     </div>`;
 }
+
+// Suporte a edição de templates com ou sem ID (padrão e salvos)
+window.gaAbrirFormEditarTemplate = function(tObj) {
+    if (typeof tObj === 'string') { try { tObj = JSON.parse(tObj); } catch(e) { return; } }
+    gaEditingId = tObj.id || null; // null = padrão ainda não salvo
+    renderGaForm(tObj);
+};
+
 
 // ============================================================
 // FORMULÁRIO DE CRIAÇÃO/EDIÇÃO
