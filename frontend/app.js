@@ -646,8 +646,15 @@ async function loadFaculdadeCursosDropdown() {
         if (select && cursos) {
             select.innerHTML = '<option value="">Selecionar curso cadastrado...</option>';
             cursos.forEach(c => {
-                const tempo = c.tempo_curso ? ` - ${c.tempo_curso}` : '';
-                select.innerHTML += `<option value="${c.id}">${c.nome_curso} - ${c.instituicao}${tempo}</option>`;
+                let tempoFormatado = c.tempo_curso ? ` - ${c.tempo_curso} meses` : '';
+                if (c.tempo_curso && !isNaN(c.tempo_curso)) {
+                    const m = parseInt(c.tempo_curso, 10);
+                    const s = (m / 6).toFixed(1).replace('.0', '');
+                    tempoFormatado = ` - ${m} meses (${s} semestre${s !== '1' ? 's' : ''})`;
+                } else if (c.tempo_curso) {
+                    tempoFormatado = ` - ${c.tempo_curso}`;
+                }
+                select.innerHTML += `<option value="${c.id}">${c.nome_curso} - ${c.instituicao}${tempoFormatado}</option>`;
             });
         }
     } catch(e) { console.error('Erro ao carregar cursos para dropdown:', e); }
@@ -2750,7 +2757,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                 <div style="font-size: 0.85rem; color: #64748b; font-style: italic; background: #f1f5f9; padding: 0.6rem 1rem; border-radius: 6px; display: flex; align-items: center; gap: 0.5rem; min-width: 300px;">
                     <i class="ph ph-info" style="font-size: 1.1rem;"></i> ${blockReason}
                 </div>
-            ` : `
+            ` : (tabId === 'Advertências') ? `
                 <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
                     ${vencimentoInputHtml}
 
@@ -2758,18 +2765,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         <button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height: 42px;"><i class="ph ph-eye"></i></button>
                     ` : ''}
 
-                    ${(() => {
-                        const isAdv = tabId === 'Advertências';
-                        const showAssinafy = isSaved && (!isAdv) && tabId !== 'Atestados';
-                        return showAssinafy ? `
-                            <button class="btn btn-assinafy" style="height: 42px; display:flex; align-items:center; padding:0 0.85rem;" onclick="window.iniciarAssinafy('${docType}', '${tabId}', this)" ${isAssinado ? 'disabled' : ''}>
-                                <i class="ph ph-pen-nib"></i> Solicitar Assinatura
-                            </button>
-                            ${assStatusIcon}
-                        ` : (assStatusIcon ? assStatusIcon : '');
-                    })()}
-
-                    ${(tabId === 'Advertências' && isSaved) ? `
+                    ${isSaved ? `
                         ${(!stMain || stMain === 'Nenhum') ? `
                         <button type="button" class="btn btn-secondary"
                                 onclick="window.abrirModalAssinaturaTestemunhas(${existingDoc.id})"
@@ -2784,7 +2780,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         </button>` : ''}
                     ` : ''}
 
-                    ${(!isAssinado && !(tabId === 'Atestados' && isSaved)) ? `
+                    ${(!isAssinado) ? `
                     <label class="btn ${isSaved ? 'btn-warning' : 'btn-primary'}" title="${isSaved ? 'Substituir' : 'Fazer Upload'}" style="height: 42px; display: flex; align-items: center; margin: 0;">
                         <i class="ph ph-upload-simple"></i> ${isSaved ? 'Substituir' : 'Upload'}
                         <input type="file" accept=".pdf" style="display:none;" onchange="const venc = this.closest('.doc-item').querySelector('.venc-input')?.value; if((${needsVencimento}) && !venc) { alert('Data de vencimento é obrigatória'); this.value=''; return; } uploadDocument(this, '${tabId}', '${docType}', ${year}, ${month}, venc)">
@@ -2795,25 +2791,52 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         <button type="button" class="btn btn-danger" onclick="deleteDoc(${existingDoc.id}, this)" title="Excluir" style="height: 42px;"><i class="ph ph-trash"></i></button>
                     ` : ''}
 
-                    ${(tabId === 'Atestados' && isSaved) ? `
+                    ${(isSaved && stMain === 'Assinado' && tipoAdvSimples && tipoAdvSimples.toLowerCase().includes('suspens')) ? `
                     <div style="display:flex; flex-direction:column; gap:0.35rem; margin-top:0.35rem; align-items:flex-end; width:100%;">
-                        <input type="email" id="contab-email-${existingDoc.id}"
-                               value="thais.ricci@americarental.com.br"
-                               style="height:36px; padding:0 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; width:100%; min-width:230px; max-width:250px;">
-                        <button type="button"
-                                onclick="window.enviarAtestadoContabilidade(${existingDoc.id}, 'contab-email-${existingDoc.id}', this)"
-                                style="height:36px; display:flex; align-items:center; justify-content:center; gap:6px; background:#0f4c81; color:#fff; border:none; border-radius:6px; padding:0 0.85rem; font-size:0.82rem; font-weight:600; cursor:pointer; white-space:nowrap; width:100%; min-width:230px; max-width:250px;">
-                            <i class="ph ph-buildings"></i> Enviar para Contabilidade
-                        </button>
-                    </div>` : ''}
-
-                    ${(tabId === 'Advertências' && isSaved && stMain === 'Assinado' && tipoAdvSimples && tipoAdvSimples.toLowerCase().includes('suspens')) ? `
-                    <div style="display:flex; flex-direction:column; gap:0.35rem; margin-top:0.35rem; align-items:flex-end;">
                         <input type="email" id="susp-contab-email-${existingDoc.id}"
                                value="thais.ricci@americarental.com.br"
                                style="height:36px; padding:0 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; width:100%; min-width:230px; max-width:250px;">
                         <button type="button"
                                 onclick="window.enviarSuspensaoContabilidade(${existingDoc.id}, 'susp-contab-email-${existingDoc.id}', this)"
+                                style="height:36px; display:flex; align-items:center; justify-content:center; gap:6px; background:#0f4c81; color:#fff; border:none; border-radius:6px; padding:0 0.85rem; font-size:0.82rem; font-weight:600; cursor:pointer; white-space:nowrap; width:100%; min-width:230px; max-width:250px;">
+                            <i class="ph ph-buildings"></i> Enviar para Contabilidade
+                        </button>
+                    </div>` : ''}
+                </div>
+            ` : `
+                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    <div style="display: flex; gap: 0.5rem; align-items: flex-end;">
+                        ${vencimentoInputHtml}
+                        ${isSaved ? `
+                            <button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height: 42px;"><i class="ph ph-eye"></i></button>
+                            ${(!isAssinado) ? `<button type="button" class="btn btn-danger" onclick="deleteDoc(${existingDoc.id}, this)" title="Excluir" style="height: 42px;"><i class="ph ph-trash"></i></button>` : ''}
+                        ` : ''}
+                        ${(!isAssinado && !(tabId === 'Atestados' && isSaved)) ? `
+                        <label class="btn ${isSaved ? 'btn-warning' : 'btn-primary'}" title="${isSaved ? 'Substituir' : 'Fazer Upload'}" style="height: 42px; display: flex; align-items: center;">
+                            <i class="ph ph-upload-simple"></i> ${isSaved ? 'Substituir' : 'Upload'}
+                            <input type="file" accept=".pdf" style="display:none;" onchange="const venc = this.closest('.doc-item').querySelector('.venc-input')?.value; if((${needsVencimento}) && !venc) { alert('Data de vencimento é obrigatória'); this.value=''; return; } uploadDocument(this, '${tabId}', '${docType}', ${year}, ${month}, venc)">
+                        </label>
+                        ` : ''}
+                    </div>
+
+                    ${(() => {
+                        const showAssinafy = isSaved && tabId !== 'Atestados';
+                        return showAssinafy ? `
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <button class="btn btn-assinafy" style="height: 42px; display:flex; align-items:center; padding:0 0.85rem;" onclick="window.iniciarAssinafy('${docType}', '${tabId}', this)" ${isAssinado ? 'disabled' : ''}>
+                                <i class="ph ph-pen-nib"></i> Solicitar Assinatura
+                            </button>
+                            ${assStatusIcon}
+                        </div>` : (assStatusIcon ? `<div style="display:flex;align-items:center;gap:0.5rem; justify-content:flex-end; width:100%; margin-top:0.35rem;">${assStatusIcon}</div>` : '');
+                    })()}
+
+                    ${(tabId === 'Atestados' && isSaved) ? `
+                    <div style="display:flex; flex-direction:column; gap:0.35rem; margin-top:0.35rem; align-items:flex-end;">
+                        <input type="email" id="contab-email-${existingDoc.id}"
+                               value="thais.ricci@americarental.com.br"
+                               style="height:36px; padding:0 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; width:100%; min-width:230px; max-width:250px;">
+                        <button type="button"
+                                onclick="window.enviarAtestadoContabilidade(${existingDoc.id}, 'contab-email-${existingDoc.id}', this)"
                                 style="height:36px; display:flex; align-items:center; justify-content:center; gap:6px; background:#0f4c81; color:#fff; border:none; border-radius:6px; padding:0 0.85rem; font-size:0.82rem; font-weight:600; cursor:pointer; white-space:nowrap; width:100%; min-width:230px; max-width:250px;">
                             <i class="ph ph-buildings"></i> Enviar para Contabilidade
                         </button>
@@ -4229,14 +4252,20 @@ window.loadFaculdadeCursos = async function() {
 function renderFaculdadeCursos(cursos) {
     const body = document.getElementById('table-faculdade-body');
     if (!body) return;
-    body.innerHTML = cursos.map(c => `
+    body.innerHTML = cursos.map(c => {
+        let duracaoStr = c.tempo_curso ? c.tempo_curso + ' meses' : '-';
+        if (c.tempo_curso && !isNaN(c.tempo_curso)) {
+            const m = parseInt(c.tempo_curso, 10);
+            const s = (m / 6).toFixed(1).replace('.0', '');
+            duracaoStr = `${m} meses (${s} semestre${s !== '1' ? 's' : ''})`;
+        }
+        return `
         <tr>
             <td>
                 <div style="font-weight: 600; color: var(--primary-color);">${c.nome_curso}</div>
                 <div style="font-size: 0.8rem; color: #64748b;">${c.instituicao}</div>
             </td>
-            <td>${c.tempo_curso || '-'}</td>
-            <td>${c.valor_mensalidade ? 'R$ ' + c.valor_mensalidade.toLocaleString('pt-BR', {minimumFractionDigits: 2}) : '-'}</td>
+            <td>${duracaoStr}</td>
             <td style="text-align: right;">
                 <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
                     <button class="btn btn-warning btn-sm" onclick="editFaculdadeCurso(${JSON.stringify(c).replace(/"/g, '&quot;')})" title="Editar"><i class="ph ph-pencil-simple"></i></button>
@@ -4244,8 +4273,20 @@ function renderFaculdadeCursos(cursos) {
                 </div>
             </td>
         </tr>
-    `).join('');
+    `}).join('');
 }
+
+window.calcSemestresFaculdade = function(val) {
+    const semestresInput = document.getElementById('faculdade-semestres');
+    if (!semestresInput) return;
+    if (!val || isNaN(val) || val <= 0) {
+        semestresInput.value = '';
+        return;
+    }
+    const meses = parseInt(val, 10);
+    const semestres = (meses / 6).toFixed(1).replace('.0', '');
+    semestresInput.value = semestres + (semestres === '1' ? ' semestre' : ' semestres');
+};
 
 const formFaculdade = document.getElementById('form-faculdade');
 if (formFaculdade) {
@@ -4256,11 +4297,7 @@ if (formFaculdade) {
             nome_curso: document.getElementById('faculdade-nome-curso').value,
             instituicao: document.getElementById('faculdade-instituicao').value,
             tempo_curso: document.getElementById('faculdade-tempo').value,
-            valor_mensalidade: (function() {
-                const val = document.getElementById('faculdade-mensalidade').value;
-                if (!val) return 0;
-                return parseFloat(val.replace(/[^\d,]/g, '').replace(',', '.'));
-            })()
+            valor_mensalidade: 0
         };
 
         const method = id ? 'PUT' : 'POST';
@@ -4285,6 +4322,8 @@ window.resetFaculdadeForm = function() {
     document.getElementById('form-faculdade').reset();
     document.getElementById('faculdade-id').value = '';
     document.getElementById('faculdade-form-title').textContent = 'Cadastrar Novo Curso';
+    const semestresInput = document.getElementById('faculdade-semestres');
+    if (semestresInput) semestresInput.value = '';
 };
 
 window.editFaculdadeCurso = function(c) {
@@ -4292,7 +4331,7 @@ window.editFaculdadeCurso = function(c) {
     document.getElementById('faculdade-nome-curso').value = c.nome_curso;
     document.getElementById('faculdade-instituicao').value = c.instituicao;
     document.getElementById('faculdade-tempo').value = c.tempo_curso || '';
-    document.getElementById('faculdade-mensalidade').value = c.valor_mensalidade ? 'R$ ' + c.valor_mensalidade.toLocaleString('pt-BR', {minimumFractionDigits: 2}) : '';
+    window.calcSemestresFaculdade(c.tempo_curso);
     document.getElementById('faculdade-form-title').textContent = 'Editar Curso';
     window.scrollTo({ top: 0, behavior: 'smooth' });
 };
