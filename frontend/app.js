@@ -1,4 +1,4 @@
-const API_URL = `${window.location.origin}/api`;
+﻿const API_URL = `${window.location.origin}/api`;
 
 // Estado global
 let currentUser = null;
@@ -2103,49 +2103,71 @@ window.anexarAdvertenciaAoProntuario = async function() {
     }
 
     try {
-        const element = document.getElementById('preview-doc-body');
+        // Mapeamento de acentos para nome do arquivo
+        const semAcentos = (str) => (str||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]/g,'_');
 
-        // Mapeamento explícito de acentos - mais confiável que normalize() em alguns ambientes
-        const semAcentos = (str) => {
-            const map = {
-                '\u00e0':'a','\u00e1':'a','\u00e2':'a','\u00e3':'a','\u00e4':'a','\u00e5':'a',
-                '\u00c0':'A','\u00c1':'A','\u00c2':'A','\u00c3':'A','\u00c4':'A','\u00c5':'A',
-                '\u00e8':'e','\u00e9':'e','\u00ea':'e','\u00eb':'e',
-                '\u00c8':'E','\u00c9':'E','\u00ca':'E','\u00cb':'E',
-                '\u00ec':'i','\u00ed':'i','\u00ee':'i','\u00ef':'i',
-                '\u00cc':'I','\u00cd':'I','\u00ce':'I','\u00cf':'I',
-                '\u00f2':'o','\u00f3':'o','\u00f4':'o','\u00f5':'o','\u00f6':'o',
-                '\u00d2':'O','\u00d3':'O','\u00d4':'O','\u00d5':'O','\u00d6':'O',
-                '\u00f9':'u','\u00fa':'u','\u00fb':'u','\u00fc':'u',
-                '\u00d9':'U','\u00da':'U','\u00db':'U','\u00dc':'U',
-                '\u00e7':'c','\u00c7':'C','\u00f1':'n','\u00d1':'N',
-                '\u2014':'_','\u2013':'_'
-            };
-            return str.split('').map(c => map[c] !== undefined ? map[c] : c).join('').replace(/[^a-zA-Z0-9]/g, '_');
-        };
-
-        // Padrão: Titulo_TipoSimples_DD-MM-YYYY_Nome_Colaborador.pdf
         const hoje = new Date();
-        const dd = String(hoje.getDate()).padStart(2, '0');
-        const mm = String(hoje.getMonth() + 1).padStart(2, '0');
+        const dd  = String(hoje.getDate()).padStart(2,'0');
+        const mm  = String(hoje.getMonth()+1).padStart(2,'0');
         const yyyy = hoje.getFullYear();
-        const dataHoje = `${dd}-${mm}-${yyyy}`;
         const nomeArquivo = [
             semAcentos(window._advertenciaData.titulo),
             semAcentos(window._advertenciaData.tipoSimples),
-            dataHoje,
+            `${dd}-${mm}-${yyyy}`,
             semAcentos(window._advertenciaData.colaborador.NOME_COMPLETO)
-        ].join('_').replace(/_+/g, '_') + '.pdf';
+        ].join('_').replace(/_+/g,'_') + '.pdf';
+
+        // Container A4 isolado: 794px = A4 a 96dpi, padding 48/56 px
+        const apiBase = API_URL.replace('/api','');
+        const logoSrc = `${apiBase}/assets/logo-header.png`;
+        const data = window._advertenciaData;
+
+        const a4 = document.createElement('div');
+        a4.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;min-height:1123px;' +
+            'padding:48px 56px;box-sizing:border-box;background:#fff;color:#111;' +
+            'font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.5;';
+
+        a4.innerHTML = `
+            <div style="margin-bottom:10px;">
+                <img src="${logoSrc}" style="width:100%;max-width:682px;display:block;" onerror="this.style.display='none'">
+            </div>
+            <h1 style="text-align:center;font-size:15px;text-transform:uppercase;margin:8px 0 6px;color:#1e293b;">${data.gerador_nome}</h1>
+            <p style="margin:4px 0;font-size:13px;"><b>COLABORADOR:</b> ${data.colaborador.NOME_COMPLETO}</p>
+            <div style="border:1px solid #000;padding:6px 10px;margin:6px 0;font-size:11.5px;line-height:1.4;">
+                <p style="margin:0 0 3px;font-size:11px;"><b>DADOS DO COLABORADOR:</b></p>
+                <div style="display:flex;gap:24px;flex-wrap:wrap;">
+                    <span>CPF: <b>${data.colaborador.CPF}</b></span>
+                    <span>CARGO: <b>${data.colaborador.CARGO}</b></span>
+                    <span>ADMISSAO: <b>${data.colaborador.DATA_ADMISSAO}</b></span>
+                </div>
+                <p style="margin:3px 0 0;">DEPARTAMENTO: ${data.colaborador.DEPARTAMENTO}</p>
+            </div>
+            <div style="margin-top:10px;text-align:justify;line-height:1.5;font-size:12.5px;">${data.html}</div>
+            <div style="margin-top:14px;">
+                <p style="font-weight:700;font-size:13px;">Guarulhos, ${data.dataHojeExtenso}.</p>
+            </div>
+        `;
+
+        document.body.appendChild(a4);
+
+        // Aguardar logo carregar
+        const logoImg = a4.querySelector('img');
+        await new Promise(resolve => {
+            if (!logoImg || logoImg.complete) return resolve();
+            logoImg.onload = resolve; logoImg.onerror = resolve;
+            setTimeout(resolve, 2000);
+        });
 
         const opt = {
-            margin:       [1.5, 1.5, 1.5, 1.5],
+            margin:       [0,0,0,0],
             filename:     nomeArquivo,
             image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2 },
-            jsPDF:        { unit: 'cm', format: 'a4', orientation: 'portrait' }
+            html2canvas:  { scale: 2, useCORS: true, width: 794, windowWidth: 794 },
+            jsPDF:        { unit: 'px', format: [794, 1123], orientation: 'portrait' }
         };
 
-        const pdfBlob = await html2pdf().set(opt).from(element).output('blob');
+        const pdfBlob = await html2pdf().set(opt).from(a4).output('blob');
+        document.body.removeChild(a4);
         const file = new File([pdfBlob], nomeArquivo, { type: 'application/pdf' });
 
         const formData = new FormData();
