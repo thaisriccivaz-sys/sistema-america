@@ -765,10 +765,10 @@ window.openFormAvaliacao = async function(tipo, ano, trimestre, groupKey) {
             const val = savedAnswers[cat] ? savedAnswers[cat][i] : null;
             const obsStr = (savedObs[cat] && savedObs[cat][i]) ? savedObs[cat][i] : '';
             html += `
-                <div style="display:flex; justify-content:space-between; align-items:center; gap:1rem; padding:0.75rem 0; border-bottom:1px dashed #e2e8f0; flex-wrap:wrap;">
-                    <div style="flex:1; min-width:250px; font-size:0.9rem; color:#475569; font-weight:500;">${q}</div>
-                    <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
-                        <div style="display:flex; gap:0.35rem;">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:1.5rem; padding:0.75rem 0; border-bottom:1px dashed #e2e8f0; flex-wrap:wrap;">
+                    <div style="width:35%; min-width:280px; font-size:0.95rem; color:#475569; font-weight:500;">${q}</div>
+                    <div style="flex:1; display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
+                        <div style="display:flex; gap:0.35rem; flex-shrink:0;">
             `;
             for(let v=1; v<=5; v++) {
                 const checked = (val == v) ? 'checked' : '';
@@ -783,7 +783,7 @@ window.openFormAvaliacao = async function(tipo, ano, trimestre, groupKey) {
                 `;
             }
             html += `           </div>
-                        <input type="text" name="av_obs_${catIdx}_${i}" value="${obsStr}" placeholder="Observação (opcional)..." style="width:180px; padding:0.4rem 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; outline:none; color:#334155; height:32px; box-sizing:border-box;">
+                        <input type="text" name="av_obs_${catIdx}_${i}" value="${obsStr}" placeholder="Observação (opcional)..." style="flex:1; min-width:250px; padding:0.4rem 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; outline:none; color:#334155; height:32px; box-sizing:border-box;">
                     </div>
                 </div>`;
         });
