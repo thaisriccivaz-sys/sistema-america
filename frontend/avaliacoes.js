@@ -699,10 +699,25 @@ window.openFormAvaliacao = async function(tipo, ano, trimestre, groupKey) {
     
     const trimestreToMonth = {1: 'Janeiro (1º Trim.)', 2: 'Abril (2º Trim.)', 3: 'Julho (3º Trim.)', 4: 'Dezembro (4º Trim.)'};
 
+    let globalTotalQ_init = 0;
+    let globalAnsQ_init = 0;
+    categories.forEach(cat => {
+        globalTotalQ_init += questions[cat].length;
+        if (savedAnswers[cat]) {
+            Object.values(savedAnswers[cat]).forEach(v => { if (v) globalAnsQ_init++; });
+        }
+    });
+    const globalPerc_init = globalTotalQ_init > 0 ? Math.round((globalAnsQ_init / globalTotalQ_init) * 100) : 0;
+    const globalColor_init = globalPerc_init === 100 ? '#16a34a' : 'rgba(255,255,255,0.2)';
+    const titleStr = tipo === 'experiencia' ? 'Avaliação de Experiência' : ((tipo === 'desempenho' ? 'Avaliação de Desempenho' : 'Avaliação de Satisfação') + ' - ' + trimestreToMonth[trimestre] + ' / ' + ano);
+
     let html = `
         <div style="background:#fff; border-radius:12px; max-width:900px; width:95%; max-height:90vh; display:flex; flex-direction:column; box-shadow:0 10px 25px rgba(0,0,0,0.5);">
             <div style="padding:1.5rem; background:#0f4c81; color:#fff; border-radius:12px 12px 0 0; display:flex; justify-content:space-between; align-items:center;">
-                <h3 style="margin:0; font-size:1.25rem;">${tipo === 'desempenho' ? 'Avaliação de Desempenho' : 'Avaliação de Satisfação'} - ${trimestreToMonth[trimestre]} / ${ano}</h3>
+                <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
+                    <h3 style="margin:0; font-size:1.25rem;">${titleStr}</h3>
+                    <span id="global-perc-badge" style="background:${globalColor_init}; border-radius:20px; padding:4px 12px; font-size:0.85rem; font-weight:700; transition:background 0.3s, color 0.3s;">${globalPerc_init}% Concluído</span>
+                </div>
                 <button onclick="document.getElementById('modal-avaliacao').remove()" style="background:none; border:none; color:#fff; font-size:1.5rem; cursor:pointer;"><i class="ph ph-x"></i></button>
             </div>
             <div style="padding:2rem; overflow-y:auto; flex:1; background:#f8fafc;">
@@ -794,6 +809,19 @@ window.updateAvaliacaoProgress = function(catIdx, totalQ) {
         const color = perc === 100 ? '#16a34a' : '#0ea5e9';
         textEl.style.color = color;
         barEl.style.background = color;
+    }
+
+    // Calcula e atualiza o badge geral no topo
+    const allRads = form.querySelectorAll('input[type="radio"]:checked');
+    const allInputs = form.querySelectorAll('input[type="radio"]');
+    const globalTotal = allInputs.length / 5;
+    const globalAns = allRads.length;
+    const globalPerc = globalTotal > 0 ? Math.round((globalAns / globalTotal) * 100) : 0;
+    
+    const globalBadge = document.getElementById('global-perc-badge');
+    if (globalBadge) {
+        globalBadge.textContent = `${globalPerc}% Concluído`;
+        globalBadge.style.background = globalPerc === 100 ? '#16a34a' : 'rgba(255,255,255,0.2)';
     }
 }
 
