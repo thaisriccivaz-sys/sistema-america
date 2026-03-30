@@ -1568,6 +1568,44 @@ app.delete('/api/avaliacoes/:id', authenticateToken, (req, res) => {
     });
 });
 
+// --- ROTAS DE TEMPLATES DE AVALIAÇÃO ---
+app.get('/api/avaliacao-templates', authenticateToken, (req, res) => {
+    db.all('SELECT * FROM avaliacao_templates ORDER BY tipo, nome', (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+app.post('/api/avaliacao-templates', authenticateToken, (req, res) => {
+    const { nome, tipo, grupo_key, categorias_json } = req.body;
+    if (!nome || !tipo || !grupo_key || !categorias_json) return res.status(400).json({ error: 'Campos obrigatórios faltando.' });
+    db.run('INSERT INTO avaliacao_templates (nome, tipo, grupo_key, categorias_json) VALUES (?,?,?,?)',
+        [nome, tipo, grupo_key, typeof categorias_json === 'string' ? categorias_json : JSON.stringify(categorias_json)],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ id: this.lastID, message: 'Template criado com sucesso.' });
+        }
+    );
+});
+
+app.put('/api/avaliacao-templates/:id', authenticateToken, (req, res) => {
+    const { nome, tipo, grupo_key, categorias_json } = req.body;
+    db.run('UPDATE avaliacao_templates SET nome=?, tipo=?, grupo_key=?, categorias_json=? WHERE id=?',
+        [nome, tipo, grupo_key, typeof categorias_json === 'string' ? categorias_json : JSON.stringify(categorias_json), req.params.id],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ changes: this.changes });
+        }
+    );
+});
+
+app.delete('/api/avaliacao-templates/:id', authenticateToken, (req, res) => {
+    db.run('DELETE FROM avaliacao_templates WHERE id=?', [req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ deleted: this.changes });
+    });
+});
+
 // --- ROTA DE ENVIO DE E-MAIL ASO ---
 app.post('/api/send-aso-email', authenticateToken, (req, res) => {
     const { colaborador_id, email_to, data_exame, cc } = req.body;

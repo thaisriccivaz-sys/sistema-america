@@ -107,6 +107,8 @@ function navigateTo(target) {
         loadDepartamentos();
     } else if (target === 'geradores') {
         loadGeradores();
+    } else if (target === 'gerenciar-avaliacoes') {
+        if (typeof window.renderGerenciarAvaliacoes === 'function') window.renderGerenciarAvaliacoes();
     } else if (target === 'escalas') {
         loadEscalas();
     } else if (target === 'faculdade') {

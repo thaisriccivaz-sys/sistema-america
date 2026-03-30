@@ -331,6 +331,18 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     }
                 });
 
+                // Templates de Avaliação (dinâmicos por departamento)
+                db.run(`
+                    CREATE TABLE IF NOT EXISTS avaliacao_templates (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        nome TEXT NOT NULL,
+                        tipo TEXT NOT NULL DEFAULT 'desempenho',
+                        grupo_key TEXT NOT NULL UNIQUE,
+                        categorias_json TEXT NOT NULL,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    )
+                `);
+
                 // Documentos
                 db.all("PRAGMA table_info(documentos)", (err, rows) => {
                     if (err || !rows) return;
