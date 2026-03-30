@@ -1036,32 +1036,48 @@ app.get('/api/colaboradores/:id/documentos', authenticateToken, (req, res) => {
 app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
     
-    const { colaborador_id, tab_name, document_type, year, month, vencimento, atestado_tipo, atestado_inicio, atestado_fim } = req.body;
+    const { document_id, colaborador_id, tab_name, document_type, year, month, vencimento, atestado_tipo, atestado_inicio, atestado_fim, assinafy_status } = req.body;
     const file_path = req.file.path;
     const file_name = req.file.originalname;
 
-    const checkSql = 'SELECT id, file_path FROM documentos WHERE colaborador_id = ? AND tab_name = ? AND document_type = ?' 
-        + (year ? ' AND year = ?' : ' AND year IS NULL') 
-        + (month ? ' AND month = ?' : ' AND month IS NULL');
-    
-    let params = [colaborador_id, tab_name, document_type];
-    if (year) params.push(year);
-    if (month) params.push(month);
+    let checkSql = '';
+    let params = [];
+    if (document_id) {
+        checkSql = 'SELECT id, file_path FROM documentos WHERE id = ?';
+        params = [document_id];
+    } else {
+        checkSql = 'SELECT id, file_path FROM documentos WHERE colaborador_id = ? AND tab_name = ? AND document_type = ?' 
+            + (year ? ' AND year = ?' : ' AND year IS NULL') 
+            + (month ? ' AND month = ?' : ' AND month IS NULL');
+        params = [colaborador_id, tab_name, document_type];
+        if (year) params.push(year);
+        if (month) params.push(month);
+    }
 
     db.get(checkSql, params, (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
         
         // Abas que permitem múltiplos arquivos (histórico cumulativo)
         const abasMultiplas = ['Advertências', 'Multas', 'Atestados', 'Boletim de ocorrência', 'Pagamentos', 'Terapia'];
-        const isMultiplo = abasMultiplas.includes(tab_name);
+        // Se force document_id explicit, treat as overwrite
+        const isMultiplo = !document_id && abasMultiplas.includes(tab_name);
 
         if (row && !isMultiplo) {
-            // Se já existe e NÃƒO é aba de histórico, atualiza (sobrescreve banco e apaga disco)
-            if (fs.existsSync(row.file_path)) {
+            // Se já existe e NÃO é aba de histórico (ou se é explicit update), atualiza
+            if (fs.existsSync(row.file_path) && row.file_path !== file_path) {
                 try { fs.unlinkSync(row.file_path); } catch(e) {}
             }
-            db.run('UPDATE documentos SET file_name = ?, file_path = ?, upload_date = CURRENT_TIMESTAMP, vencimento = ?, atestado_tipo = ?, atestado_inicio = ?, atestado_fim = ? WHERE id = ?',
-                [file_name, file_path, vencimento || null, atestado_tipo || null, atestado_inicio || null, atestado_fim || null, row.id], function(updateErr) {
+            
+            let setClause = 'file_name = ?, file_path = ?, upload_date = CURRENT_TIMESTAMP, vencimento = ?, atestado_tipo = ?, atestado_inicio = ?, atestado_fim = ?';
+            const baseParams = [file_name, file_path, vencimento || null, atestado_tipo || null, atestado_inicio || null, atestado_fim || null];
+            
+            if (assinafy_status) {
+                setClause += ', assinafy_status = ?';
+                baseParams.push(assinafy_status);
+            }
+            
+            db.run(`UPDATE documentos SET ${setClause} WHERE id = ?`,
+                [...baseParams, row.id], function(updateErr) {
                     if (updateErr) return res.status(500).json({ error: updateErr.message });
                     
                     // Sincronizar com foto de perfil se for na aba "Fotos"

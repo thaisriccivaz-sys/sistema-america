@@ -2714,6 +2714,9 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
 
     // Status Assinafy: apenas botão de baixar quando assinado
     let assStatusIcon = '';
+    const stMain = isSaved ? (existingDoc.assinafy_status || '') : '';
+    const isAssinado = isSaved && (stMain === 'Assinado' || stMain === 'Testemunhas' || stMain.includes('Testemunhas'));
+
     if (isSaved) {
         const st = existingDoc.assinafy_status || '';
         if (st === 'Assinado') {
@@ -2721,10 +2724,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
         } else if (st === 'Erro') {
             assStatusIcon = `<span title="Erro ao enviar" style="display:inline-flex;align-items:center;gap:3px;color:#e03131;font-size:0.78rem;font-weight:700;white-space:nowrap;"><i class="ph ph-warning-circle" style="font-size:1.1rem;"></i> Erro</span>`;
         }
-        // Status Pendente/Enviado: sem ícone de texto — o ícone azul do avião no canto esquerdo já indica
     }
-
-    const isAssinado = isSaved && existingDoc.assinafy_status === 'Assinado';
 
     let actionsHtml = `
         <div class="doc-actions" style="display: flex; align-items: flex-end; gap: 0.5rem;">
@@ -2749,10 +2749,8 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                     </div>
 
                     ${(() => {
-                        // Advertencias: mostrar Assinafy so para Escrita e Suspensoes (nao Verbal)
-                        const isAdv = tabId === 'Advert\u00eancias';
-                        const tipoPermiteAssinar = tipoAdvSimples && !tipoAdvSimples.toLowerCase().includes('verbal');
-                        const showAssinafy = isSaved && (!isAdv || tipoPermiteAssinar) && tabId !== 'Atestados';
+                        const isAdv = tabId === 'Advertências';
+                        const showAssinafy = isSaved && (!isAdv) && tabId !== 'Atestados';
                         return showAssinafy ? `
                         <div style="display: flex; align-items: center; gap: 0.5rem;">
                             <button class="btn btn-sm btn-assinafy" style="width: auto; padding: 0 0.85rem;" onclick="window.iniciarAssinafy('${docType}', '${tabId}', this)" ${isAssinado ? 'disabled' : ''}>
@@ -2764,11 +2762,18 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
 
                     ${(tabId === 'Advertências' && isSaved) ? `
                     <div style="display:flex; flex-direction:column; gap:0.35rem; margin-top:0.35rem; align-items:flex-end;">
-                        <button type="button"
+                        ${(!stMain || stMain === 'Nenhum') ? `
+                        <button type="button" class="btn btn-sm btn-secondary"
                                 onclick="window.abrirModalAssinaturaTestemunhas(${existingDoc.id})"
-                                style="height:36px; display:flex; align-items:center; justify-content:center; gap:6px; background:#475569; color:#fff; border:none; border-radius:6px; padding:0 0.85rem; font-size:0.82rem; font-weight:600; cursor:pointer; white-space:nowrap; width:100%; min-width:230px; max-width:250px;">
+                                style="height:32px; display:flex; align-items:center; justify-content:center; gap:6px; background:#475569; color:#fff; border:none; border-radius:6px; padding:0 0.85rem; font-size:0.82rem; font-weight:600; cursor:pointer; white-space:nowrap; width:100%; min-width:230px; max-width:250px;">
                             <i class="ph ph-users"></i> Assinatura de Testemunhas
-                        </button>
+                        </button>` : ''}
+                        ${(stMain === 'Testemunhas') ? `
+                        <button type="button" class="btn btn-sm btn-primary"
+                                onclick="window.abrirModalAssinaturaColaborador(${existingDoc.id})"
+                                style="height:32px; display:flex; align-items:center; justify-content:center; gap:6px; background:#0f4c81; color:#fff; border:none; border-radius:6px; padding:0 0.85rem; font-size:0.82rem; font-weight:600; cursor:pointer; white-space:nowrap; width:100%; min-width:230px; max-width:250px;">
+                            <i class="ph ph-pen-nib"></i> Assinar Documento
+                        </button>` : ''}
                     </div>` : ''}
 
                     ${(tabId === 'Atestados' && isSaved) ? `
@@ -5614,7 +5619,6 @@ window.syncOneDriveManual = async function(id, btnElement = null) {
     }
 
     try {
-        // Timeout de 25 segundos para não travar o spinner se o Render demorar
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 25000);
 
@@ -5627,17 +5631,17 @@ window.syncOneDriveManual = async function(id, btnElement = null) {
         const data = await res.json();
         
         if (data.sucesso) {
-            alert(`✅ SUCESSO TOTAL! [Versão: ${data.versao || 'N/A'}]\n${data.message || ""}\nCaminho: ${data.path}`);
+            alert(`✅ SUCESSO TOTAL!\nCaminho: ${data.path}`);
         } else {
-            let msg = `❌ Erro na Sincronização:\n${data.message || data.error}\n`;
-            if (data.details) msg += `\nDetalhes Microsoft: ${JSON.stringify(data.details)}`;
-            alert(msg);
+            alert(`❌ Erro na Sincronização:\n${data.message || data.error}`);
         }
     } catch (e) {
         alert("Erro na requisição: " + e.message);
     } finally {
-        btn.disabled = false;
-        btn.innerHTML = originalHtml;
+        if(btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
     }
 };
 
@@ -5676,10 +5680,8 @@ window.resetSystem = async function() {
 
 /**
  * Auto-polling de status Assinafy a cada 30s.
- * Verifica os documentos pendentes que estao visiveis na aba de prontuario.
  */
 setInterval(async () => {
-    // Busca na tela os cards de documentos que estão com status Pendente ou Aguardando
     const pendingDocs = Array.from(document.querySelectorAll('.doc-item[data-assinafy-status="Pendente"], .doc-item[data-assinafy-status="Aguardando"]'));
     if (pendingDocs.length === 0) return;
 
@@ -5697,7 +5699,6 @@ setInterval(async () => {
             
             if (res.ok && data.sucesso) {
                 if (data.status_novo === 'Assinado' && data.status_antigo !== 'Assinado') {
-                    // Impede repetição do poll até o redesenho se a DOM não tiver girado ainda
                     docEl.setAttribute('data-assinafy-status', 'Assinado');
                     updatedAny = true;
                 }
@@ -5707,11 +5708,9 @@ setInterval(async () => {
         }
     }
     
-    // Se algum atualizar pra valer, redesenhar aba do prontuario
     if (updatedAny) {
         await loadDocumentosList();
         
-        // Reflete pro workflow de admissão ou prontuário normal
         const activeTab = document.querySelector('#tabs-list li.active');
         if (activeTab) {
             renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
@@ -5723,46 +5722,57 @@ setInterval(async () => {
     }
 }, 30000);
 
-// --- LÓGICA ASSINATURA TESTEMUNHAS ---
-let ctxTestemunha1, ctxTestemunha2;
-let currentDocIdForWitness = null;
-let currentDocDataForWitness = null;
+// --- LÓGICA RENDER PDF (PDF.js) ---
+async function renderPdfToContainer(pdfUrl, containerId, onScrollEnd) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '<div style="color:white; padding: 2rem;">Carregando PDF...</div>';
+    container.scrollTop = 0;
+    container.onscroll = null;
 
-window.abrirModalAssinaturaTestemunhas = async function(docId) {
-    currentDocIdForWitness = docId;
-    currentDocDataForWitness = currentDocs.find(d => d.id === docId);
+    try {
+        if (!window.pdfjsLib) throw new Error('Biblioteca pdf.js não carregada');
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
-    const modal = document.getElementById('modal-assinatura-testemunhas');
-    modal.style.display = 'block';
+        const loadingTask = pdfjsLib.getDocument(pdfUrl);
+        const pdf = await loadingTask.promise;
+        container.innerHTML = '';
+        
+        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+            const page = await pdf.getPage(pageNum);
+            const scale = 1.2;
+            const viewport = page.getViewport({ scale: scale });
 
-    const cols = await apiGet('/colaboradores');
-    // Filter active
-    const ativos = (cols || []).filter(c => {
-        let st = c.status;
-        if (!st) {
-            // fallback logic similar to getEffectiveStatus if status is not populated correctly
-            st = (c.data_admissao && new Date(c.data_admissao + 'T12:00:00') > new Date()) ? 'Aguardando início' : 'Ativo';
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            canvas.style.display = 'block';
+            canvas.style.margin = '0 auto 10px auto';
+            canvas.style.width = '100%';
+            canvas.style.maxWidth = '600px';
+
+            await page.render({ canvasContext: context, viewport: viewport }).promise;
+            container.appendChild(canvas);
         }
-        return st === 'Ativo' || st === 'Férias' || st === 'Afastado';
-    });
-    ativos.sort((a,b) => (a.nome_completo||a.nome||'').localeCompare(b.nome_completo||b.nome||''));
+        
+        const checkScroll = () => {
+            if (container.scrollHeight - container.scrollTop <= container.clientHeight + 100) {
+                onScrollEnd();
+                container.removeEventListener('scroll', checkScroll);
+            }
+        };
 
-    let options = '<option value="">Selecione uma testemunha...</option>';
-    ativos.forEach(c => {
-        const nome = c.nome_completo || c.nome || '';
-        const cpf = c.cpf || '';
-        options += `<option value="${nome}###${cpf}">${nome} - CPF: ${cpf}</option>`;
-    });
-
-    document.getElementById('select-testemunha-1').innerHTML = options;
-    document.getElementById('select-testemunha-2').innerHTML = options;
-
-    inicializarCanvasTestemunhas();
-};
-
-function inicializarCanvasTestemunhas() {
-    setupCanvasTestemunha(1);
-    setupCanvasTestemunha(2);
+        container.addEventListener('scroll', checkScroll);
+        
+        if (container.scrollHeight <= container.clientHeight + 150) {
+            onScrollEnd();
+        }
+        
+    } catch (e) {
+        console.error("PDFJS Erro:", e);
+        container.innerHTML = '<div style="color:red; padding:2rem;">Erro ao carregar renderização do PDF: ' + e.message + '</div>';
+        onScrollEnd(); 
+    }
 }
 
 function getPointerPos(canvas, evt) {
@@ -5773,21 +5783,32 @@ function getPointerPos(canvas, evt) {
         clientX = evt.touches[0].clientX;
         clientY = evt.touches[0].clientY;
     }
+    const dpr = window.devicePixelRatio || 1;
     return {
-        x: (clientX - rect.left) * (canvas.width / rect.width),
-        y: (clientY - rect.top) * (canvas.height / rect.height)
+        x: (clientX - rect.left),
+        y: (clientY - rect.top)
     };
 }
 
-function setupCanvasTestemunha(index) {
-    let canvas = document.getElementById('canvas-testemunha-' + index);
+function setupHighDpiCanvas(canvasId, refObj, objKey) {
+    let canvas = document.getElementById(canvasId);
+    if (!canvas) return;
     const newCanvas = canvas.cloneNode(true);
     canvas.parentNode.replaceChild(newCanvas, canvas);
     canvas = newCanvas;
 
+    const dpr = window.devicePixelRatio || 1;
+    let w = canvas.clientWidth || 500;
+    let h = canvas.clientHeight || 150;
+
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    
     const ctx = canvas.getContext('2d');
-    if(index === 1) ctxTestemunha1 = ctx;
-    else ctxTestemunha2 = ctx;
+    ctx.scale(dpr, dpr);
+    refObj[objKey] = ctx;
 
     ctx.lineWidth = 2;
     ctx.lineCap = 'round';
@@ -5808,21 +5829,71 @@ function setupCanvasTestemunha(index) {
     canvas.addEventListener('touchmove', move, {passive: false});
     canvas.addEventListener('touchend', stop);
 
-    window.limparCanvasTestemunha(index);
+    ctx.clearRect(0, 0, w, h);
 }
 
-window.limparCanvasTestemunha = function(index) {
-    const canvas = document.getElementById('canvas-testemunha-' + index);
-    const ctx = index === 1 ? ctxTestemunha1 : ctxTestemunha2;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-};
-
-function isCanvasBlank(canvas) {
+function isCanvasBlank(canvasId) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return true;
     const blank = document.createElement('canvas');
     blank.width = canvas.width;
     blank.height = canvas.height;
     return canvas.toDataURL() === blank.toDataURL();
 }
+
+// --- LÓGICA ASSINATURA TESTEMUNHAS ---
+let ctxTestemunhas = {};
+let currentDocIdForWitness = null;
+let currentDocDataForWitness = null;
+
+window.abrirModalAssinaturaTestemunhas = async function(docId) {
+    currentDocIdForWitness = docId;
+    currentDocDataForWitness = currentDocs.find(d => d.id === docId);
+
+    const modal = document.getElementById('modal-assinatura-testemunhas');
+    const formArea = document.getElementById('area-assinatura-testemunhas');
+    formArea.style.display = 'none';
+    modal.style.display = 'block';
+
+    const cols = await apiGet('/colaboradores');
+    // Filter active
+    const ativos = (cols || []).filter(c => {
+        let st = c.status;
+        if (!st) st = (c.data_admissao && new Date(c.data_admissao + 'T12:00:00') > new Date()) ? 'Aguardando início' : 'Ativo';
+        return st === 'Ativo' || st === 'Férias' || st === 'Afastado';
+    });
+    ativos.sort((a,b) => (a.nome_completo||a.nome||'').localeCompare(b.nome_completo||b.nome||''));
+
+    let options = '<option value="">Selecione uma testemunha...</option>';
+    ativos.forEach(c => {
+        const nome = c.nome_completo || c.nome || '';
+        const cpf = c.cpf || '';
+        options += `<option value="${nome}###${cpf}">${nome}</option>`;
+    });
+
+    document.getElementById('select-testemunha-1').innerHTML = options;
+    document.getElementById('select-testemunha-2').innerHTML = options;
+    document.getElementById('cpf-t1').innerText = '';
+    document.getElementById('cpf-t2').innerText = '';
+
+    const baseUrl = API_URL.replace('/api', '');
+    const pdfUrl = `${baseUrl}/${currentDocDataForWitness.file_path}?t=${Date.now()}`;
+    
+    renderPdfToContainer(pdfUrl, 'pdf-viewer-testemunhas', () => {
+        formArea.style.display = 'block';
+        setTimeout(() => {
+            setupHighDpiCanvas('canvas-testemunha-1', ctxTestemunhas, 'ctx1');
+            setupHighDpiCanvas('canvas-testemunha-2', ctxTestemunhas, 'ctx2');
+        }, 100);
+    });
+};
+
+window.limparCanvasTestemunha = function(index) {
+    const canvas = document.getElementById('canvas-testemunha-' + index);
+    const ctx = index === 1 ? ctxTestemunhas.ctx1 : ctxTestemunhas.ctx2;
+    const dpr = window.devicePixelRatio || 1;
+    ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+};
 
 window.salvarAssinaturasTestemunhas = async function() {
     const s1 = document.getElementById('select-testemunha-1').value;
@@ -5831,24 +5902,13 @@ window.salvarAssinaturasTestemunhas = async function() {
     if (!s1 || !s2) { alert('Selecione as duas testemunhas.'); return; }
     if (s1 === s2) { alert('Selecione testemunhas diferentes.'); return; }
 
-    const c1 = document.getElementById('canvas-testemunha-1');
-    const c2 = document.getElementById('canvas-testemunha-2');
-
-    if (isCanvasBlank(c1) || isCanvasBlank(c2)) {
-        alert('Colete a assinatura de ambas as testemunhas.');
-        return;
+    if (isCanvasBlank('canvas-testemunha-1') || isCanvasBlank('canvas-testemunha-2')) {
+        alert('Colete a assinatura de ambas as testemunhas.'); return;
     }
 
     const doc = currentDocDataForWitness;
-    if(!doc || !doc.file_path) {
-        alert('Documento original não encontrado.');
-        return;
-    }
-
-    if (typeof PDFLib === 'undefined') {
-        alert('A biblioteca de processamento de PDF não está carregada.');
-        return;
-    }
+    if(!doc || !doc.file_path) { alert('Documento original não encontrado.'); return; }
+    if (typeof PDFLib === 'undefined') { alert('A biblioteca de processamento de PDF não está carregada.'); return; }
 
     const btn = document.getElementById('btn-salvar-testemunhas');
     const originalBtn = btn.innerHTML;
@@ -5867,10 +5927,7 @@ window.salvarAssinaturasTestemunhas = async function() {
         const { width, height } = page.getSize();
         
         page.drawText('ASSINATURA DE TESTEMUNHAS', {
-            x: 50,
-            y: height - 80,
-            size: 16,
-            color: PDFLib.rgb(0, 0, 0),
+            x: 50, y: height - 80, size: 16, color: PDFLib.rgb(0, 0, 0),
         });
 
         const data1 = s1.split('###');
@@ -5880,46 +5937,36 @@ window.salvarAssinaturasTestemunhas = async function() {
         page.drawText(`Testemunha 1: ${data1[0]} - CPF: ${data1[1]}`, {
             x: 50, y: height - 150, size: 12, color: PDFLib.rgb(0, 0, 0)
         });
+        const c1 = document.getElementById('canvas-testemunha-1');
         const png1Bytes = await fetch(c1.toDataURL('image/png')).then(res => res.arrayBuffer());
         const png1Image = await pdfDoc.embedPng(png1Bytes);
-        page.drawImage(png1Image, {
-            x: 50, y: height - 300, width: 300, height: 90
-        });
-        page.drawLine({
-            start: { x: 50, y: height - 300 },
-            end: { x: 350, y: height - 300 },
-            thickness: 1, color: PDFLib.rgb(0, 0, 0)
-        });
+        page.drawImage(png1Image, { x: 50, y: height - 300, width: 300, height: 90 });
+        page.drawLine({ start: { x: 50, y: height - 300 }, end: { x: 350, y: height - 300 }, thickness: 1, color: PDFLib.rgb(0, 0, 0) });
 
         // Testemunha 2
         page.drawText(`Testemunha 2: ${data2[0]} - CPF: ${data2[1]}`, {
-            x: 50, y: height - 450, size: 12, color: PDFLib.rgb(0, 0, 0)
+            x: 50, y: height - 420, size: 12, color: PDFLib.rgb(0, 0, 0)
         });
+        const c2 = document.getElementById('canvas-testemunha-2');
         const png2Bytes = await fetch(c2.toDataURL('image/png')).then(res => res.arrayBuffer());
         const png2Image = await pdfDoc.embedPng(png2Bytes);
-        page.drawImage(png2Image, {
-            x: 50, y: height - 600, width: 300, height: 90
-        });
-        page.drawLine({
-            start: { x: 50, y: height - 600 },
-            end: { x: 350, y: height - 600 },
-            thickness: 1, color: PDFLib.rgb(0, 0, 0)
-        });
+        page.drawImage(png2Image, { x: 50, y: height - 570, width: 300, height: 90 });
+        page.drawLine({ start: { x: 50, y: height - 570 }, end: { x: 350, y: height - 570 }, thickness: 1, color: PDFLib.rgb(0, 0, 0) });
 
         const modifiedPdfBytes = await pdfDoc.save();
-
         const file = new File([modifiedPdfBytes], doc.file_name, { type: 'application/pdf' });
         const formData = new FormData();
+        formData.append('document_id', doc.id); // Força UPDATE em vez de INSERT
         formData.append('file', file);
         formData.append('colaborador_id', viewedColaborador.id);
         formData.append('colaborador_nome', viewedColaborador.nome_completo || 'Desconhecido');
         formData.append('tab_name', doc.tab_name);
         formData.append('document_type', doc.document_type);
+        formData.append('assinafy_status', 'Testemunhas'); // Atualiza status
         if(doc.year) formData.append('year', doc.year);
         if(doc.month) formData.append('month', doc.month);
 
-        btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Atualizando Documento...';
-
+        btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando Documento...';
         const resUpload = await fetch(`${API_URL}/documentos`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${currentToken}` },
@@ -5941,7 +5988,6 @@ window.salvarAssinaturasTestemunhas = async function() {
         } else {
             renderTabContent('Advertências', 'Advertências', true);
         }
-
     } catch (e) {
         console.error(e);
         alert('Erro ao salvar assinaturas: ' + e.message);
@@ -5950,3 +5996,116 @@ window.salvarAssinaturasTestemunhas = async function() {
         btn.innerHTML = originalBtn;
     }
 };
+
+// --- LÓGICA ASSINATURA COLABORADOR (Advertência) ---
+let ctxColaborador = {};
+let currentDocIdForColab = null;
+
+window.abrirModalAssinaturaColaborador = async function(docId) {
+    currentDocIdForColab = docId;
+    const doc = currentDocs.find(d => d.id === docId);
+
+    const modal = document.getElementById('modal-assinatura-colaborador');
+    const formArea = document.getElementById('area-assinatura-colaborador');
+    formArea.style.display = 'none';
+    modal.style.display = 'block';
+
+    document.getElementById('nome-assinatura-colab').innerText = viewedColaborador.nome_completo || 'Colaborador';
+
+    const baseUrl = API_URL.replace('/api', '');
+    const pdfUrl = `${baseUrl}/${doc.file_path}?t=${Date.now()}`;
+    
+    renderPdfToContainer(pdfUrl, 'pdf-viewer-colaborador', () => {
+        formArea.style.display = 'block';
+        setTimeout(() => {
+            setupHighDpiCanvas('canvas-colaborador', ctxColaborador, 'ctx1');
+        }, 100);
+    });
+};
+
+window.limparCanvasColaborador = function() {
+    const canvas = document.getElementById('canvas-colaborador');
+    const ctx = ctxColaborador.ctx1;
+    const dpr = window.devicePixelRatio || 1;
+    ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+};
+
+window.salvarAssinaturaColaborador = async function() {
+    if (isCanvasBlank('canvas-colaborador')) {
+        alert('A assinatura do colaborador é obrigatória.'); return;
+    }
+
+    const doc = currentDocs.find(d => d.id === currentDocIdForColab);
+    if(!doc || !doc.file_path) { alert('Documento não encontrado.'); return; }
+
+    const btn = document.getElementById('btn-salvar-colaborador');
+    const originalBtn = btn.innerHTML;
+    try {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Processando...';
+
+        const baseUrl = API_URL.replace('/api', '');
+        const pdfUrl = `${baseUrl}/${doc.file_path}?t=${Date.now()}`;
+        const pdfResp = await fetch(pdfUrl);
+        if(!pdfResp.ok) throw new Error('Não foi possível baixar o PDF original.');
+        const existingPdfBytes = await pdfResp.arrayBuffer();
+
+        const pdfDoc = await PDFLib.PDFDocument.load(existingPdfBytes);
+        const pages = pdfDoc.getPages();
+        const lastPage = pages[pages.length - 1];
+        const { width, height } = lastPage.getSize();
+
+        lastPage.drawText(`Assinatura do Colaborador: ${viewedColaborador.nome_completo || 'Colaborador'}`, {
+            x: 50, y: height - 710, size: 12, color: PDFLib.rgb(0, 0, 0)
+        });
+        const c1 = document.getElementById('canvas-colaborador');
+        const png1Bytes = await fetch(c1.toDataURL('image/png')).then(res => res.arrayBuffer());
+        const png1Image = await pdfDoc.embedPng(png1Bytes);
+        lastPage.drawImage(png1Image, { x: 50, y: height - 830, width: 300, height: 90 });
+        lastPage.drawLine({ start: { x: 50, y: height - 830 }, end: { x: 350, y: height - 830 }, thickness: 1, color: PDFLib.rgb(0, 0, 0) });
+
+        const modifiedPdfBytes = await pdfDoc.save();
+        const file = new File([modifiedPdfBytes], doc.file_name, { type: 'application/pdf' });
+        const formData = new FormData();
+        formData.append('document_id', doc.id);
+        formData.append('file', file);
+        formData.append('colaborador_id', viewedColaborador.id);
+        formData.append('colaborador_nome', viewedColaborador.nome_completo || 'Desconhecido');
+        formData.append('tab_name', doc.tab_name);
+        formData.append('document_type', doc.document_type);
+        formData.append('assinafy_status', 'Assinado'); 
+        if(doc.year) formData.append('year', doc.year);
+        if(doc.month) formData.append('month', doc.month);
+
+        btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando Documento...';
+        const resUpload = await fetch(`${API_URL}/documentos`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${currentToken}` },
+            body: formData
+        });
+
+        if(!resUpload.ok) {
+            const errRes = await resUpload.json().catch(()=>({}));
+            throw new Error(errRes.error || 'Falha ao reenviar documento assinado.');
+        }
+
+        alert('Assinatura do colaborador coletada!');
+        document.getElementById('modal-assinatura-colaborador').style.display = 'none';
+        
+        await loadDocumentosList();
+        
+        const activeTab = document.querySelector('#tabs-list li.active');
+        if(activeTab) {
+            renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
+        } else {
+            renderTabContent('Advertências', 'Advertências', true);
+        }
+    } catch (e) {
+        console.error(e);
+        alert('Erro ao salvar assinatura: ' + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalBtn;
+    }
+};
+

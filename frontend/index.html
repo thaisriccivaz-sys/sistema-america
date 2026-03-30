@@ -1607,39 +1607,77 @@
 
     <!-- MODAL: ASSINATURA DE TESTEMUNHAS -->
     <div id="modal-assinatura-testemunhas" class="modal">
-        <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-content" style="max-width: 800px; display:flex; flex-direction:column; max-height: 90vh;">
             <div class="modal-header">
                 <h3>Assinatura de Testemunhas</h3>
                 <span class="close-modal" onclick="document.getElementById('modal-assinatura-testemunhas').style.display='none'">&times;</span>
             </div>
-            <div class="modal-body" style="background:#f4f6f9; padding: 1.5rem;">
-                <p style="font-size:0.85rem; color:#475569; margin-bottom:1rem;">Selecione duas testemunhas e colete as assinaturas abaixo. Elas serão anexadas diretamente ao documento.</p>
+            <div class="modal-body" style="background:#f4f6f9; padding: 1.5rem; overflow-y: auto; flex:1; display:flex; flex-direction:column;">
+                <p style="font-size:0.85rem; color:#475569; margin-bottom:1rem;">Leia o documento abaixo. O formulário de assinatura será liberado após rolar a visualização até o final.</p>
                 
-                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:1rem; margin-bottom:1rem;">
-                    <label style="font-weight:600; font-size:0.85rem;">Testemunha 1</label>
-                    <select id="select-testemunha-1" class="form-control mb-2" style="width:100%;"></select>
-                    <div style="border: 1px dashed #cbd5e1; background:#f8fafc; border-radius:4px; margin-bottom:0.5rem;">
-                        <canvas id="canvas-testemunha-1" width="500" height="150" style="width:100%; height:150px; cursor:crosshair;"></canvas>
-                    </div>
-                    <button type="button" class="btn btn-sm btn-secondary" onclick="limparCanvasTestemunha(1)">Limpar Assinatura 1</button>
+                <div id="pdf-viewer-testemunhas" style="width:100%; height:400px; overflow-y:scroll; background:#333; margin-bottom:1rem; border:1px solid #ccc; text-align:center;">
                 </div>
 
-                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:1rem; margin-bottom:1rem;">
-                    <label style="font-weight:600; font-size:0.85rem;">Testemunha 2</label>
-                    <select id="select-testemunha-2" class="form-control mb-2" style="width:100%;"></select>
-                    <div style="border: 1px dashed #cbd5e1; background:#f8fafc; border-radius:4px; margin-bottom:0.5rem;">
-                        <canvas id="canvas-testemunha-2" width="500" height="150" style="width:100%; height:150px; cursor:crosshair;"></canvas>
+                <div id="area-assinatura-testemunhas" style="display:none; transition: opacity 0.5s;">
+                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:1rem; margin-bottom:1rem;">
+                        <label style="font-weight:600; font-size:0.85rem;">Testemunha 1</label>
+                        <select id="select-testemunha-1" class="form-control mb-2" style="width:100%;" onchange="document.getElementById('cpf-t1').innerText = this.value ? 'CPF: ' + this.value.split('###')[1] : ''"></select>
+                        <span id="cpf-t1" style="font-size: 0.8rem; color: #64748b; display: block; margin-bottom: 0.5rem;"></span>
+                        <div style="border: 1px dashed #cbd5e1; background:#f8fafc; border-radius:4px; margin-bottom:0.5rem;">
+                            <canvas id="canvas-testemunha-1" style="width:100%; height:150px; cursor:crosshair; touch-action:none;"></canvas>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-secondary" onclick="limparCanvasTestemunha(1)">Limpar Assinatura 1</button>
                     </div>
-                    <button type="button" class="btn btn-sm btn-secondary" onclick="limparCanvasTestemunha(2)">Limpar Assinatura 2</button>
-                </div>
 
-                <button type="button" class="btn btn-primary btn-block" id="btn-salvar-testemunhas" onclick="window.salvarAssinaturasTestemunhas()">
-                    <i class="ph ph-floppy-disk"></i> Salvar Assinaturas no Documento
-                </button>
+                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:1rem; margin-bottom:1rem;">
+                        <label style="font-weight:600; font-size:0.85rem;">Testemunha 2</label>
+                        <select id="select-testemunha-2" class="form-control mb-2" style="width:100%;" onchange="document.getElementById('cpf-t2').innerText = this.value ? 'CPF: ' + this.value.split('###')[1] : ''"></select>
+                        <span id="cpf-t2" style="font-size: 0.8rem; color: #64748b; display: block; margin-bottom: 0.5rem;"></span>
+                        <div style="border: 1px dashed #cbd5e1; background:#f8fafc; border-radius:4px; margin-bottom:0.5rem;">
+                            <canvas id="canvas-testemunha-2" style="width:100%; height:150px; cursor:crosshair; touch-action:none;"></canvas>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-secondary" onclick="limparCanvasTestemunha(2)">Limpar Assinatura 2</button>
+                    </div>
+
+                    <button type="button" class="btn btn-primary btn-block" id="btn-salvar-testemunhas" onclick="window.salvarAssinaturasTestemunhas()">
+                        <i class="ph ph-floppy-disk"></i> Salvar Assinaturas
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 
+    <!-- MODAL: ASSINATURA DO COLABORADOR -->
+    <div id="modal-assinatura-colaborador" class="modal">
+        <div class="modal-content" style="max-width: 800px; display:flex; flex-direction:column; max-height: 90vh;">
+            <div class="modal-header">
+                <h3>Assinatura do Colaborador</h3>
+                <span class="close-modal" onclick="document.getElementById('modal-assinatura-colaborador').style.display='none'">&times;</span>
+            </div>
+            <div class="modal-body" style="background:#f4f6f9; padding: 1.5rem; overflow-y: auto; flex:1; display:flex; flex-direction:column;">
+                <p style="font-size:0.85rem; color:#475569; margin-bottom:1rem;">Leia o documento abaixo. O quadro para assinatura será liberado ao rolar a página até o final.</p>
+                
+                <div id="pdf-viewer-colaborador" style="width:100%; height:400px; overflow-y:scroll; background:#333; margin-bottom:1rem; border:1px solid #ccc; text-align:center;">
+                </div>
+
+                <div id="area-assinatura-colaborador" style="display:none; transition: opacity 0.5s;">
+                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:1rem; margin-bottom:1rem;">
+                        <label style="font-weight:600; font-size:0.85rem;">Assinatura: <span id="nome-assinatura-colab"></span></label>
+                        <div style="border: 1px dashed #cbd5e1; background:#f8fafc; border-radius:4px; margin-bottom:0.5rem; margin-top:0.5rem;">
+                            <canvas id="canvas-colaborador" style="width:100%; height:150px; cursor:crosshair; touch-action:none;"></canvas>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-secondary" onclick="limparCanvasColaborador()">Limpar Assinatura</button>
+                    </div>
+
+                    <button type="button" class="btn btn-primary btn-block" id="btn-salvar-colaborador" onclick="window.salvarAssinaturaColaborador()">
+                        <i class="ph ph-floppy-disk"></i> Salvar Assinatura
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <!-- pdf-lib para manipulação de PDFs existentes -->
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <!-- jsPDF: necessário para geração de PDF da avaliação -->
