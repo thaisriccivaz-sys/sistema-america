@@ -2738,9 +2738,9 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
     if (isSaved) {
         const st = existingDoc.assinafy_status || '';
         if (st === 'Assinado') {
-            assStatusIcon = `<button type="button" onclick="window.viewDoc(${existingDoc.id})" style="display:inline-flex;align-items:center;gap:5px;background:#2f9e44;color:#fff;border:none;border-radius:6px;padding:0.3rem 0.75rem;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;" title="Visualizar/Baixar PDF Assinado"><i class="ph ph-file-pdf" style="font-size:1rem;"></i> Ver Assinado</button>`;
+            assStatusIcon = `<button type="button" onclick="window.viewDoc(${existingDoc.id})" style="height:42px;display:inline-flex;align-items:center;gap:6px;background:#2f9e44;color:#fff;border:none;border-radius:6px;padding:0 0.85rem;font-size:0.85rem;font-weight:600;cursor:pointer;white-space:nowrap;" title="Visualizar/Baixar PDF Assinado"><i class="ph ph-file-pdf" style="font-size:1.1rem;"></i> Ver Assinado</button>`;
         } else if (st === 'Erro') {
-            assStatusIcon = `<span title="Erro ao enviar" style="display:inline-flex;align-items:center;gap:3px;color:#e03131;font-size:0.78rem;font-weight:700;white-space:nowrap;"><i class="ph ph-warning-circle" style="font-size:1.1rem;"></i> Erro</span>`;
+            assStatusIcon = `<span title="Erro ao enviar" style="height:42px;display:inline-flex;align-items:center;gap:3px;color:#e03131;font-size:0.85rem;font-weight:600;white-space:nowrap;"><i class="ph ph-warning-circle" style="font-size:1.1rem;"></i> Erro</span>`;
         }
     }
 
@@ -2751,51 +2751,52 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                     <i class="ph ph-info" style="font-size: 1.1rem;"></i> ${blockReason}
                 </div>
             ` : `
-                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-                    <div style="display: flex; gap: 0.5rem; align-items: flex-end;">
-                        ${vencimentoInputHtml}
-                        ${isSaved ? `
-                            <button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height: 42px;"><i class="ph ph-eye"></i></button>
-                            ${(!isAssinado) ? `<button type="button" class="btn btn-danger" onclick="deleteDoc(${existingDoc.id}, this)" title="Excluir" style="height: 42px;"><i class="ph ph-trash"></i></button>` : ''}
-                        ` : ''}
-                        ${(!isAssinado && !(tabId === 'Atestados' && isSaved)) ? `
-                        <label class="btn ${isSaved ? 'btn-warning' : 'btn-primary'}" title="${isSaved ? 'Substituir' : 'Fazer Upload'}" style="height: 42px; display: flex; align-items: center;">
-                            <i class="ph ph-upload-simple"></i> ${isSaved ? 'Substituir' : 'Upload'}
-                            <input type="file" accept=".pdf" style="display:none;" onchange="const venc = this.closest('.doc-item').querySelector('.venc-input')?.value; if((${needsVencimento}) && !venc) { alert('Data de vencimento é obrigatória'); this.value=''; return; } uploadDocument(this, '${tabId}', '${docType}', ${year}, ${month}, venc)">
-                        </label>
-                        ` : ''}
-                    </div>
+                <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                    ${vencimentoInputHtml}
+
+                    ${isSaved ? `
+                        <button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height: 42px;"><i class="ph ph-eye"></i></button>
+                    ` : ''}
 
                     ${(() => {
                         const isAdv = tabId === 'Advertências';
                         const showAssinafy = isSaved && (!isAdv) && tabId !== 'Atestados';
                         return showAssinafy ? `
-                        <div style="display: flex; align-items: center; gap: 0.5rem;">
-                            <button class="btn btn-sm btn-assinafy" style="width: auto; padding: 0 0.85rem;" onclick="window.iniciarAssinafy('${docType}', '${tabId}', this)" ${isAssinado ? 'disabled' : ''}>
+                            <button class="btn btn-assinafy" style="height: 42px; display:flex; align-items:center; padding:0 0.85rem;" onclick="window.iniciarAssinafy('${docType}', '${tabId}', this)" ${isAssinado ? 'disabled' : ''}>
                                 <i class="ph ph-pen-nib"></i> Solicitar Assinatura
                             </button>
                             ${assStatusIcon}
-                        </div>` : (assStatusIcon ? `<div style="display:flex;align-items:center;gap:0.5rem; justify-content:flex-end; width:100%; margin-top:0.35rem;">${assStatusIcon}</div>` : '');
+                        ` : (assStatusIcon ? assStatusIcon : '');
                     })()}
 
                     ${(tabId === 'Advertências' && isSaved) ? `
-                    <div style="display:flex; flex-direction:column; gap:0.35rem; margin-top:0.35rem; align-items:flex-end;">
                         ${(!stMain || stMain === 'Nenhum') ? `
-                        <button type="button" class="btn btn-sm btn-secondary"
+                        <button type="button" class="btn btn-secondary"
                                 onclick="window.abrirModalAssinaturaTestemunhas(${existingDoc.id})"
-                                style="height:32px; display:flex; align-items:center; justify-content:center; gap:6px; background:#475569; color:#fff; border:none; border-radius:6px; padding:0 0.85rem; font-size:0.82rem; font-weight:600; cursor:pointer; white-space:nowrap; width:100%; min-width:230px; max-width:250px;">
-                            <i class="ph ph-users"></i> Assinatura de Testemunhas
+                                style="height: 42px; display:flex; align-items:center; justify-content:center; gap:6px; background:#475569; color:#fff; border:none; border-radius:6px; padding:0 0.85rem; font-size:0.85rem; font-weight:600; cursor:pointer; white-space:nowrap;">
+                            <i class="ph ph-users"></i> Testemunhas
                         </button>` : ''}
                         ${(stMain === 'Testemunhas') ? `
-                        <button type="button" class="btn btn-sm btn-primary"
+                        <button type="button" class="btn btn-primary"
                                 onclick="window.abrirModalAssinaturaColaborador(${existingDoc.id})"
-                                style="height:32px; display:flex; align-items:center; justify-content:center; gap:6px; background:#0f4c81; color:#fff; border:none; border-radius:6px; padding:0 0.85rem; font-size:0.82rem; font-weight:600; cursor:pointer; white-space:nowrap; width:100%; min-width:230px; max-width:250px;">
-                            <i class="ph ph-pen-nib"></i> Assinar Documento
+                                style="height: 42px; display:flex; align-items:center; justify-content:center; gap:6px; background:#0f4c81; color:#fff; border:none; border-radius:6px; padding:0 0.85rem; font-size:0.85rem; font-weight:600; cursor:pointer; white-space:nowrap;">
+                            <i class="ph ph-pen-nib"></i> Assinar
                         </button>` : ''}
-                    </div>` : ''}
+                    ` : ''}
+
+                    ${(!isAssinado && !(tabId === 'Atestados' && isSaved)) ? `
+                    <label class="btn ${isSaved ? 'btn-warning' : 'btn-primary'}" title="${isSaved ? 'Substituir' : 'Fazer Upload'}" style="height: 42px; display: flex; align-items: center; margin: 0;">
+                        <i class="ph ph-upload-simple"></i> ${isSaved ? 'Substituir' : 'Upload'}
+                        <input type="file" accept=".pdf" style="display:none;" onchange="const venc = this.closest('.doc-item').querySelector('.venc-input')?.value; if((${needsVencimento}) && !venc) { alert('Data de vencimento é obrigatória'); this.value=''; return; } uploadDocument(this, '${tabId}', '${docType}', ${year}, ${month}, venc)">
+                    </label>
+                    ` : ''}
+
+                    ${isSaved && !isAssinado ? `
+                        <button type="button" class="btn btn-danger" onclick="deleteDoc(${existingDoc.id}, this)" title="Excluir" style="height: 42px;"><i class="ph ph-trash"></i></button>
+                    ` : ''}
 
                     ${(tabId === 'Atestados' && isSaved) ? `
-                    <div style="display:flex; flex-direction:column; gap:0.35rem; margin-top:0.35rem; align-items:flex-end;">
+                    <div style="display:flex; flex-direction:column; gap:0.35rem; margin-top:0.35rem; align-items:flex-end; width:100%;">
                         <input type="email" id="contab-email-${existingDoc.id}"
                                value="thais.ricci@americarental.com.br"
                                style="height:36px; padding:0 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; width:100%; min-width:230px; max-width:250px;">
