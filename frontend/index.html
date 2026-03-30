@@ -1498,14 +1498,17 @@
                                         <i class="ph ph-magnifying-glass"></i> Buscar EPI pelo número do CA
                                     </label>
                                     <div style="display:flex; gap:0.5rem; align-items:center;">
-                                        <div style="display:flex; align-items:center; gap:0.4rem; flex:1; background:#fff; border:1.5px solid #bfdbfe; border-radius:8px; padding:0 0.75rem; height:38px;">
+                                        <div style="display:flex; align-items:center; gap:0.4rem; width:130px; background:#fff; border:1.5px solid #bfdbfe; border-radius:8px; padding:0 0.75rem; height:38px; flex-shrink:0;">
                                             <span style="font-size:0.8rem; color:#64748b; white-space:nowrap; font-weight:600;">CA</span>
                                             <input type="text" id="ca-numero-input"
-                                                   placeholder="Ex: 42.291 ou 42291"
+                                                   placeholder="Nº CA..."
                                                    oninput="window.onCaInput(this)"
                                                    onkeydown="if(event.key==='Enter' && !document.getElementById('ca-add-btn').disabled){ event.preventDefault(); window.addCaToList(); }"
-                                                   style="border:none; outline:none; font-size:0.88rem; flex:1; background:transparent; height:100%;">
+                                                   style="border:none; outline:none; font-size:0.88rem; flex:1; background:transparent; height:100%; min-width:0;">
                                         </div>
+                                        <input type="text" id="ca-nome-readonly" readonly
+                                               placeholder="Nome do EPI aparecerá aqui..."
+                                               style="flex:1; height:38px; background:#e2e8f0; border:1.5px solid #cbd5e1; border-radius:8px; padding:0 0.75rem; font-size:0.85rem; color:#334155; outline:none; font-weight:700;">
                                         <button type="button" id="ca-add-btn" onclick="window.addCaToList()" disabled
                                                 class="btn btn-primary" style="height:38px; padding:0 1rem; font-size:0.83rem; white-space:nowrap; flex-shrink:0;">
                                             <i class="ph ph-plus"></i> Adicionar
@@ -1826,7 +1829,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="avaliacoes.js?v=6"></script>
     <script src="gerenciar_avaliacoes.js?v=2"></script>
-    <script src="epi.js?v=3"></script>
+    <script src="epi.js?v=4"></script>
     <script src="app.js?v=36"></script>
 </body>
 </html>

@@ -35,6 +35,8 @@ const CA_DATABASE = {
     '18082':  'AVENTAL DE PLÁSTICO CA 18.082',
     '15819':  'LUVA DE NEOLATEX M CA 15.819',
     '28949':  'SAPATO ANTIDERRAPANTE CA 28.949',
+    '37456':  'BOTA DE BICO DE PVC CA 37.456',
+    '16311':  'ÓCULOS DE PROTEÇÃO CA 16.311',
 };
 
 function lookupCA(raw) {
@@ -46,18 +48,22 @@ window.onCaInput = function(input) {
     const match = lookupCA(input.value);
     const hint = document.getElementById('ca-lookup-hint');
     const addBtn = document.getElementById('ca-add-btn');
+    const readonlyNome = document.getElementById('ca-nome-readonly');
     if (match) {
-        hint.textContent = '✓ ' + match;
+        hint.textContent = '✓ Encontrado na base';
         hint.style.color = '#16a34a';
+        if(readonlyNome) readonlyNome.value = match;
         addBtn.disabled = false;
         addBtn.dataset.epiName = match;
     } else if (input.value.replace(/[.\s-]/g, '').length >= 4) {
         hint.textContent = 'CA não encontrado na base local — digite o nome manualmente';
         hint.style.color = '#f59e0b';
+        if(readonlyNome) readonlyNome.value = '';
         addBtn.disabled = false;
         addBtn.dataset.epiName = '';
     } else {
         hint.textContent = '';
+        if(readonlyNome) readonlyNome.value = '';
         addBtn.disabled = true;
         addBtn.dataset.epiName = '';
     }
@@ -70,19 +76,35 @@ window.addCaToList = function() {
     if (name) {
         addEpiRow(name);
     } else {
-        // CA não encontrado - abre linha vazia com CA pré-preenchido
+    // CA não encontrado - abre linha vazia com CA pré-preenchido
         const caRaw = input.value.trim();
         addEpiRow(caRaw ? `CA ${caRaw}` : '');
     }
     input.value = '';
+    const readonlyNome = document.getElementById('ca-nome-readonly');
+    if(readonlyNome) readonlyNome.value = '';
     document.getElementById('ca-lookup-hint').textContent = '';
     addBtn.disabled = true;
     addBtn.dataset.epiName = '';
 };
 
+let headerLogoBase64 = null;
+
 window.initEpiModule = function() {
     loadEpiTemplates();
     loadDeptList();
+
+    const img = new Image();
+    img.crossOrigin = 'Anonymous';
+    img.src = `${API_URL.replace('/api', '')}/assets/logo-header.png`;
+    img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        headerLogoBase64 = canvas.toDataURL('image/png');
+    };
 };
 
 // Restaura Ajudante se tiver sido editado incorretamente (chamado manualmente se necessário)
@@ -185,12 +207,8 @@ function renderEpiCard(t) {
                             class="btn btn-secondary btn-sm" style="height:32px;width:32px;padding:0;display:flex;align-items:center;justify-content:center;">
                         <i class="ph ph-eye"></i>
                     </button>
-                    <button onclick="window.abrirGerarParaColab('${mapKey}')" title="Gerar ficha para colaborador"
-                            class="btn btn-secondary btn-sm" style="height:32px;width:32px;padding:0;display:flex;align-items:center;justify-content:center;">
-                        <i class="ph ph-user"></i>
-                    </button>
                     <button onclick="window.openEpiModal(${t.id})" title="Editar template"
-                            class="btn btn-secondary btn-sm" style="height:32px;width:32px;padding:0;display:flex;align-items:center;justify-content:center;">
+                            class="btn btn-sm" style="background:#f59e0b;color:#fff;border:none;height:32px;width:32px;padding:0;display:flex;align-items:center;justify-content:center;">
                         <i class="ph ph-pencil-simple"></i>
                     </button>
                     <button onclick="window.deleteEpiTemplate(${t.id})" title="Excluir"
@@ -441,20 +459,19 @@ function fmtData(str) {
 }
 
 function pdfHeader(doc, W) {
-    let y = 12;
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(14);
-    doc.setTextColor(13, 71, 161);
-    doc.text('AMERICA', W / 2 - 8, y, { align: 'center' });
-    doc.setFont('helvetica', 'italic');
-    doc.setFontSize(14);
-    doc.text(' Rental', W / 2 + 8, y, { align: 'center' });
-    y += 4;
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
-    doc.setTextColor(100, 100, 100);
-    doc.text('desde 1999', W / 2, y, { align: 'center' });
-    y += 6;
+    let y = 14;
+    
+    if (headerLogoBase64) {
+        doc.addImage(headerLogoBase64, 'PNG', 13, y, W - 26, (W - 26) * 0.11);
+        y += ((W - 26) * 0.11) + 8;
+    } else {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(14);
+        doc.setTextColor(13, 71, 161);
+        doc.text('AMERICA Rental', W / 2, y, { align: 'center' });
+        y += 8;
+    }
+    
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
     doc.setTextColor(0, 0, 0);
@@ -465,27 +482,48 @@ function pdfHeader(doc, W) {
 }
 
 function pdfColabBox(doc, W, margin, y, colab) {
+    const boxH = 18;
+    doc.setLineWidth(0.3);
+    doc.setFillColor(241, 245, 249);
+    doc.rect(margin, y, W - margin * 2, 6, 'FD');
+    doc.rect(margin, y, W - margin * 2, boxH);
+    
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(30, 41, 59);
+    doc.text('DADOS DO COLABORADOR', margin + 3, y + 4.2);
+    
+    y += 6;
+    const col1 = margin + 3;
+    const col2 = W / 2 + 10;
+    
+    // Row 1
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(0, 0, 0);
+    doc.text(`NOME:`, col1, y + 4.5);
+    doc.setFont('helvetica', 'normal');
+    doc.text(colab.nome || '—', col1 + 10, y + 4.5);
+    
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9); doc.setTextColor(0, 0, 0);
-    doc.text('COLABORADOR:', margin, y);
-    doc.setLineWidth(0.4);
-    doc.line(margin + 30, y + 0.7, W - margin, y + 0.7);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(11);
-    doc.text(colab.nome || '—', margin + 32, y);
-    y += 7;
-    const boxH = 25;
-    doc.setLineWidth(0.3); doc.rect(margin, y, W - margin * 2, boxH);
-    y += 4.5;
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5);
-    doc.text('DADOS COLABORADOR:', margin + 2, y);
-    y += 4; doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
-    const cx = W / 2;
-    doc.text(`PORTADOR DA CÉDULA DE IDENTIDADE RG Nº: ${colab.rg || '—'}`, cx, y, { align: 'center' }); y += 4;
-    doc.text(`INSCRITO NO CPF SOB O Nº: ${colab.cpf || '—'}`, cx, y, { align: 'center' }); y += 4;
-    doc.text(`CARGO: ${colab.cargo || '—'}`, cx, y, { align: 'center' }); y += 4;
-    doc.text(`SETOR: ${(colab.dept || '').toUpperCase()}`, cx, y, { align: 'center' }); y += 4;
-    doc.text(`DATA DE ADMISSÃO: ${fmtData(colab.admissao)}`, cx, y, { align: 'center' });
-    return y + 8;
+    doc.text(`ADMISSÃO:`, col2, y + 4.5);
+    doc.setFont('helvetica', 'normal');
+    doc.text(fmtData(colab.admissao), col2 + 18, y + 4.5);
+    
+    // Row 2
+    doc.setFont('helvetica', 'bold');
+    doc.text(`RG:`, col1, y + 9.5);
+    doc.setFont('helvetica', 'normal');
+    doc.text(colab.rg || '—', col1 + 6, y + 9.5);
+    
+    doc.setFont('helvetica', 'bold');
+    doc.text(`CPF:`, col1 + 40, y + 9.5);
+    doc.setFont('helvetica', 'normal');
+    // Align CPF right next to its label safely
+    doc.text(colab.cpf || '—', col1 + 48, y + 9.5);
+    
+    doc.setFont('helvetica', 'bold');
+    doc.text(`CARGO:`, col2, y + 9.5);
+    doc.setFont('helvetica', 'normal');
+    doc.text(colab.cargo || '—', col2 + 13, y + 9.5);
+    
+    return y + boxH - 6 + 4;
 }
 
 function pdfEntregaTable(doc, W, margin, y, numRows) {
