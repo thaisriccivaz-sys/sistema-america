@@ -702,7 +702,9 @@ window.saveAvaliacao = async function(tipo, ano, trimestre, groupKey) {
             await generateAndUploadEvaluationPDF(viewedColaborador.id, viewedColaborador.nome_completo, tipo, ano, trimestre, groupKey, respostas);
         }
 
-        document.getElementById('modal-avaliacao').remove();
+        const modal = document.getElementById('modal-avaliacao');
+        if (modal) modal.remove();
+        
         renderAvaliacaoTab(document.getElementById('docs-list-container'));
         alert('Avaliação do ' + trimestre + 'º trimestre salva!');
     } catch(e) {
@@ -765,16 +767,21 @@ async function generateAndUploadEvaluationPDF(colabId, nome, tipo, ano, trimestr
         
         // upload to API
         const formData = new FormData();
-        formData.append('document', new File([pdfBlob], fileName, { type: 'application/pdf' }));
+        formData.append('file', new File([pdfBlob], fileName, { type: 'application/pdf' }));
+        formData.append('colaborador_id', colabId.toString());
         formData.append('document_type', tipo === 'desempenho' ? 'Avaliação de Desempenho' : 'Avaliação de Satisfação');
-        formData.append('tab_name', 'AVALIACAO'); // AVALIACAO se tornará o folder da tab
+        formData.append('tab_name', 'AVALIACAO'); // AVALIACAO se tornará o folder da tab no OneDrive
         formData.append('year', ano.toString());
 
-        await fetch(`/api/colaboradores/${colabId}/documentos`, {
+        const response = await fetch(`/api/documentos`, {
             method: 'POST',
             headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') },
             body: formData
         });
+        
+        if (!response.ok) {
+            throw new Error(`Falha no upload: ${response.statusText}`);
+        }
         console.log("PDF generated and uploaded via API successfully.");
     } catch(e) {
         console.error("Erro ao gerar PDF da Avaliação:", e);
