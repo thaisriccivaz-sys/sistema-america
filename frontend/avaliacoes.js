@@ -368,8 +368,22 @@ window.renderAvaliacaoTab = async function(container) {
 
         // Action Steps
         let actionsHtml = `<div style="display:flex; gap:1rem; flex-wrap:wrap; margin-bottom:2rem;">`;
+        const dateRightNow = new Date();
+        const anoAtual = dateRightNow.getFullYear();
+        const mesAtual = dateRightNow.getMonth() + 1; // 1 a 12
+
         for (let t=1; t<=4; t++) {
             const hasData = trimestersOverall[t] !== null;
+
+            // Verificar se deve exibir baseado no mês atual (regra: 1=Jan(1), 2=Abr(4), 3=Jul(7), 4=Dez(12))
+            const mesLiberacao = {1: 1, 2: 4, 3: 7, 4: 12}[t];
+            let liberado = false;
+            if (Number(year) < anoAtual) liberado = true;
+            else if (Number(year) === anoAtual && mesAtual >= mesLiberacao) liberado = true;
+            else if (hasData) liberado = true; // Sempre exibe se, por algum motivo, já houver dado preenchido
+
+            if (!liberado) continue; // Pula a renderização deste quadro, pois ainda não está na data
+
             let perc = 0;
             let avId = null;
             if (hasData) {
@@ -390,7 +404,7 @@ window.renderAvaliacaoTab = async function(container) {
                 <div style="flex:1; min-width:200px; background:#fff; border:1px solid ${hasData?'#0ea5e9':'#cbd5e1'}; border-radius:8px; padding:1.2rem; text-align:center; box-shadow:0 2px 4px rgba(0,0,0,0.05); position:relative;">
                     ${perc > 0 ? `<div style="position:absolute; top:-10px; right:-10px; background:${isFull?'#16a34a':'#f59e0b'}; color:#fff; width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(0,0,0,0.2); font-size:0.7rem; font-weight:700;">${perc}%</div>` : ''}
                     <h5 style="margin:0 0 0.5rem; color:#334155;">${trimestreToMonth[t]}</h5>
-                    ${hasData ? `<p style="font-size:1.5rem; font-weight:800; color:#16a34a; margin:0 0 1rem;">${trimestersOverall[t].toFixed(1)} <sub style="font-size:0.7rem;color:#64748b;">Média</sub></p>` : `<p style="font-size:0.85rem; color:#94a3b8; margin:0 0 1rem;">Pendente</p>`}
+                    ${hasData ? `<p style="font-size:1.5rem; font-weight:800; color:#16a34a; margin:0 0 1rem;">${trimestersOverall[t].toFixed(1)} <sub style="font-size:0.7rem;color:#64748b;">Média</sub></p>` : `<p style="font-size:0.85rem; color:#94a3b8; margin:0 0 1rem;">Disponível para Preenchimento</p>`}
                     <div style="display:flex; gap:0.5rem; justify-content:center;">
                         <button onclick="openFormAvaliacao('${tipo}', ${year}, ${t}, '${groupKey}')" style="background:${isFull?'#0f4c81':'#0ea5e9'}; color:#fff; border:none; padding:0.4rem 0.8rem; border-radius:4px; cursor:pointer; font-size:0.8rem; flex:1;">
                             <i class="ph ph-note-pencil"></i> ${hasData ? (isFull ? 'Editar' : 'Continuar') : 'Preencher'}
@@ -400,6 +414,12 @@ window.renderAvaliacaoTab = async function(container) {
                 </div>
             `;
         }
+        
+        // Se após o loop não houver quadros a mostrar (ex: ano futuro), adiciona mensagem
+        if (actionsHtml === `<div style="display:flex; gap:1rem; flex-wrap:wrap; margin-bottom:2rem;">`) {
+            actionsHtml += `<div style="flex:1; padding:2rem; text-align:center; color:#64748b; font-size:0.9rem; background:#fff; border:1px solid #e2e8f0; border-radius:8px;">Nenhuma avaliação liberada para este ano até o momento. Aguarde o mês correspondente.</div>`;
+        }
+        
         actionsHtml += `</div>`;
 
         // Renderizar a tela de fato
