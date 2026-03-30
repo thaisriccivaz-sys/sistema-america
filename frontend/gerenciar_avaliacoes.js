@@ -8,6 +8,10 @@ const GA_FRIENDLY_NAMES = {
     desempenho: {
         geral:     'Desempenho - Geral',
         lideranca: 'Desempenho - Liderança'
+    },
+    experiencia: {
+        motorista: 'Experiência - Motoristas',
+        ajudante:  'Experiência - Ajudantes'
     }
 };
 
@@ -51,16 +55,16 @@ window.renderGerenciarAvaliacoes = async function () {
     const defaultTemplates = [];
 
     if (typeof AVALIACAO_QUESTIONS !== 'undefined') {
-        ['satisfacao', 'desempenho'].forEach(tipo => {
+        ['satisfacao', 'desempenho', 'experiencia'].forEach(tipo => {
             const grupos = AVALIACAO_QUESTIONS[tipo] || {};
             Object.keys(grupos).forEach(grupo_key => {
                 const compositeKey = `${tipo}:${grupo_key}`;
                 if (!dbKeys.has(compositeKey)) {
                     defaultTemplates.push({
                         id: null, // não está no banco ainda
-                        nome: (GA_FRIENDLY_NAMES[tipo] && GA_FRIENDLY_NAMES[tipo][grupo_key]) || `${tipo} - ${grupo_key}`,
-                        tipo,
-                        grupo_key,
+                        nome: (GA_FRIENDLY_NAMES[tipo] && GA_FRIENDLY_NAMES[tipo][grupo_key]) ? GA_FRIENDLY_NAMES[tipo][grupo_key] : `${tipo.charAt(0).toUpperCase() + tipo.slice(1)} - ${grupo_key.charAt(0).toUpperCase() + grupo_key.slice(1)}`,
+                        tipo: tipo,
+                        grupo_key: grupo_key,
                         categorias_json: JSON.stringify(grupos[grupo_key]),
                         _isPadrao: true
                     });

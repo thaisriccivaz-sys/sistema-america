@@ -458,7 +458,7 @@ window.renderAvaliacaoTab = async function(container) {
                 });
                 const metric = tipo === 'experiencia' ? sum : (count > 0 ? (sum / count) : null);
                 trimestersData[av.trimestre][cat] = metric;
-                if (metric !== null) { totalSum += sum; totalCount++; }
+                if (metric !== null) { totalSum += metric; totalCount++; }
             });
             trimestersOverall[av.trimestre] = tipo === 'experiencia' ? totalSum : (totalCount > 0 ? (totalSum / totalCount) : null);
         });
