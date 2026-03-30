@@ -145,7 +145,13 @@ async function uploadDocToOneDrive(docId) {
         }
 
         console.log(`[OD-AUTO] doc=${docId} tab=${doc.tab_name} → ${targetDir}/${cloudName}`);
-        await onedrive.ensurePath(targetDir);
+        
+        const parentDir = `${onedriveBasePath}/${safeColab}/${safeTab}`;
+        if (targetDir !== parentDir) {
+            await onedrive.ensurePath(parentDir); // Garante /AVALIACAO
+        }
+        await onedrive.ensurePath(targetDir); // Garante /AVALIACAO/2026
+
         const fileBuffer = require('fs').readFileSync(localPath);
         await onedrive.uploadToOneDrive(targetDir, cloudName, fileBuffer);
         console.log(`[OD-AUTO] ✓ Upload OK: ${cloudName}`);
@@ -1070,9 +1076,15 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
                                 const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema";
                                 const safeColab = formatarNome(req.body.colaborador_nome || "DESCONHECIDO");
                                 const safeTab = formatarPasta(tab_name).toUpperCase();
-                                let targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}`;
+                                const parentDir = `${onedriveBasePath}/${safeColab}/${safeTab}`;
+                                let targetDir = parentDir;
                                 if (year && year !== 'null' && year !== 'undefined' && year !== '') targetDir += `/${year.replace(/[^0-9]/g, '')}`;
-                                await onedrive.ensurePath(targetDir);
+                                
+                                if (targetDir !== parentDir) {
+                                    await onedrive.ensurePath(parentDir); // garante /AVALIACAO
+                                }
+                                await onedrive.ensurePath(targetDir); // garante /AVALIACAO/2026
+
                                 const fileBuffer = fs.readFileSync(file_path);
                                 // Para Atestados usa o custom_name exato; outros usam file_name do multer
                                 let cloudFileName = file_name;
@@ -1545,6 +1557,14 @@ app.post('/api/avaliacoes', authenticateToken, (req, res) => {
     `, [colaborador_id, tipo, ano, trimestre, (respostas_json || '{}')], function(err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ success: true, changes: this.changes });
+    });
+});
+
+app.delete('/api/avaliacoes/:id', authenticateToken, (req, res) => {
+    db.run('DELETE FROM avaliacoes WHERE id = ?', [req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        if (this.changes === 0) return res.status(404).json({ error: 'Avaliação não encontrada.' });
+        res.json({ deleted: this.changes, message: 'Avaliação excluída com sucesso' });
     });
 });
 

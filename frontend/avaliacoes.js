@@ -583,7 +583,9 @@ window.openFormAvaliacao = async function(tipo, ano, trimestre, groupKey) {
                 <button onclick="document.getElementById('modal-avaliacao').remove()" style="background:none; border:none; color:#fff; font-size:1.5rem; cursor:pointer;"><i class="ph ph-x"></i></button>
             </div>
             <div style="padding:2rem; overflow-y:auto; flex:1; background:#f8fafc;">
-                <p style="margin-top:0; color:#64748b; font-size:0.9rem;">Avalie cada critério de 1 a 5 (onde 1 é muito ruim e 5 é ótimo).</p>
+                <p style="margin-top:0; margin-bottom:1.5rem; color:#0f4c81; font-size:1.05rem; font-weight:700; background:#e0f2fe; padding:12px 16px; border-radius:8px; border-left:5px solid #0ea5e9; box-shadow:0 2px 4px rgba(14,165,233,0.15);">
+                    Avalie cada critério (1 Muito ruim - 2 Ruim - 3 Médio - 4 Bom - 5 Muito bom)
+                </p>
                 <form id="form-avaliacao-perguntas">
     `;
 
@@ -821,10 +823,12 @@ window.viewAvaliacaoPDF = async function(tipo, ano, trimestre, groupKey) {
 
     const categories = Object.keys(AVALIACAO_QUESTIONS[tipo][groupKey]);
     
-    // Pegar respostas da memória (avYear)
-    const av = avYear.find(a => a.trimestre === trimestre);
+    // Pegar respostas fresco da API (ReferenceError fix)
+    const colabId = viewedColaborador.id;
+    const avaliacoes = await apiGet(`/colaboradores/${colabId}/avaliacoes`).catch(() => []);
+    const av = avaliacoes.find(a => Number(a.ano) === Number(ano) && Number(a.trimestre) === Number(trimestre) && a.tipo === tipo);
     if (!av || !av.respostas_json) {
-        alert("Respostas não encontradas para gerar a visualização.");
+        alert("Respostas não encontradas no servidor para gerar a visualização.");
         return;
     }
     const respostas = JSON.parse(av.respostas_json);
