@@ -389,16 +389,8 @@ window.renderAvaliacaoTab = async function(container) {
         const mesAtual = dateRightNow.getMonth() + 1; // 1 a 12
 
         for (let t=1; t<=4; t++) {
+            // Todos os trimestres ficam liberados para preenchimento a pedido do usuário
             const hasData = trimestersOverall[t] !== null;
-
-            // Verificar se deve exibir baseado no mês atual (regra: 1=Jan(1), 2=Abr(4), 3=Jul(7), 4=Dez(12))
-            const mesLiberacao = {1: 1, 2: 4, 3: 7, 4: 12}[t];
-            let liberado = false;
-            if (Number(year) < anoAtual) liberado = true;
-            else if (Number(year) === anoAtual && mesAtual >= mesLiberacao) liberado = true;
-            else if (hasData) liberado = true; // Sempre exibe se, por algum motivo, já houver dado preenchido
-
-            if (!liberado) continue; // Pula a renderização deste quadro, pois ainda não está na data
 
             let perc = 0;
             let avId = null;
@@ -777,11 +769,21 @@ async function buildAvaliacaoPDF(nome, tipo, ano, trimestre, groupKey, respostas
     try {
         const resp = await fetch('/assets/logo-header.png');
         const blob = await resp.blob();
-        const logoB64 = await new Promise(res => {
-            const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(blob);
+        const imgObj = await new Promise((res, rej) => {
+            const r = new FileReader(); 
+            r.onload = () => {
+                const img = new Image();
+                img.onload = () => res({ b64: r.result, w: img.width, h: img.height });
+                img.onerror = rej;
+                img.src = r.result;
+            };
+            r.onerror = rej;
+            r.readAsDataURL(blob);
         });
-        const logoH = 22;
-        doc.addImage(logoB64, 'PNG', ML, y, CW, logoH);
+        const ratio = imgObj.w / imgObj.h;
+        const logoW = CW;
+        const logoH = CW / ratio;
+        doc.addImage(imgObj.b64, 'PNG', ML, y, logoW, logoH);
         y += logoH + 4;
     } catch(e) { y += 3; }
 
