@@ -1486,15 +1486,39 @@
                                 <div id="epi-dept-checkboxes" style="display:flex; flex-wrap:wrap; gap:0.4rem; max-height:130px; overflow-y:auto; padding:6px; background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:8px;"></div>
                             </div>
 
-                            <!-- Lista de EPIs - largura total -->
+                            <!-- Lista de EPIs - campo CA + lista -->
                             <div>
                                 <label style="font-size:0.82rem; font-weight:700; color:#374151; display:block; margin-bottom:6px;">
                                     Lista de EPIs <span style="font-weight:400; color:#94a3b8;">(arraste para reordenar)</span>
                                 </label>
+
+                                <!-- Campo de busca por CA -->
+                                <div style="background:#f0f7ff; border:1.5px solid #bfdbfe; border-radius:8px; padding:0.75rem 1rem; margin-bottom:0.75rem;">
+                                    <label style="font-size:0.78rem; font-weight:700; color:#1e40af; display:block; margin-bottom:6px;">
+                                        <i class="ph ph-magnifying-glass"></i> Buscar EPI pelo número do CA
+                                    </label>
+                                    <div style="display:flex; gap:0.5rem; align-items:center;">
+                                        <div style="display:flex; align-items:center; gap:0.4rem; flex:1; background:#fff; border:1.5px solid #bfdbfe; border-radius:8px; padding:0 0.75rem; height:38px;">
+                                            <span style="font-size:0.8rem; color:#64748b; white-space:nowrap; font-weight:600;">CA</span>
+                                            <input type="text" id="ca-numero-input"
+                                                   placeholder="Ex: 42.291 ou 42291"
+                                                   oninput="window.onCaInput(this)"
+                                                   onkeydown="if(event.key==='Enter' && !document.getElementById('ca-add-btn').disabled){ event.preventDefault(); window.addCaToList(); }"
+                                                   style="border:none; outline:none; font-size:0.88rem; flex:1; background:transparent; height:100%;">
+                                        </div>
+                                        <button type="button" id="ca-add-btn" onclick="window.addCaToList()" disabled
+                                                class="btn btn-primary" style="height:38px; padding:0 1rem; font-size:0.83rem; white-space:nowrap; flex-shrink:0;">
+                                            <i class="ph ph-plus"></i> Adicionar
+                                        </button>
+                                    </div>
+                                    <p id="ca-lookup-hint" style="margin:5px 0 0; font-size:0.8rem; font-weight:600; min-height:16px;"></p>
+                                </div>
+
+                                <!-- Lista de itens manuais -->
                                 <div id="epi-items-list" style="max-height:240px; overflow-y:auto; margin-bottom:0.5rem;"></div>
                                 <button type="button" onclick="window.addEpiItemRow()" class="btn btn-secondary"
                                         style="height:34px; font-size:0.82rem; display:flex; align-items:center; gap:5px;">
-                                    <i class="ph ph-plus"></i> Adicionar item
+                                    <i class="ph ph-plus"></i> Adicionar item manualmente
                                 </button>
                             </div>
 
@@ -1523,13 +1547,13 @@
                     </div>
                 </div>
 
-                <!-- MODAL: Visualizar / Gerar Ficha EPI -->
+                <!-- MODAL: Gerar Ficha para Colaborador (ícone usuário) -->
                 <div id="modal-epi-gerar" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
                     <div style="background:#fff; border-radius:12px; width:100%; max-width:480px; box-shadow:0 20px 60px rgba(0,0,0,0.2);">
                         <div style="padding:1rem 1.5rem; border-bottom:1.5px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; background:#f8fafc; border-radius:12px 12px 0 0;">
                             <div style="display:flex; align-items:center; gap:0.75rem;">
-                                <i class="ph ph-eye" style="color:#0f4c81; font-size:1.2rem;"></i>
-                                <h3 style="margin:0; color:#0f172a; font-size:1.05rem; font-weight:700;">Visualizar Ficha de EPI</h3>
+                                <i class="ph ph-user" style="color:#0f4c81; font-size:1.2rem;"></i>
+                                <h3 style="margin:0; color:#0f172a; font-size:1.05rem; font-weight:700;">Gerar Ficha para Colaborador</h3>
                             </div>
                             <button onclick="window.closeEpiGerarModal()" style="background:#f1f5f9; border:1px solid #e2e8f0; width:32px; height:32px; border-radius:8px; color:#64748b; cursor:pointer; display:flex; align-items:center; justify-content:center;"><i class="ph ph-x"></i></button>
                         </div>
@@ -1802,7 +1826,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="avaliacoes.js?v=6"></script>
     <script src="gerenciar_avaliacoes.js?v=2"></script>
-    <script src="epi.js?v=2"></script>
+    <script src="epi.js?v=3"></script>
     <script src="app.js?v=36"></script>
 </body>
 </html>

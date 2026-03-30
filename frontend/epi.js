@@ -11,6 +11,75 @@ const GRUPOS_ADMIN      = ['Escritório'];
 
 const TERMO_PADRAO = '•Confirmo perante minha assinatura que recebi o Equipamento de Proteção Individual - EPI, da Empresa: AMERICA RENTAL EQUIPAMENTOS LTDA. Vinculada ao CNPJ: 03.434.448/0001-01 de Inscrição estadual IE: 336.715.410.116 conforme descrito abaixo, para uso exclusivo no local de trabalho, conforme regulamentação da Norma Regulamentadora Nº 6, do Ministério do Trabalho e Emprego.\n•Declaro que estou ciente da obrigatoriedade do uso do EPI e da responsabilidade de usá-lo e conservá-lo. Minha recusa injustificada na utilização deste equipamento ou seu mau uso, constitui ato faltoso, conforme disposto no artigo 158 da CLT.\n•Declaro estar ciente da obrigatoriedade da devolução do Equipamento atual, quando da troca ou substituição dos mesmos.';
 
+// ============================================================
+// BANCO LOCAL DE CAs CONHECIDOS
+// ============================================================
+const CA_DATABASE = {
+    '42291':  'BOTA DE PVC CA 42.291',
+    '43339':  'BOTA BICO DE AÇO CA 43.339',
+    '31469':  'CAPACETE CA 31.469',
+    '31413':  'CAPA DE CHUVA CA 31.413',
+    '19176':  'ÓCULOS DE PROTEÇÃO CA 19.176',
+    '34570':  'LUVA DE PVC VERDE CA34570',
+    '5774':   'LUVA DE NEOLATEX CURTA EXG CA 5.774',
+    '14781':  'RESPIRADOR PURIFICADOR DE AR CA 14.781',
+    '39238':  'RESPIRADOR PURIFICADOR DE AR AZUL CA 39.238',
+    '36817':  'PROTETOR AUDITIVO CA 36.817',
+    '37931':  'LUVA DE HELANCA CA 37.931',
+    '38975':  'LUVA NITRILICA CA 38.975',
+    '34106':  'LUVA DE RASPA CA 34.106',
+    '45596':  'MÁSCARA DE SOLDA CA 45.596',
+    '11168':  'CINTO DE SEGURANÇA CA 11.168',
+    '10015':  'PROTETOR SOLAR FPS30',
+    '35941':  'AVENTAL DE RASPA CA 35.941',
+    '18082':  'AVENTAL DE PLÁSTICO CA 18.082',
+    '15819':  'LUVA DE NEOLATEX M CA 15.819',
+    '28949':  'SAPATO ANTIDERRAPANTE CA 28.949',
+};
+
+function lookupCA(raw) {
+    const key = raw.replace(/[.\s-]/g, '');
+    return CA_DATABASE[key] || null;
+}
+
+window.onCaInput = function(input) {
+    const match = lookupCA(input.value);
+    const hint = document.getElementById('ca-lookup-hint');
+    const addBtn = document.getElementById('ca-add-btn');
+    if (match) {
+        hint.textContent = '✓ ' + match;
+        hint.style.color = '#16a34a';
+        addBtn.disabled = false;
+        addBtn.dataset.epiName = match;
+    } else if (input.value.replace(/[.\s-]/g, '').length >= 4) {
+        hint.textContent = 'CA não encontrado na base local — digite o nome manualmente';
+        hint.style.color = '#f59e0b';
+        addBtn.disabled = false;
+        addBtn.dataset.epiName = '';
+    } else {
+        hint.textContent = '';
+        addBtn.disabled = true;
+        addBtn.dataset.epiName = '';
+    }
+};
+
+window.addCaToList = function() {
+    const input = document.getElementById('ca-numero-input');
+    const addBtn = document.getElementById('ca-add-btn');
+    const name = addBtn.dataset.epiName || '';
+    if (name) {
+        addEpiRow(name);
+    } else {
+        // CA não encontrado - abre linha vazia com CA pré-preenchido
+        const caRaw = input.value.trim();
+        addEpiRow(caRaw ? `CA ${caRaw}` : '');
+    }
+    input.value = '';
+    document.getElementById('ca-lookup-hint').textContent = '';
+    addBtn.disabled = true;
+    addBtn.dataset.epiName = '';
+};
+
 window.initEpiModule = function() {
     loadEpiTemplates();
     loadDeptList();
@@ -106,39 +175,61 @@ function renderEpiCard(t) {
     return `
         <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,0.05);transition:box-shadow 0.2s;"
              onmouseover="this.style.boxShadow='0 6px 20px rgba(0,0,0,0.1)'" onmouseout="this.style.boxShadow='0 2px 6px rgba(0,0,0,0.05)'">
-            <div style="background:#f0f7ff;border-bottom:1.5px solid #e2e8f0;padding:0.9rem 1.1rem;display:flex;justify-content:space-between;align-items:center;">
+            <div style="background:#f8fafc;border-bottom:1.5px solid #e2e8f0;padding:0.85rem 1rem;display:flex;justify-content:space-between;align-items:center;">
                 <div style="flex:1;min-width:0;">
-                    <p style="margin:0;font-weight:700;color:#0f172a;font-size:0.97rem;">${t.grupo}</p>
+                    <p style="margin:0;font-weight:700;color:#0f172a;font-size:0.95rem;">${t.grupo}</p>
                     <span style="font-size:0.75rem;color:#64748b;">${(t.departamentos||[]).join(', ') || '—'}</span>
                 </div>
-                <div style="display:flex;gap:0.4rem;flex-shrink:0;">
-                    <button onclick="window.openEpiVizualizarModal('${mapKey}')" title="Visualizar Ficha"
-                            style="background:#0f4c81;color:#fff;border:none;width:34px;height:34px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:0.95rem;">
+                <div style="display:flex;gap:0.35rem;flex-shrink:0;">
+                    <button onclick="window.openEpiVizualizarModal('${mapKey}')" title="Visualizar modelo da ficha"
+                            class="btn btn-secondary btn-sm" style="height:32px;width:32px;padding:0;display:flex;align-items:center;justify-content:center;">
                         <i class="ph ph-eye"></i>
                     </button>
-                    <button onclick="window.openEpiModal(${t.id})" title="Editar"
-                            style="background:#e2e8f0;color:#334155;border:none;width:34px;height:34px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:0.95rem;">
+                    <button onclick="window.abrirGerarParaColab('${mapKey}')" title="Gerar ficha para colaborador"
+                            class="btn btn-secondary btn-sm" style="height:32px;width:32px;padding:0;display:flex;align-items:center;justify-content:center;">
+                        <i class="ph ph-user"></i>
+                    </button>
+                    <button onclick="window.openEpiModal(${t.id})" title="Editar template"
+                            class="btn btn-secondary btn-sm" style="height:32px;width:32px;padding:0;display:flex;align-items:center;justify-content:center;">
                         <i class="ph ph-pencil-simple"></i>
                     </button>
                     <button onclick="window.deleteEpiTemplate(${t.id})" title="Excluir"
-                            style="background:#fef2f2;color:#ef4444;border:1px solid #fecaca;width:34px;height:34px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:0.95rem;">
+                            class="btn btn-danger btn-sm" style="height:32px;width:32px;padding:0;display:flex;align-items:center;justify-content:center;">
                         <i class="ph ph-trash"></i>
                     </button>
                 </div>
             </div>
-            <div style="padding:0.75rem 1.1rem;">
-                <p style="margin:0 0 0.4rem;font-size:0.78rem;color:#64748b;font-weight:600;">${(t.epis||[]).length} EPI(S):</p>
+            <div style="padding:0.7rem 1rem;">
+                <p style="margin:0 0 0.4rem;font-size:0.75rem;color:#64748b;font-weight:600;">${(t.epis||[]).length} EPI(S):</p>
                 <div style="display:flex;flex-wrap:wrap;gap:0.3rem;">
-                    ${(t.epis||[]).map(e => `<span style="background:#eff6ff;border:1px solid #bfdbfe33;color:#1e40af;font-size:0.75rem;padding:2px 8px;border-radius:999px;">${e}</span>`).join('')}
+                    ${(t.epis||[]).map(e => `<span style="background:#eff6ff;border:1px solid #bfdbfe33;color:#1e40af;font-size:0.73rem;padding:2px 8px;border-radius:999px;">${e}</span>`).join('')}
                 </div>
             </div>
         </div>`;
 }
 
 // ============================================================
-// MODAL VISUALIZAR → Selecionar colaborador → PDF preview 100%
+// VISUALIZAR MODELO (sem colaborador) — ícone 👁️
 // ============================================================
 window.openEpiVizualizarModal = function(mapKey) {
+    const id = window._epiCardMap[mapKey];
+    const template = epiTemplates.find(t => t.id === id);
+    if (!template) return;
+
+    // Preview com dados de modelo
+    const colabModelo = {
+        nome: 'NOME DO COLABORADOR',
+        rg: '00.000.000-0',
+        cpf: '000.000.000-00',
+        cargo: template.departamentos[0] || template.grupo,
+        dept: template.grupo.toUpperCase(),
+        admissao: ''
+    };
+    abrirPreviewEpi(template, colabModelo);
+};
+
+// GERAR para colaborador específico — ícone 👤
+window.abrirGerarParaColab = function(mapKey) {
     const id = window._epiCardMap[mapKey];
     window.gerarFichaEpi(id);
 };
