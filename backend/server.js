@@ -1038,7 +1038,8 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
     
     const { document_id, colaborador_id, tab_name, document_type, year, month, vencimento, atestado_tipo, atestado_inicio, atestado_fim, assinafy_status } = req.body;
     const file_path = req.file.path;
-    const file_name = req.file.originalname;
+    let file_name = req.file.originalname;
+    try { file_name = Buffer.from(file_name, 'latin1').toString('utf8'); } catch (e) {}
 
     let checkSql = '';
     let params = [];

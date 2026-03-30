@@ -2757,7 +2757,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                 <div style="font-size: 0.85rem; color: #64748b; font-style: italic; background: #f1f5f9; padding: 0.6rem 1rem; border-radius: 6px; display: flex; align-items: center; gap: 0.5rem; min-width: 300px;">
                     <i class="ph ph-info" style="font-size: 1.1rem;"></i> ${blockReason}
                 </div>
-            ` : (tabId === 'Advertências') ? `
+            ` : (tabId === 'Advertências' || tabId === 'Certificados') ? `
                 <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
                     ${vencimentoInputHtml}
 
@@ -2765,7 +2765,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         <button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height: 42px;"><i class="ph ph-eye"></i></button>
                     ` : ''}
 
-                    ${isSaved ? `
+                    ${(tabId === 'Advertências' && isSaved) ? `
                         ${(!stMain || stMain === 'Nenhum') ? `
                         <button type="button" class="btn btn-secondary"
                                 onclick="window.abrirModalAssinaturaTestemunhas(${existingDoc.id})"
@@ -2780,10 +2780,25 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         </button>` : ''}
                     ` : ''}
 
+                    ${(tabId === 'Certificados' && isSaved && stMain !== 'NAO_EXIGE') ? `
+                        <button class="btn btn-assinafy" style="height: 42px; display:flex; align-items:center; padding:0 0.85rem;" onclick="window.iniciarAssinafy('${docType}', '${tabId}', this)" ${isAssinado ? 'disabled' : ''}>
+                            <i class="ph ph-pen-nib"></i> Solicitar Assinatura
+                        </button>
+                        ${assStatusIcon}
+                    ` : ''}
+
                     ${(!isAssinado) ? `
                     <label class="btn ${isSaved ? 'btn-warning' : 'btn-primary'}" title="${isSaved ? 'Substituir' : 'Fazer Upload'}" style="height: 42px; display: flex; align-items: center; margin: 0;">
                         <i class="ph ph-upload-simple"></i> ${isSaved ? 'Substituir' : 'Upload'}
-                        <input type="file" accept=".pdf" style="display:none;" onchange="const venc = this.closest('.doc-item').querySelector('.venc-input')?.value; if((${needsVencimento}) && !venc) { alert('Data de vencimento é obrigatória'); this.value=''; return; } uploadDocument(this, '${tabId}', '${docType}', ${year}, ${month}, venc)">
+                        <input type="file" accept=".pdf" style="display:none;" onchange="
+                            const venc = this.closest('.doc-item').querySelector('.venc-input')?.value; 
+                            if((${needsVencimento}) && !venc) { alert('Data de vencimento é obrigatória'); this.value=''; return; } 
+                            let assStatus = null;
+                            if('${tabId}' === 'Certificados'){
+                                assStatus = confirm('Este certificado exige assinatura do colaborador? (OK para Sim, Cancelar para Não)') ? 'PENDENTE' : 'NAO_EXIGE';
+                            }
+                            uploadDocument(this, '${tabId}', '${docType}', ${year}, ${month}, venc, assStatus)
+                        ">
                     </label>
                     ` : ''}
 
@@ -2791,7 +2806,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         <button type="button" class="btn btn-danger" onclick="deleteDoc(${existingDoc.id}, this)" title="Excluir" style="height: 42px;"><i class="ph ph-trash"></i></button>
                     ` : ''}
 
-                    ${(isSaved && stMain === 'Assinado' && tipoAdvSimples && tipoAdvSimples.toLowerCase().includes('suspens')) ? `
+                    ${(tabId === 'Advertências' && isSaved && stMain === 'Assinado' && tipoAdvSimples && tipoAdvSimples.toLowerCase().includes('suspens')) ? `
                     <div style="display:flex; flex-direction:column; gap:0.35rem; margin-top:0.35rem; align-items:flex-end; width:100%;">
                         <input type="email" id="susp-contab-email-${existingDoc.id}"
                                value="thais.ricci@americarental.com.br"
@@ -2814,13 +2829,18 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         ${(!isAssinado && !(tabId === 'Atestados' && isSaved)) ? `
                         <label class="btn ${isSaved ? 'btn-warning' : 'btn-primary'}" title="${isSaved ? 'Substituir' : 'Fazer Upload'}" style="height: 42px; display: flex; align-items: center;">
                             <i class="ph ph-upload-simple"></i> ${isSaved ? 'Substituir' : 'Upload'}
-                            <input type="file" accept=".pdf" style="display:none;" onchange="const venc = this.closest('.doc-item').querySelector('.venc-input')?.value; if((${needsVencimento}) && !venc) { alert('Data de vencimento é obrigatória'); this.value=''; return; } uploadDocument(this, '${tabId}', '${docType}', ${year}, ${month}, venc)">
+                            <input type="file" accept=".pdf" style="display:none;" onchange="
+                                const venc = this.closest('.doc-item').querySelector('.venc-input')?.value; 
+                                if((${needsVencimento}) && !venc) { alert('Data de vencimento é obrigatória'); this.value=''; return; } 
+                                let assStatus = null;
+                                uploadDocument(this, '${tabId}', '${docType}', ${year}, ${month}, venc, assStatus)
+                            ">
                         </label>
                         ` : ''}
                     </div>
 
                     ${(() => {
-                        const showAssinafy = isSaved && tabId !== 'Atestados';
+                        const showAssinafy = isSaved && tabId !== 'Atestados' && stMain !== 'NAO_EXIGE';
                         return showAssinafy ? `
                         <div style="display: flex; align-items: center; gap: 0.5rem;">
                             <button class="btn btn-assinafy" style="height: 42px; display:flex; align-items:center; padding:0 0.85rem;" onclick="window.iniciarAssinafy('${docType}', '${tabId}', this)" ${isAssinado ? 'disabled' : ''}>
@@ -3599,7 +3619,7 @@ window.renderPagamentosCompetencia = function() {
     });
 };
 
-window.uploadDocument = async function(inputEl, tabId, docType, year = null, month = null, vencimento = null) {
+window.uploadDocument = async function(inputEl, tabId, docType, year = null, month = null, vencimento = null, reqAssin = null) {
     const file = inputEl.files[0];
     if (!file) return;
 
@@ -3635,6 +3655,7 @@ window.uploadDocument = async function(inputEl, tabId, docType, year = null, mon
     if(cleanYear && cleanYear !== 'null' && cleanYear !== 'undefined') formData.append('year', cleanYear);
     if(cleanMonth && cleanMonth !== 'null' && cleanMonth !== 'undefined') formData.append('month', cleanMonth);
     if(vencimento) formData.append('vencimento', vencimento);
+    if(reqAssin) formData.append('assinafy_status', reqAssin);
     formData.append('file', file);
 
     try {
