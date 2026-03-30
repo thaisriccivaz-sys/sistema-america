@@ -294,6 +294,92 @@ const AVALIACAO_QUESTIONS = {
                 'Prioriza as atividades que trazem maior impacto para a empresa?'
             ]
         }
+    },
+    experiencia: {
+        motorista: {
+            'Disciplina e Cumprimento de Rotina': [
+                'O colaborador evita faltas não justificadas.',
+                'O colaborador mantém baixo número de faltas justificadas.',
+                'O colaborador comunica qualquer falta ou atraso com antecedência.',
+                'O colaborador sai pontualmente para a rota no horário programado.',
+                'O colaborador realiza os atendimentos da rota com agilidade e bom ritmo.',
+                'O colaborador é comprometido e flexível para realizar escalas extras quando solicitado.'
+            ],
+            'Condução e Cuidado com o Veículo': [
+                'O colaborador dirige de forma segura e defensiva.',
+                'O colaborador respeita as regras de trânsito, evitando multas e advertências.',
+                'O colaborador mantém controle adequado de velocidade durante a condução.',
+                'O colaborador demonstra cuidado geral com o veículo durante o uso diário.',
+                'O colaborador evita frenagens bruscas e condução agressiva.',
+                'O colaborador mantém atenção durante a direção, evitando distrações.'
+            ],
+            'Operação e Serviço': [
+                'O colaborador realiza corretamente a sucção de dejetos, seguindo o padrão da empresa.',
+                'O colaborador mantém a integridade da carga/resíduo durante a operação.',
+                'O colaborador demonstra atenção e cuidado com a segurança no manuseio de resíduos.',
+                'O colaborador mantém organização e limpeza do local após finalizar a operação.',
+                'O colaborador mantém postura profissional no manuseio de dejetos, sem demonstrar nojo.',
+                'O colaborador utiliza corretamente os EPIs obrigatórios durante as operações.'
+            ],
+            'Processos, Controles e Documentos': [
+                'O colaborador demonstra facilidade na utilização das ferramentas e sistemas.',
+                'O colaborador preenche corretamente o checklist do veículo.',
+                'O colaborador tira fotos corretamente no sistema SimpliRoute.',
+                'O colaborador liga para a logística e reporta corretamente antes de dar falha no sistema.',
+                'O colaborador responde as mensagens e ligações de forma ágil e direta.',
+                'O colaborador se atenta ao resumo da rota antes de sua saída de manhã.'
+            ],
+            'Comportamento e Relacionamento': [
+                'O colaborador mantem comunicação cordial com a logística.',
+                'O colaborador mantem comunicação cordial com a liderança.',
+                'O colaborador apresenta bom relacionamento com o ajudante direto.',
+                'O colaborador tem bom relacionamento com a equipe em geral.',
+                'O colaborador respeita a hierarquia.',
+                'O colaborador tem bom comportamento em confraternizações e reuniões.'
+            ]
+        },
+        ajudante: {
+            'Disciplina e Cumprimento de Rotina': [
+                'O colaborador evita faltas não justificadas.',
+                'O colaborador mantém baixo número de faltas justificadas.',
+                'O colaborador comunica qualquer falta ou atraso com antecedência.',
+                'O colaborador sai pontualmente para a rota no horário programado.',
+                'O colaborador realiza os atendimentos da rota com agilidade e bom ritmo.',
+                'O colaborador é comprometido e flexível para realizar escalas extras quando solicitado.'
+            ],
+            'Condução e Cuidado com o Veículo': [
+                'O colaborador dirige de forma segura e defensiva.',
+                'O colaborador respeita as regras de trânsito, evitando multas e advertências.',
+                'O colaborador mantém controle adequado de velocidade durante a condução.',
+                'O colaborador demonstra cuidado geral com o veículo durante o uso diário.',
+                'O colaborador evita frenagens bruscas e condução agressiva.',
+                'O colaborador mantém atenção durante a direção, evitando distrações.'
+            ],
+            'Operação e Serviço': [
+                'O colaborador realiza corretamente a sucção de dejetos, seguindo o padrão da empresa.',
+                'O colaborador mantém a integridade da carga/resíduo durante a operação.',
+                'O colaborador demonstra atenção e cuidado com a segurança no manuseio de resíduos.',
+                'O colaborador mantém organização e limpeza do local após finalizar a operação.',
+                'O colaborador mantém postura profissional no manuseio de dejetos, sem demonstrar nojo.',
+                'O colaborador utiliza corretamente os EPIs obrigatórios durante as operações.'
+            ],
+            'Processos, Controles e Documentos': [
+                'O colaborador demonstra facilidade na utilização das ferramentas e sistemas.',
+                'O colaborador preenche corretamente o checklist do veículo.',
+                'O colaborador tira fotos corretamente no sistema SimpliRoute.',
+                'O colaborador liga para a logística e reporta corretamente antes de dar falha no sistema.',
+                'O colaborador responde as mensagens e ligações de forma ágil e direta.',
+                'O colaborador se atenta ao resumo da rota antes de sua saída de manhã.'
+            ],
+            'Comportamento e Relacionamento': [
+                'O colaborador mantem comunicação cordial com a logística.',
+                'O colaborador mantem comunicação cordial com a liderança.',
+                'O colaborador apresenta bom relacionamento com o ajudante direto.',
+                'O colaborador tem bom relacionamento com a equipe em geral.',
+                'O colaborador respeita a hierarquia.',
+                'O colaborador tem bom comportamento em confraternizações e reuniões.'
+            ]
+        }
     }
 };
 
@@ -308,14 +394,16 @@ window.renderAvaliacaoTab = async function(container) {
     // Identificar qual grupo usar para satisfação e desempenho (auto-detectado pelo departamento)
     let defaultSatisfacao = 'escritorio';
     let defaultDesempenho = 'geral';
+    let defaultExperiencia = 'motorista';
     const dLower = dept.toLowerCase();
-    if (dLower.includes('motorista') || dLower.includes('ajudante')) defaultSatisfacao = 'motorista';
+    if (dLower.includes('motorista') || dLower.includes('ajudante')) { defaultSatisfacao = 'motorista'; defaultExperiencia = dLower.includes('ajudante') ? 'ajudante' : 'motorista'; }
     else if (dLower.includes('manuten')) defaultSatisfacao = 'manutencao';
     if (dLower.includes('lideran') || dLower.includes('líder') || dLower.includes('lider')) defaultDesempenho = 'lideranca';
 
     // Montar lista de grupos disponíveis por tipo
     const groupOptionsSatisfacao = Object.keys(AVALIACAO_QUESTIONS.satisfacao);
     const groupOptionsDesempenho = Object.keys(AVALIACAO_QUESTIONS.desempenho);
+    const groupOptionsExperiencia = Object.keys(AVALIACAO_QUESTIONS.experiencia || {});
 
     // Persistência de tipo, ano e grupo
     if (!window.tabPersistence) window.tabPersistence = {};
@@ -331,16 +419,17 @@ window.renderAvaliacaoTab = async function(container) {
     // Grupo persistido ou padrão pelo departamento
     const pkSat = `av-group-satisfacao-${colabId}`;
     const pkDes = `av-group-desempenho-${colabId}`;
+    const pkExp = `av-group-experiencia-${colabId}`;
     if (!window.tabPersistence[pkSat]) window.tabPersistence[pkSat] = defaultSatisfacao;
     if (!window.tabPersistence[pkDes]) window.tabPersistence[pkDes] = defaultDesempenho;
+    if (!window.tabPersistence[pkExp]) window.tabPersistence[pkExp] = defaultExperiencia;
 
-    const groupKey = selectedTipo === 'satisfacao'
-        ? (window.tabPersistence[pkSat] || defaultSatisfacao)
-        : (window.tabPersistence[pkDes] || defaultDesempenho);
+    let groupKey = selectedTipo === 'satisfacao' ? window.tabPersistence[pkSat] 
+                 : (selectedTipo === 'experiencia' ? window.tabPersistence[pkExp] : window.tabPersistence[pkDes]);
 
     // Garantir que o groupKey existe em AVALIACAO_QUESTIONS
-    const safeGroupKey = AVALIACAO_QUESTIONS[selectedTipo][groupKey] ? groupKey
-        : (selectedTipo === 'satisfacao' ? defaultSatisfacao : defaultDesempenho);
+    const safeGroupKey = (AVALIACAO_QUESTIONS[selectedTipo] && AVALIACAO_QUESTIONS[selectedTipo][groupKey]) ? groupKey
+        : (selectedTipo === 'satisfacao' ? defaultSatisfacao : (selectedTipo === 'experiencia' ? defaultExperiencia : defaultDesempenho));
 
     const questions = AVALIACAO_QUESTIONS[selectedTipo][safeGroupKey];
     const categories = Object.keys(questions);
@@ -367,11 +456,11 @@ window.renderAvaliacaoTab = async function(container) {
                     const n = parseFloat(val);
                     if (!isNaN(n)) { sum += n; count++; }
                 });
-                const avg = count > 0 ? (sum / count) : null;
-                trimestersData[av.trimestre][cat] = avg;
-                if (avg !== null) { totalSum += avg; totalCount++; }
+                const metric = tipo === 'experiencia' ? sum : (count > 0 ? (sum / count) : null);
+                trimestersData[av.trimestre][cat] = metric;
+                if (metric !== null) { totalSum += sum; totalCount++; }
             });
-            trimestersOverall[av.trimestre] = totalCount > 0 ? (totalSum / totalCount) : null;
+            trimestersOverall[av.trimestre] = tipo === 'experiencia' ? totalSum : (totalCount > 0 ? (totalSum / totalCount) : null);
         });
 
         // Trimestre Mappings for UI
@@ -411,9 +500,9 @@ window.renderAvaliacaoTab = async function(container) {
             actionsHtml += `
                 <div style="flex:1; min-width:200px; background:#fff; border:1px solid ${hasData?'#0ea5e9':'#cbd5e1'}; border-radius:8px; padding:1.2rem; text-align:center; box-shadow:0 2px 4px rgba(0,0,0,0.05); position:relative;">
                     ${perc > 0 ? `<div style="position:absolute; top:-10px; right:-10px; background:${isFull?'#16a34a':'#f59e0b'}; color:#fff; width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(0,0,0,0.2); font-size:0.7rem; font-weight:700;">${perc}%</div>` : ''}
-                    <h6 style="margin:0 0 0.3rem; color:#0f4c81; font-size:0.75rem; text-transform:uppercase; opacity:0.8;">${tipo==='desempenho'?'Avaliação de Desempenho':'Avaliação de Satisfação'}</h6>
+                    <h6 style="margin:0 0 0.3rem; color:#0f4c81; font-size:0.75rem; text-transform:uppercase; opacity:0.8;">${tipo==='desempenho'?'Avaliação de Desempenho':(tipo==='experiencia'?'Avaliação de Experiência':'Avaliação de Satisfação')}</h6>
                     <h5 style="margin:0 0 0.5rem; color:#334155;">${trimestreToMonth[t]}</h5>
-                    ${hasData ? `<p style="font-size:1.5rem; font-weight:800; color:#16a34a; margin:0 0 1rem;">${trimestersOverall[t].toFixed(1)} <sub style="font-size:0.7rem;color:#64748b;">Média</sub></p>` : `<p style="font-size:0.85rem; color:#94a3b8; margin:0 0 1rem;">Disponível para Preenchimento</p>`}
+                    ${hasData ? `<p style="font-size:1.5rem; font-weight:800; color:#16a34a; margin:0 0 1rem;">${tipo==='experiencia' ? Math.round(trimestersOverall[t]) : trimestersOverall[t].toFixed(1)} <sub style="font-size:0.7rem;color:#64748b;">${tipo==='experiencia'?'Soma Total':'Média'}</sub></p>` : `<p style="font-size:0.85rem; color:#94a3b8; margin:0 0 1rem;">Disponível para Preenchimento</p>`}
                     <div style="display:flex; gap:0.5rem; justify-content:center; flex-wrap:wrap;">
                         <button onclick="openFormAvaliacao('${tipo}', ${year}, ${t}, '${safeGroupKey}')" style="background:${isFull?'#0f4c81':'#0ea5e9'}; color:#fff; border:none; padding:0.4rem 0.8rem; border-radius:4px; cursor:pointer; font-size:0.8rem; flex:1;">
                             <i class="ph ph-note-pencil"></i> ${hasData ? (isFull ? 'Editar' : 'Continuar') : 'Preencher'}
@@ -442,22 +531,26 @@ window.renderAvaliacaoTab = async function(container) {
                 
                 <div style="display:flex; flex-direction:column; gap:0.75rem;">
                     <!-- Tipo de Avaliacao -->
-                    <div style="display:flex; align-items:center; gap:0.5rem; background:#fff; padding:0.3rem; border-radius:8px; border:1px solid #cbd5e1; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                    <div style="display:flex; align-items:center; gap:0.5rem; background:#fff; padding:0.3rem; border-radius:8px; border:1px solid #cbd5e1; box-shadow:0 1px 3px rgba(0,0,0,0.05); flex-wrap:wrap;">
                         <button onclick="window.tabPersistence['av-tipo-select']='desempenho'; renderAvaliacaoTab(document.getElementById('docs-list-container'));" 
                                 style="display:flex; align-items:center; gap:0.5rem; border:none; border-radius:6px; padding:0.6rem 1rem; font-weight:600; cursor:pointer; transition:all 0.2s; font-size:0.9rem; ${tipo === 'desempenho' ? 'background:#0ea5e9; color:#fff; box-shadow:0 2px 4px rgba(14,165,233,0.3);' : 'background:transparent; color:#64748b;'}">
-                            <i class="ph ph-trend-up" style="font-size:1.2rem;"></i> Avaliação de Desempenho
+                            <i class="ph ph-trend-up" style="font-size:1.2rem;"></i> Desempenho
                         </button>
                         <button onclick="window.tabPersistence['av-tipo-select']='satisfacao'; renderAvaliacaoTab(document.getElementById('docs-list-container'));" 
                                 style="display:flex; align-items:center; gap:0.5rem; border:none; border-radius:6px; padding:0.6rem 1rem; font-weight:600; cursor:pointer; transition:all 0.2s; font-size:0.9rem; ${tipo === 'satisfacao' ? 'background:#8b5cf6; color:#fff; box-shadow:0 2px 4px rgba(139,92,246,0.3);' : 'background:transparent; color:#64748b;'}">
-                            <i class="ph ph-smiley" style="font-size:1.2rem;"></i> Avaliação de Satisfação
+                            <i class="ph ph-smiley" style="font-size:1.2rem;"></i> Satisfação
+                        </button>
+                        <button onclick="window.tabPersistence['av-tipo-select']='experiencia'; renderAvaliacaoTab(document.getElementById('docs-list-container'));" 
+                                style="display:flex; align-items:center; gap:0.5rem; border:none; border-radius:6px; padding:0.6rem 1rem; font-weight:600; cursor:pointer; transition:all 0.2s; font-size:0.9rem; ${tipo === 'experiencia' ? 'background:#f59e0b; color:#fff; box-shadow:0 2px 4px rgba(245,158,11,0.3);' : 'background:transparent; color:#64748b;'}">
+                            <i class="ph ph-medal" style="font-size:1.2rem;"></i> Experiência
                         </button>
                     </div>
                     <!-- Departamento / Grupo de perguntas -->
                     <div style="display:flex; align-items:center; gap:0.6rem;">
                         <i class="ph ph-buildings" style="color:#0f4c81; font-size:1.1rem;"></i>
                         <label style="font-size:0.85rem; font-weight:700; color:#0f4c81; white-space:nowrap;">Formulário para:</label>
-                        <select onchange="window.tabPersistence['${tipo === 'satisfacao' ? pkSat : pkDes}']=this.value; renderAvaliacaoTab(document.getElementById('docs-list-container'));" style="padding:0.4rem 0.75rem; border-radius:6px; border:1.5px solid #0f4c81; font-weight:600; background:#eff6ff; color:#0f4c81; cursor:pointer; font-size:0.88rem;">
-                            ${(tipo === 'satisfacao' ? groupOptionsSatisfacao : groupOptionsDesempenho).map(g => `<option value="${g}" ${g === safeGroupKey ? 'selected':''}>${g.charAt(0).toUpperCase()+g.slice(1).replace(/_/g,' ')}</option>`).join('')}
+                        <select onchange="window.tabPersistence['${tipo === 'satisfacao' ? pkSat : (tipo === 'experiencia' ? pkExp : pkDes)}']=this.value; renderAvaliacaoTab(document.getElementById('docs-list-container'));" style="padding:0.4rem 0.75rem; border-radius:6px; border:1.5px solid #0f4c81; font-weight:600; background:#eff6ff; color:#0f4c81; cursor:pointer; font-size:0.88rem;">
+                            ${(tipo === 'satisfacao' ? groupOptionsSatisfacao : (tipo === 'experiencia' ? groupOptionsExperiencia : groupOptionsDesempenho)).map(g => `<option value="${g}" ${g === safeGroupKey ? 'selected':''}>${g.charAt(0).toUpperCase()+g.slice(1).replace(/_/g,' ')}</option>`).join('')}
                         </select>
                     </div>
                 </div>
@@ -788,7 +881,7 @@ async function buildAvaliacaoPDF(nome, tipo, ano, trimestre, groupKey, respostas
     } catch(e) { y += 3; }
 
     // --- TÍTULO ---
-    const tipoText = tipo === 'desempenho' ? 'Avaliação de Desempenho' : 'Avaliação de Satisfação';
+    const tipoText = tipo === 'desempenho' ? 'Avaliação de Desempenho' : (tipo === 'experiencia' ? 'Avaliação de Experiência' : 'Avaliação de Satisfação');
     doc.setFontSize(15);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(...C_BLUE);
@@ -821,7 +914,7 @@ async function buildAvaliacaoPDF(nome, tipo, ano, trimestre, groupKey, respostas
             if (nota) { catTotal += parseFloat(nota); catCount++; }
             return { q: q || '', nota: nota || '-' };
         });
-        const catAvg = catCount > 0 ? (catTotal / catCount).toFixed(2) : '0.00';
+        const catMetric = tipo === 'experiencia' ? catTotal : (catCount > 0 ? (catTotal / catCount).toFixed(2) : '0.00');
         totalScore += catTotal; totalQs += catCount;
 
         // Calcular altura necessária da categoria
@@ -836,7 +929,7 @@ async function buildAvaliacaoPDF(nome, tipo, ano, trimestre, groupKey, respostas
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(...C_BLUE);
         doc.text(`${cIdx + 1}. ${cat}`, ML + 3, y + 5.5);
-        doc.text(`Média: ${catAvg}`, PW - MR - 3, y + 5.5, { align: 'right' });
+        doc.text(`${tipo==='experiencia'?'Soma':'Média'}: ${catMetric}`, PW - MR - 3, y + 5.5, { align: 'right' });
         y += 9;
 
         // Linhas de perguntas
@@ -878,15 +971,15 @@ async function buildAvaliacaoPDF(nome, tipo, ano, trimestre, groupKey, respostas
         y += 3; // espaço entre categorias
     });
 
-    // --- MÉDIA TOTAL ---
-    const overallAvg = totalQs > 0 ? (totalScore / totalQs).toFixed(2) : '0.00';
+    // --- MÉDIA/SOMA TOTAL ---
+    const overallMetric = tipo === 'experiencia' ? totalScore : (totalQs > 0 ? (totalScore / totalQs).toFixed(2) : '0.00');
     checkPage(14);
     doc.setFillColor(...C_BLUE);
     doc.roundedRect(ML, y, CW, 12, 2, 2, 'F');
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(...C_WHITE);
-    doc.text(`Média Total Alcançada: ${overallAvg}`, PW - MR - 5, y + 8, { align: 'right' });
+    doc.text(`${tipo==='experiencia'?'Soma':'Média'} Total Alcançada: ${overallMetric}`, PW - MR - 5, y + 8, { align: 'right' });
     y += 16;
 
     // --- GRÁFICOS (nova página) ---
@@ -941,9 +1034,9 @@ async function buildAvaliacaoPDF(nome, tipo, ano, trimestre, groupKey, respostas
 // FUNÇÃO DE SALVAR (Upload automático)
 // ============================================================
 async function generateAndUploadEvaluationPDF(colabId, nome, tipo, ano, trimestre, groupKey, respostas) {
-    const nomeBase = tipo === 'desempenho' ? 'Avaliacao_de_Desempenho' : 'Avaliacao_de_Satisfacao';
+    const nomeFormated = tipo === 'desempenho' ? 'Avaliacao_de_Desempenho' : (tipo === 'experiencia' ? 'Avaliacao_de_Experiencia' : 'Avaliacao_de_Satisfacao');
     const safeNome = nome.replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_]/g, '');
-    const fileName = `${nomeBase}_${trimestre}_${ano}_${safeNome.toUpperCase()}.pdf`;
+    const fileName = `${nomeFormated}_${trimestre}_${ano}_${safeNome.toUpperCase()}.pdf`;
 
     try {
         const doc = await buildAvaliacaoPDF(nome, tipo, ano, trimestre, groupKey, respostas);
@@ -952,7 +1045,12 @@ async function generateAndUploadEvaluationPDF(colabId, nome, tipo, ano, trimestr
         const formData = new FormData();
         formData.append('file', new File([pdfBlob], fileName, { type: 'application/pdf' }));
         formData.append('colaborador_id', colabId.toString());
-        formData.append('document_type', tipo === 'desempenho' ? 'Avaliação de Desempenho' : 'Avaliação de Satisfação');
+        
+        let docTypeStr = 'Avaliação de Desempenho';
+        if (tipo === 'satisfacao') docTypeStr = 'Avaliação de Satisfação';
+        else if (tipo === 'experiencia') docTypeStr = 'Avaliação de Experiência';
+        formData.append('document_type', docTypeStr);
+        
         formData.append('tab_name', 'AVALIACAO');
         formData.append('year', ano.toString());
         formData.append('month', trimestre.toString());
@@ -1001,7 +1099,7 @@ window.viewAvaliacaoPDF = async function(tipo, ano, trimestre, groupKey) {
     try {
         const nome = viewedColaborador.nome_completo;
         const safeNome = nome.replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_]/g, '');
-        const nomeBase = tipo === 'desempenho' ? 'Avaliacao_de_Desempenho' : 'Avaliacao_de_Satisfacao';
+        const nomeBase = tipo === 'desempenho' ? 'Avaliacao_de_Desempenho' : (tipo === 'experiencia' ? 'Avaliacao_de_Experiencia' : 'Avaliacao_de_Satisfacao');
         const fileName = `${nomeBase}_${trimestre}_${ano}_${safeNome.toUpperCase()}.pdf`;
 
         const doc = await buildAvaliacaoPDF(nome, tipo, ano, trimestre, groupKey, respostas);

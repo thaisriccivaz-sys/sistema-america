@@ -172,6 +172,9 @@ function renderGaCards(templates, tipo) {
                             <span style="font-size:0.75rem;color:#64748b;">Chave: <code style="background:#e2e8f0;padding:1px 6px;border-radius:4px;">${t.grupo_key}</code></span>
                         </div>
                         <div style="display:flex;gap:0.5rem;flex-shrink:0;">
+                            <button onclick="window.gaDuplicarTemplate('${mapKey}')" title="Duplicar Template" style="background:#10b981;color:#fff;border:none;width:34px;height:34px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:0.95rem;transition:opacity 0.2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+                                <i class="ph ph-copy"></i>
+                            </button>
                             <button onclick="window.gaAbrirFormEditarTemplate('${mapKey}')" title="${isPadrao ? 'Personalizar e Salvar' : 'Editar'}" style="background:${color};color:#fff;border:none;width:34px;height:34px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:0.95rem;transition:opacity 0.2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
                                 <i class="ph ph-pencil-simple"></i>
                             </button>
@@ -201,6 +204,15 @@ window.gaAbrirFormEditarTemplate = function(mapKey) {
 };
 
 
+window.gaDuplicarTemplate = function(mapKey) {
+    const tObj = window._gaCardMap[mapKey];
+    if (!tObj) return;
+    const duplicate = JSON.parse(JSON.stringify(tObj));
+    gaEditingId = null; // Forces new
+    duplicate.nome = duplicate.nome + ' (Cópia)';
+    renderGaForm(duplicate);
+};
+
 // ============================================================
 // FORMULÁRIO DE CRIAÇÃO/EDIÇÃO
 // ============================================================
@@ -216,7 +228,7 @@ window.gaAbrirFormEditar = function (id) {
     renderGaForm(t);
 };
 
-function renderGaForm(template) {
+async function renderGaForm(template) {
     const container = document.getElementById('gerenciar-avaliacoes-container');
 
     let categorias = {};
@@ -247,15 +259,17 @@ function renderGaForm(template) {
                         <select id="ga-tipo" style="width:100%;padding:0.6rem 0.8rem;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;">
                             <option value="satisfacao" ${template.tipo === 'satisfacao' ? 'selected' : ''}>Satisfação</option>
                             <option value="desempenho" ${template.tipo === 'desempenho' ? 'selected' : ''}>Desempenho</option>
+                            <option value="experiencia" ${template.tipo === 'experiencia' ? 'selected' : ''}>Experiência</option>
                         </select>
                     </div>
                     <div>
                         <label style="display:block;font-weight:600;font-size:0.85rem;color:#374151;margin-bottom:4px;">
-                            Chave do Grupo *
-                            <span title="Palavra-chave para identificar este grupo. Ex: motorista, manutencao, escritorio" style="cursor:help;color:#94a3b8;font-size:0.78rem;"> (?)</span>
+                            Departamentos *
+                            <span title="Selecione um ou mais departamentos que utilizarão esta avaliação" style="cursor:help;color:#94a3b8;font-size:0.78rem;"> (?)</span>
                         </label>
-                        <input id="ga-grupo-key" type="text" value="${template.grupo_key || ''}" placeholder="Ex: motorista" style="width:100%;padding:0.6rem 0.8rem;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.9rem;font-family:monospace;outline:none;box-sizing:border-box;" onfocus="this.style.borderColor='#0f4c81'" onblur="this.style.borderColor='#d1d5db'">
-                        <p style="margin:4px 0 0;font-size:0.75rem;color:#94a3b8;">Use letras minúsculas, sem espaços</p>
+                        <div id="ga-dept-container" style="border:1.5px solid #d1d5db;border-radius:8px;padding:0.5rem;max-height:100px;overflow-y:auto;background:#fafafa;font-size:0.85rem;display:grid;grid-template-columns:1fr 1fr;gap:4px;">
+                            <span style="color:#94a3b8;font-style:italic;grid-column:1/-1;">Carregando...</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -287,12 +301,35 @@ function renderGaForm(template) {
 
     // Contador de categorias para IDs únicos
     window._gaCatIdx = catKeys.length;
+
+    // Buscar departamentos para preencher o multi-select
+    try {
+        const depts = await gaApiCall('GET', '/departamentos', null, true);
+        const containerDept = document.getElementById('ga-dept-container');
+        if (containerDept && Array.isArray(depts)) {
+            const keysChecked = (template.grupo_key || '').split(',').map(k => k.trim().toLowerCase());
+            
+            // Caso seja edição de padrão, forçar marcação baseado na chave existente
+            const chavesPadroesMulti = keysChecked.filter(k => k && !depts.find(d => d.nome.toLowerCase().includes(k)));
+            
+            containerDept.innerHTML = depts.map(d => {
+                const norm = d.nome.toLowerCase().replace(/\s+/g, '_');
+                const isSelected = keysChecked.includes(norm) || (keysChecked.includes('motorista') && norm.includes('motorista')) || (keysChecked.includes('ajudante') && norm.includes('ajudante'));
+                return `<label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" value="${norm}" class="ga-dept-check" ${isSelected ? 'checked' : ''}> ${d.nome}</label>`;
+            }).join('');
+            
+            // Se tiver chaves manuais (ex: motorista, pátio) que não estão na BD, adicionar fake checkboxes ocultos pra não perdê-las se não recadastrar
+            chavesPadroesMulti.forEach(cp => {
+                if (cp) containerDept.innerHTML += `<input type="checkbox" style="display:none;" value="${cp}" class="ga-dept-check" checked>`;
+            });
+        }
+    } catch(e) { console.warn('Erro ao carregar depts form', e); }
 }
 
 function gaRenderCatBlock(catNome, perguntas, idx) {
     const pArr = Array.isArray(perguntas) ? perguntas : (perguntas ? Object.values(perguntas) : []);
-    // Garantir exatamente 4 perguntas
-    const p4 = [0,1,2,3].map(i => pArr[i] || '');
+    // Garantir exatamente 6 campos de perguntas para comportar tipos que tem até 6 req (Desempenho/Satisfacao tem 4, Experiencia tem 6)
+    const p6 = [0,1,2,3,4,5].map(i => pArr[i] || '');
 
     return `
         <div class="ga-cat-block" data-idx="${idx}" style="background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;margin-bottom:1rem;overflow:hidden;">
@@ -308,7 +345,7 @@ function gaRenderCatBlock(catNome, perguntas, idx) {
             </div>
             <!-- Perguntas -->
             <div style="padding:1rem 1.1rem;display:grid;gap:0.6rem;">
-                ${p4.map((p, qi) => `
+                ${p6.map((p, qi) => `
                     <div style="display:flex;align-items:center;gap:0.6rem;">
                         <span style="background:#eff6ff;color:#0f4c81;font-weight:700;font-size:0.78rem;min-width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;">${qi+1}</span>
                         <input class="ga-pergunta" value="${p.replace(/"/g, '&quot;')}" placeholder="Pergunta ${qi+1}..." style="flex:1;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.5rem 0.75rem;font-size:0.87rem;outline:none;" onfocus="this.style.borderColor='#0f4c81'" onblur="this.style.borderColor='#e2e8f0'">
@@ -344,10 +381,14 @@ window.gaAdicionarCategoria = function () {
 window.gaSalvarTemplate = async function () {
     const nome = document.getElementById('ga-nome')?.value.trim();
     const tipo = document.getElementById('ga-tipo')?.value;
-    const grupo_key = document.getElementById('ga-grupo-key')?.value.trim().toLowerCase().replace(/\s+/g, '_');
+    
+    // Obter os departamentos selecionados
+    const checks = document.querySelectorAll('.ga-dept-check:checked');
+    const checkedValues = Array.from(checks).map(c => c.value);
+    const grupo_key = checkedValues.join(',');
 
     if (!nome || !tipo || !grupo_key) {
-        alert('Preencha todos os campos obrigatórios: Nome, Tipo e Chave do Grupo.');
+        alert('Preencha todos os campos obrigatórios (Nome, Tipo) e selecione pelo menos um departamento.');
         return;
     }
 
@@ -423,7 +464,9 @@ function gaSyncAvaliacaoQuestions() {
         try {
             const cats = JSON.parse(t.categorias_json);
             if (!AVALIACAO_QUESTIONS[t.tipo]) AVALIACAO_QUESTIONS[t.tipo] = {};
-            AVALIACAO_QUESTIONS[t.tipo][t.grupo_key] = cats;
+            // Suportar chave múltipla (comma-separated departments)
+            const chaves = (t.grupo_key || '').split(',').map(c => c.trim()).filter(Boolean);
+            chaves.forEach(ch => AVALIACAO_QUESTIONS[t.tipo][ch] = cats);
         } catch(e) {}
     });
 }
