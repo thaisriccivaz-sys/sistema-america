@@ -2593,7 +2593,12 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
     }
 
     // Limita o nome do arquivo a 40 caracteres
-    const rawFileName = isSaved ? (existingDoc.file_name || '') : '';
+    let rawFileName = isSaved ? (existingDoc.file_name || '') : '';
+    try {
+        if (rawFileName.includes('Ã')) {
+            rawFileName = decodeURIComponent(escape(rawFileName));
+        }
+    } catch (e) {}
     const displayFileName = rawFileName.length > 40 ? rawFileName.substring(0, 40) + '…' : rawFileName;
 
     // Vencimento com cor vermelha se estiver dentro de 30 dias
@@ -2775,7 +2780,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                     ${(!isAssinado) ? `
                     <label class="btn ${isSaved ? 'btn-warning' : 'btn-primary'}" title="${isSaved ? 'Substituir' : 'Fazer Upload'}" style="height: 42px; display: flex; align-items: center; margin: 0; white-space:nowrap;">
                         <i class="ph ph-upload-simple"></i> ${isSaved ? 'Substituir' : 'Upload'}
-                        <input type="file" accept=".pdf" style="display:none;" onchange="let assStatus = confirm('Este certificado exige assinatura do colaborador? (OK para Sim, Cancelar para N\u00e3o)') ? 'PENDENTE' : 'NAO_EXIGE'; uploadDocument(this, '${tabId}', '${docType}', ${year}, ${month}, null, assStatus)">
+                        <input type="file" accept=".pdf" style="display:none;" onchange="let assStatus = '${stMain || 'PENDENTE'}'; uploadDocument(this, '${tabId}', '${docType}', ${year}, ${month}, null, assStatus)">
                     </label>
                     ` : ''}
 
@@ -2894,6 +2899,15 @@ function createDynamicUploadForm(tabId, btnLabel, defaultDocType = '') {
             <div style="flex: 1; min-width: 140px;">
                 <label style="font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 2px; display: block;">${tabId === 'ASO' ? 'Data do Exame (opcional)' : 'Vencimento (opcional)'}</label>
                 <input type="date" id="dyn-doc-venc-${tabId}" class="form-control" style="padding: 0.5rem; border-radius:4px; border:1px solid #ccc; width: 100%;">
+            </div>
+            ` : ''}
+            ${tabId === 'Certificados' ? `
+            <div style="flex: 1; min-width: 140px;">
+                <label style="font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 2px; display: flex;">Exige Assinatura?</label>
+                <div style="display:flex; gap:0.5rem; height: 38px; align-items:center; font-size: 0.82rem; font-weight: 500;">
+                    <label style="margin:0; display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="radio" name="dyn-assin-${tabId}" value="PENDENTE" checked> Sim</label>
+                    <label style="margin:0; display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="radio" name="dyn-assin-${tabId}" value="NAO_EXIGE"> Não</label>
+                </div>
             </div>
             ` : ''}
             <div>
@@ -3736,7 +3750,14 @@ window.uploadDynamicDocument = function(inputEl, tabId) {
     const vencimento = docVencInput && docVencInput.value ? docVencInput.value : null;
 
     if (!docType) return alert('Insira o nome ou motivo do documento.');
-    uploadDocument(inputEl, tabId, docType, null, null, vencimento);
+
+    let reqAssin = null;
+    if (tabId === 'Certificados') {
+        const checkedRadio = document.querySelector(`input[name="dyn-assin-${tabId}"]:checked`);
+        if (checkedRadio) reqAssin = checkedRadio.value;
+    }
+
+    uploadDocument(inputEl, tabId, docType, null, null, vencimento, reqAssin);
 }
 
 window.deleteDoc = async function(docId, btnEl) {
