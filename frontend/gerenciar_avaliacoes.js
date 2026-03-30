@@ -85,6 +85,7 @@ function renderGaListPage(allTemplates) {
     // Separar por tipo
     const satisfacao = templates.filter(t => t.tipo === 'satisfacao');
     const desempenho = templates.filter(t => t.tipo === 'desempenho');
+    const experiencia = templates.filter(t => t.tipo === 'experiencia');
 
     container.innerHTML = `
         <div style="padding:1.5rem;">
@@ -124,13 +125,23 @@ function renderGaListPage(allTemplates) {
             </div>
 
             <!-- SEÇÃO AVALIAÇÃO DE DESEMPENHO -->
-            <div>
+            <div style="margin-bottom:2rem;">
                 <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem;padding-bottom:0.5rem;border-bottom:2px solid #e2e8f0;">
                     <div style="width:10px;height:10px;border-radius:50%;background:#0f4c81;"></div>
                     <h3 style="margin:0;font-size:1rem;font-weight:700;color:#0f172a;">Avaliação de Desempenho</h3>
                     <span style="background:#0f4c81;color:#fff;font-size:0.75rem;font-weight:700;padding:2px 10px;border-radius:999px;">${desempenho.length} template${desempenho.length !== 1 ? 's' : ''}</span>
                 </div>
                 ${renderGaCards(desempenho, 'desempenho')}
+            </div>
+
+            <!-- SEÇÃO AVALIAÇÃO DE EXPERIÊNCIA -->
+            <div>
+                <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem;padding-bottom:0.5rem;border-bottom:2px solid #e2e8f0;">
+                    <div style="width:10px;height:10px;border-radius:50%;background:#f59e0b;"></div>
+                    <h3 style="margin:0;font-size:1rem;font-weight:700;color:#0f172a;">Avaliação de Experiência</h3>
+                    <span style="background:#f59e0b;color:#fff;font-size:0.75rem;font-weight:700;padding:2px 10px;border-radius:999px;">${experiencia.length} template${experiencia.length !== 1 ? 's' : ''}</span>
+                </div>
+                ${renderGaCards(experiencia, 'experiencia')}
             </div>
         </div>
     `;
@@ -144,8 +155,9 @@ function renderGaCards(templates, tipo) {
         </div>`;
     }
 
-    const color = tipo === 'satisfacao' ? '#8b5cf6' : '#0f4c81';
-    const bg    = tipo === 'satisfacao' ? '#faf5ff' : '#eff6ff';
+    let color = '#0f4c81'; let bg = '#eff6ff';
+    if (tipo === 'satisfacao') { color = '#8b5cf6'; bg = '#faf5ff'; }
+    if (tipo === 'experiencia') { color = '#f59e0b'; bg = '#fffbeb'; }
 
     // Usar mapa estático global para evitar erro de aspas no onclick do HTML
     if (!window._gaCardMap) window._gaCardMap = {};
@@ -213,12 +225,20 @@ window.gaDuplicarTemplate = function(mapKey) {
     renderGaForm(duplicate);
 };
 
+window.gaChangeTipo = function(tipo) {
+    const isExp = tipo === 'experiencia';
+    document.querySelectorAll('.ga-pergunta-row-5, .ga-pergunta-row-6').forEach(el => {
+        el.style.display = isExp ? 'flex' : 'none';
+        if (!isExp) el.querySelector('input').value = ''; 
+    });
+};
+
 // ============================================================
 // FORMULÁRIO DE CRIAÇÃO/EDIÇÃO
 // ============================================================
 window.gaAbrirFormNovo = function () {
     gaEditingId = null;
-    renderGaForm({ nome: '', tipo: 'satisfacao', grupo_key: '', categorias_json: '{}' });
+    renderGaForm({ nome: '', tipo: 'experiencia', grupo_key: '', categorias_json: '{}' });
 };
 
 window.gaAbrirFormEditar = function (id) {
@@ -256,10 +276,10 @@ async function renderGaForm(template) {
                     </div>
                     <div>
                         <label style="display:block;font-weight:600;font-size:0.85rem;color:#374151;margin-bottom:4px;">Tipo *</label>
-                        <select id="ga-tipo" style="width:100%;padding:0.6rem 0.8rem;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;">
-                            <option value="satisfacao" ${template.tipo === 'satisfacao' ? 'selected' : ''}>Satisfação</option>
-                            <option value="desempenho" ${template.tipo === 'desempenho' ? 'selected' : ''}>Desempenho</option>
-                            <option value="experiencia" ${template.tipo === 'experiencia' ? 'selected' : ''}>Experiência</option>
+                        <select id="ga-tipo" style="width:100%;padding:0.6rem 0.8rem;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;" onchange="window.gaChangeTipo(this.value)">
+                            <option value="experiencia" ${template.tipo === 'experiencia' ? 'selected' : ''}>Experiência (6 campos/Soma)</option>
+                            <option value="desempenho" ${template.tipo === 'desempenho' ? 'selected' : ''}>Desempenho (4 campos/Média)</option>
+                            <option value="satisfacao" ${template.tipo === 'satisfacao' ? 'selected' : ''}>Satisfação (4 campos/Média)</option>
                         </select>
                     </div>
                     <div>
@@ -284,7 +304,7 @@ async function renderGaForm(template) {
 
             <div id="ga-categorias-container">
                 ${catKeys.length === 0 ? '<p style="color:#94a3b8;text-align:center;padding:2rem;">Nenhuma categoria ainda. Clique em "Adicionar Categoria".</p>' : ''}
-                ${catKeys.map((cat, idx) => gaRenderCatBlock(cat, categorias[cat], idx)).join('')}
+                ${catKeys.map((cat, idx) => gaRenderCatBlock(cat, categorias[cat], idx, template.tipo)).join('')}
             </div>
 
             <!-- BOTÕES DE AÇÃO -->
@@ -326,27 +346,27 @@ async function renderGaForm(template) {
     } catch(e) { console.warn('Erro ao carregar depts form', e); }
 }
 
-function gaRenderCatBlock(catNome, perguntas, idx) {
+function gaRenderCatBlock(catNome, perguntas, idx, tipoReq = null) {
     const pArr = Array.isArray(perguntas) ? perguntas : (perguntas ? Object.values(perguntas) : []);
-    // Garantir exatamente 6 campos de perguntas para comportar tipos que tem até 6 req (Desempenho/Satisfacao tem 4, Experiencia tem 6)
     const p6 = [0,1,2,3,4,5].map(i => pArr[i] || '');
+    const isExp = tipoReq === 'experiencia';
 
     return `
         <div class="ga-cat-block" data-idx="${idx}" style="background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;margin-bottom:1rem;overflow:hidden;">
             <!-- Header da Categoria -->
-            <div style="background:linear-gradient(90deg,#f0f7ff,#fff);padding:0.85rem 1.1rem;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e2e8f0;">
+            <div style="background:linear-gradient(90deg,#f0f7ff,#fff);padding:0.85rem 1.1rem;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e2e8f0; gap: 1rem;">
                 <div style="display:flex;align-items:center;gap:0.75rem;flex:1;">
                     <i class="ph ph-tag" style="color:#0f4c81;font-size:1.1rem;"></i>
-                    <input class="ga-cat-nome" value="${catNome}" placeholder="Nome da categoria (Ex: Liderança)" style="border:none;background:transparent;font-weight:700;font-size:0.97rem;color:#0f172a;outline:none;flex:1;min-width:0;" />
+                    <input class="ga-cat-nome" value="${catNome.replace(/"/g, '&quot;')}" placeholder="Título da categoria (Ex: Liderança, Segurança)" title="Clique para editar" style="border:1.5px solid #cbd5e1;border-radius:6px;padding:0.5rem 0.6rem;background:#fff;font-weight:700;font-size:0.95rem;color:#0f172a;outline:none;flex:1;min-width:0;transition:all 0.2s;box-shadow:inset 0 1px 2px rgba(0,0,0,0.02);" onfocus="this.style.borderColor='#0f4c81'; this.style.boxShadow='0 0 0 3px rgba(15,76,129,0.1)'" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='inset 0 1px 2px rgba(0,0,0,0.02)'" />
                 </div>
-                <button onclick="this.closest('.ga-cat-block').remove()" style="background:#fef2f2;border:1px solid #fecaca;color:#ef4444;width:32px;height:32px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Remover categoria">
+                <button onclick="this.closest('.ga-cat-block').remove()" style="background:#fef2f2;border:1px solid #fecaca;color:#ef4444;width:32px;height:32px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center; flex-shrink:0;" title="Remover categoria">
                     <i class="ph ph-trash"></i>
                 </button>
             </div>
             <!-- Perguntas -->
             <div style="padding:1rem 1.1rem;display:grid;gap:0.6rem;">
                 ${p6.map((p, qi) => `
-                    <div style="display:flex;align-items:center;gap:0.6rem;">
+                    <div class="ga-pergunta-row-${qi+1}" style="display:${(!isExp && qi >= 4) ? 'none' : 'flex'};align-items:center;gap:0.6rem;">
                         <span style="background:#eff6ff;color:#0f4c81;font-weight:700;font-size:0.78rem;min-width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;">${qi+1}</span>
                         <input class="ga-pergunta" value="${p.replace(/"/g, '&quot;')}" placeholder="Pergunta ${qi+1}..." style="flex:1;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.5rem 0.75rem;font-size:0.87rem;outline:none;" onfocus="this.style.borderColor='#0f4c81'" onblur="this.style.borderColor='#e2e8f0'">
                     </div>
@@ -358,6 +378,7 @@ function gaRenderCatBlock(catNome, perguntas, idx) {
 
 window.gaAdicionarCategoria = function () {
     const container = document.getElementById('ga-categorias-container');
+    const tipoAtual = document.getElementById('ga-tipo')?.value || 'experiencia';
     // Remove placeholder se existir
     const placeholder = container.querySelector('p');
     if (placeholder) placeholder.remove();
@@ -366,7 +387,7 @@ window.gaAdicionarCategoria = function () {
     window._gaCatIdx = idx + 1;
 
     const div = document.createElement('div');
-    div.innerHTML = gaRenderCatBlock('', ['','','',''], idx);
+    div.innerHTML = gaRenderCatBlock('', ['','','','','',''], idx, tipoAtual);
     container.appendChild(div.firstElementChild);
 
     // Scroll para nova categoria e foca no nome
