@@ -135,9 +135,14 @@ async function uploadDocToOneDrive(docId) {
 
         // Para Atestados, strip o timestamp do file_name: CID_DD-MM-AA_Nome_YYYYMMDD_HHMMSS.pdf → CID_DD-MM-AA_Nome.pdf
         const isAtestado = doc.tab_name === 'Atestados';
-        const cloudName = isAtestado
-            ? doc.file_name.replace(/_\d{8}_\d{6}(\.\w+)$/, '$1')
-            : `${formatarPasta(doc.document_type || doc.tab_name).replace(/\s+/g, '_')}_${docYear}_${safeColab}.pdf`;
+        let cloudName = '';
+        if (doc.tab_name === 'AVALIACAO') {
+            cloudName = doc.file_name;
+        } else if (isAtestado) {
+            cloudName = doc.file_name.replace(/_\d{8}_\d{6}(\.\w+)$/, '$1');
+        } else {
+            cloudName = `${formatarPasta(doc.document_type || doc.tab_name).replace(/\s+/g, '_')}_${docYear}_${safeColab}.pdf`;
+        }
 
         console.log(`[OD-AUTO] doc=${docId} tab=${doc.tab_name} → ${targetDir}/${cloudName}`);
         await onedrive.ensurePath(targetDir);
@@ -1070,9 +1075,14 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
                                 await onedrive.ensurePath(targetDir);
                                 const fileBuffer = fs.readFileSync(file_path);
                                 // Para Atestados usa o custom_name exato; outros usam file_name do multer
-                                const cloudFileName = (tab_name === 'Atestados' && req.body.custom_name)
-                                    ? `${req.body.custom_name}.pdf`
-                                    : path.basename(file_path);
+                                let cloudFileName = file_name;
+                                if (tab_name === 'Atestados' && req.body.custom_name) {
+                                    cloudFileName = `${req.body.custom_name}.pdf`;
+                                } else if (tab_name !== 'AVALIACAO') {
+                                    const safeColabInline = formatarNome(req.body.colaborador_nome || "DESCONHECIDO");
+                                    const docYear = year && year !== 'null' ? String(year).replace(/[^0-9]/g, '') : String(new Date().getFullYear());
+                                    cloudFileName = `${formatarPasta(document_type || tab_name).replace(/\s+/g, '_')}_${docYear}_${safeColabInline}.pdf`;
+                                }
                                 await onedrive.uploadToOneDrive(targetDir, cloudFileName, fileBuffer);
                                 console.log(`[OneDrive] Upload OK: ${cloudFileName}`);
                             } catch (e) { console.error("Erro async OneDrive (update):", e.message); }

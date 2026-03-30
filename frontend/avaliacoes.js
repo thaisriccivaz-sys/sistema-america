@@ -772,25 +772,16 @@ async function generateAndUploadEvaluationPDF(colabId, nome, tipo, ano, trimestr
         </div>
     </div>`;
 
-    // Para evitar pagina em branco no html2canvas causados por viewport bounds ou displays hiddens:
-    const el = document.createElement('div');
-    el.innerHTML = html;
-    el.style.position = 'absolute';
-    el.style.top = '0px';
-    el.style.left = '0px';
-    el.style.zIndex = '-9999';
-    el.style.background = '#fff';
-    document.body.appendChild(el);
-
     try {
         const pdFOpt = {
-            margin:       0.4,
+            margin:       0.3,
             filename:     fileName,
             image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true, scrollX: 0, scrollY: 0 },
+            html2canvas:  { scale: 2, useCORS: true, logging: true },
             jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
         };
-        const pdfBlob = await html2pdf().set(pdFOpt).from(el).output('blob');
+        // O from() processa diretamente a string HTML sem precisar embutir na DOM da tela principal, evitando telas brancas (viewport cortado).
+        const pdfBlob = await html2pdf().set(pdFOpt).from(html).output('blob');
         
         // upload to API
         const formData = new FormData();
@@ -813,8 +804,6 @@ async function generateAndUploadEvaluationPDF(colabId, nome, tipo, ano, trimestr
         console.log("PDF generated and uploaded via API successfully.");
     } catch(e) {
         console.error("Erro ao gerar PDF da Avaliação:", e);
-    } finally {
-        if(document.body.contains(el)) document.body.removeChild(el);
     }
 }
 
