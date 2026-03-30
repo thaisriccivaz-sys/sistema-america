@@ -3225,14 +3225,18 @@ window.renderAtestadosTab = function(container, filteredDocs) {
                 </div>
                 
                 <!-- Campos Dias -->
-                <div id="atestado-dias-fields" style="display:flex; gap:1rem; flex-shrink:0;">
+                <div id="atestado-dias-fields" style="display:flex; gap:1rem; flex-shrink:0; align-items:flex-end;">
                     <div>
                         <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">Data Início</label>
-                        <input type="date" id="atestado_inicio_dia" class="form-control" style="padding:0.4rem; width:125px;">
+                        <input type="date" id="atestado_inicio_dia" class="form-control" style="padding:0.4rem; width:130px;" oninput="calcAtestadoFim()">
                     </div>
                     <div>
-                        <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">Data Fim</label>
-                        <input type="date" id="atestado_fim_dia" class="form-control" style="padding:0.4rem; width:125px;">
+                        <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">Qtd. Dias</label>
+                        <input type="number" id="atestado_qtd_dias" class="form-control" min="1" value="1" style="padding:0.4rem; width:75px;" oninput="calcAtestadoFim()">
+                    </div>
+                    <div>
+                        <label style="font-size:0.75rem; font-weight:600; color:#94a3b8; margin-bottom:3px; display:block;">Término (calc.)</label>
+                        <input type="date" id="atestado_fim_dia" class="form-control" style="padding:0.4rem; width:130px; background:#f1f5f9; color:#64748b;" readonly>
                     </div>
                 </div>
 
@@ -3289,7 +3293,8 @@ window.selectCID = function(code, desc) {
     
     const todayStr = new Date().toISOString().split('T')[0];
     document.getElementById('atestado_inicio_dia').value = todayStr;
-    document.getElementById('atestado_fim_dia').value = todayStr;
+    document.getElementById('atestado_qtd_dias').value = '1';
+    calcAtestadoFim();
 }
 
 window.triggerAtestadoUpload = function() {
@@ -3348,8 +3353,11 @@ window.uploadAtestadoWithCID = async function(inputEl) {
     const tipo = document.getElementById('atestado_tipo').value;
     formData.append('atestado_tipo', tipo);
     if (tipo === 'dias') {
-        formData.append('atestado_inicio', document.getElementById('atestado_inicio_dia').value);
-        formData.append('atestado_fim', document.getElementById('atestado_fim_dia').value);
+        const inicioVal = document.getElementById('atestado_inicio_dia').value;
+        const fimVal = document.getElementById('atestado_fim_dia').value;
+        if (!inicioVal) { alert('Informe a Data de Início do atestado.'); return; }
+        formData.append('atestado_inicio', inicioVal);
+        formData.append('atestado_fim', fimVal || inicioVal);
     } else {
         formData.append('atestado_inicio', document.getElementById('atestado_inicio_hora').value);
         formData.append('atestado_fim', document.getElementById('atestado_fim_hora').value);
