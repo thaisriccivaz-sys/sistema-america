@@ -514,7 +514,7 @@ window.renderAvaliacaoTab = async function(container) {
                     ${(isFull && tipo === 'experiencia') ? `
                         <div style="margin-bottom:1.5rem; border:1px solid #cbd5e1; background:#f8fafc; padding:0.75rem; border-radius:8px; display:flex; flex-direction:column; align-items:center; gap:0.5rem; box-shadow:inset 0 2px 4px rgba(0,0,0,0.02);">
                             <label style="font-size:0.8rem; font-weight:700; color:#334155;">RESULTADO DA EXPERIÊNCIA:</label>
-                            <select onchange="updateExperienciaStatus('${tipo}', ${year}, ${t}, this.value)" style="border:1.5px solid ${avStatusHtml ? (avStatusHtml.includes('Aprovado') ? '#16a34a': '#ef4444') : '#94a3b8'}; border-radius:6px; padding:0.4rem 0.8rem; font-size:0.9rem; font-weight:800; color:#0f4c81; outline:none; background:#fff; cursor:pointer; width:100%; text-align:center;">
+                            <select onchange="updateExperienciaStatus('${tipo}', ${year}, ${t}, this.value)" style="border:1.5px solid ${avStatusHtml ? (avStatusHtml.includes('Aprovado') ? '#16a34a': '#ef4444') : '#94a3b8'}; border-radius:6px; padding:0.4rem 0.8rem; font-size:0.9rem; font-weight:800; color:${avStatusHtml ? (avStatusHtml.includes('Aprovado') ? '#16a34a': '#ef4444') : '#0f4c81'}; outline:none; background:#fff; cursor:pointer; width:100%; text-align:center;">
                                 <option value="" disabled ${!avStatusHtml ? 'selected' : ''}>-- PENDENTE DE RESULTADO --</option>
                                 <option value="Aprovado" ${avStatusHtml.includes('Aprovado') ? 'selected' : ''}>Aprovado</option>
                                 <option value="Reprovado" ${avStatusHtml.includes('Reprovado') ? 'selected' : ''}>Reprovado</option>
@@ -583,15 +583,15 @@ window.renderAvaliacaoTab = async function(container) {
             </div>
 
             <!-- Charts Container -->
-            <div style="display:flex; gap:1.5rem; margin-bottom:2rem; flex-wrap:wrap;">
-                <div style="flex:${tipo === 'experiencia' ? 'none; width:100%' : '1; min-width:300px'}; background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+            <div style="display:flex; gap:1.5rem; margin-bottom:2rem; flex-wrap:wrap; justify-content:center;">
+                <div style="${tipo === 'experiencia' ? 'width:100%; max-width:900px;' : 'flex:1; min-width:300px;'} background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
                     <h5 style="margin:0 0 1rem; text-align:center; color:#334155; font-size:1.1rem;">${tipo === 'experiencia' ? 'Desempenho por Categoria' : 'Desempenho por Categoria Trimestral'}</h5>
-                    <div style="position:relative; height:500px;"><canvas id="chart-competencias"></canvas></div>
+                    <div style="position:relative; height:${tipo === 'experiencia' ? '300px' : '380px'}; width:100%; margin:0 auto;"><canvas id="chart-competencias"></canvas></div>
                 </div>
                 ${tipo === 'experiencia' ? '' : `
                 <div style="flex:1; min-width:300px; background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
                     <h5 style="margin:0 0 1rem; text-align:center; color:#334155; font-size:1.1rem;">Evolução Trimestral Geral</h5>
-                    <div style="position:relative; height:500px;"><canvas id="chart-medias"></canvas></div>
+                    <div style="position:relative; height:380px; width:100%; margin:0 auto;"><canvas id="chart-medias"></canvas></div>
                 </div>
                 `}
             </div>
@@ -974,7 +974,13 @@ async function buildAvaliacaoPDF(nome, tipo, ano, trimestre, groupKey, respostas
     // --- SUBTÍTULO ---
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...C_GRAY);
+    if (tipo === 'experiencia' && respostas.__status__) {
+        const isAprovadoStr = respostas.__status__ === 'Aprovado';
+        doc.setTextColor(isAprovadoStr ? 22 : 239, isAprovadoStr ? 163 : 68, isAprovadoStr ? 74 : 68);
+        doc.setFont('helvetica', 'bold');
+    } else {
+        doc.setTextColor(...C_GRAY);
+    }
     doc.text(`Colaborador: ${nome}  |  Ano: ${ano}  |  ${trimestre}º Trimestre`, PW / 2, y, { align: 'center' });
     y += 4;
 
@@ -1062,7 +1068,12 @@ async function buildAvaliacaoPDF(nome, tipo, ano, trimestre, groupKey, respostas
     // --- MÉDIA/SOMA TOTAL ---
     const overallMetric = tipo === 'experiencia' ? totalScore : (totalQs > 0 ? (totalScore / totalQs).toFixed(2) : '0.00');
     checkPage(14);
-    doc.setFillColor(...C_BLUE);
+    if (tipo === 'experiencia' && respostas.__status__) {
+        const isAprov = respostas.__status__ === 'Aprovado';
+        doc.setFillColor(isAprov ? 22 : 239, isAprov ? 163 : 68, isAprov ? 74 : 68);
+    } else {
+        doc.setFillColor(...C_BLUE);
+    }
     doc.roundedRect(ML, y, CW, 12, 2, 2, 'F');
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
