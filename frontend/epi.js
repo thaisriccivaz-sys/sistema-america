@@ -535,11 +535,11 @@ function pdfEntregaTable(doc, W, margin, y, numRows) {
     const colW = [28, 28, 84, W - margin * 2 - 140];
     const heads = ['DATA', 'QUANTIDADE', 'DESCRIÇÃO DE E.P.I', 'ASSINATURA DO COLABORADOR'];
     const hH = 8, rH = 7.5;
-    doc.setFillColor(228, 235, 245);
     let cx = margin;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(0, 0, 0);
     heads.forEach((h, i) => {
+        doc.setFillColor(228, 235, 245);
         doc.setLineWidth(0.3); doc.rect(cx, y, colW[i], hH, 'FD');
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(0, 0, 0);
         doc.text(h, cx + colW[i] / 2, y + 5, { align: 'center' }); cx += colW[i];
     });
     y += hH;
@@ -613,7 +613,9 @@ function gerarDocEpi(template, colab, jsPDF) {
     doc.text('DESCRIMINAR COM DATA, DESCRIÇÃO, QTD. Nº C.A E ASSINATURA DO RECEBEDOR ABAIXO.', W / 2, y, { align: 'center' });
     y += 6;
 
-    y = pdfEntregaTable(doc, W, margin, y, 8);
+    const availableHFront = 297 - 12 - y - 10;
+    const rowsFront = Math.floor((availableHFront - 8) / 7.5);
+    y = pdfEntregaTable(doc, W, margin, y, Math.max(6, rowsFront));
     y += 5;
     doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
     doc.text(template.rodape_texto || 'LIBERAÇÃO DO EQUIPAMENTO DE SEGURANÇA SOMENTE APÓS ASSINATURA DESTE TERMO.', W / 2, y, { align: 'center' });
@@ -622,7 +624,12 @@ function gerarDocEpi(template, colab, jsPDF) {
     doc.addPage();
     y = pdfHeader(doc, W);
     y = pdfColabBox(doc, W, margin, y, colab);
-    y = pdfEntregaTable(doc, W, margin, y, 22);
+    
+    // Deixa espaco para parte final (Conferência + Carimbo) que usa ~48
+    const availableHBack = 297 - 12 - y - 48;
+    const rowsBack = Math.floor((availableHBack - 8) / 7.5);
+    y = pdfEntregaTable(doc, W, margin, y, Math.max(15, rowsBack));
+    
     y += 6;
     doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
     doc.text(template.rodape_texto || 'LIBERAÇÃO DO EQUIPAMENTO DE SEGURANÇA SOMENTE APÓS ASSINATURA DESTE TERMO.', W / 2, y, { align: 'center' });
