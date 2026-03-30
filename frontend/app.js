@@ -2762,6 +2762,15 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         </div>` : (assStatusIcon ? `<div style="display:flex;align-items:center;gap:0.5rem;">${assStatusIcon}</div>` : '');
                     })()}
 
+                    ${(tabId === 'Advertências' && isSaved) ? `
+                    <div style="display:flex; flex-direction:column; gap:0.35rem; margin-top:0.35rem; align-items:flex-end;">
+                        <button type="button"
+                                onclick="window.abrirModalAssinaturaTestemunhas(${existingDoc.id})"
+                                style="height:36px; display:flex; align-items:center; justify-content:center; gap:6px; background:#475569; color:#fff; border:none; border-radius:6px; padding:0 0.85rem; font-size:0.82rem; font-weight:600; cursor:pointer; white-space:nowrap; width:100%; min-width:230px; max-width:250px;">
+                            <i class="ph ph-users"></i> Assinatura de Testemunhas
+                        </button>
+                    </div>` : ''}
+
                     ${(tabId === 'Atestados' && isSaved) ? `
                     <div style="display:flex; flex-direction:column; gap:0.35rem; margin-top:0.35rem; align-items:flex-end;">
                         <input type="email" id="contab-email-${existingDoc.id}"
@@ -5713,3 +5722,231 @@ setInterval(async () => {
         console.log('[POLLING] Documento(s) detectado(s) como Assinado(s). Tela atualizada com sucesso.');
     }
 }, 30000);
+
+// --- LÓGICA ASSINATURA TESTEMUNHAS ---
+let ctxTestemunha1, ctxTestemunha2;
+let currentDocIdForWitness = null;
+let currentDocDataForWitness = null;
+
+window.abrirModalAssinaturaTestemunhas = async function(docId) {
+    currentDocIdForWitness = docId;
+    currentDocDataForWitness = currentDocs.find(d => d.id === docId);
+
+    const modal = document.getElementById('modal-assinatura-testemunhas');
+    modal.style.display = 'block';
+
+    const cols = await apiGet('/colaboradores');
+    // Filter active
+    const ativos = (cols || []).filter(c => {
+        let st = c.status;
+        if (!st) {
+            // fallback logic similar to getEffectiveStatus if status is not populated correctly
+            st = (c.data_admissao && new Date(c.data_admissao + 'T12:00:00') > new Date()) ? 'Aguardando início' : 'Ativo';
+        }
+        return st === 'Ativo' || st === 'Férias' || st === 'Afastado';
+    });
+    ativos.sort((a,b) => (a.nome_completo||a.nome||'').localeCompare(b.nome_completo||b.nome||''));
+
+    let options = '<option value="">Selecione uma testemunha...</option>';
+    ativos.forEach(c => {
+        const nome = c.nome_completo || c.nome || '';
+        const cpf = c.cpf || '';
+        options += `<option value="${nome}###${cpf}">${nome} - CPF: ${cpf}</option>`;
+    });
+
+    document.getElementById('select-testemunha-1').innerHTML = options;
+    document.getElementById('select-testemunha-2').innerHTML = options;
+
+    inicializarCanvasTestemunhas();
+};
+
+function inicializarCanvasTestemunhas() {
+    setupCanvasTestemunha(1);
+    setupCanvasTestemunha(2);
+}
+
+function getPointerPos(canvas, evt) {
+    const rect = canvas.getBoundingClientRect();
+    let clientX = evt.clientX;
+    let clientY = evt.clientY;
+    if(evt.touches && evt.touches.length > 0) {
+        clientX = evt.touches[0].clientX;
+        clientY = evt.touches[0].clientY;
+    }
+    return {
+        x: (clientX - rect.left) * (canvas.width / rect.width),
+        y: (clientY - rect.top) * (canvas.height / rect.height)
+    };
+}
+
+function setupCanvasTestemunha(index) {
+    let canvas = document.getElementById('canvas-testemunha-' + index);
+    const newCanvas = canvas.cloneNode(true);
+    canvas.parentNode.replaceChild(newCanvas, canvas);
+    canvas = newCanvas;
+
+    const ctx = canvas.getContext('2d');
+    if(index === 1) ctxTestemunha1 = ctx;
+    else ctxTestemunha2 = ctx;
+
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#0f172a';
+
+    let drawing = false;
+
+    const start = (e) => { e.preventDefault(); drawing = true; const pos = getPointerPos(canvas, e); ctx.beginPath(); ctx.moveTo(pos.x, pos.y); };
+    const move = (e) => { e.preventDefault(); if(!drawing) return; const pos = getPointerPos(canvas, e); ctx.lineTo(pos.x, pos.y); ctx.stroke(); };
+    const stop = (e) => { e.preventDefault(); drawing = false; ctx.closePath(); };
+
+    canvas.addEventListener('mousedown', start);
+    canvas.addEventListener('mousemove', move);
+    canvas.addEventListener('mouseup', stop);
+    canvas.addEventListener('mouseout', stop);
+
+    canvas.addEventListener('touchstart', start, {passive: false});
+    canvas.addEventListener('touchmove', move, {passive: false});
+    canvas.addEventListener('touchend', stop);
+
+    window.limparCanvasTestemunha(index);
+}
+
+window.limparCanvasTestemunha = function(index) {
+    const canvas = document.getElementById('canvas-testemunha-' + index);
+    const ctx = index === 1 ? ctxTestemunha1 : ctxTestemunha2;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+};
+
+function isCanvasBlank(canvas) {
+    const blank = document.createElement('canvas');
+    blank.width = canvas.width;
+    blank.height = canvas.height;
+    return canvas.toDataURL() === blank.toDataURL();
+}
+
+window.salvarAssinaturasTestemunhas = async function() {
+    const s1 = document.getElementById('select-testemunha-1').value;
+    const s2 = document.getElementById('select-testemunha-2').value;
+
+    if (!s1 || !s2) { alert('Selecione as duas testemunhas.'); return; }
+    if (s1 === s2) { alert('Selecione testemunhas diferentes.'); return; }
+
+    const c1 = document.getElementById('canvas-testemunha-1');
+    const c2 = document.getElementById('canvas-testemunha-2');
+
+    if (isCanvasBlank(c1) || isCanvasBlank(c2)) {
+        alert('Colete a assinatura de ambas as testemunhas.');
+        return;
+    }
+
+    const doc = currentDocDataForWitness;
+    if(!doc || !doc.file_path) {
+        alert('Documento original não encontrado.');
+        return;
+    }
+
+    if (typeof PDFLib === 'undefined') {
+        alert('A biblioteca de processamento de PDF não está carregada.');
+        return;
+    }
+
+    const btn = document.getElementById('btn-salvar-testemunhas');
+    const originalBtn = btn.innerHTML;
+    try {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Processando PDF...';
+
+        const baseUrl = API_URL.replace('/api', '');
+        const pdfUrl = `${baseUrl}/${doc.file_path}?t=${Date.now()}`;
+        const pdfResp = await fetch(pdfUrl);
+        if(!pdfResp.ok) throw new Error('Não foi possível baixar o PDF original.');
+        const existingPdfBytes = await pdfResp.arrayBuffer();
+
+        const pdfDoc = await PDFLib.PDFDocument.load(existingPdfBytes);
+        const page = pdfDoc.addPage([595.28, 841.89]); // A4 Size
+        const { width, height } = page.getSize();
+        
+        page.drawText('ASSINATURA DE TESTEMUNHAS', {
+            x: 50,
+            y: height - 80,
+            size: 16,
+            color: PDFLib.rgb(0, 0, 0),
+        });
+
+        const data1 = s1.split('###');
+        const data2 = s2.split('###');
+
+        // Testemunha 1
+        page.drawText(`Testemunha 1: ${data1[0]} - CPF: ${data1[1]}`, {
+            x: 50, y: height - 150, size: 12, color: PDFLib.rgb(0, 0, 0)
+        });
+        const png1Bytes = await fetch(c1.toDataURL('image/png')).then(res => res.arrayBuffer());
+        const png1Image = await pdfDoc.embedPng(png1Bytes);
+        page.drawImage(png1Image, {
+            x: 50, y: height - 300, width: 300, height: 90
+        });
+        page.drawLine({
+            start: { x: 50, y: height - 300 },
+            end: { x: 350, y: height - 300 },
+            thickness: 1, color: PDFLib.rgb(0, 0, 0)
+        });
+
+        // Testemunha 2
+        page.drawText(`Testemunha 2: ${data2[0]} - CPF: ${data2[1]}`, {
+            x: 50, y: height - 450, size: 12, color: PDFLib.rgb(0, 0, 0)
+        });
+        const png2Bytes = await fetch(c2.toDataURL('image/png')).then(res => res.arrayBuffer());
+        const png2Image = await pdfDoc.embedPng(png2Bytes);
+        page.drawImage(png2Image, {
+            x: 50, y: height - 600, width: 300, height: 90
+        });
+        page.drawLine({
+            start: { x: 50, y: height - 600 },
+            end: { x: 350, y: height - 600 },
+            thickness: 1, color: PDFLib.rgb(0, 0, 0)
+        });
+
+        const modifiedPdfBytes = await pdfDoc.save();
+
+        const file = new File([modifiedPdfBytes], doc.file_name, { type: 'application/pdf' });
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('colaborador_id', viewedColaborador.id);
+        formData.append('colaborador_nome', viewedColaborador.nome_completo || 'Desconhecido');
+        formData.append('tab_name', doc.tab_name);
+        formData.append('document_type', doc.document_type);
+        if(doc.year) formData.append('year', doc.year);
+        if(doc.month) formData.append('month', doc.month);
+
+        btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Atualizando Documento...';
+
+        const resUpload = await fetch(`${API_URL}/documentos`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${currentToken}` },
+            body: formData
+        });
+
+        if(!resUpload.ok) {
+            const errRes = await resUpload.json().catch(()=>({}));
+            throw new Error(errRes.error || 'Falha ao reenviar documento com assinaturas.');
+        }
+
+        alert('Assinaturas adicionadas com sucesso!');
+        document.getElementById('modal-assinatura-testemunhas').style.display = 'none';
+        
+        await loadDocumentosList();
+        const activeTab = document.querySelector('#tabs-list li.active');
+        if(activeTab) {
+            renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
+        } else {
+            renderTabContent('Advertências', 'Advertências', true);
+        }
+
+    } catch (e) {
+        console.error(e);
+        alert('Erro ao salvar assinaturas: ' + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalBtn;
+    }
+};
