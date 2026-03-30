@@ -490,7 +490,7 @@ window.renderAvaliacaoTab = async function(container) {
                 avId = av.id;
                 const res = JSON.parse(av.respostas_json);
                 if (tipo === 'experiencia' && res.__status__) {
-                    const corStatus = res.__status__ === 'Aprovado' ? '#16a34a' : '#ef4444';
+                    const corStatus = res.__status__ === 'Aprovado' ? '#16a34a' : (res.__status__ === 'Reprovado' ? '#ef4444' : '#f59e0b');
                     avStatusHtml = `<span style="display:inline-block; border-radius:999px; background:${corStatus}22; color:${corStatus}; border:1px solid ${corStatus}; padding:2px 8px; font-size:0.7rem; font-weight:700; margin-bottom:0.5rem; text-transform:uppercase;">${res.__status__}</span>`;
                 }
                 let totalQ = 0, ansQ = 0;
@@ -507,9 +507,21 @@ window.renderAvaliacaoTab = async function(container) {
                 <div style="flex:1; min-width:200px; background:#fff; border:1px solid ${hasData?'#0ea5e9':'#cbd5e1'}; border-radius:8px; padding:1.2rem; text-align:center; box-shadow:0 2px 4px rgba(0,0,0,0.05); position:relative;">
                     ${perc > 0 ? `<div style="position:absolute; top:-10px; right:-10px; background:${isFull?'#16a34a':'#f59e0b'}; color:#fff; width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(0,0,0,0.2); font-size:0.7rem; font-weight:700;">${perc}%</div>` : ''}
                     <h6 style="margin:0 0 0.3rem; color:#0f4c81; font-size:0.75rem; text-transform:uppercase; opacity:0.8;">${tipo==='desempenho'?'Avaliação de Desempenho':(tipo==='experiencia'?'Avaliação de Experiência':'Avaliação de Satisfação')}</h6>
-                    ${avStatusHtml}
+                    ${(!isFull) ? avStatusHtml : ''}
                     <h5 style="margin:0 0 0.5rem; color:#334155;">${tipo==='experiencia' ? 'Realizar Avaliação' : trimestreToMonth[t]}</h5>
                     ${hasData ? `<p style="font-size:1.5rem; font-weight:800; color:#475569; margin:0 0 1rem;">${tipo==='experiencia' ? Math.round(trimestersOverall[t]) : trimestersOverall[t].toFixed(1)} <sub style="font-size:0.7rem;color:#64748b;">${tipo==='experiencia'?'Soma Total':'Média'}</sub></p>` : `<p style="font-size:0.85rem; color:#94a3b8; margin:0 0 1rem;">Disponível para Preenchimento</p>`}
+                    
+                    ${(isFull && tipo === 'experiencia') ? `
+                        <div style="margin-bottom:1.5rem; border:1px solid #cbd5e1; background:#f8fafc; padding:0.75rem; border-radius:8px; display:flex; flex-direction:column; align-items:center; gap:0.5rem; box-shadow:inset 0 2px 4px rgba(0,0,0,0.02);">
+                            <label style="font-size:0.8rem; font-weight:700; color:#334155;">RESULTADO DA EXPERIÊNCIA:</label>
+                            <select onchange="updateExperienciaStatus('${tipo}', ${year}, ${t}, this.value)" style="border:1.5px solid ${avStatusHtml ? (avStatusHtml.includes('Aprovado') ? '#16a34a': '#ef4444') : '#94a3b8'}; border-radius:6px; padding:0.4rem 0.8rem; font-size:0.9rem; font-weight:800; color:#0f4c81; outline:none; background:#fff; cursor:pointer; width:100%; text-align:center;">
+                                <option value="" disabled ${!avStatusHtml ? 'selected' : ''}>-- PENDENTE DE RESULTADO --</option>
+                                <option value="Aprovado" ${avStatusHtml.includes('Aprovado') ? 'selected' : ''}>Aprovado</option>
+                                <option value="Reprovado" ${avStatusHtml.includes('Reprovado') ? 'selected' : ''}>Reprovado</option>
+                            </select>
+                        </div>
+                    ` : ''}
+
                     <div style="display:flex; gap:0.5rem; justify-content:center; flex-wrap:wrap;">
                         <button onclick="openFormAvaliacao('${tipo}', ${year}, ${t}, '${safeGroupKey}')" style="background:${isFull?'#0f4c81':'#0ea5e9'}; color:#fff; border:none; padding:0.4rem 0.8rem; border-radius:4px; cursor:pointer; font-size:0.8rem; flex:1;">
                             <i class="ph ph-note-pencil"></i> ${hasData ? (isFull ? 'Editar' : 'Continuar') : 'Preencher'}
@@ -795,17 +807,8 @@ window.openFormAvaliacao = async function(tipo, ano, trimestre, groupKey) {
             </div>
             <div style="padding:1.5rem; border-top:1px solid #e2e8f0; background:#fff; display:flex; justify-content:space-between; align-items:center;">
                 <span id="form-av-error" style="color:#e03131; font-size:0.85rem; font-weight:600;"></span>
+                <input type="hidden" id="av_hidden_status" value="${savedAnswers.__status__ || ''}">
                 <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
-                    ${tipo === 'experiencia' ? `
-                        <div style="display:flex; align-items:center; gap:0.5rem; background:#f0f7ff; padding:0.4rem 0.8rem; border-radius:6px; border:1px solid #bae6fd;">
-                            <label style="font-size:0.85rem; font-weight:700; color:#0f4c81;">Resultado Final da Experiência:</label>
-                            <select id="av-experiencia-status" style="border:none; background:transparent; font-size:0.9rem; font-weight:700; color:#0f4c81; outline:none; cursor:pointer;">
-                                <option value="" ${!savedAnswers.__status__?'selected':''} disabled>--- Selecione ---</option>
-                                <option value="Aprovado" ${savedAnswers.__status__==='Aprovado'?'selected':''}>Aprovado</option>
-                                <option value="Reprovado" ${savedAnswers.__status__==='Reprovado'?'selected':''}>Reprovado</option>
-                            </select>
-                        </div>
-                    ` : ''}
                     <button type="button" onclick="document.getElementById('modal-avaliacao').remove()" class="btn btn-secondary">Cancelar</button>
                     <button type="button" onclick="saveAvaliacao('${tipo}', ${ano}, ${trimestre}, '${groupKey}')" class="btn btn-primary"><i class="ph ph-check"></i> Salvar Respostas</button>
                 </div>
@@ -881,13 +884,9 @@ window.saveAvaliacao = async function(tipo, ano, trimestre, groupKey) {
         });
     });
 
-    if (tipo === 'experiencia') {
-        const selStatus = document.getElementById('av-experiencia-status');
-        if (selStatus && !selStatus.value) {
-            alert('Por favor, selecione se o colaborador foi Aprovado ou Reprovado na experiência.');
-            return;
-        }
-        respostas.__status__ = selStatus ? selStatus.value : '';
+    const hiddenStatusEl = document.getElementById('av_hidden_status');
+    if (hiddenStatusEl && hiddenStatusEl.value) {
+        respostas.__status__ = hiddenStatusEl.value;
     }
 
     const is100Percent = (totalQ > 0 && ansQ === totalQ);
@@ -996,7 +995,12 @@ async function buildAvaliacaoPDF(nome, tipo, ano, trimestre, groupKey, respostas
         const rows = questions.map((q, i) => {
             const nota = respostas[cat] ? respostas[cat][i] : null;
             if (nota) { catTotal += parseFloat(nota); catCount++; }
-            return { q: q || '', nota: nota || '-' };
+            let obsText = '';
+            if (respostas.__obs__ && respostas.__obs__[cat] && respostas.__obs__[cat][i]) {
+                obsText = respostas.__obs__[cat][i];
+            }
+            const finalText = obsText ? `${q}\n[Observação: ${obsText}]` : (q || '');
+            return { q: finalText, nota: nota || '-' };
         });
         const catMetric = tipo === 'experiencia' ? catTotal : (catCount > 0 ? (catTotal / catCount).toFixed(2) : '0.00');
         totalScore += catTotal; totalQs += catCount;
@@ -1063,7 +1067,11 @@ async function buildAvaliacaoPDF(nome, tipo, ano, trimestre, groupKey, respostas
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(...C_WHITE);
-    doc.text(`${tipo==='experiencia'?'Soma':'Média'} Total Alcançada: ${overallMetric}`, PW - MR - 5, y + 8, { align: 'right' });
+    if (tipo === 'experiencia' && respostas.__status__) {
+        doc.text(`Apoio Final de Experiência: ${respostas.__status__.toUpperCase()}  |  Soma Total Alcançada: ${overallMetric}`, PW / 2, y + 8, { align: 'center' });
+    } else {
+        doc.text(`${tipo==='experiencia'?'Soma':'Média'} Total Alcançada: ${overallMetric}`, PW - MR - 5, y + 8, { align: 'right' });
+    }
     y += 16;
 
     // --- GRÁFICOS (nova página) ---
@@ -1216,4 +1224,39 @@ window.viewAvaliacaoPDF = async function(tipo, ano, trimestre, groupKey) {
     }
 }
 
-win
+window.updateExperienciaStatus = async function(tipo, ano, trim, newStatus) {
+    const colabId = viewedColaborador.id;
+    try {
+        const avaliacoes = await apiGet(`/colaboradores/${colabId}/avaliacoes`);
+        const av = avaliacoes.find(a => a.tipo === tipo && Number(a.ano) === Number(ano) && Number(a.trimestre) === Number(trim));
+        if (!av) return;
+        
+        const res = JSON.parse(av.respostas_json);
+        res.__status__ = newStatus;
+        
+        await apiPost('/avaliacoes', { colaborador_id: colabId, tipo: tipo, ano: ano, trimestre: trim, respostas_json: JSON.stringify(res) });
+        
+        // Regerar o PDF de forma transparente caso tenha ficado full (100%)
+        let isFull = true;
+        const groupKeys = Object.keys(AVALIACAO_QUESTIONS[tipo]);
+        // descobrindo groupKey original
+        let groupKeyToSave = groupKeys[0];
+        const resCats = Object.keys(res).filter(k => k !== '__status__' && k !== '__obs__');
+        if (resCats.length > 0) {
+            for (let gk of groupKeys) {
+                if (AVALIACAO_QUESTIONS[tipo][gk] && AVALIACAO_QUESTIONS[tipo][gk][resCats[0]]) {
+                    groupKeyToSave = gk; break;
+                }
+            }
+        }
+        
+        if (typeof html2pdf !== 'undefined') {
+            await generateAndUploadEvaluationPDF(colabId, viewedColaborador.nome_completo, tipo, ano, trim, groupKeyToSave, res);
+        }
+
+        renderAvaliacaoTab(document.getElementById('docs-list-container'));
+        alert('Resultado Final da Experiência atualizado!');
+    } catch(e) {
+        alert('Erro ao atualizar resultado: ' + e.message);
+    }
+}
