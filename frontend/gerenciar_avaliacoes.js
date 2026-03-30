@@ -324,7 +324,12 @@ async function renderGaForm(template) {
 
     // Buscar departamentos para preencher o multi-select
     try {
-        const depts = await gaApiCall('GET', '/departamentos', null, true);
+        const fetchDeptsUrl = typeof window.apiGet === 'function' ? '/departamentos' : '/api/departamentos'; // Padrão app.js
+        const deptsRes = await fetch(fetchDeptsUrl.startsWith('/api') ? fetchDeptsUrl : '/api' + fetchDeptsUrl, {
+            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+        });
+        const depts = await deptsRes.json();
+
         const containerDept = document.getElementById('ga-dept-container');
         if (containerDept && Array.isArray(depts)) {
             const keysChecked = (template.grupo_key || '').split(',').map(k => k.trim().toLowerCase());
@@ -343,7 +348,11 @@ async function renderGaForm(template) {
                 if (cp) containerDept.innerHTML += `<input type="checkbox" style="display:none;" value="${cp}" class="ga-dept-check" checked>`;
             });
         }
-    } catch(e) { console.warn('Erro ao carregar depts form', e); }
+    } catch(e) { 
+        console.warn('Erro ao carregar depts form', e);
+        const containerDept = document.getElementById('ga-dept-container');
+        if(containerDept) containerDept.innerHTML = '<span style="color:#ef4444;font-size:0.8rem;">Erro ao carregar departamentos. Atualize a página.</span>';
+    }
 }
 
 function gaRenderCatBlock(catNome, perguntas, idx, tipoReq = null) {
