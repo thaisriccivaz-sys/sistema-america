@@ -2389,6 +2389,13 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
                 return;
             }
         }
+        if (tabId === 'Dependentes') {
+            const hasDependentes = viewedColaborador && viewedColaborador.dependentes && viewedColaborador.dependentes.filter(d => d.grau_parentesco !== 'Cônjuge').length > 0;
+            if (!hasDependentes) {
+                listContainer.innerHTML = '<div class="alert alert-info"><i class="ph ph-info"></i> Esta aba está disponível apenas para colaboradores que tenham dependentes cadastrados no sistema.</div>';
+                return;
+            }
+        }
         if (tabId === 'Faculdade') {
             const participa = viewedColaborador && (viewedColaborador.faculdade_participa === 'Sim');
             if (!participa) {
