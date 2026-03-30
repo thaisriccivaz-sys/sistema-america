@@ -714,12 +714,19 @@ window.saveAvaliacao = async function(tipo, ano, trimestre, groupKey) {
 };
 
 async function generateAndUploadEvaluationPDF(colabId, nome, tipo, ano, trimestre, groupKey, respostas) {
+    const nomeBase = tipo === 'desempenho' ? 'Avaliacao_de_Desempenho' : 'Avaliacao_de_Satisfacao';
     const tipoText = tipo === 'desempenho' ? 'Avaliação de Desempenho' : 'Avaliação de Satisfação';
+    const safeNome = nome.replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_]/g, '');
+    const fileName = `${nomeBase}_${trimestre}_${ano}_${safeNome.toUpperCase()}.pdf`;
+
+    let totalScore = 0;
+    let totalQuestions = 0;
+
     let html = `
-        <div style="font-family: Arial, sans-serif; padding: 40px; color: #333; width: 800px; box-sizing: border-box; background: #fff;">
-            <div style="text-align:center; margin-bottom: 30px;">
-                <img src="/logo.png" style="max-width:200px; max-height:80px;" onerror="this.style.display='none'">
-                <h2 style="color: #0f4c81; font-size: 24px; margin: 15px 0 5px;">${tipoText}</h2>
+        <div style="font-family: Arial, sans-serif; padding: 0 40px 40px; color: #333; width: 800px; box-sizing: border-box; background: #fff;">
+            <div style="text-align:center; margin-bottom: 20px;">
+                <img src="/assets/logo-header.png" style="width:100%; max-height:120px; object-fit:cover; margin-bottom: 15px;" onerror="this.src='/logo.png'">
+                <h2 style="color: #0f4c81; font-size: 24px; margin: 0 0 5px;">${tipoText}</h2>
                 <h4 style="color: #64748b; font-size: 16px; margin: 0; font-weight: 500;">
                     Colaborador: <b>${nome}</b> | Ano: <b>${ano}</b> | Trimestre: <b>${trimestre}º</b>
                 </h4>
@@ -730,37 +737,57 @@ async function generateAndUploadEvaluationPDF(colabId, nome, tipo, ano, trimestr
     // iterate over questions and answers
     const cats = Object.keys(AVALIACAO_QUESTIONS[tipo][groupKey]);
     cats.forEach((cat, cIdx) => {
-        html += `<h4 style="background:#f8fafc; color:#0f4c81; padding:8px 12px; margin-top:20px; font-size: 14px; border-left: 4px solid #0f4c81; margin-bottom: 5px;">${cIdx+1}. ${cat}</h4>`;
-        html += `<table style="width:100%; border-collapse: collapse; font-size:12px; margin-bottom: 10px;">`;
-        AVALIACAO_QUESTIONS[tipo][groupKey][cat].forEach((q, i) => {
-            const nota = respostas[cat] ? respostas[cat][i] : '-';
-            html += `<tr>
-                <td style="padding: 8px 10px; border-bottom:1px solid #e2e8f0; width:85%; color: #475569;">${q}</td>
-                <td style="padding: 8px 10px; border-bottom:1px solid #e2e8f0; font-weight:bold; text-align:center; color: #0f4c81;">Nota: ${nota}</td>
+        let catTotal = 0;
+        let catCount = 0;
+        
+        const rowsHtml = AVALIACAO_QUESTIONS[tipo][groupKey][cat].map((q, i) => {
+            const notaRaw = respostas[cat] ? respostas[cat][i] : null;
+            let notaFormatada = '-';
+            if (notaRaw) {
+                notaFormatada = notaRaw;
+                catTotal += parseFloat(notaRaw);
+                catCount++;
+            }
+            return `<tr>
+                <td style="padding: 6px 10px; border-bottom:1px solid #e2e8f0; width:85%; color: #475569;">${q}</td>
+                <td style="padding: 6px 10px; border-bottom:1px solid #e2e8f0; font-weight:bold; text-align:center; color: #0f4c81;">Nota: ${notaFormatada}</td>
             </tr>`;
-        });
-        html += `</table>`;
-    });
-    html += `</div>`;
+        }).join('');
 
+        const catAvg = catCount > 0 ? (catTotal / catCount).toFixed(2) : '0.00';
+        totalScore += catTotal;
+        totalQuestions += catCount;
+
+        html += `<div style="background:#f8fafc; padding:8px 12px; margin-top:15px; border-left: 4px solid #0f4c81; display:flex; justify-content:space-between; align-items:center;">
+                    <h4 style="margin:0; color:#0f4c81; font-size: 14px;">${cIdx+1}. ${cat}</h4>
+                    <span style="font-weight:bold; color:#0f4c81; font-size:12px;">Média da Categoria: ${catAvg}</span>
+                </div>`;
+        html += `<table style="width:100%; border-collapse: collapse; font-size:11px; margin-bottom: 10px;">${rowsHtml}</table>`;
+    });
+
+    const overallAvg = totalQuestions > 0 ? (totalScore / totalQuestions).toFixed(2) : '0.00';
+    html += `
+        <div style="margin-top: 25px; text-align: right; background:#0f4c81; color:#fff; padding: 10px 20px; border-radius:6px;">
+            <strong style="font-size: 18px;">Média Total Alcançada: ${overallAvg}</strong>
+        </div>
+    </div>`;
+
+    // Para evitar pagina em branco no html2canvas causados por viewport bounds ou displays hiddens:
     const el = document.createElement('div');
     el.innerHTML = html;
-    // O html2pdf exige que o elemento seja acessível mas pode estar fora da visão
     el.style.position = 'absolute';
-    el.style.top = '-9999px';
+    el.style.top = '0px';
+    el.style.left = '0px';
+    el.style.zIndex = '-9999';
+    el.style.background = '#fff';
     document.body.appendChild(el);
-
-    const safeNome = nome.replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_]/g, '');
-    const fileName = tipo === 'desempenho' 
-        ? `Desempenho${trimestre}_${safeNome}.pdf` 
-        : `Satisfacao${trimestre}_${safeNome}.pdf`;
 
     try {
         const pdFOpt = {
-            margin:       0.5,
+            margin:       0.4,
             filename:     fileName,
             image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true },
+            html2canvas:  { scale: 2, useCORS: true, scrollX: 0, scrollY: 0 },
             jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
         };
         const pdfBlob = await html2pdf().set(pdFOpt).from(el).output('blob');
@@ -770,8 +797,9 @@ async function generateAndUploadEvaluationPDF(colabId, nome, tipo, ano, trimestr
         formData.append('file', new File([pdfBlob], fileName, { type: 'application/pdf' }));
         formData.append('colaborador_id', colabId.toString());
         formData.append('document_type', tipo === 'desempenho' ? 'Avaliação de Desempenho' : 'Avaliação de Satisfação');
-        formData.append('tab_name', 'AVALIACAO'); // AVALIACAO se tornará o folder da tab no OneDrive
+        formData.append('tab_name', 'AVALIACAO'); // folder mapping no OneDrive
         formData.append('year', ano.toString());
+        formData.append('month', trimestre.toString()); // Diferencia no DB para evitar sobreescrição entre trimestres
 
         const response = await fetch(`/api/documentos`, {
             method: 'POST',
