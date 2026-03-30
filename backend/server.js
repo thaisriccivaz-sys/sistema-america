@@ -1086,7 +1086,7 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
                     }
 
                     // --- ESPELHAMENTO ONEDRIVE (API) ---
-                    if (onedrive && tab_name !== 'ASO') {
+                    if (onedrive && tab_name !== 'ASO' && !(tab_name === 'Advertências' && assinafy_status !== 'Assinado')) {
                         (async () => {
                             try {
                                 const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema";
@@ -1135,7 +1135,7 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
                     // --- ESPELHAMENTO ONEDRIVE ---
                     // Usa a mesma lógica do force-onedrive-sync (comprovada) com o ID real do doc
                     const newDocId = this.lastID;
-                    if (tab_name !== 'ASO') {
+                    if (tab_name !== 'ASO' && !(tab_name === 'Advertências' && req.body.assinafy_status !== 'Assinado')) {
                         setImmediate(() => uploadDocToOneDrive(newDocId));
                     }
 

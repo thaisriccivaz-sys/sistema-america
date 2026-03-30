@@ -2122,30 +2122,59 @@ window.anexarAdvertenciaAoProntuario = async function() {
         const logoSrc = `${apiBase}/assets/logo-header.png`;
         const data = window._advertenciaData;
         
-        const htmlTemplate = `
-            <div style="width:794px;min-height:1123px;padding:48px 56px;box-sizing:border-box;background:#fff;color:#111;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.5;">
-                <div style="margin-bottom:10px;">
-                    <img src="${logoSrc}" style="width:100%;max-width:682px;display:block;" onerror="this.style.display='none'">
+        const a4 = document.createElement('div');
+        a4.style.cssText = 'position:fixed;left:0;top:0;z-index:-9999;width:794px;min-height:1123px;' +
+            'padding:48px 56px;box-sizing:border-box;background:#fff;color:#111;' +
+            'font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.5;';
+
+        a4.innerHTML = `
+            <div style="margin-bottom:10px;">
+                <img src="${logoSrc}" style="width:100%;max-width:682px;display:block;" onerror="this.style.display='none'">
+            </div>
+            <h1 style="text-align:center;font-size:15px;text-transform:uppercase;margin:8px 0 6px;color:#1e293b;">${data.gerador_nome}</h1>
+            <p style="margin:4px 0;font-size:13px;"><b>COLABORADOR:</b> ${data.colaborador.NOME_COMPLETO}</p>
+            <div style="border:1px solid #000;padding:6px 10px;margin:6px 0;font-size:11.5px;line-height:1.4;">
+                <p style="margin:0 0 3px;font-size:11px;"><b>DADOS DO COLABORADOR:</b></p>
+                <div style="display:flex;gap:24px;flex-wrap:wrap;">
+                    <span>CPF: <b>${data.colaborador.CPF}</b></span>
+                    <span>CARGO: <b>${data.colaborador.CARGO}</b></span>
+                    <span>ADMISSAO: <b>${data.colaborador.DATA_ADMISSAO}</b></span>
                 </div>
-                <h1 style="text-align:center;font-size:15px;text-transform:uppercase;margin:8px 0 6px;color:#1e293b;">${data.gerador_nome}</h1>
-                <p style="margin:4px 0;font-size:13px;"><b>COLABORADOR:</b> ${data.colaborador.NOME_COMPLETO}</p>
-                <div style="border:1px solid #000;padding:6px 10px;margin:6px 0;font-size:11.5px;line-height:1.4;">
-                    <p style="margin:0 0 3px;font-size:11px;"><b>DADOS DO COLABORADOR:</b></p>
-                    <div style="display:flex;gap:24px;flex-wrap:wrap;">
-                        <span>CPF: <b>${data.colaborador.CPF}</b></span>
-                        <span>CARGO: <b>${data.colaborador.CARGO}</b></span>
-                        <span>ADMISSAO: <b>${data.colaborador.DATA_ADMISSAO}</b></span>
+                <p style="margin:3px 0 0;">DEPARTAMENTO: ${data.colaborador.DEPARTAMENTO}</p>
+            </div>
+            <div style="margin-top:10px;text-align:justify;line-height:1.5;font-size:12.5px;">${data.html}</div>
+            <div style="margin-top:14px;">
+                <p style="font-weight:700;font-size:13px;">Guarulhos, ${data.dataHojeExtenso}.</p>
+            </div>
+            
+            <!-- Blocos de Assinatura Fixos na Mesma Página -->
+            <div style="margin-top: 100px; display: flex; justify-content: space-between; text-align: left; font-size: 11px;">
+                <div style="width: 45%;">
+                    <div style="border-top: 1px solid #000; padding-top: 4px;">
+                        <b>Testemunha 1:</b><br><br><br>
                     </div>
-                    <p style="margin:3px 0 0;">DEPARTAMENTO: ${data.colaborador.DEPARTAMENTO}</p>
                 </div>
-                <div style="margin-top:10px;text-align:justify;line-height:1.5;font-size:12.5px;">${data.html}</div>
-                <div style="margin-top:14px;">
-                    <p style="font-weight:700;font-size:13px;">Guarulhos, ${data.dataHojeExtenso}.</p>
+                <div style="width: 45%;">
+                    <div style="border-top: 1px solid #000; padding-top: 4px;">
+                        <b>Testemunha 2:</b><br><br><br>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 80px; text-align: left; font-size: 11px;">
+                <div style="width: 50%; margin: 0 auto;">
+                    <div style="border-top: 1px solid #000; padding-top: 4px; text-align: center;">
+                        <b>Colaborador (Ciente):</b><br>
+                        ${data.colaborador.NOME_COMPLETO}<br>
+                        CPF: ${data.colaborador.CPF}
+                    </div>
                 </div>
             </div>
         `;
 
-        // Pré-carregar a imagem na memória (cache do navegador) para garantir que apareça no iframe isolado do html2pdf
+        document.body.appendChild(a4);
+
+        // Pré-carregar a imagem na memória (cache do navegador) para garantir que apareça 
         const imgPreload = new Image();
         imgPreload.src = logoSrc;
         await new Promise(resolve => {
@@ -2163,7 +2192,8 @@ window.anexarAdvertenciaAoProntuario = async function() {
             jsPDF:        { unit: 'px', format: [794, 1123], orientation: 'portrait' }
         };
 
-        const pdfBlob = await html2pdf().set(opt).from(htmlTemplate).output('blob');
+        const pdfBlob = await html2pdf().set(opt).from(a4).output('blob');
+        document.body.removeChild(a4);
         const file = new File([pdfBlob], nomeArquivo, { type: 'application/pdf' });
 
         const formData = new FormData();
@@ -5998,13 +6028,10 @@ window.salvarAssinaturasTestemunhas = async function() {
 
         const pdfDoc = await PDFLib.PDFDocument.load(existingPdfBytes);
 
-        // ---- UMA ÚNICA PÁGINA para todas as assinaturas ----
-        const pageWidth = 595.28;   // A4 largura
-        const pageHeight = 841.89;  // A4 altura
-        const sigPage = pdfDoc.addPage([pageWidth, pageHeight]);
-
-        const margin = 50;
-        const innerWidth = pageWidth - margin * 2;
+        const pages = pdfDoc.getPages();
+        const sigPage = pages[0];
+        const { width: pageWidth, height: pageHeight } = sigPage.getSize(); // 794 x 1123
+        const innerWidth = (pageWidth - 112) / 2 - 20;
 
         // --- Captura canvas em alta resolução (3x DPI) ---
         async function getHQCanvas(canvasId) {
@@ -6023,72 +6050,26 @@ window.salvarAssinaturasTestemunhas = async function() {
         const data1 = s1.split('###');
         const data2 = s2.split('###');
 
-        // Linha separadora horizontal
-        function drawSep(pg, y) {
-            pg.drawLine({ start: { x: margin, y }, end: { x: pageWidth - margin, y },
-                thickness: 0.5, color: PDFLib.rgb(0.8, 0.8, 0.8) });
-        }
-
-        // ══ TÍTULO ══
-        sigPage.drawText('REGISTRO DE ASSINATURAS', {
-            x: margin, y: pageHeight - 45, size: 13,
-            color: PDFLib.rgb(0.1, 0.1, 0.4),
-        });
-        drawSep(sigPage, pageHeight - 55);
-
-        // ══ TESTEMUNHA 1 ══
-        const t1LabelY = pageHeight - 80;
-        const t1ImgH   = 75;
-        const t1ImgY   = t1LabelY - t1ImgH - 5;
-        const t1LineY  = t1ImgY - 2;
-        const t1NameY  = t1LineY - 14;
-        const t1CpfY   = t1NameY - 13;
-        const t1RoleY  = t1CpfY - 12;
-
-        sigPage.drawText('Testemunha 1:', { x: margin, y: t1LabelY, size: 9, color: PDFLib.rgb(0.5, 0.5, 0.5) });
+        // Em PDF-Lib, Y=0 é o rodapé. As linhas do HTML devem estar em trono de Y=300 (Test.) e Y=120 (Colab.)
+        // ══ TESTEMUNHA 1 (Esquerda) ══
+        const t1X = 56;
+        const t1Y = 270; // Em cima da linha
+        const tImgH = 80;
 
         const png1Bytes = await getHQCanvas('canvas-testemunha-1');
         const png1Image = await pdfDoc.embedPng(png1Bytes);
-        sigPage.drawImage(png1Image, { x: margin, y: t1ImgY, width: innerWidth, height: t1ImgH });
-        sigPage.drawLine({ start: { x: margin, y: t1LineY }, end: { x: pageWidth - margin, y: t1LineY },
-            thickness: 1, color: PDFLib.rgb(0.2, 0.2, 0.2) });
-        sigPage.drawText(data1[0], { x: margin, y: t1NameY, size: 10, color: PDFLib.rgb(0, 0, 0) });
-        sigPage.drawText(`CPF: ${data1[1] || 'N/D'}`, { x: margin, y: t1CpfY, size: 9, color: PDFLib.rgb(0.35, 0.35, 0.35) });
+        sigPage.drawImage(png1Image, { x: t1X, y: t1Y, width: innerWidth, height: tImgH });
+        sigPage.drawText(data1[0], { x: t1X, y: t1Y - 18, size: 10, color: PDFLib.rgb(0, 0, 0) });
+        sigPage.drawText(`CPF: ${data1[1] || 'N/D'}`, { x: t1X, y: t1Y - 32, size: 9, color: PDFLib.rgb(0.35, 0.35, 0.35) });
 
-        drawSep(sigPage, t1RoleY - 8);
-
-        // ══ TESTEMUNHA 2 ══
-        const t2LabelY = t1RoleY - 25;
-        const t2ImgH   = 75;
-        const t2ImgY   = t2LabelY - t2ImgH - 5;
-        const t2LineY  = t2ImgY - 2;
-        const t2NameY  = t2LineY - 14;
-        const t2CpfY   = t2NameY - 13;
-        const t2RoleY  = t2CpfY - 12;
-
-        sigPage.drawText('Testemunha 2:', { x: margin, y: t2LabelY, size: 9, color: PDFLib.rgb(0.5, 0.5, 0.5) });
+        // ══ TESTEMUNHA 2 (Direita) ══
+        const t2X = pageWidth - 56 - innerWidth;
 
         const png2Bytes = await getHQCanvas('canvas-testemunha-2');
         const png2Image = await pdfDoc.embedPng(png2Bytes);
-        sigPage.drawImage(png2Image, { x: margin, y: t2ImgY, width: innerWidth, height: t2ImgH });
-        sigPage.drawLine({ start: { x: margin, y: t2LineY }, end: { x: pageWidth - margin, y: t2LineY },
-            thickness: 1, color: PDFLib.rgb(0.2, 0.2, 0.2) });
-        sigPage.drawText(data2[0], { x: margin, y: t2NameY, size: 10, color: PDFLib.rgb(0, 0, 0) });
-        sigPage.drawText(`CPF: ${data2[1] || 'N/D'}`, { x: margin, y: t2CpfY, size: 9, color: PDFLib.rgb(0.35, 0.35, 0.35) });
-
-        drawSep(sigPage, t2RoleY - 8);
-
-        // ══ RESERVA PARA ASSINATURA DO COLABORADOR (preenchida na etapa seguinte) ══
-        sigPage.drawText('Colaborador (Ciente):', { x: margin, y: t2RoleY - 25, size: 9, color: PDFLib.rgb(0.5, 0.5, 0.5) });
-        sigPage.drawText('___ Aguardando assinatura do colaborador ___', {
-            x: margin + 10, y: t2RoleY - 60, size: 9, color: PDFLib.rgb(0.75, 0.75, 0.75)
-        });
-        sigPage.drawLine({
-            start: { x: margin, y: t2RoleY - 80 }, end: { x: pageWidth - margin, y: t2RoleY - 80 },
-            thickness: 0.8, color: PDFLib.rgb(0.75, 0.75, 0.75), dashArray: [4, 4]
-        });
-
-
+        sigPage.drawImage(png2Image, { x: t2X, y: t1Y, width: innerWidth, height: tImgH });
+        sigPage.drawText(data2[0], { x: t2X, y: t1Y - 18, size: 10, color: PDFLib.rgb(0, 0, 0) });
+        sigPage.drawText(`CPF: ${data2[1] || 'N/D'}`, { x: t2X, y: t1Y - 32, size: 9, color: PDFLib.rgb(0.35, 0.35, 0.35) });
 
         const modifiedPdfBytes = await pdfDoc.save();
         const file = new File([modifiedPdfBytes], doc.file_name, { type: 'application/pdf' });
@@ -6187,11 +6168,8 @@ window.salvarAssinaturaColaborador = async function() {
 
         const pdfDoc = await PDFLib.PDFDocument.load(existingPdfBytes);
         const pages = pdfDoc.getPages();
-        const lastPage = pages[pages.length - 1];
+        const lastPage = pages[0]; // Agora garantimos que tudo fica na página 1
         const { width: pgW, height: pgH } = lastPage.getSize();
-
-        const margin = 50;
-        const innerWidth = pgW - margin * 2;
 
         // Captura de alta qualidade
         async function getHQCanvas2(canvasId) {
@@ -6207,46 +6185,17 @@ window.salvarAssinaturaColaborador = async function() {
             return fetch(off.toDataURL('image/png')).then(r => r.arrayBuffer());
         }
 
-        // Recalcula a posição Y exata onde a reserva começa
-        // (espelha os cálculos de salvarAssinaturasTestemunhas)
-        const t1LabelY = pgH - 80;
-        const t1RoleY  = (t1LabelY - 75 - 5 - 2 - 14 - 13 - 12); // label - imgH - gap - line - name - cpf - role
-        const t2LabelY = t1RoleY - 25;
-        const t2RoleY  = (t2LabelY - 75 - 5 - 2 - 14 - 13 - 12);
-        // Área reservada: label a t2RoleY - 25, imagem a ~t2RoleY - 60 to -80
-        const colabLabelY = t2RoleY - 25;
-        const colabImgH   = 70;
-        const colabImgY   = colabLabelY - colabImgH - 5;
-        const colabLineY  = colabImgY - 2;
-        const colabNameY  = colabLineY - 14;
-        const colabCpfY   = colabNameY - 13;
-
-        // Apaga o placeholder (sobrescreve com retângulo branco)
-        lastPage.drawRectangle({
-            x: margin - 2, y: colabLabelY - colabImgH - 90,
-            width: innerWidth + 4, height: colabImgH + 95,
-            color: PDFLib.rgb(1, 1, 1)
-        });
-
-        // Redesenha label
-        lastPage.drawText('Colaborador (Ciente):', { x: margin, y: colabLabelY, size: 9, color: PDFLib.rgb(0.5, 0.5, 0.5) });
+        // --- COLABORADOR (Abaixo, Centro) ---
+        // A linha foi desenhada pelo HTML próximo a Y=120
+        const colabImgH = 80;
+        const colabImgW = 200;
+        const cX = (pgW - colabImgW) / 2;
+        const cY = 130;
 
         // Imagem da assinatura
         const png1Bytes = await getHQCanvas2('canvas-colaborador');
         const png1Image = await pdfDoc.embedPng(png1Bytes);
-        lastPage.drawImage(png1Image, { x: margin, y: colabImgY, width: innerWidth, height: colabImgH });
-
-        // Linha de assinatura
-        lastPage.drawLine({ start: { x: margin, y: colabLineY }, end: { x: pgW - margin, y: colabLineY },
-            thickness: 1, color: PDFLib.rgb(0.2, 0.2, 0.2) });
-
-        // Nome e CPF ABAIXO da linha
-        lastPage.drawText(viewedColaborador.nome_completo || 'Colaborador', {
-            x: margin, y: colabNameY, size: 10, color: PDFLib.rgb(0, 0, 0)
-        });
-        lastPage.drawText(`CPF: ${viewedColaborador.cpf || 'N/D'}`, {
-            x: margin, y: colabCpfY, size: 9, color: PDFLib.rgb(0.35, 0.35, 0.35)
-        });
+        lastPage.drawImage(png1Image, { x: cX, y: cY, width: colabImgW, height: colabImgH });
 
         const modifiedPdfBytes = await pdfDoc.save();
         const file = new File([modifiedPdfBytes], doc.file_name, { type: 'application/pdf' });
