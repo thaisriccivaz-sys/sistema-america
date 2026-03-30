@@ -5941,76 +5941,96 @@ window.salvarAssinaturasTestemunhas = async function() {
 
         const pdfDoc = await PDFLib.PDFDocument.load(existingPdfBytes);
 
-        // ---- Adiciona apenas 1 página com layout lado a lado ----
-        const pageWidth = 595.28;   // A4
-        const pageHeight = 841.89;
-        const page = pdfDoc.addPage([pageWidth, pageHeight]);
+        // ---- UMA ÚNICA PÁGINA para todas as assinaturas ----
+        const pageWidth = 595.28;   // A4 largura
+        const pageHeight = 841.89;  // A4 altura
+        const sigPage = pdfDoc.addPage([pageWidth, pageHeight]);
 
-        const margin = 40;
-        const colWidth = (pageWidth - margin * 3) / 2; // duas colunas com margem entre elas
-        const col1X = margin;
-        const col2X = margin * 2 + colWidth;
+        const margin = 50;
+        const innerWidth = pageWidth - margin * 2;
 
-        // Título
-        page.drawText('ASSINATURA DE TESTEMUNHAS', {
-            x: margin, y: pageHeight - 50, size: 14, color: PDFLib.rgb(0.1, 0.1, 0.1),
-        });
+        // --- Captura canvas em alta resolução (3x DPI) ---
+        async function getHQCanvas(canvasId) {
+            const src = document.getElementById(canvasId);
+            const dpr = window.devicePixelRatio || 1;
+            const scale = 3;
+            const off = document.createElement('canvas');
+            off.width  = src.width  * scale / dpr;
+            off.height = src.height * scale / dpr;
+            const ctx = off.getContext('2d');
+            ctx.scale(scale, scale);
+            ctx.drawImage(src, 0, 0, src.width / dpr, src.height / dpr);
+            return fetch(off.toDataURL('image/png')).then(r => r.arrayBuffer());
+        }
 
         const data1 = s1.split('###');
         const data2 = s2.split('###');
 
-        // --- Captura canvas em alta resolução (3x DPI) ---
-        async function getHighQualityCanvasPng(canvasId) {
-            const srcCanvas = document.getElementById(canvasId);
-            const dpr = window.devicePixelRatio || 1;
-            // Cria canvas off-screen 3x maior para export
-            const exportScale = 3;
-            const offCanvas = document.createElement('canvas');
-            offCanvas.width = srcCanvas.width * exportScale / dpr;
-            offCanvas.height = srcCanvas.height * exportScale / dpr;
-            const ctx = offCanvas.getContext('2d');
-            ctx.scale(exportScale, exportScale);
-            ctx.drawImage(srcCanvas, 0, 0, srcCanvas.width / dpr, srcCanvas.height / dpr);
-            const dataUrl = offCanvas.toDataURL('image/png');
-            return fetch(dataUrl).then(r => r.arrayBuffer());
+        // Linha separadora horizontal
+        function drawSep(pg, y) {
+            pg.drawLine({ start: { x: margin, y }, end: { x: pageWidth - margin, y },
+                thickness: 0.5, color: PDFLib.rgb(0.8, 0.8, 0.8) });
         }
 
-        const sigHeight = 80;
-        const sigTopY = pageHeight - 120; // topo da caixa de assinatura
-
-        // Linha de assinatura T1
-        page.drawLine({
-            start: { x: col1X, y: sigTopY - sigHeight },
-            end: { x: col1X + colWidth, y: sigTopY - sigHeight },
-            thickness: 1, color: PDFLib.rgb(0.3, 0.3, 0.3)
+        // ══ TÍTULO ══
+        sigPage.drawText('REGISTRO DE ASSINATURAS', {
+            x: margin, y: pageHeight - 45, size: 13,
+            color: PDFLib.rgb(0.1, 0.1, 0.4),
         });
+        drawSep(sigPage, pageHeight - 55);
 
-        // Imagem assinatura T1
-        const png1Bytes = await getHighQualityCanvasPng('canvas-testemunha-1');
+        // ══ TESTEMUNHA 1 ══
+        const t1LabelY = pageHeight - 80;
+        const t1ImgH   = 75;
+        const t1ImgY   = t1LabelY - t1ImgH - 5;
+        const t1LineY  = t1ImgY - 2;
+        const t1NameY  = t1LineY - 14;
+        const t1CpfY   = t1NameY - 13;
+        const t1RoleY  = t1CpfY - 12;
+
+        sigPage.drawText('Testemunha 1:', { x: margin, y: t1LabelY, size: 9, color: PDFLib.rgb(0.5, 0.5, 0.5) });
+
+        const png1Bytes = await getHQCanvas('canvas-testemunha-1');
         const png1Image = await pdfDoc.embedPng(png1Bytes);
-        page.drawImage(png1Image, { x: col1X, y: sigTopY - sigHeight - sigHeight + 10, width: colWidth, height: sigHeight });
+        sigPage.drawImage(png1Image, { x: margin, y: t1ImgY, width: innerWidth, height: t1ImgH });
+        sigPage.drawLine({ start: { x: margin, y: t1LineY }, end: { x: pageWidth - margin, y: t1LineY },
+            thickness: 1, color: PDFLib.rgb(0.2, 0.2, 0.2) });
+        sigPage.drawText(data1[0], { x: margin, y: t1NameY, size: 10, color: PDFLib.rgb(0, 0, 0) });
+        sigPage.drawText(`CPF: ${data1[1] || 'N/D'}`, { x: margin, y: t1CpfY, size: 9, color: PDFLib.rgb(0.35, 0.35, 0.35) });
 
-        // Nome e CPF abaixo da linha T1
-        page.drawText(data1[0], { x: col1X, y: sigTopY - sigHeight - 15, size: 10, color: PDFLib.rgb(0, 0, 0) });
-        page.drawText(`CPF: ${data1[1] || 'N/D'}`, { x: col1X, y: sigTopY - sigHeight - 28, size: 9, color: PDFLib.rgb(0.3, 0.3, 0.3) });
-        page.drawText('Testemunha 1', { x: col1X, y: sigTopY - sigHeight - 42, size: 8, color: PDFLib.rgb(0.5, 0.5, 0.5) });
+        drawSep(sigPage, t1RoleY - 8);
 
-        // Linha de assinatura T2
-        page.drawLine({
-            start: { x: col2X, y: sigTopY - sigHeight },
-            end: { x: col2X + colWidth, y: sigTopY - sigHeight },
-            thickness: 1, color: PDFLib.rgb(0.3, 0.3, 0.3)
+        // ══ TESTEMUNHA 2 ══
+        const t2LabelY = t1RoleY - 25;
+        const t2ImgH   = 75;
+        const t2ImgY   = t2LabelY - t2ImgH - 5;
+        const t2LineY  = t2ImgY - 2;
+        const t2NameY  = t2LineY - 14;
+        const t2CpfY   = t2NameY - 13;
+        const t2RoleY  = t2CpfY - 12;
+
+        sigPage.drawText('Testemunha 2:', { x: margin, y: t2LabelY, size: 9, color: PDFLib.rgb(0.5, 0.5, 0.5) });
+
+        const png2Bytes = await getHQCanvas('canvas-testemunha-2');
+        const png2Image = await pdfDoc.embedPng(png2Bytes);
+        sigPage.drawImage(png2Image, { x: margin, y: t2ImgY, width: innerWidth, height: t2ImgH });
+        sigPage.drawLine({ start: { x: margin, y: t2LineY }, end: { x: pageWidth - margin, y: t2LineY },
+            thickness: 1, color: PDFLib.rgb(0.2, 0.2, 0.2) });
+        sigPage.drawText(data2[0], { x: margin, y: t2NameY, size: 10, color: PDFLib.rgb(0, 0, 0) });
+        sigPage.drawText(`CPF: ${data2[1] || 'N/D'}`, { x: margin, y: t2CpfY, size: 9, color: PDFLib.rgb(0.35, 0.35, 0.35) });
+
+        drawSep(sigPage, t2RoleY - 8);
+
+        // ══ RESERVA PARA ASSINATURA DO COLABORADOR (preenchida na etapa seguinte) ══
+        sigPage.drawText('Colaborador (Ciente):', { x: margin, y: t2RoleY - 25, size: 9, color: PDFLib.rgb(0.5, 0.5, 0.5) });
+        sigPage.drawText('___ Aguardando assinatura do colaborador ___', {
+            x: margin + 10, y: t2RoleY - 60, size: 9, color: PDFLib.rgb(0.75, 0.75, 0.75)
+        });
+        sigPage.drawLine({
+            start: { x: margin, y: t2RoleY - 80 }, end: { x: pageWidth - margin, y: t2RoleY - 80 },
+            thickness: 0.8, color: PDFLib.rgb(0.75, 0.75, 0.75), dashArray: [4, 4]
         });
 
-        // Imagem assinatura T2
-        const png2Bytes = await getHighQualityCanvasPng('canvas-testemunha-2');
-        const png2Image = await pdfDoc.embedPng(png2Bytes);
-        page.drawImage(png2Image, { x: col2X, y: sigTopY - sigHeight - sigHeight + 10, width: colWidth, height: sigHeight });
-
-        // Nome e CPF abaixo da linha T2
-        page.drawText(data2[0], { x: col2X, y: sigTopY - sigHeight - 15, size: 10, color: PDFLib.rgb(0, 0, 0) });
-        page.drawText(`CPF: ${data2[1] || 'N/D'}`, { x: col2X, y: sigTopY - sigHeight - 28, size: 9, color: PDFLib.rgb(0.3, 0.3, 0.3) });
-        page.drawText('Testemunha 2', { x: col2X, y: sigTopY - sigHeight - 42, size: 8, color: PDFLib.rgb(0.5, 0.5, 0.5) });
 
 
         const modifiedPdfBytes = await pdfDoc.save();
@@ -6113,50 +6133,62 @@ window.salvarAssinaturaColaborador = async function() {
         const lastPage = pages[pages.length - 1];
         const { width: pgW, height: pgH } = lastPage.getSize();
 
-        const margin = 40;
-        const sigW = pgW - margin * 2;
-        const sigH = 90;
-        // Posição: abaixo das assinaturas de testemunhas (que ficam ~y=610+)
-        // Colocamos o campo do colaborador no topo da mesma página de testemunhas
-        const sigY = pgH - 300; // linha de assinatura
+        const margin = 50;
+        const innerWidth = pgW - margin * 2;
 
         // Captura de alta qualidade
-        async function getHighQualityCanvasPng2(canvasId) {
-            const srcCanvas = document.getElementById(canvasId);
+        async function getHQCanvas2(canvasId) {
+            const src = document.getElementById(canvasId);
             const dpr = window.devicePixelRatio || 1;
-            const exportScale = 3;
-            const offCanvas = document.createElement('canvas');
-            offCanvas.width = srcCanvas.width * exportScale / dpr;
-            offCanvas.height = srcCanvas.height * exportScale / dpr;
-            const ctx = offCanvas.getContext('2d');
-            ctx.scale(exportScale, exportScale);
-            ctx.drawImage(srcCanvas, 0, 0, srcCanvas.width / dpr, srcCanvas.height / dpr);
-            const dataUrl = offCanvas.toDataURL('image/png');
-            return fetch(dataUrl).then(r => r.arrayBuffer());
+            const scale = 3;
+            const off = document.createElement('canvas');
+            off.width  = src.width  * scale / dpr;
+            off.height = src.height * scale / dpr;
+            const ctx = off.getContext('2d');
+            ctx.scale(scale, scale);
+            ctx.drawImage(src, 0, 0, src.width / dpr, src.height / dpr);
+            return fetch(off.toDataURL('image/png')).then(r => r.arrayBuffer());
         }
 
-        // Título
-        lastPage.drawText('ASSINATURA DO COLABORADOR (CIENTE)', {
-            x: margin, y: sigY + sigH + 20, size: 11, color: PDFLib.rgb(0.1, 0.1, 0.1),
+        // Recalcula a posição Y exata onde a reserva começa
+        // (espelha os cálculos de salvarAssinaturasTestemunhas)
+        const t1LabelY = pgH - 80;
+        const t1RoleY  = (t1LabelY - 75 - 5 - 2 - 14 - 13 - 12); // label - imgH - gap - line - name - cpf - role
+        const t2LabelY = t1RoleY - 25;
+        const t2RoleY  = (t2LabelY - 75 - 5 - 2 - 14 - 13 - 12);
+        // Área reservada: label a t2RoleY - 25, imagem a ~t2RoleY - 60 to -80
+        const colabLabelY = t2RoleY - 25;
+        const colabImgH   = 70;
+        const colabImgY   = colabLabelY - colabImgH - 5;
+        const colabLineY  = colabImgY - 2;
+        const colabNameY  = colabLineY - 14;
+        const colabCpfY   = colabNameY - 13;
+
+        // Apaga o placeholder (sobrescreve com retângulo branco)
+        lastPage.drawRectangle({
+            x: margin - 2, y: colabLabelY - colabImgH - 90,
+            width: innerWidth + 4, height: colabImgH + 95,
+            color: PDFLib.rgb(1, 1, 1)
         });
+
+        // Redesenha label
+        lastPage.drawText('Colaborador (Ciente):', { x: margin, y: colabLabelY, size: 9, color: PDFLib.rgb(0.5, 0.5, 0.5) });
 
         // Imagem da assinatura
-        const png1Bytes = await getHighQualityCanvasPng2('canvas-colaborador');
+        const png1Bytes = await getHQCanvas2('canvas-colaborador');
         const png1Image = await pdfDoc.embedPng(png1Bytes);
-        lastPage.drawImage(png1Image, { x: margin, y: sigY - sigH + 15, width: sigW, height: sigH });
+        lastPage.drawImage(png1Image, { x: margin, y: colabImgY, width: innerWidth, height: colabImgH });
 
         // Linha de assinatura
-        lastPage.drawLine({ start: { x: margin, y: sigY }, end: { x: margin + sigW, y: sigY }, thickness: 1, color: PDFLib.rgb(0.3, 0.3, 0.3) });
+        lastPage.drawLine({ start: { x: margin, y: colabLineY }, end: { x: pgW - margin, y: colabLineY },
+            thickness: 1, color: PDFLib.rgb(0.2, 0.2, 0.2) });
 
-        // Nome e CPF abaixo da linha
-        lastPage.drawText(`${viewedColaborador.nome_completo || 'Colaborador'}`, {
-            x: margin, y: sigY - 15, size: 11, color: PDFLib.rgb(0, 0, 0)
+        // Nome e CPF ABAIXO da linha
+        lastPage.drawText(viewedColaborador.nome_completo || 'Colaborador', {
+            x: margin, y: colabNameY, size: 10, color: PDFLib.rgb(0, 0, 0)
         });
         lastPage.drawText(`CPF: ${viewedColaborador.cpf || 'N/D'}`, {
-            x: margin, y: sigY - 29, size: 9, color: PDFLib.rgb(0.3, 0.3, 0.3)
-        });
-        lastPage.drawText('Colaborador - Ciente', {
-            x: margin, y: sigY - 42, size: 8, color: PDFLib.rgb(0.5, 0.5, 0.5)
+            x: margin, y: colabCpfY, size: 9, color: PDFLib.rgb(0.35, 0.35, 0.35)
         });
 
         const modifiedPdfBytes = await pdfDoc.save();
