@@ -1,4 +1,4 @@
-﻿const API_URL = `${window.location.origin}/api`;
+const API_URL = `${window.location.origin}/api`;
 
 // Estado global
 let currentUser = null;
@@ -2759,8 +2759,8 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                     <div style="display: flex; gap: 0.5rem; align-items: flex-end;">
                         ${vencimentoInputHtml}
                         ${isSaved ? `
-                            ${(!isAssinado && !(tabId === 'Atestados' && isSaved)) ? `<button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height: 42px;"><i class="ph ph-eye"></i></button>` : ''}
-                            ${(!isAssinado && !(tabId === 'Atestados' && isSaved)) ? `<button type="button" class="btn btn-danger" onclick="deleteDoc(${existingDoc.id}, this)" title="Excluir" style="height: 42px;"><i class="ph ph-trash"></i></button>` : ''}
+                            ${isSaved ? `<button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height: 42px;"><i class="ph ph-eye"></i></button>` : ''}
+                            ${isSaved ? `<button type="button" class="btn btn-danger" onclick="deleteDoc(${existingDoc.id}, this)" title="Excluir" style="height: 42px;"><i class="ph ph-trash"></i></button>` : ''}
                         ` : ''}
                         ${(!isAssinado && !(tabId === 'Atestados' && isSaved)) ? `
                         <label class="btn ${isSaved ? 'btn-warning' : 'btn-primary'}" title="${isSaved ? 'Substituir' : 'Fazer Upload'}" style="height: 42px; display: flex; align-items: center;">
@@ -3490,6 +3490,20 @@ window.enviarAtestadoContabilidade = async function(docId, emailInputId, btn) {
         if (res && res.sucesso) {
             btn.innerHTML = '<i class="ph ph-check-circle"></i> Enviado!';
             btn.style.background = '#2f9e44';
+            
+            // Reload the documents to show the updated timestamp immediately
+            if (viewedColaborador) {
+                apiGet(`/colaboradores/${viewedColaborador.id}/documentos`).then(docs => {
+                    if (docs) {
+                        currentDocs = docs;
+                        const activeTab = document.querySelector('#tabs-list li.active');
+                        if (activeTab) {
+                            renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
+                        }
+                    }
+                }).catch(err => console.warn('Falha ao recarregar atestados:', err));
+            }
+            
             setTimeout(() => { btn.innerHTML = originalHtml; btn.style.background = ''; btn.disabled = false; }, 3000);
         } else {
             throw new Error(res?.error || 'Erro desconhecido');
