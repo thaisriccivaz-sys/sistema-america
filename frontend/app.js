@@ -2720,7 +2720,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
     if (isSaved) {
         const st = existingDoc.assinafy_status || '';
         if (st === 'Assinado') {
-            assStatusIcon = `<button onclick="window.viewAssinado(${existingDoc.id})" style="display:inline-flex;align-items:center;gap:5px;background:#2f9e44;color:#fff;border:none;border-radius:6px;padding:0.3rem 0.75rem;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;" title="Visualizar/Baixar PDF Assinado"><i class="ph ph-file-pdf" style="font-size:1rem;"></i> Ver Assinado</button>`;
+            assStatusIcon = `<button type="button" onclick="window.viewDoc(${existingDoc.id})" style="display:inline-flex;align-items:center;gap:5px;background:#2f9e44;color:#fff;border:none;border-radius:6px;padding:0.3rem 0.75rem;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;" title="Visualizar/Baixar PDF Assinado"><i class="ph ph-file-pdf" style="font-size:1rem;"></i> Ver Assinado</button>`;
         } else if (st === 'Erro') {
             assStatusIcon = `<span title="Erro ao enviar" style="display:inline-flex;align-items:center;gap:3px;color:#e03131;font-size:0.78rem;font-weight:700;white-space:nowrap;"><i class="ph ph-warning-circle" style="font-size:1.1rem;"></i> Erro</span>`;
         }
@@ -2757,7 +2757,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                                 <i class="ph ph-pen-nib"></i> Solicitar Assinatura
                             </button>
                             ${assStatusIcon}
-                        </div>` : (assStatusIcon ? `<div style="display:flex;align-items:center;gap:0.5rem;">${assStatusIcon}</div>` : '');
+                        </div>` : (assStatusIcon ? `<div style="display:flex;align-items:center;gap:0.5rem; justify-content:flex-end; width:100%; margin-top:0.35rem;">${assStatusIcon}</div>` : '');
                     })()}
 
                     ${(tabId === 'Advertências' && isSaved) ? `
@@ -2788,7 +2788,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         </button>
                     </div>` : ''}
 
-                    ${(tabId === 'Advertências' && isSaved && isAssinado && tipoAdvSimples && tipoAdvSimples.toLowerCase().includes('suspens')) ? `
+                    ${(tabId === 'Advertências' && isSaved && stMain === 'Assinado' && tipoAdvSimples && tipoAdvSimples.toLowerCase().includes('suspens')) ? `
                     <div style="display:flex; flex-direction:column; gap:0.35rem; margin-top:0.35rem; align-items:flex-end;">
                         <input type="email" id="susp-contab-email-${existingDoc.id}"
                                value="thais.ricci@americarental.com.br"
