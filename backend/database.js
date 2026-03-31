@@ -445,6 +445,19 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 )
             `, (err) => { if (err) console.error('Erro ao criar colaborador_epi_fichas:', err); });
 
+            // Tabela de entregas assinadas de EPI por ficha
+            db.run(`
+                CREATE TABLE IF NOT EXISTS epi_entregas (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ficha_id INTEGER NOT NULL,
+                    colaborador_id INTEGER NOT NULL,
+                    epis_entregues TEXT NOT NULL,
+                    assinatura_base64 TEXT NOT NULL,
+                    data_entrega DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (ficha_id) REFERENCES colaborador_epi_fichas(id) ON DELETE CASCADE
+                )
+            `, (err) => { if (err) console.error('Erro ao criar epi_entregas:', err); });
+
             console.log('Tabelas do sistema RH verificadas/criadas com sucesso.');
         });
     }

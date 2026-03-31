@@ -2586,6 +2586,40 @@ app.delete('/api/epi-fichas/:id', authenticateToken, (req, res) => {
     });
 });
 
+// GET: listar entregas de uma ficha de EPI
+app.get('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
+    db.all(
+        `SELECT * FROM epi_entregas WHERE ficha_id=? ORDER BY data_entrega ASC`,
+        [req.params.id],
+        (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json(rows.map(r => ({ ...r, epis_entregues: JSON.parse(r.epis_entregues || '[]') })));
+        }
+    );
+});
+
+// POST: registrar entrega assinada de EPIs
+app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
+    const fichaId = req.params.id;
+    const { colaborador_id, epis_entregues, assinatura_base64 } = req.body;
+    if (!epis_entregues || !assinatura_base64) return res.status(400).json({ error: 'Dados incompletos.' });
+
+    db.run(
+        `INSERT INTO epi_entregas (ficha_id, colaborador_id, epis_entregues, assinatura_base64) VALUES (?,?,?,?)`,
+        [fichaId, colaborador_id, JSON.stringify(epis_entregues), assinatura_base64],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            // Atualiza linhas_usadas somando o número de EPIs entregues nessa entrega
+            db.run(
+                `UPDATE colaborador_epi_fichas SET linhas_usadas = linhas_usadas + ? WHERE id=?`,
+                [epis_entregues.length, fichaId],
+                () => res.json({ id: this.lastID })
+            );
+        }
+    );
+});
+
+
 app.post('/api/epi-templates', authenticateToken, (req, res) => {
     const { grupo, departamentos, epis, termo_texto, rodape_texto } = req.body;
     db.run(
