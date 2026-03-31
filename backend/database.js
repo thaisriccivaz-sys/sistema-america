@@ -426,6 +426,25 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 });
             });
 
+            // Tabela de fichas de EPI por colaborador (histórico/versionamento)
+            db.run(`
+                CREATE TABLE IF NOT EXISTS colaborador_epi_fichas (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    colaborador_id INTEGER NOT NULL,
+                    template_id INTEGER NOT NULL,
+                    grupo TEXT NOT NULL,
+                    snapshot_epis TEXT NOT NULL,
+                    snapshot_termo TEXT,
+                    snapshot_rodape TEXT,
+                    linhas_usadas INTEGER DEFAULT 0,
+                    status TEXT DEFAULT 'ativa',
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    fechada_em DATETIME,
+                    motivo_fechamento TEXT,
+                    FOREIGN KEY (colaborador_id) REFERENCES colaboradores(id) ON DELETE CASCADE
+                )
+            `, (err) => { if (err) console.error('Erro ao criar colaborador_epi_fichas:', err); });
+
             console.log('Tabelas do sistema RH verificadas/criadas com sucesso.');
         });
     }

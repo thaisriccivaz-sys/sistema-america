@@ -2361,6 +2361,8 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
         if (window.renderAvaliacaoTab) window.renderAvaliacaoTab(listContainer);
     } else if (tabId === 'Advertências') {
         renderAdvertenciasTab(listContainer, filteredDocs);
+    } else if (tabId === 'Ficha de EPI') {
+        renderFichaEpiTab(listContainer);
     } else if (tabId === '01.Ficha Cadastral') {
         const fixed = getFichaCadastralDocs();
         fixed.forEach(docType => {  
@@ -6336,5 +6338,209 @@ window.salvarAssinaturaColaborador = async function() {
         btn.disabled = false;
         btn.innerHTML = originalBtn;
     }
+};
+
+// ============================================================
+// ABA FICHA DE EPI NO PRONTUÁRIO
+// ============================================================
+async function renderFichaEpiTab(container) {
+    container.innerHTML = '<p class="text-muted">Carregando fichas de EPI...</p>';
+    const colabId = viewedColaborador?.id;
+    if (!colabId) { container.innerHTML = '<div class="alert alert-info">Colaborador não identificado.</div>'; return; }
+
+    let fichas = [], templates = [];
+    try {
+        [fichas, templates] = await Promise.all([
+            apiGet(`/colaboradores/${colabId}/epi-fichas`),
+            apiGet('/epi-templates')
+        ]);
+    } catch(e) {
+        container.innerHTML = '<div class="alert alert-danger">Erro ao carregar dados de EPI.</div>';
+        return;
+    }
+
+    const fichaAtiva = fichas.find(f => f.status === 'ativa');
+    const totalLinhas = 30;
+
+    const fmtDate = iso => {
+        if (!iso) return '—';
+        const d = new Date(iso);
+        return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+    };
+
+    container.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;flex-wrap:wrap;gap:1rem;">
+            <div>
+                <h3 style="margin:0;font-size:1.1rem;font-weight:700;color:#0f172a;">Fichas de EPI</h3>
+                <p style="margin:4px 0 0;font-size:0.82rem;color:#64748b;">Histórico de fichas geradas para ${viewedColaborador?.nome_completo || ''}.</p>
+            </div>
+            <button onclick="window.gerarNovaFichaEpi()" class="btn btn-primary"
+                    style="display:flex;align-items:center;gap:6px;height:40px;padding:0 1.25rem;font-weight:700;">
+                <i class="ph ph-shield-plus"></i> Gerar Nova Ficha EPI
+            </button>
+        </div>
+
+        ${fichaAtiva ? `
+        <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:1rem 1.25rem;margin-bottom:1.25rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+            <i class="ph ph-check-circle" style="color:#16a34a;font-size:1.5rem;"></i>
+            <div style="flex:1;">
+                <p style="margin:0;font-weight:700;color:#15803d;">Ficha Ativa: ${fichaAtiva.grupo}</p>
+                <p style="margin:2px 0 0;font-size:0.8rem;color:#166534;">Criada em ${fmtDate(fichaAtiva.created_at)} &middot; ${fichaAtiva.linhas_usadas}/${totalLinhas} linhas utilizadas</p>
+            </div>
+            <button onclick="window.previewFichaEpi(${fichaAtiva.id})" class="btn btn-secondary" style="height:36px;display:flex;align-items:center;gap:5px;">
+                <i class="ph ph-eye"></i> Visualizar
+            </button>
+        </div>` : `
+        <div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:10px;padding:1rem 1.25rem;margin-bottom:1.25rem;display:flex;align-items:center;gap:1rem;">
+            <i class="ph ph-warning" style="color:#f59e0b;font-size:1.5rem;"></i>
+            <p style="margin:0;font-size:0.88rem;color:#92400e;">Nenhuma ficha ativa. Clique em <strong>"Gerar Nova Ficha EPI"</strong> para iniciar.</p>
+        </div>`}
+
+        <div>
+            ${fichas.length === 0 ? '<p class="text-muted" style="font-size:0.9rem;">Nenhuma ficha gerada ainda.</p>' : fichas.map(f => `
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:0.85rem 1.1rem;margin-bottom:0.6rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+                <i class="ph ph-file-text" style="color:#64748b;font-size:1.3rem;"></i>
+                <div style="flex:1;min-width:0;">
+                    <p style="margin:0;font-weight:700;font-size:0.9rem;color:#0f172a;">Ficha: ${f.grupo}</p>
+                    <p style="margin:2px 0 0;font-size:0.78rem;color:#64748b;">
+                        Criada: ${fmtDate(f.created_at)}
+                        ${f.fechada_em ? ' &middot; Fechada: ' + fmtDate(f.fechada_em) : ''}
+                        ${f.motivo_fechamento ? ' &middot; <em>' + f.motivo_fechamento + '</em>' : ''}
+                        &middot; ${f.linhas_usadas}/${totalLinhas} linhas
+                    </p>
+                </div>
+                <span style="background:${f.status==='ativa'?'#dcfce7':'#f1f5f9'};color:${f.status==='ativa'?'#15803d':'#475569'};border-radius:999px;padding:2px 10px;font-size:0.75rem;font-weight:700;white-space:nowrap;">
+                    ${f.status === 'ativa' ? '&#9679; Ativa' : '&#9675; Fechada'}
+                </span>
+                <button onclick="window.previewFichaEpi(${f.id})" class="btn btn-secondary btn-sm" style="height:32px;display:flex;align-items:center;gap:4px;">
+                    <i class="ph ph-eye"></i>
+                </button>
+            </div>
+            `).join('')}
+        </div>
+    `;
+
+    window._epiProntuarioData = { fichas, templates, fichaAtiva, colabId };
+}
+
+window.gerarNovaFichaEpi = async function() {
+    const data = window._epiProntuarioData || {};
+    const { templates, fichaAtiva, colabId } = data;
+    if (!templates || !colabId) return;
+
+    const dept = viewedColaborador?.departamento || '';
+    const template = templates.find(t => (t.departamentos || []).includes(dept)) ||
+                     templates.find(t => t.grupo === dept) || templates[0];
+
+    if (!template) {
+        alert('Nenhum template de EPI encontrado para o departamento deste colaborador.');
+        return;
+    }
+
+    if (fichaAtiva) {
+        const ok = confirm(`Já existe uma ficha ativa (${fichaAtiva.grupo}). Deseja fechar a atual e criar nova?`);
+        if (!ok) return;
+    }
+
+    const res = await fetch(`${API_URL}/colaboradores/${colabId}/epi-fichas`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            template_id: template.id,
+            grupo: template.grupo,
+            snapshot_epis: template.epis,
+            snapshot_termo: template.termo_texto,
+            snapshot_rodape: template.rodape_texto
+        })
+    });
+    const created = await res.json();
+    if (!created.id) { alert('Erro ao criar ficha.'); return; }
+
+    // Gera PDF e abre preview
+    if (typeof window.gerarDocEpi === 'function' && window.jspdf) {
+        const { jsPDF } = window.jspdf;
+        const colab = {
+            nome: viewedColaborador.nome_completo,
+            rg: viewedColaborador.rg,
+            cpf: viewedColaborador.cpf,
+            cargo: viewedColaborador.cargo,
+            dept: template.grupo,
+            admissao: viewedColaborador.data_admissao
+        };
+        const doc = window.gerarDocEpi(template, colab, jsPDF);
+        const dataUri = doc.output('datauristring');
+        const nomeArq = `Ficha_EPI_${template.grupo.replace(/\s+/g,'_')}_${colab.nome.replace(/\s+/g,'_')}.pdf`;
+        const old = document.getElementById('epi-preview-overlay');
+        if (old) old.remove();
+        const overlay = document.createElement('div');
+        overlay.id = 'epi-preview-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#1e293b;display:flex;flex-direction:column;';
+        overlay.innerHTML = `
+            <div style="background:#0f172a;padding:0.75rem 1.5rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #334155;flex-shrink:0;">
+                <div style="display:flex;align-items:center;gap:0.75rem;">
+                    <i class="ph ph-shield-check" style="color:#60a5fa;font-size:1.3rem;"></i>
+                    <span style="color:#f1f5f9;font-weight:700;font-size:0.97rem;">Ficha de EPI — ${template.grupo}</span>
+                    <span style="color:#94a3b8;font-size:0.82rem;">${colab.nome}</span>
+                </div>
+                <div style="display:flex;gap:0.75rem;align-items:center;">
+                    <a href="${dataUri}" download="${nomeArq}" style="background:#0f4c81;color:#fff;border:none;padding:0.5rem 1.25rem;border-radius:8px;font-weight:700;font-size:0.88rem;cursor:pointer;display:flex;align-items:center;gap:0.5rem;text-decoration:none;">
+                        <i class="ph ph-download"></i> Baixar PDF
+                    </a>
+                    <button onclick="document.getElementById('epi-preview-overlay').remove(); const t=document.querySelector('[data-tab=\\'Ficha de EPI\\']'); if(t)t.click();"
+                            style="background:#334155;color:#f1f5f9;border:none;padding:0.5rem 1.1rem;border-radius:8px;font-weight:700;font-size:0.88rem;cursor:pointer;display:flex;align-items:center;gap:0.5rem;">
+                        <i class="ph ph-x"></i> Fechar
+                    </button>
+                </div>
+            </div>
+            <iframe src="${dataUri}" style="flex:1;border:none;width:100%;"></iframe>
+        `;
+        document.body.appendChild(overlay);
+    }
+
+    const activeTab = document.querySelector('#tabs-list li.active');
+    if (activeTab) renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
+};
+
+window.previewFichaEpi = function(fichaId) {
+    const { fichas } = window._epiProntuarioData || {};
+    const ficha = (fichas || []).find(f => f.id === fichaId);
+    if (!ficha || !window.gerarDocEpi || !window.jspdf) return;
+    const template = {
+        id: ficha.template_id, grupo: ficha.grupo,
+        epis: ficha.snapshot_epis, termo_texto: ficha.snapshot_termo, rodape_texto: ficha.snapshot_rodape
+    };
+    const { jsPDF } = window.jspdf;
+    const colab = {
+        nome: viewedColaborador.nome_completo, rg: viewedColaborador.rg, cpf: viewedColaborador.cpf,
+        cargo: viewedColaborador.cargo, dept: ficha.grupo, admissao: viewedColaborador.data_admissao
+    };
+    const doc = window.gerarDocEpi(template, colab, jsPDF);
+    const dataUri = doc.output('datauristring');
+    const nomeArq = `Ficha_EPI_${ficha.grupo.replace(/\s+/g,'_')}_${colab.nome.replace(/\s+/g,'_')}.pdf`;
+    const old = document.getElementById('epi-preview-overlay');
+    if (old) old.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'epi-preview-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#1e293b;display:flex;flex-direction:column;';
+    overlay.innerHTML = `
+        <div style="background:#0f172a;padding:0.75rem 1.5rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #334155;flex-shrink:0;">
+            <div style="display:flex;align-items:center;gap:0.75rem;">
+                <i class="ph ph-shield-check" style="color:#60a5fa;font-size:1.3rem;"></i>
+                <span style="color:#f1f5f9;font-weight:700;font-size:0.97rem;">Ficha de EPI — ${ficha.grupo}</span>
+                <span style="color:${ficha.status==='ativa'?'#4ade80':'#94a3b8'};font-size:0.82rem;">${ficha.status === 'ativa' ? '&#9679; Ativa' : '&#9675; Fechada'}</span>
+            </div>
+            <div style="display:flex;gap:0.75rem;">
+                <a href="${dataUri}" download="${nomeArq}" style="background:#0f4c81;color:#fff;padding:0.5rem 1.25rem;border-radius:8px;font-weight:700;font-size:0.88rem;display:flex;align-items:center;gap:0.5rem;text-decoration:none;">
+                    <i class="ph ph-download"></i> Baixar PDF
+                </a>
+                <button onclick="document.getElementById('epi-preview-overlay').remove()"
+                        style="background:#334155;color:#f1f5f9;border:none;padding:0.5rem 1.1rem;border-radius:8px;font-weight:700;font-size:0.88rem;cursor:pointer;display:flex;align-items:center;gap:0.5rem;">
+                    <i class="ph ph-x"></i> Fechar
+                </button>
+            </div>
+        </div>
+        <iframe src="${dataUri}" style="flex:1;border:none;width:100%;"></iframe>
+    `;
+    document.body.appendChild(overlay);
 };
 

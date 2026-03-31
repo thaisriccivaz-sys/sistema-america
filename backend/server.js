@@ -2489,14 +2489,101 @@ app.get('/api/epi-templates', authenticateToken, (req, res) => {
 
 app.put('/api/epi-templates/:id', authenticateToken, (req, res) => {
     const { grupo, departamentos, epis, termo_texto, rodape_texto } = req.body;
+    const templateId = req.params.id;
+
+    // Busca template atual para comparar snapshot
+    db.get('SELECT * FROM epi_templates WHERE id=?', [templateId], (err, old) => {
+        if (err) return res.status(500).json({ error: err.message });
+
+        db.run(
+            `UPDATE epi_templates SET grupo=?, departamentos_json=?, epis_json=?, termo_texto=?, rodape_texto=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+            [grupo, JSON.stringify(departamentos || []), JSON.stringify(epis || []), termo_texto, rodape_texto, templateId],
+            function(err2) {
+                if (err2) return res.status(500).json({ error: err2.message });
+
+                // Detectar mudanças que devem fechar fichas ativas
+                const oldEpis = old ? old.epis_json : '[]';
+                const newEpis = JSON.stringify(epis || []);
+                const changed =
+                    (old && old.grupo !== grupo) ||
+                    oldEpis !== newEpis ||
+                    (old && old.termo_texto !== termo_texto) ||
+                    (old && old.rodape_texto !== rodape_texto);
+
+                if (changed) {
+                    const motivo = [];
+                    if (old && old.grupo !== grupo) motivo.push('Nome do grupo alterado');
+                    if (oldEpis !== newEpis) motivo.push('Lista de EPIs alterada');
+                    if (old && old.termo_texto !== termo_texto) motivo.push('Termo de responsabilidade alterado');
+                    if (old && old.rodape_texto !== rodape_texto) motivo.push('Rodapé alterado');
+
+                    db.run(
+                        `UPDATE colaborador_epi_fichas SET status='fechada', fechada_em=CURRENT_TIMESTAMP, motivo_fechamento=? WHERE template_id=? AND status='ativa'`,
+                        [motivo.join('; '), templateId],
+                        () => res.json({ success: true, fichas_fechadas: true, motivo: motivo.join('; ') })
+                    );
+                } else {
+                    res.json({ success: true, fichas_fechadas: false });
+                }
+            }
+        );
+    });
+});
+
+// ====================================================================
+// EPI FICHAS POR COLABORADOR - CRUD
+// ====================================================================
+
+// GET: listar fichas de EPI de um colaborador
+app.get('/api/colaboradores/:id/epi-fichas', authenticateToken, (req, res) => {
+    db.all(
+        `SELECT * FROM colaborador_epi_fichas WHERE colaborador_id=? ORDER BY created_at DESC`,
+        [req.params.id],
+        (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json(rows.map(r => ({
+                ...r,
+                snapshot_epis: JSON.parse(r.snapshot_epis || '[]')
+            })));
+        }
+    );
+});
+
+// POST: criar nova ficha de EPI para colaborador
+app.post('/api/colaboradores/:id/epi-fichas', authenticateToken, (req, res) => {
+    const { template_id, grupo, snapshot_epis, snapshot_termo, snapshot_rodape } = req.body;
+    const colaboradorId = req.params.id;
+
     db.run(
-        `UPDATE epi_templates SET grupo=?, departamentos_json=?, epis_json=?, termo_texto=?, rodape_texto=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
-        [grupo, JSON.stringify(departamentos || []), JSON.stringify(epis || []), termo_texto, rodape_texto, req.params.id],
+        `INSERT INTO colaborador_epi_fichas (colaborador_id, template_id, grupo, snapshot_epis, snapshot_termo, snapshot_rodape, linhas_usadas, status)
+         VALUES (?,?,?,?,?,?,0,'ativa')`,
+        [colaboradorId, template_id, grupo, JSON.stringify(snapshot_epis || []), snapshot_termo, snapshot_rodape],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ id: this.lastID });
+        }
+    );
+});
+
+// PATCH: atualizar linhas_usadas de uma ficha (quando gera novo PDF / entrega mais EPIs)
+app.patch('/api/epi-fichas/:id/linhas', authenticateToken, (req, res) => {
+    const { linhas_usadas } = req.body;
+    db.run(
+        `UPDATE colaborador_epi_fichas SET linhas_usadas=? WHERE id=?`,
+        [linhas_usadas, req.params.id],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ success: true });
         }
     );
+});
+
+// DELETE: excluir ficha (se necessário)
+app.delete('/api/epi-fichas/:id', authenticateToken, (req, res) => {
+    db.run('DELETE FROM colaborador_epi_fichas WHERE id=?', [req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true });
+    });
 });
 
 app.post('/api/epi-templates', authenticateToken, (req, res) => {

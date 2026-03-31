@@ -563,7 +563,7 @@ function pdfEntregaTable(doc, W, margin, y, numRows) {
     return y;
 }
 
-function gerarDocEpi(template, colab, jsPDF) {
+window.gerarDocEpi = function gerarDocEpi(template, colab, jsPDF) {
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const W = 210, margin = 13;
 
