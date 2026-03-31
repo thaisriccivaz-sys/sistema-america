@@ -473,14 +473,14 @@ function fmtData(str) {
 }
 
 function pdfHeader(doc, W) {
-    let y = 14;
+    let y = 8;
     
     if (headerLogoBase64 && headerLogoAspect) {
         let lW = W - 26;
         let lH = lW * headerLogoAspect;
-        if (lH > 35) { lH = 35; lW = lH / headerLogoAspect; }
+        if (lH > 28) { lH = 28; lW = lH / headerLogoAspect; }
         doc.addImage(headerLogoBase64, 'PNG', W/2 - lW/2, y, lW, lH);
-        y += lH + 8;
+        y += lH + 4;
     } else {
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(14);
@@ -493,9 +493,9 @@ function pdfHeader(doc, W) {
     doc.setFontSize(10);
     doc.setTextColor(0, 0, 0);
     doc.text('RECURSOS HUMANOS - NR 06', W / 2, y, { align: 'center' });
-    y += 5.5;
+    y += 5;
     doc.text('FICHA OBRIGATÓRIA DE E.P.I (RECIBO DE ENTREGA)', W / 2, y, { align: 'center' });
-    return y + 6;
+    return y + 4;
 }
 
 function pdfColabBox(doc, W, margin, y, colab) {
@@ -574,7 +574,8 @@ window.gerarDocEpi = function gerarDocEpi(template, colab, jsPDF) {
     const epis = template.epis || [];
     const colMid = W / 2 + 4;
     const hdrH = 8, rowH = 6.8;
-    const numBodyRows = Math.max(epis.length + 5, 14);
+    // Usar exatamente o número de EPIs, sem linhas extras em branco
+    const numBodyRows = epis.length;
     const bodyH = numBodyRows * rowH;
     const tableTop = y;
 
@@ -592,11 +593,14 @@ window.gerarDocEpi = function gerarDocEpi(template, colab, jsPDF) {
     doc.rect(margin, y, colMid - margin, bodyH);
     doc.rect(colMid, y, W - margin - colMid, bodyH);
 
-    // Lista EPIs
+    // Title Case helper
+    const toTitleCase = s => s.replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+
+    // Lista EPIs — somente linhas preenchidas, sem espaços em branco extras
     doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
     epis.forEach((epi, i) => {
         const ry = y + (i * rowH) + rowH - 2;
-        doc.text(epi, margin + 2, ry);
+        doc.text(toTitleCase(epi), margin + 2, ry);
         doc.setLineWidth(0.1);
         doc.line(margin, y + (i + 1) * rowH, colMid, y + (i + 1) * rowH);
     });
@@ -625,48 +629,53 @@ window.gerarDocEpi = function gerarDocEpi(template, colab, jsPDF) {
     doc.text('DISCRIMINAR COM DATA, DESCRIÇÃO, Nº C.A E ASSINATURA DO RECEBEDOR ABAIXO.', W / 2, y, { align: 'center' });
     y += 6;
 
-    const availableHFront = 297 - 12 - y - 10;
+    // margem inferior de segurança: reservar espaço para rodapé (texto + stamp ~22mm)
+    const bottomSafe = 22;
+    const availableHFront = 297 - y - bottomSafe;
     const rowsFront = Math.floor((availableHFront - 8) / 7.5);
-    y = pdfEntregaTable(doc, W, margin, y, Math.max(6, rowsFront));
-    y += 5;
+    y = pdfEntregaTable(doc, W, margin, y, Math.max(4, rowsFront));
+
+    // Rodapé fixo na parte inferior da página 1
+    const rodapeY1 = 297 - 14;
     doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
-    doc.text(template.rodape_texto || 'LIBERAÇÃO DO EQUIPAMENTO DE SEGURANÇA SOMENTE APÓS ASSINATURA DESTE TERMO.', W / 2, y, { align: 'center' });
+    doc.text(template.rodape_texto || 'LIBERAÇÃO DO EQUIPAMENTO DE SEGURANÇA SOMENTE APÓS ASSINATURA DESTE TERMO.', W / 2, rodapeY1, { align: 'center' });
 
     // ======= VERSO =======
     doc.addPage();
     y = pdfHeader(doc, W);
     y = pdfColabBox(doc, W, margin, y, colab);
     
-    // Deixa espaco para parte final (Conferência + Carimbo) que usa ~48
-    const availableHBack = 297 - 12 - y - 48;
+    // Reservar espaço fixo pro carimbo no final (logo + texto ~28mm + rodapé 8mm)
+    const stampReserve = 38;
+    const availableHBack = 297 - y - stampReserve;
     const rowsBack = Math.floor((availableHBack - 8) / 7.5);
-    y = pdfEntregaTable(doc, W, margin, y, Math.max(15, rowsBack));
+    y = pdfEntregaTable(doc, W, margin, y, Math.max(12, rowsBack));
     
-    y += 6;
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
-    doc.text(template.rodape_texto || 'LIBERAÇÃO DO EQUIPAMENTO DE SEGURANÇA SOMENTE APÓS ASSINATURA DESTE TERMO.', W / 2, y, { align: 'center' });
-    y += 10;
+    // Rodapé e carimbo fixos no final da página 2
+    const rodapeY2 = 297 - stampReserve + 2;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(0,0,0);
+    doc.text(template.rodape_texto || 'LIBERAÇÃO DO EQUIPAMENTO DE SEGURANÇA SOMENTE APÓS ASSINATURA DESTE TERMO.', W / 2, rodapeY2, { align: 'center' });
     
-    // Configurações do Carimbo simulando a imagem em anexo
+    // Carimbo centralizado no fundo
     const stampW = 85;
-    const stampH = 26;
-    const stampX = doc.internal.pageSize.width / 2 - stampW / 2;
+    const stampX = W / 2 - stampW / 2;
+    let stampY = rodapeY2 + 6;
     
     if (headerLogoBase64 && headerLogoAspect) {
         let slW = 42;
         let slH = slW * headerLogoAspect;
         if (slH > 14) { slH = 14; slW = slH / headerLogoAspect; }
-        doc.addImage(headerLogoBase64, 'PNG', stampX + stampW/2 - slW/2, y + 2.5, slW, slH);
-        let my = y + 2.5 + slH + 4;
+        doc.addImage(headerLogoBase64, 'PNG', stampX + stampW/2 - slW/2, stampY, slW, slH);
+        let my = stampY + slH + 3;
         doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(0, 0, 0);
         doc.text('AMÉRICA RENTAL EQUIPAMENTOS LTDA - ME', stampX + stampW/2, my, { align: 'center' });
         doc.setFontSize(7);
         doc.text('CNPJ: 03.434.448/0001-01', stampX + stampW/2, my + 4, { align: 'center' });
     } else {
         doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(0, 0, 0);
-        doc.text('AMERICA RENTAL EQUIPAMENTOS LTDA', stampX + stampW/2, y + 10, { align: 'center' });
+        doc.text('AMERICA RENTAL EQUIPAMENTOS LTDA', stampX + stampW/2, stampY + 8, { align: 'center' });
         doc.setFontSize(7.5);
-        doc.text('CNPJ: 03.434.448/0001-01', stampX + stampW/2, y + 15, { align: 'center' });
+        doc.text('CNPJ: 03.434.448/0001-01', stampX + stampW/2, stampY + 13, { align: 'center' });
     }
 
     return doc;
