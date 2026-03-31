@@ -6695,9 +6695,11 @@ window._assinNextStep = async function() {
                         const { jsPDF } = window.jspdf;
                         const itens = window._buildItensFromQtds ? window._buildItensFromQtds() : [];
                         const dataVal = (()=>{ const i=document.getElementById('epi-data-entrega'); if(!i||!i.value) return ''; const p=i.value.split('-'); return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:i.value; })();
-                        const lf = itens.map(nome => ({ data: dataVal, descricao: nome, assinatura_base64: result.assinatura_base64 }));
+                        const lf = itens.map(nome => ({ data: dataVal, descricao: nome, assinatura_base64: assinaturaBase64 }));
                         const doc = window.gerarDocEpi(tpl, viewedColaborador||{}, jsPDF, lf);
-                        const pdfB64 = doc.output('datauristring');
+                        // Usar arraybuffer e converter para base64 manualmente
+                        const pdfBytes = doc.output('arraybuffer');
+                        const pdfB64 = 'data:application/pdf;base64,' + btoa(String.fromCharCode(...new Uint8Array(pdfBytes)));
                         await fetch(API_URL + '/epi-fichas/' + window._assinFichaId + '/save-onedrive', {
                             method: 'POST',
                             headers: { 'Authorization': 'Bearer ' + currentToken, 'Content-Type': 'application/json' },
@@ -6834,21 +6836,49 @@ window.previewFichaEpi = async function(fichaId) {
             else epis.forEach(nome => linhasFilled.push({ data:e.data_entrega||'', descricao:nome, assinatura_base64:e.assinatura_base64 }));
         });
     } catch(err) { console.warn('Erro entregas:', err); }
-    const template=(templates||[]).find(t=>t.grupo===ficha.grupo)||{ epis:ficha.snapshot_epis||[], termo_texto:ficha.snapshot_termo, rodape_texto:ficha.snapshot_rodape, grupo:ficha.grupo };
-    if(typeof ensureHeaderLogo==='function') await ensureHeaderLogo().catch(()=>{});
+
+    const template = (templates||[]).find(t=>t.grupo===ficha.grupo) ||
+        { epis:ficha.snapshot_epis||[], termo_texto:ficha.snapshot_termo, rodape_texto:ficha.snapshot_rodape, grupo:ficha.grupo };
+
+    if (typeof ensureHeaderLogo==='function') await ensureHeaderLogo().catch(()=>{});
     const { jsPDF } = window.jspdf;
     const doc = window.gerarDocEpi(template, viewedColaborador||{}, jsPDF, linhasFilled);
-    const dataUri = doc.output('datauristring');
-    const old = document.getElementById('epi-preview-overlay'); if(old) old.remove();
-    const ov=document.createElement('div'); ov.id='epi-preview-overlay';
-    ov.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,0.92);display:flex;flex-direction:column;align-items:stretch;padding:1rem;gap:0.75rem;';
-    ov.innerHTML=`
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:0 0.5rem;">
-            <p style="margin:0;color:#f1f5f9;font-weight:700;font-size:1rem;">Ficha de EPI &mdash; ${ficha.grupo}${ficha.status==='ativa'?' <span style=\"color:#86efac;\">&#9679; Ativa</span>':''}</p>
-            <button onclick="document.getElementById('epi-preview-overlay').remove()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1.1rem;">&times;</button>
+
+    // Usar Blob URL em vez de data URI (Chrome bloqueia data: em iframes)
+    const pdfBytes = doc.output('arraybuffer');
+    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+    const blobUrl = URL.createObjectURL(blob);
+
+    const old = document.getElementById('epi-preview-overlay');
+    if (old) { old._blobUrl && URL.revokeObjectURL(old._blobUrl); old.remove(); }
+
+    const ov = document.createElement('div');
+    ov.id = 'epi-preview-overlay';
+    ov._blobUrl = blobUrl;
+    ov.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,0.92);display:flex;flex-direction:column;align-items:stretch;padding:1rem;gap:0.75rem;';
+
+    const nomeArq = `FichaEPI_${(ficha.grupo||'EPI').replace(/\s+/g,'_')}.pdf`;
+    const header = document.createElement('div');
+    header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:0 0.5rem;flex-shrink:0;';
+    header.innerHTML = `
+        <p style="margin:0;color:#f1f5f9;font-weight:700;font-size:1rem;">
+            Ficha de EPI &mdash; ${ficha.grupo}
+            ${ficha.status==='ativa' ? '<span style="color:#86efac;margin-left:8px;">&#9679; Ativa</span>' : ''}
+        </p>
+        <div style="display:flex;gap:8px;align-items:center;">
+            <a id="epi-preview-download" href="${blobUrl}" download="${nomeArq}"
+               style="background:#1e3a5f;color:#fff;border:none;padding:6px 16px;border-radius:8px;font-weight:700;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;gap:6px;text-decoration:none;">
+                <i class="ph ph-download"></i> Baixar
+            </a>
+            <button onclick="const o=document.getElementById('epi-preview-overlay');if(o){o._blobUrl&&URL.revokeObjectURL(o._blobUrl);o.remove();}"
+                    style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1.1rem;">&times;</button>
         </div>
-        <iframe src="${dataUri}" style="flex:1;border:none;border-radius:8px;width:100%;"></iframe>
     `;
+    const iframe = document.createElement('iframe');
+    iframe.src = blobUrl;
+    iframe.style.cssText = 'flex:1;border:none;border-radius:8px;width:100%;';
+    ov.appendChild(header);
+    ov.appendChild(iframe);
     document.body.appendChild(ov);
 };
 
