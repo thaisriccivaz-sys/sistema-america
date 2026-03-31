@@ -1,4 +1,4 @@
-﻿const API_URL = `${window.location.origin}/api`;
+const API_URL = `${window.location.origin}/api`;
 
 // Estado global
 let currentUser = null;
@@ -6454,7 +6454,7 @@ window.abrirAssinaturaEpi = async function(fichaId) {
 
     const overlay = document.createElement('div');
     overlay.id = 'epi-assinatura-overlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,0.92);display:flex;align-items:stretch;';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#fff;display:flex;flex-direction:column;';
 
     const hoje = new Date();
     const hojeDD = String(hoje.getDate()).padStart(2,'0');
@@ -6462,101 +6462,97 @@ window.abrirAssinaturaEpi = async function(fichaId) {
     const hojeStr = hojeDD + '/' + hojeM + '/' + hoje.getFullYear();
 
     overlay.innerHTML = `
-        <div style="display:flex;flex-direction:column;height:100%;background:#fff;">
-
-            <!-- Header -->
-            <div style="background:#1e3a5f;padding:1rem 1.5rem;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
-                <div style="display:flex;align-items:center;gap:0.75rem;">
-                    <i class="ph ph-pen" style="color:#93c5fd;font-size:1.4rem;"></i>
+        <!-- Header -->
+        <div style="background:#1e3a5f;padding:1rem 1.5rem;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+            <div style="display:flex;align-items:center;gap:0.75rem;">
+                <i class="ph ph-pen" style="color:#93c5fd;font-size:1.4rem;"></i>
+                <div>
+                    <p style="margin:0;color:#f1f5f9;font-weight:700;font-size:1rem;">Registro de Entrega de EPI</p>
+                    <p style="margin:0;color:#93c5fd;font-size:0.8rem;">${nomeColab} &mdash; ${ficha.grupo}</p>
+                </div>
+            </div>
+            <button onclick="document.getElementById('epi-assinatura-overlay').remove()"
+                    style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;">&times;</button>
+        </div>
+        <!-- Steps bar -->
+        <div style="background:#f8fafc;border-bottom:1px solid #e2e8f0;padding:0.6rem 2rem;display:flex;align-items:center;gap:1rem;flex-shrink:0;">
+            <div id="step-ind-1" style="display:flex;align-items:center;gap:6px;font-size:0.85rem;font-weight:700;color:#1e3a5f;">
+                <span style="background:#1e3a5f;color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.78rem;">1</span>
+                Selecionar EPIs
+            </div>
+            <div style="flex:1;height:2px;background:#e2e8f0;"></div>
+            <div id="step-ind-2" style="display:flex;align-items:center;gap:6px;font-size:0.85rem;font-weight:700;color:#94a3b8;">
+                <span id="step-badge-2" style="background:#cbd5e1;color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.78rem;">2</span>
+                Assinar
+            </div>
+            <div style="flex:1;height:2px;background:#e2e8f0;"></div>
+            <div id="step-ind-3" style="display:flex;align-items:center;gap:6px;font-size:0.85rem;font-weight:700;color:#94a3b8;">
+                <span id="step-badge-3" style="background:#cbd5e1;color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.78rem;">3</span>
+                Confirmar
+            </div>
+        </div>
+        <!-- Body -->
+        <div id="epi-assin-body" style="flex:1;overflow-y:auto;padding:1.5rem 2rem;">
+            <!-- STEP 1 -->
+            <div id="epi-step-1">
+                <div style="display:flex;align-items:flex-end;gap:1rem;margin-bottom:1.25rem;flex-wrap:wrap;">
                     <div>
-                        <p style="margin:0;color:#f1f5f9;font-weight:700;font-size:1rem;">Registro de Entrega de EPI</p>
-                        <p style="margin:0;color:#93c5fd;font-size:0.8rem;">${nomeColab} &mdash; ${ficha.grupo}</p>
-                    </div>
-                </div>
-                <button onclick="document.getElementById('epi-assinatura-overlay').remove()"
-                        style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;">&times;</button>
-            </div>
-
-            <!-- Steps bar -->
-            <div style="background:#f8fafc;border-bottom:1px solid #e2e8f0;padding:0.6rem 1.5rem;display:flex;align-items:center;gap:1rem;flex-shrink:0;">
-                <div id="step-ind-1" style="display:flex;align-items:center;gap:6px;font-size:0.82rem;font-weight:700;color:#1e3a5f;">
-                    <span style="background:#1e3a5f;color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.75rem;">1</span>
-                    Selecionar EPIs
-                </div>
-                <div style="flex:1;height:2px;background:#e2e8f0;"></div>
-                <div id="step-ind-2" style="display:flex;align-items:center;gap:6px;font-size:0.82rem;font-weight:700;color:#94a3b8;">
-                    <span id="step-badge-2" style="background:#cbd5e1;color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.75rem;">2</span>
-                    Assinar
-                </div>
-                <div style="flex:1;height:2px;background:#e2e8f0;"></div>
-                <div id="step-ind-3" style="display:flex;align-items:center;gap:6px;font-size:0.82rem;font-weight:700;color:#94a3b8;">
-                    <span id="step-badge-3" style="background:#cbd5e1;color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.75rem;">3</span>
-                    Confirmar
-                </div>
-            </div>
-
-            <!-- Body -->
-            <div id="epi-assin-body" style="flex:1;overflow-y:auto;padding:1.25rem 1.5rem;">
-
-                <!-- STEP 1 -->
-                <div id="epi-step-1">
-                    <div style="margin-bottom:1rem;">
                         <label style="display:block;font-size:0.85rem;font-weight:700;color:#374151;margin-bottom:4px;">Data de Entrega:</label>
                         <input type="date" id="epi-data-entrega"
-                               style="border:1.5px solid #e2e8f0;border-radius:8px;padding:0.5rem 0.85rem;font-size:0.9rem;width:220px;outline:none;cursor:pointer;"
-                               onfocus="this.style.borderColor='#1e3a5f'" onblur="this.style.borderColor='#e2e8f0'">
+                               style="border:1.5px solid #e2e8f0;border-radius:8px;padding:0.5rem 0.9rem;font-size:0.9rem;outline:none;cursor:pointer;">
                     </div>
-                    <div style="margin-bottom:0.75rem;position:relative;">
-                        <i class="ph ph-magnifying-glass" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1rem;pointer-events:none;"></i>
-                        <input type="text" id="epi-busca" placeholder="Pesquisar EPI..."
-                               oninput="window._filtrarEpis(this.value)"
-                               style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.5rem 0.85rem 0.5rem 2.2rem;font-size:0.88rem;outline:none;box-sizing:border-box;"
-                               onfocus="this.style.borderColor='#1e3a5f'" onblur="this.style.borderColor='#e2e8f0'">
+                    <div style="flex:1;min-width:180px;">
+                        <label style="display:block;font-size:0.85rem;font-weight:700;color:#374151;margin-bottom:4px;">Pesquisar:</label>
+                        <div style="position:relative;">
+                            <i class="ph ph-magnifying-glass" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1rem;pointer-events:none;"></i>
+                            <input type="text" id="epi-busca" placeholder="Filtrar EPIs..."
+                                   oninput="window._filtrarEpis(this.value)"
+                                   style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.5rem 0.85rem 0.5rem 2.2rem;font-size:0.88rem;outline:none;box-sizing:border-box;">
+                        </div>
                     </div>
-                    <div id="epi-lista-botoes" style="display:flex;flex-direction:column;gap:6px;"></div>
-                    <p id="epi-select-warn" style="color:#dc2626;font-size:0.8rem;margin:0.5rem 0 0;display:none;">Adicione ao menos um EPI (quantidade maior que 0).</p>
                 </div>
-
-                <!-- STEP 2 -->
-                <div id="epi-step-2" style="display:none;">
-                    <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:0.85rem 1rem;margin-bottom:1rem;">
-                        <p style="font-size:0.8rem;font-weight:700;color:#166534;margin:0 0 5px;">EPIs para entrega em <strong id="epi-data-display"></strong>:</p>
-                        <ul id="epi-lista-selecionada" style="margin:0;padding-left:1.25rem;font-size:0.82rem;color:#15803d;"></ul>
-                    </div>
-                    <p style="font-size:0.82rem;font-weight:700;color:#374151;margin:0 0 6px;">Termo de Responsabilidade:</p>
-                    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:0.9rem;font-size:0.8rem;color:#374151;max-height:150px;overflow-y:auto;line-height:1.55;margin-bottom:1rem;white-space:pre-wrap;">${termo}</div>
-                    <p style="font-size:0.88rem;font-weight:700;color:#0f172a;margin:0 0 5px;">
-                        <i class="ph ph-pen" style="color:#1e3a5f;"></i> Assinatura do Colaborador:
-                    </p>
-                    <div style="border:2px dashed #94a3b8;border-radius:10px;background:#fafafa;position:relative;">
-                        <canvas id="epi-signature-canvas" width="900" height="200"
-                                style="width:100%;height:200px;border-radius:8px;touch-action:none;cursor:crosshair;display:block;"></canvas>
-                        <button onclick="window._limparAssinatura()"
-                                style="position:absolute;top:7px;right:7px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:3px 10px;font-size:0.75rem;color:#475569;cursor:pointer;">Limpar</button>
-                    </div>
-                    <p id="epi-assin-warn" style="color:#dc2626;font-size:0.8rem;margin:0.5rem 0 0;display:none;">A assinatura &eacute; obrigat&oacute;ria.</p>
-                </div>
-
-                <!-- STEP 3 -->
-                <div id="epi-step-3" style="display:none;text-align:center;padding:3rem 1rem;">
-                    <i class="ph ph-check-circle" style="font-size:4rem;color:#16a34a;display:block;margin-bottom:0.75rem;"></i>
-                    <p style="font-weight:700;font-size:1.1rem;color:#15803d;margin:0 0 4px;">Entrega registrada com sucesso!</p>
-                    <p style="font-size:0.88rem;color:#64748b;">Assinatura e EPIs salvos na ficha.</p>
-                </div>
+                <p style="font-size:0.82rem;color:#64748b;margin:0 0 0.75rem;">Ajuste a <strong>quantidade</strong> desejada de cada EPI:</p>
+                <div id="epi-lista-botoes" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:8px;"></div>
+                <p id="epi-select-warn" style="color:#dc2626;font-size:0.85rem;margin:0.75rem 0 0;display:none;">&#9888; Defina quantidade &gt; 0 em pelo menos um EPI.</p>
             </div>
-
-            <!-- Footer -->
-            <div id="epi-assin-footer" style="border-top:1px solid #e2e8f0;padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;background:#f8fafc;flex-shrink:0;">
-                <button id="btn-assin-back" onclick="window._assinStep(1)"
-                        style="display:none;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;padding:0.6rem 1.25rem;font-weight:600;font-size:0.88rem;cursor:pointer;color:#475569;">
-                    <i class="ph ph-arrow-left"></i> Voltar
-                </button>
-                <div></div>
-                <button id="btn-assin-next" onclick="window._assinNextStep()" class="btn btn-primary"
-                        style="padding:0.65rem 1.5rem;font-weight:700;font-size:0.9rem;display:flex;align-items:center;gap:6px;">
-                    Pr&oacute;ximo <i class="ph ph-arrow-right"></i>
-                </button>
+            <!-- STEP 2 -->
+            <div id="epi-step-2" style="display:none;">
+                <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:0.85rem 1rem;margin-bottom:1rem;">
+                    <p style="font-size:0.85rem;font-weight:700;color:#166534;margin:0 0 6px;">EPIs para entrega em <strong id="epi-data-display"></strong>:</p>
+                    <ul id="epi-lista-selecionada" style="margin:0;padding-left:1.25rem;font-size:0.85rem;color:#15803d;column-count:2;column-gap:2rem;"></ul>
+                </div>
+                <p style="font-size:0.85rem;font-weight:700;color:#374151;margin:0 0 6px;">Termo de Responsabilidade:</p>
+                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:0.9rem;font-size:0.82rem;color:#374151;max-height:130px;overflow-y:auto;line-height:1.6;margin-bottom:1.25rem;white-space:pre-wrap;">${termo}</div>
+                <p style="font-size:0.95rem;font-weight:700;color:#0f172a;margin:0 0 6px;">
+                    <i class="ph ph-pen" style="color:#1e3a5f;"></i> Assinatura do Colaborador:
+                </p>
+                <p style="font-size:0.8rem;color:#64748b;margin:0 0 8px;">Assine abaixo. Ser&aacute; aplicada em todos os itens entregues.</p>
+                <div style="border:2px dashed #94a3b8;border-radius:10px;background:#fafafa;position:relative;">
+                    <canvas id="epi-signature-canvas" width="1200" height="220"
+                            style="width:100%;height:220px;border-radius:8px;touch-action:none;cursor:crosshair;display:block;"></canvas>
+                    <button onclick="window._limparAssinatura()"
+                            style="position:absolute;top:8px;right:8px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:4px 12px;font-size:0.78rem;color:#475569;cursor:pointer;">Limpar</button>
+                </div>
+                <p id="epi-assin-warn" style="color:#dc2626;font-size:0.82rem;margin:0.5rem 0 0;display:none;">A assinatura &eacute; obrigat&oacute;ria.</p>
             </div>
+            <!-- STEP 3 -->
+            <div id="epi-step-3" style="display:none;text-align:center;padding:4rem 1rem;">
+                <i class="ph ph-check-circle" style="font-size:5rem;color:#16a34a;display:block;margin-bottom:1rem;"></i>
+                <p style="font-weight:700;font-size:1.2rem;color:#15803d;margin:0 0 6px;">Entrega registrada com sucesso!</p>
+                <p style="font-size:0.9rem;color:#64748b;">EPIs e assinatura salvos na ficha.</p>
+            </div>
+        </div>
+        <!-- Footer -->
+        <div id="epi-assin-footer" style="border-top:1px solid #e2e8f0;padding:1rem 2rem;display:flex;justify-content:space-between;align-items:center;background:#f8fafc;flex-shrink:0;">
+            <button id="btn-assin-back" onclick="window._assinStep(1)"
+                    style="display:none;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;padding:0.65rem 1.5rem;font-weight:600;font-size:0.9rem;cursor:pointer;color:#475569;">
+                <i class="ph ph-arrow-left"></i> Voltar
+            </button>
+            <div></div>
+            <button id="btn-assin-next" onclick="window._assinNextStep()" class="btn btn-primary"
+                    style="padding:0.65rem 2rem;font-weight:700;font-size:0.95rem;display:flex;align-items:center;gap:8px;">
+                Pr&oacute;ximo <i class="ph ph-arrow-right"></i>
+            </button>
         </div>
     `;
 
@@ -6585,36 +6581,32 @@ window._renderEpiGrid = function(filtro) {
     const container = document.getElementById('epi-lista-botoes');
     if (!container) return;
     const f = (filtro || '').toLowerCase().trim();
-    const filtered = f ? epis.filter(e => e.toLowerCase().includes(f)) : epis;
+    const filtered = f ? epis.filter(epi => epi.toLowerCase().includes(f)) : epis;
     container.innerHTML = '';
     filtered.forEach(epi => {
         const qty = window._assinQtds[epi] || 0;
         const card = document.createElement('div');
         card.setAttribute('data-epi-card', epi);
-        card.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:0.65rem 1rem;border:2px solid ' +
-            (qty > 0 ? '#16a34a' : '#e2e8f0') + ';border-radius:10px;background:' +
-            (qty > 0 ? '#f0fdf4' : '#fff') + ';box-shadow:0 1px 3px rgba(0,0,0,0.06);';
-        const label = document.createElement('span');
-        label.style.cssText = 'font-size:0.88rem;color:#0f172a;font-weight:600;flex:1;margin-right:0.5rem;line-height:1.3;';
-        label.textContent = epi;
-        const controls = document.createElement('div');
-        controls.style.cssText = 'display:flex;align-items:center;gap:6px;flex-shrink:0;';
+        card.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:0.65rem 1rem;border:2px solid '+(qty>0?'#16a34a':'#e2e8f0')+';border-radius:10px;background:'+(qty>0?'#f0fdf4':'#fff')+';box-shadow:0 1px 3px rgba(0,0,0,0.06);';
+        const lbl = document.createElement('span');
+        lbl.style.cssText = 'font-size:0.88rem;color:#0f172a;font-weight:600;flex:1;margin-right:0.5rem;line-height:1.3;';
+        lbl.textContent = epi;
+        const ctrl = document.createElement('div');
+        ctrl.style.cssText = 'display:flex;align-items:center;gap:6px;flex-shrink:0;';
         const btnM = document.createElement('button');
         btnM.textContent = '−';
-        btnM.style.cssText = 'background:' + (qty > 0 ? '#1e3a5f' : '#e2e8f0') +
-            ';color:#fff;border:none;border-radius:6px;width:32px;height:32px;cursor:pointer;font-size:1.1rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;';
-        btnM.addEventListener('click', () => window._setEpiQty(epi, Math.max(0, (window._assinQtds[epi] || 0) - 1)));
+        btnM.style.cssText = 'background:'+(qty>0?'#1e3a5f':'#e2e8f0')+';color:#fff;border:none;border-radius:6px;width:32px;height:32px;cursor:pointer;font-size:1.1rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;';
+        btnM.addEventListener('click', () => window._setEpiQty(epi, Math.max(0,(window._assinQtds[epi]||0)-1)));
         const inp = document.createElement('input');
-        inp.type = 'number'; inp.min = '0'; inp.value = qty;
-        inp.style.cssText = 'width:48px;text-align:center;border:1.5px solid #e2e8f0;border-radius:6px;padding:4px;font-size:0.95rem;font-weight:700;color:#0f172a;';
-        inp.addEventListener('change', () => window._setEpiQty(epi, Math.max(0, parseInt(inp.value) || 0)));
-        inp.addEventListener('input', () => window._setEpiQty(epi, Math.max(0, parseInt(inp.value) || 0)));
+        inp.type='number'; inp.min='0'; inp.value=qty;
+        inp.style.cssText='width:48px;text-align:center;border:1.5px solid #e2e8f0;border-radius:6px;padding:4px;font-size:0.95rem;font-weight:700;color:#0f172a;';
+        inp.addEventListener('input', () => window._setEpiQty(epi, Math.max(0,parseInt(inp.value)||0)));
         const btnP = document.createElement('button');
-        btnP.textContent = '+';
-        btnP.style.cssText = 'background:#1e3a5f;color:#fff;border:none;border-radius:6px;width:32px;height:32px;cursor:pointer;font-size:1.1rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;';
-        btnP.addEventListener('click', () => window._setEpiQty(epi, (window._assinQtds[epi] || 0) + 1));
-        controls.appendChild(btnM); controls.appendChild(inp); controls.appendChild(btnP);
-        card.appendChild(label); card.appendChild(controls);
+        btnP.textContent='+';
+        btnP.style.cssText='background:#1e3a5f;color:#fff;border:none;border-radius:6px;width:32px;height:32px;cursor:pointer;font-size:1.1rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;';
+        btnP.addEventListener('click', () => window._setEpiQty(epi,(window._assinQtds[epi]||0)+1));
+        ctrl.appendChild(btnM); ctrl.appendChild(inp); ctrl.appendChild(btnP);
+        card.appendChild(lbl); card.appendChild(ctrl);
         container.appendChild(card);
     });
 };
@@ -6622,33 +6614,69 @@ window._renderEpiGrid = function(filtro) {
 window._setEpiQty = function(epi, qty) {
     window._assinQtds = window._assinQtds || {};
     window._assinQtds[epi] = qty;
-    const card = document.querySelector('[data-epi-card="' + CSS.escape(epi) + '"]');
+    const card = document.querySelector('[data-epi-card="'+CSS.escape(epi)+'"]');
     if (card) {
-        card.style.borderColor = qty > 0 ? '#16a34a' : '#e2e8f0';
-        card.style.background  = qty > 0 ? '#f0fdf4' : '#fff';
+        card.style.borderColor = qty>0?'#16a34a':'#e2e8f0';
+        card.style.background  = qty>0?'#f0fdf4':'#fff';
         const inp = card.querySelector('input[type=number]');
         if (inp) inp.value = qty;
         const btns = card.querySelectorAll('button');
-        if (btns[0]) btns[0].style.background = qty > 0 ? '#1e3a5f' : '#e2e8f0';
+        if (btns[0]) btns[0].style.background = qty>0?'#1e3a5f':'#e2e8f0';
     }
-    if (qty > 0) { const w = document.getElementById('epi-select-warn'); if (w) w.style.display = 'none'; }
+    if (qty>0) { const w=document.getElementById('epi-select-warn'); if(w) w.style.display='none'; }
 };
 
 window._filtrarEpis = function(filtro) { window._renderEpiGrid(filtro); };
 
 window._buildItensFromQtds = function() {
     const itens = [];
-    Object.entries(window._assinQtds || {}).forEach(([epi, qty]) => {
-        for (let i = 0; i < qty; i++) itens.push(epi);
-    });
+    Object.entries(window._assinQtds||{}).forEach(([epi,qty]) => { for(let i=0;i<qty;i++) itens.push(epi); });
     return itens;
 };
 
-window._addEpiToList = function(epi) { window._setEpiQty(epi, (window._assinQtds[epi] || 0) + 1); };
+window._addEpiToList = function(epi) { window._setEpiQty(epi,(window._assinQtds[epi]||0)+1); };
 window._removeEpiFromList = function() {};
 window._renderItensLista = function() {};
 
 window._syncEpiSelection = function() {};
+
+// Navega para step
+window._assinStep = function(n) {
+    [1,2,3].forEach(s => {
+        const el = document.getElementById(`epi-step-${s}`);
+        if (el) el.style.display = s === n ? '' : 'none';
+    });
+    window._assinCurrentStep = n;
+
+    // Atualiza indicadores de step
+    [1,2,3].forEach(s => {
+        const badge = document.getElementById(`step-badge-${s}`);
+        const ind   = document.getElementById(`step-ind-${s}`);
+        if (!badge || !ind) return;
+        const done  = s < n;
+        const active= s === n;
+        badge.style.background = done ? '#16a34a' : active ? '#1e3a5f' : '#cbd5e1';
+        if (ind) ind.style.color = active ? '#1e3a5f' : done ? '#15803d' : '#94a3b8';
+    });
+
+    const btnBack = document.getElementById('btn-assin-back');
+    const btnNext = document.getElementById('btn-assin-next');
+    if (btnBack) btnBack.style.display = n > 1 && n < 3 ? '' : 'none';
+    if (btnNext) {
+        if (n === 1) { btnNext.innerHTML = 'Pr&oacute;ximo <i class="ph ph-arrow-right"></i>'; btnNext.style.display = ''; }
+        else if (n === 2) { btnNext.innerHTML = '<i class="ph ph-check"></i> Confirmar Entrega'; btnNext.style.display = ''; }
+        else { btnNext.innerHTML = '<i class="ph ph-x"></i> Fechar'; btnNext.style.display = ''; }
+    }
+
+    // Atualiza lista selecionada no step 2
+    if (n === 2) {
+        const ul = document.getElementById('epi-lista-selecionada');
+        if (ul) { window._assinItens = window._buildItensFromQtds ? window._buildItensFromQtds() : []; ul.innerHTML = window._assinItens.map(e => '<li>'+e+'</li>').join(''); }
+        const dd = document.getElementById('epi-data-display');
+        if (dd) { const inp = document.getElementById('epi-data-entrega'); if (inp&&inp.value) { const p=inp.value.split('-'); dd.textContent=p.length===3?p[2]+'/'+p[1]+'/'+p[0]:inp.value; } }
+        window._initSignatureCanvas();
+    }
+};
 
 // Botão "Próximo / Confirmar / Fechar"
 window._assinNextStep = async function() {
@@ -6689,7 +6717,7 @@ window._assinNextStep = async function() {
                     colaborador_id: window._assinColabId,
                     epis_entregues: window._buildItensFromQtds ? window._buildItensFromQtds() : (window._assinItens||[]),
                     assinatura_base64: assinaturaBase64,
-                    data_entrega: (() => { const inp=document.getElementById('epi-data-entrega'); if(!inp||!inp.value) return ''; const p=inp.value.split('-'); return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:inp.value; })()
+                    data_entrega: (() => { const i=document.getElementById('epi-data-entrega'); if(!i||!i.value) return ''; const p=i.value.split('-'); return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:i.value; })()
                 })
             });
             const result = await resp.json();
@@ -6888,7 +6916,7 @@ window.previewFichaEpi = async function(fichaId) {
         <div style="display:flex;justify-content:space-between;align-items:center;padding:0 0.5rem;">
             <p style="margin:0;color:#f1f5f9;font-weight:700;font-size:1rem;">
                 Ficha de EPI &mdash; ${ficha.grupo}
-                ${ficha.status==='ativa' ? '<span style="color:#86efac;margin-left:8px;">&#9679; Ativa</span>' : ''}
+                ${ficha.status==='ativa'?'<span style="color:#86efac;margin-left:8px;">&#9679; Ativa</span>':''}
             </p>
             <button onclick="document.getElementById('epi-preview-overlay').remove()"
                     style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1.1rem;">&times;</button>
@@ -6897,3 +6925,4 @@ window.previewFichaEpi = async function(fichaId) {
     `;
     document.body.appendChild(ov);
 };
+
