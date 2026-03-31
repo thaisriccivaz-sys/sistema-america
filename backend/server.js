@@ -2491,7 +2491,6 @@ app.put('/api/epi-templates/:id', authenticateToken, (req, res) => {
     const { grupo, departamentos, epis, termo_texto, rodape_texto } = req.body;
     const templateId = req.params.id;
 
-    // Busca template atual para comparar snapshot
     db.get('SELECT * FROM epi_templates WHERE id=?', [templateId], (err, old) => {
         if (err) return res.status(500).json({ error: err.message });
 
@@ -2501,7 +2500,6 @@ app.put('/api/epi-templates/:id', authenticateToken, (req, res) => {
             function(err2) {
                 if (err2) return res.status(500).json({ error: err2.message });
 
-                // Detectar mudanças que devem fechar fichas ativas
                 const oldEpis = old ? old.epis_json : '[]';
                 const newEpis = JSON.stringify(epis || []);
                 const changed =
@@ -2517,10 +2515,30 @@ app.put('/api/epi-templates/:id', authenticateToken, (req, res) => {
                     if (old && old.termo_texto !== termo_texto) motivo.push('Termo de responsabilidade alterado');
                     if (old && old.rodape_texto !== rodape_texto) motivo.push('Rodapé alterado');
 
-                    db.run(
-                        `UPDATE colaborador_epi_fichas SET status='fechada', fechada_em=CURRENT_TIMESTAMP, motivo_fechamento=? WHERE template_id=? AND status='ativa'`,
-                        [motivo.join('; '), templateId],
-                        () => res.json({ success: true, fichas_fechadas: true, motivo: motivo.join('; ') })
+                    // Fechar fichas ativas deste template e criar novas para cada colaborador
+                    db.all(
+                        `SELECT colaborador_id FROM colaborador_epi_fichas WHERE template_id=? AND status='ativa'`,
+                        [templateId],
+                        (errQ, afetados) => {
+                            db.run(
+                                `UPDATE colaborador_epi_fichas SET status='fechada', fechada_em=CURRENT_TIMESTAMP, motivo_fechamento=? WHERE template_id=? AND status='ativa'`,
+                                [motivo.join('; '), templateId],
+                                () => {
+                                    // Criar nova ficha ativa para cada colaborador afetado
+                                    const ids = (afetados || []).map(r => r.colaborador_id);
+                                    let pending = ids.length;
+                                    if (pending === 0) return res.json({ success: true, fichas_fechadas: true, novas_fichas: 0, motivo: motivo.join('; ') });
+                                    ids.forEach(colabId => {
+                                        db.run(
+                                            `INSERT INTO colaborador_epi_fichas (colaborador_id, template_id, grupo, snapshot_epis, snapshot_termo, snapshot_rodape, linhas_usadas, status)
+                                             VALUES (?,?,?,?,?,?,0,'ativa')`,
+                                            [colabId, templateId, grupo, newEpis, termo_texto, rodape_texto],
+                                            () => { pending--; if (pending === 0) res.json({ success: true, fichas_fechadas: true, novas_fichas: ids.length, motivo: motivo.join('; ') }); }
+                                        );
+                                    });
+                                }
+                            );
+                        }
                     );
                 } else {
                     res.json({ success: true, fichas_fechadas: false });
@@ -2614,6 +2632,43 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
     );
 });
 
+// POST: salvar PDF da ficha EPI no OneDrive
+app.post('/api/epi-fichas/:id/save-onedrive', authenticateToken, async (req, res) => {
+    const fichaId = req.params.id;
+    const { pdf_base64, colaborador_id } = req.body;
+    if (!pdf_base64 || !colaborador_id) return res.status(400).json({ error: 'Dados incompletos.' });
+    if (!process.env.ONEDRIVE_CLIENT_ID) return res.json({ success: false, msg: 'OneDrive nao configurado.' });
+    try {
+        const colab = await new Promise((resolve, reject) =>
+            db.get('SELECT * FROM colaboradores WHERE id=?', [colaborador_id], (e, r) => e ? reject(e) : resolve(r))
+        );
+        if (!colab) return res.status(404).json({ error: 'Colaborador nao encontrado.' });
+        const safeNome = (colab.nome_completo || 'Colaborador')
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-zA-Z0-9_]/g, '_').replace(/__+/g, '_').trim();
+        const pdfBuffer = Buffer.from(pdf_base64.replace(/^data:application\/pdf;base64,/, ''), 'base64');
+        const onedriveBase = `${process.env.ONEDRIVE_BASE_PATH || 'RH/1.Colaboradores/Sistema'}/${safeNome}`;
+        // Pasta EPI: FichaEPI_N_Nome.pdf (sem sobrepor, número sequencial)
+        const epiFolder = `${onedriveBase}/EPI`;
+        await onedrive.ensureFolder(epiFolder);
+        let nextNum = 1;
+        try {
+            const existentes = await onedrive.listChildren(epiFolder);
+            const nums = (existentes||[]).map(f => { const m=(f.name||'').match(/^FichaEPI_(\d+)_/); return m?parseInt(m[1]):0; });
+            if (nums.length > 0) nextNum = Math.max(...nums) + 1;
+        } catch(e) { /* pasta vazia */ }
+        const epiFileName = `FichaEPI_${nextNum}_${safeNome}.pdf`;
+        await onedrive.uploadToOneDrive(epiFolder, epiFileName, pdfBuffer);
+        // Pasta FICHA_CADASTRAL: sempre sobrepõe
+        const cadastralFolder = `${onedriveBase}/01_FICHA_CADASTRAL`;
+        await onedrive.ensureFolder(cadastralFolder);
+        await onedrive.uploadToOneDrive(cadastralFolder, `FichaEPI_${safeNome}.pdf`, pdfBuffer);
+        res.json({ success: true, arquivo_epi: epiFileName, arquivo_cadastral: `FichaEPI_${safeNome}.pdf` });
+    } catch(err) {
+        console.error('[EPI save-onedrive]', err);
+        res.status(500).json({ error: err.message });
+    }
+});
 
 app.post('/api/epi-templates', authenticateToken, (req, res) => {
     const { grupo, departamentos, epis, termo_texto, rodape_texto } = req.body;

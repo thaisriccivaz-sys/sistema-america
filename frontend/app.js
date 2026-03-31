@@ -6381,16 +6381,9 @@ async function renderFichaEpiTab(container) {
     };
 
     container.innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;flex-wrap:wrap;gap:1rem;">
-            <div>
-                <h3 style="margin:0;font-size:1.1rem;font-weight:700;color:#0f172a;">Fichas de EPI</h3>
-                <p style="margin:4px 0 0;font-size:0.82rem;color:#64748b;">Hist&oacute;rico para ${viewedColaborador?.nome_completo || ''}.</p>
-            </div>
-            <button onclick="window.gerarNovaFichaEpi()" class="btn btn-primary" id="btn-gerar-ficha-epi"
-                    ${btnDesabilitado ? 'disabled' : ''}
-                    style="display:flex;align-items:center;gap:6px;height:40px;padding:0 1.25rem;font-weight:700;${btnDesabilitado?'opacity:0.5;cursor:not-allowed;':''}">
-                <i class="ph ph-shield-plus"></i> Gerar Nova Ficha EPI
-            </button>
+        <div style="margin-bottom:1.25rem;">
+            <h3 style="margin:0 0 4px;font-size:1.1rem;font-weight:700;color:#0f172a;">Fichas de EPI</h3>
+            <p style="margin:0;font-size:0.82rem;color:#64748b;">Hist&oacute;rico para ${viewedColaborador?.nome_completo || ''}.</p>
         </div>
 
         ${fichaAtiva ? `
@@ -6404,14 +6397,10 @@ async function renderFichaEpiTab(container) {
                     style="height:36px;display:flex;align-items:center;gap:6px;font-weight:700;">
                 <i class="ph ph-pen"></i> Registrar Entrega
             </button>
-            <button onclick="window.previewFichaEpi(${fichaAtiva.id})" class="btn btn-secondary"
-                    style="height:36px;display:flex;align-items:center;gap:5px;">
-                <i class="ph ph-eye"></i>
-            </button>
         </div>` : `
         <div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:10px;padding:1rem 1.25rem;margin-bottom:1.25rem;display:flex;align-items:center;gap:1rem;">
             <i class="ph ph-warning" style="color:#f59e0b;font-size:1.5rem;"></i>
-            <p style="margin:0;font-size:0.88rem;color:#92400e;">Nenhuma ficha ativa. Clique em <strong>"Gerar Nova Ficha EPI"</strong> para iniciar.</p>
+            <p style="margin:0;font-size:0.88rem;color:#92400e;">Nenhuma ficha ativa. O sistema gerar&aacute; uma automaticamente ao salvar o template EPI.</p>
         </div>`}
 
         <div>
@@ -6462,7 +6451,6 @@ window.abrirAssinaturaEpi = async function(fichaId) {
     const hojeStr = hojeDD + '/' + hojeM + '/' + hoje.getFullYear();
 
     overlay.innerHTML = `
-        <!-- Header -->
         <div style="background:#1e3a5f;padding:1rem 1.5rem;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
             <div style="display:flex;align-items:center;gap:0.75rem;">
                 <i class="ph ph-pen" style="color:#93c5fd;font-size:1.4rem;"></i>
@@ -6474,7 +6462,6 @@ window.abrirAssinaturaEpi = async function(fichaId) {
             <button onclick="document.getElementById('epi-assinatura-overlay').remove()"
                     style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;">&times;</button>
         </div>
-        <!-- Steps bar -->
         <div style="background:#f8fafc;border-bottom:1px solid #e2e8f0;padding:0.6rem 2rem;display:flex;align-items:center;gap:1rem;flex-shrink:0;">
             <div id="step-ind-1" style="display:flex;align-items:center;gap:6px;font-size:0.85rem;font-weight:700;color:#1e3a5f;">
                 <span style="background:#1e3a5f;color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.78rem;">1</span>
@@ -6491,9 +6478,7 @@ window.abrirAssinaturaEpi = async function(fichaId) {
                 Confirmar
             </div>
         </div>
-        <!-- Body -->
         <div id="epi-assin-body" style="flex:1;overflow-y:auto;padding:1.5rem 2rem;">
-            <!-- STEP 1 -->
             <div id="epi-step-1">
                 <div style="display:flex;align-items:flex-end;gap:1rem;margin-bottom:1.25rem;flex-wrap:wrap;">
                     <div>
@@ -6512,10 +6497,9 @@ window.abrirAssinaturaEpi = async function(fichaId) {
                     </div>
                 </div>
                 <p style="font-size:0.82rem;color:#64748b;margin:0 0 0.75rem;">Ajuste a <strong>quantidade</strong> desejada de cada EPI:</p>
-                <div id="epi-lista-botoes" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:8px;"></div>
+                <div id="epi-lista-botoes" style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;"></div>
                 <p id="epi-select-warn" style="color:#dc2626;font-size:0.85rem;margin:0.75rem 0 0;display:none;">&#9888; Defina quantidade &gt; 0 em pelo menos um EPI.</p>
             </div>
-            <!-- STEP 2 -->
             <div id="epi-step-2" style="display:none;">
                 <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:0.85rem 1rem;margin-bottom:1rem;">
                     <p style="font-size:0.85rem;font-weight:700;color:#166534;margin:0 0 6px;">EPIs para entrega em <strong id="epi-data-display"></strong>:</p>
@@ -6523,9 +6507,7 @@ window.abrirAssinaturaEpi = async function(fichaId) {
                 </div>
                 <p style="font-size:0.85rem;font-weight:700;color:#374151;margin:0 0 6px;">Termo de Responsabilidade:</p>
                 <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:0.9rem;font-size:0.82rem;color:#374151;max-height:130px;overflow-y:auto;line-height:1.6;margin-bottom:1.25rem;white-space:pre-wrap;">${termo}</div>
-                <p style="font-size:0.95rem;font-weight:700;color:#0f172a;margin:0 0 6px;">
-                    <i class="ph ph-pen" style="color:#1e3a5f;"></i> Assinatura do Colaborador:
-                </p>
+                <p style="font-size:0.95rem;font-weight:700;color:#0f172a;margin:0 0 6px;"><i class="ph ph-pen" style="color:#1e3a5f;"></i> Assinatura do Colaborador:</p>
                 <p style="font-size:0.8rem;color:#64748b;margin:0 0 8px;">Assine abaixo. Ser&aacute; aplicada em todos os itens entregues.</p>
                 <div style="border:2px dashed #94a3b8;border-radius:10px;background:#fafafa;position:relative;">
                     <canvas id="epi-signature-canvas" width="1200" height="220"
@@ -6535,14 +6517,12 @@ window.abrirAssinaturaEpi = async function(fichaId) {
                 </div>
                 <p id="epi-assin-warn" style="color:#dc2626;font-size:0.82rem;margin:0.5rem 0 0;display:none;">A assinatura &eacute; obrigat&oacute;ria.</p>
             </div>
-            <!-- STEP 3 -->
             <div id="epi-step-3" style="display:none;text-align:center;padding:4rem 1rem;">
                 <i class="ph ph-check-circle" style="font-size:5rem;color:#16a34a;display:block;margin-bottom:1rem;"></i>
                 <p style="font-weight:700;font-size:1.2rem;color:#15803d;margin:0 0 6px;">Entrega registrada com sucesso!</p>
                 <p style="font-size:0.9rem;color:#64748b;">EPIs e assinatura salvos na ficha.</p>
             </div>
         </div>
-        <!-- Footer -->
         <div id="epi-assin-footer" style="border-top:1px solid #e2e8f0;padding:1rem 2rem;display:flex;justify-content:space-between;align-items:center;background:#f8fafc;flex-shrink:0;">
             <button id="btn-assin-back" onclick="window._assinStep(1)"
                     style="display:none;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;padding:0.65rem 1.5rem;font-weight:600;font-size:0.9rem;cursor:pointer;color:#475569;">
@@ -6566,77 +6546,57 @@ window.abrirAssinaturaEpi = async function(fichaId) {
     setTimeout(() => {
         window._initSignatureCanvas();
         const today = new Date();
-        const dateInput = document.getElementById('epi-data-entrega');
-        if (dateInput) {
-            dateInput.value = today.getFullYear() + '-' +
-                String(today.getMonth()+1).padStart(2,'0') + '-' +
-                String(today.getDate()).padStart(2,'0');
-        }
+        const di = document.getElementById('epi-data-entrega');
+        if (di) { di.value = today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0'); }
         window._renderEpiGrid('');
     }, 100);
 };
 
 window._renderEpiGrid = function(filtro) {
     const epis = window._assinEpisDisponiveis || [];
-    const container = document.getElementById('epi-lista-botoes');
-    if (!container) return;
-    const f = (filtro || '').toLowerCase().trim();
-    const filtered = f ? epis.filter(epi => epi.toLowerCase().includes(f)) : epis;
-    container.innerHTML = '';
+    const c2 = document.getElementById('epi-lista-botoes');
+    if (!c2) return;
+    const f = (filtro||'').toLowerCase().trim();
+    const filtered = f ? epis.filter(e => e.toLowerCase().includes(f)) : epis;
+    c2.innerHTML = '';
     filtered.forEach(epi => {
-        const qty = window._assinQtds[epi] || 0;
+        const qty = window._assinQtds[epi]||0;
         const card = document.createElement('div');
         card.setAttribute('data-epi-card', epi);
-        card.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:0.65rem 1rem;border:2px solid '+(qty>0?'#16a34a':'#e2e8f0')+';border-radius:10px;background:'+(qty>0?'#f0fdf4':'#fff')+';box-shadow:0 1px 3px rgba(0,0,0,0.06);';
-        const lbl = document.createElement('span');
-        lbl.style.cssText = 'font-size:0.88rem;color:#0f172a;font-weight:600;flex:1;margin-right:0.5rem;line-height:1.3;';
-        lbl.textContent = epi;
-        const ctrl = document.createElement('div');
-        ctrl.style.cssText = 'display:flex;align-items:center;gap:6px;flex-shrink:0;';
-        const btnM = document.createElement('button');
-        btnM.textContent = '−';
-        btnM.style.cssText = 'background:'+(qty>0?'#1e3a5f':'#e2e8f0')+';color:#fff;border:none;border-radius:6px;width:32px;height:32px;cursor:pointer;font-size:1.1rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;';
-        btnM.addEventListener('click', () => window._setEpiQty(epi, Math.max(0,(window._assinQtds[epi]||0)-1)));
-        const inp = document.createElement('input');
-        inp.type='number'; inp.min='0'; inp.value=qty;
-        inp.style.cssText='width:48px;text-align:center;border:1.5px solid #e2e8f0;border-radius:6px;padding:4px;font-size:0.95rem;font-weight:700;color:#0f172a;';
-        inp.addEventListener('input', () => window._setEpiQty(epi, Math.max(0,parseInt(inp.value)||0)));
-        const btnP = document.createElement('button');
-        btnP.textContent='+';
-        btnP.style.cssText='background:#1e3a5f;color:#fff;border:none;border-radius:6px;width:32px;height:32px;cursor:pointer;font-size:1.1rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;';
-        btnP.addEventListener('click', () => window._setEpiQty(epi,(window._assinQtds[epi]||0)+1));
+        card.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:0.65rem 1rem;border:2px solid '+(qty>0?'#16a34a':'#e2e8f0')+';border-radius:10px;background:'+(qty>0?'#f0fdf4':'#fff')+';box-shadow:0 1px 3px rgba(0,0,0,0.06);';
+        const lbl=document.createElement('span'); lbl.style.cssText='font-size:0.88rem;color:#0f172a;font-weight:600;flex:1;margin-right:0.5rem;line-height:1.3;'; lbl.textContent=epi;
+        const ctrl=document.createElement('div'); ctrl.style.cssText='display:flex;align-items:center;gap:6px;flex-shrink:0;';
+        const btnM=document.createElement('button'); btnM.textContent='−'; btnM.style.cssText='background:'+(qty>0?'#1e3a5f':'#e2e8f0')+';color:#fff;border:none;border-radius:6px;width:32px;height:32px;cursor:pointer;font-size:1.1rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;';
+        btnM.addEventListener('click',()=>window._setEpiQty(epi,Math.max(0,(window._assinQtds[epi]||0)-1)));
+        const inp=document.createElement('input'); inp.type='number'; inp.min='0'; inp.value=qty; inp.style.cssText='width:48px;text-align:center;border:1.5px solid #e2e8f0;border-radius:6px;padding:4px;font-size:0.95rem;font-weight:700;color:#0f172a;';
+        inp.addEventListener('input',()=>window._setEpiQty(epi,Math.max(0,parseInt(inp.value)||0)));
+        const btnP=document.createElement('button'); btnP.textContent='+'; btnP.style.cssText='background:#1e3a5f;color:#fff;border:none;border-radius:6px;width:32px;height:32px;cursor:pointer;font-size:1.1rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;';
+        btnP.addEventListener('click',()=>window._setEpiQty(epi,(window._assinQtds[epi]||0)+1));
         ctrl.appendChild(btnM); ctrl.appendChild(inp); ctrl.appendChild(btnP);
-        card.appendChild(lbl); card.appendChild(ctrl);
-        container.appendChild(card);
+        card.appendChild(lbl); card.appendChild(ctrl); c2.appendChild(card);
     });
 };
 
-window._setEpiQty = function(epi, qty) {
-    window._assinQtds = window._assinQtds || {};
-    window._assinQtds[epi] = qty;
-    const card = document.querySelector('[data-epi-card="'+CSS.escape(epi)+'"]');
-    if (card) {
-        card.style.borderColor = qty>0?'#16a34a':'#e2e8f0';
-        card.style.background  = qty>0?'#f0fdf4':'#fff';
-        const inp = card.querySelector('input[type=number]');
-        if (inp) inp.value = qty;
-        const btns = card.querySelectorAll('button');
-        if (btns[0]) btns[0].style.background = qty>0?'#1e3a5f':'#e2e8f0';
-    }
-    if (qty>0) { const w=document.getElementById('epi-select-warn'); if(w) w.style.display='none'; }
+window._setEpiQty = function(epi,qty) {
+    window._assinQtds=window._assinQtds||{}; window._assinQtds[epi]=qty;
+    const card=document.querySelector('[data-epi-card="'+CSS.escape(epi)+'"]');
+    if(card){ card.style.borderColor=qty>0?'#16a34a':'#e2e8f0'; card.style.background=qty>0?'#f0fdf4':'#fff';
+        const inp=card.querySelector('input[type=number]'); if(inp) inp.value=qty;
+        const btns=card.querySelectorAll('button'); if(btns[0]) btns[0].style.background=qty>0?'#1e3a5f':'#e2e8f0'; }
+    if(qty>0){ const w=document.getElementById('epi-select-warn'); if(w) w.style.display='none'; }
 };
 
-window._filtrarEpis = function(filtro) { window._renderEpiGrid(filtro); };
+window._filtrarEpis = function(f){ window._renderEpiGrid(f); };
 
 window._buildItensFromQtds = function() {
-    const itens = [];
-    Object.entries(window._assinQtds||{}).forEach(([epi,qty]) => { for(let i=0;i<qty;i++) itens.push(epi); });
-    return itens;
+    const r=[];
+    Object.entries(window._assinQtds||{}).forEach(([e,q])=>{ for(let i=0;i<q;i++) r.push(e); });
+    return r;
 };
 
-window._addEpiToList = function(epi) { window._setEpiQty(epi,(window._assinQtds[epi]||0)+1); };
-window._removeEpiFromList = function() {};
-window._renderItensLista = function() {};
+window._addEpiToList=function(e){ window._setEpiQty(e,(window._assinQtds[e]||0)+1); };
+window._removeEpiFromList=function(){};
+window._renderItensLista=function(){};
 
 window._syncEpiSelection = function() {};
 
@@ -6671,9 +6631,9 @@ window._assinStep = function(n) {
     // Atualiza lista selecionada no step 2
     if (n === 2) {
         const ul = document.getElementById('epi-lista-selecionada');
-        if (ul) { window._assinItens = window._buildItensFromQtds ? window._buildItensFromQtds() : []; ul.innerHTML = window._assinItens.map(e => '<li>'+e+'</li>').join(''); }
+        if (ul) { window._assinItens = window._buildItensFromQtds ? window._buildItensFromQtds() : []; ul.innerHTML = window._assinItens.map(e=>'<li>'+e+'</li>').join(''); }
         const dd = document.getElementById('epi-data-display');
-        if (dd) { const inp = document.getElementById('epi-data-entrega'); if (inp&&inp.value) { const p=inp.value.split('-'); dd.textContent=p.length===3?p[2]+'/'+p[1]+'/'+p[0]:inp.value; } }
+        if (dd) { const inp = document.getElementById('epi-data-entrega'); if(inp&&inp.value){ const p=inp.value.split('-'); dd.textContent=p.length===3?p[2]+'/'+p[1]+'/'+p[0]:inp.value; } }
         window._initSignatureCanvas();
     }
 };
@@ -6717,13 +6677,35 @@ window._assinNextStep = async function() {
                     colaborador_id: window._assinColabId,
                     epis_entregues: window._buildItensFromQtds ? window._buildItensFromQtds() : (window._assinItens||[]),
                     assinatura_base64: assinaturaBase64,
-                    data_entrega: (() => { const i=document.getElementById('epi-data-entrega'); if(!i||!i.value) return ''; const p=i.value.split('-'); return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:i.value; })()
+                    data_entrega: (()=>{ const i=document.getElementById('epi-data-entrega'); if(!i||!i.value) return ''; const p=i.value.split('-'); return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:i.value; })()
                 })
             });
             const result = await resp.json();
             if (result.error) throw new Error(result.error);
 
             window._assinStep(3);
+            // Salvar PDF no OneDrive (fire-and-forget)
+            (async () => {
+                try {
+                    const { fichas: ff, colabId: cid } = window._epiProntuarioData || {};
+                    const fich = (ff||[]).find(f => f.id === window._assinFichaId);
+                    if (fich && cid) {
+                        if (typeof ensureHeaderLogo === 'function') await ensureHeaderLogo().catch(()=>{});
+                        const tpl = (window._epiProntuarioData.templates||[]).find(t => t.grupo === fich.grupo) || fich;
+                        const { jsPDF } = window.jspdf;
+                        const itens = window._buildItensFromQtds ? window._buildItensFromQtds() : [];
+                        const dataVal = (()=>{ const i=document.getElementById('epi-data-entrega'); if(!i||!i.value) return ''; const p=i.value.split('-'); return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:i.value; })();
+                        const lf = itens.map(nome => ({ data: dataVal, descricao: nome, assinatura_base64: result.assinatura_base64 }));
+                        const doc = window.gerarDocEpi(tpl, viewedColaborador||{}, jsPDF, lf);
+                        const pdfB64 = doc.output('datauristring');
+                        await fetch(API_URL + '/epi-fichas/' + window._assinFichaId + '/save-onedrive', {
+                            method: 'POST',
+                            headers: { 'Authorization': 'Bearer ' + currentToken, 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ pdf_base64: pdfB64, colaborador_id: cid })
+                        }).catch(e2 => console.warn('[save-onedrive]', e2));
+                    }
+                } catch(se) { console.warn('[save-onedrive]', se); }
+            })();
             // Recarrega a aba após 2s
             setTimeout(() => {
                 const old = document.getElementById('epi-assinatura-overlay');
@@ -6878,48 +6860,29 @@ window.gerarNovaFichaEpi = async function() {
 
 window.previewFichaEpi = async function(fichaId) {
     const { fichas, templates } = window._epiProntuarioData || {};
-    const ficha = (fichas || []).find(f => f.id === fichaId);
+    const ficha = (fichas||[]).find(f=>f.id===fichaId);
     if (!ficha) { alert('Ficha nao encontrada.'); return; }
-
     let linhasFilled = [];
     try {
-        const entregas = await apiGet('/epi-fichas/' + fichaId + '/entregas');
+        const entregas = await apiGet('/epi-fichas/'+fichaId+'/entregas');
         entregas.forEach(e => {
-            const epis = e.epis_entregues || [];
-            if (epis.length === 0) {
-                linhasFilled.push({ data: e.data_entrega||'', descricao:'', assinatura_base64: e.assinatura_base64 });
-            } else {
-                epis.forEach(nome => linhasFilled.push({ data: e.data_entrega||'', descricao: nome, assinatura_base64: e.assinatura_base64 }));
-            }
+            const epis = e.epis_entregues||[];
+            if(epis.length===0) linhasFilled.push({ data:e.data_entrega||'', descricao:'', assinatura_base64:e.assinatura_base64 });
+            else epis.forEach(nome => linhasFilled.push({ data:e.data_entrega||'', descricao:nome, assinatura_base64:e.assinatura_base64 }));
         });
     } catch(err) { console.warn('Erro entregas:', err); }
-
-    const template = (templates||[]).find(t => t.grupo === ficha.grupo) || {
-        epis: ficha.snapshot_epis||[], termo_texto: ficha.snapshot_termo,
-        rodape_texto: ficha.snapshot_rodape, grupo: ficha.grupo
-    };
-
-    if (typeof ensureHeaderLogo === 'function') await ensureHeaderLogo();
-    else if (typeof window.ensureHeaderLogo === 'function') await window.ensureHeaderLogo();
-
+    const template=(templates||[]).find(t=>t.grupo===ficha.grupo)||{ epis:ficha.snapshot_epis||[], termo_texto:ficha.snapshot_termo, rodape_texto:ficha.snapshot_rodape, grupo:ficha.grupo };
+    if(typeof ensureHeaderLogo==='function') await ensureHeaderLogo().catch(()=>{});
     const { jsPDF } = window.jspdf;
-    const doc = window.gerarDocEpi(template, viewedColaborador || {}, jsPDF, linhasFilled);
+    const doc = window.gerarDocEpi(template, viewedColaborador||{}, jsPDF, linhasFilled);
     const dataUri = doc.output('datauristring');
-
-    const old = document.getElementById('epi-preview-overlay');
-    if (old) old.remove();
-
-    const ov = document.createElement('div');
-    ov.id = 'epi-preview-overlay';
-    ov.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,0.92);display:flex;flex-direction:column;align-items:stretch;padding:1rem;gap:0.75rem;';
-    ov.innerHTML = `
+    const old = document.getElementById('epi-preview-overlay'); if(old) old.remove();
+    const ov=document.createElement('div'); ov.id='epi-preview-overlay';
+    ov.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,0.92);display:flex;flex-direction:column;align-items:stretch;padding:1rem;gap:0.75rem;';
+    ov.innerHTML=`
         <div style="display:flex;justify-content:space-between;align-items:center;padding:0 0.5rem;">
-            <p style="margin:0;color:#f1f5f9;font-weight:700;font-size:1rem;">
-                Ficha de EPI &mdash; ${ficha.grupo}
-                ${ficha.status==='ativa'?'<span style="color:#86efac;margin-left:8px;">&#9679; Ativa</span>':''}
-            </p>
-            <button onclick="document.getElementById('epi-preview-overlay').remove()"
-                    style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1.1rem;">&times;</button>
+            <p style="margin:0;color:#f1f5f9;font-weight:700;font-size:1rem;">Ficha de EPI &mdash; ${ficha.grupo}${ficha.status==='ativa'?' <span style=\"color:#86efac;\">&#9679; Ativa</span>':''}</p>
+            <button onclick="document.getElementById('epi-preview-overlay').remove()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1.1rem;">&times;</button>
         </div>
         <iframe src="${dataUri}" style="flex:1;border:none;border-radius:8px;width:100%;"></iframe>
     `;
