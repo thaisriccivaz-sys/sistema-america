@@ -636,9 +636,8 @@ window.gerarDocEpi = function gerarDocEpi(template, colab, jsPDF) {
     doc.text('ASSINATURA DO EMPREGADO', (colMid + W - margin) / 2, assinY + 5, { align: 'center' });
 
     y = y + bodyH + 4;
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(0, 0, 0);
-    doc.text('DISCRIMINAR COM DATA, DESCRIÇÃO, Nº C.A E ASSINATURA DO RECEBEDOR ABAIXO.', W / 2, y, { align: 'center' });
-    y += 6;
+    // ... removed discriminar texto ...
+    y += 2; // Add some spacing before table starts
 
     // margem inferior de segurança: reservar espaço para rodapé (texto + stamp ~26mm)
     const bottomSafe = 26;
