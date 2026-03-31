@@ -90,23 +90,34 @@ window.addCaToList = function() {
 
 let headerLogoBase64 = null;
 let headerLogoAspect = 0.11;
+let _logoLoadPromise = null;
+
+function ensureHeaderLogo() {
+    if (headerLogoBase64) return Promise.resolve();
+    if (_logoLoadPromise) return _logoLoadPromise;
+    _logoLoadPromise = new Promise(resolve => {
+        const img = new Image();
+        img.crossOrigin = 'Anonymous';
+        img.src = `${API_URL.replace('/api', '')}/assets/logo-header.png`;
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            canvas.getContext('2d').drawImage(img, 0, 0);
+            headerLogoBase64 = canvas.toDataURL('image/png');
+            headerLogoAspect = img.height / img.width;
+            resolve();
+        };
+        img.onerror = () => resolve(); // fallback sem logo
+    });
+    return _logoLoadPromise;
+}
+window.ensureHeaderLogo = ensureHeaderLogo;
 
 window.initEpiModule = function() {
     loadEpiTemplates();
     loadDeptList();
-
-    const img = new Image();
-    img.crossOrigin = 'Anonymous';
-    img.src = `${API_URL.replace('/api', '')}/assets/logo-header.png`;
-    img.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0);
-        headerLogoBase64 = canvas.toDataURL('image/png');
-        headerLogoAspect = img.height / img.width;
-    };
+    ensureHeaderLogo();
 };
 
 // Restaura Ajudante se tiver sido editado incorretamente (chamado manualmente se necessário)

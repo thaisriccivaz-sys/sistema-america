@@ -6458,6 +6458,8 @@ window.gerarNovaFichaEpi = async function() {
 
     // Gera PDF e abre preview
     if (typeof window.gerarDocEpi === 'function' && window.jspdf) {
+        // Garante logo carregado mesmo sem ter passado pela tela EPI
+        if (typeof window.ensureHeaderLogo === 'function') await window.ensureHeaderLogo();
         const { jsPDF } = window.jspdf;
         const colab = {
             nome: viewedColaborador.nome_completo,
@@ -6501,7 +6503,7 @@ window.gerarNovaFichaEpi = async function() {
     if (activeTab) renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
 };
 
-window.previewFichaEpi = function(fichaId) {
+window.previewFichaEpi = async function(fichaId) {
     const { fichas } = window._epiProntuarioData || {};
     const ficha = (fichas || []).find(f => f.id === fichaId);
     if (!ficha || !window.gerarDocEpi || !window.jspdf) return;
@@ -6509,6 +6511,8 @@ window.previewFichaEpi = function(fichaId) {
         id: ficha.template_id, grupo: ficha.grupo,
         epis: ficha.snapshot_epis, termo_texto: ficha.snapshot_termo, rodape_texto: ficha.snapshot_rodape
     };
+    // Garante logo carregado mesmo sem ter passado pela tela EPI
+    if (typeof window.ensureHeaderLogo === 'function') await window.ensureHeaderLogo();
     const { jsPDF } = window.jspdf;
     const colab = {
         nome: viewedColaborador.nome_completo, rg: viewedColaborador.rg, cpf: viewedColaborador.cpf,
