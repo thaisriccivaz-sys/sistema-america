@@ -2601,20 +2601,15 @@ app.get('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
 // POST: registrar entrega assinada de EPIs
 app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
     const fichaId = req.params.id;
-    const { colaborador_id, epis_entregues, assinatura_base64 } = req.body;
+    const { colaborador_id, epis_entregues, assinatura_base64, data_entrega } = req.body;
     if (!epis_entregues || !assinatura_base64) return res.status(400).json({ error: 'Dados incompletos.' });
 
     db.run(
-        `INSERT INTO epi_entregas (ficha_id, colaborador_id, epis_entregues, assinatura_base64) VALUES (?,?,?,?)`,
-        [fichaId, colaborador_id, JSON.stringify(epis_entregues), assinatura_base64],
+        `INSERT INTO epi_entregas (ficha_id, colaborador_id, epis_entregues, assinatura_base64, data_entrega) VALUES (?,?,?,?,?)`,
+        [fichaId, colaborador_id, JSON.stringify(epis_entregues), assinatura_base64, data_entrega || new Date().toLocaleDateString('pt-BR')],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
-            // Atualiza linhas_usadas somando o número de EPIs entregues nessa entrega
-            db.run(
-                `UPDATE colaborador_epi_fichas SET linhas_usadas = linhas_usadas + ? WHERE id=?`,
-                [epis_entregues.length, fichaId],
-                () => res.json({ id: this.lastID })
-            );
+            res.json({ id: this.lastID });
         }
     );
 });

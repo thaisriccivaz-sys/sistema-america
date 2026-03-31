@@ -6360,78 +6360,53 @@ async function renderFichaEpiTab(container) {
     }
 
     const fichaAtiva = fichas.find(f => f.status === 'ativa');
-    const TOTAL_LINHAS = 30;
 
-    // Determina o template do colaborador
     const dept = viewedColaborador?.departamento || '';
-    const templateDoColab = templates.find(t => (t.departamentos || []).includes(dept)) ||
+    const templateDoColab = templates.find(t => (t.departamentos||[]).includes(dept)) ||
                             templates.find(t => t.grupo === dept) || templates[0];
 
-    // Lógica do botão Gerar: deve ficar desabilitado quando há ficha ativa COM linhas disponíveis
-    // e o template não mudou (snapshot_epis igual ao template atual)
     let btnDesabilitado = false;
-    let btnMotivo = '';
     if (fichaAtiva && templateDoColab) {
-        const fichaEpisList  = JSON.stringify((fichaAtiva.snapshot_epis || []).slice().sort());
-        const templateEpisList = JSON.stringify((templateDoColab.epis || []).slice().sort());
-        const mesmosEpis     = fichaEpisList === templateEpisList;
-        const mesmoTermo     = (fichaAtiva.snapshot_termo || '') === (templateDoColab.termo_texto || '');
-        const mesmoRodape    = (fichaAtiva.snapshot_rodape || '') === (templateDoColab.rodape_texto || '');
-        const mesmoGrupo     = fichaAtiva.grupo === templateDoColab.grupo;
-        const mesmoDepto     = true; // se chegou aqui, departamento bate com o template
-        const fichaLinhas    = fichaAtiva.linhas_usadas || 0;
-        const temCampos      = fichaLinhas < TOTAL_LINHAS;
-
-        if (mesmosEpis && mesmoTermo && mesmoRodape && mesmoGrupo && temCampos) {
-            btnDesabilitado = true;
-            btnMotivo = `Ficha ativa com ${TOTAL_LINHAS - fichaLinhas} campos disponíveis`;
-        }
+        const ok = JSON.stringify((fichaAtiva.snapshot_epis||[]).slice().sort()) === JSON.stringify((templateDoColab.epis||[]).slice().sort())
+            && (fichaAtiva.snapshot_termo||'') === (templateDoColab.termo_texto||'')
+            && (fichaAtiva.snapshot_rodape||'') === (templateDoColab.rodape_texto||'')
+            && fichaAtiva.grupo === templateDoColab.grupo;
+        if (ok) btnDesabilitado = true;
     }
 
     const fmtDate = iso => {
-        if (!iso) return '—';
+        if (!iso) return '-';
         const d = new Date(iso);
-        return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+        return String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + d.getFullYear();
     };
 
     container.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;flex-wrap:wrap;gap:1rem;">
             <div>
                 <h3 style="margin:0;font-size:1.1rem;font-weight:700;color:#0f172a;">Fichas de EPI</h3>
-                <p style="margin:4px 0 0;font-size:0.82rem;color:#64748b;">Histórico de fichas geradas para ${viewedColaborador?.nome_completo || ''}.</p>
+                <p style="margin:4px 0 0;font-size:0.82rem;color:#64748b;">Hist&oacute;rico para ${viewedColaborador?.nome_completo || ''}.</p>
             </div>
-            <div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;">
-                ${fichaAtiva ? `
-                <button onclick="window.abrirAssinaturaEpi(${fichaAtiva.id})"
-                        class="btn btn-success"
-                        style="display:flex;align-items:center;gap:6px;height:40px;padding:0 1.25rem;font-weight:700;background:#16a34a;border-color:#16a34a;">
-                    <i class="ph ph-pen"></i> Registrar Entrega / Assinar
-                </button>` : ''}
-                <button onclick="window.gerarNovaFichaEpi()"
-                        class="btn btn-primary"
-                        id="btn-gerar-ficha-epi"
-                        ${btnDesabilitado ? 'disabled title="' + btnMotivo + '"' : ''}
-                        style="display:flex;align-items:center;gap:6px;height:40px;padding:0 1.25rem;font-weight:700;${btnDesabilitado ? 'opacity:0.5;cursor:not-allowed;' : ''}">
-                    <i class="ph ph-shield-plus"></i> Gerar Nova Ficha EPI
-                </button>
-            </div>
+            <button onclick="window.gerarNovaFichaEpi()" class="btn btn-primary" id="btn-gerar-ficha-epi"
+                    ${btnDesabilitado ? 'disabled' : ''}
+                    style="display:flex;align-items:center;gap:6px;height:40px;padding:0 1.25rem;font-weight:700;${btnDesabilitado?'opacity:0.5;cursor:not-allowed;':''}">
+                <i class="ph ph-shield-plus"></i> Gerar Nova Ficha EPI
+            </button>
         </div>
-
-        ${btnDesabilitado ? `
-        <div style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:8px;padding:0.75rem 1rem;margin-bottom:1rem;font-size:0.83rem;color:#1d4ed8;display:flex;align-items:center;gap:8px;">
-            <i class="ph ph-info"></i>
-            <span>Ficha ativa com <strong>${TOTAL_LINHAS - (fichaAtiva?.linhas_usadas||0)} campos</strong> disponíveis. Gere nova ficha somente após mudança no template ou esgotar os campos.</span>
-        </div>` : ''}
 
         ${fichaAtiva ? `
         <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:1rem 1.25rem;margin-bottom:1.25rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
             <i class="ph ph-check-circle" style="color:#16a34a;font-size:1.5rem;"></i>
             <div style="flex:1;">
                 <p style="margin:0;font-weight:700;color:#15803d;">Ficha Ativa: ${fichaAtiva.grupo}</p>
-                <p style="margin:2px 0 0;font-size:0.8rem;color:#166534;">Criada em ${fmtDate(fichaAtiva.created_at)} &middot; ${fichaAtiva.linhas_usadas}/${TOTAL_LINHAS} linhas utilizadas</p>
+                <p style="margin:2px 0 0;font-size:0.8rem;color:#166534;">Criada em ${fmtDate(fichaAtiva.created_at)}</p>
             </div>
-            <button onclick="window.previewFichaEpi(${fichaAtiva.id})" class="btn btn-secondary" style="height:36px;display:flex;align-items:center;gap:5px;">
-                <i class="ph ph-eye"></i> Visualizar
+            <button onclick="window.abrirAssinaturaEpi(${fichaAtiva.id})" class="btn btn-primary"
+                    style="height:36px;display:flex;align-items:center;gap:6px;font-weight:700;">
+                <i class="ph ph-pen"></i> Registrar Entrega
+            </button>
+            <button onclick="window.previewFichaEpi(${fichaAtiva.id})" class="btn btn-secondary"
+                    style="height:36px;display:flex;align-items:center;gap:5px;">
+                <i class="ph ph-eye"></i>
             </button>
         </div>` : `
         <div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:10px;padding:1rem 1.25rem;margin-bottom:1.25rem;display:flex;align-items:center;gap:1rem;">
@@ -6445,12 +6420,7 @@ async function renderFichaEpiTab(container) {
                 <i class="ph ph-file-text" style="color:#64748b;font-size:1.3rem;"></i>
                 <div style="flex:1;min-width:0;">
                     <p style="margin:0;font-weight:700;font-size:0.9rem;color:#0f172a;">Ficha: ${f.grupo}</p>
-                    <p style="margin:2px 0 0;font-size:0.78rem;color:#64748b;">
-                        Criada: ${fmtDate(f.created_at)}
-                        ${f.fechada_em ? ' &middot; Fechada: ' + fmtDate(f.fechada_em) : ''}
-                        ${f.motivo_fechamento ? ' &middot; <em>' + f.motivo_fechamento + '</em>' : ''}
-                        &middot; ${f.linhas_usadas}/${TOTAL_LINHAS} linhas
-                    </p>
+                    <p style="margin:2px 0 0;font-size:0.78rem;color:#64748b;">Criada: ${fmtDate(f.created_at)}${f.fechada_em ? ' &middot; Fechada: ' + fmtDate(f.fechada_em) : ''}</p>
                 </div>
                 <span style="background:${f.status==='ativa'?'#dcfce7':'#f1f5f9'};color:${f.status==='ativa'?'#15803d':'#475569'};border-radius:999px;padding:2px 10px;font-size:0.75rem;font-weight:700;white-space:nowrap;">
                     ${f.status === 'ativa' ? '&#9679; Ativa' : '&#9675; Fechada'}
@@ -6486,10 +6456,13 @@ window.abrirAssinaturaEpi = async function(fichaId) {
     overlay.id = 'epi-assinatura-overlay';
     overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,0.85);display:flex;align-items:center;justify-content:center;padding:1rem;';
 
-    overlay.innerHTML = `
-        <div style="background:#fff;border-radius:12px;width:100%;max-width:680px;max-height:95vh;display:flex;flex-direction:column;box-shadow:0 20px 50px rgba(0,0,0,0.35);overflow:hidden;">
+    const hoje = new Date();
+    const hojeDD = String(hoje.getDate()).padStart(2,'0');
+    const hojeM = String(hoje.getMonth()+1).padStart(2,'0');
+    const hojeStr = hojeDD + '/' + hojeM + '/' + hoje.getFullYear();
 
-            <!-- Header -->
+    overlay.innerHTML = `
+        <div style="background:#fff;border-radius:12px;width:100%;max-width:700px;max-height:95vh;display:flex;flex-direction:column;box-shadow:0 20px 50px rgba(0,0,0,0.35);overflow:hidden;">
             <div style="background:#1e3a5f;padding:1.1rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
                 <div style="display:flex;align-items:center;gap:0.75rem;">
                     <i class="ph ph-pen" style="color:#93c5fd;font-size:1.4rem;"></i>
@@ -6499,91 +6472,72 @@ window.abrirAssinaturaEpi = async function(fichaId) {
                     </div>
                 </div>
                 <button onclick="document.getElementById('epi-assinatura-overlay').remove()"
-                        style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;line-height:1;">&times;</button>
+                        style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">&times;</button>
             </div>
-
-            <!-- Steps indicator -->
             <div style="background:#f8fafc;border-bottom:1px solid #e2e8f0;padding:0.65rem 1.5rem;display:flex;align-items:center;gap:1rem;">
                 <div id="step-ind-1" style="display:flex;align-items:center;gap:6px;font-size:0.82rem;font-weight:700;color:#1e3a5f;">
                     <span style="background:#1e3a5f;color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.75rem;">1</span>
                     Selecionar EPIs
                 </div>
-                <div style="flex:1;height:2px;background:#e2e8f0;border-radius:2px;"></div>
+                <div style="flex:1;height:2px;background:#e2e8f0;"></div>
                 <div id="step-ind-2" style="display:flex;align-items:center;gap:6px;font-size:0.82rem;font-weight:700;color:#94a3b8;">
                     <span id="step-badge-2" style="background:#cbd5e1;color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.75rem;">2</span>
-                    Assinar Termo
+                    Assinar
                 </div>
-                <div style="flex:1;height:2px;background:#e2e8f0;border-radius:2px;"></div>
+                <div style="flex:1;height:2px;background:#e2e8f0;"></div>
                 <div id="step-ind-3" style="display:flex;align-items:center;gap:6px;font-size:0.82rem;font-weight:700;color:#94a3b8;">
                     <span id="step-badge-3" style="background:#cbd5e1;color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.75rem;">3</span>
                     Confirmar
                 </div>
             </div>
-
-            <!-- Conteudo scrollavel -->
             <div id="epi-assin-body" style="flex:1;overflow-y:auto;padding:1.5rem;">
-
-                <!-- STEP 1: Selecao de EPIs -->
                 <div id="epi-step-1">
-                    <p style="font-size:0.88rem;color:#475569;margin:0 0 1rem;">Selecione os EPIs que ser&atilde;o entregues neste ato:</p>
-                    <div style="display:flex;flex-direction:column;gap:6px;">
-                        ${epis.map((epi, i) => `
-                        <label style="display:flex;align-items:center;gap:10px;padding:0.6rem 0.85rem;border:1.5px solid #e2e8f0;border-radius:8px;cursor:pointer;transition:border-color 0.15s;"
-                               onmouseover="this.style.borderColor='#1e3a5f'"
-                               onmouseout="if(!document.getElementById('epi-chk-${i}').checked)this.style.borderColor='#e2e8f0'">
-                            <input type="checkbox" id="epi-chk-${i}" value="${epi.replace(/"/g,'&quot;')}"
-                                   style="width:16px;height:16px;accent-color:#1e3a5f;"
-                                   onchange="window._syncEpiSelection()">
-                            <span style="font-size:0.88rem;color:#0f172a;">${epi}</span>
-                        </label>
-                        `).join('')}
+                    <div style="margin-bottom:1.25rem;">
+                        <label style="display:block;font-size:0.85rem;font-weight:700;color:#374151;margin-bottom:4px;">Data de Entrega:</label>
+                        <input type="text" id="epi-data-entrega" value="${hojeStr}" placeholder="DD/MM/AAAA"
+                               style="border:1.5px solid #e2e8f0;border-radius:8px;padding:0.5rem 0.85rem;font-size:0.9rem;width:160px;outline:none;"
+                               onfocus="this.style.borderColor='#1e3a5f'" onblur="this.style.borderColor='#e2e8f0'">
                     </div>
-                    <p id="epi-select-warn" style="color:#dc2626;font-size:0.8rem;margin:0.75rem 0 0;display:none;">Selecione ao menos um EPI.</p>
+                    <p style="font-size:0.85rem;font-weight:700;color:#374151;margin:0 0 8px;">EPIs a entregar <span style="font-weight:400;color:#64748b;font-size:0.8rem;">(pode repetir o mesmo)</span>:</p>
+                    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:1rem;" id="epi-lista-botoes"></div>
+                    <p style="font-size:0.85rem;font-weight:700;color:#374151;margin:0 0 6px;">Itens selecionados:</p>
+                    <div id="epi-itens-selecionados" style="min-height:48px;background:#f0fdf4;border:1.5px dashed #86efac;border-radius:8px;padding:0.6rem;display:flex;flex-direction:column;gap:5px;">
+                        <p style="margin:0;font-size:0.82rem;color:#94a3b8;text-align:center;padding:8px 0;">Nenhum item adicionado ainda</p>
+                    </div>
+                    <p id="epi-select-warn" style="color:#dc2626;font-size:0.8rem;margin:0.5rem 0 0;display:none;">Adicione ao menos um EPI.</p>
                 </div>
-
-                <!-- STEP 2: Assinatura -->
                 <div id="epi-step-2" style="display:none;">
-                    <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:1rem;margin-bottom:1rem;">
-                        <p style="font-size:0.8rem;font-weight:700;color:#166534;margin:0 0 6px;">EPIs selecionados para entrega:</p>
-                        <ul id="epi-lista-selecionada" style="margin:0;padding-left:1.25rem;font-size:0.83rem;color:#15803d;"></ul>
+                    <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:0.85rem 1rem;margin-bottom:1rem;">
+                        <p style="font-size:0.8rem;font-weight:700;color:#166534;margin:0 0 5px;">EPIs para entrega em <strong id="epi-data-display"></strong>:</p>
+                        <ul id="epi-lista-selecionada" style="margin:0;padding-left:1.25rem;font-size:0.82rem;color:#15803d;"></ul>
                     </div>
-
-                    <p style="font-size:0.82rem;font-weight:700;color:#374151;margin:0 0 8px;">Termo de Responsabilidade:</p>
-                    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:1rem;font-size:0.8rem;color:#374151;max-height:130px;overflow-y:auto;line-height:1.55;margin-bottom:1.25rem;white-space:pre-wrap;">${termo}</div>
-
-                    <p style="font-size:0.88rem;font-weight:700;color:#0f172a;margin:0 0 6px;">
+                    <p style="font-size:0.82rem;font-weight:700;color:#374151;margin:0 0 6px;">Termo de Responsabilidade:</p>
+                    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:0.9rem;font-size:0.8rem;color:#374151;max-height:110px;overflow-y:auto;line-height:1.55;margin-bottom:1rem;white-space:pre-wrap;">${termo}</div>
+                    <p style="font-size:0.88rem;font-weight:700;color:#0f172a;margin:0 0 5px;">
                         <i class="ph ph-pen" style="color:#1e3a5f;"></i> Assinatura do Colaborador:
                     </p>
-                    <p style="font-size:0.78rem;color:#64748b;margin:0 0 8px;">Assine abaixo com o dedo ou mouse para confirmar o recebimento dos EPIs.</p>
+                    <p style="font-size:0.78rem;color:#64748b;margin:0 0 7px;">A assinatura ser&aacute; salva no campo do empregado e em cada linha de EPI entregue.</p>
                     <div style="border:2px dashed #94a3b8;border-radius:10px;background:#fafafa;position:relative;">
-                        <canvas id="epi-signature-canvas" width="620" height="180"
-                                style="width:100%;height:180px;border-radius:8px;touch-action:none;cursor:crosshair;display:block;"></canvas>
+                        <canvas id="epi-signature-canvas" width="640" height="160"
+                                style="width:100%;height:160px;border-radius:8px;touch-action:none;cursor:crosshair;display:block;"></canvas>
                         <button onclick="window._limparAssinatura()"
-                                style="position:absolute;top:8px;right:8px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:3px 10px;font-size:0.75rem;color:#475569;cursor:pointer;">
-                            Limpar
-                        </button>
+                                style="position:absolute;top:7px;right:7px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:3px 10px;font-size:0.75rem;color:#475569;cursor:pointer;">Limpar</button>
                     </div>
                     <p id="epi-assin-warn" style="color:#dc2626;font-size:0.8rem;margin:0.5rem 0 0;display:none;">A assinatura &eacute; obrigat&oacute;ria.</p>
                 </div>
-
-                <!-- STEP 3: Confirmacao -->
                 <div id="epi-step-3" style="display:none;text-align:center;padding:2rem 1rem;">
                     <i class="ph ph-check-circle" style="font-size:3.5rem;color:#16a34a;display:block;margin-bottom:0.75rem;"></i>
                     <p style="font-weight:700;font-size:1.05rem;color:#15803d;margin:0 0 4px;">Entrega registrada com sucesso!</p>
-                    <p style="font-size:0.85rem;color:#64748b;">A assinatura foi salva e as linhas da ficha foram atualizadas.</p>
+                    <p style="font-size:0.85rem;color:#64748b;">Assinatura e EPIs salvos na ficha.</p>
                 </div>
-
             </div>
-
-            <!-- Footer -->
             <div id="epi-assin-footer" style="border-top:1px solid #e2e8f0;padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;background:#f8fafc;">
                 <button id="btn-assin-back" onclick="window._assinStep(1)"
-                        style="display:none;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;padding:0.6rem 1.25rem;font-weight:600;font-size:0.88rem;cursor:pointer;color:#475569;display:flex;align-items:center;gap:6px;">
+                        style="display:none;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;padding:0.6rem 1.25rem;font-weight:600;font-size:0.88rem;cursor:pointer;color:#475569;">
                     <i class="ph ph-arrow-left"></i> Voltar
                 </button>
                 <div></div>
-                <button id="btn-assin-next" onclick="window._assinNextStep()"
-                        class="btn btn-primary"
+                <button id="btn-assin-next" onclick="window._assinNextStep()" class="btn btn-primary"
                         style="padding:0.65rem 1.5rem;font-weight:700;font-size:0.9rem;display:flex;align-items:center;gap:6px;">
                     Pr&oacute;ximo <i class="ph ph-arrow-right"></i>
                 </button>
@@ -6593,15 +6547,68 @@ window.abrirAssinaturaEpi = async function(fichaId) {
 
     document.body.appendChild(overlay);
 
-    // Inicializa canvas de assinatura
     window._assinCurrentStep = 1;
     window._assinFichaId = fichaId;
     window._assinColabId = colabId;
     window._assinEpisDisponiveis = epis;
-    window._assinEpisSelecionados = [];
+    window._assinItens = [];
+    setTimeout(() => {
+        window._initSignatureCanvas();
+        // Render EPI buttons using data-epi to avoid escaping issues
+        const listaBotoes = document.getElementById('epi-lista-botoes');
+        if (listaBotoes) {
+            listaBotoes.innerHTML = '';
+            epis.forEach(epi => {
+                const row = document.createElement('div');
+                row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:0.55rem 0.85rem;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;';
+                const span = document.createElement('span');
+                span.style.cssText = 'font-size:0.88rem;color:#0f172a;';
+                span.textContent = epi;
+                const btn = document.createElement('button');
+                btn.style.cssText = 'background:#1e3a5f;color:#fff;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;font-size:1.2rem;font-weight:700;display:flex;align-items:center;justify-content:center;';
+                btn.textContent = '+';
+                btn.addEventListener('click', () => window._addEpiToList(epi));
+                row.appendChild(span);
+                row.appendChild(btn);
+                listaBotoes.appendChild(row);
+            });
+        }
+    }, 100);
+};
 
-    // Inicializa canvas após render
-    setTimeout(() => window._initSignatureCanvas(), 100);
+window._addEpiToList = function(epi) {
+    window._assinItens = window._assinItens || [];
+    window._assinItens.push(epi);
+    window._renderItensLista();
+};
+
+window._removeEpiFromList = function(idx) {
+    window._assinItens.splice(idx, 1);
+    window._renderItensLista();
+};
+
+window._renderItensLista = function() {
+    const c = document.getElementById('epi-itens-selecionados');
+    if (!c) return;
+    if (!window._assinItens || window._assinItens.length === 0) {
+        c.innerHTML = '<p style="margin:0;font-size:0.82rem;color:#94a3b8;text-align:center;padding:8px 0;">Nenhum item adicionado ainda</p>';
+        return;
+    }
+    c.innerHTML = '';
+    window._assinItens.forEach((e, i) => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid #86efac;border-radius:6px;padding:5px 10px;';
+        const sp = document.createElement('span');
+        sp.style.cssText = 'font-size:0.85rem;color:#15803d;';
+        sp.textContent = e;
+        const rm = document.createElement('button');
+        rm.style.cssText = 'background:none;border:none;color:#dc2626;cursor:pointer;font-size:1.1rem;line-height:1;';
+        rm.innerHTML = '&times;';
+        rm.addEventListener('click', () => window._removeEpiFromList(i));
+        row.appendChild(sp);
+        row.appendChild(rm);
+        c.appendChild(row);
+    });
 };
 
 // Sincroniza seleção de checkboxes
@@ -6650,7 +6657,9 @@ window._assinStep = function(n) {
     // Atualiza lista selecionada no step 2
     if (n === 2) {
         const ul = document.getElementById('epi-lista-selecionada');
-        if (ul) ul.innerHTML = (window._assinEpisSelecionados || []).map(e => `<li>${e}</li>`).join('');
+        if (ul) ul.innerHTML = (window._assinItens || []).map(e => '<li>' + e + '</li>').join('');
+        const dd = document.getElementById('epi-data-display');
+        if (dd) { const inp = document.getElementById('epi-data-entrega'); dd.textContent = inp ? inp.value : ''; }
         window._initSignatureCanvas();
     }
 };
@@ -6661,7 +6670,7 @@ window._assinNextStep = async function() {
 
     if (step === 1) {
         // Valida seleção
-        if (!window._assinEpisSelecionados || window._assinEpisSelecionados.length === 0) {
+        if (!window._assinItens || window._assinItens.length === 0) {
             const warn = document.getElementById('epi-select-warn');
             if (warn) warn.style.display = '';
             return;
@@ -6692,8 +6701,9 @@ window._assinNextStep = async function() {
                 headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     colaborador_id: window._assinColabId,
-                    epis_entregues: window._assinEpisSelecionados,
-                    assinatura_base64: assinaturaBase64
+                    epis_entregues: window._assinItens || [],
+                    assinatura_base64: assinaturaBase64,
+                    data_entrega: (document.getElementById('epi-data-entrega') || {}).value || ''
                 })
             });
             const result = await resp.json();
@@ -6853,45 +6863,47 @@ window.gerarNovaFichaEpi = async function() {
 };
 
 window.previewFichaEpi = async function(fichaId) {
-    const { fichas } = window._epiProntuarioData || {};
+    const { fichas, templates } = window._epiProntuarioData || {};
     const ficha = (fichas || []).find(f => f.id === fichaId);
-    if (!ficha || !window.gerarDocEpi || !window.jspdf) return;
-    const template = {
-        id: ficha.template_id, grupo: ficha.grupo,
-        epis: ficha.snapshot_epis, termo_texto: ficha.snapshot_termo, rodape_texto: ficha.snapshot_rodape
+    if (!ficha) return;
+
+    let linhasFilled = [];
+    try {
+        const entregas = await apiGet('/epi-fichas/' + fichaId + '/entregas');
+        entregas.forEach(e => {
+            const epis = e.epis_entregues || [];
+            if (epis.length === 0) {
+                linhasFilled.push({ data: e.data_entrega || '', descricao: '', assinatura_base64: e.assinatura_base64 });
+            } else {
+                epis.forEach(nome => linhasFilled.push({ data: e.data_entrega || '', descricao: nome, assinatura_base64: e.assinatura_base64 }));
+            }
+        });
+    } catch(e) {}
+
+    const template = (templates||[]).find(t => t.grupo === ficha.grupo) || {
+        epis: ficha.snapshot_epis || [], termo_texto: ficha.snapshot_termo,
+        rodape_texto: ficha.snapshot_rodape, grupo: ficha.grupo
     };
-    if (typeof window.ensureHeaderLogo === 'function') await window.ensureHeaderLogo();
+    const colab = viewedColaborador || {};
+
+    await ensureHeaderLogo();
     const { jsPDF } = window.jspdf;
-    const colab = {
-        nome: viewedColaborador.nome_completo, rg: viewedColaborador.rg, cpf: viewedColaborador.cpf,
-        cargo: viewedColaborador.cargo, dept: ficha.grupo, admissao: viewedColaborador.data_admissao
-    };
-    const doc = window.gerarDocEpi(template, colab, jsPDF);
+    const doc = window.gerarDocEpi(template, colab, jsPDF, linhasFilled);
     const dataUri = doc.output('datauristring');
-    const nomeArq = `Ficha_EPI_${ficha.grupo.replace(/\s+/g,'_')}_${colab.nome.replace(/\s+/g,'_')}.pdf`;
+
     const old = document.getElementById('epi-preview-overlay');
     if (old) old.remove();
+
     const overlay = document.createElement('div');
     overlay.id = 'epi-preview-overlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#1e293b;display:flex;flex-direction:column;';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,0.85);display:flex;flex-direction:column;align-items:stretch;padding:1rem;gap:0.75rem;';
     overlay.innerHTML = `
-        <div style="background:#0f172a;padding:0.75rem 1.5rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #334155;flex-shrink:0;">
-            <div style="display:flex;align-items:center;gap:0.75rem;">
-                <i class="ph ph-shield-check" style="color:#60a5fa;font-size:1.3rem;"></i>
-                <span style="color:#f1f5f9;font-weight:700;font-size:0.97rem;">Ficha de EPI — ${ficha.grupo}</span>
-                <span style="color:${ficha.status==='ativa'?'#4ade80':'#94a3b8'};font-size:0.82rem;">${ficha.status === 'ativa' ? '&#9679; Ativa' : '&#9675; Fechada'}</span>
-            </div>
-            <div style="display:flex;gap:0.75rem;">
-                <a href="${dataUri}" download="${nomeArq}" style="background:#0f4c81;color:#fff;padding:0.5rem 1.25rem;border-radius:8px;font-weight:700;font-size:0.88rem;display:flex;align-items:center;gap:0.5rem;text-decoration:none;">
-                    <i class="ph ph-download"></i> Baixar PDF
-                </a>
-                <button onclick="document.getElementById('epi-preview-overlay').remove()"
-                        style="background:#334155;color:#f1f5f9;border:none;padding:0.5rem 1.1rem;border-radius:8px;font-weight:700;font-size:0.88rem;cursor:pointer;display:flex;align-items:center;gap:0.5rem;">
-                    <i class="ph ph-x"></i> Fechar
-                </button>
-            </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:0 0.5rem;">
+            <p style="margin:0;color:#f1f5f9;font-weight:700;font-size:1rem;">Ficha de EPI &mdash; ${ficha.grupo}</p>
+            <button onclick="document.getElementById('epi-preview-overlay').remove()"
+                    style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1.1rem;">&times;</button>
         </div>
-        <iframe src="${dataUri}" style="flex:1;border:none;width:100%;"></iframe>
+        <iframe src="${dataUri}" style="flex:1;border:none;border-radius:8px;width:100%;"></iframe>
     `;
     document.body.appendChild(overlay);
 };
