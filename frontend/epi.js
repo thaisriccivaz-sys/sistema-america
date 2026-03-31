@@ -629,8 +629,8 @@ window.gerarDocEpi = function gerarDocEpi(template, colab, jsPDF) {
     doc.text('DISCRIMINAR COM DATA, DESCRIÇÃO, Nº C.A E ASSINATURA DO RECEBEDOR ABAIXO.', W / 2, y, { align: 'center' });
     y += 6;
 
-    // margem inferior de segurança: reservar espaço para rodapé (texto + stamp ~22mm)
-    const bottomSafe = 22;
+    // margem inferior de segurança: reservar espaço para rodapé (texto + stamp ~26mm)
+    const bottomSafe = 26;
     const availableHFront = 297 - y - bottomSafe;
     const rowsFront = Math.floor((availableHFront - 8) / 7.5);
     y = pdfEntregaTable(doc, W, margin, y, Math.max(4, rowsFront));
@@ -645,8 +645,8 @@ window.gerarDocEpi = function gerarDocEpi(template, colab, jsPDF) {
     y = pdfHeader(doc, W);
     y = pdfColabBox(doc, W, margin, y, colab);
     
-    // Reservar espaço fixo pro carimbo no final (logo + texto ~28mm + rodapé 8mm)
-    const stampReserve = 38;
+    // Reservar espaço fixo pro carimbo no final (logo + texto ~28mm + rodapé 8mm + folga)
+    const stampReserve = 52;
     const availableHBack = 297 - y - stampReserve;
     const rowsBack = Math.floor((availableHBack - 8) / 7.5);
     y = pdfEntregaTable(doc, W, margin, y, Math.max(12, rowsBack));
