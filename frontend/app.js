@@ -1,4 +1,4 @@
-﻿const API_URL = `${window.location.origin}/api`;
+const API_URL = `${window.location.origin}/api`;
 
 // Estado global
 let currentUser = null;
@@ -6,18 +6,18 @@ let currentToken = null;
 let currentDocs = [];
 let viewedColaborador = null;
 
-// --- INICIALIZAÃ‡ÃƒO E ROTAS BÃSICAS ---
+// --- INICIALIZAÇÃO E ROTAS BÁSICAS ---
 
 const DOCS_DISPONIVEIS = [
-    "Acordo Individual BenefÃ­cios", "AutorizaÃ§Ã£o Uso de Imagem", "AuxÃ­lio CombustÃ­vel", 
-    "Coca Cola Desconto", "Contrato Academia", "Contrato Faculdade", "DescriÃ§Ã£o de cargos", 
+    "Acordo Individual Benefícios", "Autorização Uso de Imagem", "Auxílio Combustível", 
+    "Coca Cola Desconto", "Contrato Academia", "Contrato Faculdade", "Descrição de cargos", 
     "EPI", "Gerador Bloqueio Farmacia e mercado", "Gerador Desconto folha", 
     "Gerador Sorteio", "Intermitente", "NR01", "NR18", "Pedido Abertura de Conta", 
     "Terapia", "Termo de Acordo de Desligamento", "Termo de Confidencialidade", 
     "Termo de Responsabilidade Bilhete unico", "Termo de Responsabilidade Cracha", 
     "Termo de Responsabilidade de Celulares", "Termo de Responsabilidade de Chaves", 
     "Termo de Responsabilidade de Notebook", "Termo de Responsabilidade entrega de kit veicular", 
-    "Termo de Responsabilidade VeÃ­culo"
+    "Termo de Responsabilidade Veículo"
 ];
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -34,14 +34,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const roleEl = document.getElementById('logged-user-role');
     if (roleEl) roleEl.textContent = currentUser.role;
     
-    // Se o index.html novo estiver carregado, terÃ¡ app-shell. Se estiver o antigo, nÃ£o terÃ¡.
+    // Se o index.html novo estiver carregado, terá app-shell. Se estiver o antigo, não terá.
     const appShell = document.getElementById('app-shell');
     if (appShell) {
         showView('app-shell');
         navigateTo('dashboard');
     } else {
-        // Fallback genÃ©rico caso o HTML seja o muito antigo ou nÃ£o tenha app-shell
-        console.warn('O elemento app-shell nÃ£o foi encontrado. Interface antiga detectada ou HTML incompleto.');
+        // Fallback genérico caso o HTML seja o muito antigo ou não tenha app-shell
+        console.warn('O elemento app-shell não foi encontrado. Interface antiga detectada ou HTML incompleto.');
         // Tentamos exibir o form-section se existir
         const formSection = document.querySelector('.form-section');
         if (formSection) formSection.style.display = 'block';
@@ -184,7 +184,7 @@ async function apiGet(endpoint) {
             headers: { 'Authorization': `Bearer ${currentToken}` },
             cache: 'no-store'
         });
-        if (!res.ok) throw new Error('Falha na requisiÃ§Ã£o');
+        if (!res.ok) throw new Error('Falha na requisição');
         return res.json();
     } catch(e) {
         console.error(e);
@@ -211,7 +211,7 @@ async function apiPost(endpoint, data, options = {}) {
         return res.json();
     } else {
         const text = await res.text();
-        console.error("Erro na API (NÃ£o Ã© JSON):", text);
+        console.error("Erro na API (Não é JSON):", text);
         return { error: "Servidor retornou resposta inesperada. Verifique o console." };
     }
 }
@@ -257,7 +257,7 @@ async function loadCargos() {
         `;
     });
 
-    // TambÃ©m popula o select do formulÃ¡rio de colaborador (para quando estiver cadastrando alguÃ©m)
+    // Também popula o select do formulário de colaborador (para quando estiver cadastrando alguém)
     const selectColab = document.getElementById('colab-cargo');
     if (selectColab) {
         selectColab.innerHTML = '<option value="" selected disabled>Selecionar</option>';
@@ -280,12 +280,12 @@ window.toggleCargoView = async function(mode, id = null) {
     if (mode === 'list') {
         if(listContainer) listContainer.style.display = 'block';
         if(formContainer) formContainer.style.display = 'none';
-        if(headerActions) headerActions.style.display = 'none'; // Esconde botÃµes no topo ao ver a lista
+        if(headerActions) headerActions.style.display = 'none'; // Esconde botões no topo ao ver a lista
         loadCargos();
     } else {
         if(listContainer) listContainer.style.display = 'none';
         if(formContainer) formContainer.style.display = 'block';
-        if(headerActions) headerActions.style.display = 'flex'; // Mostra botÃµes no topo ao editar/criar
+        if(headerActions) headerActions.style.display = 'flex'; // Mostra botões no topo ao editar/criar
         
         if (mode === 'new') {
             document.getElementById('manage-cargo-id').value = '';
@@ -366,7 +366,7 @@ async function renderCargoChecklist(cargoId) {
     });
 }
 
-// Salvar apenas o nome do cargo (documentos sÃ£o salvos por clique no checkbox)
+// Salvar apenas o nome do cargo (documentos são salvos por clique no checkbox)
 async function handleCargoFormSubmit() {
     const id = document.getElementById('manage-cargo-id').value;
     const nomeInput = document.getElementById('cargo-input-name');
@@ -396,7 +396,7 @@ async function handleCargoFormSubmit() {
         toggleCargoView('list');
     } catch(err) {
         console.error('Erro ao salvar cargo:', err);
-        alert('Erro de conexÃ£o ao salvar cargo.');
+        alert('Erro de conexão ao salvar cargo.');
     }
 }
 
@@ -411,7 +411,7 @@ window.handleDeleteCargoUI = async function() {
     if(!id) return;
 
     if(nome.toUpperCase() === 'MOTORISTA') {
-        alert('O cargo MOTORISTA Ã© essencial para o sistema e nÃ£o pode ser excluÃ­do.');
+        alert('O cargo MOTORISTA é essencial para o sistema e não pode ser excluído.');
         return;
     }
 
@@ -488,7 +488,7 @@ document.getElementById('form-chaves')?.addEventListener('submit', async (e) => 
 });
 
 
-// --- HELPER PARA ESCALAS NO FORMULÃRIO ---
+// --- HELPER PARA ESCALAS NO FORMULÁRIO ---
 window.toggleFormEscalaTipo = function() {
     const tipo = document.getElementById('colab-escala-padrao').value;
     const boxFolgas = document.getElementById('colab-box-folgas');
@@ -518,7 +518,7 @@ window.toggleTipoDocumento = function() {
     const tipo = document.getElementById('colab-rg-tipo').value;
     const lbl = document.getElementById('lbl-colab-rg');
     if (lbl) {
-        lbl.textContent = tipo === 'CIN' ? 'NÃºmero (CIN)' : 'NÃºmero (RG)';
+        lbl.textContent = tipo === 'CIN' ? 'Número (CIN)' : 'Número (RG)';
     }
 };
 
@@ -526,7 +526,7 @@ window.toggleFormacaoFields = function(val) {
     const section = document.getElementById('section-formacao');
     if (section) {
         section.style.display = (val === 'Sim') ? 'block' : 'none';
-        if (val === 'NÃ£o') {
+        if (val === 'Não') {
             const cInput = document.getElementById('colab-faculdade-curso');
             const d1Input = document.getElementById('colab-faculdade-data-inicio');
             const d2Input = document.getElementById('colab-faculdade-data-termino');
@@ -541,7 +541,7 @@ window.toggleAcademiaFields = function(val) {
     const section = document.getElementById('section-academia');
     if (section) {
         section.style.display = (val === 'Sim') ? 'block' : 'none';
-        if (val === 'NÃ£o') {
+        if (val === 'Não') {
             const diInput = document.getElementById('colab-academia-data-inicio');
             if (diInput) diInput.value = '';
         }
@@ -552,7 +552,7 @@ window.toggleTerapiaFields = function(val) {
     const section = document.getElementById('section-terapia');
     if (section) {
         section.style.display = (val === 'Sim') ? 'block' : 'none';
-        if (val === 'NÃ£o') {
+        if (val === 'Não') {
             const diInput = document.getElementById('colab-terapia-data-inicio');
             if (diInput) diInput.value = '';
         }
@@ -563,7 +563,7 @@ window.toggleCelularFields = function(val) {
     const section = document.getElementById('section-celular');
     if (section) {
         section.style.display = (val === 'Sim') ? 'block' : 'none';
-        if (val === 'NÃ£o') {
+        if (val === 'Não') {
             const dInput = document.getElementById('colab-celular-data');
             if (dInput) dInput.value = '';
         }
@@ -574,7 +574,7 @@ window.toggleChavesColabFields = function(val) {
     const section = document.getElementById('section-chaves-colab');
     if (section) {
         section.style.display = (val === 'Sim') ? 'block' : 'none';
-        if (val === 'NÃ£o') {
+        if (val === 'Não') {
             const container = document.getElementById('colab-chaves-rows-container');
             if (container) container.innerHTML = '';
         } else if (val === 'Sim') {
@@ -592,7 +592,7 @@ window.addNewChaveRow = async function(selectedChaveId = null, selectedDate = nu
         const container = document.getElementById('colab-chaves-rows-container');
         if (!container) return;
 
-        // Remover BotÃ£o de + das linhas anteriores se houver
+        // Remover Botão de + das linhas anteriores se houver
         document.querySelectorAll('.btn-add-chave-row').forEach(b => b.style.display = 'none');
 
         const rowDiv = document.createElement('div');
@@ -627,14 +627,14 @@ window.addNewChaveRow = async function(selectedChaveId = null, selectedDate = nu
 window.removeChaveRow = function(btn) {
     const row = btn.closest('.chave-entry-row');
     row.remove();
-    // Reexibir o botÃ£o + na nova "Ãºltima linha"
+    // Reexibir o botão + na nova "última linha"
     const rows = document.querySelectorAll('.chave-entry-row');
     if (rows.length > 0) {
         const lastBtn = rows[rows.length - 1].querySelector('.btn-add-chave-row');
         if (lastBtn) lastBtn.style.display = 'flex';
     } else {
         // Se todas as linhas foram removidas, talvez queira adicionar uma vazia de volta?
-        // Ou deixar o toggle Sim/NÃ£o resolver.
+        // Ou deixar o toggle Sim/Não resolver.
     }
 };
 
@@ -667,7 +667,7 @@ window.toggleTransporteValor = function(val) {
     const input = document.getElementById('colab-valor-transporte');
     if (group) {
         // Mostrar se for VT ou VC
-        if (val === 'Vale Transporte (VT)' || val === 'Vale CombustÃ­vel (VC)') {
+        if (val === 'Vale Transporte (VT)' || val === 'Vale Combustível (VC)') {
             group.style.display = 'block';
         } else {
             group.style.display = 'none';
@@ -688,7 +688,7 @@ window.calcularHorarioSaida = function() {
         return;
     }
 
-    // Calcula duraÃ§Ã£o do intervalo em minutos
+    // Calcula duração do intervalo em minutos
     let intervaloMins = 0;
     if (intEntrada && intSaida) {
         const [h1, m1] = intEntrada.split(':').map(Number);
@@ -697,7 +697,7 @@ window.calcularHorarioSaida = function() {
         if (intervaloMins < 0) intervaloMins += 24 * 60;
     }
 
-    // Define horas brutas de trabalho diÃ¡rio (sem intervalo)
+    // Define horas brutas de trabalho diário (sem intervalo)
     let workMins = 0;
     if (tipo === 'padrao_seis_dias') {
         workMins = 7 * 60 + 20; // 7h 20m
@@ -715,7 +715,7 @@ window.calcularHorarioSaida = function() {
         if(outSaida) outSaida.value = `${String(hFinal).padStart(2, '0')}:${String(mFinal).padStart(2, '0')}`;
     }
 
-    // SÃ¡bado
+    // Sábado
     const sabEntrada = document.getElementById('colab-sabado-entrada').value;
     const outSabSaida = document.getElementById('colab-sabado-saida');
     if (sabEntrada && outSabSaida) {
@@ -753,11 +753,11 @@ window.updateVacationInfo = function(admissaoStr) {
         const adm = new Date(admissaoStr + 'T12:00:00');
         if (isNaN(adm.getTime())) return;
 
-        // Fim do PerÃ­odo Aquisitivo: +1 ano
+        // Fim do Período Aquisitivo: +1 ano
         const aqEnd = new Date(adm);
         aqEnd.setFullYear(adm.getFullYear() + 1);
         
-        // PerÃ­odo Concessivo: +2 anos (menos 1 dia)
+        // Período Concessivo: +2 anos (menos 1 dia)
         const concEnd = new Date(aqEnd);
         concEnd.setFullYear(aqEnd.getFullYear() + 1);
         concEnd.setDate(concEnd.getDate() - 1);
@@ -768,22 +768,22 @@ window.updateVacationInfo = function(admissaoStr) {
         const today = new Date();
         today.setHours(0,0,0,0);
         
-        // --- LÃ³gica condicional da cor vermelha ---
+        // --- Lógica condicional da cor vermelha ---
         const inConcessivo = today >= aqEnd && today <= concEnd;
         const diasRestantes = Math.floor((concEnd - today) / (1000 * 60 * 60 * 24));
         
-        // Verificar se hÃ¡ fÃ©rias programadas dentro do perÃ­odo concessivo
+        // Verificar se há férias programadas dentro do período concessivo
         const fInicioEl = document.getElementById('colab-ferias-programadas-inicio');
         const fFimEl = document.getElementById('colab-ferias-programadas-fim');
         let feriasNoPeriodo = false;
         if (fInicioEl && fInicioEl.value && fFimEl && fFimEl.value) {
             const fInicio = new Date(fInicioEl.value + 'T12:00:00');
             const fFim = new Date(fFimEl.value + 'T12:00:00');
-            // FÃ©rias estÃ£o dentro do perÃ­odo concessivo se houver sobreposiÃ§Ã£o
+            // Férias estão dentro do período concessivo se houver sobreposição
             feriasNoPeriodo = fInicio <= concEnd && fFim >= aqEnd;
         }
 
-        // Pintar vermelho apenas se: em perÃ­odo concessivo, sem fÃ©rias programadas, e â‰¤ 90 dias
+        // Pintar vermelho apenas se: em período concessivo, sem férias programadas, e ≤ 90 dias
         if (inConcessivo && !feriasNoPeriodo && diasRestantes <= 90) {
             concField.style.color = '#e03131';
             concField.style.fontWeight = '700';
@@ -792,14 +792,14 @@ window.updateVacationInfo = function(admissaoStr) {
             concField.style.fontWeight = '600';
         }
 
-        // Mostrar indicador de alerta se jÃ¡ passou do perÃ­odo aquisitivo
+        // Mostrar indicador de alerta se já passou do período aquisitivo
         if (today >= aqEnd) {
             indicator.style.display = 'flex';
         } else {
             indicator.style.display = 'none';
         }
     } catch (e) {
-        console.error('Erro ao calcular datas de fÃ©rias:', e);
+        console.error('Erro ao calcular datas de férias:', e);
     }
 }
 
@@ -825,7 +825,7 @@ window.calculateVacationDays = function() {
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
     if (diffDays < 0) {
-        totalField.value = 'Data InvÃ¡lida';
+        totalField.value = 'Data Inválida';
     } else {
         totalField.value = `${diffDays} ${diffDays === 1 ? 'dia' : 'dias'}`;
     }
@@ -898,13 +898,13 @@ function renderColaboradores(lista) {
                     <tr>
                         <th style="padding-left: 1rem; width: 50px;">Foto</th>
                         <th>Nome</th>
-                        <th>ExperiÃªncia</th>
+                        <th>Experiência</th>
                         <th>CPF</th>
                         <th>Departamento</th>
                         <th>Cargo</th>
-                        <th>AdmissÃ£o</th>
+                        <th>Admissão</th>
                         <th>Status</th>
-                        <th style="text-align: right; padding-right: 1.5rem;">AÃ§Ãµes</th>
+                        <th style="text-align: right; padding-right: 1.5rem;">Ações</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -918,24 +918,24 @@ function renderColaboradores(lista) {
                             const d90 = new Date(adm); d90.setDate(adm.getDate() + 90);
                             probationDatesHtml = `
                                 <div style="font-size: 7pt; color: #94a3b8; line-height: 1.1; margin-top: 2px;">
-                                    1Âº: ${d45.toLocaleDateString('pt-BR')}<br>
-                                    2Âº: ${d90.toLocaleDateString('pt-BR')}
+                                    1º: ${d45.toLocaleDateString('pt-BR')}<br>
+                                    2º: ${d90.toLocaleDateString('pt-BR')}
                                 </div>
                             `;
                         }
 
                         let statusHtml = '';
                         const effectiveStatus = getEffectiveStatus(c);
-                        if (effectiveStatus === 'Aguardando inÃ­cio') statusHtml = `<div style="background:#f1f3f5; color:#495057; border: 2px solid #adb5bd; border-radius:20px; font-weight:600; padding:2px 10px; display:inline-flex; align-items:center; gap:4px; font-size:0.75rem;"><i class="ph ph-clock"></i> Aguardando</div>`;
+                        if (effectiveStatus === 'Aguardando início') statusHtml = `<div style="background:#f1f3f5; color:#495057; border: 2px solid #adb5bd; border-radius:20px; font-weight:600; padding:2px 10px; display:inline-flex; align-items:center; gap:4px; font-size:0.75rem;"><i class="ph ph-clock"></i> Aguardando</div>`;
                         else if (effectiveStatus === 'Processo iniciado') statusHtml = `<div style="background:#e7f5ff; color:#1864ab; border: 2px solid #1864ab; border-radius:20px; font-weight:600; padding:2px 10px; display:inline-flex; align-items:center; gap:4px; font-size:0.75rem;"><i class="ph ph-hourglass"></i> Iniciado</div>`;
                         else if (effectiveStatus === 'Ativo') statusHtml = `<div style="background:#e8f5e9; color:#196b36; border: 2px solid #196b36; border-radius:20px; font-weight:600; padding:2px 10px; display:inline-flex; align-items:center; gap:4px; font-size:0.75rem;"><i class="ph ph-check-circle"></i> Ativo</div>`;
-                        else if (effectiveStatus === 'FÃ©rias') statusHtml = `<div style="background:#fdf7e3; color:#c2aa72; border: 2px solid #c2aa72; border-radius:20px; font-weight:600; padding:2px 10px; display:inline-flex; align-items:center; gap:4px; font-size:0.75rem;"><i class="ph ph-airplane-tilt"></i> FÃ©rias</div>`;
+                        else if (effectiveStatus === 'Férias') statusHtml = `<div style="background:#fdf7e3; color:#c2aa72; border: 2px solid #c2aa72; border-radius:20px; font-weight:600; padding:2px 10px; display:inline-flex; align-items:center; gap:4px; font-size:0.75rem;"><i class="ph ph-airplane-tilt"></i> Férias</div>`;
                         else if (effectiveStatus === 'Afastado') statusHtml = `<div style="background:#faeed9; color:#eaa15f; border: 2px solid transparent; border-radius:20px; font-weight:600; padding:2px 10px; display:inline-flex; align-items:center; gap:4px; font-size:0.75rem;"><i class="ph ph-warning"></i> Afastado</div>`;
                         else if (effectiveStatus === 'Desligado') statusHtml = `<div style="background:#fceeee; color:#ba7881; border: 2px solid transparent; border-radius:20px; font-weight:600; padding:2px 10px; display:inline-flex; align-items:center; gap:4px; font-size:0.75rem;"><i class="ph ph-x-circle"></i> Desligado</div>`;
                         else if (effectiveStatus === 'Incompleto') statusHtml = `<div style="background:#f8f9fa; color:#6c757d; border: 2px solid transparent; border-radius:20px; font-weight:600; padding:2px 10px; display:inline-flex; align-items:center; gap:4px; font-size:0.75rem;"><i class="ph ph-pencil-simple"></i> Incompleto</div>`;
                         else statusHtml = `<div style="background:#f1f3f5; color:#495057; border: 2px solid #adb5bd; border-radius:20px; font-weight:600; padding:2px 10px; display:inline-flex; align-items:center; gap:4px; font-size:0.75rem;"><i class="ph ph-clock"></i> Aguardando</div>`;
 
-                        // CÃ¡lculo da Tag de ExperiÃªncia
+                        // Cálculo da Tag de Experiência
                         let experienceColHtml = '-';
                         if (c.data_admissao) {
                             const adm = new Date(c.data_admissao + 'T12:00:00');
@@ -944,8 +944,8 @@ function renderColaboradores(lista) {
                             
                             if (diffDays >= 0 && diffDays <= 90) {
                                 let tagHtml = diffDays <= 45 
-                                    ? `<span class="probation-badge" style="font-size: 0.65rem; padding: 0.2rem 0.5rem; min-width: 50px;">1Âº 45</span>`
-                                    : `<span class="probation-badge second" style="font-size: 0.65rem; padding: 0.2rem 0.5rem; min-width: 50px;">2Âº 45</span>`;
+                                    ? `<span class="probation-badge" style="font-size: 0.65rem; padding: 0.2rem 0.5rem; min-width: 50px;">1º 45</span>`
+                                    : `<span class="probation-badge second" style="font-size: 0.65rem; padding: 0.2rem 0.5rem; min-width: 50px;">2º 45</span>`;
                                 
                                 experienceColHtml = `
                                     <div style="display: flex; flex-direction: column; align-items: flex-start;">
@@ -980,7 +980,7 @@ function renderColaboradores(lista) {
                                 <td style="text-align: right; padding-right: 1rem;">
                                     <div style="display: flex; gap: 0.4rem; justify-content: flex-end;">
                                         <button class="btn btn-warning btn-sm" onclick="editColaborador(${c.id})" title="Editar" style="padding: 0.4rem; width: 32px; height: 32px; justify-content: center;"><i class="ph ph-pencil-simple"></i></button>
-                                        <button class="btn btn-primary btn-sm" onclick="openProntuario(${c.id}, '${(c.nome_completo || '').replace(/'/g, "\\'")}', '${(c.cargo || '').replace(/'/g, "\\'")}', '${c.cpf || ''}', '${c.sexo || ''}', '${c.data_admissao || ''}', '${c.status || ''}', '${c.rg_tipo || 'RG'}')" title="ProntuÃ¡rio Digital" style="padding: 0.4rem; width: 32px; height: 32px; justify-content: center; background: #2563eb;"><i class="ph ph-folder-open"></i></button>
+                                        <button class="btn btn-primary btn-sm" onclick="openProntuario(${c.id}, '${(c.nome_completo || '').replace(/'/g, "\\'")}', '${(c.cargo || '').replace(/'/g, "\\'")}', '${c.cpf || ''}', '${c.sexo || ''}', '${c.data_admissao || ''}', '${c.status || ''}', '${c.rg_tipo || 'RG'}')" title="Prontuário Digital" style="padding: 0.4rem; width: 32px; height: 32px; justify-content: center; background: #2563eb;"><i class="ph ph-folder-open"></i></button>
                                         <button class="btn btn-danger btn-sm" onclick="deleteColaborador(${c.id}, ${c.status === 'Incompleto' ? 'true' : 'false'})" title="Excluir/Inativar" style="padding: 0.4rem; width: 32px; height: 32px; justify-content: center;"><i class="ph ph-x"></i></button>
                                     </div>
                                 </td>
@@ -994,9 +994,9 @@ function renderColaboradores(lista) {
 }
 
 window.deleteColaborador = async function(id, isStatusIncompleto = false) {
-    let msg = 'ðŸš¨ ATENÃ‡ÃƒO: Tem certeza que deseja inativar este colaborador?\n\nO status dele(a) serÃ¡ alterado para "Desligado" mantendo todos os arquivos intactos.';
+    let msg = '🚨 ATENÇÃO: Tem certeza que deseja inativar este colaborador?\n\nO status dele(a) será alterado para "Desligado" mantendo todos os arquivos intactos.';
     if (isStatusIncompleto) {
-        msg = 'ðŸš¨ ATENÃ‡ÃƒO: Este colaborador estÃ¡ INCOMPLETO. A exclusÃ£o irÃ¡ DELETAR PERMANENTEMENTE todos os dados e eventuais arquivos jÃ¡ enviados. Deseja prosseguir?';
+        msg = '🚨 ATENÇÃO: Este colaborador está INCOMPLETO. A exclusão irá DELETAR PERMANENTEMENTE todos os dados e eventuais arquivos já enviados. Deseja prosseguir?';
     }
     if(!confirm(msg)) return;
     try {
@@ -1045,7 +1045,7 @@ window.resetFormColaborador = function() {
         if (el) el.value = '';
     });
     
-    // Reset FÃ©rias Info
+    // Reset Férias Info
     if (document.getElementById('ferias-periodo-aquisitivo')) document.getElementById('ferias-periodo-aquisitivo').value = '-';
     if (document.getElementById('ferias-periodo-concessivo')) document.getElementById('ferias-periodo-concessivo').value = '-';
     if (document.getElementById('ferias-concessivo-indicator')) document.getElementById('ferias-concessivo-indicator').style.display = 'none';
@@ -1065,7 +1065,7 @@ window.resetFormColaborador = function() {
     // Reset status badges (no longer used, but good to clean if they were there)
     const statusContainer = document.getElementById('status-chips-container');
     if (statusContainer) {
-        updateStatusChip('Aguardando inÃ­cio');
+        updateStatusChip('Aguardando início');
     }
 
     const admissionBar = document.getElementById('admission-status-bar');
@@ -1113,24 +1113,24 @@ window.resetFormColaborador = function() {
     const errorCpf = document.getElementById('cpf-error');
     if(errorCpf) errorCpf.style.display = 'none';
 
-    const radioFacNao = document.querySelector('input[name="faculdade_participa"][value="NÃ£o"]');
-    if (radioFacNao) { radioFacNao.checked = true; toggleFormacaoFields('NÃ£o'); }
+    const radioFacNao = document.querySelector('input[name="faculdade_participa"][value="Não"]');
+    if (radioFacNao) { radioFacNao.checked = true; toggleFormacaoFields('Não'); }
     
-    const radioAcadNao = document.querySelector('input[name="academia_participa"][value="NÃ£o"]');
-    if (radioAcadNao) { radioAcadNao.checked = true; toggleAcademiaFields('NÃ£o'); }
+    const radioAcadNao = document.querySelector('input[name="academia_participa"][value="Não"]');
+    if (radioAcadNao) { radioAcadNao.checked = true; toggleAcademiaFields('Não'); }
     
-    const radioTeraNao = document.querySelector('input[name="terapia_participa"][value="NÃ£o"]');
-    if (radioTeraNao) { radioTeraNao.checked = true; toggleTerapiaFields('NÃ£o'); }
+    const radioTeraNao = document.querySelector('input[name="terapia_participa"][value="Não"]');
+    if (radioTeraNao) { radioTeraNao.checked = true; toggleTerapiaFields('Não'); }
     
-    const radioCeluNao = document.querySelector('input[name="celular_participa"][value="NÃ£o"]');
-    if (radioCeluNao) { radioCeluNao.checked = true; toggleCelularFields('NÃ£o'); }
+    const radioCeluNao = document.querySelector('input[name="celular_participa"][value="Não"]');
+    if (radioCeluNao) { radioCeluNao.checked = true; toggleCelularFields('Não'); }
     
-    const radioChavesNao = document.querySelector('input[name="chaves_participa"][value="NÃ£o"]');
-    if (radioChavesNao) { radioChavesNao.checked = true; toggleChavesColabFields('NÃ£o'); }
+    const radioChavesNao = document.querySelector('input[name="chaves_participa"][value="Não"]');
+    if (radioChavesNao) { radioChavesNao.checked = true; toggleChavesColabFields('Não'); }
 };
 
 window.editColaborador = async function(id) {
-    // BotÃ£o de sincronizaÃ§Ã£o manual ocultado (a automaÃ§Ã£o jÃ¡ faz isso ao salvar)
+    // Botão de sincronização manual ocultado (a automação já faz isso ao salvar)
     const formSyncBtn = document.getElementById('btn-form-sync-onedrive');
     if (formSyncBtn) {
         formSyncBtn.style.display = 'none';
@@ -1249,7 +1249,7 @@ window.editColaborador = async function(id) {
         if(document.getElementById('colab-cnh-numero')) document.getElementById('colab-cnh-numero').value = c.cnh_numero || '';
         if(document.getElementById('colab-cnh-categoria')) document.getElementById('colab-cnh-categoria').value = c.cnh_categoria || '';
         
-        // FÃ©rias fields
+        // Férias fields
         if(document.getElementById('colab-ferias-programadas-inicio')) document.getElementById('colab-ferias-programadas-inicio').value = c.ferias_programadas_inicio || '';
         if(document.getElementById('colab-ferias-programadas-fim')) document.getElementById('colab-ferias-programadas-fim').value = c.ferias_programadas_fim || '';
         updateVacationInfo(admDate);
@@ -1260,7 +1260,7 @@ window.editColaborador = async function(id) {
         if(typeof toggleMotorista === 'function') toggleMotorista();
         
         // Faculdade fields
-        const participa = c.faculdade_participa || 'NÃ£o';
+        const participa = c.faculdade_participa || 'Não';
         const radioP = document.querySelector(`input[name="faculdade_participa"][value="${participa}"]`);
         if (radioP) radioP.checked = true;
         toggleFormacaoFields(participa);
@@ -1268,28 +1268,28 @@ window.editColaborador = async function(id) {
         if (document.getElementById('colab-faculdade-data-termino')) document.getElementById('colab-faculdade-data-termino').value = c.faculdade_data_termino || '';
 
         // Academia
-        const participaAcad = c.academia_participa || 'NÃ£o';
+        const participaAcad = c.academia_participa || 'Não';
         const radioAcad = document.querySelector(`input[name="academia_participa"][value="${participaAcad}"]`);
         if (radioAcad) radioAcad.checked = true;
         toggleAcademiaFields(participaAcad);
         if (document.getElementById('colab-academia-data-inicio')) document.getElementById('colab-academia-data-inicio').value = c.academia_data_inicio || '';
 
         // Terapia
-        const participaTera = c.terapia_participa || 'NÃ£o';
+        const participaTera = c.terapia_participa || 'Não';
         const radioTera = document.querySelector(`input[name="terapia_participa"][value="${participaTera}"]`);
         if (radioTera) radioTera.checked = true;
         toggleTerapiaFields(participaTera);
         if (document.getElementById('colab-terapia-data-inicio')) document.getElementById('colab-terapia-data-inicio').value = c.terapia_data_inicio || '';
 
         // Celular
-        const participaCelu = c.celular_participa || 'NÃ£o';
+        const participaCelu = c.celular_participa || 'Não';
         const radioCelu = document.querySelector(`input[name="celular_participa"][value="${participaCelu}"]`);
         if (radioCelu) radioCelu.checked = true;
         toggleCelularFields(participaCelu);
         if (document.getElementById('colab-celular-data')) document.getElementById('colab-celular-data').value = c.celular_data || '';
 
         // Chaves
-        const participaChaves = c.chaves_participa || 'NÃ£o';
+        const participaChaves = c.chaves_participa || 'Não';
         const radioChaves = document.querySelector(`input[name="chaves_participa"][value="${participaChaves}"]`);
         if (radioChaves) radioChaves.checked = true;
         toggleChavesColabFields(participaChaves);
@@ -1310,10 +1310,10 @@ window.editColaborador = async function(id) {
 
         updateStatusChip(getEffectiveStatus(c));
         
-        if (c.estado_civil === 'Casado' || c.estado_civil === 'UniÃ£o EstÃ¡vel') {
+        if (c.estado_civil === 'Casado' || c.estado_civil === 'União Estável') {
             toggleConjuge();
             const deps = await apiGet(`/colaboradores/${id}/dependentes`);
-            const conjuge = deps ? deps.find(d => d.grau_parentesco === 'CÃ´njuge') : null;
+            const conjuge = deps ? deps.find(d => d.grau_parentesco === 'Cônjuge') : null;
             if (conjuge) {
                 document.getElementById('conjuge-id').value = conjuge.id;
                 document.getElementById('conjuge-nome').value = conjuge.nome || '';
@@ -1365,17 +1365,17 @@ window.editColaborador = async function(id) {
         const admissionBtn = document.getElementById('btn-iniciar-admissao');
         
         if (admissionBar && admissionText && admissionBtn) {
-            if (c.status === 'Aguardando inÃ­cio' || c.status === 'Processo iniciado') {
+            if (c.status === 'Aguardando início' || c.status === 'Processo iniciado') {
                 admissionBar.style.display = 'flex';
                 admissionText.textContent = c.status;
-                admissionBtn.innerHTML = '<i class="ph ph-arrow-right"></i> PÃ¡gina AdmissÃ£o';
+                admissionBtn.innerHTML = '<i class="ph ph-arrow-right"></i> Página Admissão';
                 admissionBtn.onclick = () => navigateTo('admissao');
                 admissionBtn.style.opacity = '1';
                 admissionBtn.style.cursor = 'pointer';
             } else if (c.status === 'Ativo') {
                 admissionBar.style.display = 'flex';
-                admissionText.textContent = 'AdmissÃ£o ConcluÃ­da';
-                admissionBtn.innerHTML = '<i class="ph ph-check-square"></i> ConcluÃ­da';
+                admissionText.textContent = 'Admissão Concluída';
+                admissionBtn.innerHTML = '<i class="ph ph-check-square"></i> Concluída';
                 admissionBtn.onclick = null;
                 admissionBtn.style.opacity = '0.7';
                 admissionBtn.style.cursor = 'default';
@@ -1388,8 +1388,8 @@ window.editColaborador = async function(id) {
         const container = document.getElementById('dependentes-container');
         if (container) {
             container.innerHTML = '';
-            // Filtra cÃ´njuge para nÃ£o aparecer na lista de dependentes
-            const children = (c.dependentes || []).filter(d => d.grau_parentesco !== 'CÃ´njuge');
+            // Filtra cônjuge para não aparecer na lista de dependentes
+            const children = (c.dependentes || []).filter(d => d.grau_parentesco !== 'Cônjuge');
             if (children.length > 0) {
                 document.getElementById('no-dependentes-msg').style.display = 'none';
                 children.forEach(dep => {
@@ -1427,7 +1427,7 @@ window.editColaborador = async function(id) {
         }, 100);
     } catch (err) {
         console.error('Erro ao editar colaborador:', err);
-        alert('Ocorreu um erro ao carregar os dados para ediÃ§Ã£o: ' + err.message);
+        alert('Ocorreu um erro ao carregar os dados para edição: ' + err.message);
     }
 };
 
@@ -1447,7 +1447,7 @@ if (formColab) {
 
         const isPartial = e.submitter && e.submitter.id === 'btn-salvar-parcial';
 
-        // ValidaÃ§Ãµes obrigatÃ³rias
+        // Validações obrigatórias
         if (!isPartial) {
             if (!nomeInput || !nomeInput.value.trim()) {
                 alert("Por favor, preencha o Nome Completo do colaborador.");
@@ -1455,10 +1455,10 @@ if (formColab) {
                 return;
             }
             if (cpfInput && cpfInput.value.replace(/\D/g, '').length < 11) {
-                alert("CPF do Colaborador invÃ¡lido ou incompleto.");
+                alert("CPF do Colaborador inválido ou incompleto.");
                 return;
             }
-            // CÃ´njuge e CNH: preenchimento opcional
+            // Cônjuge e CNH: preenchimento opcional
         }
 
         const submitter = e.submitter;
@@ -1510,9 +1510,9 @@ if (formColab) {
             
             dependentes: (() => {
                 const results = [];
-                // Incluir CÃ´njuge se Casado ou UniÃ£o EstÃ¡vel
+                // Incluir Cônjuge se Casado ou União Estável
                 const estCivil = document.getElementById('colab-estadocivil').value;
-                if (estCivil === 'Casado' || estCivil === 'UniÃ£o EstÃ¡vel') {
+                if (estCivil === 'Casado' || estCivil === 'União Estável') {
                     const cNome = document.getElementById('conjuge-nome').value;
                     const cCpf = document.getElementById('conjuge-cpf').value;
                     if (cNome) {
@@ -1520,7 +1520,7 @@ if (formColab) {
                             nome: cNome,
                             cpf: cCpf,
                             data_nascimento: null,
-                            grau_parentesco: 'CÃ´njuge'
+                            grau_parentesco: 'Cônjuge'
                         });
                     }
                 }
@@ -1562,17 +1562,17 @@ if (formColab) {
             meio_transporte: document.getElementById('colab-meio-transporte') ? document.getElementById('colab-meio-transporte').value : null,
             valor_transporte: document.getElementById('colab-valor-transporte') ? document.getElementById('colab-valor-transporte').value : null,
             alergias: document.getElementById('colab-alergias') ? document.getElementById('colab-alergias').value : null,
-            faculdade_participa: document.querySelector('input[name="faculdade_participa"]:checked')?.value || 'NÃ£o',
+            faculdade_participa: document.querySelector('input[name="faculdade_participa"]:checked')?.value || 'Não',
             faculdade_curso_id: document.getElementById('colab-faculdade-curso') ? document.getElementById('colab-faculdade-curso').value : null,
             faculdade_data_inicio: document.getElementById('colab-faculdade-data-inicio') ? document.getElementById('colab-faculdade-data-inicio').value : null,
             faculdade_data_termino: document.getElementById('colab-faculdade-data-termino') ? document.getElementById('colab-faculdade-data-termino').value : null,
-            academia_participa: document.querySelector('input[name="academia_participa"]:checked')?.value || 'NÃ£o',
+            academia_participa: document.querySelector('input[name="academia_participa"]:checked')?.value || 'Não',
             academia_data_inicio: document.getElementById('colab-academia-data-inicio') ? document.getElementById('colab-academia-data-inicio').value : null,
-            terapia_participa: document.querySelector('input[name="terapia_participa"]:checked')?.value || 'NÃ£o',
+            terapia_participa: document.querySelector('input[name="terapia_participa"]:checked')?.value || 'Não',
             terapia_data_inicio: document.getElementById('colab-terapia-data-inicio') ? document.getElementById('colab-terapia-data-inicio').value : null,
-            celular_participa: document.querySelector('input[name="celular_participa"]:checked')?.value || 'NÃ£o',
+            celular_participa: document.querySelector('input[name="celular_participa"]:checked')?.value || 'Não',
             celular_data: document.getElementById('colab-celular-data') ? document.getElementById('colab-celular-data').value : null,
-            chaves_participa: document.querySelector('input[name="chaves_participa"]:checked')?.value || 'NÃ£o',
+            chaves_participa: document.querySelector('input[name="chaves_participa"]:checked')?.value || 'Não',
             chaves_lista: Array.from(document.querySelectorAll('.chave-entry-row')).map(row => ({
                 chave_id: row.querySelector('.colab-chave-select').value,
                 data_entrega: row.querySelector('.colab-chave-date').value
@@ -1581,7 +1581,7 @@ if (formColab) {
             ferias_programadas_fim: document.getElementById('colab-ferias-programadas-fim') ? document.getElementById('colab-ferias-programadas-fim').value : null
         };
 
-        // Converter valores formatados (R$) para nÃºmeros antes de enviar
+        // Converter valores formatados (R$) para números antes de enviar
         const parseMoeda = (v) => {
             if (!v || typeof v !== 'string') return v;
             const clean = v.replace(/[^\d,]/g, "").replace(",", ".");
@@ -1593,13 +1593,13 @@ if (formColab) {
         if (data.escala_tipo === 'escala_duas_folgas' && !isPartial) {
             const folgas = Array.from(document.querySelectorAll('.cb-folga-colab:checked')).map(cb => cb.value);
             if (folgas.length !== 2) {
-                alert('AtenÃ§Ã£o: Para o esquema 5x2 (Revezamento), vocÃª deve marcar *exatamente 2 dias* de folga na lista.');
+                alert('Atenção: Para o esquema 5x2 (Revezamento), você deve marcar *exatamente 2 dias* de folga na lista.');
                 btnRestorer();
                 return;
             }
             data.escala_folgas = JSON.stringify(folgas);
         } else if (data.escala_tipo && data.escala_tipo !== 'escala_duas_folgas') {
-            data.escala_folgas = JSON.stringify(['Dom']); // PadrÃ£o para as outras escalas
+            data.escala_folgas = JSON.stringify(['Dom']); // Padrão para as outras escalas
         }
 
         const btnRestorer = () => {
@@ -1609,36 +1609,36 @@ if (formColab) {
             }
         };
 
-        let c_status = statusInput ? statusInput.value : 'Aguardando inÃ­cio';
+        let c_status = statusInput ? statusInput.value : 'Aguardando início';
         if (!id) {
-            // Todos novos registros iniciam como Aguardando inÃ­cio
-            c_status = 'Aguardando inÃ­cio';
+            // Todos novos registros iniciam como Aguardando início
+            c_status = 'Aguardando início';
         }
         data.status = c_status;
 
-        // VALIDAÃ‡ÃƒO FRONT-END (MÃNIMO)
+        // VALIDAÇÃO FRONT-END (MÍNIMO)
         if (!data.nome_completo || data.nome_completo.trim() === '') {
-            alert('Preenchimento ObrigatÃ³rio: O campo "Nome Completo" nÃ£o pode ficar vazio.');
+            alert('Preenchimento Obrigatório: O campo "Nome Completo" não pode ficar vazio.');
             btnRestorer();
             return;
         }
         
         if (!data.cpf || data.cpf.trim() === '') {
-            alert('Preenchimento ObrigatÃ³rio: O campo "CPF" nÃ£o pode ficar vazio.');
+            alert('Preenchimento Obrigatório: O campo "CPF" não pode ficar vazio.');
             btnRestorer();
             return;
         }
 
-        // ValidaÃ§Ã£o de Motorista
+        // Validação de Motorista
         if (data.cargo && data.cargo.toUpperCase().includes('MOTORISTA')) {
             if (!isPartial) {
                 if (!data.cnh_numero || !data.cnh_categoria) {
-                    alert('Preenchimento ObrigatÃ³rio: Dados da CNH (NÃºmero e Categoria) para Motorista nÃ£o podem ficar vazios.');
+                    alert('Preenchimento Obrigatório: Dados da CNH (Número e Categoria) para Motorista não podem ficar vazios.');
                     btnRestorer();
                     return;
                 }
                 if (data.cnh_numero.length < 11) {
-                    alert('Preenchimento ObrigatÃ³rio: O nÃºmero da CNH deve conter 11 dÃ­gitos exatos.');
+                    alert('Preenchimento Obrigatório: O número da CNH deve conter 11 dígitos exatos.');
                     btnRestorer();
                     return;
                 }
@@ -1667,7 +1667,7 @@ if (formColab) {
                     headers: { 'Authorization': `Bearer ${currentToken}` }
                 });
                 const dataSync = await syncRes.json();
-                // NavegaÃ§Ã£o silenciosa â€” sem alertas de confirmaÃ§Ã£o
+                // Navegação silenciosa — sem alertas de confirmação
             } else {
                 // Colaborador salvo sem sync (novo colaborador)
             }
@@ -1702,11 +1702,11 @@ window.openProntuarioFromCurrentForm = function() {
     window.openProntuario(id, nome, cargo, cpf, sexo, admissao, status, rgTipo);
 }
 
-// --- PRONTUÃRIO DIGITAL ---
+// --- PRONTUÁRIO DIGITAL ---
 window.openProntuario = async function(id, nome, cargo, cpf, sexo = '', admissao = '', status = '', rgTipo = 'RG') {
     viewedColaborador = { id, nome_completo: nome, cargo, cpf, sexo, data_admissao: admissao, status, rg_tipo: rgTipo };
     
-    // Vincular botÃ£o IMEDIATAMENTE (antes de qualquer await)
+    // Vincular botão IMEDIATAMENTE (antes de qualquer await)
     const syncBtn = document.getElementById('btn-sync-onedrive');
     if (syncBtn) {
         syncBtn.onclick = function() { window.syncOneDriveManual(id, this); };
@@ -1730,16 +1730,16 @@ window.openProntuario = async function(id, nome, cargo, cpf, sexo = '', admissao
     if (statusDisplay) {
         const s = getEffectiveStatus(viewedColaborador || { status });
         let statusHtml = '';
-        if (s === 'Aguardando inÃ­cio') statusHtml = `<div style="background:#f1f3f5; color:#495057; border: 1px solid #adb5bd; border-radius:20px; font-weight:600; padding:2px 10px; font-size:0.75rem; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-clock"></i> Aguardando</div>`;
+        if (s === 'Aguardando início') statusHtml = `<div style="background:#f1f3f5; color:#495057; border: 1px solid #adb5bd; border-radius:20px; font-weight:600; padding:2px 10px; font-size:0.75rem; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-clock"></i> Aguardando</div>`;
         else if (s === 'Processo iniciado') statusHtml = `<div style="background:#e7f5ff; color:#1864ab; border: 1px solid #1864ab; border-radius:20px; font-weight:600; padding:2px 10px; font-size:0.75rem; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-hourglass"></i> Iniciado</div>`;
         else if (s === 'Ativo') statusHtml = `<div style="background:#e8f5e9; color:#196b36; border: 1px solid #196b36; border-radius:20px; font-weight:600; padding:2px 10px; font-size:0.75rem; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-check-circle"></i> Ativo</div>`;
-        else if (s === 'FÃ©rias') statusHtml = `<div style="background:#fdf7e3; color:#c2aa72; border: 1px solid #c2aa72; border-radius:20px; font-weight:600; padding:2px 10px; font-size:0.75rem; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-airplane-tilt"></i> FÃ©rias</div>`;
+        else if (s === 'Férias') statusHtml = `<div style="background:#fdf7e3; color:#c2aa72; border: 1px solid #c2aa72; border-radius:20px; font-weight:600; padding:2px 10px; font-size:0.75rem; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-airplane-tilt"></i> Férias</div>`;
         else if (s === 'Afastado') statusHtml = `<div style="background:#faeed9; color:#eaa15f; border: 1px solid #eaa15f; border-radius:20px; font-weight:600; padding:2px 10px; font-size:0.75rem; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-warning"></i> Afastado</div>`;
         else if (s === 'Desligado') statusHtml = `<div style="background:#fceeee; color:#ba7881; border: 1px solid #ba7881; border-radius:20px; font-weight:600; padding:2px 10px; font-size:0.75rem; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-x-circle"></i> Desligado</div>`;
         statusDisplay.innerHTML = statusHtml;
     }
 
-    // Foto no ProntuÃ¡rio
+    // Foto no Prontuário
     const fotoImg = document.getElementById('prontuario-foto-img');
     const fotoPlaceholder = document.getElementById('prontuario-photo-placeholder');
     if (fotoImg && fotoPlaceholder) {
@@ -1759,11 +1759,11 @@ window.openProntuario = async function(id, nome, cargo, cpf, sexo = '', admissao
     const firstTab = document.querySelector('#tabs-list li[data-tab="00.CheckList"]');
     if (firstTab) firstTab.classList.add('active');
 
-    // Exibir aba CÃ´njuge apenas para Casado ou UniÃ£o EstÃ¡vel
+    // Exibir aba Cônjuge apenas para Casado ou União Estável
     const tabConjuge = document.getElementById('tab-conjuge');
     if (tabConjuge) {
         const ec = (viewedColaborador.estado_civil || '').trim();
-        tabConjuge.style.display = (ec === 'Casado' || ec === 'UniÃ£o EstÃ¡vel') ? '' : 'none';
+        tabConjuge.style.display = (ec === 'Casado' || ec === 'União Estável') ? '' : 'none';
     }
 
     navigateTo('prontuario');
@@ -1788,7 +1788,7 @@ window.uploadFotoProntuario = async function(input) {
         });
         
         if (response.ok) {
-            // Recarregar prontuÃ¡rio para atualizar foto
+            // Recarregar prontuário para atualizar foto
             const updated = await apiGet(`/colaboradores/${colabId}`);
             if (updated) {
                 viewedColaborador = updated;
@@ -1805,7 +1805,7 @@ window.uploadFotoProntuario = async function(input) {
         }
     } catch (err) {
         console.error(err);
-        alert('Erro na conexÃ£o ao enviar foto.');
+        alert('Erro na conexão ao enviar foto.');
     }
 };
 
@@ -1819,16 +1819,16 @@ async function loadDocumentosList() {
 
 const FIXED_DOCS = {
     'Contratos': [
-        'Acordo de auxÃ­lio combustÃ­vel', 'Acordo de benefÃ­cios', 'Acordo de compensaÃ§Ã£o de horas', 
-        'Acordo de prorrogaÃ§Ã£o de horas', 'AutorizaÃ§Ã£o para pagamento em conta', 'AutorizaÃ§Ã£o uso de imagem', 
-        'Contrato de trabalho', 'Contrato e-Social', 'Contrato faculdade', 'DeclaraÃ§Ã£o de encargos IR', 
-        'Desconto coca-cola', 'Ficha de registro', 'Ficha salÃ¡rio famÃ­lia', 'Regras sorteio 25', 
-        'SolicitaÃ§Ã£o de VT', 'Termo de confidencialidade e sigilo', 'Termo de consentimento de dados pessoais', 
+        'Acordo de auxílio combustível', 'Acordo de benefícios', 'Acordo de compensação de horas', 
+        'Acordo de prorrogação de horas', 'Autorização para pagamento em conta', 'Autorização uso de imagem', 
+        'Contrato de trabalho', 'Contrato e-Social', 'Contrato faculdade', 'Declaração de encargos IR', 
+        'Desconto coca-cola', 'Ficha de registro', 'Ficha salário família', 'Regras sorteio 25', 
+        'Solicitação de VT', 'Termo de confidencialidade e sigilo', 'Termo de consentimento de dados pessoais', 
         'Termo de responsabilidade', 'Termo recebimento de notebook'
     ],
-    'ASO': ['ASO PadrÃ£o'],
+    'ASO': ['ASO Padrão'],
     'Ficha de EPI': ['Ficha de EPI Assinada'],
-    'Multas': ['Contrato de Responsabilidade com o VeÃ­culo']
+    'Multas': ['Contrato de Responsabilidade com o Veículo']
 };
 
 function getFichaCadastralDocs() {
@@ -1838,10 +1838,10 @@ function getFichaCadastralDocs() {
     const rgTipo = (viewedColaborador && viewedColaborador.rg_tipo) ? viewedColaborador.rg_tipo : (rgTipoInput ? rgTipoInput.value : 'RG');
     
     const docs = [
-        "Comprovante de endereÃ§o",
-        "TÃ­tulo Eleitoral",
-        "Carteira de vacinaÃ§Ã£o",
-        "CurrÃ­culo",
+        "Comprovante de endereço",
+        "Título Eleitoral",
+        "Carteira de vacinação",
+        "Currículo",
         "CTPS digital"
     ];
     
@@ -1877,7 +1877,7 @@ function getAnosAdmissaoOptions(selectedYear = null) {
 }
 
 // ============================================================
-// GERADOR DE ADVERTÃŠNCIA - Renderiza painel na aba AdvertÃªncias
+// GERADOR DE ADVERTÊNCIA - Renderiza painel na aba Advertências
 // ============================================================
 window.renderAdvertenciasTab = function(listContainer, filteredDocs) {
     const safeTabId = 'Advert_ncias';
@@ -1893,35 +1893,35 @@ window.renderAdvertenciasTab = function(listContainer, filteredDocs) {
                     <i class="ph ph-warning" style="color:#fff; font-size:1.3rem;"></i>
                 </div>
                 <div>
-                    <h4 style="margin:0; font-size:1rem; font-weight:700; color:#92400e;">Gerar Documento de AdvertÃªncia</h4>
-                    <p style="margin:0; font-size:0.8rem; color:#b45309;">Preencha os campos e gere o documento jÃ¡ com os dados do colaborador</p>
+                    <h4 style="margin:0; font-size:1rem; font-weight:700; color:#92400e;">Gerar Documento de Advertência</h4>
+                    <p style="margin:0; font-size:0.8rem; color:#b45309;">Preencha os campos e gere o documento já com os dados do colaborador</p>
                 </div>
             </div>
 
             <div style="display:grid; grid-template-columns:1.5fr 2fr 1fr; gap:1rem; margin-bottom:1rem;">
                 <div>
-                    <label style="font-size:0.75rem; font-weight:700; color:#92400e; display:block; margin-bottom:4px;">Tipo de AdvertÃªncia</label>
+                    <label style="font-size:0.75rem; font-weight:700; color:#92400e; display:block; margin-bottom:4px;">Tipo de Advertência</label>
                     <select id="adv-tipo" class="form-control" style="padding:0.5rem; border:1px solid #fdba74; border-radius:6px; font-size:0.9rem;">
-                        <option value="verbal">AdvertÃªncia Verbal</option>
-                        <option value="escrita">AdvertÃªncia Escrita</option>
-                        <option value="suspensao_1">SuspensÃ£o â€” 1 dia</option>
-                        <option value="suspensao_2">SuspensÃ£o â€” 2 dias</option>
-                        <option value="suspensao_3">SuspensÃ£o â€” 3 dias</option>
+                        <option value="verbal">Advertência Verbal</option>
+                        <option value="escrita">Advertência Escrita</option>
+                        <option value="suspensao_1">Suspensão — 1 dia</option>
+                        <option value="suspensao_2">Suspensão — 2 dias</option>
+                        <option value="suspensao_3">Suspensão — 3 dias</option>
                     </select>
                 </div>
                 <div>
-                    <label style="font-size:0.75rem; font-weight:700; color:#92400e; display:block; margin-bottom:4px;">TÃ­tulo da AdvertÃªncia <span style="color:#9ca3af; font-weight:400;">(opcional)</span></label>
-                    <input type="text" id="adv-titulo" class="form-control" placeholder="Ex: Desrespeito Ã s normas internas..." style="padding:0.5rem; border:1px solid #fdba74; border-radius:6px; font-size:0.9rem;">
+                    <label style="font-size:0.75rem; font-weight:700; color:#92400e; display:block; margin-bottom:4px;">Título da Advertência <span style="color:#9ca3af; font-weight:400;">(opcional)</span></label>
+                    <input type="text" id="adv-titulo" class="form-control" placeholder="Ex: Desrespeito às normas internas..." style="padding:0.5rem; border:1px solid #fdba74; border-radius:6px; font-size:0.9rem;">
                 </div>
                 <div>
-                    <label style="font-size:0.75rem; font-weight:700; color:#92400e; display:block; margin-bottom:4px;">Data OcorrÃªncia</label>
+                    <label style="font-size:0.75rem; font-weight:700; color:#92400e; display:block; margin-bottom:4px;">Data Ocorrência</label>
                     <input type="date" id="adv-data" class="form-control" value="${new Date().toISOString().split('T')[0]}" style="padding:0.5rem; border:1px solid #fdba74; border-radius:6px; font-size:0.9rem;">
                 </div>
             </div>
 
             <div style="margin-bottom:1rem;">
-                <label style="font-size:0.75rem; font-weight:700; color:#92400e; display:block; margin-bottom:4px;">Motivo / DescriÃ§Ã£o da InfraÃ§Ã£o <span style="color:#ef4444;">*</span></label>
-                <textarea id="adv-motivo" rows="3" class="form-control" placeholder="Descreva o motivo da advertÃªncia..." style="padding:0.5rem; border:1px solid #fdba74; border-radius:6px; font-size:0.9rem; resize:vertical; width:100%; box-sizing:border-box;"></textarea>
+                <label style="font-size:0.75rem; font-weight:700; color:#92400e; display:block; margin-bottom:4px;">Motivo / Descrição da Infração <span style="color:#ef4444;">*</span></label>
+                <textarea id="adv-motivo" rows="3" class="form-control" placeholder="Descreva o motivo da advertência..." style="padding:0.5rem; border:1px solid #fdba74; border-radius:6px; font-size:0.9rem; resize:vertical; width:100%; box-sizing:border-box;"></textarea>
             </div>
 
             <div style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
@@ -1933,20 +1933,20 @@ window.renderAdvertenciasTab = function(listContainer, filteredDocs) {
                 </span>
             </div>
 
-            <!-- O painel de preview inline foi removido, pois agora abrirÃ¡ no modal -->
+            <!-- O painel de preview inline foi removido, pois agora abrirá no modal -->
         </div>
 
         <!-- Seletor de ano + lista de documentos -->
         <div class="card p-3 mb-4 bg-light" style="display:flex; gap:1.5rem; align-items:center;">
             <label style="margin:0; font-weight:600;">Ano referente:</label>
-            <select id="temporal_year_Advert_ncias" class="form-control" style="padding:0.4rem; max-width:120px;" onchange="renderTemporalAno('AdvertÃªncias')">
+            <select id="temporal_year_Advert_ncias" class="form-control" style="padding:0.4rem; max-width:120px;" onchange="renderTemporalAno('Advertências')">
                 ${optionsHtml}
             </select>
         </div>
         <div id="temporal_ano_container_Advert_ncias"></div>
     `;
     listContainer.appendChild(geradorPanel);
-    renderTemporalAno('AdvertÃªncias');
+    renderTemporalAno('Advertências');
 };
 
 window.gerarAdvertencia = function() {
@@ -1957,22 +1957,22 @@ window.gerarAdvertencia = function() {
     const titulo = document.getElementById('adv-titulo').value.trim();
     const motivo = document.getElementById('adv-motivo').value.trim();
 
-    if (!motivo) { alert('Por favor, descreva o motivo da advertÃªncia.'); document.getElementById('adv-motivo').focus(); return; }
+    if (!motivo) { alert('Por favor, descreva o motivo da advertência.'); document.getElementById('adv-motivo').focus(); return; }
 
     const tipoMap = {
-        verbal: 'ADVERTÃŠNCIA VERBAL',
-        escrita: 'ADVERTÃŠNCIA ESCRITA',
-        suspensao_1: 'SUSPENSÃƒO DISCIPLINAR â€” 1 DIA',
-        suspensao_2: 'SUSPENSÃƒO DISCIPLINAR â€” 2 DIAS',
-        suspensao_3: 'SUSPENSÃƒO DISCIPLINAR â€” 3 DIAS'
+        verbal: 'ADVERTÊNCIA VERBAL',
+        escrita: 'ADVERTÊNCIA ESCRITA',
+        suspensao_1: 'SUSPENSÃO DISCIPLINAR — 1 DIA',
+        suspensao_2: 'SUSPENSÃO DISCIPLINAR — 2 DIAS',
+        suspensao_3: 'SUSPENSÃO DISCIPLINAR — 3 DIAS'
     };
-    const tipoTexto = tipoMap[tipo] || 'ADVERTÃŠNCIA';
+    const tipoTexto = tipoMap[tipo] || 'ADVERTÊNCIA';
     const isSuspensao = tipo.startsWith('suspensao');
     const diasSuspensao = tipo === 'suspensao_1' ? 1 : tipo === 'suspensao_2' ? 2 : tipo === 'suspensao_3' ? 3 : 0;
 
     const [ay, am, ad] = (dataOcorrencia || new Date().toISOString().split('T')[0]).split('-');
     const dataFormatada = `${ad}/${am}/${ay}`;
-    const meses = ["janeiro","fevereiro","marÃ§o","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+    const meses = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
     const dataExtenso = `${parseInt(ad)} de ${meses[parseInt(am)-1]} de ${ay}`;
     const dataHoje = new Date();
     const dataHojeFormatada = `${String(dataHoje.getDate()).padStart(2,'0')}/${String(dataHoje.getMonth()+1).padStart(2,'0')}/${dataHoje.getFullYear()}`;
@@ -1987,40 +1987,40 @@ window.gerarAdvertencia = function() {
 
     const suspensaoParag = isSuspensao ? `
         <p style="margin-top:1rem; text-align:justify;">
-            Em decorrÃªncia da gravidade da infraÃ§Ã£o cometida, o(a) colaborador(a) cumprirÃ¡
-            <strong>suspensÃ£o disciplinar de ${diasSuspensao} (${diasSuspensao === 1 ? 'um' : diasSuspensao === 2 ? 'dois' : 'trÃªs'}) dia(s)</strong>,
-            sem remuneraÃ§Ã£o, a contar da data da ciÃªncia deste documento.
+            Em decorrência da gravidade da infração cometida, o(a) colaborador(a) cumprirá
+            <strong>suspensão disciplinar de ${diasSuspensao} (${diasSuspensao === 1 ? 'um' : diasSuspensao === 2 ? 'dois' : 'três'}) dia(s)</strong>,
+            sem remuneração, a contar da data da ciência deste documento.
         </p>` : '';
 
 
     const htmlDoc = `
         <p style="margin-top:1.5rem; text-align:justify;">
-            A empresa <strong>AMERICA RENTAL EQUIPAMENTOS LTDA</strong>, inscrita no CNPJ sob o nÂº 03.434.448/0001-01,
-            situada na Rua Salto da Divisa, nÂº 97, CEP 07252-300, Parque Alvorada â€“ Guarulhos/SP,
-            vem por meio deste documento aplicar ao(Ã ) colaborador(a) <strong>${nomeColab}</strong> a presente
+            A empresa <strong>AMERICA RENTAL EQUIPAMENTOS LTDA</strong>, inscrita no CNPJ sob o nº 03.434.448/0001-01,
+            situada na Rua Salto da Divisa, nº 97, CEP 07252-300, Parque Alvorada – Guarulhos/SP,
+            vem por meio deste documento aplicar ao(à) colaborador(a) <strong>${nomeColab}</strong> a presente
             <strong>${tipoTexto}</strong>.
         </p>
         ${titulo ? `<p style="margin-top:0.75rem; text-align:center; font-size:1rem; font-weight:700; color:#92400e; text-transform:uppercase; letter-spacing:0.04em; border-bottom:1px solid #fdba74; padding-bottom:0.4rem;">${titulo}</p>` : ''}
 
         <p style="margin-top:1rem; text-align:justify;">
-            <strong>Motivo / InfraÃ§Ã£o cometida:</strong><br>
+            <strong>Motivo / Infração cometida:</strong><br>
             ${motivo.replace(/\n/g, '<br>')}
         </p>
         ${suspensaoParag}
         <p style="margin-top:1rem; text-align:justify;">
-            Informamos que esta Ã© <strong>uma medida disciplinar</strong> e que reincidÃªncias poderÃ£o acarretar
-            penalidades mais severas, inclusive a rescisÃ£o do contrato de trabalho por justa causa,
-            nos termos do artigo 482 da ConsolidaÃ§Ã£o das Leis do Trabalho (CLT).
+            Informamos que esta é <strong>uma medida disciplinar</strong> e que reincidências poderão acarretar
+            penalidades mais severas, inclusive a rescisão do contrato de trabalho por justa causa,
+            nos termos do artigo 482 da Consolidação das Leis do Trabalho (CLT).
         </p>
 
         <p style="margin-top:1rem; text-align:justify;">
-            O(A) colaborador(a) declara, com sua assinatura, estar ciente do conteÃºdo desta advertÃªncia
-            e de que a mesma serÃ¡ arquivada em seu prontuÃ¡rio.
+            O(A) colaborador(a) declara, com sua assinatura, estar ciente do conteúdo desta advertência
+            e de que a mesma será arquivada em seu prontuário.
         </p>
     `;
 
-    // Montar dados do colaborador para o padrÃ£o do preview
-    const tipoSimples = { verbal: 'AdvertÃªncia Verbal', escrita: 'AdvertÃªncia Escrita', suspensao_1: 'SuspensÃ£o 1 dia', suspensao_2: 'SuspensÃ£o 2 dias', suspensao_3: 'SuspensÃ£o 3 dias' }[tipo] || tipoTexto;
+    // Montar dados do colaborador para o padrão do preview
+    const tipoSimples = { verbal: 'Advertência Verbal', escrita: 'Advertência Escrita', suspensao_1: 'Suspensão 1 dia', suspensao_2: 'Suspensão 2 dias', suspensao_3: 'Suspensão 3 dias' }[tipo] || tipoTexto;
     window._advertenciaData = {
         html: htmlDoc,
         gerador_nome: tipoTexto,
@@ -2064,7 +2064,7 @@ window.abrirPreviewAdvertencia = function(data) {
             <div style="display:flex; gap:1.5rem; flex-wrap:wrap;">
                 <span>CPF: <b>${data.colaborador.CPF}</b></span>
                 <span>CARGO: <b>${data.colaborador.CARGO}</b></span>
-                <span>ADMISSÃƒO: <b>${data.colaborador.DATA_ADMISSAO}</b></span>
+                <span>ADMISSÃO: <b>${data.colaborador.DATA_ADMISSAO}</b></span>
             </div>
             <p style="margin:0.1rem 0 0;">DEPARTAMENTO: ${data.colaborador.DEPARTAMENTO}</p>
         </div>
@@ -2079,12 +2079,12 @@ window.abrirPreviewAdvertencia = function(data) {
     container.innerHTML = logoBanner + colabInfo + conteudo + footer;
     document.getElementById('preview-doc-title').textContent = `${data.gerador_nome} - ${data.colaborador.NOME_COMPLETO}`;
 
-    // Configurar botÃµes customizados para AdvertÃªncia
+    // Configurar botões customizados para Advertência
     const btnsContainer = document.getElementById('preview-doc-buttons');
     if (btnsContainer) {
         btnsContainer.innerHTML = `
             <button onclick="window.anexarAdvertenciaAoProntuario()" id="btn-anexar-adv" class="btn btn-primary" style="background:#2f9e44; border-color:#2b8a3e; align-items:center; gap:5px;">
-                <i class="ph ph-paperclip"></i> Anexar ao ProntuÃ¡rio
+                <i class="ph ph-paperclip"></i> Anexar ao Prontuário
             </button>
             <button onclick="window.imprimirDocumento()" class="btn btn-primary" style="align-items:center; gap:5px;">
                 <i class="ph ph-printer"></i> Imprimir/PDF
@@ -2101,7 +2101,7 @@ window.abrirPreviewAdvertencia = function(data) {
 window.anexarAdvertenciaAoProntuario = async function() {
     if (!viewedColaborador || !window._advertenciaData) return;
     if (typeof html2pdf === 'undefined') {
-        alert('A biblioteca de PDF ainda nÃ£o foi carregada. Tente imprimir como PDF nativo.');
+        alert('A biblioteca de PDF ainda não foi carregada. Tente imprimir como PDF nativo.');
         return;
     }
 
@@ -2154,7 +2154,7 @@ window.anexarAdvertenciaAoProntuario = async function() {
             </div>
         `;
 
-        // PrÃ©-carregar a imagem na memÃ³ria (cache do navegador) para garantir que apareÃ§a 
+        // Pré-carregar a imagem na memória (cache do navegador) para garantir que apareça 
         const imgPreload = new Image();
         imgPreload.src = logoSrc;
         await new Promise(resolve => {
@@ -2178,8 +2178,8 @@ window.anexarAdvertenciaAoProntuario = async function() {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('colaborador_id', viewedColaborador.id);
-        formData.append('tab_name', 'AdvertÃªncias');
-        // document_type = 'Titulo###TipoSimples' para exibir badge no prontuÃ¡rio
+        formData.append('tab_name', 'Advertências');
+        // document_type = 'Titulo###TipoSimples' para exibir badge no prontuário
         const docType = `${window._advertenciaData.titulo}###${window._advertenciaData.tipoSimples}`;
         formData.append('document_type', docType);
         formData.append('year', new Date().getFullYear().toString());
@@ -2191,10 +2191,10 @@ window.anexarAdvertenciaAoProntuario = async function() {
             body: formData
         });
 
-        // O servidor pode retornar 5xx se o OneDrive falhar, mas o doc JÃ foi salvo no banco.
-        // SÃ³ consideramos falha real se nÃ£o houver resposta ou status 400.
+        // O servidor pode retornar 5xx se o OneDrive falhar, mas o doc JÁ foi salvo no banco.
+        // Só consideramos falha real se não houver resposta ou status 400.
         const resData = await response.json().catch(() => ({}));
-        if (response.status === 400) throw new Error(resData.error || 'Arquivo nÃ£o recebido pelo servidor.');
+        if (response.status === 400) throw new Error(resData.error || 'Arquivo não recebido pelo servidor.');
 
         // Fechar modal
         document.getElementById('modal-preview-doc').style.display = 'none';
@@ -2206,7 +2206,7 @@ window.anexarAdvertenciaAoProntuario = async function() {
             btn.disabled = true;
         }
 
-        // Recarregar documentos e re-renderizar a aba AdvertÃªncias
+        // Recarregar documentos e re-renderizar a aba Advertências
         try {
             const docs = await apiGet(`/colaboradores/${viewedColaborador.id}/documentos`);
             if (docs) {
@@ -2215,11 +2215,11 @@ window.anexarAdvertenciaAoProntuario = async function() {
                 if (activeTab) {
                     renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
                 } else {
-                    renderTabContent('AdvertÃªncias', 'AdvertÃªncias', true);
+                    renderTabContent('Advertências', 'Advertências', true);
                 }
             }
         } catch (refreshErr) {
-            console.warn('Aviso: nÃ£o foi possÃ­vel atualizar a lista automaticamente.', refreshErr);
+            console.warn('Aviso: não foi possível atualizar a lista automaticamente.', refreshErr);
         }
 
     } catch (e) {
@@ -2321,7 +2321,7 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
     `;
     container.innerHTML = filterHtml;
 
-    // Focar no final do input se houver texto para nÃ£o perder o cursor na re-renderizaÃ§Ã£o
+    // Focar no final do input se houver texto para não perder o cursor na re-renderização
     const searchInput = document.getElementById('doc-search-input');
     if (searchInput && searchInput.value) {
         searchInput.focus();
@@ -2333,7 +2333,7 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
     const searchTerm = document.getElementById('doc-search-input')?.value.toLowerCase() || '';
     const sortOrder = document.getElementById('doc-sort-select')?.value || 'recent';
 
-    // Filtragem e OrdenaÃ§Ã£o dos dados
+    // Filtragem e Ordenação dos dados
     let filteredDocs = currentDocs.filter(d => d.tab_name === tabId);
     
     // Filtro de Texto
@@ -2341,7 +2341,7 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
         filteredDocs = filteredDocs.filter(d => d.document_type.toLowerCase().includes(searchTerm) || (d.file_name && d.file_name.toLowerCase().includes(searchTerm)));
     }
 
-    // OrdenaÃ§Ã£o
+    // Ordenação
     filteredDocs.sort((a, b) => {
         if (sortOrder === 'alpha') return a.document_type.localeCompare(b.document_type);
         const dateA = new Date(a.upload_date || 0);
@@ -2357,9 +2357,9 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
         renderAtestadosTab(listContainer, filteredDocs);
     } else if (tabId === 'Faltas') {
         renderFaltasTab(listContainer);
-    } else if (tabId === 'AvaliaÃ§Ã£o') {
+    } else if (tabId === 'Avaliação') {
         if (window.renderAvaliacaoTab) window.renderAvaliacaoTab(listContainer);
-    } else if (tabId === 'AdvertÃªncias') {
+    } else if (tabId === 'Advertências') {
         renderAdvertenciasTab(listContainer, filteredDocs);
     } else if (tabId === 'Ficha de EPI') {
         renderFichaEpiTab(listContainer);
@@ -2381,7 +2381,7 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
     } else if (tabId === 'Terapia') {
         const participa = viewedColaborador && (viewedColaborador.terapia_participa === 'Sim');
         if (!participa) {
-            listContainer.innerHTML = '<div class="alert alert-info"><i class="ph ph-info"></i> Esta aba estÃ¡ disponÃ­vel apenas para colaboradores que participam da Terapia em Grupo.</div>';
+            listContainer.innerHTML = '<div class="alert alert-info"><i class="ph ph-info"></i> Esta aba está disponível apenas para colaboradores que participam da Terapia em Grupo.</div>';
             return;
         }
         renderTerapiaTab(listContainer, tabId, filteredDocs);
@@ -2389,27 +2389,27 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
         if (tabId === 'Conjuge') {
             const isCasado = viewedColaborador && (viewedColaborador.estado_civil === 'Casado');
             if (!isCasado) {
-                listContainer.innerHTML = '<div class="alert alert-info"><i class="ph ph-info"></i> Esta aba estÃ¡ disponÃ­vel apenas para colaboradores com estado civil <strong>"Casado(a)"</strong> registrado.</div>';
+                listContainer.innerHTML = '<div class="alert alert-info"><i class="ph ph-info"></i> Esta aba está disponível apenas para colaboradores com estado civil <strong>"Casado(a)"</strong> registrado.</div>';
                 return;
             }
         }
         if (tabId === 'Dependentes') {
-            const hasDependentes = viewedColaborador && viewedColaborador.dependentes && viewedColaborador.dependentes.filter(d => d.grau_parentesco !== 'CÃ´njuge').length > 0;
+            const hasDependentes = viewedColaborador && viewedColaborador.dependentes && viewedColaborador.dependentes.filter(d => d.grau_parentesco !== 'Cônjuge').length > 0;
             if (!hasDependentes) {
-                listContainer.innerHTML = '<div class="alert alert-info"><i class="ph ph-info"></i> Esta aba estÃ¡ disponÃ­vel apenas para colaboradores que tenham dependentes cadastrados no sistema.</div>';
+                listContainer.innerHTML = '<div class="alert alert-info"><i class="ph ph-info"></i> Esta aba está disponível apenas para colaboradores que tenham dependentes cadastrados no sistema.</div>';
                 return;
             }
         }
         if (tabId === 'Faculdade') {
             const participa = viewedColaborador && (viewedColaborador.faculdade_participa === 'Sim');
             if (!participa) {
-                listContainer.innerHTML = '<div class="alert alert-info"><i class="ph ph-info"></i> Esta aba estÃ¡ disponÃ­vel apenas para colaboradores que participam do programa FormaAÃ§Ã£o.</div>';
+                listContainer.innerHTML = '<div class="alert alert-info"><i class="ph ph-info"></i> Esta aba está disponível apenas para colaboradores que participam do programa FormaAção.</div>';
                 return;
             }
             renderFaculdadeTab(listContainer, tabId);
             return;
         }
-        const btnLabelMap = { 'Dependentes': 'Documento de Dependente', 'Treinamento': 'Certificado/Curso', 'Conjuge': 'Documento do CÃ´njuge', 'NRs': 'Certificado NR' };
+        const btnLabelMap = { 'Dependentes': 'Documento de Dependente', 'Treinamento': 'Certificado/Curso', 'Conjuge': 'Documento do Cônjuge', 'NRs': 'Certificado NR' };
         const form = createDynamicUploadForm(tabId, `Adicionar ${btnLabelMap[tabId] || tabId}`);
         listContainer.appendChild(form);
         listContainer.appendChild(document.createElement('hr'));
@@ -2419,20 +2419,20 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
     } else if (FIXED_DOCS[tabId]) {
         FIXED_DOCS[tabId].forEach(docType => {
             if (!searchTerm || docType.toLowerCase().includes(searchTerm)) {
-                if (tabId === 'Contratos' && docType === 'Acordo de auxÃ­lio combustÃ­vel') {
+                if (tabId === 'Contratos' && docType === 'Acordo de auxílio combustível') {
                     const meio = (viewedColaborador && viewedColaborador.meio_transporte) ? viewedColaborador.meio_transporte.toLowerCase() : '';
                     if (meio === 'vale transporte') {
                         const existingDoc = filteredDocs.find(d => d.document_type === docType);
-                        const msg = 'NÃ£o aplicÃ¡vel para usuÃ¡rios de Vale Transporte.';
+                        const msg = 'Não aplicável para usuários de Vale Transporte.';
                         listContainer.appendChild(createDocSlot(tabId, docType, existingDoc, null, null, msg));
                         return;
                     }
                 }
                 if (tabId === 'Contratos' && docType === 'Contrato faculdade') {
-                    const participa = (viewedColaborador && viewedColaborador.faculdade_participa) ? viewedColaborador.faculdade_participa : 'NÃ£o';
-                    if (participa === 'NÃ£o') {
+                    const participa = (viewedColaborador && viewedColaborador.faculdade_participa) ? viewedColaborador.faculdade_participa : 'Não';
+                    if (participa === 'Não') {
                         const existingDoc = filteredDocs.find(d => d.document_type === docType);
-                        const msg = 'NÃ£o aplicÃ¡vel para colaboradores que nÃ£o participam do programa FormaAÃ§Ã£o.';
+                        const msg = 'Não aplicável para colaboradores que não participam do programa FormaAção.';
                         listContainer.appendChild(createDocSlot(tabId, docType, existingDoc, null, null, msg));
                         return;
                     }
@@ -2463,7 +2463,7 @@ async function renderCargoDocsChecklist(container) {
         if (!cargoAtual) {
             container.innerHTML = `
                 <div class="alert alert-warning">
-                    <i class="ph ph-warning"></i> Cargo "${viewedColaborador.cargo || 'NÃ£o Definido'}" nÃ£o encontrado nas configuraÃ§Ãµes de cargos.
+                    <i class="ph ph-warning"></i> Cargo "${viewedColaborador.cargo || 'Não Definido'}" não encontrado nas configurações de cargos.
                 </div>
             `;
             return;
@@ -2474,7 +2474,7 @@ async function renderCargoDocsChecklist(container) {
         if (!docsExigidos || docsExigidos.length === 0) {
             container.innerHTML = `
                 <div class="alert alert-info">
-                    <i class="ph ph-info"></i> Nenhuma documentaÃ§Ã£o especÃ­fica configurada para o cargo <strong>${cargoAtual.nome}</strong>.
+                    <i class="ph ph-info"></i> Nenhuma documentação específica configurada para o cargo <strong>${cargoAtual.nome}</strong>.
                 </div>
             `;
             return;
@@ -2482,8 +2482,8 @@ async function renderCargoDocsChecklist(container) {
         
         container.innerHTML = `
             <div style="margin-bottom: 2rem; padding: 1rem; background: #fffcf0; border: 1px solid #ffeeba; border-radius: 8px;">
-                <h4 style="color: #856404; margin-bottom: 0.5rem;"><i class="ph ph-briefcase"></i> DocumentaÃ§Ã£o Exigida: ${cargoAtual.nome}</h4>
-                <p style="font-size: 0.85rem; color: #856404;">Anexe abaixo os documentos que foram selecionados como obrigatÃ³rios no gerenciamento de cargos.</p>
+                <h4 style="color: #856404; margin-bottom: 0.5rem;"><i class="ph ph-briefcase"></i> Documentação Exigida: ${cargoAtual.nome}</h4>
+                <p style="font-size: 0.85rem; color: #856404;">Anexe abaixo os documentos que foram selecionados como obrigatórios no gerenciamento de cargos.</p>
             </div>
         `;
         
@@ -2507,18 +2507,18 @@ async function renderFaculdadeSummary(container) {
     summaryDiv.style.background = '#f0f9ff';
     summaryDiv.style.border = '1px solid #bae6fd';
     summaryDiv.style.padding = '1rem';
-    const cursoNome = cursoObj ? cursoObj.nome_curso : 'NÃ£o selecionado';
+    const cursoNome = cursoObj ? cursoObj.nome_curso : 'Não selecionado';
     const instituicao = cursoObj ? cursoObj.instituicao : 'N/A';
     const tempo = cursoObj ? (cursoObj.tempo_curso || 'N/A') : 'N/A';
     const inicio = viewedColaborador.faculdade_data_inicio ? new Date(viewedColaborador.faculdade_data_inicio + 'T12:00:00').toLocaleDateString() : 'N/A';
     const termino = viewedColaborador.faculdade_data_termino ? new Date(viewedColaborador.faculdade_data_termino + 'T12:00:00').toLocaleDateString() : 'N/A';
     summaryDiv.innerHTML = `
-        <h4 style="color: #0369a1; margin-bottom: 0.5rem;"><i class="ph ph-graduation-cap"></i> Detalhes da GraduaÃ§Ã£o</h4>
+        <h4 style="color: #0369a1; margin-bottom: 0.5rem;"><i class="ph ph-graduation-cap"></i> Detalhes da Graduação</h4>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: 0.9rem; color: #0c4a6e;">
             <div><strong>Curso:</strong> ${cursoNome}</div>
-            <div><strong>InstituiÃ§Ã£o:</strong> ${instituicao}</div>
-            <div><strong>InÃ­cio:</strong> ${inicio}</div>
-            <div><strong>PrevisÃ£o TÃ©rmino:</strong> ${termino}</div>
+            <div><strong>Instituição:</strong> ${instituicao}</div>
+            <div><strong>Início:</strong> ${inicio}</div>
+            <div><strong>Previsão Término:</strong> ${termino}</div>
             <div class="span-2"><strong>Tempo de Curso:</strong> ${tempo}</div>
         </div>
     `;
@@ -2540,7 +2540,7 @@ async function renderFaculdadeTab(container, tabId) {
                 <select id="fac_year" class="form-control" style="padding:0.4rem;" onchange="renderFaculdadeCompetencia()">
                     ${optionsYears}
                 </select>
-                <label>MÃªs:</label>
+                <label>Mês:</label>
                 <select id="fac_month" class="form-control" style="padding:0.4rem;" onchange="renderFaculdadeCompetencia()">
                     <option value="01">Jan</option><option value="02">Fev</option><option value="03">Mar</option>
                     <option value="04">Abr</option><option value="05">Mai</option><option value="06">Jun</option>
@@ -2577,7 +2577,7 @@ window.renderFaculdadeCompetencia = function() {
 
     const docsMatch = currentDocs.filter(d => d.tab_name === 'Faculdade' && d.year == y && d.month == m);
     
-    // Lista de documentos por competÃªncia
+    // Lista de documentos por competência
     const required = ['Boleto'];
     if (m === '01' || m === '07') {
         required.push('Boletim');
@@ -2588,7 +2588,7 @@ window.renderFaculdadeCompetencia = function() {
         subContainer.appendChild(createDocSlot('Faculdade', type, doc, `'${y}'`, `'${m}'`));
     });
 
-    // Outros documentos dinÃ¢micos para este mÃªs
+    // Outros documentos dinâmicos para este mês
     docsMatch.filter(d => !required.includes(d.document_type)).forEach(d => {
         subContainer.appendChild(createDocSlot('Faculdade', d.document_type, d, `'${y}'`, `'${m}'`));
     });
@@ -2606,11 +2606,11 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
     // Limita o nome do arquivo a 40 caracteres
     let rawFileName = isSaved ? (existingDoc.file_name || '') : '';
     try {
-        if (rawFileName.includes('Ãƒ')) {
+        if (rawFileName.includes('Ã')) {
             rawFileName = decodeURIComponent(escape(rawFileName));
         }
     } catch (e) {}
-    const displayFileName = rawFileName.length > 40 ? rawFileName.substring(0, 40) + 'â€¦' : rawFileName;
+    const displayFileName = rawFileName.length > 40 ? rawFileName.substring(0, 40) + '…' : rawFileName;
 
     // Vencimento com cor vermelha se estiver dentro de 30 dias
     let vencInfoHtml = '';
@@ -2644,7 +2644,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
         const enviadoDate = `${dd}/${mm}/${yyyy} - ${h}h${min}m`;
         enviadoHtml = ` <span style="color:#64748b;">|</span> <span style="color:#2f9e44; font-weight:600;">Enviado: ${enviadoDate}</span>`;
         
-        // Link de assinatura em linha prÃ³pria abaixo do Enviado
+        // Link de assinatura em linha própria abaixo do Enviado
         if (existingDoc.assinafy_url) {
             const encodedUrl = encodeURIComponent(existingDoc.assinafy_url);
             linkAssinaturaHtml = `<p style="margin:1px 0 0; font-size:0.75rem;"><span data-copy-url="${encodedUrl}" onclick="copiarLinkAssinafy(this)" style="color:#64748b; display:inline-flex; align-items:center; gap:3px; cursor:pointer;" title="Clique para copiar o link de assinatura"><i class="ph ph-copy" style="font-size:0.9rem;"></i> Link para assinatura</span></p>`;
@@ -2673,9 +2673,9 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
             const isColabAfastado = viewedColaborador && viewedColaborador.status === 'Afastado';
             const isAtivo = (isColabAfastado && existingDoc.atestado_inicio && existingDoc.atestado_fim && existingDoc.atestado_inicio <= hojeStr && hojeStr <= existingDoc.atestado_fim);
             const corText = isAtivo ? '#d9480f' : '#868e96';
-            atestadoInfoHtml = ` <span style="color:${corText}; font-weight:600;"><i class="ph ph-warning" style="font-size:0.9em; color:${corText}; margin-right:2px;"></i> ${ini} atÃ© ${fim}</span> `;
+            atestadoInfoHtml = ` <span style="color:${corText}; font-weight:600;"><i class="ph ph-warning" style="font-size:0.9em; color:${corText}; margin-right:2px;"></i> ${ini} até ${fim}</span> `;
         } else {
-            atestadoInfoHtml = ` <span style="color:#1098ad; font-weight:600;"><i class="ph ph-clock"></i> ${existingDoc.atestado_inicio} Ã s ${existingDoc.atestado_fim}</span> `;
+            atestadoInfoHtml = ` <span style="color:#1098ad; font-weight:600;"><i class="ph ph-clock"></i> ${existingDoc.atestado_inicio} às ${existingDoc.atestado_fim}</span> `;
         }
     }
 
@@ -2683,7 +2683,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
         ? `<p style="margin:2px 0 0; font-size:0.78rem;">${atestadoInfoHtml}${vencInfoHtml}${enviadoHtml}</p>${linkAssinaturaHtml}`
         : '';
 
-    // Suporte ao separador ### para AdvertÃªncias: 'TÃ­tulo###TipoSimples'
+    // Suporte ao separador ### para Advertências: 'Título###TipoSimples'
     let docLabel = docType;
     let docBadge = '';
     let tipoAdvSimples = '';
@@ -2731,13 +2731,13 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
     `;
 
     let vencimentoInputHtml = '';
-    const needsVencimentoList = ['ASO', 'CNH', 'Exames Complementares', 'RG-CPF', 'CIN-CPF', 'Comprovante de endereÃ§o'];
+    const needsVencimentoList = ['ASO', 'CNH', 'Exames Complementares', 'RG-CPF', 'CIN-CPF', 'Comprovante de endereço'];
     const needsVencimento = needsVencimentoList.includes(docType) || tabId === 'ASO';
     const safeDocType = docType.replace(/\s+/g, '-');
 
     if (needsVencimento) {
         let existingVencimento = existingDoc && existingDoc.vencimento ? existingDoc.vencimento : '';
-        if (!existingVencimento && docType === 'Comprovante de endereÃ§o') {
+        if (!existingVencimento && docType === 'Comprovante de endereço') {
             const d = new Date();
             d.setFullYear(d.getFullYear() + 1);
             existingVencimento = d.toISOString().split('T')[0];
@@ -2753,7 +2753,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
         `;
     }
 
-    // Status Assinafy: apenas botÃ£o de baixar quando assinado
+    // Status Assinafy: apenas botão de baixar quando assinado
     let assStatusIcon = '';
     const stMain = isSaved ? (existingDoc.assinafy_status || '') : '';
     const isAssinado = isSaved && (stMain === 'Assinado' || stMain === 'Testemunhas' || stMain.includes('Testemunhas'));
@@ -2799,7 +2799,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         <button type="button" class="btn btn-danger" onclick="deleteDoc(${existingDoc.id}, this)" title="Excluir" style="height: 42px;"><i class="ph ph-trash"></i></button>
                     ` : ''}
                 </div>
-            ` : (tabId === 'AdvertÃªncias') ? `
+            ` : (tabId === 'Advertências') ? `
                 <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
                     ${vencimentoInputHtml}
 
@@ -2807,7 +2807,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         <button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height: 42px;"><i class="ph ph-eye"></i></button>
                     ` : ''}
 
-                    ${(tabId === 'AdvertÃªncias' && isSaved) ? `
+                    ${(tabId === 'Advertências' && isSaved) ? `
                         ${(!stMain || stMain === 'Nenhum') ? `
                         <button type="button" class="btn btn-secondary"
                                 onclick="window.abrirModalAssinaturaTestemunhas(${existingDoc.id})"
@@ -2825,7 +2825,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                     ${(!isAssinado) ? `
                     <label class="btn ${isSaved ? 'btn-warning' : 'btn-primary'}" title="${isSaved ? 'Substituir' : 'Fazer Upload'}" style="height: 42px; display: flex; align-items: center; margin: 0;">
                         <i class="ph ph-upload-simple"></i> ${isSaved ? 'Substituir' : 'Upload'}
-                        <input type="file" accept=".pdf" style="display:none;" onchange="const venc = this.closest('.doc-item').querySelector('.venc-input')?.value; if((${needsVencimento}) && !venc) { alert('Data de vencimento Ã© obrigatÃ³ria'); this.value=''; return; } uploadDocument(this, '${tabId}', '${docType}', ${year}, ${month}, venc, null)">
+                        <input type="file" accept=".pdf" style="display:none;" onchange="const venc = this.closest('.doc-item').querySelector('.venc-input')?.value; if((${needsVencimento}) && !venc) { alert('Data de vencimento é obrigatória'); this.value=''; return; } uploadDocument(this, '${tabId}', '${docType}', ${year}, ${month}, venc, null)">
                     </label>
                     ` : ''}
 
@@ -2833,7 +2833,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         <button type="button" class="btn btn-danger" onclick="deleteDoc(${existingDoc.id}, this)" title="Excluir" style="height: 42px;"><i class="ph ph-trash"></i></button>
                     ` : ''}
 
-                    ${(tabId === 'AdvertÃªncias' && isSaved && stMain === 'Assinado' && tipoAdvSimples && tipoAdvSimples.toLowerCase().includes('suspens')) ? `
+                    ${(tabId === 'Advertências' && isSaved && stMain === 'Assinado' && tipoAdvSimples && tipoAdvSimples.toLowerCase().includes('suspens')) ? `
                     <div style="display:flex; flex-direction:column; gap:0.35rem; margin-top:0.35rem; align-items:flex-end; width:100%;">
                         <input type="email" id="susp-contab-email-${existingDoc.id}"
                                value="thais.ricci@americarental.com.br"
@@ -2858,7 +2858,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                             <i class="ph ph-upload-simple"></i> ${isSaved ? 'Substituir' : 'Upload'}
                             <input type="file" accept=".pdf" style="display:none;" onchange="
                                 const venc = this.closest('.doc-item').querySelector('.venc-input')?.value; 
-                                if((${needsVencimento}) && !venc) { alert('Data de vencimento Ã© obrigatÃ³ria'); this.value=''; return; } 
+                                if((${needsVencimento}) && !venc) { alert('Data de vencimento é obrigatória'); this.value=''; return; } 
                                 let assStatus = null;
                                 uploadDocument(this, '${tabId}', '${docType}', ${year}, ${month}, venc, assStatus)
                             ">
@@ -2898,7 +2898,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
 }
 
 function createDynamicUploadForm(tabId, btnLabel, defaultDocType = '') {
-    const showVencimento = tabId !== 'AdvertÃªncias';
+    const showVencimento = tabId !== 'Advertências';
     const div = document.createElement('div');
     div.className = 'mb-4 card p-3 bg-light form-dyn';
     div.innerHTML = `
@@ -2917,7 +2917,7 @@ function createDynamicUploadForm(tabId, btnLabel, defaultDocType = '') {
                 <label style="font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 2px; display: flex;">Exige Assinatura?</label>
                 <div style="display:flex; gap:0.5rem; height: 38px; align-items:center; font-size: 0.82rem; font-weight: 500;">
                     <label style="margin:0; display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="radio" name="dyn-assin-${tabId}" value="PENDENTE" checked> Sim</label>
-                    <label style="margin:0; display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="radio" name="dyn-assin-${tabId}" value="NAO_EXIGE"> NÃ£o</label>
+                    <label style="margin:0; display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="radio" name="dyn-assin-${tabId}" value="NAO_EXIGE"> Não</label>
                 </div>
             </div>
             ` : ''}
@@ -2943,7 +2943,7 @@ function renderPagamentosTab(container, tabId, docs) {
                 <select id="pag_year" class="form-control" style="padding:0.4rem;" onchange="renderPagamentosCompetencia()">
                     ${optionsYears}
                 </select>
-                <label>MÃªs:</label>
+                <label>Mês:</label>
                 <select id="pag_month" class="form-control" style="padding:0.4rem;" onchange="renderPagamentosCompetencia()">
                     <option value="01">Jan</option><option value="02">Fev</option><option value="03">Mar</option>
                     <option value="04">Abr</option><option value="05">Mai</option><option value="06">Jun</option>
@@ -2977,7 +2977,7 @@ function renderTerapiaTab(container, tabId, docs) {
                 <select id="terapia_year" class="form-control" style="padding:0.4rem;" onchange="renderTerapiaCompetencia()">
                     ${optionsYears}
                 </select>
-                <label>MÃªs:</label>
+                <label>Mês:</label>
                 <select id="terapia_month" class="form-control" style="padding:0.4rem;" onchange="renderTerapiaCompetencia()">
                     <option value="01">Jan</option><option value="02">Fev</option><option value="03">Mar</option>
                     <option value="04">Abr</option><option value="05">Mai</option><option value="06">Jun</option>
@@ -3008,10 +3008,10 @@ window.renderTerapiaCompetencia = function() {
     });
 
     subContainer.appendChild(document.createElement('hr'));
-    const form = createDynamicUploadForm('Terapia', 'Adicionar SessÃ£o/RelatÃ³rio', '');
+    const form = createDynamicUploadForm('Terapia', 'Adicionar Sessão/Relatório', '');
     const fileInput = form.querySelector('input[type="file"]');
     fileInput.onchange = function() {
-        const typeIn = form.querySelector('input[type="text"]').value || 'SessÃ£o';
+        const typeIn = form.querySelector('input[type="text"]').value || 'Sessão';
         uploadDocument(this, 'Terapia', typeIn, `'${y}'`, `'${m}'`, null);
     };
     subContainer.appendChild(form);
@@ -3046,7 +3046,7 @@ window.renderASOTab = function(container, filteredDocs) {
         <!-- Card IACI -->
         <div class="card p-3 mb-4" style="background:#f8fafc; border:1.5px dashed #e2e8f0; border-radius:12px;">
             <h4 style="font-size:0.9rem; color:#64748b; margin-bottom:0.75rem; font-weight:600;">
-                <i class="ph ph-envelope-simple"></i> Enviar SolicitaÃ§Ã£o de Exame Ã  IACI
+                <i class="ph ph-envelope-simple"></i> Enviar Solicitação de Exame à IACI
             </h4>
             ${noticeHtml}
             <div style="display:flex; gap:0.75rem; align-items:flex-end; flex-wrap:wrap;">
@@ -3056,14 +3056,14 @@ window.renderASOTab = function(container, filteredDocs) {
                            value="${exameData ? exameData.split('/').reverse().join('-') : ''}">
                 </div>
                 <div class="input-group" style="flex:1; min-width:200px; margin-bottom:0;">
-                    <label style="font-size:0.75rem; font-weight:700;">DestinatÃ¡rio</label>
+                    <label style="font-size:0.75rem; font-weight:700;">Destinatário</label>
                     <input type="email" id="aso-email-dest-tab" value="thais.ricci@americarental.com.br"
                            style="padding:0.5rem; font-size:0.85rem; height:38px;">
                 </div>
                 <button class="btn btn-primary" id="btn-enviar-aso-email-tab"
                         onclick="window.sendASOEmailTab()"
                         style="height:38px; white-space:nowrap; padding:0 1.2rem; display:flex; align-items:center; gap:8px;">
-                    <i class="ph ph-paper-plane-tilt"></i> Enviar SolicitaÃ§Ã£o
+                    <i class="ph ph-paper-plane-tilt"></i> Enviar Solicitação
                 </button>
             </div>
         </div>
@@ -3074,9 +3074,9 @@ window.renderASOTab = function(container, filteredDocs) {
     renderASOAno();
 }
 
-// FunÃ§Ã£o especÃ­fica para envio pela aba ASO (nÃ£o conflita com a de AdmissÃ£o)
+// Função específica para envio pela aba ASO (não conflita com a de Admissão)
 window.sendASOEmailTab = async function() {
-    if (!viewedColaborador) { alert('Colaborador nÃ£o selecionado.'); return; }
+    if (!viewedColaborador) { alert('Colaborador não selecionado.'); return; }
 
     const dataExame  = document.getElementById('aso-exame-data-tab').value;
     const destinatario = document.getElementById('aso-email-dest-tab').value;
@@ -3087,9 +3087,9 @@ window.sendASOEmailTab = async function() {
     const cargo = (viewedColaborador.cargo || '').toLowerCase();
     const exames = cargo.includes('motorista')
         ? 'Exames Complementares, acuidade visual, E.E.G, E.C.G e Glicemia.'
-        : 'Exame PadrÃ£o';
+        : 'Exame Padrão';
 
-    const mailBody = `TÃ­tulo: Exame MÃ©dico\n\nSegue abaixo as informaÃ§Ãµes para a realizaÃ§Ã£o do exame do colaborador.\n\nData: ${dt}\nNome: ${viewedColaborador.nome_completo || viewedColaborador.nome}\nCPF: ${viewedColaborador.cpf || '-'}\nFunÃ§Ã£o: ${viewedColaborador.cargo || '-'}\nDepartamento: ${viewedColaborador.departamento || '-'}\n\nExames:\n${exames}\n\nâš ï¸ IMPORTANTE:\nApÃ³s o exame ficar pronto, favor enviar o documento por e-mail para: rh@americarental.com.br`;
+    const mailBody = `Título: Exame Médico\n\nSegue abaixo as informações para a realização do exame do colaborador.\n\nData: ${dt}\nNome: ${viewedColaborador.nome_completo || viewedColaborador.nome}\nCPF: ${viewedColaborador.cpf || '-'}\nFunção: ${viewedColaborador.cargo || '-'}\nDepartamento: ${viewedColaborador.departamento || '-'}\n\nExames:\n${exames}\n\n⚠️ IMPORTANTE:\nApós o exame ficar pronto, favor enviar o documento por e-mail para: rh@americarental.com.br`;
 
     const btn = document.getElementById('btn-enviar-aso-email-tab');
     const originalContent = btn.innerHTML;
@@ -3105,7 +3105,7 @@ window.sendASOEmailTab = async function() {
         });
 
         if (res.sucesso) {
-            alert('âœ… E-mail enviado com sucesso para a IACI!');
+            alert('✅ E-mail enviado com sucesso para a IACI!');
             // Recarregar aba para mostrar aviso
             viewedColaborador.aso_email_enviado = res.data_envio;
             viewedColaborador.aso_exame_data    = res.data_agendada;
@@ -3115,8 +3115,8 @@ window.sendASOEmailTab = async function() {
             throw new Error(res.error || 'Erro no servidor');
         }
     } catch (e) {
-        if (confirm(`NÃ£o foi possÃ­vel enviar automaticamente. Erro do Servidor:\n\n${e.message}\n\nDeseja abrir seu e-mail com o texto preenchido?`)) {
-            window.location.href = `mailto:${destinatario}?cc=rh@americarental.com.br,rh2@americarental.com.br&subject=Exame MÃ©dico - ${viewedColaborador.nome_completo || viewedColaborador.nome}&body=${encodeURIComponent(mailBody)}`;
+        if (confirm(`Não foi possível enviar automaticamente. Erro do Servidor:\n\n${e.message}\n\nDeseja abrir seu e-mail com o texto preenchido?`)) {
+            window.location.href = `mailto:${destinatario}?cc=rh@americarental.com.br,rh2@americarental.com.br&subject=Exame Médico - ${viewedColaborador.nome_completo || viewedColaborador.nome}&body=${encodeURIComponent(mailBody)}`;
         }
     } finally {
         if (btn) { btn.disabled = false; btn.innerHTML = originalContent; }
@@ -3132,14 +3132,14 @@ window.renderASOAno = function() {
     if (!container) return;
     container.innerHTML = '';
 
-    // Usar os documentos jÃ¡ filtrados pela barra global
+    // Usar os documentos já filtrados pela barra global
     const docsToUse = window.lastASODocs || currentDocs.filter(d => d.tab_name === 'ASO');
     const filteredByYear = docsToUse.filter(d => d.year == y);
     const isMotorista = viewedColaborador && (viewedColaborador.cargo || '').toUpperCase().includes('MOTORISTA');
     const isDesligado = viewedColaborador && (viewedColaborador.status === 'Desligado');
 
-    // Documentos obrigatÃ³rios
-    const list = ['ASO PadrÃ£o'];
+    // Documentos obrigatórios
+    const list = ['ASO Padrão'];
     if (isMotorista) list.push('Exames Complementares');
     if (isDesligado) list.push('ASO Demissional');
 
@@ -3148,14 +3148,14 @@ window.renderASOAno = function() {
         container.appendChild(createDocSlot('ASO', docType, existingDoc, `'${y}'`));
     });
 
-    // Outros documentos dinÃ¢micos jÃ¡ salvos para este ano (considerando o filtro de busca)
+    // Outros documentos dinâmicos já salvos para este ano (considerando o filtro de busca)
     filteredByYear.filter(d => !list.includes(d.document_type)).forEach(d => {
         container.appendChild(createDocSlot('ASO', d.document_type, d, `'${y}'`));
     });
 
     container.appendChild(document.createElement('hr'));
 
-    // BotÃ£o para adicionar outro exame avÃ¼lso
+    // Botão para adicionar outro exame avülso
     const form = createDynamicUploadForm('ASO', 'Adicionar Outro Exame', '');
     const fileInput = form.querySelector('input[type="file"]');
     fileInput.onchange = function() {
@@ -3180,7 +3180,7 @@ async function renderFaltasTab(container) {
         return `${d}/${m}/${y}`;
     };
 
-    const turnoColor = { 'Dia todo': '#e03131', 'ManhÃ£': '#f08c00', 'Tarde': '#1971c2' };
+    const turnoColor = { 'Dia todo': '#e03131', 'Manhã': '#f08c00', 'Tarde': '#1971c2' };
 
     const tableRows = faltas.length === 0
         ? `<tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:1.5rem;">Nenhuma falta registrada.</td></tr>`
@@ -3190,7 +3190,7 @@ async function renderFaltasTab(container) {
                 <td style="padding:0.65rem 0.75rem;">
                     <span style="background:${turnoColor[f.turno] || '#64748b'}; color:#fff; padding:2px 10px; border-radius:10px; font-size:0.75rem; font-weight:700;">${f.turno}</span>
                 </td>
-                <td style="padding:0.65rem 0.75rem; color:#475569; font-size:0.88rem;">${f.observacao || 'â€”'}</td>
+                <td style="padding:0.65rem 0.75rem; color:#475569; font-size:0.88rem;">${f.observacao || '—'}</td>
                 <td style="padding:0.65rem 0.75rem; text-align:right;">
                     <button onclick="window.deletarFalta(${f.id}, this)" style="background:none; border:none; cursor:pointer; color:#e03131;" title="Excluir">
                         <i class="ph ph-trash" style="font-size:1.1rem;"></i>
@@ -3199,7 +3199,7 @@ async function renderFaltasTab(container) {
             </tr>`).join('');
 
     container.innerHTML = `
-        <!-- FormulÃ¡rio de registro -->
+        <!-- Formulário de registro -->
         <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:1.25rem; margin-bottom:1.5rem;">
             <h4 style="margin:0 0 1rem; font-size:1rem; color:#1e293b; display:flex; align-items:center; gap:8px;">
                 <i class="ph ph-calendar-x" style="color:#e03131;"></i> Registrar Falta
@@ -3213,13 +3213,13 @@ async function renderFaltasTab(container) {
                     <label style="font-size:0.8rem; font-weight:600; color:#475569;">Turno</label>
                     <select id="falta-turno" style="height:38px; padding:0 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.9rem;">
                         <option value="Dia todo">Dia todo</option>
-                        <option value="ManhÃ£">ManhÃ£</option>
+                        <option value="Manhã">Manhã</option>
                         <option value="Tarde">Tarde</option>
                     </select>
                 </div>
                 <div style="display:flex; flex-direction:column; gap:0.25rem; flex:1; min-width:180px;">
-                    <label style="font-size:0.8rem; font-weight:600; color:#475569;">ObservaÃ§Ã£o (opcional)</label>
-                    <input type="text" id="falta-obs" placeholder="Ex: nÃ£o comunicou, sem justificativa..." style="height:38px; padding:0 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.9rem;">
+                    <label style="font-size:0.8rem; font-weight:600; color:#475569;">Observação (opcional)</label>
+                    <input type="text" id="falta-obs" placeholder="Ex: não comunicou, sem justificativa..." style="height:38px; padding:0 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.9rem;">
                 </div>
                 <button onclick="window.registrarFalta()" style="height:38px; background:#e03131; color:#fff; border:none; border-radius:6px; padding:0 1.2rem; font-size:0.88rem; font-weight:700; cursor:pointer; white-space:nowrap; display:inline-flex; align-items:center; gap:6px;">
                     <i class="ph ph-plus"></i> Registrar
@@ -3239,7 +3239,7 @@ async function renderFaltasTab(container) {
                     <tr style="background:#f8fafc; text-align:left;">
                         <th style="padding:0.6rem 0.75rem; color:#64748b; font-size:0.78rem; text-transform:uppercase;">Data</th>
                         <th style="padding:0.6rem 0.75rem; color:#64748b; font-size:0.78rem; text-transform:uppercase;">Turno</th>
-                        <th style="padding:0.6rem 0.75rem; color:#64748b; font-size:0.78rem; text-transform:uppercase;">ObservaÃ§Ã£o</th>
+                        <th style="padding:0.6rem 0.75rem; color:#64748b; font-size:0.78rem; text-transform:uppercase;">Observação</th>
                         <th style="padding:0.6rem 0.75rem;"></th>
                     </tr>
                 </thead>
@@ -3279,7 +3279,7 @@ window.renderAtestadosTab = function(container, filteredDocs) {
     window.lastAtestadoDocs = filteredDocs; 
     const optionsHtml = getAnosAdmissaoOptions(selected);
 
-    // Injetar CSS do autocomplete se nÃ£o existir
+    // Injetar CSS do autocomplete se não existir
     if (!document.getElementById('cid-style')) {
         const s = document.createElement('style');
         s.id = 'cid-style';
@@ -3325,7 +3325,7 @@ window.renderAtestadosTab = function(container, filteredDocs) {
                 <!-- Campos Dias -->
                 <div id="atestado-dias-fields" style="display:flex; gap:1rem; flex-shrink:0; align-items:flex-end;">
                     <div>
-                        <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">Data InÃ­cio</label>
+                        <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">Data Início</label>
                         <input type="date" id="atestado_inicio_dia" class="form-control" style="padding:0.4rem; width:130px;" oninput="calcAtestadoFim()">
                     </div>
                     <div>
@@ -3333,7 +3333,7 @@ window.renderAtestadosTab = function(container, filteredDocs) {
                         <input type="number" id="atestado_qtd_dias" class="form-control" min="1" value="1" style="padding:0.4rem; width:75px;" oninput="calcAtestadoFim()">
                     </div>
                     <div>
-                        <label style="font-size:0.75rem; font-weight:600; color:#94a3b8; margin-bottom:3px; display:block;">TÃ©rmino (calc.)</label>
+                        <label style="font-size:0.75rem; font-weight:600; color:#94a3b8; margin-bottom:3px; display:block;">Término (calc.)</label>
                         <input type="date" id="atestado_fim_dia" class="form-control" style="padding:0.4rem; width:130px; background:#f1f5f9; color:#64748b;" readonly>
                     </div>
                 </div>
@@ -3341,11 +3341,11 @@ window.renderAtestadosTab = function(container, filteredDocs) {
                 <!-- Campos Horas -->
                 <div id="atestado-horas-fields" style="display:none; gap:1rem; flex-shrink:0;">
                     <div>
-                        <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">HorÃ¡rio InÃ­cio</label>
+                        <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">Horário Início</label>
                         <input type="time" id="atestado_inicio_hora" class="form-control" style="padding:0.4rem; width:110px;">
                     </div>
                     <div>
-                        <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">HorÃ¡rio Fim</label>
+                        <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">Horário Fim</label>
                         <input type="time" id="atestado_fim_hora" class="form-control" style="padding:0.4rem; width:110px;">
                     </div>
                 </div>
@@ -3377,7 +3377,7 @@ window.searchCID = async function(val) {
         if (!data.length) { dd.style.display = 'none'; return; }
         dd.innerHTML = data.map((c, i) =>
             `<div class="cid-option" data-code="${c.code}" data-desc="${c.desc.replace(/"/g,'&quot;')}" onclick="selectCID('${c.code}', this.dataset.desc)">
-                <strong>${c.code}</strong> â€” ${c.desc}
+                <strong>${c.code}</strong> — ${c.desc}
              </div>`
         ).join('');
         dd.style.display = 'block';
@@ -3387,7 +3387,7 @@ window.searchCID = async function(val) {
 window.selectCID = function(code, desc) {
     selectedCID = { code, desc };
     document.getElementById('cid-dropdown').style.display = 'none';
-    document.getElementById('cid-search').value = `${code} â€” ${desc}`;
+    document.getElementById('cid-search').value = `${code} — ${desc}`;
     
     const todayStr = new Date().toISOString().split('T')[0];
     document.getElementById('atestado_inicio_dia').value = todayStr;
@@ -3397,7 +3397,7 @@ window.selectCID = function(code, desc) {
 
 window.triggerAtestadoUpload = function() {
     if (!selectedCID) {
-        alert('Selecione primeiro qual Ã© o CID (cÃ³digo) do atestado digitando na barra de busca!');
+        alert('Selecione primeiro qual é o CID (código) do atestado digitando na barra de busca!');
         const s = document.getElementById('cid-search');
         if (s) { s.focus(); s.style.border = '2px solid red'; setTimeout(()=> s.style.border='', 2000); }
         return;
@@ -3416,7 +3416,7 @@ window.toggleAtestadoPeriodFields = function() {
     }
 }
 
-// Calcula data de tÃ©rmino automaticamente
+// Calcula data de término automaticamente
 window.calcAtestadoFim = function() {
     const inicio = document.getElementById('atestado_inicio_dia')?.value;
     const qtd = parseInt(document.getElementById('atestado_qtd_dias')?.value, 10) || 1;
@@ -3431,7 +3431,7 @@ window.calcAtestadoFim = function() {
 window.uploadAtestadoWithCID = async function(inputEl) {
     const file = inputEl.files[0];
     if (!file || !selectedCID) return;
-    if (!viewedColaborador) { alert('Colaborador nÃ£o selecionado.'); return; }
+    if (!viewedColaborador) { alert('Colaborador não selecionado.'); return; }
 
     // Loading state
     const uploadBtn   = document.getElementById('cid-upload-btn');
@@ -3439,7 +3439,7 @@ window.uploadAtestadoWithCID = async function(inputEl) {
     if (uploadBtn) { uploadBtn.style.opacity = '0.7'; uploadBtn.style.pointerEvents = 'none'; }
     if (uploadIcon)  uploadIcon.className = 'ph ph-spinner ph-spin';
 
-    // Gerar nome no padrÃ£o Z01_DD-MM-AA_NomeColab
+    // Gerar nome no padrão Z01_DD-MM-AA_NomeColab
     const today = new Date();
     const dd  = String(today.getDate()).padStart(2, '0');
     const mm  = String(today.getMonth() + 1).padStart(2, '0');
@@ -3459,13 +3459,13 @@ window.uploadAtestadoWithCID = async function(inputEl) {
     formData.append('custom_name', customName);
     formData.append('year', year);
 
-    // Campos de perÃ­odo
+    // Campos de período
     const tipo = document.getElementById('atestado_tipo').value;
     formData.append('atestado_tipo', tipo);
     if (tipo === 'dias') {
         const inicioVal = document.getElementById('atestado_inicio_dia').value;
         const fimVal = document.getElementById('atestado_fim_dia').value;
-        if (!inicioVal) { alert('Informe a Data de InÃ­cio do atestado.'); return; }
+        if (!inicioVal) { alert('Informe a Data de Início do atestado.'); return; }
         formData.append('atestado_inicio', inicioVal);
         formData.append('atestado_fim', fimVal || inicioVal);
     } else {
@@ -3532,7 +3532,7 @@ window.saveVencimento = async function(docId, inputId) {
         });
         if (res.ok) {
             alert('Validade atualizada com sucesso!');
-            await loadDocumentosList(); // Para atualizar a exibiÃ§Ã£o do Venc: dd/mm/aaaa no texto
+            await loadDocumentosList(); // Para atualizar a exibição do Venc: dd/mm/aaaa no texto
             
             const viewAdm = document.getElementById('view-admissao');
             const isAdmActive = viewAdm && viewAdm.classList.contains('active');
@@ -3623,7 +3623,7 @@ window.renderAtestadosAno = function() {
     if (!listContainer) return;
     listContainer.innerHTML = '';
 
-    // Usar os documentos jÃ¡ filtrados pela barra global
+    // Usar os documentos já filtrados pela barra global
     const docsToUse = window.lastAtestadoDocs || currentDocs.filter(d => d.tab_name === 'Atestados');
     const filteredByYear = docsToUse.filter(d => d.year == y);
 
@@ -3649,7 +3649,7 @@ window.renderPagamentosCompetencia = function() {
     subContainer.innerHTML = '';
 
     const docs = currentDocs.filter(d => d.tab_name === 'Pagamentos' && d.year == y && d.month == m);
-    ['Ponto', 'Holerite', 'Recibo CombustÃ­vel', 'Recibo AlimentaÃ§Ã£o'].forEach(type => {
+    ['Ponto', 'Holerite', 'Recibo Combustível', 'Recibo Alimentação'].forEach(type => {
         const d = docs.find(x => x.document_type === type);
         subContainer.appendChild(createDocSlot('Pagamentos', type, d, `'${y}'`, `'${m}'`));
     });
@@ -3772,7 +3772,7 @@ window.uploadDynamicDocument = function(inputEl, tabId) {
 }
 
 window.deleteDoc = async function(docId, btnEl) {
-    // RemoÃ§Ã£o otimista: esconde o card imediatamente para feedback visual instantÃ¢neo
+    // Remoção otimista: esconde o card imediatamente para feedback visual instantâneo
     const docCard = btnEl ? btnEl.closest('.doc-item') : null;
     if (docCard) {
         docCard.style.transition = 'opacity 0.2s ease';
@@ -3789,7 +3789,7 @@ window.deleteDoc = async function(docId, btnEl) {
             // Remover o card do DOM imediatamente
             if (docCard) docCard.remove();
 
-            // Atualizar lista em memÃ³ria e re-renderizar a aba em background
+            // Atualizar lista em memória e re-renderizar a aba em background
             await loadDocumentosList();
 
             const viewAdm = document.getElementById('view-admissao');
@@ -3807,7 +3807,7 @@ window.deleteDoc = async function(docId, btnEl) {
                 }
             }
         } else {
-            // Reverter a remoÃ§Ã£o otimista em caso de erro
+            // Reverter a remoção otimista em caso de erro
             if (docCard) {
                 docCard.style.opacity = '1';
                 docCard.style.pointerEvents = 'auto';
@@ -3854,7 +3854,7 @@ window.viewAssinado = async function(docId) {
         document.body.style.cursor = 'default';
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
-            alert(err.error || 'PDF assinado ainda nÃ£o estÃ¡ disponÃ­vel.');
+            alert(err.error || 'PDF assinado ainda não está disponível.');
             return;
         }
         const blob = await res.blob();
@@ -3885,7 +3885,7 @@ window.viewAssinado = async function(docId) {
         `;
         document.body.appendChild(overlay);
 
-        // BotÃ£o de download
+        // Botão de download
         document.getElementById('btn-download-signed-pdf').addEventListener('click', () => {
             const a = document.createElement('a');
             a.href = blobUrl;
@@ -3902,7 +3902,7 @@ window.downloadAssinado = async function(docId) {
     const url = `${API_URL}/documentos/download-assinado/${docId}`;
     try {
         let handle = null;
-        // Pede a pasta ao usuÃ¡rio antes do fetch para garantir que nÃ£o perde o foco/evento de clique do navegador (exigÃªncia de seguranÃ§a do Chrome)
+        // Pede a pasta ao usuário antes do fetch para garantir que não perde o foco/evento de clique do navegador (exigência de segurança do Chrome)
         if (window.showSaveFilePicker) {
             try {
                 handle = await window.showSaveFilePicker({
@@ -3910,7 +3910,7 @@ window.downloadAssinado = async function(docId) {
                     types: [{ description: 'Documento PDF', accept: { 'application/pdf': ['.pdf'] } }]
                 });
             } catch (e) {
-                if (e.name === 'AbortError') return; // UsuÃ¡rio cancelou a janela Salvar Como
+                if (e.name === 'AbortError') return; // Usuário cancelou a janela Salvar Como
             }
         }
 
@@ -3921,7 +3921,7 @@ window.downloadAssinado = async function(docId) {
         if (!res.ok) {
             document.body.style.cursor = 'default';
             const err = await res.json().catch(() => ({}));
-            alert(err.error || 'PDF assinado ainda nÃ£o estÃ¡ pronto para download. Tente via Atualizar.');
+            alert(err.error || 'PDF assinado ainda não está pronto para download. Tente via Atualizar.');
             return;
         }
 
@@ -3932,10 +3932,10 @@ window.downloadAssinado = async function(docId) {
             const writable = await handle.createWritable();
             await writable.write(blob);
             await writable.close();
-            return; // Sucesso, arquivo salvo onde o usuÃ¡rio quis
+            return; // Sucesso, arquivo salvo onde o usuário quis
         }
 
-        // Fallback: se o navegador nÃ£o suportar a janela Salvar Como (ex: Safari antigo, Firefox padrÃ£o)
+        // Fallback: se o navegador não suportar a janela Salvar Como (ex: Safari antigo, Firefox padrão)
         let fileName = 'documento_assinado_' + docId + '.pdf';
         const disposition = res.headers.get('content-disposition');
         if (disposition && disposition.indexOf('filename=') !== -1) {
@@ -3959,17 +3959,17 @@ function getEffectiveStatus(c) {
     if (!c) return 'Ativo';
     let status = c.status || 'Ativo';
     
-    // Se estÃ¡ "Ativo" ou "FÃ©rias", verificamos as datas para saber se deve mostrar FÃ©rias
-    if (status === 'Ativo' || status === 'FÃ©rias') {
+    // Se está "Ativo" ou "Férias", verificamos as datas para saber se deve mostrar Férias
+    if (status === 'Ativo' || status === 'Férias') {
         if (c.ferias_programadas_inicio && c.ferias_programadas_fim) {
             const today = new Date().toISOString().split('T')[0];
             if (today >= c.ferias_programadas_inicio && today <= c.ferias_programadas_fim) {
-                return 'FÃ©rias';
+                return 'Férias';
             }
         }
     }
-    // Se o status era FÃ©rias mas saiu do perÃ­odo e nÃ£o mudou manualmente para outra coisa, volta a ser Ativo
-    if (status === 'FÃ©rias' && c.ferias_programadas_fim) {
+    // Se o status era Férias mas saiu do período e não mudou manualmente para outra coisa, volta a ser Ativo
+    if (status === 'Férias' && c.ferias_programadas_fim) {
         const today = new Date().toISOString().split('T')[0];
         if (today > c.ferias_programadas_fim) return 'Ativo';
     }
@@ -4022,9 +4022,9 @@ window.previewFoto = function(input) {
             .then(res => res.json())
             .then(data => {
                 if (data.sucesso) {
-                    // A prÃ©-visualizaÃ§Ã£o base64 jÃ¡ estÃ¡ correta no cÃ­rculo.
-                    // NÃ£o substituÃ­mos src por URL do servidor (efÃªmero no Render).
-                    // Apenas garantimos que a foto seja visÃ­vel apÃ³s o upload.
+                    // A pré-visualização base64 já está correta no círculo.
+                    // Não substituímos src por URL do servidor (efêmero no Render).
+                    // Apenas garantimos que a foto seja visível após o upload.
                     const preview = document.getElementById('colab-foto-preview');
                     const stateSaved = document.getElementById('photo-state-saved');
                     if (preview) preview.style.display = 'block';
@@ -4072,12 +4072,12 @@ window.toggleTipoDocumento = function() {
     
     if (sel && rgInput && cpfInput && lbl) {
         if (sel.value === 'CIN') {
-            lbl.textContent = 'NÃºmero (CIN)';
+            lbl.textContent = 'Número (CIN)';
             rgInput.value = cpfInput.value;
             rgInput.setAttribute('readonly', 'true');
             rgInput.style.backgroundColor = '#e9ecef';
         } else {
-            lbl.textContent = 'NÃºmero (RG)';
+            lbl.textContent = 'Número (RG)';
             rgInput.removeAttribute('readonly');
             rgInput.style.backgroundColor = '';
             // Limpa apenas se estiver igual ao CPF (ou seja, foi preenchido por CIN)
@@ -4121,7 +4121,7 @@ window.mascaraApenasNumeros = function(el) {
 window.mascaraMilitar = window.mascaraApenasNumeros;
 
 
-// Validar campo genÃ©rico no frontend
+// Validar campo genérico no frontend
 window.validarCPFCampo = function(el) {
     const v = el.value.replace(/\D/g, "");
     const errorMsg = document.getElementById(el.id === 'colab-cpf' ? 'cpf-error' : '');
@@ -4140,7 +4140,7 @@ window.toggleConjuge = function() {
     const nome = document.getElementById('conjuge-nome');
     const cpf = document.getElementById('conjuge-cpf');
     
-    if (estado && (estado.value === 'Casado' || estado.value === 'UniÃ£o EstÃ¡vel')) {
+    if (estado && (estado.value === 'Casado' || estado.value === 'União Estável')) {
         section.style.display = 'block';
     } else if (section) {
         section.style.display = 'none';
@@ -4182,11 +4182,11 @@ window.mascaraCNH = function(el) {
 window.mascaraTelefone = function(i) {
 
     let v = i.value;
-    v = v.replace(/\D/g, ""); // Remove nÃ£o-dÃ­gitos
+    v = v.replace(/\D/g, ""); // Remove não-dígitos
     if (v.length > 10) {
-        v = v.replace(/^(\d\d)(\d{5})(\d{4}).*/, "($1) $2-$3"); // 11 dÃ­gitos
+        v = v.replace(/^(\d\d)(\d{5})(\d{4}).*/, "($1) $2-$3"); // 11 dígitos
     } else if (v.length > 5) {
-        v = v.replace(/^(\d\d)(\d{4})(\d{0,4}).*/, "($1) $2-$3"); // 10 dÃ­gitos (fixo)
+        v = v.replace(/^(\d\d)(\d{4})(\d{0,4}).*/, "($1) $2-$3"); // 10 dígitos (fixo)
     } else if (v.length > 2) {
         v = v.replace(/^(\d\d)(\d{0,5})/, "($1) $2");
     } else {
@@ -4247,12 +4247,12 @@ function updateProbationBadge(admissaoDate) {
         
         containers.forEach(container => {
             if (diffDays <= 45) {
-                container.innerHTML = '<span class="probation-badge">1Âº 45</span>';
+                container.innerHTML = '<span class="probation-badge">1º 45</span>';
             } else if (diffDays <= 90) {
-                container.innerHTML = '<span class="probation-badge second">2Âº 45</span>';
+                container.innerHTML = '<span class="probation-badge second">2º 45</span>';
             }
         });
-    } catch(e) { console.error('Erro ao calcular perÃ­odo de experiÃªncia:', e); }
+    } catch(e) { console.error('Erro ao calcular período de experiência:', e); }
 }
 
 // --- CBO LOOKUP ---
@@ -4302,7 +4302,7 @@ window.selecionarCBO = function(code, desc) {
     if (dropdown) dropdown.style.display = 'none';
 };
 
-// --- GESTÃƒO DE FACULDADE ---
+// --- GESTÃO DE FACULDADE ---
 window.loadFaculdadeCursos = async function() {
     try {
         const response = await fetch(`${API_URL}/cursos-faculdade`, {
@@ -4420,7 +4420,7 @@ document.addEventListener('click', (e) => {
     }
 });
 
-// --- GESTÃƒO DE GERADORES DE DOCUMENTOS ---
+// --- GESTÃO DE GERADORES DE DOCUMENTOS ---
 
 window.loadGeradores = async function() {
     try {
@@ -4468,98 +4468,98 @@ window.filterGeradores = function() {
 async function seedInitialGeradores() {
     const templates = [
         {
-            nome: "Acordo Individual BenefÃ­cios",
+            nome: "Acordo Individual Benefícios",
             conteudo: `
 <p style="margin-top: 1.5rem;">CARO COLABORADOR,</p>
-<p>Ã EMPRESA:</p>
+<p>Á EMPRESA:</p>
 
 <p style="margin-top: 1.5rem;">
-    <b>AMERICA RENTAL EQUIPAMENTOS LTDA</b>, Situada na Rua Salto da Divisa, nÂº 97, CEP 07252-300, Pq Alvorada - Guarulhos SP, inscrita no CNPJ sob o nÂº 03.434.448/0001-01, neste ato representado pela sÃ³cia proprietÃ¡ria Sra. Nicole Mezuraro Maio, brasileira, solteira, empresÃ¡ria, portadora da cÃ©dula de identidade R.G. nÂº 43.690.066 SSP/SP e CPF/MF nÂº 355.026.968-47, doravante denominada EMPRESA.
+    <b>AMERICA RENTAL EQUIPAMENTOS LTDA</b>, Situada na Rua Salto da Divisa, nº 97, CEP 07252-300, Pq Alvorada - Guarulhos SP, inscrita no CNPJ sob o nº 03.434.448/0001-01, neste ato representado pela sócia proprietária Sra. Nicole Mezuraro Maio, brasileira, solteira, empresária, portadora da cédula de identidade R.G. nº 43.690.066 SSP/SP e CPF/MF nº 355.026.968-47, doravante denominada EMPRESA.
 </p>
 
 <p style="margin-top: 1.5rem;">
-    Decidem as partes, na melhor forma de direito, celebrar o presente <b>ACORDO INDIVIDUAL</b>, para fins de alterar algumas condiÃ§Ãµes do atual contrato de trabalho vigente, que reger-se-Ã¡ mediante as clÃ¡usulas e condiÃ§Ãµes adiante estipuladas.
+    Decidem as partes, na melhor forma de direito, celebrar o presente <b>ACORDO INDIVIDUAL</b>, para fins de alterar algumas condições do atual contrato de trabalho vigente, que reger-se-á mediante as cláusulas e condições adiante estipuladas.
 </p>
 
-<p style="margin-top: 1.5rem;"><b>CLÃUSULA PRIMEIRA - DOS MOTIVOS</b></p>
-<p>Com o foco de acrescentar melhorias e qualidade de vida aos colaboradores a empresa <b>AMERICA RENTAL EQUIPAMENTOS LTDA</b>, por mera liberalidade, disponibiliza convÃªnios com os estabelecimentos:</p>
+<p style="margin-top: 1.5rem;"><b>CLÁUSULA PRIMEIRA - DOS MOTIVOS</b></p>
+<p>Com o foco de acrescentar melhorias e qualidade de vida aos colaboradores a empresa <b>AMERICA RENTAL EQUIPAMENTOS LTDA</b>, por mera liberalidade, disponibiliza convênios com os estabelecimentos:</p>
 
 <ol style="margin-top: 1rem; line-height: 2;">
-    <li>REDE DROGA LESTE FARMÃCIA</li>
+    <li>REDE DROGA LESTE FARMÁCIA</li>
     <li>SUPERMERCADO PARAISO - MERCADINHO BERLIM LTDA - ME</li>
     <li>ACADEMIA - ATITUDE FITNESS</li>
 </ol>
 
-<p style="margin-top: 1.5rem;"><b>CLÃUSULA SEGUNDA â€“ DOS DESCONTOS E DOS ESTABELICIMENTOS</b></p>
-<p>O colaborador autoriza os descontos de seu salÃ¡rio caso venha utilizar os convÃªnios colocados a sua disposiÃ§Ã£o, conforme numerados na clÃ¡usula anterior. Ademais, o colaborador fica ciente que nÃ£o Ã© obrigado a utilizar o convÃªnio, logo, sem a utilizaÃ§Ã£o nÃ£o haverÃ¡ qualquer desconto de sua folha de pagamento.</p>
+<p style="margin-top: 1.5rem;"><b>CLÁUSULA SEGUNDA – DOS DESCONTOS E DOS ESTABELICIMENTOS</b></p>
+<p>O colaborador autoriza os descontos de seu salário caso venha utilizar os convênios colocados a sua disposição, conforme numerados na cláusula anterior. Ademais, o colaborador fica ciente que não é obrigado a utilizar o convênio, logo, sem a utilização não haverá qualquer desconto de sua folha de pagamento.</p>
 
-<p style="margin-top: 1.5rem;"><b>CLÃUSULA TERCEIRA - DA VIGÃŠNCIA</b></p>
-<p>O presente acordo vigorarÃ¡ a partir da presente data pelo perÃ­odo da vigÃªncia do contrato de trabalho do Colaborador.</p>
+<p style="margin-top: 1.5rem;"><b>CLÁUSULA TERCEIRA - DA VIGÊNCIA</b></p>
+<p>O presente acordo vigorará a partir da presente data pelo período da vigência do contrato de trabalho do Colaborador.</p>
             `,
             variaveis: ""
         },
         {
-            nome: "AutorizaÃ§Ã£o de Uso de Imagem",
+            nome: "Autorização de Uso de Imagem",
             conteudo: `
 <p style="margin-top: 2rem;">
-    <b>AUTORIZO</b> o uso de minha imagem e voz, em todo e qualquer material entre fotos, documentos e outros meios de comunicaÃ§Ã£o, para campanhas promocionais e institucionais e etc. desta empresa, <b>AMERICA RENTAL EQUIPAMENTOS LTDA</b>, Situada na Rua Salto da Divisa, nÂº 97, CEP 07252-300, Pq Alvorada - Guarulhos SP, inscrita no CNPJ sob o nÂº 03.434.448/0001-01, sejam essas destinadas Ã  divulgaÃ§Ã£o ao pÃºblico em geral e/ou apenas para uso interno, e desde que nÃ£o haja desvirtuamento da sua finalidade.
+    <b>AUTORIZO</b> o uso de minha imagem e voz, em todo e qualquer material entre fotos, documentos e outros meios de comunicação, para campanhas promocionais e institucionais e etc. desta empresa, <b>AMERICA RENTAL EQUIPAMENTOS LTDA</b>, Situada na Rua Salto da Divisa, nº 97, CEP 07252-300, Pq Alvorada - Guarulhos SP, inscrita no CNPJ sob o nº 03.434.448/0001-01, sejam essas destinadas à divulgação ao público em geral e/ou apenas para uso interno, e desde que não haja desvirtuamento da sua finalidade.
 </p>
 
 <p style="margin-top: 1.5rem;">
-    A presente autorizaÃ§Ã£o Ã© concedida a tÃ­tulo gratuito, abrangendo o uso da imagem acima mencionada em todo territÃ³rio nacional e no exterior, sob qualquer forma e meios, ou sejam, em destaque: (I) out-door; (II) bus-door; folhetos em geral (encartes, mala direta, catÃ¡logo, etc.); (III) folder de apresentaÃ§Ã£o; (IV) anÃºncios em revistas e jornais em geral; (V) home page; (VI) cartazes; (VII) back-light; (VIII) mÃ­dia eletrÃ´nica (painÃ©is, vÃ­deo-tapes, televisÃ£o, cinema, programa para rÃ¡dio, rede social entre outros).
+    A presente autorização é concedida a título gratuito, abrangendo o uso da imagem acima mencionada em todo território nacional e no exterior, sob qualquer forma e meios, ou sejam, em destaque: (I) out-door; (II) bus-door; folhetos em geral (encartes, mala direta, catálogo, etc.); (III) folder de apresentação; (IV) anúncios em revistas e jornais em geral; (V) home page; (VI) cartazes; (VII) back-light; (VIII) mídia eletrônica (painéis, vídeo-tapes, televisão, cinema, programa para rádio, rede social entre outros).
 </p>
 
 <p style="margin-top: 1.5rem;">
-    Por esta ser a expressÃ£o da minha vontade declaro que autorizo o uso acima descrito sem que nada haja a ser reclamado a tÃ­tulo de direitos conexos Ã  minha imagem ou a qualquer outro.
+    Por esta ser a expressão da minha vontade declaro que autorizo o uso acima descrito sem que nada haja a ser reclamado a título de direitos conexos à minha imagem ou a qualquer outro.
 </p>
             `,
             variaveis: ""
         },
         {
-            nome: "Acordo de AuxÃ­lio-CombustÃ­vel",
+            nome: "Acordo de Auxílio-Combustível",
             conteudo: `
 <p style="margin-top: 1.5rem;">
-    <b>AMERICA RENTAL EQUIPAMENTOS LTDA</b>, Situada na Rua Salto da Divisa, nÂº 97, CEP 07252-300, Parque Alvorada - Guarulhos SP, Inscrita no CNPJ sob o nÂº 03.434.448/0001-01, denominada empregador, e Colaborador, de comum acordo e na melhor forma do direito, as partes celebram o presente Acordo Individual Escrito, com apoio nos art. 444, 457, 458 e art. 468 da CLT para tratar exclusivamente das condiÃ§Ãµes para fornecimento de auxÃ­lio-combustÃ­vel, mantendo-se inalteradas as demais clÃ¡usulas contratuais firmadas.
+    <b>AMERICA RENTAL EQUIPAMENTOS LTDA</b>, Situada na Rua Salto da Divisa, nº 97, CEP 07252-300, Parque Alvorada - Guarulhos SP, Inscrita no CNPJ sob o nº 03.434.448/0001-01, denominada empregador, e Colaborador, de comum acordo e na melhor forma do direito, as partes celebram o presente Acordo Individual Escrito, com apoio nos art. 444, 457, 458 e art. 468 da CLT para tratar exclusivamente das condições para fornecimento de auxílio-combustível, mantendo-se inalteradas as demais cláusulas contratuais firmadas.
 </p>
 
 <p style="margin-top: 1.5rem;">
-    <b>ClÃ¡usula Primeira:</b> O empregador fornecerÃ¡ mensalmente o valor fixo de R$220,00 (duzentos e vinte reais) a tÃ­tulo de auxÃ­lio-combustÃ­vel ao trabalhador que comprovar a necessidade de utilizaÃ§Ã£o de veÃ­culo prÃ³prio para o deslocamento casa â€“ trabalho, de forma escrita.
+    <b>Cláusula Primeira:</b> O empregador fornecerá mensalmente o valor fixo de R$220,00 (duzentos e vinte reais) a título de auxílio-combustível ao trabalhador que comprovar a necessidade de utilização de veículo próprio para o deslocamento casa – trabalho, de forma escrita.
 </p>
 
 <p style="margin-top: 1rem;">
-    <b>ParÃ¡grafo primeiro:</b> A comprovaÃ§Ã£o de que trata essa clÃ¡usula, deverÃ¡ ser feita mediante apresentaÃ§Ã£o de comprovante de residÃªncia em nome prÃ³prio e identificaÃ§Ã£o de veÃ­culo utilizado no ato da contrataÃ§Ã£o.
+    <b>Parágrafo primeiro:</b> A comprovação de que trata essa cláusula, deverá ser feita mediante apresentação de comprovante de residência em nome próprio e identificação de veículo utilizado no ato da contratação.
 </p>
 
 <p style="margin-top: 1rem;">
-    <b>ParÃ¡grafo Segundo:</b> O valor a tÃ­tulo de auxÃ­lio-combustÃ­vel serÃ¡ reajustado anualmente a critÃ©rio do empregador.
+    <b>Parágrafo Segundo:</b> O valor a título de auxílio-combustível será reajustado anualmente a critério do empregador.
 </p>
 
 <p style="margin-top: 1.5rem;">
-    <b>ClÃ¡usula Segunda:</b> As partes esclarecem que referido auxÃ­lio-combustÃ­vel possui natureza indenizatÃ³ria, nÃ£o se integrando Ã  remuneraÃ§Ã£o para quaisquer fins.
+    <b>Cláusula Segunda:</b> As partes esclarecem que referido auxílio-combustível possui natureza indenizatória, não se integrando à remuneração para quaisquer fins.
 </p>
 
 <p style="margin-top: 1.5rem;">
-    <b>ClÃ¡usula Terceira:</b> SÃ£o condiÃ§Ãµes para o fornecimento do auxÃ­lio-combustÃ­vel mensalmente ao trabalhador, de forma cumulativa, a utilizaÃ§Ã£o de veÃ­culo prÃ³prio para deslocamento e a inexistÃªncia de qualquer falta ao trabalho no mÃªs correspondente.
+    <b>Cláusula Terceira:</b> São condições para o fornecimento do auxílio-combustível mensalmente ao trabalhador, de forma cumulativa, a utilização de veículo próprio para deslocamento e a inexistência de qualquer falta ao trabalho no mês correspondente.
 </p>
 
 <p style="margin-top: 1.5rem;">
-    <b>ClÃ¡usula Quarta:</b> Em caso de ausÃªncia injustificada por parte do empregado ao trabalho o auxÃ­lio-combustÃ­vel nÃ£o serÃ¡ fornecido.
+    <b>Cláusula Quarta:</b> Em caso de ausência injustificada por parte do empregado ao trabalho o auxílio-combustível não será fornecido.
 </p>
 
 <p style="margin-top: 1rem;">
-    <b>ParÃ¡grafo Ãºnico:</b> Considera-se como ausÃªncia injustificada, qualquer hipÃ³tese distinta da prevista no art. 473 da CLT.
+    <b>Parágrafo único:</b> Considera-se como ausência injustificada, qualquer hipótese distinta da prevista no art. 473 da CLT.
 </p>
 
 <p style="margin-top: 1.5rem;">
-    <b>ClÃ¡usula Quinta:</b> Ao trabalhador que nÃ£o utilizar veÃ­culo prÃ³prio para deslocamento casa trabalho, nÃ£o serÃ¡ pago o auxÃ­lio-combustÃ­vel.
+    <b>Cláusula Quinta:</b> Ao trabalhador que não utilizar veículo próprio para deslocamento casa trabalho, não será pago o auxílio-combustível.
 </p>
 
 <p style="margin-top: 1.5rem;">
-    <b>ClÃ¡usula Sexta:</b> Fica desde jÃ¡ autorizada a revisÃ£o das condiÃ§Ãµes para o fornecimento e/ou supressÃ£o do referido auxÃ­lio-combustÃ­vel pelo empregador a qualquer tempo, e sem aviso prÃ©vio, nÃ£o importando em direito adquirido do trabalhador, nÃ£o se aderindo ao contrato de trabalho.
+    <b>Cláusula Sexta:</b> Fica desde já autorizada a revisão das condições para o fornecimento e/ou supressão do referido auxílio-combustível pelo empregador a qualquer tempo, e sem aviso prévio, não importando em direito adquirido do trabalhador, não se aderindo ao contrato de trabalho.
 </p>
 
 <p style="margin-top: 1.5rem;">
-    <b>ClÃ¡usula SÃ©tima:</b> As partes firmam o presente de comum acordo, assinando em duas vias de igual teor.
+    <b>Cláusula Sétima:</b> As partes firmam o presente de comum acordo, assinando em duas vias de igual teor.
 </p>
             `,
             variaveis: ""
@@ -4590,7 +4590,7 @@ window.editGerador = async function(id) {
         document.getElementById('gerador-id').value = g.id;
         document.getElementById('gerador-nome').value = g.nome;
         
-        // Detectar se Ã© texto puro legÃ­vel (legado) ou HTML
+        // Detectar se é texto puro legível (legado) ou HTML
         let finalContent = g.conteudo;
         if (!finalContent.includes('<') && !finalContent.includes('>')) {
             finalContent = finalContent.replace(/\n/g, '<br>');
@@ -4614,8 +4614,8 @@ function setupGeradores() {
     console.log('Setup Geradores initialized...');
     const form = document.getElementById('form-gerador');
     if (!form) {
-        console.warn('FormulÃ¡rio de gerador nÃ£o encontrado na inicializaÃ§Ã£o. Tentando novamente em breve.');
-        setTimeout(setupGeradores, 500); // Tentar novamente se o HTML nÃ£o carregou
+        console.warn('Formulário de gerador não encontrado na inicialização. Tentando novamente em breve.');
+        setTimeout(setupGeradores, 500); // Tentar novamente se o HTML não carregou
         return;
     }
     
@@ -4643,12 +4643,12 @@ function setupGeradores() {
             }
         } catch (e) { 
             console.error(e);
-            alert('Falha crÃ­tica ao salvar gerador. Verifique o console.');
+            alert('Falha crítica ao salvar gerador. Verifique o console.');
         }
     });
 }
 
-// FunÃ§Ãµes do Editor de Texto
+// Funções do Editor de Texto
 window.formatDoc = function(cmd, value = null) {
     document.execCommand(cmd, false, value);
 };
@@ -4689,10 +4689,10 @@ window.abrirPreviewDocumento = function(data) {
     const container = document.getElementById('preview-doc-body');
     if (!container) return;
     
-    // 1. CabeÃ§alho com Logotipo (Banner Colorido)
+    // 1. Cabeçalho com Logotipo (Banner Colorido)
     const logoBanner = `<div style="margin-bottom: 1rem;"><img src="${API_URL.replace('/api', '')}/assets/logo-header.png" style="width: 100%; display: block;"></div>`;
     
-    // 2. TÃ­tulo e Dados do Colaborador (PADRÃƒO)
+    // 2. Título e Dados do Colaborador (PADRÃO)
     const colabInfoBase = `
         <h1 style="text-align: center; color: #1e293b; margin-top: 0.2rem; font-size: 1.25rem; text-transform: uppercase;">${data.gerador_nome}</h1>
         <p style="margin-top: 0.75rem; font-size: 1rem;"><b>COLABORADOR:</b> ${data.colaborador.NOME_COMPLETO}</p>
@@ -4701,12 +4701,12 @@ window.abrirPreviewDocumento = function(data) {
             <p style="margin-bottom: 0.2rem; font-size: 0.8rem;"><b>DADOS COLABORADOR:</b></p>
             <div style="display: flex; gap: 2rem;">
                 <span>CPF: <b>${data.colaborador.CPF}</b></span>
-                <span>ADMISSÃƒO: <b>${data.colaborador.DATA_ADMISSAO}</b></span>
+                <span>ADMISSÃO: <b>${data.colaborador.DATA_ADMISSAO}</b></span>
             </div>
-            <p>ENDEREÃ‡O: ${data.colaborador.ENDERECO || '---'}</p>
+            <p>ENDEREÇO: ${data.colaborador.ENDERECO || '---'}</p>
             <div style="display: flex; gap: 2rem;">
                 <span>CARGO: ${data.colaborador.CARGO || '---'}</span>
-                <span>SALÃRIO: ${data.colaborador.SALARIO || '---'}</span>
+                <span>SALÁRIO: ${data.colaborador.SALARIO || '---'}</span>
             </div>
             <div style="display: flex; gap: 2rem;">
                 <span>CELULAR: ${data.colaborador.TELEFONE || '---'}</span>
@@ -4715,18 +4715,18 @@ window.abrirPreviewDocumento = function(data) {
         </div>
     `;
     
-    // 3. ConteÃºdo EspecÃ­fico (O que vem do Banco)
-    // ForÃ§ar Negrito no nome da empresa e respeitar quebras de linha/espaÃ§os em qualquer modo
+    // 3. Conteúdo Específico (O que vem do Banco)
+    // Forçar Negrito no nome da empresa e respeitar quebras de linha/espaços em qualquer modo
     const htmlComDestaque = (data.html || '').replace(/AMERICA RENTAL EQUIPAMENTOS LTDA/g, '<b>AMERICA RENTAL EQUIPAMENTOS LTDA</b>');
     
-    // Ajuste especÃ­fico para Santander caber em 1 pÃ¡gina
+    // Ajuste específico para Santander caber em 1 página
     const isSantander = (data.gerador_nome || '').toLowerCase().includes('santander');
     const customFontSize = isSantander ? '0.7rem' : '0.9rem';
     const customLineHeight = isSantander ? '1.2' : '1.4';
 
     const conteudoPrincipal = `<div style="margin-top: 1rem; text-align: justify; line-height: ${customLineHeight}; font-size: ${customFontSize}; white-space: pre-wrap;">${htmlComDestaque}</div>`;
     
-    // 4. RodapÃ© de Assinaturas (PADRÃƒO CONFORME IMAGEM)
+    // 4. Rodapé de Assinaturas (PADRÃO CONFORME IMAGEM)
     const colabNome = data.colaborador.NOME_COMPLETO;
     const footerHtml = `
         <div style="margin-top: 1rem;">
@@ -4747,7 +4747,7 @@ window.abrirPreviewDocumento = function(data) {
                         <p style="font-size: 0.5rem; margin-top: 1px; font-weight: 700; line-height: 1.1;">AMERICA RENTAL EQUIPAMENTOS LTDA<br>CNPJ: 03.434.448/0001-01</p>
                     </div>
                     <div style="border-top: 1.5px solid #000; padding-top: 0.25rem;">
-                        <span style="font-weight: 700; font-size: 0.85rem;">AmÃ©rica Rental Equipamentos Ltda</span>
+                        <span style="font-weight: 700; font-size: 0.85rem;">América Rental Equipamentos Ltda</span>
                     </div>
                 </div>
             </div>
@@ -4784,7 +4784,7 @@ window.imprimirDocumento = function() {
     `);
     win.document.close();
 };
-// --- GESTÃƒO DE CHAVES ---
+// --- GESTÃO DE CHAVES ---
 window.loadChaves = async function() {
     try {
         const rows = await apiGet('/chaves');
@@ -4826,21 +4826,21 @@ window.deleteChave = async function(id) {
     } catch (e) { alert(e.message); }
 };
 
-// --- GESTÃƒO DE ADMISSÃƒO ---
+// --- GESTÃO DE ADMISSÃO ---
 window.loadAdmissaoSelect = async function() {
     try {
         const rows = await apiGet('/colaboradores');
         const select = document.getElementById('admissao-select-colab');
         if (!select) return;
         
-        // Apenas colaboradores com status 'Aguardando inÃ­cio' ou 'Processo iniciado'
-        const pendentes = rows.filter(r => r.status === 'Aguardando inÃ­cio' || r.status === 'Processo iniciado');
+        // Apenas colaboradores com status 'Aguardando início' ou 'Processo iniciado'
+        const pendentes = rows.filter(r => r.status === 'Aguardando início' || r.status === 'Processo iniciado');
         
         select.innerHTML = '<option value="">Selecione um colaborador...</option>';
         pendentes.forEach(p => {
             const opt = document.createElement('option');
             opt.value = p.id;
-            const displayStatus = p.status === 'Aguardando inÃ­cio' ? 'Aguardando' : (p.status === 'Processo iniciado' ? 'Iniciado' : p.status);
+            const displayStatus = p.status === 'Aguardando início' ? 'Aguardando' : (p.status === 'Processo iniciado' ? 'Iniciado' : p.status);
             opt.textContent = `${p.nome_completo} - ${p.cargo_nome || 'Sem Cargo'} (${displayStatus})`;
             select.appendChild(opt);
         });
@@ -4851,7 +4851,7 @@ window.loadAdmissaoSelect = async function() {
 
 window.sendAssinafyWhatsApp = async function(tipo, suffix) {
     if (!viewedColaborador || !viewedColaborador.telefone) {
-        alert('Telefone do colaborador nÃ£o encontrado para enviar WhatsApp.');
+        alert('Telefone do colaborador não encontrado para enviar WhatsApp.');
         return;
     }
     const inputLink = document.getElementById(`aso-assinafy-link-${suffix}`);
@@ -4871,7 +4871,7 @@ window.sendAssinafyWhatsApp = async function(tipo, suffix) {
         viewedColaborador[dbField] = linkAssinafy;
     } catch (e) { console.error('Erro ao salvar link:', e); }
 
-    const msg = `OlÃ¡, ${viewedColaborador.nome_completo}.\n\nSeu Exame Admissional estÃ¡ disponÃ­vel para assinatura digital.\n\nClique no link abaixo para assinar:\n${linkAssinafy}\n\nAmÃ©rica Rental Equipamentos Ltda.`;
+    const msg = `Olá, ${viewedColaborador.nome_completo}.\n\nSeu Exame Admissional está disponível para assinatura digital.\n\nClique no link abaixo para assinar:\n${linkAssinafy}\n\nAmérica Rental Equipamentos Ltda.`;
     
     const fone = viewedColaborador.telefone.replace(/\D/g, '');
     const url = `https://wa.me/55${fone}?text=${encodeURIComponent(msg)}`;
@@ -4899,7 +4899,7 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
             if (workflow) workflow.style.display = 'none';
         }
 
-        if (colab.status === 'Aguardando inÃ­cio') {
+        if (colab.status === 'Aguardando início') {
             document.getElementById('admissao-start-name').textContent = colab.nome_completo;
             document.getElementById('admissao-start-action').style.display = 'block';
         } else if (colab.status === 'Processo iniciado') {
@@ -4912,19 +4912,19 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
             const cargoObj = cargos.find(cg => cg.id == colab.cargo);
             const deptoObj = deptos.find(d => d.id == colab.departamento);
             
-            colab.cargo_nome_exibindo = cargoObj ? cargoObj.nome : (colab.cargo || 'NÃ£o definido');
-            colab.depto_nome_exibindo = deptoObj ? deptoObj.nome : (colab.departamento || 'NÃ£o definido');
+            colab.cargo_nome_exibindo = cargoObj ? cargoObj.nome : (colab.cargo || 'Não definido');
+            colab.depto_nome_exibindo = deptoObj ? deptoObj.nome : (colab.departamento || 'Não definido');
 
             // 1. Calcular Percentual do Passo 1 (Dados)
             const step1 = calculateAdmissaoStep1Completion(colab);
-            // Os valores reais serÃ£o preenchidos pela funÃ§Ã£o updateAdmissaoStepPercentages(colab) ao final
+            // Os valores reais serão preenchidos pela função updateAdmissaoStepPercentages(colab) ao final
             
             // Mostrar Alerta se faltar algo
             const alertEl = document.getElementById('admissao-missing-fields-alert');
             const listEl = document.getElementById('admissao-missing-fields-list');
             if (step1.missing.length > 0) {
                 alertEl.style.display = 'block';
-                listEl.innerHTML = step1.missing.map(f => `<div>â€¢ ${f}</div>`).join('');
+                listEl.innerHTML = step1.missing.map(f => `<div>• ${f}</div>`).join('');
                 document.getElementById('btn-admissao-step1-next').disabled = false; // Permite prosseguir mas avisa
             } else {
                 alertEl.style.display = 'none';
@@ -4959,7 +4959,7 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
                                 ${f.label} ${f.filled ? '<i class="ph-bold ph-check-circle" style="color:#22c55e"></i>' : '<span style="color:#ef4444!important;">(PENDENTE)</span>'}
                             </label>
                             <div style="font-size:1rem; font-weight:600; color:${f.filled ? '#1e293b' : '#ef4444'};">
-                                ${f.value || 'NÃƒO PREENCHIDO'}
+                                ${f.value || 'NÃO PREENCHIDO'}
                             </div>
                         </div>
                     `).join('')}
@@ -4981,7 +4981,7 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
                     </label>
                 `).join('');
             }
-            // 3. Renderizar Checklists DinÃ¢micos
+            // 3. Renderizar Checklists Dinâmicos
             renderAdmissaoStep3(colab, docs);
 
             // Mapeamento de Status por Step (Fixo para os outros)
@@ -4989,7 +4989,7 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
             const remainingSteps = {
                 'panel-step-4': { folder: 'ASO', ids: ['admissao-checklist-step4'], labels: ['ASO Admissional'] },
                 'panel-step-5': { folder: 'OUTROS', ids: ['admissao-checklist-step5'], labels: ['Protocolo eSocial'] },
-                'panel-step-6': { folder: 'TREINAMENTO', ids: ['admissao-checklist-step6'], labels: ['IntegraÃ§Ã£o'] },
+                'panel-step-6': { folder: 'TREINAMENTO', ids: ['admissao-checklist-step6'], labels: ['Integração'] },
                 'panel-step-7': { folder: 'CERTIFICADOS', ids: ['admissao-checklist-step7'], labels: ['Diploma'] },
                 'panel-step-8': { folder: 'CONTRATOS', ids: ['admissao-checklist-step8'], labels: ['Contrato Detalhado'] },
                 'panel-step-9': { folder: 'FICHA_DE_EPI', ids: ['admissao-checklist-step9'], labels: ['Entrega EPI'] }
@@ -5018,7 +5018,7 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
 
 
                             
-                            // Adicionar botÃ£o WhatsApp se nÃ£o existir
+                            // Adicionar botão WhatsApp se não existir
 
                             
 
@@ -5040,26 +5040,26 @@ function renderAdmissaoStep3(colab, docs) {
     
     const items = [
         { label: 'Carteira de Trabalho', folder: '01_FICHA_CADASTRAL' },
-        { label: 'TÃ­tulo Eleitoral', folder: '01_FICHA_CADASTRAL' },
+        { label: 'Título Eleitoral', folder: '01_FICHA_CADASTRAL' },
         { label: 'Certificado de Reservista', folder: '01_FICHA_CADASTRAL' },
         { label: 'CPF', folder: '01_FICHA_CADASTRAL' },
         { label: colab.rg_tipo === 'CIN' ? 'CIN (Nova Identidade)' : 'RG Tradicional', folder: '01_FICHA_CADASTRAL' },
-        { label: 'Comprovante de EndereÃ§o', folder: '01_FICHA_CADASTRAL', hasVencimento: true },
-        { label: 'HistÃ³rico Escolar', folder: '01_FICHA_CADASTRAL' },
-        { label: 'CertidÃ£o de Nascimento', folder: '01_FICHA_CADASTRAL' }
+        { label: 'Comprovante de Endereço', folder: '01_FICHA_CADASTRAL', hasVencimento: true },
+        { label: 'Histórico Escolar', folder: '01_FICHA_CADASTRAL' },
+        { label: 'Certidão de Nascimento', folder: '01_FICHA_CADASTRAL' }
     ];
 
     if (colab.estado_civil === 'Casado') {
-        items.push({ label: 'Documento do CÃ´njuge', folder: '01_FICHA_CADASTRAL' });
-        items.push({ label: 'CertidÃ£o de Casamento', folder: '01_FICHA_CADASTRAL' });
+        items.push({ label: 'Documento do Cônjuge', folder: '01_FICHA_CADASTRAL' });
+        items.push({ label: 'Certidão de Casamento', folder: '01_FICHA_CADASTRAL' });
     }
 
     if (colab.dependentes && colab.dependentes.length > 0) {
         colab.dependentes.forEach(dep => {
             items.push({ label: `CPF Dependente - ${dep.nome}`, folder: '01_FICHA_CADASTRAL' });
-            items.push({ label: `CertidÃ£o Nasc. Dependente - ${dep.nome}`, folder: '01_FICHA_CADASTRAL' });
+            items.push({ label: `Certidão Nasc. Dependente - ${dep.nome}`, folder: '01_FICHA_CADASTRAL' });
             
-            // LÃ³gica de idade para documentos adicionais
+            // Lógica de idade para documentos adicionais
             if (dep.data_nascimento) {
                 const birth = new Date(dep.data_nascimento);
                 const today = new Date();
@@ -5070,9 +5070,9 @@ function renderAdmissaoStep3(colab, docs) {
                 }
 
                 if (age < 7) {
-                    items.push({ label: `Caderneta de VacinaÃ§Ã£o - ${dep.nome}`, folder: '01_FICHA_CADASTRAL' });
+                    items.push({ label: `Caderneta de Vacinação - ${dep.nome}`, folder: '01_FICHA_CADASTRAL' });
                 } else {
-                    items.push({ label: `Atestado de FrequÃªncia Escolar - ${dep.nome}`, folder: '01_FICHA_CADASTRAL' });
+                    items.push({ label: `Atestado de Frequência Escolar - ${dep.nome}`, folder: '01_FICHA_CADASTRAL' });
                 }
             }
         });
@@ -5088,7 +5088,7 @@ function renderAdmissaoStep3(colab, docs) {
 
 
 window.startFinalAdmission = async function() {
-    console.log("[Admissao] BotÃ£o 'Iniciar' clicado. viewedColaborador:", viewedColaborador);
+    console.log("[Admissao] Botão 'Iniciar' clicado. viewedColaborador:", viewedColaborador);
     if (!viewedColaborador) {
         alert("Erro: Nenhum colaborador selecionado.");
         return;
@@ -5141,58 +5141,58 @@ function calculateAdmissaoStep1Completion(c) {
         { key: 'nome_completo', label: 'Nome Completo' },
         { key: 'cpf', label: 'CPF' },
         { key: 'rg_tipo', label: 'Tipo Documento' },
-        { key: 'rg', label: 'RG/NÃºmero' },
-        { key: 'rg_orgao', label: 'Ã“rgÃ£o Emissor' },
-        { key: 'rg_data_emissao', label: 'Data EmissÃ£o' },
+        { key: 'rg', label: 'RG/Número' },
+        { key: 'rg_orgao', label: 'Órgão Emissor' },
+        { key: 'rg_data_emissao', label: 'Data Emissão' },
         { key: 'data_nascimento', label: 'Nascimento' },
         { key: 'sexo', label: 'Sexo' },
-        { key: 'cor_raca', label: 'Cor/RaÃ§a' },
+        { key: 'cor_raca', label: 'Cor/Raça' },
         { key: 'estado_civil', label: 'Estado Civil' },
         { key: 'nacionalidade', label: 'Nacionalidade' },
         { key: 'local_nascimento', label: 'Naturalidade' },
-        { key: 'nome_mae', label: 'Nome da MÃ£e' },
+        { key: 'nome_mae', label: 'Nome da Mãe' },
         { key: 'nome_pai', label: 'Nome do Pai' },
         { key: 'telefone', label: 'Telefone' },
         { key: 'email', label: 'E-mail' },
-        { key: 'endereco', label: 'EndereÃ§o' },
+        { key: 'endereco', label: 'Endereço' },
         
         // Dados Profissionais
         { key: 'cargo_nome_exibindo', label: 'Cargo' },
         { key: 'depto_nome_exibindo', label: 'Departamento' },
-        { key: 'data_admissao', label: 'AdmissÃ£o' },
+        { key: 'data_admissao', label: 'Admissão' },
         { key: 'tipo_contrato', label: 'Tipo Contrato' },
-        { key: 'salario', label: 'SalÃ¡rio' },
+        { key: 'salario', label: 'Salário' },
         { key: 'cbo', label: 'CBO' },
-        { key: 'matricula_esocial', label: 'MatrÃ­cula eSocial' },
+        { key: 'matricula_esocial', label: 'Matrícula eSocial' },
         { key: 'pis', label: 'PIS/PASEP' },
-        { key: 'ctps_numero', label: 'CTPS NÃºmero' },
-        { key: 'ctps_serie', label: 'CTPS SÃ©rie' },
+        { key: 'ctps_numero', label: 'CTPS Número' },
+        { key: 'ctps_serie', label: 'CTPS Série' },
         { key: 'ctps_uf', label: 'CTPS UF' },
-        { key: 'ctps_data_expedicao', label: 'CTPS EmissÃ£o' },
+        { key: 'ctps_data_expedicao', label: 'CTPS Emissão' },
         
         // Outros Documentos
-        { key: 'titulo_eleitoral', label: 'TÃ­tulo Eleitoral' },
-        { key: 'titulo_zona', label: 'Zona/SeÃ§Ã£o' },
+        { key: 'titulo_eleitoral', label: 'Título Eleitoral' },
+        { key: 'titulo_zona', label: 'Zona/Seção' },
         { key: 'certificado_militar', label: 'Cert. Militar' },
-        { key: 'cnh_numero', label: 'CNH NÃºmero' },
+        { key: 'cnh_numero', label: 'CNH Número' },
         { key: 'cnh_categoria', label: 'CNH Cat.' },
         
-        // SaÃºde e Extras
-        { key: 'deficiencia', label: 'DeficiÃªncia' },
+        // Saúde e Extras
+        { key: 'deficiencia', label: 'Deficiência' },
         { key: 'alergias', label: 'Alergias' },
-        { key: 'contato_emergencia_nome', label: 'EmergÃªncia (Nome)' },
-        { key: 'contato_emergencia_telefone', label: 'EmergÃªncia (Tel)' },
+        { key: 'contato_emergencia_nome', label: 'Emergência (Nome)' },
+        { key: 'contato_emergencia_telefone', label: 'Emergência (Tel)' },
         
         // Financeiro
         { key: 'banco_nome', label: 'Banco' },
-        { key: 'banco_agencia', label: 'AgÃªncia' },
+        { key: 'banco_agencia', label: 'Agência' },
         { key: 'banco_conta', label: 'Conta' },
-        { key: 'fgts_opcao', label: 'OpÃ§Ã£o FGTS' },
+        { key: 'fgts_opcao', label: 'Opção FGTS' },
         
         // Escala
         { key: 'escala_tipo', label: 'Escala' },
         { key: 'horario_entrada', label: 'Entrada' },
-        { key: 'horario_saida', label: 'SaÃ­da' }
+        { key: 'horario_saida', label: 'Saída' }
     ];
     
     let filledCount = 0;
@@ -5243,7 +5243,7 @@ function updateAdmissaoStepPercentages(colab) {
         return Math.round((checked / checks.length) * 100);
     })();
     
-    // Adicionar Listener se nÃ£o houver
+    // Adicionar Listener se não houver
     const sigList = document.getElementById('admissao-signature-list');
     if (sigList && !sigList.dataset.listener) {
         sigList.addEventListener('change', () => updateAdmissaoStepPercentages());
@@ -5271,7 +5271,7 @@ function updateAdmissaoStepPercentages(colab) {
         const item = document.getElementById(`step-${s}`);
         if (item) {
             let isWarning = pc > 0 && pc < 100;
-            // Regra especial Step 4: Se enviou email p/ clÃ­nica, fica amarelo (atÃ© completar 100%)
+            // Regra especial Step 4: Se enviou email p/ clínica, fica amarelo (até completar 100%)
             if (s == 4 && viewedColaborador && viewedColaborador.aso_email_enviado) {
                 isWarning = pc < 100;
             }
@@ -5282,7 +5282,7 @@ function updateAdmissaoStepPercentages(colab) {
 
     const avg = Math.round(totalPc / 10);
     
-    // O usuÃ¡rio deseja que a etiqueta do Passo 1 reflita a Qualidade Global do Cadastro
+    // O usuário deseja que a etiqueta do Passo 1 reflita a Qualidade Global do Cadastro
     const step1PcEl = document.getElementById('step-1-pc');
     if (step1PcEl) step1PcEl.textContent = `${avg}%`;
 
@@ -5352,8 +5352,8 @@ window.filterAdmissaoDocs = function() {
 // Hook into toggleCheck to update counts
 const originalToggleCheck = window.toggleCheck;
 window.toggleCheck = function(el) {
-    // Desativado: seleÃ§Ã£o agora Ã© apenas via upload
-    console.log('Toggle desativado. Use o botÃ£o de Upload.');
+    // Desativado: seleção agora é apenas via upload
+    console.log('Toggle desativado. Use o botão de Upload.');
 };
 
 window.editColabFromAdmission = function() {
@@ -5365,7 +5365,7 @@ window.editColabFromAdmission = function() {
 
 window.sendASOEmail = async function() {
     if (!viewedColaborador) {
-        alert('Carregue um colaborador primeiro abrindo a ediÃ§Ã£o ou admissÃ£o.');
+        alert('Carregue um colaborador primeiro abrindo a edição ou admissão.');
         return;
     }
     const dataExame = document.getElementById('aso-exame-data').value;
@@ -5381,9 +5381,9 @@ window.sendASOEmail = async function() {
     const cargo = (viewedColaborador.cargo || '').toLowerCase();
     const exames = cargo.includes('motorista') 
         ? 'Exames Complementares, acuidade visual, E.E.G, E.C.G e Glicemia.' 
-        : 'Exame PadrÃ£o';
+        : 'Exame Padrão';
 
-    const mailBody = `TÃ­tulo: Exame Admissional\n\nSegue abaixo as informaÃ§Ãµes para a realizaÃ§Ã£o do exame Admissional do colaborador que deve comparecer.\n\nData: ${dt}\n\nNome: ${viewedColaborador.nome_completo}\nCPF: ${viewedColaborador.cpf}\nFunÃ§Ã£o: ${viewedColaborador.cargo || '-'}\nDepartamento: ${viewedColaborador.departamento || '-'}\n\nExames:\n${exames}\n\nâš ï¸ IMPORTANTE:\nApÃ³s o exame ficar pronto, favor enviar o documento por e-mail diretamente para: rh@americarental.com.br`;
+    const mailBody = `Título: Exame Admissional\n\nSegue abaixo as informações para a realização do exame Admissional do colaborador que deve comparecer.\n\nData: ${dt}\n\nNome: ${viewedColaborador.nome_completo}\nCPF: ${viewedColaborador.cpf}\nFunção: ${viewedColaborador.cargo || '-'}\nDepartamento: ${viewedColaborador.departamento || '-'}\n\nExames:\n${exames}\n\n⚠️ IMPORTANTE:\nApós o exame ficar pronto, favor enviar o documento por e-mail diretamente para: rh@americarental.com.br`;
 
     const btn = document.getElementById('btn-enviar-aso-email');
     const originalContent = btn.innerHTML;
@@ -5417,7 +5417,7 @@ window.sendASOEmail = async function() {
         }
     } catch (e) {
         console.error('Erro ao enviar e-mail ASO:', e);
-        if (confirm(`NÃ£o foi possÃ­vel enviar automaticamente pelo servidor. Erro do Servidor:\n\n${e.message}\n\nDeseja abrir o seu programa de e-mail (Outlook/Gmail) com o texto jÃ¡ preenchido?`)) {
+        if (confirm(`Não foi possível enviar automaticamente pelo servidor. Erro do Servidor:\n\n${e.message}\n\nDeseja abrir o seu programa de e-mail (Outlook/Gmail) com o texto já preenchido?`)) {
             const mailtoUrl = `mailto:${destinatario}?cc=rh@americarental.com.br,rh2@americarental.com.br&subject=Exame Admissional - ${viewedColaborador.nome_completo}&body=${encodeURIComponent(mailBody)}`;
             window.location.href = mailtoUrl;
         }
@@ -5504,7 +5504,7 @@ window.resetAdmissao = function() {
 window.finalizarAdmissao = async function() {
     if (!viewedColaborador) return;
     
-    if (!confirm(`Confirmar a admissÃ£o definitiva de ${viewedColaborador.nome_completo}?`)) return;
+    if (!confirm(`Confirmar a admissão definitiva de ${viewedColaborador.nome_completo}?`)) return;
     
     try {
         // Atualizar status para Ativo
@@ -5512,15 +5512,15 @@ window.finalizarAdmissao = async function() {
             status: 'Ativo'
         });
         
-        alert('AdmissÃ£o realizada com sucesso! O colaborador agora estÃ¡ ATIVO.');
+        alert('Admissão realizada com sucesso! O colaborador agora está ATIVO.');
         navigateTo('dashboard');
     } catch (e) {
-        alert('Erro ao finalizar admissÃ£o: ' + e.message);
+        alert('Erro ao finalizar admissão: ' + e.message);
     }
 };
 
 /**
- * Copia o link de assinatura para a Ã¡rea de transferÃªncia
+ * Copia o link de assinatura para a área de transferência
  */
 function copiarLinkAssinafy(el) {
     const url = decodeURIComponent(el.getAttribute('data-copy-url') || '');
@@ -5589,7 +5589,7 @@ window.iniciarAssinafy = async function(docType, tabName, btn) {
             
             const docInfoDiv = btn.closest('.doc-item') && btn.closest('.doc-item').querySelector('.doc-info div');
             if (docInfoDiv) {
-                // Atualizar ou criar o parÃ¡grafo de data de envio
+                // Atualizar ou criar o parágrafo de data de envio
                 let subInfoP = docInfoDiv.querySelector('p.subinfo-line');
                 if (!subInfoP) {
                     subInfoP = document.createElement('p');
@@ -5601,7 +5601,7 @@ window.iniciarAssinafy = async function(docType, tabName, btn) {
                 const vencHtml = vencSpan ? vencSpan.outerHTML + ' <span style="color:#64748b;">|</span> ' : '';
                 subInfoP.innerHTML = vencHtml + '<span style="color:#2f9e44; font-weight:600;">Enviado: ' + hojeFormatado + '</span>';
 
-                // Link de assinatura em parÃ¡grafo separado abaixo
+                // Link de assinatura em parágrafo separado abaixo
                 const urlAssinatura = res.urlAssinatura || null;
                 if (urlAssinatura) {
                     // Remover link antigo se existir
@@ -5644,7 +5644,7 @@ window.iniciarAssinafy = async function(docType, tabName, btn) {
     } catch (e) {
         console.error('Erro Assinafy:', e);
         if (e.name === 'AbortError') {
-            alert('â³ O processo estÃ¡ demorando mais que o esperado.\n\nO Assinafy pode jÃ¡ ter processado o documento. Aguarde 1 minuto e recarregue a pÃ¡gina para verificar o status.');
+            alert('⏳ O processo está demorando mais que o esperado.\n\nO Assinafy pode já ter processado o documento. Aguarde 1 minuto e recarregue a página para verificar o status.');
         } else {
             alert('Falha ao iniciar Assinafy: ' + e.message);
         }
@@ -5682,9 +5682,9 @@ window.syncAssinafyStatus = async function(docId, btn) {
             alert('Falha ao checar status: ' + (data.error || 'Erro desconhecido.'));
         }
     } catch (err) {
-        console.error('Erro requisiÃ§Ã£o sync Assinafy:', err);
+        console.error('Erro requisição sync Assinafy:', err);
     } finally {
-        // Redesenho da aba reescreverÃ¡ o icone, mas por cautela revertermos a animacao se falhar
+        // Redesenho da aba reescreverá o icone, mas por cautela revertermos a animacao se falhar
         if (icon) {
             icon.classList.remove('ph-spinner', 'ph-spin');
             icon.classList.add('ph-arrows-clockwise');
@@ -5706,9 +5706,9 @@ window.forceOnedriveSync = async function(docId, btn) {
         const logText = (data.log || []).join('\n');
 
         if (data.sucesso) {
-            alert(`âœ… Sincronizado com sucesso!\n\nArquivo: ${data.cloudName}\nPasta: ${data.targetDir}\n\n--- LOG ---\n${logText}`);
+            alert(`✅ Sincronizado com sucesso!\n\nArquivo: ${data.cloudName}\nPasta: ${data.targetDir}\n\n--- LOG ---\n${logText}`);
         } else {
-            alert(`âŒ Falha na sincronizaÃ§Ã£o OneDrive:\n${data.error}\n\n--- LOG ---\n${logText}`);
+            alert(`❌ Falha na sincronização OneDrive:\n${data.error}\n\n--- LOG ---\n${logText}`);
         }
     } catch (e) {
         alert('Erro de rede: ' + e.message);
@@ -5735,7 +5735,7 @@ window.syncAllAtestados = async function(ids, btn) {
     }
     btn.disabled = false;
     btn.innerHTML = original;
-    alert(`âœ… SincronizaÃ§Ã£o concluÃ­da!\nâœ“ Sucesso: ${ok}\nâœ— Falha: ${fail}\n\nUse o botÃ£o â˜ individual para ver o log de cada falha.`);
+    alert(`✅ Sincronização concluída!\n✓ Sucesso: ${ok}\n✗ Falha: ${fail}\n\nUse o botão ☁ individual para ver o log de cada falha.`);
 };
 
 window.testOneDriveConnection = async function() {
@@ -5755,23 +5755,23 @@ window.testOneDriveConnection = async function() {
             let gpsRH = "";
             if (data.rhLocation) {
                 let dId = data.rhLocation.parentReference?.driveId;
-                gpsRH = `\n\nâš ï¸ PASTA 'RH' ENCONTRADA EM OUTRO LUGAR:\nEndereÃ§o: ${data.rhLocation.webUrl}\nID Drive: ${dId}`;
+                gpsRH = `\n\n⚠️ PASTA 'RH' ENCONTRADA EM OUTRO LUGAR:\nEndereço: ${data.rhLocation.webUrl}\nID Drive: ${dId}`;
             }
             
-            let msg = `âœ… O OneDrive estÃ¡ CONECTADO corretamente!\n\n` +
+            let msg = `✅ O OneDrive está CONECTADO corretamente!\n\n` +
                       `Biblioteca: ${data.driveName}\n` +
                       `Link Direto: ${data.config.webUrlBase || data.config.webUrlRaiz}` +
                       gpsRH + 
                       `\n\nTudo pronto para sincronizar colaboradores.`;
             alert(msg);
         } else {
-            let errorMsg = `âŒ ${data.error}\n`;
-            if (data.code) errorMsg += `CÃ³digo: ${data.code}\n`;
+            let errorMsg = `❌ ${data.error}\n`;
+            if (data.code) errorMsg += `Código: ${data.code}\n`;
             if (data.details) errorMsg += `Detalhes: ${JSON.stringify(data.details)}`;
             alert(errorMsg);
         }
     } catch (e) {
-        alert("Erro na requisiÃ§Ã£o: " + e.message);
+        alert("Erro na requisição: " + e.message);
     } finally {
         btn.disabled = false;
         btn.innerHTML = originalHtml;
@@ -5779,7 +5779,7 @@ window.testOneDriveConnection = async function() {
 };
 
 window.syncOneDriveManual = async function(id, btnElement = null) {
-    // Se nÃ£o passou o elemento, tenta achar pelos IDs conhecidos
+    // Se não passou o elemento, tenta achar pelos IDs conhecidos
     const btn = btnElement || document.getElementById('btn-sync-onedrive') || document.getElementById('btn-form-sync-onedrive');
     const originalHtml = btn ? btn.innerHTML : '';
     if (btn) {
@@ -5800,12 +5800,12 @@ window.syncOneDriveManual = async function(id, btnElement = null) {
         const data = await res.json();
         
         if (data.sucesso) {
-            alert(`âœ… SUCESSO TOTAL!\nCaminho: ${data.path}`);
+            alert(`✅ SUCESSO TOTAL!\nCaminho: ${data.path}`);
         } else {
-            alert(`âŒ Erro na SincronizaÃ§Ã£o:\n${data.message || data.error}`);
+            alert(`❌ Erro na Sincronização:\n${data.message || data.error}`);
         }
     } catch (e) {
-        alert("Erro na requisiÃ§Ã£o: " + e.message);
+        alert("Erro na requisição: " + e.message);
     } finally {
         if(btn) {
             btn.disabled = false;
@@ -5815,10 +5815,10 @@ window.syncOneDriveManual = async function(id, btnElement = null) {
 };
 
 window.resetSystem = async function() {
-    const confirmation1 = confirm("ðŸš¨ ATENÃ‡ÃƒO: VocÃª tem certeza que deseja LIMPAR TODOS os colaboradores do sistema?\n\nIsso apagarÃ¡ todos os dados do banco de dados (dependentes, fotos, documentos registrados). Os arquivos fÃ­sicos no OneDrive nÃ£o serÃ£o apagados por seguranÃ§a.");
+    const confirmation1 = confirm("🚨 ATENÇÃO: Você tem certeza que deseja LIMPAR TODOS os colaboradores do sistema?\n\nIsso apagará todos os dados do banco de dados (dependentes, fotos, documentos registrados). Os arquivos físicos no OneDrive não serão apagados por segurança.");
     if (!confirmation1) return;
 
-    const confirmation2 = confirm("CONFIRMAÃ‡ÃƒO FINAL: Deseja realmente excluir permanentemente todos os registros de colaboradores?");
+    const confirmation2 = confirm("CONFIRMAÇÃO FINAL: Deseja realmente excluir permanentemente todos os registros de colaboradores?");
     if (!confirmation2) return;
 
     const btn = document.getElementById('btn-reset-sistema');
@@ -5834,7 +5834,7 @@ window.resetSystem = async function() {
         const data = await res.json();
         
         if (data.sucesso) {
-            alert("Sistema limpo com sucesso! A pÃ¡gina serÃ¡ recarregada.");
+            alert("Sistema limpo com sucesso! A página será recarregada.");
             location.reload();
         } else {
             alert("Erro ao resetar sistema: " + (data.error || "Erro desconhecido"));
@@ -5891,7 +5891,7 @@ setInterval(async () => {
     }
 }, 30000);
 
-// --- LÃ“GICA RENDER PDF (PDF.js) ---
+// --- LÓGICA RENDER PDF (PDF.js) ---
 async function renderPdfToContainer(pdfUrl, containerId, onScrollEnd) {
     const container = document.getElementById(containerId);
     container.innerHTML = '<div style="color:white; padding: 2rem;">Carregando PDF...</div>';
@@ -5899,7 +5899,7 @@ async function renderPdfToContainer(pdfUrl, containerId, onScrollEnd) {
     container.onscroll = null;
 
     try {
-        if (!window.pdfjsLib) throw new Error('Biblioteca pdf.js nÃ£o carregada');
+        if (!window.pdfjsLib) throw new Error('Biblioteca pdf.js não carregada');
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
         const loadingTask = pdfjsLib.getDocument(pdfUrl);
@@ -5939,7 +5939,7 @@ async function renderPdfToContainer(pdfUrl, containerId, onScrollEnd) {
         
     } catch (e) {
         console.error("PDFJS Erro:", e);
-        container.innerHTML = '<div style="color:red; padding:2rem;">Erro ao carregar renderizaÃ§Ã£o do PDF: ' + e.message + '</div>';
+        container.innerHTML = '<div style="color:red; padding:2rem;">Erro ao carregar renderização do PDF: ' + e.message + '</div>';
         onScrollEnd(); 
     }
 }
@@ -6010,7 +6010,7 @@ function isCanvasBlank(canvasId) {
     return canvas.toDataURL() === blank.toDataURL();
 }
 
-// --- LÃ“GICA ASSINATURA TESTEMUNHAS ---
+// --- LÓGICA ASSINATURA TESTEMUNHAS ---
 let ctxTestemunhas = {};
 let currentDocIdForWitness = null;
 let currentDocDataForWitness = null;
@@ -6040,7 +6040,7 @@ window.abrirModalAssinaturaTestemunhas = async function(docId) {
     
     console.log('[Testemunhas] Total colaboradores carregados:', cols.length);
     
-    // Mostrar todos os colaboradores cadastrados como possÃ­veis testemunhas
+    // Mostrar todos os colaboradores cadastrados como possíveis testemunhas
     const todos = (cols || []).filter(c => (c.nome_completo || c.nome || '').trim() !== '');
     todos.sort((a,b) => (a.nome_completo||a.nome||'').localeCompare(b.nome_completo||b.nome||''));
 
@@ -6086,8 +6086,8 @@ window.salvarAssinaturasTestemunhas = async function() {
     }
 
     const doc = currentDocDataForWitness;
-    if(!doc || !doc.file_path) { alert('Documento original nÃ£o encontrado.'); return; }
-    if (typeof PDFLib === 'undefined') { alert('A biblioteca de processamento de PDF nÃ£o estÃ¡ carregada.'); return; }
+    if(!doc || !doc.file_path) { alert('Documento original não encontrado.'); return; }
+    if (typeof PDFLib === 'undefined') { alert('A biblioteca de processamento de PDF não está carregada.'); return; }
 
     const btn = document.getElementById('btn-salvar-testemunhas');
     const originalBtn = btn.innerHTML;
@@ -6097,7 +6097,7 @@ window.salvarAssinaturasTestemunhas = async function() {
 
         const pdfUrl = `${API_URL}/documentos/download/${doc.id}?token=${currentToken}`;
         const pdfResp = await fetch(pdfUrl);
-        if(!pdfResp.ok) throw new Error('NÃ£o foi possÃ­vel baixar o PDF original.');
+        if(!pdfResp.ok) throw new Error('Não foi possível baixar o PDF original.');
         const existingPdfBytes = await pdfResp.arrayBuffer();
 
         const pdfDoc = await PDFLib.PDFDocument.load(existingPdfBytes);
@@ -6107,7 +6107,7 @@ window.salvarAssinaturasTestemunhas = async function() {
         const { width: pageWidth, height: pageHeight } = sigPage.getSize(); // 794 x 1123
         const innerWidth = (pageWidth - 112) / 2 - 20;
 
-        // --- Captura canvas em alta resoluÃ§Ã£o (3x DPI) ---
+        // --- Captura canvas em alta resolução (3x DPI) ---
         async function getHQCanvas(canvasId) {
             const src = document.getElementById(canvasId);
             const dpr = window.devicePixelRatio || 1;
@@ -6124,7 +6124,7 @@ window.salvarAssinaturasTestemunhas = async function() {
         const data1 = s1.split('###');
         const data2 = s2.split('###');
 
-        // Em PDF-Lib, Y=0 Ã© o base da pÃ¡gina. (Altura = 1123).
+        // Em PDF-Lib, Y=0 é o base da página. (Altura = 1123).
         // Organizando de cima para baixo (Y decrescente):
         const t1LabelY = 360;
         const t1ImgY   = 270; // altura 80 (cobre de 270 a 350)
@@ -6133,7 +6133,7 @@ window.salvarAssinaturasTestemunhas = async function() {
         const t1CpfY   = 225;
         const tImgH    = 80;
 
-        // â•â• TESTEMUNHA 1 (Esquerda) â•â•
+        // ══ TESTEMUNHA 1 (Esquerda) ══
         const t1X = 56;
         sigPage.drawText('Testemunha 1:', { x: t1X, y: t1LabelY, size: 10, color: PDFLib.rgb(0.2, 0.2, 0.2) });
         
@@ -6145,7 +6145,7 @@ window.salvarAssinaturasTestemunhas = async function() {
         sigPage.drawText(data1[0], { x: t1X, y: t1NameY, size: 10, color: PDFLib.rgb(0, 0, 0) });
         sigPage.drawText(`CPF: ${data1[1] || 'N/D'}`, { x: t1X, y: t1CpfY, size: 9, color: PDFLib.rgb(0.35, 0.35, 0.35) });
 
-        // â•â• TESTEMUNHA 2 (Direita) â•â•
+        // ══ TESTEMUNHA 2 (Direita) ══
         const t2X = pageWidth - 56 - innerWidth;
         sigPage.drawText('Testemunha 2:', { x: t2X, y: t1LabelY, size: 10, color: PDFLib.rgb(0.2, 0.2, 0.2) });
 
@@ -6160,7 +6160,7 @@ window.salvarAssinaturasTestemunhas = async function() {
         const modifiedPdfBytes = await pdfDoc.save();
         const file = new File([modifiedPdfBytes], doc.file_name, { type: 'application/pdf' });
         const formData = new FormData();
-        formData.append('document_id', doc.id); // ForÃ§a UPDATE em vez de INSERT
+        formData.append('document_id', doc.id); // Força UPDATE em vez de INSERT
         formData.append('file', file);
         formData.append('colaborador_id', viewedColaborador.id);
         formData.append('colaborador_nome', viewedColaborador.nome_completo || 'Desconhecido');
@@ -6190,7 +6190,7 @@ window.salvarAssinaturasTestemunhas = async function() {
         if(activeTab) {
             renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
         } else {
-            renderTabContent('AdvertÃªncias', 'AdvertÃªncias', true);
+            renderTabContent('Advertências', 'Advertências', true);
         }
     } catch (e) {
         console.error(e);
@@ -6201,7 +6201,7 @@ window.salvarAssinaturasTestemunhas = async function() {
     }
 };
 
-// --- LÃ“GICA ASSINATURA COLABORADOR (AdvertÃªncia) ---
+// --- LÓGICA ASSINATURA COLABORADOR (Advertência) ---
 let ctxColaborador = {};
 let currentDocIdForColab = null;
 
@@ -6235,11 +6235,11 @@ window.limparCanvasColaborador = function() {
 
 window.salvarAssinaturaColaborador = async function() {
     if (isCanvasBlank('canvas-colaborador')) {
-        alert('A assinatura do colaborador Ã© obrigatÃ³ria.'); return;
+        alert('A assinatura do colaborador é obrigatória.'); return;
     }
 
     const doc = currentDocs.find(d => d.id === currentDocIdForColab);
-    if(!doc || !doc.file_path) { alert('Documento nÃ£o encontrado.'); return; }
+    if(!doc || !doc.file_path) { alert('Documento não encontrado.'); return; }
 
     const btn = document.getElementById('btn-salvar-colaborador');
     const originalBtn = btn.innerHTML;
@@ -6249,12 +6249,12 @@ window.salvarAssinaturaColaborador = async function() {
 
         const pdfUrl = `${API_URL}/documentos/download/${doc.id}?token=${currentToken}`;
         const pdfResp = await fetch(pdfUrl);
-        if(!pdfResp.ok) throw new Error('NÃ£o foi possÃ­vel baixar o PDF original.');
+        if(!pdfResp.ok) throw new Error('Não foi possível baixar o PDF original.');
         const existingPdfBytes = await pdfResp.arrayBuffer();
 
         const pdfDoc = await PDFLib.PDFDocument.load(existingPdfBytes);
         const pages = pdfDoc.getPages();
-        const lastPage = pages[0]; // Agora garantimos que tudo fica na pÃ¡gina 1
+        const lastPage = pages[0]; // Agora garantimos que tudo fica na página 1
         const { width: pgW, height: pgH } = lastPage.getSize();
 
         // Captura de alta qualidade
@@ -6329,7 +6329,7 @@ window.salvarAssinaturaColaborador = async function() {
         if(activeTab) {
             renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
         } else {
-            renderTabContent('AdvertÃªncias', 'AdvertÃªncias', true);
+            renderTabContent('Advertências', 'Advertências', true);
         }
     } catch (e) {
         console.error(e);
@@ -6341,12 +6341,12 @@ window.salvarAssinaturaColaborador = async function() {
 };
 
 // ============================================================
-// ABA FICHA DE EPI NO PRONTUÃRIO
+// ABA FICHA DE EPI NO PRONTUÁRIO
 // ============================================================
 async function renderFichaEpiTab(container) {
     container.innerHTML = '<p class="text-muted">Carregando fichas de EPI...</p>';
     const colabId = viewedColaborador?.id;
-    if (!colabId) { container.innerHTML = '<div class="alert alert-info">Colaborador nÃ£o identificado.</div>'; return; }
+    if (!colabId) { container.innerHTML = '<div class="alert alert-info">Colaborador não identificado.</div>'; return; }
 
     let fichas = [], templates = [];
     try {
@@ -6367,8 +6367,8 @@ async function renderFichaEpiTab(container) {
     const templateDoColab = templates.find(t => (t.departamentos || []).includes(dept)) ||
                             templates.find(t => t.grupo === dept) || templates[0];
 
-    // LÃ³gica do botÃ£o Gerar: deve ficar desabilitado quando hÃ¡ ficha ativa COM linhas disponÃ­veis
-    // e o template nÃ£o mudou (snapshot_epis igual ao template atual)
+    // Lógica do botão Gerar: deve ficar desabilitado quando há ficha ativa COM linhas disponíveis
+    // e o template não mudou (snapshot_epis igual ao template atual)
     let btnDesabilitado = false;
     let btnMotivo = '';
     if (fichaAtiva && templateDoColab) {
@@ -6384,12 +6384,12 @@ async function renderFichaEpiTab(container) {
 
         if (mesmosEpis && mesmoTermo && mesmoRodape && mesmoGrupo && temCampos) {
             btnDesabilitado = true;
-            btnMotivo = `Ficha ativa com ${TOTAL_LINHAS - fichaLinhas} campos disponÃ­veis`;
+            btnMotivo = `Ficha ativa com ${TOTAL_LINHAS - fichaLinhas} campos disponíveis`;
         }
     }
 
     const fmtDate = iso => {
-        if (!iso) return 'â€”';
+        if (!iso) return '—';
         const d = new Date(iso);
         return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
     };
@@ -6398,7 +6398,7 @@ async function renderFichaEpiTab(container) {
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;flex-wrap:wrap;gap:1rem;">
             <div>
                 <h3 style="margin:0;font-size:1.1rem;font-weight:700;color:#0f172a;">Fichas de EPI</h3>
-                <p style="margin:4px 0 0;font-size:0.82rem;color:#64748b;">HistÃ³rico de fichas geradas para ${viewedColaborador?.nome_completo || ''}.</p>
+                <p style="margin:4px 0 0;font-size:0.82rem;color:#64748b;">Histórico de fichas geradas para ${viewedColaborador?.nome_completo || ''}.</p>
             </div>
             <div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;">
                 ${fichaAtiva ? `
@@ -6420,7 +6420,7 @@ async function renderFichaEpiTab(container) {
         ${btnDesabilitado ? `
         <div style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:8px;padding:0.75rem 1rem;margin-bottom:1rem;font-size:0.83rem;color:#1d4ed8;display:flex;align-items:center;gap:8px;">
             <i class="ph ph-info"></i>
-            <span>Ficha ativa com <strong>${TOTAL_LINHAS - (fichaAtiva?.linhas_usadas||0)} campos</strong> disponÃ­veis. Gere nova ficha somente apÃ³s mudanÃ§a no template ou esgotar os campos.</span>
+            <span>Ficha ativa com <strong>${TOTAL_LINHAS - (fichaAtiva?.linhas_usadas||0)} campos</strong> disponíveis. Gere nova ficha somente após mudança no template ou esgotar os campos.</span>
         </div>` : ''}
 
         ${fichaAtiva ? `
@@ -6487,25 +6487,25 @@ window.abrirAssinaturaEpi = async function(fichaId) {
     overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,0.85);display:flex;align-items:center;justify-content:center;padding:1rem;';
 
     overlay.innerHTML = `
-        <div style="background:#fff;border-radius:16px;width:100%;max-width:680px;max-height:95vh;display:flex;flex-direction:column;box-shadow:0 25px 60px rgba(0,0,0,0.4);overflow:hidden;">
+        <div style="background:#fff;border-radius:12px;width:100%;max-width:680px;max-height:95vh;display:flex;flex-direction:column;box-shadow:0 20px 50px rgba(0,0,0,0.35);overflow:hidden;">
 
             <!-- Header -->
-            <div style="background:linear-gradient(135deg,#1e3a5f,#2d5fa0);padding:1.25rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
+            <div style="background:#1e3a5f;padding:1.1rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
                 <div style="display:flex;align-items:center;gap:0.75rem;">
                     <i class="ph ph-pen" style="color:#93c5fd;font-size:1.4rem;"></i>
                     <div>
-                        <p style="margin:0;color:#f1f5f9;font-weight:700;font-size:1rem;">Registro de Entrega de EPI</p>
-                        <p style="margin:0;color:#93c5fd;font-size:0.8rem;">${nomeColab} â€” ${ficha.grupo}</p>
+                        <p style="margin:0;color:#f1f5f9;font-weight:700;font-size:0.97rem;">Registro de Entrega de EPI</p>
+                        <p style="margin:0;color:#93c5fd;font-size:0.8rem;">${nomeColab} &mdash; ${ficha.grupo}</p>
                     </div>
                 </div>
                 <button onclick="document.getElementById('epi-assinatura-overlay').remove()"
-                        style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;">Ã—</button>
+                        style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;line-height:1;">&times;</button>
             </div>
 
             <!-- Steps indicator -->
-            <div style="background:#f8fafc;border-bottom:1px solid #e2e8f0;padding:0.75rem 1.5rem;display:flex;align-items:center;gap:1rem;">
-                <div id="step-ind-1" style="display:flex;align-items:center;gap:6px;font-size:0.82rem;font-weight:700;color:#2d5fa0;">
-                    <span style="background:#2d5fa0;color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.75rem;">1</span>
+            <div style="background:#f8fafc;border-bottom:1px solid #e2e8f0;padding:0.65rem 1.5rem;display:flex;align-items:center;gap:1rem;">
+                <div id="step-ind-1" style="display:flex;align-items:center;gap:6px;font-size:0.82rem;font-weight:700;color:#1e3a5f;">
+                    <span style="background:#1e3a5f;color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.75rem;">1</span>
                     Selecionar EPIs
                 </div>
                 <div style="flex:1;height:2px;background:#e2e8f0;border-radius:2px;"></div>
@@ -6520,19 +6520,19 @@ window.abrirAssinaturaEpi = async function(fichaId) {
                 </div>
             </div>
 
-            <!-- ConteÃºdo scrollÃ¡vel -->
+            <!-- Conteudo scrollavel -->
             <div id="epi-assin-body" style="flex:1;overflow-y:auto;padding:1.5rem;">
 
-                <!-- STEP 1: SeleÃ§Ã£o de EPIs -->
+                <!-- STEP 1: Selecao de EPIs -->
                 <div id="epi-step-1">
-                    <p style="font-size:0.88rem;color:#475569;margin:0 0 1rem;">Selecione os EPIs que serÃ£o entregues neste ato:</p>
+                    <p style="font-size:0.88rem;color:#475569;margin:0 0 1rem;">Selecione os EPIs que ser&atilde;o entregues neste ato:</p>
                     <div style="display:flex;flex-direction:column;gap:6px;">
                         ${epis.map((epi, i) => `
-                        <label style="display:flex;align-items:center;gap:10px;padding:0.6rem 0.85rem;border:1.5px solid #e2e8f0;border-radius:8px;cursor:pointer;transition:border-color 0.15s;" 
-                               onmouseover="this.style.borderColor='#3b82f6'" 
+                        <label style="display:flex;align-items:center;gap:10px;padding:0.6rem 0.85rem;border:1.5px solid #e2e8f0;border-radius:8px;cursor:pointer;transition:border-color 0.15s;"
+                               onmouseover="this.style.borderColor='#1e3a5f'"
                                onmouseout="if(!document.getElementById('epi-chk-${i}').checked)this.style.borderColor='#e2e8f0'">
-                            <input type="checkbox" id="epi-chk-${i}" value="${epi.replace(/"/g,"&quot;")}" 
-                                   style="width:16px;height:16px;accent-color:#2d5fa0;"
+                            <input type="checkbox" id="epi-chk-${i}" value="${epi.replace(/"/g,'&quot;')}"
+                                   style="width:16px;height:16px;accent-color:#1e3a5f;"
                                    onchange="window._syncEpiSelection()">
                             <span style="font-size:0.88rem;color:#0f172a;">${epi}</span>
                         </label>
@@ -6541,7 +6541,7 @@ window.abrirAssinaturaEpi = async function(fichaId) {
                     <p id="epi-select-warn" style="color:#dc2626;font-size:0.8rem;margin:0.75rem 0 0;display:none;">Selecione ao menos um EPI.</p>
                 </div>
 
-                <!-- STEP 2: Assinatura (oculto inicialmente) -->
+                <!-- STEP 2: Assinatura -->
                 <div id="epi-step-2" style="display:none;">
                     <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:1rem;margin-bottom:1rem;">
                         <p style="font-size:0.8rem;font-weight:700;color:#166534;margin:0 0 6px;">EPIs selecionados para entrega:</p>
@@ -6551,37 +6551,41 @@ window.abrirAssinaturaEpi = async function(fichaId) {
                     <p style="font-size:0.82rem;font-weight:700;color:#374151;margin:0 0 8px;">Termo de Responsabilidade:</p>
                     <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:1rem;font-size:0.8rem;color:#374151;max-height:130px;overflow-y:auto;line-height:1.55;margin-bottom:1.25rem;white-space:pre-wrap;">${termo}</div>
 
-                    <p style="font-size:0.88rem;font-weight:700;color:#0f172a;margin:0 0 8px;">âœï¸ Assinatura do Colaborador:</p>
+                    <p style="font-size:0.88rem;font-weight:700;color:#0f172a;margin:0 0 6px;">
+                        <i class="ph ph-pen" style="color:#1e3a5f;"></i> Assinatura do Colaborador:
+                    </p>
                     <p style="font-size:0.78rem;color:#64748b;margin:0 0 8px;">Assine abaixo com o dedo ou mouse para confirmar o recebimento dos EPIs.</p>
                     <div style="border:2px dashed #94a3b8;border-radius:10px;background:#fafafa;position:relative;">
                         <canvas id="epi-signature-canvas" width="620" height="180"
                                 style="width:100%;height:180px;border-radius:8px;touch-action:none;cursor:crosshair;display:block;"></canvas>
-                        <button onclick="window._limparAssinatura()" 
+                        <button onclick="window._limparAssinatura()"
                                 style="position:absolute;top:8px;right:8px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:3px 10px;font-size:0.75rem;color:#475569;cursor:pointer;">
                             Limpar
                         </button>
                     </div>
-                    <p id="epi-assin-warn" style="color:#dc2626;font-size:0.8rem;margin:0.5rem 0 0;display:none;">A assinatura Ã© obrigatÃ³ria.</p>
+                    <p id="epi-assin-warn" style="color:#dc2626;font-size:0.8rem;margin:0.5rem 0 0;display:none;">A assinatura &eacute; obrigat&oacute;ria.</p>
                 </div>
 
-                <!-- STEP 3: ConfirmaÃ§Ã£o (oculto) -->
-                <div id="epi-step-3" style="display:none;text-align:center;padding:1rem 0;">
-                    <div style="font-size:3rem;margin-bottom:0.5rem;">âœ…</div>
-                    <p style="font-weight:700;font-size:1rem;color:#15803d;margin:0 0 4px;">Entrega registrada com sucesso!</p>
+                <!-- STEP 3: Confirmacao -->
+                <div id="epi-step-3" style="display:none;text-align:center;padding:2rem 1rem;">
+                    <i class="ph ph-check-circle" style="font-size:3.5rem;color:#16a34a;display:block;margin-bottom:0.75rem;"></i>
+                    <p style="font-weight:700;font-size:1.05rem;color:#15803d;margin:0 0 4px;">Entrega registrada com sucesso!</p>
                     <p style="font-size:0.85rem;color:#64748b;">A assinatura foi salva e as linhas da ficha foram atualizadas.</p>
                 </div>
 
             </div>
 
-            <!-- Footer com botÃµes -->
+            <!-- Footer -->
             <div id="epi-assin-footer" style="border-top:1px solid #e2e8f0;padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;background:#f8fafc;">
-                <button id="btn-assin-back" onclick="window._assinStep(1)" style="display:none;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;padding:0.6rem 1.25rem;font-weight:600;font-size:0.88rem;cursor:pointer;color:#475569;">
-                    â† Voltar
+                <button id="btn-assin-back" onclick="window._assinStep(1)"
+                        style="display:none;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;padding:0.6rem 1.25rem;font-weight:600;font-size:0.88rem;cursor:pointer;color:#475569;display:flex;align-items:center;gap:6px;">
+                    <i class="ph ph-arrow-left"></i> Voltar
                 </button>
                 <div></div>
                 <button id="btn-assin-next" onclick="window._assinNextStep()"
-                        style="background:linear-gradient(135deg,#1e3a5f,#2d5fa0);color:#fff;border:none;border-radius:8px;padding:0.65rem 1.5rem;font-weight:700;font-size:0.9rem;cursor:pointer;display:flex;align-items:center;gap:6px;">
-                    PrÃ³ximo â†’
+                        class="btn btn-primary"
+                        style="padding:0.65rem 1.5rem;font-weight:700;font-size:0.9rem;display:flex;align-items:center;gap:6px;">
+                    Pr&oacute;ximo <i class="ph ph-arrow-right"></i>
                 </button>
             </div>
         </div>
@@ -6596,11 +6600,11 @@ window.abrirAssinaturaEpi = async function(fichaId) {
     window._assinEpisDisponiveis = epis;
     window._assinEpisSelecionados = [];
 
-    // Inicializa canvas apÃ³s render
+    // Inicializa canvas após render
     setTimeout(() => window._initSignatureCanvas(), 100);
 };
 
-// Sincroniza seleÃ§Ã£o de checkboxes
+// Sincroniza seleção de checkboxes
 window._syncEpiSelection = function() {
     const checked = [];
     document.querySelectorAll('#epi-step-1 input[type=checkbox]:checked').forEach(cb => {
@@ -6630,17 +6634,17 @@ window._assinStep = function(n) {
         if (!badge || !ind) return;
         const done  = s < n;
         const active= s === n;
-        badge.style.background = done ? '#16a34a' : active ? '#2d5fa0' : '#cbd5e1';
-        if (ind) ind.style.color = active ? '#2d5fa0' : done ? '#15803d' : '#94a3b8';
+        badge.style.background = done ? '#16a34a' : active ? '#1e3a5f' : '#cbd5e1';
+        if (ind) ind.style.color = active ? '#1e3a5f' : done ? '#15803d' : '#94a3b8';
     });
 
     const btnBack = document.getElementById('btn-assin-back');
     const btnNext = document.getElementById('btn-assin-next');
     if (btnBack) btnBack.style.display = n > 1 && n < 3 ? '' : 'none';
     if (btnNext) {
-        if (n === 1) { btnNext.textContent = 'PrÃ³ximo â†’'; btnNext.style.display = ''; }
+        if (n === 1) { btnNext.innerHTML = 'Pr&oacute;ximo <i class="ph ph-arrow-right"></i>'; btnNext.style.display = ''; }
         else if (n === 2) { btnNext.innerHTML = '<i class="ph ph-check"></i> Confirmar Entrega'; btnNext.style.display = ''; }
-        else { btnNext.textContent = 'Fechar'; btnNext.style.display = ''; }
+        else { btnNext.innerHTML = '<i class="ph ph-x"></i> Fechar'; btnNext.style.display = ''; }
     }
 
     // Atualiza lista selecionada no step 2
@@ -6651,12 +6655,12 @@ window._assinStep = function(n) {
     }
 };
 
-// BotÃ£o "PrÃ³ximo / Confirmar / Fechar"
+// Botão "Próximo / Confirmar / Fechar"
 window._assinNextStep = async function() {
     const step = window._assinCurrentStep;
 
     if (step === 1) {
-        // Valida seleÃ§Ã£o
+        // Valida seleção
         if (!window._assinEpisSelecionados || window._assinEpisSelecionados.length === 0) {
             const warn = document.getElementById('epi-select-warn');
             if (warn) warn.style.display = '';
@@ -6696,7 +6700,7 @@ window._assinNextStep = async function() {
             if (result.error) throw new Error(result.error);
 
             window._assinStep(3);
-            // Recarrega a aba apÃ³s 2s
+            // Recarrega a aba após 2s
             setTimeout(() => {
                 const old = document.getElementById('epi-assinatura-overlay');
                 if (old) old.remove();
@@ -6788,7 +6792,7 @@ window.gerarNovaFichaEpi = async function() {
     }
 
     if (fichaAtiva) {
-        const ok = confirm(`JÃ¡ existe uma ficha ativa (${fichaAtiva.grupo}). Deseja fechar a atual e criar nova?`);
+        const ok = confirm(`Já existe uma ficha ativa (${fichaAtiva.grupo}). Deseja fechar a atual e criar nova?`);
         if (!ok) return;
     }
 
@@ -6826,7 +6830,7 @@ window.gerarNovaFichaEpi = async function() {
             <div style="background:#0f172a;padding:0.75rem 1.5rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #334155;flex-shrink:0;">
                 <div style="display:flex;align-items:center;gap:0.75rem;">
                     <i class="ph ph-shield-check" style="color:#60a5fa;font-size:1.3rem;"></i>
-                    <span style="color:#f1f5f9;font-weight:700;font-size:0.97rem;">Ficha de EPI â€” ${template.grupo}</span>
+                    <span style="color:#f1f5f9;font-weight:700;font-size:0.97rem;">Ficha de EPI — ${template.grupo}</span>
                     <span style="color:#94a3b8;font-size:0.82rem;">${colab.nome}</span>
                 </div>
                 <div style="display:flex;gap:0.75rem;align-items:center;">
@@ -6874,7 +6878,7 @@ window.previewFichaEpi = async function(fichaId) {
         <div style="background:#0f172a;padding:0.75rem 1.5rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #334155;flex-shrink:0;">
             <div style="display:flex;align-items:center;gap:0.75rem;">
                 <i class="ph ph-shield-check" style="color:#60a5fa;font-size:1.3rem;"></i>
-                <span style="color:#f1f5f9;font-weight:700;font-size:0.97rem;">Ficha de EPI â€” ${ficha.grupo}</span>
+                <span style="color:#f1f5f9;font-weight:700;font-size:0.97rem;">Ficha de EPI — ${ficha.grupo}</span>
                 <span style="color:${ficha.status==='ativa'?'#4ade80':'#94a3b8'};font-size:0.82rem;">${ficha.status === 'ativa' ? '&#9679; Ativa' : '&#9675; Fechada'}</span>
             </div>
             <div style="display:flex;gap:0.75rem;">
