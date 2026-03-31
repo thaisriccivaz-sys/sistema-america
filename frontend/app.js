@@ -6816,44 +6816,7 @@ window.gerarNovaFichaEpi = async function() {
     const created = await res.json();
     if (!created.id) { alert('Erro ao criar ficha.'); return; }
 
-    // Gera PDF e abre preview
-    if (typeof window.gerarDocEpi === 'function' && window.jspdf) {
-        if (typeof window.ensureHeaderLogo === 'function') await window.ensureHeaderLogo();
-        const { jsPDF } = window.jspdf;
-        const colab = {
-            nome: viewedColaborador.nome_completo, rg: viewedColaborador.rg, cpf: viewedColaborador.cpf,
-            cargo: viewedColaborador.cargo, dept: template.grupo, admissao: viewedColaborador.data_admissao
-        };
-        const doc = window.gerarDocEpi(template, colab, jsPDF);
-        const dataUri = doc.output('datauristring');
-        const nomeArq = `Ficha_EPI_${template.grupo.replace(/\s+/g,'_')}_${colab.nome.replace(/\s+/g,'_')}.pdf`;
-        const old = document.getElementById('epi-preview-overlay');
-        if (old) old.remove();
-        const overlay = document.createElement('div');
-        overlay.id = 'epi-preview-overlay';
-        overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#1e293b;display:flex;flex-direction:column;';
-        overlay.innerHTML = `
-            <div style="background:#0f172a;padding:0.75rem 1.5rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #334155;flex-shrink:0;">
-                <div style="display:flex;align-items:center;gap:0.75rem;">
-                    <i class="ph ph-shield-check" style="color:#60a5fa;font-size:1.3rem;"></i>
-                    <span style="color:#f1f5f9;font-weight:700;font-size:0.97rem;">Ficha de EPI — ${template.grupo}</span>
-                    <span style="color:#94a3b8;font-size:0.82rem;">${colab.nome}</span>
-                </div>
-                <div style="display:flex;gap:0.75rem;align-items:center;">
-                    <a href="${dataUri}" download="${nomeArq}" style="background:#0f4c81;color:#fff;border:none;padding:0.5rem 1.25rem;border-radius:8px;font-weight:700;font-size:0.88rem;cursor:pointer;display:flex;align-items:center;gap:0.5rem;text-decoration:none;">
-                        <i class="ph ph-download"></i> Baixar PDF
-                    </a>
-                    <button onclick="document.getElementById('epi-preview-overlay').remove(); const t=document.querySelector('[data-tab=\\'Ficha de EPI\\']'); if(t)t.click();"
-                            style="background:#334155;color:#f1f5f9;border:none;padding:0.5rem 1.1rem;border-radius:8px;font-weight:700;font-size:0.88rem;cursor:pointer;display:flex;align-items:center;gap:0.5rem;">
-                        <i class="ph ph-x"></i> Fechar
-                    </button>
-                </div>
-            </div>
-            <iframe src="${dataUri}" style="flex:1;border:none;width:100%;"></iframe>
-        `;
-        document.body.appendChild(overlay);
-    }
-
+    // Recarrega a aba para mostrar a nova ficha (sem abrir preview automaticamente)
     const activeTab = document.querySelector('#tabs-list li.active');
     if (activeTab) renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
 };
