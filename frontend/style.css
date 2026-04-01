@@ -1146,3 +1146,87 @@ body {
     50% { opacity: 0.6; }
     100% { opacity: 1; }
 }
+
+/* ============================================
+   TOPBAR USER AREA - Avatar + Nome + Sair
+   ============================================ */
+.topbar-user {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.user-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.user-info span {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #1e293b;
+    line-height: 1.2;
+}
+
+.user-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: #f1f5f9;
+    border: 2px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+    transition: border-color 0.2s;
+}
+
+.user-avatar:hover {
+    border-color: #f503c5;
+}
+
+.user-avatar i {
+    font-size: 1.5rem;
+    color: #94a3b8;
+}
+
+/* Botão Sair no topbar */
+.topbar-logout-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    background: #f8f9fa;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    color: #64748b;
+    font-size: 0.82rem;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.topbar-logout-btn i {
+    font-size: 1rem;
+}
+
+.topbar-logout-btn:hover {
+    background: #fee2e2;
+    border-color: #fca5a5;
+    color: #dc2626;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(220,38,38,0.15);
+}
+
+.topbar-logout-btn:active {
+    transform: translateY(0);
+}
+
+/* Abas de navegação — fonte coerente com o sistema */
+#app-tabs-container .app-top-tab {
+    font-family: 'Inter', sans-serif !important;
+}

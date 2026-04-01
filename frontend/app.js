@@ -33,8 +33,8 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const nameEl = document.getElementById('logged-user-name');
         if (nameEl) nameEl.textContent = currentUser.username;
-        const roleEl = document.getElementById('logged-user-role');
-        if (roleEl) roleEl.textContent = currentUser.role || 'Usuário';
+
+        carregarFotoUsuarioTopbar();
 
         const appShell = document.getElementById('app-shell');
         if (appShell) {
@@ -89,8 +89,8 @@ if (formLogin) {
             
             const nameEl = document.getElementById('logged-user-name');
             if (nameEl) nameEl.textContent = currentUser.username;
-            const roleEl = document.getElementById('logged-user-role');
-            if (roleEl) roleEl.textContent = currentUser.role || 'Usuário';
+
+            carregarFotoUsuarioTopbar();
 
             // Carrega permissões se existir função global
             if (typeof window.carregarPermissoesOnline === 'function') {
@@ -120,6 +120,56 @@ if (btnLogout) {
         window.location.reload();
     });
 }
+
+// --- CARREGAMENTO DE FOTO DO USUARIO NO TOPBAR ---
+async function carregarFotoUsuarioTopbar() {
+    if (!currentUser) return;
+    const imgEl = document.getElementById('user-avatar-img');
+    const iconEl = document.getElementById('user-avatar-icon');
+    if (!imgEl || !iconEl) return;
+
+    try {
+        // Busca lista de usuarios para encontrar colaborador vinculado pelo nome
+        const resUsuarios = await fetch(`${API_URL}/usuarios`, {
+            headers: { Authorization: `Bearer ${currentToken}` }
+        });
+        if (!resUsuarios.ok) return;
+        const usuarios = await resUsuarios.json();
+        const usuarioAtual = usuarios.find(u => u.username === currentUser.username);
+        
+        if (!usuarioAtual || !usuarioAtual.nome) return;
+        
+        // Busca colaboradores para encontrar o que tem o mesmo nome
+        const resColabs = await fetch(`${API_URL}/colaboradores`, {
+            headers: { Authorization: `Bearer ${currentToken}` }
+        });
+        if (!resColabs.ok) return;
+        const colaboradores = await resColabs.json();
+        const colaborador = colaboradores.find(c => 
+            c.nome_completo && usuarioAtual.nome && 
+            c.nome_completo.toLowerCase().trim() === usuarioAtual.nome.toLowerCase().trim()
+        );
+        
+        if (!colaborador || !colaborador.id) return;
+        
+        // Tenta carregar foto via base64 ou via URL
+        if (colaborador.foto_base64) {
+            imgEl.src = colaborador.foto_base64;
+            imgEl.style.display = 'block';
+            iconEl.style.display = 'none';
+        } else if (colaborador.foto_path) {
+            // Tenta carregar via API
+            const fotoUrl = `${API_URL}/colaboradores/foto/${colaborador.id}`;
+            imgEl.src = fotoUrl;
+            imgEl.onload = () => { imgEl.style.display = 'block'; iconEl.style.display = 'none'; };
+            imgEl.onerror = () => { imgEl.style.display = 'none'; iconEl.style.display = ''; };
+        }
+    } catch(e) {
+        console.log('[Avatar] Foto de usuario nao carregada:', e.message);
+    }
+}
+
+window.carregarFotoUsuarioTopbar = carregarFotoUsuarioTopbar;
 
 function showView(viewId) {
     document.querySelectorAll('.view-section').forEach(el => {

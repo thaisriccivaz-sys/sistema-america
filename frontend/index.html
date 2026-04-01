@@ -128,13 +128,7 @@
                 </div>
             </div>
 
-            <!-- Sair (bottom) -->
-            <div class="dept-rail-bottom">
-                <button class="dept-btn" style="--dept-color:#64748b; --dept-bg:#f1f5f9;" id="btn-logout" title="Sair">
-                    <i class="ph ph-sign-out"></i>
-                    <span>Sair</span>
-                </button>
-            </div>
+
         </aside>
 
 
@@ -158,11 +152,15 @@
                 <div class="topbar-user">
                     <div class="user-info">
                         <span id="logged-user-name">Usuário</span>
-                        <span id="logged-user-role" class="badge">RH</span>
                     </div>
-                    <div class="user-avatar">
-                        <i class="ph ph-user-circle"></i>
+                    <div class="user-avatar" id="user-avatar-container" title="Foto do colaborador">
+                        <img id="user-avatar-img" src="" alt="" style="display:none; width:100%; height:100%; object-fit:cover; border-radius:50%;">
+                        <i class="ph ph-user-circle" id="user-avatar-icon"></i>
                     </div>
+                    <button id="btn-logout" class="topbar-logout-btn" title="Sair do sistema">
+                        <i class="ph ph-sign-out"></i>
+                        <span>Sair</span>
+                    </button>
                 </div>
             </header>
 
