@@ -280,6 +280,11 @@ body {
     display: flex;
 }
 
+/* Fecha o submenu imediatamente ao clicar em um item */
+.dept-item.submenu-force-close .dept-submenu {
+    display: none !important;
+}
+
 .dept-submenu-header {
     display: flex;
     align-items: center;

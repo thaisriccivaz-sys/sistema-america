@@ -202,6 +202,12 @@ function setupNavigation() {
         item.addEventListener('click', (e) => {
             e.preventDefault();
             navigateTo(e.currentTarget.dataset.target);
+            // Recolhe o submenu automaticamente após o clique
+            const deptItem = e.currentTarget.closest('.dept-item');
+            if (deptItem) {
+                deptItem.classList.add('submenu-force-close');
+                setTimeout(() => deptItem.classList.remove('submenu-force-close'), 400);
+            }
         });
     });
 
