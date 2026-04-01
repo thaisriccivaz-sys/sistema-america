@@ -1476,147 +1476,150 @@ function renderColaboradores(lista) {
     window._listaColaboradoresFiltrada = lista;
 
     wrapper.innerHTML = `
-        <!-- PAINEL DE FILTROS -->
-        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:1rem 1.25rem;margin-bottom:1rem;">
-            <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none;"
-                 onclick="(function(btn,grid){grid.style.display=grid.style.display==='none'?'grid':'none';btn.style.transform=grid.style.display==='none'?'rotate(0deg)':'rotate(180deg)';btn.closest('.filtro-panel').style.paddingBottom=grid.style.display==='none'?'0':'1.25rem';})(this.querySelector('.filtro-arrow'),this.nextElementSibling)">
-                <span style="font-weight:700;color:#334155;display:flex;align-items:center;gap:6px;">
+        <!-- HEADER DA TABELA -->
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+            <div style="display:flex; align-items:center; gap:1rem;">
+                <h3 style="margin:0; font-size:1.1rem; color:#334155;">Lista de Colaboradores</h3>
+                <span id="colab-count" style="background:#f1f5f9; padding:0.25rem 0.75rem; border-radius:999px; font-size:0.85rem; color:#64748b; font-weight:600;">${lista.length} registros</span>
+            </div>
+            <div style="display:flex; gap:0.5rem;">
+                <button onclick="document.getElementById('filtro-sidebar').style.right='0'" style="padding:0.45rem 1rem; border:1px solid #e2e8f0; border-radius:6px; background:#fff; font-size:0.85rem; cursor:pointer; color:#334155; font-weight:600; display:flex; align-items:center; gap:6px;">
+                    <i class="ph ph-funnel"></i> Filtros
+                </button>
+                <button onclick="exportarColaboradoresXLSX()" style="padding:0.45rem 1rem; border:none; border-radius:6px; background:#10b981; font-size:0.85rem; font-weight:600; cursor:pointer; color:#fff; display:flex; align-items:center; gap:6px;">
+                    <i class="ph ph-file-xls" style="font-size:1.1rem;"></i> Exportar XLSX
+                </button>
+            </div>
+        </div>
+
+        <!-- TABELA -->
+        <div id="colab-table-wrapper"></div>
+
+        <!-- SIDEBAR DE FILTROS -->
+        <div id="filtro-sidebar" style="position:fixed; top:0; right:-400px; width:400px; max-width:100vw; height:100vh; background:#fff; z-index:9999; box-shadow:-4px 0 15px rgba(0,0,0,0.1); transition:right 0.3s cubic-bezier(0.4, 0, 0.2, 1); overflow-y:auto; display:flex; flex-direction:column;">
+            
+            <div style="padding:1.5rem; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; background:#fff; z-index:10;">
+                <span style="font-weight:700; color:#334155; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
                     <i class="ph ph-funnel"></i> Filtros Avançados
                 </span>
-                <div style="display:flex;align-items:center;gap:0.75rem;">
-                    <span id="colab-count" style="font-size:0.8rem;color:#64748b;">${lista.length} colaboradores</span>
-                    <i class="filtro-arrow ph ph-caret-down" style="font-size:1rem;color:#64748b;transition:transform 0.25s ease;"></i>
-                </div>
+                <button onclick="document.getElementById('filtro-sidebar').style.right='-400px'" style="background:none; border:none; cursor:pointer; color:#94a3b8; font-size:1.25rem;">
+                    <i class="ph ph-x"></i>
+                </button>
             </div>
-            <div style="display:none;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0.75rem;margin-top:1rem;">
+
+            <div style="padding:1.5rem; display:flex; flex-direction:column; gap:1.25rem;">
+                
                 <div>
                     <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Nome</label>
-                    <input id="f-nome" type="text" placeholder="Pesquisar nome..." oninput="aplicarFiltrosColaboradores()"
-                        style="width:100%;padding:0.45rem 0.65rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                    <input id="f-nome" type="text" placeholder="Pesquisar nome..." oninput="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
                 </div>
                 <div>
                     <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">CPF</label>
-                    <input id="f-cpf" type="text" placeholder="Pesquisar CPF..." oninput="aplicarFiltrosColaboradores()"
-                        style="width:100%;padding:0.45rem 0.65rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                    <input id="f-cpf" type="text" placeholder="Pesquisar CPF..." oninput="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
                 </div>
-                <div>
-                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Nasc. De</label>
-                    <input id="f-nasc-ini" type="date" onchange="aplicarFiltrosColaboradores()"
-                        style="width:100%;padding:0.45rem 0.65rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
-                </div>
-                <div>
-                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Nasc. Até</label>
-                    <input id="f-nasc-fim" type="date" onchange="aplicarFiltrosColaboradores()"
-                        style="width:100%;padding:0.45rem 0.65rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                <div style="display:flex; gap:1rem;">
+                    <div style="flex:1;">
+                        <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Nascimento De</label>
+                        <input id="f-nasc-ini" type="date" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                    </div>
+                    <div style="flex:1;">
+                        <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Até</label>
+                        <input id="f-nasc-fim" type="date" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                    </div>
                 </div>
                 <div>
                     <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Estado Civil</label>
-                    <select id="f-estado-civil" onchange="aplicarFiltrosColaboradores()"
-                        style="width:100%;padding:0.45rem 0.65rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
-                        <option value="">Todos</option>
-                        <option>Solteiro(a)</option><option>Casado(a)</option><option>Divorciado(a)</option>
-                        <option>Viúvo(a)</option><option>União Estável</option>
+                    <select id="f-estado-civil" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                        <option value="">Todos</option><option>Solteiro(a)</option><option>Casado(a)</option><option>Divorciado(a)</option><option>Viúvo(a)</option><option>União Estável</option>
                     </select>
                 </div>
                 <div>
                     <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Sexo</label>
-                    <select id="f-sexo" onchange="aplicarFiltrosColaboradores()"
-                        style="width:100%;padding:0.45rem 0.65rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                    <select id="f-sexo" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
                         <option value="">Todos</option><option>Masculino</option><option>Feminino</option>
                     </select>
                 </div>
                 <div>
                     <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Departamento</label>
-                    <select id="f-departamento" onchange="aplicarFiltrosColaboradores()"
-                        style="width:100%;padding:0.45rem 0.65rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                    <select id="f-departamento" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
                         <option value="">Todos</option>${deptos.map(d=>`<option>${d}</option>`).join('')}
                     </select>
                 </div>
                 <div>
                     <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Cargo</label>
-                    <select id="f-cargo" onchange="aplicarFiltrosColaboradores()"
-                        style="width:100%;padding:0.45rem 0.65rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                    <select id="f-cargo" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
                         <option value="">Todos</option>${cargos.map(c=>`<option>${c}</option>`).join('')}
                     </select>
                 </div>
-                <div>
-                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Admissão De</label>
-                    <input id="f-adm-ini" type="date" onchange="aplicarFiltrosColaboradores()"
-                        style="width:100%;padding:0.45rem 0.65rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
-                </div>
-                <div>
-                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Admissão Até</label>
-                    <input id="f-adm-fim" type="date" onchange="aplicarFiltrosColaboradores()"
-                        style="width:100%;padding:0.45rem 0.65rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                <div style="display:flex; gap:1rem;">
+                    <div style="flex:1;">
+                        <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Admissão De</label>
+                        <input id="f-adm-ini" type="date" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                    </div>
+                    <div style="flex:1;">
+                        <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Até</label>
+                        <input id="f-adm-fim" type="date" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                    </div>
                 </div>
                 <div>
                     <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Em Experiência</label>
-                    <select id="f-experiencia" onchange="aplicarFiltrosColaboradores()"
-                        style="width:100%;padding:0.45rem 0.65rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                    <select id="f-experiencia" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
                         <option value="">Todos</option><option value="sim">Sim (até 90 dias)</option>
                     </select>
                 </div>
                 <div>
                     <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Tipo de Cadastro</label>
-                    <select id="f-tipo-cadastro" onchange="aplicarFiltrosColaboradores()"
-                        style="width:100%;padding:0.45rem 0.65rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
-                        <option value="">Todos</option><option>Ativo</option><option>Incompleto</option>
-                        <option>Desligado</option><option>Afastado</option><option>Férias</option>
+                    <select id="f-tipo-cadastro" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                        <option value="">Todos</option><option>Ativo</option><option>Incompleto</option><option>Desligado</option><option>Afastado</option><option>Férias</option>
                     </select>
                 </div>
-                <div>
-                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Salário De (R$)</label>
-                    <input id="f-sal-min" type="number" min="0" placeholder="0,00" oninput="aplicarFiltrosColaboradores()"
-                        style="width:100%;padding:0.45rem 0.65rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
-                </div>
-                <div>
-                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Salário Até (R$)</label>
-                    <input id="f-sal-max" type="number" min="0" placeholder="9999,00" oninput="aplicarFiltrosColaboradores()"
-                        style="width:100%;padding:0.45rem 0.65rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                <div style="display:flex; gap:1rem;">
+                    <div style="flex:1;">
+                        <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Salário De</label>
+                        <input id="f-sal-min" type="number" min="0" placeholder="R$" oninput="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                    </div>
+                    <div style="flex:1;">
+                        <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Salário Até</label>
+                        <input id="f-sal-max" type="number" min="0" placeholder="R$" oninput="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                    </div>
                 </div>
                 <div>
                     <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Escala de Trabalho</label>
-                    <select id="f-escala" onchange="aplicarFiltrosColaboradores()"
-                        style="width:100%;padding:0.45rem 0.65rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                    <select id="f-escala" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
                         <option value="">Todas</option>${escalas.map(e=>`<option>${e}</option>`).join('')}
                     </select>
                 </div>
-                <div>
-                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Férias Programadas De</label>
-                    <input id="f-ferias-ini" type="date" onchange="aplicarFiltrosColaboradores()"
-                        style="width:100%;padding:0.45rem 0.65rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
-                </div>
-                <div>
-                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Férias Programadas Até</label>
-                    <input id="f-ferias-fim" type="date" onchange="aplicarFiltrosColaboradores()"
-                        style="width:100%;padding:0.45rem 0.65rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                <div style="display:flex; gap:1rem;">
+                    <div style="flex:1;">
+                        <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Férias De</label>
+                        <input id="f-ferias-ini" type="date" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                    </div>
+                    <div style="flex:1;">
+                        <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Férias Até</label>
+                        <input id="f-ferias-fim" type="date" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                    </div>
                 </div>
                 <div>
                     <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Possui Dependentes</label>
-                    <select id="f-dependentes" onchange="aplicarFiltrosColaboradores()"
-                        style="width:100%;padding:0.45rem 0.65rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                    <select id="f-dependentes" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
                         <option value="">Todos</option><option value="sim">Sim</option><option value="nao">Não</option>
                     </select>
                 </div>
-                <div style="grid-column:span 2;">
+                <div>
                     <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Benefícios (múltipla seleção)</label>
-                    <select id="f-beneficios" multiple onchange="aplicarFiltrosColaboradores()"
-                        style="width:100%;padding:0.45rem 0.65rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;height:80px;">
+                    <select id="f-beneficios" multiple onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;height:100px;">
                         ${beneficiosList.map(b=>`<option value="${b}">${b}</option>`).join('')}
                     </select>
                 </div>
-                <div style="display:flex;align-items:flex-end;gap:0.5rem;">
-                    <button onclick="limparFiltrosColaboradores()" style="padding:0.45rem 1rem;border:1px solid #e2e8f0;border-radius:6px;background:#fff;font-size:0.85rem;cursor:pointer;color:#64748b;white-space:nowrap;">
-                        <i class="ph ph-x"></i> Limpar
-                    </button>
-                    <button onclick="exportarColaboradoresXLSX()" style="padding:0.45rem 1rem;border:none;border-radius:6px;background:#10b981;font-size:0.85rem;font-weight:600;cursor:pointer;color:#fff;white-space:nowrap;display:flex;align-items:center;gap:4px;">
-                        <i class="ph ph-file-xls" style="font-size:1.1rem;"></i> Exportar XLSX
-                    </button>
-                </div>
+                
+            </div>
+            
+            <div style="padding:1.5rem; border-top:1px solid #e2e8f0; margin-top:auto; position:sticky; bottom:0; background:#fff; z-index:10;">
+                <button onclick="limparFiltrosColaboradores()" style="width:100%; padding:0.75rem; border:1px solid #e2e8f0; border-radius:6px; background:#f8fafc; font-size:0.9rem; font-weight:600; cursor:pointer; color:#475569; display:flex; justify-content:center; align-items:center; gap:6px;">
+                    <i class="ph ph-eraser"></i> Limpar Filtros
+                </button>
             </div>
         </div>
-        <!-- TABELA -->
-        <div id="colab-table-wrapper"></div>
     `;
 
     renderTabelaColaboradores(lista);
