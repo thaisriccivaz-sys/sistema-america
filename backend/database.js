@@ -508,7 +508,6 @@ const db = new sqlite3.Database(dbPath, (err) => {
 
                     // Seed grupos padrão
                     const gruposPadrao = [
-                        { nome: 'Administrador', descricao: 'Acesso total ao sistema', departamento: 'Todas', tipo: 'departamento' },
                         { nome: 'RH - Completo', descricao: 'Acesso completo ao módulo RH', departamento: 'RH', tipo: 'departamento' },
                         { nome: 'RH - Somente Leitura', descricao: 'Apenas visualização das telas de RH', departamento: 'RH', tipo: 'departamento' },
                         
@@ -570,6 +569,9 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 });
             });
 
+            // Remover grupo Administrador legados
+            db.run("DELETE FROM grupos_permissao WHERE nome='Administrador'", (err) => {});
+            
             console.log('Tabelas do sistema RH verificadas/criadas com sucesso.');
 
         });
