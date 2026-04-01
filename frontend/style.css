@@ -313,17 +313,19 @@ body {
 .dept-submenu .nav-item i { font-size: 1.05rem; color: #94a3b8; flex-shrink: 0; }
 .dept-submenu .nav-item:hover {
     background: var(--bg-main);
-    color: var(--primary-color);
-    border-left-color: #f503c5;
+    color: var(--dept-color, var(--primary-color));
+    border-left-color: var(--dept-color, #f503c5);
+    border-right-color: var(--dept-color, var(--primary-color));
 }
-.dept-submenu .nav-item:hover i { color: var(--primary-color); }
+.dept-submenu .nav-item:hover i { color: var(--dept-color, var(--primary-color)); }
 .dept-submenu .nav-item.active {
-    background: var(--primary-light);
-    color: var(--primary-color);
-    border-left-color: #f503c5;
+    background: var(--dept-bg, var(--primary-light));
+    color: var(--dept-color, var(--primary-color));
+    border-left-color: var(--dept-color, #f503c5);
+    border-right-color: var(--dept-color, var(--primary-color));
     font-weight: 700;
 }
-.dept-submenu .nav-item.active i { color: var(--primary-color); }
+.dept-submenu .nav-item.active i { color: var(--dept-color, var(--primary-color)); }
 
 /* Keep old sidebar references inert */
 .sidebar { display: none; }
