@@ -86,6 +86,47 @@ function showView(viewId) {
     }
 }
 
+// ── BREADCRUMB SYSTEM ───────────────────────────────────────────────────────
+const BREADCRUMB_MAP = {
+    // Telas principais
+    'dashboard':          { path: 'Dashboard',                                                    code: 'RH001' },
+    'colaboradores':      { path: 'Colaboradores',                                                code: 'RHCL00' },
+    'form-colaborador':   { path: 'Colaboradores → Cadastro / Edição',                           code: 'RHCL01' },
+    'cargos':             { path: 'Administração → Cargos',                                       code: 'RHAD01' },
+    'departamentos':      { path: 'Administração → Departamentos',                               code: 'RHAD02' },
+    'faculdade':          { path: 'Administração → Faculdade',                                   code: 'RHAD03' },
+    'chaves':             { path: 'Administração → Chaves',                                      code: 'RHAD04' },
+    'geradores':          { path: 'Documentos → Geradores',                                      code: 'RHDOC01' },
+    'admissao':           { path: 'Colaboradores → Admissão',                                    code: 'RHAD05' },
+    'ficha-epi':          { path: 'EPI → Gerenciamento de Fichas',                               code: 'RHEPI01' },
+    'gerenciar-avaliacoes': { path: 'Avaliações → Gerenciar Avaliações',                        code: 'RHAV01' },
+    // Sub-telas (Prontuário Digital - abas)
+    'tab:Ficha Cadastral':        { path: 'Colaboradores → Prontuário Digital → Ficha Cadastral',       code: 'RHCL01' },
+    'tab:Pagamentos':             { path: 'Colaboradores → Prontuário Digital → Pagamentos',            code: 'RHCL02' },
+    'tab:Documentos':             { path: 'Colaboradores → Prontuário Digital → Documentos',            code: 'RHCL03' },
+    'tab:Ficha de EPI':           { path: 'Colaboradores → Prontuário Digital → Ficha de EPI',          code: 'RHCL04' },
+    'tab:Avaliações':             { path: 'Colaboradores → Prontuário Digital → Avaliações',            code: 'RHCL05' },
+    'tab:Afastamentos':           { path: 'Colaboradores → Prontuário Digital → Afastamentos',          code: 'RHCL06' },
+    'tab:Faculdade':              { path: 'Colaboradores → Prontuário Digital → Faculdade',             code: 'RHCL07' },
+    'tab:Atestados':              { path: 'Colaboradores → Prontuário Digital → Atestados',             code: 'RHCL08' },
+    'tab:Chaves':                 { path: 'Colaboradores → Prontuário Digital → Chaves',                code: 'RHCL09' },
+    'tab:Prontuário Digital':     { path: 'Colaboradores → Prontuário Digital',                         code: 'RHCL10' },
+};
+
+function updateBreadcrumb(key) {
+    const bar = document.getElementById('breadcrumb-bar');
+    if (!bar) return;
+    const entry = BREADCRUMB_MAP[key] || { path: key, code: '' };
+    const parts = entry.path.split('→').map(p => p.trim());
+    const code = entry.code ? ` (${entry.code})` : '';
+    bar.innerHTML = '<span style="opacity:0.7;margin-right:4px;">Caminho:</span>' +
+        parts.map((p, i) =>
+            i < parts.length - 1
+                ? `<span style="opacity:0.75;">${p}</span><span style="margin:0 5px;opacity:0.5;">→</span>`
+                : `<strong>${p}</strong><span style="margin-left:6px;background:rgba(0,0,0,0.18);padding:1px 7px;border-radius:10px;font-size:0.78rem;font-weight:700;letter-spacing:0.4px;">${code.replace(/[()]/g,'')}</span>`
+        ).join('');
+}
+
 function navigateTo(target) {
     document.querySelectorAll('.content-view').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
@@ -96,6 +137,8 @@ function navigateTo(target) {
     
     const targetNav = document.querySelector(`[data-target="${target}"]`);
     if (targetNav) targetNav.classList.add('active');
+
+    updateBreadcrumb(target);
 
     if (target === 'dashboard') {
         loadDashboard();
@@ -121,6 +164,7 @@ function navigateTo(target) {
         if (typeof window.initEpiModule === 'function') window.initEpiModule();
     }
 }
+
 
 function setupNavigation() {
     document.querySelectorAll('.sidebar-nav .nav-item[data-target]').forEach(item => {
@@ -2297,6 +2341,8 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
     const container = document.getElementById('tab-dynamic-content');
     if (!container) return;
     if (!preventScroll) window.scrollTo({ top: 0, behavior: 'smooth' });
+    
+    if (typeof updateBreadcrumb === 'function') updateBreadcrumb('tab:' + tabTitle);
     
     // Capturar filtros existentes ANTES de limpar o container
     if (!window.tabPersistence) window.tabPersistence = {};
