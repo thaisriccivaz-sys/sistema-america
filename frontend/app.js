@@ -1435,12 +1435,18 @@ function renderColaboradores(lista) {
 
     wrapper.innerHTML = `
         <!-- PAINEL DE FILTROS -->
-        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:1.25rem;margin-bottom:1rem;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;cursor:pointer;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'grid':'none'">
-                <span style="font-weight:700;color:#334155;display:flex;align-items:center;gap:6px;"><i class="ph ph-funnel"></i> Filtros Avançados</span>
-                <span id="colab-count" style="font-size:0.8rem;color:#64748b;">${lista.length} colaboradores</span>
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:1rem 1.25rem;margin-bottom:1rem;">
+            <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none;"
+                 onclick="(function(btn,grid){grid.style.display=grid.style.display==='none'?'grid':'none';btn.style.transform=grid.style.display==='none'?'rotate(0deg)':'rotate(180deg)';btn.closest('.filtro-panel').style.paddingBottom=grid.style.display==='none'?'0':'1.25rem';})(this.querySelector('.filtro-arrow'),this.nextElementSibling)">
+                <span style="font-weight:700;color:#334155;display:flex;align-items:center;gap:6px;">
+                    <i class="ph ph-funnel"></i> Filtros Avançados
+                </span>
+                <div style="display:flex;align-items:center;gap:0.75rem;">
+                    <span id="colab-count" style="font-size:0.8rem;color:#64748b;">${lista.length} colaboradores</span>
+                    <i class="filtro-arrow ph ph-caret-down" style="font-size:1rem;color:#64748b;transition:transform 0.25s ease;"></i>
+                </div>
             </div>
-            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0.75rem;">
+            <div style="display:none;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0.75rem;margin-top:1rem;">
                 <div>
                     <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Nome</label>
                     <input id="f-nome" type="text" placeholder="Pesquisar nome..." oninput="aplicarFiltrosColaboradores()"
