@@ -443,18 +443,9 @@ function renderArvorePermissoesForm() {
                 html += `
                         <div style="display:flex;align-items:center;justify-content:space-between;padding:0.4rem 0.75rem;background:#f8fafc;border-radius:6px;border:1px solid #f1f5f9;">
                             <span style="font-size:0.85rem;font-weight:600;color:#334155;">&bull; ${nomeTela}</span>
-                            <div style="display:flex;gap:1rem;">
-                                <label style="display:flex;align-items:center;gap:4px;font-size:0.75rem;cursor:pointer;color:#1971c2;">
-                                    <input type="checkbox" onchange="togglePermForm('${telaId}','visualizar',this.checked)" ${p.visualizar?'checked':''} style="accent-color:#1971c2;"> Vis.
-                                </label>
-                                <label style="display:flex;align-items:center;gap:4px;font-size:0.75rem;cursor:pointer;color:#2d9e5f;">
-                                    <input type="checkbox" onchange="togglePermForm('${telaId}','alterar',this.checked)" ${p.alterar?'checked':''} style="accent-color:#2d9e5f;"> Alt.
-                                </label>
-                                <label style="display:flex;align-items:center;gap:4px;font-size:0.75rem;cursor:pointer;color:#e67700;">
-                                    <input type="checkbox" onchange="togglePermForm('${telaId}','incluir',this.checked)" ${p.incluir?'checked':''} style="accent-color:#e67700;"> Inc.
-                                </label>
-                                <label style="display:flex;align-items:center;gap:4px;font-size:0.75rem;cursor:pointer;color:#dc3545;">
-                                    <input type="checkbox" onchange="togglePermForm('${telaId}','excluir',this.checked)" ${p.excluir?'checked':''} style="accent-color:#dc3545;"> Exc.
+                            <div style="display:flex;gap:1.5rem;">
+                                <label style="display:flex;align-items:center;gap:4px;font-size:0.75rem;cursor:pointer;color:#1971c2;font-weight:600;">
+                                    <input type="checkbox" onchange="togglePermForm('${telaId}', this.checked)" ${p.visualizar?'checked':''} style="accent-color:#1971c2;"> Acesso Liberado
                                 </label>
                             </div>
                         </div>`;
@@ -466,14 +457,9 @@ function renderArvorePermissoesForm() {
     container.innerHTML = html;
 }
 
-window.togglePermForm = function(paginaId, col, val) {
+window.togglePermForm = function(paginaId, val) {
     if (!_permissoesFormAtivas[paginaId]) _permissoesFormAtivas[paginaId] = { visualizar:false, alterar:false, incluir:false, excluir:false };
-    _permissoesFormAtivas[paginaId][col] = val;
-    if (val && col !== 'visualizar') {
-        _permissoesFormAtivas[paginaId]['visualizar'] = true;
-        const cbVis = document.querySelector(`#fu-perm-tree input[onchange*="'${paginaId}'"][onchange*="'visualizar'"]`);
-        if (cbVis) cbVis.checked = true;
-    }
+    _permissoesFormAtivas[paginaId] = { visualizar: val, alterar: val, incluir: val, excluir: val };
 };
 
 window.setTodasTelasForm = function(marcar) {
@@ -572,36 +558,27 @@ window.renderTabelaPermissoes = function() {
     if (!tbody) return;
 
     const telas = TELAS_SISTEMA.filter(t => !filtroModulo || t.modulo === filtroModulo);
-    const COLS = ['visualizar', 'alterar', 'incluir', 'excluir'];
-    const CORES = { visualizar: '#1971c2', alterar: '#2d9e5f', incluir: '#e67700', excluir: '#dc3545' };
 
     tbody.innerHTML = telas.map(t => {
         const perm = _permissoesAtivas[t.pagina_id] || {};
         return `<tr>
             <td style="color:#64748b;font-size:0.8rem;">${t.modulo}</td>
             <td style="font-weight:500;">${t.pagina_nome}</td>
-            ${COLS.map(c => `
-                <td style="text-align:center;">
-                    <label style="display:inline-flex;align-items:center;justify-content:center;cursor:pointer;">
-                        <input type="checkbox" data-pagina="${t.pagina_id}" data-col="${c}"
-                            ${perm[c] ? 'checked' : ''}
-                            onchange="togglePermissao('${t.pagina_id}','${c}',this.checked)"
-                            style="width:18px;height:18px;accent-color:${CORES[c]};cursor:pointer;">
-                    </label>
-                </td>`).join('')}
+            <td style="text-align:right;">
+                <label style="display:inline-flex;align-items:center;justify-content:center;cursor:pointer;gap:6px;font-weight:600;color:#1971c2;">
+                    Acesso Liberado <input type="checkbox" data-pagina="${t.pagina_id}"
+                        ${perm.visualizar ? 'checked' : ''}
+                        onchange="togglePermissao('${t.pagina_id}', this.checked)"
+                        style="width:18px;height:18px;accent-color:#1971c2;cursor:pointer;">
+                </label>
+            </td>
         </tr>`;
     }).join('');
 };
 
-window.togglePermissao = function(paginaId, col, val) {
+window.togglePermissao = function(paginaId, val) {
     if (!_permissoesAtivas[paginaId]) _permissoesAtivas[paginaId] = {};
-    _permissoesAtivas[paginaId][col] = val;
-    // Se marcou Alterar/Incluir/Excluir, garante Visualizar
-    if (val && col !== 'visualizar') {
-        _permissoesAtivas[paginaId]['visualizar'] = true;
-        const cbVis = document.querySelector(`[data-pagina="${paginaId}"][data-col="visualizar"]`);
-        if (cbVis) cbVis.checked = true;
-    }
+    _permissoesAtivas[paginaId] = { visualizar: val, alterar: val, incluir: val, excluir: val };
 };
 
 window.selecionarTodasPermissoes = function(marcar) {
