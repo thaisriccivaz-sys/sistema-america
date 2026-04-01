@@ -13,6 +13,10 @@ const TELAS_SISTEMA = [
     { modulo: 'RH', pagina_id: 'geradores',              pagina_nome: 'Geradores de Documentos' },
     { modulo: 'RH', pagina_id: 'ficha-epi',              pagina_nome: 'Ficha EPI' },
     { modulo: 'RH', pagina_id: 'gerenciar-avaliacoes',   pagina_nome: 'Avaliações' },
+    { modulo: 'Logística', pagina_id: 'logistica-em-breve', pagina_nome: 'Módulo Logística' },
+    { modulo: 'Financeiro', pagina_id: 'financeiro-em-breve', pagina_nome: 'Módulo Financeiro' },
+    { modulo: 'Comercial', pagina_id: 'comercial-em-breve', pagina_nome: 'Módulo Comercial' },
+    { modulo: 'Administrativo', pagina_id: 'admin-em-breve', pagina_nome: 'Módulo Administrativo' },
     { modulo: 'Sistema', pagina_id: 'usuarios-permissoes', pagina_nome: 'Usuários e Permissões' },
 ];
 
@@ -385,6 +389,30 @@ const MENU_HIERARQUIA = [
         modulo: 'Diretoria', icone: 'ph-crown',
         grupos: [
             { titulo: 'Cadastros Base', telas: ['usuarios-permissoes'] }
+        ]
+    },
+    {
+        modulo: 'Logística', icone: 'ph-truck',
+        grupos: [
+            { titulo: 'Visão Geral (Em breve)', telas: ['logistica-em-breve'] }
+        ]
+    },
+    {
+        modulo: 'Financeiro', icone: 'ph-currency-dollar',
+        grupos: [
+            { titulo: 'Visão Geral (Em breve)', telas: ['financeiro-em-breve'] }
+        ]
+    },
+    {
+        modulo: 'Comercial', icone: 'ph-handshake',
+        grupos: [
+            { titulo: 'Visão Geral (Em breve)', telas: ['comercial-em-breve'] }
+        ]
+    },
+    {
+        modulo: 'Administrativo', icone: 'ph-gear',
+        grupos: [
+            { titulo: 'Visão Geral (Em breve)', telas: ['admin-em-breve'] }
         ]
     }
 ];
