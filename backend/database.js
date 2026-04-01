@@ -640,13 +640,9 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 });
             }, 2000); // aguarda 2s para o banco estar pronto
             
-            // Migration: Corrigir o escopo dos grupos padrões (Remover visualizar=1 de telas que não são do departamento do grupo)
-            db.run(`
-                UPDATE permissoes_grupo 
-                SET visualizar=0, alterar=0, incluir=0, excluir=0 
-                WHERE grupo_id IN (SELECT id FROM grupos_permissao WHERE departamento != 'Diretoria' AND tipo = 'departamento') 
-                AND modulo != (SELECT departamento FROM grupos_permissao WHERE grupos_permissao.id = permissoes_grupo.grupo_id)
-            `, (err) => {});
+            // NOTA: A migration que zeraba permissoes por departamento foi REMOVIDA.
+            // Ela rodava em todo restart do servidor (Render dorme e reinicia), apagando permissoes salvas.
+            // As permissões são definidas pelo admin via interface e persistidas no banco.
             
             console.log('Tabelas do sistema RH verificadas/criadas com sucesso.');
 
