@@ -5885,7 +5885,7 @@ window.loadAdmissaoSelect = async function() {
 
         pendentes.forEach(p => {
             const s = ADMISSAO_STATUS_STYLES[p.status] || { bg:'#f1f3f5', color:'#495057', border:'#adb5bd', icon:'ph-clock', label: p.status };
-            const cargo = p.cargo_nome || 'Sem Cargo';
+            const cargo = p.cargo || 'Sem Cargo';
             const item = document.createElement('div');
             item.style.cssText = 'display:flex; align-items:center; gap:0.75rem; padding:0.6rem 1rem; cursor:pointer; border-bottom:1px solid #f1f5f9; transition:background 0.15s;';
             item.onmouseenter = () => item.style.background = '#f8fafc';
@@ -5942,7 +5942,7 @@ window.selectAdmissaoColab = function(id, colab, s) {
 
     if (hiddenInput) hiddenInput.value = id;
     if (label) {
-        const cargo = colab.cargo_nome || 'Sem Cargo';
+        const cargo = colab.cargo || 'Sem Cargo';
         label.style.color = '#334155';
         label.innerHTML = `
             <div style="display:inline-flex; align-items:center; gap:5px; background:${s.bg}; color:${s.color}; border:2px solid ${s.border}; border-radius:20px; font-weight:700; padding:2px 10px; font-size:0.75rem; margin-right:6px; white-space:nowrap;">
