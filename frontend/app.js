@@ -334,7 +334,23 @@ function updateBreadcrumb(key) {
     if (entryObj && entryObj.path && entryObj.path.includes('Diretoria')) {
         pageColor = '#d9480f';
     }
+
+    const activeNav = document.querySelector('.nav-item.active');
+    if (activeNav) {
+        const deptItem = activeNav.closest('.dept-item');
+        if (deptItem) {
+            const cssColor = deptItem.style.getPropertyValue('--dept-color').trim();
+            if (cssColor) pageColor = cssColor;
+        }
+    }
+
     if (bar) bar.style.backgroundColor = pageColor;
+
+    // Atualiza botão de scroll flutuante
+    const scrollerBtn = document.getElementById('global-scroll-top');
+    if (scrollerBtn) {
+        scrollerBtn.style.backgroundColor = pageColor;
+    }
 
     // Mostra a estrela APENAS se for tela de menu principal ou telas base (sem setas '→', exceto Diretoria)
     const starBtn = document.getElementById('btn-star-page');
@@ -1632,7 +1648,7 @@ function renderColaboradores(lista) {
                 <div style="display:flex; gap:0.5rem; align-items:center; margin-right:0.5rem;">
                     <button class="btn-tipo-cadastro" data-status="" onclick="selecionarTipoCadastro(this, '')" style="padding:0.35rem 0.75rem; border:none; border-radius:999px; font-size:0.8rem; font-weight:600; cursor:pointer; background:#e2e8f0; color:#475569; display:flex; gap:4px; align-items:center; transition:0.2s;">Todos</button>
                     <button class="btn-tipo-cadastro" data-status="Ativo" onclick="selecionarTipoCadastro(this, 'Ativo')" style="padding:0.35rem 0.75rem; border:none; border-radius:999px; font-size:0.8rem; font-weight:600; cursor:pointer; background:#dcfce7; color:#166534; display:flex; gap:4px; align-items:center; transition:0.2s; opacity:0.5;"><i class="ph ph-check-circle"></i> Ativo</button>
-                    <button class="btn-tipo-cadastro" data-status="Aguardando" onclick="selecionarTipoCadastro(this, 'Aguardando')" style="padding:0.35rem 0.75rem; border:none; border-radius:999px; font-size:0.8rem; font-weight:600; cursor:pointer; background:#fef9c3; color:#854d0e; display:flex; gap:4px; align-items:center; transition:0.2s; opacity:0.5;"><i class="ph ph-hourglass-high"></i> Aguardando</button>
+                    <button class="btn-tipo-cadastro" data-status="Aguardando" onclick="selecionarTipoCadastro(this, 'Aguardando')" style="padding:0.35rem 0.75rem; border:none; border-radius:999px; font-size:0.8rem; font-weight:600; cursor:pointer; background:#cbd5e1; color:#334155; display:flex; gap:4px; align-items:center; transition:0.2s; opacity:0.5;"><i class="ph ph-hourglass-high"></i> Aguardando</button>
                     <button class="btn-tipo-cadastro" data-status="Afastado" onclick="selecionarTipoCadastro(this, 'Afastado')" style="padding:0.35rem 0.75rem; border:none; border-radius:999px; font-size:0.8rem; font-weight:600; cursor:pointer; background:#ffedd5; color:#c2410c; display:flex; gap:4px; align-items:center; transition:0.2s; opacity:0.5;"><i class="ph ph-first-aid"></i> Afastado</button>
                     <button class="btn-tipo-cadastro" data-status="Férias" onclick="selecionarTipoCadastro(this, 'Férias')" style="padding:0.35rem 0.75rem; border:none; border-radius:999px; font-size:0.8rem; font-weight:600; cursor:pointer; background:#dbeafe; color:#1e40af; display:flex; gap:4px; align-items:center; transition:0.2s; opacity:0.5;"><i class="ph ph-airplane-tilt"></i> Férias</button>
                     <button class="btn-tipo-cadastro" data-status="Desligado" onclick="selecionarTipoCadastro(this, 'Desligado')" style="padding:0.35rem 0.75rem; border:none; border-radius:999px; font-size:0.8rem; font-weight:600; cursor:pointer; background:#fee2e2; color:#b91c1c; display:flex; gap:4px; align-items:center; transition:0.2s; opacity:0.5;"><i class="ph ph-x-circle"></i> Desligado</button>
