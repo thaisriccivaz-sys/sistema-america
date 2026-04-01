@@ -38,8 +38,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const appShell = document.getElementById('app-shell');
         if (appShell) {
-            showView('app-shell');
-            navigateTo('dashboard');
+            if (typeof window.carregarPermissoesOnline === 'function') {
+                window.carregarPermissoesOnline().then(() => {
+                    showView('app-shell');
+                    navigateTo('dashboard');
+                });
+            } else {
+                showView('app-shell');
+                navigateTo('dashboard');
+            }
         } else {
             console.warn('O elemento app-shell não foi encontrado. Interface antiga detectada ou HTML incompleto.');
             const formSection = document.querySelector('.form-section');
@@ -177,6 +184,72 @@ const BREADCRUMB_MAP = {
     'tab:Prontuário Digital':     { path: 'Colaboradores → Prontuário Digital',                          },
 };
 
+window.carregarPermissoesOnline = async function() {
+    if (!currentUser || !currentToken) return;
+
+    // Remove qualquer display-none forçado das categorias primeiro
+    document.querySelectorAll('.dept-item').forEach(el => el.style.display = '');
+
+    if (currentUser.role === 'Diretoria' || currentUser.role === 'Administrador') {
+        // Se for da diretoria tem acesso liberado, não precisa ocultar módulos
+        document.querySelectorAll('.nav-item').forEach(el => el.style.display = '');
+        return;
+    }
+
+    if (!currentUser.grupo_permissao_id) {
+        // Sem permissões. Ocultar tudo que tem data-target.
+        document.querySelectorAll('.nav-item').forEach(el => el.style.display = 'none');
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API_URL}/grupos-permissao/${currentUser.grupo_permissao_id}/permissoes`, {
+            headers: { Authorization: `Bearer ${currentToken}` }
+        });
+        if (!res.ok) throw new Error('Falha ao obter permissões do grupo.');
+        const permissoes = await res.json();
+
+        // Cria um mapa rápido das permissoes ativas
+        const mapPerms = {};
+        permissoes.forEach(p => mapPerms[p.pagina_id] = !!p.visualizar);
+
+        // Percorre todos os botões de navegação (.nav-item)
+        document.querySelectorAll('.nav-item[data-target]').forEach(link => {
+            const pathId = link.getAttribute('data-target');
+            // Se existir no mapa de permissoes e for TRUE, mostra. Senão, esconde.
+            if (mapPerms[pathId]) {
+                link.style.display = '';
+            } else {
+                link.style.display = 'none';
+            }
+        });
+
+        // Agora vamos ocultar os "blocos grandes" (Departamentos) inteiros se não sobrar nenhum nav-item útil
+        // que tenha display diferente de 'none'
+        const deptSubmenus = document.querySelectorAll('.dept-submenu');
+        deptSubmenus.forEach(submenu => {
+            const navItems = Array.from(submenu.querySelectorAll('.nav-item'));
+            const headerObj = submenu.parentElement; // o `.dept-item` é o pai
+            
+            // Se o departamento tiver itens de navegação (nav-item) mas todos estiverem ocultos
+            if (navItems.length > 0) {
+                const isAnyVisible = navItems.some(i => i.style.display !== 'none');
+                if (!isAnyVisible) {
+                    headerObj.style.display = 'none'; // Esconde o bolhão quadrado esquerdo do departamento
+                }
+            } else {
+                // Tem departamentos sem links ainda em desenvolvimento. Por padrão podemos ocultar para quem não for Diretoria
+                headerObj.style.display = 'none';
+            }
+        });
+        
+        // Sempre garantimos que o ícone de SAIR apareça então não há risco.
+
+    } catch (err) {
+        console.error("Erro no carregamento de permissões: ", err);
+    }
+};
+
 function updateBreadcrumb(key) {
     const bar = document.getElementById('breadcrumb-bar');
     window.currentBreadcrumbKey = key; // IMPORTANTE: Atualizar key atual
@@ -212,6 +285,14 @@ function updateBreadcrumb(key) {
 }
 
 function navigateTo(target) {
+    if (currentUser && currentUser.role !== 'Diretoria' && currentUser.role !== 'Administrador') {
+        const targetNav = document.querySelector(`.nav-item[data-target="${target}"]`);
+        if (targetNav && targetNav.style.display === 'none') {
+            alert('Você não tem permissão para acessar esta tela.');
+            return;
+        }
+    }
+
     document.querySelectorAll('.content-view').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -219,8 +300,8 @@ function navigateTo(target) {
     const targetView = document.getElementById(`view-${target}`);
     if (targetView) targetView.classList.add('active');
     
-    const targetNav = document.querySelector(`[data-target="${target}"]`);
-    if (targetNav) targetNav.classList.add('active');
+    const targetNavObj = document.querySelector(`[data-target="${target}"]`);
+    if (targetNavObj) targetNavObj.classList.add('active');
 
     updateBreadcrumb(target);
 
