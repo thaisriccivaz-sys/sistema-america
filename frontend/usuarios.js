@@ -259,7 +259,8 @@ window.preencherDadosColabForm = function(sel) {
 };
 
 window.editarUsuario = function(id) {
-    abrirFormUsuario(id);
+    window._editarUserId = id;
+    navigateTo('form-usuario');
 };
 
 window.salvarUsuarioView = async function() {
