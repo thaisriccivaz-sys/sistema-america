@@ -24,27 +24,29 @@ document.addEventListener('DOMContentLoaded', () => {
     setupNavigation();
     setupGeradores();
     
-    // Auto-login bypass for dev
-    currentUser = { username: 'admin', role: 'RH' };
-    currentToken = 'mock_token';
+    const savedToken = localStorage.getItem('erp_token');
+    const savedUser = localStorage.getItem('erp_user');
     
-    const nameEl = document.getElementById('logged-user-name');
-    if (nameEl) nameEl.textContent = currentUser.username;
-    
-    const roleEl = document.getElementById('logged-user-role');
-    if (roleEl) roleEl.textContent = currentUser.role;
-    
-    // Se o index.html novo estiver carregado, terá app-shell. Se estiver o antigo, não terá.
-    const appShell = document.getElementById('app-shell');
-    if (appShell) {
-        showView('app-shell');
-        navigateTo('dashboard');
+    if (savedToken && savedUser) {
+        currentToken = savedToken;
+        currentUser = JSON.parse(savedUser);
+        
+        const nameEl = document.getElementById('logged-user-name');
+        if (nameEl) nameEl.textContent = currentUser.username;
+        const roleEl = document.getElementById('logged-user-role');
+        if (roleEl) roleEl.textContent = currentUser.role || 'Usuário';
+
+        const appShell = document.getElementById('app-shell');
+        if (appShell) {
+            showView('app-shell');
+            navigateTo('dashboard');
+        } else {
+            console.warn('O elemento app-shell não foi encontrado. Interface antiga detectada ou HTML incompleto.');
+            const formSection = document.querySelector('.form-section');
+            if (formSection) formSection.style.display = 'block';
+        }
     } else {
-        // Fallback genérico caso o HTML seja o muito antigo ou não tenha app-shell
-        console.warn('O elemento app-shell não foi encontrado. Interface antiga detectada ou HTML incompleto.');
-        // Tentamos exibir o form-section se existir
-        const formSection = document.querySelector('.form-section');
-        if (formSection) formSection.style.display = 'block';
+        showView('view-login');
     }
 });
 
@@ -52,17 +54,51 @@ const formLogin = document.getElementById('form-login');
 if (formLogin) {
     formLogin.addEventListener('submit', async (e) => {
         e.preventDefault();
-        currentUser = { username: 'admin', role: 'RH' };
-        currentToken = 'mock_token';
+        const usernameInp = document.getElementById('login-user').value;
+        const passwordInp = document.getElementById('login-pass').value;
+        const errorMsg = document.getElementById('login-error');
+        if (errorMsg) errorMsg.textContent = '';
         
-        const nameEl = document.getElementById('logged-user-name');
-        if (nameEl) nameEl.textContent = currentUser.username;
-        
-        const roleEl = document.getElementById('logged-user-role');
-        if (roleEl) roleEl.textContent = currentUser.role;
-        
-        showView('app-shell');
-        navigateTo('dashboard');
+        const btnSubmit = formLogin.querySelector('button[type="submit"]');
+        const oldText = btnSubmit.innerHTML;
+        btnSubmit.innerHTML = 'Entrando...';
+        btnSubmit.disabled = true;
+
+        try {
+            const res = await fetch(`${API_URL}/auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: usernameInp, password: passwordInp })
+            });
+            const data = await res.json();
+
+            if (!res.ok) throw new Error(data.error || 'Erro no login');
+
+            currentToken = data.token;
+            currentUser = data.user;
+            
+            localStorage.setItem('erp_token', currentToken);
+            localStorage.setItem('erp_user', JSON.stringify(currentUser));
+            
+            const nameEl = document.getElementById('logged-user-name');
+            if (nameEl) nameEl.textContent = currentUser.username;
+            const roleEl = document.getElementById('logged-user-role');
+            if (roleEl) roleEl.textContent = currentUser.role || 'Usuário';
+
+            // Carrega permissões se existir função global
+            if (typeof window.carregarPermissoesOnline === 'function') {
+                await window.carregarPermissoesOnline();
+            }
+
+            showView('app-shell');
+            navigateTo('dashboard');
+        } catch (err) {
+            if (errorMsg) errorMsg.textContent = err.message;
+            else alert(err.message);
+        } finally {
+            btnSubmit.innerHTML = oldText;
+            btnSubmit.disabled = false;
+        }
     });
 }
 
@@ -72,7 +108,9 @@ if (btnLogout) {
         e.preventDefault();
         currentUser = null;
         currentToken = null;
-        showView('view-login');
+        localStorage.removeItem('erp_token');
+        localStorage.removeItem('erp_user');
+        window.location.reload();
     });
 }
 

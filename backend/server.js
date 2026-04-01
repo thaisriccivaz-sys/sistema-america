@@ -368,15 +368,17 @@ app.post('/api/assinafy/upload', async (req, res) => {
 
 // Middleware de Autenticação (Bypass temporário para facilitar dev do frontend)
 const authenticateToken = (req, res, next) => {
-    // const authHeader = req.headers['authorization'];
-    // const token = authHeader && authHeader.split(' ')[1];
-    // if (!token) return res.status(401).json({ error: 'Acesso negado' });
-    // jwt.verify(token, SECRET_KEY, (err, user) => {
-    //     if (err) return res.status(403).json({ error: 'Token inválido' });
-    //     req.user = user;
-    //     next();
-    // });
-    next(); 
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    
+    // Fallback: se estiver em localhost sem auth ou para bypass se desejado, remova este bloco.
+    if (!token) return res.status(401).json({ error: 'Acesso negado' });
+    
+    jwt.verify(token, SECRET_KEY, (err, user) => {
+        if (err) return res.status(403).json({ error: 'Token inválido' });
+        req.user = user;
+        next();
+    });
 };
 
 // --- ROTAS DE AUTENTICAÃ‡ÃƒO ---
