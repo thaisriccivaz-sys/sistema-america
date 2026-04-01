@@ -10,7 +10,7 @@
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <!-- Chart.js para dashboards de avaliação -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="style.css?v=2">
+    <link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
     
@@ -41,43 +41,47 @@
     <!-- App Shell (ERP Layout) -->
     <div id="app-shell" class="view-section">
         <!-- Sidebar -->
-        <aside class="sidebar">
+        <aside class="sidebar" id="app-sidebar">
             <div class="sidebar-header">
-                <h2>AMÉRICA RENTAL</h2>
+                <h2 class="sidebar-brand">AM&Eacute;RICA RENTAL</h2>
+                <button id="sidebar-toggle" onclick="toggleSidebar()" title="Recolher menu"
+                    style="background:none;border:none;cursor:pointer;color:var(--primary-color);font-size:1.4rem;display:flex;align-items:center;margin-left:auto;padding:4px;border-radius:6px;transition:background 0.2s;">
+                    <i class="ph ph-sidebar-simple" id="sidebar-toggle-icon"></i>
+                </button>
             </div>
             <nav class="sidebar-nav">
-                <a href="#" class="nav-item active" data-target="dashboard">
-                    <i class="ph ph-squares-four"></i> Dashboard
+                <a href="#" class="nav-item active" data-target="dashboard" title="Dashboard">
+                    <i class="ph ph-squares-four"></i> <span class="nav-label">Dashboard</span>
                 </a>
-                <a href="#" class="nav-item" data-target="colaboradores">
-                    <i class="ph ph-users"></i> Colaboradores
+                <a href="#" class="nav-item" data-target="colaboradores" title="Colaboradores">
+                    <i class="ph ph-users"></i> <span class="nav-label">Colaboradores</span>
                 </a>
-                <a href="#" class="nav-item" data-target="admissao">
-                    <i class="ph ph-list-checks"></i> Admissão
+                <a href="#" class="nav-item" data-target="admissao" title="Admiss&atilde;o">
+                    <i class="ph ph-list-checks"></i> <span class="nav-label">Admiss&atilde;o</span>
                 </a>
-                <a href="#" class="nav-item" data-target="cargos">
-                    <i class="ph ph-briefcase"></i> Cargos
+                <a href="#" class="nav-item" data-target="cargos" title="Cargos">
+                    <i class="ph ph-briefcase"></i> <span class="nav-label">Cargos</span>
                 </a>
-                <a href="#" class="nav-item" data-target="departamentos">
-                    <i class="ph ph-buildings"></i> Departamentos
+                <a href="#" class="nav-item" data-target="departamentos" title="Departamentos">
+                    <i class="ph ph-buildings"></i> <span class="nav-label">Departamentos</span>
                 </a>
-                <a href="#" class="nav-item" data-target="faculdade">
-                    <i class="ph ph-graduation-cap"></i> Faculdade
+                <a href="#" class="nav-item" data-target="faculdade" title="Faculdade">
+                    <i class="ph ph-graduation-cap"></i> <span class="nav-label">Faculdade</span>
                 </a>
-                <a href="#" class="nav-item" data-target="chaves">
-                    <i class="ph ph-key"></i> Chaves
+                <a href="#" class="nav-item" data-target="chaves" title="Chaves">
+                    <i class="ph ph-key"></i> <span class="nav-label">Chaves</span>
                 </a>
-                <a href="#" class="nav-item" data-target="geradores">
-                    <i class="ph ph-file-text"></i> Geradores
+                <a href="#" class="nav-item" data-target="geradores" title="Geradores">
+                    <i class="ph ph-file-text"></i> <span class="nav-label">Geradores</span>
                 </a>
-                <a href="#" class="nav-item" data-target="ficha-epi">
-                    <i class="ph ph-shield-check"></i> Ficha EPI
+                <a href="#" class="nav-item" data-target="ficha-epi" title="Ficha EPI">
+                    <i class="ph ph-shield-check"></i> <span class="nav-label">Ficha EPI</span>
                 </a>
-                <a href="#" class="nav-item" data-target="gerenciar-avaliacoes">
-                    <i class="ph ph-clipboard-text"></i> Avaliações
+                <a href="#" class="nav-item" data-target="gerenciar-avaliacoes" title="Avalia&ccedil;&otilde;es">
+                    <i class="ph ph-clipboard-text"></i> <span class="nav-label">Avalia&ccedil;&otilde;es</span>
                 </a>
-                <a href="#" class="nav-item" id="btn-logout">
-                    <i class="ph ph-sign-out"></i> Sair
+                <a href="#" class="nav-item" id="btn-logout" title="Sair">
+                    <i class="ph ph-sign-out"></i> <span class="nav-label">Sair</span>
                 </a>
             </nav>
         </aside>
@@ -1028,6 +1032,15 @@
                     <div class="prontuario-layout">
                         <!-- Abas Laterais do Prontuário -->
                         <div class="prontuario-tabs card p-0">
+                            <!-- Campo de pesquisa de abas -->
+                            <div style="padding:10px 14px 8px; border-bottom:1px solid #e2e8f0; background:#f8fafc;">
+                                <div style="display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;">
+                                    <i class="ph ph-magnifying-glass" style="color:#94a3b8;font-size:0.95rem;"></i>
+                                    <input type="text" id="tabs-search-input" placeholder="Buscar aba..." autocomplete="off"
+                                        oninput="filterTabsList(this.value)"
+                                        style="border:none;outline:none;width:100%;font-size:0.83rem;font-family:inherit;background:transparent;color:#334155;">
+                                </div>
+                            </div>
                             <ul id="tabs-list">
                                 <li data-tab="00.CheckList" class="active" style="background: #fff4e6; color: #fd7e14; font-weight: 700;">
                                     <i class="ph ph-list-checks"></i> 00. CheckList
@@ -1039,10 +1052,10 @@
                                 <li data-tab="Atestados">Atestados</li>
                                 <li data-tab="Faltas">Faltas</li>
                                 <li data-tab="Contratos">Contratos</li>
-                                <li data-tab="Avaliação">Avaliação</li>
-                                <li data-tab="Advertências">Advertências</li>
+                                <li data-tab="Avalia&ccedil;&atilde;o">Avalia&ccedil;&atilde;o</li>
+                                <li data-tab="Advert&ecirc;ncias">Advert&ecirc;ncias</li>
                                 <li data-tab="Faculdade">Faculdade</li>
-                                <li data-tab="Boletim de ocorrência" style="display:none;">Boletim de ocorrência</li>
+                                <li data-tab="Boletim de ocorr&ecirc;ncia" style="display:none;">Boletim de ocorr&ecirc;ncia</li>
                                 <li data-tab="Certificados">Certificados</li>
                                 <li id="tab-conjuge" data-tab="Conjuge" style="display:none;">Conjuge</li>
                                 <li data-tab="Dependentes">Dependentes</li>
@@ -1837,6 +1850,6 @@
     <script src="avaliacoes.js?v=6"></script>
     <script src="gerenciar_avaliacoes.js?v=2"></script>
     <script src="epi.js?v=17"></script>
-    <script src="app.js?v=58"></script>
+    <script src="app.js?v=59"></script>
 </body>
 </html>

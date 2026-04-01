@@ -6994,7 +6994,29 @@ window._pageBookmarks = JSON.parse(localStorage.getItem('pageBookmarks') || '[]'
 function getNormalizedPageSearchData() {
     const pages = [];
     for (const [key, obj] of Object.entries(BREADCRUMB_MAP)) {
-        pages.push({ key, name: obj.path, code: obj.code });
+        const parts = obj.path.split('→').map(p => p.trim());
+        const rootPath = parts[0];
+        
+        let targetKey = key;
+        let rootCode = obj.code;
+        
+        // Se a tela for interna (sem código), redireciona o clique para a root (a raiz, ex: Colaboradores)
+        if (!obj.code) {
+            const rootEntry = Object.entries(BREADCRUMB_MAP).find(([k, v]) => v.path === rootPath && v.code);
+            if (rootEntry) {
+                targetKey = rootEntry[0];
+                rootCode = rootEntry[1].code;
+            } else {
+                // Algumas rotas raízes podem variar os nomes, tentar deduções cruas:
+                if (rootPath.includes('Colaboradores')) {
+                    targetKey = 'colaboradores'; rootCode = 'RHCL00';
+                } else if (rootPath.includes('EPI')) {
+                    targetKey = 'ficha-epi'; rootCode = 'RHEPI01';
+                }
+            }
+        }
+        
+        pages.push({ key: targetKey, name: obj.path, code: rootCode });
     }
     return pages;
 }
@@ -7083,4 +7105,58 @@ window.renderTabContent = function(tabId, tabName, force) {
 document.addEventListener('DOMContentLoaded', () => {
     setTimeout(renderBookmarks, 500);
 });
+
+// ==========================================
+// SIDEBAR TOGGLE
+// ==========================================
+window._sidebarCollapsed = false;
+
+window.toggleSidebar = function() {
+    const sidebar = document.getElementById('app-sidebar');
+    const wrapper = document.querySelector('.main-wrapper');
+    const icon = document.getElementById('sidebar-toggle-icon');
+    if (!sidebar) return;
+    window._sidebarCollapsed = !window._sidebarCollapsed;
+    sidebar.classList.toggle('collapsed', window._sidebarCollapsed);
+    wrapper && wrapper.classList.toggle('sidebar-collapsed', window._sidebarCollapsed);
+    if (icon) {
+        icon.className = window._sidebarCollapsed ? 'ph ph-sidebar-simple-duotone' : 'ph ph-sidebar-simple';
+    }
+    localStorage.setItem('sidebarCollapsed', window._sidebarCollapsed ? '1' : '0');
+};
+
+// Restore sidebar state on load
+(function() {
+    const saved = localStorage.getItem('sidebarCollapsed');
+    if (saved === '1') {
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                const sidebar = document.getElementById('app-sidebar');
+                const wrapper = document.querySelector('.main-wrapper');
+                const icon = document.getElementById('sidebar-toggle-icon');
+                if (sidebar) sidebar.classList.add('collapsed');
+                if (wrapper) wrapper.classList.add('sidebar-collapsed');
+                if (icon) icon.className = 'ph ph-sidebar-simple-duotone';
+                window._sidebarCollapsed = true;
+            }, 100);
+        });
+    }
+})();
+
+// ==========================================
+// PRONTUÁRIO TABS SEARCH FILTER
+// ==========================================
+window.filterTabsList = function(q) {
+    q = (q || '').toLowerCase().trim();
+    document.querySelectorAll('#tabs-list li').forEach(li => {
+        const text = li.textContent.trim().toLowerCase();
+        // Never hide the hidden ones (Boletim, Conjuge) unless they match
+        const originallyHidden = li.id === 'tab-conjuge' || li.dataset.tab === 'Boletim de ocorrência';
+        if (!q) {
+            li.style.display = originallyHidden ? 'none' : '';
+        } else {
+            li.style.display = text.includes(q) ? '' : 'none';
+        }
+    });
+};
 
