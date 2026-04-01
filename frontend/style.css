@@ -235,7 +235,7 @@ body {
     padding: 0 1.5rem;
     position: sticky;
     top: 0;
-    z-index: 10;
+    z-index: 1000;
 }
 .topbar-search {
     display: flex;
