@@ -458,7 +458,107 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 )
             `, (err) => { if (err) console.error('Erro ao criar epi_entregas:', err); });
 
+
+            // ============================================================
+            // SISTEMA DE USUÁRIOS E PERMISSÕES
+            // ============================================================
+
+            // Migrar tabela usuarios com novos campos
+            db.all("PRAGMA table_info(usuarios)", (err, rows) => {
+                if (err || !rows) return;
+                const cols = rows.map(r => r.name);
+                if (!cols.includes('nome'))               db.run("ALTER TABLE usuarios ADD COLUMN nome TEXT");
+                if (!cols.includes('email'))              db.run("ALTER TABLE usuarios ADD COLUMN email TEXT");
+                if (!cols.includes('departamento'))       db.run("ALTER TABLE usuarios ADD COLUMN departamento TEXT DEFAULT 'RH'");
+                if (!cols.includes('grupo_permissao_id')) db.run("ALTER TABLE usuarios ADD COLUMN grupo_permissao_id INTEGER");
+                if (!cols.includes('ativo'))              db.run("ALTER TABLE usuarios ADD COLUMN ativo INTEGER DEFAULT 1");
+            });
+
+            // Tabela de Grupos de Permissão
+            db.run(`
+                CREATE TABLE IF NOT EXISTS grupos_permissao (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nome TEXT NOT NULL UNIQUE,
+                    descricao TEXT,
+                    departamento TEXT DEFAULT 'Todas',
+                    tipo TEXT DEFAULT 'personalizado',
+                    base_usuario_id INTEGER,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            `, (err) => {
+                if (err) return;
+
+                // Tabela de Permissões por Grupo
+                db.run(`
+                    CREATE TABLE IF NOT EXISTS permissoes_grupo (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        grupo_id INTEGER NOT NULL,
+                        modulo TEXT NOT NULL,
+                        pagina_id TEXT NOT NULL,
+                        pagina_nome TEXT NOT NULL,
+                        visualizar INTEGER DEFAULT 0,
+                        alterar INTEGER DEFAULT 0,
+                        incluir INTEGER DEFAULT 0,
+                        excluir INTEGER DEFAULT 0,
+                        UNIQUE(grupo_id, pagina_id),
+                        FOREIGN KEY(grupo_id) REFERENCES grupos_permissao(id) ON DELETE CASCADE
+                    )
+                `, (err2) => {
+                    if (err2) return;
+
+                    // Seed grupos padrão
+                    const gruposPadrao = [
+                        { nome: 'Administrador', descricao: 'Acesso total ao sistema', departamento: 'Todas', tipo: 'departamento' },
+                        { nome: 'RH - Completo', descricao: 'Acesso completo ao módulo RH', departamento: 'RH', tipo: 'departamento' },
+                        { nome: 'RH - Somente Leitura', descricao: 'Apenas visualização das telas de RH', departamento: 'RH', tipo: 'departamento' },
+                        { nome: 'Diretoria', descricao: 'Acesso completo incluindo configurações do sistema', departamento: 'Diretoria', tipo: 'departamento' },
+                    ];
+
+                    const TELAS_SISTEMA = [
+                        { modulo: 'RH', pagina_id: 'dashboard',             pagina_nome: 'Dashboard' },
+                        { modulo: 'RH', pagina_id: 'colaboradores',          pagina_nome: 'Colaboradores' },
+                        { modulo: 'RH', pagina_id: 'admissao',               pagina_nome: 'Admissão' },
+                        { modulo: 'RH', pagina_id: 'cargos',                 pagina_nome: 'Cargos' },
+                        { modulo: 'RH', pagina_id: 'departamentos',           pagina_nome: 'Departamentos' },
+                        { modulo: 'RH', pagina_id: 'faculdade',              pagina_nome: 'Faculdade' },
+                        { modulo: 'RH', pagina_id: 'chaves',                 pagina_nome: 'Chaves' },
+                        { modulo: 'RH', pagina_id: 'geradores',              pagina_nome: 'Geradores de Documentos' },
+                        { modulo: 'RH', pagina_id: 'ficha-epi',              pagina_nome: 'Ficha EPI' },
+                        { modulo: 'RH', pagina_id: 'gerenciar-avaliacoes',   pagina_nome: 'Avaliações' },
+                        { modulo: 'Sistema', pagina_id: 'usuarios-permissoes', pagina_nome: 'Usuários e Permissões' },
+                    ];
+
+                    gruposPadrao.forEach(g => {
+                        db.get('SELECT id FROM grupos_permissao WHERE nome = ?', [g.nome], (e, row) => {
+                            if (row) return; // já existe
+                            db.run(
+                                'INSERT INTO grupos_permissao (nome, descricao, departamento, tipo) VALUES (?,?,?,?)',
+                                [g.nome, g.descricao, g.departamento, g.tipo],
+                                function(err3) {
+                                    if (err3 || !this.lastID) return;
+                                    const gid = this.lastID;
+                                    const isAdmin = g.nome === 'Administrador' || g.nome === 'Diretoria';
+                                    const isFullRH = g.nome === 'RH - Completo';
+
+                                    TELAS_SISTEMA.forEach(t => {
+                                        const v = 1;
+                                        const a = (isAdmin || isFullRH) ? 1 : 0;
+                                        const i = (isAdmin || isFullRH) ? 1 : 0;
+                                        const ex = isAdmin ? 1 : 0;
+                                        db.run(
+                                            'INSERT OR IGNORE INTO permissoes_grupo (grupo_id,modulo,pagina_id,pagina_nome,visualizar,alterar,incluir,excluir) VALUES (?,?,?,?,?,?,?,?)',
+                                            [gid, t.modulo, t.pagina_id, t.pagina_nome, v, a, i, ex]
+                                        );
+                                    });
+                                }
+                            );
+                        });
+                    });
+                });
+            });
+
             console.log('Tabelas do sistema RH verificadas/criadas com sucesso.');
+
         });
     }
 });

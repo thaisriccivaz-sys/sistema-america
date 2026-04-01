@@ -101,6 +101,7 @@ const BREADCRUMB_MAP = {
     'ficha-epi':          { path: 'Ficha EPI',                                                    code: 'RHEPI01' },
     'avaliacoes':         { path: 'Avaliações',                                                   code: 'RHAV01' },
     'gerenciar-avaliacoes': { path: 'Gerenciar Avaliações',                                       code: 'RHAV02' },
+    'usuarios-permissoes':  { path: 'Diretoria → Usuários e Permissões',                          code: 'DIR001' },
     // Sub-telas (Prontuário Digital - abas)
     'tab:00. CheckList':          { path: 'Colaboradores → Prontuário Digital → 00. CheckList',          },
     'tab:01. Ficha Cadastral':    { path: 'Colaboradores → Prontuário Digital → Ficha Cadastral',        },
@@ -193,6 +194,8 @@ function navigateTo(target) {
         loadAdmissaoSelect();
     } else if (target === 'ficha-epi') {
         if (typeof window.initEpiModule === 'function') window.initEpiModule();
+    } else if (target === 'usuarios-permissoes') {
+        if (typeof window.initUsuariosPermissoes === 'function') window.initUsuariosPermissoes();
     }
 }
 

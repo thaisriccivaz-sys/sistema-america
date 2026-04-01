@@ -2690,7 +2690,169 @@ app.delete('/api/epi-templates/:id', authenticateToken, (req, res) => {
     });
 });
 
+
+// ============================================================
+// ROTAS: USUÁRIOS E GRUPOS DE PERMISSÃO
+// ============================================================
+
+// --- USUÁRIOS ---
+app.get('/api/usuarios', authenticateToken, (req, res) => {
+    db.all(`SELECT u.id, u.username, u.nome, u.email, u.role, u.departamento, u.grupo_permissao_id, u.ativo,
+                   g.nome as grupo_nome
+            FROM usuarios u
+            LEFT JOIN grupos_permissao g ON g.id = u.grupo_permissao_id
+            ORDER BY u.nome`, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+app.post('/api/usuarios', authenticateToken, (req, res) => {
+    const { username, password, nome, email, departamento, grupo_permissao_id, role } = req.body;
+    if (!username || !password) return res.status(400).json({ error: 'Username e senha são obrigatórios' });
+    const hash = bcrypt.hashSync(password, 10);
+    db.run(
+        'INSERT INTO usuarios (username, password_hash, nome, email, departamento, grupo_permissao_id, role, ativo) VALUES (?,?,?,?,?,?,?,1)',
+        [username, hash, nome || username, email || null, departamento || 'RH', grupo_permissao_id || null, role || 'Operacional'],
+        function(err) {
+            if (err) {
+                const msg = err.message.includes('UNIQUE') ? 'Este username já está cadastrado.' : err.message;
+                return res.status(400).json({ error: msg });
+            }
+            res.status(201).json({ id: this.lastID, message: 'Usuário criado com sucesso' });
+        }
+    );
+});
+
+app.put('/api/usuarios/:id', authenticateToken, (req, res) => {
+    const { nome, email, departamento, grupo_permissao_id, role, ativo, password } = req.body;
+    const updates = [];
+    const values = [];
+    if (nome !== undefined)               { updates.push('nome = ?');               values.push(nome); }
+    if (email !== undefined)              { updates.push('email = ?');              values.push(email); }
+    if (departamento !== undefined)       { updates.push('departamento = ?');       values.push(departamento); }
+    if (grupo_permissao_id !== undefined) { updates.push('grupo_permissao_id = ?'); values.push(grupo_permissao_id); }
+    if (role !== undefined)               { updates.push('role = ?');               values.push(role); }
+    if (ativo !== undefined)              { updates.push('ativo = ?');              values.push(ativo); }
+    if (password)                         { updates.push('password_hash = ?');      values.push(bcrypt.hashSync(password, 10)); }
+    if (updates.length === 0) return res.json({ message: 'Nenhuma alteração' });
+    values.push(req.params.id);
+    db.run(`UPDATE usuarios SET ${updates.join(', ')} WHERE id = ?`, values, function(err) {
+        if (err) return res.status(400).json({ error: err.message });
+        res.json({ message: 'Usuário atualizado com sucesso' });
+    });
+});
+
+app.delete('/api/usuarios/:id', authenticateToken, (req, res) => {
+    db.run('UPDATE usuarios SET ativo = 0 WHERE id = ?', [req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: 'Usuário inativado' });
+    });
+});
+
+// --- GRUPOS DE PERMISSÃO ---
+app.get('/api/grupos-permissao', authenticateToken, (req, res) => {
+    db.all('SELECT * FROM grupos_permissao ORDER BY nome', [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+app.post('/api/grupos-permissao', authenticateToken, (req, res) => {
+    const { nome, descricao, departamento, tipo, base_usuario_id } = req.body;
+    if (!nome) return res.status(400).json({ error: 'Nome é obrigatório' });
+    db.run(
+        'INSERT INTO grupos_permissao (nome, descricao, departamento, tipo, base_usuario_id) VALUES (?,?,?,?,?)',
+        [nome, descricao || '', departamento || 'Todas', tipo || 'personalizado', base_usuario_id || null],
+        function(err) {
+            if (err) {
+                const msg = err.message.includes('UNIQUE') ? 'Já existe um grupo com este nome.' : err.message;
+                return res.status(400).json({ error: msg });
+            }
+            res.status(201).json({ id: this.lastID, message: 'Grupo criado' });
+        }
+    );
+});
+
+app.put('/api/grupos-permissao/:id', authenticateToken, (req, res) => {
+    const { nome, descricao, departamento, tipo } = req.body;
+    db.run(
+        'UPDATE grupos_permissao SET nome=?, descricao=?, departamento=?, tipo=? WHERE id=?',
+        [nome, descricao, departamento, tipo, req.params.id],
+        function(err) {
+            if (err) return res.status(400).json({ error: err.message });
+            res.json({ message: 'Grupo atualizado' });
+        }
+    );
+});
+
+app.delete('/api/grupos-permissao/:id', authenticateToken, (req, res) => {
+    db.run('DELETE FROM grupos_permissao WHERE id = ?', [req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: 'Grupo removido' });
+    });
+});
+
+// --- PERMISSÕES POR GRUPO ---
+app.get('/api/grupos-permissao/:id/permissoes', authenticateToken, (req, res) => {
+    db.all('SELECT * FROM permissoes_grupo WHERE grupo_id = ? ORDER BY modulo, pagina_nome', [req.params.id], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+app.put('/api/grupos-permissao/:id/permissoes', authenticateToken, (req, res) => {
+    const { permissoes } = req.body; // array de { pagina_id, pagina_nome, modulo, visualizar, alterar, incluir, excluir }
+    if (!Array.isArray(permissoes)) return res.status(400).json({ error: 'permissoes deve ser um array' });
+    const gid = req.params.id;
+    const stmt = db.prepare(
+        `INSERT OR REPLACE INTO permissoes_grupo (grupo_id, modulo, pagina_id, pagina_nome, visualizar, alterar, incluir, excluir)
+         VALUES (?,?,?,?,?,?,?,?)`
+    );
+    permissoes.forEach(p => {
+        stmt.run([gid, p.modulo, p.pagina_id, p.pagina_nome, p.visualizar?1:0, p.alterar?1:0, p.incluir?1:0, p.excluir?1:0]);
+    });
+    stmt.finalize(err => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: 'Permissões salvas com sucesso' });
+    });
+});
+
+// Copiar permissões de um usuário para um grupo
+app.post('/api/grupos-permissao/:id/copiar-usuario/:uid', authenticateToken, (req, res) => {
+    const gid = req.params.id;
+    const uid = req.params.uid;
+    // Buscar o grupo do usuário de origem
+    db.get('SELECT grupo_permissao_id FROM usuarios WHERE id = ?', [uid], (err, userRow) => {
+        if (err || !userRow || !userRow.grupo_permissao_id) {
+            return res.status(404).json({ error: 'Usuário ou grupo de origem não encontrado' });
+        }
+        const sourceGid = userRow.grupo_permissao_id;
+        db.all('SELECT * FROM permissoes_grupo WHERE grupo_id = ?', [sourceGid], (err2, perms) => {
+            if (err2) return res.status(500).json({ error: err2.message });
+            // Deletar as atuais do grupo destino e inserir as copiadas
+            db.run('DELETE FROM permissoes_grupo WHERE grupo_id = ?', [gid], (err3) => {
+                if (err3) return res.status(500).json({ error: err3.message });
+                const stmt = db.prepare(
+                    `INSERT OR REPLACE INTO permissoes_grupo (grupo_id, modulo, pagina_id, pagina_nome, visualizar, alterar, incluir, excluir)
+                     VALUES (?,?,?,?,?,?,?,?)`
+                );
+                perms.forEach(p => {
+                    stmt.run([gid, p.modulo, p.pagina_id, p.pagina_nome, p.visualizar, p.alterar, p.incluir, p.excluir]);
+                });
+                stmt.finalize(err4 => {
+                    if (err4) return res.status(500).json({ error: err4.message });
+                    // Atualizar base_usuario_id no grupo
+                    db.run('UPDATE grupos_permissao SET base_usuario_id = ? WHERE id = ?', [uid, gid]);
+                    res.json({ message: 'Permissões copiadas com sucesso', count: perms.length });
+                });
+            });
+        });
+    });
+});
+
 // Middleware de Erro Global
+
 app.use((err, req, res, next) => {
     console.error("--- ERRO DETECTADO NO SERVIDOR ---");
     console.error(err);
