@@ -145,7 +145,7 @@ window.abrirFormUsuario = async function(userId = null) {
         try {
             const res = await fetch(`${API_URL}/colaboradores`, { headers: { Authorization: `Bearer ${currentToken}` } });
             const all = await res.json();
-            const ativos = all.filter(c => c.status !== 'Desligado');
+            const ativos = all.filter(c => c.status !== 'Desligado' && !_permUsuarios.some(u => u.nome === c.nome_completo));
             
             const colabOptions = ativos.map(c => 
                 `<option value="${c.id}" data-nome="${c.nome_completo}" data-email="${c.email || ''}" data-depto="${c.departamento || ''}">${c.nome_completo} — ${c.cargo || ''} / ${c.departamento || ''}</option>`
