@@ -132,6 +132,18 @@ const BREADCRUMB_MAP = {
 function updateBreadcrumb(key) {
     const bar = document.getElementById('breadcrumb-bar');
     window.currentBreadcrumbKey = key; // IMPORTANTE: Atualizar key atual
+    
+    // Mostra a estrela APENAS se for tela de menu principal (sem setas '→' e não for tab)
+    const starBtn = document.getElementById('btn-star-page');
+    const entryObj = window.BREADCRUMB_MAP ? window.BREADCRUMB_MAP[key] : null;
+    if (starBtn && entryObj) {
+        if (!entryObj.path.includes('→') && !key.startsWith('tab:')) {
+            starBtn.style.display = 'flex';
+        } else {
+            starBtn.style.display = 'none';
+        }
+    }
+    
     if (typeof renderBookmarks === 'function') setTimeout(renderBookmarks, 50); // Força render com o novo key
     if (!bar) return;
     const entry = BREADCRUMB_MAP[key] || { path: key, code: '' };
@@ -7049,8 +7061,8 @@ window.renderBookmarks = function() {
 
     list.innerHTML = window._pageBookmarks.map(key => {
         const obj = BREADCRUMB_MAP[key];
-        if (!obj || !obj.code) return '';
-        return `<button onclick="abrirAbaOuNavegar('${key}')" style="background:#f503c5; color:white; border:none; border-radius:16px; padding:4px 12px; font-size:0.75rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px; box-shadow:0 2px 4px rgba(245,3,197,0.3); transition:transform 0.2s;" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'">${obj.code}</button>`;
+        if (!obj || obj.path.includes('→') || key.startsWith('tab:')) return '';
+        return `<button onclick="abrirAbaOuNavegar('${key}')" style="background:#f503c5; color:white; border:none; border-radius:16px; padding:4px 12px; font-size:0.75rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px; box-shadow:0 2px 4px rgba(245,3,197,0.3); transition:transform 0.2s;" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'">${obj.path}</button>`;
     }).join('');
 };
 
