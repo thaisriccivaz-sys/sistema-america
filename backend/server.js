@@ -1423,6 +1423,10 @@ app.delete('/api/cursos-faculdade/:id', authenticateToken, (req, res) => {
     });
 });
 
+// MIGRATION: adicionar colunas tipo e arquivo_pdf à tabela geradores (se não existirem)
+db.run("ALTER TABLE geradores ADD COLUMN tipo TEXT DEFAULT 'html'", () => {});
+db.run("ALTER TABLE geradores ADD COLUMN arquivo_pdf TEXT DEFAULT NULL", () => {});
+
 // --- GERADORES DE DOCUMENTOS ---
 app.get('/api/geradores', authenticateToken, (req, res) => {
     db.all("SELECT * FROM geradores ORDER BY nome ASC", [], (err, rows) => {
@@ -1441,7 +1445,7 @@ app.get('/api/geradores/:id', authenticateToken, (req, res) => {
 
 app.post('/api/geradores', authenticateToken, (req, res) => {
     const { nome, conteudo, variaveis } = req.body;
-    db.run("INSERT INTO geradores (nome, conteudo, variaveis) VALUES (?, ?, ?)", 
+    db.run("INSERT INTO geradores (nome, conteudo, variaveis, tipo) VALUES (?, ?, ?, 'html')", 
         [nome, conteudo, variaveis], function(err) {
             if (err) return res.status(400).json({ error: err.message });
             res.status(201).json({ id: this.lastID, ...req.body });
@@ -1458,11 +1462,77 @@ app.put('/api/geradores/:id', authenticateToken, (req, res) => {
 });
 
 app.delete('/api/geradores/:id', authenticateToken, (req, res) => {
+    // Remove arquivo PDF associado se existir
+    db.get("SELECT arquivo_pdf FROM geradores WHERE id = ?", [req.params.id], (err, row) => {
+        if (row && row.arquivo_pdf && fs.existsSync(row.arquivo_pdf)) {
+            try { fs.unlinkSync(row.arquivo_pdf); } catch(e) {}
+        }
+    });
     db.run("DELETE FROM geradores WHERE id = ?", [req.params.id], function(err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ message: 'Gerador removido' });
     });
 });
+
+// Upload de PDF externo como gerador
+const geradorPdfStorage = multer.diskStorage({
+    destination: function(req, file, cb) {
+        const dir = path.join(BASE_PATH, '_geradores_pdf');
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        cb(null, dir);
+    },
+    filename: function(req, file, cb) {
+        const ts = Date.now();
+        const safe = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+        cb(null, `${ts}_${safe}`);
+    }
+});
+const uploadGeradorPdf = multer({ 
+    storage: geradorPdfStorage,
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype === 'application/pdf') cb(null, true);
+        else cb(new Error('Apenas arquivos PDF são permitidos'));
+    },
+    limits: { fileSize: 20 * 1024 * 1024 } // 20MB
+});
+
+app.post('/api/geradores/upload-pdf', authenticateToken, uploadGeradorPdf.single('pdf'), (req, res) => {
+    if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
+    const nome = req.body.nome || path.basename(req.file.originalname, '.pdf');
+    const arquivo_pdf = req.file.path;
+    db.run("INSERT INTO geradores (nome, conteudo, variaveis, tipo, arquivo_pdf) VALUES (?, '', '', 'pdf', ?)",
+        [nome, arquivo_pdf], function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ id: this.lastID, nome, tipo: 'pdf', arquivo_pdf });
+        });
+});
+
+app.put('/api/geradores/:id/replace-pdf', authenticateToken, uploadGeradorPdf.single('pdf'), (req, res) => {
+    if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
+    // Remove o arquivo antigo
+    db.get("SELECT arquivo_pdf FROM geradores WHERE id = ?", [req.params.id], (err, row) => {
+        if (row && row.arquivo_pdf && fs.existsSync(row.arquivo_pdf)) {
+            try { fs.unlinkSync(row.arquivo_pdf); } catch(e) {}
+        }
+        db.run("UPDATE geradores SET arquivo_pdf = ?, nome = ? WHERE id = ?",
+            [req.file.path, req.body.nome || row?.nome || 'PDF', req.params.id], function(err2) {
+                if (err2) return res.status(500).json({ error: err2.message });
+                res.json({ ok: true });
+            });
+    });
+});
+
+// Servir PDF estático dos geradores externos
+app.get('/api/geradores/:id/pdf', authenticateToken, (req, res) => {
+    db.get("SELECT arquivo_pdf, nome FROM geradores WHERE id = ? AND tipo = 'pdf'", [req.params.id], (err, row) => {
+        if (err || !row) return res.status(404).json({ error: 'PDF não encontrado' });
+        if (!fs.existsSync(row.arquivo_pdf)) return res.status(404).json({ error: 'Arquivo PDF não encontrado no disco' });
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(row.nome)}.pdf"`);
+        fs.createReadStream(row.arquivo_pdf).pipe(res);
+    });
+});
+
 
 // Endpoint de geração (Substituição de Variáveis)
 app.post('/api/geradores/:id/gerar/:colaborador_id', authenticateToken, (req, res) => {

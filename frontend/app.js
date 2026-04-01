@@ -5399,34 +5399,142 @@ window.filterGeradores = function() {
     }
 };
 
-// ----- ABAS: GERADOR / TEMPLATES -----
+// ----- ABAS: GERADOR / TEMPLATES / DOCUMENTOS EXTERNOS -----
 window.switchGeradoresTab = function(tab) {
     const tabGerador    = document.getElementById('geradores-tab-gerador');
     const tabTemplates  = document.getElementById('geradores-tab-templates');
+    const tabUploadPdf  = document.getElementById('geradores-tab-upload-pdf');
     const btnGerador    = document.getElementById('tab-btn-gerador');
     const btnTemplates  = document.getElementById('tab-btn-templates');
+    const btnUploadPdf  = document.getElementById('tab-btn-upload-pdf');
     const headerActions = document.getElementById('geradores-header-actions');
 
-    const isGerador = tab === 'gerador';
+    const tabs = { gerador: tabGerador, templates: tabTemplates, 'upload-pdf': tabUploadPdf };
+    const btns = { gerador: btnGerador, templates: btnTemplates, 'upload-pdf': btnUploadPdf };
 
-    if (tabGerador)    tabGerador.style.display    = isGerador ? 'block' : 'none';
-    if (tabTemplates)  tabTemplates.style.display  = isGerador ? 'none'  : 'block';
-    if (headerActions) headerActions.style.display = isGerador ? 'flex'  : 'none';
+    Object.keys(tabs).forEach(k => {
+        if (tabs[k]) tabs[k].style.display = k === tab ? 'block' : 'none';
+        if (btns[k]) {
+            btns[k].style.background = k === tab ? '#f503c5' : '#f1f5f9';
+            btns[k].style.color      = k === tab ? '#fff'    : '#64748b';
+            btns[k].style.borderBottom = k === tab ? '2px solid #f503c5' : '2px solid transparent';
+        }
+    });
 
-    const activeStyle   = 'background:#f503c5; color:#fff; border-bottom:2px solid #f503c5;';
-    const inactiveStyle = 'background:#f1f5f9; color:#64748b; border-bottom:2px solid transparent;';
-    if (btnGerador)   btnGerador.style.cssText   += isGerador ? activeStyle : inactiveStyle;
-    if (btnTemplates) btnTemplates.style.cssText += isGerador ? inactiveStyle : activeStyle;
-    
-    // Garante controle de exibição da barra de ações 
     if (headerActions) headerActions.style.display = 'flex';
-    
-    // Atualiza filtro ao trocar
-    document.getElementById('search-geradores').value = '';
-    window.filterGeradores();
 
-    if (!isGerador) window.loadGeradoresTemplates();
+    const searchInput = document.getElementById('search-geradores');
+    if (searchInput) { searchInput.value = ''; window.filterGeradores(); }
+
+    if (tab === 'templates')  window.loadGeradoresTemplates();
+    if (tab === 'upload-pdf') window.loadExternalPdfs();
 };
+
+// ----- ABA: DOCUMENTOS EXTERNOS (PDF Upload) -----
+window.onPdfFileSelected = function(input) {
+    const preview  = document.getElementById('upload-pdf-preview');
+    const filename = document.getElementById('upload-pdf-filename');
+    const filesize = document.getElementById('upload-pdf-filesize');
+    const nameInput = document.getElementById('upload-pdf-nome');
+    if (!input.files || !input.files[0]) { if (preview) preview.style.display = 'none'; return; }
+    const file = input.files[0];
+    if (filename) filename.textContent = file.name;
+    if (filesize) filesize.textContent = `${(file.size / 1024).toFixed(0)} KB`;
+    if (preview) preview.style.display = 'flex';
+    if (nameInput && !nameInput.value) nameInput.value = file.name.replace(/\.pdf$/i, '');
+};
+
+window.submitPdfUpload = async function() {
+    const fileInput = document.getElementById('upload-pdf-file');
+    const nameInput = document.getElementById('upload-pdf-nome');
+    if (!fileInput || !fileInput.files[0]) { alert('Selecione um arquivo PDF.'); return; }
+    const nome = nameInput ? nameInput.value.trim() : '';
+    if (!nome) { alert('Informe o nome do documento.'); if (nameInput) nameInput.focus(); return; }
+
+    const formData = new FormData();
+    formData.append('pdf', fileInput.files[0]);
+    formData.append('nome', nome);
+
+    try {
+        const token = localStorage.getItem('token');
+        const res = await fetch('/api/geradores/upload-pdf', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erro no upload');
+        fileInput.value = '';
+        if (nameInput) nameInput.value = '';
+        document.getElementById('upload-pdf-preview').style.display = 'none';
+        window.loadExternalPdfs();
+        window.loadGeradores();
+    } catch(e) { alert('Erro ao enviar: ' + e.message); }
+};
+
+window.loadExternalPdfs = async function() {
+    const tbody = document.getElementById('table-external-pdfs-body');
+    if (!tbody) return;
+    try {
+        const geradores = await apiGet('/geradores');
+        const pdfs = geradores.filter(g => g.tipo === 'pdf');
+        if (pdfs.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#94a3b8; padding:2rem;">Nenhum documento externo cadastrado.</td></tr>`;
+            return;
+        }
+        tbody.innerHTML = pdfs.map(g => `
+            <tr>
+                <td style="vertical-align:middle;">
+                    <div style="display:flex; align-items:center; gap:0.5rem;">
+                        <i class="ph ph-file-pdf" style="color:#ef4444; font-size:1.2rem;"></i>
+                        <span style="font-weight:600;">${g.nome}</span>
+                    </div>
+                </td>
+                <td style="vertical-align:middle;">
+                    <span style="background:#fee2e2; color:#ef4444; border-radius:20px; padding:2px 10px; font-size:0.78rem; font-weight:700;">PDF Externo</span>
+                </td>
+                <td style="text-align:right; vertical-align:middle;">
+                    <button class="btn btn-primary btn-sm" onclick="window.previewExternalPdf(${g.id})" title="Visualizar"><i class="ph ph-eye"></i></button>
+                    <label title="Substituir PDF" class="btn btn-warning btn-sm" style="cursor:pointer; display:inline-flex; align-items:center; margin:0 2px;">
+                        <i class="ph ph-arrow-counter-clockwise"></i>
+                        <input type="file" accept="application/pdf" style="display:none;" onchange="window.replacePdf(${g.id}, '${g.nome.replace(/'/g, "\\'")}', this)">
+                    </label>
+                    <button class="btn btn-danger btn-sm" onclick="window.deleteGerador(${g.id})" title="Excluir"><i class="ph ph-trash"></i></button>
+                </td>
+            </tr>
+        `).join('');
+    } catch(e) {
+        tbody.innerHTML = `<tr><td colspan="3" style="color:#ef4444;">Erro: ${e.message}</td></tr>`;
+    }
+};
+
+window.previewExternalPdf = function(id) {
+    const token = localStorage.getItem('token');
+    const w = window.open('', '_blank');
+    fetch(`/api/geradores/${id}/pdf`, { headers: { 'Authorization': `Bearer ${token}` } })
+        .then(res => res.blob())
+        .then(blob => { w.location.href = URL.createObjectURL(blob); })
+        .catch(() => { w.close(); alert('Não foi possível abrir o PDF.'); });
+};
+
+window.replacePdf = async function(id, nomeAtual, input) {
+    if (!input.files || !input.files[0]) return;
+    const formData = new FormData();
+    formData.append('pdf', input.files[0]);
+    formData.append('nome', nomeAtual);
+    try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`/api/geradores/${id}/replace-pdf`, {
+            method: 'PUT',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData
+        });
+        if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
+        window.loadExternalPdfs();
+    } catch(e) { alert('Erro ao substituir: ' + e.message); }
+};
+
+
 
 window.loadGeradoresTemplates = async function() {
     const container = document.getElementById('geradores-templates-container');

@@ -1704,7 +1704,11 @@
                         </button>
                         <button id="tab-btn-templates" onclick="window.switchGeradoresTab('templates')"
                             style="padding:0.55rem 1.3rem; border:none; border-radius:8px 8px 0 0; font-weight:600; cursor:pointer; font-size:0.9rem; background:#f1f5f9; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px;">
-                            <i class="ph ph-briefcase"></i> Templates por Cargo
+                            <i class="ph ph-briefcase"></i> Templates por Departamento
+                        </button>
+                        <button id="tab-btn-upload-pdf" onclick="window.switchGeradoresTab('upload-pdf')"
+                            style="padding:0.55rem 1.3rem; border:none; border-radius:8px 8px 0 0; font-weight:600; cursor:pointer; font-size:0.9rem; background:#f1f5f9; color:#64748b; border-bottom:2px solid transparent; margin-bottom:-2px;">
+                            <i class="ph ph-upload-simple"></i> Documentos Externos
                         </button>
                     </div>
 
@@ -1728,12 +1732,69 @@
                         </div>
                     </div>
 
-                    <!-- ABA: TEMPLATES POR CARGO -->
+                    <!-- ABA: TEMPLATES POR DEPARTAMENTO -->
                     <div id="geradores-tab-templates" style="display:none;">
                         <div id="geradores-templates-container">
                             <!-- Renderizado via JS -->
                         </div>
                     </div>
+
+                    <!-- ABA: DOCUMENTOS EXTERNOS (Upload PDF) -->
+                    <div id="geradores-tab-upload-pdf" style="display:none;">
+                        <!-- Formulário de Upload -->
+                        <div class="card mb-4 p-4">
+                            <h4 style="font-weight:700; color:#334155; margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;">
+                                <i class="ph ph-upload-simple" style="color:#f503c5;"></i> Adicionar Documento Externo
+                            </h4>
+                            <p class="text-muted mb-3">Faça upload de um PDF pronto para que ele apareça como opção nos Templates por Departamento e seja enviado na admissão.</p>
+                            <div style="display:grid; grid-template-columns:1fr auto; gap:1rem; align-items:end;">
+                                <div class="input-group">
+                                    <label>Nome do Documento</label>
+                                    <input type="text" id="upload-pdf-nome" placeholder="Ex: Contrato de Confidencialidade"
+                                        style="border:1.5px solid #e2e8f0; border-radius:8px; padding:0.6rem 0.85rem; width:100%; font-size:0.95rem;">
+                                </div>
+                                <div>
+                                    <label style="display:block; font-weight:600; font-size:0.85rem; color:#334155; margin-bottom:0.45rem;">Arquivo PDF</label>
+                                    <label for="upload-pdf-file" style="display:inline-flex; align-items:center; gap:0.5rem; background:#f503c5; color:#fff; padding:0.6rem 1.2rem; border-radius:8px; cursor:pointer; font-weight:600; font-size:0.9rem; white-space:nowrap;">
+                                        <i class="ph ph-file-pdf"></i> Escolher PDF
+                                        <input type="file" id="upload-pdf-file" accept="application/pdf" style="display:none;" onchange="window.onPdfFileSelected(this)">
+                                    </label>
+                                </div>
+                            </div>
+                            <div id="upload-pdf-preview" style="display:none; margin-top:1rem; padding:0.75rem 1rem; background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:8px; display:flex; align-items:center; gap:0.75rem;">
+                                <i class="ph ph-file-pdf" style="font-size:1.8rem; color:#ef4444;"></i>
+                                <div style="flex:1;">
+                                    <div id="upload-pdf-filename" style="font-weight:600; color:#334155;"></div>
+                                    <div id="upload-pdf-filesize" style="font-size:0.78rem; color:#94a3b8;"></div>
+                                </div>
+                                <button class="btn btn-primary" onclick="window.submitPdfUpload()" style="display:flex; align-items:center; gap:0.5rem;">
+                                    <i class="ph ph-cloud-arrow-up"></i> Enviar
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Lista de PDFs externos já cadastrados -->
+                        <div class="card">
+                            <div style="padding:1rem 1.25rem; border-bottom:1px solid #f1f5f9; font-weight:700; color:#334155;">
+                                <i class="ph ph-list-bullets" style="color:#f503c5;"></i> Documentos Externos Cadastrados
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Nome</th>
+                                            <th>Tipo</th>
+                                            <th style="text-align:right;">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="table-external-pdfs-body">
+                                        <!-- Dinâmico -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
                 </section>
 
                 <!-- VIEW: GERENCIAR AVALIAÇÕES -->
