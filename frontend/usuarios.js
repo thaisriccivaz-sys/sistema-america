@@ -155,9 +155,24 @@ window.abrirFormUsuario = async function(userId = null) {
     }
 
     // Configurar Grupos Select
-    const gruposOptions = '<option value="">-- Sem grupo --</option>' + _permGrupos.filter(g => g.tipo !== 'personalizado').map(g =>
-        `<option value="${g.id}" ${user && user.grupo_permissao_id == g.id ? 'selected' : ''}>${g.nome} (${g.departamento})</option>`
-    ).join('');
+    const gruposFiltrados = _permGrupos.filter(g => g.tipo !== 'personalizado');
+    const deptsOrdem = ['RH', 'Logística', 'Financeiro', 'Comercial', 'Administrativo', 'Diretoria', 'Todas'];
+    const outrosDepts = [...new Set(gruposFiltrados.map(g => g.departamento))].filter(d => !deptsOrdem.includes(d));
+    const allDepts = [...deptsOrdem, ...outrosDepts];
+    
+    let gruposOptions = '<option value="">-- Sem grupo --</option>';
+    allDepts.forEach(d => {
+        const grps = gruposFiltrados.filter(g => g.departamento === d);
+        if (grps.length > 0) {
+            // Exibir no formato "Admin." se for Administrativo para economizar espaço
+            const label = d === 'Administrativo' ? 'Admin.' : d;
+            gruposOptions += `<optgroup label="${label}">`;
+            gruposOptions += grps.map(g =>
+                `<option value="${g.id}" ${user && user.grupo_permissao_id == g.id ? 'selected' : ''}>${g.nome}</option>`
+            ).join('');
+            gruposOptions += '</optgroup>';
+        }
+    });
     document.getElementById('fu-grupo-select').innerHTML = gruposOptions;
 
     // Configurar Copiar de Usuario Select

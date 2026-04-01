@@ -744,6 +744,8 @@ body {
 .stat-card.warning i { color: var(--warning-color); }
 .stat-card.danger { border-left-color: var(--danger-color); }
 .stat-card.danger i { color: var(--danger-color); }
+.stat-card.orange { border-left-color: #d9480f; }
+.stat-card.orange i { color: #d9480f; }
 .stat-card.purple { border-left-color: #6f42c1; }
 .stat-card.purple i { color: #6f42c1; }
 .stat-info h3 { font-size: 0.75rem; color: var(--text-muted); font-weight: 500; margin: 0;}

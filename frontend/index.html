@@ -205,8 +205,15 @@
                         <div class="card stat-card warning">
                             <i class="ph ph-airplane-tilt"></i>
                             <div class="stat-info">
-                                <h3>Em Férias</h3>
+                                <h3>Férias</h3>
                                 <p id="stat-ferias">0</p>
+                            </div>
+                        </div>
+                        <div class="card stat-card orange">
+                            <i class="ph ph-warning"></i>
+                            <div class="stat-info">
+                                <h3>Afastados</h3>
+                                <p id="stat-afastados">0</p>
                             </div>
                         </div>
                         <div class="card stat-card danger">
@@ -214,13 +221,6 @@
                             <div class="stat-info">
                                 <h3>Desligados</h3>
                                 <p id="stat-desligados">0</p>
-                            </div>
-                        </div>
-                        <div class="card stat-card purple">
-                            <i class="ph ph-warning"></i>
-                            <div class="stat-info">
-                                <h3>Afastados</h3>
-                                <p id="stat-afastados">0</p>
                             </div>
                         </div>
                     </div>
@@ -1901,14 +1901,14 @@
                                 </label>
                                 <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.9rem;">
                                     <input type="radio" name="fu_tipo_perm" value="personalizado" onchange="toggleFormPermissoes()" style="accent-color:#d9480f;width:16px;height:16px;">
-                                    Personalizado (Escolher Telas)
+                                    Personalizado
                                 </label>
                             </div>
 
                             <!-- PANE: Grupo Padrão -->
                             <div id="fu-pane-grupo">
                                 <div class="input-group">
-                                    <label>Selecione o Grupo de Departamento / Perfil Padrão</label>
+                                    <label>Grupo Padrão</label>
                                     <select id="fu-grupo-select" style="max-width:300px;">
                                         <!-- via js -->
                                     </select>
