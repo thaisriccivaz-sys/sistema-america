@@ -570,7 +570,7 @@
                                         </div>
                                         <div class="input-group">
                                             <label>Sexo</label>
-                                            <select id="colab-sexo" >
+                                            <select id="colab-sexo" onchange="toggleCertificadoMilitar(this.value)">
                                                 <option value="">Selecionar</option>
                                                 <option value="Masculino">Masculino</option>
                                                 <option value="Feminino">Feminino</option>
@@ -621,11 +621,7 @@
                                                     <label id="lbl-colab-rg">Número (RG)</label>
                                                     <input type="text" id="colab-rg" onkeyup="mascaraRG(this)" maxlength="14">
                                                 </div>
-                                                <div class="input-group">
-                                                    <label>Data de Emissão</label>
-                                                    <input type="date" id="colab-rg-data">
-                                                </div>
-                                                <div class="input-group">
+                                                <div class="input-group span-2">
                                                     <label>PIS</label>
                                                     <input type="text" id="colab-pis" maxlength="14" onkeyup="mascaraPIS(this)" placeholder="000.00000.00-0">
                                                 </div>
@@ -641,9 +637,9 @@
                                                     <label>Seção Eleitoral</label>
                                                     <input type="text" id="colab-titulo-secao" maxlength="4" onkeyup="mascaraApenasNumeros(this)">
                                                 </div>
-                                                <div class="input-group">
+                                                <div class="input-group" id="div-colab-militar">
                                                     <label>Certificado Militar</label>
-                                                    <input type="text" id="colab-militar" maxlength="15" onkeyup="mascaraMilitar(this)">
+                                                    <input type="text" id="colab-militar" maxlength="15" onkeyup="mascaraMilitar(this)" disabled placeholder="Apenas para Masculino" style="background:#f8fafc;color:#94a3b8;">
                                                 </div>
                                                 <div class="input-group">
                                                     <label>Número CTPS</label>

@@ -1324,139 +1324,337 @@ async function loadDashboard() {
 }
 
 // --- COLABORADORES ---
+// Armazena a lista completa para filtragem local
+let _todosColaboradores = [];
+
 async function loadColaboradores() {
     try {
         const wrapper = document.querySelector('#view-colaboradores .card');
         if (!wrapper) return;
-        
         wrapper.innerHTML = '<div style="text-align:center; padding: 3rem;"><i class="ph ph-spinner ph-spin" style="font-size:2.5rem; color:var(--primary-color);"></i><p class="mt-3">Carregando lista...</p></div>';
-        
+
         const response = await fetch(`${API_URL}/colaboradores`, { headers: { 'Authorization': `Bearer ${currentToken}` } });
         if (!response.ok) throw new Error('Falha na resposta do servidor');
-        const lista = await response.json();
-        
-        renderColaboradores(lista);
+        _todosColaboradores = await response.json();
+
+        renderColaboradores(_todosColaboradores);
     } catch(err) {
         console.error(err);
         const wrapper = document.querySelector('#view-colaboradores .card');
-        if (wrapper) {
-            wrapper.innerHTML = `<div style="text-align:center; padding: 3rem; color: var(--danger-color);"><i class="ph ph-warning" style="font-size:2.5rem;"></i><p class="mt-3">Erro ao carregar colaboradores. Verifique o servidor local e tente novamente.</p></div>`;
-        }
+        if (wrapper) wrapper.innerHTML = `<div style="text-align:center; padding: 3rem; color: var(--danger-color);"><i class="ph ph-warning" style="font-size:2.5rem;"></i><p class="mt-3">Erro ao carregar colaboradores.</p></div>`;
     }
+}
+
+function aplicarFiltrosColaboradores() {
+    const f = {
+        nome:        (document.getElementById('f-nome')?.value || '').toLowerCase().trim(),
+        cpf:         (document.getElementById('f-cpf')?.value || '').replace(/\D/g, ''),
+        nascIni:     document.getElementById('f-nasc-ini')?.value || '',
+        nascFim:     document.getElementById('f-nasc-fim')?.value || '',
+        estadoCivil: document.getElementById('f-estado-civil')?.value || '',
+        sexo:        document.getElementById('f-sexo')?.value || '',
+        departamento:document.getElementById('f-departamento')?.value || '',
+        cargo:       document.getElementById('f-cargo')?.value || '',
+        admIni:      document.getElementById('f-adm-ini')?.value || '',
+        admFim:      document.getElementById('f-adm-fim')?.value || '',
+        experiencia: document.getElementById('f-experiencia')?.value || '',
+        tipoCadastro:document.getElementById('f-tipo-cadastro')?.value || '',
+        salMin:      parseFloat(document.getElementById('f-sal-min')?.value || '') || null,
+        salMax:      parseFloat(document.getElementById('f-sal-max')?.value || '') || null,
+        escala:      document.getElementById('f-escala')?.value || '',
+        periodoConc: document.getElementById('f-periodo-conc')?.value || '',
+        feriasIni:   document.getElementById('f-ferias-ini')?.value || '',
+        feriasFim:   document.getElementById('f-ferias-fim')?.value || '',
+        dependentes: document.getElementById('f-dependentes')?.value || '',
+        beneficios:  [...(document.getElementById('f-beneficios')?.selectedOptions || [])].map(o => o.value).filter(Boolean),
+    };
+
+    const lista = _todosColaboradores.filter(c => {
+        if (f.nome && !(c.nome_completo || '').toLowerCase().includes(f.nome)) return false;
+        if (f.cpf  && !(c.cpf || '').replace(/\D/g,'').includes(f.cpf)) return false;
+        if (f.nascIni && c.data_nascimento && c.data_nascimento < f.nascIni) return false;
+        if (f.nascFim && c.data_nascimento && c.data_nascimento > f.nascFim) return false;
+        if (f.estadoCivil && c.estado_civil !== f.estadoCivil) return false;
+        if (f.sexo && c.sexo !== f.sexo) return false;
+        if (f.departamento && !(c.departamento || '').toLowerCase().includes(f.departamento.toLowerCase())) return false;
+        if (f.cargo && !(c.cargo || '').toLowerCase().includes(f.cargo.toLowerCase())) return false;
+        if (f.admIni && c.data_admissao && c.data_admissao < f.admIni) return false;
+        if (f.admFim && c.data_admissao && c.data_admissao > f.admFim) return false;
+        if (f.experiencia === 'sim') {
+            if (!c.data_admissao) return false;
+            const dias = Math.floor((new Date() - new Date(c.data_admissao + 'T12:00:00')) / 86400000);
+            if (dias > 90) return false;
+        }
+        if (f.tipoCadastro && c.status !== f.tipoCadastro) return false;
+        if (f.salMin !== null && (parseFloat(c.salario) || 0) < f.salMin) return false;
+        if (f.salMax !== null && (parseFloat(c.salario) || 0) > f.salMax) return false;
+        if (f.escala && c.escala_tipo !== f.escala) return false;
+        if (f.periodoConc && c.ferias_periodo_fim) {
+            const hoje = new Date(); hoje.setHours(0,0,0,0);
+            const limiteConc = new Date(c.ferias_periodo_fim);
+            limiteConc.setDate(limiteConc.getDate() + parseInt(f.periodoConc));
+            if (limiteConc < hoje || limiteConc > new Date(hoje.getTime() + parseInt(f.periodoConc) * 86400000 * 2)) return false;
+        }
+        if (f.feriasIni && c.ferias_inicio && c.ferias_inicio < f.feriasIni) return false;
+        if (f.feriasFim && c.ferias_inicio && c.ferias_inicio > f.feriasFim) return false;
+        if (f.dependentes === 'sim' && !(c.tem_dependentes)) return false;
+        if (f.dependentes === 'nao' && c.tem_dependentes) return false;
+        if (f.beneficios.length > 0) {
+            const bColab = (c.beneficios || '').split(',').map(b => b.trim());
+            if (!f.beneficios.every(b => bColab.includes(b))) return false;
+        }
+        return true;
+    });
+
+    renderTabelaColaboradores(lista);
+    const countEl = document.getElementById('colab-count');
+    if (countEl) countEl.textContent = `${lista.length} de ${_todosColaboradores.length} colaboradores`;
+}
+
+function limparFiltrosColaboradores() {
+    ['f-nome','f-cpf','f-nasc-ini','f-nasc-fim','f-estado-civil','f-sexo','f-departamento',
+     'f-cargo','f-adm-ini','f-adm-fim','f-experiencia','f-tipo-cadastro','f-sal-min','f-sal-max',
+     'f-escala','f-periodo-conc','f-ferias-ini','f-ferias-fim','f-dependentes'
+    ].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    const bf = document.getElementById('f-beneficios');
+    if (bf) [...bf.options].forEach(o => o.selected = false);
+    aplicarFiltrosColaboradores();
 }
 
 function renderColaboradores(lista) {
     const wrapper = document.querySelector('#view-colaboradores .card');
     if (!wrapper) return;
 
-    if (!lista || lista.length === 0) {
-        wrapper.innerHTML = `
-            <div class="empty-state" style="text-align: center; padding: 4rem 1rem;">
-                <i class="ph ph-users" style="font-size: 4rem; color: #ccc; margin-bottom: 1rem;"></i>
-                <h3 style="color: var(--text-muted); margin-bottom: 1.5rem;">Nenhum colaborador cadastrado</h3>
-                <button class="btn-action btn-parcial" onclick="resetFormColaborador(); navigateTo('colaboradores')">
-                    <i class="ph ph-plus"></i> Adicionar Primeiro Colaborador
-                </button>
+    // Coletar opções únicas para os selects dos filtros
+    const deptos  = [...new Set(_todosColaboradores.map(c => c.departamento).filter(Boolean))].sort();
+    const cargos  = [...new Set(_todosColaboradores.map(c => c.cargo).filter(Boolean))].sort();
+    const escalas = [...new Set(_todosColaboradores.map(c => c.escala_tipo).filter(Boolean))].sort();
+    const beneficiosSet = new Set();
+    _todosColaboradores.forEach(c => (c.beneficios || '').split(',').map(b => b.trim()).filter(Boolean).forEach(b => beneficiosSet.add(b)));
+    const beneficiosList = [...beneficiosSet].sort();
+
+    wrapper.innerHTML = `
+        <!-- PAINEL DE FILTROS -->
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:1.25rem;margin-bottom:1rem;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;cursor:pointer;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'grid':'none'">
+                <span style="font-weight:700;color:#334155;display:flex;align-items:center;gap:6px;"><i class="ph ph-funnel"></i> Filtros Avançados</span>
+                <span id="colab-count" style="font-size:0.8rem;color:#64748b;">${lista.length} colaboradores</span>
             </div>
-        `;
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0.75rem;">
+                <div>
+                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Nome</label>
+                    <input id="f-nome" type="text" placeholder="Pesquisar nome..." oninput="aplicarFiltrosColaboradores()"
+                        style="width:100%;padding:0.45rem 0.65rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                </div>
+                <div>
+                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">CPF</label>
+                    <input id="f-cpf" type="text" placeholder="Pesquisar CPF..." oninput="aplicarFiltrosColaboradores()"
+                        style="width:100%;padding:0.45rem 0.65rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                </div>
+                <div>
+                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Nasc. De</label>
+                    <input id="f-nasc-ini" type="date" onchange="aplicarFiltrosColaboradores()"
+                        style="width:100%;padding:0.45rem 0.65rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                </div>
+                <div>
+                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Nasc. Até</label>
+                    <input id="f-nasc-fim" type="date" onchange="aplicarFiltrosColaboradores()"
+                        style="width:100%;padding:0.45rem 0.65rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                </div>
+                <div>
+                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Estado Civil</label>
+                    <select id="f-estado-civil" onchange="aplicarFiltrosColaboradores()"
+                        style="width:100%;padding:0.45rem 0.65rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                        <option value="">Todos</option>
+                        <option>Solteiro(a)</option><option>Casado(a)</option><option>Divorciado(a)</option>
+                        <option>Viúvo(a)</option><option>União Estável</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Sexo</label>
+                    <select id="f-sexo" onchange="aplicarFiltrosColaboradores()"
+                        style="width:100%;padding:0.45rem 0.65rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                        <option value="">Todos</option><option>Masculino</option><option>Feminino</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Departamento</label>
+                    <select id="f-departamento" onchange="aplicarFiltrosColaboradores()"
+                        style="width:100%;padding:0.45rem 0.65rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                        <option value="">Todos</option>${deptos.map(d=>`<option>${d}</option>`).join('')}
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Cargo</label>
+                    <select id="f-cargo" onchange="aplicarFiltrosColaboradores()"
+                        style="width:100%;padding:0.45rem 0.65rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                        <option value="">Todos</option>${cargos.map(c=>`<option>${c}</option>`).join('')}
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Admissão De</label>
+                    <input id="f-adm-ini" type="date" onchange="aplicarFiltrosColaboradores()"
+                        style="width:100%;padding:0.45rem 0.65rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                </div>
+                <div>
+                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Admissão Até</label>
+                    <input id="f-adm-fim" type="date" onchange="aplicarFiltrosColaboradores()"
+                        style="width:100%;padding:0.45rem 0.65rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                </div>
+                <div>
+                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Em Experiência</label>
+                    <select id="f-experiencia" onchange="aplicarFiltrosColaboradores()"
+                        style="width:100%;padding:0.45rem 0.65rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                        <option value="">Todos</option><option value="sim">Sim (até 90 dias)</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Tipo de Cadastro</label>
+                    <select id="f-tipo-cadastro" onchange="aplicarFiltrosColaboradores()"
+                        style="width:100%;padding:0.45rem 0.65rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                        <option value="">Todos</option><option>Ativo</option><option>Incompleto</option>
+                        <option>Desligado</option><option>Afastado</option><option>Férias</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Salário De (R$)</label>
+                    <input id="f-sal-min" type="number" min="0" placeholder="0,00" oninput="aplicarFiltrosColaboradores()"
+                        style="width:100%;padding:0.45rem 0.65rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                </div>
+                <div>
+                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Salário Até (R$)</label>
+                    <input id="f-sal-max" type="number" min="0" placeholder="9999,00" oninput="aplicarFiltrosColaboradores()"
+                        style="width:100%;padding:0.45rem 0.65rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                </div>
+                <div>
+                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Escala de Trabalho</label>
+                    <select id="f-escala" onchange="aplicarFiltrosColaboradores()"
+                        style="width:100%;padding:0.45rem 0.65rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                        <option value="">Todas</option>${escalas.map(e=>`<option>${e}</option>`).join('')}
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Férias Programadas De</label>
+                    <input id="f-ferias-ini" type="date" onchange="aplicarFiltrosColaboradores()"
+                        style="width:100%;padding:0.45rem 0.65rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                </div>
+                <div>
+                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Férias Programadas Até</label>
+                    <input id="f-ferias-fim" type="date" onchange="aplicarFiltrosColaboradores()"
+                        style="width:100%;padding:0.45rem 0.65rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                </div>
+                <div>
+                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Possui Dependentes</label>
+                    <select id="f-dependentes" onchange="aplicarFiltrosColaboradores()"
+                        style="width:100%;padding:0.45rem 0.65rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                        <option value="">Todos</option><option value="sim">Sim</option><option value="nao">Não</option>
+                    </select>
+                </div>
+                <div style="grid-column:span 2;">
+                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Benefícios (múltipla seleção)</label>
+                    <select id="f-beneficios" multiple onchange="aplicarFiltrosColaboradores()"
+                        style="width:100%;padding:0.45rem 0.65rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;height:80px;">
+                        ${beneficiosList.map(b=>`<option value="${b}">${b}</option>`).join('')}
+                    </select>
+                </div>
+                <div style="display:flex;align-items:flex-end;gap:0.5rem;">
+                    <button onclick="limparFiltrosColaboradores()" style="padding:0.45rem 1rem;border:1px solid #e2e8f0;border-radius:6px;background:#fff;font-size:0.85rem;cursor:pointer;color:#64748b;white-space:nowrap;">
+                        <i class="ph ph-x"></i> Limpar
+                    </button>
+                </div>
+            </div>
+        </div>
+        <!-- TABELA -->
+        <div id="colab-table-wrapper"></div>
+    `;
+
+    renderTabelaColaboradores(lista);
+}
+
+function renderTabelaColaboradores(lista) {
+    const wrapper = document.getElementById('colab-table-wrapper');
+    if (!wrapper) return;
+
+    const countEl = document.getElementById('colab-count');
+    if (countEl) countEl.textContent = `${lista.length} de ${_todosColaboradores.length} colaboradores`;
+
+    if (!lista || lista.length === 0) {
+        wrapper.innerHTML = `<div class="empty-state" style="text-align:center;padding:3rem 1rem;">
+            <i class="ph ph-magnifying-glass" style="font-size:3rem;color:#ccc;margin-bottom:1rem;"></i>
+            <h3 style="color:var(--text-muted);">Nenhum colaborador encontrado com os filtros selecionados</h3>
+        </div>`;
         return;
     }
 
     wrapper.innerHTML = `
         <div class="table-responsive">
             <table class="table">
-                <thead>
-                    <tr>
-                        <th style="padding-left: 1rem; width: 50px;">Foto</th>
-                        <th>Nome</th>
-                        <th>Experiência</th>
-                        <th>CPF</th>
-                        <th>Departamento</th>
-                        <th>Cargo</th>
-                        <th>Admissão</th>
-                        <th>Status</th>
-                        <th style="text-align: right; padding-right: 1.5rem;">Ações</th>
-                    </tr>
-                </thead>
+                <thead><tr>
+                    <th style="padding-left:1rem;width:50px;">Foto</th>
+                    <th>Nome</th>
+                    <th>Experiência</th>
+                    <th>CPF</th>
+                    <th>Departamento</th>
+                    <th>Cargo</th>
+                    <th>Admissão</th>
+                    <th>Status</th>
+                    <th style="text-align:right;padding-right:1.5rem;">Ações</th>
+                </tr></thead>
                 <tbody>
                     ${lista.map(c => {
                         const d = c.data_admissao ? new Date(c.data_admissao).toLocaleDateString('pt-BR') : '-';
-                        expInfoHtml = `<div style="font-size: 0.95rem;">${d}</div>`;
+                        expInfoHtml = `<div style="font-size:0.95rem;">${d}</div>`;
                         let probationDatesHtml = '';
                         if (c.data_admissao) {
                             const adm = new Date(c.data_admissao + 'T12:00:00');
                             const d45 = new Date(adm); d45.setDate(adm.getDate() + 45);
                             const d90 = new Date(adm); d90.setDate(adm.getDate() + 90);
-                            probationDatesHtml = `
-                                <div style="font-size: 7pt; color: #94a3b8; line-height: 1.1; margin-top: 2px;">
-                                    1º: ${d45.toLocaleDateString('pt-BR')}<br>
-                                    2º: ${d90.toLocaleDateString('pt-BR')}
-                                </div>
-                            `;
+                            probationDatesHtml = `<div style="font-size:7pt;color:#94a3b8;line-height:1.1;margin-top:2px;">1º: ${d45.toLocaleDateString('pt-BR')}<br>2º: ${d90.toLocaleDateString('pt-BR')}</div>`;
                         }
-
                         let statusHtml = '';
                         const effectiveStatus = getEffectiveStatus(c);
-                        if (effectiveStatus === 'Aguardando início') statusHtml = `<div style="background:#f1f3f5; color:#495057; border: 2px solid #adb5bd; border-radius:20px; font-weight:600; padding:2px 10px; display:inline-flex; align-items:center; gap:4px; font-size:0.75rem;"><i class="ph ph-clock"></i> Aguardando</div>`;
-                        else if (effectiveStatus === 'Processo iniciado') statusHtml = `<div style="background:#e7f5ff; color:#1864ab; border: 2px solid #1864ab; border-radius:20px; font-weight:600; padding:2px 10px; display:inline-flex; align-items:center; gap:4px; font-size:0.75rem;"><i class="ph ph-hourglass"></i> Iniciado</div>`;
-                        else if (effectiveStatus === 'Ativo') statusHtml = `<div style="background:#e8f5e9; color:#196b36; border: 2px solid #196b36; border-radius:20px; font-weight:600; padding:2px 10px; display:inline-flex; align-items:center; gap:4px; font-size:0.75rem;"><i class="ph ph-check-circle"></i> Ativo</div>`;
-                        else if (effectiveStatus === 'Férias') statusHtml = `<div style="background:#fdf7e3; color:#c2aa72; border: 2px solid #c2aa72; border-radius:20px; font-weight:600; padding:2px 10px; display:inline-flex; align-items:center; gap:4px; font-size:0.75rem;"><i class="ph ph-airplane-tilt"></i> Férias</div>`;
-                        else if (effectiveStatus === 'Afastado') statusHtml = `<div style="background:#faeed9; color:#eaa15f; border: 2px solid transparent; border-radius:20px; font-weight:600; padding:2px 10px; display:inline-flex; align-items:center; gap:4px; font-size:0.75rem;"><i class="ph ph-warning"></i> Afastado</div>`;
-                        else if (effectiveStatus === 'Desligado') statusHtml = `<div style="background:#fceeee; color:#ba7881; border: 2px solid transparent; border-radius:20px; font-weight:600; padding:2px 10px; display:inline-flex; align-items:center; gap:4px; font-size:0.75rem;"><i class="ph ph-x-circle"></i> Desligado</div>`;
-                        else if (effectiveStatus === 'Incompleto') statusHtml = `<div style="background:#f8f9fa; color:#6c757d; border: 2px solid transparent; border-radius:20px; font-weight:600; padding:2px 10px; display:inline-flex; align-items:center; gap:4px; font-size:0.75rem;"><i class="ph ph-pencil-simple"></i> Incompleto</div>`;
-                        else statusHtml = `<div style="background:#f1f3f5; color:#495057; border: 2px solid #adb5bd; border-radius:20px; font-weight:600; padding:2px 10px; display:inline-flex; align-items:center; gap:4px; font-size:0.75rem;"><i class="ph ph-clock"></i> Aguardando</div>`;
+                        if (effectiveStatus === 'Aguardando início') statusHtml = `<div style="background:#f1f3f5;color:#495057;border:2px solid #adb5bd;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-clock"></i> Aguardando</div>`;
+                        else if (effectiveStatus === 'Processo iniciado') statusHtml = `<div style="background:#e7f5ff;color:#1864ab;border:2px solid #1864ab;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-hourglass"></i> Iniciado</div>`;
+                        else if (effectiveStatus === 'Ativo') statusHtml = `<div style="background:#e8f5e9;color:#196b36;border:2px solid #196b36;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-check-circle"></i> Ativo</div>`;
+                        else if (effectiveStatus === 'Férias') statusHtml = `<div style="background:#fdf7e3;color:#c2aa72;border:2px solid #c2aa72;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-airplane-tilt"></i> Férias</div>`;
+                        else if (effectiveStatus === 'Afastado') statusHtml = `<div style="background:#faeed9;color:#eaa15f;border:2px solid transparent;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-warning"></i> Afastado</div>`;
+                        else if (effectiveStatus === 'Desligado') statusHtml = `<div style="background:#fceeee;color:#ba7881;border:2px solid transparent;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-x-circle"></i> Desligado</div>`;
+                        else if (effectiveStatus === 'Incompleto') statusHtml = `<div style="background:#f8f9fa;color:#6c757d;border:2px solid transparent;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-pencil-simple"></i> Incompleto</div>`;
+                        else statusHtml = `<div style="background:#f1f3f5;color:#495057;border:2px solid #adb5bd;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-clock"></i> Aguardando</div>`;
 
-                        // Cálculo da Tag de Experiência
                         let experienceColHtml = '-';
                         if (c.data_admissao) {
                             const adm = new Date(c.data_admissao + 'T12:00:00');
                             const today = new Date(); today.setHours(12,0,0,0);
                             const diffDays = Math.floor((today - adm) / (1000 * 60 * 60 * 24));
-                            
                             if (diffDays >= 0 && diffDays <= 90) {
-                                let tagHtml = diffDays <= 45 
-                                    ? `<span class="probation-badge" style="font-size: 0.65rem; padding: 0.2rem 0.5rem; min-width: 50px;">1º 45</span>`
-                                    : `<span class="probation-badge second" style="font-size: 0.65rem; padding: 0.2rem 0.5rem; min-width: 50px;">2º 45</span>`;
-                                
-                                experienceColHtml = `
-                                    <div style="display: flex; flex-direction: column; align-items: flex-start;">
-                                        ${tagHtml}
-                                        ${probationDatesHtml}
-                                    </div>
-                                `;
+                                let tagHtml = diffDays <= 45
+                                    ? `<span class="probation-badge" style="font-size:0.65rem;padding:0.2rem 0.5rem;min-width:50px;">1º 45</span>`
+                                    : `<span class="probation-badge second" style="font-size:0.65rem;padding:0.2rem 0.5rem;min-width:50px;">2º 45</span>`;
+                                experienceColHtml = `<div style="display:flex;flex-direction:column;align-items:flex-start;">${tagHtml}${probationDatesHtml}</div>`;
                             }
                         }
 
                         const photoUrl = `${API_URL}/colaboradores/foto/${c.id}?t=${Date.now()}`;
                         const fallbackIcon = `data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNjYmQ1ZTEiIHN0cm9rZS13aWR0aD0iMS41IiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik0yMCAyMWE4IDggMCAwMC0xNiAwIi8+PGNpcmNsZSBjeD0iMTIiIGN5PSI3IiByPSI0Ii8+PC9zdmc+`;
 
-                        return `
-                            <tr>
-                                <td style="padding-left: 1rem;">
-                                    <div style="width: 36px; height: 36px; border-radius: 50%; overflow: hidden; border: 1px solid #e2e8f0; background: #f8fafc;">
-                                        <img src="${photoUrl}" onerror="this.src='${fallbackIcon}'" style="width: 100%; height: 100%; object-fit: cover;">
-                                    </div>
-                                </td>
-                                <td>
-                                    <div style="display: flex; flex-direction: column;">
-                                        <strong style="color: #334155; font-size: 0.95rem;">${c.nome_completo || 'Sem Nome'}</strong>
-                                    </div>
-                                </td>
-                                <td>${experienceColHtml}</td>
-                                <td style="color: #64748b; font-size: 0.85rem;">${c.cpf || '-'}</td>
-                                <td style="color: #64748b; font-size: 0.85rem;">${c.departamento || '-'}</td>
-                                <td style="color: #64748b; font-size: 0.85rem;">${c.cargo || '-'}</td>
-                                <td>${expInfoHtml}</td>
-                                <td>${statusHtml}</td>
-                                <td style="text-align: right; padding-right: 1rem;">
-                                    <div style="display: flex; gap: 0.4rem; justify-content: flex-end;">
-                                        <button class="btn btn-warning btn-sm" onclick="editColaborador(${c.id})" title="Editar" style="padding: 0.4rem; width: 32px; height: 32px; justify-content: center;"><i class="ph ph-pencil-simple"></i></button>
-                                        <button class="btn btn-primary btn-sm" onclick="openProntuario(${c.id}, '${(c.nome_completo || '').replace(/'/g, "\\'")}', '${(c.cargo || '').replace(/'/g, "\\'")}', '${c.cpf || ''}', '${c.sexo || ''}', '${c.data_admissao || ''}', '${c.status || ''}', '${c.rg_tipo || 'RG'}')" title="Prontuário Digital" style="padding: 0.4rem; width: 32px; height: 32px; justify-content: center; background: #2563eb;"><i class="ph ph-folder-open"></i></button>
-                                        <button class="btn btn-danger btn-sm" onclick="deleteColaborador(${c.id}, ${c.status === 'Incompleto' ? 'true' : 'false'})" title="Excluir/Inativar" style="padding: 0.4rem; width: 32px; height: 32px; justify-content: center;"><i class="ph ph-x"></i></button>
-                                    </div>
-                                </td>
-                            </tr>
-                        `;
+                        return `<tr>
+                            <td style="padding-left:1rem;"><div style="width:36px;height:36px;border-radius:50%;overflow:hidden;border:1px solid #e2e8f0;background:#f8fafc;"><img src="${photoUrl}" onerror="this.src='${fallbackIcon}'" style="width:100%;height:100%;object-fit:cover;"></div></td>
+                            <td><div style="display:flex;flex-direction:column;"><strong style="color:#334155;font-size:0.95rem;">${c.nome_completo || 'Sem Nome'}</strong></div></td>
+                            <td>${experienceColHtml}</td>
+                            <td style="color:#64748b;font-size:0.85rem;">${c.cpf || '-'}</td>
+                            <td style="color:#64748b;font-size:0.85rem;">${c.departamento || '-'}</td>
+                            <td style="color:#64748b;font-size:0.85rem;">${c.cargo || '-'}</td>
+                            <td>${expInfoHtml}</td>
+                            <td>${statusHtml}</td>
+                            <td style="text-align:right;padding-right:1rem;">
+                                <div style="display:flex;gap:0.4rem;justify-content:flex-end;">
+                                    <button class="btn btn-warning btn-sm" onclick="editColaborador(${c.id})" title="Editar" style="padding:0.4rem;width:32px;height:32px;justify-content:center;"><i class="ph ph-pencil-simple"></i></button>
+                                    <button class="btn btn-primary btn-sm" onclick="openProntuario(${c.id},'${(c.nome_completo||'').replace(/'/g,"\\'")}','${(c.cargo||'').replace(/'/g,"\\'")}','${c.cpf||''}','${c.sexo||''}','${c.data_admissao||''}','${c.status||''}','${c.rg_tipo||'RG'}')" title="Prontuário" style="padding:0.4rem;width:32px;height:32px;justify-content:center;background:#2563eb;"><i class="ph ph-folder-open"></i></button>
+                                    <button class="btn btn-danger btn-sm" onclick="deleteColaborador(${c.id},${c.status==='Incompleto'?'true':'false'})" title="Excluir" style="padding:0.4rem;width:32px;height:32px;justify-content:center;"><i class="ph ph-x"></i></button>
+                                </div>
+                            </td>
+                        </tr>`;
                     }).join('')}
                 </tbody>
             </table>
@@ -1666,7 +1864,10 @@ window.editColaborador = async function(id) {
         if (document.getElementById('colab-ctps-data')) document.getElementById('colab-ctps-data').value = c.ctps_data_expedicao ? new Date(c.ctps_data_expedicao).toISOString().split('T')[0] : '';
         if (document.getElementById('colab-pis')) document.getElementById('colab-pis').value = c.pis || '';
         if (document.getElementById('colab-cor-raca')) document.getElementById('colab-cor-raca').value = c.cor_raca || '';
-        if (document.getElementById('colab-sexo')) document.getElementById('colab-sexo').value = c.sexo || '';
+        if (document.getElementById('colab-sexo')) {
+            document.getElementById('colab-sexo').value = c.sexo || '';
+            if (typeof toggleCertificadoMilitar === 'function') toggleCertificadoMilitar(c.sexo || '');
+        }
         if (document.getElementById('colab-grau-instrucao')) document.getElementById('colab-grau-instrucao').value = c.grau_instrucao || '';
         
         const cboFull = c.cbo || '';
@@ -4601,6 +4802,23 @@ window.mascaraApenasNumeros = function(el) {
 };
 
 window.mascaraMilitar = window.mascaraApenasNumeros;
+
+window.toggleCertificadoMilitar = function(sexo) {
+    const inp = document.getElementById('colab-militar');
+    if (!inp) return;
+    if (sexo === 'Masculino') {
+        inp.disabled = false;
+        inp.placeholder = '';
+        inp.style.background = '';
+        inp.style.color = '';
+    } else {
+        inp.disabled = true;
+        inp.value = '';
+        inp.placeholder = 'Apenas para Masculino';
+        inp.style.background = '#f8fafc';
+        inp.style.color = '#94a3b8';
+    }
+};
 
 
 // Validar campo genérico no frontend
