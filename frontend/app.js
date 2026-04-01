@@ -5742,6 +5742,9 @@ window.loadAdmissaoSelect = async function() {
         // Apenas colaboradores com status 'Aguardando início' ou 'Processo iniciado'
         const pendentes = rows.filter(r => r.status === 'Aguardando início' || r.status === 'Processo iniciado');
         
+        // Guardar para o badge
+        window._admissaoPendentes = pendentes;
+        
         select.innerHTML = '<option value="">Selecione um colaborador...</option>';
         pendentes.forEach(p => {
             const opt = document.createElement('option');
@@ -5751,9 +5754,48 @@ window.loadAdmissaoSelect = async function() {
             select.appendChild(opt);
         });
         
+        // Limpa badge se já havia seleção
+        const badgeArea = document.getElementById('admissao-status-badge-area');
+        if (badgeArea) { badgeArea.style.display = 'none'; badgeArea.innerHTML = ''; }
+        
         window.resetAdmissao();
     } catch (e) { console.error(e); }
 };
+
+// Atualiza o badge de status colorido na tela de admissão
+window.updateAdmissaoStatusBadge = function(selectEl) {
+    const badgeArea = document.getElementById('admissao-status-badge-area');
+    if (!badgeArea) return;
+    if (!selectEl.value) {
+        badgeArea.style.display = 'none';
+        badgeArea.innerHTML = '';
+        return;
+    }
+    const id = parseInt(selectEl.value);
+    const pendentes = window._admissaoPendentes || [];
+    const colab = pendentes.find(p => p.id === id);
+    if (!colab) { badgeArea.style.display = 'none'; return; }
+
+    const STATUS_STYLES = {
+        'Aguardando início': { bg:'#f1f3f5', color:'#495057', border:'#adb5bd', icon:'ph-hourglass-high', label:'Aguardando' },
+        'Processo iniciado': { bg:'#f3e8ff', color:'#7e22ce', border:'#c084fc', icon:'ph-play-circle', label:'Iniciado' },
+        'Ativo':             { bg:'#e8f5e9', color:'#196b36', border:'#196b36', icon:'ph-check-circle', label:'Ativo' },
+        'Férias':            { bg:'#fdf7e3', color:'#c2aa72', border:'#c2aa72', icon:'ph-airplane-tilt', label:'Férias' },
+        'Afastado':          { bg:'#faeed9', color:'#eaa15f', border:'#eaa15f', icon:'ph-warning', label:'Afastado' },
+        'Desligado':         { bg:'#fceeee', color:'#ba7881', border:'#ba7881', icon:'ph-x-circle', label:'Desligado' }
+    };
+    const s = STATUS_STYLES[colab.status] || { bg:'#f1f3f5', color:'#495057', border:'#adb5bd', icon:'ph-clock', label: colab.status };
+    const cargo = colab.cargo_nome || 'Sem Cargo';
+    badgeArea.innerHTML = `
+        <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
+            <div style="display:inline-flex; align-items:center; gap:6px; background:${s.bg}; color:${s.color}; border:2px solid ${s.border}; border-radius:20px; font-weight:600; padding:4px 14px; font-size:0.85rem;">
+                <i class="ph ${s.icon}"></i> ${s.label}
+            </div>
+            <span style="color:#64748b; font-size:0.88rem;"><strong>${colab.nome_completo}</strong> &mdash; ${cargo}</span>
+        </div>`;
+    badgeArea.style.display = 'block';
+};
+
 
 window.sendAssinafyWhatsApp = async function(tipo, suffix) {
     if (!viewedColaborador || !viewedColaborador.telefone) {

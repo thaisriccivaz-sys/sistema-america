@@ -1155,15 +1155,16 @@
                     <div class="card mb-4 p-4" id="admissao-search-container">
                         <h3 class="section-title"><i class="ph ph-user-plus"></i> 1. Selecionar Colaborador Pré-Cadastrado</h3>
                         <p class="text-muted mb-3">Selecione o colaborador que já possui os dados cadastrados no sistema para iniciar a conferência documental e ativação.</p>
-                        <div style="max-width: 500px;">
-                            <div class="input-group">
-                                <label>Pendente de Admissão</label>
-                                <select id="admissao-select-colab" class="form-control" onchange="window.initAdmissaoWorkflow(this.value)">
-                                    <option value="">Selecione um colaborador...</option>
-                                    <!-- Dinâmico via JS: Aguardando início ou Processo iniciado -->
-                                </select>
-                            </div>
-                        </div>
+                        <div style="max-width: 600px;">
+                             <div class="input-group" style="margin-bottom:0.5rem;">
+                                 <label>Pendente de Admissão</label>
+                                 <select id="admissao-select-colab" class="form-control" onchange="window.initAdmissaoWorkflow(this.value); window.updateAdmissaoStatusBadge(this)">
+                                     <option value="">Selecione um colaborador...</option>
+                                     <!-- Dinâmico via JS: Aguardando início ou Processo iniciado -->
+                                 </select>
+                             </div>
+                             <div id="admissao-status-badge-area" style="display:none; margin-top:0.75rem;"></div>
+                         </div>
                     </div>
 
                     <!-- ESTADO INICIAL: BOTÃO INICIAR AGORA (OCULTO) -->
