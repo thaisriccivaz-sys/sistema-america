@@ -135,12 +135,18 @@ const BREADCRUMB_MAP = {
 function updateBreadcrumb(key) {
     const bar = document.getElementById('breadcrumb-bar');
     window.currentBreadcrumbKey = key; // IMPORTANTE: Atualizar key atual
-    
-    // Mostra a estrela APENAS se for tela de menu principal (sem setas '→' e não for tab)
-    const starBtn = document.getElementById('btn-star-page');
     const entryObj = window.BREADCRUMB_MAP ? window.BREADCRUMB_MAP[key] : null;
+    let pageColor = '#f503c5';
+    if (entryObj && entryObj.path && entryObj.path.includes('Diretoria')) {
+        pageColor = '#d9480f';
+    }
+    if (bar) bar.style.backgroundColor = pageColor;
+
+    // Mostra a estrela APENAS se for tela de menu principal ou telas base (sem setas '→', exceto Diretoria)
+    const starBtn = document.getElementById('btn-star-page');
     if (starBtn && entryObj) {
-        if (!entryObj.path.includes('→') && !key.startsWith('tab:')) {
+        starBtn.style.color = pageColor;
+        if ((!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario') {
             starBtn.style.display = 'flex';
         } else {
             starBtn.style.display = 'none';
@@ -7096,8 +7102,22 @@ window.renderBookmarks = function() {
 
     list.innerHTML = window._pageBookmarks.map(key => {
         const obj = BREADCRUMB_MAP[key];
-        if (!obj || obj.path.includes('→') || key.startsWith('tab:')) return '';
-        return `<button onclick="abrirAbaOuNavegar('${key}')" style="background:#f503c5; color:white; border:none; border-radius:16px; padding:4px 12px; font-size:0.75rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px; box-shadow:0 2px 4px rgba(245,3,197,0.3); transition:transform 0.2s;" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'">${obj.path}</button>`;
+        if (!obj) return '';
+
+        // Ignorar tabs ou caminhos com setas, a menos que seja usuarios-permissoes ou form-usuario
+        if ((obj.path.includes('→') && key !== 'usuarios-permissoes' && key !== 'form-usuario') || key.startsWith('tab:')) return '';
+        
+        let btnColor = '#f503c5';
+        if (obj.path.includes('Diretoria')) {
+            btnColor = '#d9480f';
+        }
+
+        let btnLabel = obj.path;
+        if (key === 'usuarios-permissoes' || key === 'form-usuario') {
+            btnLabel = 'Usuários';
+        }
+
+        return `<button onclick="abrirAbaOuNavegar('${key}')" style="background:${btnColor}; color:white; border:none; border-radius:16px; padding:4px 12px; font-size:0.75rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px; box-shadow:0 2px 4px rgba(0,0,0,0.2); transition:transform 0.2s;" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'">${btnLabel}</button>`;
     }).join('');
 };
 
