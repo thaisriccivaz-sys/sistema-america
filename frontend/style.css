@@ -314,13 +314,13 @@ body {
 .dept-submenu .nav-item:hover {
     background: var(--bg-main);
     color: var(--primary-color);
-    border-left-color: var(--primary-color);
+    border-left-color: #f503c5;
 }
 .dept-submenu .nav-item:hover i { color: var(--primary-color); }
 .dept-submenu .nav-item.active {
     background: var(--primary-light);
     color: var(--primary-color);
-    border-left-color: var(--primary-color);
+    border-left-color: #f503c5;
     font-weight: 700;
 }
 .dept-submenu .nav-item.active i { color: var(--primary-color); }
