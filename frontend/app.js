@@ -337,29 +337,36 @@ function updateBreadcrumb(key) {
 }
 let appOpenTabs = [];
 
-function getAppTabTitle(target) {
-    const navItem = document.querySelector(`.nav-item[data-target="${target}"]`);
-    if (navItem && !navItem.textContent.includes('Sair')) {
-        return navItem.textContent.trim().replace('Em breve...', '').trim();
-    }
-    const mapping = {
-        'dashboard': 'Dashboard',
-        'colaboradores': 'Colaboradores',
-        'form-colaborador': 'Cadastro de Colaborador',
-        'cargos': 'Cargos',
-        'departamentos': 'Departamentos',
-        'admissao': 'Lista de Admissão',
-        'form-admissao': 'Ficha de Admissão',
-        'prontuario-digital': 'Prontuário Digital',
-        'chaves': 'Controle de Chaves',
-        'faculdade': 'Gestão Faculdade',
-        'geradores': 'Gerar Documentos',
-        'ficha-epi': 'Ficha de EPI',
-        'gerenciar-avaliacoes': 'Gerenciar Avaliações',
-        'usuarios-permissoes': 'Usuários e Permissões',
-        'form-usuario': 'Cadastro de Usuário'
-    };
-    return mapping[target] || target;
+// ── METADADOS DE ABAS: cor, ícone e módulo por tela ─────────────────────────
+const TAB_META = {
+    // RH - Rosa
+    'dashboard':              { color: '#f503c5', icon: 'ph-squares-four',    title: 'Dashboard' },
+    'colaboradores':          { color: '#f503c5', icon: 'ph-address-book',    title: 'Colaboradores' },
+    'form-colaborador':       { color: '#f503c5', icon: 'ph-user-plus',       title: 'Cadastro Colaborador' },
+    'prontuario':             { color: '#f503c5', icon: 'ph-folder-open',     title: 'Prontuário Digital' },
+    'admissao':               { color: '#f503c5', icon: 'ph-list-checks',     title: 'Admissão' },
+    'cargos':                 { color: '#f503c5', icon: 'ph-briefcase',       title: 'Cargos' },
+    'departamentos':          { color: '#f503c5', icon: 'ph-buildings',       title: 'Departamentos' },
+    'faculdade':              { color: '#f503c5', icon: 'ph-graduation-cap',  title: 'Faculdade' },
+    'chaves':                 { color: '#f503c5', icon: 'ph-key',             title: 'Chaves' },
+    'geradores':              { color: '#f503c5', icon: 'ph-file-text',       title: 'Geradores' },
+    'ficha-epi':              { color: '#f503c5', icon: 'ph-shield-check',    title: 'Ficha EPI' },
+    'gerenciar-avaliacoes':   { color: '#f503c5', icon: 'ph-clipboard-text',  title: 'Avaliações' },
+    // Diretoria - Laranja
+    'usuarios-permissoes':    { color: '#d9480f', icon: 'ph-users-three',    title: 'Usuários e Permissões' },
+    'form-usuario':           { color: '#d9480f', icon: 'ph-user-gear',      title: 'Cadastro de Usuário' },
+    // Logística - Verde
+    'logistica-em-breve':     { color: '#2d9e5f', icon: 'ph-truck',          title: 'Logística' },
+    // Financeiro - Azul
+    'financeiro-em-breve':    { color: '#1971c2', icon: 'ph-currency-dollar', title: 'Financeiro' },
+    // Comercial - Roxo
+    'comercial-em-breve':     { color: '#7048e8', icon: 'ph-handshake',      title: 'Comercial' },
+    // Administrativo - Amarelo
+    'admin-em-breve':         { color: '#e67700', icon: 'ph-gear',           title: 'Administrativo' },
+};
+
+function getTabMeta(target) {
+    return TAB_META[target] || { color: '#64748b', icon: 'ph-browsers', title: target };
 }
 
 function renderAppTabs() {
@@ -370,23 +377,62 @@ function renderAppTabs() {
         return;
     }
     container.style.display = 'flex';
-    container.innerHTML = appOpenTabs.map(t => `
-        <div class="app-top-tab ${t.active ? 'active' : ''}" onclick="navigateTo('${t.id}')" style="display:inline-flex; align-items:center; gap:8px; padding:6px 14px; background:${t.active ? '#fff' : 'transparent'}; border:1px solid ${t.active ? '#cbd5e1' : 'transparent'}; border-bottom:none; border-radius:6px 6px 0 0; cursor:pointer; font-size:0.85rem; font-weight:${t.active ? '700' : '500'}; color:${t.active ? '#0f172a' : '#64748b'}; position:relative; z-index:${t.active ? '2' : '1'}; white-space:nowrap; user-select:none; margin-bottom:-1px; transition:all 0.2s;" onmouseover="if(!${t.active}) this.style.background='#e2e8f0';" onmouseout="if(!${t.active}) this.style.background='transparent';">
-            ${t.title}
-            <i class="ph-bold ph-x" onclick="event.stopPropagation(); closeAppTab('${t.id}')" style="color:#ef4444; margin-left:4px; border-radius:50%; padding:2px; ${t.active ? '' : 'opacity:0.7'};" onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='transparent'"></i>
-        </div>
-    `).join('');
+    container.innerHTML = appOpenTabs.map(t => {
+        const activeColor = t.color || '#0f172a';
+        return `
+        <div class="app-top-tab ${t.active ? 'active' : ''}" 
+             onclick="navigateToTab('${t.tabId}')"
+             style="display:inline-flex; align-items:center; gap:6px; padding:6px 14px;
+                    background:${t.active ? '#fff' : 'transparent'};
+                    border:1px solid ${t.active ? '#cbd5e1' : 'transparent'};
+                    border-bottom:none; border-radius:6px 6px 0 0; cursor:pointer;
+                    font-size:0.82rem; font-weight:${t.active ? '700' : '500'};
+                    color:${t.active ? activeColor : '#64748b'};
+                    position:relative; z-index:${t.active ? '2' : '1'};
+                    white-space:nowrap; user-select:none; margin-bottom:-1px; transition:all 0.2s;"
+             onmouseover="if(!${t.active}) this.style.background='#e2e8f0';"
+             onmouseout="if(!${t.active}) this.style.background='transparent';">
+            ${t.icon ? `<i class="ph ${t.icon}" style="font-size:0.88rem;opacity:0.85;"></i>` : ''}
+            <span>${t.title}</span>
+            <i class="ph-bold ph-x"
+               onclick="event.stopPropagation(); closeAppTab('${t.tabId}')"
+               style="color:#ef4444; margin-left:4px; border-radius:50%; padding:2px; font-size:0.75rem; ${t.active ? '' : 'opacity:0.7'};"
+               onmouseover="this.style.background='#fee2e2'"
+               onmouseout="this.style.background='transparent'"></i>
+        </div>`;
+    }).join('');
 }
 
-window.closeAppTab = function(targetId) {
-    const idx = appOpenTabs.findIndex(t => t.id === targetId);
+// Navegar para uma aba existente pelo seu tabId único
+window.navigateToTab = function(tabId) {
+    const tab = appOpenTabs.find(t => t.tabId === tabId);
+    if (!tab) return;
+    appOpenTabs.forEach(t => t.active = (t.tabId === tabId));
+    renderAppTabs();
+    // Restaurar o estado da view correspondente
+    document.querySelectorAll('.content-view').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const targetView = document.getElementById(`view-${tab.target}`);
+    if (targetView) targetView.classList.add('active');
+    const targetNavObj = document.querySelector(`[data-target="${tab.target}"]`);
+    if (targetNavObj) targetNavObj.classList.add('active');
+    updateBreadcrumb(tab.target);
+    // Se a aba tem dados de colaborador (prontuário ou form), restaura o viewedColaborador
+    if (tab._colaboradorData) {
+        viewedColaborador = tab._colaboradorData;
+    }
+};
+
+window.closeAppTab = function(tabId) {
+    const idx = appOpenTabs.findIndex(t => t.tabId === tabId);
     if (idx === -1) return;
     const wasActive = appOpenTabs[idx].active;
     appOpenTabs.splice(idx, 1);
     
     if (wasActive) {
         if (appOpenTabs.length > 0) {
-            navigateTo(appOpenTabs[appOpenTabs.length - 1].id);
+            navigateToTab(appOpenTabs[appOpenTabs.length - 1].tabId);
         } else {
             navigateTo('dashboard');
         }
@@ -395,13 +441,17 @@ window.closeAppTab = function(targetId) {
     }
 };
 
+// navigateTo: abre uma aba ÚNICA por target (telas de lista/config).
+// Para colaborador/prontuário, use openColaboradorTab / openProntuarioTab.
 function navigateTo(target) {
     if (target !== 'login') {
-        const existingInfo = appOpenTabs.find(t => t.id === target);
-        if (!existingInfo) {
-            appOpenTabs.push({ id: target, title: getAppTabTitle(target), active: true });
+        const meta = getTabMeta(target);
+        // Telas simples: apenas uma aba por target
+        const existingTab = appOpenTabs.find(t => t.tabId === target);
+        if (!existingTab) {
+            appOpenTabs.push({ tabId: target, target, title: meta.title, color: meta.color, icon: meta.icon, active: true });
         }
-        appOpenTabs.forEach(t => t.active = (t.id === target));
+        appOpenTabs.forEach(t => t.active = (t.tabId === target));
         renderAppTabs();
     }
     const isTopAdmin = currentUser && (currentUser.role === 'Diretoria' || currentUser.role === 'Administrador' || currentUser.departamento === 'Diretoria');
@@ -458,6 +508,57 @@ function navigateTo(target) {
     }
 }
 
+// Abre uma aba de CADASTRO de colaborador, nomeada com o colaborador.
+// Se já existir aba para esse colaborador, apenas ativa. Novo colaborador usa tabId 'form-colaborador-novo'.
+window._openColaboradorTab = function(colabId, nomeColab) {
+    const tabId = colabId ? `form-colaborador-${colabId}` : 'form-colaborador-novo';
+    const label = nomeColab ? `Cadastro: ${nomeColab.split(' ')[0]}` : 'Novo Colaborador';
+    const meta = getTabMeta('form-colaborador');
+    
+    const existingTab = appOpenTabs.find(t => t.tabId === tabId);
+    if (!existingTab) {
+        appOpenTabs.push({ tabId, target: 'form-colaborador', title: label, color: meta.color, icon: meta.icon, active: true });
+    } else {
+        existingTab.title = label; // Atualiza nome se necessário
+    }
+    appOpenTabs.forEach(t => t.active = (t.tabId === tabId));
+    renderAppTabs();
+
+    // Mostra a view de form-colaborador
+    document.querySelectorAll('.content-view').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+    const targetView = document.getElementById('view-form-colaborador');
+    if (targetView) targetView.classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    updateBreadcrumb('form-colaborador');
+};
+
+// Abre uma aba de PRONTUÁRIO, nomeada com o colaborador.
+window._openProntuarioTab = function(colabId, nomeColab, colaboradorData) {
+    const tabId = `prontuario-${colabId}`;
+    const firstName = (nomeColab || '').split(' ')[0];
+    const label = `Prontuário: ${firstName}`;
+    const meta = getTabMeta('prontuario');
+
+    const existingTab = appOpenTabs.find(t => t.tabId === tabId);
+    if (!existingTab) {
+        appOpenTabs.push({ tabId, target: 'prontuario', title: label, color: meta.color, icon: meta.icon, active: true, _colaboradorData: colaboradorData });
+    } else {
+        existingTab._colaboradorData = colaboradorData;
+        existingTab.title = label;
+    }
+    appOpenTabs.forEach(t => t.active = (t.tabId === tabId));
+    renderAppTabs();
+
+    // Mostra a view de prontuário
+    document.querySelectorAll('.content-view').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+    const targetView = document.getElementById('view-prontuario');
+    if (targetView) targetView.classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    updateBreadcrumb('prontuario');
+};
+
 
 function setupNavigation() {
     document.querySelectorAll('.sidebar-nav .nav-item[data-target], .dept-submenu .nav-item[data-target]').forEach(item => {
@@ -477,7 +578,7 @@ function setupNavigation() {
     if (btnNovoRapido) {
         btnNovoRapido.addEventListener('click', () => {
             resetFormColaborador();
-            navigateTo('form-colaborador');
+            window._openColaboradorTab(null, null);
         });
     }
     
@@ -485,7 +586,7 @@ function setupNavigation() {
     if (btnNovoColab) {
         btnNovoColab.addEventListener('click', () => {
             resetFormColaborador();
-            navigateTo('form-colaborador');
+            window._openColaboradorTab(null, null);
         });
     }
 
@@ -1743,7 +1844,7 @@ window.editColaborador = async function(id) {
             }
         }
 
-        navigateTo('form-colaborador');
+        window._openColaboradorTab(c.id, c.nome_completo);
         
         // Preencher aviso de ASO enviado se houver
         const asoNotice = document.getElementById('aso-email-notice');
@@ -2109,7 +2210,9 @@ window.openProntuario = async function(id, nome, cargo, cpf, sexo = '', admissao
         tabConjuge.style.display = (ec === 'Casado' || ec === 'União Estável') ? '' : 'none';
     }
 
-    navigateTo('prontuario');
+    const _nomePront = viewedColaborador ? (viewedColaborador.nome_completo || viewedColaborador.nome || nome) : nome;
+    const _idPront = viewedColaborador ? (viewedColaborador.id || id) : id;
+    window._openProntuarioTab(_idPront, _nomePront, viewedColaborador);
     await loadDocumentosList();
     window.renderTabContent('00.CheckList', '00. CheckList');
 };
