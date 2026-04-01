@@ -145,11 +145,12 @@ window.abrirFormUsuario = async function(userId = null) {
         try {
             const res = await fetch(`${API_URL}/colaboradores`, { headers: { Authorization: `Bearer ${currentToken}` } });
             const all = await res.json();
-            const ativos = all.filter(c => c.status !== 'Desligado' && !_permUsuarios.some(u => u.nome === c.nome_completo));
+            const ativos = all.filter(c => c.status !== 'Desligado');
             
-            const colabOptions = ativos.map(c => 
-                `<option value="${c.id}" data-nome="${c.nome_completo}" data-email="${c.email || ''}" data-depto="${c.departamento || ''}">${c.nome_completo} — ${c.cargo || ''} / ${c.departamento || ''}</option>`
-            ).join('');
+            const colabOptions = ativos.map(c => {
+                const isVinculado = _permUsuarios.some(u => u.nome === c.nome_completo);
+                return `<option value="${isVinculado ? '' : c.id}" data-nome="${c.nome_completo}" data-email="${c.email || ''}" data-depto="${c.departamento || ''}" ${isVinculado ? 'disabled style="color:#94a3b8;"' : ''}>${c.nome_completo} — ${c.cargo || ''} / ${c.departamento || ''} ${isVinculado ? '(Já possui usuário)' : ''}</option>`;
+            }).join('');
             document.getElementById('fu-colab-select').innerHTML = `<option value="">-- Selecione um colaborador --</option>${colabOptions}`;
         } catch(e) { document.getElementById('fu-colab-select').innerHTML = ''; }
     }
@@ -164,9 +165,7 @@ window.abrirFormUsuario = async function(userId = null) {
     allDepts.forEach(d => {
         const grps = gruposFiltrados.filter(g => g.departamento === d);
         if (grps.length > 0) {
-            // Exibir no formato "Admin." se for Administrativo para economizar espaço
-            const label = d === 'Administrativo' ? 'Admin.' : d;
-            gruposOptions += `<optgroup label="${label}">`;
+            gruposOptions += `<optgroup label="${d}">`;
             gruposOptions += grps.map(g =>
                 `<option value="${g.id}" ${user && user.grupo_permissao_id == g.id ? 'selected' : ''}>${g.nome}</option>`
             ).join('');

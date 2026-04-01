@@ -511,7 +511,20 @@ const db = new sqlite3.Database(dbPath, (err) => {
                         { nome: 'Administrador', descricao: 'Acesso total ao sistema', departamento: 'Todas', tipo: 'departamento' },
                         { nome: 'RH - Completo', descricao: 'Acesso completo ao módulo RH', departamento: 'RH', tipo: 'departamento' },
                         { nome: 'RH - Somente Leitura', descricao: 'Apenas visualização das telas de RH', departamento: 'RH', tipo: 'departamento' },
-                        { nome: 'Diretoria', descricao: 'Acesso completo incluindo configurações do sistema', departamento: 'Diretoria', tipo: 'departamento' },
+                        
+                        { nome: 'Logística - Total', descricao: 'Acesso total', departamento: 'Logística', tipo: 'departamento' },
+                        { nome: 'Logística - Somente Leitura', descricao: 'Apenas leitura', departamento: 'Logística', tipo: 'departamento' },
+                        
+                        { nome: 'Financeiro - Total', descricao: 'Acesso total', departamento: 'Financeiro', tipo: 'departamento' },
+                        { nome: 'Financeiro - Somente Leitura', descricao: 'Apenas leitura', departamento: 'Financeiro', tipo: 'departamento' },
+                        
+                        { nome: 'Comercial - Total', descricao: 'Acesso total', departamento: 'Comercial', tipo: 'departamento' },
+                        { nome: 'Comercial - Somente Leitura', descricao: 'Apenas leitura', departamento: 'Comercial', tipo: 'departamento' },
+                        
+                        { nome: 'Administrativo - Total', descricao: 'Acesso total', departamento: 'Administrativo', tipo: 'departamento' },
+                        { nome: 'Administrativo - Somente Leitura', descricao: 'Apenas leitura', departamento: 'Administrativo', tipo: 'departamento' },
+                        
+                        { nome: 'Diretoria', descricao: 'Acesso completo incluindo configurações', departamento: 'Diretoria', tipo: 'departamento' },
                     ];
 
                     const TELAS_SISTEMA = [
@@ -538,13 +551,13 @@ const db = new sqlite3.Database(dbPath, (err) => {
                                     if (err3 || !this.lastID) return;
                                     const gid = this.lastID;
                                     const isAdmin = g.nome === 'Administrador' || g.nome === 'Diretoria';
-                                    const isFullRH = g.nome === 'RH - Completo';
-
+                                    const hasTotal = g.nome.includes('Completo') || g.nome.includes('Total') || g.nome === 'Administrador' || g.nome === 'Diretoria';
+                                    
                                     TELAS_SISTEMA.forEach(t => {
                                         const v = 1;
-                                        const a = (isAdmin || isFullRH) ? 1 : 0;
-                                        const i = (isAdmin || isFullRH) ? 1 : 0;
-                                        const ex = isAdmin ? 1 : 0;
+                                        const a = hasTotal ? 1 : 0;
+                                        const i = hasTotal ? 1 : 0;
+                                        const ex = hasTotal ? 1 : 0;
                                         db.run(
                                             'INSERT OR IGNORE INTO permissoes_grupo (grupo_id,modulo,pagina_id,pagina_nome,visualizar,alterar,incluir,excluir) VALUES (?,?,?,?,?,?,?,?)',
                                             [gid, t.modulo, t.pagina_id, t.pagina_nome, v, a, i, ex]
