@@ -125,7 +125,10 @@ window.abrirFormUsuario = async function(userId = null) {
 
     // Ocultar card de seleção de colaborador se for edição, pois o nome já foi definido
     document.getElementById('fu-card-colab').style.display = user ? 'none' : 'block';
-    document.getElementById('fu-colab-search').value = '';
+    
+    // Antigo input-search foi removido, então protegemos se não existir
+    const searchInp = document.getElementById('fu-colab-search');
+    if (searchInp) searchInp.value = '';
     
     document.getElementById('fu-nome').value = user ? (user.nome || '') : '';
     document.getElementById('fu-email').value = user ? (user.email || '') : '';
@@ -321,7 +324,7 @@ window.salvarUsuarioView = async function() {
         navigateTo('usuarios-permissoes');
         await carregarUsuariosLista();
         await carregarGruposLista();
-        alert('Usuário salvo com configurações de permissão aplicadas!');
+        // Feedback visual silencioso ou sem alert conforme solicitado
 
     } catch(e) { 
         console.error(e);
@@ -398,7 +401,7 @@ function renderArvorePermissoesForm() {
                 <h4 style="margin:0;font-size:1rem;color:#1e293b;">Módulo: ${mod.modulo}</h4>
                 <i class="ph ph-caret-down" style="margin-left:auto;color:#94a3b8;"></i>
             </div>
-            <div style="display:block;padding:1rem;background:#fff;">`;
+            <div style="display:none;padding:1rem;background:#fff;">`;
             
         mod.grupos.forEach(grp => {
             html += `

@@ -204,7 +204,10 @@ function navigateTo(target) {
     } else if (target === 'usuarios-permissoes') {
         if (typeof window.initUsuariosPermissoes === 'function') window.initUsuariosPermissoes();
     } else if (target === 'form-usuario') {
-        if (typeof window.abrirFormUsuario === 'function') window.abrirFormUsuario();
+        if (typeof window.abrirFormUsuario === 'function') {
+            window.abrirFormUsuario(window._editarUserId || null);
+            window._editarUserId = null;
+        }
     }
 }
 
@@ -2512,6 +2515,13 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
             listContainer.appendChild(createDocSlot(tabId, d.document_type, d));
         });
     } else if (FIXED_DOCS[tabId]) {
+        if (tabId === 'Multas') {
+            const isMotorista = viewedColaborador && (viewedColaborador.cargo || '').toUpperCase().includes('MOTORISTA');
+            if (!isMotorista) {
+                listContainer.innerHTML = '<div class="alert alert-info"><i class="ph ph-info"></i> Esta aba está disponível apenas para colaboradores com cargo de Motorista.</div>';
+                return;
+            }
+        }
         FIXED_DOCS[tabId].forEach(docType => {
             if (!searchTerm || docType.toLowerCase().includes(searchTerm)) {
                 if (tabId === 'Contratos' && docType === 'Acordo de auxílio combustível') {

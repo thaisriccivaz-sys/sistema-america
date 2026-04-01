@@ -1709,7 +1709,7 @@
                     </div>
 
                     <!-- Abas -->
-                    <div style="display:flex; gap:4px; margin-bottom:1.5rem; border-bottom:2px solid #e2e8f0; padding-bottom:0;">
+                    <div style="display:none; gap:4px; margin-bottom:1.5rem; border-bottom:2px solid #e2e8f0; padding-bottom:0;">
                         <button id="tab-btn-usuarios" class="perm-tab-btn active" onclick="switchPermTab('usuarios')"
                             style="padding:0.6rem 1.2rem;border:none;border-radius:8px 8px 0 0;font-weight:600;cursor:pointer;background:#d9480f;color:#fff;font-size:0.9rem;">
                             <i class="ph ph-user"></i> Usuários
@@ -1849,10 +1849,8 @@
                                 <h3 style="font-size:0.95rem;margin-bottom:1rem;color:#1e293b;display:flex;align-items:center;gap:0.5rem;">
                                     <i class="ph ph-magnifying-glass text-muted"></i> Selecionar Colaborador *
                                 </h3>
-                                <input id="fu-colab-search" type="text" placeholder="Buscar colaborador..." oninput="filtrarColabsForm(this.value)"
-                                    style="width:100%;padding:0.5rem 0.75rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;margin-bottom:0.8rem;">
-                                <select id="fu-colab-select" size="6" onchange="preencherDadosColabForm(this)"
-                                    style="width:100%;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;padding:0.25rem;">
+                                <select id="fu-colab-select" onchange="preencherDadosColabForm(this)"
+                                    style="width:100%;padding:0.6rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;background:#fff;">
                                     <!-- options via js -->
                                 </select>
                             </div>
