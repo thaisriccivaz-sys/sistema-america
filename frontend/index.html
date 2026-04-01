@@ -173,6 +173,10 @@
 
             <!-- Content Area -->
             <main class="content-area" style="padding-bottom: 38px;">
+                <!-- Container de Tabs do App -->
+                <div id="app-tabs-container" style="display:flex; gap:2px; background:#f4f7f6; padding:8px 8px 0 8px; border-bottom:1px solid #cbd5e1; overflow-x:auto;">
+                    <!-- Tabs geradas pelo app.js -->
+                </div>
                 
                 <!-- VIEW: DASHBOARD -->
                 <section id="view-dashboard" class="content-view active">
@@ -1726,9 +1730,10 @@
                             <div class="flex-between mb-3">
                                 <div style="display:flex;align-items:center;gap:1rem;">
                                     <h3 style="font-size:1rem;color:#475569;margin:0;">Usuários Cadastrados</h3>
-                                    <select id="filtro-status-usuarios" onchange="renderTabelaUsuarios()" style="border:1px solid #e2e8f0;border-radius:6px;padding:0.25rem 0.5rem;font-size:0.85rem;color:#475569;">
+                                    <input type="text" id="filtro-nome-usuarios" oninput="renderTabelaUsuarios()" placeholder="Pesquisar por nome..." style="border:1px solid #e2e8f0;border-radius:6px;padding:0.35rem 0.8rem;font-size:0.85rem;color:#475569;outline:none;">
+                                    <select id="filtro-status-usuarios" onchange="renderTabelaUsuarios()" style="border:1px solid #e2e8f0;border-radius:6px;padding:0.35rem 0.5rem;font-size:0.85rem;color:#475569;outline:none;">
+                                        <option value="ativos" selected>Status: Apenas Ativos</option>
                                         <option value="todos">Status: Todos</option>
-                                        <option value="ativos">Status: Apenas Ativos</option>
                                         <option value="inativos">Status: Apenas Inativos</option>
                                     </select>
                                 </div>
@@ -1889,46 +1894,17 @@
                                 <i class="ph ph-shield-check text-muted"></i> Nível de Acesso do Usuário
                             </h3>
                             
-                            <!-- Tipo de Permissão -->
-                            <div style="display:flex;gap:1.5rem;margin-bottom:1.5rem;border-bottom:1px solid #e2e8f0;padding-bottom:1rem;">
-                                <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.9rem;">
-                                    <input type="radio" name="fu_tipo_perm" value="grupo" checked onchange="toggleFormPermissoes()" style="accent-color:#d9480f;width:16px;height:16px;">
-                                    Grupo Padrão
-                                </label>
-                                <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.9rem;">
-                                    <input type="radio" name="fu_tipo_perm" value="copiar" onchange="toggleFormPermissoes()" style="accent-color:#d9480f;width:16px;height:16px;">
-                                    Copiar de Usuário Base
-                                </label>
-                                <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.9rem;">
-                                    <input type="radio" name="fu_tipo_perm" value="personalizado" onchange="toggleFormPermissoes()" style="accent-color:#d9480f;width:16px;height:16px;">
-                                    Personalizado
-                                </label>
+                            <!-- Modelo de Permissão -->
+                            <div style="margin-bottom:1.5rem;border-bottom:1px solid #e2e8f0;padding-bottom:1rem;">
+                                <label style="display:block;font-size:0.9rem;font-weight:600;margin-bottom:0.5rem;color:#475569;">Modelo de Inicialização das Telas</label>
+                                <select id="fu-modelo-perm" onchange="window.aplicarModeloPermissao(this.value)" style="width:100%;max-width:400px;padding:0.6rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;background:#fff;outline:none;">
+                                    <!-- Options inseridas via JS -->
+                                </select>
+                                <p style="font-size:0.8rem;color:#64748b;margin-top:0.5rem;">Selecione um modelo Padrão ou Copie de alguém. Você pode editar cada tela individualmente abaixo.</p>
                             </div>
 
-                            <!-- PANE: Grupo Padrão -->
-                            <div id="fu-pane-grupo">
-                                <div class="input-group">
-                                    <label>Grupo Padrão</label>
-                                    <select id="fu-grupo-select" style="max-width:300px;">
-                                        <!-- via js -->
-                                    </select>
-                                </div>
-                                <p style="font-size:0.8rem;color:#64748b;margin-top:1rem;">O usuário terá os mesmos acessos configurados para todos do grupo selecionado.</p>
-                            </div>
-
-                            <!-- PANE: Copiar -->
-                            <div id="fu-pane-copiar" style="display:none;">
-                                <div class="input-group">
-                                    <label>Copiar todas as permissões do usuário base:</label>
-                                    <select id="fu-copiar-select" style="max-width:300px;" onchange="window.carregarPermissoesCopia(this.value)">
-                                        <!-- via js -->
-                                    </select>
-                                </div>
-                                <p style="font-size:0.8rem;color:#64748b;margin-top:1rem;">Nota: Será criado um novo perfil exclusivo para este usuário baseado no escolhido, podendo ser editado depois.</p>
-                            </div>
-
-                            <!-- PANE: Personalizado -->
-                            <div id="fu-pane-personalizado" style="display:none;">
+                            <!-- PANE: Permissões -->
+                            <div id="fu-pane-personalizado" style="display:block;">
                                 <div class="flex-between mb-3">
                                     <p style="font-size:0.85rem;color:#475569;margin:0;">Defina exatamente quais menus e telas este usuário pode acessar.</p>
                                     <div>

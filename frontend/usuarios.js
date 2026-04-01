@@ -74,22 +74,27 @@ function renderTabelaUsuarios() {
     if (!tbody) return;
     
     const filtro = document.getElementById('filtro-status-usuarios') ? document.getElementById('filtro-status-usuarios').value : 'todos';
+    const filtroNome = document.getElementById('filtro-nome-usuarios') ? document.getElementById('filtro-nome-usuarios').value.toLowerCase().trim() : '';
     let docs = _permUsuarios;
     if (filtro === 'ativos') docs = docs.filter(u => u.ativo);
     if (filtro === 'inativos') docs = docs.filter(u => !u.ativo);
+    if (filtroNome) docs = docs.filter(u => (u.nome && u.nome.toLowerCase().includes(filtroNome)) || (u.username && u.username.toLowerCase().includes(filtroNome)));
 
     if (!docs.length) {
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:2rem;">Nenhum usuário encontrado</td></tr>';
         return;
     }
-    tbody.innerHTML = docs.map(u => `
-        <tr style="opacity:${u.ativo ? 1 : 0.45};">
+    tbody.innerHTML = docs.map(u => {
+        let exibirGrupo = u.grupo_nome ? u.grupo_nome : null;
+        if (exibirGrupo && exibirGrupo.startsWith('Personalizado')) exibirGrupo = 'Personalizado';
+
+        return `<tr style="opacity:${u.ativo ? 1 : 0.45};">
             <td><strong>${u.nome || u.username}</strong></td>
             <td><code>${u.username}</code></td>
             <td>${u.departamento || '-'}</td>
             <td>
-                ${u.grupo_nome
-                    ? `<span style="background:#fff3ed;color:#d9480f;padding:2px 8px;border-radius:10px;font-size:0.8rem;font-weight:600;">${u.grupo_nome}</span>`
+                ${exibirGrupo
+                    ? `<span style="background:#fff3ed;color:#d9480f;padding:2px 8px;border-radius:10px;font-size:0.8rem;font-weight:600;">${exibirGrupo}</span>`
                     : '<span style="color:#94a3b8;font-size:0.8rem;">Sem grupo</span>'}
             </td>
             <td>
@@ -106,8 +111,8 @@ function renderTabelaUsuarios() {
                     <i class="ph ph-${u.ativo ? 'trash' : 'play-circle'}"></i>
                 </button>
             </td>
-        </tr>
-    `).join('');
+        </tr>`;
+    }).join('');
 }
 
 // ── FORMULÁRIO DE USUÁRIO (TELA CHEIA) ─────────────────────────
@@ -159,57 +164,81 @@ window.abrirFormUsuario = async function(userId = null) {
         } catch(e) { document.getElementById('fu-colab-select').innerHTML = ''; }
     }
 
-    // Configurar Grupos Select
+    // Configurar Modelo Único de Permissão
+    const df = document.createDocumentFragment();
+    df.appendChild(new Option('-- Selecione um Modelo Inicial --', ''));
+
+    const gruposOrdem = ['RH', 'Logística', 'Financeiro', 'Comercial', 'Administrativo', 'Diretoria', 'Todas'];
     const gruposFiltrados = _permGrupos.filter(g => g.tipo !== 'personalizado');
-    const deptsOrdem = ['RH', 'Logística', 'Financeiro', 'Comercial', 'Administrativo', 'Diretoria', 'Todas'];
-    const outrosDepts = [...new Set(gruposFiltrados.map(g => g.departamento))].filter(d => !deptsOrdem.includes(d));
-    const allDepts = [...deptsOrdem, ...outrosDepts];
+    const outrosDepts = [...new Set(gruposFiltrados.map(g => g.departamento))].filter(d => !gruposOrdem.includes(d));
+    const allDepts = [...gruposOrdem, ...outrosDepts];
     
-    let gruposOptions = '<option value="">-- Sem grupo --</option>';
+    const grpFg = document.createElement('optgroup');
+    grpFg.label = 'Grupos Padrão / Departamentos';
     allDepts.forEach(d => {
-        const grps = gruposFiltrados.filter(g => g.departamento === d);
-        if (grps.length > 0) {
-            gruposOptions += `<optgroup label="${d}">`;
-            gruposOptions += grps.map(g =>
-                `<option value="${g.id}" ${user && user.grupo_permissao_id == g.id ? 'selected' : ''}>${g.nome}</option>`
-            ).join('');
-            gruposOptions += '</optgroup>';
-        }
+        gruposFiltrados.filter(g => g.departamento === d).forEach(g => {
+            grpFg.appendChild(new Option(`[Grupo] ${g.nome}`, `grupo|${g.id}`));
+        });
     });
-    document.getElementById('fu-grupo-select').innerHTML = gruposOptions;
+    df.appendChild(grpFg);
 
-    // Configurar Copiar de Usuario Select
-    const userOptions = '<option value="">-- Selecionar usuário --</option>' + _permUsuarios.filter(u => u.ativo && u.id !== userId).map(u =>
-        `<option value="${u.id}">${u.nome || u.username} (${u.grupo_nome || 'sem grupo'})</option>`
-    ).join('');
-    document.getElementById('fu-copiar-select').innerHTML = userOptions;
+    const usrFg = document.createElement('optgroup');
+    usrFg.label = 'Copiar de Usuário Existente';
+    _permUsuarios.filter(u => u.ativo && u.grupo_permissao_id && u.id !== userId).forEach(u => {
+        usrFg.appendChild(new Option(`[Usuário] ${u.nome || u.username} (${u.grupo_nome || 'sem grupo'})`, `user|${u.id}`));
+    });
+    df.appendChild(usrFg);
 
-    // Configurar o modo da aba atual de permissão (se o usuário existente tem um grupo personalizado ou não)
-    let tipoPerm = 'grupo'; // default
+    const blankFg = document.createElement('optgroup');
+    blankFg.label = 'Outras Opções';
+    blankFg.appendChild(new Option('Em Branco (Configurar manualmente do zero)', 'blank'));
+    df.appendChild(blankFg);
+
+    const selectMod = document.getElementById('fu-modelo-perm');
+    if (selectMod) {
+        selectMod.innerHTML = '';
+        selectMod.appendChild(df);
+    }
+
+    // Pré-selecionar o grupo atual (se existir) e carregar a árvore correspondente
+    window._treeIsModified = false;
+    
     if (user && user.grupo_permissao_id) {
         const userGrp = _permGrupos.find(g => g.id == user.grupo_permissao_id);
         if (userGrp && userGrp.tipo === 'personalizado') {
-            tipoPerm = 'personalizado';
-            // Precisamos carregar as configs do grupo personalizado para a árvore
-            _grupoSelecionadoId = user.grupo_permissao_id;
+            if (selectMod) selectMod.value = ''; // Personalizado não tem modelo correspondente no select
             await carregarArvorePermissoesUsuario(user.grupo_permissao_id);
+            window._treeIsModified = true; // Força salvar como personalizado
         } else {
-            tipoPerm = 'grupo';
-            renderArvorePermissoesForm(); // vazio default
+            if (selectMod) selectMod.value = `grupo|${user.grupo_permissao_id}`;
+            await carregarArvorePermissoesUsuario(user.grupo_permissao_id);
+            window._treeIsModified = false;
         }
     } else {
-        renderArvorePermissoesForm(); // vazio default
+        if (selectMod) selectMod.value = 'blank';
+        _permissoesFormAtivas = {};
+        renderArvorePermissoesForm();
+        window._treeIsModified = true;
     }
-
-    document.querySelector(`input[name="fu_tipo_perm"][value="${tipoPerm}"]`).checked = true;
-    window.toggleFormPermissoes();
 };
 
-window.toggleFormPermissoes = function() {
-    const tipo = document.querySelector('input[name="fu_tipo_perm"]:checked').value;
-    document.getElementById('fu-pane-grupo').style.display = tipo === 'grupo' ? 'block' : 'none';
-    document.getElementById('fu-pane-copiar').style.display = tipo === 'copiar' ? 'block' : 'none';
-    document.getElementById('fu-pane-personalizado').style.display = (tipo === 'personalizado' || tipo === 'copiar') ? 'block' : 'none';
+window.aplicarModeloPermissao = async function(val) {
+    if (!val || val === 'blank') {
+        _permissoesFormAtivas = {};
+        renderArvorePermissoesForm();
+        window._treeIsModified = true;
+        return;
+    }
+    const [tipo, idStr] = val.split('|');
+    const id = parseInt(idStr);
+    
+    if (tipo === 'grupo') {
+        await carregarArvorePermissoesUsuario(id);
+        window._treeIsModified = false; // Se ele não tocar em nada, enviamos só o grupo
+    } else if (tipo === 'user') {
+        await carregarPermissoesCopia(id);
+        window._treeIsModified = true; // Geração de cópias sempre vira Personalizado por default se salvar direto
+    }
 };
 
 window.carregarPermissoesCopia = async function(uid) {
@@ -273,7 +302,7 @@ window.salvarUsuarioView = async function() {
     const password = document.getElementById('fu-password').value;
     const email = document.getElementById('fu-email').value.trim();
     const departamento = document.getElementById('fu-departamento').value.trim();
-    const tipoPerm = document.querySelector('input[name="fu_tipo_perm"]:checked').value;
+    const modeloSelecionado = document.getElementById('fu-modelo-perm') ? document.getElementById('fu-modelo-perm').value : '';
 
     if (!userId) {
         const colabSel = document.getElementById('fu-colab-select');
@@ -285,15 +314,10 @@ window.salvarUsuarioView = async function() {
     let grupo_permissao_id = null;
     let permissoesConfiguradas = null;
 
-    if (tipoPerm === 'grupo') {
-        grupo_permissao_id = document.getElementById('fu-grupo-select').value;
-        if (!grupo_permissao_id && !confirm('Você não escolheu nenhum grupo padrão. O usuário não terá acessos. Deseja continuar?')) return;
-        if (grupo_permissao_id) grupo_permissao_id = parseInt(grupo_permissao_id);
-    } else if (tipoPerm === 'copiar' || tipoPerm === 'personalizado') {
-        if (tipoPerm === 'copiar' && !document.getElementById('fu-copiar-select').value) {
-            return alert('Selecione o usuário base para copiar as permissões');
-        }
-        // Obter as permissões ativas da árvore
+    if (!window._treeIsModified && modeloSelecionado && modeloSelecionado.startsWith('grupo|')) {
+        grupo_permissao_id = parseInt(modeloSelecionado.split('|')[1]);
+    } else {
+        // Árvore foi modificada, ou foi gerada de cópia/em branco
         const perms = Object.keys(_permissoesFormAtivas).map(pagina_id => {
             const tela = TELAS_SISTEMA.find(t => t.pagina_id === pagina_id) || {};
             return {
@@ -325,7 +349,7 @@ window.salvarUsuarioView = async function() {
 
         // Se precisava criar grupo personalizado, a API de usuarios pode não tratar isso diretamente.
         // Já que a lógica era o backend lidar ou chamamos a rota em sequencia:
-        if (tipoPerm === 'copiar' || tipoPerm === 'personalizado') {
+        if (permissoesConfiguradas) {
             let gId = userId && _grupoSelecionadoId && _permGrupos.find(g => g.id == _grupoSelecionadoId && g.tipo === 'personalizado') 
                       ? _grupoSelecionadoId : null;
             

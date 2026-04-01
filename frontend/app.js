@@ -187,10 +187,12 @@ const BREADCRUMB_MAP = {
 window.carregarPermissoesOnline = async function() {
     if (!currentUser || !currentToken) return;
 
+    const isTopAdmin = currentUser.role === 'Diretoria' || currentUser.role === 'Administrador' || currentUser.departamento === 'Diretoria';
+
     // Remove qualquer display-none forçado das categorias primeiro
     document.querySelectorAll('.dept-item').forEach(el => el.style.display = '');
 
-    if (currentUser.role === 'Diretoria' || currentUser.role === 'Administrador') {
+    if (isTopAdmin) {
         // Se for da diretoria tem acesso liberado, não precisa ocultar módulos
         document.querySelectorAll('.nav-item').forEach(el => el.style.display = '');
         return;
@@ -283,9 +285,78 @@ function updateBreadcrumb(key) {
                 : `<strong>${p}</strong><span style="margin-left:6px;background:rgba(0,0,0,0.18);padding:1px 7px;border-radius:10px;font-size:0.78rem;font-weight:700;letter-spacing:0.4px;">${code.replace(/[()]/g,'')}</span>`
         ).join('');
 }
+let appOpenTabs = [];
+
+function getAppTabTitle(target) {
+    const navItem = document.querySelector(`.nav-item[data-target="${target}"]`);
+    if (navItem && !navItem.textContent.includes('Sair')) {
+        return navItem.textContent.trim().replace('Em breve...', '').trim();
+    }
+    const mapping = {
+        'dashboard': 'Dashboard',
+        'colaboradores': 'Colaboradores',
+        'form-colaborador': 'Cadastro de Colaborador',
+        'cargos': 'Cargos',
+        'departamentos': 'Departamentos',
+        'admissao': 'Lista de Admissão',
+        'form-admissao': 'Ficha de Admissão',
+        'prontuario-digital': 'Prontuário Digital',
+        'chaves': 'Controle de Chaves',
+        'faculdade': 'Gestão Faculdade',
+        'geradores': 'Gerar Documentos',
+        'ficha-epi': 'Ficha de EPI',
+        'gerenciar-avaliacoes': 'Gerenciar Avaliações',
+        'usuarios-permissoes': 'Usuários e Permissões',
+        'form-usuario': 'Cadastro de Usuário'
+    };
+    return mapping[target] || target;
+}
+
+function renderAppTabs() {
+    const container = document.getElementById('app-tabs-container');
+    if (!container) return;
+    if (appOpenTabs.length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+    container.style.display = 'flex';
+    container.innerHTML = appOpenTabs.map(t => `
+        <div class="app-top-tab ${t.active ? 'active' : ''}" onclick="navigateTo('${t.id}')" style="display:inline-flex; align-items:center; gap:8px; padding:6px 14px; background:${t.active ? '#fff' : 'transparent'}; border:1px solid ${t.active ? '#cbd5e1' : 'transparent'}; border-bottom:none; border-radius:6px 6px 0 0; cursor:pointer; font-size:0.85rem; font-weight:${t.active ? '700' : '500'}; color:${t.active ? '#0f172a' : '#64748b'}; position:relative; z-index:${t.active ? '2' : '1'}; white-space:nowrap; user-select:none; margin-bottom:-1px; transition:all 0.2s;" onmouseover="if(!${t.active}) this.style.background='#e2e8f0';" onmouseout="if(!${t.active}) this.style.background='transparent';">
+            ${t.title}
+            <i class="ph-bold ph-x" onclick="event.stopPropagation(); closeAppTab('${t.id}')" style="color:#ef4444; margin-left:4px; border-radius:50%; padding:2px; ${t.active ? '' : 'opacity:0.7'};" onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='transparent'"></i>
+        </div>
+    `).join('');
+}
+
+window.closeAppTab = function(targetId) {
+    const idx = appOpenTabs.findIndex(t => t.id === targetId);
+    if (idx === -1) return;
+    const wasActive = appOpenTabs[idx].active;
+    appOpenTabs.splice(idx, 1);
+    
+    if (wasActive) {
+        if (appOpenTabs.length > 0) {
+            navigateTo(appOpenTabs[appOpenTabs.length - 1].id);
+        } else {
+            navigateTo('dashboard');
+        }
+    } else {
+        renderAppTabs();
+    }
+};
 
 function navigateTo(target) {
-    if (currentUser && currentUser.role !== 'Diretoria' && currentUser.role !== 'Administrador') {
+    if (target !== 'login') {
+        const existingInfo = appOpenTabs.find(t => t.id === target);
+        if (!existingInfo) {
+            appOpenTabs.push({ id: target, title: getAppTabTitle(target), active: true });
+        }
+        appOpenTabs.forEach(t => t.active = (t.id === target));
+        renderAppTabs();
+    }
+    const isTopAdmin = currentUser && (currentUser.role === 'Diretoria' || currentUser.role === 'Administrador' || currentUser.departamento === 'Diretoria');
+
+    if (currentUser && !isTopAdmin) {
         const targetNav = document.querySelector(`.nav-item[data-target="${target}"]`);
         if (targetNav && targetNav.style.display === 'none') {
             alert('Você não tem permissão para acessar esta tela.');
