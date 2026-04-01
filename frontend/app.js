@@ -5425,24 +5425,24 @@ window.renderGeradoresTemplates = function(departamentos, geradores, templates) 
         return;
     }
 
-    // Mapa: { gerador_id: [departamento_id, ...] }
+    // Mapa: { departamento_id: [gerador_id, ...] }
     const tplMap = {};
     (templates || []).forEach(t => {
-        if (!tplMap[t.gerador_id]) tplMap[t.gerador_id] = [];
-        tplMap[t.gerador_id].push(Number(t.departamento_id));
+        if (!tplMap[t.departamento_id]) tplMap[t.departamento_id] = [];
+        tplMap[t.departamento_id].push(Number(t.gerador_id));
     });
 
-    container.innerHTML = geradores.map(g => {
-        const checked = tplMap[g.id] || [];
-        const deptList = departamentos.map(d => `
+    container.innerHTML = departamentos.map(d => {
+        const checked = tplMap[d.id] || [];
+        const docsList = geradores.map(g => `
             <label style="display:flex; align-items:center; gap:0.6rem; padding:0.45rem 0.75rem; border-radius:6px; cursor:pointer; transition:background 0.15s;"
                    onmouseenter="this.style.background='#f8fafc'" onmouseleave="this.style.background=''">
                 <input type="checkbox" class="gerador-dept-chk"
-                    data-gerador="${g.id}" data-dept="${d.id}"
-                    ${checked.includes(Number(d.id)) ? 'checked' : ''}
+                    data-dept="${d.id}" data-gerador="${g.id}"
+                    ${checked.includes(Number(g.id)) ? 'checked' : ''}
                     onchange="window.saveGeradorDeptTemplate(${g.id}, ${d.id}, this.checked)"
                     style="width:16px;height:16px;cursor:pointer;accent-color:#f503c5;">
-                <span style="font-size:0.88rem; color:#334155;">${d.nome}</span>
+                <span style="font-size:0.88rem; color:#334155;">${g.nome}</span>
             </label>`).join('');
 
         return `
@@ -5451,17 +5451,17 @@ window.renderGeradoresTemplates = function(departamentos, geradores, templates) 
                      onclick="const b=this.nextElementSibling; b.style.display=b.style.display==='none'?'block':'none';">
                     <div style="display:flex; align-items:center; gap:0.75rem;">
                         <div style="width:36px;height:36px;border-radius:50%;background:#f503c5;display:flex;align-items:center;justify-content:center;">
-                            <i class="ph ph-file-text" style="color:#fff;font-size:1.1rem;"></i>
+                            <i class="ph ph-buildings" style="color:#fff;font-size:1.1rem;"></i>
                         </div>
                         <div>
-                            <div style="font-weight:700;color:#334155;font-size:0.95rem;">${g.nome}</div>
-                            <div id="gerador-dept-count-${g.id}" style="font-size:0.78rem;color:#94a3b8;">${checked.length} departamento(s) selecionado(s)</div>
+                            <div style="font-weight:700;color:#334155;font-size:0.95rem;">${d.nome}</div>
+                            <div id="dept-gerador-count-${d.id}" style="font-size:0.78rem;color:#94a3b8;">${checked.length} documento(s) selecionado(s)</div>
                         </div>
                     </div>
                     <i class="ph ph-caret-down" style="color:#94a3b8;font-size:1.2rem;"></i>
                 </div>
-                <div style="padding:0.75rem 1.25rem; display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:0.25rem;">
-                    ${deptList}
+                <div style="padding:0.75rem 1.25rem; display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:0.25rem;">
+                    ${docsList}
                 </div>
             </div>`;
     }).join('');
@@ -5475,10 +5475,10 @@ window.saveGeradorDeptTemplate = async function(geradorId, deptId, checked) {
             await apiDelete(`/gerador-departamento-templates/${geradorId}/${deptId}`);
         }
         // Atualiza contador sem recarregar
-        const chks = document.querySelectorAll(`.gerador-dept-chk[data-gerador="${geradorId}"]`);
+        const chks = document.querySelectorAll(`.gerador-dept-chk[data-dept="${deptId}"]`);
         const count = Array.from(chks).filter(c => c.checked).length;
-        const countEl = document.getElementById(`gerador-dept-count-${geradorId}`);
-        if (countEl) countEl.textContent = `${count} departamento(s) selecionado(s)`;
+        const countEl = document.getElementById(`dept-gerador-count-${deptId}`);
+        if (countEl) countEl.textContent = `${count} documento(s) selecionado(s)`;
     } catch(e) {
         alert('Erro ao salvar: ' + e.message);
     }
