@@ -1426,41 +1426,152 @@ function limparFiltrosColaboradores() {
     aplicarFiltrosColaboradores();
 }
 
-window.exportarColaboradoresXLSX = function() {
+window.exportarColaboradoresXLSX = async function() {
     if (!window._listaColaboradoresFiltrada || window._listaColaboradoresFiltrada.length === 0) {
         alert('Nenhum colaborador para exportar.');
         return;
     }
     
-    // Preparar os dados (somente as colunas que importam para leitura fácil)
-    const data = window._listaColaboradoresFiltrada.map(c => ({
-        "Nome": c.nome_completo || '',
-        "CPF": c.cpf || '',
-        "Departamento": c.departamento || '',
-        "Cargo": c.cargo || '',
-        "Data Admissão": c.data_admissao ? new Date(c.data_admissao).toLocaleDateString('pt-BR') : '',
-        "Status": getEffectiveStatus(c),
-        "Salário (R$)": c.salario || '',
-        "Escala": c.escala_tipo || '',
-        "Faculdade": c.faculdade_participa === 'Sim' ? 'Sim' : 'Não',
-        "Academia": c.academia_participa === 'Sim' ? 'Sim' : 'Não',
-        "Terapia": c.terapia_participa === 'Sim' ? 'Sim' : 'Não',
-        "Celular": c.celular_participa === 'Sim' ? 'Sim' : 'Não',
-        "Chaves": c.chaves_participa === 'Sim' ? 'Sim' : 'Não'
-    }));
+    // Preparar os dados
+    const colaboradores = window._listaColaboradoresFiltrada;
 
-    const worksheet = XLSX.utils.json_to_sheet(data);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Colaboradores");
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Colaboradores');
+
+    // 1. Tentar carregar a logo (base64)
+    let logoBase64 = null;
+    try {
+        const response = await fetch('assets/logo-header.png').catch(() => fetch('logo.png'));
+        if (response.ok) {
+            const blob = await response.blob();
+            logoBase64 = await new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.readAsDataURL(blob);
+            });
+        }
+    } catch(e) {
+        console.warn("Erro ao carregar logo:", e);
+    }
+
+    worksheet.addRow([]);
+    worksheet.addRow([]);
+    worksheet.addRow([]);
+    worksheet.mergeCells('A1', 'C3');
+
+    if (logoBase64) {
+        const imageId = workbook.addImage({
+            base64: logoBase64,
+            extension: logoBase64.split(';')[0].split('/')[1]
+        });
+        worksheet.addImage(imageId, {
+            tl: { col: 0, row: 0 },
+            ext: { width: 400, height: 60 }
+        });
+    }
+
+    worksheet.mergeCells('D1', 'H3');
+    worksheet.getCell('D1').value = "RELATÓRIO DE COLABORADORES";
+    worksheet.getCell('D1').font = { size: 16, bold: true, color: { argb: 'FF334155' } };
+    worksheet.getCell('D1').alignment = { vertical: 'middle', horizontal: 'left' };
+
+    worksheet.addRow([]);
+
+    const headerRow = worksheet.addRow([
+        "Status", "Nome Completo", "CPF", "RG", "Data Nascimento", "Nome da Mãe", "Nome do Pai",
+        "Estado Civil", "Sexo", "E-mail", "Telefone", "Contato Emergência",
+        "CEP", "Rua", "Nº", "Complemento", "Bairro", "Cidade", "Estado",
+        "Banco", "Agência", "Conta", "Tipo Conta", "PIX",
+        "Departamento", "Cargo", "Data Admissão", "Salário", "Escala Trabalho",
+        "PIS", "CTPS", "Título Eleitor", "Certificado Militar",
+        "CNH", "Cat CNH", "Emissão CNH", "Validade CNH", "CID",
+        "Férias Início", "Férias Fim", "Férias Retorno", "Possui Dependentes",
+        "Faculdade", "Academia", "Terapia", "Celular", "Chaves"
+    ]);
+
+    headerRow.eachCell(cell => {
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0e7490' } };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+    });
+
+    const safeDate = (dt) => dt ? new Date(dt).toLocaleDateString('pt-BR') : '';
+
+    colaboradores.forEach(c => {
+        const row = worksheet.addRow([
+            getEffectiveStatus(c),
+            c.nome_completo || '',
+            c.cpf || '',
+            c.rg || '',
+            safeDate(c.data_nascimento),
+            c.nome_mae || '',
+            c.nome_pai || '',
+            c.estado_civil || '',
+            c.sexo || '',
+            c.email || '',
+            c.telefone || '',
+            c.telefone_emergencia || '',
+            c.endereco_cep || '',
+            c.endereco_rua || '',
+            c.endereco_numero || '',
+            c.endereco_complemento || '',
+            c.endereco_bairro || '',
+            c.endereco_cidade || '',
+            c.endereco_estado || '',
+            c.dados_bancarios_banco || '',
+            c.dados_bancarios_agencia || '',
+            c.dados_bancarios_conta || '',
+            c.dados_bancarios_tipo_conta || '',
+            c.dados_bancarios_pix || '',
+            c.departamento || '',
+            c.cargo || '',
+            safeDate(c.data_admissao),
+            c.salario ? 'R$ ' + c.salario : '',
+            c.escala_tipo || '',
+            c.pis || '',
+            c.ctps_numero || '',
+            c.titulo_eleitor_numero || '',
+            c.certificado_militar || '',
+            c.cnh_numero || '',
+            c.cnh_categoria || '',
+            safeDate(c.cnh_emissao),
+            safeDate(c.cnh_validade),
+            c.cid || '',
+            safeDate(c.ferias_inicio),
+            safeDate(c.ferias_fim),
+            safeDate(c.ferias_retorno),
+            c.tem_dependentes ? 'Sim' : 'Não',
+            c.faculdade_participa === 'Sim' ? 'Sim' : 'Não',
+            c.academia_participa === 'Sim' ? 'Sim' : 'Não',
+            c.terapia_participa === 'Sim' ? 'Sim' : 'Não',
+            c.celular_participa === 'Sim' ? 'Sim' : 'Não',
+            c.chaves_participa === 'Sim' ? 'Sim' : 'Não'
+        ]);
+        
+        row.eachCell({ includeEmpty: true }, (cell) => {
+            cell.alignment = { vertical: 'middle', horizontal: 'left' };
+        });
+    });
+
+    worksheet.columns.forEach((col, i) => {
+        col.width = i === 1 ? 30 : 18;
+    });
+
+    // Congela no total as 5 primeiras linhas (Logo(3), Branco(1), Headers(1))
+    worksheet.views = [
+        { state: 'frozen', ySplit: 5 }
+    ];
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     
-    // Gerar o nome: ddmmyy_ColaboradoresX.xlsx (vamos usar timestamp para evitar sobreposição ou apenas 1)
     const d = new Date();
     const dia = String(d.getDate()).padStart(2, '0');
     const mes = String(d.getMonth() + 1).padStart(2, '0');
     const ano = String(d.getFullYear()).slice(-2);
     const ms = d.getMilliseconds();
     
-    XLSX.writeFile(workbook, `${dia}${mes}${ano}_Colaboradores${ms}.xlsx`);
+    saveAs(blob, `${dia}${mes}${ano}_Colaboradores${ms}.xlsx`);
 };
 
 function renderColaboradores(lista) {
