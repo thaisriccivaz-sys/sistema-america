@@ -54,7 +54,7 @@ const formLogin = document.getElementById('form-login');
 if (formLogin) {
     formLogin.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const usernameInp = document.getElementById('login-user').value;
+        const usernameInp = document.getElementById('login-user').value.trim();
         const passwordInp = document.getElementById('login-pass').value;
         const errorMsg = document.getElementById('login-error');
         if (errorMsg) errorMsg.textContent = '';
@@ -115,12 +115,19 @@ if (btnLogout) {
 }
 
 function showView(viewId) {
-    document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.view-section').forEach(el => {
+        el.classList.remove('active');
+        el.style.display = 'none';
+    });
     const view = document.getElementById(viewId);
     if (view) {
         view.classList.add('active');
         view.style.display = 'block';
         if (viewId === 'app-shell') view.style.display = 'flex';
+    }
+    const bb = document.getElementById('breadcrumb-bar');
+    if (bb) {
+        bb.style.display = viewId === 'view-login' ? 'none' : 'flex';
     }
 }
 

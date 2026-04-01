@@ -388,8 +388,8 @@ app.post('/api/auth/login', (req, res) => {
         if (err || !user) return res.status(401).json({ error: 'Usuário ou senha incorretos' });
         const valid = bcrypt.compareSync(password, user.password_hash);
         if (!valid) return res.status(401).json({ error: 'Usuário ou senha incorretos' });
-        const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, SECRET_KEY, { expiresIn: '8h' });
-        res.json({ token, user: { username: user.username, role: user.role } });
+        const token = jwt.sign({ id: user.id, username: user.username, role: user.role, grupo_permissao_id: user.grupo_permissao_id }, SECRET_KEY, { expiresIn: '8h' });
+        res.json({ token, user: { id: user.id, username: user.username, role: user.role, grupo_permissao_id: user.grupo_permissao_id } });
     });
 });
 
