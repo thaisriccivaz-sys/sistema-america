@@ -2940,41 +2940,41 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: "Erro interno no servidor." });
 });
 
-// === CARGO DOCUMENTO TEMPLATES (gerador por cargo) ===
-db.run(`CREATE TABLE IF NOT EXISTS cargo_documento_templates (
+// === GERADOR DEPARTAMENTO TEMPLATES (quais departamentos recebem cada gerador) ===
+db.run(`CREATE TABLE IF NOT EXISTS gerador_departamento_templates (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    cargo_id INTEGER NOT NULL,
     gerador_id INTEGER NOT NULL,
-    UNIQUE(cargo_id, gerador_id)
+    departamento_id INTEGER NOT NULL,
+    UNIQUE(gerador_id, departamento_id)
 )`);
 
-app.get('/api/cargo-documento-templates', authenticateToken, (req, res) => {
-    db.all('SELECT * FROM cargo_documento_templates', [], (err, rows) => {
+app.get('/api/gerador-departamento-templates', authenticateToken, (req, res) => {
+    db.all('SELECT * FROM gerador_departamento_templates', [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows || []);
     });
 });
 
-app.get('/api/cargo-documento-templates/:cargo_id', authenticateToken, (req, res) => {
-    db.all('SELECT * FROM cargo_documento_templates WHERE cargo_id = ?', [req.params.cargo_id], (err, rows) => {
+app.get('/api/gerador-departamento-templates/:gerador_id', authenticateToken, (req, res) => {
+    db.all('SELECT * FROM gerador_departamento_templates WHERE gerador_id = ?', [req.params.gerador_id], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows || []);
     });
 });
 
-app.post('/api/cargo-documento-templates', authenticateToken, (req, res) => {
-    const { cargo_id, gerador_id } = req.body;
-    if (!cargo_id || !gerador_id) return res.status(400).json({ error: 'cargo_id e gerador_id são obrigatórios' });
-    db.run('INSERT OR IGNORE INTO cargo_documento_templates (cargo_id, gerador_id) VALUES (?, ?)',
-        [cargo_id, gerador_id], function(err) {
+app.post('/api/gerador-departamento-templates', authenticateToken, (req, res) => {
+    const { gerador_id, departamento_id } = req.body;
+    if (!gerador_id || !departamento_id) return res.status(400).json({ error: 'gerador_id e departamento_id são obrigatórios' });
+    db.run('INSERT OR IGNORE INTO gerador_departamento_templates (gerador_id, departamento_id) VALUES (?, ?)',
+        [gerador_id, departamento_id], function(err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ ok: true, id: this.lastID });
         });
 });
 
-app.delete('/api/cargo-documento-templates/:cargo_id/:gerador_id', authenticateToken, (req, res) => {
-    db.run('DELETE FROM cargo_documento_templates WHERE cargo_id = ? AND gerador_id = ?',
-        [req.params.cargo_id, req.params.gerador_id], function(err) {
+app.delete('/api/gerador-departamento-templates/:gerador_id/:departamento_id', authenticateToken, (req, res) => {
+    db.run('DELETE FROM gerador_departamento_templates WHERE gerador_id = ? AND departamento_id = ?',
+        [req.params.gerador_id, req.params.departamento_id], function(err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ ok: true, removed: this.changes });
         });

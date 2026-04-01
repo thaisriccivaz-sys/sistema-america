@@ -5254,8 +5254,9 @@ window.calcSemestresFaculdade = function(val) {
         return;
     }
     const meses = parseInt(val, 10);
-    const semestres = (meses / 6).toFixed(1).replace('.0', '');
-    semestresInput.value = semestres + (semestres === '1' ? ' semestre' : ' semestres');
+    // 1 semestre = 6 meses (2 semestres por ano)
+    const semestres = Math.ceil(meses / 6);
+    semestresInput.value = semestres + (semestres === 1 ? ' semestre' : ' semestres');
 };
 
 const formFaculdade = document.getElementById('form-faculdade');
@@ -5396,95 +5397,93 @@ window.switchGeradoresTab = function(tab) {
 window.loadGeradoresTemplates = async function() {
     const container = document.getElementById('geradores-templates-container');
     if (!container) return;
-    container.innerHTML = `<div style="text-align:center;padding:2rem;color:#94a3b8;"><i class="ph ph-spinner" style="animation:spin 1s linear infinite;font-size:2rem;"></i> Carregando...</div>`;
+    container.innerHTML = `<div style="text-align:center;padding:2rem;color:#94a3b8;"><i class="ph ph-circle-notch" style="font-size:2rem;"></i> Carregando...</div>`;
 
     try {
-        const [cargos, geradores, templates] = await Promise.all([
-            apiGet('/cargos'),
+        const [departamentos, geradores, templates] = await Promise.all([
+            apiGet('/departamentos'),
             apiGet('/geradores'),
-            apiGet('/cargo-documento-templates').catch(() => [])
+            apiGet('/gerador-departamento-templates').catch(() => [])
         ]);
-        window._geradoresAll = geradores;
-        window._cargoTemplatesAll = templates;
-        window.renderGeradoresTemplates(cargos, geradores, templates);
+        window._deptTemplatesAll = templates;
+        window.renderGeradoresTemplates(departamentos, geradores, templates);
     } catch(e) {
         container.innerHTML = `<div class="card p-4" style="color:#e53e3e;">Erro ao carregar dados: ${e.message}</div>`;
     }
 };
 
-window.renderGeradoresTemplates = function(cargos, geradores, templates) {
+window.renderGeradoresTemplates = function(departamentos, geradores, templates) {
     const container = document.getElementById('geradores-templates-container');
     if (!container) return;
 
-    if (!cargos || cargos.length === 0) {
-        container.innerHTML = `<div class="card p-4 text-center" style="color:#94a3b8;"><i class="ph ph-briefcase" style="font-size:2.5rem;margin-bottom:1rem;display:block;"></i>Nenhum cargo cadastrado. Cadastre cargos primeiro.</div>`;
+    if (!geradores || geradores.length === 0) {
+        container.innerHTML = `<div class="card p-4 text-center" style="color:#94a3b8;"><i class="ph ph-file-text" style="font-size:2.5rem;margin-bottom:1rem;display:block;"></i>Nenhum gerador cadastrado.</div>`;
+        return;
+    }
+    if (!departamentos || departamentos.length === 0) {
+        container.innerHTML = `<div class="card p-4 text-center" style="color:#94a3b8;"><i class="ph ph-buildings" style="font-size:2.5rem;margin-bottom:1rem;display:block;"></i>Nenhum departamento cadastrado.</div>`;
         return;
     }
 
-    // Montar mapa de templates existentes: { cargo_id: [gerador_id, ...] }
+    // Mapa: { gerador_id: [departamento_id, ...] }
     const tplMap = {};
     (templates || []).forEach(t => {
-        if (!tplMap[t.cargo_id]) tplMap[t.cargo_id] = [];
-        tplMap[t.cargo_id].push(Number(t.gerador_id));
+        if (!tplMap[t.gerador_id]) tplMap[t.gerador_id] = [];
+        tplMap[t.gerador_id].push(Number(t.departamento_id));
     });
 
-    container.innerHTML = cargos.map(cargo => {
-        const checked = tplMap[cargo.id] || [];
-        const docsList = geradores.map(g => `
-            <label style="display:flex; align-items:center; gap:0.6rem; padding:0.5rem 0.75rem; border-radius:6px; cursor:pointer; transition:background 0.15s;"
+    container.innerHTML = geradores.map(g => {
+        const checked = tplMap[g.id] || [];
+        const deptList = departamentos.map(d => `
+            <label style="display:flex; align-items:center; gap:0.6rem; padding:0.45rem 0.75rem; border-radius:6px; cursor:pointer; transition:background 0.15s;"
                    onmouseenter="this.style.background='#f8fafc'" onmouseleave="this.style.background=''">
-                <input type="checkbox" class="cargo-doc-chk"
-                    data-cargo="${cargo.id}" data-gerador="${g.id}"
-                    ${checked.includes(Number(g.id)) ? 'checked' : ''}
-                    onchange="window.saveCargoTemplate(${cargo.id}, ${g.id}, this.checked)"
+                <input type="checkbox" class="gerador-dept-chk"
+                    data-gerador="${g.id}" data-dept="${d.id}"
+                    ${checked.includes(Number(d.id)) ? 'checked' : ''}
+                    onchange="window.saveGeradorDeptTemplate(${g.id}, ${d.id}, this.checked)"
                     style="width:16px;height:16px;cursor:pointer;accent-color:#f503c5;">
-                <span style="font-size:0.88rem; color:#334155;">${g.nome}</span>
+                <span style="font-size:0.88rem; color:#334155;">${d.nome}</span>
             </label>`).join('');
 
         return `
             <div class="card mb-3" style="overflow:hidden;">
                 <div style="display:flex; align-items:center; justify-content:space-between; padding:1rem 1.25rem; background:#fdf4ff; border-bottom:1px solid #f0e6fe; cursor:pointer;"
-                     onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display==='none' ? 'block' : 'none';">
+                     onclick="const b=this.nextElementSibling; b.style.display=b.style.display==='none'?'block':'none';">
                     <div style="display:flex; align-items:center; gap:0.75rem;">
                         <div style="width:36px;height:36px;border-radius:50%;background:#f503c5;display:flex;align-items:center;justify-content:center;">
-                            <i class="ph ph-briefcase" style="color:#fff;font-size:1.1rem;"></i>
+                            <i class="ph ph-file-text" style="color:#fff;font-size:1.1rem;"></i>
                         </div>
                         <div>
-                            <div style="font-weight:700;color:#334155;font-size:0.95rem;">${cargo.nome}</div>
-                            <div style="font-size:0.78rem;color:#94a3b8;">${checked.length} documento(s) selecionado(s)</div>
+                            <div style="font-weight:700;color:#334155;font-size:0.95rem;">${g.nome}</div>
+                            <div id="gerador-dept-count-${g.id}" style="font-size:0.78rem;color:#94a3b8;">${checked.length} departamento(s) selecionado(s)</div>
                         </div>
                     </div>
-                    <i class="ph ph-caret-down" style="color:#94a3b8;font-size:1.2rem;transition:0.2s;"></i>
+                    <i class="ph ph-caret-down" style="color:#94a3b8;font-size:1.2rem;"></i>
                 </div>
-                <div style="padding:0.75rem 1.25rem;">
-                    ${geradores.length > 0 ? docsList : '<p style="color:#94a3b8;font-size:0.88rem;padding:0.5rem;">Nenhum gerador cadastrado.</p>'}
+                <div style="padding:0.75rem 1.25rem; display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:0.25rem;">
+                    ${deptList}
                 </div>
             </div>`;
     }).join('');
 };
 
-window.saveCargoTemplate = async function(cargoId, geradorId, checked) {
+window.saveGeradorDeptTemplate = async function(geradorId, deptId, checked) {
     try {
         if (checked) {
-            await apiPost('/cargo-documento-templates', { cargo_id: cargoId, gerador_id: geradorId });
+            await apiPost('/gerador-departamento-templates', { gerador_id: geradorId, departamento_id: deptId });
         } else {
-            await apiDelete(`/cargo-documento-templates/${cargoId}/${geradorId}`);
+            await apiDelete(`/gerador-departamento-templates/${geradorId}/${deptId}`);
         }
-        // Atualiza o contador de docs no bloco do cargo sem recarregar tudo
-        const chks = document.querySelectorAll(`.cargo-doc-chk[data-cargo="${cargoId}"]`);
+        // Atualiza contador sem recarregar
+        const chks = document.querySelectorAll(`.gerador-dept-chk[data-gerador="${geradorId}"]`);
         const count = Array.from(chks).filter(c => c.checked).length;
-        const cards = document.querySelectorAll(`#geradores-templates-container .card`);
-        cards.forEach(card => {
-            const chkSample = card.querySelector(`.cargo-doc-chk[data-cargo="${cargoId}"]`);
-            if (chkSample) {
-                const subLabel = card.querySelector('div[style*="78rem"]');
-                if (subLabel) subLabel.textContent = `${count} documento(s) selecionado(s)`;
-            }
-        });
+        const countEl = document.getElementById(`gerador-dept-count-${geradorId}`);
+        if (countEl) countEl.textContent = `${count} departamento(s) selecionado(s)`;
     } catch(e) {
         alert('Erro ao salvar: ' + e.message);
     }
 };
+
 
 
 async function seedInitialGeradores() {
