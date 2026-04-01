@@ -1586,9 +1586,9 @@ window.exportarColaboradoresXLSX = async function() {
         col.width = i === 1 ? 30 : 18;
     });
 
-    // Congela no total as 5 primeiras linhas (Logo(3), Branco(1), Headers(1))
+    // Congela as 5 primeiras linhas (cabeçalho) e as 2 primeiras colunas (Status e Nome)
     worksheet.views = [
-        { state: 'frozen', ySplit: 5 }
+        { state: 'frozen', xSplit: 2, ySplit: 5 }
     ];
 
     const buffer = await workbook.xlsx.writeBuffer();
