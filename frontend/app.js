@@ -5368,8 +5368,35 @@ window.renderGeradoresList = function(items) {
 
 window.filterGeradores = function() {
     const q = document.getElementById('search-geradores').value.toLowerCase();
-    const filtered = (window.allGeradores || []).filter(g => g.nome.toLowerCase().includes(q));
-    window.renderGeradoresList(filtered);
+    
+    // Filtro para a aba geradores (lista normal)
+    const tabGerador = document.getElementById('geradores-tab-gerador');
+    if (tabGerador && tabGerador.style.display !== 'none') {
+        const filtered = (window.allGeradores || []).filter(g => g.nome.toLowerCase().includes(q));
+        window.renderGeradoresList(filtered);
+        return;
+    }
+
+    // Filtro para a aba templates (departamentos e geradores)
+    const container = document.getElementById('geradores-templates-container');
+    if (container) {
+        const deptCards = container.querySelectorAll('.dept-template-card');
+        deptCards.forEach(card => {
+            const deptName = card.dataset.deptName.toLowerCase();
+            const docs = card.querySelectorAll('.doc-lbl-item');
+            
+            let hasVisibleDoc = false;
+            docs.forEach(docLbl => {
+                const docName = docLbl.dataset.docName.toLowerCase();
+                const match = deptName.includes(q) || docName.includes(q);
+                docLbl.style.display = match ? 'flex' : 'none';
+                if (match) hasVisibleDoc = true;
+            });
+
+            // Mostra o departamento se o nome dele der match OU se algum documento dele der match
+            card.style.display = (deptName.includes(q) || hasVisibleDoc) ? 'block' : 'none';
+        });
+    }
 };
 
 // ----- ABAS: GERADOR / TEMPLATES -----
@@ -5390,6 +5417,13 @@ window.switchGeradoresTab = function(tab) {
     const inactiveStyle = 'background:#f1f5f9; color:#64748b; border-bottom:2px solid transparent;';
     if (btnGerador)   btnGerador.style.cssText   += isGerador ? activeStyle : inactiveStyle;
     if (btnTemplates) btnTemplates.style.cssText += isGerador ? inactiveStyle : activeStyle;
+    
+    // Garante controle de exibição da barra de ações 
+    if (headerActions) headerActions.style.display = 'flex';
+    
+    // Atualiza filtro ao trocar
+    document.getElementById('search-geradores').value = '';
+    window.filterGeradores();
 
     if (!isGerador) window.loadGeradoresTemplates();
 };
@@ -5432,21 +5466,21 @@ window.renderGeradoresTemplates = function(departamentos, geradores, templates) 
         tplMap[t.departamento_id].push(Number(t.gerador_id));
     });
 
-    container.innerHTML = departamentos.map(d => {
+    const listHTML = departamentos.map(d => {
         const checked = tplMap[d.id] || [];
         const docsList = geradores.map(g => `
-            <label style="display:flex; align-items:center; gap:0.6rem; padding:0.45rem 0.75rem; border-radius:6px; cursor:pointer; transition:background 0.15s;"
+            <label class="doc-lbl-item" data-doc-name="${g.nome.replace(/"/g, '&quot;')}" style="display:flex; align-items:center; gap:0.6rem; padding:0.45rem 0.75rem; border-radius:6px; cursor:pointer; transition:background 0.15s;"
                    onmouseenter="this.style.background='#f8fafc'" onmouseleave="this.style.background=''">
                 <input type="checkbox" class="gerador-dept-chk"
                     data-dept="${d.id}" data-gerador="${g.id}"
                     ${checked.includes(Number(g.id)) ? 'checked' : ''}
-                    onchange="window.saveGeradorDeptTemplate(${g.id}, ${d.id}, this.checked)"
+                    onchange="window.updateLocalDeptCount(${d.id})"
                     style="width:16px;height:16px;cursor:pointer;accent-color:#f503c5;">
                 <span style="font-size:0.88rem; color:#334155;">${g.nome}</span>
             </label>`).join('');
 
         return `
-            <div class="card mb-3" style="overflow:hidden;">
+            <div class="card mb-3 dept-template-card" data-dept-name="${d.nome.replace(/"/g, '&quot;')}" style="overflow:hidden;">
                 <div style="display:flex; align-items:center; justify-content:space-between; padding:1rem 1.25rem; background:#fdf4ff; border-bottom:1px solid #f0e6fe; cursor:pointer;"
                      onclick="const b=this.nextElementSibling; b.style.display=b.style.display==='none'?'block':'none';">
                     <div style="display:flex; align-items:center; gap:0.75rem;">
@@ -5465,22 +5499,60 @@ window.renderGeradoresTemplates = function(departamentos, geradores, templates) 
                 </div>
             </div>`;
     }).join('');
+
+    container.innerHTML = `
+        <div style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
+            <button class="btn btn-success" onclick="window.saveBatchGeradorDeptTemplates()" style="display:flex; align-items:center; gap:0.5rem; font-weight:600;">
+                <i class="ph ph-floppy-disk"></i> Salvar Templates
+            </button>
+        </div>
+        ${listHTML}
+        <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
+            <button class="btn btn-success" onclick="window.saveBatchGeradorDeptTemplates()" style="display:flex; align-items:center; gap:0.5rem; font-weight:600;">
+                <i class="ph ph-floppy-disk"></i> Salvar Templates
+            </button>
+        </div>
+    `;
+    
+    // Apply immediate filter just in case the search bar has text
+    window.filterGeradores();
 };
 
-window.saveGeradorDeptTemplate = async function(geradorId, deptId, checked) {
-    try {
-        if (checked) {
-            await apiPost('/gerador-departamento-templates', { gerador_id: geradorId, departamento_id: deptId });
-        } else {
-            await apiDelete(`/gerador-departamento-templates/${geradorId}/${deptId}`);
+window.updateLocalDeptCount = function(deptId) {
+    const chks = document.querySelectorAll(`.gerador-dept-chk[data-dept="${deptId}"]`);
+    const count = Array.from(chks).filter(c => c.checked).length;
+    const countEl = document.getElementById(`dept-gerador-count-${deptId}`);
+    if (countEl) countEl.textContent = `${count} documento(s) selecionado(s)`;
+};
+
+window.saveBatchGeradorDeptTemplates = async function() {
+    const chks = document.querySelectorAll('.gerador-dept-chk');
+    const templates = [];
+    chks.forEach(chk => {
+        if (chk.checked) {
+            templates.push({
+                gerador_id: Number(chk.dataset.gerador),
+                departamento_id: Number(chk.dataset.dept)
+            });
         }
-        // Atualiza contador sem recarregar
-        const chks = document.querySelectorAll(`.gerador-dept-chk[data-dept="${deptId}"]`);
-        const count = Array.from(chks).filter(c => c.checked).length;
-        const countEl = document.getElementById(`dept-gerador-count-${deptId}`);
-        if (countEl) countEl.textContent = `${count} documento(s) selecionado(s)`;
+    });
+
+    try {
+        const btn = event.currentTarget;
+        const oldHTML = btn.innerHTML;
+        btn.innerHTML = `<i class="ph ph-spinner ph-spin"></i> Salvando...`;
+        btn.disabled = true;
+
+        await apiPost('/gerador-departamento-templates/batch', { templates });
+        
+        btn.innerHTML = `<i class="ph ph-check"></i> Salvo com sucesso`;
+        setTimeout(() => {
+            btn.innerHTML = oldHTML;
+            btn.disabled = false;
+        }, 2000);
     } catch(e) {
-        alert('Erro ao salvar: ' + e.message);
+        alert('Erro ao salvar templates: ' + e.message);
+        event.currentTarget.disabled = false;
     }
 };
 

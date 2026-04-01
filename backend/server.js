@@ -2972,6 +2972,42 @@ app.post('/api/gerador-departamento-templates', authenticateToken, (req, res) =>
         });
 });
 
+app.post('/api/gerador-departamento-templates/batch', authenticateToken, (req, res) => {
+    const { templates } = req.body; // Array of {gerador_id, departamento_id}
+    if (!Array.isArray(templates)) return res.status(400).json({ error: 'formato inválido' });
+
+    db.serialize(() => {
+        db.run('BEGIN TRANSACTION');
+        db.run('DELETE FROM gerador_departamento_templates', [], (err) => {
+            if (err) {
+                db.run('ROLLBACK');
+                return res.status(500).json({ error: err.message });
+            }
+            if (templates.length === 0) {
+                db.run('COMMIT');
+                return res.json({ ok: true });
+            }
+            
+            const stmt = db.prepare('INSERT INTO gerador_departamento_templates (gerador_id, departamento_id) VALUES (?, ?)');
+            let errors = 0;
+            templates.forEach(t => {
+                stmt.run([t.gerador_id, t.departamento_id], err => {
+                    if (err) errors++;
+                });
+            });
+            stmt.finalize(() => {
+                if (errors > 0) {
+                    db.run('ROLLBACK');
+                    res.status(500).json({ error: 'Erro ao salvar templates em lote.' });
+                } else {
+                    db.run('COMMIT');
+                    res.json({ ok: true });
+                }
+            });
+        });
+    });
+});
+
 app.delete('/api/gerador-departamento-templates/:gerador_id/:departamento_id', authenticateToken, (req, res) => {
     db.run('DELETE FROM gerador_departamento_templates WHERE gerador_id = ? AND departamento_id = ?',
         [req.params.gerador_id, req.params.departamento_id], function(err) {
