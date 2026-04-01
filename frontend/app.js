@@ -5371,6 +5371,122 @@ window.filterGeradores = function() {
     window.renderGeradoresList(filtered);
 };
 
+// ----- ABAS: GERADOR / TEMPLATES -----
+window.switchGeradoresTab = function(tab) {
+    const tabGerador    = document.getElementById('geradores-tab-gerador');
+    const tabTemplates  = document.getElementById('geradores-tab-templates');
+    const btnGerador    = document.getElementById('tab-btn-gerador');
+    const btnTemplates  = document.getElementById('tab-btn-templates');
+    const headerActions = document.getElementById('geradores-header-actions');
+
+    const isGerador = tab === 'gerador';
+
+    if (tabGerador)    tabGerador.style.display    = isGerador ? 'block' : 'none';
+    if (tabTemplates)  tabTemplates.style.display  = isGerador ? 'none'  : 'block';
+    if (headerActions) headerActions.style.display = isGerador ? 'flex'  : 'none';
+
+    const activeStyle   = 'background:#f503c5; color:#fff; border-bottom:2px solid #f503c5;';
+    const inactiveStyle = 'background:#f1f5f9; color:#64748b; border-bottom:2px solid transparent;';
+    if (btnGerador)   btnGerador.style.cssText   += isGerador ? activeStyle : inactiveStyle;
+    if (btnTemplates) btnTemplates.style.cssText += isGerador ? inactiveStyle : activeStyle;
+
+    if (!isGerador) window.loadGeradoresTemplates();
+};
+
+window.loadGeradoresTemplates = async function() {
+    const container = document.getElementById('geradores-templates-container');
+    if (!container) return;
+    container.innerHTML = `<div style="text-align:center;padding:2rem;color:#94a3b8;"><i class="ph ph-spinner" style="animation:spin 1s linear infinite;font-size:2rem;"></i> Carregando...</div>`;
+
+    try {
+        const [cargos, geradores, templates] = await Promise.all([
+            apiGet('/cargos'),
+            apiGet('/geradores'),
+            apiGet('/cargo-documento-templates').catch(() => [])
+        ]);
+        window._geradoresAll = geradores;
+        window._cargoTemplatesAll = templates;
+        window.renderGeradoresTemplates(cargos, geradores, templates);
+    } catch(e) {
+        container.innerHTML = `<div class="card p-4" style="color:#e53e3e;">Erro ao carregar dados: ${e.message}</div>`;
+    }
+};
+
+window.renderGeradoresTemplates = function(cargos, geradores, templates) {
+    const container = document.getElementById('geradores-templates-container');
+    if (!container) return;
+
+    if (!cargos || cargos.length === 0) {
+        container.innerHTML = `<div class="card p-4 text-center" style="color:#94a3b8;"><i class="ph ph-briefcase" style="font-size:2.5rem;margin-bottom:1rem;display:block;"></i>Nenhum cargo cadastrado. Cadastre cargos primeiro.</div>`;
+        return;
+    }
+
+    // Montar mapa de templates existentes: { cargo_id: [gerador_id, ...] }
+    const tplMap = {};
+    (templates || []).forEach(t => {
+        if (!tplMap[t.cargo_id]) tplMap[t.cargo_id] = [];
+        tplMap[t.cargo_id].push(Number(t.gerador_id));
+    });
+
+    container.innerHTML = cargos.map(cargo => {
+        const checked = tplMap[cargo.id] || [];
+        const docsList = geradores.map(g => `
+            <label style="display:flex; align-items:center; gap:0.6rem; padding:0.5rem 0.75rem; border-radius:6px; cursor:pointer; transition:background 0.15s;"
+                   onmouseenter="this.style.background='#f8fafc'" onmouseleave="this.style.background=''">
+                <input type="checkbox" class="cargo-doc-chk"
+                    data-cargo="${cargo.id}" data-gerador="${g.id}"
+                    ${checked.includes(Number(g.id)) ? 'checked' : ''}
+                    onchange="window.saveCargoTemplate(${cargo.id}, ${g.id}, this.checked)"
+                    style="width:16px;height:16px;cursor:pointer;accent-color:#f503c5;">
+                <span style="font-size:0.88rem; color:#334155;">${g.nome}</span>
+            </label>`).join('');
+
+        return `
+            <div class="card mb-3" style="overflow:hidden;">
+                <div style="display:flex; align-items:center; justify-content:space-between; padding:1rem 1.25rem; background:#fdf4ff; border-bottom:1px solid #f0e6fe; cursor:pointer;"
+                     onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display==='none' ? 'block' : 'none';">
+                    <div style="display:flex; align-items:center; gap:0.75rem;">
+                        <div style="width:36px;height:36px;border-radius:50%;background:#f503c5;display:flex;align-items:center;justify-content:center;">
+                            <i class="ph ph-briefcase" style="color:#fff;font-size:1.1rem;"></i>
+                        </div>
+                        <div>
+                            <div style="font-weight:700;color:#334155;font-size:0.95rem;">${cargo.nome}</div>
+                            <div style="font-size:0.78rem;color:#94a3b8;">${checked.length} documento(s) selecionado(s)</div>
+                        </div>
+                    </div>
+                    <i class="ph ph-caret-down" style="color:#94a3b8;font-size:1.2rem;transition:0.2s;"></i>
+                </div>
+                <div style="padding:0.75rem 1.25rem;">
+                    ${geradores.length > 0 ? docsList : '<p style="color:#94a3b8;font-size:0.88rem;padding:0.5rem;">Nenhum gerador cadastrado.</p>'}
+                </div>
+            </div>`;
+    }).join('');
+};
+
+window.saveCargoTemplate = async function(cargoId, geradorId, checked) {
+    try {
+        if (checked) {
+            await apiPost('/cargo-documento-templates', { cargo_id: cargoId, gerador_id: geradorId });
+        } else {
+            await apiDelete(`/cargo-documento-templates/${cargoId}/${geradorId}`);
+        }
+        // Atualiza o contador de docs no bloco do cargo sem recarregar tudo
+        const chks = document.querySelectorAll(`.cargo-doc-chk[data-cargo="${cargoId}"]`);
+        const count = Array.from(chks).filter(c => c.checked).length;
+        const cards = document.querySelectorAll(`#geradores-templates-container .card`);
+        cards.forEach(card => {
+            const chkSample = card.querySelector(`.cargo-doc-chk[data-cargo="${cargoId}"]`);
+            if (chkSample) {
+                const subLabel = card.querySelector('div[style*="78rem"]');
+                if (subLabel) subLabel.textContent = `${count} documento(s) selecionado(s)`;
+            }
+        });
+    } catch(e) {
+        alert('Erro ao salvar: ' + e.message);
+    }
+};
+
+
 async function seedInitialGeradores() {
     const templates = [
         {
@@ -5733,68 +5849,120 @@ window.deleteChave = async function(id) {
 };
 
 // --- GESTÃO DE ADMISSÃO ---
+const ADMISSAO_STATUS_STYLES = {
+    'Aguardando início': { bg:'#f1f3f5', color:'#495057', border:'#adb5bd', icon:'ph-hourglass-high', label:'Aguardando' },
+    'Processo iniciado': { bg:'#f3e8ff', color:'#7e22ce', border:'#c084fc', icon:'ph-play-circle',   label:'Iniciado' },
+    'Ativo':             { bg:'#e8f5e9', color:'#196b36', border:'#196b36', icon:'ph-check-circle',   label:'Ativo' },
+    'Férias':            { bg:'#fdf7e3', color:'#c2aa72', border:'#c2aa72', icon:'ph-airplane-tilt',  label:'Férias' },
+    'Afastado':          { bg:'#faeed9', color:'#eaa15f', border:'#eaa15f', icon:'ph-warning',        label:'Afastado' },
+    'Desligado':         { bg:'#fceeee', color:'#ba7881', border:'#ba7881', icon:'ph-x-circle',       label:'Desligado' }
+};
+
 window.loadAdmissaoSelect = async function() {
     try {
         const rows = await apiGet('/colaboradores');
-        const select = document.getElementById('admissao-select-colab');
-        if (!select) return;
-        
-        // Apenas colaboradores com status 'Aguardando início' ou 'Processo iniciado'
+        const hiddenInput = document.getElementById('admissao-select-colab');
+        const dropdownList = document.getElementById('admissao-dropdown-list');
+        const label = document.getElementById('admissao-dropdown-label');
+        if (!dropdownList) return;
+
+        // Apenas colaboradores pendentes de admissão
         const pendentes = rows.filter(r => r.status === 'Aguardando início' || r.status === 'Processo iniciado');
-        
-        // Guardar para o badge
         window._admissaoPendentes = pendentes;
-        
-        select.innerHTML = '<option value="">Selecione um colaborador...</option>';
+
+        // Reset label
+        if (label) { label.textContent = 'Selecione um colaborador...'; label.style.color = '#94a3b8'; }
+        if (hiddenInput) hiddenInput.value = '';
+
+        // Popula lista customizada
+        dropdownList.innerHTML = '';
+
+        // Opção vazia
+        const empty = document.createElement('div');
+        empty.style.cssText = 'padding:0.6rem 1rem; color:#94a3b8; font-size:0.88rem; cursor:pointer;';
+        empty.textContent = 'Selecione um colaborador...';
+        empty.onclick = () => window.selectAdmissaoColab('', null);
+        dropdownList.appendChild(empty);
+
         pendentes.forEach(p => {
-            const opt = document.createElement('option');
-            opt.value = p.id;
-            const displayStatus = p.status === 'Aguardando início' ? 'Aguardando' : (p.status === 'Processo iniciado' ? 'Iniciado' : p.status);
-            opt.textContent = `${p.nome_completo} - ${p.cargo_nome || 'Sem Cargo'} (${displayStatus})`;
-            select.appendChild(opt);
+            const s = ADMISSAO_STATUS_STYLES[p.status] || { bg:'#f1f3f5', color:'#495057', border:'#adb5bd', icon:'ph-clock', label: p.status };
+            const cargo = p.cargo_nome || 'Sem Cargo';
+            const item = document.createElement('div');
+            item.style.cssText = 'display:flex; align-items:center; gap:0.75rem; padding:0.6rem 1rem; cursor:pointer; border-bottom:1px solid #f1f5f9; transition:background 0.15s;';
+            item.onmouseenter = () => item.style.background = '#f8fafc';
+            item.onmouseleave = () => item.style.background = '';
+            item.innerHTML = `
+                <div style="display:inline-flex; align-items:center; gap:5px; background:${s.bg}; color:${s.color}; border:2px solid ${s.border}; border-radius:20px; font-weight:700; padding:2px 10px; font-size:0.75rem; white-space:nowrap;">
+                    <i class="ph ${s.icon}"></i> ${s.label}
+                </div>
+                <div style="display:flex; flex-direction:column; line-height:1.3;">
+                    <span style="font-weight:600; color:#334155; font-size:0.9rem;">${p.nome_completo}</span>
+                    <span style="color:#94a3b8; font-size:0.78rem;">${cargo}</span>
+                </div>`;
+            item.onclick = () => window.selectAdmissaoColab(p.id, p, s);
+            dropdownList.appendChild(item);
         });
-        
-        // Limpa badge se já havia seleção
-        const badgeArea = document.getElementById('admissao-status-badge-area');
-        if (badgeArea) { badgeArea.style.display = 'none'; badgeArea.innerHTML = ''; }
-        
+
         window.resetAdmissao();
     } catch (e) { console.error(e); }
 };
 
-// Atualiza o badge de status colorido na tela de admissão
-window.updateAdmissaoStatusBadge = function(selectEl) {
-    const badgeArea = document.getElementById('admissao-status-badge-area');
-    if (!badgeArea) return;
-    if (!selectEl.value) {
-        badgeArea.style.display = 'none';
-        badgeArea.innerHTML = '';
+window.toggleAdmissaoDropdown = function() {
+    const list = document.getElementById('admissao-dropdown-list');
+    const caret = document.getElementById('admissao-dropdown-caret');
+    const trigger = document.getElementById('admissao-dropdown-trigger');
+    if (!list) return;
+    const isOpen = list.style.display !== 'none';
+    list.style.display = isOpen ? 'none' : 'block';
+    if (caret) caret.style.transform = isOpen ? '' : 'rotate(180deg)';
+    if (trigger) trigger.style.borderColor = isOpen ? 'var(--border-color)' : '#f503c5';
+};
+
+window.selectAdmissaoColab = function(id, colab, s) {
+    const hiddenInput = document.getElementById('admissao-select-colab');
+    const label = document.getElementById('admissao-dropdown-label');
+    const list  = document.getElementById('admissao-dropdown-list');
+    const caret = document.getElementById('admissao-dropdown-caret');
+    const trigger = document.getElementById('admissao-dropdown-trigger');
+
+    // Fecha dropdown
+    if (list) list.style.display = 'none';
+    if (caret) caret.style.transform = '';
+    if (trigger) trigger.style.borderColor = 'var(--border-color)';
+
+    if (!id || !colab) {
+        if (hiddenInput) hiddenInput.value = '';
+        if (label) { label.innerHTML = 'Selecione um colaborador...'; label.style.color = '#94a3b8'; }
+        window.initAdmissaoWorkflow('');
         return;
     }
-    const id = parseInt(selectEl.value);
-    const pendentes = window._admissaoPendentes || [];
-    const colab = pendentes.find(p => p.id === id);
-    if (!colab) { badgeArea.style.display = 'none'; return; }
 
-    const STATUS_STYLES = {
-        'Aguardando início': { bg:'#f1f3f5', color:'#495057', border:'#adb5bd', icon:'ph-hourglass-high', label:'Aguardando' },
-        'Processo iniciado': { bg:'#f3e8ff', color:'#7e22ce', border:'#c084fc', icon:'ph-play-circle', label:'Iniciado' },
-        'Ativo':             { bg:'#e8f5e9', color:'#196b36', border:'#196b36', icon:'ph-check-circle', label:'Ativo' },
-        'Férias':            { bg:'#fdf7e3', color:'#c2aa72', border:'#c2aa72', icon:'ph-airplane-tilt', label:'Férias' },
-        'Afastado':          { bg:'#faeed9', color:'#eaa15f', border:'#eaa15f', icon:'ph-warning', label:'Afastado' },
-        'Desligado':         { bg:'#fceeee', color:'#ba7881', border:'#ba7881', icon:'ph-x-circle', label:'Desligado' }
-    };
-    const s = STATUS_STYLES[colab.status] || { bg:'#f1f3f5', color:'#495057', border:'#adb5bd', icon:'ph-clock', label: colab.status };
-    const cargo = colab.cargo_nome || 'Sem Cargo';
-    badgeArea.innerHTML = `
-        <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
-            <div style="display:inline-flex; align-items:center; gap:6px; background:${s.bg}; color:${s.color}; border:2px solid ${s.border}; border-radius:20px; font-weight:600; padding:4px 14px; font-size:0.85rem;">
+    if (hiddenInput) hiddenInput.value = id;
+    if (label) {
+        const cargo = colab.cargo_nome || 'Sem Cargo';
+        label.style.color = '#334155';
+        label.innerHTML = `
+            <div style="display:inline-flex; align-items:center; gap:5px; background:${s.bg}; color:${s.color}; border:2px solid ${s.border}; border-radius:20px; font-weight:700; padding:2px 10px; font-size:0.75rem; margin-right:6px; white-space:nowrap;">
                 <i class="ph ${s.icon}"></i> ${s.label}
             </div>
-            <span style="color:#64748b; font-size:0.88rem;"><strong>${colab.nome_completo}</strong> &mdash; ${cargo}</span>
-        </div>`;
-    badgeArea.style.display = 'block';
+            <span style="font-weight:600;">${colab.nome_completo}</span>
+            <span style="color:#94a3b8; font-size:0.82rem; margin-left:4px;">&mdash; ${cargo}</span>`;
+    }
+    window.initAdmissaoWorkflow(id);
 };
+
+// Fechar dropdown ao clicar fora
+document.addEventListener('click', function(e) {
+    const dd = document.getElementById('admissao-custom-dropdown');
+    if (dd && !dd.contains(e.target)) {
+        const list = document.getElementById('admissao-dropdown-list');
+        const caret = document.getElementById('admissao-dropdown-caret');
+        const trigger = document.getElementById('admissao-dropdown-trigger');
+        if (list) list.style.display = 'none';
+        if (caret) caret.style.transform = '';
+        if (trigger) trigger.style.borderColor = 'var(--border-color)';
+    }
+});
 
 
 window.sendAssinafyWhatsApp = async function(tipo, suffix) {
