@@ -6562,22 +6562,28 @@ window.abrirAssinaturaEpi = async function(fichaId) {
                 <div id="epi-lista-botoes" style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;"></div>
                 <p id="epi-select-warn" style="color:#dc2626;font-size:0.85rem;margin:0.75rem 0 0;display:none;">&#9888; Defina quantidade &gt; 0 em pelo menos um EPI.</p>
             </div>
-            <div id="epi-step-2" style="display:none;">
-                <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:0.85rem 1rem;margin-bottom:1rem;">
-                    <p style="font-size:0.85rem;font-weight:700;color:#166534;margin:0 0 6px;">EPIs para entrega em <strong id="epi-data-display"></strong>:</p>
-                    <ul id="epi-lista-selecionada" style="margin:0;padding-left:1.25rem;font-size:0.85rem;color:#15803d;column-count:2;column-gap:2rem;"></ul>
+            <div id="epi-step-2" style="display:none; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                <!-- Esquerda: EPIs e Termo -->
+                <div style="display:flex;flex-direction:column;min-width:0;">
+                    <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:0.85rem 1rem;margin-bottom:1rem;">
+                        <p style="font-size:0.85rem;font-weight:700;color:#166534;margin:0 0 6px;">EPIs para entrega em <strong id="epi-data-display"></strong>:</p>
+                        <ul id="epi-lista-selecionada" style="margin:0;padding-left:1.25rem;font-size:0.85rem;color:#15803d;column-count:1;"></ul>
+                    </div>
+                    <p style="font-size:0.85rem;font-weight:700;color:#374151;margin:0 0 6px;">Termo de Responsabilidade:</p>
+                    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:0.9rem;font-size:0.82rem;color:#374151;overflow-y:auto;line-height:1.6;white-space:pre-wrap;flex:1;">${termo}</div>
                 </div>
-                <p style="font-size:0.85rem;font-weight:700;color:#374151;margin:0 0 6px;">Termo de Responsabilidade:</p>
-                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:0.9rem;font-size:0.82rem;color:#374151;max-height:130px;overflow-y:auto;line-height:1.6;margin-bottom:1.25rem;white-space:pre-wrap;">${termo}</div>
-                <p style="font-size:0.95rem;font-weight:700;color:#0f172a;margin:0 0 6px;"><i class="ph ph-pen" style="color:#1e3a5f;"></i> Assinatura do Colaborador:</p>
-                <p style="font-size:0.8rem;color:#64748b;margin:0 0 8px;">Assine abaixo. Ser&aacute; aplicada em todos os itens entregues.</p>
-                <div style="border:2px dashed #94a3b8;border-radius:10px;background:#fafafa;position:relative;">
-                    <canvas id="epi-signature-canvas" width="1200" height="220"
-                            style="width:100%;height:220px;border-radius:8px;touch-action:none;cursor:crosshair;display:block;"></canvas>
-                    <button onclick="window._limparAssinatura()"
-                            style="position:absolute;top:8px;right:8px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:4px 12px;font-size:0.78rem;color:#475569;cursor:pointer;">Limpar</button>
+                <!-- Direita: Assinatura -->
+                <div style="display:flex;flex-direction:column;min-width:0;">
+                    <p style="font-size:0.95rem;font-weight:700;color:#0f172a;margin:0 0 6px;"><i class="ph ph-pen" style="color:#1e3a5f;"></i> Assinatura do Colaborador:</p>
+                    <p style="font-size:0.8rem;color:#64748b;margin:0 0 8px;">Assine abaixo. Ser&aacute; aplicada em todos os itens entregues.</p>
+                    <div style="border:2px dashed #94a3b8;border-radius:10px;background:#fafafa;position:relative;flex:1;display:flex;">
+                        <canvas id="epi-signature-canvas" width="900" height="450"
+                                style="width:100%;height:100%;min-height:220px;border-radius:8px;touch-action:none;cursor:crosshair;display:block;"></canvas>
+                        <button onclick="window._limparAssinatura()"
+                                style="position:absolute;top:8px;right:8px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:4px 12px;font-size:0.78rem;color:#475569;cursor:pointer;">Limpar</button>
+                    </div>
+                    <p id="epi-assin-warn" style="color:#dc2626;font-size:0.82rem;margin:0.5rem 0 0;display:none;">A assinatura &eacute; obrigat&oacute;ria.</p>
                 </div>
-                <p id="epi-assin-warn" style="color:#dc2626;font-size:0.82rem;margin:0.5rem 0 0;display:none;">A assinatura &eacute; obrigat&oacute;ria.</p>
             </div>
             <div id="epi-step-3" style="display:none;text-align:center;padding:4rem 1rem;">
                 <i class="ph ph-check-circle" style="font-size:5rem;color:#16a34a;display:block;margin-bottom:1rem;"></i>
@@ -6666,7 +6672,10 @@ window._syncEpiSelection = function() {};
 window._assinStep = function(n) {
     [1,2,3].forEach(s => {
         const el = document.getElementById(`epi-step-${s}`);
-        if (el) el.style.display = s === n ? '' : 'none';
+        if (el) {
+            if (s === n) el.style.display = (s === 2) ? 'grid' : 'block';
+            else el.style.display = 'none';
+        }
     });
     window._assinCurrentStep = n;
 
@@ -6770,10 +6779,14 @@ window._assinNextStep = async function() {
                     }
                 } catch(se) { console.warn('[save-onedrive]', se); }
             })();
-            // Recarrega a aba após 2s
+            // Recarrega a aba após 2s e abre o PDF na tela
             setTimeout(() => {
                 const old = document.getElementById('epi-assinatura-overlay');
                 if (old) old.remove();
+                
+                // Abre o visualizador do PDF da ficha para mostrar a nova assinatura
+                window.previewFichaEpi(window._assinFichaId);
+                
                 const activeTab = document.querySelector('#tabs-list li.active');
                 if (activeTab) renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
             }, 2000);
@@ -6956,4 +6969,103 @@ window.previewFichaEpi = async function(fichaId) {
     ov.appendChild(iframe);
     document.body.appendChild(ov);
 };
+
+// ==========================================
+// SEARCH & BOOKMARKS LOGIC
+// ==========================================
+
+window._pageBookmarks = JSON.parse(localStorage.getItem('pageBookmarks') || '[]');
+
+function getNormalizedPageSearchData() {
+    const pages = [];
+    for (const [key, obj] of Object.entries(BREADCRUMB_MAP)) {
+        pages.push({ key, name: obj.path, code: obj.code });
+    }
+    return pages;
+}
+
+window.handlePageSearch = function(q) {
+    const resDiv = document.getElementById('page-search-results');
+    if (!resDiv) return;
+    q = (q || '').toLowerCase().trim();
+    if (!q) { resDiv.style.display = 'none'; return; }
+    
+    const all = getNormalizedPageSearchData();
+    const filtered = all.filter(p => p.name.toLowerCase().includes(q) || (p.code && p.code.toLowerCase().includes(q)));
+    
+    if (filtered.length === 0) {
+        resDiv.innerHTML = '<div style="padding:10px; color:#64748b; font-size:0.85rem;">Nenhuma página encontrada.</div>';
+    } else {
+        resDiv.innerHTML = filtered.map(p => `
+            <div onclick="abrirAbaOuNavegar('${p.key}')" style="padding:10px; cursor:pointer; border-bottom:1px solid #f1f5f9; hover:background:#f8fafc; font-size:0.85rem; display:flex; justify-content:space-between; align-items:center;">
+                <span style="color:#334155; font-weight:500;">${p.name}</span>
+                <span style="background:#f503c5; color:white; border-radius:12px; padding:2px 8px; font-size:0.7rem; font-weight:700;">${p.code || ''}</span>
+            </div>
+        `).join('');
+    }
+    resDiv.style.display = 'block';
+};
+
+window.abrirAbaOuNavegar = function(key) {
+    if (key.startsWith('tab:')) {
+        const tabName = key.replace('tab:', '');
+        const li = document.querySelector(`#tabs-list li[data-tab="${tabName}"]`);
+        if (li) {
+            // Se estivermos fora do prontuário, não rola assim direto sem abrir o colab. 
+            // Mas vamos assumir que o usuário só favorita as abas quando está num colaborador
+            renderTabContent(tabName, li.textContent.trim());
+        }
+    } else {
+        navigateTo(key);
+    }
+    document.getElementById('page-search-results').style.display = 'none';
+};
+
+window.toggleBookmarkCurrentPage = function() {
+    if (!window.currentBreadcrumbKey) return;
+    const idx = window._pageBookmarks.indexOf(window.currentBreadcrumbKey);
+    if (idx >= 0) {
+        window._pageBookmarks.splice(idx, 1);
+    } else {
+        window._pageBookmarks.push(window.currentBreadcrumbKey);
+    }
+    localStorage.setItem('pageBookmarks', JSON.stringify(window._pageBookmarks));
+    renderBookmarks();
+};
+
+window.renderBookmarks = function() {
+    const list = document.getElementById('bookmarks-list');
+    const starBtn = document.getElementById('btn-star-page');
+    if (!list || !starBtn) return;
+    
+    // Update star button state (filled or outline)
+    if (window._pageBookmarks.includes(window.currentBreadcrumbKey)) {
+        starBtn.innerHTML = '<i class="ph-fill ph-star"></i>';
+    } else {
+        starBtn.innerHTML = '<i class="ph ph-star"></i>';
+    }
+
+    list.innerHTML = window._pageBookmarks.map(key => {
+        const obj = BREADCRUMB_MAP[key];
+        if (!obj || !obj.code) return '';
+        return `<button onclick="abrirAbaOuNavegar('${key}')" style="background:#f503c5; color:white; border:none; border-radius:16px; padding:4px 12px; font-size:0.75rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px; box-shadow:0 2px 4px rgba(245,3,197,0.3); transition:transform 0.2s;" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'">${obj.code}</button>`;
+    }).join('');
+};
+
+// Hook renderBookmarks inside navigateTo and renderTabContent
+const _oldNavigateTo = window.navigateTo;
+window.navigateTo = function(viewId, pushState) {
+    _oldNavigateTo.call(window, viewId, pushState);
+    if (typeof renderBookmarks === 'function') renderBookmarks();
+};
+const _oldRenderTabContent = window.renderTabContent;
+window.renderTabContent = function(tabId, tabName, force) {
+    if (_oldRenderTabContent) _oldRenderTabContent.call(window, tabId, tabName, force);
+    if (typeof renderBookmarks === 'function') renderBookmarks();
+};
+
+// Start hooks
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(renderBookmarks, 500);
+});
 
