@@ -1400,11 +1400,16 @@ function aplicarFiltrosColaboradores() {
         if (f.dependentes === 'sim' && !(c.tem_dependentes)) return false;
         if (f.dependentes === 'nao' && c.tem_dependentes) return false;
         if (f.beneficios.length > 0) {
-            const bColab = (c.beneficios || '').split(',').map(b => b.trim());
-            if (!f.beneficios.every(b => bColab.includes(b))) return false;
+            if (f.beneficios.includes('Faculdade') && c.faculdade_participa !== 'Sim') return false;
+            if (f.beneficios.includes('Academia') && c.academia_participa !== 'Sim') return false;
+            if (f.beneficios.includes('Terapia') && c.terapia_participa !== 'Sim') return false;
+            if (f.beneficios.includes('Celulares') && c.celular_participa !== 'Sim') return false;
+            if (f.beneficios.includes('Chaves') && c.chaves_participa !== 'Sim') return false;
         }
         return true;
     });
+
+    window._listaColaboradoresFiltrada = lista;
 
     renderTabelaColaboradores(lista);
     const countEl = document.getElementById('colab-count');
@@ -1421,6 +1426,43 @@ function limparFiltrosColaboradores() {
     aplicarFiltrosColaboradores();
 }
 
+window.exportarColaboradoresXLSX = function() {
+    if (!window._listaColaboradoresFiltrada || window._listaColaboradoresFiltrada.length === 0) {
+        alert('Nenhum colaborador para exportar.');
+        return;
+    }
+    
+    // Preparar os dados (somente as colunas que importam para leitura fácil)
+    const data = window._listaColaboradoresFiltrada.map(c => ({
+        "Nome": c.nome_completo || '',
+        "CPF": c.cpf || '',
+        "Departamento": c.departamento || '',
+        "Cargo": c.cargo || '',
+        "Data Admissão": c.data_admissao ? new Date(c.data_admissao).toLocaleDateString('pt-BR') : '',
+        "Status": getEffectiveStatus(c),
+        "Salário (R$)": c.salario || '',
+        "Escala": c.escala_tipo || '',
+        "Faculdade": c.faculdade_participa === 'Sim' ? 'Sim' : 'Não',
+        "Academia": c.academia_participa === 'Sim' ? 'Sim' : 'Não',
+        "Terapia": c.terapia_participa === 'Sim' ? 'Sim' : 'Não',
+        "Celular": c.celular_participa === 'Sim' ? 'Sim' : 'Não',
+        "Chaves": c.chaves_participa === 'Sim' ? 'Sim' : 'Não'
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Colaboradores");
+    
+    // Gerar o nome: ddmmyy_ColaboradoresX.xlsx (vamos usar timestamp para evitar sobreposição ou apenas 1)
+    const d = new Date();
+    const dia = String(d.getDate()).padStart(2, '0');
+    const mes = String(d.getMonth() + 1).padStart(2, '0');
+    const ano = String(d.getFullYear()).slice(-2);
+    const ms = d.getMilliseconds();
+    
+    XLSX.writeFile(workbook, `${dia}${mes}${ano}_Colaboradores${ms}.xlsx`);
+};
+
 function renderColaboradores(lista) {
     const wrapper = document.querySelector('#view-colaboradores .card');
     if (!wrapper) return;
@@ -1429,9 +1471,9 @@ function renderColaboradores(lista) {
     const deptos  = [...new Set(_todosColaboradores.map(c => c.departamento).filter(Boolean))].sort();
     const cargos  = [...new Set(_todosColaboradores.map(c => c.cargo).filter(Boolean))].sort();
     const escalas = [...new Set(_todosColaboradores.map(c => c.escala_tipo).filter(Boolean))].sort();
-    const beneficiosSet = new Set();
-    _todosColaboradores.forEach(c => (c.beneficios || '').split(',').map(b => b.trim()).filter(Boolean).forEach(b => beneficiosSet.add(b)));
-    const beneficiosList = [...beneficiosSet].sort();
+    const beneficiosList = ['Faculdade', 'Academia', 'Terapia', 'Celulares', 'Chaves'];
+
+    window._listaColaboradoresFiltrada = lista;
 
     wrapper.innerHTML = `
         <!-- PAINEL DE FILTROS -->
@@ -1566,6 +1608,9 @@ function renderColaboradores(lista) {
                 <div style="display:flex;align-items:flex-end;gap:0.5rem;">
                     <button onclick="limparFiltrosColaboradores()" style="padding:0.45rem 1rem;border:1px solid #e2e8f0;border-radius:6px;background:#fff;font-size:0.85rem;cursor:pointer;color:#64748b;white-space:nowrap;">
                         <i class="ph ph-x"></i> Limpar
+                    </button>
+                    <button onclick="exportarColaboradoresXLSX()" style="padding:0.45rem 1rem;border:none;border-radius:6px;background:#10b981;font-size:0.85rem;font-weight:600;cursor:pointer;color:#fff;white-space:nowrap;display:flex;align-items:center;gap:4px;">
+                        <i class="ph ph-file-xls" style="font-size:1.1rem;"></i> Exportar XLSX
                     </button>
                 </div>
             </div>
