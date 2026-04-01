@@ -512,6 +512,7 @@ function renderArvorePermissoesForm() {
 window.togglePermForm = function(paginaId, val) {
     if (!_permissoesFormAtivas[paginaId]) _permissoesFormAtivas[paginaId] = { visualizar:false, alterar:false, incluir:false, excluir:false };
     _permissoesFormAtivas[paginaId] = { visualizar: val, alterar: val, incluir: val, excluir: val };
+    window._treeIsModified = true; // ← CRÍTICO: marcar que a árvore foi editada manualmente
 };
 
 window.setTodasTelasForm = function(marcar) {
