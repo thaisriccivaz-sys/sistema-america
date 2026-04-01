@@ -135,7 +135,7 @@ const BREADCRUMB_MAP = {
 function updateBreadcrumb(key) {
     const bar = document.getElementById('breadcrumb-bar');
     window.currentBreadcrumbKey = key; // IMPORTANTE: Atualizar key atual
-    const entryObj = window.BREADCRUMB_MAP ? window.BREADCRUMB_MAP[key] : null;
+    const entryObj = BREADCRUMB_MAP[key] || null;
     let pageColor = '#f503c5';
     if (entryObj && entryObj.path && entryObj.path.includes('Diretoria')) {
         pageColor = '#d9480f';
