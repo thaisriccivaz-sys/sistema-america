@@ -5910,11 +5910,13 @@ window.toggleAdmissaoDropdown = function() {
     const list = document.getElementById('admissao-dropdown-list');
     const caret = document.getElementById('admissao-dropdown-caret');
     const trigger = document.getElementById('admissao-dropdown-trigger');
+    const container = document.getElementById('admissao-search-container');
     if (!list) return;
     const isOpen = list.style.display !== 'none';
     list.style.display = isOpen ? 'none' : 'block';
     if (caret) caret.style.transform = isOpen ? '' : 'rotate(180deg)';
     if (trigger) trigger.style.borderColor = isOpen ? 'var(--border-color)' : '#f503c5';
+    if (container) container.style.paddingBottom = isOpen ? '1.5rem' : '260px';
 };
 
 window.selectAdmissaoColab = function(id, colab, s) {
@@ -5923,11 +5925,13 @@ window.selectAdmissaoColab = function(id, colab, s) {
     const list  = document.getElementById('admissao-dropdown-list');
     const caret = document.getElementById('admissao-dropdown-caret');
     const trigger = document.getElementById('admissao-dropdown-trigger');
+    const container = document.getElementById('admissao-search-container');
 
     // Fecha dropdown
     if (list) list.style.display = 'none';
     if (caret) caret.style.transform = '';
     if (trigger) trigger.style.borderColor = 'var(--border-color)';
+    if (container) container.style.paddingBottom = '1.5rem';
 
     if (!id || !colab) {
         if (hiddenInput) hiddenInput.value = '';
@@ -5957,9 +5961,11 @@ document.addEventListener('click', function(e) {
         const list = document.getElementById('admissao-dropdown-list');
         const caret = document.getElementById('admissao-dropdown-caret');
         const trigger = document.getElementById('admissao-dropdown-trigger');
+        const container = document.getElementById('admissao-search-container');
         if (list) list.style.display = 'none';
         if (caret) caret.style.transform = '';
         if (trigger) trigger.style.borderColor = 'var(--border-color)';
+        if (container) container.style.paddingBottom = '1.5rem';
     }
 });
 
