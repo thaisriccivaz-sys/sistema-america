@@ -1702,6 +1702,128 @@
                     </div>
                 </section>
 
+                <!-- VIEW: USUÁRIOS E PERMISSÕES -->
+                <section id="view-usuarios-permissoes" class="content-view">
+                    <div class="page-header flex-between">
+                        <h2><i class="ph ph-users-three" style="color:#d9480f;"></i> Usuários e Permissões</h2>
+                    </div>
+
+                    <!-- Abas -->
+                    <div style="display:flex; gap:4px; margin-bottom:1.5rem; border-bottom:2px solid #e2e8f0; padding-bottom:0;">
+                        <button id="tab-btn-usuarios" class="perm-tab-btn active" onclick="switchPermTab('usuarios')"
+                            style="padding:0.6rem 1.2rem;border:none;border-radius:8px 8px 0 0;font-weight:600;cursor:pointer;background:#d9480f;color:#fff;font-size:0.9rem;">
+                            <i class="ph ph-user"></i> Usuários
+                        </button>
+                        <button id="tab-btn-grupos" class="perm-tab-btn" onclick="switchPermTab('grupos')"
+                            style="padding:0.6rem 1.2rem;border:none;border-radius:8px 8px 0 0;font-weight:600;cursor:pointer;background:#f1f5f9;color:#64748b;font-size:0.9rem;">
+                            <i class="ph ph-shield-check"></i> Grupos de Permissão
+                        </button>
+                    </div>
+
+                    <!-- ABA: USUÁRIOS -->
+                    <div id="perm-tab-usuarios">
+                        <div class="card">
+                            <div class="flex-between mb-3">
+                                <h3 style="font-size:1rem;color:#475569;">Usuários Cadastrados</h3>
+                                <button class="btn btn-primary" onclick="abrirModalUsuario()" style="background:#d9480f;">
+                                    <i class="ph ph-plus"></i> Novo Usuário
+                                </button>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table" id="table-usuarios">
+                                    <thead>
+                                        <tr>
+                                            <th>Nome</th>
+                                            <th>Username</th>
+                                            <th>Departamento</th>
+                                            <th>Grupo de Permissão</th>
+                                            <th>Status</th>
+                                            <th style="text-align:right;">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbody-usuarios"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ABA: GRUPOS DE PERMISSÃO -->
+                    <div id="perm-tab-grupos" style="display:none;">
+                        <div style="display:grid;grid-template-columns:300px 1fr;gap:1.5rem;align-items:start;">
+
+                            <!-- Lista de grupos -->
+                            <div class="card">
+                                <div class="flex-between mb-3" style="gap:0.5rem;">
+                                    <h3 style="font-size:0.95rem;color:#475569;">Grupos</h3>
+                                    <button class="btn btn-primary btn-sm" onclick="abrirModalGrupo()" style="background:#d9480f;">
+                                        <i class="ph ph-plus"></i> Novo
+                                    </button>
+                                </div>
+                                <div id="lista-grupos-permissao" style="display:flex;flex-direction:column;gap:4px;"></div>
+                            </div>
+
+                            <!-- Editor de permissões -->
+                            <div class="card" id="perm-editor-panel">
+                                <div id="perm-editor-empty" style="text-align:center;padding:3rem;color:#94a3b8;">
+                                    <i class="ph ph-arrow-left" style="font-size:2rem;"></i>
+                                    <p style="margin-top:0.5rem;">Selecione um grupo para editar suas permissões</p>
+                                </div>
+                                <div id="perm-editor-content" style="display:none;">
+                                    <div class="flex-between mb-3">
+                                        <div>
+                                            <h3 id="perm-editor-title" style="font-size:1.1rem;font-weight:700;"></h3>
+                                            <span id="perm-editor-subtitle" style="font-size:0.8rem;color:#94a3b8;"></span>
+                                        </div>
+                                        <div style="display:flex;gap:0.5rem;align-items:center;">
+                                            <!-- Copiar de outro usuário -->
+                                            <select id="perm-copy-user-select" style="font-size:0.8rem;border:1px solid #e2e8f0;border-radius:6px;padding:0.3rem 0.6rem;">
+                                                <option value="">Copiar permissões de usuário...</option>
+                                            </select>
+                                            <button class="btn btn-secondary btn-sm" onclick="copiarPermissoesDeUsuario()">
+                                                <i class="ph ph-copy"></i> Copiar
+                                            </button>
+                                            <button class="btn btn-sm" onclick="selecionarTodasPermissoes(true)" style="background:#10b981;color:#fff;">
+                                                <i class="ph ph-check-square"></i> Selecionar Todos
+                                            </button>
+                                            <button class="btn btn-sm" onclick="selecionarTodasPermissoes(false)" style="background:#ef4444;color:#fff;">
+                                                <i class="ph ph-x-square"></i> Desmarcar Todos
+                                            </button>
+                                            <button class="btn btn-sm" onclick="salvarPermissoes()" style="background:#d9480f;color:#fff;font-weight:700;">
+                                                <i class="ph ph-floppy-disk"></i> Salvar
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Filtro módulo -->
+                                    <div style="margin-bottom:1rem;display:flex;gap:0.5rem;align-items:center;">
+                                        <label style="font-size:0.85rem;font-weight:600;color:#64748b;">Filtrar módulo:</label>
+                                        <select id="perm-filter-modulo" onchange="renderTabelaPermissoes()" style="border:1px solid #e2e8f0;border-radius:6px;padding:0.3rem 0.6rem;font-size:0.85rem;">
+                                            <option value="">Todos</option>
+                                        </select>
+                                    </div>
+
+                                    <!-- Tabela de permissões -->
+                                    <div class="table-responsive">
+                                        <table class="table" style="font-size:0.85rem;">
+                                            <thead>
+                                                <tr style="background:#fff3ed;">
+                                                    <th style="color:#d9480f;">Módulo</th>
+                                                    <th style="color:#d9480f;">Tela / Programa</th>
+                                                    <th style="text-align:center;color:#1971c2;">Visualizar</th>
+                                                    <th style="text-align:center;color:#2d9e5f;">Alterar</th>
+                                                    <th style="text-align:center;color:#e67700;">Incluir</th>
+                                                    <th style="text-align:center;color:#dc3545;">Excluir</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="tbody-permissoes"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
             </main>
         </div>
     </div>
@@ -1891,128 +2013,6 @@
             </div>
         </div>
     </div>
-
-    <!-- VIEW: USUÁRIOS E PERMISSÕES -->
-    <section id="view-usuarios-permissoes" class="content-view" style="display:none;">
-        <div class="page-header flex-between">
-            <h2><i class="ph ph-users-three" style="color:#d9480f;"></i> Usuários e Permissões</h2>
-        </div>
-
-        <!-- Abas -->
-        <div style="display:flex; gap:4px; margin-bottom:1.5rem; border-bottom:2px solid #e2e8f0; padding-bottom:0;">
-            <button id="tab-btn-usuarios" class="perm-tab-btn active" onclick="switchPermTab('usuarios')"
-                style="padding:0.6rem 1.2rem;border:none;border-radius:8px 8px 0 0;font-weight:600;cursor:pointer;background:#d9480f;color:#fff;font-size:0.9rem;">
-                <i class="ph ph-user"></i> Usuários
-            </button>
-            <button id="tab-btn-grupos" class="perm-tab-btn" onclick="switchPermTab('grupos')"
-                style="padding:0.6rem 1.2rem;border:none;border-radius:8px 8px 0 0;font-weight:600;cursor:pointer;background:#f1f5f9;color:#64748b;font-size:0.9rem;">
-                <i class="ph ph-shield-check"></i> Grupos de Permissão
-            </button>
-        </div>
-
-        <!-- ABA: USUÁRIOS -->
-        <div id="perm-tab-usuarios">
-            <div class="card">
-                <div class="flex-between mb-3">
-                    <h3 style="font-size:1rem;color:#475569;">Usuários Cadastrados</h3>
-                    <button class="btn btn-primary" onclick="abrirModalUsuario()" style="background:#d9480f;">
-                        <i class="ph ph-plus"></i> Novo Usuário
-                    </button>
-                </div>
-                <div class="table-responsive">
-                    <table class="table" id="table-usuarios">
-                        <thead>
-                            <tr>
-                                <th>Nome</th>
-                                <th>Username</th>
-                                <th>Departamento</th>
-                                <th>Grupo de Permissão</th>
-                                <th>Status</th>
-                                <th style="text-align:right;">Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tbody-usuarios"></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- ABA: GRUPOS DE PERMISSÃO -->
-        <div id="perm-tab-grupos" style="display:none;">
-            <div style="display:grid;grid-template-columns:300px 1fr;gap:1.5rem;align-items:start;">
-
-                <!-- Lista de grupos -->
-                <div class="card">
-                    <div class="flex-between mb-3" style="gap:0.5rem;">
-                        <h3 style="font-size:0.95rem;color:#475569;">Grupos</h3>
-                        <button class="btn btn-primary btn-sm" onclick="abrirModalGrupo()" style="background:#d9480f;">
-                            <i class="ph ph-plus"></i> Novo
-                        </button>
-                    </div>
-                    <div id="lista-grupos-permissao" style="display:flex;flex-direction:column;gap:4px;"></div>
-                </div>
-
-                <!-- Editor de permissões -->
-                <div class="card" id="perm-editor-panel">
-                    <div id="perm-editor-empty" style="text-align:center;padding:3rem;color:#94a3b8;">
-                        <i class="ph ph-arrow-left" style="font-size:2rem;"></i>
-                        <p style="margin-top:0.5rem;">Selecione um grupo para editar suas permissões</p>
-                    </div>
-                    <div id="perm-editor-content" style="display:none;">
-                        <div class="flex-between mb-3">
-                            <div>
-                                <h3 id="perm-editor-title" style="font-size:1.1rem;font-weight:700;"></h3>
-                                <span id="perm-editor-subtitle" style="font-size:0.8rem;color:#94a3b8;"></span>
-                            </div>
-                            <div style="display:flex;gap:0.5rem;align-items:center;">
-                                <!-- Copiar de outro usuário -->
-                                <select id="perm-copy-user-select" style="font-size:0.8rem;border:1px solid #e2e8f0;border-radius:6px;padding:0.3rem 0.6rem;">
-                                    <option value="">Copiar permissões de usuário...</option>
-                                </select>
-                                <button class="btn btn-secondary btn-sm" onclick="copiarPermissoesDeUsuario()">
-                                    <i class="ph ph-copy"></i> Copiar
-                                </button>
-                                <button class="btn btn-sm" onclick="selecionarTodasPermissoes(true)" style="background:#10b981;color:#fff;">
-                                    <i class="ph ph-check-square"></i> Selecionar Todos
-                                </button>
-                                <button class="btn btn-sm" onclick="selecionarTodasPermissoes(false)" style="background:#ef4444;color:#fff;">
-                                    <i class="ph ph-x-square"></i> Desmarcar Todos
-                                </button>
-                                <button class="btn btn-sm" onclick="salvarPermissoes()" style="background:#d9480f;color:#fff;font-weight:700;">
-                                    <i class="ph ph-floppy-disk"></i> Salvar
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Filtro módulo -->
-                        <div style="margin-bottom:1rem;display:flex;gap:0.5rem;align-items:center;">
-                            <label style="font-size:0.85rem;font-weight:600;color:#64748b;">Filtrar módulo:</label>
-                            <select id="perm-filter-modulo" onchange="renderTabelaPermissoes()" style="border:1px solid #e2e8f0;border-radius:6px;padding:0.3rem 0.6rem;font-size:0.85rem;">
-                                <option value="">Todos</option>
-                            </select>
-                        </div>
-
-                        <!-- Tabela de permissões -->
-                        <div class="table-responsive">
-                            <table class="table" style="font-size:0.85rem;">
-                                <thead>
-                                    <tr style="background:#fff3ed;">
-                                        <th style="color:#d9480f;">Módulo</th>
-                                        <th style="color:#d9480f;">Tela / Programa</th>
-                                        <th style="text-align:center;color:#1971c2;">Visualizar</th>
-                                        <th style="text-align:center;color:#2d9e5f;">Alterar</th>
-                                        <th style="text-align:center;color:#e67700;">Incluir</th>
-                                        <th style="text-align:center;color:#dc3545;">Excluir</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="tbody-permissoes"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <!-- pdf-lib para manipulação de PDFs existentes -->
