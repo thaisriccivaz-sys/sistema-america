@@ -6997,9 +6997,9 @@ window.handlePageSearch = function(q) {
         resDiv.innerHTML = '<div style="padding:10px; color:#64748b; font-size:0.85rem;">Nenhuma página encontrada.</div>';
     } else {
         resDiv.innerHTML = filtered.map(p => `
-            <div onclick="abrirAbaOuNavegar('${p.key}')" style="padding:10px; cursor:pointer; border-bottom:1px solid #f1f5f9; hover:background:#f8fafc; font-size:0.85rem; display:flex; justify-content:space-between; align-items:center;">
+            <div onclick="abrirAbaOuNavegar('${p.key}')" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'" style="padding:10px 14px; cursor:pointer; border-bottom:1px solid #f1f5f9; font-size:0.85rem; display:flex; align-items:center; gap:10px;">
+                <span style="background:#f503c5; color:white; border-radius:12px; padding:2px 8px; font-size:0.7rem; font-weight:700; flex-shrink:0;">${p.code || ''}</span>
                 <span style="color:#334155; font-weight:500;">${p.name}</span>
-                <span style="background:#f503c5; color:white; border-radius:12px; padding:2px 8px; font-size:0.7rem; font-weight:700;">${p.code || ''}</span>
             </div>
         `).join('');
     }
