@@ -613,24 +613,27 @@ window.renderTabelaPermissoes = function() {
 
     tbody.innerHTML = telas.map(t => {
         const perm = _permissoesAtivas[t.pagina_id] || {};
+        const chk = (tipo, cor) => `
+            <td style="text-align:center;">
+                <input type="checkbox" data-pagina="${t.pagina_id}" data-tipo="${tipo}"
+                    ${perm[tipo] ? 'checked' : ''}
+                    onchange="togglePermissao('${t.pagina_id}', '${tipo}', this.checked)"
+                    style="width:18px;height:18px;accent-color:${cor};cursor:pointer;">
+            </td>`;
         return `<tr>
             <td style="color:#64748b;font-size:0.8rem;">${t.modulo}</td>
             <td style="font-weight:500;">${t.pagina_nome}</td>
-            <td style="text-align:right;">
-                <label style="display:inline-flex;align-items:center;justify-content:center;cursor:pointer;gap:6px;font-weight:600;color:#1971c2;">
-                    Acesso Liberado <input type="checkbox" data-pagina="${t.pagina_id}"
-                        ${perm.visualizar ? 'checked' : ''}
-                        onchange="togglePermissao('${t.pagina_id}', this.checked)"
-                        style="width:18px;height:18px;accent-color:#1971c2;cursor:pointer;">
-                </label>
-            </td>
+            ${chk('visualizar', '#1971c2')}
+            ${chk('alterar',    '#2d9e5f')}
+            ${chk('incluir',    '#e67700')}
+            ${chk('excluir',    '#dc3545')}
         </tr>`;
     }).join('');
 };
 
-window.togglePermissao = function(paginaId, val) {
+window.togglePermissao = function(paginaId, tipo, val) {
     if (!_permissoesAtivas[paginaId]) _permissoesAtivas[paginaId] = {};
-    _permissoesAtivas[paginaId] = { visualizar: val, alterar: val, incluir: val, excluir: val };
+    _permissoesAtivas[paginaId][tipo] = val;
 };
 
 window.selecionarTodasPermissoes = function(marcar) {
