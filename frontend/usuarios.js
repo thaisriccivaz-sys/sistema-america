@@ -68,11 +68,17 @@ window.switchPermTab = function(aba) {
 function renderTabelaUsuarios() {
     const tbody = document.getElementById('tbody-usuarios');
     if (!tbody) return;
-    if (!_permUsuarios.length) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:2rem;">Nenhum usuário cadastrado</td></tr>';
+    
+    const filtro = document.getElementById('filtro-status-usuarios') ? document.getElementById('filtro-status-usuarios').value : 'todos';
+    let docs = _permUsuarios;
+    if (filtro === 'ativos') docs = docs.filter(u => u.ativo);
+    if (filtro === 'inativos') docs = docs.filter(u => !u.ativo);
+
+    if (!docs.length) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:2rem;">Nenhum usuário encontrado</td></tr>';
         return;
     }
-    tbody.innerHTML = _permUsuarios.map(u => `
+    tbody.innerHTML = docs.map(u => `
         <tr style="opacity:${u.ativo ? 1 : 0.45};">
             <td><strong>${u.nome || u.username}</strong></td>
             <td><code>${u.username}</code></td>
@@ -185,7 +191,30 @@ window.toggleFormPermissoes = function() {
     const tipo = document.querySelector('input[name="fu_tipo_perm"]:checked').value;
     document.getElementById('fu-pane-grupo').style.display = tipo === 'grupo' ? 'block' : 'none';
     document.getElementById('fu-pane-copiar').style.display = tipo === 'copiar' ? 'block' : 'none';
-    document.getElementById('fu-pane-personalizado').style.display = tipo === 'personalizado' ? 'block' : 'none';
+    document.getElementById('fu-pane-personalizado').style.display = (tipo === 'personalizado' || tipo === 'copiar') ? 'block' : 'none';
+};
+
+window.carregarPermissoesCopia = async function(uid) {
+    if (!uid) {
+        _permissoesFormAtivas = {};
+        renderArvorePermissoesForm();
+        return;
+    }
+    const user = _permUsuarios.find(u => u.id == uid);
+    if (!user || !user.grupo_permissao_id) {
+        _permissoesFormAtivas = {};
+        renderArvorePermissoesForm();
+        return;
+    }
+    try {
+        const res = await fetch(`${API_URL}/grupos-permissao/${user.grupo_permissao_id}/permissoes`, { headers: { Authorization: `Bearer ${currentToken}` }});
+        const permsExistentes = await res.json();
+        _permissoesFormAtivas = {};
+        permsExistentes.forEach(p => {
+            _permissoesFormAtivas[p.pagina_id] = { visualizar: !!p.visualizar, alterar: !!p.alterar, incluir: !!p.incluir, excluir: !!p.excluir };
+        });
+        renderArvorePermissoesForm();
+    } catch(e) { console.error('Erro ao copiar permissões', e); }
 };
 
 window.filtrarColabsForm = function(query) {
@@ -241,12 +270,10 @@ window.salvarUsuarioView = async function() {
         grupo_permissao_id = document.getElementById('fu-grupo-select').value;
         if (!grupo_permissao_id && !confirm('Você não escolheu nenhum grupo padrão. O usuário não terá acessos. Deseja continuar?')) return;
         if (grupo_permissao_id) grupo_permissao_id = parseInt(grupo_permissao_id);
-    } else if (tipoPerm === 'copiar') {
-        const copiarId = document.getElementById('fu-copiar-select').value;
-        if (!copiarId) return alert('Selecione o usuário base para copiar as permissões');
-        // A lógica do backend vai criar o grupo personalizado depois, por agora mandamos o id base numa flag
-        permissoesConfiguradas = { copiar_do_usuario: parseInt(copiarId) };
-    } else if (tipoPerm === 'personalizado') {
+    } else if (tipoPerm === 'copiar' || tipoPerm === 'personalizado') {
+        if (tipoPerm === 'copiar' && !document.getElementById('fu-copiar-select').value) {
+            return alert('Selecione o usuário base para copiar as permissões');
+        }
         // Obter as permissões ativas da árvore
         const perms = Object.keys(_permissoesFormAtivas).map(pagina_id => {
             const tela = TELAS_SISTEMA.find(t => t.pagina_id === pagina_id) || {};
@@ -279,25 +306,7 @@ window.salvarUsuarioView = async function() {
 
         // Se precisava criar grupo personalizado, a API de usuarios pode não tratar isso diretamente.
         // Já que a lógica era o backend lidar ou chamamos a rota em sequencia:
-        if (tipoPerm === 'copiar') {
-            // Em vez de mudar payload, chamamos as rotas de grupo
-            // Cria um grupo
-            const gRes = await fetch(`${API_URL}/grupos-permissao`, {
-                method:'POST', headers:{'Content-Type':'application/json', Authorization:`Bearer ${currentToken}`},
-                body: JSON.stringify({ nome: `Personalizado (${username})`, tipo: 'personalizado' })
-            });
-            const gData = await gRes.json();
-            const gId = gData.id;
-            // Copia de usuario
-            await fetch(`${API_URL}/grupos-permissao/${gId}/copiar-usuario/${permissoesConfiguradas.copiar_do_usuario}`, {
-                method:'POST', headers:{ Authorization:`Bearer ${currentToken}`}
-            });
-            // Update user with gId
-            await fetch(`${API_URL}/usuarios/${targetUserId}`, {
-                method:'PUT', headers:{'Content-Type':'application/json', Authorization:`Bearer ${currentToken}`},
-                body: JSON.stringify({ grupo_permissao_id: gId })
-            });
-        } else if (tipoPerm === 'personalizado') {
+        if (tipoPerm === 'copiar' || tipoPerm === 'personalizado') {
             let gId = userId && _grupoSelecionadoId && _permGrupos.find(g => g.id == _grupoSelecionadoId && g.tipo === 'personalizado') 
                       ? _grupoSelecionadoId : null;
             
@@ -447,15 +456,16 @@ window.togglePermForm = function(paginaId, col, val) {
     _permissoesFormAtivas[paginaId][col] = val;
     if (val && col !== 'visualizar') {
         _permissoesFormAtivas[paginaId]['visualizar'] = true;
+        const cbVis = document.querySelector(`#fu-perm-tree input[onchange*="'${paginaId}'"][onchange*="'visualizar'"]`);
+        if (cbVis) cbVis.checked = true;
     }
-    renderArvorePermissoesForm();
 };
 
 window.setTodasTelasForm = function(marcar) {
     TELAS_SISTEMA.forEach(t => {
         _permissoesFormAtivas[t.pagina_id] = { visualizar: marcar, alterar: marcar, incluir: marcar, excluir: marcar };
     });
-    renderArvorePermissoesForm();
+    document.querySelectorAll('#fu-perm-tree input[type="checkbox"]').forEach(cb => cb.checked = marcar);
 };
 
 

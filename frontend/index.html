@@ -1724,7 +1724,14 @@
                     <div id="perm-tab-usuarios">
                         <div class="card">
                             <div class="flex-between mb-3">
-                                <h3 style="font-size:1rem;color:#475569;">Usuários Cadastrados</h3>
+                                <div style="display:flex;align-items:center;gap:1rem;">
+                                    <h3 style="font-size:1rem;color:#475569;margin:0;">Usuários Cadastrados</h3>
+                                    <select id="filtro-status-usuarios" onchange="renderTabelaUsuarios()" style="border:1px solid #e2e8f0;border-radius:6px;padding:0.25rem 0.5rem;font-size:0.85rem;color:#475569;">
+                                        <option value="todos">Status: Todos</option>
+                                        <option value="ativos">Status: Apenas Ativos</option>
+                                        <option value="inativos">Status: Apenas Inativos</option>
+                                    </select>
+                                </div>
                                 <button class="btn btn-primary" onclick="navigateTo('form-usuario')" style="background:#d9480f;">
                                     <i class="ph ph-plus"></i> Novo Usuário
                                 </button>
@@ -1886,7 +1893,7 @@
                             <div style="display:flex;gap:1.5rem;margin-bottom:1.5rem;border-bottom:1px solid #e2e8f0;padding-bottom:1rem;">
                                 <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.9rem;">
                                     <input type="radio" name="fu_tipo_perm" value="grupo" checked onchange="toggleFormPermissoes()" style="accent-color:#d9480f;width:16px;height:16px;">
-                                    Por Departamento / Grupo Padrão
+                                    Grupo Padrão
                                 </label>
                                 <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.9rem;">
                                     <input type="radio" name="fu_tipo_perm" value="copiar" onchange="toggleFormPermissoes()" style="accent-color:#d9480f;width:16px;height:16px;">
@@ -1913,7 +1920,7 @@
                             <div id="fu-pane-copiar" style="display:none;">
                                 <div class="input-group">
                                     <label>Copiar todas as permissões do usuário base:</label>
-                                    <select id="fu-copiar-select" style="max-width:300px;">
+                                    <select id="fu-copiar-select" style="max-width:300px;" onchange="window.carregarPermissoesCopia(this.value)">
                                         <!-- via js -->
                                     </select>
                                 </div>
