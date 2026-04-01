@@ -1716,7 +1716,7 @@
                         </button>
                         <button id="tab-btn-grupos" class="perm-tab-btn" onclick="switchPermTab('grupos')"
                             style="padding:0.6rem 1.2rem;border:none;border-radius:8px 8px 0 0;font-weight:600;cursor:pointer;background:#f1f5f9;color:#64748b;font-size:0.9rem;">
-                            <i class="ph ph-shield-check"></i> Grupos de Permissão
+                            <i class="ph ph-shield-check"></i> Grupos de Departamento / Padrão
                         </button>
                     </div>
 
@@ -1725,7 +1725,7 @@
                         <div class="card">
                             <div class="flex-between mb-3">
                                 <h3 style="font-size:1rem;color:#475569;">Usuários Cadastrados</h3>
-                                <button class="btn btn-primary" onclick="abrirModalUsuario()" style="background:#d9480f;">
+                                <button class="btn btn-primary" onclick="navigateTo('form-usuario')" style="background:#d9480f;">
                                     <i class="ph ph-plus"></i> Novo Usuário
                                 </button>
                             </div>
@@ -1818,6 +1818,123 @@
                                             <tbody id="tbody-permissoes"></tbody>
                                         </table>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW: FORMULÁRIO DE USUÁRIO (TELA CHEIA) -->
+                <section id="view-form-usuario" class="content-view">
+                    <div class="page-header flex-between mb-3">
+                        <div style="display:flex;align-items:center;gap:15px;">
+                            <button class="btn btn-secondary btn-sm" onclick="navigateTo('usuarios-permissoes')" style="padding:0.4rem 0.6rem;">
+                                <i class="ph ph-arrow-left"></i> Voltar
+                            </button>
+                            <h2><i class="ph ph-user-plus" style="color:#d9480f;"></i> <span id="fu-title">Novo Usuário do Sistema</span></h2>
+                        </div>
+                        <button class="btn btn-primary" onclick="salvarUsuarioView()" style="background:#d9480f;font-weight:700;">
+                            <i class="ph ph-floppy-disk"></i> Salvar Usuário
+                        </button>
+                    </div>
+
+                    <input type="hidden" id="fu-id" value="">
+                    
+                    <div style="display:grid;grid-template-columns:350px 1fr;gap:1.5rem;align-items:start;">
+                        <!-- COLUNA ESQUERDA: Cadastro e Credenciais -->
+                        <div style="display:flex;flex-direction:column;gap:1.5rem;">
+                            
+                            <!-- Seleção de Colaborador -->
+                            <div class="card" id="fu-card-colab">
+                                <h3 style="font-size:0.95rem;margin-bottom:1rem;color:#1e293b;display:flex;align-items:center;gap:0.5rem;">
+                                    <i class="ph ph-magnifying-glass text-muted"></i> Selecionar Colaborador *
+                                </h3>
+                                <input id="fu-colab-search" type="text" placeholder="Buscar colaborador..." oninput="filtrarColabsForm(this.value)"
+                                    style="width:100%;padding:0.5rem 0.75rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;margin-bottom:0.8rem;">
+                                <select id="fu-colab-select" size="6" onchange="preencherDadosColabForm(this)"
+                                    style="width:100%;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;padding:0.25rem;">
+                                    <!-- options via js -->
+                                </select>
+                            </div>
+
+                            <!-- Credenciais -->
+                            <div class="card">
+                                <h3 style="font-size:0.95rem;margin-bottom:1rem;color:#1e293b;display:flex;align-items:center;gap:0.5rem;">
+                                    <i class="ph ph-lock-key text-muted"></i> Credenciais de Acesso
+                                </h3>
+                                
+                                <input type="hidden" id="fu-nome">
+                                <input type="hidden" id="fu-email">
+                                <input type="hidden" id="fu-departamento">
+
+                                <div class="input-group mb-3">
+                                    <label>Username / Login *</label>
+                                    <input id="fu-username" type="text" placeholder="ex: joao.silva">
+                                </div>
+                                <div class="input-group">
+                                    <label>Senha <span id="fu-senha-desc" style="font-weight:normal;color:#64748b;">(Obrigatória para novos)</span></label>
+                                    <input id="fu-password" type="password" placeholder="Senha de acesso">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- COLUNA DIREITA: Permissões -->
+                        <div class="card" style="height:100%;">
+                            <h3 style="font-size:0.95rem;margin-bottom:1rem;color:#1e293b;display:flex;align-items:center;gap:0.5rem;">
+                                <i class="ph ph-shield-check text-muted"></i> Nível de Acesso do Usuário
+                            </h3>
+                            
+                            <!-- Tipo de Permissão -->
+                            <div style="display:flex;gap:1.5rem;margin-bottom:1.5rem;border-bottom:1px solid #e2e8f0;padding-bottom:1rem;">
+                                <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.9rem;">
+                                    <input type="radio" name="fu_tipo_perm" value="grupo" checked onchange="toggleFormPermissoes()" style="accent-color:#d9480f;width:16px;height:16px;">
+                                    Por Departamento / Grupo Padrão
+                                </label>
+                                <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.9rem;">
+                                    <input type="radio" name="fu_tipo_perm" value="copiar" onchange="toggleFormPermissoes()" style="accent-color:#d9480f;width:16px;height:16px;">
+                                    Copiar de Usuário Base
+                                </label>
+                                <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.9rem;">
+                                    <input type="radio" name="fu_tipo_perm" value="personalizado" onchange="toggleFormPermissoes()" style="accent-color:#d9480f;width:16px;height:16px;">
+                                    Personalizado (Escolher Telas)
+                                </label>
+                            </div>
+
+                            <!-- PANE: Grupo Padrão -->
+                            <div id="fu-pane-grupo">
+                                <div class="input-group">
+                                    <label>Selecione o Grupo de Departamento / Perfil Padrão</label>
+                                    <select id="fu-grupo-select" style="max-width:300px;">
+                                        <!-- via js -->
+                                    </select>
+                                </div>
+                                <p style="font-size:0.8rem;color:#64748b;margin-top:1rem;">O usuário terá os mesmos acessos configurados para todos do grupo selecionado.</p>
+                            </div>
+
+                            <!-- PANE: Copiar -->
+                            <div id="fu-pane-copiar" style="display:none;">
+                                <div class="input-group">
+                                    <label>Copiar todas as permissões do usuário base:</label>
+                                    <select id="fu-copiar-select" style="max-width:300px;">
+                                        <!-- via js -->
+                                    </select>
+                                </div>
+                                <p style="font-size:0.8rem;color:#64748b;margin-top:1rem;">Nota: Será criado um novo perfil exclusivo para este usuário baseado no escolhido, podendo ser editado depois.</p>
+                            </div>
+
+                            <!-- PANE: Personalizado -->
+                            <div id="fu-pane-personalizado" style="display:none;">
+                                <div class="flex-between mb-3">
+                                    <p style="font-size:0.85rem;color:#475569;margin:0;">Defina exatamente quais menus e telas este usuário pode acessar.</p>
+                                    <div>
+                                        <button class="btn btn-sm" onclick="setTodasTelasForm(true)" style="background:#10b981;color:#fff;padding:0.25rem 0.5rem;">Marcar Tudo</button>
+                                        <button class="btn btn-sm" onclick="setTodasTelasForm(false)" style="background:#ef4444;color:#fff;padding:0.25rem 0.5rem;">Desmarcar Tudo</button>
+                                    </div>
+                                </div>
+
+                                <!-- Árvore de Permissões -->
+                                <div id="fu-perm-tree" style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">
+                                    <!-- Renderizado via JS -->
                                 </div>
                             </div>
                         </div>

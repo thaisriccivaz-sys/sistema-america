@@ -100,135 +100,95 @@ function renderTabelaUsuarios() {
     `).join('');
 }
 
-// ── MODAL DE USUÁRIO ──────────────────────────────────────────
+// ── FORMULÁRIO DE USUÁRIO (TELA CHEIA) ─────────────────────────
 
-window.abrirModalUsuario = async function(userId = null) {
+window.abrirFormUsuario = async function(userId = null) {
     const user = userId ? _permUsuarios.find(u => u.id === userId) : null;
+    
+    // Configurar layout
+    document.getElementById('fu-title').innerHTML = user ? `Editar Usuário: <span style="color:#1e293b;">${user.nome || user.username}</span>` : 'Novo Usuário do Sistema';
+    document.getElementById('fu-id').value = userId || '';
+    
+    // Limpar / Preencher campos de credencial
+    document.getElementById('fu-username').value = user ? user.username : '';
+    document.getElementById('fu-password').value = '';
+    document.getElementById('fu-senha-desc').style.display = user ? 'inline' : 'none';
+    if(user) {
+        document.getElementById('fu-senha-desc').textContent = '(Deixe em branco para não alterar)';
+        document.getElementById('fu-username').readOnly = true;
+        document.getElementById('fu-username').style.backgroundColor = '#f1f5f9';
+    } else {
+        document.getElementById('fu-senha-desc').textContent = '(Obrigatória para novos)';
+        document.getElementById('fu-username').readOnly = false;
+        document.getElementById('fu-username').style.backgroundColor = '#fff';
+    }
 
-    // Buscar colaboradores para o select
-    let colaboradores = [];
-    try {
-        const res = await fetch(`${API_URL}/colaboradores`, { headers: { Authorization: `Bearer ${currentToken}` } });
-        const all = await res.json();
-        // Filtrar apenas colaboradores que ainda não têm usuário (exceto se for edição)
-        const usernamesAtivos = _permUsuarios.filter(u => u.ativo).map(u => (u.username || '').toLowerCase());
-        colaboradores = userId ? all : all.filter(c => c.status !== 'Desligado');
-    } catch(e) { colaboradores = []; }
+    // Ocultar card de seleção de colaborador se for edição, pois o nome já foi definido
+    document.getElementById('fu-card-colab').style.display = user ? 'none' : 'block';
+    document.getElementById('fu-colab-search').value = '';
+    
+    document.getElementById('fu-nome').value = user ? (user.nome || '') : '';
+    document.getElementById('fu-email').value = user ? (user.email || '') : '';
+    document.getElementById('fu-departamento').value = user ? (user.departamento || '') : '';
 
-    const gruposOptions = _permGrupos.map(g =>
+    // Buscar Colaboradores apenas se for Novo
+    if (!userId) {
+        try {
+            const res = await fetch(`${API_URL}/colaboradores`, { headers: { Authorization: `Bearer ${currentToken}` } });
+            const all = await res.json();
+            const ativos = all.filter(c => c.status !== 'Desligado');
+            
+            const colabOptions = ativos.map(c => 
+                `<option value="${c.id}" data-nome="${c.nome_completo}" data-email="${c.email || ''}" data-depto="${c.departamento || ''}">${c.nome_completo} — ${c.cargo || ''} / ${c.departamento || ''}</option>`
+            ).join('');
+            document.getElementById('fu-colab-select').innerHTML = `<option value="">-- Selecione um colaborador --</option>${colabOptions}`;
+        } catch(e) { document.getElementById('fu-colab-select').innerHTML = ''; }
+    }
+
+    // Configurar Grupos Select
+    const gruposOptions = '<option value="">-- Sem grupo --</option>' + _permGrupos.filter(g => g.tipo !== 'personalizado').map(g =>
         `<option value="${g.id}" ${user && user.grupo_permissao_id == g.id ? 'selected' : ''}>${g.nome} (${g.departamento})</option>`
     ).join('');
+    document.getElementById('fu-grupo-select').innerHTML = gruposOptions;
 
-    const colabOptions = colaboradores.map(c =>
-        `<option value="${c.id}" data-nome="${c.nome_completo}" data-email="${c.email || ''}" data-depto="${c.departamento || ''}">${c.nome_completo} — ${c.cargo || ''} / ${c.departamento || ''}</option>`
+    // Configurar Copiar de Usuario Select
+    const userOptions = '<option value="">-- Selecionar usuário --</option>' + _permUsuarios.filter(u => u.ativo && u.id !== userId).map(u =>
+        `<option value="${u.id}">${u.nome || u.username} (${u.grupo_nome || 'sem grupo'})</option>`
     ).join('');
+    document.getElementById('fu-copiar-select').innerHTML = userOptions;
 
-    const modalHtml = `
-        <div id="modal-usuario" style="
-            position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.55);
-            display:flex;align-items:center;justify-content:center;padding:1rem;">
-            <div style="background:#fff;border-radius:16px;padding:2rem;width:540px;max-width:95vw;
-                        max-height:90vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,0.25);">
+    // Configurar o modo da aba atual de permissão (se o usuário existente tem um grupo personalizado ou não)
+    let tipoPerm = 'grupo'; // default
+    if (user && user.grupo_permissao_id) {
+        const userGrp = _permGrupos.find(g => g.id == user.grupo_permissao_id);
+        if (userGrp && userGrp.tipo === 'personalizado') {
+            tipoPerm = 'personalizado';
+            // Precisamos carregar as configs do grupo personalizado para a árvore
+            _grupoSelecionadoId = user.grupo_permissao_id;
+            await carregarArvorePermissoesUsuario(user.grupo_permissao_id);
+        } else {
+            tipoPerm = 'grupo';
+            renderArvorePermissoesForm(); // vazio default
+        }
+    } else {
+        renderArvorePermissoesForm(); // vazio default
+    }
 
-                <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1.5rem;">
-                    <div style="width:40px;height:40px;border-radius:10px;background:#fff3ed;display:flex;align-items:center;justify-content:center;">
-                        <i class="ph ph-user-plus" style="font-size:1.3rem;color:#d9480f;"></i>
-                    </div>
-                    <div>
-                        <h3 style="margin:0;font-size:1.1rem;color:#1e293b;">${user ? 'Editar Usuário' : 'Novo Usuário do Sistema'}</h3>
-                        <p style="margin:2px 0 0;font-size:0.78rem;color:#94a3b8;">O colaborador deve estar previamente cadastrado no sistema</p>
-                    </div>
-                </div>
+    document.querySelector(`input[name="fu_tipo_perm"][value="${tipoPerm}"]`).checked = true;
+    window.toggleFormPermissoes();
 
-                ${!userId ? `
-                <!-- STEP 1: Selecionar colaborador -->
-                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:1rem;margin-bottom:1.25rem;">
-                    <label style="font-weight:700;font-size:0.85rem;color:#475569;display:block;margin-bottom:0.5rem;">
-                        <i class="ph ph-magnifying-glass"></i> 1. Selecionar Colaborador Cadastrado *
-                    </label>
-                    <input id="mu-colab-search" type="text" placeholder="Digite o nome do colaborador..."
-                        oninput="filtrarColabsModal(this.value)"
-                        style="width:100%;padding:0.5rem 0.75rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;margin-bottom:0.5rem;">
-                    <select id="mu-colab-select" size="4" onchange="preencherDadosColab(this)"
-                        style="width:100%;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;padding:0.25rem;">
-                        <option value="">-- Selecione um colaborador --</option>
-                        ${colabOptions}
-                    </select>
-                </div>` : ''}
-
-                <!-- Dados preenchidos (automático ou manual em edição) -->
-                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:1rem;margin-bottom:1.25rem;">
-                    <label style="font-weight:700;font-size:0.85rem;color:#475569;display:block;margin-bottom:0.75rem;">
-                        <i class="ph ph-identification-card"></i> ${userId ? 'Dados do Usuário' : '2. Dados (preenchidos automaticamente)'}
-                    </label>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
-                        <div class="input-group" style="grid-column:span 2;">
-                            <label>Nome Completo</label>
-                            <input id="mu-nome" type="text" value="${user ? (user.nome || '') : ''}"
-                                readonly style="background:#f1f5f9;color:#64748b;" placeholder="Preenchido ao selecionar o colaborador">
-                        </div>
-                        <div class="input-group">
-                            <label>Email</label>
-                            <input id="mu-email" type="email" value="${user ? (user.email || '') : ''}"
-                                readonly style="background:#f1f5f9;color:#64748b;" placeholder="Do cadastro">
-                        </div>
-                        <div class="input-group">
-                            <label>Departamento</label>
-                            <input id="mu-departamento" type="text" value="${user ? (user.departamento || '') : ''}"
-                                readonly style="background:#f1f5f9;color:#64748b;" placeholder="Do cadastro">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Credenciais de acesso -->
-                <div style="background:#fff3ed;border:1px solid #ffd8b4;border-radius:10px;padding:1rem;margin-bottom:1.25rem;">
-                    <label style="font-weight:700;font-size:0.85rem;color:#d9480f;display:block;margin-bottom:0.75rem;">
-                        <i class="ph ph-lock-key"></i> ${userId ? 'Credenciais de Acesso' : '3. Credenciais de Acesso'} (definidas pela Diretoria)
-                    </label>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
-                        <div class="input-group">
-                            <label>Username / Login *</label>
-                            <input id="mu-username" type="text" value="${user ? user.username : ''}"
-                                ${user ? 'readonly style="background:#f8f9fa;"' : 'placeholder="ex: joao.silva"'}>
-                        </div>
-                        <div class="input-group">
-                            <label>Senha ${user ? '(deixe em branco para manter)' : '*'}</label>
-                            <input id="mu-password" type="password" placeholder="${user ? 'Nova senha (opcional)' : 'Senha de acesso'}">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Grupo de permissão -->
-                <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:1rem;margin-bottom:1.5rem;">
-                    <label style="font-weight:700;font-size:0.85rem;color:#15803d;display:block;margin-bottom:0.5rem;">
-                        <i class="ph ph-shield-check"></i> ${userId ? 'Grupo de Permissão' : '4. Grupo de Permissão'}
-                    </label>
-                    <select id="mu-grupo" style="width:100%;padding:0.5rem 0.75rem;border:1px solid #bbf7d0;border-radius:8px;font-size:0.9rem;">
-                        <option value="">-- Sem grupo (sem acesso) --</option>
-                        ${gruposOptions}
-                    </select>
-                    <p style="margin:0.4rem 0 0;font-size:0.75rem;color:#64748b;">
-                        Configure os grupos na aba "Grupos de Permissão"
-                    </p>
-                </div>
-
-                <div style="display:flex;justify-content:flex-end;gap:0.75rem;">
-                    <button class="btn btn-secondary" onclick="document.getElementById('modal-usuario').remove()">
-                        <i class="ph ph-x"></i> Cancelar
-                    </button>
-                    <button class="btn btn-primary" onclick="salvarUsuario(${userId || 'null'})"
-                        style="background:#d9480f;font-weight:700;">
-                        <i class="ph ph-check-circle"></i> Confirmar e Salvar
-                    </button>
-                </div>
-            </div>
-        </div>`;
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    navigateTo('form-usuario');
 };
 
-// Filtrar colaboradores no modal
-window.filtrarColabsModal = function(query) {
-    const sel = document.getElementById('mu-colab-select');
+window.toggleFormPermissoes = function() {
+    const tipo = document.querySelector('input[name="fu_tipo_perm"]:checked').value;
+    document.getElementById('fu-pane-grupo').style.display = tipo === 'grupo' ? 'block' : 'none';
+    document.getElementById('fu-pane-copiar').style.display = tipo === 'copiar' ? 'block' : 'none';
+    document.getElementById('fu-pane-personalizado').style.display = tipo === 'personalizado' ? 'block' : 'none';
+};
+
+window.filtrarColabsForm = function(query) {
+    const sel = document.getElementById('fu-colab-select');
     if (!sel) return;
     const q = query.toLowerCase();
     Array.from(sel.options).forEach(opt => {
@@ -237,60 +197,138 @@ window.filtrarColabsModal = function(query) {
     });
 };
 
-// Preencher dados ao selecionar colaborador
-window.preencherDadosColab = function(sel) {
+window.preencherDadosColabForm = function(sel) {
     const opt = sel.options[sel.selectedIndex];
     if (!opt || !opt.value) return;
-    const nome  = opt.dataset.nome  || '';
-    const email = opt.dataset.email || '';
-    const depto = opt.dataset.depto || '';
-    const nomeField  = document.getElementById('mu-nome');
-    const emailField = document.getElementById('mu-email');
-    const deptoField = document.getElementById('mu-departamento');
-    if (nomeField)  nomeField.value  = nome;
-    if (emailField) emailField.value = email;
-    if (deptoField) deptoField.value = depto;
-    // Sugerir username automático
-    const usernameField = document.getElementById('mu-username');
-    if (usernameField && !usernameField.value) {
-        usernameField.value = nome.toLowerCase()
+    document.getElementById('fu-nome').value = opt.dataset.nome || '';
+    document.getElementById('fu-email').value = opt.dataset.email || '';
+    document.getElementById('fu-departamento').value = opt.dataset.depto || '';
+    
+    // Sugerir username
+    const usernameField = document.getElementById('fu-username');
+    if (usernameField && !usernameField.value && opt.dataset.nome) {
+        usernameField.value = opt.dataset.nome.toLowerCase()
             .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
             .split(' ').filter(Boolean).slice(0, 2).join('.');
     }
 };
 
-window.editarUsuario = function(id) { abrirModalUsuario(id); };
+window.editarUsuario = function(id) {
+    abrirFormUsuario(id);
+};
 
-window.salvarUsuario = async function(userId) {
-    const nome       = document.getElementById('mu-nome').value.trim();
-    const username   = document.getElementById('mu-username').value.trim();
-    const password   = document.getElementById('mu-password').value;
-    const email      = document.getElementById('mu-email').value.trim();
-    const departamento = document.getElementById('mu-departamento').value.trim();
-    const grupo_permissao_id = document.getElementById('mu-grupo').value || null;
+window.salvarUsuarioView = async function() {
+    const userId = document.getElementById('fu-id').value;
+    const nome = document.getElementById('fu-nome').value.trim();
+    const username = document.getElementById('fu-username').value.trim();
+    const password = document.getElementById('fu-password').value;
+    const email = document.getElementById('fu-email').value.trim();
+    const departamento = document.getElementById('fu-departamento').value.trim();
+    const tipoPerm = document.querySelector('input[name="fu_tipo_perm"]:checked').value;
 
     if (!userId) {
-        const colabSel = document.getElementById('mu-colab-select');
-        if (colabSel && !colabSel.value) return alert('Selecione um colaborador cadastrado');
+        const colabSel = document.getElementById('fu-colab-select');
+        if (colabSel && !colabSel.value) return alert('Selecione um colaborador na lista');
     }
     if (!username) return alert('Username é obrigatório');
     if (!userId && !password) return alert('Senha é obrigatória para novo usuário');
 
-    const payload = { nome, username, email, departamento, grupo_permissao_id: grupo_permissao_id ? parseInt(grupo_permissao_id) : null };
+    let grupo_permissao_id = null;
+    let permissoesConfiguradas = null;
+
+    if (tipoPerm === 'grupo') {
+        grupo_permissao_id = document.getElementById('fu-grupo-select').value;
+        if (!grupo_permissao_id && !confirm('Você não escolheu nenhum grupo padrão. O usuário não terá acessos. Deseja continuar?')) return;
+        if (grupo_permissao_id) grupo_permissao_id = parseInt(grupo_permissao_id);
+    } else if (tipoPerm === 'copiar') {
+        const copiarId = document.getElementById('fu-copiar-select').value;
+        if (!copiarId) return alert('Selecione o usuário base para copiar as permissões');
+        // A lógica do backend vai criar o grupo personalizado depois, por agora mandamos o id base numa flag
+        permissoesConfiguradas = { copiar_do_usuario: parseInt(copiarId) };
+    } else if (tipoPerm === 'personalizado') {
+        // Obter as permissões ativas da árvore
+        const perms = Object.keys(_permissoesFormAtivas).map(pagina_id => {
+            const tela = TELAS_SISTEMA.find(t => t.pagina_id === pagina_id) || {};
+            return {
+                pagina_id,
+                pagina_nome: tela.pagina_nome || pagina_id,
+                modulo: tela.modulo || 'RH',
+                ..._permissoesFormAtivas[pagina_id]
+            };
+        });
+        permissoesConfiguradas = { personalizadas: perms };
+    }
+
+    const payload = { nome, username, email, departamento, grupo_permissao_id };
     if (password) payload.password = password;
+    if (permissoesConfiguradas) payload.nova_config_permissoes = permissoesConfiguradas;
 
     try {
-        const url = userId ? `${API_URL}/usuarios/${userId}` : `${API_URL}/usuarios`;
-        const method = userId ? 'PUT' : 'POST';
-        const res = await fetch(url, {
-            method, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentToken}` },
+        // Salva o usuário primeiro (ou pega id se novo)
+        const userUrl = userId ? `${API_URL}/usuarios/${userId}` : `${API_URL}/usuarios`;
+        const resUser = await fetch(userUrl, {
+            method: userId ? 'PUT' : 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentToken}` },
             body: JSON.stringify(payload)
         });
-        const data = await res.json();
-        if (data.error) return alert(data.error);
-        document.getElementById('modal-usuario').remove();
+        const dataUser = await resUser.json();
+        if (dataUser.error) return alert(dataUser.error);
+
+        const targetUserId = userId || dataUser.id;
+
+        // Se precisava criar grupo personalizado, a API de usuarios pode não tratar isso diretamente.
+        // Já que a lógica era o backend lidar ou chamamos a rota em sequencia:
+        if (tipoPerm === 'copiar') {
+            // Em vez de mudar payload, chamamos as rotas de grupo
+            // Cria um grupo
+            const gRes = await fetch(`${API_URL}/grupos-permissao`, {
+                method:'POST', headers:{'Content-Type':'application/json', Authorization:`Bearer ${currentToken}`},
+                body: JSON.stringify({ nome: `Personalizado (${username})`, tipo: 'personalizado' })
+            });
+            const gData = await gRes.json();
+            const gId = gData.id;
+            // Copia de usuario
+            await fetch(`${API_URL}/grupos-permissao/${gId}/copiar-usuario/${permissoesConfiguradas.copiar_do_usuario}`, {
+                method:'POST', headers:{ Authorization:`Bearer ${currentToken}`}
+            });
+            // Update user with gId
+            await fetch(`${API_URL}/usuarios/${targetUserId}`, {
+                method:'PUT', headers:{'Content-Type':'application/json', Authorization:`Bearer ${currentToken}`},
+                body: JSON.stringify({ grupo_permissao_id: gId })
+            });
+        } else if (tipoPerm === 'personalizado') {
+            let gId = userId && _grupoSelecionadoId && _permGrupos.find(g => g.id == _grupoSelecionadoId && g.tipo === 'personalizado') 
+                      ? _grupoSelecionadoId : null;
+            
+            // Se não tinha um grupo personalizado, cria um
+            if (!gId) {
+                const gRes = await fetch(`${API_URL}/grupos-permissao`, {
+                    method:'POST', headers:{'Content-Type':'application/json', Authorization:`Bearer ${currentToken}`},
+                    body: JSON.stringify({ nome: `Personalizado (${username})`, tipo: 'personalizado' })
+                });
+                const gData = await gRes.json();
+                gId = gData.id;
+                await fetch(`${API_URL}/usuarios/${targetUserId}`, {
+                    method:'PUT', headers:{'Content-Type':'application/json', Authorization:`Bearer ${currentToken}`},
+                    body: JSON.stringify({ grupo_permissao_id: gId })
+                });
+            }
+            // Salva as perms no grupo
+            await fetch(`${API_URL}/grupos-permissao/${gId}/permissoes`, {
+                method:'PUT', headers:{'Content-Type':'application/json', Authorization:`Bearer ${currentToken}`},
+                body: JSON.stringify({ permissoes: permissoesConfiguradas.personalizadas })
+            });
+        }
+
+        navigateTo('usuarios-permissoes');
         await carregarUsuariosLista();
-    } catch(e) { alert('Erro ao salvar usuário'); }
+        await carregarGruposLista();
+        alert('Usuário salvo com configurações de permissão aplicadas!');
+
+    } catch(e) { 
+        console.error(e);
+        alert('Erro ao salvar usuário e permissões'); 
+    }
 };
 
 window.toggleAtivoUsuario = async function(id, ativoAtual) {
@@ -303,6 +341,122 @@ window.toggleAtivoUsuario = async function(id, ativoAtual) {
     });
     await carregarUsuariosLista();
 };
+
+// ── ÁRVORE DE PERMISSÕES NO FORMULÁRIO ───────────────────────
+let _permissoesFormAtivas = {}; 
+
+const MENU_HIERARQUIA = [
+    {
+        modulo: 'RH', icone: 'ph-users',
+        grupos: [
+            { titulo: 'Visão Geral e Administrativo', telas: ['dashboard', 'colaboradores', 'admissao', 'cargos', 'departamentos', 'faculdade', 'chaves'] },
+            { titulo: 'Prontuário Digital', telas: ['prontuario-checklist', 'prontuario-ficha', 'prontuario-pagamentos', 'prontuario-aso'] },
+            { titulo: 'Segurança (EPI)', telas: ['ficha-epi'] },
+            { titulo: 'Avaliações de Desempenho', telas: ['gerenciar-avaliacoes', 'avaliacoes'] },
+            { titulo: 'Gestão de Documentos', telas: ['geradores'] }
+        ]
+    },
+    {
+        modulo: 'Diretoria', icone: 'ph-crown',
+        grupos: [
+            { titulo: 'Cadastros Base', telas: ['usuarios-permissoes'] }
+        ]
+    }
+];
+
+// Oculta no objeto global TELAS_SISTEMA as telas extras para que fiquem ativaveis
+if (!TELAS_SISTEMA.find(t => t.pagina_id === 'prontuario-checklist')) {
+    TELAS_SISTEMA.push(
+        { modulo: 'RH', pagina_id: 'prontuario-checklist', pagina_nome: 'Prontuário - CheckList' },
+        { modulo: 'RH', pagina_id: 'prontuario-ficha', pagina_nome: 'Prontuário - Ficha Cadastral' },
+        { modulo: 'RH', pagina_id: 'prontuario-pagamentos', pagina_nome: 'Prontuário - Pagamentos' },
+        { modulo: 'RH', pagina_id: 'prontuario-aso', pagina_nome: 'Prontuário - ASO' },
+        { modulo: 'RH', pagina_id: 'avaliacoes', pagina_nome: 'Responder Avaliação (Colab)' }
+    );
+}
+
+async function carregarArvorePermissoesUsuario(grupoId) {
+    _permissoesFormAtivas = {};
+    if (grupoId) {
+        const res = await fetch(`${API_URL}/grupos-permissao/${grupoId}/permissoes`, { headers: { Authorization: `Bearer ${currentToken}` }});
+        const permsExistentes = await res.json();
+        permsExistentes.forEach(p => {
+            _permissoesFormAtivas[p.pagina_id] = { visualizar: !!p.visualizar, alterar: !!p.alterar, incluir: !!p.incluir, excluir: !!p.excluir };
+        });
+    }
+    renderArvorePermissoesForm();
+}
+
+function renderArvorePermissoesForm() {
+    const container = document.getElementById('fu-perm-tree');
+    if (!container) return;
+    
+    let html = '';
+    MENU_HIERARQUIA.forEach(mod => {
+        html += `
+        <div class="perm-mod" style="border-bottom:3px solid #e2e8f0;">
+            <div style="background:#f8fafc;padding:0.6rem 1rem;cursor:pointer;display:flex;align-items:center;gap:0.5rem;" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'">
+                <i class="ph ${mod.icone}" style="font-size:1.1rem;color:#64748b;"></i>
+                <h4 style="margin:0;font-size:1rem;color:#1e293b;">Módulo: ${mod.modulo}</h4>
+                <i class="ph ph-caret-down" style="margin-left:auto;color:#94a3b8;"></i>
+            </div>
+            <div style="display:block;padding:1rem;background:#fff;">`;
+            
+        mod.grupos.forEach(grp => {
+            html += `
+                <div style="margin-bottom:1.5rem;">
+                    <h5 style="margin:0 0 0.5rem 0;font-size:0.85rem;color:#d9480f;text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid #f1f5f9;padding-bottom:0.25rem;">
+                        ${grp.titulo}
+                    </h5>
+                    <div style="display:grid;grid-template-columns:1fr;gap:0.5rem;">`;
+                    
+            grp.telas.forEach(telaId => {
+                const telaInfo = TELAS_SISTEMA.find(t => t.pagina_id === telaId);
+                const nomeTela = telaInfo ? telaInfo.pagina_nome : telaId;
+                const p = _permissoesFormAtivas[telaId] || { visualizar:false, alterar:false, incluir:false, excluir:false };
+                
+                html += `
+                        <div style="display:flex;align-items:center;justify-content:space-between;padding:0.4rem 0.75rem;background:#f8fafc;border-radius:6px;border:1px solid #f1f5f9;">
+                            <span style="font-size:0.85rem;font-weight:600;color:#334155;">&bull; ${nomeTela}</span>
+                            <div style="display:flex;gap:1rem;">
+                                <label style="display:flex;align-items:center;gap:4px;font-size:0.75rem;cursor:pointer;color:#1971c2;">
+                                    <input type="checkbox" onchange="togglePermForm('${telaId}','visualizar',this.checked)" ${p.visualizar?'checked':''} style="accent-color:#1971c2;"> Vis.
+                                </label>
+                                <label style="display:flex;align-items:center;gap:4px;font-size:0.75rem;cursor:pointer;color:#2d9e5f;">
+                                    <input type="checkbox" onchange="togglePermForm('${telaId}','alterar',this.checked)" ${p.alterar?'checked':''} style="accent-color:#2d9e5f;"> Alt.
+                                </label>
+                                <label style="display:flex;align-items:center;gap:4px;font-size:0.75rem;cursor:pointer;color:#e67700;">
+                                    <input type="checkbox" onchange="togglePermForm('${telaId}','incluir',this.checked)" ${p.incluir?'checked':''} style="accent-color:#e67700;"> Inc.
+                                </label>
+                                <label style="display:flex;align-items:center;gap:4px;font-size:0.75rem;cursor:pointer;color:#dc3545;">
+                                    <input type="checkbox" onchange="togglePermForm('${telaId}','excluir',this.checked)" ${p.excluir?'checked':''} style="accent-color:#dc3545;"> Exc.
+                                </label>
+                            </div>
+                        </div>`;
+            });
+            html += `</div></div>`;
+        });
+        html += `</div></div>`;
+    });
+    container.innerHTML = html;
+}
+
+window.togglePermForm = function(paginaId, col, val) {
+    if (!_permissoesFormAtivas[paginaId]) _permissoesFormAtivas[paginaId] = { visualizar:false, alterar:false, incluir:false, excluir:false };
+    _permissoesFormAtivas[paginaId][col] = val;
+    if (val && col !== 'visualizar') {
+        _permissoesFormAtivas[paginaId]['visualizar'] = true;
+    }
+    renderArvorePermissoesForm();
+};
+
+window.setTodasTelasForm = function(marcar) {
+    TELAS_SISTEMA.forEach(t => {
+        _permissoesFormAtivas[t.pagina_id] = { visualizar: marcar, alterar: marcar, incluir: marcar, excluir: marcar };
+    });
+    renderArvorePermissoesForm();
+};
+
 
 
 // ── GRUPOS DE PERMISSÃO ───────────────────────────────────────

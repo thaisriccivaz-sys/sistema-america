@@ -102,6 +102,7 @@ const BREADCRUMB_MAP = {
     'avaliacoes':         { path: 'Avaliações',                                                   code: 'RHAV01' },
     'gerenciar-avaliacoes': { path: 'Gerenciar Avaliações',                                       code: 'RHAV02' },
     'usuarios-permissoes':  { path: 'Diretoria → Usuários e Permissões',                          code: 'DIR001' },
+    'form-usuario':         { path: 'Diretoria → Usuários e Permissões → Cadastro',               code: 'DIR002' },
     // Sub-telas (Prontuário Digital - abas)
     'tab:00. CheckList':          { path: 'Colaboradores → Prontuário Digital → 00. CheckList',          },
     'tab:01. Ficha Cadastral':    { path: 'Colaboradores → Prontuário Digital → Ficha Cadastral',        },
@@ -196,6 +197,8 @@ function navigateTo(target) {
         if (typeof window.initEpiModule === 'function') window.initEpiModule();
     } else if (target === 'usuarios-permissoes') {
         if (typeof window.initUsuariosPermissoes === 'function') window.initUsuariosPermissoes();
+    } else if (target === 'form-usuario') {
+        if (typeof window.abrirFormUsuario === 'function') window.abrirFormUsuario();
     }
 }
 
