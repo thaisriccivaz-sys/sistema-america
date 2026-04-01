@@ -571,6 +571,74 @@ const db = new sqlite3.Database(dbPath, (err) => {
 
             // Remover grupo Administrador legados
             db.run("DELETE FROM grupos_permissao WHERE nome='Administrador'", (err) => {});
+
+            // ── MIGRAÇÃO: Garantir acesso total ao usuário teste.2 ───────
+            setTimeout(() => {
+                const TODAS_TELAS = [
+                    { modulo: 'RH',       pagina_id: 'dashboard',             pagina_nome: 'Dashboard' },
+                    { modulo: 'RH',       pagina_id: 'colaboradores',          pagina_nome: 'Colaboradores' },
+                    { modulo: 'RH',       pagina_id: 'admissao',               pagina_nome: 'Admissão' },
+                    { modulo: 'RH',       pagina_id: 'cargos',                 pagina_nome: 'Cargos' },
+                    { modulo: 'RH',       pagina_id: 'departamentos',          pagina_nome: 'Departamentos' },
+                    { modulo: 'RH',       pagina_id: 'faculdade',              pagina_nome: 'Faculdade' },
+                    { modulo: 'RH',       pagina_id: 'chaves',                 pagina_nome: 'Chaves' },
+                    { modulo: 'RH',       pagina_id: 'geradores',              pagina_nome: 'Geradores de Documentos' },
+                    { modulo: 'RH',       pagina_id: 'ficha-epi',              pagina_nome: 'Ficha EPI' },
+                    { modulo: 'RH',       pagina_id: 'gerenciar-avaliacoes',   pagina_nome: 'Avaliações' },
+                    { modulo: 'RH',       pagina_id: 'prontuario-checklist',   pagina_nome: 'Prontuário - CheckList' },
+                    { modulo: 'RH',       pagina_id: 'prontuario-ficha',       pagina_nome: 'Prontuário - Ficha Cadastral' },
+                    { modulo: 'RH',       pagina_id: 'prontuario-pagamentos',  pagina_nome: 'Prontuário - Pagamentos' },
+                    { modulo: 'RH',       pagina_id: 'prontuario-aso',         pagina_nome: 'Prontuário - ASO' },
+                    { modulo: 'RH',       pagina_id: 'avaliacoes',             pagina_nome: 'Responder Avaliação (Colab)' },
+                    { modulo: 'Logística',     pagina_id: 'logistica-em-breve',   pagina_nome: 'Módulo Logística' },
+                    { modulo: 'Financeiro',    pagina_id: 'financeiro-em-breve',  pagina_nome: 'Módulo Financeiro' },
+                    { modulo: 'Comercial',     pagina_id: 'comercial-em-breve',   pagina_nome: 'Módulo Comercial' },
+                    { modulo: 'Administrativo',pagina_id: 'admin-em-breve',       pagina_nome: 'Módulo Administrativo' },
+                    { modulo: 'Sistema',       pagina_id: 'usuarios-permissoes',  pagina_nome: 'Usuários e Permissões' },
+                ];
+
+                db.get("SELECT id, grupo_permissao_id FROM usuarios WHERE username = 'teste.2'", [], (err, userRow) => {
+                    if (err || !userRow) return; // usuário não existe, nada a fazer
+
+                    const aplicarPermissoes = (grupoId) => {
+                        TODAS_TELAS.forEach(t => {
+                            db.run(
+                                `INSERT OR REPLACE INTO permissoes_grupo (grupo_id, modulo, pagina_id, pagina_nome, visualizar, alterar, incluir, excluir)
+                                 VALUES (?, ?, ?, ?, 1, 1, 1, 1)`,
+                                [grupoId, t.modulo, t.pagina_id, t.pagina_nome]
+                            );
+                        });
+                        console.log(`[MIGRAÇÃO] Permissões completas aplicadas ao grupo ${grupoId} (usuário teste.2)`);
+                    };
+
+                    if (userRow.grupo_permissao_id) {
+                        // Já tem grupo — apenas garante que todas as permissões estão ativas
+                        aplicarPermissoes(userRow.grupo_permissao_id);
+                    } else {
+                        // Sem grupo — cria um grupo "Diretoria (teste.2)" e vincula
+                        db.run(
+                            `INSERT OR IGNORE INTO grupos_permissao (nome, descricao, departamento, tipo) VALUES (?, ?, ?, ?)`,
+                            ['Diretoria (teste.2)', 'Acesso total gerado automaticamente', 'Diretoria', 'departamento'],
+                            function(err2) {
+                                if (err2) return;
+                                const novoGrupoId = this.lastID;
+                                if (!novoGrupoId) {
+                                    // já existia com esse nome — buscar o id
+                                    db.get("SELECT id FROM grupos_permissao WHERE nome = 'Diretoria (teste.2)'", [], (e, g) => {
+                                        if (g) {
+                                            db.run("UPDATE usuarios SET grupo_permissao_id = ? WHERE username = 'teste.2'", [g.id]);
+                                            aplicarPermissoes(g.id);
+                                        }
+                                    });
+                                } else {
+                                    db.run("UPDATE usuarios SET grupo_permissao_id = ? WHERE username = 'teste.2'", [novoGrupoId]);
+                                    aplicarPermissoes(novoGrupoId);
+                                }
+                            }
+                        );
+                    }
+                });
+            }, 2000); // aguarda 2s para o banco estar pronto
             
             // Migration: Corrigir o escopo dos grupos padrões (Remover visualizar=1 de telas que não são do departamento do grupo)
             db.run(`
