@@ -166,7 +166,10 @@ window.abrirFormUsuario = async function(userId = null) {
 
     // ── Configurar sub-selects do Modelo de Permissão ──
     const gruposOrdem = ['RH', 'Logística', 'Financeiro', 'Comercial', 'Administrativo', 'Diretoria', 'Todas'];
-    const gruposFiltrados = _permGrupos.filter(g => g.tipo !== 'personalizado');
+    const gruposFiltrados = _permGrupos.filter(g =>
+        g.tipo !== 'personalizado' &&
+        !g.nome.toLowerCase().includes('somente leitura')
+    );
     const outrosDepts = [...new Set(gruposFiltrados.map(g => g.departamento))].filter(d => !gruposOrdem.includes(d));
     const allDepts = [...gruposOrdem, ...outrosDepts];
 
@@ -241,21 +244,34 @@ window.onTipoModeloChange = function(tipo) {
     }
 };
 
-window.aplicarModeloPermissao = async function(val) {
-    if (!val || val === 'blank') {
-        _permissoesFormAtivas = {};
-        renderArvorePermissoesForm();
-        window._treeIsModified = true;
-        return;
-    }
+window.aplicarModeloPermissao = function(val) {
+    if (!val) return;
+
     const [tipo, idStr] = val.split('|');
     const id = parseInt(idStr);
 
     if (tipo === 'grupo') {
-        await carregarArvorePermissoesUsuario(id);
-        window._treeIsModified = false; // Se não tocar em nada, enviamos só o grupo
+        // Encontrar o grupo e seu departamento
+        const grupo = _permGrupos.find(g => g.id == id);
+        if (!grupo) return;
+
+        // Resetar todas as permissões
+        _permissoesFormAtivas = {};
+
+        // Ativar SOMENTE as telas do departamento deste grupo
+        const deptMod = MENU_HIERARQUIA.find(m => m.modulo === grupo.departamento);
+        if (deptMod) {
+            deptMod.grupos.forEach(grp => {
+                grp.telas.forEach(telaId => {
+                    _permissoesFormAtivas[telaId] = { visualizar: true, alterar: true, incluir: true, excluir: true };
+                });
+            });
+        }
+
+        renderArvorePermissoesForm();
+        window._treeIsModified = false; // Sem modificações manuais → vincula direto ao grupo
     } else if (tipo === 'user') {
-        await carregarPermissoesCopia(id);
+        window.carregarPermissoesCopia(id);
         window._treeIsModified = true;
     }
 };
