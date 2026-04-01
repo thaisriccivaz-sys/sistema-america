@@ -164,58 +164,77 @@ window.abrirFormUsuario = async function(userId = null) {
         } catch(e) { document.getElementById('fu-colab-select').innerHTML = ''; }
     }
 
-    // Configurar Modelo Único de Permissão
-    const df = document.createDocumentFragment();
-    df.appendChild(new Option('-- Selecione um Modelo Inicial --', ''));
-
+    // ── Configurar sub-selects do Modelo de Permissão ──
     const gruposOrdem = ['RH', 'Logística', 'Financeiro', 'Comercial', 'Administrativo', 'Diretoria', 'Todas'];
     const gruposFiltrados = _permGrupos.filter(g => g.tipo !== 'personalizado');
     const outrosDepts = [...new Set(gruposFiltrados.map(g => g.departamento))].filter(d => !gruposOrdem.includes(d));
     const allDepts = [...gruposOrdem, ...outrosDepts];
-    
-    const grpFg = document.createElement('optgroup');
-    grpFg.label = 'Grupos Padrão / Departamentos';
-    allDepts.forEach(d => {
-        gruposFiltrados.filter(g => g.departamento === d).forEach(g => {
-            grpFg.appendChild(new Option(`[Grupo] ${g.nome}`, `grupo|${g.id}`));
+
+    // Popula sub-select de grupos
+    const subGrupoSel = document.getElementById('fu-sub-grupo');
+    if (subGrupoSel) {
+        subGrupoSel.innerHTML = '<option value="">— Selecione o grupo —</option>';
+        allDepts.forEach(d => {
+            gruposFiltrados.filter(g => g.departamento === d).forEach(g => {
+                subGrupoSel.appendChild(new Option(g.nome, g.id));
+            });
         });
-    });
-    df.appendChild(grpFg);
-
-    const usrFg = document.createElement('optgroup');
-    usrFg.label = 'Copiar de Usuário Existente';
-    _permUsuarios.filter(u => u.ativo && u.grupo_permissao_id && u.id !== userId).forEach(u => {
-        usrFg.appendChild(new Option(`[Usuário] ${u.nome || u.username} (${u.grupo_nome || 'sem grupo'})`, `user|${u.id}`));
-    });
-    df.appendChild(usrFg);
-
-    const blankFg = document.createElement('optgroup');
-    blankFg.label = 'Outras Opções';
-    blankFg.appendChild(new Option('Em Branco (Configurar manualmente do zero)', 'blank'));
-    df.appendChild(blankFg);
-
-    const selectMod = document.getElementById('fu-modelo-perm');
-    if (selectMod) {
-        selectMod.innerHTML = '';
-        selectMod.appendChild(df);
     }
+
+    // Popula sub-select de usuários
+    const subUserSel = document.getElementById('fu-sub-usuario');
+    if (subUserSel) {
+        subUserSel.innerHTML = '<option value="">— Selecione o usuário base —</option>';
+        _permUsuarios.filter(u => u.ativo && u.grupo_permissao_id && u.id !== userId).forEach(u => {
+            subUserSel.appendChild(new Option(`${u.nome || u.username}`, u.id));
+        });
+    }
+
+    // Resetar seletores de nível 1 e 2
+    const tipoSel = document.getElementById('fu-tipo-modelo');
+    if (tipoSel) tipoSel.value = '';
+    if (subGrupoSel) { subGrupoSel.value = ''; subGrupoSel.style.display = 'none'; }
+    if (subUserSel)  { subUserSel.value = '';  subUserSel.style.display = 'none'; }
 
     // Pré-selecionar o grupo atual (se existir) e carregar a árvore correspondente
     window._treeIsModified = false;
-    
+
     if (user && user.grupo_permissao_id) {
         const userGrp = _permGrupos.find(g => g.id == user.grupo_permissao_id);
         if (userGrp && userGrp.tipo === 'personalizado') {
-            if (selectMod) selectMod.value = ''; // Personalizado não tem modelo correspondente no select
+            // Grupo personalizado → tipo = Personalizado
+            if (tipoSel) tipoSel.value = 'personalizado';
             await carregarArvorePermissoesUsuario(user.grupo_permissao_id);
-            window._treeIsModified = true; // Força salvar como personalizado
+            window._treeIsModified = true;
         } else {
-            if (selectMod) selectMod.value = `grupo|${user.grupo_permissao_id}`;
+            // Grupo padrão → tipo = Grupos Padrão + sub-grupo selecionado
+            if (tipoSel) tipoSel.value = 'grupo';
+            if (subGrupoSel) { subGrupoSel.value = user.grupo_permissao_id; subGrupoSel.style.display = 'block'; }
             await carregarArvorePermissoesUsuario(user.grupo_permissao_id);
             window._treeIsModified = false;
         }
     } else {
-        if (selectMod) selectMod.value = 'blank';
+        if (tipoSel) tipoSel.value = 'personalizado';
+        _permissoesFormAtivas = {};
+        renderArvorePermissoesForm();
+        window._treeIsModified = true;
+    }
+};
+
+// Handler para o select de nível 1
+window.onTipoModeloChange = function(tipo) {
+    const subGrupoSel = document.getElementById('fu-sub-grupo');
+    const subUserSel  = document.getElementById('fu-sub-usuario');
+    if (subGrupoSel) { subGrupoSel.style.display = 'none'; subGrupoSel.value = ''; }
+    if (subUserSel)  { subUserSel.style.display  = 'none'; subUserSel.value  = ''; }
+
+    if (tipo === 'grupo') {
+        if (subGrupoSel) subGrupoSel.style.display = 'block';
+        // Aguarda seleção do sub-grupo para aplicar
+    } else if (tipo === 'usuario') {
+        if (subUserSel) subUserSel.style.display = 'block';
+        // Aguarda seleção do usuário para aplicar
+    } else if (tipo === 'personalizado') {
         _permissoesFormAtivas = {};
         renderArvorePermissoesForm();
         window._treeIsModified = true;
@@ -231,13 +250,13 @@ window.aplicarModeloPermissao = async function(val) {
     }
     const [tipo, idStr] = val.split('|');
     const id = parseInt(idStr);
-    
+
     if (tipo === 'grupo') {
         await carregarArvorePermissoesUsuario(id);
-        window._treeIsModified = false; // Se ele não tocar em nada, enviamos só o grupo
+        window._treeIsModified = false; // Se não tocar em nada, enviamos só o grupo
     } else if (tipo === 'user') {
         await carregarPermissoesCopia(id);
-        window._treeIsModified = true; // Geração de cópias sempre vira Personalizado por default se salvar direto
+        window._treeIsModified = true;
     }
 };
 
@@ -302,7 +321,10 @@ window.salvarUsuarioView = async function() {
     const password = document.getElementById('fu-password').value;
     const email = document.getElementById('fu-email').value.trim();
     const departamento = document.getElementById('fu-departamento').value.trim();
-    const modeloSelecionado = document.getElementById('fu-modelo-perm') ? document.getElementById('fu-modelo-perm').value : '';
+    const modeloTipo    = document.getElementById('fu-tipo-modelo')?.value || '';
+    const subGrupoId    = document.getElementById('fu-sub-grupo')?.value || '';
+    let modeloSelecionado = '';
+    if (modeloTipo === 'grupo' && subGrupoId) modeloSelecionado = `grupo|${subGrupoId}`;
 
     if (!userId) {
         const colabSel = document.getElementById('fu-colab-select');

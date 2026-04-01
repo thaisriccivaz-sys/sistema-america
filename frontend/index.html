@@ -1893,13 +1893,35 @@
                                 <i class="ph ph-shield-check text-muted"></i> Nível de Acesso do Usuário
                             </h3>
                             
-                            <!-- Modelo de Permissão -->
+                            <!-- Modelo de Permissão (dois níveis) -->
                             <div style="margin-bottom:1.5rem;border-bottom:1px solid #e2e8f0;padding-bottom:1rem;">
-                                <label style="display:block;font-size:0.9rem;font-weight:600;margin-bottom:0.5rem;color:#475569;">Modelo de Inicialização das Telas</label>
-                                <select id="fu-modelo-perm" onchange="window.aplicarModeloPermissao(this.value)" style="width:100%;max-width:400px;padding:0.6rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;background:#fff;outline:none;">
-                                    <!-- Options inseridas via JS -->
-                                </select>
-                                <p style="font-size:0.8rem;color:#64748b;margin-top:0.5rem;">Selecione um modelo Padrão ou Copie de alguém. Você pode editar cada tela individualmente abaixo.</p>
+                                <label style="display:block;font-size:0.9rem;font-weight:600;margin-bottom:0.75rem;color:#475569;">Modelo de Inicialização das Telas</label>
+                                <div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;">
+
+                                    <!-- Nível 1: Tipo -->
+                                    <select id="fu-tipo-modelo" onchange="window.onTipoModeloChange(this.value)"
+                                        style="padding:0.6rem 1rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;background:#fff;outline:none;min-width:210px;color:#334155;font-weight:600;">
+                                        <option value="">— Tipo de permissão —</option>
+                                        <option value="grupo">📋 Grupos Padrão</option>
+                                        <option value="usuario">👤 Copiar Usuário Base</option>
+                                        <option value="personalizado">⚙️ Personalizado</option>
+                                    </select>
+
+                                    <!-- Nível 2a: Sub-select de grupos (só aparece quando tipo=grupo) -->
+                                    <select id="fu-sub-grupo" style="display:none;padding:0.6rem 1rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;background:#fff;outline:none;min-width:240px;"
+                                        onchange="window.aplicarModeloPermissao(this.value ? 'grupo|' + this.value : '')">
+                                        <option value="">— Selecione o grupo —</option>
+                                    </select>
+
+                                    <!-- Nível 2b: Sub-select de usuários (só aparece quando tipo=usuario) -->
+                                    <select id="fu-sub-usuario" style="display:none;padding:0.6rem 1rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;background:#fff;outline:none;min-width:240px;"
+                                        onchange="window.carregarPermissoesCopia(this.value)">
+                                        <option value="">— Selecione o usuário base —</option>
+                                    </select>
+                                </div>
+                                <p style="font-size:0.8rem;color:#64748b;margin-top:0.5rem;">
+                                    Selecione um tipo. Para grupos padrão, as telas serão marcadas automaticamente — você pode ajustar individualmente abaixo.
+                                </p>
                             </div>
 
                             <!-- PANE: Permissões -->
