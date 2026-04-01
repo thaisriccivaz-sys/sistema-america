@@ -22,6 +22,18 @@ const SMTP_CONFIG = {
 
 const db = require('./database');
 
+// ── DIAGNÓSTICO DE PERSISTÊNCIA ────────────────────────────────────────
+const dbPathAtual = process.env.DATABASE_PATH || require('path').join(__dirname, 'data', 'hr_system_v2.sqlite');
+if (!process.env.DATABASE_PATH) {
+    console.warn('⚠️  AVISO: DATABASE_PATH não definido! O banco está em disco efêmero.');
+    console.warn('⚠️  Todos os dados serão PERDIDOS a cada restart do servidor (Render free tier).');
+    console.warn(`⚠️  Caminho atual: ${dbPathAtual}`);
+    console.warn('⚠️  Configure DATABASE_PATH como variável de ambiente apontando para um Render Disk.');
+} else {
+    console.log(`✅  DATABASE_PATH configurado: ${dbPathAtual}`);
+}
+// ──────────────────────────────────────────────────────────────────────
+
 // MIGRATION: Atualizar antigos registros "Audiometria" para "Exames Complementares"
 db.run("UPDATE documentos SET document_type = 'Exames Complementares' WHERE document_type = 'Audiometria'", (err) => {
     if (err) console.error("Erro na migration Exames Complementares:", err);
@@ -591,6 +603,41 @@ app.get('/api/test/america', authenticateToken, async (req, res) => {
     } catch(e) {
         res.status(500).json({ error: e.message, code: e.code, body: e.body });
     }
+});
+
+/**
+ * ROTA DE DIAGNÓSTICO: Verificar Persistência do Banco
+ */
+app.get('/api/maintenance/db-info', authenticateToken, (req, res) => {
+    const dbPath = process.env.DATABASE_PATH || require('path').join(__dirname, 'data', 'hr_system_v2.sqlite');
+    const isPersistent = !!process.env.DATABASE_PATH;
+    const fs = require('fs');
+    let tamanho = 0;
+    try { tamanho = fs.statSync(dbPath).size; } catch(e) {}
+    
+    // Contar registros nas tabelas chave
+    db.get('SELECT COUNT(*) as total FROM usuarios', [], (e1, r1) => {
+        db.get('SELECT COUNT(*) as total FROM grupos_permissao', [], (e2, r2) => {
+            db.get('SELECT COUNT(*) as total FROM permissoes_grupo', [], (e3, r3) => {
+                db.get('SELECT COUNT(*) as total FROM colaboradores', [], (e4, r4) => {
+                    res.json({
+                        database_path: dbPath,
+                        is_persistent: isPersistent,
+                        aviso: isPersistent
+                            ? '✅ Banco em disco persistente (Render Disk configurado)'
+                            : '⚠️  BANCO EFÊMERO! Dados serão perdidos ao reiniciar o servidor. Configure DATABASE_PATH apontando para um Render Disk.',
+                        tamanho_bytes: tamanho,
+                        contagens: {
+                            usuarios: r1 ? r1.total : '?',
+                            grupos_permissao: r2 ? r2.total : '?',
+                            permissoes_grupo: r3 ? r3.total : '?',
+                            colaboradores: r4 ? r4.total : '?',
+                        }
+                    });
+                });
+            });
+        });
+    });
 });
 
 /**
