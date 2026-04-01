@@ -57,14 +57,38 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+// ── LEMBRAR USUÁRIO: preencher campos se houver dados salvos ──
+(function() {
+    const saved = localStorage.getItem('erp_remember');
+    if (saved) {
+        try {
+            const { username, password } = JSON.parse(saved);
+            const u = document.getElementById('login-user');
+            const p = document.getElementById('login-pass');
+            const c = document.getElementById('login-remember');
+            if (u) u.value = username || '';
+            if (p) p.value = password || '';
+            if (c) c.checked = true;
+        } catch(e) {}
+    }
+})();
+
 const formLogin = document.getElementById('form-login');
 if (formLogin) {
     formLogin.addEventListener('submit', async (e) => {
         e.preventDefault();
         const usernameInp = document.getElementById('login-user').value.trim();
         const passwordInp = document.getElementById('login-pass').value;
+        const rememberMe  = document.getElementById('login-remember')?.checked;
         const errorMsg = document.getElementById('login-error');
         if (errorMsg) errorMsg.textContent = '';
+
+        // Salvar ou remover credenciais
+        if (rememberMe) {
+            localStorage.setItem('erp_remember', JSON.stringify({ username: usernameInp, password: passwordInp }));
+        } else {
+            localStorage.removeItem('erp_remember');
+        }
         
         const btnSubmit = formLogin.querySelector('button[type="submit"]');
         const oldText = btnSubmit.innerHTML;
@@ -379,6 +403,8 @@ function renderAppTabs() {
     container.style.display = 'flex';
     container.innerHTML = appOpenTabs.map(t => {
         const activeColor = t.color || '#0f172a';
+        // Cor inativa: mesma cor do departamento mas com opacidade reduzida
+        const inactiveColor = activeColor;
         return `
         <div class="app-top-tab ${t.active ? 'active' : ''}" 
              onclick="navigateToTab('${t.tabId}')"
@@ -387,16 +413,17 @@ function renderAppTabs() {
                     border:1px solid ${t.active ? '#cbd5e1' : 'transparent'};
                     border-bottom:none; border-radius:6px 6px 0 0; cursor:pointer;
                     font-size:0.82rem; font-weight:${t.active ? '700' : '500'};
-                    color:${t.active ? activeColor : '#64748b'};
+                    color:${t.active ? activeColor : inactiveColor};
+                    opacity:${t.active ? '1' : '0.55'};
                     position:relative; z-index:${t.active ? '2' : '1'};
                     white-space:nowrap; user-select:none; margin-bottom:-1px; transition:all 0.2s;"
-             onmouseover="if(!${t.active}) this.style.background='#e2e8f0';"
-             onmouseout="if(!${t.active}) this.style.background='transparent';">
-            ${t.icon ? `<i class="ph ${t.icon}" style="font-size:0.88rem;opacity:0.85;"></i>` : ''}
+             onmouseover="this.style.opacity='1'; if(!${t.active}) this.style.background='#f1f5f9';"
+             onmouseout="this.style.opacity='${t.active ? '1' : '0.55'}'; if(!${t.active}) this.style.background='transparent';">
+            ${t.icon ? `<i class="ph ${t.icon}" style="font-size:0.88rem;"></i>` : ''}
             <span>${t.title}</span>
             <i class="ph-bold ph-x"
                onclick="event.stopPropagation(); closeAppTab('${t.tabId}')"
-               style="color:#ef4444; margin-left:4px; border-radius:50%; padding:2px; font-size:0.75rem; ${t.active ? '' : 'opacity:0.7'};"
+               style="color:#ef4444; margin-left:4px; border-radius:50%; padding:2px; font-size:0.75rem;"
                onmouseover="this.style.background='#fee2e2'"
                onmouseout="this.style.background='transparent'"></i>
         </div>`;

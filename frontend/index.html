@@ -31,6 +31,13 @@
                         <label>Senha</label>
                         <input type="password" id="login-pass" autocomplete="current-password">
                     </div>
+                    <div style="display:flex;align-items:center;gap:8px;margin:0.25rem 0 1rem;user-select:none;">
+                        <input type="checkbox" id="login-remember"
+                            style="width:16px;height:16px;accent-color:#d9480f;cursor:pointer;flex-shrink:0;">
+                        <label for="login-remember" style="font-size:0.85rem;color:#64748b;cursor:pointer;margin:0;">
+                            Lembrar usuário e senha
+                        </label>
+                    </div>
                     <button type="submit" class="btn btn-primary btn-block">Entrar</button>
                     <div id="login-error" class="error-msg"></div>
                 </form>
