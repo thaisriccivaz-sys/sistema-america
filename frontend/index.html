@@ -2150,5 +2150,25 @@
     <script src="epi.js?v=17"></script>
     <script src="usuarios.js?v=1"></script>
     <script src="app.js?v=63"></script>
+
+    <!-- Global Scroll-to-Top Button -->
+    <button id="global-scroll-top" onclick="window.scrollTo({top:0, behavior:'smooth'})" style="position:fixed; bottom:30px; right:30px; width:45px; height:45px; border-radius:50%; background:var(--primary-color, #0f172a); color:#fff; border:none; box-shadow:0 4px 10px rgba(0,0,0,0.3); justify-content:center; align-items:center; transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index:9000; display:none; opacity:0; cursor:pointer;" onmouseover="this.style.filter='brightness(0.9)'" onmouseout="this.style.filter='brightness(1)'">
+        <i class="ph ph-arrow-up" style="font-size:1.5rem;"></i>
+    </button>
+    <script>
+        window.addEventListener('scroll', function() {
+            var scroller = document.getElementById('global-scroll-top');
+            if(scroller) {
+                if(window.scrollY > 300) {
+                    scroller.style.display = 'flex';
+                    // small delay for transition
+                    setTimeout(() => scroller.style.opacity = '1', 10);
+                } else {
+                    scroller.style.opacity = '0';
+                    setTimeout(() => { if(window.scrollY <= 100) scroller.style.display = 'none'; }, 300);
+                }
+            }
+        });
+    </script>
 </body>
 </html>

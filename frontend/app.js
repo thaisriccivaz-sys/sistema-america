@@ -1651,10 +1651,6 @@ function renderColaboradores(lista) {
         <!-- TABELA -->
         <div id="colab-table-wrapper"></div>
 
-        <!-- Botão Voltar ao Topo -->
-        <button onclick="window.scrollTo({top:0, behavior:'smooth'})" style="position:fixed; bottom:30px; right:30px; width:45px; height:45px; border-radius:50%; background:var(--primary-color, #0f172a); color:#fff; border:none; box-shadow:0 4px 10px rgba(0,0,0,0.3); cursor:pointer; z-index:9000; display:flex; justify-content:center; align-items:center; transition: background 0.3s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
-            <i class="ph ph-arrow-up" style="font-size:1.5rem;"></i>
-        </button>
 
         <!-- SIDEBAR DE FILTROS -->
         <div id="filtro-sidebar" style="position:fixed; top:0; right:-400px; width:400px; max-width:100vw; height:100vh; background:#fff; z-index:9999; box-shadow:-4px 0 15px rgba(0,0,0,0.1); transition:right 0.3s cubic-bezier(0.4, 0, 0.2, 1); overflow-y:auto; display:flex; flex-direction:column;">
