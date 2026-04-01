@@ -92,8 +92,8 @@ function renderTabelaUsuarios() {
                     <i class="ph ph-note-pencil"></i>
                 </button>
                 <button class="btn btn-sm" onclick="toggleAtivoUsuario(${u.id}, ${u.ativo})"
-                    style="background:${u.ativo ? '#fff3cd' : '#d4edda'};color:${u.ativo ? '#856404' : '#155724'};" title="${u.ativo ? 'Inativar' : 'Reativar'}">
-                    <i class="ph ph-${u.ativo ? 'pause-circle' : 'play-circle'}"></i>
+                    style="background:${u.ativo ? '#f8d7da' : '#d4edda'};color:${u.ativo ? '#721c24' : '#155724'};" title="${u.ativo ? 'Excluir / Inativar' : 'Reativar'}">
+                    <i class="ph ph-${u.ativo ? 'trash' : 'play-circle'}"></i>
                 </button>
             </td>
         </tr>
@@ -176,8 +176,6 @@ window.abrirFormUsuario = async function(userId = null) {
 
     document.querySelector(`input[name="fu_tipo_perm"][value="${tipoPerm}"]`).checked = true;
     window.toggleFormPermissoes();
-
-    navigateTo('form-usuario');
 };
 
 window.toggleFormPermissoes = function() {
@@ -332,7 +330,7 @@ window.salvarUsuarioView = async function() {
 };
 
 window.toggleAtivoUsuario = async function(id, ativoAtual) {
-    const acao = ativoAtual ? 'inativar' : 'reativar';
+    const acao = ativoAtual ? 'excluir' : 'reativar';
     if (!confirm(`Deseja ${acao} este usuário?`)) return;
     await fetch(`${API_URL}/usuarios/${id}`, {
         method: 'PUT',
