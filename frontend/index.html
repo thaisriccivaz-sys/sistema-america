@@ -102,12 +102,12 @@
             </header>
 
             <!-- Breadcrumb / Caminho da Tela -->
-            <div id="breadcrumb-bar" style="background: #f503c5; color: white; padding: 6px 16px; font-size: 0.85rem; font-weight: 500; display: flex; align-items: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            <div id="breadcrumb-bar" style="background: #f503c5; color: white; padding: 6px 16px; font-size: 0.85rem; font-weight: 500; display: flex; align-items: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; position: fixed; bottom: 0; left: 0; right: 0; z-index: 9999;">
                 <!-- Preenchido via JS -->
             </div>
 
             <!-- Content Area -->
-            <main class="content-area">
+            <main class="content-area" style="padding-bottom: 38px;">
                 
                 <!-- VIEW: DASHBOARD -->
                 <section id="view-dashboard" class="content-view active">
@@ -1032,11 +1032,11 @@
                                 <li data-tab="Contratos">Contratos</li>
                                 <li data-tab="Avaliação">Avaliação</li>
                                 <li data-tab="Advertências">Advertências</li>
+                                <li data-tab="Faculdade">Faculdade</li>
                                 <li data-tab="Boletim de ocorrência" style="display:none;">Boletim de ocorrência</li>
                                 <li data-tab="Certificados">Certificados</li>
                                 <li id="tab-conjuge" data-tab="Conjuge" style="display:none;">Conjuge</li>
                                 <li data-tab="Dependentes">Dependentes</li>
-                                <li data-tab="Faculdade">Faculdade</li>
                                 <li data-tab="Fotos">Fotos</li>
                                 <li data-tab="Multas">Multas</li>
                                 <li data-tab="NRs">NRs</li>
@@ -1827,7 +1827,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="avaliacoes.js?v=6"></script>
     <script src="gerenciar_avaliacoes.js?v=2"></script>
-    <script src="epi.js?v=15"></script>
-    <script src="app.js?v=50"></script>
+    <script src="epi.js?v=16"></script>
+    <script src="app.js?v=51"></script>
 </body>
 </html>
