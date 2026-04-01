@@ -1346,27 +1346,31 @@ async function loadColaboradores() {
 }
 
 function aplicarFiltrosColaboradores() {
+    const parseCurrency = (val) => {
+        if (!val) return 0;
+        if (typeof val === 'number') return val;
+        val = String(val).replace('R$', '').trim();
+        if (val.includes(',') && val.includes('.')) val = val.replace(/\./g, '').replace(',', '.');
+        else if (val.includes(',')) val = val.replace(',', '.');
+        return parseFloat(val) || 0;
+    };
+
     const f = {
         nome:        (document.getElementById('f-nome')?.value || '').toLowerCase().trim(),
         cpf:         (document.getElementById('f-cpf')?.value || '').replace(/\D/g, ''),
         nascIni:     document.getElementById('f-nasc-ini')?.value || '',
         nascFim:     document.getElementById('f-nasc-fim')?.value || '',
-        estadoCivil: document.getElementById('f-estado-civil')?.value || '',
-        sexo:        document.getElementById('f-sexo')?.value || '',
-        departamento:document.getElementById('f-departamento')?.value || '',
-        cargo:       document.getElementById('f-cargo')?.value || '',
-        admIni:      document.getElementById('f-adm-ini')?.value || '',
-        admFim:      document.getElementById('f-adm-fim')?.value || '',
+        estadoCivil: (document.getElementById('f-estado-civil')?.value || '').toLowerCase().trim(),
+        sexo:        (document.getElementById('f-sexo')?.value || '').toLowerCase().trim(),
+        departamento:(document.getElementById('f-departamento')?.value || '').toLowerCase().trim(),
+        cargo:       (document.getElementById('f-cargo')?.value || '').toLowerCase().trim(),
         experiencia: document.getElementById('f-experiencia')?.value || '',
-        tipoCadastro:document.getElementById('f-tipo-cadastro')?.value || '',
-        salMin:      parseFloat(document.getElementById('f-sal-min')?.value || '') || null,
-        salMax:      parseFloat(document.getElementById('f-sal-max')?.value || '') || null,
+        tipoCadastro:document.getElementById('f-tipo-cadastro-hidden')?.value || '',
+        salMin:      parseCurrency(document.getElementById('f-sal-min')?.value) || null,
+        salMax:      parseCurrency(document.getElementById('f-sal-max')?.value) || null,
         escala:      document.getElementById('f-escala')?.value || '',
-        periodoConc: document.getElementById('f-periodo-conc')?.value || '',
-        feriasIni:   document.getElementById('f-ferias-ini')?.value || '',
-        feriasFim:   document.getElementById('f-ferias-fim')?.value || '',
         dependentes: document.getElementById('f-dependentes')?.value || '',
-        beneficios:  [...(document.getElementById('f-beneficios')?.selectedOptions || [])].map(o => o.value).filter(Boolean),
+        beneficios:  [...(document.querySelectorAll('.f-beneficios-chk:checked') || [])].map(cb => cb.value)
     };
 
     const lista = _todosColaboradores.filter(c => {
@@ -1374,31 +1378,32 @@ function aplicarFiltrosColaboradores() {
         if (f.cpf  && !(c.cpf || '').replace(/\D/g,'').includes(f.cpf)) return false;
         if (f.nascIni && c.data_nascimento && c.data_nascimento < f.nascIni) return false;
         if (f.nascFim && c.data_nascimento && c.data_nascimento > f.nascFim) return false;
-        if (f.estadoCivil && c.estado_civil !== f.estadoCivil) return false;
-        if (f.sexo && c.sexo !== f.sexo) return false;
-        if (f.departamento && !(c.departamento || '').toLowerCase().includes(f.departamento.toLowerCase())) return false;
-        if (f.cargo && !(c.cargo || '').toLowerCase().includes(f.cargo.toLowerCase())) return false;
-        if (f.admIni && c.data_admissao && c.data_admissao < f.admIni) return false;
-        if (f.admFim && c.data_admissao && c.data_admissao > f.admFim) return false;
+        
+        if (f.estadoCivil && (!c.estado_civil || c.estado_civil.toLowerCase().trim() !== f.estadoCivil)) return false;
+        if (f.sexo && (!c.sexo || c.sexo.toLowerCase().trim() !== f.sexo)) return false;
+        
+        if (f.departamento && !(c.departamento || '').toLowerCase().includes(f.departamento)) return false;
+        if (f.cargo && !(c.cargo || '').toLowerCase().includes(f.cargo)) return false;
+        
         if (f.experiencia === 'sim') {
             if (!c.data_admissao) return false;
             const dias = Math.floor((new Date() - new Date(c.data_admissao + 'T12:00:00')) / 86400000);
-            if (dias > 90) return false;
+            if (dias > 90 || dias < 0) return false;
         }
-        if (f.tipoCadastro && c.status !== f.tipoCadastro) return false;
-        if (f.salMin !== null && (parseFloat(c.salario) || 0) < f.salMin) return false;
-        if (f.salMax !== null && (parseFloat(c.salario) || 0) > f.salMax) return false;
+        
+        if (f.tipoCadastro && getEffectiveStatus(c) !== f.tipoCadastro) return false;
+        
+        const salColab = parseCurrency(c.salario);
+        if (f.salMin !== null && salColab < f.salMin) return false;
+        if (f.salMax !== null && salColab > f.salMax) return false;
+        
         if (f.escala && c.escala_tipo !== f.escala) return false;
-        if (f.periodoConc && c.ferias_periodo_fim) {
-            const hoje = new Date(); hoje.setHours(0,0,0,0);
-            const limiteConc = new Date(c.ferias_periodo_fim);
-            limiteConc.setDate(limiteConc.getDate() + parseInt(f.periodoConc));
-            if (limiteConc < hoje || limiteConc > new Date(hoje.getTime() + parseInt(f.periodoConc) * 86400000 * 2)) return false;
-        }
-        if (f.feriasIni && c.ferias_inicio && c.ferias_inicio < f.feriasIni) return false;
-        if (f.feriasFim && c.ferias_inicio && c.ferias_inicio > f.feriasFim) return false;
-        if (f.dependentes === 'sim' && !(c.tem_dependentes)) return false;
-        if (f.dependentes === 'nao' && c.tem_dependentes) return false;
+        
+        // Verifica dependentes (pode estar como "Sim", "Não", true, false, etc.)
+        const temDep = c.tem_dependentes === 'Sim' || c.tem_dependentes === 'true' || c.tem_dependentes === true;
+        if (f.dependentes === 'sim' && !temDep) return false;
+        if (f.dependentes === 'nao' && temDep) return false;
+        
         if (f.beneficios.length > 0) {
             if (f.beneficios.includes('Faculdade') && c.faculdade_participa !== 'Sim') return false;
             if (f.beneficios.includes('Academia') && c.academia_participa !== 'Sim') return false;
@@ -1418,13 +1423,34 @@ function aplicarFiltrosColaboradores() {
 
 function limparFiltrosColaboradores() {
     ['f-nome','f-cpf','f-nasc-ini','f-nasc-fim','f-estado-civil','f-sexo','f-departamento',
-     'f-cargo','f-adm-ini','f-adm-fim','f-experiencia','f-tipo-cadastro','f-sal-min','f-sal-max',
-     'f-escala','f-periodo-conc','f-ferias-ini','f-ferias-fim','f-dependentes'
+     'f-cargo','f-experiencia','f-sal-min','f-sal-max',
+     'f-escala','f-dependentes','f-tipo-cadastro-hidden'
     ].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-    const bf = document.getElementById('f-beneficios');
-    if (bf) [...bf.options].forEach(o => o.selected = false);
+    
+    // Atualizar botões visuais de tipo cadastro
+    document.querySelectorAll('.btn-tipo-cadastro').forEach(btn => {
+        btn.style.opacity = '0.5';
+        if(btn.dataset.status === ''){
+            btn.style.opacity = '1';
+        }
+    });
+
+    const checkboxes = document.querySelectorAll('.f-beneficios-chk');
+    checkboxes.forEach(c => c.checked = false);
+
     aplicarFiltrosColaboradores();
 }
+
+window.selecionarTipoCadastro = function(btnElement, status) {
+    document.getElementById('f-tipo-cadastro-hidden').value = status;
+    document.querySelectorAll('.btn-tipo-cadastro').forEach(btn => {
+        btn.style.opacity = '0.5';
+        btn.style.boxShadow = 'none';
+    });
+    btnElement.style.opacity = '1';
+    btnElement.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+    aplicarFiltrosColaboradores();
+};
 
 window.exportarColaboradoresXLSX = async function() {
     if (!window._listaColaboradoresFiltrada || window._listaColaboradoresFiltrada.length === 0) {
@@ -1578,6 +1604,9 @@ function renderColaboradores(lista) {
     const wrapper = document.querySelector('#view-colaboradores .card');
     if (!wrapper) return;
 
+    // Função auxiliar para escalar tipo "padrao_seis_dias" -> "Padrao Seis Dias"
+    const formatEscala = (e) => (e||'').replace(/_/g, ' ').replace(/\b\w/g, c=>c.toUpperCase());
+
     // Coletar opções únicas para os selects dos filtros
     const deptos  = [...new Set(_todosColaboradores.map(c => c.departamento).filter(Boolean))].sort();
     const cargos  = [...new Set(_todosColaboradores.map(c => c.cargo).filter(Boolean))].sort();
@@ -1587,13 +1616,26 @@ function renderColaboradores(lista) {
     window._listaColaboradoresFiltrada = lista;
 
     wrapper.innerHTML = `
+        <input type="hidden" id="f-tipo-cadastro-hidden" value="">
         <!-- HEADER DA TABELA -->
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:1rem;">
             <div style="display:flex; align-items:center; gap:1rem;">
                 <h3 style="margin:0; font-size:1.1rem; color:#334155;">Lista de Colaboradores</h3>
                 <span id="colab-count" style="background:#f1f5f9; padding:0.25rem 0.75rem; border-radius:999px; font-size:0.85rem; color:#64748b; font-weight:600;">${lista.length} registros</span>
             </div>
-            <div style="display:flex; gap:0.5rem;">
+            
+            <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+                <!-- Status Pills -->
+                <div style="display:flex; gap:0.5rem; align-items:center; margin-right:0.5rem;">
+                    <button class="btn-tipo-cadastro" data-status="" onclick="selecionarTipoCadastro(this, '')" style="padding:0.35rem 0.75rem; border:none; border-radius:999px; font-size:0.8rem; font-weight:600; cursor:pointer; background:#e2e8f0; color:#475569; display:flex; gap:4px; align-items:center; transition:0.2s;">Todos</button>
+                    <button class="btn-tipo-cadastro" data-status="Ativo" onclick="selecionarTipoCadastro(this, 'Ativo')" style="padding:0.35rem 0.75rem; border:none; border-radius:999px; font-size:0.8rem; font-weight:600; cursor:pointer; background:#dcfce7; color:#166534; display:flex; gap:4px; align-items:center; transition:0.2s; opacity:0.5;"><i class="ph ph-check-circle"></i> Ativo</button>
+                    <button class="btn-tipo-cadastro" data-status="Incompleto" onclick="selecionarTipoCadastro(this, 'Incompleto')" style="padding:0.35rem 0.75rem; border:none; border-radius:999px; font-size:0.8rem; font-weight:600; cursor:pointer; background:#fef9c3; color:#854d0e; display:flex; gap:4px; align-items:center; transition:0.2s; opacity:0.5;"><i class="ph ph-warning-circle"></i> Incompleto</button>
+                    <button class="btn-tipo-cadastro" data-status="Afastado" onclick="selecionarTipoCadastro(this, 'Afastado')" style="padding:0.35rem 0.75rem; border:none; border-radius:999px; font-size:0.8rem; font-weight:600; cursor:pointer; background:#ffedd5; color:#c2410c; display:flex; gap:4px; align-items:center; transition:0.2s; opacity:0.5;"><i class="ph ph-first-aid"></i> Afastado</button>
+                    <button class="btn-tipo-cadastro" data-status="Férias" onclick="selecionarTipoCadastro(this, 'Férias')" style="padding:0.35rem 0.75rem; border:none; border-radius:999px; font-size:0.8rem; font-weight:600; cursor:pointer; background:#dbeafe; color:#1e40af; display:flex; gap:4px; align-items:center; transition:0.2s; opacity:0.5;"><i class="ph ph-airplane-tilt"></i> Férias</button>
+                    <button class="btn-tipo-cadastro" data-status="Desligado" onclick="selecionarTipoCadastro(this, 'Desligado')" style="padding:0.35rem 0.75rem; border:none; border-radius:999px; font-size:0.8rem; font-weight:600; cursor:pointer; background:#fee2e2; color:#b91c1c; display:flex; gap:4px; align-items:center; transition:0.2s; opacity:0.5;"><i class="ph ph-x-circle"></i> Desligado</button>
+                </div>
+                <div style="width:1px; height:24px; background:#e2e8f0; margin:0 4px;"></div>
+
                 <button onclick="document.getElementById('filtro-sidebar').style.right='0'" style="padding:0.45rem 1rem; border:1px solid #e2e8f0; border-radius:6px; background:#fff; font-size:0.85rem; cursor:pointer; color:#334155; font-weight:600; display:flex; align-items:center; gap:6px;">
                     <i class="ph ph-funnel"></i> Filtros
                 </button>
@@ -1605,6 +1647,11 @@ function renderColaboradores(lista) {
 
         <!-- TABELA -->
         <div id="colab-table-wrapper"></div>
+
+        <!-- Botão Voltar ao Topo -->
+        <button onclick="window.scrollTo({top:0, behavior:'smooth'})" style="position:fixed; bottom:30px; right:30px; width:45px; height:45px; border-radius:50%; background:var(--primary-color, #0f172a); color:#fff; border:none; box-shadow:0 4px 10px rgba(0,0,0,0.3); cursor:pointer; z-index:9000; display:flex; justify-content:center; align-items:center; transition: background 0.3s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+            <i class="ph ph-arrow-up" style="font-size:1.5rem;"></i>
+        </button>
 
         <!-- SIDEBAR DE FILTROS -->
         <div id="filtro-sidebar" style="position:fixed; top:0; right:-400px; width:400px; max-width:100vw; height:100vh; background:#fff; z-index:9999; box-shadow:-4px 0 15px rgba(0,0,0,0.1); transition:right 0.3s cubic-bezier(0.4, 0, 0.2, 1); overflow-y:auto; display:flex; flex-direction:column;">
@@ -1662,26 +1709,10 @@ function renderColaboradores(lista) {
                         <option value="">Todos</option>${cargos.map(c=>`<option>${c}</option>`).join('')}
                     </select>
                 </div>
-                <div style="display:flex; gap:1rem;">
-                    <div style="flex:1;">
-                        <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Admissão De</label>
-                        <input id="f-adm-ini" type="date" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
-                    </div>
-                    <div style="flex:1;">
-                        <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Até</label>
-                        <input id="f-adm-fim" type="date" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
-                    </div>
-                </div>
                 <div>
                     <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Em Experiência</label>
                     <select id="f-experiencia" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
                         <option value="">Todos</option><option value="sim">Sim (até 90 dias)</option>
-                    </select>
-                </div>
-                <div>
-                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Tipo de Cadastro</label>
-                    <select id="f-tipo-cadastro" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
-                        <option value="">Todos</option><option>Ativo</option><option>Incompleto</option><option>Desligado</option><option>Afastado</option><option>Férias</option>
                     </select>
                 </div>
                 <div style="display:flex; gap:1rem;">
@@ -1697,18 +1728,8 @@ function renderColaboradores(lista) {
                 <div>
                     <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Escala de Trabalho</label>
                     <select id="f-escala" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
-                        <option value="">Todas</option>${escalas.map(e=>`<option>${e}</option>`).join('')}
+                        <option value="">Todas</option>${escalas.map(e=>`<option value="${e}">${formatEscala(e)}</option>`).join('')}
                     </select>
-                </div>
-                <div style="display:flex; gap:1rem;">
-                    <div style="flex:1;">
-                        <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Férias De</label>
-                        <input id="f-ferias-ini" type="date" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
-                    </div>
-                    <div style="flex:1;">
-                        <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Férias Até</label>
-                        <input id="f-ferias-fim" type="date" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
-                    </div>
                 </div>
                 <div>
                     <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Possui Dependentes</label>
@@ -1717,10 +1738,14 @@ function renderColaboradores(lista) {
                     </select>
                 </div>
                 <div>
-                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Benefícios (múltipla seleção)</label>
-                    <select id="f-beneficios" multiple onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;height:100px;">
-                        ${beneficiosList.map(b=>`<option value="${b}">${b}</option>`).join('')}
-                    </select>
+                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Benefícios</label>
+                    <div style="display:flex; flex-direction:column; gap:0.5rem; padding:0.5rem; border:1px solid #e2e8f0; border-radius:6px; max-height:150px; overflow-y:auto; background:#f8fafc;">
+                        ${beneficiosList.map(b=>`
+                            <label style="font-size:0.85rem; color:#334155; display:flex; align-items:center; gap:6px; cursor:pointer;">
+                                <input type="checkbox" class="f-beneficios-chk" value="${b}" onchange="aplicarFiltrosColaboradores()" style="width:16px;height:16px;cursor:pointer;"> ${b}
+                            </label>
+                        `).join('')}
+                    </div>
                 </div>
                 
             </div>
