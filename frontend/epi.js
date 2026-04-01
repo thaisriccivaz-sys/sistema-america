@@ -580,7 +580,13 @@ function pdfEntregaTable(doc, W, margin, y, linhas) {
             if (ln.assinatura_base64) {
                 try {
                     const sigX = margin + colW[0] + colW[1] + 2;
-                    doc.addImage(ln.assinatura_base64, 'PNG', sigX, y + 1, colW[2] - 4, rH - 2);
+                    const maxH = rH - 1;
+                    const maxW = colW[2] - 4;
+                    const imgW = maxH * 3 > maxW ? maxW : maxH * 3;
+                    const imgH = maxH * 3 > maxW ? maxW / 3 : maxH;
+                    const offsetX = sigX + (colW[2] - imgW) / 2 - 1;
+                    const offsetY = y + (rH - imgH) / 2;
+                    doc.addImage(ln.assinatura_base64, 'PNG', offsetX, offsetY, imgW, imgH);
                 } catch(e) {}
             }
         }
@@ -648,7 +654,10 @@ window.gerarDocEpi = function gerarDocEpi(template, colab, jsPDF, linhasFilled) 
     if (entries.length > 0 && entries[0].assinatura_base64) {
         try {
             const sigW = W - margin - 4 - (colMid + 8);
-            doc.addImage(entries[0].assinatura_base64, 'PNG', colMid + 8, assinY - 9, sigW, 8);
+            const imgH = 9;
+            const imgW = imgH * 3 > sigW ? sigW : imgH * 3;
+            const offsetX = colMid + 8 + (sigW - imgW) / 2;
+            doc.addImage(entries[0].assinatura_base64, 'PNG', offsetX, assinY - 9, imgW, imgH);
         } catch(e) {}
     }
 
@@ -668,25 +677,31 @@ window.gerarDocEpi = function gerarDocEpi(template, colab, jsPDF, linhasFilled) 
     doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
     doc.text(template.rodape_texto || 'LIBERAÇÃO DO EQUIPAMENTO DE SEGURANÇA SOMENTE APÓS ASSINATURA DESTE TERMO.', W / 2, rodapeY1, { align: 'center' });
 
-    // VERSO — só adiciona quando há entries que transbordam a pg1
-    if (entries.length > rowsPage1) {
+    // VERSO e PÁGINAS ADICIONAIS INFINITAS
+    let remainingEntries = entries.slice(rowsPage1);
+    
+    while (remainingEntries.length > 0) {
         doc.addPage();
-        y = pdfHeader(doc, W);
-        y = pdfColabBox(doc, W, margin, y, colab);
+        let currY = pdfHeader(doc, W);
+        currY = pdfColabBox(doc, W, margin, currY, colab);
 
         const stampReserve = 52;
-        const availableHBack = 297 - y - stampReserve;
-        const rowsPage2 = Math.max(12, Math.floor((availableHBack - 8) / rH_entry));
-        const entriesPage2 = entries.slice(rowsPage1, rowsPage1 + rowsPage2);
-        const blanksPage2 = rowsPage2 - entriesPage2.length;
-        y = pdfEntregaTable(doc, W, margin, y, [...entriesPage2, ...Array(blanksPage2).fill(null)]);
+        const availableHBack = 297 - currY - stampReserve;
+        const rowsPageN = Math.max(12, Math.floor((availableHBack - 8) / rH_entry));
+        
+        const entriesPageN = remainingEntries.slice(0, rowsPageN);
+        const blanksPageN = rowsPageN - entriesPageN.length;
+        const linhasPageN = [...entriesPageN, ...Array(Math.max(0, blanksPageN)).fill(null)];
+        
+        currY = pdfEntregaTable(doc, W, margin, currY, linhasPageN);
+        remainingEntries = remainingEntries.slice(rowsPageN);
 
-        const rodapeY2 = 297 - stampReserve + 2;
+        const rodapeYN = 297 - stampReserve + 2;
         doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(0,0,0);
-        doc.text(template.rodape_texto || 'LIBERAÇÃO DO EQUIPAMENTO DE SEGURANÇA SOMENTE APÓS ASSINATURA DESTE TERMO.', W / 2, rodapeY2, { align: 'center' });
+        doc.text(template.rodape_texto || 'LIBERAÇÃO DO EQUIPAMENTO DE SEGURANÇA SOMENTE APÓS ASSINATURA DESTE TERMO.', W / 2, rodapeYN, { align: 'center' });
 
         const stampW = 85, stampX = W / 2 - stampW / 2;
-        let stampY = rodapeY2 + 6;
+        let stampY = rodapeYN + 6;
         if (headerLogoBase64 && headerLogoAspect) {
             let slW = 42, slH = slW * headerLogoAspect;
             if (slH > 14) { slH = 14; slW = slH / headerLogoAspect; }

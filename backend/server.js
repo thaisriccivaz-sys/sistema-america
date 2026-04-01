@@ -2646,7 +2646,8 @@ app.post('/api/epi-fichas/:id/save-onedrive', authenticateToken, async (req, res
         const safeNome = (colab.nome_completo || 'Colaborador')
             .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
             .replace(/[^a-zA-Z0-9_]/g, '_').replace(/__+/g, '_').trim();
-        const pdfBuffer = Buffer.from(pdf_base64.replace(/^data:application\/pdf;base64,/, ''), 'base64');
+        const base64Data = pdf_base64.includes('base64,') ? pdf_base64.split('base64,')[1] : pdf_base64;
+        const pdfBuffer = Buffer.from(base64Data, 'base64');
         const onedriveBase = `${process.env.ONEDRIVE_BASE_PATH || 'RH/1.Colaboradores/Sistema'}/${safeNome}`;
         // Pasta EPI: FichaEPI_N_Nome.pdf (sem sobrepor, número sequencial)
         const epiFolder = `${onedriveBase}/EPI`;

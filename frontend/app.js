@@ -6864,9 +6864,14 @@ window.gerarNovaFichaEpi = async function() {
     const created = await res.json();
     if (!created.id) { alert('Erro ao criar ficha.'); return; }
 
-    // Recarrega a aba para mostrar a nova ficha (sem abrir preview automaticamente)
+    // Recarrega a aba para mostrar a nova ficha
     const activeTab = document.querySelector('#tabs-list li.active');
     if (activeTab) renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
+    
+    // Abre a visualização automaticamente após criar a nova ficha (assinada)
+    if (created.id) {
+        setTimeout(() => { window.previewFichaEpi(created.id); }, 500);
+    }
 };
 
 window.previewFichaEpi = async function(fichaId) {
@@ -6897,6 +6902,14 @@ window.previewFichaEpi = async function(fichaId) {
 
     const old = document.getElementById('epi-preview-overlay');
     if (old) { old._blobUrl && URL.revokeObjectURL(old._blobUrl); old.remove(); }
+    
+    window.closeEpiPreviewOverlay = function() {
+        const o = document.getElementById('epi-preview-overlay');
+        if (o) {
+            if (o._blobUrl) URL.revokeObjectURL(o._blobUrl);
+            o.remove();
+        }
+    };
 
     const ov = document.createElement('div');
     ov.id = 'epi-preview-overlay';
@@ -6916,7 +6929,7 @@ window.previewFichaEpi = async function(fichaId) {
                style="background:#1e3a5f;color:#fff;border:none;padding:6px 16px;border-radius:8px;font-weight:700;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;gap:6px;text-decoration:none;">
                 <i class="ph ph-download"></i> Baixar
             </a>
-            <button onclick="const o=document.getElementById('epi-preview-overlay');if(o){o._blobUrl&&URL.revokeObjectURL(o._blobUrl);o.remove();}"
+            <button onclick="window.closeEpiPreviewOverlay()"
                     style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1.1rem;">&times;</button>
         </div>
     `;
