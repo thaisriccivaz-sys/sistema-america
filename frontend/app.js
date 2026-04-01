@@ -1467,7 +1467,10 @@ window.exportarColaboradoresXLSX = async function() {
     // 1. Tentar carregar a logo (base64)
     let logoBase64 = null;
     try {
-        const response = await fetch('assets/logo-header.png').catch(() => fetch('logo.png'));
+        let response = await fetch('/assets/logo-header.png');
+        if (!response.ok) {
+            response = await fetch('/logo.png');
+        }
         if (response.ok) {
             const blob = await response.blob();
             logoBase64 = await new Promise((resolve) => {
