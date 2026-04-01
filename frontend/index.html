@@ -86,16 +86,18 @@
         <div class="main-wrapper">
             <!-- Topbar -->
             <header class="topbar">
-                <div class="topbar-search" style="position:relative;">
-                    <i class="ph ph-magnifying-glass"></i>
-                    <input type="text" id="global-search" placeholder="Buscar página por nome ou código (ex: RHCL04)..." autocomplete="off" oninput="handlePageSearch(this.value)" onfocus="handlePageSearch(this.value)" onblur="setTimeout(()=>document.getElementById('page-search-results').style.display='none', 200)">
-                    <div id="page-search-results" style="display:none; position:absolute; top:100%; left:0; min-width:450px; background:#fff; border:1px solid #e2e8f0; border-radius:8px; box-shadow:0 10px 15px -3px rgba(0,0,0,0.1); z-index:9999; max-height:300px; overflow-y:auto; margin-top:8px;"></div>
-                </div>
-                <div style="display:flex; align-items:center; gap:8px; margin-left:16px;" id="bookmarks-container">
-                    <button id="btn-star-page" onclick="toggleBookmarkCurrentPage()" style="background:none; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#f503c5; font-size:1.5rem; transition: transform 0.2s;">
-                        <i class="ph ph-star"></i>
-                    </button>
-                    <div id="bookmarks-list" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;"></div>
+                <div style="display:flex; align-items:center;">
+                    <div class="topbar-search" style="position:relative;">
+                        <i class="ph ph-magnifying-glass"></i>
+                        <input type="text" id="global-search" placeholder="Buscar página por nome ou código..." autocomplete="off" oninput="handlePageSearch(this.value)" onfocus="handlePageSearch(this.value)" onblur="setTimeout(()=>document.getElementById('page-search-results').style.display='none', 200)">
+                        <div id="page-search-results" style="display:none; position:absolute; top:100%; left:0; min-width:450px; background:#fff; border:1px solid #e2e8f0; border-radius:8px; box-shadow:0 10px 15px -3px rgba(0,0,0,0.1); z-index:9999; max-height:300px; overflow-y:auto; margin-top:8px;"></div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px; margin-left:16px;" id="bookmarks-container">
+                        <button id="btn-star-page" onclick="toggleBookmarkCurrentPage()" style="background:none; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#f503c5; font-size:1.5rem; transition: transform 0.2s;">
+                            <i class="ph ph-star"></i>
+                        </button>
+                        <div id="bookmarks-list" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;"></div>
+                    </div>
                 </div>
                 <div class="topbar-user">
                     <div class="user-info">
@@ -1835,6 +1837,6 @@
     <script src="avaliacoes.js?v=6"></script>
     <script src="gerenciar_avaliacoes.js?v=2"></script>
     <script src="epi.js?v=17"></script>
-    <script src="app.js?v=53"></script>
+    <script src="app.js?v=54"></script>
 </body>
 </html>

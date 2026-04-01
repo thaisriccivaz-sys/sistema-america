@@ -131,6 +131,8 @@ const BREADCRUMB_MAP = {
 
 function updateBreadcrumb(key) {
     const bar = document.getElementById('breadcrumb-bar');
+    window.currentBreadcrumbKey = key; // IMPORTANTE: Atualizar key atual
+    if (typeof renderBookmarks === 'function') setTimeout(renderBookmarks, 50); // Força render com o novo key
     if (!bar) return;
     const entry = BREADCRUMB_MAP[key] || { path: key, code: '' };
     const parts = entry.path.split('→').map(p => p.trim());
