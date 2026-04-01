@@ -6089,18 +6089,37 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
             
             document.getElementById('admissao-nome-final').textContent = colab.nome_completo;
 
-            // 2. Restaurar Status dos Passos
+            // 2. Restaurar e Popular Passo 2 e outros
             const docs = await apiGet(`/colaboradores/${colab.id}/documentos`);
             
+            // Busca dados para o Passo 2: Documentos do Departamento
+            const [depts, geradores, templates] = await Promise.all([
+                apiGet('/departamentos'),
+                apiGet('/geradores'),
+                apiGet('/gerador-departamento-templates').catch(() => [])
+            ]);
+            let availableDocsForDept = [];
+            const empDeptName = colab.departamento || '';
+            const deptObj = depts.find(d => d.nome.trim().toLowerCase() === empDeptName.trim().toLowerCase());
+            
+            if (deptObj) {
+                const geradorIds = templates.filter(t => Number(t.departamento_id) === Number(deptObj.id)).map(t => Number(t.gerador_id));
+                availableDocsForDept = geradores.filter(g => geradorIds.includes(Number(g.id))).map(g => g.nome);
+            }
+
             // Popula lista de assinaturas (Step 2)
             const sigList = document.getElementById('admissao-signature-list');
             if (sigList) {
-                sigList.innerHTML = DOCS_DISPONIVEIS.map(doc => `
-                    <label class="doc-check-item" style="display:flex; align-items:center; gap:0.5rem; padding:0.5rem; border:1px solid #f1f5f9; border-radius:6px; cursor:pointer; background:#fff;">
-                        <input type="checkbox" value="${doc}">
-                        <span style="font-size:0.8rem; font-weight:500;">${doc}</span>
-                    </label>
-                `).join('');
+                if (availableDocsForDept.length > 0) {
+                    sigList.innerHTML = availableDocsForDept.map(doc => `
+                        <label class="doc-check-item" style="display:flex; align-items:center; gap:0.5rem; padding:0.5rem; border:1px solid #f1f5f9; border-radius:6px; cursor:pointer; background:#fff;">
+                            <input type="checkbox" value="${doc}">
+                            <span style="font-size:0.8rem; font-weight:500;">${doc}</span>
+                        </label>
+                    `).join('');
+                } else {
+                    sigList.innerHTML = `<p class="text-muted" style="grid-column: 1 / -1; padding: 1rem; text-align: center;">Nenhum documento configurado para o departamento <b>${empDeptName || 'Não Informado'}</b>.</p>`;
+                }
             }
             // 3. Renderizar Checklists Dinâmicos
             renderAdmissaoStep3(colab, docs);
