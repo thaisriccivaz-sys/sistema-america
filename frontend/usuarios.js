@@ -648,25 +648,58 @@ window.selecionarTodasPermissoes = function(marcar) {
 };
 
 window.salvarPermissoes = async function() {
-    if (!_grupoSelecionadoId) return;
+    if (!_grupoSelecionadoId) {
+        alert('ERRO: Nenhum grupo selecionado (_grupoSelecionadoId é null). Selecione um grupo primeiro.');
+        return;
+    }
     const permissoes = TELAS_SISTEMA.map(t => ({
         pagina_id: t.pagina_id,
         pagina_nome: t.pagina_nome,
         modulo: t.modulo,
         ..._permissoesAtivas[t.pagina_id] || { visualizar: 0, alterar: 0, incluir: 0, excluir: 0 }
     }));
+    const ativadas = permissoes.filter(p => p.visualizar).length;
+    console.log(`[SALVAR PERMISSÕES] grupoId=${_grupoSelecionadoId}, total=${permissoes.length}, ativadas=${ativadas}`);
     try {
         const res = await fetch(`${API_URL}/grupos-permissao/${_grupoSelecionadoId}/permissoes`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentToken}` },
             body: JSON.stringify({ permissoes })
         });
+        console.log(`[SALVAR PERMISSÕES] HTTP status: ${res.status}`);
+        if (!res.ok) {
+            const errText = await res.text();
+            return alert(`ERRO HTTP ${res.status} ao salvar permissões:\n${errText}`);
+        }
         const data = await res.json();
-        if (data.error) return alert(data.error);
+        console.log('[SALVAR PERMISSÕES] Resposta servidor:', data);
+        if (data.error) return alert('Erro do servidor: ' + data.error);
+
+        // Após salvar, recarregar do banco para confirmar visualmente
+        const resVerify = await fetch(`${API_URL}/grupos-permissao/${_grupoSelecionadoId}/permissoes`, {
+            headers: { Authorization: `Bearer ${currentToken}` }
+        });
+        const salvoNoBanco = await resVerify.json();
+        const ativadasNoBanco = (salvoNoBanco || []).filter(p => p.visualizar).length;
+        console.log(`[VERIFICAR] Registros no banco: ${salvoNoBanco.length}, com visualizar=1: ${ativadasNoBanco}`);
+
+        // Recarregar o editor para mostrar o que realmente está salvo
+        await selecionarGrupo(_grupoSelecionadoId);
+
         // Feedback visual
         const btn = document.querySelector('[onclick="salvarPermissoes()"]');
-        if (btn) { btn.textContent = '✓ Salvo!'; setTimeout(() => { btn.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar'; }, 1500); }
-    } catch(e) { alert('Erro ao salvar permissões'); }
+        if (btn) {
+            btn.innerHTML = `<i class="ph ph-check-circle"></i> Salvo! (${ativadasNoBanco} ativos)`;
+            btn.style.background = '#2d9e5f';
+            setTimeout(() => {
+                btn.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar';
+                btn.style.background = '';
+            }, 3000);
+        }
+    } catch(e) {
+        console.error('[SALVAR PERMISSÕES] Erro:', e);
+        alert('Erro de conexão ao salvar permissões: ' + e.message);
+    }
 };
 
 // ── COPIAR DE USUÁRIO ─────────────────────────────────────────
