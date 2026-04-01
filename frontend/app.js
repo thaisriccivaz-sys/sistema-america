@@ -198,7 +198,7 @@ function navigateTo(target) {
 
 
 function setupNavigation() {
-    document.querySelectorAll('.sidebar-nav .nav-item[data-target]').forEach(item => {
+    document.querySelectorAll('.sidebar-nav .nav-item[data-target], .dept-submenu .nav-item[data-target]').forEach(item => {
         item.addEventListener('click', (e) => {
             e.preventDefault();
             navigateTo(e.currentTarget.dataset.target);
