@@ -311,76 +311,120 @@ window.salvarUsuarioView = async function() {
     if (!username) return alert('Username é obrigatório');
     if (!userId && !password) return alert('Senha é obrigatória para novo usuário');
 
+    // ── Determinar se usará grupo padrão OU permissões personalizadas ──
     let grupo_permissao_id = null;
-    let permissoesConfiguradas = null;
+    let permissoesPersonalizadas = null;
 
     if (!window._treeIsModified && modeloSelecionado && modeloSelecionado.startsWith('grupo|')) {
+        // Sem alterações manuais: vincular ao grupo padrão selecionado
         grupo_permissao_id = parseInt(modeloSelecionado.split('|')[1]);
+        console.log(`[SALVAR] Usando grupo padrão id=${grupo_permissao_id}`);
     } else {
-        // Árvore foi modificada, ou foi gerada de cópia/em branco
-        const perms = Object.keys(_permissoesFormAtivas).map(pagina_id => {
-            const tela = TELAS_SISTEMA.find(t => t.pagina_id === pagina_id) || {};
-            return {
-                pagina_id,
-                pagina_nome: tela.pagina_nome || pagina_id,
-                modulo: tela.modulo || 'RH',
-                ..._permissoesFormAtivas[pagina_id]
-            };
-        });
-        permissoesConfiguradas = { personalizadas: perms };
+        // Árvore modificada manualmente: salvar todas as telas como personalizado
+        permissoesPersonalizadas = TELAS_SISTEMA.map(t => ({
+            pagina_id: t.pagina_id,
+            pagina_nome: t.pagina_nome,
+            modulo: t.modulo,
+            ...(_permissoesFormAtivas[t.pagina_id] || { visualizar: false, alterar: false, incluir: false, excluir: false })
+        }));
+        const ativadas = permissoesPersonalizadas.filter(p => p.visualizar).length;
+        console.log(`[SALVAR] Permissões personalizadas: ${permissoesPersonalizadas.length} telas, ${ativadas} ativas`);
     }
 
-    const payload = { nome, username, email, departamento, grupo_permissao_id };
+    // ── Payload do usuário (sem grupo_permissao_id se for tratar separado) ──
+    const payload = { nome, username, email, departamento };
+    if (!permissoesPersonalizadas) payload.grupo_permissao_id = grupo_permissao_id;
     if (password) payload.password = password;
-    if (permissoesConfiguradas) payload.nova_config_permissoes = permissoesConfiguradas;
 
     try {
-        // Salva o usuário primeiro (ou pega id se novo)
         const userUrl = userId ? `${API_URL}/usuarios/${userId}` : `${API_URL}/usuarios`;
         const resUser = await fetch(userUrl, {
             method: userId ? 'PUT' : 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentToken}` },
             body: JSON.stringify(payload)
         });
+        if (!resUser.ok) {
+            const errText = await resUser.text();
+            return alert(`Erro HTTP ${resUser.status} ao salvar usuário: ${errText}`);
+        }
         const dataUser = await resUser.json();
         if (dataUser.error) return alert(dataUser.error);
-
         const targetUserId = userId || dataUser.id;
+        console.log(`[SALVAR] Usuário salvo. targetUserId=${targetUserId}`);
 
-        // Se precisava criar grupo personalizado, a API de usuarios pode não tratar isso diretamente.
-        // Já que a lógica era o backend lidar ou chamamos a rota em sequencia:
-        if (permissoesConfiguradas) {
-            let gId = userId && _grupoSelecionadoId && _permGrupos.find(g => g.id == _grupoSelecionadoId && g.tipo === 'personalizado') 
-                      ? _grupoSelecionadoId : null;
-            
-            // Se não tinha um grupo personalizado, cria um
+        if (permissoesPersonalizadas) {
+            // ── Encontrar ou criar o grupo personalizado para este usuário ──
+            let gId = null;
+
+            // 1. Verificar se o usuário já tem um grupo personalizado pelo grupo atual
+            const usuarioAtual = _permUsuarios.find(u => u.id == targetUserId);
+            if (usuarioAtual?.grupo_permissao_id) {
+                const grpAtual = _permGrupos.find(g => g.id == usuarioAtual.grupo_permissao_id && g.tipo === 'personalizado');
+                if (grpAtual) { gId = grpAtual.id; console.log(`[SALVAR] Reusando grupo personalizado id=${gId}`); }
+            }
+
+            // 2. Buscar por nome (caso criado em tentativa anterior)
             if (!gId) {
+                const existente = _permGrupos.find(g => g.nome === `Personalizado (${username})` && g.tipo === 'personalizado');
+                if (existente) { gId = existente.id; console.log(`[SALVAR] Grupo personalizado encontrado por nome id=${gId}`); }
+            }
+
+            // 3. Criar novo grupo personalizado
+            if (!gId) {
+                console.log(`[SALVAR] Criando grupo personalizado para ${username}...`);
                 const gRes = await fetch(`${API_URL}/grupos-permissao`, {
-                    method:'POST', headers:{'Content-Type':'application/json', Authorization:`Bearer ${currentToken}`},
-                    body: JSON.stringify({ nome: `Personalizado (${username})`, tipo: 'personalizado' })
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentToken}` },
+                    body: JSON.stringify({ nome: `Personalizado (${username})`, tipo: 'personalizado', departamento: departamento || 'Todas' })
                 });
                 const gData = await gRes.json();
-                gId = gData.id;
-                await fetch(`${API_URL}/usuarios/${targetUserId}`, {
-                    method:'PUT', headers:{'Content-Type':'application/json', Authorization:`Bearer ${currentToken}`},
-                    body: JSON.stringify({ grupo_permissao_id: gId })
-                });
+                if (gData.id) {
+                    gId = gData.id;
+                    console.log(`[SALVAR] Grupo criado com id=${gId}`);
+                } else {
+                    // Provavelmente já existe (UNIQUE constraint) — recarregar e buscar
+                    console.warn('[SALVAR] Falha ao criar grupo, buscando pelo nome...');
+                    await carregarGruposLista();
+                    const recheck = _permGrupos.find(g => g.nome === `Personalizado (${username})`);
+                    if (recheck) { gId = recheck.id; console.log(`[SALVAR] Grupo encontrado após reload id=${gId}`); }
+                }
             }
-            // Salva as perms no grupo
-            await fetch(`${API_URL}/grupos-permissao/${gId}/permissoes`, {
-                method:'PUT', headers:{'Content-Type':'application/json', Authorization:`Bearer ${currentToken}`},
-                body: JSON.stringify({ permissoes: permissoesConfiguradas.personalizadas })
+
+            if (!gId) {
+                return alert('Erro: não foi possível criar ou encontrar o grupo personalizado. Tente novamente.');
+            }
+
+            // 4. Vincular usuário ao grupo personalizado
+            await fetch(`${API_URL}/usuarios/${targetUserId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentToken}` },
+                body: JSON.stringify({ grupo_permissao_id: gId })
             });
+            console.log(`[SALVAR] Usuário ${targetUserId} vinculado ao grupo ${gId}`);
+
+            // 5. Salvar as permissões no grupo
+            const permsRes = await fetch(`${API_URL}/grupos-permissao/${gId}/permissoes`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentToken}` },
+                body: JSON.stringify({ permissoes: permissoesPersonalizadas })
+            });
+            if (!permsRes.ok) {
+                const errText = await permsRes.text();
+                return alert(`Erro HTTP ${permsRes.status} ao salvar permissões: ${errText}`);
+            }
+            const permsData = await permsRes.json();
+            console.log(`[SALVAR] Permissões salvas:`, permsData);
+            if (permsData.error) return alert('Erro ao salvar permissões: ' + permsData.error);
         }
 
+        // Sucesso!
         navigateTo('usuarios-permissoes');
         await carregarUsuariosLista();
         await carregarGruposLista();
-        // Feedback visual silencioso ou sem alert conforme solicitado
 
-    } catch(e) { 
-        console.error(e);
-        alert('Erro ao salvar usuário e permissões'); 
+    } catch(e) {
+        console.error('[SALVAR] Exceção:', e);
+        alert('Erro ao salvar usuário: ' + e.message);
     }
 };
 
