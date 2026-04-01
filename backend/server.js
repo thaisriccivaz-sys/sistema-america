@@ -2852,19 +2852,50 @@ app.get('/api/grupos-permissao/:id/permissoes', authenticateToken, (req, res) =>
 });
 
 app.put('/api/grupos-permissao/:id/permissoes', authenticateToken, (req, res) => {
-    const { permissoes } = req.body; // array de { pagina_id, pagina_nome, modulo, visualizar, alterar, incluir, excluir }
+    const { permissoes } = req.body;
     if (!Array.isArray(permissoes)) return res.status(400).json({ error: 'permissoes deve ser um array' });
     const gid = req.params.id;
-    const stmt = db.prepare(
-        `INSERT OR REPLACE INTO permissoes_grupo (grupo_id, modulo, pagina_id, pagina_nome, visualizar, alterar, incluir, excluir)
-         VALUES (?,?,?,?,?,?,?,?)`
-    );
-    permissoes.forEach(p => {
-        stmt.run([gid, p.modulo, p.pagina_id, p.pagina_nome, p.visualizar?1:0, p.alterar?1:0, p.incluir?1:0, p.excluir?1:0]);
-    });
-    stmt.finalize(err => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ message: 'Permissões salvas com sucesso' });
+
+    // Usar transação: DELETE todas do grupo + INSERT novas
+    // Garante funcionamento mesmo sem UNIQUE constraint no banco existente
+    db.serialize(() => {
+        db.run('BEGIN TRANSACTION');
+
+        db.run('DELETE FROM permissoes_grupo WHERE grupo_id = ?', [gid], (errDel) => {
+            if (errDel) {
+                db.run('ROLLBACK');
+                return res.status(500).json({ error: 'Erro ao limpar permissões antigas: ' + errDel.message });
+            }
+
+            const stmt = db.prepare(
+                `INSERT INTO permissoes_grupo (grupo_id, modulo, pagina_id, pagina_nome, visualizar, alterar, incluir, excluir)
+                 VALUES (?,?,?,?,?,?,?,?)`
+            );
+
+            let hasError = false;
+            permissoes.forEach(p => {
+                stmt.run(
+                    [gid, p.modulo, p.pagina_id, p.pagina_nome,
+                     p.visualizar ? 1 : 0, p.alterar ? 1 : 0, p.incluir ? 1 : 0, p.excluir ? 1 : 0],
+                    (err) => { if (err) hasError = true; }
+                );
+            });
+
+            stmt.finalize((errFin) => {
+                if (errFin || hasError) {
+                    db.run('ROLLBACK');
+                    return res.status(500).json({ error: 'Erro ao salvar permissões: ' + (errFin ? errFin.message : 'erro no insert') });
+                }
+                db.run('COMMIT', (errCommit) => {
+                    if (errCommit) {
+                        db.run('ROLLBACK');
+                        return res.status(500).json({ error: 'Erro ao confirmar transação: ' + errCommit.message });
+                    }
+                    console.log(`[PERMISSÕES] Grupo ${gid}: ${permissoes.length} permissões salvas com sucesso.`);
+                    res.json({ message: 'Permissões salvas com sucesso', count: permissoes.length });
+                });
+            });
+        });
     });
 });
 
