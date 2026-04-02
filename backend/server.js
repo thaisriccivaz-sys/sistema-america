@@ -643,7 +643,7 @@ app.post('/api/assinafy/upload', async (req, res) => {
 // Middleware de Autenticação (Bypass temporário para facilitar dev do frontend)
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
+    const token = (authHeader && authHeader.split(' ')[1]) || req.query.token;
     
     // Fallback: se estiver em localhost sem auth ou para bypass se desejado, remova este bloco.
     if (!token) return res.status(401).json({ error: 'Acesso negado' });
@@ -1500,23 +1500,63 @@ app.delete('/api/documentos/:id', authenticateToken, (req, res) => {
 });
 
 app.get('/api/documentos/download/:id', authenticateToken, (req, res) => {
-    db.get('SELECT file_path, file_name FROM documentos WHERE id = ?', [req.params.id], (err, row) => {
+    db.get('SELECT * FROM documentos WHERE id = ?', [req.params.id], async (err, row) => {
         if (err || !row) return res.status(404).json({ error: 'Documento não encontrado' });
-        if (!fs.existsSync(row.file_path)) return res.status(404).json({ error: 'Arquivo físico não encontrado' });
         
-        res.download(row.file_path, row.file_name);
+        let pathToFile = row.signed_file_path || row.file_path;
+        
+        if (pathToFile && fs.existsSync(pathToFile)) {
+            return res.download(pathToFile, row.file_name || 'documento.pdf');
+        }
+
+        // Se o arquivo local não existe (Render efêmero), tenta via Assinafy
+        if (row.assinafy_id) {
+            try {
+                const r = await fetch(`https://api.assinafy.com.br/v1/documents/${row.assinafy_id}`,
+                    { headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey, 'Accept': 'application/json' } });
+                if (r.ok) {
+                    const data = await r.json();
+                    const signedUrl = extractSignedUrl(data?.data || data);
+                    if (signedUrl) return res.redirect(signedUrl);
+                }
+            } catch(e) {
+                console.warn('[DOWNLOAD-DOC] Falha proxy Assinafy:', e.message);
+            }
+        }
+        
+        return res.status(404).json({ error: 'Arquivo físico não encontrado no servidor.' });
     });
 });
 
 // Rota para VISUALIZAR inline no browser (sem forçar download)
 app.get('/api/documentos/view/:id', authenticateToken, (req, res) => {
-    db.get('SELECT file_path, file_name FROM documentos WHERE id = ?', [req.params.id], (err, row) => {
+    db.get('SELECT * FROM documentos WHERE id = ?', [req.params.id], async (err, row) => {
         if (err || !row) return res.status(404).json({ error: 'Documento não encontrado' });
-        if (!fs.existsSync(row.file_path)) return res.status(404).json({ error: 'Arquivo físico não encontrado' });
+        
+        let pathToFile = row.signed_file_path || row.file_path;
 
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(row.file_name)}"`);
-        fs.createReadStream(row.file_path).pipe(res);
+        if (pathToFile && fs.existsSync(pathToFile)) {
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(row.file_name || 'documento.pdf')}"`);
+            return fs.createReadStream(pathToFile).pipe(res);
+        }
+
+        // Se local não existe, tenta Assinafy
+        if (row.assinafy_id) {
+            try {
+                const r = await fetch(`https://api.assinafy.com.br/v1/documents/${row.assinafy_id}`,
+                    { headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey, 'Accept': 'application/json' } });
+                if (r.ok) {
+                    const data = await r.json();
+                    const signedUrl = extractSignedUrl(data?.data || data);
+                    if (signedUrl) return res.redirect(signedUrl);
+                }
+            } catch(e) {
+                console.warn('[VIEW-DOC] Falha proxy Assinafy:', e.message);
+            }
+        }
+
+        return res.status(404).json({ error: 'Arquivo físico não encontrado no servidor.' });
     });
 });
 
@@ -1997,14 +2037,19 @@ app.get('/api/admissao-assinaturas/:id/download', authenticateToken, async (req,
             if (signedUrl) {
                 console.log(`[DOWNLOAD] Proxy PDF do Assinafy: ${signedUrl}`);
                 try {
-                    const pdfResp = await fetch(signedUrl, { headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey } });
+                    // Remover header X-Api-Key caso a URL seja do S3 (evita SignatureDoesNotMatch)
+                    const isS3 = signedUrl.includes('s3.amazonaws.com');
+                    const headers = isS3 ? {} : { 'X-Api-Key': ASSINAFY_CONFIG.apiKey };
+                    
+                    const pdfResp = await fetch(signedUrl, { headers });
                     if (!pdfResp.ok) throw new Error('Assinafy retornou ' + pdfResp.statusText);
                     const pdfBuf = Buffer.from(await pdfResp.arrayBuffer());
                     res.setHeader('Content-Type', 'application/pdf');
                     res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(row.nome_documento || 'Documento')}_Assinado.pdf"`);
                     return res.send(pdfBuf);
                 } catch(fetchErr) {
-                    console.warn('[DOWNLOAD] Falha no proxy:', fetchErr.message);
+                    console.warn('[DOWNLOAD] Falha no proxy (Redirecionando diretamente para URL):', fetchErr.message);
+                    return res.redirect(signedUrl);
                 }
             }
         }
