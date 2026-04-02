@@ -18,6 +18,7 @@ const TELAS_SISTEMA = [
     { modulo: 'Comercial', pagina_id: 'comercial-em-breve', pagina_nome: 'Módulo Comercial' },
     { modulo: 'Administrativo', pagina_id: 'admin-em-breve', pagina_nome: 'Módulo Administrativo' },
     { modulo: 'Sistema', pagina_id: 'usuarios-permissoes', pagina_nome: 'Usuários e Permissões' },
+    { modulo: 'Sistema', pagina_id: 'certificado-digital', pagina_nome: 'Certificado Digital' },
 ];
 
 const DEPARTAMENTOS = ['RH', 'Financeiro', 'Comercial', 'Logística', 'Administrativo', 'Diretoria', 'Todas'];
@@ -494,7 +495,7 @@ const MENU_HIERARQUIA = [
     {
         modulo: 'Diretoria', icone: 'ph-crown',
         grupos: [
-            { titulo: 'Cadastros Base', telas: ['usuarios-permissoes'] }
+            { titulo: 'Cadastros Base', telas: ['usuarios-permissoes', 'certificado-digital'] }
         ]
     },
     {

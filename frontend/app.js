@@ -290,6 +290,11 @@ window.carregarPermissoesOnline = async function() {
         const mapPerms = {};
         permissoes.forEach(p => mapPerms[p.pagina_id] = !!p.visualizar);
 
+        // Auto-liberar certificado-digital para quem já tem acesso a usuarios-permissoes
+        if (mapPerms['usuarios-permissoes']) {
+            mapPerms['certificado-digital'] = true;
+        }
+
         // Percorre todos os botões de navegação (.nav-item)
         document.querySelectorAll('.nav-item[data-target]').forEach(link => {
             const pathId = link.getAttribute('data-target');
