@@ -408,6 +408,64 @@ setTimeout(() => {
 console.log('[POLL-ADMISSAO] Job de polling configurado (a cada 2 minutos).');
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Endpoint para forçar verificação imediata de status do colaborador
+app.post('/api/admissao-assinaturas/verificar-status', authenticateToken, async (req, res) => {
+    const { colaborador_id } = req.body;
+    if (!colaborador_id) return res.status(400).json({ error: 'colaborador_id obrigatório' });
+
+    try {
+        const pendentes = await new Promise((resolve, reject) =>
+            db.all(`SELECT * FROM admissao_assinaturas WHERE colaborador_id = ? AND assinafy_status = 'Pendente' AND assinafy_id IS NOT NULL`,
+                [colaborador_id], (err, rows) => err ? reject(err) : resolve(rows))
+        );
+
+        if (!pendentes || pendentes.length === 0) {
+            return res.json({ ok: true, atualizados: 0, mensagem: 'Nenhum documento pendente.' });
+        }
+
+        const https = require('https');
+        let atualizados = 0;
+
+        for (const doc of pendentes) {
+            try {
+                const docInfo = await new Promise((resolve, reject) => {
+                    const r = https.request({
+                        hostname: 'api.assinafy.com.br',
+                        path: `/v1/documents/${doc.assinafy_id}`,
+                        method: 'GET',
+                        headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey, 'Accept': 'application/json' }
+                    }, resp => {
+                        const chunks = [];
+                        resp.on('data', c => chunks.push(c));
+                        resp.on('end', () => { try { resolve(JSON.parse(Buffer.concat(chunks).toString())); } catch(e) { resolve(null); } });
+                    });
+                    r.on('error', reject);
+                    r.setTimeout(10000, () => r.destroy());
+                    r.end();
+                });
+
+                if (!docInfo) continue;
+                const docData = docInfo.data || docInfo;
+                const statusRaw = (docData?.status || '').toLowerCase();
+                const isSigned = ['completed', 'signed', 'concluded', 'finalizado', 'assinado'].some(s => statusRaw.includes(s));
+
+                console.log(`[VERIF] Doc ${doc.assinafy_id} → "${statusRaw}" → signed=${isSigned}`);
+
+                if (isSigned) {
+                    db.run(`UPDATE admissao_assinaturas SET assinafy_status='Assinado', assinado_em=CURRENT_TIMESTAMP WHERE id=?`, [doc.id]);
+                    atualizados++;
+                }
+            } catch(e) {
+                console.warn(`[VERIF] Erro doc ${doc.assinafy_id}: ${e.message}`);
+            }
+        }
+
+        res.json({ ok: true, atualizados, verificados: pendentes.length });
+    } catch(e) {
+        res.status(500).json({ ok: false, error: e.message });
+    }
+});
+
 /**
  * ASSINAFY: Background mode com Polling estendido
  * O Assinafy processa documentos lentamente em alguns casos.
@@ -1539,9 +1597,36 @@ db.run(`CREATE TABLE IF NOT EXISTS admissao_assinaturas (
 
 // GET: buscar assinaturas de um colaborador
 app.get('/api/admissao-assinaturas/:colaborador_id', authenticateToken, (req, res) => {
-    db.all('SELECT * FROM admissao_assinaturas WHERE colaborador_id = ?', [req.params.colaborador_id], (err, rows) => {
+    db.all(`
+        SELECT aa.*,
+               d.assinafy_status  AS doc_assinafy_status,
+               d.signed_file_path AS doc_signed_file_path,
+               d.id               AS documento_id
+        FROM admissao_assinaturas aa
+        LEFT JOIN documentos d ON d.assinafy_id = aa.assinafy_id AND d.colaborador_id = aa.colaborador_id
+        WHERE aa.colaborador_id = ?
+    `, [req.params.colaborador_id], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
-        res.json(rows || []);
+
+        // Sincroniza status em tempo real: se documentos já está Assinado mas admissao ainda Pendente
+        const toUpdate = (rows || []).filter(r =>
+            r.doc_assinafy_status === 'Assinado' && r.assinafy_status !== 'Assinado'
+        );
+        toUpdate.forEach(r => {
+            db.run(
+                `UPDATE admissao_assinaturas SET assinafy_status='Assinado', assinado_em=CURRENT_TIMESTAMP, signed_file_path=COALESCE(signed_file_path,?) WHERE id=?`,
+                [r.doc_signed_file_path, r.id]
+            );
+        });
+
+        // Retorna com status corrigido
+        const result = (rows || []).map(r => ({
+            ...r,
+            assinafy_status: (r.doc_assinafy_status === 'Assinado' ? 'Assinado' : r.assinafy_status) || r.assinafy_status,
+            signed_file_path: r.signed_file_path || r.doc_signed_file_path
+        }));
+
+        res.json(result);
     });
 });
 

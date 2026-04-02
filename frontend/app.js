@@ -6288,6 +6288,13 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
             const docs = await apiGet(`/colaboradores/${colab.id}/documentos`);
 
             // Busca dados para o Passo 2: Documentos do Departamento
+            // Verifica status no Assinafy ANTES de buscar os dados do banco
+            await fetch(`${API_URL}/admissao-assinaturas/verificar-status`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ colaborador_id: colab.id })
+            }).catch(() => {});
+
             const [depts, geradores, templates, assinaturas] = await Promise.all([
                 apiGet('/departamentos'),
                 apiGet('/geradores'),
