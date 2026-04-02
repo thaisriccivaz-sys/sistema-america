@@ -6271,36 +6271,80 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
 
             // 2. Restaurar e Popular Passo 2 e outros
             const docs = await apiGet(`/colaboradores/${colab.id}/documentos`);
-            
+
             // Busca dados para o Passo 2: Documentos do Departamento
-            const [depts, geradores, templates] = await Promise.all([
+            const [depts, geradores, templates, assinaturas] = await Promise.all([
                 apiGet('/departamentos'),
                 apiGet('/geradores'),
-                apiGet('/gerador-departamento-templates').catch(() => [])
+                apiGet('/gerador-departamento-templates').catch(() => []),
+                apiGet(`/admissao-assinaturas/${colab.id}`).catch(() => [])
             ]);
-            let availableDocsForDept = [];
-            const empDeptName = colab.departamento || '';
-            const deptObj = depts.find(d => d.nome.trim().toLowerCase() === empDeptName.trim().toLowerCase());
-            
+
+            let availableGeradores = [];
+            const empDeptId = colab.departamento;
+            const deptObj = depts.find(d =>
+                String(d.id) === String(empDeptId) ||
+                d.nome.trim().toLowerCase() === String(empDeptId).trim().toLowerCase()
+            );
+
             if (deptObj) {
-                const geradorIds = templates.filter(t => Number(t.departamento_id) === Number(deptObj.id)).map(t => Number(t.gerador_id));
-                availableDocsForDept = geradores.filter(g => geradorIds.includes(Number(g.id))).map(g => g.nome);
+                const geradorIds = templates
+                    .filter(t => Number(t.departamento_id) === Number(deptObj.id))
+                    .map(t => Number(t.gerador_id));
+                availableGeradores = geradores.filter(g => geradorIds.includes(Number(g.id)));
             }
+
+            // Guarda globalmente para o botão de envio acessar
+            window._admissaoGeradores = availableGeradores;
+            window._admissaoAssinaturas = assinaturas;
 
             // Popula lista de assinaturas (Step 2)
             const sigList = document.getElementById('admissao-signature-list');
             if (sigList) {
-                if (availableDocsForDept.length > 0) {
-                    sigList.innerHTML = availableDocsForDept.map(doc => `
-                        <label class="doc-check-item" style="display:flex; align-items:center; gap:0.5rem; padding:0.5rem; border:1px solid #f1f5f9; border-radius:6px; cursor:pointer; background:#fff;">
-                            <input type="checkbox" value="${doc}">
-                            <span style="font-size:0.8rem; font-weight:500;">${doc}</span>
-                        </label>
-                    `).join('');
+                if (availableGeradores.length > 0) {
+                    sigList.innerHTML = availableGeradores.map(g => {
+                        const ass = assinaturas.find(a => a.gerador_id === g.id || a.nome_documento === g.nome);
+                        const isSigned   = ass && ass.assinafy_status === 'Assinado';
+                        const isPending  = ass && ass.assinafy_status === 'Pendente';
+                        const statusBadge = isSigned
+                            ? `<span style="background:#dcfce7;color:#15803d;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;"><i class="ph ph-check-circle"></i> Assinado</span>`
+                            : isPending
+                            ? `<span style="background:#fef9c3;color:#92400e;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;"><i class="ph ph-clock"></i> Aguardando</span>`
+                            : `<span style="background:#f1f5f9;color:#64748b;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;"><i class="ph ph-minus-circle"></i> Não enviado</span>`;
+                        const downloadBtn = isSigned
+                            ? `<button onclick="window.openSignedDocPopup(${ass.id}, '${g.nome.replace(/'/g,"\\'")}', event)" style="border:none;background:none;cursor:pointer;color:#16a34a;" title="Visualizar assinado"><i class="ph ph-file-pdf" style="font-size:1.2rem;"></i></button>`
+                            : '';
+                        return `
+                        <label class="doc-check-item" data-gerador-id="${g.id}" style="display:flex; align-items:center; gap:0.6rem; padding:0.6rem 0.75rem; border:1px solid ${isSigned ? '#bbf7d0' : '#f1f5f9'}; border-radius:8px; cursor:pointer; background:${isSigned ? '#f0fdf4' : '#fff'}; transition:all 0.2s; justify-content:space-between;">
+                            <div style="display:flex; align-items:center; gap:0.6rem; flex:1;">
+                                <input type="checkbox" value="${g.id}" data-nome="${g.nome}" ${isSigned ? '' : 'checked'}
+                                    style="width:16px;height:16px;cursor:pointer;accent-color:#f503c5;">
+                                <div style="display:flex; flex-direction:column; gap:2px;">
+                                    <span style="font-size:0.87rem; font-weight:600; color:#334155;">${g.nome}</span>
+                                </div>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:0.5rem;">
+                                ${statusBadge}
+                                ${downloadBtn}
+                            </div>
+                        </label>`;
+                    }).join('');
                 } else {
-                    sigList.innerHTML = `<p class="text-muted" style="grid-column: 1 / -1; padding: 1rem; text-align: center;">Nenhum documento configurado para o departamento <b>${empDeptName || 'Não Informado'}</b>.</p>`;
+                    sigList.innerHTML = `<p class="text-muted" style="grid-column: 1 / -1; padding: 1rem; text-align: center;">Nenhum documento configurado para o departamento <b>${deptObj ? deptObj.nome : (empDeptId || 'Não Informado')}</b>.<br><small>Configure os templates em <b>Geradores → Templates por Departamento</b>.</small></p>`;
                 }
             }
+
+            // Atualiza percentual do passo 2 baseado em assinaturas
+            window._updateAdmissaoStep2Pct = function() {
+                const total  = (window._admissaoGeradores || []).length;
+                const signed = (window._admissaoAssinaturas || []).filter(a => a.assinafy_status === 'Assinado').length;
+                if (total === 0) return 0;
+                const pct = Math.round((signed / total) * 100);
+                // Se tem documentos enviados mas não todos assinados: mínimo 20%
+                const hasSent = (window._admissaoAssinaturas || []).some(a => a.enviado_em);
+                return hasSent ? Math.max(20, pct) : pct;
+            };
+
             // 3. Renderizar Checklists Dinâmicos
             renderAdmissaoStep3(colab, docs);
 
@@ -6407,7 +6451,112 @@ function renderAdmissaoStep3(colab, docs) {
 }
 
 
+// ===== PASSO 2: ENVIO EM LOTE PARA ASSINAFY =====
+window.sendAdmissaoSignatures = async function() {
+    if (!viewedColaborador) { alert('Nenhum colaborador selecionado.'); return; }
+
+    const checks = document.querySelectorAll('#admissao-signature-list input[type="checkbox"]:checked');
+    if (checks.length === 0) { alert('Selecione ao menos um documento para enviar.'); return; }
+
+    const geradorIds = Array.from(checks).map(c => Number(c.value));
+    const btn = document.getElementById('btn-enviar-assinaturas');
+    if (btn) { btn.disabled = true; btn.innerHTML = `<i class="ph ph-spinner ph-spin"></i> Enviando ${geradorIds.length} documento(s)...`; }
+
+    try {
+        const res = await apiPost('/admissao-assinaturas/enviar-lote', {
+            colaborador_id: viewedColaborador.id,
+            geradores_ids: geradorIds
+        });
+
+        const erros = (res.resultados || []).filter(r => r.erro);
+        const ok    = (res.resultados || []).filter(r => r.ok);
+
+        let msg = `✅ ${ok.length} documento(s) enviado(s) para assinatura no e-mail do colaborador.`;
+        if (erros.length > 0) msg += `\n\n⚠️ ${erros.length} erro(s):\n` + erros.map(e => `• ${e.nome || e.id}: ${e.erro}`).join('\n');
+        alert(msg);
+
+        // Recarregar o passo 2 para atualizar os status
+        await window.initAdmissaoWorkflow(viewedColaborador.id, 2, true);
+    } catch(e) {
+        alert('Erro ao enviar documentos: ' + e.message);
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = `<i class="ph ph-paper-plane-tilt"></i> Enviar para Assinatura`; }
+    }
+};
+
+// ===== POPUP DE PDF ASSINADO =====
+window.openSignedDocPopup = function(assId, nomeDoc, evt) {
+    if (evt) { evt.preventDefault(); evt.stopPropagation(); }
+    const token = localStorage.getItem('token');
+
+    // Criar overlay
+    let overlay = document.getElementById('signed-doc-popup-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'signed-doc-popup-overlay';
+        overlay.style.cssText = `position:fixed;inset:0;background:rgba(15,23,42,0.7);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;`;
+        document.body.appendChild(overlay);
+    }
+
+    overlay.innerHTML = `
+        <div style="background:#fff;border-radius:12px;width:95vw;max-width:1000px;height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 25px 60px rgba(0,0,0,0.4);">
+            <div style="padding:1rem 1.5rem;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;background:#f8fafc;">
+                <div style="display:flex;align-items:center;gap:0.75rem;">
+                    <i class="ph ph-file-pdf" style="color:#ef4444;font-size:1.5rem;"></i>
+                    <div>
+                        <div style="font-weight:700;color:#334155;">${nomeDoc}</div>
+                        <div style="font-size:0.78rem;color:#94a3b8;">Documento Assinado</div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:0.5rem;">
+                    <a id="signed-doc-download-btn" href="#" download="${nomeDoc}_Assinado.pdf"
+                       style="display:inline-flex;align-items:center;gap:0.4rem;background:#22c55e;color:#fff;padding:0.5rem 1rem;border-radius:8px;font-weight:600;font-size:0.85rem;text-decoration:none;">
+                        <i class="ph ph-download-simple"></i> Baixar
+                    </a>
+                    <button onclick="document.getElementById('signed-doc-popup-overlay').remove()"
+                            style="background:#ef4444;color:#fff;border:none;border-radius:8px;padding:0.5rem 1rem;cursor:pointer;font-weight:600;">
+                        <i class="ph ph-x"></i> Fechar
+                    </button>
+                </div>
+            </div>
+            <div style="flex:1;overflow:hidden;background:#64748b;display:flex;align-items:center;justify-content:center;">
+                <div id="signed-doc-loading" style="color:#fff;text-align:center;">
+                    <i class="ph ph-circle-notch ph-spin" style="font-size:2.5rem;"></i>
+                    <div style="margin-top:0.5rem;">Carregando PDF...</div>
+                </div>
+                <iframe id="signed-doc-iframe" style="display:none;width:100%;height:100%;border:none;"></iframe>
+            </div>
+        </div>`;
+
+    overlay.style.display = 'flex';
+    document.body.appendChild(overlay);
+
+    // Clicar fora fecha
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+
+    // Carregar PDF
+    fetch(`/api/admissao-assinaturas/${assId}/download`, { headers: { 'Authorization': `Bearer ${token}` } })
+        .then(res => {
+            if (!res.ok) throw new Error('Arquivo não disponível');
+            return res.blob();
+        })
+        .then(blob => {
+            const blobUrl = URL.createObjectURL(blob);
+            const iframe = document.getElementById('signed-doc-iframe');
+            const loading = document.getElementById('signed-doc-loading');
+            const dlBtn = document.getElementById('signed-doc-download-btn');
+            if (iframe) { iframe.src = blobUrl; iframe.style.display = 'block'; }
+            if (loading) loading.style.display = 'none';
+            if (dlBtn) dlBtn.href = blobUrl;
+        })
+        .catch(err => {
+            const loading = document.getElementById('signed-doc-loading');
+            if (loading) loading.innerHTML = `<i class="ph ph-warning" style="font-size:2.5rem;color:#fbbf24;"></i><div style="margin-top:0.5rem;">${err.message}</div>`;
+        });
+};
+
 window.startFinalAdmission = async function() {
+
     console.log("[Admissao] Botão 'Iniciar' clicado. viewedColaborador:", viewedColaborador);
     if (!viewedColaborador) {
         alert("Erro: Nenhum colaborador selecionado.");
@@ -6556,7 +6705,7 @@ function updateAdmissaoStepPercentages(colab) {
         return Math.min(100, Math.round((uploaded / total) * 100));
     };
 
-    const pc2 = (() => {
+    const pc2 = window._updateAdmissaoStep2Pct ? window._updateAdmissaoStep2Pct() : (() => {
         const checks = document.querySelectorAll('#admissao-signature-list input[type="checkbox"]');
         if (checks.length === 0) return 0;
         const checked = Array.from(checks).filter(c => c.checked).length;

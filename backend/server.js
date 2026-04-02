@@ -1423,7 +1423,152 @@ app.delete('/api/cursos-faculdade/:id', authenticateToken, (req, res) => {
     });
 });
 
+// === ADMISSAO ASSINATURAS: Rastreamento por colaborador/gerador ===
+db.run(`CREATE TABLE IF NOT EXISTS admissao_assinaturas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    colaborador_id INTEGER NOT NULL,
+    gerador_id INTEGER,
+    nome_documento TEXT NOT NULL,
+    assinafy_id TEXT,
+    assinafy_status TEXT DEFAULT 'Pendente',
+    assinafy_url TEXT,
+    signed_file_path TEXT,
+    enviado_em TEXT,
+    assinado_em TEXT,
+    UNIQUE(colaborador_id, nome_documento)
+)`);
+
+// GET: buscar assinaturas de um colaborador
+app.get('/api/admissao-assinaturas/:colaborador_id', authenticateToken, (req, res) => {
+    db.all('SELECT * FROM admissao_assinaturas WHERE colaborador_id = ?', [req.params.colaborador_id], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+// POST batch: gerar PDFs dos geradores selecionados e enviar para assinatura via Assinafy
+app.post('/api/admissao-assinaturas/enviar-lote', authenticateToken, async (req, res) => {
+    const { colaborador_id, geradores_ids } = req.body;
+    if (!colaborador_id || !Array.isArray(geradores_ids) || geradores_ids.length === 0) {
+        return res.status(400).json({ error: 'colaborador_id e geradores_ids são obrigatórios' });
+    }
+
+    const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
+    const novoProcesso = require('./novo_processo_assinafy');
+
+    const colab = await new Promise((resolve, reject) =>
+        db.get('SELECT * FROM colaboradores WHERE id = ?', [colaborador_id], (err, row) => err ? reject(err) : resolve(row))
+    );
+    if (!colab) return res.status(404).json({ error: 'Colaborador não encontrado' });
+    if (!colab.email) return res.status(400).json({ error: 'E-mail do colaborador não está cadastrado.' });
+
+    const resultados = [];
+
+    for (const geradorId of geradores_ids) {
+        try {
+            const gerador = await new Promise((resolve, reject) =>
+                db.get('SELECT * FROM geradores WHERE id = ?', [geradorId], (err, row) => err ? reject(err) : resolve(row))
+            );
+            if (!gerador) { resultados.push({ id: geradorId, erro: 'Gerador não encontrado' }); continue; }
+
+            let filePath;
+            // Se for PDF externo, usar o arquivo diretamente
+            if (gerador.tipo === 'pdf' && gerador.arquivo_pdf && fs.existsSync(gerador.arquivo_pdf)) {
+                filePath = gerador.arquivo_pdf;
+            } else {
+                // Gerar PDF do conteúdo HTML usando pdf-lib básico (texto simples)
+                const pdfDoc = await PDFDocument.create();
+                const page = pdfDoc.addPage();
+                const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+                page.drawText(gerador.nome || 'Documento', { x: 50, y: 750, size: 16, font, color: rgb(0,0,0) });
+                page.drawText(`Colaborador: ${colab.nome_completo}`, { x: 50, y: 720, size: 12, font });
+                page.drawText(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, { x: 50, y: 700, size: 10, font });
+                const pdfBytes = await pdfDoc.save();
+
+                const tmpDir = path.join(BASE_PATH, '_tmp_gerados');
+                if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
+                filePath = path.join(tmpDir, `${Date.now()}_${geradorId}_${colab.id}.pdf`);
+                fs.writeFileSync(filePath, pdfBytes);
+            }
+
+            // Inserir ou atualizar no banco de admissao_assinaturas
+            const existente = await new Promise((resolve, reject) =>
+                db.get('SELECT * FROM admissao_assinaturas WHERE colaborador_id = ? AND nome_documento = ?',
+                    [colaborador_id, gerador.nome], (err, row) => err ? reject(err) : resolve(row))
+            );
+
+            // Criar registro temporário em documentos para aproveitar o fluxo existente do Assinafy
+            const docId = await new Promise((resolve, reject) =>
+                db.run(
+                    `INSERT INTO documentos (colaborador_id, tab_name, document_type, file_path, file_name, assinafy_status) VALUES (?, 'CONTRATOS', ?, ?, ?, 'Pendente')`,
+                    [colaborador_id, gerador.nome, filePath, path.basename(filePath)],
+                    function(err) { err ? reject(err) : resolve(this.lastID); }
+                )
+            );
+
+            // Enviar para Assinafy
+            const resultado = await novoProcesso.enviarDocumentoParaAssinafy(docId, colaborador_id);
+
+            // Salvar em admissao_assinaturas
+            if (existente) {
+                db.run(`UPDATE admissao_assinaturas SET assinafy_id=?, assinafy_status='Pendente', assinafy_url=?, enviado_em=CURRENT_TIMESTAMP WHERE id=?`,
+                    [resultado.assinafyDocId, resultado.urlAssinatura, existente.id]);
+            } else {
+                db.run(`INSERT INTO admissao_assinaturas (colaborador_id, gerador_id, nome_documento, assinafy_id, assinafy_status, assinafy_url, enviado_em) VALUES (?,?,?,'Pendente',?,?,CURRENT_TIMESTAMP)`,
+                    [colaborador_id, geradorId, gerador.nome, resultado.assinafyDocId, resultado.urlAssinatura]);
+            }
+
+            resultados.push({ id: geradorId, nome: gerador.nome, ok: true, url: resultado.urlAssinatura });
+        } catch(e) {
+            console.error(`[ADMISSAO-ASSINATURA] Erro no gerador ${geradorId}:`, e.message);
+            resultados.push({ id: geradorId, erro: e.message });
+        }
+    }
+
+    res.json({ ok: true, resultados });
+});
+
+// GET: baixar PDF assinado de admissão
+app.get('/api/admissao-assinaturas/:id/download', authenticateToken, (req, res) => {
+    db.get('SELECT * FROM admissao_assinaturas WHERE id = ?', [req.params.id], (err, row) => {
+        if (err || !row) return res.status(404).json({ error: 'Registro não encontrado' });
+        // Tentar usar o arquivo assinado se existir, senão buscar da tabela documentos via assinafy_id
+        if (row.signed_file_path && fs.existsSync(row.signed_file_path)) {
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(row.nome_documento)}_Assinado.pdf"`);
+            return fs.createReadStream(row.signed_file_path).pipe(res);
+        }
+        // Buscar via documentos pelo assinafy_id
+        if (row.assinafy_id) {
+            db.get('SELECT * FROM documentos WHERE assinafy_id = ?', [row.assinafy_id], (err2, doc) => {
+                const fp = doc?.signed_file_path || doc?.file_path;
+                if (fp && fs.existsSync(fp)) {
+                    res.setHeader('Content-Type', 'application/pdf');
+                    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(row.nome_documento)}_Assinado.pdf"`);
+                    return fs.createReadStream(fp).pipe(res);
+                }
+                res.status(404).json({ error: 'Arquivo assinado ainda não disponível' });
+            });
+        } else {
+            res.status(404).json({ error: 'Documento ainda não enviado para assinatura' });
+        }
+    });
+});
+
+// Webhook: atualizar status de assinatura para admissao_assinaturas quando Assinafy notificar
+// (já tratado pelo webhook existente que atualiza a tabela documentos - sincronizamos aqui também)
+// Adicionando sincronização na tabela admissao_assinaturas via documento atualizado
+app.post('/api/admissao-assinaturas/sync-status', authenticateToken, (req, res) => {
+    const { assinafy_id, status } = req.body;
+    if (!assinafy_id) return res.status(400).json({ error: 'assinafy_id obrigatório' });
+    db.run(`UPDATE admissao_assinaturas SET assinafy_status = ?, assinado_em = CASE WHEN ? = 'Assinado' THEN CURRENT_TIMESTAMP ELSE assinado_em END WHERE assinafy_id = ?`,
+        [status, status, assinafy_id], function(err) {
+            res.json({ ok: true, changes: this.changes });
+        });
+});
+
 // MIGRATION: adicionar colunas tipo e arquivo_pdf à tabela geradores (se não existirem)
+
 db.run("ALTER TABLE geradores ADD COLUMN tipo TEXT DEFAULT 'html'", () => {});
 db.run("ALTER TABLE geradores ADD COLUMN arquivo_pdf TEXT DEFAULT NULL", () => {});
 
