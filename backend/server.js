@@ -1892,30 +1892,82 @@ app.post('/api/admissao-assinaturas/enviar-lote', authenticateToken, async (req,
 
 
 // GET: baixar PDF assinado de admissão
-app.get('/api/admissao-assinaturas/:id/download', authenticateToken, (req, res) => {
-    db.get('SELECT * FROM admissao_assinaturas WHERE id = ?', [req.params.id], (err, row) => {
-        if (err || !row) return res.status(404).json({ error: 'Registro não encontrado' });
-        // Tentar usar o arquivo assinado se existir, senão buscar da tabela documentos via assinafy_id
+app.get('/api/admissao-assinaturas/:id/download', authenticateToken, async (req, res) => {
+    try {
+        const row = await new Promise((resolve, reject) =>
+            db.get('SELECT * FROM admissao_assinaturas WHERE id = ?', [req.params.id], (err, r) => err ? reject(err) : resolve(r))
+        );
+        if (!row) return res.status(404).json({ error: 'Registro não encontrado' });
+
+        // 1. Arquivo local do certificado empresa (fase 3)
+        const certPath = row.cert_file_path;
+        if (certPath && fs.existsSync(certPath)) {
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(row.nome_documento)}_Certificado.pdf"`);
+            return fs.createReadStream(certPath).pipe(res);
+        }
+
+        // 2. Arquivo local assinado pelo colaborador
         if (row.signed_file_path && fs.existsSync(row.signed_file_path)) {
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(row.nome_documento)}_Assinado.pdf"`);
             return fs.createReadStream(row.signed_file_path).pipe(res);
         }
-        // Buscar via documentos pelo assinafy_id
+
+        // 3. Buscar via tabela documentos
         if (row.assinafy_id) {
-            db.get('SELECT * FROM documentos WHERE assinafy_id = ?', [row.assinafy_id], (err2, doc) => {
-                const fp = doc?.signed_file_path || doc?.file_path;
-                if (fp && fs.existsSync(fp)) {
-                    res.setHeader('Content-Type', 'application/pdf');
-                    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(row.nome_documento)}_Assinado.pdf"`);
-                    return fs.createReadStream(fp).pipe(res);
-                }
-                res.status(404).json({ error: 'Arquivo assinado ainda não disponível' });
+            const doc = await new Promise((resolve, reject) =>
+                db.get('SELECT * FROM documentos WHERE assinafy_id = ?', [row.assinafy_id], (err, r) => err ? reject(err) : resolve(r))
+            );
+            const fp = doc?.signed_file_path || doc?.file_path;
+            if (fp && fs.existsSync(fp)) {
+                res.setHeader('Content-Type', 'application/pdf');
+                res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(row.nome_documento)}_Assinado.pdf"`);
+                return fs.createReadStream(fp).pipe(res);
+            }
+
+            // 4. Buscar URL do Assinafy e fazer proxy do PDF
+            const https = require('https');
+            const docInfo = await new Promise((resolve) => {
+                const r = https.request({
+                    hostname: 'api.assinafy.com.br',
+                    path: `/v1/documents/${row.assinafy_id}`,
+                    method: 'GET',
+                    headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey, 'Accept': 'application/json' }
+                }, resp => {
+                    const chunks = [];
+                    resp.on('data', c => chunks.push(c));
+                    resp.on('end', () => { try { resolve(JSON.parse(Buffer.concat(chunks).toString())); } catch(e) { resolve(null); } });
+                });
+                r.on('error', () => resolve(null));
+                r.setTimeout(10000, () => { r.destroy(); resolve(null); });
+                r.end();
             });
-        } else {
-            res.status(404).json({ error: 'Documento ainda não enviado para assinatura' });
+
+            const docData = docInfo?.data || docInfo;
+            // Tenta vários campos de URL do PDF assinado
+            const signedUrl = docData?.certificated_file_url
+                || docData?.report_url
+                || docData?.bundle_url
+                || (docData?.artifacts?.find?.(a => a.type === 'signed_document' || a.type === 'certificated')?.url)
+                || docData?.signed_url
+                || docData?.download_url;
+
+            if (signedUrl) {
+                console.log(`[DOWNLOAD] Baixando PDF do Assinafy: ${signedUrl}`);
+                res.setHeader('Content-Type', 'application/pdf');
+                res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(row.nome_documento)}_Assinado.pdf"`);
+                https.get(signedUrl, pdfResp => pdfResp.pipe(res)).on('error', e => {
+                    if (!res.headersSent) res.status(502).json({ error: 'Erro ao baixar PDF do Assinafy: ' + e.message });
+                });
+                return;
+            }
         }
-    });
+
+        res.status(404).json({ error: 'Arquivo assinado ainda não disponível. Aguarde o Assinafy processar.' });
+    } catch(e) {
+        if (!res.headersSent) res.status(500).json({ error: e.message });
+    }
 });
 
 /**
