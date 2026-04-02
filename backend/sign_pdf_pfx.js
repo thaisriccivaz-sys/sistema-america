@@ -23,13 +23,21 @@ const path = require('path');
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 
 // ─── Verificar disponibilidade dos módulos ────────────────────────────────────
-let signpdf, plainAddPlaceholder, forge;
+let signpdf, plainAddPlaceholder, P12Signer, forge;
 
 try {
     const signpdfMod = require('@signpdf/signpdf');
     signpdf = signpdfMod.default || signpdfMod.signpdf || signpdfMod;
     const placeholderMod = require('@signpdf/placeholder-plain');
     plainAddPlaceholder = placeholderMod.default || placeholderMod.plainAddPlaceholder || placeholderMod;
+    // @signpdf v3: P12Signer foi movido para pacote separado @signpdf/signer-p12
+    try {
+        const signerMod = require('@signpdf/signer-p12');
+        P12Signer = signerMod.P12Signer || signerMod.default?.P12Signer || signerMod.default;
+    } catch(e2) {
+        console.warn('[SIGN-PDF] @signpdf/signer-p12 não encontrado, tentando @signpdf/signpdf:', e2.message);
+        P12Signer = signpdfMod.P12Signer || signpdfMod.default?.P12Signer;
+    }
 } catch(e) {
     console.warn('[SIGN-PDF] @signpdf não encontrado:', e.message);
 }
@@ -210,30 +218,23 @@ async function assinarPDF(pdfBuffer, opts = {}) {
         throw new Error(`Erro ao adicionar placeholder de assinatura: ${e.message}`);
     }
 
-    // 3. Assinar com PKCS#7 (node-forge)
+    // 3. Assinar com PKCS#7 via @signpdf/signer-p12
     let pdfAssinado;
     try {
-        // Construir P12Buffer a partir dos PEMs para o @signpdf
+        // Reconstrói o P12 a partir dos PEMs extraídos (mais confiável que usar o arquivo original)
         const p12buffer = forge.pkcs12.toPkcs12Asn1(
             forge.pki.privateKeyFromPem(key),
             certChain.map(c => forge.pki.certificateFromPem(c)),
             pfxPassword,
             { algorithm: '3des' }
         );
-        const p12Der    = forge.asn1.toDer(p12buffer).getBytes();
-        const p12Buf    = Buffer.from(p12Der, 'binary');
+        const p12Der = forge.asn1.toDer(p12buffer).getBytes();
+        const p12Buf = Buffer.from(p12Der, 'binary');
 
-        const P12Signer = require('@signpdf/signpdf').P12Signer ||
-                          require('@signpdf/signpdf').default?.P12Signer;
+        if (!P12Signer) throw new Error('@signpdf/signer-p12 não está instalado. Execute: npm install @signpdf/signer-p12');
 
-        if (P12Signer) {
-            const signer = new P12Signer(p12Buf, { passphrase: pfxPassword });
-            pdfAssinado  = await signpdf.sign(pdfComPlaceholder, signer);
-        } else {
-            // Fallback: assinar direto com o buffer P12
-            const signpdfFn = typeof signpdf === 'function' ? signpdf : signpdf.sign;
-            pdfAssinado = await signpdfFn(pdfComPlaceholder, p12Buf, { passphrase: pfxPassword });
-        }
+        const signer = new P12Signer(p12Buf, { passphrase: pfxPassword });
+        pdfAssinado  = await signpdf.sign(pdfComPlaceholder, signer);
     } catch(e) {
         throw new Error(`Erro durante assinatura PKCS#7: ${e.message}`);
     }
