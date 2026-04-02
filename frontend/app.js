@@ -262,22 +262,26 @@ const BREADCRUMB_MAP = {
 window.carregarPermissoesOnline = async function() {
     if (!currentUser || !currentToken) return;
 
+    // Define quem é super admin e pode ver tudo por padrão
+    const isTopAdmin = currentUser.role === 'Diretoria' || currentUser.role === 'Administrador' || currentUser.departamento === 'Diretoria';
+
     // Remove qualquer display-none forçado das categorias primeiro
     document.querySelectorAll('.dept-item').forEach(el => el.style.display = '');
 
+    if (isTopAdmin) {
+        // Regra fixa solicitada: Ocultar módulos nunca se aplica a liderança da Diretoria.
+        // Eles têm acesso automático e irrestrito a todas as telas visualmente.
+        document.querySelectorAll('.nav-item').forEach(el => el.style.display = '');
+        return; // Retorna cedo ignorando qualquer grupo
+    }
+
     if (!currentUser.grupo_permissao_id) {
-        // Fallback de segurança: Se o usuário NÃO TEM grupo de permissões,
-        // apenas Administradores ou Diretoria veem tudo (legacy). Outros veem nada.
-        const isLegacyAdmin = currentUser.role === 'Diretoria' || currentUser.role === 'Administrador' || currentUser.departamento === 'Diretoria' || currentUser.role === 'admin';
-        if (isLegacyAdmin) {
-            document.querySelectorAll('.nav-item').forEach(el => el.style.display = '');
-        } else {
-            document.querySelectorAll('.nav-item').forEach(el => el.style.display = 'none');
-        }
+        // Usuário comum sem permissões. Ocultar tudo que tem data-target.
+        document.querySelectorAll('.nav-item').forEach(el => el.style.display = 'none');
         return;
     }
 
-    // Se possui um grupo_permissao_id, o sistema deve obedecer ESTRITAMENTE às configurações do banco, sem bypass!
+    // Avança para ler as regras reais do grupo (se for usuário comum com grupo)
 
     try {
         const res = await fetch(`${API_URL}/grupos-permissao/${currentUser.grupo_permissao_id}/permissoes`, {
