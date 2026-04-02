@@ -307,7 +307,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // ROTA DE VERSÃO (Para verificar implantação)
-app.get('/api/version', (req, res) => res.json({ version: 'V40_PFX_DIGITAL_SIGNATURE' }));
+app.get('/api/version', (req, res) => res.json({ version: 'V41_ADMISSAO_STATUS_SYNC' }));
 
 // ─── MÓDULO DE ASSINATURA DIGITAL COM CERTIFICADO .PFX ───────────────────────
 const signPdfPfx = require('./sign_pdf_pfx');
