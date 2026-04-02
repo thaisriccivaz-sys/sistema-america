@@ -6403,59 +6403,31 @@ function renderAdmissaoStep3(colab, docs) {
 
 
 // ===== PASSO 2: VISUALIZAR DOCUMENTO ANTES DA ASSINATURA =====
-window.previewAdmissaoDoc = function(geradorId, colabId, evt) {
+window.previewAdmissaoDoc = async function(geradorId, colabId, evt) {
     if (evt) { evt.preventDefault(); evt.stopPropagation(); }
-    const token = localStorage.getItem('token');
 
-    let overlay = document.getElementById('signed-doc-popup-overlay');
-    if (overlay) overlay.remove();
-    overlay = document.createElement('div');
-    overlay.id = 'signed-doc-popup-overlay';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.7);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;';
-    document.body.appendChild(overlay);
+    if (!colabId) { alert('Colaborador não identificado.'); return; }
 
-    overlay.innerHTML = `
-        <div style="background:#fff;border-radius:12px;width:95vw;max-width:1000px;height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 25px 60px rgba(0,0,0,0.4);">
-            <div style="padding:1rem 1.5rem;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;background:#f8fafc;">
-                <div style="display:flex;align-items:center;gap:0.75rem;">
-                    <i class="ph ph-file-text" style="color:#f503c5;font-size:1.5rem;"></i>
-                    <div>
-                        <div style="font-weight:700;color:#334155;">Pré-visualização do Documento</div>
-                        <div style="font-size:0.78rem;color:#94a3b8;">Como será enviado para assinatura</div>
-                    </div>
-                </div>
-                <button onclick="document.getElementById('signed-doc-popup-overlay').remove()"
-                        style="background:#ef4444;color:#fff;border:none;border-radius:8px;padding:0.5rem 1rem;cursor:pointer;font-weight:600;">
-                    <i class="ph ph-x"></i> Fechar
-                </button>
-            </div>
-            <div style="flex:1;overflow:hidden;background:#64748b;display:flex;align-items:center;justify-content:center;">
-                <div id="signed-doc-loading" style="color:#fff;text-align:center;">
-                    <i class="ph ph-circle-notch ph-spin" style="font-size:2.5rem;"></i>
-                    <div style="margin-top:0.5rem;">Gerando pré-visualização...</div>
-                </div>
-                <iframe id="signed-doc-iframe" style="display:none;width:100%;height:100%;border:none;"></iframe>
-            </div>
-        </div>`;
-
-    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
-
-    fetch(`/api/geradores/${geradorId}/preview-pdf/${colabId}`, { headers: { 'Authorization': `Bearer ${token}` } })
-        .then(res => {
-            if (!res.ok) throw new Error('Erro ao gerar pré-visualização');
-            return res.blob();
-        })
-        .then(blob => {
-            const blobUrl = URL.createObjectURL(blob);
-            const iframe  = document.getElementById('signed-doc-iframe');
-            const loading = document.getElementById('signed-doc-loading');
-            if (iframe)  { iframe.src = blobUrl; iframe.style.display = 'block'; }
-            if (loading) loading.style.display = 'none';
-        })
-        .catch(err => {
-            const loading = document.getElementById('signed-doc-loading');
-            if (loading) loading.innerHTML = `<i class="ph ph-warning" style="font-size:2.5rem;color:#fbbf24;"></i><div style="margin-top:0.5rem;">${err.message}</div>`;
+    try {
+        // Usa o endpoint existente que retorna HTML + dados do colaborador
+        const response = await fetch(`${API_URL}/geradores/${geradorId}/gerar/${colabId}`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${currentToken}` }
         });
+        const data = await response.json();
+
+        if (!data.html) {
+            alert('Não foi possível carregar o documento.');
+            return;
+        }
+
+        // Reutiliza a função de preview do gerador (com layout completo)
+        // Precisamos temporariamente salvar a seleção de assinatura para não alterar o modal principal
+        window.abrirPreviewDocumento(data);
+
+    } catch(e) {
+        alert('Erro ao carregar pré-visualização: ' + e.message);
+    }
 };
 
 // ===== PASSO 2: ENVIO EM LOTE PARA ASSINAFY =====
