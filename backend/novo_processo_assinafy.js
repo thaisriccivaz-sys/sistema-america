@@ -1,11 +1,9 @@
 /**
  * novo_processo_assinafy.js
  *
- * Dois signatários em TODOS os documentos:
- *  1. Colaborador (CPF)
- *  2. America Rental Equipamentos Ltda (CNPJ) — rh@americarental.com.br
- *
- * O documento só aparece como "Assinado" no sistema quando AMBOS tiverem assinado.
+ * Endpoint para envio ao Assinafy:
+ * Apenas UM signatário obrigatório (Colaborador).
+ * A empresa já pré-assina digitalmente em background via certificado A1 (.pfx).
  *
  * Endpoints confirmados:
  *  - Upload:      POST /v1/accounts/{accountId}/documents  (multipart)
@@ -27,12 +25,7 @@ const API_KEY    = 'AxaT-FiXBckHqEYV0s_MtUhLF3pReRz3dX4zVpC173vmjDwzLGHYtDJuQje4
 const ACCOUNT_ID = '10237785fb23cf473d54845a013e';
 const HOSTNAME   = 'api.assinafy.com.br';
 
-// Empresa — segundo signatário obrigatório em TODOS os documentos
-const EMPRESA = {
-    full_name: 'America Rental Equipamentos Ltda',
-    email:     'rh@americarental.com.br',
-    cnpj:      '03434448000101'
-};
+// (A empresa não é mais signatária virtual pois usamos o certificado A1 localmente)
 
 // ─── HELPERS HTTP ─────────────────────────────────────────────────────────────
 
@@ -179,24 +172,18 @@ async function enviarDocumentoParaAssinafy(documentId, colaboradorId) {
         if (i === 60) throw new Error('Timeout: Assinafy demorou mais de 3 min para processar o PDF.');
     }
 
-    // 4. Resolver signatários em PARALELO — colaborador + empresa
-    console.log(`[4] Resolvendo signatários (colaborador + empresa)...`);
-    const [signerColabId, signerEmpresaId] = await Promise.all([
-        resolverSignatario({ full_name: nome, email, tax_id: cpf, whatsapp_phone_number: fone || undefined }),
-        resolverSignatario({ full_name: EMPRESA.full_name, email: EMPRESA.email, tax_id: EMPRESA.cnpj })
-    ]);
+    // 4. Resolver signatário (apenas colaborador)
+    console.log(`[4] Resolvendo signatário (colaborador)...`);
+    const signerColabId = await resolverSignatario({ full_name: nome, email, tax_id: cpf, whatsapp_phone_number: fone || undefined });
 
     if (!signerColabId)   throw new Error('ID do signatário (colaborador) não obtido.');
-    if (!signerEmpresaId) throw new Error('ID do signatário (empresa) não obtido.');
-    console.log(`[4] Colaborador ID=${signerColabId} | Empresa ID=${signerEmpresaId}`);
+    console.log(`[4] Colaborador ID=${signerColabId}`);
 
-    // 5. Assignment com os DOIS signatários
-    // O documento só ficará "Assinado" quando AMBOS tiverem assinado
-    console.log(`[5] Criando assignment com 2 signatários...`);
+    // 5. Assignment com UM ÚNICO signatário (O documento já foi pré-assinado pela empresa via PFX)
+    console.log(`[5] Criando assignment para o colaborador...`);
     const assignRes = await req('POST', `/v1/documents/${assinafyDocId}/assignments`, {
         signers: [
-            { id: signerColabId,   role: 'signer', notification_methods: ['Email'] },
-            { id: signerEmpresaId, role: 'signer', notification_methods: ['Email'] }
+            { id: signerColabId, role: 'signer', notification_methods: ['Email'] }
         ],
         method: 'virtual',
         copy_receivers: [{ email: 'americasistema48@gmail.com', name: 'Sistema America' }]
