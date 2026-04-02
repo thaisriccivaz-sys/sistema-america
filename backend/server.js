@@ -307,7 +307,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // ROTA DE VERSÃO (Para verificar implantação)
-app.get('/api/version', (req, res) => res.json({ version: 'V41_ADMISSAO_STATUS_SYNC' }));
+app.get('/api/version', (req, res) => res.json({ version: 'V42_DOC_VIEW_FIX' }));
 
 // ─── MÓDULO DE ASSINATURA DIGITAL COM CERTIFICADO .PFX ───────────────────────
 const signPdfPfx = require('./sign_pdf_pfx');
@@ -461,7 +461,7 @@ setTimeout(() => {
 console.log('[POLL-ADMISSAO] Job de polling configurado (a cada 30 segundos).');
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Endpoint de alertas realtime: retorna documentos de admissão assinados nos últimos 5 minutos
+// Endpoint de alertas realtime: retorna documentos de admissão assinados nas últimas 24h
 app.get('/api/admissao-assinaturas/alertas-recentes', authenticateToken, (req, res) => {
     db.all(`
         SELECT aa.id, aa.nome_documento, aa.assinado_em, aa.colaborador_id,
@@ -470,8 +470,9 @@ app.get('/api/admissao-assinaturas/alertas-recentes', authenticateToken, (req, r
         LEFT JOIN colaboradores c ON c.id = aa.colaborador_id
         WHERE aa.assinafy_status = 'Assinado'
           AND aa.assinado_em IS NOT NULL
-          AND datetime(aa.assinado_em) >= datetime('now', '-60 minutes')
+          AND datetime(aa.assinado_em) >= datetime('now', '-24 hours')
         ORDER BY aa.assinado_em DESC
+        LIMIT 20
     `, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows || []);
@@ -1526,6 +1527,15 @@ app.get('/api/documentos/download/:id', authenticateToken, (req, res) => {
         
         return res.status(404).json({ error: 'Arquivo físico não encontrado no servidor.' });
     });
+});
+
+// Rota para obter INFO de um documento (sem arquivo)
+app.get('/api/documentos/info/:id', authenticateToken, (req, res) => {
+    db.get('SELECT id, file_name, document_type, assinafy_status, assinafy_id, signed_file_path, tab_name FROM documentos WHERE id = ?',
+        [req.params.id], (err, row) => {
+            if (err || !row) return res.status(404).json({ error: 'Documento não encontrado' });
+            res.json(row);
+        });
 });
 
 // Rota para VISUALIZAR inline no browser (sem forçar download)

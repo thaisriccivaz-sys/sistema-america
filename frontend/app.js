@@ -3712,8 +3712,17 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
 
     if (isSaved) {
         const st = existingDoc.assinafy_status || '';
+        // Buscar o assId da tabela admissao_assinaturas para este documento
+        // Se o existingDoc é da tabela documentos mas tem um ass relacionado
+        const assId = existingDoc.admissao_ass_id || existingDoc.id;
         if (st === 'Assinado') {
-            assStatusIcon = `<button type="button" onclick="window.viewDoc(${existingDoc.id})" style="height:42px;display:inline-flex;align-items:center;gap:6px;background:#2f9e44;color:#fff;border:none;border-radius:6px;padding:0 0.85rem;font-size:0.85rem;font-weight:600;cursor:pointer;white-space:nowrap;" title="Visualizar/Baixar PDF Assinado"><i class="ph ph-file-pdf" style="font-size:1.1rem;"></i> Ver Assinado</button>`;
+            // Tenta usar o assId da tabela admissao_assinaturas se disponível
+            // caso contrário usa o id do próprio documento
+            assStatusIcon = `<button type="button" onclick="window.openSignedDocPopupDocumento(${existingDoc.id}, '${(docType||'').replace(/'/g,"\\'")}')"
+                style="height:42px;display:inline-flex;align-items:center;gap:6px;background:#2f9e44;color:#fff;border:none;border-radius:6px;padding:0 0.85rem;font-size:0.85rem;font-weight:600;cursor:pointer;white-space:nowrap;"
+                title="Visualizar PDF Assinado">
+                <i class="ph ph-file-pdf" style="font-size:1.1rem;"></i> Ver Assinado
+            </button>`;
         } else if (st === 'Erro') {
             assStatusIcon = `<span title="Erro ao enviar" style="height:42px;display:inline-flex;align-items:center;gap:3px;color:#e03131;font-size:0.85rem;font-weight:600;white-space:nowrap;"><i class="ph ph-warning-circle" style="font-size:1.1rem;"></i> Erro</span>`;
         }
@@ -4777,26 +4786,41 @@ window.deleteDoc = async function(docId, btnEl) {
 }
 
 window.viewDoc = async function(docId) {
-    const viewUrl = `${API_URL}/documentos/view/${docId}?token=${currentToken}`;
-    const downloadUrl = `${API_URL}/documentos/download/${docId}?token=${currentToken}`;
+    try {
+        // Buscar info do documento para decidir o que mostrar
+        const doc = await apiGet(`/documentos/info/${docId}`).catch(() => null);
+        
+        // Se tem assinafy_status = Assinado, preferir o endpoint de download (que faz proxy do Assinafy)
+        const token = currentToken || localStorage.getItem('token');
+        const viewUrl = `${API_URL}/documentos/view/${docId}?token=${token}`;
+        const downloadUrl = `${API_URL}/documentos/download/${docId}?token=${token}`;
 
-    const modalBody = document.getElementById('modal-doc-body');
-    if (modalBody) {
-        modalBody.innerHTML = `<iframe src="${viewUrl}" style="width:100%; height:100%; border:none; display:block;"></iframe>`;
+        // Verificar se popup de doc-modal existe, caso contrário abrir numa nova janela
+        const modal = document.getElementById('doc-modal');
+        const modalBody = document.getElementById('modal-doc-body');
+        const modalTitle = document.getElementById('modal-doc-title');
+        
+        if (modal && modalBody) {
+            if (modalTitle) modalTitle.textContent = doc?.document_type || doc?.file_name || 'Documento';
+            modalBody.innerHTML = '';
+            
+            // Usar iframe com URL direta (funciona com redirect do Assinafy)
+            const iframe = document.createElement('iframe');
+            iframe.src = viewUrl;
+            iframe.style.cssText = 'width:100%;height:100%;border:none;display:block;';
+            modalBody.appendChild(iframe);
+            
+            const btnDownload = document.getElementById('btn-download-doc');
+            if (btnDownload) btnDownload.onclick = () => { window.open(downloadUrl, '_blank'); };
+            
+            modal.style.display = 'flex';
+        } else {
+            // Fallback: abrir em nova aba
+            window.open(viewUrl, '_blank');
+        }
+    } catch(e) {
+        alert('Erro ao abrir documento: ' + e.message);
     }
-
-    const btnDownload = document.getElementById('btn-download-doc');
-    if (btnDownload) {
-        btnDownload.onclick = () => {
-            const a = document.createElement('a');
-            a.href = downloadUrl;
-            a.download = '';
-            a.click();
-        };
-    }
-
-    const modal = document.getElementById('doc-modal');
-    if (modal) modal.style.display = 'flex';
 }
 window.viewAssinado = async function(docId) {
     const url = `${API_URL}/documentos/download-assinado/${docId}`;
@@ -6311,7 +6335,7 @@ window.renderContratosTab = async function(container) {
                         <div style="font-size:0.78rem; color:#64748b;">Os documentos selecionados serão enviados ao e-mail do colaborador via Assinafy.</div>
                     </div>
                     <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-                        <button type="button" style="background:#3b82f6; color:#fff; border:none; padding:10px 15px; border-radius:6px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:5px;" onclick="window.rodarDiagnosticoAssinafy()">
+                        <button type="button" style="background:#ef4444; color:#fff; border:none; padding:10px 15px; border-radius:6px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:5px;" onclick="window.rodarDiagnosticoAssinafy()">
                             <i class="ph ph-bug"></i> VERIFICAR API
                         </button>
                         <button id="btn-enviar-assinaturas" class="btn btn-primary" onclick="window.sendAdmissaoSignatures('admissao-signature-list', 'btn-enviar-assinaturas')" style="display:flex; align-items:center; gap:5px;">
@@ -6675,12 +6699,14 @@ window.openSignedDocPopup = function(assId, nomeDoc, evt) {
 
     // Criar overlay
     let overlay = document.getElementById('signed-doc-popup-overlay');
-    if (!overlay) {
-        overlay = document.createElement('div');
-        overlay.id = 'signed-doc-popup-overlay';
-        overlay.style.cssText = `position:fixed;inset:0;background:rgba(15,23,42,0.7);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;`;
-        document.body.appendChild(overlay);
-    }
+    if (overlay) overlay.remove();
+    overlay = document.createElement('div');
+    overlay.id = 'signed-doc-popup-overlay';
+    overlay.style.cssText = `position:fixed;inset:0;background:rgba(15,23,42,0.7);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;`;
+    document.body.appendChild(overlay);
+
+    // URL com token na querystring (autenticado sem CORS issue do iframe)
+    const pdfUrl = `${API_URL}/admissao-assinaturas/${assId}/download?token=${token}`;
 
     overlay.innerHTML = `
         <div style="background:#fff;border-radius:12px;width:95vw;max-width:1000px;height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 25px 60px rgba(0,0,0,0.4);">
@@ -6693,7 +6719,7 @@ window.openSignedDocPopup = function(assId, nomeDoc, evt) {
                     </div>
                 </div>
                 <div style="display:flex;gap:0.5rem;">
-                    <a id="signed-doc-download-btn" href="#" download="${nomeDoc}_Assinado.pdf"
+                    <a href="${pdfUrl}" download="${nomeDoc}_Assinado.pdf"
                        style="display:inline-flex;align-items:center;gap:0.4rem;background:#22c55e;color:#fff;padding:0.5rem 1rem;border-radius:8px;font-weight:600;font-size:0.85rem;text-decoration:none;">
                         <i class="ph ph-download-simple"></i> Baixar
                     </a>
@@ -6703,40 +6729,66 @@ window.openSignedDocPopup = function(assId, nomeDoc, evt) {
                     </button>
                 </div>
             </div>
-            <div style="flex:1;overflow:hidden;background:#64748b;display:flex;align-items:center;justify-content:center;">
-                <div id="signed-doc-loading" style="color:#fff;text-align:center;">
-                    <i class="ph ph-circle-notch ph-spin" style="font-size:2.5rem;"></i>
-                    <div style="margin-top:0.5rem;">Carregando PDF...</div>
+            <div style="flex:1;overflow:hidden;background:#e2e8f0;position:relative;">
+                <div id="signed-doc-loading" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#334155;">
+                    <i class="ph ph-circle-notch ph-spin" style="font-size:2.5rem;color:#6366f1;"></i>
+                    <div style="margin-top:0.5rem;font-weight:600;">Carregando PDF...</div>
                 </div>
-                <iframe id="signed-doc-iframe" style="display:none;width:100%;height:100%;border:none;"></iframe>
+                <iframe id="signed-doc-iframe" src="${pdfUrl}"
+                    style="width:100%;height:100%;border:none;display:block;"
+                    onload="document.getElementById('signed-doc-loading').style.display='none';"
+                    onerror="document.getElementById('signed-doc-loading').innerHTML='<i class=\'ph ph-warning\' style=\'font-size:2.5rem;color:#f59e0b;\'></i><div>Erro ao carregar PDF</div>';"></iframe>
             </div>
         </div>`;
 
-    overlay.style.display = 'flex';
-    document.body.appendChild(overlay);
-
     // Clicar fora fecha
     overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+};
 
-    // Carregar PDF
-    fetch(`/api/admissao-assinaturas/${assId}/download`, { headers: { 'Authorization': `Bearer ${token}` } })
-        .then(res => {
-            if (!res.ok) throw new Error('Arquivo não disponível');
-            return res.blob();
-        })
-        .then(blob => {
-            const blobUrl = URL.createObjectURL(blob);
-            const iframe = document.getElementById('signed-doc-iframe');
-            const loading = document.getElementById('signed-doc-loading');
-            const dlBtn = document.getElementById('signed-doc-download-btn');
-            if (iframe) { iframe.src = blobUrl; iframe.style.display = 'block'; }
-            if (loading) loading.style.display = 'none';
-            if (dlBtn) dlBtn.href = blobUrl;
-        })
-        .catch(err => {
-            const loading = document.getElementById('signed-doc-loading');
-            if (loading) loading.innerHTML = `<i class="ph ph-warning" style="font-size:2.5rem;color:#fbbf24;"></i><div style="margin-top:0.5rem;">${err.message}</div>`;
-        });
+// Função para visualizar documentos assinados via tabela 'documentos' (ASO, EPI, Contratos)
+window.openSignedDocPopupDocumento = function(docId, nomeDoc) {
+    const token = currentToken || localStorage.getItem('token');
+    const pdfUrl = `${API_URL}/documentos/view/${docId}?token=${token}`;
+    const downloadUrl = `${API_URL}/documentos/download/${docId}?token=${token}`;
+
+    let overlay = document.getElementById('signed-doc-popup-overlay');
+    if (overlay) overlay.remove();
+    overlay = document.createElement('div');
+    overlay.id = 'signed-doc-popup-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    document.body.appendChild(overlay);
+
+    overlay.innerHTML = `
+        <div style="background:#fff;border-radius:12px;width:95vw;max-width:1000px;height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 25px 60px rgba(0,0,0,0.4);">
+            <div style="padding:1rem 1.5rem;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;background:#f8fafc;flex-shrink:0;">
+                <div style="display:flex;align-items:center;gap:0.75rem;">
+                    <i class="ph ph-file-pdf" style="color:#ef4444;font-size:1.5rem;"></i>
+                    <div>
+                        <div style="font-weight:700;color:#334155;">${nomeDoc || 'Documento'}</div>
+                        <div style="font-size:0.78rem;color:#94a3b8;">Documento Assinado</div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:0.5rem;">
+                    <a href="${downloadUrl}" download style="display:inline-flex;align-items:center;gap:0.4rem;background:#22c55e;color:#fff;padding:0.5rem 1rem;border-radius:8px;font-weight:600;font-size:0.85rem;text-decoration:none;">
+                        <i class="ph ph-download-simple"></i> Baixar
+                    </a>
+                    <button onclick="document.getElementById('signed-doc-popup-overlay').remove()"
+                            style="background:#ef4444;color:#fff;border:none;border-radius:8px;padding:0.5rem 1rem;cursor:pointer;font-weight:600;">
+                        <i class="ph ph-x"></i> Fechar
+                    </button>
+                </div>
+            </div>
+            <div style="flex:1;overflow:hidden;background:#e2e8f0;position:relative;">
+                <div id="signed-doc-loading2" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#334155;">
+                    <i class="ph ph-circle-notch ph-spin" style="font-size:2.5rem;color:#6366f1;"></i>
+                    <div style="margin-top:0.5rem;font-weight:600;">Carregando PDF...</div>
+                </div>
+                <iframe src="${pdfUrl}" style="width:100%;height:100%;border:none;display:block;"
+                    onload="const l=document.getElementById('signed-doc-loading2');if(l)l.style.display='none';"></iframe>
+            </div>
+        </div>`;
+
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
 };
 
 window.startFinalAdmission = async function() {
@@ -9308,8 +9360,18 @@ if (typeof _origNavigateTo === 'function') {
 
     // Polling: verifica a cada 30 segundos por documentos recém-assinados
     const SEEN_KEY = 'admissao_toasts_vistos';
+    const SEEN_TTL_KEY = 'admissao_toasts_ttl';
     function getSeenIds() {
-        try { return new Set(JSON.parse(localStorage.getItem(SEEN_KEY) || '[]')); } catch { return new Set(); }
+        try {
+            // Limpar seen IDs a cada 24h para not mostrar alertas velhos de forma permanente
+            const ttl = localStorage.getItem(SEEN_TTL_KEY);
+            if (!ttl || Date.now() - parseInt(ttl) > 86400000) {
+                localStorage.removeItem(SEEN_KEY);
+                localStorage.setItem(SEEN_TTL_KEY, String(Date.now()));
+                return new Set();
+            }
+            return new Set(JSON.parse(localStorage.getItem(SEEN_KEY) || '[]'));
+        } catch { return new Set(); }
     }
     function markSeen(ids) {
         try {
