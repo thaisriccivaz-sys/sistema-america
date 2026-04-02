@@ -276,8 +276,9 @@ window.carregarPermissoesOnline = async function() {
     }
 
     if (!currentUser.grupo_permissao_id) {
-        // Usuário comum sem permissões. Ocultar tudo que tem data-target.
-        document.querySelectorAll('.nav-item').forEach(el => el.style.display = 'none');
+        // Usuário comum sem permissões. Ocultar tudo.
+        document.querySelectorAll('.nav-item').forEach(el => el.style.cssText = 'display: none !important;');
+        document.querySelectorAll('.dept-item').forEach(el => el.style.cssText = 'display: none !important;');
         return;
     }
 
