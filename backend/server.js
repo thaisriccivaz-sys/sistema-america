@@ -365,13 +365,10 @@ async function pollAdmissaoAssinaturas() {
                 const signedUrl = extractSignedUrl(docData);
                 if (signedUrl) {
                     try {
-                        const pdfBuf = await new Promise((resolve, reject) => {
-                            https.get(signedUrl, { headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey } }, resp => {
-                                const chunks = [];
-                                resp.on('data', c => chunks.push(c));
-                                resp.on('end', () => resolve(Buffer.concat(chunks)));
-                            }).on('error', reject);
-                        });
+                        const pdfResp = await fetch(signedUrl, { headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey } });
+                        if (!pdfResp.ok) throw new Error('Falha ao baixar URL assinada: ' + pdfResp.statusText);
+                        const pdfBuf = Buffer.from(await pdfResp.arrayBuffer());
+
                         const destPath = (doc.file_path || path.join(BASE_PATH, `admissao_${doc.id}`))
                             .replace(/(_assinado)?\.pdf$/, '_assinado.pdf');
                         fs.writeFileSync(destPath, pdfBuf);
@@ -425,12 +422,12 @@ async function pollAdmissaoAssinaturas() {
     }
 }
 
-// Iniciar polling após o servidor subir (aguarda 30s e depois a cada 1 minuto)
+// Iniciar polling após o servidor subir (aguarda 30s e depois a cada 30 segundos)
 setTimeout(() => {
     pollAdmissaoAssinaturas();
-    setInterval(pollAdmissaoAssinaturas, 1 * 60 * 1000);
+    setInterval(pollAdmissaoAssinaturas, 30 * 1000);
 }, 30000);
-console.log('[POLL-ADMISSAO] Job de polling configurado (a cada 1 minuto).');
+console.log('[POLL-ADMISSAO] Job de polling configurado (a cada 30 segundos).');
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Endpoint de alertas realtime: retorna documentos de admissão assinados nos últimos 5 minutos
@@ -740,8 +737,8 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
     const data = req.body;
     const nomeOriginal = data.nome_completo || data.nome;
 
-    if (!nomeOriginal || !data.cpf) {
-        return res.status(400).json({ error: "Nome e CPF são campos obrigatórios" });
+    if (!nomeOriginal || !data.cpf || !data.email || !data.telefone) {
+        return res.status(400).json({ error: "Nome, CPF, Email e Telefone são campos obrigatórios" });
     }
 
     const nomePasta = formatarNome(nomeOriginal);
@@ -990,6 +987,10 @@ app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) =>
 app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
     const data = req.body;
     const id = req.params.id;
+
+    if (!data.email || !data.telefone) {
+        return res.status(400).json({ error: "Email e Telefone são campos obrigatórios" });
+    }
 
     const colunas = [
         'nome_completo', 'cpf', 'rg', 'data_nascimento', 'estado_civil', 'nacionalidade',
@@ -1988,12 +1989,7 @@ app.get('/api/admissao-assinaturas/:id/download', authenticateToken, async (req,
 
             const docData = docInfo?.data || docInfo;
             // Tenta vários campos de URL do PDF assinado
-            const signedUrl = docData?.certificated_file_url
-                || docData?.report_url
-                || docData?.bundle_url
-                || (docData?.artifacts?.find?.(a => a.type === 'signed_document' || a.type === 'certificated')?.url)
-                || docData?.signed_url
-                || docData?.download_url;
+            const signedUrl = extractSignedUrl(docData);
 
             if (signedUrl) {
                 console.log(`[DOWNLOAD] Baixando PDF do Assinafy: ${signedUrl}`);
