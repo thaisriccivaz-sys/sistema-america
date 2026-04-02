@@ -466,6 +466,41 @@ app.post('/api/admissao-assinaturas/verificar-status', authenticateToken, async 
     }
 });
 
+// DIAGNÓSTICO: compara tabelas e status real no Assinafy
+app.get('/api/admissao-assinaturas/diagnostico/:colaborador_id', authenticateToken, async (req, res) => {
+    const { colaborador_id } = req.params;
+    try {
+        const aa = await new Promise((resolve, reject) =>
+            db.all('SELECT * FROM admissao_assinaturas WHERE colaborador_id = ?', [colaborador_id], (err, rows) => err ? reject(err) : resolve(rows))
+        );
+        const docs = await new Promise((resolve, reject) =>
+            db.all('SELECT id, assinafy_id, assinafy_status, signed_file_path FROM documentos WHERE colaborador_id = ? AND assinafy_id IS NOT NULL', [colaborador_id], (err, rows) => err ? reject(err) : resolve(rows))
+        );
+        
+        // Consultar Assinafy para cada admissao_assinatura com assinafy_id
+        const https = require('https');
+        const assinafyStatus = [];
+        for (const doc of aa.filter(d => d.assinafy_id)) {
+            const info = await new Promise((resolve) => {
+                const r = https.request({ hostname: 'api.assinafy.com.br', path: `/v1/documents/${doc.assinafy_id}`, method: 'GET', headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey, 'Accept': 'application/json' }}, resp => {
+                    const chunks = [];
+                    resp.on('data', c => chunks.push(c));
+                    resp.on('end', () => { try { resolve(JSON.parse(Buffer.concat(chunks).toString())); } catch(e) { resolve({ erro: e.message }); } });
+                });
+                r.on('error', e => resolve({ erro: e.message }));
+                r.setTimeout(8000, () => { r.destroy(); resolve({ erro: 'timeout' }); });
+                r.end();
+            });
+            const docData = info?.data || info;
+            assinafyStatus.push({ assinafy_id: doc.assinafy_id, nome: doc.nome_documento, status_banco: doc.assinafy_status, status_assinafy_api: docData?.status, raw_keys: Object.keys(docData || {}) });
+        }
+
+        res.json({ admissao_assinaturas: aa, documentos_com_assinafy_id: docs, assinafy_api_status: assinafyStatus });
+    } catch(e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 /**
  * ASSINAFY: Background mode com Polling estendido
  * O Assinafy processa documentos lentamente em alguns casos.
