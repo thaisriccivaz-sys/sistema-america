@@ -229,6 +229,7 @@ const BREADCRUMB_MAP = {
     'gerenciar-avaliacoes': { path: 'Gerenciar Avaliações',                                       code: 'RHAV02' },
     'usuarios-permissoes':  { path: 'Diretoria → Usuários e Permissões',                          code: 'DIR001' },
     'form-usuario':         { path: 'Diretoria → Usuários e Permissões → Cadastro',               code: 'DIR002' },
+    'certificado-digital':  { path: 'Diretoria → Certificado Digital',                            code: 'DIR003' },
     // Sub-telas (Prontuário Digital - abas)
     'tab:00. CheckList':          { path: 'Colaboradores → Prontuário Digital → 00. CheckList',          },
     'tab:01. Ficha Cadastral':    { path: 'Colaboradores → Prontuário Digital → Ficha Cadastral',        },
@@ -8563,11 +8564,31 @@ window.carregarStatusCertificado = async function() {
     const banner = document.getElementById('cert-digital-banner');
     if (!banner) return;
 
+    // Verificar se o usuário é da Diretoria
+    const isDiretoria = currentUser && (
+        currentUser.role === 'Diretoria' ||
+        currentUser.role === 'Administrador' ||
+        currentUser.departamento === 'Diretoria'
+    );
+
+    const btnGerenciar = isDiretoria
+        ? `<button onclick="navigateTo('certificado-digital')"
+               style="border:none;background:rgba(22,163,74,0.15);color:#166534;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:4px;flex-shrink:0;">
+               <i class="ph ph-arrow-square-out"></i> Diretoria → Certificado
+           </button>`
+        : '';
+
+    const btnConfigurar = isDiretoria
+        ? `<button onclick="navigateTo('certificado-digital')"
+               style="border:none;background:#fef3c7;color:#92400e;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:4px;flex-shrink:0;">
+               <i class="ph ph-arrow-square-out"></i> Configurar na Diretoria
+           </button>`
+        : `<span style="font-size:0.76rem;opacity:0.75;white-space:nowrap;">Configure em Diretoria → Certificado Digital</span>`;
+
     try {
         const data = await apiGet('/certificado-digital/status');
 
         if (data.configurado && data.ok) {
-            // ✅ Certificado configurado e válido
             banner.style.background  = '#f0fdf4';
             banner.style.border      = '1.5px solid #bbf7d0';
             banner.style.color       = '#166534';
@@ -8580,35 +8601,27 @@ window.carregarStatusCertificado = async function() {
                         — Os documentos serão pré-assinados com o certificado antes de ir ao colaborador
                     </div>
                 </div>
-                <button onclick="window.abrirModalCertificado()" 
-                    style="border:none;background:rgba(22,163,74,0.15);color:#166534;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:4px;">
-                    <i class="ph ph-gear"></i> Gerenciar
-                </button>`;
+                ${btnGerenciar}`;
         } else {
-            // ⚠️ Certificado não configurado
             banner.style.background  = '#fffbeb';
             banner.style.border      = '1.5px solid #fcd34d';
             banner.style.color       = '#92400e';
             banner.innerHTML = `
                 <i class="ph ph-warning" style="font-size:1.3rem;color:#d97706;flex-shrink:0;"></i>
                 <div style="flex:1;">
-                    <div style="font-weight:700;">Certificado Digital não configurado</div>
+                    <div style="font-weight:700;">Assinatura Digital não configurada</div>
                     <div style="font-size:0.76rem;margin-top:2px;opacity:0.85;">
-                        Os documentos serão enviados <b>sem assinatura digital da empresa</b>. 
-                        Configure o .pfx para que saiam pré-assinados.
+                        Os documentos serão enviados <b>sem assinatura digital</b>.
+                        ${isDiretoria ? 'Configure o certificado .pfx na Diretoria.' : 'Solicite à Diretoria para configurar o certificado digital.'}
                     </div>
                 </div>
-                <button onclick="window.abrirModalCertificado()"
-                    style="border:none;background:#fef3c7;color:#92400e;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:4px;">
-                    <i class="ph ph-upload-simple"></i> Configurar
-                </button>`;
+                ${btnConfigurar}`;
         }
     } catch(e) {
         banner.style.background = '#f1f5f9';
         banner.style.border     = '1.5px solid #e2e8f0';
         banner.style.color      = '#64748b';
-        banner.innerHTML = `<i class="ph ph-info" style="font-size:1.1rem;"></i> <span>Assinatura digital: não verificada</span>
-            <button onclick="window.abrirModalCertificado()" style="margin-left:auto;border:1px solid #e2e8f0;background:#fff;border-radius:6px;padding:0.3rem 0.7rem;font-size:0.78rem;cursor:pointer;">Configurar</button>`;
+        banner.innerHTML = `<i class="ph ph-info" style="font-size:1.1rem;"></i> <span style="flex:1;">Assinatura digital: verificação indisponível</span>`;
     }
 };
 
@@ -8847,5 +8860,155 @@ window.removerCertificado = async function() {
         if (msgEl) { msgEl.style.display = 'block'; msgEl.style.background = '#f0fdf4'; msgEl.style.border = '1px solid #bbf7d0'; msgEl.style.color = '#166534'; msgEl.innerHTML = '✅ Certificado removido com sucesso.'; }
     } catch(e) { alert(e.message); }
 };
+
+
+// ══════════════════════════════════════════════════════════════════════
+// CERTIFICADO DIGITAL — Funções da View da Diretoria
+// ══════════════════════════════════════════════════════════════════════
+
+/** Carrega o status na view de Diretoria > Certificado Digital */
+window.carregarCertificadoView = async function() {
+    const statusEl  = document.getElementById('cert-view-status');
+    const btnTestar = document.getElementById('btn-cert-view-testar');
+    const btnRemove = document.getElementById('btn-cert-view-remover');
+    if (!statusEl) return;
+
+    statusEl.innerHTML = `<i class="ph ph-spinner ph-spin"></i> Verificando certificado...`;
+    try {
+        const data = await apiGet('/certificado-digital/status');
+
+        if (data.configurado && data.ok) {
+            statusEl.style.cssText = 'padding:1rem;border-radius:10px;background:#f0fdf4;border:1.5px solid #bbf7d0;font-size:0.88rem;color:#166534;display:flex;align-items:flex-start;gap:0.75rem;min-height:70px;';
+            statusEl.innerHTML = `
+                <i class="ph ph-seal-check" style="font-size:1.8rem;color:#16a34a;flex-shrink:0;"></i>
+                <div>
+                    <div style="font-weight:700;font-size:0.95rem;margin-bottom:4px;">✅ Certificado Digital Ativo</div>
+                    <div style="display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font-size:0.82rem;">
+                        <span style="opacity:0.7;">Titular:</span> <b>${data.cn || 'N/A'}</b>
+                        <span style="opacity:0.7;">Organização:</span> <span>${data.org || 'N/A'}</span>
+                        <span style="opacity:0.7;">Validade:</span> <b style="color:${isDateNear(data.validade) ? '#dc2626' : '#166534'}">${data.validade || 'N/A'} ${isDateNear(data.validade) ? '⚠️ Próximo do vencimento!' : ''}</b>
+                        <span style="opacity:0.7;">Serial:</span> <span style="font-family:monospace;">${(data.serial||'').slice(-12)}</span>
+                    </div>
+                </div>`;
+            if (btnTestar) btnTestar.style.display = 'flex';
+            if (btnRemove) btnRemove.style.display = 'flex';
+        } else {
+            statusEl.style.cssText = 'padding:1rem;border-radius:10px;background:#fffbeb;border:1.5px solid #fcd34d;font-size:0.88rem;color:#92400e;display:flex;align-items:center;gap:0.75rem;min-height:70px;';
+            statusEl.innerHTML = `
+                <i class="ph ph-warning" style="font-size:1.5rem;color:#d97706;flex-shrink:0;"></i>
+                <div>
+                    <div style="font-weight:700;">Nenhum certificado configurado</div>
+                    <div style="font-size:0.8rem;margin-top:2px;">${data.motivo || 'Configure o arquivo .pfx ao lado para ativar a assinatura automática.'}</div>
+                </div>`;
+            if (btnTestar) btnTestar.style.display = 'none';
+            if (btnRemove) btnRemove.style.display = 'none';
+        }
+    } catch(e) {
+        statusEl.innerHTML = `<i class="ph ph-warning-circle"></i> Erro ao verificar: ${e.message}`;
+    }
+};
+
+function isDateNear(dateStr) {
+    if (!dateStr) return false;
+    try {
+        const [d, m, y] = dateStr.split('/').map(Number);
+        const exp = new Date(y, m - 1, d);
+        const diff = (exp - new Date()) / (1000 * 60 * 60 * 24);
+        return diff < 60; // menos de 60 dias
+    } catch(e) { return false; }
+}
+
+window.onCertViewFileSelected = function(input) {
+    const file = input.files[0];
+    if (!file) return;
+    document.getElementById('cert-view-file-name').textContent = file.name;
+    const preview = document.getElementById('cert-view-file-preview');
+    const label   = document.getElementById('cert-view-upload-label');
+    if (preview) preview.style.display = 'flex';
+    if (label)   label.style.borderColor = '#a78bfa';
+};
+
+window.salvarCertificadoView = async function() {
+    const fileInput = document.getElementById('cert-view-pfx-input');
+    const senha     = document.getElementById('cert-view-senha')?.value || '';
+    const msgEl     = document.getElementById('cert-view-save-msg');
+    const btnSalvar = document.getElementById('btn-cert-view-salvar');
+
+    if (!fileInput?.files[0]) { alert('Selecione um arquivo .pfx primeiro.'); return; }
+
+    if (msgEl) { msgEl.style.display='block'; msgEl.style.cssText='display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#f8fafc;color:#64748b;margin-bottom:0.75rem;'; msgEl.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando e validando certificado...'; }
+    if (btnSalvar) { btnSalvar.disabled = true; btnSalvar.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...'; }
+
+    try {
+        const formData = new FormData();
+        formData.append('certificado', fileInput.files[0]);
+        formData.append('senha', senha);
+
+        const res  = await fetch(`${API_URL}/certificado-digital/upload`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${currentToken}` },
+            body: formData
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erro ao salvar');
+
+        if (msgEl) { msgEl.style.cssText='display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;margin-bottom:0.75rem;'; msgEl.innerHTML = `✅ Certificado salvo com sucesso! Ativo para sempre até o vencimento.<br><b>Titular:</b> ${data.cn} | <b>Validade:</b> ${data.validade}`; }
+
+        // Recarregar status
+        await window.carregarCertificadoView();
+
+    } catch(e) {
+        if (msgEl) { msgEl.style.cssText='display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#fef2f2;border:1px solid #fca5a5;color:#dc2626;margin-bottom:0.75rem;'; msgEl.innerHTML = `❌ ${e.message}`; }
+    } finally {
+        if (btnSalvar) { btnSalvar.disabled = false; btnSalvar.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar Certificado'; }
+    }
+};
+
+window.testarCertificadoView = async function() {
+    const resultEl = document.getElementById('cert-view-test-result');
+    const btn      = document.getElementById('btn-cert-view-testar');
+    if (resultEl) { resultEl.style.cssText='display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;'; resultEl.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Gerando PDF de teste e assinando...'; }
+    if (btn) btn.disabled = true;
+
+    try {
+        const res  = await fetch(`${API_URL}/certificado-digital/testar`, { method: 'POST', headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' } });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.erro || 'Falha no teste');
+        if (resultEl) { resultEl.style.cssText='display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;'; resultEl.innerHTML = `${data.message} PDF gerado: ${(data.tamanho_bytes/1024).toFixed(1)} KB com assinatura embutida.`; }
+    } catch(e) {
+        if (resultEl) { resultEl.style.cssText='display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#fef2f2;border:1px solid #fca5a5;color:#dc2626;'; resultEl.innerHTML = `❌ Teste falhou: ${e.message}`; }
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+};
+
+window.removerCertificadoView = async function() {
+    if (!confirm('Remover o certificado digital? Os documentos serão enviados SEM assinatura automática da empresa até que outro seja configurado.')) return;
+    try {
+        const res  = await fetch(`${API_URL}/certificado-digital`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${currentToken}` } });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erro ao remover');
+        await window.carregarCertificadoView();
+        const msgEl = document.getElementById('cert-view-save-msg');
+        if (msgEl) { msgEl.style.cssText='display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;margin-bottom:0.75rem;'; msgEl.innerHTML = '✅ Certificado removido.'; }
+    } catch(e) { alert(e.message); }
+};
+
+// Hook: ao navegar para 'certificado-digital', carregar status automaticamente
+const _origShowView = window.showView;
+window.showView = function(id) {
+    if (typeof _origShowView === 'function') _origShowView(id);
+};
+// Já existe o navigateTo — adicionar hook para certificado-digital
+const _origNavigateTo = window.navigateTo;
+if (typeof _origNavigateTo === 'function') {
+    window.navigateTo = function(view) {
+        _origNavigateTo(view);
+        if (view === 'certificado-digital') {
+            setTimeout(() => window.carregarCertificadoView(), 150);
+        }
+    };
+}
+
 
 

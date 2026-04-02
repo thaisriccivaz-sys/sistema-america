@@ -134,6 +134,7 @@
                     <div class="dept-submenu-header" style="color:#d9480f;"><i class="ph ph-crown"></i> Diretoria</div>
                     <a href="#" class="nav-item" data-target="usuarios-permissoes"><i class="ph ph-users-three"></i> Usuários</a>
                     <a href="#" class="nav-item" data-target="chaves"><i class="ph ph-key"></i> Chaves</a>
+                    <a href="#" class="nav-item" data-target="certificado-digital"><i class="ph ph-certificate"></i> Certificado Digital</a>
                 </div>
             </div>
 
@@ -1773,8 +1774,142 @@
                     </div>
                 </section>
 
+                <!-- VIEW: CERTIFICADO DIGITAL (Diretoria) -->
+                <section id="view-certificado-digital" class="content-view">
+                    <div class="page-header flex-between">
+                        <div style="display:flex;align-items:center;gap:1.25rem;">
+                            <div style="width:56px;height:56px;background:linear-gradient(135deg,#0f172a,#1e293b);border-radius:14px;display:flex;align-items:center;justify-content:center;">
+                                <i class="ph ph-certificate" style="font-size:1.8rem;color:#a78bfa;"></i>
+                            </div>
+                            <div>
+                                <h2 style="margin:0;color:#0f172a;">Certificado Digital</h2>
+                                <p style="margin:2px 0 0;color:#64748b;font-size:0.85rem;">Assinatura automática da America Rental nos documentos de admissão</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;max-width:1000px;">
+
+                        <!-- Card: Status atual -->
+                        <div class="card p-4" style="grid-column:1/-1;">
+                            <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem;">
+                                <i class="ph ph-info" style="color:#7c3aed;font-size:1.2rem;"></i>
+                                <h3 class="section-title" style="margin:0;">Como funciona</h3>
+                            </div>
+                            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;">
+                                <div style="background:#f8fafc;border-radius:10px;padding:1rem;border:1px solid #e2e8f0;text-align:center;">
+                                    <i class="ph ph-file-text" style="font-size:2rem;color:#7c3aed;display:block;margin-bottom:0.5rem;"></i>
+                                    <div style="font-weight:700;font-size:0.85rem;color:#334155;">1. PDF Gerado</div>
+                                    <div style="font-size:0.75rem;color:#64748b;margin-top:4px;">O sistema gera o documento do colaborador</div>
+                                </div>
+                                <div style="background:#f8fafc;border-radius:10px;padding:1rem;border:1px solid #e2e8f0;text-align:center;">
+                                    <i class="ph ph-seal-check" style="font-size:2rem;color:#7c3aed;display:block;margin-bottom:0.5rem;"></i>
+                                    <div style="font-weight:700;font-size:0.85rem;color:#334155;">2. Assinar com .pfx</div>
+                                    <div style="font-size:0.75rem;color:#64748b;margin-top:4px;">Assinatura digital da America Rental é aplicada</div>
+                                </div>
+                                <div style="background:#f8fafc;border-radius:10px;padding:1rem;border:1px solid #e2e8f0;text-align:center;">
+                                    <i class="ph ph-envelope" style="font-size:2rem;color:#7c3aed;display:block;margin-bottom:0.5rem;"></i>
+                                    <div style="font-weight:700;font-size:0.85rem;color:#334155;">3. Assinafy</div>
+                                    <div style="font-size:0.75rem;color:#64748b;margin-top:4px;">Enviado ao colaborador para assinar online</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Card: Status do Certificado -->
+                        <div class="card p-4">
+                            <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1.25rem;">
+                                <i class="ph ph-shield-check" style="color:#7c3aed;font-size:1.2rem;"></i>
+                                <h3 class="section-title" style="margin:0;">Status do Certificado</h3>
+                            </div>
+                            <div id="cert-view-status" style="padding:1rem;border-radius:10px;background:#f8fafc;border:1.5px solid #e2e8f0;font-size:0.85rem;color:#64748b;display:flex;align-items:center;gap:0.75rem;min-height:70px;">
+                                <i class="ph ph-spinner ph-spin"></i> Carregando...
+                            </div>
+                            <div style="margin-top:1rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
+                                <button id="btn-cert-view-testar" onclick="window.testarCertificadoView()" style="display:none;border:1px solid #e2e8f0;background:#fff;color:#374151;border-radius:8px;padding:0.55rem 1rem;font-size:0.85rem;font-weight:600;cursor:pointer;align-items:center;gap:4px;">
+                                    <i class="ph ph-flask"></i> Testar Assinatura
+                                </button>
+                                <button id="btn-cert-view-remover" onclick="window.removerCertificadoView()" style="display:none;border:1px solid #fca5a5;background:#fff;color:#dc2626;border-radius:8px;padding:0.55rem 1rem;font-size:0.85rem;font-weight:600;cursor:pointer;align-items:center;gap:4px;">
+                                    <i class="ph ph-trash"></i> Remover Certificado
+                                </button>
+                            </div>
+                            <div id="cert-view-test-result" style="display:none;margin-top:0.75rem;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;"></div>
+                        </div>
+
+                        <!-- Card: Upload / Configurar -->
+                        <div class="card p-4">
+                            <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1.25rem;">
+                                <i class="ph ph-upload-simple" style="color:#7c3aed;font-size:1.2rem;"></i>
+                                <h3 class="section-title" style="margin:0;">Configurar / Atualizar</h3>
+                            </div>
+                            <p class="text-muted" style="font-size:0.82rem;margin-bottom:1.25rem;">
+                                Configure <b>uma vez</b>. O certificado fica armazenado no disco persistente do sistema e é carregado automaticamente a cada reinício. Atualize apenas quando o certificado <b>vencer</b>.
+                            </p>
+
+                            <div style="margin-bottom:1rem;">
+                                <label style="font-size:0.82rem;font-weight:700;color:#374151;display:block;margin-bottom:6px;">
+                                    Arquivo .PFX <span style="font-weight:400;color:#94a3b8;">(Certificado A1)</span>
+                                </label>
+                                <label id="cert-view-upload-label"
+                                    style="display:block;padding:1.25rem;border:2px dashed #e2e8f0;border-radius:10px;cursor:pointer;font-size:0.85rem;color:#94a3b8;text-align:center;background:#fafafa;transition:0.2s;"
+                                    onmouseover="this.style.borderColor='#a78bfa';this.style.color='#7c3aed';this.style.background='#faf5ff'"
+                                    onmouseout="this.style.borderColor='#e2e8f0';this.style.color='#94a3b8';this.style.background='#fafafa'">
+                                    <i class="ph ph-file-lock" style="font-size:2rem;display:block;margin-bottom:0.5rem;"></i>
+                                    Clique para selecionar o arquivo .pfx
+                                    <input type="file" id="cert-view-pfx-input" accept=".pfx" style="display:none;" onchange="window.onCertViewFileSelected(this)">
+                                </label>
+                                <div id="cert-view-file-preview" style="display:none;margin-top:0.5rem;padding:0.5rem 0.75rem;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;font-size:0.82rem;color:#166534;display:flex;align-items:center;gap:0.5rem;">
+                                    <i class="ph ph-check-circle"></i> <span id="cert-view-file-name"></span>
+                                </div>
+                            </div>
+
+                            <div style="margin-bottom:1.25rem;">
+                                <label style="font-size:0.82rem;font-weight:700;color:#374151;display:block;margin-bottom:6px;">Senha do Certificado</label>
+                                <div style="position:relative;">
+                                    <input type="password" id="cert-view-senha"
+                                        placeholder="Senha do arquivo .pfx"
+                                        style="width:100%;padding:0.65rem 2.5rem 0.65rem 0.85rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.88rem;outline:none;box-sizing:border-box;"
+                                        onfocus="this.style.borderColor='#a78bfa'" onblur="this.style.borderColor='#e2e8f0'">
+                                    <button type="button"
+                                        onclick="const i=document.getElementById('cert-view-senha');i.type=i.type==='password'?'text':'password'"
+                                        style="position:absolute;right:0.6rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#94a3b8;font-size:1rem;">
+                                        <i class="ph ph-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div id="cert-view-save-msg" style="display:none;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;margin-bottom:0.75rem;"></div>
+
+                            <button onclick="window.salvarCertificadoView()" id="btn-cert-view-salvar"
+                                style="width:100%;border:none;background:linear-gradient(135deg,#7c3aed,#a78bfa);color:#fff;border-radius:10px;padding:0.75rem;font-size:0.9rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;transition:opacity 0.2s;"
+                                onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+                                <i class="ph ph-floppy-disk"></i> Salvar Certificado
+                            </button>
+                        </div>
+
+                        <!-- Card: Aviso de persistência -->
+                        <div class="card p-4" style="grid-column:1/-1;background:#fffbeb;border:1.5px solid #fcd34d;">
+                            <div style="display:flex;align-items:flex-start;gap:0.75rem;">
+                                <i class="ph ph-lightbulb" style="font-size:1.4rem;color:#d97706;flex-shrink:0;margin-top:2px;"></i>
+                                <div>
+                                    <div style="font-weight:700;color:#92400e;margin-bottom:4px;">Quando preciso configurar novamente?</div>
+                                    <div style="font-size:0.85rem;color:#78350f;line-height:1.6;">
+                                        O certificado é armazenado <b>permanentemente</b> no disco persistente do sistema (Render Disk). 
+                                        Você só precisará configurar novamente quando:
+                                        <ul style="margin:6px 0 0 1rem;padding:0;">
+                                            <li>O certificado digital <b>vencer</b> (verifique a data de validade acima)</li>
+                                            <li>A empresa <b>renovar</b> o certificado A1 junto à autoridade certificadora</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </section>
+
                 <!-- VIEW: USUÁRIOS E PERMISSÕES -->
                 <section id="view-usuarios-permissoes" class="content-view">
+
                     <div class="page-header flex-between">
                         <h2><i class="ph ph-users-three" style="color:#d9480f;"></i> Usuários e Permissões</h2>
                     </div>

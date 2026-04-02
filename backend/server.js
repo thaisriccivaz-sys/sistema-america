@@ -3403,16 +3403,21 @@ app.delete('/api/gerador-departamento-templates/:gerador_id/:departamento_id', a
 // ROTAS DE GERENCIAMENTO DO CERTIFICADO DIGITAL (.PFX)
 // ═══════════════════════════════════════════════════════════════════════════
 
+// Diretório persistente para o certificado: mesmo disco do banco de dados
+const CERT_DIR = (() => {
+    if (process.env.DATABASE_PATH) {
+        // Salva no mesmo diretório do banco (disco persistente do Render)
+        return path.join(path.dirname(process.env.DATABASE_PATH), '_certificados');
+    }
+    return path.join(__dirname, 'data', '_certificados');
+})();
+if (!fs.existsSync(CERT_DIR)) { try { fs.mkdirSync(CERT_DIR, { recursive: true }); } catch(e) {} }
+console.log(`[CERT] Diretório do certificado: ${CERT_DIR}`);
+
 const uploadCertificado = multer({
     storage: multer.diskStorage({
-        destination: (req, file, cb) => {
-            const certDir = process.env.STORAGE_PATH
-                ? path.join(process.env.STORAGE_PATH, '_certificados')
-                : path.join(__dirname, 'data', '_certificados');
-            if (!fs.existsSync(certDir)) fs.mkdirSync(certDir, { recursive: true });
-            cb(null, certDir);
-        },
-        filename: (req, file, cb) => cb(null, 'certificado.pfx')
+        destination: (req, file, cb) => cb(null, CERT_DIR),
+        filename:    (req, file, cb) => cb(null, 'certificado.pfx')
     }),
     fileFilter: (req, file, cb) => {
         if (file.originalname.toLowerCase().endsWith('.pfx') || file.mimetype === 'application/x-pkcs12') {
@@ -3442,8 +3447,10 @@ app.get('/api/certificado-digital/status', authenticateToken, (req, res) => {
  * Body: multipart com campo 'certificado' (.pfx) e 'senha' (texto)
  */
 app.post('/api/certificado-digital/upload', authenticateToken, uploadCertificado.single('certificado'), async (req, res) => {
-    if (req.user?.role !== 'RH' && req.user?.role !== 'admin') {
-        return res.status(403).json({ error: 'Apenas administradores podem gerenciar o certificado digital.' });
+    // Apenas usuários da Diretoria podem gerenciar o certificado
+    const isDiretoria = req.user?.role === 'Diretoria' || req.user?.role === 'Administrador' || req.user?.departamento === 'Diretoria';
+    if (!isDiretoria) {
+        return res.status(403).json({ error: 'Apenas usuários da Diretoria podem configurar o certificado digital.' });
     }
     if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo .pfx enviado.' });
 
@@ -3473,14 +3480,18 @@ app.post('/api/certificado-digital/upload', authenticateToken, uploadCertificado
  * Remove o certificado configurado
  */
 app.delete('/api/certificado-digital', authenticateToken, (req, res) => {
-    if (req.user?.role !== 'RH' && req.user?.role !== 'admin') {
-        return res.status(403).json({ error: 'Apenas administradores podem remover o certificado.' });
+    const isDiretoria = req.user?.role === 'Diretoria' || req.user?.role === 'Administrador' || req.user?.departamento === 'Diretoria';
+    if (!isDiretoria) {
+        return res.status(403).json({ error: 'Apenas usuários da Diretoria podem remover o certificado.' });
     }
-    const pfxPath = process.env.PFX_PATH;
+    // Remover do banco
     db.run(`DELETE FROM configuracoes_sistema WHERE chave IN ('pfx_path','pfx_password_b64')`);
-    if (pfxPath && fs.existsSync(pfxPath)) {
-        try { fs.unlinkSync(pfxPath); } catch(e) {}
-    }
+    // Remover arquivo físico do CERT_DIR
+    const certFile = path.join(CERT_DIR, 'certificado.pfx');
+    if (fs.existsSync(certFile)) { try { fs.unlinkSync(certFile); } catch(e) {} }
+    // Limpar env vars em memória
+    delete process.env.PFX_PATH;
+    delete process.env.PFX_PASSWORD;
     res.json({ ok: true, message: 'Certificado removido.' });
 });
 
@@ -3512,10 +3523,18 @@ app.post('/api/certificado-digital/testar', authenticateToken, async (req, res) 
 
 // Ao inicializar o servidor: carregar PFX_PATH e PFX_PASSWORD do banco se não estiverem no env
 setTimeout(() => {
+    // 1º: Verificar se o arquivo existe direto no CERT_DIR (persistência automática)
+    const certFilePadrao = path.join(CERT_DIR, 'certificado.pfx');
+    if (!process.env.PFX_PATH && fs.existsSync(certFilePadrao)) {
+        process.env.PFX_PATH = certFilePadrao;
+        console.log(`[CERT] Certificado encontrado automaticamente no disco: ${certFilePadrao}`);
+    }
+
+    // 2º: Carregar do banco de dados (fallback)
     db.run(`CREATE TABLE IF NOT EXISTS configuracoes_sistema (chave TEXT PRIMARY KEY, valor TEXT)`, () => {
         if (!process.env.PFX_PATH) {
             db.get(`SELECT valor FROM configuracoes_sistema WHERE chave = 'pfx_path'`, [], (err, row) => {
-                if (row?.valor) {
+                if (row?.valor && fs.existsSync(row.valor)) {
                     process.env.PFX_PATH = row.valor;
                     console.log(`[CERT] PFX_PATH carregado do banco: ${row.valor}`);
                 }
@@ -3529,8 +3548,14 @@ setTimeout(() => {
                 }
             });
         }
+        if (process.env.PFX_PATH) {
+            console.log(`[CERT] ✅ Certificado digital pronto para uso: ${process.env.PFX_PATH}`);
+        } else {
+            console.log(`[CERT] ⚠️  Nenhum certificado configurado. Configure em Diretoria → Certificado Digital.`);
+        }
     });
 }, 3000);
+
 
 // Tratamento de Exceções Globais
 process.on('uncaughtException', (err) => {
