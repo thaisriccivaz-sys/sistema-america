@@ -6324,8 +6324,8 @@ window.renderContratosTab = async function(container) {
                 <div class="alert alert-info mb-3">
                     <i class="ph ph-info"></i> Esta aba reflete os mesmos contratos processados via <b>Admissão</b> para o cargo/departamento atual do colaborador.
                 </div>
-                <!-- Div com ID para reaproveitar lógica do sendAdmissaoSignatures -->
-                <div id="admissao-signature-list" style="display:flex;flex-direction:column;gap:0.75rem;margin-bottom:1.5rem;">
+                <!-- Div com ID único para aba de Contratos (evitar conflito com Admissão Passo 2) -->
+                <div id="contratos-signature-list" style="display:flex;flex-direction:column;gap:0.75rem;margin-bottom:1.5rem;">
             `;
             html += window.buildAdmissaoSignatureRows(availableGeradores, assinaturas, docs, viewedColaborador);
             html += `</div>
@@ -6338,7 +6338,7 @@ window.renderContratosTab = async function(container) {
                         <button type="button" style="background:#ef4444; color:#fff; border:none; padding:10px 15px; border-radius:6px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:5px;" onclick="window.rodarDiagnosticoAssinafy()">
                             <i class="ph ph-bug"></i> VERIFICAR API
                         </button>
-                        <button id="btn-enviar-assinaturas" class="btn btn-primary" onclick="window.sendAdmissaoSignatures('admissao-signature-list', 'btn-enviar-assinaturas')" style="display:flex; align-items:center; gap:5px;">
+                        <button id="btn-enviar-contratos" class="btn btn-primary" onclick="window.sendAdmissaoSignatures('contratos-signature-list', 'btn-enviar-contratos')" style="display:flex; align-items:center; gap:5px;">
                             <i class="ph ph-paper-plane-tilt"></i> Enviar para Assinatura
                         </button>
                     </div>
