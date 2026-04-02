@@ -9152,4 +9152,127 @@ if (typeof _origNavigateTo === 'function') {
 }
 
 
+// ===== SISTEMA DE TOAST: NOTIFICAÇÕES DE DOCUMENTOS ASSINADOS (ADMISSÃO) =====
+(function() {
+    // Container de toasts
+    function getToastContainer() {
+        let c = document.getElementById('admissao-toast-container');
+        if (!c) {
+            c = document.createElement('div');
+            c.id = 'admissao-toast-container';
+            c.style.cssText = `
+                position: fixed;
+                top: 1.2rem;
+                right: 1.2rem;
+                z-index: 99999;
+                display: flex;
+                flex-direction: column;
+                gap: 0.6rem;
+                pointer-events: none;
+                max-width: 340px;
+            `;
+            document.body.appendChild(c);
+        }
+        return c;
+    }
 
+    function showToast(nomeDoc, nomeColab) {
+        const container = getToastContainer();
+        const toast = document.createElement('div');
+        toast.style.cssText = `
+            background: linear-gradient(135deg, #0f172a, #1e293b);
+            color: #fff;
+            border-radius: 12px;
+            padding: 0.9rem 1.1rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+            border-left: 4px solid #22c55e;
+            pointer-events: all;
+            animation: toastSlideIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+            max-width: 340px;
+        `;
+        toast.innerHTML = `
+            <i class="ph-fill ph-check-circle" style="font-size:1.6rem;color:#22c55e;flex-shrink:0;margin-top:1px;"></i>
+            <div style="flex:1;min-width:0;">
+                <div style="font-size:0.72rem;font-weight:600;color:#86efac;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px;">
+                    Admissão · Documento Assinado
+                </div>
+                <div style="font-size:0.88rem;font-weight:700;color:#f0fdf4;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                    ${nomeDoc}
+                </div>
+                <div style="font-size:0.78rem;color:#94a3b8;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                    <i class="ph ph-user"></i> ${nomeColab}
+                </div>
+            </div>
+            <button onclick="this.closest('[id]').remove ? this.parentElement.remove() : null"
+                style="background:none;border:none;color:#64748b;cursor:pointer;font-size:1rem;padding:0;flex-shrink:0;pointer-events:all;"
+                title="Fechar">✕</button>
+        `;
+        // Inject animation keyframes once
+        if (!document.getElementById('toast-anim-style')) {
+            const style = document.createElement('style');
+            style.id = 'toast-anim-style';
+            style.textContent = `
+                @keyframes toastSlideIn {
+                    from { opacity: 0; transform: translateX(80px) scale(0.9); }
+                    to   { opacity: 1; transform: translateX(0) scale(1); }
+                }
+                @keyframes toastFadeOut {
+                    from { opacity: 1; transform: scale(1); }
+                    to   { opacity: 0; transform: scale(0.9); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        container.appendChild(toast);
+        // Auto-remove após 7 segundos
+        setTimeout(() => {
+            toast.style.animation = 'toastFadeOut 0.3s ease forwards';
+            setTimeout(() => toast.remove(), 300);
+        }, 7000);
+    }
+
+    // Polling: verifica a cada 30 segundos por documentos recém-assinados
+    const SEEN_KEY = 'admissao_toasts_vistos';
+    function getSeenIds() {
+        try { return new Set(JSON.parse(localStorage.getItem(SEEN_KEY) || '[]')); } catch { return new Set(); }
+    }
+    function markSeen(ids) {
+        try {
+            const seen = getSeenIds();
+            ids.forEach(id => seen.add(id));
+            // Manter apenas os últimos 200 para não encher o storage
+            const arr = Array.from(seen).slice(-200);
+            localStorage.setItem(SEEN_KEY, JSON.stringify(arr));
+        } catch {}
+    }
+
+    async function checkAlertasRecentes() {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        try {
+            const resp = await fetch(`${API_URL}/admissao-assinaturas/alertas-recentes`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!resp.ok) return;
+            const alertas = await resp.json();
+            if (!Array.isArray(alertas) || alertas.length === 0) return;
+            const seen = getSeenIds();
+            const novos = alertas.filter(a => !seen.has(a.id));
+            if (novos.length === 0) return;
+            // Mostrar toasts para os novos (máx 3 de uma vez para não poluir)
+            novos.slice(0, 3).forEach(a => {
+                showToast(a.nome_documento || 'Documento', a.colaborador_nome || 'Colaborador');
+            });
+            markSeen(novos.map(a => a.id));
+        } catch {}
+    }
+
+    // Iniciar polling após 5 segundos (aguarda login completo) e repetir a cada 30s
+    setTimeout(() => {
+        checkAlertasRecentes();
+        setInterval(checkAlertasRecentes, 30000);
+    }, 5000);
+})();

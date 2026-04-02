@@ -408,6 +408,23 @@ setTimeout(() => {
 console.log('[POLL-ADMISSAO] Job de polling configurado (a cada 2 minutos).');
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Endpoint de alertas realtime: retorna documentos de admissão assinados nos últimos 5 minutos
+app.get('/api/admissao-assinaturas/alertas-recentes', authenticateToken, (req, res) => {
+    db.all(`
+        SELECT aa.id, aa.nome_documento, aa.assinado_em, aa.colaborador_id,
+               c.nome_completo AS colaborador_nome
+        FROM admissao_assinaturas aa
+        LEFT JOIN colaboradores c ON c.id = aa.colaborador_id
+        WHERE aa.assinafy_status = 'Assinado'
+          AND aa.assinado_em IS NOT NULL
+          AND datetime(aa.assinado_em) >= datetime('now', '-5 minutes')
+        ORDER BY aa.assinado_em DESC
+    `, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
 // Endpoint para forçar verificação imediata de status do colaborador
 app.post('/api/admissao-assinaturas/verificar-status', authenticateToken, async (req, res) => {
     const { colaborador_id } = req.body;
