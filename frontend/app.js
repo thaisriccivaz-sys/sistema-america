@@ -9003,18 +9003,22 @@ window.salvarCertificadoView = async function() {
 };
 
 window.testarCertificadoView = async function() {
+    return window.testarAssinaturaView();
+};
+
+window.testarAssinaturaView = async function() {
     const resultEl = document.getElementById('cert-view-test-result');
     const btn      = document.getElementById('btn-cert-view-testar');
-    if (resultEl) { resultEl.style.cssText='display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;'; resultEl.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Gerando PDF de teste e assinando...'; }
+    if (resultEl) { resultEl.style.cssText='display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;'; resultEl.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Testando assinatura no servidor...'; }
     if (btn) btn.disabled = true;
 
     try {
-        const res  = await fetch(`${API_URL}/certificado-digital/testar`, { method: 'POST', headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' } });
+        const res  = await fetch(`${API_URL}/certificado-digital/testar-assinatura`, { method: 'POST', headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' } });
         const data = await res.json();
         if (!res.ok || !data.ok) throw new Error(data.erro || 'Falha no teste');
-        if (resultEl) { resultEl.style.cssText='display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;'; resultEl.innerHTML = `${data.message} PDF gerado: ${(data.tamanho_bytes/1024).toFixed(1)} KB com assinatura embutida.`; }
+        if (resultEl) { resultEl.style.cssText='display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;'; resultEl.innerHTML = `✅ ${data.mensagem} PDF assinado: ${(data.tamanhoAssinado/1024).toFixed(1)} KB`; }
     } catch(e) {
-        if (resultEl) { resultEl.style.cssText='display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#fef2f2;border:1px solid #fca5a5;color:#dc2626;'; resultEl.innerHTML = `❌ Teste falhou: ${e.message}`; }
+        if (resultEl) { resultEl.style.cssText='display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#fef2f2;border:1px solid #fca5a5;color:#dc2626;'; resultEl.innerHTML = `❌ Erro: ${e.message}`; }
     } finally {
         if (btn) btn.disabled = false;
     }

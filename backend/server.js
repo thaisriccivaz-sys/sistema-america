@@ -1631,26 +1631,23 @@ app.post('/api/admissao-assinaturas/enviar-lote', authenticateToken, async (req,
             fs.writeFileSync(filePath, pdfBuffer);
         }
 
-        // ── ASSINATURA DIGITAL COM .PFX (se configurado) ──────────────────────
+        // ── ASSINATURA DIGITAL COM .PFX ─────────────────────────────────────────────
         const pfxDisp = signPdfPfx.verificarDisponibilidade();
         if (pfxDisp.disponivel) {
-            try {
-                console.log(`[PFX-SIGN] Assinando PDF do gerador ${geradorId} com certificado digital...`);
-                const pdfOriginal  = fs.readFileSync(filePath);
-                const pdfAssinado  = await signPdfPfx.assinarPDF(pdfOriginal, {
-                    motivo: `Documento gerado e assinado digitalmente pela America Rental Equipamentos Ltda | ${gerador.nome}`,
-                    local:  'Brasil',
-                    nome:   'America Rental Equipamentos Ltda'
-                });
-                // Salvar PDF assinado (substitui o arquivo temporário)
-                const signedPath = filePath.replace('.pdf', '_assinado.pdf');
-                fs.writeFileSync(signedPath, pdfAssinado);
-                filePath = signedPath;
-                console.log(`[PFX-SIGN] ✅ PDF assinado salvo: ${signedPath}`);
-            } catch (signErr) {
-                // NÃO bloqueia o envio — apenas loga o erro e continua com PDF sem assinatura
-                console.error(`[PFX-SIGN] ⚠️ Falha ao assinar com .pfx (enviando sem assinatura digital): ${signErr.message}`);
-            }
+            // Certificado configurado: a assinatura É OBRIGATÓRIA
+            // Se falhar, barra o envio em vez de enviar sem assinatura
+            console.log(`[PFX-SIGN] Assinando PDF do gerador ${geradorId} com certificado digital...`);
+            const pdfOriginal  = fs.readFileSync(filePath);
+            const pdfAssinado  = await signPdfPfx.assinarPDF(pdfOriginal, {
+                motivo: `Documento gerado e assinado digitalmente pela America Rental Equipamentos Ltda | ${gerador.nome}`,
+                local:  'Brasil',
+                nome:   'America Rental Equipamentos Ltda'
+            });
+            // Salvar PDF assinado (substitui o arquivo temporário)
+            const signedPath = filePath.replace('.pdf', '_assinado.pdf');
+            fs.writeFileSync(signedPath, pdfAssinado);
+            filePath = signedPath;
+            console.log(`[PFX-SIGN] ✅ PDF assinado salvo: ${signedPath}`);
         } else {
             console.log(`[PFX-SIGN] Assinatura digital ignorada: ${pfxDisp.motivo}`);
         }
@@ -3439,6 +3436,47 @@ app.get('/api/certificado-digital/status', authenticateToken, (req, res) => {
     }
     const info = signPdfPfx.infosCertificado(process.env.PFX_PATH, process.env.PFX_PASSWORD || '');
     res.json({ configurado: true, ...info });
+});
+
+/**
+ * POST /api/certificado-digital/testar-assinatura
+ * Testa a assinatura real com o certificado configurado e retorna sucesso ou erro detalhado
+ */
+app.post('/api/certificado-digital/testar-assinatura', authenticateToken, async (req, res) => {
+    const isDiretoria = req.user?.role === 'Diretoria'
+        || req.user?.role === 'Administrador'
+        || req.user?.departamento === 'Diretoria'
+        || (req.user?.grupo_nome && req.user.grupo_nome.toLowerCase() === 'diretoria');
+    if (!isDiretoria) return res.status(403).json({ ok: false, erro: 'Acesso negado' });
+
+    const disp = signPdfPfx.verificarDisponibilidade();
+    if (!disp.disponivel) return res.json({ ok: false, etapa: 'verificacao', erro: disp.motivo });
+
+    try {
+        const { PDFDocument } = require('pdf-lib');
+        const tmpDoc = await PDFDocument.create();
+        const pg     = tmpDoc.addPage([595, 842]);
+        pg.drawText('Teste de assinatura digital - America Rental', { x: 50, y: 700, size: 14 });
+        pg.drawText(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, { x: 50, y: 680, size: 10 });
+        const tmpBuffer = Buffer.from(await tmpDoc.save());
+
+        console.log('[CERT-TEST] Iniciando teste real de assinatura...');
+        const pdfAssinado = await signPdfPfx.assinarPDF(tmpBuffer, {
+            motivo: 'Teste de assinatura digital - Sistema América Rental',
+            local: 'Brasil',
+            nome: 'America Rental Equipamentos Ltda'
+        });
+
+        res.json({
+            ok: true,
+            tamanhoOriginal: tmpBuffer.length,
+            tamanhoAssinado: pdfAssinado.length,
+            mensagem: 'Assinatura digital funcionando corretamente!'
+        });
+    } catch(e) {
+        console.error('[CERT-TEST] ERRO na assinatura:', e.message);
+        res.status(500).json({ ok: false, etapa: 'assinatura', erro: e.message });
+    }
 });
 
 /**
