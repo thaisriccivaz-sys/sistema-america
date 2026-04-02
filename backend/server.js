@@ -307,7 +307,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // ROTA DE VERSÃO (Para verificar implantação)
-app.get('/api/version', (req, res) => res.json({ version: 'V43_ASS_SCREEN_FIX' }));
+app.get('/api/version', (req, res) => res.json({ version: 'V44_ASS_UNION_FIX' }));
 
 // ─── MÓDULO DE ASSINATURA DIGITAL COM CERTIFICADO .PFX ───────────────────────
 const signPdfPfx = require('./sign_pdf_pfx');
@@ -479,18 +479,47 @@ app.get('/api/admissao-assinaturas/alertas-recentes', authenticateToken, (req, r
     });
 });
 
-// Endpoint: todos os documentos de assinatura (tela de Assinaturas Digitais)
+// Endpoint: TODOS os documentos de assinatura (admissao_assinaturas + documentos com assinafy_id)
 app.get('/api/admissao-assinaturas/todos', authenticateToken, (req, res) => {
     db.all(`
-        SELECT aa.id, aa.nome_documento, aa.assinado_em, aa.enviado_em,
-               aa.assinafy_status, aa.assinafy_id, aa.assinafy_url,
-               aa.colaborador_id, aa.gerador_id,
-               c.nome_completo AS colaborador_nome,
-               c.departamento AS colaborador_departamento,
-               c.cargo AS colaborador_cargo
+        -- Documentos via Admissão (contratos)
+        SELECT
+            aa.id          AS id,
+            aa.nome_documento AS nome_documento,
+            aa.assinafy_status,
+            aa.assinafy_id,
+            aa.enviado_em  AS enviado_em,
+            aa.assinado_em AS assinado_em,
+            aa.colaborador_id,
+            c.nome_completo AS colaborador_nome,
+            c.departamento  AS colaborador_departamento,
+            c.cargo         AS colaborador_cargo,
+            'admissao'      AS source
         FROM admissao_assinaturas aa
         LEFT JOIN colaboradores c ON c.id = aa.colaborador_id
-        ORDER BY COALESCE(aa.assinado_em, aa.enviado_em) DESC
+        WHERE aa.assinafy_id IS NOT NULL
+
+        UNION ALL
+
+        -- Documentos via Prontuário (ASO, EPI, Atestados, etc.)
+        SELECT
+            d.id            AS id,
+            d.document_type AS nome_documento,
+            d.assinafy_status,
+            d.assinafy_id,
+            d.assinafy_sent_at  AS enviado_em,
+            d.assinafy_signed_at AS assinado_em,
+            d.colaborador_id,
+            c.nome_completo AS colaborador_nome,
+            c.departamento  AS colaborador_departamento,
+            c.cargo         AS colaborador_cargo,
+            'documento'     AS source
+        FROM documentos d
+        LEFT JOIN colaboradores c ON c.id = d.colaborador_id
+        WHERE d.assinafy_id IS NOT NULL
+          AND d.assinafy_status IS NOT NULL
+
+        ORDER BY COALESCE(assinado_em, enviado_em) DESC
         LIMIT 500
     `, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });

@@ -420,6 +420,7 @@ const TAB_META = {
     'geradores':              { color: '#f503c5', icon: 'ph-file-text',       title: 'Geradores' },
     'ficha-epi':              { color: '#f503c5', icon: 'ph-shield-check',    title: 'Ficha EPI' },
     'gerenciar-avaliacoes':   { color: '#f503c5', icon: 'ph-clipboard-text',  title: 'Avaliações' },
+    'assinaturas-digitais':   { color: '#f503c5', icon: 'ph-signature',       title: 'Assinaturas' },
     // Diretoria - Laranja
     'usuarios-permissoes':    { color: '#d9480f', icon: 'ph-users-three',     title: 'Usuários e Permissões' },
     'certificado-digital':    { color: '#d9480f', icon: 'ph-certificate',     title: 'Certificado Digital' },
@@ -9401,12 +9402,15 @@ window.filtrarAssinaturas = function() {
             ? '<span style="background:#fef9c3;color:#92400e;border-radius:20px;padding:3px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-clock"></i> Aguardando</span>'
             : '<span style="background:#f1f5f9;color:#64748b;border-radius:20px;padding:3px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;">—</span>';
 
-        const viewBtn = isSigned
-            ? `<button onclick="window.openSignedDocPopup(${d.id}, '${(d.nome_documento||'').replace(/'/g,"\\'")}', event)"
-                style="background:#1d4ed8;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">
-                <i class="ph ph-eye"></i> Ver PDF
-               </button>`
-            : `<span style="color:#94a3b8;font-size:0.78rem;">—</span>`;
+        let viewBtn = `<span style="color:#94a3b8;font-size:0.78rem;">—</span>`;
+        if (isSigned) {
+            const nomeEsc = (d.nome_documento||'').replace(/'/g, "\\'");
+            if (d.source === 'documento') {
+                viewBtn = `<button onclick="window.openSignedDocPopupDocumento(${d.id}, '${nomeEsc}')" style="background:#1d4ed8;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-eye"></i> Ver PDF</button>`;
+            } else {
+                viewBtn = `<button onclick="window.openSignedDocPopup(${d.id}, '${nomeEsc}', event)" style="background:#1d4ed8;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-eye"></i> Ver PDF</button>`;
+            }
+        }
 
         return `
         <tr style="border-bottom:1px solid #f1f5f9;transition:background 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
