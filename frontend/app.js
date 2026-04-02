@@ -6524,6 +6524,30 @@ window.previewAdmissaoDoc = async function(geradorId, colabId, evt) {
     }
 };
 
+window.rodarDiagnosticoAssinafy = async function() {
+    if (!viewedColaborador) { alert('Nenhum colaborador selecionado.'); return; }
+    try {
+        const diag = await apiGet(`/admissao-assinaturas/diagnostico/${viewedColaborador.id}`);
+        console.log("=== DIAGNOSTICO ===", diag);
+        
+        let msg = "ID do Colaborador: " + viewedColaborador.id + "\n\n";
+        msg += "=== DOCUMENTOS DA ADMISSAO VS ASSINAFY ===\n\n";
+        
+        if (diag.assinafy_api_status) {
+            diag.assinafy_api_status.forEach(statusDoc => {
+                msg += `- ${statusDoc.nome}:\n`;
+                msg += `  Status no Banco: ${statusDoc.status_banco}\n`;
+                msg += `  Status Real Assinafy: ${statusDoc.status_assinafy_api}\n\n`;
+            });
+        }
+        
+        alert("Diagnóstico completo! A tela seguinte mostrará o status exato.");
+        alert(msg);
+    } catch(e) {
+        alert("Erro no diagnostico: " + e.message);
+    }
+}
+
 // ===== PASSO 2: ENVIO EM LOTE PARA ASSINAFY =====
 window.sendAdmissaoSignatures = async function() {
     if (!viewedColaborador) { alert('Nenhum colaborador selecionado.'); return; }
