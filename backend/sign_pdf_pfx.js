@@ -147,6 +147,7 @@ async function assinarPDF(pdfBuffer, opts = {}) {
     const { cert, key, certChain } = lerCertificado(pfxPath, pfxPassword);
 
     // 1b. INSERIR ESTAMPA VISUAL NO PDF (Para evidência no próprio assinador do candidato)
+    // IMPORTANTE: salvar com useObjectStreams: false para manter formato xref legado que o @signpdf requer
     let finalBuffer = pdfBuffer;
     try {
         const certObj = forge.pki.certificateFromPem(cert);
@@ -154,7 +155,7 @@ async function assinarPDF(pdfBuffer, opts = {}) {
         const subjectCN = subject.CN || subject.commonName || nome;
         const cnpjStr = subject.OU && typeof subject.OU === 'string' && subject.OU.match(/\d{14}/) ? `CNPJ: ${subject.OU.match(/\d{14}/)[0]}` : '';
 
-        const pdfDoc = await PDFDocument.load(pdfBuffer);
+        const pdfDoc = await PDFDocument.load(pdfBuffer, { updateMetadata: false });
         const pages = pdfDoc.getPages();
         const lastPage = pages[pages.length - 1];
         
@@ -179,11 +180,20 @@ async function assinarPDF(pdfBuffer, opts = {}) {
         yPos -= 12;
         lastPage.drawText(`Validade Certificado: ${certObj.validity.notAfter.toLocaleDateString('pt-BR')}`, { x: 48, y: yPos, size: 8, font: helveticNorm, color: rgb(0.3, 0.3, 0.3) });
 
-        finalBuffer = Buffer.from(await pdfDoc.save());
+        // useObjectStreams: false → mantém tabela xref legada (PDF 1.4) que o @signpdf consegue parsear
+        finalBuffer = Buffer.from(await pdfDoc.save({ useObjectStreams: false }));
         console.log('[SIGN-PDF] Estampa visual de assinatura inserida na última página.');
     } catch(e) {
-        console.warn(`[SIGN-PDF] Não foi possível inserir estampa visual: ${e.message}. Prosseguindo apenas com metadados invisíveis.`);
+        console.warn(`[SIGN-PDF] Não foi possível inserir estampa visual: ${e.message}. Tentando converter formato xref...`);
+        // Mesmo sem a estampa, garantir formato legado para o @signpdf
+        try {
+            const pdfDoc2 = await PDFDocument.load(pdfBuffer, { updateMetadata: false });
+            finalBuffer = Buffer.from(await pdfDoc2.save({ useObjectStreams: false }));
+        } catch(e2) {
+            console.warn(`[SIGN-PDF] Fallback de conversão também falhou: ${e2.message}. Usando buffer original.`);
+        }
     }
+
 
     // 2. Adicionar placeholder de assinatura ao PDF
     let pdfComPlaceholder;
