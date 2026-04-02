@@ -988,8 +988,8 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
     const data = req.body;
     const id = req.params.id;
 
-    if (!data.email || !data.telefone) {
-        return res.status(400).json({ error: "Email e Telefone são campos obrigatórios" });
+    if (('email' in data && !data.email) || ('telefone' in data && !data.telefone)) {
+        return res.status(400).json({ error: "Email e Telefone são campos obrigatórios e não podem ser vazios" });
     }
 
     const colunas = [
