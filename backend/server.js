@@ -1545,18 +1545,6 @@ function buildGeradoresHtml(gerador, colaborador, baseUrl) {
 
   <div class="footer">
     <div class="footer-date">${dataFormatada}</div>
-    <div class="sigs">
-      <div class="sig-block">
-        <div class="sig-line">${colaborador.nome_completo}</div>
-        <div class="sig-sub">Colaborador</div>
-      </div>
-      <div class="sig-block">
-        <div class="company-logo"><img src="${logoUrl}" alt="Logo"></div>
-        <div class="company-info">AMERICA RENTAL EQUIPAMENTOS LTDA<br>CNPJ: 03.434.448/0001-01</div>
-        <div class="sig-line">América Rental Equipamentos Ltda</div>
-        <div class="sig-sub">Empresa</div>
-      </div>
-    </div>
   </div>
 </body></html>`;
 }
