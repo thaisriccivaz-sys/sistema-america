@@ -2544,8 +2544,19 @@ app.post("/webhook/assinafy", async (req, res) => {
         if (event.includes('ready') || event.includes('signed') || event.includes('completed')) {
             console.log(`[WEBHOOK] Documento ${assinafyId} ASSINADO - baixando PDF assinado...`);
 
-            // Marcar como assinado no banco
+            // Marcar como assinado no banco - tabela documentos
             db.run('UPDATE documentos SET assinafy_status = ? WHERE assinafy_id = ?', ['Assinado', assinafyId]);
+
+            // Marcar como assinado na tabela admissao_assinaturas (documentos de admissão)
+            db.run(
+                `UPDATE admissao_assinaturas SET assinafy_status = 'Assinado', assinado_em = CURRENT_TIMESTAMP WHERE assinafy_id = ?`,
+                [assinafyId],
+                function(err) {
+                    if (!err && this.changes > 0) {
+                        console.log(`[WEBHOOK] ✅ admissao_assinaturas atualizado para Assinado (assinafy_id=${assinafyId})`);
+                    }
+                }
+            );
 
             // Baixar PDF assinado do Assinafy em background
             setImmediate(async () => {
