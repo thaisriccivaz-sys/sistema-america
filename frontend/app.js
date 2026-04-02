@@ -6326,22 +6326,36 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
                 if (availableGeradores.length > 0) {
                     sigList.innerHTML = availableGeradores.map(g => {
                         const ass = assinaturas.find(a => a.gerador_id === g.id || a.nome_documento === g.nome);
-                        const isSigned   = ass && ass.assinafy_status === 'Assinado';
-                        const isPending  = ass && ass.assinafy_status === 'Pendente';
+                        // FONTE DA VERDADE INFALÍVEL: a tabela "documentos", que é a mesma que o ASO usa
+                        const docEquivalente = (docs || []).find(d => d.tab_name === 'CONTRATOS' && (d.document_type === g.nome || (d.file_name && d.file_name.includes(g.nome))));
+                        
+                        // O status real é o de documentos. Se não existir, cai para admissao_assinaturas
+                        let realStatus = '';
+                        if (docEquivalente && docEquivalente.assinafy_status === 'Assinado') realStatus = 'Assinado';
+                        else if (ass && ass.assinafy_status === 'Assinado') realStatus = 'Assinado';
+                        else if (docEquivalente && docEquivalente.assinafy_status === 'Pendente') realStatus = 'Pendente';
+                        else if (ass && ass.assinafy_status === 'Pendente') realStatus = 'Pendente';
+
+                        const isSigned   = realStatus === 'Assinado';
+                        const isPending  = realStatus === 'Pendente';
                         const statusBadge = isSigned
                             ? `<span style="background:#dcfce7;color:#15803d;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;"><i class="ph ph-check-circle"></i> Assinado</span>`
                             : isPending
                             ? `<span style="background:#fef9c3;color:#92400e;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;"><i class="ph ph-clock"></i> Aguardando</span>`
                             : `<span style="background:#f1f5f9;color:#64748b;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;"><i class="ph ph-minus-circle"></i> Não enviado</span>`;
-                        const downloadBtn = isSigned
+                        const downloadBtn = (isSigned && ass)
                             ? `<button onclick="window.openSignedDocPopup(${ass.id}, '${g.nome.replace(/'/g,"\\'")}', event)" style="border:none;background:none;cursor:pointer;color:#16a34a;" title="Visualizar assinado"><i class="ph ph-file-pdf" style="font-size:1.2rem;"></i></button>`
                             : '';
                         const colabId = viewedColaborador ? viewedColaborador.id : '';
                         const eyeBtn = `<button onclick="window.previewAdmissaoDoc(${g.id}, ${colabId}, event)" style="border:none;background:none;cursor:pointer;color:#64748b;" title="Visualizar documento"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
-                        const certBtn = isSigned && !ass.certificado_assinado_em
+                        
+                        // Busca se já foi assinado na tabela admissao_assinaturas
+                        const certificadoAcionado = ass ? ass.certificado_assinado_em : null;
+                        
+                        const certBtn = (isSigned && ass && !certificadoAcionado)
                             ? `<button onclick="window.assinarComCertificado(${ass.id}, event)" style="border:1px solid #7c3aed;background:#faf5ff;color:#7c3aed;border-radius:6px;padding:2px 8px;font-size:0.72rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:3px;" title="Aplicar certificado digital A1 da empresa"><i class="ph ph-seal-check"></i> Certificado</button>`
-                            : isSigned && ass.certificado_assinado_em
-                            ? `<span style="font-size:0.72rem;color:#7c3aed;" title="Certificado aplicado em ${ass.certificado_assinado_em}"><i class="ph ph-seal-check"></i> ✅</span>`
+                            : (isSigned && ass && certificadoAcionado)
+                            ? `<span style="font-size:0.72rem;color:#7c3aed;" title="Certificado aplicado em ${certificadoAcionado}"><i class="ph ph-seal-check"></i> ✅</span>`
                             : '';
                         return `
                         <label class="doc-check-item" data-gerador-id="${g.id}" style="display:flex; align-items:center; gap:0.6rem; padding:0.6rem 0.75rem; border:1px solid ${isSigned ? '#bbf7d0' : '#f1f5f9'}; border-radius:8px; cursor:pointer; background:${isSigned ? '#f0fdf4' : '#fff'}; transition:all 0.2s; justify-content:space-between;">
