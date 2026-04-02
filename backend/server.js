@@ -307,7 +307,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // ROTA DE VERSÃO (Para verificar implantação)
-app.get('/api/version', (req, res) => res.json({ version: 'V42_DOC_VIEW_FIX' }));
+app.get('/api/version', (req, res) => res.json({ version: 'V43_ASS_SCREEN_FIX' }));
 
 // ─── MÓDULO DE ASSINATURA DIGITAL COM CERTIFICADO .PFX ───────────────────────
 const signPdfPfx = require('./sign_pdf_pfx');
@@ -473,6 +473,25 @@ app.get('/api/admissao-assinaturas/alertas-recentes', authenticateToken, (req, r
           AND datetime(aa.assinado_em) >= datetime('now', '-24 hours')
         ORDER BY aa.assinado_em DESC
         LIMIT 20
+    `, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+// Endpoint: todos os documentos de assinatura (tela de Assinaturas Digitais)
+app.get('/api/admissao-assinaturas/todos', authenticateToken, (req, res) => {
+    db.all(`
+        SELECT aa.id, aa.nome_documento, aa.assinado_em, aa.enviado_em,
+               aa.assinafy_status, aa.assinafy_id, aa.assinafy_url,
+               aa.colaborador_id, aa.gerador_id,
+               c.nome_completo AS colaborador_nome,
+               c.departamento AS colaborador_departamento,
+               c.cargo AS colaborador_cargo
+        FROM admissao_assinaturas aa
+        LEFT JOIN colaboradores c ON c.id = aa.colaborador_id
+        ORDER BY COALESCE(aa.assinado_em, aa.enviado_em) DESC
+        LIMIT 500
     `, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows || []);

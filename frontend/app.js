@@ -6659,10 +6659,15 @@ window.rodarDiagnosticoAssinafy = async function() {
 window.sendAdmissaoSignatures = async function(listId = 'admissao-signature-list', btnId = 'btn-enviar-assinaturas') {
     if (!viewedColaborador) { alert('Nenhum colaborador selecionado.'); return; }
 
-    const checks = document.querySelectorAll(`#${listId} input[type="checkbox"]:checked`);
+    // Buscar checkboxes somente dentro do container correto
+    const container = document.getElementById(listId);
+    if (!container) { alert('Lista de documentos não encontrada.'); return; }
+    
+    const checks = container.querySelectorAll('input[type="checkbox"]:checked');
     if (checks.length === 0) { alert('Selecione ao menos um documento para enviar.'); return; }
 
-    const geradorIds = Array.from(checks).map(c => Number(c.value));
+    // Dedup: garantir que não há IDs duplicados
+    const geradorIds = [...new Set(Array.from(checks).map(c => Number(c.value)))];
     const btn = document.getElementById(btnId);
     if (btn) { btn.disabled = true; btn.innerHTML = `<i class="ph ph-spinner ph-spin"></i> Enviando ${geradorIds.length} documento(s)...`; }
 
@@ -9275,6 +9280,171 @@ if (typeof _origNavigateTo === 'function') {
 }
 
 
+// ===== TELA DE ASSINATURAS DIGITAIS =====
+window.loadAssinaturasDigitais = async function() {
+    const container = document.getElementById('assinaturas-digitais-container');
+    if (!container) return;
+    container.innerHTML = '<div style="text-align:center;padding:3rem;"><i class="ph ph-circle-notch ph-spin" style="font-size:2.5rem;color:#f503c5;"></i><p style="margin-top:1rem;color:#64748b;">Carregando...</p></div>';
+
+    try {
+        const dados = await apiGet('/admissao-assinaturas/todos');
+        if (!dados || dados.length === 0) {
+            container.innerHTML = '<div style="text-align:center;padding:4rem;color:#94a3b8;"><i class="ph ph-signature" style="font-size:3rem;"></i><p style="margin-top:1rem;">Nenhum documento enviado para assinatura ainda.</p></div>';
+            return;
+        }
+
+        // Coletar tipos únicos de documentos e statuses para filtros
+        const tipos = [...new Set(dados.map(d => d.nome_documento).filter(Boolean))].sort();
+        const statuses = ['Todos', 'Assinado', 'Pendente'];
+
+        const fmtDate = (v) => {
+            if (!v) return '—';
+            try {
+                const d = new Date(String(v).includes('Z') ? v : v + 'Z');
+                return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            } catch { return v; }
+        };
+
+        const token = currentToken || localStorage.getItem('token');
+
+        container.innerHTML = `
+        <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
+            <!-- Filtros -->
+            <div style="padding:1rem 1.25rem;border-bottom:1px solid #f1f5f9;display:flex;gap:0.75rem;flex-wrap:wrap;align-items:center;background:#f8fafc;">
+                <div style="display:flex;align-items:center;gap:0.5rem;flex:1;min-width:200px;">
+                    <i class="ph ph-magnifying-glass" style="color:#94a3b8;"></i>
+                    <input type="text" id="ass-search" placeholder="Buscar colaborador ou documento..." oninput="window.filtrarAssinaturas()"
+                        style="border:none;outline:none;font-size:0.9rem;width:100%;background:transparent;color:#334155;">
+                </div>
+                <select id="ass-filter-status" onchange="window.filtrarAssinaturas()"
+                    style="border:1px solid #e2e8f0;border-radius:6px;padding:0.4rem 0.75rem;font-size:0.85rem;color:#334155;background:#fff;cursor:pointer;">
+                    <option value="">Todos os status</option>
+                    <option value="Assinado">✅ Assinado</option>
+                    <option value="Pendente">⏳ Aguardando</option>
+                </select>
+                <select id="ass-filter-tipo" onchange="window.filtrarAssinaturas()"
+                    style="border:1px solid #e2e8f0;border-radius:6px;padding:0.4rem 0.75rem;font-size:0.85rem;color:#334155;background:#fff;cursor:pointer;">
+                    <option value="">Todos os documentos</option>
+                    ${tipos.map(t => `<option value="${t}">${t}</option>`).join('')}
+                </select>
+                <span id="ass-count-label" style="font-size:0.82rem;color:#64748b;white-space:nowrap;font-weight:600;"></span>
+            </div>
+            <!-- Tabela -->
+            <div style="overflow-x:auto;max-height:70vh;overflow-y:auto;">
+                <table id="ass-table" style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+                    <thead>
+                        <tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;position:sticky;top:0;z-index:1;">
+                            <th style="padding:0.75rem 1rem;text-align:left;font-weight:700;color:#475569;white-space:nowrap;">Colaborador</th>
+                            <th style="padding:0.75rem 1rem;text-align:left;font-weight:700;color:#475569;white-space:nowrap;">Documento</th>
+                            <th style="padding:0.75rem 1rem;text-align:center;font-weight:700;color:#475569;white-space:nowrap;">Status</th>
+                            <th style="padding:0.75rem 1rem;text-align:left;font-weight:700;color:#475569;white-space:nowrap;">Enviado em</th>
+                            <th style="padding:0.75rem 1rem;text-align:left;font-weight:700;color:#475569;white-space:nowrap;">Assinado em</th>
+                            <th style="padding:0.75rem 1rem;text-align:center;font-weight:700;color:#475569;white-space:nowrap;">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ass-table-body">
+                    </tbody>
+                </table>
+            </div>
+        </div>`;
+
+        // Guardar dados globalmente para filtro
+        window._assinaturasData = dados;
+        window._assinaturaToken = token;
+        window.filtrarAssinaturas();
+
+    } catch(e) {
+        container.innerHTML = `<div style="text-align:center;padding:3rem;color:#ef4444;"><i class="ph ph-warning" style="font-size:2.5rem;"></i><p>${e.message}</p></div>`;
+    }
+};
+
+window.filtrarAssinaturas = function() {
+    const dados = window._assinaturasData || [];
+    const search = (document.getElementById('ass-search')?.value || '').toLowerCase();
+    const filterStatus = document.getElementById('ass-filter-status')?.value || '';
+    const filterTipo = document.getElementById('ass-filter-tipo')?.value || '';
+    const token = window._assinaturaToken || localStorage.getItem('token');
+
+    const filtered = dados.filter(d => {
+        const matchSearch = !search || 
+            (d.colaborador_nome || '').toLowerCase().includes(search) ||
+            (d.nome_documento || '').toLowerCase().includes(search);
+        const matchStatus = !filterStatus || d.assinafy_status === filterStatus;
+        const matchTipo = !filterTipo || d.nome_documento === filterTipo;
+        return matchSearch && matchStatus && matchTipo;
+    });
+
+    const label = document.getElementById('ass-count-label');
+    if (label) label.textContent = `${filtered.length} registro(s)`;
+
+    const fmtDate = (v) => {
+        if (!v) return '—';
+        try {
+            const d = new Date(String(v).includes('Z') ? v : v + 'Z');
+            return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        } catch { return v; }
+    };
+
+    const tbody = document.getElementById('ass-table-body');
+    if (!tbody) return;
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:#94a3b8;">Nenhum resultado encontrado</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(d => {
+        const isSigned = d.assinafy_status === 'Assinado';
+        const statusBadge = isSigned
+            ? '<span style="background:#dcfce7;color:#15803d;border-radius:20px;padding:3px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-check-circle"></i> Assinado</span>'
+            : d.assinafy_status === 'Pendente'
+            ? '<span style="background:#fef9c3;color:#92400e;border-radius:20px;padding:3px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-clock"></i> Aguardando</span>'
+            : '<span style="background:#f1f5f9;color:#64748b;border-radius:20px;padding:3px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;">—</span>';
+
+        const viewBtn = isSigned
+            ? `<button onclick="window.openSignedDocPopup(${d.id}, '${(d.nome_documento||'').replace(/'/g,"\\'")}', event)"
+                style="background:#1d4ed8;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">
+                <i class="ph ph-eye"></i> Ver PDF
+               </button>`
+            : `<span style="color:#94a3b8;font-size:0.78rem;">—</span>`;
+
+        return `
+        <tr style="border-bottom:1px solid #f1f5f9;transition:background 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+            <td style="padding:0.75rem 1rem;">
+                <div style="font-weight:600;color:#1e293b;">${d.colaborador_nome || '—'}</div>
+                <div style="font-size:0.75rem;color:#94a3b8;">${d.colaborador_cargo || ''} ${d.colaborador_departamento ? '· ' + d.colaborador_departamento : ''}</div>
+            </td>
+            <td style="padding:0.75rem 1rem;">
+                <div style="font-weight:600;color:#334155;">${d.nome_documento || '—'}</div>
+            </td>
+            <td style="padding:0.75rem 1rem;text-align:center;">${statusBadge}</td>
+            <td style="padding:0.75rem 1rem;color:#475569;white-space:nowrap;">${fmtDate(d.enviado_em)}</td>
+            <td style="padding:0.75rem 1rem;${isSigned ? 'color:#15803d;' : 'color:#94a3b8;'}white-space:nowrap;font-weight:${isSigned?'600':'400'};">${fmtDate(d.assinado_em)}</td>
+            <td style="padding:0.75rem 1rem;text-align:center;">${viewBtn}</td>
+        </tr>`;
+    }).join('');
+};
+
+// Registrar navegação para a tela de assinaturas
+(function() {
+    const origNavigate = window.navigateTo;
+    if (typeof origNavigate === 'function') {
+        window.navigateTo = function(view) {
+            origNavigate(view);
+            if (view === 'assinaturas-digitais') {
+                setTimeout(() => window.loadAssinaturasDigitais(), 150);
+            }
+        };
+    } else {
+        // Fallback: observar clique no item do menu
+        document.addEventListener('click', function(e) {
+            const link = e.target.closest('[data-target="assinaturas-digitais"]');
+            if (link) setTimeout(() => window.loadAssinaturasDigitais(), 200);
+        });
+    }
+})();
+
+
 // ===== SISTEMA DE TOAST: NOTIFICAÇÕES DE DOCUMENTOS ASSINADOS (ADMISSÃO) =====
 (function() {
     // Container de toasts
@@ -9387,14 +9557,7 @@ if (typeof _origNavigateTo === 'function') {
         const token = localStorage.getItem('token');
         if (!token) return;
 
-        // VALIDAÇÃO DE PERMISSÃO: Precisa ter acesso a Admissão e Colaboradores
-        const isAdminClass = window.isTopAdmin 
-            || (typeof currentUser !== 'undefined' && currentUser && (
-                currentUser.role === 'Diretoria' || currentUser.role === 'Administrador' || currentUser.departamento === 'Diretoria'
-            ));
-        const hasPerms = isAdminClass || (window.activeUserPerms && window.activeUserPerms['admissao'] && window.activeUserPerms['colaboradores']);
-        if (!hasPerms) return;
-
+        // Verificação simples: apenas requer login
         try {
             const resp = await fetch(`${API_URL}/admissao-assinaturas/alertas-recentes`, {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -9403,16 +9566,16 @@ if (typeof _origNavigateTo === 'function') {
             const alertas = await resp.json();
             if (!Array.isArray(alertas) || alertas.length === 0) return;
             const seen = getSeenIds();
-            const novos = alertas.filter(a => !seen.has(a.id));
+            const novos = alertas.filter(a => !seen.has(String(a.id)));
             if (novos.length === 0) return;
             
             novos.slice(0, 5).forEach(a => {
                 const hora = a.assinado_em 
-                    ? new Date(a.assinado_em).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })
+                    ? new Date(a.assinado_em + (String(a.assinado_em).includes('Z') ? '' : 'Z')).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })
                     : new Date().toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
                 showToast(a.nome_documento || 'Documento', a.colaborador_nome || 'Colaborador', hora);
             });
-            markSeen(novos.map(a => a.id));
+            markSeen(novos.map(a => String(a.id)));
 
             // AUTO-REFRESH STATUS
             // Se estiver na tela de admissão (passo 2) ou de contratos, já aciona a atualização da lista atual

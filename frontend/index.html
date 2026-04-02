@@ -64,9 +64,10 @@
                 </button>
                 <div class="dept-submenu" id="sub-rh">
                     <div class="dept-submenu-header" style="color:#f503c5;"><i class="ph ph-users"></i> RH</div>
-                    <a href="#" class="nav-item active" data-target="dashboard"><i class="ph ph-squares-four"></i> Dashboard</a>
+                    <a href="#" class="nav-item" data-target="dashboard"><i class="ph ph-squares-four"></i> Dashboard</a>
                     <a href="#" class="nav-item" data-target="colaboradores"><i class="ph ph-address-book"></i> Colaboradores</a>
                     <a href="#" class="nav-item" data-target="admissao"><i class="ph ph-list-checks"></i> Admiss&atilde;o</a>
+                    <a href="#" class="nav-item" data-target="assinaturas-digitais"><i class="ph ph-signature"></i> Assinaturas</a>
                     <a href="#" class="nav-item" data-target="cargos"><i class="ph ph-briefcase"></i> Cargos</a>
                     <a href="#" class="nav-item" data-target="departamentos"><i class="ph ph-buildings"></i> Departamentos</a>
                     <a href="#" class="nav-item" data-target="faculdade"><i class="ph ph-graduation-cap"></i> Faculdade</a>
@@ -1774,7 +1775,31 @@
                     </div>
                 </section>
 
-                <!-- VIEW: CERTIFICADO DIGITAL (Diretoria) -->
+                <!-- VIEW: ASSINATURAS DIGITAIS (RH) -->
+                <section id="view-assinaturas-digitais" class="content-view">
+                    <div class="page-header flex-between">
+                        <div style="display:flex;align-items:center;gap:1.25rem;">
+                            <div style="width:56px;height:56px;background:linear-gradient(135deg,#f503c5,#c800a1);border-radius:14px;display:flex;align-items:center;justify-content:center;">
+                                <i class="ph ph-signature" style="font-size:1.8rem;color:#fff;"></i>
+                            </div>
+                            <div>
+                                <h1 style="margin:0;font-size:1.6rem;font-weight:800;color:#0f172a;">Assinaturas Digitais</h1>
+                                <p style="margin:0;color:#64748b;font-size:0.9rem;">Todos os documentos enviados para assinatura via Assinafy</p>
+                            </div>
+                        </div>
+                        <button onclick="window.loadAssinaturasDigitais()" style="display:flex;align-items:center;gap:6px;background:#f503c5;color:#fff;border:none;border-radius:8px;padding:0.6rem 1.2rem;font-weight:700;cursor:pointer;font-size:0.9rem;">
+                            <i class="ph ph-arrow-clockwise"></i> Atualizar
+                        </button>
+                    </div>
+                    <div id="assinaturas-digitais-container">
+                        <div style="text-align:center;padding:3rem;color:#94a3b8;">
+                            <i class="ph ph-signature" style="font-size:3rem;"></i>
+                            <p>Carregando...</p>
+                        </div>
+                    </div>
+                </section>
+
+
                 <section id="view-certificado-digital" class="content-view">
                     <div class="page-header flex-between">
                         <div style="display:flex;align-items:center;gap:1.25rem;">
