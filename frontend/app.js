@@ -6566,6 +6566,11 @@ window.nextAdmissaoStep = function(step, preventScroll = false) {
     const panel = document.getElementById(`panel-step-${step}`);
     if (panel) panel.classList.add('active');
     
+    // Se for Passo 2: carregar status do certificado digital
+    if (step === 2 && typeof window.carregarStatusCertificado === 'function') {
+        window.carregarStatusCertificado();
+    }
+
     // Se for Passo 4, verificar se mostra linha de Exames Motorista
     if (step === 4 && viewedColaborador) {
         const rowExames = document.getElementById('row-aso-exames');
@@ -8544,4 +8549,303 @@ window.filterTabsList = function(q) {
         }
     });
 };
+
+
+// ══════════════════════════════════════════════════════════════════════
+// CERTIFICADO DIGITAL (.PFX) — Assinatura Automática da America Rental
+// ══════════════════════════════════════════════════════════════════════
+
+/**
+ * Carrega o status do certificado digital e atualiza o banner no Passo 2.
+ * Chamado ao entrar no step 2 da admissão.
+ */
+window.carregarStatusCertificado = async function() {
+    const banner = document.getElementById('cert-digital-banner');
+    if (!banner) return;
+
+    try {
+        const data = await apiGet('/certificado-digital/status');
+
+        if (data.configurado && data.ok) {
+            // ✅ Certificado configurado e válido
+            banner.style.background  = '#f0fdf4';
+            banner.style.border      = '1.5px solid #bbf7d0';
+            banner.style.color       = '#166534';
+            banner.innerHTML = `
+                <i class="ph ph-seal-check" style="font-size:1.3rem;color:#16a34a;flex-shrink:0;"></i>
+                <div style="flex:1;">
+                    <div style="font-weight:700;">✅ Assinatura Digital da Empresa Ativa</div>
+                    <div style="font-size:0.76rem;margin-top:2px;opacity:0.85;">
+                        ${data.cn ? `<b>${data.cn}</b> — ` : ''}Validade: ${data.validade || 'N/A'}
+                        — Os documentos serão pré-assinados com o certificado antes de ir ao colaborador
+                    </div>
+                </div>
+                <button onclick="window.abrirModalCertificado()" 
+                    style="border:none;background:rgba(22,163,74,0.15);color:#166534;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:4px;">
+                    <i class="ph ph-gear"></i> Gerenciar
+                </button>`;
+        } else {
+            // ⚠️ Certificado não configurado
+            banner.style.background  = '#fffbeb';
+            banner.style.border      = '1.5px solid #fcd34d';
+            banner.style.color       = '#92400e';
+            banner.innerHTML = `
+                <i class="ph ph-warning" style="font-size:1.3rem;color:#d97706;flex-shrink:0;"></i>
+                <div style="flex:1;">
+                    <div style="font-weight:700;">Certificado Digital não configurado</div>
+                    <div style="font-size:0.76rem;margin-top:2px;opacity:0.85;">
+                        Os documentos serão enviados <b>sem assinatura digital da empresa</b>. 
+                        Configure o .pfx para que saiam pré-assinados.
+                    </div>
+                </div>
+                <button onclick="window.abrirModalCertificado()"
+                    style="border:none;background:#fef3c7;color:#92400e;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:4px;">
+                    <i class="ph ph-upload-simple"></i> Configurar
+                </button>`;
+        }
+    } catch(e) {
+        banner.style.background = '#f1f5f9';
+        banner.style.border     = '1.5px solid #e2e8f0';
+        banner.style.color      = '#64748b';
+        banner.innerHTML = `<i class="ph ph-info" style="font-size:1.1rem;"></i> <span>Assinatura digital: não verificada</span>
+            <button onclick="window.abrirModalCertificado()" style="margin-left:auto;border:1px solid #e2e8f0;background:#fff;border-radius:6px;padding:0.3rem 0.7rem;font-size:0.78rem;cursor:pointer;">Configurar</button>`;
+    }
+};
+
+/**
+ * Abre o modal de gerenciamento do certificado digital.
+ */
+window.abrirModalCertificado = function() {
+    // Criar modal se não existir
+    let modal = document.getElementById('modal-cert-digital');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'modal-cert-digital';
+        modal.style.cssText = `position:fixed;inset:0;background:rgba(15,23,42,0.65);z-index:99999;display:flex;align-items:center;justify-content:center;padding:1rem;`;
+        modal.innerHTML = `
+            <div style="background:#fff;border-radius:16px;width:100%;max-width:520px;box-shadow:0 25px 60px rgba(0,0,0,0.3);overflow:hidden;">
+                <!-- Header -->
+                <div style="padding:1.25rem 1.5rem;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;background:linear-gradient(135deg,#0f172a,#1e293b);">
+                    <div style="display:flex;align-items:center;gap:0.75rem;">
+                        <div style="width:40px;height:40px;background:rgba(255,255,255,0.1);border-radius:10px;display:flex;align-items:center;justify-content:center;">
+                            <i class="ph ph-certificate" style="font-size:1.4rem;color:#a78bfa;"></i>
+                        </div>
+                        <div>
+                            <div style="font-weight:700;color:#fff;font-size:1rem;">Certificado Digital (.PFX)</div>
+                            <div style="font-size:0.75rem;color:#94a3b8;">Assinatura automática da America Rental</div>
+                        </div>
+                    </div>
+                    <button onclick="window.fecharModalCertificado()" style="background:rgba(255,255,255,0.1);border:none;width:32px;height:32px;border-radius:8px;color:#fff;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">
+                        <i class="ph ph-x"></i>
+                    </button>
+                </div>
+
+                <!-- Corpo -->
+                <div style="padding:1.5rem;display:flex;flex-direction:column;gap:1.25rem;">
+
+                    <!-- Status atual -->
+                    <div id="cert-modal-status" style="padding:0.85rem 1rem;border-radius:10px;background:#f8fafc;border:1.5px solid #e2e8f0;font-size:0.85rem;color:#64748b;display:flex;align-items:center;gap:0.6rem;">
+                        <i class="ph ph-spinner ph-spin"></i> Carregando status...
+                    </div>
+
+                    <!-- Explicação -->
+                    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:0.85rem 1rem;font-size:0.82rem;color:#1e40af;">
+                        <div style="font-weight:700;margin-bottom:4px;"><i class="ph ph-info"></i> Como funciona</div>
+                        O certificado digital A1 (.pfx) da empresa é usado para assinar os PDFs gerados <b>antes</b> de serem 
+                        enviados ao colaborador via Assinafy. Isso garante que o documento já sai com a assinatura oficial 
+                        da <b>America Rental Equipamentos Ltda</b>.
+                    </div>
+
+                    <!-- Upload formulário -->
+                    <div>
+                        <label style="font-size:0.82rem;font-weight:700;color:#374151;display:block;margin-bottom:6px;">
+                            Arquivo .PFX <span style="font-weight:400;color:#94a3b8;">(Certificado A1)</span>
+                        </label>
+                        <div style="display:flex;gap:0.5rem;align-items:center;">
+                            <label id="cert-upload-label" style="flex:1;padding:0.6rem 1rem;border:2px dashed #e2e8f0;border-radius:8px;cursor:pointer;font-size:0.83rem;color:#94a3b8;text-align:center;background:#fafafa;transition:0.2s;"
+                                onmouseover="this.style.borderColor='#a78bfa';this.style.color='#7c3aed'"
+                                onmouseout="this.style.borderColor='#e2e8f0';this.style.color='#94a3b8'">
+                                <i class="ph ph-upload-simple"></i> Clique para selecionar o .pfx
+                                <input type="file" id="cert-pfx-input" accept=".pfx" style="display:none;" onchange="window.onCertFileSelected(this)">
+                            </label>
+                        </div>
+                        <div id="cert-file-preview" style="display:none;margin-top:0.5rem;padding:0.5rem 0.75rem;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;font-size:0.82rem;color:#166534;display:flex;align-items:center;gap:0.5rem;">
+                            <i class="ph ph-file-lock"></i> <span id="cert-file-name"></span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label style="font-size:0.82rem;font-weight:700;color:#374151;display:block;margin-bottom:6px;">
+                            Senha do Certificado
+                        </label>
+                        <div style="position:relative;">
+                            <input type="password" id="cert-senha-input" placeholder="Senha do arquivo .pfx"
+                                style="width:100%;padding:0.6rem 2.5rem 0.6rem 0.85rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.88rem;outline:none;box-sizing:border-box;"
+                                onfocus="this.style.borderColor='#a78bfa'" onblur="this.style.borderColor='#e2e8f0'">
+                            <button type="button" onclick="const i=document.getElementById('cert-senha-input');i.type=i.type==='password'?'text':'password'"
+                                style="position:absolute;right:0.6rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#94a3b8;font-size:1rem;padding:0;">
+                                <i class="ph ph-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="cert-upload-msg" style="display:none;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;"></div>
+                </div>
+
+                <!-- Footer -->
+                <div style="padding:1rem 1.5rem;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;gap:0.75rem;background:#f8fafc;">
+                    <button id="btn-cert-remover" onclick="window.removerCertificado()" 
+                        style="border:1px solid #fca5a5;background:#fff;color:#dc2626;border-radius:8px;padding:0.55rem 1rem;font-size:0.85rem;font-weight:600;cursor:pointer;display:none;align-items:center;gap:4px;">
+                        <i class="ph ph-trash"></i> Remover
+                    </button>
+                    <div style="display:flex;gap:0.5rem;margin-left:auto;">
+                        <button id="btn-cert-testar" onclick="window.testarCertificado()"
+                            style="border:1px solid #e2e8f0;background:#fff;color:#374151;border-radius:8px;padding:0.55rem 1rem;font-size:0.85rem;font-weight:600;cursor:pointer;display:none;align-items:center;gap:4px;">
+                            <i class="ph ph-flask"></i> Testar
+                        </button>
+                        <button onclick="window.fecharModalCertificado()"
+                            style="border:1px solid #e2e8f0;background:#fff;color:#374151;border-radius:8px;padding:0.55rem 1rem;font-size:0.85rem;font-weight:600;cursor:pointer;">
+                            Fechar
+                        </button>
+                        <button id="btn-cert-salvar" onclick="window.salvarCertificado()"
+                            style="border:none;background:#7c3aed;color:#fff;border-radius:8px;padding:0.55rem 1.25rem;font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;">
+                            <i class="ph ph-floppy-disk"></i> Salvar Certificado
+                        </button>
+                    </div>
+                </div>
+            </div>`;
+        document.body.appendChild(modal);
+        // Fechar ao clicar fora
+        modal.addEventListener('click', e => { if(e.target === modal) window.fecharModalCertificado(); });
+    }
+
+    modal.style.display = 'flex';
+    window._atualizarStatusModalCert();
+};
+
+window.fecharModalCertificado = function() {
+    const m = document.getElementById('modal-cert-digital');
+    if(m) m.style.display = 'none';
+};
+
+window.onCertFileSelected = function(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const nameEl = document.getElementById('cert-file-name');
+    const preview = document.getElementById('cert-file-preview');
+    const label   = document.getElementById('cert-upload-label');
+    if (nameEl) nameEl.textContent = file.name;
+    if (preview) preview.style.display = 'flex';
+    if (label)  label.style.borderColor = '#a78bfa';
+};
+
+window._atualizarStatusModalCert = async function() {
+    const statusEl  = document.getElementById('cert-modal-status');
+    const btnRemover= document.getElementById('btn-cert-remover');
+    const btnTestar = document.getElementById('btn-cert-testar');
+    if (!statusEl) return;
+
+    statusEl.innerHTML = `<i class="ph ph-spinner ph-spin"></i> Verificando...`;
+    try {
+        const data = await apiGet('/certificado-digital/status');
+        if (data.configurado && data.ok) {
+            statusEl.style.background = '#f0fdf4';
+            statusEl.style.border     = '1.5px solid #bbf7d0';
+            statusEl.style.color      = '#166534';
+            statusEl.innerHTML = `
+                <i class="ph ph-seal-check" style="font-size:1.2rem;"></i>
+                <div>
+                    <div style="font-weight:700;">Certificado ativo</div>
+                    <div style="font-size:0.77rem;opacity:0.85;">
+                        CN: ${data.cn || 'N/A'} | Org: ${data.org || 'N/A'} | 
+                        Validade: ${data.validade || 'N/A'} | Serial: ${(data.serial||'').slice(-8)}
+                    </div>
+                </div>`;
+            if (btnRemover) btnRemover.style.display = 'flex';
+            if (btnTestar)  btnTestar.style.display  = 'flex';
+        } else {
+            statusEl.style.background = '#fffbeb';
+            statusEl.style.border     = '1.5px solid #fcd34d';
+            statusEl.style.color      = '#92400e';
+            statusEl.innerHTML = `<i class="ph ph-warning" style="font-size:1.1rem;"></i> <span>Nenhum certificado configurado. ${data.motivo ? '(' + data.motivo + ')' : ''}</span>`;
+            if (btnRemover) btnRemover.style.display = 'none';
+            if (btnTestar)  btnTestar.style.display  = 'none';
+        }
+    } catch(e) {
+        statusEl.innerHTML = `<i class="ph ph-warning-circle"></i> Erro ao verificar: ${e.message}`;
+    }
+};
+
+window.salvarCertificado = async function() {
+    const fileInput = document.getElementById('cert-pfx-input');
+    const senha     = document.getElementById('cert-senha-input')?.value || '';
+    const msgEl     = document.getElementById('cert-upload-msg');
+    const btnSalvar = document.getElementById('btn-cert-salvar');
+
+    if (!fileInput?.files[0]) {
+        alert('Selecione um arquivo .pfx primeiro.');
+        return;
+    }
+
+    if (msgEl) { msgEl.style.display = 'block'; msgEl.style.background = '#f8fafc'; msgEl.style.color = '#64748b'; msgEl.innerHTML = `<i class="ph ph-spinner ph-spin"></i> Enviando certificado...`; }
+    if (btnSalvar) { btnSalvar.disabled = true; btnSalvar.innerHTML = `<i class="ph ph-spinner ph-spin"></i> Salvando...`; }
+
+    try {
+        const formData = new FormData();
+        formData.append('certificado', fileInput.files[0]);
+        formData.append('senha', senha);
+
+        const res = await fetch(`${API_URL}/certificado-digital/upload`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${currentToken}` },
+            body: formData
+        });
+        const data = await res.json();
+
+        if (!res.ok) throw new Error(data.error || 'Erro ao salvar o certificado');
+
+        if (msgEl) { msgEl.style.background = '#f0fdf4'; msgEl.style.border = '1px solid #bbf7d0'; msgEl.style.color = '#166534'; msgEl.innerHTML = `✅ Certificado salvo com sucesso! CN: <b>${data.cn}</b> | Validade: ${data.validade}`; }
+        
+        // Atualizar status no modal e no banner
+        await window._atualizarStatusModalCert();
+        window.carregarStatusCertificado();
+
+    } catch(e) {
+        if (msgEl) { msgEl.style.background = '#fef2f2'; msgEl.style.border = '1px solid #fca5a5'; msgEl.style.color = '#dc2626'; msgEl.innerHTML = `❌ ${e.message}`; }
+    } finally {
+        if (btnSalvar) { btnSalvar.disabled = false; btnSalvar.innerHTML = `<i class="ph ph-floppy-disk"></i> Salvar Certificado`; }
+    }
+};
+
+window.testarCertificado = async function() {
+    const msgEl  = document.getElementById('cert-upload-msg');
+    const btnTest= document.getElementById('btn-cert-testar');
+    if (msgEl) { msgEl.style.display = 'block'; msgEl.style.background = '#eff6ff'; msgEl.style.border = '1px solid #bfdbfe'; msgEl.style.color = '#1e40af'; msgEl.innerHTML = `<i class="ph ph-spinner ph-spin"></i> Testando assinatura de um PDF de exemplo...`; }
+    if (btnTest) { btnTest.disabled = true; }
+
+    try {
+        const res  = await fetch(`${API_URL}/certificado-digital/testar`, { method: 'POST', headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' } });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.erro || 'Falha no teste');
+        if (msgEl) { msgEl.style.background = '#f0fdf4'; msgEl.style.border = '1px solid #bbf7d0'; msgEl.style.color = '#166534'; msgEl.innerHTML = `${data.message || '✅ Assinatura funcionando!'} (PDF: ${(data.tamanho_bytes/1024).toFixed(1)} KB)`; }
+    } catch(e) {
+        if (msgEl) { msgEl.style.background = '#fef2f2'; msgEl.style.border = '1px solid #fca5a5'; msgEl.style.color = '#dc2626'; msgEl.innerHTML = `❌ Teste falhou: ${e.message}`; }
+    } finally {
+        if (btnTest) { btnTest.disabled = false; }
+    }
+};
+
+window.removerCertificado = async function() {
+    if (!confirm('Tem certeza que deseja remover o certificado digital? Os documentos serão enviados sem assinatura automática da empresa.')) return;
+    try {
+        const res  = await fetch(`${API_URL}/certificado-digital`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${currentToken}` } });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erro ao remover');
+        await window._atualizarStatusModalCert();
+        window.carregarStatusCertificado();
+        const msgEl = document.getElementById('cert-upload-msg');
+        if (msgEl) { msgEl.style.display = 'block'; msgEl.style.background = '#f0fdf4'; msgEl.style.border = '1px solid #bbf7d0'; msgEl.style.color = '#166534'; msgEl.innerHTML = '✅ Certificado removido com sucesso.'; }
+    } catch(e) { alert(e.message); }
+};
+
 

@@ -307,7 +307,11 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // ROTA DE VERSÃO (Para verificar implantação)
-app.get('/api/version', (req, res) => res.json({ version: 'V39_ASSINAFY_BG_FIX_CONCLUIDO' }));
+app.get('/api/version', (req, res) => res.json({ version: 'V40_PFX_DIGITAL_SIGNATURE' }));
+
+// ─── MÓDULO DE ASSINATURA DIGITAL COM CERTIFICADO .PFX ───────────────────────
+const signPdfPfx = require('./sign_pdf_pfx');
+// ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * ASSINAFY: Background mode com Polling estendido
@@ -1625,6 +1629,30 @@ app.post('/api/admissao-assinaturas/enviar-lote', authenticateToken, async (req,
             if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
             filePath = path.join(tmpDir, `${Date.now()}_${Math.random().toString(36).slice(2)}_${geradorId}_${colab.id}.pdf`);
             fs.writeFileSync(filePath, pdfBuffer);
+        }
+
+        // ── ASSINATURA DIGITAL COM .PFX (se configurado) ──────────────────────
+        const pfxDisp = signPdfPfx.verificarDisponibilidade();
+        if (pfxDisp.disponivel) {
+            try {
+                console.log(`[PFX-SIGN] Assinando PDF do gerador ${geradorId} com certificado digital...`);
+                const pdfOriginal  = fs.readFileSync(filePath);
+                const pdfAssinado  = await signPdfPfx.assinarPDF(pdfOriginal, {
+                    motivo: `Documento gerado e assinado digitalmente pela America Rental Equipamentos Ltda | ${gerador.nome}`,
+                    local:  'Brasil',
+                    nome:   'America Rental Equipamentos Ltda'
+                });
+                // Salvar PDF assinado (substitui o arquivo temporário)
+                const signedPath = filePath.replace('.pdf', '_assinado.pdf');
+                fs.writeFileSync(signedPath, pdfAssinado);
+                filePath = signedPath;
+                console.log(`[PFX-SIGN] ✅ PDF assinado salvo: ${signedPath}`);
+            } catch (signErr) {
+                // NÃO bloqueia o envio — apenas loga o erro e continua com PDF sem assinatura
+                console.error(`[PFX-SIGN] ⚠️ Falha ao assinar com .pfx (enviando sem assinatura digital): ${signErr.message}`);
+            }
+        } else {
+            console.log(`[PFX-SIGN] Assinatura digital ignorada: ${pfxDisp.motivo}`);
         }
 
 
@@ -3370,6 +3398,139 @@ app.delete('/api/gerador-departamento-templates/:gerador_id/:departamento_id', a
             res.json({ ok: true, removed: this.changes });
         });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ROTAS DE GERENCIAMENTO DO CERTIFICADO DIGITAL (.PFX)
+// ═══════════════════════════════════════════════════════════════════════════
+
+const uploadCertificado = multer({
+    storage: multer.diskStorage({
+        destination: (req, file, cb) => {
+            const certDir = process.env.STORAGE_PATH
+                ? path.join(process.env.STORAGE_PATH, '_certificados')
+                : path.join(__dirname, 'data', '_certificados');
+            if (!fs.existsSync(certDir)) fs.mkdirSync(certDir, { recursive: true });
+            cb(null, certDir);
+        },
+        filename: (req, file, cb) => cb(null, 'certificado.pfx')
+    }),
+    fileFilter: (req, file, cb) => {
+        if (file.originalname.toLowerCase().endsWith('.pfx') || file.mimetype === 'application/x-pkcs12') {
+            cb(null, true);
+        } else {
+            cb(new Error('Somente arquivos .pfx são aceitos'));
+        }
+    }
+});
+
+/**
+ * GET /api/certificado-digital/status
+ * Retorna status e informações do certificado configurado
+ */
+app.get('/api/certificado-digital/status', authenticateToken, (req, res) => {
+    const disp = signPdfPfx.verificarDisponibilidade();
+    if (!disp.disponivel) {
+        return res.json({ configurado: false, motivo: disp.motivo });
+    }
+    const info = signPdfPfx.infosCertificado(process.env.PFX_PATH, process.env.PFX_PASSWORD || '');
+    res.json({ configurado: true, ...info });
+});
+
+/**
+ * POST /api/certificado-digital/upload
+ * Faz upload do arquivo .pfx e define a senha
+ * Body: multipart com campo 'certificado' (.pfx) e 'senha' (texto)
+ */
+app.post('/api/certificado-digital/upload', authenticateToken, uploadCertificado.single('certificado'), async (req, res) => {
+    if (req.user?.role !== 'RH' && req.user?.role !== 'admin') {
+        return res.status(403).json({ error: 'Apenas administradores podem gerenciar o certificado digital.' });
+    }
+    if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo .pfx enviado.' });
+
+    const senha = req.body.senha || '';
+    const pfxPath = req.file.path;
+
+    // Testar o certificado imediatamente
+    const info = signPdfPfx.infosCertificado(pfxPath, senha);
+    if (!info.ok) {
+        // Remover arquivo inválido
+        try { fs.unlinkSync(pfxPath); } catch(e) {}
+        return res.status(400).json({ error: `Certificado inválido ou senha incorreta: ${info.erro}` });
+    }
+
+    // Salvar configuração no banco (path e senha criptografada)
+    const senha64 = Buffer.from(senha).toString('base64'); // ofuscação simples
+    db.run(`CREATE TABLE IF NOT EXISTS configuracoes_sistema (chave TEXT PRIMARY KEY, valor TEXT)`);
+    db.run(`INSERT OR REPLACE INTO configuracoes_sistema (chave, valor) VALUES ('pfx_path', ?)`, [pfxPath]);
+    db.run(`INSERT OR REPLACE INTO configuracoes_sistema (chave, valor) VALUES ('pfx_password_b64', ?)`, [senha64]);
+
+    console.log(`[CERT] Certificado digital atualizado: ${pfxPath} | CN=${info.cn}`);
+    res.json({ ok: true, cn: info.cn, org: info.org, validade: info.validade, serial: info.serial });
+});
+
+/**
+ * DELETE /api/certificado-digital
+ * Remove o certificado configurado
+ */
+app.delete('/api/certificado-digital', authenticateToken, (req, res) => {
+    if (req.user?.role !== 'RH' && req.user?.role !== 'admin') {
+        return res.status(403).json({ error: 'Apenas administradores podem remover o certificado.' });
+    }
+    const pfxPath = process.env.PFX_PATH;
+    db.run(`DELETE FROM configuracoes_sistema WHERE chave IN ('pfx_path','pfx_password_b64')`);
+    if (pfxPath && fs.existsSync(pfxPath)) {
+        try { fs.unlinkSync(pfxPath); } catch(e) {}
+    }
+    res.json({ ok: true, message: 'Certificado removido.' });
+});
+
+/**
+ * POST /api/certificado-digital/testar
+ * Testa assinatura com um PDF de exemplo para validar o certificado
+ */
+app.post('/api/certificado-digital/testar', authenticateToken, async (req, res) => {
+    const disp = signPdfPfx.verificarDisponibilidade();
+    if (!disp.disponivel) {
+        return res.status(400).json({ ok: false, erro: disp.motivo });
+    }
+    try {
+        // Criar um PDF mínimo de teste via pdf-lib
+        const { PDFDocument } = require('pdf-lib');
+        const pdf = await PDFDocument.create();
+        const pg  = pdf.addPage();
+        pg.drawText('Teste de Assinatura Digital - America Rental', { x: 50, y: 700, size: 16 });
+        pg.drawText(`Data: ${new Date().toLocaleString('pt-BR')}`, { x: 50, y: 670, size: 12 });
+        const pdfBytes = await pdf.save();
+
+        const pdfAssinado = await signPdfPfx.assinarPDF(Buffer.from(pdfBytes));
+        console.log(`[CERT-TEST] Tamanho do PDF assinado: ${pdfAssinado.length} bytes`);
+        res.json({ ok: true, tamanho_bytes: pdfAssinado.length, message: '✅ Assinatura digital funcionando corretamente!' });
+    } catch(e) {
+        res.status(500).json({ ok: false, erro: e.message });
+    }
+});
+
+// Ao inicializar o servidor: carregar PFX_PATH e PFX_PASSWORD do banco se não estiverem no env
+setTimeout(() => {
+    db.run(`CREATE TABLE IF NOT EXISTS configuracoes_sistema (chave TEXT PRIMARY KEY, valor TEXT)`, () => {
+        if (!process.env.PFX_PATH) {
+            db.get(`SELECT valor FROM configuracoes_sistema WHERE chave = 'pfx_path'`, [], (err, row) => {
+                if (row?.valor) {
+                    process.env.PFX_PATH = row.valor;
+                    console.log(`[CERT] PFX_PATH carregado do banco: ${row.valor}`);
+                }
+            });
+        }
+        if (!process.env.PFX_PASSWORD) {
+            db.get(`SELECT valor FROM configuracoes_sistema WHERE chave = 'pfx_password_b64'`, [], (err, row) => {
+                if (row?.valor) {
+                    process.env.PFX_PASSWORD = Buffer.from(row.valor, 'base64').toString();
+                    console.log(`[CERT] PFX_PASSWORD carregado do banco.`);
+                }
+            });
+        }
+    });
+}, 3000);
 
 // Tratamento de Exceções Globais
 process.on('uncaughtException', (err) => {
