@@ -172,14 +172,15 @@ async function enviarDocumentoParaAssinafy(documentId, colaboradorId) {
         if (i === 60) throw new Error('Timeout: Assinafy demorou mais de 3 min para processar o PDF.');
     }
 
-    // 4. Resolver signatário (apenas colaborador)
-    console.log(`[4] Resolvendo signatário (colaborador)...`);
+    // 4. Resolver signatário (colaborador)
+    console.log(`[4] Resolvendo signatário colaborador...`);
     const signerColabId = await resolverSignatario({ full_name: nome, email, tax_id: cpf, whatsapp_phone_number: fone || undefined });
-
-    if (!signerColabId)   throw new Error('ID do signatário (colaborador) não obtido.');
+    if (!signerColabId) throw new Error('ID do signatário (colaborador) não obtido.');
     console.log(`[4] Colaborador ID=${signerColabId}`);
 
-    // 5. Assignment com UM ÚNICO signatário (O documento já foi pré-assinado pela empresa via PFX)
+    // 5. Assignment apenas com o colaborador.
+    // A empresa assinará com Certificado Digital A1 DEPOIS que o colaborador assinar,
+    // garantindo que ambas as assinaturas aparecem no validador gov.br.
     console.log(`[5] Criando assignment para o colaborador...`);
     const assignRes = await req('POST', `/v1/documents/${assinafyDocId}/assignments`, {
         signers: [
@@ -200,6 +201,7 @@ async function enviarDocumentoParaAssinafy(documentId, colaboradorId) {
         `https://app.assinafy.com.br/sign/${assinafyDocId}`
     );
     console.log(`[5] Assignment OK! URL colaborador: ${urlAssinatura}`);
+
 
     // 6. Salvar no banco
     await new Promise((res, rej) =>

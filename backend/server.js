@@ -1631,26 +1631,9 @@ app.post('/api/admissao-assinaturas/enviar-lote', authenticateToken, async (req,
             fs.writeFileSync(filePath, pdfBuffer);
         }
 
-        // ── ASSINATURA DIGITAL COM .PFX ─────────────────────────────────────────────
-        const pfxDisp = signPdfPfx.verificarDisponibilidade();
-        if (pfxDisp.disponivel) {
-            // Certificado configurado: a assinatura É OBRIGATÓRIA
-            // Se falhar, barra o envio em vez de enviar sem assinatura
-            console.log(`[PFX-SIGN] Assinando PDF do gerador ${geradorId} com certificado digital...`);
-            const pdfOriginal  = fs.readFileSync(filePath);
-            const pdfAssinado  = await signPdfPfx.assinarPDF(pdfOriginal, {
-                motivo: `Documento gerado e assinado digitalmente pela America Rental Equipamentos Ltda | ${gerador.nome}`,
-                local:  'Brasil',
-                nome:   'America Rental Equipamentos Ltda'
-            });
-            // Salvar PDF assinado (substitui o arquivo temporário)
-            const signedPath = filePath.replace('.pdf', '_assinado.pdf');
-            fs.writeFileSync(signedPath, pdfAssinado);
-            filePath = signedPath;
-            console.log(`[PFX-SIGN] ✅ PDF assinado salvo: ${signedPath}`);
-        } else {
-            console.log(`[PFX-SIGN] Assinatura digital ignorada: ${pfxDisp.motivo}`);
-        }
+        // A assinatura da empresa via certificado digital (PFX) é feita APÓS
+        // o colaborador assinar no Assinafy, para que ambas as assinaturas
+        // apareçam válidas no validador gov.br.
 
 
         const existente = await new Promise((resolve, reject) =>
@@ -1720,6 +1703,80 @@ app.get('/api/admissao-assinaturas/:id/download', authenticateToken, (req, res) 
     });
 });
 
+/**
+ * POST /api/admissao-assinaturas/:id/assinar-certificado
+ * Aplica o Certificado Digital A1 da empresa no PDF já assinado pelo colaborador.
+ * Deve ser chamado APÓS o colaborador assinar no Assinafy (status = 'Assinado').
+ */
+app.post('/api/admissao-assinaturas/:id/assinar-certificado', authenticateToken, async (req, res) => {
+    const { id } = req.params;
+    try {
+        const doc = await new Promise((resolve, reject) =>
+            db.get('SELECT * FROM admissao_assinaturas WHERE id = ?', [id], (err, row) => err ? reject(err) : resolve(row))
+        );
+        if (!doc) return res.status(404).json({ ok: false, error: 'Documento não encontrado.' });
+        if (doc.assinafy_status !== 'Assinado') return res.status(400).json({ ok: false, error: `Documento ainda não foi assinado pelo colaborador (status: ${doc.assinafy_status}).` });
+        if (doc.certificado_assinado_em) return res.json({ ok: true, ja_assinado: true, mensagem: 'Certificado digital já foi aplicado anteriormente.' });
+
+        // Verificar disponibilidade do certificado
+        const pfxDisp = signPdfPfx.verificarDisponibilidade();
+        if (!pfxDisp.disponivel) return res.status(400).json({ ok: false, error: `Certificado digital não configurado: ${pfxDisp.motivo}` });
+
+        // Buscar o PDF assinado — primeiro local, depois Assinafy
+        let pdfBuffer = null;
+        const localPath = doc.signed_file_path || doc.file_path;
+        if (localPath && fs.existsSync(localPath)) {
+            pdfBuffer = fs.readFileSync(localPath);
+            console.log(`[CERT-POST] Usando arquivo local: ${localPath}`);
+        } else if (doc.assinafy_id) {
+            // Baixar do Assinafy
+            console.log(`[CERT-POST] Baixando PDF do Assinafy (doc_id=${doc.assinafy_id})...`);
+            const https = require('https');
+            const docInfo = await new Promise((resolve, reject) => {
+                const opts = { hostname: 'api.assinafy.com.br', path: `/v1/documents/${doc.assinafy_id}`, method: 'GET',
+                    headers: { 'X-Api-Key': 'AxaT-FiXBckHqEYV0s_MtUhLF3pReRz3dX4zVpC173vmjDwzLGHYtDJuQje4-4Pd', 'Accept': 'application/json' } };
+                const r = https.request(opts, resp => { const c = []; resp.on('data', d => c.push(d)); resp.on('end', () => resolve(JSON.parse(Buffer.concat(c).toString()))); });
+                r.on('error', reject); r.end();
+            });
+            const docData = docInfo.data || docInfo;
+            const signedUrl = docData?.artifacts?.find(a => a.type === 'signed_document')?.url ||
+                              docData?.signed_url || docData?.download_url;
+            if (!signedUrl) return res.status(400).json({ ok: false, error: 'PDF assinado ainda não disponível no Assinafy.' });
+
+            pdfBuffer = await new Promise((resolve, reject) => {
+                https.get(signedUrl, { headers: { 'X-Api-Key': 'AxaT-FiXBckHqEYV0s_MtUhLF3pReRz3dX4zVpC173vmjDwzLGHYtDJuQje4-4Pd' } }, resp => {
+                    const chunks = [];
+                    resp.on('data', c => chunks.push(c));
+                    resp.on('end', () => resolve(Buffer.concat(chunks)));
+                }).on('error', reject);
+            });
+        }
+        if (!pdfBuffer) return res.status(400).json({ ok: false, error: 'Não foi possível obter o PDF assinado para aplicar o certificado.' });
+
+        // Aplicar certificado A1 da empresa
+        console.log(`[CERT-POST] Aplicando certificado A1 no PDF (${pdfBuffer.length} bytes)...`);
+        const pdfAssinado = await signPdfPfx.assinarPDF(pdfBuffer, {
+            motivo: `Assinado digitalmente pela empresa America Rental Equipamentos Ltda — Certificado A1`,
+            local:  'Brasil',
+            nome:   'America Rental Equipamentos Ltda'
+        });
+
+        // Salvar PDF final com ambas as assinaturas
+        const certPath = (localPath || path.join(BASE_PATH, `_admissao_${id}`)).replace(/(_assinado)?\.pdf$/, '_cert_empresa.pdf');
+        fs.writeFileSync(certPath, pdfAssinado);
+        console.log(`[CERT-POST] ✅ PDF com certificado salvo: ${certPath} (${pdfAssinado.length} bytes)`);
+
+        // Atualizar banco
+        db.run(`UPDATE admissao_assinaturas SET signed_file_path = ?, certificado_assinado_em = CURRENT_TIMESTAMP WHERE id = ?`,
+            [certPath, id]);
+
+        res.json({ ok: true, mensagem: 'Certificado digital aplicado com sucesso! Ambas as assinaturas agora aparecem no gov.br.', tamanho: pdfAssinado.length });
+    } catch(e) {
+        console.error('[CERT-POST] ERRO:', e.message);
+        res.status(500).json({ ok: false, error: e.message });
+    }
+});
+
 // Webhook: atualizar status de assinatura para admissao_assinaturas quando Assinafy notificar
 // (já tratado pelo webhook existente que atualiza a tabela documentos - sincronizamos aqui também)
 // Adicionando sincronização na tabela admissao_assinaturas via documento atualizado
@@ -1733,9 +1790,10 @@ app.post('/api/admissao-assinaturas/sync-status', authenticateToken, (req, res) 
 });
 
 // MIGRATION: adicionar colunas tipo e arquivo_pdf à tabela geradores (se não existirem)
-
 db.run("ALTER TABLE geradores ADD COLUMN tipo TEXT DEFAULT 'html'", () => {});
 db.run("ALTER TABLE geradores ADD COLUMN arquivo_pdf TEXT DEFAULT NULL", () => {});
+// MIGRATION: coluna para rastrear quando o certificado digital A1 foi aplicado
+db.run("ALTER TABLE admissao_assinaturas ADD COLUMN certificado_assinado_em TEXT DEFAULT NULL", () => {});
 
 // --- GERADORES DE DOCUMENTOS ---
 app.get('/api/geradores', authenticateToken, (req, res) => {

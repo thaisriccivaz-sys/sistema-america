@@ -944,9 +944,43 @@ window.handleDeleteCargoUI = async function() {
     }
 }
 
+// ─── CERTIFICADO DIGITAL PÓS-ASSINATURA ───────────────────────────────────────
+// Aplica o certificado A1 da empresa no PDF após o colaborador assinar no Assinafy
+window.assinarComCertificado = async function(assId, event) {
+    if (event) { event.preventDefault(); event.stopPropagation(); }
+    const btn = event?.currentTarget || event?.target;
+    const originalText = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Assinando...'; }
 
+    try {
+        const res  = await fetch(`${API_URL}/admissao-assinaturas/${assId}/assinar-certificado`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' }
+        });
+        const data = await res.json();
 
+        if (!res.ok || !data.ok) throw new Error(data.error || 'Falha ao aplicar certificado');
 
+        // Feedback visual de sucesso
+        if (btn) {
+            btn.style.background = '#f0fdf4';
+            btn.style.borderColor = '#16a34a';
+            btn.style.color = '#16a34a';
+            btn.innerHTML = '<i class="ph ph-seal-check"></i> ✅ Certificado Aplicado';
+            setTimeout(() => {
+                // Recarregar a view para refletir o novo status
+                if (viewedColaborador) window.viewColaborador(viewedColaborador.id);
+            }, 1500);
+        }
+        if (typeof showToast === 'function') showToast('✅ ' + data.mensagem, 'success');
+        else alert('✅ ' + data.mensagem);
+
+    } catch(e) {
+        if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
+        if (typeof showToast === 'function') showToast('❌ ' + e.message, 'error');
+        else alert('❌ ' + e.message);
+    }
+};
 
 async function loadDepartamentos() {
     const deptos = await apiGet('/departamentos');
@@ -6297,6 +6331,11 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
                             : '';
                         const colabId = viewedColaborador ? viewedColaborador.id : '';
                         const eyeBtn = `<button onclick="window.previewAdmissaoDoc(${g.id}, ${colabId}, event)" style="border:none;background:none;cursor:pointer;color:#64748b;" title="Visualizar documento"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
+                        const certBtn = isSigned && !ass.certificado_assinado_em
+                            ? `<button onclick="window.assinarComCertificado(${ass.id}, event)" style="border:1px solid #7c3aed;background:#faf5ff;color:#7c3aed;border-radius:6px;padding:2px 8px;font-size:0.72rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:3px;" title="Aplicar certificado digital A1 da empresa"><i class="ph ph-seal-check"></i> Certificado</button>`
+                            : isSigned && ass.certificado_assinado_em
+                            ? `<span style="font-size:0.72rem;color:#7c3aed;" title="Certificado aplicado em ${ass.certificado_assinado_em}"><i class="ph ph-seal-check"></i> ✅</span>`
+                            : '';
                         return `
                         <label class="doc-check-item" data-gerador-id="${g.id}" style="display:flex; align-items:center; gap:0.6rem; padding:0.6rem 0.75rem; border:1px solid ${isSigned ? '#bbf7d0' : '#f1f5f9'}; border-radius:8px; cursor:pointer; background:${isSigned ? '#f0fdf4' : '#fff'}; transition:all 0.2s; justify-content:space-between;">
                             <div style="display:flex; align-items:center; gap:0.6rem; flex:1;">
@@ -6308,6 +6347,7 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
                             </div>
                             <div style="display:flex; align-items:center; gap:0.5rem;">
                                 ${statusBadge}
+                                ${certBtn}
                                 ${eyeBtn}
                                 ${downloadBtn}
                             </div>
