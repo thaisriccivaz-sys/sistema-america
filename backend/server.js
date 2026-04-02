@@ -3448,7 +3448,10 @@ app.get('/api/certificado-digital/status', authenticateToken, (req, res) => {
  */
 app.post('/api/certificado-digital/upload', authenticateToken, uploadCertificado.single('certificado'), async (req, res) => {
     // Apenas usuários da Diretoria podem gerenciar o certificado
-    const isDiretoria = req.user?.role === 'Diretoria' || req.user?.role === 'Administrador' || req.user?.departamento === 'Diretoria';
+    const isDiretoria = req.user?.role === 'Diretoria' 
+        || req.user?.role === 'Administrador' 
+        || req.user?.departamento === 'Diretoria'
+        || (req.user?.grupo_nome && req.user.grupo_nome.toLowerCase() === 'diretoria');
     if (!isDiretoria) {
         return res.status(403).json({ error: 'Apenas usuários da Diretoria podem configurar o certificado digital.' });
     }
@@ -3480,7 +3483,10 @@ app.post('/api/certificado-digital/upload', authenticateToken, uploadCertificado
  * Remove o certificado configurado
  */
 app.delete('/api/certificado-digital', authenticateToken, (req, res) => {
-    const isDiretoria = req.user?.role === 'Diretoria' || req.user?.role === 'Administrador' || req.user?.departamento === 'Diretoria';
+    const isDiretoria = req.user?.role === 'Diretoria' 
+        || req.user?.role === 'Administrador' 
+        || req.user?.departamento === 'Diretoria'
+        || (req.user?.grupo_nome && req.user.grupo_nome.toLowerCase() === 'diretoria');
     if (!isDiretoria) {
         return res.status(403).json({ error: 'Apenas usuários da Diretoria podem remover o certificado.' });
     }
