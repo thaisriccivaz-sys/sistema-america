@@ -9027,8 +9027,6 @@ window.removerCertificadoView = async function() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Erro ao remover');
         await window.carregarCertificadoView();
-        const msgEl = document.getElementById('cert-view-save-msg');
-        if (msgEl) { msgEl.style.cssText='display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;margin-bottom:0.75rem;'; msgEl.innerHTML = '✅ Certificado removido.'; }
     } catch(e) { alert(e.message); }
 };
 

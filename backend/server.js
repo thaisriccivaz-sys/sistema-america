@@ -3474,6 +3474,10 @@ app.post('/api/certificado-digital/upload', authenticateToken, uploadCertificado
     db.run(`INSERT OR REPLACE INTO configuracoes_sistema (chave, valor) VALUES ('pfx_path', ?)`, [pfxPath]);
     db.run(`INSERT OR REPLACE INTO configuracoes_sistema (chave, valor) VALUES ('pfx_password_b64', ?)`, [senha64]);
 
+    // Atualiza variáveis em memória para acesso imediato sem precisar reiniciar o app
+    process.env.PFX_PATH = pfxPath;
+    process.env.PFX_PASSWORD = senha;
+
     console.log(`[CERT] Certificado digital atualizado: ${pfxPath} | CN=${info.cn}`);
     res.json({ ok: true, cn: info.cn, org: info.org, validade: info.validade, serial: info.serial });
 });
