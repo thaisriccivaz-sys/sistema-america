@@ -6355,6 +6355,23 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
                             : (isSigned && ass && certificadoAcionado)
                             ? `<span style="font-size:0.72rem;color:#7c3aed;" title="Certificado aplicado em ${certificadoAcionado}"><i class="ph ph-seal-check"></i> ✅</span>`
                             : '';
+                            
+                        let dataEnviadoLabel = '';
+                        if ((isSigned || isPending) && ass && ass.enviado_em) {
+                            try {
+                                // SQLite usa UTC, exemplo: 2024-04-02 18:30:00
+                                const dateStr = ass.enviado_em.replace(' ', 'T') + 'Z';
+                                const dObj = new Date(dateStr);
+                                if (!isNaN(dObj)) {
+                                    const hora = dObj.getHours().toString().padStart(2, '0');
+                                    const min = dObj.getMinutes().toString().padStart(2, '0');
+                                    const dia = dObj.getDate().toString().padStart(2, '0');
+                                    const mes = (dObj.getMonth()+1).toString().padStart(2, '0');
+                                    dataEnviadoLabel = `<span style="font-size:0.68rem; color:#10b981; font-weight:700; margin-right:4px;">Enviado: ${dia}/${mes} ${hora}:${min}</span>`;
+                                }
+                            } catch(e) {}
+                        }
+
                         return `
                         <label class="doc-check-item" data-gerador-id="${g.id}" style="display:flex; align-items:center; gap:0.6rem; padding:0.6rem 0.75rem; border:1px solid ${isSigned ? '#bbf7d0' : '#f1f5f9'}; border-radius:8px; cursor:pointer; background:${isSigned ? '#f0fdf4' : '#fff'}; transition:all 0.2s; justify-content:space-between;">
                             <div style="display:flex; align-items:center; gap:0.6rem; flex:1;">
@@ -6365,6 +6382,7 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
                                 </div>
                             </div>
                             <div style="display:flex; align-items:center; gap:0.5rem;">
+                                ${dataEnviadoLabel}
                                 ${statusBadge}
                                 ${certBtn}
                                 ${eyeBtn}
