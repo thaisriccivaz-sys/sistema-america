@@ -307,7 +307,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // ROTA DE VERSÃO (Para verificar implantação)
-app.get('/api/version', (req, res) => res.json({ version: 'V44_ASS_UNION_FIX' }));
+app.get('/api/version', (req, res) => res.json({ version: 'V45_ASS_TWO_QUERIES' }));
 
 // ─── MÓDULO DE ASSINATURA DIGITAL COM CERTIFICADO .PFX ───────────────────────
 const signPdfPfx = require('./sign_pdf_pfx');
@@ -480,51 +480,70 @@ app.get('/api/admissao-assinaturas/alertas-recentes', authenticateToken, (req, r
 });
 
 // Endpoint: TODOS os documentos de assinatura (admissao_assinaturas + documentos com assinafy_id)
-app.get('/api/admissao-assinaturas/todos', authenticateToken, (req, res) => {
-    db.all(`
-        -- Documentos via Admissão (contratos)
-        SELECT
-            aa.id          AS id,
-            aa.nome_documento AS nome_documento,
-            aa.assinafy_status,
-            aa.assinafy_id,
-            aa.enviado_em  AS enviado_em,
-            aa.assinado_em AS assinado_em,
-            aa.colaborador_id,
-            c.nome_completo AS colaborador_nome,
-            c.departamento  AS colaborador_departamento,
-            c.cargo         AS colaborador_cargo,
-            'admissao'      AS source
-        FROM admissao_assinaturas aa
-        LEFT JOIN colaboradores c ON c.id = aa.colaborador_id
-        WHERE aa.assinafy_id IS NOT NULL
+app.get('/api/admissao-assinaturas/todos', authenticateToken, async (req, res) => {
+    try {
+        const dbAll = (sql, params) => new Promise((resolve, reject) =>
+            db.all(sql, params, (err, rows) => err ? reject(err) : resolve(rows || []))
+        );
 
-        UNION ALL
+        // Query 1: Contratos de admissão
+        const admissaoRows = await dbAll(`
+            SELECT aa.id, aa.nome_documento, aa.assinafy_status, aa.assinafy_id,
+                   aa.enviado_em, aa.assinado_em, aa.colaborador_id,
+                   c.nome_completo AS colaborador_nome,
+                   c.departamento  AS colaborador_departamento,
+                   c.cargo         AS colaborador_cargo,
+                   'admissao'      AS source
+            FROM admissao_assinaturas aa
+            LEFT JOIN colaboradores c ON c.id = aa.colaborador_id
+            WHERE aa.assinafy_id IS NOT NULL
+        `, []);
 
-        -- Documentos via Prontuário (ASO, EPI, Atestados, etc.)
-        SELECT
-            d.id            AS id,
-            d.document_type AS nome_documento,
-            d.assinafy_status,
-            d.assinafy_id,
-            d.assinafy_sent_at  AS enviado_em,
-            d.assinafy_signed_at AS assinado_em,
-            d.colaborador_id,
-            c.nome_completo AS colaborador_nome,
-            c.departamento  AS colaborador_departamento,
-            c.cargo         AS colaborador_cargo,
-            'documento'     AS source
-        FROM documentos d
-        LEFT JOIN colaboradores c ON c.id = d.colaborador_id
-        WHERE d.assinafy_id IS NOT NULL
-          AND d.assinafy_status IS NOT NULL
+        // Query 2: Documentos do prontuário (ASO, EPI, etc.) — sem coluna assinafy_sent_at/signed_at para compatibilidade
+        const docRows = await dbAll(`
+            SELECT d.id, d.document_type AS nome_documento, d.assinafy_status, d.assinafy_id,
+                   d.colaborador_id,
+                   c.nome_completo AS colaborador_nome,
+                   c.departamento  AS colaborador_departamento,
+                   c.cargo         AS colaborador_cargo,
+                   'documento'     AS source
+            FROM documentos d
+            LEFT JOIN colaboradores c ON c.id = d.colaborador_id
+            WHERE d.assinafy_id IS NOT NULL
+              AND d.assinafy_status IS NOT NULL
+        `, []);
 
-        ORDER BY COALESCE(assinado_em, enviado_em) DESC
-        LIMIT 500
-    `, [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows || []);
-    });
+        // Buscar datas de envio/assinatura para documentos (colunas que podem não existir dependendo da migração)
+        let docDates = {};
+        try {
+            const datesRows = await dbAll(`
+                SELECT id, assinafy_sent_at AS enviado_em, assinafy_signed_at AS assinado_em
+                FROM documentos WHERE assinafy_id IS NOT NULL
+            `, []);
+            datesRows.forEach(r => { docDates[r.id] = { enviado_em: r.enviado_em, assinado_em: r.assinado_em }; });
+        } catch(e) {
+            console.warn('[/todos] Colunas de data assinafy não encontradas:', e.message);
+        }
+
+        // Merge das datas nos documentos
+        const docRowsWithDates = docRows.map(d => ({
+            ...d,
+            enviado_em:  docDates[d.id]?.enviado_em  || null,
+            assinado_em: docDates[d.id]?.assinado_em || null,
+        }));
+
+        // Combinar e ordenar por data mais recente
+        const all = [...admissaoRows, ...docRowsWithDates].sort((a, b) => {
+            const dateA = new Date(a.assinado_em || a.enviado_em || 0).getTime();
+            const dateB = new Date(b.assinado_em || b.enviado_em || 0).getTime();
+            return dateB - dateA;
+        }).slice(0, 500);
+
+        res.json(all);
+    } catch(e) {
+        console.error('[/admissao-assinaturas/todos] Erro:', e.message);
+        res.status(500).json({ error: e.message });
+    }
 });
 
 // Endpoint para forçar verificação imediata de status do colaborador
