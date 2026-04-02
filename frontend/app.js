@@ -306,6 +306,15 @@ window.carregarPermissoesOnline = async function() {
         // Percorre todos os botões de navegação (.nav-item)
         document.querySelectorAll('.nav-item[data-target]').forEach(link => {
             const pathId = link.getAttribute('data-target');
+            
+            // Hardcode: módulos "Em breve" nunca devem aparecer para usuários comuns, 
+            // mesmo que marcados sem querer no banco.
+            if (pathId && pathId.includes('em-breve')) {
+                link.style.cssText = 'display: none !important;';
+                mapPerms[pathId] = false; // Força no mapa para ocultar a bolota também
+                return;
+            }
+
             // Se existir no mapa de permissoes e for TRUE, mostra. Senão, esconde robustamente.
             if (mapPerms[pathId]) {
                 link.style.display = '';
