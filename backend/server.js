@@ -1462,71 +1462,71 @@ app.post('/api/admissao-assinaturas/enviar-lote', authenticateToken, async (req,
     if (!colab) return res.status(404).json({ error: 'Colaborador não encontrado' });
     if (!colab.email) return res.status(400).json({ error: 'E-mail do colaborador não está cadastrado.' });
 
-    const resultados = [];
+    // --- Função para processar UM gerador ---
+    const processarGerador = async (geradorId) => {
+        const gerador = await new Promise((resolve, reject) =>
+            db.get('SELECT * FROM geradores WHERE id = ?', [geradorId], (err, row) => err ? reject(err) : resolve(row))
+        );
+        if (!gerador) return { id: geradorId, erro: 'Gerador não encontrado' };
 
-    for (const geradorId of geradores_ids) {
-        try {
-            const gerador = await new Promise((resolve, reject) =>
-                db.get('SELECT * FROM geradores WHERE id = ?', [geradorId], (err, row) => err ? reject(err) : resolve(row))
-            );
-            if (!gerador) { resultados.push({ id: geradorId, erro: 'Gerador não encontrado' }); continue; }
+        let filePath;
+        if (gerador.tipo === 'pdf' && gerador.arquivo_pdf && fs.existsSync(gerador.arquivo_pdf)) {
+            filePath = gerador.arquivo_pdf;
+        } else {
+            const pdfDoc = await PDFDocument.create();
+            const page = pdfDoc.addPage();
+            const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+            page.drawText(gerador.nome || 'Documento', { x: 50, y: 750, size: 16, font, color: rgb(0,0,0) });
+            page.drawText(`Colaborador: ${colab.nome_completo}`, { x: 50, y: 720, size: 12, font });
+            page.drawText(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, { x: 50, y: 700, size: 10, font });
+            const pdfBytes = await pdfDoc.save();
 
-            let filePath;
-            // Se for PDF externo, usar o arquivo diretamente
-            if (gerador.tipo === 'pdf' && gerador.arquivo_pdf && fs.existsSync(gerador.arquivo_pdf)) {
-                filePath = gerador.arquivo_pdf;
-            } else {
-                // Gerar PDF do conteúdo HTML usando pdf-lib básico (texto simples)
-                const pdfDoc = await PDFDocument.create();
-                const page = pdfDoc.addPage();
-                const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-                page.drawText(gerador.nome || 'Documento', { x: 50, y: 750, size: 16, font, color: rgb(0,0,0) });
-                page.drawText(`Colaborador: ${colab.nome_completo}`, { x: 50, y: 720, size: 12, font });
-                page.drawText(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, { x: 50, y: 700, size: 10, font });
-                const pdfBytes = await pdfDoc.save();
-
-                const tmpDir = path.join(BASE_PATH, '_tmp_gerados');
-                if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
-                filePath = path.join(tmpDir, `${Date.now()}_${geradorId}_${colab.id}.pdf`);
-                fs.writeFileSync(filePath, pdfBytes);
-            }
-
-            // Inserir ou atualizar no banco de admissao_assinaturas
-            const existente = await new Promise((resolve, reject) =>
-                db.get('SELECT * FROM admissao_assinaturas WHERE colaborador_id = ? AND nome_documento = ?',
-                    [colaborador_id, gerador.nome], (err, row) => err ? reject(err) : resolve(row))
-            );
-
-            // Criar registro temporário em documentos para aproveitar o fluxo existente do Assinafy
-            const docId = await new Promise((resolve, reject) =>
-                db.run(
-                    `INSERT INTO documentos (colaborador_id, tab_name, document_type, file_path, file_name, assinafy_status) VALUES (?, 'CONTRATOS', ?, ?, ?, 'Pendente')`,
-                    [colaborador_id, gerador.nome, filePath, path.basename(filePath)],
-                    function(err) { err ? reject(err) : resolve(this.lastID); }
-                )
-            );
-
-            // Enviar para Assinafy
-            const resultado = await novoProcesso.enviarDocumentoParaAssinafy(docId, colaborador_id);
-
-            // Salvar em admissao_assinaturas
-            if (existente) {
-                db.run(`UPDATE admissao_assinaturas SET assinafy_id=?, assinafy_status='Pendente', assinafy_url=?, enviado_em=CURRENT_TIMESTAMP WHERE id=?`,
-                    [resultado.assinafyDocId, resultado.urlAssinatura, existente.id]);
-            } else {
-                db.run(`INSERT INTO admissao_assinaturas (colaborador_id, gerador_id, nome_documento, assinafy_id, assinafy_status, assinafy_url, enviado_em) VALUES (?,?,?,'Pendente',?,?,CURRENT_TIMESTAMP)`,
-                    [colaborador_id, geradorId, gerador.nome, resultado.assinafyDocId, resultado.urlAssinatura]);
-            }
-
-            resultados.push({ id: geradorId, nome: gerador.nome, ok: true, url: resultado.urlAssinatura });
-        } catch(e) {
-            console.error(`[ADMISSAO-ASSINATURA] Erro no gerador ${geradorId}:`, e.message);
-            resultados.push({ id: geradorId, erro: e.message });
+            const tmpDir = path.join(BASE_PATH, '_tmp_gerados');
+            if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
+            // Timestamp único para evitar colisões em paralelo
+            filePath = path.join(tmpDir, `${Date.now()}_${Math.random().toString(36).slice(2)}_${geradorId}_${colab.id}.pdf`);
+            fs.writeFileSync(filePath, pdfBytes);
         }
-    }
+
+        const existente = await new Promise((resolve, reject) =>
+            db.get('SELECT * FROM admissao_assinaturas WHERE colaborador_id = ? AND nome_documento = ?',
+                [colaborador_id, gerador.nome], (err, row) => err ? reject(err) : resolve(row))
+        );
+
+        const docId = await new Promise((resolve, reject) =>
+            db.run(
+                `INSERT INTO documentos (colaborador_id, tab_name, document_type, file_path, file_name, assinafy_status) VALUES (?, 'CONTRATOS', ?, ?, ?, 'Pendente')`,
+                [colaborador_id, gerador.nome, filePath, path.basename(filePath)],
+                function(err) { err ? reject(err) : resolve(this.lastID); }
+            )
+        );
+
+        const resultado = await novoProcesso.enviarDocumentoParaAssinafy(docId, colaborador_id);
+
+        if (existente) {
+            db.run(`UPDATE admissao_assinaturas SET assinafy_id=?, assinafy_status='Pendente', assinafy_url=?, enviado_em=CURRENT_TIMESTAMP WHERE id=?`,
+                [resultado.assinafyDocId, resultado.urlAssinatura, existente.id]);
+        } else {
+            db.run(`INSERT INTO admissao_assinaturas (colaborador_id, gerador_id, nome_documento, assinafy_id, assinafy_status, assinafy_url, enviado_em) VALUES (?,?,?,?,?,?,CURRENT_TIMESTAMP)`,
+                [colaborador_id, geradorId, gerador.nome, resultado.assinafyDocId, 'Pendente', resultado.urlAssinatura]);
+        }
+
+        return { id: geradorId, nome: gerador.nome, ok: true, url: resultado.urlAssinatura };
+    };
+
+    // --- Envio em PARALELO: todos os documentos ao mesmo tempo ---
+    const resultados = await Promise.all(
+        geradores_ids.map(id =>
+            processarGerador(id).catch(e => {
+                console.error(`[ADMISSAO-ASSINATURA] Erro no gerador ${id}:`, e.message);
+                return { id, erro: e.message };
+            })
+        )
+    );
 
     res.json({ ok: true, resultados });
 });
+
 
 // GET: baixar PDF assinado de admissão
 app.get('/api/admissao-assinaturas/:id/download', authenticateToken, (req, res) => {
