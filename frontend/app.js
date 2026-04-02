@@ -6355,20 +6355,14 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
                             : (isSigned && ass && certificadoAcionado)
                             ? `<span style="font-size:0.72rem;color:#7c3aed;" title="Certificado aplicado em ${certificadoAcionado}"><i class="ph ph-seal-check"></i> ✅</span>`
                             : '';
-                            
-                        let dataEnviadoLabel = '';
-                        if ((isSigned || isPending) && ass && ass.enviado_em) {
+                        let dataEnvioBadge = '';
+                        if (ass && ass.enviado_em) {
                             try {
-                                // SQLite usa UTC, exemplo: 2024-04-02 18:30:00
-                                const dateStr = ass.enviado_em.replace(' ', 'T') + 'Z';
-                                const dObj = new Date(dateStr);
-                                if (!isNaN(dObj)) {
-                                    const hora = dObj.getHours().toString().padStart(2, '0');
-                                    const min = dObj.getMinutes().toString().padStart(2, '0');
-                                    const dia = dObj.getDate().toString().padStart(2, '0');
-                                    const mes = (dObj.getMonth()+1).toString().padStart(2, '0');
-                                    dataEnviadoLabel = `<span style="font-size:0.68rem; color:#10b981; font-weight:700; margin-right:4px;">Enviado: ${dia}/${mes} ${hora}:${min}</span>`;
-                                }
+                                // Assume que enviado_em é UTC padrão salvo no SQLite pelo CURRENT_TIMESTAMP
+                                const d = new Date(ass.enviado_em + (ass.enviado_em.includes('Z') ? '' : 'Z'));
+                                const dateStr = d.toLocaleDateString('pt-BR');
+                                const timeStr = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                                dataEnvioBadge = `<span style="font-size:0.7rem; color:#15803d; margin-right:2px; font-weight:600;"><i class="ph ph-paper-plane-tilt"></i> ${dateStr} ${timeStr}</span>`;
                             } catch(e) {}
                         }
 
@@ -6382,7 +6376,7 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
                                 </div>
                             </div>
                             <div style="display:flex; align-items:center; gap:0.5rem;">
-                                ${dataEnviadoLabel}
+                                ${dataEnvioBadge}
                                 ${statusBadge}
                                 ${certBtn}
                                 ${eyeBtn}
