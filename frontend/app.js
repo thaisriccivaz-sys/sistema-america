@@ -6284,9 +6284,6 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
             
             document.getElementById('admissao-nome-final').textContent = colab.nome_completo;
 
-            // 2. Restaurar e Popular Passo 2 e outros
-            const docs = await apiGet(`/colaboradores/${colab.id}/documentos`);
-
             // Busca dados para o Passo 2: Documentos do Departamento
             // Verifica status no Assinafy ANTES de buscar os dados do banco
             await fetch(`${API_URL}/admissao-assinaturas/verificar-status`, {
@@ -6295,11 +6292,12 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
                 body: JSON.stringify({ colaborador_id: colab.id })
             }).catch(() => {});
 
-            const [depts, geradores, templates, assinaturas] = await Promise.all([
+            const [depts, geradores, templates, assinaturas, docs] = await Promise.all([
                 apiGet('/departamentos'),
                 apiGet('/geradores'),
                 apiGet('/gerador-departamento-templates').catch(() => []),
-                apiGet(`/admissao-assinaturas/${colab.id}`).catch(() => [])
+                apiGet(`/admissao-assinaturas/${colab.id}`).catch(() => []),
+                apiGet(`/colaboradores/${colab.id}/documentos`).catch(() => [])
             ]);
 
             let availableGeradores = [];
