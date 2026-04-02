@@ -293,7 +293,10 @@ window.carregarPermissoesOnline = async function() {
 
         // Cria um mapa rápido das permissoes ativas
         const mapPerms = {};
-        permissoes.forEach(p => mapPerms[p.pagina_id] = !!p.visualizar);
+        permissoes.forEach(p => {
+            const v = p.visualizar;
+            mapPerms[p.pagina_id] = (v === 1 || v === '1' || v === true || v === 'true');
+        });
 
         // Auto-liberar certificado-digital para quem já tem acesso a usuarios-permissoes
         if (mapPerms['usuarios-permissoes']) {
