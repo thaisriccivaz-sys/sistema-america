@@ -2082,6 +2082,25 @@
                     <label>Colaborador</label>
                     <select id="select-colab-gerar" class="form-control" style="width: 100%; padding: 0.6rem;"></select>
                 </div>
+
+                <!-- Pergunta: campo de assinatura manual? -->
+                <div style="background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:10px; padding:1rem; margin-bottom:1.25rem;">
+                    <p style="font-weight:700; color:#334155; margin-bottom:0.6rem; font-size:0.9rem;">
+                        <i class="ph ph-signature" style="color:#f503c5;"></i>
+                        Documento com campo de assinatura manual?
+                    </p>
+                    <div style="display:flex; gap:1.5rem;">
+                        <label style="display:flex; align-items:center; gap:0.4rem; cursor:pointer; font-weight:600;">
+                            <input type="radio" name="assinatura-tipo" id="assinatura-sim" value="sim" style="accent-color:#f503c5;">
+                            Sim — imprimir campo para assinar à mão
+                        </label>
+                        <label style="display:flex; align-items:center; gap:0.4rem; cursor:pointer; font-weight:600;">
+                            <input type="radio" name="assinatura-tipo" id="assinatura-nao" value="nao" checked style="accent-color:#f503c5;">
+                            Não — assinatura digital
+                        </label>
+                    </div>
+                </div>
+
                 <div id="gerador-id-temp" style="display:none;"></div>
                 <button type="button" class="btn btn-primary btn-block" onclick="window.processarGeracao()">Gerar Agora</button>
             </div>
@@ -2093,7 +2112,13 @@
         <div class="modal-content fullness">
             <div class="modal-header">
                 <h3 id="preview-doc-title">Visualizar Documento</h3>
-                <div id="preview-doc-buttons" style="display: flex; gap: 1rem; align-items: center;">
+                <div id="preview-doc-buttons" style="display: flex; gap: 0.75rem; align-items: center;">
+                    <button class="btn btn-primary" onclick="window.salvarDocumentoPDF()" style="display:flex;align-items:center;gap:0.4rem;">
+                        <i class="ph ph-download-simple"></i> Salvar como PDF
+                    </button>
+                    <button class="btn btn-secondary" onclick="window.imprimirDocumento()" style="display:flex;align-items:center;gap:0.4rem;">
+                        <i class="ph ph-printer"></i> Imprimir
+                    </button>
                     <button class="btn btn-secondary" onclick="document.getElementById('modal-preview-doc').style.display='none'"><i class="ph ph-x"></i> Fechar</button>
                 </div>
             </div>

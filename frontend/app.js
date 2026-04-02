@@ -5780,15 +5780,17 @@ window.processarGeracao = async function() {
 window.abrirPreviewDocumento = function(data) {
     const container = document.getElementById('preview-doc-body');
     if (!container) return;
-    
-    // 1. Cabeçalho com Logotipo (Banner Colorido)
+
+    // Verificar opção de assinatura manual
+    const comAssinatura = document.querySelector('input[name="assinatura-tipo"]:checked')?.value === 'sim';
+
+    // 1. Cabeçalho com Logotipo
     const logoBanner = `<div style="margin-bottom: 1rem;"><img src="${API_URL.replace('/api', '')}/assets/logo-header.png" style="width: 100%; display: block;"></div>`;
-    
-    // 2. Título e Dados do Colaborador (PADRÃO)
+
+    // 2. Dados do Colaborador
     const colabInfoBase = `
         <h1 style="text-align: center; color: #1e293b; margin-top: 0.2rem; font-size: 1.25rem; text-transform: uppercase;">${data.gerador_nome}</h1>
         <p style="margin-top: 0.75rem; font-size: 1rem;"><b>COLABORADOR:</b> ${data.colaborador.NOME_COMPLETO}</p>
-        
         <div style="border: 1px solid #000; padding: 0.75rem; margin-top: 0.5rem; line-height: 1.4; font-size: 0.85rem;">
             <p style="margin-bottom: 0.2rem; font-size: 0.8rem;"><b>DADOS COLABORADOR:</b></p>
             <div style="display: flex; gap: 2rem;">
@@ -5806,49 +5808,105 @@ window.abrirPreviewDocumento = function(data) {
             </div>
         </div>
     `;
-    
-    // 3. Conteúdo Específico (O que vem do Banco)
-    // Forçar Negrito no nome da empresa e respeitar quebras de linha/espaços em qualquer modo
-    const htmlComDestaque = (data.html || '').replace(/AMERICA RENTAL EQUIPAMENTOS LTDA/g, '<b>AMERICA RENTAL EQUIPAMENTOS LTDA</b>');
-    
-    // Ajuste específico para Santander caber em 1 página
-    const isSantander = (data.gerador_nome || '').toLowerCase().includes('santander');
-    const customFontSize = isSantander ? '0.7rem' : '0.9rem';
-    const customLineHeight = isSantander ? '1.2' : '1.4';
 
-    const conteudoPrincipal = `<div style="margin-top: 1rem; text-align: justify; line-height: ${customLineHeight}; font-size: ${customFontSize}; white-space: pre-wrap;">${htmlComDestaque}</div>`;
-    
-    // 4. Rodapé de Assinaturas (PADRÃO CONFORME IMAGEM)
+    // 3. Conteúdo — compactar espaçamento de parágrafos
+    const htmlComDestaque = (data.html || '')
+        .replace(/AMERICA RENTAL EQUIPAMENTOS LTDA/g, '<b>AMERICA RENTAL EQUIPAMENTOS LTDA</b>');
+
+    const isSantander = (data.gerador_nome || '').toLowerCase().includes('santander');
+    const customFontSize   = isSantander ? '0.7rem' : '0.9rem';
+    const customLineHeight = isSantander ? '1.2'    : '1.5';
+
+    // Reduzir espaçamento excessivo: paragrafos com margin compacto
+    const conteudoPrincipal = `
+        <div style="margin-top: 1rem; text-align: justify; font-size: ${customFontSize};">
+            <style scoped>
+                #preview-doc-body p { margin: 0.15rem 0; line-height: ${customLineHeight}; }
+                #preview-doc-body li { margin: 0.1rem 0; line-height: ${customLineHeight}; }
+                #preview-doc-body br { line-height: 0.5; }
+            </style>
+            ${htmlComDestaque}
+        </div>`;
+
+    // 4. Data atual formatada — "Guarulhos, 01 de abril de 2026."
+    const meses = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+    const hoje = new Date();
+    const dataFormatada = `Guarulhos, ${String(hoje.getDate()).padStart(2,'0')} de ${meses[hoje.getMonth()]} de ${hoje.getFullYear()}.`;
+
+    // 5. Rodapé — com ou sem campo de assinatura manual
     const colabNome = data.colaborador.NOME_COMPLETO;
-    const footerHtml = `
-        <div style="margin-top: 1rem;">
-            <p style="font-weight: 700; font-size: 0.9rem;">Guarulhos, ________ de ____________________ de 202____.</p>
-            
-            <div style="margin-top: 2rem; display: flex; justify-content: space-between; align-items: flex-end;">
-                <!-- Colaborador -->
+    const logoSrc = `${API_URL.replace('/api', '')}/assets/logo-header.png`;
+
+    let footerHtml;
+    if (comAssinatura) {
+        // Com campos de assinatura para impressão e assinatura à mão
+        footerHtml = `
+        <div style="margin-top: 1.5rem;">
+            <p style="font-weight: 700; font-size: 0.9rem;">${dataFormatada}</p>
+            <div style="margin-top: 2.5rem; display: flex; justify-content: space-between; align-items: flex-end;">
                 <div style="text-align: center; width: 45%;">
-                    <div style="border-top: 1.5px solid #000; padding-top: 0.25rem;">
-                        <span style="font-weight: 700; font-size: 0.85rem;">${colabNome}</span>
+                    <div style="border-top: 1.5px solid #000; padding-top: 0.35rem;">
+                        <span style="font-weight: 700; font-size: 0.85rem;">${colabNome}</span><br>
+                        <span style="font-size: 0.75rem; color: #555;">Colaborador</span>
                     </div>
                 </div>
-                
-                <!-- Empresa com Logo Pequeno -->
                 <div style="text-align: center; width: 45%;">
                     <div style="margin-bottom: 0.25rem;">
-                        <img src="${API_URL.replace('/api', '')}/assets/logo-header.png" style="height: 25px; margin: 0 auto; display: block;">
+                        <img src="${logoSrc}" style="height: 25px; margin: 0 auto; display: block;">
                         <p style="font-size: 0.5rem; margin-top: 1px; font-weight: 700; line-height: 1.1;">AMERICA RENTAL EQUIPAMENTOS LTDA<br>CNPJ: 03.434.448/0001-01</p>
                     </div>
-                    <div style="border-top: 1.5px solid #000; padding-top: 0.25rem;">
-                        <span style="font-weight: 700; font-size: 0.85rem;">América Rental Equipamentos Ltda</span>
+                    <div style="border-top: 1.5px solid #000; padding-top: 0.35rem;">
+                        <span style="font-weight: 700; font-size: 0.85rem;">América Rental Equipamentos Ltda</span><br>
+                        <span style="font-size: 0.75rem; color: #555;">Empresa</span>
                     </div>
                 </div>
             </div>
-        </div>
-    `;
-    
+        </div>`;
+    } else {
+        // Sem campos de assinatura — apenas a data (assinatura será digital)
+        footerHtml = `
+        <div style="margin-top: 1.5rem;">
+            <p style="font-weight: 700; font-size: 0.9rem;">${dataFormatada}</p>
+        </div>`;
+    }
+
     container.innerHTML = logoBanner + colabInfoBase + conteudoPrincipal + footerHtml;
+    // Guardar nome para uso no salvar PDF
+    container.dataset.docNome = data.gerador_nome || 'Documento';
+    container.dataset.colabNome = colabNome || '';
+
     document.getElementById('preview-doc-title').textContent = data.gerador_nome;
     document.getElementById('modal-preview-doc').style.display = 'block';
+};
+
+// Salvar como PDF — usa o diálogo de impressão do navegador com destino "Salvar em PDF"
+window.salvarDocumentoPDF = function() {
+    const container = document.getElementById('preview-doc-body');
+    if (!container) return;
+    const content   = container.innerHTML;
+    const docNome   = container.dataset.docNome || 'Documento';
+    const colabNome = container.dataset.colabNome || '';
+
+    const win = window.open('', '_blank');
+    win.document.write(`
+        <html>
+            <head>
+                <title>${docNome}${colabNome ? ' - ' + colabNome : ''}</title>
+                <style>
+                    * { box-sizing: border-box; }
+                    body { font-family: 'Inter', Arial, sans-serif; padding: 0; margin: 0; }
+                    @page { size: A4; margin: 1.5cm; }
+                    #preview-doc-body p  { margin: 0.15rem 0; line-height: 1.5; }
+                    #preview-doc-body li { margin: 0.1rem 0;  line-height: 1.5; }
+                    img { max-width: 100%; }
+                </style>
+            </head>
+            <body onload="window.print();">
+                <div id="preview-doc-body">${content}</div>
+            </body>
+        </html>
+    `);
+    win.document.close();
 };
 
 window.imprimirDocumento = function() {
@@ -5862,20 +5920,19 @@ window.imprimirDocumento = function() {
                     * { box-sizing: border-box; }
                     body { font-family: 'Inter', Arial, sans-serif; padding: 0; margin: 0; }
                     @page { size: A4; margin: 1.5cm; }
-                    .print-container { width: 100%; border: none !important; box-shadow: none !important; }
-                    .print-container * { border-color: #000 !important; }
+                    #preview-doc-body p  { margin: 0.15rem 0; line-height: 1.5; }
+                    #preview-doc-body li { margin: 0.1rem 0;  line-height: 1.5; }
                     img { max-width: 100%; }
-                    /* Forcar uma pagina */
-                    body { height: 100%; overflow: hidden; }
                 </style>
             </head>
             <body onload="window.print(); window.close();">
-                <div class="print-container">${content}</div>
+                <div id="preview-doc-body">${content}</div>
             </body>
         </html>
     `);
     win.document.close();
 };
+
 // --- GESTÃO DE CHAVES ---
 window.loadChaves = async function() {
     try {
