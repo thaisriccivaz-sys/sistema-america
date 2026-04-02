@@ -40,8 +40,9 @@ try {
 }
 
 // ─── CONFIGURAÇÃO ─────────────────────────────────────────────────────────────
-const PFX_PATH     = process.env.PFX_PATH     || null;
-const PFX_PASSWORD = process.env.PFX_PASSWORD || '';
+// As variáveis devem ser lidas dinamicamente, pois são atualizadas em tempo de execução pelo server.js
+function getPfxPath() { return process.env.PFX_PATH || null; }
+function getPfxPassword() { return process.env.PFX_PASSWORD || ''; }
 
 /**
  * Verifica se a assinatura digital está configurada e disponível.
@@ -51,8 +52,9 @@ function verificarDisponibilidade() {
     if (!forge)          return { disponivel: false, motivo: 'node-forge não instalado' };
     if (!signpdf)        return { disponivel: false, motivo: '@signpdf/signpdf não instalado' };
     if (!plainAddPlaceholder) return { disponivel: false, motivo: '@signpdf/placeholder-plain não instalado' };
-    if (!PFX_PATH)       return { disponivel: false, motivo: 'PFX_PATH não configurado nas variáveis de ambiente' };
-    if (!fs.existsSync(PFX_PATH)) return { disponivel: false, motivo: `Arquivo .pfx não encontrado: ${PFX_PATH}` };
+    const currentPfxPath = getPfxPath();
+    if (!currentPfxPath)       return { disponivel: false, motivo: 'PFX_PATH não configurado nas variáveis de ambiente' };
+    if (!fs.existsSync(currentPfxPath)) return { disponivel: false, motivo: `Arquivo .pfx não encontrado: ${currentPfxPath}` };
     return { disponivel: true };
 }
 
@@ -126,8 +128,8 @@ function infosCertificado(pfxPath, password) {
  * @returns {Promise<Buffer>} PDF com assinatura digital embutida
  */
 async function assinarPDF(pdfBuffer, opts = {}) {
-    const pfxPath     = opts.pfxPath     || PFX_PATH;
-    const pfxPassword = opts.pfxPassword || PFX_PASSWORD;
+    const pfxPath     = opts.pfxPath     || getPfxPath();
+    const pfxPassword = opts.pfxPassword || getPfxPassword();
     const motivo      = opts.motivo      || 'Assinado eletronicamente pela empresa';
     const local       = opts.local       || 'Brasil';
     const nome        = opts.nome        || 'America Rental Equipamentos Ltda';
@@ -212,6 +214,6 @@ module.exports = {
     infosCertificado,
     assinarPDF,
     assinarArquivoPDF,
-    PFX_PATH,
-    PFX_PASSWORD,
+    getPfxPath,
+    getPfxPassword,
 };
