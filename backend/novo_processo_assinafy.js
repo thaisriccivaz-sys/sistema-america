@@ -1,38 +1,41 @@
 /**
- * novo_processo_assinafy.js - V FINAL
+ * novo_processo_assinafy.js
  *
- * Esta versão estava funcionando corretamente em produção.
- * O e-mail é enviado pelo próprio Assinafy quando o assignment é criado
- * com notification_methods: ["Email", "WhatsApp"]
+ * Dois signatários em TODOS os documentos:
+ *  1. Colaborador (CPF)
+ *  2. America Rental Equipamentos Ltda (CNPJ) — rh@americarental.com.br
  *
- * Endpoints confirmados por testes diretos na API:
- *  - Upload:      POST /v1/accounts/{accountId}/documents          (multipart)
+ * O documento só aparece como "Assinado" no sistema quando AMBOS tiverem assinado.
+ *
+ * Endpoints confirmados:
+ *  - Upload:      POST /v1/accounts/{accountId}/documents  (multipart)
  *  - Signatários: GET/POST/PUT /v1/accounts/{accountId}/signers
  *  - Status doc:  GET /v1/documents/{docId}
- *  - Assignment:  POST /v1/documents/{docId}/assignments           (SEM /accounts/)
+ *  - Assignment:  POST /v1/documents/{docId}/assignments
  */
 
 'use strict';
 
-const fs = require('fs');
-const path = require('path');
-const https = require('https');
+const fs       = require('fs');
+const path     = require('path');
+const https    = require('https');
 const FormData = require('form-data');
+const db       = require('./database');
 
-const db = require('./database');
-
-// ============================================================
-// CONFIGURAÇÃO
-// ============================================================
+// ─── CONFIGURAÇÃO ────────────────────────────────────────────────────────────
 const API_KEY    = 'AxaT-FiXBckHqEYV0s_MtUhLF3pReRz3dX4zVpC173vmjDwzLGHYtDJuQje4-4Pd';
 const ACCOUNT_ID = '10237785fb23cf473d54845a013e';
 const HOSTNAME   = 'api.assinafy.com.br';
 
-// ============================================================
-// HELPERS HTTP
-// ============================================================
+// Empresa — segundo signatário obrigatório em TODOS os documentos
+const EMPRESA = {
+    full_name: 'America Rental Equipamentos Ltda',
+    email:     'rh@americarental.com.br',
+    cnpj:      '03434448000101'
+};
 
-/** Requisição JSON (GET, POST, PUT) */
+// ─── HELPERS HTTP ─────────────────────────────────────────────────────────────
+
 function req(method, urlPath, bodyObj) {
     return new Promise((resolve, reject) => {
         const body = bodyObj ? JSON.stringify(bodyObj) : null;
@@ -64,17 +67,13 @@ function req(method, urlPath, bodyObj) {
     });
 }
 
-/** Upload multipart/form-data */
 function uploadForm(urlPath, form) {
     return new Promise((resolve, reject) => {
         const options = {
             hostname: HOSTNAME,
             path: urlPath,
             method: 'POST',
-            headers: {
-                'X-Api-Key': API_KEY,
-                ...form.getHeaders()
-            }
+            headers: { 'X-Api-Key': API_KEY, ...form.getHeaders() }
         };
         const request = https.request(options, (res) => {
             const chunks = [];
@@ -93,31 +92,58 @@ function uploadForm(urlPath, form) {
     });
 }
 
-// ============================================================
-// FUNÇÃO PRINCIPAL
-// ============================================================
+// ─── HELPER: Resolve ou cria signatário pela tax_id ──────────────────────────
+async function resolverSignatario({ full_name, email, tax_id, whatsapp_phone_number }) {
+    const searchRes = await req('GET', `/v1/accounts/${ACCOUNT_ID}/signers?tax_id=${tax_id}`, null);
+    const lista = searchRes.json?.data || [];
+
+    if (Array.isArray(lista) && lista.length > 0) {
+        const exact = lista.find(s => s.email.toLowerCase() === email.toLowerCase());
+        if (exact) {
+            console.log(`[SIGNER] Encontrado ID=${exact.id} (${email})`);
+            return exact.id;
+        }
+        const id = lista[0].id;
+        console.log(`[SIGNER] Existente ID=${id}. Atualizando e-mail → ${email}...`);
+        await req('PUT', `/v1/accounts/${ACCOUNT_ID}/signers/${id}`, {
+            full_name, email, tax_id,
+            ...(whatsapp_phone_number ? { whatsapp_phone_number } : {})
+        });
+        return id;
+    }
+
+    console.log(`[SIGNER] Criando: ${full_name} (${email})...`);
+    const r = await req('POST', `/v1/accounts/${ACCOUNT_ID}/signers`, {
+        full_name, email, tax_id,
+        ...(whatsapp_phone_number ? { whatsapp_phone_number } : {})
+    });
+    if (r.status < 200 || r.status >= 300)
+        throw new Error(`Erro ao criar signatário (HTTP ${r.status}): ${r.json?.message || r.raw.substring(0, 150)}`);
+    const newId = r.json?.data?.id || r.json?.id;
+    console.log(`[SIGNER] Criado ID=${newId}`);
+    return newId;
+}
+
+// ─── FUNÇÃO PRINCIPAL ─────────────────────────────────────────────────────────
 async function enviarDocumentoParaAssinafy(documentId, colaboradorId) {
     console.log(`\n${'='.repeat(50)}`);
     console.log(`[ASSINAFY] INÍCIO | Doc=${documentId} | Colab=${colaboradorId}`);
 
     // 1. Dados do banco
     const doc = await new Promise((res, rej) =>
-        db.get('SELECT * FROM documentos WHERE id = ?', [documentId],
-            (err, row) => err ? rej(err) : res(row)));
-
+        db.get('SELECT * FROM documentos WHERE id = ?', [documentId], (err, row) => err ? rej(err) : res(row)));
     const colab = await new Promise((res, rej) =>
-        db.get('SELECT * FROM colaboradores WHERE id = ?', [colaboradorId],
-            (err, row) => err ? rej(err) : res(row)));
+        db.get('SELECT * FROM colaboradores WHERE id = ?', [colaboradorId], (err, row) => err ? rej(err) : res(row)));
 
     if (!doc)   throw new Error('Documento não encontrado no banco.');
     if (!colab) throw new Error('Colaborador não encontrado no banco.');
 
-    const email  = (colab.email || '').trim();
-    const cpf    = (colab.cpf   || '').replace(/\D/g, '');
-    const fone   = (colab.telefone || '').replace(/\D/g, '');
-    const nome   = colab.nome_completo || 'Colaborador';
+    const email = (colab.email    || '').trim();
+    const cpf   = (colab.cpf     || '').replace(/\D/g, '');
+    const fone  = (colab.telefone || '').replace(/\D/g, '');
+    const nome  = colab.nome_completo || 'Colaborador';
 
-    if (!email) throw new Error(`Colaborador "${nome}" não tem e-mail cadastrado. Preencha antes de enviar.`);
+    if (!email) throw new Error(`Colaborador "${nome}" não tem e-mail cadastrado.`);
     if (!cpf)   throw new Error('CPF do colaborador é obrigatório.');
 
     console.log(`[1] ${nome} | ${email} | CPF: ${cpf}`);
@@ -135,108 +161,58 @@ async function enviarDocumentoParaAssinafy(documentId, colaboradorId) {
     console.log(`[2] Upload: "${doc.file_name || path.basename(filePath)}"`);
     const uploadRes = await uploadForm(`/v1/accounts/${ACCOUNT_ID}/documents`, form);
 
-    if (uploadRes.status < 200 || uploadRes.status >= 300) {
+    if (uploadRes.status < 200 || uploadRes.status >= 300)
         throw new Error(`Falha no upload (HTTP ${uploadRes.status}): ${uploadRes.json?.message || uploadRes.raw.substring(0, 150)}`);
-    }
 
-    const docData      = uploadRes.json?.data || uploadRes.json;
-    const assinafyDocId = docData?.id;
+    const assinafyDocId = (uploadRes.json?.data || uploadRes.json)?.id;
     if (!assinafyDocId) throw new Error(`Upload OK mas ID não retornado: ${uploadRes.raw.substring(0, 200)}`);
-
     console.log(`[2] Upload OK → ID: ${assinafyDocId}`);
 
-    // 3. Aguardar processamento pelo Assinafy (polling até sair de metadata_processing)
+    // 3. Aguardar processamento (polling)
     console.log(`[3] Aguardando documento ficar pronto...`);
     for (let i = 1; i <= 60; i++) {
-        await new Promise(r => setTimeout(r, 3000)); // espera 3s entre cada verificação
-
+        await new Promise(r => setTimeout(r, 3000));
         const statusRes = await req('GET', `/v1/documents/${assinafyDocId}`, null);
         const docStatus = (statusRes.json?.data?.status || statusRes.json?.status || '').toLowerCase();
-
         console.log(`[POLL ${i}/60] status="${docStatus}"`);
-
-        // Sai do loop se não estiver mais em processamento (ex: 'metadata_ready' ou 'ready' ou '200')
-        if (!docStatus.includes('processing')) {
-            console.log(`[3] Documento pronto!`);
-            break;
-        }
-
-        if (i === 60) throw new Error('Timeout: O Assinafy demorou mais de 3 minutos para processar o PDF. Excedeu tempo limite.');
+        if (!docStatus.includes('processing')) { console.log(`[3] Pronto!`); break; }
+        if (i === 60) throw new Error('Timeout: Assinafy demorou mais de 3 min para processar o PDF.');
     }
 
-    // 4. Buscar ou criar signatário
-    console.log(`[4] Resolvendo signatário CPF=${cpf}...`);
-    let signerId = null;
+    // 4. Resolver signatários em PARALELO — colaborador + empresa
+    console.log(`[4] Resolvendo signatários (colaborador + empresa)...`);
+    const [signerColabId, signerEmpresaId] = await Promise.all([
+        resolverSignatario({ full_name: nome, email, tax_id: cpf, whatsapp_phone_number: fone || undefined }),
+        resolverSignatario({ full_name: EMPRESA.full_name, email: EMPRESA.email, tax_id: EMPRESA.cnpj })
+    ]);
 
-    const searchRes = await req('GET', `/v1/accounts/${ACCOUNT_ID}/signers?tax_id=${cpf}`, null);
-    const lista = searchRes.json?.data || [];
+    if (!signerColabId)   throw new Error('ID do signatário (colaborador) não obtido.');
+    if (!signerEmpresaId) throw new Error('ID do signatário (empresa) não obtido.');
+    console.log(`[4] Colaborador ID=${signerColabId} | Empresa ID=${signerEmpresaId}`);
 
-    if (Array.isArray(lista) && lista.length > 0) {
-        // Encontrar aquele que tem o e-mail EXATO, caso exista mais de um para o mesmo CPF
-        const exactSigner = lista.find(s => s.email.toLowerCase() === email.toLowerCase());
-        
-        if (exactSigner) {
-            signerId = exactSigner.id;
-            console.log(`[4] Signatário exato encontrado! ID=${signerId} email=${exactSigner.email}`);
-        } else {
-            // Se nenhum tiver o e-mail desejado, pega o primeiro e tenta atualizar
-            signerId = lista[0].id;
-            console.log(`[4] Signatário existente ID=${signerId} email=${lista[0].email}`);
-            console.log(`[4] Tentando atualizar e-mail para ${email}...`);
-            const putRes = await req('PUT', `/v1/accounts/${ACCOUNT_ID}/signers/${signerId}`, {
-                full_name: nome, email, tax_id: cpf,
-                ...(fone ? { whatsapp_phone_number: fone } : {})
-            });
-            if (putRes.status >= 300) {
-                console.error(`[PUT FAILED] Erro ao atualizar e-mail no Assinafy (status ${putRes.status}):`, putRes.raw);
-                // Se falhar a atualização, ele prosseguirá com o email antigo/outro email do signatário, 
-                // devido à rigidez da API. Mas pelo menos registramos no LOG.
-            }
-        }
-    } else {
-        console.log(`[4] Criando signatário ${nome}...`);
-        const createRes = await req('POST', `/v1/accounts/${ACCOUNT_ID}/signers`, {
-            full_name: nome, email, tax_id: cpf,
-            ...(fone ? { whatsapp_phone_number: fone } : {})
-        });
-
-        if (createRes.status < 200 || createRes.status >= 300) {
-            throw new Error(`Erro ao criar signatário (HTTP ${createRes.status}): ${createRes.json?.message || createRes.raw.substring(0, 150)}`);
-        }
-
-        signerId = createRes.json?.data?.id || createRes.json?.id;
-        console.log(`[4] Signatário criado ID=${signerId}`);
-    }
-
-    if (!signerId) throw new Error('ID do signatário não obtido.');
-
-    // 5. Criar o Assignment (Assinador do Documento com E-mail Automático)
-    console.log(`[5] Criando assignment para o documento...`);
+    // 5. Assignment com os DOIS signatários
+    // O documento só ficará "Assinado" quando AMBOS tiverem assinado
+    console.log(`[5] Criando assignment com 2 signatários...`);
     const assignRes = await req('POST', `/v1/documents/${assinafyDocId}/assignments`, {
         signers: [
-            { id: signerId, role: 'signer', notification_methods: ['Email'] }
+            { id: signerColabId,   role: 'signer', notification_methods: ['Email'] },
+            { id: signerEmpresaId, role: 'signer', notification_methods: ['Email'] }
         ],
         method: 'virtual',
         copy_receivers: [{ email: 'americasistema48@gmail.com', name: 'Sistema America' }]
     });
 
-    if (assignRes.status < 200 || assignRes.status >= 300) {
+    if (assignRes.status < 200 || assignRes.status >= 300)
         throw new Error(`Erro ao criar assignment (HTTP ${assignRes.status}): ${assignRes.json?.message || assignRes.raw.substring(0, 150)}`);
-    }
 
-    // Extrair URL de assinatura da resposta do assignment
-    // assignList[0]?.url = /release/...?channel=whatsapp (link para envio via canal)
-    const assignData = assignRes.json?.data;
-    const assignList = Array.isArray(assignData) ? assignData : (assignData ? [assignData] : []);
+    const assignList = Array.isArray(assignRes.json?.data) ? assignRes.json.data : [assignRes.json?.data].filter(Boolean);
     const urlAssinatura = (
         assignList[0]?.url ||
         assignList[0]?.signature_url ||
         assignList[0]?.signing_url   ||
         `https://app.assinafy.com.br/sign/${assinafyDocId}`
     );
-
-    console.log(`[5] Assignment criado! URL: ${urlAssinatura}`);
-
+    console.log(`[5] Assignment OK! URL colaborador: ${urlAssinatura}`);
 
     // 6. Salvar no banco
     await new Promise((res, rej) =>
