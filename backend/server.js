@@ -2820,8 +2820,11 @@ app.post("/webhook/assinafy", async (req, res) => {
                             // Pasta = tab_name normalizado (ex: ASO, EXAMES_COMPLEMENTARES)
                             const safeTab = formatarPasta(docRow.tab_name || 'DOCUMENTOS').toUpperCase();
                             const docYear = docRow.year && docRow.year !== 'null' && docRow.year !== '' ? String(docRow.year).replace(/[^0-9]/g, '') : String(new Date().getFullYear());
-                            // Caminho: Base/NOME_COLAB/TAB/ANO
-                            const targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}/${docYear}`;
+                            // Caminho: Base/NOME_COLAB/TAB/ANO (exceto CONTRATOS, que não tem pasta por ano)
+                            let targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}/${docYear}`;
+                            if (safeTab === 'CONTRATOS') {
+                                targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}`;
+                            }
                             
                             console.log(`[OneDrive WH] Sincronizando para: ${targetDir}`);
 
@@ -2829,9 +2832,12 @@ app.post("/webhook/assinafy", async (req, res) => {
                             await onedrive.ensurePath(targetDir);
                             
                             const fBuffer = fs.readFileSync(signedFilePath);
-                            // Nome padrão: TipoDoc_Ano_NomeColab.pdf
+                            // Nome padrão
                             const safeType = formatarPasta(docRow.document_type || docRow.tab_name || 'Documento').replace(/\s+/g, '_');
-                            const cloudName = `${safeType}_${docYear}_${safeColab}.pdf`;
+                            let cloudName = `${safeType}_${docYear}_${safeColab}.pdf`;
+                            if (safeTab === 'CONTRATOS') {
+                                cloudName = `${safeType}_${safeColab}_${docYear}.pdf`; // Nome_do_Documento_Nome_Do_Colaborador_2026.pdf
+                            }
                             
                             await onedrive.uploadToOneDrive(targetDir, cloudName, fBuffer);
                             console.log(`[OneDrive] ✓ Assinado sincronizado WH: ${cloudName}`);

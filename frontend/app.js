@@ -2765,14 +2765,6 @@ async function loadDocumentosList() {
 }
 
 const FIXED_DOCS = {
-    'Contratos': [
-        'Acordo de auxílio combustível', 'Acordo de benefícios', 'Acordo de compensação de horas', 
-        'Acordo de prorrogação de horas', 'Autorização para pagamento em conta', 'Autorização uso de imagem', 
-        'Contrato de trabalho', 'Contrato e-Social', 'Contrato faculdade', 'Declaração de encargos IR', 
-        'Desconto coca-cola', 'Ficha de registro', 'Ficha salário família', 'Regras sorteio 25', 
-        'Solicitação de VT', 'Termo de confidencialidade e sigilo', 'Termo de consentimento de dados pessoais', 
-        'Termo de responsabilidade', 'Termo recebimento de notebook'
-    ],
     'ASO': ['ASO Padrão'],
     'Ficha de EPI': ['Ficha de EPI Assinada'],
     'Multas': ['Contrato de Responsabilidade com o Veículo']
@@ -3298,7 +3290,9 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
         return sortOrder === 'recent' ? dateB - dateA : dateA - dateB;
     });
 
-    if (tabId === '00.CheckList') {
+    if (tabId === 'Contratos') {
+        renderContratosTab(listContainer);
+    } else if (tabId === '00.CheckList') {
         renderCargoDocsChecklist(listContainer);
     } else if (tabId === 'ASO') {
         renderASOTab(listContainer, filteredDocs);
@@ -6195,6 +6189,129 @@ window.sendAssinafyWhatsApp = async function(tipo, suffix) {
 };
 
 window.currentActiveAdmissaoStep = 1;
+// --- Refatoração: Função genérica para construir HTML da lista de contratos (Admissão / Prontuário) ---
+window.buildAdmissaoSignatureRows = function(availableGeradores, assinaturas, docs, colab) {
+    return availableGeradores.map(g => {
+        const ass = assinaturas.find(a => a.gerador_id === g.id || a.nome_documento === g.nome);
+        const docEquivalente = (docs || []).find(d => d.tab_name === 'CONTRATOS' && (d.document_type === g.nome || (d.file_name && d.file_name.includes(g.nome))));
+        let realStatus = '';
+        if (docEquivalente && docEquivalente.assinafy_status === 'Assinado') realStatus = 'Assinado';
+        else if (ass && ass.assinafy_status === 'Assinado') realStatus = 'Assinado';
+        else if (docEquivalente && docEquivalente.assinafy_status === 'Pendente') realStatus = 'Pendente';
+        else if (ass && ass.assinafy_status === 'Pendente') realStatus = 'Pendente';
+
+        const isSigned   = realStatus === 'Assinado';
+        const isPending  = realStatus === 'Pendente';
+        const statusBadge = isSigned
+            ? `<span style="background:#dcfce7;color:#15803d;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;"><i class="ph ph-check-circle"></i> Assinado</span>`
+            : isPending
+            ? `<span style="background:#fef9c3;color:#92400e;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;"><i class="ph ph-clock"></i> Aguardando</span>`
+            : `<span style="background:#f1f5f9;color:#64748b;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;"><i class="ph ph-minus-circle"></i> Não enviado</span>`;
+        const colabId = colab ? colab.id : '';
+        const certificadoAcionado = ass ? ass.certificado_assinado_em : null;
+        let eyeBtn;
+        if (isSigned && ass && certificadoAcionado) {
+            eyeBtn = `<button onclick="window.openSignedDocPopup(${ass.id}, '${g.nome.replace(/'/g,"\\'")}', event)" style="border:none;background:none;cursor:pointer;color:#7c3aed;" title="Ver documento assinado pela empresa"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
+        } else if (isSigned && ass) {
+            eyeBtn = `<button onclick="window.openSignedDocPopup(${ass.id}, '${g.nome.replace(/'/g,"\\'")}', event)" style="border:none;background:none;cursor:pointer;color:#16a34a;" title="Ver documento assinado pelo colaborador"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
+        } else {
+            eyeBtn = `<button onclick="window.previewAdmissaoDoc(${g.id}, ${colabId}, event)" style="border:none;background:none;cursor:pointer;color:#64748b;" title="Ver documento original"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
+        }
+        
+        let dataEnvioBadge = '';
+        if (ass && ass.enviado_em) {
+            try {
+                const d = new Date(ass.enviado_em + (ass.enviado_em.includes('Z') ? '' : 'Z'));
+                const dateStr = d.toLocaleDateString('pt-BR');
+                const timeStr = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                dataEnvioBadge = `<span style="font-size:0.7rem; color:#15803d; margin-right:2px; font-weight:600;"><i class="ph ph-paper-plane-tilt"></i> ${dateStr} ${timeStr}</span>`;
+            } catch(e) {}
+        }
+
+        return `
+        <label class="doc-check-item" data-gerador-id="${g.id}" style="display:flex; align-items:center; gap:0.6rem; padding:0.6rem 0.75rem; border:1px solid ${isSigned ? '#bbf7d0' : '#f1f5f9'}; border-radius:8px; cursor:pointer; background:${isSigned ? '#f0fdf4' : '#fff'}; transition:all 0.2s; justify-content:space-between;">
+            <div style="display:flex; align-items:center; gap:0.6rem; flex:1;">
+                ${isSigned 
+                    ? `<i class="ph-fill ph-check-circle" style="color:#22c55e; font-size:1.2rem;"></i>`
+                    : `<input type="checkbox" value="${g.id}" data-nome="${g.nome}" checked style="width:16px;height:16px;cursor:pointer;accent-color:#f503c5;">`
+                }
+                <div style="display:flex; flex-direction:column; gap:2px;">
+                    <span style="font-size:0.87rem; font-weight:600; color:#334155;">${g.nome}</span>
+                </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:0.5rem;">
+                ${dataEnvioBadge}
+                ${statusBadge}
+                ${eyeBtn}
+            </div>
+        </label>`;
+    }).join('');
+};
+
+window.renderContratosTab = async function(container) {
+    container.innerHTML = '<p class="text-muted" style="padding:1rem;">Carregando contratos configurados para este departamento...</p>';
+    if (!viewedColaborador) return;
+
+    try {
+        const [depts, geradores, templates, assinaturas, docs] = await Promise.all([
+            apiGet('/departamentos'),
+            apiGet('/geradores'),
+            apiGet('/gerador-departamento-templates').catch(() => []),
+            apiGet(`/admissao-assinaturas/${viewedColaborador.id}`).catch(() => []),
+            apiGet(`/colaboradores/${viewedColaborador.id}/documentos`).catch(() => [])
+        ]);
+
+        let availableGeradores = [];
+        const empDeptId = viewedColaborador.departamento;
+        const deptObj = depts.find(d =>
+            String(d.id) === String(empDeptId) ||
+            d.nome.trim().toLowerCase() === String(empDeptId).trim().toLowerCase()
+        );
+
+        if (deptObj) {
+            const geradorIds = templates
+                .filter(t => Number(t.departamento_id) === Number(deptObj.id))
+                .map(t => Number(t.gerador_id));
+            availableGeradores = geradores.filter(g => geradorIds.includes(Number(g.id)));
+        }
+
+        window._admissaoGeradores = availableGeradores;
+        window._admissaoAssinaturas = assinaturas;
+
+        if (availableGeradores.length > 0) {
+            let html = `
+                <div class="alert alert-info mb-3">
+                    <i class="ph ph-info"></i> Esta aba reflete os mesmos contratos processados via <b>Admissão</b> para o cargo/departamento atual do colaborador.
+                </div>
+                <!-- Div com ID para reaproveitar lógica do sendAdmissaoSignatures -->
+                <div id="admissao-signature-list" style="display:flex;flex-direction:column;gap:0.75rem;margin-bottom:1.5rem;">
+            `;
+            html += window.buildAdmissaoSignatureRows(availableGeradores, assinaturas, docs, viewedColaborador);
+            html += `</div>
+                <div style="background:#f8fafc; padding:15px; border-radius:8px; border:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                    <div>
+                        <div style="font-weight:700; color:#0f172a; margin-bottom:4px;">Envio para Assinatura Digital</div>
+                        <div style="font-size:0.78rem; color:#64748b;">Os documentos selecionados serão enviados ao e-mail do colaborador via Assinafy.</div>
+                    </div>
+                    <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                        <button type="button" style="background:#22c55e; color:#fff; border:none; padding:10px 15px; border-radius:6px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:5px;" onclick="window.rodarDiagnosticoAssinafy()">
+                            <i class="ph ph-bug"></i> VERIFICAR API
+                        </button>
+                        <button id="btn-enviar-assinaturas" class="btn btn-primary" onclick="window.sendAdmissaoSignatures('admissao-signature-list', 'btn-enviar-assinaturas')" style="display:flex; align-items:center; gap:5px;">
+                            <i class="ph ph-paper-plane-tilt"></i> Enviar para Assinatura
+                        </button>
+                    </div>
+                </div>
+            `;
+            container.innerHTML = html;
+        } else {
+            container.innerHTML = `<p class="text-muted" style="padding: 1rem; text-align: center;">Nenhum contrato configurado para o departamento <b>${deptObj ? deptObj.nome : (empDeptId || 'Não Informado')}</b>.<br><small>Configure os templates em <b>Geradores → Templates por Departamento</b>.</small></p>`;
+        }
+    } catch(err) {
+        container.innerHTML = `<div class="alert alert-danger"><i class="ph ph-warning"></i> Erro ao carregar contratos: ${err.message}</div>`;
+    }
+}
+
 window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll = false) {
     console.log(`[Admissao] Iniciando workflow para ID: ${id}, targetStep: ${targetStep}`);
     if (!id) {
@@ -6322,74 +6439,7 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
             const sigList = document.getElementById('admissao-signature-list');
             if (sigList) {
                 if (availableGeradores.length > 0) {
-                    sigList.innerHTML = availableGeradores.map(g => {
-                        const ass = assinaturas.find(a => a.gerador_id === g.id || a.nome_documento === g.nome);
-                        // FONTE DA VERDADE INFALÍVEL: a tabela "documentos", que é a mesma que o ASO usa
-                        const docEquivalente = (docs || []).find(d => d.tab_name === 'CONTRATOS' && (d.document_type === g.nome || (d.file_name && d.file_name.includes(g.nome))));
-                        
-                        // O status real é o de documentos. Se não existir, cai para admissao_assinaturas
-                        let realStatus = '';
-                        if (docEquivalente && docEquivalente.assinafy_status === 'Assinado') realStatus = 'Assinado';
-                        else if (ass && ass.assinafy_status === 'Assinado') realStatus = 'Assinado';
-                        else if (docEquivalente && docEquivalente.assinafy_status === 'Pendente') realStatus = 'Pendente';
-                        else if (ass && ass.assinafy_status === 'Pendente') realStatus = 'Pendente';
-
-                        const isSigned   = realStatus === 'Assinado';
-                        const isPending  = realStatus === 'Pendente';
-                        const statusBadge = isSigned
-                            ? `<span style="background:#dcfce7;color:#15803d;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;"><i class="ph ph-check-circle"></i> Assinado</span>`
-                            : isPending
-                            ? `<span style="background:#fef9c3;color:#92400e;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;"><i class="ph ph-clock"></i> Aguardando</span>`
-                            : `<span style="background:#f1f5f9;color:#64748b;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;"><i class="ph ph-minus-circle"></i> Não enviado</span>`;
-                        // Botão olho inteligente: sempre disponível, mostra versão mais atual
-                        const colabId = viewedColaborador ? viewedColaborador.id : '';
-                        const certificadoAcionado = ass ? ass.certificado_assinado_em : null;
-                        let eyeBtn;
-                        if (isSigned && ass && certificadoAcionado) {
-                            // Fase 3: assinado pela empresa
-                            eyeBtn = `<button onclick="window.openSignedDocPopup(${ass.id}, '${g.nome.replace(/'/g,"\\'")}', event)" style="border:none;background:none;cursor:pointer;color:#7c3aed;" title="Ver documento assinado pela empresa"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
-                        } else if (isSigned && ass) {
-                            // Fase 2: assinado pelo colaborador
-                            eyeBtn = `<button onclick="window.openSignedDocPopup(${ass.id}, '${g.nome.replace(/'/g,"\\'")}', event)" style="border:none;background:none;cursor:pointer;color:#16a34a;" title="Ver documento assinado pelo colaborador"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
-                        } else {
-                            // Fase 1: documento original
-                            eyeBtn = `<button onclick="window.previewAdmissaoDoc(${g.id}, ${colabId}, event)" style="border:none;background:none;cursor:pointer;color:#64748b;" title="Ver documento original"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
-                        }
-                        
-                        const certBtn = (isSigned && ass && !certificadoAcionado)
-                            ? `<button onclick="window.assinarComCertificado(${ass.id}, event)" style="border:1px solid #7c3aed;background:#faf5ff;color:#7c3aed;border-radius:6px;padding:2px 8px;font-size:0.72rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:3px;" title="Aplicar certificado digital A1 da empresa"><i class="ph ph-seal-check"></i> Certificado</button>`
-                            : (isSigned && ass && certificadoAcionado)
-                            ? `<span style="font-size:0.72rem;color:#7c3aed;" title="Certificado aplicado em ${certificadoAcionado}"><i class="ph ph-seal-check"></i> ✅</span>`
-                            : '';
-                        let dataEnvioBadge = '';
-                        if (ass && ass.enviado_em) {
-                            try {
-                                // Assume que enviado_em é UTC padrão salvo no SQLite pelo CURRENT_TIMESTAMP
-                                const d = new Date(ass.enviado_em + (ass.enviado_em.includes('Z') ? '' : 'Z'));
-                                const dateStr = d.toLocaleDateString('pt-BR');
-                                const timeStr = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                                dataEnvioBadge = `<span style="font-size:0.7rem; color:#15803d; margin-right:2px; font-weight:600;"><i class="ph ph-paper-plane-tilt"></i> ${dateStr} ${timeStr}</span>`;
-                            } catch(e) {}
-                        }
-
-                        return `
-                        <label class="doc-check-item" data-gerador-id="${g.id}" style="display:flex; align-items:center; gap:0.6rem; padding:0.6rem 0.75rem; border:1px solid ${isSigned ? '#bbf7d0' : '#f1f5f9'}; border-radius:8px; cursor:pointer; background:${isSigned ? '#f0fdf4' : '#fff'}; transition:all 0.2s; justify-content:space-between;">
-                            <div style="display:flex; align-items:center; gap:0.6rem; flex:1;">
-                                ${isSigned 
-                                    ? `<i class="ph-fill ph-check-circle" style="color:#22c55e; font-size:1.2rem;"></i>`
-                                    : `<input type="checkbox" value="${g.id}" data-nome="${g.nome}" checked style="width:16px;height:16px;cursor:pointer;accent-color:#f503c5;">`
-                                }
-                                <div style="display:flex; flex-direction:column; gap:2px;">
-                                    <span style="font-size:0.87rem; font-weight:600; color:#334155;">${g.nome}</span>
-                                </div>
-                            </div>
-                            <div style="display:flex; align-items:center; gap:0.5rem;">
-                                ${dataEnvioBadge}
-                                ${statusBadge}
-                                ${eyeBtn}
-                            </div>
-                        </label>`;
-                    }).join('');
+                    sigList.innerHTML = window.buildAdmissaoSignatureRows(availableGeradores, assinaturas, docs, viewedColaborador);
                 } else {
                     sigList.innerHTML = `<p class="text-muted" style="grid-column: 1 / -1; padding: 1rem; text-align: center;">Nenhum documento configurado para o departamento <b>${deptObj ? deptObj.nome : (empDeptId || 'Não Informado')}</b>.<br><small>Configure os templates em <b>Geradores → Templates por Departamento</b>.</small></p>`;
                 }
@@ -6565,14 +6615,14 @@ window.rodarDiagnosticoAssinafy = async function() {
 }
 
 // ===== PASSO 2: ENVIO EM LOTE PARA ASSINAFY =====
-window.sendAdmissaoSignatures = async function() {
+window.sendAdmissaoSignatures = async function(listId = 'admissao-signature-list', btnId = 'btn-enviar-assinaturas') {
     if (!viewedColaborador) { alert('Nenhum colaborador selecionado.'); return; }
 
-    const checks = document.querySelectorAll('#admissao-signature-list input[type="checkbox"]:checked');
+    const checks = document.querySelectorAll(`#${listId} input[type="checkbox"]:checked`);
     if (checks.length === 0) { alert('Selecione ao menos um documento para enviar.'); return; }
 
     const geradorIds = Array.from(checks).map(c => Number(c.value));
-    const btn = document.getElementById('btn-enviar-assinaturas');
+    const btn = document.getElementById(btnId);
     if (btn) { btn.disabled = true; btn.innerHTML = `<i class="ph ph-spinner ph-spin"></i> Enviando ${geradorIds.length} documento(s)...`; }
 
     try {
@@ -6588,8 +6638,12 @@ window.sendAdmissaoSignatures = async function() {
         if (erros.length > 0) msg += `\n\n⚠️ ${erros.length} erro(s):\n` + erros.map(e => `• ${e.nome || e.id}: ${e.erro}`).join('\n');
         alert(msg);
 
-        // Recarregar o passo 2 para atualizar os status
-        await window.initAdmissaoWorkflow(viewedColaborador.id, 2, true);
+        // Recarregar a aba em que o usuário está (Passo 2 Admissão ou Contratos no Prontuário)
+        if (document.getElementById('current-tab-title') && document.getElementById('current-tab-title').innerText === 'Contratos') {
+            await renderContratosTab(document.getElementById('docs-list-container'));
+        } else {
+            await window.initAdmissaoWorkflow(viewedColaborador.id, 2, true);
+        }
     } catch(e) {
         alert('Erro ao enviar documentos: ' + e.message);
     } finally {
