@@ -9,7 +9,6 @@ const TELAS_SISTEMA = [
     { modulo: 'RH', pagina_id: 'cargos',                 pagina_nome: 'Cargos' },
     { modulo: 'RH', pagina_id: 'departamentos',          pagina_nome: 'Departamentos' },
     { modulo: 'RH', pagina_id: 'faculdade',              pagina_nome: 'Faculdade' },
-    { modulo: 'RH', pagina_id: 'chaves',                 pagina_nome: 'Chaves' },
     { modulo: 'RH', pagina_id: 'geradores',              pagina_nome: 'Geradores de Documentos' },
     { modulo: 'RH', pagina_id: 'ficha-epi',              pagina_nome: 'Ficha EPI' },
     { modulo: 'RH', pagina_id: 'gerenciar-avaliacoes',   pagina_nome: 'Avaliações' },
@@ -19,6 +18,7 @@ const TELAS_SISTEMA = [
     { modulo: 'Administrativo', pagina_id: 'admin-em-breve', pagina_nome: 'Módulo Administrativo' },
     { modulo: 'Sistema', pagina_id: 'usuarios-permissoes', pagina_nome: 'Usuários e Permissões' },
     { modulo: 'Sistema', pagina_id: 'certificado-digital', pagina_nome: 'Certificado Digital' },
+    { modulo: 'Sistema', pagina_id: 'chaves', pagina_nome: 'Chaves' },
 ];
 
 const DEPARTAMENTOS = ['RH', 'Financeiro', 'Comercial', 'Logística', 'Administrativo', 'Diretoria', 'Todas'];
@@ -485,7 +485,7 @@ const MENU_HIERARQUIA = [
     {
         modulo: 'RH', icone: 'ph-users',
         grupos: [
-            { titulo: 'Visão Geral e Administrativo', telas: ['dashboard', 'colaboradores', 'admissao', 'cargos', 'departamentos', 'faculdade', 'chaves'] },
+            { titulo: 'Visão Geral e Administrativo', telas: ['dashboard', 'colaboradores', 'admissao', 'cargos', 'departamentos', 'faculdade'] },
             { titulo: 'Prontuário Digital', telas: ['prontuario-checklist', 'prontuario-ficha', 'prontuario-pagamentos', 'prontuario-aso'] },
             { titulo: 'Segurança (EPI)', telas: ['ficha-epi'] },
             { titulo: 'Avaliações de Desempenho', telas: ['gerenciar-avaliacoes', 'avaliacoes'] },
@@ -495,7 +495,7 @@ const MENU_HIERARQUIA = [
     {
         modulo: 'Diretoria', icone: 'ph-crown',
         grupos: [
-            { titulo: 'Cadastros Base', telas: ['usuarios-permissoes', 'certificado-digital'] }
+            { titulo: 'Cadastros Base', telas: ['usuarios-permissoes', 'certificado-digital', 'chaves'] }
         ]
     },
     {
