@@ -1446,6 +1446,154 @@ app.get('/api/admissao-assinaturas/:colaborador_id', authenticateToken, (req, re
     });
 });
 
+// ─── Helper: Gera HTML completo com layout do gerador ────────────────────────
+function buildGeradoresHtml(gerador, colaborador, baseUrl) {
+    const dataAtual = new Date();
+    const meses = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+    const mesesCap = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+    const mapping = {
+        BASE_URL: baseUrl,
+        NOME_COMPLETO: colaborador.nome_completo || '',
+        CPF: colaborador.cpf || '',
+        RG: (colaborador.rg || '') + (colaborador.rg_orgao ? ` ${colaborador.rg_orgao}` : ''),
+        RG_NUM: colaborador.rg || '',
+        NACIONALIDADE: colaborador.nacionalidade || 'Brasileiro(a)',
+        ESTADO_CIVIL: colaborador.estado_civil || '',
+        CARGO: colaborador.cargo || '',
+        DEPARTAMENTO: colaborador.departamento || '',
+        ENDERECO: colaborador.endereco || '',
+        DATA_ADMISSAO: colaborador.data_admissao ? new Date(colaborador.data_admissao + 'T12:00:00').toLocaleDateString('pt-BR') : '',
+        PIS: colaborador.pis || '',
+        CTPS: colaborador.ctps_numero || '',
+        DATA_HOJE: `${dataAtual.getDate()} de ${mesesCap[dataAtual.getMonth()]} de ${dataAtual.getFullYear()}`,
+        DIA: dataAtual.getDate(),
+        MES: mesesCap[dataAtual.getMonth()],
+        ANO: dataAtual.getFullYear(),
+        CIDADE: 'Guarulhos',
+        TELEFONE: colaborador.telefone || '',
+        EMAIL: colaborador.email || '',
+        SALARIO: colaborador.salario ? `R$ ${parseFloat(colaborador.salario).toLocaleString('pt-BR', {minimumFractionDigits: 2})}` : '---',
+        CHAVES: '',
+        INSTITUICAO: '---', CURSO: '---', DURACAO: '---', MENSALIDADE: '---'
+    };
+
+    let conteudo = gerador.conteudo || '';
+    Object.keys(mapping).forEach(key => {
+        conteudo = conteudo.replace(new RegExp(`\\$\\{${key}\\}`, 'g'), mapping[key]);
+    });
+
+    // Substituir campo texto de data Guarulhos por data real
+    const dataFormatada = `Guarulhos, ${String(dataAtual.getDate()).padStart(2,'0')} de ${meses[dataAtual.getMonth()]} de ${dataAtual.getFullYear()}.`;
+    conteudo = conteudo
+        .replace(/Guarulhos,\s*_{3,}.*?de\s*_{3,}.*?de\s*202_{3,}\.?/g, dataFormatada)
+        .replace(/AMERICA RENTAL EQUIPAMENTOS LTDA/g, '<b>AMERICA RENTAL EQUIPAMENTOS LTDA</b>');
+
+    const logoUrl = `${baseUrl}/assets/logo-header.png`;
+
+    return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; color: #1e293b; }
+  @page { size: A4; margin: 1.8cm; }
+  .logo-banner img { width: 100%; display: block; margin-bottom: 12px; }
+  h1.doc-title { text-align: center; font-size: 13pt; text-transform: uppercase; margin: 6px 0; }
+  .colab-header { margin-top: 8px; font-size: 10pt; }
+  .colab-box { border: 1px solid #000; padding: 8px; margin-top: 6px; font-size: 9pt; line-height: 1.5; }
+  .colab-row { display: flex; gap: 2rem; }
+  .doc-body { margin-top: 12px; text-align: justify; font-size: 10pt; line-height: 1.5; }
+  .doc-body p { margin: 2px 0; }
+  .doc-body li { margin: 1px 0; }
+  .footer { margin-top: 18px; }
+  .footer-date { font-weight: 700; font-size: 10pt; margin-bottom: 20px; }
+  .sigs { display: flex; justify-content: space-between; margin-top: 30px; }
+  .sig-block { text-align: center; width: 45%; }
+  .sig-line { border-top: 1.5px solid #000; padding-top: 4px; font-weight: 700; font-size: 9pt; }
+  .sig-sub { font-size: 8pt; color: #555; }
+  .company-logo img { height: 22px; margin: 0 auto 3px; display: block; }
+  .company-info { font-size: 6pt; font-weight: 700; line-height: 1.2; }
+</style>
+</head>
+<body>
+  <div class="logo-banner"><img src="${logoUrl}" alt="Logo America Rental"></div>
+
+  <h1 class="doc-title">${gerador.nome}</h1>
+
+  <div class="colab-header"><b>COLABORADOR:</b> ${colaborador.nome_completo}</div>
+
+  <div class="colab-box">
+    <div style="font-weight:700; font-size:8pt; margin-bottom:4px;">DADOS COLABORADOR:</div>
+    <div class="colab-row">
+      <span>CPF: <b>${colaborador.cpf || '---'}</b></span>
+      <span>ADMISSÃO: <b>${mapping.DATA_ADMISSAO || '---'}</b></span>
+    </div>
+    <div>ENDEREÇO: ${colaborador.endereco || '---'}</div>
+    <div class="colab-row">
+      <span>CARGO: ${colaborador.cargo || '---'}</span>
+      <span>SALÁRIO: ${mapping.SALARIO}</span>
+    </div>
+    <div class="colab-row">
+      <span>CELULAR: ${colaborador.telefone || '---'}</span>
+      <span>E-MAIL: ${colaborador.email || '---'}</span>
+    </div>
+  </div>
+
+  <div class="doc-body">${conteudo}</div>
+
+  <div class="footer">
+    <div class="footer-date">${dataFormatada}</div>
+    <div class="sigs">
+      <div class="sig-block">
+        <div class="sig-line">${colaborador.nome_completo}</div>
+        <div class="sig-sub">Colaborador</div>
+      </div>
+      <div class="sig-block">
+        <div class="company-logo"><img src="${logoUrl}" alt="Logo"></div>
+        <div class="company-info">AMERICA RENTAL EQUIPAMENTOS LTDA<br>CNPJ: 03.434.448/0001-01</div>
+        <div class="sig-line">América Rental Equipamentos Ltda</div>
+        <div class="sig-sub">Empresa</div>
+      </div>
+    </div>
+  </div>
+</body></html>`;
+}
+
+// GET: Preview do documento gerado como PDF (com layout completo)
+app.get('/api/geradores/:id/preview-pdf/:colaborador_id', authenticateToken, async (req, res) => {
+    const { id, colaborador_id } = req.params;
+    try {
+        const htmlPdf = require('html-pdf-node');
+        const gerador = await new Promise((resolve, reject) =>
+            db.get('SELECT * FROM geradores WHERE id = ?', [id], (err, row) => err ? reject(err) : resolve(row))
+        );
+        if (!gerador) return res.status(404).json({ error: 'Gerador não encontrado' });
+
+        const colaborador = await new Promise((resolve, reject) =>
+            db.get('SELECT * FROM colaboradores WHERE id = ?', [colaborador_id], (err, row) => err ? reject(err) : resolve(row))
+        );
+        if (!colaborador) return res.status(404).json({ error: 'Colaborador não encontrado' });
+
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        const html = buildGeradoresHtml(gerador, colaborador, baseUrl);
+
+        const pdfBuffer = await htmlPdf.generatePdf(
+            { content: html },
+            { format: 'A4', margin: { top: '1.8cm', bottom: '1.8cm', left: '1.8cm', right: '1.8cm' },
+              printBackground: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] }
+        );
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(gerador.nome)}.pdf"`);
+        res.send(pdfBuffer);
+    } catch(e) {
+        console.error('[PREVIEW-PDF]', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // POST batch: gerar PDFs dos geradores selecionados e enviar para assinatura via Assinafy
 app.post('/api/admissao-assinaturas/enviar-lote', authenticateToken, async (req, res) => {
     const { colaborador_id, geradores_ids } = req.body;
@@ -1473,20 +1621,24 @@ app.post('/api/admissao-assinaturas/enviar-lote', authenticateToken, async (req,
         if (gerador.tipo === 'pdf' && gerador.arquivo_pdf && fs.existsSync(gerador.arquivo_pdf)) {
             filePath = gerador.arquivo_pdf;
         } else {
-            const pdfDoc = await PDFDocument.create();
-            const page = pdfDoc.addPage();
-            const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-            page.drawText(gerador.nome || 'Documento', { x: 50, y: 750, size: 16, font, color: rgb(0,0,0) });
-            page.drawText(`Colaborador: ${colab.nome_completo}`, { x: 50, y: 720, size: 12, font });
-            page.drawText(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, { x: 50, y: 700, size: 10, font });
-            const pdfBytes = await pdfDoc.save();
+            // Gerar PDF com layout completo usando html-pdf-node
+            const htmlPdf = require('html-pdf-node');
+            const baseUrl = `${process.env.RENDER_EXTERNAL_URL || 'http://localhost:3000'}`;
+            const html = buildGeradoresHtml(gerador, colab, baseUrl);
+            const pdfBuffer = await htmlPdf.generatePdf(
+                { content: html },
+                { format: 'A4',
+                  margin: { top: '1.8cm', bottom: '1.8cm', left: '1.8cm', right: '1.8cm' },
+                  printBackground: true,
+                  args: ['--no-sandbox', '--disable-setuid-sandbox'] }
+            );
 
             const tmpDir = path.join(BASE_PATH, '_tmp_gerados');
             if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
-            // Timestamp único para evitar colisões em paralelo
             filePath = path.join(tmpDir, `${Date.now()}_${Math.random().toString(36).slice(2)}_${geradorId}_${colab.id}.pdf`);
-            fs.writeFileSync(filePath, pdfBytes);
+            fs.writeFileSync(filePath, pdfBuffer);
         }
+
 
         const existente = await new Promise((resolve, reject) =>
             db.get('SELECT * FROM admissao_assinaturas WHERE colaborador_id = ? AND nome_documento = ?',

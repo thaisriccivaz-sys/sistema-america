@@ -6262,6 +6262,8 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
                         const downloadBtn = isSigned
                             ? `<button onclick="window.openSignedDocPopup(${ass.id}, '${g.nome.replace(/'/g,"\\'")}', event)" style="border:none;background:none;cursor:pointer;color:#16a34a;" title="Visualizar assinado"><i class="ph ph-file-pdf" style="font-size:1.2rem;"></i></button>`
                             : '';
+                        const colabId = viewedColaborador ? viewedColaborador.id : '';
+                        const eyeBtn = `<button onclick="window.previewAdmissaoDoc(${g.id}, ${colabId}, event)" style="border:none;background:none;cursor:pointer;color:#64748b;" title="Visualizar documento"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
                         return `
                         <label class="doc-check-item" data-gerador-id="${g.id}" style="display:flex; align-items:center; gap:0.6rem; padding:0.6rem 0.75rem; border:1px solid ${isSigned ? '#bbf7d0' : '#f1f5f9'}; border-radius:8px; cursor:pointer; background:${isSigned ? '#f0fdf4' : '#fff'}; transition:all 0.2s; justify-content:space-between;">
                             <div style="display:flex; align-items:center; gap:0.6rem; flex:1;">
@@ -6273,6 +6275,7 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
                             </div>
                             <div style="display:flex; align-items:center; gap:0.5rem;">
                                 ${statusBadge}
+                                ${eyeBtn}
                                 ${downloadBtn}
                             </div>
                         </label>`;
@@ -6398,6 +6401,62 @@ function renderAdmissaoStep3(colab, docs) {
     });
 }
 
+
+// ===== PASSO 2: VISUALIZAR DOCUMENTO ANTES DA ASSINATURA =====
+window.previewAdmissaoDoc = function(geradorId, colabId, evt) {
+    if (evt) { evt.preventDefault(); evt.stopPropagation(); }
+    const token = localStorage.getItem('token');
+
+    let overlay = document.getElementById('signed-doc-popup-overlay');
+    if (overlay) overlay.remove();
+    overlay = document.createElement('div');
+    overlay.id = 'signed-doc-popup-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.7);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;';
+    document.body.appendChild(overlay);
+
+    overlay.innerHTML = `
+        <div style="background:#fff;border-radius:12px;width:95vw;max-width:1000px;height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 25px 60px rgba(0,0,0,0.4);">
+            <div style="padding:1rem 1.5rem;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;background:#f8fafc;">
+                <div style="display:flex;align-items:center;gap:0.75rem;">
+                    <i class="ph ph-file-text" style="color:#f503c5;font-size:1.5rem;"></i>
+                    <div>
+                        <div style="font-weight:700;color:#334155;">Pré-visualização do Documento</div>
+                        <div style="font-size:0.78rem;color:#94a3b8;">Como será enviado para assinatura</div>
+                    </div>
+                </div>
+                <button onclick="document.getElementById('signed-doc-popup-overlay').remove()"
+                        style="background:#ef4444;color:#fff;border:none;border-radius:8px;padding:0.5rem 1rem;cursor:pointer;font-weight:600;">
+                    <i class="ph ph-x"></i> Fechar
+                </button>
+            </div>
+            <div style="flex:1;overflow:hidden;background:#64748b;display:flex;align-items:center;justify-content:center;">
+                <div id="signed-doc-loading" style="color:#fff;text-align:center;">
+                    <i class="ph ph-circle-notch ph-spin" style="font-size:2.5rem;"></i>
+                    <div style="margin-top:0.5rem;">Gerando pré-visualização...</div>
+                </div>
+                <iframe id="signed-doc-iframe" style="display:none;width:100%;height:100%;border:none;"></iframe>
+            </div>
+        </div>`;
+
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+    fetch(`/api/geradores/${geradorId}/preview-pdf/${colabId}`, { headers: { 'Authorization': `Bearer ${token}` } })
+        .then(res => {
+            if (!res.ok) throw new Error('Erro ao gerar pré-visualização');
+            return res.blob();
+        })
+        .then(blob => {
+            const blobUrl = URL.createObjectURL(blob);
+            const iframe  = document.getElementById('signed-doc-iframe');
+            const loading = document.getElementById('signed-doc-loading');
+            if (iframe)  { iframe.src = blobUrl; iframe.style.display = 'block'; }
+            if (loading) loading.style.display = 'none';
+        })
+        .catch(err => {
+            const loading = document.getElementById('signed-doc-loading');
+            if (loading) loading.innerHTML = `<i class="ph ph-warning" style="font-size:2.5rem;color:#fbbf24;"></i><div style="margin-top:0.5rem;">${err.message}</div>`;
+        });
+};
 
 // ===== PASSO 2: ENVIO EM LOTE PARA ASSINAFY =====
 window.sendAdmissaoSignatures = async function() {
