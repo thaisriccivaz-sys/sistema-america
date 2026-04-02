@@ -447,7 +447,7 @@ app.post('/api/admissao-assinaturas/verificar-status', authenticateToken, async 
                 if (!docInfo) continue;
                 const docData = docInfo.data || docInfo;
                 const statusRaw = (docData?.status || '').toLowerCase();
-                const isSigned = ['completed', 'signed', 'concluded', 'finalizado', 'assinado'].some(s => statusRaw.includes(s));
+                const isSigned = ['completed', 'signed', 'concluded', 'finalizado', 'assinado', 'certificated'].some(s => statusRaw.includes(s));
 
                 console.log(`[VERIF] Doc ${doc.assinafy_id} → "${statusRaw}" → signed=${isSigned}`);
 
@@ -2661,7 +2661,7 @@ app.post("/webhook/assinafy", async (req, res) => {
 
         // 1. Tratar status de conclusão (Assinado/Pronto) e baixar PDF assinado
         const event = (payload.event || '').toLowerCase();
-        if (event.includes('ready') || event.includes('signed') || event.includes('completed')) {
+        if (event.includes('ready') || event.includes('signed') || event.includes('completed') || event.includes('certificated')) {
             console.log(`[WEBHOOK] Documento ${assinafyId} ASSINADO - baixando PDF assinado...`);
 
             // Marcar como assinado no banco - tabela documentos
