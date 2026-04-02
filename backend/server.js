@@ -571,7 +571,7 @@ app.post('/api/assinafy/upload', async (req, res) => {
 });
 
 // Middleware de Autenticação (Bypass temporário para facilitar dev do frontend)
-const authenticateToken = (req, res, next) => {
+function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
     
@@ -583,7 +583,7 @@ const authenticateToken = (req, res, next) => {
         req.user = user;
         next();
     });
-};
+}
 
 // --- ROTAS DE AUTENTICAÃ‡ÃƒO ---
 app.post('/api/auth/login', (req, res) => {
