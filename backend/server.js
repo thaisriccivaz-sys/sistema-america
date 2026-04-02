@@ -382,14 +382,39 @@ async function pollAdmissaoAssinaturas() {
                     }
                 }
 
+                // Tentar capturar a data de assinatura real do Assinafy
+                const signedAtRaw = docData?.signed_at || docData?.finalized_at || docData?.updated_at;
+
                 // Atualizar banco
                 db.run(
-                    `UPDATE admissao_assinaturas SET assinafy_status = 'Assinado', assinado_em = CURRENT_TIMESTAMP, signed_file_path = ? WHERE id = ?`,
-                    [signedPath, doc.id]
+                    `UPDATE admissao_assinaturas SET assinafy_status = 'Assinado', assinado_em = COALESCE(?, CURRENT_TIMESTAMP), signed_file_path = ? WHERE id = ?`,
+                    [signedAtRaw || null, signedPath, doc.id]
                 );
                 // Também atualizar na tabela documentos (se tiver doc_id vinculado)
                 if (doc.documento_id) {
-                    db.run(`UPDATE documentos SET assinafy_status = 'Assinado', signed_file_path = ? WHERE id = ?`, [signedPath, doc.documento_id]);
+                    db.run(`UPDATE documentos SET assinafy_status = 'Assinado', signed_file_path = ?, assinafy_signed_at = COALESCE(?, CURRENT_TIMESTAMP) WHERE id = ?`, [signedPath, signedAtRaw || null, doc.documento_id]);
+                }
+
+                // Sincronizar com OneDrive se disponível e arquivo baixado
+                if (onedrive && signedPath && fs.existsSync(signedPath)) {
+                    try {
+                        // Buscar dados do colaborador para o caminho
+                        const colabRow = await new Promise((res, rej) =>
+                            db.get('SELECT nome_completo FROM colaboradores WHERE id = ?', [doc.colaborador_id], (e,r) => e ? rej(e) : res(r))
+                        );
+                        const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || 'RH/1.Colaboradores/Sistema';
+                        const safeColab = formatarNome(colabRow?.nome_completo || 'DESCONHECIDO');
+                        const targetDir = `${onedriveBasePath}/${safeColab}/CONTRATOS`;
+                        await onedrive.ensurePath(targetDir);
+                        const docYear = String(new Date().getFullYear());
+                        const safeDocName = formatarPasta(doc.nome_documento || 'Contrato').replace(/\s+/g, '_');
+                        const cloudName = `${safeDocName}_${safeColab}_${docYear}.pdf`;
+                        const fBuffer = fs.readFileSync(signedPath);
+                        await onedrive.uploadToOneDrive(targetDir, cloudName, fBuffer);
+                        console.log(`[POLL-ADMISSAO] ✓ OneDrive sync: ${cloudName}`);
+                    } catch(odErr) {
+                        console.warn('[POLL-ADMISSAO] OneDrive sync falhou:', odErr.message);
+                    }
                 }
             } catch(e) {
                 console.warn(`[POLL-ADMISSAO] Erro ao verificar doc ${doc.assinafy_id}: ${e.message}`);
@@ -400,12 +425,12 @@ async function pollAdmissaoAssinaturas() {
     }
 }
 
-// Iniciar polling após o servidor subir (aguarda 30s e depois a cada 2 minutos)
+// Iniciar polling após o servidor subir (aguarda 30s e depois a cada 1 minuto)
 setTimeout(() => {
     pollAdmissaoAssinaturas();
-    setInterval(pollAdmissaoAssinaturas, 2 * 60 * 1000);
+    setInterval(pollAdmissaoAssinaturas, 1 * 60 * 1000);
 }, 30000);
-console.log('[POLL-ADMISSAO] Job de polling configurado (a cada 2 minutos).');
+console.log('[POLL-ADMISSAO] Job de polling configurado (a cada 1 minuto).');
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Endpoint de alertas realtime: retorna documentos de admissão assinados nos últimos 5 minutos
@@ -417,7 +442,7 @@ app.get('/api/admissao-assinaturas/alertas-recentes', authenticateToken, (req, r
         LEFT JOIN colaboradores c ON c.id = aa.colaborador_id
         WHERE aa.assinafy_status = 'Assinado'
           AND aa.assinado_em IS NOT NULL
-          AND datetime(aa.assinado_em) >= datetime('now', '-5 minutes')
+          AND datetime(aa.assinado_em) >= datetime('now', '-60 minutes')
         ORDER BY aa.assinado_em DESC
     `, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });

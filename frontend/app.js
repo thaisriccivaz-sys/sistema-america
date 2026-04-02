@@ -267,6 +267,7 @@ window.carregarPermissoesOnline = async function() {
     const isTopAdmin = currentUser.role === 'Diretoria' 
         || currentUser.departamento === 'Diretoria'
         || (currentUser.grupo_nome && currentUser.grupo_nome.toLowerCase() === 'diretoria');
+    window.isTopAdmin = isTopAdmin;
 
     // Remove qualquer display-none forçado das categorias primeiro
     document.querySelectorAll('.dept-item').forEach(el => el.style.display = '');
@@ -305,6 +306,7 @@ window.carregarPermissoesOnline = async function() {
         if (mapPerms['usuarios-permissoes']) {
             mapPerms['certificado-digital'] = true;
         }
+        window.activeUserPerms = mapPerms;
 
         // Percorre todos os botões de navegação (.nav-item)
         document.querySelectorAll('.nav-item[data-target]').forEach(link => {
@@ -464,7 +466,7 @@ function renderAppTabs() {
              onmouseover="this.style.opacity='1'; if(!${t.active}) this.style.background='#f1f5f9';"
              onmouseout="this.style.opacity='${t.active ? '1' : '0.55'}'; if(!${t.active}) this.style.background='transparent';">
             ${t.icon ? `<i class="ph ${t.icon}" style="font-size:0.88rem;"></i>` : ''}
-            <span>${t.title}</span>
+            <span title="${t.title}">${t.title.length > 15 ? t.title.substring(0, 15) + '…' : t.title}</span>
             <i class="ph-bold ph-x"
                onclick="event.stopPropagation(); closeAppTab('${t.tabId}')"
                style="color:#ef4444; margin-left:4px; border-radius:50%; padding:2px; font-size:0.75rem;"
@@ -6140,6 +6142,13 @@ window.selectAdmissaoColab = function(id, colab, s) {
             <span style="font-weight:600;">${colab.nome_completo}</span>
             <span style="color:#94a3b8; font-size:0.82rem; margin-left:4px;">&mdash; ${cargo}</span>`;
     }
+    // Atualiza título da aba Admissão com o nome do colaborador
+    const admissaoTab = appOpenTabs.find(t => t.tabId === 'admissao');
+    if (admissaoTab && colab) {
+        const firstName = (colab.nome_completo || '').split(' ')[0];
+        admissaoTab.title = `Admissão: ${firstName}`;
+        renderAppTabs();
+    }
     window.initAdmissaoWorkflow(id);
 };
 
@@ -6219,7 +6228,15 @@ window.buildAdmissaoSignatureRows = function(availableGeradores, assinaturas, do
         }
         
         let dataEnvioBadge = '';
-        if (ass && ass.enviado_em) {
+        if (isSigned && (ass?.assinado_em || docEquivalente?.assinafy_signed_at)) {
+            try {
+                const dateVal = ass?.assinado_em || docEquivalente?.assinafy_signed_at;
+                const d = new Date(dateVal + (dateVal.includes('Z') ? '' : 'Z'));
+                const dateStr = d.toLocaleDateString('pt-BR');
+                const timeStr = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                dataEnvioBadge = `<span style="font-size:0.7rem; color:#15803d; margin-right:2px; font-weight:600;"><i class="ph ph-signature"></i> ${dateStr} ${timeStr}</span>`;
+            } catch(e) {}
+        } else if (ass && ass.enviado_em) {
             try {
                 const d = new Date(ass.enviado_em + (ass.enviado_em.includes('Z') ? '' : 'Z'));
                 const dateStr = d.toLocaleDateString('pt-BR');
@@ -9281,11 +9298,7 @@ if (typeof _origNavigateTo === 'function') {
             document.head.appendChild(style);
         }
         container.appendChild(toast);
-        // Auto-remove após 7 segundos
-        setTimeout(() => {
-            toast.style.animation = 'toastFadeOut 0.3s ease forwards';
-            setTimeout(() => toast.remove(), 300);
-        }, 7000);
+        // Removido auto-remove: o popup ficará ativo até ser fechado manualmente
     }
 
     // Polling: verifica a cada 30 segundos por documentos recém-assinados
@@ -9306,6 +9319,11 @@ if (typeof _origNavigateTo === 'function') {
     async function checkAlertasRecentes() {
         const token = localStorage.getItem('token');
         if (!token) return;
+
+        // VALIDAÇÃO DE PERMISSÃO: Precisa ter acesso a Admissão e Colaboradores
+        const hasPerms = window.isTopAdmin || (window.activeUserPerms && window.activeUserPerms['admissao'] && window.activeUserPerms['colaboradores']);
+        if (!hasPerms) return;
+
         try {
             const resp = await fetch(`${API_URL}/admissao-assinaturas/alertas-recentes`, {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -9316,17 +9334,28 @@ if (typeof _origNavigateTo === 'function') {
             const seen = getSeenIds();
             const novos = alertas.filter(a => !seen.has(a.id));
             if (novos.length === 0) return;
-            // Mostrar toasts para os novos (máx 3 de uma vez para não poluir)
-            novos.slice(0, 3).forEach(a => {
+            
+            novos.slice(0, 5).forEach(a => {
                 showToast(a.nome_documento || 'Documento', a.colaborador_nome || 'Colaborador');
             });
             markSeen(novos.map(a => a.id));
+
+            // AUTO-REFRESH STATUS
+            // Se estiver na tela de admissão (passo 2) ou de contratos, já aciona a atualização da lista atual
+            if (document.getElementById('admissao-signature-list')) {
+                if (document.getElementById('current-tab-title') && document.getElementById('current-tab-title').innerText === 'Contratos') {
+                    if (typeof renderContratosTab === 'function') renderContratosTab(document.getElementById('docs-list-container'));
+                } else if (typeof window.initAdmissaoWorkflow === 'function' && window.viewedColaborador) {
+                    window.initAdmissaoWorkflow(window.viewedColaborador.id, 2, true);
+                }
+            }
         } catch {}
     }
 
-    // Iniciar polling após 5 segundos (aguarda login completo) e repetir a cada 30s
+
+    // Iniciar polling após 5 segundos (aguarda login completo) e repetir a cada 15s
     setTimeout(() => {
         checkAlertasRecentes();
-        setInterval(checkAlertasRecentes, 30000);
+        setInterval(checkAlertasRecentes, 15000);
     }, 5000);
 })();
