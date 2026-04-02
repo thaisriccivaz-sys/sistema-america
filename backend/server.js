@@ -3517,7 +3517,7 @@ app.post('/api/certificado-digital/testar', authenticateToken, async (req, res) 
         const pg  = pdf.addPage();
         pg.drawText('Teste de Assinatura Digital - America Rental', { x: 50, y: 700, size: 16 });
         pg.drawText(`Data: ${new Date().toLocaleString('pt-BR')}`, { x: 50, y: 670, size: 12 });
-        const pdfBytes = await pdf.save();
+        const pdfBytes = await pdf.save({ useObjectStreams: false });
 
         const pdfAssinado = await signPdfPfx.assinarPDF(Buffer.from(pdfBytes));
         console.log(`[CERT-TEST] Tamanho do PDF assinado: ${pdfAssinado.length} bytes`);
