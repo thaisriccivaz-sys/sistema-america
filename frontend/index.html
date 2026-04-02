@@ -1879,11 +1879,19 @@
 
                             <div id="cert-view-save-msg" style="display:none;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;margin-bottom:0.75rem;"></div>
 
-                            <button onclick="window.salvarCertificadoView()" id="btn-cert-view-salvar"
-                                style="width:100%;border:none;background:linear-gradient(135deg,#7c3aed,#a78bfa);color:#fff;border-radius:10px;padding:0.75rem;font-size:0.9rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;transition:opacity 0.2s;"
-                                onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
-                                <i class="ph ph-floppy-disk"></i> Salvar Certificado
-                            </button>
+                            <div style="display:flex; gap:0.5rem;">
+                                <button onclick="window.salvarCertificadoView()" id="btn-cert-view-salvar"
+                                    style="flex:1;border:none;background:linear-gradient(135deg,#7c3aed,#a78bfa);color:#fff;border-radius:10px;padding:0.75rem;font-size:0.9rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;transition:opacity 0.2s;"
+                                    onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+                                    <i class="ph ph-floppy-disk"></i> Salvar Certificado
+                                </button>
+                                <button onclick="window.removerCertificadoView()" id="btn-cert-view-remover2"
+                                    style="display:none; border:2px solid #fca5a5; background:#fff; color:#dc2626; border-radius:10px; padding:0 1rem; font-size:1.2rem; cursor:pointer; align-items:center; justify-content:center; transition:0.2s;"
+                                    onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='#fff'"
+                                    title="Excluir certificado atual do sistema">
+                                    <i class="ph ph-trash"></i>
+                                </button>
+                            </div>
                         </div>
 
                         <!-- Card: Aviso de persistência -->

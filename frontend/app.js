@@ -8882,6 +8882,8 @@ window.carregarCertificadoView = async function() {
     try {
         const data = await apiGet('/certificado-digital/status');
 
+        const btnRemove2 = document.getElementById('btn-cert-view-remover2');
+
         if (data.configurado && data.ok) {
             statusEl.style.cssText = 'padding:1rem;border-radius:10px;background:#f0fdf4;border:1.5px solid #bbf7d0;font-size:0.88rem;color:#166534;display:flex;align-items:flex-start;gap:0.75rem;min-height:70px;';
             statusEl.innerHTML = `
@@ -8896,18 +8898,25 @@ window.carregarCertificadoView = async function() {
                     </div>
                 </div>`;
             if (btnTestar) btnTestar.style.display = 'flex';
-            if (btnRemove) btnRemove.style.display = 'flex';
+            if (btnRemove) btnRemove.style.display = 'none'; // ocultando o do meio, pois fizemos o novo
         } else {
-            statusEl.style.cssText = 'padding:1rem;border-radius:10px;background:#fffbeb;border:1.5px solid #fcd34d;font-size:0.88rem;color:#92400e;display:flex;align-items:center;gap:0.75rem;min-height:70px;';
+            const isErro = data.configurado && !data.ok;
+            const titulo = isErro ? 'Problema no Certificado Atual' : 'Nenhum certificado configurado';
+            const subtitulo = isErro ? `⚠️ ${data.erro || 'Falha ao ler o certificado (senha inválida ou arquivo corrompido).'}` : (data.motivo || 'Configure o arquivo .pfx ao lado para ativar a assinatura automática.');
+            
+            statusEl.style.cssText = `padding:1rem;border-radius:10px;background:#fffbeb;border:1.5px solid ${isErro ? '#fca5a5' : '#fcd34d'};font-size:0.88rem;color:${isErro ? '#dc2626' : '#92400e'};display:flex;align-items:center;gap:0.75rem;min-height:70px;`;
             statusEl.innerHTML = `
-                <i class="ph ph-warning" style="font-size:1.5rem;color:#d97706;flex-shrink:0;"></i>
+                <i class="ph ${isErro ? 'ph-warning-circle' : 'ph-warning'}" style="font-size:1.5rem;color:${isErro ? '#dc2626' : '#d97706'};flex-shrink:0;"></i>
                 <div>
-                    <div style="font-weight:700;">Nenhum certificado configurado</div>
-                    <div style="font-size:0.8rem;margin-top:2px;">${data.motivo || 'Configure o arquivo .pfx ao lado para ativar a assinatura automática.'}</div>
+                    <div style="font-weight:700;">${titulo}</div>
+                    <div style="font-size:0.8rem;margin-top:2px;">${subtitulo}</div>
                 </div>`;
             if (btnTestar) btnTestar.style.display = 'none';
             if (btnRemove) btnRemove.style.display = 'none';
         }
+
+        // NOVO: Mostrar sempre o botão se data.configurado for true, mesmo com erro
+        if (btnRemove2) btnRemove2.style.display = data.configurado ? 'flex' : 'none';
     } catch(e) {
         statusEl.innerHTML = `<i class="ph ph-warning-circle"></i> Erro ao verificar: ${e.message}`;
     }
