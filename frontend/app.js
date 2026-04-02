@@ -415,12 +415,13 @@ const TAB_META = {
     'cargos':                 { color: '#f503c5', icon: 'ph-briefcase',       title: 'Cargos' },
     'departamentos':          { color: '#f503c5', icon: 'ph-buildings',       title: 'Departamentos' },
     'faculdade':              { color: '#f503c5', icon: 'ph-graduation-cap',  title: 'Faculdade' },
-    'chaves':                 { color: '#f503c5', icon: 'ph-key',             title: 'Chaves' },
     'geradores':              { color: '#f503c5', icon: 'ph-file-text',       title: 'Geradores' },
     'ficha-epi':              { color: '#f503c5', icon: 'ph-shield-check',    title: 'Ficha EPI' },
     'gerenciar-avaliacoes':   { color: '#f503c5', icon: 'ph-clipboard-text',  title: 'Avaliações' },
     // Diretoria - Laranja
-    'usuarios-permissoes':    { color: '#d9480f', icon: 'ph-users-three',    title: 'Usuários e Permissões' },
+    'usuarios-permissoes':    { color: '#d9480f', icon: 'ph-users-three',     title: 'Usuários e Permissões' },
+    'certificado-digital':    { color: '#d9480f', icon: 'ph-certificate',     title: 'Certificado Digital' },
+    'chaves':                 { color: '#d9480f', icon: 'ph-key',             title: 'Chaves' },
     'form-usuario':           { color: '#d9480f', icon: 'ph-user-gear',      title: 'Cadastro de Usuário' },
     // Logística - Verde
     'logistica-em-breve':     { color: '#2d9e5f', icon: 'ph-truck',          title: 'Logística' },
