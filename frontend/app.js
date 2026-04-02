@@ -6341,14 +6341,20 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
                             : isPending
                             ? `<span style="background:#fef9c3;color:#92400e;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;"><i class="ph ph-clock"></i> Aguardando</span>`
                             : `<span style="background:#f1f5f9;color:#64748b;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;"><i class="ph ph-minus-circle"></i> Não enviado</span>`;
-                        const downloadBtn = (isSigned && ass)
-                            ? `<button onclick="window.openSignedDocPopup(${ass.id}, '${g.nome.replace(/'/g,"\\'")}', event)" style="border:none;background:none;cursor:pointer;color:#16a34a;" title="Visualizar assinado"><i class="ph ph-file-pdf" style="font-size:1.2rem;"></i></button>`
-                            : '';
+                        // Botão olho inteligente: sempre disponível, mostra versão mais atual
                         const colabId = viewedColaborador ? viewedColaborador.id : '';
-                        const eyeBtn = `<button onclick="window.previewAdmissaoDoc(${g.id}, ${colabId}, event)" style="border:none;background:none;cursor:pointer;color:#64748b;" title="Visualizar documento"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
-                        
-                        // Busca se já foi assinado na tabela admissao_assinaturas
                         const certificadoAcionado = ass ? ass.certificado_assinado_em : null;
+                        let eyeBtn;
+                        if (isSigned && ass && certificadoAcionado) {
+                            // Fase 3: assinado pela empresa
+                            eyeBtn = `<button onclick="window.openSignedDocPopup(${ass.id}, '${g.nome.replace(/'/g,"\\'")}', event)" style="border:none;background:none;cursor:pointer;color:#7c3aed;" title="Ver documento assinado pela empresa"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
+                        } else if (isSigned && ass) {
+                            // Fase 2: assinado pelo colaborador
+                            eyeBtn = `<button onclick="window.openSignedDocPopup(${ass.id}, '${g.nome.replace(/'/g,"\\'")}', event)" style="border:none;background:none;cursor:pointer;color:#16a34a;" title="Ver documento assinado pelo colaborador"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
+                        } else {
+                            // Fase 1: documento original
+                            eyeBtn = `<button onclick="window.previewAdmissaoDoc(${g.id}, ${colabId}, event)" style="border:none;background:none;cursor:pointer;color:#64748b;" title="Ver documento original"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
+                        }
                         
                         const certBtn = (isSigned && ass && !certificadoAcionado)
                             ? `<button onclick="window.assinarComCertificado(${ass.id}, event)" style="border:1px solid #7c3aed;background:#faf5ff;color:#7c3aed;border-radius:6px;padding:2px 8px;font-size:0.72rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:3px;" title="Aplicar certificado digital A1 da empresa"><i class="ph ph-seal-check"></i> Certificado</button>`
@@ -6369,8 +6375,10 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
                         return `
                         <label class="doc-check-item" data-gerador-id="${g.id}" style="display:flex; align-items:center; gap:0.6rem; padding:0.6rem 0.75rem; border:1px solid ${isSigned ? '#bbf7d0' : '#f1f5f9'}; border-radius:8px; cursor:pointer; background:${isSigned ? '#f0fdf4' : '#fff'}; transition:all 0.2s; justify-content:space-between;">
                             <div style="display:flex; align-items:center; gap:0.6rem; flex:1;">
-                                <input type="checkbox" value="${g.id}" data-nome="${g.nome}" ${isSigned ? '' : 'checked'}
-                                    style="width:16px;height:16px;cursor:pointer;accent-color:#f503c5;">
+                                ${isSigned 
+                                    ? `<i class="ph-fill ph-check-circle" style="color:#22c55e; font-size:1.2rem;"></i>`
+                                    : `<input type="checkbox" value="${g.id}" data-nome="${g.nome}" checked style="width:16px;height:16px;cursor:pointer;accent-color:#f503c5;">`
+                                }
                                 <div style="display:flex; flex-direction:column; gap:2px;">
                                     <span style="font-size:0.87rem; font-weight:600; color:#334155;">${g.nome}</span>
                                 </div>
@@ -6378,9 +6386,7 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
                             <div style="display:flex; align-items:center; gap:0.5rem;">
                                 ${dataEnvioBadge}
                                 ${statusBadge}
-                                ${certBtn}
                                 ${eyeBtn}
-                                ${downloadBtn}
                             </div>
                         </label>`;
                     }).join('');
