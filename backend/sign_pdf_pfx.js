@@ -20,6 +20,7 @@
 
 const fs   = require('fs');
 const path = require('path');
+const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 
 // ─── Verificar disponibilidade dos módulos ────────────────────────────────────
 let signpdf, plainAddPlaceholder, forge;
@@ -145,11 +146,50 @@ async function assinarPDF(pdfBuffer, opts = {}) {
     // 1. Ler e validar certificado
     const { cert, key, certChain } = lerCertificado(pfxPath, pfxPassword);
 
+    // 1b. INSERIR ESTAMPA VISUAL NO PDF (Para evidência no próprio assinador do candidato)
+    let finalBuffer = pdfBuffer;
+    try {
+        const certObj = forge.pki.certificateFromPem(cert);
+        const subject = certObj.subject.attributes.reduce((acc, a) => { acc[a.shortName || a.name] = a.value; return acc; }, {});
+        const subjectCN = subject.CN || subject.commonName || nome;
+        const cnpjStr = subject.OU && typeof subject.OU === 'string' && subject.OU.match(/\d{14}/) ? `CNPJ: ${subject.OU.match(/\d{14}/)[0]}` : '';
+
+        const pdfDoc = await PDFDocument.load(pdfBuffer);
+        const pages = pdfDoc.getPages();
+        const lastPage = pages[pages.length - 1];
+        
+        const helvetica = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+        const helveticNorm = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+        // Caixa no rodapé esquerdo
+        lastPage.drawRectangle({
+            x: 40, y: 30, width: 340, height: 65,
+            borderColor: rgb(0.1, 0.4, 0.1),
+            borderWidth: 1.5,
+            color: rgb(0.95, 1, 0.95),
+            opacity: 0.9
+        });
+        
+        let yPos = 80;
+        lastPage.drawText("Assinado Eletronicamente por Certificado Digital A1", { x: 48, y: yPos, size: 9, font: helvetica, color: rgb(0, 0.3, 0) });
+        yPos -= 14;
+        lastPage.drawText(`Empresa: ${subjectCN}`, { x: 48, y: yPos, size: 8, font: helveticNorm, color: rgb(0,0,0) });
+        yPos -= 12;
+        lastPage.drawText(`Data/Hora: ${new Date().toLocaleString('pt-BR')} ${cnpjStr ? ' | ' + cnpjStr : ''}`, { x: 48, y: yPos, size: 8, font: helveticNorm, color: rgb(0,0,0) });
+        yPos -= 12;
+        lastPage.drawText(`Validade Certificado: ${certObj.validity.notAfter.toLocaleDateString('pt-BR')}`, { x: 48, y: yPos, size: 8, font: helveticNorm, color: rgb(0.3, 0.3, 0.3) });
+
+        finalBuffer = Buffer.from(await pdfDoc.save());
+        console.log('[SIGN-PDF] Estampa visual de assinatura inserida na última página.');
+    } catch(e) {
+        console.warn(`[SIGN-PDF] Não foi possível inserir estampa visual: ${e.message}. Prosseguindo apenas com metadados invisíveis.`);
+    }
+
     // 2. Adicionar placeholder de assinatura ao PDF
     let pdfComPlaceholder;
     try {
         pdfComPlaceholder = plainAddPlaceholder({
-            pdfBuffer,
+            pdfBuffer: finalBuffer,
             reason:   motivo,
             location: local,
             name:     nome,
