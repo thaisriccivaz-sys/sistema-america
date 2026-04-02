@@ -358,60 +358,91 @@ async function pollAdmissaoAssinaturas() {
                     continue;
                 }
 
-                console.log(`[POLL-ADMISSAO] ✅ Doc ${doc.assinafy_id} ASSINADO! Atualizando banco...`);
+                console.log(`[POLL-ADMISSAO] ✅ Doc ${doc.assinafy_id} ASSINADO!`);
 
-                // Tentar baixar o PDF assinado
-                let signedPath = doc.file_path;
+                // Baixar PDF do Assinafy em memória (evita dependência de disco efêmero)
+                let pdfBuffer = null;
                 const signedUrl = extractSignedUrl(docData);
                 if (signedUrl) {
                     try {
                         const pdfResp = await fetch(signedUrl, { headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey } });
-                        if (!pdfResp.ok) throw new Error('Falha ao baixar URL assinada: ' + pdfResp.statusText);
-                        const pdfBuf = Buffer.from(await pdfResp.arrayBuffer());
-
-                        const destPath = (doc.file_path || path.join(BASE_PATH, `admissao_${doc.id}`))
-                            .replace(/(_assinado)?\.pdf$/, '_assinado.pdf');
-                        fs.writeFileSync(destPath, pdfBuf);
-                        signedPath = destPath;
-                        console.log(`[POLL-ADMISSAO] PDF assinado salvo: ${destPath}`);
+                        if (pdfResp.ok) {
+                            pdfBuffer = Buffer.from(await pdfResp.arrayBuffer());
+                            console.log(`[POLL-ADMISSAO] PDF baixado do Assinafy: ${pdfBuffer.length} bytes`);
+                        } else {
+                            console.warn(`[POLL-ADMISSAO] Falha ao baixar PDF: ${pdfResp.statusText}`);
+                        }
                     } catch(e) {
-                        console.warn(`[POLL-ADMISSAO] Não foi possível baixar PDF: ${e.message}`);
+                        console.warn(`[POLL-ADMISSAO] Erro ao baixar PDF: ${e.message}`);
                     }
                 }
 
-                // Tentar capturar a data de assinatura real do Assinafy
-                const signedAtRaw = docData?.signed_at || docData?.finalized_at || docData?.updated_at;
-
-                // Atualizar banco
-                db.run(
-                    `UPDATE admissao_assinaturas SET assinafy_status = 'Assinado', assinado_em = COALESCE(?, CURRENT_TIMESTAMP), signed_file_path = ? WHERE id = ?`,
-                    [signedAtRaw || null, signedPath, doc.id]
-                );
-                // Também atualizar na tabela documentos (se tiver doc_id vinculado)
-                if (doc.documento_id) {
-                    db.run(`UPDATE documentos SET assinafy_status = 'Assinado', signed_file_path = ?, assinafy_signed_at = COALESCE(?, CURRENT_TIMESTAMP) WHERE id = ?`, [signedPath, signedAtRaw || null, doc.documento_id]);
+                // Tentar assinar com certificado digital da empresa (se PFX configurado)
+                let certSignedBuffer = null;
+                if (pdfBuffer) {
+                    const dispCert = signPdfPfx.verificarDisponibilidade();
+                    if (dispCert.disponivel) {
+                        try {
+                            certSignedBuffer = await signPdfPfx.assinarPDF(pdfBuffer, {
+                                motivo: `Assinado eletronicamente pela empresa - ${doc.nome_documento || 'Documento'}`,
+                                nome: 'America Rental Equipamentos Ltda'
+                            });
+                            console.log(`[POLL-ADMISSAO] ✅ Certificado digital aplicado: ${certSignedBuffer.length} bytes`);
+                        } catch(pfxErr) {
+                            console.warn(`[POLL-ADMISSAO] Certificado não aplicado: ${pfxErr.message}`);
+                        }
+                    }
                 }
 
-                // Sincronizar com OneDrive se disponível e arquivo baixado
-                if (onedrive && signedPath && fs.existsSync(signedPath)) {
+                // O buffer final que será salvo (com cert se disponível, ou apenas assinado pelo colab)
+                const finalBuffer = certSignedBuffer || pdfBuffer;
+
+                // Tentar sincronizar com OneDrive diretamente da memória (sem salvar em disco)
+                let onedriveOk = false;
+                if (onedrive && finalBuffer) {
                     try {
-                        // Buscar dados do colaborador para o caminho
-                        const colabRow = await new Promise((res, rej) =>
-                            db.get('SELECT nome_completo FROM colaboradores WHERE id = ?', [doc.colaborador_id], (e,r) => e ? rej(e) : res(r))
+                        const colabRow = await new Promise((res2, rej2) =>
+                            db.get('SELECT nome_completo FROM colaboradores WHERE id = ?', [doc.colaborador_id], (e,r) => e ? rej2(e) : res2(r))
                         );
                         const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || 'RH/1.Colaboradores/Sistema';
                         const safeColab = formatarNome(colabRow?.nome_completo || 'DESCONHECIDO');
+                        const safeDocName = formatarPasta(doc.nome_documento || 'Contrato').replace(/\s+/g, '_');
+                        const docYear = String(new Date().getFullYear());
+                        const cloudName = `${safeDocName}_${safeColab}_${docYear}.pdf`;
                         const targetDir = `${onedriveBasePath}/${safeColab}/CONTRATOS`;
                         await onedrive.ensurePath(targetDir);
-                        const docYear = String(new Date().getFullYear());
-                        const safeDocName = formatarPasta(doc.nome_documento || 'Contrato').replace(/\s+/g, '_');
-                        const cloudName = `${safeDocName}_${safeColab}_${docYear}.pdf`;
-                        const fBuffer = fs.readFileSync(signedPath);
-                        await onedrive.uploadToOneDrive(targetDir, cloudName, fBuffer);
+                        await onedrive.uploadToOneDrive(targetDir, cloudName, finalBuffer);
                         console.log(`[POLL-ADMISSAO] ✓ OneDrive sync: ${cloudName}`);
+                        onedriveOk = true;
                     } catch(odErr) {
                         console.warn('[POLL-ADMISSAO] OneDrive sync falhou:', odErr.message);
                     }
+                }
+                // Salvar em disco local como fallback (caso OneDrive falhe)
+                let signedPath = null;
+                if (finalBuffer) {
+                    try {
+                        const destPath = (doc.file_path || path.join(BASE_PATH, `admissao_${doc.id}.pdf`))
+                            .replace(/(_assinado)?(_cert)?\.pdf$/, certSignedBuffer ? '_cert.pdf' : '_assinado.pdf');
+                        fs.writeFileSync(destPath, finalBuffer);
+                        signedPath = destPath;
+                    } catch(e) {
+                        console.warn(`[POLL-ADMISSAO] Disco local indisponível (normal no Render): ${e.message}`);
+                    }
+                }
+
+                // Atualizar banco - SEMPRE usar CURRENT_TIMESTAMP (compatível com SQLite datetime)
+                db.run(
+                    `UPDATE admissao_assinaturas SET 
+                        assinafy_status = 'Assinado', 
+                        assinado_em = CURRENT_TIMESTAMP,
+                        signed_file_path = ?
+                     WHERE id = ?`,
+                    [signedPath, doc.id]
+                );
+                if (doc.documento_id) {
+                    db.run(`UPDATE documentos SET assinafy_status = 'Assinado', signed_file_path = ?, assinafy_signed_at = CURRENT_TIMESTAMP WHERE id = ?`,
+                        [signedPath, doc.documento_id]);
                 }
             } catch(e) {
                 console.warn(`[POLL-ADMISSAO] Erro ao verificar doc ${doc.assinafy_id}: ${e.message}`);
@@ -1950,56 +1981,39 @@ app.get('/api/admissao-assinaturas/:id/download', authenticateToken, async (req,
             return fs.createReadStream(certPath).pipe(res);
         }
 
-        // 2. Arquivo local assinado pelo colaborador
+        // 2. Sempre tentar buscar via Assinafy como fonte principal (Render é efêmero, disco não persiste)
+        if (row.assinafy_id) {
+            const docData = await (async () => {
+                try {
+                    const r = await fetch(`https://api.assinafy.com.br/v1/documents/${row.assinafy_id}`,
+                        { headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey, 'Accept': 'application/json' } });
+                    return r.ok ? (await r.json()) : null;
+                } catch { return null; }
+            })();
+
+            const docPayload = docData?.data || docData;
+            const signedUrl = extractSignedUrl(docPayload);
+
+            if (signedUrl) {
+                console.log(`[DOWNLOAD] Proxy PDF do Assinafy: ${signedUrl}`);
+                try {
+                    const pdfResp = await fetch(signedUrl, { headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey } });
+                    if (!pdfResp.ok) throw new Error('Assinafy retornou ' + pdfResp.statusText);
+                    const pdfBuf = Buffer.from(await pdfResp.arrayBuffer());
+                    res.setHeader('Content-Type', 'application/pdf');
+                    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(row.nome_documento || 'Documento')}_Assinado.pdf"`);
+                    return res.send(pdfBuf);
+                } catch(fetchErr) {
+                    console.warn('[DOWNLOAD] Falha no proxy:', fetchErr.message);
+                }
+            }
+        }
+
+        // 3. Arquivo local como último recurso
         if (row.signed_file_path && fs.existsSync(row.signed_file_path)) {
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(row.nome_documento)}_Assinado.pdf"`);
             return fs.createReadStream(row.signed_file_path).pipe(res);
-        }
-
-        // 3. Buscar via tabela documentos
-        if (row.assinafy_id) {
-            const doc = await new Promise((resolve, reject) =>
-                db.get('SELECT * FROM documentos WHERE assinafy_id = ?', [row.assinafy_id], (err, r) => err ? reject(err) : resolve(r))
-            );
-            const fp = doc?.signed_file_path || doc?.file_path;
-            if (fp && fs.existsSync(fp)) {
-                res.setHeader('Content-Type', 'application/pdf');
-                res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(row.nome_documento)}_Assinado.pdf"`);
-                return fs.createReadStream(fp).pipe(res);
-            }
-
-            // 4. Buscar URL do Assinafy e fazer proxy do PDF
-            const https = require('https');
-            const docInfo = await new Promise((resolve) => {
-                const r = https.request({
-                    hostname: 'api.assinafy.com.br',
-                    path: `/v1/documents/${row.assinafy_id}`,
-                    method: 'GET',
-                    headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey, 'Accept': 'application/json' }
-                }, resp => {
-                    const chunks = [];
-                    resp.on('data', c => chunks.push(c));
-                    resp.on('end', () => { try { resolve(JSON.parse(Buffer.concat(chunks).toString())); } catch(e) { resolve(null); } });
-                });
-                r.on('error', () => resolve(null));
-                r.setTimeout(10000, () => { r.destroy(); resolve(null); });
-                r.end();
-            });
-
-            const docData = docInfo?.data || docInfo;
-            // Tenta vários campos de URL do PDF assinado
-            const signedUrl = extractSignedUrl(docData);
-
-            if (signedUrl) {
-                console.log(`[DOWNLOAD] Baixando PDF do Assinafy: ${signedUrl}`);
-                res.setHeader('Content-Type', 'application/pdf');
-                res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(row.nome_documento)}_Assinado.pdf"`);
-                https.get(signedUrl, pdfResp => pdfResp.pipe(res)).on('error', e => {
-                    if (!res.headersSent) res.status(502).json({ error: 'Erro ao baixar PDF do Assinafy: ' + e.message });
-                });
-                return;
-            }
         }
 
         res.status(404).json({ error: 'Arquivo assinado ainda não disponível. Aguarde o Assinafy processar.' });

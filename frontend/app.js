@@ -6311,7 +6311,7 @@ window.renderContratosTab = async function(container) {
                         <div style="font-size:0.78rem; color:#64748b;">Os documentos selecionados serão enviados ao e-mail do colaborador via Assinafy.</div>
                     </div>
                     <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-                        <button type="button" style="background:#ef4444; color:#fff; border:none; padding:10px 15px; border-radius:6px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:5px;" onclick="window.rodarDiagnosticoAssinafy()">
+                        <button type="button" style="background:#3b82f6; color:#fff; border:none; padding:10px 15px; border-radius:6px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:5px;" onclick="window.rodarDiagnosticoAssinafy()">
                             <i class="ph ph-bug"></i> VERIFICAR API
                         </button>
                         <button id="btn-enviar-assinaturas" class="btn btn-primary" onclick="window.sendAdmissaoSignatures('admissao-signature-list', 'btn-enviar-assinaturas')" style="display:flex; align-items:center; gap:5px;">
@@ -9233,21 +9233,22 @@ if (typeof _origNavigateTo === 'function') {
             c.id = 'admissao-toast-container';
             c.style.cssText = `
                 position: fixed;
-                top: 1.2rem;
+                bottom: 1.2rem;
                 right: 1.2rem;
                 z-index: 99999;
                 display: flex;
-                flex-direction: column;
+                flex-direction: column-reverse;
                 gap: 0.6rem;
                 pointer-events: none;
-                max-width: 340px;
+                max-width: 360px;
             `;
             document.body.appendChild(c);
         }
         return c;
     }
 
-    function showToast(nomeDoc, nomeColab) {
+    function showToast(nomeDoc, nomeColab, hora) {
+        hora = hora || new Date().toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
         const container = getToastContainer();
         const toast = document.createElement('div');
         toast.setAttribute('data-toast-item', '1');
@@ -9266,20 +9267,23 @@ if (typeof _origNavigateTo === 'function') {
             max-width: 340px;
         `;
         toast.innerHTML = `
-            <i class="ph-fill ph-check-circle" style="font-size:1.6rem;color:#22c55e;flex-shrink:0;margin-top:1px;"></i>
+            <i class="ph-fill ph-check-circle" style="font-size:1.8rem;color:#22c55e;flex-shrink:0;margin-top:1px;"></i>
             <div style="flex:1;min-width:0;">
-                <div style="font-size:0.72rem;font-weight:600;color:#86efac;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px;">
-                    Admissão · Documento Assinado
+                <div style="font-size:0.7rem;font-weight:700;color:#86efac;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:2px;">
+                    ✅ Admissão · Documento Assinado
                 </div>
-                <div style="font-size:0.88rem;font-weight:700;color:#f0fdf4;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                <div style="font-size:0.9rem;font-weight:700;color:#f0fdf4;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
                     ${nomeDoc}
                 </div>
-                <div style="font-size:0.78rem;color:#94a3b8;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                <div style="font-size:0.78rem;color:#94a3b8;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
                     <i class="ph ph-user"></i> ${nomeColab}
+                </div>
+                <div style="font-size:0.73rem;color:#64748b;margin-top:1px;">
+                    <i class="ph ph-clock"></i> ${hora}
                 </div>
             </div>
             <button onclick="this.closest('[data-toast-item]')?.remove()"
-                style="background:none;border:none;color:#64748b;cursor:pointer;font-size:1rem;padding:0;flex-shrink:0;pointer-events:all;"
+                style="background:none;border:none;color:#64748b;cursor:pointer;font-size:1.1rem;padding:0 0 0 4px;flex-shrink:0;pointer-events:all;line-height:1;"
                 title="Fechar">✕</button>
         `;
         // Inject animation keyframes once
@@ -9341,7 +9345,10 @@ if (typeof _origNavigateTo === 'function') {
             if (novos.length === 0) return;
             
             novos.slice(0, 5).forEach(a => {
-                showToast(a.nome_documento || 'Documento', a.colaborador_nome || 'Colaborador');
+                const hora = a.assinado_em 
+                    ? new Date(a.assinado_em).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })
+                    : new Date().toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+                showToast(a.nome_documento || 'Documento', a.colaborador_nome || 'Colaborador', hora);
             });
             markSeen(novos.map(a => a.id));
 

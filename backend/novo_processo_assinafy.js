@@ -143,15 +143,38 @@ async function enviarDocumentoParaAssinafy(documentId, colaboradorId) {
 
     // 2. Upload do arquivo
     const filePath = path.resolve(doc.file_path);
-    if (!fs.existsSync(filePath)) throw new Error(`Arquivo não encontrado: ${filePath}`);
+    let fileBuffer = null;
+    let fileName = doc.file_name || path.basename(filePath);
+
+    if (fs.existsSync(filePath)) {
+        fileBuffer = fs.readFileSync(filePath);
+    } else {
+        // Arquivo local não existe (Render efêmero) — tentar baixar do Assinafy se já tiver sido enviado antes
+        // ou informar erro claro
+        console.warn(`[ASSINAFY] Arquivo não encontrado localmente: ${filePath}`);
+        // Verificar se já há um arquivo assinado ou original pela URL do Assinafy
+        if (doc.assinafy_signed_url || doc.assinafy_url) {
+            const fallbackUrl = doc.assinafy_signed_url || doc.assinafy_url;
+            console.log(`[ASSINAFY] Tentando baixar da URL salva: ${fallbackUrl}`);
+            const fetchMod = fetch;
+            const r = await fetchMod(fallbackUrl);
+            if (r.ok) {
+                fileBuffer = Buffer.from(await r.arrayBuffer());
+                console.log(`[ASSINAFY] PDF baixado da URL salva: ${fileBuffer.length} bytes`);
+            }
+        }
+        if (!fileBuffer) {
+            throw new Error(`Arquivo não encontrado: ${filePath}. O arquivo pode ter sido removido do servidor. Faça o upload novamente.`);
+        }
+    }
 
     const form = new FormData();
-    form.append('file', fs.createReadStream(filePath), {
-        filename: doc.file_name || path.basename(filePath),
+    form.append('file', fileBuffer, {
+        filename: fileName,
         contentType: 'application/pdf'
     });
 
-    console.log(`[2] Upload: "${doc.file_name || path.basename(filePath)}"`);
+    console.log(`[2] Upload: "${fileName}"`);
     const uploadRes = await uploadForm(`/v1/accounts/${ACCOUNT_ID}/documents`, form);
 
     if (uploadRes.status < 200 || uploadRes.status >= 300)
