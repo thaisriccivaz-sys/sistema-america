@@ -400,13 +400,13 @@ const authenticateToken = (req, res, next) => {
 // --- ROTAS DE AUTENTICAÃ‡ÃƒO ---
 app.post('/api/auth/login', (req, res) => {
     const { username, password } = req.body;
-    db.get('SELECT * FROM usuarios WHERE username = ?', [username], (err, user) => {
+    db.get(`SELECT u.*, g.nome as grupo_nome FROM usuarios u LEFT JOIN grupos_permissao g ON g.id = u.grupo_permissao_id WHERE u.username = ?`, [username], (err, user) => {
         if (err || !user) return res.status(401).json({ error: 'Usuário ou senha incorretos' });
         if (user.ativo === 0) return res.status(403).json({ error: 'Conta inativa. Acesso bloqueado.' });
         const valid = bcrypt.compareSync(password, user.password_hash);
         if (!valid) return res.status(401).json({ error: 'Usuário ou senha incorretos' });
-        const token = jwt.sign({ id: user.id, username: user.username, role: user.role, grupo_permissao_id: user.grupo_permissao_id, departamento: user.departamento }, SECRET_KEY, { expiresIn: '8h' });
-        res.json({ token, user: { id: user.id, username: user.username, role: user.role, grupo_permissao_id: user.grupo_permissao_id, departamento: user.departamento } });
+        const token = jwt.sign({ id: user.id, username: user.username, role: user.role, grupo_permissao_id: user.grupo_permissao_id, departamento: user.departamento, grupo_nome: user.grupo_nome }, SECRET_KEY, { expiresIn: '8h' });
+        res.json({ token, user: { id: user.id, username: user.username, role: user.role, grupo_permissao_id: user.grupo_permissao_id, departamento: user.departamento, grupo_nome: user.grupo_nome } });
     });
 });
 

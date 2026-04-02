@@ -263,7 +263,10 @@ window.carregarPermissoesOnline = async function() {
     if (!currentUser || !currentToken) return;
 
     // Define quem é super admin e pode ver tudo por padrão (Apenas Diretoria!)
-    const isTopAdmin = currentUser.role === 'Diretoria' || currentUser.departamento === 'Diretoria';
+    // Verifica: role do banco, departamento OU nome do grupo de permissão
+    const isTopAdmin = currentUser.role === 'Diretoria' 
+        || currentUser.departamento === 'Diretoria'
+        || (currentUser.grupo_nome && currentUser.grupo_nome.toLowerCase() === 'diretoria');
 
     // Remove qualquer display-none forçado das categorias primeiro
     document.querySelectorAll('.dept-item').forEach(el => el.style.display = '');
@@ -521,7 +524,12 @@ function navigateTo(target) {
         appOpenTabs.forEach(t => t.active = (t.tabId === target));
         renderAppTabs();
     }
-    const isTopAdmin = currentUser && (currentUser.role === 'Diretoria' || currentUser.role === 'Administrador' || currentUser.departamento === 'Diretoria');
+    const isTopAdmin = currentUser && (
+        currentUser.role === 'Diretoria' 
+        || currentUser.role === 'Administrador' 
+        || currentUser.departamento === 'Diretoria'
+        || (currentUser.grupo_nome && currentUser.grupo_nome.toLowerCase() === 'diretoria')
+    );
 
     if (currentUser && !isTopAdmin) {
         const targetNav = document.querySelector(`.nav-item[data-target="${target}"]`);
