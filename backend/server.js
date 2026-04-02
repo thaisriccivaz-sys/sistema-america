@@ -313,6 +313,101 @@ app.get('/api/version', (req, res) => res.json({ version: 'V40_PFX_DIGITAL_SIGNA
 const signPdfPfx = require('./sign_pdf_pfx');
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─── POLLING AUTOMÁTICO: Atualizar status de documentos de admissão ───────────
+// Roda a cada 2 min e verifica se documentos pendentes foram assinados no Assinafy
+async function pollAdmissaoAssinaturas() {
+    try {
+        const pendentes = await new Promise((res, rej) =>
+            db.all(`SELECT * FROM admissao_assinaturas WHERE assinafy_status = 'Pendente' AND assinafy_id IS NOT NULL`, [], (err, rows) => err ? rej(err) : res(rows))
+        );
+        if (!pendentes || pendentes.length === 0) return;
+
+        console.log(`[POLL-ADMISSAO] Verificando ${pendentes.length} documento(s) pendente(s)...`);
+        const https = require('https');
+
+        for (const doc of pendentes) {
+            try {
+                const docInfo = await new Promise((resolve, reject) => {
+                    const opts = {
+                        hostname: 'api.assinafy.com.br',
+                        path: `/v1/documents/${doc.assinafy_id}`,
+                        method: 'GET',
+                        headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey, 'Accept': 'application/json' }
+                    };
+                    const r = https.request(opts, resp => {
+                        const chunks = [];
+                        resp.on('data', c => chunks.push(c));
+                        resp.on('end', () => {
+                            try { resolve(JSON.parse(Buffer.concat(chunks).toString())); }
+                            catch(e) { resolve(null); }
+                        });
+                    });
+                    r.on('error', reject);
+                    r.setTimeout(10000, () => r.destroy());
+                    r.end();
+                });
+
+                if (!docInfo) continue;
+                const docData = docInfo.data || docInfo;
+                const statusRaw = (docData?.status || '').toLowerCase();
+
+                // Status do Assinafy que indicam assinatura completa
+                const isSigned = ['completed', 'signed', 'concluded', 'finalizado', 'assinado'].some(s => statusRaw.includes(s));
+                if (!isSigned) {
+                    console.log(`[POLL-ADMISSAO] Doc ${doc.assinafy_id} → status="${statusRaw}" (ainda pendente)`);
+                    continue;
+                }
+
+                console.log(`[POLL-ADMISSAO] ✅ Doc ${doc.assinafy_id} ASSINADO! Atualizando banco...`);
+
+                // Tentar baixar o PDF assinado
+                let signedPath = doc.file_path;
+                const signedUrl = extractSignedUrl(docData);
+                if (signedUrl) {
+                    try {
+                        const pdfBuf = await new Promise((resolve, reject) => {
+                            https.get(signedUrl, { headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey } }, resp => {
+                                const chunks = [];
+                                resp.on('data', c => chunks.push(c));
+                                resp.on('end', () => resolve(Buffer.concat(chunks)));
+                            }).on('error', reject);
+                        });
+                        const destPath = (doc.file_path || path.join(BASE_PATH, `admissao_${doc.id}`))
+                            .replace(/(_assinado)?\.pdf$/, '_assinado.pdf');
+                        fs.writeFileSync(destPath, pdfBuf);
+                        signedPath = destPath;
+                        console.log(`[POLL-ADMISSAO] PDF assinado salvo: ${destPath}`);
+                    } catch(e) {
+                        console.warn(`[POLL-ADMISSAO] Não foi possível baixar PDF: ${e.message}`);
+                    }
+                }
+
+                // Atualizar banco
+                db.run(
+                    `UPDATE admissao_assinaturas SET assinafy_status = 'Assinado', assinado_em = CURRENT_TIMESTAMP, signed_file_path = ? WHERE id = ?`,
+                    [signedPath, doc.id]
+                );
+                // Também atualizar na tabela documentos (se tiver doc_id vinculado)
+                if (doc.documento_id) {
+                    db.run(`UPDATE documentos SET assinafy_status = 'Assinado', signed_file_path = ? WHERE id = ?`, [signedPath, doc.documento_id]);
+                }
+            } catch(e) {
+                console.warn(`[POLL-ADMISSAO] Erro ao verificar doc ${doc.assinafy_id}: ${e.message}`);
+            }
+        }
+    } catch(e) {
+        console.warn('[POLL-ADMISSAO] Erro no job de polling:', e.message);
+    }
+}
+
+// Iniciar polling após o servidor subir (aguarda 30s e depois a cada 2 minutos)
+setTimeout(() => {
+    pollAdmissaoAssinaturas();
+    setInterval(pollAdmissaoAssinaturas, 2 * 60 * 1000);
+}, 30000);
+console.log('[POLL-ADMISSAO] Job de polling configurado (a cada 2 minutos).');
+// ─────────────────────────────────────────────────────────────────────────────
+
 /**
  * ASSINAFY: Background mode com Polling estendido
  * O Assinafy processa documentos lentamente em alguns casos.
