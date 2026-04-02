@@ -8909,8 +8909,6 @@ window.carregarCertificadoView = async function() {
     try {
         const data = await apiGet('/certificado-digital/status');
 
-        const btnRemove2 = document.getElementById('btn-cert-view-remover2');
-
         if (data.configurado && data.ok) {
             statusEl.style.cssText = 'padding:1rem;border-radius:10px;background:#f0fdf4;border:1.5px solid #bbf7d0;font-size:0.88rem;color:#166534;display:flex;align-items:flex-start;gap:0.75rem;min-height:70px;';
             statusEl.innerHTML = `
@@ -8925,7 +8923,7 @@ window.carregarCertificadoView = async function() {
                     </div>
                 </div>`;
             if (btnTestar) btnTestar.style.display = 'flex';
-            if (btnRemove) btnRemove.style.display = 'none'; // ocultando o do meio, pois fizemos o novo
+            if (btnRemove) btnRemove.style.display = 'flex';
         } else {
             const isErro = data.configurado && !data.ok;
             const titulo = isErro ? 'Problema no Certificado Atual' : 'Nenhum certificado configurado';
@@ -8939,11 +8937,10 @@ window.carregarCertificadoView = async function() {
                     <div style="font-size:0.8rem;margin-top:2px;">${subtitulo}</div>
                 </div>`;
             if (btnTestar) btnTestar.style.display = 'none';
-            if (btnRemove) btnRemove.style.display = 'none';
+            if (btnRemove) btnRemove.style.display = data.configurado ? 'flex' : 'none';
         }
 
-        // NOVO: Mostrar sempre o botão se data.configurado for true, mesmo com erro
-        if (btnRemove2) btnRemove2.style.display = 'flex'; // SEMPRE VISIVEL PARA PREVENIR ERROS DE ESTADO
+
     } catch(e) {
         statusEl.innerHTML = `<i class="ph ph-warning-circle"></i> Erro ao verificar: ${e.message}`;
     }
