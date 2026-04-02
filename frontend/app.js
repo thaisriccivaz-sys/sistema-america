@@ -262,8 +262,8 @@ const BREADCRUMB_MAP = {
 window.carregarPermissoesOnline = async function() {
     if (!currentUser || !currentToken) return;
 
-    // Define quem é super admin e pode ver tudo por padrão
-    const isTopAdmin = currentUser.role === 'Diretoria' || currentUser.role === 'Administrador' || currentUser.departamento === 'Diretoria';
+    // Define quem é super admin e pode ver tudo por padrão (Apenas Diretoria!)
+    const isTopAdmin = currentUser.role === 'Diretoria' || currentUser.departamento === 'Diretoria';
 
     // Remove qualquer display-none forçado das categorias primeiro
     document.querySelectorAll('.dept-item').forEach(el => el.style.display = '');
@@ -302,30 +302,31 @@ window.carregarPermissoesOnline = async function() {
         // Percorre todos os botões de navegação (.nav-item)
         document.querySelectorAll('.nav-item[data-target]').forEach(link => {
             const pathId = link.getAttribute('data-target');
-            // Se existir no mapa de permissoes e for TRUE, mostra. Senão, esconde.
+            // Se existir no mapa de permissoes e for TRUE, mostra. Senão, esconde robustamente.
             if (mapPerms[pathId]) {
                 link.style.display = '';
             } else {
-                link.style.display = 'none';
+                link.style.cssText = 'display: none !important;';
             }
         });
 
         // Agora vamos ocultar os "blocos grandes" (Departamentos) inteiros se não sobrar nenhum nav-item útil
-        // que tenha display diferente de 'none'
         const deptSubmenus = document.querySelectorAll('.dept-submenu');
         deptSubmenus.forEach(submenu => {
-            const navItems = Array.from(submenu.querySelectorAll('.nav-item'));
+            const navItems = Array.from(submenu.querySelectorAll('.nav-item[data-target]'));
             const headerObj = submenu.parentElement; // o `.dept-item` é o pai
             
-            // Se o departamento tiver itens de navegação (nav-item) mas todos estiverem ocultos
             if (navItems.length > 0) {
-                const isAnyVisible = navItems.some(i => i.style.display !== 'none');
+                // Checa diretamente no mapa de permissões se o cara tem algo liberado aqui!
+                const isAnyVisible = navItems.some(i => mapPerms[i.getAttribute('data-target')] === true);
                 if (!isAnyVisible) {
-                    headerObj.style.display = 'none'; // Esconde o bolhão quadrado esquerdo do departamento
+                    headerObj.style.cssText = 'display: none !important;'; 
+                } else {
+                    headerObj.style.display = '';
                 }
             } else {
-                // Tem departamentos sem links ainda em desenvolvimento. Por padrão podemos ocultar para quem não for Diretoria
-                headerObj.style.display = 'none';
+                // Tem departamentos sem links ainda em desenvolvimento
+                headerObj.style.cssText = 'display: none !important;';
             }
         });
         
