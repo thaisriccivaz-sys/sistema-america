@@ -8921,7 +8921,7 @@ window.carregarCertificadoView = async function() {
         }
 
         // NOVO: Mostrar sempre o botão se data.configurado for true, mesmo com erro
-        if (btnRemove2) btnRemove2.style.display = data.configurado ? 'flex' : 'none';
+        if (btnRemove2) btnRemove2.style.display = 'flex'; // SEMPRE VISIVEL PARA PREVENIR ERROS DE ESTADO
     } catch(e) {
         statusEl.innerHTML = `<i class="ph ph-warning-circle"></i> Erro ao verificar: ${e.message}`;
     }
