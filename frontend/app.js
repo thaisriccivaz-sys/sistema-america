@@ -6311,7 +6311,7 @@ window.renderContratosTab = async function(container) {
                         <div style="font-size:0.78rem; color:#64748b;">Os documentos selecionados serão enviados ao e-mail do colaborador via Assinafy.</div>
                     </div>
                     <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-                        <button type="button" style="background:#22c55e; color:#fff; border:none; padding:10px 15px; border-radius:6px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:5px;" onclick="window.rodarDiagnosticoAssinafy()">
+                        <button type="button" style="background:#ef4444; color:#fff; border:none; padding:10px 15px; border-radius:6px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:5px;" onclick="window.rodarDiagnosticoAssinafy()">
                             <i class="ph ph-bug"></i> VERIFICAR API
                         </button>
                         <button id="btn-enviar-assinaturas" class="btn btn-primary" onclick="window.sendAdmissaoSignatures('admissao-signature-list', 'btn-enviar-assinaturas')" style="display:flex; align-items:center; gap:5px;">
@@ -9250,6 +9250,7 @@ if (typeof _origNavigateTo === 'function') {
     function showToast(nomeDoc, nomeColab) {
         const container = getToastContainer();
         const toast = document.createElement('div');
+        toast.setAttribute('data-toast-item', '1');
         toast.style.cssText = `
             background: linear-gradient(135deg, #0f172a, #1e293b);
             color: #fff;
@@ -9277,7 +9278,7 @@ if (typeof _origNavigateTo === 'function') {
                     <i class="ph ph-user"></i> ${nomeColab}
                 </div>
             </div>
-            <button onclick="this.closest('[id]').remove ? this.parentElement.remove() : null"
+            <button onclick="this.closest('[data-toast-item]')?.remove()"
                 style="background:none;border:none;color:#64748b;cursor:pointer;font-size:1rem;padding:0;flex-shrink:0;pointer-events:all;"
                 title="Fechar">✕</button>
         `;
@@ -9321,7 +9322,11 @@ if (typeof _origNavigateTo === 'function') {
         if (!token) return;
 
         // VALIDAÇÃO DE PERMISSÃO: Precisa ter acesso a Admissão e Colaboradores
-        const hasPerms = window.isTopAdmin || (window.activeUserPerms && window.activeUserPerms['admissao'] && window.activeUserPerms['colaboradores']);
+        const isAdminClass = window.isTopAdmin 
+            || (typeof currentUser !== 'undefined' && currentUser && (
+                currentUser.role === 'Diretoria' || currentUser.role === 'Administrador' || currentUser.departamento === 'Diretoria'
+            ));
+        const hasPerms = isAdminClass || (window.activeUserPerms && window.activeUserPerms['admissao'] && window.activeUserPerms['colaboradores']);
         if (!hasPerms) return;
 
         try {

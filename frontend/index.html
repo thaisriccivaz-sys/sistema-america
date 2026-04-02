@@ -1278,12 +1278,7 @@
                                 <h3 class="section-title"><i class="ph ph-signature"></i> Passo 2: Envio para Assinatura</h3>
                                 <p class="text-muted mb-3">Os documentos configurados para o departamento do colaborador aparecem abaixo, todos pré-selecionados. Desmarque os que não deseja incluir neste envio.</p>
 
-                                <!-- Legenda de status -->
-                                <div style="display:flex; gap:0.75rem; flex-wrap:wrap; margin-bottom:1rem; padding:0.6rem 0.85rem; background:#f8fafc; border-radius:8px; font-size:0.78rem;">
-                                    <span style="display:flex;align-items:center;gap:4px;"><i class="ph ph-minus-circle" style="color:#94a3b8;"></i> Não enviado</span>
-                                    <span style="display:flex;align-items:center;gap:4px;"><i class="ph ph-clock" style="color:#92400e;"></i> Aguardando assinatura</span>
-                                    <span style="display:flex;align-items:center;gap:4px;"><i class="ph ph-check-circle" style="color:#15803d;"></i> Assinado — clique no ícone <i class="ph ph-file-pdf" style="color:#16a34a;"></i> para visualizar</span>
-                                </div>
+
 
                                 <div class="search-box mb-3" style="width: 100%; background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 0 1rem; display: flex; align-items: center; height: 42px;">
                                     <i class="ph ph-magnifying-glass" style="color: #94a3b8; font-size: 1.2rem; margin-right:0.5rem;"></i>
@@ -1307,7 +1302,7 @@
                                         <div style="font-size:0.78rem; color:#64748b;">Os documentos selecionados serão enviados ao e-mail do colaborador via Assinafy.</div>
                                     </div>
                                     <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-                                        <button type="button" style="background:#22c55e; color:#fff; border:none; padding:10px 15px; border-radius:6px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:5px;" onclick="window.rodarDiagnosticoAssinafy()">
+                                        <button type="button" style="background:#ef4444; color:#fff; border:none; padding:10px 15px; border-radius:6px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:5px;" onclick="window.rodarDiagnosticoAssinafy()">
                                             <i class="ph ph-bug"></i> VERIFICAR API
                                         </button>
                                         <button id="btn-enviar-assinaturas" class="btn btn-primary" onclick="window.sendAdmissaoSignatures()"
