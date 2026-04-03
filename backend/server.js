@@ -993,7 +993,7 @@ app.get('/api/dashboard', authenticateToken, (req, res) => {
                 }
             }
 
-            if (effectiveStatus === 'Ativo') stats.ativos += 1;
+            if (effectiveStatus === 'Ativo' || effectiveStatus === 'Em Integração') stats.ativos += 1;
             else if (effectiveStatus === 'Férias') stats.ferias += 1;
             else if (effectiveStatus === 'Afastado') stats.afastados += 1;
             else if (effectiveStatus === 'Desligado') stats.desligados += 1;

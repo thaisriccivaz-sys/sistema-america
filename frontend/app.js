@@ -215,6 +215,8 @@ function showView(viewId) {
 // ── BREADCRUMB SYSTEM ───────────────────────────────────────────────────────
 const BREADCRUMB_MAP = {
     // Telas principais
+    'integracao': { path: 'Integração', code: 'RHAD06' },
+    'assinaturas-digitais': { path: 'Assinaturas Digitais', code: 'RHAD07' },
     'dashboard':          { path: 'Dashboard',                                                    code: 'RH001' },
     'colaboradores':      { path: 'Colaboradores',                                                code: 'RHCL00' },
     'form-colaborador':   { path: 'Colaboradores → Cadastro / Edição'                             },
@@ -7408,11 +7410,11 @@ window.finalizarAdmissao = async function() {
     try {
         // Atualizar status para Ativo
         await apiPut(`/colaboradores/${viewedColaborador.id}`, {
-            status: 'Ativo'
+            status: 'Em Integração'
         });
         
-        alert('Admissão realizada com sucesso! O colaborador agora está ATIVO.');
-        navigateTo('dashboard');
+        alert('Admissão realizada com sucesso! O colaborador agora está Em Integração.');
+        navigateTo('integracao');
     } catch (e) {
         alert('Erro ao finalizar admissão: ' + e.message);
     }
@@ -9939,4 +9941,23 @@ window.switchCargoDeptoTab = function(tab) {
     document.getElementById('tab-btn-' + tab).style.borderBottomColor = 'var(--primary-color)';
     document.getElementById('tab-btn-' + tab).style.fontWeight = '600';
     document.getElementById('tab-content-' + tab).style.display = 'block';
+    if(tab === 'departamentos' && typeof loadDepartamentos === 'function') loadDepartamentos();
+};
+
+window.loadIntegracaoColabs = async function() {
+    try {
+        const colaboradores = await apiGet('/colaboradores');
+        if(!colaboradores) return;
+        const integracaoUsers = colaboradores.filter(c => c.status === 'Em Integração');
+        const sel = document.getElementById('select-integracao-colab');
+        if(sel) {
+            sel.innerHTML = '<option value="">Selecione um colaborador...</option>';
+            integracaoUsers.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = c.nome_completo;
+                sel.appendChild(opt);
+            });
+        }
+    } catch(e) {}
 };
