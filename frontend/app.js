@@ -1927,7 +1927,7 @@ function renderTabelaColaboradores(lista) {
                                 <div style="display:flex;gap:0.4rem;justify-content:flex-end;">
                                     <button class="btn btn-warning btn-sm" onclick="editColaborador(${c.id})" title="Editar" style="padding:0.4rem;width:32px;height:32px;justify-content:center;"><i class="ph ph-pencil-simple"></i></button>
                                     <button class="btn btn-primary btn-sm" onclick="openProntuario(${c.id},'${(c.nome_completo||'').replace(/'/g,"\\'")}','${(c.cargo||'').replace(/'/g,"\\'")}','${c.cpf||''}','${c.sexo||''}','${c.data_admissao||''}','${c.status||''}','${c.rg_tipo||'RG'}')" title="Prontuário" style="padding:0.4rem;width:32px;height:32px;justify-content:center;background:#2563eb;"><i class="ph ph-folder-open"></i></button>
-                                    <button class="btn btn-danger btn-sm" onclick="deleteColaborador(${c.id},${c.status==='Incompleto'?'true':'false'})" title="Excluir" style="display:none;padding:0.4rem;width:32px;height:32px;justify-content:center;"><i class="ph ph-x"></i></button>
+                                    
                                 </div>
                             </td>
                         </tr>`;
@@ -2997,7 +2997,7 @@ window.abrirPreviewAdvertencia = function(data) {
     const apiBase = API_URL.replace('/api', '');
     const logoSrc = `${apiBase}/assets/logo-header.png`;
 
-    const logoBanner = `<div style="margin:0 -2cm;width:calc(100% + 4cm);line-height:0;"><img src="${logoSrc}" style="width:100%; display:block; margin:0; padding:0;" onerror="this.style.display='none'"></div>`;
+    const logoBanner = `<div style="margin:0 -2cm -0.1rem -2cm;"><img src="${logoSrc}" style="width:100%; display:block; margin:0; padding:0;" onerror="this.style.display='none'"></div>`;
     const colabInfo = `
         <h1 style="text-align:center; color:#1e293b; margin-top:0.1rem; margin-bottom:0.3rem; font-size:1.1rem; text-transform:uppercase;">${data.gerador_nome}</h1>
         <p style="margin:0.2rem 0; font-size:0.85rem;"><b>COLABORADOR:</b> ${data.colaborador.NOME_COMPLETO}</p>
@@ -4452,6 +4452,7 @@ window.uploadAtestadoWithCID = async function(inputEl) {
     formData.append('tab_name', 'Atestados');
     formData.append('document_type', typeIn);
     formData.append('custom_name', customName);
+    formData.append('cloud_name', customName + '.pdf'); // nome final sem timestamp para OneDrive
     formData.append('year', year);
 
     // Campos de período
@@ -9369,6 +9370,25 @@ if (typeof _origNavigateTo === 'function') {
 
 
 // ===== TELA DE ASSINATURAS DIGITAIS =====
+window.limparAsssinaturasTeste = async function() {
+    if (!confirm('Isso vai remover TODOS os registros de assinatura (apenas os de teste). Confirmar?')) return;
+    try {
+        const res = await fetch(`${API_URL}/assinaturas/limpar-testes`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${currentToken}` }
+        });
+        const data = await res.json();
+        if (res.ok) {
+            alert('✅ Registros de teste removidos com sucesso!');
+            window.loadAssinaturasDigitais();
+        } else {
+            alert('Erro: ' + (data.error || 'Falha ao limpar.'));
+        }
+    } catch(e) {
+        alert('Erro de conexão: ' + e.message);
+    }
+};
+
 window.loadAssinaturasDigitais = async function() {
     const container = document.getElementById('assinaturas-digitais-container');
     if (!container) return;

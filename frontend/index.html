@@ -1787,9 +1787,14 @@
                                 <p style="margin:0;color:#64748b;font-size:0.9rem;">Todos os documentos enviados para assinatura via Assinafy</p>
                             </div>
                         </div>
-                        <button onclick="window.loadAssinaturasDigitais()" style="display:flex;align-items:center;gap:6px;background:#f503c5;color:#fff;border:none;border-radius:8px;padding:0.6rem 1.2rem;font-weight:700;cursor:pointer;font-size:0.9rem;">
-                            <i class="ph ph-arrow-clockwise"></i> Atualizar
-                        </button>
+                        <div style="display:flex;gap:0.5rem;align-items:center;">
+                            <button onclick="window.limparAsssinaturasTeste()" style="display:flex;align-items:center;gap:6px;background:#64748b;color:#fff;border:none;border-radius:8px;padding:0.6rem 1.2rem;font-weight:700;cursor:pointer;font-size:0.9rem;">
+                                <i class="ph ph-eraser"></i> Limpar Testes
+                            </button>
+                            <button onclick="window.loadAssinaturasDigitais()" style="display:flex;align-items:center;gap:6px;background:#f503c5;color:#fff;border:none;border-radius:8px;padding:0.6rem 1.2rem;font-weight:700;cursor:pointer;font-size:0.9rem;">
+                                <i class="ph ph-arrow-clockwise"></i> Atualizar
+                            </button>
+                        </div>
                     </div>
                     <div id="assinaturas-digitais-container">
                         <div style="text-align:center;padding:3rem;color:#94a3b8;">
@@ -2373,7 +2378,7 @@
     <script src="gerenciar_avaliacoes.js?v=2"></script>
     <script src="epi.js?v=17"></script>
     <script src="usuarios.js?v=1"></script>
-    <script src="app.js?v=69"></script>
+    <script src="app.js?v=70"></script>
 
     <!-- Global Scroll-to-Top Button -->
     <button id="global-scroll-top" onclick="window.scrollTo({top:0, behavior:'smooth'})" style="position:fixed; bottom:30px; right:30px; width:45px; height:45px; border-radius:50%; background:var(--primary-color, #0f172a); color:#fff; border:none; box-shadow:0 4px 10px rgba(0,0,0,0.3); justify-content:center; align-items:center; transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index:9000; display:none; opacity:0; cursor:pointer;" onmouseover="this.style.filter='brightness(0.9)'" onmouseout="this.style.filter='brightness(1)'">
