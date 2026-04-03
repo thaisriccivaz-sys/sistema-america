@@ -391,6 +391,50 @@
                     </div>
                 </section>
 
+                <!-- VIEW: INTEGRAÇÃO -->
+                <section id="view-integracao" class="content-view" style="display:none;">
+                    <div class="page-header flex-between" style="position: sticky; top: 60px; z-index: 20; background: var(--bg-main); padding: 1.25rem 0; margin-top: -1.5rem; margin-bottom: 2rem; border-bottom: 1px solid var(--border-color);">
+                        <div style="display: flex; align-items: center; gap: 1.5rem;">
+                            <div style="width: 80px; height: 80px; border-radius: 50%; border: 2px dashed #059669; display: flex; align-items: center; justify-content: center; background: #ecfdf5; color: #059669; font-size: 2rem;">
+                                <i class="ph ph-users-three"></i>
+                            </div>
+                            <div>
+                                <h1 style="margin: 0; font-size: 1.85rem; font-weight: 700; color: #334155;">Processo de Integração</h1>
+                                <p style="margin: 4px 0 0; color: #64748b; font-size: 0.9rem;">Siga o passo a passo para integração dos colaboradores recém-admitidos.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card mb-4 p-4">
+                        <h3 class="section-title"><i class="ph ph-user-plus"></i> 1. Selecionar Colaborador</h3>
+                        <p class="text-muted mb-3">Selecione o colaborador para iniciar a integração.</p>
+                        <div style="max-width: 600px;">
+                             <div class="input-group" style="margin-bottom:0.5rem;">
+                                 <label>Colaborador</label>
+                                 <select style="padding:0.75rem; border:1px solid var(--border-color); border-radius:6px; background:#fff; outline:none; font-size:0.95rem; width:100%;" onchange="window.startIntegracao(this.value)">
+                                    <option value="">Selecione um colaborador...</option>
+                                    <option value="test">Colaborador Teste (Demonstração)</option>
+                                 </select>
+                             </div>
+                         </div>
+                    </div>
+                    <div id="integracao-workflow" style="display:none;">
+                        <div class="admissao-stepper">
+                            <div class="step-item active" id="int-step-1" onclick="window.nextIntegracaoStep(1)"><div class="step-icon"><span class="num">1</span></div><span class="step-label">Teste 1</span></div>
+                            <div class="step-item" id="int-step-2" onclick="window.nextIntegracaoStep(2)"><div class="step-icon"><span class="num">2</span></div><span class="step-label">Teste 2</span></div>
+                            <div class="step-item" id="int-step-3" onclick="window.nextIntegracaoStep(3)"><div class="step-icon"><span class="num">3</span></div><span class="step-label">Teste 3</span></div>
+                            <div class="step-item" id="int-step-4" onclick="window.nextIntegracaoStep(4)"><div class="step-icon"><span class="num">4</span></div><span class="step-label">Teste 4</span></div>
+                            <div class="step-item" id="int-step-5" onclick="window.nextIntegracaoStep(5)"><div class="step-icon"><span class="num">5</span></div><span class="step-label">Teste 5</span></div>
+                            <div class="step-item" id="int-step-6" onclick="window.nextIntegracaoStep(6)"><div class="step-icon"><span class="num">6</span></div><span class="step-label">Teste 6</span></div>
+                        </div>
+                        <div class="integracao-panel active card p-4" id="int-panel-step-1"><h3 class="section-title"><i class="ph ph-number-square-one"></i> Conteúdo Teste 1</h3></div>
+                        <div class="integracao-panel card p-4" id="int-panel-step-2" style="display:none;"><h3 class="section-title"><i class="ph ph-number-square-two"></i> Conteúdo Teste 2</h3></div>
+                        <div class="integracao-panel card p-4" id="int-panel-step-3" style="display:none;"><h3 class="section-title"><i class="ph ph-number-square-three"></i> Conteúdo Teste 3</h3></div>
+                        <div class="integracao-panel card p-4" id="int-panel-step-4" style="display:none;"><h3 class="section-title"><i class="ph ph-number-square-four"></i> Conteúdo Teste 4</h3></div>
+                        <div class="integracao-panel card p-4" id="int-panel-step-5" style="display:none;"><h3 class="section-title"><i class="ph ph-number-square-five"></i> Conteúdo Teste 5</h3></div>
+                        <div class="integracao-panel card p-4" id="int-panel-step-6" style="display:none;"><h3 class="section-title"><i class="ph ph-number-square-six"></i> Conteúdo Teste 6</h3></div>
+                    </div>
+                </section>
+
                 <!-- VIEW: DEPARTAMENTOS -->
                 <section id="view-departamentos" class="content-view">
                     <div class="page-header flex-between">

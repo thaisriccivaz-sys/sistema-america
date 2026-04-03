@@ -9875,3 +9875,22 @@ window.reenviarAssinatura = async function(id, source, btn) {
         setInterval(checkAlertasRecentes, 15000);
     }, 5000);
 })();
+
+// --- GESTÃO DE INTEGRAÇÃO ---
+window.startIntegracao = function(val) {
+    if(val) {
+        document.getElementById('integracao-workflow').style.display = 'block';
+    } else {
+        document.getElementById('integracao-workflow').style.display = 'none';
+    }
+};
+window.nextIntegracaoStep = function(step) {
+    document.querySelectorAll('.integracao-panel').forEach(p => p.style.display = 'none');
+    document.querySelectorAll('#integracao-workflow .step-item').forEach(s => s.classList.remove('active'));
+    
+    const panel = document.getElementById('int-panel-step-' + step);
+    if(panel) panel.style.display = 'block';
+    
+    const icon = document.getElementById('int-step-' + step);
+    if(icon) icon.classList.add('active');
+};
