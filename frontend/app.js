@@ -9462,6 +9462,8 @@ window.filtrarAssinaturas = function() {
             } else {
                 viewBtn = `<button onclick="window.openSignedDocPopup(${d.id}, '${nomeEsc}', event)" style="background:#1d4ed8;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-eye"></i> Ver PDF</button>`;
             }
+        } else if (d.assinafy_status === 'Pendente') {
+            viewBtn = `<button onclick="window.reenviarAssinatura(${d.id}, '${d.source}', this)" style="background:#f59e0b;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;" title="Copiar link ou Enviar WhatsApp"><i class="ph ph-paper-plane-right"></i> Reenviar</button>`;
         }
 
         return `
@@ -9479,6 +9481,36 @@ window.filtrarAssinaturas = function() {
             <td style="padding:0.75rem 1rem;text-align:center;">${viewBtn}</td>
         </tr>`;
     }).join('');
+};
+
+window.reenviarAssinatura = async function(id, source, btn) {
+    const oldHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>';
+    btn.disabled = true;
+
+    try {
+        const token = window._assinaturaToken || window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const res = await fetch(`${API_URL}/assinaturas/reenviar`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, source })
+        });
+        const data = await res.json();
+        
+        btn.innerHTML = `<i class="ph ph-check-circle"></i> Gerado`;
+        setTimeout(() => { btn.innerHTML = oldHtml; btn.disabled = false; }, 1500);
+        
+        if (res.ok && data.success && data.link) {
+            const encodedText = encodeURIComponent('Olá! Segue o link para assinatura do seu documento:\n' + data.link);
+            window.open(`https://wa.me/?text=${encodedText}`, '_blank');
+        } else {
+            alert(data.error || 'Erro ao obter link de assinatura.');
+        }
+    } catch(e) {
+        alert('Erro ao processar: ' + e.message);
+        btn.innerHTML = oldHtml;
+        btn.disabled = false;
+    }
 };
 
 // Registrar navegação para a tela de assinaturas

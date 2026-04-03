@@ -503,6 +503,46 @@ app.get('/api/admissao-assinaturas/alertas-recentes', authenticateToken, (req, r
     });
 });
 
+// Endpoint: Reenviar/Recuperar Link de Assinatura
+app.post('/api/assinaturas/reenviar', authenticateToken, async (req, res) => {
+    const { id, source } = req.body;
+    try {
+        const table = source === 'documento' ? 'documentos' : 'admissao_assinaturas';
+        const doc = await new Promise((resolve, reject) => 
+            db.get(`SELECT assinafy_id FROM ${table} WHERE id=?`, [id], (err, r) => err?reject(err):resolve(r))
+        );
+        if (!doc || !doc.assinafy_id) return res.status(404).json({ error: 'Assinatura vinculada não encontrada.' });
+        
+        const https = require('https');
+        const docInfo = await new Promise((resolve, reject) => {
+            const r = https.request({
+                hostname: 'api.assinafy.com.br', path: `/v1/documents/${doc.assinafy_id}`, method: 'GET',
+                headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey, 'Accept': 'application/json' }
+            }, resp => {
+                const chunks = [];
+                resp.on('data', c => chunks.push(c));
+                resp.on('end', () => { try { resolve(JSON.parse(Buffer.concat(chunks).toString())); } catch(e){resolve(null);} });
+            });
+            r.on('error', reject); r.end();
+        });
+        
+        let signLink = null;
+        if (docInfo && docInfo.data) {
+            const d = docInfo.data;
+            signLink = d.sign_url || d.signUrl || (d.signers && d.signers[0] && (d.signers[0].sign_url || d.signers[0].url));
+        }
+        
+        if (signLink) {
+            db.run(`UPDATE ${table} SET assinafy_url = ? WHERE id = ?`, [signLink, id], () => {}); // ignorando erro silenciosamente caso coluna ausente
+            res.json({ success: true, link: signLink });
+        } else {
+            res.status(400).json({ error: 'Não foi possível detectar o link de reenvio na resposta do integrador.' });
+        }
+    } catch(e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // Endpoint: TODOS os documentos de assinatura (admissao_assinaturas + documentos com assinafy_id)
 app.get('/api/admissao-assinaturas/todos', authenticateToken, async (req, res) => {
     try {
@@ -2870,6 +2910,19 @@ app.post('/api/send-suspensao-contabilidade', authenticateToken, async (req, res
 /**
  * WEBHOOK UNIFICADO: Escuta criação de links e conclusão de assinaturas
  */
+const salvarLinkAssinatura = async (assinafyId, link) => {
+    return new Promise((resolve) => {
+        // Tenta atualizar em admissao
+        db.run(`UPDATE admissao_assinaturas SET assinafy_url = ? WHERE assinafy_id = ?`, [link, assinafyId], function(err) {
+            if (this.changes > 0) return resolve(true);
+            // Se nao mudou, tenta em documentos
+            db.run(`UPDATE documentos SET assinafy_url = ? WHERE assinafy_id = ?`, [link, assinafyId], function() {
+                resolve(true);
+            });
+        });
+    });
+};
+
 app.post("/webhook/assinafy", async (req, res) => {
     try {
         const payload = req.body;
