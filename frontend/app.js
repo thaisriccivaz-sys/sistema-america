@@ -2997,7 +2997,7 @@ window.abrirPreviewAdvertencia = function(data) {
     const apiBase = API_URL.replace('/api', '');
     const logoSrc = `${apiBase}/assets/logo-header.png`;
 
-    const logoBanner = `<div style="margin-bottom:0.5rem;"><img src="${logoSrc}" style="width:100%; display:block;" onerror="this.style.display='none'"></div>`;
+    const logoBanner = `<div style="margin:0;padding:0;"><img src="${logoSrc}" style="width:100%; display:block; margin:0; padding:0;" onerror="this.style.display='none'"></div>`;
     const colabInfo = `
         <h1 style="text-align:center; color:#1e293b; margin-top:0.1rem; margin-bottom:0.3rem; font-size:1.1rem; text-transform:uppercase;">${data.gerador_nome}</h1>
         <p style="margin:0.2rem 0; font-size:0.85rem;"><b>COLABORADOR:</b> ${data.colaborador.NOME_COMPLETO}</p>
@@ -3310,7 +3310,19 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
     } else if (tabId === 'Ficha de EPI') {
         renderFichaEpiTab(listContainer);
     } else if (tabId === '01_FICHA_CADASTRAL') {
-        const fixed = getFichaCadastralDocs();
+        // Usa a MESMA lista ordenada do Passo 3 da Admissão para garantir espelhamento
+        const fixed = [
+            'Comprovante de endereço',
+            'Título Eleitoral',
+            'Carteira de vacinação',
+            'Currículo',
+            'CTPS digital'
+        ];
+        const isMasc = viewedColaborador && viewedColaborador.sexo === 'Masculino';
+        if (isMasc) fixed.push('Reservista');
+        const rgTipo = (viewedColaborador && viewedColaborador.rg_tipo) ? viewedColaborador.rg_tipo : 'RG';
+        fixed.push(rgTipo === 'CIN' ? 'CIN-CPF' : 'RG-CPF');
+
         fixed.forEach(docType => {  
             if (!searchTerm || docType.toLowerCase().includes(searchTerm)) {
                 const existingDoc = filteredDocs.find(d => d.document_type === docType);
@@ -4429,7 +4441,7 @@ window.uploadAtestadoWithCID = async function(inputEl) {
     const aa  = String(today.getFullYear()).slice(2);
     const nomeColabNorm = (viewedColaborador.nome_completo || viewedColaborador.nome || 'COLAB')
         .toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]+/g, '_');
-    const customName = `${selectedCID.code}_${dd}-${mm}-${aa}_${nomeColabNorm}`;
+    const customName = `${selectedCID.code}_${nomeColabNorm}_${dd}${mm}${aa}`;
 
     const typeIn = `${selectedCID.code} - ${selectedCID.desc.substring(0, 60)}`;
     const year = document.getElementById('atestados_year') ? document.getElementById('atestados_year').value : today.getFullYear().toString();
@@ -4484,12 +4496,7 @@ window.uploadAtestadoWithCID = async function(inputEl) {
             await loadDocumentosList();
             renderAtestadosAno();
 
-            // Toast de sucesso
-            const toast = document.createElement('div');
-            toast.innerHTML = '<i class="ph ph-check-circle"></i> Atestado enviado com sucesso!';
-            toast.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#2f9e44;color:#fff;padding:0.75rem 1.75rem;border-radius:10px;font-weight:600;font-size:0.95rem;z-index:99999;box-shadow:0 6px 20px rgba(0,0,0,0.25);display:flex;align-items:center;gap:0.5rem;';
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 3500);
+            // Quiet success – no toast needed when just attaching an atestado
 
         } else {
             const errData = await res.json().catch(() => ({}));
@@ -6545,9 +6552,11 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
                     labels = ['ASO Padrão', 'Exames Complementares'];
                 }
 
+                const currentYear = `'${new Date().getFullYear()}'`;
                 labels.forEach(label => {
+                    const yearForDoc = config.folder === 'ASO' ? currentYear : null;
                     const docRecord = docs.find(d => d.tab_name === config.folder && d.document_type.includes(label));
-                    const slot = createDocSlot(config.folder, label, docRecord);
+                    const slot = createDocSlot(config.folder, label, docRecord, yearForDoc);
                     targetContainer.appendChild(slot);
                 });
             }
@@ -6576,16 +6585,18 @@ function renderAdmissaoStep3(colab, docs) {
     const container = document.getElementById('admissao-checklist-step3');
     if (!container) return;
     
+    // Mesma ordem da aba de Prontuário para espelhamento perfeito
     const items = [
-        { label: 'Carteira de Trabalho', folder: '01_FICHA_CADASTRAL' },
+        { label: 'Comprovante de endereço', folder: '01_FICHA_CADASTRAL', hasVencimento: true },
         { label: 'Título Eleitoral', folder: '01_FICHA_CADASTRAL' },
-        { label: 'Certificado de Reservista', folder: '01_FICHA_CADASTRAL' },
-        { label: 'CPF', folder: '01_FICHA_CADASTRAL' },
-        { label: colab.rg_tipo === 'CIN' ? 'CIN (Nova Identidade)' : 'RG Tradicional', folder: '01_FICHA_CADASTRAL' },
-        { label: 'Comprovante de Endereço', folder: '01_FICHA_CADASTRAL', hasVencimento: true },
-        { label: 'Histórico Escolar', folder: '01_FICHA_CADASTRAL' },
-        { label: 'Certidão de Nascimento', folder: '01_FICHA_CADASTRAL' }
+        { label: 'Carteira de vacinação', folder: '01_FICHA_CADASTRAL' },
+        { label: 'Currículo', folder: '01_FICHA_CADASTRAL' },
+        { label: 'CTPS digital', folder: '01_FICHA_CADASTRAL' }
     ];
+
+    const isMasc = colab.sexo === 'Masculino';
+    if (isMasc) items.push({ label: 'Reservista', folder: '01_FICHA_CADASTRAL' });
+    items.push({ label: colab.rg_tipo === 'CIN' ? 'CIN-CPF' : 'RG-CPF', folder: '01_FICHA_CADASTRAL' });
 
     if (colab.estado_civil === 'Casado') {
         items.push({ label: 'Documento do Cônjuge', folder: '01_FICHA_CADASTRAL' });
@@ -6596,29 +6607,20 @@ function renderAdmissaoStep3(colab, docs) {
         colab.dependentes.forEach(dep => {
             items.push({ label: `CPF Dependente - ${dep.nome}`, folder: '01_FICHA_CADASTRAL' });
             items.push({ label: `Certidão Nasc. Dependente - ${dep.nome}`, folder: '01_FICHA_CADASTRAL' });
-            
-            // Lógica de idade para documentos adicionais
             if (dep.data_nascimento) {
                 const birth = new Date(dep.data_nascimento);
                 const today = new Date();
                 let age = today.getFullYear() - birth.getFullYear();
                 const m = today.getMonth() - birth.getMonth();
-                if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
-                    age--;
-                }
-
-                if (age < 7) {
-                    items.push({ label: `Caderneta de Vacinação - ${dep.nome}`, folder: '01_FICHA_CADASTRAL' });
-                } else {
-                    items.push({ label: `Atestado de Frequência Escolar - ${dep.nome}`, folder: '01_FICHA_CADASTRAL' });
-                }
+                if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+                items.push({ label: age < 7 ? `Caderneta de Vacinação - ${dep.nome}` : `Atestado de Frequência Escolar - ${dep.nome}`, folder: '01_FICHA_CADASTRAL' });
             }
         });
     }
 
     container.innerHTML = '';
     items.forEach(item => {
-        const docRecord = docs.find(d => d.tab_name === item.folder && d.document_type.includes(item.label));
+        const docRecord = docs.find(d => d.tab_name === item.folder && d.document_type === item.label);
         const slot = createDocSlot(item.folder, item.label, docRecord);
         container.appendChild(slot);
     });

@@ -545,7 +545,8 @@ app.post('/api/assinaturas/reenviar', authenticateToken, async (req, res) => {
         }
         
         if (signLink) {
-            db.run(`UPDATE ${table} SET assinafy_url = ? WHERE id = ?`, [signLink, id], () => {}); // ignorando erro silenciosamente caso coluna ausente
+            // Atualizar link + timestamp de envio no banco
+            db.run(`UPDATE ${table} SET assinafy_url = ?, enviado_em = CURRENT_TIMESTAMP WHERE id = ?`, [signLink, id], () => {});
             
             // Enviar email via nodemailer
             const colab = await new Promise((res2, rej2) => db.get('SELECT nome_completo, email FROM colaboradores WHERE id = ?', [doc.colaborador_id], (e, r) => e ? rej2(e) : res2(r)));
@@ -3569,19 +3570,10 @@ app.post('/api/epi-fichas/:id/save-onedrive', authenticateToken, async (req, res
         // Pasta EPI: FichaEPI_N_Nome.pdf (sem sobrepor, número sequencial)
         const epiFolder = `${onedriveBase}/EPI`;
         await onedrive.ensurePath(epiFolder);
-        let nextNum = 1;
-        try {
-            const existentes = await onedrive.listChildren(epiFolder);
-            const nums = (existentes||[]).map(f => { const m=(f.name||'').match(/^FichaEPI_(\d+)_/); return m?parseInt(m[1]):0; });
-            if (nums.length > 0) nextNum = Math.max(...nums) + 1;
-        } catch(e) { /* pasta vazia */ }
-        const epiFileName = `FichaEPI_${nextNum}_${safeNome}.pdf`;
+        // EPI: um único arquivo por ficha (sobrescreve a cada entrega)
+        const epiFileName = `FichaEPI_${fichaId}_${safeNome}.pdf`;
         await onedrive.uploadToOneDrive(epiFolder, epiFileName, pdfBuffer);
-        // Pasta FICHA_CADASTRAL: sempre sobrepõe
-        const cadastralFolder = `${onedriveBase}/01_FICHA_CADASTRAL`;
-        await onedrive.ensurePath(cadastralFolder);
-        await onedrive.uploadToOneDrive(cadastralFolder, `FichaEPI_${safeNome}.pdf`, pdfBuffer);
-        res.json({ success: true, arquivo_epi: epiFileName, arquivo_cadastral: `FichaEPI_${safeNome}.pdf` });
+        res.json({ success: true, arquivo_epi: epiFileName });
     } catch(err) {
         console.error('[EPI save-onedrive]', err);
         res.status(500).json({ error: err.message });
