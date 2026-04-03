@@ -8078,8 +8078,11 @@ async function renderFichaEpiTab(container) {
     const fichaAtiva = fichas.find(f => f.status === 'ativa');
 
     const dept = viewedColaborador?.departamento || '';
-    const templateDoColab = templates.find(t => (t.departamentos||[]).includes(dept)) ||
-                            templates.find(t => t.grupo === dept) || templates[0];
+    const cargo = viewedColaborador?.cargo || '';
+    
+    // Procura template por departamento ou por cargo (e.g. Motorista)
+    let templateDoColab = templates.find(t => (t.departamentos||[]).includes(dept) || (t.departamentos||[]).includes(cargo)) ||
+                          templates.find(t => t.grupo === dept || t.grupo === cargo) || templates[0];
 
     let btnDesabilitado = false;
     if (fichaAtiva && templateDoColab) {
@@ -8114,9 +8117,16 @@ async function renderFichaEpiTab(container) {
                 <i class="ph ph-pen"></i> Registrar Entrega
             </button>
         </div>` : `
-        <div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:10px;padding:1rem 1.25rem;margin-bottom:1.25rem;display:flex;align-items:center;gap:1rem;">
-            <i class="ph ph-warning" style="color:#f59e0b;font-size:1.5rem;"></i>
-            <p style="margin:0;font-size:0.88rem;color:#92400e;">Nenhuma ficha ativa. O sistema gerar&aacute; uma automaticamente ao salvar o template EPI.</p>
+        <div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:10px;padding:1rem 1.25rem;margin-bottom:1.25rem;display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:0.75rem;">
+                <i class="ph ph-warning" style="color:#f59e0b;font-size:1.5rem;"></i>
+                <p style="margin:0;font-size:0.88rem;color:#92400e;">Nenhuma ficha ativa disponível para ${cargo || dept}.</p>
+            </div>
+            ${templateDoColab ? `
+                <button onclick="window.gerarFichaEpiManualProntuario(${templateDoColab.id})" class="btn btn-warning" style="height:34px;display:flex;align-items:center;gap:4px;font-weight:700;background:#f59e0b;color:#fff;border:none;">
+                    <i class="ph ph-plus-circle"></i> Gerar Ficha Automaticamente
+                </button>
+            ` : ''}
         </div>`}
 
         <div>
@@ -8144,6 +8154,48 @@ async function renderFichaEpiTab(container) {
 // ============================================================
 // FLUXO DE ASSINATURA DE ENTREGA DE EPI
 // ============================================================
+
+window.gerarFichaEpiManualProntuario = async function(templateId) {
+    if (!confirm('Deseja gerar a Ficha de EPI para esse colaborador usando o template padrão vinculado a este cargo?')) return;
+    
+    const colabId = viewedColaborador?.id;
+    if (!colabId) return;
+
+    // Acha o template no state
+    const template = window._epiProntuarioData?.templates?.find(t => t.id === templateId);
+    if (!template) return alert('Template inválido.');
+
+    const payload = {
+        template_id: template.id,
+        grupo: template.grupo,
+        snapshot_epis: template.epis || [],
+        snapshot_termo: template.termo_texto || '',
+        snapshot_rodape: template.rodape_texto || ''
+    };
+
+    const btn = event.currentTarget;
+    const oldHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Gerando...';
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(`${API_URL}/colaboradores/${colabId}/epi-fichas`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error('Erro na resposta do servidor.');
+        
+        // Recarrega a aba para exibir a ficha ativa recém-criada
+        renderTabContent('Ficha de EPI', 'Ficha de EPI');
+    } catch(err) {
+        console.error(err);
+        alert('Ocorreu um erro ao gerar a ficha ativa.');
+        btn.innerHTML = oldHtml;
+        btn.disabled = false;
+    }
+};
+
 window.abrirAssinaturaEpi = async function(fichaId) {
     const { fichas, colabId } = window._epiProntuarioData || {};
     const ficha = (fichas || []).find(f => f.id === fichaId);
