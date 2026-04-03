@@ -307,7 +307,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // ROTA DE VERSÃO (Para verificar implantação)
-app.get('/api/version', (req, res) => res.json({ version: 'V45_ASS_TWO_QUERIES' }));
+app.get('/api/version', (req, res) => res.json({ version: 'V46_ASSINAFY_FIX_POLLING_ALL' }));
 
 // ─── MÓDULO DE ASSINATURA DIGITAL COM CERTIFICADO .PFX ───────────────────────
 const signPdfPfx = require('./sign_pdf_pfx');
@@ -317,9 +317,17 @@ const signPdfPfx = require('./sign_pdf_pfx');
 // Roda a cada 2 min e verifica se documentos pendentes foram assinados no Assinafy
 async function pollAdmissaoAssinaturas() {
     try {
-        const pendentes = await new Promise((res, rej) =>
-            db.all(`SELECT * FROM admissao_assinaturas WHERE assinafy_status = 'Pendente' AND assinafy_id IS NOT NULL`, [], (err, rows) => err ? rej(err) : res(rows))
+        const pendentesAdmissao = await new Promise((res, rej) =>
+            db.all(`SELECT id, colaborador_id, assinafy_id, nome_documento, file_path, documento_id, 'admissao' as source 
+                    FROM admissao_assinaturas WHERE assinafy_status = 'Pendente' AND assinafy_id IS NOT NULL`, [], (err, rows) => err ? rej(err) : res(rows))
         );
+
+        const pendentesDocs = await new Promise((res, rej) =>
+            db.all(`SELECT id, colaborador_id, assinafy_id, document_type as nome_documento, signed_file_path as file_path, tab_name, 'documento' as source 
+                    FROM documentos WHERE assinafy_status = 'Pendente' AND assinafy_id IS NOT NULL`, [], (err, rows) => err ? rej(err) : res(rows))
+        );
+
+        const pendentes = [...(pendentesAdmissao || []), ...(pendentesDocs || [])];
         if (!pendentes || pendentes.length === 0) return;
 
         console.log(`[POLL-ADMISSAO] Verificando ${pendentes.length} documento(s) pendente(s)...`);
@@ -349,10 +357,10 @@ async function pollAdmissaoAssinaturas() {
 
                 if (!docInfo) continue;
                 const docData = docInfo.data || docInfo;
-                const statusRaw = (docData?.status || '').toLowerCase();
+                const statusRaw = String(docData?.status || docData?.status_id || '').toLowerCase();
 
-                // Status do Assinafy que indicam assinatura completa
-                const isSigned = ['completed', 'signed', 'concluded', 'finalizado', 'assinado'].some(s => statusRaw.includes(s));
+                // Status do Assinafy que indicam assinatura completa (incluindo 'certificated' v1 e '4')
+                const isSigned = ['completed', 'signed', 'concluded', 'finalizado', 'assinado', 'certificat', '4'].some(s => statusRaw.includes(s) || statusRaw === '4');
                 if (!isSigned) {
                     console.log(`[POLL-ADMISSAO] Doc ${doc.assinafy_id} → status="${statusRaw}" (ainda pendente)`);
                     continue;
@@ -406,13 +414,19 @@ async function pollAdmissaoAssinaturas() {
                         );
                         const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || 'RH/1.Colaboradores/Sistema';
                         const safeColab = formatarNome(colabRow?.nome_completo || 'DESCONHECIDO');
-                        const safeDocName = formatarPasta(doc.nome_documento || 'Contrato').replace(/\s+/g, '_');
+                        const safeDocName = formatarPasta(doc.nome_documento || 'Documento').replace(/\s+/g, '_');
                         const docYear = String(new Date().getFullYear());
                         const cloudName = `${safeDocName}_${safeColab}_${docYear}.pdf`;
-                        const targetDir = `${onedriveBasePath}/${safeColab}/CONTRATOS`;
+                        let targetDir;
+                        if (doc.source === 'documento') {
+                            const safeTab = doc.tab_name ? formatarPasta(doc.tab_name).toUpperCase() : 'DOCUMENTOS';
+                            targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}/${docYear}`;
+                        } else {
+                            targetDir = `${onedriveBasePath}/${safeColab}/CONTRATOS`;
+                        }
                         await onedrive.ensurePath(targetDir);
                         await onedrive.uploadToOneDrive(targetDir, cloudName, finalBuffer);
-                        console.log(`[POLL-ADMISSAO] ✓ OneDrive sync: ${cloudName}`);
+                        console.log(`[POLL-ASSINATURAS] ✓ OneDrive sync: ${cloudName} -> ${targetDir}`);
                         onedriveOk = true;
                     } catch(odErr) {
                         console.warn('[POLL-ADMISSAO] OneDrive sync falhou:', odErr.message);
@@ -431,18 +445,21 @@ async function pollAdmissaoAssinaturas() {
                     }
                 }
 
-                // Atualizar banco - SEMPRE usar CURRENT_TIMESTAMP (compatível com SQLite datetime)
-                db.run(
-                    `UPDATE admissao_assinaturas SET 
-                        assinafy_status = 'Assinado', 
-                        assinado_em = CURRENT_TIMESTAMP,
-                        signed_file_path = ?
-                     WHERE id = ?`,
-                    [signedPath, doc.id]
-                );
-                if (doc.documento_id) {
-                    db.run(`UPDATE documentos SET assinafy_status = 'Assinado', signed_file_path = ?, assinafy_signed_at = CURRENT_TIMESTAMP WHERE id = ?`,
-                        [signedPath, doc.documento_id]);
+                // Atualizar banco de acordo com a origem do documento
+                if (doc.source === 'admissao') {
+                    db.run(
+                        `UPDATE admissao_assinaturas SET assinafy_status = 'Assinado', assinado_em = CURRENT_TIMESTAMP, signed_file_path = ? WHERE id = ?`,
+                        [signedPath, doc.id]
+                    );
+                    if (doc.documento_id) {
+                        db.run(`UPDATE documentos SET assinafy_status = 'Assinado', signed_file_path = ?, assinafy_signed_at = CURRENT_TIMESTAMP WHERE id = ?`,
+                            [signedPath, doc.documento_id]);
+                    }
+                } else {
+                    db.run(
+                        `UPDATE documentos SET assinafy_status = 'Assinado', signed_file_path = ?, assinafy_signed_at = CURRENT_TIMESTAMP WHERE id = ?`,
+                        [signedPath, doc.id]
+                    );
                 }
             } catch(e) {
                 console.warn(`[POLL-ADMISSAO] Erro ao verificar doc ${doc.assinafy_id}: ${e.message}`);
@@ -584,8 +601,8 @@ app.post('/api/admissao-assinaturas/verificar-status', authenticateToken, async 
 
                 if (!docInfo) continue;
                 const docData = docInfo.data || docInfo;
-                const statusRaw = (docData?.status || '').toLowerCase();
-                const isSigned = ['completed', 'signed', 'concluded', 'finalizado', 'assinado', 'certificated'].some(s => statusRaw.includes(s));
+                const statusRaw = String(docData?.status || docData?.status_id || '').toLowerCase();
+                const isSigned = ['completed', 'signed', 'concluded', 'finalizado', 'assinado', 'certificated', '4'].some(s => statusRaw.includes(s) || statusRaw === '4');
 
                 console.log(`[VERIF] Doc ${doc.assinafy_id} → "${statusRaw}" → signed=${isSigned}`);
 
