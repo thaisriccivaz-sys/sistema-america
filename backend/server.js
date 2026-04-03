@@ -40,6 +40,12 @@ db.run("UPDATE documentos SET document_type = 'Exames Complementares' WHERE docu
     else console.log("Migration 'Audiometria -> Exames Complementares' executada (se houver registros).");
 });
 
+// MIGRATION: Limpar todos os usuários exceto Diretoria1
+db.run("DELETE FROM usuarios WHERE LOWER(REPLACE(username, '.', '')) != 'diretoria1'", (err) => {
+    if (err) console.error("Erro ao limpar usuários:", err);
+    else console.log("Usuários removidos com sucesso, mantendo apenas Diretoria1.");
+});
+
 // Reativado a Sincronização do OneDrive (via SharePoint)
 const onedrive = require('./utils/onedrive');
 
