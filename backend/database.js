@@ -167,6 +167,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
 
             // Adicionar coluna documentos_obrigatorios à tabela cargos (legado, mantida por compatibilidade)
             db.run(`ALTER TABLE cargos ADD COLUMN documentos_obrigatorios TEXT`, (err) => {});
+            db.run(`ALTER TABLE cargos ADD COLUMN departamento TEXT`, (err) => {});
             db.run(`ALTER TABLE documentos ADD COLUMN vencimento TEXT`, (err) => {});
 
             // Tabela de documentos por cargo (nova arquitetura - join table)

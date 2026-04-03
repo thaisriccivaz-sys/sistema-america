@@ -46,6 +46,48 @@ db.run("DELETE FROM usuarios WHERE LOWER(REPLACE(username, '.', '')) != 'diretor
     else console.log("Usuários removidos com sucesso, mantendo apenas Diretoria1.");
 });
 
+// MIGRATION: Remover cargo 'teste'
+db.run("DELETE FROM cargos WHERE nome = 'teste' OR nome = 'Teste'", (err) => {
+    if (err) console.error("Erro ao remover cargo teste:", err);
+});
+
+// MIGRATION: Remover " - Total" dos grupos de permissão
+db.run("UPDATE grupos_permissao SET nome = REPLACE(nome, ' - Total', '') WHERE nome LIKE '% - Total'", (err) => {
+    if (err) console.error("Erro ao atualizar grupos:", err);
+});
+
+// MIGRATION: Inserir ou atualizar relação exata de Cargos x Departamentos solicitada
+const cargosDeptosSync = [
+    ['Aux. Administrativo', 'Administrativo'], ['Ass. Administrativo 1', 'Administrativo'], 
+    ['Ass. Administrativo', 'Administrativo'], ['Aux. Comercial', 'Comercial'], 
+    ['Vendedor', 'Comercial'], ['Sup. Comercial', 'Comercial'], 
+    ['Aux. Logística', 'Logística'], ['Ass. Logística 1', 'Logística'], 
+    ['Ass. Logística 2', 'Logística'], ['Sup. Logística', 'Logística'], 
+    ['Sup. Pátio', 'Logística'], ['Ger. Logística', 'Logística'], 
+    ['Lid. Logística', 'Logística'], ['Aux. Financeiro', 'Financeiro'], 
+    ['Ass. Financeiro 1', 'Financeiro'], ['Ass. Financeiro 2', 'Financeiro'], 
+    ['Sup. Financeiro', 'Financeiro'], ['Aux. RH', 'RH'], ['Ass. RH 1', 'RH'], 
+    ['Ass. RH 2', 'RH'], ['Ana. RH Jr.', 'RH'], ['Ana. RH Pl.', 'RH'], 
+    ['Ana. RH Sr.', 'RH'], ['Cor. de Processos', 'Administrativo'], 
+    ['Motorista', 'Motorista'], ['Ajudante Pátio', 'Ajudante Pátio'], 
+    ['Ajudante Geral', 'Ajudante Geral'], ['Manutenção', 'Manutenção'], 
+    ['Ajudante Limpeza', 'Limpeza']
+];
+
+cargosDeptosSync.forEach(([cNome, cDepto]) => {
+    // Garante que o departamento existe
+    db.run("INSERT OR IGNORE INTO departamentos (nome) VALUES (?)", [cDepto]);
+    
+    // Atualiza ou insere o cargo
+    db.get("SELECT id FROM cargos WHERE nome = ?", [cNome], (err, row) => {
+        if (row) {
+            db.run("UPDATE cargos SET departamento = ? WHERE id = ?", [cDepto, row.id]);
+        } else {
+            db.run("INSERT INTO cargos (nome, departamento, documentos_obrigatorios) VALUES (?, ?, '')", [cNome, cDepto]);
+        }
+    });
+});
+
 // Reativado a Sincronização do OneDrive (via SharePoint)
 const onedrive = require('./utils/onedrive');
 
@@ -1802,23 +1844,23 @@ app.get('/api/cargos', authenticateToken, (req, res) => {
 });
 
 app.post('/api/cargos', authenticateToken, (req, res) => {
-    const { nome, documentos_obrigatorios } = req.body;
-    db.run("INSERT INTO cargos (nome, documentos_obrigatorios) VALUES (?, ?)", 
-        [nome, documentos_obrigatorios || ""], function(err) {
+    const { nome, documentos_obrigatorios, departamento } = req.body;
+    db.run("INSERT INTO cargos (nome, documentos_obrigatorios, departamento) VALUES (?, ?, ?)", 
+        [nome, documentos_obrigatorios || "", departamento || ""], function(err) {
         if (err) return res.status(400).json({ error: err.message });
         res.status(201).json({ id: this.lastID, nome });
     });
 });
 
 app.put('/api/cargos/:id', authenticateToken, (req, res) => {
-    const { nome, documentos_obrigatorios } = req.body;
-    console.log(`Recebida alteração para cargo ${req.params.id}:`, { nome, documentos_obrigatorios });
+    const { nome, documentos_obrigatorios, departamento } = req.body;
+    console.log(`Recebida alteração para cargo ${req.params.id}:`, { nome, documentos_obrigatorios, departamento });
 
     db.get("SELECT nome FROM cargos WHERE id = ?", [req.params.id], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
         
-        let query = "UPDATE cargos SET documentos_obrigatorios = ?";
-        let params = [documentos_obrigatorios || ""];
+        let query = "UPDATE cargos SET documentos_obrigatorios = ?, departamento = ?";
+        let params = [documentos_obrigatorios || "", departamento || ""];
         
         if (row && row.nome.trim().toUpperCase() !== 'MOTORISTA') {
             query += ", nome = ?";

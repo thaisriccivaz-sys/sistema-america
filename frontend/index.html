@@ -324,10 +324,16 @@
                         <div id="cargo-form-container" style="display:none;">
                             <form id="form-manage-cargo">
                                 <input type="hidden" id="manage-cargo-id">
-                                <div class="form-grid mb-4" style="grid-template-columns: 2fr; max-width: 600px;">
+                                <div class="form-grid mb-4" style="grid-template-columns: 1fr 1fr; max-width: 600px;">
                                     <div class="input-group">
                                         <label id="cargo-form-label">Nome do Cargo</label>
-                                        <input type="text" id="cargo-input-name" class="form-control" placeholder="Digite o nome do cargo..." style="flex-grow: 1;">
+                                        <input type="text" id="cargo-input-name" class="form-control" placeholder="Digite o nome do cargo..." style="flex-grow: 1;" required>
+                                    </div>
+                                    <div class="input-group">
+                                        <label>Departamento Vinculado</label>
+                                        <select id="cargo-input-departamento" class="form-control" required>
+                                            <option value="" selected disabled>Selecionar</option>
+                                        </select>
                                     </div>
                                 </div>
 
@@ -706,17 +712,15 @@
                                             <label>Matrícula eSocial</label>
                                             <input type="text" id="colab-matricula-esocial">
                                         </div>
-                                        <div class="input-group span-2">
-                                            <label>Departamento *</label>
-                                            <select id="colab-departamento" required>
+                                        <div class="input-group">
+                                            <label>Cargo *</label>
+                                            <select id="colab-cargo" onchange="toggleMotorista(); autoFillDepartamento();" required>
                                                 <option value="" selected disabled>Selecionar</option>
                                             </select>
                                         </div>
-                                        <div class="input-group">
-                                            <label>Cargo *</label>
-                                            <select id="colab-cargo" onchange="toggleMotorista()" required>
-                                                <option value="" selected disabled>Selecionar</option>
-                                            </select>
+                                        <div class="input-group span-2">
+                                            <label>Departamento (Automático) *</label>
+                                            <input type="text" id="colab-departamento" style="background: #f8f9fa; color: #666; font-weight: 500;" readonly required>
                                         </div>
                                         <div id="section-cnh" class="span-2" style="display:none; background: #fff3e6; padding: 1rem; border-radius: 8px; border-left: 4px solid #fd7e14; margin-top: 0.5rem;">
                                             <label style="color: #fd7e14; font-weight: 600; font-size: 0.85rem; margin-bottom: 0.5rem; display: block;">Dados de CNH</label>

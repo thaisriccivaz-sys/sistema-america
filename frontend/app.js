@@ -762,6 +762,7 @@ async function apiDelete(endpoint) {
 // --- CARGOS E DEPARTAMENTOS ---
 async function loadCargos() {
     const cargos = await apiGet('/cargos');
+    window.allCargosCache = cargos;
     const tbody = document.getElementById('table-cargos-body');
     if (!tbody || !cargos) return;
     
@@ -813,6 +814,7 @@ window.toggleCargoView = async function(mode, id = null) {
         if (mode === 'new') {
             document.getElementById('manage-cargo-id').value = '';
             document.getElementById('cargo-input-name').value = '';
+            document.getElementById('cargo-input-departamento').value = '';
             document.getElementById('cargo-form-label').textContent = 'Novo Cargo';
             if(btnDelete) btnDelete.style.display = 'none';
             renderCargoChecklist(null);  // null = sem cargo ainda, checkboxes desabilitados
@@ -828,6 +830,7 @@ window.toggleCargoView = async function(mode, id = null) {
             
             if (cargo) {
                 document.getElementById('cargo-input-name').value = cargo.nome;
+                if (cargo.departamento) document.getElementById('cargo-input-departamento').value = cargo.departamento;
                 await renderCargoChecklist(id);  // carrega da nova tabela
                 console.log(`Documentos carregados para cargo ${id}`);
             }
@@ -889,25 +892,26 @@ async function renderCargoChecklist(cargoId) {
     });
 }
 
-// Salvar apenas o nome do cargo (documentos são salvos por clique no checkbox)
 async function handleCargoFormSubmit() {
     const id = document.getElementById('manage-cargo-id').value;
     const nomeInput = document.getElementById('cargo-input-name');
+    const deptoInput = document.getElementById('cargo-input-departamento');
     const nome = (nomeInput ? nomeInput.value : '').trim();
+    const departamento = deptoInput ? deptoInput.value : '';
     if (!nome) { alert('Informe o nome do cargo'); return; }
+    if (!departamento) { alert('Informe o departamento vinculado'); return; }
 
     try {
         if (id) {
-            // Atualizar nome do cargo existente
             const r = await fetch(`${API_URL}/cargos/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
-                body: JSON.stringify({ nome, documentos_obrigatorios: '' })
+                body: JSON.stringify({ nome, departamento, documentos_obrigatorios: '' })
             });
             if (!r.ok) { const err = await r.json(); alert('Erro ao salvar: ' + (err.error || 'Erro')); return; }
         } else {
             // Criar novo cargo
-            const res = await apiPost('/cargos', { nome, documentos_obrigatorios: '' });
+            const res = await apiPost('/cargos', { nome, departamento, documentos_obrigatorios: '' });
             if (!res || res.error) { alert('Erro ao cadastrar: ' + (res?.error || 'Erro')); return; }
             // Agora temos o ID, atualizar o hidden field e habilitar os checkboxes
             document.getElementById('manage-cargo-id').value = res.id;
@@ -1286,12 +1290,26 @@ window.calcularHorarioSaida = function() {
 async function loadSelects() {
     loadCargos();
     const deptos = await apiGet('/departamentos');
-    const selectDepto = document.getElementById('colab-departamento');
-    if (selectDepto && deptos) {
-        selectDepto.innerHTML = '<option value="" selected disabled>Selecionar</option>';
-        deptos.forEach(d => selectDepto.innerHTML += `<option value="${d.nome}">${d.nome}</option>`);
+    const selectCargoDepto = document.getElementById('cargo-input-departamento');
+    if (selectCargoDepto && deptos) {
+        selectCargoDepto.innerHTML = '<option value="" selected disabled>Selecionar</option>';
+        deptos.forEach(d => selectCargoDepto.innerHTML += `<option value="${d.nome}">${d.nome}</option>`);
     }
     loadFaculdadeCursosDropdown();
+}
+
+window.autoFillDepartamento = function() {
+    const selectCargo = document.getElementById('colab-cargo');
+    const inputDepto = document.getElementById('colab-departamento');
+    if (!selectCargo || !inputDepto || !window.allCargosCache) return;
+    
+    const cargoName = selectCargo.value;
+    const desc = window.allCargosCache.find(c => c.nome === cargoName);
+    if (desc && desc.departamento) {
+        inputDepto.value = desc.departamento;
+    } else {
+        inputDepto.value = '';
+    }
 }
 
 window.updateVacationInfo = function(admissaoStr) {
