@@ -359,6 +359,14 @@ async function pollAdmissaoAssinaturas() {
                 const docData = docInfo.data || docInfo;
                 const statusRaw = String(docData?.status || docData?.status_id || '').toLowerCase();
 
+                // Tentar extrair o PDF assinado
+                const extractSignedUrl = (dt) => {
+                    if (dt.signed_file_url) return dt.signed_file_url;
+                    if (dt.signers && dt.signers[0] && dt.signers[0].signed_file_url) return dt.signers[0].signed_file_url;
+                    
+                    return dt.file_url || dt.document_pdf || null;
+                };
+
                 // Status do Assinafy que indicam assinatura completa (incluindo 'certificated' v1 e '4')
                 const isSigned = ['completed', 'signed', 'concluded', 'finalizado', 'assinado', 'certificat', '4'].some(s => statusRaw.includes(s) || statusRaw === '4');
                 if (!isSigned) {
@@ -540,10 +548,10 @@ app.post('/api/assinaturas/reenviar', authenticateToken, async (req, res) => {
             db.run(`UPDATE ${table} SET assinafy_url = ? WHERE id = ?`, [signLink, id], () => {}); // ignorando erro silenciosamente caso coluna ausente
             
             // Enviar email via nodemailer
-            const colab = await new Promise((res2, rej2) => db.get('SELECT nome_completo, email_corporativo, email FROM colaboradores WHERE id = ?', [doc.colaborador_id], (e, r) => e ? rej2(e) : res2(r)));
+            const colab = await new Promise((res2, rej2) => db.get('SELECT nome_completo, email FROM colaboradores WHERE id = ?', [doc.colaborador_id], (e, r) => e ? rej2(e) : res2(r)));
             
             if (colab) {
-                const destEmail = colab.email_corporativo || colab.email;
+                const destEmail = colab.email;
                 if (destEmail) {
                     const nodemailer = require('nodemailer');
                     const transporter = nodemailer.createTransport(SMTP_CONFIG);

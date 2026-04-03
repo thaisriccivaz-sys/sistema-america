@@ -232,7 +232,7 @@ const BREADCRUMB_MAP = {
     'certificado-digital':  { path: 'Diretoria → Certificado Digital',                            code: 'DIR003' },
     // Sub-telas (Prontuário Digital - abas)
     'tab:00. CheckList':          { path: 'Colaboradores → Prontuário Digital → 00. CheckList',          },
-    'tab:01. Ficha Cadastral':    { path: 'Colaboradores → Prontuário Digital → Ficha Cadastral',        },
+    'tab:01_FICHA_CADASTRAL':     { path: 'Colaboradores → Prontuário Digital → Ficha Cadastral',        },
     'tab:Ficha Cadastral':        { path: 'Colaboradores → Prontuário Digital → Ficha Cadastral',        },
     'tab:Pagamentos':             { path: 'Colaboradores → Prontuário Digital → Pagamentos',             },
     'tab:ASO':                    { path: 'Colaboradores → Prontuário Digital → ASO',                    },
@@ -3309,7 +3309,7 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
         renderAdvertenciasTab(listContainer, filteredDocs);
     } else if (tabId === 'Ficha de EPI') {
         renderFichaEpiTab(listContainer);
-    } else if (tabId === '01.Ficha Cadastral') {
+    } else if (tabId === '01_FICHA_CADASTRAL') {
         const fixed = getFichaCadastralDocs();
         fixed.forEach(docType => {  
             if (!searchTerm || docType.toLowerCase().includes(searchTerm)) {
@@ -6525,7 +6525,7 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
             // Mapeamento de Status por Step (Fixo para os outros)
 
             const remainingSteps = {
-                'panel-step-4': { folder: 'ASO', ids: ['admissao-checklist-step4'], labels: ['ASO Admissional'] },
+                'panel-step-4': { folder: 'ASO', ids: ['admissao-checklist-step4'], labels: ['ASO Padrão'] },
                 'panel-step-5': { folder: 'OUTROS', ids: ['admissao-checklist-step5'], labels: ['Protocolo eSocial'] },
                 'panel-step-6': { folder: 'TREINAMENTO', ids: ['admissao-checklist-step6'], labels: ['Integração'] },
                 'panel-step-7': { folder: 'CERTIFICADOS', ids: ['admissao-checklist-step7'], labels: ['Diploma'] },
@@ -6542,7 +6542,7 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
                 // Tratar ASO especial (pode ter exames opcionais)
                 let labels = config.labels;
                 if (pid === 'panel-step-4' && (colab.cargo || '').toLowerCase().includes('motorista')) {
-                    labels = ['ASO Admissional', 'ASO Exames'];
+                    labels = ['ASO Padrão', 'Exames Complementares'];
                 }
 
                 labels.forEach(label => {
