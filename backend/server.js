@@ -996,6 +996,143 @@ app.get('/api/dashboard', authenticateToken, (req, res) => {
     });
 });
 
+app.get('/api/dashboard/charts', authenticateToken, async (req, res) => {
+    try {
+        const atestadosMes = await new Promise((resolve, reject) => {
+            const query = `
+                SELECT strftime('%Y-%m', upload_date) as mes, COUNT(*) as count 
+                FROM documentos 
+                WHERE (tab_name LIKE '%ATESTADO%' OR document_type LIKE '%Atestado%')
+                GROUP BY mes 
+                ORDER BY mes DESC 
+                LIMIT 6
+            `;
+            db.all(query, [], (err, rows) => err ? reject(err) : resolve(rows));
+        });
+
+        const asoVencendo = await new Promise((resolve, reject) => {
+            const today = new Date();
+            const future = new Date();
+            future.setDate(today.getDate() + 30);
+            
+            const query = `
+                SELECT c.nome_completo as nome, d.vencimento 
+                FROM documentos d 
+                JOIN colaboradores c ON c.id = d.colaborador_id 
+                WHERE (d.tab_name LIKE '%ASO%' OR d.document_type LIKE '%ASO%')
+                  AND d.vencimento IS NOT NULL
+                  AND d.vencimento != ''
+                  AND c.status = 'Ativo'
+            `;
+            db.all(query, [], (err, rows) => {
+                if (err) return reject(err);
+                
+                const todayStr = today.toISOString().split('T')[0];
+                const futureStr = future.toISOString().split('T')[0];
+                
+                const filtered = rows.filter(r => {
+                    if (!r.vencimento) return false;
+                    let v = r.vencimento;
+                    if (v.includes('/')) {
+                        const parts = v.split('/');
+                        if (parts.length === 3) v = `${parts[2]}-${parts[1]}-${parts[0]}`;
+                    }
+                    return v >= todayStr && v <= futureStr;
+                });
+                
+                filtered.sort((a,b) => {
+                    let vA = a.vencimento.includes('/') ? a.vencimento.split('/').reverse().join('-') : a.vencimento;
+                    let vB = b.vencimento.includes('/') ? b.vencimento.split('/').reverse().join('-') : b.vencimento;
+                    return vA.localeCompare(vB);
+                });
+                resolve(filtered);
+            });
+        });
+
+        const faltasRanking = await new Promise((resolve, reject) => {
+            const faltasQuery = `
+                SELECT colaborador_id, COUNT(*) as faltas_sem_atestado 
+                FROM faltas 
+                GROUP BY colaborador_id
+            `;
+            const atestadosQuery = `
+                SELECT colaborador_id, atestado_inicio, atestado_fim 
+                FROM documentos 
+                WHERE tab_name LIKE '%ATESTADO%' OR document_type LIKE '%Atestado%'
+            `;
+            const cQuery = "SELECT id, nome_completo as nome FROM colaboradores WHERE status = 'Ativo'";
+            
+            db.all(faltasQuery, [], (e1, fRows) => {
+                if (e1) return reject(e1);
+                db.all(atestadosQuery, [], (e2, aRows) => {
+                    if (e2) return reject(e2);
+                    db.all(cQuery, [], (e3, cRows) => {
+                        if (e3) return reject(e3);
+                        
+                        const ranking = cRows.map(c => {
+                            const faltas = fRows.find(f => f.colaborador_id === c.id)?.faltas_sem_atestado || 0;
+                            const docs = aRows.filter(a => a.colaborador_id === c.id);
+                            let diasAtestado = 0;
+                            docs.forEach(doc => {
+                                if (doc.atestado_inicio && doc.atestado_fim) {
+                                    const diff = (new Date(doc.atestado_fim) - new Date(doc.atestado_inicio)) / (1000 * 60 * 60 * 24) + 1;
+                                    diasAtestado += isNaN(diff) ? 1 : diff;
+                                } else {
+                                    diasAtestado += 1; 
+                                }
+                            });
+                            return { id: c.id, nome: c.nome, faltas_sem_atestado: faltas, dias_atestado: diasAtestado, total: faltas + diasAtestado };
+                        });
+                        resolve(ranking.filter(r => r.total > 0).sort((a,b) => b.total - a.total).slice(0, 10));
+                    });
+                });
+            });
+        });
+
+        const feriasVencendo = await new Promise((resolve, reject) => {
+             db.all("SELECT id, nome_completo as nome, data_admissao FROM colaboradores WHERE status = 'Ativo' AND data_admissao IS NOT NULL AND data_admissao != ''", [], (err, rows) => {
+                 if (err) return reject(err);
+                 const today = new Date();
+                 const future = new Date();
+                 future.setDate(today.getDate() + 60);
+
+                 const resFerias = rows.map(r => {
+                     let adm = r.data_admissao;
+                     if (adm.includes('/')) {
+                         const pts = adm.split('/');
+                         if (pts.length===3) adm = `${pts[2]}-${pts[1]}-${pts[0]}`;
+                     }
+                     const concessivoEnd = new Date(adm + 'T12:00:00');
+                     concessivoEnd.setFullYear(concessivoEnd.getFullYear() + 2);
+                     
+                     const diffDays = Math.ceil((concessivoEnd - today) / (1000 * 60 * 60 * 24));
+                     return {
+                         id: r.id, 
+                         nome: r.nome,
+                         admissao: adm,
+                         concessivo_fim: concessivoEnd.toISOString().split('T')[0],
+                         dias_restantes: diffDays
+                     };
+                 }).filter(r => r.dias_restantes >= 0 && r.dias_restantes <= 60)
+                 .sort((a,b) => a.dias_restantes - b.dias_restantes);
+
+                 resolve(resFerias);
+             });
+        });
+
+        res.json({
+            atestadosMes: atestadosMes.reverse(),
+            asoVencendo,
+            faltasRanking,
+            feriasVencendo
+        });
+
+    } catch (error) {
+        console.error("Erro nas charts do dashboard:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // --- ROTAS DE COLABORADORES ---
 app.get('/api/colaboradores', authenticateToken, (req, res) => {
     db.all('SELECT * FROM colaboradores', [], (err, rows) => {

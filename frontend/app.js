@@ -1407,24 +1407,134 @@ window.calculateVacationDays = function() {
 }
 
 // --- DASHBOARD ---
+let chartAtestadosInst = null;
+let chartFaltasInst = null;
+
 async function loadDashboard() {
     const stats = await apiGet('/dashboard');
-    if (!stats) return;
-    
-    const totalEl = document.getElementById('stat-total');
-    if (totalEl) totalEl.textContent = stats.total || 0;
-    
-    const ativosEl = document.getElementById('stat-ativos');
-    if (ativosEl) ativosEl.textContent = stats.ativos || 0;
-    
-    const feriasEl = document.getElementById('stat-ferias');
-    if (feriasEl) feriasEl.textContent = stats.ferias || 0;
-    
-    const afastadosEl = document.getElementById('stat-afastados');
-    if (afastadosEl) afastadosEl.textContent = stats.afastados || 0;
-    
-    const desligadosEl = document.getElementById('stat-desligados');
-    if (desligadosEl) desligadosEl.textContent = stats.desligados || 0;
+    if (stats) {
+        const totalEl = document.getElementById('stat-total');
+        if (totalEl) totalEl.textContent = stats.total || 0;
+        
+        const ativosEl = document.getElementById('stat-ativos');
+        if (ativosEl) ativosEl.textContent = stats.ativos || 0;
+        
+        const feriasEl = document.getElementById('stat-ferias');
+        if (feriasEl) feriasEl.textContent = stats.ferias || 0;
+        
+        const afastadosEl = document.getElementById('stat-afastados');
+        if (afastadosEl) afastadosEl.textContent = stats.afastados || 0;
+        
+        const desligadosEl = document.getElementById('stat-desligados');
+        if (desligadosEl) desligadosEl.textContent = stats.desligados || 0;
+    }
+
+    const chartsData = await apiGet('/dashboard/charts');
+    if (chartsData) {
+        // Render Atestados Chart
+        const ctxAtestados = document.getElementById('chart-atestados');
+        if (ctxAtestados) {
+            if (chartAtestadosInst) chartAtestadosInst.destroy();
+            const labelsMeses = chartsData.atestadosMes.map(d => {
+                const parts = d.mes.split('-');
+                return parts.length === 2 ? `${parts[1]}/${parts[0]}` : d.mes;
+            });
+            const dataMeses = chartsData.atestadosMes.map(d => d.count);
+            
+            chartAtestadosInst = new Chart(ctxAtestados, {
+                type: 'bar',
+                data: {
+                    labels: labelsMeses.length ? labelsMeses : ['Sem dados'],
+                    datasets: [{
+                        label: 'Qtd. de Atestados',
+                        data: dataMeses.length ? dataMeses : [0],
+                        backgroundColor: '#228be6',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+                }
+            });
+        }
+
+        // Render Faltas Chart
+        const ctxFaltas = document.getElementById('chart-faltas');
+        if (ctxFaltas) {
+            if (chartFaltasInst) chartFaltasInst.destroy();
+            const ranking = chartsData.faltasRanking;
+            
+            chartFaltasInst = new Chart(ctxFaltas, {
+                type: 'bar',
+                data: {
+                    labels: ranking.length ? ranking.map(r => r.nome.split(' ')[0] + ' ' + (r.nome.split(' ')[1] || '')) : ['Sem dados'],
+                    datasets: [
+                        {
+                            label: 'Faltas Injustificadas',
+                            data: ranking.length ? ranking.map(r => r.faltas_sem_atestado) : [0],
+                            backgroundColor: '#fa5252',
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'Dias Atestado',
+                            data: ranking.length ? ranking.map(r => r.dias_atestado) : [0],
+                            backgroundColor: '#f59f00',
+                            borderRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } },
+                    scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } } }
+                }
+            });
+        }
+
+        // Render Férias Table
+        const tbFerias = document.getElementById('dash-table-ferias');
+        if (tbFerias) {
+            tbFerias.innerHTML = '';
+            if (!chartsData.feriasVencendo || chartsData.feriasVencendo.length === 0) {
+                tbFerias.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#999;font-style:italic;">Nenhuma férias a vencer em 60 dias.</td></tr>';
+            } else {
+                chartsData.feriasVencendo.forEach(f => {
+                    const cfPts = f.concessivo_fim.split('-');
+                    const cfmt = `${cfPts[2]}/${cfPts[1]}/${cfPts[0]}`;
+                    const corRestante = f.dias_restantes <= 15 ? 'color:#e03131;font-weight:bold;' : 'color:#f08c00;';
+                    tbFerias.innerHTML += `
+                        <tr>
+                            <td><a href="#" style="color:#1c7ed6;text-decoration:none;" onclick="event.preventDefault(); viewColaborador(${f.id})">${f.nome}</a></td>
+                            <td>${cfmt}</td>
+                            <td style="${corRestante}">${f.dias_restantes} dias</td>
+                        </tr>
+                    `;
+                });
+            }
+        }
+
+        // Render ASO Table
+        const tbAso = document.getElementById('dash-table-aso');
+        if (tbAso) {
+            tbAso.innerHTML = '';
+            if (!chartsData.asoVencendo || chartsData.asoVencendo.length === 0) {
+                tbAso.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#999;font-style:italic;">Nenhum ASO a vencer em 30 dias.</td></tr>';
+            } else {
+                chartsData.asoVencendo.forEach(a => {
+                    tbAso.innerHTML += `
+                        <tr>
+                            <td>${a.nome}</td>
+                            <td style="color:#d9480f;font-weight:600;">${a.vencimento}</td>
+                        </tr>
+                    `;
+                });
+            }
+        }
+    }
 }
 
 // --- COLABORADORES ---
