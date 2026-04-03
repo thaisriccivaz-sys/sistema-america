@@ -151,7 +151,9 @@ async function uploadDocToOneDrive(docId) {
         if (doc.tab_name === 'AVALIACAO') {
             cloudName = doc.file_name;
         } else if (isAtestado) {
-            cloudName = doc.file_name.replace(/_\d{8}_\d{6}(\.\w+)$/, '$1');
+            // Para atestados: o file_name do multer é custom_name + timestamp + ext
+            // Remover o sufixo de timestamp _YYYYMMDD_HHMMSS para restaurar o nome correto
+            cloudName = doc.file_name.replace(/_\d{8}_\d{6}(\.[^.]+)$/, '$1').replace(/_\d{12}(\.[^.]+)$/, '$1');
         } else {
             cloudName = `${formatarPasta(doc.document_type || doc.tab_name).replace(/\s+/g, '_')}_${docYear}_${safeColab}.pdf`;
         }
@@ -557,18 +559,25 @@ app.post('/api/assinaturas/reenviar', authenticateToken, async (req, res) => {
                     const nodemailer = require('nodemailer');
                     const transporter = nodemailer.createTransport(SMTP_CONFIG);
                     
+                    const apiBase = (process.env.BASE_URL || 'https://sistema-america.onrender.com');
+                    const logoUrl = `${apiBase}/assets/logo-header.png`;
                     const html = `
-                        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
-                            <h2 style="color: #0f4c81;">Lembrete de Assinatura</h2>
-                            <p>Olá <strong>${colab.nome_completo || 'Colaborador'}</strong>,</p>
-                            <p>Você tem um documento pendente de assinatura no sistema da América Rental: <strong>${doc.nome_documento || 'Documento'}</strong>.</p>
-                            <p>Por favor, clique no botão abaixo para revisar e assinar digitalmente:</p>
-                            <div style="text-align: center; margin: 30px 0;">
-                                <a href="${signLink}" style="background-color: #0f4c81; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Assinar Documento</a>
+                        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden;">
+                            <div style="background: #fff; padding: 0;">
+                                <img src="${logoUrl}" alt="América Rental" style="width: 100%; display: block; max-height: 120px; object-fit: cover;" onerror="this.style.display='none'">
                             </div>
-                            <p style="color: #666; font-size: 12px;">Se o botão não funcionar, cole este link no seu navegador:<br>${signLink}</p>
-                            <hr style="border: none; border-top: 1px solid #eee; margin: 25px 0;">
-                            <p style="color: #999; font-size: 11px;">Este é um e-mail automático, por favor não responda.</p>
+                            <div style="padding: 1.5rem 2rem;">
+                                <h2 style="color: #0f4c81; margin-top: 0;">Lembrete de Assinatura</h2>
+                                <p>Olá <strong>${colab.nome_completo || 'Colaborador'}</strong>,</p>
+                                <p>Você tem um documento pendente de assinatura no sistema da América Rental: <strong>${doc.nome_documento || 'Documento'}</strong>.</p>
+                                <p>Por favor, clique no botão abaixo para revisar e assinar digitalmente:</p>
+                                <div style="text-align: center; margin: 30px 0;">
+                                    <a href="${signLink}" style="background-color: #0f4c81; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Assinar Documento</a>
+                                </div>
+                                <p style="color: #666; font-size: 12px;">Se o botão não funcionar, cole este link no seu navegador:<br>${signLink}</p>
+                                <hr style="border: none; border-top: 1px solid #eee; margin: 25px 0;">
+                                <p style="color: #999; font-size: 11px;">Este é um e-mail automático, por favor não responda.</p>
+                            </div>
                         </div>
                     `;
                     

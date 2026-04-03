@@ -8484,20 +8484,32 @@ window._assinNextStep = async function() {
             if (result.error) throw new Error(result.error);
 
             window._assinStep(3);
-            // Salvar PDF no OneDrive (fire-and-forget)
+            // Salvar PDF no OneDrive com TODAS as entregas (fire-and-forget)
             (async () => {
                 try {
-                    const { fichas: ff, colabId: cid } = window._epiProntuarioData || {};
+                    const { fichas: ff, colabId: cid, templates } = window._epiProntuarioData || {};
                     const fich = (ff||[]).find(f => f.id === window._assinFichaId);
                     if (fich && cid) {
                         if (typeof ensureHeaderLogo === 'function') await ensureHeaderLogo().catch(()=>{});
-                        const tpl = (window._epiProntuarioData.templates||[]).find(t => t.grupo === fich.grupo) || fich;
+                        const tpl = (templates||[]).find(t => t.grupo === fich.grupo) || fich;
                         const { jsPDF } = window.jspdf;
-                        const itens = window._buildItensFromQtds ? window._buildItensFromQtds() : [];
-                        const dataVal = (()=>{ const i=document.getElementById('epi-data-entrega'); if(!i||!i.value) return ''; const p=i.value.split('-'); return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:i.value; })();
-                        const lf = itens.map(nome => ({ data: dataVal, descricao: nome, assinatura_base64: assinaturaBase64 }));
-                        const doc = window.gerarDocEpi(tpl, viewedColaborador||{}, jsPDF, lf);
-                        // Usar datauristring nativo do jsPDF que não quebra pilha de chamadas
+
+                        // Buscar TODAS as entregas já registradas para esta ficha (histórico completo)
+                        const todasEntregas = await fetch(`${API_URL}/epi-fichas/${window._assinFichaId}/entregas`, {
+                            headers: { 'Authorization': 'Bearer ' + currentToken }
+                        }).then(r => r.json()).catch(() => []);
+
+                        const linhasFull = [];
+                        (todasEntregas || []).forEach(e => {
+                            const epis = e.epis_entregues || [];
+                            if (epis.length === 0) {
+                                linhasFull.push({ data: e.data_entrega || '', descricao: '', assinatura_base64: e.assinatura_base64 });
+                            } else {
+                                epis.forEach(nome => linhasFull.push({ data: e.data_entrega || '', descricao: nome, assinatura_base64: e.assinatura_base64 }));
+                            }
+                        });
+
+                        const doc = window.gerarDocEpi(tpl, viewedColaborador||{}, jsPDF, linhasFull);
                         const pdfB64 = doc.output('datauristring');
                         await fetch(API_URL + '/epi-fichas/' + window._assinFichaId + '/save-onedrive', {
                             method: 'POST',
