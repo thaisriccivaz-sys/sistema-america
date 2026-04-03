@@ -6336,7 +6336,7 @@ window.renderContratosTab = async function(container) {
                         <div style="font-size:0.78rem; color:#64748b;">Os documentos selecionados serão enviados ao e-mail do colaborador via Assinafy.</div>
                     </div>
                     <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-                        <button type="button" style="background:#ef4444; color:#fff; border:none; padding:10px 15px; border-radius:6px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:5px;" onclick="window.rodarDiagnosticoAssinafy()">
+                        <button type="button" style="display:none !important; background:#ef4444; color:#fff; border:none; padding:10px 15px; border-radius:6px; font-weight:bold; cursor:pointer;" onclick="window.rodarDiagnosticoAssinafy()">
                             <i class="ph ph-bug"></i> VERIFICAR API
                         </button>
                         <button id="btn-enviar-contratos" class="btn btn-primary" onclick="window.sendAdmissaoSignatures('contratos-signature-list', 'btn-enviar-contratos')" style="display:flex; align-items:center; gap:5px;">
