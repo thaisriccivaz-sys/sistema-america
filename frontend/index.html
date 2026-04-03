@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
@@ -69,8 +69,7 @@
                     <a href="#" class="nav-item" data-target="admissao"><i class="ph ph-list-checks"></i> Admiss&atilde;o</a>
                     <a href="#" class="nav-item" data-target="integracao"><i class="ph ph-users-three"></i> Integra&ccedil;&atilde;o</a>
                     <a href="#" class="nav-item" data-target="assinaturas-digitais"><i class="ph ph-signature"></i> Assinaturas</a>
-                    <a href="#" class="nav-item" data-target="cargos"><i class="ph ph-briefcase"></i> Cargos</a>
-                    <a href="#" class="nav-item" data-target="departamentos"><i class="ph ph-buildings"></i> Departamentos</a>
+                    <a href="#" class="nav-item" data-target="cargos"><i class="ph ph-briefcase"></i> Cargos e Dept</a>
                     <a href="#" class="nav-item" data-target="faculdade"><i class="ph ph-graduation-cap"></i> Faculdade</a>
                     <a href="#" class="nav-item" data-target="geradores"><i class="ph ph-file-text"></i> Geradores</a>
                     <a href="#" class="nav-item" data-target="ficha-epi"><i class="ph ph-shield-check"></i> Ficha EPI</a>
@@ -330,10 +329,22 @@
                                 <i class="ph ph-x-circle"></i> Cancelar
                             </button>
                             <button type="button" class="btn btn-primary" onclick="window.saveCargoConfig()" style="font-weight: 600; background: #2563eb;">
-                                <i class="ph ph-floppy-disk"></i> Salvar ConfiguraÃ§Ã£o
+                                <i class="ph ph-floppy-disk"></i> Salvar Configuração
                             </button>
                         </div>
                     </div>
+
+                    <!-- ABAS INTERNAS (CARGOS E DEPARTAMENTOS) -->
+                    <div style="display: flex; gap: 4px; padding: 0 1rem; border-bottom: 2px solid #e2e8f0; margin-bottom: 1.5rem; background: var(--bg-main);">
+                        <button class="btn-sub-tab active" id="tab-btn-cargos" onclick="switchCargoDeptoTab('cargos')" style="padding: 0.75rem 1.5rem; background: none; border: none; border-bottom: 2px solid var(--primary-color); color: var(--primary-color); font-weight: 600; cursor: pointer; transition: all 0.2s; margin-bottom: -2px;">
+                            <i class="ph ph-briefcase"></i> Cargos
+                        </button>
+                        <button class="btn-sub-tab" id="tab-btn-departamentos" onclick="switchCargoDeptoTab('departamentos')" style="padding: 0.75rem 1.5rem; background: none; border: none; border-bottom: 2px solid transparent; color: #64748b; font-weight: 500; cursor: pointer; transition: all 0.2s; margin-bottom: -2px;">
+                            <i class="ph ph-buildings"></i> Departamentos
+                        </button>
+                    </div>
+
+                    <div id="tab-content-cargos">
                     <div class="card p-4">
                         <!-- CONTAINER 1: LISTA DE CARGOS -->
                         <div id="cargo-list-container">
@@ -382,6 +393,24 @@
                             </form>
                         </div>
                     </div>
+                    </div>
+
+                    <!-- TAB 2: GESTÃO DE DEPARTAMENTOS -->
+                    <div id="tab-content-departamentos" style="display: none;">
+                        <div class="card mb-4 p-4">
+                            <form id="form-departamento" class="flex-between" style="gap: 1rem;">
+                                <input type="text" id="novo-departamento-nome" placeholder="Nome do Novo Departamento" style="flex-grow: 1;">
+                                <button type="submit" class="btn btn-primary"><i class="ph ph-plus"></i> Adicionar Depto</button>
+                            </form>
+                        </div>
+                        <div class="card">
+                            <table class="table">
+                                <thead><tr><th>ID</th><th>Nome do Departamento</th><th>Ações</th></tr></thead>
+                                <tbody id="table-departamentos"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
                 </section>
 
                 <!-- VIEW: INTEGRAÃ‡ÃƒO -->
@@ -428,24 +457,6 @@
                     </div>
                 </section>
 
-                <!-- VIEW: DEPARTAMENTOS -->
-                <section id="view-departamentos" class="content-view">
-                    <div class="page-header flex-between">
-                        <h2>GestÃ£o de Departamentos</h2>
-                    </div>
-                    <div class="card mb-4 p-4">
-                        <form id="form-departamento" class="flex-between" style="gap: 1rem;">
-                            <input type="text" id="novo-departamento-nome" placeholder="Nome do Novo Departamento" style="flex-grow: 1;">
-                            <button type="submit" class="btn btn-primary"><i class="ph ph-plus"></i> Adicionar Depto</button>
-                        </form>
-                    </div>
-                    <div class="card">
-                        <table class="table">
-                            <thead><tr><th>ID</th><th>Nome do Departamento</th><th>AÃ§Ãµes</th></tr></thead>
-                            <tbody id="table-departamentos"></tbody>
-                        </table>
-                    </div>
-                </section>
                 
                 <!-- VIEW: FACULDADE -->
                 <section id="view-faculdade" class="content-view">
