@@ -1436,10 +1436,40 @@ async function loadDashboard() {
         const ctxAtestados = document.getElementById('chart-atestados');
         if (ctxAtestados) {
             if (chartAtestadosInst) chartAtestadosInst.destroy();
-            const labelsMeses = chartsData.atestadosMes.map(d => {
+            
+            const labelsMeses = (chartsData.faltasAgrupadasMes || []).map(d => {
                 const parts = d.mes.split('-');
                 return parts.length === 2 ? `${parts[1]}/${parts[0]}` : d.mes;
             });
+            const dataFaltas = (chartsData.faltasAgrupadasMes || []).map(d => d.faltas);
+            const dataAtestados = (chartsData.faltasAgrupadasMes || []).map(d => d.atestados);
+
+            chartAtestadosInst = new Chart(ctxAtestados, {
+                type: 'bar',
+                data: {
+                    labels: labelsMeses.length ? labelsMeses : ['Sem dados'],
+                    datasets: [
+                    {
+                        label: 'Faltas Injustificadas',
+                        data: dataFaltas.length ? dataFaltas : [0],
+                        backgroundColor: '#fa5252',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Atestados',
+                        data: dataAtestados.length ? dataAtestados : [0],
+                        backgroundColor: '#228be6',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } },
+                    scales: { x: { stacked: false }, y: { beginAtZero: true, ticks: { precision: 0 } } }
+                }
+            });
+
             const dataMeses = chartsData.atestadosMes.map(d => d.count);
             
             chartAtestadosInst = new Chart(ctxAtestados, {
@@ -6533,7 +6563,7 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
         }
 
         if (colab.status === 'Aguardando início') {
-            document.getElementById('admissao-start-name').textContent = colab.nome_completo;
+            if(document.getElementById('admissao-start-name')) if(document.getElementById('admissao-start-name')) document.getElementById('admissao-start-name').textContent = colab.nome_completo;
             document.getElementById('admissao-start-action').style.display = 'block';
         } else if (colab.status === 'Processo iniciado') {
             document.getElementById('admissao-workflow').style.display = 'block';
@@ -6599,7 +6629,7 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
                 </div>
             `;
             
-            document.getElementById('admissao-nome-final').textContent = colab.nome_completo;
+            if(document.getElementById('admissao-nome-final')) if(document.getElementById('admissao-nome-final')) document.getElementById('admissao-nome-final').textContent = colab.nome_completo;
 
             // Busca dados para o Passo 2: Documentos do Departamento
             // Verifica status no Assinafy ANTES de buscar os dados do banco
@@ -9894,4 +9924,19 @@ window.nextIntegracaoStep = function(step) {
     
     const icon = document.getElementById('int-step-' + step);
     if(icon) icon.classList.add('active');
+};
+
+window.switchCargoDeptoTab = function(tab) {
+    document.getElementById('tab-btn-cargos').style.color = '#64748b';
+    document.getElementById('tab-btn-cargos').style.borderBottomColor = 'transparent';
+    document.getElementById('tab-btn-cargos').style.fontWeight = '500';
+    document.getElementById('tab-btn-departamentos').style.color = '#64748b';
+    document.getElementById('tab-btn-departamentos').style.borderBottomColor = 'transparent';
+    document.getElementById('tab-btn-departamentos').style.fontWeight = '500';
+    document.getElementById('tab-content-cargos').style.display = 'none';
+    document.getElementById('tab-content-departamentos').style.display = 'none';
+    document.getElementById('tab-btn-' + tab).style.color = 'var(--primary-color)';
+    document.getElementById('tab-btn-' + tab).style.borderBottomColor = 'var(--primary-color)';
+    document.getElementById('tab-btn-' + tab).style.fontWeight = '600';
+    document.getElementById('tab-content-' + tab).style.display = 'block';
 };
