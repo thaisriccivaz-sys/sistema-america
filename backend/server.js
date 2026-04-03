@@ -318,12 +318,12 @@ const signPdfPfx = require('./sign_pdf_pfx');
 async function pollAdmissaoAssinaturas() {
     try {
         const pendentesAdmissao = await new Promise((res, rej) =>
-            db.all(`SELECT id, colaborador_id, assinafy_id, nome_documento, file_path, documento_id, 'admissao' as source 
+            db.all(`SELECT id, colaborador_id, assinafy_id, nome_documento, 'admissao' as source 
                     FROM admissao_assinaturas WHERE assinafy_status = 'Pendente' AND assinafy_id IS NOT NULL`, [], (err, rows) => err ? rej(err) : res(rows))
         );
 
         const pendentesDocs = await new Promise((res, rej) =>
-            db.all(`SELECT id, colaborador_id, assinafy_id, document_type as nome_documento, signed_file_path as file_path, tab_name, 'documento' as source 
+            db.all(`SELECT id, colaborador_id, assinafy_id, document_type as nome_documento, tab_name, 'documento' as source 
                     FROM documentos WHERE assinafy_status = 'Pendente' AND assinafy_id IS NOT NULL`, [], (err, rows) => err ? rej(err) : res(rows))
         );
 
@@ -436,8 +436,7 @@ async function pollAdmissaoAssinaturas() {
                 let signedPath = null;
                 if (finalBuffer) {
                     try {
-                        const destPath = (doc.file_path || path.join(BASE_PATH, `admissao_${doc.id}.pdf`))
-                            .replace(/(_assinado)?(_cert)?\.pdf$/, certSignedBuffer ? '_cert.pdf' : '_assinado.pdf');
+                        const destPath = path.join(BASE_PATH, `doc_${doc.id}.pdf`);
                         fs.writeFileSync(destPath, finalBuffer);
                         signedPath = destPath;
                     } catch(e) {
@@ -451,10 +450,6 @@ async function pollAdmissaoAssinaturas() {
                         `UPDATE admissao_assinaturas SET assinafy_status = 'Assinado', assinado_em = CURRENT_TIMESTAMP, signed_file_path = ? WHERE id = ?`,
                         [signedPath, doc.id]
                     );
-                    if (doc.documento_id) {
-                        db.run(`UPDATE documentos SET assinafy_status = 'Assinado', signed_file_path = ?, assinafy_signed_at = CURRENT_TIMESTAMP WHERE id = ?`,
-                            [signedPath, doc.documento_id]);
-                    }
                 } else {
                     db.run(
                         `UPDATE documentos SET assinafy_status = 'Assinado', signed_file_path = ?, assinafy_signed_at = CURRENT_TIMESTAMP WHERE id = ?`,
