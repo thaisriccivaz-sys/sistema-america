@@ -3899,6 +3899,7 @@ function renderPagamentosTab(container, tabId, docs) {
     const selectedMonth = window.tabPersistence ? window.tabPersistence['pag_month'] : null;
     const optionsYears = getAnosAdmissaoOptions(selectedYear);
     const selectorHtml = `
+        <div id="cert-digital-banner-pagamentos" style="border-radius:12px; padding:1.25rem; display:flex; gap:1.25rem; align-items:center; margin-bottom: 1.5rem; font-size:0.9rem; transition:all 0.3s ease;"></div>
         <div class="card p-3 mb-4 flex-between bg-light">
             <div style="display:flex; gap:1rem; align-items:center;">
                 <label>Ano:</label>
@@ -3918,6 +3919,9 @@ function renderPagamentosTab(container, tabId, docs) {
         <div id="pag_competencia_container"></div>
     `;
     container.innerHTML = selectorHtml;
+
+    // Injetar status do certificado digital
+    window.carregarStatusCertificado('cert-digital-banner-pagamentos');
     
     const date = new Date();
     const yEl = document.getElementById('pag_year');
@@ -3998,6 +4002,7 @@ window.renderASOTab = function(container, filteredDocs) {
         : '';
 
     const selectorHtml = `
+        <div id="cert-digital-banner-aso" style="border-radius:12px; padding:1.25rem; display:flex; gap:1.25rem; align-items:center; margin-bottom: 1.5rem; font-size:0.9rem; transition:all 0.3s ease;"></div>
         <div class="card p-3 mb-4 bg-light" style="display:flex; gap:1.5rem; align-items:center;">
             <label style="margin:0; font-weight:600;">Ano do ASO/Exames:</label>
             <select id="aso_year" class="form-control" style="padding:0.4rem; max-width:120px;" onchange="renderASOAno()">
@@ -4033,6 +4038,8 @@ window.renderASOTab = function(container, filteredDocs) {
         <div id="aso_ano_container"></div>
     `;
     container.innerHTML = selectorHtml;
+    // Injetar status do certificado digital
+    window.carregarStatusCertificado('cert-digital-banner-aso');
     renderASOAno();
 }
 
@@ -8871,11 +8878,12 @@ window.filterTabsList = function(q) {
 // ══════════════════════════════════════════════════════════════════════
 
 /**
- * Carrega o status do certificado digital e atualiza o banner no Passo 2.
- * Chamado ao entrar no step 2 da admissão.
+ * Carrega o status do certificado digital e atualiza o banner.
+ * Chamado ao entrar no step 2 da admissão e também nas abas ASO / Pagamentos do Prontuário.
  */
-window.carregarStatusCertificado = async function() {
-    const banner = document.getElementById('cert-digital-banner');
+window.carregarStatusCertificado = async function(customBannerId = null) {
+    const bannerId = customBannerId || 'cert-digital-banner';
+    const banner = document.getElementById(bannerId);
     if (!banner) return;
 
     // Verificar se o usuário é da Diretoria

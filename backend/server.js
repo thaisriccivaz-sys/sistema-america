@@ -3337,18 +3337,6 @@ app.post('/api/maintenance/reset', authenticateToken, (req, res) => {
     });
 });
 
-/**
- * Função para atualizar DB com link e status
- */
-async function salvarLinkAssinatura(assinafyDocId, link) {
-    return new Promise((resolve, reject) => {
-        db.run(
-            'UPDATE documentos SET assinafy_url = ?, assinafy_status = ? WHERE assinafy_id = ?',
-            [link, 'Pendente', assinafyDocId],
-            (err) => { if (err) reject(err); else resolve(); }
-        );
-    });
-}
 
 // --- SERVIR ARQUIVOS ESTÃTICOS ---
 app.use(express.static(path.join(__dirname, '../frontend')));
@@ -3532,7 +3520,7 @@ app.post('/api/epi-fichas/:id/save-onedrive', authenticateToken, async (req, res
         const onedriveBase = `${process.env.ONEDRIVE_BASE_PATH || 'RH/1.Colaboradores/Sistema'}/${safeNome}`;
         // Pasta EPI: FichaEPI_N_Nome.pdf (sem sobrepor, número sequencial)
         const epiFolder = `${onedriveBase}/EPI`;
-        await onedrive.ensureFolder(epiFolder);
+        await onedrive.ensurePath(epiFolder);
         let nextNum = 1;
         try {
             const existentes = await onedrive.listChildren(epiFolder);
@@ -3543,7 +3531,7 @@ app.post('/api/epi-fichas/:id/save-onedrive', authenticateToken, async (req, res
         await onedrive.uploadToOneDrive(epiFolder, epiFileName, pdfBuffer);
         // Pasta FICHA_CADASTRAL: sempre sobrepõe
         const cadastralFolder = `${onedriveBase}/01_FICHA_CADASTRAL`;
-        await onedrive.ensureFolder(cadastralFolder);
+        await onedrive.ensurePath(cadastralFolder);
         await onedrive.uploadToOneDrive(cadastralFolder, `FichaEPI_${safeNome}.pdf`, pdfBuffer);
         res.json({ success: true, arquivo_epi: epiFileName, arquivo_cadastral: `FichaEPI_${safeNome}.pdf` });
     } catch(err) {
