@@ -54,6 +54,12 @@ db.run("DELETE FROM cargos WHERE nome = 'teste' OR nome = 'Teste'", (err) => {
 // MIGRATION: Remover " - Total" dos grupos de permissão
 db.run("UPDATE grupos_permissao SET nome = REPLACE(nome, ' - Total', '') WHERE nome LIKE '% - Total'", (err) => {
     if (err) console.error("Erro ao atualizar grupos:", err);
+    else {
+        // Remover duplicatas criadas pela remoção de " - Total" (ex: manter apenas 1 linha por nome)
+        db.run("DELETE FROM grupos_permissao WHERE id NOT IN (SELECT MIN(id) FROM grupos_permissao GROUP BY TRIM(nome))", (errD) => {
+            if (errD) console.error("Erro ao limpar grupos duplicados:", errD);
+        });
+    }
 });
 
 // MIGRATION: Inserir ou atualizar relação exata de Cargos x Departamentos solicitada

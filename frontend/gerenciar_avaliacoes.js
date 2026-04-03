@@ -43,7 +43,8 @@ window.renderGerenciarAvaliacoes = async function () {
     container.innerHTML = `<p style="padding:2rem;color:#94a3b8;">Carregando templates...</p>`;
 
     try {
-        gaTemplates = await fetchGaTemplates();
+        const rawTemplates = await fetchGaTemplates();
+        gaTemplates = Array.isArray(rawTemplates) ? rawTemplates : [];
     } catch (e) {
         container.innerHTML = `<p style="padding:2rem;color:#ef4444;">Erro ao carregar templates: ${e.message}</p>`;
         return;

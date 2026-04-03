@@ -1470,7 +1470,7 @@ async function loadDashboard() {
             chartFaltasInst = new Chart(ctxFaltas, {
                 type: 'bar',
                 data: {
-                    labels: ranking.length ? ranking.map(r => r.nome.split(' ')[0] + ' ' + (r.nome.split(' ')[1] || '')) : ['Sem dados'],
+                    labels: ranking.length ? ranking.map(r => r.nome ? r.nome.split(' ')[0] + ' ' + (r.nome.split(' ')[1] || '') : 'Sem Nome') : ['Sem dados'],
                     datasets: [
                         {
                             label: 'Faltas Injustificadas',

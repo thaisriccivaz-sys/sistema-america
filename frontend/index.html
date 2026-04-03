@@ -67,6 +67,7 @@
                     <a href="#" class="nav-item" data-target="dashboard"><i class="ph ph-squares-four"></i> Dashboard</a>
                     <a href="#" class="nav-item" data-target="colaboradores"><i class="ph ph-address-book"></i> Colaboradores</a>
                     <a href="#" class="nav-item" data-target="admissao"><i class="ph ph-list-checks"></i> Admiss&atilde;o</a>
+                    <a href="#" class="nav-item" data-target="integracao"><i class="ph ph-users-three"></i> Integra&ccedil;&atilde;o</a>
                     <a href="#" class="nav-item" data-target="assinaturas-digitais"><i class="ph ph-signature"></i> Assinaturas</a>
                     <a href="#" class="nav-item" data-target="cargos"><i class="ph ph-briefcase"></i> Cargos</a>
                     <a href="#" class="nav-item" data-target="departamentos"><i class="ph ph-buildings"></i> Departamentos</a>
@@ -181,7 +182,7 @@
             </div>
 
             <!-- Barra de Abas fixada no topo da content area -->
-            <div id="app-tabs-container" style="display:none; gap:2px; background:#f1f5f9; padding:6px 12px 0 12px; border-bottom:2px solid #cbd5e1; overflow-x:auto; flex-wrap:nowrap; align-items:flex-end; min-height:38px;">
+            <div id="app-tabs-container" style="display:none; gap:2px; background:#f1f5f9; padding:6px 12px 0 12px; border-bottom:2px solid #cbd5e1; overflow-x:auto; flex-wrap:nowrap; align-items:flex-end; min-height:38px; scrollbar-width: none; -ms-overflow-style: none; overflow-y: hidden;">
                 <!-- Tabs geradas pelo app.js -->
             </div>
 
@@ -243,11 +244,15 @@
                     <div class="dashboard-charts-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 2rem;">
                         <div class="card p-4">
                             <h3 style="font-size: 1.1rem; color: #475569; margin-bottom: 1rem;">Atestados Recebidos (Últimos 6 Meses)</h3>
-                            <canvas id="chart-atestados" height="250"></canvas>
+                            <div style="position: relative; height: 250px; width: 100%;">
+                                <canvas id="chart-atestados"></canvas>
+                            </div>
                         </div>
                         <div class="card p-4">
                             <h3 style="font-size: 1.1rem; color: #475569; margin-bottom: 1rem;">Ranking de Faltas (Sem e Com Atestado)</h3>
-                            <canvas id="chart-faltas" height="250"></canvas>
+                            <div style="position: relative; height: 250px; width: 100%;">
+                                <canvas id="chart-faltas"></canvas>
+                            </div>
                         </div>
                     </div>
 
@@ -746,15 +751,19 @@
                                             <label>Matrícula eSocial</label>
                                             <input type="text" id="colab-matricula-esocial">
                                         </div>
-                                        <div class="input-group">
-                                            <label>Cargo *</label>
-                                            <select id="colab-cargo" onchange="toggleMotorista(); autoFillDepartamento();" required>
-                                                <option value="" selected disabled>Selecionar</option>
-                                            </select>
-                                        </div>
-                                        <div class="input-group span-2">
-                                            <label>Departamento (Automático) *</label>
-                                            <input type="text" id="colab-departamento" style="background: #f8f9fa; color: #666; font-weight: 500;" readonly required>
+                                        <div class="span-2">
+                                            <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
+                                                <div class="input-group" style="padding-right: 0.5rem;">
+                                                    <label>Cargo *</label>
+                                                    <select id="colab-cargo" onchange="toggleMotorista(); autoFillDepartamento();" required>
+                                                        <option value="" selected disabled>Selecionar</option>
+                                                    </select>
+                                                </div>
+                                                <div class="input-group" style="padding-left: 0.5rem;">
+                                                    <label>Departamento (Automático) *</label>
+                                                    <input type="text" id="colab-departamento" style="background: #f8f9fa; color: #666; font-weight: 500;" readonly required>
+                                                </div>
+                                            </div>
                                         </div>
                                         <div id="section-cnh" class="span-2" style="display:none; background: #fff3e6; padding: 1rem; border-radius: 8px; border-left: 4px solid #fd7e14; margin-top: 0.5rem;">
                                             <label style="color: #fd7e14; font-weight: 600; font-size: 0.85rem; margin-bottom: 0.5rem; display: block;">Dados de CNH</label>

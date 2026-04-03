@@ -179,9 +179,10 @@ window.abrirFormUsuario = async function(userId = null) {
     if (subGrupoSel) {
         subGrupoSel.innerHTML = '<option value="">— Selecione o grupo —</option>';
         allDepts.forEach(d => {
-            gruposFiltrados.filter(g => g.departamento === d).forEach(g => {
-                subGrupoSel.appendChild(new Option(g.nome, g.id));
-            });
+            const firstGroup = gruposFiltrados.find(g => g.departamento === d);
+            if (firstGroup) {
+                subGrupoSel.appendChild(new Option(d, firstGroup.id));
+            }
         });
     }
 
