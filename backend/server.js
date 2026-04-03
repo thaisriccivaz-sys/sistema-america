@@ -610,7 +610,7 @@ app.post('/api/assinaturas/reenviar', authenticateToken, async (req, res) => {
 app.delete('/api/assinaturas/limpar-testes', authenticateToken, async (req, res) => {
     try {
         await new Promise((resolve, reject) =>
-            db.run(`UPDATE documentos SET assinafy_status = NULL, assinafy_sent_at = NULL, assinafy_signed_at = NULL, assinafy_id = NULL, assinafy_url = NULL, enviado_em = NULL, signed_file_url = NULL, signed_file_path = NULL WHERE assinafy_sent_at IS NOT NULL`, [], (err) => err ? reject(err) : resolve())
+            db.run(`UPDATE documentos SET assinafy_status = NULL, assinafy_sent_at = NULL, assinafy_signed_at = NULL, assinafy_id = NULL, assinafy_url = NULL, signed_file_path = NULL WHERE assinafy_sent_at IS NOT NULL OR assinafy_id IS NOT NULL`, [], (err) => err ? reject(err) : resolve())
         );
         await new Promise((resolve, reject) =>
             db.run(`DELETE FROM admissao_assinaturas`, [], (err) => err ? reject(err) : resolve())
