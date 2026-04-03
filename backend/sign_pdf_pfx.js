@@ -58,7 +58,13 @@ function getPfxPassword() { return process.env.PFX_PASSWORD || ''; }
  * @returns {{ disponivel: boolean, motivo?: string }}
  */
 function verificarDisponibilidade() {
-    return { disponivel: false, motivo: 'DESATIVADO TEMPORARIAMENTE A PEDIDO DO USUÁRIO' };
+    if (!forge)          return { disponivel: false, motivo: 'node-forge não instalado' };
+    if (!signpdf)        return { disponivel: false, motivo: '@signpdf/signpdf não instalado' };
+    if (!plainAddPlaceholder) return { disponivel: false, motivo: '@signpdf/placeholder-plain não instalado' };
+    const currentPfxPath = getPfxPath();
+    if (!currentPfxPath)       return { disponivel: false, motivo: 'PFX_PATH não configurado nas variáveis de ambiente' };
+    if (!fs.existsSync(currentPfxPath)) return { disponivel: false, motivo: `Arquivo .pfx não encontrado: ${currentPfxPath}` };
+    return { disponivel: true };
 }
 
 /**
