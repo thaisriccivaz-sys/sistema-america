@@ -414,6 +414,7 @@ const TAB_META = {
     'form-colaborador':       { color: '#f503c5', icon: 'ph-user-plus',       title: 'Cadastro Colaborador' },
     'prontuario':             { color: '#f503c5', icon: 'ph-folder-open',     title: 'Prontuário Digital' },
     'admissao':               { color: '#f503c5', icon: 'ph-list-checks',     title: 'Admissão' },
+    'integracao':             { color: '#f503c5', icon: 'ph-users-three',     title: 'Integração' },
     'cargos':                 { color: '#f503c5', icon: 'ph-briefcase',       title: 'Cargos' },
     'departamentos':          { color: '#f503c5', icon: 'ph-buildings',       title: 'Departamentos' },
     'faculdade':              { color: '#f503c5', icon: 'ph-graduation-cap',  title: 'Faculdade' },
