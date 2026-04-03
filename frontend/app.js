@@ -9473,11 +9473,16 @@ window.filtrarAssinaturas = function() {
         return c;
     }
 
-    function showToast(nomeDoc, nomeColab, hora) {
+    function showToast(nomeDoc, nomeColab, hora, isAso = false) {
         hora = hora || new Date().toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
         const container = getToastContainer();
         const toast = document.createElement('div');
         toast.setAttribute('data-toast-item', '1');
+        
+        let colorMain = isAso ? '#84cc16' : '#22c55e'; // lime-500/olive-like para ASO, green-500 default
+        let colorBg = isAso ? '#f7fee7' : '#f0fdf4'; // very subtle green background variations inside
+        let colorText = isAso ? '#a3e635' : '#86efac';
+
         toast.style.cssText = `
             background: linear-gradient(135deg, #0f172a, #1e293b);
             color: #fff;
@@ -9487,16 +9492,16 @@ window.filtrarAssinaturas = function() {
             align-items: flex-start;
             gap: 0.75rem;
             box-shadow: 0 8px 30px rgba(0,0,0,0.35);
-            border-left: 4px solid #22c55e;
+            border-left: 4px solid ${colorMain};
             pointer-events: all;
             animation: toastSlideIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
             max-width: 340px;
         `;
         toast.innerHTML = `
-            <i class="ph-fill ph-check-circle" style="font-size:1.8rem;color:#22c55e;flex-shrink:0;margin-top:1px;"></i>
+            <i class="ph-fill ph-check-circle" style="font-size:1.8rem;color:${colorMain};flex-shrink:0;margin-top:1px;"></i>
             <div style="flex:1;min-width:0;">
-                <div style="font-size:0.7rem;font-weight:700;color:#86efac;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:2px;">
-                    ✅ Admissão · Documento Assinado
+                <div style="font-size:0.7rem;font-weight:700;color:${colorText};text-transform:uppercase;letter-spacing:0.6px;margin-bottom:2px;">
+                    ✅ Documento Assinado
                 </div>
                 <div style="font-size:0.9rem;font-weight:700;color:#f0fdf4;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
                     ${nomeDoc}
