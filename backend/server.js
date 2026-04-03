@@ -145,15 +145,14 @@ async function uploadDocToOneDrive(docId) {
         const docYear   = doc.year && doc.year !== 'null' ? String(doc.year).replace(/[^0-9]/g, '') : String(new Date().getFullYear());
         const targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}/${docYear}`;
 
-        // Para Atestados, strip o timestamp do file_name: CID_DD-MM-AA_Nome_YYYYMMDD_HHMMSS.pdf → CID_DD-MM-AA_Nome.pdf
         const isAtestado = doc.tab_name === 'Atestados';
         let cloudName = '';
         if (doc.tab_name === 'AVALIACAO') {
             cloudName = doc.file_name;
         } else if (isAtestado) {
-            // Para atestados: o file_name do multer é custom_name + timestamp + ext
-            // Remover o sufixo de timestamp _YYYYMMDD_HHMMSS para restaurar o nome correto
-            cloudName = doc.file_name.replace(/_\d{8}_\d{6}(\.[^.]+)$/, '$1').replace(/_\d{12}(\.[^.]+)$/, '$1');
+            // Novos registros já têm o nome limpo (sem timestamp); legados têm sufixo _YYYYMMDD_HHMMSS
+            cloudName = doc.file_name.replace(/_\d{8}_\d{6}([^.]*\.[^.]+)$/, '$1').replace(/_\d{8}_\d{6}$/, '');
+            if (!cloudName.includes('.')) cloudName = doc.file_name; // segurança
         } else {
             cloudName = `${formatarPasta(doc.document_type || doc.tab_name).replace(/\s+/g, '_')}_${docYear}_${safeColab}.pdf`;
         }
@@ -309,7 +308,17 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // ROTA DE VERSÃO (Para verificar implantação)
-app.get('/api/version', (req, res) => res.json({ version: 'V46_ASSINAFY_FIX_POLLING_ALL' }));
+app.get('/api/version', (req, res) => res.json({ version: 'V47_CLEAR_ASSIN_FIX' }));
+
+// Rota de manutenção: limpar histórico de assinaturas (documentos de teste)
+app.post('/api/admin/clear-assinaturas', authenticateToken, (req, res) => {
+    db.run(`UPDATE documentos SET assinafy_status=NULL, assinafy_sent_at=NULL, assinafy_url=NULL, assinafy_signed_at=NULL WHERE assinafy_sent_at IS NOT NULL`,
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true, cleared: this.changes });
+        }
+    );
+});
 
 // ─── MÓDULO DE ASSINATURA DIGITAL COM CERTIFICADO .PFX ───────────────────────
 const signPdfPfx = require('./sign_pdf_pfx');
@@ -1520,9 +1529,8 @@ app.put('/api/dependentes/:id', authenticateToken, (req, res) => {
                    data_nascimento = COALESCE(?, data_nascimento), grau_parentesco = COALESCE(?, grau_parentesco) 
                    WHERE id = ?`;
     db.run(query, [nome, cpf, data_nascimento, grau_parentesco, req.params.id], function(err) {
-        if (err) return res.status(400).json({ error: err.message });
-        res.json({ message: 'Ataulizado com sucesso' });
-    });
+            res.json({ message: 'Ataulizado com sucesso' });
+        });
 });
 app.delete('/api/dependentes/:id', authenticateToken, (req, res) => {
     db.run('DELETE FROM dependentes WHERE id = ?', [req.params.id], err => {
@@ -1544,8 +1552,16 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
     
     const { document_id, colaborador_id, tab_name, document_type, year, month, vencimento, atestado_tipo, atestado_inicio, atestado_fim, assinafy_status } = req.body;
     const file_path = req.file.path;
-    let file_name = req.file.originalname;
-    try { file_name = Buffer.from(file_name, 'latin1').toString('utf8'); } catch (e) {}
+    // Para atestados com custom_name: usar o nome padronizado diretamente
+    // Para outros: usar o filename gerado pelo multer (timestampado no disco)
+    let file_name;
+    if (req.body.custom_name) {
+        const ext = require('path').extname(req.file.originalname) || '.pdf';
+        file_name = `${req.body.custom_name}${ext}`;
+    } else {
+        file_name = req.file.filename; // nome gerado pelo multer (com timestamp)
+        try { file_name = Buffer.from(req.file.originalname, 'latin1').toString('utf8'); } catch(e) {}
+    }
 
     let checkSql = '';
     let params = [];
