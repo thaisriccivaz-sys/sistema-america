@@ -323,7 +323,7 @@ async function pollAdmissaoAssinaturas() {
         );
 
         const pendentesDocs = await new Promise((res, rej) =>
-            db.all(`SELECT id, colaborador_id, assinafy_id, document_type as nome_documento, tab_name, 'documento' as source 
+            db.all(`SELECT id, colaborador_id, assinafy_id, document_type as nome_documento, tab_name, file_name, 'documento' as source 
                     FROM documentos WHERE assinafy_status = 'Pendente' AND assinafy_id IS NOT NULL`, [], (err, rows) => err ? rej(err) : res(rows))
         );
 
@@ -416,7 +416,7 @@ async function pollAdmissaoAssinaturas() {
                         const safeColab = formatarNome(colabRow?.nome_completo || 'DESCONHECIDO');
                         const safeDocName = formatarPasta(doc.nome_documento || 'Documento').replace(/\s+/g, '_');
                         const docYear = String(new Date().getFullYear());
-                        const cloudName = `${safeDocName}_${safeColab}_${docYear}.pdf`;
+                        const cloudName = doc.file_name || `${safeDocName}_${safeColab}_${docYear}.pdf`;
                         let targetDir;
                         if (doc.source === 'documento') {
                             const safeTab = doc.tab_name ? formatarPasta(doc.tab_name).toUpperCase() : 'DOCUMENTOS';
@@ -508,35 +508,75 @@ app.post('/api/assinaturas/reenviar', authenticateToken, async (req, res) => {
     const { id, source } = req.body;
     try {
         const table = source === 'documento' ? 'documentos' : 'admissao_assinaturas';
+        const docColName = source === 'documento' ? 'document_type as nome_documento' : 'nome_documento';
+        
         const doc = await new Promise((resolve, reject) => 
-            db.get(`SELECT assinafy_id FROM ${table} WHERE id=?`, [id], (err, r) => err?reject(err):resolve(r))
+            db.get(`SELECT assinafy_id, assinafy_url, colaborador_id, ${docColName} FROM ${table} WHERE id=?`, [id], (err, r) => err?reject(err):resolve(r))
         );
         if (!doc || !doc.assinafy_id) return res.status(404).json({ error: 'Assinatura vinculada não encontrada.' });
         
-        const https = require('https');
-        const docInfo = await new Promise((resolve, reject) => {
-            const r = https.request({
-                hostname: 'api.assinafy.com.br', path: `/v1/documents/${doc.assinafy_id}`, method: 'GET',
-                headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey, 'Accept': 'application/json' }
-            }, resp => {
-                const chunks = [];
-                resp.on('data', c => chunks.push(c));
-                resp.on('end', () => { try { resolve(JSON.parse(Buffer.concat(chunks).toString())); } catch(e){resolve(null);} });
-            });
-            r.on('error', reject); r.end();
-        });
+        let signLink = doc.assinafy_url;
         
-        let signLink = null;
-        if (docInfo && docInfo.data) {
-            const d = docInfo.data;
-            signLink = d.sign_url || d.signUrl || (d.signers && d.signers[0] && (d.signers[0].sign_url || d.signers[0].url));
+        if (!signLink) {
+            const https = require('https');
+            const docInfo = await new Promise((resolve, reject) => {
+                const r = https.request({
+                    hostname: 'api.assinafy.com.br', path: `/v1/documents/${doc.assinafy_id}`, method: 'GET',
+                    headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey, 'Accept': 'application/json' }
+                }, resp => {
+                    const chunks = [];
+                    resp.on('data', c => chunks.push(c));
+                    resp.on('end', () => { try { resolve(JSON.parse(Buffer.concat(chunks).toString())); } catch(e){resolve(null);} });
+                });
+                r.on('error', reject); r.end();
+            });
+            if (docInfo && docInfo.data) {
+                const d = docInfo.data;
+                signLink = d.sign_url || d.signUrl || (d.signers && d.signers[0] && (d.signers[0].sign_url || d.signers[0].url));
+            }
         }
         
         if (signLink) {
             db.run(`UPDATE ${table} SET assinafy_url = ? WHERE id = ?`, [signLink, id], () => {}); // ignorando erro silenciosamente caso coluna ausente
-            res.json({ success: true, link: signLink });
+            
+            // Enviar email via nodemailer
+            const colab = await new Promise((res2, rej2) => db.get('SELECT nome_completo, email_corporativo, email FROM colaboradores WHERE id = ?', [doc.colaborador_id], (e, r) => e ? rej2(e) : res2(r)));
+            
+            if (colab) {
+                const destEmail = colab.email_corporativo || colab.email;
+                if (destEmail) {
+                    const nodemailer = require('nodemailer');
+                    const transporter = nodemailer.createTransport(SMTP_CONFIG);
+                    
+                    const html = `
+                        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+                            <h2 style="color: #0f4c81;">Lembrete de Assinatura</h2>
+                            <p>Olá <strong>${colab.nome_completo || 'Colaborador'}</strong>,</p>
+                            <p>Você tem um documento pendente de assinatura no sistema da América Rental: <strong>${doc.nome_documento || 'Documento'}</strong>.</p>
+                            <p>Por favor, clique no botão abaixo para revisar e assinar digitalmente:</p>
+                            <div style="text-align: center; margin: 30px 0;">
+                                <a href="${signLink}" style="background-color: #0f4c81; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Assinar Documento</a>
+                            </div>
+                            <p style="color: #666; font-size: 12px;">Se o botão não funcionar, cole este link no seu navegador:<br>${signLink}</p>
+                            <hr style="border: none; border-top: 1px solid #eee; margin: 25px 0;">
+                            <p style="color: #999; font-size: 11px;">Este é um e-mail automático, por favor não responda.</p>
+                        </div>
+                    `;
+                    
+                    await transporter.sendMail({
+                        from: `"RH - América Rental" <${SMTP_CONFIG.auth.user}>`,
+                        to: destEmail,
+                        subject: `Lembrete de Assinatura - ${doc.nome_documento || 'Documento'}`,
+                        html: html
+                    });
+                    
+                    return res.json({ success: true, messsage: 'E-mail enviado com sucesso.', link: signLink });
+                }
+            }
+            // Se nao enviou e-mail (por falta de email cadastrado), devolve apenas o success (frontend fará fallback ou dirá q o e-mail não foi encontrado)
+            res.json({ success: true, warn: 'Colaborador sem e-mail cadastrado. URL recuperada, mas não enviada via sistema.', link: signLink });
         } else {
-            res.status(400).json({ error: 'Não foi possível detectar o link de reenvio na resposta do integrador.' });
+            res.status(400).json({ error: 'Não foi possível detectar o link do documento na nuvem.' });
         }
     } catch(e) {
         res.status(500).json({ error: e.message });

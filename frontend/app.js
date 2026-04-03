@@ -3618,6 +3618,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
     }
 
     let atestadoInfoHtml = '';
+    let atestadoContabHtml = '';
     if (isSaved && existingDoc.atestado_tipo) {
         if (existingDoc.atestado_tipo === 'dias') {
             const ini = existingDoc.atestado_inicio ? existingDoc.atestado_inicio.split('-').reverse().join('/') : '';
@@ -3630,10 +3631,23 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
         } else {
             atestadoInfoHtml = ` <span style="color:#1098ad; font-weight:600;"><i class="ph ph-clock"></i> ${existingDoc.atestado_inicio} às ${existingDoc.atestado_fim}</span> `;
         }
+        
+        if (existingDoc.atestado_contab_enviado_em) {
+            let sd = existingDoc.atestado_contab_enviado_em;
+            if (!sd.includes('T')) sd = sd.replace(' ', 'T');
+            if (!sd.endsWith('Z')) sd += 'Z';
+            const contabDateObj = new Date(sd);
+            const dd = String(contabDateObj.getDate()).padStart(2, '0');
+            const mm = String(contabDateObj.getMonth()+1).padStart(2, '0');
+            const yyyy = contabDateObj.getFullYear();
+            const h = String(contabDateObj.getHours()).padStart(2, '0');
+            const min = String(contabDateObj.getMinutes()).padStart(2, '0');
+            atestadoContabHtml = ` <br><span style="color:#2f9e44; font-weight:600; font-size:0.75rem;"><i class="ph ph-check-circle"></i> Enviado p/ Contab: ${dd}/${mm}/${yyyy} - ${h}h${min}m</span> `;
+        }
     }
 
-    const subInfoLine = (vencInfoHtml || enviadoHtml || atestadoInfoHtml)
-        ? `<p style="margin:2px 0 0; font-size:0.78rem;">${atestadoInfoHtml}${vencInfoHtml}${enviadoHtml}</p>${linkAssinaturaHtml}`
+    const subInfoLine = (vencInfoHtml || enviadoHtml || atestadoInfoHtml || atestadoContabHtml)
+        ? `<p style="margin:2px 0 0; font-size:0.78rem;">${atestadoInfoHtml}${atestadoContabHtml}${vencInfoHtml}${enviadoHtml}</p>${linkAssinaturaHtml}`
         : '';
 
     // Suporte ao separador ### para Advertências: 'Título###TipoSimples'
@@ -3829,7 +3843,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                     </div>
 
                     ${(() => {
-                        const showAssinafy = isSaved && tabId !== 'Atestados' && stMain !== 'NAO_EXIGE';
+                        const showAssinafy = isSaved && tabId !== 'Atestados' && tabId !== '01_FICHA_CADASTRAL' && stMain !== 'NAO_EXIGE';
                         return showAssinafy ? `
                         <div style="display: flex; align-items: center; gap: 0.5rem;">
                             <button class="btn btn-assinafy" style="height: 42px; display:flex; align-items:center; padding:0 0.85rem;" onclick="window.iniciarAssinafy('${docType}', '${tabId}', this)" ${isAssinado ? 'disabled' : ''}>
@@ -8481,9 +8495,8 @@ window._assinNextStep = async function() {
                         const dataVal = (()=>{ const i=document.getElementById('epi-data-entrega'); if(!i||!i.value) return ''; const p=i.value.split('-'); return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:i.value; })();
                         const lf = itens.map(nome => ({ data: dataVal, descricao: nome, assinatura_base64: assinaturaBase64 }));
                         const doc = window.gerarDocEpi(tpl, viewedColaborador||{}, jsPDF, lf);
-                        // Usar arraybuffer e converter para base64 manualmente
-                        const pdfBytes = doc.output('arraybuffer');
-                        const pdfB64 = 'data:application/pdf;base64,' + btoa(String.fromCharCode(...new Uint8Array(pdfBytes)));
+                        // Usar datauristring nativo do jsPDF que não quebra pilha de chamadas
+                        const pdfB64 = doc.output('datauristring');
                         await fetch(API_URL + '/epi-fichas/' + window._assinFichaId + '/save-onedrive', {
                             method: 'POST',
                             headers: { 'Authorization': 'Bearer ' + currentToken, 'Content-Type': 'application/json' },
@@ -9508,11 +9521,14 @@ window.reenviarAssinatura = async function(id, source, btn) {
         btn.innerHTML = `<i class="ph ph-check-circle"></i> Gerado`;
         setTimeout(() => { btn.innerHTML = oldHtml; btn.disabled = false; }, 1500);
         
-        if (res.ok && data.success && data.link) {
-            const encodedText = encodeURIComponent('Olá! Segue o link para assinatura do seu documento:\n' + data.link);
-            window.open(`https://wa.me/?text=${encodedText}`, '_blank');
+        if (res.ok && data.success) {
+            if (data.warn) {
+                alert('Atenção: ' + data.warn + '\n\nO link é: ' + (data.link || ''));
+            } else {
+                alert('E-mail de lembrete enviado com sucesso para o colaborador!');
+            }
         } else {
-            alert(data.error || 'Erro ao obter link de assinatura.');
+            alert(data.error || 'Erro ao comunicar com o servidor.');
         }
     } catch(e) {
         alert('Erro ao processar: ' + e.message);
