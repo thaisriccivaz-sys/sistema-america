@@ -4792,7 +4792,7 @@ window.viewDoc = async function(docId) {
         const doc = await apiGet(`/documentos/info/${docId}`).catch(() => null);
         
         // Se tem assinafy_status = Assinado, preferir o endpoint de download (que faz proxy do Assinafy)
-        const token = currentToken || localStorage.getItem('token');
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
         const viewUrl = `${API_URL}/documentos/view/${docId}?token=${token}`;
         const downloadUrl = `${API_URL}/documentos/download/${docId}?token=${token}`;
 
@@ -6701,7 +6701,7 @@ window.sendAdmissaoSignatures = async function(listId = 'admissao-signature-list
 // ===== POPUP DE PDF ASSINADO =====
 window.openSignedDocPopup = function(assId, nomeDoc, evt) {
     if (evt) { evt.preventDefault(); evt.stopPropagation(); }
-    const token = localStorage.getItem('token');
+    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
 
     // Criar overlay
     let overlay = document.getElementById('signed-doc-popup-overlay');
@@ -6753,7 +6753,7 @@ window.openSignedDocPopup = function(assId, nomeDoc, evt) {
 
 // Função para visualizar documentos assinados via tabela 'documentos' (ASO, EPI, Contratos)
 window.openSignedDocPopupDocumento = function(docId, nomeDoc) {
-    const token = currentToken || localStorage.getItem('token');
+    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
     const pdfUrl = `${API_URL}/documentos/view/${docId}?token=${token}`;
     const downloadUrl = `${API_URL}/documentos/download/${docId}?token=${token}`;
 
@@ -9306,7 +9306,7 @@ window.loadAssinaturasDigitais = async function() {
             } catch { return v; }
         };
 
-        const token = currentToken || localStorage.getItem('token');
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
 
         container.innerHTML = `
         <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
@@ -9364,7 +9364,7 @@ window.filtrarAssinaturas = function() {
     const search = (document.getElementById('ass-search')?.value || '').toLowerCase();
     const filterStatus = document.getElementById('ass-filter-status')?.value || '';
     const filterTipo = document.getElementById('ass-filter-tipo')?.value || '';
-    const token = window._assinaturaToken || localStorage.getItem('token');
+    const token = window._assinaturaToken || window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
 
     const filtered = dados.filter(d => {
         const matchSearch = !search || 
@@ -9558,7 +9558,7 @@ window.filtrarAssinaturas = function() {
     }
 
     async function checkAlertasRecentes() {
-        const token = localStorage.getItem('token');
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
         if (!token) return;
 
         // Verificação simples: apenas requer login

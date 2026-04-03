@@ -2102,55 +2102,31 @@ app.get('/api/admissao-assinaturas/:id/download', authenticateToken, async (req,
         );
         if (!row) return res.status(404).json({ error: 'Registro não encontrado' });
 
-        // 1. Arquivo local do certificado empresa (fase 3)
-        const certPath = row.cert_file_path;
-        if (certPath && fs.existsSync(certPath)) {
+        // 1. Arquivo local como fonte primária
+        let pathToFile = row.signed_file_path;
+
+        if (pathToFile && fs.existsSync(pathToFile)) {
             res.setHeader('Content-Type', 'application/pdf');
-            res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(row.nome_documento)}_Certificado.pdf"`);
-            return fs.createReadStream(certPath).pipe(res);
+            res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(row.nome_documento || 'documento')}_Assinado.pdf"`);
+            return fs.createReadStream(pathToFile).pipe(res);
         }
 
-        // 2. Sempre tentar buscar via Assinafy como fonte principal (Render é efêmero, disco não persiste)
+        // 2. Se local não existe, tenta Assinafy (redirecionando diretamente)
         if (row.assinafy_id) {
-            const docData = await (async () => {
-                try {
-                    const r = await fetch(`https://api.assinafy.com.br/v1/documents/${row.assinafy_id}`,
-                        { headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey, 'Accept': 'application/json' } });
-                    return r.ok ? (await r.json()) : null;
-                } catch { return null; }
-            })();
-
-            const docPayload = docData?.data || docData;
-            const signedUrl = extractSignedUrl(docPayload);
-
-            if (signedUrl) {
-                console.log(`[DOWNLOAD] Proxy PDF do Assinafy: ${signedUrl}`);
-                try {
-                    // Remover header X-Api-Key caso a URL seja do S3 (evita SignatureDoesNotMatch)
-                    const isS3 = signedUrl.includes('s3.amazonaws.com');
-                    const headers = isS3 ? {} : { 'X-Api-Key': ASSINAFY_CONFIG.apiKey };
-                    
-                    const pdfResp = await fetch(signedUrl, { headers });
-                    if (!pdfResp.ok) throw new Error('Assinafy retornou ' + pdfResp.statusText);
-                    const pdfBuf = Buffer.from(await pdfResp.arrayBuffer());
-                    res.setHeader('Content-Type', 'application/pdf');
-                    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(row.nome_documento || 'Documento')}_Assinado.pdf"`);
-                    return res.send(pdfBuf);
-                } catch(fetchErr) {
-                    console.warn('[DOWNLOAD] Falha no proxy (Redirecionando diretamente para URL):', fetchErr.message);
-                    return res.redirect(signedUrl);
+            try {
+                const r = await fetch(`https://api.assinafy.com.br/v1/documents/${row.assinafy_id}`,
+                    { headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey, 'Accept': 'application/json' } });
+                if (r.ok) {
+                    const data = await r.json();
+                    const signedUrl = extractSignedUrl(data?.data || data);
+                    if (signedUrl) return res.redirect(signedUrl);
                 }
+            } catch(e) {
+                console.warn('[DOWNLOAD-ADMISSAO] Falha proxy Assinafy:', e.message);
             }
         }
 
-        // 3. Arquivo local como último recurso
-        if (row.signed_file_path && fs.existsSync(row.signed_file_path)) {
-            res.setHeader('Content-Type', 'application/pdf');
-            res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(row.nome_documento)}_Assinado.pdf"`);
-            return fs.createReadStream(row.signed_file_path).pipe(res);
-        }
-
-        res.status(404).json({ error: 'Arquivo assinado ainda não disponível. Aguarde o Assinafy processar.' });
+        return res.status(404).json({ error: 'Arquivo assinado não encontrado no servidor.' });
     } catch(e) {
         if (!res.headersSent) res.status(500).json({ error: e.message });
     }
