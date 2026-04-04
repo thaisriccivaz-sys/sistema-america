@@ -2974,13 +2974,10 @@ function getFichaCadastralDocs() {
     const rgTipo = (viewedColaborador && viewedColaborador.rg_tipo) ? viewedColaborador.rg_tipo : (rgTipoInput ? rgTipoInput.value : 'RG');
     
     const docs = [
-        "Comprovante de endere\u00e7o",
         "T\u00edtulo Eleitoral",
         certidao,
-        "Hist\u00f3rico escolar",
-        "Carteira de vacina\u00e7\u00e3o",
-        "Curr\u00edculo",
-        "CTPS digital"
+        "Comprovante de endere\u00e7o",
+        "Hist\u00f3rico escolar"
     ];
     
     if (isMasc) docs.push("Reservista");
@@ -2991,6 +2988,12 @@ function getFichaCadastralDocs() {
         if (rgTipo === 'CIN') docs.push("CIN-CPF");
         else docs.push("RG-CPF");
     }
+
+    docs.push(
+        "Carteira de vacina\u00e7\u00e3o",
+        "Curr\u00edculo",
+        "Carteira de Trabalho"
+    );
     
     return docs;
 }
@@ -3510,19 +3513,24 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
         const _ec = (viewedColaborador && viewedColaborador.estado_civil || '').toLowerCase();
         const _isCasado = _ec.includes('casad') || _ec.includes('vi\u00fav') || _ec.includes('viuv') || _ec.includes('divorc');
         const _certidao = _isCasado ? 'Certid\u00e3o de Casamento' : 'Certid\u00e3o de Nascimento';
+        const _isMotorista2 = viewedColaborador && (viewedColaborador.cargo || '').toUpperCase().includes('MOTORISTA');
         const fixed = [
-            'Comprovante de endere\u00e7o',
             'T\u00edtulo Eleitoral',
             _certidao,
-            'Hist\u00f3rico escolar',
-            'Carteira de vacina\u00e7\u00e3o',
-            'Curr\u00edculo',
-            'CTPS digital'
+            'Comprovante de endere\u00e7o',
+            'Hist\u00f3rico escolar'
         ];
         const isMasc = viewedColaborador && viewedColaborador.sexo === 'Masculino';
         if (isMasc) fixed.push('Reservista');
         const rgTipo = (viewedColaborador && viewedColaborador.rg_tipo) ? viewedColaborador.rg_tipo : 'RG';
-        fixed.push(rgTipo === 'CIN' ? 'CIN-CPF' : 'RG-CPF');
+        
+        if (_isMotorista2) {
+            fixed.push('CNH');
+        } else {
+            fixed.push(rgTipo === 'CIN' ? 'CIN-CPF' : 'RG-CPF');
+        }
+        
+        fixed.push('Carteira de vacina\u00e7\u00e3o', 'Curr\u00edculo', 'Carteira de Trabalho');
 
         fixed.forEach(docType => {  
             if (!searchTerm || docType.toLowerCase().includes(searchTerm)) {
@@ -6788,13 +6796,10 @@ function renderAdmissaoStep3(colab, docs) {
     const _colabCertidao = _colabCasado ? 'Certid\u00e3o de Casamento' : 'Certid\u00e3o de Nascimento';
     const isMotoristaColab = colab && (colab.cargo || '').toUpperCase().includes('MOTORISTA');
     const items = [
-        { label: 'Comprovante de endere\u00e7o', folder: '01_FICHA_CADASTRAL', hasVencimento: true },
         { label: 'T\u00edtulo Eleitoral', folder: '01_FICHA_CADASTRAL' },
         { label: _colabCertidao, folder: '01_FICHA_CADASTRAL' },
-        { label: 'Hist\u00f3rico escolar', folder: '01_FICHA_CADASTRAL' },
-        { label: 'Carteira de vacina\u00e7\u00e3o', folder: '01_FICHA_CADASTRAL' },
-        { label: 'Curr\u00edculo', folder: '01_FICHA_CADASTRAL' },
-        { label: 'CTPS digital', folder: '01_FICHA_CADASTRAL' }
+        { label: 'Comprovante de endere\u00e7o', folder: '01_FICHA_CADASTRAL', hasVencimento: true },
+        { label: 'Hist\u00f3rico escolar', folder: '01_FICHA_CADASTRAL' }
     ];
 
     const isMasc = colab && colab.sexo === 'Masculino';
@@ -6805,7 +6810,14 @@ function renderAdmissaoStep3(colab, docs) {
         items.push({ label: (colab && colab.rg_tipo === 'CIN') ? 'CIN-CPF' : 'RG-CPF', folder: '01_FICHA_CADASTRAL', hasVencimento: true });
     }
 
-    if (_colabCasado) {
+    items.push(
+        { label: 'Carteira de vacina\u00e7\u00e3o', folder: '01_FICHA_CADASTRAL' },
+        { label: 'Curr\u00edculo', folder: '01_FICHA_CADASTRAL' },
+        { label: 'Carteira de Trabalho', folder: '01_FICHA_CADASTRAL' }
+    );
+
+    const _soCasado = _colabEc.includes('casad') && !_colabEc.includes('uni\u00e3o');
+    if (_soCasado) {
         items.push({ label: 'Documento do C\u00f4njuge', folder: '01_FICHA_CADASTRAL' });
     }
 
@@ -10053,17 +10065,27 @@ window.toggleAdiantamento = function(val) {
 };
 
 window.previewFichaAdmissao = function() {
-    if (!window.viewedColaborador || !window.viewedColaborador.id) {
+    let colabId = window.viewedColaborador && window.viewedColaborador.id;
+    if (!colabId) {
+        const hid = document.getElementById('admissao-select-colab');
+        colabId = hid ? hid.value : null;
+    }
+    if (!colabId) {
         alert('Nenhum colaborador selecionado na admissão.');
         return;
     }
     const token = localStorage.getItem('token');
-    const win = window.open(`/api/colaboradores/${window.viewedColaborador.id}/ficha-admissao/html?token=${token}`, '_blank');
+    const win = window.open(`/api/colaboradores/${colabId}/ficha-admissao/html?token=${token}`, '_blank');
     if(win) win.focus();
 };
 
 window.enviarFichaContabilidade = async function(btn) {
-    if (!window.viewedColaborador || !window.viewedColaborador.id) {
+    let colabId = window.viewedColaborador && window.viewedColaborador.id;
+    if (!colabId) {
+        const hid = document.getElementById('admissao-select-colab');
+        colabId = hid ? hid.value : null;
+    }
+    if (!colabId) {
         alert('Nenhum colaborador selecionado.');
         return;
     }
@@ -10077,7 +10099,7 @@ window.enviarFichaContabilidade = async function(btn) {
     btn.disabled = true;
 
     try {
-        const url = (typeof API_URL !== 'undefined' ? API_URL : 'https://sistema-america.onrender.com/api') + `/colaboradores/${window.viewedColaborador.id}/enviar-ficha-contabilidade`;
+        const url = (typeof API_URL !== 'undefined' ? API_URL : 'https://sistema-america.onrender.com/api') + `/colaboradores/${colabId}/enviar-ficha-contabilidade`;
         const res = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
