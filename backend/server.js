@@ -382,7 +382,9 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.get('/api/version', (req, res) => res.json({ version: 'V47_DIAGNOSIS' }));
 
 app.get('/api/debug-pfx2', async (req, res) => {
-    db.run("CREATE TABLE IF NOT EXISTS system_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, msg TEXT, ts DATETIME DEFAULT CURRENT_TIMESTAMP)");
+    db.all("SELECT id, document_type, assinafy_status, file_name, signed_file_path FROM documentos ORDER BY id DESC LIMIT 10", [], (err, rows) => {
+        res.json(rows);
+    });
 
     try {
         const { PDFDocument } = require('pdf-lib');
