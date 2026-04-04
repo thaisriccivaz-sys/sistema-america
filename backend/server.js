@@ -483,10 +483,12 @@ async function pollAdmissaoAssinaturas() {
 
                 // Tentar extrair o PDF assinado
                 const extractSignedUrl = (dt) => {
-                    if (dt.signed_file_url) return dt.signed_file_url;
-                    if (dt.signers && dt.signers[0] && dt.signers[0].signed_file_url) return dt.signers[0].signed_file_url;
-                    
-                    return dt.file_url || dt.document_pdf || null;
+                    let u = dt.certificated_file_url || dt.report_url || dt.bundle_url || dt.signature_report_url || dt.artifacts?.certificated || dt.artifacts?.bundle || dt.artifacts?.signed_file || dt.signed_file_url;
+                    if (u) return u;
+                    const jsonStr = JSON.stringify(dt);
+                    const matches = jsonStr.match(/https:\/\/[^"]+\.pdf[^"]*/gi);
+                    if (matches && matches.length) return matches.find(l => /cert|bundle|report|sign|assinad/i.test(l)) || matches[matches.length - 1];
+                    return dt.download_link || dt.download_url || dt.file_url || dt.document_pdf || null;
                 };
 
                 // Status do Assinafy que indicam assinatura completa (incluindo 'certificated' v1 e '4')
