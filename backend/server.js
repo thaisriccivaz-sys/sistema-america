@@ -546,9 +546,17 @@ async function pollAdmissaoAssinaturas() {
                         );
                         const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || 'RH/1.Colaboradores/Sistema';
                         const safeColab = formatarNome(colabRow?.nome_completo || 'DESCONHECIDO');
-                        const safeDocName = formatarPasta(doc.nome_documento || 'Documento').replace(/\s+/g, '_');
-                        const docYear = String(new Date().getFullYear());
-                        const cloudName = doc.file_name || `${safeDocName}_${safeColab}_${docYear}.pdf`;
+                        const isAtestado = (doc.tab_name === 'Atestados');
+                        const docYear = doc.year && doc.year !== 'null' && doc.year !== '' ? String(doc.year).replace(/[^0-9]/g, '') : String(new Date().getFullYear());
+                        let cloudName;
+                        if (doc.source === 'documento') {
+                            cloudName = isAtestado
+                                ? (doc.file_name || 'Atestado.pdf').replace(/_\d{8}_\d{6}(\.\w+)$/, '$1')
+                                : `${formatarPasta(doc.document_type || doc.tab_name || 'Documento').replace(/\s+/g, '_')}_${docYear}_${safeColab}.pdf`;
+                        } else {
+                            const safeDocName = formatarPasta(doc.nome_documento || 'Documento').replace(/\s+/g, '_');
+                            cloudName = `${safeDocName}_${safeColab}_${docYear}.pdf`;
+                        }
                         let targetDir;
                         if (doc.source === 'documento') {
                             const safeTab = doc.tab_name ? formatarPasta(doc.tab_name).toUpperCase() : 'DOCUMENTOS';
