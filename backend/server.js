@@ -2546,13 +2546,28 @@ app.post('/api/admissao-assinaturas/enviar-lote', authenticateToken, async (req,
                 [colaborador_id, gerador.nome], (err, row) => err ? reject(err) : resolve(row))
         );
 
-        const docId = await new Promise((resolve, reject) =>
-            db.run(
-                `INSERT INTO documentos (colaborador_id, tab_name, document_type, file_path, file_name, assinafy_status) VALUES (?, 'CONTRATOS', ?, ?, ?, 'Pendente')`,
-                [colaborador_id, gerador.nome, filePath, path.basename(filePath)],
-                function(err) { err ? reject(err) : resolve(this.lastID); }
-            )
+        const existenteDoc = await new Promise((resolve, reject) =>
+            db.get(`SELECT id, assinafy_status FROM documentos WHERE colaborador_id = ? AND document_type = ? AND tab_name = 'CONTRATOS' ORDER BY id DESC LIMIT 1`,
+                [colaborador_id, gerador.nome], (err, row) => err ? reject(err) : resolve(row))
         );
+
+        let docId;
+        if (existenteDoc && existenteDoc.assinafy_status !== 'Assinado') {
+            docId = existenteDoc.id;
+            await new Promise((resolve, reject) =>
+                db.run(`UPDATE documentos SET file_path = ?, file_name = ?, assinafy_status = 'Pendente' WHERE id = ?`,
+                    [filePath, path.basename(filePath), docId],
+                    function(err) { err ? reject(err) : resolve(); })
+            );
+        } else {
+            docId = await new Promise((resolve, reject) =>
+                db.run(
+                    `INSERT INTO documentos (colaborador_id, tab_name, document_type, file_path, file_name, assinafy_status) VALUES (?, 'CONTRATOS', ?, ?, ?, 'Pendente')`,
+                    [colaborador_id, gerador.nome, filePath, path.basename(filePath)],
+                    function(err) { err ? reject(err) : resolve(this.lastID); }
+                )
+            );
+        }
 
         const resultado = await novoProcesso.enviarDocumentoParaAssinafy(docId, colaborador_id);
 
