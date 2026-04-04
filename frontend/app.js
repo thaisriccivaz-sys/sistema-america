@@ -7098,16 +7098,13 @@ window.nextAdmissaoStep = function(step, preventScroll = false) {
 
 function calculateAdmissaoStep1Completion(c) {
     const checklist = [
-        // Dados Pessoais
         { key: 'nome_completo', label: 'Nome Completo' },
         { key: 'cpf', label: 'CPF' },
-        { key: 'rg_tipo', label: 'Tipo Documento' },
         { key: 'rg', label: 'RG/Número' },
         { key: 'rg_orgao', label: 'Órgão Emissor' },
         { key: 'rg_data_emissao', label: 'Data Emissão' },
         { key: 'data_nascimento', label: 'Nascimento' },
         { key: 'sexo', label: 'Sexo' },
-        { key: 'cor_raca', label: 'Cor/Raça' },
         { key: 'estado_civil', label: 'Estado Civil' },
         { key: 'nacionalidade', label: 'Nacionalidade' },
         { key: 'local_nascimento', label: 'Naturalidade' },
@@ -7116,53 +7113,27 @@ function calculateAdmissaoStep1Completion(c) {
         { key: 'telefone', label: 'Telefone' },
         { key: 'email', label: 'E-mail' },
         { key: 'endereco', label: 'Endereço' },
-        
-        // Dados Profissionais
-        { key: 'cargo_nome_exibindo', label: 'Cargo' },
-        { key: 'depto_nome_exibindo', label: 'Departamento' },
+        { key: 'matricula_esocial', label: 'Matrícula eSocial' },
         { key: 'data_admissao', label: 'Admissão' },
+        { key: 'departamento', label: 'Departamento' },
+        { key: 'cargo', label: 'Cargo' },
         { key: 'tipo_contrato', label: 'Tipo Contrato' },
         { key: 'salario', label: 'Salário' },
         { key: 'cbo', label: 'CBO' },
-        { key: 'matricula_esocial', label: 'Matrícula eSocial' },
-        { key: 'pis', label: 'PIS/PASEP' },
-        { key: 'ctps_numero', label: 'CTPS Número' },
-        { key: 'ctps_serie', label: 'CTPS Série' },
-        { key: 'ctps_uf', label: 'CTPS UF' },
-        { key: 'ctps_data_expedicao', label: 'CTPS Emissão' },
-        
-        // Outros Documentos
-        { key: 'titulo_eleitoral', label: 'Título Eleitoral' },
-        { key: 'titulo_zona', label: 'Zona/Seção' },
-        { key: 'certificado_militar', label: 'Cert. Militar' },
-        { key: 'cnh_numero', label: 'CNH Número' },
-        { key: 'cnh_categoria', label: 'CNH Cat.' },
-        
-        // Saúde e Extras
-        { key: 'deficiencia', label: 'Deficiência' },
-        { key: 'alergias', label: 'Alergias' },
-        { key: 'contato_emergencia_nome', label: 'Emergência (Nome)' },
-        { key: 'contato_emergencia_telefone', label: 'Emergência (Tel)' },
-        
-        // Financeiro
+        { key: 'horario_entrada', label: 'Entrada' },
+        { key: 'horario_saida', label: 'Saída' },
         { key: 'banco_nome', label: 'Banco' },
         { key: 'banco_agencia', label: 'Agência' },
-        { key: 'banco_conta', label: 'Conta' },
-        { key: 'fgts_opcao', label: 'Opção FGTS' },
-        
-        // Escala
-        { key: 'escala_tipo', label: 'Escala' },
-        { key: 'horario_entrada', label: 'Entrada' },
-        { key: 'horario_saida', label: 'Saída' }
+        { key: 'banco_conta', label: 'Conta' }
     ];
-    
+
     let filledCount = 0;
     const resultFields = [];
     const missing = [];
 
     checklist.forEach(item => {
         const val = c[item.key];
-        const isFilled = val && val !== '' && val !== 'null';
+        const isFilled = val !== undefined && val !== null && String(val).trim() !== '' && String(val) !== 'null';
         if (isFilled) filledCount++;
         else missing.push(item.label);
 
@@ -7190,6 +7161,16 @@ function updateAdmissaoStepPercentages(colab) {
     const calculateChecklist = (panelId) => {
         const panel = document.getElementById(panelId);
         if (!panel) return 0;
+        
+        // Se usar doc-items dinâmicos (renderAdmissaoStepX)
+        const docItems = panel.querySelectorAll('.doc-item');
+        if (docItems.length > 0) {
+            const total = docItems.length;
+            const uploaded = panel.querySelectorAll('.doc-item[data-doc-id]').length;
+            return Math.min(100, Math.round((uploaded / total) * 100));
+        }
+
+        // Checklist nativo HTML
         const total = panel.querySelectorAll('.checklist-item').length;
         if (total === 0) return 0;
         const uploaded = Array.from(panel.querySelectorAll('.upload-status'))
@@ -7212,7 +7193,23 @@ function updateAdmissaoStepPercentages(colab) {
     }
 
     const pc3 = calculateChecklist('panel-step-3');
-    const pc4 = calculateChecklist('panel-step-4');
+    
+    // Passo 4 Especial: 20% para anexo + 80% assinatura
+    let pc4 = 0;
+    const panel4 = document.getElementById('panel-step-4');
+    if (panel4) {
+        const docItems4 = panel4.querySelectorAll('.doc-item');
+        const numDocs = docItems4.length;
+        if (numDocs > 0) {
+            let uploaded = panel4.querySelectorAll('.doc-item[data-doc-id]').length;
+            let signed = panel4.querySelectorAll('.doc-item[data-assinafy-status*="Assinado"]').length;
+            
+            const pctUpload = (uploaded / numDocs) * 20;
+            const pctSign = Math.round((signed / numDocs) * 80);
+            pc4 = Math.min(100, Math.round(pctUpload + pctSign));
+        }
+    }
+
     const pc5 = calculateChecklist('panel-step-5');
     const pc6 = calculateChecklist('panel-step-6');
     const pc7 = calculateChecklist('panel-step-7');
