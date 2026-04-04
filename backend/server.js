@@ -4577,6 +4577,12 @@ app.get('/api/colaboradores/:id/ficha-admissao/html', authenticateToken, async (
     db.get('SELECT * FROM colaboradores WHERE id = ?', [id], async (err, row) => {
         if (err || !row) return res.status(404).send('Colaborador não encontrado');
         try {
+            // Buscar dependentes (filhos) para incluir na ficha
+            const deps = await new Promise((resolve) =>
+                db.all('SELECT * FROM dependentes WHERE colaborador_id = ?', [id], (e, r) => resolve(r || []))
+            );
+            row.dependentes = deps;
+
             const htmlPdf = require('html-pdf-node');
             const baseUrl = `${req.protocol}://${req.get('host')}`;
             const html = getFichaAdmissaoHtml(row, baseUrl);

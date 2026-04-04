@@ -19,11 +19,13 @@ function getFichaAdmissaoHtml(colaborador, baseUrl) {
     let dependentes = [];
     try { if (c.dependentes) dependentes = (typeof c.dependentes === 'string') ? JSON.parse(c.dependentes) : c.dependentes; } catch(e) {}
 
+    const isCasado = c.estado_civil && (c.estado_civil.toLowerCase().includes('casad') || c.estado_civil.toLowerCase().includes('uni'));
+    // Cônjuge: lê das colunas diretas (nova arquitetura) ou retrocompat. com dependentes
     const conjugeNome = safeStr(c.conjuge_nome || ((dependentes.find(d => d.grau_parentesco === 'C\u00f4njuge') || {}).nome));
     const conjugeCpf  = safeStr(c.conjuge_cpf  || ((dependentes.find(d => d.grau_parentesco === 'C\u00f4njuge') || {}).cpf));
+    // Filhos: apenas dependentes sem grau cônjuge
     const filhos = dependentes.filter(d => d.grau_parentesco !== 'C\u00f4njuge');
 
-    const isCasado = c.estado_civil && c.estado_civil.toLowerCase().includes('casad');
     const temConjuge = isCasado && conjugeNome;
     const temDependentes = filhos.length > 0;
 
@@ -32,7 +34,9 @@ function getFichaAdmissaoHtml(colaborador, baseUrl) {
 
     let sabIn = c.sabado_entrada;
     let sabOut = c.sabado_saida;
-    if (!sabIn && c.escala_padrao && c.escala_padrao.toLowerCase().includes('seis_dias')) {
+    // Fallback: se não tem sábado específico, usa horário padrão para escala seg-sab
+    const escalaTipo = c.escala_tipo || c.escala_padrao || '';
+    if (!sabIn && escalaTipo && (escalaTipo.toLowerCase().includes('seis') || escalaTipo.toLowerCase().includes('seg_sab') || escalaTipo.toLowerCase().includes('sabado'))) {
         sabIn = c.horario_entrada;
         sabOut = c.horario_saida;
     }
