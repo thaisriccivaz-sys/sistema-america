@@ -519,7 +519,7 @@ async function pollAdmissaoAssinaturas() {
                     if (dispCert.disponivel) {
                         try {
                             certSignedBuffer = await signPdfPfx.assinarPDF(pdfBuffer, {
-                                motivo: `Assinado eletronicamente pela empresa - ${doc.nome_documento || 'Documento'}`,
+                                motivo: 'Assinado eletronicamente pela empresa',
                                 nome: 'America Rental Equipamentos Ltda'
                             });
                             console.log(`[POLL-ADMISSAO] ✅ Certificado digital aplicado: ${certSignedBuffer.length} bytes`);
