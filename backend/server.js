@@ -382,11 +382,18 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.get('/api/version', (req, res) => res.json({ version: 'V47_DIAGNOSIS' }));
 
 app.get('/api/debug-pfx3', async (req, res) => {
-    db.run("UPDATE documentos SET assinafy_signed_at = CURRENT_TIMESTAMP WHERE assinafy_status = 'Assinado' AND assinafy_signed_at IS NULL", function() {
-        db.run("UPDATE admissao_assinaturas SET assinado_em = CURRENT_TIMESTAMP WHERE assinafy_status = 'Assinado' AND assinado_em IS NULL", function() {
-            res.json({ ok: true, msg: "Timestamps repaired" });
-        });
-    });
+    try {
+        const doc = await new Promise(r => db.get("SELECT assinafy_id FROM documentos WHERE assinafy_status = 'Assinado' ORDER BY id DESC LIMIT 1", [], (err, row) => r(row)));
+        if(!doc) return res.send("No doc");
+        const fetch = require('node-fetch') || global.fetch;
+        const rInfo = await fetch(`https://api.assinafy.com.br/v1/documents/${doc.assinafy_id}`, { headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey } });
+        const dt = (await rInfo.json()).data;
+        const signedUrl = dt.signed_file_url || (dt.signers && dt.signers[0] && dt.signers[0].signed_file_url) || dt.file_url || dt.document_pdf;
+        const dl = await fetch(signedUrl, { headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey } });
+        let buf = Buffer.from(await dl.arrayBuffer());
+        const signPdfPfx = require('./sign_pdf_pfx');
+        try { buf = await signPdfPfx.assinarPDF(buf, {}); res.json({ ok: true, msg: "Signed successfully!" }); } catch(e) { res.json({ error: e.message, stack: e.stack }); }
+    } catch(e) { res.send(e.message); }
 });
 
 app.get('/api/debug-pfx2', async (req, res) => {
