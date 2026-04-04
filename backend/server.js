@@ -4547,6 +4547,54 @@ setTimeout(() => {
 }, 3000);
 
 
+// --- NOVAS ROTAS DA FICHA DE ADMISSÃO ---
+const { getFichaAdmissaoHtml } = require('./fichaAdmissao');
+
+app.get('/api/colaboradores/:id/ficha-admissao/html', authenticateToken, (req, res) => {
+    const id = req.params.id;
+    db.get('SELECT * FROM colaboradores WHERE id = ?', [id], (err, row) => {
+        if (err || !row) return res.status(404).send('Colaborador não encontrado');
+        const html = getFichaAdmissaoHtml(row);
+        res.send(html);
+    });
+});
+
+app.post('/api/colaboradores/:id/enviar-ficha-contabilidade', authenticateToken, async (req, res) => {
+    const id = req.params.id;
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email destino é obrigatório' });
+    
+    db.get('SELECT * FROM colaboradores WHERE id = ?', [id], async (err, row) => {
+        if (err || !row) return res.status(404).json({ error: 'Colaborador não encontrado' });
+        
+        try {
+            const htmlPdf = require('html-pdf-node');
+            const html = getFichaAdmissaoHtml(row);
+            const pdfBuffer = await htmlPdf.generatePdf(
+                { content: html },
+                { format: 'A4', margin: { top: '1cm', bottom: '1cm', left: '1cm', right: '1cm' }, printBackground: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] }
+            );
+            
+            await transporter.sendMail({
+                from: `"RH América Rental" <${SMTP_CONFIG.auth.user}>`,
+                to: email,
+                subject: `Ficha de Admissão - ${row.nome_completo || row.nome}`,
+                html: '<p>Olá,</p><p>Segue em anexo a Ficha de Admissão para conferência e cadastro contábil.</p><p>Atenciosamente,<br>RH - América Rental</p>',
+                attachments: [
+                    {
+                        filename: `Ficha_Admissao_${row.nome_completo || 'Colaborador'}.pdf`,
+                        content: pdfBuffer
+                    }
+                ]
+            });
+            res.json({ sucesso: true });
+        } catch (e) {
+            console.error('Erro ao enviar ficha:', e);
+            res.status(500).json({ error: e.message });
+        }
+    });
+});
+
 // Tratamento de Exceções Globais
 process.on('uncaughtException', (err) => {
     console.error('--- ERRO FATAL (Uncaught Exception) ---');

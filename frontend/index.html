@@ -1524,7 +1524,19 @@
                         <div class="admissao-panel" id="panel-step-5">
                             <div class="card p-4">
                                 <h3 class="section-title"><i class="ph ph-calculator"></i> Passo 5: Envio Contabilidade</h3>
-                                <p class="text-muted mb-4">Upload do protocolo de envio ou confirmação da contabilidade.</p>
+                                <p class="text-muted mb-4">Verifique a Ficha de Admissão gerada e envie para a contabilidade ou faça o upload manual.</p>
+
+                                <div style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:8px; padding:15px; margin-bottom:1rem; display:flex; flex-direction:column; gap:10px;">
+                                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                                        <span style="font-weight:600; font-size:0.9rem; color:#334155;"><i class="ph ph-file-pdf"></i> Ficha de Admissão (Gerada)</span>
+                                        <button class="btn btn-outline btn-sm" onclick="window.previewFichaAdmissao()"><i class="ph ph-eye"></i> Conferir Ficha</button>
+                                    </div>
+                                    <div style="display:flex; gap:0.5rem; align-items:center; margin-top:5px;">
+                                        <label style="font-weight:600; font-size:0.85rem; margin:0; white-space:nowrap;">E-mail Destino:</label>
+                                        <input type="email" id="email-contabilidade" value="thais.ricci@americarental.com.br" style="flex:1; padding:6px 10px; font-size:0.85rem; border:1px solid #cbd5e1; border-radius:6px;">
+                                        <button class="btn btn-primary btn-sm" onclick="window.enviarFichaContabilidade(this)"><i class="ph ph-paper-plane-tilt"></i> Enviar por E-mail</button>
+                                    </div>
+                                </div>
                                 <div id="admissao-checklist-step5" class="checklist-container mb-4">
                                     <div class="checklist-item no-click">
                                         <div style="flex:1;"><label>Confirmação de Envio / eSocial</label></div>

@@ -1,4 +1,4 @@
-const API_URL = `${window.location.origin}/api`;
+﻿const API_URL = `${window.location.origin}/api`;
 
 // Estado global
 let currentUser = null;
@@ -10030,5 +10030,48 @@ window.toggleAdiantamento = function(val) {
         input.style.background = '#f8fafc';
         input.style.cursor = 'not-allowed';
         input.value = '';
+    }
+};
+window.previewFichaAdmissao = function() {
+    if (!window.viewedColaborador || !window.viewedColaborador.id) {
+        alert('Nenhum colaborador selecionado na admiss�o.');
+        return;
+    }
+    const token = localStorage.getItem('token');
+    const win = window.open(\/api/colaboradores/\/ficha-admissao/html?token=\\, '_blank');
+    if(win) win.focus();
+};
+
+window.enviarFichaContabilidade = async function(btn) {
+    if (!window.viewedColaborador || !window.viewedColaborador.id) {
+        alert('Nenhum colaborador selecionado.');
+        return;
+    }
+    const email = document.getElementById('email-contabilidade').value;
+    if (!email) {
+        alert("Preencha o e-mail destino.");
+        return;
+    }
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class=\"ph ph-spinner ph-spin\"></i> Enviando...';
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(\\/colaboradores/\/enviar-ficha-contabilidade\, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': \Bearer \\ },
+            body: JSON.stringify({ email: email })
+        });
+        const data = await res.json();
+        if (data.sucesso) {
+            alert('Ficha enviada com sucesso para ' + email);
+        } else {
+            alert('Erro ao enviar Ficha: ' + (data.error || 'Erro desconhecido.'));
+        }
+    } catch(err) {
+        alert('Erro de conex�o: ' + err.message);
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
     }
 };
