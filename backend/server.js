@@ -380,6 +380,21 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // ROTA DE VERSÃO (Para verificar implantação)
 app.get('/api/version', (req, res) => res.json({ version: 'V47_DIAGNOSIS' }));
+app.get('/api/debug-pfx2', async (req, res) => {
+    try {
+        const { PDFDocument } = require('pdf-lib');
+        const signPdfPfx = require('./sign_pdf_pfx');
+        const pdfDoc = await PDFDocument.create();
+        const page = pdfDoc.addPage();
+        page.drawText('Teste');
+        const pdfBytes = await pdfDoc.save();
+        let buf = Buffer.from(pdfBytes);
+        buf = await signPdfPfx.assinarPDF(buf, {});
+        res.send("OK! length: " + buf.length);
+    } catch(e) {
+        res.json({ error: e.message, stack: e.stack });
+    }
+});
 app.get('/api/get-system-logs', (req, res) => {
     try {
         db.all('SELECT * FROM system_logs ORDER BY id DESC LIMIT 50', [], (err, rows) => {
