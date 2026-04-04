@@ -22,6 +22,17 @@ const SMTP_CONFIG = {
 
 const db = require('./database');
 
+// Recarregar configurações do sistema (ex: certificado)
+db.all("SELECT chave, valor FROM configuracoes_sistema", [], (err, rows) => {
+    if (!err && rows) {
+        rows.forEach(r => {
+            if (r.chave === 'pfx_path') process.env.PFX_PATH = r.valor;
+            if (r.chave === 'pfx_password_b64') process.env.PFX_PASSWORD = Buffer.from(r.valor, 'base64').toString('utf8');
+        });
+        console.log('[SISTEMA] Configurações de certificado carregadas com sucesso.');
+    }
+});
+
 // ── DIAGNÓSTICO DE PERSISTÊNCIA ────────────────────────────────────────
 const dbPathAtual = process.env.DATABASE_PATH || require('path').join(__dirname, 'data', 'hr_system_v2.sqlite');
 if (!process.env.DATABASE_PATH) {
@@ -368,7 +379,18 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // ROTA DE VERSÃO (Para verificar implantação)
-app.get('/api/version', (req, res) => res.json({ version: 'V46_ASSINAFY_FIX_POLLING_ALL' }));
+app.get('/api/version', (req, res) => res.json({ version: 'V47_DIAGNOSIS' }));
+
+app.get('/api/check-pfx', (req, res) => {
+    try {
+        const signPdfPfx = require('./sign_pdf_pfx');
+        const disp = signPdfPfx.verificarDisponibilidade();
+        const info = disp.disponivel ? signPdfPfx.infosCertificado(signPdfPfx.getPfxPath(), signPdfPfx.getPfxPassword()) : null;
+        res.json({ disp, info, envs: { PFX_PATH: process.env.PFX_PATH || 'NOT SET', PFX_PASS: (process.env.PFX_PASSWORD ? 'SET' : 'NOT SET') }});
+    } catch(e) {
+        res.status(500).json({ error: e.message, stack: e.stack });
+    }
+});
 
 // ─── MÓDULO DE ASSINATURA DIGITAL COM CERTIFICADO .PFX ───────────────────────
 const signPdfPfx = require('./sign_pdf_pfx');
