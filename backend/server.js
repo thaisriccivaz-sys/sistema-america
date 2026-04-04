@@ -552,7 +552,7 @@ async function pollAdmissaoAssinaturas() {
                         if (doc.source === 'documento') {
                             cloudName = isAtestado
                                 ? (doc.file_name || 'Atestado.pdf').replace(/_\d{8}_\d{6}(\.\w+)$/, '$1')
-                                : `${formatarPasta(doc.document_type || doc.tab_name || 'Documento').replace(/\s+/g, '_')}_${docYear}_${safeColab}.pdf`;
+                                : `${formatarPasta(doc.nome_documento || doc.document_type || doc.tab_name || 'Documento').replace(/\s+/g, '_')}_${docYear}_${safeColab}.pdf`;
                         } else {
                             const safeDocName = formatarPasta(doc.nome_documento || 'Documento').replace(/\s+/g, '_');
                             cloudName = `${safeDocName}_${safeColab}_${docYear}.pdf`;
@@ -3695,39 +3695,35 @@ app.post('/api/documentos/:id/force-onedrive-sync', authenticateToken, async (re
                 localPath = doc.file_path;
                 addLog(`Usando file_path regular: ${localPath}`);
             }
-        }
+        // Força download direto do Assinafy para evitar reaproveitar cache antigo sem selo
+        addLog('Buscando URL atualizada no Assinafy...');
 
-        // Baixar do Assinafy se não tiver localmente
-        if (!localPath || !fs.existsSync(localPath)) {
-            addLog('Arquivo local ausente. Buscando URL no Assinafy...');
-            if (!doc.assinafy_id) return res.json({ log, error: 'Nenhum arquivo local encontrado e sem assinafy_id para baixar.' });
-
-            const assinafyRes = await new Promise((resolve, reject) => {
-                const https = require('https');
-                const opts = {
-                    hostname: 'api.assinafy.com.br', path: `/v1/documents/${doc.assinafy_id}`, method: 'GET',
-                    headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey, 'Accept': 'application/json' }
-                };
-                const r = https.request(opts, (resp) => {
-                    const chunks = [];
-                    resp.on('data', c => chunks.push(c));
-                    resp.on('end', () => { try { resolve(JSON.parse(Buffer.concat(chunks).toString())); } catch(e) { reject(e); } });
-                });
-                r.on('error', reject); r.end();
+        const assinafyRes = await new Promise((resolve, reject) => {
+            const https = require('https');
+            const opts = {
+                hostname: 'api.assinafy.com.br', path: `/v1/documents/${doc.assinafy_id}`, method: 'GET',
+                headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey, 'Accept': 'application/json' }
+            };
+            const r = https.request(opts, (resp) => {
+                const chunks = [];
+                resp.on('data', c => chunks.push(c));
+                resp.on('end', () => { try { resolve(JSON.parse(Buffer.concat(chunks).toString())); } catch(e) { reject(e); } });
             });
+            r.on('error', reject); r.end();
+        });
 
-            const docData = assinafyRes.data || assinafyRes;
-            addLog(`Status Assinafy: ${docData.status} | Keys: ${Object.keys(docData).join(',')}`);
-            addLog(`Artifacts: ${JSON.stringify(docData.artifacts || 'nenhum')}`);
+        const docData = assinafyRes.data || assinafyRes;
+        addLog(`Status Assinafy: ${docData.status} | Keys: ${Object.keys(docData).join(',')}`);
+        addLog(`Artifacts: ${JSON.stringify(docData.artifacts || 'nenhum')}`);
 
-            const signedUrl = extractSignedUrl(docData);
-            addLog(`URL extraída: ${signedUrl || 'NENHUMA URL ENCONTRADA'}`);
-            if (!signedUrl) return res.json({ log, error: 'URL do PDF assinado não encontrada.', raw: docData });
+        const signedUrl = extractSignedUrl(docData);
+        addLog(`URL extraída: ${signedUrl || 'NENHUMA URL ENCONTRADA'}`);
+        if (!signedUrl) return res.json({ log, error: 'URL do PDF assinado não encontrada.', raw: docData });
 
-            const storagePath = process.env.STORAGE_PATH || path.join(__dirname, 'data', 'uploads');
-            const assDir = path.join(storagePath, 'assinados');
-            if (!fs.existsSync(assDir)) fs.mkdirSync(assDir, { recursive: true });
-            localPath = path.join(assDir, `ASSINADO_${path.basename(doc.file_name, '.pdf')}_${Date.now()}.pdf`);
+        const storagePath = process.env.STORAGE_PATH || path.join(__dirname, 'data', 'uploads');
+        const assDir = path.join(storagePath, 'assinados');
+        if (!fs.existsSync(assDir)) fs.mkdirSync(assDir, { recursive: true });
+        let localPath = path.join(assDir, `ASSINADO_${path.basename(doc.file_name, '.pdf')}_${Date.now()}.pdf`);
 
             const downloadToBuffer = (url) => new Promise((resolve, reject) => {
                 const https = require('https');
