@@ -2684,6 +2684,18 @@ if (formColab) {
                         });
                     }
                 });
+                // Incluir cônjuge se preenchido
+                const conjNomeSave = document.getElementById('conjuge-nome') ? document.getElementById('conjuge-nome').value : '';
+                const conjCpfSave = document.getElementById('conjuge-cpf') ? document.getElementById('conjuge-cpf').value : '';
+                const conjIdSave = document.getElementById('conjuge-id') ? document.getElementById('conjuge-id').value : '';
+                if (conjNomeSave) {
+                    results.push({
+                        id: conjIdSave || undefined,
+                        nome: conjNomeSave,
+                        cpf: conjCpfSave,
+                        grau_parentesco: 'Cônjuge'
+                    });
+                }
                 return results;
             })(),
             cbo: (function() {
@@ -2740,6 +2752,8 @@ if (formColab) {
         };
         data.salario = parseMoeda(data.salario);
         data.valor_transporte = parseMoeda(data.valor_transporte);
+        data.adiantamento_valor = parseMoeda(data.adiantamento_valor);
+        data.insalubridade_valor = parseMoeda(data.insalubridade_valor);
 
         if (data.escala_tipo === 'escala_duas_folgas' && !isPartial) {
             const folgas = Array.from(document.querySelectorAll('.cb-folga-colab:checked')).map(cb => cb.value);
@@ -7104,7 +7118,8 @@ window.nextAdmissaoStep = function(step, preventScroll = false) {
 };
 
 function calculateAdmissaoStep1Completion(c) {
-    const checklist = [
+    // Checklist base — todos os campos obrigatórios
+    const baseChecklist = [
         { key: 'nome_completo', label: 'Nome Completo' },
         { key: 'cpf', label: 'CPF' },
         { key: 'data_nascimento', label: 'Nascimento' },
@@ -7118,9 +7133,7 @@ function calculateAdmissaoStep1Completion(c) {
         { key: 'nome_mae', label: 'Nome Mãe' },
         { key: 'nome_pai', label: 'Nome Pai' },
         { key: 'rg_tipo', label: 'Tipo Doc' },
-        { key: 'rg', label: 'Número (RG)' },
-        { key: 'rg_orgao', label: 'Órgão Emissor' },
-        { key: 'rg_data_emissao', label: 'Expedição (RG)' },
+        { key: 'rg', label: 'Número Doc' },
         { key: 'pis', label: 'PIS/PASEP' },
         { key: 'titulo_eleitoral', label: 'Título Eleitoral' },
         { key: 'titulo_zona', label: 'Zona Eletr.' },
@@ -7134,60 +7147,118 @@ function calculateAdmissaoStep1Completion(c) {
         { key: 'contato_emergencia_nome', label: 'Emg. Nome' },
         { key: 'contato_emergencia_telefone', label: 'Emg. Tel.' },
         { key: 'alergias', label: 'Alergias' },
-        { key: 'endereco', label: 'Endereço Completo' },
+        { key: 'endereco', label: 'Endereço' },
         { key: 'matricula_esocial', label: 'Matrícula eSocial' },
         { key: 'cargo', label: 'Cargo' },
         { key: 'departamento', label: 'Departamento' },
-        { key: 'cnh_numero', label: 'CNH Núm.' },
-        { key: 'cnh_categoria', label: 'CNH Cat.' },
         { key: 'cbo', label: 'CBO' },
         { key: 'data_admissao', label: 'Admissão' },
         { key: 'tipo_contrato', label: 'Tipo Contrato' },
         { key: 'salario', label: 'Salário Base' },
         { key: 'meio_transporte', label: 'Meio Transp.' },
-        { key: 'valor_transporte', label: 'Valor Transp.' },
-        { key: 'adiantamento', label: 'Adiantamento' },
+        { key: 'adiantamento_salarial', label: 'Adiantamento' },
         { key: 'insalubridade', label: 'Insalubridade' },
-        { key: 'escala_padrao', label: 'Escala Padrão' },
-        { key: 'horario_entrada', label: 'Escala Entrada' },
-        { key: 'horario_saida', label: 'Escala Saída' },
-        { key: 'horario_intervalo_entrada', label: 'Intervalo Ini' },
-        { key: 'horario_intervalo_saida', label: 'Intervalo Fim' },
+        { key: 'escala_tipo', label: 'Escala Padrão' },
+        { key: 'horario_entrada', label: 'Entrada' },
+        { key: 'horario_saida', label: 'Saída' },
+        { key: 'intervalo_entrada', label: 'Intervalo Ini' },
+        { key: 'intervalo_saida', label: 'Intervalo Fim' },
         { key: 'banco_nome', label: 'Banco' },
         { key: 'banco_agencia', label: 'Agência' },
         { key: 'banco_conta', label: 'Conta' }
     ];
 
-    let filledCount = 0;
-    const resultFields = [];
-    const missing = [];
+    let activeChecklist = [...baseChecklist];
 
-    let activeChecklist = [...checklist];
+    // Campos condicionais por tipo de documento (RG = exige órgão e data; CIN/CNH = não exige)
+    const rgTipo = c.rg_tipo || 'RG';
+    if (rgTipo === 'RG') {
+        activeChecklist.push({ key: 'rg_orgao', label: 'Órgão Emissor' });
+        activeChecklist.push({ key: 'rg_data_emissao', label: 'Expedição Doc' });
+    }
 
-    // Condicionais
+    // Campo condicional por sexo
     if (c.sexo === 'Masculino') {
         activeChecklist.push({ key: 'certificado_militar', label: 'Cert. Militar' });
     }
 
+    // Campo condicional por cargo (motorista)
+    const isMotorista = (c.cargo || '').toUpperCase().includes('MOTORISTA');
+    if (isMotorista) {
+        activeChecklist.push({ key: 'cnh_numero', label: 'CNH Núm.' });
+        activeChecklist.push({ key: 'cnh_categoria', label: 'CNH Cat.' });
+    }
+
+    // Cônjuge: mostrar se casado/união estável
+    const isCasado = c.estado_civil && (c.estado_civil.toLowerCase().includes('casad') || c.estado_civil.toLowerCase().includes('uni'));
+
+    // Resolver dependentes e cônjuge do array
+    let depArr = [];
+    try { depArr = c.dependentes ? (typeof c.dependentes === 'string' ? JSON.parse(c.dependentes) : c.dependentes) : []; } catch(e) {}
+    const conjDep = depArr.find(d => d.grau_parentesco === 'Cônjuge');
+    const conjuge_nome = c.conjuge_nome || (conjDep ? conjDep.nome : '');
+    const conjuge_cpf = c.conjuge_cpf || (conjDep ? conjDep.cpf : '');
+    const filhos = depArr.filter(d => d.grau_parentesco !== 'Cônjuge');
+
+    if (isCasado) {
+        activeChecklist.push({ key: 'conjuge_nome', label: 'Nome Cônjuge' });
+        activeChecklist.push({ key: 'conjuge_cpf', label: 'CPF Cônjuge' });
+    }
+
+    // Clonar c com campos resolvidos
+    const resolved = Object.assign({}, c, { conjuge_nome, conjuge_cpf });
+
+    let filledCount = 0;
+    const resultFields = [];
+    const missing = [];
+
     activeChecklist.forEach(item => {
-        const val = c[item.key];
+        const val = resolved[item.key];
         const isFilled = val !== undefined && val !== null && String(val).trim() !== '' && String(val) !== 'null';
         if (isFilled) filledCount++;
         else missing.push(item.label);
 
-        resultFields.push({
-            label: item.label,
-            value: val,
-            filled: isFilled
-        });
+        let displayVal = val;
+        if (item.key.includes('data') && val && String(val).length >= 10) {
+            try { displayVal = new Date(val + 'T12:00:00').toLocaleDateString('pt-BR'); } catch(e) {}
+        }
+
+        resultFields.push({ label: item.label, value: displayVal, filled: isFilled });
     });
 
+    // Adicionar blocos informativos (cônjuge/dependentes/valores) — sem contar na porcentagem
+    const extraFields = [];
+    if (conjuge_nome) {
+        extraFields.push({ label: 'Cônjuge - Nome', value: conjuge_nome, filled: true, isExtra: true });
+        extraFields.push({ label: 'Cônjuge - CPF', value: conjuge_cpf, filled: !!conjuge_cpf, isExtra: true });
+    }
+    filhos.forEach((f, i) => {
+        extraFields.push({ label: `Dependente ${i+1} - Nome`, value: f.nome, filled: !!f.nome, isExtra: true });
+        extraFields.push({ label: `Dependente ${i+1} - CPF`, value: f.cpf, filled: !!f.cpf, isExtra: true });
+        if (f.data_nascimento) {
+            let dFmt = f.data_nascimento;
+            try { dFmt = new Date(f.data_nascimento + 'T12:00:00').toLocaleDateString('pt-BR'); } catch(e) {}
+            extraFields.push({ label: `Dependente ${i+1} - Nasc.`, value: dFmt, filled: true, isExtra: true });
+        }
+    });
+    if (c.adiantamento_salarial === 'Sim') {
+        extraFields.push({ label: 'Valor Adiantamento', value: c.adiantamento_valor, filled: !!c.adiantamento_valor, isExtra: true });
+    }
+    if (c.insalubridade === 'Sim') {
+        extraFields.push({ label: 'Valor Insalubridade', value: c.insalubridade_valor, filled: !!c.insalubridade_valor, isExtra: true });
+    }
+    if (c.meio_transporte && c.meio_transporte !== 'Próprio / A pé') {
+        extraFields.push({ label: 'Valor Transporte', value: c.valor_transporte, filled: !!c.valor_transporte, isExtra: true });
+    }
+
+    const totalActive = activeChecklist.length;
     return {
-        percent: Math.round((filledCount / checklist.length) * 100),
-        fields: resultFields,
+        percent: totalActive > 0 ? Math.round((filledCount / totalActive) * 100) : 0,
+        fields: [...resultFields, ...extraFields],
         missing: missing
     };
 }
+
 
 function updateAdmissaoStepPercentages(colab) {
     const targetColab = colab || viewedColaborador;
