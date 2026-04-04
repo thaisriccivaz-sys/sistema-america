@@ -2170,7 +2170,10 @@ window.resetFormColaborador = function() {
     if (typeof window.toggleAdiantamento === 'function') window.toggleAdiantamento('Não');
     if (document.getElementById('colab-adiantamento-valor')) document.getElementById('colab-adiantamento-valor').value = '';
 
-    if (document.getElementById('colab-insalubridade')) document.getElementById('colab-insalubridade').checked = false;
+    const radioInN = document.querySelector('input[name="insalubridade_check"][value="Não"]');
+    if(radioInN) radioInN.checked = true;
+    if(document.getElementById('colab-insalubridade-valor')) document.getElementById('colab-insalubridade-valor').value = '';
+    if (typeof window.toggleInsalubridade === 'function') window.toggleInsalubridade('Não');
     
     if (document.getElementById('colab-rg-tipo')) {
         document.getElementById('colab-rg-tipo').value = 'RG';
@@ -2398,9 +2401,12 @@ window.editColaborador = async function(id) {
         if (typeof window.toggleAdiantamento === 'function') window.toggleAdiantamento(adiVal);
         if (document.getElementById('colab-adiantamento-valor')) document.getElementById('colab-adiantamento-valor').value = c.adiantamento_valor || '';
 
-        if (document.getElementById('colab-insalubridade')) {
-            document.getElementById('colab-insalubridade').checked = (c.insalubridade === 'Sim');
-        }
+        const insVal = c.insalubridade || 'Não';
+        const insRealVal = insVal === 'Não' ? 'Não' : 'Sim';
+        const radioInS = document.querySelector('input[name="insalubridade_check"][value="'+insRealVal+'"]');
+        if(radioInS) radioInS.checked = true;
+        if(document.getElementById('colab-insalubridade-valor')) document.getElementById('colab-insalubridade-valor').value = c.insalubridade_valor || '';
+        if (typeof window.toggleInsalubridade === 'function') window.toggleInsalubridade(insVal);
         
         if(typeof toggleMotorista === 'function') toggleMotorista();
         
@@ -2722,7 +2728,8 @@ if (formColab) {
             ferias_programadas_fim: document.getElementById('colab-ferias-programadas-fim') ? document.getElementById('colab-ferias-programadas-fim').value : null,
             adiantamento_salarial: document.querySelector('input[name="adiantamento_check"]:checked')?.value || 'Não',
             adiantamento_valor: document.getElementById('colab-adiantamento-valor') ? document.getElementById('colab-adiantamento-valor').value : null,
-            insalubridade: document.getElementById('colab-insalubridade') && document.getElementById('colab-insalubridade').checked ? 'Sim' : 'Não'
+            insalubridade: document.querySelector('input[name="insalubridade_check"]:checked')?.value || 'Não',
+            insalubridade_valor: document.getElementById('colab-insalubridade-valor') ? document.getElementById('colab-insalubridade-valor').value : null
         };
 
         // Converter valores formatados (R$) para números antes de enviar
@@ -6549,9 +6556,9 @@ window.renderContratosTab = async function(container) {
         );
 
         if (deptObj) {
-            const geradorIds = templates
+            const geradorIds = [...new Set(templates
                 .filter(t => Number(t.departamento_id) === Number(deptObj.id))
-                .map(t => Number(t.gerador_id));
+                .map(t => Number(t.gerador_id)))];
             availableGeradores = geradores.filter(g => geradorIds.includes(Number(g.id)));
         }
 
@@ -6705,9 +6712,9 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
             );
 
             if (deptObj) {
-                const geradorIds = templates
+                const geradorIds = [...new Set(templates
                     .filter(t => Number(t.departamento_id) === Number(deptObj.id))
-                    .map(t => Number(t.gerador_id));
+                    .map(t => Number(t.gerador_id)))];
                 availableGeradores = geradores.filter(g => geradorIds.includes(Number(g.id)));
             }
 
@@ -7100,28 +7107,52 @@ function calculateAdmissaoStep1Completion(c) {
     const checklist = [
         { key: 'nome_completo', label: 'Nome Completo' },
         { key: 'cpf', label: 'CPF' },
-        { key: 'rg', label: 'RG/Número' },
-        { key: 'rg_orgao', label: 'Órgão Emissor' },
-        { key: 'rg_data_emissao', label: 'Data Emissão' },
         { key: 'data_nascimento', label: 'Nascimento' },
-        { key: 'sexo', label: 'Sexo' },
-        { key: 'estado_civil', label: 'Estado Civil' },
-        { key: 'nacionalidade', label: 'Nacionalidade' },
         { key: 'local_nascimento', label: 'Naturalidade' },
-        { key: 'nome_mae', label: 'Nome da Mãe' },
-        { key: 'nome_pai', label: 'Nome do Pai' },
+        { key: 'estado_civil', label: 'Estado Civil' },
+        { key: 'sexo', label: 'Sexo' },
+        { key: 'cor_raca', label: 'Cor/Raça' },
+        { key: 'nacionalidade', label: 'Nacionalidade' },
+        { key: 'grau_instrucao', label: 'Grau Instrução' },
+        { key: 'deficiencia', label: 'Deficiência' },
+        { key: 'nome_mae', label: 'Nome Mãe' },
+        { key: 'nome_pai', label: 'Nome Pai' },
+        { key: 'rg_tipo', label: 'Tipo Doc' },
+        { key: 'rg', label: 'Número (RG)' },
+        { key: 'rg_orgao', label: 'Órgão Emissor' },
+        { key: 'rg_data_emissao', label: 'Expedição (RG)' },
+        { key: 'pis', label: 'PIS/PASEP' },
+        { key: 'titulo_eleitoral', label: 'Título Eleitoral' },
+        { key: 'titulo_zona', label: 'Zona Eletr.' },
+        { key: 'titulo_secao', label: 'Seção Eletr.' },
+        { key: 'ctps_numero', label: 'CTPS Núm.' },
+        { key: 'ctps_serie', label: 'CTPS Série' },
+        { key: 'ctps_uf', label: 'CTPS UF' },
+        { key: 'ctps_data_expedicao', label: 'CTPS Data' },
         { key: 'telefone', label: 'Telefone' },
         { key: 'email', label: 'E-mail' },
-        { key: 'endereco', label: 'Endereço' },
+        { key: 'contato_emergencia_nome', label: 'Emg. Nome' },
+        { key: 'contato_emergencia_telefone', label: 'Emg. Tel.' },
+        { key: 'alergias', label: 'Alergias' },
+        { key: 'endereco', label: 'Endereço Completo' },
         { key: 'matricula_esocial', label: 'Matrícula eSocial' },
-        { key: 'data_admissao', label: 'Admissão' },
-        { key: 'departamento', label: 'Departamento' },
         { key: 'cargo', label: 'Cargo' },
-        { key: 'tipo_contrato', label: 'Tipo Contrato' },
-        { key: 'salario', label: 'Salário' },
+        { key: 'departamento', label: 'Departamento' },
+        { key: 'cnh_numero', label: 'CNH Núm.' },
+        { key: 'cnh_categoria', label: 'CNH Cat.' },
         { key: 'cbo', label: 'CBO' },
-        { key: 'horario_entrada', label: 'Entrada' },
-        { key: 'horario_saida', label: 'Saída' },
+        { key: 'data_admissao', label: 'Admissão' },
+        { key: 'tipo_contrato', label: 'Tipo Contrato' },
+        { key: 'salario', label: 'Salário Base' },
+        { key: 'meio_transporte', label: 'Meio Transp.' },
+        { key: 'valor_transporte', label: 'Valor Transp.' },
+        { key: 'adiantamento', label: 'Adiantamento' },
+        { key: 'insalubridade', label: 'Insalubridade' },
+        { key: 'escala_padrao', label: 'Escala Padrão' },
+        { key: 'horario_entrada', label: 'Escala Entrada' },
+        { key: 'horario_saida', label: 'Escala Saída' },
+        { key: 'horario_intervalo_entrada', label: 'Intervalo Ini' },
+        { key: 'horario_intervalo_saida', label: 'Intervalo Fim' },
         { key: 'banco_nome', label: 'Banco' },
         { key: 'banco_agencia', label: 'Agência' },
         { key: 'banco_conta', label: 'Conta' }
@@ -7131,7 +7162,14 @@ function calculateAdmissaoStep1Completion(c) {
     const resultFields = [];
     const missing = [];
 
-    checklist.forEach(item => {
+    let activeChecklist = [...checklist];
+
+    // Condicionais
+    if (c.sexo === 'Masculino') {
+        activeChecklist.push({ key: 'certificado_militar', label: 'Cert. Militar' });
+    }
+
+    activeChecklist.forEach(item => {
         const val = c[item.key];
         const isFilled = val !== undefined && val !== null && String(val).trim() !== '' && String(val) !== 'null';
         if (isFilled) filledCount++;
@@ -10055,6 +10093,21 @@ window.toggleAdiantamento = function(val) {
     const input = document.getElementById('colab-adiantamento-valor');
     if (!input) return;
     if (val === 'Sim') {
+        input.disabled = false;
+        input.style.background = '#fff';
+        input.style.cursor = 'text';
+    } else {
+        input.disabled = true;
+        input.style.background = '#f8fafc';
+        input.style.cursor = 'not-allowed';
+        input.value = '';
+    }
+};
+
+window.toggleInsalubridade = function(val) {
+    const input = document.getElementById('colab-insalubridade-valor');
+    if (!input) return;
+    if (val === 'Sim' || val === 'Sim') {
         input.disabled = false;
         input.style.background = '#fff';
         input.style.cursor = 'text';
