@@ -71,7 +71,7 @@ function getFichaAdmissaoHtml(colaborador, baseUrl) {
   <div class="row"><span class="label">Colaborador:</span><div class="value bold">${safeStr(c.nome_completo || c.nome)}</div></div>
   <div class="row"><span class="label">CPF:</span><div class="value bold">${safeStr(c.cpf)}</div></div>
 </div>
-<div class="row"><span class="label">Empresa:</span><div class="value bold">Am\u00e9rica Rental Equipamentos Ltda</div></div>
+<div class="row"><span class="label">Empresa:</span><div class="value bold">Am\u00e9rica Rental Equipamentos Ltda &nbsp;&nbsp; CNPJ: 03.434.448/0001-01</div></div>
 
 <div class="row"><span class="label">Endere\u00e7o:</span><div class="value">${safeStr(c.endereco)}</div></div>
 <div class="row" style="width: 50%;"><span class="label">Telefone:</span><div class="value">${safeStr(c.telefone)}</div></div>

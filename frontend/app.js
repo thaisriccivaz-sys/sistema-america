@@ -2462,18 +2462,13 @@ window.editColaborador = async function(id) {
         
         if (c.estado_civil === 'Casado' || c.estado_civil === 'União Estável') {
             toggleConjuge();
-            const deps = await apiGet(`/colaboradores/${id}/dependentes`);
-            const conjuge = deps ? deps.find(d => d.grau_parentesco === 'Cônjuge') : null;
-            if (conjuge) {
-                document.getElementById('conjuge-id').value = conjuge.id;
-                document.getElementById('conjuge-nome').value = conjuge.nome || '';
-                document.getElementById('conjuge-cpf').value = conjuge.cpf || '';
-            }
+            // Cônjuge agora salvo diretamente no colaborador (conjuge_nome / conjuge_cpf)
+            if (document.getElementById('conjuge-nome')) document.getElementById('conjuge-nome').value = c.conjuge_nome || '';
+            if (document.getElementById('conjuge-cpf')) document.getElementById('conjuge-cpf').value = c.conjuge_cpf || '';
         } else {
             toggleConjuge();
-            document.getElementById('conjuge-id').value = '';
-            document.getElementById('conjuge-nome').value = '';
-            document.getElementById('conjuge-cpf').value = '';
+            if (document.getElementById('conjuge-nome')) document.getElementById('conjuge-nome').value = '';
+            if (document.getElementById('conjuge-cpf')) document.getElementById('conjuge-cpf').value = '';
         }
 
         const stateNew = document.getElementById('photo-state-new');
@@ -2684,20 +2679,12 @@ if (formColab) {
                         });
                     }
                 });
-                // Incluir cônjuge se preenchido
-                const conjNomeSave = document.getElementById('conjuge-nome') ? document.getElementById('conjuge-nome').value : '';
-                const conjCpfSave = document.getElementById('conjuge-cpf') ? document.getElementById('conjuge-cpf').value : '';
-                const conjIdSave = document.getElementById('conjuge-id') ? document.getElementById('conjuge-id').value : '';
-                if (conjNomeSave) {
-                    results.push({
-                        id: conjIdSave || undefined,
-                        nome: conjNomeSave,
-                        cpf: conjCpfSave,
-                        grau_parentesco: 'Cônjuge'
-                    });
-                }
+                // Incluir apenas filhos como dependentes (cônjuge é salvo separadamente)
                 return results;
             })(),
+            // Cônjuge salvo como colunas diretas no colaborador
+            conjuge_nome: document.getElementById('conjuge-nome') ? document.getElementById('conjuge-nome').value.trim() : null,
+            conjuge_cpf: document.getElementById('conjuge-cpf') ? document.getElementById('conjuge-cpf').value.trim() : null,
             cbo: (function() {
                 const code = document.getElementById('colab-cbo-codigo') ? document.getElementById('colab-cbo-codigo').value : '';
                 const desc = document.getElementById('colab-cbo') ? document.getElementById('colab-cbo').value : '';
@@ -7129,7 +7116,6 @@ function calculateAdmissaoStep1Completion(c) {
         { key: 'cor_raca', label: 'Cor/Raça' },
         { key: 'nacionalidade', label: 'Nacionalidade' },
         { key: 'grau_instrucao', label: 'Grau Instrução' },
-        { key: 'deficiencia', label: 'Deficiência' },
         { key: 'nome_mae', label: 'Nome Mãe' },
         { key: 'nome_pai', label: 'Nome Pai' },
         { key: 'rg_tipo', label: 'Tipo Doc' },
@@ -7146,7 +7132,6 @@ function calculateAdmissaoStep1Completion(c) {
         { key: 'email', label: 'E-mail' },
         { key: 'contato_emergencia_nome', label: 'Emg. Nome' },
         { key: 'contato_emergencia_telefone', label: 'Emg. Tel.' },
-        { key: 'alergias', label: 'Alergias' },
         { key: 'endereco', label: 'Endereço' },
         { key: 'matricula_esocial', label: 'Matrícula eSocial' },
         { key: 'cargo', label: 'Cargo' },
@@ -7192,12 +7177,13 @@ function calculateAdmissaoStep1Completion(c) {
     // Cônjuge: mostrar se casado/união estável
     const isCasado = c.estado_civil && (c.estado_civil.toLowerCase().includes('casad') || c.estado_civil.toLowerCase().includes('uni'));
 
-    // Resolver dependentes e cônjuge do array
+    // Cônjuge agora salvo diretamente no colaborador (não nos dependentes)
+    const conjuge_nome = c.conjuge_nome || '';
+    const conjuge_cpf = c.conjuge_cpf || '';
+
+    // Dependentes (apenas filhos/outros)
     let depArr = [];
     try { depArr = c.dependentes ? (typeof c.dependentes === 'string' ? JSON.parse(c.dependentes) : c.dependentes) : []; } catch(e) {}
-    const conjDep = depArr.find(d => d.grau_parentesco === 'Cônjuge');
-    const conjuge_nome = c.conjuge_nome || (conjDep ? conjDep.nome : '');
-    const conjuge_cpf = c.conjuge_cpf || (conjDep ? conjDep.cpf : '');
     const filhos = depArr.filter(d => d.grau_parentesco !== 'Cônjuge');
 
     if (isCasado) {

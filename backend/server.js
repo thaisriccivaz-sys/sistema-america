@@ -61,6 +61,15 @@ db.run("ALTER TABLE colaboradores ADD COLUMN adiantamento_valor TEXT", (err) => 
 db.run("ALTER TABLE colaboradores ADD COLUMN insalubridade TEXT", (err) => {
     if (!err) console.log("Coluna insalubridade adicionada com sucesso.");
 });
+db.run("ALTER TABLE colaboradores ADD COLUMN insalubridade_valor TEXT", (err) => {
+    if (!err) console.log("Coluna insalubridade_valor adicionada com sucesso.");
+});
+db.run("ALTER TABLE colaboradores ADD COLUMN conjuge_nome TEXT", (err) => {
+    if (!err) console.log("Coluna conjuge_nome adicionada com sucesso.");
+});
+db.run("ALTER TABLE colaboradores ADD COLUMN conjuge_cpf TEXT", (err) => {
+    if (!err) console.log("Coluna conjuge_cpf adicionada com sucesso.");
+});
 
 // MIGRATION: Limpar todos os usuários exceto Diretoria1
 db.run("DELETE FROM usuarios WHERE LOWER(REPLACE(username, '.', '')) != 'diretoria1'", (err) => {
@@ -1331,7 +1340,8 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
         'celular_participa', 'celular_data',
         'chaves_participa', 'chaves_data',
         'ferias_programadas_inicio', 'ferias_programadas_fim', 'alergias', 'aso_email_enviado', 'aso_exame_data', 'aso_assinafy_link', 'aso_exames_assinafy_link',
-        'adiantamento_salarial', 'adiantamento_valor', 'insalubridade'
+        'adiantamento_salarial', 'adiantamento_valor', 'insalubridade', 'insalubridade_valor',
+        'conjuge_nome', 'conjuge_cpf'
     ];
 
     const values = colunas.map(col => {
@@ -1566,7 +1576,8 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
         'celular_participa', 'celular_data',
         'chaves_participa', 'chaves_data',
         'ferias_programadas_inicio', 'ferias_programadas_fim', 'alergias', 'aso_email_enviado', 'aso_exame_data', 'aso_assinafy_link', 'aso_exames_assinafy_link',
-        'adiantamento_salarial', 'adiantamento_valor', 'insalubridade'
+        'adiantamento_salarial', 'adiantamento_valor', 'insalubridade', 'insalubridade_valor',
+        'conjuge_nome', 'conjuge_cpf'
     ];
 
     const allowedColunas = colunas;
@@ -1634,10 +1645,10 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
                 }
             });
 
-            // Atualizar dependentes
-            db.run("DELETE FROM dependentes WHERE colaborador_id = ?", [id], (errDep) => {
+            // Atualizar dependentes (apenas filhos, sem cônjuge)
+            db.run("DELETE FROM dependentes WHERE colaborador_id = ? AND (grau_parentesco IS NULL OR grau_parentesco != 'Cônjuge')", [id], (errDep) => {
                 if (!errDep && data.dependentes && Array.isArray(data.dependentes)) {
-                    data.dependentes.forEach(dep => {
+                    data.dependentes.filter(d => d.grau_parentesco !== 'Cônjuge').forEach(dep => {
                         db.run("INSERT INTO dependentes (colaborador_id, nome, cpf, data_nascimento, grau_parentesco) VALUES (?, ?, ?, ?, ?)", 
                             [id, dep.nome, dep.cpf, dep.data_nascimento, dep.grau_parentesco]);
                     });
