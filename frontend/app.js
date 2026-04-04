@@ -2311,6 +2311,14 @@ window.editColaborador = async function(id) {
         if (document.getElementById('colab-ctps-serie')) document.getElementById('colab-ctps-serie').value = c.ctps_serie || '';
         if (document.getElementById('colab-ctps-uf')) document.getElementById('colab-ctps-uf').value = c.ctps_uf || '';
         if (document.getElementById('colab-ctps-data')) document.getElementById('colab-ctps-data').value = c.ctps_data_expedicao ? new Date(c.ctps_data_expedicao).toISOString().split('T')[0] : '';
+        // Auto-preencher CTPS a partir do CPF
+        (function() {
+            const cpfDigits = (c.cpf || '').replace(/\D/g, '');
+            const ctpsEl = document.getElementById('colab-ctps');
+            const serieEl = document.getElementById('colab-ctps-serie');
+            if (ctpsEl) { ctpsEl.value = cpfDigits.substring(0, 7); ctpsEl.readOnly = true; ctpsEl.style.background = '#f1f5f9'; ctpsEl.style.cursor = 'not-allowed'; }
+            if (serieEl) { serieEl.value = cpfDigits.substring(7, 11); serieEl.readOnly = true; serieEl.style.background = '#f1f5f9'; serieEl.style.cursor = 'not-allowed'; }
+        })();;
         if (document.getElementById('colab-pis')) document.getElementById('colab-pis').value = c.pis || '';
         if (document.getElementById('colab-cor-raca')) document.getElementById('colab-cor-raca').value = c.cor_raca || '';
         if (document.getElementById('colab-sexo')) {
@@ -2575,6 +2583,17 @@ if (formColab) {
         const id = document.getElementById('colab-id').value;
         const nomeInput = document.getElementById('colab-nome');
         const cpfInput = document.getElementById('colab-cpf');
+        // Listener: sincronizar CTPS com CPF em tempo real
+        if (cpfInput && !cpfInput.dataset.ctpsListener) {
+            cpfInput.addEventListener('input', function() {
+                const digits = this.value.replace(/\D/g, '');
+                const ctpsEl = document.getElementById('colab-ctps');
+                const serieEl = document.getElementById('colab-ctps-serie');
+                if (ctpsEl) ctpsEl.value = digits.substring(0, 7);
+                if (serieEl) serieEl.value = digits.substring(7, 11);
+            });
+            cpfInput.dataset.ctpsListener = 'true';
+        }
         const estadoCivilInput = document.getElementById('colab-estadocivil');
         const statusInput = document.getElementById('colab-status');
         const conjNome = document.getElementById('conjuge-nome').value;
