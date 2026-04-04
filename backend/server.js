@@ -2720,9 +2720,19 @@ app.post('/api/admissao-assinaturas/sync-status', authenticateToken, (req, res) 
         });
 });
 
-// MIGRATION: adicionar colunas tipo e arquivo_pdf à tabela geradores (se não existirem)
-db.run("ALTER TABLE geradores ADD COLUMN tipo TEXT DEFAULT 'html'", () => {});
-db.run("ALTER TABLE geradores ADD COLUMN arquivo_pdf TEXT DEFAULT NULL", () => {});
+// MIGRATION / STRUCT: Garantir que a tabela geradores exista
+db.run(`CREATE TABLE IF NOT EXISTS geradores (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL,
+    conteudo TEXT,
+    variaveis TEXT,
+    tipo TEXT DEFAULT 'html',
+    arquivo_pdf TEXT DEFAULT NULL
+)`, () => {
+    // Adicionar colunas se por acaso a tabela for antiga (SQLite ignora se já existem)
+    db.run("ALTER TABLE geradores ADD COLUMN tipo TEXT DEFAULT 'html'", () => {});
+    db.run("ALTER TABLE geradores ADD COLUMN arquivo_pdf TEXT DEFAULT NULL", () => {});
+});
 // MIGRATION: coluna para rastrear quando o certificado digital A1 foi aplicado
 db.run("ALTER TABLE admissao_assinaturas ADD COLUMN certificado_assinado_em TEXT DEFAULT NULL", () => {});
 
