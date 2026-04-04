@@ -380,6 +380,13 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // ROTA DE VERSÃO (Para verificar implantação)
 app.get('/api/version', (req, res) => res.json({ version: 'V47_DIAGNOSIS' }));
+app.get('/api/get-system-logs', (req, res) => {
+    try {
+        db.all('SELECT * FROM system_logs ORDER BY id DESC LIMIT 50', [], (err, rows) => {
+             res.json(err ? {error: err.message} : rows);
+        });
+    } catch(e) { res.status(500).json({error:e.message}) }
+});
 
 app.get('/api/check-pfx', (req, res) => {
     try {
@@ -525,7 +532,12 @@ try {
     db.run("CREATE TABLE IF NOT EXISTS system_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, msg TEXT, ts DATETIME DEFAULT CURRENT_TIMESTAMP)", () => {
         db.run("INSERT INTO system_logs (msg) VALUES (?)", ['OneDrive Sync Error: ' + odErr.message + ' | Path: ' + targetDir]);
     });
-} catch(e) {}
+} catch(e) {
+    console.error('PFX PROXY ERR:', e.message);
+    try {
+        db.run('INSERT INTO system_logs (msg) VALUES (?)', ['PFX PROXY ERR: ' + e.message]);
+    } catch(dbErr) {}
+}
 
 db.run("INSERT OR REPLACE INTO logs (msg) VALUES (?)", ['OneDrive Sync Error: ' + odErr.message + ' Path: ' + targetDir]);
                     }
@@ -1335,7 +1347,12 @@ app.get('/api/maintenance/db-info', authenticateToken, (req, res) => {
     const isPersistent = !!process.env.DATABASE_PATH;
     const fs = require('fs');
     let tamanho = 0;
-    try { tamanho = fs.statSync(dbPath).size; } catch(e) {}
+    try { tamanho = fs.statSync(dbPath).size; } catch(e) {
+    console.error('PFX PROXY ERR:', e.message);
+    try {
+        db.run('INSERT INTO system_logs (msg) VALUES (?)', ['PFX PROXY ERR: ' + e.message]);
+    } catch(dbErr) {}
+}
     
     // Contar registros nas tabelas chave
     db.get('SELECT COUNT(*) as total FROM usuarios', [], (e1, r1) => {
@@ -1639,7 +1656,12 @@ app.delete('/api/colaboradores/:id', authenticateToken, (req, res) => {
                 try {
                     const pasta = path.join(BASE_PATH, formatarNome(row.nome_completo));
                     if (fs.existsSync(pasta)) fs.rmSync(pasta, { recursive: true, force: true });
-                } catch(e) {}
+                } catch(e) {
+    console.error('PFX PROXY ERR:', e.message);
+    try {
+        db.run('INSERT INTO system_logs (msg) VALUES (?)', ['PFX PROXY ERR: ' + e.message]);
+    } catch(dbErr) {}
+}
                 res.json({ message: 'Colaborador incompleto foi excluído definitivamente.' });
             });
         } else {
@@ -1842,7 +1864,12 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
         if (row && !isMultiplo) {
             // Se já existe e NÃO é aba de histórico (ou se é explicit update), atualiza
             if (fs.existsSync(row.file_path) && row.file_path !== file_path) {
-                try { fs.unlinkSync(row.file_path); } catch(e) {}
+                try { fs.unlinkSync(row.file_path); } catch(e) {
+    console.error('PFX PROXY ERR:', e.message);
+    try {
+        db.run('INSERT INTO system_logs (msg) VALUES (?)', ['PFX PROXY ERR: ' + e.message]);
+    } catch(dbErr) {}
+}
             }
             
             let setClause = 'file_name = ?, file_path = ?, upload_date = CURRENT_TIMESTAMP, vencimento = ?, atestado_tipo = ?, atestado_inicio = ?, atestado_fim = ?';
@@ -1953,7 +1980,12 @@ app.delete('/api/documentos/:id', authenticateToken, (req, res) => {
         if (err || !row) return res.status(404).json({ error: 'Documento não encontrado' });
         
         if (fs.existsSync(row.file_path)) {
-            try { fs.unlinkSync(row.file_path); } catch(e) {}
+            try { fs.unlinkSync(row.file_path); } catch(e) {
+    console.error('PFX PROXY ERR:', e.message);
+    try {
+        db.run('INSERT INTO system_logs (msg) VALUES (?)', ['PFX PROXY ERR: ' + e.message]);
+    } catch(dbErr) {}
+}
         }
         
         db.run('DELETE FROM documentos WHERE id = ?', [req.params.id], deleteErr => {
@@ -1992,7 +2024,12 @@ app.get('/api/documentos/download/:id', authenticateToken, (req, res) => {
                                     let finalBuf = Buffer.from(arrayBuffer);
                                     const signPdfPfx = require('./sign_pdf_pfx');
                                     if (signPdfPfx.verificarDisponibilidade().disponivel) {
-                                        try { finalBuf = await signPdfPfx.assinarPDF(finalBuf, { motivo: 'Assinado eletronicamente pela empresa', nome: 'America Rental Equipamentos Ltda' }); } catch(e) {}
+                                        try { finalBuf = await signPdfPfx.assinarPDF(finalBuf, { motivo: 'Assinado eletronicamente pela empresa', nome: 'America Rental Equipamentos Ltda' }); } catch(e) {
+    console.error('PFX PROXY ERR:', e.message);
+    try {
+        db.run('INSERT INTO system_logs (msg) VALUES (?)', ['PFX PROXY ERR: ' + e.message]);
+    } catch(dbErr) {}
+}
                                     }
                                     res.setHeader('Content-Type', 'application/pdf');
                                     return res.send(finalBuf);
@@ -2062,7 +2099,12 @@ app.get('/api/documentos/view/:id', authenticateToken, (req, res) => {
                                         if (signPdfPfx.verificarDisponibilidade().disponivel) {
                                             finalBuf = await signPdfPfx.assinarPDF(finalBuf, { motivo: 'Assinado eletronicamente pela empresa', nome: 'America Rental Equipamentos Ltda' });
                                         }
-                                    } catch(e) {}
+                                    } catch(e) {
+    console.error('PFX PROXY ERR:', e.message);
+    try {
+        db.run('INSERT INTO system_logs (msg) VALUES (?)', ['PFX PROXY ERR: ' + e.message]);
+    } catch(dbErr) {}
+}
                                     res.setHeader('Content-Type', 'application/pdf');
                                     return res.send(finalBuf);
                                 }
@@ -2715,7 +2757,12 @@ app.delete('/api/geradores/:id', authenticateToken, (req, res) => {
     // Remove arquivo PDF associado se existir
     db.get("SELECT arquivo_pdf FROM geradores WHERE id = ?", [req.params.id], (err, row) => {
         if (row && row.arquivo_pdf && fs.existsSync(row.arquivo_pdf)) {
-            try { fs.unlinkSync(row.arquivo_pdf); } catch(e) {}
+            try { fs.unlinkSync(row.arquivo_pdf); } catch(e) {
+    console.error('PFX PROXY ERR:', e.message);
+    try {
+        db.run('INSERT INTO system_logs (msg) VALUES (?)', ['PFX PROXY ERR: ' + e.message]);
+    } catch(dbErr) {}
+}
         }
     });
     db.run("DELETE FROM geradores WHERE id = ?", [req.params.id], function(err) {
@@ -2762,7 +2809,12 @@ app.put('/api/geradores/:id/replace-pdf', authenticateToken, uploadGeradorPdf.si
     // Remove o arquivo antigo
     db.get("SELECT arquivo_pdf FROM geradores WHERE id = ?", [req.params.id], (err, row) => {
         if (row && row.arquivo_pdf && fs.existsSync(row.arquivo_pdf)) {
-            try { fs.unlinkSync(row.arquivo_pdf); } catch(e) {}
+            try { fs.unlinkSync(row.arquivo_pdf); } catch(e) {
+    console.error('PFX PROXY ERR:', e.message);
+    try {
+        db.run('INSERT INTO system_logs (msg) VALUES (?)', ['PFX PROXY ERR: ' + e.message]);
+    } catch(dbErr) {}
+}
         }
         db.run("UPDATE geradores SET arquivo_pdf = ?, nome = ? WHERE id = ?",
             [req.file.path, req.body.nome || row?.nome || 'PDF', req.params.id], function(err2) {
@@ -4239,7 +4291,12 @@ const CERT_DIR = (() => {
     }
     return path.join(__dirname, 'data', '_certificados');
 })();
-if (!fs.existsSync(CERT_DIR)) { try { fs.mkdirSync(CERT_DIR, { recursive: true }); } catch(e) {} }
+if (!fs.existsSync(CERT_DIR)) { try { fs.mkdirSync(CERT_DIR, { recursive: true }); } catch(e) {
+    console.error('PFX PROXY ERR:', e.message);
+    try {
+        db.run('INSERT INTO system_logs (msg) VALUES (?)', ['PFX PROXY ERR: ' + e.message]);
+    } catch(dbErr) {}
+} }
 console.log(`[CERT] Diretório do certificado: ${CERT_DIR}`);
 
 const uploadCertificado = multer({
@@ -4333,7 +4390,12 @@ app.post('/api/certificado-digital/upload', authenticateToken, uploadCertificado
     const info = signPdfPfx.infosCertificado(pfxPath, senha);
     if (!info.ok) {
         // Remover arquivo inválido
-        try { fs.unlinkSync(pfxPath); } catch(e) {}
+        try { fs.unlinkSync(pfxPath); } catch(e) {
+    console.error('PFX PROXY ERR:', e.message);
+    try {
+        db.run('INSERT INTO system_logs (msg) VALUES (?)', ['PFX PROXY ERR: ' + e.message]);
+    } catch(dbErr) {}
+}
         return res.status(400).json({ error: `Certificado inválido ou senha incorreta: ${info.erro}` });
     }
 
@@ -4367,7 +4429,12 @@ app.delete('/api/certificado-digital', authenticateToken, (req, res) => {
     db.run(`DELETE FROM configuracoes_sistema WHERE chave IN ('pfx_path','pfx_password_b64')`);
     // Remover arquivo físico do CERT_DIR
     const certFile = path.join(CERT_DIR, 'certificado.pfx');
-    if (fs.existsSync(certFile)) { try { fs.unlinkSync(certFile); } catch(e) {} }
+    if (fs.existsSync(certFile)) { try { fs.unlinkSync(certFile); } catch(e) {
+    console.error('PFX PROXY ERR:', e.message);
+    try {
+        db.run('INSERT INTO system_logs (msg) VALUES (?)', ['PFX PROXY ERR: ' + e.message]);
+    } catch(dbErr) {}
+} }
     // Limpar env vars em memória
     delete process.env.PFX_PATH;
     delete process.env.PFX_PASSWORD;
