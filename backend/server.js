@@ -4561,12 +4561,27 @@ setTimeout(() => {
 // --- NOVAS ROTAS DA FICHA DE ADMISSÃO ---
 const { getFichaAdmissaoHtml } = require('./fichaAdmissao');
 
-app.get('/api/colaboradores/:id/ficha-admissao/html', authenticateToken, (req, res) => {
+app.get('/api/colaboradores/:id/ficha-admissao/html', authenticateToken, async (req, res) => {
     const id = req.params.id;
-    db.get('SELECT * FROM colaboradores WHERE id = ?', [id], (err, row) => {
+    db.get('SELECT * FROM colaboradores WHERE id = ?', [id], async (err, row) => {
         if (err || !row) return res.status(404).send('Colaborador não encontrado');
-        const html = getFichaAdmissaoHtml(row);
-        res.send(html);
+        try {
+            const htmlPdf = require('html-pdf-node');
+            const baseUrl = `${req.protocol}://${req.get('host')}`;
+            const html = getFichaAdmissaoHtml(row, baseUrl);
+            const pdfBuffer = await htmlPdf.generatePdf(
+                { content: html },
+                { format: 'A4', margin: { top: '1cm', bottom: '1cm', left: '1cm', right: '1cm' },
+                  printBackground: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] }
+            );
+            const nomeArq = encodeURIComponent(`Ficha_Admissao_${row.nome_completo || 'Colaborador'}.pdf`);
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', `inline; filename="${nomeArq}"`);
+            res.send(pdfBuffer);
+        } catch(e) {
+            console.error('[FICHA-ADMISSAO]', e.message);
+            res.status(500).json({ error: e.message });
+        }
     });
 });
 

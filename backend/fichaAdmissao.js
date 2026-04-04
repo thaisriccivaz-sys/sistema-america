@@ -1,6 +1,6 @@
 function safeStr(val) { return val ? val : ''; }
 
-function getFichaAdmissaoHtml(colaborador) {
+function getFichaAdmissaoHtml(colaborador, baseUrl) {
     const c = colaborador;
     
     // Determinar se é CLT ou Intermitente baseado no tipo de contrato
@@ -39,7 +39,8 @@ function getFichaAdmissaoHtml(colaborador) {
         <meta charset="UTF-8">
         <style>
             body { font-family: Arial, sans-serif; font-size: 11px; margin: 0; padding: 20px; line-height: 1.4; color: #000; }
-            .header-img { display: block; margin: 0 auto 10px auto; max-width: 150px; }
+            @page { size: A4; margin: 1.8cm; }
+            .logo-banner img { width: 100%; display: block; margin-bottom: 14px; }
             h2 { text-align: center; font-size: 14px; margin: 5px 0 20px 0; font-weight: bold; }
             .row { display: flex; flex-direction: row; margin-bottom: 4px; }
             .label { font-weight: bold; margin-right: 5px; white-space: nowrap; }
@@ -64,7 +65,7 @@ function getFichaAdmissaoHtml(colaborador) {
         </style>
     </head>
     <body>
-        <img src="https://raw.githubusercontent.com/americarental/cadastro-colaboradores/main/frontend/assets/logo.png" alt="Logo" class="header-img">
+        <div class="logo-banner"><img src="${baseUrl || 'https://sistema-america.onrender.com'}/assets/logo-header.png" alt="América Rental" onerror="this.style.display='none'"></div>
         <h2>FICHA DE ADMISSÃO DE COLABORADOR</h2>
         
         <div class="row"><span class="label">Colaborador:</span><div class="value bold">${safeStr(c.nome_completo || c.nome)}</div></div>
