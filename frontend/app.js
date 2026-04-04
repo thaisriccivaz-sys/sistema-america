@@ -2158,7 +2158,19 @@ window.resetFormColaborador = function() {
     if (document.getElementById('colab-ferias-programadas-inicio')) document.getElementById('colab-ferias-programadas-inicio').value = '';
     if (document.getElementById('colab-ferias-programadas-fim')) document.getElementById('colab-ferias-programadas-fim').value = '';
     if (document.getElementById('colab-ferias-total-dias')) document.getElementById('colab-ferias-total-dias').value = '-';
+    
+    // Reset Alergias e novos campos
     if (document.getElementById('colab-alergias')) document.getElementById('colab-alergias').value = '';
+    const radA = document.querySelector('input[name="alergia_check"][value="Não"]');
+    if (radA) radA.checked = true;
+    if (typeof window.toggleAlergias === 'function') window.toggleAlergias('Não');
+
+    const radAdt = document.querySelector('input[name="adiantamento_check"][value="Não"]');
+    if (radAdt) radAdt.checked = true;
+    if (typeof window.toggleAdiantamento === 'function') window.toggleAdiantamento('Não');
+    if (document.getElementById('colab-adiantamento-valor')) document.getElementById('colab-adiantamento-valor').value = '';
+
+    if (document.getElementById('colab-insalubridade')) document.getElementById('colab-insalubridade').checked = false;
     
     if (document.getElementById('colab-rg-tipo')) {
         document.getElementById('colab-rg-tipo').value = 'RG';
@@ -2364,7 +2376,23 @@ window.editColaborador = async function(id) {
         updateVacationInfo(admDate);
         calculateVacationDays();
         
-        if (document.getElementById('colab-alergias')) document.getElementById('colab-alergias').value = c.alergias || '';
+        if (document.getElementById('colab-alergias')) {
+            const hasAlergia = c.alergias && c.alergias.trim() !== '' ? 'Sim' : 'Não';
+            const radioAlergia = document.querySelector(`input[name="alergia_check"][value="${hasAlergia}"]`);
+            if (radioAlergia) radioAlergia.checked = true;
+            if (typeof window.toggleAlergias === 'function') window.toggleAlergias(hasAlergia);
+            document.getElementById('colab-alergias').value = c.alergias || '';
+        }
+
+        const adiVal = c.adiantamento_salarial || 'Não';
+        const radioAdt = document.querySelector(`input[name="adiantamento_check"][value="${adiVal}"]`);
+        if (radioAdt) radioAdt.checked = true;
+        if (typeof window.toggleAdiantamento === 'function') window.toggleAdiantamento(adiVal);
+        if (document.getElementById('colab-adiantamento-valor')) document.getElementById('colab-adiantamento-valor').value = c.adiantamento_valor || '';
+
+        if (document.getElementById('colab-insalubridade')) {
+            document.getElementById('colab-insalubridade').checked = (c.insalubridade === 'Sim');
+        }
         
         if(typeof toggleMotorista === 'function') toggleMotorista();
         
@@ -2414,7 +2442,6 @@ window.editColaborador = async function(id) {
 
         document.getElementById('colab-ferias-programadas-inicio').value = c.ferias_programadas_inicio || '';
         document.getElementById('colab-ferias-programadas-fim').value = c.ferias_programadas_fim || '';
-        document.getElementById('colab-alergias').value = c.alergias || '';
         calculateVacationDays();
 
         updateStatusChip(getEffectiveStatus(c));
@@ -2687,7 +2714,10 @@ if (formColab) {
                 data_entrega: row.querySelector('.colab-chave-date').value
             })).filter(x => x.chave_id),
             ferias_programadas_inicio: document.getElementById('colab-ferias-programadas-inicio') ? document.getElementById('colab-ferias-programadas-inicio').value : null,
-            ferias_programadas_fim: document.getElementById('colab-ferias-programadas-fim') ? document.getElementById('colab-ferias-programadas-fim').value : null
+            ferias_programadas_fim: document.getElementById('colab-ferias-programadas-fim') ? document.getElementById('colab-ferias-programadas-fim').value : null,
+            adiantamento_salarial: document.querySelector('input[name="adiantamento_check"]:checked')?.value || 'Não',
+            adiantamento_valor: document.getElementById('colab-adiantamento-valor') ? document.getElementById('colab-adiantamento-valor').value : null,
+            insalubridade: document.getElementById('colab-insalubridade') && document.getElementById('colab-insalubridade').checked ? 'Sim' : 'Não'
         };
 
         // Converter valores formatados (R$) para números antes de enviar
@@ -9972,4 +10002,33 @@ window.loadIntegracaoColabs = async function() {
             });
         }
     } catch(e) {}
+};
+window.toggleAlergias = function(val) {
+    const input = document.getElementById('colab-alergias');
+    if (!input) return;
+    if (val === 'Sim') {
+        input.disabled = false;
+        input.style.background = '#fff';
+        input.style.cursor = 'text';
+        input.placeholder = 'Descreva aqui alergias, restri��es ou intoler�ncias...';
+    } else {
+        input.disabled = true;
+        input.style.background = '#f8fafc';
+        input.style.cursor = 'not-allowed';
+        input.value = '';
+    }
+};
+window.toggleAdiantamento = function(val) {
+    const input = document.getElementById('colab-adiantamento-valor');
+    if (!input) return;
+    if (val === 'Sim') {
+        input.disabled = false;
+        input.style.background = '#fff';
+        input.style.cursor = 'text';
+    } else {
+        input.disabled = true;
+        input.style.background = '#f8fafc';
+        input.style.cursor = 'not-allowed';
+        input.value = '';
+    }
 };

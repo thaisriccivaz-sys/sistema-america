@@ -691,7 +691,18 @@
                                         </div>
                                         <div class="input-group">
                                             <label>Grau de Instrução</label>
-                                            <input type="text" id="colab-grau-instrucao" placeholder="Ex: Ens. Médio">
+                                            <select id="colab-grau-instrucao">
+                                                <option value="">Selecione...</option>
+                                                <option value="Ensino Fundamental Incompleto">Ensino Fundamental Incompleto</option>
+                                                <option value="Ensino Fundamental Completo">Ensino Fundamental Completo</option>
+                                                <option value="Ensino Médio Incompleto">Ensino Médio Incompleto</option>
+                                                <option value="Ensino Médio Completo">Ensino Médio Completo</option>
+                                                <option value="Ensino Superior Incompleto">Ensino Superior Incompleto</option>
+                                                <option value="Ensino Superior Completo">Ensino Superior Completo</option>
+                                                <option value="Pós-Graduação/Especialização">Pós-Graduação/Especialização</option>
+                                                <option value="Mestrado">Mestrado</option>
+                                                <option value="Doutorado">Doutorado</option>
+                                            </select>
                                         </div>
                                         <div class="input-group span-2">
                                             <label>Deficiência</label>
@@ -780,8 +791,14 @@
                                             <input type="text" id="colab-emergencia-telefone" placeholder="(00) 00000-0000" onkeyup="mascaraTelefone(this)" maxlength="15" >
                                         </div>
                                         <div class="input-group span-2">
-                                            <label>Alergias</label>
-                                            <input type="text" id="colab-alergias" placeholder="Descreva aqui alergias, restrições ou intolerâncias...">
+                                            <label style="display:flex; justify-content:space-between; align-items:flex-end;">
+                                                <span>Alergias ou Restrições</span>
+                                                <div class="radio-pill-group" style="zoom: 0.85; margin:0;">
+                                                    <label><input type="radio" name="alergia_check" value="Não" checked onchange="window.toggleAlergias(this.value)"> Não</label>
+                                                    <label><input type="radio" name="alergia_check" value="Sim" onchange="window.toggleAlergias(this.value)"> Sim</label>
+                                                </div>
+                                            </label>
+                                            <input type="text" id="colab-alergias" placeholder="Descreva aqui alergias, restrições ou intolerâncias..." disabled style="background:#f8fafc; color:#94a3b8; cursor:not-allowed;">
                                         </div>
                                         <div class="input-group span-2">
                                             <label>Endereço Completo</label>
@@ -886,6 +903,22 @@
                                         <div class="input-group" id="group-valor-transporte" style="display:none;">
                                             <label>Valor do Transporte (R$)</label>
                                             <input type="text" id="colab-valor-transporte" onkeyup="mascaraMoeda(this)" placeholder="R$ 0,00">
+                                        </div>
+                                        <div class="input-group">
+                                            <label style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom: 0.5rem;">
+                                                <span>Adiantamento Salarial</span>
+                                                <div class="radio-pill-group" style="zoom: 0.85; margin:0;">
+                                                    <label><input type="radio" name="adiantamento_check" value="Não" checked onchange="window.toggleAdiantamento(this.value)"> Não</label>
+                                                    <label><input type="radio" name="adiantamento_check" value="Sim" onchange="window.toggleAdiantamento(this.value)"> Sim</label>
+                                                </div>
+                                            </label>
+                                            <input type="text" id="colab-adiantamento-valor" placeholder="Valor (R$ 0,00)" onkeyup="mascaraMoeda(this)" disabled style="background:#f8fafc; color:#94a3b8; cursor:not-allowed;">
+                                        </div>
+                                        <div class="input-group" style="display:flex; align-items:flex-end;">
+                                            <label style="margin:0; display:flex; align-items:center; gap:0.5rem; width:100%; cursor:pointer; height:42px; border:1px solid #e2e8f0; border-radius:8px; padding:0 1rem; background:#fff;">
+                                                <input type="checkbox" id="colab-insalubridade" style="width:18px; height:18px; cursor:pointer;">
+                                                <span style="font-weight:600; color:#475569;">Aplicar Insalubridade</span>
+                                            </label>
                                         </div>
                                         
                                         <div class="span-2" style="border-top: 1px solid var(--border-color); margin-top: 1rem; padding-top: 1rem;">

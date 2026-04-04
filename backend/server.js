@@ -1319,7 +1319,8 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
         'terapia_participa', 'terapia_data_inicio',
         'celular_participa', 'celular_data',
         'chaves_participa', 'chaves_data',
-        'ferias_programadas_inicio', 'ferias_programadas_fim', 'alergias', 'aso_email_enviado', 'aso_exame_data', 'aso_assinafy_link', 'aso_exames_assinafy_link'
+        'ferias_programadas_inicio', 'ferias_programadas_fim', 'alergias', 'aso_email_enviado', 'aso_exame_data', 'aso_assinafy_link', 'aso_exames_assinafy_link',
+        'adiantamento_salarial', 'adiantamento_valor', 'insalubridade'
     ];
 
     const values = colunas.map(col => {
@@ -1553,7 +1554,8 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
         'terapia_participa', 'terapia_data_inicio',
         'celular_participa', 'celular_data',
         'chaves_participa', 'chaves_data',
-        'ferias_programadas_inicio', 'ferias_programadas_fim', 'alergias', 'aso_email_enviado', 'aso_exame_data', 'aso_assinafy_link', 'aso_exames_assinafy_link'
+        'ferias_programadas_inicio', 'ferias_programadas_fim', 'alergias', 'aso_email_enviado', 'aso_exame_data', 'aso_assinafy_link', 'aso_exames_assinafy_link',
+        'adiantamento_salarial', 'adiantamento_valor', 'insalubridade'
     ];
 
     const allowedColunas = colunas;
