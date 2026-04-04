@@ -163,7 +163,7 @@ async function assinarPDF(pdfBuffer, opts = {}) {
         const subjectCN = subject.CN || subject.commonName || nome;
         const cnpjStr = subject.OU && typeof subject.OU === 'string' && subject.OU.match(/\d{14}/) ? `CNPJ: ${subject.OU.match(/\d{14}/)[0]}` : '';
 
-        const pdfDoc = await PDFDocument.load(pdfBuffer, { updateMetadata: false });
+        const pdfDoc = await PDFDocument.load(pdfBuffer, { updateMetadata: false, ignoreEncryption: true });
         const pages = pdfDoc.getPages();
         const lastPage = pages[pages.length - 1];
         
@@ -195,7 +195,7 @@ async function assinarPDF(pdfBuffer, opts = {}) {
         console.warn(`[SIGN-PDF] Não foi possível inserir estampa visual: ${e.message}. Tentando converter formato xref...`);
         // Mesmo sem a estampa, garantir formato legado para o @signpdf
         try {
-            const pdfDoc2 = await PDFDocument.load(pdfBuffer, { updateMetadata: false });
+            const pdfDoc2 = await PDFDocument.load(pdfBuffer, { updateMetadata: false, ignoreEncryption: true });
             finalBuffer = Buffer.from(await pdfDoc2.save({ useObjectStreams: false }));
         } catch(e2) {
             console.warn(`[SIGN-PDF] Fallback de conversão também falhou: ${e2.message}. Usando buffer original.`);
