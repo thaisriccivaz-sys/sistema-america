@@ -380,6 +380,14 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // ROTA DE VERSÃO (Para verificar implantação)
 app.get('/api/version', (req, res) => res.json({ version: 'V47_DIAGNOSIS' }));
+app.get('/api/get-system-logs', (req, res) => {
+    try {
+        db.all('SELECT * FROM system_logs ORDER BY id DESC LIMIT 50', [], (err, rows) => {
+             res.json(err ? {error: err.message} : rows);
+        });
+    } catch(e) { res.status(500).json({error:e.message}) }
+});
+
 
 app.get('/api/check-pfx', (req, res) => {
     try {
@@ -1992,7 +2000,7 @@ app.get('/api/documentos/download/:id', authenticateToken, (req, res) => {
                                     let finalBuf = Buffer.from(arrayBuffer);
                                     const signPdfPfx = require('./sign_pdf_pfx');
                                     if (signPdfPfx.verificarDisponibilidade().disponivel) {
-                                        try { finalBuf = await signPdfPfx.assinarPDF(finalBuf, { motivo: 'Assinado eletronicamente pela empresa', nome: 'America Rental Equipamentos Ltda' }); } catch(e) {}
+                                        try { finalBuf = await signPdfPfx.assinarPDF(finalBuf, { motivo: 'Assinado eletronicamente pela empresa', nome: 'America Rental Equipamentos Ltda' }); } catch(e) { console.error('PFX PROXY ERR:', e.message); try{ db.run("INSERT INTO system_logs (msg) VALUES (?)", ['PFX PROXY ERR ' + String(e.message)]); }catch(z){} }
                                     }
                                     res.setHeader('Content-Type', 'application/pdf');
                                     return res.send(finalBuf);
@@ -2062,7 +2070,7 @@ app.get('/api/documentos/view/:id', authenticateToken, (req, res) => {
                                         if (signPdfPfx.verificarDisponibilidade().disponivel) {
                                             finalBuf = await signPdfPfx.assinarPDF(finalBuf, { motivo: 'Assinado eletronicamente pela empresa', nome: 'America Rental Equipamentos Ltda' });
                                         }
-                                    } catch(e) {}
+                                    } catch(e) { console.error('PFX PROXY ERR:', e.message); try{ db.run("INSERT INTO system_logs (msg) VALUES (?)", ['PFX PROXY ERR ' + String(e.message)]); }catch(z){} }
                                     res.setHeader('Content-Type', 'application/pdf');
                                     return res.send(finalBuf);
                                 }
