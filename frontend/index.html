@@ -1527,6 +1527,136 @@
                         </div>
                     </div>
                 </section>
+
+                <!-- VIEW: GERADORES -->
+                <section id="view-geradores" class="content-view">
+                    <div class="page-header flex-between">
+                        <div style="display: flex; align-items: center; gap: 1.5rem;">
+                            <!-- Ícone de Gerador -->
+                            <div style="width: 80px; height: 80px; border-radius: 50%; border: 2px dashed #cbd5e0; display: flex; align-items: center; justify-content: center; background: #f8fafc; color: #94a3b8; font-size: 2rem;">
+                                <i class="ph ph-file-text"></i>
+                            </div>
+                            <div>
+                                <h2 style="margin: 0; font-size: 1.4rem;">Geradores de Documentos</h2>
+                                <p style="margin: 4px 0 0; color: #64748b; font-size: 0.85rem;">Crie e gerencie modelos de documentos dinâmicos.</p>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; gap: 1rem; align-items: center;">
+                            <div class="search-box p-0" style="width: 350px; background: white; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 0 1.25rem; display: flex; align-items: center; height: 42px; transition: all 0.2s; box-shadow: inset 0 1px 2px rgba(0,0,0,0.02);">
+                                <i class="ph ph-magnifying-glass" style="color: #94a3b8; font-size: 1.2rem; margin-right: 0.75rem;"></i>
+                                <input type="text" id="search-geradores" placeholder="Pesquisar gerador..." onkeyup="window.filterGeradores()" style="border: none; outline: none; width: 100%; font-size: 0.95rem; color: #334155; background: transparent; height: 100%;">
+                            </div>
+                            <button class="btn btn-primary" onclick="window.openModalGerador()" style="height: 42px; display: flex; align-items: center; padding: 0 1.5rem; font-weight: 600; gap: 0.6rem; border-radius: 8px;">
+                                <i class="ph ph-plus" style="font-size: 1.1rem;"></i> Novo Gerador
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Nome do Documento</th>
+                                        <th>Criado em</th>
+                                        <th style="text-align: right;">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-geradores-body">
+                                    <!-- Dinâmico -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW: FICHA EPI -->
+                <section id="view-ficha-epi" class="content-view">
+                    <div class="page-header flex-between">
+                        <div style="display: flex; align-items: center; gap: 1rem;">
+                            <div style="width:44px; height:44px; background:#eff6ff; border:1.5px solid #bfdbfe; border-radius:12px; display:flex; align-items:center; justify-content:center;">
+                                <i class="ph ph-shield-check" style="color:#0f4c81; font-size:1.4rem;"></i>
+                            </div>
+                            <div>
+                                <h2 style="margin:0; font-size:1.4rem; color:#0f172a;">Fichas de EPI</h2>
+                                <p style="margin:2px 0 0; color:#64748b; font-size:0.85rem;">Fichas obrigatórias de E.P.I por departamento — NR 06</p>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary" onclick="window.openEpiModal(null)" style="height:40px; display:flex; align-items:center; gap:0.5rem; padding:0 1.25rem; font-weight:600; border-radius:8px;">
+                            <i class="ph ph-plus-circle"></i> Novo Grupo
+                        </button>
+                    </div>
+                    <div id="epi-cards-container" style="padding: 0.5rem 0;">
+                        <div class="alert alert-info"><i class="ph ph-spinner ph-spin"></i> Carregando...</div>
+                    </div>
+                </section>
+
+                <!-- MODAL: Editar Template EPI -->
+                <div id="modal-epi" class="modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center; overflow-y:auto; padding:1rem;">
+                    <div style="background:#fff; border-radius:12px; width:100%; max-width:860px; box-shadow:0 20px 60px rgba(0,0,0,0.2); max-height:92vh; overflow-y:auto;">
+                        <div style="padding:1rem 1.5rem; border-bottom:1.5px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; background:#f8fafc; border-radius:12px 12px 0 0;">
+                            <div style="display:flex; align-items:center; gap:0.75rem;">
+                                <i class="ph ph-shield-check" style="color:#0f4c81; font-size:1.2rem;"></i>
+                                <h3 id="epi-modal-title" style="margin:0; color:#0f172a; font-size:1.05rem; font-weight:700;">Editar Grupo EPI</h3>
+                            </div>
+                            <button onclick="window.closeEpiModal()" style="background:#f1f5f9; border:1px solid #e2e8f0; width:32px; height:32px; border-radius:8px; color:#64748b; cursor:pointer; font-size:1rem; display:flex; align-items:center; justify-content:center;"><i class="ph ph-x"></i></button>
+                        </div>
+
+                        <div style="padding:1.5rem; display:flex; flex-direction:column; gap:1.25rem;">
+                            <!-- Nome do grupo -->
+                            <div>
+                                <label style="font-size:0.82rem; font-weight:700; color:#374151; display:block; margin-bottom:4px;">Nome do Grupo *</label>
+                                <input type="text" id="epi-grupo-input" class="form-control" placeholder="Ex: Escritório, Motorista, Limpeza..."
+                                       style="height:42px; width:100%; box-sizing:border-box; font-size:0.93rem;">
+                            </div>
+
+                            <!-- Departamentos -->
+                            <div>
+                                <label style="font-size:0.82rem; font-weight:700; color:#374151; display:block; margin-bottom:6px;">Departamentos vinculados</label>
+                                <div id="epi-dept-checkboxes" style="display:flex; flex-wrap:wrap; gap:0.4rem; max-height:130px; overflow-y:auto; padding:6px; background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:8px;"></div>
+                            </div>
+
+                            <!-- Lista de EPIs -->
+                            <div>
+                                <label style="font-size:0.82rem; font-weight:700; color:#374151; display:block; margin-bottom:6px;">
+                                    Lista de EPIs <span style="font-weight:400; color:#94a3b8;"></span>
+                                </label>
+                                <div style="display:flex; gap:0.5rem; margin-bottom:0.75rem;">
+                                    <input type="text" id="epi-ca-input" class="form-control" placeholder="Ex: CA 12345 - Luva multitato..." style="flex:1;">
+                                    <button onclick="window.addEpiItem()" class="btn btn-primary" style="padding:0 1rem; border-radius:8px;"><i class="ph ph-plus" style="font-size:1.1rem;"></i> Adicionar</button>
+                                </div>
+                                <ul id="epi-items-list" style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:0.5rem; border:1.5px solid #e2e8f0; border-radius:8px; min-height:80px; padding:0.5rem; background:#f8fafc;">
+                                    <!-- Dinâmico -->
+                                </ul>
+                            </div>
+
+                            <div style="display:flex; gap:1.5rem;">
+                                <div style="flex:1;">
+                                    <label style="font-size:0.82rem; font-weight:700; color:#374151; display:block; margin-bottom:6px;">Termo de Responsabilidade Padrão</label>
+                                    <textarea id="epi-termo-input" class="form-control" rows="4" style="width:100%; box-sizing:border-box; font-size:0.85rem; line-height:1.4; resize:none;"></textarea>
+                                </div>
+                                <div style="flex:1;">
+                                    <label style="font-size:0.82rem; font-weight:700; color:#374151; display:block; margin-bottom:6px;">Rodapé Técnico / Observações Extras</label>
+                                    <textarea id="epi-rodape-input" class="form-control" rows="4" style="width:100%; box-sizing:border-box; font-size:0.85rem; line-height:1.4; resize:none;"></textarea>
+                                </div>
+                            </div>
+
+                            <div style="display:flex; justify-content:flex-end; gap:0.75rem; border-top:1.5px solid #e2e8f0; padding-top:1.25rem; margin-top:0.5rem;">
+                                <button onclick="window.closeEpiModal()" class="btn btn-outline" style="border-radius:8px; display:flex; align-items:center; gap:6px;">Cancelar</button>
+                                <button onclick="window.saveEpiTemplate()" class="btn btn-primary" style="border-radius:8px; display:flex; align-items:center; gap:6px; background:#0ec167; border:none; box-shadow:0 4px 12px rgba(14,193,103,0.3);"><i class="ph ph-check-circle"></i> Salvar Grupo EPI</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VIEW: AVALIAÇÕES GERAIS -->
+                <section id="view-gerenciar-avaliacoes" class="content-view">
+                    <div id="gerenciar-avaliacoes-container">
+                        <!-- Renderizado por gerenciar_avaliacoes.js -->
+                    </div>
+                </section>
+
                 <!-- VIEW: ASSINATURAS DIGITAIS (RH) -->
 
                 <section id="view-assinaturas-digitais" class="content-view">
