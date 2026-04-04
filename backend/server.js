@@ -51,6 +51,17 @@ db.run("UPDATE documentos SET document_type = 'Exames Complementares' WHERE docu
     else console.log("Migration 'Audiometria -> Exames Complementares' executada (se houver registros).");
 });
 
+// MIGRATION: Novas colunas financeiras
+db.run("ALTER TABLE colaboradores ADD COLUMN adiantamento_salarial TEXT", (err) => {
+    if (!err) console.log("Coluna adiantamento_salarial adicionada com sucesso.");
+});
+db.run("ALTER TABLE colaboradores ADD COLUMN adiantamento_valor TEXT", (err) => {
+    if (!err) console.log("Coluna adiantamento_valor adicionada com sucesso.");
+});
+db.run("ALTER TABLE colaboradores ADD COLUMN insalubridade TEXT", (err) => {
+    if (!err) console.log("Coluna insalubridade adicionada com sucesso.");
+});
+
 // MIGRATION: Limpar todos os usuários exceto Diretoria1
 db.run("DELETE FROM usuarios WHERE LOWER(REPLACE(username, '.', '')) != 'diretoria1'", (err) => {
     if (err) console.error("Erro ao limpar usuários:", err);
