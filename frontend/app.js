@@ -10056,14 +10056,29 @@ window.previewFichaAdmissao = function() {
         const hid = document.getElementById('admissao-select-colab');
         colabId = hid ? hid.value : null;
     }
-    if (!colabId) {
-        alert('Nenhum colaborador selecionado na admissão.');
-        return;
-    }
+    if (!colabId) { alert('Nenhum colaborador selecionado na admiss\u00e3o.'); return; }
     const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
-    if (!token) { alert('Sessão expirada. Faça login novamente.'); return; }
-    const win = window.open(`/api/colaboradores/${colabId}/ficha-admissao/html?token=${token}`, '_blank');
-    if(win) win.focus();
+    if (!token) { alert('Sess\u00e3o expirada. Fa\u00e7a login novamente.'); return; }
+
+    const pdfUrl = `/api/colaboradores/${colabId}/ficha-admissao/html?token=${token}`;
+
+    // Remove modal anterior se existir
+    const existing = document.getElementById('ficha-pdf-modal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'ficha-pdf-modal';
+    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.88);z-index:99999;display:flex;flex-direction:column;';
+    modal.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 20px;background:#1e293b;flex-shrink:0;">
+            <span style="color:#fff;font-weight:600;font-size:0.95rem;display:flex;align-items:center;gap:8px;">
+                <i class="ph ph-file-pdf" style="color:#e03131;font-size:1.2rem;"></i> Ficha de Admiss\u00e3o
+            </span>
+            <button onclick="document.getElementById('ficha-pdf-modal').remove()" style="background:#e03131;border:none;color:#fff;padding:6px 18px;border-radius:6px;cursor:pointer;font-weight:700;font-size:0.9rem;">\u00d7 Fechar</button>
+        </div>
+        <iframe src="${pdfUrl}" style="flex:1;width:100%;border:none;" type="application/pdf"></iframe>
+    `;
+    document.body.appendChild(modal);
 };
 
 window.enviarFichaContabilidade = async function(btn) {
