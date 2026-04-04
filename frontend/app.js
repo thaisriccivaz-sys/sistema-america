@@ -7027,12 +7027,6 @@ window.nextAdmissaoStep = function(step, preventScroll = false) {
         }
     }
 
-    // Atualizar Stepper UI Focus
-    document.querySelectorAll('.step-item').forEach((item, idx) => {
-        const itemStep = idx + 1;
-        item.classList.toggle('active', itemStep === step);
-    });
-
     if (!preventScroll) window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
