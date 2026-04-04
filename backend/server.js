@@ -388,11 +388,7 @@ app.get('/api/debug-pfx3', async (req, res) => {
         const fetch = require('node-fetch') || global.fetch;
         const rInfo = await fetch(`https://api.assinafy.com.br/v1/documents/${doc.assinafy_id}`, { headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey } });
         const dt = (await rInfo.json()).data;
-        const signedUrl = dt.signed_file_url || (dt.signers && dt.signers[0] && dt.signers[0].signed_file_url) || dt.file_url || dt.document_pdf;
-        const dl = await fetch(signedUrl, { headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey } });
-        let buf = Buffer.from(await dl.arrayBuffer());
-        const signPdfPfx = require('./sign_pdf_pfx');
-        try { buf = await signPdfPfx.assinarPDF(buf, {}); res.json({ ok: true, msg: "Signed successfully!" }); } catch(e) { res.json({ error: e.message, stack: e.stack }); }
+        res.json({ dt });
     } catch(e) { res.send(e.message); }
 });
 
