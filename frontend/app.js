@@ -9632,6 +9632,24 @@ window.loadAssinaturasDigitais = async function() {
     }
 };
 
+
+window.setStatusOutroMeio = async function(id, source) {
+    if (!confirm('Tem certeza que deseja marcar este documento como assinado por "Outro Meio"? Ele saíra da fila de pendentes.')) return;
+    try {
+        const res = await apiPost('/admissao-assinaturas/outro-meio', { id, source });
+        alert(res.message || 'Status atualizado com sucesso!');
+        await loadAssinaturasDigitaisList(); // Reload se existir
+        if (window.filtrarAssinaturas) {
+            const container = document.getElementById('assinaturas-digitais-container');
+            if (container) {
+                container.innerHTML = '<div style="text-align:center;padding:3rem;"><i class="ph ph-circle-notch ph-spin" style="font-size:2.5rem;color:#f503c5;"></i></div>';
+                const dados = await apiGet('/admissao-assinaturas/todos');
+                window._assinaturasData = dados || [];
+                window.filtrarAssinaturas();
+            }
+        }
+    } catch(e) { alert('Erro: ' + e.message); }
+};
 window.filtrarAssinaturas = function() {
     const dados = window._assinaturasData || [];
     const search = (document.getElementById('ass-search')?.value || '').toLowerCase();
