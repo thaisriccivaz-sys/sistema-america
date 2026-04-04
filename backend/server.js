@@ -3463,42 +3463,52 @@ app.get('/api/documentos/download-assinado/:id', authenticateToken, (req, res) =
                         }
                     };
                     
-                    // Como queremos forçar que o arquivo atualize, salvamos local
                     const storagePath = process.env.STORAGE_PATH || path.join(__dirname, 'data', 'uploads');
                     const assDir = path.join(storagePath, 'assinados');
                     if (!require('fs').existsSync(assDir)) require('fs').mkdirSync(assDir, { recursive: true });
                     const newPath = path.join(assDir, `ASSINADO_${row.file_name.replace('.pdf', '')}_${Date.now()}.pdf`);
                     
-                    const file = require('fs').createWriteStream(newPath);
-                    getProtocol.get(targetUrl, reqOptions, (response) => {
-                        // Tratar redirecionamento automático (Amazon S3)
-                        if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
-                            getProtocol.get(response.headers.location, (redRes) => {
-                                redRes.pipe(file);
-                                file.on('finish', () => {
-                                    file.close();
-                                    db.run('UPDATE documentos SET signed_file_path = ?, assinafy_signed_at = COALESCE(assinafy_signed_at, CURRENT_TIMESTAMP) WHERE id = ?', [newPath, req.params.id]);
-                                    res.setHeader('Content-Type', 'application/pdf');
-                                    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-                                    require('fs').createReadStream(newPath).pipe(res);
-                                });
-                            }).on('error', (err) => {
-                                require('fs').unlink(newPath, () => {}); res.status(500).json({ error: 'Erro no redirecionamento S3.' });
-                            });
-                            return;
-                        }
+                    // Helper para baixar na memoria
+                    const downloadToBuffer = (url) => new Promise((resolve, reject) => {
+                        getProtocol.get(url, reqOptions, (response) => {
+                            if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+                                getProtocol.get(response.headers.location, (redRes) => {
+                                    const chunks = [];
+                                    redRes.on('data', c => chunks.push(c));
+                                    redRes.on('end', () => resolve(Buffer.concat(chunks)));
+                                }).on('error', reject);
+                                return;
+                            }
+                            const chunks = [];
+                            response.on('data', c => chunks.push(c));
+                            response.on('end', () => resolve(Buffer.concat(chunks)));
+                        }).on('error', reject);
+                    });
 
-                        response.pipe(file);
-                        file.on('finish', () => {
-                            file.close();
-                            // Atualiza o banco e serve
-                            db.run('UPDATE documentos SET signed_file_path = ?, assinafy_signed_at = COALESCE(assinafy_signed_at, CURRENT_TIMESTAMP) WHERE id = ?', [newPath, req.params.id]);
-                            res.setHeader('Content-Type', 'application/pdf');
-                            res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-                            require('fs').createReadStream(newPath).pipe(res);
-                        });
-                    }).on('error', (err) => {
-                        require('fs').unlink(newPath, () => {});
+                    downloadToBuffer(targetUrl).then(async (pdfBuffer) => {
+                        // Aplicar selo PFX
+                        const signPdfPfx = require('./sign_pdf_pfx');
+                        const dispCert = signPdfPfx.verificarDisponibilidade();
+                        if (dispCert.disponivel) {
+                            try {
+                                pdfBuffer = await signPdfPfx.assinarPDF(pdfBuffer, {
+                                    motivo: 'Assinado eletronicamente pela empresa',
+                                    nome: 'America Rental Equipamentos Ltda'
+                                });
+                            } catch (e) {
+                                console.warn('[DOWNLOAD-ASSINADO] Erro ao aplicar PFX:', e.message);
+                            }
+                        }
+                        
+                        require('fs').writeFileSync(newPath, pdfBuffer);
+                        
+                        db.run('UPDATE documentos SET signed_file_path = ?, assinafy_signed_at = COALESCE(assinafy_signed_at, CURRENT_TIMESTAMP) WHERE id = ?', [newPath, req.params.id]);
+                        
+                        res.setHeader('Content-Type', 'application/pdf');
+                        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+                        res.send(pdfBuffer);
+                    }).catch(err => {
+                        console.error('[DOWNLOAD-ASSINADO] Erro ao baixar/assinar:', err);
                         res.status(500).json({ error: 'Falha ao baixar do Assinafy' });
                     });
                     
@@ -3719,19 +3729,48 @@ app.post('/api/documentos/:id/force-onedrive-sync', authenticateToken, async (re
             if (!fs.existsSync(assDir)) fs.mkdirSync(assDir, { recursive: true });
             localPath = path.join(assDir, `ASSINADO_${path.basename(doc.file_name, '.pdf')}_${Date.now()}.pdf`);
 
-            await new Promise((resolve, reject) => {
+            const downloadToBuffer = (url) => new Promise((resolve, reject) => {
                 const https = require('https');
-                const proto = signedUrl.startsWith('https') ? https : require('http');
-                const file = fs.createWriteStream(localPath);
-                proto.get(signedUrl, { headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey } }, (response) => {
+                const proto = url.startsWith('https') ? https : require('http');
+                proto.get(url, { headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey } }, (response) => {
                     if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
-                        proto.get(response.headers.location, (r2) => { r2.pipe(file); file.on('finish', () => { file.close(); resolve(); }); }).on('error', reject);
+                        proto.get(response.headers.location, (r2) => {
+                            const chunks = [];
+                            r2.on('data', c => chunks.push(c));
+                            r2.on('end', () => resolve(Buffer.concat(chunks)));
+                        }).on('error', reject);
                         return;
                     }
-                    response.pipe(file);
-                    file.on('finish', () => { file.close(); resolve(); });
+                    const chunks = [];
+                    response.on('data', c => chunks.push(c));
+                    response.on('end', () => resolve(Buffer.concat(chunks)));
                 }).on('error', reject);
             });
+
+            try {
+                let pdfBuffer = await downloadToBuffer(signedUrl);
+                
+                // Aplicar selo PFX
+                const signPdfPfx = require('./sign_pdf_pfx');
+                const dispCert = signPdfPfx.verificarDisponibilidade();
+                if (dispCert.disponivel) {
+                    try {
+                        pdfBuffer = await signPdfPfx.assinarPDF(pdfBuffer, {
+                            motivo: 'Assinado eletronicamente pela empresa',
+                            nome: 'America Rental Equipamentos Ltda'
+                        });
+                        addLog('Selo PFX aplicado com sucesso.');
+                    } catch (e) {
+                        addLog('Falha ao aplicar selo PFX: ' + e.message);
+                    }
+                }
+                
+                fs.writeFileSync(localPath, pdfBuffer);
+            } catch (err) {
+                addLog('Erro no download/assinatura: ' + err.message);
+                return res.json({ log, error: 'Falha no processamento do arquivo.' });
+            }
+
             db.run('UPDATE documentos SET signed_file_path = ?, assinafy_signed_at = COALESCE(assinafy_signed_at, CURRENT_TIMESTAMP) WHERE id = ?', [localPath, docId]);
             addLog(`PDF baixado: ${localPath}`);
         } else {

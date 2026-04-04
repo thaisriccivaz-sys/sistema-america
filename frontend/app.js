@@ -4162,11 +4162,6 @@ window.renderTerapiaCompetencia = function() {
 
     subContainer.appendChild(document.createElement('hr'));
     const form = createDynamicUploadForm('Terapia', 'Adicionar Sessão/Relatório', '');
-    const fileInput = form.querySelector('input[type="file"]');
-    fileInput.onchange = function() {
-        const typeIn = form.querySelector('input[type="text"]').value || 'Sessão';
-        uploadDocument(this, 'Terapia', typeIn, `'${y}'`, `'${m}'`, null);
-    };
     subContainer.appendChild(form);
 }
 
@@ -4313,12 +4308,6 @@ window.renderASOAno = function() {
 
     // Botão para adicionar outro exame avülso
     const form = createDynamicUploadForm('ASO', 'Adicionar Outro Exame', '');
-    const fileInput = form.querySelector('input[type="file"]');
-    fileInput.onchange = function() {
-        const typeIn = form.querySelector('input[type="text"]').value || 'Exame';
-        // For dynamic ASO uploads, vencimento is not mandatory at this point, but can be added later
-        uploadDocument(this, 'ASO', typeIn, `'${y}'`, null, null);
-    };
     container.appendChild(form);
 }
 
