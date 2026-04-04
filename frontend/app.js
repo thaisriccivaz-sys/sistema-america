@@ -2344,17 +2344,20 @@ window.editColaborador = async function(id) {
         if (document.getElementById('colab-fgts-opcao')) document.getElementById('colab-fgts-opcao').value = c.fgts_opcao ? new Date(c.fgts_opcao).toISOString().split('T')[0] : '';
         if (document.getElementById('colab-banco-nome')) document.getElementById('colab-banco-nome').value = c.banco_nome || '';
         if (document.getElementById('colab-banco-agencia')) document.getElementById('colab-banco-agencia').value = c.banco_agencia || '';
-        
-        const bConta = document.getElementById('colab-banco-conta');
-        if (bConta) bConta.value = c.banco_conta || '';
-        
+        if (document.getElementById('colab-banco-conta')) document.getElementById('colab-banco-conta').value = c.banco_conta || '';
+
+        // Contato de Emergência
+        if (document.getElementById('colab-emergencia-nome')) document.getElementById('colab-emergencia-nome').value = c.contato_emergencia_nome || '';
+        if (document.getElementById('colab-emergencia-telefone')) document.getElementById('colab-emergencia-telefone').value = c.contato_emergencia_telefone || '';
+
+        // Meio de transporte
         if (document.getElementById('colab-meio-transporte')) {
             document.getElementById('colab-meio-transporte').value = c.meio_transporte || '';
-            toggleTransporteValor(c.meio_transporte);
+            if (typeof toggleTransporteValor === 'function') toggleTransporteValor(c.meio_transporte);
         }
         if (document.getElementById('colab-valor-transporte')) {
-            const val = c.valor_transporte ? parseFloat(c.valor_transporte).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '';
-            document.getElementById('colab-valor-transporte').value = val;
+            const valT = c.valor_transporte ? parseFloat(c.valor_transporte).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '';
+            document.getElementById('colab-valor-transporte').value = valT;
         }
 
         if (document.getElementById('colab-escala-padrao')) {
@@ -2367,7 +2370,7 @@ window.editColaborador = async function(id) {
             if(document.getElementById('colab-sabado-saida')) document.getElementById('colab-sabado-saida').value = c.sabado_saida || '';
 
             toggleFormEscalaTipo();
-            
+
             if (c.escala_folgas) {
                 try {
                     const folgasArr = JSON.parse(c.escala_folgas);
@@ -2377,16 +2380,19 @@ window.editColaborador = async function(id) {
                 } catch(e) { console.error('Erro ao ler folgas:', e); }
             }
         }
-        
+
+        // toggleMotorista ANTES de carregar CNH — se chamado depois limpa os campos
+        if(typeof toggleMotorista === 'function') toggleMotorista();
         if(document.getElementById('colab-cnh-numero')) document.getElementById('colab-cnh-numero').value = c.cnh_numero || '';
         if(document.getElementById('colab-cnh-categoria')) document.getElementById('colab-cnh-categoria').value = c.cnh_categoria || '';
-        
-        // Férias fields
+
+        // Férias
         if(document.getElementById('colab-ferias-programadas-inicio')) document.getElementById('colab-ferias-programadas-inicio').value = c.ferias_programadas_inicio || '';
         if(document.getElementById('colab-ferias-programadas-fim')) document.getElementById('colab-ferias-programadas-fim').value = c.ferias_programadas_fim || '';
-        updateVacationInfo(admDate);
-        calculateVacationDays();
-        
+        if(typeof updateVacationInfo === 'function') updateVacationInfo(admDate);
+        if(typeof calculateVacationDays === 'function') calculateVacationDays();
+
+        // Alergias
         if (document.getElementById('colab-alergias')) {
             const hasAlergia = c.alergias && c.alergias.trim() !== '' ? 'Sim' : 'Não';
             const radioAlergia = document.querySelector(`input[name="alergia_check"][value="${hasAlergia}"]`);
@@ -2395,20 +2401,39 @@ window.editColaborador = async function(id) {
             document.getElementById('colab-alergias').value = c.alergias || '';
         }
 
+        // Adiantamento — formatar valor como moeda ao carregar
         const adiVal = c.adiantamento_salarial || 'Não';
         const radioAdt = document.querySelector(`input[name="adiantamento_check"][value="${adiVal}"]`);
         if (radioAdt) radioAdt.checked = true;
         if (typeof window.toggleAdiantamento === 'function') window.toggleAdiantamento(adiVal);
-        if (document.getElementById('colab-adiantamento-valor')) document.getElementById('colab-adiantamento-valor').value = c.adiantamento_valor || '';
+        if (document.getElementById('colab-adiantamento-valor')) {
+            const rawAdi = c.adiantamento_valor;
+            if (rawAdi) {
+                const numAdi = parseFloat(String(rawAdi).replace(/[^\d.]/g, ''));
+                document.getElementById('colab-adiantamento-valor').value = !isNaN(numAdi)
+                    ? new Intl.NumberFormat('pt-BR', {style:'currency', currency:'BRL'}).format(numAdi)
+                    : rawAdi;
+            } else {
+                document.getElementById('colab-adiantamento-valor').value = '';
+            }
+        }
 
+        // Insalubridade — formatar valor como moeda ao carregar
         const insVal = c.insalubridade || 'Não';
-        const insRealVal = insVal === 'Não' ? 'Não' : 'Sim';
-        const radioInS = document.querySelector('input[name="insalubridade_check"][value="'+insRealVal+'"]');
+        const radioInS = document.querySelector(`input[name="insalubridade_check"][value="${insVal === 'Sim' ? 'Sim' : 'Não'}"]`);
         if(radioInS) radioInS.checked = true;
-        if(document.getElementById('colab-insalubridade-valor')) document.getElementById('colab-insalubridade-valor').value = c.insalubridade_valor || '';
+        if(document.getElementById('colab-insalubridade-valor')) {
+            const rawIns = c.insalubridade_valor;
+            if (rawIns) {
+                const numIns = parseFloat(String(rawIns).replace(/[^\d.]/g, ''));
+                document.getElementById('colab-insalubridade-valor').value = !isNaN(numIns)
+                    ? new Intl.NumberFormat('pt-BR', {style:'currency', currency:'BRL'}).format(numIns)
+                    : rawIns;
+            } else {
+                document.getElementById('colab-insalubridade-valor').value = '';
+            }
+        }
         if (typeof window.toggleInsalubridade === 'function') window.toggleInsalubridade(insVal);
-        
-        if(typeof toggleMotorista === 'function') toggleMotorista();
         
         // Faculdade fields
         const participa = c.faculdade_participa || 'Não';
@@ -7334,11 +7359,8 @@ function updateAdmissaoStepPercentages(colab) {
     }
 
     const avg = Math.round(totalPc / 10);
-    
-    // O usuário deseja que a etiqueta do Passo 1 reflita a Qualidade Global do Cadastro
-    const step1PcEl = document.getElementById('step-1-pc');
-    if (step1PcEl) step1PcEl.textContent = `${avg}%`;
 
+    // Barra global de progresso (média de todos os passos)
     const totalEl = document.getElementById('admissao-pc-total');
     if (totalEl) totalEl.textContent = `${avg}%`;
     const bar = document.getElementById('admissao-progress-bar');
