@@ -2646,21 +2646,7 @@ if (formColab) {
             
             dependentes: (() => {
                 const results = [];
-                // Incluir Cônjuge se Casado ou União Estável
-                const estCivil = document.getElementById('colab-estadocivil').value;
-                if (estCivil === 'Casado' || estCivil === 'União Estável') {
-                    const cNome = document.getElementById('conjuge-nome').value;
-                    const cCpf = document.getElementById('conjuge-cpf').value;
-                    if (cNome) {
-                        results.push({
-                            nome: cNome,
-                            cpf: cCpf,
-                            data_nascimento: null,
-                            grau_parentesco: 'Cônjuge'
-                        });
-                    }
-                }
-                // Incluir Filhos
+                // Incluir Filhos / Dependentes (Cônjuge não é mais dependente)
                 const rows = document.querySelectorAll('.dependente-row');
                 rows.forEach(row => {
                     const nome = row.querySelector('.dep-nome').value;
@@ -6822,7 +6808,7 @@ function renderAdmissaoStep3(colab, docs) {
     }
 
     if (colab.dependentes && colab.dependentes.length > 0) {
-        colab.dependentes.forEach(dep => {
+        colab.dependentes.filter(d => d.grau_parentesco !== 'Cônjuge').forEach(dep => {
             items.push({ label: `CPF Dependente - ${dep.nome}`, folder: '01_FICHA_CADASTRAL' });
             items.push({ label: `Certidão Nasc. Dependente - ${dep.nome}`, folder: '01_FICHA_CADASTRAL' });
             if (dep.data_nascimento) {
@@ -7411,7 +7397,7 @@ async function uploadAdmissaoDoc(input, docType, tabName) {
             method: 'POST',
             body: formData,
             headers: {
-                'Authorization': `Bearer ${currentToken || localStorage.getItem('token') || 'mock_token'}`
+                'Authorization': `Bearer ${currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || 'mock_token'}`
             }
         });
         
@@ -10074,7 +10060,8 @@ window.previewFichaAdmissao = function() {
         alert('Nenhum colaborador selecionado na admissão.');
         return;
     }
-    const token = localStorage.getItem('token');
+    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+    if (!token) { alert('Sessão expirada. Faça login novamente.'); return; }
     const win = window.open(`/api/colaboradores/${colabId}/ficha-admissao/html?token=${token}`, '_blank');
     if(win) win.focus();
 };
@@ -10102,7 +10089,7 @@ window.enviarFichaContabilidade = async function(btn) {
         const url = (typeof API_URL !== 'undefined' ? API_URL : 'https://sistema-america.onrender.com/api') + `/colaboradores/${colabId}/enviar-ficha-contabilidade`;
         const res = await fetch(url, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')}` },
             body: JSON.stringify({ email: email })
         });
         const data = await res.json();
