@@ -4914,13 +4914,19 @@ window.uploadDynamicDocument = function(inputEl, tabId) {
 
     if (!docType) return alert('Insira o nome ou motivo do documento.');
 
+    const prefix = tabId === 'ASO' ? 'aso' : tabId === 'Atestados' ? 'atestados' : tabId.toLowerCase();
+    const yearEl = document.getElementById(`${prefix}_year`) || document.getElementById('pag_year') || document.getElementById('terapia_year');
+    const monthEl = document.getElementById(`${prefix}_month`) || document.getElementById('pag_month') || document.getElementById('terapia_month');
+    const year = yearEl ? yearEl.value : null;
+    const month = monthEl ? monthEl.value : null;
+
     let reqAssin = null;
     if (tabId === 'Certificados') {
         const checkedRadio = document.querySelector(`input[name="dyn-assin-${tabId}"]:checked`);
         if (checkedRadio) reqAssin = checkedRadio.value;
     }
 
-    uploadDocument(inputEl, tabId, docType, null, null, vencimento, reqAssin);
+    uploadDocument(inputEl, tabId, docType, year, month, vencimento, reqAssin);
 }
 
 window.deleteDoc = async function(docId, btnEl) {
