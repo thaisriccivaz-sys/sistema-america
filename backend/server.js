@@ -521,6 +521,13 @@ async function pollAdmissaoAssinaturas() {
                         onedriveOk = true;
                     } catch(odErr) {
                         console.warn('[POLL-ADMISSAO] OneDrive sync falhou:', odErr.message);
+try {
+    db.run("CREATE TABLE IF NOT EXISTS system_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, msg TEXT, ts DATETIME DEFAULT CURRENT_TIMESTAMP)", () => {
+        db.run("INSERT INTO system_logs (msg) VALUES (?)", ['OneDrive Sync Error: ' + odErr.message + ' | Path: ' + targetDir]);
+    });
+} catch(e) {}
+
+db.run("INSERT OR REPLACE INTO logs (msg) VALUES (?)", ['OneDrive Sync Error: ' + odErr.message + ' Path: ' + targetDir]);
                     }
                 }
                 // Salvar em disco local como fallback (caso OneDrive falhe)
@@ -1982,67 +1989,13 @@ app.get('/api/documentos/download/:id', authenticateToken, (req, res) => {
                                 const dl = await fetch(signedUrl, { headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey } });
                                 if (dl.ok) {
                                     const arrayBuffer = await dl.arrayBuffer();
+                                    let finalBuf = Buffer.from(arrayBuffer);
+                                    const signPdfPfx = require('./sign_pdf_pfx');
+                                    if (signPdfPfx.verificarDisponibilidade().disponivel) {
+                                        try { finalBuf = await signPdfPfx.assinarPDF(finalBuf, { motivo: 'Assinado eletronicamente pela empresa', nome: 'America Rental Equipamentos Ltda' }); } catch(e) {}
+                                    }
                                     res.setHeader('Content-Type', 'application/pdf');
-                                    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(row.file_name || 'documento.pdf')}"`);
-                                    return res.send(Buffer.from(arrayBuffer));
-                                }
-                            }
-                        } catch(err) { }
-                    }
-                }
-            } catch(e) { console.warn('Proxy Assinafy erro:', e.message); }
-        }
-
-        // Fallback final: Devolve o arquivo original NÃO ASSINADO
-        pathLocal = row.file_path;
-        if (pathLocal && fs.existsSync(pathLocal)) {
-            return res.download(pathLocal, row.file_name || 'documento.pdf');
-        }
-
-        return res.status(404).json({ error: 'Arquivo físico não encontrado no servidor.' });
-    });
-});
-
-// Rota para obter INFO de um documento (sem arquivo)
-app.get('/api/documentos/info/:id', authenticateToken, (req, res) => {
-    db.get('SELECT id, file_name, document_type, assinafy_status, assinafy_id, signed_file_path, tab_name FROM documentos WHERE id = ?',
-        [req.params.id], (err, row) => {
-            if (err || !row) return res.status(404).json({ error: 'Documento não encontrado' });
-            res.json(row);
-        });
-});
-
-// Rota para VISUALIZAR inline no browser (sem forçar download)
-app.get('/api/documentos/view/:id', authenticateToken, (req, res) => {
-    db.get('SELECT * FROM documentos WHERE id = ?', [req.params.id], async (err, row) => {
-        if (err || !row) return res.status(404).json({ error: 'Documento não encontrado' });
-
-        let pathLocal = row.signed_file_path; // Tentar assinado local primeiro
-        
-        // Se existe fisicamente (.pfx concluído)
-        if (pathLocal && fs.existsSync(pathLocal)) {
-            res.setHeader('Content-Type', 'application/pdf');
-            res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(row.file_name || 'documento.pdf')}"`);
-            return fs.createReadStream(pathLocal).pipe(res);
-        }
-
-        // Se NAO tem assinado local (.pfx vazio ou excluído), mas tem Assinafy (colaborador assinou), tentar buscar da Assinafy
-        if (row.assinafy_id) {
-            try {
-                const r = await fetch(`https://api.assinafy.com.br/v1/documents/${row.assinafy_id}`, { headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey, 'Accept': 'application/json' } });
-                if (r.ok) {
-                    const data = await r.json();
-                    const signedUrl = extractSignedUrl(data?.data || data);
-                    if (signedUrl) {
-                        try {
-                            if (!signedUrl.includes('assinafy.com.br')) {
-                                return res.redirect(signedUrl);
-                            } else {
-                                const dl = await fetch(signedUrl, { headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey } });
-                                if (dl.ok) {
-                                    const arrayBuffer = await dl.arrayBuffer();
-                                    res.setHeader('Content-Type', 'application/pdf');
-                                    return res.send(Buffer.from(arrayBuffer));
+                                    return res.send(finalBuf);
                                 }
                             }
                         } catch(err) { }
