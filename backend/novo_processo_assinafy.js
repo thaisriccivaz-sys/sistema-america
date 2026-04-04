@@ -152,16 +152,11 @@ async function enviarDocumentoParaAssinafy(documentId, colaboradorId) {
         // Arquivo local não existe (Render efêmero) — tentar baixar do Assinafy se já tiver sido enviado antes
         // ou informar erro claro
         console.warn(`[ASSINAFY] Arquivo não encontrado localmente: ${filePath}`);
-        // Verificar se já há um arquivo assinado ou original pela URL do Assinafy
-        if (doc.assinafy_signed_url || doc.assinafy_url) {
-            const fallbackUrl = doc.assinafy_signed_url || doc.assinafy_url;
-            console.log(`[ASSINAFY] Tentando baixar da URL salva: ${fallbackUrl}`);
-            const fetchMod = fetch;
-            const r = await fetchMod(fallbackUrl);
-            if (r.ok) {
-                fileBuffer = Buffer.from(await r.arrayBuffer());
-                console.log(`[ASSINAFY] PDF baixado da URL salva: ${fileBuffer.length} bytes`);
-            }
+        // Não podemos usar assinafy_url para baixar porque ela é uma página HTML de assinatura,
+        // gerando erro "Unsupported file content: text/html" na re-submissão.
+        // E assinafy_signed_url também pode requerer autenticação. 
+        if (doc.assinafy_signed_url) {
+            console.log(`[ASSINAFY] CUIDADO: O arquivo não está localmente, mas tem URL assinada.`);
         }
         if (!fileBuffer) {
             throw new Error(`Arquivo não encontrado: ${filePath}. O arquivo pode ter sido removido do servidor. Faça o upload novamente.`);
