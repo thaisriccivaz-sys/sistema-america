@@ -239,22 +239,6 @@
                         </div>
                     </div>
                     
-                    <!-- DASHBOARD CHARTS ROW -->
-                    <div class="dashboard-charts-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 2rem;">
-                        <div class="card p-4">
-                            <h3 style="font-size: 1.1rem; color: #475569; margin-bottom: 1rem;">Frequência: Faltas e Atestados (Últimos 6 Meses)</h3>
-                            <div style="position: relative; height: 250px; width: 100%;">
-                                <canvas id="chart-atestados"></canvas>
-                            </div>
-                        </div>
-                        <div class="card p-4">
-                            <h3 style="font-size: 1.1rem; color: #475569; margin-bottom: 1rem;">Ranking de Faltas (Sem e Com Atestado)</h3>
-                            <div style="position: relative; height: 250px; width: 100%;">
-                                <canvas id="chart-faltas"></canvas>
-                            </div>
-                        </div>
-                    </div>
-
                     <!-- DASHBOARD TABLES ROW -->
                     <div class="dashboard-charts-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 1.5rem;">
                         <div class="card p-4">
@@ -277,7 +261,24 @@
                         </div>
                     </div>
                     
-                    <div class="card mt-4">
+
+                    <!-- DASHBOARD CHARTS ROW -->
+                    <div class="dashboard-charts-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 2rem;">
+                        <div class="card p-4">
+                            <h3 style="font-size: 1.1rem; color: #475569; margin-bottom: 1rem;">Frequência: Faltas e Atestados (Últimos 6 Meses)</h3>
+                            <div style="position: relative; height: 250px; width: 100%;">
+                                <canvas id="chart-atestados"></canvas>
+                            </div>
+                        </div>
+                        <div class="card p-4">
+                            <h3 style="font-size: 1.1rem; color: #475569; margin-bottom: 1rem;">Ranking de Faltas (Sem e Com Atestado)</h3>
+                            <div style="position: relative; height: 250px; width: 100%;">
+                                <canvas id="chart-faltas"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                                        <div class="card mt-4">
                         <div class="card-header flex-between">
                             <h3>Acesso Rápido</h3>
                             <button class="btn btn-primary" id="btn-novo-rapido" onclick="navigateTo('colaboradores'); toggleCargoView ? toggleCargoView('new') : null"><i class="ph ph-plus"></i> Novo Colaborador</button>
@@ -405,7 +406,7 @@
                         </div>
                         <div class="card">
                             <table class="table">
-                                <thead><tr><th>ID</th><th>Nome do Departamento</th><th>A��es</th></tr></thead>
+                                <thead><tr><th>ID</th><th>Nome do Departamento</th><th>Ações</th></tr></thead>
                                 <tbody id="table-departamentos"></tbody>
                             </table>
                         </div>
@@ -1514,7 +1515,7 @@
                         </div>
 
                         <!-- PANEL 6: EFETIVA��O -->
-                        <div class="admissao-panel" id="panel-step-6">
+                        <div class="admissao-panel" id="panel-step-6" style="display:none;">
                             <div class="card p-4">
                                 <h3 class="section-title justify-center"><i class="ph ph-check-circle"></i> Passo 6: Efetiva��o</h3>
                                 <p class="mt-3 text-center" style="font-size: 1.1rem; color: #334155;">Tudo pronto para a admiss�o! Clique no bot�o abaixo para liberar o colaborador e iniciar seu processo de Integra��o.</p>

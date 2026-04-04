@@ -7009,6 +7009,11 @@ window.startFinalAdmission = async function() {
 
 window.nextAdmissaoStep = function(step, preventScroll = false) {
     window.currentActiveAdmissaoStep = step;
+    document.querySelectorAll('.admissao-stepper .step-item').forEach(s => s.classList.remove('active'));
+    let activeStepEl = document.getElementById('step-' + step);
+    if(activeStepEl) activeStepEl.classList.add('active');
+
+    window.currentActiveAdmissaoStep = step;
     // Atualizar Panels
     document.querySelectorAll('.admissao-panel').forEach(p => p.classList.remove('active'));
     const panel = document.getElementById(`panel-step-${step}`);

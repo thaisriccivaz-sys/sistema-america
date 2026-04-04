@@ -1925,54 +1925,15 @@ app.get('/api/documentos/download/:id', authenticateToken, (req, res) => {
     db.get('SELECT * FROM documentos WHERE id = ?', [req.params.id], async (err, row) => {
         if (err || !row) return res.status(404).json({ error: 'Documento não encontrado' });
         
-        let pathToFile = row.signed_file_path || row.file_path;
-        
-        if (pathToFile && fs.existsSync(pathToFile)) {
-            return res.download(pathToFile, row.file_name || 'documento.pdf');
-        }
+        let pathToFileLocal = row.signed_file_path; // Tentar assinado local primeiro
 
-        // Se o arquivo local não existe (Render efêmero), tenta via Assinafy
-        if (row.assinafy_id) {
-            try {
-                const r = await fetch(`https://api.assinafy.com.br/v1/documents/${row.assinafy_id}`,
-                    { headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey, 'Accept': 'application/json' } });
-                if (r.ok) {
-                    const data = await r.json();
-                    const signedUrl = extractSignedUrl(data?.data || data);
-                    if (signedUrl) return res.redirect(signedUrl);
-                }
-            } catch(e) {
-                console.warn('[DOWNLOAD-DOC] Falha proxy Assinafy:', e.message);
-            }
-        }
-        
-        return res.status(404).json({ error: 'Arquivo físico não encontrado no servidor.' });
-    });
-});
-
-// Rota para obter INFO de um documento (sem arquivo)
-app.get('/api/documentos/info/:id', authenticateToken, (req, res) => {
-    db.get('SELECT id, file_name, document_type, assinafy_status, assinafy_id, signed_file_path, tab_name FROM documentos WHERE id = ?',
-        [req.params.id], (err, row) => {
-            if (err || !row) return res.status(404).json({ error: 'Documento não encontrado' });
-            res.json(row);
-        });
-});
-
-// Rota para VISUALIZAR inline no browser (sem forçar download)
-app.get('/api/documentos/view/:id', authenticateToken, (req, res) => {
-    db.get('SELECT * FROM documentos WHERE id = ?', [req.params.id], async (err, row) => {
-        if (err || !row) return res.status(404).json({ error: 'Documento não encontrado' });
-        
-        let pathToFile = row.signed_file_path || row.file_path;
-
-        if (pathToFile && fs.existsSync(pathToFile)) {
+        if (pathToFileLocal && fs.existsSync(pathToFileLocal)) {
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(row.file_name || 'documento.pdf')}"`);
-            return fs.createReadStream(pathToFile).pipe(res);
+            return fs.createReadStream(pathToFileLocal).pipe(res);
         }
 
-        // Se local não existe, tenta Assinafy
+        // Se tem Assinafy, pega o link direto (que pode estar assinado lá)
         if (row.assinafy_id) {
             try {
                 const r = await fetch(`https://api.assinafy.com.br/v1/documents/${row.assinafy_id}`,
@@ -1980,7 +1941,22 @@ app.get('/api/documentos/view/:id', authenticateToken, (req, res) => {
                 if (r.ok) {
                     const data = await r.json();
                     const signedUrl = extractSignedUrl(data?.data || data);
-                    if (signedUrl) return res.redirect(signedUrl);
+                    if (signedUrl) {
+                        try {
+                            if (!signedUrl.includes('assinafy.com.br')) {
+                                return res.redirect(signedUrl);
+                            } else {
+                                const dl = await fetch(signedUrl, { headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey } });
+                                if (dl.ok) {
+                                    const arrayBuffer = await dl.arrayBuffer();
+                                    res.setHeader('Content-Type', 'application/pdf');
+                                    return res.send(Buffer.from(arrayBuffer));
+                                } else {
+                                    return res.redirect(signedUrl); // fallback
+                                }
+                            }
+                        } catch(err) { return res.redirect(signedUrl); }
+                    }
                 }
             } catch(e) {
                 console.warn('[VIEW-DOC] Falha proxy Assinafy:', e.message);
@@ -2461,7 +2437,22 @@ app.get('/api/admissao-assinaturas/:id/download', authenticateToken, async (req,
                 if (r.ok) {
                     const data = await r.json();
                     const signedUrl = extractSignedUrl(data?.data || data);
-                    if (signedUrl) return res.redirect(signedUrl);
+                    if (signedUrl) {
+                        try {
+                            if (!signedUrl.includes('assinafy.com.br')) {
+                                return res.redirect(signedUrl);
+                            } else {
+                                const dl = await fetch(signedUrl, { headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey } });
+                                if (dl.ok) {
+                                    const arrayBuffer = await dl.arrayBuffer();
+                                    res.setHeader('Content-Type', 'application/pdf');
+                                    return res.send(Buffer.from(arrayBuffer));
+                                } else {
+                                    return res.redirect(signedUrl); // fallback
+                                }
+                            }
+                        } catch(err) { return res.redirect(signedUrl); }
+                    }
                 }
             } catch(e) {
                 console.warn('[DOWNLOAD-ADMISSAO] Falha proxy Assinafy:', e.message);
