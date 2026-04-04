@@ -2967,14 +2967,19 @@ const FIXED_DOCS = {
 function getFichaCadastralDocs() {
     const isMotorista = viewedColaborador && (viewedColaborador.cargo || '').toUpperCase().includes('MOTORISTA');
     const isMasc = viewedColaborador && viewedColaborador.sexo === 'Masculino';
+    const ec = (viewedColaborador && viewedColaborador.estado_civil || '').toLowerCase();
+    const isCasado = ec.includes('casad') || ec.includes('vi\u00fav') || ec.includes('viuv') || ec.includes('divorc');
+    const certidao = isCasado ? "Certid\u00e3o de Casamento" : "Certid\u00e3o de Nascimento";
     const rgTipoInput = document.getElementById('colab-rg-tipo');
     const rgTipo = (viewedColaborador && viewedColaborador.rg_tipo) ? viewedColaborador.rg_tipo : (rgTipoInput ? rgTipoInput.value : 'RG');
     
     const docs = [
-        "Comprovante de endereço",
-        "Título Eleitoral",
-        "Carteira de vacinação",
-        "Currículo",
+        "Comprovante de endere\u00e7o",
+        "T\u00edtulo Eleitoral",
+        certidao,
+        "Hist\u00f3rico escolar",
+        "Carteira de vacina\u00e7\u00e3o",
+        "Curr\u00edculo",
         "CTPS digital"
     ];
     
@@ -3502,11 +3507,16 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
         renderFichaEpiTab(listContainer);
     } else if (tabId === '01_FICHA_CADASTRAL') {
         // Usa a MESMA lista ordenada do Passo 3 da Admissão para garantir espelhamento
+        const _ec = (viewedColaborador && viewedColaborador.estado_civil || '').toLowerCase();
+        const _isCasado = _ec.includes('casad') || _ec.includes('vi\u00fav') || _ec.includes('viuv') || _ec.includes('divorc');
+        const _certidao = _isCasado ? 'Certid\u00e3o de Casamento' : 'Certid\u00e3o de Nascimento';
         const fixed = [
-            'Comprovante de endereço',
-            'Título Eleitoral',
-            'Carteira de vacinação',
-            'Currículo',
+            'Comprovante de endere\u00e7o',
+            'T\u00edtulo Eleitoral',
+            _certidao,
+            'Hist\u00f3rico escolar',
+            'Carteira de vacina\u00e7\u00e3o',
+            'Curr\u00edculo',
             'CTPS digital'
         ];
         const isMasc = viewedColaborador && viewedColaborador.sexo === 'Masculino';
@@ -6773,21 +6783,30 @@ function renderAdmissaoStep3(colab, docs) {
     if (!container) return;
     
     // Mesma ordem da aba de Prontuário para espelhamento perfeito
+    const _colabEc = (colab && colab.estado_civil || '').toLowerCase();
+    const _colabCasado = _colabEc.includes('casad') || _colabEc.includes('vi\u00fav') || _colabEc.includes('viuv') || _colabEc.includes('divorc');
+    const _colabCertidao = _colabCasado ? 'Certid\u00e3o de Casamento' : 'Certid\u00e3o de Nascimento';
+    const isMotoristaColab = colab && (colab.cargo || '').toUpperCase().includes('MOTORISTA');
     const items = [
-        { label: 'Comprovante de endereço', folder: '01_FICHA_CADASTRAL', hasVencimento: true },
-        { label: 'Título Eleitoral', folder: '01_FICHA_CADASTRAL' },
-        { label: 'Carteira de vacinação', folder: '01_FICHA_CADASTRAL' },
-        { label: 'Currículo', folder: '01_FICHA_CADASTRAL' },
+        { label: 'Comprovante de endere\u00e7o', folder: '01_FICHA_CADASTRAL', hasVencimento: true },
+        { label: 'T\u00edtulo Eleitoral', folder: '01_FICHA_CADASTRAL' },
+        { label: _colabCertidao, folder: '01_FICHA_CADASTRAL' },
+        { label: 'Hist\u00f3rico escolar', folder: '01_FICHA_CADASTRAL' },
+        { label: 'Carteira de vacina\u00e7\u00e3o', folder: '01_FICHA_CADASTRAL' },
+        { label: 'Curr\u00edculo', folder: '01_FICHA_CADASTRAL' },
         { label: 'CTPS digital', folder: '01_FICHA_CADASTRAL' }
     ];
 
-    const isMasc = colab.sexo === 'Masculino';
+    const isMasc = colab && colab.sexo === 'Masculino';
     if (isMasc) items.push({ label: 'Reservista', folder: '01_FICHA_CADASTRAL' });
-    items.push({ label: colab.rg_tipo === 'CIN' ? 'CIN-CPF' : 'RG-CPF', folder: '01_FICHA_CADASTRAL' });
+    if (isMotoristaColab) {
+        items.push({ label: 'CNH', folder: '01_FICHA_CADASTRAL', hasVencimento: true });
+    } else {
+        items.push({ label: (colab && colab.rg_tipo === 'CIN') ? 'CIN-CPF' : 'RG-CPF', folder: '01_FICHA_CADASTRAL', hasVencimento: true });
+    }
 
-    if (colab.estado_civil === 'Casado') {
-        items.push({ label: 'Documento do Cônjuge', folder: '01_FICHA_CADASTRAL' });
-        items.push({ label: 'Certidão de Casamento', folder: '01_FICHA_CADASTRAL' });
+    if (_colabCasado) {
+        items.push({ label: 'Documento do C\u00f4njuge', folder: '01_FICHA_CADASTRAL' });
     }
 
     if (colab.dependentes && colab.dependentes.length > 0) {
