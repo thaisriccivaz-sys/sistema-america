@@ -129,9 +129,12 @@ ${c.sexo === 'Masculino' ? `<div class="row" style="width:33%"><span class="labe
       <div class="row"><span class="label">Vale Adiantamento:</span> <div class="value">${c.adiantamento_salarial==='Sim'?'Sim':'N\u00e3o'}</div></div>
       <div class="row"><span class="label">Valor:</span> <div class="value">${c.adiantamento_salarial==='Sim'?parseMoney(c.adiantamento_valor):''}</div></div>
     </div>
-    <div class="grid-2" style="margin-top:5px">
-      <div class="row"><span class="label">Hor\u00e1rio de Trabalho:</span> <span class="red" style="font-size:10px">${safeStr(c.horario_entrada)} as ${safeStr(c.horario_saida)}</span></div>
-      <div class="row"><span class="label red">Seg a Sexta</span> <span class="red" style="font-size:10px">Sabado ${safeStr(sabIn)} as ${safeStr(sabOut)}</span></div>
+    <div style="margin-top:5px">
+      <div class="row"><span class="label">Hor\u00e1rio de Trabalho:</span>
+        <span class="red" style="font-size:10px; font-weight:bold;">
+          ${sabIn ? \`Seg \u00e0 Sex \${safeStr(c.horario_entrada)} \u00e0s \${safeStr(c.horario_saida)} &nbsp;-&nbsp; S\u00e1b \${safeStr(sabIn)} \u00e0s \${safeStr(sabOut)}\` : \`Seg \u00e0 Sex \${safeStr(c.horario_entrada)} \u00e0s \${safeStr(c.horario_saida)}\`}
+        </span>
+      </div>
     </div>
     <div class="row"><span class="label">Per\u00edodo de Experi\u00eancia:</span> <span>45/45</span></div>
   </div>
