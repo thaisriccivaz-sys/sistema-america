@@ -10448,7 +10448,29 @@ window.enviarFichaContabilidade = async function(btn) {
         });
         const data = await res.json();
         if (data.sucesso) {
-            alert('Ficha e anexos enviados com sucesso para ' + email);
+            // Mostrar imediatamente os documentos enviados usando os dados da resposta
+            if (window.viewedColaborador) {
+                window.viewedColaborador.admissao_contabil_enviada_em = data.enviada_em || new Date().toISOString();
+                window.viewedColaborador.admissao_contabil_anexos = data.anexos || '';
+            }
+            if (typeof window.renderEnvioContabilidadeLog === 'function') {
+                window.renderEnvioContabilidadeLog();
+            }
+            // Mostrar toast em vez de alert bloqueante
+            if (typeof admissaoToast === 'function') {
+                admissaoToast(`✅ E-mail enviado para ${email}`, 'success');
+            } else {
+                alert('Ficha e anexos enviados com sucesso para ' + email);
+            }
+            // Refresh assíncrono em background para garantir consistência
+            apiGet(`/colaboradores/${colabId}`).then(ref => {
+                if (ref && window.viewedColaborador) {
+                    window.viewedColaborador = Object.assign(window.viewedColaborador, ref);
+                    if (typeof window.renderEnvioContabilidadeLog === 'function') {
+                        window.renderEnvioContabilidadeLog();
+                    }
+                }
+            }).catch(() => {});
         } else {
             alert('Erro ao enviar para Contabilidade: ' + (data.error || 'Erro desconhecido.'));
         }

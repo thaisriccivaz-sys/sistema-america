@@ -4847,12 +4847,18 @@ app.post('/api/colaboradores/:id/enviar-ficha-contabilidade', authenticateToken,
 
             // Save status in database
             const nomesAnexos = anexosParaEnviar.map(a => a.filename).join(', ');
+            const enviada_em = new Date().toISOString();
             db.run(
                 "UPDATE colaboradores SET admissao_contabil_enviada_em = CURRENT_TIMESTAMP, admissao_contabil_anexos = ? WHERE id = ?",
                 [nomesAnexos, id],
                 (err3) => {
                     if (err3) console.error("Erro ao salvar log de contabilidade:", err3);
-                    res.json({ sucesso: true });
+                    res.json({
+                        sucesso: true,
+                        enviada_em: enviada_em,
+                        anexos: nomesAnexos,
+                        lista_anexos: anexosParaEnviar.map(a => a.filename)
+                    });
                 }
             );
 
