@@ -3683,13 +3683,12 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
         });
     } else if (FIXED_DOCS[tabId]) {
         if (tabId === 'Multas') {
-            const isMotorista = viewedColaborador && (viewedColaborador.cargo || '').toUpperCase().includes('MOTORISTA');
-            if (!isMotorista) {
-                listContainer.innerHTML = '<div class="alert alert-info"><i class="ph ph-info"></i> Esta aba está disponível apenas para colaboradores com cargo de Motorista.</div>';
-                return;
+            // Renderiza aba completa de multas (para qualquer colaborador)
+            if (typeof window.renderMultasMotoristaTab === 'function') {
+                window.renderMultasMotoristaTab(listContainer);
+            } else {
+                listContainer.innerHTML = '<div class="alert alert-info">Carregando módulo de multas...</div>';
             }
-            // Renderiza a aba completa de multas para motoristas
-            window.renderMultasMotoristaTab(listContainer);
             return;
         }
         FIXED_DOCS[tabId].forEach(docType => {
@@ -6420,7 +6419,10 @@ window.loadAdmissaoSelect = async function() {
         if (!dropdownList) return;
 
         // Apenas colaboradores pendentes de admissão
-        const pendentes = rows.filter(r => r.status === 'Aguardando início' || r.status === 'Processo iniciado');
+        const pendentes = rows.filter(r => {
+            const s = (r.status || '').toLowerCase();
+            return s === 'aguardando' || s === 'iniciado' || s === 'aguardando início' || s === 'processo iniciado' || s.includes('aguard') || s.includes('iniciado');
+        });
         window._admissaoPendentes = pendentes;
 
         // Reset label
