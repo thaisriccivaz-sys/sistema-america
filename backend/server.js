@@ -469,8 +469,18 @@ async function pollAdmissaoAssinaturas() {
                     FROM documentos WHERE (assinafy_status = 'Pendente' OR (assinafy_status = 'Assinado' AND signed_file_path IS NULL)) AND assinafy_id IS NOT NULL`, [], (err, rows) => err ? rej(err) : res(rows))
         );
 
-        const pendentes = [...(pendentesAdmissao || []), ...(pendentesDocs || [])];
-        if (!pendentes || pendentes.length === 0) return;
+        const rawPendentes = [...(pendentesAdmissao || []), ...(pendentesDocs || [])];
+        if (!rawPendentes || rawPendentes.length === 0) return;
+
+        // Deduplicar pendentes por assinafy_id para não sobrecarregar API e evitar duplo insert/update
+        const seenPollIds = new Set();
+        const pendentes = [];
+        for (const p of rawPendentes) {
+            if (!p.assinafy_id || !seenPollIds.has(p.assinafy_id)) {
+                pendentes.push(p);
+                if (p.assinafy_id) seenPollIds.add(p.assinafy_id);
+            }
+        }
 
         console.log(`[POLL-ADMISSAO] Verificando ${pendentes.length} documento(s) pendente(s)...`);
         const https = require('https');
@@ -612,17 +622,15 @@ db.run("INSERT OR REPLACE INTO logs (msg) VALUES (?)", ['OneDrive Sync Error: ' 
                 }
 
                 // Atualizar banco de acordo com a origem do documento
-                if (doc.source === 'admissao') {
-                    db.run(
-                        `UPDATE admissao_assinaturas SET assinafy_status = 'Assinado', assinado_em = CURRENT_TIMESTAMP, signed_file_path = ? WHERE id = ?`,
-                        [signedPath, doc.id]
-                    );
-                } else {
-                    db.run(
-                        `UPDATE documentos SET assinafy_status = 'Assinado', signed_file_path = ?, assinafy_signed_at = CURRENT_TIMESTAMP WHERE id = ?`,
-                        [signedPath, doc.id]
-                    );
-                }
+                // Atualizar banco em AMBAS as tabelas, pois o mesmo documento pode existir nas duas
+                db.run(
+                    `UPDATE admissao_assinaturas SET assinafy_status = 'Assinado', assinado_em = CURRENT_TIMESTAMP, signed_file_path = ? WHERE assinafy_id = ?`,
+                    [signedPath, doc.assinafy_id]
+                );
+                db.run(
+                    `UPDATE documentos SET assinafy_status = 'Assinado', signed_file_path = ?, assinafy_signed_at = CURRENT_TIMESTAMP WHERE assinafy_id = ?`,
+                    [signedPath, doc.assinafy_id]
+                );
             } catch(e) {
                 console.warn(`[POLL-ADMISSAO] Erro ao verificar doc ${doc.assinafy_id}: ${e.message}`);
             }
@@ -840,13 +848,23 @@ app.get('/api/admissao-assinaturas/todos', authenticateToken, async (req, res) =
         }));
 
         // Combinar e ordenar por data mais recente
-        const all = [...admissaoRows, ...docRowsWithDates].sort((a, b) => {
+        const rawAll = [...admissaoRows, ...docRowsWithDates].sort((a, b) => {
             const dateA = new Date(a.assinado_em || a.enviado_em || 0).getTime();
             const dateB = new Date(b.assinado_em || b.enviado_em || 0).getTime();
             return dateB - dateA;
-        }).slice(0, 500);
+        });
 
-        res.json(all);
+        // Deduplicar por assinafy_id para evitar duplicação ("admissao_assinaturas" vs "documentos")
+        const seenIds = new Set();
+        const all = [];
+        for (const item of rawAll) {
+            if (!item.assinafy_id || !seenIds.has(item.assinafy_id)) {
+                all.push(item);
+                if (item.assinafy_id) seenIds.add(item.assinafy_id);
+            }
+        }
+
+        res.json(all.slice(0, 500));
     } catch(e) {
         console.error('[/admissao-assinaturas/todos] Erro:', e.message);
         res.status(500).json({ error: e.message });

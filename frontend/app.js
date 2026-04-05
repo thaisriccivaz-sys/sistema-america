@@ -1287,6 +1287,9 @@ window.calcularHorarioSaida = function() {
         let totalSabMins = (hse * 60 + mse) + (4 * 60);
         const hSabFinal = Math.floor(totalSabMins / 60) % 24;
         const mSabFinal = totalSabMins % 60;
+        outSabSaida.value = `${String(hSabFinal).padStart(2, '0')}:${String(mSabFinal).padStart(2, '0')}`;
+    } else if (outSabSaida) {
+        outSabSaida.value = '';
     }
 }
 
