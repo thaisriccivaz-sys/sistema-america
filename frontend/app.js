@@ -6420,8 +6420,8 @@ window.loadAdmissaoSelect = async function() {
 
         // Apenas colaboradores pendentes de admissão
         const pendentes = rows.filter(r => {
-            const s = (r.status || '').toLowerCase();
-            return s === 'aguardando' || s === 'iniciado' || s === 'aguardando início' || s === 'processo iniciado' || s.includes('aguard') || s.includes('iniciado');
+            const s = (r.status || 'aguardando').toLowerCase();
+            return !s.includes('ativo') && !s.includes('desligado');
         });
         window._admissaoPendentes = pendentes;
 
