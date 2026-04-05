@@ -2570,10 +2570,12 @@ app.get('/api/geradores/:id/preview-pdf/:colaborador_id', authenticateToken, asy
 
 // POST batch: gerar PDFs dos geradores selecionados e enviar para assinatura via Assinafy
 app.post('/api/admissao-assinaturas/enviar-lote', authenticateToken, async (req, res) => {
-    const { colaborador_id, geradores_ids } = req.body;
-    if (!colaborador_id || !Array.isArray(geradores_ids) || geradores_ids.length === 0) {
+    const { colaborador_id, geradores_ids: rawIds } = req.body;
+    if (!colaborador_id || !Array.isArray(rawIds) || rawIds.length === 0) {
         return res.status(400).json({ error: 'colaborador_id e geradores_ids são obrigatórios' });
     }
+    // Dedup absoluto: garantir IDs únicos independente do que o cliente mande
+    const geradores_ids = [...new Set(rawIds.map(Number).filter(n => !isNaN(n) && n > 0))];
 
     const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
     const novoProcesso = require('./novo_processo_assinafy');
@@ -2618,15 +2620,28 @@ app.post('/api/admissao-assinaturas/enviar-lote', authenticateToken, async (req,
         // apareçam válidas no validador gov.br.
 
 
+        // ─── DEDUP CRITICAL: Verificar se já foi enviado (Pendente ou Assinado) ───
         const existente = await new Promise((resolve, reject) =>
-            db.get('SELECT * FROM admissao_assinaturas WHERE colaborador_id = ? AND nome_documento = ?',
+            db.get('SELECT * FROM admissao_assinaturas WHERE colaborador_id = ? AND (gerador_id = ? OR nome_documento = ?)',
+                [colaborador_id, geradorId, gerador.nome], (err, row) => err ? reject(err) : resolve(row))
+        );
+
+        // Se já existe com assinafy_id (já enviado para Assinafy), NÃO re-enviar
+        if (existente && existente.assinafy_id && ['Pendente', 'Aguardando', 'Assinado'].includes(existente.assinafy_status)) {
+            console.log(`[ADMISSAO-DEDUP] Documento "${gerador.nome}" já foi enviado (status: ${existente.assinafy_status}). Pulando.`);
+            return { id: geradorId, nome: gerador.nome, ok: true, jaEnviado: true, url: existente.assinafy_url };
+        }
+
+        const existenteDoc = await new Promise((resolve, reject) =>
+            db.get(`SELECT id, assinafy_status, assinafy_id FROM documentos WHERE colaborador_id = ? AND document_type = ? AND tab_name = 'CONTRATOS' ORDER BY id DESC LIMIT 1`,
                 [colaborador_id, gerador.nome], (err, row) => err ? reject(err) : resolve(row))
         );
 
-        const existenteDoc = await new Promise((resolve, reject) =>
-            db.get(`SELECT id, assinafy_status FROM documentos WHERE colaborador_id = ? AND document_type = ? AND tab_name = 'CONTRATOS' ORDER BY id DESC LIMIT 1`,
-                [colaborador_id, gerador.nome], (err, row) => err ? reject(err) : resolve(row))
-        );
+        // Se doc já tem assinafy_id ativo, não duplicar
+        if (existenteDoc && existenteDoc.assinafy_id && ['Pendente', 'Aguardando', 'Assinado'].includes(existenteDoc.assinafy_status)) {
+            console.log(`[ADMISSAO-DEDUP] Doc "${gerador.nome}" já tem assinafy_id no banco. Pulando.`);
+            return { id: geradorId, nome: gerador.nome, ok: true, jaEnviado: true };
+        }
 
         let docId;
         if (existenteDoc && existenteDoc.assinafy_status !== 'Assinado') {
@@ -2652,7 +2667,7 @@ app.post('/api/admissao-assinaturas/enviar-lote', authenticateToken, async (req,
             db.run(`UPDATE admissao_assinaturas SET assinafy_id=?, assinafy_status='Pendente', assinafy_url=?, enviado_em=CURRENT_TIMESTAMP WHERE id=?`,
                 [resultado.assinafyDocId, resultado.urlAssinatura, existente.id]);
         } else {
-            db.run(`INSERT INTO admissao_assinaturas (colaborador_id, gerador_id, nome_documento, assinafy_id, assinafy_status, assinafy_url, enviado_em) VALUES (?,?,?,?,?,?,CURRENT_TIMESTAMP)`,
+            db.run(`INSERT OR IGNORE INTO admissao_assinaturas (colaborador_id, gerador_id, nome_documento, assinafy_id, assinafy_status, assinafy_url, enviado_em) VALUES (?,?,?,?,?,?,CURRENT_TIMESTAMP)`,
                 [colaborador_id, geradorId, gerador.nome, resultado.assinafyDocId, 'Pendente', resultado.urlAssinatura]);
         }
 

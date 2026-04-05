@@ -6494,7 +6494,7 @@ window.sendAssinafyWhatsApp = async function(tipo, suffix) {
 };
 
 window.currentActiveAdmissaoStep = 1;
-// --- Refatoração: Função genérica para construir HTML da lista de contratos (Admissão / Prontuário) ---
+
 window.buildAdmissaoSignatureRows = function(availableGeradores, assinaturas, docs, colab) {
     return availableGeradores.map(g => {
         const ass = assinaturas.find(a => a.gerador_id === g.id || a.nome_documento === g.nome);
@@ -6505,11 +6505,11 @@ window.buildAdmissaoSignatureRows = function(availableGeradores, assinaturas, do
         else if (docEquivalente?.assinafy_status === 'Pendente') realStatus = 'Pendente';
         else if (ass?.assinafy_status === 'Pendente')            realStatus = 'Pendente';
 
-        const isSigned      = realStatus === 'Assinado';
-        const isPending     = realStatus === 'Pendente';
-        const isFisica      = ass?.tipo_assinatura === 'fisica';
-        const assId         = ass?.id || null;
-        const colabId       = colab ? colab.id : '';
+        const isSigned  = realStatus === 'Assinado';
+        const isPending = realStatus === 'Pendente';
+        const isFisica  = ass?.tipo_assinatura === 'fisica';
+        const assId     = ass?.id || null;
+        const colabId   = colab ? colab.id : '';
 
         // Badge de status
         let statusBadge;
@@ -6523,7 +6523,7 @@ window.buildAdmissaoSignatureRows = function(availableGeradores, assinaturas, do
             statusBadge = `<span style="background:#f1f5f9;color:#64748b;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;"><i class="ph ph-minus-circle"></i> Não enviado</span>`;
         }
 
-        // Data badge
+        // Badge de data
         let dataEnvioBadge = '';
         if (isSigned) {
             const dateVal = ass?.assinado_em || docEquivalente?.assinafy_signed_at;
@@ -6540,92 +6540,75 @@ window.buildAdmissaoSignatureRows = function(availableGeradores, assinaturas, do
             } catch(e) {}
         }
 
-        // Eye button
+        // Botão de olho
         let eyeBtn;
-        if (isSigned && ass) {
-            eyeBtn = `<button onclick="window.openSignedDocPopup(${assId}, '${g.nome.replace(/'/g,"\\'")}', event)" style="border:none;background:none;cursor:pointer;color:#16a34a;" title="Ver documento assinado"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
+        if (isSigned && assId) {
+            eyeBtn = `<button onclick="window.openSignedDocPopup(${assId},'${g.nome.replace(/'/g,"\\'")}',event)" style="border:none;background:none;cursor:pointer;color:#16a34a;" title="Ver documento assinado"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
         } else {
-            eyeBtn = `<button onclick="window.previewAdmissaoDoc(${g.id}, ${colabId}, event)" style="border:none;background:none;cursor:pointer;color:#64748b;" title="Visualizar documento"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
+            eyeBtn = `<button onclick="window.previewAdmissaoDoc(${g.id},${colabId},event)" style="border:none;background:none;cursor:pointer;color:#64748b;" title="Visualizar documento"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
         }
 
-        // Área de ação — se já assinado, mostrar apenas status; caso contrário, mostrar toggle + botões
-        let actionArea = '';
-        if (!isSigned) {
-            const tipoAtual = isFisica ? 'fisica' : 'digital';
-            actionArea = `
-            <div class="sig-tipo-toggle" data-gerador-id="${g.id}" style="display:flex;flex-direction:column;gap:6px;margin-top:6px;padding-top:6px;border-top:1px solid #e2e8f0;">
-                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                    <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:0.78rem;font-weight:600;color:#334155;">
-                        <input type="radio" name="sig-tipo-${g.id}" value="digital" ${tipoAtual==='digital'?'checked':''} onchange="window.toggleSigTipo(${g.id}, 'digital')" style="accent-color:#f503c5;">
-                        <i class="ph ph-device-mobile"></i> Digital (Assinafy)
-                    </label>
-                    <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:0.78rem;font-weight:600;color:#334155;">
-                        <input type="radio" name="sig-tipo-${g.id}" value="fisica" ${tipoAtual==='fisica'?'checked':''} onchange="window.toggleSigTipo(${g.id}, 'fisica')" style="accent-color:#0369a1;">
-                        <i class="ph ph-pen-nib"></i> Física (Presencial)
-                    </label>
-                </div>
-                <div id="sig-action-${g.id}">
-                    ${tipoAtual === 'fisica'
-                        ? `<div style="display:flex;gap:6px;flex-wrap:wrap;">
-                             <button onclick="window.baixarDocFisico(${g.id}, ${colabId})" style="background:#0369a1;color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:0.78rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;"><i class="ph ph-download-simple"></i> Baixar Documento</button>
-                             ${isPending ? `<label style="background:#059669;color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:0.78rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;" title="Anexar documento assinado fisicamente"><i class="ph ph-paperclip"></i> Anexar Assinado<input type="file" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" onchange="window.uploadFisico(${assId}, this)"></label>` : ''}
-                           </div>`
-                        : `<button onclick="window.baixarDocFisico(${g.id}, ${colabId})" style="background:#e0f2fe;color:#0369a1;border:none;padding:4px 10px;border-radius:6px;font-size:0.75rem;cursor:pointer;"><i class="ph ph-eye"></i> Pré-visualizar</button>`
-                    }
-                </div>
+        // Botões de assinatura física (visíveis só no modo física — controlado globalmente)
+        const fisicaBtns = isSigned ? '' : `
+            <div class="sig-fisica-actions" data-gerador-id="${g.id}" data-ass-id="${assId||''}" style="display:none; gap:6px; margin-top:6px; padding-top:6px; border-top:1px dashed #e2e8f0; flex-wrap:wrap;">
+                <button onclick="window.baixarDocFisico(${g.id},${colabId})" style="background:#0369a1;color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:0.78rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;"><i class="ph ph-download-simple"></i> Baixar para Imprimir</button>
+                <label style="background:#059669;color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:0.78rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;" title="Anexar documento assinado fisicamente"><i class="ph ph-paperclip"></i> Anexar Assinado<input type="file" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" onchange="window.uploadFisico(${assId||0},this,${g.id},${colabId})"></label>
             </div>`;
-        }
 
         return `
-        <div class="doc-check-item" data-gerador-id="${g.id}" style="display:flex;flex-direction:column;padding:0.75rem;border:1px solid ${isSigned?'#bbf7d0':'#e2e8f0'};border-radius:10px;background:${isSigned?'#f0fdf4':'#fff'};transition:all 0.2s;">
+        <div class="doc-check-item" data-gerador-id="${g.id}" style="display:flex;flex-direction:column;padding:0.6rem 0.75rem;border:1px solid ${isSigned?'#bbf7d0':'#f1f5f9'};border-radius:8px;background:${isSigned?'#f0fdf4':'#fff'};transition:all 0.2s;">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:0.6rem;">
                 <div style="display:flex;align-items:center;gap:0.6rem;flex:1;">
                     ${isSigned
-                        ? `<i class="ph-fill ph-check-circle" style="color:${isFisica?'#0369a1':'#22c55e'};font-size:1.2rem;"></i>`
-                        : `<input type="checkbox" value="${g.id}" data-nome="${g.nome}" checked style="width:16px;height:16px;cursor:pointer;accent-color:#f503c5;">`
+                        ? `<i class="ph-fill ph-check-circle" style="color:${isFisica?'#0369a1':'#22c55e'};font-size:1.2rem;flex-shrink:0;"></i>`
+                        : `<input type="checkbox" value="${g.id}" data-nome="${g.nome}" checked style="width:16px;height:16px;cursor:pointer;accent-color:#f503c5;flex-shrink:0;">`
                     }
                     <span style="font-size:0.87rem;font-weight:600;color:#334155;">${g.nome}</span>
                 </div>
-                <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+                <div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0;">
                     ${dataEnvioBadge}
                     ${statusBadge}
                     ${eyeBtn}
                 </div>
             </div>
-            ${actionArea}
+            ${fisicaBtns}
         </div>`;
     }).join('');
 };
 
-// Toggle entre modo digital/físico por documento
-window.toggleSigTipo = function(geradorId, tipo) {
-    const actionDiv = document.getElementById(`sig-action-${geradorId}`);
-    if (!actionDiv) return;
-    const colabId = viewedColaborador ? viewedColaborador.id : '';
-    const ass = (window._admissaoAssinaturas || []).find(a => a.gerador_id === geradorId);
-    const assId = ass ? ass.id : null;
-    const isPending = ass && ass.assinafy_status === 'Pendente';
-
-    if (tipo === 'fisica') {
-        // Registrar intenção de assinatura física no backend
-        fetch(`${API_URL}/admissao-assinaturas/registrar-fisica`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ colaborador_id: colabId, gerador_id: geradorId, nome_documento: ass?.nome_documento || '' })
-        }).then(r => r.json()).then(data => {
-            const id = data.id || (ass?.id);
-            actionDiv.innerHTML = `
-                <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                    <button onclick="window.baixarDocFisico(${geradorId}, ${colabId})" style="background:#0369a1;color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:0.78rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;"><i class="ph ph-download-simple"></i> Baixar Documento</button>
-                    <label id="upload-label-${geradorId}" style="background:#059669;color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:0.78rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;" title="Anexar documento assinado fisicamente">
-                        <i class="ph ph-paperclip"></i> Anexar Assinado
-                        <input type="file" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" onchange="window.uploadFisico(${id}, this)">
-                    </label>
-                </div>`;
-        }).catch(() => {});
+// ─── MODO FÍSICA GLOBAL: mostra/oculta botões de download+upload para todos os docs ───
+window.toggleModoFisica = function(btn) {
+    const isActive = btn.classList.toggle('btn-fisica-active');
+    // Estilo do botão
+    if (isActive) {
+        btn.style.background = '#0369a1'; btn.style.color = '#fff'; btn.style.borderColor = '#0369a1';
+        btn.innerHTML = '<i class="ph ph-pen-nib"></i> Assinatura Física <i class="ph ph-check"></i>';
     } else {
-        actionDiv.innerHTML = `<button onclick="window.previewAdmissaoDoc(${geradorId}, ${colabId}, event)" style="background:#e0f2fe;color:#0369a1;border:none;padding:4px 10px;border-radius:6px;font-size:0.75rem;cursor:pointer;"><i class="ph ph-eye"></i> Pré-visualizar</button>`;
+        btn.style.background = '#eff6ff'; btn.style.color = '#0369a1'; btn.style.borderColor = '#0369a1';
+        btn.innerHTML = '<i class="ph ph-pen-nib"></i> Assinatura Física';
     }
+    // Mostrar/ocultar área física de cada doc
+    document.querySelectorAll('.sig-fisica-actions').forEach(div => {
+        div.style.display = isActive ? 'flex' : 'none';
+    });
+    // Registrar intenção no backend para todos os docs sem assId (ainda não cadastrados)
+    if (!isActive || !viewedColaborador) return;
+    const geradores = window._admissaoGeradores || [];
+    const assinaturas = window._admissaoAssinaturas || [];
+    geradores.forEach(g => {
+        const ass = assinaturas.find(a => a.gerador_id === g.id || a.nome_documento === g.nome);
+        if (!ass) {
+            fetch(`${API_URL}/admissao-assinaturas/registrar-fisica`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ colaborador_id: viewedColaborador.id, gerador_id: g.id, nome_documento: g.nome })
+            }).then(r => r.json()).then(data => {
+                // Atualizar o data-ass-id no div correspondente
+                const div = document.querySelector(`.sig-fisica-actions[data-gerador-id="${g.id}"]`);
+                if (div && data.id) div.setAttribute('data-ass-id', data.id);
+            }).catch(() => {});
+        }
+    });
 };
 
 // Download do documento para assinar fisicamente
@@ -6645,27 +6628,45 @@ window.baixarDocFisico = async function(geradorId, colabId, evt) {
             a.click();
             URL.revokeObjectURL(url);
         } else {
-            // Fallback: abrir preview para imprimir
             await window.previewAdmissaoDoc(geradorId, colabId, evt);
         }
     } catch(e) {
-        // Fallback para preview
         await window.previewAdmissaoDoc(geradorId, colabId, null);
     }
 };
 
 // Upload do documento assinado fisicamente
-window.uploadFisico = async function(assId, inputEl) {
-    if (!assId || !inputEl.files || inputEl.files.length === 0) return;
+window.uploadFisico = async function(assId, inputEl, geradorId, colabId) {
+    if (!inputEl.files || inputEl.files.length === 0) return;
     const file = inputEl.files[0];
     const label = inputEl.closest('label');
     if (label) { label.innerHTML = '<i class="ph ph-spinner"></i> Enviando...'; label.style.opacity = '0.7'; label.style.pointerEvents = 'none'; }
+
+    // Se assId=0, precisamos registrar primeiro e depois fazer upload
+    let realAssId = assId && assId !== 0 ? assId : null;
+    if (!realAssId) {
+        // Buscar pelo data-ass-id do div pai
+        const div = label ? label.closest('.sig-fisica-actions') : null;
+        realAssId = div ? (parseInt(div.getAttribute('data-ass-id')) || null) : null;
+    }
+    if (!realAssId && geradorId && colabId) {
+        try {
+            const reg = await fetch(`${API_URL}/admissao-assinaturas/registrar-fisica`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ colaborador_id: colabId, gerador_id: geradorId, nome_documento: '' })
+            });
+            const regData = await reg.json();
+            realAssId = regData.id;
+        } catch(e) {}
+    }
+    if (!realAssId) { alert('Não foi possível identificar o registro de assinatura. Tente novamente.'); return; }
 
     const formData = new FormData();
     formData.append('arquivo', file);
 
     try {
-        const resp = await fetch(`${API_URL}/admissao-assinaturas/${assId}/assinatura-fisica`, {
+        const resp = await fetch(`${API_URL}/admissao-assinaturas/${realAssId}/assinatura-fisica`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${currentToken}` },
             body: formData
@@ -6708,7 +6709,9 @@ window.renderContratosTab = async function(container) {
             const geradorIds = [...new Set(templates
                 .filter(t => Number(t.departamento_id) === Number(deptObj.id))
                 .map(t => Number(t.gerador_id)))];
-            availableGeradores = geradores.filter(g => geradorIds.includes(Number(g.id)));
+            // Dedup por id — garante que um gerador nao aparece duas vezes mesmo se vinculado multiplas vezes
+            const seen = new Set();
+            availableGeradores = geradores.filter(g => geradorIds.includes(Number(g.id)) && !seen.has(Number(g.id)) && seen.add(Number(g.id)));
         }
 
         window._admissaoGeradores = availableGeradores;
@@ -6864,7 +6867,9 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
                 const geradorIds = [...new Set(templates
                     .filter(t => Number(t.departamento_id) === Number(deptObj.id))
                     .map(t => Number(t.gerador_id)))];
-                availableGeradores = geradores.filter(g => geradorIds.includes(Number(g.id)));
+                // Dedup por id — garante que um gerador nao aparece duas vezes mesmo se vinculado multiplas vezes
+                const seen = new Set();
+                availableGeradores = geradores.filter(g => geradorIds.includes(Number(g.id)) && !seen.has(Number(g.id)) && seen.add(Number(g.id)));
             }
 
             // Guarda globalmente para o botão de envio acessar
