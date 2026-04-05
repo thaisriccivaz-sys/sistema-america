@@ -7290,6 +7290,10 @@ function calculateAdmissaoStep1Completion(c) {
 function updateAdmissaoStepPercentages(colab) {
     const targetColab = colab || viewedColaborador;
     if (!targetColab) return;
+    
+    if (typeof window.renderEnvioContabilidadeLog === 'function') {
+        window.renderEnvioContabilidadeLog();
+    }
 
     const step1 = calculateAdmissaoStep1Completion(targetColab);
     const pc1 = step1.percent;

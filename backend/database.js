@@ -307,6 +307,8 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     if (!cols.includes('aso_assinafy_link')) db.run("ALTER TABLE colaboradores ADD COLUMN aso_assinafy_link TEXT");
                     if (!cols.includes('aso_exames_assinafy_link')) db.run("ALTER TABLE colaboradores ADD COLUMN aso_exames_assinafy_link TEXT");
                     if (!cols.includes('foto_base64')) db.run("ALTER TABLE colaboradores ADD COLUMN foto_base64 TEXT");
+                    if (!cols.includes('admissao_contabil_enviada_em')) db.run("ALTER TABLE colaboradores ADD COLUMN admissao_contabil_enviada_em DATETIME");
+                    if (!cols.includes('admissao_contabil_anexos')) db.run("ALTER TABLE colaboradores ADD COLUMN admissao_contabil_anexos TEXT");
                 });
 
                 // Avaliacoes (Migracao estrutural para Drop and Recreate caso a tabela antiga nao tenha 'tipo')
