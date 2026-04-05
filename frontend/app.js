@@ -7406,10 +7406,6 @@ function calculateAdmissaoStep1Completion(c) {
 function updateAdmissaoStepPercentages(colab) {
     const targetColab = colab || viewedColaborador;
     if (!targetColab) return;
-    
-    if (typeof window.renderEnvioContabilidadeLog === 'function') {
-        window.renderEnvioContabilidadeLog();
-    }
 
     const step1 = calculateAdmissaoStep1Completion(targetColab);
     const pc1 = step1.percent;
@@ -7715,21 +7711,37 @@ window.resetAdmissao = function() {
 
 window.finalizarAdmissao = async function() {
     if (!viewedColaborador) return;
-    
-    if (!confirm(`Confirmar a admissão definitiva de ${viewedColaborador.nome_completo}?`)) return;
-    
+
+    if (!confirm(`Confirmar a admissão definitiva de ${viewedColaborador.nome_completo}?\n\nO colaborador passará para o status "Em Integração".`)) return;
+
     try {
-        // Atualizar status para Ativo
         await apiPut(`/colaboradores/${viewedColaborador.id}`, {
-            status: 'Em Integração'
+            status: 'Em Integração',
+            admissao_status: 'Concluída'
         });
-        
-        alert('Admissão realizada com sucesso! O colaborador agora está Em Integração.');
-        navigateTo('integracao');
+
+        // Atualizar o objeto local
+        viewedColaborador.status = 'Em Integração';
+        if (window.viewedColaborador) window.viewedColaborador.status = 'Em Integração';
+
+        // Toast de sucesso
+        if (typeof admissaoToast === 'function') {
+            admissaoToast(`✅ ${viewedColaborador.nome_completo} admitido com sucesso! Agora em Integração.`, 'success');
+        } else {
+            alert('Admissão realizada com sucesso! O colaborador agora está Em Integração.');
+        }
+
+        // Navegar para módulo de integração
+        setTimeout(() => {
+            if (typeof navigateTo === 'function') navigateTo('integracao');
+            // Recarregar lista de colaboradores para refletir o novo status
+            if (typeof loadColaboradores === 'function') loadColaboradores();
+        }, 800);
     } catch (e) {
         alert('Erro ao finalizar admissão: ' + e.message);
     }
 };
+
 
 /**
  * Copia o link de assinatura para a área de transferência
@@ -10553,6 +10565,18 @@ window.enviarFichaContabilidade = async function(btn) {
     if (!dataInicio) {
         alert("Preencha a Data de Início Prevista.");
         return;
+    }
+
+    // Verificar se todos os passos estão em 100%
+    const stepBadges = document.querySelectorAll('.step-badge .step-pct');
+    let allComplete = true;
+    stepBadges.forEach(badge => {
+        const pct = parseInt(badge.textContent) || 0;
+        if (pct < 100) allComplete = false;
+    });
+    if (!allComplete) {
+        const ok = confirm('⚠️ Atenção! Ainda existem passos não concluídos (não estão em 100%).\n\nDeseja continuar mesmo assim e enviar os documentos para a Contabilidade?');
+        if (!ok) return;
     }
 
     const originalText = btn.innerHTML;

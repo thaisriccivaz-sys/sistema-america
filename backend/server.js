@@ -73,6 +73,9 @@ db.run("ALTER TABLE colaboradores ADD COLUMN conjuge_cpf TEXT", (err) => {
 db.run("ALTER TABLE colaboradores ADD COLUMN tem_pensao_alimenticia TEXT DEFAULT 'Não'", (err) => {
     if (!err) console.log("Coluna tem_pensao_alimenticia adicionada com sucesso.");
 });
+db.run("ALTER TABLE colaboradores ADD COLUMN admissao_status TEXT", (err) => {
+    if (!err) console.log("Coluna admissao_status adicionada com sucesso.");
+});
 
 // MIGRATION: Multas de Trânsito
 db.run(`CREATE TABLE IF NOT EXISTS multas (
