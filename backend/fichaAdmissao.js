@@ -43,6 +43,11 @@ function getFichaAdmissaoHtml(colaborador, baseUrl) {
 
     const logoSrc = `${baseUrl || 'https://sistema-america.onrender.com'}/assets/logo-header.png`;
 
+    // Montar string de horário fora do template para evitar backtick aninhado
+    const horarioStr = sabIn
+        ? ('Seg \u00e0 Sex ' + safeStr(c.horario_entrada) + ' \u00e0s ' + safeStr(c.horario_saida) + ' - S\u00e1b ' + safeStr(sabIn) + ' \u00e0s ' + safeStr(sabOut))
+        : ('Seg \u00e0 Sex ' + safeStr(c.horario_entrada) + ' \u00e0s ' + safeStr(c.horario_saida));
+
     const html = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -136,7 +141,7 @@ ${c.sexo === 'Masculino' ? `<div class="row" style="width:33%"><span class="labe
     <div style="margin-top:5px">
       <div class="row"><span class="label">Hor\u00e1rio de Trabalho:</span>
         <span class="red" style="font-size:10px; font-weight:bold;">
-          ${sabIn ? \`Seg \u00e0 Sex \${safeStr(c.horario_entrada)} \u00e0s \${safeStr(c.horario_saida)} &nbsp;-&nbsp; S\u00e1b \${safeStr(sabIn)} \u00e0s \${safeStr(sabOut)}\` : \`Seg \u00e0 Sex \${safeStr(c.horario_entrada)} \u00e0s \${safeStr(c.horario_saida)}\`}
+          ${horarioStr}
         </span>
       </div>
     </div>

@@ -4611,6 +4611,12 @@ app.post('/api/colaboradores/:id/enviar-ficha-contabilidade', authenticateToken,
         if (err || !row) return res.status(404).json({ error: 'Colaborador não encontrado' });
         
         try {
+            // Buscar dependentes para incluir na ficha
+            const deps = await new Promise((resolve) =>
+                db.all('SELECT * FROM dependentes WHERE colaborador_id = ?', [id], (e, r) => resolve(r || []))
+            );
+            row.dependentes = deps;
+
             const htmlPdf = require('html-pdf-node');
             const html = getFichaAdmissaoHtml(row);
             const pdfBuffer = await htmlPdf.generatePdf(
