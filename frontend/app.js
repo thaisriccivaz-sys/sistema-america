@@ -10635,9 +10635,4 @@ window.renderEnvioContabilidadeLog = function() {
     }
 
     logPanel.style.display = 'block';
-
-    // Forçar recálculo do passo 5 para 100%
-    if (typeof updateAdmissaoStepPercentages === 'function') {
-        updateAdmissaoStepPercentages();
-    }
 };
