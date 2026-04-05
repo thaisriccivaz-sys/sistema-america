@@ -6835,6 +6835,11 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
 
 
             updateAdmissaoStepPercentages(colab);
+            // Ensure log panel is populated from fresh colab data
+            if (typeof window.renderEnvioContabilidadeLog === 'function') {
+                window.viewedColaborador = Object.assign(window.viewedColaborador || {}, colab);
+                window.renderEnvioContabilidadeLog();
+            }
             window.nextAdmissaoStep(targetStep, preventScroll);
         }
     } catch (e) { alert('Erro ao carregar dados: ' + e.message); }
@@ -9970,32 +9975,61 @@ window.showHistoryPopup = async function() {
     if (historyMod) historyMod.style.display = 'flex';
     const tbody = document.getElementById('history-table-body');
     const loading = document.getElementById('history-loading');
+    const contextLabel = document.getElementById('history-context-label');
     
     tbody.innerHTML = '';
     loading.style.display = 'block';
 
     try {
-        // Se estivermos dentro da dashboard de um colaborador, filtramos por ele.
-        // Se não, não passamos ID e ele traz o log geral.
         let url = `${API_URL}/auditoria`;
+        let labelText = 'Todas as alterações do sistema';
+        
         const viewPront = document.getElementById('view-prontuario');
         const viewAdm = document.getElementById('view-admissao');
         const viewForm = document.getElementById('view-form-colaborador');
         const viewListColab = document.getElementById('view-colaboradores');
+        const viewGer = document.getElementById('view-geradores');
+        const viewCargos = document.getElementById('view-cargos');
+        const viewFaculdade = document.getElementById('view-faculdade');
+        const viewEpi = document.getElementById('view-ficha-epi');
+        const viewAvaliacoes = document.getElementById('view-gerenciar-avaliacoes');
+
         const isColabActive = (viewPront && viewPront.classList.contains('active')) || 
                               (viewAdm && viewAdm.classList.contains('active')) ||
                               (viewForm && viewForm.classList.contains('active')) ||
                               (viewListColab && viewListColab.classList.contains('active'));
-        const viewGer = document.getElementById('view-geradores');
-        const isGerActive = (viewGer && viewGer.classList.contains('active'));
+        const isGerActive = viewGer && viewGer.classList.contains('active');
+        const isCargosActive = viewCargos && viewCargos.classList.contains('active');
+        const isFaculdadeActive = viewFaculdade && viewFaculdade.classList.contains('active');
+        const isEpiActive = viewEpi && viewEpi.classList.contains('active');
+        const isAvaliacoesActive = viewAvaliacoes && viewAvaliacoes.classList.contains('active');
 
         if (isColabActive && viewedColaborador && viewedColaborador.id) {
             url += `?contexto=colaborador&id=${viewedColaborador.id}`;
+            labelText = `Alterações do colaborador: ${viewedColaborador.nome_completo || viewedColaborador.nome || ''}`;
+        } else if (isColabActive) {
+            url += `?contexto=colaboradores_geral`;
+            labelText = 'Alterações na tela de Colaboradores';
         } else if (isGerActive) {
             url += `?contexto=gerador`;
+            labelText = 'Alterações na tela de Geradores';
+        } else if (isCargosActive) {
+            url += `?programa=Cargos`;
+            labelText = 'Alterações na tela de Cargos';
+        } else if (isFaculdadeActive) {
+            url += `?programa=Faculdade`;
+            labelText = 'Alterações na tela de Faculdade';
+        } else if (isEpiActive) {
+            url += `?programa=EPI`;
+            labelText = 'Alterações na tela de Fichas EPI';
+        } else if (isAvaliacoesActive) {
+            url += `?programa=Avaliações`;
+            labelText = 'Alterações na tela de Avaliações';
         } else {
             url += `?contexto=geral`;
         }
+        
+        if (contextLabel) contextLabel.textContent = labelText;
 
         const res = await fetch(url, { headers: { 'Authorization': `Bearer ${currentToken}` } });
         if (!res.ok) throw new Error('Falha ao carregar histórico');

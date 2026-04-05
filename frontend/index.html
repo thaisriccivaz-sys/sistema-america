@@ -2343,7 +2343,7 @@
     <script src="gerenciar_avaliacoes.js?v=2"></script>
     <script src="epi.js?v=17"></script>
     <script src="usuarios.js?v=1"></script>
-    <script src="app.js?v=70"></script>
+    <script src="app.js?v=71"></script>
 
     <!-- Global Scroll-to-Top Button -->
     <button id="global-scroll-top" onclick="window.scrollTo({top:0, behavior:'smooth'})" style="position:fixed; bottom:30px; right:30px; width:45px; height:45px; border-radius:50%; background:var(--primary-color, #0f172a); color:#fff; border:none; box-shadow:0 4px 10px rgba(0,0,0,0.3); justify-content:center; align-items:center; transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index:9000; display:none; opacity:0; cursor:pointer;" onmouseover="this.style.filter='brightness(0.9)'" onmouseout="this.style.filter='brightness(1)'">
@@ -2366,43 +2366,53 @@
     </script>
 
     <!-- === MODAL HISTÓRICO DE ALTERAÇÕES === -->
-    <div id="modal-history" class="modal-overlay">
-        <div class="modal" style="max-width: 900px; width: 90%;">
-            <div class="modal-header" style="background:#f1f5f9; border-bottom:1px solid #e2e8f0;">
-                <h3 style="color:#0f172a; font-weight:700; display:flex; align-items:center; gap:8px;">
-                    <i class="ph ph-detective" style="font-size:1.4rem;"></i> HISTÓRICO DE ALTERAÇÕES
-                </h3>
-                <button type="button" class="btn-close" onclick="document.getElementById('modal-history').style.display='none'">&times;</button>
-            </div>
-            <div class="modal-body" style="padding: 0;">
-                <div class="table-responsive" style="margin:0;">
-                    <table class="table" style="font-size: 0.85rem; margin-bottom: 0;">
-                        <thead style="background:#f8fafc;">
-                            <tr>
-                                <th>Data</th>
-                                <th>Hora</th>
-                                <th>Usuário</th>
-                                <th>Programa</th>
-                                <th>Campo</th>
-                                <th>Conteúdo Anterior</th>
-                                <th>Conteúdo Atual</th>
-                            </tr>
-                        </thead>
-                        <tbody id="history-table-body">
-                            <!-- Dinâmico -->
-                        </tbody>
-                    </table>
+    <div id="modal-history" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.75); z-index:99999; align-items:center; justify-content:center; padding:1rem; overflow-y:auto;">
+        <div style="background:#fff; border-radius:14px; width:100%; max-width:960px; box-shadow:0 25px 80px rgba(0,0,0,0.35); max-height:90vh; display:flex; flex-direction:column;">
+            <!-- Header -->
+            <div style="background:#0f172a; padding:1.1rem 1.5rem; border-radius:14px 14px 0 0; display:flex; align-items:center; justify-content:space-between; flex-shrink:0;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <div style="width:36px;height:36px;background:rgba(245,3,197,0.2);border-radius:9px;display:flex;align-items:center;justify-content:center;">
+                        <i class="ph ph-clock-counter-clockwise" style="color:#f503c5;font-size:1.2rem;"></i>
+                    </div>
+                    <div>
+                        <h3 style="margin:0; color:#f1f5f9; font-size:1rem; font-weight:700;">HISTÓRICO DE ALTERAÇÕES</h3>
+                        <p id="history-context-label" style="margin:0; color:#94a3b8; font-size:0.75rem;"></p>
+                    </div>
                 </div>
-                <div id="history-loading" style="text-align:center; padding: 2rem; display:none;">
-                    <i class="ph ph-circle-notch ph-spin" style="font-size:2rem; color:#f503c5;"></i>
-                    <p>Buscando histórico...</p>
+                <button onclick="document.getElementById('modal-history').style.display='none'" style="background:rgba(255,255,255,0.1);border:none;color:#94a3b8;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1.2rem;display:flex;align-items:center;justify-content:center;">&times;</button>
+            </div>
+            <!-- Table -->
+            <div style="overflow-y:auto; flex:1;">
+                <table style="width:100%; border-collapse:collapse; font-size:0.84rem;">
+                    <thead>
+                        <tr style="background:#f8fafc; position:sticky; top:0; z-index:1;">
+                            <th style="padding:0.85rem 1rem; text-align:left; font-weight:700; color:#475569; border-bottom:2px solid #e2e8f0; white-space:nowrap;">Data</th>
+                            <th style="padding:0.85rem 1rem; text-align:left; font-weight:700; color:#475569; border-bottom:2px solid #e2e8f0; white-space:nowrap;">Hora</th>
+                            <th style="padding:0.85rem 1rem; text-align:left; font-weight:700; color:#f503c5; border-bottom:2px solid #e2e8f0;">Usuário</th>
+                            <th style="padding:0.85rem 1rem; text-align:left; font-weight:700; color:#475569; border-bottom:2px solid #e2e8f0;">Programa</th>
+                            <th style="padding:0.85rem 1rem; text-align:left; font-weight:700; color:#0ea5e9; border-bottom:2px solid #e2e8f0;">Campo</th>
+                            <th style="padding:0.85rem 1rem; text-align:left; font-weight:700; color:#ef4444; border-bottom:2px solid #e2e8f0;">Conteúdo Anterior</th>
+                            <th style="padding:0.85rem 1rem; text-align:left; font-weight:700; color:#22c55e; border-bottom:2px solid #e2e8f0;">Conteúdo Atual</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-table-body">
+                        <!-- Dinâmico -->
+                    </tbody>
+                </table>
+                <div id="history-loading" style="text-align:center; padding: 3rem; display:none;">
+                    <i class="ph ph-circle-notch" style="font-size:2.5rem; color:#f503c5; animation:spin 1s linear infinite;"></i>
+                    <p style="margin-top:0.75rem; color:#64748b;">Buscando histórico...</p>
                 </div>
             </div>
-            <div class="modal-footer" style="padding: 1rem; display: flex; justify-content: flex-end;">
-                <button type="button" class="btn" onclick="document.getElementById('modal-history').style.display='none'">Fechar</button>
+            <!-- Footer -->
+            <div style="padding:1rem 1.5rem; background:#f8fafc; border-top:1px solid #e2e8f0; border-radius:0 0 14px 14px; display:flex; justify-content:flex-end; flex-shrink:0;">
+                <button onclick="document.getElementById('modal-history').style.display='none'" style="background:#0f172a;color:#fff;border:none;border-radius:8px;padding:0.5rem 1.5rem;font-weight:600;cursor:pointer;">Fechar</button>
             </div>
         </div>
     </div>
+    <style>
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    </style>
 </body>
 </html>
 

@@ -4375,28 +4375,32 @@ app.post('/api/grupos-permissao/:id/copiar-usuario/:uid', authenticateToken, (re
 
 app.get('/api/auditoria/:id?', authenticateToken, (req, res) => {
     const contexto = req.query.contexto;
+    const programa = req.query.programa;
     const qId = req.query.id || req.params.id;
 
     let sql = `SELECT * FROM auditoria`;
     let params = [];
     
-    if (contexto === 'gerador') {
+    if (programa) {
+        // Filtro por programa específico (Cargos, Faculdade, EPI, Avaliações)
+        sql += ` WHERE programa LIKE ?`;
+        params.push(`%${programa}%`);
+    } else if (contexto === 'gerador') {
         sql += ` WHERE programa = 'Geradores'`;
     } else if (contexto === 'colaborador' && qId) {
         sql += ` WHERE programa = 'Colaboradores' AND registro_id = ?`;
         params.push(qId);
+    } else if (contexto === 'colaboradores_geral') {
+        sql += ` WHERE programa = 'Colaboradores'`;
     } else {
-        // Fallback for params.id for backward compatibility
         if (qId) {
             sql += ` WHERE programa = 'Colaboradores' AND registro_id = ?`;
             params.push(qId);
-        } else {
-            // Contexto geral
-            // sql stays without WHERE
         }
+        // else: sem WHERE → geral
     }
     
-    sql += ` ORDER BY data_hora DESC LIMIT 100`;
+    sql += ` ORDER BY data_hora DESC LIMIT 200`;
 
     db.all(sql, params, (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -4775,16 +4779,34 @@ app.post('/api/colaboradores/:id/enviar-ficha-contabilidade', authenticateToken,
                 });
             }
 
-            // Iterate docs to rename them uniformly
+            // Iterate docs to rename them uniformly, always favor signed version
             for (const doc of docsDb) {
-                let localPath = doc.signed_file_path && require('fs').existsSync(doc.signed_file_path) 
-                    ? doc.signed_file_path 
-                    : (doc.file_path && require('fs').existsSync(doc.file_path) ? doc.file_path : null);
+                const fs = require('fs');
+                const path = require('path');
+                
+                // For ASO docs: signed = assinado por ambos (empresa + colaborador)
+                // Priority: signed_file_path > file_path
+                let localPath = null;
+                let isSigned = false;
+                
+                if (doc.signed_file_path && fs.existsSync(doc.signed_file_path)) {
+                    localPath = doc.signed_file_path;
+                    isSigned = true;
+                } else if (doc.file_path && fs.existsSync(doc.file_path)) {
+                    localPath = doc.file_path;
+                    isSigned = false;
+                }
                 
                 if (localPath) {
-                    const ext = require('path').extname(localPath) || '.pdf';
+                    const ext = path.extname(localPath) || '.pdf';
                     let baseType = (doc.document_type || 'Documento').replace(/[^a-zA-Z0-9 áéíóúãõçÁÉÍÓÚÃÕÇ-]/g, '').trim();
-                    let safeName = `${baseType} - ${row.nome_completo || row.nome}${ext}`;
+                    // For ASO, annotate if it's the signed version
+                    let signedTag = (doc.tab_name === 'ASO' && isSigned) ? ' (Assinado)' : '';
+                    let safeName = `${baseType}${signedTag} - ${row.nome_completo || row.nome}${ext}`;
+                    
+                    if (doc.tab_name === 'ASO' && !isSigned) {
+                        console.warn(`[CONTABILIDADE] ASO sem assinatura sendo usado para ${row.nome_completo}. Signed path: ${doc.signed_file_path || 'N/A'}`);
+                    }
                     
                     anexosParaEnviar.push({
                         filename: safeName,
