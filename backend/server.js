@@ -2379,6 +2379,59 @@ app.get('/api/admissao-assinaturas/:colaborador_id', authenticateToken, (req, re
     });
 });
 
+// MIGRATION: Colunas para assinatura física
+db.run("ALTER TABLE admissao_assinaturas ADD COLUMN tipo_assinatura TEXT DEFAULT 'digital'", () => {});
+
+// POST: Assinatura Física — upload do documento assinado presencialmente
+app.post('/api/admissao-assinaturas/:id/assinatura-fisica', authenticateToken, upload.single('arquivo'), async (req, res) => {
+    const { id } = req.params;
+    if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+    try {
+        const ass = await new Promise((resolve, reject) =>
+            db.get('SELECT aa.*, c.nome_completo FROM admissao_assinaturas aa JOIN colaboradores c ON c.id = aa.colaborador_id WHERE aa.id = ?', [id], (e, r) => e ? reject(e) : resolve(r))
+        );
+        if (!ass) return res.status(404).json({ error: 'Registro não encontrado.' });
+
+        const nomeSafe = formatarNome(ass.nome_completo);
+        const nomeDocSafe = ass.nome_documento.replace(/[^a-zA-Z0-9_\-]/g, '_');
+        const ext = path.extname(req.file.originalname) || '.pdf';
+        const nomeArquivo = `${nomeDocSafe}_AssinadoFisicamente${ext}`;
+        const destDir = path.join(BASE_PATH, nomeSafe, 'CONTRATOS');
+        if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
+        const destPath = path.join(destDir, nomeArquivo);
+        fs.renameSync(req.file.path, destPath);
+        const relPath = `Colaboradores/${nomeSafe}/CONTRATOS/${nomeArquivo}`;
+
+        await new Promise((resolve, reject) =>
+            db.run(
+                `UPDATE admissao_assinaturas SET assinafy_status='Assinado', tipo_assinatura='fisica', assinado_em=CURRENT_TIMESTAMP, signed_file_path=?, enviado_em=COALESCE(enviado_em, CURRENT_TIMESTAMP) WHERE id=?`,
+                [relPath, id], (e) => e ? reject(e) : resolve()
+            )
+        );
+        if (onedrive) syncColaboradorOneDrive(ass.nome_completo).catch(() => {});
+        res.json({ sucesso: true, path: relPath, nome: nomeArquivo });
+    } catch (e) {
+        console.error('[assinatura-fisica]', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// POST: Registrar intenção de assinatura física (antes do upload)
+app.post('/api/admissao-assinaturas/registrar-fisica', authenticateToken, (req, res) => {
+    const { colaborador_id, gerador_id, nome_documento } = req.body;
+    if (!colaborador_id || !nome_documento) return res.status(400).json({ error: 'Dados insuficientes.' });
+    db.run(
+        `INSERT INTO admissao_assinaturas (colaborador_id, gerador_id, nome_documento, tipo_assinatura, assinafy_status, enviado_em)
+         VALUES (?, ?, ?, 'fisica', 'Pendente', CURRENT_TIMESTAMP)
+         ON CONFLICT(colaborador_id, nome_documento) DO UPDATE SET tipo_assinatura='fisica', enviado_em=COALESCE(enviado_em, CURRENT_TIMESTAMP)`,
+        [colaborador_id, gerador_id || null, nome_documento],
+        function(err) {
+            if (err) return res.status(400).json({ error: err.message });
+            res.json({ sucesso: true, id: this.lastID || null });
+        }
+    );
+});
+
 // ─── Helper: Gera HTML completo com layout do gerador ────────────────────────
 function buildGeradoresHtml(gerador, colaborador, baseUrl) {
     const dataAtual = new Date();

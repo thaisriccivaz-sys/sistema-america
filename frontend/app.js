@@ -6500,65 +6500,188 @@ window.buildAdmissaoSignatureRows = function(availableGeradores, assinaturas, do
         const ass = assinaturas.find(a => a.gerador_id === g.id || a.nome_documento === g.nome);
         const docEquivalente = (docs || []).find(d => d.tab_name === 'CONTRATOS' && (d.document_type === g.nome || (d.file_name && d.file_name.includes(g.nome))));
         let realStatus = '';
-        if (docEquivalente && docEquivalente.assinafy_status === 'Assinado') realStatus = 'Assinado';
-        else if (ass && ass.assinafy_status === 'Assinado') realStatus = 'Assinado';
-        else if (docEquivalente && docEquivalente.assinafy_status === 'Pendente') realStatus = 'Pendente';
-        else if (ass && ass.assinafy_status === 'Pendente') realStatus = 'Pendente';
+        if      (docEquivalente?.assinafy_status === 'Assinado') realStatus = 'Assinado';
+        else if (ass?.assinafy_status === 'Assinado')            realStatus = 'Assinado';
+        else if (docEquivalente?.assinafy_status === 'Pendente') realStatus = 'Pendente';
+        else if (ass?.assinafy_status === 'Pendente')            realStatus = 'Pendente';
 
-        const isSigned   = realStatus === 'Assinado';
-        const isPending  = realStatus === 'Pendente';
-        const statusBadge = isSigned
-            ? `<span style="background:#dcfce7;color:#15803d;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;"><i class="ph ph-check-circle"></i> Assinado</span>`
-            : isPending
-            ? `<span style="background:#fef9c3;color:#92400e;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;"><i class="ph ph-clock"></i> Aguardando</span>`
-            : `<span style="background:#f1f5f9;color:#64748b;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;"><i class="ph ph-minus-circle"></i> Não enviado</span>`;
-        const colabId = colab ? colab.id : '';
-        const certificadoAcionado = ass ? ass.certificado_assinado_em : null;
-        let eyeBtn;
-        if (isSigned && ass && certificadoAcionado) {
-            eyeBtn = `<button onclick="window.openSignedDocPopup(${ass.id}, '${g.nome.replace(/'/g,"\\'")}', event)" style="border:none;background:none;cursor:pointer;color:#7c3aed;" title="Ver documento assinado pela empresa"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
-        } else if (isSigned && ass) {
-            eyeBtn = `<button onclick="window.openSignedDocPopup(${ass.id}, '${g.nome.replace(/'/g,"\\'")}', event)" style="border:none;background:none;cursor:pointer;color:#16a34a;" title="Ver documento assinado pelo colaborador"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
+        const isSigned      = realStatus === 'Assinado';
+        const isPending     = realStatus === 'Pendente';
+        const isFisica      = ass?.tipo_assinatura === 'fisica';
+        const assId         = ass?.id || null;
+        const colabId       = colab ? colab.id : '';
+
+        // Badge de status
+        let statusBadge;
+        if (isSigned && isFisica) {
+            statusBadge = `<span style="background:#dcfce7;color:#15803d;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;"><i class="ph ph-paper-clip"></i> Assinado Fisicamente</span>`;
+        } else if (isSigned) {
+            statusBadge = `<span style="background:#dcfce7;color:#15803d;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;"><i class="ph ph-check-circle"></i> Assinado</span>`;
+        } else if (isPending) {
+            statusBadge = `<span style="background:#fef9c3;color:#92400e;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;"><i class="ph ph-clock"></i> Aguardando</span>`;
         } else {
-            eyeBtn = `<button onclick="window.previewAdmissaoDoc(${g.id}, ${colabId}, event)" style="border:none;background:none;cursor:pointer;color:#64748b;" title="Ver documento original"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
+            statusBadge = `<span style="background:#f1f5f9;color:#64748b;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;"><i class="ph ph-minus-circle"></i> Não enviado</span>`;
         }
-        
+
+        // Data badge
         let dataEnvioBadge = '';
-        if (isSigned && (ass?.assinado_em || docEquivalente?.assinafy_signed_at)) {
-            try {
-                const dateVal = ass?.assinado_em || docEquivalente?.assinafy_signed_at;
-                const d = new Date(dateVal + (dateVal.includes('Z') ? '' : 'Z'));
-                const dateStr = d.toLocaleDateString('pt-BR');
-                const timeStr = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                dataEnvioBadge = `<span style="font-size:0.7rem; color:#15803d; margin-right:2px; font-weight:600;"><i class="ph ph-signature"></i> ${dateStr} ${timeStr}</span>`;
-            } catch(e) {}
-        } else if (ass && ass.enviado_em) {
+        if (isSigned) {
+            const dateVal = ass?.assinado_em || docEquivalente?.assinafy_signed_at;
+            if (dateVal) {
+                try {
+                    const d = new Date(dateVal + (dateVal.includes('Z') ? '' : 'Z'));
+                    dataEnvioBadge = `<span style="font-size:0.7rem;color:#15803d;font-weight:600;"><i class="ph ph-signature"></i> ${d.toLocaleDateString('pt-BR')} ${d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span>`;
+                } catch(e) {}
+            }
+        } else if (ass?.enviado_em) {
             try {
                 const d = new Date(ass.enviado_em + (ass.enviado_em.includes('Z') ? '' : 'Z'));
-                const dateStr = d.toLocaleDateString('pt-BR');
-                const timeStr = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                dataEnvioBadge = `<span style="font-size:0.7rem; color:#15803d; margin-right:2px; font-weight:600;"><i class="ph ph-paper-plane-tilt"></i> ${dateStr} ${timeStr}</span>`;
+                dataEnvioBadge = `<span style="font-size:0.7rem;color:#0369a1;font-weight:600;"><i class="ph ph-paper-plane-tilt"></i> ${d.toLocaleDateString('pt-BR')} ${d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span>`;
             } catch(e) {}
+        }
+
+        // Eye button
+        let eyeBtn;
+        if (isSigned && ass) {
+            eyeBtn = `<button onclick="window.openSignedDocPopup(${assId}, '${g.nome.replace(/'/g,"\\'")}', event)" style="border:none;background:none;cursor:pointer;color:#16a34a;" title="Ver documento assinado"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
+        } else {
+            eyeBtn = `<button onclick="window.previewAdmissaoDoc(${g.id}, ${colabId}, event)" style="border:none;background:none;cursor:pointer;color:#64748b;" title="Visualizar documento"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
+        }
+
+        // Área de ação — se já assinado, mostrar apenas status; caso contrário, mostrar toggle + botões
+        let actionArea = '';
+        if (!isSigned) {
+            const tipoAtual = isFisica ? 'fisica' : 'digital';
+            actionArea = `
+            <div class="sig-tipo-toggle" data-gerador-id="${g.id}" style="display:flex;flex-direction:column;gap:6px;margin-top:6px;padding-top:6px;border-top:1px solid #e2e8f0;">
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                    <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:0.78rem;font-weight:600;color:#334155;">
+                        <input type="radio" name="sig-tipo-${g.id}" value="digital" ${tipoAtual==='digital'?'checked':''} onchange="window.toggleSigTipo(${g.id}, 'digital')" style="accent-color:#f503c5;">
+                        <i class="ph ph-device-mobile"></i> Digital (Assinafy)
+                    </label>
+                    <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:0.78rem;font-weight:600;color:#334155;">
+                        <input type="radio" name="sig-tipo-${g.id}" value="fisica" ${tipoAtual==='fisica'?'checked':''} onchange="window.toggleSigTipo(${g.id}, 'fisica')" style="accent-color:#0369a1;">
+                        <i class="ph ph-pen-nib"></i> Física (Presencial)
+                    </label>
+                </div>
+                <div id="sig-action-${g.id}">
+                    ${tipoAtual === 'fisica'
+                        ? `<div style="display:flex;gap:6px;flex-wrap:wrap;">
+                             <button onclick="window.baixarDocFisico(${g.id}, ${colabId})" style="background:#0369a1;color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:0.78rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;"><i class="ph ph-download-simple"></i> Baixar Documento</button>
+                             ${isPending ? `<label style="background:#059669;color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:0.78rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;" title="Anexar documento assinado fisicamente"><i class="ph ph-paperclip"></i> Anexar Assinado<input type="file" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" onchange="window.uploadFisico(${assId}, this)"></label>` : ''}
+                           </div>`
+                        : `<button onclick="window.baixarDocFisico(${g.id}, ${colabId})" style="background:#e0f2fe;color:#0369a1;border:none;padding:4px 10px;border-radius:6px;font-size:0.75rem;cursor:pointer;"><i class="ph ph-eye"></i> Pré-visualizar</button>`
+                    }
+                </div>
+            </div>`;
         }
 
         return `
-        <label class="doc-check-item" data-gerador-id="${g.id}" style="display:flex; align-items:center; gap:0.6rem; padding:0.6rem 0.75rem; border:1px solid ${isSigned ? '#bbf7d0' : '#f1f5f9'}; border-radius:8px; cursor:pointer; background:${isSigned ? '#f0fdf4' : '#fff'}; transition:all 0.2s; justify-content:space-between;">
-            <div style="display:flex; align-items:center; gap:0.6rem; flex:1;">
-                ${isSigned 
-                    ? `<i class="ph-fill ph-check-circle" style="color:#22c55e; font-size:1.2rem;"></i>`
-                    : `<input type="checkbox" value="${g.id}" data-nome="${g.nome}" checked style="width:16px;height:16px;cursor:pointer;accent-color:#f503c5;">`
-                }
-                <div style="display:flex; flex-direction:column; gap:2px;">
-                    <span style="font-size:0.87rem; font-weight:600; color:#334155;">${g.nome}</span>
+        <div class="doc-check-item" data-gerador-id="${g.id}" style="display:flex;flex-direction:column;padding:0.75rem;border:1px solid ${isSigned?'#bbf7d0':'#e2e8f0'};border-radius:10px;background:${isSigned?'#f0fdf4':'#fff'};transition:all 0.2s;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:0.6rem;">
+                <div style="display:flex;align-items:center;gap:0.6rem;flex:1;">
+                    ${isSigned
+                        ? `<i class="ph-fill ph-check-circle" style="color:${isFisica?'#0369a1':'#22c55e'};font-size:1.2rem;"></i>`
+                        : `<input type="checkbox" value="${g.id}" data-nome="${g.nome}" checked style="width:16px;height:16px;cursor:pointer;accent-color:#f503c5;">`
+                    }
+                    <span style="font-size:0.87rem;font-weight:600;color:#334155;">${g.nome}</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+                    ${dataEnvioBadge}
+                    ${statusBadge}
+                    ${eyeBtn}
                 </div>
             </div>
-            <div style="display:flex; align-items:center; gap:0.5rem;">
-                ${dataEnvioBadge}
-                ${statusBadge}
-                ${eyeBtn}
-            </div>
-        </label>`;
+            ${actionArea}
+        </div>`;
     }).join('');
+};
+
+// Toggle entre modo digital/físico por documento
+window.toggleSigTipo = function(geradorId, tipo) {
+    const actionDiv = document.getElementById(`sig-action-${geradorId}`);
+    if (!actionDiv) return;
+    const colabId = viewedColaborador ? viewedColaborador.id : '';
+    const ass = (window._admissaoAssinaturas || []).find(a => a.gerador_id === geradorId);
+    const assId = ass ? ass.id : null;
+    const isPending = ass && ass.assinafy_status === 'Pendente';
+
+    if (tipo === 'fisica') {
+        // Registrar intenção de assinatura física no backend
+        fetch(`${API_URL}/admissao-assinaturas/registrar-fisica`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ colaborador_id: colabId, gerador_id: geradorId, nome_documento: ass?.nome_documento || '' })
+        }).then(r => r.json()).then(data => {
+            const id = data.id || (ass?.id);
+            actionDiv.innerHTML = `
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                    <button onclick="window.baixarDocFisico(${geradorId}, ${colabId})" style="background:#0369a1;color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:0.78rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;"><i class="ph ph-download-simple"></i> Baixar Documento</button>
+                    <label id="upload-label-${geradorId}" style="background:#059669;color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:0.78rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;" title="Anexar documento assinado fisicamente">
+                        <i class="ph ph-paperclip"></i> Anexar Assinado
+                        <input type="file" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" onchange="window.uploadFisico(${id}, this)">
+                    </label>
+                </div>`;
+        }).catch(() => {});
+    } else {
+        actionDiv.innerHTML = `<button onclick="window.previewAdmissaoDoc(${geradorId}, ${colabId}, event)" style="background:#e0f2fe;color:#0369a1;border:none;padding:4px 10px;border-radius:6px;font-size:0.75rem;cursor:pointer;"><i class="ph ph-eye"></i> Pré-visualizar</button>`;
+    }
+};
+
+// Download do documento para assinar fisicamente
+window.baixarDocFisico = async function(geradorId, colabId, evt) {
+    if (evt) { evt.preventDefault(); evt.stopPropagation(); }
+    if (!colabId) { alert('Colaborador não identificado.'); return; }
+    try {
+        const response = await fetch(`${API_URL}/geradores/${geradorId}/gerar/${colabId}/pdf`, {
+            method: 'POST', headers: { 'Authorization': `Bearer ${currentToken}` }
+        });
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `documento_${geradorId}_${colabId}.pdf`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } else {
+            // Fallback: abrir preview para imprimir
+            await window.previewAdmissaoDoc(geradorId, colabId, evt);
+        }
+    } catch(e) {
+        // Fallback para preview
+        await window.previewAdmissaoDoc(geradorId, colabId, null);
+    }
+};
+
+// Upload do documento assinado fisicamente
+window.uploadFisico = async function(assId, inputEl) {
+    if (!assId || !inputEl.files || inputEl.files.length === 0) return;
+    const file = inputEl.files[0];
+    const label = inputEl.closest('label');
+    if (label) { label.innerHTML = '<i class="ph ph-spinner"></i> Enviando...'; label.style.opacity = '0.7'; label.style.pointerEvents = 'none'; }
+
+    const formData = new FormData();
+    formData.append('arquivo', file);
+
+    try {
+        const resp = await fetch(`${API_URL}/admissao-assinaturas/${assId}/assinatura-fisica`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${currentToken}` },
+            body: formData
+        });
+        const data = await resp.json();
+        if (data.sucesso) {
+            showToast('Documento assinado incorporado com sucesso!', 'success');
+            // Recarregar o passo 2 para refletir o novo status
+            if (window.loadAdmissaoData) window.loadAdmissaoData(viewedColaborador, 2, true);
+        } else {
+            alert('Erro ao salvar: ' + (data.error || 'Falha desconhecida'));
+            if (label) { label.innerHTML = '<i class="ph ph-paperclip"></i> Anexar Assinado <input type="file" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" onchange="window.uploadFisico(' + assId + ', this)">'; label.style.opacity = '1'; label.style.pointerEvents = 'auto'; }
+        }
+    } catch(e) {
+        alert('Erro de comunicação: ' + e.message);
+    }
 };
 
 window.renderContratosTab = async function(container) {
@@ -6764,9 +6887,9 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
                 if (total === 0) return 0;
 
                 const assinaturas = window._admissaoAssinaturas || [];
-                // Documentos enviados (têm data de envio ou status diferente de Nenhum/vazio)
+                // Documentos enviados (digital OU registrado como físico)
                 const sentCount   = assinaturas.filter(a => a.enviado_em || (a.assinafy_status && a.assinafy_status !== 'Nenhum' && a.assinafy_status !== '')).length;
-                // Documentos assinados
+                // Documentos assinados — digital OU físico
                 const signedCount = assinaturas.filter(a => a.assinafy_status === 'Assinado').length;
 
                 // 20% para envio proporcional + 80% para assinaturas proporcionais
