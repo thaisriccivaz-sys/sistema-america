@@ -10671,16 +10671,7 @@ window.renderMultasMotoristaTab = async function(container) {
     const colab = window.viewedColaborador;
     if (!colab) return;
 
-    container.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;padding:2rem;color:#64748b;">
-        <i class="ph ph-spinner ph-spin" style="font-size:1.5rem;margin-right:8px;"></i> Carregando multas...
-    </div>`;
-
-    // Carregar multas existentes
-    let multas = [];
-    try {
-        multas = await apiGet(`/colaboradores/${colab.id}/multas`) || [];
-    } catch(e) {}
-
+    // === MOSTRAR UI IMEDIATAMENTE (sem esperar a API) ===
     container.innerHTML = '';
 
     // === BOTÃO NOVA MULTA ===
@@ -10691,12 +10682,30 @@ window.renderMultasMotoristaTab = async function(container) {
     btnNova.onclick = () => window.abrirFormNovaMulta(colab.id, container);
     container.appendChild(btnNova);
 
+    // Placeholder enquanto carrega
+    const listaContainer = document.createElement('div');
+    listaContainer.id = 'multas-lista-container';
+    listaContainer.innerHTML = `<div style="display:flex;align-items:center;gap:8px;color:#94a3b8;padding:1rem 0;">
+        <i class="ph ph-spinner ph-spin"></i> Carregando multas registradas...
+    </div>`;
+    container.appendChild(listaContainer);
+
+    // === CARREGAR MULTAS EM BACKGROUND ===
+    let multas = [];
+    try {
+        multas = await apiGet(`/colaboradores/${colab.id}/multas`) || [];
+    } catch(e) {
+        listaContainer.innerHTML = `<div class="alert alert-info"><i class="ph ph-info"></i> Nenhuma multa registrada ainda. Clique em "Registrar Nova Multa" para começar.</div>`;
+        return;
+    }
+
     // === LISTA DE MULTAS EXISTENTES ===
+    listaContainer.innerHTML = '';
     if (multas.length === 0) {
         const vazio = document.createElement('div');
         vazio.className = 'alert alert-info';
         vazio.innerHTML = '<i class="ph ph-traffic-cone"></i> Nenhuma multa registrada para este colaborador.';
-        container.appendChild(vazio);
+        listaContainer.appendChild(vazio);
     } else {
         multas.forEach(m => {
             const card = document.createElement('div');
@@ -10724,7 +10733,7 @@ window.renderMultasMotoristaTab = async function(container) {
                 ${m.status === 'pendente' ? `<button class="btn btn-sm btn-primary" style="margin-top:8px;" onclick="window.continuarProcessoMulta(${m.id}, '${m.tipo_resolucao || ''}', ${colab.id})"><i class="ph ph-arrow-right"></i> Continuar Processo</button>` : ''}
                 ${m.monaco_confirmado ? `<div style="margin-top:6px;font-size:0.8rem;color:#8b5cf6;"><i class="ph ph-check-circle"></i> Monaco confirmado: <b>${m.monaco_confirmado}</b></div>` : ''}
             `;
-            container.appendChild(card);
+            listaContainer.appendChild(card);
         });
     }
 };
