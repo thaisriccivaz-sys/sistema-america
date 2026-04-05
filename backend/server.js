@@ -228,7 +228,10 @@ async function uploadDocToOneDrive(docId) {
         const safeColab = formatarNome(doc.nome_completo || 'DESCONHECIDO');
         const safeTab   = formatarPasta(doc.tab_name || 'DOCUMENTOS').toUpperCase();
         const docYear   = doc.year && doc.year !== 'null' ? String(doc.year).replace(/[^0-9]/g, '') : String(new Date().getFullYear());
-        const targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}/${docYear}`;
+        let targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}`;
+        if (safeTab !== '01_FICHA_CADASTRAL') {
+             targetDir += `/${docYear}`;
+        }
 
         // Para Atestados, strip o timestamp do file_name: CID_DD-MM-AA_Nome_YYYYMMDD_HHMMSS.pdf → CID_DD-MM-AA_Nome.pdf
         const isAtestado = doc.tab_name === 'Atestados';
@@ -244,6 +247,8 @@ async function uploadDocToOneDrive(docId) {
                 : doc.file_name;
             // Garantir extensão .pdf
             if (!cloudName.toLowerCase().endsWith('.pdf')) cloudName += '.pdf';
+        } else if (safeTab === '01_FICHA_CADASTRAL') {
+            cloudName = `${(doc.document_type || doc.tab_name).replace(/\s+/g, '_')}_${safeColab}.pdf`;
         } else {
             cloudName = `${formatarPasta(doc.document_type || doc.tab_name).replace(/\s+/g, '_')}_${docYear}_${safeColab}.pdf`;
         }
@@ -652,23 +657,28 @@ console.log('[POLL-ADMISSAO] Job de polling configurado (a cada 30 segundos).');
 app.get('/api/admissao-assinaturas/alertas-recentes', authenticateToken, (req, res) => {
     db.all(`
         SELECT * FROM (
-            SELECT ('admissao_' || aa.id) AS unq_id, aa.id, aa.nome_documento, aa.assinado_em, aa.colaborador_id,
-                   c.nome_completo AS colaborador_nome, 'admissao' as source, aa.assinafy_id
-            FROM admissao_assinaturas aa
-            LEFT JOIN colaboradores c ON c.id = aa.colaborador_id
-            WHERE aa.assinafy_status = 'Assinado'
-              AND aa.assinado_em IS NOT NULL
-              AND datetime(aa.assinado_em) >= datetime('now', '-24 hours')
+            SELECT max(unq_id) as unq_id, max(id) as id, nome_documento, max(assinado_em) as assinado_em, colaborador_id,
+                   colaborador_nome, source, assinafy_id
+            FROM (
+                SELECT ('admissao_' || aa.id) AS unq_id, aa.id, aa.nome_documento, aa.assinado_em, aa.colaborador_id,
+                       c.nome_completo AS colaborador_nome, 'admissao' as source, aa.assinafy_id
+                FROM admissao_assinaturas aa
+                LEFT JOIN colaboradores c ON c.id = aa.colaborador_id
+                WHERE aa.assinafy_status = 'Assinado'
+                  AND aa.assinado_em IS NOT NULL
+                  AND datetime(aa.assinado_em) >= datetime('now', '-24 hours')
 
-            UNION ALL
+                UNION ALL
 
-            SELECT ('doc_' || d.id) AS unq_id, d.id, d.document_type AS nome_documento, d.assinafy_signed_at AS assinado_em, d.colaborador_id,
-                   c.nome_completo AS colaborador_nome, 'documentos' as source, d.assinafy_id
-            FROM documentos d
-            LEFT JOIN colaboradores c ON c.id = d.colaborador_id
-            WHERE d.assinafy_status = 'Assinado'
-              AND d.assinafy_signed_at IS NOT NULL
-              AND datetime(d.assinafy_signed_at) >= datetime('now', '-24 hours')
+                SELECT ('doc_' || d.id) AS unq_id, d.id, d.document_type AS nome_documento, d.assinafy_signed_at AS assinado_em, d.colaborador_id,
+                       c.nome_completo AS colaborador_nome, 'documentos' as source, d.assinafy_id
+                FROM documentos d
+                LEFT JOIN colaboradores c ON c.id = d.colaborador_id
+                WHERE d.assinafy_status = 'Assinado'
+                  AND d.assinafy_signed_at IS NOT NULL
+                  AND datetime(d.assinafy_signed_at) >= datetime('now', '-24 hours')
+            )
+            GROUP BY COALESCE(assinafy_id, unq_id)
         )
         ORDER BY assinado_em DESC
         LIMIT 30
@@ -1977,7 +1987,7 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
                                 const safeTab = formatarPasta(tab_name).toUpperCase();
                                 const parentDir = `${onedriveBasePath}/${safeColab}/${safeTab}`;
                                 let targetDir = parentDir;
-                                if (year && year !== 'null' && year !== 'undefined' && year !== '') targetDir += `/${year.replace(/[^0-9]/g, '')}`;
+                                if (year && year !== 'null' && year !== 'undefined' && year !== '' && safeTab !== '01_FICHA_CADASTRAL') targetDir += `/${year.replace(/[^0-9]/g, '')}`;
                                 
                                 if (targetDir !== parentDir) {
                                     await onedrive.ensurePath(parentDir); // garante /AVALIACAO
@@ -1991,8 +2001,12 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
                                     cloudFileName = `${req.body.custom_name}.pdf`;
                                 } else if (tab_name !== 'AVALIACAO') {
                                     const safeColabInline = formatarNome(req.body.colaborador_nome || "DESCONHECIDO");
-                                    const docYear = year && year !== 'null' ? String(year).replace(/[^0-9]/g, '') : String(new Date().getFullYear());
-                                    cloudFileName = `${formatarPasta(document_type || tab_name).replace(/\s+/g, '_')}_${docYear}_${safeColabInline}.pdf`;
+                                    if (safeTab === '01_FICHA_CADASTRAL') {
+                                        cloudFileName = `${(document_type || tab_name).replace(/\s+/g, '_')}_${safeColabInline}.pdf`;
+                                    } else {
+                                        const docYear = year && year !== 'null' ? String(year).replace(/[^0-9]/g, '') : String(new Date().getFullYear());
+                                        cloudFileName = `${formatarPasta(document_type || tab_name).replace(/\s+/g, '_')}_${docYear}_${safeColabInline}.pdf`;
+                                    }
                                 }
                                 await onedrive.uploadToOneDrive(targetDir, cloudFileName, fileBuffer);
                                 console.log(`[OneDrive] Upload OK: ${cloudFileName}`);
@@ -4679,8 +4693,9 @@ app.get('/api/colaboradores/:id/ficha-admissao/html', authenticateToken, async (
 
 app.post('/api/colaboradores/:id/enviar-ficha-contabilidade', authenticateToken, async (req, res) => {
     const id = req.params.id;
-    const { email } = req.body;
+    const { email, data_inicio } = req.body;
     if (!email) return res.status(400).json({ error: 'Email destino é obrigatório' });
+    if (!data_inicio) return res.status(400).json({ error: 'Data de início é obrigatória' });
     
     db.get('SELECT * FROM colaboradores WHERE id = ?', [id], async (err, row) => {
         if (err || !row) return res.status(404).json({ error: 'Colaborador não encontrado' });
@@ -4692,6 +4707,10 @@ app.post('/api/colaboradores/:id/enviar-ficha-contabilidade', authenticateToken,
             );
             row.dependentes = deps;
 
+            // Converter data_inicio para formato DD/MM/YYYY
+            const dtObj = new Date(data_inicio + 'T12:00:00');
+            const dtFormated = dtObj.toLocaleDateString('pt-BR');
+
             const htmlPdf = require('html-pdf-node');
             const html = getFichaAdmissaoHtml(row);
             const pdfBuffer = await htmlPdf.generatePdf(
@@ -4699,17 +4718,52 @@ app.post('/api/colaboradores/:id/enviar-ficha-contabilidade', authenticateToken,
                 { format: 'A4', margin: { top: '1cm', bottom: '1cm', left: '1cm', right: '1cm' }, printBackground: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] }
             );
             
+            const anexosParaEnviar = [
+                {
+                    filename: `Ficha_Admissao_${row.nome_completo || 'Colaborador'}.pdf`,
+                    content: pdfBuffer
+                }
+            ];
+
+            // Buscar documentos anexos de 01_FICHA_CADASTRAL e ASO
+            const docsDb = await new Promise(resolve => {
+                db.all("SELECT * FROM documentos WHERE colaborador_id = ? AND tab_name IN ('01_FICHA_CADASTRAL', 'ASO')", [id], (err, rows) => resolve(rows || []));
+            });
+
+            for (const doc of docsDb) {
+                // Prioriza arquivo assinado, senão o original
+                let localPath = doc.signed_file_path && require('fs').existsSync(doc.signed_file_path) 
+                    ? doc.signed_file_path 
+                    : (doc.file_path && require('fs').existsSync(doc.file_path) ? doc.file_path : null);
+                
+                if (localPath) {
+                    const ext = require('path').extname(localPath) || '.pdf';
+                    let safeName = doc.file_name || doc.document_type || 'Documento';
+                    if (!safeName.toLowerCase().endsWith(ext.toLowerCase())) safeName += ext;
+                    
+                    anexosParaEnviar.push({
+                        filename: safeName,
+                        path: localPath
+                    });
+                }
+            }
+
+            const htmlMessage = `<p>Olá,</p>
+<p>Segue em anexo a Ficha de Admissão e todos os documentos necessários recolhidos para o cadastro contábil admissional do colaborador abaixo.</p>
+<ul>
+    <li><strong>Colaborador(a):</strong> ${row.nome_completo || row.nome}</li>
+    <li><strong>Função / Cargo:</strong> ${row.cargo || 'Não informado'}</li>
+    <li><strong>Data de Início Solicitada:</strong> ${dtFormated}</li>
+</ul>
+<p>Por favor, providenciar os registros cabíveis e retorno dos documentos em caso de pendências.</p>
+<p>Atenciosamente,<br>RH - América Rental</p>`;
+
             await transporter.sendMail({
                 from: `"RH América Rental" <${SMTP_CONFIG.auth.user}>`,
                 to: email,
-                subject: `Ficha de Admissão - ${row.nome_completo || row.nome}`,
-                html: '<p>Olá,</p><p>Segue em anexo a Ficha de Admissão para conferência e cadastro contábil.</p><p>Atenciosamente,<br>RH - América Rental</p>',
-                attachments: [
-                    {
-                        filename: `Ficha_Admissao_${row.nome_completo || 'Colaborador'}.pdf`,
-                        content: pdfBuffer
-                    }
-                ]
+                subject: `Processo Admissional - ${row.nome_completo || row.nome}`,
+                html: htmlMessage,
+                attachments: anexosParaEnviar
             });
             res.json({ sucesso: true });
         } catch (e) {

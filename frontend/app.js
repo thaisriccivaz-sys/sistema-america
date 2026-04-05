@@ -1247,36 +1247,37 @@ window.calcularHorarioSaida = function() {
     const intSaida = document.getElementById('colab-intervalo-saida').value;
     const outSaida = document.getElementById('colab-saida');
     
-    if (!tipo || !entrada) {
-        if(outSaida) outSaida.value = '';
-        return;
-    }
+    if (tipo && entrada) {
+        // Calcula duração do intervalo em minutos
+        let intervaloMins = 0;
+        if (intEntrada && intSaida) {
+            const [h1, m1] = intEntrada.split(':').map(Number);
+            const [h2, m2] = intSaida.split(':').map(Number);
+            intervaloMins = (h2 * 60 + m2) - (h1 * 60 + m1);
+            if (intervaloMins < 0) intervaloMins += 24 * 60;
+        }
 
-    // Calcula duração do intervalo em minutos
-    let intervaloMins = 0;
-    if (intEntrada && intSaida) {
-        const [h1, m1] = intEntrada.split(':').map(Number);
-        const [h2, m2] = intSaida.split(':').map(Number);
-        intervaloMins = (h2 * 60 + m2) - (h1 * 60 + m1);
-        if (intervaloMins < 0) intervaloMins += 24 * 60;
-    }
+        // Define horas brutas de trabalho diário (sem intervalo)
+        let workMins = 0;
+        if (tipo === 'padrao_seis_dias') {
+            workMins = 7 * 60 + 20; // 7h 20m
+        } else if (tipo === 'padrao_sab_4h' || tipo === 'padrao_sab_alternado') {
+            workMins = 8 * 60; // 8h
+        } else if (tipo === 'escala_duas_folgas') {
+            workMins = 8 * 60 + 48; // 8h 48m
+        }
 
-    // Define horas brutas de trabalho diário (sem intervalo)
-    let workMins = 0;
-    if (tipo === 'padrao_seis_dias') {
-        workMins = 7 * 60 + 20; // 7h 20m
-    } else if (tipo === 'padrao_sab_4h' || tipo === 'padrao_sab_alternado') {
-        workMins = 8 * 60; // 8h
-    } else if (tipo === 'escala_duas_folgas') {
-        workMins = 8 * 60 + 48; // 8h 48m
-    }
-
-    if (workMins > 0) {
-        const [he, me] = entrada.split(':').map(Number);
-        let totalMins = (he * 60 + me) + workMins + intervaloMins;
-        const hFinal = Math.floor(totalMins / 60) % 24;
-        const mFinal = totalMins % 60;
-        if(outSaida) outSaida.value = `${String(hFinal).padStart(2, '0')}:${String(mFinal).padStart(2, '0')}`;
+        if (workMins > 0) {
+            const [he, me] = entrada.split(':').map(Number);
+            let totalMins = (he * 60 + me) + workMins + intervaloMins;
+            const hFinal = Math.floor(totalMins / 60) % 24;
+            const mFinal = totalMins % 60;
+            if(outSaida) outSaida.value = `${String(hFinal).padStart(2, '0')}:${String(mFinal).padStart(2, '0')}`;
+        } else if (outSaida) {
+            outSaida.value = '';
+        }
+    } else if (outSaida) {
+        outSaida.value = '';
     }
 
     // Sábado
@@ -7128,9 +7129,9 @@ window.nextAdmissaoStep = function(step, preventScroll = false) {
     const panel = document.getElementById(`panel-step-${step}`);
     if (panel) panel.classList.add('active');
     
-    // Se for Passo 2: carregar status do certificado digital
-    if (step === 2 && typeof window.carregarStatusCertificado === 'function') {
-        window.carregarStatusCertificado();
+    // Se for Passo 2 ou Passo 3: carregar status do certificado digital
+    if ((step === 2 || step === 3) && typeof window.carregarStatusCertificado === 'function') {
+        window.carregarStatusCertificado(step === 3 ? 'cert-digital-banner-step3' : 'cert-digital-banner');
     }
 
     // Se for Passo 4, verificar se mostra linha de Exames Motorista
@@ -10141,7 +10142,7 @@ window.showHistoryPopup = async function() {
             const alertas = await resp.json();
             if (!Array.isArray(alertas) || alertas.length === 0) return;
             const seen = getSeenIds();
-            const novos = alertas.filter(a => !seen.has(String(a.id)));
+            const novos = alertas.filter(a => !seen.has(String(a.unq_id)));
             if (novos.length === 0) return;
             
             novos.slice(0, 5).forEach(a => {
@@ -10150,7 +10151,7 @@ window.showHistoryPopup = async function() {
                     : new Date().toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
                 showToast(a.nome_documento || 'Documento', a.colaborador_nome || 'Colaborador', hora);
             });
-            markSeen(novos.map(a => String(a.id)));
+            markSeen(novos.map(a => String(a.unq_id)));
 
             // AUTO-REFRESH STATUS
             // Se estiver na tela de admissão (passo 2) ou de contratos, já aciona a atualização da lista atual
@@ -10311,10 +10312,17 @@ window.enviarFichaContabilidade = async function(btn) {
         return;
     }
     const email = document.getElementById('email-contabilidade').value;
+    const dataInicio = document.getElementById('data-inicio-contabilidade').value;
+
     if (!email) {
         alert("Preencha o e-mail destino.");
         return;
     }
+    if (!dataInicio) {
+        alert("Preencha a Data de Início Prevista.");
+        return;
+    }
+
     const originalText = btn.innerHTML;
     btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando...';
     btn.disabled = true;
@@ -10324,13 +10332,13 @@ window.enviarFichaContabilidade = async function(btn) {
         const res = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')}` },
-            body: JSON.stringify({ email: email })
+            body: JSON.stringify({ email: email, data_inicio: dataInicio })
         });
         const data = await res.json();
         if (data.sucesso) {
-            alert('Ficha enviada com sucesso para ' + email);
+            alert('Ficha e anexos enviados com sucesso para ' + email);
         } else {
-            alert('Erro ao enviar Ficha: ' + (data.error || 'Erro desconhecido.'));
+            alert('Erro ao enviar para Contabilidade: ' + (data.error || 'Erro desconhecido.'));
         }
     } catch(err) {
         alert('Erro de conexão: ' + err.message);
