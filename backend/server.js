@@ -7,7 +7,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const sharp = require('sharp');
 const nodemailer = require('nodemailer');
-// fetch nativo (Node 18+)
+const pdfParse = require('pdf-parse');
 
 // --- CONFIGURAÃ‡ÃƒO SMTP (Preencher com dados reais para o e-mail funcionar) ---
 const SMTP_CONFIG = {
@@ -73,6 +73,29 @@ db.run("ALTER TABLE colaboradores ADD COLUMN conjuge_cpf TEXT", (err) => {
 db.run("ALTER TABLE colaboradores ADD COLUMN tem_pensao_alimenticia TEXT DEFAULT 'Não'", (err) => {
     if (!err) console.log("Coluna tem_pensao_alimenticia adicionada com sucesso.");
 });
+
+// MIGRATION: Multas de Trânsito
+db.run(`CREATE TABLE IF NOT EXISTS multas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    colaborador_id INTEGER NOT NULL,
+    codigo_infracao TEXT,
+    descricao_infracao TEXT,
+    placa TEXT,
+    veiculo TEXT,
+    data_infracao TEXT,
+    hora_infracao TEXT,
+    local_infracao TEXT,
+    numero_ait TEXT,
+    pontuacao INTEGER,
+    valor_multa TEXT,
+    tipo_resolucao TEXT,
+    parcelas INTEGER DEFAULT 1,
+    notificacao_path TEXT,
+    documento_path TEXT,
+    status TEXT DEFAULT 'pendente',
+    monaco_confirmado TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)`, (err) => { if (err) console.error('Erro ao criar tabela multas:', err); else console.log('Tabela multas OK.'); });
 
 // MIGRATION: Limpar todos os usuários exceto Diretoria1
 db.run("DELETE FROM usuarios WHERE LOWER(REPLACE(username, '.', '')) != 'diretoria1'", (err) => {
@@ -4881,6 +4904,294 @@ process.on('uncaughtException', (err) => {
 process.on('unhandledRejection', (reason, promise) => {
     console.error('--- PROMESSA NÃƒO TRATADA (Unhandled Rejection) ---');
     console.error(reason);
+});
+
+// ============================================================
+// MULTAS DE TRÂNSITO
+// ============================================================
+
+// Tabela CTB: código → { pontuacao, valor }
+const CTB_TABLE = {
+    '5185': { pontuacao: 7, valor: 'R$ 293,47', descricao: 'Ultrapassar sinal vermelho do semáforo' },
+    '5169': { pontuacao: 7, valor: 'R$ 293,47', descricao: 'Usar aparelho de comunicação ao volante' },
+    '5460': { pontuacao: 7, valor: 'R$ 293,47', descricao: 'Conduzir sem cinto de segurança' },
+    '5550': { pontuacao: 5, valor: 'R$ 130,16', descricao: 'Velocidade superior ao limite em até 20%' },
+    '5556': { pontuacao: 7, valor: 'R$ 880,41', descricao: 'Velocidade superior ao limite em mais de 50%' },
+    '5553': { pontuacao: 5, valor: 'R$ 195,23', descricao: 'Velocidade superior ao limite entre 20% e 50%' },
+    '7455': { pontuacao: 5, valor: 'R$ 130,16', descricao: 'Transitar em velocidade superior à máxima permitida em até 20%' },
+    '7456': { pontuacao: 5, valor: 'R$ 195,23', descricao: 'Transitar em velocidade superior à máxima entre 20% e 50%' },
+    '7457': { pontuacao: 7, valor: 'R$ 880,41', descricao: 'Transitar em velocidade superior à máxima em mais de 50%' },
+    '6050': { pontuacao: 3, valor: 'R$ 195,23', descricao: 'Estacionar em local proibido' },
+    '6010': { pontuacao: 3, valor: 'R$ 130,16', descricao: 'Parar em local proibido' },
+    '5681': { pontuacao: 5, valor: 'R$ 195,23', descricao: 'Avançar sobre calçada' },
+    '6730': { pontuacao: 3, valor: 'R$ 130,16', descricao: 'Circular com o veículo sujo' },
+    '5736': { pontuacao: 7, valor: 'R$ 293,47', descricao: 'Dirigir sob influência de álcool' },
+    '5854': { pontuacao: 7, valor: 'R$ 293,47', descricao: 'Deixar de dar passagem a veículo de emergência' },
+    '5762': { pontuacao: 5, valor: 'R$ 195,23', descricao: 'Trafegar em acostamento' },
+    '5974': { pontuacao: 5, valor: 'R$ 195,23', descricao: 'Não sinalizar redução de velocidade' },
+    '5312': { pontuacao: 5, valor: 'R$ 195,23', descricao: 'Executar conversão proibida' },
+    '6289': { pontuacao: 3, valor: 'R$ 130,16', descricao: 'Usar buzina em local proibido' },
+};
+
+// Upload multerista exclusiva para notificações de multa (salva em /tmp para extração)
+const multaUpload = multer({ storage: multer.memoryStorage() });
+
+// GET /api/colaboradores/:id/multas
+app.get('/api/colaboradores/:id/multas', authenticateToken, (req, res) => {
+    const { id } = req.params;
+    db.all('SELECT * FROM multas WHERE colaborador_id = ? ORDER BY created_at DESC', [id], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+// GET /api/ctb/:codigo — lookup de código de infração
+app.get('/api/ctb/:codigo', authenticateToken, (req, res) => {
+    const { codigo } = req.params;
+    const entry = CTB_TABLE[codigo];
+    if (entry) return res.json({ codigo, ...entry });
+    res.json({ codigo, pontuacao: null, valor: null, descricao: null, found: false });
+});
+
+// POST /api/colaboradores/:id/multas/upload-notificacao — extrai dados do PDF
+app.post('/api/colaboradores/:id/multas/upload-notificacao', authenticateToken, multaUpload.single('arquivo'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+
+        // Extrai texto do PDF
+        const pdfData = await pdfParse(req.file.buffer);
+        const texto = pdfData.text || '';
+
+        const extract = (regex, group = 1) => {
+            const m = texto.match(regex);
+            return m ? m[group].trim() : '';
+        };
+
+        // Regex adaptados para o layout SENATRAN
+        const placa           = extract(/PLACA\s*\n([A-Z0-9]{7})/i) || extract(/PLACA\s+([A-Z]{3}[0-9][A-Z0-9][0-9]{2})/i);
+        const veiculo         = extract(/MARCA\/MODELO\/VERS[ÃA]O\s*\n(.+)/i);
+        const codigoInfracao  = extract(/C[ÓO]DIGO DA INFRA[ÇC][ÃA]O\s*\n(\d{4,6})/i);
+        const descricao       = extract(/DESCRI[ÇC][ÃA]O DA INFRA[ÇC][ÃA]O\s*\n(.+)/i);
+        const dataInfracao    = extract(/\bDATA\b\s*\n(\d{2}\/\d{2}\/\d{4})/i);
+        const horaInfracao    = extract(/\bHORA\b\s*\n(\d{2}:\d{2})/i);
+        const localInfracao   = extract(/LOCAL DA INFRA[ÇC][ÃA]O\s*\n(.+)/i);
+        const valorMulta      = extract(/VALOR DA MULTA\s*\nRS?\s*([\d.,]+)/i);
+        const numeroAit       = extract(/N[ÚU]MERO DO AUTO DE INFRA[ÇC][ÃA]O\s*\n([A-Z0-9]+)/i) ||
+                                 extract(/IDENTIFICA[ÇC][ÃA]O DO AUTO DE INFRA[ÇC][ÃA]O[^\n]*\n([A-Z0-9]+)/i);
+
+        // Lookup CTB para pontuação/valor oficial
+        const ctb = CTB_TABLE[codigoInfracao] || {};
+
+        res.json({
+            placa,
+            veiculo,
+            codigo_infracao: codigoInfracao,
+            descricao_infracao: descricao || ctb.descricao || '',
+            data_infracao: dataInfracao,
+            hora_infracao: horaInfracao,
+            local_infracao: localInfracao,
+            valor_multa: ctb.valor || (valorMulta ? `R$ ${valorMulta}` : ''),
+            pontuacao: ctb.pontuacao || null,
+            numero_ait: numeroAit,
+            texto_completo: texto.substring(0, 500) // debug
+        });
+    } catch (e) {
+        console.error('Erro ao extrair PDF multa:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// POST /api/colaboradores/:id/multas — salva multa no banco e arquivo no OneDrive
+app.post('/api/colaboradores/:id/multas', authenticateToken, multaUpload.single('arquivo'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const body = req.body;
+
+        // Buscar colaborador
+        const colab = await new Promise((resolve, reject) => {
+            db.get('SELECT * FROM colaboradores WHERE id = ?', [id], (err, row) => err ? reject(err) : resolve(row));
+        });
+        if (!colab) return res.status(404).json({ error: 'Colaborador não encontrado.' });
+
+        // Montar nome da pasta (ex: THAIS_RICCI)
+        const nomeFormatado = (colab.nome_completo || colab.nome || 'COLAB')
+            .toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/\s+/g, '_').replace(/[^A-Z0-9_]/g, '');
+
+        const codigo = (body.codigo_infracao || 'MULTA').replace(/[^A-Z0-9]/gi, '');
+        const data = new Date();
+        const dataStr = `${String(data.getDate()).padStart(2,'0')}${String(data.getMonth()+1).padStart(2,'0')}${data.getFullYear()}`;
+
+        // Caminho da pasta
+        const multaDir = path.join(
+            'C:\\A\\OneDrive - AMERICA RENTAL EQUIPAMENTOS LTDA\\Documentos - America Rental\\RH\\1.Colaboradores\\Sistema',
+            nomeFormatado, 'MULTAS', codigo
+        );
+        if (!fs.existsSync(multaDir)) fs.mkdirSync(multaDir, { recursive: true });
+
+        // Nome do arquivo
+        let notificacaoPath = null;
+        if (req.file) {
+            const nomeArquivo = `${codigo}_${dataStr}_${nomeFormatado}.pdf`;
+            const fullPath = path.join(multaDir, nomeArquivo);
+            fs.writeFileSync(fullPath, req.file.buffer);
+            notificacaoPath = fullPath;
+        }
+
+        // Salvar no banco
+        const stmt = `INSERT INTO multas (colaborador_id, codigo_infracao, descricao_infracao, placa, veiculo,
+            data_infracao, hora_infracao, local_infracao, numero_ait, pontuacao, valor_multa,
+            notificacao_path, status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'pendente')`;
+        db.run(stmt, [id, body.codigo_infracao, body.descricao_infracao, body.placa, body.veiculo,
+            body.data_infracao, body.hora_infracao, body.local_infracao, body.numero_ait,
+            body.pontuacao, body.valor_multa, notificacaoPath],
+            function(err) {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json({ sucesso: true, id: this.lastID, pasta: multaDir });
+            }
+        );
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// PUT /api/colaboradores/:id/multas/:multaId — atualiza multa (tipo, parcelas, status, etc.)
+app.put('/api/colaboradores/:id/multas/:multaId', authenticateToken, (req, res) => {
+    const { multaId } = req.params;
+    const fields = req.body;
+    const sets = Object.keys(fields).map(k => `${k} = ?`).join(', ');
+    const vals = [...Object.values(fields), multaId];
+    db.run(`UPDATE multas SET ${sets} WHERE id = ?`, vals, (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ sucesso: true });
+    });
+});
+
+// POST /api/colaboradores/:id/multas/:multaId/gerar-documento — gera HTML do termo
+app.post('/api/colaboradores/:id/multas/:multaId/gerar-documento', authenticateToken, async (req, res) => {
+    try {
+        const { id, multaId } = req.params;
+        const { tipo } = req.body; // 'indicacao' | 'nic'
+
+        const colab = await new Promise((resolve, reject) =>
+            db.get('SELECT * FROM colaboradores WHERE id = ?', [id], (e, r) => e ? reject(e) : resolve(r)));
+        const multa = await new Promise((resolve, reject) =>
+            db.get('SELECT * FROM multas WHERE id = ?', [multaId], (e, r) => e ? reject(e) : resolve(r)));
+        if (!colab || !multa) return res.status(404).json({ error: 'Não encontrado.' });
+
+        const parcelas = multa.parcelas || 1;
+        const check1x = parcelas === 1 ? '✓' : '( )';
+        const check2x = parcelas === 2 ? '✓' : '( )';
+        const check3x = parcelas === 3 ? '✓' : '( )';
+
+        const nome = colab.nome_completo || colab.nome || '';
+        const cpf = colab.cpf || '';
+        const admissao = colab.data_admissao ? new Date(colab.data_admissao).toLocaleDateString('pt-BR') : '---';
+        const endereco = [colab.endereco, colab.bairro, colab.cidade, colab.estado].filter(Boolean).join(', ') || '---';
+        const cargo = colab.cargo || '';
+        const salario = colab.salario ? `R$ ${parseFloat(colab.salario).toFixed(2).replace('.',',')}` : '---';
+        const celular = colab.celular || colab.telefone || '---';
+        const email = colab.email || '---';
+
+        const tituloDoc = tipo === 'indicacao'
+            ? 'TERMO DE AUTORIZAÇÃO DE DESCONTO E INDICAÇÃO DE CONDUTOR MULTA DE TRÂNSITO'
+            : 'TERMO DE RESPONSABILIDADE POR INFRAÇÃO DE TRÂNSITO E AUTORIZAÇÃO DE DESCONTO EM FOLHA';
+
+        const textoDoc = tipo === 'indicacao' ? `
+            <p>Declaro estar ciente de que a infração ocorreu durante a condução do referido veículo sob
+            minha responsabilidade e, portanto, assumo a responsabilidade pela infração cometida.</p>
+            <p>Autorizo a empresa América Rental Equipamentos Ltda a realizar minha indicação como
+            condutor responsável pela infração junto ao órgão de trânsito competente, para fins de
+            registro da pontuação correspondente em minha Carteira Nacional de Habilitação (CNH).</p>
+            <p>Declaro também estar ciente do valor da multa, e autorizo expressamente a empresa a
+            efetuar o desconto do valor correspondente em minha remuneração, caso o pagamento seja
+            realizado pela empresa, respeitando os limites previstos no artigo 462 da Consolidação das
+            Leis do Trabalho (CLT).</p>
+        ` : `
+            <p>Declaro estar ciente de que a referida infração ocorreu durante a condução do veículo sob
+            minha responsabilidade.</p>
+            <p>Por minha livre e espontânea vontade, opto por não realizar a indicação de condutor junto ao
+            órgão de trânsito, estando ciente de que essa decisão poderá gerar a aplicação de multa por
+            Não Identificação do Condutor (NIC) ao proprietário do veículo.</p>
+            <p>Dessa forma, assumo integral responsabilidade pelo pagamento da multa original e também
+            pela eventual multa NIC, autorizando expressamente a empresa América Rental Equipamentos Ltda
+            a realizar o desconto dos valores correspondentes em minha remuneração, caso os pagamentos sejam
+            realizados pela empresa, respeitando os limites previstos no artigo 462 da Consolidação das
+            Leis do Trabalho (CLT).</p>
+            <p>Declaro estar ciente de que os valores poderão ser descontados integralmente ou parcelados,
+            conforme acordo com a empresa, até a quitação total do débito.</p>
+        `;
+
+        const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+        <style>
+            body { font-family: Arial, sans-serif; font-size: 12px; margin: 40px; color: #000; }
+            .logo-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; border-bottom: 2px solid #0077b6; padding-bottom: 10px; }
+            .titulo { text-align: center; font-weight: bold; font-size: 14px; margin: 20px 0; }
+            .colab-label { font-size: 13px; margin-bottom: 10px; }
+            .box { border: 1px solid #000; padding: 10px; margin-bottom: 15px; font-size: 11px; }
+            .box p { margin: 3px 0; }
+            table.info { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+            table.info td { border: 1px solid #000; padding: 6px 8px; font-size: 11px; }
+            table.info td b { font-weight: bold; }
+            p { margin-bottom: 10px; line-height: 1.5; font-size: 11.5px; }
+            .parcelas { margin: 15px 0; font-size: 12px; }
+            .assinaturas { margin-top: 40px; }
+            .assin-row { display: flex; gap: 30px; margin-bottom: 30px; }
+            .assin-box { flex:1; border-top: 1px solid #000; padding-top: 5px; text-align: center; font-size: 10px; }
+        </style></head><body>
+        <div class="logo-header">
+            <div><strong>AMÉRICA RENTAL</strong><br><small>desde 1999</small></div>
+        </div>
+        <div class="titulo">${tituloDoc}</div>
+        <div class="colab-label"><strong>COLABORADOR:</strong> ${nome}</div>
+        <div class="box">
+            <p><strong>DADOS COLABORADOR:</strong></p>
+            <p>CPF: <strong>${cpf}</strong>&nbsp;&nbsp;&nbsp;ADMISSÃO: ${admissao}</p>
+            <p>ENDEREÇO: ${endereco}</p>
+            <p>CARGO: ${cargo}&nbsp;&nbsp;&nbsp;SALÁRIO: ${salario}</p>
+            <p>CELULAR: ${celular}&nbsp;&nbsp;&nbsp;E-MAIL: ${email}</p>
+        </div>
+        <table class="info">
+            <tr>
+                <td><b>PLACA:</b> ${multa.placa || ''}</td>
+                <td><b>VEÍCULO:</b> ${multa.veiculo || ''}</td>
+            </tr>
+            <tr>
+                <td><b>CÓDIGO INFRAÇÃO:</b> ${multa.codigo_infracao || ''}</td>
+                <td><b>INFRAÇÃO:</b> ${multa.descricao_infracao || ''}</td>
+            </tr>
+            <tr>
+                <td colspan="2"><b>DATA E HORA:</b> ${multa.data_infracao || ''} ${multa.hora_infracao || ''}</td>
+            </tr>
+            <tr>
+                <td colspan="2"><b>LOCAL DA INFRAÇÃO:</b> ${multa.local_infracao || ''}</td>
+            </tr>
+            <tr>
+                <td><b>PONTUAÇÃO:</b> ${multa.pontuacao || ''}</td>
+                <td><b>VALOR DA MULTA:</b> ${multa.valor_multa || ''}</td>
+            </tr>
+        </table>
+        ${textoDoc}
+        <p class="parcelas">Solicito que o desconto seja feito em: &nbsp;
+            (${check1x}) 1x &nbsp;&nbsp;&nbsp;
+            (${check2x}) 2x &nbsp;&nbsp;&nbsp;
+            (${check3x}) 3x
+        </p>
+        <p>___________________________________________________, _____ de ______________ de _________</p>
+        <div class="assinaturas">
+            <div class="assin-row">
+                <div class="assin-box">Assinatura do Colaborador<br><br>${nome}</div>
+                <div class="assin-box">Testemunha 1<br><br>&nbsp;</div>
+                <div class="assin-box">Testemunha 2<br><br>&nbsp;</div>
+            </div>
+        </div>
+        </body></html>`;
+
+        res.json({ sucesso: true, html });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
 });
 
 app.listen(PORT, () => {

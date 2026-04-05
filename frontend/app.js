@@ -3688,6 +3688,9 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
                 listContainer.innerHTML = '<div class="alert alert-info"><i class="ph ph-info"></i> Esta aba está disponível apenas para colaboradores com cargo de Motorista.</div>';
                 return;
             }
+            // Renderiza a aba completa de multas para motoristas
+            window.renderMultasMotoristaTab(listContainer);
+            return;
         }
         FIXED_DOCS[tabId].forEach(docType => {
             if (!searchTerm || docType.toLowerCase().includes(searchTerm)) {
@@ -10635,4 +10638,417 @@ window.renderEnvioContabilidadeLog = function() {
     }
 
     logPanel.style.display = 'block';
+};
+
+// ============================================================
+// ABA MULTAS — MOTORISTAS
+// ============================================================
+window.renderMultasMotoristaTab = async function(container) {
+    const colab = window.viewedColaborador;
+    if (!colab) return;
+
+    container.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;padding:2rem;color:#64748b;">
+        <i class="ph ph-spinner ph-spin" style="font-size:1.5rem;margin-right:8px;"></i> Carregando multas...
+    </div>`;
+
+    // Carregar multas existentes
+    let multas = [];
+    try {
+        multas = await apiGet(`/colaboradores/${colab.id}/multas`) || [];
+    } catch(e) {}
+
+    container.innerHTML = '';
+
+    // === BOTÃO NOVA MULTA ===
+    const btnNova = document.createElement('button');
+    btnNova.className = 'btn btn-primary';
+    btnNova.style = 'margin-bottom:1.5rem; display:flex; align-items:center; gap:6px;';
+    btnNova.innerHTML = '<i class="ph ph-plus"></i> Registrar Nova Multa';
+    btnNova.onclick = () => window.abrirFormNovaMulta(colab.id, container);
+    container.appendChild(btnNova);
+
+    // === LISTA DE MULTAS EXISTENTES ===
+    if (multas.length === 0) {
+        const vazio = document.createElement('div');
+        vazio.className = 'alert alert-info';
+        vazio.innerHTML = '<i class="ph ph-traffic-cone"></i> Nenhuma multa registrada para este colaborador.';
+        container.appendChild(vazio);
+    } else {
+        multas.forEach(m => {
+            const card = document.createElement('div');
+            card.style = 'border:1.5px solid #e2e8f0; border-radius:12px; padding:1rem; margin-bottom:1rem; background:#fff;';
+            const statusColor = { pendente: '#f59e0b', doc_gerado: '#3b82f6', assinado: '#10b981', confirmado: '#8b5cf6' };
+            const statusLabel = { pendente: 'Pendente', doc_gerado: 'Documento Gerado', assinado: 'Assinado', confirmado: 'Confirmado' };
+            const cor = statusColor[m.status] || '#64748b';
+            card.innerHTML = `
+                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+                    <div>
+                        <span style="font-weight:700;font-size:1rem;color:#1e293b;">🚦 ${m.codigo_infracao || '—'}</span>
+                        <span style="margin-left:8px;color:#64748b;font-size:0.85rem;">${m.descricao_infracao || ''}</span>
+                    </div>
+                    <span style="background:${cor}20;color:${cor};font-weight:700;font-size:0.78rem;padding:3px 10px;border-radius:20px;">${statusLabel[m.status] || m.status}</span>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px;margin-top:8px;font-size:0.82rem;color:#475569;">
+                    <span><b>Placa:</b> ${m.placa || '—'}</span>
+                    <span><b>Veículo:</b> ${m.veiculo || '—'}</span>
+                    <span><b>Data:</b> ${m.data_infracao || '—'} ${m.hora_infracao || ''}</span>
+                    <span><b>Valor:</b> ${m.valor_multa || '—'}</span>
+                    <span><b>Pontos:</b> ${m.pontuacao || '—'}</span>
+                    <span><b>Tipo:</b> ${m.tipo_resolucao === 'indicacao' ? 'Indicação' : m.tipo_resolucao === 'nic' ? 'NIC' : '—'}</span>
+                    <span><b>Parcelas:</b> ${m.parcelas || '—'}x</span>
+                </div>
+                ${m.status === 'pendente' ? `<button class="btn btn-sm btn-primary" style="margin-top:8px;" onclick="window.continuarProcessoMulta(${m.id}, '${m.tipo_resolucao || ''}', ${colab.id})"><i class="ph ph-arrow-right"></i> Continuar Processo</button>` : ''}
+                ${m.monaco_confirmado ? `<div style="margin-top:6px;font-size:0.8rem;color:#8b5cf6;"><i class="ph ph-check-circle"></i> Monaco confirmado: <b>${m.monaco_confirmado}</b></div>` : ''}
+            `;
+            container.appendChild(card);
+        });
+    }
+};
+
+window.abrirFormNovaMulta = function(colabId, container) {
+    // Modal flutuante para nova multa
+    let modal = document.getElementById('modal-nova-multa');
+    if (modal) modal.remove();
+
+    modal = document.createElement('div');
+    modal.id = 'modal-nova-multa';
+    modal.style = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
+    modal.innerHTML = `
+        <div style="background:#fff;border-radius:16px;padding:2rem;width:100%;max-width:680px;max-height:90vh;overflow-y:auto;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;">
+                <h3 style="margin:0;color:#1e293b;font-size:1.1rem;"><i class="ph ph-traffic-sign" style="color:#f503c5;"></i> Nova Multa de Trânsito</h3>
+                <button onclick="document.getElementById('modal-nova-multa').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#64748b;">×</button>
+            </div>
+
+            <!-- UPLOAD NOTIFICAÇÃO -->
+            <div style="border:2px dashed #e2e8f0;border-radius:10px;padding:1.5rem;text-align:center;margin-bottom:1.5rem;cursor:pointer;background:#f8fafc;" id="multa-upload-area">
+                <i class="ph ph-file-pdf" style="font-size:2.5rem;color:#ef4444;display:block;margin-bottom:8px;"></i>
+                <p style="margin:0;font-weight:600;color:#334155;">Anexar Notificação de Autuação (PDF)</p>
+                <p style="margin:4px 0 0;font-size:0.8rem;color:#94a3b8;">Clique ou arraste o PDF do SENATRAN — os dados serão extraídos automaticamente</p>
+                <input type="file" id="multa-notificacao-input" accept=".pdf" style="display:none;" onchange="window.processarNotificacaoMulta(this, ${colabId})">
+            </div>
+            <div id="multa-loader" style="display:none;text-align:center;color:#64748b;padding:1rem;">
+                <i class="ph ph-spinner ph-spin" style="font-size:1.5rem;"></i> Extraindo dados da notificação...
+            </div>
+
+            <!-- DADOS EXTRAÍDOS (editáveis) -->
+            <div id="multa-dados" style="display:none;">
+                <h4 style="color:#475569;font-size:0.9rem;margin-bottom:0.75rem;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">📋 Dados da Infração</h4>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1rem;">
+                    <div class="input-group"><label>Placa</label><input id="m-placa" class="form-control" placeholder="AAA0000"></div>
+                    <div class="input-group"><label>Veículo</label><input id="m-veiculo" class="form-control" placeholder="VW/Express"></div>
+                    <div class="input-group"><label>Código da Infração</label>
+                        <input id="m-codigo" class="form-control" placeholder="Ex: 7455" oninput="window.lookupCtb(this.value)">
+                    </div>
+                    <div class="input-group"><label>N° AIT</label><input id="m-ait" class="form-control" placeholder="1VA..."></div>
+                    <div class="input-group" style="grid-column:span 2;"><label>Descrição da Infração</label><input id="m-descricao" class="form-control"></div>
+                    <div class="input-group"><label>Data</label><input id="m-data" class="form-control" placeholder="DD/MM/AAAA"></div>
+                    <div class="input-group"><label>Hora</label><input id="m-hora" class="form-control" placeholder="HH:MM"></div>
+                    <div class="input-group" style="grid-column:span 2;"><label>Local da Infração</label><input id="m-local" class="form-control"></div>
+                    <div class="input-group">
+                        <label>Pontuação (CTB)</label>
+                        <input id="m-pontuacao" class="form-control" readonly style="background:#f1f5f9;">
+                    </div>
+                    <div class="input-group">
+                        <label>Valor da Multa (CTB)</label>
+                        <input id="m-valor" class="form-control" readonly style="background:#f1f5f9;">
+                    </div>
+                </div>
+
+                <!-- TIPO -->
+                <h4 style="color:#475569;font-size:0.9rem;margin:1rem 0 0.75rem;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">⚖️ Forma de Resolução</h4>
+                <div style="display:flex;gap:12px;margin-bottom:1rem;">
+                    <button id="tipo-indicacao" onclick="window.selecionarTipoMulta('indicacao')"
+                        style="flex:1;padding:0.75rem;border-radius:8px;border:2px solid #e2e8f0;background:#fff;cursor:pointer;font-weight:600;color:#334155;">
+                        📋 Seguir com a Indicação
+                    </button>
+                    <button id="tipo-nic" onclick="window.selecionarTipoMulta('nic')"
+                        style="flex:1;padding:0.75rem;border-radius:8px;border:2px solid #e2e8f0;background:#fff;cursor:pointer;font-weight:600;color:#334155;">
+                        💳 Pagamento da Multa NIC
+                    </button>
+                </div>
+
+                <!-- PARCELAS -->
+                <h4 style="color:#475569;font-size:0.9rem;margin-bottom:0.75rem;">💰 Parcelamento do Desconto</h4>
+                <div style="display:flex;gap:10px;margin-bottom:1.5rem;">
+                    ${[1,2,3].map(n => `<button id="parc-${n}" onclick="window.selecionarParcelas(${n})"
+                        style="flex:1;padding:0.6rem;border-radius:8px;border:2px solid #e2e8f0;background:#fff;cursor:pointer;font-weight:700;color:#334155;">${n}x</button>`).join('')}
+                </div>
+
+                <button onclick="window.salvarNovaMulta(${colabId})"
+                    style="width:100%;padding:0.85rem;background:linear-gradient(135deg,#f503c5,#8b5cf6);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:1rem;cursor:pointer;">
+                    <i class="ph ph-floppy-disk"></i> Salvar e Gerar Documento
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    // Ativar clique na área de upload
+    modal.querySelector('#multa-upload-area').addEventListener('click', () => {
+        modal.querySelector('#multa-notificacao-input').click();
+    });
+
+    // Estado local
+    window._multaTipoSelecionado = null;
+    window._multaParcelasSelecionadas = 1;
+    window._multaArquivoBuffer = null;
+    window.selecionarParcelas(1);
+};
+
+window.lookupCtb = async function(codigo) {
+    if (!codigo || codigo.length < 4) return;
+    try {
+        const data = await apiGet(`/ctb/${codigo}`);
+        if (data && data.pontuacao) {
+            const el = document.getElementById('m-pontuacao');
+            const el2 = document.getElementById('m-valor');
+            if (el) el.value = data.pontuacao;
+            if (el2) el2.value = data.valor || '';
+            if (!document.getElementById('m-descricao').value && data.descricao)
+                document.getElementById('m-descricao').value = data.descricao;
+        }
+    } catch(e) {}
+};
+
+window.processarNotificacaoMulta = async function(input, colabId) {
+    const file = input.files[0];
+    if (!file) return;
+    window._multaArquivo = file;
+
+    const loader = document.getElementById('multa-loader');
+    const uploadArea = document.getElementById('multa-upload-area');
+    const dadosDiv = document.getElementById('multa-dados');
+
+    loader.style.display = 'block';
+    uploadArea.style.display = 'none';
+
+    try {
+        const formData = new FormData();
+        formData.append('arquivo', file);
+
+        const res = await fetch(`${API_URL}/colaboradores/${colabId}/multas/upload-notificacao`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${currentToken}` },
+            body: formData
+        });
+        const data = await res.json();
+
+        if (data.error) throw new Error(data.error);
+
+        // Preencher campos
+        const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+        set('m-placa', data.placa);
+        set('m-veiculo', data.veiculo);
+        set('m-codigo', data.codigo_infracao);
+        set('m-descricao', data.descricao_infracao);
+        set('m-data', data.data_infracao);
+        set('m-hora', data.hora_infracao);
+        set('m-local', data.local_infracao);
+        set('m-valor', data.valor_multa);
+        set('m-pontuacao', data.pontuacao);
+        set('m-ait', data.numero_ait);
+
+        dadosDiv.style.display = 'block';
+        loader.textContent = '✅ Dados extraídos! Confira e corrija se necessário.';
+        loader.style.color = '#10b981';
+    } catch(e) {
+        loader.textContent = '⚠️ Não foi possível extrair automaticamente. Preencha manualmente.';
+        loader.style.color = '#f59e0b';
+        document.getElementById('multa-dados').style.display = 'block';
+    }
+};
+
+window.selecionarTipoMulta = function(tipo) {
+    window._multaTipoSelecionado = tipo;
+    ['indicacao','nic'].forEach(t => {
+        const btn = document.getElementById(`tipo-${t}`);
+        if (!btn) return;
+        const sel = t === tipo;
+        btn.style.borderColor = sel ? '#f503c5' : '#e2e8f0';
+        btn.style.background = sel ? '#fdf4ff' : '#fff';
+        btn.style.color = sel ? '#f503c5' : '#334155';
+    });
+};
+
+window.selecionarParcelas = function(n) {
+    window._multaParcelasSelecionadas = n;
+    [1,2,3].forEach(i => {
+        const btn = document.getElementById(`parc-${i}`);
+        if (!btn) return;
+        const sel = i === n;
+        btn.style.borderColor = sel ? '#8b5cf6' : '#e2e8f0';
+        btn.style.background = sel ? '#f5f3ff' : '#fff';
+        btn.style.color = sel ? '#8b5cf6' : '#334155';
+    });
+};
+
+window.salvarNovaMulta = async function(colabId) {
+    if (!window._multaTipoSelecionado) {
+        alert('Selecione a forma de resolução (Indicação ou NIC) antes de continuar.'); return;
+    }
+    const get = id => (document.getElementById(id) || {}).value || '';
+
+    const formData = new FormData();
+    formData.append('codigo_infracao', get('m-codigo'));
+    formData.append('descricao_infracao', get('m-descricao'));
+    formData.append('placa', get('m-placa'));
+    formData.append('veiculo', get('m-veiculo'));
+    formData.append('data_infracao', get('m-data'));
+    formData.append('hora_infracao', get('m-hora'));
+    formData.append('local_infracao', get('m-local'));
+    formData.append('numero_ait', get('m-ait'));
+    formData.append('pontuacao', get('m-pontuacao'));
+    formData.append('valor_multa', get('m-valor'));
+
+    if (window._multaArquivo) formData.append('arquivo', window._multaArquivo);
+
+    try {
+        const res = await fetch(`${API_URL}/colaboradores/${colabId}/multas`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${currentToken}` },
+            body: formData
+        });
+        const data = await res.json();
+        if (!data.sucesso) throw new Error(data.error || 'Erro ao salvar.');
+
+        const multaId = data.id;
+
+        // Atualizar tipo e parcelas
+        await fetch(`${API_URL}/colaboradores/${colabId}/multas/${multaId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
+            body: JSON.stringify({ tipo_resolucao: window._multaTipoSelecionado, parcelas: window._multaParcelasSelecionadas, status: 'pendente' })
+        });
+
+        // Gerar documento
+        const docRes = await fetch(`${API_URL}/colaboradores/${colabId}/multas/${multaId}/gerar-documento`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
+            body: JSON.stringify({ tipo: window._multaTipoSelecionado })
+        });
+        const docData = await docRes.json();
+
+        document.getElementById('modal-nova-multa').remove();
+
+        if (docData.html) {
+            window.abrirPreviewDocumentoMulta(docData.html, colabId, multaId, window._multaTipoSelecionado);
+        }
+
+    } catch(e) {
+        alert('Erro: ' + e.message);
+    }
+};
+
+window.abrirPreviewDocumentoMulta = function(html, colabId, multaId, tipo) {
+    let modal = document.getElementById('modal-preview-multa');
+    if (modal) modal.remove();
+
+    modal = document.createElement('div');
+    modal.id = 'modal-preview-multa';
+    modal.style = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;flex-direction:column;';
+    modal.innerHTML = `
+        <div style="background:#1e293b;padding:1rem;display:flex;align-items:center;justify-content:space-between;">
+            <h3 style="margin:0;color:#fff;font-size:1rem;"><i class="ph ph-file-text" style="color:#f503c5;"></i> Termo — ${tipo === 'indicacao' ? 'Indicação de Condutor' : 'Pagamento NIC'}</h3>
+            <div style="display:flex;gap:8px;">
+                <button onclick="window.solicitarAssinaturaMulta(${colabId}, ${multaId}, '${tipo}')"
+                    style="padding:0.5rem 1rem;background:#f503c5;color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;">
+                    <i class="ph ph-pen"></i> Solicitar Assinatura
+                </button>
+                <button onclick="document.getElementById('modal-preview-multa').remove()"
+                    style="padding:0.5rem 1rem;background:#475569;color:#fff;border:none;border-radius:8px;cursor:pointer;">Fechar</button>
+            </div>
+        </div>
+        <iframe style="flex:1;border:none;" srcdoc="${html.replace(/"/g, '&quot;')}"></iframe>
+    `;
+    document.body.appendChild(modal);
+};
+
+window.solicitarAssinaturaMulta = async function(colabId, multaId, tipo) {
+    document.getElementById('modal-preview-multa').remove();
+
+    // Reusar o modal de assinatura de testemunhas existente
+    // mas passar contexto da multa
+    window._multaAssinaturaContext = { colabId, multaId, tipo };
+
+    // Abrir modal de testemunhas (existente no sistema)
+    const modal = document.getElementById('modal-assinatura-testemunhas');
+    if (modal) {
+        // Adaptar para multa
+        const titulo = modal.querySelector('h2, h3, .modal-title');
+        if (titulo) titulo.textContent = 'Assinatura — Termo de Multa';
+        modal.style.display = 'block';
+
+        // Sobrescrever o callback de salvar
+        window._onSalvarTestemunhasMulta = async function() {
+            await fetch(`${API_URL}/colaboradores/${colabId}/multas/${multaId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
+                body: JSON.stringify({ status: 'assinado' })
+            });
+            modal.style.display = 'none';
+
+            if (tipo === 'indicacao') {
+                window.confirmarMonacoMulta(colabId, multaId);
+            } else {
+                if (typeof admissaoToast === 'function') admissaoToast('✅ Termo NIC assinado com sucesso!', 'success');
+                const tab = document.querySelector('[data-tab="Multas"]');
+                if (tab) tab.click();
+            }
+        };
+    } else {
+        // Fallback simples
+        if (confirm('Confirmar que as assinaturas foram coletadas presencialmente?')) {
+            await fetch(`${API_URL}/colaboradores/${colabId}/multas/${multaId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
+                body: JSON.stringify({ status: 'assinado' })
+            });
+            if (tipo === 'indicacao') window.confirmarMonacoMulta(colabId, multaId);
+        }
+    }
+};
+
+window.confirmarMonacoMulta = function(colabId, multaId) {
+    let modal = document.getElementById('modal-monaco-multa');
+    if (modal) modal.remove();
+    modal = document.createElement('div');
+    modal.id = 'modal-monaco-multa';
+    modal.style = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    modal.innerHTML = `
+        <div style="background:#fff;border-radius:16px;padding:2rem;width:100%;max-width:420px;text-align:center;">
+            <i class="ph ph-check-circle" style="font-size:3rem;color:#8b5cf6;display:block;margin-bottom:1rem;"></i>
+            <h3 style="margin:0 0 0.5rem;color:#1e293b;">Confirmação Monaco</h3>
+            <p style="color:#64748b;margin-bottom:1.5rem;">O colaborador assinou o link de indicação enviado pela Monaco?</p>
+            <div style="display:flex;gap:12px;justify-content:center;">
+                <button onclick="window.salvarMonaco('Sim', ${colabId}, ${multaId})"
+                    style="padding:0.75rem 2rem;background:#10b981;color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:1rem;">Sim</button>
+                <button onclick="window.salvarMonaco('Não', ${colabId}, ${multaId})"
+                    style="padding:0.75rem 2rem;background:#ef4444;color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:1rem;">Não</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+};
+
+window.salvarMonaco = async function(resposta, colabId, multaId) {
+    document.getElementById('modal-monaco-multa').remove();
+    await fetch(`${API_URL}/colaboradores/${colabId}/multas/${multaId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
+        body: JSON.stringify({ monaco_confirmado: resposta, status: 'confirmado' })
+    });
+    if (typeof admissaoToast === 'function') admissaoToast(`✅ Processo de indicação concluído! Monaco: ${resposta}`, 'success');
+    const tab = document.querySelector('[data-tab="Multas"]');
+    if (tab) tab.click();
+};
+
+window.continuarProcessoMulta = async function(multaId, tipo, colabId) {
+    const res = await fetch(`${API_URL}/colaboradores/${colabId}/multas/${multaId}/gerar-documento`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
+        body: JSON.stringify({ tipo: tipo || 'indicacao' })
+    });
+    const data = await res.json();
+    if (data.html) window.abrirPreviewDocumentoMulta(data.html, colabId, multaId, tipo || 'indicacao');
 };
