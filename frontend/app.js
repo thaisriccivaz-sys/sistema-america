@@ -6760,13 +6760,19 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
 
             // Atualiza percentual do passo 2 baseado em assinaturas
             window._updateAdmissaoStep2Pct = function() {
-                const total  = (window._admissaoGeradores || []).length;
-                const signed = (window._admissaoAssinaturas || []).filter(a => a.assinafy_status === 'Assinado').length;
+                const total   = (window._admissaoGeradores || []).length;
                 if (total === 0) return 0;
-                const pct = Math.round((signed / total) * 100);
-                // Se tem documentos enviados mas não todos assinados: mínimo 20%
-                const hasSent = (window._admissaoAssinaturas || []).some(a => a.enviado_em);
-                return hasSent ? Math.max(20, pct) : pct;
+
+                const assinaturas = window._admissaoAssinaturas || [];
+                // Documentos enviados (têm data de envio ou status diferente de Nenhum/vazio)
+                const sentCount   = assinaturas.filter(a => a.enviado_em || (a.assinafy_status && a.assinafy_status !== 'Nenhum' && a.assinafy_status !== '')).length;
+                // Documentos assinados
+                const signedCount = assinaturas.filter(a => a.assinafy_status === 'Assinado').length;
+
+                // 20% para envio proporcional + 80% para assinaturas proporcionais
+                const sentPct   = Math.round((sentCount   / total) * 20);
+                const signedPct = Math.round((signedCount / total) * 80);
+                return Math.min(100, sentPct + signedPct);
             };
 
             // 3. Renderizar Checklists Dinâmicos
