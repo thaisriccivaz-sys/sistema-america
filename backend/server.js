@@ -4740,45 +4740,51 @@ app.post('/api/colaboradores/:id/enviar-ficha-contabilidade', authenticateToken,
         if (err || !row) return res.status(404).json({ error: 'Colaborador não encontrado' });
         
         try {
-            // Buscar dependentes para incluir na ficha
             const deps = await new Promise((resolve) =>
                 db.all('SELECT * FROM dependentes WHERE colaborador_id = ?', [id], (e, r) => resolve(r || []))
             );
             row.dependentes = deps;
 
-            // Converter data_inicio para formato DD/MM/YYYY
             const dtObj = new Date(data_inicio + 'T12:00:00');
             const dtFormated = dtObj.toLocaleDateString('pt-BR');
 
-            const htmlPdf = require('html-pdf-node');
-            const html = getFichaAdmissaoHtml(row);
-            const pdfBuffer = await htmlPdf.generatePdf(
-                { content: html },
-                { format: 'A4', margin: { top: '1cm', bottom: '1cm', left: '1cm', right: '1cm' }, printBackground: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] }
-            );
-            
-            const anexosParaEnviar = [
-                {
-                    filename: `Ficha_Admissao_${row.nome_completo || 'Colaborador'}.pdf`,
-                    content: pdfBuffer
-                }
-            ];
-
-            // Buscar documentos anexos de 01_FICHA_CADASTRAL e ASO
+            // Find existing docs in DB
             const docsDb = await new Promise(resolve => {
                 db.all("SELECT * FROM documentos WHERE colaborador_id = ? AND tab_name IN ('01_FICHA_CADASTRAL', 'ASO')", [id], (err, rows) => resolve(rows || []));
             });
 
+            // Check if there is already a Ficha in the database attachments
+            const hasFichaInDb = docsDb.some(d => {
+                const dt = (d.document_type || '').toLowerCase();
+                return dt.includes('ficha') || dt.includes('admissão') || dt.includes('admissao');
+            });
+
+            const anexosParaEnviar = [];
+
+            // Add generated Ficha ONLY if none exists in DB
+            if (!hasFichaInDb) {
+                const htmlPdf = require('html-pdf-node');
+                const html = getFichaAdmissaoHtml(row);
+                const pdfBuffer = await htmlPdf.generatePdf(
+                    { content: html },
+                    { format: 'A4', margin: { top: '1cm', bottom: '1cm', left: '1cm', right: '1cm' }, printBackground: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] }
+                );
+                anexosParaEnviar.push({
+                    filename: `Ficha Admissional - ${row.nome_completo || row.nome || 'Colaborador'}.pdf`,
+                    content: pdfBuffer
+                });
+            }
+
+            // Iterate docs to rename them uniformly
             for (const doc of docsDb) {
-                // Prioriza arquivo assinado, senão o original
                 let localPath = doc.signed_file_path && require('fs').existsSync(doc.signed_file_path) 
                     ? doc.signed_file_path 
                     : (doc.file_path && require('fs').existsSync(doc.file_path) ? doc.file_path : null);
                 
                 if (localPath) {
                     const ext = require('path').extname(localPath) || '.pdf';
-                    let safeName = doc.file_name || doc.document_type || 'Documento';
-                    if (!safeName.toLowerCase().endsWith(ext.toLowerCase())) safeName += ext;
+                    let baseType = (doc.document_type || 'Documento').replace(/[^a-zA-Z0-9 áéíóúãõçÁÉÍÓÚÃÕÇ-]/g, '').trim();
+                    let safeName = `${baseType} - ${row.nome_completo || row.nome}${ext}`;
                     
                     anexosParaEnviar.push({
                         filename: safeName,
@@ -4787,15 +4793,26 @@ app.post('/api/colaboradores/:id/enviar-ficha-contabilidade', authenticateToken,
                 }
             }
 
-            const htmlMessage = `<p>Olá,</p>
-<p>Segue em anexo a Ficha de Admissão e todos os documentos necessários recolhidos para o cadastro contábil admissional do colaborador abaixo.</p>
-<ul>
-    <li><strong>Colaborador(a):</strong> ${row.nome_completo || row.nome}</li>
-    <li><strong>Função / Cargo:</strong> ${row.cargo || 'Não informado'}</li>
-    <li><strong>Data de Início Solicitada:</strong> ${dtFormated}</li>
-</ul>
-<p>Por favor, providenciar os registros cabíveis e retorno dos documentos em caso de pendências.</p>
-<p>Atenciosamente,<br>RH - América Rental</p>`;
+            const apiBase = (process.env.BASE_URL || 'https://sistema-america.onrender.com');
+            const logoUrl = `${apiBase}/assets/logo-header.png`;
+            const htmlMessage = `
+            <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#333;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
+                <div style="background:#0f172a;text-align:center;padding:20px;">
+                    <img src="${logoUrl}" alt="América Rental" style="max-height:60px;">
+                </div>
+                <div style="padding:30px;">
+                    <p style="font-size:1.1rem;margin-top:0;"><strong>Olá, Contabilidade!</strong></p>
+                    <p>Segue em anexo a Ficha de Admissão e todos os documentos necessários recolhidos para o cadastro contábil admissional do colaborador abaixo.</p>
+                    <div style="background:#f8fafc;border-left:4px solid #f503c5;padding:15px;margin:20px 0;border-radius:0 8px 8px 0;">
+                        <p style="margin:0 0 5px 0;"><strong>Colaborador(a):</strong> ${row.nome_completo || row.nome}</p>
+                        <p style="margin:0 0 5px 0;"><strong>Função / Cargo:</strong> ${row.cargo || 'Não informado'}</p>
+                        <p style="margin:0;"><strong>Data de Início Solicitada:</strong> ${dtFormated}</p>
+                    </div>
+                    <p>Por favor, providenciar os registros cabíveis e retorno dos documentos em caso de pendências.</p>
+                    <hr style="border:none;border-top:1px solid #e2e8f0;margin:30px 0;">
+                    <p style="margin:0;font-size:0.9rem;color:#64748b;">Atenciosamente,<br><strong>RH - América Rental</strong></p>
+                </div>
+            </div>`;
 
             const transporter = nodemailer.createTransport(SMTP_CONFIG);
             await transporter.sendMail({
