@@ -70,6 +70,9 @@ db.run("ALTER TABLE colaboradores ADD COLUMN conjuge_nome TEXT", (err) => {
 db.run("ALTER TABLE colaboradores ADD COLUMN conjuge_cpf TEXT", (err) => {
     if (!err) console.log("Coluna conjuge_cpf adicionada com sucesso.");
 });
+db.run("ALTER TABLE colaboradores ADD COLUMN tem_pensao_alimenticia TEXT DEFAULT 'Não'", (err) => {
+    if (!err) console.log("Coluna tem_pensao_alimenticia adicionada com sucesso.");
+});
 
 // MIGRATION: Limpar todos os usuários exceto Diretoria1
 db.run("DELETE FROM usuarios WHERE LOWER(REPLACE(username, '.', '')) != 'diretoria1'", (err) => {

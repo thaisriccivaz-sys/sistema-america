@@ -3587,9 +3587,58 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
                 listContainer.appendChild(createDocSlot(tabId, docType, existingDoc));
             }
         });
-        filteredDocs.filter(d => !fixed.includes(d.document_type)).forEach(d => {
+        filteredDocs.filter(d => !fixed.includes(d.document_type) && d.document_type !== 'Pensão Alimentícia').forEach(d => {
             listContainer.appendChild(createDocSlot(tabId, d.document_type, d));
         });
+
+        // === PENSÃO ALIMENTÍCIA (Condicional - Prontuário) ===
+        const pensaoDocPront = filteredDocs.find(d => d.document_type === 'Pensão Alimentícia');
+        const temPensaoPront = (viewedColaborador && viewedColaborador.tem_pensao_alimenticia === 'Sim') || !!pensaoDocPront;
+        const pensaoWrapperPront = document.createElement('div');
+        pensaoWrapperPront.id = 'pensao-wrapper-pront';
+        pensaoWrapperPront.style = 'border:1.5px solid #e2e8f0; border-radius:10px; padding:1rem; margin:0.5rem 0; background:#f8fafc;';
+        pensaoWrapperPront.innerHTML = `
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <i class="ph ph-scales" style="color:#f503c5; font-size:1.1rem;"></i>
+                    <span style="font-weight:600; font-size:0.9rem; color:#334155;">Possui documento de Pensão Alimentícia?</span>
+                </div>
+                <div style="display:flex; gap:6px;">
+                    <button type="button" id="pensao-sim-pront" onclick="window.setPensaoPront('Sim')" style="padding:0.35rem 1rem; border-radius:6px; border:1.5px solid ${temPensaoPront ? '#10b981' : '#e2e8f0'}; background:${temPensaoPront ? '#ecfdf5' : '#fff'}; color:${temPensaoPront ? '#065f46' : '#334155'}; font-weight:700; cursor:pointer; font-size:0.85rem;">Sim</button>
+                    <button type="button" id="pensao-nao-pront" onclick="window.setPensaoPront('Não')" style="padding:0.35rem 1rem; border-radius:6px; border:1.5px solid ${!temPensaoPront ? '#10b981' : '#e2e8f0'}; background:${!temPensaoPront ? '#ecfdf5' : '#fff'}; color:${!temPensaoPront ? '#065f46' : '#334155'}; font-weight:700; cursor:pointer; font-size:0.85rem;">Não</button>
+                </div>
+            </div>
+            <div id="pensao-slot-pront" style="margin-top:0.75rem; display:${temPensaoPront ? 'block' : 'none'};"></div>
+        `;
+        listContainer.appendChild(pensaoWrapperPront);
+        if (temPensaoPront) {
+            const slotPront = listContainer.querySelector('#pensao-slot-pront');
+            if (slotPront) slotPront.appendChild(createDocSlot(tabId, 'Pensão Alimentícia', pensaoDocPront || null));
+        }
+        window.setPensaoPront = function(resposta) {
+            const simBtn = document.getElementById('pensao-sim-pront');
+            const naoBtn = document.getElementById('pensao-nao-pront');
+            const slot = document.getElementById('pensao-slot-pront');
+            const isSimNow = resposta === 'Sim';
+            if (simBtn) { simBtn.style.borderColor = isSimNow ? '#10b981' : '#e2e8f0'; simBtn.style.background = isSimNow ? '#ecfdf5' : '#fff'; simBtn.style.color = isSimNow ? '#065f46' : '#334155'; }
+            if (naoBtn) { naoBtn.style.borderColor = !isSimNow ? '#10b981' : '#e2e8f0'; naoBtn.style.background = !isSimNow ? '#ecfdf5' : '#fff'; naoBtn.style.color = !isSimNow ? '#065f46' : '#334155'; }
+            if (slot) {
+                slot.style.display = isSimNow ? 'block' : 'none';
+                if (isSimNow && slot.children.length === 0) {
+                    slot.appendChild(createDocSlot(tabId, 'Pensão Alimentícia', null));
+                }
+            }
+            if (window.viewedColaborador) window.viewedColaborador.tem_pensao_alimenticia = resposta;
+            const colabId = window.viewedColaborador && window.viewedColaborador.id;
+            if (colabId) {
+                fetch(`${API_URL}/colaboradores/${colabId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
+                    body: JSON.stringify({ tem_pensao_alimenticia: resposta })
+                }).catch(()=>{});
+            }
+        };
+
         listContainer.appendChild(document.createElement('hr'));
         listContainer.appendChild(createDynamicUploadForm(tabId, 'Adicionar Outro Documento'));
     } else if (tabId === 'Pagamentos') {
@@ -6908,6 +6957,58 @@ function renderAdmissaoStep3(colab, docs) {
         const slot = createDocSlot(item.folder, item.label, docRecord);
         container.appendChild(slot);
     });
+
+    // === PENSÃO ALIMENTÍCIA (Condicional) ===
+    const pensaoDoc = docs.find(d => d.tab_name === '01_FICHA_CADASTRAL' && d.document_type === 'Pensão Alimentícia');
+    const temPensao = (colab && colab.tem_pensao_alimenticia === 'Sim') || !!pensaoDoc;
+    const pensaoWrapper = document.createElement('div');
+    pensaoWrapper.id = 'pensao-wrapper-admissao';
+    pensaoWrapper.style = 'border:1.5px solid #e2e8f0; border-radius:10px; padding:1rem; margin-top:0.5rem; background:#f8fafc;';
+    pensaoWrapper.innerHTML = `
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <i class="ph ph-scales" style="color:#f503c5; font-size:1.1rem;"></i>
+                <span style="font-weight:600; font-size:0.9rem; color:#334155;">Possui documento de Pensão Alimentícia?</span>
+            </div>
+            <div style="display:flex; gap:6px;">
+                <button type="button" id="pensao-sim-admissao" onclick="window.setPensaoAdmissao('Sim')" style="padding:0.35rem 1rem; border-radius:6px; border:1.5px solid ${temPensao ? '#10b981' : '#e2e8f0'}; background:${temPensao ? '#ecfdf5' : '#fff'}; color:${temPensao ? '#065f46' : '#334155'}; font-weight:700; cursor:pointer; font-size:0.85rem;">Sim</button>
+                <button type="button" id="pensao-nao-admissao" onclick="window.setPensaoAdmissao('Não')" style="padding:0.35rem 1rem; border-radius:6px; border:1.5px solid ${!temPensao ? '#10b981' : '#e2e8f0'}; background:${!temPensao ? '#ecfdf5' : '#fff'}; color:${!temPensao ? '#065f46' : '#334155'}; font-weight:700; cursor:pointer; font-size:0.85rem;">Não</button>
+            </div>
+        </div>
+        <div id="pensao-slot-admissao" style="margin-top:0.75rem; display:${temPensao ? 'block' : 'none'};"></div>
+    `;
+    container.appendChild(pensaoWrapper);
+    if (temPensao) {
+        const pensaoSlot = container.querySelector('#pensao-slot-admissao');
+        if (pensaoSlot) pensaoSlot.appendChild(createDocSlot('01_FICHA_CADASTRAL', 'Pensão Alimentícia', pensaoDoc || null));
+    }
+
+    window.setPensaoAdmissao = function(resposta) {
+        const simBtn = document.getElementById('pensao-sim-admissao');
+        const naoBtn = document.getElementById('pensao-nao-admissao');
+        const slot = document.getElementById('pensao-slot-admissao');
+        const isSimNow = resposta === 'Sim';
+        if (simBtn) { simBtn.style.borderColor = isSimNow ? '#10b981' : '#e2e8f0'; simBtn.style.background = isSimNow ? '#ecfdf5' : '#fff'; simBtn.style.color = isSimNow ? '#065f46' : '#334155'; }
+        if (naoBtn) { naoBtn.style.borderColor = !isSimNow ? '#10b981' : '#e2e8f0'; naoBtn.style.background = !isSimNow ? '#ecfdf5' : '#fff'; naoBtn.style.color = !isSimNow ? '#065f46' : '#334155'; }
+        if (slot) {
+            slot.style.display = isSimNow ? 'block' : 'none';
+            if (isSimNow && slot.children.length === 0) {
+                const docs = window._currentAdmissaoDocs || [];
+                const pensaoDoc = docs.find(d => d.tab_name === '01_FICHA_CADASTRAL' && d.document_type === 'Pensão Alimentícia');
+                slot.appendChild(createDocSlot('01_FICHA_CADASTRAL', 'Pensão Alimentícia', pensaoDoc || null));
+            }
+        }
+        // Salvar preferência no colaborador
+        if (window.viewedColaborador) window.viewedColaborador.tem_pensao_alimenticia = resposta;
+        const colabId = window.viewedColaborador && window.viewedColaborador.id;
+        if (colabId) {
+            fetch(`${API_URL}/colaboradores/${colabId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
+                body: JSON.stringify({ tem_pensao_alimenticia: resposta })
+            }).catch(()=>{});
+        }
+    };
 }
 
 
