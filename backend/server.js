@@ -2867,20 +2867,43 @@ app.get('/api/geradores/:id', authenticateToken, (req, res) => {
 
 app.post('/api/geradores', authenticateToken, (req, res) => {
     const { nome, conteudo, variaveis } = req.body;
-    db.run("INSERT INTO geradores (nome, conteudo, variaveis, tipo) VALUES (?, ?, ?, 'html')", 
+    const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
+    db.run("INSERT INTO geradores (nome, conteudo, variaveis, tipo) VALUES (?, ?, ?, 'html')",
         [nome, conteudo, variaveis], function(err) {
             if (err) return res.status(400).json({ error: err.message });
-            res.status(201).json({ id: this.lastID, ...req.body });
+            const newId = this.lastID;
+            
+            db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
+                [loggedUser, 'Geradores', 'Inclusão', '', nome, newId]);
+                
+            res.status(201).json({ id: newId, ...req.body });
         });
 });
 
 app.put('/api/geradores/:id', authenticateToken, (req, res) => {
     const { nome, conteudo, variaveis } = req.body;
-    db.run("UPDATE geradores SET nome = ?, conteudo = ?, variaveis = ? WHERE id = ?", 
-        [nome, conteudo, variaveis, req.params.id], function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ message: 'Gerador atualizado' });
-        });
+    const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
+
+    db.get('SELECT * FROM geradores WHERE id = ?', [req.params.id], (err, oldRow) => {
+        if (err || !oldRow) return res.status(500).json({ error: err ? err.message : 'Not found' });
+
+        db.run("UPDATE geradores SET nome = ?, conteudo = ?, variaveis = ? WHERE id = ?",
+            [nome, conteudo, variaveis, req.params.id], function(err2) {
+                if (err2) return res.status(500).json({ error: err2.message });
+
+                const changes = [];
+                if (oldRow.nome !== nome) changes.push({ campo: 'Nome', old: oldRow.nome, new: nome });
+                if (oldRow.conteudo !== conteudo) changes.push({ campo: 'Conteudo HTML', old: '[Anterior Modificado]', new: '[Novo HTML]' });
+                if (oldRow.variaveis !== variaveis) changes.push({ campo: 'Variáveis', old: oldRow.variaveis, new: variaveis });
+
+                changes.forEach(c => {
+                    db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
+                        [loggedUser, 'Geradores', c.campo, c.old || '', c.new || '', req.params.id]);
+                });
+
+                res.json({ message: 'Gerador atualizado' });
+            });
+    });
 });
 
 app.delete('/api/geradores/:id', authenticateToken, (req, res) => {
@@ -4351,17 +4374,33 @@ app.post('/api/grupos-permissao/:id/copiar-usuario/:uid', authenticateToken, (re
 });
 
 app.get('/api/auditoria/:id?', authenticateToken, (req, res) => {
-    let sql = `SELECT * FROM auditoria WHERE programa = 'Colaboradores'`;
+    const contexto = req.query.contexto;
+    const qId = req.query.id || req.params.id;
+
+    let sql = `SELECT * FROM auditoria`;
     let params = [];
-    if (req.params.id) {
-        sql += ` AND registro_id = ?`;
-        params.push(req.params.id);
+    
+    if (contexto === 'gerador') {
+        sql += ` WHERE programa = 'Geradores'`;
+    } else if (contexto === 'colaborador' && qId) {
+        sql += ` WHERE programa = 'Colaboradores' AND registro_id = ?`;
+        params.push(qId);
+    } else {
+        // Fallback for params.id for backward compatibility
+        if (qId) {
+            sql += ` WHERE programa = 'Colaboradores' AND registro_id = ?`;
+            params.push(qId);
+        } else {
+            // Contexto geral
+            // sql stays without WHERE
+        }
     }
+    
     sql += ` ORDER BY data_hora DESC LIMIT 100`;
 
     db.all(sql, params, (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
+        res.json(rows || []);
     });
 });
 

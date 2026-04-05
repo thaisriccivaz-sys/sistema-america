@@ -2135,7 +2135,7 @@ window.resetFormColaborador = function() {
     // CNH reset
     const sectionCnh = document.getElementById('section-cnh');
     if (sectionCnh) sectionCnh.style.display = 'none';
-    if(document.getElementById('colab-cnh-numero')) document.getElementById('colab-cnh-numero').value = '';
+    if(document.getElementById('doc-driver-license-id')) document.getElementById('doc-driver-license-id').value = '';
     if(document.getElementById('colab-cnh-vencimento')) document.getElementById('colab-cnh-vencimento').value = '';
     if(document.getElementById('colab-cnh-categoria')) document.getElementById('colab-cnh-categoria').value = '';
     
@@ -2387,7 +2387,7 @@ window.editColaborador = async function(id) {
 
         // toggleMotorista ANTES de carregar CNH — se chamado depois limpa os campos
         if(typeof toggleMotorista === 'function') toggleMotorista();
-        if(document.getElementById('colab-cnh-numero')) document.getElementById('colab-cnh-numero').value = c.cnh_numero || '';
+        if(document.getElementById('doc-driver-license-id')) document.getElementById('doc-driver-license-id').value = c.cnh_numero || '';
         if(document.getElementById('colab-cnh-categoria')) document.getElementById('colab-cnh-categoria').value = c.cnh_categoria || '';
 
         // Férias
@@ -2674,7 +2674,7 @@ if (formColab) {
             status: statusInput ? statusInput.value : '',
             contato_emergencia_nome: document.getElementById('colab-emergencia-nome').value,
             contato_emergencia_telefone: document.getElementById('colab-emergencia-telefone').value,
-            cnh_numero: document.getElementById('colab-cnh-numero') ? document.getElementById('colab-cnh-numero').value : null,
+            cnh_numero: document.getElementById('doc-driver-license-id') ? document.getElementById('doc-driver-license-id').value : null,
             cnh_categoria: document.getElementById('colab-cnh-categoria') ? document.getElementById('colab-cnh-categoria').value : null,
             matricula_esocial: document.getElementById('colab-matricula-esocial') ? document.getElementById('colab-matricula-esocial').value : null,
             local_nascimento: document.getElementById('colab-local-nascimento') ? document.getElementById('colab-local-nascimento').value : null,
@@ -5425,7 +5425,7 @@ window.toggleConjuge = function() {
 window.toggleMotorista = function() {
     const cargoSelect = document.getElementById('colab-cargo');
     const section = document.getElementById('section-cnh');
-    const num = document.getElementById('colab-cnh-numero');
+    const num = document.getElementById('doc-driver-license-id');
     const cat = document.getElementById('colab-cnh-categoria');
     
     if (cargoSelect && cargoSelect.value.toUpperCase().includes('MOTORISTA')) {
@@ -9962,7 +9962,8 @@ window.reenviarAssinatura = async function(id, source, btn) {
 
 // === SISTEMA DE HISTÓRICO DE AUDITORIA ===
 window.showHistoryPopup = async function() {
-    abrirModal('modal-history');
+    const historyMod = document.getElementById('modal-history');
+    if (historyMod) historyMod.style.display = 'flex';
     const tbody = document.getElementById('history-table-body');
     const loading = document.getElementById('history-loading');
     
@@ -9976,9 +9977,15 @@ window.showHistoryPopup = async function() {
         const viewPront = document.getElementById('view-prontuario');
         const viewAdm = document.getElementById('view-admissao');
         const isColabActive = (viewPront && viewPront.classList.contains('active')) || (viewAdm && viewAdm.classList.contains('active'));
-        
+        const viewGer = document.getElementById('view-geradores');
+        const isGerActive = (viewGer && viewGer.classList.contains('active'));
+
         if (isColabActive && viewedColaborador && viewedColaborador.id) {
-            url += `/${viewedColaborador.id}`;
+            url += `?contexto=colaborador&id=${viewedColaborador.id}`;
+        } else if (isGerActive) {
+            url += `?contexto=gerador`;
+        } else {
+            url += `?contexto=geral`;
         }
 
         const res = await fetch(url, { headers: { 'Authorization': `Bearer ${currentToken}` } });
@@ -10015,6 +10022,24 @@ window.showHistoryPopup = async function() {
         tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:#ef4444; padding:1rem;">Erro ao carregar histórico: ${e.message}</td></tr>`;
     }
 };
+
+// Automatically show/hide history icon based on view
+setInterval(() => {
+    const btnHistory = document.getElementById('btn-history-page');
+    if (!btnHistory) return;
+    const viewPront = document.getElementById('view-prontuario');
+    const viewAdm = document.getElementById('view-admissao');
+    const viewGer = document.getElementById('view-geradores');
+    
+    const isColabActive = (viewPront && viewPront.classList.contains('active')) || (viewAdm && viewAdm.classList.contains('active'));
+    const isGerActive = (viewGer && viewGer.classList.contains('active'));
+
+    if (isColabActive || isGerActive) {
+        btnHistory.style.display = 'flex';
+    } else {
+        btnHistory.style.display = 'none';
+    }
+}, 500);
 
 // ===== SISTEMA DE TOAST: NOTIFICAÇÕES DE DOCUMENTOS ASSINADOS (ADMISSÃO) =====
 (function() {

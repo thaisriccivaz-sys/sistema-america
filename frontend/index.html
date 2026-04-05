@@ -154,7 +154,7 @@
                         <div id="page-search-results" style="display:none; position:absolute; top:100%; left:0; min-width:450px; background:#fff; border:1px solid #e2e8f0; border-radius:8px; box-shadow:0 10px 15px -3px rgba(0,0,0,0.1); z-index:9999; max-height:300px; overflow-y:auto; margin-top:8px;"></div>
                     </div>
                     <div style="display:flex; align-items:center; gap:8px; margin-left:16px;" id="bookmarks-container">
-                        <button id="btn-history-page" onclick="window.showHistoryPopup()" style="background:none; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#475569; font-size:1.5rem; transition: transform 0.2s;" title="Histórico de Alterações">
+                        <button id="btn-history-page" onclick="window.showHistoryPopup()" style="background:none; border:none; cursor:pointer; display:none; align-items:center; justify-content:center; color:#475569; font-size:1.5rem; transition: transform 0.2s;" title="Histórico de Alterações">
                             <i class="ph ph-clock-counter-clockwise"></i>
                         </button>
                         <button id="btn-star-page" onclick="toggleBookmarkCurrentPage()" style="background:none; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#f503c5; font-size:1.5rem; transition: transform 0.2s;">
@@ -838,8 +838,8 @@
                                             <label style="color: #fd7e14; font-weight: 600; font-size: 0.85rem; margin-bottom: 0.5rem; display: block;">Dados de CNH</label>
                                             <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
                                                 <div class="input-group">
-                                                    <label>Número</label>
-                                                    <input type="text" id="colab-cnh-numero" name="registro_cnh_numero" autocomplete="off" onkeyup="mascaraCNH(this)" maxlength="11">
+                                                    <label>Nº Registro</label>
+                                                    <input type="text" id="colab-cnh-numero" name="doc_cnh_cod" autocomplete="one-time-code" data-form-type="other" onkeyup="mascaraCNH(this)" maxlength="11">
                                                 </div>
                                                 <div class="input-group">
                                                     <label>Categoria</label>
@@ -2364,7 +2364,7 @@
                 <h3 style="color:#0f172a; font-weight:700; display:flex; align-items:center; gap:8px;">
                     <i class="ph ph-detective" style="font-size:1.4rem;"></i> HISTÓRICO DE ALTERAÇÕES
                 </h3>
-                <button type="button" class="btn-close" onclick="fecharModal('modal-history')">&times;</button>
+                <button type="button" class="btn-close" onclick="document.getElementById('modal-history').style.display='none'">&times;</button>
             </div>
             <div class="modal-body" style="padding: 0;">
                 <div class="table-responsive" style="margin:0;">
@@ -2391,7 +2391,7 @@
                 </div>
             </div>
             <div class="modal-footer" style="padding: 1rem; display: flex; justify-content: flex-end;">
-                <button type="button" class="btn" onclick="fecharModal('modal-history')">Fechar</button>
+                <button type="button" class="btn" onclick="document.getElementById('modal-history').style.display='none'">Fechar</button>
             </div>
         </div>
     </div>
