@@ -9976,7 +9976,12 @@ window.showHistoryPopup = async function() {
         let url = `${API_URL}/auditoria`;
         const viewPront = document.getElementById('view-prontuario');
         const viewAdm = document.getElementById('view-admissao');
-        const isColabActive = (viewPront && viewPront.classList.contains('active')) || (viewAdm && viewAdm.classList.contains('active'));
+        const viewForm = document.getElementById('view-form-colaborador');
+        const viewListColab = document.getElementById('view-colaboradores');
+        const isColabActive = (viewPront && viewPront.classList.contains('active')) || 
+                              (viewAdm && viewAdm.classList.contains('active')) ||
+                              (viewForm && viewForm.classList.contains('active')) ||
+                              (viewListColab && viewListColab.classList.contains('active'));
         const viewGer = document.getElementById('view-geradores');
         const isGerActive = (viewGer && viewGer.classList.contains('active'));
 
@@ -10028,10 +10033,16 @@ setInterval(() => {
     const btnHistory = document.getElementById('btn-history-page');
     if (!btnHistory) return;
     const viewPront = document.getElementById('view-prontuario');
-    const viewAdm = document.getElementById('view-admissao');
+    const viewAdms = document.getElementById('view-admissao');
+    const viewForm = document.getElementById('view-form-colaborador');
     const viewGer = document.getElementById('view-geradores');
+    // Including view-colaboradores to allow global collaborator history
+    const viewListColab = document.getElementById('view-colaboradores');
     
-    const isColabActive = (viewPront && viewPront.classList.contains('active')) || (viewAdm && viewAdm.classList.contains('active'));
+    const isColabActive = (viewPront && viewPront.classList.contains('active')) || 
+                          (viewAdms && viewAdms.classList.contains('active')) ||
+                          (viewForm && viewForm.classList.contains('active')) ||
+                          (viewListColab && viewListColab.classList.contains('active'));
     const isGerActive = (viewGer && viewGer.classList.contains('active'));
 
     if (isColabActive || isGerActive) {
