@@ -2813,15 +2813,22 @@ if (formColab) {
         // Validação de Motorista
         if (data.cargo && data.cargo.toUpperCase().includes('MOTORISTA')) {
             if (!isPartial) {
-                if (!data.cnh_numero || !data.cnh_categoria) {
-                    alert('Preenchimento Obrigatório: Dados da CNH (Número e Categoria) para Motorista não podem ficar vazios.');
-                    btnRestorer();
-                    return;
-                }
-                if (data.cnh_numero.length < 11) {
-                    alert('Preenchimento Obrigatório: O número da CNH deve conter 11 dígitos exatos.');
-                    btnRestorer();
-                    return;
+                const cnhNumeroEl = document.getElementById('doc-driver-license-id');
+                const cnhCatEl = document.getElementById('colab-cnh-categoria');
+                const cnhNumeroVal = cnhNumeroEl ? cnhNumeroEl.value.trim() : (data.cnh_numero || '').trim();
+                const cnhCatVal = cnhCatEl ? cnhCatEl.value : (data.cnh_categoria || '');
+                if (cnhNumeroEl && cnhCatEl) {
+                    // Só valida se os campos estiverem no DOM
+                    if (!cnhNumeroVal || !cnhCatVal) {
+                        alert('Preenchimento Obrigatório: Dados da CNH (Número e Categoria) para Motorista não podem ficar vazios.');
+                        btnRestorer();
+                        return;
+                    }
+                    if (cnhNumeroVal.length < 11) {
+                        alert('Preenchimento Obrigatório: O número da CNH deve conter pelo menos 11 dígitos.');
+                        btnRestorer();
+                        return;
+                    }
                 }
             }
         }
@@ -7355,7 +7362,8 @@ function updateAdmissaoStepPercentages(colab) {
         }
     }
 
-    const pc5 = calculateChecklist('panel-step-5');
+    // Passo 5 = 100% se o e-mail para a contabilidade foi enviado
+    const pc5 = (targetColab && targetColab.admissao_contabil_enviada_em) ? 100 : calculateChecklist('panel-step-5');
     const pc6 = calculateChecklist('panel-step-6');
     const pc7 = calculateChecklist('panel-step-7');
     const pc8 = calculateChecklist('panel-step-8');
@@ -10014,12 +10022,20 @@ window._renderHistoryPage = function() {
 
         const stripBg = i % 2 === 0 ? 'background:#fff;' : 'background:#f8fafc;';
 
+        const campoLabel = log.campo ? `<span style="color:#94a3b8;font-size:0.75rem;font-weight:600;">${log.campo}: </span>` : '';
+        const anteriorCell = log.conteudo_anterior
+            ? `${campoLabel}<span>${log.conteudo_anterior}</span>`
+            : `<span style="color:#cbd5e1;">—</span>`;
+        const atualCell = log.conteudo_atual
+            ? `${campoLabel}<span style="font-weight:600;">${log.conteudo_atual}</span>`
+            : `<span style="color:#cbd5e1;">—</span>`;
+
         html += `<tr style="${stripBg}border-bottom:1px solid #f1f5f9;">
             <td style="padding:0.7rem 1rem; white-space:nowrap; color:#334155; font-size:0.82rem;">${dateStr}</td>
             <td style="padding:0.7rem 1rem; white-space:nowrap; color:#64748b; font-family:monospace; font-size:0.82rem;">${horaStr}</td>
             <td style="padding:0.7rem 1rem; font-weight:700; color:#f503c5; font-size:0.82rem; text-transform:uppercase;">${log.usuario || 'SISTEMA'}</td>
-            <td style="padding:0.7rem 1rem; color:#ef4444; font-size:0.82rem;">${log.conteudo_anterior || '<span style="color:#cbd5e1;">—</span>'}</td>
-            <td style="padding:0.7rem 1rem; color:#16a34a; font-weight:600; font-size:0.82rem;">${log.conteudo_atual || '<span style="color:#cbd5e1;">—</span>'}</td>
+            <td style="padding:0.7rem 1rem; color:#ef4444; font-size:0.82rem;">${anteriorCell}</td>
+            <td style="padding:0.7rem 1rem; color:#16a34a; font-size:0.82rem;">${atualCell}</td>
         </tr>`;
     });
     tbody.innerHTML = html;
@@ -10479,5 +10495,48 @@ window.enviarFichaContabilidade = async function(btn) {
     } finally {
         btn.innerHTML = originalText;
         btn.disabled = false;
+    }
+};
+
+// ===== RENDER LOG DE ENVIO PARA CONTABILIDADE (PASSO 5) =====
+window.renderEnvioContabilidadeLog = function() {
+    const colab = window.viewedColaborador;
+    const logPanel = document.getElementById('envio-contabilidade-log');
+    const dataEl = document.getElementById('envio-contab-data');
+    const anexosEl = document.getElementById('envio-contab-anexos');
+    if (!logPanel) return;
+
+    const enviada_em = colab && colab.admissao_contabil_enviada_em;
+    if (!enviada_em) {
+        logPanel.style.display = 'none';
+        return;
+    }
+
+    // Formatar data/hora em pt-BR com destaque
+    let dataFormatada = enviada_em;
+    try {
+        const dt = new Date(enviada_em.endsWith('Z') ? enviada_em : enviada_em + 'Z');
+        const dia = dt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        const hora = dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        dataFormatada = `${dia} às ${hora}`;
+    } catch(e) {}
+
+    if (dataEl) dataEl.textContent = dataFormatada;
+
+    // Listar anexos
+    if (anexosEl && colab.admissao_contabil_anexos) {
+        const lista = colab.admissao_contabil_anexos.split(',').map(s => s.trim()).filter(Boolean);
+        if (lista.length > 0) {
+            anexosEl.innerHTML = lista.map(a => `<li>📄 ${a}</li>`).join('');
+        } else {
+            anexosEl.innerHTML = '<li style="color:#94a3b8">Nenhum anexo registrado</li>';
+        }
+    }
+
+    logPanel.style.display = 'block';
+
+    // Forçar recálculo do passo 5 para 100%
+    if (typeof updateAdmissaoStepPercentages === 'function') {
+        updateAdmissaoStepPercentages();
     }
 };
