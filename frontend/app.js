@@ -3541,7 +3541,14 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
         return sortOrder === 'recent' ? dateB - dateA : dateA - dateB;
     });
 
-    if (tabId === 'Contratos') {
+    if (tabId === 'Multas') {
+        // Aba de multas — renderiza a UI customizada de gestão de multas
+        if (typeof window.renderMultasMotoristaTab === 'function') {
+            window.renderMultasMotoristaTab(listContainer);
+        } else {
+            listContainer.innerHTML = '<div class="alert alert-warning"><i class="ph ph-warning"></i> Módulo de multas não carregado. Tente recarregar a página.</div>';
+        }
+    } else if (tabId === 'Contratos') {
         renderContratosTab(listContainer);
     } else if (tabId === '00.CheckList') {
         renderCargoDocsChecklist(listContainer);
