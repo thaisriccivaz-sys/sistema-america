@@ -1338,23 +1338,27 @@
                             </div>
                             <div class="step-item" id="step-2" onclick="window.nextAdmissaoStep(2)">
                                 <div class="step-icon"><span class="num">2</span><span class="percent" id="step-2-pc">0%</span></div>
-                                <span class="step-label">Assinaturas</span>
+                                <span class="step-label">Santander</span>
                             </div>
                             <div class="step-item" id="step-3" onclick="window.nextAdmissaoStep(3)">
                                 <div class="step-icon"><span class="num">3</span><span class="percent" id="step-3-pc">0%</span></div>
-                                <span class="step-label">Ficha Cad.</span>
+                                <span class="step-label">Assinaturas</span>
                             </div>
                             <div class="step-item" id="step-4" onclick="window.nextAdmissaoStep(4)">
                                 <div class="step-icon"><span class="num">4</span><span class="percent" id="step-4-pc">0%</span></div>
-                                <span class="step-label">ASO</span>
+                                <span class="step-label">Ficha Cad.</span>
                             </div>
                             <div class="step-item" id="step-5" onclick="window.nextAdmissaoStep(5)">
                                 <div class="step-icon"><span class="num">5</span><span class="percent" id="step-5-pc">0%</span></div>
-                                <span class="step-label">Contab.</span>
+                                <span class="step-label">ASO</span>
                             </div>
                             <div class="step-item" id="step-6" onclick="window.nextAdmissaoStep(6)">
                                 <div class="step-icon"><span class="num">6</span><span class="percent" id="step-6-pc">0%</span></div>
-                                <span class="step-label">Integração</span>
+                                <span class="step-label">Contab.</span>
+                            </div>
+                            <div class="step-item" id="step-7" onclick="window.nextAdmissaoStep(7)">
+                                <div class="step-icon"><span class="num">7</span><span class="percent" id="step-7-pc">0%</span></div>
+                                <span class="step-label">Efetivação</span>
                             </div>
                         </div>
 
@@ -1393,10 +1397,48 @@
                             </div>
                         </div>
 
-                        <!-- PANEL 2: ENVIO ASSINATURA -->
+                        <!-- PANEL 2: SANTANDER -->
                         <div class="admissao-panel" id="panel-step-2">
                             <div class="card p-4">
-                                <h3 class="section-title"><i class="ph ph-signature"></i> Passo 2: Envio para Assinatura</h3>
+                                <div class="flex-between mb-3">
+                                    <h3 class="section-title" style="margin:0;"><i class="ph ph-bank" style="color:#ec0000;"></i> Passo 2: Abertura de Conta Santander</h3>
+                                    <div style="display:flex;gap:8px;">
+                                        <button class="btn btn-primary" onclick="window.gerarFichaSantander()" style="background:#ec0000;border-color:#ec0000;display:flex;align-items:center;gap:6px;">
+                                            <i class="ph ph-printer"></i> Gerar e Imprimir Ficha
+                                        </button>
+                                    </div>
+                                </div>
+                                <p class="text-muted mb-4">Gere o <b>Pedido de Abertura de Conta</b> para o Santander. Imprima o documento e entregue ao colaborador para levar à agência junto aos documentos listados.</p>
+
+                                <div style="background:#fff5f5;border:1.5px solid #fca5a5;border-radius:10px;padding:1rem;margin-bottom:1.5rem;">
+                                    <div style="font-weight:700;color:#991b1b;margin-bottom:0.5rem;"><i class="ph ph-info"></i> Documentos que o colaborador deve levar ao banco:</div>
+                                    <ul style="margin:0;padding-left:1.25rem;color:#7f1d1d;font-size:0.88rem;line-height:1.8;">
+                                        <li>Esta carta (Pedido de Abertura de Conta)</li>
+                                        <li>Documento de identidade com foto</li>
+                                        <li>CPF – Cadastro de Pessoa Física</li>
+                                        <li>Comprovante de endereço residencial (menos de 60 dias)</li>
+                                        <li>Se casado(a): nome do cônjuge, CPF, data de nascimento e data do casamento</li>
+                                    </ul>
+                                </div>
+
+                                <div id="santander-status-log" style="display:none;background:linear-gradient(135deg,#fef2f2,#fff);border:2px solid #ec0000;border-radius:12px;padding:12px 16px;margin-bottom:1rem;">
+                                    <div style="display:flex;align-items:center;gap:8px;color:#991b1b;font-weight:700;">
+                                        <i class="ph-fill ph-check-circle" style="font-size:1.2rem;"></i>
+                                        <span id="santander-status-text">Ficha gerada em --/--/----</span>
+                                    </div>
+                                </div>
+
+                                <div class="flex-between" style="margin-top:1rem;">
+                                    <button class="btn btn-secondary" onclick="window.nextAdmissaoStep(1)"><i class="ph ph-arrow-left"></i> Voltar</button>
+                                    <button class="btn btn-primary" onclick="window.nextAdmissaoStep(3)">Próximo: Assinaturas <i class="ph ph-arrow-right"></i></button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- PANEL 3 (ex-2): ENVIO ASSINATURA -->
+                        <div class="admissao-panel" id="panel-step-3">
+                            <div class="card p-4">
+                                <h3 class="section-title"><i class="ph ph-signature"></i> Passo 3: Envio para Assinatura</h3>
                                 <p class="text-muted mb-3">Os documentos configurados para o departamento do colaborador aparecem abaixo, todos pré-selecionados. Desmarque os que não deseja incluir neste envio.</p>
 
 
@@ -1434,17 +1476,17 @@
                                 </div>
 
                                 <div class="flex-between" style="margin-top:1rem;">
-                                    <button class="btn btn-secondary" onclick="window.nextAdmissaoStep(1)"><i class="ph ph-arrow-left"></i> Voltar</button>
-                                    <button class="btn btn-primary" onclick="window.nextAdmissaoStep(3)">Próximo: Ficha Cadastral <i class="ph ph-arrow-right"></i></button>
+                                <button class="btn btn-secondary" onclick="window.nextAdmissaoStep(2)"><i class="ph ph-arrow-left"></i> Voltar</button>
+                                    <button class="btn btn-primary" onclick="window.nextAdmissaoStep(4)">Próximo: Ficha Cadastral <i class="ph ph-arrow-right"></i></button>
                                 </div>
                             </div>
                         </div>
 
 
-                        <!-- PANEL 3: FICHA CADASTRAL (Dynamic) -->
-                        <div class="admissao-panel" id="panel-step-3">
+                        <!-- PANEL 4 (ex-3): FICHA CADASTRAL (Dynamic) -->
+                        <div class="admissao-panel" id="panel-step-4">
                             <div class="card p-4">
-                                <h3 class="section-title"><i class="ph ph-identification-card"></i> Passo 3: Ficha Cadastral</h3>
+                                <h3 class="section-title"><i class="ph ph-identification-card"></i> Passo 4: Ficha Cadastral</h3>
                                 <p class="text-muted mb-4">Realize o upload dos documentos pessoais do colaborador.</p>
 
                                 <!-- Banner: Status Certificado Digital -->
@@ -1458,16 +1500,16 @@
                                 </div>
 
                                 <div class="flex-between">
-                                    <button class="btn btn-secondary" onclick="window.nextAdmissaoStep(2)"><i class="ph ph-arrow-left"></i> Voltar</button>
-                                    <button class="btn btn-primary" onclick="window.nextAdmissaoStep(4)">Próximo: ASO <i class="ph ph-arrow-right"></i></button>
+                                    <button class="btn btn-secondary" onclick="window.nextAdmissaoStep(3)"><i class="ph ph-arrow-left"></i> Voltar</button>
+                                    <button class="btn btn-primary" onclick="window.nextAdmissaoStep(5)">Próximo: ASO <i class="ph ph-arrow-right"></i></button>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- PANEL 4: ASO -->
-                        <div class="admissao-panel" id="panel-step-4">
+                        <!-- PANEL 5 (ex-4): ASO -->
+                        <div class="admissao-panel" id="panel-step-5">
                             <div class="card p-4">
-                                <h3 class="section-title"><i class="ph ph-heartbeat"></i> Passo 4: ASO</h3>
+                                <h3 class="section-title"><i class="ph ph-heartbeat"></i> Passo 5: ASO</h3>
                                 <p class="text-muted mb-4">Upload do Exame Médico Admissional.</p>
                                 <div id="aso-email-notice" style="display:none; width: 100%; color: #059669; font-weight: 700; background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: 12px; padding: 12px; margin-bottom: 1.5rem; text-align: center;">
                                     <i class="ph ph-check-circle" style="font-size: 1.3rem;"></i> 
@@ -1527,16 +1569,16 @@
                                     </div>
                                 </div>
                                 <div class="flex-between">
-                                    <button class="btn btn-secondary" onclick="window.nextAdmissaoStep(3)"><i class="ph ph-arrow-left"></i> Voltar</button>
-                                    <button class="btn btn-primary" onclick="window.nextAdmissaoStep(5)">Próximo: Contabilidade <i class="ph ph-arrow-right"></i></button>
+                                    <button class="btn btn-secondary" onclick="window.nextAdmissaoStep(4)"><i class="ph ph-arrow-left"></i> Voltar</button>
+                                    <button class="btn btn-primary" onclick="window.nextAdmissaoStep(6)">Próximo: Contabilidade <i class="ph ph-arrow-right"></i></button>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- PANEL 5: CONTABILIDADE -->
-                        <div class="admissao-panel" id="panel-step-5">
+                        <!-- PANEL 6 (ex-5): CONTABILIDADE -->
+                        <div class="admissao-panel" id="panel-step-6">
                             <div class="card p-4">
-                                <h3 class="section-title"><i class="ph ph-calculator"></i> Passo 5: Envio Contabilidade</h3>
+                                <h3 class="section-title"><i class="ph ph-calculator"></i> Passo 6: Envio Contabilidade</h3>
                                 <p class="text-muted mb-4">Confira a Ficha de Admissão, defina a Data de Início e encaminhe toda a documentação para a contabilidade.</p>
 
                                 <div style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:8px; padding:15px; margin-bottom:1rem; display:flex; flex-direction:column; gap:10px;">
@@ -1581,16 +1623,16 @@
                                 </div>
                                 <div id="admissao-checklist-step5" class="checklist-container mb-4" style="display:none;"></div>
                                 <div class="flex-between">
-                                    <button class="btn btn-secondary" onclick="window.nextAdmissaoStep(4)"><i class="ph ph-arrow-left"></i> Voltar</button>
-                                    <button class="btn btn-primary" onclick="window.nextAdmissaoStep(6)">Próximo: Treinamentos <i class="ph ph-arrow-right"></i></button>
+                                    <button class="btn btn-secondary" onclick="window.nextAdmissaoStep(5)"><i class="ph ph-arrow-left"></i> Voltar</button>
+                                    <button class="btn btn-primary" onclick="window.nextAdmissaoStep(7)">Próximo: Efetivação <i class="ph ph-arrow-right"></i></button>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- PANEL 6: EFETIVAÇÃO -->
-                        <div class="admissao-panel" id="panel-step-6">
+                        <!-- PANEL 7 (ex-6): EFETIVAÇÃO -->
+                        <div class="admissao-panel" id="panel-step-7">
                             <div class="card p-4">
-                                <h3 class="section-title justify-center"><i class="ph ph-check-circle"></i> Passo 6: Efetivação</h3>
+                                <h3 class="section-title justify-center"><i class="ph ph-check-circle"></i> Passo 7: Efetivação</h3>
                                 <p class="mt-3 text-center" style="font-size: 1.1rem; color: #334155;">Tudo pronto para a admissão! Clique no botão abaixo para liberar o colaborador e iniciar seu processo de Integração.</p>
                                 <div style="display: flex; flex-direction: column; gap: 1rem; max-width: 400px; margin: 0 auto; margin-bottom: 2rem; margin-top: 2rem;">
                                     <button class="btn btn-primary btn-block" style="padding: 1rem; font-size: 1.1rem;" onclick="window.finalizarAdmissao()">
@@ -2352,7 +2394,7 @@
     <script src="gerenciar_avaliacoes.js?v=2"></script>
     <script src="epi.js?v=17"></script>
     <script src="usuarios.js?v=1"></script>
-    <script src="app.js?v=79"></script>
+    <script src="app.js?v=80"></script>
 
     <!-- Global Scroll-to-Top Button -->
     <button id="global-scroll-top" onclick="window.scrollTo({top:0, behavior:'smooth'})" style="position:fixed; bottom:30px; right:30px; width:45px; height:45px; border-radius:50%; background:var(--primary-color, #0f172a); color:#fff; border:none; box-shadow:0 4px 10px rgba(0,0,0,0.3); justify-content:center; align-items:center; transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index:9000; display:none; opacity:0; cursor:pointer;" onmouseover="this.style.filter='brightness(0.9)'" onmouseout="this.style.filter='brightness(1)'">

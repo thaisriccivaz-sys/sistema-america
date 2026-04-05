@@ -7247,13 +7247,22 @@ window.nextAdmissaoStep = function(step, preventScroll = false) {
     const panel = document.getElementById(`panel-step-${step}`);
     if (panel) panel.classList.add('active');
     
-    // Se for Passo 2 ou Passo 3: carregar status do certificado digital
-    if ((step === 2 || step === 3) && typeof window.carregarStatusCertificado === 'function') {
-        window.carregarStatusCertificado(step === 3 ? 'cert-digital-banner-step3' : 'cert-digital-banner');
+    // Passo 3 (Assinaturas): carregar certificado digital
+    if (step === 3 && typeof window.carregarStatusCertificado === 'function') {
+        window.carregarStatusCertificado('cert-digital-banner');
+    }
+    // Passo 4 (Ficha Cadastral): carregar certificado digital
+    if (step === 4 && typeof window.carregarStatusCertificado === 'function') {
+        window.carregarStatusCertificado('cert-digital-banner-step3');
     }
 
-    // Se for Passo 4, verificar se mostra linha de Exames Motorista
-    if (step === 4 && viewedColaborador) {
+    // Passo 2 (Santander): popular dados do colaborador na ficha
+    if (step === 2 && typeof window.populateSantanderPreview === 'function') {
+        window.populateSantanderPreview();
+    }
+
+    // Passo 5 (ASO): verificar se mostra linha de Exames Motorista
+    if (step === 5 && viewedColaborador) {
         const rowExames = document.getElementById('row-aso-exames');
         if (rowExames) {
             rowExames.style.display = (viewedColaborador.cargo || '').toLowerCase().includes('motorista') ? 'flex' : 'none';
@@ -10664,6 +10673,212 @@ window.renderEnvioContabilidadeLog = function() {
     }
 
     logPanel.style.display = 'block';
+};
+
+
+// ============================================================
+// PASSO 2 ADMISSÃO — SANTANDER (Pedido de Abertura de Conta)
+// ============================================================
+window.populateSantanderPreview = function() {
+    // Apenas mostra log se já foi gerado antes
+    const colab = viewedColaborador || window._admissaoColabSelecionado;
+    if (!colab) return;
+    const log = document.getElementById('santander-status-log');
+    const logText = document.getElementById('santander-status-text');
+    const dataSantander = colab.santander_ficha_data;
+    if (dataSantander && log) {
+        log.style.display = 'block';
+        if (logText) logText.textContent = `Ficha gerada em ${new Date(dataSantander).toLocaleString('pt-BR')}`;
+    }
+};
+
+window.gerarFichaSantander = function() {
+    const colab = viewedColaborador || window._admissaoColabSelecionado;
+    if (!colab) { alert('Selecione um colaborador primeiro.'); return; }
+
+    const fmt = (v) => v || '—';
+    const hoje = new Date();
+    const dataHoje = hoje.toLocaleDateString('pt-BR');
+    const mesExtenso = hoje.toLocaleDateString('pt-BR', { month: 'long' });
+    const anoStr = hoje.getFullYear();
+    
+    // Salário formatado
+    const salario = colab.salario ? parseFloat(colab.salario).toLocaleString('pt-BR', {style:'currency', currency:'BRL'}) : '—';
+    
+    // Endereço dividido
+    const endereco = fmt(colab.logradouro);
+    const numero = fmt(colab.numero);
+    const complemento = fmt(colab.complemento);
+    const bairro = fmt(colab.bairro);
+    const cidade = fmt(colab.cidade);
+    const estado = fmt(colab.estado);
+    const cep = fmt(colab.cep);
+
+    // Formatar admissão
+    let admissaoFmt = '—';
+    if (colab.data_admissao) {
+        const [y,m,d] = colab.data_admissao.split('-');
+        admissaoFmt = `${d}/${m}/${y}`;
+    }
+
+    const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Pedido de Abertura de Conta - ${colab.nome_completo}</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Arial:wght@400;700&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 10pt; color: #000; background: #fff; padding: 20px; }
+  .page { max-width: 750px; margin: 0 auto; }
+  .logo-area { text-align: center; margin-bottom: 10px; }
+  .logo-area img { height: 60px; }
+  .logo-text { font-size: 28pt; font-weight: 900; font-family: serif; letter-spacing: -1px; }
+  .logo-sub { font-size: 7pt; color: #555; letter-spacing: 2px; }
+  h1.titulo { text-align: center; font-size: 13pt; font-weight: 900; background: #e8e8e8; border: 1.5px solid #ccc; padding: 6px 0; margin: 12px 0; letter-spacing: 1px; }
+  .colab-label { font-size: 10pt; font-weight: 900; margin: 10px 0 6px; }
+  .colab-nome { font-size: 13pt; font-weight: 900; }
+  p.body-text { font-size: 9.5pt; margin-bottom: 8px; text-align: justify; line-height: 1.5; }
+  ul.docs { font-size: 9.5pt; margin: 4px 0 10px 20px; line-height: 1.6; }
+  .data-box { border: 1.5px solid #555; margin: 14px 0; }
+  .data-box-title { background: #d0d0d0; font-weight: 900; font-size: 9.5pt; padding: 4px 10px; border-bottom: 1.5px solid #555; }
+  .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; padding: 8px 10px; }
+  .data-line { font-size: 9pt; margin: 1.5px 0; }
+  .data-line b { font-weight: 700; }
+  .rh-section { margin: 16px 0; font-size: 9.5pt; line-height: 1.7; }
+  .city-date { margin: 20px 0 30px; font-size: 10pt; }
+  .assinaturas { display: flex; justify-content: space-between; margin-top: 40px; }
+  .assin-block { text-align: center; width: 45%; }
+  .assin-line { border-top: 1.5px solid #000; padding-top: 4px; margin-top: 40px; font-size: 9pt; }
+  .bank-box { border: 1.5px solid #555; margin-top: 20px; }
+  .bank-box-title { background: #d0d0d0; font-weight: 900; font-size: 9.5pt; padding: 4px 10px; border-bottom: 1.5px solid #555; }
+  .bank-field { display: flex; align-items: flex-end; padding: 6px 10px; border-bottom: 1px solid #ccc; gap: 8px; font-size: 9.5pt; }
+  .bank-field:last-child { border-bottom: none; }
+  .bank-field-line { flex: 1; border-bottom: 1px solid #000; min-height: 18px; }
+  .footnote { font-size: 7.5pt; color: #333; margin-top: 12px; text-align: justify; line-height: 1.4; }
+  @media print {
+    body { padding: 0; }
+    .no-print { display: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <!-- Logo -->
+  <div class="logo-area">
+    <div class="logo-text">AMÉRIC<span style="color:#cc3300;">A</span> <span style="color:#cc3300; font-style:italic;">Rental</span></div>
+    <div class="logo-sub">desde 1999</div>
+  </div>
+
+  <h1 class="titulo">PEDIDO DE ABERTURA DE CONTA</h1>
+
+  <div class="colab-label">COLABORADOR:</div>
+  <div class="colab-nome">${fmt(colab.nome_completo)}</div>
+
+  <br>
+  <p class="body-text">Prezado (a)</p>
+  <p class="body-text">Escolhemos o Santander como nosso parceiro para o processamento do pagamento do seu salário.</p>
+  <p class="body-text">Conforme determinam as Resoluções nº 3.402 e 3.424/06, do Conselho Monetário Nacional, seu salário será creditado em uma conta de registro, denominada 'conta salário', que não é movimentável por cheque, não admite créditos de outras naturezas que não salariais e possui serviços limitados.</p>
+  <p class="body-text">Você também poderá aproveitar as vantagens de ter uma <b>CONTA CORRENTE</b> e transferir automaticamente o seu salário, possibilitando assim fazer uso de diversos outros serviços e condições diferenciadas oferecidas pelo Santander, que acreditamos que tenham um valor diferenciado para você. Para conhecer as vantagens de uma conta corrente compareça a uma agência até a data da sua admissão e apresente o original e uma cópia simples (frente e verso) dos documentos abaixo indicados:</p>
+
+  <ul class="docs">
+    <li>Esta carta;</li>
+    <li>Documento de identidade com foto;</li>
+    <li>CPF – Cadastro de Pessoa Física;</li>
+    <li>Comprovante de endereço residencial (onde prefere receber correspondência) com prazo inferior a 60 dias da data de vencimento. Ex.: conta de luz, de água, de gás, de telefone fixo, IPTU;</li>
+    <li>Se casado (a), apresentar nome completo do cônjuge, número do CPF, data de nascimento e data do casamento.</li>
+  </ul>
+
+  <p class="body-text">Se a sua opção for apenas pela utilização da conta salário, você poderá realizar a portabilidade de salário para outra instituição ou utilizar o cartão de débito, fornecido sem custo*, para os serviços mensais gratuitos** disponíveis para a conta salário. Procure a agência Santander de sua conveniência e fale com o gerente que está apto a orientar-lo e a prestar todas as informações necessárias para a movimentação da sua conta.</p>
+
+  <!-- Dados do colaborador -->
+  <div class="data-box">
+    <div class="data-box-title">Dados do Colaborador</div>
+    <div class="data-grid">
+      <div class="data-line">Declaramos que o Sr (a) <b>${fmt(colab.nome_completo)}</b></div>
+      <div class="data-line">CPF: <b>${fmt(colab.cpf)}</b>&nbsp;&nbsp;&nbsp;Admissão: <b>${admissaoFmt}</b></div>
+      <div class="data-line">Endereço: <b>${endereco}</b></div>
+      <div class="data-line">Nº <b>${numero}</b>&nbsp;&nbsp;Complemento: <b>${complemento}</b></div>
+      <div class="data-line">Bairro: <b>${bairro}</b></div>
+      <div class="data-line">Cidade: <b>${cidade}</b>&nbsp;&nbsp;&nbsp;Estado: <b>${estado}</b>&nbsp;&nbsp;&nbsp;CEP: <b>${cep}</b></div>
+      <div class="data-line">Cargo: <b>${fmt(colab.cargo)}</b></div>
+      <div class="data-line">Salário Mensal: <b>${salario}</b></div>
+      <div class="data-line">Celular: <b>${fmt(colab.celular)}</b></div>
+      <div class="data-line">E-mail: <b>${fmt(colab.email)}</b></div>
+    </div>
+  </div>
+
+  <!-- RH -->
+  <div class="rh-section">
+    <b>Responsável de RH: Juliene de Camargo Corrêa</b><br>
+    Telefone: - (11) 99025-2820 ou (11) 2499-3353<br>
+    <b>EMPRESA: America Rental Equipamentos LTDA</b><br>
+    <b>CNPJ: 03.434.448/0001-01</b>
+  </div>
+
+  <!-- Data e local -->
+  <div class="city-date">
+    Guarulhos, _______________, ____________________________ de 20_______.
+  </div>
+
+  <!-- Assinaturas -->
+  <div class="assinaturas">
+    <div class="assin-block">
+      <img style="height:45px; margin-bottom:4px;" src="" onerror="this.style.display='none'">
+      <div class="assin-line">
+        AMÉRIC<span style="color:#cc3300;">A</span> <span style="color:#cc3300; font-style:italic;">Rental</span><br>
+        AMÉRICA RENTAL EQUIPAMENTOS LTDA<br>
+        CNPJ: 03.434.448/0001-01
+      </div>
+      <div style="margin-top:4px;font-size:8pt;border-top:1px solid #000; padding-top:3px;">AMÉRICA RENTAL EQUIPAMENTOS LTDA</div>
+    </div>
+    <div class="assin-block">
+      <div class="assin-line">${fmt(colab.nome_completo)}</div>
+    </div>
+  </div>
+
+  <!-- Rodapé com notas -->
+  <p class="footnote">*Exceto nos casos de pedidos de reposição formulados pelo cliente decorrentes de perda, roubo, danificação ou outros motivos não imputáveis ao Banco. ** Serviços gratuitos: duas consultas ao saldo de sua conta, dois extratos dos últimos 30 dias, um DOC/TED pelo valor total do crédito e cinco saques (por evento de crédito). A utilização acima desses limites ou de quaisquer outros serviços estará sujeita à cobrança de tarifas.</p>
+
+  <!-- Banco -->
+  <div class="bank-box">
+    <div class="bank-box-title">Para uso exclusivo do Banco Santander:</div>
+    <div class="bank-field">
+      <span style="white-space:nowrap;">Nome e Número da Agência: Guarulhos</span>
+      <div class="bank-field-line"></div>
+    </div>
+    <div class="bank-field">
+      <span>Número da Conta:</span>
+      <div class="bank-field-line"></div>
+    </div>
+    <div class="bank-field">
+      <span>Responsável pelo atendimento:</span>
+      <div class="bank-field-line"></div>
+    </div>
+  </div>
+
+  <div class="no-print" style="text-align:center; margin-top: 24px;">
+    <button onclick="window.print()" style="background:#ec0000;color:#fff;border:none;padding:12px 32px;font-size:1rem;font-weight:700;border-radius:8px;cursor:pointer;">🖨️ Imprimir</button>
+  </div>
+</div>
+</body>
+</html>`;
+
+    // Abrir janela de impressão
+    const win = window.open('', '_blank', 'width=820,height=900');
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 800);
+
+    // Registrar que foi gerado
+    if (colab) {
+        colab.santander_ficha_data = new Date().toISOString();
+        const log = document.getElementById('santander-status-log');
+        const logText = document.getElementById('santander-status-text');
+        if (log) log.style.display = 'block';
+        if (logText) logText.textContent = `Ficha gerada em ${new Date().toLocaleString('pt-BR')}`;
+    }
 };
 
 // ============================================================
