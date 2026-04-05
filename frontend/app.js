@@ -9970,6 +9970,61 @@ window.reenviarAssinatura = async function(id, source, btn) {
 
 
 // === SISTEMA DE HISTÓRICO DE AUDITORIA ===
+window._historyData = [];
+window._historyPage = 1;
+const HISTORY_PER_PAGE = 20;
+
+window.historyPageChange = function(delta) {
+    const totalPages = Math.ceil(window._historyData.length / HISTORY_PER_PAGE);
+    window._historyPage = Math.max(1, Math.min(totalPages, window._historyPage + delta));
+    window._renderHistoryPage();
+};
+
+window._renderHistoryPage = function() {
+    const tbody = document.getElementById('history-table-body');
+    const pageInfo = document.getElementById('history-page-info');
+    const prevBtn = document.getElementById('history-prev-btn');
+    const nextBtn = document.getElementById('history-next-btn');
+    if (!tbody) return;
+
+    const data = window._historyData;
+    const page = window._historyPage;
+    const totalPages = Math.max(1, Math.ceil(data.length / HISTORY_PER_PAGE));
+    const start = (page - 1) * HISTORY_PER_PAGE;
+    const slice = data.slice(start, start + HISTORY_PER_PAGE);
+
+    if (pageInfo) pageInfo.textContent = `Pág. ${page} / ${totalPages}`;
+    if (prevBtn) prevBtn.disabled = page <= 1;
+    if (nextBtn) nextBtn.disabled = page >= totalPages;
+
+    if (slice.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 2rem; color: #94a3b8;">Nenhum registro de alteração encontrado.</td></tr>';
+        return;
+    }
+
+    let html = '';
+    slice.forEach((log, i) => {
+        const rawDate = log.data_hora || '';
+        let dateStr = '-', horaStr = '-';
+        try {
+            const dt = new Date(rawDate.endsWith('Z') ? rawDate : rawDate + 'Z');
+            dateStr = dt.toLocaleDateString('pt-BR');
+            horaStr = dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        } catch(e) {}
+
+        const stripBg = i % 2 === 0 ? 'background:#fff;' : 'background:#f8fafc;';
+
+        html += `<tr style="${stripBg}border-bottom:1px solid #f1f5f9;">
+            <td style="padding:0.7rem 1rem; white-space:nowrap; color:#334155; font-size:0.82rem;">${dateStr}</td>
+            <td style="padding:0.7rem 1rem; white-space:nowrap; color:#64748b; font-family:monospace; font-size:0.82rem;">${horaStr}</td>
+            <td style="padding:0.7rem 1rem; font-weight:700; color:#f503c5; font-size:0.82rem; text-transform:uppercase;">${log.usuario || 'SISTEMA'}</td>
+            <td style="padding:0.7rem 1rem; color:#ef4444; font-size:0.82rem;">${log.conteudo_anterior || '<span style="color:#cbd5e1;">—</span>'}</td>
+            <td style="padding:0.7rem 1rem; color:#16a34a; font-weight:600; font-size:0.82rem;">${log.conteudo_atual || '<span style="color:#cbd5e1;">—</span>'}</td>
+        </tr>`;
+    });
+    tbody.innerHTML = html;
+};
+
 window.showHistoryPopup = async function() {
     const historyMod = document.getElementById('modal-history');
     if (historyMod) historyMod.style.display = 'flex';
@@ -9977,6 +10032,8 @@ window.showHistoryPopup = async function() {
     const loading = document.getElementById('history-loading');
     const contextLabel = document.getElementById('history-context-label');
     
+    window._historyPage = 1;
+    window._historyData = [];
     tbody.innerHTML = '';
     loading.style.display = 'block';
 
@@ -10005,26 +10062,28 @@ window.showHistoryPopup = async function() {
         const isAvaliacoesActive = viewAvaliacoes && viewAvaliacoes.classList.contains('active');
 
         if (isColabActive && viewedColaborador && viewedColaborador.id) {
+            // Prontuário ou Admissão de um colaborador específico
             url += `?contexto=colaborador&id=${viewedColaborador.id}`;
-            labelText = `Alterações do colaborador: ${viewedColaborador.nome_completo || viewedColaborador.nome || ''}`;
+            labelText = `Colaborador: ${viewedColaborador.nome_completo || viewedColaborador.nome || ''}`;
         } else if (isColabActive) {
+            // Lista de colaboradores = todas as alterações em todos os colaboradores
             url += `?contexto=colaboradores_geral`;
-            labelText = 'Alterações na tela de Colaboradores';
+            labelText = 'Todas as alterações em Colaboradores';
         } else if (isGerActive) {
             url += `?contexto=gerador`;
-            labelText = 'Alterações na tela de Geradores';
+            labelText = 'Tela: Geradores de Documentos';
         } else if (isCargosActive) {
             url += `?programa=Cargos`;
-            labelText = 'Alterações na tela de Cargos';
+            labelText = 'Tela: Cargos';
         } else if (isFaculdadeActive) {
             url += `?programa=Faculdade`;
-            labelText = 'Alterações na tela de Faculdade';
+            labelText = 'Tela: Faculdade';
         } else if (isEpiActive) {
             url += `?programa=EPI`;
-            labelText = 'Alterações na tela de Fichas EPI';
+            labelText = 'Tela: Fichas EPI';
         } else if (isAvaliacoesActive) {
-            url += `?programa=Avaliações`;
-            labelText = 'Alterações na tela de Avaliações';
+            url += `?programa=Avalia`;
+            labelText = 'Tela: Avaliações';
         } else {
             url += `?contexto=geral`;
         }
@@ -10036,33 +10095,12 @@ window.showHistoryPopup = async function() {
         const data = await res.json();
 
         loading.style.display = 'none';
-
-        if (!data || data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 2rem; color: #94a3b8;">Nenhum registro de alteração recente.</td></tr>';
-            return;
-        }
-
-        let html = '';
-        data.forEach(log => {
-            const dateObj = new Date(log.data_hora);
-            const dataStr = dateObj.toLocaleDateString('pt-BR');
-            const horaStr = dateObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            
-            html += `<tr>
-                <td style="white-space:nowrap;">${dataStr}</td>
-                <td>${horaStr}</td>
-                <td style="font-weight:600; text-transform:uppercase;">${log.usuario || 'SISTEMA'}</td>
-                <td>${log.programa || '-'}</td>
-                <td style="color:#0ea5e9; font-weight:600;">${log.campo || '-'}</td>
-                <td style="color:#ef4444; text-decoration:line-through; font-size:0.8rem;">${log.conteudo_anterior || ''}</td>
-                <td style="color:#22c55e; font-weight:600;">${log.conteudo_atual || ''}</td>
-            </tr>`;
-        });
-        tbody.innerHTML = html;
+        window._historyData = data || [];
+        window._renderHistoryPage();
 
     } catch (e) {
         loading.style.display = 'none';
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:#ef4444; padding:1rem;">Erro ao carregar histórico: ${e.message}</td></tr>`;
+        document.getElementById('history-table-body').innerHTML = `<tr><td colspan="5" style="text-align:center; color:#ef4444; padding:1rem;">Erro ao carregar histórico: ${e.message}</td></tr>`;
     }
 };
 
