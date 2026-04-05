@@ -6883,8 +6883,6 @@ window.enviarContratoAvulsoAssinatura = async function(contratoId, nome) {
     } catch(e) { alert('Erro: '+e.message); }
 };
 
-}
-
 window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll = false) {
     console.log(`[Admissao] Iniciando workflow para ID: ${id}, targetStep: ${targetStep}`);
     if (!id) {
