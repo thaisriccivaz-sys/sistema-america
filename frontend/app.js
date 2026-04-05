@@ -5008,6 +5008,10 @@ window.uploadDynamicDocument = function(inputEl, tabId) {
 }
 
 window.deleteDoc = async function(docId, btnEl) {
+    if (!confirm("Tem certeza que deseja excluir esse anexo?")) {
+        return;
+    }
+
     // Remoção otimista: esconde o card imediatamente para feedback visual instantâneo
     const docCard = btnEl ? btnEl.closest('.doc-item') : null;
     if (docCard) {
@@ -9954,6 +9958,62 @@ window.reenviarAssinatura = async function(id, source, btn) {
     }
 })();
 
+
+// === SISTEMA DE HISTÓRICO DE AUDITORIA ===
+window.showHistoryPopup = async function() {
+    abrirModal('modal-history');
+    const tbody = document.getElementById('history-table-body');
+    const loading = document.getElementById('history-loading');
+    
+    tbody.innerHTML = '';
+    loading.style.display = 'block';
+
+    try {
+        // Se estivermos dentro da dashboard de um colaborador, filtramos por ele.
+        // Se não, não passamos ID e ele traz o log geral.
+        let url = `${API_URL}/auditoria`;
+        const viewPront = document.getElementById('view-prontuario');
+        const viewAdm = document.getElementById('view-admissao');
+        const isColabActive = (viewPront && viewPront.classList.contains('active')) || (viewAdm && viewAdm.classList.contains('active'));
+        
+        if (isColabActive && viewedColaborador && viewedColaborador.id) {
+            url += `/${viewedColaborador.id}`;
+        }
+
+        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${currentToken}` } });
+        if (!res.ok) throw new Error('Falha ao carregar histórico');
+        const data = await res.json();
+
+        loading.style.display = 'none';
+
+        if (!data || data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 2rem; color: #94a3b8;">Nenhum registro de alteração recente.</td></tr>';
+            return;
+        }
+
+        let html = '';
+        data.forEach(log => {
+            const dateObj = new Date(log.data_hora);
+            const dataStr = dateObj.toLocaleDateString('pt-BR');
+            const horaStr = dateObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            
+            html += `<tr>
+                <td style="white-space:nowrap;">${dataStr}</td>
+                <td>${horaStr}</td>
+                <td style="font-weight:600; text-transform:uppercase;">${log.usuario || 'SISTEMA'}</td>
+                <td>${log.programa || '-'}</td>
+                <td style="color:#0ea5e9; font-weight:600;">${log.campo || '-'}</td>
+                <td style="color:#ef4444; text-decoration:line-through; font-size:0.8rem;">${log.conteudo_anterior || ''}</td>
+                <td style="color:#22c55e; font-weight:600;">${log.conteudo_atual || ''}</td>
+            </tr>`;
+        });
+        tbody.innerHTML = html;
+
+    } catch (e) {
+        loading.style.display = 'none';
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:#ef4444; padding:1rem;">Erro ao carregar histórico: ${e.message}</td></tr>`;
+    }
+};
 
 // ===== SISTEMA DE TOAST: NOTIFICAÇÕES DE DOCUMENTOS ASSINADOS (ADMISSÃO) =====
 (function() {

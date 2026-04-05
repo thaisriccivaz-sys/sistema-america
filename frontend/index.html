@@ -154,6 +154,9 @@
                         <div id="page-search-results" style="display:none; position:absolute; top:100%; left:0; min-width:450px; background:#fff; border:1px solid #e2e8f0; border-radius:8px; box-shadow:0 10px 15px -3px rgba(0,0,0,0.1); z-index:9999; max-height:300px; overflow-y:auto; margin-top:8px;"></div>
                     </div>
                     <div style="display:flex; align-items:center; gap:8px; margin-left:16px;" id="bookmarks-container">
+                        <button id="btn-history-page" onclick="window.showHistoryPopup()" style="background:none; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#475569; font-size:1.5rem; transition: transform 0.2s;" title="Histórico de Alterações">
+                            <i class="ph ph-clock-counter-clockwise"></i>
+                        </button>
                         <button id="btn-star-page" onclick="toggleBookmarkCurrentPage()" style="background:none; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#f503c5; font-size:1.5rem; transition: transform 0.2s;">
                             <i class="ph ph-star"></i>
                         </button>
@@ -2351,6 +2354,45 @@
             }
         });
     </script>
+
+    <!-- === MODAL HISTÓRICO DE ALTERAÇÕES === -->
+    <div id="modal-history" class="modal-overlay">
+        <div class="modal" style="max-width: 900px; width: 90%;">
+            <div class="modal-header" style="background:#f1f5f9; border-bottom:1px solid #e2e8f0;">
+                <h3 style="color:#0f172a; font-weight:700; display:flex; align-items:center; gap:8px;">
+                    <i class="ph ph-detective" style="font-size:1.4rem;"></i> HISTÓRICO DE ALTERAÇÕES
+                </h3>
+                <button type="button" class="btn-close" onclick="fecharModal('modal-history')">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 0;">
+                <div class="table-responsive" style="margin:0;">
+                    <table class="table" style="font-size: 0.85rem; margin-bottom: 0;">
+                        <thead style="background:#f8fafc;">
+                            <tr>
+                                <th>Data</th>
+                                <th>Hora</th>
+                                <th>Usuário</th>
+                                <th>Programa</th>
+                                <th>Campo</th>
+                                <th>Conteúdo Anterior</th>
+                                <th>Conteúdo Atual</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-table-body">
+                            <!-- Dinâmico -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="history-loading" style="text-align:center; padding: 2rem; display:none;">
+                    <i class="ph ph-circle-notch ph-spin" style="font-size:2rem; color:#f503c5;"></i>
+                    <p>Buscando histórico...</p>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 1rem; display: flex; justify-content: flex-end;">
+                <button type="button" class="btn" onclick="fecharModal('modal-history')">Fechar</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
 

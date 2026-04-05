@@ -1615,9 +1615,24 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
     console.log("EXEC QUERY:", query);
     console.log("EXEC VALUES:", values);
 
-    db.get('SELECT nome_completo FROM colaboradores WHERE id = ?', [id], (err, oldColab) => {
+    db.get('SELECT * FROM colaboradores WHERE id = ?', [id], (err, oldColab) => {
         if (err || !oldColab) return res.status(404).json({ error: err ? err.message : 'Não encontrado' });
         
+        // Registrar mudanças na auditoria
+        const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
+        const auditProms = [];
+        for (const k of updates) {
+            const oldVal = String(oldColab[k] || '');
+            const newVal = String(data[k] || '');
+            if (oldVal !== newVal) {
+                auditProms.push(new Promise(res => {
+                    db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
+                        [loggedUser, 'Colaboradores', k, oldVal, newVal, id], res);
+                }));
+            }
+        }
+        Promise.all(auditProms).catch(() => {});
+
         const oldName = oldColab.nome_completo;
         const newName = data.nome_completo || oldName;
         const oldSafeName = formatarNome(oldName);
@@ -2348,6 +2363,17 @@ app.delete('/api/cursos-faculdade/:id', authenticateToken, (req, res) => {
 });
 
 // === ADMISSAO ASSINATURAS: Rastreamento por colaborador/gerador ===
+db.run(`CREATE TABLE IF NOT EXISTS auditoria (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    data_hora DATETIME DEFAULT CURRENT_TIMESTAMP,
+    usuario TEXT,
+    programa TEXT,
+    campo TEXT,
+    conteudo_anterior TEXT,
+    conteudo_atual TEXT,
+    registro_id INTEGER
+)`);
+
 db.run(`CREATE TABLE IF NOT EXISTS admissao_assinaturas (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     colaborador_id INTEGER NOT NULL,
@@ -4307,6 +4333,21 @@ app.post('/api/grupos-permissao/:id/copiar-usuario/:uid', authenticateToken, (re
                 });
             });
         });
+    });
+});
+
+app.get('/api/auditoria/:id?', authenticateToken, (req, res) => {
+    let sql = `SELECT * FROM auditoria WHERE programa = 'Colaboradores'`;
+    let params = [];
+    if (req.params.id) {
+        sql += ` AND registro_id = ?`;
+        params.push(req.params.id);
+    }
+    sql += ` ORDER BY data_hora DESC LIMIT 100`;
+
+    db.all(sql, params, (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
     });
 });
 
