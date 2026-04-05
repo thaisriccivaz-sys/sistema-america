@@ -1954,6 +1954,50 @@ app.get('/api/colaboradores/:id/documentos', authenticateToken, (req, res) => {
     });
 });
 
+// ─── ROTAS DE MULTAS DE TRÂNSITO ──────────────────────────────────────────────
+// GET /api/colaboradores/:id/multas — lista todas as multas de um colaborador
+app.get('/api/colaboradores/:id/multas', authenticateToken, (req, res) => {
+    db.all('SELECT * FROM multas WHERE colaborador_id = ? ORDER BY created_at DESC', [req.params.id], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+// POST /api/colaboradores/:id/multas — registra uma nova multa
+app.post('/api/colaboradores/:id/multas', authenticateToken, (req, res) => {
+    const colabId = req.params.id;
+    const { codigo_infracao, descricao_infracao, placa, veiculo, data_infracao, hora_infracao,
+            local_infracao, numero_ait, pontuacao, valor_multa, tipo_resolucao, parcelas } = req.body;
+    db.run(
+        `INSERT INTO multas (colaborador_id, codigo_infracao, descricao_infracao, placa, veiculo,
+            data_infracao, hora_infracao, local_infracao, numero_ait, pontuacao, valor_multa,
+            tipo_resolucao, parcelas, status)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,'pendente')`,
+        [colabId, codigo_infracao, descricao_infracao, placa, veiculo,
+         data_infracao, hora_infracao, local_infracao, numero_ait, pontuacao, valor_multa,
+         tipo_resolucao, parcelas || 1],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ id: this.lastID, ok: true });
+        }
+    );
+});
+
+// PUT /api/multas/:id — atualiza status ou confirmação de uma multa
+app.put('/api/multas/:id', authenticateToken, (req, res) => {
+    const { status, monaco_confirmado } = req.body;
+    db.run(
+        `UPDATE multas SET status = COALESCE(?, status), monaco_confirmado = COALESCE(?, monaco_confirmado) WHERE id = ?`,
+        [status, monaco_confirmado, req.params.id],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            if (this.changes === 0) return res.status(404).json({ error: 'Multa não encontrada' });
+            res.json({ ok: true });
+        }
+    );
+});
+// ─────────────────────────────────────────────────────────────────────────────
+
 app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
     
