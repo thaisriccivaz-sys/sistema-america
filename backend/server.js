@@ -4797,6 +4797,7 @@ app.post('/api/colaboradores/:id/enviar-ficha-contabilidade', authenticateToken,
 <p>Por favor, providenciar os registros cabíveis e retorno dos documentos em caso de pendências.</p>
 <p>Atenciosamente,<br>RH - América Rental</p>`;
 
+            const transporter = nodemailer.createTransport(SMTP_CONFIG);
             await transporter.sendMail({
                 from: `"RH América Rental" <${SMTP_CONFIG.auth.user}>`,
                 to: email,
