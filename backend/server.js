@@ -653,17 +653,17 @@ app.get('/api/admissao-assinaturas/alertas-recentes', authenticateToken, (req, r
     db.all(`
         SELECT * FROM (
             SELECT ('admissao_' || aa.id) AS unq_id, aa.id, aa.nome_documento, aa.assinado_em, aa.colaborador_id,
-                   c.nome_completo AS colaborador_nome, 'admissao' as source
+                   c.nome_completo AS colaborador_nome, 'admissao' as source, aa.assinafy_id
             FROM admissao_assinaturas aa
             LEFT JOIN colaboradores c ON c.id = aa.colaborador_id
             WHERE aa.assinafy_status = 'Assinado'
               AND aa.assinado_em IS NOT NULL
               AND datetime(aa.assinado_em) >= datetime('now', '-24 hours')
-            
+
             UNION ALL
-            
+
             SELECT ('doc_' || d.id) AS unq_id, d.id, d.document_type AS nome_documento, d.assinafy_signed_at AS assinado_em, d.colaborador_id,
-                   c.nome_completo AS colaborador_nome, 'documentos' as source
+                   c.nome_completo AS colaborador_nome, 'documentos' as source, d.assinafy_id
             FROM documentos d
             LEFT JOIN colaboradores c ON c.id = d.colaborador_id
             WHERE d.assinafy_status = 'Assinado'
