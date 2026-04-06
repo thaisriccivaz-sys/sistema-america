@@ -11768,54 +11768,65 @@ window.abrirPreviewDocumentoMulta = function(html, colabId, multaId, tipo) {
                     style="padding:0.5rem 1rem;background:#475569;color:#fff;border:none;border-radius:8px;cursor:pointer;">Fechar</button>
             </div>
         </div>
-        <iframe id="multa-preview-iframe" style="flex:1;border:none;"></iframe>
+        <iframe id="multa-preview-iframe" style="flex:1;border:none;background:#fff;"></iframe>
     `;
     document.body.appendChild(modal);
+
+    // Escrever HTML no iframe APÓS appendar ao DOM
+    setTimeout(function() {
+        var iframe = document.getElementById('multa-preview-iframe');
+        if (iframe) {
+            var doc = iframe.contentDocument || iframe.contentWindow.document;
+            doc.open();
+            doc.write(html);
+            doc.close();
+        }
+    }, 50);
 };
 
 window.solicitarAssinaturaMulta = async function(colabId, multaId, tipo) {
-    document.getElementById('modal-preview-multa').remove();
+    // Fechar o modal de preview
+    var previewModal = document.getElementById('modal-preview-multa');
+    if (previewModal) previewModal.remove();
 
-    // Reusar o modal de assinatura de testemunhas existente
-    // mas passar contexto da multa
-    window._multaAssinaturaContext = { colabId, multaId, tipo };
+    // Criar modal de assinatura próprio (inline, sem depender de modal-assinatura-testemunhas)
+    var existente = document.getElementById('modal-assinatura-multa');
+    if (existente) existente.remove();
 
-    // Abrir modal de testemunhas (existente no sistema)
-    const modal = document.getElementById('modal-assinatura-testemunhas');
-    if (modal) {
-        // Adaptar para multa
-        const titulo = modal.querySelector('h2, h3, .modal-title');
-        if (titulo) titulo.textContent = 'Assinatura — Termo de Multa';
-        modal.style.display = 'block';
+    var modal = document.createElement('div');
+    modal.id = 'modal-assinatura-multa';
+    modal.style = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;';
+    modal.innerHTML = `
+        <div style="background:#fff;border-radius:16px;padding:2rem;width:100%;max-width:500px;box-shadow:0 20px 60px rgba(0,0,0,0.4);">
+            <h2 style="margin:0 0 0.5rem;color:#1e293b;"> Assinatura — Termo de Multa</h2>
+            <p style="color:#64748b;margin-bottom:1.5rem;font-size:0.9rem;">Tipo: <b>${tipo === 'indicacao' ? 'Indicação de Condutor' : 'Pagamento via NIC'}</b></p>
 
-        // Sobrescrever o callback de salvar
-        window._onSalvarTestemunhasMulta = async function() {
-            await fetch(`${API_URL}/colaboradores/${colabId}/multas/${multaId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
-                body: JSON.stringify({ status: 'assinado' })
-            });
-            modal.style.display = 'none';
+            <div style="margin-bottom:1rem;">
+                <label style="display:block;font-size:0.85rem;font-weight:600;color:#475569;margin-bottom:4px;">Testemunha 1</label>
+                <input id="multa-test1-nome" type="text" placeholder="Nome da Testemunha"
+                    style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;box-sizing:border-box;">
+            </div>
+            <div style="margin-bottom:1.5rem;">
+                <label style="display:block;font-size:0.85rem;font-weight:600;color:#475569;margin-bottom:4px;">Testemunha 2</label>
+                <input id="multa-test2-nome" type="text" placeholder="Nome da Testemunha (opcional)"
+                    style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;box-sizing:border-box;">
+            </div>
 
-            if (tipo === 'indicacao') {
-                window.confirmarMonacoMulta(colabId, multaId);
-            } else {
-                if (typeof admissaoToast === 'function') admissaoToast('✅ Termo NIC assinado com sucesso!', 'success');
-                await window._recarregarListaMultas(colabId);
-            }
-        };
-    } else {
-        // Fallback simples
-        if (confirm('Confirmar que as assinaturas foram coletadas presencialmente?')) {
-            await fetch(`${API_URL}/colaboradores/${colabId}/multas/${multaId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
-                body: JSON.stringify({ status: 'assinado' })
-            });
-            if (tipo === 'indicacao') window.confirmarMonacoMulta(colabId, multaId);
-            else await window._recarregarListaMultas(colabId);
-        }
-    }
+            <p style="font-size:0.8rem;color:#94a3b8;margin-bottom:1.5rem;background:#f8fafc;padding:10px;border-radius:8px;">
+                <i class="ph ph-info"></i> Confirme que o colaborador e as testemunhas listadas assinaram o documento físico.
+            </p>
+
+            <div style="display:flex;gap:12px;justify-content:flex-end;">
+                <button onclick="document.getElementById('modal-assinatura-multa').remove()"
+                    style="padding:0.6rem 1.2rem;background:#e2e8f0;color:#475569;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Cancelar</button>
+                <button onclick="window._confirmarAssinaturaMulta(${colabId}, ${multaId}, '${tipo}')"
+                    style="padding:0.6rem 1.5rem;background:#f503c5;color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;">
+                    ✔ Confirmar Assinaturas
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
 };
 
 window.confirmarMonacoMulta = function(colabId, multaId) {
@@ -11854,22 +11865,19 @@ window.salvarMonaco = async function(resposta, colabId, multaId) {
 
 window.excluirMulta = async function(multaId, colabId, btn) {
     if (!confirm('Excluir este registro de multa? Esta ação não pode ser desfeita.')) return;
-    const orig = btn.innerHTML;
-    btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>';
-    btn.disabled = true;
+    if (btn) { btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>'; btn.disabled = true; }
     try {
         const res = await fetch(`${API_URL}/colaboradores/${colabId}/multas/${multaId}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${currentToken}` }
         });
         if (!res.ok) throw new Error('Falha ao excluir');
-        const card = btn.closest('div[style]');
-        if (card) card.remove();
+        // Recarrega a lista em tempo real
+        await window._recarregarListaMultas(colabId);
         if (typeof showToast === 'function') showToast('Multa excluída.', 'success');
     } catch(e) {
-        btn.innerHTML = orig;
-        btn.disabled = false;
-        alert('Erro: ' + e.message);
+        if (btn) { btn.innerHTML = '<i class="ph ph-trash"></i> Excluir'; btn.disabled = false; }
+        alert('Erro ao excluir: ' + e.message);
     }
 };
 
