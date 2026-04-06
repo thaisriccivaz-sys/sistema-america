@@ -1330,6 +1330,15 @@ app.get('/api/dashboard/charts', authenticateToken, async (req, res) => {
     }
 });
 
+// Auto-migration: add santander_ficha_data column if it doesn't exist
+db.run("ALTER TABLE colaboradores ADD COLUMN santander_ficha_data TEXT", (err) => {
+    if (err && !err.message.includes('duplicate column')) {
+        console.error('[Migration] Erro ao adicionar santander_ficha_data:', err.message);
+    } else if (!err) {
+        console.log('[Migration] Coluna santander_ficha_data adicionada com sucesso');
+    }
+});
+
 // --- ROTAS DE COLABORADORES ---
 app.get('/api/colaboradores', authenticateToken, (req, res) => {
     db.all('SELECT * FROM colaboradores', [], (err, rows) => {
@@ -1404,7 +1413,8 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
         'chaves_participa', 'chaves_data',
         'ferias_programadas_inicio', 'ferias_programadas_fim', 'alergias', 'aso_email_enviado', 'aso_exame_data', 'aso_assinafy_link', 'aso_exames_assinafy_link',
         'adiantamento_salarial', 'adiantamento_valor', 'insalubridade', 'insalubridade_valor',
-        'conjuge_nome', 'conjuge_cpf'
+        'conjuge_nome', 'conjuge_cpf',
+        'santander_ficha_data'
     ];
 
     const values = colunas.map(col => {

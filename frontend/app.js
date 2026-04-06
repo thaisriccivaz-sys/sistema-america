@@ -11169,33 +11169,63 @@ window.renderEnvioContabilidadeLog = function() {
 window._updateSantanderStepUI = function(dataSantander) {
     var log = document.getElementById('santander-status-log');
     var logText = document.getElementById('santander-status-text');
-    var elPc = document.getElementById('step-2-pc');
-    var stepEl = document.getElementById('step-2');
 
-    if (dataSantander && log) {
-        log.style.display = 'block';
-        if (logText) {
-            try {
-                var dt = new Date(dataSantander);
-                logText.textContent = 'Ficha gerada em ' + dt.toLocaleString('pt-BR');
-            } catch(e) { logText.textContent = 'Ficha gerada'; }
-        }
-        // Marcar step 2 como 100%
-        if (elPc) elPc.textContent = '100%';
-        if (stepEl) {
-            var iconEl = stepEl.querySelector('.step-icon');
-            if (iconEl) {
-                iconEl.style.background = '#22c55e';
-                iconEl.style.borderColor = '#22c55e';
-                iconEl.style.color = '#fff';
-            }
-        }
+    if (!dataSantander) return;
+
+    // Mostrar bloco verde
+    if (log) log.style.display = 'block';
+    if (logText) {
+        try {
+            var dt = new Date(dataSantander);
+            logText.textContent = 'Ficha gerada em ' + dt.toLocaleString('pt-BR');
+        } catch(e) { logText.textContent = 'Ficha gerada'; }
     }
-};
 
-window.populateSantanderPreview = function() {
+    // === Marcar step 2 como 100% ===
+    // Estratégia 1: element com id step-2-pc
+    var elPc = document.getElementById('step-2-pc');
+    if (elPc) elPc.textContent = '100%';
+
+    // Estratégia 2: o step-item do stepper (bolinha)
+    var stepEl = document.getElementById('step-2');
+    if (stepEl) {
+        // Checar em diferentes estilos de stepper
+        var iconEl = stepEl.querySelector('.step-icon, .step-circle, .stepper-circle');
+        if (iconEl) {
+            iconEl.style.background = '#22c55e';
+            iconEl.style.borderColor = '#22c55e';
+            iconEl.style.color = '#fff';
+        }
+        var numEl = stepEl.querySelector('.num, .step-number');
+        if (numEl) numEl.style.display = 'none';
+        var pcEl = stepEl.querySelector('.percent, .step-percent, .pc');
+        if (pcEl) { pcEl.style.display = 'inline'; pcEl.textContent = '100%'; }
+    }
+
+    // Estratégia 3: procurar qualquer elemento que contenha "step-2" e "pc"
+    var allPc = document.querySelectorAll('[id*="step"][id*="pc"]');
+    allPc.forEach(function(el) {
+        if (el.id === 'step-2-pc' || el.id.match(/step.?2.?pc/i)) {
+            el.textContent = '100%';
+        }
+    });
+}
+
+window.populateSantanderPreview = async function() {
     var colab = viewedColaborador || window._admissaoColabSelecionado;
     if (!colab) return;
+
+    // Se ainda não tem a data na memória, busca do servidor (dados podem estar desatualizados)
+    if (!colab.santander_ficha_data && colab.id) {
+        try {
+            var fresh = await apiGet('/colaboradores/' + colab.id);
+            if (fresh && fresh.santander_ficha_data) {
+                colab.santander_ficha_data = fresh.santander_ficha_data;
+                if (viewedColaborador) viewedColaborador.santander_ficha_data = fresh.santander_ficha_data;
+            }
+        } catch(e) { /* silent fail */ }
+    }
+
     window._updateSantanderStepUI(colab.santander_ficha_data);
 };
 
@@ -11251,7 +11281,7 @@ window.gerarFichaSantander = async function() {
   body { font-family: Arial, Helvetica, sans-serif; font-size: 10pt; color: #000; background: #fff; padding: 20px; }
   .page { max-width: 750px; margin: 0 auto; }
   .logo-area { text-align: center; margin-bottom: 16px; }
-  .logo-area img { height: 80px; max-width: 280px; object-fit: contain; }
+  .logo-area img { width: 100%; max-height: 100px; object-fit: contain; object-position: left; }
   h1.titulo { text-align: center; font-size: 13pt; font-weight: 900; background: #e8e8e8; border: 1.5px solid #ccc; padding: 8px 0; margin: 14px 0 20px 0; letter-spacing: 1px; }
   .colab-label { font-size: 10pt; font-weight: 900; margin: 10px 0 4px; }
   .colab-nome { font-size: 14pt; font-weight: 900; margin-bottom: 18px; }
