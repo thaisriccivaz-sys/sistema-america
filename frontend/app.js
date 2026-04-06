@@ -11281,7 +11281,8 @@ window.gerarFichaSantander = async function() {
   body { font-family: Arial, Helvetica, sans-serif; font-size: 10pt; color: #000; background: #fff; padding: 20px; }
   .page { max-width: 750px; margin: 0 auto; }
   .logo-area { text-align: center; margin-bottom: 16px; }
-  .logo-area img { width: 100%; max-height: 100px; object-fit: contain; object-position: left; }
+  .logo-area { text-align: center; }
+  .logo-area img { width: 100%; max-height: 100px; object-fit: contain; object-position: center; }
   h1.titulo { text-align: center; font-size: 13pt; font-weight: 900; background: #e8e8e8; border: 1.5px solid #ccc; padding: 8px 0; margin: 14px 0 20px 0; letter-spacing: 1px; }
   .colab-label { font-size: 10pt; font-weight: 900; margin: 10px 0 4px; }
   .colab-nome { font-size: 14pt; font-weight: 900; margin-bottom: 18px; }
@@ -11381,7 +11382,15 @@ window.gerarFichaSantander = async function() {
         // Atualizar visual do Step 2 para 100% (sempre, independente de _admissaoChecklist)
         window._updateSantanderStepUI(colab.santander_ficha_data);
 
-        try { await window.apiPut(`/colaboradores/${colab.id}/admissao`, { santander_ficha_data: colab.santander_ficha_data }); } catch(e) {}
+        try {
+            // Salvar santander_ficha_data diretamente no colaborador (endpoint correto)
+            await fetch(`${API_URL}/colaboradores/${colab.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
+                body: JSON.stringify({ santander_ficha_data: colab.santander_ficha_data })
+            });
+            console.log('[Santander] Data salva no banco:', colab.santander_ficha_data);
+        } catch(e) { console.error('[Santander] Erro ao salvar data:', e); }
         
         if (typeof showToast === 'function') {
             showToast('Ficha gerada com sucesso! Use o botão Visualizar para imprimir.', 'success');
