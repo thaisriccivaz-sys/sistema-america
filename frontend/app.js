@@ -5828,7 +5828,7 @@ window.filterGeradores = function() {
             });
 
             // Mostra o departamento se o nome dele der match OU se algum documento dele der match
-            card.style.display = (deptName.includes(q) || hasVisibleDoc) ? 'block' : 'none';
+            card.style.display = (docName.includes(q) || hasVisibleDoc) ? 'block' : 'none';
         });
     }
 };
@@ -6821,7 +6821,7 @@ window.renderContratosAvulso = async function(container) {
             }
         }
 
-        const filteredDocs = docs.filter(d => d.tab_name === 'CONTRATOS');
+        const filteredDocs = (docs || []).filter(d => d.tab_name === 'CONTRATOS');
 
         container.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
@@ -6885,6 +6885,8 @@ window.uploadContratoExterno = async function(input) {
 };
 
 window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
+    assinaturas = assinaturas || [];
+    docs = docs || [];
     if (docs.length === 0) {
         return `<div style="padding:2rem;text-align:center;color:#94a3b8;border:2px dashed #e2e8f0;border-radius:12px;"><i class="ph ph-files" style="font-size:2rem;margin-bottom:0.5rem;display:block;"></i>Nenhum contrato listado.</div>`;
     }
