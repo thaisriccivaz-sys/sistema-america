@@ -7135,11 +7135,12 @@ window.gerarContratoAvulso = async function() {
                     const file = new File([pdfBlob], nomeArquivo, { type: 'application/pdf' });
                     
                     const formData = new FormData();
-                    formData.append('documento', file);
+                    formData.append('file', file);
+                    formData.append('colaborador_id', viewedColaborador.id);
                     formData.append('tab_name', 'CONTRATOS');
                     formData.append('document_type', data.gerador_nome);
                     
-                    const uploadRes = await fetch(`${API_URL}/colaboradores/${viewedColaborador.id}/documentos`, {
+                    const uploadRes = await fetch(`${API_URL}/documentos`, {
                         method: 'POST', headers: {'Authorization': `Bearer ${currentToken}`}, body: formData
                     });
                     if (!uploadRes.ok) throw new Error('Falha no upload do PDF gerado');
@@ -11163,7 +11164,7 @@ window.populateSantanderPreview = function() {
     }
 };
 
-window.gerarFichaSantander = function() {
+window.gerarFichaSantander = async function() {
     const colab = viewedColaborador || window._admissaoColabSelecionado;
     if (!colab) { alert('Selecione um colaborador primeiro.'); return; }
 
@@ -11349,6 +11350,10 @@ window.gerarFichaSantander = function() {
         const logText = document.getElementById('santander-status-text');
         if (log) log.style.display = 'block';
         if (logText) logText.textContent = `Ficha gerada em ${new Date().toLocaleString('pt-BR')}`;
+
+        // Salvar data no backend e mostrar toast
+        try { await apiPut(`/colaboradores/${colab.id}/admissao`, { santander_ficha_data: colab.santander_ficha_data }); } catch(e) {}
+        if (typeof showToast === 'function') showToast('Ficha Santander gerada com sucesso!', 'success');
     }
 };
 
@@ -11680,7 +11685,7 @@ window.abrirPreviewDocumentoMulta = function(html, colabId, multaId, tipo) {
                     style="padding:0.5rem 1rem;background:#475569;color:#fff;border:none;border-radius:8px;cursor:pointer;">Fechar</button>
             </div>
         </div>
-        <iframe style="flex:1;border:none;" srcdoc="${html.replace(/"/g, '&quot;')}"></iframe>
+        <iframe id="multa-preview-iframe" style="flex:1;border:none;"></iframe>
     `;
     document.body.appendChild(modal);
 };
