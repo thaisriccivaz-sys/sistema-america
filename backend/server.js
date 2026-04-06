@@ -1963,25 +1963,6 @@ app.get('/api/colaboradores/:id/multas', authenticateToken, (req, res) => {
     });
 });
 
-// POST /api/colaboradores/:id/multas — registra uma nova multa
-app.post('/api/colaboradores/:id/multas', authenticateToken, (req, res) => {
-    const colabId = req.params.id;
-    const { codigo_infracao, descricao_infracao, placa, veiculo, data_infracao, hora_infracao,
-            local_infracao, numero_ait, pontuacao, valor_multa, tipo_resolucao, parcelas } = req.body;
-    db.run(
-        `INSERT INTO multas (colaborador_id, codigo_infracao, descricao_infracao, placa, veiculo,
-            data_infracao, hora_infracao, local_infracao, numero_ait, pontuacao, valor_multa,
-            tipo_resolucao, parcelas, status)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,'pendente')`,
-        [colabId, codigo_infracao, descricao_infracao, placa, veiculo,
-         data_infracao, hora_infracao, local_infracao, numero_ait, pontuacao, valor_multa,
-         tipo_resolucao, parcelas || 1],
-        function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ id: this.lastID, ok: true });
-        }
-    );
-});
 
 // PUT /api/multas/:id — atualiza status ou confirmação de uma multa
 app.put('/api/multas/:id', authenticateToken, (req, res) => {
@@ -3060,8 +3041,9 @@ app.get('/api/geradores/:id/pdf', authenticateToken, (req, res) => {
 
 
 // Endpoint de geração (Substituição de Variáveis)
-app.post('/api/geradores/:id/gerar/:colaborador_id', authenticateToken, (req, res) => {
-    const { id, colaborador_id } = req.params;
+app.post(['/api/geradores/:id/gerar', '/api/geradores/:id/gerar/:colaborador_id'], authenticateToken, (req, res) => {
+    const id = req.params.id;
+    const colaborador_id = req.params.colaborador_id || req.body.colaborador_id || req.body.colabId;
     
     db.get("SELECT * FROM geradores WHERE id = ?", [id], (err, gerador) => {
         if (err || !gerador) return res.status(404).json({ error: 'Gerador não encontrado' });

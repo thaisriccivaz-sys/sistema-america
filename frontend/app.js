@@ -11340,8 +11340,8 @@ window.processarNotificacaoMulta = async function(input, colabId) {
         loader.textContent = '✅ Dados extraídos! Confira e corrija se necessário.';
         loader.style.color = '#10b981';
     } catch(e) {
-        loader.textContent = '⚠️ Não foi possível extrair automaticamente. Preencha manualmente.';
-        loader.style.color = '#f59e0b';
+        loader.textContent = `⚠️ Falha ao extrair: ${e.message || 'Preencha manualmente.'}`;
+        loader.style.color = '#ef4444';
         document.getElementById('multa-dados').style.display = 'block';
     }
 };
