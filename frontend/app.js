@@ -11165,17 +11165,38 @@ window.renderEnvioContabilidadeLog = function() {
 // ============================================================
 // PASSO 2 ADMISSÃO — SANTANDER (Pedido de Abertura de Conta)
 // ============================================================
-window.populateSantanderPreview = function() {
-    // Apenas mostra log se já foi gerado antes
-    const colab = viewedColaborador || window._admissaoColabSelecionado;
-    if (!colab) return;
-    const log = document.getElementById('santander-status-log');
-    const logText = document.getElementById('santander-status-text');
-    const dataSantander = colab.santander_ficha_data;
+// Helper: atualiza UI do Step 2 Santander (usada ao gerar e ao voltar ao passo)
+window._updateSantanderStepUI = function(dataSantander) {
+    var log = document.getElementById('santander-status-log');
+    var logText = document.getElementById('santander-status-text');
+    var elPc = document.getElementById('step-2-pc');
+    var stepEl = document.getElementById('step-2');
+
     if (dataSantander && log) {
         log.style.display = 'block';
-        if (logText) logText.textContent = `Ficha gerada em ${new Date(dataSantander).toLocaleString('pt-BR')}`;
+        if (logText) {
+            try {
+                var dt = new Date(dataSantander);
+                logText.textContent = 'Ficha gerada em ' + dt.toLocaleString('pt-BR');
+            } catch(e) { logText.textContent = 'Ficha gerada'; }
+        }
+        // Marcar step 2 como 100%
+        if (elPc) elPc.textContent = '100%';
+        if (stepEl) {
+            var iconEl = stepEl.querySelector('.step-icon');
+            if (iconEl) {
+                iconEl.style.background = '#22c55e';
+                iconEl.style.borderColor = '#22c55e';
+                iconEl.style.color = '#fff';
+            }
+        }
     }
+};
+
+window.populateSantanderPreview = function() {
+    var colab = viewedColaborador || window._admissaoColabSelecionado;
+    if (!colab) return;
+    window._updateSantanderStepUI(colab.santander_ficha_data);
 };
 
 window.gerarFichaSantander = async function() {
@@ -11327,17 +11348,8 @@ window.gerarFichaSantander = async function() {
         const btnVer = document.getElementById('btn-ver-santander');
         if (btnVer) btnVer.style.display = 'flex';
 
-        // Atualizar visual da interface para 100% no step 2 se tiver função compatível (do fix_admissao)
-        if (window._admissaoChecklist && window._admissaoChecklist[colab.id]) {
-            window._admissaoChecklist[colab.id]['santander'] = 100;
-            // Opcional: Atualizar a exibição das bolinhas de progresso
-            const elPc = document.getElementById('step-2-pc');
-            if (elPc) {
-                 elPc.innerHTML = '<i class="ph ph-check" style="font-size:12px"></i>';
-                 elPc.style.background = '#22c55e';
-            }
-            window._recalculateAdmissaoFinalProg();
-        }
+        // Atualizar visual do Step 2 para 100% (sempre, independente de _admissaoChecklist)
+        window._updateSantanderStepUI(colab.santander_ficha_data);
 
         try { await window.apiPut(`/colaboradores/${colab.id}/admissao`, { santander_ficha_data: colab.santander_ficha_data }); } catch(e) {}
         
