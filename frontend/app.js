@@ -11389,6 +11389,18 @@ if (typeof window._recalculateAdmissaoFinalProg !== 'function') {
 // ============================================================
 // ABA MULTAS — MOTORISTAS
 // ============================================================
+
+// ============================================================
+// HELPER: Recarrega a lista de multas em tempo real
+// ============================================================
+window._recarregarListaMultas = async function(colabId) {
+    var tabContent = document.getElementById('tab-dynamic-content');
+    if (tabContent && typeof window.renderMultasMotoristaTab === 'function') {
+        tabContent.innerHTML = '';
+        await window.renderMultasMotoristaTab(tabContent);
+    }
+};
+
 window.renderMultasMotoristaTab = async function(container) {
     const colab = viewedColaborador;
     if (!colab) return;
