@@ -251,7 +251,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 )
             `, (err) => {
                 if(err) return;
-                const autorizacaoHTML = \`
+                const autorizacaoHTML = `
 <p style="text-align: justify; font-size: 14px; line-height: 1.5;">Pelo presente instrumento, autorizo a empresa AMERICA RENTAL EQUIPAMENTOS LTDA, situada na Rua Saldo da Divisa, nº 97, CEP 07242-300, Parque Alvorada - Guarulhos SP, Inscrita no CNPJ sob o nº 03.434.448/0001-01, autorizo o desconto descrito abaixo:</p>
 <br/>
 <p style="font-size: 14px; line-height: 1.6;"><strong>Descrição:</strong> {MODAL_DESCRICAO}</p>
@@ -263,8 +263,8 @@ const db = new sqlite3.Database(dbPath, (err) => {
     <b>{NOME_COMPLETO}</b><br/>
     CPF: {CPF}
 </div>
-\`;
-                const osHTML = \`
+`;
+                const osHTML = `
 <h2 style="text-align: center; margin-bottom: 15px; font-size: 16px;">CONTRATO DE AUXÍLIO FACULDADE</h2>
 <div style="background-color: #d1d5db; padding: 10px 20px; font-weight: bold; margin-bottom: 25px; display: flex; justify-content: space-between; font-size: 14px;">
   <span>AMÉRICA RENTAL EQUIPAMENTOS LTDA</span>
@@ -302,7 +302,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
       Máscara descartável | Luvas de látex ou nitrílicas | Óculos de proteção contra respingos | Calçados de segurança | Camiseta | Calça | Capacete | Protetor auditivo | Protetor solar | Luva de helanca
    </div>
 </div>
-\`;
+`;
                 db.get("SELECT id FROM geradores WHERE nome = 'AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO'", [], (e, row) => {
                     if(!row) db.run("INSERT INTO geradores (nome, conteudo, variaveis) VALUES ('AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO', ?, '[]')", autorizacaoHTML);
                 });
