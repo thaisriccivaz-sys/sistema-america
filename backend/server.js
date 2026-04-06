@@ -5127,6 +5127,22 @@ app.put('/api/colaboradores/:id/multas/:multaId', authenticateToken, (req, res) 
     });
 });
 
+// DELETE /api/colaboradores/:id/multas/:multaId — remove multa não assinada
+app.delete('/api/colaboradores/:id/multas/:multaId', authenticateToken, (req, res) => {
+    const { multaId } = req.params;
+    db.get('SELECT * FROM multas WHERE id = ?', [multaId], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!row) return res.status(404).json({ error: 'Multa não encontrada.' });
+        if (row.status === 'assinado' || row.status === 'confirmado') {
+            return res.status(403).json({ error: 'Não é possível excluir uma multa já assinada ou confirmada.' });
+        }
+        db.run('DELETE FROM multas WHERE id = ?', [multaId], function(e) {
+            if (e) return res.status(500).json({ error: e.message });
+            res.json({ sucesso: true });
+        });
+    });
+});
+
 // POST /api/colaboradores/:id/multas/:multaId/gerar-documento — gera HTML do termo
 app.post('/api/colaboradores/:id/multas/:multaId/gerar-documento', authenticateToken, async (req, res) => {
     try {
