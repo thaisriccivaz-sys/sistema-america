@@ -11503,13 +11503,11 @@ window.renderMultasMotoristaTab = async function(container) {
                     <span><b>Tipo:</b> ${m.tipo_resolucao === 'indicacao' ? 'Indicação' : m.tipo_resolucao === 'nic' ? 'NIC' : '—'}</span>
                     <span><b>Parcelas:</b> ${m.parcelas || '—'}x</span>
                 </div>
-                ${(m.status === 'pendente' || m.status === 'doc_gerado') ? `
                 <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
                     ${m.status === 'pendente' ? `<button class="btn btn-sm btn-primary" onclick="window.continuarProcessoMulta(${m.id}, '${m.tipo_resolucao || ''}', ${colab.id})"><i class="ph ph-arrow-right"></i> Continuar Processo</button>` : ''}
-                    <button style="background:#fee2e2;color:#dc2626;border:1.5px solid #fca5a5;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.8rem;display:inline-flex;align-items:center;gap:4px;" onclick="window.excluirMulta(${m.id}, ${colab.id}, this)">
-                        <i class="ph ph-trash"></i> Excluir
-                    </button>
-                </div>` : ''}
+                    ${(m.status === 'doc_gerado' || m.status === 'assinado' || m.status === 'confirmado') ? `<button style="background:#dbeafe;color:#1d4ed8;border:1.5px solid #93c5fd;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.8rem;display:inline-flex;align-items:center;gap:4px;" onclick="window.verDocumentoMulta(${m.id}, ${colab.id}, '${m.tipo_resolucao || 'indicacao'}')"><i class="ph ph-eye"></i> Ver Documento</button>` : ''}
+                    ${(m.status === 'pendente' || m.status === 'doc_gerado') ? `<button style="background:#fee2e2;color:#dc2626;border:1.5px solid #fca5a5;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.8rem;display:inline-flex;align-items:center;gap:4px;" onclick="window.excluirMulta(${m.id}, ${colab.id}, this)"><i class="ph ph-trash"></i> Excluir</button>` : ''}
+                </div>
                 ${m.monaco_confirmado ? `<div style="margin-top:6px;font-size:0.8rem;color:#8b5cf6;"><i class="ph ph-check-circle"></i> Monaco confirmado: <b>${m.monaco_confirmado}</b></div>` : ''}
             `;
             listaContainer.appendChild(card);
@@ -11888,6 +11886,19 @@ window.excluirMulta = async function(multaId, colabId, btn) {
         if (btn) { btn.innerHTML = '<i class="ph ph-trash"></i> Excluir'; btn.disabled = false; }
         alert('Erro ao excluir: ' + e.message);
     }
+};
+
+window.verDocumentoMulta = async function(multaId, colabId, tipo) {
+    try {
+        const res = await fetch(`${API_URL}/colaboradores/${colabId}/multas/${multaId}/gerar-documento`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
+            body: JSON.stringify({ tipo: tipo || 'indicacao' })
+        });
+        const data = await res.json();
+        if (data.html) window.abrirPreviewDocumentoMulta(data.html, colabId, multaId, tipo || 'indicacao');
+        else alert('Documento não disponível.');
+    } catch(e) { alert('Erro ao carregar documento: ' + e.message); }
 };
 
 window.continuarProcessoMulta = async function(multaId, tipo, colabId) {

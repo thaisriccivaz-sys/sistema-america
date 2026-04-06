@@ -1650,7 +1650,8 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
         'chaves_participa', 'chaves_data',
         'ferias_programadas_inicio', 'ferias_programadas_fim', 'alergias', 'aso_email_enviado', 'aso_exame_data', 'aso_assinafy_link', 'aso_exames_assinafy_link',
         'adiantamento_salarial', 'adiantamento_valor', 'insalubridade', 'insalubridade_valor',
-        'conjuge_nome', 'conjuge_cpf'
+        'conjuge_nome', 'conjuge_cpf',
+        'santander_ficha_data'
     ];
 
     const allowedColunas = colunas;
@@ -1969,6 +1970,29 @@ app.get('/api/colaboradores/:id/documentos', authenticateToken, (req, res) => {
         res.json(rows);
     });
 });
+
+
+// ─── ENDPOINT DEDICADO: Salvar status Santander ──────────────────────────────
+// PUT /api/colaboradores/:id/santander-status
+app.put('/api/colaboradores/:id/santander-status', authenticateToken, (req, res) => {
+    const { santander_ficha_data } = req.body;
+    const { id } = req.params;
+    if (!santander_ficha_data) return res.status(400).json({ error: 'santander_ficha_data obrigatório' });
+    
+    db.run(
+        'UPDATE colaboradores SET santander_ficha_data = ? WHERE id = ?',
+        [santander_ficha_data, id],
+        function(err) {
+            if (err) {
+                console.error('[Santander Status] Erro:', err.message);
+                return res.status(500).json({ error: err.message });
+            }
+            console.log('[Santander Status] Salvo para colaborador', id, ':', santander_ficha_data);
+            res.json({ sucesso: true, santander_ficha_data });
+        }
+    );
+});
+// ─────────────────────────────────────────────────────────────────────────────
 
 // ─── ROTAS DE MULTAS DE TRÂNSITO ──────────────────────────────────────────────
 // GET /api/colaboradores/:id/multas — lista todas as multas de um colaborador
@@ -5211,7 +5235,9 @@ app.post('/api/colaboradores/:id/multas/:multaId/gerar-documento', authenticateT
         const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
         <style>
             body { font-family: Arial, sans-serif; font-size: 12px; margin: 40px; color: #000; }
-            .logo-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; border-bottom: 2px solid #0077b6; padding-bottom: 10px; }
+            .logo-header { text-align: center; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 3px solid #0b5394; }
+            .logo-header h1 { font-size: 28px; color: #0b5394; font-weight: 900; letter-spacing: 2px; margin: 0; }
+            .logo-header span { font-size: 13px; color: #555; display: block; }
             .titulo { text-align: center; font-weight: bold; font-size: 14px; margin: 20px 0; }
             .colab-label { font-size: 13px; margin-bottom: 10px; }
             .box { border: 1px solid #000; padding: 10px; margin-bottom: 15px; font-size: 11px; }
@@ -5263,7 +5289,15 @@ app.post('/api/colaboradores/:id/multas/:multaId/gerar-documento', authenticateT
             (${check2x}) 2x &nbsp;&nbsp;&nbsp;
             (${check3x}) 3x
         </p>
-        <p>___________________________________________________, _____ de ______________ de _________</p>
+        ${(function() {
+            var meses = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+            var d = multa.data_infracao ? new Date(multa.data_infracao + 'T12:00:00') : new Date();
+            var hoje = new Date();
+            var dia = hoje.getDate();
+            var mes = meses[hoje.getMonth()];
+            var ano = hoje.getFullYear();
+            return '<p>Guarulhos, ' + dia + ' de ' + mes + ' de ' + ano + '.</p>';
+        })()}
         <div class="assinaturas">
             <div class="assin-row">
                 <div class="assin-box">Assinatura do Colaborador<br><br>${nome}</div>
