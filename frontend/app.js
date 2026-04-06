@@ -3635,8 +3635,8 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
                     slot.appendChild(createDocSlot(tabId, 'Pensão Alimentícia', null));
                 }
             }
-            if (window.viewedColaborador) window.viewedColaborador.tem_pensao_alimenticia = resposta;
-            const colabId = window.viewedColaborador && window.viewedColaborador.id;
+            if (viewedColaborador) viewedColaborador.tem_pensao_alimenticia = resposta;
+            const colabId = viewedColaborador && viewedColaborador.id;
             if (colabId) {
                 fetch(`${API_URL}/colaboradores/${colabId}`, {
                     method: 'PUT',
@@ -7095,7 +7095,7 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
             updateAdmissaoStepPercentages(colab);
             // Ensure log panel is populated from fresh colab data
             if (typeof window.renderEnvioContabilidadeLog === 'function') {
-                window.viewedColaborador = Object.assign(window.viewedColaborador || {}, colab);
+                viewedColaborador = Object.assign(viewedColaborador || {}, colab);
                 window.renderEnvioContabilidadeLog();
             }
             window.nextAdmissaoStep(targetStep, preventScroll);
@@ -7201,8 +7201,8 @@ function renderAdmissaoStep3(colab, docs) {
             }
         }
         // Salvar preferência no colaborador
-        if (window.viewedColaborador) window.viewedColaborador.tem_pensao_alimenticia = resposta;
-        const colabId = window.viewedColaborador && window.viewedColaborador.id;
+        if (viewedColaborador) viewedColaborador.tem_pensao_alimenticia = resposta;
+        const colabId = viewedColaborador && viewedColaborador.id;
         if (colabId) {
             fetch(`${API_URL}/colaboradores/${colabId}`, {
                 method: 'PUT',
@@ -7930,7 +7930,7 @@ window.finalizarAdmissao = async function() {
 
         // Atualizar o objeto local
         viewedColaborador.status = 'Em Integração';
-        if (window.viewedColaborador) window.viewedColaborador.status = 'Em Integração';
+        if (viewedColaborador) viewedColaborador.status = 'Em Integração';
 
         // Toast de sucesso
         if (typeof admissaoToast === 'function') {
@@ -10610,8 +10610,8 @@ setInterval(() => {
             if (document.getElementById('admissao-signature-list')) {
                 if (document.getElementById('current-tab-title') && document.getElementById('current-tab-title').innerText === 'Contratos') {
                     if (typeof renderContratosTab === 'function') renderContratosTab(document.getElementById('docs-list-container'));
-                } else if (typeof window.initAdmissaoWorkflow === 'function' && window.viewedColaborador) {
-                    window.initAdmissaoWorkflow(window.viewedColaborador.id, 2, true);
+                } else if (typeof window.initAdmissaoWorkflow === 'function' && viewedColaborador) {
+                    window.initAdmissaoWorkflow(viewedColaborador.id, 2, true);
                 }
             }
         } catch {}
@@ -10723,7 +10723,7 @@ window.toggleInsalubridade = function(val) {
 };
 
 window.previewFichaAdmissao = function() {
-    let colabId = window.viewedColaborador && window.viewedColaborador.id;
+    let colabId = viewedColaborador && viewedColaborador.id;
     if (!colabId) {
         const hid = document.getElementById('admissao-select-colab');
         colabId = hid ? hid.value : null;
@@ -10754,7 +10754,7 @@ window.previewFichaAdmissao = function() {
 };
 
 window.enviarFichaContabilidade = async function(btn) {
-    let colabId = window.viewedColaborador && window.viewedColaborador.id;
+    let colabId = viewedColaborador && viewedColaborador.id;
     if (!colabId) {
         const hid = document.getElementById('admissao-select-colab');
         colabId = hid ? hid.value : null;
@@ -10801,9 +10801,9 @@ window.enviarFichaContabilidade = async function(btn) {
         const data = await res.json();
         if (data.sucesso) {
             // Mostrar imediatamente os documentos enviados usando os dados da resposta
-            if (window.viewedColaborador) {
-                window.viewedColaborador.admissao_contabil_enviada_em = data.enviada_em || new Date().toISOString();
-                window.viewedColaborador.admissao_contabil_anexos = data.anexos || '';
+            if (viewedColaborador) {
+                viewedColaborador.admissao_contabil_enviada_em = data.enviada_em || new Date().toISOString();
+                viewedColaborador.admissao_contabil_anexos = data.anexos || '';
             }
             if (typeof window.renderEnvioContabilidadeLog === 'function') {
                 window.renderEnvioContabilidadeLog();
@@ -10816,8 +10816,8 @@ window.enviarFichaContabilidade = async function(btn) {
             }
             // Refresh assíncrono em background para garantir consistência
             apiGet(`/colaboradores/${colabId}`).then(ref => {
-                if (ref && window.viewedColaborador) {
-                    window.viewedColaborador = Object.assign(window.viewedColaborador, ref);
+                if (ref && viewedColaborador) {
+                    viewedColaborador = Object.assign(viewedColaborador, ref);
                     if (typeof window.renderEnvioContabilidadeLog === 'function') {
                         window.renderEnvioContabilidadeLog();
                     }
@@ -10836,7 +10836,7 @@ window.enviarFichaContabilidade = async function(btn) {
 
 // ===== RENDER LOG DE ENVIO PARA CONTABILIDADE (PASSO 5) =====
 window.renderEnvioContabilidadeLog = function() {
-    const colab = window.viewedColaborador;
+    const colab = viewedColaborador;
     const logPanel = document.getElementById('envio-contabilidade-log');
     const dataEl = document.getElementById('envio-contab-data');
     const anexosEl = document.getElementById('envio-contab-anexos');
@@ -11082,7 +11082,7 @@ window.gerarFichaSantander = function() {
 // ABA MULTAS — MOTORISTAS
 // ============================================================
 window.renderMultasMotoristaTab = async function(container) {
-    const colab = window.viewedColaborador;
+    const colab = viewedColaborador;
     if (!colab) return;
 
     // === MOSTRAR UI IMEDIATAMENTE (sem esperar a API) ===
