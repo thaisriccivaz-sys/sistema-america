@@ -1402,14 +1402,9 @@
                             <div class="card p-4">
                                 <div class="flex-between mb-3">
                                     <h3 class="section-title" style="margin:0;"><i class="ph ph-bank" style="color:#ec0000;"></i> Passo 2: Abertura de Conta Santander</h3>
-                                    <div style="display:flex;gap:8px;">
-                                        <button class="btn btn-primary" id="btn-gerar-santander" onclick="window.gerarFichaSantander()" style="background:#2563eb;border-color:#2563eb;display:flex;align-items:center;gap:6px;">
-                                            <i class="ph ph-file-pdf"></i> Gerar Documento
-                                        </button>
-                                        <button class="btn btn-outline" id="btn-ver-santander" onclick="window.verFichaSantander()" style="display:none;align-items:center;gap:6px;border-color:#cbd5e1;color:#334155;background:#f8fafc;">
-                                            <i class="ph ph-eye"></i> Visualizar
-                                        </button>
-                                    </div>
+                                    <button class="btn btn-primary" id="btn-gerar-santander" onclick="window.gerarFichaSantander()" style="background:#2563eb;border-color:#2563eb;display:flex;align-items:center;gap:6px;">
+                                        <i class="ph ph-file-pdf"></i> Gerar Documento
+                                    </button>
                                 </div>
                                 <p class="text-muted mb-4">Gere o <b>Pedido de Abertura de Conta</b> para o Santander. Imprima o documento e entregue ao colaborador para levar à agência junto aos documentos listados.</p>
 
@@ -1425,9 +1420,14 @@
                                 </div>
 
                                 <div id="santander-status-log" style="display:none;background:linear-gradient(135deg,#f0fdf4,#fff);border:2px solid #16a34a;border-radius:12px;padding:12px 16px;margin-bottom:1rem;">
-                                    <div style="display:flex;align-items:center;gap:8px;color:#166534;font-weight:700;">
-                                        <i class="ph-fill ph-check-circle" style="font-size:1.2rem;"></i>
-                                        <span id="santander-status-text">Ficha gerada em --/--/----</span>
+                                    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                                        <div style="display:flex;align-items:center;gap:8px;color:#166534;font-weight:700;">
+                                            <i class="ph-fill ph-check-circle" style="font-size:1.2rem;"></i>
+                                            <span id="santander-status-text">Ficha gerada em --/--/----</span>
+                                        </div>
+                                        <button onclick="window.verFichaSantander()" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-weight:700;cursor:pointer;font-size:0.82rem;display:flex;align-items:center;gap:6px;">
+                                            <i class="ph ph-eye"></i> Visualizar
+                                        </button>
                                     </div>
                                 </div>
 
