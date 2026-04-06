@@ -1,4 +1,18 @@
 const API_URL = `${window.location.origin}/api`;
+function showToast(msg, type) {
+    const toast = document.getElementById('global-toast');
+    if (toast) {
+        const toastBody = toast.querySelector('.toast-body');
+        if (toastBody) toastBody.textContent = msg;
+        toast.className = 'toast align-items-center border-0 ' + (type === 'error' ? 'bg-danger text-white' : 'bg-success text-white');
+        try { new bootstrap.Toast(toast, { delay: 3000 }).show(); return; } catch(e) {}
+    }
+    const div = document.createElement('div');
+    div.style = 'position:fixed;bottom:24px;right:24px;z-index:99999;background:' + (type === 'error' ? '#dc2626' : '#16a34a') + ';color:#fff;padding:12px 20px;border-radius:10px;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,0.2);';
+    div.textContent = msg;
+    document.body.appendChild(div);
+    setTimeout(() => div.remove(), 3000);
+}
 
 // Estado global
 let currentUser = null;
@@ -11177,57 +11191,80 @@ window.gerarFichaSantander = async function() {
     // Salário formatado
     const salario = colab.salario ? parseFloat(colab.salario).toLocaleString('pt-BR', {style:'currency', currency:'BRL'}) : '—';
     
-    // Endereço dividido
-    const endereco = fmt(colab.logradouro);
-    const numero = fmt(colab.numero);
-    const complemento = fmt(colab.complemento);
-    const bairro = fmt(colab.bairro);
-    const cidade = fmt(colab.cidade);
-    const estado = fmt(colab.estado);
-    const cep = fmt(colab.cep);
-
-    // Formatar admissão
+    // Endereço e Cidade extraídos corretamente do endereço do Colaborador (agora separado por vírgula e traço)
+    let enderecoPuro = fmt(colab.endereco_completo);
+    let numero = '—', complemento = '—', bairro = '—', cidade = '—', estado = '—', cep = '—';
+    if (colab.endereco_completo) {
+        // Separação típica: "Rua X, 123, Bairro, Cidade - SP, CEP"
+        const parts = colab.endereco_completo.split(',');
+        enderecoPuro = parts[0] ? parts[0].trim() : '—';
+        if (parts.length > 1) {
+            const part2 = parts[1].trim(); 
+            numero = part2.split(' ')[0] || part2;
+            if (part2.includes(' ')) complemento = part2.substring(numero.length).trim();
+        }
+        if (parts.length > 2) bairro = parts[2].trim();
+        if (parts.length > 3) {
+            const cidadeEst = parts[3].trim().split('-');
+            if (cidadeEst.length === 2) { cidade = cidadeEst[0].trim(); estado = cidadeEst[1].trim(); }
+            else { cidade = parts[3].trim(); }
+        }
+        if (colab.cep) cep = colab.cep;
+    }
+    
+    // Data admissão formatada
     let admissaoFmt = '—';
     if (colab.data_admissao) {
-        const [y,m,d] = colab.data_admissao.split('-');
-        admissaoFmt = `${d}/${m}/${y}`;
+        const d = new Date(colab.data_admissao);
+        d.setMinutes(d.getMinutes() + d.getTimezoneOffset());
+        admissaoFmt = d.toLocaleDateString('pt-BR');
     }
 
     const html = `<!DOCTYPE html>
-<html lang="pt-BR">
+<html>
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8">
 <title>Pedido de Abertura de Conta - ${colab.nome_completo}</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Arial:wght@400;700&display=swap');
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: Arial, Helvetica, sans-serif; font-size: 10pt; color: #000; background: #fff; padding: 20px; }
   .page { max-width: 750px; margin: 0 auto; }
-  .logo-area { text-align: center; margin-bottom: 10px; }
+  .logo-area { text-align: center; margin-bottom: 20px; }
   .logo-area img { height: 60px; }
-  .logo-text { font-size: 28pt; font-weight: 900; font-family: serif; letter-spacing: -1px; }
-  .logo-sub { font-size: 7pt; color: #555; letter-spacing: 2px; }
-  h1.titulo { text-align: center; font-size: 13pt; font-weight: 900; background: #e8e8e8; border: 1.5px solid #ccc; padding: 6px 0; margin: 12px 0; letter-spacing: 1px; }
+  .logo-text { font-size: 32pt; font-weight: 900; font-family: 'Times New Roman', serif; letter-spacing: -1px; }
+  .logo-sub { font-size: 8pt; color: #555; letter-spacing: 2px; }
+  h1.titulo { text-align: center; font-size: 15pt; font-weight: 900; background: #eaeaea; border: 1px solid #ccc; padding: 12px 0; margin: 15px 0 25px 0; letter-spacing: 1px; }
   .colab-label { font-size: 10pt; font-weight: 900; margin: 10px 0 6px; }
-  .colab-nome { font-size: 13pt; font-weight: 900; }
-  p.body-text { font-size: 9.5pt; margin-bottom: 8px; text-align: justify; line-height: 1.5; }
-  ul.docs { font-size: 9.5pt; margin: 4px 0 10px 20px; line-height: 1.6; }
-  .data-box { border: 1.5px solid #555; margin: 14px 0; }
-  .data-box-title { background: #d0d0d0; font-weight: 900; font-size: 9.5pt; padding: 4px 10px; border-bottom: 1.5px solid #555; }
-  .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; padding: 8px 10px; }
-  .data-line { font-size: 9pt; margin: 1.5px 0; }
+  .colab-nome { font-size: 16pt; font-weight: 900; margin-bottom: 20px; }
+  p.body-text { font-size: 9.5pt; margin-bottom: 12px; text-align: justify; line-height: 1.5; }
+  ul.docs { font-size: 9.5pt; margin: 4px 0 15px 20px; line-height: 1.8; }
+  .data-box { border: 1.5px solid #555; margin: 20px 0; background:#f9f9f9; }
+  .data-box-title { background: #dcdcdc; font-weight: 900; font-size: 10.5pt; padding: 6px 12px; border-bottom: 1.5px solid #555; }
+  .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 12px 12px; }
+  .data-line { font-size: 9.5pt; margin: 3px 0; }
   .data-line b { font-weight: 700; }
-  .rh-section { margin: 16px 0; font-size: 9.5pt; line-height: 1.7; }
-  .city-date { margin: 20px 0 30px; font-size: 10pt; }
-  .assinaturas { display: flex; justify-content: space-between; margin-top: 40px; }
-  .assin-block { text-align: center; width: 45%; }
-  .assin-line { border-top: 1.5px solid #000; padding-top: 4px; margin-top: 40px; font-size: 9pt; }
-  .bank-box { border: 1.5px solid #555; margin-top: 20px; }
-  .bank-box-title { background: #d0d0d0; font-weight: 900; font-size: 9.5pt; padding: 4px 10px; border-bottom: 1.5px solid #555; }
-  .bank-field { display: flex; align-items: flex-end; padding: 6px 10px; border-bottom: 1px solid #ccc; gap: 8px; font-size: 9.5pt; }
+  .rh-section { margin: 16px 0; font-size: 9.5pt; line-height: 1.7; display:none; } /* Retirado seções extras nòo exibidas no anexo */
+  .city-date { margin: 25px 0 45px; font-size: 10pt; font-weight: 700; color: #333; }
+  .assinaturas { display: flex; justify-content: space-between; margin-top: 40px; align-items: flex-end; }
+  
+  .assin-block { text-align: center; width: 48%; }
+  .assin-block-company { text-align: center; width: 48%; }
+  
+  .assin-line { border-top: 1px solid #000; padding-top: 6px; font-size: 9.5pt; font-weight:bold; margin-top: 50px;}
+  
+  /* A área de assinatura da empresa fica sem linha (p/ carimbo) e com texto centralizado formatado */
+  .carimbo-area { height: 75px; width: 100%; border: 1px dashed transparent; margin-bottom: 2px; }
+  .company-sig-text { font-size: 11pt; color: #000; text-align:center; font-family: 'Arial', sans-serif;}
+
+  .bank-box { border: 1px solid #555; margin-top: 25px; }
+  .bank-box-title { background: #dcdcdc; font-weight: 900; font-size: 9.5pt; padding: 6px 12px; border-bottom: 1px solid #555; }
+  .bank-field { display: flex; align-items: flex-end; padding: 8px 12px; border-bottom: 1px solid #ccc; gap: 8px; font-size: 9.5pt; margin-bottom:5px;}
   .bank-field:last-child { border-bottom: none; }
   .bank-field-line { flex: 1; border-bottom: 1px solid #000; min-height: 18px; }
-  .footnote { font-size: 7.5pt; color: #333; margin-top: 12px; text-align: justify; line-height: 1.4; }
+  
+  .footnote { font-size: 7pt; color: #555; margin-top: 15px; text-align: justify; line-height: 1.4; }
+  
   @media print {
     body { padding: 0; }
     .no-print { display: none !important; }
@@ -11247,7 +11284,6 @@ window.gerarFichaSantander = async function() {
   <div class="colab-label">COLABORADOR:</div>
   <div class="colab-nome">${fmt(colab.nome_completo)}</div>
 
-  <br>
   <p class="body-text">Prezado (a)</p>
   <p class="body-text">Escolhemos o Santander como nosso parceiro para o processamento do pagamento do seu salário.</p>
   <p class="body-text">Conforme determinam as Resoluções nº 3.402 e 3.424/06, do Conselho Monetário Nacional, seu salário será creditado em uma conta de registro, denominada 'conta salário', que não é movimentável por cheque, não admite créditos de outras naturezas que não salariais e possui serviços limitados.</p>
@@ -11269,93 +11305,98 @@ window.gerarFichaSantander = async function() {
     <div class="data-grid">
       <div class="data-line">Declaramos que o Sr (a) <b>${fmt(colab.nome_completo)}</b></div>
       <div class="data-line">CPF: <b>${fmt(colab.cpf)}</b>&nbsp;&nbsp;&nbsp;Admissão: <b>${admissaoFmt}</b></div>
-      <div class="data-line">Endereço: <b>${endereco}</b></div>
+      <div class="data-line">Endereço: <b>${enderecoPuro}</b></div>
       <div class="data-line">Nº <b>${numero}</b>&nbsp;&nbsp;Complemento: <b>${complemento}</b></div>
       <div class="data-line">Bairro: <b>${bairro}</b></div>
       <div class="data-line">Cidade: <b>${cidade}</b>&nbsp;&nbsp;&nbsp;Estado: <b>${estado}</b>&nbsp;&nbsp;&nbsp;CEP: <b>${cep}</b></div>
       <div class="data-line">Cargo: <b>${fmt(colab.cargo)}</b></div>
       <div class="data-line">Salário Mensal: <b>${salario}</b></div>
-      <div class="data-line">Celular: <b>${fmt(colab.celular)}</b></div>
-      <div class="data-line">E-mail: <b>${fmt(colab.email)}</b></div>
     </div>
   </div>
 
-  <!-- RH -->
-  <div class="rh-section">
-    <b>Responsável de RH: Juliene de Camargo Corrêa</b><br>
-    Telefone: - (11) 99025-2820 ou (11) 2499-3353<br>
-    <b>EMPRESA: America Rental Equipamentos LTDA</b><br>
-    <b>CNPJ: 03.434.448/0001-01</b>
-  </div>
-
-  <!-- Data e local -->
-  <div class="city-date">
-    Guarulhos, _______________, ____________________________ de 20_______.
-  </div>
+  <div style="height: 10px;"></div>
 
   <!-- Assinaturas -->
   <div class="assinaturas">
-    <div class="assin-block">
-      <img style="height:45px; margin-bottom:4px;" src="" onerror="this.style.display='none'">
-      <div class="assin-line">
+    <div class="assin-block-company">
+      <div class="carimbo-area"></div>
+      <div class="company-sig-text">
         AMÉRIC<span style="color:#cc3300;">A</span> <span style="color:#cc3300; font-style:italic;">Rental</span><br>
         AMÉRICA RENTAL EQUIPAMENTOS LTDA<br>
         CNPJ: 03.434.448/0001-01
       </div>
-      <div style="margin-top:4px;font-size:8pt;border-top:1px solid #000; padding-top:3px;">AMÉRICA RENTAL EQUIPAMENTOS LTDA</div>
     </div>
     <div class="assin-block">
       <div class="assin-line">${fmt(colab.nome_completo)}</div>
     </div>
   </div>
 
-  <!-- Rodapé com notas -->
-  <p class="footnote">*Exceto nos casos de pedidos de reposição formulados pelo cliente decorrentes de perda, roubo, danificação ou outros motivos não imputáveis ao Banco. ** Serviços gratuitos: duas consultas ao saldo de sua conta, dois extratos dos últimos 30 dias, um DOC/TED pelo valor total do crédito e cinco saques (por evento de crédito). A utilização acima desses limites ou de quaisquer outros serviços estará sujeita à cobrança de tarifas.</p>
-
-  <!-- Banco -->
-  <div class="bank-box">
-    <div class="bank-box-title">Para uso exclusivo do Banco Santander:</div>
-    <div class="bank-field">
-      <span style="white-space:nowrap;">Nome e Número da Agência: Guarulhos</span>
-      <div class="bank-field-line"></div>
-    </div>
-    <div class="bank-field">
-      <span>Número da Conta:</span>
-      <div class="bank-field-line"></div>
-    </div>
-    <div class="bank-field">
-      <span>Responsável pelo atendimento:</span>
-      <div class="bank-field-line"></div>
-    </div>
-  </div>
-
-  <div class="no-print" style="text-align:center; margin-top: 24px;">
-    <button onclick="window.print()" style="background:#ec0000;color:#fff;border:none;padding:12px 32px;font-size:1rem;font-weight:700;border-radius:8px;cursor:pointer;">🖨️ Imprimir</button>
-  </div>
 </div>
 </body>
 </html>`;
 
-    // Abrir janela de impressão
-    const win = window.open('', '_blank', 'width=820,height=900');
-    win.document.write(html);
-    win.document.close();
-    win.focus();
-    setTimeout(() => win.print(), 800);
+    // Salvar o HTML globalmente para poder via via "Ver Documento"
+    window._santanderPreVHtml = html;
 
-    // Registrar que foi gerado
+    // Registrar no backend / interface
     if (colab) {
         colab.santander_ficha_data = new Date().toISOString();
         const log = document.getElementById('santander-status-log');
         const logText = document.getElementById('santander-status-text');
+        
         if (log) log.style.display = 'block';
         if (logText) logText.textContent = `Ficha gerada em ${new Date().toLocaleString('pt-BR')}`;
+        
+        // Exibe o botão de visualização
+        const btnVer = document.getElementById('btn-ver-santander');
+        if (btnVer) btnVer.style.display = 'flex';
 
-        // Salvar data no backend e mostrar toast
-        try { await apiPut(`/colaboradores/${colab.id}/admissao`, { santander_ficha_data: colab.santander_ficha_data }); } catch(e) {}
-        if (typeof showToast === 'function') showToast('Ficha Santander gerada com sucesso!', 'success');
+        // Atualizar visual da interface para 100% no step 2 se tiver função compatível (do fix_admissao)
+        if (window._admissaoChecklist && window._admissaoChecklist[colab.id]) {
+            window._admissaoChecklist[colab.id]['santander'] = 100;
+            // Opcional: Atualizar a exibição das bolinhas de progresso
+            const elPc = document.getElementById('step-2-pc');
+            if (elPc) {
+                 elPc.innerHTML = '<i class="ph ph-check" style="font-size:12px"></i>';
+                 elPc.style.background = '#22c55e';
+            }
+            window._recalculateAdmissaoFinalProg();
+        }
+
+        try { await window.apiPut(`/colaboradores/${colab.id}/admissao`, { santander_ficha_data: colab.santander_ficha_data }); } catch(e) {}
+        
+        if (typeof showToast === 'function') {
+            showToast('Ficha gerada com sucesso! Use o botão Visualizar para imprimir.', 'success');
+        } else alert('Ficha gerada com sucesso! Use o botão Visualizar para imprimir.');
     }
 };
+
+window.verFichaSantander = function() {
+    if (!window._santanderPreVHtml) {
+        alert("Gere o documento primeiro."); return;
+    }
+    const html = window._santanderPreVHtml;
+    // Abrir iframe preview / nova janela
+    const win = window.open('', '_blank', 'width=820,height=900');
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    
+    // Adicionar pequeno delay para print popup ao visualizar
+    setTimeout(() => {
+        // Option popup is better UI if not auto print, but we leave it to the user.
+    }, 500);
+};
+
+// Funçao mockup caso nòo exista _recalculateAdmissaoFinalProg
+if (typeof window._recalculateAdmissaoFinalProg !== 'function') {
+    window._recalculateAdmissaoFinalProg = function() {
+        const bar = document.getElementById('admissao-progress-bar');
+        const pc = document.getElementById('admissao-pc-total');
+        if(bar) bar.style.width = '30%';
+    }
+}
+
 
 // ============================================================
 // ABA MULTAS — MOTORISTAS
