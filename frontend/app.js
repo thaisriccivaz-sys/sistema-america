@@ -5919,10 +5919,11 @@ window.renderGeradoresTemplates = function(departamentos, geradores, templates) 
                         <i class="ph ph-file-text" style="color:#f503c5; font-size:1.1rem;"></i>
                         ${g.nome}
                     </div>
-                    <div style="display:flex; align-items:center; gap:1rem;">
+                    <div style="display:flex; align-items:center; gap:0.5rem;">
                         <span class="badge bg-secondary" id="doc-count-${g.id}" style="font-size:0.75rem; padding:0.4em 0.6em; border-radius:12px;">
                             ${checked.length} Setores
                         </span>
+                        <button onclick="event.stopPropagation(); window.selecionarTodosSetores(${g.id})" style="font-size:0.72rem;padding:0.25em 0.65em;border:1px solid #cbd5e1;border-radius:6px;background:#f8fafc;cursor:pointer;color:#475569;font-weight:600;">Todos</button>
                         <i class="ph ph-caret-down tg-icon" style="transition:0.2s; color:#64748b;"></i>
                     </div>
                 </div>
@@ -5946,8 +5947,6 @@ window.renderGeradoresTemplates = function(departamentos, geradores, templates) 
             </button>
         </div>
     `;
-    
-// Apply immediate filter just in case the search bar has text
     window.filterGeradores();
 };
 
@@ -5956,6 +5955,13 @@ window.updateLocalDocCount = function(docId) {
     const count = Array.from(chks).filter(c => c.checked).length;
     const badge = document.getElementById(`doc-count-${docId}`);
     if (badge) badge.textContent = `${count} Setores`;
+};
+
+window.selecionarTodosSetores = function(docId) {
+    const chks = document.querySelectorAll(`.gerador-dept-chk[data-gerador="${docId}"]`);
+    const anyUnchecked = Array.from(chks).some(c => !c.checked);
+    chks.forEach(c => { c.checked = anyUnchecked; });
+    window.updateLocalDocCount(docId);
 };
 
 window.saveBatchGeradorDeptTemplates = async function() {
@@ -6802,12 +6808,19 @@ window.renderContratosAvulso = async function(container) {
     if (!viewedColaborador || !container) return;
     container.innerHTML = '<p class="text-muted"><i class="ph ph-spinner ph-spin"></i> Carregando Documentos...</p>';
     try {
+        // Busca paralela com null-safe em todas as respostas
+        const safeGet = async (url) => {
+            try {
+                const r = await apiGet(url);
+                return Array.isArray(r) ? r : (r ? [r] : []);
+            } catch(e) { return []; }
+        };
         const [assinaturas, docs, geradores, templates, departamentos] = await Promise.all([
-            apiGet('/assinaturas').catch(()=>[]),
-            apiGet(`/colaboradores/${viewedColaborador.id}/documentos`).catch(()=>[]),
-            apiGet('/geradores').catch(()=>[]),
-            apiGet('/geradores-templates').catch(()=>[]),
-            apiGet('/departamentos').catch(()=>[])
+            safeGet(`/colaboradores/${viewedColaborador.id}/admissao-assinaturas`),
+            safeGet(`/colaboradores/${viewedColaborador.id}/documentos`),
+            safeGet('/geradores'),
+            safeGet('/geradores-templates'),
+            safeGet('/departamentos')
         ]);
         window._todosGeradores = geradores;
 
@@ -6821,7 +6834,7 @@ window.renderContratosAvulso = async function(container) {
             }
         }
 
-        const filteredDocs = (docs || []).filter(d => d.tab_name === 'CONTRATOS');
+        const filteredDocs = docs.filter(d => d.tab_name === 'CONTRATOS');
 
         container.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
@@ -6885,8 +6898,8 @@ window.uploadContratoExterno = async function(input) {
 };
 
 window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
-    assinaturas = assinaturas || [];
-    docs = docs || [];
+    assinaturas = Array.isArray(assinaturas) ? assinaturas : [];
+    docs = Array.isArray(docs) ? docs : [];
     if (docs.length === 0) {
         return `<div style="padding:2rem;text-align:center;color:#94a3b8;border:2px dashed #e2e8f0;border-radius:12px;"><i class="ph ph-files" style="font-size:2rem;margin-bottom:0.5rem;display:block;"></i>Nenhum contrato listado.</div>`;
     }
