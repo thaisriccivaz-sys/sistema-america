@@ -2980,15 +2980,22 @@ app.put('/api/geradores/:id', authenticateToken, (req, res) => {
 });
 
 app.delete('/api/geradores/:id', authenticateToken, (req, res) => {
-    // Remove arquivo PDF associado se existir
-    db.get("SELECT arquivo_pdf FROM geradores WHERE id = ?", [req.params.id], (err, row) => {
+    // Bloquear exclusão de geradores obrigatórios
+    db.get("SELECT nome, arquivo_pdf FROM geradores WHERE id = ?", [req.params.id], (err, row) => {
+        if (err || !row) return res.status(404).json({ error: 'Gerador não encontrado' });
+        
+        const nomesProtegidos = ['AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO', 'ORDEM DE SERVIÇO NR01'];
+        if (nomesProtegidos.includes((row.nome || '').toUpperCase().trim())) {
+            return res.status(403).json({ error: 'Este documento é padrão do sistema e não pode ser excluído.' });
+        }
+
         if (row && row.arquivo_pdf && fs.existsSync(row.arquivo_pdf)) {
             try { fs.unlinkSync(row.arquivo_pdf); } catch(e) {}
         }
-    });
-    db.run("DELETE FROM geradores WHERE id = ?", [req.params.id], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ message: 'Gerador removido' });
+        db.run("DELETE FROM geradores WHERE id = ?", [req.params.id], function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ message: 'Gerador removido' });
+        });
     });
 });
 
@@ -3113,9 +3120,26 @@ app.post('/api/geradores/:id/gerar/:colaborador_id', authenticateToken, (req, re
                     'MENSALIDADE': colaborador.f_valor ? `R$ ${parseFloat(colaborador.f_valor).toLocaleString('pt-BR', {minimumFractionDigits: 2})}` : '---'
                 };
                 
-                // Substituição bruta
+                // Valores Dinâmicos Form (se presentes no body)
+                if (req.body) {
+                    mapping['MODAL_DESCRICAO'] = req.body.desconto_descricao || '';
+                    mapping['MODAL_VALOR'] = req.body.desconto_valor || '0,00';
+                    mapping['MODAL_PARCELAMENTO'] = req.body.desconto_parcelas || '1';
+                    mapping['MODAL_VALOR_PARCELA'] = req.body.desconto_valor_parcela || '0,00';
+                    
+                    const p = parseInt(req.body.desconto_parcelas) || 1;
+                    mapping['PARCELA_1'] = p === 1 ? 'X' : '&nbsp;&nbsp;';
+                    mapping['PARCELA_2'] = p === 2 ? 'X' : '&nbsp;&nbsp;';
+                    mapping['PARCELA_3'] = p === 3 ? 'X' : '&nbsp;&nbsp;';
+                }
+
+                // Substituição bruta (suporta tanto ${CHAVE} quanto {CHAVE})
                 Object.keys(mapping).forEach(key => {
-                    const regex = new RegExp(`\\$\\{${key}\\}`, 'g');
+                    // Try ${CHAVE} format
+                    let regex = new RegExp(`\\$\\{${key}\\}`, 'g');
+                    conteudoFinal = conteudoFinal.replace(regex, mapping[key]);
+                    // Try {CHAVE} format
+                    regex = new RegExp(`\\{${key}\\}`, 'g');
                     conteudoFinal = conteudoFinal.replace(regex, mapping[key]);
                 });
                 

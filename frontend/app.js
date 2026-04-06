@@ -5791,7 +5791,9 @@ window.renderGeradoresList = function(items) {
                 <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
                     <button class="btn btn-primary btn-sm" onclick="window.abrirModalSelecaoColab(${g.id})" title="Visualizar Documento"><i class="ph ph-eye"></i></button>
                     <button class="btn btn-warning btn-sm" onclick="window.editGerador(${g.id})" title="Editar"><i class="ph ph-pencil-simple"></i></button>
+                    ${['AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO', 'ORDEM DE SERVIÇO NR01'].includes((g.nome || '').toUpperCase().trim()) ? '' : `
                     <button class="btn btn-danger btn-sm" onclick="window.deleteGerador(${g.id})" title="Excluir"><i class="ph ph-trash"></i></button>
+                    `}
                 </div>
             </td>
         </tr>
@@ -6185,8 +6187,33 @@ window.abrirModalSelecaoColab = async function(geradorId) {
         
         select.innerHTML = colabs.map(c => `<option value="${c.id}">${c.nome_completo} - ${c.cpf}</option>`).join('');
         document.getElementById('gerador-id-temp').innerText = geradorId;
+
+        // Limpar e mostrar/esconder campos extras se for Desconto em Folha
+        const gerador = (window.allGeradores || []).find(g => g.id == geradorId);
+        const isDesconto = gerador && (gerador.nome || '').toUpperCase().includes('DESCONTO EM FOLHA');
+        const extras = document.getElementById('extra-fields-desconto');
+        if (extras) {
+            extras.style.display = isDesconto ? 'block' : 'none';
+            document.getElementById('desconto-descricao').value = '';
+            document.getElementById('desconto-valor').value = '';
+            document.getElementById('desconto-parcelas').value = '1';
+            window.calcParcelaDesconto();
+        }
+
         document.getElementById('modal-selecionar-colab').style.display = 'block';
     } catch (e) { console.error(e); }
+};
+
+window.calcParcelaDesconto = function() {
+    let valStr = document.getElementById('desconto-valor').value;
+    if(!valStr) valStr = '0';
+    // Substituir vírgula por ponto para cálculo
+    valStr = valStr.replace(',', '.');
+    const valor = parseFloat(valStr) || 0;
+    const parcelas = parseInt(document.getElementById('desconto-parcelas').value) || 1;
+    
+    const maxVal = (valor / parcelas).toFixed(2).replace('.', ',');
+    document.getElementById('desconto-valor-parcelamento').innerText = `Valor de cada parcela: R$ ${maxVal}`;
 };
 
 window.processarGeracao = async function() {
@@ -6195,10 +6222,23 @@ window.processarGeracao = async function() {
     
     if (!geradorId || !colabId) return;
     
+    let requestBody = {};
+    const gerador = (window.allGeradores || []).find(g => g.id == geradorId);
+    if (gerador && (gerador.nome || '').toUpperCase().includes('DESCONTO EM FOLHA')) {
+        requestBody.desconto_descricao = document.getElementById('desconto-descricao').value || 'Não informado';
+        requestBody.desconto_valor = document.getElementById('desconto-valor').value || '0,00';
+        requestBody.desconto_parcelas = document.getElementById('desconto-parcelas').value || '1';
+        requestBody.desconto_valor_parcela = document.getElementById('desconto-valor-parcelamento').innerText.replace('Valor de cada parcela: R$ ', '');
+    }
+
     try {
         const response = await fetch(`${API_URL}/geradores/${geradorId}/gerar/${colabId}`, {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${currentToken}` }
+            headers: { 
+                'Authorization': `Bearer ${currentToken}`,
+                'Content-Type': 'application/json' 
+            },
+            body: JSON.stringify(requestBody)
         });
         const data = await response.json();
         

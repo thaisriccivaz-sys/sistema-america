@@ -249,7 +249,67 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     variaveis TEXT,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
-            `);
+            `, (err) => {
+                if(err) return;
+                const autorizacaoHTML = \`
+<p style="text-align: justify; font-size: 14px; line-height: 1.5;">Pelo presente instrumento, autorizo a empresa AMERICA RENTAL EQUIPAMENTOS LTDA, situada na Rua Saldo da Divisa, nº 97, CEP 07242-300, Parque Alvorada - Guarulhos SP, Inscrita no CNPJ sob o nº 03.434.448/0001-01, autorizo o desconto descrito abaixo:</p>
+<br/>
+<p style="font-size: 14px; line-height: 1.6;"><strong>Descrição:</strong> {MODAL_DESCRICAO}</p>
+<p style="font-size: 14px; line-height: 1.6;"><strong>Valor:</strong> R$ {MODAL_VALOR}</p>
+<p style="font-size: 14px; line-height: 1.6;"><strong>Parcelamento:</strong> ( {PARCELA_1} ) 1x &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ( {PARCELA_2} ) 2x &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ( {PARCELA_3} ) 3x &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>- Valor Parcela: R$ {MODAL_VALOR_PARCELA}</b></p>
+<br/><br/><br/><br/>
+<div style="text-align: center; margin-top: 50px;">
+    ___________________________________________________<br/>
+    <b>{NOME_COMPLETO}</b><br/>
+    CPF: {CPF}
+</div>
+\`;
+                const osHTML = \`
+<h2 style="text-align: center; margin-bottom: 15px; font-size: 16px;">CONTRATO DE AUXÍLIO FACULDADE</h2>
+<div style="background-color: #d1d5db; padding: 10px 20px; font-weight: bold; margin-bottom: 25px; display: flex; justify-content: space-between; font-size: 14px;">
+  <span>AMÉRICA RENTAL EQUIPAMENTOS LTDA</span>
+  <span>ORDEM DE SERVIÇO</span>
+  <span>NR01</span>
+</div>
+
+<p style="margin-bottom: 5px; font-size: 14px;"><strong>COLABORADOR:</strong> <span style="font-size: 16px; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 2px;">{NOME_COMPLETO}</span></p>
+<p style="margin-bottom: 25px; margin-left: 50px; font-size: 14px;">Cargo: <strong>{CARGO}</strong></p>
+
+<!-- BLOCO 1 -->
+<div style="border: 2px solid #000; margin-bottom: 20px;">
+   <div style="background-color: #e5e7eb; padding: 8px 10px; font-weight: bold; font-size: 12px; border-bottom: 2px solid #000;">DESCRIÇÃO DA ATIVIDADE:</div>
+   <div style="padding: 15px 10px; text-align: justify; font-size: 12px; line-height: 1.5; color: #1f2937;">
+      Fazer sucção com equipamento apropriado dos dejetos dos banheiros; repor os desodorantes; efetuar lavagem e secagem dos mesmos e efetuar a carga e descarga dos banheiros químicos nos caminhões e nos locais definidos em eventos e espaços, executar atividades conforme orientações e prioridades dos serviços definidos pelo seu superior imediato, normas e procedimentos internos, desenvolver demais atividades relacionadas ao setor, prezar pela organização do setor de trabalho. Atividades desenvolvidas em ambiente externo.
+   </div>
+</div>
+
+<!-- BLOCO 2 -->
+<div style="border: 2px solid #000; margin-bottom: 20px;">
+   <div style="background-color: #e5e7eb; padding: 8px 10px; font-weight: bold; font-size: 12px; border-bottom: 2px solid #000;">DESCRIÇÃO DOS RISCOS AMBIENTAIS:</div>
+   <div style="padding: 15px 10px; font-size: 12px; line-height: 1.8; color: #1f2937;">
+      <b>Físico:</b> Ruído | Umidade<br/>
+      <b>Químico:</b> Produtos Domissaneantes<br/>
+      <b>Biológicos:</b> Microorganismos Infecciosos<br/>
+      <b>Ergonômicos:</b> Posturas Inadequadas / Posições Incômodas | Esforço Físico<br/>
+      <b>Acidentes:</b> Queda de objetos sobre a cabeça | Acidente de trânsito | Quedas de nível diferente (menor que 2m) | Escorregar em pisos umedecidos ou molhados | Respingos de resíduos e produtos saneantes
+   </div>
+</div>
+
+<!-- BLOCO 3 -->
+<div style="border: 2px solid #000; margin-bottom: 30px;">
+   <div style="background-color: #e5e7eb; padding: 8px 10px; font-weight: bold; font-size: 12px; border-bottom: 2px solid #000;">MEDIDAS PREVENTIVAS EPIS:</div>
+   <div style="padding: 15px 10px; font-size: 12px; line-height: 1.5; color: #1f2937;">
+      Máscara descartável | Luvas de látex ou nitrílicas | Óculos de proteção contra respingos | Calçados de segurança | Camiseta | Calça | Capacete | Protetor auditivo | Protetor solar | Luva de helanca
+   </div>
+</div>
+\`;
+                db.get("SELECT id FROM geradores WHERE nome = 'AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO'", [], (e, row) => {
+                    if(!row) db.run("INSERT INTO geradores (nome, conteudo, variaveis) VALUES ('AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO', ?, '[]')", autorizacaoHTML);
+                });
+                db.get("SELECT id FROM geradores WHERE nome = 'ORDEM DE SERVIÇO NR01'", [], (e, row) => {
+                    if(!row) db.run("INSERT INTO geradores (nome, conteudo, variaveis) VALUES ('ORDEM DE SERVIÇO NR01', ?, '[]')", osHTML);
+                });
+            });
 
             // Tabela de Faltas (ausências sem justificativa)
             db.run(`
