@@ -11678,11 +11678,17 @@ window.salvarNovaMulta = async function(colabId) {
         });
         const docData = await docRes.json();
 
-        document.getElementById('modal-nova-multa').remove();
+        // Fechar modal
+        const modalEl = document.getElementById('modal-nova-multa');
+        if (modalEl) modalEl.remove();
 
-        if (docData.html) {
-            window.abrirPreviewDocumentoMulta(docData.html, colabId, multaId, window._multaTipoSelecionado);
-        }
+        // Salvar HTML do documento no cache para o botão "Ver Documento"
+        window._multaHtmlCache = window._multaHtmlCache || {};
+        if (docData.html) window._multaHtmlCache[multaId] = { html: docData.html, tipo: window._multaTipoSelecionado };
+
+        // === ATUALIZAR LISTA EM TEMPO REAL ===
+        await window._recarregarListaMultas(colabId);
+        if (typeof showToast === 'function') showToast('Multa salva com sucesso!', 'success');
 
     } catch(e) {
         alert('Erro: ' + e.message);
@@ -11741,8 +11747,7 @@ window.solicitarAssinaturaMulta = async function(colabId, multaId, tipo) {
                 window.confirmarMonacoMulta(colabId, multaId);
             } else {
                 if (typeof admissaoToast === 'function') admissaoToast('✅ Termo NIC assinado com sucesso!', 'success');
-                const tab = document.querySelector('[data-tab="Multas"]');
-                if (tab) tab.click();
+                await window._recarregarListaMultas(colabId);
             }
         };
     } else {
@@ -11754,6 +11759,7 @@ window.solicitarAssinaturaMulta = async function(colabId, multaId, tipo) {
                 body: JSON.stringify({ status: 'assinado' })
             });
             if (tipo === 'indicacao') window.confirmarMonacoMulta(colabId, multaId);
+            else await window._recarregarListaMultas(colabId);
         }
     }
 };
