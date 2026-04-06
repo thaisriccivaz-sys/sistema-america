@@ -11398,21 +11398,45 @@ window.gerarFichaSantander = async function() {
     }
 };
 
-window.verFichaSantander = function() {
-    if (!window._santanderPreVHtml) {
-        alert("Gere o documento primeiro."); return;
+window.verFichaSantander = async function() {
+    // Se tem cache: usa direto
+    if (window._santanderPreVHtml) {
+        const win = window.open('', '_blank', 'width=820,height=900');
+        win.document.write(window._santanderPreVHtml);
+        win.document.close();
+        win.focus();
+        return;
     }
-    const html = window._santanderPreVHtml;
-    // Abrir iframe preview / nova janela
-    const win = window.open('', '_blank', 'width=820,height=900');
-    win.document.write(html);
-    win.document.close();
-    win.focus();
-    
-    // Adicionar pequeno delay para print popup ao visualizar
-    setTimeout(() => {
-        // Option popup is better UI if not auto print, but we leave it to the user.
-    }, 500);
+
+    // Se não tem cache mas a ficha já foi gerada: regenera silenciosamente
+    const colab = viewedColaborador || window._admissaoColabSelecionado;
+    if (colab && colab.santander_ficha_data) {
+        // Mostrar loading
+        const btn = document.querySelector('[onclick*="verFichaSantander"]');
+        if (btn) { btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Gerando...'; btn.disabled = true; }
+        
+        try {
+            // Reutiliza a função de geração, mas sem exibir toast de sucesso
+            window._silentSantanderGen = true;
+            await window.gerarFichaSantander();
+            window._silentSantanderGen = false;
+            
+            // Agora o cache deve estar preenchido
+            if (window._santanderPreVHtml) {
+                const win = window.open('', '_blank', 'width=820,height=900');
+                win.document.write(window._santanderPreVHtml);
+                win.document.close();
+                win.focus();
+            }
+        } catch(e) {
+            alert('Erro ao regenerar documento: ' + e.message);
+        } finally {
+            if (btn) { btn.innerHTML = '<i class="ph ph-eye"></i> Visualizar'; btn.disabled = false; }
+        }
+        return;
+    }
+
+    alert("Gere o documento primeiro.");
 };
 
 // Funçao mockup caso nòo exista _recalculateAdmissaoFinalProg
