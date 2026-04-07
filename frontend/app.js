@@ -6717,7 +6717,7 @@ window.renderContratosTab = async function(container) {
             </button>
             <button id="sub-tab-btn-avulso"
                 style="padding:0.55rem 1.2rem; border:none; border-radius:8px 8px 0 0; font-weight:600; cursor:pointer; background:#f1f5f9; color:#64748b; font-size:0.88rem; display:flex; align-items:center; gap:6px;">
-                <i class="ph ph-file-plus"></i> Contratos
+                <i class="ph ph-file-plus"></i> Outros Contratos
             </button>
         </div>
         <div id="contratos-sub-admissao">
@@ -6905,10 +6905,73 @@ window.uploadContratoExterno = async function(input) {
         if (!res.ok) throw new Error('Falha ao anexar PDF');
         Swal.close();
         showToast('Documento anexado!', 'success');
+        // Força reload mesmo que já esteja na aba
+        window._contratosAvulsoLoaded = false;
+        const avDivUp = document.getElementById('contratos-sub-avulso');
+        if (avDivUp) { avDivUp.innerHTML = '<p class="text-muted"><i class="ph ph-spinner ph-spin"></i> Atualizando...</p>'; }
+        window._contratosAvulsoLoaded = true;
+        if (avDivUp) await window.renderContratosAvulso(avDivUp);
         window.switchContratosSubTab('avulso');
     } catch(e) {
         Swal.fire('Erro', e.message, 'error');
     }
+};
+
+// ── Popup fullscreen 100% para visualizar PDFs de contratos ──────────────
+window.openContratoViewerPopup = function(pdfUrl, nomeDoc) {
+    if (!pdfUrl || pdfUrl.endsWith('undefined') || pdfUrl.endsWith('/')) {
+        alert('URL do documento não encontrada. O arquivo pode não ter sido enviado ao servidor.');
+        return;
+    }
+    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+    // Adiciona token se a URL é da API interna
+    const finalUrl = pdfUrl.includes(window.location.hostname) || pdfUrl.includes('onrender.com')
+        ? (pdfUrl.includes('?') ? pdfUrl + '&token=' + token : pdfUrl + '?token=' + token)
+        : pdfUrl;
+
+    let overlay = document.getElementById('contrato-viewer-overlay');
+    if (overlay) overlay.remove();
+    overlay = document.createElement('div');
+    overlay.id = 'contrato-viewer-overlay';
+    // Popup FULLSCREEN 100%
+    overlay.style.cssText = 'position:fixed;inset:0;background:#0f172a;z-index:99999;display:flex;flex-direction:column;';
+    document.body.appendChild(overlay);
+
+    overlay.innerHTML = `
+        <div style="background:#1e293b;display:flex;align-items:center;justify-content:space-between;padding:0.75rem 1.25rem;flex-shrink:0;border-bottom:1px solid #334155;">
+            <div style="display:flex;align-items:center;gap:0.75rem;">
+                <i class="ph ph-file-pdf" style="color:#ef4444;font-size:1.5rem;"></i>
+                <div>
+                    <div style="font-weight:700;color:#f1f5f9;font-size:0.95rem;">${nomeDoc}</div>
+                    <div style="font-size:0.72rem;color:#94a3b8;">Visualizador de Documento</div>
+                </div>
+            </div>
+            <div style="display:flex;gap:0.5rem;">
+                <a href="${finalUrl}" download="${nomeDoc}.pdf" target="_blank"
+                   style="display:inline-flex;align-items:center;gap:0.4rem;background:#22c55e;color:#fff;padding:0.5rem 1.1rem;border-radius:8px;font-weight:600;font-size:0.85rem;text-decoration:none;">
+                    <i class="ph ph-download-simple"></i> Baixar
+                </a>
+                <button onclick="document.getElementById('contrato-viewer-overlay').remove()"
+                        style="background:#ef4444;color:#fff;border:none;border-radius:8px;padding:0.5rem 1.1rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;">
+                    <i class="ph ph-x"></i> Fechar
+                </button>
+            </div>
+        </div>
+        <div style="flex:1;position:relative;background:#525659;">
+            <div id="cv-loading" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;gap:0.75rem;">
+                <i class="ph ph-circle-notch ph-spin" style="font-size:3rem;color:#6366f1;"></i>
+                <span style="font-weight:600;">Carregando documento...</span>
+            </div>
+            <iframe src="${finalUrl}"
+                style="width:100%;height:100%;border:none;display:block;"
+                onload="var l=document.getElementById('cv-loading');if(l)l.style.display='none';"
+                onerror="var l=document.getElementById('cv-loading');if(l)l.innerHTML='<i class=\'ph ph-warning\' style=\'font-size:3rem;color:#f59e0b;\'></i><span>Não foi possível carregar o PDF. <a href=\''+encodeURI('${finalUrl}')+'\' target=\'_blank\' style=\'color:#60a5fa;\'>Abrir em nova aba</a></span>';">
+            </iframe>
+        </div>`;
+
+    // ESC fecha o popup
+    const closeOnEsc = (e) => { if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', closeOnEsc); } };
+    document.addEventListener('keydown', closeOnEsc);
 };
 
 window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
@@ -6930,7 +6993,11 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
        const isSigned = realStatus === 'Assinado';
        const isPending = realStatus === 'Aguardando';
 
-       let eyeBtn = `<button type="button" onclick="window.open('${API_URL.replace('/api','') + doc.file_url}', '_blank'); event.preventDefault(); event.stopPropagation();" style="border:none;background:none;cursor:pointer;color:#64748b;" title="Ver PDF Original"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
+       // URL segura: garante que file_url não é undefined e usa popup fullscreen
+       const _rawUrl = doc.file_url || '';
+       const _docUrl = _rawUrl.startsWith('http') ? _rawUrl : (API_URL.replace('/api','') + _rawUrl);
+       const _docName = (doc.document_type || doc.file_name || 'Documento').replace(/'/g, "\\'");
+       let eyeBtn = `<button type="button" onclick="window.openContratoViewerPopup('${_docUrl}', '${_docName}'); event.preventDefault(); event.stopPropagation();" style="border:none;background:none;cursor:pointer;color:#64748b;" title="Ver PDF"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
        if (isSigned && ass && ass.certificado_assinado_em) {
            eyeBtn = `<button type="button" onclick="window.openSignedDocPopup(${ass.id}, '${(doc.document_type||'').replace(/'/g,"\\'")}', event); event.stopPropagation();" style="border:none;background:none;cursor:pointer;color:#7c3aed;" title="Ver documento final (Empresa+Colaborador)"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
        } else if (isSigned && ass) {
@@ -6970,7 +7037,14 @@ window.deleteDocumentoContrato = async function(docId) {
     try {
         const res = await fetch(`${API_URL}/documentos/${docId}`,{ method:'DELETE', headers:{'Authorization':`Bearer ${currentToken}`}});
         if(!res.ok) throw new Error('Falha ao excluir');
+        // Força reload mesmo que já esteja na aba avulso
+        window._contratosAvulsoLoaded = false;
+        const avDiv = document.getElementById('contratos-sub-avulso');
+        if (avDiv) { avDiv.innerHTML = '<p class="text-muted"><i class="ph ph-spinner ph-spin"></i> Atualizando...</p>'; }
+        window._contratosAvulsoLoaded = true;
+        if (avDiv) await window.renderContratosAvulso(avDiv);
         window.switchContratosSubTab('avulso');
+        showToast('Documento excluído!', 'success');
     } catch(e) { alert(e.message); }
 };
 
@@ -7014,6 +7088,10 @@ window.enviarAssinaturaLoteContratos = async function() {
         if (errorCount > 0) alert(errorCount + ' documento(s) falharam no envio. Verifique o console.');
         else showToast('Documentos enviados para assinatura!', 'success');
         
+        // Forçar reload da lista
+        window._contratosAvulsoLoaded = false;
+        const _avDivLote = document.getElementById('contratos-sub-avulso');
+        if (_avDivLote) await window.renderContratosAvulso(_avDivLote);
         window.switchContratosSubTab('avulso');
     } catch(e) {
         alert('Erro fatal: ' + e.message);
