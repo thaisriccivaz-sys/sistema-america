@@ -11543,9 +11543,16 @@ window._renderMultaActions = function(m, colabId, actionsDiv) {
         actionsDiv.appendChild(btnIniciar);
     } else {
         const btnPI = document.createElement('button');
-        btnPI.style = 'background:#e0f2fe;color:#0369a1;border:1.5px solid #7dd3fc;border-radius:8px;padding:6px 14px;cursor:pointer;font-weight:700;font-size:0.85rem;display:inline-flex;align-items:center;gap:6px;';
-        btnPI.innerHTML = '<i class="ph ph-check-circle"></i> Processo Iniciado';
-        btnPI.onclick = () => window.abrirPopupIniciarProcesso(m, colabId);
+        const processoTravado = !!(m.assinatura_testemunha1_base64);
+        if (processoTravado) {
+            btnPI.style = 'background:#e0f2fe;color:#0369a1;border:1.5px solid #7dd3fc;border-radius:8px;padding:6px 14px;cursor:not-allowed;font-weight:700;font-size:0.85rem;display:inline-flex;align-items:center;gap:6px;opacity:0.6;';
+            btnPI.innerHTML = '<i class="ph ph-check-circle"></i> Processo Iniciado';
+            btnPI.disabled = true;
+        } else {
+            btnPI.style = 'background:#e0f2fe;color:#0369a1;border:1.5px solid #7dd3fc;border-radius:8px;padding:6px 14px;cursor:pointer;font-weight:700;font-size:0.85rem;display:inline-flex;align-items:center;gap:6px;';
+            btnPI.innerHTML = '<i class="ph ph-check-circle"></i> Processo Iniciado';
+            btnPI.onclick = () => window.abrirPopupIniciarProcesso(m, colabId);
+        }
         actionsDiv.appendChild(btnPI);
 
         // ── Botão 👁 Visualizar ──
