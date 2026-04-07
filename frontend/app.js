@@ -11190,14 +11190,17 @@ window._updateSantanderStepUI = function(dataSantander) {
     var stepEl = document.getElementById('step-2');
     if (stepEl) {
         // Checar em diferentes estilos de stepper
-        var iconEl = stepEl.querySelector('.step-icon, .step-circle, .stepper-circle');
+        // Aplicar via classe CSS (não via style inline - conflita com .active:not(.pc-success))
+        stepEl.classList.remove('pc-warning');
+        stepEl.classList.add('pc-success');
+        var iconEl = stepEl.querySelector('.step-icon');
         if (iconEl) {
-            iconEl.style.background = '#22c55e';
-            iconEl.style.borderColor = '#22c55e';
-            iconEl.style.color = '#fff';
+            iconEl.style.removeProperty('background');
+            iconEl.style.removeProperty('border-color');
+            iconEl.style.removeProperty('color');
         }
         var numEl = stepEl.querySelector('.num, .step-number');
-        if (numEl) numEl.style.display = 'none';
+        if (numEl) numEl.style.removeProperty('display'); // NUNCA esconder o número
         var pcEl = stepEl.querySelector('.percent, .step-percent, .pc');
         if (pcEl) { pcEl.style.display = 'inline'; pcEl.textContent = '100%'; }
     }
