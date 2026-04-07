@@ -6893,13 +6893,13 @@ window.uploadContratoExterno = async function(input) {
     if (!docType) return;
     
     const formData = new FormData();
-    formData.append('documento', file);
+    formData.append('arquivo', file);
     formData.append('tab_name', 'CONTRATOS');
     formData.append('document_type', docType);
     
     try {
         Swal.fire({title: 'Anexando...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
-        const res = await fetch(`${API_URL}/colaboradores/${viewedColaborador.id}/documentos`, {
+        const res = await fetch(`${API_URL}/documentos` // rota correta, {
             method: 'POST', headers: {'Authorization': `Bearer ${currentToken}`}, body: formData
         });
         if (!res.ok) throw new Error('Falha ao anexar PDF');
@@ -7239,7 +7239,15 @@ window.gerarContratoAvulso = async function() {
                     
                     document.getElementById('modal-preview-doc').style.display = 'none';
                     document.getElementById('doc-modal').style.display = 'none';
-                    showToast('Documento gerado e salvo!', 'success');
+                    showToast('Documento gerado e salvo no Prontuário!', 'success');
+                    // Forçar reload da lista de contratos imediatamente
+                    window._contratosAvulsoLoaded = false;
+                    const _avDivSave = document.getElementById('contratos-sub-avulso');
+                    if (_avDivSave) {
+                        _avDivSave.innerHTML = '<p class="text-muted"><i class="ph ph-spinner ph-spin"></i> Atualizando lista...</p>';
+                        window._contratosAvulsoLoaded = true;
+                        await window.renderContratosAvulso(_avDivSave);
+                    }
                     window.switchContratosSubTab('avulso');
                 } catch(err) {
                     alert('Erro ao salvar: ' + err.message);
@@ -12148,7 +12156,7 @@ window.processarNotificacaoMulta = async function(input, colabId) {
     uploadArea.style.display = 'none';
     try {
         const formData = new FormData();
-        formData.append('arquivo', file);
+        formData.append('file', file); // campo esperado pelo /api/documentos
         const res = await fetch(`${API_URL}/colaboradores/${colabId}/multas/upload-notificacao`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${currentToken}` },
