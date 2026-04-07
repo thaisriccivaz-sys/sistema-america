@@ -100,6 +100,25 @@ db.run(`CREATE TABLE IF NOT EXISTS multas (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 )`, (err) => { if (err) console.error('Erro ao criar tabela multas:', err); else console.log('Tabela multas OK.'); });
 
+// MIGRATION: Adicionar campos de assinatura na tabela multas (se não existirem)
+const _multasMigCols = [
+    'ALTER TABLE multas ADD COLUMN processo_iniciado INTEGER DEFAULT 0',
+    'ALTER TABLE multas ADD COLUMN assinatura_testemunha1_nome TEXT',
+    'ALTER TABLE multas ADD COLUMN assinatura_testemunha1_base64 TEXT',
+    'ALTER TABLE multas ADD COLUMN assinatura_testemunha2_nome TEXT',
+    'ALTER TABLE multas ADD COLUMN assinatura_testemunha2_base64 TEXT',
+    'ALTER TABLE multas ADD COLUMN assinatura_condutor_base64 TEXT',
+    'ALTER TABLE multas ADD COLUMN assinaturas_finalizadas INTEGER DEFAULT 0',
+    'ALTER TABLE multas ADD COLUMN documento_html TEXT',
+];
+_multasMigCols.forEach(sql => {
+    db.run(sql, err => {
+        if (err && !err.message.includes('duplicate column')) {
+            // silent — column already exists
+        }
+    });
+});
+
 // MIGRATION: Limpar todos os usuários exceto Diretoria1
 db.run("DELETE FROM usuarios WHERE LOWER(REPLACE(username, '.', '')) != 'diretoria1'", (err) => {
     if (err) console.error("Erro ao limpar usuários:", err);
@@ -5311,6 +5330,59 @@ app.post('/api/colaboradores/:id/multas/:multaId/gerar-documento', authenticateT
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
+});
+
+// POST /api/colaboradores/:id/multas/:multaId/iniciar-processo — salva tipo/parcelas e marca processo iniciado
+app.post('/api/colaboradores/:id/multas/:multaId/iniciar-processo', authenticateToken, (req, res) => {
+    const { multaId } = req.params;
+    const { tipo_resolucao, parcelas, documento_html } = req.body;
+    db.run(
+        `UPDATE multas SET tipo_resolucao = ?, parcelas = ?, processo_iniciado = 1, status = 'doc_gerado', documento_html = ? WHERE id = ?`,
+        [tipo_resolucao, parcelas || 1, documento_html || null, multaId],
+        (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ sucesso: true });
+        }
+    );
+});
+
+// POST /api/colaboradores/:id/multas/:multaId/assinar-testemunhas — salva assinaturas das testemunhas
+app.post('/api/colaboradores/:id/multas/:multaId/assinar-testemunhas', authenticateToken, (req, res) => {
+    const { multaId } = req.params;
+    const { testemunha1_nome, testemunha1_assinatura, testemunha2_nome, testemunha2_assinatura, documento_html } = req.body;
+    if (!testemunha1_assinatura) {
+        return res.status(400).json({ error: 'Assinatura da primeira testemunha é obrigatória.' });
+    }
+    db.run(
+        `UPDATE multas SET
+            assinatura_testemunha1_nome = ?,
+            assinatura_testemunha1_base64 = ?,
+            assinatura_testemunha2_nome = ?,
+            assinatura_testemunha2_base64 = ?,
+            documento_html = COALESCE(?, documento_html),
+            status = 'testemunhas_assinadas'
+        WHERE id = ?`,
+        [testemunha1_nome, testemunha1_assinatura, testemunha2_nome || null, testemunha2_assinatura || null, documento_html || null, multaId],
+        (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ sucesso: true });
+        }
+    );
+});
+
+// POST /api/colaboradores/:id/multas/:multaId/assinar-condutor — salva assinatura do condutor
+app.post('/api/colaboradores/:id/multas/:multaId/assinar-condutor', authenticateToken, (req, res) => {
+    const { multaId } = req.params;
+    const { assinatura_base64 } = req.body;
+    if (!assinatura_base64) return res.status(400).json({ error: 'Assinatura obrigatória.' });
+    db.run(
+        `UPDATE multas SET assinatura_condutor_base64 = ?, assinaturas_finalizadas = 1, status = 'assinado' WHERE id = ?`,
+        [assinatura_base64, multaId],
+        (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ sucesso: true });
+        }
+    );
 });
 
 app.listen(PORT, () => {
