@@ -7022,11 +7022,9 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
        const isSigned = realStatus === 'Assinado';
        const isPending = realStatus === 'Aguardando';
 
-       // Usa /api/documentos/view/:id?token= (rota autenticada que serve o arquivo real)
-       const _docToken = window.currentToken || localStorage.getItem('erp_token') || '';
-       const _viewUrl = API_URL + '/documentos/view/' + doc.id + '?token=' + _docToken;
+       // openContratoViewerById busca o token no CLIQUE (não no build-time)
        const _docName = (doc.document_type || doc.file_name || 'Documento').replace(/'/g, "\\'");
-       let eyeBtn = `<button type="button" onclick="window.openContratoViewerPopup('${_viewUrl}', '${_docName}'); event.preventDefault(); event.stopPropagation();" style="border:none;background:none;cursor:pointer;color:#64748b;" title="Ver PDF"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
+       let eyeBtn = `<button type="button" onclick="window.openContratoViewerById(${doc.id}, '${_docName}'); event.preventDefault(); event.stopPropagation();" style="border:none;background:none;cursor:pointer;color:#64748b;" title="Ver PDF"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
        if (isSigned && ass && ass.certificado_assinado_em) {
            eyeBtn = `<button type="button" onclick="window.openSignedDocPopup(${ass.id}, '${(doc.document_type||'').replace(/'/g,"\\'")}', event); event.stopPropagation();" style="border:none;background:none;cursor:pointer;color:#7c3aed;" title="Ver documento final (Empresa+Colaborador)"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
        } else if (isSigned && ass) {
