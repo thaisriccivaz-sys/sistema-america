@@ -6899,9 +6899,9 @@ window.uploadContratoExterno = async function(input) {
     
     try {
         Swal.fire({title: 'Anexando...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
-        const res = await fetch(`${API_URL}/documentos` // rota correta, {
+        const res = await fetch(`${API_URL}/documentos`, {
             method: 'POST', headers: {'Authorization': `Bearer ${currentToken}`}, body: formData
-        });
+        }); // rota correta
         if (!res.ok) throw new Error('Falha ao anexar PDF');
         Swal.close();
         showToast('Documento anexado!', 'success');
