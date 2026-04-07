@@ -6918,6 +6918,13 @@ window.uploadContratoExterno = async function(input) {
 };
 
 window.openContratoViewerPopup = function(pdfUrl, nomeDoc) {
+// Versão segura: pega o token no momento do clique (não no build-time da lista)
+window.openContratoViewerById = function(docId, nomeDoc) {
+    var token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+    if (!token) { alert('Sessão expirada. Faça login novamente.'); return; }
+    var pdfUrl = API_URL + '/documentos/view/' + docId + '?token=' + encodeURIComponent(token);
+    window.openContratoViewerPopup(pdfUrl, nomeDoc);
+};
     if (!pdfUrl || pdfUrl.endsWith('undefined')) {
         alert('URL do documento nao encontrada.');
         return;
