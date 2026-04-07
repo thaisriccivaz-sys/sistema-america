@@ -7904,22 +7904,38 @@ function updateAdmissaoStepPercentages(colab) {
     const targetColab = colab || viewedColaborador;
     if (!targetColab) return;
 
+    // ── Passo 1: Dados cadastrais ─────────────────────────────────────
     const step1 = calculateAdmissaoStep1Completion(targetColab);
     const pc1 = step1.percent;
 
+    // ── Passo 2: Santander — 100% se ficha foi gerada ─────────────────
+    const pc2 = targetColab.santander_ficha_data ? 100 : 0;
+
+    // ── Passo 3: Assinaturas — usa geradores/assinaturas carregados ───
+    const pc3 = window._updateAdmissaoStep2Pct ? window._updateAdmissaoStep2Pct() : (() => {
+        const checks = document.querySelectorAll('#admissao-signature-list input[type="checkbox"]');
+        if (checks.length === 0) return 0;
+        const checked = Array.from(checks).filter(c => c.checked).length;
+        return Math.round((checked / checks.length) * 100);
+    })();
+
+    // Listener no signature-list para reagir a mudanças em tempo real
+    const sigList = document.getElementById('admissao-signature-list');
+    if (sigList && !sigList.dataset.listener) {
+        sigList.addEventListener('change', () => updateAdmissaoStepPercentages());
+        sigList.dataset.listener = 'true';
+    }
+
+    // Helper: contar docs no DOM do painel (funciona só quando painel está aberto)
     const calculateChecklist = (panelId) => {
         const panel = document.getElementById(panelId);
         if (!panel) return 0;
-        
-        // Se usar doc-items dinâmicos (renderAdmissaoStepX)
         const docItems = panel.querySelectorAll('.doc-item');
         if (docItems.length > 0) {
             const total = docItems.length;
             const uploaded = panel.querySelectorAll('.doc-item[data-doc-id]').length;
             return Math.min(100, Math.round((uploaded / total) * 100));
         }
-
-        // Checklist nativo HTML
         const total = panel.querySelectorAll('.checklist-item').length;
         if (total === 0) return 0;
         const uploaded = Array.from(panel.querySelectorAll('.upload-status'))
@@ -7927,50 +7943,47 @@ function updateAdmissaoStepPercentages(colab) {
         return Math.min(100, Math.round((uploaded / total) * 100));
     };
 
-    const pc2 = window._updateAdmissaoStep2Pct ? window._updateAdmissaoStep2Pct() : (() => {
-        const checks = document.querySelectorAll('#admissao-signature-list input[type="checkbox"]');
-        if (checks.length === 0) return 0;
-        const checked = Array.from(checks).filter(c => c.checked).length;
-        return Math.round((checked / checks.length) * 100);
-    })();
-    
-    // Adicionar Listener se não houver
-    const sigList = document.getElementById('admissao-signature-list');
-    if (sigList && !sigList.dataset.listener) {
-        sigList.addEventListener('change', () => updateAdmissaoStepPercentages());
-        sigList.dataset.listener = 'true';
-    }
-
-    const pc3 = calculateChecklist('panel-step-3');
-    
-    // Passo 4 Especial: 20% para anexo + 80% assinatura
+    // ── Passo 4: Ficha Cadastral — documentos enviados ao colaborador ──
+    // Tenta DOM primeiro (painel aberto); fallback: dados do colaborador
     let pc4 = 0;
     const panel4 = document.getElementById('panel-step-4');
     if (panel4) {
         const docItems4 = panel4.querySelectorAll('.doc-item');
-        const numDocs = docItems4.length;
-        if (numDocs > 0) {
-            let uploaded = panel4.querySelectorAll('.doc-item[data-doc-id]').length;
-            let signed = panel4.querySelectorAll('.doc-item[data-assinafy-status*="Assinado"]').length;
-            
-            const pctUpload = (uploaded / numDocs) * 20;
-            const pctSign = Math.round((signed / numDocs) * 80);
-            pc4 = Math.min(100, Math.round(pctUpload + pctSign));
+        if (docItems4.length > 0) {
+            const numDocs = docItems4.length;
+            const uploaded = panel4.querySelectorAll('.doc-item[data-doc-id]').length;
+            const signed = panel4.querySelectorAll('.doc-item[data-assinafy-status*="Assinado"]').length;
+            pc4 = Math.min(100, Math.round((uploaded / numDocs) * 20 + (signed / numDocs) * 80));
+        }
+    }
+    // Fallback: usar dados do colaborador (assinaturas) mesmo com painel fechado
+    if (pc4 === 0 && targetColab) {
+        const assinaturas = window._admissaoAssinaturas || [];
+        const geradores = window._admissaoGeradores || [];
+        const total = geradores.length;
+        if (total > 0) {
+            const sent = assinaturas.filter(a => a.enviado_em || (a.assinafy_status && a.assinafy_status !== 'Nenhum' && a.assinafy_status !== '')).length;
+            const signed = assinaturas.filter(a => a.assinafy_status === 'Assinado').length;
+            pc4 = Math.min(100, Math.round((sent / total) * 20 + (signed / total) * 80));
         }
     }
 
-    // Passo 5 = 100% se o e-mail para a contabilidade foi enviado
-    const pc5 = (targetColab && targetColab.admissao_contabil_enviada_em) ? 100 : calculateChecklist('panel-step-5');
-    const pc6 = calculateChecklist('panel-step-6');
+    // ── Passo 5: ASO — 100% se e-mail enviado para clínica ────────────
+    const pc5 = targetColab.aso_email_enviado ? 100 : calculateChecklist('panel-step-5');
+
+    // ── Passo 6: Contabilidade — 100% se ficha enviada ────────────────
+    const pc6 = targetColab.admissao_contabil_enviada_em ? 100 : calculateChecklist('panel-step-6');
+
+    // ── Passos 7-10 ───────────────────────────────────────────────────
     const pc7 = calculateChecklist('panel-step-7');
     const pc8 = calculateChecklist('panel-step-8');
     const pc9 = calculateChecklist('panel-step-9');
     const pc10 = 0;
 
     const percentages = { 1:pc1, 2:pc2, 3:pc3, 4:pc4, 5:pc5, 6:pc6, 7:pc7, 8:pc8, 9:pc9, 10:pc10 };
-    
+
     let totalPc = 0;
-    for(let s in percentages) {
+    for (let s in percentages) {
         const pc = percentages[s];
         totalPc += pc;
         const el = document.getElementById(`step-${s}-pc`);
@@ -7978,9 +7991,9 @@ function updateAdmissaoStepPercentages(colab) {
 
         const item = document.getElementById(`step-${s}`);
         if (item) {
+            // Regra especial Step 5 (ASO): fica amarelo se e-mail foi enviado mas sem upload
             let isWarning = pc > 0 && pc < 100;
-            // Regra especial Step 4: Se enviou email p/ clínica, fica amarelo (até completar 100%)
-            if (s == 4 && viewedColaborador && viewedColaborador.aso_email_enviado) {
+            if (s == 5 && targetColab && targetColab.aso_email_enviado) {
                 isWarning = pc < 100;
             }
             item.classList.toggle('pc-warning', isWarning);
@@ -7989,8 +8002,6 @@ function updateAdmissaoStepPercentages(colab) {
     }
 
     const avg = Math.round(totalPc / 10);
-
-    // Barra global de progresso (média de todos os passos)
     const totalEl = document.getElementById('admissao-pc-total');
     if (totalEl) totalEl.textContent = `${avg}%`;
     const bar = document.getElementById('admissao-progress-bar');
