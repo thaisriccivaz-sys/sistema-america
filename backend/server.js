@@ -270,7 +270,8 @@ async function uploadDocToOneDrive(docId) {
         });
 
         if (!doc) { console.error(`[OD-AUTO] Doc ${docId} não encontrado no DB`); return; }
-        if (doc.tab_name === 'ASO') return; // ASO tem fluxo próprio
+        // ASO: faz upload inicial (sem assinatura). Após assinatura o fluxo específico sobrescreve.
+        // Portanto não bloqueamos mais o ASO aqui.
 
         const localPath = doc.signed_file_path && require('fs').existsSync(doc.signed_file_path)
             ? doc.signed_file_path
@@ -3934,23 +3935,36 @@ app.post('/api/documentos/:id/sync-assinafy', authenticateToken, async (req, res
                     // Pasta = tab_name normalizado (ex: ASO, EXAMES_COMPLEMENTARES)
                     const safeTab = formatarPasta(doc.tab_name || 'DOCUMENTOS').toUpperCase();
                     const docYear = doc.year && doc.year !== 'null' && doc.year !== '' ? String(doc.year).replace(/[^0-9]/g, '') : String(new Date().getFullYear());
-                    // Caminho: Base/NOME_COLAB/TAB/ANO
                     const targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}/${docYear}`;
                     
-                    console.log(`[OneDrive Sync] Sincronizando para: ${targetDir}`);
-
-                    // Garantir que a pasta existe (cria se necessário)
+                    console.log(`[OneDrive Sync] Sincronizando ASO para: ${targetDir}`);
                     await onedrive.ensurePath(targetDir);
 
-                    const fBuffer = fs.readFileSync(finalPath);
-                    // Nome padrão: TipoDoc_Ano_NomeColab.pdf
+                    // Ler buffer do arquivo assinado e aplicar certificado digital da empresa
+                    let fBuffer = fs.readFileSync(finalPath);
+                    const dispCert = signPdfPfx.verificarDisponibilidade();
+                    if (dispCert.disponivel) {
+                        try {
+                            fBuffer = await signPdfPfx.assinarPDF(fBuffer, {
+                                motivo: 'Assinado eletronicamente pela empresa',
+                                nome: 'America Rental Equipamentos Ltda'
+                            });
+                            console.log('[OneDrive Sync] ✅ Selo do certificado digital aplicado ao ASO.');
+                        } catch (certErr) {
+                            console.warn('[OneDrive Sync] Falha ao aplicar certificado no ASO:', certErr.message);
+                        }
+                    } else {
+                        console.warn('[OneDrive Sync] Certificado indisponível para ASO:', dispCert.motivo);
+                    }
+
+                    // Nome padrão: TipoDoc_Ano_NomeColab.pdf (igual ao upload inicial para sobrescrever)
                     const safeType = formatarPasta(doc.document_type || doc.tab_name || 'Documento').replace(/\s+/g, '_');
                     const cloudName = `${safeType}_${docYear}_${safeColab}.pdf`;
                     
                     await onedrive.uploadToOneDrive(targetDir, cloudName, fBuffer);
-                    console.log(`[OneDrive] ✓ Assinado sincronizado (API Sync): ${cloudName}`);
+                    console.log(`[OneDrive] ✓ ASO assinado sincronizado (com certificado): ${cloudName}`);
                 } catch (e) { 
-                    console.error("[OneDrive] Erro de sync assinado (API Sync):", e.message); 
+                    console.error("[OneDrive] Erro de sync ASO assinado:", e.message); 
                 }
             }
         } else {
