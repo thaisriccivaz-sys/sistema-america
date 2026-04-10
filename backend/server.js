@@ -4084,7 +4084,14 @@ app.post('/api/documentos/:id/force-onedrive-sync', authenticateToken, async (re
         const safeColab = formatarNome(doc.nome_completo || 'DESCONHECIDO');
         const safeTab = formatarPasta(doc.tab_name || 'DOCUMENTOS').toUpperCase();
         const docYear = doc.year && doc.year !== 'null' && doc.year !== '' ? String(doc.year).replace(/[^0-9]/g, '') : String(new Date().getFullYear());
-        const targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}/${docYear}`;
+        let targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}`;
+        if (safeTab !== '01_FICHA_CADASTRAL') {
+            targetDir += `/${docYear}`;
+            // Para Pagamentos: sub-pasta com nome do mês em português
+            if (safeTab === 'PAGAMENTOS' && doc.month && doc.month !== 'null' && doc.month !== '') {
+                targetDir += `/${getMesNome(doc.month)}`;
+            }
+        }
         // Para Atestados, usa o file_name que já foi gerado com o padrão Z01_DD-MM-AA
         // Para docs assinados, usa o padrão TipoDoc_Ano_NomeColab.pdf
         const isAtestado = (doc.tab_name === 'Atestados');
