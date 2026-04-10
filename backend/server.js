@@ -539,7 +539,7 @@ async function pollAdmissaoAssinaturas() {
         );
 
         const pendentesDocs = await new Promise((res, rej) =>
-            db.all(`SELECT id, colaborador_id, assinafy_id, document_type as nome_documento, tab_name, file_name, 'documento' as source 
+            db.all(`SELECT id, colaborador_id, assinafy_id, document_type as nome_documento, tab_name, file_name, year, month, 'documento' as source 
                     FROM documentos WHERE (assinafy_status = 'Pendente' OR (assinafy_status = 'Assinado' AND signed_file_path IS NULL)) AND assinafy_id IS NOT NULL`, [], (err, rows) => err ? rej(err) : res(rows))
         );
 
