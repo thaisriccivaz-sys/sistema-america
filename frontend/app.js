@@ -1,4 +1,4 @@
-﻿const API_URL = `${window.location.origin}/api`;
+const API_URL = `${window.location.origin}/api`;
 function showToast(msg, type) {
     const toast = document.getElementById('global-toast');
     if (toast) {
@@ -8063,8 +8063,9 @@ function updateAdmissaoStepPercentages(colab) {
         return Math.min(100, Math.round((uploaded / total) * 100));
     };
 
-    // ── Passo 4: Ficha Cadastral — documentos enviados ao colaborador ──
-    // Tenta DOM primeiro (painel aberto); fallback: dados do colaborador
+    // ── Passo 4: Ficha Cadastral — documentos do colaborador (01_FICHA_CADASTRAL) ──
+    // Documentos da Ficha Cadastral NÃO usam assinatura Assinafy.
+    // A porcentagem é simplesmente: (documentos enviados / total de slots) * 100
     let pc4 = 0;
     const panel4 = document.getElementById('panel-step-4');
     if (panel4) {
@@ -8072,19 +8073,23 @@ function updateAdmissaoStepPercentages(colab) {
         if (docItems4.length > 0) {
             const numDocs = docItems4.length;
             const uploaded = panel4.querySelectorAll('.doc-item[data-doc-id]').length;
-            const signed = panel4.querySelectorAll('.doc-item[data-assinafy-status*="Assinado"]').length;
-            pc4 = Math.min(100, Math.round((uploaded / numDocs) * 20 + (signed / numDocs) * 80));
+            pc4 = Math.min(100, Math.round((uploaded / numDocs) * 100));
         }
     }
-    // Fallback: usar dados do colaborador (assinaturas) mesmo com painel fechado
+    // Fallback: usar currentDocs quando o painel está fechado
     if (pc4 === 0 && targetColab) {
-        const assinaturas = window._admissaoAssinaturas || [];
-        const geradores = window._admissaoGeradores || [];
-        const total = geradores.length;
-        if (total > 0) {
-            const sent = assinaturas.filter(a => a.enviado_em || (a.assinafy_status && a.assinafy_status !== 'Nenhum' && a.assinafy_status !== '')).length;
-            const signed = assinaturas.filter(a => a.assinafy_status === 'Assinado').length;
-            pc4 = Math.min(100, Math.round((sent / total) * 20 + (signed / total) * 80));
+        const fichaDocs = (window.currentDocs || []).filter(d => d.tab_name === '01_FICHA_CADASTRAL');
+        // Lista base de documentos obrigatórios (estimativa mínima = 7 itens fixos)
+        const _ec2 = (targetColab.estado_civil || '').toLowerCase();
+        const _isCasado2 = _ec2.includes('casad') || _ec2.includes('viuv') || _ec2.includes('divorc');
+        const _isMotorista2 = (targetColab.cargo || '').toUpperCase().includes('MOTORISTA');
+        const _isMasc2 = targetColab.sexo === 'Masculino';
+        let totalEsperado = 7; // fixos: Título, Certidão, Comprovante, Histórico, RG/CPF ou CNH, Vacinas, CTPS
+        if (_isMasc2) totalEsperado++; // Reservista
+        if (_isCasado2) totalEsperado++; // Documento do Cônjuge
+        if (totalEsperado > 0 && fichaDocs.length > 0) {
+            const enviados = fichaDocs.length;
+            pc4 = Math.min(100, Math.round((enviados / totalEsperado) * 100));
         }
     }
 
