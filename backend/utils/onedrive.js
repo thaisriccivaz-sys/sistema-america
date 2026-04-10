@@ -49,30 +49,26 @@ async function getAccessToken() {
 /**
  * Inicializa o cliente do Microsoft Graph
  */
-let cachedClient = null;
-let clientInitPromise = null;
+// Cache do token com expiração (tokens do Graph expiram em ~1h)
+let cachedToken = null;
+let tokenExpiresAt = 0;
 
 async function getGraphClient() {
-    if (cachedClient) return cachedClient;
-    
-    // Evita múltiplas inicializações simultâneas (Race Condition)
-    if (clientInitPromise) return clientInitPromise;
+    const now = Date.now();
+    // Renova o token se faltar menos de 5 minutos para expirar (ou já expirou)
+    if (!cachedToken || now >= tokenExpiresAt - 5 * 60 * 1000) {
+        console.log('[OneDrive-Auth] Renovando token do Graph...');
+        cachedToken = await getAccessToken();
+        // Tokens do Graph Client Credentials expiram em 3600s; usamos 55min como margem
+        tokenExpiresAt = now + 55 * 60 * 1000;
+        console.log('[OneDrive-Auth] Token renovado, válido por 55 minutos.');
+    }
 
-    clientInitPromise = (async () => {
-        try {
-            const accessToken = await getAccessToken();
-            cachedClient = Client.init({
-                authProvider: (done) => {
-                    done(null, accessToken);
-                },
-            });
-            return cachedClient;
-        } finally {
-            clientInitPromise = null;
-        }
-    })();
-
-    return clientInitPromise;
+    return Client.init({
+        authProvider: (done) => {
+            done(null, cachedToken);
+        },
+    });
 }
 
 /**
