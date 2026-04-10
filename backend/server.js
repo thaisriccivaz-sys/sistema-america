@@ -284,7 +284,11 @@ async function uploadDocToOneDrive(docId) {
         const docYear   = doc.year && doc.year !== 'null' ? String(doc.year).replace(/[^0-9]/g, '') : String(new Date().getFullYear());
         let targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}`;
         if (safeTab !== '01_FICHA_CADASTRAL') {
-             targetDir += `/${docYear}`;
+            targetDir += `/${docYear}`;
+            // Para Pagamentos: sub-pasta com nome do mês em português (ex: Marco, Abril)
+            if (safeTab === 'PAGAMENTOS' && doc.month && doc.month !== 'null' && doc.month !== '') {
+                targetDir += `/${getMesNome(doc.month)}`;
+            }
         }
 
         // Para Atestados, strip o timestamp do file_name: CID_DD-MM-AA_Nome_YYYYMMDD_HHMMSS.pdf → CID_DD-MM-AA_Nome.pdf
@@ -384,12 +388,19 @@ try {
     // Não encerramos o processo para permitir que o servidor suba em modo leitura ou com falhas parciais
 }
 
+// Nomes dos meses em português sem acentos (para caminhos de pasta no OneDrive)
+const MONTH_NAMES_PT = ['Janeiro','Fevereiro','Marco','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+function getMesNome(monthStr) {
+    const idx = parseInt(monthStr, 10) - 1;
+    return (idx >= 0 && idx < 12) ? MONTH_NAMES_PT[idx] : String(monthStr);
+}
+
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        // Garantindo que nomes de pastas sejam SEM ACENTOS e em MAIÃšSCULO para compatibilidade total
         const colab = req.body.colaborador_nome || 'DESCONHECIDO';
         const tab = req.body.tab_name || 'OUTROS';
         const year = req.body.year;
+        const month = req.body.month;
 
         const safeNomeColab = formatarNome(colab);
         const safeTab = formatarPasta(tab).toUpperCase();
@@ -400,6 +411,10 @@ const storage = multer.diskStorage({
             const safeYear = String(year).replace(/[^0-9]/g, '');
             if (safeYear) {
                 finalDir = path.join(finalDir, safeYear);
+                // Para Pagamentos: sub-pasta com o nome do mês em português (ex: Marco, Abril)
+                if (safeTab === 'PAGAMENTOS' && month && month !== 'null' && month !== 'undefined' && month !== '') {
+                    finalDir = path.join(finalDir, getMesNome(month));
+                }
             }
         }
 
@@ -2100,12 +2115,18 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
                                 const safeTab = formatarPasta(tab_name).toUpperCase();
                                 const parentDir = `${onedriveBasePath}/${safeColab}/${safeTab}`;
                                 let targetDir = parentDir;
-                                if (year && year !== 'null' && year !== 'undefined' && year !== '' && safeTab !== '01_FICHA_CADASTRAL') targetDir += `/${year.replace(/[^0-9]/g, '')}`;
+                                if (year && year !== 'null' && year !== 'undefined' && year !== '' && safeTab !== '01_FICHA_CADASTRAL') {
+                                    targetDir += `/${year.replace(/[^0-9]/g, '')}`;
+                                    // Para Pagamentos: sub-pasta com nome do mês em português
+                                    if (safeTab === 'PAGAMENTOS' && month && month !== 'null' && month !== 'undefined' && month !== '') {
+                                        targetDir += `/${getMesNome(month)}`;
+                                    }
+                                }
                                 
                                 if (targetDir !== parentDir) {
-                                    await onedrive.ensurePath(parentDir); // garante /AVALIACAO
+                                    await onedrive.ensurePath(parentDir);
                                 }
-                                await onedrive.ensurePath(targetDir); // garante /AVALIACAO/2026
+                                await onedrive.ensurePath(targetDir);
 
                                 const fileBuffer = fs.readFileSync(file_path);
                                 // Para Atestados usa o custom_name exato; outros usam file_name do multer
