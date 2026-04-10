@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
@@ -863,7 +863,7 @@
                                             <label>CBO (Classificação Brasileira de Ocupações)</label>
                                             <div style="display: flex; gap: 0.5rem;">
                                                 <input type="text" id="colab-cbo-codigo" placeholder="Código ex: 521105" style="width: 180px; flex-shrink: 0;" oninput="buscarCBO(this.value)" autocomplete="off">
-                                                <input type="text" id="colab-cbo" placeholder="Descrição da ocupação (preenchido automaticamente)" readonly style="flex: 1; background: #f8f9fa; color: #333;">
+                                                <input type="text" id="colab-cbo" placeholder="Descrição da ocupação (preenchido automaticamente)" readonly style="flex: 1; background: #f8f9fa; color: #334155;">
                                             </div>
                                             <div id="cbo-dropdown" style="display:none; position: absolute; top: 100%; left: 0; right: 0; z-index: 200; background: #fff; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.12); max-height: 260px; overflow-y: auto; margin-top: 2px;"></div>
                                         </div>
@@ -1362,7 +1362,7 @@
                             </div>
                         </div>
 
-                        <!-- PANEL 1: CONFER�`NCIA DE DADOS -->
+                        <!-- PANEL 1: CONFER`NCIA DE DADOS -->
                         <div class="admissao-panel active" id="panel-step-1">
                             <div class="card p-4">
                                 <div class="flex-between mb-4">
@@ -1932,7 +1932,7 @@
                     </div>
                 </section>
 
-                <!-- VIEW: USUÁRIOS E PERMISS�"ES -->
+                <!-- VIEW: USUÁRIOS E PERMISS"ES -->
                 <section id="view-usuarios-permissoes" class="content-view">
 
                     <div class="page-header flex-between">
@@ -2129,26 +2129,26 @@
                                     <!-- Nível 1: Tipo -->
                                     <select id="fu-tipo-modelo" onchange="window.onTipoModeloChange(this.value)"
                                         style="padding:0.6rem 1rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;background:#fff;outline:none;min-width:210px;color:#334155;font-weight:600;">
-                                        <option value="">� Tipo de permissão �</option>
-                                        <option value="grupo">�x9 Grupos Padrão</option>
-                                        <option value="usuario">�x� Copiar Usuário Base</option>
-                                        <option value="personalizado">�a"️ Personalizado</option>
+                                        <option value="">&#9881;&#65039; Tipo de permissão &#9881;&#65039;</option>
+                                        <option value="grupo">&#128101; Grupos Padrão</option>
+                                        <option value="usuario">&#128203; Copiar Usuário Base</option>
+                                        <option value="personalizado">&#10024; Personalizado</option>
                                     </select>
 
                                     <!-- Nível 2a: Sub-select de grupos (só aparece quando tipo=grupo) -->
                                     <select id="fu-sub-grupo" style="display:none;padding:0.6rem 1rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;background:#fff;outline:none;min-width:240px;"
                                         onchange="window.aplicarModeloPermissao(this.value ? 'grupo|' + this.value : '')">
-                                        <option value="">� Selecione o grupo �</option>
+                                        <option value="">&#9998; Selecione o grupo &#9660;</option>
                                     </select>
 
                                     <!-- Nível 2b: Sub-select de usuários (só aparece quando tipo=usuario) -->
                                     <select id="fu-sub-usuario" style="display:none;padding:0.6rem 1rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;background:#fff;outline:none;min-width:240px;"
                                         onchange="window.carregarPermissoesCopia(this.value)">
-                                        <option value="">� Selecione o usuário base �</option>
+                                        <option value="">&#9998; Selecione o usuário base &#9660;</option>
                                     </select>
                                 </div>
                                 <p style="font-size:0.8rem;color:#64748b;margin-top:0.5rem;">
-                                    Selecione um tipo. Para grupos padrão, as telas serão marcadas automaticamente � você pode ajustar individualmente abaixo.
+                                    Selecione um tipo. Para grupos padrão, as telas serão marcadas automaticamente — você pode ajustar individualmente abaixo.
                                 </p>
                             </div>
 
