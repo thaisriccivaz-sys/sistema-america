@@ -6873,7 +6873,7 @@ window.renderContratosAvulso = async function(container) {
 
             <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:1.25rem;">
                 <p style="margin:0 0 1rem 0; font-size:0.88rem; color:#475569;"><i class="ph ph-info"></i> Selecione os documentos acima que deseja enviar para assinatura digital via Assinafy.</p>
-                <button class="btn btn-success" id="ca-btn-assinar-lote" onclick="window.enviarAssinaturaLoteContratos()" style="display:flex; align-items:center; gap:0.5rem; font-weight:600;">
+                <button class="btn btn-primary" id="ca-btn-assinar-lote" onclick="window.enviarAssinaturaLoteContratos()" style="display:flex; align-items:center; gap:0.5rem; font-weight:600;">
                     <i class="ph ph-paper-plane-tilt"></i> Enviar Selecionados para Assinatura
                 </button>
             </div>
