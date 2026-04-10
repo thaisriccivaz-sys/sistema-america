@@ -654,18 +654,18 @@ async function pollAdmissaoAssinaturas() {
                         const docYear = doc.year && doc.year !== 'null' && doc.year !== '' ? String(doc.year).replace(/[^0-9]/g, '') : String(new Date().getFullYear());
                         let cloudName;
                         if (doc.source === 'documento') {
+                            const safeTab = doc.tab_name ? formatarPasta(doc.tab_name).toUpperCase() : 'DOCUMENTOS';
                             cloudName = isAtestado
                                 ? (doc.file_name || 'Atestado.pdf').replace(/_\d{8}_\d{6}(\.\w+)$/, '$1')
-                                : `${formatarPasta(doc.nome_documento || doc.document_type || doc.tab_name || 'Documento').replace(/\s+/g, '_')}_${docYear}_${safeColab}.pdf`;
+                                : `${formatarPasta(doc.document_type || doc.tab_name || 'Documento').replace(/\s+/g, '_')}_${docYear}_${safeColab}.pdf`;
+                            // Montar o targetDir com mês para Pagamentos
+                            targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}/${docYear}`;
+                            if (safeTab === 'PAGAMENTOS' && doc.month && doc.month !== 'null' && doc.month !== '') {
+                                targetDir += `/${getMesNome(doc.month)}`;
+                            }
                         } else {
                             const safeDocName = formatarPasta(doc.nome_documento || 'Documento').replace(/\s+/g, '_');
                             cloudName = `${safeDocName}_${safeColab}_${docYear}.pdf`;
-                        }
-                        let targetDir;
-                        if (doc.source === 'documento') {
-                            const safeTab = doc.tab_name ? formatarPasta(doc.tab_name).toUpperCase() : 'DOCUMENTOS';
-                            targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}/${docYear}`;
-                        } else {
                             targetDir = `${onedriveBasePath}/${safeColab}/CONTRATOS`;
                         }
                         await onedrive.ensurePath(targetDir);
