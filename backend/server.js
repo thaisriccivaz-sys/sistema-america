@@ -3917,7 +3917,7 @@ app.post('/api/documentos/:id/sync-assinafy', authenticateToken, async (req, res
     const docId = req.params.id;
     try {
         const doc = await new Promise((resolve, reject) => {
-            db.get(`SELECT d.id, d.file_name, d.assinafy_id, d.assinafy_status, d.tab_name, d.document_type, d.year, d.colaborador_id, c.nome_completo
+            db.get(`SELECT d.id, d.file_name, d.assinafy_id, d.assinafy_status, d.tab_name, d.document_type, d.year, d.month, d.colaborador_id, c.nome_completo
                     FROM documentos d
                     JOIN colaboradores c ON c.id = d.colaborador_id
                     WHERE d.id = ?`, [docId], (err, row) => {
@@ -4031,7 +4031,11 @@ app.post('/api/documentos/:id/sync-assinafy', authenticateToken, async (req, res
                     const safeColab = formatarNome(doc.nome_completo || "DESCONHECIDO");
                     const safeTab = formatarPasta(doc.tab_name || 'DOCUMENTOS').toUpperCase();
                     const docYear = doc.year && doc.year !== 'null' && doc.year !== '' ? String(doc.year).replace(/[^0-9]/g, '') : String(new Date().getFullYear());
-                    const targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}/${docYear}`;
+                    let targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}/${docYear}`;
+                    // Para Pagamentos/Terapia: adiciona sub-pasta do mês (ex: Abril)
+                    if (doc.month && doc.month !== 'null' && doc.month !== '') {
+                        targetDir += `/${getMesNome(doc.month)}`;
+                    }
                     
                     console.log(`[OneDrive Sync] Sincronizando para: ${targetDir}`);
                     await onedrive.ensurePath(targetDir);
