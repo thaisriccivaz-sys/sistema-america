@@ -3271,36 +3271,88 @@ window.gerarAdvertencia = function() {
     if (fb) { fb.style.display = 'inline-flex'; setTimeout(() => { fb.style.display = 'none'; }, 3000); }
 };
 
+// ─── Template único para Preview e PDF de Advertências / Suspensões / Ocorrências ───
+function buildAdvertenciaTemplate(data, logoSrc) {
+    const isOcorrencia = data.isOcorrencia;
+
+    // Seção de assinaturas (não exibida para ocorrências)
+    const assinaturasHtml = !isOcorrencia ? `
+        <div style="margin-top:40px;">
+            <div style="display:flex; gap:40px; justify-content:center;">
+                <div style="flex:1; text-align:center; max-width:220px;">
+                    <div style="border-top:1px solid #111; padding-top:6px; font-size:11px;">
+                        <div>Testemunha 1:</div>
+                        <div>CPF:</div>
+                    </div>
+                </div>
+                <div style="flex:1; text-align:center; max-width:220px;">
+                    <div style="border-top:1px solid #111; padding-top:6px; font-size:11px;">
+                        <div>Testemunha 2:</div>
+                        <div>CPF:</div>
+                    </div>
+                </div>
+            </div>
+            <div style="margin-top:40px; text-align:center;">
+                <div style="display:inline-block; width:260px; border-top:1px solid #111; padding-top:6px; font-size:11px; text-align:center;">
+                    <div>Nome do Colaborador: ${data.colaborador.NOME_COMPLETO}</div>
+                    <div>CPF: ${data.colaborador.CPF}</div>
+                </div>
+            </div>
+        </div>
+    ` : '';
+
+    return `<div style="width:794px; background:#fff; font-family:Arial,Helvetica,sans-serif; font-size:12px; color:#111; line-height:1.5; box-sizing:border-box; display:block;">
+        <!-- LOGO BANNER - largura total sem margens -->
+        <img src="${logoSrc}" style="width:794px; max-width:794px; display:block; margin:0; padding:0;" onerror="this.style.display='none'">
+
+        <!-- CONTEÚDO COM MARGENS LATERAIS -->
+        <div style="padding:20px 40px 40px 40px;">
+
+            <!-- LINHA EMPRESA / CNPJ -->
+            <table style="width:100%; border-collapse:collapse; margin-bottom:4px;">
+                <tr>
+                    <td style="font-size:11px; padding:0;">Empresa: <strong>AMERICA RENTAL EQUIPAMENTOS LTDA</strong></td>
+                    <td style="font-size:11px; padding:0; text-align:right;">CNPJ: 03.434.448/0001-01</td>
+                </tr>
+                <tr>
+                    <td style="font-size:11px; padding:0;">Colaborador: ${data.colaborador.NOME_COMPLETO}</td>
+                    <td style="font-size:11px; padding:0; text-align:right;">CPF: ${data.colaborador.CPF}</td>
+                </tr>
+                <tr>
+                    <td style="font-size:11px; padding:0;">Data do ocorrido: ${data.dataOcorrencia || ''}</td>
+                    <td style="font-size:11px; padding:0; text-align:right;">Cargo: ${data.colaborador.CARGO}</td>
+                </tr>
+            </table>
+
+            <hr style="border:none; border-top:1px solid #ccc; margin:10px 0 14px;">
+
+            <!-- TÍTULO -->
+            <h1 style="text-align:center; font-size:14px; font-weight:bold; text-transform:uppercase; margin:0 0 14px; color:#1e293b;">${data.gerador_nome}</h1>
+
+            <!-- CORPO DO DOCUMENTO -->
+            <div style="font-size:12px; line-height:1.6; text-align:justify;">
+                ${data.html}
+            </div>
+
+            <!-- DATA -->
+            <p style="margin-top:24px; font-size:12px; font-weight:bold;">Guarulhos, ${data.dataHojeExtenso}.</p>
+
+            <!-- ASSINATURAS -->
+            ${assinaturasHtml}
+        </div>
+    </div>`;
+}
+
 window.abrirPreviewAdvertencia = function(data) {
+
     const container = document.getElementById('preview-doc-body');
     if (!container) return;
 
     const apiBase = API_URL.replace('/api', '');
     const logoSrc = `${apiBase}/assets/logo-header.png`;
 
-    const logoBanner = `<div style="margin:0;padding:0;text-align:center;margin-bottom:15px;"><img src="${logoSrc}" style="max-height:80px;max-width:100%;" onerror="this.style.display='none'"></div>`;
-    const colabInfo = `
-        <h1 style="text-align:center; color:#1e293b; margin-top:0.1rem; margin-bottom:0.3rem; font-size:1.1rem; text-transform:uppercase;">${data.gerador_nome}</h1>
-        <p style="margin:0.2rem 0; font-size:0.85rem;"><b>COLABORADOR:</b> ${data.colaborador.NOME_COMPLETO}</p>
-        <div style="border:1px solid #000; padding:0.4rem 0.6rem; margin-top:0.3rem; line-height:1.3; font-size:0.78rem;">
-            <p style="margin:0 0 0.1rem 0; font-size:0.75rem;"><b>DADOS DO COLABORADOR:</b></p>
-            <div style="display:flex; gap:1.5rem; flex-wrap:wrap;">
-                <span>CPF: <b>${data.colaborador.CPF}</b></span>
-                <span>CARGO: <b>${data.colaborador.CARGO}</b></span>
-                <span>ADMISSÃO: <b>${data.colaborador.DATA_ADMISSAO}</b></span>
-            </div>
-            <p style="margin:0.1rem 0 0;">DEPARTAMENTO: ${data.colaborador.DEPARTAMENTO}</p>
-        </div>
-    `;
-    const conteudo = `<div style="margin-top:0.6rem; text-align:justify; line-height:1.35; font-size:0.8rem;">${data.html}</div>`;
-    const footer = `
-        <div style="margin-top:1rem;">
-            <p style="font-weight:700; font-size:0.85rem;">Guarulhos, ${data.dataHojeExtenso}.</p>
-        </div>
-    `;
-
-    const conteudoComPadding = `<div style="padding: 0 15px 15px 15px;">${colabInfo}${conteudo}${footer}</div>`;
-    container.innerHTML = logoBanner + conteudoComPadding;
+    // Monta o mesmo template do PDF para consistência visual
+    container.innerHTML = buildAdvertenciaTemplate(data, logoSrc);
     document.getElementById('preview-doc-title').textContent = `${data.gerador_nome} - ${data.colaborador.NOME_COMPLETO}`;
 
     // Configurar botões customizados para Advertência
@@ -3354,31 +3406,8 @@ window.anexarAdvertenciaAoProntuario = async function() {
         const apiBase = API_URL.replace('/api','');
         const logoSrc = `${apiBase}/assets/logo-header.png`;
         const data = window._advertenciaData;
-        
-        const htmlTemplate = `
-            <div style="width:794px;min-height:1123px;padding:40px 56px 40px 56px;box-sizing:border-box;background:#fff;color:#111;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.5;display:block;vertical-align:top;">
-                <div style="text-align:center;margin-bottom:18px;">
-                    <img src="${logoSrc}" style="max-height:70px;max-width:300px;" onerror="this.style.display='none'">
-                </div>
-                <h1 style="text-align:center;font-size:15px;text-transform:uppercase;margin:8px 0 6px;color:#1e293b;">${data.gerador_nome}</h1>
-                <p style="margin:4px 0;font-size:13px;"><b>COLABORADOR:</b> ${data.colaborador.NOME_COMPLETO}</p>
-                <div style="border:1px solid #000;padding:6px 10px;margin:6px 0;font-size:11.5px;line-height:1.4;">
-                    <p style="margin:0 0 3px;font-size:11px;"><b>DADOS DO COLABORADOR:</b></p>
-                    <div style="display:flex;gap:24px;flex-wrap:wrap;">
-                        <span>CPF: <b>${data.colaborador.CPF}</b></span>
-                        <span>CARGO: <b>${data.colaborador.CARGO}</b></span>
-                        <span>ADMISSAO: <b>${data.colaborador.DATA_ADMISSAO}</b></span>
-                    </div>
-                    <p style="margin:3px 0 0;">DEPARTAMENTO: ${data.colaborador.DEPARTAMENTO}</p>
-                </div>
-                <div style="margin-top:10px;text-align:justify;line-height:1.5;font-size:12.5px;">${data.html}</div>
-                <div style="margin-top:14px;">
-                    <p style="font-weight:700;font-size:13px;">Guarulhos, ${data.dataHojeExtenso}.</p>
-                </div>
-            </div>
-        `;
 
-        // Pré-carregar a imagem na memória (cache do navegador) para garantir que apareça 
+        // Pré-carregar o logo
         const imgPreload = new Image();
         imgPreload.src = logoSrc;
         await new Promise(resolve => {
@@ -3388,17 +3417,13 @@ window.anexarAdvertenciaAoProntuario = async function() {
             setTimeout(resolve, 2000);
         });
 
+        const htmlTemplate = buildAdvertenciaTemplate(data, logoSrc);
+
         const opt = {
-            margin:       [10, 10, 10, 10],
+            margin:       0,
             filename:     nomeArquivo,
             image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { 
-                scale: 2, 
-                useCORS: true, 
-                logging: false,
-                windowWidth: 794,
-                width: 794
-            },
+            html2canvas:  { scale: 2, useCORS: true, logging: false, windowWidth: 794 },
             jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
 
