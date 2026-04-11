@@ -270,8 +270,11 @@ async function uploadDocToOneDrive(docId) {
         });
 
         if (!doc) { console.error(`[OD-AUTO] Doc ${docId} não encontrado no DB`); return; }
-        // ASO: faz upload inicial (sem assinatura). Após assinatura o fluxo específico sobrescreve.
-        // Portanto não bloqueamos mais o ASO aqui.
+        // CONTRATOS_AVULSOS: só sincroniza ao OneDrive depois de assinado (via poll de assinaturas)
+        if (doc.tab_name === 'CONTRATOS_AVULSOS' && doc.assinafy_status !== 'Assinado') {
+            console.log(`[OD-AUTO] Bloqueando sync OneDrive para doc ${docId} (CONTRATOS_AVULSOS não assinado)`);
+            return;
+        }
 
         const localPath = doc.signed_file_path && require('fs').existsSync(doc.signed_file_path)
             ? doc.signed_file_path
@@ -674,13 +677,28 @@ async function pollAdmissaoAssinaturas() {
                         let cloudName;
                         if (doc.source === 'documento') {
                             const safeTab = doc.tab_name ? formatarPasta(doc.tab_name).toUpperCase() : 'DOCUMENTOS';
+                            const isContratosAvulso = doc.tab_name === 'CONTRATOS_AVULSOS';
                             cloudName = isAtestado
                                 ? (doc.file_name || 'Atestado.pdf').replace(/_\d{8}_\d{6}(\.\w+)$/, '$1')
-                                : `${formatarPasta(doc.nome_documento || doc.tab_name || 'Documento').replace(/\s+/g, '_')}_${docYear}_${safeColab}.pdf`;
-                            // Montar o targetDir com mês para Pagamentos
-                            targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}/${docYear}`;
-                            if (safeTab === 'PAGAMENTOS' && doc.month && doc.month !== 'null' && doc.month !== '') {
-                                targetDir += `/${getMesNome(doc.month)}`;
+                                : (() => {
+                                    const ts = new Date().toISOString().slice(0,19).replace(/[-T:]/g,'');
+                                    return isContratosAvulso
+                                        ? `${formatarPasta(doc.nome_documento || doc.tab_name || 'Documento').replace(/\s+/g, '_')}_${docYear}_${ts}_${safeColab}.pdf`
+                                        : `${formatarPasta(doc.nome_documento || doc.tab_name || 'Documento').replace(/\s+/g, '_')}_${docYear}_${safeColab}.pdf`;
+                                  })();
+                            if (isContratosAvulso) {
+                                // Contratos avulsos vão em CONTRATOS/outros/
+                                const contratosDir = `${onedriveBasePath}/${safeColab}/CONTRATOS`;
+                                targetDir = `${onedriveBasePath}/${safeColab}/CONTRATOS/outros`;
+                                await onedrive.ensurePath(contratosDir);
+                                await onedrive.ensurePath(targetDir);
+                            } else {
+                                // Montar o targetDir com mês para Pagamentos
+                                targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}/${docYear}`;
+                                if (safeTab === 'PAGAMENTOS' && doc.month && doc.month !== 'null' && doc.month !== '') {
+                                    targetDir += `/${getMesNome(doc.month)}`;
+                                }
+                                await onedrive.ensurePath(targetDir);
                             }
                         } else {
                             const safeDocName = formatarPasta(doc.nome_documento || 'Documento').replace(/\s+/g, '_');
@@ -2126,8 +2144,8 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
                     }
 
                     // --- ESPELHAMENTO ONEDRIVE (API) ---
-                    // ASO incluído: upload inicial sem assinatura, será sobrescrito com certificado após assinatura.
-                    if (onedrive && !(tab_name === 'Advertências' && assinafy_status !== 'Assinado')) {
+                    // Advertências e CONTRATOS_AVULSOS só vão ao OneDrive após assinatura.
+                    if (onedrive && !(tab_name === 'Advertências' && assinafy_status !== 'Assinado') && tab_name !== 'CONTRATOS_AVULSOS') {
                         (async () => {
                             try {
                                 const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema";
@@ -2191,7 +2209,8 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
                     // Usa a mesma lógica do force-onedrive-sync (comprovada) com o ID real do doc
                     const newDocId = this.lastID;
                     // ASO: upload inicial para OneDrive (sem assinatura). Será sobrescrito após assinatura com certificado.
-                    if (!(tab_name === 'Advertências' && req.body.assinafy_status !== 'Assinado')) {
+                    // CONTRATOS_AVULSOS: só envia ao OneDrive após assinatura.
+                    if (!(tab_name === 'Advertências' && req.body.assinafy_status !== 'Assinado') && tab_name !== 'CONTRATOS_AVULSOS') {
                         setImmediate(() => uploadDocToOneDrive(newDocId));
                     }
 
