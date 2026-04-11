@@ -3661,15 +3661,16 @@ app.post('/api/send-suspensao-contabilidade', authenticateToken, async (req, res
             ? new Date(doc.upload_date).toLocaleDateString('pt-BR')
             : new Date().toLocaleDateString('pt-BR');
 
-        // Garantir que o documento está assinado
-        if (doc.assinafy_status !== 'Assinado' || !doc.signed_file_path) {
-            return res.status(400).json({ sucesso: false, error: 'O documento ainda não foi assinado. Aguarde a assinatura antes de enviar para a contabilidade.' });
+        // Garantir que o documento está assinado (pelo menos pelas testemunhas)
+        // Suspensões podem ser enviadas à contabilidade apenas com a assinatura das testemunhas
+        if (doc.assinafy_status !== 'Assinado' && doc.assinafy_status !== 'Testemunhas') {
+            return res.status(400).json({ sucesso: false, error: 'O documento ainda não foi assinado. Aguarde a assinatura do colaborador ou das testemunhas antes de enviar.' });
         }
 
-        // Arquivo assinado em anexo
+        // Arquivo em anexo (tenta pegar a versão final, se não, pega a versão com as testemunhas)
         const attachments = [];
-        const signedFilePath = path.resolve(doc.signed_file_path);
-        if (fs.existsSync(signedFilePath)) {
+        const activeFilePath = doc.signed_file_path ? path.resolve(doc.signed_file_path) : path.resolve(doc.file_path);
+        if (fs.existsSync(activeFilePath)) {
             const nomeNorm = (colab.nome_completo || 'Colaborador')
                 .toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]+/g, '_');
             const hoje = new Date();

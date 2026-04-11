@@ -4144,7 +4144,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                     ` : ''}
                 </div>
             ` : (tabId === 'Advertências') ? `
-                <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; justify-content: flex-end; flex: 1;">
                     ${vencimentoInputHtml}
 
                     ${isSaved ? `
@@ -4182,16 +4182,18 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         <button type="button" class="btn btn-danger" onclick="deleteDoc(${existingDoc.id}, this)" title="Excluir" style="height: 42px;"><i class="ph ph-trash"></i></button>
                     ` : ''}
 
-                    ${(tabId === 'Advertências' && isSaved && stMain === 'Assinado' && tipoAdvSimples && tipoAdvSimples.toLowerCase().includes('suspens')) ? `
-                    <div style="display:flex; flex-direction:column; gap:0.35rem; margin-top:0.35rem; align-items:flex-end; width:100%;">
-                        <input type="email" id="susp-contab-email-${existingDoc.id}"
-                               value="thais.ricci@americarental.com.br"
-                               style="height:36px; padding:0 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; width:100%; min-width:230px; max-width:250px;">
-                        <button type="button"
-                                onclick="window.enviarSuspensaoContabilidade(${existingDoc.id}, 'susp-contab-email-${existingDoc.id}', this)"
-                                style="height:36px; display:flex; align-items:center; justify-content:center; gap:6px; background:#0f4c81; color:#fff; border:none; border-radius:6px; padding:0 0.85rem; font-size:0.82rem; font-weight:600; cursor:pointer; white-space:nowrap; width:100%; min-width:230px; max-width:250px;">
-                            <i class="ph ph-buildings"></i> Enviar para Contabilidade
-                        </button>
+                    ${(tabId === 'Advertências' && isSaved && ['Assinado', 'Testemunhas', 'Aguardando', 'Pendente'].includes(stMain) && tipoAdvSimples && tipoAdvSimples.toLowerCase().includes('suspens')) ? `
+                    <div style="display:flex; flex-direction:column; gap:0.35rem; margin-top:0.35rem; align-items:flex-end; width:100%; border-top: 1px dashed #e2e8f0; padding-top: 0.5rem;">
+                        <div style="display:flex; gap:0.5rem; align-items:center; justify-content:flex-end; width:100%;">
+                            <input type="email" id="susp-contab-email-${existingDoc.id}"
+                                   value="thais.ricci@americarental.com.br"
+                                   style="height:36px; padding:0 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; width:100%; max-width:250px;">
+                            <button type="button"
+                                    onclick="window.enviarSuspensaoContabilidade(${existingDoc.id}, 'susp-contab-email-${existingDoc.id}', this)"
+                                    style="height:36px; display:flex; align-items:center; justify-content:center; gap:6px; background:#0f4c81; color:#fff; border:none; border-radius:6px; padding:0 0.85rem; font-size:0.82rem; font-weight:600; cursor:pointer; white-space:nowrap; max-width:250px;">
+                                <i class="ph ph-buildings"></i> Enviar para Contabilidade
+                            </button>
+                        </div>
                     </div>` : ''}
                 </div>
             ` : `
