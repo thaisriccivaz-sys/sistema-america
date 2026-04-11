@@ -4151,7 +4151,10 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         <button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height: 42px;"><i class="ph ph-eye"></i></button>
                     ` : ''}
 
-                    ${(tabId === 'Advertências' && isSaved) ? `
+                    ${(tabId === 'Advertências' && isSaved) ? (() => {
+                        const _isOcorrDoc = (docType || '').includes('###Ocorr');
+                        if (_isOcorrDoc) return ''; // Ocorrência não tem assinatura
+                        return `
                         ${(!stMain || stMain === 'Nenhum') ? `
                         <button type="button" class="btn btn-secondary"
                                 onclick="window.abrirModalAssinaturaTestemunhas(${existingDoc.id})"
@@ -4164,7 +4167,8 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                                 style="height: 42px; display:flex; align-items:center; justify-content:center; gap:6px; background:#0f4c81; color:#fff; border:none; border-radius:6px; padding:0 0.85rem; font-size:0.85rem; font-weight:600; cursor:pointer; white-space:nowrap;">
                             <i class="ph ph-pen-nib"></i> Assinar
                         </button>` : ''}
-                    ` : ''}
+                        `;
+                    })() : ''}
 
                     ${(!isAssinado) ? `
                     <label class="btn ${isSaved ? 'btn-warning' : 'btn-primary'}" title="${isSaved ? 'Substituir' : 'Fazer Upload'}" style="height: 42px; display: flex; align-items: center; margin: 0;">
