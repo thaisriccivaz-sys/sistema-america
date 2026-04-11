@@ -4263,6 +4263,17 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                             <button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height: 42px;"><i class="ph ph-eye"></i></button>
                             ${(!isAssinado) ? `<button type="button" class="btn btn-danger" onclick="deleteDoc(${existingDoc.id}, this)" title="Excluir" style="height: 42px;"><i class="ph ph-trash"></i></button>` : ''}
                         ` : ''}
+                        ${tabId === 'Pagamentos' && !isAssinado ? `
+                        <div style="display:flex; align-items:center; gap:8px; font-size:0.82rem; white-space:nowrap;">
+                            <span style="font-weight:600;color:#64748b;">Exige Assinatura?</span>
+                            <label style="display:flex;align-items:center;gap:3px;cursor:pointer;margin:0;font-weight:500;">
+                                <input type="radio" name="pag-assin-${(docType||'').replace(/[^a-zA-Z0-9]/g,'_')}" value="PENDENTE" ${stMain !== 'NAO_EXIGE' ? 'checked' : ''}> Sim
+                            </label>
+                            <label style="display:flex;align-items:center;gap:3px;cursor:pointer;margin:0;font-weight:500;">
+                                <input type="radio" name="pag-assin-${(docType||'').replace(/[^a-zA-Z0-9]/g,'_')}" value="NAO_EXIGE" ${stMain === 'NAO_EXIGE' ? 'checked' : ''}> Não
+                            </label>
+                        </div>
+                        ` : ''}
                         ${(!isAssinado && !(tabId === 'Atestados' && isSaved)) ? `
                         <label class="btn ${isSaved ? 'btn-warning' : 'btn-primary'}" title="${isSaved ? 'Substituir' : 'Fazer Upload'}" style="height: 42px; display: flex; align-items: center;">
                             <i class="ph ph-upload-simple"></i> ${isSaved ? 'Substituir' : 'Upload'}
@@ -4270,6 +4281,10 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                                 const venc = this.closest('.doc-item').querySelector('.venc-input')?.value; 
                                 if((${needsVencimento}) && !venc) { alert('Data de vencimento é obrigatória'); this.value=''; return; } 
                                 let assStatus = null;
+                                if('${tabId}' === 'Pagamentos') {
+                                    const r = this.closest('.doc-item').querySelector('input[name^=\\'pag-assin-\\']:checked');
+                                    if(r) assStatus = r.value;
+                                }
                                 uploadDocument(this, '${tabId}', '${docType}', ${year}, ${month}, venc, assStatus)
                             ">
                         </label>
