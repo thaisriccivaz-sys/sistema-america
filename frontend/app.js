@@ -5128,7 +5128,7 @@ window.uploadDocument = async function(inputEl, tabId, docType, year = null, mon
                     file_name: file.name,
                     upload_date: new Date().toISOString(),
                     vencimento: vencimento || null,
-                    assinafy_status: 'Nenhum',
+                    assinafy_status: reqAssin || 'Nenhum',
                     assinafy_sent_at: null,
                     tab_name: tabId,
                     document_type: docType
