@@ -3372,11 +3372,20 @@ window.anexarAdvertenciaAoProntuario = async function() {
             margin:       0,
             filename:     nomeArquivo,
             image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true, width: 794, windowWidth: 794 },
+            html2canvas:  { scale: 2, useCORS: true },
             jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
 
+        const origWidth = htmlTemplate.style.width;
+        const origMaxWidth = htmlTemplate.style.maxWidth;
+        htmlTemplate.style.width = '794px';
+        htmlTemplate.style.maxWidth = '794px';
+
         const pdfBlob = await html2pdf().set(opt).from(htmlTemplate).output('blob');
+        
+        htmlTemplate.style.width = origWidth;
+        htmlTemplate.style.maxWidth = origMaxWidth;
+
         const file = new File([pdfBlob], nomeArquivo, { type: 'application/pdf' });
 
         const formData = new FormData();
@@ -7333,10 +7342,20 @@ window.gerarContratoAvulso = async function() {
                     
                     const opt = {
                         margin: 0, filename: nomeArquivo, image: { type: 'jpeg', quality: 0.98 },
-                        html2canvas: { scale: 2, useCORS: true, width: 794, windowWidth: 794 },
+                        html2canvas: { scale: 2, useCORS: true },
                         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
                     };
+                    
+                    const origWidth = htmlTemplate.style.width;
+                    const origMaxWidth = htmlTemplate.style.maxWidth;
+                    htmlTemplate.style.width = '794px';
+                    htmlTemplate.style.maxWidth = '794px';
+
                     const pdfBlob = await html2pdf().set(opt).from(htmlTemplate).output('blob');
+                    
+                    htmlTemplate.style.width = origWidth;
+                    htmlTemplate.style.maxWidth = origMaxWidth;
+
                     const file = new File([pdfBlob], nomeArquivo, { type: 'application/pdf' });
                     
                     const formData = new FormData();
