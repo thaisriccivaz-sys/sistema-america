@@ -3106,12 +3106,12 @@ window.renderAdvertenciasTab = function(listContainer, filteredDocs) {
                 <div>
                     <label style="font-size:0.75rem; font-weight:700; color:#475569; display:block; margin-bottom:4px;">Tipo de Advertência</label>
                     <select id="adv-tipo" class="form-control" style="padding:0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.9rem;">
+                        <option value="ocorrencia">Ocorrência</option>
                         <option value="verbal">Advertência Verbal</option>
                         <option value="escrita">Advertência Escrita</option>
                         <option value="suspensao_1">Suspensão — 1 dia</option>
                         <option value="suspensao_2">Suspensão — 2 dias</option>
                         <option value="suspensao_3">Suspensão — 3 dias</option>
-                        <option value="ocorrencia">Ocorrência</option>
                     </select>
                 </div>
                 <div>
