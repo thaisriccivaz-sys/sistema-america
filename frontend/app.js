@@ -3278,7 +3278,7 @@ window.abrirPreviewAdvertencia = function(data) {
     const apiBase = API_URL.replace('/api', '');
     const logoSrc = `${apiBase}/assets/logo-header.png`;
 
-    const logoBanner = `<div style="margin:0;padding:0;line-height:0;"><img src="${logoSrc}" style="width:100%;display:block;margin:0;padding:0;" onerror="this.style.display='none'"></div>`;
+    const logoBanner = `<div style="margin:0;padding:0;text-align:center;margin-bottom:15px;"><img src="${logoSrc}" style="max-height:80px;max-width:100%;" onerror="this.style.display='none'"></div>`;
     const colabInfo = `
         <h1 style="text-align:center; color:#1e293b; margin-top:0.1rem; margin-bottom:0.3rem; font-size:1.1rem; text-transform:uppercase;">${data.gerador_nome}</h1>
         <p style="margin:0.2rem 0; font-size:0.85rem;"><b>COLABORADOR:</b> ${data.colaborador.NOME_COMPLETO}</p>
@@ -3357,8 +3357,8 @@ window.anexarAdvertenciaAoProntuario = async function() {
         
         const htmlTemplate = `
             <div style="width:794px;padding:48px 56px;box-sizing:border-box;background:#fff;color:#111;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.5;">
-                <div style="margin-bottom:10px;">
-                    <img src="${logoSrc}" style="width:100%;max-width:682px;display:block;" onerror="this.style.display='none'">
+                <div style="margin-bottom:15px; text-align:center;">
+                    <img src="${logoSrc}" style="max-height:80px;max-width:100%;display:inline-block;" onerror="this.style.display='none'">
                 </div>
                 <h1 style="text-align:center;font-size:15px;text-transform:uppercase;margin:8px 0 6px;color:#1e293b;">${data.gerador_nome}</h1>
                 <p style="margin:4px 0;font-size:13px;"><b>COLABORADOR:</b> ${data.colaborador.NOME_COMPLETO}</p>
