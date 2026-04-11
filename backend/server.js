@@ -4001,6 +4001,24 @@ app.post('/api/documentos/:id/sync-assinafy', authenticateToken, async (req, res
                 }).on('error', (err) => { fs.unlink(finalPath, () => {}); reject(err); });
             });
 
+            // ── Aplicar selo do certificado digital da empresa no arquivo LOCAL ──
+            // Isso garante que o botão de olho também mostre o selo, não apenas o OneDrive
+            let localPfxBuffer = fs.readFileSync(finalPath);
+            const dispCertLocal = signPdfPfx.verificarDisponibilidade();
+            if (dispCertLocal.disponivel) {
+                try {
+                    localPfxBuffer = await signPdfPfx.assinarPDF(localPfxBuffer, {
+                        motivo: 'Assinado eletronicamente pela empresa',
+                        nome: 'America Rental Equipamentos Ltda'
+                    });
+                    fs.writeFileSync(finalPath, localPfxBuffer); // sobrescreve com versão PFX
+                    console.log('[SIGN] ✅ Selo PFX aplicado no arquivo local.');
+                } catch (pfxErr) {
+                    localPfxBuffer = fs.readFileSync(finalPath); // fallback: sem PFX
+                    console.warn('[SIGN] Falha ao aplicar PFX local:', pfxErr.message);
+                }
+            }
+
             await new Promise((resolve, reject) => {
                 db.run(`UPDATE documentos SET assinafy_status = ?, signed_file_path = ?, assinafy_signed_at = COALESCE(assinafy_signed_at, CURRENT_TIMESTAMP) WHERE id = ?`, 
                     [newStatus, finalPath, docId], err => err ? reject(err) : resolve());
@@ -4011,39 +4029,21 @@ app.post('/api/documentos/:id/sync-assinafy', authenticateToken, async (req, res
                 try {
                     const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema";
                     const safeColab = formatarNome(doc.nome_completo || "DESCONHECIDO");
-                    // Pasta = tab_name normalizado (ex: ASO, EXAMES_COMPLEMENTARES)
                     const safeTab = formatarPasta(doc.tab_name || 'DOCUMENTOS').toUpperCase();
                     const docYear = doc.year && doc.year !== 'null' && doc.year !== '' ? String(doc.year).replace(/[^0-9]/g, '') : String(new Date().getFullYear());
                     const targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}/${docYear}`;
                     
-                    console.log(`[OneDrive Sync] Sincronizando ASO para: ${targetDir}`);
+                    console.log(`[OneDrive Sync] Sincronizando para: ${targetDir}`);
                     await onedrive.ensurePath(targetDir);
 
-                    // Ler buffer do arquivo assinado e aplicar certificado digital da empresa
-                    let fBuffer = fs.readFileSync(finalPath);
-                    const dispCert = signPdfPfx.verificarDisponibilidade();
-                    if (dispCert.disponivel) {
-                        try {
-                            fBuffer = await signPdfPfx.assinarPDF(fBuffer, {
-                                motivo: 'Assinado eletronicamente pela empresa',
-                                nome: 'America Rental Equipamentos Ltda'
-                            });
-                            console.log('[OneDrive Sync] ✅ Selo do certificado digital aplicado ao ASO.');
-                        } catch (certErr) {
-                            console.warn('[OneDrive Sync] Falha ao aplicar certificado no ASO:', certErr.message);
-                        }
-                    } else {
-                        console.warn('[OneDrive Sync] Certificado indisponível para ASO:', dispCert.motivo);
-                    }
-
-                    // Nome padrão: TipoDoc_Ano_NomeColab.pdf (igual ao upload inicial para sobrescrever)
+                    // Reutiliza buffer já com PFX (aplicado acima), sem re-processar
                     const safeType = formatarPasta(doc.document_type || doc.tab_name || 'Documento').replace(/\s+/g, '_');
                     const cloudName = `${safeType}_${docYear}_${safeColab}.pdf`;
                     
-                    await onedrive.uploadToOneDrive(targetDir, cloudName, fBuffer);
-                    console.log(`[OneDrive] ✓ ASO assinado sincronizado (com certificado): ${cloudName}`);
+                    await onedrive.uploadToOneDrive(targetDir, cloudName, localPfxBuffer);
+                    console.log(`[OneDrive] ✓ Documento assinado sincronizado (com certificado): ${cloudName}`);
                 } catch (e) { 
-                    console.error("[OneDrive] Erro de sync ASO assinado:", e.message); 
+                    console.error("[OneDrive] Erro de sync assinado:", e.message); 
                 }
             }
         } else {
