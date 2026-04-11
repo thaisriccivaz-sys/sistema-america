@@ -283,12 +283,19 @@ async function uploadDocToOneDrive(docId) {
         const safeColab = formatarNome(doc.nome_completo || 'DESCONHECIDO');
         const safeTab   = formatarPasta(doc.tab_name || 'DOCUMENTOS').toUpperCase();
         const docYear   = doc.year && doc.year !== 'null' ? String(doc.year).replace(/[^0-9]/g, '') : String(new Date().getFullYear());
-        let targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}`;
-        if (safeTab !== '01_FICHA_CADASTRAL') {
-            targetDir += `/${docYear}`;
-            // Para Pagamentos: sub-pasta com nome do mês em português (ex: Marco, Abril)
-            if (safeTab === 'PAGAMENTOS' && doc.month && doc.month !== 'null' && doc.month !== '') {
-                targetDir += `/${getMesNome(doc.month)}`;
+
+        // Contratos avulsos (Outros contratos): salvar em CONTRATOS/outros/ independente do ano
+        let targetDir;
+        if (doc.tab_name === 'CONTRATOS_AVULSOS') {
+            targetDir = `${onedriveBasePath}/${safeColab}/CONTRATOS/outros`;
+        } else {
+            targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}`;
+            if (safeTab !== '01_FICHA_CADASTRAL') {
+                targetDir += `/${docYear}`;
+                // Para Pagamentos: sub-pasta com nome do mês em português (ex: Marco, Abril)
+                if (safeTab === 'PAGAMENTOS' && doc.month && doc.month !== 'null' && doc.month !== '') {
+                    targetDir += `/${getMesNome(doc.month)}`;
+                }
             }
         }
 
@@ -317,12 +324,19 @@ async function uploadDocToOneDrive(docId) {
         }
 
         console.log(`[OD-AUTO] doc=${docId} tab=${doc.tab_name} → ${targetDir}/${cloudName}`);
-        
-        const parentDir = `${onedriveBasePath}/${safeColab}/${safeTab}`;
-        if (targetDir !== parentDir) {
-            await onedrive.ensurePath(parentDir); // Garante /AVALIACAO
+
+        // Garantir toda a hierarquia de pastas
+        if (doc.tab_name === 'CONTRATOS_AVULSOS') {
+            const contratosDir = `${onedriveBasePath}/${safeColab}/CONTRATOS`;
+            await onedrive.ensurePath(contratosDir);
+            await onedrive.ensurePath(targetDir); // CONTRATOS/outros
+        } else {
+            const parentDir = `${onedriveBasePath}/${safeColab}/${safeTab}`;
+            if (targetDir !== parentDir) {
+                await onedrive.ensurePath(parentDir);
+            }
+            await onedrive.ensurePath(targetDir);
         }
-        await onedrive.ensurePath(targetDir); // Garante /AVALIACAO/2026
 
         const fileBuffer = require('fs').readFileSync(localPath);
         await onedrive.uploadToOneDrive(targetDir, cloudName, fileBuffer);
