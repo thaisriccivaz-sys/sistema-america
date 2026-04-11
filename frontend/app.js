@@ -7055,7 +7055,7 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
                         <span style="font-size:0.75rem; color:#94a3b8;">${doc.upload_date ? new Date(doc.upload_date).toLocaleDateString('pt-BR') : (doc.created_at ? new Date(doc.created_at).toLocaleDateString('pt-BR') : '')}</span>
                         ${statusBadge}
                         ${(isPending || isSigned) && doc.assinafy_sent_at
-                            ? `<span style="font-size:0.72rem;color:#64748b;"><i class="ph ph-paper-plane-tilt"></i> Enviado: ${new Date(doc.assinafy_sent_at).toLocaleString('pt-BR')}</span>`
+                            ? `<span style="font-size:0.72rem;color:#92400e;background:#fef3c7;border-radius:10px;padding:1px 8px;font-weight:600;"><i class="ph ph-paper-plane-tilt"></i> Enviado: ${new Date(doc.assinafy_sent_at).toLocaleString('pt-BR')}</span>`
                             : ''}
                     </div>
                 </div>
