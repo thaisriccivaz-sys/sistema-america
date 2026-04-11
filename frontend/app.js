@@ -4234,12 +4234,8 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         `;
                     })() : ''}
 
-                    ${(!isAssinado) ? `
-                    <label class="btn ${isSaved ? 'btn-warning' : 'btn-primary'}" title="${isSaved ? 'Substituir' : 'Fazer Upload'}" style="height: 42px; display: flex; align-items: center; margin: 0;">
-                        <i class="ph ph-upload-simple"></i> ${isSaved ? 'Substituir' : 'Upload'}
-                        <input type="file" accept=".pdf" style="display:none;" onchange="const venc = this.closest('.doc-item').querySelector('.venc-input')?.value; if((${needsVencimento}) && !venc) { alert('Data de vencimento é obrigatória'); this.value=''; return; } uploadDocument(this, '${tabId}', '${docType}', ${year}, ${month}, venc, null)">
-                    </label>
-                    ` : ''}
+
+
 
                     ${isSaved && !isAssinado ? `
                         <button type="button" class="btn btn-danger" onclick="deleteDoc(${existingDoc.id}, this)" title="Excluir" style="height: 42px;"><i class="ph ph-trash"></i></button>
