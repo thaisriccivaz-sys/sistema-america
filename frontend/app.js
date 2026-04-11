@@ -4152,7 +4152,8 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                     ` : ''}
 
                     ${(tabId === 'Advertências' && isSaved) ? (() => {
-                        const _isOcorrDoc = (docType || '').includes('###Ocorr');
+                        const _isOcorrDoc  = (docType || '').includes('###Ocorr');
+                        const _isVerbalDoc = (docType || '').toLowerCase().includes('###advert') && (docType || '').toLowerCase().includes('verbal');
                         if (_isOcorrDoc) return ''; // Ocorrência não tem assinatura
                         return `
                         ${(!stMain || stMain === 'Nenhum') ? `
@@ -4161,7 +4162,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                                 style="height: 42px; display:flex; align-items:center; justify-content:center; gap:6px; background:#475569; color:#fff; border:none; border-radius:6px; padding:0 0.85rem; font-size:0.85rem; font-weight:600; cursor:pointer; white-space:nowrap;">
                             <i class="ph ph-users"></i> Testemunhas
                         </button>` : ''}
-                        ${(stMain === 'Testemunhas') ? `
+                        ${(stMain === 'Testemunhas' && !_isVerbalDoc) ? `
                         <button type="button" class="btn btn-primary"
                                 onclick="window.abrirModalAssinaturaColaborador(${existingDoc.id})"
                                 style="height: 42px; display:flex; align-items:center; justify-content:center; gap:6px; background:#0f4c81; color:#fff; border:none; border-radius:6px; padding:0 0.85rem; font-size:0.85rem; font-weight:600; cursor:pointer; white-space:nowrap;">
