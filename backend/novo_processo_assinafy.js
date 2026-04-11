@@ -224,7 +224,7 @@ async function enviarDocumentoParaAssinafy(documentId, colaboradorId) {
     // 6. Salvar no banco
     await new Promise((res, rej) =>
         db.run(
-            `UPDATE documentos SET assinafy_id = ?, assinafy_status = 'Pendente', assinafy_url = ? WHERE id = ?`,
+            `UPDATE documentos SET assinafy_id = ?, assinafy_status = 'Pendente', assinafy_url = ?, assinafy_sent_at = datetime('now') WHERE id = ?`,
             [assinafyDocId, urlAssinatura, documentId],
             (err) => err ? rej(err) : res()
         )
