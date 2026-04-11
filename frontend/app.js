@@ -3421,11 +3421,13 @@ window.anexarAdvertenciaAoProntuario = async function() {
         const previewEl = document.getElementById('preview-doc-body');
         if (!previewEl) throw new Error('Preview não encontrado. Abra o documento antes de anexar.');
 
-        // Remover temporariamente sombra/borda para PDF mais limpo
+        // Remover temporariamente sombra/borda/min-height para PDF mais limpo e sem página em branco extra
         const origBoxShadow = previewEl.style.boxShadow;
         const origBorder    = previewEl.style.border;
+        const origMinHeight = previewEl.style.minHeight;
         previewEl.style.boxShadow = 'none';
         previewEl.style.border    = 'none';
+        previewEl.style.minHeight = 'auto'; // evita página em branco extra
 
         const canvas = await html2canvas(previewEl, {
             scale: 2,
@@ -3438,6 +3440,7 @@ window.anexarAdvertenciaAoProntuario = async function() {
         // Restaurar estilos
         previewEl.style.boxShadow = origBoxShadow;
         previewEl.style.border    = origBorder;
+        previewEl.style.minHeight = origMinHeight;
 
         // Converter canvas → PDF A4 com suporte a múltiplas páginas
         const { jsPDF } = window.jspdf;
