@@ -7068,7 +7068,7 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
             </div>
             <div>
                ${eyeBtn}
-               <button type="button" onclick="window.deleteDocumentoContrato(${doc.id}); event.preventDefault(); event.stopPropagation();" style="border:none;background:none;cursor:pointer;color:#ef4444;margin-left:8px;" title="Excluir do Prontuário"><i class="ph ph-trash" style="font-size:1.2rem;"></i></button>
+               ${isSigned ? '' : `<button type="button" onclick="window.deleteDocumentoContrato(${doc.id}); event.preventDefault(); event.stopPropagation();" style="border:none;background:none;cursor:pointer;color:#ef4444;margin-left:8px;" title="Excluir do Prontuário"><i class="ph ph-trash" style="font-size:1.2rem;"></i></button>`}
             </div>
         </label>`;
     });
