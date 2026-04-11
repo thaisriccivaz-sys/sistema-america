@@ -3727,8 +3727,14 @@ app.post('/api/send-suspensao-contabilidade', authenticateToken, async (req, res
         });
 
         console.log(`[SUSPENSAO CONTAB] Enviado para ${email_to} | Doc: ${document_id} | Colab: ${colab.nome_completo}`);
-        res.json({ sucesso: true, message: 'E-mail de suspensão enviado com sucesso para a contabilidade!' });
+        
+        // Salvar timestamp do envio no documento (usando o mesmo campo da contabilidade)
+        const agora = new Date().toISOString();
+        await new Promise((resolve, reject) =>
+            db.run('UPDATE documentos SET atestado_contab_enviado_em = ? WHERE id = ?',
+                [agora, document_id], (err) => err ? reject(err) : resolve()));
 
+        res.json({ sucesso: true, message: 'E-mail de suspensão enviado com sucesso para a contabilidade!', enviado_em: agora });
     } catch (error) {
         console.error('[SUSPENSAO CONTAB] ERRO:', error.message);
         res.status(500).json({ sucesso: false, error: error.message });

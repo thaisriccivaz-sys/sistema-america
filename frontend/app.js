@@ -3986,17 +3986,19 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
 
     let atestadoInfoHtml = '';
     let atestadoContabHtml = '';
-    if (isSaved && existingDoc.atestado_tipo) {
-        if (existingDoc.atestado_tipo === 'dias') {
-            const ini = existingDoc.atestado_inicio ? existingDoc.atestado_inicio.split('-').reverse().join('/') : '';
-            const fim = existingDoc.atestado_fim ? existingDoc.atestado_fim.split('-').reverse().join('/') : '';
-            const hojeStr = new Date().toISOString().split('T')[0];
-            const isColabAfastado = viewedColaborador && viewedColaborador.status === 'Afastado';
-            const isAtivo = (isColabAfastado && existingDoc.atestado_inicio && existingDoc.atestado_fim && existingDoc.atestado_inicio <= hojeStr && hojeStr <= existingDoc.atestado_fim);
-            const corText = isAtivo ? '#d9480f' : '#868e96';
-            atestadoInfoHtml = ` <span style="color:${corText}; font-weight:600;"><i class="ph ph-warning" style="font-size:0.9em; color:${corText}; margin-right:2px;"></i> ${ini} até ${fim}</span> `;
-        } else {
-            atestadoInfoHtml = ` <span style="color:#1098ad; font-weight:600;"><i class="ph ph-clock"></i> ${existingDoc.atestado_inicio} às ${existingDoc.atestado_fim}</span> `;
+    if (isSaved) {
+        if (existingDoc.atestado_tipo) {
+            if (existingDoc.atestado_tipo === 'dias') {
+                const ini = existingDoc.atestado_inicio ? existingDoc.atestado_inicio.split('-').reverse().join('/') : '';
+                const fim = existingDoc.atestado_fim ? existingDoc.atestado_fim.split('-').reverse().join('/') : '';
+                const hojeStr = new Date().toISOString().split('T')[0];
+                const isColabAfastado = viewedColaborador && viewedColaborador.status === 'Afastado';
+                const isAtivo = (isColabAfastado && existingDoc.atestado_inicio && existingDoc.atestado_fim && existingDoc.atestado_inicio <= hojeStr && hojeStr <= existingDoc.atestado_fim);
+                const corText = isAtivo ? '#d9480f' : '#868e96';
+                atestadoInfoHtml = ` <span style="color:${corText}; font-weight:600;"><i class="ph ph-warning" style="font-size:0.9em; color:${corText}; margin-right:2px;"></i> ${ini} até ${fim}</span> `;
+            } else {
+                atestadoInfoHtml = ` <span style="color:#1098ad; font-weight:600;"><i class="ph ph-clock"></i> ${existingDoc.atestado_inicio} às ${existingDoc.atestado_fim}</span> `;
+            }
         }
         
         if (existingDoc.atestado_contab_enviado_em) {
@@ -4949,6 +4951,20 @@ window.enviarSuspensaoContabilidade = async function(docId, emailInputId, btn) {
         if (res && res.sucesso) {
             btn.innerHTML = '<i class="ph ph-check-circle"></i> Enviado!';
             btn.style.background = '#2f9e44';
+            
+            // Reload the documents to show the updated timestamp immediately
+            if (viewedColaborador) {
+                apiGet(`/colaboradores/${viewedColaborador.id}/documentos`).then(docs => {
+                    if (docs) {
+                        currentDocs = docs;
+                        const activeTab = document.querySelector('#tabs-list li.active');
+                        if (activeTab) {
+                            renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
+                        }
+                    }
+                }).catch(err => console.warn('Falha ao recarregar documentos:', err));
+            }
+
             setTimeout(() => { btn.innerHTML = originalHtml; btn.style.background = ''; btn.disabled = false; }, 3000);
         } else {
             throw new Error(res?.error || 'Erro desconhecido');
