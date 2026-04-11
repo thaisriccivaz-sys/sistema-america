@@ -4210,6 +4210,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         ` : ''}
                     </div>
 
+                    ${(() => {
                         const isOcorrenciaDoc = (docType || '').includes('###Ocorr');
                         const showAssinafy = isSaved && tabId !== 'Atestados' && tabId !== '01_FICHA_CADASTRAL' && stMain !== 'NAO_EXIGE' && !isOcorrenciaDoc;
                         return showAssinafy ? `
