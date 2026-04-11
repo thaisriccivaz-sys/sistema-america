@@ -7151,10 +7151,22 @@ window.abrirModalGerarContrato = function() {
             <div style="padding:1.5rem;display:flex;flex-direction:column;gap:1rem;">
                 <div>
                     <label style="font-size:0.82rem;font-weight:700;color:#374151;display:block;margin-bottom:6px;">Selecionar Documento</label>
-                    <select id="ca-gerador-select" style="width:100%;padding:0.65rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;" onchange="window.toggleContratoAvulsoCampos(this)">
-                        <option value="">Selecione...</option>
-                        ${opts}
-                    </select>
+                    <div style="position:relative;" id="ca-gerador-wrapper">
+                        <input
+                            id="ca-gerador-search"
+                            type="text"
+                            placeholder="Digite para filtrar..."
+                            autocomplete="off"
+                            style="width:100%;padding:0.65rem 2.2rem 0.65rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;box-sizing:border-box;outline:none;"
+                            onfocus="window._openGeradorDropdown()"
+                            oninput="window._filterGeradorDropdown(this.value)"
+                        >
+                        <i class="ph ph-caret-down" style="position:absolute;right:0.65rem;top:50%;transform:translateY(-50%);color:#94a3b8;pointer-events:none;"></i>
+                        <input type="hidden" id="ca-gerador-select" value="">
+                        <div id="ca-gerador-dropdown"
+                             style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1.5px solid #e2e8f0;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.12);max-height:220px;overflow-y:auto;z-index:99999;">
+                        </div>
+                    </div>
                 </div>
                 <!-- Campos específicos para desconto em folha -->
                 <div id="ca-campos-desconto" style="display:none; flex-direction:column; gap:1rem; background:#f8fafc; padding:1rem; border-radius:8px; border:1px solid #e2e8f0;">
@@ -7188,6 +7200,64 @@ window.abrirModalGerarContrato = function() {
             </div>
         </div>`;
     document.body.appendChild(overlay);
+
+    // Inicializar itens do combobox
+    const _geradores = window._caAvailableGeradores || [];
+    window._geradorItems = _geradores.map(g => ({ id: String(g.id), nome: g.nome || '' }));
+
+    window._openGeradorDropdown = function() {
+        window._filterGeradorDropdown(document.getElementById('ca-gerador-search')?.value || '');
+    };
+
+    window._filterGeradorDropdown = function(q) {
+        const dd = document.getElementById('ca-gerador-dropdown');
+        if (!dd) return;
+        const filtered = (window._geradorItems || []).filter(g => g.nome.toLowerCase().includes((q||'').toLowerCase()));
+        if (filtered.length === 0) {
+            dd.innerHTML = '<div style="padding:0.75rem 1rem;font-size:0.88rem;color:#94a3b8;">Nenhum resultado.</div>';
+        } else {
+            dd.innerHTML = filtered.map(g => `
+                <div onclick="window._selectGerador('${g.id}', '${g.nome.replace(/'/g,"\\'")}')"
+                     style="padding:0.6rem 1rem;font-size:0.88rem;color:#334155;cursor:pointer;"
+                     onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''"><i class="ph ph-file-text" style="margin-right:6px;color:#94a3b8;"></i>${g.nome}</div>
+            `).join('');
+        }
+        dd.style.display = 'block';
+    };
+
+    window._selectGerador = function(id, nome) {
+        const search = document.getElementById('ca-gerador-search');
+        const hidden = document.getElementById('ca-gerador-select');
+        const dd     = document.getElementById('ca-gerador-dropdown');
+        if (search) search.value = nome;
+        if (hidden) hidden.value = id;
+        if (dd)     dd.style.display = 'none';
+        // verificar campos extras (ex: desconto em folha)
+        const camposDesconto = document.getElementById('ca-campos-desconto');
+        if (camposDesconto) {
+            if (nome === 'AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO') {
+                camposDesconto.style.display = 'flex';
+            } else {
+                camposDesconto.style.display = 'none';
+                ['ca-m-descricao','ca-m-valor'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+                const parc = document.getElementById('ca-m-parcelas'); if(parc) parc.value='1';
+            }
+        }
+    };
+
+    // Fechar dropdown ao clicar fora
+    setTimeout(() => {
+        document.addEventListener('mousedown', function _closeGeradorDD(e) {
+            const wrapper = document.getElementById('ca-gerador-wrapper');
+            if (wrapper && !wrapper.contains(e.target)) {
+                const dd = document.getElementById('ca-gerador-dropdown');
+                if (dd) dd.style.display = 'none';
+            }
+            if (!document.getElementById('modal-contrato-avulso')) {
+                document.removeEventListener('mousedown', _closeGeradorDD);
+            }
+        });
+    }, 100);
 };
 
 window.toggleContratoAvulsoCampos = function(select) {
@@ -7204,8 +7274,8 @@ window.toggleContratoAvulsoCampos = function(select) {
 };
 
 window.gerarContratoAvulso = async function() {
-    const select = document.getElementById('ca-gerador-select');
-    const geradorId = select ? select.value : '';
+    const hidden = document.getElementById('ca-gerador-select');
+    const geradorId = hidden ? hidden.value : '';
     if (!geradorId) return alert('Selecione um documento.');
 
     const btn = document.getElementById('ca-btn-gerar');
