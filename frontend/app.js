@@ -4263,7 +4263,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                             <button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height: 42px;"><i class="ph ph-eye"></i></button>
                             ${(!isAssinado) ? `<button type="button" class="btn btn-danger" onclick="deleteDoc(${existingDoc.id}, this)" title="Excluir" style="height: 42px;"><i class="ph ph-trash"></i></button>` : ''}
                         ` : ''}
-                        ${tabId === 'Pagamentos' && !isAssinado ? `
+                        ${tabId === 'Pagamentos' && !isSaved ? `
                         <div style="display:flex; align-items:center; gap:8px; font-size:0.82rem; white-space:nowrap;">
                             <span style="font-weight:600;color:#64748b;">Exige Assinatura?</span>
                             <label style="display:flex;align-items:center;gap:3px;cursor:pointer;margin:0;font-weight:500;">

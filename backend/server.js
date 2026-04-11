@@ -2121,7 +2121,7 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
         if (err) return res.status(500).json({ error: err.message });
         
         // Abas que permitem múltiplos arquivos (histórico cumulativo)
-        const abasMultiplas = ['Advertências', 'Multas', 'Atestados', 'Boletim de ocorrência', 'Pagamentos', 'Terapia', 'CONTRATOS_AVULSOS'];
+        const abasMultiplas = ['Advertências', 'Multas', 'Atestados', 'Boletim de ocorrência', 'Terapia', 'CONTRATOS_AVULSOS'];
         // Se force document_id explicit, treat as overwrite
         const isMultiplo = !document_id && abasMultiplas.includes(tab_name);
 
