@@ -3356,9 +3356,9 @@ window.anexarAdvertenciaAoProntuario = async function() {
         const data = window._advertenciaData;
         
         const htmlTemplate = `
-            <div style="width:794px;padding:48px 56px;box-sizing:border-box;background:#fff;color:#111;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.5;">
-                <div style="margin-bottom:15px; text-align:center;">
-                    <img src="${logoSrc}" style="max-height:80px;max-width:100%;display:inline-block;" onerror="this.style.display='none'">
+            <div style="width:794px;min-height:1123px;padding:40px 56px 40px 56px;box-sizing:border-box;background:#fff;color:#111;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.5;display:block;vertical-align:top;">
+                <div style="text-align:center;margin-bottom:18px;">
+                    <img src="${logoSrc}" style="max-height:70px;max-width:300px;" onerror="this.style.display='none'">
                 </div>
                 <h1 style="text-align:center;font-size:15px;text-transform:uppercase;margin:8px 0 6px;color:#1e293b;">${data.gerador_nome}</h1>
                 <p style="margin:4px 0;font-size:13px;"><b>COLABORADOR:</b> ${data.colaborador.NOME_COMPLETO}</p>
@@ -3389,29 +3389,23 @@ window.anexarAdvertenciaAoProntuario = async function() {
         });
 
         const opt = {
-            margin:       0,
+            margin:       [10, 10, 10, 10],
             filename:     nomeArquivo,
             image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true, logging: false },
+            html2canvas:  { 
+                scale: 2, 
+                useCORS: true, 
+                logging: false,
+                windowWidth: 794,
+                width: 794
+            },
             jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
 
-        // Criar um elemento DOM real para evitar interferência do CSS global do Dashboard
-        const tempContainer = document.createElement('div');
-        tempContainer.style.position = 'absolute';
-        tempContainer.style.top = '0';
-        tempContainer.style.left = '-9999px';
-        tempContainer.style.width = '794px';
-        tempContainer.style.minHeight = '1123px'; // Forçar altura de A4
-        tempContainer.style.display = 'block'; // Não ser flex container
-        tempContainer.style.zIndex = '-9999';
-        tempContainer.innerHTML = htmlTemplate;
-        
-        document.body.appendChild(tempContainer);
-
-        const pdfBlob = await html2pdf().set(opt).from(tempContainer).output('blob');
-        
-        document.body.removeChild(tempContainer);
+        const pdfBlob = await html2pdf()
+            .set(opt)
+            .from(htmlTemplate)
+            .output('blob');
 
         const file = new File([pdfBlob], nomeArquivo, { type: 'application/pdf' });
 
