@@ -3268,7 +3268,7 @@ window.abrirPreviewAdvertencia = function(data) {
     const apiBase = API_URL.replace('/api', '');
     const logoSrc = `${apiBase}/assets/logo-header.png`;
 
-    const logoBanner = `<div style="margin:0 -2cm -0.1rem -2cm;"><img src="${logoSrc}" style="width:100%; display:block; margin:0; padding:0;" onerror="this.style.display='none'"></div>`;
+    const logoBanner = `<div style="margin:0;padding:0;line-height:0;"><img src="${logoSrc}" style="width:100%;display:block;margin:0;padding:0;" onerror="this.style.display='none'"></div>`;
     const colabInfo = `
         <h1 style="text-align:center; color:#1e293b; margin-top:0.1rem; margin-bottom:0.3rem; font-size:1.1rem; text-transform:uppercase;">${data.gerador_nome}</h1>
         <p style="margin:0.2rem 0; font-size:0.85rem;"><b>COLABORADOR:</b> ${data.colaborador.NOME_COMPLETO}</p>
@@ -3289,7 +3289,8 @@ window.abrirPreviewAdvertencia = function(data) {
         </div>
     `;
 
-    container.innerHTML = logoBanner + colabInfo + conteudo + footer;
+    const conteudoComPadding = `<div style="padding: 0 15px 15px 15px;">${colabInfo}${conteudo}${footer}</div>`;
+    container.innerHTML = logoBanner + conteudoComPadding;
     document.getElementById('preview-doc-title').textContent = `${data.gerador_nome} - ${data.colaborador.NOME_COMPLETO}`;
 
     // Configurar botões customizados para Advertência
@@ -3385,15 +3386,8 @@ window.anexarAdvertenciaAoProntuario = async function() {
             jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
 
-        const origWidth = htmlTemplate.style.width;
-        const origMaxWidth = htmlTemplate.style.maxWidth;
-        htmlTemplate.style.width = '794px';
-        htmlTemplate.style.maxWidth = '794px';
-
         const pdfBlob = await html2pdf().set(opt).from(htmlTemplate).output('blob');
-        
-        htmlTemplate.style.width = origWidth;
-        htmlTemplate.style.maxWidth = origMaxWidth;
+        // htmlTemplate é uma string HTML — não é um elemento DOM, não precisa de manipulação de estilo
 
         const file = new File([pdfBlob], nomeArquivo, { type: 'application/pdf' });
 
