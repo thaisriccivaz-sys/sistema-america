@@ -4259,7 +4259,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                 <div style="display: flex; flex-direction: column; gap: 0.5rem;">
                     <div style="display: flex; gap: 0.5rem; align-items: flex-end;">
                         ${vencimentoInputHtml}
-                        ${isSaved ? `
+                        ${isSaved && !(isAssinado && (tabId === 'Pagamentos' || tabId === 'ASO')) ? `
                             <button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height: 42px;"><i class="ph ph-eye"></i></button>
                             ${(!isAssinado) ? `<button type="button" class="btn btn-danger" onclick="deleteDoc(${existingDoc.id}, this)" title="Excluir" style="height: 42px;"><i class="ph ph-trash"></i></button>` : ''}
                         ` : ''}
@@ -4296,6 +4296,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         const showAssinafy = isSaved && tabId !== 'Atestados' && tabId !== '01_FICHA_CADASTRAL' && stMain !== 'NAO_EXIGE' && !isOcorrenciaDoc;
                         return showAssinafy ? `
                         <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            ${(isAssinado && isSaved && (tabId === 'Pagamentos' || tabId === 'ASO')) ? `<button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height: 42px;"><i class="ph ph-eye"></i></button>` : ''}
                             <button class="btn btn-assinafy" style="height: 42px; display:flex; align-items:center; padding:0 0.85rem;" onclick="window.iniciarAssinafy('${docType}', '${tabId}', this)" ${isAssinado ? 'disabled' : ''}>
                                 <i class="ph ph-pen-nib"></i> Solicitar Assinatura
                             </button>
