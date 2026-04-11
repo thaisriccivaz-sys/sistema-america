@@ -6295,9 +6295,9 @@ window.abrirPreviewDocumento = function(data) {
 
     // 2. Dados do Colaborador
     const colabInfoBase = `
-        <h1 style="text-align: center; color: #1e293b; margin-top: 0.2rem; font-size: 1.25rem; text-transform: uppercase;">${data.gerador_nome}</h1>
-        <p style="margin-top: 0.75rem; font-size: 1rem;"><b>COLABORADOR:</b> ${data.colaborador.NOME_COMPLETO}</p>
-        <div style="border: 1px solid #000; padding: 0.75rem; margin-top: 0.5rem; line-height: 1.4; font-size: 0.85rem;">
+        <h1 style="text-align: center; color: #1e293b; margin-top: 0.2rem; margin-bottom: 0.2rem; font-size: 1.1rem; text-transform: uppercase;">${data.gerador_nome}</h1>
+        <p style="margin-top: 0.5rem; margin-bottom: 0.3rem; font-size: 0.85rem;"><b>COLABORADOR:</b> ${data.colaborador.NOME_COMPLETO}</p>
+        <div style="border: 1px solid #000; padding: 0.4rem 0.75rem; margin-top: 0.3rem; line-height: 1.3; font-size: 0.75rem;">
             <p style="margin-bottom: 0.2rem; font-size: 0.8rem;"><b>DADOS COLABORADOR:</b></p>
             <div style="display: flex; gap: 2rem;">
                 <span>CPF: <b>${data.colaborador.CPF}</b></span>
@@ -6320,19 +6320,17 @@ window.abrirPreviewDocumento = function(data) {
         .replace(/AMERICA RENTAL EQUIPAMENTOS LTDA/g, '<b>AMERICA RENTAL EQUIPAMENTOS LTDA</b>');
 
     const isSantander = (data.gerador_nome || '').toLowerCase().includes('santander');
-    const customFontSize   = isSantander ? '0.7rem' : '0.9rem';
-    const customLineHeight = isSantander ? '1.2'    : '1.5';
+    const customFontSize   = isSantander ? '0.68rem' : '0.82rem';
+    const customLineHeight = isSantander ? '1.2'    : '1.45';
 
     // CSS de quebra de página correta — evita cortar parágrafos e cláusulas no meio
     const conteudoPrincipal = `
         <style>
-            #preview-doc-body p  { margin: 0.15rem 0; line-height: ${customLineHeight}; page-break-inside: avoid; }
-            #preview-doc-body li { margin: 0.1rem 0;  line-height: ${customLineHeight}; page-break-inside: avoid; }
-            #preview-doc-body br { line-height: 0.5; }
-            #preview-doc-body .clausula { page-break-inside: avoid; }
-            #preview-doc-body div { page-break-inside: avoid; }
+            #preview-doc-body p  { margin: 0.1rem 0; line-height: ${customLineHeight}; page-break-inside: avoid; }
+            #preview-doc-body li { margin: 0.08rem 0; line-height: ${customLineHeight}; page-break-inside: avoid; }
+            #preview-doc-body br { line-height: 0.3; }
         </style>
-        <div style="margin-top: 1rem; text-align: justify; font-size: ${customFontSize};">
+        <div style="margin-top: 0.6rem; text-align: justify; font-size: ${customFontSize};">
             ${htmlComDestaque}
         </div>`;
 
@@ -6378,8 +6376,8 @@ window.abrirPreviewDocumento = function(data) {
         </div>`;
     }
 
-    // Logo cola no topo (sem padding), o resto do conteúdo tem padding lateral
-    const conteudoComPadding = `<div style="padding: 0 20px 20px 20px;">${colabInfoBase}${conteudoPrincipal}${footerHtml}</div>`;
+    // Logo cola no topo (sem padding), o resto do conteúdo tem padding lateral uniforme
+    const conteudoComPadding = `<div style="padding: 0 15px 15px 15px;">${colabInfoBase}${conteudoPrincipal}${footerHtml}</div>`;
     container.innerHTML = logoBanner + conteudoComPadding;
     // Guardar nome para uso no salvar PDF
     container.dataset.docNome = data.gerador_nome || 'Documento';
