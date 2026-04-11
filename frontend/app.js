@@ -3369,11 +3369,11 @@ window.anexarAdvertenciaAoProntuario = async function() {
         });
 
         const opt = {
-            margin:       [0,0,0,0],
+            margin:       10,
             filename:     nomeArquivo,
             image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true, width: 794 },
-            jsPDF:        { unit: 'px', format: [794, 1123], orientation: 'portrait' }
+            html2canvas:  { scale: 2, useCORS: true },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
 
         const pdfBlob = await html2pdf().set(opt).from(htmlTemplate).output('blob');
@@ -6920,7 +6920,6 @@ window.uploadContratoExterno = async function(input) {
     }
 };
 
-window.openContratoViewerPopup = function(pdfUrl, nomeDoc) {
 // Versão segura: pega o token no momento do clique (não no build-time da lista)
 window.openContratoViewerById = function(docId, nomeDoc) {
     var token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
@@ -6928,6 +6927,8 @@ window.openContratoViewerById = function(docId, nomeDoc) {
     var pdfUrl = API_URL + '/documentos/view/' + docId + '?token=' + encodeURIComponent(token);
     window.openContratoViewerPopup(pdfUrl, nomeDoc);
 };
+
+window.openContratoViewerPopup = function(pdfUrl, nomeDoc) {
     if (!pdfUrl || pdfUrl.endsWith('undefined')) {
         alert('URL do documento nao encontrada.');
         return;
@@ -7330,9 +7331,9 @@ window.gerarContratoAvulso = async function() {
                     const nomeArquivo = `${data.gerador_nome.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
                     
                     const opt = {
-                        margin: [0,0,0,0], filename: nomeArquivo, image: { type: 'jpeg', quality: 0.98 },
-                        html2canvas: { scale: 2, useCORS: true, width: 794 },
-                        jsPDF: { unit: 'px', format: [794, 1123], orientation: 'portrait' }
+                        margin: 10, filename: nomeArquivo, image: { type: 'jpeg', quality: 0.98 },
+                        html2canvas: { scale: 2, useCORS: true },
+                        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
                     };
                     const pdfBlob = await html2pdf().set(opt).from(htmlTemplate).output('blob');
                     const file = new File([pdfBlob], nomeArquivo, { type: 'application/pdf' });
