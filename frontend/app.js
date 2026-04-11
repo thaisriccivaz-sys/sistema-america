@@ -3199,20 +3199,25 @@ window.gerarAdvertencia = function() {
         </p>` : '';
 
 
+    const isOcorrencia = tipo === 'ocorrencia';
+
     const htmlDoc = `
         <p style="margin-top:1.5rem; text-align:justify;">
             A empresa <strong>AMERICA RENTAL EQUIPAMENTOS LTDA</strong>, inscrita no CNPJ sob o nº 03.434.448/0001-01,
             situada na Rua Salto da Divisa, nº 97, CEP 07252-300, Parque Alvorada – Guarulhos/SP,
-            vem por meio deste documento aplicar ao(à) colaborador(a) <strong>${nomeColab}</strong> a presente
-            <strong>${tipoTexto}</strong>.
+            ${isOcorrencia
+                ? `vem por meio deste documento <strong>registrar a seguinte ocorrência</strong> envolvendo o(a) colaborador(a) <strong>${nomeColab}</strong>.`
+                : `vem por meio deste documento aplicar ao(à) colaborador(a) <strong>${nomeColab}</strong> a presente <strong>${tipoTexto}</strong>.`
+            }
         </p>
         ${titulo ? `<p style="margin-top:0.75rem; text-align:center; font-size:1rem; font-weight:700; color:#92400e; text-transform:uppercase; letter-spacing:0.04em; border-bottom:1px solid #fdba74; padding-bottom:0.4rem;">${titulo}</p>` : ''}
 
         <p style="margin-top:1rem; text-align:justify;">
-            <strong>Motivo / Infração cometida:</strong><br>
+            <strong>${isOcorrencia ? 'Descrição da ocorrência:' : 'Motivo / Infração cometida:'}</strong><br>
             ${motivo.replace(/\n/g, '<br>')}
         </p>
         ${suspensaoParag}
+        ${!isOcorrencia ? `
         <p style="margin-top:1rem; text-align:justify;">
             Informamos que esta é <strong>uma medida disciplinar</strong> e que reincidências poderão acarretar
             penalidades mais severas, inclusive a rescisão do contrato de trabalho por justa causa,
@@ -3222,7 +3227,10 @@ window.gerarAdvertencia = function() {
         <p style="margin-top:1rem; text-align:justify;">
             O(A) colaborador(a) declara, com sua assinatura, estar ciente do conteúdo desta advertência
             e de que a mesma será arquivada em seu prontuário.
-        </p>
+        </p>` : `
+        <p style="margin-top:1rem; text-align:justify; color:#475569; font-size:0.92em;">
+            Este registro é de caráter informativo e será arquivado no prontuário do colaborador.
+        </p>`}
     `;
 
     // Montar dados do colaborador para o padrão do preview
@@ -3236,6 +3244,8 @@ window.gerarAdvertencia = function() {
     }[tipo] || tipoTexto;
     window._advertenciaData = {
         html: htmlDoc,
+        tipo,
+        isOcorrencia,
         gerador_nome: tipoTexto,
         titulo: titulo || tipoSimples,
         tipoSimples,
@@ -3411,6 +3421,14 @@ window.anexarAdvertenciaAoProntuario = async function() {
         // Só consideramos falha real se não houver resposta ou status 400.
         const resData = await response.json().catch(() => ({}));
         if (response.status === 400) throw new Error(resData.error || 'Arquivo não recebido pelo servidor.');
+
+        // Ocorrência: sem assinatura — enviar ao OneDrive imediatamente
+        if (window._advertenciaData.isOcorrencia && resData.id) {
+            fetch(`${API_URL}/force-onedrive-sync/${resData.id}`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${currentToken}` }
+            }).catch(e => console.warn('[OD] Sync Ocorrência:', e.message));
+        }
 
         // Fechar modal
         document.getElementById('modal-preview-doc').style.display = 'none';
@@ -4197,8 +4215,8 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         ` : ''}
                     </div>
 
-                    ${(() => {
-                        const showAssinafy = isSaved && tabId !== 'Atestados' && tabId !== '01_FICHA_CADASTRAL' && stMain !== 'NAO_EXIGE';
+                        const isOcorrenciaDoc = (docType || '').includes('###Ocorr');
+                        const showAssinafy = isSaved && tabId !== 'Atestados' && tabId !== '01_FICHA_CADASTRAL' && stMain !== 'NAO_EXIGE' && !isOcorrenciaDoc;
                         return showAssinafy ? `
                         <div style="display: flex; align-items: center; gap: 0.5rem;">
                             <button class="btn btn-assinafy" style="height: 42px; display:flex; align-items:center; padding:0 0.85rem;" onclick="window.iniciarAssinafy('${docType}', '${tabId}', this)" ${isAssinado ? 'disabled' : ''}>
