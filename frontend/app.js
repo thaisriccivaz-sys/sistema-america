@@ -5922,7 +5922,11 @@ window.renderGeradoresTemplates = function(departamentos, geradores, templates) 
         docMap[t.gerador_id].push(Number(t.departamento_id));
     });
 
-    const listHTML = geradores.map(g => {
+    // Contratos de uso exclusivo de outros fluxos (ex: Multas) não devem aparecer nos templates de admissão
+    const GERADORES_EXCLUSIVOS_AVULSO = ['AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO'];
+    const geradoresParaTemplate = geradores.filter(g => !GERADORES_EXCLUSIVOS_AVULSO.includes((g.nome || '').toUpperCase().trim()));
+
+    const listHTML = geradoresParaTemplate.map(g => {
         const checked = docMap[g.id] || [];
         const deptList = departamentos.map(d => `
             <label class="doc-lbl-item" data-dept-name="${d.nome.replace(/"/g, '&quot;')}" style="display:flex; align-items:center; gap:0.6rem; padding:0.45rem 0.75rem; border-radius:6px; cursor:pointer; transition:background 0.15s;"
@@ -7344,12 +7348,12 @@ window.gerarContratoAvulso = async function() {
                     const nomeArquivo = `${data.gerador_nome.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
                     
                     const opt = {
-                        margin: [0, 10, 10, 10], // top=0 para colar logo no topo, lados e base com 10mm
+                        margin: 0,
                         filename: nomeArquivo, 
                         image: { type: 'jpeg', quality: 0.98 },
                         html2canvas: { scale: 2, useCORS: true },
                         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                        pagebreak: { mode: ['avoid-all', 'css', 'legacy'], before: '.page-break', avoid: ['p', 'li', 'div', 'span'] }
+                        pagebreak: { mode: ['avoid-all', 'css', 'legacy'], before: '.page-break', avoid: ['p', 'li'] }
                     };
                     
                     const origWidth = htmlTemplate.style.width;
