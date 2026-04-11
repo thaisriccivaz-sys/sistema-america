@@ -6848,6 +6848,9 @@ window.renderContratosAvulso = async function(container) {
             }
         }
 
+        // Remover o contrato de multa (AUTORIZAÇÃO DE DESCONTO) da lista geral de contratos avulsos, pois tem fluxo próprio de Multas
+        availableGeradores = availableGeradores.filter(g => g.nome !== 'AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO');
+
         const filteredDocs = docs.filter(d => d.tab_name === 'CONTRATOS');
 
         container.innerHTML = `
