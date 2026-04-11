@@ -2212,9 +2212,9 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
             const fileNameToStore = (tab_name === 'Atestados' && req.body.cloud_name)
                 ? req.body.cloud_name
                 : file_name;
-            db.run(`INSERT INTO documentos (colaborador_id, tab_name, document_type, file_name, file_path, year, month, vencimento, atestado_tipo, atestado_inicio, atestado_fim) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [colaborador_id, tab_name, document_type, fileNameToStore, file_path, year || null, month || null, vencimento || null, atestado_tipo || null, atestado_inicio || null, atestado_fim || null],
+            db.run(`INSERT INTO documentos (colaborador_id, tab_name, document_type, file_name, file_path, year, month, vencimento, atestado_tipo, atestado_inicio, atestado_fim, assinafy_status) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [colaborador_id, tab_name, document_type, fileNameToStore, file_path, year || null, month || null, vencimento || null, atestado_tipo || null, atestado_inicio || null, atestado_fim || null, assinafy_status || 'Nenhum'],
                 function(insertErr) {
                     if (insertErr) return res.status(500).json({ error: insertErr.message });
 
