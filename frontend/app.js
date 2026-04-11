@@ -6934,9 +6934,10 @@ window.openContratoViewerPopup = function(pdfUrl, nomeDoc) {
         return;
     }
     var token = window.currentToken || localStorage.getItem('erp_token') || '';
-    var finalUrl = (pdfUrl.indexOf('onrender.com') >= 0 || pdfUrl.indexOf(window.location.hostname) >= 0)
-        ? (pdfUrl.indexOf('?') >= 0 ? pdfUrl + '&token=' + token : pdfUrl + '?token=' + token)
-        : pdfUrl;
+    var finalUrl = pdfUrl;
+    if ((pdfUrl.indexOf('onrender.com') >= 0 || pdfUrl.indexOf(window.location.hostname) >= 0) && pdfUrl.indexOf('token=') === -1) {
+        finalUrl = (pdfUrl.indexOf('?') >= 0 ? pdfUrl + '&token=' + token : pdfUrl + '?token=' + token);
+    }
     var nomeSafe = (nomeDoc || 'Documento');
 
     var prev = document.getElementById('cv-overlay-fs');
