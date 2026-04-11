@@ -3301,9 +3301,9 @@ function buildAdvertenciaTemplate(data, logoSrc) {
         </div>
     ` : '';
 
-    return `<div style="width:794px; background:#fff; font-family:Arial,Helvetica,sans-serif; font-size:12px; color:#111; line-height:1.5; box-sizing:border-box; display:block;">
+    return `<style>html,body{margin:0!important;padding:0!important;background:#fff!important;}*{box-sizing:border-box;}</style><div style="width:794px; background:#fff; font-family:Arial,Helvetica,sans-serif; font-size:12px; color:#111; line-height:1.5; display:block;">
         <!-- LOGO BANNER - largura total sem margens -->
-        <img src="${logoSrc}" style="width:794px; max-width:794px; display:block; margin:0; padding:0;" onerror="this.style.display='none'">
+        <img src="${logoSrc}" style="width:100%; max-width:794px; display:block; margin:0; padding:0;" onerror="this.style.display='none'">
 
         <!-- CONTEÚDO COM MARGENS LATERAIS -->
         <div style="padding:20px 40px 40px 40px;">
