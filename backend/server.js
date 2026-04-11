@@ -3690,7 +3690,7 @@ app.post('/api/send-suspensao-contabilidade', authenticateToken, async (req, res
                 <div style="text-align: center; margin-bottom: 20px;">
                     <img src="cid:empresa-logo" style="max-height: 80px; max-width:100%;">
                 </div>
-                <h2 style="color: #c0392b; border-bottom: 2px solid #c0392b; padding-bottom: 10px;">⚠️ Advertência — Suspensão Disciplinar</h2>
+                <h2 style="color: #c0392b; border-bottom: 2px solid #c0392b; padding-bottom: 10px;">⚠️ Suspensão Disciplinar</h2>
                 <p>Informamos que o colaborador abaixo recebeu uma <strong>suspensão disciplinar</strong> que deve ser <strong>considerada no fechamento da folha de pagamento</strong>.</p>
 
                 <div style="background:#f1f5f9; padding:15px; border-radius:8px; margin:20px 0;">
@@ -3712,7 +3712,7 @@ app.post('/api/send-suspensao-contabilidade', authenticateToken, async (req, res
                     </p>
                 </div>
 
-                ${attachments.length > 1 ? '<p>O documento de advertência está em anexo neste e-mail.</p>' : ''}
+                ${attachments.length > 1 ? '<p>O documento de suspensão está em anexo neste e-mail.</p>' : ''}
                 <p style="margin-top:30px; font-size:0.9em; color:#7f8c8d;">Atenciosamente,<br>Equipe de RH — América Rental</p>
             </div>
         `;
