@@ -3422,13 +3422,8 @@ window.anexarAdvertenciaAoProntuario = async function() {
         const resData = await response.json().catch(() => ({}));
         if (response.status === 400) throw new Error(resData.error || 'Arquivo não recebido pelo servidor.');
 
-        // Ocorrência: sem assinatura — enviar ao OneDrive imediatamente
-        if (window._advertenciaData.isOcorrencia && resData.id) {
-            fetch(`${API_URL}/force-onedrive-sync/${resData.id}`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${currentToken}` }
-            }).catch(e => console.warn('[OD] Sync Ocorrência:', e.message));
-        }
+        // Ocorrência: sem assinatura e sem OneDrive — apenas salvo no prontuário local
+        // (Advertência Verbal → OneDrive ocorre após testemunhas; Escrita/Suspensão → após testemunhas + colaborador)
 
         // Fechar modal
         document.getElementById('modal-preview-doc').style.display = 'none';

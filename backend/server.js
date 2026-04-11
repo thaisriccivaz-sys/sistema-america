@@ -665,7 +665,12 @@ async function pollAdmissaoAssinaturas() {
 
                 // Tentar sincronizar com OneDrive diretamente da memória (sem salvar em disco)
                 let onedriveOk = false;
-                if (onedrive && finalBuffer) {
+                // Regra de OneDrive por subtipo de Advertência:
+                //  Ocorrência / Verbal -> não sincroniza no poll (já sincronizou após testemunhas ou nunca)
+                //  Escrita / Suspensão -> sobrescreve após assinatura do colaborador
+                const _tipoSimplesP = (doc.document_type || '').split('###')[1] || '';
+                const _skipOneDriveP = /ocorr|verbal/i.test(_tipoSimplesP);
+                if (onedrive && finalBuffer && !_skipOneDriveP) {
                     try {
                         const colabRow = await new Promise((res2, rej2) =>
                             db.get('SELECT nome_completo FROM colaboradores WHERE id = ?', [doc.colaborador_id], (e,r) => e ? rej2(e) : res2(r))
@@ -2144,8 +2149,21 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
                     }
 
                     // --- ESPELHAMENTO ONEDRIVE (API) ---
-                    // Advertências e CONTRATOS_AVULSOS só vão ao OneDrive após assinatura.
-                    if (onedrive && !(tab_name === 'Advertências' && assinafy_status !== 'Assinado') && tab_name !== 'CONTRATOS_AVULSOS') {
+                    // Regras por subtipo de Advertência:
+                    //  Ocorrência     -> nunca vai ao OneDrive
+                    //  Verbal         -> somente após testemunhas (status='Testemunhas')
+                    //  Escrita/Suspensão -> após testemunhas E após colaborador (Assinado)
+                    //  CONTRATOS_AVULSOS -> só após assinatura (Assinado)
+                    const _tipoSimples2 = (document_type || '').split('###')[1] || '';
+                    const _isOcorr2  = /ocorr/i.test(_tipoSimples2);
+                    const _isVerbal2 = /verbal/i.test(_tipoSimples2);
+                    const _podeOneDrive2 = tab_name === 'Advertências'
+                        ? (!_isOcorr2 && (
+                            (assinafy_status === 'Testemunhas') ||
+                            (!_isVerbal2 && assinafy_status === 'Assinado')
+                          ))
+                        : tab_name !== 'CONTRATOS_AVULSOS';
+                    if (onedrive && _podeOneDrive2) {
                         (async () => {
                             try {
                                 const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema";
@@ -2210,7 +2228,22 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
                     const newDocId = this.lastID;
                     // ASO: upload inicial para OneDrive (sem assinatura). Será sobrescrito após assinatura com certificado.
                     // CONTRATOS_AVULSOS: só envia ao OneDrive após assinatura.
-                    if (!(tab_name === 'Advertências' && req.body.assinafy_status !== 'Assinado') && tab_name !== 'CONTRATOS_AVULSOS') {
+                    // Regras por subtipo de Advertência:
+                    //  Ocorrência     -> nunca vai ao OneDrive
+                    //  Verbal         -> somente após testemunhas (status='Testemunhas')
+                    //  Escrita/Suspensão -> após testemunhas E após colaborador (Assinado)
+                    //  CONTRATOS_AVULSOS -> só após assinatura (Assinado)
+                    const _tipoSimples = (document_type || '').split('###')[1] || '';
+                    const _isOcorr  = /ocorr/i.test(_tipoSimples);
+                    const _isVerbal = /verbal/i.test(_tipoSimples);
+                    const _advStatus = req.body.assinafy_status || '';
+                    const _podeOneDrive = tab_name === 'Advertências'
+                        ? (!_isOcorr && (
+                            (_advStatus === 'Testemunhas') ||
+                            (!_isVerbal && _advStatus === 'Assinado')
+                          ))
+                        : tab_name !== 'CONTRATOS_AVULSOS';
+                    if (_podeOneDrive) {
                         setImmediate(() => uploadDocToOneDrive(newDocId));
                     }
 
