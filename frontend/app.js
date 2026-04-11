@@ -3337,8 +3337,8 @@ function buildAdvertenciaTemplate(data, logoSrc) {
             <!-- DATA -->
             <p style="margin-top:24px; font-size:12px; font-weight:bold;">Guarulhos, ${data.dataHojeExtenso}.</p>
 
-            <!-- ASSINATURAS -->
-            ${assinaturasHtml}
+            <!-- ESPAÇO RESERVADO PARA ASSINATURAS (desenhadas pelo pdf-lib após coleta) -->
+            ${!isOcorrencia ? '<div style="height:180px;"></div>' : ''}
         </div>
     </div>`;
 }
@@ -9199,14 +9199,14 @@ window.salvarAssinaturasTestemunhas = async function() {
         const data1 = s1.split('###');
         const data2 = s2.split('###');
 
-        // Em PDF-Lib, Y=0 é o base da página. (Altura = 1123).
-        // Organizando de cima para baixo (Y decrescente):
-        const t1LabelY = 360;
-        const t1ImgY   = 270; // altura 80 (cobre de 270 a 350)
-        const t1LineY  = 260; // a linha do assinante fica aqui
-        const t1NameY  = 240;
-        const t1CpfY   = 225;
-        const tImgH    = 80;
+        // Coordenadas PDF-Lib (Y=0 na base da página. Altura ≈ 841pt para A4)
+        // Posicionamento compacto: label → imagem → linha → nome → CPF
+        const t1LabelY = 310;
+        const tImgH    = 70;
+        const t1ImgY   = 230; // imagem de Y=230 até Y=300
+        const t1LineY  = 222; // linha logo abaixo da imagem
+        const t1NameY  = 208; // nome bem próximo da linha
+        const t1CpfY   = 195; // CPF logo abaixo do nome
 
         // ══ TESTEMUNHA 1 (Esquerda) ══
         const t1X = 56;
