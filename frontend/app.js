@@ -6290,8 +6290,8 @@ window.abrirPreviewDocumento = function(data) {
     // Verificar opção de assinatura manual
     const comAssinatura = document.querySelector('input[name="assinatura-tipo"]:checked')?.value === 'sim';
 
-    // 1. Cabeçalho com Logotipo
-    const logoBanner = `<div style="margin-bottom: 1rem;"><img src="${API_URL.replace('/api', '')}/assets/logo-header.png" style="width: 100%; display: block;"></div>`;
+    // 1. Cabeçalho com Logotipo — sem margem para colar no topo da página
+    const logoBanner = `<div style="margin:0;padding:0;line-height:0;"><img src="${API_URL.replace('/api', '')}/assets/logo-header.png" style="width:100%;display:block;margin:0;padding:0;"></div>`;
 
     // 2. Dados do Colaborador
     const colabInfoBase = `
@@ -6323,14 +6323,16 @@ window.abrirPreviewDocumento = function(data) {
     const customFontSize   = isSantander ? '0.7rem' : '0.9rem';
     const customLineHeight = isSantander ? '1.2'    : '1.5';
 
-    // Reduzir espaçamento excessivo: paragrafos com margin compacto
+    // CSS de quebra de página correta — evita cortar parágrafos e cláusulas no meio
     const conteudoPrincipal = `
+        <style>
+            #preview-doc-body p  { margin: 0.15rem 0; line-height: ${customLineHeight}; page-break-inside: avoid; }
+            #preview-doc-body li { margin: 0.1rem 0;  line-height: ${customLineHeight}; page-break-inside: avoid; }
+            #preview-doc-body br { line-height: 0.5; }
+            #preview-doc-body .clausula { page-break-inside: avoid; }
+            #preview-doc-body div { page-break-inside: avoid; }
+        </style>
         <div style="margin-top: 1rem; text-align: justify; font-size: ${customFontSize};">
-            <style scoped>
-                #preview-doc-body p { margin: 0.15rem 0; line-height: ${customLineHeight}; }
-                #preview-doc-body li { margin: 0.1rem 0; line-height: ${customLineHeight}; }
-                #preview-doc-body br { line-height: 0.5; }
-            </style>
             ${htmlComDestaque}
         </div>`;
 
@@ -6376,7 +6378,9 @@ window.abrirPreviewDocumento = function(data) {
         </div>`;
     }
 
-    container.innerHTML = logoBanner + colabInfoBase + conteudoPrincipal + footerHtml;
+    // Logo cola no topo (sem padding), o resto do conteúdo tem padding lateral
+    const conteudoComPadding = `<div style="padding: 0 20px 20px 20px;">${colabInfoBase}${conteudoPrincipal}${footerHtml}</div>`;
+    container.innerHTML = logoBanner + conteudoComPadding;
     // Guardar nome para uso no salvar PDF
     container.dataset.docNome = data.gerador_nome || 'Documento';
     container.dataset.colabNome = colabNome || '';
@@ -7342,9 +7346,12 @@ window.gerarContratoAvulso = async function() {
                     const nomeArquivo = `${data.gerador_nome.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
                     
                     const opt = {
-                        margin: 0, filename: nomeArquivo, image: { type: 'jpeg', quality: 0.98 },
+                        margin: [0, 10, 10, 10], // top=0 para colar logo no topo, lados e base com 10mm
+                        filename: nomeArquivo, 
+                        image: { type: 'jpeg', quality: 0.98 },
                         html2canvas: { scale: 2, useCORS: true },
-                        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                        pagebreak: { mode: ['avoid-all', 'css', 'legacy'], before: '.page-break', avoid: ['p', 'li', 'div', 'span'] }
                     };
                     
                     const origWidth = htmlTemplate.style.width;
