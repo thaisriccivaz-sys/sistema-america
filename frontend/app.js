@@ -3091,21 +3091,21 @@ window.renderAdvertenciasTab = function(listContainer, filteredDocs) {
     // Painel gerador no topo
     const geradorPanel = document.createElement('div');
     geradorPanel.innerHTML = `
-        <div class="card p-4 mb-4" style="background: linear-gradient(135deg, #fff9f0 0%, #fff3e0 100%); border: 1.5px solid #fd7e14; border-radius: 12px;">
+        <div class="card p-4 mb-4" style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px;">
             <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:1.25rem;">
-                <div style="background:#fd7e14; border-radius:8px; width:36px; height:36px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                <div style="background:#475569; border-radius:8px; width:36px; height:36px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
                     <i class="ph ph-warning" style="color:#fff; font-size:1.3rem;"></i>
                 </div>
                 <div>
-                    <h4 style="margin:0; font-size:1rem; font-weight:700; color:#92400e;">Gerar Documento de Advertência</h4>
-                    <p style="margin:0; font-size:0.8rem; color:#b45309;">Preencha os campos e gere o documento já com os dados do colaborador</p>
+                    <h4 style="margin:0; font-size:1rem; font-weight:700; color:#1e293b;">Gerar Documento de Advertência</h4>
+                    <p style="margin:0; font-size:0.8rem; color:#64748b;">Preencha os campos e gere o documento já com os dados do colaborador</p>
                 </div>
             </div>
 
             <div style="display:grid; grid-template-columns:1.5fr 2fr 1fr; gap:1rem; margin-bottom:1rem;">
                 <div>
-                    <label style="font-size:0.75rem; font-weight:700; color:#92400e; display:block; margin-bottom:4px;">Tipo de Advertência</label>
-                    <select id="adv-tipo" class="form-control" style="padding:0.5rem; border:1px solid #fdba74; border-radius:6px; font-size:0.9rem;">
+                    <label style="font-size:0.75rem; font-weight:700; color:#475569; display:block; margin-bottom:4px;">Tipo de Advertência</label>
+                    <select id="adv-tipo" class="form-control" style="padding:0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.9rem;">
                         <option value="verbal">Advertência Verbal</option>
                         <option value="escrita">Advertência Escrita</option>
                         <option value="suspensao_1">Suspensão — 1 dia</option>
@@ -3115,22 +3115,22 @@ window.renderAdvertenciasTab = function(listContainer, filteredDocs) {
                     </select>
                 </div>
                 <div>
-                    <label style="font-size:0.75rem; font-weight:700; color:#92400e; display:block; margin-bottom:4px;">Título da Advertência <span style="color:#9ca3af; font-weight:400;">(opcional)</span></label>
-                    <input type="text" id="adv-titulo" class="form-control" placeholder="Ex: Desrespeito às normas internas..." style="padding:0.5rem; border:1px solid #fdba74; border-radius:6px; font-size:0.9rem;">
+                    <label style="font-size:0.75rem; font-weight:700; color:#475569; display:block; margin-bottom:4px;">Título da Advertência <span style="color:#94a3b8; font-weight:400;">(opcional)</span></label>
+                    <input type="text" id="adv-titulo" class="form-control" placeholder="Ex: Desrespeito às normas internas..." style="padding:0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.9rem;">
                 </div>
                 <div>
-                    <label style="font-size:0.75rem; font-weight:700; color:#92400e; display:block; margin-bottom:4px;">Data Ocorrência</label>
-                    <input type="date" id="adv-data" class="form-control" value="${new Date().toISOString().split('T')[0]}" style="padding:0.5rem; border:1px solid #fdba74; border-radius:6px; font-size:0.9rem;">
+                    <label style="font-size:0.75rem; font-weight:700; color:#475569; display:block; margin-bottom:4px;">Data Ocorrência</label>
+                    <input type="date" id="adv-data" class="form-control" value="${new Date().toISOString().split('T')[0]}" style="padding:0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.9rem;">
                 </div>
             </div>
 
             <div style="margin-bottom:1rem;">
-                <label style="font-size:0.75rem; font-weight:700; color:#92400e; display:block; margin-bottom:4px;">Motivo / Descrição da Infração <span style="color:#ef4444;">*</span></label>
-                <textarea id="adv-motivo" rows="3" class="form-control" placeholder="Descreva o motivo da advertência..." style="padding:0.5rem; border:1px solid #fdba74; border-radius:6px; font-size:0.9rem; resize:vertical; width:100%; box-sizing:border-box;"></textarea>
+                <label style="font-size:0.75rem; font-weight:700; color:#475569; display:block; margin-bottom:4px;">Motivo / Descrição da Infração <span style="color:#ef4444;">*</span></label>
+                <textarea id="adv-motivo" rows="3" class="form-control" placeholder="Descreva o motivo da advertência..." style="padding:0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.9rem; resize:vertical; width:100%; box-sizing:border-box;"></textarea>
             </div>
 
             <div style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
-                <button onclick="window.gerarAdvertencia()" class="btn btn-primary" style="background:#fd7e14; border-color:#fd7e14; display:flex; align-items:center; gap:6px; font-weight:700;">
+                <button onclick="window.gerarAdvertencia()" class="btn btn-primary" style="background:#1d4ed8; border-color:#1d4ed8; display:flex; align-items:center; gap:6px; font-weight:700;">
                     <i class="ph ph-file-text"></i> Gerar Documento
                 </button>
                 <span id="adv-feedback" style="font-size:0.82rem; color:#059669; display:none; align-items:center; gap:4px;">
