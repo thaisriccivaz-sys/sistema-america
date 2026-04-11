@@ -308,6 +308,10 @@ async function uploadDocToOneDrive(docId) {
             if (!cloudName.toLowerCase().endsWith('.pdf')) cloudName += '.pdf';
         } else if (safeTab === '01_FICHA_CADASTRAL') {
             cloudName = `${(doc.document_type || doc.tab_name).replace(/\s+/g, '_')}_${safeColab}.pdf`;
+        } else if (doc.tab_name === 'CONTRATOS_AVULSOS') {
+            // Contratos avulsos permitem múltiplos; adiciona timestamp para evitar sobrescrita no OneDrive
+            const ts = new Date().toISOString().slice(0,19).replace(/[-T:]/g,'');
+            cloudName = `${formatarPasta(doc.document_type || doc.tab_name).replace(/\s+/g, '_')}_${docYear}_${ts}_${safeColab}.pdf`;
         } else {
             cloudName = `${formatarPasta(doc.document_type || doc.tab_name).replace(/\s+/g, '_')}_${docYear}_${safeColab}.pdf`;
         }
@@ -2080,7 +2084,7 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
         if (err) return res.status(500).json({ error: err.message });
         
         // Abas que permitem múltiplos arquivos (histórico cumulativo)
-        const abasMultiplas = ['Advertências', 'Multas', 'Atestados', 'Boletim de ocorrência', 'Pagamentos', 'Terapia'];
+        const abasMultiplas = ['Advertências', 'Multas', 'Atestados', 'Boletim de ocorrência', 'Pagamentos', 'Terapia', 'CONTRATOS_AVULSOS'];
         // Se force document_id explicit, treat as overwrite
         const isMultiplo = !document_id && abasMultiplas.includes(tab_name);
 

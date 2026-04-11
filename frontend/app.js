@@ -6860,7 +6860,8 @@ window.renderContratosAvulso = async function(container) {
         // Remover o contrato de multa (AUTORIZAÇÃO DE DESCONTO) da lista geral de contratos avulsos, pois tem fluxo próprio de Multas
         availableGeradores = availableGeradores.filter(g => g.nome !== 'AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO');
 
-        const filteredDocs = docs.filter(d => d.tab_name === 'CONTRATOS');
+        // Apenas documentos da aba separada de outros contratos (não mistura com admissão)
+        const filteredDocs = docs.filter(d => d.tab_name === 'CONTRATOS_AVULSOS');
 
         container.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
@@ -6906,7 +6907,7 @@ window.uploadContratoExterno = async function(input) {
     
     const formData = new FormData();
     formData.append('arquivo', file);
-    formData.append('tab_name', 'CONTRATOS');
+    formData.append('tab_name', 'CONTRATOS_AVULSOS');
     formData.append('document_type', docType);
     
     try {
@@ -7361,7 +7362,7 @@ window.gerarContratoAvulso = async function() {
                     const formData = new FormData();
                     formData.append('file', file);
                     formData.append('colaborador_id', viewedColaborador.id);
-                    formData.append('tab_name', 'CONTRATOS');
+                    formData.append('tab_name', 'CONTRATOS_AVULSOS');
                     formData.append('document_type', data.gerador_nome);
                     
                     const uploadRes = await fetch(`${API_URL}/documentos`, {
