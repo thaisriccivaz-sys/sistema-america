@@ -3677,7 +3677,7 @@ app.post('/api/send-suspensao-contabilidade', authenticateToken, async (req, res
             const dd = String(hoje.getDate()).padStart(2, '0');
             const mm = String(hoje.getMonth() + 1).padStart(2, '0');
             const yyyy = hoje.getFullYear();
-            attachments.push({ filename: `Suspensao_Assinada_${dd}-${mm}-${yyyy}_${nomeNorm}.pdf`, path: signedFilePath, contentType: 'application/pdf' });
+            attachments.push({ filename: `Suspensao_Assinada_${dd}-${mm}-${yyyy}_${nomeNorm}.pdf`, path: activeFilePath, contentType: 'application/pdf' });
         } else {
             return res.status(404).json({ sucesso: false, error: 'Arquivo PDF assinado não encontrado no servidor.' });
         }
