@@ -7051,9 +7051,12 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
                 }
                 <div style="display:flex; flex-direction:column;">
                     <span style="font-weight:600; color:#334155; font-size:0.9rem;">${doc.document_type || doc.file_name}</span>
-                    <div style="display:flex; align-items:center; gap:8px;">
+                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                         <span style="font-size:0.75rem; color:#94a3b8;">${new Date(doc.created_at).toLocaleDateString('pt-BR')}</span>
                         ${statusBadge}
+                        ${(isPending || isSigned) && doc.assinafy_sent_at
+                            ? `<span style="font-size:0.72rem;color:#64748b;"><i class="ph ph-paper-plane-tilt"></i> Enviado: ${new Date(doc.assinafy_sent_at).toLocaleString('pt-BR')}</span>`
+                            : ''}
                     </div>
                 </div>
             </div>
@@ -7088,11 +7091,10 @@ window.enviarAssinaturaLoteContratos = async function() {
 
     const docs = Array.from(chks).map(c => ({
         id: c.dataset.docId,
-        nome: c.dataset.docType,
-        url: c.dataset.docUrl
+        nome: c.dataset.docType
     }));
     
-    if(!confirm(`Enviar ${docs.length} documento(s) para assinatura do Colab. e Empresa via Assinafy?`)) return;
+    if(!confirm(`Enviar ${docs.length} documento(s) para assinatura do colaborador via Assinafy?`)) return;
     
     const btn = document.getElementById('ca-btn-assinar-lote');
     const oldHtml = btn.innerHTML;
@@ -7103,26 +7105,26 @@ window.enviarAssinaturaLoteContratos = async function() {
         let errorCount = 0;
         for (const doc of docs) {
             try {
-                // We use the same /assinaturas/solicitar logic to push external/local docs to Assinafy
-                // Since these ALREADY EXIST as PDF, we pass their URLs + metadata.
-                // Wait! /assinaturas/solicitar receives gerador_id! 
-                // We can't rely on gerador_id if it's an uploaded doc!
-                // But wait! We ALREADY built a batch sign logic in Admissions!
-                // Admissao's batch logic is /assinaturas/enviar-lote or individual /solicitar
-                await fetch(`${API_URL}/assinaturas/solicitar`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
+                const resp = await fetch(`${API_URL}/assinafy/upload`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
                     body: JSON.stringify({
-                        colaborador_id: viewedColaborador.id,
-                        arquivos_existentes: [{ nome_documento: doc.nome, documento_url: doc.url }]
+                        document_id: Number(doc.id),
+                        colaborador_id: viewedColaborador.id
                     })
                 });
+                const result = await resp.json();
+                if (!resp.ok || result.sucesso === false) {
+                    console.error(`[LOTE] Erro no doc ${doc.id}:`, result.error || result);
+                    errorCount++;
+                }
             } catch(ex) { errorCount++; console.error(ex); }
         }
 
         if (errorCount > 0) alert(errorCount + ' documento(s) falharam no envio. Verifique o console.');
-        else showToast('Documentos enviados para assinatura!', 'success');
+        else showToast('E-mail de assinatura enviado ao colaborador!', 'success');
         
-        // Forçar reload da lista
+        // Forçar reload da lista para mostrar o timestamp de envio
         window._contratosAvulsoLoaded = false;
         const _avDivLote = document.getElementById('contratos-sub-avulso');
         if (_avDivLote) await window.renderContratosAvulso(_avDivLote);
