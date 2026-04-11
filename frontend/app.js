@@ -8323,8 +8323,17 @@ function updateAdmissaoStepPercentages(colab) {
         }
     }
 
-    // ── Passo 5: ASO — 100% se e-mail enviado para clínica ────────────
-    const pc5 = targetColab.aso_email_enviado ? 100 : calculateChecklist('panel-step-5');
+    // ── Passo 5: ASO — 50% se e-mail enviado p/ clínica, 100% se doc ASO anexado/assinado ──
+    let pc5;
+    if (targetColab.aso_email_enviado) {
+        const asoDocAnexado = (currentDocs || []).some(d =>
+            d.tab_name === 'ASO' && d.file_path &&
+            (d.assinafy_status === 'Assinado' || d.assinafy_status === 'NAO_EXIGE' || d.assinafy_status === 'Nenhum' || d.assinafy_status === 'Outro Meio')
+        );
+        pc5 = asoDocAnexado ? 100 : 50;
+    } else {
+        pc5 = calculateChecklist('panel-step-5');
+    }
 
     // ── Passo 6: Contabilidade — 100% se ficha enviada ────────────────
     const pc6 = targetColab.admissao_contabil_enviada_em ? 100 : calculateChecklist('panel-step-6');
