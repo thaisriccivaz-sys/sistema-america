@@ -3392,12 +3392,26 @@ window.anexarAdvertenciaAoProntuario = async function() {
             margin:       0,
             filename:     nomeArquivo,
             image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true },
+            html2canvas:  { scale: 2, useCORS: true, logging: false },
             jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
 
-        const pdfBlob = await html2pdf().set(opt).from(htmlTemplate).output('blob');
-        // htmlTemplate é uma string HTML — não é um elemento DOM, não precisa de manipulação de estilo
+        // Criar um elemento DOM real para evitar interferência do CSS global do Dashboard
+        const tempContainer = document.createElement('div');
+        tempContainer.style.position = 'absolute';
+        tempContainer.style.top = '0';
+        tempContainer.style.left = '-9999px';
+        tempContainer.style.width = '794px';
+        tempContainer.style.minHeight = '1123px'; // Forçar altura de A4
+        tempContainer.style.display = 'block'; // Não ser flex container
+        tempContainer.style.zIndex = '-9999';
+        tempContainer.innerHTML = htmlTemplate;
+        
+        document.body.appendChild(tempContainer);
+
+        const pdfBlob = await html2pdf().set(opt).from(tempContainer).output('blob');
+        
+        document.body.removeChild(tempContainer);
 
         const file = new File([pdfBlob], nomeArquivo, { type: 'application/pdf' });
 
