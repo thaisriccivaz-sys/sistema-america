@@ -3111,6 +3111,7 @@ window.renderAdvertenciasTab = function(listContainer, filteredDocs) {
                         <option value="suspensao_1">Suspensão — 1 dia</option>
                         <option value="suspensao_2">Suspensão — 2 dias</option>
                         <option value="suspensao_3">Suspensão — 3 dias</option>
+                        <option value="ocorrencia">Ocorrência</option>
                     </select>
                 </div>
                 <div>
@@ -3164,11 +3165,12 @@ window.gerarAdvertencia = function() {
     if (!motivo) { alert('Por favor, descreva o motivo da advertência.'); document.getElementById('adv-motivo').focus(); return; }
 
     const tipoMap = {
-        verbal: 'ADVERTÊNCIA VERBAL',
-        escrita: 'ADVERTÊNCIA ESCRITA',
+        verbal:      'ADVERTÊNCIA VERBAL',
+        escrita:     'ADVERTÊNCIA ESCRITA',
         suspensao_1: 'SUSPENSÃO DISCIPLINAR — 1 DIA',
         suspensao_2: 'SUSPENSÃO DISCIPLINAR — 2 DIAS',
-        suspensao_3: 'SUSPENSÃO DISCIPLINAR — 3 DIAS'
+        suspensao_3: 'SUSPENSÃO DISCIPLINAR — 3 DIAS',
+        ocorrencia:  'OCORRÊNCIA'
     };
     const tipoTexto = tipoMap[tipo] || 'ADVERTÊNCIA';
     const isSuspensao = tipo.startsWith('suspensao');
@@ -3224,7 +3226,14 @@ window.gerarAdvertencia = function() {
     `;
 
     // Montar dados do colaborador para o padrão do preview
-    const tipoSimples = { verbal: 'Advertência Verbal', escrita: 'Advertência Escrita', suspensao_1: 'Suspensão 1 dia', suspensao_2: 'Suspensão 2 dias', suspensao_3: 'Suspensão 3 dias' }[tipo] || tipoTexto;
+    const tipoSimples = {
+        verbal:      'Advertência Verbal',
+        escrita:     'Advertência Escrita',
+        suspensao_1: 'Suspensão 1 dia',
+        suspensao_2: 'Suspensão 2 dias',
+        suspensao_3: 'Suspensão 3 dias',
+        ocorrencia:  'Ocorrência'
+    }[tipo] || tipoTexto;
     window._advertenciaData = {
         html: htmlDoc,
         gerador_nome: tipoTexto,
@@ -4012,7 +4021,8 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
         docBadge = tipoAdvSimples ? (() => {
             const t = tipoAdvSimples.toLowerCase();
             let bg, color;
-            if (t.includes('verbal'))              { bg = '#ffd43b'; color = '#5c3d00'; }
+            if (t.includes('ocorr'))               { bg = '#0ea5e9'; color = '#fff'; }
+            else if (t.includes('verbal'))         { bg = '#ffd43b'; color = '#5c3d00'; }
             else if (t.includes('escrita') || t.includes('escrito')) { bg = '#fd7e14'; color = '#fff'; }
             else if (t.includes('suspens') && t.includes('1')) { bg = '#ff8787'; color = '#5c0000'; }
             else if (t.includes('suspens') && t.includes('2')) { bg = '#e03131'; color = '#fff'; }
