@@ -7348,7 +7348,7 @@ window.gerarContratoAvulso = async function() {
                     const nomeArquivo = `${data.gerador_nome.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
                     
                     const opt = {
-                        margin: 0,
+                        margin: 8, // 8mm em todas as bordas — fina e profissional
                         filename: nomeArquivo, 
                         image: { type: 'jpeg', quality: 0.98 },
                         html2canvas: { scale: 2, useCORS: true },
@@ -7356,15 +7356,23 @@ window.gerarContratoAvulso = async function() {
                         pagebreak: { mode: ['avoid-all', 'css', 'legacy'], before: '.page-break', avoid: ['p', 'li'] }
                     };
                     
-                    const origWidth = htmlTemplate.style.width;
+                    // Salvar estilos originais
+                    const origWidth    = htmlTemplate.style.width;
                     const origMaxWidth = htmlTemplate.style.maxWidth;
-                    htmlTemplate.style.width = '794px';
-                    htmlTemplate.style.maxWidth = '794px';
+                    const origMinH     = htmlTemplate.style.minHeight;
+
+                    // Forçar largura A4 e remover min-height para evitar página em branco extra
+                    htmlTemplate.style.width     = '794px';
+                    htmlTemplate.style.maxWidth  = '794px';
+                    htmlTemplate.style.minHeight = '0';  // ← elimina a página em branco
 
                     const pdfBlob = await html2pdf().set(opt).from(htmlTemplate).output('blob');
                     
-                    htmlTemplate.style.width = origWidth;
-                    htmlTemplate.style.maxWidth = origMaxWidth;
+                    // Restaurar estilos originais
+                    htmlTemplate.style.width     = origWidth;
+                    htmlTemplate.style.maxWidth  = origMaxWidth;
+                    htmlTemplate.style.minHeight = origMinH;
+
 
                     const file = new File([pdfBlob], nomeArquivo, { type: 'application/pdf' });
                     
