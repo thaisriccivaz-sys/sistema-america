@@ -3369,10 +3369,10 @@ window.anexarAdvertenciaAoProntuario = async function() {
         });
 
         const opt = {
-            margin:       10,
+            margin:       0,
             filename:     nomeArquivo,
             image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true },
+            html2canvas:  { scale: 2, useCORS: true, width: 794, windowWidth: 794 },
             jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
 
@@ -7332,8 +7332,8 @@ window.gerarContratoAvulso = async function() {
                     const nomeArquivo = `${data.gerador_nome.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
                     
                     const opt = {
-                        margin: 10, filename: nomeArquivo, image: { type: 'jpeg', quality: 0.98 },
-                        html2canvas: { scale: 2, useCORS: true },
+                        margin: 0, filename: nomeArquivo, image: { type: 'jpeg', quality: 0.98 },
+                        html2canvas: { scale: 2, useCORS: true, width: 794, windowWidth: 794 },
                         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
                     };
                     const pdfBlob = await html2pdf().set(opt).from(htmlTemplate).output('blob');
