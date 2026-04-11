@@ -3417,85 +3417,45 @@ window.anexarAdvertenciaAoProntuario = async function() {
             setTimeout(resolve, 2000);
         });
 
-        const htmlTemplate = buildAdvertenciaTemplate(data, logoSrc);
+        // ── Capturar direto do preview que já está renderizado corretamente na tela ──
+        const previewEl = document.getElementById('preview-doc-body');
+        if (!previewEl) throw new Error('Preview não encontrado. Abra o documento antes de anexar.');
 
-        // ── Gerar PDF via iframe isolado (sem herança de CSS do ERP) ──
-        const pdfBlob = await new Promise(async (resolve, reject) => {
-            // Overlay para esconder o iframe durante a geração
-            const overlay = document.createElement('div');
-            overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:#fff;z-index:99990;display:flex;align-items:center;justify-content:center;font-family:sans-serif;color:#333;font-size:1rem;';
-            overlay.innerHTML = '<span>⏳ Gerando PDF...</span>';
-            document.body.appendChild(overlay);
+        // Remover temporariamente sombra/borda para PDF mais limpo
+        const origBoxShadow = previewEl.style.boxShadow;
+        const origBorder    = previewEl.style.border;
+        previewEl.style.boxShadow = 'none';
+        previewEl.style.border    = 'none';
 
-            const iframe = document.createElement('iframe');
-            iframe.style.cssText = 'position:fixed;top:0;left:0;width:794px;height:1123px;border:none;z-index:99991;';
-            document.body.appendChild(iframe);
-
-            try {
-                // Escrever documento HTML limpo no iframe
-                iframe.contentDocument.open();
-                iframe.contentDocument.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
-                    <style>html,body{margin:0;padding:0;background:#fff;}*{box-sizing:border-box;}</style>
-                </head><body>${htmlTemplate}</body></html>`);
-                iframe.contentDocument.close();
-
-                // Aguardar imagens carregarem
-                await new Promise(res => {
-                    const imgs = iframe.contentDocument.querySelectorAll('img');
-                    if (!imgs.length) return setTimeout(res, 300);
-                    let done = 0;
-                    imgs.forEach(img => {
-                        if (img.complete) { done++; if (done === imgs.length) res(); }
-                        else { img.onload = img.onerror = () => { done++; if (done === imgs.length) res(); }; }
-                    });
-                    setTimeout(res, 3000);
-                });
-
-                // Ajustar iframe ao conteúdo real
-                const contentEl = iframe.contentDocument.body.firstElementChild || iframe.contentDocument.body;
-                const realH = contentEl.offsetHeight || 1123;
-                iframe.style.height = realH + 'px';
-
-                // Capturar com html2canvas
-                const canvas = await html2canvas(contentEl, {
-                    scale: 2,
-                    useCORS: true,
-                    logging: false,
-                    width: 794,
-                    height: realH,
-                    windowWidth: 794,
-                    windowHeight: realH
-                });
-
-                // Converter para PDF A4 com múltiplas páginas
-                const { jsPDF } = window.jspdf;
-                const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
-                const pageW = pdf.internal.pageSize.getWidth();   // 210mm
-                const pageH = pdf.internal.pageSize.getHeight();  // 297mm
-                const imgW = canvas.width;
-                const imgH = canvas.height;
-                // Proporção: 794px canvas = 210mm página
-                const mmPerPx = pageW / imgW;
-                const imgHeightMm = imgH * mmPerPx;
-                const imgData = canvas.toDataURL('image/jpeg', 0.98);
-
-                let yOffset = 0;
-                let page = 0;
-                while (yOffset < imgHeightMm) {
-                    if (page > 0) pdf.addPage();
-                    pdf.addImage(imgData, 'JPEG', 0, -yOffset, pageW, imgHeightMm);
-                    yOffset += pageH;
-                    page++;
-                }
-
-                resolve(pdf.output('blob'));
-            } catch(err) {
-                reject(err);
-            } finally {
-                document.body.removeChild(iframe);
-                document.body.removeChild(overlay);
-            }
+        const canvas = await html2canvas(previewEl, {
+            scale: 2,
+            useCORS: true,
+            logging: false,
+            allowTaint: true,
+            backgroundColor: '#ffffff'
         });
+
+        // Restaurar estilos
+        previewEl.style.boxShadow = origBoxShadow;
+        previewEl.style.border    = origBorder;
+
+        // Converter canvas → PDF A4 com suporte a múltiplas páginas
+        const { jsPDF } = window.jspdf;
+        const pdf   = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+        const pageW = pdf.internal.pageSize.getWidth();   // 210mm
+        const pageH = pdf.internal.pageSize.getHeight();  // 297mm
+        const imgData    = canvas.toDataURL('image/jpeg', 0.98);
+        const imgHeightMm = pageW * (canvas.height / canvas.width);
+
+        let posY = 0, page = 0;
+        while (posY < imgHeightMm) {
+            if (page > 0) pdf.addPage();
+            pdf.addImage(imgData, 'JPEG', 0, -posY, pageW, imgHeightMm);
+            posY += pageH;
+            page++;
+        }
+
+        const pdfBlob = pdf.output('blob');
 
         const file = new File([pdfBlob], nomeArquivo, { type: 'application/pdf' });
 
