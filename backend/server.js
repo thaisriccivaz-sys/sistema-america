@@ -2341,14 +2341,43 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
                     const _isOcorr  = /ocorr/i.test(_tipoSimples);
                     const _isVerbal = /verbal/i.test(_tipoSimples);
                     const _advStatus = req.body.assinafy_status || '';
-                    const _podeOneDrive = tab_name === 'Advertências'
-                        ? (!_isOcorr && (
-                            (_advStatus === 'Testemunhas') ||
-                            (!_isVerbal && _advStatus === 'Assinado')
-                          ))
-                        : (tab_name !== 'CONTRATOS_AVULSOS' || assinafy_status === 'NAO_EXIGE');
-                    if (_podeOneDrive) {
-                        setImmediate(() => uploadDocToOneDrive(newDocId));
+                    // === ONEDRIVE UPLOAD DIRETO (INLINE) ===
+                    // CONTRATOS_AVULSOS com NAO_EXIGE: upload direto usando req.file
+                    // Outros casos: usar setImmediate com uploadDocToOneDrive
+                    if (tab_name === 'CONTRATOS_AVULSOS' && assinafy_status === 'NAO_EXIGE' && onedrive) {
+                        // Upload inline para garantir que o arquivo ainda está no disco
+                        ;(async () => {
+                            try {
+                                const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || 'RH/1.Colaboradores/Sistema';
+                                const colabNome = req.body.colaborador_nome || '';
+                                const safeColab = formatarNome(colabNome) || 'DESCONHECIDO';
+                                const safeType = formatarPasta(document_type || 'Contrato');
+                                const cloudFileName = `Outros_${safeType}_${safeColab}.pdf`;
+                                const targetDir = `${onedriveBasePath}/${safeColab}/CONTRATOS`;
+                                console.log(`[OD-INLINE] CONTRATOS_AVULSOS NAO_EXIGE => ${targetDir}/${cloudFileName}`);
+                                await onedrive.ensurePath(`${onedriveBasePath}/${safeColab}`);
+                                await onedrive.ensurePath(targetDir);
+                                const fileBuffer = fs.readFileSync(file_path);
+                                await onedrive.uploadToOneDrive(targetDir, cloudFileName, fileBuffer);
+                                console.log(`[OD-INLINE] Upload OK: ${cloudFileName}`);
+                            } catch(odErr) {
+                                console.error('[OD-INLINE] Falha OneDrive:', odErr.message);
+                            }
+                        })();
+                    } else {
+                        const _tipoSimples = (document_type || '').split('###')[1] || '';
+                        const _isOcorr  = /ocorr/i.test(_tipoSimples);
+                        const _isVerbal = /verbal/i.test(_tipoSimples);
+                        const _advStatus = req.body.assinafy_status || '';
+                        const _podeOneDrive = tab_name === 'Advertências'
+                            ? (!_isOcorr && (
+                                (_advStatus === 'Testemunhas') ||
+                                (!_isVerbal && _advStatus === 'Assinado')
+                              ))
+                            : tab_name !== 'CONTRATOS_AVULSOS';
+                        if (_podeOneDrive) {
+                            setImmediate(() => uploadDocToOneDrive(newDocId));
+                        }
                     }
 
                     // --- ATUALIZA STATUS PARA AFASTADO SE ATESTADO VIGENTE ---

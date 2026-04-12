@@ -7858,10 +7858,23 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
            eyeBtn = `<button type="button" onclick="window.openSignedDocPopup(${ass.id}, '${(doc.document_type||'').replace(/'/g,"\\'")}', event); event.stopPropagation();" style="border:none;background:none;cursor:pointer;color:#16a34a;" title="Ver PDF assinado (Colaborador)"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
        }
 
-       let statusBadge = `<span style="background:#f1f5f9;color:#64748b;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:700;"><i class="ph ph-minus-circle"></i> Não enviado</span>`;
-       if (isSigned) statusBadge = `<span style="background:#dcfce7;color:#15803d;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:700;"><i class="ph ph-check-circle"></i> Assinado</span>`;
+       // Calcular data/hora do upload para exibir no badge
+       const _uploadDt = doc.upload_date || doc.created_at;
+       let _uploadStr = '';
+       if (_uploadDt) {
+           const _d = new Date(_uploadDt);
+           const _dd = String(_d.getDate()).padStart(2,'0');
+           const _mm = String(_d.getMonth()+1).padStart(2,'0');
+           const _yy = _d.getFullYear();
+           const _hh = String(_d.getHours()).padStart(2,'0');
+           const _mi = String(_d.getMinutes()).padStart(2,'0');
+           _uploadStr = `${_dd}/${_mm}/${_yy} - ${_hh}:${_mi}`;
+       }
+       const isNaoExige = doc.assinafy_status === 'NAO_EXIGE';
+       let statusBadge = `<span style="background:#f1f5f9;color:#64748b;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:700;"><i class="ph ph-minus-circle"></i> Nao enviado</span>`;
+       if (isNaoExige) statusBadge = `<span style="background:#fef9c3;color:#92400e;border-radius:20px;padding:3px 10px;font-size:0.72rem;font-weight:700;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-seal-warning"></i> Sem Assinatura Digital${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
+       else if (isSigned) statusBadge = `<span style="background:#dcfce7;color:#15803d;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:700;"><i class="ph ph-check-circle"></i> Assinado</span>`;
        else if (isPending) statusBadge = `<span style="background:#fef9c3;color:#92400e;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:700;"><i class="ph ph-clock"></i> Aguardando Colaborador</span>`;
-
        html += `
         <label class="doc-check-item" style="display:flex; align-items:center; gap:0.6rem; padding:0.6rem 0.75rem; border:1px solid ${isSigned ? '#bbf7d0' : '#f1f5f9'}; border-radius:8px; cursor:pointer; background:${isSigned ? '#f0fdf4' : '#fff'}; transition:all 0.2s; justify-content:space-between;">
             <div style="display:flex; align-items:center; gap:0.6rem; flex:1;">
@@ -7871,8 +7884,7 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
                 }
                 <div style="display:flex; flex-direction:column;">
                     <span style="font-weight:600; color:#334155; font-size:0.9rem;">${doc.document_type || doc.file_name}</span>
-                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                        <span style="font-size:0.75rem; color:#94a3b8;">${doc.upload_date ? new Date(doc.upload_date).toLocaleDateString('pt-BR') : (doc.created_at ? new Date(doc.created_at).toLocaleDateString('pt-BR') : '')}</span>
+                    <div style="display:flex; align-items:center; gap:8px; flex                        <span style="font-size:0.75rem; color:#ea580c; font-weight:600;">${_uploadStr}</span>
                         ${statusBadge}
                         ${isSigned && (ass?.assinado_em || doc.assinafy_signed_at)
                             ? `<span style="font-size:0.72rem;color:#166534;background:#dcfce7;border-radius:10px;padding:1px 8px;font-weight:600;"><i class="ph ph-check-circle"></i> Assinado em: ${new Date(ass?.assinado_em || doc.assinafy_signed_at).toLocaleString('pt-BR')}</span>`
