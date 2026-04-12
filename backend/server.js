@@ -3413,6 +3413,7 @@ app.post(['/api/geradores/:id/gerar', '/api/geradores/:id/gerar/:colaborador_id'
                 
                 const mapping = {
                     'BASE_URL': `${req.protocol}://${req.get('host')}`,
+                    'ID': colaborador.id,
                     'NOME_COMPLETO': colaborador.nome_completo || '',
                     'CPF': colaborador.cpf || '',
                     'RG': (colaborador.rg || '') + (colaborador.rg_orgao ? ` ${colaborador.rg_orgao}` : ''),

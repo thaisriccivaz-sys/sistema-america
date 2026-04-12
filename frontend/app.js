@@ -6917,10 +6917,15 @@ window.abrirPreviewDocumento = function(data) {
                 previewContent.style.maxWidth  = origMaxWidth;
                 previewContent.style.minHeight = origMinH;
 
-                // Determinar colaborador_id: prioridade viewedColaborador, depois data.colaborador
+                // Determinar colaborador_id: prioridade viewedColaborador, depois data.colaborador.ID (retornado pelo backend /gerar)
                 const colaboradorId = (window.viewedColaborador && window.viewedColaborador.id)
+                    || (data.colaborador && data.colaborador.ID)
                     || (data.colaborador && data.colaborador.id)
-                    || (data.colaborador && data.colaborador.ID);
+                    || data.colabId;
+
+                if (!colaboradorId) {
+                    throw new Error('Não foi possível identificar o colaborador. Abra o prontuário e tente novamente.');
+                }
 
                 const formData = new FormData();
                 formData.append('file', new File([pdfBlob], nomeArquivo, { type: 'application/pdf' }));
