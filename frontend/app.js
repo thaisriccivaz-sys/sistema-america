@@ -8205,14 +8205,22 @@ function updateAdmissaoStepPercentages(colab) {
     const docs = window.currentDocs || [];
 
     if (geradores.length > 0) {
-        const concluidos = geradores.filter(g => {
+        let pontos = 0;
+        geradores.forEach(g => {
             const ass = assinaturas.find(a => a.gerador_id === g.id || a.nome_documento === g.nome);
             const docEquivalente = docs.find(d => d.tab_name === 'CONTRATOS' && (d.document_type === g.nome || (d.file_name && d.file_name.includes(g.nome))));
-            const realStatus = (docEquivalente && docEquivalente.assinafy_status === 'Assinado') ? 'Assinado'
-                             : (ass && ass.assinafy_status === 'Assinado') ? 'Assinado' : '';
-            return realStatus === 'Assinado';
-        }).length;
-        pc3 = Math.min(100, Math.round((concluidos / geradores.length) * 100));
+            
+            let realStatus = '';
+            if (docEquivalente && docEquivalente.assinafy_status === 'Assinado') realStatus = 'Assinado';
+            else if (ass && ass.assinafy_status === 'Assinado') realStatus = 'Assinado';
+            else if (docEquivalente && docEquivalente.assinafy_status === 'Pendente') realStatus = 'Pendente';
+            else if (ass && ass.assinafy_status === 'Pendente') realStatus = 'Pendente';
+            
+            if (realStatus === 'Assinado') pontos += 2;
+            else if (realStatus === 'Pendente') pontos += 1;
+        });
+        const maxPontos = geradores.length * 2;
+        pc3 = Math.min(100, Math.round((pontos / maxPontos) * 100));
     }
     
     // Atualiza a view de status se o modal estiver aberto
