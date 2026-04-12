@@ -4361,6 +4361,28 @@ app.post('/api/maintenance/reset', authenticateToken, (req, res) => {
 });
 
 
+
+// DIAGNÓSTICO: Verificar estado de um documento e seus campos
+app.get('/api/debug-outros-contratos/:docId', authenticateToken, async (req, res) => {
+    const { docId } = req.params;
+    db.get('SELECT id, colaborador_id, tab_name, document_type, file_path, assinafy_status, assinafy_sent_at, assinafy_signed_at, assinafy_id FROM documentos WHERE id = ?', [docId], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ doc: row, base_path: process.env.STORAGE_PATH || 'LOCAL', version: 'V48' });
+    });
+});
+
+// DIAGNÓSTICO: Listar últimos 5 CONTRATOS_AVULSOS
+app.get('/api/debug-contratos-avulsos', authenticateToken, async (req, res) => {
+    db.all('SELECT id, colaborador_id, tab_name, document_type, file_path, assinafy_status, assinafy_sent_at, assinafy_signed_at, created_at FROM documentos WHERE tab_name = ? ORDER BY id DESC LIMIT 10', ['CONTRATOS_AVULSOS'], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        // Verificar se os arquivos existem
+        const result = (rows || []).map(r => ({
+            ...r,
+            file_exists: r.file_path ? require('fs').existsSync(r.file_path) : false
+        }));
+        res.json({ docs: result, version: 'V48', base_path: process.env.STORAGE_PATH });
+    });
+});
 // --- SERVIR ARQUIVOS ESTÃTICOS ---
 app.use(express.static(path.join(__dirname, '../frontend')));
 app.use('/files', express.static(path.join(__dirname, '..', '..'))); 
