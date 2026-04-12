@@ -6757,8 +6757,28 @@ window.processarGeracao = async function() {
 };
 
 window.abrirPreviewDocumento = function(data) {
-    const container = document.getElementById('preview-doc-body');
-    if (!container) return;
+    let container = document.getElementById('preview-doc-body');
+    if (!container) {
+        // Fallback robusto se o modal foi removido erroneamente por cache/códigos antigos
+        console.warn("Modal preview doc não encontrado. Recriando...");
+        const htmlFallback = `
+        <div id="modal-preview-doc" class="modal" style="display:block; z-index:99999;">
+            <div class="modal-content fullness">
+                <div class="modal-header">
+                    <h3 id="preview-doc-title">Visualizar Documento</h3>
+                    <div id="preview-doc-buttons" style="display: flex; gap: 0.75rem; align-items: center;">
+                        <button class="btn btn-primary" onclick="window.salvarDocumentoPDF()"><i class="ph ph-download-simple"></i> Salvar</button>
+                        <button class="btn btn-secondary" onclick="document.getElementById('modal-preview-doc').style.display='none'"><i class="ph ph-x"></i> Fechar</button>
+                    </div>
+                </div>
+                <div class="modal-body" style="padding: 2rem 0; background-color: #f4f6f9;">
+                    <div id="preview-doc-body" style="background: white; margin: 0 auto; width: 21cm; min-height: 29.7cm; padding: 0; box-shadow: 0 0 20px rgba(0,0,0,0.1); border: 1px solid #ddd;"></div>
+                </div>
+            </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', htmlFallback);
+        container = document.getElementById('preview-doc-body');
+    }
 
     const previewBtnSalvar = document.querySelector('#modal-preview-doc button.btn-primary');
     if (previewBtnSalvar) {
