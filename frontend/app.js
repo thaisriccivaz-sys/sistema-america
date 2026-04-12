@@ -1,4 +1,4 @@
-﻿const API_URL = `${window.location.origin}/api`;
+const API_URL = `${window.location.origin}/api`;
 function showToast(msg, type) {
     const toast = document.getElementById('global-toast');
     if (toast) {
@@ -7481,13 +7481,6 @@ window.renderContratosAvulso = async function(container) {
                 ${pendingRowsHtml}
                 ${window.buildContratosSignatureRows(assinaturas, filteredDocs, viewedColaborador)}
             </div>
-
-            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:1.25rem;">
-                <p style="margin:0 0 1rem 0; font-size:0.88rem; color:#475569;"><i class="ph ph-info"></i> Selecione os documentos acima que deseja enviar para assinatura digital via Assinafy.</p>
-                <button class="btn btn-primary" id="ca-btn-assinar-lote" onclick="window.enviarAssinaturaLoteContratos()" style="display:flex; align-items:center; gap:0.5rem; font-weight:600;">
-                    <i class="ph ph-paper-plane-tilt"></i> Enviar Selecionados para Assinatura
-                </button>
-            </div>
         `;
         
         window._caAvailableGeradores = finalGeradores;
@@ -7880,6 +7873,8 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
 
        const isSigned = (realStatus === 'Assinado' || doc.assinafy_status === 'Assinado' || (ass && ass.assinafy_status === 'Assinado'));
        const isPending = realStatus === 'Aguardando';
+       const literallyNaoExige = (doc.assinafy_status === 'NAO_EXIGE');
+       const requiresButNotSent = (!isSigned && !isPending && !literallyNaoExige);
 
        const _docName = (doc.document_type || doc.file_name || 'Documento').replace(/'/g, "\\'");
        let eyeBtn = `<button type="button" onclick="window.openContratoViewerById(${doc.id}, '${_docName}'); event.preventDefault(); event.stopPropagation();" style="border:none;background:none;cursor:pointer;color:#64748b;" title="Ver PDF"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
@@ -7908,33 +7903,40 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
        const _signedDt = (ass ? ass.assinado_em : null) || doc.assinafy_signed_at || _uploadDt;
        const _signedStr = formatDate(_signedDt);
 
-       const isNaoExige = (!isSigned && !isPending);
        let statusBadge = '';
+       let leftIconMarkup = '';
+       let sendBtn = '';
        
        if (isSigned) {
-           statusBadge = `<span style="color:#16a34a;font-size:0.75rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-check-circle" style="font-size:1.05rem;color:#16a34a;"></i> Documento Assinado${_signedStr ? ': ' + _signedStr : ''}</span>`;
+           leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#16a34a;"><i class="ph ph-check-circle" style="font-size:1.4rem;"></i></div>`;
+           statusBadge = `<span style="color:#16a34a;font-size:0.75rem;font-weight:600;">Documento Assinado${_signedStr ? ': ' + _signedStr : ''}</span>`;
        } else if (isPending) {
-           statusBadge = `<span style="color:#4338ca;font-size:0.75rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-paper-plane-tilt" style="font-size:1.05rem;color:#4338ca;"></i> Enviado para Assinatura${_sentStr ? ': ' + _sentStr : ''}</span>`;
+           leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#4338ca;"><i class="ph ph-paper-plane-tilt" style="font-size:1.4rem;"></i></div>`;
+           statusBadge = `<span style="color:#4338ca;font-size:0.75rem;font-weight:600;">Enviado para Assinatura${_sentStr ? ': ' + _sentStr : ''}</span>`;
+           if (window.reenviarAssinaturaContrato) {
+               sendBtn = `<button type="button" onclick="window.reenviarAssinaturaContrato(${doc.id}, event);" style="background:#0284c7;color:#fff;border:none;border-radius:2px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:0.2s;"><i class="ph ph-pen"></i> Reenviar para Assinatura</button>`;
+           }
        } else {
-           statusBadge = `<span style="color:#b45309;font-size:0.75rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-info" style="font-size:1.05rem;color:#b45309;"></i> Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
+           leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#b45309;"><i class="ph ph-info" style="font-size:1.4rem;"></i></div>`;
+           statusBadge = `<span style="color:#b45309;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
+           if (requiresButNotSent && window.reenviarAssinaturaContrato) {
+               sendBtn = `<button type="button" onclick="window.reenviarAssinaturaContrato(${doc.id}, event);" style="background:#2563eb;color:#fff;border:none;border-radius:2px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:0.2s;"><i class="ph ph-paper-plane-right"></i> Enviar para Assinatura</button>`;
+           }
        }
 
        html += `
         <label class="doc-check-item" style="display:flex; align-items:center; gap:0.6rem; padding:1.1rem 1.25rem; border:1px solid #f1f5f9; border-radius:8px; cursor:default; background:#fff; box-shadow: 0 1px 2px rgba(0,0,0,0.03); transition:all 0.2s; justify-content:space-between; margin-bottom:12px;">
             <div style="display:flex; align-items:center; gap:0.8rem; flex:1;">
-                ${(!isSigned && !isPending) 
-                    ? `<input type="checkbox" class="ca-row-chk" data-doc-id="${doc.id}" data-doc-url="${doc.file_url}" data-doc-type="${doc.document_type || 'Documento'}" style="width:18px;height:18px;cursor:pointer;accent-color:#0284c7;">`
-                    : ''
-                }
-                <div style="display:flex; flex-direction:column; padding-left:${(!isSigned && !isPending)?'0':'4px'};">
+                ${leftIconMarkup}
+                <div style="display:flex; flex-direction:column; padding-left:4px;">
                     <span style="font-weight:600; color:#1e293b; font-size:0.95rem; margin-bottom:5px;">${doc.document_type || doc.file_name}</span>
-                    <div style="display:flex; align-items:center; gap:8px;">
+                    <div style="display:flex; align-items:center; gap:4px;">
                         ${statusBadge}
                     </div>
                 </div>
             </div>
             <div style="display:flex; align-items:center; gap:12px;">
-               ${(isPending && window.reenviarAssinaturaContrato) ? `<button type="button" onclick="window.reenviarAssinaturaContrato(${doc.id}, event);" style="background:#0284c7;color:#fff;border:none;border-radius:2px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:0.2s;"><i class="ph ph-pen"></i> Reenviar para Assinatura</button>` : ''}
+               ${sendBtn}
                ${eyeBtn}
                ${isSigned ? '' : `<button type="button" onclick="window.deleteDocumentoContrato(${doc.id}); event.preventDefault(); event.stopPropagation();" style="border:none;background:none;cursor:pointer;color:#ef4444;" title="Excluir do Prontuário"><i class="ph ph-trash" style="font-size:1.2rem;"></i></button>`}
             </div>
