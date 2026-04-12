@@ -3766,11 +3766,52 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
             }
         }
         if (tabId === 'Dependentes') {
-            const hasDependentes = viewedColaborador && viewedColaborador.dependentes && viewedColaborador.dependentes.filter(d => d.grau_parentesco !== 'Cônjuge').length > 0;
-            if (!hasDependentes) {
+            const deps = (viewedColaborador.dependentes || []).filter(d => d.grau_parentesco !== 'Cônjuge');
+            if (!deps.length) {
                 listContainer.innerHTML = '<div class="alert alert-info"><i class="ph ph-info"></i> Esta aba está disponível apenas para colaboradores que tenham dependentes cadastrados no sistema.</div>';
                 return;
             }
+
+            const hoje = new Date();
+            deps.forEach((dep, idx) => {
+                // Calcular idade
+                let idade = null;
+                if (dep.data_nascimento) {
+                    const iso = dep.data_nascimento.includes('T') ? dep.data_nascimento : dep.data_nascimento + 'T12:00:00';
+                    const nasc = new Date(iso);
+                    if (!isNaN(nasc)) idade = Math.floor((hoje - nasc) / (365.25 * 24 * 3600 * 1000));
+                }
+
+                // Nome seguro para montar o document_type único por dependente
+                const safeDepName = (dep.nome || 'DEP').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'');
+
+                // Cabeçalho da seção do dependente
+                const header = document.createElement('div');
+                header.style.cssText = 'display:flex; align-items:center; gap:10px; background:#f0f9ff; border:1px solid #bae6fd; border-radius:8px; padding:0.6rem 1rem; margin-bottom:0.75rem; margin-top:' + (idx > 0 ? '1.25rem' : '0');
+                header.innerHTML = `
+                    <i class="ph ph-user-circle" style="font-size:1.5rem; color:#0284c7;"></i>
+                    <div>
+                        <strong style="font-size:0.95rem; color:#0c4a6e;">${dep.nome || 'Dependente'}</strong>
+                        <span style="font-size:0.82rem; color:#64748b; margin-left:8px;">${dep.grau_parentesco || ''}</span>
+                        ${idade !== null ? `<span style="font-size:0.78rem; background:#e0f2fe; color:#0369a1; border-radius:10px; padding:1px 8px; margin-left:6px; font-weight:600;">${idade} ${idade === 1 ? 'ano' : 'anos'}</span>` : ''}
+                    </div>`;
+                listContainer.appendChild(header);
+
+                // Documentos condícionais por faixa etária
+                const docsConfig = [
+                    { label: 'CPF ou RG',                    show: true },
+                    { label: 'Caderneta de Vacinação',      show: idade !== null && idade < 7 },
+                    { label: 'Atestado de Frequência Escolar', show: idade !== null && idade >= 7 && idade <= 17 },
+                    { label: 'Certidão de Nascimento',       show: true },
+                ];
+
+                docsConfig.filter(d => d.show).forEach(docCfg => {
+                    const fullDocType = `${docCfg.label}###DEP_${safeDepName}`;
+                    const existingDoc = filteredDocs.find(d => d.document_type === fullDocType);
+                    listContainer.appendChild(createDocSlot(tabId, fullDocType, existingDoc));
+                });
+            });
+            return;
         }
         if (tabId === 'Faculdade') {
             const participa = viewedColaborador && (viewedColaborador.faculdade_participa === 'Sim');
@@ -4293,7 +4334,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
 
                     ${(() => {
                         const isOcorrenciaDoc = (docType || '').includes('###Ocorr');
-                        const showAssinafy = isSaved && tabId !== 'Atestados' && tabId !== '01_FICHA_CADASTRAL' && tabId !== 'Faculdade' && stMain !== 'NAO_EXIGE' && !isOcorrenciaDoc;
+                        const showAssinafy = isSaved && tabId !== 'Atestados' && tabId !== '01_FICHA_CADASTRAL' && tabId !== 'Faculdade' && tabId !== 'Dependentes' && stMain !== 'NAO_EXIGE' && !isOcorrenciaDoc;
                         return showAssinafy ? `
                         <div style="display: flex; align-items: center; gap: 0.5rem;">
                             ${(isAssinado && isSaved && (tabId === 'Pagamentos' || tabId === 'ASO')) ? `<button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height: 42px;"><i class="ph ph-eye"></i></button>` : ''}
