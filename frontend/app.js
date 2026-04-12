@@ -7711,82 +7711,9 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
             }
 
             // Guarda globalmente para o botão de envio acessar
-            window._admissaoGeradores = availableGeradores;
-            window._admissaoAssinaturas = assinaturas;
-
-            // Popula lista de assinaturas (Step 2)
-            const sigList = document.getElementById('admissao-signature-list');
-            if (sigList) {
-                if (availableGeradores.length > 0) {
-                    sigList.innerHTML = window.buildAdmissaoSignatureRows(availableGeradores, assinaturas, docs, viewedColaborador);
-                } else {
-                    sigList.innerHTML = `<p class="text-muted" style="grid-column: 1 / -1; padding: 1rem; text-align: center;">Nenhum documento configurado para o departamento <b>${deptObj ? deptObj.nome : (empDeptId || 'Não Informado')}</b>.<br><small>Configure os templates em <b>Geradores → Templates por Departamento</b>.</small></p>`;
-                }
-            }
-
-            // Atualiza percentual do passo 2 baseado em assinaturas
-            window._updateAdmissaoStep2Pct = function() {
-                const total   = (window._admissaoGeradores || []).length;
-                if (total === 0) return 0;
-
-                const assinaturas = window._admissaoAssinaturas || [];
-                // Documentos enviados (têm data de envio ou status diferente de Nenhum/vazio)
-                const sentCount   = assinaturas.filter(a => a.enviado_em || (a.assinafy_status && a.assinafy_status !== 'Nenhum' && a.assinafy_status !== '')).length;
-                // Documentos assinados
-                const signedCount = assinaturas.filter(a => a.assinafy_status === 'Assinado').length;
-
-                // 20% para envio proporcional + 80% para assinaturas proporcionais
-                const sentPct   = Math.round((sentCount   / total) * 20);
-                const signedPct = Math.round((signedCount / total) * 80);
-                return Math.min(100, sentPct + signedPct);
-            };
-
-            // 3. Renderizar Checklists Dinâmicos
-            renderAdmissaoStep3(colab, docs);
-
-            // Mapeamento de Status por Step (Fixo para os outros)
-
-            const remainingSteps = {
-                'panel-step-4': { folder: 'ASO', ids: ['admissao-checklist-step4'], labels: ['ASO Padrão'] },
-                'panel-step-5': { folder: 'OUTROS', ids: ['admissao-checklist-step5'], labels: ['Protocolo eSocial'] },
-                'panel-step-6': { folder: 'TREINAMENTO', ids: ['admissao-checklist-step6'], labels: ['Integração'] },
-                'panel-step-7': { folder: 'CERTIFICADOS', ids: ['admissao-checklist-step7'], labels: ['Diploma'] },
-                'panel-step-8': { folder: 'CONTRATOS', ids: ['admissao-checklist-step8'], labels: ['Contrato Detalhado'] },
-                'panel-step-9': { folder: 'FICHA_DE_EPI', ids: ['admissao-checklist-step9'], labels: ['Entrega EPI'] }
-            };
-
-            for (let pid in remainingSteps) {
-                const config = remainingSteps[pid];
-                const targetContainer = document.getElementById(config.ids[0]);
-                if (!targetContainer) continue;
-                targetContainer.innerHTML = '';
-                
-                // Tratar ASO especial (pode ter exames opcionais)
-                let labels = config.labels;
-                if (pid === 'panel-step-4' && (colab.cargo || '').toLowerCase().includes('motorista')) {
-                    labels = ['ASO Padrão', 'Exames Complementares'];
-                }
-
-                const currentYear = `'${new Date().getFullYear()}'`;
-                labels.forEach(label => {
-                    const yearForDoc = config.folder === 'ASO' ? currentYear : null;
-                    const docRecord = docs.find(d => d.tab_name === config.folder && d.document_type.includes(label));
-                    const slot = createDocSlot(config.folder, label, docRecord, yearForDoc);
-                    targetContainer.appendChild(slot);
-                });
-            }
-
-
-
-
-                            
-                            // Adicionar botão WhatsApp se não existir
-
-                            
-
-
-
-
+            // O percentual do Passo 3 (Assinaturas) agora é calculado no `updateAdmissaoStepPercentages`
+            // baseado nos `window.currentDocs`.
+            // Renderizamos Ficha (Step 4), Assinaturas (Step 3), ASO (Step 5) nestes métodos (renderAdmissaoDocStatus etc) que são chamados por `updateAdmissaoStepPercentages`
 
 
 
@@ -7798,89 +7725,78 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
             }
             window.nextAdmissaoStep(targetStep, preventScroll);
         }
+        }
     } catch (e) { alert('Erro ao carregar dados: ' + e.message); }
 };
 
-function renderAdmissaoStep3(colab, docs) {
-    const container = document.getElementById('admissao-checklist-step3');
-    if (!container) return;
+window.irAoProntuarioDigital = function(targetTab = 'Contratos') {
+    const colab = viewedColaborador;
+    if (!colab) return alert('Nenhum colaborador selecionado.');
     
-    // Mesma ordem da aba de Prontuário para espelhamento perfeito
-    const _colabEc = (colab && colab.estado_civil || '').toLowerCase();
-    const _colabCasado = _colabEc.includes('casad') || _colabEc.includes('vi\u00fav') || _colabEc.includes('viuv') || _colabEc.includes('divorc');
-    const _colabCertidao = _colabCasado ? 'Certid\u00e3o de Casamento' : 'Certid\u00e3o de Nascimento';
-    const isMotoristaColab = colab && (colab.cargo || '').toUpperCase().includes('MOTORISTA');
-    const items = [
-        { label: 'T\u00edtulo Eleitoral', folder: '01_FICHA_CADASTRAL' },
-        { label: _colabCertidao, folder: '01_FICHA_CADASTRAL' },
-        { label: 'Comprovante de endere\u00e7o', folder: '01_FICHA_CADASTRAL', hasVencimento: true },
-        { label: 'Hist\u00f3rico escolar', folder: '01_FICHA_CADASTRAL' }
-    ];
-
-    const isMasc = colab && colab.sexo === 'Masculino';
-    if (isMasc) items.push({ label: 'Reservista', folder: '01_FICHA_CADASTRAL' });
-    if (isMotoristaColab) {
-        items.push({ label: 'CNH', folder: '01_FICHA_CADASTRAL', hasVencimento: true });
-    } else {
-        items.push({ label: (colab && colab.rg_tipo === 'CIN') ? 'CIN-CPF' : 'RG-CPF', folder: '01_FICHA_CADASTRAL', hasVencimento: true });
+    // Fecha o modal de admissão
+    const admissaoModal = bootstrap.Modal.getInstance(document.getElementById('admissaoModal'));
+    if (admissaoModal) admissaoModal.hide();
+    
+    // Fecha qualquer formulário/painel em andamento no grid
+    const formSection = document.getElementById('colaboradorFormSection');
+    const tableSection = document.getElementById('colaboradoresTableSection');
+    if (formSection && tableSection) {
+        formSection.style.display = 'none';
+        tableSection.style.display = 'block';
     }
-
-    items.push(
-        { label: 'Carteira de vacina\u00e7\u00e3o', folder: '01_FICHA_CADASTRAL' },
-        { label: 'Curr\u00edculo', folder: '01_FICHA_CADASTRAL' },
-        { label: 'Carteira de Trabalho', folder: '01_FICHA_CADASTRAL' }
-    );
-
-    const _soCasado = _colabEc.includes('casad') && !_colabEc.includes('uni\u00e3o');
-    if (_soCasado) {
-        items.push({ label: 'Documento do C\u00f4njuge', folder: '01_FICHA_CADASTRAL' });
-    }
-
-    if (colab.dependentes && colab.dependentes.length > 0) {
-        colab.dependentes.filter(d => d.grau_parentesco !== 'Cônjuge').forEach(dep => {
-            items.push({ label: `CPF Dependente - ${dep.nome}`, folder: '01_FICHA_CADASTRAL' });
-            items.push({ label: `Certidão Nasc. Dependente - ${dep.nome}`, folder: '01_FICHA_CADASTRAL' });
-            if (dep.data_nascimento) {
-                const birth = new Date(dep.data_nascimento);
-                const today = new Date();
-                let age = today.getFullYear() - birth.getFullYear();
-                const m = today.getMonth() - birth.getMonth();
-                if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
-                items.push({ label: age < 7 ? `Caderneta de Vacinação - ${dep.nome}` : `Atestado de Frequência Escolar - ${dep.nome}`, folder: '01_FICHA_CADASTRAL' });
+    
+    // Abre a visualização do Prontuário para este colaborador
+    window.openColabViewer(colab.id);
+    
+    // Aguarda o Prontuário abrir e seleciona a tab desejada
+    setTimeout(() => {
+        const prontuarioTabBtn = document.getElementById('tab-prontuario');
+        if (prontuarioTabBtn) prontuarioTabBtn.click();
+        
+        setTimeout(() => {
+            const doctabElement = document.querySelector(`.doc-tab[data-tab="${targetTab}"]`);
+            if (doctabElement) {
+                doctabElement.click();
+                doctabElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
-        });
-    }
+        }, 500); // 500ms para a tab de prontuário renderizar
+    }, 500); // 500ms para o viewer abrir
+};
 
+// --- PASSO 4, 3, 5: Apenas renderizações de leitura para acompanhamento ---
+
+function renderAdmissaoDocStatus(containerId, docs, emptyMsg) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
     container.innerHTML = '';
-    items.forEach(item => {
-        const docRecord = docs.find(d => d.tab_name === item.folder && d.document_type === item.label);
-        const slot = createDocSlot(item.folder, item.label, docRecord);
-        container.appendChild(slot);
+    
+    if (!docs || docs.length === 0) {
+        container.innerHTML = `<div style="padding:1rem; text-align:center; color:#64748b; font-size:0.85rem; font-style:italic;">${emptyMsg}</div>`;
+        return;
+    }
+    
+    docs.forEach(doc => {
+        const isSigned = doc.assinafy_status === 'Assinado' || doc.assinafy_status === 'NAO_EXIGE';
+        const docName = doc.document_type || doc.original_name || 'Documento';
+        const dateStr = doc.created_at ? new Date(doc.created_at).toLocaleDateString('pt-BR') : '';
+        const hasFile = !!doc.file_path;
+        
+        const el = document.createElement('div');
+        el.style.cssText = `background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:0.6rem 0.8rem; margin-bottom:0.4rem; display:flex; justify-content:space-between; align-items:center;`;
+        el.innerHTML = `
+            <div style="display:flex; flex-direction:column; gap:2px;">
+                <span style="font-weight:600; color:#334155; font-size:0.85rem;">${docName}</span>
+                ${dateStr ? `<span style="font-size:0.75rem; color:#64748b;">Enviado: ${dateStr}</span>` : ''}
+            </div>
+            <div style="display:flex; gap:0.5rem; align-items:center;">
+                ${hasFile ? `<span style="background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-check-circle"></i> Anexado</span>` : `<span style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-x-circle"></i> Faltante</span>`}
+                ${doc.assinafy_id ? `<span style="background:${isSigned ? '#eff6ff' : '#fffbeb'}; color:${isSigned ? '#2563eb' : '#d97706'}; border:1px solid ${isSigned ? '#bfdbfe' : '#fde68a'}; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;">${isSigned ? '<i class="ph ph-check"></i> Assinado' : '<i class="ph ph-clock"></i> Pendente Ass.'}</span>` : ''}
+            </div>
+        `;
+        container.appendChild(el);
     });
+}
 
-    // === PENSÃO ALIMENTÍCIA (Condicional) ===
-    const pensaoDoc = docs.find(d => d.tab_name === '01_FICHA_CADASTRAL' && d.document_type === 'Pensão Alimentícia');
-    const temPensao = (colab && colab.tem_pensao_alimenticia === 'Sim') || !!pensaoDoc;
-    const pensaoWrapper = document.createElement('div');
-    pensaoWrapper.id = 'pensao-wrapper-admissao';
-    pensaoWrapper.style = 'border:1.5px solid #e2e8f0; border-radius:10px; padding:1rem; margin-top:0.5rem; background:#f8fafc;';
-    pensaoWrapper.innerHTML = `
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
-            <div style="display:flex; align-items:center; gap:8px;">
-                <i class="ph ph-scales" style="color:#f503c5; font-size:1.1rem;"></i>
-                <span style="font-weight:600; font-size:0.9rem; color:#334155;">Possui documento de Pensão Alimentícia?</span>
-            </div>
-            <div style="display:flex; gap:6px;">
-                <button type="button" id="pensao-sim-admissao" onclick="window.setPensaoAdmissao('Sim')" style="padding:0.35rem 1rem; border-radius:6px; border:1.5px solid ${temPensao ? '#10b981' : '#e2e8f0'}; background:${temPensao ? '#ecfdf5' : '#fff'}; color:${temPensao ? '#065f46' : '#334155'}; font-weight:700; cursor:pointer; font-size:0.85rem;">Sim</button>
-                <button type="button" id="pensao-nao-admissao" onclick="window.setPensaoAdmissao('Não')" style="padding:0.35rem 1rem; border-radius:6px; border:1.5px solid ${!temPensao ? '#10b981' : '#e2e8f0'}; background:${!temPensao ? '#ecfdf5' : '#fff'}; color:${!temPensao ? '#065f46' : '#334155'}; font-weight:700; cursor:pointer; font-size:0.85rem;">Não</button>
-            </div>
-        </div>
-        <div id="pensao-slot-admissao" style="margin-top:0.75rem; display:${temPensao ? 'block' : 'none'};"></div>
-    `;
-    container.appendChild(pensaoWrapper);
-    if (temPensao) {
-        const pensaoSlot = container.querySelector('#pensao-slot-admissao');
-        if (pensaoSlot) pensaoSlot.appendChild(createDocSlot('01_FICHA_CADASTRAL', 'Pensão Alimentícia', pensaoDoc || null));
     }
 
     window.setPensaoAdmissao = function(resposta) {
@@ -8321,77 +8237,57 @@ function updateAdmissaoStepPercentages(colab) {
     const pc2 = targetColab.santander_ficha_data ? 100 : 0;
 
     // ── Passo 3: Assinaturas — usa geradores/assinaturas carregados ───
-    const pc3 = window._updateAdmissaoStep2Pct ? window._updateAdmissaoStep2Pct() : (() => {
-        const checks = document.querySelectorAll('#admissao-signature-list input[type="checkbox"]');
-        if (checks.length === 0) return 0;
-        const checked = Array.from(checks).filter(c => c.checked).length;
-        return Math.round((checked / checks.length) * 100);
-    })();
-
-    // Listener no signature-list para reagir a mudanças em tempo real
-    const sigList = document.getElementById('admissao-signature-list');
-    if (sigList && !sigList.dataset.listener) {
-        sigList.addEventListener('change', () => updateAdmissaoStepPercentages());
-        sigList.dataset.listener = 'true';
+    // ── Passo 3: Assinaturas — verifica status dos contratos via API ───
+    let pc3 = 0;
+    const contratosDocs = (window.currentDocs || []).filter(d => !!d.assinafy_id && d.tab_name !== 'ASO'); // Aproximação de docs com request Assinafy (exceto ASO que vai no passo 5)
+    if (contratosDocs.length > 0) {
+        const assinados = contratosDocs.filter(d => d.assinafy_status === 'Assinado' || d.assinafy_status === 'NAO_EXIGE').length;
+        pc3 = Math.min(100, Math.round((assinados / contratosDocs.length) * 100));
     }
-
-    // Helper: contar docs no DOM do painel (funciona só quando painel está aberto)
-    const calculateChecklist = (panelId) => {
-        const panel = document.getElementById(panelId);
-        if (!panel) return 0;
-        const docItems = panel.querySelectorAll('.doc-item');
-        if (docItems.length > 0) {
-            const total = docItems.length;
-            const uploaded = panel.querySelectorAll('.doc-item[data-doc-id]').length;
-            return Math.min(100, Math.round((uploaded / total) * 100));
-        }
-        const total = panel.querySelectorAll('.checklist-item').length;
-        if (total === 0) return 0;
-        const uploaded = Array.from(panel.querySelectorAll('.upload-status'))
-                              .filter(span => span.style.display !== 'none').length;
-        return Math.min(100, Math.round((uploaded / total) * 100));
-    };
+    
+    // Atualiza a view de status se o modal estiver aberto
+    renderAdmissaoDocStatus('admissao-signature-status', contratosDocs, 'Nenhum documento aguardando assinatura. Você pode enviá-los através do Prontuário Digital.');
 
     // ── Passo 4: Ficha Cadastral — documentos do colaborador (01_FICHA_CADASTRAL) ──
-    // Documentos da Ficha Cadastral NÃO usam assinatura Assinafy.
-    // A porcentagem é simplesmente: (documentos enviados / total de slots) * 100
     let pc4 = 0;
-    const panel4 = document.getElementById('panel-step-4');
-    if (panel4) {
-        const docItems4 = panel4.querySelectorAll('.doc-item');
-        if (docItems4.length > 0) {
-            const numDocs = docItems4.length;
-            const uploaded = panel4.querySelectorAll('.doc-item[data-doc-id]').length;
-            pc4 = Math.min(100, Math.round((uploaded / numDocs) * 100));
-        }
-    }
-    // Fallback: usar currentDocs quando o painel está fechado
-    if (pc4 === 0 && targetColab) {
-        const fichaDocs = (window.currentDocs || []).filter(d => d.tab_name === '01_FICHA_CADASTRAL');
-        // Lista base de documentos obrigatórios (estimativa mínima = 7 itens fixos)
-        const _ec2 = (targetColab.estado_civil || '').toLowerCase();
-        const _isCasado2 = _ec2.includes('casad') || _ec2.includes('viuv') || _ec2.includes('divorc');
-        const _isMotorista2 = (targetColab.cargo || '').toUpperCase().includes('MOTORISTA');
-        const _isMasc2 = targetColab.sexo === 'Masculino';
-        let totalEsperado = 7; // fixos: Título, Certidão, Comprovante, Histórico, RG/CPF ou CNH, Vacinas, CTPS
-        if (_isMasc2) totalEsperado++; // Reservista
-        if (_isCasado2) totalEsperado++; // Documento do Cônjuge
-        if (totalEsperado > 0 && fichaDocs.length > 0) {
-            const enviados = fichaDocs.length;
-            pc4 = Math.min(100, Math.round((enviados / totalEsperado) * 100));
-        }
+    const fichaDocs = (window.currentDocs || []).filter(d => d.tab_name === '01_FICHA_CADASTRAL');
+    const _ec4 = (targetColab.estado_civil || '').toLowerCase();
+    const _isCasado4 = _ec4.includes('casad') || _ec4.includes('viuv') || _ec4.includes('divorc');
+    const _isMotorista4 = (targetColab.cargo || '').toUpperCase().includes('MOTORISTA');
+    const _isMasc4 = targetColab.sexo === 'Masculino';
+    let totalEsperado4 = 8; // Título, Certidão, Comprovante, Histórico, CPF, RG/CNH, Vacinas, CTPS, Foto Duralex, etc (estimativa base)
+    if (_isMasc4) totalEsperado4++;
+    if (_isCasado4) totalEsperado4++;
+    
+    // Acrescentamos +2 pra cada dependente (estimativa)
+    const depList = targetColab.dependentes ? (typeof targetColab.dependentes === 'string' ? JSON.parse(targetColab.dependentes) : targetColab.dependentes) : [];
+    totalEsperado4 += (depList.filter(d => d.grau_parentesco !== 'Cônjuge').length * 2);
+
+    if (totalEsperado4 > 0 && fichaDocs.length > 0) {
+        const enviados4 = fichaDocs.length;
+        pc4 = Math.min(100, Math.round((enviados4 / totalEsperado4) * 100)); // Limita a 100% pois é estimativa
     }
 
-    // ── Passo 5: ASO — 50% se e-mail enviado p/ clínica, 100% se doc ASO anexado/assinado ──
-    let pc5;
-    if (targetColab.aso_email_enviado) {
-        const asoDocAnexado = (currentDocs || []).some(d =>
-            d.tab_name === 'ASO' && d.file_path &&
-            (d.assinafy_status === 'Assinado' || d.assinafy_status === 'NAO_EXIGE' || d.assinafy_status === 'Nenhum' || d.assinafy_status === 'Outro Meio')
-        );
-        pc5 = asoDocAnexado ? 100 : 50;
-    } else {
-        pc5 = calculateChecklist('panel-step-5');
+    // ── Passo 5: ASO — 50% e-mail / 100% doc  ──
+    let pc5 = 0;
+    const asoDocs = (window.currentDocs || []).filter(d => d.tab_name === 'ASO');
+    renderAdmissaoDocStatus('step5-aso-status', asoDocs, 'Nenhum documento de ASO encontrado. Realize o upload no Prontuário Digital.');
+    
+    const asoDocAnexado = asoDocs.some(d => d.file_path && d.document_type && d.document_type.includes('ASO'));
+    
+    if (asoDocAnexado) {
+        pc5 = 100;
+        // Ocultar notice de email se ASO anexado
+        const noticeEl = document.getElementById('aso-email-notice');
+        if (noticeEl) noticeEl.style.display = 'none';
+    } else if (targetColab.aso_email_enviado) {
+        pc5 = 50;
+        const noticeEl = document.getElementById('aso-email-notice');
+        if (noticeEl) {
+            noticeEl.style.display = 'block';
+            document.getElementById('aso-notice-date').textContent = targetColab.aso_email_data || '--/--/--';
+            document.getElementById('aso-notice-agendada').textContent = targetColab.aso_exame_agendado || '--/--/--';
+        }
     }
 
     // ── Passo 6: Contabilidade — 100% se ficha enviada ────────────────
