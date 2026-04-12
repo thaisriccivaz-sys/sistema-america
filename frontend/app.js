@@ -7417,7 +7417,9 @@ window.renderContratosAvulso = async function(container) {
         );
 
         // HTML das linhas pendentes (topo da lista)
-        const pendingRowsHtml = pendingGeradores.map(g => `
+        const pendingRowsHtml = pendingGeradores.map(g => {
+            const escNome = (g.nome||'').replace(/'/g,"\\'").replace(/"/g, "&quot;");
+            return `
             <div style="display:flex; align-items:center; justify-content:space-between; padding:0.65rem 0.75rem; border:1.5px dashed #c026d3; border-radius:8px; background:#fdf4ff; gap:0.75rem;">
                 <div style="display:flex; align-items:center; gap:0.6rem; flex:1;">
                     <span style="background:#fdf4ff;color:#c026d3;border:1px solid #f0abfc;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Perfil</span>
@@ -7426,12 +7428,22 @@ window.renderContratosAvulso = async function(container) {
                         <div style="font-size:0.75rem; color:#a21caf; margin-top:1px;">Necessário pelo perfil do colaborador — aguardando geração</div>
                     </div>
                 </div>
-                <button type="button"
-                    onclick="window._gerarContratoPerfilDireto('${g.id}', '${(g.nome||'').replace(/'/g,"\\'").replace(/"/g, "&quot;")}');"
-                    style="background:#c026d3;color:#fff;border:none;border-radius:8px;padding:0.4rem 0.9rem;font-size:0.82rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap;">
-                    <i class="ph ph-file-arrow-down"></i> Gerar
-                </button>
-            </div>`).join('');
+                
+                <div style="display:flex; align-items:center; gap:0.75rem; border-left: 1px solid #f0abfc; padding-left: 1rem;">
+                    <span style="font-size:0.85rem; font-weight:600; color:#334155;">Exige Assinatura?</span>
+                    <label style="cursor:pointer; display:flex; align-items:center; gap:0.25rem; font-size:0.85rem; color:#0f172a; margin:0;">
+                        <input type="radio" name="req-ass-${g.id}" value="sim" onchange="window.toggleAcaoContratoPerfil('${g.id}', 'sim', '${escNome}')"> Sim
+                    </label>
+                    <label style="cursor:pointer; display:flex; align-items:center; gap:0.25rem; font-size:0.85rem; color:#0f172a; margin:0;">
+                        <input type="radio" name="req-ass-${g.id}" value="nao" onchange="window.toggleAcaoContratoPerfil('${g.id}', 'nao', '${escNome}')"> Não
+                    </label>
+                </div>
+                
+                <div id="pg-action-${g.id}" style="min-width: 160px; text-align: right; display: flex; justify-content: flex-end;">
+                    <span style="font-size:0.8rem; color:#64748b; font-style:italic;">Selecione uma opção</span>
+                </div>
+            </div>`;
+        }).join('');
 
         container.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
@@ -7469,98 +7481,151 @@ window.renderContratosAvulso = async function(container) {
     }
 };
 
-// Gera e salva automaticamente um contrato de perfil direto (sem abrir modal de seleção)
-window._gerarContratoPerfilDireto = async function(geradorId, geradorNome) {
+window.toggleAcaoContratoPerfil = function(geradorId, exige, geradorNome) {
+    const actionDiv = document.getElementById('pg-action-' + geradorId);
+    if (!actionDiv) return;
+    
+    if (exige === 'nao') {
+        actionDiv.innerHTML = `
+            <label class="btn btn-secondary btn-sm" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:0.8rem;">
+                <i class="ph ph-upload-simple"></i> Anexar PDF
+                <input type="file" accept=".pdf" style="display:none;" onchange="window.uploadContratoPerfilNaoAssinado(this, '${geradorNome}')">
+            </label>
+        `;
+    } else {
+        actionDiv.innerHTML = `
+            <button class="btn btn-primary btn-sm" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:0.8rem;background:#c026d3;border-color:#c026d3;" 
+                onclick="window.previewContratoPerfilAssinado('${geradorId}', '${geradorNome}')">
+                <i class="ph ph-file-arrow-down"></i> Gerar Documento
+            </button>
+        `;
+    }
+};
+
+window.uploadContratoPerfilNaoAssinado = async function(input, geradorNome) {
+    const file = input.files[0];
+    if (!file) return;
+    Swal.fire({ title: 'Anexando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    
+    const formData = new FormData();
+    formData.append('arquivo', file);
+    formData.append('tab_name', 'CONTRATOS_AVULSOS');
+    formData.append('document_type', geradorNome);
+    
     try {
-        const sendPrompt = await Swal.fire({
-            title: 'Assinatura Digital',
-            text: 'Deseja enviar este contrato para assinatura digital via Assinafy?',
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonText: 'Sim, desejo assinar digitalmente',
-            cancelButtonText: 'Não, apenas visualizar e anexar'
+        const res = await fetch(`${API_URL}/documentos?colaborador_id=${viewedColaborador.id}`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${currentToken}` },
+            body: formData
         });
+        if (!res.ok) {
+            const errData = await res.json().catch(()=>({}));
+            throw new Error(errData.error || 'Falha ao salvar PDF');
+        }
+        Swal.fire('Sucesso!', 'Documento anexado.', 'success');
+        window._contratosAvulsoLoaded = false;
+        const avDiv = document.getElementById('contratos-sub-avulso');
+        if (avDiv) await window.renderContratosAvulso(avDiv);
+    } catch(e) {
+        Swal.fire('Erro', e.message, 'error');
+    }
+};
 
-        const vaiAssinar = sendPrompt.isConfirmed;
-
-        Swal.fire({ title: 'Gerando documento...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-
+window.previewContratoPerfilAssinado = async function(geradorId, geradorNome) {
+    Swal.fire({ title: 'Gerando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    try {
         const res = await fetch(`${API_URL}/geradores/${geradorId}/gerar`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
             body: JSON.stringify({ colaborador_id: viewedColaborador.id, colabId: viewedColaborador.id })
         });
         const data = await res.json();
-        Swal.close();
         if (!res.ok) throw new Error(data.error || 'Erro ao gerar documento');
+        Swal.close();
 
-        // Abre o preview normal
+        window._perfilGeradorIdCtx = geradorId;
+        window._perfilGeradorNomeCtx = geradorNome;
+
         window.abrirPreviewDocumento(data);
 
-        // Aguarda o modal aparecer no DOM e sobrescreve o botão Salvar
         setTimeout(() => {
-            const btnSalvar = document.querySelector('#doc-modal button.btn-primary') || document.querySelector('#modal-preview-doc button.btn-primary');
-            if (!btnSalvar) return;
-            
-            if (vaiAssinar) {
-                btnSalvar.innerHTML = '<i class="ph ph-paper-plane-tilt"></i> Anexar e Enviar p/ Assinafy';
-            } else {
-                btnSalvar.innerHTML = '<i class="ph ph-floppy-disk"></i> Anexar ao Prontuário';
+            const previewBtns = document.getElementById('preview-doc-buttons');
+            if (previewBtns) {
+                previewBtns.innerHTML = `
+                    <button class="btn btn-secondary" onclick="window.fecharPreviewEHabitarEnvio()">
+                        <i class="ph ph-x"></i> Fechar Prévia
+                    </button>
+                `;
             }
-
-            btnSalvar.onclick = async function() {
-                const oldHtml = this.innerHTML;
-                this.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...';
-                this.disabled = true;
-                try {
-                    const previewContent = document.querySelector('#doc-modal .preview-content') ||
-                                          document.querySelector('#modal-preview-doc #preview-doc-body');
-                    if (!previewContent) throw new Error('Conteúdo do preview não encontrado');
-                    const pdfBlob = await window.gerarPDFBlob(previewContent);
-                    const safeName = (geradorNome || 'documento').replace(/[^a-zA-Z0-9À-ÿ _-]/g, '');
-                    const colabId  = viewedColaborador?.id || '';
-                    const colabNome = (viewedColaborador?.nome_completo || colabId).toString();
-                    const formData = new FormData();
-                    formData.append('arquivo', pdfBlob, `${safeName}_${colabNome}.pdf`);
-                    formData.append('tab_name', 'CONTRATOS_AVULSOS');
-                    formData.append('document_type', geradorNome);
-                    const r = await fetch(`${API_URL}/documentos`, {
-                        method: 'POST',
-                        headers: { 'Authorization': `Bearer ${currentToken}` },
-                        body: formData
-                    });
-                    if (!r.ok) {
-                        const errData = await r.json().catch(() => ({}));
-                        throw new Error(errData.error || 'Falha ao salvar PDF');
-                    }
-                    
-                    const elModal = document.getElementById('modal-preview-doc') || document.getElementById('doc-modal');
-                    if (elModal) elModal.style.display = 'none';
-
-                    if (vaiAssinar) {
-                        Swal.fire({ title: 'Enviando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-                        await apiPost('/admissao-assinaturas/enviar-lote', {
-                            colaborador_id: colabId,
-                            geradores_ids: [geradorId]
-                        });
-                        Swal.fire('Enviado!', 'Documento gerado, anexado e enviado para assinatura.', 'success');
-                    } else {
-                        showToast('Contrato anexado ao prontuário!', 'success');
-                    }
-
-                    window._contratosAvulsoLoaded = false;
-                    const avDiv = document.getElementById('contratos-sub-avulso');
-                    if (avDiv) await window.renderContratosAvulso(avDiv);
-                } catch(e) {
-                    this.innerHTML = oldHtml;
-                    this.disabled = false;
-                    Swal.fire('Erro ao salvar', e.message, 'error');
-                }
-            };
         }, 150);
 
     } catch(e) {
-        try { Swal.close(); Swal.fire('Erro ao gerar', e.message, 'error'); } catch(e2){}
+        Swal.fire('Erro', e.message, 'error');
+    }
+};
+
+window.fecharPreviewEHabitarEnvio = function() {
+    const elModal = document.getElementById('modal-preview-doc') || document.getElementById('doc-modal');
+    if (elModal) elModal.style.display = 'none';
+
+    const gId = window._perfilGeradorIdCtx;
+    if (!gId) return;
+
+    const actionDiv = document.getElementById('pg-action-' + gId);
+    if (actionDiv) {
+        actionDiv.innerHTML = `
+            <button class="btn btn-success btn-sm" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:0.8rem;" 
+                onclick="window.enviarAssinaturaPerfilDireto()">
+                <i class="ph ph-paper-plane-tilt"></i> Enviar para Assinatura
+            </button>
+        `;
+    }
+};
+
+window.enviarAssinaturaPerfilDireto = async function() {
+    const geradorId = window._perfilGeradorIdCtx;
+    const geradorNome = window._perfilGeradorNomeCtx;
+    if (!geradorId) return;
+
+    Swal.fire({ title: 'Salvando e Enviando...', text: 'Enviando para Assinafy...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    try {
+        const previewContent = document.querySelector('#modal-preview-doc #preview-doc-body') || document.querySelector('#doc-modal .preview-content');
+        if (!previewContent) throw new Error('Conteúdo do formulário foi perdido. Tente gerar novamente.');
+        
+        const pdfBlob = await window.gerarPDFBlob(previewContent);
+        const safeName = (geradorNome || 'documento').replace(/[^a-zA-Z0-9À-ÿ _-]/g, '');
+        const colabId  = viewedColaborador?.id || '';
+        const colabNome = (viewedColaborador?.nome_completo || colabId).toString();
+        
+        const formData = new FormData();
+        formData.append('arquivo', pdfBlob, `${safeName}_${colabNome}.pdf`);
+        formData.append('tab_name', 'CONTRATOS_AVULSOS');
+        formData.append('document_type', geradorNome);
+        
+        const r = await fetch(`${API_URL}/documentos?colaborador_id=${colabId}`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${currentToken}` },
+            body: formData
+        });
+        
+        if (!r.ok) {
+            const errData = await r.json().catch(() => ({}));
+            throw new Error(errData.error || 'Falha ao salvar PDF');
+        }
+
+        await apiPost('/admissao-assinaturas/enviar-lote', {
+            colaborador_id: colabId,
+            geradores_ids: [parseInt(geradorId)]
+        });
+
+        Swal.fire('Enviado!', 'Documento gerado, anexado e enviado para assinatura via Certificado e Assinafy.', 'success');
+        
+        window._contratosAvulsoLoaded = false;
+        const avDiv = document.getElementById('contratos-sub-avulso');
+        if (avDiv) await window.renderContratosAvulso(avDiv);
+
+    } catch(e) {
+        Swal.fire('Erro ao enviar', e.message, 'error');
     }
 };
 
