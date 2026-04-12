@@ -7396,7 +7396,7 @@ window.buildAdmissaoSignatureRows = function(availableGeradores, assinaturas, do
         if (isSigned) {
             // Assinado: mostrar olho para visualizar
             if (ass && ass.id) {
-                eyeBtn = '<button onclick="window.openSignedDocPopup(' + ass.id + ', '' + g.nome.replace(/'/g,"\'") + '', event)" style="border:none;background:none;cursor:pointer;color:#16a34a;" title="Ver documento assinado"><i class="ph ph-eye" style="font-size:1.4rem;"></i></button>';
+                eyeBtn = '<button onclick="window.openSignedDocPopup(' + ass.id + ', \"' + g.nome.replace(/"/g, '') + '\", event)" style="border:none;background:none;cursor:pointer;color:#16a34a;" title="Ver documento assinado"><i class="ph ph-eye" style="font-size:1.4rem;"></i></button>';
             } else if (docEquivalente && docEquivalente.id) {
                 eyeBtn = '<button onclick="window.openContratoViewerById(' + docEquivalente.id + ')" style="border:none;background:none;cursor:pointer;color:#16a34a;" title="Ver documento"><i class="ph ph-eye" style="font-size:1.4rem;"></i></button>';
             }
