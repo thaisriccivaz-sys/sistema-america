@@ -7623,10 +7623,6 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
         } else if (colab.status === 'Processo iniciado') {
             document.getElementById('admissao-workflow').style.display = 'block';
             
-            // Buscar objeto completo do colab para carregar dependentes e extras
-            const fullColab = await apiGet(`/colaboradores/${colab.id}`);
-            colab = Object.assign({}, colab, fullColab);
-
             // Buscar nomes para Cargo e Depto
             const cargos = await apiGet('/cargos');
             const deptos = await apiGet('/departamentos');
