@@ -7649,7 +7649,7 @@ window.enviarAssinaturaPerfilDireto = async function(event) {
             const dtStr = new Date().toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }).replace(',', ' -');
                         const txt = document.getElementById('perfil-status-txt-' + geradorId);
             if (txt) {
-                txt.innerHTML = '<span style="color:#16a34a;font-weight:600;"><i class="ph ph-paper-plane-tilt" style="color:#2563eb;"></i> Enviado para Assinatura: ' + dtStr + '</span>';
+                txt.innerHTML = '<span style="color:#2563eb;font-weight:600;"><i class="ph ph-paper-plane-tilt"></i> Enviado para Assinatura: ' + dtStr + '</span>';
             }
             targetBtn.parentElement.innerHTML = '<span style="color:#16a34a;font-weight:600;"><i class="ph ph-check"></i> OK</span>';
         }
@@ -7936,7 +7936,7 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
            statusBadge = `<span style="color:#16a34a;font-size:0.75rem;font-weight:600;">Documento Assinado${_signedStr ? ': ' + _signedStr : ''}</span>`;
        } else if (isPending) {
            leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#2563eb;"><i class="ph ph-paper-plane-tilt" style="font-size:1.4rem;"></i></div>`;
-           statusBadge = `<span style="color:#16a34a;font-size:0.75rem;font-weight:600;">Enviado para Assinatura${_sentStr ? ': ' + _sentStr : ''}</span>`;
+           statusBadge = `<span style="color:#2563eb;font-size:0.75rem;font-weight:600;">Enviado para Assinatura${_sentStr ? ': ' + _sentStr : ''}</span>`;
            if (window.reenviarAssinaturaContrato) {
                sendBtn = `<button type="button" onclick="window.reenviarAssinaturaContrato(${doc.id}, event);" style="background:#0284c7;color:#fff;border:none;border-radius:2px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:0.2s;"><i class="ph ph-pen"></i> Reenviar para Assinatura</button>`;
            }
