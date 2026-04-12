@@ -6933,7 +6933,10 @@ window.abrirPreviewDocumento = function(data) {
                     headers: { 'Authorization': `Bearer ${currentToken}` },
                     body: formData
                 });
-                if (!uploadRes.ok) throw new Error('Falha ao anexar o documento');
+                if (!uploadRes.ok) {
+                    const errObj = await uploadRes.json().catch(() => ({}));
+                    throw new Error(errObj.error || 'Falha ao anexar o documento (' + uploadRes.status + ')');
+                }
 
                 document.getElementById('modal-preview-doc').style.display = 'none';
 
