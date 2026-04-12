@@ -9,7 +9,7 @@ const sharp = require('sharp');
 const nodemailer = require('nodemailer');
 const pdfParse = require('pdf-parse');
 
-// --- CONFIGURA√á√ÉO SMTP (Preencher com dados reais para o e-mail funcionar) ---
+// --- CONFIGURA√É‚Ä°√É∆íO SMTP (Preencher com dados reais para o e-mail funcionar) ---
 const SMTP_CONFIG = {
     host: "smtp.gmail.com", 
     port: 465, 
@@ -22,24 +22,24 @@ const SMTP_CONFIG = {
 
 const db = require('./database');
 
-// Recarregar configuraÁıes do sistema (ex: certificado)
+// Recarregar configura√ß√µes do sistema (ex: certificado)
 db.all("SELECT chave, valor FROM configuracoes_sistema", [], (err, rows) => {
     if (!err && rows) {
         rows.forEach(r => {
             if (r.chave === 'pfx_path') process.env.PFX_PATH = r.valor;
             if (r.chave === 'pfx_password_b64') process.env.PFX_PASSWORD = Buffer.from(r.valor, 'base64').toString('utf8');
         });
-        console.log('[SISTEMA] ConfiguraÁıes de certificado carregadas com sucesso.');
+        console.log('[SISTEMA] Configura√ß√µes de certificado carregadas com sucesso.');
     }
 });
 
-// -- DIAGN”STICO DE PERSIST NCIA ----------------------------------------
+// -- DIAGN√ìSTICO DE PERSIST√äNCIA ----------------------------------------
 const dbPathAtual = process.env.DATABASE_PATH || require('path').join(__dirname, 'data', 'hr_system_v2.sqlite');
 if (!process.env.DATABASE_PATH) {
-    console.warn('??  AVISO: DATABASE_PATH n„o definido! O banco est· em disco efÍmero.');
-    console.warn('??  Todos os dados ser„o PERDIDOS a cada restart do servidor (Render free tier).');
+    console.warn('??  AVISO: DATABASE_PATH n√£o definido! O banco est√° em disco ef√™mero.');
+    console.warn('??  Todos os dados ser√£o PERDIDOS a cada restart do servidor (Render free tier).');
     console.warn(`??  Caminho atual: ${dbPathAtual}`);
-    console.warn('??  Configure DATABASE_PATH como vari·vel de ambiente apontando para um Render Disk.');
+    console.warn('??  Configure DATABASE_PATH como vari√°vel de ambiente apontando para um Render Disk.');
 } else {
     console.log(`?  DATABASE_PATH configurado: ${dbPathAtual}`);
 }
@@ -70,14 +70,14 @@ db.run("ALTER TABLE colaboradores ADD COLUMN conjuge_nome TEXT", (err) => {
 db.run("ALTER TABLE colaboradores ADD COLUMN conjuge_cpf TEXT", (err) => {
     if (!err) console.log("Coluna conjuge_cpf adicionada com sucesso.");
 });
-db.run("ALTER TABLE colaboradores ADD COLUMN tem_pensao_alimenticia TEXT DEFAULT 'N„o'", (err) => {
+db.run("ALTER TABLE colaboradores ADD COLUMN tem_pensao_alimenticia TEXT DEFAULT 'N√£o'", (err) => {
     if (!err) console.log("Coluna tem_pensao_alimenticia adicionada com sucesso.");
 });
 db.run("ALTER TABLE colaboradores ADD COLUMN admissao_status TEXT", (err) => {
     if (!err) console.log("Coluna admissao_status adicionada com sucesso.");
 });
 
-// MIGRATION: Multas de Tr‚nsito
+// MIGRATION: Multas de Tr√¢nsito
 db.run(`CREATE TABLE IF NOT EXISTS multas (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     colaborador_id INTEGER NOT NULL,
@@ -100,7 +100,7 @@ db.run(`CREATE TABLE IF NOT EXISTS multas (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 )`, (err) => { if (err) console.error('Erro ao criar tabela multas:', err); else console.log('Tabela multas OK.'); });
 
-// MIGRATION: Adicionar campos de assinatura na tabela multas (se n„o existirem)
+// MIGRATION: Adicionar campos de assinatura na tabela multas (se n√£o existirem)
 const _multasMigCols = [
     'ALTER TABLE multas ADD COLUMN processo_iniciado INTEGER DEFAULT 0',
     'ALTER TABLE multas ADD COLUMN assinatura_testemunha1_nome TEXT',
@@ -114,15 +114,15 @@ const _multasMigCols = [
 _multasMigCols.forEach(sql => {
     db.run(sql, err => {
         if (err && !err.message.includes('duplicate column')) {
-            // silent ó column already exists
+            // silent ‚Äî column already exists
         }
     });
 });
 
-// MIGRATION: Limpar todos os usu·rios exceto Diretoria1
+// MIGRATION: Limpar todos os usu√°rios exceto Diretoria1
 db.run("DELETE FROM usuarios WHERE LOWER(REPLACE(username, '.', '')) != 'diretoria1'", (err) => {
-    if (err) console.error("Erro ao limpar usu·rios:", err);
-    else console.log("Usu·rios removidos com sucesso, mantendo apenas Diretoria1.");
+    if (err) console.error("Erro ao limpar usu√°rios:", err);
+    else console.log("Usu√°rios removidos com sucesso, mantendo apenas Diretoria1.");
 });
 
 // MIGRATION: Remover cargo 'teste'
@@ -130,26 +130,26 @@ db.run("DELETE FROM cargos WHERE nome = 'teste' OR nome = 'Teste'", (err) => {
     if (err) console.error("Erro ao remover cargo teste:", err);
 });
 
-// MIGRATION: Limpar duplicatas de geradores ó executado em sequÍncia garantida
+// MIGRATION: Limpar duplicatas de geradores ‚Äî executado em sequ√™ncia garantida
 db.serialize(() => {
-    // 1. Renomear ORDEM DE SERVI«O NR01 (mai˙sculo) para caixa mista
+    // 1. Renomear ORDEM DE SERVI√áO NR01 (mai√∫sculo) para caixa mista
     db.run("UPDATE geradores SET nome = 'Ordem de Servi\u00e7o NR01' WHERE nome LIKE 'ORDEM%NR01' OR nome LIKE 'ORDEM%NR 01'", (err) => {
-        if (err) console.error('Erro ao renomear NR01 mai˙sculo:', err);
-        else console.log('MIGRATION: ORDEM NR01 mai˙sculo renomeado (se existia).');
+        if (err) console.error('Erro ao renomear NR01 mai√∫sculo:', err);
+        else console.log('MIGRATION: ORDEM NR01 mai√∫sculo renomeado (se existia).');
     });
     // 2. Remover duplicatas de NR01 mantendo o mais antigo
     db.run("DELETE FROM geradores WHERE (nome LIKE '%NR01%' OR nome LIKE '%NR 01%') AND id NOT IN (SELECT MIN(id) FROM geradores WHERE nome LIKE '%NR01%' OR nome LIKE '%NR 01%')", (err) => {
         if (err) console.error('Erro ao deduplicar NR01:', err);
         else console.log('MIGRATION: Duplicatas NR01 removidas (se existiam).');
     });
-    // 3. Remover AUTORIZA«√O DE DESCONTO EM FOLHA DE PAGAMENTO (mai˙sculo extra)
-    //    MantÈm apenas o de ID menor (AutorizaÁ„o de Desconto em Folha, criado antes)
+    // 3. Remover AUTORIZA√á√ÉO DE DESCONTO EM FOLHA DE PAGAMENTO (mai√∫sculo extra)
+    //    Mant√©m apenas o de ID menor (Autoriza√ß√£o de Desconto em Folha, criado antes)
     db.run("DELETE FROM geradores WHERE nome LIKE 'AUTORI%DESCONTO%PAGAMENTO'", (err) => {
-        if (err) console.error('Erro ao remover AUTORIZACAO DESCONTO PAGAMENTO mai˙sculo:', err);
-        else console.log('MIGRATION: AUTORIZACAO DESCONTO PAGAMENTO mai˙sculo removido (se existia).');
+        if (err) console.error('Erro ao remover AUTORIZACAO DESCONTO PAGAMENTO mai√∫sculo:', err);
+        else console.log('MIGRATION: AUTORIZACAO DESCONTO PAGAMENTO mai√∫sculo removido (se existia).');
     });
-    // 4. Remover qualquer outro gerador em CAIXA ALTA cujo nome = UPPER(nome) ó exceto os j· tratados
-    //    Detecta nomes 100% mai˙sculos contendo mais de 3 palavras
+    // 4. Remover qualquer outro gerador em CAIXA ALTA cujo nome = UPPER(nome) ‚Äî exceto os j√° tratados
+    //    Detecta nomes 100% mai√∫sculos contendo mais de 3 palavras
     db.run("DELETE FROM geradores WHERE nome = UPPER(nome) AND LENGTH(nome) > 10 AND nome NOT LIKE 'Ordem%'", (err) => {
         if (err) console.error('Err ao remover geradores all-caps extra:', err);
         else console.log('MIGRATION: Geradores all-caps extras removidos.');
@@ -157,11 +157,11 @@ db.serialize(() => {
 });
 
 
-// MIGRATION: Remover " - Total" dos grupos de permiss„o
+// MIGRATION: Remover " - Total" dos grupos de permiss√£o
 db.run("UPDATE grupos_permissao SET nome = REPLACE(nome, ' - Total', '') WHERE nome LIKE '% - Total'", (err) => {
     if (err) console.error("Erro ao atualizar grupos:", err);
     else {
-        // Remover duplicatas criadas pela remoÁ„o de " - Total" (ex: manter apenas 1 linha por nome)
+        // Remover duplicatas criadas pela remo√ß√£o de " - Total" (ex: manter apenas 1 linha por nome)
         db.run("DELETE FROM grupos_permissao WHERE id NOT IN (SELECT MIN(id) FROM grupos_permissao GROUP BY TRIM(nome))", (errD) => {
             if (errD) console.error("Erro ao limpar grupos duplicados:", errD);
         });
@@ -186,9 +186,9 @@ db.run("ALTER TABLE colaboradores ADD COLUMN tamanho_calcado TEXT", (err) => {
 
 // MIGRATION: Garantir que os geradores baseados em perfil do colaborador existam no banco
 const GERADORES_PERFIL = [
-    'Termo de N√O Interesse Terapia',
+    'Termo de N√ÉO Interesse Terapia',
     'Termo de Interesse Terapia',
-    'Responsabilidade Bilhete ⁄nico',
+    'Responsabilidade Bilhete √önico',
     'Responsabilidade Celular',
     'Contrato Faculdade',
     'Contrato Academia',
@@ -202,21 +202,21 @@ GERADORES_PERFIL.forEach(nome => {
     );
 });
 
-// MIGRATION: Inserir ou atualizar relaÁ„o exata de Cargos x Departamentos solicitada
+// MIGRATION: Inserir ou atualizar rela√ß√£o exata de Cargos x Departamentos solicitada
 const cargosDeptosSync = [
     ['Aux. Administrativo', 'Administrativo'], ['Ass. Administrativo 1', 'Administrativo'], 
     ['Ass. Administrativo', 'Administrativo'], ['Aux. Comercial', 'Comercial'], 
     ['Vendedor', 'Comercial'], ['Sup. Comercial', 'Comercial'], 
-    ['Aux. LogÌstica', 'LogÌstica'], ['Ass. LogÌstica 1', 'LogÌstica'], 
-    ['Ass. LogÌstica 2', 'LogÌstica'], ['Sup. LogÌstica', 'LogÌstica'], 
-    ['Sup. P·tio', 'LogÌstica'], ['Ger. LogÌstica', 'LogÌstica'], 
-    ['Lid. LogÌstica', 'LogÌstica'], ['Aux. Financeiro', 'Financeiro'], 
+    ['Aux. Log√≠stica', 'Log√≠stica'], ['Ass. Log√≠stica 1', 'Log√≠stica'], 
+    ['Ass. Log√≠stica 2', 'Log√≠stica'], ['Sup. Log√≠stica', 'Log√≠stica'], 
+    ['Sup. P√°tio', 'Log√≠stica'], ['Ger. Log√≠stica', 'Log√≠stica'], 
+    ['Lid. Log√≠stica', 'Log√≠stica'], ['Aux. Financeiro', 'Financeiro'], 
     ['Ass. Financeiro 1', 'Financeiro'], ['Ass. Financeiro 2', 'Financeiro'], 
     ['Sup. Financeiro', 'Financeiro'], ['Aux. RH', 'RH'], ['Ass. RH 1', 'RH'], 
     ['Ass. RH 2', 'RH'], ['Ana. RH Jr.', 'RH'], ['Ana. RH Pl.', 'RH'], 
     ['Ana. RH Sr.', 'RH'], ['Cor. de Processos', 'Administrativo'], 
-    ['Motorista', 'Motorista'], ['Ajudante P·tio', 'Ajudante P·tio'], 
-    ['Ajudante Geral', 'Ajudante Geral'], ['ManutenÁ„o', 'ManutenÁ„o'], 
+    ['Motorista', 'Motorista'], ['Ajudante P√°tio', 'Ajudante P√°tio'], 
+    ['Ajudante Geral', 'Ajudante Geral'], ['Manuten√ß√£o', 'Manuten√ß√£o'], 
     ['Ajudante Limpeza', 'Limpeza']
 ];
 
@@ -234,10 +234,10 @@ cargosDeptosSync.forEach(([cNome, cDepto]) => {
     });
 });
 
-// Reativado a SincronizaÁ„o do OneDrive (via SharePoint)
+// Reativado a Sincroniza√ß√£o do OneDrive (via SharePoint)
 const onedrive = require('./utils/onedrive');
 
-// --- CONFIGURA√á√ÉO DE PASTAS PADR√ÉO ---
+// --- CONFIGURA√É‚Ä°√É∆íO DE PASTAS PADR√É∆íO ---
 const FOLDERS = [
     '00_CHECKLIST',
     '01_FICHA_CADASTRAL',
@@ -271,16 +271,16 @@ const FOLDERS = [
  */
 async function syncColaboradorOneDrive(nomeCompleto) {
     if (!onedrive || !process.env.ONEDRIVE_CLIENT_ID) {
-        console.warn("[OneDrive] Pulando sincronizaÁ„o: OneDrive desabilitado ou n„o configurado.");
-        return { sucesso: false, error: "OneDrive n„o configurado" };
+        console.warn("[OneDrive] Pulando sincroniza√ß√£o: OneDrive desabilitado ou n√£o configurado.");
+        return { sucesso: false, error: "OneDrive n√£o configurado" };
     }
     
     // Calcula o caminho ANTES para retornar na resposta
     const nomePasta = formatarNome(nomeCompleto);
-    // V21: Usando ID do SharePoint diretamente. O Drive ID j· È a pasta 'Documentos - America Rental'.
+    // V21: Usando ID do SharePoint diretamente. O Drive ID j√° √© a pasta 'Documentos - America Rental'.
     const onedriveBasePath = "RH/1.Colaboradores/Sistema";
     const onedrivePath = `${onedriveBasePath}/${nomePasta}`;
-    // DISPARAR MODO SINCRONO (O Render ir· aguardar para n„o congelar o processo)
+    // DISPARAR MODO SINCRONO (O Render ir√° aguardar para n√£o congelar o processo)
     console.log(`[OneDrive V24] Modo SharePoint ativo para ${nomeCompleto}. Alvo: ${onedriveBasePath}`);
 
     let msgRetorno = "Pastas do SharePoint criadas com sucesso!";
@@ -289,14 +289,14 @@ async function syncColaboradorOneDrive(nomeCompleto) {
         await onedrive.ensurePath(onedrivePath);
         await Promise.all(FOLDERS.map(f => onedrive.ensureFolder(`${onedrivePath}/${f}`)));
         
-        // ForÁa o OneDrive a sincronizar a pasta em todos os computadores rapidamente
-        console.log(`[OneDrive API] Criando arquivo de inicializaÁ„o para forÁar sincronia...`);
-        await onedrive.uploadToOneDrive(onedrivePath, '_Sincronizado.txt', Buffer.from(`Pasta criada e sincronizada via Sistema AmÈrica.\nColaborador: ${nomeCompleto}\nData: ${new Date().toLocaleString()}`, 'utf-8'));
+        // For√ßa o OneDrive a sincronizar a pasta em todos os computadores rapidamente
+        console.log(`[OneDrive API] Criando arquivo de inicializa√ß√£o para for√ßar sincronia...`);
+        await onedrive.uploadToOneDrive(onedrivePath, '_Sincronizado.txt', Buffer.from(`Pasta criada e sincronizada via Sistema Am√©rica.\nColaborador: ${nomeCompleto}\nData: ${new Date().toLocaleString()}`, 'utf-8'));
         
         console.log(`[OneDrive API] SUCESSO COMPLETO para ${nomeCompleto}`);
     } catch (e) {
         console.error(`[OneDrive API Error] ${nomeCompleto}:`, e.message);
-        msgRetorno = "AtenÁ„o: A sincronizaÁ„o no OneDrive falhou, mas os dados foram salvos.";
+        msgRetorno = "Aten√ß√£o: A sincroniza√ß√£o no OneDrive falhou, mas os dados foram salvos.";
     }
 
     return { 
@@ -309,7 +309,7 @@ async function syncColaboradorOneDrive(nomeCompleto) {
 
 /**
  * Faz upload de um documento (por ID) para o OneDrive.
- * Reutiliza exatamente a mesma lÛgica do force-onedrive-sync que est· comprovada.
+ * Reutiliza exatamente a mesma l√≥gica do force-onedrive-sync que est√° comprovada.
  */
 async function uploadDocToOneDrive(docId) {
     if (!onedrive || !process.env.ONEDRIVE_CLIENT_ID) return;
@@ -323,7 +323,7 @@ async function uploadDocToOneDrive(docId) {
             });
         });
 
-        if (!doc) { console.error(`[OD-AUTO] Doc ${docId} n„o encontrado no DB`); return; }
+        if (!doc) { console.error(`[OD-AUTO] Doc ${docId} n√£o encontrado no DB`); return; }
         // CONTRATOS_AVULSOS: sincroniza ao OneDrive se assinado OU se nao exige assinatura (NAO_EXIGE)
         if (doc.tab_name === 'CONTRATOS_AVULSOS' && doc.assinafy_status !== 'Assinado' && doc.assinafy_status !== 'NAO_EXIGE' && doc.assinafy_status !== 'Nenhum' && doc.assinafy_status !== null && doc.assinafy_status !== '') {
             console.log(`[OD-AUTO] Bloqueando sync OneDrive para doc ${docId} (CONTRATOS_AVULSOS pendente: ${doc.assinafy_status})`);
@@ -334,7 +334,7 @@ async function uploadDocToOneDrive(docId) {
             ? doc.signed_file_path
             : (doc.file_path && require('fs').existsSync(doc.file_path) ? doc.file_path : null);
 
-        if (!localPath) { console.error(`[OD-AUTO] Arquivo n„o encontrado para doc ${docId}`); return; }
+        if (!localPath) { console.error(`[OD-AUTO] Arquivo n√£o encontrado para doc ${docId}`); return; }
 
         const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || 'RH/1.Colaboradores/Sistema';
         const safeColab = formatarNome(doc.nome_completo || 'DESCONHECIDO');
@@ -349,7 +349,7 @@ async function uploadDocToOneDrive(docId) {
             targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}`;
             if (safeTab !== '01_FICHA_CADASTRAL') {
                 targetDir += `/${docYear}`;
-                // Para Pagamentos: sub-pasta com nome do mÍs em portuguÍs (ex: Marco, Abril)
+                // Para Pagamentos: sub-pasta com nome do m√™s em portugu√™s (ex: Marco, Abril)
                 if (safeTab === 'PAGAMENTOS' && doc.month && doc.month !== 'null' && doc.month !== '') {
                     targetDir += `/${getMesNome(doc.month)}`;
                 }
@@ -366,13 +366,13 @@ async function uploadDocToOneDrive(docId) {
         if (doc.tab_name === 'AVALIACAO') {
             cloudName = doc.file_name;
         } else if (isAtestado) {
-            // Se o file_name j· È o nome limpo (cloud_name salvo diretamente), usar as-is
-            // Caso contr·rio tentar remover sufixo _YYYYMMDD_HHMMSS
+            // Se o file_name j√° √© o nome limpo (cloud_name salvo diretamente), usar as-is
+            // Caso contr√°rio tentar remover sufixo _YYYYMMDD_HHMMSS
             const hasTimestamp = /_\d{8}_\d{6}(\.[^.]+)?$/.test(doc.file_name);
             cloudName = hasTimestamp
                 ? doc.file_name.replace(/_\d{8}_\d{6}(\.[^.]+)$/, '$1')
                 : doc.file_name;
-            // Garantir extens„o .pdf
+            // Garantir extens√£o .pdf
             if (!cloudName.toLowerCase().endsWith('.pdf')) cloudName += '.pdf';
         } else if (safeTab === '01_FICHA_CADASTRAL') {
             cloudName = `${(doc.document_type || doc.tab_name).replace(/\s+/g, '_')}_${safeColab}.pdf`;
@@ -380,7 +380,7 @@ async function uploadDocToOneDrive(docId) {
             // Outros Contratos: salvar como Outros_NomeContrato_NomeColab.pdf
             cloudName = `Outros_${formatarPasta(doc.document_type || doc.tab_name).replace(/\s+/g, '_')}_${safeColab}.pdf`;
         } else if (safeTab === 'FACULDADE') {
-            // Faculdade: inclui o mÍs no nome (Boletim_Jan_2026_NOME.pdf / Boleto_Jan_2026_NOME.pdf)
+            // Faculdade: inclui o m√™s no nome (Boletim_Jan_2026_NOME.pdf / Boleto_Jan_2026_NOME.pdf)
             const mesNomeFac = doc.month && doc.month !== 'null' && doc.month !== '' ? getMesNome(doc.month) + '_' : '';
             cloudName = `${formatarPasta(doc.document_type || doc.tab_name).replace(/\s+/g, '_')}_${mesNomeFac}${docYear}_${safeColab}.pdf`;
         } else {
@@ -414,11 +414,11 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const SECRET_KEY = process.env.SECRET_KEY || 'america_rental_secret_key_123';
 
-// ConfiguraÁ„o de Armazenamento (Din‚mico para Render/Linux ou Disco Persistente)
+// Configura√ß√£o de Armazenamento (Din√¢mico para Render/Linux ou Disco Persistente)
 const BASE_PATH = process.env.STORAGE_PATH || path.join(__dirname, 'data', 'Colaboradores');
 const BASE_UPLOAD_PATH = BASE_PATH; // Mantendo compatibilidade
 
-// ConfiguraÁ„o Assinafy (Preencha aqui com sua chave de API e Account ID)
+// Configura√ß√£o Assinafy (Preencha aqui com sua chave de API e Account ID)
 const ASSINAFY_CONFIG = {
     apiKey: 'AxaT-FiXBckHqEYV0s_MtUhLF3pReRz3dX4zVpC173vmjDwzLGHYtDJuQje4-4Pd',
     accountId: '10237785fb23cf473d54845a013e',
@@ -463,15 +463,15 @@ function extractSignedUrl(docData) {
 try {
     if (!fs.existsSync(BASE_UPLOAD_PATH)) {
         fs.mkdirSync(BASE_UPLOAD_PATH, { recursive: true });
-        console.log("DIRET√ìRIO BASE DE UPLOAD CRIADO:", BASE_UPLOAD_PATH);
+        console.log("DIRET√É‚ÄúRIO BASE DE UPLOAD CRIADO:", BASE_UPLOAD_PATH);
     }
 } catch (e) {
-    console.error("AVISO CRÕTICO: N„o foi possÌvel criar a pasta base de upload:", e.message);
+    console.error("AVISO CR√çTICO: N√£o foi poss√≠vel criar a pasta base de upload:", e.message);
     console.error("Caminho tentado:", BASE_UPLOAD_PATH);
-    // N„o encerramos o processo para permitir que o servidor suba em modo leitura ou com falhas parciais
+    // N√£o encerramos o processo para permitir que o servidor suba em modo leitura ou com falhas parciais
 }
 
-// Nomes dos meses em portuguÍs sem acentos (para caminhos de pasta no OneDrive)
+// Nomes dos meses em portugu√™s sem acentos (para caminhos de pasta no OneDrive)
 const MONTH_NAMES_PT = ['Janeiro','Fevereiro','Marco','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 function getMesNome(monthStr) {
     const idx = parseInt(monthStr, 10) - 1;
@@ -513,12 +513,12 @@ const storage = multer.diskStorage({
         try {
             if (!fs.existsSync(finalDir)) {
                 fs.mkdirSync(finalDir, { recursive: true });
-                console.log("DIRET√ìRIO CRIADO:", finalDir);
+                console.log("DIRET√É‚ÄúRIO CRIADO:", finalDir);
             }
             cb(null, finalDir);
         } catch (err) {
-            console.error("ERRO AO CRIAR DIRET√ìRIO DE UPLOAD:", err);
-            cb(new Error("N„o foi possÌvel criar a pasta de destino para o upload. Verifique as permissıes de gravaÁ„o."));
+            console.error("ERRO AO CRIAR DIRET√É‚ÄúRIO DE UPLOAD:", err);
+            cb(new Error("N√£o foi poss√≠vel criar a pasta de destino para o upload. Verifique as permiss√µes de grava√ß√£o."));
         }
     },
     filename: function (req, file, cb) {
@@ -542,7 +542,7 @@ const storage = multer.diskStorage({
             base = `${safeType}_${safeColab}`;
         }
 
-        // Timestamp formatado YYYYMMDD_HHMM para ser mais legÌvel que milissegundos
+        // Timestamp formatado YYYYMMDD_HHMM para ser mais leg√≠vel que milissegundos
         const d = new Date();
         const ts = d.getFullYear() + 
                    String(d.getMonth() + 1).padStart(2, '0') + 
@@ -562,12 +562,12 @@ const storageFoto = multer.memoryStorage();
 const uploadFoto = multer({ storage: storageFoto });
 
 
-// --- CONFIGURA√á√ÉO DE MIDDLEWARES ---
+// --- CONFIGURA√É‚Ä°√É∆íO DE MIDDLEWARES ---
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// ROTA DE VERS√O (Para verificar implantaÁ„o)
+// ROTA DE VERS√ÉO (Para verificar implanta√ß√£o)
 app.get('/api/version', (req, res) => res.json({ version: 'V48_OUTROS_CONTRATOS_FIX' }));
 
 app.get('/api/debug-pfx3', async (req, res) => {
@@ -620,11 +620,11 @@ app.get('/api/check-pfx', (req, res) => {
     }
 });
 
-// --- M”DULO DE ASSINATURA DIGITAL COM CERTIFICADO .PFX -----------------------
+// --- M√ìDULO DE ASSINATURA DIGITAL COM CERTIFICADO .PFX -----------------------
 const signPdfPfx = require('./sign_pdf_pfx');
 // -----------------------------------------------------------------------------
 
-// --- POLLING AUTOM¡TICO: Atualizar status de documentos de admiss„o -----------
+// --- POLLING AUTOM√ÅTICO: Atualizar status de documentos de admiss√£o -----------
 // Roda a cada 2 min e verifica se documentos pendentes foram assinados no Assinafy
 async function pollAdmissaoAssinaturas() {
     try {
@@ -641,7 +641,7 @@ async function pollAdmissaoAssinaturas() {
         const rawPendentes = [...(pendentesAdmissao || []), ...(pendentesDocs || [])];
         if (!rawPendentes || rawPendentes.length === 0) return;
 
-        // Deduplicar pendentes por assinafy_id para n„o sobrecarregar API e evitar duplo insert/update
+        // Deduplicar pendentes por assinafy_id para n√£o sobrecarregar API e evitar duplo insert/update
         const seenPollIds = new Set();
         const pendentes = [];
         for (const p of rawPendentes) {
@@ -699,7 +699,7 @@ async function pollAdmissaoAssinaturas() {
 
                 console.log(`[POLL-ADMISSAO] ? Doc ${doc.assinafy_id} ASSINADO!`);
 
-                // Baixar PDF do Assinafy em memÛria (evita dependÍncia de disco efÍmero)
+                // Baixar PDF do Assinafy em mem√≥ria (evita depend√™ncia de disco ef√™mero)
                 let pdfBuffer = null;
                 const signedUrl = extractSignedUrl(docData);
                 if (signedUrl) {
@@ -728,19 +728,19 @@ async function pollAdmissaoAssinaturas() {
                             });
                             console.log(`[POLL-ADMISSAO] ? Certificado digital aplicado: ${certSignedBuffer.length} bytes`);
                         } catch(pfxErr) {
-                            console.warn(`[POLL-ADMISSAO] Certificado n„o aplicado: ${pfxErr.message}`);
+                            console.warn(`[POLL-ADMISSAO] Certificado n√£o aplicado: ${pfxErr.message}`);
                         }
                     }
                 }
 
-                // O buffer final que ser· salvo (com cert se disponÌvel, ou apenas assinado pelo colab)
+                // O buffer final que ser√° salvo (com cert se dispon√≠vel, ou apenas assinado pelo colab)
                 const finalBuffer = certSignedBuffer || pdfBuffer;
 
-                // Tentar sincronizar com OneDrive diretamente da memÛria (sem salvar em disco)
+                // Tentar sincronizar com OneDrive diretamente da mem√≥ria (sem salvar em disco)
                 let onedriveOk = false;
-                // Regra de OneDrive por subtipo de AdvertÍncia:
-                //  OcorrÍncia / Verbal -> n„o sincroniza no poll (j· sincronizou apÛs testemunhas ou nunca)
-                //  Escrita / Suspens„o -> sobrescreve apÛs assinatura do colaborador
+                // Regra de OneDrive por subtipo de Advert√™ncia:
+                //  Ocorr√™ncia / Verbal -> n√£o sincroniza no poll (j√° sincronizou ap√≥s testemunhas ou nunca)
+                //  Escrita / Suspens√£o -> sobrescreve ap√≥s assinatura do colaborador
                 const _tipoSimplesP = (doc.document_type || '').split('###')[1] || '';
                 const _skipOneDriveP = /ocorr|verbal/i.test(_tipoSimplesP);
                 if (onedrive && finalBuffer && !_skipOneDriveP) {
@@ -765,13 +765,13 @@ async function pollAdmissaoAssinaturas() {
                                         : `${formatarPasta(doc.nome_documento || doc.tab_name || 'Documento').replace(/\s+/g, '_')}_${docYear}_${safeColab}.pdf`;
                                   })();
                             if (isContratosAvulso) {
-                                // Contratos avulsos v„o em CONTRATOS/outros/
+                                // Contratos avulsos v√£o em CONTRATOS/outros/
                                 const contratosDir = `${onedriveBasePath}/${safeColab}/CONTRATOS`;
                                 targetDir = `${onedriveBasePath}/${safeColab}/CONTRATOS`;
                                 await onedrive.ensurePath(contratosDir);
                                 await onedrive.ensurePath(targetDir);
                             } else {
-                                // Montar o targetDir com mÍs para Pagamentos
+                                // Montar o targetDir com m√™s para Pagamentos
                                 targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}/${docYear}`;
                                 if (safeTab === 'PAGAMENTOS' && doc.month && doc.month !== 'null' && doc.month !== '') {
                                     targetDir += `/${getMesNome(doc.month)}`;
@@ -806,7 +806,7 @@ db.run("INSERT OR REPLACE INTO logs (msg) VALUES (?)", ['OneDrive Sync Error: ' 
                         fs.writeFileSync(destPath, finalBuffer);
                         signedPath = destPath;
                     } catch(e) {
-                        console.warn(`[POLL-ADMISSAO] Disco local indisponÌvel (normal no Render): ${e.message}`);
+                        console.warn(`[POLL-ADMISSAO] Disco local indispon√≠vel (normal no Render): ${e.message}`);
                     }
                 }
 
@@ -829,7 +829,7 @@ db.run("INSERT OR REPLACE INTO logs (msg) VALUES (?)", ['OneDrive Sync Error: ' 
     }
 }
 
-// Iniciar polling apÛs o servidor subir (aguarda 30s e depois a cada 30 segundos)
+// Iniciar polling ap√≥s o servidor subir (aguarda 30s e depois a cada 30 segundos)
 setTimeout(() => {
     pollAdmissaoAssinaturas();
     setInterval(pollAdmissaoAssinaturas, 30 * 1000);
@@ -837,7 +837,7 @@ setTimeout(() => {
 console.log('[POLL-ADMISSAO] Job de polling configurado (a cada 30 segundos).');
 // -----------------------------------------------------------------------------
 
-// Endpoint de alertas realtime: retorna documentos de admiss„o e prontu·rio assinados nas ˙ltimas 24h
+// Endpoint de alertas realtime: retorna documentos de admiss√£o e prontu√°rio assinados nas √∫ltimas 24h
 app.get('/api/admissao-assinaturas/alertas-recentes', authenticateToken, (req, res) => {
     db.all(`
         SELECT * FROM (
@@ -882,7 +882,7 @@ app.post('/api/assinaturas/reenviar', authenticateToken, async (req, res) => {
         const doc = await new Promise((resolve, reject) => 
             db.get(`SELECT assinafy_id, assinafy_url, colaborador_id, ${docColName} FROM ${table} WHERE id=?`, [id], (err, r) => err?reject(err):resolve(r))
         );
-        if (!doc || !doc.assinafy_id) return res.status(404).json({ error: 'Assinatura vinculada n„o encontrada.' });
+        if (!doc || !doc.assinafy_id) return res.status(404).json({ error: 'Assinatura vinculada n√£o encontrada.' });
         
         let signLink = doc.assinafy_url;
         
@@ -923,25 +923,25 @@ app.post('/api/assinaturas/reenviar', authenticateToken, async (req, res) => {
                     const html = `
                         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden;">
                             <div style="background: #fff; padding: 0;">
-                                <img src="${logoUrl}" alt="AmÈrica Rental" style="width: 100%; display: block; max-height: 120px; object-fit: cover;" onerror="this.style.display='none'">
+                                <img src="${logoUrl}" alt="Am√©rica Rental" style="width: 100%; display: block; max-height: 120px; object-fit: cover;" onerror="this.style.display='none'">
                             </div>
                             <div style="padding: 1.5rem 2rem;">
                                 <h2 style="color: #0f4c81; margin-top: 0;">Lembrete de Assinatura</h2>
-                                <p>Ol· <strong>${colab.nome_completo || 'Colaborador'}</strong>,</p>
-                                <p>VocÍ tem um documento pendente de assinatura no sistema da AmÈrica Rental: <strong>${doc.nome_documento || 'Documento'}</strong>.</p>
-                                <p>Por favor, clique no bot„o abaixo para revisar e assinar digitalmente:</p>
+                                <p>Ol√° <strong>${colab.nome_completo || 'Colaborador'}</strong>,</p>
+                                <p>Voc√™ tem um documento pendente de assinatura no sistema da Am√©rica Rental: <strong>${doc.nome_documento || 'Documento'}</strong>.</p>
+                                <p>Por favor, clique no bot√£o abaixo para revisar e assinar digitalmente:</p>
                                 <div style="text-align: center; margin: 30px 0;">
                                     <a href="${signLink}" style="background-color: #0f4c81; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Assinar Documento</a>
                                 </div>
-                                <p style="color: #666; font-size: 12px;">Se o bot„o n„o funcionar, cole este link no seu navegador:<br>${signLink}</p>
+                                <p style="color: #666; font-size: 12px;">Se o bot√£o n√£o funcionar, cole este link no seu navegador:<br>${signLink}</p>
                                 <hr style="border: none; border-top: 1px solid #eee; margin: 25px 0;">
-                                <p style="color: #999; font-size: 11px;">Este È um e-mail autom·tico, por favor n„o responda.</p>
+                                <p style="color: #999; font-size: 11px;">Este √© um e-mail autom√°tico, por favor n√£o responda.</p>
                             </div>
                         </div>
                     `;
                     
                     await transporter.sendMail({
-                        from: `"RH - AmÈrica Rental" <${SMTP_CONFIG.auth.user}>`,
+                        from: `"RH - Am√©rica Rental" <${SMTP_CONFIG.auth.user}>`,
                         to: destEmail,
                         subject: `Lembrete de Assinatura - ${doc.nome_documento || 'Documento'}`,
                         html: html
@@ -950,10 +950,10 @@ app.post('/api/assinaturas/reenviar', authenticateToken, async (req, res) => {
                     return res.json({ success: true, messsage: 'E-mail enviado com sucesso.', link: signLink });
                 }
             }
-            // Se nao enviou e-mail (por falta de email cadastrado), devolve apenas o success (frontend far· fallback ou dir· q o e-mail n„o foi encontrado)
-            res.json({ success: true, warn: 'Colaborador sem e-mail cadastrado. URL recuperada, mas n„o enviada via sistema.', link: signLink });
+            // Se nao enviou e-mail (por falta de email cadastrado), devolve apenas o success (frontend far√° fallback ou dir√° q o e-mail n√£o foi encontrado)
+            res.json({ success: true, warn: 'Colaborador sem e-mail cadastrado. URL recuperada, mas n√£o enviada via sistema.', link: signLink });
         } else {
-            res.status(400).json({ error: 'N„o foi possÌvel detectar o link do documento na nuvem.' });
+            res.status(400).json({ error: 'N√£o foi poss√≠vel detectar o link do documento na nuvem.' });
         }
     } catch(e) {
         res.status(500).json({ error: e.message });
@@ -980,12 +980,12 @@ app.delete('/api/assinaturas/limpar-testes', authenticateToken, async (req, res)
 // Rota para marcar documento como Outro Meio
 app.post('/api/admissao-assinaturas/outro-meio', authenticateToken, (req, res) => {
     const { id, source } = req.body;
-    if (!id || !source) return res.status(400).json({ error: 'id e source s„o obrigatÛrios' });
+    if (!id || !source) return res.status(400).json({ error: 'id e source s√£o obrigat√≥rios' });
 
     let table = source === 'admissao' ? 'admissao_assinaturas' : 'documentos';
     db.run(`UPDATE ${table} SET assinafy_status = 'Outro Meio' WHERE id = ?`, [id], function(err) {
         if (err) return res.status(500).json({ error: err.message });
-        if (this.changes === 0) return res.status(404).json({ error: 'Documento n„o encontrado' });
+        if (this.changes === 0) return res.status(404).json({ error: 'Documento n√£o encontrado' });
         res.json({ ok: true, message: 'Documento marcado como resolvido (Outro Meio).' });
     });
 });
@@ -995,7 +995,7 @@ app.get('/api/admissao-assinaturas/todos', authenticateToken, async (req, res) =
             db.all(sql, params, (err, rows) => err ? reject(err) : resolve(rows || []))
         );
 
-        // Query 1: Contratos de admiss„o
+        // Query 1: Contratos de admiss√£o
         const admissaoRows = await dbAll(`
             SELECT aa.id, aa.nome_documento, aa.assinafy_status, aa.assinafy_id,
                    aa.enviado_em, aa.assinado_em, aa.colaborador_id,
@@ -1008,7 +1008,7 @@ app.get('/api/admissao-assinaturas/todos', authenticateToken, async (req, res) =
             WHERE aa.assinafy_id IS NOT NULL
         `, []);
 
-        // Query 2: Documentos do prontu·rio (ASO, EPI, etc.) ó sem coluna assinafy_sent_at/signed_at para compatibilidade
+        // Query 2: Documentos do prontu√°rio (ASO, EPI, etc.) ‚Äî sem coluna assinafy_sent_at/signed_at para compatibilidade
         const docRows = await dbAll(`
             SELECT d.id, d.document_type AS nome_documento, d.assinafy_status, d.assinafy_id,
                    d.colaborador_id,
@@ -1022,7 +1022,7 @@ app.get('/api/admissao-assinaturas/todos', authenticateToken, async (req, res) =
               AND d.assinafy_status IS NOT NULL
         `, []);
 
-        // Buscar datas de envio/assinatura para documentos (colunas que podem n„o existir dependendo da migraÁ„o)
+        // Buscar datas de envio/assinatura para documentos (colunas que podem n√£o existir dependendo da migra√ß√£o)
         let docDates = {};
         try {
             const datesRows = await dbAll(`
@@ -1031,7 +1031,7 @@ app.get('/api/admissao-assinaturas/todos', authenticateToken, async (req, res) =
             `, []);
             datesRows.forEach(r => { docDates[r.id] = { enviado_em: r.enviado_em, assinado_em: r.assinado_em }; });
         } catch(e) {
-            console.warn('[/todos] Colunas de data assinafy n„o encontradas:', e.message);
+            console.warn('[/todos] Colunas de data assinafy n√£o encontradas:', e.message);
         }
 
         // Merge das datas nos documentos
@@ -1048,7 +1048,7 @@ app.get('/api/admissao-assinaturas/todos', authenticateToken, async (req, res) =
             return dateB - dateA;
         });
 
-        // Deduplicar por assinafy_id para evitar duplicaÁ„o ("admissao_assinaturas" vs "documentos")
+        // Deduplicar por assinafy_id para evitar duplica√ß√£o ("admissao_assinaturas" vs "documentos")
         const seenIds = new Set();
         const all = [];
         for (const item of rawAll) {
@@ -1065,10 +1065,10 @@ app.get('/api/admissao-assinaturas/todos', authenticateToken, async (req, res) =
     }
 });
 
-// Endpoint para forÁar verificaÁ„o imediata de status do colaborador
+// Endpoint para for√ßar verifica√ß√£o imediata de status do colaborador
 app.post('/api/admissao-assinaturas/verificar-status', authenticateToken, async (req, res) => {
     const { colaborador_id } = req.body;
-    if (!colaborador_id) return res.status(400).json({ error: 'colaborador_id obrigatÛrio' });
+    if (!colaborador_id) return res.status(400).json({ error: 'colaborador_id obrigat√≥rio' });
 
     try {
         const pendentes = await new Promise((resolve, reject) =>
@@ -1123,7 +1123,7 @@ app.post('/api/admissao-assinaturas/verificar-status', authenticateToken, async 
     }
 });
 
-// DIAGN”STICO: compara tabelas e status real no Assinafy
+// DIAGN√ìSTICO: compara tabelas e status real no Assinafy
 app.get('/api/admissao-assinaturas/diagnostico/:colaborador_id', authenticateToken, async (req, res) => {
     const { colaborador_id } = req.params;
     try {
@@ -1181,11 +1181,11 @@ app.post('/api/assinafy/upload', async (req, res) => {
         
         console.log(`[ASSINAFY SYNC] Enviado! ID=${resultado?.assinafyDocId} URL=${resultado?.urlAssinatura}`);
 
-        // Enviar cÛpia de notificaÁ„o para o sistema via SMTP
+        // Enviar c√≥pia de notifica√ß√£o para o sistema via SMTP
         try {
             const transporter = nodemailer.createTransport(SMTP_CONFIG);
             await transporter.sendMail({
-                from: `"RH AmÈrica Rental" <${SMTP_CONFIG.auth.user}>`,
+                from: `"RH Am√©rica Rental" <${SMTP_CONFIG.auth.user}>`,
                 to: 'americasistema48@gmail.com',
                 subject: `?? Assinatura solicitada: ${resultado?.docType?.split('###')[0] || 'Documento'} - ${resultado?.nomeColab}`,
                 html: `
@@ -1198,14 +1198,14 @@ app.post('/api/assinafy/upload', async (req, res) => {
                             <tr style="background:#f9f9f9"><td style="padding:8px;color:#666"><strong>Link de acesso:</strong></td><td style="padding:8px;"><a href="${resultado?.urlAssinatura}" style="color:#e07b39;">${resultado?.urlAssinatura}</a></td></tr>
                             <tr><td style="padding:8px;color:#666"><strong>Enviado em:</strong></td><td style="padding:8px;">${new Date().toLocaleString('pt-BR')}</td></tr>
                         </table>
-                        <p style="margin-top:20px;font-size:12px;color:#999;">Este È um e-mail autom·tico do Sistema AmÈrica Rental.</p>
+                        <p style="margin-top:20px;font-size:12px;color:#999;">Este √© um e-mail autom√°tico do Sistema Am√©rica Rental.</p>
                     </div>
                 `
             });
-            console.log('[ASSINAFY] CÛpia de notificaÁ„o enviada para americasistema48@gmail.com');
+            console.log('[ASSINAFY] C√≥pia de notifica√ß√£o enviada para americasistema48@gmail.com');
         } catch (mailErr) {
-            console.error('[ASSINAFY] Falha ao enviar cÛpia de notificaÁ„o:', mailErr.message);
-            // N„o bloqueia o fluxo principal
+            console.error('[ASSINAFY] Falha ao enviar c√≥pia de notifica√ß√£o:', mailErr.message);
+            // N√£o bloqueia o fluxo principal
         }
         
         res.json({
@@ -1227,7 +1227,7 @@ app.post('/api/assinafy/upload', async (req, res) => {
     }
 });
 
-// Middleware de AutenticaÁ„o (Bypass tempor·rio para facilitar dev do frontend)
+// Middleware de Autentica√ß√£o (Bypass tempor√°rio para facilitar dev do frontend)
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = (authHeader && authHeader.split(' ')[1]) || req.query.token;
@@ -1236,20 +1236,20 @@ function authenticateToken(req, res, next) {
     if (!token) return res.status(401).json({ error: 'Acesso negado' });
     
     jwt.verify(token, SECRET_KEY, (err, user) => {
-        if (err) return res.status(403).json({ error: 'Token inv·lido' });
+        if (err) return res.status(403).json({ error: 'Token inv√°lido' });
         req.user = user;
         next();
     });
 }
 
-// --- ROTAS DE AUTENTICA√á√ÉO ---
+// --- ROTAS DE AUTENTICA√É‚Ä°√É∆íO ---
 app.post('/api/auth/login', (req, res) => {
     const { username, password } = req.body;
     db.get(`SELECT u.*, g.nome as grupo_nome FROM usuarios u LEFT JOIN grupos_permissao g ON g.id = u.grupo_permissao_id WHERE u.username = ?`, [username], (err, user) => {
-        if (err || !user) return res.status(401).json({ error: 'Usu·rio ou senha incorretos' });
+        if (err || !user) return res.status(401).json({ error: 'Usu√°rio ou senha incorretos' });
         if (user.ativo === 0) return res.status(403).json({ error: 'Conta inativa. Acesso bloqueado.' });
         const valid = bcrypt.compareSync(password, user.password_hash);
-        if (!valid) return res.status(401).json({ error: 'Usu·rio ou senha incorretos' });
+        if (!valid) return res.status(401).json({ error: 'Usu√°rio ou senha incorretos' });
         const token = jwt.sign({ id: user.id, username: user.username, role: user.role, grupo_permissao_id: user.grupo_permissao_id, departamento: user.departamento, grupo_nome: user.grupo_nome }, SECRET_KEY, { expiresIn: '8h' });
         res.json({ token, user: { id: user.id, username: user.username, role: user.role, grupo_permissao_id: user.grupo_permissao_id, departamento: user.departamento, grupo_nome: user.grupo_nome } });
     });
@@ -1305,22 +1305,22 @@ app.get('/api/dashboard', authenticateToken, (req, res) => {
             stats.total += 1;
             let effectiveStatus = row.status || 'Ativo';
             
-            // LÛgica de fÈrias autom·tica: Se status È Ativo/FÈrias e hoje est· no perÌodo, muda para FÈrias
-            if (effectiveStatus === 'Ativo' || effectiveStatus === 'FÈrias') {
+            // L√≥gica de f√©rias autom√°tica: Se status √© Ativo/F√©rias e hoje est√° no per√≠odo, muda para F√©rias
+            if (effectiveStatus === 'Ativo' || effectiveStatus === 'F√©rias') {
                 if (row.ferias_programadas_inicio && row.ferias_programadas_fim) {
                     if (today >= row.ferias_programadas_inicio && today <= row.ferias_programadas_fim) {
-                        effectiveStatus = 'FÈrias';
-                    } else if (effectiveStatus === 'FÈrias') {
+                        effectiveStatus = 'F√©rias';
+                    } else if (effectiveStatus === 'F√©rias') {
                         effectiveStatus = 'Ativo';
                     }
                 }
             }
 
-            if (effectiveStatus === 'Ativo' || effectiveStatus === 'Em IntegraÁ„o') stats.ativos += 1;
-            else if (effectiveStatus === 'FÈrias') stats.ferias += 1;
+            if (effectiveStatus === 'Ativo' || effectiveStatus === 'Em Integra√ß√£o') stats.ativos += 1;
+            else if (effectiveStatus === 'F√©rias') stats.ferias += 1;
             else if (effectiveStatus === 'Afastado') stats.afastados += 1;
             else if (effectiveStatus === 'Desligado') stats.desligados += 1;
-            else if (effectiveStatus === 'Aguardando inÌcio') stats.aguardando += 1;
+            else if (effectiveStatus === 'Aguardando in√≠cio') stats.aguardando += 1;
             else if (effectiveStatus === 'Processo iniciado') stats.iniciado += 1;
         });
         res.json(stats);
@@ -1507,7 +1507,7 @@ app.get('/api/colaboradores', authenticateToken, (req, res) => {
             ) as faltas_ano,
             (SELECT COUNT(*) FROM documentos d 
              WHERE d.colaborador_id = c.id 
-               AND (d.document_type LIKE '%AdvertÍncia%' OR d.document_type LIKE '%Suspens„o%' OR d.tab_name LIKE '%AdvertÍncia%' OR d.tab_name LIKE '%Suspens„o%')
+               AND (d.document_type LIKE '%Advert√™ncia%' OR d.document_type LIKE '%Suspens√£o%' OR d.tab_name LIKE '%Advert√™ncia%' OR d.tab_name LIKE '%Suspens√£o%')
             ) as punicoes
         FROM colaboradores c
     `;
@@ -1519,7 +1519,7 @@ app.get('/api/colaboradores', authenticateToken, (req, res) => {
 
 app.get('/api/colaboradores/:id', authenticateToken, (req, res) => {
     db.get('SELECT * FROM colaboradores WHERE id = ?', [req.params.id], (err, row) => {
-        if (err || !row) return res.status(err ? 500 : 404).json({ error: err ? err.message : 'N„o encontrado' });
+        if (err || !row) return res.status(err ? 500 : 404).json({ error: err ? err.message : 'N√£o encontrado' });
         
         db.all('SELECT chave_id, data_entrega FROM colaborador_chaves WHERE colaborador_id = ?', [req.params.id], (err2, chaves) => {
             if (err2) return res.status(500).json({ error: err2.message });
@@ -1540,7 +1540,7 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
     const nomeOriginal = data.nome_completo || data.nome;
 
     if (!nomeOriginal || !data.cpf || !data.email || !data.telefone) {
-        return res.status(400).json({ error: "Nome, CPF, Email e Telefone s„o campos obrigatÛrios" });
+        return res.status(400).json({ error: "Nome, CPF, Email e Telefone s√£o campos obrigat√≥rios" });
     }
 
     const nomePasta = formatarNome(nomeOriginal);
@@ -1558,7 +1558,7 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
         console.error("ERRO AO CRIAR PASTAS LOCAIS:", erro);
     }
     
-    // (A SincronizaÁ„o foi movida para o final do processo, apÛs salvar no banco)
+    // (A Sincroniza√ß√£o foi movida para o final do processo, ap√≥s salvar no banco)
 
     const colunas = [
         'nome_completo', 'cpf', 'rg', 'data_nascimento', 'estado_civil', 'nacionalidade',
@@ -1599,7 +1599,7 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
     db.run(query, values, async function(err) {
         if (err) {
             console.error("ERRO AO SALVAR:", err);
-            const msg = err.message.includes("UNIQUE constraint failed") ? "Este CPF j· est· cadastrado." : err.message;
+            const msg = err.message.includes("UNIQUE constraint failed") ? "Este CPF j√° est√° cadastrado." : err.message;
             return res.status(400).json({ error: msg });
         }
         const newColabId = this.lastID;
@@ -1620,11 +1620,11 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
             });
         }
         
-        let syncStatus = "SincronizaÁ„o local";
+        let syncStatus = "Sincroniza√ß√£o local";
         if (onedrive) {
             // Disparar sync no OneDrive sem bloquear a resposta HTTP
             syncColaboradorOneDrive(nomeOriginal).catch(e => console.error("[OneDrive] Erro de Sync POST Async:", e));
-            syncStatus = "SincronizaÁ„o SharePoint iniciada";
+            syncStatus = "Sincroniza√ß√£o SharePoint iniciada";
         }
 
         res.status(201).json({ id: newColabId, sucesso: true, syncMsg: syncStatus });
@@ -1643,7 +1643,7 @@ app.get('/api/test/america', authenticateToken, async (req, res) => {
 });
 
 /**
- * ROTA DE DIAGN”STICO: Verificar PersistÍncia do Banco
+ * ROTA DE DIAGN√ìSTICO: Verificar Persist√™ncia do Banco
  */
 app.get('/api/maintenance/db-info', authenticateToken, (req, res) => {
     const dbPath = process.env.DATABASE_PATH || require('path').join(__dirname, 'data', 'hr_system_v2.sqlite');
@@ -1662,7 +1662,7 @@ app.get('/api/maintenance/db-info', authenticateToken, (req, res) => {
                         is_persistent: isPersistent,
                         aviso: isPersistent
                             ? '? Banco em disco persistente (Render Disk configurado)'
-                            : '??  BANCO EF MERO! Dados ser„o perdidos ao reiniciar o servidor. Configure DATABASE_PATH apontando para um Render Disk.',
+                            : '??  BANCO EF√äMERO! Dados ser√£o perdidos ao reiniciar o servidor. Configure DATABASE_PATH apontando para um Render Disk.',
                         tamanho_bytes: tamanho,
                         contagens: {
                             usuarios: r1 ? r1.total : '?',
@@ -1678,7 +1678,7 @@ app.get('/api/maintenance/db-info', authenticateToken, (req, res) => {
 });
 
 /**
- * ROTA DE DIAGN√ìSTICO: Testar Conex„o OneDrive
+ * ROTA DE DIAGN√É‚ÄúSTICO: Testar Conex√£o OneDrive
  */
 app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) => {
     try {
@@ -1693,14 +1693,14 @@ app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) =>
         if (!config.clientId || !config.tenantId || !config.clientSecret) {
             return res.status(400).json({ 
                 sucesso: false, 
-                error: "ConfiguraÁıes incompletas no Render. Verifique CLIENT_ID, TENANT_ID e SECRET.",
+                error: "Configura√ß√µes incompletas no Render. Verifique CLIENT_ID, TENANT_ID e SECRET.",
                 details: config
             });
         }
 
         const accessToken = await onedrive.getAccessToken();
         const client = await onedrive.getGraphClient();
-        // PRIORIDADE: ID Real da AmÈrica Rental encontrado pelo Mega Finder
+        // PRIORIDADE: ID Real da Am√©rica Rental encontrado pelo Mega Finder
         const driveId = "b!giGJ-6SQo0q01aZkBQjqEzgftfBe2OJGpvVeTh2YrbQTUqm85gobSoh8CtELSzAF";
         const drivePrefix = driveId ? `/drives/${driveId}/root` : `/users/${config.email}/drive/root`;
         
@@ -1713,11 +1713,11 @@ app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) =>
             rootItems = (resRaiz.value || []).map(item => item.name);
         } catch (rErr) { console.warn("Erro ao ler raiz:", rErr.message); }
 
-        // 2. BUSCA GLOBAL (GPS) - Procurar pasta 'RH' em toda a organizaÁ„o
+        // 2. BUSCA GLOBAL (GPS) - Procurar pasta 'RH' em toda a organiza√ß√£o
         let rhLocation = null;
         try {
             const searchRH = await client.api(`/sites/root/drive/root/search(q='RH')`).get();
-            // Se n„o achar no root, tentar busca global de itens
+            // Se n√£o achar no root, tentar busca global de itens
             const searchGlobal = await client.api(`/search/query`).post({
                 requests: [{
                     entityTypes: ['driveItem'],
@@ -1727,7 +1727,7 @@ app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) =>
             rhLocation = searchGlobal.value?.[0]?.hitsContainers?.[0]?.hits?.[0]?.resource || null;
         } catch (gpsErr) { console.warn("Erro GPS:", gpsErr.message); }
 
-        // Vari·veis de diagnÛstico
+        // Vari√°veis de diagn√≥stico
         let driveName = infoRaiz ? (infoRaiz.name || (driveId ? "SharePoint" : "OneDrive")) : "OneDrive";
         let infoPasta = null;
         let basePathItems = [];
@@ -1745,7 +1745,7 @@ app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) =>
                 const items = await client.api(`${drivePrefix}:/${encodedBasePath}:/children`).get();
                 basePathItems = items.value.map(i => i.name);
             } catch (pErr) {
-                basePathItems = [`‚ö†Ô∏è Erro no caminho: ${pErr.message}`];
+                basePathItems = [`√¢≈°¬†√Ø¬∏¬è Erro no caminho: ${pErr.message}`];
             }
         } catch (dErr) {
             driveInfo = { name: "ERRO", error: dErr.message };
@@ -1774,7 +1774,7 @@ app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) =>
             siteDiscovery: siteDrives,
             config: {
                 basePath: config.basePath,
-                webUrlBase: infoPasta ? infoPasta.webUrl : "Pasta n„o localizada",
+                webUrlBase: infoPasta ? infoPasta.webUrl : "Pasta n√£o localizada",
                 webUrlRaiz: infoRaiz ? infoRaiz.webUrl : "N/A",
                 idReal: driveId || "Personal"
             }
@@ -1783,7 +1783,7 @@ app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) =>
         console.error("OneDrive Test Failure:", e);
         res.status(500).json({ 
             sucesso: false, 
-            error: "Falha na conex„o: " + e.message,
+            error: "Falha na conex√£o: " + e.message,
             code: e.code,
             details: e.body ? JSON.parse(e.body) : null
         });
@@ -1795,7 +1795,7 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
     const id = req.params.id;
 
     if (('email' in data && !data.email) || ('telefone' in data && !data.telefone)) {
-        return res.status(400).json({ error: "Email e Telefone s„o campos obrigatÛrios e n„o podem ser vazios" });
+        return res.status(400).json({ error: "Email e Telefone s√£o campos obrigat√≥rios e n√£o podem ser vazios" });
     }
 
     const colunas = [
@@ -1831,7 +1831,7 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
     const updates = bodyKeys.filter(k => allowedColunas.includes(k));
     
     if (updates.length === 0) {
-        return res.json({ message: 'Nenhuma alteraÁ„o enviada' });
+        return res.json({ message: 'Nenhuma altera√ß√£o enviada' });
     }
 
     const setClauses = updates.map(k => `${k} = ?`).join(', ');
@@ -1844,9 +1844,9 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
     console.log("EXEC VALUES:", values);
 
     db.get('SELECT * FROM colaboradores WHERE id = ?', [id], (err, oldColab) => {
-        if (err || !oldColab) return res.status(404).json({ error: err ? err.message : 'N„o encontrado' });
+        if (err || !oldColab) return res.status(404).json({ error: err ? err.message : 'N√£o encontrado' });
         
-        // Registrar mudanÁas na auditoria
+        // Registrar mudan√ßas na auditoria
         const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
         const auditProms = [];
         for (const k of updates) {
@@ -1906,10 +1906,10 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
                 }
             });
 
-            // Atualizar dependentes (apenas filhos, sem cÙnjuge)
-            db.run("DELETE FROM dependentes WHERE colaborador_id = ? AND (grau_parentesco IS NULL OR grau_parentesco != 'CÙnjuge')", [id], (errDep) => {
+            // Atualizar dependentes (apenas filhos, sem c√¥njuge)
+            db.run("DELETE FROM dependentes WHERE colaborador_id = ? AND (grau_parentesco IS NULL OR grau_parentesco != 'C√¥njuge')", [id], (errDep) => {
                 if (!errDep && data.dependentes && Array.isArray(data.dependentes)) {
-                    data.dependentes.filter(d => d.grau_parentesco !== 'CÙnjuge').forEach(dep => {
+                    data.dependentes.filter(d => d.grau_parentesco !== 'C√¥njuge').forEach(dep => {
                         db.run("INSERT INTO dependentes (colaborador_id, nome, cpf, data_nascimento, grau_parentesco) VALUES (?, ?, ?, ?, ?)", 
                             [id, dep.nome, dep.cpf, dep.data_nascimento, dep.grau_parentesco]);
                     });
@@ -1923,19 +1923,19 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
 
 
 /**
- * SincronizaÁ„o manual com OneDrive para um colaborador
+ * Sincroniza√ß√£o manual com OneDrive para um colaborador
  */
 app.post('/api/colaboradores/:id/sync-onedrive', authenticateToken, async (req, res) => {
     const id = req.params.id;
     try {
         db.get('SELECT nome_completo FROM colaboradores WHERE id = ?', [id], async (err, row) => {
-            if (err || !row) return res.status(404).json({ error: 'Colaborador n„o encontrado' });
+            if (err || !row) return res.status(404).json({ error: 'Colaborador n√£o encontrado' });
             
             try {
                 const result = await syncColaboradorOneDrive(row.nome_completo);
                 res.json({ 
                     sucesso: true, 
-                    message: "Pastas b·sicas criadas! (Subpastas seguem em background)", 
+                    message: "Pastas b√°sicas criadas! (Subpastas seguem em background)", 
                     path: result.caminho, 
                     versao: "V24_AUTO_SYNC",
                     basePath: result.basePath
@@ -1943,7 +1943,7 @@ app.post('/api/colaboradores/:id/sync-onedrive', authenticateToken, async (req, 
             } catch (e) {
                 console.error("Erro Sync Manual:", e);
                 res.status(500).json({ 
-                    error: "Falha na sincronizaÁ„o Microsoft Graph", 
+                    error: "Falha na sincroniza√ß√£o Microsoft Graph", 
                     message: e.message,
                     details: e.body ? JSON.parse(e.body) : null
                 });
@@ -1952,7 +1952,7 @@ app.post('/api/colaboradores/:id/sync-onedrive', authenticateToken, async (req, 
     } catch (e) {
         console.error("[OneDrive Endpoint Error]:", e);
         res.status(500).json({ 
-            error: "Erro na requisiÁ„o de sincronizaÁ„o",
+            error: "Erro na requisi√ß√£o de sincroniza√ß√£o",
             message: e.message,
             details: e.body ? (typeof e.body === 'string' ? JSON.parse(e.body) : e.body) : null
         });
@@ -1963,7 +1963,7 @@ app.delete('/api/colaboradores/:id', authenticateToken, (req, res) => {
     const id = req.params.id;
     
     db.get("SELECT status, nome_completo FROM colaboradores WHERE id = ?", [id], (err, row) => {
-        if (err || !row) return res.status(404).json({ error: 'N„o encontrado' });
+        if (err || !row) return res.status(404).json({ error: 'N√£o encontrado' });
         
         if (row.status === 'Incompleto') {
             db.run("DELETE FROM dependentes WHERE colaborador_id = ?", [id]);
@@ -1974,7 +1974,7 @@ app.delete('/api/colaboradores/:id', authenticateToken, (req, res) => {
                     const pasta = path.join(BASE_PATH, formatarNome(row.nome_completo));
                     if (fs.existsSync(pasta)) fs.rmSync(pasta, { recursive: true, force: true });
                 } catch(e) {}
-                res.json({ message: 'Colaborador incompleto foi excluÌdo definitivamente.' });
+                res.json({ message: 'Colaborador incompleto foi exclu√≠do definitivamente.' });
             });
         } else {
             db.run("UPDATE colaboradores SET status = 'Desligado' WHERE id = ?", [id], function(updateErr) {
@@ -1985,7 +1985,7 @@ app.delete('/api/colaboradores/:id', authenticateToken, (req, res) => {
     });
 });
 
-// Photo Upload Endpoint com Filtro de IA de Est˙dio
+// Photo Upload Endpoint com Filtro de IA de Est√∫dio
 app.post('/api/upload-foto/:id', authenticateToken, uploadFoto.single('foto'), async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: "Nenhum arquivo enviado." });
@@ -1993,7 +1993,7 @@ app.post('/api/upload-foto/:id', authenticateToken, uploadFoto.single('foto'), a
         const id = req.params.id;
         let nome = req.body.nome;
         
-        // Se o nome n„o vier no body (upload direto), buscar no banco
+        // Se o nome n√£o vier no body (upload direto), buscar no banco
         if (!nome) {
             const colab = await new Promise((resolve, reject) => {
                 db.get("SELECT nome_completo FROM colaboradores WHERE id = ?", [id], (err, row) => {
@@ -2003,13 +2003,13 @@ app.post('/api/upload-foto/:id', authenticateToken, uploadFoto.single('foto'), a
             if (colab) nome = colab.nome_completo;
         }
 
-        if (!nome) return res.status(400).json({ error: "Nome do colaborador n„o identificado." });
+        if (!nome) return res.status(400).json({ error: "Nome do colaborador n√£o identificado." });
 
         const safeNome = formatarNome(nome);
         const pasta = path.join(BASE_PATH, safeNome, "FOTOS");
         if (!fs.existsSync(pasta)) fs.mkdirSync(pasta, { recursive: true });
 
-        // Timestamp garante unicidade mesmo em servidores efÍmeros (Render)
+        // Timestamp garante unicidade mesmo em servidores ef√™meros (Render)
         const timestamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14); // ex: 20260327230900
         const filename = `Foto_${safeNome}_${timestamp}.jpg`;
         const filepath = path.join(pasta, filename);
@@ -2017,7 +2017,7 @@ app.post('/api/upload-foto/:id', authenticateToken, uploadFoto.single('foto'), a
         const caminhoRelativo = path.posix.join('files', 'Colaboradores', safeNome, 'FOTOS', filename);
 
 
-        // Processamento Autom·tico (Sharp) - buffer reutilizado para ambos os destinos
+        // Processamento Autom√°tico (Sharp) - buffer reutilizado para ambos os destinos
         const processedBuffer = await sharp(req.file.buffer)
             .resize(800, 1000, {
                 fit: sharp.fit.cover,
@@ -2026,22 +2026,22 @@ app.post('/api/upload-foto/:id', authenticateToken, uploadFoto.single('foto'), a
             .jpeg({ quality: 95, mozjpeg: true })
             .toBuffer();
 
-        // 1. HistÛrico local em FOTOS/ (numerado)
+        // 1. Hist√≥rico local em FOTOS/ (numerado)
         fs.writeFileSync(filepath, processedBuffer);
-        console.log("Foto histÛrico salva localmente:", filepath);
+        console.log("Foto hist√≥rico salva localmente:", filepath);
 
         // 2. Foto principal (substituir) em 01_FICHA_CADASTRAL/
         const pastaFicha = path.join(BASE_PATH, safeNome, "01_FICHA_CADASTRAL");
         if (!fs.existsSync(pastaFicha)) fs.mkdirSync(pastaFicha, { recursive: true });
         const fichaFilepath = path.join(pastaFicha, `Foto_${safeNome}.jpg`);
         fs.writeFileSync(fichaFilepath, processedBuffer);
-        console.log("Foto principal salva/substituÌda:", fichaFilepath);
+        console.log("Foto principal salva/substitu√≠da:", fichaFilepath);
 
         // 3. Salva base64 e caminho no banco de dados (base64 persiste entre deploys)
         const base64Data = `data:image/jpeg;base64,${processedBuffer.toString('base64')}`;
         db.run("UPDATE colaboradores SET foto_path = ?, foto_base64 = ? WHERE id = ?", [caminhoRelativo, base64Data, id]);
 
-        // 4. Upload assÌncrono para OneDrive
+        // 4. Upload ass√≠ncrono para OneDrive
         if (process.env.ONEDRIVE_CLIENT_ID) {
             (async () => {
                 try {
@@ -2074,8 +2074,8 @@ app.get('/api/colaboradores/foto/:id', (req, res) => {
 
     db.get('SELECT foto_path FROM colaboradores WHERE id = ?', [req.params.id], (err, row) => {
         if (err || !row || !row.foto_path) {
-            log(`Foto n„o encontrada no banco para ID ${req.params.id}`);
-            return res.status(404).json({ error: 'Foto n„o encontrada' });
+            log(`Foto n√£o encontrada no banco para ID ${req.params.id}`);
+            return res.status(404).json({ error: 'Foto n√£o encontrada' });
         }
         
         let file_path = row.foto_path;
@@ -2094,8 +2094,8 @@ app.get('/api/colaboradores/foto/:id', (req, res) => {
         }
         
         if (!fs.existsSync(file_path)) {
-            log(`Arquivo N√ÉO encontrado: ${file_path}`);
-            return res.status(404).json({ error: 'Arquivo fÌsico n„o encontrado' });
+            log(`Arquivo N√É∆íO encontrado: ${file_path}`);
+            return res.status(404).json({ error: 'Arquivo f√≠sico n√£o encontrado' });
         }
         
         log(`Sucesso: Enviando arquivo ${file_path}`);
@@ -2131,7 +2131,7 @@ app.put('/api/dependentes/:id', authenticateToken, (req, res) => {
 app.delete('/api/dependentes/:id', authenticateToken, (req, res) => {
     db.run('DELETE FROM dependentes WHERE id = ?', [req.params.id], err => {
         if (err) return res.status(500).json({ error: err.message });
-        res.json({ message: 'ExcluÌdo com sucesso' });
+        res.json({ message: 'Exclu√≠do com sucesso' });
     });
 });
 
@@ -2139,7 +2139,7 @@ app.delete('/api/dependentes/:id', authenticateToken, (req, res) => {
 // --- ENDPOINT: Busca assinaturas de um colaborador (rota alternativa) ---
 // GET /api/colaboradores/:id/admissao-assinaturas
 app.get('/api/colaboradores/:id/admissao-assinaturas', authenticateToken, (req, res) => {
-    db.all(
+    db.all(`
         SELECT aa.*,
                d.assinafy_status     AS doc_assinafy_status,
                d.signed_file_path    AS doc_signed_file_path,
@@ -2148,11 +2148,11 @@ app.get('/api/colaboradores/:id/admissao-assinaturas', authenticateToken, (req, 
         FROM admissao_assinaturas aa
         LEFT JOIN documentos d ON d.assinafy_id = aa.assinafy_id AND d.colaborador_id = aa.colaborador_id
         WHERE aa.colaborador_id = ?
-    , [req.params.id], (err, rows) => {
+    `, [req.params.id], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         const toUpdate = (rows || []).filter(r => r.doc_assinafy_status === 'Assinado' && r.assinafy_status !== 'Assinado');
         toUpdate.forEach(r => {
-            db.run(UPDATE admissao_assinaturas SET assinafy_status='Assinado', assinado_em=COALESCE(assinado_em, CURRENT_TIMESTAMP), signed_file_path=COALESCE(signed_file_path,?) WHERE id=?, [r.doc_signed_file_path, r.id]);
+            db.run(`UPDATE admissao_assinaturas SET assinafy_status='Assinado', assinado_em=COALESCE(assinado_em, CURRENT_TIMESTAMP), signed_file_path=COALESCE(signed_file_path,?) WHERE id=?`, [r.doc_signed_file_path, r.id]);
         });
         const result = (rows || []).map(r => ({
             ...r,
@@ -2177,7 +2177,7 @@ app.get('/api/colaboradores/:id/documentos', authenticateToken, (req, res) => {
 app.put('/api/colaboradores/:id/santander-status', authenticateToken, (req, res) => {
     const { santander_ficha_data } = req.body;
     const { id } = req.params;
-    if (!santander_ficha_data) return res.status(400).json({ error: 'santander_ficha_data obrigatÛrio' });
+    if (!santander_ficha_data) return res.status(400).json({ error: 'santander_ficha_data obrigat√≥rio' });
     
     db.run(
         'UPDATE colaboradores SET santander_ficha_data = ? WHERE id = ?',
@@ -2194,8 +2194,8 @@ app.put('/api/colaboradores/:id/santander-status', authenticateToken, (req, res)
 });
 // -----------------------------------------------------------------------------
 
-// --- ROTAS DE MULTAS DE TR¬NSITO ----------------------------------------------
-// GET /api/colaboradores/:id/multas ó lista todas as multas de um colaborador
+// --- ROTAS DE MULTAS DE TR√ÇNSITO ----------------------------------------------
+// GET /api/colaboradores/:id/multas ‚Äî lista todas as multas de um colaborador
 app.get('/api/colaboradores/:id/multas', authenticateToken, (req, res) => {
     db.all('SELECT * FROM multas WHERE colaborador_id = ? ORDER BY created_at DESC', [req.params.id], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -2204,7 +2204,7 @@ app.get('/api/colaboradores/:id/multas', authenticateToken, (req, res) => {
 });
 
 
-// PUT /api/multas/:id ó atualiza status ou confirmaÁ„o de uma multa
+// PUT /api/multas/:id ‚Äî atualiza status ou confirma√ß√£o de uma multa
 app.put('/api/multas/:id', authenticateToken, (req, res) => {
     const { status, monaco_confirmado } = req.body;
     db.run(
@@ -2212,7 +2212,7 @@ app.put('/api/multas/:id', authenticateToken, (req, res) => {
         [status, monaco_confirmado, req.params.id],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
-            if (this.changes === 0) return res.status(404).json({ error: 'Multa n„o encontrada' });
+            if (this.changes === 0) return res.status(404).json({ error: 'Multa n√£o encontrada' });
             res.json({ ok: true });
         }
     );
@@ -2244,13 +2244,13 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
     db.get(checkSql, params, (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
         
-        // Abas que permitem m˙ltiplos arquivos (histÛrico cumulativo)
-        const abasMultiplas = ['AdvertÍncias', 'Multas', 'Atestados', 'Boletim de ocorrÍncia', 'Terapia', 'CONTRATOS_AVULSOS'];
+        // Abas que permitem m√∫ltiplos arquivos (hist√≥rico cumulativo)
+        const abasMultiplas = ['Advert√™ncias', 'Multas', 'Atestados', 'Boletim de ocorr√™ncia', 'Terapia', 'CONTRATOS_AVULSOS'];
         // Se force document_id explicit, treat as overwrite
         const isMultiplo = !document_id && abasMultiplas.includes(tab_name);
 
         if (row && !isMultiplo) {
-            // Se j· existe e N√O È aba de histÛrico (ou se È explicit update), atualiza
+            // Se j√° existe e N√ÉO √© aba de hist√≥rico (ou se √© explicit update), atualiza
             if (fs.existsSync(row.file_path) && row.file_path !== file_path) {
                 try { fs.unlinkSync(row.file_path); } catch(e) {}
             }
@@ -2273,15 +2273,15 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
                     }
 
                     // --- ESPELHAMENTO ONEDRIVE (API) ---
-                    // Regras por subtipo de AdvertÍncia:
-                    //  OcorrÍncia     -> nunca vai ao OneDrive
-                    //  Verbal         -> somente apÛs testemunhas (status='Testemunhas')
-                    //  Escrita/Suspens„o -> apÛs testemunhas E apÛs colaborador (Assinado)
-                    //  CONTRATOS_AVULSOS -> sÛ apÛs assinatura (Assinado)
+                    // Regras por subtipo de Advert√™ncia:
+                    //  Ocorr√™ncia     -> nunca vai ao OneDrive
+                    //  Verbal         -> somente ap√≥s testemunhas (status='Testemunhas')
+                    //  Escrita/Suspens√£o -> ap√≥s testemunhas E ap√≥s colaborador (Assinado)
+                    //  CONTRATOS_AVULSOS -> s√≥ ap√≥s assinatura (Assinado)
                     const _tipoSimples2 = (document_type || '').split('###')[1] || '';
                     const _isOcorr2  = /ocorr/i.test(_tipoSimples2);
                     const _isVerbal2 = /verbal/i.test(_tipoSimples2);
-                    const _podeOneDrive2 = tab_name === 'AdvertÍncias'
+                    const _podeOneDrive2 = tab_name === 'Advert√™ncias'
                         ? (!_isOcorr2 && (
                             (assinafy_status === 'Testemunhas') ||
                             (!_isVerbal2 && assinafy_status === 'Assinado')
@@ -2297,7 +2297,7 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
                                 let targetDir = parentDir;
                                 if (year && year !== 'null' && year !== 'undefined' && year !== '' && safeTab !== '01_FICHA_CADASTRAL') {
                                     targetDir += `/${year.replace(/[^0-9]/g, '')}`;
-                                    // Para Pagamentos: sub-pasta com nome do mÍs em portuguÍs
+                                    // Para Pagamentos: sub-pasta com nome do m√™s em portugu√™s
                                     if (safeTab === 'PAGAMENTOS' && month && month !== 'null' && month !== 'undefined' && month !== '') {
                                         targetDir += `/${getMesNome(month)}`;
                                     }
@@ -2339,7 +2339,7 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
                     res.json({ message: 'Documento atualizado', id: row.id, file_path });
                 });
         } else {
-            // Se È aba de histÛrico OU n„o existia, insere novo registro
+            // Se √© aba de hist√≥rico OU n√£o existia, insere novo registro
             // Para atestados com cloud_name: salvar o nome final limpo diretamente
             const fileNameToStore = (tab_name === 'Atestados' && req.body.cloud_name)
                 ? req.body.cloud_name
@@ -2356,15 +2356,15 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
                     }
 
                     // --- ESPELHAMENTO ONEDRIVE ---
-                    // Usa a mesma lÛgica do force-onedrive-sync (comprovada) com o ID real do doc
+                    // Usa a mesma l√≥gica do force-onedrive-sync (comprovada) com o ID real do doc
                     const newDocId = this.lastID;
-                    // ASO: upload inicial para OneDrive (sem assinatura). Ser· sobrescrito apÛs assinatura com certificado.
-                    // CONTRATOS_AVULSOS: sÛ envia ao OneDrive apÛs assinatura.
-                    // Regras por subtipo de AdvertÍncia:
-                    //  OcorrÍncia     -> nunca vai ao OneDrive
-                    //  Verbal         -> somente apÛs testemunhas (status='Testemunhas')
-                    //  Escrita/Suspens„o -> apÛs testemunhas E apÛs colaborador (Assinado)
-                    //  CONTRATOS_AVULSOS -> sÛ apÛs assinatura (Assinado)
+                    // ASO: upload inicial para OneDrive (sem assinatura). Ser√° sobrescrito ap√≥s assinatura com certificado.
+                    // CONTRATOS_AVULSOS: s√≥ envia ao OneDrive ap√≥s assinatura.
+                    // Regras por subtipo de Advert√™ncia:
+                    //  Ocorr√™ncia     -> nunca vai ao OneDrive
+                    //  Verbal         -> somente ap√≥s testemunhas (status='Testemunhas')
+                    //  Escrita/Suspens√£o -> ap√≥s testemunhas E ap√≥s colaborador (Assinado)
+                    //  CONTRATOS_AVULSOS -> s√≥ ap√≥s assinatura (Assinado)
                     const _tipoSimples = (document_type || '').split('###')[1] || '';
                     const _isOcorr  = /ocorr/i.test(_tipoSimples);
                     const _isVerbal = /verbal/i.test(_tipoSimples);
@@ -2373,7 +2373,7 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
                     // CONTRATOS_AVULSOS com NAO_EXIGE: upload direto usando req.file
                     // Outros casos: usar setImmediate com uploadDocToOneDrive
                     if (tab_name === 'CONTRATOS_AVULSOS' && (assinafy_status === 'NAO_EXIGE' || !assinafy_status || assinafy_status === 'Nenhum') && onedrive) {
-                        // Upload inline para garantir que o arquivo ainda est· no disco
+                        // Upload inline para garantir que o arquivo ainda est√° no disco
                         ;(async () => {
                             try {
                                 const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || 'RH/1.Colaboradores/Sistema';
@@ -2397,7 +2397,7 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
                         const _isOcorr  = /ocorr/i.test(_tipoSimples);
                         const _isVerbal = /verbal/i.test(_tipoSimples);
                         const _advStatus = req.body.assinafy_status || '';
-                        const _podeOneDrive = tab_name === 'AdvertÍncias'
+                        const _podeOneDrive = tab_name === 'Advert√™ncias'
                             ? (!_isOcorr && (
                                 (_advStatus === 'Testemunhas') ||
                                 (!_isVerbal && _advStatus === 'Assinado')
@@ -2438,7 +2438,7 @@ app.put('/api/documentos/:id/vencimento', authenticateToken, (req, res) => {
 
 app.delete('/api/documentos/:id', authenticateToken, (req, res) => {
     db.get('SELECT file_path FROM documentos WHERE id = ?', [req.params.id], (err, row) => {
-        if (err || !row) return res.status(404).json({ error: 'Documento n„o encontrado' });
+        if (err || !row) return res.status(404).json({ error: 'Documento n√£o encontrado' });
         
         if (fs.existsSync(row.file_path)) {
             try { fs.unlinkSync(row.file_path); } catch(e) {}
@@ -2446,23 +2446,23 @@ app.delete('/api/documentos/:id', authenticateToken, (req, res) => {
         
         db.run('DELETE FROM documentos WHERE id = ?', [req.params.id], deleteErr => {
             if (deleteErr) return res.status(500).json({ error: deleteErr.message });
-            res.json({ message: 'Documento excluÌdo' });
+            res.json({ message: 'Documento exclu√≠do' });
         });
     });
 });
 
 app.get('/api/documentos/download/:id', authenticateToken, (req, res) => {
     db.get('SELECT * FROM documentos WHERE id = ?', [req.params.id], async (err, row) => {
-        if (err || !row) return res.status(404).json({ error: 'Documento n„o encontrado' });
+        if (err || !row) return res.status(404).json({ error: 'Documento n√£o encontrado' });
 
         let pathLocal = row.signed_file_path; // Tentar assinado local primeiro
         
-        // Se existe fisicamente (.pfx concluÌdo)
+        // Se existe fisicamente (.pfx conclu√≠do)
         if (pathLocal && fs.existsSync(pathLocal)) {
             return res.download(pathLocal, row.file_name || 'documento.pdf');
         }
 
-        // Se NAO tem assinado local (.pfx vazio ou excluÌdo), mas tem Assinafy (colaborador assinou), tentar buscar da Assinafy
+        // Se NAO tem assinado local (.pfx vazio ou exclu√≠do), mas tem Assinafy (colaborador assinou), tentar buscar da Assinafy
         if (row.assinafy_id) {
             try {
                 const r = await fetch(`https://api.assinafy.com.br/v1/documents/${row.assinafy_id}`, { headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey, 'Accept': 'application/json' } });
@@ -2492,7 +2492,7 @@ app.get('/api/documentos/download/:id', authenticateToken, (req, res) => {
             } catch(e) { console.warn('Proxy Assinafy erro:', e.message); }
         }
 
-        // Fallback final: Devolve o arquivo original N√O ASSINADO
+        // Fallback final: Devolve o arquivo original N√ÉO ASSINADO
         pathLocal = row.file_path;
         if (pathLocal && fs.existsSync(pathLocal)) {
             res.setHeader('Content-Type', 'application/pdf');
@@ -2500,7 +2500,7 @@ app.get('/api/documentos/download/:id', authenticateToken, (req, res) => {
             return fs.createReadStream(pathLocal).pipe(res);
         }
 
-        return res.status(404).json({ error: 'Arquivo fÌsico n„o encontrado no servidor.' });
+        return res.status(404).json({ error: 'Arquivo f√≠sico n√£o encontrado no servidor.' });
     });
 });
 
@@ -2510,26 +2510,26 @@ app.get('/api/documentos/download/:id', authenticateToken, (req, res) => {
 app.get('/api/documentos/info/:id', authenticateToken, (req, res) => {
     db.get('SELECT id, file_name, document_type, assinafy_status, assinafy_id, signed_file_path, tab_name FROM documentos WHERE id = ?',
         [req.params.id], (err, row) => {
-            if (err || !row) return res.status(404).json({ error: 'Documento n„o encontrado' });
+            if (err || !row) return res.status(404).json({ error: 'Documento n√£o encontrado' });
             res.json(row);
         });
 });
 
-// Rota para VISUALIZAR inline no browser (sem forÁar download)
+// Rota para VISUALIZAR inline no browser (sem for√ßar download)
 app.get('/api/documentos/view/:id', authenticateToken, (req, res) => {
     db.get('SELECT * FROM documentos WHERE id = ?', [req.params.id], async (err, row) => {
-        if (err || !row) return res.status(404).json({ error: 'Documento n„o encontrado' });
+        if (err || !row) return res.status(404).json({ error: 'Documento n√£o encontrado' });
 
         let pathLocal = row.signed_file_path; // Tentar assinado local primeiro
         
-        // Se existe fisicamente (.pfx concluÌdo)
+        // Se existe fisicamente (.pfx conclu√≠do)
         if (pathLocal && fs.existsSync(pathLocal)) {
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(row.file_name || 'documento.pdf')}"`);
             return fs.createReadStream(pathLocal).pipe(res);
         }
 
-        // Se NAO tem assinado local (.pfx vazio ou excluÌdo), mas tem Assinafy (colaborador assinou), tentar buscar da Assinafy
+        // Se NAO tem assinado local (.pfx vazio ou exclu√≠do), mas tem Assinafy (colaborador assinou), tentar buscar da Assinafy
         if (row.assinafy_id) {
             try {
                 const r = await fetch(`https://api.assinafy.com.br/v1/documents/${row.assinafy_id}`, { headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey, 'Accept': 'application/json' } });
@@ -2561,7 +2561,7 @@ app.get('/api/documentos/view/:id', authenticateToken, (req, res) => {
             } catch(e) { console.warn('Proxy Assinafy erro:', e.message); }
         }
 
-        // Fallback final: Devolve o arquivo original N√O ASSINADO
+        // Fallback final: Devolve o arquivo original N√ÉO ASSINADO
         pathLocal = row.file_path;
         if (pathLocal && fs.existsSync(pathLocal)) {
             res.setHeader('Content-Type', 'application/pdf');
@@ -2569,7 +2569,7 @@ app.get('/api/documentos/view/:id', authenticateToken, (req, res) => {
             return fs.createReadStream(pathLocal).pipe(res);
         }
 
-        return res.status(404).json({ error: 'Arquivo fÌsico n„o encontrado no servidor.' });
+        return res.status(404).json({ error: 'Arquivo f√≠sico n√£o encontrado no servidor.' });
     });
 });
 
@@ -2598,7 +2598,7 @@ app.post('/api/cargos', authenticateToken, (req, res) => {
 
 app.put('/api/cargos/:id', authenticateToken, (req, res) => {
     const { nome, documentos_obrigatorios, departamento } = req.body;
-    console.log(`Recebida alteraÁ„o para cargo ${req.params.id}:`, { nome, documentos_obrigatorios, departamento });
+    console.log(`Recebida altera√ß√£o para cargo ${req.params.id}:`, { nome, documentos_obrigatorios, departamento });
 
     db.get("SELECT nome FROM cargos WHERE id = ?", [req.params.id], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -2631,7 +2631,7 @@ app.delete('/api/cargos/:id', authenticateToken, (req, res) => {
     db.get("SELECT nome FROM cargos WHERE id = ?", [req.params.id], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
         if (row && row.nome.trim().toUpperCase() === 'MOTORISTA') {
-            return res.status(403).json({ error: 'O cargo Motorista È fixo e n„o pode ser apagado do sistema.' });
+            return res.status(403).json({ error: 'O cargo Motorista √© fixo e n√£o pode ser apagado do sistema.' });
         }
         db.serialize(() => {
             db.run("DELETE FROM cargo_documentos WHERE cargo_id = ?", [req.params.id]);
@@ -2657,7 +2657,7 @@ app.get('/api/cargos/:id/documentos', authenticateToken, (req, res) => {
 // Adicionar um documento a um cargo (idempotente - INSERT OR IGNORE)
 app.post('/api/cargos/:id/documentos', authenticateToken, (req, res) => {
     const { documento } = req.body;
-    if (!documento) return res.status(400).json({ error: 'documento obrigatÛrio' });
+    if (!documento) return res.status(400).json({ error: 'documento obrigat√≥rio' });
     db.run("INSERT OR IGNORE INTO cargo_documentos (cargo_id, documento) VALUES (?, ?)",
         [req.params.id, documento], function(err) {
         if (err) return res.status(500).json({ error: err.message });
@@ -2668,7 +2668,7 @@ app.post('/api/cargos/:id/documentos', authenticateToken, (req, res) => {
 // Remover um documento de um cargo
 app.delete('/api/cargos/:id/documentos', authenticateToken, (req, res) => {
     const { documento } = req.body;
-    if (!documento) return res.status(400).json({ error: 'documento obrigatÛrio' });
+    if (!documento) return res.status(400).json({ error: 'documento obrigat√≥rio' });
     db.run("DELETE FROM cargo_documentos WHERE cargo_id = ? AND documento = ?",
         [req.params.id, documento], function(err) {
         if (err) return res.status(500).json({ error: err.message });
@@ -2783,7 +2783,7 @@ app.get('/api/admissao-assinaturas/:colaborador_id', authenticateToken, (req, re
     `, [req.params.colaborador_id], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
 
-        // Sincroniza status em tempo real: se documentos j· est· Assinado mas admissao ainda Pendente
+        // Sincroniza status em tempo real: se documentos j√° est√° Assinado mas admissao ainda Pendente
         const toUpdate = (rows || []).filter(r =>
             r.doc_assinafy_status === 'Assinado' && r.assinafy_status !== 'Assinado'
         );
@@ -2809,8 +2809,8 @@ app.get('/api/admissao-assinaturas/:colaborador_id', authenticateToken, (req, re
 // --- Helper: Gera HTML completo com layout do gerador ------------------------
 function buildGeradoresHtml(gerador, colaborador, baseUrl) {
     const dataAtual = new Date();
-    const meses = ['janeiro','fevereiro','marÁo','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
-    const mesesCap = ['Janeiro','Fevereiro','MarÁo','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    const meses = ['janeiro','fevereiro','mar√ßo','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+    const mesesCap = ['Janeiro','Fevereiro','Mar√ßo','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
     const mapping = {
         BASE_URL: baseUrl,
@@ -2888,12 +2888,12 @@ function buildGeradoresHtml(gerador, colaborador, baseUrl) {
     <div style="font-weight:700; font-size:8pt; margin-bottom:4px;">DADOS COLABORADOR:</div>
     <div class="colab-row">
       <span>CPF: <b>${colaborador.cpf || '---'}</b></span>
-      <span>ADMISS√O: <b>${mapping.DATA_ADMISSAO || '---'}</b></span>
+      <span>ADMISS√ÉO: <b>${mapping.DATA_ADMISSAO || '---'}</b></span>
     </div>
-    <div>ENDERE«O: ${colaborador.endereco || '---'}</div>
+    <div>ENDERE√áO: ${colaborador.endereco || '---'}</div>
     <div class="colab-row">
       <span>CARGO: ${colaborador.cargo || '---'}</span>
-      <span>SAL¡RIO: ${mapping.SALARIO}</span>
+      <span>SAL√ÅRIO: ${mapping.SALARIO}</span>
     </div>
     <div class="colab-row">
       <span>CELULAR: ${colaborador.telefone || '---'}</span>
@@ -2917,12 +2917,12 @@ app.get('/api/geradores/:id/preview-pdf/:colaborador_id', authenticateToken, asy
         const gerador = await new Promise((resolve, reject) =>
             db.get('SELECT * FROM geradores WHERE id = ?', [id], (err, row) => err ? reject(err) : resolve(row))
         );
-        if (!gerador) return res.status(404).json({ error: 'Gerador n„o encontrado' });
+        if (!gerador) return res.status(404).json({ error: 'Gerador n√£o encontrado' });
 
         const colaborador = await new Promise((resolve, reject) =>
             db.get('SELECT * FROM colaboradores WHERE id = ?', [colaborador_id], (err, row) => err ? reject(err) : resolve(row))
         );
-        if (!colaborador) return res.status(404).json({ error: 'Colaborador n„o encontrado' });
+        if (!colaborador) return res.status(404).json({ error: 'Colaborador n√£o encontrado' });
 
         const baseUrl = `${req.protocol}://${req.get('host')}`;
         const html = buildGeradoresHtml(gerador, colaborador, baseUrl);
@@ -2946,9 +2946,9 @@ app.get('/api/geradores/:id/preview-pdf/:colaborador_id', authenticateToken, asy
 app.post('/api/admissao-assinaturas/enviar-lote', authenticateToken, async (req, res) => {
     const { colaborador_id, geradores_ids: rawIds } = req.body;
     if (!colaborador_id || !Array.isArray(rawIds) || rawIds.length === 0) {
-        return res.status(400).json({ error: 'colaborador_id e geradores_ids s„o obrigatÛrios' });
+        return res.status(400).json({ error: 'colaborador_id e geradores_ids s√£o obrigat√≥rios' });
     }
-    // Dedup absoluto: garantir IDs ˙nicos independente do que o cliente mande
+    // Dedup absoluto: garantir IDs √∫nicos independente do que o cliente mande
     const geradores_ids = [...new Set(rawIds.map(Number).filter(n => !isNaN(n) && n > 0))];
 
     const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
@@ -2957,15 +2957,15 @@ app.post('/api/admissao-assinaturas/enviar-lote', authenticateToken, async (req,
     const colab = await new Promise((resolve, reject) =>
         db.get('SELECT * FROM colaboradores WHERE id = ?', [colaborador_id], (err, row) => err ? reject(err) : resolve(row))
     );
-    if (!colab) return res.status(404).json({ error: 'Colaborador n„o encontrado' });
-    if (!colab.email) return res.status(400).json({ error: 'E-mail do colaborador n„o est· cadastrado.' });
+    if (!colab) return res.status(404).json({ error: 'Colaborador n√£o encontrado' });
+    if (!colab.email) return res.status(400).json({ error: 'E-mail do colaborador n√£o est√° cadastrado.' });
 
-    // --- FunÁ„o para processar UM gerador ---
+    // --- Fun√ß√£o para processar UM gerador ---
     const processarGerador = async (geradorId) => {
         const gerador = await new Promise((resolve, reject) =>
             db.get('SELECT * FROM geradores WHERE id = ?', [geradorId], (err, row) => err ? reject(err) : resolve(row))
         );
-        if (!gerador) return { id: geradorId, erro: 'Gerador n„o encontrado' };
+        if (!gerador) return { id: geradorId, erro: 'Gerador n√£o encontrado' };
 
         let filePath;
         if (gerador.tipo === 'pdf' && gerador.arquivo_pdf && fs.existsSync(gerador.arquivo_pdf)) {
@@ -2989,20 +2989,20 @@ app.post('/api/admissao-assinaturas/enviar-lote', authenticateToken, async (req,
             fs.writeFileSync(filePath, pdfBuffer);
         }
 
-        // A assinatura da empresa via certificado digital (PFX) È feita AP”S
+        // A assinatura da empresa via certificado digital (PFX) √© feita AP√ìS
         // o colaborador assinar no Assinafy, para que ambas as assinaturas
-        // apareÁam v·lidas no validador gov.br.
+        // apare√ßam v√°lidas no validador gov.br.
 
 
-        // --- DEDUP CRITICAL: Verificar se j· foi enviado (Pendente ou Assinado) ---
+        // --- DEDUP CRITICAL: Verificar se j√° foi enviado (Pendente ou Assinado) ---
         const existente = await new Promise((resolve, reject) =>
             db.get('SELECT * FROM admissao_assinaturas WHERE colaborador_id = ? AND (gerador_id = ? OR nome_documento = ?)',
                 [colaborador_id, geradorId, gerador.nome], (err, row) => err ? reject(err) : resolve(row))
         );
 
-        // Se j· existe com assinafy_id (j· enviado para Assinafy), N√O re-enviar
+        // Se j√° existe com assinafy_id (j√° enviado para Assinafy), N√ÉO re-enviar
         if (existente && existente.assinafy_id && ['Pendente', 'Aguardando', 'Assinado'].includes(existente.assinafy_status)) {
-            console.log(`[ADMISSAO-DEDUP] Documento "${gerador.nome}" j· foi enviado (status: ${existente.assinafy_status}). Pulando.`);
+            console.log(`[ADMISSAO-DEDUP] Documento "${gerador.nome}" j√° foi enviado (status: ${existente.assinafy_status}). Pulando.`);
             return { id: geradorId, nome: gerador.nome, ok: true, jaEnviado: true, url: existente.assinafy_url };
         }
 
@@ -3011,9 +3011,9 @@ app.post('/api/admissao-assinaturas/enviar-lote', authenticateToken, async (req,
                 [colaborador_id, gerador.nome], (err, row) => err ? reject(err) : resolve(row))
         );
 
-        // Se doc j· tem assinafy_id ativo, n„o duplicar
+        // Se doc j√° tem assinafy_id ativo, n√£o duplicar
         if (existenteDoc && existenteDoc.assinafy_id && ['Pendente', 'Aguardando', 'Assinado'].includes(existenteDoc.assinafy_status)) {
-            console.log(`[ADMISSAO-DEDUP] Doc "${gerador.nome}" j· tem assinafy_id no banco. Pulando.`);
+            console.log(`[ADMISSAO-DEDUP] Doc "${gerador.nome}" j√° tem assinafy_id no banco. Pulando.`);
             return { id: geradorId, nome: gerador.nome, ok: true, jaEnviado: true };
         }
 
@@ -3062,15 +3062,15 @@ app.post('/api/admissao-assinaturas/enviar-lote', authenticateToken, async (req,
 });
 
 
-// GET: baixar PDF assinado de admiss„o
+// GET: baixar PDF assinado de admiss√£o
 app.get('/api/admissao-assinaturas/:id/download', authenticateToken, async (req, res) => {
     try {
         const row = await new Promise((resolve, reject) =>
             db.get('SELECT * FROM admissao_assinaturas WHERE id = ?', [req.params.id], (err, r) => err ? reject(err) : resolve(r))
         );
-        if (!row) return res.status(404).json({ error: 'Registro n„o encontrado' });
+        if (!row) return res.status(404).json({ error: 'Registro n√£o encontrado' });
 
-        // 1. Arquivo local como fonte prim·ria
+        // 1. Arquivo local como fonte prim√°ria
         let pathToFile = row.signed_file_path;
 
         if (pathToFile && fs.existsSync(pathToFile)) {
@@ -3079,7 +3079,7 @@ app.get('/api/admissao-assinaturas/:id/download', authenticateToken, async (req,
             return fs.createReadStream(pathToFile).pipe(res);
         }
 
-        // 2. Se local n„o existe, tenta Assinafy (redirecionando diretamente)
+        // 2. Se local n√£o existe, tenta Assinafy (redirecionando diretamente)
         if (row.assinafy_id) {
             try {
                 const r = await fetch(`https://api.assinafy.com.br/v1/documents/${row.assinafy_id}`,
@@ -3109,7 +3109,7 @@ app.get('/api/admissao-assinaturas/:id/download', authenticateToken, async (req,
             }
         }
 
-        return res.status(404).json({ error: 'Arquivo assinado n„o encontrado no servidor.' });
+        return res.status(404).json({ error: 'Arquivo assinado n√£o encontrado no servidor.' });
     } catch(e) {
         if (!res.headersSent) res.status(500).json({ error: e.message });
     }
@@ -3117,8 +3117,8 @@ app.get('/api/admissao-assinaturas/:id/download', authenticateToken, async (req,
 
 /**
  * POST /api/admissao-assinaturas/:id/assinar-certificado
- * Aplica o Certificado Digital A1 da empresa no PDF j· assinado pelo colaborador.
- * Deve ser chamado AP”S o colaborador assinar no Assinafy (status = 'Assinado').
+ * Aplica o Certificado Digital A1 da empresa no PDF j√° assinado pelo colaborador.
+ * Deve ser chamado AP√ìS o colaborador assinar no Assinafy (status = 'Assinado').
  */
 app.post('/api/admissao-assinaturas/:id/assinar-certificado', authenticateToken, async (req, res) => {
     const { id } = req.params;
@@ -3126,15 +3126,15 @@ app.post('/api/admissao-assinaturas/:id/assinar-certificado', authenticateToken,
         const doc = await new Promise((resolve, reject) =>
             db.get('SELECT * FROM admissao_assinaturas WHERE id = ?', [id], (err, row) => err ? reject(err) : resolve(row))
         );
-        if (!doc) return res.status(404).json({ ok: false, error: 'Documento n„o encontrado.' });
-        if (doc.assinafy_status !== 'Assinado') return res.status(400).json({ ok: false, error: `Documento ainda n„o foi assinado pelo colaborador (status: ${doc.assinafy_status}).` });
-        if (doc.certificado_assinado_em) return res.json({ ok: true, ja_assinado: true, mensagem: 'Certificado digital j· foi aplicado anteriormente.' });
+        if (!doc) return res.status(404).json({ ok: false, error: 'Documento n√£o encontrado.' });
+        if (doc.assinafy_status !== 'Assinado') return res.status(400).json({ ok: false, error: `Documento ainda n√£o foi assinado pelo colaborador (status: ${doc.assinafy_status}).` });
+        if (doc.certificado_assinado_em) return res.json({ ok: true, ja_assinado: true, mensagem: 'Certificado digital j√° foi aplicado anteriormente.' });
 
         // Verificar disponibilidade do certificado
         const pfxDisp = signPdfPfx.verificarDisponibilidade();
-        if (!pfxDisp.disponivel) return res.status(400).json({ ok: false, error: `Certificado digital n„o configurado: ${pfxDisp.motivo}` });
+        if (!pfxDisp.disponivel) return res.status(400).json({ ok: false, error: `Certificado digital n√£o configurado: ${pfxDisp.motivo}` });
 
-        // Buscar o PDF assinado ó primeiro local, depois Assinafy
+        // Buscar o PDF assinado ‚Äî primeiro local, depois Assinafy
         let pdfBuffer = null;
         const localPath = doc.signed_file_path || doc.file_path;
         if (localPath && fs.existsSync(localPath)) {
@@ -3153,7 +3153,7 @@ app.post('/api/admissao-assinaturas/:id/assinar-certificado', authenticateToken,
             const docData = docInfo.data || docInfo;
             const signedUrl = docData?.artifacts?.find(a => a.type === 'signed_document')?.url ||
                               docData?.signed_url || docData?.download_url;
-            if (!signedUrl) return res.status(400).json({ ok: false, error: 'PDF assinado ainda n„o disponÌvel no Assinafy.' });
+            if (!signedUrl) return res.status(400).json({ ok: false, error: 'PDF assinado ainda n√£o dispon√≠vel no Assinafy.' });
 
             pdfBuffer = await new Promise((resolve, reject) => {
                 https.get(signedUrl, { headers: { 'X-Api-Key': 'AxaT-FiXBckHqEYV0s_MtUhLF3pReRz3dX4zVpC173vmjDwzLGHYtDJuQje4-4Pd' } }, resp => {
@@ -3163,12 +3163,12 @@ app.post('/api/admissao-assinaturas/:id/assinar-certificado', authenticateToken,
                 }).on('error', reject);
             });
         }
-        if (!pdfBuffer) return res.status(400).json({ ok: false, error: 'N„o foi possÌvel obter o PDF assinado para aplicar o certificado.' });
+        if (!pdfBuffer) return res.status(400).json({ ok: false, error: 'N√£o foi poss√≠vel obter o PDF assinado para aplicar o certificado.' });
 
         // Aplicar certificado A1 da empresa
         console.log(`[CERT-POST] Aplicando certificado A1 no PDF (${pdfBuffer.length} bytes)...`);
         const pdfAssinado = await signPdfPfx.assinarPDF(pdfBuffer, {
-            motivo: `Assinado digitalmente pela empresa America Rental Equipamentos Ltda ó Certificado A1`,
+            motivo: `Assinado digitalmente pela empresa America Rental Equipamentos Ltda ‚Äî Certificado A1`,
             local:  'Brasil',
             nome:   'America Rental Equipamentos Ltda'
         });
@@ -3190,11 +3190,11 @@ app.post('/api/admissao-assinaturas/:id/assinar-certificado', authenticateToken,
 });
 
 // Webhook: atualizar status de assinatura para admissao_assinaturas quando Assinafy notificar
-// (j· tratado pelo webhook existente que atualiza a tabela documentos - sincronizamos aqui tambÈm)
-// Adicionando sincronizaÁ„o na tabela admissao_assinaturas via documento atualizado
+// (j√° tratado pelo webhook existente que atualiza a tabela documentos - sincronizamos aqui tamb√©m)
+// Adicionando sincroniza√ß√£o na tabela admissao_assinaturas via documento atualizado
 app.post('/api/admissao-assinaturas/sync-status', authenticateToken, (req, res) => {
     const { assinafy_id, status } = req.body;
-    if (!assinafy_id) return res.status(400).json({ error: 'assinafy_id obrigatÛrio' });
+    if (!assinafy_id) return res.status(400).json({ error: 'assinafy_id obrigat√≥rio' });
     db.run(`UPDATE admissao_assinaturas SET assinafy_status = ?, assinado_em = CASE WHEN ? = 'Assinado' THEN CURRENT_TIMESTAMP ELSE assinado_em END WHERE assinafy_id = ?`,
         [status, status, assinafy_id], function(err) {
             res.json({ ok: true, changes: this.changes });
@@ -3210,14 +3210,14 @@ db.run(`CREATE TABLE IF NOT EXISTS geradores (
     tipo TEXT DEFAULT 'html',
     arquivo_pdf TEXT DEFAULT NULL
 )`, () => {
-    // Adicionar colunas se por acaso a tabela for antiga (SQLite ignora se j· existem)
+    // Adicionar colunas se por acaso a tabela for antiga (SQLite ignora se j√° existem)
     db.run("ALTER TABLE geradores ADD COLUMN tipo TEXT DEFAULT 'html'", () => {});
     db.run("ALTER TABLE geradores ADD COLUMN arquivo_pdf TEXT DEFAULT NULL", () => {});
 });
 // MIGRATION: coluna para rastrear quando o certificado digital A1 foi aplicado
 db.run("ALTER TABLE admissao_assinaturas ADD COLUMN certificado_assinado_em TEXT DEFAULT NULL", () => {});
 // MIGRATION: campo 'avisado previamente' para faltas
-db.run("ALTER TABLE faltas ADD COLUMN avisado_previamente TEXT DEFAULT 'N„o'", () => {});
+db.run("ALTER TABLE faltas ADD COLUMN avisado_previamente TEXT DEFAULT 'N√£o'", () => {});
 
 // --- GERADORES DE DOCUMENTOS ---
 app.get('/api/geradores', authenticateToken, (req, res) => {
@@ -3230,7 +3230,7 @@ app.get('/api/geradores', authenticateToken, (req, res) => {
 app.get('/api/geradores/:id', authenticateToken, (req, res) => {
     db.get("SELECT * FROM geradores WHERE id = ?", [req.params.id], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
-        if (!row) return res.status(404).json({ error: 'Gerador n„o encontrado' });
+        if (!row) return res.status(404).json({ error: 'Gerador n√£o encontrado' });
         res.json(row);
     });
 });
@@ -3244,7 +3244,7 @@ app.post('/api/geradores', authenticateToken, (req, res) => {
             const newId = this.lastID;
             
             db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
-                [loggedUser, 'Geradores', 'Inclus„o', '', nome, newId]);
+                [loggedUser, 'Geradores', 'Inclus√£o', '', nome, newId]);
                 
             res.status(201).json({ id: newId, ...req.body });
         });
@@ -3264,7 +3264,7 @@ app.put('/api/geradores/:id', authenticateToken, (req, res) => {
                 const changes = [];
                 if (oldRow.nome !== nome) changes.push({ campo: 'Nome', old: oldRow.nome, new: nome });
                 if (oldRow.conteudo !== conteudo) changes.push({ campo: 'Conteudo HTML', old: '[Anterior Modificado]', new: '[Novo HTML]' });
-                if (oldRow.variaveis !== variaveis) changes.push({ campo: 'Vari·veis', old: oldRow.variaveis, new: variaveis });
+                if (oldRow.variaveis !== variaveis) changes.push({ campo: 'Vari√°veis', old: oldRow.variaveis, new: variaveis });
 
                 changes.forEach(c => {
                     db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
@@ -3278,35 +3278,35 @@ app.put('/api/geradores/:id', authenticateToken, (req, res) => {
 
 app.delete('/api/geradores/:id', authenticateToken, (req, res) => {
     db.get("SELECT nome, arquivo_pdf FROM geradores WHERE id = ?", [req.params.id], (err, row) => {
-        if (err || !row) return res.status(404).json({ error: 'Gerador n„o encontrado' });
+        if (err || !row) return res.status(404).json({ error: 'Gerador n√£o encontrado' });
 
         const PROTECTED_NAMES = [
-            'autorizaÁ„o de desconto em folha',
-            'ordem de serviÁo nr01',
-            'termo de n„o interesse terapia',
+            'autoriza√ß√£o de desconto em folha',
+            'ordem de servi√ßo nr01',
+            'termo de n√£o interesse terapia',
             'termo de interesse terapia',
             'responsabilidade chaves',
             'termo de responsabilidade de chaves',
             'responsabilidade celular',
-            'responsabilidade bilhete ˙nico',
+            'responsabilidade bilhete √∫nico',
             'contrato faculdade',
             'contrato academia',
-            'acordo de auxÌlio-combustÌvel',
+            'acordo de aux√≠lio-combust√≠vel',
             'contrato intermitente',
             'responsabilidade equipamento',
-            'responsabilidade veÌculo'
+            'responsabilidade ve√≠culo'
         ];
         
         const originalName = (row.nome || '').trim();
         const u = originalName.toLowerCase();
         
         const BAD_EXACT_NAMES = [
-            'AUTORIZA«√O DE DESCONTO EM FOLHA DE PAGAMENTO',
-            'ORDEM DE SERVI«O NR01'
+            'AUTORIZA√á√ÉO DE DESCONTO EM FOLHA DE PAGAMENTO',
+            'ORDEM DE SERVI√áO NR01'
         ];
 
         if (!BAD_EXACT_NAMES.includes(originalName) && PROTECTED_NAMES.some(pn => u.includes(pn))) {
-            return res.status(403).json({ error: 'Este documento È padr„o do sistema e n„o pode ser excluÌdo.' });
+            return res.status(403).json({ error: 'Este documento √© padr√£o do sistema e n√£o pode ser exclu√≠do.' });
         }
 
         if (row && row.arquivo_pdf && fs.existsSync(row.arquivo_pdf)) {
@@ -3336,7 +3336,7 @@ const uploadGeradorPdf = multer({
     storage: geradorPdfStorage,
     fileFilter: (req, file, cb) => {
         if (file.mimetype === 'application/pdf') cb(null, true);
-        else cb(new Error('Apenas arquivos PDF s„o permitidos'));
+        else cb(new Error('Apenas arquivos PDF s√£o permitidos'));
     },
     limits: { fileSize: 20 * 1024 * 1024 } // 20MB
 });
@@ -3367,11 +3367,11 @@ app.put('/api/geradores/:id/replace-pdf', authenticateToken, uploadGeradorPdf.si
     });
 });
 
-// Servir PDF est·tico dos geradores externos
+// Servir PDF est√°tico dos geradores externos
 app.get('/api/geradores/:id/pdf', authenticateToken, (req, res) => {
     db.get("SELECT arquivo_pdf, nome FROM geradores WHERE id = ? AND tipo = 'pdf'", [req.params.id], (err, row) => {
-        if (err || !row) return res.status(404).json({ error: 'PDF n„o encontrado' });
-        if (!fs.existsSync(row.arquivo_pdf)) return res.status(404).json({ error: 'Arquivo PDF n„o encontrado no disco' });
+        if (err || !row) return res.status(404).json({ error: 'PDF n√£o encontrado' });
+        if (!fs.existsSync(row.arquivo_pdf)) return res.status(404).json({ error: 'Arquivo PDF n√£o encontrado no disco' });
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(row.nome)}.pdf"`);
         fs.createReadStream(row.arquivo_pdf).pipe(res);
@@ -3379,13 +3379,13 @@ app.get('/api/geradores/:id/pdf', authenticateToken, (req, res) => {
 });
 
 
-// Endpoint de geraÁ„o (SubstituiÁ„o de Vari·veis)
+// Endpoint de gera√ß√£o (Substitui√ß√£o de Vari√°veis)
 app.post(['/api/geradores/:id/gerar', '/api/geradores/:id/gerar/:colaborador_id'], authenticateToken, (req, res) => {
     const id = req.params.id;
     const colaborador_id = req.params.colaborador_id || req.body.colaborador_id || req.body.colabId;
     
     db.get("SELECT * FROM geradores WHERE id = ?", [id], (err, gerador) => {
-        if (err || !gerador) return res.status(404).json({ error: 'Gerador n„o encontrado' });
+        if (err || !gerador) return res.status(404).json({ error: 'Gerador n√£o encontrado' });
         
         // Busca o colaborador e tenta cruzar com cursos_faculdade
         const sql = `
@@ -3396,7 +3396,7 @@ app.post(['/api/geradores/:id/gerar', '/api/geradores/:id/gerar/:colaborador_id'
         `;
         
         db.get(sql, [colaborador_id], (err, colaborador) => {
-            if (err || !colaborador) return res.status(404).json({ error: 'Colaborador n„o encontrado' });
+            if (err || !colaborador) return res.status(404).json({ error: 'Colaborador n√£o encontrado' });
             
             // Busca chaves do colaborador
             db.all(`
@@ -3409,7 +3409,7 @@ app.post(['/api/geradores/:id/gerar', '/api/geradores/:id/gerar/:colaborador_id'
                 
                 let conteudoFinal = gerador.conteudo;
                 const dataAtual = new Date();
-                const meses = ["Janeiro", "Fevereiro", "MarÁo", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+                const meses = ["Janeiro", "Fevereiro", "Mar√ßo", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
                 
                 const mapping = {
                     'BASE_URL': `${req.protocol}://${req.get('host')}`,
@@ -3434,14 +3434,14 @@ app.post(['/api/geradores/:id/gerar', '/api/geradores/:id/gerar/:colaborador_id'
                     'EMAIL': colaborador.email || '',
                     'SALARIO': colaborador.salario ? `R$ ${parseFloat(colaborador.salario).toLocaleString('pt-BR', {minimumFractionDigits: 2})}` : '---',
                     'CHAVES': listaChaves || 'Nenhuma chave cadastrada',
-                    // Vari·veis de Faculdade
+                    // Vari√°veis de Faculdade
                     'INSTITUICAO': colaborador.f_inst || '---',
                     'CURSO': colaborador.f_nome || '---',
                     'DURACAO': colaborador.f_tempo || '---',
                     'MENSALIDADE': colaborador.f_valor ? `R$ ${parseFloat(colaborador.f_valor).toLocaleString('pt-BR', {minimumFractionDigits: 2})}` : '---'
                 };
                 
-                // Valores Din‚micos Form (se presentes no body)
+                // Valores Din√¢micos Form (se presentes no body)
                 if (req.body) {
                     mapping['MODAL_DESCRICAO'] = req.body.desconto_descricao || '';
                     mapping['MODAL_VALOR'] = req.body.desconto_valor || '0,00';
@@ -3454,7 +3454,7 @@ app.post(['/api/geradores/:id/gerar', '/api/geradores/:id/gerar/:colaborador_id'
                     mapping['PARCELA_3'] = p === 3 ? 'X' : '&nbsp;&nbsp;';
                 }
 
-                // SubstituiÁ„o bruta (suporta tanto ${CHAVE} quanto {CHAVE})
+                // Substitui√ß√£o bruta (suporta tanto ${CHAVE} quanto {CHAVE})
                 Object.keys(mapping).forEach(key => {
                     // Try ${CHAVE} format
                     let regex = new RegExp(`\\$\\{${key}\\}`, 'g');
@@ -3500,11 +3500,11 @@ app.put('/api/chaves/:id', authenticateToken, (req, res) => {
 
 app.delete('/api/chaves/:id', authenticateToken, (req, res) => {
     db.get('SELECT 1 FROM colaboradores WHERE id IN (SELECT colaborador_id FROM colaborador_chaves WHERE chave_id = ?)', [req.params.id], (err, row) => {
-        // Por enquanto n„o temos a tabela de relacionamento, ent„o vamos deletar direto.
+        // Por enquanto n√£o temos a tabela de relacionamento, ent√£o vamos deletar direto.
         // Se no futuro houver chaves vinculadas, podemos avisar.
         db.run("DELETE FROM chaves WHERE id = ?", [req.params.id], function(err) {
             if (err) return res.status(500).json({ error: err.message });
-            res.json({ message: 'Chave excluÌda' });
+            res.json({ message: 'Chave exclu√≠da' });
         });
     });
 });
@@ -3519,12 +3519,12 @@ app.get('/api/colaboradores/:id/faltas', authenticateToken, (req, res) => {
 
 app.post('/api/faltas', authenticateToken, (req, res) => {
     const { colaborador_id, data_falta, turno, observacao, avisado_previamente } = req.body;
-    if (!colaborador_id || !data_falta) return res.status(400).json({ error: 'colaborador_id e data_falta s„o obrigatÛrios.' });
+    if (!colaborador_id || !data_falta) return res.status(400).json({ error: 'colaborador_id e data_falta s√£o obrigat√≥rios.' });
     db.run('INSERT INTO faltas (colaborador_id, data_falta, turno, observacao, avisado_previamente) VALUES (?, ?, ?, ?, ?)',
-        [colaborador_id, data_falta, turno || 'Dia todo', observacao || '', avisado_previamente || 'N„o'],
+        [colaborador_id, data_falta, turno || 'Dia todo', observacao || '', avisado_previamente || 'N√£o'],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
-            res.json({ id: this.lastID, colaborador_id, data_falta, turno: turno || 'Dia todo', observacao: observacao || '', avisado_previamente: avisado_previamente || 'N„o' });
+            res.json({ id: this.lastID, colaborador_id, data_falta, turno: turno || 'Dia todo', observacao: observacao || '', avisado_previamente: avisado_previamente || 'N√£o' });
         }
     );
 });
@@ -3536,7 +3536,7 @@ app.delete('/api/faltas/:id', authenticateToken, (req, res) => {
     });
 });
 
-// --- ROTAS DE AVALIA«√O ---
+// --- ROTAS DE AVALIA√á√ÉO ---
 app.get('/api/colaboradores/:id/avaliacoes', authenticateToken, (req, res) => {
     db.all('SELECT * FROM avaliacoes WHERE colaborador_id = ? ORDER BY ano DESC, trimestre ASC', [req.params.id], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -3546,9 +3546,9 @@ app.get('/api/colaboradores/:id/avaliacoes', authenticateToken, (req, res) => {
 
 app.post('/api/avaliacoes', authenticateToken, (req, res) => {
     const { colaborador_id, tipo, ano, trimestre, respostas_json } = req.body;
-    if (!colaborador_id || !tipo || !ano || !trimestre) return res.status(400).json({ error: 'colaborador_id, tipo, ano e trimestre s„o obrigatÛrios.' });
+    if (!colaborador_id || !tipo || !ano || !trimestre) return res.status(400).json({ error: 'colaborador_id, tipo, ano e trimestre s√£o obrigat√≥rios.' });
     
-    // Upsert (atualiza se j· existir para o mesmo colaborador/ano/trimestre/tipo)
+    // Upsert (atualiza se j√° existir para o mesmo colaborador/ano/trimestre/tipo)
     db.run(`
         INSERT INTO avaliacoes (colaborador_id, tipo, ano, trimestre, respostas_json)
         VALUES (?, ?, ?, ?, ?)
@@ -3563,12 +3563,12 @@ app.post('/api/avaliacoes', authenticateToken, (req, res) => {
 app.delete('/api/avaliacoes/:id', authenticateToken, (req, res) => {
     db.run('DELETE FROM avaliacoes WHERE id = ?', [req.params.id], function(err) {
         if (err) return res.status(500).json({ error: err.message });
-        if (this.changes === 0) return res.status(404).json({ error: 'AvaliaÁ„o n„o encontrada.' });
-        res.json({ deleted: this.changes, message: 'AvaliaÁ„o excluÌda com sucesso' });
+        if (this.changes === 0) return res.status(404).json({ error: 'Avalia√ß√£o n√£o encontrada.' });
+        res.json({ deleted: this.changes, message: 'Avalia√ß√£o exclu√≠da com sucesso' });
     });
 });
 
-// --- ROTAS DE TEMPLATES DE AVALIA«√O ---
+// --- ROTAS DE TEMPLATES DE AVALIA√á√ÉO ---
 app.get('/api/avaliacao-templates', authenticateToken, (req, res) => {
     db.all('SELECT * FROM avaliacao_templates ORDER BY tipo, nome', (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -3578,7 +3578,7 @@ app.get('/api/avaliacao-templates', authenticateToken, (req, res) => {
 
 app.post('/api/avaliacao-templates', authenticateToken, (req, res) => {
     const { nome, tipo, grupo_key, categorias_json } = req.body;
-    if (!nome || !tipo || !grupo_key || !categorias_json) return res.status(400).json({ error: 'Campos obrigatÛrios faltando.' });
+    if (!nome || !tipo || !grupo_key || !categorias_json) return res.status(400).json({ error: 'Campos obrigat√≥rios faltando.' });
     db.run('INSERT INTO avaliacao_templates (nome, tipo, grupo_key, categorias_json) VALUES (?,?,?,?)',
         [nome, tipo, grupo_key, typeof categorias_json === 'string' ? categorias_json : JSON.stringify(categorias_json)],
         function(err) {
@@ -3611,12 +3611,12 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
     const { colaborador_id, email_to, data_exame, cc } = req.body;
     
     db.get('SELECT * FROM colaboradores WHERE id = ?', [colaborador_id], (err, colab) => {
-        if (err || !colab) return res.status(404).json({ error: 'Colaborador n„o encontrado' });
+        if (err || !colab) return res.status(404).json({ error: 'Colaborador n√£o encontrado' });
         
         const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
         const exames = (colab.cargo || '').toLowerCase().includes('motorista') 
             ? 'Audiometria, acuidade visual, E.E.G, E.C.G e Glicemia.' 
-            : 'Exame Padr„o';
+            : 'Exame Padr√£o';
 
         // Formatar data: YYYY-MM-DD to DD/MM/YYYY
         const [y, m, d] = data_exame.split('-');
@@ -3628,13 +3628,13 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
                     <img src="cid:empresa-logo" style="max-height: 80px;">
                 </div>
                 <h2 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">Exame Admissional</h2>
-                <p>Segue abaixo as informaÁıes para a realizaÁ„o do exame Admissional do colaborador que deve comparecer.</p>
+                <p>Segue abaixo as informa√ß√µes para a realiza√ß√£o do exame Admissional do colaborador que deve comparecer.</p>
                 
                 <div style="background: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
                     <p><strong>Data:</strong> ${dataFormatada}</p>
                     <p><strong>Nome:</strong> ${colab.nome_completo}</p>
                     <p><strong>CPF:</strong> ${colab.cpf}</p>
-                    <p><strong>FunÁ„o:</strong> ${colab.cargo || '-'}</p>
+                    <p><strong>Fun√ß√£o:</strong> ${colab.cargo || '-'}</p>
                     <p><strong>Departamento:</strong> ${colab.departamento || '-'}</p>
                 </div>
 
@@ -3643,21 +3643,21 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
 
                 <div style="margin-top: 30px; padding: 15px; border: 2px solid #e74c3c; border-radius: 8px; background: #fff5f5; text-align: center;">
                     <p style="color: #c0392b; font-weight: bold; font-size: 1.1rem; margin: 0;">
-                        ?? IMPORTANTE:<br>ApÛs o exame ficar pronto, favor enviar o documento por e-mail diretamente para:<br>
+                        ?? IMPORTANTE:<br>Ap√≥s o exame ficar pronto, favor enviar o documento por e-mail diretamente para:<br>
                         <span style="font-size: 1.2rem; color: #2c3e50;">rh@americarental.com.br</span>
                     </p>
                 </div>
 
-                <p style="margin-top: 30px; font-size: 0.9em; color: #7f8c8d;">Atenciosamente,<br>Equipe de RH - AmÈrica Rental</p>
+                <p style="margin-top: 30px; font-size: 0.9em; color: #7f8c8d;">Atenciosamente,<br>Equipe de RH - Am√©rica Rental</p>
             </div>
         `;
 
         const transporter = nodemailer.createTransport(SMTP_CONFIG);
         const mailOptions = {
-            from: `"RH AmÈrica Rental" <${SMTP_CONFIG.auth.user}>`,
+            from: `"RH Am√©rica Rental" <${SMTP_CONFIG.auth.user}>`,
             to: email_to,
             cc: cc || [],
-            subject: 'SolicitaÁ„o de Exame Admissional',
+            subject: 'Solicita√ß√£o de Exame Admissional',
             html: htmlContent,
             attachments: [
                 {
@@ -3697,25 +3697,25 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
 app.post('/api/send-atestado-contabilidade', authenticateToken, async (req, res) => {
     const { document_id, email_to } = req.body;
     if (!document_id || !email_to) {
-        return res.status(400).json({ sucesso: false, error: 'document_id e email_to s„o obrigatÛrios.' });
+        return res.status(400).json({ sucesso: false, error: 'document_id e email_to s√£o obrigat√≥rios.' });
     }
 
     try {
         const doc = await new Promise((resolve, reject) =>
             db.get('SELECT * FROM documentos WHERE id = ?', [document_id], (err, row) => err ? reject(err) : resolve(row)));
-        if (!doc) return res.status(404).json({ sucesso: false, error: 'Documento n„o encontrado.' });
+        if (!doc) return res.status(404).json({ sucesso: false, error: 'Documento n√£o encontrado.' });
 
         const colab = await new Promise((resolve, reject) =>
             db.get('SELECT * FROM colaboradores WHERE id = ?', [doc.colaborador_id], (err, row) => err ? reject(err) : resolve(row)));
-        if (!colab) return res.status(404).json({ sucesso: false, error: 'Colaborador n„o encontrado.' });
+        if (!colab) return res.status(404).json({ sucesso: false, error: 'Colaborador n√£o encontrado.' });
 
         // Verificar se o arquivo existe
         const filePath = path.resolve(doc.file_path);
         if (!fs.existsSync(filePath)) {
-            return res.status(404).json({ sucesso: false, error: 'Arquivo do atestado n„o encontrado no servidor.' });
+            return res.status(404).json({ sucesso: false, error: 'Arquivo do atestado n√£o encontrado no servidor.' });
         }
 
-        // Extrair CID e descriÁ„o de document_type (formato: "Z57 - Problemas laborais")
+        // Extrair CID e descri√ß√£o de document_type (formato: "Z57 - Problemas laborais")
         const docTypeParts = (doc.document_type || '').split(' - ');
         const cidCode = docTypeParts[0] || '-';
         const cidDesc = docTypeParts.slice(1).join(' - ') || '-';
@@ -3733,7 +3733,7 @@ app.post('/api/send-atestado-contabilidade', authenticateToken, async (req, res)
         const dataFim = formatDate(doc.atestado_fim);
         const tipo = doc.atestado_tipo === 'horas' ? 'horas' : 'dias';
 
-        // Calcular duraÁ„o em dias
+        // Calcular dura√ß√£o em dias
         let duracaoDias = 0;
         if (doc.atestado_inicio && doc.atestado_fim && doc.atestado_tipo !== 'horas') {
             const dtInicio = new Date(doc.atestado_inicio);
@@ -3742,16 +3742,16 @@ app.post('/api/send-atestado-contabilidade', authenticateToken, async (req, res)
         }
         const ehEsocial = duracaoDias >= 16;
 
-        // Textos din‚micos conforme perÌodo
+        // Textos din√¢micos conforme per√≠odo
         const emailTitulo = ehEsocial
-            ? '?? Atestado MÈdico ó Inclus„o eSocial'
-            : '?? Atestado MÈdico ó Controle Interno';
+            ? '?? Atestado M√©dico ‚Äî Inclus√£o eSocial'
+            : '?? Atestado M√©dico ‚Äî Controle Interno';
         const emailSubject = ehEsocial
-            ? `Atestado MÈdico eSocial ó ${colab.nome_completo} (${cidCode})`
-            : `Atestado MÈdico (Controle) ó ${colab.nome_completo} (${cidCode})`;
+            ? `Atestado M√©dico eSocial ‚Äî ${colab.nome_completo} (${cidCode})`
+            : `Atestado M√©dico (Controle) ‚Äî ${colab.nome_completo} (${cidCode})`;
         const emailIntro = ehEsocial
-            ? `Encaminhamos o atestado mÈdico do colaborador abaixo para <strong>inclus„o no cadastro do eSocial</strong>, pois o perÌodo de afastamento È de <strong style="color:#0f4c81;">${duracaoDias} dia(s)</strong>, atingindo o limite de 16 dias exigido pelo eSocial.`
-            : `Encaminhamos o atestado mÈdico do colaborador abaixo <strong>apenas para controle interno</strong>. O perÌodo de afastamento de <strong>${duracaoDias > 0 ? duracaoDias + ' dia(s)' : tipo}</strong> n„o atinge o mÌnimo de 16 dias exigido pelo eSocial e <strong>n„o requer lanÁamento</strong>.`;
+            ? `Encaminhamos o atestado m√©dico do colaborador abaixo para <strong>inclus√£o no cadastro do eSocial</strong>, pois o per√≠odo de afastamento √© de <strong style="color:#0f4c81;">${duracaoDias} dia(s)</strong>, atingindo o limite de 16 dias exigido pelo eSocial.`
+            : `Encaminhamos o atestado m√©dico do colaborador abaixo <strong>apenas para controle interno</strong>. O per√≠odo de afastamento de <strong>${duracaoDias > 0 ? duracaoDias + ' dia(s)' : tipo}</strong> n√£o atinge o m√≠nimo de 16 dias exigido pelo eSocial e <strong>n√£o requer lan√ßamento</strong>.`;
         const tituloColor = ehEsocial ? '#0f4c81' : '#64748b';
 
         // Nome do arquivo anexo: CID_DD-MM-YYYY_NomeColaborador.pdf
@@ -3781,20 +3781,20 @@ app.post('/api/send-atestado-contabilidade', authenticateToken, async (req, res)
                 </div>
 
                 <div style="background:#fff; border:1px solid #cbd5e1; padding:15px; border-radius:8px; margin:20px 0;">
-                    <p style="margin:4px 0;"><strong>CID:</strong> <span style="color:${tituloColor}; font-weight:700;">${cidCode}</span> ó ${cidDesc}</p>
-                    <p style="margin:4px 0;"><strong>InÌcio do afastamento:</strong> ${dataInicio}</p>
+                    <p style="margin:4px 0;"><strong>CID:</strong> <span style="color:${tituloColor}; font-weight:700;">${cidCode}</span> ‚Äî ${cidDesc}</p>
+                    <p style="margin:4px 0;"><strong>In√≠cio do afastamento:</strong> ${dataInicio}</p>
                     <p style="margin:4px 0;"><strong>Fim do afastamento:</strong> ${dataFim}</p>
                     <p style="margin:4px 0;"><strong>Tipo:</strong> Atestado em ${tipo}${duracaoDias > 0 ? ` (${duracaoDias} dia(s))` : ''}</p>
                 </div>
 
-                <p>O documento em PDF est· em anexo neste e-mail.</p>
-                <p style="margin-top:30px; font-size:0.9em; color:#7f8c8d;">Atenciosamente,<br>Equipe de RH ó AmÈrica Rental</p>
+                <p>O documento em PDF est√° em anexo neste e-mail.</p>
+                <p style="margin-top:30px; font-size:0.9em; color:#7f8c8d;">Atenciosamente,<br>Equipe de RH ‚Äî Am√©rica Rental</p>
             </div>
         `;
 
         const transporter = nodemailer.createTransport(SMTP_CONFIG);
         await transporter.sendMail({
-            from: `"RH AmÈrica Rental" <${SMTP_CONFIG.auth.user}>`,
+            from: `"RH Am√©rica Rental" <${SMTP_CONFIG.auth.user}>`,
             to: email_to,
             subject: emailSubject,
             html: htmlContent,
@@ -3821,39 +3821,39 @@ app.post('/api/send-atestado-contabilidade', authenticateToken, async (req, res)
 });
 
 /**
- * Envio de Suspens„o para a Contabilidade (Fechamento de Folha)
+ * Envio de Suspens√£o para a Contabilidade (Fechamento de Folha)
  */
 app.post('/api/send-suspensao-contabilidade', authenticateToken, async (req, res) => {
     const { document_id, email_to } = req.body;
     if (!document_id || !email_to) {
-        return res.status(400).json({ sucesso: false, error: 'document_id e email_to s„o obrigatÛrios.' });
+        return res.status(400).json({ sucesso: false, error: 'document_id e email_to s√£o obrigat√≥rios.' });
     }
 
     try {
         const doc = await new Promise((resolve, reject) =>
             db.get('SELECT * FROM documentos WHERE id = ?', [document_id], (err, row) => err ? reject(err) : resolve(row)));
-        if (!doc) return res.status(404).json({ sucesso: false, error: 'Documento n„o encontrado.' });
+        if (!doc) return res.status(404).json({ sucesso: false, error: 'Documento n√£o encontrado.' });
 
         const colab = await new Promise((resolve, reject) =>
             db.get('SELECT * FROM colaboradores WHERE id = ?', [doc.colaborador_id], (err, row) => err ? reject(err) : resolve(row)));
-        if (!colab) return res.status(404).json({ sucesso: false, error: 'Colaborador n„o encontrado.' });
+        if (!colab) return res.status(404).json({ sucesso: false, error: 'Colaborador n√£o encontrado.' });
 
-        // Extrair tipo da suspens„o do document_type (formato: "TÌtulo###Suspens„o X dias")
+        // Extrair tipo da suspens√£o do document_type (formato: "T√≠tulo###Suspens√£o X dias")
         const parts = (doc.document_type || '').split('###');
-        const tipoSuspensao = parts[1] || parts[0] || 'Suspens„o';
+        const tipoSuspensao = parts[1] || parts[0] || 'Suspens√£o';
 
         // Data do documento
         const dataDoc = doc.upload_date
             ? new Date(doc.upload_date).toLocaleDateString('pt-BR')
             : new Date().toLocaleDateString('pt-BR');
 
-        // Garantir que o documento est· assinado (pelo menos pelas testemunhas)
-        // Suspensıes podem ser enviadas ‡ contabilidade apenas com a assinatura das testemunhas
+        // Garantir que o documento est√° assinado (pelo menos pelas testemunhas)
+        // Suspens√µes podem ser enviadas √† contabilidade apenas com a assinatura das testemunhas
         if (doc.assinafy_status !== 'Assinado' && doc.assinafy_status !== 'Testemunhas') {
-            return res.status(400).json({ sucesso: false, error: 'O documento ainda n„o foi assinado. Aguarde a assinatura do colaborador ou das testemunhas antes de enviar.' });
+            return res.status(400).json({ sucesso: false, error: 'O documento ainda n√£o foi assinado. Aguarde a assinatura do colaborador ou das testemunhas antes de enviar.' });
         }
 
-        // Arquivo em anexo (tenta pegar a vers„o final, se n„o, pega a vers„o com as testemunhas)
+        // Arquivo em anexo (tenta pegar a vers√£o final, se n√£o, pega a vers√£o com as testemunhas)
         const attachments = [];
         const activeFilePath = doc.signed_file_path ? path.resolve(doc.signed_file_path) : path.resolve(doc.file_path);
         if (fs.existsSync(activeFilePath)) {
@@ -3865,7 +3865,7 @@ app.post('/api/send-suspensao-contabilidade', authenticateToken, async (req, res
             const yyyy = hoje.getFullYear();
             attachments.push({ filename: `Suspensao_Assinada_${dd}-${mm}-${yyyy}_${nomeNorm}.pdf`, path: activeFilePath, contentType: 'application/pdf' });
         } else {
-            return res.status(404).json({ sucesso: false, error: 'Arquivo PDF assinado n„o encontrado no servidor.' });
+            return res.status(404).json({ sucesso: false, error: 'Arquivo PDF assinado n√£o encontrado no servidor.' });
         }
 
         const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
@@ -3876,8 +3876,8 @@ app.post('/api/send-suspensao-contabilidade', authenticateToken, async (req, res
                 <div style="text-align: center; margin-bottom: 20px;">
                     <img src="cid:empresa-logo" style="max-height: 80px; max-width:100%;">
                 </div>
-                <h2 style="color: #c0392b; border-bottom: 2px solid #c0392b; padding-bottom: 10px;">?? Suspens„o Disciplinar</h2>
-                <p>Informamos que o colaborador abaixo recebeu uma <strong>suspens„o disciplinar</strong> que deve ser <strong>considerada no fechamento da folha de pagamento</strong>.</p>
+                <h2 style="color: #c0392b; border-bottom: 2px solid #c0392b; padding-bottom: 10px;">?? Suspens√£o Disciplinar</h2>
+                <p>Informamos que o colaborador abaixo recebeu uma <strong>suspens√£o disciplinar</strong> que deve ser <strong>considerada no fechamento da folha de pagamento</strong>.</p>
 
                 <div style="background:#f1f5f9; padding:15px; border-radius:8px; margin:20px 0;">
                     <p style="margin:4px 0;"><strong>Colaborador:</strong> ${colab.nome_completo}</p>
@@ -3893,21 +3893,21 @@ app.post('/api/send-suspensao-contabilidade', authenticateToken, async (req, res
 
                 <div style="background:#fff3cd; border:1px solid #ffc107; padding:15px; border-radius:8px; margin:20px 0; text-align:center;">
                     <p style="margin:0; color:#856404; font-weight:700; font-size:1rem;">
-                        ?? AtenÁ„o: Esta suspens„o deve ser descontada na folha de pagamento do colaborador.<br>
-                        Favor considerar para o fechamento do mÍs.
+                        ?? Aten√ß√£o: Esta suspens√£o deve ser descontada na folha de pagamento do colaborador.<br>
+                        Favor considerar para o fechamento do m√™s.
                     </p>
                 </div>
 
-                ${attachments.length > 1 ? '<p>O documento de suspens„o est· em anexo neste e-mail.</p>' : ''}
-                <p style="margin-top:30px; font-size:0.9em; color:#7f8c8d;">Atenciosamente,<br>Equipe de RH ó AmÈrica Rental</p>
+                ${attachments.length > 1 ? '<p>O documento de suspens√£o est√° em anexo neste e-mail.</p>' : ''}
+                <p style="margin-top:30px; font-size:0.9em; color:#7f8c8d;">Atenciosamente,<br>Equipe de RH ‚Äî Am√©rica Rental</p>
             </div>
         `;
 
         const transporter = nodemailer.createTransport(SMTP_CONFIG);
         await transporter.sendMail({
-            from: `"RH AmÈrica Rental" <${SMTP_CONFIG.auth.user}>`,
+            from: `"RH Am√©rica Rental" <${SMTP_CONFIG.auth.user}>`,
             to: email_to,
-            subject: `?? Suspens„o para Folha ó ${colab.nome_completo} (${tipoSuspensao})`,
+            subject: `?? Suspens√£o para Folha ‚Äî ${colab.nome_completo} (${tipoSuspensao})`,
             html: htmlContent,
             attachments
         });
@@ -3920,7 +3920,7 @@ app.post('/api/send-suspensao-contabilidade', authenticateToken, async (req, res
             db.run('UPDATE documentos SET atestado_contab_enviado_em = ? WHERE id = ?',
                 [agora, document_id], (err) => err ? reject(err) : resolve()));
 
-        res.json({ sucesso: true, message: 'E-mail de suspens„o enviado com sucesso para a contabilidade!', enviado_em: agora });
+        res.json({ sucesso: true, message: 'E-mail de suspens√£o enviado com sucesso para a contabilidade!', enviado_em: agora });
     } catch (error) {
         console.error('[SUSPENSAO CONTAB] ERRO:', error.message);
         res.status(500).json({ sucesso: false, error: error.message });
@@ -3929,7 +3929,7 @@ app.post('/api/send-suspensao-contabilidade', authenticateToken, async (req, res
 
 
 /**
- * WEBHOOK UNIFICADO: Escuta criaÁ„o de links e conclus„o de assinaturas
+ * WEBHOOK UNIFICADO: Escuta cria√ß√£o de links e conclus√£o de assinaturas
  */
 const salvarLinkAssinatura = async (assinafyId, link) => {
     return new Promise((resolve) => {
@@ -3957,7 +3957,7 @@ app.post("/webhook/assinafy", async (req, res) => {
                           (payload.data && (payload.data.document_id || payload.data.id)) ||
                           (payload.object && payload.object.id);
 
-        // 2. Tratar captura de link (CriaÁ„o/Envio)
+        // 2. Tratar captura de link (Cria√ß√£o/Envio)
         let signLink = payload.sign_url || payload.signUrl;
         if (!signLink && payload.signers && payload.signers[0]) {
             signLink = payload.signers[0].sign_url || payload.signers[0].url;
@@ -3973,8 +3973,8 @@ app.post("/webhook/assinafy", async (req, res) => {
         }
         
         // 3. Processamento Unificado de Assinatura Completa via Polling
-        // Em vez de duplicar a lÛgica complexa de downlaod, Assinatura Digital (PFX) por cima, 
-        // Sync Onedrive e Updates de DB, nÛs simplesmente acionamos nosso POLLING.
+        // Em vez de duplicar a l√≥gica complexa de downlaod, Assinatura Digital (PFX) por cima, 
+        // Sync Onedrive e Updates de DB, n√≥s simplesmente acionamos nosso POLLING.
         const event = (payload.event || '').toLowerCase();
         if (event.includes('ready') || event.includes('signed') || event.includes('completed') || event.includes('certificated')) {
             setTimeout(() => {
@@ -3984,16 +3984,16 @@ app.post("/webhook/assinafy", async (req, res) => {
         }
 
     } catch (e) {
-        console.error('[WEBHOOK] Erro gravÌssimo:', e);
+        console.error('[WEBHOOK] Erro grav√≠ssimo:', e);
     }
 });
 
 // Rota para baixar o PDF ASSINADO
 app.get('/api/documentos/download-assinado/:id', authenticateToken, (req, res) => {
     db.get('SELECT file_name, signed_file_path, assinafy_id FROM documentos WHERE id = ?', [req.params.id], async (err, row) => {
-        if (err || !row) return res.status(404).json({ error: 'Documento n„o encontrado' });
+        if (err || !row) return res.status(404).json({ error: 'Documento n√£o encontrado' });
         
-        // Se j· temos baixado, entrega o arquivo diretamente
+        // Se j√° temos baixado, entrega o arquivo diretamente
         if (row.signed_file_path && require('fs').existsSync(row.signed_file_path)) {
             const signedName = `ASSINADO_${row.file_name}`;
             res.setHeader('Content-Type', 'application/pdf');
@@ -4001,7 +4001,7 @@ app.get('/api/documentos/download-assinado/:id', authenticateToken, (req, res) =
             return require('fs').createReadStream(row.signed_file_path).pipe(res);
         }
 
-        // Se n„o baixou ainda mas j· est· assinado, busca o link urgente no Assinafy
+        // Se n√£o baixou ainda mas j√° est√° assinado, busca o link urgente no Assinafy
         if (row.assinafy_id) {
             try {
                 const https = require('https');
@@ -4022,7 +4022,7 @@ app.get('/api/documentos/download-assinado/:id', authenticateToken, (req, res) =
                 const assinafyRes = await getDocData();
                 const docData = assinafyRes.data || assinafyRes;
                 
-                // ForÁar o rec·lculo da melhor URL pra evitar cache do antigo (sem certificado)
+                // For√ßar o rec√°lculo da melhor URL pra evitar cache do antigo (sem certificado)
                 let targetUrl = extractSignedUrl(docData);
 
                 if (targetUrl) {
@@ -4083,9 +4083,9 @@ app.get('/api/documentos/download-assinado/:id', authenticateToken, (req, res) =
                         res.status(500).json({ error: 'Falha ao baixar do Assinafy' });
                     });
                     
-                    return; // Retorna para n„o executar o bloco else
+                    return; // Retorna para n√£o executar o bloco else
                 } else {
-                    return res.status(404).json({ error: 'URL do PDF assinado n„o encontrada no Assinafy' });
+                    return res.status(404).json({ error: 'URL do PDF assinado n√£o encontrada no Assinafy' });
                 }
 
             } catch (e) {
@@ -4093,7 +4093,7 @@ app.get('/api/documentos/download-assinado/:id', authenticateToken, (req, res) =
             }
         }
 
-        return res.status(404).json({ error: 'PDF assinado ainda n„o disponÌvel. Aguarde alguns instantes.' });
+        return res.status(404).json({ error: 'PDF assinado ainda n√£o dispon√≠vel. Aguarde alguns instantes.' });
     });
 });
 /**
@@ -4111,8 +4111,8 @@ app.post('/api/documentos/:id/sync-assinafy', authenticateToken, async (req, res
             });
         });
 
-        if (!doc) return res.status(404).json({ error: 'Documento n„o encontrado.' });
-        if (!doc.assinafy_id) return res.status(400).json({ error: 'Documento n„o foi enviado ao Assinafy.' });
+        if (!doc) return res.status(404).json({ error: 'Documento n√£o encontrado.' });
+        if (!doc.assinafy_id) return res.status(400).json({ error: 'Documento n√£o foi enviado ao Assinafy.' });
 
         const https = require('https');
         const fetchStatus = () => new Promise((resolve, reject) => {
@@ -4144,8 +4144,8 @@ app.post('/api/documentos/:id/sync-assinafy', authenticateToken, async (req, res
         let newStatus = doc.assinafy_status;
         let pStatus = (documentData.status || documentData.status_id || '').toString().toLowerCase();
 
-        // status possÌveis no assinafy: certificated, completed, pending, waiting_signatures, error
-        if (pStatus.includes('certificat') || pStatus.includes('complet') || pStatus === '4' || pStatus === 'assinado' || pStatus === 'concluÌdo') {
+        // status poss√≠veis no assinafy: certificated, completed, pending, waiting_signatures, error
+        if (pStatus.includes('certificat') || pStatus.includes('complet') || pStatus === '4' || pStatus === 'assinado' || pStatus === 'conclu√≠do') {
             newStatus = 'Assinado';
         } else if (pStatus.includes('pend') || pStatus.includes('wait') || pStatus === '2' || pStatus === '3') {
             newStatus = 'Pendente';
@@ -4153,7 +4153,7 @@ app.post('/api/documentos/:id/sync-assinafy', authenticateToken, async (req, res
             newStatus = 'Erro';
         }
 
-        // Se assinado, pega o link e baixa se n„o tiver path ainda
+        // Se assinado, pega o link e baixa se n√£o tiver path ainda
         let signedUrl = extractSignedUrl(documentData);
         
         if (newStatus === 'Assinado' && signedUrl) {
@@ -4179,7 +4179,7 @@ app.post('/api/documentos/:id/sync-assinafy', authenticateToken, async (req, res
                         }).on('error', (err) => { fs.unlink(finalPath, () => {}); reject(err); });
                     } else if (response.statusCode >= 400) {
                         fs.unlink(finalPath, () => {});
-                        resolve(); // ignora o erro para n„o travar o sync
+                        resolve(); // ignora o erro para n√£o travar o sync
                     } else {
                         response.pipe(file);
                         file.on('finish', () => { file.close(); resolve(); });
@@ -4188,7 +4188,7 @@ app.post('/api/documentos/:id/sync-assinafy', authenticateToken, async (req, res
             });
 
             // -- Aplicar selo do certificado digital da empresa no arquivo LOCAL --
-            // Isso garante que o bot„o de olho tambÈm mostre o selo, n„o apenas o OneDrive
+            // Isso garante que o bot√£o de olho tamb√©m mostre o selo, n√£o apenas o OneDrive
             let localPfxBuffer = fs.readFileSync(finalPath);
             const dispCertLocal = signPdfPfx.verificarDisponibilidade();
             if (dispCertLocal.disponivel) {
@@ -4197,7 +4197,7 @@ app.post('/api/documentos/:id/sync-assinafy', authenticateToken, async (req, res
                         motivo: 'Assinado eletronicamente pela empresa',
                         nome: 'America Rental Equipamentos Ltda'
                     });
-                    fs.writeFileSync(finalPath, localPfxBuffer); // sobrescreve com vers„o PFX
+                    fs.writeFileSync(finalPath, localPfxBuffer); // sobrescreve com vers√£o PFX
                     console.log('[SIGN] ? Selo PFX aplicado no arquivo local.');
                 } catch (pfxErr) {
                     localPfxBuffer = fs.readFileSync(finalPath); // fallback: sem PFX
@@ -4218,7 +4218,7 @@ app.post('/api/documentos/:id/sync-assinafy', authenticateToken, async (req, res
                     const safeTab = formatarPasta(doc.tab_name || 'DOCUMENTOS').toUpperCase();
                     const docYear = doc.year && doc.year !== 'null' && doc.year !== '' ? String(doc.year).replace(/[^0-9]/g, '') : String(new Date().getFullYear());
                     let targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}/${docYear}`;
-                    // Para Pagamentos/Terapia: adiciona sub-pasta do mÍs (ex: Abril)
+                    // Para Pagamentos/Terapia: adiciona sub-pasta do m√™s (ex: Abril)
                     if (doc.month && doc.month !== 'null' && doc.month !== '') {
                         targetDir += `/${getMesNome(doc.month)}`;
                     }
@@ -4226,7 +4226,7 @@ app.post('/api/documentos/:id/sync-assinafy', authenticateToken, async (req, res
                     console.log(`[OneDrive Sync] Sincronizando para: ${targetDir}`);
                     await onedrive.ensurePath(targetDir);
 
-                    // Reutiliza buffer j· com PFX (aplicado acima), sem re-processar
+                    // Reutiliza buffer j√° com PFX (aplicado acima), sem re-processar
                     const safeType = formatarPasta(doc.document_type || doc.tab_name || 'Documento').replace(/\s+/g, '_');
                     const cloudName = `${safeType}_${docYear}_${safeColab}.pdf`;
                     
@@ -4254,7 +4254,7 @@ app.post('/api/documentos/:id/sync-assinafy', authenticateToken, async (req, res
 });
 
 /**
- * DIAGN”STICO: ForÁa re-envio de documento assinado ao OneDrive e retorna log detalhado
+ * DIAGN√ìSTICO: For√ßa re-envio de documento assinado ao OneDrive e retorna log detalhado
  */
 app.post('/api/documentos/:id/force-onedrive-sync', authenticateToken, async (req, res) => {
     const docId = req.params.id;
@@ -4270,20 +4270,20 @@ app.post('/api/documentos/:id/force-onedrive-sync', authenticateToken, async (re
             });
         });
 
-        if (!doc) return res.status(404).json({ log, error: 'Documento n„o encontrado.' });
+        if (!doc) return res.status(404).json({ log, error: 'Documento n√£o encontrado.' });
         addLog(`Doc id=${doc.id} | tab=${doc.tab_name} | type=${doc.document_type} | year=${doc.year} | colab=${doc.nome_completo} | status=${doc.assinafy_status}`);
         addLog(`file_path: ${doc.file_path || 'VAZIO'}`);
         addLog(`signed_file_path: ${doc.signed_file_path || 'VAZIO'}`);
-        addLog(`ONEDRIVE_BASE_PATH env: ${process.env.ONEDRIVE_BASE_PATH || '(n„o definido, usando RH/1.Colaboradores/Sistema)'}`);
+        addLog(`ONEDRIVE_BASE_PATH env: ${process.env.ONEDRIVE_BASE_PATH || '(n√£o definido, usando RH/1.Colaboradores/Sistema)'}`);
 
-        // Para docs n„o assinados (ex: Atestados), usa file_path diretamente
+        // Para docs n√£o assinados (ex: Atestados), usa file_path diretamente
         let localPath = doc.signed_file_path || null;
         if (!localPath || !fs.existsSync(localPath)) {
             if (doc.file_path && fs.existsSync(doc.file_path)) {
                 localPath = doc.file_path;
                 addLog(`Usando file_path regular: ${localPath}`);
             }
-        // ForÁa download direto do Assinafy para evitar reaproveitar cache antigo sem selo
+        // For√ßa download direto do Assinafy para evitar reaproveitar cache antigo sem selo
         addLog('Buscando URL atualizada no Assinafy...');
 
         const assinafyRes = await new Promise((resolve, reject) => {
@@ -4305,8 +4305,8 @@ app.post('/api/documentos/:id/force-onedrive-sync', authenticateToken, async (re
         addLog(`Artifacts: ${JSON.stringify(docData.artifacts || 'nenhum')}`);
 
         const signedUrl = extractSignedUrl(docData);
-        addLog(`URL extraÌda: ${signedUrl || 'NENHUMA URL ENCONTRADA'}`);
-        if (!signedUrl) return res.json({ log, error: 'URL do PDF assinado n„o encontrada.', raw: docData });
+        addLog(`URL extra√≠da: ${signedUrl || 'NENHUMA URL ENCONTRADA'}`);
+        if (!signedUrl) return res.json({ log, error: 'URL do PDF assinado n√£o encontrada.', raw: docData });
 
         const storagePath = process.env.STORAGE_PATH || path.join(__dirname, 'data', 'uploads');
         const assDir = path.join(storagePath, 'assinados');
@@ -4361,7 +4361,7 @@ app.post('/api/documentos/:id/force-onedrive-sync', authenticateToken, async (re
             addLog(`Arquivo local OK (${fs.statSync(localPath).size} bytes)`);
         }
 
-        if (!onedrive) return res.json({ log, error: 'MÛdulo OneDrive n„o carregado no servidor.' });
+        if (!onedrive) return res.json({ log, error: 'M√≥dulo OneDrive n√£o carregado no servidor.' });
 
         const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || 'RH/1.Colaboradores/Sistema';
         const safeColab = formatarNome(doc.nome_completo || 'DESCONHECIDO');
@@ -4370,13 +4370,13 @@ app.post('/api/documentos/:id/force-onedrive-sync', authenticateToken, async (re
         let targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}`;
         if (safeTab !== '01_FICHA_CADASTRAL') {
             targetDir += `/${docYear}`;
-            // Para Pagamentos: sub-pasta com nome do mÍs em portuguÍs
+            // Para Pagamentos: sub-pasta com nome do m√™s em portugu√™s
             if (safeTab === 'PAGAMENTOS' && doc.month && doc.month !== 'null' && doc.month !== '') {
                 targetDir += `/${getMesNome(doc.month)}`;
             }
         }
-        // Para Atestados, usa o file_name que j· foi gerado com o padr„o Z01_DD-MM-AA
-        // Para docs assinados, usa o padr„o TipoDoc_Ano_NomeColab.pdf
+        // Para Atestados, usa o file_name que j√° foi gerado com o padr√£o Z01_DD-MM-AA
+        // Para docs assinados, usa o padr√£o TipoDoc_Ano_NomeColab.pdf
         const isAtestado = (doc.tab_name === 'Atestados');
         // Para atestados, strip o sufixo de timestamp do file_name: CID_DD-MM-AA_Nome_YYYYMMDD_HHMMSS.pdf ? CID_DD-MM-AA_Nome.pdf
         const cloudName = isAtestado
@@ -4391,7 +4391,7 @@ app.post('/api/documentos/:id/force-onedrive-sync', authenticateToken, async (re
         const fBuffer = fs.readFileSync(localPath);
         addLog(`Buffer: ${fBuffer.length} bytes`);
         await onedrive.uploadToOneDrive(targetDir, cloudName, fBuffer);
-        addLog(`? Upload concluÌdo com sucesso!`);
+        addLog(`? Upload conclu√≠do com sucesso!`);
 
         res.json({ sucesso: true, log, targetDir, cloudName });
 
@@ -4403,7 +4403,7 @@ app.post('/api/documentos/:id/force-onedrive-sync', authenticateToken, async (re
 });
 
 /**
- * ROTA TEMPOR¡RIA: Reset de Sistema
+ * ROTA TEMPOR√ÅRIA: Reset de Sistema
  */
 app.post('/api/maintenance/reset', authenticateToken, (req, res) => {
     db.serialize(() => {
@@ -4457,7 +4457,7 @@ app.post('/api/force-sync-contratos-avulsos', authenticateToken, async (req, res
         res.json({ ok, fail, total: (rows || []).length });
     });
 });
-// DIAGN”STICO: Verificar estado de um documento e seus campos
+// DIAGN√ìSTICO: Verificar estado de um documento e seus campos
 app.get('/api/debug-outros-contratos/:docId', authenticateToken, async (req, res) => {
     const { docId } = req.params;
     db.get('SELECT id, colaborador_id, tab_name, document_type, file_path, assinafy_status, assinafy_sent_at, assinafy_signed_at, assinafy_id FROM documentos WHERE id = ?', [docId], (err, row) => {
@@ -4466,7 +4466,7 @@ app.get('/api/debug-outros-contratos/:docId', authenticateToken, async (req, res
     });
 });
 
-// DIAGN”STICO: Listar ˙ltimos 5 CONTRATOS_AVULSOS
+// DIAGN√ìSTICO: Listar √∫ltimos 5 CONTRATOS_AVULSOS
 app.get('/api/debug-contratos-avulsos', authenticateToken, async (req, res) => {
     db.all('SELECT id, colaborador_id, tab_name, document_type, file_path, assinafy_status, assinafy_sent_at, assinafy_signed_at, created_at FROM documentos WHERE tab_name = ? ORDER BY id DESC LIMIT 10', ['CONTRATOS_AVULSOS'], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -4478,7 +4478,7 @@ app.get('/api/debug-contratos-avulsos', authenticateToken, async (req, res) => {
         res.json({ docs: result, version: 'V48', base_path: process.env.STORAGE_PATH });
     });
 });
-// --- SERVIR ARQUIVOS EST√ÅTICOS ---
+// --- SERVIR ARQUIVOS EST√É¬ÅTICOS ---
 app.use(express.static(path.join(__dirname, '../frontend')));
 app.use('/files', express.static(path.join(__dirname, '..', '..'))); 
 
@@ -4522,7 +4522,7 @@ app.put('/api/epi-templates/:id', authenticateToken, (req, res) => {
                     if (old && old.grupo !== grupo) motivo.push('Nome do grupo alterado');
                     if (oldEpis !== newEpis) motivo.push('Lista de EPIs alterada');
                     if (old && old.termo_texto !== termo_texto) motivo.push('Termo de responsabilidade alterado');
-                    if (old && old.rodape_texto !== rodape_texto) motivo.push('RodapÈ alterado');
+                    if (old && old.rodape_texto !== rodape_texto) motivo.push('Rodap√© alterado');
 
                     // Fechar fichas ativas deste template e criar novas para cada colaborador
                     db.all(
@@ -4605,7 +4605,7 @@ app.patch('/api/epi-fichas/:id/linhas', authenticateToken, (req, res) => {
     );
 });
 
-// DELETE: excluir ficha (se necess·rio)
+// DELETE: excluir ficha (se necess√°rio)
 app.delete('/api/epi-fichas/:id', authenticateToken, (req, res) => {
     db.run('DELETE FROM colaborador_epi_fichas WHERE id=?', [req.params.id], function(err) {
         if (err) return res.status(500).json({ error: err.message });
@@ -4658,10 +4658,10 @@ app.post('/api/epi-fichas/:id/save-onedrive', authenticateToken, async (req, res
         const base64Data = pdf_base64.includes('base64,') ? pdf_base64.split('base64,')[1] : pdf_base64;
         const pdfBuffer = Buffer.from(base64Data, 'base64');
         const onedriveBase = `${process.env.ONEDRIVE_BASE_PATH || 'RH/1.Colaboradores/Sistema'}/${safeNome}`;
-        // Pasta EPI: FichaEPI_N_Nome.pdf (sem sobrepor, n˙mero sequencial)
+        // Pasta EPI: FichaEPI_N_Nome.pdf (sem sobrepor, n√∫mero sequencial)
         const epiFolder = `${onedriveBase}/EPI`;
         await onedrive.ensurePath(epiFolder);
-        // EPI: um ˙nico arquivo por ficha (sobrescreve a cada entrega)
+        // EPI: um √∫nico arquivo por ficha (sobrescreve a cada entrega)
         const epiFileName = `FichaEPI_${fichaId}_${safeNome}.pdf`;
         await onedrive.uploadToOneDrive(epiFolder, epiFileName, pdfBuffer);
         res.json({ success: true, arquivo_epi: epiFileName });
@@ -4692,10 +4692,10 @@ app.delete('/api/epi-templates/:id', authenticateToken, (req, res) => {
 
 
 // ============================================================
-// ROTAS: USU¡RIOS E GRUPOS DE PERMISS√O
+// ROTAS: USU√ÅRIOS E GRUPOS DE PERMISS√ÉO
 // ============================================================
 
-// --- USU¡RIOS ---
+// --- USU√ÅRIOS ---
 app.get('/api/usuarios', authenticateToken, (req, res) => {
     db.all(`SELECT u.id, u.username, u.nome, u.email, u.role, u.departamento, u.grupo_permissao_id, u.ativo,
                    g.nome as grupo_nome
@@ -4709,17 +4709,17 @@ app.get('/api/usuarios', authenticateToken, (req, res) => {
 
 app.post('/api/usuarios', authenticateToken, (req, res) => {
     const { username, password, nome, email, departamento, grupo_permissao_id, role } = req.body;
-    if (!username || !password) return res.status(400).json({ error: 'Username e senha s„o obrigatÛrios' });
+    if (!username || !password) return res.status(400).json({ error: 'Username e senha s√£o obrigat√≥rios' });
     const hash = bcrypt.hashSync(password, 10);
     db.run(
         'INSERT INTO usuarios (username, password_hash, nome, email, departamento, grupo_permissao_id, role, ativo) VALUES (?,?,?,?,?,?,?,1)',
         [username, hash, nome || username, email || null, departamento || 'RH', grupo_permissao_id || null, role || 'Operacional'],
         function(err) {
             if (err) {
-                const msg = err.message.includes('UNIQUE') ? 'Este username j· est· cadastrado.' : err.message;
+                const msg = err.message.includes('UNIQUE') ? 'Este username j√° est√° cadastrado.' : err.message;
                 return res.status(400).json({ error: msg });
             }
-            res.status(201).json({ id: this.lastID, message: 'Usu·rio criado com sucesso' });
+            res.status(201).json({ id: this.lastID, message: 'Usu√°rio criado com sucesso' });
         }
     );
 });
@@ -4735,22 +4735,22 @@ app.put('/api/usuarios/:id', authenticateToken, (req, res) => {
     if (role !== undefined)               { updates.push('role = ?');               values.push(role); }
     if (ativo !== undefined)              { updates.push('ativo = ?');              values.push(ativo); }
     if (password)                         { updates.push('password_hash = ?');      values.push(bcrypt.hashSync(password, 10)); }
-    if (updates.length === 0) return res.json({ message: 'Nenhuma alteraÁ„o' });
+    if (updates.length === 0) return res.json({ message: 'Nenhuma altera√ß√£o' });
     values.push(req.params.id);
     db.run(`UPDATE usuarios SET ${updates.join(', ')} WHERE id = ?`, values, function(err) {
         if (err) return res.status(400).json({ error: err.message });
-        res.json({ message: 'Usu·rio atualizado com sucesso' });
+        res.json({ message: 'Usu√°rio atualizado com sucesso' });
     });
 });
 
 app.delete('/api/usuarios/:id', authenticateToken, (req, res) => {
     db.run('UPDATE usuarios SET ativo = 0 WHERE id = ?', [req.params.id], function(err) {
         if (err) return res.status(500).json({ error: err.message });
-        res.json({ message: 'Usu·rio inativado' });
+        res.json({ message: 'Usu√°rio inativado' });
     });
 });
 
-// --- GRUPOS DE PERMISS√O ---
+// --- GRUPOS DE PERMISS√ÉO ---
 app.get('/api/grupos-permissao', authenticateToken, (req, res) => {
     db.all('SELECT * FROM grupos_permissao ORDER BY nome', [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -4760,13 +4760,13 @@ app.get('/api/grupos-permissao', authenticateToken, (req, res) => {
 
 app.post('/api/grupos-permissao', authenticateToken, (req, res) => {
     const { nome, descricao, departamento, tipo, base_usuario_id } = req.body;
-    if (!nome) return res.status(400).json({ error: 'Nome È obrigatÛrio' });
+    if (!nome) return res.status(400).json({ error: 'Nome √© obrigat√≥rio' });
     db.run(
         'INSERT INTO grupos_permissao (nome, descricao, departamento, tipo, base_usuario_id) VALUES (?,?,?,?,?)',
         [nome, descricao || '', departamento || 'Todas', tipo || 'personalizado', base_usuario_id || null],
         function(err) {
             if (err) {
-                const msg = err.message.includes('UNIQUE') ? 'J· existe um grupo com este nome.' : err.message;
+                const msg = err.message.includes('UNIQUE') ? 'J√° existe um grupo com este nome.' : err.message;
                 return res.status(400).json({ error: msg });
             }
             res.status(201).json({ id: this.lastID, message: 'Grupo criado' });
@@ -4793,7 +4793,7 @@ app.delete('/api/grupos-permissao/:id', authenticateToken, (req, res) => {
     });
 });
 
-// --- PERMISS’ES POR GRUPO ---
+// --- PERMISS√ïES POR GRUPO ---
 app.get('/api/grupos-permissao/:id/permissoes', authenticateToken, (req, res) => {
     db.all('SELECT * FROM permissoes_grupo WHERE grupo_id = ? ORDER BY modulo, pagina_nome', [req.params.id], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -4806,7 +4806,7 @@ app.put('/api/grupos-permissao/:id/permissoes', authenticateToken, (req, res) =>
     if (!Array.isArray(permissoes)) return res.status(400).json({ error: 'permissoes deve ser um array' });
     const gid = req.params.id;
 
-    // Usar transaÁ„o: DELETE todas do grupo + INSERT novas
+    // Usar transa√ß√£o: DELETE todas do grupo + INSERT novas
     // Garante funcionamento mesmo sem UNIQUE constraint no banco existente
     db.serialize(() => {
         db.run('BEGIN TRANSACTION');
@@ -4814,7 +4814,7 @@ app.put('/api/grupos-permissao/:id/permissoes', authenticateToken, (req, res) =>
         db.run('DELETE FROM permissoes_grupo WHERE grupo_id = ?', [gid], (errDel) => {
             if (errDel) {
                 db.run('ROLLBACK');
-                return res.status(500).json({ error: 'Erro ao limpar permissıes antigas: ' + errDel.message });
+                return res.status(500).json({ error: 'Erro ao limpar permiss√µes antigas: ' + errDel.message });
             }
 
             const stmt = db.prepare(
@@ -4834,29 +4834,29 @@ app.put('/api/grupos-permissao/:id/permissoes', authenticateToken, (req, res) =>
             stmt.finalize((errFin) => {
                 if (errFin || hasError) {
                     db.run('ROLLBACK');
-                    return res.status(500).json({ error: 'Erro ao salvar permissıes: ' + (errFin ? errFin.message : 'erro no insert') });
+                    return res.status(500).json({ error: 'Erro ao salvar permiss√µes: ' + (errFin ? errFin.message : 'erro no insert') });
                 }
                 db.run('COMMIT', (errCommit) => {
                     if (errCommit) {
                         db.run('ROLLBACK');
-                        return res.status(500).json({ error: 'Erro ao confirmar transaÁ„o: ' + errCommit.message });
+                        return res.status(500).json({ error: 'Erro ao confirmar transa√ß√£o: ' + errCommit.message });
                     }
-                    console.log(`[PERMISS’ES] Grupo ${gid}: ${permissoes.length} permissıes salvas com sucesso.`);
-                    res.json({ message: 'Permissıes salvas com sucesso', count: permissoes.length });
+                    console.log(`[PERMISS√ïES] Grupo ${gid}: ${permissoes.length} permiss√µes salvas com sucesso.`);
+                    res.json({ message: 'Permiss√µes salvas com sucesso', count: permissoes.length });
                 });
             });
         });
     });
 });
 
-// Copiar permissıes de um usu·rio para um grupo
+// Copiar permiss√µes de um usu√°rio para um grupo
 app.post('/api/grupos-permissao/:id/copiar-usuario/:uid', authenticateToken, (req, res) => {
     const gid = req.params.id;
     const uid = req.params.uid;
-    // Buscar o grupo do usu·rio de origem
+    // Buscar o grupo do usu√°rio de origem
     db.get('SELECT grupo_permissao_id FROM usuarios WHERE id = ?', [uid], (err, userRow) => {
         if (err || !userRow || !userRow.grupo_permissao_id) {
-            return res.status(404).json({ error: 'Usu·rio ou grupo de origem n„o encontrado' });
+            return res.status(404).json({ error: 'Usu√°rio ou grupo de origem n√£o encontrado' });
         }
         const sourceGid = userRow.grupo_permissao_id;
         db.all('SELECT * FROM permissoes_grupo WHERE grupo_id = ?', [sourceGid], (err2, perms) => {
@@ -4875,7 +4875,7 @@ app.post('/api/grupos-permissao/:id/copiar-usuario/:uid', authenticateToken, (re
                     if (err4) return res.status(500).json({ error: err4.message });
                     // Atualizar base_usuario_id no grupo
                     db.run('UPDATE grupos_permissao SET base_usuario_id = ? WHERE id = ?', [uid, gid]);
-                    res.json({ message: 'Permissıes copiadas com sucesso', count: perms.length });
+                    res.json({ message: 'Permiss√µes copiadas com sucesso', count: perms.length });
                 });
             });
         });
@@ -4891,7 +4891,7 @@ app.get('/api/auditoria/:id?', authenticateToken, (req, res) => {
     let params = [];
     
     if (programa) {
-        // Filtro por programa especÌfico (Cargos, Faculdade, EPI, AvaliaÁıes)
+        // Filtro por programa espec√≠fico (Cargos, Faculdade, EPI, Avalia√ß√µes)
         sql += ` WHERE programa LIKE ?`;
         params.push(`%${programa}%`);
     } else if (contexto === 'gerador') {
@@ -4925,7 +4925,7 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: "Erro interno no servidor." });
 });
 
-// === GERADOR DEPARTAMENTO TEMPLATES (quais departamentos recebem cada gerador na Admiss„o) ===
+// === GERADOR DEPARTAMENTO TEMPLATES (quais departamentos recebem cada gerador na Admiss√£o) ===
 db.run(`CREATE TABLE IF NOT EXISTS gerador_departamento_templates (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     gerador_id INTEGER NOT NULL,
@@ -4949,7 +4949,7 @@ app.get('/api/gerador-departamento-templates/:gerador_id', authenticateToken, (r
 
 app.post('/api/gerador-departamento-templates', authenticateToken, (req, res) => {
     const { gerador_id, departamento_id } = req.body;
-    if (!gerador_id || !departamento_id) return res.status(400).json({ error: 'gerador_id e departamento_id s„o obrigatÛrios' });
+    if (!gerador_id || !departamento_id) return res.status(400).json({ error: 'gerador_id e departamento_id s√£o obrigat√≥rios' });
     db.run('INSERT OR IGNORE INTO gerador_departamento_templates (gerador_id, departamento_id) VALUES (?, ?)',
         [gerador_id, departamento_id], function(err) {
             if (err) return res.status(500).json({ error: err.message });
@@ -4959,7 +4959,7 @@ app.post('/api/gerador-departamento-templates', authenticateToken, (req, res) =>
 
 app.post('/api/gerador-departamento-templates/batch', authenticateToken, (req, res) => {
     const { templates } = req.body; // Array of {gerador_id, departamento_id}
-    if (!Array.isArray(templates)) return res.status(400).json({ error: 'formato inv·lido' });
+    if (!Array.isArray(templates)) return res.status(400).json({ error: 'formato inv√°lido' });
 
     db.serialize(() => {
         db.run('BEGIN TRANSACTION');
@@ -5018,7 +5018,7 @@ app.get('/api/gerador-outros-contratos-templates', authenticateToken, (req, res)
 
 app.post('/api/gerador-outros-contratos-templates/batch', authenticateToken, (req, res) => {
     const { templates } = req.body;
-    if (!Array.isArray(templates)) return res.status(400).json({ error: 'formato inv·lido' });
+    if (!Array.isArray(templates)) return res.status(400).json({ error: 'formato inv√°lido' });
 
     db.serialize(() => {
         db.run('BEGIN TRANSACTION');
@@ -5041,16 +5041,16 @@ app.post('/api/gerador-outros-contratos-templates/batch', authenticateToken, (re
 // ROTAS DE GERENCIAMENTO DO CERTIFICADO DIGITAL (.PFX)
 // ---------------------------------------------------------------------------
 
-// DiretÛrio persistente para o certificado: mesmo disco do banco de dados
+// Diret√≥rio persistente para o certificado: mesmo disco do banco de dados
 const CERT_DIR = (() => {
     if (process.env.DATABASE_PATH) {
-        // Salva no mesmo diretÛrio do banco (disco persistente do Render)
+        // Salva no mesmo diret√≥rio do banco (disco persistente do Render)
         return path.join(path.dirname(process.env.DATABASE_PATH), '_certificados');
     }
     return path.join(__dirname, 'data', '_certificados');
 })();
 if (!fs.existsSync(CERT_DIR)) { try { fs.mkdirSync(CERT_DIR, { recursive: true }); } catch(e) {} }
-console.log(`[CERT] DiretÛrio do certificado: ${CERT_DIR}`);
+console.log(`[CERT] Diret√≥rio do certificado: ${CERT_DIR}`);
 
 const uploadCertificado = multer({
     storage: multer.diskStorage({
@@ -5061,14 +5061,14 @@ const uploadCertificado = multer({
         if (file.originalname.toLowerCase().endsWith('.pfx') || file.mimetype === 'application/x-pkcs12') {
             cb(null, true);
         } else {
-            cb(new Error('Somente arquivos .pfx s„o aceitos'));
+            cb(new Error('Somente arquivos .pfx s√£o aceitos'));
         }
     }
 });
 
 /**
  * GET /api/certificado-digital/status
- * Retorna status e informaÁıes do certificado configurado
+ * Retorna status e informa√ß√µes do certificado configurado
  */
 app.get('/api/certificado-digital/status', authenticateToken, (req, res) => {
     const disp = signPdfPfx.verificarDisponibilidade();
@@ -5103,7 +5103,7 @@ app.post('/api/certificado-digital/testar-assinatura', authenticateToken, async 
 
         console.log('[CERT-TEST] Iniciando teste real de assinatura...');
         const pdfAssinado = await signPdfPfx.assinarPDF(tmpBuffer, {
-            motivo: 'Teste de assinatura digital - Sistema AmÈrica Rental',
+            motivo: 'Teste de assinatura digital - Sistema Am√©rica Rental',
             local: 'Brasil',
             nome: 'America Rental Equipamentos Ltda'
         });
@@ -5126,13 +5126,13 @@ app.post('/api/certificado-digital/testar-assinatura', authenticateToken, async 
  * Body: multipart com campo 'certificado' (.pfx) e 'senha' (texto)
  */
 app.post('/api/certificado-digital/upload', authenticateToken, uploadCertificado.single('certificado'), async (req, res) => {
-    // Apenas usu·rios da Diretoria podem gerenciar o certificado
+    // Apenas usu√°rios da Diretoria podem gerenciar o certificado
     const isDiretoria = req.user?.role === 'Diretoria' 
         || req.user?.role === 'Administrador' 
         || req.user?.departamento === 'Diretoria'
         || (req.user?.grupo_nome && req.user.grupo_nome.toLowerCase() === 'diretoria');
     if (!isDiretoria) {
-        return res.status(403).json({ error: 'Apenas usu·rios da Diretoria podem configurar o certificado digital.' });
+        return res.status(403).json({ error: 'Apenas usu√°rios da Diretoria podem configurar o certificado digital.' });
     }
     if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo .pfx enviado.' });
 
@@ -5142,18 +5142,18 @@ app.post('/api/certificado-digital/upload', authenticateToken, uploadCertificado
     // Testar o certificado imediatamente
     const info = signPdfPfx.infosCertificado(pfxPath, senha);
     if (!info.ok) {
-        // Remover arquivo inv·lido
+        // Remover arquivo inv√°lido
         try { fs.unlinkSync(pfxPath); } catch(e) {}
-        return res.status(400).json({ error: `Certificado inv·lido ou senha incorreta: ${info.erro}` });
+        return res.status(400).json({ error: `Certificado inv√°lido ou senha incorreta: ${info.erro}` });
     }
 
-    // Salvar configuraÁ„o no banco (path e senha criptografada)
-    const senha64 = Buffer.from(senha).toString('base64'); // ofuscaÁ„o simples
+    // Salvar configura√ß√£o no banco (path e senha criptografada)
+    const senha64 = Buffer.from(senha).toString('base64'); // ofusca√ß√£o simples
     db.run(`CREATE TABLE IF NOT EXISTS configuracoes_sistema (chave TEXT PRIMARY KEY, valor TEXT)`);
     db.run(`INSERT OR REPLACE INTO configuracoes_sistema (chave, valor) VALUES ('pfx_path', ?)`, [pfxPath]);
     db.run(`INSERT OR REPLACE INTO configuracoes_sistema (chave, valor) VALUES ('pfx_password_b64', ?)`, [senha64]);
 
-    // Atualiza vari·veis em memÛria para acesso imediato sem precisar reiniciar o app
+    // Atualiza vari√°veis em mem√≥ria para acesso imediato sem precisar reiniciar o app
     process.env.PFX_PATH = pfxPath;
     process.env.PFX_PASSWORD = senha;
 
@@ -5171,14 +5171,14 @@ app.delete('/api/certificado-digital', authenticateToken, (req, res) => {
         || req.user?.departamento === 'Diretoria'
         || (req.user?.grupo_nome && req.user.grupo_nome.toLowerCase() === 'diretoria');
     if (!isDiretoria) {
-        return res.status(403).json({ error: 'Apenas usu·rios da Diretoria podem remover o certificado.' });
+        return res.status(403).json({ error: 'Apenas usu√°rios da Diretoria podem remover o certificado.' });
     }
     // Remover do banco
     db.run(`DELETE FROM configuracoes_sistema WHERE chave IN ('pfx_path','pfx_password_b64')`);
-    // Remover arquivo fÌsico do CERT_DIR
+    // Remover arquivo f√≠sico do CERT_DIR
     const certFile = path.join(CERT_DIR, 'certificado.pfx');
     if (fs.existsSync(certFile)) { try { fs.unlinkSync(certFile); } catch(e) {} }
-    // Limpar env vars em memÛria
+    // Limpar env vars em mem√≥ria
     delete process.env.PFX_PATH;
     delete process.env.PFX_PASSWORD;
     res.json({ ok: true, message: 'Certificado removido.' });
@@ -5194,7 +5194,7 @@ app.post('/api/certificado-digital/testar', authenticateToken, async (req, res) 
         return res.status(400).json({ ok: false, erro: disp.motivo });
     }
     try {
-        // Criar um PDF mÌnimo de teste via pdf-lib
+        // Criar um PDF m√≠nimo de teste via pdf-lib
         const { PDFDocument } = require('pdf-lib');
         const pdf = await PDFDocument.create();
         const pg  = pdf.addPage();
@@ -5210,16 +5210,16 @@ app.post('/api/certificado-digital/testar', authenticateToken, async (req, res) 
     }
 });
 
-// Ao inicializar o servidor: carregar PFX_PATH e PFX_PASSWORD do banco se n„o estiverem no env
+// Ao inicializar o servidor: carregar PFX_PATH e PFX_PASSWORD do banco se n√£o estiverem no env
 setTimeout(() => {
-    // 1∫: Verificar se o arquivo existe direto no CERT_DIR (persistÍncia autom·tica)
+    // 1¬∫: Verificar se o arquivo existe direto no CERT_DIR (persist√™ncia autom√°tica)
     const certFilePadrao = path.join(CERT_DIR, 'certificado.pfx');
     if (!process.env.PFX_PATH && fs.existsSync(certFilePadrao)) {
         process.env.PFX_PATH = certFilePadrao;
         console.log(`[CERT] Certificado encontrado automaticamente no disco: ${certFilePadrao}`);
     }
 
-    // 2∫: Carregar do banco de dados (fallback)
+    // 2¬∫: Carregar do banco de dados (fallback)
     db.run(`CREATE TABLE IF NOT EXISTS configuracoes_sistema (chave TEXT PRIMARY KEY, valor TEXT)`, () => {
         if (!process.env.PFX_PATH) {
             db.get(`SELECT valor FROM configuracoes_sistema WHERE chave = 'pfx_path'`, [], (err, row) => {
@@ -5246,13 +5246,13 @@ setTimeout(() => {
 }, 3000);
 
 
-// --- NOVAS ROTAS DA FICHA DE ADMISS√O ---
+// --- NOVAS ROTAS DA FICHA DE ADMISS√ÉO ---
 const { getFichaAdmissaoHtml } = require('./fichaAdmissao');
 
 app.get('/api/colaboradores/:id/ficha-admissao/html', authenticateToken, async (req, res) => {
     const id = req.params.id;
     db.get('SELECT * FROM colaboradores WHERE id = ?', [id], async (err, row) => {
-        if (err || !row) return res.status(404).send('Colaborador n„o encontrado');
+        if (err || !row) return res.status(404).send('Colaborador n√£o encontrado');
         try {
             // Buscar dependentes (filhos) para incluir na ficha
             const deps = await new Promise((resolve) =>
@@ -5282,11 +5282,11 @@ app.get('/api/colaboradores/:id/ficha-admissao/html', authenticateToken, async (
 app.post('/api/colaboradores/:id/enviar-ficha-contabilidade', authenticateToken, async (req, res) => {
     const id = req.params.id;
     const { email, data_inicio } = req.body;
-    if (!email) return res.status(400).json({ error: 'Email destino È obrigatÛrio' });
-    if (!data_inicio) return res.status(400).json({ error: 'Data de inÌcio È obrigatÛria' });
+    if (!email) return res.status(400).json({ error: 'Email destino √© obrigat√≥rio' });
+    if (!data_inicio) return res.status(400).json({ error: 'Data de in√≠cio √© obrigat√≥ria' });
     
     db.get('SELECT * FROM colaboradores WHERE id = ?', [id], async (err, row) => {
-        if (err || !row) return res.status(404).json({ error: 'Colaborador n„o encontrado' });
+        if (err || !row) return res.status(404).json({ error: 'Colaborador n√£o encontrado' });
         
         try {
             const deps = await new Promise((resolve) =>
@@ -5305,7 +5305,7 @@ app.post('/api/colaboradores/:id/enviar-ficha-contabilidade', authenticateToken,
             // Check if there is already a Ficha in the database attachments
             const hasFichaInDb = docsDb.some(d => {
                 const dt = (d.document_type || '').toLowerCase();
-                return dt.includes('ficha') || dt.includes('admiss„o') || dt.includes('admissao');
+                return dt.includes('ficha') || dt.includes('admiss√£o') || dt.includes('admissao');
             });
 
             const anexosParaEnviar = [];
@@ -5344,7 +5344,7 @@ app.post('/api/colaboradores/:id/enviar-ficha-contabilidade', authenticateToken,
                 
                 if (localPath) {
                     const ext = path.extname(localPath) || '.pdf';
-                    let baseType = (doc.document_type || 'Documento').replace(/[^a-zA-Z0-9 ·ÈÌÛ˙„ıÁ¡…Õ”⁄√’«-]/g, '').trim();
+                    let baseType = (doc.document_type || 'Documento').replace(/[^a-zA-Z0-9 √°√©√≠√≥√∫√£√µ√ß√Å√â√ç√ì√ö√É√ï√á-]/g, '').trim();
                     // For ASO, annotate if it's the signed version
                     let signedTag = (doc.tab_name === 'ASO' && isSigned) ? ' (Assinado)' : '';
                     let safeName = `${baseType}${signedTag} - ${row.nome_completo || row.nome}${ext}`;
@@ -5365,25 +5365,25 @@ app.post('/api/colaboradores/:id/enviar-ficha-contabilidade', authenticateToken,
             const htmlMessage = `
             <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#333;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
                 <div style="background:#0f172a;text-align:center;padding:20px;">
-                    <img src="${logoUrl}" alt="AmÈrica Rental" style="max-height:60px;">
+                    <img src="${logoUrl}" alt="Am√©rica Rental" style="max-height:60px;">
                 </div>
                 <div style="padding:30px;">
-                    <p style="font-size:1.1rem;margin-top:0;"><strong>Ol·, Contabilidade!</strong></p>
-                    <p>Segue em anexo a Ficha de Admiss„o e todos os documentos necess·rios recolhidos para o cadastro cont·bil admissional do colaborador abaixo.</p>
+                    <p style="font-size:1.1rem;margin-top:0;"><strong>Ol√°, Contabilidade!</strong></p>
+                    <p>Segue em anexo a Ficha de Admiss√£o e todos os documentos necess√°rios recolhidos para o cadastro cont√°bil admissional do colaborador abaixo.</p>
                     <div style="background:#f8fafc;border-left:4px solid #f503c5;padding:15px;margin:20px 0;border-radius:0 8px 8px 0;">
                         <p style="margin:0 0 5px 0;"><strong>Colaborador(a):</strong> ${row.nome_completo || row.nome}</p>
-                        <p style="margin:0 0 5px 0;"><strong>FunÁ„o / Cargo:</strong> ${row.cargo || 'N„o informado'}</p>
-                        <p style="margin:0;"><strong>Data de InÌcio Solicitada:</strong> ${dtFormated}</p>
+                        <p style="margin:0 0 5px 0;"><strong>Fun√ß√£o / Cargo:</strong> ${row.cargo || 'N√£o informado'}</p>
+                        <p style="margin:0;"><strong>Data de In√≠cio Solicitada:</strong> ${dtFormated}</p>
                     </div>
-                    <p>Por favor, providenciar os registros cabÌveis e retorno dos documentos em caso de pendÍncias.</p>
+                    <p>Por favor, providenciar os registros cab√≠veis e retorno dos documentos em caso de pend√™ncias.</p>
                     <hr style="border:none;border-top:1px solid #e2e8f0;margin:30px 0;">
-                    <p style="margin:0;font-size:0.9rem;color:#64748b;">Atenciosamente,<br><strong>RH - AmÈrica Rental</strong></p>
+                    <p style="margin:0;font-size:0.9rem;color:#64748b;">Atenciosamente,<br><strong>RH - Am√©rica Rental</strong></p>
                 </div>
             </div>`;
 
             const transporter = nodemailer.createTransport(SMTP_CONFIG);
             await transporter.sendMail({
-                from: `"RH AmÈrica Rental" <${SMTP_CONFIG.auth.user}>`,
+                from: `"RH Am√©rica Rental" <${SMTP_CONFIG.auth.user}>`,
                 to: email,
                 subject: `Processo Admissional - ${row.nome_completo || row.nome}`,
                 html: htmlMessage,
@@ -5414,45 +5414,45 @@ app.post('/api/colaboradores/:id/enviar-ficha-contabilidade', authenticateToken,
     });
 });
 
-// Tratamento de ExceÁıes Globais
+// Tratamento de Exce√ß√µes Globais
 process.on('uncaughtException', (err) => {
     console.error('--- ERRO FATAL (Uncaught Exception) ---');
     console.error(err);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-    console.error('--- PROMESSA N√ÉO TRATADA (Unhandled Rejection) ---');
+    console.error('--- PROMESSA N√É∆íO TRATADA (Unhandled Rejection) ---');
     console.error(reason);
 });
 
 // ============================================================
-// MULTAS DE TR¬NSITO
+// MULTAS DE TR√ÇNSITO
 // ============================================================
 
-// Tabela CTB: cÛdigo ? { pontuacao, valor }
+// Tabela CTB: c√≥digo ? { pontuacao, valor }
 const CTB_TABLE = {
-    '5185': { pontuacao: 7, valor: 'R$ 293,47', descricao: 'Ultrapassar sinal vermelho do sem·foro' },
-    '5169': { pontuacao: 7, valor: 'R$ 293,47', descricao: 'Usar aparelho de comunicaÁ„o ao volante' },
-    '5460': { pontuacao: 7, valor: 'R$ 293,47', descricao: 'Conduzir sem cinto de seguranÁa' },
-    '5550': { pontuacao: 5, valor: 'R$ 130,16', descricao: 'Velocidade superior ao limite em atÈ 20%' },
+    '5185': { pontuacao: 7, valor: 'R$ 293,47', descricao: 'Ultrapassar sinal vermelho do sem√°foro' },
+    '5169': { pontuacao: 7, valor: 'R$ 293,47', descricao: 'Usar aparelho de comunica√ß√£o ao volante' },
+    '5460': { pontuacao: 7, valor: 'R$ 293,47', descricao: 'Conduzir sem cinto de seguran√ßa' },
+    '5550': { pontuacao: 5, valor: 'R$ 130,16', descricao: 'Velocidade superior ao limite em at√© 20%' },
     '5556': { pontuacao: 7, valor: 'R$ 880,41', descricao: 'Velocidade superior ao limite em mais de 50%' },
     '5553': { pontuacao: 5, valor: 'R$ 195,23', descricao: 'Velocidade superior ao limite entre 20% e 50%' },
-    '7455': { pontuacao: 5, valor: 'R$ 130,16', descricao: 'Transitar em velocidade superior ‡ m·xima permitida em atÈ 20%' },
-    '7456': { pontuacao: 5, valor: 'R$ 195,23', descricao: 'Transitar em velocidade superior ‡ m·xima entre 20% e 50%' },
-    '7457': { pontuacao: 7, valor: 'R$ 880,41', descricao: 'Transitar em velocidade superior ‡ m·xima em mais de 50%' },
+    '7455': { pontuacao: 5, valor: 'R$ 130,16', descricao: 'Transitar em velocidade superior √† m√°xima permitida em at√© 20%' },
+    '7456': { pontuacao: 5, valor: 'R$ 195,23', descricao: 'Transitar em velocidade superior √† m√°xima entre 20% e 50%' },
+    '7457': { pontuacao: 7, valor: 'R$ 880,41', descricao: 'Transitar em velocidade superior √† m√°xima em mais de 50%' },
     '6050': { pontuacao: 3, valor: 'R$ 195,23', descricao: 'Estacionar em local proibido' },
     '6010': { pontuacao: 3, valor: 'R$ 130,16', descricao: 'Parar em local proibido' },
-    '5681': { pontuacao: 5, valor: 'R$ 195,23', descricao: 'AvanÁar sobre calÁada' },
-    '6730': { pontuacao: 3, valor: 'R$ 130,16', descricao: 'Circular com o veÌculo sujo' },
-    '5736': { pontuacao: 7, valor: 'R$ 293,47', descricao: 'Dirigir sob influÍncia de ·lcool' },
-    '5854': { pontuacao: 7, valor: 'R$ 293,47', descricao: 'Deixar de dar passagem a veÌculo de emergÍncia' },
+    '5681': { pontuacao: 5, valor: 'R$ 195,23', descricao: 'Avan√ßar sobre cal√ßada' },
+    '6730': { pontuacao: 3, valor: 'R$ 130,16', descricao: 'Circular com o ve√≠culo sujo' },
+    '5736': { pontuacao: 7, valor: 'R$ 293,47', descricao: 'Dirigir sob influ√™ncia de √°lcool' },
+    '5854': { pontuacao: 7, valor: 'R$ 293,47', descricao: 'Deixar de dar passagem a ve√≠culo de emerg√™ncia' },
     '5762': { pontuacao: 5, valor: 'R$ 195,23', descricao: 'Trafegar em acostamento' },
-    '5974': { pontuacao: 5, valor: 'R$ 195,23', descricao: 'N„o sinalizar reduÁ„o de velocidade' },
-    '5312': { pontuacao: 5, valor: 'R$ 195,23', descricao: 'Executar convers„o proibida' },
+    '5974': { pontuacao: 5, valor: 'R$ 195,23', descricao: 'N√£o sinalizar redu√ß√£o de velocidade' },
+    '5312': { pontuacao: 5, valor: 'R$ 195,23', descricao: 'Executar convers√£o proibida' },
     '6289': { pontuacao: 3, valor: 'R$ 130,16', descricao: 'Usar buzina em local proibido' },
 };
 
-// Upload multerista exclusiva para notificaÁıes de multa (salva em /tmp para extraÁ„o)
+// Upload multerista exclusiva para notifica√ß√µes de multa (salva em /tmp para extra√ß√£o)
 const multaUpload = multer({ storage: multer.memoryStorage() });
 
 // GET /api/colaboradores/:id/multas
@@ -5464,7 +5464,7 @@ app.get('/api/colaboradores/:id/multas', authenticateToken, (req, res) => {
     });
 });
 
-// GET /api/ctb/:codigo ó lookup de cÛdigo de infraÁ„o
+// GET /api/ctb/:codigo ‚Äî lookup de c√≥digo de infra√ß√£o
 app.get('/api/ctb/:codigo', authenticateToken, (req, res) => {
     const { codigo } = req.params;
     const entry = CTB_TABLE[codigo];
@@ -5472,7 +5472,7 @@ app.get('/api/ctb/:codigo', authenticateToken, (req, res) => {
     res.json({ codigo, pontuacao: null, valor: null, descricao: null, found: false });
 });
 
-// POST /api/colaboradores/:id/multas/upload-notificacao ó extrai dados do PDF
+// POST /api/colaboradores/:id/multas/upload-notificacao ‚Äî extrai dados do PDF
 app.post('/api/colaboradores/:id/multas/upload-notificacao', authenticateToken, multaUpload.single('arquivo'), async (req, res) => {
     try {
         const { id } = req.params;
@@ -5489,17 +5489,17 @@ app.post('/api/colaboradores/:id/multas/upload-notificacao', authenticateToken, 
 
         // Regex adaptados para o layout SENATRAN
         const placa           = extract(/PLACA\s*\n([A-Z0-9]{7})/i) || extract(/PLACA\s+([A-Z]{3}[0-9][A-Z0-9][0-9]{2})/i);
-        const veiculo         = extract(/MARCA\/MODELO\/VERS[√A]O\s*\n(.+)/i);
-        const codigoInfracao  = extract(/C[”O]DIGO DA INFRA[«C][√A]O\s*\n(\d{4,6})/i);
-        const descricao       = extract(/DESCRI[«C][√A]O DA INFRA[«C][√A]O\s*\n(.+)/i);
+        const veiculo         = extract(/MARCA\/MODELO\/VERS[√ÉA]O\s*\n(.+)/i);
+        const codigoInfracao  = extract(/C[√ìO]DIGO DA INFRA[√áC][√ÉA]O\s*\n(\d{4,6})/i);
+        const descricao       = extract(/DESCRI[√áC][√ÉA]O DA INFRA[√áC][√ÉA]O\s*\n(.+)/i);
         const dataInfracao    = extract(/\bDATA\b\s*\n(\d{2}\/\d{2}\/\d{4})/i);
         const horaInfracao    = extract(/\bHORA\b\s*\n(\d{2}:\d{2})/i);
-        const localInfracao   = extract(/LOCAL DA INFRA[«C][√A]O\s*\n(.+)/i);
+        const localInfracao   = extract(/LOCAL DA INFRA[√áC][√ÉA]O\s*\n(.+)/i);
         const valorMulta      = extract(/VALOR DA MULTA\s*\nRS?\s*([\d.,]+)/i);
-        const numeroAit       = extract(/N[⁄U]MERO DO AUTO DE INFRA[«C][√A]O\s*\n([A-Z0-9]+)/i) ||
-                                 extract(/IDENTIFICA[«C][√A]O DO AUTO DE INFRA[«C][√A]O[^\n]*\n([A-Z0-9]+)/i);
+        const numeroAit       = extract(/N[√öU]MERO DO AUTO DE INFRA[√áC][√ÉA]O\s*\n([A-Z0-9]+)/i) ||
+                                 extract(/IDENTIFICA[√áC][√ÉA]O DO AUTO DE INFRA[√áC][√ÉA]O[^\n]*\n([A-Z0-9]+)/i);
 
-        // Lookup CTB para pontuaÁ„o/valor oficial
+        // Lookup CTB para pontua√ß√£o/valor oficial
         const ctb = CTB_TABLE[codigoInfracao] || {};
 
         res.json({
@@ -5521,7 +5521,7 @@ app.post('/api/colaboradores/:id/multas/upload-notificacao', authenticateToken, 
     }
 });
 
-// POST /api/colaboradores/:id/multas ó salva multa no banco e arquivo no OneDrive
+// POST /api/colaboradores/:id/multas ‚Äî salva multa no banco e arquivo no OneDrive
 app.post('/api/colaboradores/:id/multas', authenticateToken, multaUpload.single('arquivo'), async (req, res) => {
     try {
         const { id } = req.params;
@@ -5531,7 +5531,7 @@ app.post('/api/colaboradores/:id/multas', authenticateToken, multaUpload.single(
         const colab = await new Promise((resolve, reject) => {
             db.get('SELECT * FROM colaboradores WHERE id = ?', [id], (err, row) => err ? reject(err) : resolve(row));
         });
-        if (!colab) return res.status(404).json({ error: 'Colaborador n„o encontrado.' });
+        if (!colab) return res.status(404).json({ error: 'Colaborador n√£o encontrado.' });
 
         // Montar nome da pasta (ex: THAIS_RICCI)
         const nomeFormatado = (colab.nome_completo || colab.nome || 'COLAB')
@@ -5575,7 +5575,7 @@ app.post('/api/colaboradores/:id/multas', authenticateToken, multaUpload.single(
     }
 });
 
-// PUT /api/colaboradores/:id/multas/:multaId ó atualiza multa (tipo, parcelas, status, etc.)
+// PUT /api/colaboradores/:id/multas/:multaId ‚Äî atualiza multa (tipo, parcelas, status, etc.)
 app.put('/api/colaboradores/:id/multas/:multaId', authenticateToken, (req, res) => {
     const { multaId } = req.params;
     const fields = req.body;
@@ -5587,14 +5587,14 @@ app.put('/api/colaboradores/:id/multas/:multaId', authenticateToken, (req, res) 
     });
 });
 
-// DELETE /api/colaboradores/:id/multas/:multaId ó remove multa n„o assinada
+// DELETE /api/colaboradores/:id/multas/:multaId ‚Äî remove multa n√£o assinada
 app.delete('/api/colaboradores/:id/multas/:multaId', authenticateToken, (req, res) => {
     const { multaId } = req.params;
     db.get('SELECT * FROM multas WHERE id = ?', [multaId], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
-        if (!row) return res.status(404).json({ error: 'Multa n„o encontrada.' });
+        if (!row) return res.status(404).json({ error: 'Multa n√£o encontrada.' });
         if (row.status === 'assinado' || row.status === 'confirmado') {
-            return res.status(403).json({ error: 'N„o È possÌvel excluir uma multa j· assinada ou confirmada.' });
+            return res.status(403).json({ error: 'N√£o √© poss√≠vel excluir uma multa j√° assinada ou confirmada.' });
         }
         db.run('DELETE FROM multas WHERE id = ?', [multaId], function(e) {
             if (e) return res.status(500).json({ error: e.message });
@@ -5603,7 +5603,7 @@ app.delete('/api/colaboradores/:id/multas/:multaId', authenticateToken, (req, re
     });
 });
 
-// POST /api/colaboradores/:id/multas/:multaId/gerar-documento ó gera HTML do termo
+// POST /api/colaboradores/:id/multas/:multaId/gerar-documento ‚Äî gera HTML do termo
 app.post('/api/colaboradores/:id/multas/:multaId/gerar-documento', authenticateToken, async (req, res) => {
     try {
         const { id, multaId } = req.params;
@@ -5613,7 +5613,7 @@ app.post('/api/colaboradores/:id/multas/:multaId/gerar-documento', authenticateT
             db.get('SELECT * FROM colaboradores WHERE id = ?', [id], (e, r) => e ? reject(e) : resolve(r)));
         const multa = await new Promise((resolve, reject) =>
             db.get('SELECT * FROM multas WHERE id = ?', [multaId], (e, r) => e ? reject(e) : resolve(r)));
-        if (!colab || !multa) return res.status(404).json({ error: 'N„o encontrado.' });
+        if (!colab || !multa) return res.status(404).json({ error: 'N√£o encontrado.' });
 
         const parcelas = multa.parcelas || 1;
         const check1x = parcelas === 1 ? '?' : '&nbsp;';
@@ -5636,32 +5636,32 @@ app.post('/api/colaboradores/:id/multas/:multaId/gerar-documento', authenticateT
         const email = colab.email || '---';
 
         const tituloDoc = tipo === 'indicacao'
-            ? 'TERMO DE AUTORIZA«√O DE DESCONTO E INDICA«√O DE CONDUTOR MULTA DE TR¬NSITO'
-            : 'TERMO DE RESPONSABILIDADE POR INFRA«√O DE TR¬NSITO E AUTORIZA«√O DE DESCONTO EM FOLHA';
+            ? 'TERMO DE AUTORIZA√á√ÉO DE DESCONTO E INDICA√á√ÉO DE CONDUTOR MULTA DE TR√ÇNSITO'
+            : 'TERMO DE RESPONSABILIDADE POR INFRA√á√ÉO DE TR√ÇNSITO E AUTORIZA√á√ÉO DE DESCONTO EM FOLHA';
 
         const textoDoc = tipo === 'indicacao' ? `
-            <p>Declaro estar ciente de que a infraÁ„o ocorreu durante a conduÁ„o do referido veÌculo sob
-            minha responsabilidade e, portanto, assumo a responsabilidade pela infraÁ„o cometida.</p>
-            <p>Autorizo a empresa AmÈrica Rental Equipamentos Ltda a realizar minha indicaÁ„o como
-            condutor respons·vel pela infraÁ„o junto ao Ûrg„o de tr‚nsito competente, para fins de
-            registro da pontuaÁ„o correspondente em minha Carteira Nacional de HabilitaÁ„o (CNH).</p>
-            <p>Declaro tambÈm estar ciente do valor da multa, e autorizo expressamente a empresa a
-            efetuar o desconto do valor correspondente em minha remuneraÁ„o, caso o pagamento seja
-            realizado pela empresa, respeitando os limites previstos no artigo 462 da ConsolidaÁ„o das
+            <p>Declaro estar ciente de que a infra√ß√£o ocorreu durante a condu√ß√£o do referido ve√≠culo sob
+            minha responsabilidade e, portanto, assumo a responsabilidade pela infra√ß√£o cometida.</p>
+            <p>Autorizo a empresa Am√©rica Rental Equipamentos Ltda a realizar minha indica√ß√£o como
+            condutor respons√°vel pela infra√ß√£o junto ao √≥rg√£o de tr√¢nsito competente, para fins de
+            registro da pontua√ß√£o correspondente em minha Carteira Nacional de Habilita√ß√£o (CNH).</p>
+            <p>Declaro tamb√©m estar ciente do valor da multa, e autorizo expressamente a empresa a
+            efetuar o desconto do valor correspondente em minha remunera√ß√£o, caso o pagamento seja
+            realizado pela empresa, respeitando os limites previstos no artigo 462 da Consolida√ß√£o das
             Leis do Trabalho (CLT).</p>
         ` : `
-            <p>Declaro estar ciente de que a referida infraÁ„o ocorreu durante a conduÁ„o do veÌculo sob
+            <p>Declaro estar ciente de que a referida infra√ß√£o ocorreu durante a condu√ß√£o do ve√≠culo sob
             minha responsabilidade.</p>
-            <p>Por minha livre e espont‚nea vontade, opto por n„o realizar a indicaÁ„o de condutor junto ao
-            Ûrg„o de tr‚nsito, estando ciente de que essa decis„o poder· gerar a aplicaÁ„o de multa por
-            N„o IdentificaÁ„o do Condutor (NIC) ao propriet·rio do veÌculo.</p>
-            <p>Dessa forma, assumo integral responsabilidade pelo pagamento da multa original e tambÈm
-            pela eventual multa NIC, autorizando expressamente a empresa AmÈrica Rental Equipamentos Ltda
-            a realizar o desconto dos valores correspondentes em minha remuneraÁ„o, caso os pagamentos sejam
-            realizados pela empresa, respeitando os limites previstos no artigo 462 da ConsolidaÁ„o das
+            <p>Por minha livre e espont√¢nea vontade, opto por n√£o realizar a indica√ß√£o de condutor junto ao
+            √≥rg√£o de tr√¢nsito, estando ciente de que essa decis√£o poder√° gerar a aplica√ß√£o de multa por
+            N√£o Identifica√ß√£o do Condutor (NIC) ao propriet√°rio do ve√≠culo.</p>
+            <p>Dessa forma, assumo integral responsabilidade pelo pagamento da multa original e tamb√©m
+            pela eventual multa NIC, autorizando expressamente a empresa Am√©rica Rental Equipamentos Ltda
+            a realizar o desconto dos valores correspondentes em minha remunera√ß√£o, caso os pagamentos sejam
+            realizados pela empresa, respeitando os limites previstos no artigo 462 da Consolida√ß√£o das
             Leis do Trabalho (CLT).</p>
-            <p>Declaro estar ciente de que os valores poder„o ser descontados integralmente ou parcelados,
-            conforme acordo com a empresa, atÈ a quitaÁ„o total do dÈbito.</p>
+            <p>Declaro estar ciente de que os valores poder√£o ser descontados integralmente ou parcelados,
+            conforme acordo com a empresa, at√© a quita√ß√£o total do d√©bito.</p>
         `;
 
         const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
@@ -5683,44 +5683,44 @@ app.post('/api/colaboradores/:id/multas/:multaId/gerar-documento', authenticateT
             .assin-row { display: flex; gap: 30px; margin-bottom: 30px; }
             .assin-box { flex:1; border-top: 1px solid #000; padding-top: 5px; text-align: center; font-size: 10px; min-height: 80px; }
         </style></head><body>
-        <div class="logo-header"><img src="data:image/png;base64,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" alt="AmÈrica Rental"></div>
+        <div class="logo-header"><img src="data:image/png;base64,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" alt="Am√©rica Rental"></div>
         <div class="titulo">${tituloDoc}</div>
         <div class="colab-label"><strong>COLABORADOR:</strong> ${nome}</div>
         <div class="box">
             <p><strong>DADOS COLABORADOR:</strong></p>
-            <p>CPF: <strong>${cpf}</strong>&nbsp;&nbsp;&nbsp;ADMISS√O: ${admissao}</p>
-            <p>ENDERE«O: ${endereco}</p>
-            <p>CARGO: ${cargo}&nbsp;&nbsp;&nbsp;SAL¡RIO: ${salario}</p>
+            <p>CPF: <strong>${cpf}</strong>&nbsp;&nbsp;&nbsp;ADMISS√ÉO: ${admissao}</p>
+            <p>ENDERE√áO: ${endereco}</p>
+            <p>CARGO: ${cargo}&nbsp;&nbsp;&nbsp;SAL√ÅRIO: ${salario}</p>
             <p>CELULAR: ${celular}&nbsp;&nbsp;&nbsp;E-MAIL: ${email}</p>
         </div>
         <table class="info">
             <tr>
                 <td><b>PLACA:</b> ${multa.placa || ''}</td>
-                <td><b>VEÕCULO:</b> ${multa.veiculo || ''}</td>
+                <td><b>VE√çCULO:</b> ${multa.veiculo || ''}</td>
             </tr>
             <tr>
-                <td><b>C”DIGO INFRA«√O:</b> ${multa.codigo_infracao || ''}</td>
-                <td><b>INFRA«√O:</b> ${multa.descricao_infracao || ''}</td>
+                <td><b>C√ìDIGO INFRA√á√ÉO:</b> ${multa.codigo_infracao || ''}</td>
+                <td><b>INFRA√á√ÉO:</b> ${multa.descricao_infracao || ''}</td>
             </tr>
             <tr>
                 <td colspan="2"><b>DATA E HORA:</b> ${multa.data_infracao || ''} ${multa.hora_infracao || ''}</td>
             </tr>
             <tr>
-                <td colspan="2"><b>LOCAL DA INFRA«√O:</b> ${multa.local_infracao || ''}</td>
+                <td colspan="2"><b>LOCAL DA INFRA√á√ÉO:</b> ${multa.local_infracao || ''}</td>
             </tr>
             <tr>
-                <td><b>PONTUA«√O:</b> ${multa.pontuacao || ''}</td>
+                <td><b>PONTUA√á√ÉO:</b> ${multa.pontuacao || ''}</td>
                 <td><b>VALOR DA MULTA:</b> ${multa.valor_multa || ''}</td>
             </tr>
         </table>
         ${textoDoc}
         <p class="parcelas"><strong>Solicito que o desconto seja feito em:</strong><br>
-            (${check1x}) <strong>1x</strong>${_v1 ? ' ó ' + _v1 : ''} &nbsp;&nbsp;&nbsp;
-            (${check2x}) <strong>2x</strong>${_v2 ? ' ó ' + _v2 + '/mÍs' : ''} &nbsp;&nbsp;&nbsp;
-            (${check3x}) <strong>3x</strong>${_v3 ? ' ó ' + _v3 + '/mÍs' : ''}
+            (${check1x}) <strong>1x</strong>${_v1 ? ' ‚Äî ' + _v1 : ''} &nbsp;&nbsp;&nbsp;
+            (${check2x}) <strong>2x</strong>${_v2 ? ' ‚Äî ' + _v2 + '/m√™s' : ''} &nbsp;&nbsp;&nbsp;
+            (${check3x}) <strong>3x</strong>${_v3 ? ' ‚Äî ' + _v3 + '/m√™s' : ''}
         </p>
         ${(function() {
-            var meses = ['janeiro','fevereiro','marÁo','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+            var meses = ['janeiro','fevereiro','mar√ßo','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
             var d = multa.data_infracao ? new Date(multa.data_infracao + 'T12:00:00') : new Date();
             var hoje = new Date();
             var dia = hoje.getDate();
@@ -5743,7 +5743,7 @@ app.post('/api/colaboradores/:id/multas/:multaId/gerar-documento', authenticateT
     }
 });
 
-// POST /api/colaboradores/:id/multas/:multaId/iniciar-processo ó salva tipo/parcelas e marca processo iniciado
+// POST /api/colaboradores/:id/multas/:multaId/iniciar-processo ‚Äî salva tipo/parcelas e marca processo iniciado
 app.post('/api/colaboradores/:id/multas/:multaId/iniciar-processo', authenticateToken, (req, res) => {
     const { multaId } = req.params;
     const { tipo_resolucao, parcelas, documento_html } = req.body;
@@ -5757,12 +5757,12 @@ app.post('/api/colaboradores/:id/multas/:multaId/iniciar-processo', authenticate
     );
 });
 
-// POST /api/colaboradores/:id/multas/:multaId/assinar-testemunhas ó salva assinaturas das testemunhas
+// POST /api/colaboradores/:id/multas/:multaId/assinar-testemunhas ‚Äî salva assinaturas das testemunhas
 app.post('/api/colaboradores/:id/multas/:multaId/assinar-testemunhas', authenticateToken, (req, res) => {
     const { multaId } = req.params;
     const { testemunha1_nome, testemunha1_assinatura, testemunha2_nome, testemunha2_assinatura, documento_html } = req.body;
     if (!testemunha1_assinatura) {
-        return res.status(400).json({ error: 'Assinatura da primeira testemunha È obrigatÛria.' });
+        return res.status(400).json({ error: 'Assinatura da primeira testemunha √© obrigat√≥ria.' });
     }
     db.run(
         `UPDATE multas SET
@@ -5781,11 +5781,11 @@ app.post('/api/colaboradores/:id/multas/:multaId/assinar-testemunhas', authentic
     );
 });
 
-// POST /api/colaboradores/:id/multas/:multaId/assinar-condutor ó salva assinatura do condutor
+// POST /api/colaboradores/:id/multas/:multaId/assinar-condutor ‚Äî salva assinatura do condutor
 app.post('/api/colaboradores/:id/multas/:multaId/assinar-condutor', authenticateToken, (req, res) => {
     const { multaId } = req.params;
     const { assinatura_base64 } = req.body;
-    if (!assinatura_base64) return res.status(400).json({ error: 'Assinatura obrigatÛria.' });
+    if (!assinatura_base64) return res.status(400).json({ error: 'Assinatura obrigat√≥ria.' });
     db.run(
         `UPDATE multas SET assinatura_condutor_base64 = ?, assinaturas_finalizadas = 1, status = 'assinado' WHERE id = ?`,
         [assinatura_base64, multaId],
@@ -5798,6 +5798,6 @@ app.post('/api/colaboradores/:id/multas/:multaId/assinar-condutor', authenticate
 
 app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
-    console.log('Vers„o do Servidor: V28_FINAL_FIX');
+    console.log('Vers√£o do Servidor: V28_FINAL_FIX');
     console.log(`Caminho de Armazenamento Local: ${BASE_UPLOAD_PATH}`);
 });
