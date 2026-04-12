@@ -5984,7 +5984,12 @@ window.renderGeradoresList = function(items) {
     const tbody = document.getElementById('table-geradores-body');
     if (!tbody) return;
     
-    const PROTECTED_NAMES = ['AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO', 'AUTORIZAÇÃO DE DESCONTO EM FOLHA'];
+    const PROTECTED_NAMES = [
+        'AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO',
+        'AUTORIZAÇÃO DE DESCONTO EM FOLHA',
+        'ORDEM DE SERVIÇO NR01',
+        'ORDEM DE SERVIÇO NR 01'
+    ];
     
     // Sort items so protected ones are at the top
     const sortedItems = [...items].sort((a, b) => {

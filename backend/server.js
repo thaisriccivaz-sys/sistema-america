@@ -130,10 +130,21 @@ db.run("DELETE FROM cargos WHERE nome = 'teste' OR nome = 'Teste'", (err) => {
     if (err) console.error("Erro ao remover cargo teste:", err);
 });
 
-// MIGRATION: Remover gerador NR01 em maiúsculas (duplicata da versão com caixa mista)
-db.run("DELETE FROM geradores WHERE nome GLOB '*NR01*' OR nome GLOB '*NR 01*'", (err) => {
-    if (err) console.error("Erro ao remover NR01 duplicado:", err);
-    else console.log("Gerador NR01 duplicado removido (se existia).");
+// MIGRATION: Remover gerador "AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO" em caixa alta (duplicata)
+db.run("DELETE FROM geradores WHERE nome = 'AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO'", (err) => {
+    if (err) console.error("Erro ao remover gerador duplicado em caixa alta:", err);
+    else console.log("Gerador AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO (maiúsculo) removido (se existia).");
+});
+
+// MIGRATION: Renomear NR01 para caixa mista correta "Ordem de Serviço NR01"
+db.run("UPDATE geradores SET nome = 'Ordem de Serviço NR01' WHERE nome GLOB '*NR01*' OR nome GLOB '*NR 01*'", (err) => {
+    if (err) console.error("Erro ao renomear NR01:", err);
+    else console.log("Gerador NR01 renomeado para caixa mista (se existia).");
+});
+
+// MIGRATION: Garantir unicidade — remover duplicatas de NR01 mantendo o mais antigo
+db.run("DELETE FROM geradores WHERE nome = 'Ordem de Serviço NR01' AND id NOT IN (SELECT MIN(id) FROM geradores WHERE nome = 'Ordem de Serviço NR01')", (err) => {
+    if (err) console.error("Erro ao deduplicar NR01:", err);
 });
 
 // MIGRATION: Remover " - Total" dos grupos de permissão
