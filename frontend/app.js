@@ -7710,12 +7710,10 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
                 availableGeradores = geradores.filter(g => geradorIds.includes(Number(g.id)) && !seen2.has(Number(g.id)) && seen2.add(Number(g.id)));
             }
 
-            // Guarda globalmente para o botão de envio acessar
-            // O percentual do Passo 3 (Assinaturas) agora é calculado no `updateAdmissaoStepPercentages`
-            // baseado nos `window.currentDocs`.
-            // Renderizamos Ficha (Step 4), Assinaturas (Step 3), ASO (Step 5) nestes métodos (renderAdmissaoDocStatus etc) que são chamados por `updateAdmissaoStepPercentages`
-
-
+            // Guarda globalmente para calcular e renderizar o status documental
+            window._admissaoGeradores = availableGeradores;
+            window._admissaoAssinaturas = assinaturas;
+            window.currentDocs = docs;
 
             updateAdmissaoStepPercentages(colab);
             // Ensure log panel is populated from fresh colab data
@@ -8200,17 +8198,76 @@ function updateAdmissaoStepPercentages(colab) {
     // ── Passo 2: Santander — 100% se ficha foi gerada ─────────────────
     const pc2 = targetColab.santander_ficha_data ? 100 : 0;
 
-    // ── Passo 3: Assinaturas — usa geradores/assinaturas carregados ───
-    // ── Passo 3: Assinaturas — exibe TODOS da aba "Contratos" (com ou sem assinafy_id) ───
+    // ── Passo 3: Assinaturas — usa geradores/assinaturas carregados via Admissão ───
     let pc3 = 0;
-    const contratosDocs = (window.currentDocs || []).filter(d => d.tab_name && d.tab_name.toUpperCase() === 'CONTRATOS'); 
-    if (contratosDocs.length > 0) {
-        const concluidos = contratosDocs.filter(d => (d.assinafy_status === 'Assinado' || d.assinafy_status === 'NAO_EXIGE') || (!d.assinafy_id && !!d.file_path)).length;
-        pc3 = Math.min(100, Math.round((concluidos / contratosDocs.length) * 100));
+    const geradores = window._admissaoGeradores || [];
+    const assinaturas = window._admissaoAssinaturas || [];
+    const docs = window.currentDocs || [];
+
+    if (geradores.length > 0) {
+        const concluidos = geradores.filter(g => {
+            const ass = assinaturas.find(a => a.gerador_id === g.id || a.nome_documento === g.nome);
+            const docEquivalente = docs.find(d => d.tab_name === 'CONTRATOS' && (d.document_type === g.nome || (d.file_name && d.file_name.includes(g.nome))));
+            const realStatus = (docEquivalente && docEquivalente.assinafy_status === 'Assinado') ? 'Assinado'
+                             : (ass && ass.assinafy_status === 'Assinado') ? 'Assinado' : '';
+            return realStatus === 'Assinado';
+        }).length;
+        pc3 = Math.min(100, Math.round((concluidos / geradores.length) * 100));
     }
     
     // Atualiza a view de status se o modal estiver aberto
-    renderAdmissaoDocStatus('admissao-signature-status', contratosDocs, 'Nenhum contrato gerado ou anexado. Você pode gerenciá-los através do Prontuário Digital.');
+    const containerSignature = document.getElementById('admissao-signature-status');
+    if (containerSignature) {
+        if (geradores.length === 0) {
+            containerSignature.innerHTML = `<div style="padding:1rem; text-align:center; color:#64748b; font-size:0.85rem; font-style:italic;">Nenhum contrato configurado para o departamento.</div>`;
+        } else {
+            containerSignature.innerHTML = geradores.map(g => {
+                const ass = assinaturas.find(a => a.gerador_id === g.id || a.nome_documento === g.nome);
+                const docEquivalente = docs.find(d => d.tab_name === 'CONTRATOS' && (d.document_type === g.nome || (d.file_name && d.file_name.includes(g.nome))));
+                
+                let realStatus = '';
+                if (docEquivalente && docEquivalente.assinafy_status === 'Assinado') realStatus = 'Assinado';
+                else if (ass && ass.assinafy_status === 'Assinado') realStatus = 'Assinado';
+                else if (docEquivalente && docEquivalente.assinafy_status === 'Pendente') realStatus = 'Pendente';
+                else if (ass && ass.assinafy_status === 'Pendente') realStatus = 'Pendente';
+
+                const isSigned = realStatus === 'Assinado';
+                const isPending = realStatus === 'Pendente';
+                
+                let statusBadge = isSigned
+                    ? `<span style="background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-check"></i> Assinado</span>`
+                    : isPending
+                    ? `<span style="background:#fffbeb; color:#d97706; border:1px solid #fde68a; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-clock"></i> Pendente Assinatura</span>`
+                    : `<span style="background:#f1f5f9; color:#64748b; border:1px solid #e2e8f0; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-minus-circle"></i> Não enviado</span>`;
+
+                let dataText = '';
+                if (isSigned && (ass?.assinado_em || docEquivalente?.assinafy_signed_at)) {
+                    const dateVal = ass?.assinado_em || docEquivalente?.assinafy_signed_at;
+                    const d = new Date(dateVal + (dateVal.includes('Z') ? '' : 'Z'));
+                    dataText = `<div style="font-size:0.75rem; color:#059669; margin-top:2px;">Assinado em: <b>${d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</b></div>`;
+                } else if (ass && ass.enviado_em) {
+                    const d = new Date(ass.enviado_em + (ass.enviado_em.includes('Z') ? '' : 'Z'));
+                    dataText = `<div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Enviado p/ Assinatura: <b>${d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</b></div>`;
+                } else if (docEquivalente && docEquivalente.file_path && docEquivalente.created_at) {
+                    const d = new Date(docEquivalente.created_at + (docEquivalente.created_at.includes('Z') ? '' : 'Z'));
+                    dataText = `<div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Gerado e Anexado: <b>${d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</b></div>`;
+                } else {
+                    dataText = `<div style="font-size:0.75rem; color:#94a3b8; margin-top:2px;"><i>Configurado via Prontuário Digital</i></div>`;
+                }
+
+                return `
+                <div style="background:#fff; border:1px solid ${isSigned?'#bbf7d0':'#e2e8f0'}; border-radius:8px; padding:0.6rem 0.8rem; margin-bottom:0.4rem; display:flex; justify-content:space-between; align-items:center;">
+                    <div style="display:flex; flex-direction:column; gap:2px;">
+                        <span style="font-weight:600; color:#334155; font-size:0.85rem;">${g.nome}</span>
+                        ${dataText}
+                    </div>
+                    <div style="display:flex; gap:0.5rem; align-items:center; flex-shrink: 0;">
+                        ${statusBadge}
+                    </div>
+                </div>`;
+            }).join('');
+        }
+    }
 
     // ── Passo 4: Ficha Cadastral — documentos do colaborador (01_FICHA_CADASTRAL) ──
     let pc4 = 0;
