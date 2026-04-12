@@ -299,6 +299,10 @@ async function uploadDocToOneDrive(docId) {
                 if (safeTab === 'PAGAMENTOS' && doc.month && doc.month !== 'null' && doc.month !== '') {
                     targetDir += `/${getMesNome(doc.month)}`;
                 }
+                // Para Faculdade/Boletim: sub-pasta Boletim dentro do ano
+                if (safeTab === 'FACULDADE' && (doc.document_type || '').toUpperCase() === 'BOLETIM') {
+                    targetDir += '/Boletim';
+                }
             }
         }
 
@@ -322,6 +326,10 @@ async function uploadDocToOneDrive(docId) {
             // Contratos avulsos permitem múltiplos; adiciona timestamp para evitar sobrescrita no OneDrive
             const ts = new Date().toISOString().slice(0,19).replace(/[-T:]/g,'');
             cloudName = `${formatarPasta(doc.document_type || doc.tab_name).replace(/\s+/g, '_')}_${docYear}_${ts}_${safeColab}.pdf`;
+        } else if (safeTab === 'FACULDADE') {
+            // Faculdade: inclui o mês no nome (Boletim_Jan_2026_NOME.pdf / Boleto_Jan_2026_NOME.pdf)
+            const mesNomeFac = doc.month && doc.month !== 'null' && doc.month !== '' ? getMesNome(doc.month) + '_' : '';
+            cloudName = `${formatarPasta(doc.document_type || doc.tab_name).replace(/\s+/g, '_')}_${mesNomeFac}${docYear}_${safeColab}.pdf`;
         } else {
             cloudName = `${formatarPasta(doc.document_type || doc.tab_name).replace(/\s+/g, '_')}_${docYear}_${safeColab}.pdf`;
         }
@@ -2177,6 +2185,10 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
                                     if (safeTab === 'PAGAMENTOS' && month && month !== 'null' && month !== 'undefined' && month !== '') {
                                         targetDir += `/${getMesNome(month)}`;
                                     }
+                                    // Para Faculdade/Boletim: sub-pasta Boletim dentro do ano
+                                    if (safeTab === 'FACULDADE' && (document_type || '').toUpperCase() === 'BOLETIM') {
+                                        targetDir += '/Boletim';
+                                    }
                                 }
                                 
                                 if (targetDir !== parentDir) {
@@ -2193,6 +2205,10 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
                                     const safeColabInline = formatarNome(req.body.colaborador_nome || "DESCONHECIDO");
                                     if (safeTab === '01_FICHA_CADASTRAL') {
                                         cloudFileName = `${(document_type || tab_name).replace(/\s+/g, '_')}_${safeColabInline}.pdf`;
+                                    } else if (safeTab === 'FACULDADE') {
+                                        const docYear = year && year !== 'null' ? String(year).replace(/[^0-9]/g, '') : String(new Date().getFullYear());
+                                        const mesNomeFac = month && month !== 'null' && month !== '' ? getMesNome(month) + '_' : '';
+                                        cloudFileName = `${formatarPasta(document_type || tab_name).replace(/\s+/g, '_')}_${mesNomeFac}${docYear}_${safeColabInline}.pdf`;
                                     } else {
                                         const docYear = year && year !== 'null' ? String(year).replace(/[^0-9]/g, '') : String(new Date().getFullYear());
                                         cloudFileName = `${formatarPasta(document_type || tab_name).replace(/\s+/g, '_')}_${docYear}_${safeColabInline}.pdf`;
