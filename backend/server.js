@@ -131,7 +131,7 @@ db.run("DELETE FROM cargos WHERE nome = 'teste' OR nome = 'Teste'", (err) => {
 });
 
 // MIGRATION: Remover gerador NR01 em maiúsculas (duplicata da versão com caixa mista)
-db.run("DELETE FROM geradores WHERE nome = 'ORDEM DE SERVIÇO NR01'", (err) => {
+db.run("DELETE FROM geradores WHERE nome GLOB '*NR01*' OR nome GLOB '*NR 01*'", (err) => {
     if (err) console.error("Erro ao remover NR01 duplicado:", err);
     else console.log("Gerador NR01 duplicado removido (se existia).");
 });
