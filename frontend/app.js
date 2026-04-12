@@ -7330,68 +7330,157 @@ window.buildAdmissaoSignatureRows = function(availableGeradores, assinaturas, do
     return availableGeradores.map(g => {
         const ass = assinaturas.find(a => a.gerador_id === g.id || a.nome_documento === g.nome);
         const docEquivalente = (docs || []).find(d => d.tab_name === 'CONTRATOS' && (d.document_type === g.nome || (d.file_name && d.file_name.includes(g.nome))));
+
         let realStatus = '';
         if (docEquivalente && docEquivalente.assinafy_status === 'Assinado') realStatus = 'Assinado';
         else if (ass && ass.assinafy_status === 'Assinado') realStatus = 'Assinado';
         else if (docEquivalente && docEquivalente.assinafy_status === 'Pendente') realStatus = 'Pendente';
+        else if (docEquivalente && docEquivalente.assinafy_status === 'Aguardando') realStatus = 'Pendente';
         else if (ass && ass.assinafy_status === 'Pendente') realStatus = 'Pendente';
+        else if (docEquivalente && docEquivalente.assinafy_status === 'NAO_EXIGE') realStatus = 'NAO_EXIGE';
 
         const isSigned   = realStatus === 'Assinado';
         const isPending  = realStatus === 'Pendente';
-        const statusBadge = isSigned
-            ? `<span style="background:#dcfce7;color:#15803d;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;"><i class="ph ph-check-circle"></i> Assinado</span>`
-            : isPending
-            ? `<span style="background:#fef9c3;color:#92400e;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;"><i class="ph ph-clock"></i> Aguardando</span>`
-            : `<span style="background:#f1f5f9;color:#64748b;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;"><i class="ph ph-minus-circle"></i> Não enviado</span>`;
-        const colabId = colab ? colab.id : '';
-        const certificadoAcionado = ass ? ass.certificado_assinado_em : null;
-        let eyeBtn;
-        if (isSigned && ass && certificadoAcionado) {
-            eyeBtn = `<button onclick="window.openSignedDocPopup(${ass.id}, '${g.nome.replace(/'/g,"\\'")}', event)" style="border:none;background:none;cursor:pointer;color:#7c3aed;" title="Ver documento assinado pela empresa"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
-        } else if (isSigned && ass) {
-            eyeBtn = `<button onclick="window.openSignedDocPopup(${ass.id}, '${g.nome.replace(/'/g,"\\'")}', event)" style="border:none;background:none;cursor:pointer;color:#16a34a;" title="Ver documento assinado pelo colaborador"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
+        const naoExige   = realStatus === 'NAO_EXIGE';
+        const hasDoc     = !!docEquivalente;
+        const colabId    = colab ? colab.id : '';
+
+        // ── Formatador de datas ───────────────────────────────────────────
+        const fmtDate = (str) => {
+            if (!str) return '';
+            try {
+                const d = new Date(str + (str.includes('Z') ? '' : 'Z'));
+                if (isNaN(d.getTime())) return '';
+                const dd = String(d.getDate()).padStart(2,'0');
+                const mm = String(d.getMonth()+1).padStart(2,'0');
+                const yy = d.getFullYear();
+                const hh = String(d.getHours()).padStart(2,'0');
+                const mi = String(d.getMinutes()).padStart(2,'0');
+                return dd+'/'+mm+'/'+yy+' - '+hh+':'+mi;
+            } catch(e) { return ''; }
+        };
+
+        // ── Datas de status ───────────────────────────────────────────────
+        const sentDate   = (ass && ass.enviado_em) ? fmtDate(ass.enviado_em) : (docEquivalente && docEquivalente.upload_date ? fmtDate(docEquivalente.upload_date) : '');
+        const signedDate = (ass && ass.assinado_em) ? fmtDate(ass.assinado_em) : (docEquivalente && docEquivalente.assinafy_signed_at ? fmtDate(docEquivalente.assinafy_signed_at) : '');
+        const uploadDate = docEquivalente && docEquivalente.upload_date ? fmtDate(docEquivalente.upload_date) : '';
+        const fileName   = docEquivalente ? (docEquivalente.file_name || docEquivalente.original_name || '') : '';
+
+        // ── Ícone esquerdo ────────────────────────────────────────────────
+        let leftIcon = '';
+        let subText  = '';
+        if (isSigned) {
+            leftIcon = '<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#16a34a;"><i class="ph ph-check-circle" style="font-size:1.4rem;"></i></div>';
+            subText  = '<span style="color:#16a34a;font-size:0.75rem;font-weight:600;">' + (signedDate ? '<i class="ph ph-signature"></i> Assinado: ' + signedDate : 'Documento Assinado') + '</span>';
+        } else if (isPending) {
+            leftIcon = '<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#2563eb;"><i class="ph ph-paper-plane-tilt" style="font-size:1.4rem;"></i></div>';
+            subText  = '<span style="color:#2563eb;font-size:0.75rem;font-weight:600;">' + (sentDate ? '<i class="ph ph-paper-plane-tilt"></i> Enviado: ' + sentDate : 'Enviado para Assinatura') + '</span>';
+        } else if (naoExige) {
+            leftIcon = '<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#9333ea;"><i class="ph ph-file-text" style="font-size:1.4rem;"></i></div>';
+            subText  = '<span style="color:#9333ea;font-size:0.75rem;font-weight:600;">' + (uploadDate ? '<i class="ph ph-file-arrow-up"></i> Anexado: ' + uploadDate : 'Documento Anexado') + '</span>';
+        } else if (hasDoc) {
+            leftIcon = '<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#eab308;"><i class="ph ph-info" style="font-size:1.4rem;"></i></div>';
+            subText  = '<span style="color:#eab308;font-size:0.75rem;font-weight:600;">' + (uploadDate ? '<i class="ph ph-file-arrow-up"></i> Anexado: ' + uploadDate : 'Documento Anexado') + '</span>';
         } else {
-            eyeBtn = `<button onclick="window.previewAdmissaoDoc(${g.id}, ${colabId}, event)" style="border:none;background:none;cursor:pointer;color:#64748b;" title="Ver documento original"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
-        }
-        
-        let dataEnvioBadge = '';
-        if (isSigned && (ass?.assinado_em || docEquivalente?.assinafy_signed_at)) {
-            try {
-                const dateVal = ass?.assinado_em || docEquivalente?.assinafy_signed_at;
-                const d = new Date(dateVal + (dateVal.includes('Z') ? '' : 'Z'));
-                const dateStr = d.toLocaleDateString('pt-BR');
-                const timeStr = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                dataEnvioBadge = `<span style="font-size:0.7rem; color:#15803d; margin-right:2px; font-weight:600;"><i class="ph ph-signature"></i> ${dateStr} ${timeStr}</span>`;
-            } catch(e) {}
-        } else if (ass && ass.enviado_em) {
-            try {
-                const d = new Date(ass.enviado_em + (ass.enviado_em.includes('Z') ? '' : 'Z'));
-                const dateStr = d.toLocaleDateString('pt-BR');
-                const timeStr = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                dataEnvioBadge = `<span style="font-size:0.7rem; color:#15803d; margin-right:2px; font-weight:600;"><i class="ph ph-paper-plane-tilt"></i> ${dateStr} ${timeStr}</span>`;
-            } catch(e) {}
+            leftIcon = '<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#94a3b8;"><i class="ph ph-file-dashed" style="font-size:1.4rem;"></i></div>';
+            subText  = '';
         }
 
-        return `
-        <label class="doc-check-item" data-gerador-id="${g.id}" style="display:flex; align-items:center; gap:0.6rem; padding:0.6rem 0.75rem; border:1px solid ${isSigned ? '#bbf7d0' : '#f1f5f9'}; border-radius:8px; cursor:pointer; background:${isSigned ? '#f0fdf4' : '#fff'}; transition:all 0.2s; justify-content:space-between;">
-            <div style="display:flex; align-items:center; gap:0.6rem; flex:1;">
-                ${isSigned 
-                    ? `<i class="ph-fill ph-check-circle" style="color:#22c55e; font-size:1.2rem;"></i>`
-                    : `<input type="checkbox" value="${g.id}" data-nome="${g.nome}" checked style="width:16px;height:16px;cursor:pointer;accent-color:#f503c5;">`
-                }
-                <div style="display:flex; flex-direction:column; gap:2px;">
-                    <span style="font-size:0.87rem; font-weight:600; color:#334155;">${g.nome}</span>
-                </div>
-            </div>
-            <div style="display:flex; align-items:center; gap:0.5rem;">
-                ${dataEnvioBadge}
-                ${statusBadge}
-                ${eyeBtn}
-            </div>
-        </label>`;
+        // ── Nome do arquivo ───────────────────────────────────────────────
+        const fileNameTag = fileName ? '<span style="font-size:0.72rem;color:#94a3b8;margin-top:1px;"><i class="ph ph-file"></i> ' + fileName + '</span>' : '';
+
+        // ── Botão de ação direito ─────────────────────────────────────────
+        let actionBtn = '';
+        let eyeBtn    = '';
+
+        if (isSigned) {
+            // Assinado: mostrar olho para visualizar
+            if (ass && ass.id) {
+                eyeBtn = '<button onclick="window.openSignedDocPopup(' + ass.id + ', '' + g.nome.replace(/'/g,"\'") + '', event)" style="border:none;background:none;cursor:pointer;color:#16a34a;" title="Ver documento assinado"><i class="ph ph-eye" style="font-size:1.4rem;"></i></button>';
+            } else if (docEquivalente && docEquivalente.id) {
+                eyeBtn = '<button onclick="window.openContratoViewerById(' + docEquivalente.id + ')" style="border:none;background:none;cursor:pointer;color:#16a34a;" title="Ver documento"><i class="ph ph-eye" style="font-size:1.4rem;"></i></button>';
+            }
+        } else if (isPending) {
+            // Pendente: botão reenviar e olho
+            actionBtn = '<button type="button" onclick="window.reenviarAssinaturaContratoAdmissao(' + (docEquivalente ? docEquivalente.id : 'null') + ', ' + colabId + ', event)" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:0.2s;"><i class="ph ph-pen"></i> Reenviar</button>';
+            if (docEquivalente && docEquivalente.id) {
+                eyeBtn = '<button onclick="window.openContratoViewerById(' + docEquivalente.id + ')" style="border:none;background:none;cursor:pointer;color:#64748b;" title="Ver documento"><i class="ph ph-eye" style="font-size:1.4rem;"></i></button>';
+            } else {
+                eyeBtn = '<button onclick="window.previewAdmissaoDoc(' + g.id + ', ' + colabId + ', event)" style="border:none;background:none;cursor:pointer;color:#64748b;" title="Ver documento original"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>';
+            }
+        } else if (naoExige) {
+            // Não exige assinatura: só visualizar
+            if (docEquivalente && docEquivalente.id) {
+                eyeBtn = '<button onclick="window.openContratoViewerById(' + docEquivalente.id + ')" style="border:none;background:none;cursor:pointer;color:#9333ea;" title="Ver documento"><i class="ph ph-eye" style="font-size:1.4rem;"></i></button>';
+            }
+        } else if (hasDoc) {
+            // Tem documento mas não foi enviado para assinatura ainda
+            if (docEquivalente && docEquivalente.id) {
+                actionBtn = '<button type="button" onclick="window.reenviarAssinaturaContratoAdmissao(' + docEquivalente.id + ', ' + colabId + ', event)" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:0.2s;"><i class="ph ph-paper-plane-tilt"></i> Enviar p/ Assinatura</button>';
+                eyeBtn = '<button onclick="window.openContratoViewerById(' + docEquivalente.id + ')" style="border:none;background:none;cursor:pointer;color:#64748b;" title="Ver documento"><i class="ph ph-eye" style="font-size:1.4rem;"></i></button>';
+            }
+        } else {
+            // Sem documento: checkbox para seleção no envio em lote (comportamento original)
+            leftIcon = '<input type="checkbox" value="' + g.id + '" data-nome="' + g.nome + '" checked style="width:16px;height:16px;cursor:pointer;accent-color:#f503c5;">';
+            eyeBtn = '<button onclick="window.previewAdmissaoDoc(' + g.id + ', ' + colabId + ', event)" style="border:none;background:none;cursor:pointer;color:#64748b;" title="Ver documento original"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>';
+        }
+
+        const borderColor = isSigned ? '#bbf7d0' : isPending ? '#bfdbfe' : naoExige ? '#e9d5ff' : '#f1f5f9';
+        const bgColor     = isSigned ? '#f0fdf4'  : isPending ? '#eff6ff'  : naoExige ? '#faf5ff'  : '#fff';
+
+        return '<label class="doc-check-item" data-gerador-id="' + g.id + '" style="display:flex; align-items:center; gap:0.6rem; padding:1.1rem 1.25rem; border:1px solid ' + borderColor + '; border-radius:8px; cursor:default; background:' + bgColor + '; box-shadow:0 1px 2px rgba(0,0,0,0.03); transition:all 0.2s; justify-content:space-between; margin-bottom:12px;">'
+            + '<div style="display:flex; align-items:center; gap:12px; flex:1;">'
+                + leftIcon
+                + '<div style="display:flex; flex-direction:column; gap:1px;">'
+                    + '<span style="font-size:0.95rem; font-weight:700; color:#0f172a; margin-bottom:3px;">' + g.nome.toUpperCase() + '</span>'
+                    + subText
+                    + fileNameTag
+                + '</div>'
+            + '</div>'
+            + '<div style="display:flex; align-items:center; gap:12px;">'
+                + actionBtn
+                + eyeBtn
+            + '</div>'
+        + '</label>';
     }).join('');
 };
 
+// Helper: reenviar assinatura para contratos de admissão (usa document_id singular)
+window.reenviarAssinaturaContratoAdmissao = async function(docId, colabId, ev) {
+    if (ev) ev.stopPropagation();
+    if (!docId || !colabId) { alert('Dados insuficientes para enviar assinatura.'); return; }
+    if (!confirm('Confirmar envio deste documento para assinatura digital?')) return;
+    let trBtn = null;
+    let ogHtml = '';
+    try {
+        trBtn = ev ? ev.currentTarget : null;
+        if (trBtn) {
+            ogHtml = trBtn.innerHTML;
+            trBtn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Aguarde...';
+            trBtn.disabled = true;
+        }
+        const res = await fetch(API_URL + '/assinafy/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (window.currentToken || localStorage.getItem('token')) },
+            body: JSON.stringify({ document_id: Number(docId), colaborador_id: colabId })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (trBtn) { trBtn.innerHTML = ogHtml; trBtn.disabled = false; }
+        if (res.ok) {
+            if (typeof showToast !== 'undefined') showToast('Documento enviado para assinatura!', 'success');
+            else alert('Enviado!');
+            // Reload admissao tab
+            const admDiv = document.getElementById('contratos-sub-admissao');
+            if (admDiv) { admDiv.innerHTML = '<p class="text-muted" style="padding:1rem;"><i class="ph ph-spinner ph-spin"></i> Atualizando...</p>'; window.renderContratosAdmissaoTab && window.renderContratosAdmissaoTab(); }
+        } else {
+            throw new Error(data.error || 'Erro ao enviar assinatura');
+        }
+    } catch(err) {
+        if (trBtn) { trBtn.innerHTML = ogHtml; trBtn.disabled = false; }
+        if (typeof showToast !== 'undefined') showToast(err.message, 'error');
+        else alert(err.message);
+    }
+};
 window.renderContratosTab = async function(container) {
     if (!viewedColaborador) return;
     container.innerHTML = '';
