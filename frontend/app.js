@@ -7884,7 +7884,7 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
                 }
                 <div style="display:flex; flex-direction:column;">
                     <span style="font-weight:600; color:#334155; font-size:0.9rem;">${doc.document_type || doc.file_name}</span>
-                    <div style="display:flex; align-items:center; gap:8px; flex                        <span style="font-size:0.75rem; color:#ea580c; font-weight:600;">${_uploadStr}</span>
+                    <div style="display:flex; align-items:center; gap:8px; flex
                         ${statusBadge}
                         ${isSigned && (ass?.assinado_em || doc.assinafy_signed_at)
                             ? `<span style="font-size:0.72rem;color:#166534;background:#dcfce7;border-radius:10px;padding:1px 8px;font-weight:600;"><i class="ph ph-check-circle"></i> Assinado em: ${new Date(ass?.assinado_em || doc.assinafy_signed_at).toLocaleString('pt-BR')}</span>`
