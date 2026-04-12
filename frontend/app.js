@@ -6918,7 +6918,7 @@ window.abrirPreviewDocumento = function(data) {
                 previewContent.style.minHeight = origMinH;
 
                 // Determinar colaborador_id: prioridade viewedColaborador, depois data.colaborador.ID (retornado pelo backend /gerar)
-                const colaboradorId = (window.viewedColaborador && window.viewedColaborador.id)
+                const colaboradorId = (viewedColaborador && viewedColaborador.id)
                     || (data.colaborador && data.colaborador.ID)
                     || (data.colaborador && data.colaborador.id)
                     || data.colabId;
@@ -8016,33 +8016,54 @@ window.openContratoViewerPopup = function(pdfUrl, nomeDoc) {
 window.reenviarAssinaturaContrato = async function(docId, ev) {
     if(ev) ev.stopPropagation();
     if(!confirm('Confirmar envio deste documento para assinatura digital?')) return;
+    let trBtn = null;
+    let ogHtml = '';
     try {
-        const trBtn = ev ? ev.currentTarget : null;
-        let ogHtml = '';
+        trBtn = ev ? ev.currentTarget : null;
         if(trBtn) {
             ogHtml = trBtn.innerHTML;
             trBtn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Aguarde...';
             trBtn.disabled = true;
         }
+        
+        let targetColabId = null;
+        if (typeof viewedColaborador !== 'undefined' && viewedColaborador && viewedColaborador.id) {
+            targetColabId = viewedColaborador.id;
+        } else if (window.viewedColaborador && window.viewedColaborador.id) {
+            targetColabId = window.viewedColaborador.id;
+        } else if (window.lastColaboradorId) {
+             targetColabId = window.lastColaboradorId;
+        }
+        
+        if (!targetColabId) throw new Error('Não foi possível identificar o colaborador atual.');
+
         const docsIds = [docId];
         const res = await fetch(`${API_URL}/assinafy/upload`, {
             method: 'POST',
-            headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token')},
-            body: JSON.stringify({ document_ids: docsIds, colaborador_id: window.viewedColaborador.id })
+            headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (window.currentToken || localStorage.getItem('token'))},
+            body: JSON.stringify({ document_ids: docsIds, colaborador_id: targetColabId })
         });
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
+        
         if(trBtn) {
             trBtn.innerHTML = ogHtml;
             trBtn.disabled = false;
         }
+        
         if(res.ok) {
-            alert('Documento enviado para assinatura com sucesso!');
+            if (typeof showToast !== 'undefined') showToast('E-mail de assinatura enviado ao colaborador!', 'success');
+            else alert('Documento enviado para assinatura com sucesso!');
             window._contratosAvulsoLoaded = false; const avDiv = document.getElementById('contratos-sub-avulso'); if (avDiv) { avDiv.innerHTML = '<p class="text-muted" style="padding:1rem;"><i class="ph ph-spinner ph-spin"></i> Atualizando status...</p>'; window.renderContratosAvulso(avDiv); }
         } else {
-            throw new Error(data.error || 'Erro ao reenviar');
+            throw new Error(data.error || 'Erro ao reenviar assinatura');
         }
     } catch(err) {
-        alert(err.message);
+        if(trBtn) {
+            trBtn.innerHTML = ogHtml;
+            trBtn.disabled = false;
+        }
+        if (typeof showToast !== 'undefined') showToast(err.message, 'error');
+        else alert(err.message);
     }
 };
 window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
