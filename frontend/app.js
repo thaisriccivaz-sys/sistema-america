@@ -7760,17 +7760,28 @@ function renderAdmissaoDocStatus(containerId, docs, emptyMsg) {
     docs.forEach(doc => {
         const isSigned = doc.assinafy_status === 'Assinado' || doc.assinafy_status === 'NAO_EXIGE';
         const docName = doc.document_type || doc.original_name || 'Documento';
-        const dateStr = doc.created_at ? new Date(doc.created_at).toLocaleDateString('pt-BR') : '';
+        const dateStr = doc.created_at ? new Date(doc.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '';
+        const signedDateStr = doc.assinafy_signed_at ? new Date(doc.assinafy_signed_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '';
         const hasFile = !!doc.file_path;
         
+        let subInfo = '';
+        if (doc.assinafy_id) {
+            subInfo += dateStr ? `<div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Enviado p/ Assinatura: <b>${dateStr}</b></div>` : '';
+            if (isSigned && signedDateStr) {
+               subInfo += `<div style="font-size:0.75rem; color:#059669; margin-top:2px;">Assinado em: <b>${signedDateStr}</b></div>`;
+            }
+        } else if (hasFile) {
+            subInfo += dateStr ? `<div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Anexado em: <b>${dateStr}</b></div>` : '';
+        }
+
         const el = document.createElement('div');
         el.style.cssText = `background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:0.6rem 0.8rem; margin-bottom:0.4rem; display:flex; justify-content:space-between; align-items:center;`;
         el.innerHTML = `
             <div style="display:flex; flex-direction:column; gap:2px;">
                 <span style="font-weight:600; color:#334155; font-size:0.85rem;">${docName}</span>
-                ${dateStr ? `<span style="font-size:0.75rem; color:#64748b;">Enviado: ${dateStr}</span>` : ''}
+                ${subInfo}
             </div>
-            <div style="display:flex; gap:0.5rem; align-items:center;">
+            <div style="display:flex; gap:0.5rem; align-items:center; flex-shrink: 0;">
                 ${hasFile ? `<span style="background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-check-circle"></i> Anexado</span>` : `<span style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-x-circle"></i> Faltante</span>`}
                 ${doc.assinafy_id ? `<span style="background:${isSigned ? '#eff6ff' : '#fffbeb'}; color:${isSigned ? '#2563eb' : '#d97706'}; border:1px solid ${isSigned ? '#bfdbfe' : '#fde68a'}; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;">${isSigned ? '<i class="ph ph-check"></i> Assinado' : '<i class="ph ph-clock"></i> Pendente Ass.'}</span>` : ''}
             </div>
@@ -8190,16 +8201,16 @@ function updateAdmissaoStepPercentages(colab) {
     const pc2 = targetColab.santander_ficha_data ? 100 : 0;
 
     // ── Passo 3: Assinaturas — usa geradores/assinaturas carregados ───
-    // ── Passo 3: Assinaturas — verifica status dos contratos via API ───
+    // ── Passo 3: Assinaturas — exibe TODOS da aba "Contratos" (com ou sem assinafy_id) ───
     let pc3 = 0;
-    const contratosDocs = (window.currentDocs || []).filter(d => !!d.assinafy_id && d.tab_name !== 'ASO'); // Aproximação de docs com request Assinafy (exceto ASO que vai no passo 5)
+    const contratosDocs = (window.currentDocs || []).filter(d => d.tab_name && d.tab_name.toUpperCase() === 'CONTRATOS'); 
     if (contratosDocs.length > 0) {
-        const assinados = contratosDocs.filter(d => d.assinafy_status === 'Assinado' || d.assinafy_status === 'NAO_EXIGE').length;
-        pc3 = Math.min(100, Math.round((assinados / contratosDocs.length) * 100));
+        const concluidos = contratosDocs.filter(d => (d.assinafy_status === 'Assinado' || d.assinafy_status === 'NAO_EXIGE') || (!d.assinafy_id && !!d.file_path)).length;
+        pc3 = Math.min(100, Math.round((concluidos / contratosDocs.length) * 100));
     }
     
     // Atualiza a view de status se o modal estiver aberto
-    renderAdmissaoDocStatus('admissao-signature-status', contratosDocs, 'Nenhum documento aguardando assinatura. Você pode enviá-los através do Prontuário Digital.');
+    renderAdmissaoDocStatus('admissao-signature-status', contratosDocs, 'Nenhum contrato gerado ou anexado. Você pode gerenciá-los através do Prontuário Digital.');
 
     // ── Passo 4: Ficha Cadastral — documentos do colaborador (01_FICHA_CADASTRAL) ──
     let pc4 = 0;
