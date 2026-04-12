@@ -6844,7 +6844,7 @@ window.processarGeracao = async function() {
                                     colaborador_id: colabId,
                                     geradores_ids: [parseInt(geradorId)]
                                 });
-                                Swal.fire('Enviado!', 'Documento anexado e enviado para assinatura.', 'success');
+                                Swal.close(); if(typeof showToast !== 'undefined') showToast('Documento anexado e enviado para assinatura.', 'success');
                             } else {
                                 Swal.fire('Anexado!', 'Documento gerado e salvo no prontuário do colaborador com sucesso.', 'success');
                             }
@@ -6948,7 +6948,7 @@ window.abrirPreviewDocumento = function(data) {
                 if (typeof showToast !== 'undefined') {
                     showToast('Documento anexado ao prontuário com sucesso!', 'success');
                 } else {
-                    Swal.fire('Anexado!', 'Documento gerado e incluído no prontuário.', 'success');
+                    Swal.close(); if(typeof showToast !== 'undefined') showToast('Documento anexado!', 'success');
                 }
 
                 // Reload da lista de contratos se estiver na aba correta
@@ -7695,7 +7695,7 @@ window.uploadContratoPerfilNaoAssinado = async function(input, geradorNome) {
         });
         var data = await res.json().catch(function() { return {}; });
         if (!res.ok) throw new Error(data.error || 'Falha ao salvar PDF');
-        Swal.fire({ icon: 'success', title: 'Documento anexado!', timer: 1800, showConfirmButton: false });
+        Swal.close(); if(typeof showToast !== 'undefined') showToast('Documento anexado!', 'success');
         window._contratosAvulsoLoaded = false;
         var avDiv = document.getElementById('contratos-sub-avulso');
         if (avDiv) await window.renderContratosAvulso(avDiv);
@@ -7884,7 +7884,7 @@ window.uploadContratoExterno = async function(input) {
 
         // Se exige assinatura, enviar para Assinafy automaticamente
         if (exigeAssinatura && docId) {
-            Swal.fire({ title: 'Enviando para assinatura via Assinafy...', allowOutsideClick: false, showConfirmButton: false, didOpen: () => { Swal.showLoading(); } });
+            // Mantém o mesmo Swal de Anexando ativo em vez de piscar tela
             try {
                 var assResp = await fetch(API_URL + '/assinafy/upload', {
                     method: 'POST',
@@ -7895,13 +7895,13 @@ window.uploadContratoExterno = async function(input) {
                 if (!assResp.ok) {
                     Swal.fire('Atencao', 'Documento salvo, mas o envio para assinatura falhou: ' + (assData.error || 'Erro desconhecido'), 'warning');
                 } else {
-                    Swal.fire({ icon: 'success', title: 'Enviado para assinatura!', text: 'O colaborador recebera um e-mail para assinar.', timer: 3000, showConfirmButton: false });
+                    Swal.close(); if(typeof showToast !== 'undefined') showToast('Enviado para assinatura!', 'success'); else Swal.fire({ icon: 'success', title: 'Enviado para assinatura!', text: 'E-mail enviado.', timer: 1500, showConfirmButton: false });
                 }
             } catch(assErr) {
                 Swal.fire('Atencao', 'Documento salvo, mas falha no envio para assinatura: ' + assErr.message, 'warning');
             }
         } else {
-            Swal.fire({ icon: 'success', title: 'Documento anexado!', timer: 1800, showConfirmButton: false });
+            Swal.close(); if(typeof showToast !== 'undefined') showToast('Documento anexado!', 'success');
         }
 
         // Forca reload da lista
@@ -8446,7 +8446,7 @@ window.gerarContratoAvulso = async function() {
                             colaborador_id: viewedColaborador.id,
                             geradores_ids: [parseInt(geradorId)]
                         });
-                        Swal.fire('Enviado!', 'Documento enviado para assinatura.', 'success');
+                        Swal.close(); if(typeof showToast !== 'undefined') showToast('Documento enviado para assinatura.', 'success');
                     } else {
                         showToast('Documento gerado e salvo no Prontuário!', 'success');
                     }
@@ -8749,7 +8749,7 @@ window.previewAdmissaoDoc = async function(geradorId, colabId, evt) {
                             colaborador_id: colabId,
                             geradores_ids: [parseInt(geradorId)]
                         });
-                        Swal.fire('Enviado!', 'Documento enviado para assinatura.', 'success');
+                        Swal.close(); if(typeof showToast !== 'undefined') showToast('Documento enviado para assinatura.', 'success');
                     } else {
                         showToast('Documento de admissão salvo na pasta do colaborador.', 'success');
                     }
