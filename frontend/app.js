@@ -7930,7 +7930,14 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
 
        const formatDate = (dateStr) => {
            if (!dateStr) return '';
-           const _d = new Date(dateStr);
+           let parsedStr = dateStr;
+           // Treat SQLite timestamps as UTC explicitly to correctly translate into local Brasilia time
+           if (typeof dateStr === 'string' && dateStr.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)) {
+               parsedStr = dateStr.replace(' ', 'T') + 'Z';
+           } else if (typeof dateStr === 'string' && dateStr.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?$/)) {
+               parsedStr = dateStr + 'Z';
+           }
+           const _d = new Date(parsedStr);
            if (isNaN(_d.getTime())) return '';
            const _dd = String(_d.getDate()).padStart(2,'0');
            const _mm = String(_d.getMonth()+1).padStart(2,'0');
