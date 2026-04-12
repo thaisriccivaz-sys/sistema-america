@@ -3686,7 +3686,10 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
             fixed.push(rgTipo === 'CIN' ? 'CIN-CPF' : 'RG-CPF');
         }
         
-        fixed.push('Carteira de vacina\u00e7\u00e3o', 'Curr\u00edculo', 'Carteira de Trabalho');
+        fixed.push('Carteira de vacinação', 'Currículo', 'Carteira de Trabalho');
+        if (_isCasado) {
+            fixed.push('CPF do Cônjuge');
+        }
 
         fixed.forEach(docType => {  
             if (!searchTerm || docType.toLowerCase().includes(searchTerm)) {
@@ -8305,6 +8308,9 @@ function updateAdmissaoStepPercentages(colab) {
     }
     
     fixed.push('Carteira de vacinação', 'Currículo', 'Carteira de Trabalho');
+    if (_isCasado) {
+        fixed.push('CPF do Cônjuge');
+    }
 
     const fichaDocs = (window.currentDocs || []).filter(d => d.tab_name === '01_FICHA_CADASTRAL');
     
