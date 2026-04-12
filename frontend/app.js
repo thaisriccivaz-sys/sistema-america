@@ -7849,7 +7849,7 @@ window.openContratoViewerPopup = function(pdfUrl, nomeDoc) {
 };
 window.reenviarAssinaturaContrato = async function(docId, ev) {
     if(ev) ev.stopPropagation();
-    if(!confirm('Deseja reenviar este documento para assinatura?')) return;
+    if(!confirm('Confirmar envio deste documento para assinatura digital?')) return;
     try {
         const trBtn = ev ? ev.currentTarget : null;
         let ogHtml = '';
@@ -7870,8 +7870,8 @@ window.reenviarAssinaturaContrato = async function(docId, ev) {
             trBtn.disabled = false;
         }
         if(res.ok) {
-            alert('Documento reenviado para assinatura com sucesso!');
-            if (window.carregarAbaContratos) window.carregarAbaContratos();
+            alert('Documento enviado para assinatura com sucesso!');
+            window._contratosAvulsoLoaded = false; const avDiv = document.getElementById('contratos-sub-avulso'); if (avDiv) { avDiv.innerHTML = '<p class="text-muted" style="padding:1rem;"><i class="ph ph-spinner ph-spin"></i> Atualizando status...</p>'; window.renderContratosAvulso(avDiv); }
         } else {
             throw new Error(data.error || 'Erro ao reenviar');
         }
