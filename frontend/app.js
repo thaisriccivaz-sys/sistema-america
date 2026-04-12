@@ -7833,7 +7833,9 @@ window.uploadContratoExterno = async function(input) {
     const file = input.files[0];
     if (!file || !viewedColaborador) return;
 
-    // Modal personalizado para capturar nome e se exige assinatura
+    // Reset input so same file can be selected again if needed
+    input.value = '';
+
     const modalResult = await Swal.fire({
         title: '<i class="ph ph-file-plus"></i> Anexar Contrato',
         html: '<div style="text-align:left;display:flex;flex-direction:column;gap:0.75rem;padding:0.25rem 0;"><div><label style="font-size:0.82rem;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Nome do Documento</label><input id="swal-doctype" class="swal2-input" style="margin:0;width:100%;box-sizing:border-box;" placeholder="Ex: Acordo de Confidencialidade"></div><div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:0.75rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;"><span style="font-size:0.85rem;font-weight:700;color:#334155;">Exige Assinatura?</span><div style="display:flex;gap:1rem;"><label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:0.9rem;font-weight:500;"><input type="radio" name="swal-ass" value="sim" id="swal-ass-sim"> Sim</label><label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:0.9rem;font-weight:500;"><input type="radio" name="swal-ass" value="nao" id="swal-ass-nao" checked> Nao</label></div></div></div>',
@@ -7842,80 +7844,76 @@ window.uploadContratoExterno = async function(input) {
         confirmButtonText: '<i class="ph ph-upload-simple"></i> Anexar',
         cancelButtonText: 'Cancelar',
         confirmButtonColor: '#2563eb',
+        showLoaderOnConfirm: true,
+        allowOutsideClick: function() { return !Swal.isLoading(); },
         didOpen: function() {
             var dtInput = document.getElementById('swal-doctype');
             if (dtInput) dtInput.value = file.name.replace(/\.pdf$/i, '').substring(0, 60);
         },
-        preConfirm: function() {
+        preConfirm: async function() {
             var docType = (document.getElementById('swal-doctype') || {}).value;
             if (docType) docType = docType.trim();
             var assRadio = document.querySelector('input[name="swal-ass"]:checked');
             if (!docType) { Swal.showValidationMessage('Informe o nome do documento'); return false; }
-            return { docType: docType, exigeAssinatura: assRadio && assRadio.value === 'sim' };
+
+            var exigeAssinatura = assRadio && assRadio.value === 'sim';
+            var formData = new FormData();
+            formData.append('file', file);
+            formData.append('tab_name', 'CONTRATOS_AVULSOS');
+            formData.append('document_type', docType);
+            formData.append('colaborador_id', viewedColaborador.id);
+            formData.append('colaborador_nome', viewedColaborador.nome_completo || '');
+            if (!exigeAssinatura) formData.append('assinafy_status', 'NAO_EXIGE');
+
+            try {
+                var res = await fetch(API_URL + '/documentos', {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + currentToken },
+                    body: formData
+                });
+                var data = await res.json().catch(function() { return {}; });
+                if (!res.ok) throw new Error(data.error || 'Falha ao anexar PDF');
+
+                var docId = data.id;
+
+                // Se exige assinatura, enviar para Assinafy no mesmo fluxo (o botão continua girando)
+                if (exigeAssinatura && docId) {
+                    var assResp = await fetch(API_URL + '/assinafy/upload', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentToken },
+                        body: JSON.stringify({ document_id: docId, colaborador_id: viewedColaborador.id })
+                    });
+                    var assData = await assResp.json().catch(function() { return {}; });
+                    if (!assResp.ok) {
+                        Swal.showValidationMessage('Documento salvo, mas falha no envio para assinatura: ' + (assData.error || 'Erro desconhecido'));
+                        return false;
+                    }
+                    return { success: true, assinatura: true };
+                }
+                return { success: true, assinatura: false };
+            } catch(e) {
+                Swal.showValidationMessage(e.message);
+                return false;
+            }
         }
     });
 
     if (!modalResult.isConfirmed || !modalResult.value) return;
-    var docType = modalResult.value.docType;
-    var exigeAssinatura = modalResult.value.exigeAssinatura;
-    var colaboradorNome = viewedColaborador.nome_completo || '';
 
-    var formData = new FormData();
-    formData.append('file', file);
-    formData.append('tab_name', 'CONTRATOS_AVULSOS');
-    formData.append('document_type', docType);
-    formData.append('colaborador_id', viewedColaborador.id);
-    formData.append('colaborador_nome', colaboradorNome);
-    if (!exigeAssinatura) {
-        formData.append('assinafy_status', 'NAO_EXIGE');
+    // Feedback via toast silencioso — sem popup bloqueante
+    if (typeof showToast !== 'undefined') {
+        showToast(modalResult.value.assinatura ? 'Documento enviado para assinatura!' : 'Documento anexado!', 'success');
     }
 
-    try {
-        Swal.fire({ title: 'Anexando...', allowOutsideClick: false, didOpen: function() { Swal.showLoading(); } });
-        var res = await fetch(API_URL + '/documentos', {
-            method: 'POST',
-            headers: { 'Authorization': 'Bearer ' + currentToken },
-            body: formData
-        });
-        var data = await res.json().catch(function() { return {}; });
-        if (!res.ok) throw new Error(data.error || 'Falha ao anexar PDF');
-
-        var docId = data.id;
-
-        // Se exige assinatura, enviar para Assinafy automaticamente
-        if (exigeAssinatura && docId) {
-            // Mantém o mesmo Swal de Anexando ativo em vez de piscar tela
-            try {
-                var assResp = await fetch(API_URL + '/assinafy/upload', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentToken },
-                    body: JSON.stringify({ document_id: docId, colaborador_id: viewedColaborador.id })
-                });
-                var assData = await assResp.json().catch(function() { return {}; });
-                if (!assResp.ok) {
-                    Swal.fire('Atencao', 'Documento salvo, mas o envio para assinatura falhou: ' + (assData.error || 'Erro desconhecido'), 'warning');
-                } else {
-                    Swal.close(); if(typeof showToast !== 'undefined') showToast('Enviado para assinatura!', 'success'); else Swal.fire({ icon: 'success', title: 'Enviado para assinatura!', text: 'E-mail enviado.', timer: 1500, showConfirmButton: false });
-                }
-            } catch(assErr) {
-                Swal.fire('Atencao', 'Documento salvo, mas falha no envio para assinatura: ' + assErr.message, 'warning');
-            }
-        } else {
-            Swal.close(); if(typeof showToast !== 'undefined') showToast('Documento anexado!', 'success');
-        }
-
-        // Forca reload da lista
-        window._contratosAvulsoLoaded = false;
-        var avDivUp = document.getElementById('contratos-sub-avulso');
-        if (avDivUp) {
-            avDivUp.innerHTML = '<p class="text-muted"><i class="ph ph-spinner ph-spin"></i> Atualizando...</p>';
-            window._contratosAvulsoLoaded = true;
-            await window.renderContratosAvulso(avDivUp);
-        }
-        window.switchContratosSubTab('avulso');
-    } catch(e) {
-        Swal.fire('Erro', e.message, 'error');
+    // Recarrega lista silenciosamente
+    window._contratosAvulsoLoaded = false;
+    var avDivUp = document.getElementById('contratos-sub-avulso');
+    if (avDivUp) {
+        avDivUp.innerHTML = '<p class="text-muted"><i class="ph ph-spinner ph-spin"></i> Atualizando...</p>';
+        window._contratosAvulsoLoaded = true;
+        await window.renderContratosAvulso(avDivUp);
     }
+    window.switchContratosSubTab('avulso');
 };
 
 // Versão segura: pega o token no momento do clique (não no build-time da lista)
