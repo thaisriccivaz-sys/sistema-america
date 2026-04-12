@@ -325,7 +325,7 @@ async function uploadDocToOneDrive(docId) {
 
         if (!doc) { console.error(`[OD-AUTO] Doc ${docId} não encontrado no DB`); return; }
         // CONTRATOS_AVULSOS: sincroniza ao OneDrive se assinado OU se nao exige assinatura (NAO_EXIGE)
-        if (doc.tab_name === 'CONTRATOS_AVULSOS' && doc.assinafy_status !== 'Assinado' && doc.assinafy_status !== 'NAO_EXIGE' && doc.assinafy_status !== 'Nenhum' && doc.assinafy_status !== null && doc.assinafy_status !== '') {
+        if (false && doc.tab_name === 'CONTRATOS_AVULSOS' && doc.assinafy_status !== 'Assinado') { // removed restriction - always sync to OneDrive
             console.log(`[OD-AUTO] Bloqueando sync OneDrive para doc ${docId} (CONTRATOS_AVULSOS pendente: ${doc.assinafy_status})`);
             return;
         }
@@ -2372,7 +2372,7 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
                     // === ONEDRIVE UPLOAD DIRETO (INLINE) ===
                     // CONTRATOS_AVULSOS com NAO_EXIGE: upload direto usando req.file
                     // Outros casos: usar setImmediate com uploadDocToOneDrive
-                    if (tab_name === 'CONTRATOS_AVULSOS' && (assinafy_status === 'NAO_EXIGE' || !assinafy_status || assinafy_status === 'Nenhum') && onedrive) {
+                    if (tab_name === 'CONTRATOS_AVULSOS' && onedrive) {
                         // Upload inline para garantir que o arquivo ainda está no disco
                         ;(async () => {
                             try {
