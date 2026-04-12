@@ -1,4 +1,4 @@
-const { Client } = require('@microsoft/microsoft-graph-client');
+﻿const { Client } = require('@microsoft/microsoft-graph-client');
 require('isomorphic-fetch');
 const msal = require('@azure/msal-node');
 
@@ -138,28 +138,37 @@ async function ensureFolder(folderPath) {
 
 /**
  * Faz o upload de um arquivo para o OneDrive
+ * Converte Buffer Node.js para ArrayBuffer (necessario para Graph SDK v3)
  */
 async function uploadToOneDrive(remotePath, fileName, fileBuffer) {
     if (!CLIENT_ID) return;
 
     try {
         const client = await getGraphClient();
-        const userId = USER_ID;
         const driveId = DRIVE_ID;
-
-        const drivePrefix = driveId ? `/drives/${driveId}/root` : `/users/${userId}/drive/root`;
+        const drivePrefix = driveId ? `/drives/${driveId}/root` : `/users/${USER_ID}/drive/root`;
         
         const encodedPath = remotePath.split('/').map(p => encodeURIComponent(p)).join('/');
         const encodedFileName = encodeURIComponent(fileName);
         
-        console.log(`OneDrive: Uploading ${fileName} para ${remotePath}`);
+        console.log(`[OneDrive] Uploading "${fileName}" para "${remotePath}" (${fileBuffer.length} bytes)`);
         
-        await client.api(`${drivePrefix}:/${encodedPath}/${encodedFileName}:/content`)
-            .put(fileBuffer);
+        // Converter Buffer Node.js para ArrayBuffer (Graph SDK exige)
+        let uploadData = fileBuffer;
+        if (Buffer.isBuffer(fileBuffer)) {
+            uploadData = fileBuffer.buffer.slice(fileBuffer.byteOffset, fileBuffer.byteOffset + fileBuffer.byteLength);
+        }
+
+        const endpoint = `${drivePrefix}:/${encodedPath}/${encodedFileName}:/content`;
+        await client.api(endpoint).header('Content-Type', 'application/octet-stream').put(uploadData);
             
-        console.log(`OneDrive: Upload concluído -> ${fileName}`);
+        console.log(`[OneDrive] Upload OK -> ${remotePath}/${fileName}`);
     } catch (error) {
-        console.error(`ERRO UPLOAD ONEDRIVE (${fileName}):`, error.message);
+        console.error(`[OneDrive] ERRO UPLOAD "${fileName}": ${error.statusCode || ''} - ${error.message}`);
+        if (error.body) {
+            const bodyStr = typeof error.body === 'string' ? error.body : JSON.stringify(error.body);
+            console.error('[OneDrive] Body:', bodyStr.substring(0, 500));
+        }
         throw error;
     }
 }
