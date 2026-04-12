@@ -7882,11 +7882,11 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
        let statusBadge = `<span style="background:#f1f5f9;color:#64748b;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:700;"><i class="ph ph-minus-circle"></i> Nao enviado</span>`;
        
        if (isNaoExige) {
-           statusBadge = `<span style="background:#eff6ff;color:#1d4ed8;border-radius:20px;padding:3px 10px;font-size:0.72rem;font-weight:700;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-info"></i> Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
+           statusBadge = `<span style="color:#2563eb;font-size:0.65rem;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-info"></i> Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
        } else if (isSigned) {
-           statusBadge = `<span style="background:#dcfce7;color:#15803d;border-radius:20px;padding:3px 10px;font-size:0.72rem;font-weight:700;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-check-circle"></i> Documento assinado${_signedStr ? ': ' + _signedStr : ''}</span>`;
+           statusBadge = `<span style="color:#16a34a;font-size:0.65rem;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-check-circle"></i> Documento assinado${_signedStr ? ': ' + _signedStr : ''}</span>`;
        } else if (isPending) {
-           statusBadge = `<span style="background:#fef9c3;color:#92400e;border-radius:20px;padding:3px 10px;font-size:0.72rem;font-weight:700;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-clock"></i> Enviado para Assinatura${_sentStr ? ': ' + _sentStr : ''}</span>`;
+           statusBadge = `<span style="color:#ca8a04;font-size:0.65rem;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-clock"></i> Enviado para Assinatura${_sentStr ? ': ' + _sentStr : ''}</span>`;
        }
        html += `
         <label class="doc-check-item" style="display:flex; align-items:center; gap:0.6rem; padding:0.6rem 0.75rem; border:1px solid ${isSigned ? '#bbf7d0' : '#f1f5f9'}; border-radius:8px; cursor:pointer; background:${isSigned ? '#f0fdf4' : '#fff'}; transition:all 0.2s; justify-content:space-between;">
