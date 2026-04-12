@@ -1,4 +1,4 @@
-﻿const API_URL = `${window.location.origin}/api`;
+const API_URL = `${window.location.origin}/api`;
 function showToast(msg, type) {
     const toast = document.getElementById('global-toast');
     if (toast) {
@@ -7584,19 +7584,27 @@ window.fecharPreviewEHabitarEnvio = function() {
     if (actionDiv) {
         actionDiv.innerHTML = `
             <button class="btn btn-success btn-sm" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:0.8rem;" 
-                onclick="window.enviarAssinaturaPerfilDireto()">
+                onclick="window.enviarAssinaturaPerfilDireto(event)">
                 <i class="ph ph-paper-plane-tilt"></i> Enviar para Assinatura
             </button>
         `;
     }
 };
 
-window.enviarAssinaturaPerfilDireto = async function() {
+window.enviarAssinaturaPerfilDireto = async function(event) {
     const geradorId = window._perfilGeradorIdCtx;
     const geradorNome = window._perfilGeradorNomeCtx;
     if (!geradorId) return;
 
-    Swal.fire({ title: 'Salvando e Enviando...', text: 'Enviando para Assinafy...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    let targetBtn = null;
+    let originalHtml = '';
+    if (event && event.currentTarget) {
+        targetBtn = event.currentTarget;
+        originalHtml = targetBtn.innerHTML;
+        targetBtn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando...';
+        targetBtn.disabled = true;
+    }
+
     try {
         const previewContent = document.querySelector('#modal-preview-doc #preview-doc-body') || document.querySelector('#doc-modal .preview-content');
         if (!previewContent) throw new Error('Conteúdo do formulário foi perdido. Tente gerar novamente.');
@@ -7628,8 +7636,20 @@ window.enviarAssinaturaPerfilDireto = async function() {
             geradores_ids: [parseInt(geradorId)]
         });
 
-        Swal.fire('Enviado!', 'Documento gerado, anexado e enviado para assinatura via Certificado e Assinafy.', 'success');
+        // Toast success notification instead of freezing modal
+        Swal.fire({
+            title: 'Enviado sucesso!',
+            toast: true, position: 'top-end',
+            showConfirmButton: false, timer: 3000,
+            icon: 'success'
+        });
         
+        if (targetBtn && targetBtn.parentElement) {
+            // Transform directly into the blue pill requested by the user
+            const dtStr = new Date().toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }).replace(',', ' -');
+            targetBtn.parentElement.innerHTML = `<span style="background:#f1f5f9;color:#0284c7;border-radius:20px;padding:6px 14px;font-size:0.8rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-paper-plane-tilt"></i> Enviado para Assinatura: ${dtStr}</span>`;
+        }
+
         window._contratosAvulsoLoaded = false;
         const avDiv = document.getElementById('contratos-sub-avulso');
         if (avDiv) await window.renderContratosAvulso(avDiv);
