@@ -158,6 +158,24 @@ db.run("UPDATE grupos_permissao SET nome = REPLACE(nome, ' - Total', '') WHERE n
     }
 });
 
+// MIGRATION: Garantir que os geradores baseados em perfil do colaborador existam no banco
+const GERADORES_PERFIL = [
+    'Termo de NÃO Interesse Terapia',
+    'Termo de Interesse Terapia',
+    'Responsabilidade Bilhete Único',
+    'Responsabilidade Celular',
+    'Contrato Faculdade',
+    'Contrato Academia',
+    'Termo de Responsabilidade de Chaves',
+];
+GERADORES_PERFIL.forEach(nome => {
+    db.run(
+        "INSERT OR IGNORE INTO geradores (nome, conteudo) VALUES (?, ?)",
+        [nome, `<p>Documento: <b>${nome}</b></p><p>Colaborador: {{NOME_COMPLETO}}</p><p>Data: {{DATA_ATUAL}}</p>`],
+        (err) => { if (err && !err.message.includes('UNIQUE')) console.error(`Erro ao criar gerador "${nome}":`, err); }
+    );
+});
+
 // MIGRATION: Inserir ou atualizar relação exata de Cargos x Departamentos solicitada
 const cargosDeptosSync = [
     ['Aux. Administrativo', 'Administrativo'], ['Ass. Administrativo 1', 'Administrativo'], 

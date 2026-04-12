@@ -7148,7 +7148,8 @@ window.renderContratosAvulso = async function(container) {
         ]);
         window._todosGeradores = geradores;
 
-        let availableGeradores = geradores;
+        // Geradores configurados via Template de Outros Contratos (por departamento)
+        let templateGeradores = [];
         const empDeptId = viewedColaborador.departamento; 
         const deptObj = departamentos.find(d =>
             String(d.id) === String(empDeptId) ||
@@ -7157,15 +7158,64 @@ window.renderContratosAvulso = async function(container) {
         if (deptObj) {
             const geradorIds = outrosTemplates.filter(t => Number(t.departamento_id) === Number(deptObj.id)).map(t => Number(t.gerador_id));
             if (geradorIds.length > 0) {
-                availableGeradores = geradores.filter(g => geradorIds.includes(Number(g.id)));
+                templateGeradores = geradores.filter(g => geradorIds.includes(Number(g.id)));
             }
         }
 
+        // === CONTRATOS DINÂMICOS POR PERFIL DO COLABORADOR ===
+        // Mapeia nome do gerador → condição baseada no perfil
+        const c = viewedColaborador;
+        const PROFILE_CONTRACT_MAP = [
+            // Terapia
+            { nome: 'Termo de NÃO Interesse Terapia',   cond: c.terapia_participa === 'Não' || c.terapia_participa === 'Nao' },
+            { nome: 'Termo de Interesse Terapia',        cond: c.terapia_participa === 'Sim' },
+            // Meio de transporte
+            { nome: 'Responsabilidade Bilhete Único',    cond: (c.meio_transporte || '').toLowerCase().includes('vt') || (c.meio_transporte || '').toLowerCase().includes('vale transporte') },
+            { nome: 'Acordo de Auxílio-Combustível',     cond: (c.meio_transporte || '').toLowerCase().includes('vc') || (c.meio_transporte || '').toLowerCase().includes('combustível') || (c.meio_transporte || '').toLowerCase().includes('combustivel') },
+            // Celular
+            { nome: 'Responsabilidade Celular',          cond: c.celular_participa === 'Sim' },
+            // Faculdade
+            { nome: 'Contrato Faculdade',                cond: c.faculdade_participa === 'Sim' },
+            // Academia
+            { nome: 'Contrato Academia',                 cond: c.academia_participa === 'Sim' },
+        ];
+
+        // Chaves: se o colaborador tiver chaves atribuídas (já vem no payload do colaborador)
+        const temChaves = Array.isArray(c.chaves_lista) && c.chaves_lista.length > 0;
+        if (temChaves) {
+            PROFILE_CONTRACT_MAP.push({ nome: 'Termo de Responsabilidade de Chaves', cond: true });
+        }
+
+        // Filtrar apenas os contratos cujas condições são verdadeiras
+        const profileGeradorNomes = PROFILE_CONTRACT_MAP.filter(m => m.cond).map(m => m.nome);
+
+        // Encontrar esses geradores na lista geral (match por nome, case-insensitive)
+        const profileGeradores = profileGeradorNomes
+            .map(nome => geradores.find(g => (g.nome || '').trim().toLowerCase() === nome.toLowerCase()))
+            .filter(Boolean);
+
+        // Geradores dinâmicos (perfil) primeiro, depois os do template — sem duplicatas
+        const seenIds = new Set();
+        const availableGeradores = [...profileGeradores, ...templateGeradores].filter(g => {
+            if (seenIds.has(g.id)) return false;
+            seenIds.add(g.id);
+            return true;
+        });
+
         // Remover o contrato de multa (AUTORIZAÇÃO DE DESCONTO) da lista geral de contratos avulsos, pois tem fluxo próprio de Multas
-        availableGeradores = availableGeradores.filter(g => g.nome !== 'AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO');
+        const finalGeradores = availableGeradores.filter(g => 
+            !['AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO', 'AUTORIZAÇÃO DE DESCONTO EM FOLHA']
+                .includes((g.nome || '').toUpperCase().trim())
+        );
 
         // Apenas documentos da aba separada de outros contratos (não mistura com admissão)
         const filteredDocs = docs.filter(d => d.tab_name === 'CONTRATOS_AVULSOS');
+
+        // Badge para indicar contratos dinâmicos no topo
+        const profileNomesSet = new Set(profileGeradores.map(g => g.id));
+        const profileBadge = (g) => profileNomesSet.has(g.id)
+            ? `<span style="background:#fdf4ff;color:#c026d3;border-radius:10px;padding:1px 7px;font-size:0.68rem;font-weight:700;border:1px solid #f0abfc;margin-left:6px;">Perfil</span>`
+            : '';
 
         container.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
@@ -7196,7 +7246,7 @@ window.renderContratosAvulso = async function(container) {
             </div>
         `;
         
-        window._caAvailableGeradores = availableGeradores;
+        window._caAvailableGeradores = finalGeradores;
     } catch(err) {
         container.innerHTML = `<div class="alert alert-danger"><i class="ph ph-warning"></i> Erro: ${err.message}</div>`;
     }
