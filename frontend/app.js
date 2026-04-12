@@ -8308,9 +8308,6 @@ function updateAdmissaoStepPercentages(colab) {
     }
     
     fixed.push('Carteira de vacinação', 'Currículo', 'Carteira de Trabalho');
-    if (_isCasado) {
-        fixed.push('CPF do Cônjuge');
-    }
 
     const fichaDocs = (window.currentDocs || []).filter(d => d.tab_name === '01_FICHA_CADASTRAL');
     
@@ -8319,19 +8316,90 @@ function updateAdmissaoStepPercentages(colab) {
     if (temPensaoPront) fixed.push('Pensão Alimentícia');
 
     let preenchidos4 = 0;
+    let totalEsperado4 = fixed.length;
+    const capturedDocIds = new Set();
+    
     const itemsFicha = fixed.map(docType => {
         const found = fichaDocs.find(d => d.document_type === docType);
         if (found && found.file_path) preenchidos4++;
+        if (found) capturedDocIds.add(found.id);
         return { nome: docType, doc: found };
     });
 
-    const extras4 = fichaDocs.filter(d => !fixed.includes(d.document_type));
-    extras4.forEach(d => {
-        if (d.file_path) preenchidos4++;
-        itemsFicha.push({ nome: d.document_type || d.original_name, doc: d });
+    fichaDocs.forEach(d => {
+        if (!capturedDocIds.has(d.id)) {
+            if (d.file_path) preenchidos4++;
+            capturedDocIds.add(d.id);
+            itemsFicha.push({ nome: d.document_type || d.original_name, doc: d });
+        }
     });
 
-    let totalEsperado4 = fixed.length;
+    // === CÔNJUGE (Adicionado ao Passo 4) ===
+    if (_isCasado) {
+        const conjugeDocs = (window.currentDocs || []).filter(d => d.tab_name === 'Conjuge');
+        const expectedConjuge = ['CPF'];
+        totalEsperado4 += expectedConjuge.length;
+        
+        expectedConjuge.forEach(docType => {
+            const found = conjugeDocs.find(d => d.document_type === docType);
+            if (found && found.file_path) preenchidos4++;
+            if (found) capturedDocIds.add(found.id);
+            itemsFicha.push({ nome: `Cônjuge: ${docType}`, doc: found });
+        });
+        
+        conjugeDocs.forEach(d => {
+            if (!capturedDocIds.has(d.id)) {
+                if (d.file_path) preenchidos4++;
+                capturedDocIds.add(d.id);
+                itemsFicha.push({ nome: `Cônjuge: ${d.document_type || d.original_name}`, doc: d });
+            }
+        });
+    }
+
+    // === DEPENDENTES (Adicionado ao Passo 4) ===
+    const depList = targetColab.dependentes ? (typeof targetColab.dependentes === 'string' ? JSON.parse(targetColab.dependentes) : targetColab.dependentes) : [];
+    const deps = depList.filter(d => d.grau_parentesco !== 'Cônjuge');
+    const hoje = new Date();
+    const dependentDocs = (window.currentDocs || []).filter(d => d.tab_name === 'Dependentes');
+    
+    deps.forEach(dep => {
+        let idade = null;
+        if (dep.data_nascimento) {
+            const iso = dep.data_nascimento.includes('T') ? dep.data_nascimento : dep.data_nascimento + 'T12:00:00';
+            const nasc = new Date(iso);
+            if (!isNaN(nasc)) idade = Math.floor((hoje - nasc) / (365.25 * 24 * 3600 * 1000));
+        }
+        const safeDepName = (dep.nome || 'DEP').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'');
+                
+        const docsConfig = [
+            { label: 'CPF ou RG',                    show: true },
+            { label: 'Caderneta de Vacinação',      show: idade !== null && idade < 7 },
+            { label: 'Atestado de Frequência Escolar', show: idade !== null && idade >= 7 && idade <= 17 },
+            { label: 'Certidão de Nascimento',       show: true },
+        ];
+
+        const expectedForDep = docsConfig.filter(d => d.show);
+        totalEsperado4 += expectedForDep.length;
+        
+        expectedForDep.forEach(cfg => {
+            const fullDocType = `${cfg.label}###DEP_${safeDepName}`;
+            const found = dependentDocs.find(d => d.document_type === fullDocType);
+            if (found && found.file_path) preenchidos4++;
+            if (found) capturedDocIds.add(found.id);
+            itemsFicha.push({ nome: `Dep. ${dep.nome ? dep.nome.split(' ')[0] : ''}: ${cfg.label}`, doc: found });
+        });
+    });
+
+    dependentDocs.forEach(d => {
+        if (!capturedDocIds.has(d.id)) {
+            if (d.file_path) preenchidos4++;
+            capturedDocIds.add(d.id);
+            let label = d.document_type || d.original_name;
+            if (label && label.includes('###DEP_')) label = label.split('###DEP_')[0];
+            itemsFicha.push({ nome: `Dependente: ${label}`, doc: d });
+        }
+    });
+
     let pc4 = Math.min(100, Math.round((preenchidos4 / Math.max(1, totalEsperado4)) * 100));
 
     const containerStep4 = document.getElementById('admissao-checklist-step3');
