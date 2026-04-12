@@ -20,6 +20,21 @@ let currentToken = null;
 let currentDocs = [];
 let viewedColaborador = null;
 
+// Helper global para PDF
+window.gerarPDFBlob = async function(element) {
+    return new Promise((resolve, reject) => {
+        if (typeof html2pdf === 'undefined') return reject(new Error('Biblioteca html2pdf não carregada'));
+        const opt = {
+            margin: 10,
+            filename: 'documento.pdf',
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        html2pdf().set(opt).from(element).outputPdf('blob').then(resolve).catch(reject);
+    });
+};
+
 // --- INICIALIZAÇÃO E ROTAS BÁSICAS ---
 
 const DOCS_DISPONIVEIS = [
@@ -7508,9 +7523,10 @@ window.uploadContratoPerfilNaoAssinado = async function(input, geradorNome) {
     Swal.fire({ title: 'Anexando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     
     const formData = new FormData();
-    formData.append('arquivo', file);
+    formData.append('file', file);
     formData.append('tab_name', 'CONTRATOS_AVULSOS');
     formData.append('document_type', geradorNome);
+    formData.append('colaborador_id', viewedColaborador.id);
     
     try {
         const res = await fetch(`${API_URL}/documentos?colaborador_id=${viewedColaborador.id}`, {
@@ -7598,9 +7614,10 @@ window.enviarAssinaturaPerfilDireto = async function() {
         const colabNome = (viewedColaborador?.nome_completo || colabId).toString();
         
         const formData = new FormData();
-        formData.append('arquivo', pdfBlob, `${safeName}_${colabNome}.pdf`);
+        formData.append('file', pdfBlob, `${safeName}_${colabNome}.pdf`);
         formData.append('tab_name', 'CONTRATOS_AVULSOS');
         formData.append('document_type', geradorNome);
+        formData.append('colaborador_id', colabId);
         
         const r = await fetch(`${API_URL}/documentos?colaborador_id=${colabId}`, {
             method: 'POST',
