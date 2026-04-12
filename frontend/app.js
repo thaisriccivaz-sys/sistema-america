@@ -8539,24 +8539,46 @@ window.gerarContratoAvulso = async function() {
                     document.getElementById('modal-preview-doc').style.display = 'none';
                     document.getElementById('doc-modal').style.display = 'none';
 
+                    // Pega o ID gerado pelo backend
+                    const uploadData = await uploadRes.json().catch(() => ({}));
+                    const docId = uploadData.id;
+
                     const sendPrompt = await Swal.fire({
-                        title: 'Documento Salvo',
-                        text: 'Deseja enviar este contrato para assinatura digital via Assinafy?',
+                        title: '<i class="ph ph-seal-question"></i> Exige Assinatura?',
+                        html: '<p style="margin:0;font-size:0.95rem;color:#334155;">Deseja enviar este contrato para <b>assinatura digital</b> via Assinafy?</p>',
                         icon: 'question',
                         showCancelButton: true,
-                        confirmButtonText: 'Sim, enviar',
-                        cancelButtonText: 'Não'
+                        confirmButtonText: '<i class="ph ph-paper-plane-tilt"></i> Sim, enviar',
+                        cancelButtonText: '<i class="ph ph-check"></i> Não, não exige',
+                        confirmButtonColor: '#2563eb',
+                        cancelButtonColor: '#9333ea',
+                        allowOutsideClick: false
                     });
 
-                    if (sendPrompt.isConfirmed) {
+                    if (sendPrompt.isConfirmed && docId) {
                         Swal.fire({ title: 'Enviando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-                        await apiPost('/admissao-assinaturas/enviar-lote', {
-                            colaborador_id: viewedColaborador.id,
-                            geradores_ids: [parseInt(geradorId)]
+                        const assResp = await fetch(API_URL + '/assinafy/upload', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentToken },
+                            body: JSON.stringify({ document_id: Number(docId), colaborador_id: viewedColaborador.id })
                         });
-                        Swal.close(); if(typeof showToast !== 'undefined') showToast('Documento enviado para assinatura.', 'success');
+                        const assData = await assResp.json().catch(() => ({}));
+                        Swal.close();
+                        if (assResp.ok) {
+                            if (typeof showToast !== 'undefined') showToast('Documento enviado para assinatura!', 'success');
+                        } else {
+                            Swal.fire('Atenção', 'Documento salvo, mas falha no envio para assinar: ' + (assData.error || 'Erro desconhecido'), 'warning');
+                        }
                     } else {
-                        showToast('Documento gerado e salvo no Prontuário!', 'success');
+                        // Não exige assinatura
+                        if (docId) {
+                            await fetch(API_URL + '/documentos/' + docId, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentToken },
+                                body: JSON.stringify({ assinafy_status: 'NAO_EXIGE' })
+                            }).catch(() => {});
+                        }
+                        if (typeof showToast !== 'undefined') showToast('Documento gerado e salvo no Prontuário!', 'success');
                     }
 
                     // Forçar reload da lista de contratos imediatamente
