@@ -8046,7 +8046,7 @@ window.reenviarAssinaturaContrato = async function(docId, ev) {
     }
 };
 window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
-    assinaturas = Array.isArray(assinaturas) ? assinaturas : [];
+    // assinaturas was kept here as argument for backward compatibility but is no longer used for linking
     docs = Array.isArray(docs) ? docs : [];
     if (docs.length === 0) {
         return `<div style="padding:2rem;text-align:center;color:#94a3b8;border:2px dashed #e2e8f0;border-radius:12px;"><i class="ph ph-files" style="font-size:2rem;margin-bottom:0.5rem;display:block;"></i>Nenhum contrato listado.</div>`;
@@ -8054,62 +8054,82 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
 
     let html = '';
     docs.forEach(doc => {
-       const docTypeStr = String(doc.document_type || '').trim().toLowerCase();
-       const docFileStr = String(doc.file_name || '').trim().toLowerCase();
-       
-       const ass = assinaturas.find(a => {
-           let aNameStr = String(a.nome_documento || '').trim().toLowerCase();
-           let geradorMatch = (doc.gerador_id && a.gerador_id && Number(doc.gerador_id) === Number(a.gerador_id));
-           return geradorMatch || 
-                  (aNameStr === docTypeStr) || 
-                  (aNameStr && docTypeStr && aNameStr.includes(docTypeStr)) ||
-                  (aNameStr && docFileStr && docFileStr.includes(aNameStr)) ||
-                  (a.documento_url && doc.file_url && a.documento_url === doc.file_url);
-       });
-       
        let realStatus = 'Não enviado';
-       if (doc.assinafy_status === 'Assinado' || (ass && ass.assinafy_status === 'Assinado')) realStatus = 'Assinado';
-       else if (doc.assinafy_status === 'Pendente' || (ass && ass.assinafy_status === 'Pendente')) realStatus = 'Aguardando';
-       else if (ass) realStatus = 'Aguardando';
+       if (doc.assinafy_status === 'Assinado') realStatus = 'Assinado';
+       else if (doc.assinafy_status === 'Pendente' || doc.assinafy_status === 'Aguardando') realStatus = 'Aguardando';
 
-       const isSigned = (realStatus === 'Assinado' || doc.assinafy_status === 'Assinado' || (ass && ass.assinafy_status === 'Assinado'));
-       const isPending = realStatus === 'Aguardando';
+       const isSigned = (realStatus === 'Assinado');
+       const isPending = (realStatus === 'Aguardando');
        const literallyNaoExige = (doc.assinafy_status === 'NAO_EXIGE');
        const requiresButNotSent = (!isSigned && !isPending && !literallyNaoExige);
 
-       const _docName = (doc.document_type || doc.file_name || 'Documento').replace(/'/g, "\\'");
-       // Por padrão: botão de olho normal (visualiza o PDF original)
-       let eyeBtn = `<button type="button" onclick="window.openContratoViewerById(${doc.id}, '${_docName}'); event.preventDefault(); event.stopPropagation();" style="border:none;background:none;cursor:pointer;color:#64748b;" title="Ver PDF"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
-       if (isSigned) {
-           // Documento assinado: tentar abrir via ass.id (assinatura) ou via doc.id (download do assinado)
-           if (ass && ass.certificado_assinado_em) {
-               eyeBtn = `<button type="button" onclick="window.openSignedDocPopup(${ass.id}, '${_docName}', event); event.stopPropagation();" style="border:none;background:none;cursor:pointer;color:#7c3aed;" title="Ver documento assinado com certificado"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
-           } else if (ass) {
-               eyeBtn = `<button type="button" onclick="window.openSignedDocPopup(${ass.id}, '${_docName}', event); event.stopPropagation();" style="border:none;background:none;cursor:pointer;color:#16a34a;" title="Ver PDF assinado"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
-           } else {
-               // Fallback: abrir o pdf assinado pelo doc.id (rota de download que retorna signed_file_path)
-               eyeBtn = `<button type="button" onclick="window.openContratoViewerById(${doc.id}, '${_docName}'); event.preventDefault(); event.stopPropagation();" style="border:none;background:none;cursor:pointer;color:#16a34a;" title="Ver PDF assinado"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
-           }
-       }
+       const _docName = (doc.document_type || doc.file_name || 'Documento Avulso');
+       const _docTitle = _docName.replace(/_/g, ' ');
 
-       const formatDate = (dateStr) => {
-           if (!dateStr) return '';
-           let parsedStr = dateStr;
-           // Treat SQLite timestamps as UTC explicitly to correctly translate into local Brasilia time
-           if (typeof dateStr === 'string' && dateStr.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)) {
-               parsedStr = dateStr.replace(' ', 'T') + 'Z';
-           } else if (typeof dateStr === 'string' && dateStr.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?$/)) {
-               parsedStr = dateStr + 'Z';
-           }
-           const _d = new Date(parsedStr);
-           if (isNaN(_d.getTime())) return '';
-           const _dd = String(_d.getDate()).padStart(2,'0');
-           const _mm = String(_d.getMonth()+1).padStart(2,'0');
-           const _yy = _d.getFullYear();
-           const _hh = String(_d.getHours()).padStart(2,'0');
-           const _mi = String(_d.getMinutes()).padStart(2,'0');
+       const formatDate = (str) => {
+           if (!str) return '';
+           const d = new Date(str);
+           if (isNaN(d.getTime())) return '';
+           const _dd = String(d.getDate()).padStart(2,'0');
+           const _mm = String(d.getMonth()+1).padStart(2,'0');
+           const _yy = d.getFullYear();
+           const _hh = String(d.getHours()).padStart(2,'0');
+           const _mi = String(d.getMinutes()).padStart(2,'0');
            return `${_dd}/${_mm}/${_yy} - ${_hh}:${_mi}`;
        };
+
+       const _uploadDt = doc.upload_date || doc.created_at;
+       const _uploadStr = formatDate(_uploadDt);
+       const _sentDt = doc.assinafy_sent_at || _uploadDt;
+       const _sentStr = formatDate(_sentDt);
+       // Prioridade: assinafy_signed_at do doc, depois upload date
+       const _signedDt = doc.assinafy_signed_at || _uploadDt;
+       const _signedStr = formatDate(_signedDt);
+
+       let statusBadge = '';
+       let leftIconMarkup = '';
+       let sendBtn = '';
+       
+       if (isSigned) {
+           leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#16a34a;"><i class="ph ph-check-circle" style="font-size:1.4rem;"></i></div>`;
+           statusBadge = `<span style="color:#16a34a;font-size:0.75rem;font-weight:600;">Documento Assinado${_signedStr ? ': ' + _signedStr : ''}</span>`;
+           sendBtn = ''; 
+       } else if (isPending) {
+            leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#2563eb;"><i class="ph ph-paper-plane-tilt" style="font-size:1.4rem;"></i></div>`;
+            statusBadge = `<span style="color:#2563eb;font-size:0.75rem;font-weight:600;">Enviado para Assinatura${_sentStr ? ': ' + _sentStr : ''}</span>`;
+           if (window.reenviarAssinaturaContrato) {
+               sendBtn = `<button type="button" onclick="window.reenviarAssinaturaContrato(${doc.id}, event);" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:0.2s;"><i class="ph ph-pen"></i> Reenviar para Assinatura</button>`;
+           }
+       } else if (literallyNaoExige) {
+            leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#9333ea;"><i class="ph ph-file-text" style="font-size:1.4rem;"></i></div>`;
+            statusBadge = `<span style="color:#9333ea;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
+       } else {
+            leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#eab308;"><i class="ph ph-info" style="font-size:1.4rem;"></i></div>`;
+            statusBadge = `<span style="color:#eab308;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
+            if (requiresButNotSent && window.reenviarAssinaturaContrato) {
+                sendBtn = `<button type="button" onclick="window.reenviarAssinaturaContrato(${doc.id}, event);" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:0.2s;"><i class="ph ph-paper-plane-tilt"></i> Enviar para Assinatura</button>`;
+            }
+       }
+
+       let eyeBtn = `<button onclick="window.previewDocumento(${doc.id},'${(doc.file_url||'').replace(/'/g,"\\'")}', event)" style="border:none;background:none;cursor:pointer;color:#64748b;" title="Visualizar Documento"><i class="ph ph-eye" style="font-size:1.4rem;"></i></button>`;
+
+       html += `
+        <label class="doc-check-item" style="display:flex; align-items:center; gap:0.6rem; padding:1.1rem 1.25rem; border:1px solid #f1f5f9; border-radius:8px; cursor:default; background:#fff; box-shadow: 0 1px 2px rgba(0,0,0,0.03); transition:all 0.2s; justify-content:space-between; margin-bottom:12px;">
+            <div style="display:flex; align-items:center; gap:12px; flex:1;">
+                ${leftIconMarkup}
+                <div style="display:flex; flex-direction:column;">
+                    <span style="font-size:0.95rem; font-weight:700; color:#0f172a; margin-bottom:3px;">${_docTitle.toUpperCase()}</span>
+                    ${statusBadge}
+                </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px;">
+                ${sendBtn}
+                ${eyeBtn}
+            </div>
+        </label>`;
+    });
+    return html;
+};
 
        const _uploadDt = doc.upload_date || doc.created_at;
        const _uploadStr = formatDate(_uploadDt);
