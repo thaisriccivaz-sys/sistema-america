@@ -7471,7 +7471,7 @@ window.renderContratosAvulso = async function(container) {
                         <i class="ph ph-upload-simple"></i> Anexar PDF
                         <input type="file" accept=".pdf" style="display:none" onchange="window.uploadContratoExterno(this)">
                     </label>
-                    <button class="btn btn-primary" onclick="window.abrirModalGerarContrato()" style="display:flex;align-items:center;margin:0;gap:0.4rem;">
+                    <button class="btn btn-primary" onclick="window.abrirModalGerarContrato()" style="display:flex;align-items:center;margin:0;gap:0.4rem;background:#9333ea;border-color:#9333ea;color:#fff;">
                         <i class="ph ph-file-plus"></i> Gerar Novo
                     </button>
                  </div>
