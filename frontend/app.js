@@ -7357,6 +7357,7 @@ window.renderContratosAvulso = async function(container) {
 window._gerarContratoPerfilDireto = async function(geradorId, geradorNome) {
     try {
         Swal.fire({ title: 'Gerando documento...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
         const res = await fetch(`${API_URL}/geradores/${geradorId}/gerar`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
@@ -7366,35 +7367,62 @@ window._gerarContratoPerfilDireto = async function(geradorId, geradorNome) {
         Swal.close();
         if (!res.ok) throw new Error(data.error || 'Erro ao gerar documento');
 
-        // Abre preview — ao clicar Salvar, usa o hook de prontuário
-        window.abrirPreviewDocumento({ html: data.html, colaborador: data.colaborador, gerador_nome: data.gerador_nome, geradorId });
+        // Armazena hook global: ao salvar no modal de preview, executa este fluxo
+        window._perfilSaveHook = {
+            geradorId,
+            geradorNome,
+            colaborador: viewedColaborador
+        };
 
-        const previewBtnSalvar = document.querySelector('#modal-preview-doc button.btn-primary');
-        if (previewBtnSalvar) {
-            previewBtnSalvar.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar no Prontuário';
-            previewBtnSalvar.onclick = async function() {
+        // Abre o preview normal
+        window.abrirPreviewDocumento(data);
+
+        // Aguarda o modal aparecer no DOM e sobrescreve o botão Salvar
+        setTimeout(() => {
+            const btnSalvar = document.querySelector('#modal-preview-doc button.btn-primary');
+            if (!btnSalvar) return;
+            btnSalvar.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar no Prontuário';
+            btnSalvar.onclick = async function() {
+                const hook = window._perfilSaveHook;
+                if (!hook) return;
                 const oldHtml = this.innerHTML;
                 this.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...';
                 this.disabled = true;
                 try {
-                    const pdfBlob = await window.gerarPDFBlob(document.querySelector('#modal-preview-doc .preview-content'));
+                    const previewContent = document.querySelector('#modal-preview-doc .preview-content') ||
+                                          document.querySelector('#modal-preview-doc #preview-doc-body');
+                    if (!previewContent) throw new Error('Conteúdo do preview não encontrado');
+                    const pdfBlob = await window.gerarPDFBlob(previewContent);
+                    const safeName = (hook.geradorNome || 'documento').replace(/[^a-zA-Z0-9À-ÿ _-]/g, '');
+                    const colabId  = hook.colaborador?.id || '';
+                    const colabNome = (hook.colaborador?.nome_completo || colabId).toString();
                     const formData = new FormData();
-                    formData.append('arquivo', pdfBlob, `${geradorNome}_${viewedColaborador.nome_completo || viewedColaborador.id}.pdf`);
+                    formData.append('arquivo', pdfBlob, `${safeName}_${colabNome}.pdf`);
                     formData.append('tab_name', 'CONTRATOS_AVULSOS');
-                    formData.append('document_type', geradorNome);
-                    const r = await fetch(`${API_URL}/documentos`, { method: 'POST', headers: { 'Authorization': `Bearer ${currentToken}` }, body: formData });
-                    if (!r.ok) throw new Error('Falha ao salvar PDF');
+                    formData.append('document_type', hook.geradorNome);
+                    const r = await fetch(`${API_URL}/documentos`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${currentToken}` },
+                        body: formData
+                    });
+                    if (!r.ok) {
+                        const errData = await r.json().catch(() => ({}));
+                        throw new Error(errData.error || 'Falha ao salvar PDF');
+                    }
+                    window._perfilSaveHook = null;
                     document.getElementById('modal-preview-doc')?.remove();
-                    showToast('Contrato salvo!', 'success');
+                    showToast('Contrato salvo no prontuário!', 'success');
                     window._contratosAvulsoLoaded = false;
                     const avDiv = document.getElementById('contratos-sub-avulso');
                     if (avDiv) await window.renderContratosAvulso(avDiv);
                 } catch(e) {
-                    this.innerHTML = oldHtml; this.disabled = false;
-                    Swal.fire('Erro', e.message, 'error');
+                    this.innerHTML = oldHtml;
+                    this.disabled = false;
+                    Swal.fire('Erro ao salvar', e.message, 'error');
                 }
             };
-        }
+        }, 150);
+
     } catch(e) {
         Swal.close();
         Swal.fire('Erro', e.message, 'error');
