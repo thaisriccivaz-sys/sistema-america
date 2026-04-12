@@ -8080,67 +8080,26 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
        const _docName = (doc.document_type || doc.file_name || 'Documento').replace(/'/g, "\\'");
        // Por padrão: botão de olho normal (visualiza o PDF original)
        let eyeBtn = `<button type="button" onclick="window.openContratoViewerById(${doc.id}, '${_docName}'); event.preventDefault(); event.stopPropagation();" style="border:none;background:none;cursor:pointer;color:#64748b;" title="Ver PDF"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
-       if (isSigned) {
-           // Documento assinado: tentar abrir via ass.id (assinatura) ou via doc.id (download do assinado)
-           if (ass && ass.certificado_assinado_em) {
-               eyeBtn = `<button type="button" onclick="window.openSignedDocPopup(${ass.id}, '${_docName}', event); event.stopPropagation();" style="border:none;background:none;cursor:pointer;color:#7c3aed;" title="Ver documento assinado com certificado"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
-           } else if (ass) {
-               eyeBtn = `<button type="button" onclick="window.openSignedDocPopup(${ass.id}, '${_docName}', event); event.stopPropagation();" style="border:none;background:none;cursor:pointer;color:#16a34a;" title="Ver PDF assinado"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
-           } else {
-               // Fallback: abrir o pdf assinado pelo doc.id (rota de download que retorna signed_file_path)
-               eyeBtn = `<button type="button" onclick="window.openContratoViewerById(${doc.id}, '${_docName}'); event.preventDefault(); event.stopPropagation();" style="border:none;background:none;cursor:pointer;color:#16a34a;" title="Ver PDF assinado"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
-           }
-       }
-
-       const formatDate = (dateStr) => {
-           if (!dateStr) return '';
-           let parsedStr = dateStr;
-           // Treat SQLite timestamps as UTC explicitly to correctly translate into local Brasilia time
-           if (typeof dateStr === 'string' && dateStr.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)) {
-               parsedStr = dateStr.replace(' ', 'T') + 'Z';
-           } else if (typeof dateStr === 'string' && dateStr.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?$/)) {
-               parsedStr = dateStr + 'Z';
-           }
-           const _d = new Date(parsedStr);
-           if (isNaN(_d.getTime())) return '';
-           const _dd = String(_d.getDate()).padStart(2,'0');
-           const _mm = String(_d.getMonth()+1).padStart(2,'0');
-           const _yy = _d.getFullYear();
-           const _hh = String(_d.getHours()).padStart(2,'0');
-           const _mi = String(_d.getMinutes()).padStart(2,'0');
-           return `${_dd}/${_mm}/${_yy} - ${_hh}:${_mi}`;
-       };
-
-       const _uploadDt = doc.upload_date || doc.created_at;
-       const _uploadStr = formatDate(_uploadDt);
-       const _sentDt = doc.assinafy_sent_at || _uploadDt;
-       const _sentStr = formatDate(_sentDt);
-       // Prioridade: assinafy_signed_at do doc (atualizado pelo polling), depois da assinatura
-       const _signedDt = doc.assinafy_signed_at || (ass ? ass.assinado_em : null) || _uploadDt;
-       const _signedStr = formatDate(_signedDt);
-
-       let statusBadge = '';
-       let leftIconMarkup = '';
-       let sendBtn = '';
-       
-       if (isSigned) {
-           leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#16a34a;"><i class="ph ph-check-circle" style="font-size:1.4rem;"></i></div>`;
-           statusBadge = `<span style="color:#16a34a;font-size:0.75rem;font-weight:600;">Documento Assinado${_signedStr ? ': ' + _signedStr : ''}</span>`;
-           sendBtn = ''; // Hide buttons when signed
-       } else if (isPending) {
-           leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#eab308;"><i class="ph ph-paper-plane-tilt" style="font-size:1.4rem;"></i></div>`;
-           statusBadge = `<span style="color:#eab308;font-size:0.75rem;font-weight:600;">Enviado para Assinatura${_sentStr ? ': ' + _sentStr : ''}</span>`;
-           if (window.reenviarAssinaturaContrato) {
-               sendBtn = `<button type="button" onclick="window.reenviarAssinaturaContrato(${doc.id}, event);" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:0.2s;"><i class="ph ph-pen"></i> Reenviar para Assinatura</button>`;
-           }
-       } else if (literallyNaoExige) {
-            leftIconMarkup = \`<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#2563eb;"><i class="ph ph-info" style="font-size:1.4rem;"></i></div>\`;
-            statusBadge = \`<span style="color:#2563eb;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>\`;
+               if (isSigned) {
+            leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#16a34a;"><i class="ph ph-check-circle" style="font-size:1.4rem;"></i></div>`;
+            statusBadge = `<span style="color:#16a34a;font-size:0.75rem;font-weight:600;">Documento Assinado${_signedStr ? ': ' + _signedStr : ''}</span>`;
+            sendBtn = ''; // Hide buttons when signed
+        } else if (isPending) {
+            leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#eab308;"><i class="ph ph-paper-plane-tilt" style="font-size:1.4rem;"></i></div>`;
+            statusBadge = `<span style="color:#eab308;font-size:0.75rem;font-weight:600;">Enviado para Assinatura${_sentStr ? ': ' + _sentStr : ''}</span>`;
+            if (window.reenviarAssinaturaContrato) {
+                sendBtn = `<button type="button" onclick="window.reenviarAssinaturaContrato(${doc.id}, event);" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:0.2s;"><i class="ph ph-pen"></i> Reenviar para Assinatura</button>`;
+            }
+        } else if (literallyNaoExige) {
+            leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#2563eb;"><i class="ph ph-file-check" style="font-size:1.4rem;"></i></div>`;
+            statusBadge = `<span style="color:#2563eb;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
         } else {
-            leftIconMarkup = \`<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#eab308;"><i class="ph ph-info" style="font-size:1.4rem;"></i></div>\`;
-            statusBadge = \`<span style="color:#eab308;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>\`;
+            leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#eab308;"><i class="ph ph-info" style="font-size:1.4rem;"></i></div>`;
+            statusBadge = `<span style="color:#eab308;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
             if (requiresButNotSent && window.reenviarAssinaturaContrato) {
-                sendBtn = \`<button type="button" onclick="window.reenviarAssinaturaContrato(${doc.id}, event);" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:0.2s;"><i class="ph ph-paper-plane-tilt"></i> Enviar para Assinatura</button>\`;
+                sendBtn = `<button type="button" onclick="window.reenviarAssinaturaContrato(${doc.id}, event);" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:0.2s;"><i class="ph ph-paper-plane-tilt"></i> Enviar para Assinatura</button>`;
+            }
+        }, event);" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:0.2s;"><i class="ph ph-paper-plane-tilt"></i> Enviar para Assinatura</button>\`;
             }
         }
 
