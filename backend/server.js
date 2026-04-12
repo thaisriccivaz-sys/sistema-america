@@ -344,7 +344,7 @@ async function uploadDocToOneDrive(docId) {
         // Contratos avulsos (Outros contratos): salvar em CONTRATOS/outros/ independente do ano
         let targetDir;
         if (doc.tab_name === 'CONTRATOS_AVULSOS') {
-            targetDir = `${onedriveBasePath}/${safeColab}/CONTRATOS/outros`;
+            targetDir = `${onedriveBasePath}/${safeColab}/CONTRATOS`;
         } else {
             targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}`;
             if (safeTab !== '01_FICHA_CADASTRAL') {
@@ -568,7 +568,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // ROTA DE VERSÃO (Para verificar implantação)
-app.get('/api/version', (req, res) => res.json({ version: 'V47_DIAGNOSIS' }));
+app.get('/api/version', (req, res) => res.json({ version: 'V48_OUTROS_CONTRATOS_FIX' }));
 
 app.get('/api/debug-pfx3', async (req, res) => {
     try {
@@ -767,7 +767,7 @@ async function pollAdmissaoAssinaturas() {
                             if (isContratosAvulso) {
                                 // Contratos avulsos vão em CONTRATOS/outros/
                                 const contratosDir = `${onedriveBasePath}/${safeColab}/CONTRATOS`;
-                                targetDir = `${onedriveBasePath}/${safeColab}/CONTRATOS/outros`;
+                                targetDir = `${onedriveBasePath}/${safeColab}/CONTRATOS`;
                                 await onedrive.ensurePath(contratosDir);
                                 await onedrive.ensurePath(targetDir);
                             } else {
