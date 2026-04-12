@@ -7619,6 +7619,7 @@ window.enviarAssinaturaPerfilDireto = async function(event) {
         formData.append('tab_name', 'CONTRATOS_AVULSOS');
         formData.append('document_type', geradorNome);
         formData.append('colaborador_id', colabId);
+        formData.append('assinafy_status', 'Pendente');
         
         const r = await fetch(`${API_URL}/documentos?colaborador_id=${colabId}`, {
             method: 'POST',
