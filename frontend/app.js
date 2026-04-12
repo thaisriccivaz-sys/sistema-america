@@ -5984,7 +5984,22 @@ window.renderGeradoresList = function(items) {
     const tbody = document.getElementById('table-geradores-body');
     if (!tbody) return;
     
-    tbody.innerHTML = items.map(g => `
+    const PROTECTED_NAMES = ['AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO', 'AUTORIZAÇÃO DE DESCONTO EM FOLHA'];
+    
+    // Sort items so protected ones are at the top
+    const sortedItems = [...items].sort((a, b) => {
+        const aName = (a.nome || '').toUpperCase().trim();
+        const bName = (b.nome || '').toUpperCase().trim();
+        const aProt = PROTECTED_NAMES.includes(aName);
+        const bProt = PROTECTED_NAMES.includes(bName);
+        if (aProt && !bProt) return -1;
+        if (!aProt && bProt) return 1;
+        return aName.localeCompare(bName);
+    });
+
+    tbody.innerHTML = sortedItems.map(g => {
+        const isProtected = PROTECTED_NAMES.includes((g.nome || '').toUpperCase().trim());
+        return `
         <tr>
             <td>
                 <div style="font-weight: 600; color: var(--primary-color);">${g.nome}</div>
@@ -5994,13 +6009,13 @@ window.renderGeradoresList = function(items) {
                 <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
                     <button class="btn btn-primary btn-sm" onclick="window.abrirModalSelecaoColab(${g.id})" title="Visualizar Documento"><i class="ph ph-eye"></i></button>
                     <button class="btn btn-warning btn-sm" onclick="window.editGerador(${g.id})" title="Editar"><i class="ph ph-pencil-simple"></i></button>
-                    ${['AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO'].includes((g.nome || '').toUpperCase().trim()) ? '' : `
+                    ${isProtected ? '' : `
                     <button class="btn btn-danger btn-sm" onclick="window.deleteGerador(${g.id})" title="Excluir"><i class="ph ph-trash"></i></button>
                     `}
                 </div>
             </td>
         </tr>
-    `).join('');
+    `}).join('');
 };
 
 window.filterGeradores = function() {
@@ -6103,7 +6118,7 @@ window.renderGeradoresTemplates = function(departamentos, geradores, templates) 
     });
 
     // Contratos de uso exclusivo de outros fluxos (ex: Multas) não devem aparecer nos templates de admissão
-    const GERADORES_EXCLUSIVOS_AVULSO = ['AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO'];
+    const GERADORES_EXCLUSIVOS_AVULSO = ['AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO', 'AUTORIZAÇÃO DE DESCONTO EM FOLHA'];
     const geradoresParaTemplate = geradores.filter(g => !GERADORES_EXCLUSIVOS_AVULSO.includes((g.nome || '').toUpperCase().trim()));
 
     const listHTML = geradoresParaTemplate.map(g => {
