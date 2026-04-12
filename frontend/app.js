@@ -8131,60 +8131,6 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
     return html;
 };
 
-       const _uploadDt = doc.upload_date || doc.created_at;
-       const _uploadStr = formatDate(_uploadDt);
-       const _sentDt = doc.assinafy_sent_at || _uploadDt;
-       const _sentStr = formatDate(_sentDt);
-       // Prioridade: assinafy_signed_at do doc (atualizado pelo polling), depois da assinatura
-       const _signedDt = doc.assinafy_signed_at || (ass ? ass.assinado_em : null) || _uploadDt;
-       const _signedStr = formatDate(_signedDt);
-
-       let statusBadge = '';
-       let leftIconMarkup = '';
-       let sendBtn = '';
-       
-       if (isSigned) {
-           leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#16a34a;"><i class="ph ph-check-circle" style="font-size:1.4rem;"></i></div>`;
-           statusBadge = `<span style="color:#16a34a;font-size:0.75rem;font-weight:600;">Documento Assinado${_signedStr ? ': ' + _signedStr : ''}</span>`;
-           sendBtn = ''; // Hide buttons when signed
-       } else if (isPending) {
-            leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#2563eb;"><i class="ph ph-paper-plane-tilt" style="font-size:1.4rem;"></i></div>`;
-            statusBadge = `<span style="color:#2563eb;font-size:0.75rem;font-weight:600;">Enviado para Assinatura${_sentStr ? ': ' + _sentStr : ''}</span>`;
-           if (window.reenviarAssinaturaContrato) {
-               sendBtn = `<button type="button" onclick="window.reenviarAssinaturaContrato(${doc.id}, event);" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:0.2s;"><i class="ph ph-pen"></i> Reenviar para Assinatura</button>`;
-           }
-       } else if (literallyNaoExige) {
-            leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#9333ea;"><i class="ph ph-file-text" style="font-size:1.4rem;"></i></div>`;
-            statusBadge = `<span style="color:#9333ea;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
-        } else {
-            leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#eab308;"><i class="ph ph-info" style="font-size:1.4rem;"></i></div>`;
-            statusBadge = `<span style="color:#eab308;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
-            if (requiresButNotSent && window.reenviarAssinaturaContrato) {
-                sendBtn = `<button type="button" onclick="window.reenviarAssinaturaContrato(${doc.id}, event);" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:0.2s;"><i class="ph ph-paper-plane-tilt"></i> Enviar para Assinatura</button>`;
-            }
-        }
-
-       html += `
-        <label class="doc-check-item" style="display:flex; align-items:center; gap:0.6rem; padding:1.1rem 1.25rem; border:1px solid #f1f5f9; border-radius:8px; cursor:default; background:#fff; box-shadow: 0 1px 2px rgba(0,0,0,0.03); transition:all 0.2s; justify-content:space-between; margin-bottom:12px;">
-            <div style="display:flex; align-items:center; gap:0.8rem; flex:1;">
-                ${leftIconMarkup}
-                <div style="display:flex; flex-direction:column; padding-left:4px;">
-                    <span style="font-weight:600; color:#1e293b; font-size:0.95rem; margin-bottom:2px;">${doc.document_type || doc.file_name}</span>
-                    ${(doc.file_name && doc.document_type && doc.file_name !== doc.document_type) ? `<span style="font-size:0.75rem; color:#64748b; font-weight:500; margin-bottom:5px;">${doc.file_name}</span>` : `<div style="margin-bottom:5px;"></div>`}
-                    <div style="display:flex; align-items:center; gap:4px;">
-                        ${statusBadge}
-                    </div>
-                </div>
-            </div>
-            <div style="display:flex; align-items:center; gap:12px;">
-               ${sendBtn}
-               ${eyeBtn}
-               ${isSigned ? '' : `<button type="button" onclick="window.deleteDocumentoContrato(${doc.id}); event.preventDefault(); event.stopPropagation();" style="border:none;background:none;cursor:pointer;color:#ef4444;" title="Excluir do Prontuário"><i class="ph ph-trash" style="font-size:1.2rem;"></i></button>`}
-            </div>
-        </label>`;
-    });
-    return html;
-};
 
 window.deleteDocumentoContrato = async function(docId) {
     if (!docId) return;
