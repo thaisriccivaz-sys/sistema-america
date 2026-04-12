@@ -7472,7 +7472,16 @@ window.renderContratosAvulso = async function(container) {
 // Gera e salva automaticamente um contrato de perfil direto (sem abrir modal de seleção)
 window._gerarContratoPerfilDireto = async function(geradorId, geradorNome) {
     try {
-        const vaiAssinar = confirm('Deseja enviar este documento (' + geradorNome + ') para assinatura digital no Assinafy?\n\n- Pressione OK se SIM.\n- Pressione CANCELAR caso queira APENAS ANEXAR ao prontuário.');
+        const sendPrompt = await Swal.fire({
+            title: 'Assinatura Digital',
+            text: 'Deseja enviar este contrato para assinatura digital via Assinafy?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Sim, desejo assinar digitalmente',
+            cancelButtonText: 'Não, apenas visualizar e anexar'
+        });
+
+        const vaiAssinar = sendPrompt.isConfirmed;
 
         Swal.fire({ title: 'Gerando documento...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
@@ -7551,8 +7560,7 @@ window._gerarContratoPerfilDireto = async function(geradorId, geradorNome) {
         }, 150);
 
     } catch(e) {
-        alert('Erro Crítico ao gerar documento: ' + e.message);
-        try { Swal.close(); Swal.fire('Erro', e.message, 'error'); } catch(e2){}
+        try { Swal.close(); Swal.fire('Erro ao gerar', e.message, 'error'); } catch(e2){}
     }
 };
 
