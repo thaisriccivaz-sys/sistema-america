@@ -9261,7 +9261,7 @@ function updateAdmissaoStepPercentages(colab) {
                 else if (docEquivalente && docEquivalente.assinafy_status === 'Pendente') realStatus = 'Pendente';
                 else if (ass && ass.assinafy_status === 'Pendente') realStatus = 'Pendente';
 
-                const isSigned = (realStatus === 'Assinado' || doc.assinafy_status === 'Assinado' || (ass && ass.assinafy_status === 'Assinado'));
+                const isSigned = (realStatus === 'Assinado' || docEquivalente?.assinafy_status === 'Assinado' || (ass && ass.assinafy_status === 'Assinado'));
                 const isPending = realStatus === 'Pendente';
                 
                 let statusBadge = isSigned
