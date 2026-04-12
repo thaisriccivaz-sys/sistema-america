@@ -3199,10 +3199,22 @@ app.delete('/api/geradores/:id', authenticateToken, (req, res) => {
             'responsabilidade celular',
             'responsabilidade bilhete único',
             'contrato faculdade',
-            'contrato academia'
+            'contrato academia',
+            'acordo de auxílio-combustível',
+            'contrato intermitente',
+            'responsabilidade equipamento',
+            'responsabilidade veículo'
         ];
-        const u = (row.nome || '').toLowerCase().trim();
-        if (PROTECTED_NAMES.some(pn => u.includes(pn))) {
+        
+        const originalName = (row.nome || '').trim();
+        const u = originalName.toLowerCase();
+        
+        const BAD_EXACT_NAMES = [
+            'AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO',
+            'ORDEM DE SERVIÇO NR01'
+        ];
+
+        if (!BAD_EXACT_NAMES.includes(originalName) && PROTECTED_NAMES.some(pn => u.includes(pn))) {
             return res.status(403).json({ error: 'Este documento é padrão do sistema e não pode ser excluído.' });
         }
 

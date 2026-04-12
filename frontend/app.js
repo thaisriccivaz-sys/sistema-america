@@ -1641,7 +1641,10 @@ function aplicarFiltrosColaboradores() {
         salMax:      parseCurrency(document.getElementById('f-sal-max')?.value) || null,
         escala:      document.getElementById('f-escala')?.value || '',
         dependentes: document.getElementById('f-dependentes')?.value || '',
-        beneficios:  [...(document.querySelectorAll('.f-beneficios-chk:checked') || [])].map(cb => cb.value)
+        beneficios:  [...(document.querySelectorAll('.f-beneficios-chk:checked') || [])].map(cb => cb.value),
+        tamCamiseta: document.getElementById('f-tam-camiseta')?.value || '',
+        tamCalca:    document.getElementById('f-tam-calca')?.value || '',
+        tamCalcado:  document.getElementById('f-tam-calcado')?.value || ''
     };
 
     const lista = _todosColaboradores.filter(c => {
@@ -1786,7 +1789,8 @@ window.exportarColaboradoresXLSX = async function() {
         "PIS", "CTPS", "Título Eleitor", "Certificado Militar",
         "CNH", "Cat CNH", "Emissão CNH", "Validade CNH", "CID",
         "Férias Início", "Férias Fim", "Férias Retorno", "Possui Dependentes",
-        "Faculdade", "Academia", "Terapia", "Celular", "Chaves"
+        "Faculdade", "Academia", "Terapia", "Celular", "Chaves",
+        "Tamanho Camiseta", "Tamanho Calça", "Tamanho Calçado"
     ]);
 
     headerRow.eachCell(cell => {
@@ -1845,7 +1849,10 @@ window.exportarColaboradoresXLSX = async function() {
             c.academia_participa === 'Sim' ? 'Sim' : 'Não',
             c.terapia_participa === 'Sim' ? 'Sim' : 'Não',
             c.celular_participa === 'Sim' ? 'Sim' : 'Não',
-            c.chaves_participa === 'Sim' ? 'Sim' : 'Não'
+            c.chaves_participa === 'Sim' ? 'Sim' : 'Não',
+            c.tamanho_camiseta || '',
+            c.tamanho_calca || '',
+            c.tamanho_calcado || ''
         ]);
         
         row.eachCell({ includeEmpty: true }, (cell) => {
@@ -2018,6 +2025,26 @@ function renderColaboradores(lista) {
                         `).join('')}
                     </div>
                 </div>
+                <div>
+                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Tamanho Camiseta</label>
+                    <select id="f-tam-camiseta" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                        <option value="">Todos</option><option value="PP">PP</option><option value="P">P</option><option value="M">M</option><option value="G">G</option><option value="GG">GG</option><option value="EXGG">EXGG</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Tamanho Calça</label>
+                    <select id="f-tam-calca" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                        <option value="">Todos</option><option value="PP">PP</option><option value="P">P</option><option value="M">M</option><option value="G">G</option><option value="GG">GG</option><option value="EXGG">EXGG</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Tamanho Calçado</label>
+                    <select id="f-tam-calcado" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                        <option value="">Todos</option>
+                        ${Array.from({length: 14}, (_, i) => 33 + i).map(size => `<option value="${size}">${size}</option>`).join('')}
+                    </select>
+                </div>
+
                 
             </div>
             
@@ -6030,11 +6057,22 @@ window.renderGeradoresList = function(items) {
         'responsabilidade celular',
         'responsabilidade bilhete único',
         'contrato faculdade',
-        'contrato academia'
+        'contrato academia',
+        'acordo de auxílio-combustível',
+        'contrato intermitente'
     ];
     
     const isProtected = (nome) => {
-        const u = (nome || '').toLowerCase().trim();
+        const originalName = (nome || '').trim();
+        const u = originalName.toLowerCase();
+        
+        // Expor essas cópias precisas para que o usuário consiga excluí-las
+        const BAD_EXACT_NAMES = [
+            'AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO',
+            'ORDEM DE SERVIÇO NR01'
+        ];
+        if (BAD_EXACT_NAMES.includes(originalName)) return false;
+
         return PROTECTED_NAMES.some(pn => u.includes(pn));
     };
 
@@ -8082,6 +8120,19 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
             window._admissaoAssinaturas = assinaturas;
             window.currentDocs = docs;
 
+            // Preencher preview da foto no Stepper (Passo 6)
+            if (colab.foto) {
+                document.getElementById('admissao-foto-img').src = window.BASE_URL + colab.foto;
+                document.getElementById('admissao-foto-img').style.display = 'block';
+                document.getElementById('admissao-foto-icon').style.display = 'none';
+                document.getElementById('admissao-foto-status').style.display = 'block';
+            } else {
+                document.getElementById('admissao-foto-img').style.display = 'none';
+                document.getElementById('admissao-foto-icon').style.display = 'block';
+                document.getElementById('admissao-foto-status').style.display = 'none';
+                document.getElementById('admissao-foto-upload').value = '';
+            }
+
             updateAdmissaoStepPercentages(colab);
             // Ensure log panel is populated from fresh colab data
             if (typeof window.renderEnvioContabilidadeLog === 'function') {
@@ -8410,6 +8461,50 @@ window.nextAdmissaoStep = function(step, preventScroll = false) {
     }
 
     if (!preventScroll) window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+window.handleAdmissaoFotoUpload = async function(event) {
+    const file = event.target.files[0];
+    if (!file || !viewedColaborador) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+        showToast('Foto muito grande! Máximo 5MB.', 'error');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('documento', file);
+    formData.append('colaborador_id', viewedColaborador.id);
+    formData.append('tab_name', 'FOTO_PERFIL');
+    formData.append('document_type', 'Foto de Perfil');
+
+    try {
+        const result = await apiPostMultipard('/documentos', formData);
+        
+        // Update viewedColaborador object specifically
+        viewedColaborador.foto = result.file_path; // Simular que tá com a foto preenchida (se o back atualiza o collab também era ótimo). O back já lida com os documentos tab_name FOTO_PERFIL ou a gente pode mandar o path e fazer um PUT no colab pra gravar "foto"
+        
+        // Atualizando o campo 'foto' no colaborador via PUT pra garantir 100%
+        await apiPut(`/colaboradores/${viewedColaborador.id}`, {
+            foto: result.file_path
+        });
+        
+        const photoUrl = window.BASE_URL + result.file_path;
+
+        document.getElementById('admissao-foto-img').src = photoUrl;
+        document.getElementById('admissao-foto-img').style.display = 'block';
+        document.getElementById('admissao-foto-icon').style.display = 'none';
+        
+        document.getElementById('admissao-foto-status').style.display = 'block';
+        
+        // Recalcular as porcentagens (a foto atualizou!)
+        if (typeof updateAdmissaoStepPercentages === 'function') {
+            updateAdmissaoStepPercentages(viewedColaborador);
+        }
+    } catch(e) {
+        showToast('Falha ao adicionar a foto', 'error');
+        console.error(e);
+    }
 };
 
 function calculateAdmissaoStep1Completion(c) {
@@ -8828,12 +8923,15 @@ function updateAdmissaoStepPercentages(colab) {
          }).join('');
     }
 
-    // ── Passo 6: Contabilidade — 100% se ficha enviada ────────────────
-    const pc6 = targetColab.admissao_contabil_enviada_em ? 100 : 0;
+    // ── Passo 6: Foto ─────────────────────────────────────────────────
+    const pc6 = targetColab.foto ? 100 : 0;
 
-    // ── Passos 7-10 ───────────────────────────────────────────────────
-    const pc7 = targetColab.status === 'Ativo' ? 100 : 0;
-    const pc8 = 0;
+    // ── Passo 7: Contabilidade — 100% se ficha enviada ────────────────
+    const pc7 = targetColab.admissao_contabil_enviada_em ? 100 : 0;
+
+    // ── Passo 8: Efetivação ───────────────────────────────────────────
+    const pc8 = targetColab.status === 'Ativo' ? 100 : 0;
+
     const pc9 = 0;
     const pc10 = 0;
 
@@ -8858,7 +8956,11 @@ function updateAdmissaoStepPercentages(colab) {
         }
     }
 
-    const avg = Math.round(totalPc / 10);
+    const totalAtivos = 8;
+    let sumAtivos = 0;
+    for(let i=1; i<=totalAtivos; i++) sumAtivos += percentages[i];
+    
+    const avg = Math.round(sumAtivos / totalAtivos);
     const totalEl = document.getElementById('admissao-pc-total');
     if (totalEl) totalEl.textContent = `${avg}%`;
     const bar = document.getElementById('admissao-progress-bar');
