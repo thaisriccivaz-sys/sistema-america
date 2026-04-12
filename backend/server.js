@@ -4698,7 +4698,7 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: "Erro interno no servidor." });
 });
 
-// === GERADOR DEPARTAMENTO TEMPLATES (quais departamentos recebem cada gerador) ===
+// === GERADOR DEPARTAMENTO TEMPLATES (quais departamentos recebem cada gerador na Admissão) ===
 db.run(`CREATE TABLE IF NOT EXISTS gerador_departamento_templates (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     gerador_id INTEGER NOT NULL,
@@ -4772,6 +4772,42 @@ app.delete('/api/gerador-departamento-templates/:gerador_id/:departamento_id', a
             if (err) return res.status(500).json({ error: err.message });
             res.json({ ok: true, removed: this.changes });
         });
+});
+
+// === GERADOR OUTROS CONTRATOS TEMPLATES (quais departamentos recebem cada gerador em Outros Contratos) ===
+db.run(`CREATE TABLE IF NOT EXISTS gerador_outros_contratos_templates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    gerador_id INTEGER NOT NULL,
+    departamento_id INTEGER NOT NULL,
+    UNIQUE(gerador_id, departamento_id)
+)`);
+
+app.get('/api/gerador-outros-contratos-templates', authenticateToken, (req, res) => {
+    db.all('SELECT * FROM gerador_outros_contratos_templates', [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+app.post('/api/gerador-outros-contratos-templates/batch', authenticateToken, (req, res) => {
+    const { templates } = req.body;
+    if (!Array.isArray(templates)) return res.status(400).json({ error: 'formato inválido' });
+
+    db.serialize(() => {
+        db.run('BEGIN TRANSACTION');
+        db.run('DELETE FROM gerador_outros_contratos_templates', [], (err) => {
+            if (err) { db.run('ROLLBACK'); return res.status(500).json({ error: err.message }); }
+            if (templates.length === 0) { db.run('COMMIT'); return res.json({ ok: true }); }
+            
+            const stmt = db.prepare('INSERT INTO gerador_outros_contratos_templates (gerador_id, departamento_id) VALUES (?, ?)');
+            let errors = 0;
+            templates.forEach(t => { stmt.run([t.gerador_id, t.departamento_id], err => { if (err) errors++; }); });
+            stmt.finalize(() => {
+                if (errors > 0) { db.run('ROLLBACK'); res.status(500).json({ error: 'Erro ao salvar.' }); }
+                else { db.run('COMMIT'); res.json({ ok: true }); }
+            });
+        });
+    });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════

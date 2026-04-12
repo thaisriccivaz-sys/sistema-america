@@ -6053,21 +6053,23 @@ window.filterGeradores = function() {
 
 // ----- ABAS: GERADOR / TEMPLATES -----
 window.switchGeradoresTab = function(tab) {
-    const tabGerador    = document.getElementById('geradores-tab-gerador');
-    const tabTemplates  = document.getElementById('geradores-tab-templates');
-    const btnGerador    = document.getElementById('tab-btn-gerador');
-    const btnTemplates  = document.getElementById('tab-btn-templates');
-    const headerActions = document.getElementById('geradores-header-actions');
+    const tabGerador         = document.getElementById('geradores-tab-gerador');
+    const tabTemplates       = document.getElementById('geradores-tab-templates');
+    const tabOutros          = document.getElementById('geradores-tab-outros-contratos');
+    const btnGerador         = document.getElementById('tab-btn-gerador');
+    const btnTemplates       = document.getElementById('tab-btn-templates');
+    const btnOutros          = document.getElementById('tab-btn-outros-contratos');
+    const headerActions      = document.getElementById('geradores-header-actions');
 
-    const tabs = { gerador: tabGerador, templates: tabTemplates };
-    const btns = { gerador: btnGerador, templates: btnTemplates };
+    const tabs = { gerador: tabGerador, templates: tabTemplates, 'outros-contratos': tabOutros };
+    const btns = { gerador: btnGerador, templates: btnTemplates, 'outros-contratos': btnOutros };
 
     Object.keys(tabs).forEach(k => {
         if (tabs[k]) tabs[k].style.display = k === tab ? 'block' : 'none';
         if (btns[k]) {
             btns[k].style.background   = k === tab ? '#f503c5' : '#f1f5f9';
             btns[k].style.color        = k === tab ? '#fff'    : '#64748b';
-            btns[k].style.borderBottom = k === tab ? '2px solid #f503c5' : '2px solid transparent';
+            btns[k].style.border       = k === tab ? '1.5px solid #f503c5' : '1.5px solid #e2e8f0';
         }
     });
 
@@ -6077,6 +6079,7 @@ window.switchGeradoresTab = function(tab) {
     if (searchInput) { searchInput.value = ''; window.filterGeradores(); }
 
     if (tab === 'templates') window.loadGeradoresTemplates();
+    if (tab === 'outros-contratos') window.loadGeradoresOutrosContratos();
 };
 
 window.loadGeradoresTemplates = async function() {
@@ -6186,8 +6189,12 @@ window.selecionarTodosSetores = function(docId) {
     window.updateLocalDocCount(docId);
 };
 
-window.saveBatchGeradorDeptTemplates = async function() {
-    const chks = document.querySelectorAll('.gerador-dept-chk');
+window.saveBatchGeradorDeptTemplates = async function(tipo) {
+    const tipoReal = tipo || 'admissao';
+    const selector = tipoReal === 'outros' ? '.gerador-outros-chk' : '.gerador-dept-chk';
+    const endpoint = tipoReal === 'outros' ? '/gerador-outros-contratos-templates/batch' : '/gerador-departamento-templates/batch';
+
+    const chks = document.querySelectorAll(selector);
     const templates = [];
     chks.forEach(chk => {
         if (chk.checked) {
@@ -6204,7 +6211,7 @@ window.saveBatchGeradorDeptTemplates = async function() {
         btn.innerHTML = `<i class="ph ph-spinner ph-spin"></i> Salvando...`;
         btn.disabled = true;
 
-        await apiPost('/gerador-departamento-templates/batch', { templates });
+        await apiPost(endpoint, { templates });
         
         btn.innerHTML = `<i class="ph ph-check"></i> Salvo com sucesso`;
         setTimeout(() => {
@@ -6215,6 +6222,94 @@ window.saveBatchGeradorDeptTemplates = async function() {
         alert('Erro ao salvar templates: ' + e.message);
         event.currentTarget.disabled = false;
     }
+};
+
+// === TEMPLATE DE OUTROS CONTRATOS ===
+
+window.loadGeradoresOutrosContratos = async function() {
+    const container = document.getElementById('geradores-outros-contratos-container');
+    if (!container) return;
+    container.innerHTML = `<div style="text-align:center;padding:2rem;color:#94a3b8;"><i class="ph ph-circle-notch" style="font-size:2rem;"></i> Carregando...</div>`;
+
+    try {
+        const [departamentos, geradores, templates] = await Promise.all([
+            apiGet('/departamentos'),
+            apiGet('/geradores'),
+            apiGet('/gerador-outros-contratos-templates').catch(() => [])
+        ]);
+        window._outrosContratosTemplatesAll = templates;
+        window.renderGeradoresOutrosContratos(departamentos, geradores, templates);
+    } catch(e) {
+        container.innerHTML = `<div class="card p-4" style="color:#e53e3e;">Erro ao carregar dados: ${e.message}</div>`;
+    }
+};
+
+window.renderGeradoresOutrosContratos = function(departamentos, geradores, templates) {
+    const container = document.getElementById('geradores-outros-contratos-container');
+    if (!container) return;
+
+    if (!geradores || geradores.length === 0) {
+        container.innerHTML = `<div class="card p-4 text-center" style="color:#94a3b8;"><i class="ph ph-file-text" style="font-size:2.5rem;margin-bottom:1rem;display:block;"></i>Nenhum gerador cadastrado.</div>`;
+        return;
+    }
+
+    const docMap = {};
+    (templates || []).forEach(t => {
+        if (!docMap[t.gerador_id]) docMap[t.gerador_id] = [];
+        docMap[t.gerador_id].push(Number(t.departamento_id));
+    });
+
+    const listHTML = geradores.map(g => {
+        const checked = docMap[g.id] || [];
+        const deptList = departamentos.map(d => `
+            <label style="display:flex; align-items:center; gap:0.6rem; padding:0.45rem 0.75rem; border-radius:6px; cursor:pointer; transition:background 0.15s;"
+                   onmouseenter="this.style.background='#f8fafc'" onmouseleave="this.style.background=''">
+                <input type="checkbox" class="gerador-outros-chk"
+                    data-dept="${d.id}" data-gerador="${g.id}"
+                    ${checked.includes(Number(d.id)) ? 'checked' : ''}
+                    onchange="window.updateOutrosDocCount(${g.id})"
+                    style="width:16px;height:16px;cursor:pointer;accent-color:#f503c5;">
+                <span style="font-size:0.88rem; color:#334155;">${d.nome}</span>
+            </label>`).join('');
+
+        return `
+            <div class="card mb-3" data-doc-name="${g.nome.replace(/"/g, '&quot;')}" style="overflow:hidden;">
+                <div class="card-header bg-light d-flex align-items-center justify-content-between" style="padding:0.75rem 1rem; border-bottom:1px solid #e2e8f0; cursor:pointer;" onclick="const b=this.nextElementSibling; const i=this.querySelector('.tg-icon'); if(b.style.display==='none'){b.style.display='grid'; i.style.transform='rotate(180deg)';}else{b.style.display='none'; i.style.transform='rotate(0deg)';}">
+                    <div style="display:flex; align-items:center; gap:0.5rem; font-weight:600; color:#1e293b;">
+                        <i class="ph ph-file-plus" style="color:#f503c5; font-size:1.1rem;"></i>
+                        ${g.nome}
+                    </div>
+                    <div style="display:flex; align-items:center; gap:0.5rem;">
+                        <span class="badge bg-secondary" id="outros-count-${g.id}" style="font-size:0.75rem; padding:0.4em 0.6em; border-radius:12px;">${checked.length} Setores</span>
+                        <i class="ph ph-caret-down tg-icon" style="transition:0.2s; color:#64748b;"></i>
+                    </div>
+                </div>
+                <div class="card-body" style="display:none; padding:1rem; background:#fff; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:0.5rem;">
+                    ${deptList}
+                </div>
+            </div>`;
+    }).join('');
+
+    container.innerHTML = `
+        <div style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
+            <button class="btn btn-success" onclick="window.saveBatchGeradorDeptTemplates('outros')" style="display:flex; align-items:center; gap:0.5rem; font-weight:600;">
+                <i class="ph ph-floppy-disk"></i> Salvar Templates
+            </button>
+        </div>
+        ${listHTML}
+        <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
+            <button class="btn btn-success" onclick="window.saveBatchGeradorDeptTemplates('outros')" style="display:flex; align-items:center; gap:0.5rem; font-weight:600;">
+                <i class="ph ph-floppy-disk"></i> Salvar Templates
+            </button>
+        </div>
+    `;
+};
+
+window.updateOutrosDocCount = function(docId) {
+    const chks = document.querySelectorAll(`.gerador-outros-chk[data-gerador="${docId}"]`);
+    const count = Array.from(chks).filter(c => c.checked).length;
+    const badge = document.getElementById(`outros-count-${docId}`);
+    if (badge) badge.textContent = `${count} Setores`;
 };
 
 
@@ -7017,7 +7112,7 @@ window.renderContratosTab = async function(container) {
             } else {
                 admDiv.innerHTML = `<p class="text-muted" style="padding:1rem;text-align:center;">
                     Nenhum contrato configurado para o departamento <b>${deptObj ? deptObj.nome : (empDeptId || 'Não Informado')}</b>.<br>
-                    <small>Configure em <b>Geradores → Templates por Departamento</b>.</small>
+                    <small>Configure em <b>Geradores → Template de Admissão</b>.</small>
                 </p>`;
             }
         }
@@ -7039,20 +7134,23 @@ window.renderContratosAvulso = async function(container) {
                 return Array.isArray(r) ? r : (r ? [r] : []);
             } catch(e) { return []; }
         };
-        const [assinaturas, docs, geradores, templates, departamentos] = await Promise.all([
+        const [assinaturas, docs, geradores, outrosTemplates, departamentos] = await Promise.all([
             safeGet(`/colaboradores/${viewedColaborador.id}/admissao-assinaturas`),
             safeGet(`/colaboradores/${viewedColaborador.id}/documentos`),
             safeGet('/geradores'),
-            safeGet('/geradores-templates'),
+            safeGet('/gerador-outros-contratos-templates'),
             safeGet('/departamentos')
         ]);
         window._todosGeradores = geradores;
 
         let availableGeradores = geradores;
         const empDeptId = viewedColaborador.departamento; 
-        const deptObj = departamentos.find(d => String(d.nome).trim().toLowerCase() === String(empDeptId).trim().toLowerCase());
+        const deptObj = departamentos.find(d =>
+            String(d.id) === String(empDeptId) ||
+            String(d.nome).trim().toLowerCase() === String(empDeptId).trim().toLowerCase()
+        );
         if (deptObj) {
-            const geradorIds = templates.filter(t => Number(t.departamento_id) === Number(deptObj.id)).map(t => Number(t.gerador_id));
+            const geradorIds = outrosTemplates.filter(t => Number(t.departamento_id) === Number(deptObj.id)).map(t => Number(t.gerador_id));
             if (geradorIds.length > 0) {
                 availableGeradores = geradores.filter(g => geradorIds.includes(Number(g.id)));
             }

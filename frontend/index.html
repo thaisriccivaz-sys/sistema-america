@@ -1665,7 +1665,10 @@
                                 <i class="ph ph-file-text"></i> Geradores
                             </button>
                             <button id="tab-btn-templates" class="btn" onclick="window.switchGeradoresTab('templates')" style="height: 42px; display: flex; align-items: center; padding: 0 1.25rem; font-weight: 600; gap: 0.5rem; border-radius: 8px; background:#f1f5f9; color:#334155; border:1.5px solid #e2e8f0;">
-                                <i class="ph ph-buildings"></i> Templates por Departamento
+                                <i class="ph ph-briefcase"></i> Template de Admissão
+                            </button>
+                            <button id="tab-btn-outros-contratos" class="btn" onclick="window.switchGeradoresTab('outros-contratos')" style="height: 42px; display: flex; align-items: center; padding: 0 1.25rem; font-weight: 600; gap: 0.5rem; border-radius: 8px; background:#f1f5f9; color:#334155; border:1.5px solid #e2e8f0;">
+                                <i class="ph ph-file-plus"></i> Template de Outros Contratos
                             </button>
                             <button class="btn btn-primary" id="btn-novo-gerador" onclick="window.openModalGerador()" style="height: 42px; display: flex; align-items: center; padding: 0 1.5rem; font-weight: 600; gap: 0.6rem; border-radius: 8px;">
                                 <i class="ph ph-plus" style="font-size: 1.1rem;"></i> Novo Gerador
@@ -1693,9 +1696,16 @@
                         </div>
                     </div>
 
-                    <!-- ABA: Templates por Departamento -->
+                    <!-- ABA: Template de Admissão -->
                     <div id="geradores-tab-templates" style="display:none;">
                         <div id="geradores-templates-container" style="padding: 0.5rem 0;">
+                            <!-- Renderizado dinamicamente -->
+                        </div>
+                    </div>
+
+                    <!-- ABA: Template de Outros Contratos -->
+                    <div id="geradores-tab-outros-contratos" style="display:none;">
+                        <div id="geradores-outros-contratos-container" style="padding: 0.5rem 0;">
                             <!-- Renderizado dinamicamente -->
                         </div>
                     </div>
