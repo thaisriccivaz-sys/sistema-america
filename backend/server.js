@@ -168,6 +168,18 @@ db.run("UPDATE grupos_permissao SET nome = REPLACE(nome, ' - Total', '') WHERE n
     }
 });
 
+// MIGRATION: Adicionar tamanhos de uniformes
+db.run("ALTER TABLE colaboradores ADD COLUMN tamanho_camiseta TEXT", (err) => {
+    if (err && !err.message.includes('duplicate column')) console.error(err);
+});
+db.run("ALTER TABLE colaboradores ADD COLUMN tamanho_calca TEXT", (err) => {
+    if (err && !err.message.includes('duplicate column')) console.error(err);
+});
+db.run("ALTER TABLE colaboradores ADD COLUMN tamanho_calcado TEXT", (err) => {
+    if (err && !err.message.includes('duplicate column')) console.error(err);
+});
+
+
 // MIGRATION: Garantir que os geradores baseados em perfil do colaborador existam no banco
 const GERADORES_PERFIL = [
     'Termo de NÃO Interesse Terapia',
@@ -1538,7 +1550,8 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
         'ferias_programadas_inicio', 'ferias_programadas_fim', 'alergias', 'aso_email_enviado', 'aso_exame_data', 'aso_assinafy_link', 'aso_exames_assinafy_link',
         'adiantamento_salarial', 'adiantamento_valor', 'insalubridade', 'insalubridade_valor',
         'conjuge_nome', 'conjuge_cpf',
-        'santander_ficha_data'
+        'santander_ficha_data',
+        'tamanho_camiseta', 'tamanho_calca', 'tamanho_calcado'
     ];
 
     const values = colunas.map(col => {
@@ -1775,7 +1788,8 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
         'ferias_programadas_inicio', 'ferias_programadas_fim', 'alergias', 'aso_email_enviado', 'aso_exame_data', 'aso_assinafy_link', 'aso_exames_assinafy_link',
         'adiantamento_salarial', 'adiantamento_valor', 'insalubridade', 'insalubridade_valor',
         'conjuge_nome', 'conjuge_cpf',
-        'santander_ficha_data'
+        'santander_ficha_data',
+        'tamanho_camiseta', 'tamanho_calca', 'tamanho_calcado'
     ];
 
     const allowedColunas = colunas;
@@ -3174,6 +3188,23 @@ app.put('/api/geradores/:id', authenticateToken, (req, res) => {
 app.delete('/api/geradores/:id', authenticateToken, (req, res) => {
     db.get("SELECT nome, arquivo_pdf FROM geradores WHERE id = ?", [req.params.id], (err, row) => {
         if (err || !row) return res.status(404).json({ error: 'Gerador não encontrado' });
+
+        const PROTECTED_NAMES = [
+            'autorização de desconto em folha',
+            'ordem de serviço nr01',
+            'termo de não interesse terapia',
+            'termo de interesse terapia',
+            'responsabilidade chaves',
+            'termo de responsabilidade de chaves',
+            'responsabilidade celular',
+            'responsabilidade bilhete único',
+            'contrato faculdade',
+            'contrato academia'
+        ];
+        const u = (row.nome || '').toLowerCase().trim();
+        if (PROTECTED_NAMES.some(pn => u.includes(pn))) {
+            return res.status(403).json({ error: 'Este documento é padrão do sistema e não pode ser excluído.' });
+        }
 
         if (row && row.arquivo_pdf && fs.existsSync(row.arquivo_pdf)) {
             try { fs.unlinkSync(row.arquivo_pdf); } catch(e) {}

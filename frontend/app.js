@@ -2348,6 +2348,11 @@ window.editColaborador = async function(id) {
         })();;
         if (document.getElementById('colab-pis')) document.getElementById('colab-pis').value = c.pis || '';
         if (document.getElementById('colab-cor-raca')) document.getElementById('colab-cor-raca').value = c.cor_raca || '';
+        
+        if (document.getElementById('tamanho_camiseta')) document.getElementById('tamanho_camiseta').value = c.tamanho_camiseta || '';
+        if (document.getElementById('tamanho_calca')) document.getElementById('tamanho_calca').value = c.tamanho_calca || '';
+        if (document.getElementById('tamanho_calcado')) document.getElementById('tamanho_calcado').value = c.tamanho_calcado || '';
+        
         if (document.getElementById('colab-sexo')) {
             document.getElementById('colab-sexo').value = c.sexo || '';
             if (typeof toggleCertificadoMilitar === 'function') toggleCertificadoMilitar(c.sexo || '');
@@ -2777,7 +2782,10 @@ if (formColab) {
             adiantamento_salarial: document.querySelector('input[name="adiantamento_check"]:checked')?.value || 'Não',
             adiantamento_valor: document.getElementById('colab-adiantamento-valor') ? document.getElementById('colab-adiantamento-valor').value : null,
             insalubridade: document.querySelector('input[name="insalubridade_check"]:checked')?.value || 'Não',
-            insalubridade_valor: document.getElementById('colab-insalubridade-valor') ? document.getElementById('colab-insalubridade-valor').value : null
+            insalubridade_valor: document.getElementById('colab-insalubridade-valor') ? document.getElementById('colab-insalubridade-valor').value : null,
+            tamanho_camiseta: document.getElementById('tamanho_camiseta') ? document.getElementById('tamanho_camiseta').value : null,
+            tamanho_calca: document.getElementById('tamanho_calca') ? document.getElementById('tamanho_calca').value : null,
+            tamanho_calcado: document.getElementById('tamanho_calcado') ? document.getElementById('tamanho_calcado').value : null
         };
 
         // Converter valores formatados (R$) para números antes de enviar
@@ -6012,8 +6020,30 @@ window.renderGeradoresList = function(items) {
         nenhum:    { label: '—',         bg: '#f8fafc', color: '#94a3b8', border: '#e2e8f0' },
     };
 
-    // Sort: apenas alfabético
+    const PROTECTED_NAMES = [
+        'autorização de desconto em folha',
+        'ordem de serviço nr01',
+        'termo de não interesse terapia',
+        'termo de interesse terapia',
+        'responsabilidade chaves',
+        'termo de responsabilidade de chaves',
+        'responsabilidade celular',
+        'responsabilidade bilhete único',
+        'contrato faculdade',
+        'contrato academia'
+    ];
+    
+    const isProtected = (nome) => {
+        const u = (nome || '').toLowerCase().trim();
+        return PROTECTED_NAMES.some(pn => u.includes(pn));
+    };
+
+    // Sort: protegidos primeiro, depois alfabético
     const sortedItems = [...items].sort((a, b) => {
+        const aProt = isProtected(a.nome);
+        const bProt = isProtected(b.nome);
+        if (aProt && !bProt) return -1;
+        if (!aProt && bProt) return 1;
         return (a.nome || '').localeCompare(b.nome || '');
     });
 
@@ -6021,6 +6051,7 @@ window.renderGeradoresList = function(items) {
         const tmpl  = templateMap[g.id] || 'nenhum';
         const lbl   = TEMPLATE_LABELS[tmpl] || TEMPLATE_LABELS.nenhum;
         const badge = `<span style="background:${lbl.bg};color:${lbl.color};border:1px solid ${lbl.border};border-radius:20px;padding:2px 10px;font-size:0.75rem;font-weight:700;">${lbl.label}</span>`;
+        const prot  = isProtected(g.nome);
         return `
         <tr data-template="${tmpl}">
             <td>
@@ -6032,7 +6063,7 @@ window.renderGeradoresList = function(items) {
                 <div style="display:flex; gap:0.5rem; justify-content:flex-end;">
                     <button class="btn btn-primary btn-sm" onclick="window.abrirModalSelecaoColab(${g.id})" title="Visualizar"><i class="ph ph-eye"></i></button>
                     <button class="btn btn-warning btn-sm" onclick="window.editGerador(${g.id})" title="Editar"><i class="ph ph-pencil-simple"></i></button>
-                    <button class="btn btn-danger btn-sm" onclick="window.deleteGerador(${g.id})" title="Excluir"><i class="ph ph-trash"></i></button>
+                    ${prot ? '' : `<button class="btn btn-danger btn-sm" onclick="window.deleteGerador(${g.id})" title="Excluir"><i class="ph ph-trash"></i></button>`}
                 </div>
             </td>
         </tr>`;
@@ -7295,7 +7326,7 @@ window.renderContratosAvulso = async function(container) {
                     </div>
                 </div>
                 <button type="button"
-                    onclick="window._gerarContratoPerfilDireto('${g.id}', '${(g.nome||'').replace(/'/g,"\\'")}'); event.stopPropagation();"
+                    onclick="window._gerarContratoPerfilDireto('${g.id}', '${(g.nome||'').replace(/'/g,"\\'")}');"
                     style="background:#c026d3;color:#fff;border:none;border-radius:8px;padding:0.4rem 0.9rem;font-size:0.82rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap;">
                     <i class="ph ph-file-arrow-down"></i> Gerar
                 </button>
