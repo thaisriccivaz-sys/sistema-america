@@ -6432,6 +6432,7 @@ window.renderGeradoresOutrosContratos = function(departamentos, geradores, templ
                     </div>
                     <div style="display:flex; align-items:center; gap:0.5rem;">
                         <span class="badge bg-secondary" id="outros-count-${g.id}" style="font-size:0.75rem; padding:0.4em 0.6em; border-radius:12px;">${checked.length} Setores</span>
+                        <button type="button" onclick="event.stopPropagation(); window.selecionarTodosSetoresOutros(${g.id})" style="font-size:0.72rem;padding:0.25em 0.65em;border:1px solid #cbd5e1;border-radius:6px;background:#f8fafc;cursor:pointer;color:#475569;font-weight:600;">Todos</button>
                         <i class="ph ph-caret-down tg-icon" style="transition:0.2s; color:#64748b;"></i>
                     </div>
                 </div>
@@ -6461,6 +6462,13 @@ window.updateOutrosDocCount = function(docId) {
     const count = Array.from(chks).filter(c => c.checked).length;
     const badge = document.getElementById(`outros-count-${docId}`);
     if (badge) badge.textContent = `${count} Setores`;
+};
+
+window.selecionarTodosSetoresOutros = function(docId) {
+    const chks = document.querySelectorAll(`.gerador-outros-chk[data-gerador="${docId}"]`);
+    const anyUnchecked = Array.from(chks).some(c => !c.checked);
+    chks.forEach(c => { c.checked = anyUnchecked; });
+    window.updateOutrosDocCount(docId);
 };
 
 
