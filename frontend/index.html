@@ -590,13 +590,13 @@
                             <!-- Title and Status Group -->
                             <div style="padding-top: 4px;">
                                 <h1 id="form-colab-title" style="margin: 0; font-size: 1.85rem; font-weight: 700; color: #334155; letter-spacing: -0.02em;">Editar Colaborador</h1>
-                                <div class="status-chips mt-2" id="status-chips-container" style="display: flex; gap: 0.6rem;">
-                                    <div class="status-chip active" data-value="Aguardando início"><i class="ph ph-clock"></i> Aguardando</div>
-                                    <div class="status-chip" data-value="Processo iniciado"><i class="ph ph-hourglass"></i> Iniciado</div>
-                                    <div class="status-chip" data-value="Ativo"><i class="ph ph-check-circle"></i> Ativo</div>
-                                    <div class="status-chip" data-value="Férias"><i class="ph ph-airplane-tilt"></i> Férias</div>
-                                    <div class="status-chip" data-value="Afastado"><i class="ph ph-warning"></i> Afastado</div>
-                                    <div class="status-chip" data-value="Desligado"><i class="ph ph-x-circle"></i> Desligado</div>
+                                <div class="status-chips mt-2" id="status-chips-container" style="display: flex; gap: 0.6rem; flex-wrap: wrap;">
+                                    <div class="status-chip active" data-value="Aguardando início" onclick="window.updateStatusChip('Aguardando início')"><i class="ph ph-clock"></i> Aguardando</div>
+                                    <div class="status-chip" data-value="Processo iniciado" onclick="window.updateStatusChip('Processo iniciado')"><i class="ph ph-hourglass"></i> Iniciado</div>
+                                    <div class="status-chip" data-value="Ativo" onclick="window.updateStatusChip('Ativo')"><i class="ph ph-check-circle"></i> Ativo</div>
+                                    <div class="status-chip" data-value="Férias" onclick="window.updateStatusChip('Férias')"><i class="ph ph-airplane-tilt"></i> Férias</div>
+                                    <div class="status-chip" data-value="Afastado" onclick="window.updateStatusChip('Afastado')"><i class="ph ph-warning"></i> Afastado</div>
+                                    <div class="status-chip" data-value="Desligado" onclick="window.updateStatusChip('Desligado')"><i class="ph ph-x-circle"></i> Desligado</div>
                                 </div>
                                 <input type="hidden" id="colab-status" value="Aguardando início">
                             </div>

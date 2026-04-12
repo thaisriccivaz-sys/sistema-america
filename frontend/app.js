@@ -5505,12 +5505,11 @@ function getEffectiveStatus(c) {
 function updateStatusChip(val) {
     document.querySelectorAll('.status-chip').forEach(c => {
         c.classList.remove('active');
-        c.style.display = 'none'; 
+        // c.style.display = 'none'; // Mantido visível para permitir a seleção
     });
     const target = document.querySelector(`.status-chip[data-value="${val}"]`);
     if (target) {
         target.classList.add('active');
-        target.style.display = 'flex';
     }
     
     const statusInput = document.getElementById('colab-status');
@@ -8399,7 +8398,7 @@ function updateAdmissaoStepPercentages(colab) {
              const statusBadge = hasFile 
                 ? `<span style="background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-check-circle"></i> Anexado</span>` 
                 : `<span style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-x-circle"></i> Faltante</span>`;
-             const dateText = hasFile ? `<div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Anexado em: <b>${item.doc.created_at ? new Date(item.doc.created_at + (item.doc.created_at.includes('Z') ? '' : 'Z')).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : 'Data não registrada'}</b></div>` : `<div style="font-size:0.75rem; color:#94a3b8; margin-top:2px;"><i>Upload obrigatório via Prontuário Digital</i></div>`;
+             const dateText = hasFile ? (item.doc && item.doc.created_at ? `<div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Anexado em: <b>${new Date(item.doc.created_at + (item.doc.created_at.includes('Z') ? '' : 'Z')).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</b></div>` : '') : `<div style="font-size:0.75rem; color:#94a3b8; margin-top:2px;"><i>Upload obrigatório via Prontuário Digital</i></div>`;
              
              return `
              <div style="background:#fff; border:1px solid ${hasFile?'#bbf7d0':'#e2e8f0'}; border-radius:8px; padding:0.6rem 0.8rem; margin-bottom:0.4rem; display:flex; justify-content:space-between; align-items:center;">
@@ -8458,7 +8457,7 @@ function updateAdmissaoStepPercentages(colab) {
              const statusBadge = hasFile 
                 ? `<span style="background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-check-circle"></i> Anexado</span>` 
                 : `<span style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-x-circle"></i> Faltante</span>`;
-             const dateText = hasFile ? `<div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Anexado em: <b>${item.doc.created_at ? new Date(item.doc.created_at + (item.doc.created_at.includes('Z') ? '' : 'Z')).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : 'Data não registrada'}</b></div>` : `<div style="font-size:0.75rem; color:#94a3b8; margin-top:2px;"><i>Upload obrigatório via Prontuário Digital</i></div>`;
+             const dateText = hasFile ? (item.doc && item.doc.created_at ? `<div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Anexado em: <b>${new Date(item.doc.created_at + (item.doc.created_at.includes('Z') ? '' : 'Z')).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</b></div>` : '') : `<div style="font-size:0.75rem; color:#94a3b8; margin-top:2px;"><i>Upload obrigatório via Prontuário Digital</i></div>`;
              
              return `
              <div style="background:#fff; border:1px solid ${hasFile?'#bbf7d0':'#e2e8f0'}; border-radius:8px; padding:0.6rem 0.8rem; margin-bottom:0.4rem; display:flex; justify-content:space-between; align-items:center;">
