@@ -7427,7 +7427,7 @@ window.renderContratosAvulso = async function(container) {
                     </div>
                 </div>
                 <button type="button"
-                    onclick="alert('Botão Gerar Reconhecido!'); window._gerarContratoPerfilDireto('${g.id}', '${(g.nome||'').replace(/'/g,"\\'").replace(/"/g, "&quot;")}');"
+                    onclick="window._gerarContratoPerfilDireto('${g.id}', '${(g.nome||'').replace(/'/g,"\\'").replace(/"/g, "&quot;")}');"
                     style="background:#c026d3;color:#fff;border:none;border-radius:8px;padding:0.4rem 0.9rem;font-size:0.82rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap;">
                     <i class="ph ph-file-arrow-down"></i> Gerar
                 </button>
@@ -7472,17 +7472,7 @@ window.renderContratosAvulso = async function(container) {
 // Gera e salva automaticamente um contrato de perfil direto (sem abrir modal de seleção)
 window._gerarContratoPerfilDireto = async function(geradorId, geradorNome) {
     try {
-        console.log('Botao clicado', geradorId, geradorNome);
-        const sendPrompt = await Swal.fire({
-            title: 'Assinatura Digital',
-            text: 'Deseja enviar este contrato para assinatura digital via Assinafy?',
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonText: 'Sim, desejo assinar digitalmente',
-            cancelButtonText: 'Não, apenas visualizar e anexar'
-        });
-
-        const vaiAssinar = sendPrompt.isConfirmed;
+        const vaiAssinar = confirm('Deseja enviar este documento (' + geradorNome + ') para assinatura digital no Assinafy?\n\n- Pressione OK se SIM.\n- Pressione CANCELAR caso queira APENAS ANEXAR ao prontuário.');
 
         Swal.fire({ title: 'Gerando documento...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
@@ -7561,8 +7551,8 @@ window._gerarContratoPerfilDireto = async function(geradorId, geradorNome) {
         }, 150);
 
     } catch(e) {
-        Swal.close();
-        Swal.fire('Erro', e.message, 'error');
+        alert('Erro Crítico ao gerar documento: ' + e.message);
+        try { Swal.close(); Swal.fire('Erro', e.message, 'error'); } catch(e2){}
     }
 };
 
