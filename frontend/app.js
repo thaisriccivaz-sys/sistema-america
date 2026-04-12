@@ -7914,11 +7914,18 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
        const requiresButNotSent = (!isSigned && !isPending && !literallyNaoExige);
 
        const _docName = (doc.document_type || doc.file_name || 'Documento').replace(/'/g, "\\'");
+       // Por padrão: botão de olho normal (visualiza o PDF original)
        let eyeBtn = `<button type="button" onclick="window.openContratoViewerById(${doc.id}, '${_docName}'); event.preventDefault(); event.stopPropagation();" style="border:none;background:none;cursor:pointer;color:#64748b;" title="Ver PDF"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
-       if (isSigned && ass && ass.certificado_assinado_em) {
-           eyeBtn = `<button type="button" onclick="window.openSignedDocPopup(${ass.id}, '${(doc.document_type||'').replace(/'/g,"\\'")}', event); event.stopPropagation();" style="border:none;background:none;cursor:pointer;color:#7c3aed;" title="Ver documento final (Empresa+Colaborador)"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
-       } else if (isSigned && ass) {
-           eyeBtn = `<button type="button" onclick="window.openSignedDocPopup(${ass.id}, '${(doc.document_type||'').replace(/'/g,"\\'")}', event); event.stopPropagation();" style="border:none;background:none;cursor:pointer;color:#16a34a;" title="Ver PDF assinado (Colaborador)"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
+       if (isSigned) {
+           // Documento assinado: tentar abrir via ass.id (assinatura) ou via doc.id (download do assinado)
+           if (ass && ass.certificado_assinado_em) {
+               eyeBtn = `<button type="button" onclick="window.openSignedDocPopup(${ass.id}, '${_docName}', event); event.stopPropagation();" style="border:none;background:none;cursor:pointer;color:#7c3aed;" title="Ver documento assinado com certificado"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
+           } else if (ass) {
+               eyeBtn = `<button type="button" onclick="window.openSignedDocPopup(${ass.id}, '${_docName}', event); event.stopPropagation();" style="border:none;background:none;cursor:pointer;color:#16a34a;" title="Ver PDF assinado"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
+           } else {
+               // Fallback: abrir o pdf assinado pelo doc.id (rota de download que retorna signed_file_path)
+               eyeBtn = `<button type="button" onclick="window.openContratoViewerById(${doc.id}, '${_docName}'); event.preventDefault(); event.stopPropagation();" style="border:none;background:none;cursor:pointer;color:#16a34a;" title="Ver PDF assinado"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`;
+           }
        }
 
        const formatDate = (dateStr) => {
@@ -7937,7 +7944,8 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
        const _uploadStr = formatDate(_uploadDt);
        const _sentDt = doc.assinafy_sent_at || _uploadDt;
        const _sentStr = formatDate(_sentDt);
-       const _signedDt = (ass ? ass.assinado_em : null) || doc.assinafy_signed_at || _uploadDt;
+       // Prioridade: assinafy_signed_at do doc (atualizado pelo polling), depois da assinatura
+       const _signedDt = doc.assinafy_signed_at || (ass ? ass.assinado_em : null) || _uploadDt;
        const _signedStr = formatDate(_signedDt);
 
        let statusBadge = '';
