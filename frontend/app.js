@@ -7725,7 +7725,6 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
             }
             window.nextAdmissaoStep(targetStep, preventScroll);
         }
-        }
     } catch (e) { alert('Erro ao carregar dados: ' + e.message); }
 };
 
@@ -7797,35 +7796,6 @@ function renderAdmissaoDocStatus(containerId, docs, emptyMsg) {
     });
 }
 
-    }
-
-    window.setPensaoAdmissao = function(resposta) {
-        const simBtn = document.getElementById('pensao-sim-admissao');
-        const naoBtn = document.getElementById('pensao-nao-admissao');
-        const slot = document.getElementById('pensao-slot-admissao');
-        const isSimNow = resposta === 'Sim';
-        if (simBtn) { simBtn.style.borderColor = isSimNow ? '#10b981' : '#e2e8f0'; simBtn.style.background = isSimNow ? '#ecfdf5' : '#fff'; simBtn.style.color = isSimNow ? '#065f46' : '#334155'; }
-        if (naoBtn) { naoBtn.style.borderColor = !isSimNow ? '#10b981' : '#e2e8f0'; naoBtn.style.background = !isSimNow ? '#ecfdf5' : '#fff'; naoBtn.style.color = !isSimNow ? '#065f46' : '#334155'; }
-        if (slot) {
-            slot.style.display = isSimNow ? 'block' : 'none';
-            if (isSimNow && slot.children.length === 0) {
-                const docs = window._currentAdmissaoDocs || [];
-                const pensaoDoc = docs.find(d => d.tab_name === '01_FICHA_CADASTRAL' && d.document_type === 'Pensão Alimentícia');
-                slot.appendChild(createDocSlot('01_FICHA_CADASTRAL', 'Pensão Alimentícia', pensaoDoc || null));
-            }
-        }
-        // Salvar preferência no colaborador
-        if (viewedColaborador) viewedColaborador.tem_pensao_alimenticia = resposta;
-        const colabId = viewedColaborador && viewedColaborador.id;
-        if (colabId) {
-            fetch(`${API_URL}/colaboradores/${colabId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
-                body: JSON.stringify({ tem_pensao_alimenticia: resposta })
-            }).catch(()=>{});
-        }
-    };
-}
 
 
 // ===== PASSO 2: VISUALIZAR DOCUMENTO ANTES DA ASSINATURA =====
