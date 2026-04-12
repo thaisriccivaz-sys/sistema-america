@@ -1437,6 +1437,12 @@ async function loadDashboard() {
         const totalEl = document.getElementById('stat-total');
         if (totalEl) totalEl.textContent = stats.total || 0;
         
+        const aguardandoEl = document.getElementById('stat-aguardando');
+        if (aguardandoEl) aguardandoEl.textContent = stats.aguardando || 0;
+        
+        const iniciadoEl = document.getElementById('stat-iniciado');
+        if (iniciadoEl) iniciadoEl.textContent = stats.iniciado || 0;
+
         const ativosEl = document.getElementById('stat-ativos');
         if (ativosEl) ativosEl.textContent = stats.ativos || 0;
         

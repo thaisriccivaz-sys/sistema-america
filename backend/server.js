@@ -1230,7 +1230,7 @@ app.post('/api/auth/setup', (req, res) => {
 
 // --- ROTAS DE DASHBOARD ---
 app.get('/api/dashboard', authenticateToken, (req, res) => {
-    const stats = { total: 0, ativos: 0, ferias: 0, afastados: 0, desligados: 0 };
+    const stats = { total: 0, ativos: 0, ferias: 0, afastados: 0, desligados: 0, aguardando: 0, iniciado: 0 };
     const today = new Date().toISOString().split('T')[0];
     
     db.all('SELECT status, ferias_programadas_inicio, ferias_programadas_fim FROM colaboradores', [], (err, rows) => {
@@ -1255,6 +1255,8 @@ app.get('/api/dashboard', authenticateToken, (req, res) => {
             else if (effectiveStatus === 'Férias') stats.ferias += 1;
             else if (effectiveStatus === 'Afastado') stats.afastados += 1;
             else if (effectiveStatus === 'Desligado') stats.desligados += 1;
+            else if (effectiveStatus === 'Aguardando início') stats.aguardando += 1;
+            else if (effectiveStatus === 'Processo iniciado') stats.iniciado += 1;
         });
         res.json(stats);
     });
