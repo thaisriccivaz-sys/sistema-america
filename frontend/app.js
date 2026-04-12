@@ -8197,11 +8197,13 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
        let statusBadge = '';
        let leftIconMarkup = '';
        let sendBtn = '';
+       let actionUX = ''; // novo container para UX customizada no lado direito
+       let borderBgColor = isSigned ? 'border:1px solid #bbf7d0; background:#f0fdf4;' : isPending ? 'border:1px solid #bfdbfe; background:#eff6ff;' : literallyNaoExige ? 'border:1px solid #e9d5ff; background:#faf5ff;' : 'border:1px solid #fde047; background:#fefce8;';
        
        if (isSigned) {
            leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#16a34a;"><i class="ph ph-check-circle" style="font-size:1.4rem;"></i></div>`;
            statusBadge = `<span style="color:#16a34a;font-size:0.75rem;font-weight:600;">Documento Assinado${_signedStr ? ': ' + _signedStr : ''}</span>`;
-           sendBtn = ''; 
+           
        } else if (isPending) {
             leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#2563eb;"><i class="ph ph-paper-plane-tilt" style="font-size:1.4rem;"></i></div>`;
             statusBadge = `<span style="color:#2563eb;font-size:0.75rem;font-weight:600;">Enviado para Assinatura${_sentStr ? ': ' + _sentStr : ''}</span>`;
@@ -8214,30 +8216,138 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
        } else {
             leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#eab308;"><i class="ph ph-info" style="font-size:1.4rem;"></i></div>`;
             statusBadge = `<span style="color:#eab308;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
-            if (requiresButNotSent && window.reenviarAssinaturaContrato) {
-                sendBtn = `<button type="button" onclick="window.reenviarAssinaturaContrato(${doc.id}, event);" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:0.2s;"><i class="ph ph-paper-plane-tilt"></i> Enviar para Assinatura</button>`;
-            }
+            
+            // O usuário acabou de anexar ou gerar, mas não tomou decisão ainda (Exige Assinatura?)
+            const escNome = _docName.replace(/'/g,"\\'");
+            actionUX = `
+                <div style="display:flex; align-items:center; gap:0.75rem; border-left: 1px solid #fde047; padding-left: 1rem; margin-right:5px;">
+                    <span style="font-size:0.85rem; font-weight:600; color:#334155;">Exige Assinatura?</span>
+                    <label style="cursor:pointer; display:flex; align-items:center; gap:0.25rem; font-size:0.85rem; color:#0f172a; margin:0;">
+                        <input type="radio" name="req-ass-doc-${doc.id}" value="sim" onchange="window.toggleAcaoDocumentoAvulso('${doc.id}', 'sim', '${escNome}')"> Sim
+                    </label>
+                    <label style="cursor:pointer; display:flex; align-items:center; gap:0.25rem; font-size:0.85rem; color:#0f172a; margin:0;">
+                        <input type="radio" name="req-ass-doc-${doc.id}" value="nao" onchange="window.toggleAcaoDocumentoAvulso('${doc.id}', 'nao', '${escNome}')"> Não
+                    </label>
+                </div>
+                <div id="pg-action-doc-${doc.id}" style="min-width: 160px; text-align: right; display: flex; justify-content: flex-end;">
+                    <span style="font-size:0.8rem; color:#64748b; font-style:italic;">Selecione uma opção</span>
+                </div>
+            `;
        }
 
        let eyeBtn = `<button onclick="window.openContratoViewerById(${doc.id})" style="border:none;background:none;cursor:pointer;color:#64748b;" title="Visualizar Documento"><i class="ph ph-eye" style="font-size:1.4rem;"></i></button>`;
 
        html += `
-        <label class="doc-check-item" style="display:flex; align-items:center; gap:0.6rem; padding:1.1rem 1.25rem; border:1px solid #f1f5f9; border-radius:8px; cursor:default; background:#fff; box-shadow: 0 1px 2px rgba(0,0,0,0.03); transition:all 0.2s; justify-content:space-between; margin-bottom:12px;">
+        <div class="doc-check-item" style="display:flex; align-items:center; gap:0.6rem; padding:1.1rem 1.25rem; ${borderBgColor}; border-radius:8px; cursor:default; box-shadow:0 1px 2px rgba(0,0,0,0.03); transition:all 0.2s; justify-content:space-between; margin-bottom:12px;">
             <div style="display:flex; align-items:center; gap:12px; flex:1;">
                 ${leftIconMarkup}
-                <div style="display:flex; flex-direction:column;">
-                    <span style="font-size:0.95rem; font-weight:700; color:#0f172a; margin-bottom:3px;">${_docTitle.toUpperCase()}</span>
+                <div style="display:flex; flex-direction:column; gap:2px;">
+                    <span style="font-size:0.95rem; font-weight:700; color:#0f172a; margin-bottom:2px;">${_docTitle.toUpperCase()}</span>
                     ${statusBadge}
+                    ${doc.file_name ? `<span style="font-size:0.72rem;color:#94a3b8;margin-top:1px;"><i class="ph ph-file"></i> ${doc.file_name}</span>` : ''}
                 </div>
             </div>
             <div style="display:flex; align-items:center; gap:12px;">
+                ${actionUX}
                 ${sendBtn}
                 ${eyeBtn}
             </div>
-        </label>`;
+        </div>`;
     });
     return html;
 };
+
+window.toggleAcaoDocumentoAvulso = function(docId, exige, docType) {
+    const actionDiv = document.getElementById('pg-action-doc-' + docId);
+    if (!actionDiv) return;
+    
+    if (exige === 'nao') {
+        actionDiv.innerHTML = `
+            <label class="btn btn-warning btn-sm" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:0.85rem;background:#eab308;color:#fff;border:none;padding:0.4rem 1rem;border-radius:6px;font-weight:600;">
+                <i class="ph ph-upload-simple"></i> Anexar PDF
+                <input type="file" accept=".pdf" style="display:none;" onchange="window.uploadContratoAvulsoSobrescrever(this, '${docId}', '${docType}')">
+            </label>
+        `;
+    } else {
+        actionDiv.innerHTML = `
+            <button type="button" class="btn btn-primary btn-sm" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:0.85rem;background:#0284c7;color:#fff;border:none;padding:0.4rem 1rem;border-radius:6px;font-weight:600;" 
+                onclick="window.enviarDocumentoAvulsoAssinatura('${docId}')">
+                <i class="ph ph-paper-plane-tilt"></i> Enviar p/ Assinatura
+            </button>
+        `;
+    }
+};
+
+window.enviarDocumentoAvulsoAssinatura = async function(docId) {
+    if (!docId || !viewedColaborador) return;
+    Swal.fire({ title: 'Enviando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    try {
+        const res = await fetch(API_URL + '/assinafy/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentToken },
+            body: JSON.stringify({ document_id: Number(docId), colaborador_id: viewedColaborador.id })
+        });
+        const data = await res.json().catch(() => ({}));
+        Swal.close();
+        if (res.ok) {
+            if (typeof showToast !== 'undefined') showToast('Documento enviado para assinatura!', 'success');
+            // Recarregar aba
+            window._contratosAvulsoLoaded = false;
+            window.switchContratosSubTab('avulso');
+        } else {
+            Swal.fire('Atenção', 'Erro no envio para assinar: ' + (data.error || 'Erro desconhecido'), 'warning');
+        }
+    } catch(err) {
+        Swal.close();
+        Swal.fire('Erro', err.message, 'error');
+    }
+};
+
+window.uploadContratoAvulsoSobrescrever = async function(input, docId, docType) {
+    const file = input.files[0];
+    if (!file || !viewedColaborador) return;
+    Swal.fire({ title: 'Sobrescrevendo...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('tab_name', 'CONTRATOS_AVULSOS');
+        formData.append('document_type', docType);
+        formData.append('colaborador_id', viewedColaborador.id);
+        
+        const resUpload = await fetch(API_URL + '/documentos', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + currentToken },
+            body: formData
+        });
+        if (!resUpload.ok) throw new Error('Falha no upload do arquivo');
+        const uploadData = await resUpload.json();
+
+        // Atualizar antigo status
+        await fetch(API_URL + '/documentos/' + uploadData.id, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentToken },
+            body: JSON.stringify({ assinafy_status: 'NAO_EXIGE' })
+        }).catch(() => {});
+        
+        if (String(uploadData.id) !== String(docId)) {
+             await fetch(API_URL + '/documentos/' + docId, {
+                method: 'DELETE',
+                headers: { 'Authorization': 'Bearer ' + currentToken }
+            }).catch(() => {});
+        }
+
+        Swal.close();
+        if (typeof showToast !== 'undefined') showToast('Documento anexado no Prontuário!', 'success');
+        
+        window._contratosAvulsoLoaded = false;
+        window.switchContratosSubTab('avulso');
+    } catch (err) {
+        Swal.close();
+        Swal.fire('Erro', err.message, 'error');
+    }
+};
+
 
 
 window.deleteDocumentoContrato = async function(docId) {
@@ -8539,47 +8649,8 @@ window.gerarContratoAvulso = async function() {
                     document.getElementById('modal-preview-doc').style.display = 'none';
                     document.getElementById('doc-modal').style.display = 'none';
 
-                    // Pega o ID gerado pelo backend
-                    const uploadData = await uploadRes.json().catch(() => ({}));
-                    const docId = uploadData.id;
-
-                    const sendPrompt = await Swal.fire({
-                        title: '<i class="ph ph-seal-question"></i> Exige Assinatura?',
-                        html: '<p style="margin:0;font-size:0.95rem;color:#334155;">Deseja enviar este contrato para <b>assinatura digital</b> via Assinafy?</p>',
-                        icon: 'question',
-                        showCancelButton: true,
-                        confirmButtonText: '<i class="ph ph-paper-plane-tilt"></i> Sim, enviar',
-                        cancelButtonText: '<i class="ph ph-check"></i> Não, não exige',
-                        confirmButtonColor: '#2563eb',
-                        cancelButtonColor: '#9333ea',
-                        allowOutsideClick: false
-                    });
-
-                    if (sendPrompt.isConfirmed && docId) {
-                        Swal.fire({ title: 'Enviando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-                        const assResp = await fetch(API_URL + '/assinafy/upload', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentToken },
-                            body: JSON.stringify({ document_id: Number(docId), colaborador_id: viewedColaborador.id })
-                        });
-                        const assData = await assResp.json().catch(() => ({}));
-                        Swal.close();
-                        if (assResp.ok) {
-                            if (typeof showToast !== 'undefined') showToast('Documento enviado para assinatura!', 'success');
-                        } else {
-                            Swal.fire('Atenção', 'Documento salvo, mas falha no envio para assinar: ' + (assData.error || 'Erro desconhecido'), 'warning');
-                        }
-                    } else {
-                        // Não exige assinatura
-                        if (docId) {
-                            await fetch(API_URL + '/documentos/' + docId, {
-                                method: 'PUT',
-                                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentToken },
-                                body: JSON.stringify({ assinafy_status: 'NAO_EXIGE' })
-                            }).catch(() => {});
-                        }
-                        if (typeof showToast !== 'undefined') showToast('Documento gerado e salvo no Prontuário!', 'success');
-                    }
+                    // O documento foi salvo e o status de assinatura será resolvido na listagem
+                    if (typeof showToast !== 'undefined') showToast('Documento gerado e salvo no prontuário!', 'success');
 
                     // Forçar reload da lista de contratos imediatamente
                     window._contratosAvulsoLoaded = false;
