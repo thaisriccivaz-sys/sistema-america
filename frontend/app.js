@@ -8261,12 +8261,12 @@ function updateAdmissaoStepPercentages(colab) {
     }
 
     // ── Passo 6: Contabilidade — 100% se ficha enviada ────────────────
-    const pc6 = targetColab.admissao_contabil_enviada_em ? 100 : calculateChecklist('panel-step-6');
+    const pc6 = targetColab.admissao_contabil_enviada_em ? 100 : 0;
 
     // ── Passos 7-10 ───────────────────────────────────────────────────
-    const pc7 = calculateChecklist('panel-step-7');
-    const pc8 = calculateChecklist('panel-step-8');
-    const pc9 = calculateChecklist('panel-step-9');
+    const pc7 = targetColab.status === 'Ativo' ? 100 : 0;
+    const pc8 = 0;
+    const pc9 = 0;
     const pc10 = 0;
 
     const percentages = { 1:pc1, 2:pc2, 3:pc3, 4:pc4, 5:pc5, 6:pc6, 7:pc7, 8:pc8, 9:pc9, 10:pc10 };
