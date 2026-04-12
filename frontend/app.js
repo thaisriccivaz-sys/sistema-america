@@ -1,4 +1,4 @@
-const API_URL = `${window.location.origin}/api`;
+﻿const API_URL = `${window.location.origin}/api`;
 function showToast(msg, type) {
     const toast = document.getElementById('global-toast');
     if (toast) {
@@ -7937,46 +7937,6 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
                ${(isPending && window.reenviarAssinaturaContrato) ? `<button type="button" onclick="window.reenviarAssinaturaContrato(${doc.id}, event);" style="background:#0284c7;color:#fff;border:none;border-radius:2px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:0.2s;"><i class="ph ph-pen"></i> Reenviar para Assinatura</button>` : ''}
                ${eyeBtn}
                ${isSigned ? '' : `<button type="button" onclick="window.deleteDocumentoContrato(${doc.id}); event.preventDefault(); event.stopPropagation();" style="border:none;background:none;cursor:pointer;color:#ef4444;" title="Excluir do Prontuário"><i class="ph ph-trash" style="font-size:1.2rem;"></i></button>`}
-            </div>
-        </label>`;
-    });
-    return html;
-};
-
-       const _uploadDt = doc.upload_date || doc.created_at;
-       const _uploadStr = formatDate(_uploadDt);
-       const _sentDt = doc.assinafy_sent_at || _uploadDt;
-       const _sentStr = formatDate(_sentDt);
-       const _signedDt = (ass ? ass.assinado_em : null) || doc.assinafy_signed_at || _uploadDt;
-       const _signedStr = formatDate(_signedDt);
-
-       const isNaoExige = (doc.assinafy_status === 'NAO_EXIGE' || doc.assinafy_status === 'Nenhum' || !doc.assinafy_status);
-       let statusBadge = `<span style="background:#f1f5f9;color:#64748b;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:700;"><i class="ph ph-minus-circle"></i> Nao enviado</span>`;
-       
-       if (isNaoExige) {
-           statusBadge = `<span style="color:#2563eb;font-size:0.65rem;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-info"></i> Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
-       } else if (isSigned) {
-           statusBadge = `<span style="color:#16a34a;font-size:0.65rem;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-check-circle"></i> Documento assinado${_signedStr ? ': ' + _signedStr : ''}</span>`;
-       } else if (isPending) {
-           statusBadge = `<span style="color:#ca8a04;font-size:0.65rem;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-clock"></i> Enviado para Assinatura${_sentStr ? ': ' + _sentStr : ''}</span>`;
-       }
-       html += `
-        <label class="doc-check-item" style="display:flex; align-items:center; gap:0.6rem; padding:0.6rem 0.75rem; border:1px solid ${isSigned ? '#bbf7d0' : '#f1f5f9'}; border-radius:8px; cursor:pointer; background:${isSigned ? '#f0fdf4' : '#fff'}; transition:all 0.2s; justify-content:space-between;">
-            <div style="display:flex; align-items:center; gap:0.6rem; flex:1;">
-                ${isSigned || isPending 
-                    ? `<div style="width:20px;height:20px;border-radius:10px;background:${isSigned?'#22c55e':'#eab308'};color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 3px ${isSigned?'#dcfce7':'#fef3c7'};"><i class="ph ${isSigned?'ph-check':'ph-clock'}" style="font-size:0.8rem;font-weight:bold;"></i></div>`
-                    : `<input type="checkbox" class="ca-row-chk ms-3" data-doc-id="${doc.id}" data-doc-url="${doc.file_url}" data-doc-type="${doc.document_type || 'Documento'}" style="width:18px;height:18px;cursor:pointer;accent-color:#2563eb;">`
-                }
-                <div style="display:flex; flex-direction:column;">
-                    <span style="font-weight:600; color:#334155; font-size:0.9rem;">${doc.document_type || doc.file_name}</span>
-                    <div style="display:flex; align-items:center; gap:8px; flex
-                        ${statusBadge}
-                    </div>
-                </div>
-            </div>
-            <div>
-               ${eyeBtn}
-               ${isSigned ? '' : `<button type="button" onclick="window.deleteDocumentoContrato(${doc.id}); event.preventDefault(); event.stopPropagation();" style="border:none;background:none;cursor:pointer;color:#ef4444;margin-left:8px;" title="Excluir do Prontuário"><i class="ph ph-trash" style="font-size:1.2rem;"></i></button>`}
             </div>
         </label>`;
     });
