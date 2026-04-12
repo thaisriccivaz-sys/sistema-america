@@ -130,29 +130,32 @@ db.run("DELETE FROM cargos WHERE nome = 'teste' OR nome = 'Teste'", (err) => {
     if (err) console.error("Erro ao remover cargo teste:", err);
 });
 
-// MIGRATION: Remover geradores duplicados em CAIXA ALTA (usar LIKE ASCII para evitar problemas de encoding)
-// Remove "AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO" - mantém "Autorização de Desconto em Folha"
-db.run("DELETE FROM geradores WHERE nome LIKE 'AUTORIZA%DESCONTO%PAGAMENTO'", (err) => {
-    if (err) console.error("Erro ao remover gerador AUTORIZACAO DESCONTO (maiúsculo):", err);
-    else console.log("Gerador AUTORIZACAO DESCONTO (maiúsculo) removido (se existia).");
+// MIGRATION: Limpar duplicatas de geradores — executado em sequência garantida
+db.serialize(() => {
+    // 1. Renomear ORDEM DE SERVIÇO NR01 (maiúsculo) para caixa mista
+    db.run("UPDATE geradores SET nome = 'Ordem de Servi\u00e7o NR01' WHERE nome LIKE 'ORDEM%NR01' OR nome LIKE 'ORDEM%NR 01'", (err) => {
+        if (err) console.error('Erro ao renomear NR01 maiúsculo:', err);
+        else console.log('MIGRATION: ORDEM NR01 maiúsculo renomeado (se existia).');
+    });
+    // 2. Remover duplicatas de NR01 mantendo o mais antigo
+    db.run("DELETE FROM geradores WHERE (nome LIKE '%NR01%' OR nome LIKE '%NR 01%') AND id NOT IN (SELECT MIN(id) FROM geradores WHERE nome LIKE '%NR01%' OR nome LIKE '%NR 01%')", (err) => {
+        if (err) console.error('Erro ao deduplicar NR01:', err);
+        else console.log('MIGRATION: Duplicatas NR01 removidas (se existiam).');
+    });
+    // 3. Remover AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO (maiúsculo extra)
+    //    Mantém apenas o de ID menor (Autorização de Desconto em Folha, criado antes)
+    db.run("DELETE FROM geradores WHERE nome LIKE 'AUTORI%DESCONTO%PAGAMENTO'", (err) => {
+        if (err) console.error('Erro ao remover AUTORIZACAO DESCONTO PAGAMENTO maiúsculo:', err);
+        else console.log('MIGRATION: AUTORIZACAO DESCONTO PAGAMENTO maiúsculo removido (se existia).');
+    });
+    // 4. Remover qualquer outro gerador em CAIXA ALTA cujo nome = UPPER(nome) — exceto os já tratados
+    //    Detecta nomes 100% maiúsculos contendo mais de 3 palavras
+    db.run("DELETE FROM geradores WHERE nome = UPPER(nome) AND LENGTH(nome) > 10 AND nome NOT LIKE 'Ordem%'", (err) => {
+        if (err) console.error('Err ao remover geradores all-caps extra:', err);
+        else console.log('MIGRATION: Geradores all-caps extras removidos.');
+    });
 });
 
-// Remove "ORDEM DE SERVIÇO NR01" em caixa alta - mantém "Ordem de Serviço NR01" (caixa mista)
-db.run("DELETE FROM geradores WHERE nome LIKE 'ORDEM%NR01' OR nome LIKE 'ORDEM%NR 01'", (err) => {
-    if (err) console.error("Erro ao remover ORDEM SERVICO NR01 (maiúsculo):", err);
-    else console.log("Gerador ORDEM SERVICO NR01 (maiúsculo) removido (se existia).");
-});
-
-// MIGRATION: Renomear variações ainda em maiúsculas para caixa mista correta
-db.run("UPDATE geradores SET nome = 'Ordem de Servi\u00e7o NR01' WHERE (nome LIKE 'Ordem%NR01%' OR nome LIKE 'Ordem%NR 01%') AND nome != 'Ordem de Servi\u00e7o NR01'", (err) => {
-    if (err) console.error("Erro ao renomear variações de NR01:", err);
-});
-
-// MIGRATION: Garantir unicidade — remover duplicatas de NR01 mantendo o mais antigo
-db.run("DELETE FROM geradores WHERE (nome LIKE '%NR01%' OR nome LIKE '%NR 01%') AND id NOT IN (SELECT MIN(id) FROM geradores WHERE nome LIKE '%NR01%' OR nome LIKE '%NR 01%')", (err) => {
-    if (err) console.error("Erro ao deduplicar NR01:", err);
-    else console.log("Duplicatas de NR01 removidas (se existiam).");
-});
 
 // MIGRATION: Remover " - Total" dos grupos de permissão
 db.run("UPDATE grupos_permissao SET nome = REPLACE(nome, ' - Total', '') WHERE nome LIKE '% - Total'", (err) => {
@@ -3173,8 +3176,15 @@ app.delete('/api/geradores/:id', authenticateToken, (req, res) => {
     db.get("SELECT nome, arquivo_pdf FROM geradores WHERE id = ?", [req.params.id], (err, row) => {
         if (err || !row) return res.status(404).json({ error: 'Gerador não encontrado' });
         
-        const nomesProtegidos = ['AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO', 'ORDEM DE SERVIÇO NR01'];
-        if (nomesProtegidos.includes((row.nome || '').toUpperCase().trim())) {
+        // Proteção: nomes essenciais do sistema não podem ser excluídos
+        // Compara de forma case-insensitive usando UPPER() da string do banco
+        const nomeUpper = (row.nome || '').toUpperCase().trim();
+        const isProtected = 
+            nomeUpper.includes('DESCONTO EM FOLHA') ||
+            nomeUpper.includes('NR01') ||
+            nomeUpper.includes('NR 01') ||
+            nomeUpper.includes('ORDEM DE SERVI');
+        if (isProtected) {
             return res.status(403).json({ error: 'Este documento é padrão do sistema e não pode ser excluído.' });
         }
 
