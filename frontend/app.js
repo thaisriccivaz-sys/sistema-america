@@ -7259,11 +7259,28 @@ window.renderContratosAvulso = async function(container) {
         // Apenas documentos da aba separada de outros contratos (não mistura com admissão)
         const filteredDocs = docs.filter(d => d.tab_name === 'CONTRATOS_AVULSOS');
 
-        // Badge para indicar contratos dinâmicos no topo
-        const profileNomesSet = new Set(profileGeradores.map(g => g.id));
-        const profileBadge = (g) => profileNomesSet.has(g.id)
-            ? `<span style="background:#fdf4ff;color:#c026d3;border-radius:10px;padding:1px 7px;font-size:0.68rem;font-weight:700;border:1px solid #f0abfc;margin-left:6px;">Perfil</span>`
-            : '';
+        // Pendentes: geradores de perfil que ainda não foram gerados (sem doc salvo com esse nome)
+        const geradosNomes = new Set(filteredDocs.map(d => (d.document_type || '').trim().toLowerCase()));
+        const pendingGeradores = profileGeradores.filter(g =>
+            !geradosNomes.has((g.nome || '').trim().toLowerCase())
+        );
+
+        // HTML das linhas pendentes (topo da lista)
+        const pendingRowsHtml = pendingGeradores.map(g => `
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:0.65rem 0.75rem; border:1.5px dashed #c026d3; border-radius:8px; background:#fdf4ff; gap:0.75rem;">
+                <div style="display:flex; align-items:center; gap:0.6rem; flex:1;">
+                    <span style="background:#fdf4ff;color:#c026d3;border:1px solid #f0abfc;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Perfil</span>
+                    <div>
+                        <span style="font-weight:600; color:#334155; font-size:0.9rem;">${g.nome}</span>
+                        <div style="font-size:0.75rem; color:#a21caf; margin-top:1px;">Necessário pelo perfil do colaborador — aguardando geração</div>
+                    </div>
+                </div>
+                <button type="button"
+                    onclick="window._gerarContratoPerfilDireto('${g.id}', '${(g.nome||'').replace(/'/g,"\\'")}'); event.stopPropagation();"
+                    style="background:#c026d3;color:#fff;border:none;border-radius:8px;padding:0.4rem 0.9rem;font-size:0.82rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap;">
+                    <i class="ph ph-file-arrow-down"></i> Gerar
+                </button>
+            </div>`).join('');
 
         container.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
@@ -7283,6 +7300,7 @@ window.renderContratosAvulso = async function(container) {
             </div>
             
             <div id="ca-list-container" style="display:flex; flex-direction:column; gap:0.5rem; margin-bottom:1.5rem;">
+                ${pendingRowsHtml}
                 ${window.buildContratosSignatureRows(assinaturas, filteredDocs, viewedColaborador)}
             </div>
 
@@ -7297,6 +7315,54 @@ window.renderContratosAvulso = async function(container) {
         window._caAvailableGeradores = finalGeradores;
     } catch(err) {
         container.innerHTML = `<div class="alert alert-danger"><i class="ph ph-warning"></i> Erro: ${err.message}</div>`;
+    }
+};
+
+// Gera e salva automaticamente um contrato de perfil direto (sem abrir modal de seleção)
+window._gerarContratoPerfilDireto = async function(geradorId, geradorNome) {
+    try {
+        Swal.fire({ title: 'Gerando documento...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        const res = await fetch(`${API_URL}/geradores/${geradorId}/gerar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
+            body: JSON.stringify({ colaborador_id: viewedColaborador.id, colabId: viewedColaborador.id })
+        });
+        const data = await res.json();
+        Swal.close();
+        if (!res.ok) throw new Error(data.error || 'Erro ao gerar documento');
+
+        // Abre preview — ao clicar Salvar, usa o hook de prontuário
+        window.abrirPreviewDocumento({ html: data.html, colaborador: data.colaborador, gerador_nome: data.gerador_nome, geradorId });
+
+        const previewBtnSalvar = document.querySelector('#modal-preview-doc button.btn-primary');
+        if (previewBtnSalvar) {
+            previewBtnSalvar.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar no Prontuário';
+            previewBtnSalvar.onclick = async function() {
+                const oldHtml = this.innerHTML;
+                this.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...';
+                this.disabled = true;
+                try {
+                    const pdfBlob = await window.gerarPDFBlob(document.querySelector('#modal-preview-doc .preview-content'));
+                    const formData = new FormData();
+                    formData.append('arquivo', pdfBlob, `${geradorNome}_${viewedColaborador.nome_completo || viewedColaborador.id}.pdf`);
+                    formData.append('tab_name', 'CONTRATOS_AVULSOS');
+                    formData.append('document_type', geradorNome);
+                    const r = await fetch(`${API_URL}/documentos`, { method: 'POST', headers: { 'Authorization': `Bearer ${currentToken}` }, body: formData });
+                    if (!r.ok) throw new Error('Falha ao salvar PDF');
+                    document.getElementById('modal-preview-doc')?.remove();
+                    showToast('Contrato salvo!', 'success');
+                    window._contratosAvulsoLoaded = false;
+                    const avDiv = document.getElementById('contratos-sub-avulso');
+                    if (avDiv) await window.renderContratosAvulso(avDiv);
+                } catch(e) {
+                    this.innerHTML = oldHtml; this.disabled = false;
+                    Swal.fire('Erro', e.message, 'error');
+                }
+            };
+        }
+    } catch(e) {
+        Swal.close();
+        Swal.fire('Erro', e.message, 'error');
     }
 };
 
