@@ -325,7 +325,7 @@ async function uploadDocToOneDrive(docId) {
 
         if (!doc) { console.error(`[OD-AUTO] Doc ${docId} não encontrado no DB`); return; }
         // CONTRATOS_AVULSOS: sincroniza ao OneDrive se assinado OU se nao exige assinatura (NAO_EXIGE)
-        if (doc.tab_name === 'CONTRATOS_AVULSOS' && doc.assinafy_status !== 'Assinado' && doc.assinafy_status !== 'NAO_EXIGE') {
+        if (doc.tab_name === 'CONTRATOS_AVULSOS' && doc.assinafy_status !== 'Assinado' && doc.assinafy_status !== 'NAO_EXIGE' && doc.assinafy_status !== 'Nenhum' && doc.assinafy_status !== null && doc.assinafy_status !== '') {
             console.log(`[OD-AUTO] Bloqueando sync OneDrive para doc ${docId} (CONTRATOS_AVULSOS pendente: ${doc.assinafy_status})`);
             return;
         }
@@ -2344,7 +2344,7 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
                     // === ONEDRIVE UPLOAD DIRETO (INLINE) ===
                     // CONTRATOS_AVULSOS com NAO_EXIGE: upload direto usando req.file
                     // Outros casos: usar setImmediate com uploadDocToOneDrive
-                    if (tab_name === 'CONTRATOS_AVULSOS' && assinafy_status === 'NAO_EXIGE' && onedrive) {
+                    if (tab_name === 'CONTRATOS_AVULSOS' && (assinafy_status === 'NAO_EXIGE' || !assinafy_status || assinafy_status === 'Nenhum') && onedrive) {
                         // Upload inline para garantir que o arquivo ainda está no disco
                         ;(async () => {
                             try {
@@ -2374,7 +2374,7 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
                                 (_advStatus === 'Testemunhas') ||
                                 (!_isVerbal && _advStatus === 'Assinado')
                               ))
-                            : tab_name !== 'CONTRATOS_AVULSOS';
+                            : (tab_name !== 'CONTRATOS_AVULSOS' || !assinafy_status || assinafy_status === 'Nenhum' || assinafy_status === 'NAO_EXIGE');
                         if (_podeOneDrive) {
                             setImmediate(() => uploadDocToOneDrive(newDocId));
                         }
@@ -4391,6 +4391,44 @@ app.post('/api/maintenance/reset', authenticateToken, (req, res) => {
 
 
 
+
+// FORCE SYNC: Reenviar TODOS os CONTRATOS_AVULSOS sem assinatura para o OneDrive
+app.post('/api/force-sync-contratos-avulsos', authenticateToken, async (req, res) => {
+    if (!onedrive) return res.status(503).json({ error: 'OneDrive nao configurado' });
+    
+    db.all("SELECT d.*, c.nome_completo FROM documentos d LEFT JOIN colaboradores c ON d.colaborador_id = c.id WHERE d.tab_name = 'CONTRATOS_AVULSOS' AND (d.assinafy_status IS NULL OR d.assinafy_status = 'Nenhum' OR d.assinafy_status = 'NAO_EXIGE') ORDER BY d.id DESC", [], async (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        
+        let ok = 0, fail = 0;
+        const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || 'RH/1.Colaboradores/Sistema';
+        
+        for (const doc of (rows || [])) {
+            try {
+                const locPath = doc.signed_file_path && require('fs').existsSync(doc.signed_file_path)
+                    ? doc.signed_file_path
+                    : (doc.file_path && require('fs').existsSync(doc.file_path) ? doc.file_path : null);
+                if (!locPath) { console.log(`[SYNC-CA] Doc ${doc.id}: arquivo nao encontrado no disco`); fail++; continue; }
+                
+                const colabNome = doc.nome_completo || 'DESCONHECIDO';
+                const safeColab = formatarNome(colabNome);
+                const safeType = formatarPasta(doc.document_type || doc.tab_name);
+                const cloudFileName = `Outros_${safeType}_${safeColab}.pdf`;
+                const targetDir = `${onedriveBasePath}/${safeColab}/CONTRATOS`;
+                
+                await onedrive.ensurePath(`${onedriveBasePath}/${safeColab}`);
+                await onedrive.ensurePath(targetDir);
+                const buf = require('fs').readFileSync(locPath);
+                await onedrive.uploadToOneDrive(targetDir, cloudFileName, buf);
+                console.log(`[SYNC-CA] OK: ${cloudFileName}`);
+                ok++;
+            } catch(e) {
+                console.error(`[SYNC-CA] Falha doc ${doc.id}:`, e.message);
+                fail++;
+            }
+        }
+        res.json({ ok, fail, total: (rows || []).length });
+    });
+});
 // DIAGNÓSTICO: Verificar estado de um documento e seus campos
 app.get('/api/debug-outros-contratos/:docId', authenticateToken, async (req, res) => {
     const { docId } = req.params;

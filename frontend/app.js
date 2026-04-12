@@ -7519,28 +7519,28 @@ window.toggleAcaoContratoPerfil = function(geradorId, exige, geradorNome) {
 
 window.uploadContratoPerfilNaoAssinado = async function(input, geradorNome) {
     const file = input.files[0];
-    if (!file) return;
-    Swal.fire({ title: 'Anexando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-    
-    const formData = new FormData();
+    if (!file || !viewedColaborador) return;
+    Swal.fire({ title: 'Anexando...', allowOutsideClick: false, didOpen: function() { Swal.showLoading(); } });
+
+    var formData = new FormData();
     formData.append('file', file);
     formData.append('tab_name', 'CONTRATOS_AVULSOS');
     formData.append('document_type', geradorNome);
     formData.append('colaborador_id', viewedColaborador.id);
-    
+    formData.append('colaborador_nome', viewedColaborador.nome_completo || '');
+    formData.append('assinafy_status', 'NAO_EXIGE');
+
     try {
-        const res = await fetch(`${API_URL}/documentos?colaborador_id=${viewedColaborador.id}`, {
+        var res = await fetch(API_URL + '/documentos', {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${currentToken}` },
+            headers: { 'Authorization': 'Bearer ' + currentToken },
             body: formData
         });
-        if (!res.ok) {
-            const errData = await res.json().catch(()=>({}));
-            throw new Error(errData.error || 'Falha ao salvar PDF');
-        }
-        Swal.fire('Sucesso!', 'Documento anexado.', 'success');
+        var data = await res.json().catch(function() { return {}; });
+        if (!res.ok) throw new Error(data.error || 'Falha ao salvar PDF');
+        Swal.fire({ icon: 'success', title: 'Documento anexado!', timer: 1800, showConfirmButton: false });
         window._contratosAvulsoLoaded = false;
-        const avDiv = document.getElementById('contratos-sub-avulso');
+        var avDiv = document.getElementById('contratos-sub-avulso');
         if (avDiv) await window.renderContratosAvulso(avDiv);
     } catch(e) {
         Swal.fire('Erro', e.message, 'error');
@@ -7870,7 +7870,7 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
            const _mi = String(_d.getMinutes()).padStart(2,'0');
            _uploadStr = `${_dd}/${_mm}/${_yy} - ${_hh}:${_mi}`;
        }
-       const isNaoExige = doc.assinafy_status === 'NAO_EXIGE';
+       const isNaoExige = (doc.assinafy_status === 'NAO_EXIGE' || doc.assinafy_status === 'Nenhum' || !doc.assinafy_status);
        let statusBadge = `<span style="background:#f1f5f9;color:#64748b;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:700;"><i class="ph ph-minus-circle"></i> Nao enviado</span>`;
        if (isNaoExige) statusBadge = `<span style="background:#fef9c3;color:#92400e;border-radius:20px;padding:3px 10px;font-size:0.72rem;font-weight:700;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-seal-warning"></i> Sem Assinatura Digital${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
        else if (isSigned) statusBadge = `<span style="background:#dcfce7;color:#15803d;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:700;"><i class="ph ph-check-circle"></i> Assinado</span>`;
