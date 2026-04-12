@@ -6886,11 +6886,97 @@ window.abrirPreviewDocumento = function(data) {
 
     const previewBtnSalvar = document.querySelector('#modal-preview-doc button.btn-primary');
     if (previewBtnSalvar) {
-        previewBtnSalvar.innerHTML = '<i class="ph ph-download-simple"></i> Salvar como PDF';
-        previewBtnSalvar.onclick = window.salvarDocumentoPDF;
+        previewBtnSalvar.innerHTML = '<i class="ph ph-paperclip"></i> Anexar ao Prontuário';
+        previewBtnSalvar.onclick = async function() {
+            const self = this;
+            const oldHtml = self.innerHTML;
+            self.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Anexando...';
+            self.disabled = true;
+            try {
+                const previewContent = document.getElementById('preview-doc-body');
+                const geradorNome = previewContent.dataset.docNome || data.gerador_nome || 'Documento';
+                const nomeArquivo = `${geradorNome.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
+
+                const opt = {
+                    margin: 8,
+                    filename: nomeArquivo,
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2, useCORS: true },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                    pagebreak: { mode: ['avoid-all', 'css', 'legacy'], before: '.page-break', avoid: ['p', 'li'] }
+                };
+
+                const origWidth    = previewContent.style.width;
+                const origMaxWidth = previewContent.style.maxWidth;
+                const origMinH     = previewContent.style.minHeight;
+                previewContent.style.width     = '794px';
+                previewContent.style.maxWidth  = '794px';
+                previewContent.style.minHeight = '0';
+                const pdfBlob = await html2pdf().set(opt).from(previewContent).output('blob');
+                previewContent.style.width     = origWidth;
+                previewContent.style.maxWidth  = origMaxWidth;
+                previewContent.style.minHeight = origMinH;
+
+                // Determinar colaborador_id: prioridade viewedColaborador, depois data.colaborador
+                const colaboradorId = (window.viewedColaborador && window.viewedColaborador.id)
+                    || (data.colaborador && data.colaborador.id)
+                    || (data.colaborador && data.colaborador.ID);
+
+                const formData = new FormData();
+                formData.append('file', new File([pdfBlob], nomeArquivo, { type: 'application/pdf' }));
+                formData.append('colaborador_id', colaboradorId);
+                formData.append('tab_name', 'CONTRATOS_AVULSOS');
+                formData.append('document_type', geradorNome);
+
+                const uploadRes = await fetch(`${API_URL}/documentos`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${currentToken}` },
+                    body: formData
+                });
+                if (!uploadRes.ok) throw new Error('Falha ao anexar o documento');
+
+                document.getElementById('modal-preview-doc').style.display = 'none';
+
+                const sendPrompt = await Swal.fire({
+                    title: 'Documento Anexado!',
+                    text: 'Deseja enviar este documento para assinatura digital via Assinafy?',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: '<i class="ph ph-paper-plane-tilt"></i> Sim, enviar para assinatura',
+                    cancelButtonText: 'Não, apenas anexar'
+                });
+
+                if (sendPrompt.isConfirmed) {
+                    Swal.fire({ title: 'Enviando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                    const uploadData = await uploadRes.json().catch(() => ({}));
+                    const geradorIdCtx = data.geradorId || window._perfilGeradorIdCtx;
+                    if (geradorIdCtx) {
+                        await fetch(`${API_URL}/admissao-assinaturas/enviar-lote`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
+                            body: JSON.stringify({ colaborador_id: colaboradorId, geradores_ids: [parseInt(geradorIdCtx)] })
+                        });
+                    }
+                    Swal.fire('Enviado!', 'Documento enviado para assinatura digital.', 'success');
+                } else {
+                    showToast && showToast('Documento anexado ao prontuário com sucesso!', 'success');
+                }
+
+                // Reload da lista de contratos se estiver na aba correta
+                window._contratosAvulsoLoaded = false;
+                const avDiv = document.getElementById('contratos-sub-avulso');
+                if (avDiv) window.renderContratosAvulso && window.renderContratosAvulso(avDiv);
+
+            } catch(e) {
+                Swal.fire('Erro', e.message || 'Erro ao anexar documento', 'error');
+                self.innerHTML = oldHtml;
+                self.disabled = false;
+            }
+        };
     }
     // Verificar opção de assinatura manual
     const comAssinatura = document.querySelector('input[name="assinatura-tipo"]:checked')?.value === 'sim';
+
 
     // 1. Cabeçalho com Logotipo — sem margem para colar no topo da página
     const logoBanner = `<div style="margin:0;padding:0;line-height:0;"><img src="${API_URL.replace('/api', '')}/assets/logo-header.png" style="width:100%;display:block;margin:0;padding:0;"></div>`;
