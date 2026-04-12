@@ -1,4 +1,4 @@
-const API_URL = `${window.location.origin}/api`;
+﻿const API_URL = `${window.location.origin}/api`;
 function showToast(msg, type) {
     const toast = document.getElementById('global-toast');
     if (toast) {
@@ -7648,30 +7648,87 @@ window.enviarAssinaturaPerfilDireto = async function() {
 
 window.uploadContratoExterno = async function(input) {
     const file = input.files[0];
-    if (!file) return;
-    
-    let docType = prompt('Qual o nome deste documento?', file.name.replace('.pdf',''));
-    if (!docType) return;
-    
-    const formData = new FormData();
-    formData.append('arquivo', file);
+    if (!file || !viewedColaborador) return;
+
+    // Modal personalizado para capturar nome e se exige assinatura
+    const modalResult = await Swal.fire({
+        title: '<i class="ph ph-file-plus"></i> Anexar Contrato',
+        html: '<div style="text-align:left;display:flex;flex-direction:column;gap:0.75rem;padding:0.25rem 0;"><div><label style="font-size:0.82rem;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Nome do Documento</label><input id="swal-doctype" class="swal2-input" style="margin:0;width:100%;box-sizing:border-box;" placeholder="Ex: Acordo de Confidencialidade"></div><div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:0.75rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;"><span style="font-size:0.85rem;font-weight:700;color:#334155;">Exige Assinatura?</span><div style="display:flex;gap:1rem;"><label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:0.9rem;font-weight:500;"><input type="radio" name="swal-ass" value="sim" id="swal-ass-sim"> Sim</label><label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:0.9rem;font-weight:500;"><input type="radio" name="swal-ass" value="nao" id="swal-ass-nao" checked> Nao</label></div></div></div>',
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: '<i class="ph ph-upload-simple"></i> Anexar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#2563eb',
+        didOpen: function() {
+            var dtInput = document.getElementById('swal-doctype');
+            if (dtInput) dtInput.value = file.name.replace(/\.pdf$/i, '').substring(0, 60);
+        },
+        preConfirm: function() {
+            var docType = (document.getElementById('swal-doctype') || {}).value;
+            if (docType) docType = docType.trim();
+            var assRadio = document.querySelector('input[name="swal-ass"]:checked');
+            if (!docType) { Swal.showValidationMessage('Informe o nome do documento'); return false; }
+            return { docType: docType, exigeAssinatura: assRadio && assRadio.value === 'sim' };
+        }
+    });
+
+    if (!modalResult.isConfirmed || !modalResult.value) return;
+    var docType = modalResult.value.docType;
+    var exigeAssinatura = modalResult.value.exigeAssinatura;
+    var colaboradorNome = viewedColaborador.nome_completo || '';
+
+    var formData = new FormData();
+    formData.append('file', file);
     formData.append('tab_name', 'CONTRATOS_AVULSOS');
     formData.append('document_type', docType);
-    
+    formData.append('colaborador_id', viewedColaborador.id);
+    formData.append('colaborador_nome', colaboradorNome);
+    if (!exigeAssinatura) {
+        formData.append('assinafy_status', 'NAO_EXIGE');
+    }
+
     try {
-        Swal.fire({title: 'Anexando...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
-        const res = await fetch(`${API_URL}/documentos`, {
-            method: 'POST', headers: {'Authorization': `Bearer ${currentToken}`}, body: formData
-        }); // rota correta
-        if (!res.ok) throw new Error('Falha ao anexar PDF');
-        Swal.close();
-        showToast('Documento anexado!', 'success');
-        // Força reload mesmo que já esteja na aba
+        Swal.fire({ title: 'Anexando...', allowOutsideClick: false, didOpen: function() { Swal.showLoading(); } });
+        var res = await fetch(API_URL + '/documentos', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + currentToken },
+            body: formData
+        });
+        var data = await res.json().catch(function() { return {}; });
+        if (!res.ok) throw new Error(data.error || 'Falha ao anexar PDF');
+
+        var docId = data.id;
+
+        // Se exige assinatura, enviar para Assinafy automaticamente
+        if (exigeAssinatura && docId) {
+            Swal.update({ title: 'Enviando para assinatura via Assinafy...' });
+            try {
+                var assResp = await fetch(API_URL + '/assinafy/upload', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentToken },
+                    body: JSON.stringify({ document_id: docId, colaborador_id: viewedColaborador.id })
+                });
+                var assData = await assResp.json().catch(function() { return {}; });
+                if (!assResp.ok) {
+                    Swal.fire('Atencao', 'Documento salvo, mas o envio para assinatura falhou: ' + (assData.error || 'Erro desconhecido'), 'warning');
+                } else {
+                    Swal.fire({ icon: 'success', title: 'Enviado para assinatura!', text: 'O colaborador recebera um e-mail para assinar.', timer: 3000, showConfirmButton: false });
+                }
+            } catch(assErr) {
+                Swal.fire('Atencao', 'Documento salvo, mas falha no envio para assinatura: ' + assErr.message, 'warning');
+            }
+        } else {
+            Swal.fire({ icon: 'success', title: 'Documento anexado!', timer: 1800, showConfirmButton: false });
+        }
+
+        // Forca reload da lista
         window._contratosAvulsoLoaded = false;
-        const avDivUp = document.getElementById('contratos-sub-avulso');
-        if (avDivUp) { avDivUp.innerHTML = '<p class="text-muted"><i class="ph ph-spinner ph-spin"></i> Atualizando...</p>'; }
-        window._contratosAvulsoLoaded = true;
-        if (avDivUp) await window.renderContratosAvulso(avDivUp);
+        var avDivUp = document.getElementById('contratos-sub-avulso');
+        if (avDivUp) {
+            avDivUp.innerHTML = '<p class="text-muted"><i class="ph ph-spinner ph-spin"></i> Atualizando...</p>';
+            window._contratosAvulsoLoaded = true;
+            await window.renderContratosAvulso(avDivUp);
+        }
         window.switchContratosSubTab('avulso');
     } catch(e) {
         Swal.fire('Erro', e.message, 'error');
@@ -7818,11 +7875,11 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
                         <span style="font-size:0.75rem; color:#94a3b8;">${doc.upload_date ? new Date(doc.upload_date).toLocaleDateString('pt-BR') : (doc.created_at ? new Date(doc.created_at).toLocaleDateString('pt-BR') : '')}</span>
                         ${statusBadge}
                         ${isSigned && (ass?.assinado_em || doc.assinafy_signed_at)
-                            ? `<span style="font-size:0.72rem;color:#166534;background:#dcfce7;border-radius:10px;padding:1px 8px;font-weight:600;"><i class="ph ph-check-circle"></i> Assinado: ${new Date(ass?.assinado_em || doc.assinafy_signed_at).toLocaleString('pt-BR')}</span>`
-                            : (isPending || isSigned) && doc.assinafy_sent_at
-                                ? `<span style="font-size:0.72rem;color:#92400e;background:#fef3c7;border-radius:10px;padding:1px 8px;font-weight:600;"><i class="ph ph-paper-plane-tilt"></i> Enviado: ${new Date(doc.assinafy_sent_at).toLocaleString('pt-BR')}</span>`
-                                : ''}
-                    </div>
+                            ? `<span style="font-size:0.72rem;color:#166534;background:#dcfce7;border-radius:10px;padding:1px 8px;font-weight:600;"><i class="ph ph-check-circle"></i> Assinado em: ${new Date(ass?.assinado_em || doc.assinafy_signed_at).toLocaleString('pt-BR')}</span>`
+                            : ''}
+                        ${doc.assinafy_sent_at
+                            ? `<span style="font-size:0.72rem;color:#1d4ed8;background:#dbeafe;border-radius:10px;padding:1px 8px;font-weight:600;"><i class="ph ph-paper-plane-tilt"></i> Enviado em: ${new Date(doc.assinafy_sent_at).toLocaleString('pt-BR')}</span>`
+                            : ''}                    </div>
                 </div>
             </div>
             <div>

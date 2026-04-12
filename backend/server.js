@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
@@ -169,6 +169,10 @@ db.run("UPDATE grupos_permissao SET nome = REPLACE(nome, ' - Total', '') WHERE n
 });
 
 // MIGRATION: Adicionar tamanhos de uniformes
+db.run("ALTER TABLE documentos ADD COLUMN assinafy_sent_at DATETIME", (err) => {
+    if (err && !err.message.includes('duplicate column')) console.error('Migration assinafy_sent_at:', err.message);
+});
+
 db.run("ALTER TABLE colaboradores ADD COLUMN tamanho_camiseta TEXT", (err) => {
     if (err && !err.message.includes('duplicate column')) console.error(err);
 });
@@ -320,9 +324,9 @@ async function uploadDocToOneDrive(docId) {
         });
 
         if (!doc) { console.error(`[OD-AUTO] Doc ${docId} não encontrado no DB`); return; }
-        // CONTRATOS_AVULSOS: só sincroniza ao OneDrive depois de assinado (via poll de assinaturas)
-        if (doc.tab_name === 'CONTRATOS_AVULSOS' && doc.assinafy_status !== 'Assinado') {
-            console.log(`[OD-AUTO] Bloqueando sync OneDrive para doc ${docId} (CONTRATOS_AVULSOS não assinado)`);
+        // CONTRATOS_AVULSOS: sincroniza ao OneDrive se assinado OU se nao exige assinatura (NAO_EXIGE)
+        if (doc.tab_name === 'CONTRATOS_AVULSOS' && doc.assinafy_status !== 'Assinado' && doc.assinafy_status !== 'NAO_EXIGE') {
+            console.log(`[OD-AUTO] Bloqueando sync OneDrive para doc ${docId} (CONTRATOS_AVULSOS pendente: ${doc.assinafy_status})`);
             return;
         }
 
@@ -373,9 +377,8 @@ async function uploadDocToOneDrive(docId) {
         } else if (safeTab === '01_FICHA_CADASTRAL') {
             cloudName = `${(doc.document_type || doc.tab_name).replace(/\s+/g, '_')}_${safeColab}.pdf`;
         } else if (doc.tab_name === 'CONTRATOS_AVULSOS') {
-            // Contratos avulsos permitem múltiplos; adiciona timestamp para evitar sobrescrita no OneDrive
-            const ts = new Date().toISOString().slice(0,19).replace(/[-T:]/g,'');
-            cloudName = `${formatarPasta(doc.document_type || doc.tab_name).replace(/\s+/g, '_')}_${docYear}_${ts}_${safeColab}.pdf`;
+            // Outros Contratos: salvar como Outros_NomeContrato_NomeColab.pdf
+            cloudName = `Outros_${formatarPasta(doc.document_type || doc.tab_name).replace(/\s+/g, '_')}_${safeColab}.pdf`;
         } else if (safeTab === 'FACULDADE') {
             // Faculdade: inclui o mês no nome (Boletim_Jan_2026_NOME.pdf / Boleto_Jan_2026_NOME.pdf)
             const mesNomeFac = doc.month && doc.month !== 'null' && doc.month !== '' ? getMesNome(doc.month) + '_' : '';
@@ -485,13 +488,19 @@ const storage = multer.diskStorage({
         const safeNomeColab = formatarNome(colab);
         const safeTab = formatarPasta(tab).toUpperCase();
         
-        let finalDir = path.join(BASE_PATH, safeNomeColab, safeTab);
+        // CONTRATOS_AVULSOS (Outros Contratos): salvar em CONTRATOS/ com nome Outros_
+        let finalDir;
+        if (safeTab === 'CONTRATOS_AVULSOS') {
+            finalDir = path.join(BASE_PATH, safeNomeColab, 'CONTRATOS');
+        } else {
+            finalDir = path.join(BASE_PATH, safeNomeColab, safeTab);
+        }
 
-        if (year && year !== 'null' && year !== 'undefined' && year !== '') {
+        if (safeTab !== 'CONTRATOS_AVULSOS' && year && year !== 'null' && year !== 'undefined' && year !== '') {
             const safeYear = String(year).replace(/[^0-9]/g, '');
             if (safeYear) {
                 finalDir = path.join(finalDir, safeYear);
-                // Para Pagamentos: sub-pasta com o nome do mês em português (ex: Marco, Abril)
+                // Para Pagamentos: sub-pasta com o nome do mes em portugues (ex: Marco, Abril)
                 if (safeTab === 'PAGAMENTOS' && month && month !== 'null' && month !== 'undefined' && month !== '') {
                     finalDir = path.join(finalDir, getMesNome(month));
                 }
@@ -516,11 +525,17 @@ const storage = multer.diskStorage({
         const docType = req.body.document_type || 'DOCUMENTO';
         const colab = req.body.colaborador_nome || 'COLAB';
         const customName = req.body.custom_name;
+        const tab = req.body.tab_name || '';
         const ext = path.extname(file.originalname);
 
         let base = "";
         if (customName) {
             base = customName;
+        } else if (tab === 'CONTRATOS_AVULSOS') {
+            // Outros Contratos: nome Outros_NomeContrato_NomeColab
+            const safeType = formatarPasta(docType);
+            const safeColab = formatarNome(colab);
+            base = `Outros_${safeType}_${safeColab}`;
         } else {
             const safeType = formatarPasta(docType).toUpperCase();
             const safeColab = formatarNome(colab);
@@ -2243,7 +2258,7 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
                             (assinafy_status === 'Testemunhas') ||
                             (!_isVerbal2 && assinafy_status === 'Assinado')
                           ))
-                        : tab_name !== 'CONTRATOS_AVULSOS';
+                        : (tab_name !== 'CONTRATOS_AVULSOS' || assinafy_status === 'NAO_EXIGE');
                     if (onedrive && _podeOneDrive2) {
                         (async () => {
                             try {
@@ -2331,7 +2346,7 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
                             (_advStatus === 'Testemunhas') ||
                             (!_isVerbal && _advStatus === 'Assinado')
                           ))
-                        : tab_name !== 'CONTRATOS_AVULSOS';
+                        : (tab_name !== 'CONTRATOS_AVULSOS' || assinafy_status === 'NAO_EXIGE');
                     if (_podeOneDrive) {
                         setImmediate(() => uploadDocToOneDrive(newDocId));
                     }
