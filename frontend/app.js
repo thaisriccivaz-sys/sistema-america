@@ -1695,11 +1695,18 @@ function aplicarFiltrosColaboradores() {
             const faltas = c.faltas_ano || 0;
             const punicoes = c.punicoes || 0;
             const statusEf = getEffectiveStatus(c);
-            let admDias = 0;
+            let admDias = 999; // Assume apto se data não informada
             if (c.data_admissao) {
-                admDias = Math.floor((new Date() - new Date(c.data_admissao + 'T12:00:00')) / 86400000);
+                if (c.data_admissao.includes('-')) {
+                    admDias = Math.floor((new Date() - new Date(c.data_admissao + 'T12:00:00')) / 86400000);
+                } else if (c.data_admissao.includes('/')) {
+                    const [d, m, y] = c.data_admissao.split('/');
+                    admDias = Math.floor((new Date() - new Date(`${y}-${m}-${d}T12:00:00`)) / 86400000);
+                }
+                if (isNaN(admDias)) admDias = 999;
             }
-            const isCLT = (c.tipo_contrato || '').toLowerCase().includes('clt');
+            const tc = (c.tipo_contrato || '').toLowerCase();
+            const isCLT = tc === '' || tc.includes('clt');
             
             const isApto = (faltas <= 3) && 
                            (punicoes === 0) &&
@@ -8196,19 +8203,7 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
             window._admissaoAssinaturas = assinaturas;
             window.currentDocs = docs;
 
-            // Preencher preview da foto no Stepper (Passo 6)
-            if (colab.foto) {
-                document.getElementById('admissao-foto-img').src = window.BASE_URL + colab.foto;
-                document.getElementById('admissao-foto-img').style.display = 'block';
-                document.getElementById('admissao-foto-icon').style.display = 'none';
-                document.getElementById('admissao-foto-status').style.display = 'block';
-            } else {
-                document.getElementById('admissao-foto-img').style.display = 'none';
-                document.getElementById('admissao-foto-icon').style.display = 'block';
-                document.getElementById('admissao-foto-status').style.display = 'none';
-                document.getElementById('admissao-foto-upload').value = '';
-            }
-
+            // Foto step was removed from Admissao, logic removed.
             updateAdmissaoStepPercentages(colab);
             // Ensure log panel is populated from fresh colab data
             if (typeof window.renderEnvioContabilidadeLog === 'function') {
