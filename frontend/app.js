@@ -1644,7 +1644,8 @@ function aplicarFiltrosColaboradores() {
         beneficios:  [...(document.querySelectorAll('.f-beneficios-chk:checked') || [])].map(cb => cb.value),
         tamCamiseta: document.getElementById('f-tam-camiseta')?.value || '',
         tamCalca:    document.getElementById('f-tam-calca')?.value || '',
-        tamCalcado:  document.getElementById('f-tam-calcado')?.value || ''
+        tamCalcado:  document.getElementById('f-tam-calcado')?.value || '',
+        aptoSorteio: document.getElementById('f-apto-sorteio')?.value || ''
     };
 
     const lista = _todosColaboradores.filter(c => {
@@ -1685,6 +1686,31 @@ function aplicarFiltrosColaboradores() {
             if (f.beneficios.includes('Celulares') && c.celular_participa !== 'Sim') return false;
             if (f.beneficios.includes('Chaves') && c.chaves_participa !== 'Sim') return false;
         }
+
+        if (f.tamCamiseta && (!c.tamanho_camiseta || c.tamanho_camiseta !== f.tamCamiseta)) return false;
+        if (f.tamCalca && (!c.tamanho_calca || c.tamanho_calca !== f.tamCalca)) return false;
+        if (f.tamCalcado && (!c.tamanho_calcado || c.tamanho_calcado !== f.tamCalcado)) return false;
+
+        if (f.aptoSorteio) {
+            const faltas = c.faltas_ano || 0;
+            const punicoes = c.punicoes || 0;
+            const statusEf = getEffectiveStatus(c);
+            let admDias = 0;
+            if (c.data_admissao) {
+                admDias = Math.floor((new Date() - new Date(c.data_admissao + 'T12:00:00')) / 86400000);
+            }
+            const isCLT = (c.tipo_contrato || '').toLowerCase().includes('clt');
+            
+            const isApto = (faltas <= 3) && 
+                           (punicoes === 0) &&
+                           (['Ativo', 'Afastado', 'Férias'].includes(statusEf)) &&
+                           (admDias >= 90) &&
+                           isCLT;
+            
+            if (f.aptoSorteio === 'sim' && !isApto) return false;
+            if (f.aptoSorteio === 'nao' && isApto) return false;
+        }
+
         return true;
     });
 
@@ -1698,7 +1724,8 @@ function aplicarFiltrosColaboradores() {
 function limparFiltrosColaboradores() {
     ['f-nome','f-cpf','f-nasc-ini','f-nasc-fim','f-estado-civil','f-sexo','f-departamento',
      'f-cargo','f-experiencia','f-sal-min','f-sal-max',
-     'f-escala','f-dependentes','f-tipo-cadastro-hidden'
+     'f-escala','f-dependentes','f-tipo-cadastro-hidden',
+     'f-tam-camiseta','f-tam-calca','f-tam-calcado','f-apto-sorteio'
     ].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     
     // Atualizar botões visuais de tipo cadastro
@@ -1948,6 +1975,12 @@ function renderColaboradores(lista) {
                 <div>
                     <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Nome</label>
                     <input id="f-nome" type="text" placeholder="Pesquisar nome..." oninput="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                </div>
+                <div>
+                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Apto ao Sorteio?</label>
+                    <select id="f-apto-sorteio" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                        <option value="">Todos</option><option value="sim">Sim</option><option value="nao">Não</option>
+                    </select>
                 </div>
                 <div>
                     <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">CPF</label>
@@ -6073,6 +6106,9 @@ window.renderGeradoresList = function(items) {
         ];
         if (BAD_EXACT_NAMES.includes(originalName)) return false;
 
+        // Forcefully allow these to be deleted
+        if (u.includes('equipamento') || u.includes('veículo') || u.includes('veiculo')) return false;
+
         return PROTECTED_NAMES.some(pn => u.includes(pn));
     };
 
@@ -7364,7 +7400,7 @@ window.renderContratosAvulso = async function(container) {
                     </div>
                 </div>
                 <button type="button"
-                    onclick="window._gerarContratoPerfilDireto('${g.id}', '${(g.nome||'').replace(/'/g,"\\'")}');"
+                    onclick="window._gerarContratoPerfilDireto('${g.id}', '${(g.nome||'').replace(/'/g,"\\'").replace(/"/g, "&quot;")}');"
                     style="background:#c026d3;color:#fff;border:none;border-radius:8px;padding:0.4rem 0.9rem;font-size:0.82rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap;">
                     <i class="ph ph-file-arrow-down"></i> Gerar
                 </button>
@@ -7432,7 +7468,7 @@ window._gerarContratoPerfilDireto = async function(geradorId, geradorNome) {
 
         // Aguarda o modal aparecer no DOM e sobrescreve o botão Salvar
         setTimeout(() => {
-            const btnSalvar = document.querySelector('#modal-preview-doc button.btn-primary');
+            const btnSalvar = document.querySelector('#doc-modal button.btn-primary') || document.querySelector('#modal-preview-doc button.btn-primary');
             if (!btnSalvar) return;
             btnSalvar.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar no Prontuário';
             btnSalvar.onclick = async function() {
@@ -7464,7 +7500,27 @@ window._gerarContratoPerfilDireto = async function(geradorId, geradorNome) {
                     }
                     window._perfilSaveHook = null;
                     document.getElementById('modal-preview-doc')?.remove();
-                    showToast('Contrato salvo no prontuário!', 'success');
+                    
+                    const sendPrompt = await Swal.fire({
+                        title: 'Documento Salvo',
+                        text: 'Deseja enviar este contrato para assinatura digital via Assinafy?',
+                        icon: 'question',
+                        showCancelButton: true,
+                        confirmButtonText: 'Sim, enviar',
+                        cancelButtonText: 'Não'
+                    });
+
+                    if (sendPrompt.isConfirmed) {
+                        Swal.fire({ title: 'Enviando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                        await apiPost('/admissao-assinaturas/enviar-lote', {
+                            colaborador_id: colabId,
+                            geradores_ids: [hook.geradorId]
+                        });
+                        Swal.fire('Enviado!', 'Documento enviado para assinatura.', 'success');
+                    } else {
+                        showToast('Contrato salvo no prontuário!', 'success');
+                    }
+
                     window._contratosAvulsoLoaded = false;
                     const avDiv = document.getElementById('contratos-sub-avulso');
                     if (avDiv) await window.renderContratosAvulso(avDiv);
@@ -7913,7 +7969,7 @@ window.gerarContratoAvulso = async function() {
         });
 
         // Rewrite Salvar PDF button to Save AND upload instead of print!
-        const previewBtnSalvar = document.querySelector('#modal-preview-doc button.btn-primary');
+        const previewBtnSalvar = document.querySelector('#doc-modal button.btn-primary') || document.querySelector('#modal-preview-doc button.btn-primary');
         if (previewBtnSalvar) {
             previewBtnSalvar.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar no Prontuário';
             previewBtnSalvar.onclick = async function() {
@@ -7967,7 +8023,27 @@ window.gerarContratoAvulso = async function() {
                     
                     document.getElementById('modal-preview-doc').style.display = 'none';
                     document.getElementById('doc-modal').style.display = 'none';
-                    showToast('Documento gerado e salvo no Prontuário!', 'success');
+
+                    const sendPrompt = await Swal.fire({
+                        title: 'Documento Salvo',
+                        text: 'Deseja enviar este contrato para assinatura digital via Assinafy?',
+                        icon: 'question',
+                        showCancelButton: true,
+                        confirmButtonText: 'Sim, enviar',
+                        cancelButtonText: 'Não'
+                    });
+
+                    if (sendPrompt.isConfirmed) {
+                        Swal.fire({ title: 'Enviando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                        await apiPost('/admissao-assinaturas/enviar-lote', {
+                            colaborador_id: viewedColaborador.id,
+                            geradores_ids: [parseInt(geradorId)]
+                        });
+                        Swal.fire('Enviado!', 'Documento enviado para assinatura.', 'success');
+                    } else {
+                        showToast('Documento gerado e salvo no Prontuário!', 'success');
+                    }
+
                     // Forçar reload da lista de contratos imediatamente
                     window._contratosAvulsoLoaded = false;
                     const _avDivSave = document.getElementById('contratos-sub-avulso');
@@ -8231,6 +8307,71 @@ window.previewAdmissaoDoc = async function(geradorId, colabId, evt) {
         // Precisamos temporariamente salvar a seleção de assinatura para não alterar o modal principal
         window.abrirPreviewDocumento(data);
 
+        // Subscreve o evento de salvar na Admissão para enviar ao backend
+        setTimeout(() => {
+            const btnSalvar = document.querySelector('#modal-preview-doc button.btn-primary');
+            if (!btnSalvar) return;
+            btnSalvar.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar e Configurar Envio';
+            btnSalvar.onclick = async function() {
+                const oldHtml = this.innerHTML;
+                this.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Processando...';
+                this.disabled = true;
+                try {
+                    const previewContent = document.querySelector('#modal-preview-doc .preview-content') ||
+                                          document.querySelector('#modal-preview-doc #preview-doc-body');
+                    if (!previewContent) throw new Error('Conteúdo do preview não encontrado');
+                    
+                    const pdfBlob = await window.gerarPDFBlob(previewContent);
+                    const safeName = (data.gerador_nome || 'documento_admissao').replace(/[^a-zA-Z0-9À-ÿ _-]/g, '');
+                    const cNome = (data.colaborador?.NOME_COMPLETO || colabId).toString();
+                    
+                    const formData = new FormData();
+                    formData.append('arquivo', pdfBlob, `${safeName}_${cNome}.pdf`);
+                    formData.append('tab_name', 'CONTRATOS');
+                    formData.append('document_type', data.gerador_nome);
+                    
+                    const r = await fetch(`${API_URL}/documentos`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${currentToken}` },
+                        body: formData
+                    });
+                    if (!r.ok) throw new Error('Falha ao salvar PDF');
+
+                    document.getElementById('modal-preview-doc').style.display = 'none';
+                    
+                    const sendPrompt = await Swal.fire({
+                        title: 'Documento Salvo',
+                        text: 'Deseja enviar este contrato para assinatura digital via Assinafy?',
+                        icon: 'question',
+                        showCancelButton: true,
+                        confirmButtonText: 'Sim, enviar',
+                        cancelButtonText: 'Não'
+                    });
+
+                    if (sendPrompt.isConfirmed) {
+                        Swal.fire({ title: 'Enviando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                        await apiPost('/admissao-assinaturas/enviar-lote', {
+                            colaborador_id: colabId,
+                            geradores_ids: [parseInt(geradorId)]
+                        });
+                        Swal.fire('Enviado!', 'Documento enviado para assinatura.', 'success');
+                    } else {
+                        showToast('Documento de admissão salvo na pasta do colaborador.', 'success');
+                    }
+                    
+                    // Recarrega workflow se estiver aberto para atualizar status do item
+                    if (document.getElementById('admissao-workflow-overlay')) {
+                        window.initAdmissaoWorkflow(colabId, 2, true);
+                    }
+                    
+                } catch(err) {
+                    this.innerHTML = oldHtml;
+                    this.disabled = false;
+                    Swal.fire('Erro', err.message, 'error');
+                }
+            };
+        }, 150);
+
     } catch(e) {
         alert('Erro ao carregar pré-visualização: ' + e.message);
     }
@@ -8273,6 +8414,9 @@ window.sendAdmissaoSignatures = async function(listId = 'admissao-signature-list
 
     // Dedup: garantir que não há IDs duplicados
     const geradorIds = [...new Set(Array.from(checks).map(c => Number(c.value)))];
+    
+    if (!confirm(`Deseja enviar ${geradorIds.length} documento(s) para assinatura digital via Assinafy?`)) return;
+
     const btn = document.getElementById(btnId);
     if (btn) { btn.disabled = true; btn.innerHTML = `<i class="ph ph-spinner ph-spin"></i> Enviando ${geradorIds.length} documento(s)...`; }
 
@@ -8923,15 +9067,13 @@ function updateAdmissaoStepPercentages(colab) {
          }).join('');
     }
 
-    // ── Passo 6: Foto ─────────────────────────────────────────────────
-    const pc6 = targetColab.foto ? 100 : 0;
+    // ── Passo 6: Contabilidade — 100% se ficha enviada ────────────────
+    const pc6 = targetColab.admissao_contabil_enviada_em ? 100 : 0;
 
-    // ── Passo 7: Contabilidade — 100% se ficha enviada ────────────────
-    const pc7 = targetColab.admissao_contabil_enviada_em ? 100 : 0;
+    // ── Passo 7: Efetivação ───────────────────────────────────────────
+    const pc7 = targetColab.status === 'Ativo' ? 100 : 0;
 
-    // ── Passo 8: Efetivação ───────────────────────────────────────────
-    const pc8 = targetColab.status === 'Ativo' ? 100 : 0;
-
+    const pc8 = 0;
     const pc9 = 0;
     const pc10 = 0;
 
@@ -8956,7 +9098,7 @@ function updateAdmissaoStepPercentages(colab) {
         }
     }
 
-    const totalAtivos = 8;
+    const totalAtivos = 7;
     let sumAtivos = 0;
     for(let i=1; i<=totalAtivos; i++) sumAtivos += percentages[i];
     
