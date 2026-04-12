@@ -1,4 +1,4 @@
-﻿const API_URL = `${window.location.origin}/api`;
+const API_URL = `${window.location.origin}/api`;
 function showToast(msg, type) {
     const toast = document.getElementById('global-toast');
     if (toast) {
@@ -7842,7 +7842,7 @@ window.reenviarAssinaturaContrato = async function(docId, ev) {
             trBtn.disabled = true;
         }
         const docsIds = [docId];
-        const res = await fetch(${API_URL}/assinafy/upload, {
+        const res = await fetch(`${API_URL}/assinafy/upload`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token')},
             body: JSON.stringify({ document_ids: docsIds, colaborador_id: window.viewedColaborador.id })
