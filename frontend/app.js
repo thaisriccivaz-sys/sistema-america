@@ -7445,6 +7445,17 @@ window.renderContratosAvulso = async function(container) {
 // Gera e salva automaticamente um contrato de perfil direto (sem abrir modal de seleção)
 window._gerarContratoPerfilDireto = async function(geradorId, geradorNome) {
     try {
+        const sendPrompt = await Swal.fire({
+            title: 'Assinatura Digital',
+            text: 'Deseja enviar este contrato para assinatura digital via Assinafy?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Sim, desejo assinar digitalmente',
+            cancelButtonText: 'Não, apenas visualizar e anexar'
+        });
+
+        const vaiAssinar = sendPrompt.isConfirmed;
+
         Swal.fire({ title: 'Gerando documento...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
         const res = await fetch(`${API_URL}/geradores/${geradorId}/gerar`, {
@@ -7456,13 +7467,6 @@ window._gerarContratoPerfilDireto = async function(geradorId, geradorNome) {
         Swal.close();
         if (!res.ok) throw new Error(data.error || 'Erro ao gerar documento');
 
-        // Armazena hook global: ao salvar no modal de preview, executa este fluxo
-        window._perfilSaveHook = {
-            geradorId,
-            geradorNome,
-            colaborador: viewedColaborador
-        };
-
         // Abre o preview normal
         window.abrirPreviewDocumento(data);
 
@@ -7470,25 +7474,29 @@ window._gerarContratoPerfilDireto = async function(geradorId, geradorNome) {
         setTimeout(() => {
             const btnSalvar = document.querySelector('#doc-modal button.btn-primary') || document.querySelector('#modal-preview-doc button.btn-primary');
             if (!btnSalvar) return;
-            btnSalvar.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar no Prontuário';
+            
+            if (vaiAssinar) {
+                btnSalvar.innerHTML = '<i class="ph ph-paper-plane-tilt"></i> Anexar e Enviar p/ Assinafy';
+            } else {
+                btnSalvar.innerHTML = '<i class="ph ph-floppy-disk"></i> Anexar ao Prontuário';
+            }
+
             btnSalvar.onclick = async function() {
-                const hook = window._perfilSaveHook;
-                if (!hook) return;
                 const oldHtml = this.innerHTML;
                 this.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...';
                 this.disabled = true;
                 try {
-                    const previewContent = document.querySelector('#modal-preview-doc .preview-content') ||
+                    const previewContent = document.querySelector('#doc-modal .preview-content') ||
                                           document.querySelector('#modal-preview-doc #preview-doc-body');
                     if (!previewContent) throw new Error('Conteúdo do preview não encontrado');
                     const pdfBlob = await window.gerarPDFBlob(previewContent);
-                    const safeName = (hook.geradorNome || 'documento').replace(/[^a-zA-Z0-9À-ÿ _-]/g, '');
-                    const colabId  = hook.colaborador?.id || '';
-                    const colabNome = (hook.colaborador?.nome_completo || colabId).toString();
+                    const safeName = (geradorNome || 'documento').replace(/[^a-zA-Z0-9À-ÿ _-]/g, '');
+                    const colabId  = viewedColaborador?.id || '';
+                    const colabNome = (viewedColaborador?.nome_completo || colabId).toString();
                     const formData = new FormData();
                     formData.append('arquivo', pdfBlob, `${safeName}_${colabNome}.pdf`);
                     formData.append('tab_name', 'CONTRATOS_AVULSOS');
-                    formData.append('document_type', hook.geradorNome);
+                    formData.append('document_type', geradorNome);
                     const r = await fetch(`${API_URL}/documentos`, {
                         method: 'POST',
                         headers: { 'Authorization': `Bearer ${currentToken}` },
@@ -7498,27 +7506,19 @@ window._gerarContratoPerfilDireto = async function(geradorId, geradorNome) {
                         const errData = await r.json().catch(() => ({}));
                         throw new Error(errData.error || 'Falha ao salvar PDF');
                     }
-                    window._perfilSaveHook = null;
-                    document.getElementById('modal-preview-doc')?.remove();
                     
-                    const sendPrompt = await Swal.fire({
-                        title: 'Documento Salvo',
-                        text: 'Deseja enviar este contrato para assinatura digital via Assinafy?',
-                        icon: 'question',
-                        showCancelButton: true,
-                        confirmButtonText: 'Sim, enviar',
-                        cancelButtonText: 'Não'
-                    });
+                    const elModal = document.getElementById('modal-preview-doc') || document.getElementById('doc-modal');
+                    if (elModal) elModal.style.display = 'none';
 
-                    if (sendPrompt.isConfirmed) {
+                    if (vaiAssinar) {
                         Swal.fire({ title: 'Enviando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                         await apiPost('/admissao-assinaturas/enviar-lote', {
                             colaborador_id: colabId,
-                            geradores_ids: [hook.geradorId]
+                            geradores_ids: [geradorId]
                         });
-                        Swal.fire('Enviado!', 'Documento enviado para assinatura.', 'success');
+                        Swal.fire('Enviado!', 'Documento gerado, anexado e enviado para assinatura.', 'success');
                     } else {
-                        showToast('Contrato salvo no prontuário!', 'success');
+                        showToast('Contrato anexado ao prontuário!', 'success');
                     }
 
                     window._contratosAvulsoLoaded = false;
