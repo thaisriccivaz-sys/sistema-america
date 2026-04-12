@@ -7618,6 +7618,7 @@ window.enviarAssinaturaPerfilDireto = async function(event) {
         formData.append('file', pdfBlob, `${safeName}_${colabNome}.pdf`);
         formData.append('tab_name', 'CONTRATOS_AVULSOS');
         formData.append('document_type', geradorNome);
+        formData.append('gerador_id', geradorId);
         formData.append('colaborador_id', colabId);
         formData.append('assinafy_status', 'Pendente');
         
@@ -7889,7 +7890,18 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
 
     let html = '';
     docs.forEach(doc => {
-       const ass = assinaturas.find(a => (a.nome_documento === doc.document_type) || (a.documento_url && doc.file_url && a.documento_url === doc.file_url));
+       const docTypeStr = String(doc.document_type || '').trim().toLowerCase();
+       const docFileStr = String(doc.file_name || '').trim().toLowerCase();
+       
+       const ass = assinaturas.find(a => {
+           let aNameStr = String(a.nome_documento || '').trim().toLowerCase();
+           let geradorMatch = (doc.gerador_id && a.gerador_id && Number(doc.gerador_id) === Number(a.gerador_id));
+           return geradorMatch || 
+                  (aNameStr === docTypeStr) || 
+                  (aNameStr && docTypeStr && aNameStr.includes(docTypeStr)) ||
+                  (aNameStr && docFileStr && docFileStr.includes(aNameStr)) ||
+                  (a.documento_url && doc.file_url && a.documento_url === doc.file_url);
+       });
        
        let realStatus = 'Não enviado';
        if (doc.assinafy_status === 'Assinado' || (ass && ass.assinafy_status === 'Assinado')) realStatus = 'Assinado';
@@ -7935,6 +7947,7 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
        if (isSigned) {
            leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#16a34a;"><i class="ph ph-check-circle" style="font-size:1.4rem;"></i></div>`;
            statusBadge = `<span style="color:#16a34a;font-size:0.75rem;font-weight:600;">Documento Assinado${_signedStr ? ': ' + _signedStr : ''}</span>`;
+           sendBtn = ''; // Hide buttons when signed
        } else if (isPending) {
            leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#2563eb;"><i class="ph ph-paper-plane-tilt" style="font-size:1.4rem;"></i></div>`;
            statusBadge = `<span style="color:#2563eb;font-size:0.75rem;font-weight:600;">Enviado para Assinatura${_sentStr ? ': ' + _sentStr : ''}</span>`;
@@ -7972,6 +7985,7 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
 };
 
 window.deleteDocumentoContrato = async function(docId) {
+    if (!docId) return;
     if (!confirm('Deseja excluir este documento?')) return;
     try {
         const res = await fetch(`${API_URL}/documentos/${docId}`,{ method:'DELETE', headers:{'Authorization':`Bearer ${currentToken}`}});
