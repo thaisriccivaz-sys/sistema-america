@@ -4293,7 +4293,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
 
                     ${(() => {
                         const isOcorrenciaDoc = (docType || '').includes('###Ocorr');
-                        const showAssinafy = isSaved && tabId !== 'Atestados' && tabId !== '01_FICHA_CADASTRAL' && stMain !== 'NAO_EXIGE' && !isOcorrenciaDoc;
+                        const showAssinafy = isSaved && tabId !== 'Atestados' && tabId !== '01_FICHA_CADASTRAL' && tabId !== 'Faculdade' && stMain !== 'NAO_EXIGE' && !isOcorrenciaDoc;
                         return showAssinafy ? `
                         <div style="display: flex; align-items: center; gap: 0.5rem;">
                             ${(isAssinado && isSaved && (tabId === 'Pagamentos' || tabId === 'ASO')) ? `<button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height: 42px;"><i class="ph ph-eye"></i></button>` : ''}
