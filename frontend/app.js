@@ -5966,70 +5966,108 @@ document.addEventListener('click', (e) => {
 
 window.loadGeradores = async function() {
     try {
-        let items = await apiGet('/geradores');
-        
-        // Se estiver vazio, criar os dois iniciais solicitados
-        if (items.length === 0) {
+        const [items, templAdm, templOut] = await Promise.all([
+            apiGet('/geradores'),
+            apiGet('/gerador-departamento-templates').catch(() => []),
+            apiGet('/gerador-outros-contratos-templates').catch(() => [])
+        ]);
+
+        // Garantir lista não vazia
+        let geradores = Array.isArray(items) ? items : [];
+        if (geradores.length === 0) {
             await seedInitialGeradores();
-            items = await apiGet('/geradores');
+            geradores = await apiGet('/geradores');
         }
-        
-        // Guardar para busca
-        window.allGeradores = items;
-        window.renderGeradoresList(items);
+
+        // Montar mapa de template por gerador_id
+        const admSet  = new Set((templAdm  || []).map(t => Number(t.gerador_id)));
+        const outSet  = new Set((templOut  || []).map(t => Number(t.gerador_id)));
+        const templateMap = {};
+        geradores.forEach(g => {
+            const inAdm = admSet.has(Number(g.id));
+            const inOut = outSet.has(Number(g.id));
+            if (inAdm && inOut) templateMap[g.id] = 'ambos';
+            else if (inAdm)    templateMap[g.id] = 'admissao';
+            else if (inOut)    templateMap[g.id] = 'contratos';
+            else               templateMap[g.id] = 'nenhum';
+        });
+
+        window.allGeradores   = geradores;
+        window._templateMap   = templateMap;
+        window.renderGeradoresList(geradores);
     } catch (e) { console.error(e); }
 };
 
 window.renderGeradoresList = function(items) {
     const tbody = document.getElementById('table-geradores-body');
     if (!tbody) return;
-    
-    const PROTECTED_NAMES = [
+
+    const templateMap = window._templateMap || {};
+
+    // Labels e styles por tipo de template
+    const TEMPLATE_LABELS = {
+        admissao:  { label: 'Admissão',  bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
+        contratos: { label: 'Contratos', bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' },
+        ambos:     { label: 'Ambos',     bg: '#fdf4ff', color: '#c026d3', border: '#f0abfc' },
+        nenhum:    { label: '—',         bg: '#f8fafc', color: '#94a3b8', border: '#e2e8f0' },
+    };
+
+    const PROTECTED_NAMES_UPPER = [
         'AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO',
         'AUTORIZAÇÃO DE DESCONTO EM FOLHA',
-        'ORDEM DE SERVIÇO NR01',
-        'ORDEM DE SERVIÇO NR 01'
+        'AUTORIZA',  // fallback LIKE
     ];
-    
-    // Sort items so protected ones are at the top
+    const isProtected = (nome) => {
+        const u = (nome || '').toUpperCase().trim();
+        return u.includes('AUTORIZAD') || u.includes('AUTORIZAÇÃ') || u.includes('DESCONTO EM FOLHA') ||
+               u.includes('ORDEM') || u.includes('NR01') || u.includes('NR 01');
+    };
+
+    // Sort: protegidos primeiro, depois alpha
     const sortedItems = [...items].sort((a, b) => {
-        const aName = (a.nome || '').toUpperCase().trim();
-        const bName = (b.nome || '').toUpperCase().trim();
-        const aProt = PROTECTED_NAMES.includes(aName);
-        const bProt = PROTECTED_NAMES.includes(bName);
+        const aProt = isProtected(a.nome);
+        const bProt = isProtected(b.nome);
         if (aProt && !bProt) return -1;
         if (!aProt && bProt) return 1;
-        return aName.localeCompare(bName);
+        return (a.nome || '').localeCompare(b.nome || '');
     });
 
     tbody.innerHTML = sortedItems.map(g => {
-        const isProtected = PROTECTED_NAMES.includes((g.nome || '').toUpperCase().trim());
+        const tmpl  = templateMap[g.id] || 'nenhum';
+        const lbl   = TEMPLATE_LABELS[tmpl] || TEMPLATE_LABELS.nenhum;
+        const badge = `<span style="background:${lbl.bg};color:${lbl.color};border:1px solid ${lbl.border};border-radius:20px;padding:2px 10px;font-size:0.75rem;font-weight:700;">${lbl.label}</span>`;
+        const prot  = isProtected(g.nome);
         return `
-        <tr>
+        <tr data-template="${tmpl}">
             <td>
-                <div style="font-weight: 600; color: var(--primary-color);">${g.nome}</div>
+                <div style="font-weight:600; color:var(--primary-color);">${g.nome}</div>
             </td>
-            <td>${g.created_at ? new Date(g.created_at).toLocaleDateString() : '-'}</td>
-            <td style="text-align: right;">
-                <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
-                    <button class="btn btn-primary btn-sm" onclick="window.abrirModalSelecaoColab(${g.id})" title="Visualizar Documento"><i class="ph ph-eye"></i></button>
+            <td>${badge}</td>
+            <td>${g.created_at ? new Date(g.created_at).toLocaleDateString('pt-BR') : '-'}</td>
+            <td style="text-align:right;">
+                <div style="display:flex; gap:0.5rem; justify-content:flex-end;">
+                    <button class="btn btn-primary btn-sm" onclick="window.abrirModalSelecaoColab(${g.id})" title="Visualizar"><i class="ph ph-eye"></i></button>
                     <button class="btn btn-warning btn-sm" onclick="window.editGerador(${g.id})" title="Editar"><i class="ph ph-pencil-simple"></i></button>
-                    ${isProtected ? '' : `
-                    <button class="btn btn-danger btn-sm" onclick="window.deleteGerador(${g.id})" title="Excluir"><i class="ph ph-trash"></i></button>
-                    `}
+                    ${prot ? '' : `<button class="btn btn-danger btn-sm" onclick="window.deleteGerador(${g.id})" title="Excluir"><i class="ph ph-trash"></i></button>`}
                 </div>
             </td>
-        </tr>
-    `}).join('');
+        </tr>`;
+    }).join('');
 };
 
 window.filterGeradores = function() {
-    const q = document.getElementById('search-geradores').value.toLowerCase();
-    
+    const q       = (document.getElementById('search-geradores')?.value || '').toLowerCase();
+    const tmplFilter = document.getElementById('filter-gerador-template')?.value || 'todos';
+
     // Filtro para a aba geradores (lista normal)
     const tabGerador = document.getElementById('geradores-tab-gerador');
     if (tabGerador && tabGerador.style.display !== 'none') {
-        const filtered = (window.allGeradores || []).filter(g => g.nome.toLowerCase().includes(q));
+        let filtered = window.allGeradores || [];
+        if (q) filtered = filtered.filter(g => (g.nome || '').toLowerCase().includes(q));
+        if (tmplFilter !== 'todos') {
+            const map = window._templateMap || {};
+            filtered = filtered.filter(g => (map[g.id] || 'nenhum') === tmplFilter);
+        }
         window.renderGeradoresList(filtered);
         return;
     }
@@ -6039,18 +6077,15 @@ window.filterGeradores = function() {
     if (container) {
         const deptCards = container.querySelectorAll('.dept-template-card');
         deptCards.forEach(card => {
-            const docName = card.dataset.docName.toLowerCase();
+            const docName = (card.dataset.docName || '').toLowerCase();
             const docs = card.querySelectorAll('.doc-lbl-item');
-            
             let hasVisibleDoc = false;
             docs.forEach(docLbl => {
-                const deptName = docLbl.dataset.deptName.toLowerCase();
+                const deptName = (docLbl.dataset.deptName || '').toLowerCase();
                 const match = deptName.includes(q) || docName.includes(q);
                 docLbl.style.display = match ? 'flex' : 'none';
                 if (match) hasVisibleDoc = true;
             });
-
-            // Mostra o departamento se o nome dele der match OU se algum documento dele der match
             card.style.display = (docName.includes(q) || hasVisibleDoc) ? 'block' : 'none';
         });
     }
