@@ -1,4 +1,4 @@
-const API_URL = `${window.location.origin}/api`;
+﻿const API_URL = `${window.location.origin}/api`;
 function showToast(msg, type) {
     const toast = document.getElementById('global-toast');
     if (toast) {
@@ -7931,16 +7931,16 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
            leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#16a34a;"><i class="ph ph-check-circle" style="font-size:1.4rem;"></i></div>`;
            statusBadge = `<span style="color:#16a34a;font-size:0.75rem;font-weight:600;">Documento Assinado${_signedStr ? ': ' + _signedStr : ''}</span>`;
        } else if (isPending) {
-           leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#4338ca;"><i class="ph ph-paper-plane-tilt" style="font-size:1.4rem;"></i></div>`;
+           leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#2563eb;"><i class="ph ph-paper-plane-tilt" style="font-size:1.4rem;"></i></div>`;
            statusBadge = `<span style="color:#4338ca;font-size:0.75rem;font-weight:600;">Enviado para Assinatura${_sentStr ? ': ' + _sentStr : ''}</span>`;
            if (window.reenviarAssinaturaContrato) {
-               sendBtn = `<button type="button" onclick="window.reenviarAssinaturaContrato(${doc.id}, event);" style="background:#f1f5f9;color:#0284c7;border:none;border-radius:20px;padding:6px 16px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:0.2s;"><i class="ph ph-paper-plane-tilt"></i> Reenviar para Assinatura</button>`;
+               sendBtn = `<button type="button" onclick="window.reenviarAssinaturaContrato(${doc.id}, event);" style="background:#0284c7;color:#fff;border:none;border-radius:2px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:0.2s;"><i class="ph ph-pen"></i> Reenviar para Assinatura</button>`;
            }
        } else {
            leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#b45309;"><i class="ph ph-info" style="font-size:1.4rem;"></i></div>`;
            statusBadge = `<span style="color:#b45309;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
            if (requiresButNotSent && window.reenviarAssinaturaContrato) {
-               sendBtn = `<button type="button" onclick="window.reenviarAssinaturaContrato(${doc.id}, event);" style="background:#f1f5f9;color:#0284c7;border:none;border-radius:20px;padding:6px 16px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:0.2s;"><i class="ph ph-paper-plane-tilt"></i> Enviar para Assinatura</button>`;
+               sendBtn = `<button type="button" onclick="window.reenviarAssinaturaContrato(${doc.id}, event);" style="background:#2563eb;color:#fff;border:none;border-radius:2px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:0.2s;"><i class="ph ph-paper-plane-right"></i> Enviar para Assinatura</button>`;
            }
        }
 
