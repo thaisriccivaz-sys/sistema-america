@@ -7732,34 +7732,17 @@ window.irAoProntuarioDigital = function(targetTab = 'Contratos') {
     const colab = viewedColaborador;
     if (!colab) return alert('Nenhum colaborador selecionado.');
     
-    // Fecha o modal de admissão
-    const admissaoModal = bootstrap.Modal.getInstance(document.getElementById('admissaoModal'));
-    if (admissaoModal) admissaoModal.hide();
+    // Usa o fluxo oficial para abrir o Prontuário Digital do colaborador logado
+    window.openProntuario(colab.id, colab.nome_completo, colab.cargo_nome_exibindo || colab.cargo, colab.cpf, colab.sexo, colab.data_admissao, colab.status, colab.rg_tipo);
     
-    // Fecha qualquer formulário/painel em andamento no grid
-    const formSection = document.getElementById('colaboradorFormSection');
-    const tableSection = document.getElementById('colaboradoresTableSection');
-    if (formSection && tableSection) {
-        formSection.style.display = 'none';
-        tableSection.style.display = 'block';
-    }
-    
-    // Abre a visualização do Prontuário para este colaborador
-    window.openColabViewer(colab.id);
-    
-    // Aguarda o Prontuário abrir e seleciona a tab desejada
+    // Aguarda o Prontuário renderizar e seleciona a tab desejada
     setTimeout(() => {
-        const prontuarioTabBtn = document.getElementById('tab-prontuario');
-        if (prontuarioTabBtn) prontuarioTabBtn.click();
-        
-        setTimeout(() => {
-            const doctabElement = document.querySelector(`.doc-tab[data-tab="${targetTab}"]`);
-            if (doctabElement) {
-                doctabElement.click();
-                doctabElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-        }, 500); // 500ms para a tab de prontuário renderizar
-    }, 500); // 500ms para o viewer abrir
+        const prontuarioTab = document.querySelector(`#tabs-list li[data-tab="${targetTab}"]`);
+        if (prontuarioTab) {
+            prontuarioTab.click();
+            prontuarioTab.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }, 600); // 600ms para renderização suave da View
 };
 
 // --- PASSO 4, 3, 5: Apenas renderizações de leitura para acompanhamento ---
