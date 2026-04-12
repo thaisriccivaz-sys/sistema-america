@@ -1,4 +1,4 @@
-﻿const API_URL = `${window.location.origin}/api`;
+const API_URL = `${window.location.origin}/api`;
 function showToast(msg, type) {
     const toast = document.getElementById('global-toast');
     if (toast) {
@@ -7495,14 +7495,14 @@ window.toggleAcaoContratoPerfil = function(geradorId, exige, geradorNome) {
     
     if (exige === 'nao') {
         actionDiv.innerHTML = `
-            <label class="btn btn-secondary btn-sm" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:0.8rem;">
+            <label class="btn btn-warning btn-sm" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:0.85rem;background:#eab308;color:#fff;border:none;padding:0.4rem 1rem;border-radius:6px;font-weight:600;">
                 <i class="ph ph-upload-simple"></i> Anexar PDF
                 <input type="file" accept=".pdf" style="display:none;" onchange="window.uploadContratoPerfilNaoAssinado(this, '${geradorNome}')">
             </label>
         `;
     } else {
         actionDiv.innerHTML = `
-            <button class="btn btn-primary btn-sm" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:0.8rem;background:#c026d3;border-color:#c026d3;" 
+            <button class="btn btn-primary btn-sm" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:0.85rem;background:#c026d3;border-color:#c026d3;padding:0.4rem 1rem;border-radius:6px;" 
                 onclick="window.previewContratoPerfilAssinado('${geradorId}', '${geradorNome}')">
                 <i class="ph ph-file-arrow-down"></i> Gerar Documento
             </button>
@@ -7583,7 +7583,7 @@ window.fecharPreviewEHabitarEnvio = function() {
     const actionDiv = document.getElementById('pg-action-' + gId);
     if (actionDiv) {
         actionDiv.innerHTML = `
-            <button class="btn btn-primary btn-sm" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:0.8rem;background:#0284c7;border-color:#0284c7;color:#fff;transition:0.2s;" 
+            <button class="btn btn-primary" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-size:0.95rem;font-weight:500;padding:0.55rem 1.25rem;border-radius:8px;background:#0056b3;border-color:#0056b3;color:#fff;transition:all 0.2s;" 
                 onclick="window.enviarAssinaturaPerfilDireto(event)">
                 <i class="ph ph-paper-plane-tilt"></i> Enviar para Assinatura
             </button>
@@ -7649,7 +7649,7 @@ window.enviarAssinaturaPerfilDireto = async function(event) {
             const dtStr = new Date().toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }).replace(',', ' -');
                         const txt = document.getElementById('perfil-status-txt-' + geradorId);
             if (txt) {
-                txt.innerHTML = '<span style="color:#2563eb;font-weight:600;"><i class="ph ph-paper-plane-tilt"></i> Enviado para Assinatura: ' + dtStr + '</span>';
+                txt.innerHTML = '<span style="color:#16a34a;font-weight:600;"><i class="ph ph-paper-plane-tilt" style="color:#2563eb;"></i> Enviado para Assinatura: ' + dtStr + '</span>';
             }
             targetBtn.parentElement.innerHTML = '<span style="color:#16a34a;font-weight:600;"><i class="ph ph-check"></i> OK</span>';
         }
@@ -7936,7 +7936,7 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
            statusBadge = `<span style="color:#16a34a;font-size:0.75rem;font-weight:600;">Documento Assinado${_signedStr ? ': ' + _signedStr : ''}</span>`;
        } else if (isPending) {
            leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#2563eb;"><i class="ph ph-paper-plane-tilt" style="font-size:1.4rem;"></i></div>`;
-           statusBadge = `<span style="color:#2563eb;font-size:0.75rem;font-weight:600;">Enviado para Assinatura${_sentStr ? ': ' + _sentStr : ''}</span>`;
+           statusBadge = `<span style="color:#16a34a;font-size:0.75rem;font-weight:600;">Enviado para Assinatura${_sentStr ? ': ' + _sentStr : ''}</span>`;
            if (window.reenviarAssinaturaContrato) {
                sendBtn = `<button type="button" onclick="window.reenviarAssinaturaContrato(${doc.id}, event);" style="background:#0284c7;color:#fff;border:none;border-radius:2px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:0.2s;"><i class="ph ph-pen"></i> Reenviar para Assinatura</button>`;
            }
