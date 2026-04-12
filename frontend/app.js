@@ -7929,7 +7929,8 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
             <div style="display:flex; align-items:center; gap:0.8rem; flex:1;">
                 ${leftIconMarkup}
                 <div style="display:flex; flex-direction:column; padding-left:4px;">
-                    <span style="font-weight:600; color:#1e293b; font-size:0.95rem; margin-bottom:5px;">${doc.document_type || doc.file_name}</span>
+                    <span style="font-weight:600; color:#1e293b; font-size:0.95rem; margin-bottom:2px;">${doc.document_type || doc.file_name}</span>
+                    ${(doc.file_name && doc.document_type && doc.file_name !== doc.document_type) ? `<span style="font-size:0.75rem; color:#64748b; font-weight:500; margin-bottom:5px;">${doc.file_name}</span>` : `<div style="margin-bottom:5px;"></div>`}
                     <div style="display:flex; align-items:center; gap:4px;">
                         ${statusBadge}
                     </div>
