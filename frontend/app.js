@@ -8270,35 +8270,97 @@ function updateAdmissaoStepPercentages(colab) {
     }
 
     // ── Passo 4: Ficha Cadastral — documentos do colaborador (01_FICHA_CADASTRAL) ──
-    let pc4 = 0;
-    const fichaDocs = (window.currentDocs || []).filter(d => d.tab_name === '01_FICHA_CADASTRAL');
-    const _ec4 = (targetColab.estado_civil || '').toLowerCase();
-    const _isCasado4 = _ec4.includes('casad') || _ec4.includes('viuv') || _ec4.includes('divorc');
-    const _isMotorista4 = (targetColab.cargo || '').toUpperCase().includes('MOTORISTA');
-    const _isMasc4 = targetColab.sexo === 'Masculino';
-    let totalEsperado4 = 8; // Título, Certidão, Comprovante, Histórico, CPF, RG/CNH, Vacinas, CTPS, Foto Duralex, etc (estimativa base)
-    if (_isMasc4) totalEsperado4++;
-    if (_isCasado4) totalEsperado4++;
+    const _ec = (targetColab.estado_civil || '').toLowerCase();
+    const _isCasado = _ec.includes('casad') || _ec.includes('viúv') || _ec.includes('viuv') || _ec.includes('divorc');
+    const _certidao = _isCasado ? 'Certidão de Casamento' : 'Certidão de Nascimento';
+    const _isMotorista2 = (targetColab.cargo || '').toUpperCase().includes('MOTORISTA');
+    const fixed = [
+        'Título Eleitoral',
+        _certidao,
+        'Comprovante de endereço',
+        'Histórico escolar'
+    ];
+    const isMasc = targetColab.sexo === 'Masculino';
+    if (isMasc) fixed.push('Reservista');
+    const rgTipo = targetColab.rg_tipo ? targetColab.rg_tipo : 'RG';
     
-    // Acrescentamos +2 pra cada dependente (estimativa)
-    const depList = targetColab.dependentes ? (typeof targetColab.dependentes === 'string' ? JSON.parse(targetColab.dependentes) : targetColab.dependentes) : [];
-    totalEsperado4 += (depList.filter(d => d.grau_parentesco !== 'Cônjuge').length * 2);
+    if (_isMotorista2) {
+        fixed.push('CNH');
+    } else {
+        fixed.push(rgTipo === 'CIN' ? 'CIN-CPF' : 'RG-CPF');
+    }
+    
+    fixed.push('Carteira de vacinação', 'Currículo', 'Carteira de Trabalho');
 
-    if (totalEsperado4 > 0 && fichaDocs.length > 0) {
-        const enviados4 = fichaDocs.length;
-        pc4 = Math.min(100, Math.round((enviados4 / totalEsperado4) * 100)); // Limita a 100% pois é estimativa
+    const fichaDocs = (window.currentDocs || []).filter(d => d.tab_name === '01_FICHA_CADASTRAL');
+    
+    // Pensão (Dinâmico)
+    const temPensaoPront = (targetColab.tem_pensao_alimenticia === 'Sim') || !!fichaDocs.find(d => d.document_type === 'Pensão Alimentícia');
+    if (temPensaoPront) fixed.push('Pensão Alimentícia');
+
+    let preenchidos4 = 0;
+    const itemsFicha = fixed.map(docType => {
+        const found = fichaDocs.find(d => d.document_type === docType);
+        if (found && found.file_path) preenchidos4++;
+        return { nome: docType, doc: found };
+    });
+
+    const extras4 = fichaDocs.filter(d => !fixed.includes(d.document_type));
+    extras4.forEach(d => {
+        if (d.file_path) preenchidos4++;
+        itemsFicha.push({ nome: d.document_type || d.original_name, doc: d });
+    });
+
+    let totalEsperado4 = fixed.length;
+    let pc4 = Math.min(100, Math.round((preenchidos4 / Math.max(1, totalEsperado4)) * 100));
+
+    const containerStep4 = document.getElementById('admissao-checklist-step3');
+    if (containerStep4) {
+         containerStep4.innerHTML = itemsFicha.map(item => {
+             const hasFile = item.doc && item.doc.file_path;
+             const statusBadge = hasFile 
+                ? `<span style="background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-check-circle"></i> Anexado</span>` 
+                : `<span style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-x-circle"></i> Faltante</span>`;
+             const dateText = hasFile ? `<div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Anexado em: <b>${new Date(item.doc.created_at + (item.doc.created_at.includes('Z') ? '' : 'Z')).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</b></div>` : `<div style="font-size:0.75rem; color:#94a3b8; margin-top:2px;"><i>Upload obrigatório via Prontuário Digital</i></div>`;
+             
+             return `
+             <div style="background:#fff; border:1px solid ${hasFile?'#bbf7d0':'#e2e8f0'}; border-radius:8px; padding:0.6rem 0.8rem; margin-bottom:0.4rem; display:flex; justify-content:space-between; align-items:center;">
+                 <div style="display:flex; flex-direction:column; gap:2px;">
+                     <span style="font-weight:600; color:#334155; font-size:0.85rem;">${item.nome}</span>
+                     ${dateText}
+                 </div>
+                 <div style="display:flex; gap:0.5rem; align-items:center; flex-shrink: 0;">
+                     ${statusBadge}
+                 </div>
+             </div>`;
+         }).join('');
     }
 
     // ── Passo 5: ASO — 50% e-mail / 100% doc  ──
     let pc5 = 0;
     const asoDocs = (window.currentDocs || []).filter(d => d.tab_name === 'ASO');
-    renderAdmissaoDocStatus('step5-aso-status', asoDocs, 'Nenhum documento de ASO encontrado. Realize o upload no Prontuário Digital.');
     
-    const asoDocAnexado = asoDocs.some(d => d.file_path && d.document_type && d.document_type.includes('ASO'));
+    // Reproduzir regras de ASO
+    const listAso = ['ASO Padrão'];
+    if ((targetColab.cargo || '').toUpperCase().includes('MOTORISTA')) listAso.push('Exames Complementares');
+
+    let preenchidos5 = 0;
+    const itemsAso = listAso.map(docType => {
+        const found = asoDocs.find(d => d.document_type === docType);
+        if (found && found.file_path) preenchidos5++;
+        return { nome: docType, doc: found };
+    });
+
+    const extras5 = asoDocs.filter(d => !listAso.includes(d.document_type));
+    extras5.forEach(d => {
+        if (d.file_path) preenchidos5++;
+        itemsAso.push({ nome: d.document_type || d.original_name, doc: d });
+    });
+
+    const asoDocAnexado = itemsAso.some(item => item.doc && item.doc.file_path);
     
     if (asoDocAnexado) {
         pc5 = 100;
-        // Ocultar notice de email se ASO anexado
         const noticeEl = document.getElementById('aso-email-notice');
         if (noticeEl) noticeEl.style.display = 'none';
     } else if (targetColab.aso_email_enviado) {
@@ -8306,9 +8368,31 @@ function updateAdmissaoStepPercentages(colab) {
         const noticeEl = document.getElementById('aso-email-notice');
         if (noticeEl) {
             noticeEl.style.display = 'block';
-            document.getElementById('aso-notice-date').textContent = targetColab.aso_email_data || '--/--/--';
-            document.getElementById('aso-notice-agendada').textContent = targetColab.aso_exame_agendado || '--/--/--';
+            document.getElementById('aso-notice-date').textContent = targetColab.aso_email_enviado || '--/--/--';
+            document.getElementById('aso-notice-agendada').textContent = targetColab.aso_exame_data || '--/--/--';
         }
+    }
+
+    const containerStep5 = document.getElementById('step5-aso-status');
+    if (containerStep5) {
+         containerStep5.innerHTML = itemsAso.map(item => {
+             const hasFile = item.doc && item.doc.file_path;
+             const statusBadge = hasFile 
+                ? `<span style="background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-check-circle"></i> Anexado</span>` 
+                : `<span style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-x-circle"></i> Faltante</span>`;
+             const dateText = hasFile ? `<div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Anexado em: <b>${new Date(item.doc.created_at + (item.doc.created_at.includes('Z') ? '' : 'Z')).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</b></div>` : `<div style="font-size:0.75rem; color:#94a3b8; margin-top:2px;"><i>Upload obrigatório via Prontuário Digital</i></div>`;
+             
+             return `
+             <div style="background:#fff; border:1px solid ${hasFile?'#bbf7d0':'#e2e8f0'}; border-radius:8px; padding:0.6rem 0.8rem; margin-bottom:0.4rem; display:flex; justify-content:space-between; align-items:center;">
+                 <div style="display:flex; flex-direction:column; gap:2px;">
+                     <span style="font-weight:600; color:#334155; font-size:0.85rem;">${item.nome}</span>
+                     ${dateText}
+                 </div>
+                 <div style="display:flex; gap:0.5rem; align-items:center; flex-shrink: 0;">
+                     ${statusBadge}
+                 </div>
+             </div>`;
+         }).join('');
     }
 
     // ── Passo 6: Contabilidade — 100% se ficha enviada ────────────────
