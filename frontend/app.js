@@ -6429,7 +6429,12 @@ window.openModalGerador = function() {
     document.getElementById('gerador-modal-title').textContent = 'Novo Gerador';
     document.getElementById('form-gerador').reset();
     document.getElementById('gerador-id').value = '';
-    document.getElementById('gerador-conteudo-editor').innerHTML = ''; // Limpar editor
+    document.getElementById('gerador-conteudo-editor').innerHTML = '';
+    // Padrão: marcar ambos os templates
+    const chkAdm = document.getElementById('gerador-template-admissao');
+    const chkOut = document.getElementById('gerador-template-outros');
+    if (chkAdm) chkAdm.checked = true;
+    if (chkOut) chkOut.checked = true;
     document.getElementById('modal-gerador').style.display = 'block';
 };
 
@@ -6439,7 +6444,12 @@ window.closeModalGerador = function() {
 
 window.editGerador = async function(id) {
     try {
-        const g = await apiGet(`/geradores/${id}`);
+        const [g, depts, templAdm, templOut] = await Promise.all([
+            apiGet(`/geradores/${id}`),
+            apiGet('/departamentos').catch(()=>[]),
+            apiGet('/gerador-departamento-templates').catch(()=>[]),
+            apiGet('/gerador-outros-contratos-templates').catch(()=>[])
+        ]);
         document.getElementById('gerador-modal-title').textContent = 'Editar Gerador';
         document.getElementById('gerador-id').value = g.id;
         document.getElementById('gerador-nome').value = g.nome;
@@ -6449,8 +6459,14 @@ window.editGerador = async function(id) {
         if (!finalContent.includes('<') && !finalContent.includes('>')) {
             finalContent = finalContent.replace(/\n/g, '<br>');
         }
-        
         document.getElementById('gerador-conteudo-editor').innerHTML = finalContent;
+
+        // Marcar checkboxes baseado nas templates existentes
+        const chkAdm = document.getElementById('gerador-template-admissao');
+        const chkOut = document.getElementById('gerador-template-outros');
+        if (chkAdm) chkAdm.checked = templAdm.some(t => Number(t.gerador_id) === Number(id));
+        if (chkOut) chkOut.checked = templOut.some(t => Number(t.gerador_id) === Number(id));
+
         document.getElementById('modal-gerador').style.display = 'block';
     } catch (e) { console.error(e); }
 };
@@ -6475,11 +6491,10 @@ function setupGeradores() {
     
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        console.log('Form Gerador submitted!');
         const id = document.getElementById('gerador-id').value;
         const data = {
             nome: document.getElementById('gerador-nome').value,
-            conteudo: document.getElementById('gerador-conteudo-editor').innerHTML, // Pegar do editor
+            conteudo: document.getElementById('gerador-conteudo-editor').innerHTML,
             variaveis: '' 
         };
         
@@ -6489,6 +6504,39 @@ function setupGeradores() {
             else result = await apiPost('/geradores', data);
             
             if (result && !result.error) {
+                const geradorId = result.id || Number(id);
+
+                // Associar aos templates selecionados em todos os departamentos
+                const chkAdm = document.getElementById('gerador-template-admissao');
+                const chkOut = document.getElementById('gerador-template-outros');
+                const incluirAdm = chkAdm && chkAdm.checked;
+                const incluirOut = chkOut && chkOut.checked;
+
+                try {
+                    const depts = await apiGet('/departamentos').catch(() => []);
+                    const deptIds = (depts || []).map(d => Number(d.id));
+
+                    if (geradorId && deptIds.length > 0) {
+                        // Buscar templates atuais para não sobrescrever os de outros geradores
+                        const [admAtual, outAtual] = await Promise.all([
+                            apiGet('/gerador-departamento-templates').catch(() => []),
+                            apiGet('/gerador-outros-contratos-templates').catch(() => [])
+                        ]);
+
+                        // Montar novo batch preservando outros geradores
+                        const outrasAdm = (admAtual || []).filter(t => Number(t.gerador_id) !== geradorId);
+                        const outrasOut = (outAtual || []).filter(t => Number(t.gerador_id) !== geradorId);
+
+                        const novasAdm = incluirAdm ? deptIds.map(d => ({ gerador_id: geradorId, departamento_id: d })) : [];
+                        const novasOut = incluirOut ? deptIds.map(d => ({ gerador_id: geradorId, departamento_id: d })) : [];
+
+                        await Promise.all([
+                            apiPost('/gerador-departamento-templates/batch', { templates: [...outrasAdm, ...novasAdm] }),
+                            apiPost('/gerador-outros-contratos-templates/batch', { templates: [...outrasOut, ...novasOut] })
+                        ]);
+                    }
+                } catch(te) { console.warn('Erro ao associar templates:', te); }
+
                 alert('Salvo com sucesso!');
                 window.closeModalGerador();
                 loadGeradores();
