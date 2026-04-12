@@ -2970,8 +2970,7 @@ window.openProntuario = async function(id, nome, cargo, cpf, sexo = '', admissao
     // Exibir aba Cônjuge apenas para Casado ou União Estável
     const tabConjuge = document.getElementById('tab-conjuge');
     if (tabConjuge) {
-        const ec = (viewedColaborador.estado_civil || '').trim();
-        tabConjuge.style.display = (ec === 'Casado' || ec === 'União Estável') ? '' : 'none';
+        tabConjuge.style.display = 'none'; // Aba de Cônjuge extinta nativamente (migrado para Passo 4)
     }
 
     const _nomePront = viewedColaborador ? (viewedColaborador.nome_completo || viewedColaborador.nome || nome) : nome;
@@ -7625,6 +7624,10 @@ window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll =
         } else if (colab.status === 'Processo iniciado') {
             document.getElementById('admissao-workflow').style.display = 'block';
             
+            // Buscar objeto completo do colab para carregar dependentes e extras
+            const fullColab = await apiGet(`/colaboradores/${colab.id}`);
+            colab = Object.assign({}, colab, fullColab);
+
             // Buscar nomes para Cargo e Depto
             const cargos = await apiGet('/cargos');
             const deptos = await apiGet('/departamentos');
@@ -8314,6 +8317,9 @@ function updateAdmissaoStepPercentages(colab) {
     }
     
     fixed.push('Carteira de vacinação', 'Currículo', 'Carteira de Trabalho');
+    if (_isCasado) {
+        fixed.push('CPF do Cônjuge');
+    }
 
     const fichaDocs = (window.currentDocs || []).filter(d => d.tab_name === '01_FICHA_CADASTRAL');
     
@@ -8339,28 +8345,6 @@ function updateAdmissaoStepPercentages(colab) {
             itemsFicha.push({ nome: d.document_type || d.original_name, doc: d });
         }
     });
-
-    // === CÔNJUGE (Adicionado ao Passo 4) ===
-    if (_isCasado) {
-        const conjugeDocs = (window.currentDocs || []).filter(d => d.tab_name === 'Conjuge');
-        const expectedConjuge = ['CPF'];
-        totalEsperado4 += expectedConjuge.length;
-        
-        expectedConjuge.forEach(docType => {
-            const found = conjugeDocs.find(d => d.document_type === docType);
-            if (found && found.file_path) preenchidos4++;
-            if (found) capturedDocIds.add(found.id);
-            itemsFicha.push({ nome: `Cônjuge: ${docType}`, doc: found });
-        });
-        
-        conjugeDocs.forEach(d => {
-            if (!capturedDocIds.has(d.id)) {
-                if (d.file_path) preenchidos4++;
-                capturedDocIds.add(d.id);
-                itemsFicha.push({ nome: `Cônjuge: ${d.document_type || d.original_name}`, doc: d });
-            }
-        });
-    }
 
     // === DEPENDENTES (Adicionado ao Passo 4) ===
     const depList = targetColab.dependentes ? (typeof targetColab.dependentes === 'string' ? JSON.parse(targetColab.dependentes) : targetColab.dependentes) : [];
