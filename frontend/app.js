@@ -8036,11 +8036,11 @@ window.reenviarAssinaturaContrato = async function(docId, ev) {
         if (!targetColabId) throw new Error('Não foi possível identificar o colaborador atual.');
 
 
-
+        const res = await fetch(`${API_URL}/assinafy/upload`, {
             method: 'POST',
-            headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (window.currentToken || localStorage.getItem('token'))},
-            body: JSON.stringify({ document_ids: docsIds, colaborador_id: targetColabId })
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (window.currentToken || localStorage.getItem('token')) },
             body: JSON.stringify({ document_id: Number(docId), colaborador_id: targetColabId })
+        });
         const data = await res.json().catch(() => ({}));
         
         if(trBtn) {
