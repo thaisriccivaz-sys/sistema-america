@@ -3172,21 +3172,8 @@ app.put('/api/geradores/:id', authenticateToken, (req, res) => {
 });
 
 app.delete('/api/geradores/:id', authenticateToken, (req, res) => {
-    // Bloquear exclusão de geradores obrigatórios
     db.get("SELECT nome, arquivo_pdf FROM geradores WHERE id = ?", [req.params.id], (err, row) => {
         if (err || !row) return res.status(404).json({ error: 'Gerador não encontrado' });
-        
-        // Proteção: nomes essenciais do sistema não podem ser excluídos
-        // Compara de forma case-insensitive usando UPPER() da string do banco
-        const nomeUpper = (row.nome || '').toUpperCase().trim();
-        const isProtected = 
-            nomeUpper.includes('DESCONTO EM FOLHA') ||
-            nomeUpper.includes('NR01') ||
-            nomeUpper.includes('NR 01') ||
-            nomeUpper.includes('ORDEM DE SERVI');
-        if (isProtected) {
-            return res.status(403).json({ error: 'Este documento é padrão do sistema e não pode ser excluído.' });
-        }
 
         if (row && row.arquivo_pdf && fs.existsSync(row.arquivo_pdf)) {
             try { fs.unlinkSync(row.arquivo_pdf); } catch(e) {}

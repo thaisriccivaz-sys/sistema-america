@@ -6012,23 +6012,8 @@ window.renderGeradoresList = function(items) {
         nenhum:    { label: '—',         bg: '#f8fafc', color: '#94a3b8', border: '#e2e8f0' },
     };
 
-    const PROTECTED_NAMES_UPPER = [
-        'AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO',
-        'AUTORIZAÇÃO DE DESCONTO EM FOLHA',
-        'AUTORIZA',  // fallback LIKE
-    ];
-    const isProtected = (nome) => {
-        const u = (nome || '').toUpperCase().trim();
-        return u.includes('AUTORIZAD') || u.includes('AUTORIZAÇÃ') || u.includes('DESCONTO EM FOLHA') ||
-               u.includes('ORDEM') || u.includes('NR01') || u.includes('NR 01');
-    };
-
-    // Sort: protegidos primeiro, depois alpha
+    // Sort: apenas alfabético
     const sortedItems = [...items].sort((a, b) => {
-        const aProt = isProtected(a.nome);
-        const bProt = isProtected(b.nome);
-        if (aProt && !bProt) return -1;
-        if (!aProt && bProt) return 1;
         return (a.nome || '').localeCompare(b.nome || '');
     });
 
@@ -6036,7 +6021,6 @@ window.renderGeradoresList = function(items) {
         const tmpl  = templateMap[g.id] || 'nenhum';
         const lbl   = TEMPLATE_LABELS[tmpl] || TEMPLATE_LABELS.nenhum;
         const badge = `<span style="background:${lbl.bg};color:${lbl.color};border:1px solid ${lbl.border};border-radius:20px;padding:2px 10px;font-size:0.75rem;font-weight:700;">${lbl.label}</span>`;
-        const prot  = isProtected(g.nome);
         return `
         <tr data-template="${tmpl}">
             <td>
@@ -6048,7 +6032,7 @@ window.renderGeradoresList = function(items) {
                 <div style="display:flex; gap:0.5rem; justify-content:flex-end;">
                     <button class="btn btn-primary btn-sm" onclick="window.abrirModalSelecaoColab(${g.id})" title="Visualizar"><i class="ph ph-eye"></i></button>
                     <button class="btn btn-warning btn-sm" onclick="window.editGerador(${g.id})" title="Editar"><i class="ph ph-pencil-simple"></i></button>
-                    ${prot ? '' : `<button class="btn btn-danger btn-sm" onclick="window.deleteGerador(${g.id})" title="Excluir"><i class="ph ph-trash"></i></button>`}
+                    <button class="btn btn-danger btn-sm" onclick="window.deleteGerador(${g.id})" title="Excluir"><i class="ph ph-trash"></i></button>
                 </div>
             </td>
         </tr>`;
