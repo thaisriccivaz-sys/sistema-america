@@ -6945,29 +6945,10 @@ window.abrirPreviewDocumento = function(data) {
 
                 document.getElementById('modal-preview-doc').style.display = 'none';
 
-                const sendPrompt = await Swal.fire({
-                    title: 'Documento Anexado!',
-                    text: 'Deseja enviar este documento para assinatura digital via Assinafy?',
-                    icon: 'question',
-                    showCancelButton: true,
-                    confirmButtonText: '<i class="ph ph-paper-plane-tilt"></i> Sim, enviar para assinatura',
-                    cancelButtonText: 'Não, apenas anexar'
-                });
-
-                if (sendPrompt.isConfirmed) {
-                    Swal.fire({ title: 'Enviando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-                    const uploadData = await uploadRes.json().catch(() => ({}));
-                    const geradorIdCtx = data.geradorId || window._perfilGeradorIdCtx;
-                    if (geradorIdCtx) {
-                        await fetch(`${API_URL}/admissao-assinaturas/enviar-lote`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
-                            body: JSON.stringify({ colaborador_id: colaboradorId, geradores_ids: [parseInt(geradorIdCtx)] })
-                        });
-                    }
-                    Swal.fire('Enviado!', 'Documento enviado para assinatura digital.', 'success');
+                if (typeof showToast !== 'undefined') {
+                    showToast('Documento anexado ao prontuário com sucesso!', 'success');
                 } else {
-                    showToast && showToast('Documento anexado ao prontuário com sucesso!', 'success');
+                    Swal.fire('Anexado!', 'Documento gerado e incluído no prontuário.', 'success');
                 }
 
                 // Reload da lista de contratos se estiver na aba correta
