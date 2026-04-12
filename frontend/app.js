@@ -7884,7 +7884,7 @@ window.uploadContratoExterno = async function(input) {
 
         // Se exige assinatura, enviar para Assinafy automaticamente
         if (exigeAssinatura && docId) {
-            Swal.update({ title: 'Enviando para assinatura via Assinafy...' });
+            Swal.fire({ title: 'Enviando para assinatura via Assinafy...', allowOutsideClick: false, showConfirmButton: false, didOpen: () => { Swal.showLoading(); } });
             try {
                 var assResp = await fetch(API_URL + '/assinafy/upload', {
                     method: 'POST',
