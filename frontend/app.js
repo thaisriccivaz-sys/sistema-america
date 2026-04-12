@@ -1,4 +1,4 @@
-﻿const API_URL = `${window.location.origin}/api`;
+const API_URL = `${window.location.origin}/api`;
 function showToast(msg, type) {
     const toast = document.getElementById('global-toast');
     if (toast) {
