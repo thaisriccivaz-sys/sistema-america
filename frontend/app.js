@@ -4606,12 +4606,17 @@ async function renderFaltasTab(container) {
     const turnoColor = { 'Dia todo': '#e03131', 'Manhã': '#f08c00', 'Tarde': '#1971c2' };
 
     const tableRows = faltas.length === 0
-        ? `<tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:1.5rem;">Nenhuma falta registrada.</td></tr>`
+        ? `<tr><td colspan="5" style="text-align:center; color:#94a3b8; padding:1.5rem;">Nenhuma falta registrada.</td></tr>`
         : faltas.map(f => `
             <tr style="border-bottom:1px solid #f1f5f9;">
                 <td style="padding:0.65rem 0.75rem; font-weight:600;">${formatDateBR(f.data_falta)}</td>
                 <td style="padding:0.65rem 0.75rem;">
                     <span style="background:${turnoColor[f.turno] || '#64748b'}; color:#fff; padding:2px 10px; border-radius:10px; font-size:0.75rem; font-weight:700;">${f.turno}</span>
+                </td>
+                <td style="padding:0.65rem 0.75rem; text-align:center;">
+                    <span style="background:${f.avisado_previamente === 'Sim' ? '#dcfce7' : '#fee2e2'}; color:${f.avisado_previamente === 'Sim' ? '#166534' : '#991b1b'}; padding:2px 10px; border-radius:10px; font-size:0.75rem; font-weight:700;">
+                        ${f.avisado_previamente === 'Sim' ? '✓ Sim' : '✗ Não'}
+                    </span>
                 </td>
                 <td style="padding:0.65rem 0.75rem; color:#475569; font-size:0.88rem;">${f.observacao || '—'}</td>
                 <td style="padding:0.65rem 0.75rem; text-align:right;">
@@ -4640,6 +4645,17 @@ async function renderFaltasTab(container) {
                         <option value="Tarde">Tarde</option>
                     </select>
                 </div>
+                <div style="display:flex; flex-direction:column; gap:0.25rem;">
+                    <label style="font-size:0.8rem; font-weight:600; color:#475569;">Avisado previamente?</label>
+                    <div style="display:flex; gap:0.75rem; height:38px; align-items:center; font-size:0.88rem;">
+                        <label style="display:flex; align-items:center; gap:4px; cursor:pointer; margin:0; font-weight:500;">
+                            <input type="radio" name="falta-avisado" value="Sim" checked> Sim
+                        </label>
+                        <label style="display:flex; align-items:center; gap:4px; cursor:pointer; margin:0; font-weight:500;">
+                            <input type="radio" name="falta-avisado" value="Não"> Não
+                        </label>
+                    </div>
+                </div>
                 <div style="display:flex; flex-direction:column; gap:0.25rem; flex:1; min-width:180px;">
                     <label style="font-size:0.8rem; font-weight:600; color:#475569;">Observação (opcional)</label>
                     <input type="text" id="falta-obs" placeholder="Ex: não comunicou, sem justificativa..." style="height:38px; padding:0 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.9rem;">
@@ -4662,6 +4678,7 @@ async function renderFaltasTab(container) {
                     <tr style="background:#f8fafc; text-align:left;">
                         <th style="padding:0.6rem 0.75rem; color:#64748b; font-size:0.78rem; text-transform:uppercase;">Data</th>
                         <th style="padding:0.6rem 0.75rem; color:#64748b; font-size:0.78rem; text-transform:uppercase;">Turno</th>
+                        <th style="padding:0.6rem 0.75rem; color:#64748b; font-size:0.78rem; text-transform:uppercase; text-align:center;">Avisado Prev.</th>
                         <th style="padding:0.6rem 0.75rem; color:#64748b; font-size:0.78rem; text-transform:uppercase;">Observação</th>
                         <th style="padding:0.6rem 0.75rem;"></th>
                     </tr>
@@ -4676,11 +4693,12 @@ window.registrarFalta = async function() {
     const data = document.getElementById('falta-data')?.value;
     const turno = document.getElementById('falta-turno')?.value;
     const obs = document.getElementById('falta-obs')?.value || '';
+    const avisado = document.querySelector('input[name="falta-avisado"]:checked')?.value || 'Não';
     if (!data) { alert('Informe a data da falta.'); return; }
     if (!viewedColaborador) return;
 
     try {
-        await apiPost('/faltas', { colaborador_id: viewedColaborador.id, data_falta: data, turno, observacao: obs });
+        await apiPost('/faltas', { colaborador_id: viewedColaborador.id, data_falta: data, turno, observacao: obs, avisado_previamente: avisado });
         // Recarregar aba
         const listContainer = document.getElementById('docs-list-container');
         if (listContainer) await renderFaltasTab(listContainer);

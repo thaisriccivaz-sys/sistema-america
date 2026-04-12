@@ -3055,6 +3055,8 @@ db.run(`CREATE TABLE IF NOT EXISTS geradores (
 });
 // MIGRATION: coluna para rastrear quando o certificado digital A1 foi aplicado
 db.run("ALTER TABLE admissao_assinaturas ADD COLUMN certificado_assinado_em TEXT DEFAULT NULL", () => {});
+// MIGRATION: campo 'avisado previamente' para faltas
+db.run("ALTER TABLE faltas ADD COLUMN avisado_previamente TEXT DEFAULT 'Não'", () => {});
 
 // --- GERADORES DE DOCUMENTOS ---
 app.get('/api/geradores', authenticateToken, (req, res) => {
@@ -3332,13 +3334,13 @@ app.get('/api/colaboradores/:id/faltas', authenticateToken, (req, res) => {
 });
 
 app.post('/api/faltas', authenticateToken, (req, res) => {
-    const { colaborador_id, data_falta, turno, observacao } = req.body;
+    const { colaborador_id, data_falta, turno, observacao, avisado_previamente } = req.body;
     if (!colaborador_id || !data_falta) return res.status(400).json({ error: 'colaborador_id e data_falta são obrigatórios.' });
-    db.run('INSERT INTO faltas (colaborador_id, data_falta, turno, observacao) VALUES (?, ?, ?, ?)',
-        [colaborador_id, data_falta, turno || 'Dia todo', observacao || ''],
+    db.run('INSERT INTO faltas (colaborador_id, data_falta, turno, observacao, avisado_previamente) VALUES (?, ?, ?, ?, ?)',
+        [colaborador_id, data_falta, turno || 'Dia todo', observacao || '', avisado_previamente || 'Não'],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
-            res.json({ id: this.lastID, colaborador_id, data_falta, turno: turno || 'Dia todo', observacao: observacao || '' });
+            res.json({ id: this.lastID, colaborador_id, data_falta, turno: turno || 'Dia todo', observacao: observacao || '', avisado_previamente: avisado_previamente || 'Não' });
         }
     );
 });
