@@ -7440,7 +7440,7 @@ window.renderContratosAvulso = async function(container) {
                     <span style="background:#fdf4ff;color:#c026d3;border:1px solid #f0abfc;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Perfil</span>
                     <div>
                         <span style="font-weight:600; color:#334155; font-size:0.9rem;">${g.nome}</span>
-                        <div style="font-size:0.75rem; color:#a21caf; margin-top:1px;">Necessário pelo perfil do colaborador — aguardando geração</div>
+                        <div id="perfil-status-txt-${g.id}" style="font-size:0.75rem; color:#a21caf; margin-top:1px;">Necessário pelo perfil do colaborador — aguardando geração</div>
                     </div>
                 </div>
                 
@@ -7583,7 +7583,7 @@ window.fecharPreviewEHabitarEnvio = function() {
     const actionDiv = document.getElementById('pg-action-' + gId);
     if (actionDiv) {
         actionDiv.innerHTML = `
-            <button class="btn btn-success btn-sm" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:0.8rem;" 
+            <button class="btn btn-primary btn-sm" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:0.8rem;background:#0284c7;border-color:#0284c7;color:#fff;transition:0.2s;" 
                 onclick="window.enviarAssinaturaPerfilDireto(event)">
                 <i class="ph ph-paper-plane-tilt"></i> Enviar para Assinatura
             </button>
@@ -7647,7 +7647,11 @@ window.enviarAssinaturaPerfilDireto = async function(event) {
         if (targetBtn && targetBtn.parentElement) {
             // Transform directly into the blue pill requested by the user
             const dtStr = new Date().toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }).replace(',', ' -');
-            targetBtn.parentElement.innerHTML = `<span style="background:#f1f5f9;color:#0284c7;border-radius:20px;padding:6px 14px;font-size:0.8rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-paper-plane-tilt"></i> Enviado para Assinatura: ${dtStr}</span>`;
+                        const txt = document.getElementById('perfil-status-txt-' + geradorId);
+            if (txt) {
+                txt.innerHTML = '<span style="color:#2563eb;font-weight:600;"><i class="ph ph-paper-plane-tilt"></i> Enviado para Assinatura: ' + dtStr + '</span>';
+            }
+            targetBtn.parentElement.innerHTML = '<span style="color:#16a34a;font-weight:600;"><i class="ph ph-check"></i> OK</span>';
         }
 
         window._contratosAvulsoLoaded = false;
