@@ -8130,7 +8130,7 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
             }
        }
 
-       let eyeBtn = `<button onclick="window.openContratoViewerById(${doc.id}, '${(_docTitle||'').replace(/'/g,\"\\'\")}'  )" style="border:none;background:none;cursor:pointer;color:#64748b;" title="Visualizar Documento"><i class="ph ph-eye" style="font-size:1.4rem;"></i></button>`;
+       let eyeBtn = `<button onclick="window.openContratoViewerById(${doc.id})" style="border:none;background:none;cursor:pointer;color:#64748b;" title="Visualizar Documento"><i class="ph ph-eye" style="font-size:1.4rem;"></i></button>`;
 
        html += `
         <label class="doc-check-item" style="display:flex; align-items:center; gap:0.6rem; padding:1.1rem 1.25rem; border:1px solid #f1f5f9; border-radius:8px; cursor:default; background:#fff; box-shadow: 0 1px 2px rgba(0,0,0,0.03); transition:all 0.2s; justify-content:space-between; margin-bottom:12px;">
