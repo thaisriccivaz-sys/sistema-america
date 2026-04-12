@@ -8249,13 +8249,19 @@ function updateAdmissaoStepPercentages(colab) {
                     : `<span style="background:#f1f5f9; color:#64748b; border:1px solid #e2e8f0; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-minus-circle"></i> Não enviado</span>`;
 
                 let dataText = '';
+                let dataLines = [];
+                if (ass && ass.enviado_em) {
+                    const d = new Date(ass.enviado_em + (ass.enviado_em.includes('Z') ? '' : 'Z'));
+                    dataLines.push(`<div style="font-size:0.75rem; color:#2563eb; margin-top:2px;"><i class="ph ph-paper-plane-tilt"></i> Enviado p/ Assinatura: <b>${d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</b></div>`);
+                }
                 if (isSigned && (ass?.assinado_em || docEquivalente?.assinafy_signed_at)) {
                     const dateVal = ass?.assinado_em || docEquivalente?.assinafy_signed_at;
                     const d = new Date(dateVal + (dateVal.includes('Z') ? '' : 'Z'));
-                    dataText = `<div style="font-size:0.75rem; color:#059669; margin-top:2px;">Assinado em: <b>${d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</b></div>`;
-                } else if (ass && ass.enviado_em) {
-                    const d = new Date(ass.enviado_em + (ass.enviado_em.includes('Z') ? '' : 'Z'));
-                    dataText = `<div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Enviado p/ Assinatura: <b>${d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</b></div>`;
+                    dataLines.push(`<div style="font-size:0.75rem; color:#16a34a; margin-top:2px;"><i class="ph ph-check-circle"></i> Assinado em: <b>${d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</b></div>`);
+                }
+                
+                if (dataLines.length > 0) {
+                    dataText = dataLines.join('');
                 } else if (docEquivalente && docEquivalente.file_path && docEquivalente.created_at) {
                     const d = new Date(docEquivalente.created_at + (docEquivalente.created_at.includes('Z') ? '' : 'Z'));
                     dataText = `<div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Gerado e Anexado: <b>${d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</b></div>`;
