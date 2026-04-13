@@ -3744,6 +3744,8 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
             listContainer.innerHTML = '<div class="alert alert-warning"><i class="ph ph-warning"></i> Módulo de multas não carregado. Tente recarregar a página.</div>';
         }
     } else if (tabId === 'Contratos') {
+        alert('Renderizando aba Contratos! listContainer:' + (listContainer ? listContainer.id : 'null'));
+
         renderContratosTab(listContainer);
     } else if (tabId === '00.CheckList') {
         renderCargoDocsChecklist(listContainer);
@@ -7345,6 +7347,7 @@ window.buildAdmissaoSignatureRows = function(availableGeradores, assinaturas, do
         const hasDoc     = !!docEquivalente;
         const colabId    = colab ? colab.id : '';
 
+        // ── Formatador de datas ───────────────────────────────────────────
         const fmtDate = (str) => {
             if (!str) return '';
             try {
@@ -7359,6 +7362,7 @@ window.buildAdmissaoSignatureRows = function(availableGeradores, assinaturas, do
             } catch(e) { return ''; }
         };
 
+        // ── Datas de status ───────────────────────────────────────────────
         const sentDate   = (ass && ass.enviado_em) ? fmtDate(ass.enviado_em) : (docEquivalente && docEquivalente.upload_date ? fmtDate(docEquivalente.upload_date) : '');
         const signedDate = (ass && ass.assinado_em) ? fmtDate(ass.assinado_em) : (docEquivalente && docEquivalente.assinafy_signed_at ? fmtDate(docEquivalente.assinafy_signed_at) : '');
         const uploadDate = docEquivalente && docEquivalente.upload_date ? fmtDate(docEquivalente.upload_date) : '';
@@ -7367,10 +7371,9 @@ window.buildAdmissaoSignatureRows = function(availableGeradores, assinaturas, do
         // ── Ícone esquerdo ────────────────────────────────────────────────
         let leftIcon = '';
         let subText  = '';
-
         if (isSigned) {
             leftIcon = '<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#16a34a;"><i class="ph ph-check-circle" style="font-size:1.4rem;"></i></div>';
-            subText  = '<span style="color:#16a34a;font-size:0.75rem;font-weight:600;">' + (signedDate ? '<i class="ph ph-signature"></i> Assinado em: ' + signedDate : 'Documento Assinado') + '</span>';
+            subText  = '<span style="color:#16a34a;font-size:0.75rem;font-weight:600;">' + (signedDate ? '<i class="ph ph-signature"></i> Assinado: ' + signedDate : 'Documento Assinado') + '</span>';
         } else if (isPending) {
             leftIcon = '<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#2563eb;"><i class="ph ph-paper-plane-tilt" style="font-size:1.4rem;"></i></div>';
             subText  = '<span style="color:#2563eb;font-size:0.75rem;font-weight:600;">' + (sentDate ? '<i class="ph ph-paper-plane-tilt"></i> Enviado: ' + sentDate : 'Enviado para Assinatura') + '</span>';
@@ -7381,22 +7384,26 @@ window.buildAdmissaoSignatureRows = function(availableGeradores, assinaturas, do
             leftIcon = '<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#eab308;"><i class="ph ph-info" style="font-size:1.4rem;"></i></div>';
             subText  = '<span style="color:#eab308;font-size:0.75rem;font-weight:600;">' + (uploadDate ? '<i class="ph ph-file-arrow-up"></i> Anexado: ' + uploadDate : 'Documento Anexado') + '</span>';
         } else {
-            // Documento ainda nao gerado!
             leftIcon = '<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#94a3b8;"><i class="ph ph-file-dashed" style="font-size:1.4rem;"></i></div>';
             subText  = '';
         }
+
+        // ── Nome do arquivo ───────────────────────────────────────────────
+        const fileNameTag = fileName ? '<span style="font-size:0.72rem;color:#94a3b8;margin-top:1px;"><i class="ph ph-file"></i> ' + fileName + '</span>' : '';
 
         // ── Botão de ação direito ─────────────────────────────────────────
         let actionBtn = '';
         let eyeBtn    = '';
 
         if (isSigned) {
+            // Assinado: mostrar olho para visualizar
             if (ass && ass.id) {
-                eyeBtn = '<button onclick="window.openSignedDocPopup(' + ass.id + ', \'' + g.nome.replace(/'/g, "") + '\', event)" style="border:none;background:none;cursor:pointer;color:#16a34a;" title="Ver documento assinado"><i class="ph ph-eye" style="font-size:1.4rem;"></i></button>';
+                eyeBtn = '<button onclick="window.openSignedDocPopup(' + ass.id + ', \"' + g.nome.replace(/"/g, '') + '\", event)" style="border:none;background:none;cursor:pointer;color:#16a34a;" title="Ver documento assinado"><i class="ph ph-eye" style="font-size:1.4rem;"></i></button>';
             } else if (docEquivalente && docEquivalente.id) {
                 eyeBtn = '<button onclick="window.openContratoViewerById(' + docEquivalente.id + ')" style="border:none;background:none;cursor:pointer;color:#16a34a;" title="Ver documento"><i class="ph ph-eye" style="font-size:1.4rem;"></i></button>';
             }
         } else if (isPending) {
+            // Pendente: botão reenviar e olho
             actionBtn = '<button type="button" onclick="window.reenviarAssinaturaContratoAdmissao(' + (docEquivalente ? docEquivalente.id : 'null') + ', ' + colabId + ', event)" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:0.2s;"><i class="ph ph-pen"></i> Reenviar</button>';
             if (docEquivalente && docEquivalente.id) {
                 eyeBtn = '<button onclick="window.openContratoViewerById(' + docEquivalente.id + ')" style="border:none;background:none;cursor:pointer;color:#64748b;" title="Ver documento"><i class="ph ph-eye" style="font-size:1.4rem;"></i></button>';
@@ -7404,83 +7411,888 @@ window.buildAdmissaoSignatureRows = function(availableGeradores, assinaturas, do
                 eyeBtn = '<button onclick="window.previewAdmissaoDoc(' + g.id + ', ' + colabId + ', event)" style="border:none;background:none;cursor:pointer;color:#64748b;" title="Ver documento original"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>';
             }
         } else if (naoExige) {
+            // Não exige assinatura: só visualizar
             if (docEquivalente && docEquivalente.id) {
                 eyeBtn = '<button onclick="window.openContratoViewerById(' + docEquivalente.id + ')" style="border:none;background:none;cursor:pointer;color:#9333ea;" title="Ver documento"><i class="ph ph-eye" style="font-size:1.4rem;"></i></button>';
             }
         } else if (hasDoc) {
-            // Tem documento mas nao foi enviado
-            actionBtn = '<button type="button" class="btn btn-primary btn-sm" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:0.85rem;background:#0284c7;color:#fff;border:none;padding:0.4rem 1rem;border-radius:6px;font-weight:600;" onclick="window.sendSingleAdmissaoSignature(\'' + g.id + '\', this)"><i class="ph ph-paper-plane-tilt"></i> Enviar p/ Assinatura</button>';
-            eyeBtn = '<button onclick="window.openContratoViewerById(' + docEquivalente.id + ')" style="border:none;background:none;cursor:pointer;color:#64748b;" title="Ver documento"><i class="ph ph-eye" style="font-size:1.4rem;"></i></button>';
+            // Tem documento mas não foi enviado para assinatura ainda
+            if (docEquivalente && docEquivalente.id) {
+                actionBtn = '<button type="button" onclick="window.reenviarAssinaturaContratoAdmissao(' + docEquivalente.id + ', ' + colabId + ', event)" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:0.2s;"><i class="ph ph-paper-plane-tilt"></i> Enviar p/ Assinatura</button>';
+                eyeBtn = '<button onclick="window.openContratoViewerById(' + docEquivalente.id + ')" style="border:none;background:none;cursor:pointer;color:#64748b;" title="Ver documento"><i class="ph ph-eye" style="font-size:1.4rem;"></i></button>';
+            }
         } else {
-            // PERGUNTA INLINE! Exibe Sim / Não
-            actionBtn = `
-                <div style="font-size:0.8rem;color:#475569;font-weight:600;display:flex;align-items:center;gap:8px;">
-                    Exige Assinatura?
-                    <label style="cursor:pointer;display:flex;align-items:center;gap:3px;"><input type="radio" name="inline-adm-${g.id}" value="sim" onchange="window.renderInlineAdmissaoAction(this, '${g.id}')"> Sim</label>
-                    <label style="cursor:pointer;display:flex;align-items:center;gap:3px;"><input type="radio" name="inline-adm-${g.id}" value="nao" onchange="window.renderInlineAdmissaoAction(this, '${g.id}')"> Não</label>
-                </div>
-                <div id="inline-adm-action-${g.id}" style="margin-left:8px;"></div>
-            `;
+            // Sem documento: checkbox para seleção no envio em lote (comportamento original)
+            leftIcon = '<input type="checkbox" value="' + g.id + '" data-nome="' + g.nome + '" checked style="width:16px;height:16px;cursor:pointer;accent-color:#f503c5;">';
             eyeBtn = '<button onclick="window.previewAdmissaoDoc(' + g.id + ', ' + colabId + ', event)" style="border:none;background:none;cursor:pointer;color:#64748b;" title="Ver documento original"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>';
         }
 
-        const fileNameTag = fileName ? '<span style="font-size:0.75rem;color:#64748b;margin-top:2px;font-family:monospace;"><i class="ph ph-file-pdf"></i> ' + fileName + '</span>' : '';
-
         const borderColor = isSigned ? '#bbf7d0' : isPending ? '#bfdbfe' : naoExige ? '#e9d5ff' : '#f1f5f9';
-        const bgColor     = isSigned ? '#f0fdf4' : isPending ? '#eff6ff' : naoExige ? '#faf5ff' : '#fff';
+        const bgColor     = isSigned ? '#f0fdf4'  : isPending ? '#eff6ff'  : naoExige ? '#faf5ff'  : '#fff';
 
-        return `
-            <div class="doc-check-item" data-nome="${g.nome}" style="display:flex; align-items:center; gap:0.6rem; padding:1.1rem 1.25rem; border:1px solid ${borderColor}; border-radius:8px; background:${bgColor}; box-shadow:0 1px 2px rgba(0,0,0,0.03); transition:all 0.2s; justify-content:space-between; margin-bottom:12px;">
-                <div style="display:flex; align-items:center; gap:12px; flex:1;">
-                    ${leftIcon}
-                    <div style="display:flex; flex-direction:column; gap:1px;">
-                        <span style="font-size:0.95rem; font-weight:700; color:#0f172a; margin-bottom:3px;">${g.nome.toUpperCase()}</span>
-                        ${subText}
-                        ${fileNameTag}
-                    </div>
-                </div>
-                <div style="display:flex; align-items:center; gap:12px;">
-                    ${actionBtn}
-                    ${eyeBtn}
-                </div>
-            </div>
-        `;
+        return '<label class="doc-check-item" data-gerador-id="' + g.id + '" style="display:flex; align-items:center; gap:0.6rem; padding:1.1rem 1.25rem; border:1px solid ' + borderColor + '; border-radius:8px; cursor:default; background:' + bgColor + '; box-shadow:0 1px 2px rgba(0,0,0,0.03); transition:all 0.2s; justify-content:space-between; margin-bottom:12px;">'
+            + '<div style="display:flex; align-items:center; gap:12px; flex:1;">'
+                + leftIcon
+                + '<div style="display:flex; flex-direction:column; gap:1px;">'
+                    + '<span style="font-size:0.95rem; font-weight:700; color:#0f172a; margin-bottom:3px;">' + g.nome.toUpperCase() + '</span>'
+                    + subText
+                    + fileNameTag
+                + '</div>'
+            + '</div>'
+            + '<div style="display:flex; align-items:center; gap:12px;">'
+                + actionBtn
+                + eyeBtn
+            + '</div>'
+        + '</label>';
     }).join('');
 };
 
-window.renderInlineAdmissaoAction = function(radio, gId) {
-    const actionDiv = document.getElementById(`inline-adm-action-${gId}`);
+// Helper: reenviar assinatura para contratos de admissão (usa document_id singular)
+window.reenviarAssinaturaContratoAdmissao = async function(docId, colabId, ev) {
+    if (ev) ev.stopPropagation();
+    if (!docId || !colabId) { alert('Dados insuficientes para enviar assinatura.'); return; }
+    if (!confirm('Confirmar envio deste documento para assinatura digital?')) return;
+    let trBtn = null;
+    let ogHtml = '';
+    try {
+        trBtn = ev ? ev.currentTarget : null;
+        if (trBtn) {
+            ogHtml = trBtn.innerHTML;
+            trBtn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Aguarde...';
+            trBtn.disabled = true;
+        }
+        const res = await fetch(API_URL + '/assinafy/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (window.currentToken || localStorage.getItem('token')) },
+            body: JSON.stringify({ document_id: Number(docId), colaborador_id: colabId })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (trBtn) { trBtn.innerHTML = ogHtml; trBtn.disabled = false; }
+        if (res.ok) {
+            if (typeof showToast !== 'undefined') showToast('Documento enviado para assinatura!', 'success');
+            else alert('Enviado!');
+            // Reload admissao tab
+            const admDiv = document.getElementById('contratos-sub-admissao');
+            if (admDiv) { admDiv.innerHTML = '<p class="text-muted" style="padding:1rem;"><i class="ph ph-spinner ph-spin"></i> Atualizando...</p>'; window.renderContratosAdmissaoTab && window.renderContratosAdmissaoTab(); }
+        } else {
+            throw new Error(data.error || 'Erro ao enviar assinatura');
+        }
+    } catch(err) {
+        if (trBtn) { trBtn.innerHTML = ogHtml; trBtn.disabled = false; }
+        if (typeof showToast !== 'undefined') showToast(err.message, 'error');
+        else alert(err.message);
+    }
+};
+window.renderContratosTab = async function(container) {
+    alert("renderContratosTab chamou com container: " + (container ? container.id : "null"));
+
+    if (!viewedColaborador) return;
+    container.innerHTML = '';
+
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = `
+        <div style="display:flex; gap:4px; border-bottom:2px solid #e2e8f0; margin-bottom:1.25rem;">
+            <button id="sub-tab-btn-admissao"
+                style="padding:0.55rem 1.2rem; border:none; border-radius:8px 8px 0 0; font-weight:700; cursor:pointer; background:var(--primary-color); color:#fff; font-size:0.88rem; display:flex; align-items:center; gap:6px;">
+                <i class="ph ph-briefcase"></i> Contratos de Admissão
+            </button>
+            <button id="sub-tab-btn-avulso"
+                style="padding:0.55rem 1.2rem; border:none; border-radius:8px 8px 0 0; font-weight:600; cursor:pointer; background:#f1f5f9; color:#64748b; font-size:0.88rem; display:flex; align-items:center; gap:6px;">
+                <i class="ph ph-file-plus"></i> Outros Contratos
+            </button>
+        </div>
+        <div id="contratos-sub-admissao">
+            <p class="text-muted" style="padding:0.5rem;"><i class="ph ph-spinner ph-spin"></i> Carregando...</p>
+        </div>
+        <div id="contratos-sub-avulso" style="display:none;">
+            <p class="text-muted" style="padding:0.5rem;"><i class="ph ph-spinner ph-spin"></i> Carregando geradores...</p>
+        </div>`;
+    container.appendChild(wrapper);
+
+    window._contratosAvulsoLoaded = false;
+
+    window.switchContratosSubTab = function(tab) {
+        const admDiv = document.getElementById('contratos-sub-admissao');
+        const avDiv  = document.getElementById('contratos-sub-avulso');
+        const btnAdm = document.getElementById('sub-tab-btn-admissao');
+        const btnAv  = document.getElementById('sub-tab-btn-avulso');
+        if (tab === 'admissao') {
+            if (admDiv) admDiv.style.display = '';
+            if (avDiv)  avDiv.style.display  = 'none';
+            if (btnAdm) { btnAdm.style.background = 'var(--primary-color)'; btnAdm.style.color = '#fff'; }
+            if (btnAv)  { btnAv.style.background  = '#f1f5f9'; btnAv.style.color  = '#64748b'; }
+        } else {
+            if (admDiv) admDiv.style.display = 'none';
+            if (avDiv)  avDiv.style.display  = '';
+            if (btnAdm) { btnAdm.style.background = '#f1f5f9'; btnAdm.style.color = '#64748b'; }
+            if (btnAv)  { btnAv.style.background  = 'var(--primary-color)'; btnAv.style.color  = '#fff'; }
+            if (!window._contratosAvulsoLoaded) {
+                window._contratosAvulsoLoaded = true;
+                const avDiv2 = document.getElementById('contratos-sub-avulso');
+                if (avDiv2) window.renderContratosAvulso(avDiv2);
+            }
+        }
+    };
+
+    document.getElementById('sub-tab-btn-admissao').onclick = () => window.switchContratosSubTab('admissao');
+    document.getElementById('sub-tab-btn-avulso').onclick   = () => window.switchContratosSubTab('avulso');
+
+    try {
+        const [depts, geradores, templates, assinaturas, docs] = await Promise.all([
+            apiGet('/departamentos'),
+            apiGet('/geradores'),
+            apiGet('/gerador-departamento-templates').catch(() => []),
+            apiGet(`/admissao-assinaturas/${viewedColaborador.id}`).catch(() => []),
+            apiGet(`/colaboradores/${viewedColaborador.id}/documentos`).catch(() => [])
+        ]);
+
+        window._todosGeradores = geradores;
+
+        let availableGeradores = [];
+        const empDeptId = viewedColaborador.departamento;
+        const deptObj = depts.find(d =>
+            String(d.id) === String(empDeptId) ||
+            d.nome.trim().toLowerCase() === String(empDeptId).trim().toLowerCase()
+        );
+        if (deptObj) {
+            const geradorIds = [...new Set(templates
+                .filter(t => Number(t.departamento_id) === Number(deptObj.id))
+                .map(t => Number(t.gerador_id)))];
+            const seen1 = new Set();
+            availableGeradores = geradores.filter(g => geradorIds.includes(Number(g.id)) && !seen1.has(Number(g.id)) && seen1.add(Number(g.id)));
+        }
+
+        window._admissaoGeradores = availableGeradores;
+        window._admissaoAssinaturas = assinaturas;
+
+        const admDiv = document.getElementById('contratos-sub-admissao');
+        if (admDiv) {
+            if (availableGeradores.length > 0) {
+                let html = `
+                    <div class="alert alert-info mb-3">
+                        <i class="ph ph-info"></i> Contratos configurados via <b>Admissão</b> para o departamento deste colaborador.
+                    </div>
+                    <div id="contratos-signature-list" style="display:flex;flex-direction:column;gap:0.75rem;margin-bottom:1.5rem;">`;
+                html += window.buildAdmissaoSignatureRows(availableGeradores, assinaturas, docs, viewedColaborador);
+                html += `</div>
+                    <div style="background:#f8fafc; padding:15px; border-radius:8px; border:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                        <div>
+                            <div style="font-weight:700; color:#0f172a; margin-bottom:4px;">Envio para Assinatura Digital</div>
+                            <div style="font-size:0.78rem; color:#64748b;">Documentos enviados ao e-mail do colaborador via Assinafy.</div>
+                        </div>
+                        <button id="btn-enviar-contratos" class="btn btn-primary" onclick="window.sendAdmissaoSignatures('contratos-signature-list','btn-enviar-contratos')" style="display:flex;align-items:center;gap:5px;">
+                            <i class="ph ph-paper-plane-tilt"></i> Enviar para Assinatura
+                        </button>
+                    </div>`;
+                admDiv.innerHTML = html;
+            } else {
+                admDiv.innerHTML = `<p class="text-muted" style="padding:1rem;text-align:center;">
+                    Nenhum contrato configurado para o departamento <b>${deptObj ? deptObj.nome : (empDeptId || 'Não Informado')}</b>.<br>
+                    <small>Configure em <b>Geradores → Template de Admissão</b>.</small>
+                </p>`;
+            }
+        }
+    } catch(err) {
+        const admDiv = document.getElementById('contratos-sub-admissao');
+        if (admDiv) admDiv.innerHTML = `<div class="alert alert-danger"><i class="ph ph-warning"></i> Erro: ${err.message}</div>`;
+    }
+};
+
+// === SUB-ABA CONTRATOS ===
+window.renderContratosAvulso = async function(container) {
+    if (!viewedColaborador || !container) return;
+    container.innerHTML = '<p class="text-muted"><i class="ph ph-spinner ph-spin"></i> Carregando Documentos...</p>';
+    try {
+        // Busca paralela com null-safe em todas as respostas
+        const safeGet = async (url) => {
+            try {
+                const r = await apiGet(url);
+                return Array.isArray(r) ? r : (r ? [r] : []);
+            } catch(e) { return []; }
+        };
+        const [assinaturas, docs, geradores, outrosTemplates, departamentos] = await Promise.all([
+            safeGet(`/colaboradores/${viewedColaborador.id}/admissao-assinaturas`),
+            safeGet(`/colaboradores/${viewedColaborador.id}/documentos`),
+            safeGet('/geradores'),
+            safeGet('/gerador-outros-contratos-templates'),
+            safeGet('/departamentos')
+        ]);
+        window._todosGeradores = geradores;
+
+        // Geradores configurados via Template de Outros Contratos (por departamento)
+        let templateGeradores = [];
+        const empDeptId = viewedColaborador.departamento; 
+        const deptObj = departamentos.find(d =>
+            String(d.id) === String(empDeptId) ||
+            String(d.nome).trim().toLowerCase() === String(empDeptId).trim().toLowerCase()
+        );
+        if (deptObj) {
+            const geradorIds = outrosTemplates.filter(t => Number(t.departamento_id) === Number(deptObj.id)).map(t => Number(t.gerador_id));
+            if (geradorIds.length > 0) {
+                templateGeradores = geradores.filter(g => geradorIds.includes(Number(g.id)));
+            }
+        }
+
+        // === CONTRATOS DINÂMICOS POR PERFIL DO COLABORADOR ===
+        // Mapeia nome do gerador → condição baseada no perfil
+        const c = viewedColaborador;
+        const PROFILE_CONTRACT_MAP = [
+            // Terapia
+            { nome: 'Termo de NÃO Interesse Terapia',   cond: c.terapia_participa === 'Não' || c.terapia_participa === 'Nao' },
+            { nome: 'Termo de Interesse Terapia',        cond: c.terapia_participa === 'Sim' },
+            // Meio de transporte
+            { nome: 'Responsabilidade Bilhete Único',    cond: (c.meio_transporte || '').toLowerCase().includes('vt') || (c.meio_transporte || '').toLowerCase().includes('vale transporte') },
+            { nome: 'Acordo de Auxílio-Combustível',     cond: (c.meio_transporte || '').toLowerCase().includes('vc') || (c.meio_transporte || '').toLowerCase().includes('combustível') || (c.meio_transporte || '').toLowerCase().includes('combustivel') },
+            // Celular
+            { nome: 'Responsabilidade Celular',          cond: c.celular_participa === 'Sim' },
+            // Faculdade
+            { nome: 'Contrato Faculdade',                cond: c.faculdade_participa === 'Sim' },
+            // Academia
+            { nome: 'Contrato Academia',                 cond: c.academia_participa === 'Sim' },
+        ];
+
+        // Chaves: se o colaborador tiver chaves atribuídas (já vem no payload do colaborador)
+        const temChaves = Array.isArray(c.chaves_lista) && c.chaves_lista.length > 0;
+        if (temChaves) {
+            PROFILE_CONTRACT_MAP.push({ nome: 'Termo de Responsabilidade de Chaves', cond: true });
+        }
+
+        // Filtrar apenas os contratos cujas condições são verdadeiras
+        const profileGeradorNomes = PROFILE_CONTRACT_MAP.filter(m => m.cond).map(m => m.nome);
+
+        // Encontrar esses geradores na lista geral (match por nome, case-insensitive)
+        const profileGeradores = profileGeradorNomes
+            .map(nome => geradores.find(g => (g.nome || '').trim().toLowerCase() === nome.toLowerCase()))
+            .filter(Boolean);
+
+        // Geradores dinâmicos (perfil) primeiro, depois os do template — sem duplicatas
+        const seenIds = new Set();
+        const availableGeradores = [...profileGeradores, ...templateGeradores].filter(g => {
+            if (seenIds.has(g.id)) return false;
+            seenIds.add(g.id);
+            return true;
+        });
+
+        // Remover o contrato de multa (AUTORIZAÇÃO DE DESCONTO) da lista geral de contratos avulsos, pois tem fluxo próprio de Multas
+        const finalGeradores = availableGeradores.filter(g => 
+            !['AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO', 'AUTORIZAÇÃO DE DESCONTO EM FOLHA']
+                .includes((g.nome || '').toUpperCase().trim())
+        );
+
+        // Apenas documentos da aba separada de outros contratos (não mistura com admissão)
+        const filteredDocs = docs.filter(d => d.tab_name === 'CONTRATOS_AVULSOS');
+
+        // Pendentes: geradores de perfil que ainda não foram gerados (sem doc salvo com esse nome)
+        const geradosNomes = new Set(filteredDocs.map(d => (d.document_type || '').trim().toLowerCase()));
+        const pendingGeradores = profileGeradores.filter(g =>
+            !geradosNomes.has((g.nome || '').trim().toLowerCase())
+        );
+
+        // HTML das linhas pendentes (topo da lista)
+        const pendingRowsHtml = pendingGeradores.map(g => {
+            const escNome = (g.nome||'').replace(/'/g,"\\'").replace(/"/g, "&quot;");
+            return `
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:0.65rem 0.75rem; border:1.5px dashed #c026d3; border-radius:8px; background:#fdf4ff; gap:0.75rem;">
+                <div style="display:flex; align-items:center; gap:0.6rem; flex:1;">
+                    <span style="background:#fdf4ff;color:#c026d3;border:1px solid #f0abfc;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Perfil</span>
+                    <div>
+                        <span style="font-weight:600; color:#334155; font-size:0.9rem;">${g.nome}</span>
+                        <div id="perfil-status-txt-${g.id}" style="font-size:0.75rem; color:#a21caf; margin-top:1px;">Necessário pelo perfil do colaborador — aguardando geração</div>
+                    </div>
+                </div>
+                
+                <div style="display:flex; align-items:center; gap:0.75rem; border-left: 1px solid #f0abfc; padding-left: 1rem;">
+                    <span style="font-size:0.85rem; font-weight:600; color:#334155;">Exige Assinatura?</span>
+                    <label style="cursor:pointer; display:flex; align-items:center; gap:0.25rem; font-size:0.85rem; color:#0f172a; margin:0;">
+                        <input type="radio" name="req-ass-${g.id}" value="sim" onchange="window.toggleAcaoContratoPerfil('${g.id}', 'sim', '${escNome}')"> Sim
+                    </label>
+                    <label style="cursor:pointer; display:flex; align-items:center; gap:0.25rem; font-size:0.85rem; color:#0f172a; margin:0;">
+                        <input type="radio" name="req-ass-${g.id}" value="nao" onchange="window.toggleAcaoContratoPerfil('${g.id}', 'nao', '${escNome}')"> Não
+                    </label>
+                </div>
+                
+                <div id="pg-action-${g.id}" style="min-width: 160px; text-align: right; display: flex; justify-content: flex-end;">
+                    <span style="font-size:0.8rem; color:#64748b; font-style:italic;">Selecione uma opção</span>
+                </div>
+            </div>`;
+        }).join('');
+
+        container.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
+                <div>
+                     <h3 style="margin:0; font-size:1.1rem; color:#1e293b; font-weight:700;"><i class="ph ph-files"></i> Contratos e Autorizações</h3>
+                     <p style="margin:0; font-size:0.85rem; color:#64748b;">Gere templates ou anexe PDFs para assinatura.</p>
+                </div>
+                <div style="display:flex; gap:0.5rem;">
+                    <label class="btn btn-secondary" style="display:flex;align-items:center;margin:0;gap:0.4rem;cursor:pointer;">
+                        <i class="ph ph-upload-simple"></i> Anexar PDF
+                        <input type="file" accept=".pdf" style="display:none" onchange="window.uploadContratoExterno(this)">
+                    </label>
+                    <button class="btn btn-primary" onclick="window.abrirModalGerarContrato()" style="display:flex;align-items:center;margin:0;gap:0.4rem;background:#9333ea;border-color:#9333ea;color:#fff;">
+                        <i class="ph ph-file-plus"></i> Gerar Novo
+                    </button>
+                 </div>
+            </div>
+            
+            <div id="ca-list-container" style="display:flex; flex-direction:column; gap:0.5rem; margin-bottom:1.5rem;">
+                ${pendingRowsHtml}
+                ${window.buildContratosSignatureRows(assinaturas, filteredDocs, viewedColaborador)}
+            </div>
+        `;
+        
+        window._caAvailableGeradores = finalGeradores;
+    } catch(err) {
+        container.innerHTML = `<div class="alert alert-danger"><i class="ph ph-warning"></i> Erro: ${err.message}</div>`;
+    }
+};
+
+window.toggleAcaoContratoPerfil = function(geradorId, exige, geradorNome) {
+    const actionDiv = document.getElementById('pg-action-' + geradorId);
     if (!actionDiv) return;
-    if (radio.value === 'nao') {
-        const docType = radio.closest('.doc-check-item').getAttribute('data-nome');
+    
+    if (exige === 'nao') {
         actionDiv.innerHTML = `
-            <label class="btn btn-outline-primary btn-sm" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:0.85rem;border-color:#0284c7;color:#0284c7;padding:0.4rem 1rem;border-radius:6px;font-weight:600;">
+            <label class="btn btn-warning btn-sm" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:0.85rem;background:#eab308;color:#fff;border:none;padding:0.4rem 1rem;border-radius:6px;font-weight:600;">
                 <i class="ph ph-upload-simple"></i> Anexar PDF
-                <input type="file" style="display:none;" accept="application/pdf" onchange="window.uploadAdmissaoAvulso(this, '${gId}', '${docType}')">
+                <input type="file" accept=".pdf" style="display:none;" onchange="window.uploadContratoPerfilNaoAssinado(this, '${geradorNome}')">
+            </label>
+        `;
+    } else {
+        actionDiv.innerHTML = `
+            <button class="btn btn-primary btn-sm" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:0.85rem;background:#c026d3;border-color:#c026d3;padding:0.4rem 1rem;border-radius:6px;" 
+                onclick="window.previewContratoPerfilAssinado('${geradorId}', '${geradorNome}')">
+                <i class="ph ph-file-arrow-down"></i> Gerar Documento
+            </button>
+        `;
+    }
+};
+
+window.uploadContratoPerfilNaoAssinado = async function(input, geradorNome) {
+    const file = input.files[0];
+    if (!file || !viewedColaborador) return;
+    Swal.fire({ title: 'Anexando...', allowOutsideClick: false, didOpen: function() { Swal.showLoading(); } });
+
+    var formData = new FormData();
+    formData.append('file', file);
+    formData.append('tab_name', 'CONTRATOS_AVULSOS');
+    formData.append('document_type', geradorNome);
+    formData.append('colaborador_id', viewedColaborador.id);
+    formData.append('colaborador_nome', viewedColaborador.nome_completo || '');
+    formData.append('assinafy_status', 'NAO_EXIGE');
+
+    try {
+        var res = await fetch(API_URL + '/documentos', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + currentToken },
+            body: formData
+        });
+        var data = await res.json().catch(function() { return {}; });
+        if (!res.ok) throw new Error(data.error || 'Falha ao salvar PDF');
+        Swal.close(); if(typeof showToast !== 'undefined') showToast('Documento anexado!', 'success');
+        window._contratosAvulsoLoaded = false;
+        var avDiv = document.getElementById('contratos-sub-avulso');
+        if (avDiv) await window.renderContratosAvulso(avDiv);
+    } catch(e) {
+        Swal.fire('Erro', e.message, 'error');
+    }
+};
+
+window.previewContratoPerfilAssinado = async function(geradorId, geradorNome) {
+    Swal.fire({ title: 'Gerando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    try {
+        const res = await fetch(`${API_URL}/geradores/${geradorId}/gerar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
+            body: JSON.stringify({ colaborador_id: viewedColaborador.id, colabId: viewedColaborador.id })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erro ao gerar documento');
+        Swal.close();
+
+        window._perfilGeradorIdCtx = geradorId;
+        window._perfilGeradorNomeCtx = geradorNome;
+
+        window.abrirPreviewDocumento(data);
+
+        setTimeout(() => {
+            const previewBtns = document.getElementById('preview-doc-buttons');
+            if (previewBtns) {
+                previewBtns.innerHTML = `
+                    <button class="btn btn-secondary" onclick="window.fecharPreviewEHabitarEnvio()">
+                        <i class="ph ph-x"></i> Fechar Prévia
+                    </button>
+                `;
+            }
+        }, 150);
+
+    } catch(e) {
+        Swal.fire('Erro', e.message, 'error');
+    }
+};
+
+window.fecharPreviewEHabitarEnvio = function() {
+    const elModal = document.getElementById('modal-preview-doc') || document.getElementById('doc-modal');
+    if (elModal) elModal.style.display = 'none';
+
+    const gId = window._perfilGeradorIdCtx;
+    if (!gId) return;
+
+    const actionDiv = document.getElementById('pg-action-' + gId);
+    if (actionDiv) {
+        actionDiv.innerHTML = `
+            <button class="btn btn-primary" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-size:0.95rem;font-weight:500;padding:0.55rem 1.25rem;border-radius:8px;background:#0056b3;border-color:#0056b3;color:#fff;transition:all 0.2s;" 
+                onclick="window.enviarAssinaturaPerfilDireto(event)">
+                <i class="ph ph-paper-plane-tilt"></i> Enviar para Assinatura
+            </button>
+        `;
+    }
+};
+
+window.enviarAssinaturaPerfilDireto = async function(event) {
+    const geradorId = window._perfilGeradorIdCtx;
+    const geradorNome = window._perfilGeradorNomeCtx;
+    if (!geradorId) return;
+
+    let targetBtn = null;
+    let originalHtml = '';
+    if (event && event.currentTarget) {
+        targetBtn = event.currentTarget;
+        originalHtml = targetBtn.innerHTML;
+        targetBtn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando...';
+        targetBtn.disabled = true;
+    }
+
+    try {
+        const previewContent = document.querySelector('#modal-preview-doc #preview-doc-body') || document.querySelector('#doc-modal .preview-content');
+        if (!previewContent) throw new Error('Conteúdo do formulário foi perdido. Tente gerar novamente.');
+        
+        const pdfBlob = await window.gerarPDFBlob(previewContent);
+        const safeName = (geradorNome || 'documento').replace(/[^a-zA-Z0-9À-ÿ _-]/g, '');
+        const colabId  = viewedColaborador?.id || '';
+        const colabNome = (viewedColaborador?.nome_completo || colabId).toString();
+        
+        const formData = new FormData();
+        formData.append('file', pdfBlob, `${safeName}_${colabNome}.pdf`);
+        formData.append('tab_name', 'CONTRATOS_AVULSOS');
+        formData.append('document_type', geradorNome);
+        formData.append('gerador_id', geradorId);
+        formData.append('colaborador_id', colabId);
+        formData.append('assinafy_status', 'Pendente');
+        
+        const r = await fetch(`${API_URL}/documentos?colaborador_id=${colabId}`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${currentToken}` },
+            body: formData
+        });
+        
+        if (!r.ok) {
+            const errData = await r.json().catch(() => ({}));
+            throw new Error(errData.error || 'Falha ao salvar PDF');
+        }
+
+        await apiPost('/admissao-assinaturas/enviar-lote', {
+            colaborador_id: colabId,
+            geradores_ids: [parseInt(geradorId)]
+        });
+
+        // Toast success notification instead of freezing modal
+        Swal.fire({
+            title: 'Enviado sucesso!',
+            toast: true, position: 'top-end',
+            showConfirmButton: false, timer: 3000,
+            icon: 'success'
+        });
+        
+        if (targetBtn && targetBtn.parentElement) {
+            // Transform directly into the blue pill requested by the user
+            const dtStr = new Date().toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }).replace(',', ' -');
+                        const txt = document.getElementById('perfil-status-txt-' + geradorId);
+            if (txt) {
+                txt.innerHTML = '<span style="color:#2563eb;font-weight:600;"><i class="ph ph-paper-plane-tilt"></i> Enviado para Assinatura: ' + dtStr + '</span>';
+            }
+            targetBtn.parentElement.innerHTML = '<span style="color:#16a34a;font-weight:600;"><i class="ph ph-check"></i> OK</span>';
+        }
+
+        window._contratosAvulsoLoaded = false;
+        const avDiv = document.getElementById('contratos-sub-avulso');
+        if (avDiv) await window.renderContratosAvulso(avDiv);
+
+    } catch(e) {
+        Swal.fire('Erro ao enviar', e.message, 'error');
+    }
+};
+
+window.uploadContratoExterno = async function(input) {
+    const file = input.files[0];
+    if (!file || !viewedColaborador) return;
+
+    // Reset input so same file can be selected again if needed
+    input.value = '';
+
+    const modalResult = await Swal.fire({
+        title: '<i class="ph ph-file-plus"></i> Anexar Contrato',
+        html: '<div style="text-align:left;display:flex;flex-direction:column;gap:0.75rem;padding:0.25rem 0;"><div><label style="font-size:0.82rem;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Nome do Documento</label><input id="swal-doctype" class="swal2-input" style="margin:0;width:100%;box-sizing:border-box;" placeholder="Ex: Acordo de Confidencialidade"></div></div>',
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: '<i class="ph ph-upload-simple"></i> Anexar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#2563eb',
+        showLoaderOnConfirm: true,
+        allowOutsideClick: function() { return !Swal.isLoading(); },
+        didOpen: function() {
+            var dtInput = document.getElementById('swal-doctype');
+            if (dtInput) dtInput.value = file.name.replace(/\.pdf$/i, '').substring(0, 60);
+        },
+        preConfirm: async function() {
+            var docType = (document.getElementById('swal-doctype') || {}).value;
+            if (docType) docType = docType.trim();
+            if (!docType) { Swal.showValidationMessage('Informe o nome do documento'); return false; }
+
+            var formData = new FormData();
+            formData.append('file', file);
+            formData.append('tab_name', 'CONTRATOS_AVULSOS');
+            formData.append('document_type', docType);
+            formData.append('colaborador_id', viewedColaborador.id);
+            formData.append('colaborador_nome', viewedColaborador.nome_completo || '');
+            formData.append('assinafy_status', 'NAO_EXIGE');
+
+            try {
+                var res = await fetch(API_URL + '/documentos', {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + currentToken },
+                    body: formData
+                });
+                var data = await res.json().catch(function() { return {}; });
+                if (!res.ok) throw new Error(data.error || 'Falha ao anexar PDF');
+
+                if (typeof showToast !== 'undefined') showToast('Documento anexado no Prontuário!', 'success');
+                return true;
+            } catch(err) {
+                Swal.showValidationMessage(err.message);
+                return false;
+            }
+        }
+    });
+
+    if (modalResult.isConfirmed) {
+        window._contratosAvulsoLoaded = false;
+        var avDiv = document.getElementById('contratos-sub-avulso');
+        if (avDiv) window.renderContratosAvulso(avDiv);
+    }
+};
+
+// Versão segura: pega o token no momento do clique (não no build-time da lista)
+window.openContratoViewerById = function(docId, nomeDoc) {
+    var token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+    if (!token) { alert('Sessão expirada. Faça login novamente.'); return; }
+    var pdfUrl = API_URL + '/documentos/view/' + docId + '?token=' + encodeURIComponent(token);
+    window.openContratoViewerPopup(pdfUrl, nomeDoc);
+};
+
+window.openContratoViewerPopup = function(pdfUrl, nomeDoc) {
+    if (!pdfUrl || pdfUrl.endsWith('undefined')) {
+        alert('URL do documento nao encontrada.');
+        return;
+    }
+    var token = window.currentToken || localStorage.getItem('erp_token') || '';
+    var finalUrl = pdfUrl;
+    if ((pdfUrl.indexOf('onrender.com') >= 0 || pdfUrl.indexOf(window.location.hostname) >= 0) && pdfUrl.indexOf('token=') === -1) {
+        finalUrl = (pdfUrl.indexOf('?') >= 0 ? pdfUrl + '&token=' + token : pdfUrl + '?token=' + token);
+    }
+    var nomeSafe = (nomeDoc || 'Documento');
+
+    var prev = document.getElementById('cv-overlay-fs');
+    if (prev) prev.remove();
+
+    var overlay = document.createElement('div');
+    overlay.id = 'cv-overlay-fs';
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100vw';
+    overlay.style.height = '100vh';
+    overlay.style.background = '#0f172a';
+    overlay.style.zIndex = '999999';
+    overlay.style.display = 'flex';
+    overlay.style.flexDirection = 'column';
+    overlay.style.overflow = 'hidden';
+
+    var header = document.createElement('div');
+    header.style.cssText = 'background:#1e293b;display:flex;align-items:center;justify-content:space-between;padding:0.75rem 1.25rem;flex-shrink:0;border-bottom:1px solid #334155;min-height:58px;box-sizing:border-box;';
+
+    var left = document.createElement('div');
+    left.style.cssText = 'display:flex;align-items:center;gap:0.75rem;';
+    left.innerHTML = '<i class="ph ph-file-pdf" style="color:#ef4444;font-size:1.5rem;"></i>';
+    var info = document.createElement('div');
+    var titleEl = document.createElement('div');
+    titleEl.style.cssText = 'font-weight:700;color:#f1f5f9;font-size:0.95rem;';
+    titleEl.textContent = nomeSafe;
+    var subEl = document.createElement('div');
+    subEl.style.cssText = 'font-size:0.72rem;color:#94a3b8;';
+    subEl.textContent = 'Visualizador de Documento';
+    info.appendChild(titleEl);
+    info.appendChild(subEl);
+    left.appendChild(info);
+
+    var right = document.createElement('div');
+    right.style.cssText = 'display:flex;gap:0.5rem;';
+
+    var dlBtn = document.createElement('a');
+    dlBtn.href = finalUrl;
+    dlBtn.setAttribute('download', nomeSafe + '.pdf');
+    dlBtn.target = '_blank';
+    dlBtn.style.cssText = 'display:inline-flex;align-items:center;gap:0.4rem;background:#22c55e;color:#fff;padding:0.5rem 1.1rem;border-radius:8px;font-weight:600;font-size:0.85rem;text-decoration:none;';
+    dlBtn.innerHTML = '<i class="ph ph-download-simple"></i> Baixar';
+
+    var closeBtn = document.createElement('button');
+    closeBtn.style.cssText = 'background:#ef4444;color:#fff;border:none;border-radius:8px;padding:0.5rem 1.1rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;';
+    closeBtn.innerHTML = '<i class="ph ph-x"></i> Fechar';
+    closeBtn.onclick = function() { overlay.remove(); };
+
+    right.appendChild(dlBtn);
+    right.appendChild(closeBtn);
+    header.appendChild(left);
+    header.appendChild(right);
+
+    var content = document.createElement('div');
+    content.style.cssText = 'flex:1;position:relative;background:#525659;overflow:hidden;';
+
+    var loading = document.createElement('div');
+    loading.id = 'cv-fs-loading';
+    loading.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;gap:0.75rem;z-index:1;';
+    loading.innerHTML = '<i class="ph ph-circle-notch ph-spin" style="font-size:3rem;color:#6366f1;"></i><span style="font-weight:600;">Carregando documento...</span>';
+
+    var iframe = document.createElement('iframe');
+    iframe.src = finalUrl;
+    iframe.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;border:none;z-index:2;';
+    iframe.onload = function() { var l = document.getElementById('cv-fs-loading'); if (l) l.style.display = 'none'; };
+
+    content.appendChild(loading);
+    content.appendChild(iframe);
+    overlay.appendChild(header);
+    overlay.appendChild(content);
+    document.body.appendChild(overlay);
+
+    var onEsc = function(e) { if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', onEsc); } };
+    document.addEventListener('keydown', onEsc);
+};
+window.reenviarAssinaturaContrato = async function(docId, ev) {
+    if(ev) ev.stopPropagation();
+    if(!confirm('Confirmar envio deste documento para assinatura digital?')) return;
+    let trBtn = null;
+    let ogHtml = '';
+    try {
+        trBtn = ev ? ev.currentTarget : null;
+        if(trBtn) {
+            ogHtml = trBtn.innerHTML;
+            trBtn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Aguarde...';
+            trBtn.disabled = true;
+        }
+        
+        let targetColabId = null;
+        if (typeof viewedColaborador !== 'undefined' && viewedColaborador && viewedColaborador.id) {
+            targetColabId = viewedColaborador.id;
+        } else if (window.viewedColaborador && window.viewedColaborador.id) {
+            targetColabId = window.viewedColaborador.id;
+        } else if (window.lastColaboradorId) {
+             targetColabId = window.lastColaboradorId;
+        }
+        
+        if (!targetColabId) throw new Error('Não foi possível identificar o colaborador atual.');
+
+
+        const res = await fetch(`${API_URL}/assinafy/upload`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (window.currentToken || localStorage.getItem('token')) },
+            body: JSON.stringify({ document_id: Number(docId), colaborador_id: targetColabId })
+        });
+        const data = await res.json().catch(() => ({}));
+        
+        if(trBtn) {
+            trBtn.innerHTML = ogHtml;
+            trBtn.disabled = false;
+        }
+        
+        if(res.ok) {
+            if (typeof showToast !== 'undefined') showToast('E-mail de assinatura enviado ao colaborador!', 'success');
+            else alert('Documento enviado para assinatura com sucesso!');
+            window._contratosAvulsoLoaded = false; const avDiv = document.getElementById('contratos-sub-avulso'); if (avDiv) { avDiv.innerHTML = '<p class="text-muted" style="padding:1rem;"><i class="ph ph-spinner ph-spin"></i> Atualizando status...</p>'; window.renderContratosAvulso(avDiv); }
+        } else {
+            throw new Error(data.error || 'Erro ao reenviar assinatura');
+        }
+    } catch(err) {
+        if(trBtn) {
+            trBtn.innerHTML = ogHtml;
+            trBtn.disabled = false;
+        }
+        if (typeof showToast !== 'undefined') showToast(err.message, 'error');
+        else alert(err.message);
+    }
+};
+window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
+    // assinaturas was kept here as argument for backward compatibility but is no longer used for linking
+    docs = Array.isArray(docs) ? docs : [];
+    if (docs.length === 0) {
+        return `<div style="padding:2rem;text-align:center;color:#94a3b8;border:2px dashed #e2e8f0;border-radius:12px;"><i class="ph ph-files" style="font-size:2rem;margin-bottom:0.5rem;display:block;"></i>Nenhum contrato listado.</div>`;
+    }
+
+    let html = '';
+    docs.forEach(doc => {
+       let realStatus = 'Não enviado';
+       if (doc.assinafy_status === 'Assinado') realStatus = 'Assinado';
+       else if (doc.assinafy_status === 'Pendente' || doc.assinafy_status === 'Aguardando') realStatus = 'Aguardando';
+
+       const isSigned = (realStatus === 'Assinado');
+       const isPending = (realStatus === 'Aguardando');
+       const literallyNaoExige = (doc.assinafy_status === 'NAO_EXIGE');
+       const requiresButNotSent = (!isSigned && !isPending && !literallyNaoExige);
+
+       const _docName = (doc.document_type || doc.file_name || 'Documento Avulso');
+       const _docTitle = _docName.replace(/_/g, ' ');
+
+       const formatDate = (str) => {
+           if (!str) return '';
+           const d = new Date(str);
+           if (isNaN(d.getTime())) return '';
+           const _dd = String(d.getDate()).padStart(2,'0');
+           const _mm = String(d.getMonth()+1).padStart(2,'0');
+           const _yy = d.getFullYear();
+           const _hh = String(d.getHours()).padStart(2,'0');
+           const _mi = String(d.getMinutes()).padStart(2,'0');
+           return `${_dd}/${_mm}/${_yy} - ${_hh}:${_mi}`;
+       };
+
+       const _uploadDt = doc.upload_date || doc.created_at;
+       const _uploadStr = formatDate(_uploadDt);
+       const _sentDt = doc.assinafy_sent_at || _uploadDt;
+       const _sentStr = formatDate(_sentDt);
+       // Prioridade: assinafy_signed_at do doc, depois upload date
+       const _signedDt = doc.assinafy_signed_at || _uploadDt;
+       const _signedStr = formatDate(_signedDt);
+
+       let statusBadge = '';
+       let leftIconMarkup = '';
+       let sendBtn = '';
+       let actionUX = ''; // novo container para UX customizada no lado direito
+       let borderBgColor = isSigned ? 'border:1px solid #bbf7d0; background:#f0fdf4;' : isPending ? 'border:1px solid #bfdbfe; background:#eff6ff;' : literallyNaoExige ? 'border:1px solid #e9d5ff; background:#faf5ff;' : 'border:1px solid #fde047; background:#fefce8;';
+       
+       if (isSigned) {
+           leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#16a34a;"><i class="ph ph-check-circle" style="font-size:1.4rem;"></i></div>`;
+           statusBadge = `<span style="color:#16a34a;font-size:0.75rem;font-weight:600;">Documento Assinado${_signedStr ? ': ' + _signedStr : ''}</span>`;
+           
+       } else if (isPending) {
+            leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#2563eb;"><i class="ph ph-paper-plane-tilt" style="font-size:1.4rem;"></i></div>`;
+            statusBadge = `<span style="color:#2563eb;font-size:0.75rem;font-weight:600;">Enviado para Assinatura${_sentStr ? ': ' + _sentStr : ''}</span>`;
+           if (window.reenviarAssinaturaContrato) {
+               sendBtn = `<button type="button" onclick="window.reenviarAssinaturaContrato(${doc.id}, event);" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:0.2s;"><i class="ph ph-pen"></i> Reenviar para Assinatura</button>`;
+           }
+       } else if (literallyNaoExige) {
+            leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#9333ea;"><i class="ph ph-file-text" style="font-size:1.4rem;"></i></div>`;
+            statusBadge = `<span style="color:#9333ea;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
+       } else {
+            leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#eab308;"><i class="ph ph-info" style="font-size:1.4rem;"></i></div>`;
+            statusBadge = `<span style="color:#eab308;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
+            
+            // O usuário acabou de anexar ou gerar, mas não tomou decisão ainda (Exige Assinatura?)
+            const escNome = _docName.replace(/'/g,"\\'");
+            actionUX = `
+                <div style="display:flex; align-items:center; gap:0.75rem; border-left: 1px solid #fde047; padding-left: 1rem; margin-right:5px;">
+                    <span style="font-size:0.85rem; font-weight:600; color:#334155;">Exige Assinatura?</span>
+                    <label style="cursor:pointer; display:flex; align-items:center; gap:0.25rem; font-size:0.85rem; color:#0f172a; margin:0;">
+                        <input type="radio" name="req-ass-doc-${doc.id}" value="sim" onchange="window.toggleAcaoDocumentoAvulso('${doc.id}', 'sim', '${escNome}')"> Sim
+                    </label>
+                    <label style="cursor:pointer; display:flex; align-items:center; gap:0.25rem; font-size:0.85rem; color:#0f172a; margin:0;">
+                        <input type="radio" name="req-ass-doc-${doc.id}" value="nao" onchange="window.toggleAcaoDocumentoAvulso('${doc.id}', 'nao', '${escNome}')"> Não
+                    </label>
+                </div>
+                <div id="pg-action-doc-${doc.id}" style="min-width: 160px; text-align: right; display: flex; justify-content: flex-end;">
+                    <span style="font-size:0.8rem; color:#64748b; font-style:italic;">Selecione uma opção</span>
+                </div>
+            `;
+       }
+
+       let eyeBtn = `<button onclick="window.openContratoViewerById(${doc.id})" style="border:none;background:none;cursor:pointer;color:#64748b;" title="Visualizar Documento"><i class="ph ph-eye" style="font-size:1.4rem;"></i></button>`;
+
+       html += `
+        <div class="doc-check-item" style="display:flex; align-items:center; gap:0.6rem; padding:1.1rem 1.25rem; ${borderBgColor}; border-radius:8px; cursor:default; box-shadow:0 1px 2px rgba(0,0,0,0.03); transition:all 0.2s; justify-content:space-between; margin-bottom:12px;">
+            <div style="display:flex; align-items:center; gap:12px; flex:1;">
+                ${leftIconMarkup}
+                <div style="display:flex; flex-direction:column; gap:2px;">
+                    <span style="font-size:0.95rem; font-weight:700; color:#0f172a; margin-bottom:2px;">${_docTitle.toUpperCase()}</span>
+                    ${statusBadge}
+                    ${doc.file_name ? `<span style="font-size:0.72rem;color:#94a3b8;margin-top:1px;"><i class="ph ph-file"></i> ${doc.file_name}</span>` : ''}
+                </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px;">
+                ${actionUX}
+                ${sendBtn}
+                ${eyeBtn}
+            </div>
+        </div>`;
+    });
+    return html;
+};
+
+window.toggleAcaoDocumentoAvulso = function(docId, exige, docType) {
+    const actionDiv = document.getElementById('pg-action-doc-' + docId);
+    if (!actionDiv) return;
+    
+    if (exige === 'nao') {
+        actionDiv.innerHTML = `
+            <label class="btn btn-warning btn-sm" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:0.85rem;background:#eab308;color:#fff;border:none;padding:0.4rem 1rem;border-radius:6px;font-weight:600;">
+                <i class="ph ph-upload-simple"></i> Anexar PDF
+                <input type="file" accept=".pdf" style="display:none;" onchange="window.uploadContratoAvulsoSobrescrever(this, '${docId}', '${docType}')">
             </label>
         `;
     } else {
         actionDiv.innerHTML = `
             <button type="button" class="btn btn-primary btn-sm" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:0.85rem;background:#0284c7;color:#fff;border:none;padding:0.4rem 1rem;border-radius:6px;font-weight:600;" 
-                onclick="window.sendSingleAdmissaoSignature('${gId}', this)">
+                onclick="window.enviarDocumentoAvulsoAssinatura('${docId}')">
                 <i class="ph ph-paper-plane-tilt"></i> Enviar p/ Assinatura
             </button>
         `;
     }
 };
 
-window.uploadAdmissaoAvulso = async function(input, gId, docType) {
+window.enviarDocumentoAvulsoAssinatura = async function(docId) {
+    if (!docId || !viewedColaborador) return;
+    Swal.fire({ title: 'Enviando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    try {
+        const res = await fetch(API_URL + '/assinafy/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentToken },
+            body: JSON.stringify({ document_id: Number(docId), colaborador_id: viewedColaborador.id })
+        });
+        const data = await res.json().catch(() => ({}));
+        Swal.close();
+        if (res.ok) {
+            if (typeof showToast !== 'undefined') showToast('Documento enviado para assinatura!', 'success');
+            // Recarregar aba
+            window._contratosAvulsoLoaded = false;
+            window.switchContratosSubTab('avulso');
+        } else {
+            Swal.fire('Atenção', 'Erro no envio para assinar: ' + (data.error || 'Erro desconhecido'), 'warning');
+        }
+    } catch(err) {
+        Swal.close();
+        Swal.fire('Erro', err.message, 'error');
+    }
+};
+
+window.uploadContratoAvulsoSobrescrever = async function(input, docId, docType) {
     const file = input.files[0];
     if (!file || !viewedColaborador) return;
-    Swal.fire({ title: 'Anexando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    Swal.fire({ title: 'Sobrescrevendo...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
     try {
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('tab_name', 'CONTRATOS'); 
+        formData.append('tab_name', 'CONTRATOS_AVULSOS');
         formData.append('document_type', docType);
         formData.append('colaborador_id', viewedColaborador.id);
         formData.append('colaborador_nome', viewedColaborador.nome_completo || '');
         formData.append('assinafy_status', 'NAO_EXIGE');
+        formData.append('document_id', docId);
 
         const resUpload = await fetch(API_URL + '/documentos', {
             method: 'POST',
@@ -7490,47 +8302,531 @@ window.uploadAdmissaoAvulso = async function(input, gId, docType) {
         if (!resUpload.ok) throw new Error('Falha no upload do arquivo');
         
         Swal.close();
-        if (typeof showToast !== 'undefined') showToast('Documento Anexado', 'success');
-
-        let activeTab = document.querySelector('.menu-item.active, .sub-menu-item.active');
-        if (activeTab) activeTab.click();
-    } catch(e) {
-        Swal.fire('Erro', e.message, 'error');
+        if (typeof showToast !== 'undefined') showToast('Documento anexado no Prontuário!', 'success');
+        
+        window._contratosAvulsoLoaded = false;
+        window.switchContratosSubTab('avulso');
+    } catch (err) {
+        Swal.close();
+        Swal.fire('Erro', err.message, 'error');
     }
 };
 
-window.sendSingleAdmissaoSignature = async function(gId, btn) {
-    if (!viewedColaborador) { return; }
-    btn.disabled = true;
-    btn.innerHTML = `<i class="ph ph-spinner ph-spin"></i> Enviando...`;
-    
-    try {
-        const res = await apiPost('/admissao-assinaturas/enviar-lote', {
-            colaborador_id: viewedColaborador.id,
-            geradores_ids: [parseInt(gId)]
-        });
 
-        const erros = (res.resultados || []).filter(r => r.erro);
-        if (erros.length > 0) {
-            alert('Erro: ' + erros[0].erro);
-            btn.disabled = false;
-            btn.innerHTML = `<i class="ph ph-paper-plane-tilt"></i> Enviar p/ Assinatura`;
-            return;
+window.enviarAssinaturaLoteContratos = async function() {
+    const chks = document.querySelectorAll('.ca-row-chk:checked');
+    if(chks.length === 0) { alert('Selecione pelo menos um documento na lista.'); return; }
+
+    const docs = Array.from(chks).map(c => ({
+        id: c.dataset.docId,
+        nome: c.dataset.docType
+    }));
+    
+    if(!confirm(`Enviar ${docs.length} documento(s) para assinatura do colaborador via Assinafy?`)) return;
+    
+    const btn = document.getElementById('ca-btn-assinar-lote');
+    const oldHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando para Assinafy...';
+    btn.disabled = true;
+
+    try {
+        let errorCount = 0;
+        for (const doc of docs) {
+            try {
+                const resp = await fetch(`${API_URL}/assinafy/upload`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
+                    body: JSON.stringify({
+                        document_id: Number(doc.id),
+                        colaborador_id: viewedColaborador.id
+                    })
+                });
+                const result = await resp.json();
+                if (!resp.ok || result.sucesso === false) {
+                    console.error(`[LOTE] Erro no doc ${doc.id}:`, result.error || result);
+                    errorCount++;
+                }
+            } catch(ex) { errorCount++; console.error(ex); }
         }
 
-        if (typeof showToast !== 'undefined') showToast('Enviado para assinatura!', 'success');
-        let activeTab = document.querySelector('.menu-item.active, .sub-menu-item.active');
-        if (activeTab) activeTab.click();
-
-    } catch(err) {
-        alert('Erro ao enviar: ' + err.message);
+        if (errorCount > 0) alert(errorCount + ' documento(s) falharam no envio. Verifique o console.');
+        else showToast('E-mail de assinatura enviado ao colaborador!', 'success');
+        
+        // Forçar reload da lista para mostrar o timestamp de envio
+        window._contratosAvulsoLoaded = false;
+        const _avDivLote = document.getElementById('contratos-sub-avulso');
+        if (_avDivLote) await window.renderContratosAvulso(_avDivLote);
+        window.switchContratosSubTab('avulso');
+    } catch(e) {
+        alert('Erro fatal: ' + e.message);
+        btn.innerHTML = oldHtml;
         btn.disabled = false;
-        btn.innerHTML = `<i class="ph ph-paper-plane-tilt"></i> Enviar p/ Assinatura`;
+    }
+};
+window.abrirModalGerarContrato = function() {
+    const geradores = window._caAvailableGeradores || [];
+    document.getElementById('modal-contrato-avulso')?.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'modal-contrato-avulso';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
+    const opts = geradores.map(g => `<option value="${g.id}" data-nome="${(g.nome||'').replace(/"/g,'&quot;')}">${g.nome}</option>`).join('');
+    overlay.innerHTML = `
+        <div style="background:#fff;border-radius:14px;width:100%;max-width:520px;box-shadow:0 20px 60px rgba(0,0,0,0.2);overflow:visible;">
+            <div style="padding:1rem 1.5rem;border-bottom:1.5px solid #e2e8f0;background:#f8fafc;display:flex;justify-content:space-between;align-items:center;">
+                <h3 style="margin:0;font-size:1rem;font-weight:700;color:#0f172a;"><i class="ph ph-file-plus"></i> Gerar Documento Template</h3>
+                <button onclick="document.getElementById('modal-contrato-avulso').remove()" style="background:#f1f5f9;border:1px solid #e2e8f0;width:30px;height:30px;border-radius:8px;cursor:pointer;color:#64748b;display:flex;align-items:center;justify-content:center;"><i class="ph ph-x"></i></button>
+            </div>
+            <div style="padding:1.5rem;display:flex;flex-direction:column;gap:1rem;">
+                <div>
+                    <label style="font-size:0.82rem;font-weight:700;color:#374151;display:block;margin-bottom:6px;">Selecionar Documento</label>
+                    <div style="position:relative;" id="ca-gerador-wrapper">
+                        <input
+                            id="ca-gerador-search"
+                            type="text"
+                            placeholder="Digite para filtrar..."
+                            autocomplete="off"
+                            style="width:100%;padding:0.65rem 2.2rem 0.65rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;box-sizing:border-box;outline:none;"
+                            onfocus="window._openGeradorDropdown()"
+                            oninput="window._filterGeradorDropdown(this.value)"
+                        >
+                        <i class="ph ph-caret-down" style="position:absolute;right:0.65rem;top:50%;transform:translateY(-50%);color:#94a3b8;pointer-events:none;"></i>
+                        <input type="hidden" id="ca-gerador-select" value="">
+                        <div id="ca-gerador-dropdown"
+                             style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1.5px solid #e2e8f0;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.12);max-height:220px;overflow-y:auto;z-index:99999;">
+                        </div>
+                    </div>
+                </div>
+                <!-- Campos específicos para desconto em folha -->
+                <div id="ca-campos-desconto" style="display:none; flex-direction:column; gap:1rem; background:#f8fafc; padding:1rem; border-radius:8px; border:1px solid #e2e8f0;">
+                    <div>
+                        <label style="font-size:0.82rem;font-weight:700;color:#374151;">Descrição Principal</label>
+                        <input type="text" id="ca-m-descricao" class="form-control" placeholder="Ex: Multa de Trânsito NIC...">
+                    </div>
+                    <div style="display:flex;gap:1rem;">
+                        <div style="flex:1;">
+                            <label style="font-size:0.82rem;font-weight:700;color:#374151;">Valor Total (R$)</label>
+                            <input type="text" id="ca-m-valor" class="form-control" placeholder="00,00" oninput="this.value = this.value.replace(/[^0-9,]/g,'')">
+                        </div>
+                        <div style="flex:1;">
+                            <label style="font-size:0.82rem;font-weight:700;color:#374151;">Parcelamento</label>
+                            <select id="ca-m-parcelas" class="form-control">
+                                <option value="1">1x</option>
+                                <option value="2">2x</option>
+                                <option value="3">3x</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="ca-msg" style="display:none;"></div>
+                <div style="display:flex;justify-content:flex-end;gap:0.75rem;">
+                    <button onclick="document.getElementById('modal-contrato-avulso').remove()" class="btn btn-secondary">Cancelar</button>
+                    <button id="ca-btn-gerar" class="btn btn-primary" onclick="window.gerarContratoAvulso()" style="display:flex;align-items:center;gap:6px;">
+                        <i class="ph ph-file-arrow-down"></i> Visualizar e Salvar
+                    </button>
+                </div>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+
+    // Inicializar itens do combobox
+    const _geradores = window._caAvailableGeradores || [];
+    window._geradorItems = _geradores.map(g => ({ id: String(g.id), nome: g.nome || '' }));
+
+    window._openGeradorDropdown = function() {
+        window._filterGeradorDropdown(document.getElementById('ca-gerador-search')?.value || '');
+    };
+
+    window._filterGeradorDropdown = function(q) {
+        const dd = document.getElementById('ca-gerador-dropdown');
+        if (!dd) return;
+        const filtered = (window._geradorItems || []).filter(g => g.nome.toLowerCase().includes((q||'').toLowerCase()));
+        if (filtered.length === 0) {
+            dd.innerHTML = '<div style="padding:0.75rem 1rem;font-size:0.88rem;color:#94a3b8;">Nenhum resultado.</div>';
+        } else {
+            dd.innerHTML = filtered.map(g => `
+                <div onclick="window._selectGerador('${g.id}', '${g.nome.replace(/'/g,"\\'")}')"
+                     style="padding:0.6rem 1rem;font-size:0.88rem;color:#334155;cursor:pointer;"
+                     onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''"><i class="ph ph-file-text" style="margin-right:6px;color:#94a3b8;"></i>${g.nome}</div>
+            `).join('');
+        }
+        dd.style.display = 'block';
+    };
+
+    window._selectGerador = function(id, nome) {
+        const search = document.getElementById('ca-gerador-search');
+        const hidden = document.getElementById('ca-gerador-select');
+        const dd     = document.getElementById('ca-gerador-dropdown');
+        if (search) search.value = nome;
+        if (hidden) hidden.value = id;
+        if (dd)     dd.style.display = 'none';
+        // verificar campos extras (ex: desconto em folha)
+        const camposDesconto = document.getElementById('ca-campos-desconto');
+        if (camposDesconto) {
+            if (nome === 'AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO') {
+                camposDesconto.style.display = 'flex';
+            } else {
+                camposDesconto.style.display = 'none';
+                ['ca-m-descricao','ca-m-valor'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+                const parc = document.getElementById('ca-m-parcelas'); if(parc) parc.value='1';
+            }
+        }
+    };
+
+    // Fechar dropdown ao clicar fora
+    setTimeout(() => {
+        document.addEventListener('mousedown', function _closeGeradorDD(e) {
+            const wrapper = document.getElementById('ca-gerador-wrapper');
+            if (wrapper && !wrapper.contains(e.target)) {
+                const dd = document.getElementById('ca-gerador-dropdown');
+                if (dd) dd.style.display = 'none';
+            }
+            if (!document.getElementById('modal-contrato-avulso')) {
+                document.removeEventListener('mousedown', _closeGeradorDD);
+            }
+        });
+    }, 100);
+};
+
+window.toggleContratoAvulsoCampos = function(select) {
+    const nome = select.options[select.selectedIndex]?.getAttribute('data-nome') || '';
+    const camposDesconto = document.getElementById('ca-campos-desconto');
+    if (nome === 'AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO') {
+        camposDesconto.style.display = 'flex';
+    } else {
+        camposDesconto.style.display = 'none';
+        document.getElementById('ca-m-descricao').value = '';
+        document.getElementById('ca-m-valor').value = '';
+        document.getElementById('ca-m-parcelas').value = '1';
     }
 };
 
+window.gerarContratoAvulso = async function() {
+    const hidden = document.getElementById('ca-gerador-select');
+    const geradorId = hidden ? hidden.value : '';
+    if (!geradorId) return alert('Selecione um documento.');
+
+    const btn = document.getElementById('ca-btn-gerar');
+    btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Gerando...';
+    btn.disabled = true;
+
+    // Optional fields
+    const desc = document.getElementById('ca-m-descricao')?.value || '';
+    const valor = document.getElementById('ca-m-valor')?.value || '';
+    const parc = document.getElementById('ca-m-parcelas')?.value || '1';
+
+    try {
+        const res = await fetch(`${API_URL}/geradores/${geradorId}/gerar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
+            body: JSON.stringify({
+                colaborador_id: viewedColaborador.id,
+                colabId: viewedColaborador.id, // backend fallback
+                m_descricao: desc, m_valor: valor, m_parcelas: parc, m_valor_parcela: (valor ? (parseFloat(valor.replace(',','.'))/parseInt(parc)).toFixed(2).replace('.',',') : '')
+            })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erro ao gerar documento');
+
+        document.getElementById('modal-contrato-avulso').remove();
+        
+        // Exibe o preview para o usuário ver. Quando ele clicar em "Salvar", é disparado win.salvarDocumentoPDF()
+        // Mas o salvar original não enviava. Vamos sobrecarregar a funcao "Salvar como PDF" quando está no contexto de Prontuário.
+        window.abrirPreviewDocumento({
+            html: data.html,
+            colaborador: data.colaborador, 
+            gerador_nome: data.gerador_nome,
+            geradorId: geradorId
+        });
+
+        // Rewrite Salvar PDF button to Save AND upload instead of print!
+        const previewBtnSalvar = document.querySelector('#doc-modal button.btn-primary') || document.querySelector('#modal-preview-doc button.btn-primary');
+        if (previewBtnSalvar) {
+            previewBtnSalvar.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar no Prontuário';
+            previewBtnSalvar.onclick = async function() {
+                const oldHtml = this.innerHTML;
+                this.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...';
+                this.disabled = true;
+                try {
+                    // Generate Blob with HTML2PDF
+                    const htmlTemplate = document.getElementById('preview-doc-body');
+                    const nomeArquivo = `${data.gerador_nome.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
+                    
+                    const opt = {
+                        margin: 8, // 8mm em todas as bordas — fina e profissional
+                        filename: nomeArquivo, 
+                        image: { type: 'jpeg', quality: 0.98 },
+                        html2canvas: { scale: 2, useCORS: true },
+                        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                        pagebreak: { mode: ['avoid-all', 'css', 'legacy'], before: '.page-break', avoid: ['p', 'li'] }
+                    };
+                    
+                    // Salvar estilos originais
+                    const origWidth    = htmlTemplate.style.width;
+                    const origMaxWidth = htmlTemplate.style.maxWidth;
+                    const origMinH     = htmlTemplate.style.minHeight;
+
+                    // Forçar largura A4 e remover min-height para evitar página em branco extra
+                    htmlTemplate.style.width     = '794px';
+                    htmlTemplate.style.maxWidth  = '794px';
+                    htmlTemplate.style.minHeight = '0';  // ← elimina a página em branco
+
+                    const pdfBlob = await html2pdf().set(opt).from(htmlTemplate).output('blob');
+                    
+                    // Restaurar estilos originais
+                    htmlTemplate.style.width     = origWidth;
+                    htmlTemplate.style.maxWidth  = origMaxWidth;
+                    htmlTemplate.style.minHeight = origMinH;
 
 
+                    const file = new File([pdfBlob], nomeArquivo, { type: 'application/pdf' });
+                    
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('colaborador_id', viewedColaborador.id);
+                    formData.append('tab_name', 'CONTRATOS_AVULSOS');
+                    formData.append('document_type', data.gerador_nome);
+                    
+                    const uploadRes = await fetch(`${API_URL}/documentos`, {
+                        method: 'POST', headers: {'Authorization': `Bearer ${currentToken}`}, body: formData
+                    });
+                    if (!uploadRes.ok) throw new Error('Falha no upload do PDF gerado');
+                    
+                    document.getElementById('modal-preview-doc').style.display = 'none';
+                    document.getElementById('doc-modal').style.display = 'none';
+
+                    // O documento foi salvo e o status de assinatura será resolvido na listagem
+                    if (typeof showToast !== 'undefined') showToast('Documento gerado e salvo no prontuário!', 'success');
+
+                    // Forçar reload da lista de contratos imediatamente
+                    window._contratosAvulsoLoaded = false;
+                    const _avDivSave = document.getElementById('contratos-sub-avulso');
+                    if (_avDivSave) {
+                        _avDivSave.innerHTML = '<p class="text-muted"><i class="ph ph-spinner ph-spin"></i> Atualizando lista...</p>';
+                        window._contratosAvulsoLoaded = true;
+                        await window.renderContratosAvulso(_avDivSave);
+                    }
+                    window.switchContratosSubTab('avulso');
+                } catch(err) {
+                    alert('Erro ao salvar: ' + err.message);
+                } finally {
+                    this.innerHTML = oldHtml;
+                    this.disabled = false;
+                }
+            };
+        }
+    } catch(e) {
+        alert('Erro: ' + e.message);
+        btn.innerHTML = '<i class="ph ph-file-arrow-down"></i> Visualizar e Salvar';
+        btn.disabled = false;
+    }
+};
+
+window.enviarContratoAvulsoAssinatura = null; // removing old
+
+
+window.initAdmissaoWorkflow = async function(id, targetStep = 1, preventScroll = false) {
+    console.log(`[Admissao] Iniciando workflow para ID: ${id}, targetStep: ${targetStep}`);
+    if (!id) {
+        window.resetAdmissao();
+        return;
+    }
+    
+    try {
+        const colab = await apiGet(`/colaboradores/${id}`);
+        viewedColaborador = colab;
+        console.log(`[Admissao] Dados do colaborador carregados:`, colab.nome_completo, "Status:", colab.status);
+        
+        if (!preventScroll) {
+            // Esconder tudo primeiro
+            const startAction = document.getElementById('admissao-start-action');
+            const workflow = document.getElementById('admissao-workflow');
+            if (startAction) startAction.style.display = 'none';
+            if (workflow) workflow.style.display = 'none';
+        }
+
+        if (colab.status === 'Aguardando início') {
+            if(document.getElementById('admissao-start-name')) if(document.getElementById('admissao-start-name')) document.getElementById('admissao-start-name').textContent = colab.nome_completo;
+            document.getElementById('admissao-start-action').style.display = 'block';
+        } else if (colab.status === 'Processo iniciado') {
+            document.getElementById('admissao-workflow').style.display = 'block';
+            
+            // Buscar nomes para Cargo e Depto
+            const cargos = await apiGet('/cargos');
+            const deptos = await apiGet('/departamentos');
+            
+            const cargoObj = cargos.find(cg => cg.id == colab.cargo);
+            const deptoObj = deptos.find(d => d.id == colab.departamento);
+            
+            colab.cargo_nome_exibindo = cargoObj ? cargoObj.nome : (colab.cargo || 'Não definido');
+            colab.depto_nome_exibindo = deptoObj ? deptoObj.nome : (colab.departamento || 'Não definido');
+
+            // 1. Calcular Percentual do Passo 1 (Dados)
+            const step1 = calculateAdmissaoStep1Completion(colab);
+            // Os valores reais serão preenchidos pela função updateAdmissaoStepPercentages(colab) ao final
+            
+            // Mostrar Alerta se faltar algo
+            const alertEl = document.getElementById('admissao-missing-fields-alert');
+            const listEl = document.getElementById('admissao-missing-fields-list');
+            if (step1.missing.length > 0) {
+                alertEl.style.display = 'block';
+                listEl.innerHTML = step1.missing.map(f => `<div>• ${f}</div>`).join('');
+                document.getElementById('btn-admissao-step1-next').disabled = false; // Permite prosseguir mas avisa
+            } else {
+                alertEl.style.display = 'none';
+            }
+
+            // Preencher resumo de dados e aviso de ASO
+            const asoNotice = document.getElementById('aso-email-notice');
+            const asoNoticeDate = document.getElementById('aso-notice-date');
+            const asoNoticeAgendada = document.getElementById('aso-notice-agendada');
+            if (asoNotice && asoNoticeDate && asoNoticeAgendada) {
+                if (colab.aso_email_enviado) {
+                    asoNotice.style.display = 'block';
+                    asoNoticeDate.innerText = colab.aso_email_enviado;
+                    asoNoticeAgendada.innerText = colab.aso_exame_data || '--/--/--';
+                } else {
+                    asoNotice.style.display = 'none';
+                }
+            }
+
+            // Carregar links Assinafy
+            const link1 = document.getElementById('aso-assinafy-link-1');
+            const linkExames = document.getElementById('aso-assinafy-link-exames');
+            if (link1) link1.value = colab.aso_assinafy_link || '';
+            if (linkExames) linkExames.value = colab.aso_exames_assinafy_link || '';
+
+            const summary = document.getElementById('admissao-data-summary');
+            summary.innerHTML = `
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1rem; position:relative;">
+                    ${step1.fields.map(f => `
+                        <div style="background: ${f.filled ? '#fff' : '#fff5f5'}; padding: 0.75rem; border-radius: 6px; border: 1px solid ${f.filled ? '#e2e8f0' : '#feb2b2'};">
+                            <label style="font-weight:700; color:${f.filled ? '#64748b' : '#c53030'}; font-size:0.7rem; text-transform:uppercase; margin-bottom:4px; display:block;">
+                                ${f.label} ${f.filled ? '<i class="ph-bold ph-check-circle" style="color:#22c55e"></i>' : '<span style="color:#ef4444!important;">(PENDENTE)</span>'}
+                            </label>
+                            <div style="font-size:1rem; font-weight:600; color:${f.filled ? '#1e293b' : '#ef4444'};">
+                                ${f.value || 'NÃO PREENCHIDO'}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            
+            if(document.getElementById('admissao-nome-final')) if(document.getElementById('admissao-nome-final')) document.getElementById('admissao-nome-final').textContent = colab.nome_completo;
+
+            // Busca dados para o Passo 2: Documentos do Departamento
+            // Verifica status no Assinafy ANTES de buscar os dados do banco
+            await fetch(`${API_URL}/admissao-assinaturas/verificar-status`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ colaborador_id: colab.id })
+            }).catch(() => {});
+
+            const [depts, geradores, templates, assinaturas, docs] = await Promise.all([
+                apiGet('/departamentos'),
+                apiGet('/geradores'),
+                apiGet('/gerador-departamento-templates').catch(() => []),
+                apiGet(`/admissao-assinaturas/${colab.id}`).catch(() => []),
+                apiGet(`/colaboradores/${colab.id}/documentos`).catch(() => [])
+            ]);
+
+            let availableGeradores = [];
+            const empDeptId = colab.departamento;
+            const deptObj = depts.find(d =>
+                String(d.id) === String(empDeptId) ||
+                d.nome.trim().toLowerCase() === String(empDeptId).trim().toLowerCase()
+            );
+
+            if (deptObj) {
+                const geradorIds = [...new Set(templates
+                    .filter(t => Number(t.departamento_id) === Number(deptObj.id))
+                    .map(t => Number(t.gerador_id)))];
+                const seen2 = new Set();
+                availableGeradores = geradores.filter(g => geradorIds.includes(Number(g.id)) && !seen2.has(Number(g.id)) && seen2.add(Number(g.id)));
+            }
+
+            // Guarda globalmente para calcular e renderizar o status documental
+            window._admissaoGeradores = availableGeradores;
+            window._admissaoAssinaturas = assinaturas;
+            window.currentDocs = docs;
+
+            // Foto step was removed from Admissao, logic removed.
+            updateAdmissaoStepPercentages(colab);
+            // Ensure log panel is populated from fresh colab data
+            if (typeof window.renderEnvioContabilidadeLog === 'function') {
+                viewedColaborador = Object.assign(viewedColaborador || {}, colab);
+                window.renderEnvioContabilidadeLog();
+            }
+            window.nextAdmissaoStep(targetStep, preventScroll);
+        }
+    } catch (e) { alert('Erro ao carregar dados: ' + e.message); }
+};
+
+window.irAoProntuarioDigital = function(targetTab = 'Contratos') {
+    const colab = viewedColaborador;
+    if (!colab) return alert('Nenhum colaborador selecionado.');
+    
+    // Usa o fluxo oficial para abrir o Prontuário Digital do colaborador logado
+    window.openProntuario(colab.id, colab.nome_completo, colab.cargo_nome_exibindo || colab.cargo, colab.cpf, colab.sexo, colab.data_admissao, colab.status, colab.rg_tipo);
+    
+    // Aguarda o Prontuário renderizar e seleciona a tab desejada
+    setTimeout(() => {
+        const prontuarioTab = document.querySelector(`#tabs-list li[data-tab="${targetTab}"]`);
+        if (prontuarioTab) {
+            prontuarioTab.click();
+            prontuarioTab.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }, 600); // 600ms para renderização suave da View
+};
+
+// --- PASSO 4, 3, 5: Apenas renderizações de leitura para acompanhamento ---
+
+function renderAdmissaoDocStatus(containerId, docs, emptyMsg) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = '';
+    
+    if (!docs || docs.length === 0) {
+        container.innerHTML = `<div style="padding:1rem; text-align:center; color:#64748b; font-size:0.85rem; font-style:italic;">${emptyMsg}</div>`;
+        return;
+    }
+    
+    docs.forEach(doc => {
+        const isSigned = doc.assinafy_status === 'Assinado' || doc.assinafy_status === 'NAO_EXIGE';
+        const docName = doc.document_type || doc.original_name || 'Documento';
+        const dateStr = doc.created_at ? new Date(doc.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '';
+        const signedDateStr = doc.assinafy_signed_at ? new Date(doc.assinafy_signed_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '';
+        const hasFile = !!doc.file_path;
+        
+        let subInfo = '';
+        if (doc.assinafy_id) {
+            subInfo += dateStr ? `<div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Enviado p/ Assinatura: <b>${dateStr}</b></div>` : '';
+            if (isSigned && signedDateStr) {
+               subInfo += `<div style="font-size:0.75rem; color:#059669; margin-top:2px;">Assinado em: <b>${signedDateStr}</b></div>`;
+            }
+        } else if (hasFile) {
+            subInfo += dateStr ? `<div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Anexado em: <b>${dateStr}</b></div>` : '';
+        }
+
+        const el = document.createElement('div');
+        el.style.cssText = `background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:0.6rem 0.8rem; margin-bottom:0.4rem; display:flex; justify-content:space-between; align-items:center;`;
+        el.innerHTML = `
+            <div style="display:flex; flex-direction:column; gap:2px;">
+                <span style="font-weight:600; color:#334155; font-size:0.85rem;">${docName}</span>
+                ${subInfo}
+            </div>
+            <div style="display:flex; gap:0.5rem; align-items:center; flex-shrink: 0;">
+                ${hasFile ? `<span style="background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-check-circle"></i> Anexado</span>` : `<span style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-x-circle"></i> Faltante</span>`}
+                ${doc.assinafy_id ? `<span style="background:${isSigned ? '#eff6ff' : '#fffbeb'}; color:${isSigned ? '#2563eb' : '#d97706'}; border:1px solid ${isSigned ? '#bfdbfe' : '#fde68a'}; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;">${isSigned ? '<i class="ph ph-check"></i> Assinado' : '<i class="ph ph-clock"></i> Pendente Ass.'}</span>` : ''}
+            </div>
+        `;
+        container.appendChild(el);
+    });
+}
+
+
+
+// ===== PASSO 2: VISUALIZAR DOCUMENTO ANTES DA ASSINATURA =====
 window.previewAdmissaoDoc = async function(geradorId, colabId, evt) {
     if (evt) { evt.preventDefault(); evt.stopPropagation(); }
 
