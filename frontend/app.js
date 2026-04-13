@@ -3744,8 +3744,7 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
             listContainer.innerHTML = '<div class="alert alert-warning"><i class="ph ph-warning"></i> Módulo de multas não carregado. Tente recarregar a página.</div>';
         }
     } else if (tabId === 'Contratos') {
-        alert('Renderizando aba Contratos! listContainer:' + (listContainer ? listContainer.id : 'null'));
-
+        
         renderContratosTab(listContainer);
     } else if (tabId === '00.CheckList') {
         renderCargoDocsChecklist(listContainer);
@@ -7484,8 +7483,7 @@ window.reenviarAssinaturaContratoAdmissao = async function(docId, colabId, ev) {
     }
 };
 window.renderContratosTab = async function(container) {
-    alert("renderContratosTab chamou com container: " + (container ? container.id : "null"));
-
+    
     if (!viewedColaborador) return;
     container.innerHTML = '';
 
