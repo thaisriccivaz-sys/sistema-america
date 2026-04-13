@@ -7529,6 +7529,125 @@ window.sendSingleAdmissaoSignature = async function(gId, btn) {
     }
 };
 
+
+
+window.previewAdmissaoDoc = async function(geradorId, colabId, evt) {
+    if (evt) { evt.preventDefault(); evt.stopPropagation(); }
+
+    if (!colabId) { alert('Colaborador não identificado.'); return; }
+
+    try {
+        // Usa o endpoint existente que retorna HTML + dados do colaborador
+        const response = await fetch(`${API_URL}/geradores/${geradorId}/gerar/${colabId}`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${currentToken}` }
+        });
+        const data = await response.json();
+
+        if (!data.html) {
+            alert('Não foi possível carregar o documento.');
+            return;
+        }
+
+        // Reutiliza a função de preview do gerador (com layout completo)
+        // Precisamos temporariamente salvar a seleção de assinatura para não alterar o modal principal
+        window.abrirPreviewDocumento(data);
+
+        // Subscreve o evento de salvar na Admissão para enviar ao backend
+        setTimeout(() => {
+            const btnSalvar = document.querySelector('#modal-preview-doc button.btn-primary');
+            if (!btnSalvar) return;
+            btnSalvar.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar e Configurar Envio';
+            btnSalvar.onclick = async function() {
+                const oldHtml = this.innerHTML;
+                this.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Processando...';
+                this.disabled = true;
+                try {
+                    const previewContent = document.querySelector('#modal-preview-doc .preview-content') ||
+                                          document.querySelector('#modal-preview-doc #preview-doc-body');
+                    if (!previewContent) throw new Error('Conteúdo do preview não encontrado');
+                    
+                    const pdfBlob = await window.gerarPDFBlob(previewContent);
+                    const safeName = (data.gerador_nome || 'documento_admissao').replace(/[^a-zA-Z0-9À-ÿ _-]/g, '');
+                    const cNome = (data.colaborador?.NOME_COMPLETO || colabId).toString();
+                    
+                    const formData = new FormData();
+                    formData.append('arquivo', pdfBlob, `${safeName}_${cNome}.pdf`);
+                    formData.append('tab_name', 'CONTRATOS');
+                    formData.append('document_type', data.gerador_nome);
+                    
+                    const r = await fetch(`${API_URL}/documentos`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${currentToken}` },
+                        body: formData
+                    });
+                    if (!r.ok) throw new Error('Falha ao salvar PDF');
+
+                    document.getElementById('modal-preview-doc').style.display = 'none';
+                    
+                    const sendPrompt = await Swal.fire({
+                        title: 'Documento Salvo',
+                        text: 'Deseja enviar este contrato para assinatura digital via Assinafy?',
+                        icon: 'question',
+                        showCancelButton: true,
+                        confirmButtonText: 'Sim, enviar',
+                        cancelButtonText: 'Não'
+                    });
+
+                    if (sendPrompt.isConfirmed) {
+                        Swal.fire({ title: 'Enviando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                        await apiPost('/admissao-assinaturas/enviar-lote', {
+                            colaborador_id: colabId,
+                            geradores_ids: [parseInt(geradorId)]
+                        });
+                        Swal.close(); if(typeof showToast !== 'undefined') showToast('Documento enviado para assinatura.', 'success');
+                    } else {
+                        showToast('Documento de admissão salvo na pasta do colaborador.', 'success');
+                    }
+                    
+                    // Recarrega workflow se estiver aberto para atualizar status do item
+                    if (document.getElementById('admissao-workflow-overlay')) {
+                        window.initAdmissaoWorkflow(colabId, 2, true);
+                    }
+                    
+                } catch(err) {
+                    this.innerHTML = oldHtml;
+                    this.disabled = false;
+                    Swal.fire('Erro', err.message, 'error');
+                }
+            };
+        }, 150);
+
+    } catch(e) {
+        alert('Erro ao carregar pré-visualização: ' + e.message);
+    }
+};
+
+window.rodarDiagnosticoAssinafy = async function() {
+    if (!viewedColaborador) { alert('Nenhum colaborador selecionado.'); return; }
+    try {
+        const diag = await apiGet(`/admissao-assinaturas/diagnostico/${viewedColaborador.id}`);
+        console.log("=== DIAGNOSTICO ===", diag);
+        
+        let msg = "ID do Colaborador: " + viewedColaborador.id + "\n\n";
+        msg += "=== DOCUMENTOS DA ADMISSAO VS ASSINAFY ===\n\n";
+        
+        if (diag.assinafy_api_status) {
+            diag.assinafy_api_status.forEach(statusDoc => {
+                msg += `- ${statusDoc.nome}:\n`;
+                msg += `  Status no Banco: ${statusDoc.status_banco}\n`;
+                msg += `  Status Real Assinafy: ${statusDoc.status_assinafy_api}\n\n`;
+            });
+        }
+        
+        alert("Diagnóstico completo! A tela seguinte mostrará o status exato.");
+        alert(msg);
+    } catch(e) {
+        alert("Erro no diagnostico: " + e.message);
+    }
+}
+
+// ===== PASSO 2: ENVIO EM LOTE PARA ASSINAFY =====
 window.sendAdmissaoSignatures = async function(listId = 'admissao-signature-list', btnId = 'btn-enviar-assinaturas') {
     if (!viewedColaborador) { alert('Nenhum colaborador selecionado.'); return; }
 
