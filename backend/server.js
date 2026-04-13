@@ -378,7 +378,7 @@ async function uploadDocToOneDrive(docId) {
             cloudName = `${(doc.document_type || doc.tab_name).replace(/\s+/g, '_')}_${safeColab}.pdf`;
         } else if (doc.tab_name === 'CONTRATOS_AVULSOS') {
             // Outros Contratos: salvar como Outros_NomeContrato_NomeColab.pdf
-            cloudName = `Outros_${formatarPasta(doc.document_type || doc.tab_name).replace(/\s+/g, '_')}_${safeColab}.pdf`;
+            cloudName = doc.file_name;
         } else if (safeTab === 'FACULDADE') {
             // Faculdade: inclui o mês no nome (Boletim_Jan_2026_NOME.pdf / Boleto_Jan_2026_NOME.pdf)
             const mesNomeFac = doc.month && doc.month !== 'null' && doc.month !== '' ? getMesNome(doc.month) + '_' : '';
@@ -535,7 +535,7 @@ const storage = multer.diskStorage({
             // Outros Contratos: nome Outros_NomeContrato_NomeColab
             const safeType = formatarPasta(docType);
             const safeColab = formatarNome(colab);
-            base = `Outros_${safeType}_${safeColab}`;
+            base = doc.file_name ? doc.file_name.replace(/\.pdf$/i, "") : `Outros_${safeType}_${safeColab}`;
         } else {
             const safeType = formatarPasta(docType).toUpperCase();
             const safeColab = formatarNome(colab);
@@ -2226,6 +2226,14 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), async (req
     const file_path = req.file.path;
     let file_name = req.file.originalname;
     try { file_name = Buffer.from(file_name, 'latin1').toString('utf8'); } catch (e) {}
+
+    if (tab_name === 'CONTRATOS_AVULSOS') {
+        const uniqueCode = Date.now().toString().slice(-6);
+        let safeTab = formatarPasta(document_type || 'Contrato');
+        let safeColab = formatarNome(req.body.colaborador_nome || 'Colaborador');
+        file_name = `Outros_${safeTab}_${safeColab}_${uniqueCode}.pdf`;
+    }
+
 
     const abasMultiplas = ['Advertências', 'Multas', 'Atestados', 'Boletim de ocorrência', 'Terapia', 'CONTRATOS_AVULSOS'];
     const isMultiplo = !document_id && abasMultiplas.includes(tab_name);
@@ -4428,7 +4436,7 @@ app.post('/api/force-sync-contratos-avulsos', authenticateToken, async (req, res
                 const colabNome = doc.nome_completo || 'DESCONHECIDO';
                 const safeColab = formatarNome(colabNome);
                 const safeType = formatarPasta(doc.document_type || doc.tab_name);
-                const cloudFileName = `Outros_${safeType}_${safeColab}.pdf`;
+                const cloudFileName = doc.file_name;
                 const targetDir = `${onedriveBasePath}/${safeColab}/CONTRATOS`;
                 
                 await onedrive.ensurePath(`${onedriveBasePath}/${safeColab}`);
