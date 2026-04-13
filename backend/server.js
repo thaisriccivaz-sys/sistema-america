@@ -2303,7 +2303,7 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), async (req
                             try {
                                 const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema";
                                 const safeColab = formatarNome(req.body.colaborador_nome || "DESCONHECIDO");
-                                const safeTab = formatarPasta(tab_name).toUpperCase();
+                                const safeTab = tab_name === 'CONTRATOS_AVULSOS' ? 'CONTRATOS' : formatarPasta(tab_name).toUpperCase();
                                 const parentDir = `${onedriveBasePath}/${safeColab}/${safeTab}`;
                                 let targetDir = parentDir;
                                 if (year && year !== 'null' && year !== 'undefined' && year !== '' && safeTab !== '01_FICHA_CADASTRAL') {

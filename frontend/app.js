@@ -8286,6 +8286,7 @@ window.uploadContratoAvulsoSobrescrever = async function(input, docId, docType) 
         formData.append('tab_name', 'CONTRATOS_AVULSOS');
         formData.append('document_type', docType);
         formData.append('colaborador_id', viewedColaborador.id);
+        formData.append('colaborador_nome', viewedColaborador.nome_completo || '');
         formData.append('assinafy_status', 'NAO_EXIGE');
         formData.append('document_id', docId);
 
