@@ -23,6 +23,7 @@ const SMTP_CONFIG = {
 const db = require('./database');
 
 db.run("DELETE FROM geradores WHERE nome = 'AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO'");
+db.run("DELETE FROM geradores WHERE nome = 'Termo de Responsabilidade de Chaves'");
 
 
 // Recarregar configurações do sistema (ex: certificado)
