@@ -7927,7 +7927,7 @@ window.uploadContratoExterno = async function(input) {
 
     const modalResult = await Swal.fire({
         title: '<i class="ph ph-file-plus"></i> Anexar Contrato',
-        html: '<div style="text-align:left;display:flex;flex-direction:column;gap:0.75rem;padding:0.25rem 0;"><div><label style="font-size:0.82rem;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Nome do Documento</label><input id="swal-doctype" class="swal2-input" style="margin:0;width:100%;box-sizing:border-box;" placeholder="Ex: Acordo de Confidencialidade"></div><div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:0.75rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;"><span style="font-size:0.85rem;font-weight:700;color:#334155;">Exige Assinatura?</span><div style="display:flex;gap:1rem;"><label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:0.9rem;font-weight:500;"><input type="radio" name="swal-ass" value="sim" id="swal-ass-sim"> Sim</label><label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:0.9rem;font-weight:500;"><input type="radio" name="swal-ass" value="nao" id="swal-ass-nao" checked> Nao</label></div></div></div>',
+        html: '<div style="text-align:left;display:flex;flex-direction:column;gap:0.75rem;padding:0.25rem 0;"><div><label style="font-size:0.82rem;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Nome do Documento</label><input id="swal-doctype" class="swal2-input" style="margin:0;width:100%;box-sizing:border-box;" placeholder="Ex: Acordo de Confidencialidade"></div></div>',
         focusConfirm: false,
         showCancelButton: true,
         confirmButtonText: '<i class="ph ph-upload-simple"></i> Anexar',
@@ -7942,17 +7942,15 @@ window.uploadContratoExterno = async function(input) {
         preConfirm: async function() {
             var docType = (document.getElementById('swal-doctype') || {}).value;
             if (docType) docType = docType.trim();
-            var assRadio = document.querySelector('input[name="swal-ass"]:checked');
             if (!docType) { Swal.showValidationMessage('Informe o nome do documento'); return false; }
 
-            var exigeAssinatura = assRadio && assRadio.value === 'sim';
             var formData = new FormData();
             formData.append('file', file);
             formData.append('tab_name', 'CONTRATOS_AVULSOS');
             formData.append('document_type', docType);
             formData.append('colaborador_id', viewedColaborador.id);
             formData.append('colaborador_nome', viewedColaborador.nome_completo || '');
-            if (!exigeAssinatura) formData.append('assinafy_status', 'NAO_EXIGE');
+            formData.append('assinafy_status', 'NAO_EXIGE');
 
             try {
                 var res = await fetch(API_URL + '/documentos', {
@@ -7963,46 +7961,20 @@ window.uploadContratoExterno = async function(input) {
                 var data = await res.json().catch(function() { return {}; });
                 if (!res.ok) throw new Error(data.error || 'Falha ao anexar PDF');
 
-                var docId = data.id;
-
-                // Se exige assinatura, enviar para Assinafy no mesmo fluxo (o botão continua girando)
-                if (exigeAssinatura && docId) {
-                    var assResp = await fetch(API_URL + '/assinafy/upload', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentToken },
-                        body: JSON.stringify({ document_id: docId, colaborador_id: viewedColaborador.id })
-                    });
-                    var assData = await assResp.json().catch(function() { return {}; });
-                    if (!assResp.ok) {
-                        Swal.showValidationMessage('Documento salvo, mas falha no envio para assinatura: ' + (assData.error || 'Erro desconhecido'));
-                        return false;
-                    }
-                    return { success: true, assinatura: true };
-                }
-                return { success: true, assinatura: false };
-            } catch(e) {
-                Swal.showValidationMessage(e.message);
+                if (typeof showToast !== 'undefined') showToast('Documento anexado no Prontuário!', 'success');
+                return true;
+            } catch(err) {
+                Swal.showValidationMessage(err.message);
                 return false;
             }
         }
     });
 
-    if (!modalResult.isConfirmed || !modalResult.value) return;
-
-    // Feedback via toast silencioso — sem popup bloqueante
-    if (typeof showToast !== 'undefined') {
-        showToast(modalResult.value.assinatura ? 'Documento enviado para assinatura!' : 'Documento anexado!', 'success');
+    if (modalResult.isConfirmed) {
+        window._contratosAvulsoLoaded = false;
+        var avDiv = document.getElementById('contratos-sub-avulso');
+        if (avDiv) window.renderContratosAvulso(avDiv);
     }
-
-    // Recarrega lista silenciosamente
-    window._contratosAvulsoLoaded = false;
-    var avDivUp = document.getElementById('contratos-sub-avulso');
-    if (avDivUp) {
-        avDivUp.innerHTML = '<p class="text-muted"><i class="ph ph-spinner ph-spin"></i> Atualizando...</p>';
-        window._contratosAvulsoLoaded = true;
-        await window.renderContratosAvulso(avDivUp);
-    }
-    window.switchContratosSubTab('avulso');
 };
 
 // Versão segura: pega o token no momento do clique (não no build-time da lista)
@@ -8314,29 +8286,16 @@ window.uploadContratoAvulsoSobrescrever = async function(input, docId, docType) 
         formData.append('tab_name', 'CONTRATOS_AVULSOS');
         formData.append('document_type', docType);
         formData.append('colaborador_id', viewedColaborador.id);
-        
+        formData.append('assinafy_status', 'NAO_EXIGE');
+        formData.append('document_id', docId);
+
         const resUpload = await fetch(API_URL + '/documentos', {
             method: 'POST',
             headers: { 'Authorization': 'Bearer ' + currentToken },
             body: formData
         });
         if (!resUpload.ok) throw new Error('Falha no upload do arquivo');
-        const uploadData = await resUpload.json();
-
-        // Atualizar antigo status
-        await fetch(API_URL + '/documentos/' + uploadData.id, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentToken },
-            body: JSON.stringify({ assinafy_status: 'NAO_EXIGE' })
-        }).catch(() => {});
         
-        if (String(uploadData.id) !== String(docId)) {
-             await fetch(API_URL + '/documentos/' + docId, {
-                method: 'DELETE',
-                headers: { 'Authorization': 'Bearer ' + currentToken }
-            }).catch(() => {});
-        }
-
         Swal.close();
         if (typeof showToast !== 'undefined') showToast('Documento anexado no Prontuário!', 'success');
         
@@ -8348,24 +8307,6 @@ window.uploadContratoAvulsoSobrescrever = async function(input, docId, docType) 
     }
 };
 
-
-
-window.deleteDocumentoContrato = async function(docId) {
-    if (!docId) return;
-    if (!confirm('Deseja excluir este documento?')) return;
-    try {
-        const res = await fetch(`${API_URL}/documentos/${docId}`,{ method:'DELETE', headers:{'Authorization':`Bearer ${currentToken}`}});
-        if(!res.ok) throw new Error('Falha ao excluir');
-        // Força reload mesmo que já esteja na aba avulso
-        window._contratosAvulsoLoaded = false;
-        const avDiv = document.getElementById('contratos-sub-avulso');
-        if (avDiv) { avDiv.innerHTML = '<p class="text-muted"><i class="ph ph-spinner ph-spin"></i> Atualizando...</p>'; }
-        window._contratosAvulsoLoaded = true;
-        if (avDiv) await window.renderContratosAvulso(avDiv);
-        window.switchContratosSubTab('avulso');
-        showToast('Documento excluído!', 'success');
-    } catch(e) { alert(e.message); }
-};
 
 window.enviarAssinaturaLoteContratos = async function() {
     const chks = document.querySelectorAll('.ca-row-chk:checked');

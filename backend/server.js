@@ -2219,13 +2219,37 @@ app.put('/api/multas/:id', authenticateToken, (req, res) => {
 });
 // -----------------------------------------------------------------------------
 
-app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res) => {
+app.post('/api/documentos', authenticateToken, upload.single('file'), async (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
     
     const { document_id, colaborador_id, tab_name, document_type, year, month, vencimento, atestado_tipo, atestado_inicio, atestado_fim, assinafy_status } = req.body;
     const file_path = req.file.path;
     let file_name = req.file.originalname;
     try { file_name = Buffer.from(file_name, 'latin1').toString('utf8'); } catch (e) {}
+
+    const abasMultiplas = ['Advertências', 'Multas', 'Atestados', 'Boletim de ocorrência', 'Terapia', 'CONTRATOS_AVULSOS'];
+    const isMultiplo = !document_id && abasMultiplas.includes(tab_name);
+
+    if (isMultiplo) {
+        // Função para garantir nome único apenas na mesma pasta (mesmo colaborador e mesma aba)
+        // Somente faz isso se isMultiplo for TRuE, senão ele atualiza (comportamento original)
+        let baseName = file_name.replace(/\.pdf$/i, '');
+        let extension = '.pdf';
+        
+        let dupCount = 0;
+        let finalFileName = file_name;
+        
+        while (true) {
+            const hasDup = await new Promise((resolve) => {
+                db.get("SELECT id FROM documentos WHERE colaborador_id = ? AND tab_name = ? AND file_name = ?", 
+                    [colaborador_id, tab_name, finalFileName], (err, r) => resolve(!!r));
+            });
+            if (!hasDup) break;
+            dupCount++;
+            finalFileName = `${baseName} (${dupCount})${extension}`;
+        }
+        file_name = finalFileName;
+    }
 
     let checkSql = '';
     let params = [];
@@ -2244,13 +2268,8 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
     db.get(checkSql, params, (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
         
-        // Abas que permitem múltiplos arquivos (histórico cumulativo)
-        const abasMultiplas = ['Advertências', 'Multas', 'Atestados', 'Boletim de ocorrência', 'Terapia', 'CONTRATOS_AVULSOS'];
-        // Se force document_id explicit, treat as overwrite
-        const isMultiplo = !document_id && abasMultiplas.includes(tab_name);
-
         if (row && !isMultiplo) {
-            // Se já existe e NÃO é aba de histórico (ou se é explicit update), atualiza
+            // SET CLAUSE...
             if (fs.existsSync(row.file_path) && row.file_path !== file_path) {
                 try { fs.unlinkSync(row.file_path); } catch(e) {}
             }
@@ -2267,26 +2286,18 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
                 [...baseParams, row.id], function(updateErr) {
                     if (updateErr) return res.status(500).json({ error: updateErr.message });
                     
-                    // Sincronizar com foto de perfil se for na aba "Fotos"
+                    const path = require('path');
                     if (tab_name === 'Fotos' && ['.jpg', '.jpeg', '.png', '.webp'].includes(path.extname(file_path).toLowerCase())) {
                         db.run("UPDATE colaboradores SET foto_path = ? WHERE id = ?", [file_path, colaborador_id]);
                     }
 
-                    // --- ESPELHAMENTO ONEDRIVE (API) ---
-                    // Regras por subtipo de Advertência:
-                    //  Ocorrência     -> nunca vai ao OneDrive
-                    //  Verbal         -> somente após testemunhas (status='Testemunhas')
-                    //  Escrita/Suspensão -> após testemunhas E após colaborador (Assinado)
-                    //  CONTRATOS_AVULSOS -> só após assinatura (Assinado)
                     const _tipoSimples2 = (document_type || '').split('###')[1] || '';
                     const _isOcorr2  = /ocorr/i.test(_tipoSimples2);
                     const _isVerbal2 = /verbal/i.test(_tipoSimples2);
                     const _podeOneDrive2 = tab_name === 'Advertências'
-                        ? (!_isOcorr2 && (
-                            (assinafy_status === 'Testemunhas') ||
-                            (!_isVerbal2 && assinafy_status === 'Assinado')
-                          ))
+                        ? (!_isOcorr2 && ((assinafy_status === 'Testemunhas') || (!_isVerbal2 && assinafy_status === 'Assinado')))
                         : (tab_name !== 'CONTRATOS_AVULSOS' || assinafy_status === 'NAO_EXIGE');
+                        
                     if (onedrive && _podeOneDrive2) {
                         (async () => {
                             try {
@@ -2297,26 +2308,23 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
                                 let targetDir = parentDir;
                                 if (year && year !== 'null' && year !== 'undefined' && year !== '' && safeTab !== '01_FICHA_CADASTRAL') {
                                     targetDir += `/${year.replace(/[^0-9]/g, '')}`;
-                                    // Para Pagamentos: sub-pasta com nome do mês em português
                                     if (safeTab === 'PAGAMENTOS' && month && month !== 'null' && month !== 'undefined' && month !== '') {
                                         targetDir += `/${getMesNome(month)}`;
                                     }
-                                    // Para Faculdade/Boletim: sub-pasta Boletim dentro do ano
                                     if (safeTab === 'FACULDADE' && (document_type || '').toUpperCase() === 'BOLETIM') {
                                         targetDir += '/Boletim';
                                     }
                                 }
                                 
-                                if (targetDir !== parentDir) {
-                                    await onedrive.ensurePath(parentDir);
-                                }
+                                if (targetDir !== parentDir) { await onedrive.ensurePath(parentDir); }
                                 await onedrive.ensurePath(targetDir);
 
-                                const fileBuffer = fs.readFileSync(file_path);
-                                // Para Atestados usa o custom_name exato; outros usam file_name do multer
+                                const fileBuffer = require('fs').readFileSync(file_path);
                                 let cloudFileName = file_name;
                                 if (tab_name === 'Atestados' && req.body.custom_name) {
                                     cloudFileName = `${req.body.custom_name}.pdf`;
+                                } else if (tab_name === 'CONTRATOS_AVULSOS') {
+                                    cloudFileName = file_name; // Respeita exatamente o nome que já pode ter recebido (1)
                                 } else if (tab_name !== 'AVALIACAO') {
                                     const safeColabInline = formatarNome(req.body.colaborador_nome || "DESCONHECIDO");
                                     if (safeTab === '01_FICHA_CADASTRAL') {
@@ -2339,53 +2347,36 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
                     res.json({ message: 'Documento atualizado', id: row.id, file_path });
                 });
         } else {
-            // Se é aba de histórico OU não existia, insere novo registro
-            // Para atestados com cloud_name: salvar o nome final limpo diretamente
-            const fileNameToStore = (tab_name === 'Atestados' && req.body.cloud_name)
-                ? req.body.cloud_name
-                : file_name;
+            // INSERE NOVO REGISTRO
+            const fileNameToStore = (tab_name === 'Atestados' && req.body.cloud_name) ? req.body.cloud_name : file_name;
             db.run(`INSERT INTO documentos (colaborador_id, tab_name, document_type, file_name, file_path, year, month, vencimento, atestado_tipo, atestado_inicio, atestado_fim, assinafy_status) 
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [colaborador_id, tab_name, document_type, fileNameToStore, file_path, year || null, month || null, vencimento || null, atestado_tipo || null, atestado_inicio || null, atestado_fim || null, assinafy_status || 'Nenhum'],
                 function(insertErr) {
                     if (insertErr) return res.status(500).json({ error: insertErr.message });
 
-                    // Sincronizar com foto de perfil se for na aba "Fotos"
+                    const path = require('path');
                     if (tab_name === 'Fotos' && ['.jpg', '.jpeg', '.png', '.webp'].includes(path.extname(file_path).toLowerCase())) {
                         db.run("UPDATE colaboradores SET foto_path = ? WHERE id = ?", [file_path, colaborador_id]);
                     }
 
-                    // --- ESPELHAMENTO ONEDRIVE ---
-                    // Usa a mesma lógica do force-onedrive-sync (comprovada) com o ID real do doc
                     const newDocId = this.lastID;
-                    // ASO: upload inicial para OneDrive (sem assinatura). Será sobrescrito após assinatura com certificado.
-                    // CONTRATOS_AVULSOS: só envia ao OneDrive após assinatura.
-                    // Regras por subtipo de Advertência:
-                    //  Ocorrência     -> nunca vai ao OneDrive
-                    //  Verbal         -> somente após testemunhas (status='Testemunhas')
-                    //  Escrita/Suspensão -> após testemunhas E após colaborador (Assinado)
-                    //  CONTRATOS_AVULSOS -> só após assinatura (Assinado)
-                    const _tipoSimples = (document_type || '').split('###')[1] || '';
-                    const _isOcorr  = /ocorr/i.test(_tipoSimples);
-                    const _isVerbal = /verbal/i.test(_tipoSimples);
-                    const _advStatus = req.body.assinafy_status || '';
-                    // === ONEDRIVE UPLOAD DIRETO (INLINE) ===
-                    // CONTRATOS_AVULSOS com NAO_EXIGE: upload direto usando req.file
-                    // Outros casos: usar setImmediate com uploadDocToOneDrive
                     if (tab_name === 'CONTRATOS_AVULSOS' && onedrive) {
-                        // Upload inline para garantir que o arquivo ainda está no disco
                         ;(async () => {
                             try {
                                 const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || 'RH/1.Colaboradores/Sistema';
                                 const colabNome = req.body.colaborador_nome || '';
                                 const safeColab = formatarNome(colabNome) || 'DESCONHECIDO';
                                 const safeType = formatarPasta(document_type || 'Contrato');
-                                const cloudFileName = `Outros_${safeType}_${safeColab}.pdf`;
+                                
+                                // USA O NOME EXATO DO ARQUIVO SELECIONADO/DEDUPLICADO, não "Outros_..."
+                                const cloudFileName = fileNameToStore;
                                 const targetDir = `${onedriveBasePath}/${safeColab}/CONTRATOS`;
+                                
                                 console.log(`[OD-INLINE] CONTRATOS_AVULSOS NAO_EXIGE => ${targetDir}/${cloudFileName}`);
                                 await onedrive.ensurePath(`${onedriveBasePath}/${safeColab}`);
                                 await onedrive.ensurePath(targetDir);
-                                const fileBuffer = fs.readFileSync(file_path);
+                                const fileBuffer = require('fs').readFileSync(file_path);
                                 await onedrive.uploadToOneDrive(targetDir, cloudFileName, fileBuffer);
                                 console.log(`[OD-INLINE] Upload OK: ${cloudFileName}`);
                             } catch(odErr) {
@@ -2398,17 +2389,13 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), (req, res)
                         const _isVerbal = /verbal/i.test(_tipoSimples);
                         const _advStatus = req.body.assinafy_status || '';
                         const _podeOneDrive = tab_name === 'Advertências'
-                            ? (!_isOcorr && (
-                                (_advStatus === 'Testemunhas') ||
-                                (!_isVerbal && _advStatus === 'Assinado')
-                              ))
+                            ? (!_isOcorr && ((_advStatus === 'Testemunhas') || (!_isVerbal && _advStatus === 'Assinado')))
                             : (tab_name !== 'CONTRATOS_AVULSOS' || !assinafy_status || assinafy_status === 'Nenhum' || assinafy_status === 'NAO_EXIGE');
                         if (_podeOneDrive) {
                             setImmediate(() => uploadDocToOneDrive(newDocId));
                         }
                     }
 
-                    // --- ATUALIZA STATUS PARA AFASTADO SE ATESTADO VIGENTE ---
                     if (tab_name === 'Atestados' && atestado_tipo === 'dias' && atestado_inicio && atestado_fim) {
                         const today = new Date().toISOString().split('T')[0];
                         if (today >= atestado_inicio && today <= atestado_fim) {
