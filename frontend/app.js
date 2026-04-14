@@ -7635,6 +7635,622 @@ window.renderContratosTab = async function(container) {
     }
 };
 
+// === SUB-ABA OUTROS CONTRATOS ===
+window.renderContratosAvulso = async function(container) {
+    if (!viewedColaborador || !container) return;
+    container.innerHTML = '<p class="text-muted"><i class="ph ph-spinner ph-spin"></i> Carregando Documentos...</p>';
+    try {
+        const safeGet = async (url) => {
+            try {
+                const r = await apiGet(url);
+                return Array.isArray(r) ? r : (r ? [r] : []);
+            } catch(e) { return []; }
+        };
+        const [assinaturas, docs, geradores, outrosTemplates, departamentos] = await Promise.all([
+            safeGet(`/colaboradores/${viewedColaborador.id}/admissao-assinaturas`),
+            safeGet(`/colaboradores/${viewedColaborador.id}/documentos`),
+            safeGet('/geradores'),
+            safeGet('/gerador-outros-contratos-templates'),
+            safeGet('/departamentos')
+        ]);
+        window._todosGeradores = geradores;
+
+        let templateGeradores = [];
+        const empDeptId = viewedColaborador.departamento;
+        const deptObj = departamentos.find(d =>
+            String(d.id) === String(empDeptId) ||
+            String(d.nome).trim().toLowerCase() === String(empDeptId).trim().toLowerCase()
+        );
+        if (deptObj) {
+            const geradorIds = outrosTemplates.filter(t => Number(t.departamento_id) === Number(deptObj.id)).map(t => Number(t.gerador_id));
+            if (geradorIds.length > 0) {
+                templateGeradores = geradores.filter(g => geradorIds.includes(Number(g.id)));
+            }
+        }
+
+        const c = viewedColaborador;
+        const PROFILE_CONTRACT_MAP = [
+            { nome: 'Termo de NÃO Interesse Terapia',   cond: c.terapia_participa === 'Não' || c.terapia_participa === 'Nao' },
+            { nome: 'Termo de Interesse Terapia',        cond: c.terapia_participa === 'Sim' },
+            { nome: 'Responsabilidade Bilhete Único',    cond: (c.meio_transporte || '').toLowerCase().includes('vt') || (c.meio_transporte || '').toLowerCase().includes('vale transporte') },
+            { nome: 'Acordo de Auxílio-Combustível',     cond: (c.meio_transporte || '').toLowerCase().includes('vc') || (c.meio_transporte || '').toLowerCase().includes('combustível') || (c.meio_transporte || '').toLowerCase().includes('combustivel') },
+            { nome: 'Responsabilidade Celular',          cond: c.celular_participa === 'Sim' },
+            { nome: 'Contrato Faculdade',                cond: c.faculdade_participa === 'Sim' },
+            { nome: 'Contrato Academia',                 cond: c.academia_participa === 'Sim' },
+        ];
+
+        const temChaves = Array.isArray(c.chaves_lista) && c.chaves_lista.length > 0;
+        if (temChaves) {
+            PROFILE_CONTRACT_MAP.push({ nome: 'Termo de Responsabilidade de Chaves', cond: true });
+        }
+
+        const profileGeradorNomes = PROFILE_CONTRACT_MAP.filter(m => m.cond).map(m => m.nome);
+        const profileGeradores = profileGeradorNomes
+            .map(nome => geradores.find(g => (g.nome || '').trim().toLowerCase() === nome.toLowerCase()))
+            .filter(Boolean);
+
+        const seenIds = new Set();
+        const availableGeradores = [...profileGeradores, ...templateGeradores].filter(g => {
+            if (seenIds.has(g.id)) return false;
+            seenIds.add(g.id);
+            return true;
+        });
+
+        const finalGeradores = availableGeradores.filter(g =>
+            !['AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO', 'AUTORIZAÇÃO DE DESCONTO EM FOLHA']
+                .includes((g.nome || '').toUpperCase().trim())
+        );
+
+        const filteredDocs = docs.filter(d => d.tab_name === 'CONTRATOS_AVULSOS');
+
+        const geradosNomes = new Set(filteredDocs.map(d => (d.document_type || '').trim().toLowerCase()));
+        const pendingGeradores = profileGeradores.filter(g =>
+            !geradosNomes.has((g.nome || '').trim().toLowerCase())
+        );
+
+        const pendingRowsHtml = pendingGeradores.map(g => {
+            const escNome = (g.nome||'').replace(/'/g,"\\'").replace(/"/g, "&quot;");
+            return `
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:0.65rem 0.75rem; border:1.5px dashed #c026d3; border-radius:8px; background:#fdf4ff; gap:0.75rem;">
+                <div style="display:flex; align-items:center; gap:0.6rem; flex:1;">
+                    <span style="background:#fdf4ff;color:#c026d3;border:1px solid #f0abfc;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Perfil</span>
+                    <div>
+                        <span style="font-weight:600; color:#334155; font-size:0.9rem;">${g.nome}</span>
+                        <div id="perfil-status-txt-${g.id}" style="font-size:0.75rem; color:#a21caf; margin-top:1px;">Necessário pelo perfil do colaborador — aguardando geração</div>
+                    </div>
+                </div>
+                <div style="display:flex; align-items:center; gap:0.75rem; border-left: 1px solid #f0abfc; padding-left: 1rem;">
+                    <span style="font-size:0.85rem; font-weight:600; color:#334155;">Exige Assinatura?</span>
+                    <label style="cursor:pointer; display:flex; align-items:center; gap:0.25rem; font-size:0.85rem; color:#0f172a; margin:0;">
+                        <input type="radio" name="req-ass-${g.id}" value="sim" onchange="window.toggleAcaoContratoPerfil('${g.id}', 'sim', '${escNome}')"> Sim
+                    </label>
+                    <label style="cursor:pointer; display:flex; align-items:center; gap:0.25rem; font-size:0.85rem; color:#0f172a; margin:0;">
+                        <input type="radio" name="req-ass-${g.id}" value="nao" onchange="window.toggleAcaoContratoPerfil('${g.id}', 'nao', '${escNome}')"> Não
+                    </label>
+                </div>
+                <div id="pg-action-${g.id}" style="min-width: 160px; text-align: right; display: flex; justify-content: flex-end;">
+                    <span style="font-size:0.8rem; color:#64748b; font-style:italic;">Selecione uma opção</span>
+                </div>
+            </div>`;
+        }).join('');
+
+        container.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
+                <div>
+                     <h3 style="margin:0; font-size:1.1rem; color:#1e293b; font-weight:700;"><i class="ph ph-files"></i> Contratos e Autorizações</h3>
+                     <p style="margin:0; font-size:0.85rem; color:#64748b;">Gere templates ou anexe PDFs para assinatura.</p>
+                </div>
+                <div style="display:flex; gap:0.5rem;">
+                    <label class="btn btn-secondary" style="display:flex;align-items:center;margin:0;gap:0.4rem;cursor:pointer;">
+                        <i class="ph ph-upload-simple"></i> Anexar PDF
+                        <input type="file" accept=".pdf" style="display:none" onchange="window.uploadContratoExterno(this)">
+                    </label>
+                    <button class="btn btn-primary" onclick="window.abrirModalGerarContrato()" style="display:flex;align-items:center;margin:0;gap:0.4rem;background:#9333ea;border-color:#9333ea;color:#fff;">
+                        <i class="ph ph-file-plus"></i> Gerar Novo
+                    </button>
+                </div>
+            </div>
+            <div id="ca-list-container" style="display:flex; flex-direction:column; gap:0.5rem; margin-bottom:1.5rem;">
+                ${pendingRowsHtml}
+                ${window.buildContratosSignatureRows(assinaturas, filteredDocs, viewedColaborador)}
+            </div>
+        `;
+
+        window._caAvailableGeradores = finalGeradores;
+    } catch(err) {
+        container.innerHTML = `<div class="alert alert-danger"><i class="ph ph-warning"></i> Erro: ${err.message}</div>`;
+    }
+};
+
+window.toggleAcaoContratoPerfil = function(geradorId, exige, geradorNome) {
+    const actionDiv = document.getElementById('pg-action-' + geradorId);
+    if (!actionDiv) return;
+    if (exige === 'nao') {
+        actionDiv.innerHTML = `
+            <label class="btn btn-warning btn-sm" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:0.85rem;background:#eab308;color:#fff;border:none;padding:0.4rem 1rem;border-radius:6px;font-weight:600;">
+                <i class="ph ph-upload-simple"></i> Anexar PDF
+                <input type="file" accept=".pdf" style="display:none;" onchange="window.uploadContratoPerfilNaoAssinado(this, '${geradorNome}')">
+            </label>
+        `;
+    } else {
+        actionDiv.innerHTML = `
+            <button class="btn btn-primary btn-sm" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:0.85rem;background:#c026d3;border-color:#c026d3;padding:0.4rem 1rem;border-radius:6px;"
+                onclick="window.previewContratoPerfilAssinado('${geradorId}', '${geradorNome}')">
+                <i class="ph ph-file-arrow-down"></i> Gerar Documento
+            </button>
+        `;
+    }
+};
+
+window.uploadContratoPerfilNaoAssinado = async function(input, geradorNome) {
+    const file = input.files[0];
+    if (!file || !viewedColaborador) return;
+    Swal.fire({ title: 'Anexando...', allowOutsideClick: false, didOpen: function() { Swal.showLoading(); } });
+
+    var formData = new FormData();
+    formData.append('file', file);
+    formData.append('tab_name', 'CONTRATOS_AVULSOS');
+    formData.append('document_type', geradorNome);
+    formData.append('colaborador_id', viewedColaborador.id);
+    formData.append('colaborador_nome', viewedColaborador.nome_completo || '');
+    formData.append('assinafy_status', 'NAO_EXIGE');
+
+    try {
+        var res = await fetch(API_URL + '/documentos', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + currentToken },
+            body: formData
+        });
+        var data = await res.json().catch(function() { return {}; });
+        if (!res.ok) throw new Error(data.error || 'Falha ao salvar PDF');
+        Swal.close(); if(typeof showToast !== 'undefined') showToast('Documento anexado!', 'success');
+        window._contratosAvulsoLoaded = false;
+        var avDiv = document.getElementById('contratos-sub-avulso');
+        if (avDiv) await window.renderContratosAvulso(avDiv);
+    } catch(e) {
+        Swal.fire('Erro', e.message, 'error');
+    }
+};
+
+window.previewContratoPerfilAssinado = async function(geradorId, geradorNome) {
+    Swal.fire({ title: 'Gerando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    try {
+        const res = await fetch(`${API_URL}/geradores/${geradorId}/gerar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
+            body: JSON.stringify({ colaborador_id: viewedColaborador.id, colabId: viewedColaborador.id })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erro ao gerar documento');
+        Swal.close();
+
+        window._perfilGeradorIdCtx = geradorId;
+        window._perfilGeradorNomeCtx = geradorNome;
+
+        window.abrirPreviewDocumento(data);
+
+        setTimeout(() => {
+            const previewBtns = document.getElementById('preview-doc-buttons');
+            if (previewBtns) {
+                previewBtns.innerHTML = `
+                    <button class="btn btn-secondary" onclick="window.fecharPreviewEHabitarEnvio()">
+                        <i class="ph ph-x"></i> Fechar Prévia
+                    </button>
+                `;
+            }
+        }, 150);
+
+    } catch(e) {
+        Swal.fire('Erro', e.message, 'error');
+    }
+};
+
+window.fecharPreviewEHabitarEnvio = function() {
+    const elModal = document.getElementById('modal-preview-doc') || document.getElementById('doc-modal');
+    if (elModal) elModal.style.display = 'none';
+
+    const gId = window._perfilGeradorIdCtx;
+    if (!gId) return;
+
+    const actionDiv = document.getElementById('pg-action-' + gId);
+    if (actionDiv) {
+        actionDiv.innerHTML = `
+            <button class="btn btn-primary" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-size:0.95rem;font-weight:500;padding:0.55rem 1.25rem;border-radius:8px;background:#0056b3;border-color:#0056b3;color:#fff;transition:all 0.2s;"
+                onclick="window.enviarAssinaturaPerfilDireto(event)">
+                <i class="ph ph-paper-plane-tilt"></i> Enviar para Assinatura
+            </button>
+        `;
+    }
+};
+
+window.enviarAssinaturaPerfilDireto = async function(event) {
+    const geradorId = window._perfilGeradorIdCtx;
+    const geradorNome = window._perfilGeradorNomeCtx;
+    if (!geradorId) return;
+
+    let targetBtn = null;
+    let originalHtml = '';
+    if (event && event.currentTarget) {
+        targetBtn = event.currentTarget;
+        originalHtml = targetBtn.innerHTML;
+        targetBtn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando...';
+        targetBtn.disabled = true;
+    }
+
+    try {
+        const previewContent = document.querySelector('#modal-preview-doc #preview-doc-body') || document.querySelector('#doc-modal .preview-content');
+        if (!previewContent) throw new Error('Conteúdo do formulário foi perdido. Tente gerar novamente.');
+
+        const pdfBlob = await window.gerarPDFBlob(previewContent);
+        const safeName = (geradorNome || 'documento').replace(/[^a-zA-Z0-9À-ÿ _-]/g, '');
+        const colabId  = viewedColaborador?.id || '';
+        const colabNome = (viewedColaborador?.nome_completo || colabId).toString();
+
+        const formData = new FormData();
+        formData.append('file', pdfBlob, `${safeName}_${colabNome}.pdf`);
+        formData.append('tab_name', 'CONTRATOS_AVULSOS');
+        formData.append('document_type', geradorNome);
+        formData.append('gerador_id', geradorId);
+        formData.append('colaborador_id', colabId);
+        formData.append('assinafy_status', 'Pendente');
+
+        const r = await fetch(`${API_URL}/documentos?colaborador_id=${colabId}`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${currentToken}` },
+            body: formData
+        });
+
+        if (!r.ok) {
+            const errData = await r.json().catch(() => ({}));
+            throw new Error(errData.error || 'Falha ao salvar PDF');
+        }
+
+        await apiPost('/admissao-assinaturas/enviar-lote', {
+            colaborador_id: colabId,
+            geradores_ids: [parseInt(geradorId)]
+        });
+
+        Swal.fire({ title: 'Enviado com sucesso!', toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, icon: 'success' });
+
+        if (targetBtn && targetBtn.parentElement) {
+            const dtStr = new Date().toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }).replace(',', ' -');
+            const txt = document.getElementById('perfil-status-txt-' + geradorId);
+            if (txt) {
+                txt.innerHTML = '<span style="color:#2563eb;font-weight:600;"><i class="ph ph-paper-plane-tilt"></i> Enviado para Assinatura: ' + dtStr + '</span>';
+            }
+            targetBtn.parentElement.innerHTML = '<span style="color:#16a34a;font-weight:600;"><i class="ph ph-check"></i> OK</span>';
+        }
+
+        window._contratosAvulsoLoaded = false;
+        const avDiv = document.getElementById('contratos-sub-avulso');
+        if (avDiv) await window.renderContratosAvulso(avDiv);
+
+    } catch(e) {
+        Swal.fire('Erro ao enviar', e.message, 'error');
+        if (targetBtn) { targetBtn.innerHTML = originalHtml; targetBtn.disabled = false; }
+    }
+};
+
+window.uploadContratoExterno = async function(input) {
+    const file = input.files[0];
+    if (!file || !viewedColaborador) return;
+    input.value = '';
+
+    const modalResult = await Swal.fire({
+        title: '<i class="ph ph-file-plus"></i> Anexar Contrato',
+        html: '<div style="text-align:left;display:flex;flex-direction:column;gap:0.75rem;padding:0.25rem 0;"><div><label style="font-size:0.82rem;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Nome do Documento</label><input id="swal-doctype" class="swal2-input" style="margin:0;width:100%;box-sizing:border-box;" placeholder="Ex: Acordo de Confidencialidade"></div></div>',
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: '<i class="ph ph-upload-simple"></i> Anexar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#2563eb',
+        showLoaderOnConfirm: true,
+        allowOutsideClick: function() { return !Swal.isLoading(); },
+        didOpen: function() {
+            var dtInput = document.getElementById('swal-doctype');
+            if (dtInput) dtInput.value = file.name.replace(/\.pdf$/i, '').substring(0, 60);
+        },
+        preConfirm: async function() {
+            var docType = (document.getElementById('swal-doctype') || {}).value;
+            if (docType) docType = docType.trim();
+            if (!docType) { Swal.showValidationMessage('Informe o nome do documento'); return false; }
+
+            var formData = new FormData();
+            formData.append('file', file);
+            formData.append('tab_name', 'CONTRATOS_AVULSOS');
+            formData.append('document_type', docType);
+            formData.append('colaborador_id', viewedColaborador.id);
+            formData.append('colaborador_nome', viewedColaborador.nome_completo || '');
+            formData.append('assinafy_status', 'NAO_EXIGE');
+
+            try {
+                var res = await fetch(API_URL + '/documentos', {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + currentToken },
+                    body: formData
+                });
+                var data = await res.json().catch(function() { return {}; });
+                if (!res.ok) throw new Error(data.error || 'Falha ao anexar PDF');
+                if (typeof showToast !== 'undefined') showToast('Documento anexado no Prontuário!', 'success');
+                return true;
+            } catch(err) {
+                Swal.showValidationMessage(err.message);
+                return false;
+            }
+        }
+    });
+
+    if (modalResult.isConfirmed) {
+        window._contratosAvulsoLoaded = false;
+        var avDiv = document.getElementById('contratos-sub-avulso');
+        if (avDiv) window.renderContratosAvulso(avDiv);
+    }
+};
+
+window.openContratoViewerById = function(docId, nomeDoc) {
+    var token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+    if (!token) { alert('Sessão expirada. Faça login novamente.'); return; }
+    var pdfUrl = API_URL + '/documentos/view/' + docId + '?token=' + encodeURIComponent(token);
+    window.openContratoViewerPopup(pdfUrl, nomeDoc);
+};
+
+window.openContratoViewerPopup = function(pdfUrl, nomeDoc) {
+    if (!pdfUrl || pdfUrl.endsWith('undefined')) { alert('URL do documento não encontrada.'); return; }
+    var token = window.currentToken || localStorage.getItem('erp_token') || '';
+    var finalUrl = pdfUrl;
+    if ((pdfUrl.indexOf('onrender.com') >= 0 || pdfUrl.indexOf(window.location.hostname) >= 0) && pdfUrl.indexOf('token=') === -1) {
+        finalUrl = (pdfUrl.indexOf('?') >= 0 ? pdfUrl + '&token=' + token : pdfUrl + '?token=' + token);
+    }
+    var nomeSafe = (nomeDoc || 'Documento');
+
+    var prev = document.getElementById('cv-overlay-fs');
+    if (prev) prev.remove();
+
+    var overlay = document.createElement('div');
+    overlay.id = 'cv-overlay-fs';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:#0f172a;z-index:999999;display:flex;flex-direction:column;overflow:hidden;';
+
+    var header = document.createElement('div');
+    header.style.cssText = 'background:#1e293b;display:flex;align-items:center;justify-content:space-between;padding:0.75rem 1.25rem;flex-shrink:0;border-bottom:1px solid #334155;min-height:58px;box-sizing:border-box;';
+
+    var left = document.createElement('div');
+    left.style.cssText = 'display:flex;align-items:center;gap:0.75rem;';
+    left.innerHTML = '<i class="ph ph-file-pdf" style="color:#ef4444;font-size:1.5rem;"></i>';
+    var info = document.createElement('div');
+    var titleEl = document.createElement('div');
+    titleEl.style.cssText = 'font-weight:700;color:#f1f5f9;font-size:0.95rem;';
+    titleEl.textContent = nomeSafe;
+    var subEl = document.createElement('div');
+    subEl.style.cssText = 'font-size:0.72rem;color:#94a3b8;';
+    subEl.textContent = 'Visualizador de Documento';
+    info.appendChild(titleEl); info.appendChild(subEl); left.appendChild(info);
+
+    var right = document.createElement('div');
+    right.style.cssText = 'display:flex;gap:0.5rem;';
+    var dlBtn = document.createElement('a');
+    dlBtn.href = finalUrl;
+    dlBtn.setAttribute('download', nomeSafe + '.pdf');
+    dlBtn.target = '_blank';
+    dlBtn.style.cssText = 'display:inline-flex;align-items:center;gap:0.4rem;background:#22c55e;color:#fff;padding:0.5rem 1.1rem;border-radius:8px;font-weight:600;font-size:0.85rem;text-decoration:none;';
+    dlBtn.innerHTML = '<i class="ph ph-download-simple"></i> Baixar';
+    var closeBtn = document.createElement('button');
+    closeBtn.style.cssText = 'background:#ef4444;color:#fff;border:none;border-radius:8px;padding:0.5rem 1.1rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;';
+    closeBtn.innerHTML = '<i class="ph ph-x"></i> Fechar';
+    closeBtn.onclick = function() { overlay.remove(); };
+    right.appendChild(dlBtn); right.appendChild(closeBtn);
+    header.appendChild(left); header.appendChild(right);
+
+    var content = document.createElement('div');
+    content.style.cssText = 'flex:1;position:relative;background:#525659;overflow:hidden;';
+    var loading = document.createElement('div');
+    loading.id = 'cv-fs-loading';
+    loading.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;gap:0.75rem;z-index:1;';
+    loading.innerHTML = '<i class="ph ph-circle-notch ph-spin" style="font-size:3rem;color:#6366f1;"></i><span style="font-weight:600;">Carregando documento...</span>';
+    var iframe = document.createElement('iframe');
+    iframe.src = finalUrl;
+    iframe.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;border:none;z-index:2;';
+    iframe.onload = function() { var l = document.getElementById('cv-fs-loading'); if (l) l.style.display = 'none'; };
+    content.appendChild(loading); content.appendChild(iframe);
+    overlay.appendChild(header); overlay.appendChild(content);
+    document.body.appendChild(overlay);
+
+    var onEsc = function(e) { if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', onEsc); } };
+    document.addEventListener('keydown', onEsc);
+};
+
+window.reenviarAssinaturaContrato = async function(docId, ev) {
+    if(ev) ev.stopPropagation();
+    if(!confirm('Confirmar envio deste documento para assinatura digital?')) return;
+    let trBtn = null, ogHtml = '';
+    try {
+        trBtn = ev ? ev.currentTarget : null;
+        if(trBtn) { ogHtml = trBtn.innerHTML; trBtn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Aguarde...'; trBtn.disabled = true; }
+
+        let targetColabId = (viewedColaborador && viewedColaborador.id) ? viewedColaborador.id : window.lastColaboradorId;
+        if (!targetColabId) throw new Error('Não foi possível identificar o colaborador atual.');
+
+        const res = await fetch(`${API_URL}/assinafy/upload`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (window.currentToken || localStorage.getItem('token')) },
+            body: JSON.stringify({ document_id: Number(docId), colaborador_id: targetColabId })
+        });
+        const data = await res.json().catch(() => ({}));
+        if(trBtn) { trBtn.innerHTML = ogHtml; trBtn.disabled = false; }
+        if(res.ok) {
+            if (typeof showToast !== 'undefined') showToast('E-mail de assinatura enviado ao colaborador!', 'success');
+            window._contratosAvulsoLoaded = false;
+            const avDiv = document.getElementById('contratos-sub-avulso');
+            if (avDiv) { avDiv.innerHTML = '<p class="text-muted" style="padding:1rem;"><i class="ph ph-spinner ph-spin"></i> Atualizando status...</p>'; window.renderContratosAvulso(avDiv); }
+        } else {
+            throw new Error(data.error || 'Erro ao reenviar assinatura');
+        }
+    } catch(err) {
+        if(trBtn) { trBtn.innerHTML = ogHtml; trBtn.disabled = false; }
+        if (typeof showToast !== 'undefined') showToast(err.message, 'error');
+        else alert(err.message);
+    }
+};
+
+window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
+    docs = Array.isArray(docs) ? docs : [];
+    if (docs.length === 0) {
+        return `<div style="padding:2rem;text-align:center;color:#94a3b8;border:2px dashed #e2e8f0;border-radius:12px;"><i class="ph ph-files" style="font-size:2rem;margin-bottom:0.5rem;display:block;"></i>Nenhum contrato listado.</div>`;
+    }
+
+    let html = '';
+    docs.forEach(doc => {
+        let realStatus = 'Não enviado';
+        if (doc.assinafy_status === 'Assinado') realStatus = 'Assinado';
+        else if (doc.assinafy_status === 'Pendente' || doc.assinafy_status === 'Aguardando') realStatus = 'Aguardando';
+
+        const isSigned = (realStatus === 'Assinado');
+        const isPending = (realStatus === 'Aguardando');
+        const literallyNaoExige = (doc.assinafy_status === 'NAO_EXIGE');
+        const requiresButNotSent = (!isSigned && !isPending && !literallyNaoExige);
+
+        const _docName = (doc.document_type || doc.file_name || 'Documento Avulso');
+        const _docTitle = _docName.replace(/_/g, ' ');
+
+        const formatDate = (str) => {
+            if (!str) return '';
+            const d = new Date(str.includes('T') ? str : str + 'Z');
+            if (isNaN(d.getTime())) return '';
+            return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()} - ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+        };
+
+        const _uploadStr = formatDate(doc.upload_date || doc.created_at);
+        const _sentStr = formatDate(doc.assinafy_sent_at || doc.upload_date);
+        const _signedStr = formatDate(doc.assinafy_signed_at || doc.upload_date);
+
+        let statusBadge = '', leftIconMarkup = '', sendBtn = '', actionUX = '';
+        const borderBgColor = isSigned ? 'border:1px solid #bbf7d0; background:#f0fdf4;' : isPending ? 'border:1px solid #bfdbfe; background:#eff6ff;' : literallyNaoExige ? 'border:1px solid #e9d5ff; background:#faf5ff;' : 'border:1px solid #fde047; background:#fefce8;';
+
+        if (isSigned) {
+            leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#16a34a;"><i class="ph ph-check-circle" style="font-size:1.4rem;"></i></div>`;
+            statusBadge = `<span style="color:#16a34a;font-size:0.75rem;font-weight:600;">Documento Assinado${_signedStr ? ': ' + _signedStr : ''}</span>`;
+        } else if (isPending) {
+            leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#2563eb;"><i class="ph ph-paper-plane-tilt" style="font-size:1.4rem;"></i></div>`;
+            statusBadge = `<span style="color:#2563eb;font-size:0.75rem;font-weight:600;">Enviado para Assinatura${_sentStr ? ': ' + _sentStr : ''}</span>`;
+            sendBtn = `<button type="button" onclick="window.reenviarAssinaturaContrato(${doc.id}, event);" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-pen"></i> Reenviar para Assinatura</button>`;
+        } else if (literallyNaoExige) {
+            leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#9333ea;"><i class="ph ph-file-text" style="font-size:1.4rem;"></i></div>`;
+            statusBadge = `<span style="color:#9333ea;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
+        } else {
+            leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#eab308;"><i class="ph ph-info" style="font-size:1.4rem;"></i></div>`;
+            statusBadge = `<span style="color:#eab308;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
+            const escNome = _docName.replace(/'/g,"\\'");
+            actionUX = `
+                <div style="display:flex; align-items:center; gap:0.75rem; border-left: 1px solid #fde047; padding-left: 1rem; margin-right:5px;">
+                    <span style="font-size:0.85rem; font-weight:600; color:#334155;">Exige Assinatura?</span>
+                    <label style="cursor:pointer; display:flex; align-items:center; gap:0.25rem; font-size:0.85rem; color:#0f172a; margin:0;">
+                        <input type="radio" name="req-ass-doc-${doc.id}" value="sim" onchange="window.toggleAcaoDocumentoAvulso('${doc.id}', 'sim', '${escNome}')"> Sim
+                    </label>
+                    <label style="cursor:pointer; display:flex; align-items:center; gap:0.25rem; font-size:0.85rem; color:#0f172a; margin:0;">
+                        <input type="radio" name="req-ass-doc-${doc.id}" value="nao" onchange="window.toggleAcaoDocumentoAvulso('${doc.id}', 'nao', '${escNome}')"> Não
+                    </label>
+                </div>
+                <div id="pg-action-doc-${doc.id}" style="min-width: 160px; text-align: right; display: flex; justify-content: flex-end;">
+                    <span style="font-size:0.8rem; color:#64748b; font-style:italic;">Selecione uma opção</span>
+                </div>
+            `;
+        }
+
+        const eyeBtn = `<button onclick="window.openContratoViewerById(${doc.id})" style="border:none;background:none;cursor:pointer;color:#64748b;" title="Visualizar Documento"><i class="ph ph-eye" style="font-size:1.4rem;"></i></button>`;
+
+        html += `
+        <div class="doc-check-item" style="display:flex; align-items:center; gap:0.6rem; padding:1.1rem 1.25rem; ${borderBgColor}; border-radius:8px; cursor:default; box-shadow:0 1px 2px rgba(0,0,0,0.03); transition:all 0.2s; justify-content:space-between; margin-bottom:12px;">
+            <div style="display:flex; align-items:center; gap:12px; flex:1;">
+                ${leftIconMarkup}
+                <div style="display:flex; flex-direction:column; gap:2px;">
+                    <span style="font-size:0.95rem; font-weight:700; color:#0f172a; margin-bottom:2px;">${_docTitle.toUpperCase()}</span>
+                    ${statusBadge}
+                    ${doc.file_name ? `<span style="font-size:0.72rem;color:#94a3b8;margin-top:1px;"><i class="ph ph-file"></i> ${doc.file_name}</span>` : ''}
+                </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px;">
+                ${actionUX}
+                ${sendBtn}
+                ${eyeBtn}
+            </div>
+        </div>`;
+    });
+    return html;
+};
+
+window.toggleAcaoDocumentoAvulso = function(docId, exige, docType) {
+    const actionDiv = document.getElementById('pg-action-doc-' + docId);
+    if (!actionDiv) return;
+    if (exige === 'nao') {
+        actionDiv.innerHTML = `
+            <label class="btn btn-warning btn-sm" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:0.85rem;background:#eab308;color:#fff;border:none;padding:0.4rem 1rem;border-radius:6px;font-weight:600;">
+                <i class="ph ph-upload-simple"></i> Anexar PDF
+                <input type="file" accept=".pdf" style="display:none;" onchange="window.uploadContratoAvulsoSobrescrever(this, '${docId}', '${docType}')">
+            </label>
+        `;
+    } else {
+        actionDiv.innerHTML = `
+            <button type="button" class="btn btn-primary btn-sm" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:0.85rem;background:#0284c7;color:#fff;border:none;padding:0.4rem 1rem;border-radius:6px;font-weight:600;"
+                onclick="window.enviarDocumentoAvulsoAssinatura('${docId}')">
+                <i class="ph ph-paper-plane-tilt"></i> Enviar p/ Assinatura
+            </button>
+        `;
+    }
+};
+
+window.enviarDocumentoAvulsoAssinatura = async function(docId) {
+    if (!docId || !viewedColaborador) return;
+    Swal.fire({ title: 'Enviando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    try {
+        const res = await fetch(API_URL + '/assinafy/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentToken },
+            body: JSON.stringify({ document_id: Number(docId), colaborador_id: viewedColaborador.id })
+        });
+        const data = await res.json().catch(() => ({}));
+        Swal.close();
+        if (res.ok) {
+            if (typeof showToast !== 'undefined') showToast('Documento enviado para assinatura!', 'success');
+            window._contratosAvulsoLoaded = false;
+            window.switchContratosSubTab('avulso');
+        } else {
+            Swal.fire('Atenção', 'Erro no envio para assinar: ' + (data.error || 'Erro desconhecido'), 'warning');
+        }
+    } catch(err) {
+        Swal.close();
+        Swal.fire('Erro', err.message, 'error');
+    }
+};
+
+window.uploadContratoAvulsoSobrescrever = async function(input, docId, docType) {
+    const file = input.files[0];
+    if (!file || !viewedColaborador) return;
+    Swal.fire({ title: 'Sobrescrevendo...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('tab_name', 'CONTRATOS_AVULSOS');
+        formData.append('document_type', docType);
+        formData.append('colaborador_id', viewedColaborador.id);
+        formData.append('colaborador_nome', viewedColaborador.nome_completo || '');
+        formData.append('assinafy_status', 'NAO_EXIGE');
+        formData.append('document_id', docId);
+
+        const resUpload = await fetch(API_URL + '/documentos', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + currentToken },
+            body: formData
+        });
+        if (!resUpload.ok) throw new Error('Falha no upload do arquivo');
+        Swal.close();
+        if (typeof showToast !== 'undefined') showToast('Documento anexado no Prontuário!', 'success');
+        window._contratosAvulsoLoaded = false;
+        window.switchContratosSubTab('avulso');
+    } catch (err) {
+        Swal.close();
+        Swal.fire('Erro', err.message, 'error');
+    }
+};
+
 // =======
 window.previewAdmissaoDoc = async function(geradorId, colabId, evt) {
     if (evt) { evt.preventDefault(); evt.stopPropagation(); }
