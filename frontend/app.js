@@ -7521,6 +7521,120 @@ window.uploadAdmissaoAvulso = async function(geradorId, colabId, fileInput) {
     fileInput.value = '';
 };
 
+// ===== ABA CONTRATOS (PRONTUÁRIO DIGITAL) =====
+window.renderContratosTab = async function(container) {
+    if (!viewedColaborador) return;
+    container.innerHTML = '';
+
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = `
+        <div style="display:flex; gap:4px; border-bottom:2px solid #e2e8f0; margin-bottom:1.25rem;">
+            <button id="sub-tab-btn-admissao"
+                style="padding:0.55rem 1.2rem; border:none; border-radius:8px 8px 0 0; font-weight:700; cursor:pointer; background:var(--primary-color); color:#fff; font-size:0.88rem; display:flex; align-items:center; gap:6px;">
+                <i class="ph ph-briefcase"></i> Contratos de Admissão
+            </button>
+            <button id="sub-tab-btn-avulso"
+                style="padding:0.55rem 1.2rem; border:none; border-radius:8px 8px 0 0; font-weight:600; cursor:pointer; background:#f1f5f9; color:#64748b; font-size:0.88rem; display:flex; align-items:center; gap:6px;">
+                <i class="ph ph-file-plus"></i> Outros Contratos
+            </button>
+        </div>
+        <div id="contratos-sub-admissao">
+            <p class="text-muted" style="padding:0.5rem;"><i class="ph ph-spinner ph-spin"></i> Carregando...</p>
+        </div>
+        <div id="contratos-sub-avulso" style="display:none;">
+            <p class="text-muted" style="padding:0.5rem;"><i class="ph ph-spinner ph-spin"></i> Carregando geradores...</p>
+        </div>`;
+    container.appendChild(wrapper);
+
+    window._contratosAvulsoLoaded = false;
+
+    window.switchContratosSubTab = function(tab) {
+        const admDiv = document.getElementById('contratos-sub-admissao');
+        const avDiv  = document.getElementById('contratos-sub-avulso');
+        const btnAdm = document.getElementById('sub-tab-btn-admissao');
+        const btnAv  = document.getElementById('sub-tab-btn-avulso');
+        if (tab === 'admissao') {
+            if (admDiv) admDiv.style.display = '';
+            if (avDiv)  avDiv.style.display  = 'none';
+            if (btnAdm) { btnAdm.style.background = 'var(--primary-color)'; btnAdm.style.color = '#fff'; }
+            if (btnAv)  { btnAv.style.background  = '#f1f5f9'; btnAv.style.color  = '#64748b'; }
+        } else {
+            if (admDiv) admDiv.style.display = 'none';
+            if (avDiv)  avDiv.style.display  = '';
+            if (btnAdm) { btnAdm.style.background = '#f1f5f9'; btnAdm.style.color = '#64748b'; }
+            if (btnAv)  { btnAv.style.background  = 'var(--primary-color)'; btnAv.style.color  = '#fff'; }
+            if (!window._contratosAvulsoLoaded) {
+                window._contratosAvulsoLoaded = true;
+                const avDiv2 = document.getElementById('contratos-sub-avulso');
+                if (avDiv2) window.renderContratosAvulso(avDiv2);
+            }
+        }
+    };
+
+    document.getElementById('sub-tab-btn-admissao').onclick = () => window.switchContratosSubTab('admissao');
+    document.getElementById('sub-tab-btn-avulso').onclick   = () => window.switchContratosSubTab('avulso');
+
+    try {
+        const [depts, geradores, templates, assinaturas, docs] = await Promise.all([
+            apiGet('/departamentos'),
+            apiGet('/geradores'),
+            apiGet('/gerador-departamento-templates').catch(() => []),
+            apiGet(`/admissao-assinaturas/${viewedColaborador.id}`).catch(() => []),
+            apiGet(`/colaboradores/${viewedColaborador.id}/documentos`).catch(() => [])
+        ]);
+
+        window._todosGeradores = geradores;
+
+        let availableGeradores = [];
+        const empDeptId = viewedColaborador.departamento;
+        const deptObj = depts.find(d =>
+            String(d.id) === String(empDeptId) ||
+            d.nome.trim().toLowerCase() === String(empDeptId).trim().toLowerCase()
+        );
+        if (deptObj) {
+            const geradorIds = [...new Set(templates
+                .filter(t => Number(t.departamento_id) === Number(deptObj.id))
+                .map(t => Number(t.gerador_id)))];
+            const seen1 = new Set();
+            availableGeradores = geradores.filter(g => geradorIds.includes(Number(g.id)) && !seen1.has(Number(g.id)) && seen1.add(Number(g.id)));
+        }
+
+        window._admissaoGeradores = availableGeradores;
+        window._admissaoAssinaturas = assinaturas;
+
+        const admDiv = document.getElementById('contratos-sub-admissao');
+        if (admDiv) {
+            if (availableGeradores.length > 0) {
+                let html = `
+                    <div class="alert alert-info mb-3">
+                        <i class="ph ph-info"></i> Contratos configurados via <b>Admissão</b> para o departamento deste colaborador.
+                    </div>
+                    <div id="contratos-signature-list" style="display:flex;flex-direction:column;gap:0.75rem;margin-bottom:1.5rem;">`;
+                html += window.buildAdmissaoSignatureRows(availableGeradores, assinaturas, docs, viewedColaborador);
+                html += `</div>
+                    <div style="background:#f8fafc; padding:15px; border-radius:8px; border:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                        <div>
+                            <div style="font-weight:700; color:#0f172a; margin-bottom:4px;">Envio para Assinatura Digital</div>
+                            <div style="font-size:0.78rem; color:#64748b;">Documentos enviados ao e-mail do colaborador via Assinafy.</div>
+                        </div>
+                        <button id="btn-enviar-contratos" class="btn btn-primary" onclick="window.sendAdmissaoSignatures('contratos-signature-list','btn-enviar-contratos')" style="display:flex;align-items:center;gap:5px;">
+                            <i class="ph ph-paper-plane-tilt"></i> Enviar para Assinatura
+                        </button>
+                    </div>`;
+                admDiv.innerHTML = html;
+            } else {
+                admDiv.innerHTML = `<p class="text-muted" style="padding:1rem;text-align:center;">
+                    Nenhum contrato configurado para o departamento <b>${deptObj ? deptObj.nome : (empDeptId || 'Não Informado')}</b>.<br>
+                    <small>Configure em <b>Geradores → Template de Admissão</b>.</small>
+                </p>`;
+            }
+        }
+    } catch(err) {
+        const admDiv = document.getElementById('contratos-sub-admissao');
+        if (admDiv) admDiv.innerHTML = `<div class="alert alert-danger"><i class="ph ph-warning"></i> Erro: ${err.message}</div>`;
+    }
+};
+
 // =======
 window.previewAdmissaoDoc = async function(geradorId, colabId, evt) {
     if (evt) { evt.preventDefault(); evt.stopPropagation(); }
