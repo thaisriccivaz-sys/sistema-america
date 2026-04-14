@@ -8251,6 +8251,207 @@ window.uploadContratoAvulsoSobrescrever = async function(input, docId, docType) 
     }
 };
 
+// === MODAL GERAR NOVO CONTRATO ===
+window.abrirModalGerarContrato = function() {
+    const geradores = window._caAvailableGeradores || [];
+    document.getElementById('modal-contrato-avulso')?.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'modal-contrato-avulso';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
+    overlay.innerHTML = `
+        <div style="background:#fff;border-radius:14px;width:100%;max-width:520px;box-shadow:0 20px 60px rgba(0,0,0,0.2);overflow:visible;">
+            <div style="padding:1rem 1.5rem;border-bottom:1.5px solid #e2e8f0;background:#f8fafc;display:flex;justify-content:space-between;align-items:center;">
+                <h3 style="margin:0;font-size:1rem;font-weight:700;color:#0f172a;"><i class="ph ph-file-plus"></i> Gerar Documento Template</h3>
+                <button onclick="document.getElementById('modal-contrato-avulso').remove()" style="background:#f1f5f9;border:1px solid #e2e8f0;width:30px;height:30px;border-radius:8px;cursor:pointer;color:#64748b;display:flex;align-items:center;justify-content:center;"><i class="ph ph-x"></i></button>
+            </div>
+            <div style="padding:1.5rem;display:flex;flex-direction:column;gap:1rem;">
+                <div>
+                    <label style="font-size:0.82rem;font-weight:700;color:#374151;display:block;margin-bottom:6px;">Selecionar Documento</label>
+                    <div style="position:relative;" id="ca-gerador-wrapper">
+                        <input
+                            id="ca-gerador-search"
+                            type="text"
+                            placeholder="Digite para filtrar..."
+                            autocomplete="off"
+                            style="width:100%;padding:0.65rem 2.2rem 0.65rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;box-sizing:border-box;outline:none;"
+                            onfocus="window._openGeradorDropdown()"
+                            oninput="window._filterGeradorDropdown(this.value)"
+                        >
+                        <i class="ph ph-caret-down" style="position:absolute;right:0.65rem;top:50%;transform:translateY(-50%);color:#94a3b8;pointer-events:none;"></i>
+                        <input type="hidden" id="ca-gerador-select" value="">
+                        <div id="ca-gerador-dropdown"
+                             style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1.5px solid #e2e8f0;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.12);max-height:220px;overflow-y:auto;z-index:99999;">
+                        </div>
+                    </div>
+                </div>
+                <div id="ca-msg" style="display:none;"></div>
+                <div style="display:flex;justify-content:flex-end;gap:0.75rem;">
+                    <button onclick="document.getElementById('modal-contrato-avulso').remove()" class="btn btn-secondary">Cancelar</button>
+                    <button id="ca-btn-gerar" class="btn btn-primary" onclick="window.gerarContratoAvulso()" style="display:flex;align-items:center;gap:6px;">
+                        <i class="ph ph-file-arrow-down"></i> Visualizar e Salvar
+                    </button>
+                </div>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+
+    const _geradores = window._caAvailableGeradores || [];
+    window._geradorItems = _geradores.map(g => ({ id: String(g.id), nome: g.nome || '' }));
+
+    window._openGeradorDropdown = function() {
+        window._filterGeradorDropdown(document.getElementById('ca-gerador-search')?.value || '');
+    };
+
+    window._filterGeradorDropdown = function(q) {
+        const dd = document.getElementById('ca-gerador-dropdown');
+        if (!dd) return;
+        const filtered = (window._geradorItems || []).filter(g => g.nome.toLowerCase().includes((q||'').toLowerCase()));
+        if (filtered.length === 0) {
+            dd.innerHTML = '<div style="padding:0.75rem 1rem;font-size:0.88rem;color:#94a3b8;">Nenhum resultado.</div>';
+        } else {
+            dd.innerHTML = filtered.map(g => `
+                <div onclick="window._selectGerador('${g.id}', '${g.nome.replace(/'/g, "\\'")}')"
+                     style="padding:0.6rem 1rem;font-size:0.88rem;color:#334155;cursor:pointer;"
+                     onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''"><i class="ph ph-file-text" style="margin-right:6px;color:#94a3b8;"></i>${g.nome}</div>
+            `).join('');
+        }
+        dd.style.display = 'block';
+    };
+
+    window._selectGerador = function(id, nome) {
+        const search = document.getElementById('ca-gerador-search');
+        const hidden = document.getElementById('ca-gerador-select');
+        const dd     = document.getElementById('ca-gerador-dropdown');
+        if (search) search.value = nome;
+        if (hidden) hidden.value = id;
+        if (dd)     dd.style.display = 'none';
+    };
+
+    setTimeout(() => {
+        document.addEventListener('mousedown', function _closeGeradorDD(e) {
+            const wrapper = document.getElementById('ca-gerador-wrapper');
+            if (wrapper && !wrapper.contains(e.target)) {
+                const dd = document.getElementById('ca-gerador-dropdown');
+                if (dd) dd.style.display = 'none';
+            }
+            if (!document.getElementById('modal-contrato-avulso')) {
+                document.removeEventListener('mousedown', _closeGeradorDD);
+            }
+        });
+    }, 100);
+};
+
+window.gerarContratoAvulso = async function() {
+    const hidden = document.getElementById('ca-gerador-select');
+    const geradorId = hidden ? hidden.value : '';
+    if (!geradorId) return alert('Selecione um documento.');
+
+    const btn = document.getElementById('ca-btn-gerar');
+    btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Gerando...';
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(`${API_URL}/geradores/${geradorId}/gerar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
+            body: JSON.stringify({
+                colaborador_id: viewedColaborador.id,
+                colabId: viewedColaborador.id
+            })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erro ao gerar documento');
+
+        document.getElementById('modal-contrato-avulso').remove();
+
+        window.abrirPreviewDocumento({
+            html: data.html,
+            colaborador: data.colaborador,
+            gerador_nome: data.gerador_nome,
+            geradorId: geradorId
+        });
+
+        // Sobrescreve o botão Salvar para fazer upload ao prontuário
+        setTimeout(() => {
+            const previewBtnSalvar = document.querySelector('#modal-preview-doc button.btn-primary') || document.querySelector('#doc-modal button.btn-primary');
+            if (previewBtnSalvar) {
+                previewBtnSalvar.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar no Prontuário';
+                previewBtnSalvar.onclick = async function() {
+                    const oldHtml = this.innerHTML;
+                    this.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...';
+                    this.disabled = true;
+                    try {
+                        const htmlTemplate = document.getElementById('preview-doc-body');
+                        const nomeArquivo = `${data.gerador_nome.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
+
+                        const opt = {
+                            margin: 8,
+                            filename: nomeArquivo,
+                            image: { type: 'jpeg', quality: 0.98 },
+                            html2canvas: { scale: 2, useCORS: true },
+                            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                            pagebreak: { mode: ['avoid-all', 'css', 'legacy'], before: '.page-break', avoid: ['p', 'li'] }
+                        };
+
+                        const origWidth    = htmlTemplate.style.width;
+                        const origMaxWidth = htmlTemplate.style.maxWidth;
+                        const origMinH     = htmlTemplate.style.minHeight;
+                        htmlTemplate.style.width     = '794px';
+                        htmlTemplate.style.maxWidth  = '794px';
+                        htmlTemplate.style.minHeight = '0';
+
+                        const pdfBlob = await html2pdf().set(opt).from(htmlTemplate).output('blob');
+
+                        htmlTemplate.style.width     = origWidth;
+                        htmlTemplate.style.maxWidth  = origMaxWidth;
+                        htmlTemplate.style.minHeight = origMinH;
+
+                        const file = new File([pdfBlob], nomeArquivo, { type: 'application/pdf' });
+                        const formData = new FormData();
+                        formData.append('file', file);
+                        formData.append('colaborador_id', viewedColaborador.id);
+                        formData.append('tab_name', 'CONTRATOS_AVULSOS');
+                        formData.append('document_type', data.gerador_nome);
+
+                        const uploadRes = await fetch(`${API_URL}/documentos`, {
+                            method: 'POST', headers: { 'Authorization': `Bearer ${currentToken}` }, body: formData
+                        });
+                        if (!uploadRes.ok) throw new Error('Falha no upload do PDF gerado');
+
+                        // Fechar modais
+                        const modalPrev = document.getElementById('modal-preview-doc');
+                        const docModal  = document.getElementById('doc-modal');
+                        if (modalPrev) modalPrev.style.display = 'none';
+                        if (docModal)  docModal.style.display  = 'none';
+
+                        if (typeof showToast !== 'undefined') showToast('Documento gerado e salvo no prontuário!', 'success');
+
+                        window._contratosAvulsoLoaded = false;
+                        const _avDivSave = document.getElementById('contratos-sub-avulso');
+                        if (_avDivSave) {
+                            _avDivSave.innerHTML = '<p class="text-muted"><i class="ph ph-spinner ph-spin"></i> Atualizando lista...</p>';
+                            window._contratosAvulsoLoaded = true;
+                            await window.renderContratosAvulso(_avDivSave);
+                        }
+                        window.switchContratosSubTab('avulso');
+                    } catch(err) {
+                        alert('Erro ao salvar: ' + err.message);
+                    } finally {
+                        this.innerHTML = oldHtml;
+                        this.disabled = false;
+                    }
+                };
+            }
+        }, 200);
+
+    } catch(err) {
+        btn.innerHTML = '<i class="ph ph-file-arrow-down"></i> Visualizar e Salvar';
+        btn.disabled = false;
+        const msg = document.getElementById('ca-msg');
+        if (msg) { msg.style.display = 'block'; msg.innerHTML = `<div class="alert alert-danger"><i class="ph ph-warning"></i> ${err.message}</div>`; }
+    }
+};
+
 // =======
 window.previewAdmissaoDoc = async function(geradorId, colabId, evt) {
     if (evt) { evt.preventDefault(); evt.stopPropagation(); }
