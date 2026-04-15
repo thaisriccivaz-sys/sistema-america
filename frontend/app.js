@@ -6812,6 +6812,201 @@ window.processarGeracao = async function() {
 
                             const pdfBlob = await html2pdf().set(opt).from(previewContent).output('blob');
                             
+const chkAdm = document.getElementById('gerador-template-admissao');
+        const chkOut = document.getElementById('gerador-template-outros');
+        if (chkAdm) chkAdm.checked = templAdm.some(t => Number(t.gerador_id) === Number(id));
+        if (chkOut) chkOut.checked = templOut.some(t => Number(t.gerador_id) === Number(id));
+
+        document.getElementById('modal-gerador').style.display = 'block';
+    } catch (e) { console.error(e); }
+};
+
+window.deleteGerador = async function(id) {
+    if (!confirm('Deseja excluir este gerador?')) return;
+    try {
+        await apiDelete(`/geradores/${id}`);
+        loadGeradores();
+    } catch (e) { console.error(e); }
+};
+
+// --- INICIALIZAR GERADORES (Chamado no DOMContentLoaded) ---
+function setupGeradores() {
+    console.log('Setup Geradores initialized...');
+    const form = document.getElementById('form-gerador');
+    if (!form) {
+        console.warn('Formulário de gerador não encontrado na inicialização. Tentando novamente em breve.');
+        setTimeout(setupGeradores, 500); // Tentar novamente se o HTML não carregou
+        return;
+    }
+    
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('gerador-id').value;
+        const data = {
+            nome: document.getElementById('gerador-nome').value,
+            conteudo: document.getElementById('gerador-conteudo-editor').innerHTML,
+            variaveis: '' 
+        };
+        
+        try {
+            let result;
+            if (id) result = await apiPut(`/geradores/${id}`, data);
+            else result = await apiPost('/geradores', data);
+            
+            if (result && !result.error) {
+                const geradorId = result.id || Number(id);
+
+                // Associar aos templates selecionados em todos os departamentos
+                const chkAdm = document.getElementById('gerador-template-admissao');
+                const chkOut = document.getElementById('gerador-template-outros');
+                const incluirAdm = chkAdm && chkAdm.checked;
+                const incluirOut = chkOut && chkOut.checked;
+
+                try {
+                    const depts = await apiGet('/departamentos').catch(() => []);
+                    const deptIds = (depts || []).map(d => Number(d.id));
+
+                    if (geradorId && deptIds.length > 0) {
+                        // Buscar templates atuais para não sobrescrever os de outros geradores
+                        const [admAtual, outAtual] = await Promise.all([
+                            apiGet('/gerador-departamento-templates').catch(() => []),
+                            apiGet('/gerador-outros-contratos-templates').catch(() => [])
+                        ]);
+
+                        // Montar novo batch preservando outros geradores
+                        const outrasAdm = (admAtual || []).filter(t => Number(t.gerador_id) !== geradorId);
+                        const outrasOut = (outAtual || []).filter(t => Number(t.gerador_id) !== geradorId);
+
+                        const novasAdm = incluirAdm ? deptIds.map(d => ({ gerador_id: geradorId, departamento_id: d })) : [];
+                        const novasOut = incluirOut ? deptIds.map(d => ({ gerador_id: geradorId, departamento_id: d })) : [];
+
+                        await Promise.all([
+                            apiPost('/gerador-departamento-templates/batch', { templates: [...outrasAdm, ...novasAdm] }),
+                            apiPost('/gerador-outros-contratos-templates/batch', { templates: [...outrasOut, ...novasOut] })
+                        ]);
+                    }
+                } catch(te) { console.warn('Erro ao associar templates:', te); }
+
+                alert('Salvo com sucesso!');
+                window.closeModalGerador();
+                loadGeradores();
+            } else {
+                alert('Erro ao salvar: ' + (result?.error || 'Erro desconhecido'));
+            }
+        } catch (e) { 
+            console.error(e);
+            alert('Falha crítica ao salvar gerador. Verifique o console.');
+        }
+    });
+}
+
+// Funções do Editor de Texto
+window.formatDoc = function(cmd, value = null) {
+    document.execCommand(cmd, false, value);
+};
+
+window.abrirModalSelecaoColab = async function(geradorId) {
+    try {
+        const colabs = await apiGet('/colaboradores');
+        const select = document.getElementById('select-colab-gerar');
+        if (!select) return;
+        
+        select.innerHTML = colabs.map(c => `<option value="${c.id}">${c.nome_completo} - ${c.cpf}</option>`).join('');
+        document.getElementById('gerador-id-temp').innerText = geradorId;
+
+        // Limpar e mostrar/esconder campos extras se for Desconto em Folha
+        const gerador = (window.allGeradores || []).find(g => g.id == geradorId);
+        const isDesconto = gerador && (gerador.nome || '').toUpperCase().includes('DESCONTO EM FOLHA');
+        const extras = document.getElementById('extra-fields-desconto');
+        if (extras) {
+            extras.style.display = isDesconto ? 'block' : 'none';
+            document.getElementById('desconto-descricao').value = '';
+            document.getElementById('desconto-valor').value = '';
+            document.getElementById('desconto-parcelas').value = '1';
+            window.calcParcelaDesconto();
+        }
+
+        document.getElementById('modal-selecionar-colab').style.display = 'block';
+    } catch (e) { console.error(e); }
+};
+
+window.calcParcelaDesconto = function() {
+    let valStr = document.getElementById('desconto-valor').value;
+    if(!valStr) valStr = '0';
+    // Substituir vírgula por ponto para cálculo
+    valStr = valStr.replace(',', '.');
+    const valor = parseFloat(valStr) || 0;
+    const parcelas = parseInt(document.getElementById('desconto-parcelas').value) || 1;
+    
+    const maxVal = (valor / parcelas).toFixed(2).replace('.', ',');
+    document.getElementById('desconto-valor-parcelamento').innerText = `Valor de cada parcela: R$ ${maxVal}`;
+};
+
+window.processarGeracao = async function() {
+    const geradorId = document.getElementById('gerador-id-temp').innerText;
+    const colabId = document.getElementById('select-colab-gerar').value;
+    
+    if (!geradorId || !colabId) return;
+    
+    let requestBody = {};
+    const gerador = (window.allGeradores || []).find(g => g.id == geradorId);
+    if (gerador && (gerador.nome || '').toUpperCase().includes('DESCONTO EM FOLHA')) {
+        requestBody.desconto_descricao = document.getElementById('desconto-descricao').value || 'Não informado';
+        requestBody.desconto_valor = document.getElementById('desconto-valor').value || '0,00';
+        requestBody.desconto_parcelas = document.getElementById('desconto-parcelas').value || '1';
+        requestBody.desconto_valor_parcela = document.getElementById('desconto-valor-parcelamento').innerText.replace('Valor de cada parcela: R$ ', '');
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/geradores/${geradorId}/gerar/${colabId}`, {
+            method: 'POST',
+            headers: { 
+                'Authorization': `Bearer ${currentToken}`,
+                'Content-Type': 'application/json' 
+            },
+            body: JSON.stringify(requestBody)
+        });
+        const data = await response.json();
+        
+        if (data.html) {
+            document.getElementById('modal-selecionar-colab').style.display = 'none';
+            window.abrirPreviewDocumento(data);
+
+            // Substituir o botão de Salvar PDF local por um fluxo de "Anexar no Prontuário" e assinatura
+            setTimeout(() => {
+                const previewBtnSalvar = document.querySelector('#modal-preview-doc button.btn-primary');
+                if (previewBtnSalvar) {
+                    previewBtnSalvar.innerHTML = '<i class="ph ph-paperclip"></i> Anexar no Prontuário';
+                    previewBtnSalvar.onclick = async function() {
+                        const oldHtml = this.innerHTML;
+                        this.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Anexando...';
+                        this.disabled = true;
+                        
+                        try {
+                            const previewContent = document.getElementById('preview-doc-body');
+                            const valData = data;
+                            const nomeArquivo = `${(valData.gerador_nome || 'Documento').replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
+                            
+                            // Replicar as configurações exatas do PDF
+                            const opt = {
+                                margin: 8,
+                                filename: nomeArquivo, 
+                                image: { type: 'jpeg', quality: 0.98 },
+                                html2canvas: { scale: 2, useCORS: true },
+                                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                                pagebreak: { mode: ['avoid-all', 'css', 'legacy'], before: '.page-break', avoid: ['p', 'li'] }
+                            };
+                            
+                            const origWidth    = previewContent.style.width;
+                            const origMaxWidth = previewContent.style.maxWidth;
+                            const origMinH     = previewContent.style.minHeight;
+
+                            previewContent.style.width     = '794px';
+                            previewContent.style.maxWidth  = '794px';
+                            previewContent.style.minHeight = '0';
+
+                            const pdfBlob = await html2pdf().set(opt).from(previewContent).output('blob');
+                            
                             previewContent.style.width     = origWidth;
                             previewContent.style.maxWidth  = origMaxWidth;
                             previewContent.style.minHeight = origMinH;
@@ -6840,12 +7035,11 @@ window.processarGeracao = async function() {
                             });
 
                             if (sendPrompt.isConfirmed) {
-                                Swal.fire({ title: 'Enviando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                                 await apiPost('/admissao-assinaturas/enviar-lote', {
                                     colaborador_id: colabId,
                                     geradores_ids: [parseInt(geradorId)]
                                 });
-                                Swal.close(); if(typeof showToast !== 'undefined') showToast('Documento anexado e enviado para assinatura.', 'success');
+                                if(typeof showToast !== 'undefined') showToast('Documento anexado e enviado para assinatura.', 'success');
                             } else {
                                 Swal.fire('Anexado!', 'Documento gerado e salvo no prontuário do colaborador com sucesso.', 'success');
                             }
@@ -6949,7 +7143,7 @@ window.abrirPreviewDocumento = function(data) {
                 if (typeof showToast !== 'undefined') {
                     showToast('Documento anexado ao prontuário com sucesso!', 'success');
                 } else {
-                    Swal.close(); if(typeof showToast !== 'undefined') showToast('Documento anexado!', 'success');
+                    if(typeof showToast !== 'undefined') showToast('Documento anexado!', 'success');
                 }
 
                 // Reload da lista de contratos se estiver na aba correta
@@ -7856,26 +8050,21 @@ window.fecharPreviewEHabitarEnvio = function() {
     if (actionDiv) {
         actionDiv.innerHTML = `
             <button class="btn btn-primary" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-size:0.95rem;font-weight:500;padding:0.55rem 1.25rem;border-radius:8px;background:#0056b3;border-color:#0056b3;color:#fff;transition:all 0.2s;"
-                onclick="window.enviarAssinaturaPerfilDireto(event)">
+                onclick="window.enviarAssinaturaPerfilDireto(this)">
                 <i class="ph ph-paper-plane-tilt"></i> Enviar para Assinatura
             </button>
         `;
     }
 };
 
-window.enviarAssinaturaPerfilDireto = async function(event) {
+window.enviarAssinaturaPerfilDireto = async function(btn) {
     const geradorId = window._perfilGeradorIdCtx;
     const geradorNome = window._perfilGeradorNomeCtx;
     if (!geradorId) return;
 
-    let targetBtn = null;
-    let originalHtml = '';
-    if (event && event.currentTarget) {
-        targetBtn = event.currentTarget;
-        originalHtml = targetBtn.innerHTML;
-        targetBtn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando...';
-        targetBtn.disabled = true;
-    }
+    const oldHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando...';
+    btn.disabled = true;
 
     try {
         const previewContent = document.querySelector('#modal-preview-doc #preview-doc-body') || document.querySelector('#doc-modal .preview-content');
@@ -7910,24 +8099,23 @@ window.enviarAssinaturaPerfilDireto = async function(event) {
             geradores_ids: [parseInt(geradorId)]
         });
 
-        Swal.fire({ title: 'Enviado com sucesso!', toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, icon: 'success' });
+        if(typeof showToast !== 'undefined') showToast('Enviado com sucesso!', 'success');
 
-        if (targetBtn && targetBtn.parentElement) {
-            const dtStr = new Date().toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }).replace(',', ' -');
-            const txt = document.getElementById('perfil-status-txt-' + geradorId);
-            if (txt) {
-                txt.innerHTML = '<span style="color:#2563eb;font-weight:600;"><i class="ph ph-paper-plane-tilt"></i> Enviado para Assinatura: ' + dtStr + '</span>';
-            }
-            targetBtn.parentElement.innerHTML = '<span style="color:#16a34a;font-weight:600;"><i class="ph ph-check"></i> OK</span>';
+        const dtStr = new Date().toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }).replace(',', ' -');
+        const txt = document.getElementById('perfil-status-txt-' + geradorId);
+        if (txt) {
+            txt.innerHTML = '<span style="color:#2563eb;font-weight:600;"><i class="ph ph-paper-plane-tilt"></i> Enviado para Assinatura: ' + dtStr + '</span>';
         }
+        btn.parentElement.innerHTML = '<span style="color:#16a34a;font-weight:600;"><i class="ph ph-check"></i> OK</span>';
 
         window._contratosAvulsoLoaded = false;
         const avDiv = document.getElementById('contratos-sub-avulso');
         if (avDiv) await window.renderContratosAvulso(avDiv);
 
     } catch(e) {
-        Swal.fire('Erro ao enviar', e.message, 'error');
-        if (targetBtn) { targetBtn.innerHTML = originalHtml; targetBtn.disabled = false; }
+        if(typeof showToast !== 'undefined') showToast('Erro: ' + e.message, 'error');
+        btn.innerHTML = oldHtml;
+        btn.disabled = false;
     }
 };
 
@@ -8126,17 +8314,17 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
         const borderBgColor = isSigned ? 'border:1px solid #bbf7d0; background:#f0fdf4;' : isPending ? 'border:1px solid #bfdbfe; background:#eff6ff;' : literallyNaoExige ? 'border:1px solid #e9d5ff; background:#faf5ff;' : 'border:1px solid #fde047; background:#fefce8;';
 
         if (isSigned) {
-            leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#16a34a;"><i class="ph ph-check-circle" style="font-size:1.4rem;"></i></div>`;
+            leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#16a34a;"><i class="ph ph-check-circle" style="font-size:1.4rem;"></i></div>';
             statusBadge = `<span style="color:#16a34a;font-size:0.75rem;font-weight:600;">Documento Assinado${_signedStr ? ': ' + _signedStr : ''}</span>`;
         } else if (isPending) {
-            leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#2563eb;"><i class="ph ph-paper-plane-tilt" style="font-size:1.4rem;"></i></div>`;
+            leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#2563eb;"><i class="ph ph-paper-plane-tilt" style="font-size:1.4rem;"></i></div>';
             statusBadge = `<span style="color:#2563eb;font-size:0.75rem;font-weight:600;">Enviado para Assinatura${_sentStr ? ': ' + _sentStr : ''}</span>`;
             sendBtn = `<button type="button" onclick="window.reenviarAssinaturaContrato(${doc.id}, event);" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-pen"></i> Reenviar para Assinatura</button>`;
         } else if (literallyNaoExige) {
-            leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#9333ea;"><i class="ph ph-file-text" style="font-size:1.4rem;"></i></div>`;
+            leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#9333ea;"><i class="ph ph-file-text" style="font-size:1.4rem;"></i></div>';
             statusBadge = `<span style="color:#9333ea;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
         } else {
-            leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#eab308;"><i class="ph ph-info" style="font-size:1.4rem;"></i></div>`;
+            leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#eab308;"><i class="ph ph-info" style="font-size:1.4rem;"></i></div>';
             statusBadge = `<span style="color:#eab308;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
             const escNome = _docName.replace(/'/g,"\\'");
             actionUX = `
@@ -8190,16 +8378,18 @@ window.toggleAcaoDocumentoAvulso = function(docId, exige, docType) {
     } else {
         actionDiv.innerHTML = `
             <button type="button" class="btn btn-primary btn-sm" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:0.85rem;background:#0284c7;color:#fff;border:none;padding:0.4rem 1rem;border-radius:6px;font-weight:600;"
-                onclick="window.enviarDocumentoAvulsoAssinatura('${docId}')">
+                onclick="window.enviarDocumentoAvulsoAssinatura('${docId}', this)">
                 <i class="ph ph-paper-plane-tilt"></i> Enviar p/ Assinatura
             </button>
         `;
     }
 };
 
-window.enviarDocumentoAvulsoAssinatura = async function(docId) {
+window.enviarDocumentoAvulsoAssinatura = async function(docId, btn) {
     if (!docId || !viewedColaborador) return;
-    Swal.fire({ title: 'Enviando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    const oldHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>';
     try {
         const res = await fetch(API_URL + '/assinafy/upload', {
             method: 'POST',
@@ -8207,17 +8397,17 @@ window.enviarDocumentoAvulsoAssinatura = async function(docId) {
             body: JSON.stringify({ document_id: Number(docId), colaborador_id: viewedColaborador.id })
         });
         const data = await res.json().catch(() => ({}));
-        Swal.close();
         if (res.ok) {
             if (typeof showToast !== 'undefined') showToast('Documento enviado para assinatura!', 'success');
             window._contratosAvulsoLoaded = false;
             window.switchContratosSubTab('avulso');
         } else {
-            Swal.fire('Atenção', 'Erro no envio para assinar: ' + (data.error || 'Erro desconhecido'), 'warning');
+            throw new Error(data.error || 'Erro desconhecido');
         }
     } catch(err) {
-        Swal.close();
-        Swal.fire('Erro', err.message, 'error');
+        if (typeof showToast !== 'undefined') showToast('Erro: ' + err.message, 'error');
+        btn.disabled = false;
+        btn.innerHTML = oldHtml;
     }
 };
 
@@ -8453,54 +8643,6 @@ window.gerarContratoAvulso = async function() {
 };
 
 // =======
-window.previewAdmissaoDoc = async function(geradorId, colabId, evt) {
-    if (evt) { evt.preventDefault(); evt.stopPropagation(); }
-
-    if (!colabId) { alert('Colaborador não identificado.'); return; }
-
-    try {
-        // Usa o endpoint existente que retorna HTML + dados do colaborador
-        const response = await fetch(`${API_URL}/geradores/${geradorId}/gerar/${colabId}`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${currentToken}` }
-        });
-        const data = await response.json();
-
-        if (!data.html) {
-            alert('Não foi possível carregar o documento.');
-            return;
-        }
-
-        // Reutiliza a função de preview do gerador (com layout completo)
-        // Precisamos temporariamente salvar a seleção de assinatura para não alterar o modal principal
-        window.abrirPreviewDocumento(data);
-
-        // Subscreve o evento de salvar na Admissão para enviar ao backend
-        setTimeout(() => {
-            const btnSalvar = document.querySelector('#modal-preview-doc button.btn-primary');
-            if (!btnSalvar) return;
-            btnSalvar.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar e Configurar Envio';
-            btnSalvar.onclick = async function() {
-                const oldHtml = this.innerHTML;
-                this.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Processando...';
-                this.disabled = true;
-                try {
-                    const previewContent = document.querySelector('#modal-preview-doc .preview-content') ||
-                                          document.querySelector('#modal-preview-doc #preview-doc-body');
-                    if (!previewContent) throw new Error('Conteúdo do preview não encontrado');
-                    
-                    const pdfBlob = await window.gerarPDFBlob(previewContent);
-                    const safeName = (data.gerador_nome || 'documento_admissao').replace(/[^a-zA-Z0-9À-ÿ _-]/g, '');
-                    const cNome = (data.colaborador?.NOME_COMPLETO || colabId).toString();
-                    
-                    const formData = new FormData();
-                    formData.append('arquivo', pdfBlob, `${safeName}_${cNome}.pdf`);
-                    formData.append('tab_name', 'CONTRATOS');
-                    formData.append('document_type', data.gerador_nome);
-                    
-                    const r = await fetch(`${API_URL}/documentos`, {
-                        method: 'POST',
-                        headers: { 'Authorization': `Bearer ${currentToken}` },
                         body: formData
                     });
                     if (!r.ok) throw new Error('Falha ao salvar PDF');
@@ -8517,12 +8659,11 @@ window.previewAdmissaoDoc = async function(geradorId, colabId, evt) {
                     });
 
                     if (sendPrompt.isConfirmed) {
-                        Swal.fire({ title: 'Enviando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                         await apiPost('/admissao-assinaturas/enviar-lote', {
                             colaborador_id: colabId,
                             geradores_ids: [parseInt(geradorId)]
                         });
-                        Swal.close(); if(typeof showToast !== 'undefined') showToast('Documento enviado para assinatura.', 'success');
+                        if(typeof showToast !== 'undefined') showToast('Documento enviado para assinatura.', 'success');
                     } else {
                         showToast('Documento de admissão salvo na pasta do colaborador.', 'success');
                     }
