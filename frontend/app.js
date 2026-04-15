@@ -273,7 +273,7 @@ const BREADCRUMB_MAP = {
     'tab:Contratos':              { path: 'Colaboradores → Prontuário Digital → Contratos',              },
     'tab:Avaliação':              { path: 'Colaboradores → Prontuário Digital → Avaliação',              },
     'tab:Avaliações':             { path: 'Colaboradores → Prontuário Digital → Avaliações',             },
-    'tab:Advertências':           { path: 'Colaboradores → Prontuário Digital → Advertências',           },
+    'tab:Advertências':           { path: 'Colaboradores → Prontuário Digital → Ocorrências',           },
     'tab:Faculdade':              { path: 'Colaboradores → Prontuário Digital → Faculdade',              },
     'tab:Boletim de ocorrência':  { path: 'Colaboradores → Prontuário Digital → Boletim de Ocorrência',  },
     'tab:Certificados':           { path: 'Colaboradores → Prontuário Digital → Certificados',           },
@@ -3176,7 +3176,7 @@ function getAnosAdmissaoOptions(selectedYear = null) {
 }
 
 // ============================================================
-// GERADOR DE ADVERTÊNCIA - Renderiza painel na aba Advertências
+// GERADOR DE OCORRÊNCIA - Renderiza painel na aba Ocorrências (tabId: Advertências)
 // ============================================================
 window.renderAdvertenciasTab = function(listContainer, filteredDocs) {
     const safeTabId = 'Advert_ncias';
@@ -3192,7 +3192,7 @@ window.renderAdvertenciasTab = function(listContainer, filteredDocs) {
                     <i class="ph ph-warning" style="color:#fff; font-size:1.3rem;"></i>
                 </div>
                 <div>
-                    <h4 style="margin:0; font-size:1rem; font-weight:700; color:#1e293b;">Gerar Documento de Advertência</h4>
+                    <h4 style="margin:0; font-size:1rem; font-weight:700; color:#1e293b;">Gerar Ocorrência</h4>
                     <p style="margin:0; font-size:0.8rem; color:#64748b;">Preencha os campos e gere o documento já com os dados do colaborador</p>
                 </div>
             </div>
@@ -3600,7 +3600,7 @@ window.anexarAdvertenciaAoProntuario = async function() {
                 if (activeTab) {
                     renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
                 } else {
-                    renderTabContent('Advertências', 'Advertências', true);
+                    renderTabContent('Advertências', 'Ocorrências', true);
                 }
             }
         } catch (refreshErr) {
@@ -10191,7 +10191,7 @@ window.salvarAssinaturasTestemunhas = async function() {
         if(activeTab) {
             renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
         } else {
-            renderTabContent('Advertências', 'Advertências', true);
+            renderTabContent('Advertências', 'Ocorrências', true);
         }
     } catch (e) {
         console.error(e);
@@ -10330,7 +10330,7 @@ window.salvarAssinaturaColaborador = async function() {
         if(activeTab) {
             renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
         } else {
-            renderTabContent('Advertências', 'Advertências', true);
+            renderTabContent('Advertências', 'Ocorrências', true);
         }
     } catch (e) {
         console.error(e);
