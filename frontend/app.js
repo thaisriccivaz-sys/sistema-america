@@ -7805,16 +7805,7 @@ window.renderContratosTab = async function(container) {
                     </div>
                     <div id="contratos-signature-list" style="display:flex;flex-direction:column;gap:0.75rem;margin-bottom:1.5rem;">`;
                 html += window.buildAdmissaoSignatureRows(availableGeradores, assinaturas, docs, viewedColaborador);
-                html += `</div>
-                    <div style="background:#f8fafc; padding:15px; border-radius:8px; border:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-                        <div>
-                            <div style="font-weight:700; color:#0f172a; margin-bottom:4px;">Envio para Assinatura Digital</div>
-                            <div style="font-size:0.78rem; color:#64748b;">Documentos enviados ao e-mail do colaborador via Assinafy.</div>
-                        </div>
-                        <button id="btn-enviar-contratos" class="btn btn-primary" onclick="window.sendAdmissaoSignatures('contratos-signature-list','btn-enviar-contratos')" style="display:flex;align-items:center;gap:5px;">
-                            <i class="ph ph-paper-plane-tilt"></i> Enviar para Assinatura
-                        </button>
-                    </div>`;
+                html += `</div>`;
                 admDiv.innerHTML = html;
             } else {
                 admDiv.innerHTML = `<p class="text-muted" style="padding:1rem;text-align:center;">
