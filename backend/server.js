@@ -245,7 +245,7 @@ const onedrive = require('./utils/onedrive');
 const FOLDERS = [
     '00_CHECKLIST',
     '01_FICHA_CADASTRAL',
-    'ADVERTENCIAS',
+    'OCORRENCIAS',
     'ASO',
     'ATESTADOS',
     'AVALIACAO',
@@ -342,7 +342,7 @@ async function uploadDocToOneDrive(docId) {
 
         const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || 'RH/1.Colaboradores/Sistema';
         const safeColab = formatarNome(doc.nome_completo || 'DESCONHECIDO');
-        const safeTab   = formatarPasta(doc.tab_name || 'DOCUMENTOS').toUpperCase();
+        const safeTab   = tabToOneDrivePath(doc.tab_name || 'DOCUMENTOS');
         const docYear   = doc.year && doc.year !== 'null' ? String(doc.year).replace(/[^0-9]/g, '') : String(new Date().getFullYear());
 
         // Contratos avulsos (Outros contratos): salvar em CONTRATOS/outros/ independente do ano
@@ -448,6 +448,17 @@ function formatarPasta(str) {
         .replace(/[^a-zA-Z0-9 _]/g, "")  // Preserva underscores (ex: 01_FICHA_CADASTRAL)
         .trim()
         .replace(/\s+/g, "_");
+}
+
+// Mapeia tab_name (banco) -> nome da pasta no OneDrive.
+// Usado para tabs que tiveram renomeacao visual sem mudar o valor salvo no banco.
+function tabToOneDrivePath(tabName) {
+    if (!tabName) return 'OUTROS';
+    const TAB_FOLDER_MAP = {
+        'Advert\u00eancias': 'OCORRENCIAS',
+    };
+    if (TAB_FOLDER_MAP[tabName]) return TAB_FOLDER_MAP[tabName];
+    return formatarPasta(tabName).toUpperCase();
 }
 
 function extractSignedUrl(docData) {
@@ -758,7 +769,7 @@ async function pollAdmissaoAssinaturas() {
                         const docYear = doc.year && doc.year !== 'null' && doc.year !== '' ? String(doc.year).replace(/[^0-9]/g, '') : String(new Date().getFullYear());
                         let cloudName;
                         if (doc.source === 'documento') {
-                            const safeTab = doc.tab_name ? formatarPasta(doc.tab_name).toUpperCase() : 'DOCUMENTOS';
+                            const safeTab = doc.tab_name ? tabToOneDrivePath(doc.tab_name) : 'DOCUMENTOS';
                             const isContratosAvulso = doc.tab_name === 'CONTRATOS_AVULSOS';
                             cloudName = isAtestado
                                 ? (doc.file_name || 'Atestado.pdf').replace(/_\d{8}_\d{6}(\.\w+)$/, '$1')
@@ -2315,7 +2326,7 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), async (req
                             try {
                                 const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema";
                                 const safeColab = formatarNome(req.body.colaborador_nome || "DESCONHECIDO");
-                                const safeTab = tab_name === 'CONTRATOS_AVULSOS' ? 'CONTRATOS' : formatarPasta(tab_name).toUpperCase();
+                                const safeTab = tab_name === 'CONTRATOS_AVULSOS' ? 'CONTRATOS' : tabToOneDrivePath(tab_name);
                                 const parentDir = `${onedriveBasePath}/${safeColab}/${safeTab}`;
                                 let targetDir = parentDir;
                                 if (year && year !== 'null' && year !== 'undefined' && year !== '' && safeTab !== '01_FICHA_CADASTRAL') {
@@ -4215,7 +4226,7 @@ app.post('/api/documentos/:id/sync-assinafy', authenticateToken, async (req, res
                 try {
                     const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema";
                     const safeColab = formatarNome(doc.nome_completo || "DESCONHECIDO");
-                    const safeTab = formatarPasta(doc.tab_name || 'DOCUMENTOS').toUpperCase();
+                    const safeTab = tabToOneDrivePath(doc.tab_name || 'DOCUMENTOS');
                     const docYear = doc.year && doc.year !== 'null' && doc.year !== '' ? String(doc.year).replace(/[^0-9]/g, '') : String(new Date().getFullYear());
                     let targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}/${docYear}`;
                     // Para Pagamentos/Terapia: adiciona sub-pasta do mês (ex: Abril)
@@ -4365,7 +4376,7 @@ app.post('/api/documentos/:id/force-onedrive-sync', authenticateToken, async (re
 
         const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || 'RH/1.Colaboradores/Sistema';
         const safeColab = formatarNome(doc.nome_completo || 'DESCONHECIDO');
-        const safeTab = formatarPasta(doc.tab_name || 'DOCUMENTOS').toUpperCase();
+        const safeTab = tabToOneDrivePath(doc.tab_name || 'DOCUMENTOS');
         const docYear = doc.year && doc.year !== 'null' && doc.year !== '' ? String(doc.year).replace(/[^0-9]/g, '') : String(new Date().getFullYear());
         let targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}`;
         if (safeTab !== '01_FICHA_CADASTRAL') {
