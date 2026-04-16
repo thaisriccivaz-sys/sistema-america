@@ -258,7 +258,18 @@ window.processarLeituraBO = async function() {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
             body: formData
         });
+        if (res.status === 401 || res.status === 403) {
+            alert("Aviso: Sua sessão expirou. Por favor, recarregue a página e faça login novamente para enviar o documento.");
+            location.reload();
+            return;
+        }
+
         const data = await res.json();
+        
+        if (!res.ok) {
+            throw new Error(data.error || 'Erro interno no servidor.');
+        }
+
 
         // Log diagnóstico no console (não mais alert)
         if (data._debug_text) {
