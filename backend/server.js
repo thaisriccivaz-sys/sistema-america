@@ -5766,7 +5766,7 @@ app.post('/api/colaboradores/:id/multas/:multaId/gerar-documento', authenticateT
         })()}
         <div class="assinaturas">
             <div class="assin-row">
-                <div class="assin-box" style="min-height:100px;">Assinatura do Colaborador<br><br><br>${nome}</div>
+                <div class="assin-box" style="min-height:100px;">Assinatura do Condutor<br><br><br>${nome}</div>
                 <div class="assin-box" style="min-height:100px;">Testemunha 1<br><br><br>&nbsp;</div>
                 <div class="assin-box" style="min-height:100px;">Testemunha 2<br><br><br>&nbsp;</div>
             </div>
