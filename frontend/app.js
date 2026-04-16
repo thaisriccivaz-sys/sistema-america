@@ -13330,7 +13330,7 @@ window.processarNotificacaoMulta = async function(input, colabId) {
     uploadArea.style.display = 'none';
     try {
         const formData = new FormData();
-        formData.append('file', file); // campo esperado pelo /api/documentos
+        formData.append('arquivo', file); // campo esperado pelo /api/colaboradores/:id/multas/upload-notificacao
         const res = await fetch(`${API_URL}/colaboradores/${colabId}/multas/upload-notificacao`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${currentToken}` },
