@@ -24,6 +24,11 @@ const db = require('./database');
 
 db.run("DELETE FROM geradores WHERE nome = 'AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO'");
 db.run("DELETE FROM geradores WHERE nome = 'Termo de Responsabilidade de Chaves'");
+// Registrar exclusoes permanentes para que o seed nao recrie
+db.run("CREATE TABLE IF NOT EXISTS geradores_excluidos (nome TEXT PRIMARY KEY)", () => {
+    db.run("INSERT OR IGNORE INTO geradores_excluidos (nome) VALUES ('Termo de Responsabilidade de Chaves')");
+    db.run("INSERT OR IGNORE INTO geradores_excluidos (nome) VALUES ('AUTORIZACAO DE DESCONTO EM FOLHA DE PAGAMENTO')");
+});
 
 
 // Recarregar configurações do sistema (ex: certificado)
@@ -225,14 +230,18 @@ const GERADORES_PERFIL = [
     'Responsabilidade Celular',
     'Contrato Faculdade',
     'Contrato Academia',
-    'Termo de Responsabilidade de Chaves',
+    // 'Termo de Responsabilidade de Chaves' -- removido permanentemente
 ];
 GERADORES_PERFIL.forEach(nome => {
-    db.run(
+    // Verifica se o gerador foi excluido manualmente pelo usuario
+    db.get("SELECT nome FROM geradores_excluidos WHERE nome = ?", [nome], (e, excluido) => {
+      if (excluido) return; // Nao recriar se foi excluido manualmente
+      db.run(
         "INSERT OR IGNORE INTO geradores (nome, conteudo) VALUES (?, ?)",
         [nome, `<p>Documento: <b>${nome}</b></p><p>Colaborador: {{NOME_COMPLETO}}</p><p>Data: {{DATA_ATUAL}}</p>`],
         (err) => { if (err && !err.message.includes('UNIQUE')) console.error(`Erro ao criar gerador "${nome}":`, err); }
-    );
+      );
+    });
 });
 
 // MIGRATION: Inserir ou atualizar relação exata de Cargos x Departamentos solicitada
