@@ -2576,32 +2576,56 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
         const parteData    = dataHoraStr.split(' ')[0] || '';   // DD/MM/YYYY
         const parteHora    = dataHoraStr.includes('às') ? dataHoraStr.split('às')[1]?.trim() : (dataHoraStr.split(' ')[1] || '');
 
-        // Substitui linha "Data e hora da ocorrência"
+        // Remove "(se houver)" se existir
+        htmlFinal = htmlFinal.replace(/\s*\(se\s+houver\)/gi, '');
+
+        // 1. Data e hora da ocorrência
+        // Remove "//"
+        htmlFinal = htmlFinal.replace(/(Data[^:]*ocorr[^:]*:[\s\S]{0,80}?)\/\//gi, '$1');
+        // Primeiro blank -> Data
+        let dataSubstCount = 0;
         htmlFinal = htmlFinal.replace(
-            /(Data[^:]*ocorr[^:]*:[\s\S]{0,80}?)(?:\/|_|&nbsp;|\s){1,}([\s\S]{0,80}?)[àa]s([\s\S]{0,80}?)_{2,}/gi,
-            `$1 <strong>${parteData}</strong> $2 às $3 <strong>${parteHora}</strong>`
+            /(Data[^:]*ocorr[^:]*:[\s\S]{0,80}?)_{2,}/i,
+            (match, p1) => {
+                dataSubstCount++;
+                return `${p1}<strong>${parteData}</strong>`;
+            }
         );
-        htmlFinal = htmlFinal.replace( // Variante se não achar o 'às' na mesma linha
-            /(Data[^:]*ocorr[^:]*:[\s\S]{0,80}?)_{3,}/gi,
-            `$1 <strong>${parteData}</strong> às <strong>${parteHora}</strong>`
-        );
+        // Segundo blank -> Hora
+        if (dataSubstCount > 0) {
+            htmlFinal = htmlFinal.replace(
+                /(Data[^:]*ocorr[^:]*:[\s\S]{0,80}?<strong>[\s\S]{0,40}?<\/strong>[\s\S]{0,80}?)_{2,}/i,
+                `$1<strong>${parteHora}</strong>`
+            );
+        }
+
+        // 2. Natureza da ocorrência (filtrando "Crime Consumado")
+        let orgNatureza = sin.natureza || '';
+        let naturezaFormatada = orgNatureza.replace(/Crime Consumado\s*-?\s*/gi, '').trim();
         htmlFinal = htmlFinal.replace(
             /(Natureza[^:]*:[\s\S]{0,80}?)_{3,}/gi,
-            `$1<strong>${sin.natureza || ''}</strong>`
+            `$1<strong>${naturezaFormatada}</strong>`
         );
+
+        // 3. Boletim de Ocorrência
         htmlFinal = htmlFinal.replace(
             /(Boletim[^:]*:[\s\S]{0,80}?)_{3,}/gi,
             `$1<strong>${sin.numero_boletim || ''}</strong>`
         );
+
+        // 4. Marca / Modelo
         htmlFinal = htmlFinal.replace(
             /(Marca[^:]*:[\s\S]{0,80}?)_{3,}/gi,
             `$1<strong>${sin.veiculo || ''}</strong>`
         );
+
+        // 5. Placa
         htmlFinal = htmlFinal.replace(
             /(Placa[^:]*:[\s\S]{0,80}?)_{3,}/gi,
             `$1<strong>${sin.placa || ''}</strong>`
         );
         
+        // 6. Valor
         const valorTotal = sin.desconto_valor
             || (sin.valor_parcela && sin.parcelas ? (parseFloat((sin.valor_parcela || '0').replace(',','.')) * (sin.parcelas || 1)).toFixed(2).replace('.',',') : sin.valor_parcela)
             || '';
@@ -2615,19 +2639,19 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
             `$1 R$ <strong>${valorTotal}</strong>`
         );
 
-        // Substitui parcelamento (   ) 1x ...
+        // Substitui parcelamento (   ) 1x ... usando X
         const nParc = parseInt(sin.parcelas) || 1;
         htmlFinal = htmlFinal.replace(
             /(\([\s\xA0&nbsp;]*\)(?:[\s\xA0&nbsp;]|<[^>]+>)*1x)/gi,
-            (nParc === 1 ? '(<strong>✓</strong>) 1x' : '(   ) 1x')
+            (nParc === 1 ? '(<strong>X</strong>) 1x' : '(   ) 1x')
         );
         htmlFinal = htmlFinal.replace(
             /(\([\s\xA0&nbsp;]*\)(?:[\s\xA0&nbsp;]|<[^>]+>)*2x)/gi,
-            (nParc === 2 ? '(<strong>✓</strong>) 2x' : '(   ) 2x')
+            (nParc === 2 ? '(<strong>X</strong>) 2x' : '(   ) 2x')
         );
         htmlFinal = htmlFinal.replace(
             /(\([\s\xA0&nbsp;]*\)(?:[\s\xA0&nbsp;]|<[^>]+>)*3x)/gi,
-            (nParc === 3 ? '(<strong>✓</strong>) 3x' : '(   ) 3x')
+            (nParc === 3 ? '(<strong>X</strong>) 3x' : '(   ) 3x')
         );
 
         // ===== LOGO =====
