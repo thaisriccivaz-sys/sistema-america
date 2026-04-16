@@ -2413,7 +2413,10 @@ app.post('/api/extrair-bo', authenticateToken, multerUploadMemoria.single('arqui
         const matPl = cleanText.match(/Placa[^\w]*([A-Z]{3}[-\s]*\d[A-Z0-9]\d{2,3})/i)
                    || cleanText.match(/Placa[^\w]*([A-Z]{3}[-\s]*\d{4,5})/i)
                    || cleanText.match(/(?:^|\s)([A-Z]{3}[-\s]*[0-9][A-Z0-9]{3,4})(?:[-\s]|$)/i); // aggressive fallback
-        if (matPl) placa = matPl[1].replace(/[-\s]/g, '').toUpperCase();
+        if (matPl) {
+            placa = matPl[1].replace(/[-\s]/g, '').toUpperCase();
+            if (placa.length > 7) placa = placa.substring(0, 7); // Força 7 caracteres para remover lixo do pdf-parse
+        }
 
         console.log('[BO] boletim=' + boletim + ' | data=' + dataHoraStr + ' | natureza=' + natureza + ' | placa=' + placa + ' | modelo=' + marcaModelo);
         console.log('[BO-TEXT primeiros 300 chars]', cleanText.substring(0, 300));
