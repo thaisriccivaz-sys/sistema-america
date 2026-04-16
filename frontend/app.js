@@ -3742,6 +3742,12 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
         } else {
             listContainer.innerHTML = '<div class="alert alert-warning"><i class="ph ph-warning"></i> Módulo de multas não carregado. Tente recarregar a página.</div>';
         }
+    } else if (tabId === 'Sinistros') {
+        if (typeof window.renderSinistrosTab === 'function') {
+            window.renderSinistrosTab(listContainer);
+        } else {
+            listContainer.innerHTML = '<div class="alert alert-warning"><i class="ph ph-warning"></i> Módulo de sinistros não carregado. Tente recarregar a página.</div>';
+        }
     } else if (tabId === 'Contratos') {
         
         renderContratosTab(listContainer);
@@ -3934,6 +3940,15 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
                 window.renderMultasMotoristaTab(listContainer);
             } else {
                 listContainer.innerHTML = '<div class="alert alert-info">Carregando módulo de multas...</div>';
+            }
+            return;
+        }
+
+        if (tabId === 'Sinistros') {
+            if (typeof window.renderSinistrosTab === 'function') {
+                window.renderSinistrosTab(listContainer);
+            } else {
+                listContainer.innerHTML = '<div class="alert alert-info">Carregando módulo de sinistros...</div>';
             }
             return;
         }
