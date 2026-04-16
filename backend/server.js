@@ -2256,6 +2256,97 @@ app.put('/api/colaboradores/:id/santander-status', authenticateToken, (req, res)
 });
 // -----------------------------------------------------------------------------
 
+// --- ROTAS DE DEPENDENTES ---
+app.get('/api/colaboradores/:id/dependentes', authenticateToken, (req, res) => {
+    db.all('SELECT * FROM dependentes WHERE colaborador_id = ?', [req.params.id], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+app.post('/api/dependentes', authenticateToken, (req, res) => {
+    const { colaborador_id, nome, cpf, data_nascimento, grau_parentesco } = req.body;
+    db.run('INSERT INTO dependentes (colaborador_id, nome, cpf, data_nascimento, grau_parentesco) VALUES (?, ?, ?, ?, ?)',
+        [colaborador_id, nome, cpf, data_nascimento, grau_parentesco || 'Dependente'], function(err) {
+            if (err) return res.status(400).json({ error: err.message });
+            res.status(201).json({ id: this.lastID });
+        });
+});
+app.put('/api/dependentes/:id', authenticateToken, (req, res) => {
+    const { nome, cpf, data_nascimento, grau_parentesco } = req.body;
+    const query = `UPDATE dependentes SET nome = COALESCE(?, nome), cpf = COALESCE(?, cpf), 
+                   data_nascimento = COALESCE(?, data_nascimento), grau_parentesco = COALESCE(?, grau_parentesco) 
+                   WHERE id = ?`;
+    db.run(query, [nome, cpf, data_nascimento, grau_parentesco, req.params.id], function(err) {
+        if (err) return res.status(400).json({ error: err.message });
+        res.json({ message: 'Ataulizado com sucesso' });
+    });
+});
+app.delete('/api/dependentes/:id', authenticateToken, (req, res) => {
+    db.run('DELETE FROM dependentes WHERE id = ?', [req.params.id], err => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: 'Excluído com sucesso' });
+    });
+});
+
+// --- ROTAS DE DOCUMENTOS ---
+// --- ENDPOINT: Busca assinaturas de um colaborador (rota alternativa) ---
+// GET /api/colaboradores/:id/admissao-assinaturas
+app.get('/api/colaboradores/:id/admissao-assinaturas', authenticateToken, (req, res) => {
+    db.all(`
+        SELECT aa.*,
+               d.assinafy_status     AS doc_assinafy_status,
+               d.signed_file_path    AS doc_signed_file_path,
+               d.assinafy_signed_at  AS doc_assinafy_signed_at,
+               d.id                  AS documento_id
+        FROM admissao_assinaturas aa
+        LEFT JOIN documentos d ON d.assinafy_id = aa.assinafy_id AND d.colaborador_id = aa.colaborador_id
+        WHERE aa.colaborador_id = ?
+    `, [req.params.id], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        const toUpdate = (rows || []).filter(r => r.doc_assinafy_status === 'Assinado' && r.assinafy_status !== 'Assinado');
+        toUpdate.forEach(r => {
+            db.run(`UPDATE admissao_assinaturas SET assinafy_status='Assinado', assinado_em=COALESCE(assinado_em, CURRENT_TIMESTAMP), signed_file_path=COALESCE(signed_file_path,?) WHERE id=?`, [r.doc_signed_file_path, r.id]);
+        });
+        const result = (rows || []).map(r => ({
+            ...r,
+            assinafy_status: (r.doc_assinafy_status === 'Assinado' ? 'Assinado' : r.assinafy_status) || r.assinafy_status,
+            signed_file_path: r.signed_file_path || r.doc_signed_file_path,
+            assinado_em: r.assinado_em || r.doc_assinafy_signed_at
+        }));
+        res.json(result);
+    });
+});
+
+app.get('/api/colaboradores/:id/documentos', authenticateToken, (req, res) => {
+    db.all('SELECT * FROM documentos WHERE colaborador_id = ? ORDER BY tab_name, year, month', [req.params.id], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+
+// --- ENDPOINT DEDICADO: Salvar status Santander ------------------------------
+// PUT /api/colaboradores/:id/santander-status
+app.put('/api/colaboradores/:id/santander-status', authenticateToken, (req, res) => {
+    const { santander_ficha_data } = req.body;
+    const { id } = req.params;
+    if (!santander_ficha_data) return res.status(400).json({ error: 'santander_ficha_data obrigatório' });
+    
+    db.run(
+        'UPDATE colaboradores SET santander_ficha_data = ? WHERE id = ?',
+        [santander_ficha_data, id],
+        function(err) {
+            if (err) {
+                console.error('[Santander Status] Erro:', err.message);
+                return res.status(500).json({ error: err.message });
+            }
+            console.log('[Santander Status] Salvo para colaborador', id, ':', santander_ficha_data);
+            res.json({ sucesso: true, santander_ficha_data });
+        }
+    );
+});
+// -----------------------------------------------------------------------------
+
 
 // =============================================================================
 // ROTAS DE SINISTROS
@@ -2272,26 +2363,54 @@ const multerUploadMemoria = require('multer')({ storage: require('multer').memor
 
 app.post('/api/extrair-bo', authenticateToken, multerUploadMemoria.single('arquivo'), async (req, res) => {
     try {
-        if (!req.file) throw new Error('BO não enviado.');
-        // Require pdf-parse (ensure it's in scope)
+        if (!req.file) throw new Error('BO nao enviado.');
         const pdfP = require('pdf-parse');
         const pdfData = await pdfP(req.file.buffer);
         const text = pdfData.text;
 
-        let boletim = (text.match(/Boletim N[º°]:\s*([A-Za-z0-9-]+\/\d{4})/) || [])[1] || '';
-        let dataHora = (text.match(/Ocorrência:\s*(\d{2}\/\d{2}\/\d{4}\s*às\s*\d{2}:\d{2})/) || [])[1] || '';
+        // Boletim No: "FR6269-1/2026"
+        let boletim = '';
+        const matBO = text.match(/Boletim\s+N[^\s]*\s+([A-Z]{2}\d+[-]\d+\/\d{4})/i)
+                   || text.match(/([A-Z]{2}\d+[-]\d+\/\d{4})/);
+        if (matBO) boletim = matBO[1];
+
+        // Ocorrencia: "13/04/2026 as 13:30"
+        let dataHoraStr = '';
+        const matOc = text.match(/Ocorr[eê]ncia[:\s]+(\d{2}\/\d{2}\/\d{4})\s+[aà]s?\s+(\d{2}:\d{2})/i);
+        if (matOc) dataHoraStr = matOc[1] + ' as ' + matOc[2];
+
+        // Natureza
         let natureza = '';
-        const matN = text.match(/Naturezas da Ocorrência\s*\n\s*([^\n]+)\s*\n\s*([^\n]+)/);
-        if(matN) natureza = (matN[1] + ' - ' + matN[2]).trim();
+        const matN = text.match(/Naturezas da Ocorr[eê]ncia\s*[\n\r]+([^\n\r]+)[\n\r]+\s*([^\n\r]+)/i);
+        if (matN) natureza = matN[1].trim() + ' - ' + matN[2].trim();
+        else {
+            const matN2 = text.match(/Naturezas da Ocorr[eê]ncia\s*[\n\r]+([^\n\r]+)/i);
+            if (matN2) natureza = matN2[1].trim();
+        }
 
-        let marcaModelo = (text.match(/Marca\/Modelo:\s*([^\n]+)/) || [])[1] || '';
-        let placa = (text.match(/Placa:\s*([A-Z0-9]+)/) || [])[1] || '';
+        // Marca/Modelo: "Marca/Modelo: IVECO/DAILY 35CS"
+        let marcaModelo = '';
+        const matMM = text.match(/Marca\/Modelo[:\s]+([^\n\r\t]{3,40}?)(?:\s{2,}|Ano\s|Cor\s|Chassi|$)/im);
+        if (matMM) marcaModelo = matMM[1].trim();
+        else {
+            const matMM2 = text.match(/Marca\/Modelo[:\s]+([^\n\r]+)/i);
+            if (matMM2) marcaModelo = matMM2[1].split(/\s{2,}/)[0].trim();
+        }
 
-        res.json({ sucesso: true, boletim, data_hora: dataHora, natureza, placa: placa.trim(), marca_modelo: marcaModelo.trim() });
+        // Placa: "Placa: TLR0H81"
+        let placa = '';
+        const matPl = text.match(/Placa[:\s]+([A-Z]{3}\d[A-Z0-9]\d{2})/i)
+                   || text.match(/Placa[:\s]+([A-Z]{3}\d{4})/i);
+        if (matPl) placa = matPl[1].replace(/\s/g, '').toUpperCase();
+
+        console.log('[BO] boletim=' + boletim + ' | data=' + dataHoraStr + ' | natureza=' + natureza + ' | placa=' + placa + ' | modelo=' + marcaModelo);
+        res.json({ sucesso: true, boletim: boletim, data_hora: dataHoraStr, natureza: natureza, placa: placa, marca_modelo: marcaModelo });
     } catch(e) {
+        console.error('[EXTRAIR-BO] Erro:', e.message);
         res.status(500).json({ error: e.message });
     }
 });
+
 
 app.post('/api/colaboradores/:id/sinistros', authenticateToken, multerUploadMemoria.single('arquivo'), async (req, res) => {
     try {
