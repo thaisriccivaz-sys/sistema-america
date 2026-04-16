@@ -261,6 +261,17 @@ window.processarLeituraBO = async function() {
         });
         const data = await res.json();
 
+        // DEBUG: log do texto extraído para diagnóstico
+        if (data._debug_text) {
+            console.log('[BO DEBUG - texto extraído pelo pdf-parse]:', data._debug_text);
+            window._boDebugText = data._debug_text;
+        }
+        // Se nenhum campo foi extraído, mostra alerta de diagnóstico
+        if (!data.boletim && !data.natureza && !data.placa && !data.marca_modelo) {
+            const preview = (data._debug_text || '(vazio - PDF pode ser imagem/escaneado)').substring(0, 800);
+            alert('⚠️ O sistema não conseguiu ler os dados do PDF automaticamente.\n\nTexto extraído (primeiros 800 chars):\n\n' + preview + '\n\nPor favor, preencha os campos manualmente.');
+        }
+
         document.getElementById('sin-bo').value = data.boletim || '';
         document.getElementById('sin-data').value = data.data_hora || '';
         document.getElementById('sin-natureza').value = data.natureza || '';
