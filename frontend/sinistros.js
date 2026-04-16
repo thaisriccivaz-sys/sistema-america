@@ -522,25 +522,66 @@ window.abrirModalAssinaturaTestemunhasSinistro = async function(sinId, colabId) 
     `;
     document.body.appendChild(modal);
 
+    // Configura Canvas de Assinatura - implementação própria
     setTimeout(() => {
-        if (typeof window._configurarCanvasMultiplo === 'function') {
-            window._configurarCanvasMultiplo('sin-canvas-t1');
-            window._configurarCanvasMultiplo('sin-canvas-t2');
-        }
-    }, 150);
+        ['sin-canvas-t1', 'sin-canvas-t2'].forEach(id => window._sinSetupCanvas(id));
+    }, 200);
+};
+
+// =========================================================
+// CANVAS DE ASSINATURA - implementação própria do módulo Sinistros
+// =========================================================
+window._sinSetupCanvas = function(canvasId) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    // Ajusta tamanho real do canvas ao layout
+    canvas.width = canvas.offsetWidth || canvas.clientWidth || 300;
+    canvas.height = canvas.offsetHeight || canvas.clientHeight || 130;
+    const ctx = canvas.getContext('2d');
+    ctx.strokeStyle = '#1e293b';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    let drawing = false;
+
+    const getPos = (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const src = e.touches ? e.touches[0] : e;
+        return { x: src.clientX - rect.left, y: src.clientY - rect.top };
+    };
+    const start = (e) => { e.preventDefault(); drawing = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); };
+    const draw  = (e) => { e.preventDefault(); if (!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); };
+    const stop  = (e) => { e.preventDefault(); drawing = false; };
+
+    canvas.addEventListener('mousedown',  start);
+    canvas.addEventListener('mousemove',  draw);
+    canvas.addEventListener('mouseup',    stop);
+    canvas.addEventListener('mouseleave', stop);
+    canvas.addEventListener('touchstart', start, { passive: false });
+    canvas.addEventListener('touchmove',  draw,  { passive: false });
+    canvas.addEventListener('touchend',   stop,  { passive: false });
+};
+
+window._sinCanvasTemConteudo = function(canvasId) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return false;
+    const ctx = canvas.getContext('2d');
+    const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    for (let i = 3; i < data.length; i += 4) { if (data[i] > 10) return true; }
+    return false;
 };
 
 window.salvarAssinaturaTestemunhasSinistro = async function(sinId, colabId) {
     const t1Nome = document.getElementById('sin-t1-nome').value;
-    const t2Nome = document.getElementById('sin-t2-nome').value;
+    const t2Nome = document.getElementById('sin-t2-nome')?.value || '';
     const c1 = document.getElementById('sin-canvas-t1');
     const c2 = document.getElementById('sin-canvas-t2');
 
     if (!t1Nome) return alert('Selecione a Testemunha 1.');
-    if (typeof window._canvasTemConteudo === 'function' && !window._canvasTemConteudo('sin-canvas-t1')) return alert('A Testemunha 1 precisa assinar.');
+    if (!window._sinCanvasTemConteudo('sin-canvas-t1')) return alert('A Testemunha 1 precisa assinar.');
 
     const t1Ass = c1.toDataURL('image/png');
-    const t2Ass = (c2 && typeof window._canvasTemConteudo === 'function' && window._canvasTemConteudo('sin-canvas-t2')) ? c2.toDataURL('image/png') : null;
+    const t2Ass = (c2 && window._sinCanvasTemConteudo('sin-canvas-t2')) ? c2.toDataURL('image/png') : null;
 
     let docHtml = window._sinistroDocHtmlTestemunhas || '';
     if (docHtml) {
@@ -629,15 +670,13 @@ window.abrirModalAssinaturaCondutorSinistro = async function(sinId, colabId) {
     document.body.appendChild(modal);
 
     setTimeout(() => {
-        if (typeof window._configurarCanvasMultiplo === 'function') {
-            window._configurarCanvasMultiplo('sin-canvas-condutor');
-        }
-    }, 150);
+        window._sinSetupCanvas('sin-canvas-condutor');
+    }, 200);
 };
 
 window.salvarAssinaturaCondutorSinistro = async function(sinId, colabId) {
     const colabName = viewedColaborador.nome_completo;
-    if (typeof window._canvasTemConteudo === 'function' && !window._canvasTemConteudo('sin-canvas-condutor')) {
+    if (!window._sinCanvasTemConteudo('sin-canvas-condutor')) {
         return alert('Assine o campo de assinatura antes de continuar.');
     }
 

@@ -2527,12 +2527,15 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
         const sin   = await new Promise((resolve) => db.get('SELECT * FROM sinistros WHERE id = ?', [sinistroId], (e, r) => resolve(r)));
         if(!sin || !colab) throw new Error('Não encontrado.');
 
-        // O tipo_sinistro mapeia pro nome do gerador
-        // O tipo_sinistro mapeia pro nome do gerador
-        const geradorNome = '%' + (sin.tipo_sinistro || '').trim() + '%';
-        console.log('[Sinistro] tipo_sinistro salvo:', JSON.stringify(sin.tipo_sinistro), '| buscando gerador LIKE:', geradorNome);
-        let gerador = await new Promise((resolve) => db.get('SELECT * FROM geradores WHERE nome LIKE ? AND nome LIKE "%Sinistro%"', [geradorNome], (e, r) => resolve(r)));
-        console.log('[Sinistro] gerador encontrado:', gerador ? gerador.nome : 'NENHUM — usando fallback');
+        // Busca todos os geradores de Sinistro e acha o mais proximo ao tipo_sinistro
+        const normalize = s => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, '').trim();
+        const tipoNorm = normalize(sin.tipo_sinistro);
+        const todosGeradores = await new Promise((resolve) => db.all("SELECT * FROM geradores WHERE nome LIKE '%Sinistro%'", [], (e, r) => resolve(r || [])));
+        console.log('[Sinistro] tipo_sinistro:', JSON.stringify(sin.tipo_sinistro), '| geradores disponiveis:', todosGeradores.map(g=>g.nome));
+        let gerador = todosGeradores.find(g => normalize(g.nome).includes(tipoNorm))
+                   || todosGeradores.find(g => tipoNorm.split(' ').filter(w=>w.length>3).every(w => normalize(g.nome).includes(w)))
+                   || null;
+        console.log('[Sinistro] gerador escolhido:', gerador ? gerador.nome : 'NENHUM');
         
         let template = '';
         if(!gerador) {
