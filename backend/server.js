@@ -347,8 +347,12 @@ async function uploadDocToOneDrive(docId) {
 
         // Contratos avulsos (Outros contratos): salvar em CONTRATOS/outros/ independente do ano
         let targetDir;
-        if (doc.tab_name === 'CONTRATOS_AVULSOS') {
-            targetDir = `${onedriveBasePath}/${safeColab}/CONTRATOS`;
+        if (doc.tab_name === 'CONTRATOS') {
+            // Contratos de Admissão: CONTRATOS/Admissao/ (sem ano)
+            targetDir = `${onedriveBasePath}/${safeColab}/CONTRATOS/Admissao`;
+        } else if (doc.tab_name === 'CONTRATOS_AVULSOS') {
+            // Outros Contratos: CONTRATOS/Outros/ (sem ano)
+            targetDir = `${onedriveBasePath}/${safeColab}/CONTRATOS/Outros`;
         } else {
             targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}`;
             if (safeTab !== '01_FICHA_CADASTRAL') {
@@ -380,8 +384,11 @@ async function uploadDocToOneDrive(docId) {
             if (!cloudName.toLowerCase().endsWith('.pdf')) cloudName += '.pdf';
         } else if (safeTab === '01_FICHA_CADASTRAL') {
             cloudName = `${(doc.document_type || doc.tab_name).replace(/\s+/g, '_')}_${safeColab}.pdf`;
+        } else if (doc.tab_name === 'CONTRATOS') {
+            // Contratos de Admissão: NomeDoc_NomeColab.pdf (sem timestamp, documento único)
+            cloudName = `${formatarPasta(doc.document_type || doc.tab_name).replace(/\s+/g, '_')}_${safeColab}.pdf`;
         } else if (doc.tab_name === 'CONTRATOS_AVULSOS') {
-            // Outros Contratos: salvar como Outros_NomeContrato_NomeColab.pdf
+            // Outros Contratos: usa o file_name que já tem código único do timestamp
             cloudName = doc.file_name;
         } else if (safeTab === 'FACULDADE') {
             // Faculdade: inclui o mês no nome (Boletim_Jan_2026_NOME.pdf / Boleto_Jan_2026_NOME.pdf)
@@ -394,10 +401,10 @@ async function uploadDocToOneDrive(docId) {
         console.log(`[OD-AUTO] doc=${docId} tab=${doc.tab_name} ? ${targetDir}/${cloudName}`);
 
         // Garantir toda a hierarquia de pastas
-        if (doc.tab_name === 'CONTRATOS_AVULSOS') {
+        if (doc.tab_name === 'CONTRATOS' || doc.tab_name === 'CONTRATOS_AVULSOS') {
             const contratosDir = `${onedriveBasePath}/${safeColab}/CONTRATOS`;
             await onedrive.ensurePath(contratosDir);
-            await onedrive.ensurePath(targetDir); // CONTRATOS/outros
+            await onedrive.ensurePath(targetDir);
         } else {
             const parentDir = `${onedriveBasePath}/${safeColab}/${safeTab}`;
             if (targetDir !== parentDir) {
@@ -503,15 +510,18 @@ const storage = multer.diskStorage({
         const safeNomeColab = formatarNome(colab);
         const safeTab = formatarPasta(tab).toUpperCase();
         
-        // CONTRATOS_AVULSOS (Outros Contratos): salvar em CONTRATOS/ com nome Outros_
         let finalDir;
-        if (safeTab === 'CONTRATOS_AVULSOS') {
-            finalDir = path.join(BASE_PATH, safeNomeColab, 'CONTRATOS');
+        if (safeTab === 'CONTRATOS') {
+            // Contratos de Admissão: CONTRATOS/Admissao/
+            finalDir = path.join(BASE_PATH, safeNomeColab, 'CONTRATOS', 'Admissao');
+        } else if (safeTab === 'CONTRATOS_AVULSOS') {
+            // Outros Contratos: CONTRATOS/Outros/
+            finalDir = path.join(BASE_PATH, safeNomeColab, 'CONTRATOS', 'Outros');
         } else {
             finalDir = path.join(BASE_PATH, safeNomeColab, safeTab);
         }
 
-        if (safeTab !== 'CONTRATOS_AVULSOS' && year && year !== 'null' && year !== 'undefined' && year !== '') {
+        if (safeTab !== 'CONTRATOS' && safeTab !== 'CONTRATOS_AVULSOS' && year && year !== 'null' && year !== 'undefined' && year !== '') {
             const safeYear = String(year).replace(/[^0-9]/g, '');
             if (safeYear) {
                 finalDir = path.join(finalDir, safeYear);
@@ -546,11 +556,19 @@ const storage = multer.diskStorage({
         let base = "";
         if (customName) {
             base = customName;
-        } else if (tab === 'CONTRATOS_AVULSOS') {
-            // Outros Contratos: nome Outros_NomeContrato_NomeColab
+        } else if (tab === 'CONTRATOS') {
+            // Contratos de Admissão: NomeDoc_NomeColab (sem timestamp — documento único por tipo)
             const safeType = formatarPasta(docType);
             const safeColab = formatarNome(colab);
-            base = `Outros_${safeType}_${safeColab}`;
+            base = `${safeType}_${safeColab}`;
+            // Sem timestamp para admissão — retorna diretamente
+            console.log("UPLOAD FILENAME (admissao):", base + ext);
+            return cb(null, base + ext);
+        } else if (tab === 'CONTRATOS_AVULSOS') {
+            // Outros Contratos: NomeDoc_NomeColab_CODIGO (timestamp para código único)
+            const safeType = formatarPasta(docType);
+            const safeColab = formatarNome(colab);
+            base = `${safeType}_${safeColab}`;
         } else {
             const safeType = formatarPasta(docType).toUpperCase();
             const safeColab = formatarNome(colab);
@@ -2384,20 +2402,27 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), async (req
                     }
 
                     const newDocId = this.lastID;
-                    if (tab_name === 'CONTRATOS_AVULSOS' && onedrive) {
+                    if ((tab_name === 'CONTRATOS_AVULSOS' || tab_name === 'CONTRATOS') && onedrive) {
                         ;(async () => {
                             try {
                                 const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || 'RH/1.Colaboradores/Sistema';
                                 const colabNome = req.body.colaborador_nome || '';
                                 const safeColab = formatarNome(colabNome) || 'DESCONHECIDO';
-                                const safeType = formatarPasta(document_type || 'Contrato');
-                                
-                                // USA O NOME EXATO DO ARQUIVO SELECIONADO/DEDUPLICADO, não "Outros_..."
-                                const cloudFileName = fileNameToStore;
-                                const targetDir = `${onedriveBasePath}/${safeColab}/CONTRATOS`;
-                                
-                                console.log(`[OD-INLINE] CONTRATOS_AVULSOS NAO_EXIGE => ${targetDir}/${cloudFileName}`);
+
+                                let targetDir, cloudFileName;
+                                if (tab_name === 'CONTRATOS') {
+                                    // Admissão: CONTRATOS/Admissao/ sem código único
+                                    targetDir = `${onedriveBasePath}/${safeColab}/CONTRATOS/Admissao`;
+                                    cloudFileName = `${formatarPasta(document_type || 'Contrato').replace(/\s+/g, '_')}_${safeColab}.pdf`;
+                                } else {
+                                    // Outros Contratos: CONTRATOS/Outros/ com código timestamp
+                                    targetDir = `${onedriveBasePath}/${safeColab}/CONTRATOS/Outros`;
+                                    cloudFileName = fileNameToStore; // já tem timestamp do multer filename
+                                }
+
+                                console.log(`[OD-INLINE] ${tab_name} => ${targetDir}/${cloudFileName}`);
                                 await onedrive.ensurePath(`${onedriveBasePath}/${safeColab}`);
+                                await onedrive.ensurePath(`${onedriveBasePath}/${safeColab}/CONTRATOS`);
                                 await onedrive.ensurePath(targetDir);
                                 const fileBuffer = require('fs').readFileSync(file_path);
                                 await onedrive.uploadToOneDrive(targetDir, cloudFileName, fileBuffer);
