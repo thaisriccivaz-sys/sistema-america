@@ -2375,6 +2375,7 @@ app.post('/api/extrair-bo', authenticateToken, multerUploadMemoria.single('arqui
         if (!req.file) throw new Error('BO nao enviado.');
         const pdfP = require('pdf-parse');
         const pdfData = await pdfP(req.file.buffer);
+        const text = pdfData.text || '';
         // Eliminar espacos duplicados para ajudar a regex
         const cleanText = text.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ');
 
