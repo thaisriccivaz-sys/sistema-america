@@ -28,6 +28,51 @@ db.run("DELETE FROM geradores WHERE nome = 'Termo de Responsabilidade de Chaves'
 db.run("CREATE TABLE IF NOT EXISTS geradores_excluidos (nome TEXT PRIMARY KEY)", () => {
     db.run("INSERT OR IGNORE INTO geradores_excluidos (nome) VALUES ('Termo de Responsabilidade de Chaves')");
     db.run("INSERT OR IGNORE INTO geradores_excluidos (nome) VALUES ('AUTORIZACAO DE DESCONTO EM FOLHA DE PAGAMENTO')");
+    db.run("INSERT OR IGNORE INTO geradores_excluidos (nome) VALUES ('Autorizar Desconto')");
+});
+
+// MIGRATION: Colunas de visibilidade dos geradores
+db.run("ALTER TABLE geradores ADD COLUMN is_sinistro_only INTEGER DEFAULT 0", () => {});
+db.run("ALTER TABLE geradores ADD COLUMN visibilidade_regra TEXT", () => {});
+
+// MIGRATION: Marcar geradores de sinistro
+const sinistroNomes = [
+    'Sinistro - Danos em Terceiros e Nosso',
+    'Sinistro - Danos em Terceiros',
+    'Sinistro - Danos no Nosso Veículo',
+    'Sinistro - Outros Danos'
+];
+sinistroNomes.forEach(nome => {
+    db.run("UPDATE geradores SET is_sinistro_only = 1 WHERE nome = ?", [nome]);
+});
+
+// MIGRATION: Seed de regras de visibilidade em Outros Contratos
+// Formato da regra JSON:
+// { dropdown_todos: bool, visivel_automatico: bool, condicao: 'campo=valor'|null, departamentos: ['Nome1']|null }
+const REGRAS_VISIBILIDADE = [
+    { nome: 'Autorização de Desconto em Folha',  regra: { dropdown_todos: true,  visivel_automatico: false, condicao: null, departamentos: null } },
+    { nome: 'Contrato Academia',                  regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: 'academia_participa=Sim', departamentos: null } },
+    { nome: 'Contrato Faculdade',                 regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: 'faculdade_participa=Sim', departamentos: null } },
+    { nome: 'Contrato Intermitente',              regra: { dropdown_todos: false, visivel_automatico: true,  condicao: 'tipo_contrato=Intermitente', departamentos: null } },
+    { nome: 'Ordem de Serviço NR01',              regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: null, departamentos: ['Ajudante Geral','Ajudante de Pátio','Liderança','Limpeza','Manutenção','Motoristas'] } },
+    { nome: 'Responsabilidade Bilhete Único',     regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: 'meio_transporte~vt', departamentos: null } },
+    { nome: 'Responsabilidade Celular',           regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: 'celular_participa=Sim', departamentos: null } },
+    { nome: 'Responsabilidade Chaves',            regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: 'chaves_participa=Sim', departamentos: null } },
+    { nome: 'Termo de Interesse Terapia',         regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: 'terapia_participa=Sim', departamentos: null } },
+    { nome: 'Termo de NÃO Interesse Terapia',     regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: 'terapia_participa=Nao', departamentos: null } },
+    { nome: 'Acordo Individual Benefícios',       regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: null, departamentos: null } },
+    { nome: 'Autorização de Uso de Imagem',       regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: null, departamentos: null } },
+    { nome: 'Bloqueio de Farmácia e Mercado',     regra: { dropdown_todos: true,  visivel_automatico: false, condicao: null, departamentos: null } },
+    { nome: 'Compartilhamento de Dados',          regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: null, departamentos: null } },
+    { nome: 'Recebimento de Regimento Interno',   regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: null, departamentos: null } },
+    { nome: 'Regras Sorteio Final de Ano',        regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: null, departamentos: null } },
+    { nome: 'Responsabilidade Equipamento',       regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: null, departamentos: ['Administrativo'] } },
+    { nome: 'Responsabilidade Veículo',           regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: null, departamentos: ['Motoristas','Liderança'] } },
+    { nome: 'Termo de Confidencialidade',         regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: null, departamentos: null } },
+];
+REGRAS_VISIBILIDADE.forEach(({ nome, regra }) => {
+    db.run("UPDATE geradores SET visibilidade_regra = ? WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?))",
+        [JSON.stringify(regra), nome]);
 });
 
 

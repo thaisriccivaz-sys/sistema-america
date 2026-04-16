@@ -7641,6 +7641,44 @@ window.renderContratosTab = async function(container) {
 };
 
 // === SUB-ABA OUTROS CONTRATOS ===
+// Helper: avalia se um gerador deve aparecer automaticamente para o colaborador
+window._avaliarRegraGerador = function(g, colab, deptNome) {
+    if (g.is_sinistro_only) return false;
+    let regra = {};
+    try { regra = g.visibilidade_regra ? JSON.parse(g.visibilidade_regra) : {}; } catch(e) {}
+
+    if (!regra.visivel_automatico) return false;
+
+    // Verificar restrição de departamento
+    if (regra.departamentos && regra.departamentos.length > 0) {
+        const deptNomeLower = (deptNome || '').toLowerCase().trim();
+        const match = regra.departamentos.some(d => d.toLowerCase().trim() === deptNomeLower);
+        if (!match) return false;
+    }
+
+    // Verificar condição de campo do colaborador
+    if (regra.condicao) {
+        const [campo, ...resto] = regra.condicao.split('~').length > 1
+            ? regra.condicao.split('~') : regra.condicao.split('=');
+        const valor = regra.condicao.split('~').length > 1
+            ? regra.condicao.split('~')[1] : resto.join('=');
+        const operador = regra.condicao.includes('~') ? 'contains' : 'equals';
+
+        const valorColab = (colab[campo.trim()] || '').toString().toLowerCase().trim();
+        const valorEsperado = (valor || '').toLowerCase().trim();
+
+        if (operador === 'contains') {
+            if (!valorColab.includes(valorEsperado)) return false;
+        } else {
+            // Aceitar variações "Sim"/"sim", "Nao"/"Não"/"não", "Intermitente" etc.
+            const normalize = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+            if (normalize(valorColab) !== normalize(valorEsperado)) return false;
+        }
+    }
+
+    return true;
+};
+
 window.renderContratosAvulso = async function(container) {
     if (!viewedColaborador || !container) return;
     container.innerHTML = '<p class="text-muted"><i class="ph ph-spinner ph-spin"></i> Carregando Documentos...</p>';
@@ -7651,65 +7689,57 @@ window.renderContratosAvulso = async function(container) {
                 return Array.isArray(r) ? r : (r ? [r] : []);
             } catch(e) { return []; }
         };
-        const [assinaturas, docs, geradores, outrosTemplates, departamentos] = await Promise.all([
+        const [assinaturas, docs, geradores, departamentos] = await Promise.all([
             safeGet(`/colaboradores/${viewedColaborador.id}/admissao-assinaturas`),
             safeGet(`/colaboradores/${viewedColaborador.id}/documentos`),
             safeGet('/geradores'),
-            safeGet('/gerador-outros-contratos-templates'),
             safeGet('/departamentos')
         ]);
         window._todosGeradores = geradores;
 
-        let templateGeradores = [];
-        const empDeptId = viewedColaborador.departamento;
+        const c = viewedColaborador;
+        const empDeptId = c.departamento;
         const deptObj = departamentos.find(d =>
             String(d.id) === String(empDeptId) ||
             String(d.nome).trim().toLowerCase() === String(empDeptId).trim().toLowerCase()
         );
-        if (deptObj) {
-            const geradorIds = outrosTemplates.filter(t => Number(t.departamento_id) === Number(deptObj.id)).map(t => Number(t.gerador_id));
-            if (geradorIds.length > 0) {
-                templateGeradores = geradores.filter(g => geradorIds.includes(Number(g.id)));
-            }
-        }
+        const deptNome = deptObj ? deptObj.nome : String(empDeptId || '');
 
-        const c = viewedColaborador;
-        const PROFILE_CONTRACT_MAP = [
-            { nome: 'Termo de NÃO Interesse Terapia',   cond: c.terapia_participa === 'Não' || c.terapia_participa === 'Nao' },
-            { nome: 'Termo de Interesse Terapia',        cond: c.terapia_participa === 'Sim' },
-            { nome: 'Responsabilidade Bilhete Único',    cond: (c.meio_transporte || '').toLowerCase().includes('vt') || (c.meio_transporte || '').toLowerCase().includes('vale transporte') },
-            { nome: 'Acordo de Auxílio-Combustível',     cond: (c.meio_transporte || '').toLowerCase().includes('vc') || (c.meio_transporte || '').toLowerCase().includes('combustível') || (c.meio_transporte || '').toLowerCase().includes('combustivel') },
-            { nome: 'Responsabilidade Celular',          cond: c.celular_participa === 'Sim' },
-            { nome: 'Contrato Faculdade',                cond: c.faculdade_participa === 'Sim' },
-            { nome: 'Contrato Academia',                 cond: c.academia_participa === 'Sim' },
+        // Nomes que NUNCA devem aparecer em Outros Contratos
+        const EXCLUIDOS_FIXOS = [
+            'autorização de desconto em folha de pagamento',
+            'autorizacao de desconto em folha de pagamento',
+            'autorizar desconto',
+            'termo de responsabilidade de chaves'
         ];
+        const isExcluido = (g) => EXCLUIDOS_FIXOS.includes((g.nome||'').toLowerCase().trim()) || g.is_sinistro_only;
 
-        const temChaves = Array.isArray(c.chaves_lista) && c.chaves_lista.length > 0;
-        if (temChaves) {
-            PROFILE_CONTRACT_MAP.push({ nome: 'Termo de Responsabilidade de Chaves', cond: true });
-        }
+        // Geradores elegíveis (sem excluídos e sem sinistro)
+        const geradoresElegiveis = geradores.filter(g => !isExcluido(g));
 
-        const profileGeradorNomes = PROFILE_CONTRACT_MAP.filter(m => m.cond).map(m => m.nome);
-        const profileGeradores = profileGeradorNomes
-            .map(nome => geradores.find(g => (g.nome || '').trim().toLowerCase() === nome.toLowerCase()))
-            .filter(Boolean);
-
-        const seenIds = new Set();
-        const availableGeradores = [...profileGeradores, ...templateGeradores].filter(g => {
-            if (seenIds.has(g.id)) return false;
-            seenIds.add(g.id);
-            return true;
-        });
-
-        const finalGeradores = availableGeradores.filter(g =>
-            !['AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO', 'AUTORIZAÇÃO DE DESCONTO EM FOLHA']
-                .includes((g.nome || '').toUpperCase().trim())
+        // Determinar quais aparecem automaticamente pelo perfil
+        const autoGeradores = geradoresElegiveis.filter(g =>
+            window._avaliarRegraGerador(g, c, deptNome)
         );
 
-        const filteredDocs = docs.filter(d => d.tab_name === 'CONTRATOS_AVULSOS');
+        // Geradores para a lista suspensa "Gerar Novo"
+        const dropdownGeradores = geradoresElegiveis.filter(g => {
+            let regra = {};
+            try { regra = g.visibilidade_regra ? JSON.parse(g.visibilidade_regra) : {}; } catch(e) {}
+            // dropdown_todos: aparece para todos os departamentos
+            if (regra.dropdown_todos) return true;
+            // Condicionais também entram no dropdown se a condição for verdadeira
+            if (regra.visivel_automatico && window._avaliarRegraGerador(g, c, deptNome)) return true;
+            return false;
+        });
 
+        window._caAvailableGeradores = dropdownGeradores;
+
+        const filteredDocs = docs.filter(d => d.tab_name === 'CONTRATOS_AVULSOS');
         const geradosNomes = new Set(filteredDocs.map(d => (d.document_type || '').trim().toLowerCase()));
-        const pendingGeradores = profileGeradores.filter(g =>
+
+        // Documentos pendentes do perfil (ainda não gerados/anexados)
+        const pendingGeradores = autoGeradores.filter(g =>
             !geradosNomes.has((g.nome || '').trim().toLowerCase())
         );
 
@@ -7761,11 +7791,11 @@ window.renderContratosAvulso = async function(container) {
             </div>
         `;
 
-        window._caAvailableGeradores = finalGeradores;
     } catch(err) {
         container.innerHTML = `<div class="alert alert-danger"><i class="ph ph-warning"></i> Erro: ${err.message}</div>`;
     }
 };
+
 
 window.toggleAcaoContratoPerfil = function(geradorId, exige, geradorNome) {
     const actionDiv = document.getElementById('pg-action-' + geradorId);
