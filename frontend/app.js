@@ -7717,18 +7717,44 @@ window.renderContratosAvulso = async function(container) {
         // Geradores elegíveis (sem excluídos e sem sinistro)
         const geradoresElegiveis = geradores.filter(g => !isExcluido(g));
 
-        // Determinar quais aparecem automaticamente pelo perfil
-        const autoGeradores = geradoresElegiveis.filter(g =>
+        // Determinar quais aparecem automaticamente pelo perfil (usa regras do banco)
+        let autoGeradores = geradoresElegiveis.filter(g =>
             window._avaliarRegraGerador(g, c, deptNome)
         );
 
+        // FALLBACK: se nenhum gerador tem regras seeded ainda, usa mapa legado de perfil
+        const algumTemRegra = geradoresElegiveis.some(g => g.visibilidade_regra);
+        if (!algumTemRegra) {
+            const deNorm = s => (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+            const LEGACY_MAP = [
+                { nome: 'Termo de NÃO Interesse Terapia',  cond: deNorm(c.terapia_participa) === 'nao' || deNorm(c.terapia_participa) === 'nao' },
+                { nome: 'Termo de Interesse Terapia',       cond: deNorm(c.terapia_participa) === 'sim' },
+                { nome: 'Responsabilidade Bilhete Único',   cond: (c.meio_transporte||'').toLowerCase().includes('vt') },
+                { nome: 'Responsabilidade Celular',         cond: deNorm(c.celular_participa) === 'sim' },
+                { nome: 'Responsabilidade Chaves',          cond: deNorm(c.chaves_participa) === 'sim' },
+                { nome: 'Contrato Faculdade',               cond: deNorm(c.faculdade_participa) === 'sim' },
+                { nome: 'Contrato Academia',                cond: deNorm(c.academia_participa) === 'sim' },
+                { nome: 'Contrato Intermitente',            cond: deNorm(c.tipo_contrato) === 'intermitente' },
+                { nome: 'Acordo Individual Benefícios',     cond: true },
+                { nome: 'Autorização de Uso de Imagem',     cond: true },
+                { nome: 'Compartilhamento de Dados',        cond: true },
+                { nome: 'Recebimento de Regimento Interno', cond: true },
+                { nome: 'Regras Sorteio Final de Ano',      cond: true },
+                { nome: 'Termo de Confidencialidade',       cond: true },
+            ];
+            autoGeradores = LEGACY_MAP
+                .filter(m => m.cond)
+                .map(m => geradoresElegiveis.find(g => deNorm(g.nome) === deNorm(m.nome)))
+                .filter(Boolean);
+        }
+
         // Geradores para a lista suspensa "Gerar Novo"
+        // Se regras ainda não foram seeded (visibilidade_regra null), mostra TODOS os elegíveis
         const dropdownGeradores = geradoresElegiveis.filter(g => {
+            if (!g.visibilidade_regra) return true; // fallback: sem regra = aparece no dropdown
             let regra = {};
-            try { regra = g.visibilidade_regra ? JSON.parse(g.visibilidade_regra) : {}; } catch(e) {}
-            // dropdown_todos: aparece para todos os departamentos
+            try { regra = JSON.parse(g.visibilidade_regra); } catch(e) {}
             if (regra.dropdown_todos) return true;
-            // Condicionais também entram no dropdown se a condição for verdadeira
             if (regra.visivel_automatico && window._avaliarRegraGerador(g, c, deptNome)) return true;
             return false;
         });
