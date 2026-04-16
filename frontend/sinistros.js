@@ -150,9 +150,7 @@ window.abrirModalNovoSinistro = function() {
                     </div>
 
                     <div id="sinistro-step-2" style="display:none;">
-                        <div style="background:#f0fdf4; border:1px solid #bbf7d0; padding:10px; border-radius:8px; margin-bottom:1rem;">
-                            <p style="margin:0; font-size:0.85rem; color:#166534;"><i class="ph ph-check-circle"></i> Dados extraídos. Confira ou edite se necessário.</p>
-                        </div>
+                        <div id="sin-bo-notif" style="display:none; border-radius:8px; padding:0.5rem 0.75rem; margin-bottom:1rem; font-size:0.85rem;"></div>
 
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
                             <div class="input-group">
@@ -253,6 +251,7 @@ window.processarLeituraBO = async function() {
     btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Lendo documento...';
     btn.disabled = true;
 
+    let boletimData = {};
     try {
         const res = await fetch(`${API_URL}/extrair-bo`, {
             method: 'POST',
@@ -261,33 +260,46 @@ window.processarLeituraBO = async function() {
         });
         const data = await res.json();
 
-        // DEBUG: log do texto extraído para diagnóstico
+        // Log diagnóstico no console (não mais alert)
         if (data._debug_text) {
-            console.log('[BO DEBUG - texto extraído pelo pdf-parse]:', data._debug_text);
+            console.log('[BO] Texto extraído pelo pdf-parse:', data._debug_text);
             window._boDebugText = data._debug_text;
         }
-        // Se nenhum campo foi extraído, mostra alerta de diagnóstico
-        if (!data.boletim && !data.natureza && !data.placa && !data.marca_modelo) {
-            const preview = (data._debug_text || '(vazio - PDF pode ser imagem/escaneado)').substring(0, 800);
-            alert('⚠️ O sistema não conseguiu ler os dados do PDF automaticamente.\n\nTexto extraído (primeiros 800 chars):\n\n' + preview + '\n\nPor favor, preencha os campos manualmente.');
-        }
-
-        document.getElementById('sin-bo').value = data.boletim || '';
-        document.getElementById('sin-data').value = data.data_hora || '';
-        document.getElementById('sin-natureza').value = data.natureza || '';
-        document.getElementById('sin-veiculo').value = data.marca_modelo || '';
-        document.getElementById('sin-placa').value = data.placa || '';
+        boletimData = data;
 
     } catch(e) {
-        console.warn('Leitura OCR falhou, modo manual:', e.message);
+        console.warn('Leitura BO falhou, modo manual:', e.message);
     } finally {
         btn.innerHTML = oldText;
         btn.disabled = false;
-        // Sempre avança para etapa 2
+
+        // Preenche campos com o que foi extraído (pode ser vazio — usuário preenche)
+        document.getElementById('sin-bo').value = boletimData.boletim || '';
+        document.getElementById('sin-data').value = boletimData.data_hora || '';
+        document.getElementById('sin-natureza').value = boletimData.natureza || '';
+        document.getElementById('sin-veiculo').value = boletimData.marca_modelo || '';
+        document.getElementById('sin-placa').value = boletimData.placa || '';
+
+        // Notificação inline suave (sem alert)
+        const temDados = boletimData.boletim || boletimData.natureza || boletimData.placa || boletimData.marca_modelo;
+        const notifEl = document.getElementById('sin-bo-notif');
+        if (notifEl) {
+            notifEl.style.display = 'block';
+            if (temDados) {
+                notifEl.innerHTML = '<i class="ph ph-check-circle"></i> Dados extraídos. Confira ou edite se necessário.';
+                notifEl.style.cssText = 'display:block;background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;border-radius:8px;padding:0.5rem 0.75rem;margin-bottom:1rem;font-size:0.85rem;';
+            } else {
+                notifEl.innerHTML = '<i class="ph ph-warning"></i> Preenchimento automático não disponível para este PDF. Preencha os campos abaixo manualmente.';
+                notifEl.style.cssText = 'display:block;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;border-radius:8px;padding:0.5rem 0.75rem;margin-bottom:1rem;font-size:0.85rem;';
+            }
+        }
+
+        // Avança para etapa 2
         document.getElementById('sinistro-step-1').style.display = 'none';
         document.getElementById('sinistro-step-2').style.display = 'block';
     }
 };
+
 
 window.salvarSinistroFinal = async function() {
     const colab = viewedColaborador;
