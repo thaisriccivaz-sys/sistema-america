@@ -2368,7 +2368,7 @@ app.get('/api/colaboradores/:id/sinistros', authenticateToken, (req, res) => {
     });
 });
 
-const multerUploadMemoria = require('multer')({ storage: require('multer').memoryStorage() });
+const multerUploadMemoria = require('multer')({ storage: require('multer').memoryStorage(), limits: { fieldSize: 100 * 1024 * 1024 } });
 
 app.post('/api/extrair-bo', authenticateToken, multerUploadMemoria.single('arquivo'), async (req, res) => {
     try {
