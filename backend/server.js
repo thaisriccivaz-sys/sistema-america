@@ -2550,26 +2550,99 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
             template = gerador.conteudo;
         }
 
-        // Substuicoes avancadas
+        // ===== SUBSTITUICOES AVANCADAS SINISTRO =====
         let htmlFinal = template;
         const colabNome = (colab.nome_completo || colab.nome || '').toUpperCase();
-        
-        htmlFinal = htmlFinal.replace(/\{NOME_COMPLETO\}|\{NOME_COLABORADOR\}|\{NOME_DO_COLABORADOR\}/gi, colabNome);
+
+        // Substituições via placeholders {{}} ou {} (gerador padrão)
+        htmlFinal = htmlFinal.replace(/\{NOME_COMPLETO\}|\{NOME_COLABORADOR\}|\{COLABORADOR\}/gi, colabNome);
         htmlFinal = htmlFinal.replace(/\{CPF\}/gi, colab.cpf || '');
         htmlFinal = htmlFinal.replace(/\{RG\}/gi, colab.rg || '');
-        
-        // Dados do Sinistro
-        htmlFinal = htmlFinal.replace(/\{SINISTRO_BO\}|\{BO_NUMERO\}/gi, sin.numero_boletim || '');
-        htmlFinal = htmlFinal.replace(/\{SINISTRO_DATA\}|\{DATA_BO\}/gi, sin.data_hora || '');
-        htmlFinal = htmlFinal.replace(/\{SINISTRO_PLACA\}|\{PLACA\}|\{PLACA_MODELO\}/gi, sin.placa || '');
-        htmlFinal = htmlFinal.replace(/\{SINISTRO_VEICULO\}|\{VEICULO\}/gi, sin.veiculo || '');
-        htmlFinal = htmlFinal.replace(/\{SINISTRO_PARCELAS\}|\{QTDE_PARCELAS\}/gi, sin.parcelas || '');
+        htmlFinal = htmlFinal.replace(/\{CARGO\}|\{FUNCAO\}/gi, colab.cargo || colab.funcao || '');
+        htmlFinal = htmlFinal.replace(/\{SINISTRO_BO\}|\{BO_NUMERO\}|\{NUMERO_BO\}/gi, sin.numero_boletim || '');
+        htmlFinal = htmlFinal.replace(/\{SINISTRO_DATA\}|\{DATA_BO\}|\{DATA_OCORRENCIA\}/gi, sin.data_hora || '');
+        htmlFinal = htmlFinal.replace(/\{SINISTRO_NATUREZA\}|\{NATUREZA\}/gi, sin.natureza || '');
+        htmlFinal = htmlFinal.replace(/\{SINISTRO_PLACA\}|\{PLACA\}/gi, sin.placa || '');
+        htmlFinal = htmlFinal.replace(/\{SINISTRO_VEICULO\}|\{VEICULO\}|\{MARCA_MODELO\}/gi, sin.veiculo || '');
+        htmlFinal = htmlFinal.replace(/\{SINISTRO_PARCELAS\}|\{QTDE_PARCELAS\}/gi, String(sin.parcelas || 1));
         htmlFinal = htmlFinal.replace(/\{SINISTRO_VALOR_PARCELA\}|\{VALOR_PARCELA\}/gi, sin.valor_parcela || '');
+        htmlFinal = htmlFinal.replace(/\{VALOR_TOTAL\}|\{VALOR_DANO\}/gi, sin.desconto_valor || sin.valor_parcela || '');
         htmlFinal = htmlFinal.replace(/\{SINISTRO_TIPO\}|\{TIPO_SINISTRO\}/gi, sin.tipo_sinistro || '');
         htmlFinal = htmlFinal.replace(/\{SINISTRO_CONDICOES\}|\{DESCRICAO_DESCONTO\}/gi, `${sin.parcelas || 1}x de ${sin.valor_parcela || ''}`);
 
-        // O body deve ir formatado com HTML completo
-        htmlFinal = `<html><head><style>body{font-family:Arial,sans-serif;padding:30px;}</style></head><body>` + htmlFinal + `</body></html>`;
+        // ===== SUBSTITUIÇÃO INTELIGENTE DE CAMPOS BLANK NO HTML =====
+        // Separa data e hora da string "DD/MM/YYYY às HH:MM"
+        const dataHoraStr  = sin.data_hora || '';
+        const parteData    = dataHoraStr.split(' ')[0] || '';   // DD/MM/YYYY
+        const parteHora    = dataHoraStr.includes('às') ? dataHoraStr.split('às')[1]?.trim() : (dataHoraStr.split(' ')[1] || '');
+
+        // Substitui linha "Data e hora da ocorrência: //_____ às _____"
+        htmlFinal = htmlFinal.replace(
+            /(Data[^:]*ocorr[^:]*:?\s*)\/\/_+\s*[àa]s\s*_+/gi,
+            `$1<strong>${parteData}</strong> às <strong>${parteHora}</strong>`
+        );
+        // Variante sem "//": "Data da ocorrência: _____"
+        htmlFinal = htmlFinal.replace(
+            /(Data[^:]*ocorr[^:]*:?\s*)_{3,}/gi,
+            `$1<strong>${parteData}</strong>`
+        );
+        // Substitui linha "Natureza da ocorrência: __________________________"
+        htmlFinal = htmlFinal.replace(
+            /(Natureza[^:]*:?\s*)_{3,}/gi,
+            `$1<strong>${sin.natureza || ''}</strong>`
+        );
+        // Substitui linha "Boletim de Ocorrência nº (se houver): __________________________"
+        htmlFinal = htmlFinal.replace(
+            /(Boletim[^:☺]*n[º°]?[^:]*:?\s*)_{3,}/gi,
+            `$1<strong>${sin.numero_boletim || ''}</strong>`
+        );
+        // Substitui linha "Marca/Modelo do veículo: __________________________"
+        htmlFinal = htmlFinal.replace(
+            /(Marca[^:]*:?\s*)_{3,}/gi,
+            `$1<strong>${sin.veiculo || ''}</strong>`
+        );
+        // Substitui linha "Placa do veículo: __________________________"
+        htmlFinal = htmlFinal.replace(
+            /(Placa[^:]*:?\s*)_{3,}/gi,
+            `$1<strong>${sin.placa || ''}</strong>`
+        );
+        // Substitui linha "Valor total do dano: R$ __________________________"
+        const valorTotal = sin.desconto_valor
+            || (sin.valor_parcela && sin.parcelas ? (parseFloat((sin.valor_parcela || '0').replace(',','.')) * (sin.parcelas || 1)).toFixed(2).replace('.',',') : sin.valor_parcela)
+            || '';
+        htmlFinal = htmlFinal.replace(
+            /(Valor\s+total[^:]*:?\s*R\$\s*)_{3,}/gi,
+            `$1<strong>${valorTotal}</strong>`
+        );
+
+        // Substitui parcelamento (   ) 1x (   ) 2x (   ) 3x
+        // Marca o número de parcelas escolhido
+        const nParc = parseInt(sin.parcelas) || 1;
+        htmlFinal = htmlFinal.replace(
+            /\(\s*\)\s*(1x)/gi,
+            (nParc === 1 ? '(<strong>✓</strong>) <strong>$1</strong>' : '(   ) $1')
+        );
+        htmlFinal = htmlFinal.replace(
+            /\(\s*\)\s*(2x)/gi,
+            (nParc === 2 ? '(<strong>✓</strong>) <strong>$1</strong>' : '(   ) $1')
+        );
+        htmlFinal = htmlFinal.replace(
+            /\(\s*\)\s*(3x)/gi,
+            (nParc === 3 ? '(<strong>✓</strong>) <strong>$1</strong>' : '(   ) $1')
+        );
+
+        // ===== LOGO =====
+        // Injeta logo da América Rental no topo se o template não tiver
+        if (!htmlFinal.includes('america-rental-logo') && !htmlFinal.includes('<img') ) {
+            const logoHtml = `<div style="text-align:center;margin-bottom:20px;"><img src="/logo.png" alt="América Rental" style="max-height:80px;" onerror="this.style.display='none'"/></div>`;
+            htmlFinal = htmlFinal.replace(/<body[^>]*>/, (match) => match + logoHtml);
+        }
+
+        // O body deve ir formatado com HTML completo se não tiver <html>
+        if (!htmlFinal.toLowerCase().includes('<html')) {
+            htmlFinal = `<html><head><meta charset="UTF-8"><style>body{font-family:Arial,sans-serif;padding:30px;font-size:13px;line-height:1.6;}strong{font-weight:700;}</style></head><body>` + htmlFinal + `</body></html>`;
+        }
+
 
         // Salvar HTML
         db.run('UPDATE sinistros SET documento_html = ? WHERE id = ?', [htmlFinal, sin.id]);
