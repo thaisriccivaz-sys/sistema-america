@@ -287,7 +287,7 @@ const FOLDERS = [
     'ASO',
     'ATESTADOS',
     'AVALIACAO',
-    'BOLETIM_DE_OCORRENCIA',
+    'SINISTROS',
     'CERTIFICADOS',
     'CONTRATOS',
     'DEPENDENTES',
