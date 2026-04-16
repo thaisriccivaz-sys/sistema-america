@@ -3440,73 +3440,32 @@ function buildAdvertenciaTemplate(data, logoSrc) {
 
 window.abrirPreviewAdvertencia = function(data) {
 
-    // Usar modal fullscreen lateral (igual ao de multas) para melhor visibilidade
-    let modal = document.getElementById('modal-adv-fullscreen');
-    if (modal) modal.remove();
+    // Voltar para o modal centralizado tradicional onde os botões ficam no topo
+    const container = document.getElementById('preview-doc-body');
+    if (!container) return;
 
     const apiBase = API_URL.replace('/api', '');
     const logoSrc = `${apiBase}/assets/logo-header.png`;
 
-    modal = document.createElement('div');
-    modal.id = 'modal-adv-fullscreen';
-    modal.style = 'position:fixed;inset:0;z-index:10000;background:#0f172a;display:flex;flex-direction:column;overflow:hidden;';
+    container.innerHTML = buildAdvertenciaTemplate(data, logoSrc);
+    document.getElementById('preview-doc-title').textContent = `${data.gerador_nome} - ${data.colaborador.NOME_COMPLETO}`;
 
-    const header = document.createElement('div');
-    header.style = 'background:#1e293b;padding:0.85rem 1.5rem;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;';
-    header.innerHTML = '<h3 style="margin:0;color:#fff;font-size:1rem;"><i class="ph ph-file-text" style="color:#a78bfa;"></i> ' + (data.gerador_nome || 'Advertência') + ' &mdash; ' + data.colaborador.NOME_COMPLETO + '</h3>';
-    const btnFecharAdv = document.createElement('button');
-    btnFecharAdv.textContent = 'Fechar';
-    btnFecharAdv.style = 'background:rgba(255,255,255,0.1);border:none;color:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;font-size:0.9rem;';
-    btnFecharAdv.addEventListener('click', () => modal.remove());
-    header.appendChild(btnFecharAdv);
-    modal.appendChild(header);
+    const btnsContainer = document.getElementById('preview-doc-buttons');
+    if (btnsContainer) {
+        btnsContainer.innerHTML = `
+            <button onclick="window.anexarAdvertenciaAoProntuario()" id="btn-anexar-adv" class="btn btn-primary" style="background:#2f9e44; border-color:#2b8a3e; align-items:center; gap:5px;">
+                <i class="ph ph-paperclip"></i> Anexar ao Prontuário
+            </button>
+            <button onclick="window.imprimirDocumento()" class="btn btn-primary" style="align-items:center; gap:5px;">
+                <i class="ph ph-printer"></i> Imprimir / PDF
+            </button>
+            <button class="btn btn-secondary" onclick="document.getElementById('modal-preview-doc').style.display='none'">
+                <i class="ph ph-x"></i> Fechar
+            </button>
+        `;
+    }
 
-    const body = document.createElement('div');
-    body.style = 'flex:1;display:flex;overflow:hidden;';
-
-    // Painel esquerdo: documento
-    const docPanel = document.createElement('div');
-    docPanel.style = 'flex:1;overflow-y:auto;background:#f1f5f9;padding:1rem;';
-    const iframe = document.createElement('iframe');
-    iframe.style = 'width:100%;height:100%;min-height:600px;border:none;border-radius:8px;background:#fff;';
-    docPanel.appendChild(iframe);
-
-    // Painel direito: acoes
-    const sidePanel = document.createElement('div');
-    sidePanel.style = 'width:320px;background:#fff;overflow-y:auto;padding:1.5rem;display:flex;flex-direction:column;gap:1rem;border-left:1px solid #e2e8f0;flex-shrink:0;';
-    sidePanel.innerHTML = '<p style="font-weight:700;font-size:0.95rem;color:#374151;margin:0;"><i class="ph ph-file-pdf" style="color:#7c3aed;"></i> Ações do Documento</p>'
-        + '<div style="background:#f0fdf4;border-radius:8px;padding:10px;"><p style="margin:0;font-size:0.82rem;color:#166534;"><i class="ph ph-info"></i> Revise o documento antes de anexar ao prontuário.</p></div>';
-
-    const btnAnexar = document.createElement('button');
-    btnAnexar.id = 'btn-anexar-adv';
-    btnAnexar.className = 'btn btn-primary';
-    btnAnexar.style = 'background:#2f9e44;border-color:#2b8a3e;display:flex;align-items:center;gap:6px;justify-content:center;padding:0.75rem;font-size:0.95rem;';
-    btnAnexar.innerHTML = '<i class="ph ph-paperclip"></i> Anexar ao Prontuário';
-    btnAnexar.addEventListener('click', () => window.anexarAdvertenciaAoProntuario());
-
-    const btnImprimir = document.createElement('button');
-    btnImprimir.className = 'btn btn-secondary';
-    btnImprimir.style = 'display:flex;align-items:center;gap:6px;justify-content:center;padding:0.7rem;';
-    btnImprimir.innerHTML = '<i class="ph ph-printer"></i> Imprimir / PDF';
-    btnImprimir.addEventListener('click', () => window.imprimirDocumento && window.imprimirDocumento());
-
-    sidePanel.appendChild(btnAnexar);
-    sidePanel.appendChild(btnImprimir);
-
-    body.appendChild(docPanel);
-    body.appendChild(sidePanel);
-    modal.appendChild(body);
-    document.body.appendChild(modal);
-
-    // Renderizar documento no iframe
-    setTimeout(() => {
-        const doc = iframe.contentDocument || iframe.contentWindow.document;
-        if (doc) { doc.open(); doc.write(buildAdvertenciaTemplate(data, logoSrc)); doc.close(); }
-    }, 50);
-
-    // Manter compatibilidade com codigo que usa o modal antigo (fechar pelo id antigo)
-    const legacyModalEl = document.getElementById('modal-preview-doc');
-    if (legacyModalEl) legacyModalEl.style.display = 'none';
+    document.getElementById('modal-preview-doc').style.display = 'block';
 };
 
 
@@ -3622,10 +3581,7 @@ window.anexarAdvertenciaAoProntuario = async function() {
         // Ocorrência: sem assinatura e sem OneDrive — apenas salvo no prontuário local
         // (Advertência Verbal → OneDrive ocorre após testemunhas; Escrita/Suspensão → após testemunhas + colaborador)
 
-        // Fechar modal fullscreen
-        const advModal = document.getElementById('modal-adv-fullscreen');
-        if (advModal) advModal.remove();
-        document.getElementById('modal-preview-doc') && (document.getElementById('modal-preview-doc').style.display = 'none');
+        document.getElementById('modal-preview-doc').style.display = 'none';
 
         // Feedback visual sem alert
         if (btn) {
