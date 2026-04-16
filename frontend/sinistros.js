@@ -44,7 +44,7 @@ window.renderSinistrosTab = async function(container, customColabId = null) {
     // Carregar sinistros do backend
     let sinistros = [];
     try {
-        sinistros = await apiGet(\`/colaboradores/\${colab.id}/sinistros\`) || [];
+        sinistros = await apiGet(`/colaboradores/${colab.id}/sinistros`) || [];
     } catch(e) {
         console.error('Erro ao buscar sinistros:', e);
         listaContainer.innerHTML = '<div class="alert alert-danger">Erro ao carregar sinistros.</div>';
@@ -85,63 +85,63 @@ window._renderSinistroCard = function(s, colabId, container) {
         let testOk = s.assinatura_testemunha1_base64 && s.assinatura_testemunha2_base64;
         let condOk = s.assinatura_condutor_base64;
         
-        signStatus = \`
+        signStatus = `
             <div style="display:flex; gap:0.5rem; margin-top:0.5rem;">
-                <span style="font-size:0.75rem; padding:2px 8px; border-radius:4px; \${testOk ? 'background:#dcfce7; color:#166534;' : 'background:#fee2e2; color:#b91c1c;'}"><i class="ph \${testOk?'ph-check':'ph-x'}"></i> Testemunhas</span>
-                <span style="font-size:0.75rem; padding:2px 8px; border-radius:4px; \${condOk ? 'background:#dcfce7; color:#166534;' : 'background:#fee2e2; color:#b91c1c;'}"><i class="ph \${condOk?'ph-check':'ph-x'}"></i> Condutor</span>
+                <span style="font-size:0.75rem; padding:2px 8px; border-radius:4px; ${testOk ? 'background:#dcfce7; color:#166534;' : 'background:#fee2e2; color:#b91c1c;'}"><i class="ph ${testOk?'ph-check':'ph-x'}"></i> Testemunhas</span>
+                <span style="font-size:0.75rem; padding:2px 8px; border-radius:4px; ${condOk ? 'background:#dcfce7; color:#166534;' : 'background:#fee2e2; color:#b91c1c;'}"><i class="ph ${condOk?'ph-check':'ph-x'}"></i> Condutor</span>
             </div>
-        \`;
+        `;
     }
 
     if (s.status === 'assinado') {
-        actionsHtml = \`
-            <button class="btn btn-sm" onclick="window.verDocumentoSinistro(\${s.id}, \${colabId})" style="color:#0284c7; background:#e0f2fe; border:none;"><i class="ph ph-eye"></i> Ver Documento</button>
-        \`;
+        actionsHtml = `
+            <button class="btn btn-sm" onclick="window.verDocumentoSinistro(${s.id}, ${colabId})" style="color:#0284c7; background:#e0f2fe; border:none;"><i class="ph ph-eye"></i> Ver Documento</button>
+        `;
     } else {
         if (!s.processo_iniciado || !s.documento_html) {
             // Em tese n entra aqui, ele ja Inicia o processo quando é inserido se teve desconto=Sim. Se nao, anexou só BO
             if(s.desconto === 'Não') {
-                 actionsHtml = \`<span style="font-size:0.85rem; color:#64748b;"><i class="ph ph-check-circle"></i> Apenas Registro (BO Anexado)</span>\`;
+                 actionsHtml = `<span style="font-size:0.85rem; color:#64748b;"><i class="ph ph-check-circle"></i> Apenas Registro (BO Anexado)</span>`;
             } else {
-                 actionsHtml = \`
-                    <button class="btn btn-sm" onclick="window.gerarDocumentoSinistro(\${s.id}, \${colabId})" style="color:#0284c7; background:#e0f2fe; border:none;"><i class="ph ph-file-text"></i> Gerar Documento</button>
-                 \`;
+                 actionsHtml = `
+                    <button class="btn btn-sm" onclick="window.gerarDocumentoSinistro(${s.id}, ${colabId})" style="color:#0284c7; background:#e0f2fe; border:none;"><i class="ph ph-file-text"></i> Gerar Documento</button>
+                 `;
             }
         } else {
             let testOk = s.assinatura_testemunha1_base64 && s.assinatura_testemunha2_base64;
             let condOk = s.assinatura_condutor_base64;
             
-            actionsHtml = \`<div style="display:flex; gap:0.5rem;">\`;
+            actionsHtml = `<div style="display:flex; gap:0.5rem;">`;
             if (!testOk) {
-                actionsHtml += \`<button class="btn btn-sm btn-primary" onclick="window.abrirModalAssinaturaTestemunhas(null, \${s.id}, 'Sinistro')" style="background:#a78bfa; border:none;"><i class="ph ph-pen"></i> Assinar Testemunhas</button>\`;
+                actionsHtml += `<button class="btn btn-sm btn-primary" onclick="window.abrirModalAssinaturaTestemunhas(null, ${s.id}, 'Sinistro')" style="background:#a78bfa; border:none;"><i class="ph ph-pen"></i> Assinar Testemunhas</button>`;
             } else if (!condOk) {
-                actionsHtml += \`<button class="btn btn-sm btn-primary" onclick="window.abrirModalAssinaturaCondutor(null, \${s.id}, 'Sinistro')" style="background:#f59e0b; border:none;"><i class="ph ph-pen"></i> Assinar Condutor</button>\`;
+                actionsHtml += `<button class="btn btn-sm btn-primary" onclick="window.abrirModalAssinaturaCondutor(null, ${s.id}, 'Sinistro')" style="background:#f59e0b; border:none;"><i class="ph ph-pen"></i> Assinar Condutor</button>`;
             }
-            actionsHtml += \`<button class="btn btn-sm" onclick="window.verDocumentoSinistro(\${s.id}, \${colabId})" style="color:#64748b; background:#f1f5f9; border:none;"><i class="ph ph-eye"></i> Preview</button>\`;
-            actionsHtml += \`</div>\`;
+            actionsHtml += `<button class="btn btn-sm" onclick="window.verDocumentoSinistro(${s.id}, ${colabId})" style="color:#64748b; background:#f1f5f9; border:none;"><i class="ph ph-eye"></i> Preview</button>`;
+            actionsHtml += `</div>`;
         }
     }
 
-    card.innerHTML = \`
+    card.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:flex-start;">
             <div>
-                <h5 style="margin:0; font-size:1.1rem; color:#0f172a; font-weight:700;">BO: \${s.numero_boletim || 'N/A'}</h5>
-                <p style="margin:4px 0 0; font-size:0.85rem; color:#64748b;"><i class="ph ph-calendar"></i> Ocorrido: \${s.data_hora} &nbsp;|&nbsp; \${s.natureza || 'Sem Natureza'}</p>
-                <p style="margin:4px 0 0; font-size:0.85rem; color:#64748b;">\${s.veiculo} &nbsp;|&nbsp; Placa: \${s.placa}</p>
-                \${signStatus}
+                <h5 style="margin:0; font-size:1.1rem; color:#0f172a; font-weight:700;">BO: ${s.numero_boletim || 'N/A'}</h5>
+                <p style="margin:4px 0 0; font-size:0.85rem; color:#64748b;"><i class="ph ph-calendar"></i> Ocorrido: ${s.data_hora} &nbsp;|&nbsp; ${s.natureza || 'Sem Natureza'}</p>
+                <p style="margin:4px 0 0; font-size:0.85rem; color:#64748b;">${s.veiculo} &nbsp;|&nbsp; Placa: ${s.placa}</p>
+                ${signStatus}
             </div>
             <div style="text-align:right;">
-                <span style="display:inline-block; padding:4px 10px; border-radius:20px; font-size:0.75rem; font-weight:600; color:\${st.color}; background:\${st.bg};">\${st.text}</span>
+                <span style="display:inline-block; padding:4px 10px; border-radius:20px; font-size:0.75rem; font-weight:600; color:${st.color}; background:${st.bg};">${st.text}</span>
             </div>
         </div>
         <div style="background:#f8fafc; border-top:1px dashed #cbd5e1; padding-top:0.75rem; display:flex; justify-content:space-between; align-items:center;">
             <div style="font-size:0.8rem; color:#475569;">
-                <strong>Desconto:</strong> \${s.desconto} \${s.desconto === 'Sim' ? \`(\${s.parcelas}x de \${s.valor_parcela})\` : ''} <br/>
-                \${s.tipo_sinistro ? \`<strong>Tipo:</strong> \${s.tipo_sinistro}\` : ''}
+                <strong>Desconto:</strong> ${s.desconto} ${s.desconto === 'Sim' ? `(${s.parcelas}x de ${s.valor_parcela})` : ''} <br/>
+                ${s.tipo_sinistro ? `<strong>Tipo:</strong> ${s.tipo_sinistro}` : ''}
             </div>
-            \${actionsHtml}
+            ${actionsHtml}
         </div>
-    \`;
+    `;
 
     container.appendChild(card);
 };
@@ -156,7 +156,7 @@ window.abrirModalNovoSinistro = function() {
         m = document.createElement('div');
         m.id = 'modal-novo-sinistro';
         m.className = 'modal';
-        m.innerHTML = \`
+        m.innerHTML = `
             <div class="modal-content" style="max-width:600px;">
                 <div class="modal-header">
                     <h3>Registrar Novo Sinistro</h3>
@@ -250,7 +250,7 @@ window.abrirModalNovoSinistro = function() {
 
                 </div>
             </div>
-        \`;
+        `;
         document.body.appendChild(m);
     }
     
@@ -278,9 +278,9 @@ window.processarLeituraBO = async function() {
     btn.disabled = true;
 
     try {
-        const res = await fetch(\`\${API_URL}/extrair-bo\`, {
+        const res = await fetch(`${API_URL}/extrair-bo`, {
             method: 'POST',
-            headers: { 'Authorization': \`Bearer \${localStorage.getItem('token')}\` },
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
             body: formData
         });
         const data = await res.json();
@@ -357,9 +357,9 @@ window.salvarSinistroFinal = async function() {
     btn.disabled = true;
 
     try {
-        const res = await fetch(\`\${API_URL}/colaboradores/\${colab.id}/sinistros\`, {
+        const res = await fetch(`${API_URL}/colaboradores/${colab.id}/sinistros`, {
             method: 'POST',
-            headers: { 'Authorization': \`Bearer \${localStorage.getItem('token')}\` },
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
             body: formData
         });
         const responseData = await res.json();
@@ -367,9 +367,9 @@ window.salvarSinistroFinal = async function() {
 
         // Se desconto = 'Sim', gera doc automaticamente
         if(desconto === 'Sim') {
-            await fetch(\`\${API_URL}/colaboradores/\${colab.id}/sinistros/\${responseData.id}/gerar-documento\`, {
+            await fetch(`${API_URL}/colaboradores/${colab.id}/sinistros/${responseData.id}/gerar-documento`, {
                 method: 'POST',
-                headers: { 'Authorization': \`Bearer \${localStorage.getItem('token')}\` }
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
             });
         }
         
@@ -387,9 +387,9 @@ window.salvarSinistroFinal = async function() {
 
 window.gerarDocumentoSinistro = async function(sinId, colabId) {
     try {
-        const r = await fetch(\`\${API_URL}/colaboradores/\${colabId}/sinistros/\${sinId}/gerar-documento\`, {
+        const r = await fetch(`${API_URL}/colaboradores/${colabId}/sinistros/${sinId}/gerar-documento`, {
             method: 'POST',
-            headers: { 'Authorization': \`Bearer \${localStorage.getItem('token')}\` }
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
         });
         if(r.ok) {
             Toastify({ text: "Documento Gerado!", backgroundColor: "blue" }).showToast();
@@ -403,18 +403,18 @@ window.gerarDocumentoSinistro = async function(sinId, colabId) {
 window.verDocumentoSinistro = async function(sinId, colabId) {
     // Busca novamente o sinistro apenas para obter o html final, ou usa o endpoint atualizado
     // Aqui usaremos o endpoint simples que traz todos da lista
-    let sinistros = await apiGet(\`/colaboradores/\${colabId}/sinistros\`);
+    let sinistros = await apiGet(`/colaboradores/${colabId}/sinistros`);
     let s = sinistros.find(x => x.id == sinId);
     if(s && s.documento_html) {
         const container = document.getElementById('preview-doc-body');
         if (container) {
             container.innerHTML = s.documento_html;
             document.getElementById('preview-doc-title').textContent = 'Visualização de Sinistro';
-            document.getElementById('preview-doc-buttons').innerHTML = \`
+            document.getElementById('preview-doc-buttons').innerHTML = `
                 <button class="btn btn-secondary" onclick="document.getElementById('modal-preview-doc').style.display='none'">
                     <i class="ph ph-x"></i> Fechar
                 </button>
-            \`;
+            `;
             document.getElementById('modal-preview-doc').style.display = 'block';
         }
     } else {
@@ -429,7 +429,7 @@ window.verDocumentoSinistro = async function(sinId, colabId) {
 // =========================================================
 // MOCK APPEND: Lógica de Assinatura Isolada
 window.abrirModalAssinaturaTestemunhasSinistro = async function(sinId, colabId) {
-    let sinistros = await apiGet(\`/colaboradores/\${colabId}/sinistros\`);
+    let sinistros = await apiGet(`/colaboradores/${colabId}/sinistros`);
     let s = sinistros.find(x => x.id == sinId);
     if(!s || !s.documento_html) return alert('HTML do documento não encontrado!');
 
@@ -446,43 +446,43 @@ window.abrirModalAssinaturaTestemunhasSinistro = async function(sinId, colabId) 
     // Testemunhas dropdown
     let options = '<option value="">Selecione...</option>';
     if (window._testemunhasCache) {
-        window._testemunhasCache.forEach(t => { options += \`<option value="\${t.NOME_COMPLETO}">\${t.NOME_COMPLETO}</option>\`; });
+        window._testemunhasCache.forEach(t => { options += `<option value="${t.NOME_COMPLETO}">${t.NOME_COMPLETO}</option>`; });
     }
 
-    modal.innerHTML = \`
+    modal.innerHTML = `
         <div class="modal-content" style="width:100%; max-width:100%; height:100vh; max-height:100vh; margin:0; border-radius:0; display:flex; flex-direction:column; background:#0f172a; overflow:hidden;">
             <div class="modal-header" style="flex-shrink:0; background:#1e293b; padding:0.85rem 1.5rem; display:flex; align-items:center; justify-content:space-between; border-bottom:none;">
-                <h3 style="margin:0; color:#fff; font-size:1rem;"><i class="ph ph-users" style="color:#a78bfa;"></i> Assinatura de Testemunhas - Sinistro #\${s.id}</h3>
+                <h3 style="margin:0; color:#fff; font-size:1rem;"><i class="ph ph-users" style="color:#a78bfa;"></i> Assinatura de Testemunhas - Sinistro #${s.id}</h3>
                 <button onclick="document.getElementById('modal-testemunhas-sinistro').remove()" style="background:rgba(255,255,255,0.1); border:none; color:#fff; border-radius:8px; padding:6px 14px; cursor:pointer; font-size:0.9rem;">Fechar</button>
             </div>
             <div class="modal-body" style="padding:0; flex:1; display:flex; overflow:hidden;">
                 <!-- Esquerda -->
                 <div style="flex:1; overflow-y:auto; background:#f1f5f9; padding:1rem; display:flex; flex-direction:column;">
                     <div style="background:#fff; border-radius:8px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,0.1); min-height:800px;">
-                        \${s.documento_html}
+                        ${s.documento_html}
                     </div>
                 </div>
                 <!-- Direita -->
                 <div style="width:360px; background:#fff; overflow-y:auto; padding:1.5rem 1.5rem 6rem 1.5rem; display:flex; flex-direction:column; gap:1.25rem; border-left:1px solid #e2e8f0; flex-shrink:0;">
                     <div>
                         <label style="font-weight:700; font-size:0.85rem; display:block; margin-bottom:6px;">Testemunha 1</label>
-                        <select id="sin-t1-nome" class="form-control mb-2" style="width:100%;">\${options}</select>
+                        <select id="sin-t1-nome" class="form-control mb-2" style="width:100%;">${options}</select>
                         <div style="border: 2px dashed #cbd5e1; background:#f8fafc; border-radius:8px; margin-bottom:0.5rem;">
                             <canvas id="sin-canvas-t1" style="width:100%; height:130px; cursor:crosshair;"></canvas>
                         </div>
                     </div>
                     <div>
                         <label style="font-weight:700; font-size:0.85rem; display:block; margin-bottom:6px;">Testemunha 2 <span style="font-size:0.8rem; font-weight:400; color:#94a3b8;">(opcional)</span></label>
-                        <select id="sin-t2-nome" class="form-control mb-2" style="width:100%;">\${options}</select>
+                        <select id="sin-t2-nome" class="form-control mb-2" style="width:100%;">${options}</select>
                         <div style="border: 2px dashed #cbd5e1; background:#f8fafc; border-radius:8px; margin-bottom:0.5rem;">
                             <canvas id="sin-canvas-t2" style="width:100%; height:130px; cursor:crosshair;"></canvas>
                         </div>
                     </div>
-                    <button type="button" id="btn-conf-t-sin" onclick="window.salvarAssinaturaTestemunhasSinistro(\${sinId}, \${colabId})" style="padding:0.85rem; background:#2563eb; color:#fff; border:none; border-radius:10px; font-weight:700; font-size:1rem; cursor:pointer;"><i class="ph ph-check"></i> Salvar Assinaturas</button>
+                    <button type="button" id="btn-conf-t-sin" onclick="window.salvarAssinaturaTestemunhasSinistro(${sinId}, ${colabId})" style="padding:0.85rem; background:#2563eb; color:#fff; border:none; border-radius:10px; font-weight:700; font-size:1rem; cursor:pointer;"><i class="ph ph-check"></i> Salvar Assinaturas</button>
                 </div>
             </div>
         </div>
-    \`;
+    `;
     document.body.appendChild(modal);
     modal.style.display = 'flex';
 
@@ -506,27 +506,27 @@ window.salvarAssinaturaTestemunhasSinistro = async function(sinId, colabId) {
 
     let docHtmlComAssinaturas = window._sinistroDocHtmlTestemunhas || '';
     if (docHtmlComAssinaturas) {
-        const inject = \`
+        const inject = `
             <div style="margin-top:20px;padding:10px;border-top:2px solid #e2e8f0;">
                 <p style="font-weight:700;font-size:11px;">ASSINATURAS DAS TESTEMUNHAS:</p>
                 <div style="display:flex;gap:20px;">
                     <div style="text-align:center;">
-                        <img src="\${t1Ass}" style="max-width:180px;max-height:60px;border-bottom:1px solid #000;">
-                        <p style="font-size:10px;margin:2px 0;">\${t1Nome}</p>
+                        <img src="${t1Ass}" style="max-width:180px;max-height:60px;border-bottom:1px solid #000;">
+                        <p style="font-size:10px;margin:2px 0;">${t1Nome}</p>
                     </div>
-                    \${t2Ass && t2Nome ? \`<div style="text-align:center;">
-                        <img src="\${t2Ass}" style="max-width:180px;max-height:60px;border-bottom:1px solid #000;">
-                        <p style="font-size:10px;margin:2px 0;">\${t2Nome}</p>
-                    </div>\` : ''}
+                    ${t2Ass && t2Nome ? `<div style="text-align:center;">
+                        <img src="${t2Ass}" style="max-width:180px;max-height:60px;border-bottom:1px solid #000;">
+                        <p style="font-size:10px;margin:2px 0;">${t2Nome}</p>
+                    </div>` : ''}
                 </div>
-            </div>\`;
+            </div>`;
         docHtmlComAssinaturas = docHtmlComAssinaturas.replace('</body>', inject + '</body>');
     }
 
     try {
-        const res = await fetch(\`\${API_URL}/colaboradores/\${colabId}/sinistros/\${sinId}/assinar-testemunhas\`, {
+        const res = await fetch(`${API_URL}/colaboradores/${colabId}/sinistros/${sinId}/assinar-testemunhas`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': \`Bearer \${localStorage.getItem('token')}\` },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
             body: JSON.stringify({ t1_nome: t1Nome, t1_base64: t1Ass, t2_nome: t2Nome || null, t2_base64: t2Ass, html_atualizado: docHtmlComAssinaturas })
         });
         const data = await res.json();
@@ -539,7 +539,7 @@ window.salvarAssinaturaTestemunhasSinistro = async function(sinId, colabId) {
 };
 
 window.abrirModalAssinaturaCondutorSinistro = async function(sinId, colabId) {
-    let sinistros = await apiGet(\`/colaboradores/\${colabId}/sinistros\`);
+    let sinistros = await apiGet(`/colaboradores/${colabId}/sinistros`);
     let s = sinistros.find(x => x.id == sinId);
     if(!s || !s.documento_html) return alert('HTML do documento não encontrado!');
 
@@ -555,32 +555,32 @@ window.abrirModalAssinaturaCondutorSinistro = async function(sinId, colabId) {
 
     const colabName = window._currentColaboradorForProntuario.nome_completo;
 
-    modal.innerHTML = \`
+    modal.innerHTML = `
         <div class="modal-content" style="width:100%; max-width:100%; height:100vh; max-height:100vh; margin:0; border-radius:0; display:flex; flex-direction:column; background:#0f172a; overflow:hidden;">
             <div class="modal-header" style="flex-shrink:0; background:#1e293b; padding:0.85rem 1.5rem; display:flex; align-items:center; justify-content:space-between; border-bottom:none;">
-                <h3 style="margin:0; color:#fff; font-size:1rem;"><i class="ph ph-pen" style="color:#d97706;"></i> Assinatura do Condutor - Sinistro #\${s.id}</h3>
+                <h3 style="margin:0; color:#fff; font-size:1rem;"><i class="ph ph-pen" style="color:#d97706;"></i> Assinatura do Condutor - Sinistro #${s.id}</h3>
                 <button onclick="document.getElementById('modal-condutor-sinistro').remove()" style="background:rgba(255,255,255,0.1); border:none; color:#fff; border-radius:8px; padding:6px 14px; cursor:pointer; font-size:0.9rem;">Fechar</button>
             </div>
             <div class="modal-body" style="padding:0; flex:1; display:flex; overflow:hidden;">
                 <!-- Esquerda -->
                 <div style="flex:1; overflow-y:auto; background:#f1f5f9; padding:1rem; display:flex; flex-direction:column;">
                     <div style="background:#fff; border-radius:8px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,0.1); min-height:800px;">
-                        \${s.documento_html}
+                        ${s.documento_html}
                     </div>
                 </div>
                 <!-- Direita -->
                 <div style="width:360px; background:#fff; overflow-y:auto; padding:1.5rem 1.5rem 6rem 1.5rem; display:flex; flex-direction:column; gap:1.25rem; border-left:1px solid #e2e8f0; flex-shrink:0;">
                     <div>
-                        <label style="font-weight:700; font-size:0.85rem; display:block; margin-bottom:6px;">Assinatura de: <span style="color:#d97706;">\${colabName}</span></label>
+                        <label style="font-weight:700; font-size:0.85rem; display:block; margin-bottom:6px;">Assinatura de: <span style="color:#d97706;">${colabName}</span></label>
                         <div style="border: 2px dashed #fcd34d; background:#f8fafc; border-radius:8px; margin-bottom:0.5rem;">
                             <canvas id="sin-canvas-condutor" style="width:100%; height:160px; cursor:crosshair;"></canvas>
                         </div>
                     </div>
-                    <button type="button" onclick="window.salvarAssinaturaCondutorSinistro(\${sinId}, \${colabId})" style="padding:0.85rem; background:#2563eb; color:#fff; border:none; border-radius:10px; font-weight:700; font-size:1rem; cursor:pointer;"><i class="ph ph-check"></i> Salvar Assinatura do Condutor</button>
+                    <button type="button" onclick="window.salvarAssinaturaCondutorSinistro(${sinId}, ${colabId})" style="padding:0.85rem; background:#2563eb; color:#fff; border:none; border-radius:10px; font-weight:700; font-size:1rem; cursor:pointer;"><i class="ph ph-check"></i> Salvar Assinatura do Condutor</button>
                 </div>
             </div>
         </div>
-    \`;
+    `;
     document.body.appendChild(modal);
     modal.style.display = 'flex';
 
@@ -596,14 +596,14 @@ window.salvarAssinaturaCondutorSinistro = async function(sinId, colabId) {
     
     if (docHtmlComAssinaturas) {
         // Coloca a assinatura do condutor acima/antes das testemunhas
-        const inject = \`
+        const inject = `
             <div style="margin-top:20px;padding:10px;border-top:2px solid #e2e8f0;">
                 <p style="font-weight:700;font-size:11px;">ASSINATURA DO CONDUTOR:</p>
                 <div style="text-align:center; width:200px;">
-                    <img src="\${assinaturaBase64}" style="max-width:180px;max-height:60px;border-bottom:1px solid #000;">
-                    <p style="font-size:10px;margin:2px 0;">\${colabName}</p>
+                    <img src="${assinaturaBase64}" style="max-width:180px;max-height:60px;border-bottom:1px solid #000;">
+                    <p style="font-size:10px;margin:2px 0;">${colabName}</p>
                 </div>
-            </div>\`;
+            </div>`;
         
         if (docHtmlComAssinaturas.includes('ASSINATURAS DAS TESTEMUNHAS:')) {
             docHtmlComAssinaturas = docHtmlComAssinaturas.replace(
@@ -616,9 +616,9 @@ window.salvarAssinaturaCondutorSinistro = async function(sinId, colabId) {
     }
 
     try {
-        const res = await fetch(\`\${API_URL}/colaboradores/\${colabId}/sinistros/\${sinId}/assinar-condutor\`, {
+        const res = await fetch(`${API_URL}/colaboradores/${colabId}/sinistros/${sinId}/assinar-condutor`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': \`Bearer \${localStorage.getItem('token')}\` },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
             body: JSON.stringify({ assinatura_base64: assinaturaBase64, documento_html: docHtmlComAssinaturas })
         });
         const data = await res.json();
