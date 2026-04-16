@@ -2680,27 +2680,118 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
     }
 });
 
-// TESTEMUNHAS E CONDUTOR usam logica parecida com multas. Para simplificar o script sem inchar muito:
+// Helper: gera PDF a partir de HTML e salva no OneDrive do colaborador
+async function salvarPDFSinistroNoOneDrive(colaboradorId, sinistroId, htmlDoc, nomeArquivo) {
+    try {
+        const htmlPdf = require('html-pdf-node');
+        const colab = await new Promise((resolve, reject) =>
+            db.get('SELECT * FROM colaboradores WHERE id = ?', [colaboradorId], (err, row) => err ? reject(err) : resolve(row))
+        );
+        if (!colab) throw new Error('Colaborador não encontrado');
+
+        const sin = await new Promise((resolve, reject) =>
+            db.get('SELECT * FROM sinistros WHERE id = ?', [sinistroId], (err, row) => err ? reject(err) : resolve(row))
+        );
+        if (!sin) throw new Error('Sinistro não encontrado');
+
+        const nomeFormatado = (colab.nome_completo || colab.nome || 'COLAB')
+            .toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/\s+/g, '_').replace(/[^A-Z0-9_]/g, '');
+
+        const pastaDataStr = (sin.data_hora || '').split(' ')[0].replace(/\//g, '-');
+        const pastaRoot = process.env.ONEDRIVE_BASE_PATH || 'RH/1.Colaboradores/Sistema';
+        const targetDir = pastaRoot + '/' + nomeFormatado + '/SINISTROS/' + (pastaDataStr || 'SEM_DATA');
+
+        const pdfBuffer = await htmlPdf.generatePdf(
+            { content: htmlDoc },
+            { format: 'A4', margin: { top: '1cm', bottom: '1cm', left: '1cm', right: '1cm' },
+              printBackground: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] }
+        );
+
+        if (typeof onedrive !== 'undefined') {
+            await onedrive.ensurePath(pastaRoot + '/' + nomeFormatado);
+            await onedrive.ensurePath(pastaRoot + '/' + nomeFormatado + '/SINISTROS');
+            await onedrive.ensurePath(targetDir);
+            await onedrive.uploadToOneDrive(targetDir, nomeArquivo, pdfBuffer);
+        }
+
+        // Atualiza path no banco
+        const pdfPath = targetDir + '/' + nomeArquivo;
+        db.run('UPDATE sinistros SET boletim_path = ? WHERE id = ?', [pdfPath, sinistroId]);
+
+        console.log('[Sinistro] PDF salvo em:', pdfPath);
+        return pdfPath;
+    } catch(e) {
+        console.error('[Sinistro] Erro ao salvar PDF no OneDrive:', e.message);
+        throw e;
+    }
+}
+
 app.post('/api/colaboradores/:id/sinistros/:sinistroId/assinar-testemunhas', authenticateToken, async (req, res) => {
     try {
+        const { id, sinistroId } = req.params;
         const { t1_nome, t1_base64, t2_nome, t2_base64, html_atualizado } = req.body;
-        db.run(`UPDATE sinistros SET assinatura_testemunha1_nome=?, assinatura_testemunha1_base64=?, 
-                assinatura_testemunha2_nome=?, assinatura_testemunha2_base64=?, documento_html=? WHERE id=?`,
-                [t1_nome, t1_base64, t2_nome, t2_base64, html_atualizado, req.params.sinistroId]);
-        
-        // Aqui deve gerar o PDF 'Termo_Sinistro_Datadoocorrido_Testemunhas.pdf'
+
+        await new Promise((resolve, reject) =>
+            db.run(`UPDATE sinistros SET assinatura_testemunha1_nome=?, assinatura_testemunha1_base64=?, 
+                    assinatura_testemunha2_nome=?, assinatura_testemunha2_base64=?, documento_html=? WHERE id=?`,
+                    [t1_nome, t1_base64, t2_nome, t2_base64, html_atualizado, sinistroId],
+                    err => err ? reject(err) : resolve())
+        );
+
+        // Gerar e salvar PDF com assinaturas das testemunhas
+        if (html_atualizado) {
+            const sin = await new Promise((resolve, reject) =>
+                db.get('SELECT * FROM sinistros WHERE id = ?', [sinistroId], (err, row) => err ? reject(err) : resolve(row))
+            );
+            const colab = await new Promise((resolve, reject) =>
+                db.get('SELECT * FROM colaboradores WHERE id = ?', [id], (err, row) => err ? reject(err) : resolve(row))
+            );
+            const nomeFormatado = (colab?.nome_completo || colab?.nome || 'COLAB')
+                .toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .replace(/\s+/g, '_').replace(/[^A-Z0-9_]/g, '');
+            const dataStr = (sin?.data_hora || '').split(' ')[0].replace(/\//g,'-').replace(/-/g,'') || String(Date.now());
+            const nomeArquivo = `Sinistro_${dataStr}_${nomeFormatado}.pdf`;
+
+            await salvarPDFSinistroNoOneDrive(id, sinistroId, html_atualizado, nomeArquivo);
+        }
+
         res.json({ sucesso: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/colaboradores/:id/sinistros/:sinistroId/assinar-condutor', authenticateToken, async (req, res) => {
     try {
+        const { id, sinistroId } = req.params;
         const { assinatura_base64, documento_html } = req.body;
-        db.run(`UPDATE sinistros SET assinatura_condutor_base64=?, documento_html=?, assinaturas_finalizadas=1, status='assinado' WHERE id=?`,
-                [assinatura_base64, documento_html, req.params.sinistroId]);
+
+        await new Promise((resolve, reject) =>
+            db.run(`UPDATE sinistros SET assinatura_condutor_base64=?, documento_html=?, assinaturas_finalizadas=1, status='assinado' WHERE id=?`,
+                    [assinatura_base64, documento_html, sinistroId],
+                    err => err ? reject(err) : resolve())
+        );
+
+        // Gerar e salvar PDF final (condutor + testemunhas) sobrepondo o arquivo anterior
+        if (documento_html) {
+            const sin = await new Promise((resolve, reject) =>
+                db.get('SELECT * FROM sinistros WHERE id = ?', [sinistroId], (err, row) => err ? reject(err) : resolve(row))
+            );
+            const colab = await new Promise((resolve, reject) =>
+                db.get('SELECT * FROM colaboradores WHERE id = ?', [id], (err, row) => err ? reject(err) : resolve(row))
+            );
+            const nomeFormatado = (colab?.nome_completo || colab?.nome || 'COLAB')
+                .toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .replace(/\s+/g, '_').replace(/[^A-Z0-9_]/g, '');
+            const dataStr = (sin?.data_hora || '').split(' ')[0].replace(/\//g,'-').replace(/-/g,'') || String(Date.now());
+            const nomeArquivo = `Sinistro_${dataStr}_${nomeFormatado}.pdf`; // mesmo nome = sobrepõe
+
+            await salvarPDFSinistroNoOneDrive(id, sinistroId, documento_html, nomeArquivo);
+        }
+
         res.json({ sucesso: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
+
 // =============================================================================
 
 // --- ROTAS DE MULTAS DE TRÂNSITO ----------------------------------------------
