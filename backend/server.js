@@ -3671,6 +3671,10 @@ app.delete('/api/geradores/:id', authenticateToken, (req, res) => {
         }
         db.run("DELETE FROM geradores WHERE id = ?", [req.params.id], function(err) {
             if (err) return res.status(500).json({ error: err.message });
+            // Registra na lista de excluidos para que o seed nao recrie ao reiniciar
+            db.run("CREATE TABLE IF NOT EXISTS geradores_excluidos (nome TEXT PRIMARY KEY)", () => {
+                db.run("INSERT OR IGNORE INTO geradores_excluidos (nome) VALUES (?)", [originalName]);
+            });
             res.json({ message: 'Gerador removido' });
         });
     });
