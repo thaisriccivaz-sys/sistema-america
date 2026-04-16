@@ -2530,7 +2530,9 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
         // O tipo_sinistro mapeia pro nome do gerador
         // O tipo_sinistro mapeia pro nome do gerador
         const geradorNome = '%' + (sin.tipo_sinistro || '').trim() + '%';
+        console.log('[Sinistro] tipo_sinistro salvo:', JSON.stringify(sin.tipo_sinistro), '| buscando gerador LIKE:', geradorNome);
         let gerador = await new Promise((resolve) => db.get('SELECT * FROM geradores WHERE nome LIKE ? AND nome LIKE "%Sinistro%"', [geradorNome], (e, r) => resolve(r)));
+        console.log('[Sinistro] gerador encontrado:', gerador ? gerador.nome : 'NENHUM — usando fallback');
         
         let template = '';
         if(!gerador) {
