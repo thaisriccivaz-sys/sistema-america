@@ -5764,13 +5764,6 @@ app.post('/api/colaboradores/:id/multas/:multaId/gerar-documento', authenticateT
             var ano = hoje.getFullYear();
             return '<p class="data-local"><strong>Guarulhos, ' + dia + ' de ' + mes + ' de ' + ano + '.</strong></p>';
         })()}
-        <div class="assinaturas">
-            <div class="assin-row">
-                <div class="assin-box" style="min-height:100px;">Assinatura do Condutor<br><br><br>${nome}</div>
-                <div class="assin-box" style="min-height:100px;">Testemunha 1<br><br><br>&nbsp;</div>
-                <div class="assin-box" style="min-height:100px;">Testemunha 2<br><br><br>&nbsp;</div>
-            </div>
-        </div>
         </body></html>`;
 
         res.json({ sucesso: true, html });
