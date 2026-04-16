@@ -13222,6 +13222,8 @@ window.abrirModalAssinaturaCondutor = async function(m, colabId) {
     }
 
     window._initCanvasMulta('canvas-condutor');
+    // Armazenar HTML com assinaturas das testemunhas para enviar ao backend
+    window._multaDocHtmlCondutor = docHtml;
 };
 
 window.confirmarAssinaturaCondutor = async function(multaId, colabId) {
@@ -13233,7 +13235,7 @@ window.confirmarAssinaturaCondutor = async function(multaId, colabId) {
         const res = await fetch(`${API_URL}/colaboradores/${colabId}/multas/${multaId}/assinar-condutor`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
-            body: JSON.stringify({ assinatura_base64: assinatura })
+            body: JSON.stringify({ assinatura_base64: assinatura, documento_html: window._multaDocHtmlCondutor || '' })
         });
         const data = await res.json();
         if (!data.sucesso) throw new Error(data.error || 'Erro.');

@@ -5793,12 +5793,12 @@ app.post('/api/colaboradores/:id/multas/:multaId/iniciar-processo', authenticate
     );
 });
 
-// POST /api/colaboradores/:id/multas/:multaId/assinar-testemunhas — salva assinaturas das testemunhas
+// POST /api/colaboradores/:id/multas/:multaId/assinar-testemunhas
 app.post('/api/colaboradores/:id/multas/:multaId/assinar-testemunhas', authenticateToken, (req, res) => {
     const { multaId } = req.params;
     const { testemunha1_nome, testemunha1_assinatura, testemunha2_nome, testemunha2_assinatura, documento_html } = req.body;
     if (!testemunha1_assinatura) {
-        return res.status(400).json({ error: 'Assinatura da primeira testemunha é obrigatória.' });
+        return res.status(400).json({ error: 'Assinatura da primeira testemunha e obrigatorio.' });
     }
     db.run(
         `UPDATE multas SET
@@ -5812,24 +5812,74 @@ app.post('/api/colaboradores/:id/multas/:multaId/assinar-testemunhas', authentic
         [testemunha1_nome, testemunha1_assinatura, testemunha2_nome || null, testemunha2_assinatura || null, documento_html || null, multaId],
         (err) => {
             if (err) return res.status(500).json({ error: err.message });
+            // Salvar PDF no OneDrive apos assinatura das testemunhas
+            if (onedrive && documento_html) {
+                ;(async () => {
+                    try {
+                        const colab = await new Promise((resolve, reject) => db.get(
+                            'SELECT c.nome_completo, m.codigo_infracao FROM multas m JOIN colaboradores c ON c.id = m.colaborador_id WHERE m.id = ?',
+                            [multaId], (e, r) => e ? reject(e) : resolve(r)
+                        ));
+                        if (!colab) return;
+                        const safeColab = formatarNome(colab.nome_completo || 'DESCONHECIDO');
+                        const codigo = (colab.codigo_infracao || 'MULTA').replace(/[^A-Z0-9]/gi, '');
+                        const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || 'RH/1.Colaboradores/Sistema';
+                        const targetDir = onedriveBasePath + '/' + safeColab + '/MULTAS/' + codigo;
+                        await onedrive.ensurePath(onedriveBasePath + '/' + safeColab);
+                        await onedrive.ensurePath(onedriveBasePath + '/' + safeColab + '/MULTAS');
+                        await onedrive.ensurePath(targetDir);
+                        const pdf = require('html-pdf-node');
+                        const pdfBuffer = await pdf.generatePdf({ content: documento_html }, { format: 'A4', margin: { top: '10mm', bottom: '10mm', left: '10mm', right: '10mm' } });
+                        const nomeArquivo = 'Termo_Multa_' + codigo + '_' + safeColab + '_Testemunhas.pdf';
+                        await onedrive.uploadToOneDrive(targetDir, nomeArquivo, pdfBuffer);
+                        console.log('[MULTA-TESTEMUNHAS] PDF salvo: ' + targetDir + '/' + nomeArquivo);
+                    } catch (e) { console.error('[MULTA-TESTEMUNHAS] Erro OneDrive:', e.message); }
+                })();
+            }
             res.json({ sucesso: true });
         }
     );
 });
 
-// POST /api/colaboradores/:id/multas/:multaId/assinar-condutor — salva assinatura do condutor
-app.post('/api/colaboradores/:id/multas/:multaId/assinar-condutor', authenticateToken, (req, res) => {
+// POST /api/colaboradores/:id/multas/:multaId/assinar-condutor
+app.post('/api/colaboradores/:id/multas/:multaId/assinar-condutor', authenticateToken, async (req, res) => {
     const { multaId } = req.params;
-    const { assinatura_base64 } = req.body;
-    if (!assinatura_base64) return res.status(400).json({ error: 'Assinatura obrigatória.' });
-    db.run(
-        `UPDATE multas SET assinatura_condutor_base64 = ?, assinaturas_finalizadas = 1, status = 'assinado' WHERE id = ?`,
-        [assinatura_base64, multaId],
-        (err) => {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ sucesso: true });
+    const { assinatura_base64, documento_html } = req.body;
+    if (!assinatura_base64) return res.status(400).json({ error: 'Assinatura obrigatoria.' });
+    try {
+        const sqlUpdate = documento_html
+            ? 'UPDATE multas SET assinatura_condutor_base64 = ?, assinaturas_finalizadas = 1, status = \'assinado\', documento_html = ? WHERE id = ?'
+            : 'UPDATE multas SET assinatura_condutor_base64 = ?, assinaturas_finalizadas = 1, status = \'assinado\' WHERE id = ?';
+        const sqlParams = documento_html ? [assinatura_base64, documento_html, multaId] : [assinatura_base64, multaId];
+        await new Promise((resolve, reject) => db.run(sqlUpdate, sqlParams, (e) => e ? reject(e) : resolve()));
+        // Salvar PDF final no OneDrive (substitui arquivo das testemunhas)
+        if (onedrive && documento_html) {
+            ;(async () => {
+                try {
+                    const colab = await new Promise((resolve, reject) => db.get(
+                        'SELECT c.nome_completo, m.codigo_infracao FROM multas m JOIN colaboradores c ON c.id = m.colaborador_id WHERE m.id = ?',
+                        [multaId], (e, r) => e ? reject(e) : resolve(r)
+                    ));
+                    if (!colab) return;
+                    const safeColab = formatarNome(colab.nome_completo || 'DESCONHECIDO');
+                    const codigo = (colab.codigo_infracao || 'MULTA').replace(/[^A-Z0-9]/gi, '');
+                    const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || 'RH/1.Colaboradores/Sistema';
+                    const targetDir = onedriveBasePath + '/' + safeColab + '/MULTAS/' + codigo;
+                    await onedrive.ensurePath(onedriveBasePath + '/' + safeColab);
+                    await onedrive.ensurePath(onedriveBasePath + '/' + safeColab + '/MULTAS');
+                    await onedrive.ensurePath(targetDir);
+                    const pdf = require('html-pdf-node');
+                    const pdfBuffer = await pdf.generatePdf({ content: documento_html }, { format: 'A4', margin: { top: '10mm', bottom: '10mm', left: '10mm', right: '10mm' } });
+                    const nomeArquivo = 'Termo_Multa_' + codigo + '_' + safeColab + '_Assinado.pdf';
+                    await onedrive.uploadToOneDrive(targetDir, nomeArquivo, pdfBuffer);
+                    console.log('[MULTA-CONDUTOR] PDF final salvo: ' + targetDir + '/' + nomeArquivo);
+                } catch (e) { console.error('[MULTA-CONDUTOR] Erro OneDrive:', e.message); }
+            })();
         }
-    );
+        res.json({ sucesso: true });
+    } catch(e) {
+        res.status(500).json({ error: e.message });
+    }
 });
 
 app.listen(PORT, () => {
