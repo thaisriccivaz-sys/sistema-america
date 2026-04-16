@@ -2268,7 +2268,9 @@ app.get('/api/colaboradores/:id/sinistros', authenticateToken, (req, res) => {
     });
 });
 
-app.post('/api/extrair-bo', authenticateToken, multaUpload.single('arquivo'), async (req, res) => {
+const multerUploadMemoria = require('multer')({ storage: require('multer').memoryStorage() });
+
+app.post('/api/extrair-bo', authenticateToken, multerUploadMemoria.single('arquivo'), async (req, res) => {
     try {
         if (!req.file) throw new Error('BO não enviado.');
         // Require pdf-parse (ensure it's in scope)
@@ -2291,7 +2293,7 @@ app.post('/api/extrair-bo', authenticateToken, multaUpload.single('arquivo'), as
     }
 });
 
-app.post('/api/colaboradores/:id/sinistros', authenticateToken, multaUpload.single('arquivo'), async (req, res) => {
+app.post('/api/colaboradores/:id/sinistros', authenticateToken, multerUploadMemoria.single('arquivo'), async (req, res) => {
     try {
         const { id } = req.params;
         const body = req.body;
