@@ -5652,9 +5652,9 @@ app.post('/api/colaboradores/:id/multas/:multaId/gerar-documento', authenticateT
         if (!colab || !multa) return res.status(404).json({ error: 'Não encontrado.' });
 
         const parcelas = multa.parcelas || 1;
-        const check1x = parcelas === 1 ? '?' : '&nbsp;';
-        const check2x = parcelas === 2 ? '?' : '&nbsp;';
-        const check3x = parcelas === 3 ? '?' : '&nbsp;';
+        const check1x = parcelas === 1 ? 'X' : '&nbsp;';
+        const check2x = parcelas === 2 ? 'X' : '&nbsp;';
+        const check3x = parcelas === 3 ? 'X' : '&nbsp;';
         // Calcular valor das parcelas
         const _vBruto = multa.valor_multa ? parseFloat(String(multa.valor_multa).replace(/[^0-9,.]/g,'').replace(',','.')) : 0;
         const _fmt = (v) => v > 0 ? 'R\$ ' + v.toFixed(2).replace('.',',') : '';
