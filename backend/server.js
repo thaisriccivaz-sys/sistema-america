@@ -2404,7 +2404,8 @@ app.post('/api/extrair-bo', authenticateToken, multerUploadMemoria.single('arqui
         if (matPl) placa = matPl[1].replace(/\s/g, '').toUpperCase();
 
         console.log('[BO] boletim=' + boletim + ' | data=' + dataHoraStr + ' | natureza=' + natureza + ' | placa=' + placa + ' | modelo=' + marcaModelo);
-        res.json({ sucesso: true, boletim: boletim, data_hora: dataHoraStr, natureza: natureza, placa: placa, marca_modelo: marcaModelo });
+        console.log('[BO-TEXT]', text.substring(0, 500));
+        res.json({ sucesso: true, boletim: boletim, data_hora: dataHoraStr, natureza: natureza, placa: placa, marca_modelo: marcaModelo, _debug_text: text.substring(0, 2000) });
     } catch(e) {
         console.error('[EXTRAIR-BO] Erro:', e.message);
         res.status(500).json({ error: e.message });
