@@ -2408,11 +2408,11 @@ app.post('/api/extrair-bo', authenticateToken, multerUploadMemoria.single('arqui
         const matMM = cleanText.match(/Marca\/Modelo[^\w]*([A-Z0-9\/\-\s]{3,30}?)(?:Ano\s|Cor\s|Chassi|Placa)/i);
         if (matMM) marcaModelo = matMM[1].trim();
 
-        // Placa: "TLR0H81"
+        // Placa: "TLR0H81" (ou "TLR0H811" com typo do PDF real)
         let placa = '';
-        const matPl = cleanText.match(/Placa[^\w]*([A-Z]{3}[-\s]*\d[A-Z0-9]\d{2})/i)
-                   || cleanText.match(/Placa[^\w]*([A-Z]{3}[-\s]*\d{4})/i)
-                   || cleanText.match(/(?:^|\s)([A-Z]{3}[-\s]*\d[A-Z0-9]\d{2})(?:\s|$)/i); // aggressive fallback
+        const matPl = cleanText.match(/Placa[^\w]*([A-Z]{3}[-\s]*\d[A-Z0-9]\d{2,3})/i)
+                   || cleanText.match(/Placa[^\w]*([A-Z]{3}[-\s]*\d{4,5})/i)
+                   || cleanText.match(/(?:^|\s)([A-Z]{3}[-\s]*[0-9][A-Z0-9]{3,4})(?:[-\s]|$)/i); // aggressive fallback
         if (matPl) placa = matPl[1].replace(/[-\s]/g, '').toUpperCase();
 
         console.log('[BO] boletim=' + boletim + ' | data=' + dataHoraStr + ' | natureza=' + natureza + ' | placa=' + placa + ' | modelo=' + marcaModelo);
