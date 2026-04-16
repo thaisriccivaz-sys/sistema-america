@@ -420,23 +420,21 @@ window.verDocumentoSinistro = async function(sinId, colabId) {
     const genData = await rGen.json();
     const htmlFinal = genData.html;
 
-    // Abre em fullscreen próprio para evitar z-index do sidebar
-    const existing = document.getElementById('sin-fullscreen-viewer');
-    if (existing) existing.remove();
-
-    const overlay = document.createElement('div');
-    overlay.id = 'sin-fullscreen-viewer';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#0f172a;display:flex;flex-direction:column;overflow:hidden;';
-    overlay.innerHTML = `
-        <div style="flex-shrink:0;background:#1e293b;padding:0.85rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
-            <h3 style="margin:0;color:#fff;font-size:1rem;"><i class="ph ph-file-text" style="color:#60a5fa;"></i> Visualização — Sinistro</h3>
-            <button onclick="document.getElementById('sin-fullscreen-viewer').remove()" style="background:rgba(255,255,255,0.1);border:none;color:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;">✕ Fechar</button>
-        </div>
-        <div style="flex:1;overflow-y:auto;background:#f1f5f9;padding:1.5rem;">
-            <div style="background:#fff;border-radius:8px;padding:30px;max-width:800px;margin:0 auto;">${htmlFinal}</div>
-        </div>
-    `;
-    document.body.appendChild(overlay);
+    const modalBody = document.getElementById('preview-doc-body');
+    if (modalBody) {
+        modalBody.innerHTML = htmlFinal;
+        document.getElementById('preview-doc-title').textContent = 'Visualização — Sinistro';
+        const btns = document.getElementById('preview-doc-buttons');
+        if (btns) {
+            btns.innerHTML = `
+                <button class="btn btn-primary" onclick="window.salvarDocumentoPDF()"><i class="ph ph-download-simple"></i> Salvar como PDF</button>
+                <button class="btn btn-secondary" onclick="window.imprimirDocumento()"><i class="ph ph-printer"></i> Imprimir</button>
+                <button class="btn btn-secondary" onclick="document.getElementById('modal-preview-doc').style.display='none'"><i class="ph ph-x"></i> Fechar</button>`;
+        }
+        document.getElementById('modal-preview-doc').style.display = 'block';
+    } else {
+        alert('Visualizador padrão não encontrado.');
+    }
 };
 
 // =========================================================
@@ -495,8 +493,10 @@ window.abrirModalAssinaturaTestemunhasSinistro = async function(sinId, colabId) 
                 <button onclick="document.getElementById('modal-testemunhas-sinistro').remove()" style="background:rgba(255,255,255,0.1);border:none;color:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;">Fechar</button>
             </div>
             <div style="padding:0;flex:1;display:flex;overflow:hidden;">
-                <div style="flex:1;overflow-y:auto;background:#f1f5f9;padding:1rem;">
-                    <div style="background:#fff;border-radius:8px;padding:20px;min-height:800px;">${docHtmlFresh}</div>
+                <div style="flex:1;overflow-y:auto;background:#f1f5f9;padding:2rem;">
+                    <div style="background:white;margin:0 auto;width:21cm;min-height:29.7cm;padding:0;box-shadow:0 0 20px rgba(0,0,0,0.1);border:1px solid #ddd;overflow:hidden;">
+                        ${docHtmlFresh}
+                    </div>
                 </div>
                 <div style="width:360px;background:#fff;overflow-y:auto;padding:1.5rem 1.5rem 6rem;display:flex;flex-direction:column;gap:1.25rem;border-left:1px solid #e2e8f0;flex-shrink:0;">
                     <div>
@@ -650,8 +650,10 @@ window.abrirModalAssinaturaCondutorSinistro = async function(sinId, colabId) {
                 <button onclick="document.getElementById('modal-condutor-sinistro').remove()" style="background:rgba(255,255,255,0.1);border:none;color:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;">Fechar</button>
             </div>
             <div style="padding:0;flex:1;display:flex;overflow:hidden;">
-                <div style="flex:1;overflow-y:auto;background:#f1f5f9;padding:1rem;">
-                    <div style="background:#fff;border-radius:8px;padding:20px;min-height:800px;">${s.documento_html}</div>
+                <div style="flex:1;overflow-y:auto;background:#f1f5f9;padding:2rem;">
+                    <div style="background:white;margin:0 auto;width:21cm;min-height:29.7cm;padding:0;box-shadow:0 0 20px rgba(0,0,0,0.1);border:1px solid #ddd;overflow:hidden;">
+                        ${s.documento_html}
+                    </div>
                 </div>
                 <div style="width:360px;background:#fff;overflow-y:auto;padding:1.5rem 1.5rem 6rem;display:flex;flex-direction:column;gap:1.25rem;border-left:1px solid #e2e8f0;flex-shrink:0;">
                     <div>

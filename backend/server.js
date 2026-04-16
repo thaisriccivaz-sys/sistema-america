@@ -2633,14 +2633,19 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
 
         // ===== LOGO =====
         // Injeta logo da América Rental no topo se o template não tiver
-        if (!htmlFinal.includes('america-rental-logo') && !htmlFinal.includes('<img') ) {
-            const logoHtml = `<div style="text-align:center;margin-bottom:20px;"><img src="/logo.png" alt="América Rental" style="max-height:80px;" onerror="this.style.display='none'"/></div>`;
-            htmlFinal = htmlFinal.replace(/<body[^>]*>/, (match) => match + logoHtml);
+        const bannerHtml = `<div style="margin:0;padding:0;line-height:0;"><img src="${process.env.PUBLIC_URL || ''}/assets/logo-header.png" style="width:100%;display:block;margin:0;padding:0;" onerror="this.style.display='none'"></div>`;
+        const contentPaddingWrapper = `<div style="padding: 30px;">`;
+        if (!htmlFinal.includes('america-rental-logo') && !htmlFinal.includes('<img') && !htmlFinal.includes('logo-header')) {
+            // Apply banner above the padding wrapper
+            htmlFinal = bannerHtml + contentPaddingWrapper + htmlFinal + `</div>`;
+        } else {
+            // Document already handles logo or we don't want to enforce it loosely
+            htmlFinal = contentPaddingWrapper + htmlFinal + `</div>`;
         }
 
         // O body deve ir formatado com HTML completo se não tiver <html>
         if (!htmlFinal.toLowerCase().includes('<html')) {
-            htmlFinal = `<html><head><meta charset="UTF-8"><style>body{font-family:Arial,sans-serif;padding:30px;font-size:13px;line-height:1.6;}strong{font-weight:700;}</style></head><body>` + htmlFinal + `</body></html>`;
+            htmlFinal = `<html><head><meta charset="UTF-8"><style>body{font-family:Arial,sans-serif;margin:0;padding:0;font-size:13px;line-height:1.6;}strong{font-weight:700;}</style></head><body>` + htmlFinal + `</body></html>`;
         }
 
 
