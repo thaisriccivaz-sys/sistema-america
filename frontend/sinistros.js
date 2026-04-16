@@ -255,7 +255,7 @@ window.processarLeituraBO = async function() {
     try {
         const res = await fetch(`${API_URL}/extrair-bo`, {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` },
             body: formData
         });
         if (res.status === 401 || res.status === 403) {
@@ -360,7 +360,7 @@ window.salvarSinistroFinal = async function() {
     try {
         const res = await fetch(`${API_URL}/colaboradores/${colab.id}/sinistros`, {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` },
             body: formData
         });
         const responseData = await res.json();
@@ -370,7 +370,7 @@ window.salvarSinistroFinal = async function() {
         if (desconto === 'Sim') {
             await fetch(`${API_URL}/colaboradores/${colab.id}/sinistros/${responseData.id}/gerar-documento`, {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` }
             });
         }
 
@@ -390,7 +390,7 @@ window.gerarDocumentoSinistro = async function(sinId, colabId) {
     try {
         const r = await fetch(`${API_URL}/colaboradores/${colabId}/sinistros/${sinId}/gerar-documento`, {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` }
         });
         if (r.ok) {
             if (typeof Toastify !== 'undefined') Toastify({ text: 'Documento gerado!', backgroundColor: '#2563eb' }).showToast();
@@ -520,7 +520,7 @@ window.salvarAssinaturaTestemunhasSinistro = async function(sinId, colabId) {
 
         const res = await fetch(`${API_URL}/colaboradores/${colabId}/sinistros/${sinId}/assinar-testemunhas`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` },
             body: JSON.stringify({ t1_nome: t1Nome, t1_base64: t1Ass, t2_nome: t2Nome || null, t2_base64: t2Ass, html_atualizado: docHtml })
         });
         const data = await res.json();
@@ -621,7 +621,7 @@ window.salvarAssinaturaCondutorSinistro = async function(sinId, colabId) {
 
         const res = await fetch(`${API_URL}/colaboradores/${colabId}/sinistros/${sinId}/assinar-condutor`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` },
             body: JSON.stringify({ assinatura_base64: assinaturaBase64, documento_html: docHtml })
         });
         const data = await res.json();
