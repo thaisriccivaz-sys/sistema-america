@@ -12834,7 +12834,7 @@ window._renderMultaActions = function(m, colabId, actionsDiv) {
         btnEye.style = 'background:#dbeafe;color:#1d4ed8;border:1.5px solid #93c5fd;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:0.85rem;display:inline-flex;align-items:center;gap:4px;';
         btnEye.innerHTML = '<i class="ph ph-eye"></i>';
         btnEye.title = 'Ver Documento';
-        btnEye.onclick = () => window.verDocumentoMulta(m.id, colabId, m.tipo_resolucao || 'indicacao');
+        btnEye.onclick = () => window.verDocumentoMulta(m.id, colabId, m.tipo_resolucao || 'indicacao', m);
         actionsDiv.appendChild(btnEye);
 
         // ── Botão Testemunhas ──
@@ -13099,6 +13099,8 @@ window.abrirModalTestemunhas = async function(m, colabId) {
     // Inicializar canvas
     window._initCanvasMulta('canvas-test1');
     window._initCanvasMulta('canvas-test2');
+    // Guardar htmlDoc original para enriquecer com assinaturas ao confirmar
+    window._multaDocHtmlTestemunhas = docHtml;
 };
 
 window.confirmarAssinaturaTestemunhas = async function(multaId, colabId) {
@@ -13117,6 +13119,25 @@ window.confirmarAssinaturaTestemunhas = async function(multaId, colabId) {
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...'; }
 
     try {
+        // Montar HTML com assinaturas das testemunhas injetadas
+        let docHtmlComAssinaturas = window._multaDocHtmlTestemunhas || '';
+        if (docHtmlComAssinaturas) {
+            const inject = `
+                <div style="margin-top:20px;padding:10px;border-top:2px solid #e2e8f0;">
+                    <p style="font-weight:700;font-size:11px;">ASSINATURAS DAS TESTEMUNHAS:</p>
+                    <div style="display:flex;gap:20px;">
+                        <div style="text-align:center;">
+                            <img src="${t1Ass}" style="max-width:180px;max-height:60px;border-bottom:1px solid #000;">
+                            <p style="font-size:10px;margin:2px 0;">${t1Nome}</p>
+                        </div>
+                        ${t2Ass && t2Nome ? `<div style="text-align:center;">
+                            <img src="${t2Ass}" style="max-width:180px;max-height:60px;border-bottom:1px solid #000;">
+                            <p style="font-size:10px;margin:2px 0;">${t2Nome}</p>
+                        </div>` : ''}
+                    </div>
+                </div>`;
+            docHtmlComAssinaturas = docHtmlComAssinaturas.replace('</body>', inject + '</body>');
+        }
         const res = await fetch(`${API_URL}/colaboradores/${colabId}/multas/${multaId}/assinar-testemunhas`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
@@ -13124,7 +13145,8 @@ window.confirmarAssinaturaTestemunhas = async function(multaId, colabId) {
                 testemunha1_nome: t1Nome,
                 testemunha1_assinatura: t1Ass,
                 testemunha2_nome: t2Nome || null,
-                testemunha2_assinatura: t2Ass
+                testemunha2_assinatura: t2Ass,
+                documento_html: docHtmlComAssinaturas
             })
         });
         const data = await res.json();
@@ -13400,31 +13422,47 @@ window.excluirMulta = async function(multaId, colabId, btn) {
     }
 };
 
-window.verDocumentoMulta = async function(multaId, colabId, tipo) {
+window.verDocumentoMulta = async function(multaId, colabId, tipo, multaObj) {
     try {
-        const res = await fetch(`${API_URL}/colaboradores/${colabId}/multas/${multaId}/gerar-documento`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
-            body: JSON.stringify({ tipo: tipo || 'indicacao' })
-        });
-        const data = await res.json();
-        if (!data.html) { alert('Documento não disponível.'); return; }
+        let htmlFinal = '';
+        // Usar documento salvo no DB (com assinaturas), se disponivel
+        if (multaObj && multaObj.documento_html) {
+            htmlFinal = multaObj.documento_html;
+            // Se condutor assinou e a assinatura ainda nao esta no HTML, injetar
+            if (multaObj.assinatura_condutor_base64 && !htmlFinal.includes('ASSINATURA DO CONDUTOR')) {
+                const condutorInject = '<div style="margin-top:20px;padding:10px;border-top:2px solid #e2e8f0;">'
+                    + '<p style="font-weight:700;font-size:11px;">ASSINATURA DO CONDUTOR:</p>'
+                    + '<div style="text-align:center;display:inline-block;">'
+                    + '<img src="' + multaObj.assinatura_condutor_base64 + '" style="max-width:220px;max-height:70px;border-bottom:1px solid #000;">'
+                    + '<p style="font-size:10px;margin:2px 0;color:#d97706;font-weight:700;">Condutor</p>'
+                    + '</div></div>';
+                htmlFinal = htmlFinal.replace('</body>', condutorInject + '</body>');
+            }
+        } else {
+            // Sem documento salvo: gerar do zero (sem assinaturas)
+            const res = await fetch(`${API_URL}/colaboradores/${colabId}/multas/${multaId}/gerar-documento`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
+                body: JSON.stringify({ tipo: tipo || 'indicacao' })
+            });
+            const data = await res.json();
+            htmlFinal = data.html || '';
+        }
+        if (!htmlFinal) { alert('Documento nao disponivel.'); return; }
         let modal = document.getElementById('modal-preview-multa');
         if (modal) modal.remove();
         modal = document.createElement('div');
         modal.id = 'modal-preview-multa';
         modal.style = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;flex-direction:column;';
-        modal.innerHTML = `
-            <div style="background:#1e293b;padding:1rem;display:flex;align-items:center;justify-content:space-between;">
-                <h3 style="margin:0;color:#fff;font-size:1rem;"><i class="ph ph-file-text" style="color:#f503c5;"></i> Documento — ${tipo === 'indicacao' ? 'Indicação de Condutor' : 'Pagamento NIC'}</h3>
-                <button onclick="document.getElementById('modal-preview-multa').remove()" style="padding:0.5rem 1rem;background:#475569;color:#fff;border:none;border-radius:8px;cursor:pointer;">Fechar</button>
-            </div>
-            <iframe id="multa-preview-iframe" style="flex:1;border:none;background:#fff;"></iframe>
-        `;
+        modal.innerHTML = '<div style="background:#1e293b;padding:1rem;display:flex;align-items:center;justify-content:space-between;">'
+            + '<h3 style="margin:0;color:#fff;font-size:1rem;"><i class="ph ph-file-text" style="color:#f503c5;"></i> Documento &mdash; ' + (tipo === 'indicacao' ? 'Indicacao de Condutor' : 'Pagamento NIC') + '</h3>'
+            + '<button onclick="document.getElementById(\"modal-preview-multa\").remove()" style="padding:0.5rem 1rem;background:#475569;color:#fff;border:none;border-radius:8px;cursor:pointer;">Fechar</button>'
+            + '</div>'
+            + '<iframe id="multa-preview-iframe" style="flex:1;border:none;background:#fff;"></iframe>';
         document.body.appendChild(modal);
         setTimeout(() => {
             const iframe = document.getElementById('multa-preview-iframe');
-            if (iframe) { const doc = iframe.contentDocument || iframe.contentWindow.document; doc.open(); doc.write(data.html); doc.close(); }
+            if (iframe) { const doc = iframe.contentDocument || iframe.contentWindow.document; doc.open(); doc.write(htmlFinal); doc.close(); }
         }, 50);
     } catch(e) { alert('Erro: ' + e.message); }
 };
