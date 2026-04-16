@@ -262,8 +262,11 @@ window.processarLeituraBO = async function() {
 
         // Log diagnóstico no console (não mais alert)
         if (data._debug_text) {
-            console.log('[BO] Texto extraído pelo pdf-parse:', data._debug_text);
-            window._boDebugText = data._debug_text;
+            console.log('====== [ DIAGNÓSTICO BO ] ======');
+            console.log('Dados extraídos:', data);
+            console.log('Texto bruto lido do PDF (copie isso se não preencheu):');
+            console.log(data._debug_text);
+            console.log('================================');
         }
         boletimData = data;
 

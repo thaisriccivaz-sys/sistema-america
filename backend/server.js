@@ -2375,45 +2375,45 @@ app.post('/api/extrair-bo', authenticateToken, multerUploadMemoria.single('arqui
         if (!req.file) throw new Error('BO nao enviado.');
         const pdfP = require('pdf-parse');
         const pdfData = await pdfP(req.file.buffer);
-        const text = pdfData.text;
+        // Eliminar espacos duplicados para ajudar a regex
+        const cleanText = text.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ');
 
         // Boletim No: "FR6269-1/2026"
         let boletim = '';
-        const matBO = text.match(/Boletim\s+N[^\s]*\s+([A-Z]{2}\d+[-]\d+\/\d{4})/i)
-                   || text.match(/([A-Z]{2}\d+[-]\d+\/\d{4})/);
+        const matBO = cleanText.match(/Boletim\s*N[^\s]*\s*([A-Z0-9]{2,}\d*[-]\d+\/\d{4})/i)
+                   || cleanText.match(/([A-Z]{2,}\d+[-]\d+\/\d{4})/);
         if (matBO) boletim = matBO[1];
 
         // Ocorrencia: "13/04/2026 as 13:30"
         let dataHoraStr = '';
-        const matOc = text.match(/Ocorr[eê]ncia[:\s]+(\d{2}\/\d{2}\/\d{4})\s+[aà]s?\s+(\d{2}:\d{2})/i);
+        const matOc = cleanText.match(/Ocorr[eê]ncia[:\s]+(\d{2}\/\d{2}\/\d{4})\s+[aà]s?\s+(\d{2}:\d{2})/i)
+                   || cleanText.match(/Data.*?Ocorr.*?:?\s*(\d{2}\/\d{2}\/\d{4}).*?(\d{2}:\d{2})/i);
         if (matOc) dataHoraStr = matOc[1] + ' as ' + matOc[2];
 
         // Natureza
         let natureza = '';
-        const matN = text.match(/Naturezas da Ocorr[eê]ncia\s*[\n\r]+([^\n\r]+)[\n\r]+\s*([^\n\r]+)/i);
-        if (matN) natureza = matN[1].trim() + ' - ' + matN[2].trim();
-        else {
-            const matN2 = text.match(/Naturezas da Ocorr[eê]ncia\s*[\n\r]+([^\n\r]+)/i);
-            if (matN2) natureza = matN2[1].trim();
+        // Captura o que vem logo após Naturezas da Ocorrência... até encontrar Dados da Ocorrência ou Crime Consumado
+        const matN = cleanText.match(/Naturezas? da Ocorr[eê]ncia\s*(.*?)(?:Dados da|Crime|\d+\s*-)/i);
+        if (matN && matN[1].trim().length > 3) {
+             natureza = matN[1].trim();
+        } else {
+             const matN2 = cleanText.match(/(Crime Consumado.*?)(?:Dados da Ocorr[eê]ncia)/i);
+             if (matN2) natureza = matN2[1].trim();
         }
 
         // Marca/Modelo: "Marca/Modelo: IVECO/DAILY 35CS"
         let marcaModelo = '';
-        const matMM = text.match(/Marca\/Modelo[:\s]+([^\n\r\t]{3,40}?)(?:\s{2,}|Ano\s|Cor\s|Chassi|$)/im);
+        const matMM = cleanText.match(/Marca\/Modelo[:\s]+([A-Z0-9\/\-\s]{3,30}?)(?:Ano\s|Cor\s|Chassi|Placa)/i);
         if (matMM) marcaModelo = matMM[1].trim();
-        else {
-            const matMM2 = text.match(/Marca\/Modelo[:\s]+([^\n\r]+)/i);
-            if (matMM2) marcaModelo = matMM2[1].split(/\s{2,}/)[0].trim();
-        }
 
         // Placa: "Placa: TLR0H81"
         let placa = '';
-        const matPl = text.match(/Placa[:\s]+([A-Z]{3}\d[A-Z0-9]\d{2})/i)
-                   || text.match(/Placa[:\s]+([A-Z]{3}\d{4})/i);
+        const matPl = cleanText.match(/Placa[:\s]+([A-Z]{3}\s*\d[A-Z0-9]\d{2})/i)
+                   || cleanText.match(/Placa[:\s]+([A-Z]{3}\s*\d{4})/i);
         if (matPl) placa = matPl[1].replace(/\s/g, '').toUpperCase();
 
         console.log('[BO] boletim=' + boletim + ' | data=' + dataHoraStr + ' | natureza=' + natureza + ' | placa=' + placa + ' | modelo=' + marcaModelo);
-        console.log('[BO-TEXT primeiros 300 chars]', text.substring(0, 300));
+        console.log('[BO-TEXT primeiros 300 chars]', cleanText.substring(0, 300));
         // _debug_text ainda é retornado para log no console do frontend (não mais em alert)
         res.json({ sucesso: true, boletim, data_hora: dataHoraStr, natureza, placa, marca_modelo: marcaModelo, _debug_text: text.substring(0, 2000) });
     } catch(e) {
