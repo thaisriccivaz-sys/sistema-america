@@ -2475,7 +2475,7 @@ app.post('/api/colaboradores/:id/sinistros', authenticateToken, multerUploadMemo
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`;
             
         // Nome padrão do doc: Sinistro_Datadoocorrido_Nome_do_Colaborador.pdf
-        const pnome = 'Sinistro_' + (pastaDataStr || dataFormatada).replace(/-/g,'') + '_' + nomeFormatado + '.pdf';
+        const pnome = 'BO_Sinistro_' + (pastaDataStr || dataFormatada).replace(/-/g,'') + '_' + nomeFormatado + '.pdf';
         const docOnedrivePath = targetDir + '/' + pnome;
 
         db.run(stmt, [id, body.numero_boletim, body.data_hora, body.natureza, body.placa, body.veiculo,

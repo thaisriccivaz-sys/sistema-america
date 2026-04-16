@@ -189,10 +189,10 @@ window.abrirModalNovoSinistro = function() {
                             <div class="input-group">
                                 <label>Tipo do Sinistro</label>
                                 <select id="sin-tipo-sinistro" class="form-control">
-                                    <option value="Danos em terceiros">Danos em terceiros</option>
-                                    <option value="Danos no nosso veículo">Danos no nosso veículo</option>
-                                    <option value="Danos em terceiros e nossos">Danos em terceiros e nossos</option>
-                                    <option value="Outros danos">Outros danos</option>
+                                    <option value="Danos em Terceiros e Nosso">Danos em Terceiros e Nosso</option>
+                                    <option value="Danos em Terceiros">Danos em Terceiros</option>
+                                    <option value="Danos no Nosso Veículo">Danos no Nosso Veículo</option>
+                                    <option value="Outros Danos">Outros Danos</option>
                                 </select>
                             </div>
                             <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
