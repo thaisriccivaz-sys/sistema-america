@@ -550,7 +550,7 @@ const storage = multer.diskStorage({
             // Outros Contratos: nome Outros_NomeContrato_NomeColab
             const safeType = formatarPasta(docType);
             const safeColab = formatarNome(colab);
-            base = doc.file_name ? doc.file_name.replace(/\.pdf$/i, "") : `Outros_${safeType}_${safeColab}`;
+            base = `Outros_${safeType}_${safeColab}`;
         } else {
             const safeType = formatarPasta(docType).toUpperCase();
             const safeColab = formatarNome(colab);

@@ -7496,6 +7496,7 @@ window.uploadAdmissaoAvulso = async function(geradorId, colabId, fileInput) {
     const formData = new FormData();
     formData.append('documento', file);
     formData.append('colaborador_id', colabId);
+    formData.append('colaborador_nome', viewedColaborador?.nome_completo || '');
     formData.append('document_type', gerador.nome);
     formData.append('tab_name', 'CONTRATOS');
     formData.append('is_nao_exige', 'true');
