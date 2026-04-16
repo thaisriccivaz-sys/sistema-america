@@ -5563,7 +5563,6 @@ app.post('/api/colaboradores/:id/multas', authenticateToken, multaUpload.single(
         const { id } = req.params;
         const body = req.body;
 
-        // Buscar colaborador
         const colab = await new Promise((resolve, reject) => {
             db.get('SELECT * FROM colaboradores WHERE id = ?', [id], (err, row) => err ? reject(err) : resolve(row));
         });
@@ -5575,7 +5574,7 @@ app.post('/api/colaboradores/:id/multas', authenticateToken, multaUpload.single(
 
         const codigo = (body.codigo_infracao || 'MULTA').replace(/[^A-Z0-9]/gi, '');
 
-        // Salvar no banco primeiro para obter o ID gerado
+        // Inserir no banco primeiro para obter o ID
         const stmt = `INSERT INTO multas (colaborador_id, codigo_infracao, descricao_infracao, placa, veiculo,
             data_infracao, hora_infracao, local_infracao, numero_ait, pontuacao, valor_multa,
             notificacao_path, status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'pendente')`;
@@ -5586,37 +5585,33 @@ app.post('/api/colaboradores/:id/multas', authenticateToken, multaUpload.single(
                 if (insertErr) return res.status(500).json({ error: insertErr.message });
                 const multaId = this.lastID;
 
-                // Montar nome da pasta unico: CODIGO_DDMMYYYY_ID
+                // Pasta unica: CODIGO_DDMMYYYY_ID
                 const dataInf = body.data_infracao
                     ? (body.data_infracao.includes('-')
-                        ? body.data_infracao.split('-').reverse().join('')  // YYYY-MM-DD -> DDMMYYYY
-                        : body.data_infracao.replace(/\D/g, ''))            // ja no formato br
+                        ? body.data_infracao.split('-').reverse().join('')
+                        : body.data_infracao.replace(/\D/g, ''))
                     : String(new Date().getDate()).padStart(2,'0') + String(new Date().getMonth()+1).padStart(2,'0') + new Date().getFullYear();
                 const pastaNome = codigo + '_' + dataInf + '_' + multaId;
 
-                // Caminho local OneDrive
-                const multaDir = path.join(
-                    'C:\\A\\OneDrive - AMERICA RENTAL EQUIPAMENTOS LTDA\\Documentos - America Rental\\RH\\1.Colaboradores\\Sistema',
-                    nomeFormatado, 'MULTAS', pastaNome
-                );
+                res.json({ sucesso: true, id: multaId, pasta: pastaNome });
 
-                let notificacaoPath = null;
-                if (req.file) {
-                    try {
-                        if (!fs.existsSync(multaDir)) fs.mkdirSync(multaDir, { recursive: true });
-                        const nomeArquivo = 'Notificacao_' + pastaNome + '.pdf';
-                        const fullPath = path.join(multaDir, nomeArquivo);
-                        fs.writeFileSync(fullPath, req.file.buffer);
-                        notificacaoPath = fullPath;
-                    } catch(e) { console.error('[MULTA-UPLOAD] Erro ao salvar arquivo local:', e.message); }
+                // Upload da notificacao no OneDrive via Graph API (assíncrono)
+                if (req.file && onedrive) {
+                    ;(async () => {
+                        try {
+                            const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || 'RH/1.Colaboradores/Sistema';
+                            const targetDir = onedriveBasePath + '/' + nomeFormatado + '/MULTAS/' + pastaNome;
+                            await onedrive.ensurePath(onedriveBasePath + '/' + nomeFormatado);
+                            await onedrive.ensurePath(onedriveBasePath + '/' + nomeFormatado + '/MULTAS');
+                            await onedrive.ensurePath(targetDir);
+                            // Nome fixo da notificacao (nao e sobreposto)
+                            const nomeNotif = 'Notificacao_' + codigo + '_' + nomeFormatado + '.pdf';
+                            await onedrive.uploadToOneDrive(targetDir, nomeNotif, req.file.buffer);
+                            db.run('UPDATE multas SET notificacao_path = ? WHERE id = ?', [targetDir + '/' + nomeNotif, multaId]);
+                            console.log('[MULTA-NOTIF] Notificacao salva: ' + targetDir + '/' + nomeNotif);
+                        } catch(e) { console.error('[MULTA-NOTIF] Erro OneDrive:', e.message); }
+                    })();
                 }
-
-                // Atualizar com o caminho do arquivo (se houver)
-                if (notificacaoPath) {
-                    db.run('UPDATE multas SET notificacao_path = ? WHERE id = ?', [notificacaoPath, multaId]);
-                }
-
-                res.json({ sucesso: true, id: multaId, pasta: multaDir });
             }
         );
     } catch (e) {
@@ -5844,7 +5839,8 @@ app.post('/api/colaboradores/:id/multas/:multaId/assinar-testemunhas', authentic
                         await onedrive.ensurePath(targetDir);
                         const pdf = require('html-pdf-node');
                         const pdfBuffer = await pdf.generatePdf({ content: documento_html }, { format: 'A4', margin: { top: '10mm', bottom: '10mm', left: '10mm', right: '10mm' } });
-                        const nomeArquivo = 'Termo_' + pastaNome + '_Testemunhas.pdf';
+                        // Nome fixo: Termo_CODIGO_DDMMYYYY.pdf — mesmo nome que sera sobreposto pelo condutor
+                        const nomeArquivo = 'Termo_' + codigo + (dataStr ? '_' + dataStr.replace(/^_/, '') : '') + '.pdf';
                         await onedrive.uploadToOneDrive(targetDir, nomeArquivo, pdfBuffer);
                         console.log('[MULTA-TESTEMUNHAS] PDF salvo: ' + targetDir + '/' + nomeArquivo);
                     } catch (e) { console.error('[MULTA-TESTEMUNHAS] Erro OneDrive:', e.message); }
@@ -5892,7 +5888,8 @@ app.post('/api/colaboradores/:id/multas/:multaId/assinar-condutor', authenticate
                     await onedrive.ensurePath(targetDir);
                     const pdf = require('html-pdf-node');
                     const pdfBuffer = await pdf.generatePdf({ content: documento_html }, { format: 'A4', margin: { top: '10mm', bottom: '10mm', left: '10mm', right: '10mm' } });
-                    const nomeArquivo = 'Termo_' + pastaNome + '_Assinado.pdf';
+                    // MESMO nome das testemunhas — sobrepoe automaticamente
+                    const nomeArquivo = 'Termo_' + codigo + (dataStr ? '_' + dataStr.replace(/^_/, '') : '') + '.pdf';
                     await onedrive.uploadToOneDrive(targetDir, nomeArquivo, pdfBuffer);
                     console.log('[MULTA-CONDUTOR] PDF final salvo: ' + targetDir + '/' + nomeArquivo);
                 } catch (e) { console.error('[MULTA-CONDUTOR] Erro OneDrive:', e.message); }
