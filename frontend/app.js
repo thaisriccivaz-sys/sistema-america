@@ -7494,7 +7494,7 @@ window.uploadAdmissaoAvulso = async function(geradorId, colabId, fileInput) {
     if (!gerador) return alert('Gerador não encontrado.');
 
     const formData = new FormData();
-    formData.append('documento', file);
+    formData.append('file', file);
     formData.append('colaborador_id', colabId);
     formData.append('colaborador_nome', viewedColaborador?.nome_completo || '');
     formData.append('document_type', gerador.nome);
