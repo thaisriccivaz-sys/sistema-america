@@ -82,9 +82,9 @@ window._renderSinistroCard = function(s, colabId, container) {
         actionsHtml = `<button class="btn btn-sm" onclick="window.verDocumentoSinistro(${s.id}, ${colabId})" style="color:#0284c7; background:#e0f2fe; border:none;"><i class="ph ph-eye"></i> Ver Documento</button>`;
     } else if (!s.processo_iniciado || !s.documento_html) {
         if (s.desconto === 'Não') {
-            actionsHtml = `<span style="font-size:0.85rem; color:#64748b;"><i class="ph ph-check-circle"></i> Apenas Registro (BO Anexado)</span>`;
+            actionsHtml = `<div style="display:flex;gap:0.5rem;width:100%;justify-content:space-between;align-items:center;"><span style="font-size:0.85rem; color:#64748b;"><i class="ph ph-check-circle"></i> Apenas Registro (BO Anexado)</span> <button class="btn btn-sm btn-outline-danger" onclick="window.excluirSinistro(${s.id}, ${colabId})" style="color:#ef4444; border:1px solid #ef4444; background:transparent;"><i class="ph ph-trash"></i> Excluir</button></div>`;
         } else {
-            actionsHtml = `<button class="btn btn-sm" onclick="window.gerarDocumentoSinistro(${s.id}, ${colabId})" style="color:#0284c7; background:#e0f2fe; border:none;"><i class="ph ph-file-text"></i> Gerar Documento</button>`;
+            actionsHtml = `<div style="display:flex;gap:0.5rem;width:100%;justify-content:flex-end;"><button class="btn btn-sm" onclick="window.gerarDocumentoSinistro(${s.id}, ${colabId})" style="color:#0284c7; background:#e0f2fe; border:none;"><i class="ph ph-file-text"></i> Gerar Documento</button> <button class="btn btn-sm btn-outline-danger" onclick="window.excluirSinistro(${s.id}, ${colabId})" style="color:#ef4444; border:1px solid #ef4444; background:transparent;"><i class="ph ph-trash"></i> Excluir</button></div>`;
         }
     } else {
         const testOk = s.assinatura_testemunha1_base64 && s.assinatura_testemunha2_base64;
@@ -96,6 +96,7 @@ window._renderSinistroCard = function(s, colabId, container) {
             actionsHtml += `<button class="btn btn-sm btn-primary" onclick="window.abrirModalAssinaturaCondutorSinistro(${s.id}, ${colabId})" style="background:#f59e0b; border:none;"><i class="ph ph-pen"></i> Assinar Condutor</button>`;
         }
         actionsHtml += `<button class="btn btn-sm" onclick="window.verDocumentoSinistro(${s.id}, ${colabId})" style="color:#64748b; background:#f1f5f9; border:none;"><i class="ph ph-eye"></i> Preview</button>`;
+        actionsHtml += `<button class="btn btn-sm btn-outline-danger" onclick="window.excluirSinistro(${s.id}, ${colabId})" style="color:#ef4444; border:1px solid #ef4444; background:transparent; margin-left: auto;"><i class="ph ph-trash"></i> Excluir</button>`;
         actionsHtml += `</div>`;
     }
 
@@ -634,5 +635,21 @@ window.salvarAssinaturaCondutorSinistro = async function(sinId, colabId) {
         alert('Erro: ' + e.message);
         const btn = document.getElementById('btn-conf-con-sin');
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-check"></i> Salvar Assinatura do Condutor'; }
+    }
+};
+
+window.excluirSinistro = async function(sinId, colabId) {
+    if (!confirm('Tem certeza que deseja excluir este sinistro permanentemente?')) return;
+    try {
+        const res = await fetch(`${API_URL}/colaboradores/${colabId}/sinistros/${sinId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` }
+        });
+        const data = await res.json();
+        if (!data.sucesso) throw new Error(data.error);
+        alert('Sinistro excluído com sucesso.');
+        window._recarregarListaSinistros(colabId);
+    } catch(e) {
+        alert('Erro ao excluir: ' + e.message);
     }
 };
