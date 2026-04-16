@@ -3440,34 +3440,75 @@ function buildAdvertenciaTemplate(data, logoSrc) {
 
 window.abrirPreviewAdvertencia = function(data) {
 
-    const container = document.getElementById('preview-doc-body');
-    if (!container) return;
+    // Usar modal fullscreen lateral (igual ao de multas) para melhor visibilidade
+    let modal = document.getElementById('modal-adv-fullscreen');
+    if (modal) modal.remove();
 
     const apiBase = API_URL.replace('/api', '');
     const logoSrc = `${apiBase}/assets/logo-header.png`;
 
-    // Monta o mesmo template do PDF para consistência visual
-    container.innerHTML = buildAdvertenciaTemplate(data, logoSrc);
-    document.getElementById('preview-doc-title').textContent = `${data.gerador_nome} - ${data.colaborador.NOME_COMPLETO}`;
+    modal = document.createElement('div');
+    modal.id = 'modal-adv-fullscreen';
+    modal.style = 'position:fixed;inset:0;z-index:10000;background:#0f172a;display:flex;flex-direction:column;overflow:hidden;';
 
-    // Configurar botões customizados para Advertência
-    const btnsContainer = document.getElementById('preview-doc-buttons');
-    if (btnsContainer) {
-        btnsContainer.innerHTML = `
-            <button onclick="window.anexarAdvertenciaAoProntuario()" id="btn-anexar-adv" class="btn btn-primary" style="background:#2f9e44; border-color:#2b8a3e; align-items:center; gap:5px;">
-                <i class="ph ph-paperclip"></i> Anexar ao Prontuário
-            </button>
-            <button onclick="window.imprimirDocumento()" class="btn btn-primary" style="align-items:center; gap:5px;">
-                <i class="ph ph-printer"></i> Imprimir/PDF
-            </button>
-            <button class="btn btn-secondary" onclick="document.getElementById('modal-preview-doc').style.display='none'">
-                <i class="ph ph-x"></i> Fechar
-            </button>
-        `;
-    }
+    const header = document.createElement('div');
+    header.style = 'background:#1e293b;padding:0.85rem 1.5rem;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;';
+    header.innerHTML = '<h3 style="margin:0;color:#fff;font-size:1rem;"><i class="ph ph-file-text" style="color:#a78bfa;"></i> ' + (data.gerador_nome || 'Advertência') + ' &mdash; ' + data.colaborador.NOME_COMPLETO + '</h3>';
+    const btnFecharAdv = document.createElement('button');
+    btnFecharAdv.textContent = 'Fechar';
+    btnFecharAdv.style = 'background:rgba(255,255,255,0.1);border:none;color:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;font-size:0.9rem;';
+    btnFecharAdv.addEventListener('click', () => modal.remove());
+    header.appendChild(btnFecharAdv);
+    modal.appendChild(header);
 
-    document.getElementById('modal-preview-doc').style.display = 'block';
+    const body = document.createElement('div');
+    body.style = 'flex:1;display:flex;overflow:hidden;';
+
+    // Painel esquerdo: documento
+    const docPanel = document.createElement('div');
+    docPanel.style = 'flex:1;overflow-y:auto;background:#f1f5f9;padding:1rem;';
+    const iframe = document.createElement('iframe');
+    iframe.style = 'width:100%;height:100%;min-height:600px;border:none;border-radius:8px;background:#fff;';
+    docPanel.appendChild(iframe);
+
+    // Painel direito: acoes
+    const sidePanel = document.createElement('div');
+    sidePanel.style = 'width:320px;background:#fff;overflow-y:auto;padding:1.5rem;display:flex;flex-direction:column;gap:1rem;border-left:1px solid #e2e8f0;flex-shrink:0;';
+    sidePanel.innerHTML = '<p style="font-weight:700;font-size:0.95rem;color:#374151;margin:0;"><i class="ph ph-file-pdf" style="color:#7c3aed;"></i> Ações do Documento</p>'
+        + '<div style="background:#f0fdf4;border-radius:8px;padding:10px;"><p style="margin:0;font-size:0.82rem;color:#166534;"><i class="ph ph-info"></i> Revise o documento antes de anexar ao prontuário.</p></div>';
+
+    const btnAnexar = document.createElement('button');
+    btnAnexar.id = 'btn-anexar-adv';
+    btnAnexar.className = 'btn btn-primary';
+    btnAnexar.style = 'background:#2f9e44;border-color:#2b8a3e;display:flex;align-items:center;gap:6px;justify-content:center;padding:0.75rem;font-size:0.95rem;';
+    btnAnexar.innerHTML = '<i class="ph ph-paperclip"></i> Anexar ao Prontuário';
+    btnAnexar.addEventListener('click', () => window.anexarAdvertenciaAoProntuario());
+
+    const btnImprimir = document.createElement('button');
+    btnImprimir.className = 'btn btn-secondary';
+    btnImprimir.style = 'display:flex;align-items:center;gap:6px;justify-content:center;padding:0.7rem;';
+    btnImprimir.innerHTML = '<i class="ph ph-printer"></i> Imprimir / PDF';
+    btnImprimir.addEventListener('click', () => window.imprimirDocumento && window.imprimirDocumento());
+
+    sidePanel.appendChild(btnAnexar);
+    sidePanel.appendChild(btnImprimir);
+
+    body.appendChild(docPanel);
+    body.appendChild(sidePanel);
+    modal.appendChild(body);
+    document.body.appendChild(modal);
+
+    // Renderizar documento no iframe
+    setTimeout(() => {
+        const doc = iframe.contentDocument || iframe.contentWindow.document;
+        if (doc) { doc.open(); doc.write(buildAdvertenciaTemplate(data, logoSrc)); doc.close(); }
+    }, 50);
+
+    // Manter compatibilidade com codigo que usa o modal antigo (fechar pelo id antigo)
+    const legacyModalEl = document.getElementById('modal-preview-doc');
+    if (legacyModalEl) legacyModalEl.style.display = 'none';
 };
+
 
 window.anexarAdvertenciaAoProntuario = async function() {
     if (!viewedColaborador || !window._advertenciaData) return;
@@ -3581,8 +3622,10 @@ window.anexarAdvertenciaAoProntuario = async function() {
         // Ocorrência: sem assinatura e sem OneDrive — apenas salvo no prontuário local
         // (Advertência Verbal → OneDrive ocorre após testemunhas; Escrita/Suspensão → após testemunhas + colaborador)
 
-        // Fechar modal
-        document.getElementById('modal-preview-doc').style.display = 'none';
+        // Fechar modal fullscreen
+        const advModal = document.getElementById('modal-adv-fullscreen');
+        if (advModal) advModal.remove();
+        document.getElementById('modal-preview-doc') && (document.getElementById('modal-preview-doc').style.display = 'none');
 
         // Feedback visual sem alert
         if (btn) {
@@ -13178,24 +13221,8 @@ window.abrirModalAssinaturaCondutor = async function(m, colabId) {
         } catch(e) {}
     }
 
-    // Injetar assinaturas das testemunhas no documento HTML
-    if (docHtml && m.assinatura_testemunha1_base64) {
-        const inject = `
-            <div style="margin-top:20px;padding:10px;border-top:2px solid #e2e8f0;">
-                <p style="font-weight:700;font-size:11px;">ASSINATURAS DAS TESTEMUNHAS:</p>
-                <div style="display:flex;gap:20px;">
-                    <div style="text-align:center;">
-                        <img src="${m.assinatura_testemunha1_base64}" style="max-width:180px;max-height:60px;border-bottom:1px solid #000;">
-                        <p style="font-size:10px;margin:2px 0;">${m.assinatura_testemunha1_nome || 'Testemunha 1'}</p>
-                    </div>
-                    ${m.assinatura_testemunha2_base64 ? `<div style="text-align:center;">
-                        <img src="${m.assinatura_testemunha2_base64}" style="max-width:180px;max-height:60px;border-bottom:1px solid #000;">
-                        <p style="font-size:10px;margin:2px 0;">${m.assinatura_testemunha2_nome || 'Testemunha 2'}</p>
-                    </div>` : ''}
-                </div>
-            </div>`;
-        docHtml = docHtml.replace('</body>', inject + '</body>');
-    }
+    // m.documento_html ja contem as assinaturas das testemunhas (salvas por confirmarAssinaturaTestemunhas)
+    // Nao reinjetar para evitar duplicatas
 
     modal = document.createElement('div');
     modal.id = 'modal-condutor-multa';
@@ -13244,8 +13271,10 @@ window.abrirModalAssinaturaCondutor = async function(m, colabId) {
     }
 
     window._initCanvasMulta('canvas-condutor');
-    // Armazenar HTML com assinaturas das testemunhas para enviar ao backend
+    // Guardar HTML (ja com assinaturas das testemunhas) para enriquecer com condutor ao confirmar
     window._multaDocHtmlCondutor = docHtml;
+    // Guardar nome do colaborador (condutor) para injetar na assinatura
+    window._multaCondutorNome = (viewedColaborador && (viewedColaborador.nome_completo || viewedColaborador.nome)) || 'Condutor';
 };
 
 window.confirmarAssinaturaCondutor = async function(multaId, colabId) {
@@ -13254,10 +13283,31 @@ window.confirmarAssinaturaCondutor = async function(multaId, colabId) {
     const btn = document.getElementById('btn-confirmar-condutor');
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...'; }
     try {
+        // Injetar assinatura do condutor no HTML ANTES das testemunhas e salvar
+        const assinaturaImg = assinatura;
+        const condutorNome = window._multaCondutorNome || 'Condutor';
+        let htmlComCondutor = window._multaDocHtmlCondutor || '';
+        if (htmlComCondutor) {
+            const condutorSection = '<div style="margin-top:20px;padding:10px;border-top:2px solid #fcd34d;">'
+                + '<p style="font-weight:700;font-size:11px;">ASSINATURA DO CONDUTOR:</p>'
+                + '<div style="display:inline-block;text-align:center;">'
+                + '<img src="' + assinaturaImg + '" style="max-width:220px;max-height:70px;display:block;border-bottom:1px solid #000;">'
+                + '<p style="font-size:10px;margin:2px 0;color:#d97706;font-weight:700;">' + condutorNome + '</p>'
+                + '</div></div>';
+            // Inserir condutor ANTES do bloco de testemunhas (ou antes do </body>)
+            if (htmlComCondutor.includes('ASSINATURAS DAS TESTEMUNHAS')) {
+                htmlComCondutor = htmlComCondutor.replace(
+                    '<div style="margin-top:20px;padding:10px;border-top:2px solid #e2e8f0;">',
+                    condutorSection + '<div style="margin-top:20px;padding:10px;border-top:2px solid #e2e8f0;">'
+                );
+            } else {
+                htmlComCondutor = htmlComCondutor.replace('</body>', condutorSection + '</body>');
+            }
+        }
         const res = await fetch(`${API_URL}/colaboradores/${colabId}/multas/${multaId}/assinar-condutor`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
-            body: JSON.stringify({ assinatura_base64: assinatura, documento_html: window._multaDocHtmlCondutor || '' })
+            body: JSON.stringify({ assinatura_base64: assinaturaImg, documento_html: htmlComCondutor })
         });
         const data = await res.json();
         if (!data.sucesso) throw new Error(data.error || 'Erro.');
@@ -13454,15 +13504,23 @@ window.verDocumentoMulta = async function(multaId, colabId, tipo, multaObj) {
         modal = document.createElement('div');
         modal.id = 'modal-preview-multa';
         modal.style = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;flex-direction:column;';
-        modal.innerHTML = '<div style="background:#1e293b;padding:1rem;display:flex;align-items:center;justify-content:space-between;">'
-            + '<h3 style="margin:0;color:#fff;font-size:1rem;"><i class="ph ph-file-text" style="color:#f503c5;"></i> Documento &mdash; ' + (tipo === 'indicacao' ? 'Indicacao de Condutor' : 'Pagamento NIC') + '</h3>'
-            + '<button onclick="document.getElementById(\"modal-preview-multa\").remove()" style="padding:0.5rem 1rem;background:#475569;color:#fff;border:none;border-radius:8px;cursor:pointer;">Fechar</button>'
-            + '</div>'
-            + '<iframe id="multa-preview-iframe" style="flex:1;border:none;background:#fff;"></iframe>';
+        const header = document.createElement('div');
+        header.style = 'background:#1e293b;padding:1rem;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;';
+        header.innerHTML = '<h3 style="margin:0;color:#fff;font-size:1rem;"><i class="ph ph-file-text" style="color:#f503c5;"></i> Documento &mdash; ' + (tipo === 'indicacao' ? 'Indicacao de Condutor' : 'Pagamento NIC') + '</h3>';
+        const btnFechar = document.createElement('button');
+        btnFechar.textContent = 'Fechar';
+        btnFechar.style = 'padding:0.5rem 1rem;background:#475569;color:#fff;border:none;border-radius:8px;cursor:pointer;';
+        btnFechar.addEventListener('click', () => modal.remove());
+        header.appendChild(btnFechar);
+        const iframe = document.createElement('iframe');
+        iframe.id = 'multa-preview-iframe';
+        iframe.style = 'flex:1;border:none;background:#fff;';
+        modal.appendChild(header);
+        modal.appendChild(iframe);
         document.body.appendChild(modal);
         setTimeout(() => {
-            const iframe = document.getElementById('multa-preview-iframe');
-            if (iframe) { const doc = iframe.contentDocument || iframe.contentWindow.document; doc.open(); doc.write(htmlFinal); doc.close(); }
+            const doc = iframe.contentDocument || iframe.contentWindow.document;
+            if (doc) { doc.open(); doc.write(htmlFinal); doc.close(); }
         }, 50);
     } catch(e) { alert('Erro: ' + e.message); }
 };
