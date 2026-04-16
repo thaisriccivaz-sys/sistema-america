@@ -2576,59 +2576,58 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
         const parteData    = dataHoraStr.split(' ')[0] || '';   // DD/MM/YYYY
         const parteHora    = dataHoraStr.includes('às') ? dataHoraStr.split('às')[1]?.trim() : (dataHoraStr.split(' ')[1] || '');
 
-        // Substitui linha "Data e hora da ocorrência: //_____ às _____"
+        // Substitui linha "Data e hora da ocorrência"
         htmlFinal = htmlFinal.replace(
-            /(Data[^:]*ocorr[^:]*:?\s*)\/\/_+\s*[àa]s\s*_+/gi,
-            `$1<strong>${parteData}</strong> às <strong>${parteHora}</strong>`
+            /(Data[^:]*ocorr[^:]*:[\s\S]{0,80}?)(?:\/|_|&nbsp;|\s){1,}([\s\S]{0,80}?)[àa]s([\s\S]{0,80}?)_{2,}/gi,
+            `$1 <strong>${parteData}</strong> $2 às $3 <strong>${parteHora}</strong>`
         );
-        // Variante sem "//": "Data da ocorrência: _____"
-        htmlFinal = htmlFinal.replace(
-            /(Data[^:]*ocorr[^:]*:?\s*)_{3,}/gi,
-            `$1<strong>${parteData}</strong>`
+        htmlFinal = htmlFinal.replace( // Variante se não achar o 'às' na mesma linha
+            /(Data[^:]*ocorr[^:]*:[\s\S]{0,80}?)_{3,}/gi,
+            `$1 <strong>${parteData}</strong> às <strong>${parteHora}</strong>`
         );
-        // Substitui linha "Natureza da ocorrência: __________________________"
         htmlFinal = htmlFinal.replace(
-            /(Natureza[^:]*:?\s*)_{3,}/gi,
+            /(Natureza[^:]*:[\s\S]{0,80}?)_{3,}/gi,
             `$1<strong>${sin.natureza || ''}</strong>`
         );
-        // Substitui linha "Boletim de Ocorrência nº (se houver): __________________________"
         htmlFinal = htmlFinal.replace(
-            /(Boletim[^:☺]*n[º°]?[^:]*:?\s*)_{3,}/gi,
+            /(Boletim[^:]*:[\s\S]{0,80}?)_{3,}/gi,
             `$1<strong>${sin.numero_boletim || ''}</strong>`
         );
-        // Substitui linha "Marca/Modelo do veículo: __________________________"
         htmlFinal = htmlFinal.replace(
-            /(Marca[^:]*:?\s*)_{3,}/gi,
+            /(Marca[^:]*:[\s\S]{0,80}?)_{3,}/gi,
             `$1<strong>${sin.veiculo || ''}</strong>`
         );
-        // Substitui linha "Placa do veículo: __________________________"
         htmlFinal = htmlFinal.replace(
-            /(Placa[^:]*:?\s*)_{3,}/gi,
+            /(Placa[^:]*:[\s\S]{0,80}?)_{3,}/gi,
             `$1<strong>${sin.placa || ''}</strong>`
         );
-        // Substitui linha "Valor total do dano: R$ __________________________"
+        
         const valorTotal = sin.desconto_valor
             || (sin.valor_parcela && sin.parcelas ? (parseFloat((sin.valor_parcela || '0').replace(',','.')) * (sin.parcelas || 1)).toFixed(2).replace('.',',') : sin.valor_parcela)
             || '';
+
         htmlFinal = htmlFinal.replace(
-            /(Valor\s+total[^:]*:?\s*R\$\s*)_{3,}/gi,
-            `$1<strong>${valorTotal}</strong>`
+            /(Valor\s+total[^:]*:[\s\S]{0,80}?R\$[\s\S]{0,50}?)_{3,}/gi,
+            `$1 <strong>${valorTotal}</strong>`
+        );
+        htmlFinal = htmlFinal.replace( // Variante se faltar R$ na linha
+            /(Valor\s+total[^:]*:[\s\S]{0,80}?)_{3,}/gi,
+            `$1 R$ <strong>${valorTotal}</strong>`
         );
 
-        // Substitui parcelamento (   ) 1x (   ) 2x (   ) 3x
-        // Marca o número de parcelas escolhido
+        // Substitui parcelamento (   ) 1x ...
         const nParc = parseInt(sin.parcelas) || 1;
         htmlFinal = htmlFinal.replace(
-            /\(\s*\)\s*(1x)/gi,
-            (nParc === 1 ? '(<strong>✓</strong>) <strong>$1</strong>' : '(   ) $1')
+            /(\([\s\xA0&nbsp;]*\)(?:[\s\xA0&nbsp;]|<[^>]+>)*1x)/gi,
+            (nParc === 1 ? '(<strong>✓</strong>) 1x' : '(   ) 1x')
         );
         htmlFinal = htmlFinal.replace(
-            /\(\s*\)\s*(2x)/gi,
-            (nParc === 2 ? '(<strong>✓</strong>) <strong>$1</strong>' : '(   ) $1')
+            /(\([\s\xA0&nbsp;]*\)(?:[\s\xA0&nbsp;]|<[^>]+>)*2x)/gi,
+            (nParc === 2 ? '(<strong>✓</strong>) 2x' : '(   ) 2x')
         );
         htmlFinal = htmlFinal.replace(
-            /\(\s*\)\s*(3x)/gi,
-            (nParc === 3 ? '(<strong>✓</strong>) <strong>$1</strong>' : '(   ) $1')
+            /(\([\s\xA0&nbsp;]*\)(?:[\s\xA0&nbsp;]|<[^>]+>)*3x)/gi,
+            (nParc === 3 ? '(<strong>✓</strong>) 3x' : '(   ) 3x')
         );
 
         // ===== LOGO =====
