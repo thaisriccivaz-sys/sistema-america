@@ -2379,17 +2379,18 @@ app.post('/api/extrair-bo', authenticateToken, multerUploadMemoria.single('arqui
         // Eliminar espacos duplicados para ajudar a regex
         const cleanText = text.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ');
 
-        // Boletim No: "FR6269-1/2026"
+        // Boletim No: "FR6269-1/2026" ou "FR 6269-1/2026"
         let boletim = '';
-        const matBO = cleanText.match(/Boletim\s*N[^\s]*\s*([A-Z0-9]{2,}\d*[-]\d+\/\d{4})/i)
-                   || cleanText.match(/([A-Z]{2,}\d+[-]\d+\/\d{4})/);
-        if (matBO) boletim = matBO[1];
+        const matBO = cleanText.match(/([A-Z]{2}\s*\d+[-]\d+\/\d{4})/i)
+                   || cleanText.match(/Boletim[^\d]*(\d+[-]\d+\/\d{4})/i);
+        if (matBO) boletim = matBO[1].replace(/\s/g, '').toUpperCase();
 
         // Ocorrencia: "13/04/2026 as 13:30"
         let dataHoraStr = '';
         const matOc = cleanText.match(/Ocorr[eê]ncia[:\s]+(\d{2}\/\d{2}\/\d{4})\s+[aà]s?\s+(\d{2}:\d{2})/i)
-                   || cleanText.match(/Data.*?Ocorr.*?:?\s*(\d{2}\/\d{2}\/\d{4}).*?(\d{2}:\d{2})/i);
-        if (matOc) dataHoraStr = matOc[1] + ' as ' + matOc[2];
+                   || cleanText.match(/Data.*?Ocorr.*?:?\s*(\d{2}\/\d{2}\/\d{4}).*?(\d{2}:\d{2})/i)
+                   || cleanText.match(/(\d{2}\/\d{2}\/\d{4})\s*.*?(\d{2}:\d{2})/i); // aggressive fallback
+        if (matOc) dataHoraStr = matOc[1] + ' às ' + matOc[2];
 
         // Natureza
         let natureza = '';
@@ -2404,14 +2405,15 @@ app.post('/api/extrair-bo', authenticateToken, multerUploadMemoria.single('arqui
 
         // Marca/Modelo: "Marca/Modelo: IVECO/DAILY 35CS"
         let marcaModelo = '';
-        const matMM = cleanText.match(/Marca\/Modelo[:\s]+([A-Z0-9\/\-\s]{3,30}?)(?:Ano\s|Cor\s|Chassi|Placa)/i);
+        const matMM = cleanText.match(/Marca\/Modelo[^\w]*([A-Z0-9\/\-\s]{3,30}?)(?:Ano\s|Cor\s|Chassi|Placa)/i);
         if (matMM) marcaModelo = matMM[1].trim();
 
-        // Placa: "Placa: TLR0H81"
+        // Placa: "TLR0H81"
         let placa = '';
-        const matPl = cleanText.match(/Placa[:\s]+([A-Z]{3}\s*\d[A-Z0-9]\d{2})/i)
-                   || cleanText.match(/Placa[:\s]+([A-Z]{3}\s*\d{4})/i);
-        if (matPl) placa = matPl[1].replace(/\s/g, '').toUpperCase();
+        const matPl = cleanText.match(/Placa[^\w]*([A-Z]{3}[-\s]*\d[A-Z0-9]\d{2})/i)
+                   || cleanText.match(/Placa[^\w]*([A-Z]{3}[-\s]*\d{4})/i)
+                   || cleanText.match(/(?:^|\s)([A-Z]{3}[-\s]*\d[A-Z0-9]\d{2})(?:\s|$)/i); // aggressive fallback
+        if (matPl) placa = matPl[1].replace(/[-\s]/g, '').toUpperCase();
 
         console.log('[BO] boletim=' + boletim + ' | data=' + dataHoraStr + ' | natureza=' + natureza + ' | placa=' + placa + ' | modelo=' + marcaModelo);
         console.log('[BO-TEXT primeiros 300 chars]', cleanText.substring(0, 300));
