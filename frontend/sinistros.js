@@ -1,53 +1,41 @@
 // ABA SINISTROS - PROCESSOS DE BOLETINS DE OCORRÊNCIA
+// Segue o padrão de renderMultasMotoristaTab em app.js
 
 window._recarregarListaSinistros = async function(colabId) {
-    const tabContent = document.getElementById('tab-Sinistros');
+    const tabContent = document.getElementById('docs-list-container');
     if (tabContent && typeof window.renderSinistrosTab === 'function') {
-        const listContainer = document.getElementById('sinistros-lista-container');
-        if(listContainer) {
-            await window.renderSinistrosTab(listContainer.parentElement, colabId);
-        } else {
-            await window.renderSinistrosTab(tabContent, colabId);
-        }
+        await window.renderSinistrosTab(tabContent);
     }
 };
 
-window.renderSinistrosTab = async function(container, customColabId = null) {
-    const colab = window._currentColaboradorForProntuario;
+window.renderSinistrosTab = async function(container) {
+    // Usa viewedColaborador — mesma variável global do app.js
+    const colab = viewedColaborador;
     if (!colab) return;
 
     container.innerHTML = '';
-    
-    // Header
-    const header = document.createElement('div');
-    header.style = 'display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:1.5rem;';
-    header.innerHTML = `
-        <div>
-            <h4 style="margin:0; font-weight:700; color:#1e293b;"><i class="ph ph-warning" style="color:#f59e0b;"></i> Gerenciamento de Sinistros</h4>
-            <p style="margin:4px 0 0; font-size:0.85rem; color:#64748b;">Anexe o Boletim de Ocorrência para inciar o processo de Sinistro.</p>
-        </div>
-        <button class="btn btn-primary" onclick="window.abrirModalNovoSinistro()" style="display:flex;align-items:center;gap:6px; background:#d97706; border-color:#b45309;">
-            <i class="ph ph-plus"></i> Novo Sinistro
-        </button>
-    `;
-    container.appendChild(header);
+
+    // Botão de nova ocorrência
+    const btnNovo = document.createElement('button');
+    btnNovo.className = 'btn btn-primary';
+    btnNovo.style = 'margin-bottom:1.5rem; display:flex; align-items:center; gap:6px; background:#d97706; border-color:#b45309;';
+    btnNovo.innerHTML = '<i class="ph ph-plus"></i> Novo Sinistro';
+    btnNovo.onclick = () => window.abrirModalNovoSinistro();
+    container.appendChild(btnNovo);
 
     const listaContainer = document.createElement('div');
     listaContainer.id = 'sinistros-lista-container';
     listaContainer.style = 'display:flex; flex-direction:column; gap:1.25rem;';
-    listaContainer.innerHTML = `
-        <div style="text-align:center; padding:2rem; color:#64748b;">
-            <i class="ph ph-spinner ph-spin"></i> Carregando sinistros...
-        </div>`;
+    listaContainer.innerHTML = `<div style="display:flex;align-items:center;gap:8px;color:#94a3b8;padding:1rem 0;">
+        <i class="ph ph-spinner ph-spin"></i> Carregando sinistros registrados...
+    </div>`;
     container.appendChild(listaContainer);
 
-    // Carregar sinistros do backend
     let sinistros = [];
     try {
         sinistros = await apiGet(`/colaboradores/${colab.id}/sinistros`) || [];
     } catch(e) {
-        console.error('Erro ao buscar sinistros:', e);
-        listaContainer.innerHTML = '<div class="alert alert-danger">Erro ao carregar sinistros.</div>';
+        listaContainer.innerHTML = `<div class="alert alert-info"><i class="ph ph-info"></i> Nenhum sinistro registrado ainda.</div>`;
         return;
     }
 
@@ -56,9 +44,9 @@ window.renderSinistrosTab = async function(container, customColabId = null) {
     if (sinistros.length === 0) {
         listaContainer.innerHTML = `
             <div style="text-align:center; padding:3rem; background:#f8fafc; border-radius:12px; border:2px dashed #e2e8f0;">
-                <i class="ph ph-file-text" style="font-size:3rem; color:#cbd5e1; margin-bottom:1rem; display:block;"></i>
+                <i class="ph ph-car-crash" style="font-size:3rem; color:#cbd5e1; margin-bottom:1rem; display:block;"></i>
                 <h5 style="color:#475569; font-weight:600; margin-bottom:0.5rem;">Nenhum sinistro registrado</h5>
-                <p style="color:#94a3b8; font-size:0.9rem; margin:0;">Clique em "Novo Sinistro" para anexar um BO de ocorrência.</p>
+                <p style="color:#94a3b8; font-size:0.9rem; margin:0;">Clique em "Novo Sinistro" para anexar um Boletim de Ocorrência.</p>
             </div>
         `;
     } else {
@@ -69,7 +57,7 @@ window.renderSinistrosTab = async function(container, customColabId = null) {
 window._renderSinistroCard = function(s, colabId, container) {
     const card = document.createElement('div');
     card.className = 'sinistro-card';
-    card.style = 'background:#fff; border-radius:12px; border:1px solid #e2e8f0; padding:1.25rem; box-shadow:0 1px 3px rgba(0,0,0,0.05); display:flex; flex-direction:column; gap:1rem; position:relative;';
+    card.style = 'background:#fff; border-radius:12px; border:1px solid #e2e8f0; padding:1.25rem; box-shadow:0 1px 3px rgba(0,0,0,0.05); display:flex; flex-direction:column; gap:1rem;';
 
     const statusMap = {
         'pendente': { text: 'Aguardando Assinaturas', color: '#f59e0b', bg: '#fef3c7' },
@@ -77,66 +65,53 @@ window._renderSinistroCard = function(s, colabId, container) {
     };
     const st = statusMap[s.status] || { text: s.status, color: '#64748b', bg: '#f1f5f9' };
 
-    let actionsHtml = '';
-    
-    // Status visual das assinaturas caso pendente e o documento ja foi gerado (processo_iniciado = 1)
     let signStatus = '';
     if (s.processo_iniciado && s.status !== 'assinado') {
-        let testOk = s.assinatura_testemunha1_base64 && s.assinatura_testemunha2_base64;
-        let condOk = s.assinatura_condutor_base64;
-        
+        const testOk = s.assinatura_testemunha1_base64 && s.assinatura_testemunha2_base64;
+        const condOk = s.assinatura_condutor_base64;
         signStatus = `
             <div style="display:flex; gap:0.5rem; margin-top:0.5rem;">
-                <span style="font-size:0.75rem; padding:2px 8px; border-radius:4px; ${testOk ? 'background:#dcfce7; color:#166534;' : 'background:#fee2e2; color:#b91c1c;'}"><i class="ph ${testOk?'ph-check':'ph-x'}"></i> Testemunhas</span>
-                <span style="font-size:0.75rem; padding:2px 8px; border-radius:4px; ${condOk ? 'background:#dcfce7; color:#166534;' : 'background:#fee2e2; color:#b91c1c;'}"><i class="ph ${condOk?'ph-check':'ph-x'}"></i> Condutor</span>
+                <span style="font-size:0.75rem; padding:2px 8px; border-radius:4px; ${testOk ? 'background:#dcfce7; color:#166534;' : 'background:#fee2e2; color:#b91c1c;'}"><i class="ph ${testOk ? 'ph-check' : 'ph-x'}"></i> Testemunhas</span>
+                <span style="font-size:0.75rem; padding:2px 8px; border-radius:4px; ${condOk ? 'background:#dcfce7; color:#166534;' : 'background:#fee2e2; color:#b91c1c;'}"><i class="ph ${condOk ? 'ph-check' : 'ph-x'}"></i> Condutor</span>
             </div>
         `;
     }
 
+    let actionsHtml = '';
     if (s.status === 'assinado') {
-        actionsHtml = `
-            <button class="btn btn-sm" onclick="window.verDocumentoSinistro(${s.id}, ${colabId})" style="color:#0284c7; background:#e0f2fe; border:none;"><i class="ph ph-eye"></i> Ver Documento</button>
-        `;
-    } else {
-        if (!s.processo_iniciado || !s.documento_html) {
-            // Em tese n entra aqui, ele ja Inicia o processo quando é inserido se teve desconto=Sim. Se nao, anexou só BO
-            if(s.desconto === 'Não') {
-                 actionsHtml = `<span style="font-size:0.85rem; color:#64748b;"><i class="ph ph-check-circle"></i> Apenas Registro (BO Anexado)</span>`;
-            } else {
-                 actionsHtml = `
-                    <button class="btn btn-sm" onclick="window.gerarDocumentoSinistro(${s.id}, ${colabId})" style="color:#0284c7; background:#e0f2fe; border:none;"><i class="ph ph-file-text"></i> Gerar Documento</button>
-                 `;
-            }
+        actionsHtml = `<button class="btn btn-sm" onclick="window.verDocumentoSinistro(${s.id}, ${colabId})" style="color:#0284c7; background:#e0f2fe; border:none;"><i class="ph ph-eye"></i> Ver Documento</button>`;
+    } else if (!s.processo_iniciado || !s.documento_html) {
+        if (s.desconto === 'Não') {
+            actionsHtml = `<span style="font-size:0.85rem; color:#64748b;"><i class="ph ph-check-circle"></i> Apenas Registro (BO Anexado)</span>`;
         } else {
-            let testOk = s.assinatura_testemunha1_base64 && s.assinatura_testemunha2_base64;
-            let condOk = s.assinatura_condutor_base64;
-            
-            actionsHtml = `<div style="display:flex; gap:0.5rem;">`;
-            if (!testOk) {
-                actionsHtml += `<button class="btn btn-sm btn-primary" onclick="window.abrirModalAssinaturaTestemunhas(null, ${s.id}, 'Sinistro')" style="background:#a78bfa; border:none;"><i class="ph ph-pen"></i> Assinar Testemunhas</button>`;
-            } else if (!condOk) {
-                actionsHtml += `<button class="btn btn-sm btn-primary" onclick="window.abrirModalAssinaturaCondutor(null, ${s.id}, 'Sinistro')" style="background:#f59e0b; border:none;"><i class="ph ph-pen"></i> Assinar Condutor</button>`;
-            }
-            actionsHtml += `<button class="btn btn-sm" onclick="window.verDocumentoSinistro(${s.id}, ${colabId})" style="color:#64748b; background:#f1f5f9; border:none;"><i class="ph ph-eye"></i> Preview</button>`;
-            actionsHtml += `</div>`;
+            actionsHtml = `<button class="btn btn-sm" onclick="window.gerarDocumentoSinistro(${s.id}, ${colabId})" style="color:#0284c7; background:#e0f2fe; border:none;"><i class="ph ph-file-text"></i> Gerar Documento</button>`;
         }
+    } else {
+        const testOk = s.assinatura_testemunha1_base64 && s.assinatura_testemunha2_base64;
+        const condOk = s.assinatura_condutor_base64;
+        actionsHtml = `<div style="display:flex; gap:0.5rem;">`;
+        if (!testOk) {
+            actionsHtml += `<button class="btn btn-sm btn-primary" onclick="window.abrirModalAssinaturaTestemunhasSinistro(${s.id}, ${colabId})" style="background:#a78bfa; border:none;"><i class="ph ph-pen"></i> Assinar Testemunhas</button>`;
+        } else if (!condOk) {
+            actionsHtml += `<button class="btn btn-sm btn-primary" onclick="window.abrirModalAssinaturaCondutorSinistro(${s.id}, ${colabId})" style="background:#f59e0b; border:none;"><i class="ph ph-pen"></i> Assinar Condutor</button>`;
+        }
+        actionsHtml += `<button class="btn btn-sm" onclick="window.verDocumentoSinistro(${s.id}, ${colabId})" style="color:#64748b; background:#f1f5f9; border:none;"><i class="ph ph-eye"></i> Preview</button>`;
+        actionsHtml += `</div>`;
     }
 
     card.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:flex-start;">
             <div>
-                <h5 style="margin:0; font-size:1.1rem; color:#0f172a; font-weight:700;">BO: ${s.numero_boletim || 'N/A'}</h5>
-                <p style="margin:4px 0 0; font-size:0.85rem; color:#64748b;"><i class="ph ph-calendar"></i> Ocorrido: ${s.data_hora} &nbsp;|&nbsp; ${s.natureza || 'Sem Natureza'}</p>
-                <p style="margin:4px 0 0; font-size:0.85rem; color:#64748b;">${s.veiculo} &nbsp;|&nbsp; Placa: ${s.placa}</p>
+                <h5 style="margin:0; font-size:1.1rem; color:#0f172a; font-weight:700;"><i class="ph ph-file-text" style="color:#d97706;"></i> BO: ${s.numero_boletim || 'N/A'}</h5>
+                <p style="margin:4px 0 0; font-size:0.85rem; color:#64748b;"><i class="ph ph-calendar"></i> Ocorrido: ${s.data_hora || '—'} &nbsp;|&nbsp; ${s.natureza || 'Sem Natureza'}</p>
+                <p style="margin:4px 0 0; font-size:0.85rem; color:#64748b;">${s.veiculo || '—'} &nbsp;|&nbsp; Placa: ${s.placa || '—'}</p>
                 ${signStatus}
             </div>
-            <div style="text-align:right;">
-                <span style="display:inline-block; padding:4px 10px; border-radius:20px; font-size:0.75rem; font-weight:600; color:${st.color}; background:${st.bg};">${st.text}</span>
-            </div>
+            <span style="display:inline-block; padding:4px 10px; border-radius:20px; font-size:0.75rem; font-weight:600; color:${st.color}; background:${st.bg};">${st.text}</span>
         </div>
         <div style="background:#f8fafc; border-top:1px dashed #cbd5e1; padding-top:0.75rem; display:flex; justify-content:space-between; align-items:center;">
             <div style="font-size:0.8rem; color:#475569;">
-                <strong>Desconto:</strong> ${s.desconto} ${s.desconto === 'Sim' ? `(${s.parcelas}x de ${s.valor_parcela})` : ''} <br/>
+                <strong>Desconto:</strong> ${s.desconto || 'Não'} ${s.desconto === 'Sim' ? `(${s.parcelas}x de ${s.valor_parcela})` : ''}<br/>
                 ${s.tipo_sinistro ? `<strong>Tipo:</strong> ${s.tipo_sinistro}` : ''}
             </div>
             ${actionsHtml}
@@ -147,38 +122,38 @@ window._renderSinistroCard = function(s, colabId, container) {
 };
 
 // =========================================================
-// FLUXO DE NOVO SINISTRO
+// MODAL: NOVO SINISTRO (2 passos)
 // =========================================================
 
 window.abrirModalNovoSinistro = function() {
     let m = document.getElementById('modal-novo-sinistro');
-    if(!m) {
+    if (!m) {
         m = document.createElement('div');
         m.id = 'modal-novo-sinistro';
         m.className = 'modal';
         m.innerHTML = `
-            <div class="modal-content" style="max-width:600px;">
+            <div class="modal-content" style="max-width:640px;">
                 <div class="modal-header">
-                    <h3>Registrar Novo Sinistro</h3>
+                    <h3><i class="ph ph-car-crash" style="color:#d97706;"></i> Registrar Novo Sinistro</h3>
                     <button onclick="document.getElementById('modal-novo-sinistro').style.display='none'" class="btn-close"><i class="ph ph-x"></i></button>
                 </div>
                 <div class="modal-body">
-                    
-                    <!-- Passo 1: Upload BO -->
                     <div id="sinistro-step-1">
-                        <p style="font-size:0.9rem; color:#475569; margin-bottom:1rem;">Anexe o Boletim de Ocorrência (PDF ou Imagem). O sistema tentará ler as informações automaticamente.</p>
+                        <p style="font-size:0.9rem; color:#475569; margin-bottom:1rem;">Anexe o Boletim de Ocorrência (PDF). O sistema tentará extrair os dados automaticamente.</p>
                         <div class="input-group">
-                            <label>Arquivo do Boletim de Ocorrência *</label>
+                            <label>Arquivo do BO *</label>
                             <input type="file" id="sinistro-file-bo" accept=".pdf,image/*" class="form-control">
                         </div>
-                        <button type="button" class="btn btn-primary" onclick="window.processarLeituraBO()" style="width:100%;"><i class="ph ph-scan"></i> Analisar BO e Continuar</button>
+                        <button type="button" class="btn btn-primary" onclick="window.processarLeituraBO()" style="width:100%; margin-top:0.5rem;">
+                            <i class="ph ph-scan"></i> Analisar BO e Continuar
+                        </button>
                     </div>
 
-                    <!-- Passo 2: Confirmacao dos dados do BO -->
                     <div id="sinistro-step-2" style="display:none;">
                         <div style="background:#f0fdf4; border:1px solid #bbf7d0; padding:10px; border-radius:8px; margin-bottom:1rem;">
-                            <p style="margin:0; font-size:0.85rem; color:#166534;"><i class="ph ph-check-circle"></i> Leitura concluída. Confira ou edite os dados extraídos.</p>
+                            <p style="margin:0; font-size:0.85rem; color:#166534;"><i class="ph ph-check-circle"></i> Dados extraídos. Confira ou edite se necessário.</p>
                         </div>
+
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
                             <div class="input-group">
                                 <label>Boletim Nº</label>
@@ -195,7 +170,7 @@ window.abrirModalNovoSinistro = function() {
                         </div>
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
                             <div class="input-group">
-                                <label>Marca/Modelo (Nosso Veículo)</label>
+                                <label>Marca/Modelo</label>
                                 <input type="text" id="sin-veiculo" class="form-control">
                             </div>
                             <div class="input-group">
@@ -203,8 +178,9 @@ window.abrirModalNovoSinistro = function() {
                                 <input type="text" id="sin-placa" class="form-control">
                             </div>
                         </div>
-                        <hr style="border-color:#e2e8f0; margin:1.5rem 0;"/>
-                        <p style="font-weight:600; color:#1e293b;"><i class="ph ph-question"></i> Vai ser necessário realizar algum desconto?</p>
+
+                        <hr style="border-color:#e2e8f0; margin:1.25rem 0;"/>
+                        <p style="font-weight:600; color:#1e293b; margin-bottom:0.75rem;"><i class="ph ph-question"></i> Vai ser necessário realizar algum desconto?</p>
                         <div style="display:flex; gap:1.5rem; margin-bottom:1rem;">
                             <label style="cursor:pointer;"><input type="radio" name="sin-desconto" value="Sim" onclick="window.toggleSinistroDesconto(true)"> Sim</label>
                             <label style="cursor:pointer;"><input type="radio" name="sin-desconto" value="Não" checked onclick="window.toggleSinistroDesconto(false)"> Não</label>
@@ -222,7 +198,7 @@ window.abrirModalNovoSinistro = function() {
                             </div>
                             <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
                                 <div class="input-group">
-                                    <label>Quantas vezes gostaria de parcelar?</label>
+                                    <label>Parcelamento</label>
                                     <select id="sin-parcelas" class="form-control">
                                         <option value="1">1x</option>
                                         <option value="2">2x</option>
@@ -231,12 +207,11 @@ window.abrirModalNovoSinistro = function() {
                                 </div>
                                 <div class="input-group">
                                     <label>Valor da Parcela (R$)</label>
-                                    <input type="text" id="sin-valor-parcela" class="form-control" placeholder="0,00" oninput="this.value=this.value.replace(/[^0-9,.]/g,'')">
+                                    <input type="text" id="sin-valor-parcela" class="form-control" placeholder="0,00">
                                 </div>
                             </div>
-                            
-                            <p style="margin:10px 0 5px; font-weight:600; font-size:0.85rem;">Gostaria de anexar orçamentos?</p>
-                            <div style="display:flex; gap:1.5rem; margin-bottom:10px;">
+                            <p style="margin:10px 0 5px; font-weight:600; font-size:0.85rem;">Deseja anexar orçamentos?</p>
+                            <div style="display:flex; gap:1.5rem; margin-bottom:8px;">
                                 <label style="cursor:pointer;"><input type="radio" name="sin-orcamento" value="Sim" onclick="document.getElementById('sin-orc-upload').style.display='block'"> Sim</label>
                                 <label style="cursor:pointer;"><input type="radio" name="sin-orcamento" value="Não" checked onclick="document.getElementById('sin-orc-upload').style.display='none'"> Não</label>
                             </div>
@@ -245,20 +220,21 @@ window.abrirModalNovoSinistro = function() {
                             </div>
                         </div>
 
-                        <button type="button" class="btn btn-primary" onclick="window.salvarSinistroFinal()" style="width:100%; background:#059669; border:none;"><i class="ph ph-check"></i> Concluir Registro</button>
+                        <button type="button" class="btn btn-primary" onclick="window.salvarSinistroFinal()" style="width:100%; background:#059669; border:none;">
+                            <i class="ph ph-check"></i> Concluir Registro
+                        </button>
                     </div>
-
                 </div>
             </div>
         `;
         document.body.appendChild(m);
     }
-    
-    // reset
+
+    // reset estado
     document.getElementById('sinistro-step-1').style.display = 'block';
     document.getElementById('sinistro-step-2').style.display = 'none';
     document.getElementById('sinistro-file-bo').value = '';
-    m.style.display = 'block';
+    m.style.display = 'flex';
 };
 
 window.toggleSinistroDesconto = function(show) {
@@ -267,8 +243,8 @@ window.toggleSinistroDesconto = function(show) {
 
 window.processarLeituraBO = async function() {
     const fileInput = document.getElementById('sinistro-file-bo');
-    if(!fileInput.files.length) return alert('Selecione o arquivo do BO.');
-    
+    if (!fileInput.files.length) return alert('Selecione o arquivo do BO.');
+
     const formData = new FormData();
     formData.append('arquivo', fileInput.files[0]);
 
@@ -284,10 +260,6 @@ window.processarLeituraBO = async function() {
             body: formData
         });
         const data = await res.json();
-        
-        if(!data.sucesso && !data.data_hora && !data.boletim) {
-             console.warn('Leitura OCR falhou ou retornou vazia, abrindo manual.');
-        }
 
         document.getElementById('sin-bo').value = data.boletim || '';
         document.getElementById('sin-data').value = data.data_hora || '';
@@ -295,55 +267,47 @@ window.processarLeituraBO = async function() {
         document.getElementById('sin-veiculo').value = data.marca_modelo || '';
         document.getElementById('sin-placa').value = data.placa || '';
 
-        document.getElementById('sinistro-step-1').style.display = 'none';
-        document.getElementById('sinistro-step-2').style.display = 'block';
-
     } catch(e) {
-        alert('Erro ao extrair dados. Você pode preencher manualmente.');
-        document.getElementById('sinistro-step-1').style.display = 'none';
-        document.getElementById('sinistro-step-2').style.display = 'block';
+        console.warn('Leitura OCR falhou, modo manual:', e.message);
     } finally {
         btn.innerHTML = oldText;
         btn.disabled = false;
+        // Sempre avança para etapa 2
+        document.getElementById('sinistro-step-1').style.display = 'none';
+        document.getElementById('sinistro-step-2').style.display = 'block';
     }
 };
 
 window.salvarSinistroFinal = async function() {
-    const colab = window._currentColaboradorForProntuario;
-    if(!colab) return;
+    const colab = viewedColaborador;
+    if (!colab) return;
 
     const fileBO = document.getElementById('sinistro-file-bo').files[0];
-    if(!fileBO) return alert('Arquivo do BO (Passo 1) sumiu? Selecione novamente.');
+    if (!fileBO) return alert('O arquivo do BO não foi encontrado. Volte ao passo anterior.');
 
     const desconto = document.querySelector('input[name="sin-desconto"]:checked').value;
-    
+
     const formData = new FormData();
     formData.append('arquivo', fileBO);
-    formData.append('numero_boletim', document.getElementById('sin-bo').value);
-    formData.append('data_hora', document.getElementById('sin-data').value);
-    formData.append('natureza', document.getElementById('sin-natureza').value);
-    formData.append('veiculo', document.getElementById('sin-veiculo').value);
-    formData.append('placa', document.getElementById('sin-placa').value);
+    formData.append('numero_boletim', document.getElementById('sin-bo').value || '');
+    formData.append('data_hora', document.getElementById('sin-data').value || '');
+    formData.append('natureza', document.getElementById('sin-natureza').value || '');
+    formData.append('veiculo', document.getElementById('sin-veiculo').value || '');
+    formData.append('placa', document.getElementById('sin-placa').value || '');
     formData.append('desconto', desconto);
-    
-    if(desconto === 'Sim') {
+
+    if (desconto === 'Sim') {
         formData.append('tipo_sinistro', document.getElementById('sin-tipo-sinistro').value);
         formData.append('parcelas', document.getElementById('sin-parcelas').value);
         formData.append('valor_parcela', document.getElementById('sin-valor-parcela').value);
-        
-        const cOrc = document.querySelector('input[name="sin-orcamento"]:checked').value;
-        if(cOrc === 'Sim') {
+
+        const cOrc = document.querySelector('input[name="sin-orcamento"]:checked')?.value;
+        if (cOrc === 'Sim') {
             const filesOrc = document.getElementById('sin-file-orcamentos').files;
-            // Simplificando o envio de multiplos arquivos: enviaremos como base64 no body só pra não complicar o multer
-            // Se as imagens/pdfs não forem gigantes, funciona
-            if(filesOrc.length > 0) {
-                let orcsBase64 = [];
-                for(let f of filesOrc) {
-                    let b64 = await new Promise((r) => { 
-                        let rd = new FileReader(); 
-                        rd.onload=()=>r(rd.result); 
-                        rd.readAsDataURL(f); 
-                    });
+            if (filesOrc.length > 0) {
+                const orcsBase64 = [];
+                for (const f of filesOrc) {
+                    const b64 = await new Promise(r => { const rd = new FileReader(); rd.onload = () => r(rd.result); rd.readAsDataURL(f); });
                     orcsBase64.push(b64);
                 }
                 formData.append('orcamentos_base64', JSON.stringify(orcsBase64));
@@ -353,7 +317,7 @@ window.salvarSinistroFinal = async function() {
 
     const btn = document.querySelector('#sinistro-step-2 button.btn-primary');
     const oldText = btn.innerHTML;
-    btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando no OneDrive...';
+    btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...';
     btn.disabled = true;
 
     try {
@@ -363,18 +327,18 @@ window.salvarSinistroFinal = async function() {
             body: formData
         });
         const responseData = await res.json();
-        if(responseData.error) throw new Error(responseData.error);
+        if (responseData.error) throw new Error(responseData.error);
 
-        // Se desconto = 'Sim', gera doc automaticamente
-        if(desconto === 'Sim') {
+        // Se com desconto, gera documento automaticamente
+        if (desconto === 'Sim') {
             await fetch(`${API_URL}/colaboradores/${colab.id}/sinistros/${responseData.id}/gerar-documento`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
             });
         }
-        
+
         document.getElementById('modal-novo-sinistro').style.display = 'none';
-        Toastify({ text: "Processo de Sinistro Criado!", backgroundColor: "green" }).showToast();
+        if (typeof Toastify !== 'undefined') Toastify({ text: 'Sinistro registrado com sucesso!', backgroundColor: '#059669' }).showToast();
         await window._recarregarListaSinistros(colab.id);
 
     } catch(e) {
@@ -391,105 +355,95 @@ window.gerarDocumentoSinistro = async function(sinId, colabId) {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
         });
-        if(r.ok) {
-            Toastify({ text: "Documento Gerado!", backgroundColor: "blue" }).showToast();
+        if (r.ok) {
+            if (typeof Toastify !== 'undefined') Toastify({ text: 'Documento gerado!', backgroundColor: '#2563eb' }).showToast();
             await window._recarregarListaSinistros(colabId);
         }
-    } catch(e) {
-        alert(e.message);
-    }
+    } catch(e) { alert(e.message); }
 };
 
 window.verDocumentoSinistro = async function(sinId, colabId) {
-    // Busca novamente o sinistro apenas para obter o html final, ou usa o endpoint atualizado
-    // Aqui usaremos o endpoint simples que traz todos da lista
-    let sinistros = await apiGet(`/colaboradores/${colabId}/sinistros`);
-    let s = sinistros.find(x => x.id == sinId);
-    if(s && s.documento_html) {
-        const container = document.getElementById('preview-doc-body');
-        if (container) {
-            container.innerHTML = s.documento_html;
-            document.getElementById('preview-doc-title').textContent = 'Visualização de Sinistro';
-            document.getElementById('preview-doc-buttons').innerHTML = `
-                <button class="btn btn-secondary" onclick="document.getElementById('modal-preview-doc').style.display='none'">
-                    <i class="ph ph-x"></i> Fechar
-                </button>
-            `;
+    const sinistros = await apiGet(`/colaboradores/${colabId}/sinistros`);
+    const s = sinistros.find(x => x.id == sinId);
+    if (s && s.documento_html) {
+        const bodyEl = document.getElementById('preview-doc-body');
+        if (bodyEl) {
+            bodyEl.innerHTML = s.documento_html;
+            const titleEl = document.getElementById('preview-doc-title');
+            if (titleEl) titleEl.textContent = 'Visualização — Sinistro';
+            const btnsEl = document.getElementById('preview-doc-buttons');
+            if (btnsEl) btnsEl.innerHTML = `<button class="btn btn-secondary" onclick="document.getElementById('modal-preview-doc').style.display='none'"><i class="ph ph-x"></i> Fechar</button>`;
             document.getElementById('modal-preview-doc').style.display = 'block';
         }
     } else {
-        alert('Documento HTML não disponível.');
+        alert('Documento HTML não disponível. O documento ainda não foi gerado.');
     }
 };
 
 // =========================================================
-// ASSINATURAS REAPROVEITADAS DO MULTAS 
-// MAS ROTEANDO PARA O ENDPOINT CORRETO
-// Estas estao mockadas caso a pessoa clique em Assinar Testemunha na lista do sinistro, chamam a original do app.js que ja tem if tipo === 'Sinistro' !
+// MODAIS DE ASSINATURA - TESTEMUNHAS
 // =========================================================
-// MOCK APPEND: Lógica de Assinatura Isolada
-window.abrirModalAssinaturaTestemunhasSinistro = async function(sinId, colabId) {
-    let sinistros = await apiGet(`/colaboradores/${colabId}/sinistros`);
-    let s = sinistros.find(x => x.id == sinId);
-    if(!s || !s.documento_html) return alert('HTML do documento não encontrado!');
 
-    let modal = document.getElementById('modal-testemunhas-sinistro');
-    if(modal) modal.remove();
+window.abrirModalAssinaturaTestemunhasSinistro = async function(sinId, colabId) {
+    const sinistros = await apiGet(`/colaboradores/${colabId}/sinistros`);
+    const s = sinistros.find(x => x.id == sinId);
+    if (!s || !s.documento_html) return alert('HTML do documento não encontrado!');
+
+    const existing = document.getElementById('modal-testemunhas-sinistro');
+    if (existing) existing.remove();
 
     window._sinistroDocHtmlTestemunhas = s.documento_html;
 
-    modal = document.createElement('div');
-    modal.id = 'modal-testemunhas-sinistro';
-    modal.className = 'modal';
-    modal.style = 'align-items:flex-start;';
-    
-    // Testemunhas dropdown
     let options = '<option value="">Selecione...</option>';
     if (window._testemunhasCache) {
         window._testemunhasCache.forEach(t => { options += `<option value="${t.NOME_COMPLETO}">${t.NOME_COMPLETO}</option>`; });
     }
 
+    const modal = document.createElement('div');
+    modal.id = 'modal-testemunhas-sinistro';
+    modal.className = 'modal';
+    modal.style.display = 'flex';
+    modal.style.alignItems = 'flex-start';
     modal.innerHTML = `
-        <div class="modal-content" style="width:100%; max-width:100%; height:100vh; max-height:100vh; margin:0; border-radius:0; display:flex; flex-direction:column; background:#0f172a; overflow:hidden;">
-            <div class="modal-header" style="flex-shrink:0; background:#1e293b; padding:0.85rem 1.5rem; display:flex; align-items:center; justify-content:space-between; border-bottom:none;">
-                <h3 style="margin:0; color:#fff; font-size:1rem;"><i class="ph ph-users" style="color:#a78bfa;"></i> Assinatura de Testemunhas - Sinistro #${s.id}</h3>
-                <button onclick="document.getElementById('modal-testemunhas-sinistro').remove()" style="background:rgba(255,255,255,0.1); border:none; color:#fff; border-radius:8px; padding:6px 14px; cursor:pointer; font-size:0.9rem;">Fechar</button>
+        <div class="modal-content" style="width:100%;max-width:100%;height:100vh;max-height:100vh;margin:0;border-radius:0;display:flex;flex-direction:column;background:#0f172a;overflow:hidden;">
+            <div style="flex-shrink:0;background:#1e293b;padding:0.85rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
+                <h3 style="margin:0;color:#fff;font-size:1rem;"><i class="ph ph-users" style="color:#a78bfa;"></i> Assinatura de Testemunhas — Sinistro #${s.id}</h3>
+                <button onclick="document.getElementById('modal-testemunhas-sinistro').remove()" style="background:rgba(255,255,255,0.1);border:none;color:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;">Fechar</button>
             </div>
-            <div class="modal-body" style="padding:0; flex:1; display:flex; overflow:hidden;">
-                <!-- Esquerda -->
-                <div style="flex:1; overflow-y:auto; background:#f1f5f9; padding:1rem; display:flex; flex-direction:column;">
-                    <div style="background:#fff; border-radius:8px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,0.1); min-height:800px;">
-                        ${s.documento_html}
-                    </div>
+            <div style="padding:0;flex:1;display:flex;overflow:hidden;">
+                <div style="flex:1;overflow-y:auto;background:#f1f5f9;padding:1rem;">
+                    <div style="background:#fff;border-radius:8px;padding:20px;min-height:800px;">${s.documento_html}</div>
                 </div>
-                <!-- Direita -->
-                <div style="width:360px; background:#fff; overflow-y:auto; padding:1.5rem 1.5rem 6rem 1.5rem; display:flex; flex-direction:column; gap:1.25rem; border-left:1px solid #e2e8f0; flex-shrink:0;">
+                <div style="width:360px;background:#fff;overflow-y:auto;padding:1.5rem 1.5rem 6rem;display:flex;flex-direction:column;gap:1.25rem;border-left:1px solid #e2e8f0;flex-shrink:0;">
                     <div>
-                        <label style="font-weight:700; font-size:0.85rem; display:block; margin-bottom:6px;">Testemunha 1</label>
-                        <select id="sin-t1-nome" class="form-control mb-2" style="width:100%;">${options}</select>
-                        <div style="border: 2px dashed #cbd5e1; background:#f8fafc; border-radius:8px; margin-bottom:0.5rem;">
-                            <canvas id="sin-canvas-t1" style="width:100%; height:130px; cursor:crosshair;"></canvas>
+                        <label style="font-weight:700;font-size:0.85rem;display:block;margin-bottom:6px;">Testemunha 1</label>
+                        <select id="sin-t1-nome" class="form-control" style="width:100%;margin-bottom:8px;">${options}</select>
+                        <div style="border:2px dashed #cbd5e1;background:#f8fafc;border-radius:8px;">
+                            <canvas id="sin-canvas-t1" style="width:100%;height:130px;cursor:crosshair;display:block;"></canvas>
                         </div>
                     </div>
                     <div>
-                        <label style="font-weight:700; font-size:0.85rem; display:block; margin-bottom:6px;">Testemunha 2 <span style="font-size:0.8rem; font-weight:400; color:#94a3b8;">(opcional)</span></label>
-                        <select id="sin-t2-nome" class="form-control mb-2" style="width:100%;">${options}</select>
-                        <div style="border: 2px dashed #cbd5e1; background:#f8fafc; border-radius:8px; margin-bottom:0.5rem;">
-                            <canvas id="sin-canvas-t2" style="width:100%; height:130px; cursor:crosshair;"></canvas>
+                        <label style="font-weight:700;font-size:0.85rem;display:block;margin-bottom:6px;">Testemunha 2 <span style="font-weight:400;color:#94a3b8;">(opcional)</span></label>
+                        <select id="sin-t2-nome" class="form-control" style="width:100%;margin-bottom:8px;">${options}</select>
+                        <div style="border:2px dashed #cbd5e1;background:#f8fafc;border-radius:8px;">
+                            <canvas id="sin-canvas-t2" style="width:100%;height:130px;cursor:crosshair;display:block;"></canvas>
                         </div>
                     </div>
-                    <button type="button" id="btn-conf-t-sin" onclick="window.salvarAssinaturaTestemunhasSinistro(${sinId}, ${colabId})" style="padding:0.85rem; background:#2563eb; color:#fff; border:none; border-radius:10px; font-weight:700; font-size:1rem; cursor:pointer;"><i class="ph ph-check"></i> Salvar Assinaturas</button>
+                    <button type="button" id="btn-conf-t-sin" onclick="window.salvarAssinaturaTestemunhasSinistro(${sinId}, ${colabId})" style="padding:0.85rem;background:#2563eb;color:#fff;border:none;border-radius:10px;font-weight:700;font-size:1rem;cursor:pointer;">
+                        <i class="ph ph-check"></i> Salvar Assinaturas
+                    </button>
                 </div>
             </div>
         </div>
     `;
     document.body.appendChild(modal);
-    modal.style.display = 'flex';
 
     setTimeout(() => {
-        window._configurarCanvasMultiplo('sin-canvas-t1');
-        window._configurarCanvasMultiplo('sin-canvas-t2');
-    }, 100);
+        if (typeof window._configurarCanvasMultiplo === 'function') {
+            window._configurarCanvasMultiplo('sin-canvas-t1');
+            window._configurarCanvasMultiplo('sin-canvas-t2');
+        }
+    }, 150);
 };
 
 window.salvarAssinaturaTestemunhasSinistro = async function(sinId, colabId) {
@@ -499,13 +453,13 @@ window.salvarAssinaturaTestemunhasSinistro = async function(sinId, colabId) {
     const c2 = document.getElementById('sin-canvas-t2');
 
     if (!t1Nome) return alert('Selecione a Testemunha 1.');
-    if (!window._canvasTemConteudo('sin-canvas-t1')) return alert('A Testemunha 1 precisa assinar.');
+    if (typeof window._canvasTemConteudo === 'function' && !window._canvasTemConteudo('sin-canvas-t1')) return alert('A Testemunha 1 precisa assinar.');
 
     const t1Ass = c1.toDataURL('image/png');
-    const t2Ass = (c2 && window._canvasTemConteudo('sin-canvas-t2')) ? c2.toDataURL('image/png') : null;
+    const t2Ass = (c2 && typeof window._canvasTemConteudo === 'function' && window._canvasTemConteudo('sin-canvas-t2')) ? c2.toDataURL('image/png') : null;
 
-    let docHtmlComAssinaturas = window._sinistroDocHtmlTestemunhas || '';
-    if (docHtmlComAssinaturas) {
+    let docHtml = window._sinistroDocHtmlTestemunhas || '';
+    if (docHtml) {
         const inject = `
             <div style="margin-top:20px;padding:10px;border-top:2px solid #e2e8f0;">
                 <p style="font-weight:700;font-size:11px;">ASSINATURAS DAS TESTEMUNHAS:</p>
@@ -520,112 +474,128 @@ window.salvarAssinaturaTestemunhasSinistro = async function(sinId, colabId) {
                     </div>` : ''}
                 </div>
             </div>`;
-        docHtmlComAssinaturas = docHtmlComAssinaturas.replace('</body>', inject + '</body>');
+        docHtml = docHtml.replace('</body>', inject + '</body>');
     }
 
     try {
+        const btn = document.getElementById('btn-conf-t-sin');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...'; }
+
         const res = await fetch(`${API_URL}/colaboradores/${colabId}/sinistros/${sinId}/assinar-testemunhas`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-            body: JSON.stringify({ t1_nome: t1Nome, t1_base64: t1Ass, t2_nome: t2Nome || null, t2_base64: t2Ass, html_atualizado: docHtmlComAssinaturas })
+            body: JSON.stringify({ t1_nome: t1Nome, t1_base64: t1Ass, t2_nome: t2Nome || null, t2_base64: t2Ass, html_atualizado: docHtml })
         });
         const data = await res.json();
-        if(!data.sucesso) throw new Error(data.error);
+        if (!data.sucesso) throw new Error(data.error);
 
         document.getElementById('modal-testemunhas-sinistro').remove();
-        Toastify({ text: "Testemunhas assinadas!", backgroundColor: "green" }).showToast();
+        if (typeof Toastify !== 'undefined') Toastify({ text: 'Testemunhas assinadas!', backgroundColor: '#059669' }).showToast();
         await window._recarregarListaSinistros(colabId);
-    } catch(e) { alert(e.message); }
+    } catch(e) {
+        alert('Erro: ' + e.message);
+        const btn = document.getElementById('btn-conf-t-sin');
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-check"></i> Salvar Assinaturas'; }
+    }
 };
 
-window.abrirModalAssinaturaCondutorSinistro = async function(sinId, colabId) {
-    let sinistros = await apiGet(`/colaboradores/${colabId}/sinistros`);
-    let s = sinistros.find(x => x.id == sinId);
-    if(!s || !s.documento_html) return alert('HTML do documento não encontrado!');
+// =========================================================
+// MODAL DE ASSINATURA - CONDUTOR
+// =========================================================
 
-    let modal = document.getElementById('modal-condutor-sinistro');
-    if(modal) modal.remove();
+window.abrirModalAssinaturaCondutorSinistro = async function(sinId, colabId) {
+    const sinistros = await apiGet(`/colaboradores/${colabId}/sinistros`);
+    const s = sinistros.find(x => x.id == sinId);
+    if (!s || !s.documento_html) return alert('HTML do documento não encontrado!');
+
+    const existing = document.getElementById('modal-condutor-sinistro');
+    if (existing) existing.remove();
 
     window._sinistroDocHtmlCondutor = s.documento_html;
+    const colabName = viewedColaborador.nome_completo;
 
-    modal = document.createElement('div');
+    const modal = document.createElement('div');
     modal.id = 'modal-condutor-sinistro';
     modal.className = 'modal';
-    modal.style = 'align-items:flex-start;';
-
-    const colabName = window._currentColaboradorForProntuario.nome_completo;
-
+    modal.style.display = 'flex';
+    modal.style.alignItems = 'flex-start';
     modal.innerHTML = `
-        <div class="modal-content" style="width:100%; max-width:100%; height:100vh; max-height:100vh; margin:0; border-radius:0; display:flex; flex-direction:column; background:#0f172a; overflow:hidden;">
-            <div class="modal-header" style="flex-shrink:0; background:#1e293b; padding:0.85rem 1.5rem; display:flex; align-items:center; justify-content:space-between; border-bottom:none;">
-                <h3 style="margin:0; color:#fff; font-size:1rem;"><i class="ph ph-pen" style="color:#d97706;"></i> Assinatura do Condutor - Sinistro #${s.id}</h3>
-                <button onclick="document.getElementById('modal-condutor-sinistro').remove()" style="background:rgba(255,255,255,0.1); border:none; color:#fff; border-radius:8px; padding:6px 14px; cursor:pointer; font-size:0.9rem;">Fechar</button>
+        <div class="modal-content" style="width:100%;max-width:100%;height:100vh;max-height:100vh;margin:0;border-radius:0;display:flex;flex-direction:column;background:#0f172a;overflow:hidden;">
+            <div style="flex-shrink:0;background:#1e293b;padding:0.85rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
+                <h3 style="margin:0;color:#fff;font-size:1rem;"><i class="ph ph-pen" style="color:#d97706;"></i> Assinatura do Condutor — Sinistro #${s.id}</h3>
+                <button onclick="document.getElementById('modal-condutor-sinistro').remove()" style="background:rgba(255,255,255,0.1);border:none;color:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;">Fechar</button>
             </div>
-            <div class="modal-body" style="padding:0; flex:1; display:flex; overflow:hidden;">
-                <!-- Esquerda -->
-                <div style="flex:1; overflow-y:auto; background:#f1f5f9; padding:1rem; display:flex; flex-direction:column;">
-                    <div style="background:#fff; border-radius:8px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,0.1); min-height:800px;">
-                        ${s.documento_html}
-                    </div>
+            <div style="padding:0;flex:1;display:flex;overflow:hidden;">
+                <div style="flex:1;overflow-y:auto;background:#f1f5f9;padding:1rem;">
+                    <div style="background:#fff;border-radius:8px;padding:20px;min-height:800px;">${s.documento_html}</div>
                 </div>
-                <!-- Direita -->
-                <div style="width:360px; background:#fff; overflow-y:auto; padding:1.5rem 1.5rem 6rem 1.5rem; display:flex; flex-direction:column; gap:1.25rem; border-left:1px solid #e2e8f0; flex-shrink:0;">
+                <div style="width:360px;background:#fff;overflow-y:auto;padding:1.5rem 1.5rem 6rem;display:flex;flex-direction:column;gap:1.25rem;border-left:1px solid #e2e8f0;flex-shrink:0;">
                     <div>
-                        <label style="font-weight:700; font-size:0.85rem; display:block; margin-bottom:6px;">Assinatura de: <span style="color:#d97706;">${colabName}</span></label>
-                        <div style="border: 2px dashed #fcd34d; background:#f8fafc; border-radius:8px; margin-bottom:0.5rem;">
-                            <canvas id="sin-canvas-condutor" style="width:100%; height:160px; cursor:crosshair;"></canvas>
+                        <label style="font-weight:700;font-size:0.85rem;display:block;margin-bottom:6px;">Assinatura de: <span style="color:#d97706;">${colabName}</span></label>
+                        <div style="border:2px dashed #fcd34d;background:#f8fafc;border-radius:8px;">
+                            <canvas id="sin-canvas-condutor" style="width:100%;height:160px;cursor:crosshair;display:block;"></canvas>
                         </div>
                     </div>
-                    <button type="button" onclick="window.salvarAssinaturaCondutorSinistro(${sinId}, ${colabId})" style="padding:0.85rem; background:#2563eb; color:#fff; border:none; border-radius:10px; font-weight:700; font-size:1rem; cursor:pointer;"><i class="ph ph-check"></i> Salvar Assinatura do Condutor</button>
+                    <button type="button" id="btn-conf-con-sin" onclick="window.salvarAssinaturaCondutorSinistro(${sinId}, ${colabId})" style="padding:0.85rem;background:#2563eb;color:#fff;border:none;border-radius:10px;font-weight:700;font-size:1rem;cursor:pointer;">
+                        <i class="ph ph-check"></i> Salvar Assinatura do Condutor
+                    </button>
                 </div>
             </div>
         </div>
     `;
     document.body.appendChild(modal);
-    modal.style.display = 'flex';
 
-    setTimeout(() => { window._configurarCanvasMultiplo('sin-canvas-condutor'); }, 100);
+    setTimeout(() => {
+        if (typeof window._configurarCanvasMultiplo === 'function') {
+            window._configurarCanvasMultiplo('sin-canvas-condutor');
+        }
+    }, 150);
 };
 
 window.salvarAssinaturaCondutorSinistro = async function(sinId, colabId) {
-    const colabName = window._currentColaboradorForProntuario.nome_completo;
-    if (!window._canvasTemConteudo('sin-canvas-condutor')) return alert('Assine o documento primeiro.');
+    const colabName = viewedColaborador.nome_completo;
+    if (typeof window._canvasTemConteudo === 'function' && !window._canvasTemConteudo('sin-canvas-condutor')) {
+        return alert('Assine o campo de assinatura antes de continuar.');
+    }
 
     const assinaturaBase64 = document.getElementById('sin-canvas-condutor').toDataURL('image/png');
-    let docHtmlComAssinaturas = window._sinistroDocHtmlCondutor || '';
-    
-    if (docHtmlComAssinaturas) {
-        // Coloca a assinatura do condutor acima/antes das testemunhas
+    let docHtml = window._sinistroDocHtmlCondutor || '';
+
+    if (docHtml) {
         const inject = `
             <div style="margin-top:20px;padding:10px;border-top:2px solid #e2e8f0;">
                 <p style="font-weight:700;font-size:11px;">ASSINATURA DO CONDUTOR:</p>
-                <div style="text-align:center; width:200px;">
+                <div style="text-align:center;width:200px;">
                     <img src="${assinaturaBase64}" style="max-width:180px;max-height:60px;border-bottom:1px solid #000;">
                     <p style="font-size:10px;margin:2px 0;">${colabName}</p>
                 </div>
             </div>`;
-        
-        if (docHtmlComAssinaturas.includes('ASSINATURAS DAS TESTEMUNHAS:')) {
-            docHtmlComAssinaturas = docHtmlComAssinaturas.replace(
-                '<div style="margin-top:20px;padding:10px;border-top:2px solid #e2e8f0;">', 
-                inject + '<div style="margin-top:20px;padding:10px;border-top:2px solid #e2e8f0;">'
-            );
+
+        if (docHtml.includes('ASSINATURAS DAS TESTEMUNHAS:')) {
+            docHtml = docHtml.replace('<div style="margin-top:20px;padding:10px;border-top:2px solid #e2e8f0;">', inject + '<div style="margin-top:20px;padding:10px;border-top:2px solid #e2e8f0;">');
         } else {
-            docHtmlComAssinaturas = docHtmlComAssinaturas.replace('</body>', inject + '</body>');
+            docHtml = docHtml.replace('</body>', inject + '</body>');
         }
     }
 
     try {
+        const btn = document.getElementById('btn-conf-con-sin');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...'; }
+
         const res = await fetch(`${API_URL}/colaboradores/${colabId}/sinistros/${sinId}/assinar-condutor`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-            body: JSON.stringify({ assinatura_base64: assinaturaBase64, documento_html: docHtmlComAssinaturas })
+            body: JSON.stringify({ assinatura_base64: assinaturaBase64, documento_html: docHtml })
         });
         const data = await res.json();
-        if(!data.sucesso) throw new Error(data.error);
+        if (!data.sucesso) throw new Error(data.error);
 
         document.getElementById('modal-condutor-sinistro').remove();
-        Toastify({ text: "Condutor assinado!", backgroundColor: "green" }).showToast();
+        if (typeof Toastify !== 'undefined') Toastify({ text: 'Assinatura do condutor salva!', backgroundColor: '#059669' }).showToast();
         await window._recarregarListaSinistros(colabId);
-    } catch(e) { alert(e.message); }
+    } catch(e) {
+        alert('Erro: ' + e.message);
+        const btn = document.getElementById('btn-conf-con-sin');
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-check"></i> Salvar Assinatura do Condutor'; }
+    }
 };
