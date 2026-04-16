@@ -408,20 +408,43 @@ window.gerarDocumentoSinistro = async function(sinId, colabId) {
 };
 
 window.verDocumentoSinistro = async function(sinId, colabId) {
-    const sinistros = await apiGet(`/colaboradores/${colabId}/sinistros`);
-    const s = sinistros.find(x => x.id == sinId);
+    // Se o documento ainda não tem HTML gerado, gera antes de exibir
+    let sinistros = await apiGet(`/colaboradores/${colabId}/sinistros`);
+    let s = sinistros.find(x => x.id == sinId);
+    if (!s) return alert('Sinistro não encontrado.');
+
+    if (!s.documento_html) {
+        // Gera o documento automaticamente
+        const rGen = await fetch(`${API_URL}/colaboradores/${colabId}/sinistros/${sinId}/gerar-documento`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` }
+        });
+        if (!rGen.ok) return alert('Erro ao gerar documento.');
+        // Recarrega para pegar o HTML novo
+        sinistros = await apiGet(`/colaboradores/${colabId}/sinistros`);
+        s = sinistros.find(x => x.id == sinId);
+    }
+
     if (s && s.documento_html) {
-        const bodyEl = document.getElementById('preview-doc-body');
-        if (bodyEl) {
-            bodyEl.innerHTML = s.documento_html;
-            const titleEl = document.getElementById('preview-doc-title');
-            if (titleEl) titleEl.textContent = 'Visualização — Sinistro';
-            const btnsEl = document.getElementById('preview-doc-buttons');
-            if (btnsEl) btnsEl.innerHTML = `<button class="btn btn-secondary" onclick="document.getElementById('modal-preview-doc').style.display='none'"><i class="ph ph-x"></i> Fechar</button>`;
-            document.getElementById('modal-preview-doc').style.display = 'block';
-        }
+        // Abre em fullscreen próprio para evitar z-index do sidebar
+        const existing = document.getElementById('sin-fullscreen-viewer');
+        if (existing) existing.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'sin-fullscreen-viewer';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#0f172a;display:flex;flex-direction:column;overflow:hidden;';
+        overlay.innerHTML = `
+            <div style="flex-shrink:0;background:#1e293b;padding:0.85rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
+                <h3 style="margin:0;color:#fff;font-size:1rem;"><i class="ph ph-file-text" style="color:#60a5fa;"></i> Visualização — Sinistro</h3>
+                <button onclick="document.getElementById('sin-fullscreen-viewer').remove()" style="background:rgba(255,255,255,0.1);border:none;color:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;">✕ Fechar</button>
+            </div>
+            <div style="flex:1;overflow-y:auto;background:#f1f5f9;padding:1.5rem;">
+                <div style="background:#fff;border-radius:8px;padding:30px;max-width:800px;margin:0 auto;">${s.documento_html}</div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
     } else {
-        alert('Documento HTML não disponível. O documento ainda não foi gerado.');
+        alert('Documento HTML não disponível após tentativa de geração.');
     }
 };
 
@@ -430,25 +453,48 @@ window.verDocumentoSinistro = async function(sinId, colabId) {
 // =========================================================
 
 window.abrirModalAssinaturaTestemunhasSinistro = async function(sinId, colabId) {
-    const sinistros = await apiGet(`/colaboradores/${colabId}/sinistros`);
-    const s = sinistros.find(x => x.id == sinId);
-    if (!s || !s.documento_html) return alert('HTML do documento não encontrado!');
+    // Gera documento se ainda não existe
+    let sinistros = await apiGet(`/colaboradores/${colabId}/sinistros`);
+    let s = sinistros.find(x => x.id == sinId);
+    if (!s) return alert('Sinistro não encontrado.');
+
+    if (!s.documento_html) {
+        const rGen = await fetch(`${API_URL}/colaboradores/${colabId}/sinistros/${sinId}/gerar-documento`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` }
+        });
+        if (!rGen.ok) return alert('Erro ao gerar documento.');
+        sinistros = await apiGet(`/colaboradores/${colabId}/sinistros`);
+        s = sinistros.find(x => x.id == sinId);
+    }
+
+    if (!s || !s.documento_html) return alert('HTML do documento não disponível.');
 
     const existing = document.getElementById('modal-testemunhas-sinistro');
     if (existing) existing.remove();
 
     window._sinistroDocHtmlTestemunhas = s.documento_html;
 
+    // Carrega colaboradores como testemunhas diretamente da API
     let options = '<option value="">Selecione...</option>';
-    if (window._testemunhasCache) {
-        window._testemunhasCache.forEach(t => { options += `<option value="${t.NOME_COMPLETO}">${t.NOME_COMPLETO}</option>`; });
+    try {
+        const colabs = await apiGet('/colaboradores') || [];
+        const ativos = colabs.filter(c => c.id != colabId && (c.status === 'Ativo' || !c.status));
+        ativos.forEach(c => {
+            const nome = c.nome_completo || c.nome || '';
+            if (nome) options += `<option value="${nome}">${nome}</option>`;
+        });
+    } catch(e) {
+        // fallback no cache existente
+        if (window._testemunhasCache) {
+            window._testemunhasCache.forEach(t => { options += `<option value="${t.NOME_COMPLETO}">${t.NOME_COMPLETO}</option>`; });
+        }
     }
 
     const modal = document.createElement('div');
     modal.id = 'modal-testemunhas-sinistro';
     modal.className = 'modal';
-    modal.style.display = 'flex';
-    modal.style.alignItems = 'flex-start';
+    modal.style.cssText = 'display:flex;align-items:flex-start;position:fixed;inset:0;z-index:99999;background:transparent;';
     modal.innerHTML = `
         <div class="modal-content" style="width:100%;max-width:100%;height:100vh;max-height:100vh;margin:0;border-radius:0;display:flex;flex-direction:column;background:#0f172a;overflow:hidden;">
             <div style="flex-shrink:0;background:#1e293b;padding:0.85rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
@@ -562,8 +608,7 @@ window.abrirModalAssinaturaCondutorSinistro = async function(sinId, colabId) {
     const modal = document.createElement('div');
     modal.id = 'modal-condutor-sinistro';
     modal.className = 'modal';
-    modal.style.display = 'flex';
-    modal.style.alignItems = 'flex-start';
+    modal.style.cssText = 'display:flex;align-items:flex-start;position:fixed;inset:0;z-index:999999;background:transparent;';
     modal.innerHTML = `
         <div class="modal-content" style="width:100%;max-width:100%;height:100vh;max-height:100vh;margin:0;border-radius:0;display:flex;flex-direction:column;background:#0f172a;overflow:hidden;">
             <div style="flex-shrink:0;background:#1e293b;padding:0.85rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
