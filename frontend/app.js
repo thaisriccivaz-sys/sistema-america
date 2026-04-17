@@ -7971,7 +7971,8 @@ window.fecharPreviewEHabitarEnvio = function() {
     }
 };
 
-// Anexar ao Prontuário direto do preview (sem assinatura)
+// Anexar ao Prontuário direto do preview (com assinatura pendente)
+// Salva o PDF como 'Pendente', fecha o preview e mostra o botão "Enviar para Assinatura"
 window.anexarAoProntuarioPerfil = async function(btn) {
     const geradorId = window._perfilGeradorIdCtx;
     const geradorNome = window._perfilGeradorNomeCtx;
@@ -7997,7 +7998,8 @@ window.anexarAoProntuarioPerfil = async function(btn) {
         formData.append('gerador_id', geradorId);
         formData.append('colaborador_id', viewedColaborador.id);
         formData.append('colaborador_nome', colabNome);
-        formData.append('assinafy_status', 'NAO_EXIGE');
+        // Pendente = documento gerado aguardando envio para assinatura (sem assinafy_id ainda)
+        formData.append('assinafy_status', 'Pendente');
 
         const r = await fetch(`${API_URL}/documentos?colaborador_id=${viewedColaborador.id}`, {
             method: 'POST',
@@ -8009,17 +8011,49 @@ window.anexarAoProntuarioPerfil = async function(btn) {
             throw new Error(errData.error || 'Falha ao salvar');
         }
 
-        // Fechar preview e recarregar a lista
+        // Fechar preview
         const elModal = document.getElementById('modal-preview-doc') || document.getElementById('doc-modal');
         if (elModal) elModal.style.display = 'none';
 
-        if (typeof showToast !== 'undefined') showToast('Documento anexado ao prontuário!', 'success');
-        await window._reloadContratosContainer();
+        // Mostrar botão "Enviar para Assinatura" na linha do perfil (igual ao fecharPreviewEHabitarEnvio)
+        const actionDiv = document.getElementById('pg-action-' + geradorId);
+        if (actionDiv) {
+            actionDiv.innerHTML = `
+                <button class="btn btn-primary" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-size:0.95rem;font-weight:500;padding:0.55rem 1.25rem;border-radius:8px;background:#0056b3;border-color:#0056b3;color:#fff;"
+                    onclick="window.enviarAssinaturaDocSalvo(${geradorId}, '${(geradorNome||'').replace(/'/g,"\\'")}')">
+                    <i class="ph ph-paper-plane-tilt"></i> Enviar para Assinatura
+                </button>
+            `;
+        }
+        const statusTxt = document.getElementById('perfil-status-txt-' + geradorId);
+        if (statusTxt) statusTxt.innerHTML = '<span style="color:#7c3aed;font-weight:600;"><i class="ph ph-paperclip"></i> Documento anexado — pronto para envio</span>';
+
+        if (typeof showToast !== 'undefined') showToast('Documento salvo! Clique em "Enviar para Assinatura".', 'success');
 
     } catch(e) {
         Swal.fire('Erro', e.message, 'error');
         btn.innerHTML = origHtml;
         btn.disabled = false;
+    }
+};
+
+// Enviar para assinatura um doc já salvo no banco (Pendente, sem assinafy_id)
+window.enviarAssinaturaDocSalvo = async function(geradorId, geradorNome) {
+    const colabId = viewedColaborador?.id;
+    if (!colabId) return;
+    const btn = document.querySelector(`[onclick="window.enviarAssinaturaDocSalvo(${geradorId}, '${(geradorNome||'').replace(/'/g,"\\'")}')"]`);
+    const origHtml = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando...'; }
+    try {
+        await apiPost('/admissao-assinaturas/enviar-lote', {
+            colaborador_id: colabId,
+            geradores_ids: [parseInt(geradorId)]
+        });
+        if (typeof showToast !== 'undefined') showToast('Documento enviado para assinatura!', 'success');
+        await window._reloadContratosContainer();
+    } catch(e) {
+        Swal.fire('Erro ao enviar', e.message, 'error');
+        if (btn) { btn.disabled = false; btn.innerHTML = origHtml; }
     }
 };
 
@@ -8257,12 +8291,17 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
     docs.forEach(doc => {
         let realStatus = 'Não enviado';
         if (doc.assinafy_status === 'Assinado') realStatus = 'Assinado';
+        // 'Pendente' SEM assinafy_id = doc salvo localmente, nunca enviado ao Assinafy (1ª vez)
+        // 'Pendente' COM assinafy_id = enviado, aguardando assinatura
+        // 'Aguardando' = confirmado no Assinafy
+        else if (doc.assinafy_status === 'Pendente' && !doc.assinafy_id) realStatus = 'ProntoParaEnviar';
         else if (doc.assinafy_status === 'Pendente' || doc.assinafy_status === 'Aguardando') realStatus = 'Aguardando';
 
         const isSigned = (realStatus === 'Assinado');
         const isPending = (realStatus === 'Aguardando');
+        const isPronto = (realStatus === 'ProntoParaEnviar');
         const literallyNaoExige = (doc.assinafy_status === 'NAO_EXIGE');
-        const requiresButNotSent = (!isSigned && !isPending && !literallyNaoExige);
+        const requiresButNotSent = (!isSigned && !isPending && !isPronto && !literallyNaoExige);
 
         const _docName = (doc.document_type || doc.file_name || 'Documento Avulso');
         const _docTitle = _docName.replace(/_/g, ' ');
@@ -8279,7 +8318,15 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
         const _signedStr = formatDate(doc.assinafy_signed_at || doc.upload_date);
 
         let statusBadge = '', leftIconMarkup = '', sendBtn = '', actionUX = '';
-        const borderBgColor = isSigned ? 'border:1px solid #bbf7d0; background:#f0fdf4;' : isPending ? 'border:1px solid #bfdbfe; background:#eff6ff;' : literallyNaoExige ? 'border:1px solid #e9d5ff; background:#faf5ff;' : 'border:1px solid #fde047; background:#fefce8;';
+        const borderBgColor = isSigned
+            ? 'border:1px solid #bbf7d0; background:#f0fdf4;'
+            : isPending
+                ? 'border:1px solid #bfdbfe; background:#eff6ff;'
+                : isPronto
+                    ? 'border:1px solid #ddd6fe; background:#f5f3ff;'
+                    : literallyNaoExige
+                        ? 'border:1px solid #e9d5ff; background:#faf5ff;'
+                        : 'border:1px solid #fde047; background:#fefce8;';
 
         if (isSigned) {
             leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#16a34a;"><i class="ph ph-check-circle" style="font-size:1.4rem;"></i></div>`;
@@ -8288,6 +8335,13 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
             leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#2563eb;"><i class="ph ph-paper-plane-tilt" style="font-size:1.4rem;"></i></div>`;
             statusBadge = `<span style="color:#2563eb;font-size:0.75rem;font-weight:600;">Enviado para Assinatura${_sentStr ? ': ' + _sentStr : ''}</span>`;
             sendBtn = `<button type="button" onclick="window.reenviarAssinaturaContrato(${doc.id}, event);" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-pen"></i> Reenviar para Assinatura</button>`;
+        } else if (isPronto) {
+            // Documento salvo localmente (Pendente sem assinafy_id) — aguardando envio ao Assinafy
+            const gerDocId = doc.gerador_id || '';
+            const escNomeDoc = (doc.document_type || '').replace(/'/g,"\\'");
+            leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#7c3aed;"><i class="ph ph-paperclip" style="font-size:1.4rem;"></i></div>`;
+            statusBadge = `<span style="color:#7c3aed;font-size:0.75rem;font-weight:600;">Documento salvo — clique em Enviar para Assinatura${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
+            sendBtn = `<button type="button" onclick="window.enviarDocumentoAvulsoAssinatura('${doc.id}', this)" style="background:#0056b3;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-paper-plane-tilt"></i> Enviar para Assinatura</button>`;
         } else if (literallyNaoExige) {
             leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#9333ea;"><i class="ph ph-file-text" style="font-size:1.4rem;"></i></div>`;
             statusBadge = `<span style="color:#9333ea;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
