@@ -6965,10 +6965,8 @@ window.abrirPreviewDocumento = function(data) {
                     Swal.close(); if(typeof showToast !== 'undefined') showToast('Documento anexado!', 'success');
                 }
 
-                // Reload da lista de contratos se estiver na aba correta
-                window._contratosAvulsoLoaded = false;
-                const avDiv = document.getElementById('contratos-sub-avulso');
-                if (avDiv) window.renderContratosAvulso && window.renderContratosAvulso(avDiv);
+                // Reload da lista de contratos
+                await window._reloadContratosContainer();
 
             } catch(e) {
                 Swal.fire('Erro', e.message || 'Erro ao anexar documento', 'error');
@@ -7551,6 +7549,18 @@ window.renderContratosTab = async function(container) {
     await window.renderContratosAvulso(container);
 };
 
+// Helper: recarrega a aba Contratos no container correto (docs-list-container ou tab-dynamic-content)
+window._reloadContratosContainer = async function() {
+    window._contratosAvulsoLoaded = false;
+    // Primeiro tenta o container principal da aba dinamica
+    let ct = document.getElementById('docs-list-container') ||
+             document.getElementById('tab-dynamic-content');
+    if (ct) {
+        ct.innerHTML = '<p class="text-muted" style="padding:0.5rem;"><i class="ph ph-spinner ph-spin"></i> Atualizando...</p>';
+        await window.renderContratosAvulso(ct);
+    }
+};
+
 // === SUB-ABA OUTROS CONTRATOS ===
 // Helper: avalia se um gerador deve aparecer automaticamente para o colaborador
 window._avaliarRegraGerador = function(g, colab, deptNome) {
@@ -7778,9 +7788,7 @@ window.uploadContratoPerfilNaoAssinado = async function(input, geradorNome) {
         var data = await res.json().catch(function() { return {}; });
         if (!res.ok) throw new Error(data.error || 'Falha ao salvar PDF');
         Swal.close(); if(typeof showToast !== 'undefined') showToast('Documento anexado!', 'success');
-        window._contratosAvulsoLoaded = false;
-        var avDiv = document.getElementById('contratos-sub-avulso');
-        if (avDiv) await window.renderContratosAvulso(avDiv);
+        await window._reloadContratosContainer();
     } catch(e) {
         Swal.fire('Erro', e.message, 'error');
     }
@@ -7895,9 +7903,7 @@ window.enviarAssinaturaPerfilDireto = async function(event) {
             targetBtn.parentElement.innerHTML = '<span style="color:#16a34a;font-weight:600;"><i class="ph ph-check"></i> OK</span>';
         }
 
-        window._contratosAvulsoLoaded = false;
-        const avDiv = document.getElementById('contratos-sub-avulso');
-        if (avDiv) await window.renderContratosAvulso(avDiv);
+        await window._reloadContratosContainer();
 
     } catch(e) {
         Swal.fire('Erro ao enviar', e.message, 'error');
@@ -7955,9 +7961,7 @@ window.uploadContratoExterno = async function(input) {
     });
 
     if (modalResult.isConfirmed) {
-        window._contratosAvulsoLoaded = false;
-        var avDiv = document.getElementById('contratos-sub-avulso');
-        if (avDiv) window.renderContratosAvulso(avDiv);
+        await window._reloadContratosContainer();
     }
 };
 
@@ -8052,9 +8056,7 @@ window.reenviarAssinaturaContrato = async function(docId, ev) {
         if(trBtn) { trBtn.innerHTML = ogHtml; trBtn.disabled = false; }
         if(res.ok) {
             if (typeof showToast !== 'undefined') showToast('E-mail de assinatura enviado ao colaborador!', 'success');
-            window._contratosAvulsoLoaded = false;
-            const avDiv = document.getElementById('contratos-sub-avulso');
-            if (avDiv) { avDiv.innerHTML = '<p class="text-muted" style="padding:1rem;"><i class="ph ph-spinner ph-spin"></i> Atualizando status...</p>'; window.renderContratosAvulso(avDiv); }
+            await window._reloadContratosContainer();
         } else {
             throw new Error(data.error || 'Erro ao reenviar assinatura');
         }
@@ -8184,8 +8186,7 @@ window.enviarDocumentoAvulsoAssinatura = async function(docId, btn) {
         const data = await res.json().catch(() => ({}));
         if (res.ok) {
             if (typeof showToast !== 'undefined') showToast('Documento enviado para assinatura!', 'success');
-            window._contratosAvulsoLoaded = false;
-            window.switchContratosSubTab('avulso');
+            await window._reloadContratosContainer();
         } else {
             Swal.fire('Atenção', 'Erro no envio para assinar: ' + (data.error || 'Erro desconhecido'), 'warning');
             if (btn) { btn.disabled = false; btn.innerHTML = oldHtml; }
@@ -8218,8 +8219,7 @@ window.uploadContratoAvulsoSobrescrever = async function(input, docId, docType) 
         if (!resUpload.ok) throw new Error('Falha no upload do arquivo');
         Swal.close();
         if (typeof showToast !== 'undefined') showToast('Documento anexado no Prontuário!', 'success');
-        window._contratosAvulsoLoaded = false;
-        window.switchContratosSubTab('avulso');
+        await window._reloadContratosContainer();
     } catch (err) {
         Swal.close();
         Swal.fire('Erro', err.message, 'error');
@@ -8401,14 +8401,7 @@ window.gerarContratoAvulso = async function() {
 
                         if (typeof showToast !== 'undefined') showToast('Documento gerado e salvo no prontuário!', 'success');
 
-                        window._contratosAvulsoLoaded = false;
-                        const _avDivSave = document.getElementById('contratos-sub-avulso');
-                        if (_avDivSave) {
-                            _avDivSave.innerHTML = '<p class="text-muted"><i class="ph ph-spinner ph-spin"></i> Atualizando lista...</p>';
-                            window._contratosAvulsoLoaded = true;
-                            await window.renderContratosAvulso(_avDivSave);
-                        }
-                        window.switchContratosSubTab('avulso');
+                        await window._reloadContratosContainer();
                     } catch(err) {
                         alert('Erro ao salvar: ' + err.message);
                     } finally {
