@@ -2700,8 +2700,10 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
         );
 
         // ===== LOGO =====
-        // Injeta logo da América Rental no topo se o template não tiver
-        const bannerHtml = `<div style="margin:0;padding:0;line-height:0;"><img src="${process.env.PUBLIC_URL || ''}/assets/logo-header.png" style="width:100%;display:block;margin:0;padding:0;" onerror="this.style.display='none'"></div>`;
+        // Injeta logo da América Rental no topo — usa Base64 para garantir que apareça no PDF gerado server-side
+        const _logoB64ForBanner = getLogoBase64DataUri();
+        const _logoSrc = _logoB64ForBanner || `${process.env.PUBLIC_URL || ''}/assets/logo-header.png`;
+        const bannerHtml = `<div style="margin:0;padding:0;line-height:0;"><img src="${_logoSrc}" style="width:100%;display:block;margin:0;padding:0;"></div>`;
         const contentPaddingWrapper = `<div style="padding: 30px;">`;
         if (!htmlFinal.includes('america-rental-logo') && !htmlFinal.includes('<img') && !htmlFinal.includes('logo-header')) {
             // Apply banner above the padding wrapper
@@ -2726,6 +2728,20 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
 });
 
 // Helper: gera PDF a partir de HTML e salva no OneDrive do colaborador
+// Helper: lê o logo do disco e retorna data URI base64 para embutir em PDF
+function getLogoBase64DataUri() {
+    try {
+        const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+        if (fs.existsSync(logoPath)) {
+            const logoBuffer = fs.readFileSync(logoPath);
+            return `data:image/png;base64,${logoBuffer.toString('base64')}`;
+        }
+    } catch(e) {
+        console.warn('[PDF] Não foi possível carregar logo-header.png:', e.message);
+    }
+    return null;
+}
+
 async function salvarPDFSinistroNoOneDrive(colaboradorId, sinistroId, htmlDoc, nomeArquivo) {
     try {
         const htmlPdf = require('html-pdf-node');
@@ -2747,11 +2763,22 @@ async function salvarPDFSinistroNoOneDrive(colaboradorId, sinistroId, htmlDoc, n
         const pastaRoot = process.env.ONEDRIVE_BASE_PATH || 'RH/1.Colaboradores/Sistema';
         const targetDir = pastaRoot + '/' + nomeFormatado + '/SINISTROS/' + (pastaDataStr || 'SEM_DATA');
 
+        // === Substituir URL do logo por Base64 para garantir que apareça no PDF ===
+        let htmlParaPdf = htmlDoc;
+        const logoB64 = getLogoBase64DataUri();
+        if (logoB64) {
+            // Substitui qualquer src que contenha logo-header.png pelo base64
+            htmlParaPdf = htmlParaPdf
+                .replace(/src="[^"]*logo-header\.png[^"]*"/gi, `src="${logoB64}"`)
+                .replace(/src='[^']*logo-header\.png[^']*'/gi, `src='${logoB64}'`);
+        }
+
         const pdfBuffer = await htmlPdf.generatePdf(
-            { content: htmlDoc },
+            { content: htmlParaPdf },
             { format: 'A4', margin: { top: '1cm', bottom: '1cm', left: '1cm', right: '1cm' },
               printBackground: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] }
         );
+
 
         if (typeof onedrive !== 'undefined') {
             await onedrive.ensurePath(pastaRoot + '/' + nomeFormatado);
