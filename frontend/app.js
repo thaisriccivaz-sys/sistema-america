@@ -7549,13 +7549,16 @@ window.renderContratosTab = async function(container) {
     await window.renderContratosAvulso(container);
 };
 
-// Helper: recarrega a aba Contratos no container correto (docs-list-container ou tab-dynamic-content)
+// Helper: recarrega a aba Contratos no container correto
+// Só roda se ca-list-container estiver no DOM (indica que a aba Contratos está ativa)
 window._reloadContratosContainer = async function() {
     window._contratosAvulsoLoaded = false;
-    // Primeiro tenta o container principal da aba dinamica
+    // O elemento ca-list-container é renderizado por renderContratosAvulso
+    // Se ele existe, o usuário ESTÁ na aba Contratos
+    const caList = document.getElementById('ca-list-container');
     let ct = document.getElementById('docs-list-container') ||
              document.getElementById('tab-dynamic-content');
-    if (ct) {
+    if (ct && caList) {
         ct.innerHTML = '<p class="text-muted" style="padding:0.5rem;"><i class="ph ph-spinner ph-spin"></i> Atualizando...</p>';
         await window.renderContratosAvulso(ct);
     }
@@ -12283,22 +12286,12 @@ setInterval(() => {
             markSeen(novos.map(a => String(a.unq_id)));
 
             // AUTO-REFRESH STATUS ao detectar novo documento assinado
-            // 1) Se estiver no prontuário digital na aba Contratos → recarrega imediatamente
-            const docsListContainer = document.getElementById('docs-list-container');
-            const currentTabEl = document.querySelector('.tab-item.active') ||
-                                  document.querySelector('#tabs-list li.active') ||
-                                  document.querySelector('[data-tab].active');
-            const currentTabName = (currentTabEl?.dataset?.tab || currentTabEl?.textContent || '').trim();
-            const isContratosTab = currentTabName === 'Contratos' || docsListContainer?.closest('#view-colaboradores');
-
-            if (docsListContainer && isContratosTab) {
-                // Recarrega a aba Contratos com os dados atualizados do banco
-                await window._reloadContratosContainer().catch(() => {});
-            } else if (document.getElementById('admissao-signature-list')) {
-                // 2) Workflow de admissão aberto
-                if (typeof window.initAdmissaoWorkflow === 'function' && viewedColaborador) {
-                    window.initAdmissaoWorkflow(viewedColaborador.id, 2, true);
-                }
+            // Sempre tenta recarregar a aba Contratos; _reloadContratosContainer só executa
+            // se o usuário estiver de fato na aba Contratos (ca-list-container no DOM)
+            window._reloadContratosContainer().catch(() => {});
+            // Se o workflow de admissão estiver aberto, atualiza também
+            if (document.getElementById('admissao-signature-list') && typeof window.initAdmissaoWorkflow === 'function' && viewedColaborador) {
+                window.initAdmissaoWorkflow(viewedColaborador.id, 2, true);
             }
         } catch {}
     }
