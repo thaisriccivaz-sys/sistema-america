@@ -7853,13 +7853,18 @@ window.sincronizarStatusAssinaturas = async function(showFeedback) {
             } catch(e) { /* ignora erros individuais */ }
         }
 
-        // Sempre recarrega após sync (o backend pode ter atualizado o status)
-        await window._reloadContratosContainer();
+        // Só recarrega a lista se algum status mudou para Assinado
+        // Evita loop infinito: reload → auto-sync → reload
+        if (atualizado > 0) {
+            await window._reloadContratosContainer();
+        } else {
+            if (btn) { btn.disabled = false; btn.innerHTML = origHtml; }
+        }
 
         if (showFeedback && typeof showToast !== 'undefined') {
             const msg = atualizado > 0
                 ? `${atualizado} documento(s) atualizado(s) para Assinado!`
-                : `Verificado — ${pendentes.length} documento(s) ainda pendentes.`;
+                : `Verificado — ${pendentes.length} documento(s) ainda aguardando assinatura.`;
             showToast(msg, atualizado > 0 ? 'success' : 'info');
         }
     } catch(e) {
