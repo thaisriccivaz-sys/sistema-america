@@ -7695,65 +7695,65 @@ window.renderContratosAvulso = async function(container) {
 
         window._caAvailableGeradores = dropdownGeradores;
 
-        const filteredDocs = docs.filter(d => d.tab_name === 'CONTRATOS_AVULSOS');
-        const geradosNomes = new Set(filteredDocs.map(d => (d.document_type || '').trim().toLowerCase()));
-
-        // Documentos pendentes do perfil (ainda não gerados/anexados)
-        const pendingGeradores = autoGeradores.filter(g =>
-            !geradosNomes.has((g.nome || '').trim().toLowerCase())
-        );
-
-        const pendingRowsHtml = pendingGeradores.map(g => {
-            const escNome = (g.nome||'').replace(/'/g,"\\'").replace(/"/g, "&quot;");
-            return `
-            <div style="display:flex; align-items:center; justify-content:space-between; padding:0.65rem 0.75rem; border:1.5px dashed #c026d3; border-radius:8px; background:#fdf4ff; gap:0.75rem;">
-                <div style="display:flex; align-items:center; gap:0.6rem; flex:1;">
-                    <span style="background:#fdf4ff;color:#c026d3;border:1px solid #f0abfc;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Perfil</span>
-                    <div>
-                        <span style="font-weight:600; color:#334155; font-size:0.9rem;">${g.nome}</span>
-                        <div id="perfil-status-txt-${g.id}" style="font-size:0.75rem; color:#a21caf; margin-top:1px;">Necessário pelo perfil do colaborador — aguardando geração</div>
-                    </div>
-                </div>
-                <div style="display:flex; align-items:center; gap:0.75rem; border-left: 1px solid #f0abfc; padding-left: 1rem;">
-                    <span style="font-size:0.85rem; font-weight:600; color:#334155;">Exige Assinatura?</span>
-                    <label style="cursor:pointer; display:flex; align-items:center; gap:0.25rem; font-size:0.85rem; color:#0f172a; margin:0;">
-                        <input type="radio" name="req-ass-${g.id}" value="sim" onchange="window.toggleAcaoContratoPerfil('${g.id}', 'sim', '${escNome}')"> Sim
-                    </label>
-                    <label style="cursor:pointer; display:flex; align-items:center; gap:0.25rem; font-size:0.85rem; color:#0f172a; margin:0;">
-                        <input type="radio" name="req-ass-${g.id}" value="nao" onchange="window.toggleAcaoContratoPerfil('${g.id}', 'nao', '${escNome}')"> Não
-                    </label>
-                </div>
-                <div id="pg-action-${g.id}" style="min-width: 160px; text-align: right; display: flex; justify-content: flex-end;">
-                    <span style="font-size:0.8rem; color:#64748b; font-style:italic;">Selecione uma opção</span>
-                </div>
-            </div>`;
-        }).join('');
-
-        // Ordenação: docs por ordem natural dos geradores do perfil.
-        // Usa normalização de acentos para tolerar diferenças de encoding.
+        // Normalização para matching de nomes
         const _norm = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-        const ordemNorm = autoGeradores.map(g => _norm(g.nome));
 
-        const _getIdx = (docType) => {
-            const n = _norm(docType);
-            let idx = ordemNorm.indexOf(n);
-            if (idx === -1) {
-                // Tentativa fuzzy: verifica se algum nome do gerador está contido no document_type ou vice-versa
-                idx = ordemNorm.findIndex(g => n.includes(g) || g.includes(n));
-            }
-            return idx;
+        // Função para encontrar doc correspondente a um gerador
+        const _findDocForGerador = (g) => {
+            const gNorm = _norm(g.nome);
+            return filteredDocs.find(d => {
+                const dNorm = _norm(d.document_type);
+                return dNorm === gNorm || dNorm.includes(gNorm) || gNorm.includes(dNorm);
+            });
         };
 
-        filteredDocs.sort((a, b) => {
-            const iA = _getIdx(a.document_type);
-            const iB = _getIdx(b.document_type);
-            // Docs de perfil vêm primeiro na ordem do gerador; docs avulsos vão no final
-            if (iA === -1 && iB === -1) return 0;
-            if (iA === -1) return 1;
-            if (iB === -1) return -1;
-            return iA - iB;
-        });
+        // ──────────────────────────────────────────────────────────────────────
+        // Renderização INTERCALADA: para cada gerador de perfil, mostra o doc
+        // correspondente (se já existir) ou a linha pendente (se ainda não).
+        // Docs avulsos sem gerador correspondente ficam no final.
+        // ──────────────────────────────────────────────────────────────────────
+        const docsUsados = new Set();
+        let combinedHtml = '';
 
+        for (const g of autoGeradores) {
+            const docMatch = _findDocForGerador(g);
+            if (docMatch) {
+                // Gerador já tem documento: renderiza a linha do doc no lugar da linha pendente
+                docsUsados.add(docMatch.id);
+                combinedHtml += window.buildContratosSignatureRows(assinaturas, [docMatch], viewedColaborador);
+            } else {
+                // Gerador pendente: renderiza a linha de perfil aguardando geração
+                const escNome = (g.nome||'').replace(/'/g,"\\'").replace(/"/g, "&quot;");
+                combinedHtml += `
+                <div style="display:flex; align-items:center; justify-content:space-between; padding:0.65rem 0.75rem; border:1.5px dashed #c026d3; border-radius:8px; background:#fdf4ff; gap:0.75rem;">
+                    <div style="display:flex; align-items:center; gap:0.6rem; flex:1;">
+                        <span style="background:#fdf4ff;color:#c026d3;border:1px solid #f0abfc;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Perfil</span>
+                        <div>
+                            <span style="font-weight:600; color:#334155; font-size:0.9rem;">${g.nome}</span>
+                            <div id="perfil-status-txt-${g.id}" style="font-size:0.75rem; color:#a21caf; margin-top:1px;">Necessário pelo perfil do colaborador — aguardando geração</div>
+                        </div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:0.75rem; border-left: 1px solid #f0abfc; padding-left: 1rem;">
+                        <span style="font-size:0.85rem; font-weight:600; color:#334155;">Exige Assinatura?</span>
+                        <label style="cursor:pointer; display:flex; align-items:center; gap:0.25rem; font-size:0.85rem; color:#0f172a; margin:0;">
+                            <input type="radio" name="req-ass-${g.id}" value="sim" onchange="window.toggleAcaoContratoPerfil('${g.id}', 'sim', '${escNome}')"> Sim
+                        </label>
+                        <label style="cursor:pointer; display:flex; align-items:center; gap:0.25rem; font-size:0.85rem; color:#0f172a; margin:0;">
+                            <input type="radio" name="req-ass-${g.id}" value="nao" onchange="window.toggleAcaoContratoPerfil('${g.id}', 'nao', '${escNome}')"> Não
+                        </label>
+                    </div>
+                    <div id="pg-action-${g.id}" style="min-width: 160px; text-align: right; display: flex; justify-content: flex-end;">
+                        <span style="font-size:0.8rem; color:#64748b; font-style:italic;">Selecione uma opção</span>
+                    </div>
+                </div>`;
+            }
+        }
+
+        // Docs avulsos (sem gerador correspondente no perfil) ficam no final
+        const avulsosDocs = filteredDocs.filter(d => !docsUsados.has(d.id));
+        if (avulsosDocs.length > 0) {
+            combinedHtml += window.buildContratosSignatureRows(assinaturas, avulsosDocs, viewedColaborador);
+        }
 
         container.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
@@ -7775,9 +7775,9 @@ window.renderContratosAvulso = async function(container) {
                 </div>
             </div>
             <div id="ca-list-container" style="display:flex; flex-direction:column; gap:0.5rem; margin-bottom:1.5rem;">
-                ${pendingRowsHtml}
-                ${window.buildContratosSignatureRows(assinaturas, filteredDocs, viewedColaborador)}
+                ${combinedHtml}
             </div>
+
         `;
 
         // Auto-sync silencioso: se houver documentos Pendentes, verifica no Assinafy
