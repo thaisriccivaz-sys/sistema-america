@@ -7780,21 +7780,12 @@ window.renderContratosAvulso = async function(container) {
 
         `;
 
-        // Auto-sync silencioso: se houver documentos Pendentes, verifica no Assinafy
-        // Tambem recarrega se detectar que o DB tem Assinado mas a UI pode estar desatualizada
-        const pendentesParaSync = filteredDocs.filter(d => d.assinafy_status === 'Pendente' && d.assinafy_id);
-        if (pendentesParaSync.length > 0) {
-            // Docs Pendentes: verifica se já foram assinados no Assinafy
-            window.sincronizarStatusAssinaturas(false);
-        }
-
-        // Auto-sync silencioso ao carregar a aba: verifica se há docs enviados ao Assinafy ainda não assinados
-        const docsComAssinafy = filteredDocs.filter(d =>
+        // Auto-sync silencioso ao carregar a aba (apenas 1 chamada, com guard)
+        const docsParaSync = filteredDocs.filter(d =>
             d.assinafy_id && (d.assinafy_status === 'Pendente' || d.assinafy_status === 'Aguardando')
         );
-        if (docsComAssinafy.length > 0) {
-            // Usa setTimeout para não bloquear o render da lista
-            setTimeout(() => window.sincronizarStatusAssinaturas(false), 800);
+        if (docsParaSync.length > 0) {
+            setTimeout(() => window.sincronizarStatusAssinaturas(false), 1000);
         }
 
     } catch(err) {
@@ -7803,13 +7794,18 @@ window.renderContratosAvulso = async function(container) {
 };
 
 
+// Guard: impede execuções concorrentes do sync
+window._syncContratosRunning = false;
+
 // Helper: sincroniza o status de documentos Pendentes no Assinafy
 // showFeedback=true => mostra toast ao concluir; false => silencioso
 window.sincronizarStatusAssinaturas = async function(showFeedback) {
     if (!viewedColaborador) return;
-    const btn = document.querySelector('[onclick="window.sincronizarStatusAssinaturas(true)"]');
-    const origHtml = btn ? btn.innerHTML : '';
-    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Verificando...'; }
+    // Evita execuções concorrentes (loop de reload)
+    if (window._syncContratosRunning) return;
+    window._syncContratosRunning = true;
+
+    const btn = null; // botão manual removido, mantido por compatibilidade
 
     try {
         const docs = await apiGet(`/colaboradores/${viewedColaborador.id}/documentos`).catch(() => []);
@@ -7856,9 +7852,8 @@ window.sincronizarStatusAssinaturas = async function(showFeedback) {
         // Só recarrega a lista se algum status mudou para Assinado
         // Evita loop infinito: reload → auto-sync → reload
         if (atualizado > 0) {
+            window._syncContratosRunning = false; // libera ANTES do reload (reload vai setar novo contexto)
             await window._reloadContratosContainer();
-        } else {
-            if (btn) { btn.disabled = false; btn.innerHTML = origHtml; }
         }
 
         if (showFeedback && typeof showToast !== 'undefined') {
@@ -7869,7 +7864,8 @@ window.sincronizarStatusAssinaturas = async function(showFeedback) {
         }
     } catch(e) {
         if (showFeedback && typeof showToast !== 'undefined') showToast('Erro ao verificar: ' + e.message, 'error');
-        if (btn) { btn.disabled = false; btn.innerHTML = origHtml; }
+    } finally {
+        window._syncContratosRunning = false; // sempre libera o guard
     }
 };
 
