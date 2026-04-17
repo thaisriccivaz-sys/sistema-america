@@ -7773,15 +7773,28 @@ window.sincronizarStatusAssinaturas = async function(showFeedback) {
 
     try {
         const docs = await apiGet(`/colaboradores/${viewedColaborador.id}/documentos`).catch(() => []);
-        const pendentes = (Array.isArray(docs) ? docs : []).filter(d =>
-            d.tab_name === 'CONTRATOS_AVULSOS' &&
-            d.assinafy_status === 'Pendente' &&
-            d.assinafy_id
-        );
+        const contratosDocs = (Array.isArray(docs) ? docs : []).filter(d => d.tab_name === 'CONTRATOS_AVULSOS');
 
+        // Docs que o banco JÁ atualizou para Assinado (backend polling já rodou)
+        const jaAssinados = contratosDocs.filter(d => d.assinafy_status === 'Assinado');
+
+        // Docs ainda Pendente que precisamos verificar no Assinafy
+        const pendentes = contratosDocs.filter(d => d.assinafy_status === 'Pendente' && d.assinafy_id);
+
+        // Se não há pendentes mas há assinados recentes: se é o botão manual, apenas recarregar a lista
         if (pendentes.length === 0) {
-            if (showFeedback && typeof showToast !== 'undefined') showToast('Nenhum documento pendente de assinatura.', 'info');
-            if (btn) { btn.disabled = false; btn.innerHTML = origHtml; }
+            if (showFeedback) {
+                // Recarrega para garantir que a UI esteja atualizada com o que o banco tem
+                await window._reloadContratosContainer();
+                if (typeof showToast !== 'undefined') {
+                    const msg = jaAssinados.length > 0
+                        ? `Lista atualizada — ${jaAssinados.length} documento(s) assinado(s).`
+                        : 'Nenhum documento pendente de assinatura.';
+                    showToast(msg, jaAssinados.length > 0 ? 'success' : 'info');
+                }
+            } else {
+                if (btn) { btn.disabled = false; btn.innerHTML = origHtml; }
+            }
             return;
         }
 
@@ -7793,16 +7806,18 @@ window.sincronizarStatusAssinaturas = async function(showFeedback) {
                     headers: { 'Authorization': 'Bearer ' + currentToken }
                 });
                 const data = await res.json().catch(() => ({}));
-                if (res.ok && data.status_novo === 'Assinado') atualizado++;
+                if (res.ok && (data.status_novo === 'Assinado' || data.sucesso)) atualizado++;
             } catch(e) { /* ignora erros individuais */ }
         }
 
-        if (atualizado > 0) {
-            if (typeof showToast !== 'undefined') showToast(`${atualizado} documento(s) atualizado(s) para Assinado!`, 'success');
-            await window._reloadContratosContainer();
-        } else {
-            if (showFeedback && typeof showToast !== 'undefined') showToast(`${pendentes.length} documento(s) ainda aguardando assinatura.`, 'info');
-            if (btn) { btn.disabled = false; btn.innerHTML = origHtml; }
+        // Sempre recarrega após sync (o backend pode ter atualizado o status)
+        await window._reloadContratosContainer();
+
+        if (showFeedback && typeof showToast !== 'undefined') {
+            const msg = atualizado > 0
+                ? `${atualizado} documento(s) atualizado(s) para Assinado!`
+                : `Verificado — ${pendentes.length} documento(s) ainda pendentes.`;
+            showToast(msg, atualizado > 0 ? 'success' : 'info');
         }
     } catch(e) {
         if (showFeedback && typeof showToast !== 'undefined') showToast('Erro ao verificar: ' + e.message, 'error');
@@ -12267,12 +12282,21 @@ setInterval(() => {
             });
             markSeen(novos.map(a => String(a.unq_id)));
 
-            // AUTO-REFRESH STATUS
-            // Se estiver na tela de admissão (passo 2) ou de contratos, já aciona a atualização da lista atual
-            if (document.getElementById('admissao-signature-list')) {
-                if (document.getElementById('current-tab-title') && document.getElementById('current-tab-title').innerText === 'Contratos') {
-                    if (typeof renderContratosTab === 'function') renderContratosTab(document.getElementById('docs-list-container'));
-                } else if (typeof window.initAdmissaoWorkflow === 'function' && viewedColaborador) {
+            // AUTO-REFRESH STATUS ao detectar novo documento assinado
+            // 1) Se estiver no prontuário digital na aba Contratos → recarrega imediatamente
+            const docsListContainer = document.getElementById('docs-list-container');
+            const currentTabEl = document.querySelector('.tab-item.active') ||
+                                  document.querySelector('#tabs-list li.active') ||
+                                  document.querySelector('[data-tab].active');
+            const currentTabName = (currentTabEl?.dataset?.tab || currentTabEl?.textContent || '').trim();
+            const isContratosTab = currentTabName === 'Contratos' || docsListContainer?.closest('#view-colaboradores');
+
+            if (docsListContainer && isContratosTab) {
+                // Recarrega a aba Contratos com os dados atualizados do banco
+                await window._reloadContratosContainer().catch(() => {});
+            } else if (document.getElementById('admissao-signature-list')) {
+                // 2) Workflow de admissão aberto
+                if (typeof window.initAdmissaoWorkflow === 'function' && viewedColaborador) {
                     window.initAdmissaoWorkflow(viewedColaborador.id, 2, true);
                 }
             }
