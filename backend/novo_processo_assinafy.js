@@ -210,7 +210,7 @@ async function enviarDocumentoParaAssinafy(documentId, colaboradorId) {
                 // é controlado pelo método de assinatura e número de páginas do documento
             }
         ],
-        method: 'electronic',  // eletrônico = clique + verificação por e-mail, sem campo de rúbrica
+        method: 'virtual',
         copy_receivers: [{ email: 'americasistema48@gmail.com', name: 'Sistema America' }]
     });
 
