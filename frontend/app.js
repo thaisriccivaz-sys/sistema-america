@@ -8414,33 +8414,10 @@ window.enviarDocumentoAvulsoAssinatura = async function(docId, btn) {
         const data = await res.json().catch(() => ({}));
         if (res.ok) {
             if (typeof showToast !== 'undefined') showToast('Documento enviado para assinatura!', 'success');
-            // Atualiza a UI diretamente sem recarregar a lista inteira (evita loop de sync)
-            const now = new Date();
-            const fmt = `${String(now.getDate()).padStart(2,'0')}/${String(now.getMonth()+1).padStart(2,'0')}/${now.getFullYear()} - ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-            // Encontra o card pai do botão e atualiza visualmente
-            const card = btn ? btn.closest('.doc-check-item') : null;
-            if (card) {
-                // Muda borda/background para azul (Enviado)
-                card.style.border = '1px solid #bfdbfe';
-                card.style.background = '#eff6ff';
-                // Atualiza ícone
-                const iconEl = card.querySelector('[style*="width:24px"]');
-                if (iconEl) iconEl.innerHTML = '<i class="ph ph-paper-plane-tilt" style="font-size:1.4rem;color:#2563eb;"></i>';
-                // Atualiza status text
-                const statusEl = card.querySelector('span[style*="font-weight:600"]');
-                if (statusEl) {
-                    statusEl.style.color = '#2563eb';
-                    statusEl.textContent = `Enviado para Assinatura: ${fmt}`;
-                }
-                // Troca o botão por "Reenviar para Assinatura"
-                if (btn && btn.parentElement) {
-                    btn.outerHTML = `<button type="button" onclick="window.reenviarAssinaturaContrato(${docId}, event);" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-pen"></i> Reenviar para Assinatura</button>`;
-                }
-            } else {
-                // Fallback: recarrega sem acionar o loop (reseta o guard antes)
-                window._syncContratosRunning = false;
-                await window._reloadContratosContainer();
-            }
+            // Recarrega a lista para mostrar o status e timestamp vindos do banco de dados
+            // Seguro agora pois o auto-sync no render foi removido (sem loop)
+            window._syncContratosRunning = false;
+            await window._reloadContratosContainer();
         } else {
             Swal.fire('Atenção', 'Erro no envio para assinar: ' + (data.error || 'Erro desconhecido'), 'warning');
             if (btn) { btn.disabled = false; btn.innerHTML = oldHtml; }
