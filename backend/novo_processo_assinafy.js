@@ -202,7 +202,12 @@ async function enviarDocumentoParaAssinafy(documentId, colaboradorId) {
     console.log(`[5] Criando assignment para o colaborador...`);
     const assignRes = await req('POST', `/v1/documents/${assinafyDocId}/assignments`, {
         signers: [
-            { id: signerColabId, role: 'signer', notification_methods: ['Email'] }
+            {
+                id: signerColabId,
+                role: 'signer',
+                notification_methods: ['Email'],
+                require_initials: false   // desativa o campo de rúbrica — apenas 1 assinatura
+            }
         ],
         method: 'virtual',
         copy_receivers: [{ email: 'americasistema48@gmail.com', name: 'Sistema America' }]
