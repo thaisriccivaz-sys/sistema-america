@@ -8004,17 +8004,21 @@ window.anexarAoProntuarioPerfil = async function(btn) {
             const errData = await r.json().catch(() => ({}));
             throw new Error(errData.error || 'Falha ao salvar');
         }
+        const savedDoc = await r.json().catch(() => ({}));
+        const savedDocId = savedDoc.id || null;
 
         // Fechar preview
         const elModal = document.getElementById('modal-preview-doc') || document.getElementById('doc-modal');
         if (elModal) elModal.style.display = 'none';
 
-        // Mostrar botão "Enviar para Assinatura" na linha do perfil (igual ao fecharPreviewEHabitarEnvio)
+        // Mostrar botão "Enviar para Assinatura" na linha do perfil
+        // Passa o document_id real (savedDocId) em vez do gerador_id para garantir
+        // que o documento correto receba o assinafy_id ao enviar
         const actionDiv = document.getElementById('pg-action-' + geradorId);
         if (actionDiv) {
             actionDiv.innerHTML = `
                 <button class="btn btn-primary" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-size:0.95rem;font-weight:500;padding:0.55rem 1.25rem;border-radius:8px;background:#0056b3;border-color:#0056b3;color:#fff;"
-                    onclick="window.enviarAssinaturaDocSalvo(${geradorId}, '${(geradorNome||'').replace(/'/g,"\\'")}')">
+                    onclick="window.enviarAssinaturaDocSalvo(${savedDocId || geradorId}, '${(geradorNome||'').replace(/'/g,"\\'")}')">
                     <i class="ph ph-paper-plane-tilt"></i> Enviar para Assinatura
                 </button>
             `;
@@ -8032,18 +8036,28 @@ window.anexarAoProntuarioPerfil = async function(btn) {
 };
 
 // Enviar para assinatura um doc já salvo no banco (Pendente, sem assinafy_id)
-window.enviarAssinaturaDocSalvo = async function(geradorId, geradorNome) {
+// docId pode ser o document_id real (quando vindo de anexarAoProntuarioPerfil)
+// ou o gerador_id como fallback (fluxo antigo)
+window.enviarAssinaturaDocSalvo = async function(docId, geradorNome) {
     const colabId = viewedColaborador?.id;
-    if (!colabId) return;
-    const btn = document.querySelector(`[onclick="window.enviarAssinaturaDocSalvo(${geradorId}, '${(geradorNome||'').replace(/'/g,"\\'")}')"]`);
+    if (!colabId || !docId) return;
+    const btn = document.querySelector(`[onclick*="enviarAssinaturaDocSalvo(${docId},"]`) ||
+                document.querySelector(`[onclick*="enviarAssinaturaDocSalvo(${docId}, "]`);
     const origHtml = btn ? btn.innerHTML : '';
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando...'; }
     try {
-        await apiPost('/admissao-assinaturas/enviar-lote', {
-            colaborador_id: colabId,
-            geradores_ids: [parseInt(geradorId)]
+        // Usa /api/assinafy/upload com o document_id real, igual ao fluxo de reenvio.
+        // Isso garante que o documento correto (CONTRATOS_AVULSOS) recebe o assinafy_id.
+        const res = await fetch(API_URL + '/assinafy/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentToken },
+            body: JSON.stringify({ document_id: Number(docId), colaborador_id: Number(colabId) })
         });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Erro ao enviar para assinatura');
+
         if (typeof showToast !== 'undefined') showToast('Documento enviado para assinatura!', 'success');
+        // Recarrega para refletir o novo status do banco (assinafy_id preenchido → estado "Aguardando")
         await window._reloadContratosContainer();
     } catch(e) {
         Swal.fire('Erro ao enviar', e.message, 'error');
