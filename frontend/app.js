@@ -8450,10 +8450,10 @@ window.enviarDocumentoAvulsoAssinatura = async function(docId, btn) {
                     btn.parentElement.replaceChild(reenviarBtn, btn);
                 }
             }
-
-            // Recarrega em background para sincronizar com o DB
+            // Nota: NÃO recarrega automaticamente aqui pois novo_processo_assinafy demora 3s+
+            // e o reload antecipado mostraria isPronto (assinafy_id ainda NULL no banco).
+            // O interval de 30s sincroniza após o processo completar.
             window._syncContratosRunning = false;
-            setTimeout(() => window._reloadContratosContainer(), 1500);
         } else {
             Swal.fire('Atenção', 'Erro no envio para assinar: ' + (data.error || 'Erro desconhecido'), 'warning');
             if (btn) { btn.disabled = false; btn.innerHTML = oldHtml; }
