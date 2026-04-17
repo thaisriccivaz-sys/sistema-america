@@ -1328,6 +1328,8 @@ app.post('/api/assinafy/upload', async (req, res) => {
             sucesso: true,
             processando_em_background: false,
             urlAssinatura: resultado?.urlAssinatura || null,
+            assinafy_id: resultado?.assinafyDocId || null,
+            assinafy_sent_at: new Date().toISOString(),
             message: "O documento foi enviado com sucesso para assinatura no Assinafy!"
         });
     } catch (error) {

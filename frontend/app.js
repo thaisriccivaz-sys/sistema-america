@@ -8414,10 +8414,46 @@ window.enviarDocumentoAvulsoAssinatura = async function(docId, btn) {
         const data = await res.json().catch(() => ({}));
         if (res.ok) {
             if (typeof showToast !== 'undefined') showToast('Documento enviado para assinatura!', 'success');
-            // Recarrega a lista para mostrar o status e timestamp vindos do banco de dados
-            // Seguro agora pois o auto-sync no render foi removido (sem loop)
+
+            // Usa os dados da resposta para atualizar a UI imediatamente (sem depender do reload)
+            const sentAt = data.assinafy_sent_at ? new Date(data.assinafy_sent_at) : new Date();
+            const fmt = `${String(sentAt.getDate()).padStart(2,'0')}/${String(sentAt.getMonth()+1).padStart(2,'0')}/${sentAt.getFullYear()} - ${String(sentAt.getHours()).padStart(2,'0')}:${String(sentAt.getMinutes()).padStart(2,'0')}`;
+
+            // Atualiza o card diretamente no DOM
+            const card = btn ? btn.closest('.doc-check-item') : null;
+            if (card) {
+                card.style.cssText = card.style.cssText
+                    .replace(/border:[^;]+/, 'border:1px solid #bfdbfe')
+                    .replace(/background:[^;]+/, 'background:#eff6ff');
+
+                // Ícone: paperclip → avião
+                const iconWrap = card.querySelector('div[style*="width:24px"]');
+                if (iconWrap) iconWrap.innerHTML = '<i class="ph ph-paper-plane-tilt" style="font-size:1.4rem;color:#2563eb;"></i>';
+
+                // Status: percorre todos os spans e identifica o status badge (cor diferente do título)
+                const spans = card.querySelectorAll('div > span');
+                spans.forEach(sp => {
+                    // title span tem font-size ~0.95rem; status badge tem 0.75rem
+                    if (sp.style.fontSize && parseFloat(sp.style.fontSize) < 0.9) {
+                        sp.style.color = '#2563eb';
+                        sp.textContent = `Enviado para Assinatura: ${fmt}`;
+                    }
+                });
+
+                // Troca botão por "Reenviar"
+                if (btn && btn.parentElement) {
+                    const reenviarBtn = document.createElement('button');
+                    reenviarBtn.type = 'button';
+                    reenviarBtn.onclick = function(e) { window.reenviarAssinaturaContrato(docId, e); };
+                    reenviarBtn.style.cssText = 'background:#0284c7;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;';
+                    reenviarBtn.innerHTML = '<i class="ph ph-pen"></i> Reenviar para Assinatura';
+                    btn.parentElement.replaceChild(reenviarBtn, btn);
+                }
+            }
+
+            // Recarrega em background para sincronizar com o DB
             window._syncContratosRunning = false;
-            await window._reloadContratosContainer();
+            setTimeout(() => window._reloadContratosContainer(), 1500);
         } else {
             Swal.fire('Atenção', 'Erro no envio para assinar: ' + (data.error || 'Erro desconhecido'), 'warning');
             if (btn) { btn.disabled = false; btn.innerHTML = oldHtml; }
