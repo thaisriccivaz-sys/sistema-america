@@ -7778,20 +7778,13 @@ window.renderContratosAvulso = async function(container) {
                 ${combinedHtml}
             </div>
 
-        `;
-
-        // Auto-sync silencioso ao carregar a aba (apenas 1 chamada, com guard)
-        const docsParaSync = filteredDocs.filter(d =>
-            d.assinafy_id && (d.assinafy_status === 'Pendente' || d.assinafy_status === 'Aguardando')
-        );
-        if (docsParaSync.length > 0) {
-            setTimeout(() => window.sincronizarStatusAssinaturas(false), 1000);
-        }
+        `; // fim do innerHTML
 
     } catch(err) {
         container.innerHTML = `<div class="alert alert-danger"><i class="ph ph-warning"></i> Erro: ${err.message}</div>`;
     }
 };
+
 
 
 // Guard: impede execuções concorrentes do sync
