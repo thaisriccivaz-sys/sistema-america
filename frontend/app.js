@@ -7729,6 +7729,21 @@ window.renderContratosAvulso = async function(container) {
             </div>`;
         }).join('');
 
+        // Ordenar filteredDocs pela ordem natural dos geradores do perfil
+        // Para que o documento assinado/enviado fique na mesma posição que ocuparia no perfil
+        const ordemGeradores = autoGeradores.map(g => (g.nome || '').trim().toLowerCase());
+        filteredDocs.sort((a, b) => {
+            const nA = (a.document_type || '').trim().toLowerCase();
+            const nB = (b.document_type || '').trim().toLowerCase();
+            const iA = ordemGeradores.indexOf(nA);
+            const iB = ordemGeradores.indexOf(nB);
+            // Docs de perfil vêm primeiro na ordem do gerador; docs avulsos vão no final
+            if (iA === -1 && iB === -1) return 0;
+            if (iA === -1) return 1;
+            if (iB === -1) return -1;
+            return iA - iB;
+        });
+
         container.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
                 <div>
@@ -7754,9 +7769,11 @@ window.renderContratosAvulso = async function(container) {
             </div>
         `;
 
-        // Auto-sync: verificar documentos Pendentes silenciosamente
+        // Auto-sync silencioso: se houver documentos Pendentes, verifica no Assinafy
+        // Tambem recarrega se detectar que o DB tem Assinado mas a UI pode estar desatualizada
         const pendentesParaSync = filteredDocs.filter(d => d.assinafy_status === 'Pendente' && d.assinafy_id);
         if (pendentesParaSync.length > 0) {
+            // Docs Pendentes: verifica se já foram assinados no Assinafy
             window.sincronizarStatusAssinaturas(false);
         }
 
@@ -12302,6 +12319,15 @@ setInterval(() => {
         checkAlertasRecentes();
         setInterval(checkAlertasRecentes, 15000);
     }, 5000);
+
+    // SEGUNDO POLL: a cada 30s verifica silenciosamente se há docs Pendentes que
+    // foram assinados (fallback para quando alertas-recentes não captura o evento)
+    setInterval(() => {
+        if (document.getElementById('ca-list-container') && viewedColaborador) {
+            window.sincronizarStatusAssinaturas(false);
+        }
+    }, 30000);
+
 })();
 
 // --- GESTÃO DE INTEGRAÇÃO ---
