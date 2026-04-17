@@ -8155,7 +8155,7 @@ window.reenviarAssinaturaContrato = async function(docId, ev) {
 window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
     docs = Array.isArray(docs) ? docs : [];
     if (docs.length === 0) {
-        return `<div style="padding:2rem;text-align:center;color:#94a3b8;border:2px dashed #e2e8f0;border-radius:12px;"><i class="ph ph-files" style="font-size:2rem;margin-bottom:0.5rem;display:block;"></i>Nenhum contrato listado.</div>`;
+        return '';
     }
 
     let html = '';
