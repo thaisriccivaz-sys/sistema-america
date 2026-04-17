@@ -7729,20 +7729,31 @@ window.renderContratosAvulso = async function(container) {
             </div>`;
         }).join('');
 
-        // Ordenar filteredDocs pela ordem natural dos geradores do perfil
-        // Para que o documento assinado/enviado fique na mesma posição que ocuparia no perfil
-        const ordemGeradores = autoGeradores.map(g => (g.nome || '').trim().toLowerCase());
+        // Ordenação: docs por ordem natural dos geradores do perfil.
+        // Usa normalização de acentos para tolerar diferenças de encoding.
+        const _norm = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+        const ordemNorm = autoGeradores.map(g => _norm(g.nome));
+
+        const _getIdx = (docType) => {
+            const n = _norm(docType);
+            let idx = ordemNorm.indexOf(n);
+            if (idx === -1) {
+                // Tentativa fuzzy: verifica se algum nome do gerador está contido no document_type ou vice-versa
+                idx = ordemNorm.findIndex(g => n.includes(g) || g.includes(n));
+            }
+            return idx;
+        };
+
         filteredDocs.sort((a, b) => {
-            const nA = (a.document_type || '').trim().toLowerCase();
-            const nB = (b.document_type || '').trim().toLowerCase();
-            const iA = ordemGeradores.indexOf(nA);
-            const iB = ordemGeradores.indexOf(nB);
+            const iA = _getIdx(a.document_type);
+            const iB = _getIdx(b.document_type);
             // Docs de perfil vêm primeiro na ordem do gerador; docs avulsos vão no final
             if (iA === -1 && iB === -1) return 0;
             if (iA === -1) return 1;
             if (iB === -1) return -1;
             return iA - iB;
         });
+
 
         container.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
