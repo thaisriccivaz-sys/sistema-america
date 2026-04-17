@@ -7695,6 +7695,9 @@ window.renderContratosAvulso = async function(container) {
 
         window._caAvailableGeradores = dropdownGeradores;
 
+        // filteredDocs: apenas documentos da aba CONTRATOS_AVULSOS
+        const filteredDocs = docs.filter(d => d.tab_name === 'CONTRATOS_AVULSOS');
+
         // Normalização para matching de nomes
         const _norm = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 
