@@ -8333,8 +8333,8 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
             // Documento salvo localmente (Pendente sem assinafy_id) — aguardando envio ao Assinafy
             const gerDocId = doc.gerador_id || '';
             const escNomeDoc = (doc.document_type || '').replace(/'/g,"\\'");
-            leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#7c3aed;"><i class="ph ph-paperclip" style="font-size:1.4rem;"></i></div>`;
-            statusBadge = `<span style="color:#7c3aed;font-size:0.75rem;font-weight:600;">Documento salvo — clique em Enviar para Assinatura${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
+            leftIconMarkup = `<div data-role="status-icon" style="display:flex;align-items:center;justify-content:center;width:24px;color:#7c3aed;"><i class="ph ph-paperclip" style="font-size:1.4rem;"></i></div>`;
+            statusBadge = `<span data-role="status-badge" style="color:#7c3aed;font-size:0.75rem;font-weight:600;">Documento salvo — clique em Enviar para Assinatura${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
             sendBtn = `<button type="button" onclick="window.enviarDocumentoAvulsoAssinatura('${doc.id}', this)" style="background:#0056b3;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-paper-plane-tilt"></i> Enviar para Assinatura</button>`;
         } else if (literallyNaoExige) {
             leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#9333ea;"><i class="ph ph-file-text" style="font-size:1.4rem;"></i></div>`;
@@ -8419,26 +8419,23 @@ window.enviarDocumentoAvulsoAssinatura = async function(docId, btn) {
             const sentAt = data.assinafy_sent_at ? new Date(data.assinafy_sent_at) : new Date();
             const fmt = `${String(sentAt.getDate()).padStart(2,'0')}/${String(sentAt.getMonth()+1).padStart(2,'0')}/${sentAt.getFullYear()} - ${String(sentAt.getHours()).padStart(2,'0')}:${String(sentAt.getMinutes()).padStart(2,'0')}`;
 
-            // Atualiza o card diretamente no DOM
+            // Atualiza o card diretamente no DOM usando data-role (imune à normalização de estilos do browser)
             const card = btn ? btn.closest('.doc-check-item') : null;
             if (card) {
-                card.style.cssText = card.style.cssText
-                    .replace(/border:[^;]+/, 'border:1px solid #bfdbfe')
-                    .replace(/background:[^;]+/, 'background:#eff6ff');
+                // Borda e fundo: azul
+                card.style.border = '1px solid #bfdbfe';
+                card.style.background = '#eff6ff';
 
-                // Ícone: paperclip → avião
-                const iconWrap = card.querySelector('div[style*="width:24px"]');
+                // Ícone: paperclip → avião (usa data-role para seleção confiável)
+                const iconWrap = card.querySelector('[data-role="status-icon"]');
                 if (iconWrap) iconWrap.innerHTML = '<i class="ph ph-paper-plane-tilt" style="font-size:1.4rem;color:#2563eb;"></i>';
 
-                // Status: percorre todos os spans e identifica o status badge (cor diferente do título)
-                const spans = card.querySelectorAll('div > span');
-                spans.forEach(sp => {
-                    // title span tem font-size ~0.95rem; status badge tem 0.75rem
-                    if (sp.style.fontSize && parseFloat(sp.style.fontSize) < 0.9) {
-                        sp.style.color = '#2563eb';
-                        sp.textContent = `Enviado para Assinatura: ${fmt}`;
-                    }
-                });
+                // Status badge (usa data-role para seleção confiável)
+                const statusEl = card.querySelector('[data-role="status-badge"]');
+                if (statusEl) {
+                    statusEl.style.color = '#2563eb';
+                    statusEl.textContent = `Enviado para Assinatura: ${fmt}`;
+                }
 
                 // Troca botão por "Reenviar"
                 if (btn && btn.parentElement) {
@@ -8450,9 +8447,8 @@ window.enviarDocumentoAvulsoAssinatura = async function(docId, btn) {
                     btn.parentElement.replaceChild(reenviarBtn, btn);
                 }
             }
-            // Nota: NÃO recarrega automaticamente aqui pois novo_processo_assinafy demora 3s+
-            // e o reload antecipado mostraria isPronto (assinafy_id ainda NULL no banco).
-            // O interval de 30s sincroniza após o processo completar.
+            // Nota: NÃO recarrega aqui — novo_processo demora 3s+ e reload antecipado reverte UI.
+            // O interval de 30s sincroniza com o DB após o processo completar.
             window._syncContratosRunning = false;
         } else {
             Swal.fire('Atenção', 'Erro no envio para assinar: ' + (data.error || 'Erro desconhecido'), 'warning');
