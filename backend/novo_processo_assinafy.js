@@ -211,6 +211,21 @@ async function enviarDocumentoParaAssinafy(documentId, colaboradorId) {
             }
         ],
         method: 'virtual',
+        items: [
+            {
+                page: null,
+                signer: { id: signerColabId },
+                field: {
+                    id: "1023778608c24e6d39813c97710f",
+                    name: "Virtual",
+                    type: "virtual",
+                    is_pre_defined: true,
+                    is_active: true,
+                    is_required: true,
+                    is_visible: true
+                }
+            }
+        ],
         copy_receivers: [{ email: 'americasistema48@gmail.com', name: 'Sistema America' }]
     });
 
