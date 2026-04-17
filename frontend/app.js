@@ -7633,7 +7633,15 @@ window.renderContratosAvulso = async function(container) {
             'autorizar desconto',
             'termo de responsabilidade de chaves'
         ];
-        const isExcluido = (g) => EXCLUIDOS_FIXOS.includes((g.nome||'').toLowerCase().trim()) || g.is_sinistro_only;
+        const isExcluido = (g) => {
+            const nLower = (g.nome || '').toLowerCase().trim();
+            if (EXCLUIDOS_FIXOS.includes(nLower)) return true;
+            if (g.is_sinistro_only) return true;
+            // Excluir geradores cujo nome começa com "Sinistro"
+            if (nLower.startsWith('sinistro')) return true;
+            if (nLower.startsWith('sinistro -')) return true;
+            return false;
+        };
 
         // Geradores elegíveis (sem excluídos e sem sinistro)
         const geradoresElegiveis = geradores.filter(g => !isExcluido(g));
@@ -8678,6 +8686,68 @@ window.openSignedDocPopupDocumento = function(docId, nomeDoc) {
         </div>`;
 
     overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+};
+
+// ===== INIT ADMISSÃO WORKFLOW =====
+// Exibe o painel correto (botão "Iniciar" ou stepper) dependendo do status do colaborador
+window.initAdmissaoWorkflow = async function(colabId, step, silent) {
+    // Se colabId vazio = reset (chamado por selectAdmissaoColab com id vazio)
+    if (!colabId) {
+        window.resetAdmissao();
+        return;
+    }
+
+    try {
+        // Busca dados frescos do colaborador
+        let colab = null;
+        try {
+            const cols = await apiGet('/colaboradores');
+            colab = cols.find(c => String(c.id) === String(colabId));
+        } catch(e) { colab = viewedColaborador; }
+
+        if (!colab) { if (!silent) console.warn('[Admissao] Colaborador não encontrado:', colabId); return; }
+
+        // Atualiza referência global
+        viewedColaborador = colab;
+
+        const wf    = document.getElementById('admissao-workflow');
+        const start = document.getElementById('admissao-start-action');
+        const searchContainer = document.getElementById('admissao-search-container');
+
+        if (!wf || !start) return;
+
+        const statusNorm = (colab.status || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const admStatusNorm = (colab.admissao_status || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+        // Se o processo já foi iniciado, mostrar o stepper
+        const INICIADOS = ['processo iniciado', 'em admissao', 'em andamento'];
+        const processoIniciado = INICIADOS.some(s => statusNorm.includes(s)) ||
+                                 (admStatusNorm && admStatusNorm !== 'concluida' && admStatusNorm !== '' && admStatusNorm !== 'pendente');
+
+        if (searchContainer) searchContainer.style.display = 'none';
+
+        if (processoIniciado) {
+            // Mostrar o stepper completo
+            start.style.display = 'none';
+            wf.style.display = 'block';
+            // Preenche dados do passo 1
+            if (typeof window.renderAdmissaoDataSummary === 'function') {
+                window.renderAdmissaoDataSummary(colab);
+            }
+            if (typeof updateAdmissaoStepPercentages === 'function') updateAdmissaoStepPercentages();
+            // Navega para o passo desejado
+            const targetStep = step || window.currentActiveAdmissaoStep || 1;
+            window.nextAdmissaoStep(targetStep, true);
+        } else {
+            // Mostrar botão de iniciar
+            wf.style.display = 'none';
+            start.style.display = 'block';
+            const nameEl = document.getElementById('admissao-start-name');
+            if (nameEl) nameEl.textContent = colab.nome_completo || '';
+        }
+    } catch(e) {
+        if (!silent) console.error('[initAdmissaoWorkflow] Erro:', e);
+    }
 };
 
 window.startFinalAdmission = async function() {
