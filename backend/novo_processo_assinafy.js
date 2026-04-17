@@ -205,11 +205,12 @@ async function enviarDocumentoParaAssinafy(documentId, colaboradorId) {
             {
                 id: signerColabId,
                 role: 'signer',
-                notification_methods: ['Email'],
-                require_initials: false   // desativa o campo de rúbrica — apenas 1 assinatura
+                notification_methods: ['Email']
+                // require_initials não é reconhecido pela API — o campo de rúbrica
+                // é controlado pelo método de assinatura e número de páginas do documento
             }
         ],
-        method: 'virtual',
+        method: 'electronic',  // eletrônico = clique + verificação por e-mail, sem campo de rúbrica
         copy_receivers: [{ email: 'americasistema48@gmail.com', name: 'Sistema America' }]
     });
 
