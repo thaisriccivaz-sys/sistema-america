@@ -7733,6 +7733,9 @@ window.renderContratosAvulso = async function(container) {
                      <p style="margin:0; font-size:0.85rem; color:#64748b;">Gere templates ou anexe PDFs para assinatura.</p>
                 </div>
                 <div style="display:flex; gap:0.5rem;">
+                    <button class="btn btn-secondary" onclick="window.sincronizarStatusAssinaturas(true)" style="display:flex;align-items:center;margin:0;gap:0.4rem;" title="Verificar status de assinaturas pendentes no Assinafy">
+                        <i class="ph ph-arrows-clockwise"></i> Atualizar Status
+                    </button>
                     <label class="btn btn-secondary" style="display:flex;align-items:center;margin:0;gap:0.4rem;cursor:pointer;">
                         <i class="ph ph-upload-simple"></i> Anexar PDF
                         <input type="file" accept=".pdf" style="display:none" onchange="window.uploadContratoExterno(this)">
@@ -7748,11 +7751,64 @@ window.renderContratosAvulso = async function(container) {
             </div>
         `;
 
+        // Auto-sync: verificar documentos Pendentes silenciosamente
+        const pendentesParaSync = filteredDocs.filter(d => d.assinafy_status === 'Pendente' && d.assinafy_id);
+        if (pendentesParaSync.length > 0) {
+            window.sincronizarStatusAssinaturas(false);
+        }
+
     } catch(err) {
         container.innerHTML = `<div class="alert alert-danger"><i class="ph ph-warning"></i> Erro: ${err.message}</div>`;
     }
 };
 
+
+// Helper: sincroniza o status de documentos Pendentes no Assinafy
+// showFeedback=true => mostra toast ao concluir; false => silencioso
+window.sincronizarStatusAssinaturas = async function(showFeedback) {
+    if (!viewedColaborador) return;
+    const btn = document.querySelector('[onclick="window.sincronizarStatusAssinaturas(true)"]');
+    const origHtml = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Verificando...'; }
+
+    try {
+        const docs = await apiGet(`/colaboradores/${viewedColaborador.id}/documentos`).catch(() => []);
+        const pendentes = (Array.isArray(docs) ? docs : []).filter(d =>
+            d.tab_name === 'CONTRATOS_AVULSOS' &&
+            d.assinafy_status === 'Pendente' &&
+            d.assinafy_id
+        );
+
+        if (pendentes.length === 0) {
+            if (showFeedback && typeof showToast !== 'undefined') showToast('Nenhum documento pendente de assinatura.', 'info');
+            if (btn) { btn.disabled = false; btn.innerHTML = origHtml; }
+            return;
+        }
+
+        let atualizado = 0;
+        for (const doc of pendentes) {
+            try {
+                const res = await fetch(`${API_URL}/documentos/${doc.id}/sync-assinafy`, {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + currentToken }
+                });
+                const data = await res.json().catch(() => ({}));
+                if (res.ok && data.status_novo === 'Assinado') atualizado++;
+            } catch(e) { /* ignora erros individuais */ }
+        }
+
+        if (atualizado > 0) {
+            if (typeof showToast !== 'undefined') showToast(`${atualizado} documento(s) atualizado(s) para Assinado!`, 'success');
+            await window._reloadContratosContainer();
+        } else {
+            if (showFeedback && typeof showToast !== 'undefined') showToast(`${pendentes.length} documento(s) ainda aguardando assinatura.`, 'info');
+            if (btn) { btn.disabled = false; btn.innerHTML = origHtml; }
+        }
+    } catch(e) {
+        if (showFeedback && typeof showToast !== 'undefined') showToast('Erro ao verificar: ' + e.message, 'error');
+        if (btn) { btn.disabled = false; btn.innerHTML = origHtml; }
+    }
+};
 
 window.toggleAcaoContratoPerfil = function(geradorId, exige, geradorNome) {
     const actionDiv = document.getElementById('pg-action-' + geradorId);
