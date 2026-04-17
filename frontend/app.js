@@ -7931,6 +7931,10 @@ window.previewContratoPerfilAssinado = async function(geradorId, geradorNome) {
                     <button class="btn btn-secondary" onclick="window.fecharPreviewEHabitarEnvio()">
                         <i class="ph ph-x"></i> Fechar Prévia
                     </button>
+                    <button id="btn-anexar-prontuario" class="btn" onclick="window.anexarAoProntuarioPerfil(this)"
+                        style="background:#7c3aed;color:#fff;border-color:#7c3aed;display:inline-flex;align-items:center;gap:6px;font-weight:600;">
+                        <i class="ph ph-paperclip"></i> Anexar ao Prontuário
+                    </button>
                 `;
             }
         }, 150);
@@ -7957,6 +7961,60 @@ window.fecharPreviewEHabitarEnvio = function() {
         `;
     }
 };
+
+// Anexar ao Prontuário direto do preview (sem assinatura)
+window.anexarAoProntuarioPerfil = async function(btn) {
+    const geradorId = window._perfilGeradorIdCtx;
+    const geradorNome = window._perfilGeradorNomeCtx;
+    if (!geradorId || !viewedColaborador) return;
+
+    const origHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...';
+    btn.disabled = true;
+
+    try {
+        const previewContent = document.querySelector('#modal-preview-doc #preview-doc-body') ||
+                               document.querySelector('#doc-modal .preview-content');
+        if (!previewContent) throw new Error('Conteúdo do preview não encontrado. Feche e gere novamente.');
+
+        const pdfBlob = await window.gerarPDFBlob(previewContent);
+        const safeName = (geradorNome || 'documento').replace(/[^a-zA-Z0-9À-ÿ _-]/g, '');
+        const colabNome = (viewedColaborador.nome_completo || viewedColaborador.id).toString();
+
+        const formData = new FormData();
+        formData.append('file', pdfBlob, `Outros_${safeName}_${colabNome}.pdf`);
+        formData.append('tab_name', 'CONTRATOS_AVULSOS');
+        formData.append('document_type', geradorNome);
+        formData.append('gerador_id', geradorId);
+        formData.append('colaborador_id', viewedColaborador.id);
+        formData.append('colaborador_nome', colabNome);
+        formData.append('assinafy_status', 'NAO_EXIGE');
+
+        const r = await fetch(`${API_URL}/documentos?colaborador_id=${viewedColaborador.id}`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${currentToken}` },
+            body: formData
+        });
+        if (!r.ok) {
+            const errData = await r.json().catch(() => ({}));
+            throw new Error(errData.error || 'Falha ao salvar');
+        }
+
+        // Fechar preview e recarregar a lista
+        const elModal = document.getElementById('modal-preview-doc') || document.getElementById('doc-modal');
+        if (elModal) elModal.style.display = 'none';
+
+        if (typeof showToast !== 'undefined') showToast('Documento anexado ao prontuário!', 'success');
+        await window._reloadContratosContainer();
+
+    } catch(e) {
+        Swal.fire('Erro', e.message, 'error');
+        btn.innerHTML = origHtml;
+        btn.disabled = false;
+    }
+};
+
+
 
 window.enviarAssinaturaPerfilDireto = async function(event) {
     const geradorId = window._perfilGeradorIdCtx;
