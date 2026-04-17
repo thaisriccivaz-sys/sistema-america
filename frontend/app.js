@@ -7749,14 +7749,16 @@ window.renderContratosAvulso = async function(container) {
         }
 
         // Geradores para a lista suspensa "Gerar Novo"
-        // Se regras ainda não foram seeded (visibilidade_regra null), mostra TODOS os elegíveis
+        // Regra: mostrar TODOS os elegíveis na lista suspensa de qualquer colaborador
+        // (excetos sinistro e excluídos, já tratados acima)
+        // Quando as regras estiverem no banco, aplica filtro adicional de dropdown_todos
         const dropdownGeradores = geradoresElegiveis.filter(g => {
-            if (!g.visibilidade_regra) return true; // fallback: sem regra = aparece no dropdown
+            if (!g.visibilidade_regra) return true; // sem regra = aparece sempre
             let regra = {};
             try { regra = JSON.parse(g.visibilidade_regra); } catch(e) {}
-            if (regra.dropdown_todos) return true;
-            if (regra.visivel_automatico && window._avaliarRegraGerador(g, c, deptNome)) return true;
-            return false;
+            // Se dropdown_todos = false e não é auto-visível para este colab, não aparece no dropdown
+            if (regra.dropdown_todos === false && !window._avaliarRegraGerador(g, c, deptNome)) return false;
+            return true;
         });
 
         window._caAvailableGeradores = dropdownGeradores;
