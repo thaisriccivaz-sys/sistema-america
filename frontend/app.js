@@ -7765,9 +7765,6 @@ window.renderContratosAvulso = async function(container) {
                      <p style="margin:0; font-size:0.85rem; color:#64748b;">Gere templates ou anexe PDFs para assinatura.</p>
                 </div>
                 <div style="display:flex; gap:0.5rem;">
-                    <button class="btn btn-secondary" onclick="window.sincronizarStatusAssinaturas(true)" style="display:flex;align-items:center;margin:0;gap:0.4rem;" title="Verificar status de assinaturas pendentes no Assinafy">
-                        <i class="ph ph-arrows-clockwise"></i> Atualizar Status
-                    </button>
                     <label class="btn btn-secondary" style="display:flex;align-items:center;margin:0;gap:0.4rem;cursor:pointer;">
                         <i class="ph ph-upload-simple"></i> Anexar PDF
                         <input type="file" accept=".pdf" style="display:none" onchange="window.uploadContratoExterno(this)">
@@ -7791,6 +7788,15 @@ window.renderContratosAvulso = async function(container) {
             window.sincronizarStatusAssinaturas(false);
         }
 
+        // Auto-sync silencioso ao carregar a aba: verifica se há docs enviados ao Assinafy ainda não assinados
+        const docsComAssinafy = filteredDocs.filter(d =>
+            d.assinafy_id && (d.assinafy_status === 'Pendente' || d.assinafy_status === 'Aguardando')
+        );
+        if (docsComAssinafy.length > 0) {
+            // Usa setTimeout para não bloquear o render da lista
+            setTimeout(() => window.sincronizarStatusAssinaturas(false), 800);
+        }
+
     } catch(err) {
         container.innerHTML = `<div class="alert alert-danger"><i class="ph ph-warning"></i> Erro: ${err.message}</div>`;
     }
@@ -7812,8 +7818,11 @@ window.sincronizarStatusAssinaturas = async function(showFeedback) {
         // Docs que o banco JÁ atualizou para Assinado (backend polling já rodou)
         const jaAssinados = contratosDocs.filter(d => d.assinafy_status === 'Assinado');
 
-        // Docs ainda Pendente que precisamos verificar no Assinafy
-        const pendentes = contratosDocs.filter(d => d.assinafy_status === 'Pendente' && d.assinafy_id);
+        // Docs Pendentes ou Aguardando que precisamos verificar no Assinafy
+        // 'Pendente' = salvo mas ainda não enviado / 'Aguardando' = já enviado ao Assinafy
+        const pendentes = contratosDocs.filter(d =>
+            (d.assinafy_status === 'Pendente' || d.assinafy_status === 'Aguardando') && d.assinafy_id
+        );
 
         // Se não há pendentes mas há assinados recentes: se é o botão manual, apenas recarregar a lista
         if (pendentes.length === 0) {
