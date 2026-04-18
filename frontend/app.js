@@ -62,7 +62,7 @@ window.gerarPDFBlob = async function(element, filename = 'documento.pdf') {
             image: { type: 'jpeg', quality: 0.98 },
             html2canvas: { scale: 2, useCORS: true },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-            pagebreak: { mode: ['avoid-all', 'css', 'legacy'], before: '.page-break', avoid: ['p', 'li'] }
+            pagebreak: { mode: ['css', 'legacy'], before: '.page-break', avoid: ['p', 'li'] }
         };
 
         html2pdf()
