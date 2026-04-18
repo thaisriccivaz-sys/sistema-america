@@ -367,11 +367,17 @@
                     <div class="card p-4">
                         <!-- CONTAINER 1: LISTA DE CARGOS -->
                         <div id="cargo-list-container">
-                            <div class="flex-between mb-4">
+                            <div class="flex-between mb-3">
                                 <h3 style="font-size: 1.1rem; color: #475569;">Lista de Cargos Cadastrados</h3>
                                 <button type="button" class="btn btn-secondary" onclick="toggleCargoView('new')" style="font-weight: 600;">
                                     <i class="ph ph-plus-circle"></i> Novo Cargo
                                 </button>
+                            </div>
+                            <div class="mb-3" style="position:relative;">
+                                <i class="ph ph-magnifying-glass" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1rem;"></i>
+                                <input type="text" id="search-cargos" placeholder="Pesquisar cargo por nome..."
+                                    oninput="filtrarListaCargos(this.value)"
+                                    style="width:100%;padding:0.55rem 0.75rem 0.55rem 2.2rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;">
                             </div>
                             <div class="table-responsive">
                                 <table class="table">
@@ -423,6 +429,12 @@
                             </form>
                         </div>
                         <div class="card">
+                            <div class="mb-3 p-3 pb-0" style="position:relative;">
+                                <i class="ph ph-magnifying-glass" style="position:absolute;left:22px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1rem;"></i>
+                                <input type="text" id="search-departamentos" placeholder="Pesquisar departamento por nome..."
+                                    oninput="filtrarListaDepartamentos(this.value)"
+                                    style="width:100%;padding:0.55rem 0.75rem 0.55rem 2.2rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;">
+                            </div>
                             <table class="table">
                                 <thead><tr><th>ID</th><th>Nome do Departamento</th><th>Ações</th></tr></thead>
                                 <tbody id="table-departamentos"></tbody>

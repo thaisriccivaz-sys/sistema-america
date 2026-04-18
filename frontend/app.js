@@ -889,6 +889,24 @@ async function loadCargos() {
     }
 }
 
+// Filtra as linhas da tabela de cargos pelo texto digitado
+window.filtrarListaCargos = function(query) {
+    const q = (query || '').toLowerCase().trim();
+    document.querySelectorAll('#table-cargos-body tr').forEach(row => {
+        const nome = (row.cells[1]?.textContent || '').toLowerCase();
+        row.style.display = (!q || nome.includes(q)) ? '' : 'none';
+    });
+};
+
+// Filtra as linhas da tabela de departamentos pelo texto digitado
+window.filtrarListaDepartamentos = function(query) {
+    const q = (query || '').toLowerCase().trim();
+    document.querySelectorAll('#table-departamentos tr').forEach(row => {
+        const nome = (row.cells[1]?.textContent || '').toLowerCase();
+        row.style.display = (!q || nome.includes(q)) ? '' : 'none';
+    });
+};
+
 window.toggleCargoView = async function(mode, id = null) {
     const listContainer = document.getElementById('cargo-list-container');
     const formContainer = document.getElementById('cargo-form-container');
