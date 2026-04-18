@@ -224,10 +224,6 @@ function renderEpiCard(t) {
                             class="btn btn-sm" style="background:#f59e0b;color:#fff;border:none;height:32px;width:32px;padding:0;display:flex;align-items:center;justify-content:center;">
                         <i class="ph ph-pencil-simple"></i>
                     </button>
-                    <button onclick="window.deleteEpiTemplate(${t.id})" title="Excluir"
-                            class="btn btn-danger btn-sm" style="height:32px;width:32px;padding:0;display:flex;align-items:center;justify-content:center;">
-                        <i class="ph ph-trash"></i>
-                    </button>
                 </div>
             </div>
             <div style="padding:0.7rem 1rem;">
