@@ -211,6 +211,17 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 }
             });
 
+            // Adicionar escala Seg à Sexta caso não exista (Migration)
+            db.get("SELECT COUNT(*) as count FROM escalas WHERE tipo = 'padrao_seg_sexta'", [], (err, row) => {
+                if (err) return;
+                if (row && row.count === 0) {
+                    db.run(`INSERT INTO escalas (nome, tipo, dias_folga, observacoes) VALUES
+                        ('Seg à Sexta', 'padrao_seg_sexta', '["Sáb","Dom"]', 'Trabalha 5 dias na semana. Folga aos Sábados e Domingos.')
+                    `);
+                }
+            });
+
+
             // Tabela de Cursos de Faculdade
             db.run(`
                 CREATE TABLE IF NOT EXISTS cursos_faculdade (
