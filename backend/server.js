@@ -3533,10 +3533,12 @@ function buildGeradoresHtml(gerador, colaborador, baseUrl) {
 <meta charset="UTF-8">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; color: #1e293b; width: 210mm; padding: 1.8cm; box-sizing: border-box; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; color: #1e293b; width: 210mm; }
   @page { size: A4; margin: 0; }
-  .logo-banner img { width: 100%; display: block; margin-bottom: 12px; }
-  h1.doc-title { text-align: center; font-size: 13pt; text-transform: uppercase; margin: 6px 0; }
+  .logo-banner { width: 100%; display: block; }
+  .logo-banner img { width: 100%; display: block; }
+  .page-content { padding: 0.5cm 1.8cm 1.8cm 1.8cm; }
+  h1.doc-title { text-align: center; font-size: 13pt; text-transform: uppercase; margin: 10px 0 6px; }
   .colab-header { margin-top: 8px; font-size: 10pt; }
   .colab-box { border: 1px solid #000; padding: 8px; margin-top: 6px; font-size: 9pt; line-height: 1.5; }
   .colab-row { display: flex; gap: 2rem; }
@@ -3556,31 +3558,33 @@ function buildGeradoresHtml(gerador, colaborador, baseUrl) {
 <body>
   <div class="logo-banner"><img src="${logoUrl}" alt="Logo America Rental"></div>
 
-  <h1 class="doc-title">${gerador.nome}</h1>
+  <div class="page-content">
+    <h1 class="doc-title">${gerador.nome}</h1>
 
-  <div class="colab-header"><b>COLABORADOR:</b> ${colaborador.nome_completo}</div>
+    <div class="colab-header"><b>COLABORADOR:</b> ${colaborador.nome_completo}</div>
 
-  <div class="colab-box">
-    <div style="font-weight:700; font-size:8pt; margin-bottom:4px;">DADOS COLABORADOR:</div>
-    <div class="colab-row">
-      <span>CPF: <b>${colaborador.cpf || '---'}</b></span>
-      <span>ADMISSÃO: <b>${mapping.DATA_ADMISSAO || '---'}</b></span>
+    <div class="colab-box">
+      <div style="font-weight:700; font-size:8pt; margin-bottom:4px;">DADOS COLABORADOR:</div>
+      <div class="colab-row">
+        <span>CPF: <b>${colaborador.cpf || '---'}</b></span>
+        <span>ADMISSÃO: <b>${mapping.DATA_ADMISSAO || '---'}</b></span>
+      </div>
+      <div>ENDEREÇO: ${colaborador.endereco || '---'}</div>
+      <div class="colab-row">
+        <span>CARGO: ${colaborador.cargo || '---'}</span>
+        <span>SALÁRIO: ${mapping.SALARIO}</span>
+      </div>
+      <div class="colab-row">
+        <span>CELULAR: ${colaborador.telefone || '---'}</span>
+        <span>E-MAIL: ${colaborador.email || '---'}</span>
+      </div>
     </div>
-    <div>ENDEREÇO: ${colaborador.endereco || '---'}</div>
-    <div class="colab-row">
-      <span>CARGO: ${colaborador.cargo || '---'}</span>
-      <span>SALÁRIO: ${mapping.SALARIO}</span>
-    </div>
-    <div class="colab-row">
-      <span>CELULAR: ${colaborador.telefone || '---'}</span>
-      <span>E-MAIL: ${colaborador.email || '---'}</span>
-    </div>
-  </div>
 
-  <div class="doc-body">${conteudo}</div>
+    <div class="doc-body">${conteudo}</div>
 
-  <div class="footer">
-    <div class="footer-date">${dataFormatada}</div>
+    <div class="footer">
+      <div class="footer-date">${dataFormatada}</div>
+    </div>
   </div>
 </body></html>`;
 }
