@@ -6552,6 +6552,6 @@ app.post('/api/colaboradores/:id/multas/:multaId/assinar-condutor', authenticate
 
 app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
-    console.log('Versão do Servidor: V28_FINAL_FIX');
+    console.log('Versão do Servidor: V29_PDF_LAYOUT_FIX');
     console.log(`Caminho de Armazenamento Local: ${BASE_UPLOAD_PATH}`);
 });
