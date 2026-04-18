@@ -8912,6 +8912,57 @@ window.initAdmissaoWorkflow = async function(colabId, step, silent) {
         // Atualiza referência global
         viewedColaborador = colab;
 
+        // Pré-carrega documentos, assinaturas e geradores para o dashboard de admissão funcionar sem dependência da aba prontuário
+        try {
+            const [docs, admissaoAssinaturas, geradores, departamentos] = await Promise.all([
+                apiGet(`/colaboradores/${colabId}/documentos`).catch(() => []),
+                apiGet(`/colaboradores/${colabId}/admissao-assinaturas`).catch(() => []),
+                apiGet('/geradores').catch(() => []),
+                apiGet('/departamentos').catch(() => [])
+            ]);
+            window.currentDocs = docs;
+            window._admissaoAssinaturas = admissaoAssinaturas;
+            window._todosGeradores = geradores;
+
+            // Resolve Auto Geradores exactly like Prontuário Digital unified Contratos Tab
+            const empDeptId = colab.departamento;
+            const deptObj = (departamentos||[]).find(d => String(d.id) === String(empDeptId) || String(d.nome).trim().toLowerCase() === String(empDeptId).trim().toLowerCase());
+            const deptNome = deptObj ? deptObj.nome : String(empDeptId || '');
+
+            const EXCLUIDOS_FIXOS = ['autorização de desconto em folha de pagamento','autorizacao de desconto em folha de pagamento','autorizar desconto','termo de responsabilidade de chaves'];
+            const isExcluido = (g) => {
+                const nLower = (g.nome || '').toLowerCase().trim();
+                return EXCLUIDOS_FIXOS.includes(nLower) || g.is_sinistro_only || nLower.startsWith('sinistro') || nLower.startsWith('sinistro -');
+            };
+
+            const geradoresElegiveis = (geradores||[]).filter(g => !isExcluido(g));
+            let autoGeradores = geradoresElegiveis.filter(g => window._avaliarRegraGerador && window._avaliarRegraGerador(g, colab, deptNome));
+            
+            if (geradoresElegiveis.length > 0 && !geradoresElegiveis.some(g => g.visibilidade_regra)) {
+                // Legacy Map Fallback
+                const deNorm = s => (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+                const c = colab;
+                const LEGACY_MAP = [
+                    { nome: 'Termo de NÃO Interesse Terapia',  cond: deNorm(c.terapia_participa) === 'nao' },
+                    { nome: 'Termo de Interesse Terapia',       cond: deNorm(c.terapia_participa) === 'sim' },
+                    { nome: 'Responsabilidade Bilhete Único',   cond: (c.meio_transporte||'').toLowerCase().includes('vt') },
+                    { nome: 'Responsabilidade Celular',         cond: deNorm(c.celular_participa) === 'sim' },
+                    { nome: 'Responsabilidade Chaves',          cond: deNorm(c.chaves_participa) === 'sim' },
+                    { nome: 'Contrato Faculdade',               cond: deNorm(c.faculdade_participa) === 'sim' },
+                    { nome: 'Contrato Academia',                cond: deNorm(c.academia_participa) === 'sim' },
+                    { nome: 'Contrato Intermitente',            cond: deNorm(c.tipo_contrato) === 'intermitente' },
+                    { nome: 'Acordo Individual Benefícios',     cond: true },
+                    { nome: 'Autorização de Uso de Imagem',     cond: true },
+                    { nome: 'Compartilhamento de Dados',        cond: true },
+                    { nome: 'Recebimento de Regimento Interno', cond: true },
+                    { nome: 'Regras Sorteio Final de Ano',      cond: true },
+                    { nome: 'Termo de Confidencialidade',       cond: true },
+                ];
+                autoGeradores = LEGACY_MAP.filter(m => m.cond).map(m => geradoresElegiveis.find(g => deNorm(g.nome) === deNorm(m.nome))).filter(Boolean);
+            }
+            window._admissaoGeradores = autoGeradores;
+        } catch(e) { console.error('Erro ao pré-carregar dependências da admissão:', e); }
+
         const wf    = document.getElementById('admissao-workflow');
         const start = document.getElementById('admissao-start-action');
         const searchContainer = document.getElementById('admissao-search-container');
