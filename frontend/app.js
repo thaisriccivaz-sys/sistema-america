@@ -6951,18 +6951,14 @@ window.abrirPreviewDocumento = function(data) {
     // 2. Dados do Colaborador
     const colabInfoBase = `
         <h1 style="text-align: center; color: #1e293b; margin-top: 0.2rem; margin-bottom: 0.2rem; font-size: 1.1rem; text-transform: uppercase;">${data.gerador_nome}</h1>
-        <p style="margin-top: 0.5rem; margin-bottom: 0.3rem; font-size: 0.85rem;"><b>COLABORADOR:</b> ${data.colaborador.NOME_COMPLETO}</p>
-        <div style="border: 1px solid #000; padding: 0.4rem 0.75rem; margin-top: 0.3rem; line-height: 1.3; font-size: 0.75rem;">
+        <div style="border: 1px solid #000; padding: 0.4rem 0.75rem; margin-top: 0.5rem; line-height: 1.3; font-size: 0.75rem;">
             <p style="margin-bottom: 0.2rem; font-size: 0.8rem;"><b>DADOS COLABORADOR:</b></p>
             <div style="display: flex; gap: 2rem;">
                 <span>CPF: <b>${data.colaborador.CPF}</b></span>
-                <span>ADMISSÃO: <b>${data.colaborador.DATA_ADMISSAO}</b></span>
+                <span>NOME: <b>${data.colaborador.NOME_COMPLETO}</b></span>
             </div>
             <p>ENDEREÇO: ${data.colaborador.ENDERECO || '---'}</p>
-            <div style="display: flex; gap: 2rem;">
-                <span>CARGO: ${data.colaborador.CARGO || '---'}</span>
-                <span>SALÁRIO: ${data.colaborador.SALARIO || '---'}</span>
-            </div>
+            <p>CARGO: ${data.colaborador.CARGO || '---'}</p>
             <div style="display: flex; gap: 2rem;">
                 <span>CELULAR: ${data.colaborador.TELEFONE || '---'}</span>
                 <span>E-MAIL: ${data.colaborador.EMAIL || '---'}</span>
