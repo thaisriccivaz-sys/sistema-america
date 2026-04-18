@@ -21,17 +21,54 @@ let currentDocs = [];
 let viewedColaborador = null;
 
 // Helper global para PDF
-window.gerarPDFBlob = async function(element) {
+window.gerarPDFBlob = async function(element, filename = 'documento.pdf') {
     return new Promise((resolve, reject) => {
         if (typeof html2pdf === 'undefined') return reject(new Error('Biblioteca html2pdf não carregada'));
+        
+        // Clone para evitar que o scroll/modal afete a posição do canvas (causando cortes ou bordas brancas)
+        const clone = element.cloneNode(true);
+        const wrapper = document.createElement('div');
+        wrapper.style.position = 'absolute';
+        wrapper.style.top = '0px';
+        wrapper.style.left = '0px';
+        wrapper.style.width = '794px';
+        wrapper.style.margin = '0';
+        wrapper.style.padding = '0';
+        wrapper.style.background = 'white';
+        wrapper.style.zIndex = '-9999';
+        
+        clone.style.width = '794px';
+        clone.style.maxWidth = '794px';
+        clone.style.minHeight = '0';
+        clone.style.border = 'none';
+        clone.style.boxShadow = 'none';
+        clone.style.margin = '0';
+        clone.style.transform = 'none';
+        
+        wrapper.appendChild(clone);
+        document.body.appendChild(wrapper);
+
         const opt = {
             margin: 0,
-            filename: 'documento.pdf',
+            filename: filename,
             image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            html2canvas: { scale: 2, useCORS: true, windowWidth: 794, scrollX: 0, scrollY: 0 },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            pagebreak: { mode: ['avoid-all', 'css', 'legacy'], before: '.page-break', avoid: ['p', 'li'] }
         };
-        html2pdf().set(opt).from(element).outputPdf('blob').then(resolve).catch(reject);
+
+        html2pdf()
+            .set(opt)
+            .from(wrapper)
+            .output('blob')
+            .then(blob => {
+                document.body.removeChild(wrapper);
+                resolve(blob);
+            })
+            .catch(err => {
+                if(document.body.contains(wrapper)) document.body.removeChild(wrapper);
+                reject(err);
+            });
     });
 };
 
@@ -6807,34 +6844,7 @@ window.processarGeracao = async function() {
                             const nomeArquivo = `${(valData.gerador_nome || 'Documento').replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
                             
                             // Replicar as configurações exatas do PDF
-                            const opt = {
-                                margin: 0,
-                                filename: nomeArquivo, 
-                                image: { type: 'jpeg', quality: 0.98 },
-                                html2canvas: { scale: 2, useCORS: true, windowWidth: 794, scrollY: 0 },
-                                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                                pagebreak: { mode: ['avoid-all', 'css', 'legacy'], before: '.page-break', avoid: ['p', 'li'] }
-                            };
-                            
-                            const origWidth    = previewContent.style.width;
-                            const origMaxWidth = previewContent.style.maxWidth;
-                            const origMinH     = previewContent.style.minHeight;
-                            const origBorder   = previewContent.style.border;
-                            const origShadow   = previewContent.style.boxShadow;
-
-                            previewContent.style.width     = '794px';
-                            previewContent.style.maxWidth  = '794px';
-                            previewContent.style.minHeight = '0';
-                            previewContent.style.border    = 'none';
-                            previewContent.style.boxShadow = 'none';
-
-                            const pdfBlob = await html2pdf().set(opt).from(previewContent).output('blob');
-                            
-                            previewContent.style.width     = origWidth;
-                            previewContent.style.maxWidth  = origMaxWidth;
-                            previewContent.style.minHeight = origMinH;
-                            previewContent.style.border    = origBorder;
-                            previewContent.style.boxShadow = origShadow;
+                            const pdfBlob = await window.gerarPDFBlob(previewContent, nomeArquivo);
                             
                             const formData = new FormData();
                             formData.append('file', new File([pdfBlob], nomeArquivo, { type: 'application/pdf' }));
@@ -6917,34 +6927,7 @@ window.abrirPreviewDocumento = function(data) {
                 const geradorNome = previewContent.dataset.docNome || data.gerador_nome || 'Documento';
                 const nomeArquivo = `${geradorNome.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
 
-                const opt = {
-                    margin: 0,
-                    filename: nomeArquivo,
-                    image: { type: 'jpeg', quality: 0.98 },
-                    html2canvas: { scale: 2, useCORS: true, windowWidth: 794, scrollY: 0 },
-                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                    pagebreak: { mode: ['avoid-all', 'css', 'legacy'], before: '.page-break', avoid: ['p', 'li'] }
-                };
-
-                const origWidth    = previewContent.style.width;
-                const origMaxWidth = previewContent.style.maxWidth;
-                const origMinH     = previewContent.style.minHeight;
-                const origBorder   = previewContent.style.border;
-                const origShadow   = previewContent.style.boxShadow;
-
-                previewContent.style.width     = '794px';
-                previewContent.style.maxWidth  = '794px';
-                previewContent.style.minHeight = '0';
-                previewContent.style.border    = 'none';
-                previewContent.style.boxShadow = 'none';
-
-                const pdfBlob = await html2pdf().set(opt).from(previewContent).output('blob');
-
-                previewContent.style.width     = origWidth;
-                previewContent.style.maxWidth  = origMaxWidth;
-                previewContent.style.minHeight = origMinH;
-                previewContent.style.border    = origBorder;
-                previewContent.style.boxShadow = origShadow;
+                const pdfBlob = await window.gerarPDFBlob(previewContent, nomeArquivo);
 
                 // Determinar colaborador_id: prioridade viewedColaborador, depois data.colaborador.ID (retornado pelo backend /gerar)
                 const colaboradorId = (viewedColaborador && viewedColaborador.id)
@@ -8638,34 +8621,7 @@ window.gerarContratoAvulso = async function() {
                         const htmlTemplate = document.getElementById('preview-doc-body');
                         const nomeArquivo = `${data.gerador_nome.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
 
-                        const opt = {
-                            margin: 0,
-                            filename: nomeArquivo,
-                            image: { type: 'jpeg', quality: 0.98 },
-                            html2canvas: { scale: 2, useCORS: true, windowWidth: 794, scrollY: 0 },
-                            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                            pagebreak: { mode: ['avoid-all', 'css', 'legacy'], before: '.page-break', avoid: ['p', 'li'] }
-                        };
-
-                        const origWidth    = htmlTemplate.style.width;
-                        const origMaxWidth = htmlTemplate.style.maxWidth;
-                        const origMinH     = htmlTemplate.style.minHeight;
-                        const origBorder   = htmlTemplate.style.border;
-                        const origShadow   = htmlTemplate.style.boxShadow;
-
-                        htmlTemplate.style.width     = '794px';
-                        htmlTemplate.style.maxWidth  = '794px';
-                        htmlTemplate.style.minHeight = '0';
-                        htmlTemplate.style.border    = 'none';
-                        htmlTemplate.style.boxShadow = 'none';
-
-                        const pdfBlob = await html2pdf().set(opt).from(htmlTemplate).output('blob');
-
-                        htmlTemplate.style.width     = origWidth;
-                        htmlTemplate.style.maxWidth  = origMaxWidth;
-                        htmlTemplate.style.minHeight = origMinH;
-                        htmlTemplate.style.border    = origBorder;
-                        htmlTemplate.style.boxShadow = origShadow;
+                        const pdfBlob = await window.gerarPDFBlob(htmlTemplate, nomeArquivo);
 
                         const file = new File([pdfBlob], nomeArquivo, { type: 'application/pdf' });
                         const formData = new FormData();
