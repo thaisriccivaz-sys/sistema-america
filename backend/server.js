@@ -1626,12 +1626,35 @@ db.run("ALTER TABLE colaboradores ADD COLUMN santander_ficha_data TEXT", (err) =
     }
 });
 
+
 // Auto-migration: add admissao_responsavel_nome column if it doesn't exist
 db.run("ALTER TABLE colaboradores ADD COLUMN admissao_responsavel_nome TEXT", (err) => {
     if (err && !err.message.includes('duplicate column')) {
         console.error('[Migration] Erro ao adicionar admissao_responsavel_nome:', err.message);
     }
 });
+
+// Auto-migration: fix broken document_type encoding for Pensão Alimentícia
+const brokenVariants = [
+    'Pens\u00c3\u00a3o Aliment\u00c3\u00adcia',
+    'Pens\u00c3o Aliment\u00c3\u00adcia',
+    'PensÃ£o AlimentÃ­cia',
+    'Pens\xc3\xa3o Aliment\xc3\xadcia'
+];
+brokenVariants.forEach(broken => {
+    db.run(
+        "UPDATE documentos SET document_type = 'Pensão Alimentícia' WHERE document_type = ?",
+        [broken],
+        (err) => { if (err) console.error('[Migration] Erro ao corrigir Pensão Alimentícia:', err.message); }
+    );
+    db.run(
+        "UPDATE documentos SET tab_name = 'Pensão Alimentícia' WHERE tab_name = ?",
+        [broken],
+        () => {}
+    );
+});
+console.log('[Migration] Pensão Alimentícia encoding fix applied');
+
 
 // --- ROTAS DE COLABORADORES ---
 app.get('/api/colaboradores', authenticateToken, (req, res) => {

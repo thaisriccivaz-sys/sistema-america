@@ -13210,18 +13210,50 @@ window.imprimirFichaSantander = function() {
 
 window.irAoProntuarioDigital = function(tabName) {
     const colab = window._admissaoColabSelecionado || window.viewedColaborador;
-    if (!colab) return;
-    
-    // Switch to Prontuário section
-    const btnColabs = document.querySelector('button[onclick*="showSection(\\\'colaboradores\\\'"]');
-    if (btnColabs) btnColabs.click();
-    
-    // Abrir prontuário digital e ir para aba
-    window.openProntuario(colab.id, colab.nome_completo || colab.nome, colab.cargo_nome_exibindo || colab.cargo, colab.cpf, colab.genero || colab.sexo, colab.data_admissao || colab.admissao, colab.status).then(() => {
-        if (tabName && typeof window.abas.switchTab === 'function') {
-            setTimeout(() => window.abas.switchTab('colab-tabs', tabName), 500);
+    if (!colab) {
+        console.warn('[irAoProntuarioDigital] Nenhum colaborador selecionado');
+        return;
+    }
+
+    // Close admissão panel and show colaboradores
+    const admPanel = document.getElementById('admissao-modal') || document.getElementById('panel-admissao');
+    if (admPanel) admPanel.style.display = 'none';
+
+    // Try to find and click the "Colaboradores" nav button
+    const navBtns = document.querySelectorAll('[onclick*="showSection"]');
+    navBtns.forEach(btn => {
+        if (btn.getAttribute('onclick') && btn.getAttribute('onclick').includes("'colaboradores'")) {
+            btn.click();
         }
     });
+
+    // Open prontuário then switch tab
+    const prom = window.openProntuario(
+        colab.id,
+        colab.nome_completo || colab.nome,
+        colab.cargo_nome_exibindo || colab.cargo,
+        colab.cpf,
+        colab.genero || colab.sexo,
+        colab.data_admissao || colab.admissao,
+        colab.status
+    );
+
+    if (prom && typeof prom.then === 'function') {
+        prom.then(() => {
+            if (tabName) {
+                setTimeout(() => {
+                    // Try multiple ways to switch tab
+                    if (window.abas && typeof window.abas.switchTab === 'function') {
+                        window.abas.switchTab('colab-tabs', tabName);
+                    } else {
+                        const tabBtn = document.querySelector(`[data-tab="${tabName}"]`) ||
+                                       document.querySelector(`[onclick*="'${tabName}'"]`);
+                        if (tabBtn) tabBtn.click();
+                    }
+                }, 600);
+            }
+        });
+    }
 };
 
 // Funçao mockup caso nòo exista _recalculateAdmissaoFinalProg
