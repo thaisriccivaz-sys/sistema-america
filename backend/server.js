@@ -3534,7 +3534,7 @@ function buildGeradoresHtml(gerador, colaborador, baseUrl) {
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; color: #1e293b; }
-  @page { size: A4; margin: 0; }
+  @page { size: A4; margin: 1.8cm; }
   .logo-banner img { width: 100%; display: block; margin-bottom: 12px; }
   h1.doc-title { text-align: center; font-size: 13pt; text-transform: uppercase; margin: 6px 0; }
   .colab-header { margin-top: 8px; font-size: 10pt; }
@@ -3605,8 +3605,8 @@ app.get('/api/geradores/:id/preview-pdf/:colaborador_id', authenticateToken, asy
 
         const pdfBuffer = await htmlPdf.generatePdf(
             { content: html },
-            { format: 'A4', margin: { top: '1.8cm', bottom: '1.8cm', left: '1.8cm', right: '1.8cm' },
-              printBackground: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] }
+            { format: 'A4', margin: { top: '0', bottom: '0', left: '0', right: '0' },
+              printBackground: true, preferCSSPageSize: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] }
         );
 
         res.setHeader('Content-Type', 'application/pdf');
@@ -3654,8 +3654,8 @@ app.post('/api/admissao-assinaturas/enviar-lote', authenticateToken, async (req,
             const pdfBuffer = await htmlPdf.generatePdf(
                 { content: html },
                 { format: 'A4',
-                  margin: { top: '1.8cm', bottom: '1.8cm', left: '1.8cm', right: '1.8cm' },
-                  printBackground: true,
+                  margin: { top: '0', bottom: '0', left: '0', right: '0' },
+                  printBackground: true, preferCSSPageSize: true,
                   args: ['--no-sandbox', '--disable-setuid-sandbox'] }
             );
 
