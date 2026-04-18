@@ -300,7 +300,7 @@ GERADORES_PERFIL.forEach(nome => {
         if (excluido) return;
         db.get("SELECT id FROM geradores WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?))", [nomeGerador], (err, existing) => {
             if (!existing) {
-                db.run("INSERT INTO geradores (nome, conteudo, tipo) VALUES (?, ?, 'html')", [nomeGerador, conteudoHTML]);
+                db.run("INSERT INTO geradores (nome, conteudo, tipo) VALUES (?, ?, 'html')", [nomeGerador, conteudoHTML],
                     (err) => { if (err && !err.message.includes('UNIQUE')) console.error(`Erro ao criar gerador "${nomeGerador}":`, err); else console.log(`[SEED] Gerador "${nomeGerador}" criado com sucesso.`); }
                 );
             }
