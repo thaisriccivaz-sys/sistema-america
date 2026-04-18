@@ -25,7 +25,7 @@ window.gerarPDFBlob = async function(element) {
     return new Promise((resolve, reject) => {
         if (typeof html2pdf === 'undefined') return reject(new Error('Biblioteca html2pdf não carregada'));
         const opt = {
-            margin: 10,
+            margin: 0,
             filename: 'documento.pdf',
             image: { type: 'jpeg', quality: 0.98 },
             html2canvas: { scale: 2, useCORS: true },
@@ -6808,7 +6808,7 @@ window.processarGeracao = async function() {
                             
                             // Replicar as configurações exatas do PDF
                             const opt = {
-                                margin: 8,
+                                margin: 0,
                                 filename: nomeArquivo, 
                                 image: { type: 'jpeg', quality: 0.98 },
                                 html2canvas: { scale: 2, useCORS: true },
@@ -6912,7 +6912,7 @@ window.abrirPreviewDocumento = function(data) {
                 const nomeArquivo = `${geradorNome.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
 
                 const opt = {
-                    margin: 8,
+                    margin: 0,
                     filename: nomeArquivo,
                     image: { type: 'jpeg', quality: 0.98 },
                     html2canvas: { scale: 2, useCORS: true },
@@ -7066,7 +7066,7 @@ window.abrirPreviewDocumento = function(data) {
     }
 
     // Logo cola no topo (sem padding), o resto do conteúdo tem padding lateral uniforme
-    const conteudoComPadding = `<div style="padding: 0 15px 15px 15px;">${colabInfoBase}${conteudoPrincipal}${footerHtml}</div>`;
+    const conteudoComPadding = `<div style="padding: 20px 60px 40px 60px;">${colabInfoBase}${conteudoPrincipal}${footerHtml}</div>`;
     container.innerHTML = logoBanner + conteudoComPadding;
     // Guardar nome para uso no salvar PDF
     container.dataset.docNome = data.gerador_nome || 'Documento';
@@ -8637,7 +8637,7 @@ window.gerarContratoAvulso = async function() {
                         const nomeArquivo = `${data.gerador_nome.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
 
                         const opt = {
-                            margin: 8,
+                            margin: 0,
                             filename: nomeArquivo,
                             image: { type: 'jpeg', quality: 0.98 },
                             html2canvas: { scale: 2, useCORS: true },
