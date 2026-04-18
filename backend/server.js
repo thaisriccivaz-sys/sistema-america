@@ -2060,6 +2060,36 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
             });
 
             res.json({ message: 'Colaborador atualizado com sucesso' });
+
+            // Se o departamento mudou, verificar se precisa trocar a ficha de EPI
+            const novoDept = data.departamento;
+            const antigoDept = oldColab.departamento;
+            if (novoDept && novoDept !== antigoDept) {
+                // Buscar template do novo departamento
+                db.all('SELECT id, grupo, epis_json, departamentos_json, termo_texto, rodape_texto FROM epi_templates', [], (eErr, templates) => {
+                    if (eErr || !templates) return;
+                    const findTemplate = (dept) => templates.find(t => {
+                        try { return (JSON.parse(t.departamentos_json || '[]')).includes(dept); } catch { return false; }
+                    });
+                    const tmplNovo = findTemplate(novoDept);
+                    const tmplAntigo = findTemplate(antigoDept);
+                    if (!tmplNovo) return; // Novo dept sem template EPI — sem ação
+                    if (tmplAntigo && tmplNovo.id === tmplAntigo.id) return; // Mesmo template — sem ação
+
+                    // Templates diferentes: fechar ficha atual e abrir nova
+                    db.run(
+                        `UPDATE colaborador_epi_fichas SET status='fechada', fechada_em=CURRENT_TIMESTAMP, motivo_fechamento='Troca de departamento: ${antigoDept} → ${novoDept}' WHERE colaborador_id=? AND status='ativa'`,
+                        [id],
+                        () => {
+                            db.run(
+                                `INSERT INTO colaborador_epi_fichas (colaborador_id, template_id, grupo, snapshot_epis, snapshot_termo, snapshot_rodape, linhas_usadas, status) VALUES (?,?,?,?,?,?,0,'ativa')`,
+                                [id, tmplNovo.id, tmplNovo.grupo, tmplNovo.epis_json, tmplNovo.termo_texto, tmplNovo.rodape_texto],
+                                (insErr) => { if (insErr) console.error('[EPI troca] Erro ao criar nova ficha:', insErr.message); }
+                            );
+                        }
+                    );
+                });
+            }
         });
     });
 });
@@ -5297,9 +5327,12 @@ app.put('/api/epi-templates/:id', authenticateToken, (req, res) => {
     db.get('SELECT * FROM epi_templates WHERE id=?', [templateId], (err, old) => {
         if (err) return res.status(500).json({ error: err.message });
 
+        // Preservar a categoria original — nunca mudar via edição de nome/lista
+        const categoriaOriginal = old ? (old.categoria || 'Outros') : 'Outros';
+
         db.run(
-            `UPDATE epi_templates SET grupo=?, departamentos_json=?, epis_json=?, termo_texto=?, rodape_texto=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
-            [grupo, JSON.stringify(departamentos || []), JSON.stringify(epis || []), termo_texto, rodape_texto, templateId],
+            `UPDATE epi_templates SET grupo=?, departamentos_json=?, epis_json=?, termo_texto=?, rodape_texto=?, categoria=COALESCE(categoria, ?), updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+            [grupo, JSON.stringify(departamentos || []), JSON.stringify(epis || []), termo_texto, rodape_texto, categoriaOriginal, templateId],
             function(err2) {
                 if (err2) return res.status(500).json({ error: err2.message });
 
@@ -5466,10 +5499,11 @@ app.post('/api/epi-fichas/:id/save-onedrive', authenticateToken, async (req, res
 });
 
 app.post('/api/epi-templates', authenticateToken, (req, res) => {
-    const { grupo, departamentos, epis, termo_texto, rodape_texto } = req.body;
+    const { grupo, departamentos, epis, termo_texto, rodape_texto, categoria } = req.body;
+    const cat = categoria || 'Outros';
     db.run(
-        `INSERT INTO epi_templates (grupo, departamentos_json, epis_json, termo_texto, rodape_texto) VALUES (?,?,?,?,?)`,
-        [grupo, JSON.stringify(departamentos || []), JSON.stringify(epis || []), termo_texto, rodape_texto],
+        `INSERT INTO epi_templates (grupo, categoria, departamentos_json, epis_json, termo_texto, rodape_texto) VALUES (?,?,?,?,?,?)`,
+        [grupo, cat, JSON.stringify(departamentos || []), JSON.stringify(epis || []), termo_texto, rodape_texto],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ id: this.lastID });

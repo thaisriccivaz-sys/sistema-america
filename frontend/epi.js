@@ -6,7 +6,7 @@ let epiTemplates = [];
 let editingEpiId = null;
 let allDepartamentos = [];
 
-const GRUPOS_OPERACIONAL = ['Manutenção', 'Limpeza', 'Motorista', 'Ajudante', 'Ajudante Pátio'];
+const GRUPOS_OPERACIONAL = ['Manutenção', 'Limpeza', 'Motorista', 'Ajudante', 'Ajudante Pátio']; // legado — usado como fallback
 const GRUPOS_ADMIN      = ['Escritório'];
 
 const TERMO_PADRAO = '•Confirmo perante minha assinatura que recebi o Equipamento de Proteção Individual - EPI, da Empresa: AMERICA RENTAL EQUIPAMENTOS LTDA. Vinculada ao CNPJ: 03.434.448/0001-01 de Inscrição estadual IE: 336.715.410.116 conforme descrito abaixo, para uso exclusivo no local de trabalho, conforme regulamentação da Norma Regulamentadora Nº 6, do Ministério do Trabalho e Emprego.\n•Declaro que estou ciente da obrigatoriedade do uso do EPI e da responsabilidade de usá-lo e conservá-lo. Minha recusa injustificada na utilização deste equipamento ou seu mau uso, constitui ato faltoso, conforme disposto no artigo 158 da CLT.\n•Declaro estar ciente da obrigatoriedade da devolução do Equipamento atual, quando da troca ou substituição dos mesmos.';
@@ -168,9 +168,18 @@ function renderEpiPage() {
     const container = document.getElementById('epi-cards-container');
     if (!container) return;
 
-    const operacional = epiTemplates.filter(t => GRUPOS_OPERACIONAL.includes(t.grupo));
-    const admin       = epiTemplates.filter(t => GRUPOS_ADMIN.includes(t.grupo));
-    const outros      = epiTemplates.filter(t => !GRUPOS_OPERACIONAL.includes(t.grupo) && !GRUPOS_ADMIN.includes(t.grupo));
+    // Agrupar usando campo 'categoria' (persistido no banco); fallback para listas legadas
+    const getCat = (t) => {
+        if (t.categoria === 'Operacional') return 'Operacional';
+        if (t.categoria === 'Administrativo') return 'Administrativo';
+        // fallback para templates sem categoria no banco
+        if (GRUPOS_OPERACIONAL.includes(t.grupo)) return 'Operacional';
+        if (GRUPOS_ADMIN.includes(t.grupo)) return 'Administrativo';
+        return 'Outros';
+    };
+    const operacional = epiTemplates.filter(t => getCat(t) === 'Operacional');
+    const admin       = epiTemplates.filter(t => getCat(t) === 'Administrativo');
+    const outros      = epiTemplates.filter(t => getCat(t) === 'Outros');
 
     function renderSection(title, color, dot, templates, showEmpty) {
         const cards = templates.length ? `
@@ -404,6 +413,9 @@ window.openEpiModal = function(id) {
     episList.innerHTML = '';
     (t ? (t.epis || []) : []).forEach(epi => addEpiRow(epi));
 
+    // Guardar categoria para preservar ao salvar (não deixa mudar de equipe por troca de nome)
+    document.getElementById('epi-grupo-input').dataset.categoria = t ? (t.categoria || '') : '';
+
     modal.style.display = 'flex';
 };
 
@@ -451,7 +463,8 @@ window.saveEpiTemplate = async function() {
     const termo_texto = document.getElementById('epi-termo-input').value.trim();
     const rodape_texto = document.getElementById('epi-rodape-input').value.trim();
 
-    const payload = { grupo, departamentos, epis, termo_texto, rodape_texto };
+    const categoriaAtual = document.getElementById('epi-grupo-input').dataset.categoria || '';
+    const payload = { grupo, departamentos, epis, termo_texto, rodape_texto, categoria: categoriaAtual || undefined };
     const url    = editingEpiId ? `${API_URL}/epi-templates/${editingEpiId}` : `${API_URL}/epi-templates`;
     const method = editingEpiId ? 'PUT' : 'POST';
 

@@ -451,6 +451,12 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 });
             });
 
+            // Migration: adicionar coluna 'categoria' à tabela epi_templates
+            db.run(`ALTER TABLE epi_templates ADD COLUMN categoria TEXT DEFAULT 'Outros'`, () => {});
+            // Migration: atualizar categoria dos templates existentes pelo nome
+            db.run(`UPDATE epi_templates SET categoria='Operacional' WHERE grupo IN ('Manutenção','Limpeza','Motorista','Ajudante','Ajudante Pátio')`);
+            db.run(`UPDATE epi_templates SET categoria='Administrativo' WHERE grupo IN ('Escritório')`);
+
             // Tabela de Templates de EPI por departamento
             db.run(`
                 CREATE TABLE IF NOT EXISTS epi_templates (
@@ -460,6 +466,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     epis_json TEXT NOT NULL,
                     termo_texto TEXT,
                     rodape_texto TEXT,
+                    categoria TEXT DEFAULT 'Outros',
                     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             `, (err) => {
@@ -475,15 +482,15 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 const EPI_A3 = JSON.stringify(['AVENTAL DE RASPA','BOTA BICO DE AÇO CA 43.339','BONÉ','LUVA DE RASPA CA 34.106','PROTETOR AUDITIVO CA 36.817','CALÇA','CAMISETA MANGA CURTA','CAMISETA MANGA LONGA','PROTETOR SOLAR FPS30','RESPIRADOR PURIFICADOR DE AR AZUL CA 39.238','ÓCULOS CA 19.176','MÁSCARA DE SOLDA CA 45.596','LUVA NITRILICA CA 38.975']);
                 const EPI_A4 = JSON.stringify(['AVENTAL DE PLÁSTICO','LUVA DE NEOLATEX M','CALÇA','AVENTAL','SAPATO ANTIDERRAPANTE']);
                 const newSeeds = [
-                    { grupo: 'Escritório', departamentos_json: JSON.stringify(['Recursos Humanos','Financeiro','Logística','Administrativo','Comercial']), epis_json: JSON.stringify(['BONÉ','CAMISETA POLO PRETA','CAMISETA POLO PRETA MANGA LONGA','CAMISETA POLO ROXA','PORTA CANETAS','PORTA ARQUIVOS DE MESA','MOUSE PAD ERGONÔMICO','APOIO ERGONÔMICO DE TECLADO','SUPORTE ERGONÔMICO DE PÉS','APOIO NOTEBOOK']), termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO },
-                    { grupo: 'Ajudante Pátio', departamentos_json: JSON.stringify(['Ajudante Pátio','Liderança']), epis_json: EPI_A1, termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO },
-                    { grupo: 'Motorista', departamentos_json: JSON.stringify(['Motorista','Ajudante Geral']), epis_json: EPI_A2, termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO },
-                    { grupo: 'Manutenção', departamentos_json: JSON.stringify(['Manutenção']), epis_json: EPI_A3, termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO },
-                    { grupo: 'Limpeza', departamentos_json: JSON.stringify(['Limpeza']), epis_json: EPI_A4, termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO }
+                    { grupo: 'Escritório', categoria: 'Administrativo', departamentos_json: JSON.stringify(['Recursos Humanos','Financeiro','Logística','Administrativo','Comercial']), epis_json: JSON.stringify(['BONÉ','CAMISETA POLO PRETA','CAMISETA POLO PRETA MANGA LONGA','CAMISETA POLO ROXA','PORTA CANETAS','PORTA ARQUIVOS DE MESA','MOUSE PAD ERGONÔMICO','APOIO ERGONÔMICO DE TECLADO','SUPORTE ERGONÔMICO DE PÉS','APOIO NOTEBOOK']), termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO },
+                    { grupo: 'Ajudante Pátio', categoria: 'Operacional', departamentos_json: JSON.stringify(['Ajudante Pátio','Liderança']), epis_json: EPI_A1, termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO },
+                    { grupo: 'Motorista', categoria: 'Operacional', departamentos_json: JSON.stringify(['Motorista','Ajudante Geral']), epis_json: EPI_A2, termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO },
+                    { grupo: 'Manutenção', categoria: 'Operacional', departamentos_json: JSON.stringify(['Manutenção']), epis_json: EPI_A3, termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO },
+                    { grupo: 'Limpeza', categoria: 'Operacional', departamentos_json: JSON.stringify(['Limpeza']), epis_json: EPI_A4, termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO }
                 ];
                 newSeeds.forEach(s => {
-                    db.run('INSERT OR REPLACE INTO epi_templates (grupo, departamentos_json, epis_json, termo_texto, rodape_texto) VALUES (?,?,?,?,?)',
-                        [s.grupo, s.departamentos_json, s.epis_json, s.termo_texto, s.rodape_texto],
+                    db.run('INSERT OR REPLACE INTO epi_templates (grupo, categoria, departamentos_json, epis_json, termo_texto, rodape_texto) VALUES (?,?,?,?,?,?)',
+                        [s.grupo, s.categoria, s.departamentos_json, s.epis_json, s.termo_texto, s.rodape_texto],
                         (e) => { if (e) console.error('[EPI seed] Erro:', s.grupo, e.message); });
                 });
             });
