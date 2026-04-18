@@ -2587,6 +2587,67 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
         let htmlFinal = template;
         const colabNome = (colab.nome_completo || colab.nome || '').toUpperCase();
 
+        const admissao = colab.data_admissao ? new Date(colab.data_admissao + 'T12:00:00').toLocaleDateString('pt-BR') : '';
+        const salario = colab.salario ? `R$ ${parseFloat(colab.salario).toLocaleString('pt-BR', {minimumFractionDigits: 2})}` : '---';
+        const tituloBox = gerador ? gerador.nome.toUpperCase() : 'TERMO DE RESPONSABILIDADE - SINISTRO';
+
+        let needsLogo = !htmlFinal.includes('logo-header.png');
+        let needsBox = !htmlFinal.includes('DADOS COLABORADOR:');
+
+        if (needsLogo || needsBox) {
+            let injectedHTML = '';
+
+            // 1. Logo sem margin/padding lateral para colar nas bordas do papel
+            if (needsLogo) {
+                const logoUrl = req.protocol + '://' + req.get('host') + '/assets/logo-header.png';
+                injectedHTML += `<div style="margin:0;padding:0;line-height:0;"><img src="${logoUrl}" style="width:100%;display:block;margin:0;padding:0;"></div>`;
+            }
+
+            // Início do container com padding para o resto do documento
+            injectedHTML += `<div style="padding: 20px 60px 40px 60px;">`;
+
+            // 2. Quadro de DADOS COLABORADOR
+            if (needsBox) {
+                injectedHTML += `
+                <h1 style="text-align: center; color: #1e293b; margin-top: 0.2rem; margin-bottom: 0.2rem; font-size: 1.1rem; text-transform: uppercase;">${tituloBox}</h1>
+                <p style="margin-top: 0.5rem; margin-bottom: 0.3rem; font-size: 0.85rem;"><b>COLABORADOR:</b> ${colabNome}</p>
+                <div style="border: 1px solid #000; padding: 0.4rem 0.75rem; margin-top: 0.3rem; line-height: 1.3; font-size: 0.75rem;">
+                    <p style="margin-bottom: 0.2rem; font-size: 0.8rem;"><b>DADOS COLABORADOR:</b></p>
+                    <div style="display: flex; gap: 2rem;">
+                        <span>CPF: <b>${colab.cpf || ''}</b></span>
+                        <span>ADMISSÃO: <b>${admissao}</b></span>
+                    </div>
+                    <p>ENDEREÇO: ${colab.endereco || '---'}</p>
+                    <div style="display: flex; gap: 2rem;">
+                        <span>CARGO: ${colab.cargo || '---'}</span>
+                        <span>SALÁRIO: ${salario}</span>
+                    </div>
+                    <div style="display: flex; gap: 2rem;">
+                        <span>CELULAR: ${colab.telefone || '---'}</span>
+                        <span>E-MAIL: ${colab.email || '---'}</span>
+                    </div>
+                </div>
+                `;
+            }
+
+            // 3. O template original (com conteúdo do gerador) formatado
+            injectedHTML += `
+                <div style="margin-top: 0.6rem; text-align: justify; font-size: 0.82rem; line-height: 1.45;">
+                    <style>
+                        p { margin: 0.1rem 0; page-break-inside: avoid; }
+                        li { margin: 0.08rem 0; page-break-inside: avoid; }
+                        br { line-height: 0.3; }
+                    </style>
+                    ${htmlFinal}
+                </div>
+            `;
+
+            // Fim do container com padding
+            injectedHTML += `</div>`;
+
+            htmlFinal = injectedHTML;
+        }
+
         // Substituições via placeholders {{}} ou {} (gerador padrão)
         htmlFinal = htmlFinal.replace(/\{NOME_COMPLETO\}|\{NOME_COLABORADOR\}|\{COLABORADOR\}/gi, colabNome);
         htmlFinal = htmlFinal.replace(/\{CPF\}/gi, colab.cpf || '');
