@@ -5955,16 +5955,12 @@ window.toggleConjuge = function() {
 window.toggleMotorista = function() {
     const cargoSelect = document.getElementById('colab-cargo');
     const section = document.getElementById('section-cnh');
-    const num = document.getElementById('colab-cnh-numero');
-    const cat = document.getElementById('colab-cnh-categoria');
 
     if (cargoSelect && cargoSelect.value.toUpperCase().includes('MOTORISTA')) {
         if(section) section.style.display = 'block';
     } else if(section) {
         section.style.display = 'none';
-        // Only clear if no value already saved
-        if(num && !num.dataset.savedValue) num.value = '';
-        if(cat) cat.value = '';
+        // NEVER auto-clear CNH fields — user must edit them manually
     }
 };
 
