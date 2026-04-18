@@ -1122,24 +1122,32 @@ async function loadDepartamentos() {
     if (!tbody || !deptos) return;
     tbody.innerHTML = '';
     deptos.forEach(d => {
+        const tipo = d.tipo || 'Operacional';
+        const badgeColor = tipo === 'Administrativo'
+            ? 'background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;'
+            : 'background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;';
         tbody.innerHTML += `<tr>
             <td>${d.id}</td>
             <td>${d.nome}</td>
+            <td><span style="${badgeColor}font-size:0.75rem;padding:2px 10px;border-radius:999px;font-weight:600;">${tipo}</span></td>
             <td>
-                <button class="btn btn-secondary btn-sm" onclick="editDepartamento(${d.id}, '${d.nome}')" title="Editar"><i class="ph ph-pencil-simple"></i></button>
+                <button class="btn btn-secondary btn-sm" onclick="editDepartamento(${d.id}, '${d.nome.replace(/'/g,"\\'")}',' ${tipo}')" title="Editar"><i class="ph ph-pencil-simple"></i></button>
             </td>
         </tr>`;
     });
 }
 
-window.editDepartamento = async function(id, nomeAtual) {
+window.editDepartamento = async function(id, nomeAtual, tipoAtual) {
     const novoNome = prompt('Editar nome do departamento:', nomeAtual);
-    if (!novoNome || novoNome.trim() === '' || novoNome === nomeAtual) return;
-    
+    if (!novoNome || novoNome.trim() === '') return;
+    const tipoOpcoes = ['Operacional', 'Administrativo'];
+    const tipoPrompt = prompt(`Tipo do departamento (Operacional / Administrativo):`, (tipoAtual || 'Operacional').trim());
+    const novoTipo = tipoOpcoes.includes(tipoPrompt) ? tipoPrompt : (tipoAtual || 'Operacional').trim();
+
     const res = await fetch(`${API_URL}/departamentos/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
-        body: JSON.stringify({ nome: novoNome.trim() })
+        body: JSON.stringify({ nome: novoNome.trim(), tipo: novoTipo })
     });
     const data = await res.json();
     if (data.error) alert(data.error);
@@ -1156,8 +1164,10 @@ window.deleteDepartamento = async function(id) {
 
 document.getElementById('form-departamento')?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const nome = document.getElementById('novo-departamento-nome').value;
-    await apiPost('/departamentos', { nome });
+    const nome = document.getElementById('novo-departamento-nome').value.trim();
+    const tipo = document.getElementById('novo-departamento-tipo')?.value || 'Operacional';
+    if (!nome) return;
+    await apiPost('/departamentos', { nome, tipo });
     document.getElementById('novo-departamento-nome').value = '';
     loadDepartamentos();
 });

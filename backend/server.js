@@ -3461,14 +3461,16 @@ app.get('/api/departamentos', authenticateToken, (req, res) => {
 });
 
 app.post('/api/departamentos', authenticateToken, (req, res) => {
-    db.run("INSERT INTO departamentos (nome) VALUES (?)", [req.body.nome], function(err) {
+    const { nome, tipo } = req.body;
+    db.run("INSERT INTO departamentos (nome, tipo) VALUES (?, ?)", [nome, tipo || 'Operacional'], function(err) {
         if (err) return res.status(400).json({ error: err.message });
-        res.status(201).json({ id: this.lastID, nome: req.body.nome });
+        res.status(201).json({ id: this.lastID, nome, tipo: tipo || 'Operacional' });
     });
 });
 
 app.put('/api/departamentos/:id', authenticateToken, (req, res) => {
-    db.run("UPDATE departamentos SET nome = ? WHERE id = ?", [req.body.nome.trim(), req.params.id], function(updateErr) {
+    const { nome, tipo } = req.body;
+    db.run("UPDATE departamentos SET nome = ?, tipo = ? WHERE id = ?", [nome.trim(), tipo || 'Operacional', req.params.id], function(updateErr) {
         if (updateErr) return res.status(500).json({ error: updateErr.message });
         res.json({ message: 'Departamento atualizado com sucesso' });
     });

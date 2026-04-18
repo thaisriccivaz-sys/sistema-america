@@ -169,6 +169,8 @@ const db = new sqlite3.Database(dbPath, (err) => {
             db.run(`ALTER TABLE cargos ADD COLUMN documentos_obrigatorios TEXT`, (err) => {});
             db.run(`ALTER TABLE cargos ADD COLUMN departamento TEXT`, (err) => {});
             db.run(`ALTER TABLE documentos ADD COLUMN vencimento TEXT`, (err) => {});
+            // Adicionar coluna 'tipo' à tabela departamentos (Administrativo | Operacional)
+            db.run(`ALTER TABLE departamentos ADD COLUMN tipo TEXT DEFAULT 'Operacional'`, (err) => {});
 
             // Tabela de documentos por cargo (nova arquitetura - join table)
             db.run(`
@@ -353,11 +355,14 @@ const db = new sqlite3.Database(dbPath, (err) => {
             // Inserir Cargo "Motorista" fixo se não existir
             db.run("INSERT INTO cargos (nome) SELECT 'Motorista' WHERE NOT EXISTS (SELECT 1 FROM cargos WHERE nome='Motorista')", (err) => {});
             
-            // Inserir departamentos padrões
-            const depts = ['Motorista', 'Ajudante', 'Ajudante Pátio', 'Manutenção', 'Financeiro', 'Comercial', 'Administrativo', 'Logística', 'Recursos Humanos', 'Liderança', 'Limpeza'];
+            // Inserir departamentos padrões ('Ajudante' removido definitivamente)
+            const depts = ['Motorista', 'Ajudante Pátio', 'Manutenção', 'Financeiro', 'Comercial', 'Administrativo', 'Logística', 'Recursos Humanos', 'Liderança', 'Limpeza'];
             depts.forEach(d => {
                 db.run("INSERT INTO departamentos (nome) SELECT ? WHERE NOT EXISTS (SELECT 1 FROM departamentos WHERE nome=?)", [d, d]);
             });
+            // Migration: remover definitivamente o departamento 'Ajudante' se ainda existir
+            db.run("DELETE FROM departamentos WHERE nome = 'Ajudante'");
+            db.run("INSERT OR IGNORE INTO departamentos_excluidos (nome) VALUES ('Ajudante')");
 
             // Migrações para adicionar colunas se não existirem
             db.serialize(() => {

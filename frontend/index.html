@@ -420,9 +420,19 @@
                     <!-- TAB 2: GEST�O DE DEPARTAMENTOS -->
                     <div id="tab-content-departamentos" style="display: none;">
                         <div class="card mb-4 p-4">
-                            <form id="form-departamento" class="flex-between" style="gap: 1rem;">
-                                <input type="text" id="novo-departamento-nome" placeholder="Nome do Novo Departamento" style="flex-grow: 1;">
-                                <button type="submit" class="btn btn-primary"><i class="ph ph-plus"></i> Adicionar Depto</button>
+                            <form id="form-departamento" style="display:flex;gap:0.75rem;align-items:flex-end;flex-wrap:wrap;">
+                                <div style="flex:2;min-width:180px;">
+                                    <label style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Nome do Departamento</label>
+                                    <input type="text" id="novo-departamento-nome" placeholder="Ex: Logística" style="width:100%;padding:0.6rem 0.75rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;">
+                                </div>
+                                <div style="flex:1;min-width:160px;">
+                                    <label style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Tipo</label>
+                                    <select id="novo-departamento-tipo" style="width:100%;padding:0.6rem 0.75rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;background:#fff;outline:none;box-sizing:border-box;">
+                                        <option value="Operacional">Operacional</option>
+                                        <option value="Administrativo">Administrativo</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn btn-primary" style="height:40px;white-space:nowrap;"><i class="ph ph-plus"></i> Adicionar Depto</button>
                             </form>
                         </div>
                         <div class="card">
@@ -433,7 +443,7 @@
                                     style="width:100%;padding:0.55rem 0.75rem 0.55rem 2.2rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;">
                             </div>
                             <table class="table">
-                                <thead><tr><th>ID</th><th>Nome do Departamento</th><th>Ações</th></tr></thead>
+                                <thead><tr><th>ID</th><th>Nome do Departamento</th><th>Tipo</th><th>Ações</th></tr></thead>
                                 <tbody id="table-departamentos"></tbody>
                             </table>
                         </div>
