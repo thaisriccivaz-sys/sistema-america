@@ -13115,12 +13115,19 @@ window.imprimirFichaSantander = function() {
 };
 
 window.irAoProntuarioDigital = function(tabName) {
-    const colab = window._admissaoColabSelecionado;
+    const colab = window._admissaoColabSelecionado || window.viewedColaborador;
     if (!colab) return;
-    window.viewColaborador(colab.id);
-    if (tabName && typeof abas.switchTab === 'function') {
-        setTimeout(() => abas.switchTab('colab-tabs', tabName), 500);
-    }
+    
+    // Switch to Prontuário section
+    const btnColabs = document.querySelector('button[onclick*="showSection(\\\'colaboradores\\\'"]');
+    if (btnColabs) btnColabs.click();
+    
+    // Abrir prontuário digital e ir para aba
+    window.openProntuario(colab.id, colab.nome_completo || colab.nome, colab.cargo_nome_exibindo || colab.cargo, colab.cpf, colab.genero || colab.sexo, colab.data_admissao || colab.admissao, colab.status).then(() => {
+        if (tabName && typeof window.abas.switchTab === 'function') {
+            setTimeout(() => window.abas.switchTab('colab-tabs', tabName), 500);
+        }
+    });
 };
 
 // Funçao mockup caso nòo exista _recalculateAdmissaoFinalProg
