@@ -430,12 +430,9 @@ async function uploadDocToOneDrive(docId) {
 
         // Contratos avulsos (Outros contratos): salvar em CONTRATOS/outros/ independente do ano
         let targetDir;
-        if (doc.tab_name === 'CONTRATOS') {
-            // Contratos de Admissão: CONTRATOS/Admissao/ (sem ano)
-            targetDir = `${onedriveBasePath}/${safeColab}/CONTRATOS/Admissao`;
-        } else if (doc.tab_name === 'CONTRATOS_AVULSOS') {
-            // Outros Contratos: CONTRATOS/Outros/ (sem ano)
-            targetDir = `${onedriveBasePath}/${safeColab}/CONTRATOS/Outros`;
+        if (doc.tab_name === 'CONTRATOS' || doc.tab_name === 'CONTRATOS_AVULSOS') {
+            // Todos os contratos: CONTRATOS/ (sem subpasta de admissao ou outros, e sem ano)
+            targetDir = `${onedriveBasePath}/${safeColab}/CONTRATOS`;
         } else {
             targetDir = `${onedriveBasePath}/${safeColab}/${safeTab}`;
             if (safeTab !== '01_FICHA_CADASTRAL') {
@@ -594,12 +591,9 @@ const storage = multer.diskStorage({
         const safeTab = formatarPasta(tab).toUpperCase();
         
         let finalDir;
-        if (safeTab === 'CONTRATOS') {
-            // Contratos de Admissão: CONTRATOS/Admissao/
-            finalDir = path.join(BASE_PATH, safeNomeColab, 'CONTRATOS', 'Admissao');
-        } else if (safeTab === 'CONTRATOS_AVULSOS') {
-            // Outros Contratos: CONTRATOS/Outros/
-            finalDir = path.join(BASE_PATH, safeNomeColab, 'CONTRATOS', 'Outros');
+        if (safeTab === 'CONTRATOS' || safeTab === 'CONTRATOS_AVULSOS') {
+            // Todos os Contratos na raiz
+            finalDir = path.join(BASE_PATH, safeNomeColab, 'CONTRATOS');
         } else {
             finalDir = path.join(BASE_PATH, safeNomeColab, safeTab);
         }
@@ -639,16 +633,8 @@ const storage = multer.diskStorage({
         let base = "";
         if (customName) {
             base = customName;
-        } else if (tab === 'CONTRATOS') {
-            // Contratos de Admissão: NomeDoc_NomeColab (sem timestamp — documento único por tipo)
-            const safeType = formatarPasta(docType);
-            const safeColab = formatarNome(colab);
-            base = `${safeType}_${safeColab}`;
-            // Sem timestamp para admissão — retorna diretamente
-            console.log("UPLOAD FILENAME (admissao):", base + ext);
-            return cb(null, base + ext);
-        } else if (tab === 'CONTRATOS_AVULSOS') {
-            // Outros Contratos: NomeDoc_NomeColab_CODIGO (timestamp para código único)
+        } else if (tab === 'CONTRATOS' || tab === 'CONTRATOS_AVULSOS') {
+            // Contratos: NomeDoc_NomeColab_CODIGO (timestamp para código único)
             const safeType = formatarPasta(docType);
             const safeColab = formatarNome(colab);
             base = `${safeType}_${safeColab}`;
@@ -2901,15 +2887,15 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), async (req
     let file_name = req.file.originalname;
     try { file_name = Buffer.from(file_name, 'latin1').toString('utf8'); } catch (e) {}
 
-    if (tab_name === 'CONTRATOS_AVULSOS') {
+    if (tab_name === 'CONTRATOS_AVULSOS' || tab_name === 'CONTRATOS') {
         const uniqueCode = Date.now().toString().slice(-6);
         let safeTab = formatarPasta(document_type || 'Contrato');
         let safeColab = formatarNome(req.body.colaborador_nome || 'Colaborador');
-        file_name = `Outros_${safeTab}_${safeColab}_${uniqueCode}.pdf`;
+        file_name = `${safeTab}_${safeColab}_${uniqueCode}.pdf`;
     }
 
 
-    const abasMultiplas = ['Advertências', 'Multas', 'Atestados', 'Boletim de ocorrência', 'Terapia', 'CONTRATOS_AVULSOS'];
+    const abasMultiplas = ['Advertências', 'Multas', 'Atestados', 'Boletim de ocorrência', 'Terapia', 'CONTRATOS_AVULSOS', 'CONTRATOS'];
     const isMultiplo = !document_id && abasMultiplas.includes(tab_name);
 
     if (isMultiplo) {
@@ -3051,14 +3037,10 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), async (req
                                 const safeColab = formatarNome(colabNome) || 'DESCONHECIDO';
 
                                 let targetDir, cloudFileName;
-                                if (tab_name === 'CONTRATOS') {
-                                    // Admissão: CONTRATOS/Admissao/ sem código único
-                                    targetDir = `${onedriveBasePath}/${safeColab}/CONTRATOS/Admissao`;
-                                    cloudFileName = `${formatarPasta(document_type || 'Contrato').replace(/\s+/g, '_')}_${safeColab}.pdf`;
-                                } else {
-                                    // Outros Contratos: CONTRATOS/Outros/ com código timestamp
-                                    targetDir = `${onedriveBasePath}/${safeColab}/CONTRATOS/Outros`;
-                                    cloudFileName = fileNameToStore; // já tem timestamp do multer filename
+                                if (tab_name === 'CONTRATOS' || tab_name === 'CONTRATOS_AVULSOS') {
+                                    // Todos os Contratos na raiz de CONTRATOS, sem subpastas
+                                    targetDir = `${onedriveBasePath}/${safeColab}/CONTRATOS`;
+                                    cloudFileName = fileNameToStore; // O multer ou fallback já aplica timestamp / cód único
                                 }
 
                                 console.log(`[OD-INLINE] ${tab_name} => ${targetDir}/${cloudFileName}`);
