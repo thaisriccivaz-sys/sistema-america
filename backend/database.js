@@ -461,55 +461,27 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 )
             `, (err) => {
                 if (err) return;
-                // Seeds: inserir templates padrão se não existirem
-                const TERMO_PADRAO = '•Confirmo perante minha assinatura que recebi o Equipamento de Proteção Individual - EPI, da Empresa: AMERICA RENTAL EQUIPAMENTOS LTDA. Vinculada ao CNPJ: 03.434.448/0001-01 de Inscrição estadual IE: 336.715.410.116 conforme descrito abaixo, para uso exclusivo no local de trabalho, conforme regulamentação da Norma Regulamentadora Nº 6, do Ministério do Trabalho e Emprego.\n•Declaro que estou ciente da obrigatoriedade do uso do EPI e da responsabilidade de usá-lo e conservá-lo. Minha recusa injustificada na utilização deste equipamento ou seu mau uso, constitui ato faltoso, conforme disposto no artigo 158 da CLT.\n•Declaro estar ciente da obrigatoriedade da devolução do Equipamento atual, quando da troca ou substituição dos mesmos.';
+                // AUTO-MIGRAÇÃO EPI: corrição das listas por departamento
+                ['Motorista', 'Ajudante', 'Ajudante Pátio', 'Manutenção', 'Limpeza'].forEach(g => {
+                    db.run('DELETE FROM epi_templates WHERE grupo = ?', [g]);
+                });
+                const TERMO_PADRAO = '•Confirmo perante minha assinatura que recebi o Equipamento de Proteção Individual - EPI, da Empresa: AMERICA RENTAL EQUIPAMENTOS LTDA. Vinculada ao CNPJ: 03.434.448/0001-01 de Inscrição estadual IE: 336.715.410.116 conforme descrito abaixo, para uso exclusivo no local de trabalho, conforme regulamentação da Norma Regulamentadora Nº 6, do Ministério do Trabalho e Emprego.\\n•Declaro que estou ciente da obrigatoriedade do uso do EPI e da responsabilidade de usá-lo e conservá-lo. Minha recusa injustificada na utilização deste equipamento ou seu mau uso, constitui ato faltoso, conforme disposto no artigo 158 da CLT.\\n•Declaro estar ciente da obrigatoriedade da devolução do Equipamento atual, quando da troca ou substituição dos mesmos.';
                 const RODAPE_PADRAO = 'LIBERAÇÃO DO EQUIPAMENTO DE SEGURANÇA SOMENTE APÓS ASSINATURA DESTE TERMO.';
-
-                const seeds = [
-                    {
-                        grupo: 'Escritório',
-                        departamentos_json: JSON.stringify(['Recursos Humanos', 'Financeiro', 'Logística', 'Administrativo', 'Comercial']),
-                        epis_json: JSON.stringify(['BONÉ', 'CAMISETA POLO PRETA', 'CAMISETA POLO PRETA MANGA LONGA', 'CAMISETA POLO ROXA', 'PORTA CANETAS', 'PORTA ARQUIVOS DE MESA', 'MOUSE PAD ERGONÔMICO', 'APOIO ERGONÔMICO DE TECLADO', 'SUPORTE ERGONÔMICO DE PÉS', 'APOIO NOTEBOOK']),
-                        termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO
-                    },
-                    {
-                        grupo: 'Manutenção',
-                        departamentos_json: JSON.stringify(['Manutenção']),
-                        epis_json: JSON.stringify(['AVENTAL DE RASPA', 'BOTA BICO DE AÇO CA 43.339', 'BONÉ', 'LUVA DE RASPA CA 34.106', 'PROTETOR AUDITIVO CA 36.817', 'CALÇA', 'CAMISETA MANGA CURTA', 'CAMISETA MANGA LONGA', 'PROTETOR SOLAR FPS30', 'RESPIRADOR PURIFICADOR DE AR AZUL CA 39.238', 'ÓCULOS CA 19.176', 'MÁSCARA DE SOLDA CA 45.596', 'LUVA NITRILICA CA 38.975']),
-                        termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO
-                    },
-                    {
-                        grupo: 'Limpeza',
-                        departamentos_json: JSON.stringify(['Limpeza']),
-                        epis_json: JSON.stringify(['AVENTAL DE PLÁSTICO', 'LUVA DE NEOLATEX M', 'CALÇA', 'AVENTAL', 'SAPATO ANTIDERRAPANTE']),
-                        termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO
-                    },
-                    {
-                        grupo: 'Motorista',
-                        departamentos_json: JSON.stringify(['Motorista']),
-                        epis_json: JSON.stringify(['BOTA DE PVC CA 42.291', 'BOTA BICO DE AÇO CA 43.339', 'CAPACETE CA 31.469', 'CAPA DE CHUVA CA 31.413', 'ÓCULOS DE PROTEÇÃO CA 19.176', 'LUVA DE PVC VERDE CA34570', 'LUVA DE NEOLATEX CURTA EXG CA 5.774', 'RESPIRADOR PURIFICADOR DE AR CA 14.781', 'RESPIRADOR PURIFICADOR DE AR AZUL CA 39.238', 'REFIL DO RESPIRADOR', 'PROTETOR SOLAR FPS30', 'PROTETOR AUDITIVO CA 36.817', 'BONÉ', 'CALÇA', 'CAMISETA MANGA CURTA', 'CAMISETA MANGA LONGA', 'LUVA DE HELANCA CA 37.931', 'LUVA NITRILICA CA 38.975']),
-                        termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO
-                    },
-                    {
-                        grupo: 'Ajudante',
-                        departamentos_json: JSON.stringify(['Ajudante']),
-                        epis_json: JSON.stringify(['BOTA DE PVC CA 42.291', 'BOTA BICO DE AÇO CA 43.339', 'CAPACETE CA 31.469', 'CAPA DE CHUVA CA 31.413', 'ÓCULOS DE PROTEÇÃO CA 19.176', 'LUVA DE PVC VERDE CA34570', 'LUVA DE NEOLATEX CURTA EXG CA 5.774', 'RESPIRADOR PURIFICADOR DE AR CA 14.781', 'PROTETOR SOLAR FPS30', 'PROTETOR AUDITIVO CA 36.817', 'BONÉ', 'CALÇA', 'CAMISETA MANGA CURTA', 'CAMISETA MANGA LONGA']),
-                        termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO
-                    },
-                    {
-                        grupo: 'Ajudante Pátio',
-                        departamentos_json: JSON.stringify(['Ajudante Pátio']),
-                        epis_json: JSON.stringify(['BOTA DE PVC CA 42.291', 'BOTA BICO DE AÇO CA 43.339', 'CAPACETE CA 31.469', 'CAPA DE CHUVA CA 31.413', 'ÓCULOS DE PROTEÇÃO CA 19.176', 'LUVA DE PVC VERDE CA34570', 'LUVA DE NEOLATEX CURTA EXG CA 5.774', 'RESPIRADOR PURIFICADOR DE AR CA 14.781', 'PROTETOR SOLAR FPS30', 'PROTETOR AUDITIVO CA 36.817', 'BONÉ', 'CALÇA', 'CAMISETA MANGA CURTA', 'CAMISETA MANGA LONGA']),
-                        termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO
-                    }
+                const EPI_A1 = JSON.stringify(['BOTA DE PVC CA 42.291','BOTA BICO DE AÇO CA 43.339','CAPACETE CA 31.469','CAPA DE CHUVA CA 31.413','ÓCULOS DE PROTEÇÃO CA 19.176','LUVA DE PVC VERDE CA34570','LUVA DE NEOLATEX CURTA EXG CA 5.774','RESPIRADOR PURIFICADOR DE AR CA 14.781','RESPIRADOR PURIFICADOR DE AR AZUL CA 39.238','REFIL DO RESPIRADOR','PROTETOR SOLAR FPS30','PROTETOR AUDITIVO CA 36.817','COLETE REFLETIVO','CALÇA','CAMISETA MANGA CURTA','CAMISETA MANGA LONGA','LUVA DE HELANCA CA 37.931','LUVA NITRILICA CA 38.975']);
+                const EPI_A2 = JSON.stringify(['BOTA BICO DE AÇO CA 43.339','CAPACETE CA 31.469','CAPA DE CHUVA CA 31.413','ÓCULOS DE PROTEÇÃO CA 19.176','LUVA DE PVC VERDE CA34570','LUVA DE NEOLATEX CURTA EXG CA 5.774','RESPIRADOR PURIFICADOR DE AR CA 14.781','RESPIRADOR PURIFICADOR DE AR AZUL CA 39.238','REFIL DO RESPIRADOR','PROTETOR SOLAR FPS30','PROTETOR AUDITIVO CA 36.817','COLETE REFLETIVO','CALÇA','CAMISETA MANGA CURTA','CAMISETA MANGA LONGA','LUVA DE HELANCA CA 37.931','LUVA NITRILICA CA 38.975']);
+                const EPI_A3 = JSON.stringify(['AVENTAL DE RASPA','BOTA BICO DE AÇO CA 43.339','BONÉ','LUVA DE RASPA CA 34.106','PROTETOR AUDITIVO CA 36.817','CALÇA','CAMISETA MANGA CURTA','CAMISETA MANGA LONGA','PROTETOR SOLAR FPS30','RESPIRADOR PURIFICADOR DE AR AZUL CA 39.238','ÓCULOS CA 19.176','MÁSCARA DE SOLDA CA 45.596','LUVA NITRILICA CA 38.975']);
+                const EPI_A4 = JSON.stringify(['AVENTAL DE PLÁSTICO','LUVA DE NEOLATEX M','CALÇA','AVENTAL','SAPATO ANTIDERRAPANTE']);
+                const newSeeds = [
+                    { grupo: 'Escritório', departamentos_json: JSON.stringify(['Recursos Humanos','Financeiro','Logística','Administrativo','Comercial']), epis_json: JSON.stringify(['BONÉ','CAMISETA POLO PRETA','CAMISETA POLO PRETA MANGA LONGA','CAMISETA POLO ROXA','PORTA CANETAS','PORTA ARQUIVOS DE MESA','MOUSE PAD ERGONÔMICO','APOIO ERGONÔMICO DE TECLADO','SUPORTE ERGONÔMICO DE PÉS','APOIO NOTEBOOK']), termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO },
+                    { grupo: 'Ajudante Pátio', departamentos_json: JSON.stringify(['Ajudante Pátio','Liderança']), epis_json: EPI_A1, termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO },
+                    { grupo: 'Motorista', departamentos_json: JSON.stringify(['Motorista','Ajudante Geral']), epis_json: EPI_A2, termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO },
+                    { grupo: 'Manutenção', departamentos_json: JSON.stringify(['Manutenção']), epis_json: EPI_A3, termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO },
+                    { grupo: 'Limpeza', departamentos_json: JSON.stringify(['Limpeza']), epis_json: EPI_A4, termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO }
                 ];
-                seeds.forEach(s => {
-                    db.get('SELECT id FROM epi_templates WHERE grupo = ?', [s.grupo], (err, row) => {
-                        if (!row) {
-                            db.run('INSERT INTO epi_templates (grupo, departamentos_json, epis_json, termo_texto, rodape_texto) VALUES (?,?,?,?,?)',
-                                [s.grupo, s.departamentos_json, s.epis_json, s.termo_texto, s.rodape_texto]);
-                        }
-                    });
+                newSeeds.forEach(s => {
+                    db.run('INSERT OR REPLACE INTO epi_templates (grupo, departamentos_json, epis_json, termo_texto, rodape_texto) VALUES (?,?,?,?,?)',
+                        [s.grupo, s.departamentos_json, s.epis_json, s.termo_texto, s.rodape_texto],
+                        (e) => { if (e) console.error('[EPI seed] Erro:', s.grupo, e.message); });
                 });
             });
 
