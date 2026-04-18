@@ -401,7 +401,7 @@ window.openEpiModal = function(id) {
     // Só mostra "Departamentos vinculados" para grupo Escritório ou novos grupos
     const grupoAtual = t ? t.grupo : '';
     const isEscritorioOuNovo = !t || GRUPOS_ADMIN.includes(grupoAtual);
-    const deptSection = deptContainer.closest('div');
+    const deptSection = deptContainer.parentElement;
     if (deptSection) deptSection.style.display = isEscritorioOuNovo ? '' : 'none';
 
     const episList = document.getElementById('epi-items-list');
