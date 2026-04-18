@@ -3533,17 +3533,15 @@ function buildGeradoresHtml(gerador, colaborador, baseUrl) {
 <meta charset="UTF-8">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { width: 210mm; }
   body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; color: #1e293b; }
   @page { size: A4; margin: 0; }
-  .logo-banner { width: 100%; display: block; }
+  .logo-banner { width: 100%; display: block; margin-bottom: 12px; }
   .logo-banner img { width: 100%; display: block; }
-  .page-content { padding: 0.5cm 1.8cm 1.8cm 1.8cm; max-width: 100%; word-wrap: break-word; overflow-wrap: break-word; }
   h1.doc-title { text-align: center; font-size: 13pt; text-transform: uppercase; margin: 10px 0 6px; }
   .colab-header { margin-top: 8px; font-size: 10pt; }
   .colab-box { border: 1px solid #000; padding: 8px; margin-top: 6px; font-size: 9pt; line-height: 1.5; }
   .colab-row { display: flex; gap: 2rem; flex-wrap: wrap; }
-  .doc-body { margin-top: 12px; text-align: justify; font-size: 10pt; line-height: 1.5; word-wrap: break-word; overflow-wrap: break-word; }
+  .doc-body { margin-top: 12px; text-align: justify; font-size: 10pt; line-height: 1.5; }
   .doc-body p { margin: 2px 0; }
   .doc-body li { margin: 1px 0; }
   .footer { margin-top: 18px; }
@@ -3552,40 +3550,36 @@ function buildGeradoresHtml(gerador, colaborador, baseUrl) {
   .sig-block { text-align: center; width: 45%; }
   .sig-line { border-top: 1.5px solid #000; padding-top: 4px; font-weight: 700; font-size: 9pt; }
   .sig-sub { font-size: 8pt; color: #555; }
-  .company-logo img { height: 22px; margin: 0 auto 3px; display: block; }
-  .company-info { font-size: 6pt; font-weight: 700; line-height: 1.2; }
 </style>
 </head>
 <body>
   <div class="logo-banner"><img src="${logoUrl}" alt="Logo America Rental"></div>
 
-  <div class="page-content">
-    <h1 class="doc-title">${gerador.nome}</h1>
+  <h1 class="doc-title">${gerador.nome}</h1>
 
-    <div class="colab-header"><b>COLABORADOR:</b> ${colaborador.nome_completo}</div>
+  <div class="colab-header"><b>COLABORADOR:</b> ${colaborador.nome_completo}</div>
 
-    <div class="colab-box">
-      <div style="font-weight:700; font-size:8pt; margin-bottom:4px;">DADOS COLABORADOR:</div>
-      <div class="colab-row">
-        <span>CPF: <b>${colaborador.cpf || '---'}</b></span>
-        <span>ADMISSÃO: <b>${mapping.DATA_ADMISSAO || '---'}</b></span>
-      </div>
-      <div>ENDEREÇO: ${colaborador.endereco || '---'}</div>
-      <div class="colab-row">
-        <span>CARGO: ${colaborador.cargo || '---'}</span>
-        <span>SALÁRIO: ${mapping.SALARIO}</span>
-      </div>
-      <div class="colab-row">
-        <span>CELULAR: ${colaborador.telefone || '---'}</span>
-        <span>E-MAIL: ${colaborador.email || '---'}</span>
-      </div>
+  <div class="colab-box">
+    <div style="font-weight:700; font-size:8pt; margin-bottom:4px;">DADOS COLABORADOR:</div>
+    <div class="colab-row">
+      <span>CPF: <b>${colaborador.cpf || '---'}</b></span>
+      <span>ADMISSÃO: <b>${mapping.DATA_ADMISSAO || '---'}</b></span>
     </div>
-
-    <div class="doc-body">${conteudo}</div>
-
-    <div class="footer">
-      <div class="footer-date">${dataFormatada}</div>
+    <div>ENDEREÇO: ${colaborador.endereco || '---'}</div>
+    <div class="colab-row">
+      <span>CARGO: ${colaborador.cargo || '---'}</span>
+      <span>SALÁRIO: ${mapping.SALARIO}</span>
     </div>
+    <div class="colab-row">
+      <span>CELULAR: ${colaborador.telefone || '---'}</span>
+      <span>E-MAIL: ${colaborador.email || '---'}</span>
+    </div>
+  </div>
+
+  <div class="doc-body">${conteudo}</div>
+
+  <div class="footer">
+    <div class="footer-date">${dataFormatada}</div>
   </div>
 </body></html>`;
 }
@@ -3610,8 +3604,8 @@ app.get('/api/geradores/:id/preview-pdf/:colaborador_id', authenticateToken, asy
 
         const pdfBuffer = await htmlPdf.generatePdf(
             { content: html },
-            { format: 'A4', margin: { top: '0', bottom: '0', left: '0', right: '0' },
-              printBackground: true, preferCSSPageSize: true, args: ['--no-sandbox', '--disable-setuid-sandbox', '--window-size=794,1123'] }
+            { format: 'A4', margin: { top: '1.5cm', bottom: '1.5cm', left: '1.8cm', right: '1.8cm' },
+              printBackground: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] }
         );
 
         res.setHeader('Content-Type', 'application/pdf');
@@ -3659,9 +3653,9 @@ app.post('/api/admissao-assinaturas/enviar-lote', authenticateToken, async (req,
             const pdfBuffer = await htmlPdf.generatePdf(
                 { content: html },
                 { format: 'A4',
-                  margin: { top: '0', bottom: '0', left: '0', right: '0' },
-                  printBackground: true, preferCSSPageSize: true,
-                  args: ['--no-sandbox', '--disable-setuid-sandbox', '--window-size=794,1123'] }
+                  margin: { top: '1.5cm', bottom: '1.5cm', left: '1.8cm', right: '1.8cm' },
+                  printBackground: true,
+                  args: ['--no-sandbox', '--disable-setuid-sandbox'] }
             );
 
             const tmpDir = path.join(BASE_PATH, '_tmp_gerados');
