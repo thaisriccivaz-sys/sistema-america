@@ -9080,8 +9080,9 @@ window.renderAdmissaoDataSummary = async function(colab) {
         });
 
         // Resolve summary texts
-        const missing = calculateAdmissaoStep1Completion(colab).missing;
-        const total = calculateAdmissaoStep1Completion(colab).total;
+        const step1 = calculateAdmissaoStep1Completion(colab);
+        const missing = step1.missing;
+        const total = step1.total;
         const complete = total - missing.length;
         
         let fieldsHtml = '';
@@ -9090,6 +9091,34 @@ window.renderAdmissaoDataSummary = async function(colab) {
         } else {
             fieldsHtml = `<div style="color:#475569; margin-top:0.5rem;"><b>${complete} de ${total}</b> campos preenchidos. Para atingir 100%, certifique-se de preencher todos no cadastro do colaborador.</div>`;
         }
+
+        const alertEl = document.getElementById('admissao-missing-fields-alert');
+        const listEl = document.getElementById('admissao-missing-fields-list');
+        if (alertEl && listEl) {
+            if (missing.length > 0) {
+                alertEl.style.display = 'block';
+                listEl.innerHTML = missing.map(f => `<div>• ${f}</div>`).join('');
+                const nextBtn = document.getElementById('btn-admissao-step1-next');
+                if (nextBtn) nextBtn.disabled = false;
+            } else {
+                alertEl.style.display = 'none';
+            }
+        }
+
+        const gridHtml = `
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1rem; position:relative; margin-top: 1.5rem;">
+                ${step1.fields.map(f => `
+                    <div style="background: ${f.filled ? '#fff' : '#fff5f5'}; padding: 0.75rem; border-radius: 6px; border: 1px solid ${f.filled ? '#e2e8f0' : '#feb2b2'}; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                        <label style="font-weight:700; color:${f.filled ? '#64748b' : '#c53030'}; font-size:0.7rem; text-transform:uppercase; margin-bottom:4px; display:block;">
+                            ${f.label} ${f.filled ? '<i class="ph-bold ph-check-circle" style="color:#22c55e; margin-left:4px;"></i>' : '<span style="color:#ef4444!important; margin-left:4px;">(PENDENTE)</span>'}
+                        </label>
+                        <div style="font-size:0.95rem; font-weight:600; color:${f.filled ? '#1e293b' : '#ef4444'}; text-overflow:ellipsis; overflow:hidden; white-space:nowrap;">
+                            ${f.value || 'NÃO PREENCHIDO'}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
 
         summaryDiv.innerHTML = `
             <div style="display:flex; flex-direction:column; gap:1.25rem;">
@@ -9113,6 +9142,7 @@ window.renderAdmissaoDataSummary = async function(colab) {
                 <div>
                     <h5 style="margin:0; font-size:1rem; color:#1e293b;">Resumo do Cadastro</h5>
                     ${fieldsHtml}
+                    ${gridHtml}
                 </div>
             </div>
         `;
@@ -9125,11 +9155,11 @@ window.renderAdmissaoDataSummary = async function(colab) {
 
 window.saveAdmissaoResponsavel = async function(colabId, nomeResponsavel) {
     try {
-        const res = await fetch(\`\${API_URL}/colaboradores/\${colabId}/admissao-responsavel\`, {
+        const res = await fetch(`${API_URL}/colaboradores/${colabId}/admissao-responsavel`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': \`Bearer \${localStorage.getItem('erp_token')}\`
+                'Authorization': `Bearer ${localStorage.getItem('erp_token')}`
             },
             body: JSON.stringify({ admissao_responsavel_nome: nomeResponsavel })
         });
@@ -9336,47 +9366,23 @@ function updateAdmissaoStepPercentages(colab) {
             containerSignature.innerHTML = `<div style="padding:1rem; text-align:center; color:#64748b; font-size:0.85rem; font-style:italic;">Nenhum contrato configurado para o departamento.</div>`;
         } else {
             containerSignature.innerHTML = geradores.map(g => {
-                const ass = assinaturas.find(a => a.gerador_id === g.id || a.nome_documento === g.nome);
                 const docEquivalente = docs.find(d => d.tab_name === 'CONTRATOS' && (d.document_type === g.nome || (d.file_name && d.file_name.includes(g.nome))));
+                const hasFile = !!docEquivalente;
                 
-                let realStatus = '';
-                if (docEquivalente && docEquivalente.assinafy_status === 'Assinado') realStatus = 'Assinado';
-                else if (ass && ass.assinafy_status === 'Assinado') realStatus = 'Assinado';
-                else if (docEquivalente && docEquivalente.assinafy_status === 'Pendente') realStatus = 'Pendente';
-                else if (ass && ass.assinafy_status === 'Pendente') realStatus = 'Pendente';
-
-                const isSigned = (realStatus === 'Assinado' || docEquivalente?.assinafy_status === 'Assinado' || (ass && ass.assinafy_status === 'Assinado'));
-                const isPending = realStatus === 'Pendente';
-                
-                let statusBadge = isSigned
-                    ? `<span style="background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-check"></i> Assinado</span>`
-                    : isPending
-                    ? `<span style="background:#fffbeb; color:#d97706; border:1px solid #fde68a; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-clock"></i> Pendente Assinatura</span>`
-                    : `<span style="background:#f1f5f9; color:#64748b; border:1px solid #e2e8f0; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-minus-circle"></i> Não enviado</span>`;
+                let statusBadge = hasFile 
+                   ? `<span style="background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-check-circle"></i> Anexado</span>` 
+                   : `<span style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-x-circle"></i> Faltante</span>`;
 
                 let dataText = '';
-                let dataLines = [];
-                if (ass && ass.enviado_em) {
-                    const d = new Date(ass.enviado_em + (ass.enviado_em.includes('Z') ? '' : 'Z'));
-                    dataLines.push(`<div style="font-size:0.75rem; color:#2563eb; margin-top:2px;"><i class="ph ph-paper-plane-tilt"></i> Enviado p/ Assinatura: <b>${d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</b></div>`);
-                }
-                if (isSigned && (ass?.assinado_em || docEquivalente?.assinafy_signed_at)) {
-                    const dateVal = ass?.assinado_em || docEquivalente?.assinafy_signed_at;
-                    const d = new Date(dateVal + (dateVal.includes('Z') ? '' : 'Z'));
-                    dataLines.push(`<div style="font-size:0.75rem; color:#16a34a; margin-top:2px;"><i class="ph ph-check-circle"></i> Assinado em: <b>${d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</b></div>`);
-                }
-                
-                if (dataLines.length > 0) {
-                    dataText = dataLines.join('');
-                } else if (docEquivalente && docEquivalente.file_path && docEquivalente.created_at) {
+                if (hasFile && docEquivalente.created_at) {
                     const d = new Date(docEquivalente.created_at + (docEquivalente.created_at.includes('Z') ? '' : 'Z'));
-                    dataText = `<div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Gerado e Anexado: <b>${d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</b></div>`;
-                } else {
-                    dataText = `<div style="font-size:0.75rem; color:#94a3b8; margin-top:2px;"><i>Configurado via Prontuário Digital</i></div>`;
+                    dataText = `<div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Anexado em: <b>${d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</b></div>`;
+                } else if (!hasFile) {
+                    dataText = `<div style="font-size:0.75rem; color:#94a3b8; margin-top:2px;"><i>Upload obrigatório via Prontuário Digital</i></div>`;
                 }
 
                 return `
-                <div style="background:#fff; border:1px solid ${isSigned?'#bbf7d0':'#e2e8f0'}; border-radius:8px; padding:0.6rem 0.8rem; margin-bottom:0.4rem; display:flex; justify-content:space-between; align-items:center;">
+                <div style="background:#fff; border:1px solid ${hasFile?'#bbf7d0':'#e2e8f0'}; border-radius:8px; padding:0.6rem 0.8rem; margin-bottom:0.4rem; display:flex; justify-content:space-between; align-items:center;">
                     <div style="display:flex; flex-direction:column; gap:2px;">
                         <span style="font-weight:600; color:#334155; font-size:0.85rem;">${g.nome}</span>
                         ${dataText}
@@ -13022,18 +13028,9 @@ window.gerarFichaSantander = async function() {
 };
 
 window.verFichaSantander = async function() {
-    // Se tem cache: usa direto
-    if (window._santanderPreVHtml) {
-        const win = window.open('', '_blank', 'width=820,height=900');
-        win.document.write(window._santanderPreVHtml);
-        win.document.close();
-        win.focus();
-        return;
-    }
-
     // Se não tem cache mas a ficha já foi gerada: regenera silenciosamente
     const colab = viewedColaborador || window._admissaoColabSelecionado;
-    if (colab && colab.santander_ficha_data) {
+    if (!window._santanderPreVHtml && colab && colab.santander_ficha_data) {
         // Mostrar loading
         const btn = document.querySelector('[onclick*="verFichaSantander"]');
         if (btn) { btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Gerando...'; btn.disabled = true; }
@@ -13043,23 +13040,56 @@ window.verFichaSantander = async function() {
             window._silentSantanderGen = true;
             await window.gerarFichaSantander();
             window._silentSantanderGen = false;
-            
-            // Agora o cache deve estar preenchido
-            if (window._santanderPreVHtml) {
-                const win = window.open('', '_blank', 'width=820,height=900');
-                win.document.write(window._santanderPreVHtml);
-                win.document.close();
-                win.focus();
-            }
         } catch(e) {
             alert('Erro ao regenerar documento: ' + e.message);
         } finally {
             if (btn) { btn.innerHTML = '<i class="ph ph-eye"></i> Visualizar'; btn.disabled = false; }
         }
-        return;
     }
 
-    alert("Gere o documento primeiro.");
+    if (window._santanderPreVHtml) {
+        const previewTitle = document.getElementById('preview-doc-title');
+        const previewContainer = document.getElementById('preview-doc-body');
+        const buttonsContainer = document.getElementById('preview-doc-buttons');
+        
+        if (previewTitle) previewTitle.textContent = 'Pedido de Abertura de Conta (Santander)';
+        
+        if (buttonsContainer) {
+            buttonsContainer.innerHTML = `
+                <button class="btn btn-primary" onclick="window.imprimirFichaSantander()" style="display:flex;align-items:center;gap:0.4rem;">
+                    <i class="ph ph-printer"></i> Imprimir Documento
+                </button>
+                <button class="btn btn-secondary" onclick="document.getElementById('modal-preview-doc').style.display='none'">
+                    <i class="ph ph-x"></i> Fechar
+                </button>
+            `;
+        }
+        
+        if (previewContainer) {
+            previewContainer.innerHTML = `<iframe id="santander-iframe" style="width:100%; height:85vh; border:none;" srcdoc="${window._santanderPreVHtml.replace(/"/g, '&quot;')}"></iframe>`;
+        }
+        
+        document.getElementById('modal-preview-doc').style.display = 'block';
+    } else {
+        alert("Gere o documento primeiro.");
+    }
+};
+
+window.imprimirFichaSantander = function() {
+    const iframe = document.getElementById('santander-iframe');
+    if(iframe && iframe.contentWindow) {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+    }
+};
+
+window.irAoProntuarioDigital = function(tabName) {
+    const colab = window._admissaoColabSelecionado;
+    if (!colab) return;
+    window.viewColaborador(colab.id);
+    if (tabName && typeof abas.switchTab === 'function') {
+        setTimeout(() => abas.switchTab('colab-tabs', tabName), 500);
+    }
 };
 
 // Funçao mockup caso nòo exista _recalculateAdmissaoFinalProg
