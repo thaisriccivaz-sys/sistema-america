@@ -9328,20 +9328,34 @@ function updateAdmissaoStepPercentages(colab) {
     // Atualiza a view de status se o modal estiver aberto
     const containerSignature = document.getElementById('admissao-signature-status');
     if (containerSignature) {
-        if (geradores.length === 0) {
-            containerSignature.innerHTML = `<div style="padding:1rem; text-align:center; color:#64748b; font-size:0.85rem; font-style:italic;">Nenhum contrato configurado para o departamento.</div>`;
+        const allUploadedContracts = docs.filter(d => d.tab_name === 'CONTRATOS');
+        const combinedList = [];
+        
+        geradores.forEach(g => {
+            const docEquivalente = allUploadedContracts.find(d => d.document_type === g.nome || (d.file_name && d.file_name.includes(g.nome)));
+            combinedList.push({ nome: g.nome, doc: docEquivalente });
+        });
+
+        allUploadedContracts.forEach(d => {
+            const isAlreadyAdded = combinedList.some(item => d.document_type === item.nome || (d.file_name && d.file_name.includes(item.nome)));
+            if (!isAlreadyAdded) {
+                combinedList.push({ nome: d.document_type || d.file_name || 'Documento', doc: d });
+            }
+        });
+
+        if (combinedList.length === 0) {
+            containerSignature.innerHTML = `<div style="padding:1rem; text-align:center; color:#64748b; font-size:0.85rem; font-style:italic;">Nenhum contrato configurado no sistema ou anexado no prontuário.</div>`;
         } else {
-            containerSignature.innerHTML = geradores.map(g => {
-                const docEquivalente = docs.find(d => d.tab_name === 'CONTRATOS' && (d.document_type === g.nome || (d.file_name && d.file_name.includes(g.nome))));
-                const hasFile = !!docEquivalente;
+            containerSignature.innerHTML = combinedList.map(item => {
+                const hasFile = !!item.doc;
                 
                 let statusBadge = hasFile 
                    ? `<span style="background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-check-circle"></i> Anexado</span>` 
                    : `<span style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-x-circle"></i> Faltante</span>`;
 
                 let dataText = '';
-                if (hasFile && docEquivalente.created_at) {
-                    const d = new Date(docEquivalente.created_at + (docEquivalente.created_at.includes('Z') ? '' : 'Z'));
+                if (hasFile && item.doc.created_at) {
+                    const d = new Date(item.doc.created_at + (item.doc.created_at.includes('Z') ? '' : 'Z'));
                     dataText = `<div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Anexado em: <b>${d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</b></div>`;
                 } else if (!hasFile) {
                     dataText = `<div style="font-size:0.75rem; color:#94a3b8; margin-top:2px;"><i>Upload obrigatório via Prontuário Digital</i></div>`;
@@ -9350,7 +9364,7 @@ function updateAdmissaoStepPercentages(colab) {
                 return `
                 <div style="background:#fff; border:1px solid ${hasFile?'#bbf7d0':'#e2e8f0'}; border-radius:8px; padding:0.6rem 0.8rem; margin-bottom:0.4rem; display:flex; justify-content:space-between; align-items:center;">
                     <div style="display:flex; flex-direction:column; gap:2px;">
-                        <span style="font-weight:600; color:#334155; font-size:0.85rem;">${g.nome}</span>
+                        <span style="font-weight:600; color:#334155; font-size:0.85rem;">${item.nome}</span>
                         ${dataText}
                     </div>
                     <div style="display:flex; gap:0.5rem; align-items:center; flex-shrink: 0;">
