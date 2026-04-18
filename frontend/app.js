@@ -57,12 +57,12 @@ window.gerarPDFBlob = async function(element, filename = 'documento.pdf') {
         }
 
         const opt = {
-            margin: 0,
+            margin: [5, 0, 10, 0], // 5mm topo, 0 esq, 10mm inferior, 0 dir para margem de segurança na emenda das páginas
             filename: filename,
             image: { type: 'jpeg', quality: 0.98 },
             html2canvas: { scale: 2, useCORS: true },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-            pagebreak: { mode: ['css', 'legacy'], before: '.page-break', avoid: ['p', 'li'] }
+            pagebreak: { mode: ['css', 'legacy'], avoid: 'p, h1, h2, h3, h4, h5, h6, tr, li, ul, ol' }
         };
 
         html2pdf()
