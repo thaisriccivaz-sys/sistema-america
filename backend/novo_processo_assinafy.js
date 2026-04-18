@@ -206,22 +206,20 @@ async function enviarDocumentoParaAssinafy(documentId, colaboradorId) {
                 id: signerColabId,
                 role: 'signer',
                 notification_methods: ['Email']
-                // require_initials não é reconhecido pela API — o campo de rúbrica
-                // é controlado pelo método de assinatura e número de páginas do documento
             }
         ],
-        method: 'electronic',
+        method: 'virtual',
         copy_receivers: [{ email: 'americasistema48@gmail.com', name: 'Sistema America' }]
     });
 
     if (assignRes.status < 200 || assignRes.status >= 300)
         throw new Error(`Erro ao criar assignment (HTTP ${assignRes.status}): ${assignRes.json?.message || assignRes.raw.substring(0, 150)}`);
 
-    const assignList = Array.isArray(assignRes.json?.data) ? assignRes.json.data : [assignRes.json?.data].filter(Boolean);
+    // A URL de assinatura vem em signing_urls[0].url (formato da API Assinafy)
+    const assignData = assignRes.json?.data;
     const urlAssinatura = (
-        assignList[0]?.url ||
-        assignList[0]?.signature_url ||
-        assignList[0]?.signing_url   ||
+        assignData?.signing_urls?.[0]?.url ||
+        assignData?.signing_url ||
         `https://app.assinafy.com.br/sign/${assinafyDocId}`
     );
     console.log(`[5] Assignment OK! URL colaborador: ${urlAssinatura}`);
