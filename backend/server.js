@@ -3525,7 +3525,9 @@ function buildGeradoresHtml(gerador, colaborador, baseUrl) {
         .replace(/Guarulhos,\s*_{3,}.*?de\s*_{3,}.*?de\s*202_{3,}\.?/g, dataFormatada)
         .replace(/AMERICA RENTAL EQUIPAMENTOS LTDA/g, '<b>AMERICA RENTAL EQUIPAMENTOS LTDA</b>');
 
-    const logoUrl = `${baseUrl}/assets/logo-header.png`;
+    // Usar logo em Base64 para garantir que apareça no PDF gerado no servidor (igual ao sinistro)
+    const logoB64 = getLogoBase64DataUri();
+    const logoSrc = logoB64 || `${baseUrl}/assets/logo-header.png`;
 
     return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -3535,8 +3537,9 @@ function buildGeradoresHtml(gerador, colaborador, baseUrl) {
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; color: #1e293b; }
   @page { size: A4; margin: 0; }
-  .logo-banner { width: 100%; display: block; margin-bottom: 12px; }
-  .logo-banner img { width: 100%; display: block; }
+  .logo-banner { width: 100%; display: block; margin: 0; padding: 0; line-height: 0; }
+  .logo-banner img { width: 100%; display: block; margin: 0; padding: 0; }
+  .content-wrapper { padding: 20px 60px 30px 60px; }
   h1.doc-title { text-align: center; font-size: 13pt; text-transform: uppercase; margin: 10px 0 6px; }
   .colab-header { margin-top: 8px; font-size: 10pt; }
   .colab-box { border: 1px solid #000; padding: 8px; margin-top: 6px; font-size: 9pt; line-height: 1.5; }
@@ -3553,33 +3556,35 @@ function buildGeradoresHtml(gerador, colaborador, baseUrl) {
 </style>
 </head>
 <body>
-  <div class="logo-banner"><img src="${logoUrl}" alt="Logo America Rental"></div>
+  <div class="logo-banner"><img src="${logoSrc}" alt="Logo America Rental"></div>
 
-  <h1 class="doc-title">${gerador.nome}</h1>
+  <div class="content-wrapper">
+    <h1 class="doc-title">${gerador.nome}</h1>
 
-  <div class="colab-header"><b>COLABORADOR:</b> ${colaborador.nome_completo}</div>
+    <div class="colab-header"><b>COLABORADOR:</b> ${colaborador.nome_completo}</div>
 
-  <div class="colab-box">
-    <div style="font-weight:700; font-size:8pt; margin-bottom:4px;">DADOS COLABORADOR:</div>
-    <div class="colab-row">
-      <span>CPF: <b>${colaborador.cpf || '---'}</b></span>
-      <span>ADMISSÃO: <b>${mapping.DATA_ADMISSAO || '---'}</b></span>
+    <div class="colab-box">
+      <div style="font-weight:700; font-size:8pt; margin-bottom:4px;">DADOS COLABORADOR:</div>
+      <div class="colab-row">
+        <span>CPF: <b>${colaborador.cpf || '---'}</b></span>
+        <span>ADMISSÃO: <b>${mapping.DATA_ADMISSAO || '---'}</b></span>
+      </div>
+      <div>ENDEREÇO: ${colaborador.endereco || '---'}</div>
+      <div class="colab-row">
+        <span>CARGO: ${colaborador.cargo || '---'}</span>
+        <span>SALÁRIO: ${mapping.SALARIO}</span>
+      </div>
+      <div class="colab-row">
+        <span>CELULAR: ${colaborador.telefone || '---'}</span>
+        <span>E-MAIL: ${colaborador.email || '---'}</span>
+      </div>
     </div>
-    <div>ENDEREÇO: ${colaborador.endereco || '---'}</div>
-    <div class="colab-row">
-      <span>CARGO: ${colaborador.cargo || '---'}</span>
-      <span>SALÁRIO: ${mapping.SALARIO}</span>
-    </div>
-    <div class="colab-row">
-      <span>CELULAR: ${colaborador.telefone || '---'}</span>
-      <span>E-MAIL: ${colaborador.email || '---'}</span>
-    </div>
-  </div>
 
-  <div class="doc-body">${conteudo}</div>
+    <div class="doc-body">${conteudo}</div>
 
-  <div class="footer">
-    <div class="footer-date">${dataFormatada}</div>
+    <div class="footer">
+      <div class="footer-date">${dataFormatada}</div>
+    </div>
   </div>
 </body></html>`;
 }
@@ -3604,7 +3609,7 @@ app.get('/api/geradores/:id/preview-pdf/:colaborador_id', authenticateToken, asy
 
         const pdfBuffer = await htmlPdf.generatePdf(
             { content: html },
-            { format: 'A4', margin: { top: '1.5cm', bottom: '1.5cm', left: '1.8cm', right: '1.8cm' },
+            { format: 'A4', margin: { top: '0', bottom: '0', left: '0', right: '0' },
               printBackground: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] }
         );
 
@@ -3653,7 +3658,7 @@ app.post('/api/admissao-assinaturas/enviar-lote', authenticateToken, async (req,
             const pdfBuffer = await htmlPdf.generatePdf(
                 { content: html },
                 { format: 'A4',
-                  margin: { top: '1.5cm', bottom: '1.5cm', left: '1.8cm', right: '1.8cm' },
+                  margin: { top: '0', bottom: '0', left: '0', right: '0' },
                   printBackground: true,
                   args: ['--no-sandbox', '--disable-setuid-sandbox'] }
             );
