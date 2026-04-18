@@ -1594,6 +1594,13 @@ db.run("ALTER TABLE colaboradores ADD COLUMN santander_ficha_data TEXT", (err) =
     }
 });
 
+// Auto-migration: add admissao_responsavel_nome column if it doesn't exist
+db.run("ALTER TABLE colaboradores ADD COLUMN admissao_responsavel_nome TEXT", (err) => {
+    if (err && !err.message.includes('duplicate column')) {
+        console.error('[Migration] Erro ao adicionar admissao_responsavel_nome:', err.message);
+    }
+});
+
 // --- ROTAS DE COLABORADORES ---
 app.get('/api/colaboradores', authenticateToken, (req, res) => {
     const query = `
@@ -2277,6 +2284,19 @@ app.get('/api/colaboradores/:id/documentos', authenticateToken, (req, res) => {
 
 
 // --- ENDPOINT DEDICADO: Salvar status Santander ------------------------------
+// PUT /api/colaboradores/:id/admissao-responsavel
+app.put('/api/colaboradores/:id/admissao-responsavel', authenticateToken, (req, res) => {
+    const { admissao_responsavel_nome } = req.body;
+    db.run(
+        'UPDATE colaboradores SET admissao_responsavel_nome = ? WHERE id = ?',
+        [admissao_responsavel_nome, req.params.id],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true, message: 'Responsável atribuído com sucesso.' });
+        }
+    );
+});
+
 // PUT /api/colaboradores/:id/santander-status
 app.put('/api/colaboradores/:id/santander-status', authenticateToken, (req, res) => {
     const { santander_ficha_data } = req.body;

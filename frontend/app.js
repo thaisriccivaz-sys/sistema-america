@@ -9058,6 +9058,99 @@ window.handleAdmissaoFotoUpload = async function(event) {
     }
 };
 
+window.renderAdmissaoDataSummary = async function(colab) {
+    const summaryDiv = document.getElementById('admissao-data-summary');
+    if (!summaryDiv) return;
+
+    summaryDiv.innerHTML = `<div style="display:flex; justify-content:center; align-items:center; height:100px; color:#64748b;"><i class="ph ph-spinner ph-spin" style="font-size:1.5rem; margin-right:0.5rem;"></i> Carregando responsáveis...</div>`;
+
+    try {
+        const allColabs = await apiGet('/colaboradores');
+        
+        // Remove demitidos
+        const ativos = allColabs.filter(c => c.status !== 'Demitido');
+
+        let optionsHtml = '<option value="">Selecione o Responsável...</option>';
+        ativos.forEach(c => {
+            const nomeStr = c.nome_completo || c.nome || '';
+            const selected = (colab.admissao_responsavel_nome === nomeStr) ? 'selected' : '';
+            if (nomeStr) {
+                optionsHtml += `<option value="${nomeStr}" ${selected}>${nomeStr}</option>`;
+            }
+        });
+
+        // Resolve summary texts
+        const missing = calculateAdmissaoStep1Completion(colab).missing;
+        const total = calculateAdmissaoStep1Completion(colab).total;
+        const complete = total - missing.length;
+        
+        let fieldsHtml = '';
+        if (missing.length === 0) {
+            fieldsHtml = `<div style="color:#059669; font-weight:700; margin-top:0.5rem;"><i class="ph ph-check-circle"></i> Todos os dados essenciais estão preenchidos!</div>`;
+        } else {
+            fieldsHtml = `<div style="color:#475569; margin-top:0.5rem;"><b>${complete} de ${total}</b> campos preenchidos. Para atingir 100%, certifique-se de preencher todos no cadastro do colaborador.</div>`;
+        }
+
+        summaryDiv.innerHTML = `
+            <div style="display:flex; flex-direction:column; gap:1.25rem;">
+                <div style="background:#f8fafc; padding:1.25rem; border-radius:8px; border:1px solid #e2e8f0; border-left:4px solid #2563eb;">
+                    <label style="font-weight:700; color:#1e293b; margin-bottom:0.5rem; display:block;">
+                        <i class="ph ph-user-circle-gear" style="color:#2563eb; font-size:1.2rem; vertical-align:middle; margin-right:4px;"></i> Responsável pelo Processo de Admissão
+                    </label>
+                    <p style="font-size:0.85rem; color:#64748b; margin-top:0; margin-bottom:0.85rem;">
+                        Selecione o colaborador que irá conduzir e acompanhar o processo de admissão de <b>${colab.nome_completo || 'este colaborador'}</b>.
+                    </p>
+                    <div style="display:flex; gap:0.5rem;">
+                        <select id="admissao-responsavel-select" class="form-control" style="width:100%; max-width:400px; font-weight:600; color:#0f172a; border-radius:6px; padding:0.6rem;">
+                            ${optionsHtml}
+                        </select>
+                        <button type="button" class="btn btn-primary" onclick="window.saveAdmissaoResponsavel(${colab.id}, document.getElementById('admissao-responsavel-select').value)" style="border-radius:6px;">
+                            Salvar
+                        </button>
+                    </div>
+                </div>
+                
+                <div>
+                    <h5 style="margin:0; font-size:1rem; color:#1e293b;">Resumo do Cadastro</h5>
+                    ${fieldsHtml}
+                </div>
+            </div>
+        `;
+
+    } catch (e) {
+        console.error(e);
+        summaryDiv.innerHTML = `<div class="alert alert-danger">Erro ao carregar dados: ${e.message}</div>`;
+    }
+};
+
+window.saveAdmissaoResponsavel = async function(colabId, nomeResponsavel) {
+    try {
+        const res = await fetch(\`\${API_URL}/colaboradores/\${colabId}/admissao-responsavel\`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': \`Bearer \${localStorage.getItem('erp_token')}\`
+            },
+            body: JSON.stringify({ admissao_responsavel_nome: nomeResponsavel })
+        });
+        
+        if (!res.ok) throw new Error('Falha ao salvar responsável');
+        
+        if (typeof Toastify !== 'undefined') {
+            Toastify({ text: 'Responsável atribuído com sucesso!', backgroundColor: '#059669' }).showToast();
+        }
+        
+        if (window.viewedColaborador && window.viewedColaborador.id === colabId) {
+            window.viewedColaborador.admissao_responsavel_nome = nomeResponsavel;
+        }
+    } catch(e) {
+        console.error(e);
+        alert('Erro ao salvar responsável.');
+    }
+};
+
+
+
 function calculateAdmissaoStep1Completion(c) {
     // Checklist base — todos os campos obrigatórios
     const baseChecklist = [
