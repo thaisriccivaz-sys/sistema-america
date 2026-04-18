@@ -863,9 +863,13 @@ async function loadCargos() {
             <tr>
                 <td>${c.id}</td>
                 <td style="font-weight: 600;">${c.nome}</td>
-                <td style="text-align: right;">
+                <td style="text-align: right; display: flex; gap: 0.4rem; justify-content: flex-end;">
                     <button type="button" class="btn btn-primary btn-sm" onclick="window.toggleCargoView('edit', ${c.id})">
                         <i class="ph ph-note-pencil"></i> Editar
+                    </button>
+                    <button type="button" class="btn btn-danger btn-sm" onclick="window.deletarCargoDireto(${c.id}, '${c.nome.replace(/'/g, "\\'")}')"
+                        title="Excluir cargo">
+                        <i class="ph ph-trash"></i> Excluir
                     </button>
                 </td>
             </tr>
@@ -1010,6 +1014,7 @@ async function handleCargoFormSubmit() {
             document.getElementById('manage-cargo-id').value = res.id;
             await renderCargoChecklist(res.id);  // rerender com checkboxes habilitados
             alert('Cargo criado! Agora selecione os documentos exigidos.');
+            toggleCargoView('list');
             return;
         }
         alert('Nome do cargo salvo!');
@@ -1041,6 +1046,21 @@ window.handleDeleteCargoUI = async function() {
         else {
             toggleCargoView('list');
         }
+    }
+}
+
+// Excluir cargo diretamente da listagem (sem precisar abrir o formulário de edição)
+window.deletarCargoDireto = async function(id, nome) {
+    if (nome.toUpperCase() === 'MOTORISTA') {
+        alert('O cargo MOTORISTA é essencial para o sistema e não pode ser excluído.');
+        return;
+    }
+    if (!confirm(`Tem certeza que deseja excluir o cargo "${nome}"?`)) return;
+    const res = await apiDelete(`/cargos/${id}`);
+    if (res && res.error) {
+        alert(res.error);
+    } else {
+        loadCargos();
     }
 }
 
