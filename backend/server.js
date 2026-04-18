@@ -3533,21 +3533,22 @@ function buildGeradoresHtml(gerador, colaborador, baseUrl) {
 <meta charset="UTF-8">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; color: #1e293b; width: 210mm; }
+  html, body { width: 100%; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; color: #1e293b; }
   @page { size: A4; margin: 0; }
   .logo-banner { width: 100%; display: block; }
   .logo-banner img { width: 100%; display: block; }
-  .page-content { padding: 0.5cm 1.8cm 1.8cm 1.8cm; }
+  .page-content { padding: 0.5cm 1.8cm 1.8cm 1.8cm; max-width: 100%; word-wrap: break-word; overflow-wrap: break-word; }
   h1.doc-title { text-align: center; font-size: 13pt; text-transform: uppercase; margin: 10px 0 6px; }
   .colab-header { margin-top: 8px; font-size: 10pt; }
   .colab-box { border: 1px solid #000; padding: 8px; margin-top: 6px; font-size: 9pt; line-height: 1.5; }
-  .colab-row { display: flex; gap: 2rem; }
-  .doc-body { margin-top: 12px; text-align: justify; font-size: 10pt; line-height: 1.5; }
+  .colab-row { display: flex; gap: 2rem; flex-wrap: wrap; }
+  .doc-body { margin-top: 12px; text-align: justify; font-size: 10pt; line-height: 1.5; word-wrap: break-word; overflow-wrap: break-word; }
   .doc-body p { margin: 2px 0; }
   .doc-body li { margin: 1px 0; }
   .footer { margin-top: 18px; }
   .footer-date { font-weight: 700; font-size: 10pt; margin-bottom: 20px; }
-  .sigs { display: flex; justify-content: space-between; margin-top: 30px; }
+  .sigs { display: flex; justify-content: space-between; margin-top: 30px; flex-wrap: wrap; }
   .sig-block { text-align: center; width: 45%; }
   .sig-line { border-top: 1.5px solid #000; padding-top: 4px; font-weight: 700; font-size: 9pt; }
   .sig-sub { font-size: 8pt; color: #555; }
