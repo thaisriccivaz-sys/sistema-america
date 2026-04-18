@@ -905,16 +905,18 @@ window.toggleCargoView = async function(mode, id = null) {
         if (mode === 'new') {
             document.getElementById('manage-cargo-id').value = '';
             document.getElementById('cargo-input-name').value = '';
-            document.getElementById('cargo-input-departamento').value = '';
             document.getElementById('cargo-form-label').textContent = 'Novo Cargo';
             if(btnDelete) btnDelete.style.display = 'none';
             renderCargoChecklist(null);  // null = sem cargo ainda, checkboxes desabilitados
             document.getElementById('cargo-input-name').focus();
+            // Garantir que o dropdown de departamentos esteja populado
+            await populateCargoDeptoSelect();
         } else if (mode === 'edit' && id) {
             document.getElementById('manage-cargo-id').value = id;
             document.getElementById('cargo-form-label').textContent = 'Editar Cargo';
             if(btnDelete) btnDelete.style.display = 'block';
             
+            await populateCargoDeptoSelect();
             const res = await fetch(`${API_URL}/cargos`, { headers: { 'Authorization': `Bearer ${currentToken}` } });
             const cargos = await res.json();
             const cargo = (cargos || []).find(c => c.id == id);
@@ -1380,6 +1382,22 @@ window.calcularHorarioSaida = function() {
     } else if (outSabSaida) {
         outSabSaida.value = '';
     }
+}
+
+async function populateCargoDeptoSelect(selectedValue = '') {
+    const selectCargoDepto = document.getElementById('cargo-input-departamento');
+    if (!selectCargoDepto) return;
+    try {
+        const deptos = await apiGet('/departamentos');
+        selectCargoDepto.innerHTML = '<option value="" selected disabled>Selecionar</option>';
+        (deptos || []).forEach(d => {
+            const opt = document.createElement('option');
+            opt.value = d.nome;
+            opt.textContent = d.nome;
+            if (selectedValue && d.nome === selectedValue) opt.selected = true;
+            selectCargoDepto.appendChild(opt);
+        });
+    } catch(e) { console.error('Erro ao carregar departamentos:', e); }
 }
 
 async function loadSelects() {
