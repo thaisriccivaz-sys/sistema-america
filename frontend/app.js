@@ -2565,8 +2565,8 @@ window.editColaborador = async function(id) {
             const cpfDigits = (c.cpf || '').replace(/\D/g, '');
             const ctpsEl = document.getElementById('colab-ctps');
             const serieEl = document.getElementById('colab-ctps-serie');
-            if (ctpsEl) { ctpsEl.value = cpfDigits.substring(0, 7); ctpsEl.readOnly = true; ctpsEl.style.background = '#f1f5f9'; ctpsEl.style.cursor = 'not-allowed'; }
-            if (serieEl) { serieEl.value = cpfDigits.substring(7, 11); serieEl.readOnly = true; serieEl.style.background = '#f1f5f9'; serieEl.style.cursor = 'not-allowed'; }
+            if (ctpsEl) { ctpsEl.value = ctpsEl.value || cpfDigits.substring(0, 7); ctpsEl.readOnly = false; ctpsEl.style.background = ''; ctpsEl.style.cursor = ''; }
+            if (serieEl) { serieEl.value = serieEl.value || cpfDigits.substring(7, 11); serieEl.readOnly = false; serieEl.style.background = ''; serieEl.style.cursor = ''; }
         })();;
         if (document.getElementById('colab-pis')) document.getElementById('colab-pis').value = c.pis || '';
         if (document.getElementById('colab-cor-raca')) document.getElementById('colab-cor-raca').value = c.cor_raca || '';
