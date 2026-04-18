@@ -863,13 +863,9 @@ async function loadCargos() {
             <tr>
                 <td>${c.id}</td>
                 <td style="font-weight: 600;">${c.nome}</td>
-                <td style="text-align: right; display: flex; gap: 0.4rem; justify-content: flex-end;">
+                <td style="text-align: right;">
                     <button type="button" class="btn btn-primary btn-sm" onclick="window.toggleCargoView('edit', ${c.id})">
                         <i class="ph ph-note-pencil"></i> Editar
-                    </button>
-                    <button type="button" class="btn btn-danger btn-sm" onclick="window.deletarCargoDireto(${c.id}, '${c.nome.replace(/'/g, "\\'")}')"
-                        title="Excluir cargo">
-                        <i class="ph ph-trash"></i> Excluir
                     </button>
                 </td>
             </tr>
@@ -1130,8 +1126,7 @@ async function loadDepartamentos() {
             <td>${d.id}</td>
             <td>${d.nome}</td>
             <td>
-                <button class="btn btn-secondary btn-sm" style="margin-right: 5px;" onclick="editDepartamento(${d.id}, '${d.nome}')" title="Editar"><i class="ph ph-pencil-simple"></i></button>
-                <button class="btn btn-danger btn-sm" onclick="deleteDepartamento(${d.id})" title="Excluir"><i class="ph ph-trash"></i></button>
+                <button class="btn btn-secondary btn-sm" onclick="editDepartamento(${d.id}, '${d.nome}')" title="Editar"><i class="ph ph-pencil-simple"></i></button>
             </td>
         </tr>`;
     });
