@@ -289,6 +289,82 @@ GERADORES_PERFIL.forEach(nome => {
     });
 });
 
+// MIGRATION: Seed do gerador "Aceite de Recebimento por E-mail"
+(function seedAceiteEmail() {
+    const nomeGerador = 'Aceite de Recebimento por E-mail';
+    const conteudoHTML = `
+<div style="font-family: Arial, sans-serif; font-size: 11pt; color: #222; max-width: 700px; margin: auto; padding: 20px;">
+
+  <div style="text-align:center; margin-bottom: 24px;">
+    <img src="{BASE_URL}/api/logo" alt="América Rental" style="height:60px; margin-bottom:8px;" onerror="this.style.display='none'" />
+    <h2 style="margin:0; font-size:14pt; letter-spacing:1px; color:#1a1a2e;">ACEITE DE RECEBIMENTO POR E-MAIL</h2>
+    <p style="margin:4px 0 0; font-size:9pt; color:#555;">Declaração de Ciência sobre Comunicações Corporativas</p>
+    <hr style="border:none; border-top:2px solid #c0392b; margin: 12px auto; width:60%;" />
+  </div>
+
+  <p style="margin-bottom: 16px; line-height: 1.7;">
+    Eu, <strong>{NOME_COMPLETO}</strong>, portador(a) do CPF nº <strong>{CPF}</strong>,
+    ocupando o cargo de <strong>{CARGO}</strong> no departamento de <strong>{DEPARTAMENTO}</strong>,
+    admitido(a) em <strong>{DATA_ADMISSAO}</strong>, venho por meio deste documento
+    <strong>declarar meu aceite e ciência</strong> de que:
+  </p>
+
+  <ol style="line-height: 2; padding-left: 20px; margin-bottom: 20px;">
+    <li>Estou ciente de que a empresa <strong>América Rental Equipamentos Ltda.</strong> poderá me enviar comunicados, documentos, contratos, holerites, avisos e demais informações corporativas por <strong>e-mail</strong>, inclusive com validade legal.</li>
+    <li>O endereço de e-mail cadastrado para recebimento dessas comunicações é: <strong>{EMAIL}</strong>.</li>
+    <li>Reconheço que sou o(a) <strong>responsável pela guarda, confidencialidade e acesso</strong> à referida caixa de e-mail e que o recebimento das mensagens na referida conta equivale ao recebimento pessoal.</li>
+    <li>Estou ciente de que qualquer comunicação enviada ao e-mail acima será considerada <strong>recebida para todos os fins de direito</strong>, devendo eu responder ou tomar as providências cabíveis nos prazos indicados pela empresa.</li>
+    <li>Comprometo-me a <strong>manter atualizado</strong> meu endereço de e-mail junto ao setor de Recursos Humanos, comunicando imediatamente qualquer alteração.</li>
+    <li>Estou ciente de que o não recebimento decorrente de caixa cheia, filtro de spam ou e-mail desatualizado será de minha <strong>exclusiva responsabilidade</strong>.</li>
+  </ol>
+
+  <p style="margin-bottom: 32px; line-height: 1.7;">
+    Por ser expressão da minha vontade, assino o presente termo de livre e espontânea vontade,
+    em <strong>{CIDADE}</strong>, em <strong>{DATA_HOJE}</strong>.
+  </p>
+
+  <div style="display:flex; justify-content:space-between; margin-top:48px; gap:40px;">
+    <div style="flex:1; text-align:center;">
+      <div style="border-top: 1px solid #333; padding-top: 8px; font-size:9pt;">
+        Assinatura do(a) Colaborador(a)<br/>
+        <strong>{NOME_COMPLETO}</strong><br/>
+        CPF: {CPF}
+      </div>
+    </div>
+    <div style="flex:1; text-align:center;">
+      <div style="border-top: 1px solid #333; padding-top: 8px; font-size:9pt;">
+        Assinatura do(a) Responsável pelo RH<br/>
+        <strong>América Rental Equipamentos Ltda.</strong><br/>
+        CNPJ: 06.118.842/0001-60
+      </div>
+    </div>
+  </div>
+
+</div>
+    `.trim();
+
+    db.get("SELECT nome FROM geradores_excluidos WHERE nome = ?", [nomeGerador], (e, excluido) => {
+        if (excluido) return;
+        db.get("SELECT id FROM geradores WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?))", [nomeGerador], (err, existing) => {
+            if (existing) {
+                // Atualiza o conteúdo se o gerador já existe mas tem conteúdo padrão vazio
+                db.run("UPDATE geradores SET conteudo = ? WHERE id = ? AND (conteudo IS NULL OR LENGTH(TRIM(conteudo)) < 100)",
+                    [conteudoHTML, existing.id]);
+            } else {
+                db.run("INSERT INTO geradores (nome, conteudo, tipo) VALUES (?, ?, 'html')",
+                    [nomeGerador, conteudoHTML],
+                    (err) => { if (err && !err.message.includes('UNIQUE')) console.error(`Erro ao criar gerador "${nomeGerador}":`, err); else console.log(`[SEED] Gerador "${nomeGerador}" criado com sucesso.`); }
+                );
+            }
+        });
+    });
+
+    // Regra de visibilidade: aparece no dropdown para todos, mas não é automático
+    db.run("UPDATE geradores SET visibilidade_regra = ? WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?))",
+        [JSON.stringify({ dropdown_todos: true, visivel_automatico: false, condicao: null, departamentos: null }), nomeGerador]
+    );
+})();
+
 // MIGRATION: Inserir ou atualizar relação exata de Cargos x Departamentos solicitada
 const cargosDeptosSync = [
     ['Aux. Administrativo', 'Administrativo'], ['Ass. Administrativo 1', 'Administrativo'], 
