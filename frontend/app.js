@@ -6227,13 +6227,11 @@ window.renderGeradoresList = function(items) {
             <td>
                 <div style="font-weight:600; color:var(--primary-color);">${g.nome}</div>
             </td>
-            <td>${badge}</td>
             <td>${g.created_at ? new Date(g.created_at).toLocaleDateString('pt-BR') : '-'}</td>
             <td style="text-align:right;">
                 <div style="display:flex; gap:0.5rem; justify-content:flex-end;">
                     <button class="btn btn-primary btn-sm" onclick="window.abrirModalSelecaoColab(${g.id})" title="Visualizar"><i class="ph ph-eye"></i></button>
                     <button class="btn btn-warning btn-sm" onclick="window.editGerador(${g.id})" title="Editar"><i class="ph ph-pencil-simple"></i></button>
-                    ${prot ? '' : `<button class="btn btn-danger btn-sm" onclick="window.deleteGerador(${g.id})" title="Excluir"><i class="ph ph-trash"></i></button>`}
                 </div>
             </td>
         </tr>`;
@@ -6850,62 +6848,10 @@ window.processarGeracao = async function() {
             document.getElementById('modal-selecionar-colab').style.display = 'none';
             window.abrirPreviewDocumento(data);
 
-            // Substituir o botão de Salvar PDF local por um fluxo de "Anexar no Prontuário" e assinatura
             setTimeout(() => {
                 const previewBtnSalvar = document.querySelector('#modal-preview-doc button.btn-primary');
                 if (previewBtnSalvar) {
-                    previewBtnSalvar.innerHTML = '<i class="ph ph-paperclip"></i> Anexar no Prontuário';
-                    previewBtnSalvar.onclick = async function() {
-                        const oldHtml = this.innerHTML;
-                        this.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Anexando...';
-                        this.disabled = true;
-                        
-                        try {
-                            const previewContent = document.getElementById('preview-doc-body');
-                            const valData = data;
-                            const nomeArquivo = `${(valData.gerador_nome || 'Documento').replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
-                            
-                            // Replicar as configurações exatas do PDF
-                            const pdfBlob = await window.gerarPDFBlob(previewContent, nomeArquivo);
-                            
-                            const formData = new FormData();
-                            formData.append('file', new File([pdfBlob], nomeArquivo, { type: 'application/pdf' }));
-                            formData.append('colaborador_id', colabId);
-                            formData.append('tab_name', 'CONTRATOS_AVULSOS'); 
-                            formData.append('document_type', valData.gerador_nome || 'Documento Gerado');
-                            
-                            const uploadRes = await fetch(`${API_URL}/documentos`, {
-                                method: 'POST', headers: {'Authorization': `Bearer ${currentToken}`}, body: formData
-                            });
-                            
-                            if (!uploadRes.ok) throw new Error('Falha no upload do documento');
-                            
-                            document.getElementById('modal-preview-doc').style.display = 'none';
-
-                            const sendPrompt = await Swal.fire({
-                                title: 'Documento Anexado',
-                                text: 'Deseja enviar este contrato para assinatura digital via Assinafy?',
-                                icon: 'question',
-                                showCancelButton: true,
-                                confirmButtonText: 'Sim, enviar',
-                                cancelButtonText: 'Não'
-                            });
-
-                            if (sendPrompt.isConfirmed) {
-                                await apiPost('/admissao-assinaturas/enviar-lote', {
-                                    colaborador_id: colabId,
-                                    geradores_ids: [parseInt(geradorId)]
-                                });
-                                if(typeof showToast !== 'undefined') showToast('Documento anexado e enviado para assinatura.', 'success');
-                            } else {
-                                Swal.fire('Anexado!', 'Documento gerado e salvo no prontuário do colaborador com sucesso.', 'success');
-                            }
-                        } catch(e) {
-                            Swal.fire('Erro', e.message || 'Erro ao anexar', 'error');
-                            this.innerHTML = oldHtml;
-                            this.disabled = false;
-                        }
-                    };
+                    previewBtnSalvar.style.display = 'none'; // Apenas para ver como vai ficar o documento
                 }
             }, 100);
         }

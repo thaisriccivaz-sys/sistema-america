@@ -1720,15 +1720,6 @@
                             <button id="tab-btn-gerador" class="btn btn-primary" onclick="window.switchGeradoresTab('gerador')" style="height: 42px; display: flex; align-items: center; padding: 0 1.25rem; font-weight: 600; gap: 0.5rem; border-radius: 8px; background:#f503c5; border-color:#f503c5;">
                                 <i class="ph ph-file-text"></i> Geradores
                             </button>
-                            <button id="tab-btn-templates" class="btn" onclick="window.switchGeradoresTab('templates')" style="height: 42px; display: flex; align-items: center; padding: 0 1.25rem; font-weight: 600; gap: 0.5rem; border-radius: 8px; background:#f1f5f9; color:#334155; border:1.5px solid #e2e8f0;">
-                                <i class="ph ph-briefcase"></i> Template de Admissão
-                            </button>
-                            <button id="tab-btn-outros-contratos" class="btn" onclick="window.switchGeradoresTab('outros-contratos')" style="height: 42px; display: flex; align-items: center; padding: 0 1.25rem; font-weight: 600; gap: 0.5rem; border-radius: 8px; background:#f1f5f9; color:#334155; border:1.5px solid #e2e8f0;">
-                                <i class="ph ph-file-plus"></i> Template de Outros Contratos
-                            </button>
-                            <button class="btn btn-primary" id="btn-novo-gerador" onclick="window.openModalGerador()" style="height: 42px; display: flex; align-items: center; padding: 0 1.5rem; font-weight: 600; gap: 0.6rem; border-radius: 8px;">
-                                <i class="ph ph-plus" style="font-size: 1.1rem;"></i> Novo Gerador
-                            </button>
                         </div>
                     </div>
 
@@ -1740,13 +1731,6 @@
                                 <i class="ph ph-magnifying-glass" style="color:#94a3b8; font-size:1.2rem; margin-right:0.75rem;"></i>
                                 <input type="text" id="search-geradores" placeholder="Pesquisar gerador..." onkeyup="window.filterGeradores()" style="border:none; outline:none; width:100%; font-size:0.95rem; color:#334155; background:transparent; height:100%;">
                             </div>
-                            <select id="filter-gerador-template" onchange="window.filterGeradores()" style="height:42px; border:1.5px solid #e2e8f0; border-radius:8px; padding:0 1rem; font-size:0.9rem; color:#334155; background:#fff; cursor:pointer; min-width:200px;">
-                                <option value="todos">Todos os Geradores</option>
-                                <option value="admissao">Template Admissão</option>
-                                <option value="contratos">Template Contratos</option>
-                                <option value="ambos">Ambos</option>
-                                <option value="nenhum">Sem Template</option>
-                            </select>
                         </div>
                         <div class="card">
                             <div class="table-responsive">
@@ -1754,7 +1738,6 @@
                                     <thead>
                                         <tr>
                                             <th>Nome do Documento</th>
-                                            <th>Template</th>
                                             <th>Criado em</th>
                                             <th style="text-align: right;">Ações</th>
                                         </tr>
