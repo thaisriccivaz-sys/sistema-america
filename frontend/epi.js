@@ -398,6 +398,12 @@ window.openEpiModal = function(id) {
         </label>`;
     }).join('');
 
+    // Só mostra "Departamentos vinculados" para grupo Escritório ou novos grupos
+    const grupoAtual = t ? t.grupo : '';
+    const isEscritorioOuNovo = !t || GRUPOS_ADMIN.includes(grupoAtual);
+    const deptSection = deptContainer.closest('div');
+    if (deptSection) deptSection.style.display = isEscritorioOuNovo ? '' : 'none';
+
     const episList = document.getElementById('epi-items-list');
     episList.innerHTML = '';
     (t ? (t.epis || []) : []).forEach(epi => addEpiRow(epi));
