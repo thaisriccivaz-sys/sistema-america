@@ -1,4 +1,4 @@
-﻿const API_URL = `${window.location.origin}/api`;
+const API_URL = `${window.location.origin}/api`;
 function showToast(msg, type) {
     const toast = document.getElementById('global-toast');
     if (toast) {
@@ -23,7 +23,7 @@ let viewedColaborador = null;
 // Helper global para PDF
 window.gerarPDFBlob = async function(element, filename = 'documento.pdf') {
     return new Promise((resolve, reject) => {
-        if (typeof html2pdf === 'undefined') return reject(new Error('Biblioteca html2pdf nÃƒÂ£o carregada'));
+        if (typeof html2pdf === 'undefined') return reject(new Error('Biblioteca html2pdf nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o carregada'));
 
         // Salvar estilo original
         const origWidth    = element.style.width;
@@ -33,7 +33,7 @@ window.gerarPDFBlob = async function(element, filename = 'documento.pdf') {
         const origShadow   = element.style.boxShadow;
         const origMargin   = element.style.margin;
 
-        // Limpar estilo para nÃƒÂ£o vazar bordas (evita 2a pagina vazia)
+        // Limpar estilo para nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o vazar bordas (evita 2a pagina vazia)
         element.style.width     = '794px';
         element.style.maxWidth  = '794px';
         element.style.minHeight = '0';
@@ -57,7 +57,7 @@ window.gerarPDFBlob = async function(element, filename = 'documento.pdf') {
         }
 
         const opt = {
-            margin: [5, 0, 10, 0], // 5mm topo, 0 esq, 10mm inferior, 0 dir para margem de seguranÃƒÂ§a na emenda das pÃƒÂ¡ginas
+            margin: [5, 0, 10, 0], // 5mm topo, 0 esq, 10mm inferior, 0 dir para margem de seguranÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§a na emenda das pÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ginas
             filename: filename,
             image: { type: 'jpeg', quality: 0.98 },
             html2canvas: { scale: 2, useCORS: true },
@@ -94,18 +94,18 @@ window.gerarPDFBlob = async function(element, filename = 'documento.pdf') {
     });
 };
 
-// --- INICIALIZAÃƒâ€¡ÃƒÆ’O E ROTAS BÃƒÂSICAS ---
+// --- INICIALIZAÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢O E ROTAS BÃƒÆ’Ã†â€™Ãƒâ€šÃ‚ÂSICAS ---
 
 const DOCS_DISPONIVEIS = [
-    "Acordo Individual BenefÃƒÂ­cios", "AutorizaÃƒÂ§ÃƒÂ£o Uso de Imagem", "AuxÃƒÂ­lio CombustÃƒÂ­vel", 
-    "Coca Cola Desconto", "Contrato Academia", "Contrato Faculdade", "DescriÃƒÂ§ÃƒÂ£o de cargos", 
+    "Acordo Individual BenefÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­cios", "AutorizaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o Uso de Imagem", "AuxÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­lio CombustÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel", 
+    "Coca Cola Desconto", "Contrato Academia", "Contrato Faculdade", "DescriÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de cargos", 
     "EPI", "Gerador Bloqueio Farmacia e mercado", "Gerador Desconto folha", 
     "Gerador Sorteio", "Intermitente", "NR01", "NR18", "Pedido Abertura de Conta", 
     "Terapia", "Termo de Acordo de Desligamento", "Termo de Confidencialidade", 
     "Termo de Responsabilidade Bilhete unico", "Termo de Responsabilidade Cracha", 
     "Termo de Responsabilidade de Celulares", "Termo de Responsabilidade de Chaves", 
     "Termo de Responsabilidade de Notebook", "Termo de Responsabilidade entrega de kit veicular", 
-    "Termo de Responsabilidade VeÃƒÂ­culo"
+    "Termo de Responsabilidade VeÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­culo"
 ];
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -136,7 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 navigateTo('dashboard');
             }
         } else {
-            console.warn('O elemento app-shell nÃƒÂ£o foi encontrado. Interface antiga detectada ou HTML incompleto.');
+            console.warn('O elemento app-shell nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o foi encontrado. Interface antiga detectada ou HTML incompleto.');
             const formSection = document.querySelector('.form-section');
             if (formSection) formSection.style.display = 'block';
         }
@@ -145,7 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ LEMBRAR USUÃƒÂRIO: preencher campos se houver dados salvos Ã¢â€â‚¬Ã¢â€â‚¬
+// ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ LEMBRAR USUÃƒÆ’Ã†â€™Ãƒâ€šÃ‚ÂRIO: preencher campos se houver dados salvos ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
 (function() {
     const saved = localStorage.getItem('erp_remember');
     if (saved) {
@@ -204,7 +204,7 @@ if (formLogin) {
 
             carregarFotoUsuarioTopbar();
 
-            // Carrega permissÃƒÂµes se existir funÃƒÂ§ÃƒÂ£o global
+            // Carrega permissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes se existir funÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o global
             if (typeof window.carregarPermissoesOnline === 'function') {
                 await window.carregarPermissoesOnline();
             }
@@ -300,117 +300,117 @@ function showView(viewId) {
     }
 }
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ BREADCRUMB SYSTEM Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ BREADCRUMB SYSTEM ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
 const BREADCRUMB_MAP = {
     // Telas principais
-    'integracao': { path: 'IntegraÃƒÂ§ÃƒÂ£o', code: 'RHAD06' },
+    'integracao': { path: 'IntegraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o', code: 'RHAD06' },
     'assinaturas-digitais': { path: 'Assinaturas Digitais', code: 'RHAD07' },
     'dashboard':          { path: 'Dashboard',                                                    code: 'RH001' },
     'colaboradores':      { path: 'Colaboradores',                                                code: 'RHCL00' },
-    'form-colaborador':   { path: 'Colaboradores Ã¢â€ â€™ Cadastro / EdiÃƒÂ§ÃƒÂ£o'                             },
+    'form-colaborador':   { path: 'Colaboradores ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Cadastro / EdiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o'                             },
     'cargos':             { path: 'Cargos',                                                       code: 'RHAD01' },
     'departamentos':      { path: 'Departamentos',                                                code: 'RHAD02' },
     'faculdade':          { path: 'Faculdade',                                                    code: 'RHAD03' },
     'chaves':             { path: 'Chaves',                                                       code: 'RHAD04' },
     'geradores':          { path: 'Geradores',                                                    code: 'RHDOC01' },
-    'admissao':           { path: 'AdmissÃƒÂ£o',                                                     code: 'RHAD05' },
+    'admissao':           { path: 'AdmissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o',                                                     code: 'RHAD05' },
     'ficha-epi':          { path: 'Ficha EPI',                                                    code: 'RHEPI01' },
-    'avaliacoes':         { path: 'AvaliaÃƒÂ§ÃƒÂµes',                                                   code: 'RHAV01' },
-    'gerenciar-avaliacoes': { path: 'Gerenciar AvaliaÃƒÂ§ÃƒÂµes',                                       code: 'RHAV02' },
-    'usuarios-permissoes':  { path: 'Diretoria Ã¢â€ â€™ UsuÃƒÂ¡rios e PermissÃƒÂµes',                          code: 'DIR001' },
-    'form-usuario':         { path: 'Diretoria Ã¢â€ â€™ UsuÃƒÂ¡rios e PermissÃƒÂµes Ã¢â€ â€™ Cadastro',               code: 'DIR002' },
-    'certificado-digital':  { path: 'Diretoria Ã¢â€ â€™ Certificado Digital',                            code: 'DIR003' },
-    // Sub-telas (ProntuÃƒÂ¡rio Digital - abas)
-    'tab:00. CheckList':          { path: 'Colaboradores Ã¢â€ â€™ ProntuÃƒÂ¡rio Digital Ã¢â€ â€™ 00. CheckList',          },
-    'tab:01_FICHA_CADASTRAL':     { path: 'Colaboradores Ã¢â€ â€™ ProntuÃƒÂ¡rio Digital Ã¢â€ â€™ Ficha Cadastral',        },
-    'tab:Ficha Cadastral':        { path: 'Colaboradores Ã¢â€ â€™ ProntuÃƒÂ¡rio Digital Ã¢â€ â€™ Ficha Cadastral',        },
-    'tab:Pagamentos':             { path: 'Colaboradores Ã¢â€ â€™ ProntuÃƒÂ¡rio Digital Ã¢â€ â€™ Pagamentos',             },
-    'tab:ASO':                    { path: 'Colaboradores Ã¢â€ â€™ ProntuÃƒÂ¡rio Digital Ã¢â€ â€™ ASO',                    },
-    'tab:Ficha de EPI':           { path: 'Colaboradores Ã¢â€ â€™ ProntuÃƒÂ¡rio Digital Ã¢â€ â€™ Ficha de EPI',           },
-    'tab:Atestados':              { path: 'Colaboradores Ã¢â€ â€™ ProntuÃƒÂ¡rio Digital Ã¢â€ â€™ Atestados',              },
-    'tab:Faltas':                 { path: 'Colaboradores Ã¢â€ â€™ ProntuÃƒÂ¡rio Digital Ã¢â€ â€™ Faltas',                 },
-    'tab:Contratos':              { path: 'Colaboradores Ã¢â€ â€™ ProntuÃƒÂ¡rio Digital Ã¢â€ â€™ Contratos',              },
-    'tab:AvaliaÃƒÂ§ÃƒÂ£o':              { path: 'Colaboradores Ã¢â€ â€™ ProntuÃƒÂ¡rio Digital Ã¢â€ â€™ AvaliaÃƒÂ§ÃƒÂ£o',              },
-    'tab:AvaliaÃƒÂ§ÃƒÂµes':             { path: 'Colaboradores Ã¢â€ â€™ ProntuÃƒÂ¡rio Digital Ã¢â€ â€™ AvaliaÃƒÂ§ÃƒÂµes',             },
-    'tab:AdvertÃƒÂªncias':           { path: 'Colaboradores Ã¢â€ â€™ ProntuÃƒÂ¡rio Digital Ã¢â€ â€™ OcorrÃƒÂªncias',           },
-    'tab:Faculdade':              { path: 'Colaboradores Ã¢â€ â€™ ProntuÃƒÂ¡rio Digital Ã¢â€ â€™ Faculdade',              },
-    'tab:Boletim de ocorrÃƒÂªncia':  { path: 'Colaboradores Ã¢â€ â€™ ProntuÃƒÂ¡rio Digital Ã¢â€ â€™ Boletim de OcorrÃƒÂªncia',  },
-    'tab:Certificados':           { path: 'Colaboradores Ã¢â€ â€™ ProntuÃƒÂ¡rio Digital Ã¢â€ â€™ Certificados',           },
-    'tab:Conjuge':                { path: 'Colaboradores Ã¢â€ â€™ ProntuÃƒÂ¡rio Digital Ã¢â€ â€™ Conjuge',                },
-    'tab:Dependentes':            { path: 'Colaboradores Ã¢â€ â€™ ProntuÃƒÂ¡rio Digital Ã¢â€ â€™ Dependentes',            },
-    'tab:Fotos':                  { path: 'Colaboradores Ã¢â€ â€™ ProntuÃƒÂ¡rio Digital Ã¢â€ â€™ Fotos',                  },
-    'tab:Multas':                 { path: 'Colaboradores Ã¢â€ â€™ ProntuÃƒÂ¡rio Digital Ã¢â€ â€™ Multas',                 },
-    'tab:NRs':                    { path: 'Colaboradores Ã¢â€ â€™ ProntuÃƒÂ¡rio Digital Ã¢â€ â€™ NRs',                    },
-    'tab:Terapia':                { path: 'Colaboradores Ã¢â€ â€™ ProntuÃƒÂ¡rio Digital Ã¢â€ â€™ Terapia',                },
-    'tab:Treinamento':            { path: 'Colaboradores Ã¢â€ â€™ ProntuÃƒÂ¡rio Digital Ã¢â€ â€™ Treinamento',            },
-    'tab:Documentos':             { path: 'Colaboradores Ã¢â€ â€™ ProntuÃƒÂ¡rio Digital Ã¢â€ â€™ Documentos',             },
-    'tab:Afastamentos':           { path: 'Colaboradores Ã¢â€ â€™ ProntuÃƒÂ¡rio Digital Ã¢â€ â€™ Afastamentos',           },
-    'tab:Chaves':                 { path: 'Colaboradores Ã¢â€ â€™ ProntuÃƒÂ¡rio Digital Ã¢â€ â€™ Chaves',                 },
-    'tab:ProntuÃƒÂ¡rio Digital':     { path: 'Colaboradores Ã¢â€ â€™ ProntuÃƒÂ¡rio Digital',                          },
+    'avaliacoes':         { path: 'AvaliaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes',                                                   code: 'RHAV01' },
+    'gerenciar-avaliacoes': { path: 'Gerenciar AvaliaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes',                                       code: 'RHAV02' },
+    'usuarios-permissoes':  { path: 'Diretoria ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ UsuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rios e PermissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes',                          code: 'DIR001' },
+    'form-usuario':         { path: 'Diretoria ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ UsuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rios e PermissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Cadastro',               code: 'DIR002' },
+    'certificado-digital':  { path: 'Diretoria ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Certificado Digital',                            code: 'DIR003' },
+    // Sub-telas (ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio Digital - abas)
+    'tab:00. CheckList':          { path: 'Colaboradores ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio Digital ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ 00. CheckList',          },
+    'tab:01_FICHA_CADASTRAL':     { path: 'Colaboradores ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio Digital ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Ficha Cadastral',        },
+    'tab:Ficha Cadastral':        { path: 'Colaboradores ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio Digital ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Ficha Cadastral',        },
+    'tab:Pagamentos':             { path: 'Colaboradores ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio Digital ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Pagamentos',             },
+    'tab:ASO':                    { path: 'Colaboradores ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio Digital ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ ASO',                    },
+    'tab:Ficha de EPI':           { path: 'Colaboradores ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio Digital ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Ficha de EPI',           },
+    'tab:Atestados':              { path: 'Colaboradores ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio Digital ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Atestados',              },
+    'tab:Faltas':                 { path: 'Colaboradores ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio Digital ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Faltas',                 },
+    'tab:Contratos':              { path: 'Colaboradores ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio Digital ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Contratos',              },
+    'tab:AvaliaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o':              { path: 'Colaboradores ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio Digital ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ AvaliaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o',              },
+    'tab:AvaliaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes':             { path: 'Colaboradores ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio Digital ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ AvaliaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes',             },
+    'tab:AdvertÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncias':           { path: 'Colaboradores ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio Digital ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ OcorrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncias',           },
+    'tab:Faculdade':              { path: 'Colaboradores ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio Digital ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Faculdade',              },
+    'tab:Boletim de ocorrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia':  { path: 'Colaboradores ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio Digital ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Boletim de OcorrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia',  },
+    'tab:Certificados':           { path: 'Colaboradores ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio Digital ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Certificados',           },
+    'tab:Conjuge':                { path: 'Colaboradores ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio Digital ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Conjuge',                },
+    'tab:Dependentes':            { path: 'Colaboradores ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio Digital ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Dependentes',            },
+    'tab:Fotos':                  { path: 'Colaboradores ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio Digital ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Fotos',                  },
+    'tab:Multas':                 { path: 'Colaboradores ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio Digital ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Multas',                 },
+    'tab:NRs':                    { path: 'Colaboradores ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio Digital ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ NRs',                    },
+    'tab:Terapia':                { path: 'Colaboradores ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio Digital ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Terapia',                },
+    'tab:Treinamento':            { path: 'Colaboradores ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio Digital ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Treinamento',            },
+    'tab:Documentos':             { path: 'Colaboradores ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio Digital ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Documentos',             },
+    'tab:Afastamentos':           { path: 'Colaboradores ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio Digital ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Afastamentos',           },
+    'tab:Chaves':                 { path: 'Colaboradores ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio Digital ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Chaves',                 },
+    'tab:ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio Digital':     { path: 'Colaboradores ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio Digital',                          },
 };
 
 window.carregarPermissoesOnline = async function() {
     if (!currentUser || !currentToken) return;
 
-    // Define quem ÃƒÂ© super admin e pode ver tudo por padrÃƒÂ£o (Apenas Diretoria!)
-    // Verifica: role do banco, departamento OU nome do grupo de permissÃƒÂ£o
+    // Define quem ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© super admin e pode ver tudo por padrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o (Apenas Diretoria!)
+    // Verifica: role do banco, departamento OU nome do grupo de permissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o
     const isTopAdmin = currentUser.role === 'Diretoria' 
         || currentUser.departamento === 'Diretoria'
         || (currentUser.grupo_nome && currentUser.grupo_nome.toLowerCase() === 'diretoria');
     window.isTopAdmin = isTopAdmin;
 
-    // Remove qualquer display-none forÃƒÂ§ado das categorias primeiro
+    // Remove qualquer display-none forÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ado das categorias primeiro
     document.querySelectorAll('.dept-item').forEach(el => el.style.display = '');
 
     if (isTopAdmin) {
-        // Regra fixa solicitada: Ocultar mÃƒÂ³dulos nunca se aplica a lideranÃƒÂ§a da Diretoria.
-        // Eles tÃƒÂªm acesso automÃƒÂ¡tico e irrestrito a todas as telas visualmente.
+        // Regra fixa solicitada: Ocultar mÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³dulos nunca se aplica a lideranÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§a da Diretoria.
+        // Eles tÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªm acesso automÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡tico e irrestrito a todas as telas visualmente.
         document.querySelectorAll('.nav-item').forEach(el => el.style.display = '');
         return; // Retorna cedo ignorando qualquer grupo
     }
 
     if (!currentUser.grupo_permissao_id) {
-        // UsuÃƒÂ¡rio comum sem permissÃƒÂµes. Ocultar tudo.
+        // UsuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio comum sem permissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes. Ocultar tudo.
         document.querySelectorAll('.nav-item').forEach(el => el.style.cssText = 'display: none !important;');
         document.querySelectorAll('.dept-item').forEach(el => el.style.cssText = 'display: none !important;');
         return;
     }
 
-    // AvanÃƒÂ§a para ler as regras reais do grupo (se for usuÃƒÂ¡rio comum com grupo)
+    // AvanÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§a para ler as regras reais do grupo (se for usuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio comum com grupo)
 
     try {
         const res = await fetch(`${API_URL}/grupos-permissao/${currentUser.grupo_permissao_id}/permissoes`, {
             headers: { Authorization: `Bearer ${currentToken}` }
         });
-        if (!res.ok) throw new Error('Falha ao obter permissÃƒÂµes do grupo.');
+        if (!res.ok) throw new Error('Falha ao obter permissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes do grupo.');
         const permissoes = await res.json();
 
-        // Cria um mapa rÃƒÂ¡pido das permissoes ativas
+        // Cria um mapa rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡pido das permissoes ativas
         const mapPerms = {};
         permissoes.forEach(p => {
             const v = p.visualizar;
             mapPerms[p.pagina_id] = (v === 1 || v === '1' || v === true || v === 'true');
         });
 
-        // Auto-liberar certificado-digital para quem jÃƒÂ¡ tem acesso a usuarios-permissoes
+        // Auto-liberar certificado-digital para quem jÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ tem acesso a usuarios-permissoes
         if (mapPerms['usuarios-permissoes']) {
             mapPerms['certificado-digital'] = true;
         }
         window.activeUserPerms = mapPerms;
 
-        // Percorre todos os botÃƒÂµes de navegaÃƒÂ§ÃƒÂ£o (.nav-item)
+        // Percorre todos os botÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes de navegaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o (.nav-item)
         document.querySelectorAll('.nav-item[data-target]').forEach(link => {
             const pathId = link.getAttribute('data-target');
             
-            // Hardcode: mÃƒÂ³dulos "Em breve" nunca devem aparecer para usuÃƒÂ¡rios comuns, 
+            // Hardcode: mÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³dulos "Em breve" nunca devem aparecer para usuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rios comuns, 
             // mesmo que marcados sem querer no banco.
             if (pathId && pathId.includes('em-breve')) {
                 link.style.cssText = 'display: none !important;';
-                mapPerms[pathId] = false; // ForÃƒÂ§a no mapa para ocultar a bolota tambÃƒÂ©m
+                mapPerms[pathId] = false; // ForÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§a no mapa para ocultar a bolota tambÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©m
                 return;
             }
 
-            // Se existir no mapa de permissoes e for TRUE, mostra. SenÃƒÂ£o, esconde robustamente.
+            // Se existir no mapa de permissoes e for TRUE, mostra. SenÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o, esconde robustamente.
             if (mapPerms[pathId]) {
                 link.style.display = '';
             } else {
@@ -418,14 +418,14 @@ window.carregarPermissoesOnline = async function() {
             }
         });
 
-        // Agora vamos ocultar os "blocos grandes" (Departamentos) inteiros se nÃƒÂ£o sobrar nenhum nav-item ÃƒÂºtil
+        // Agora vamos ocultar os "blocos grandes" (Departamentos) inteiros se nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o sobrar nenhum nav-item ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºtil
         const deptSubmenus = document.querySelectorAll('.dept-submenu');
         deptSubmenus.forEach(submenu => {
             const navItems = Array.from(submenu.querySelectorAll('.nav-item[data-target]'));
-            const headerObj = submenu.parentElement; // o `.dept-item` ÃƒÂ© o pai
+            const headerObj = submenu.parentElement; // o `.dept-item` ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© o pai
             
             if (navItems.length > 0) {
-                // Checa diretamente no mapa de permissÃƒÂµes se o cara tem algo liberado aqui!
+                // Checa diretamente no mapa de permissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes se o cara tem algo liberado aqui!
                 const isAnyVisible = navItems.some(i => mapPerms[i.getAttribute('data-target')] === true);
                 if (!isAnyVisible) {
                     headerObj.style.cssText = 'display: none !important;'; 
@@ -438,10 +438,10 @@ window.carregarPermissoesOnline = async function() {
             }
         });
         
-        // Sempre garantimos que o ÃƒÂ­cone de SAIR apareÃƒÂ§a entÃƒÂ£o nÃƒÂ£o hÃƒÂ¡ risco.
+        // Sempre garantimos que o ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­cone de SAIR apareÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§a entÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o hÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ risco.
 
     } catch (err) {
-        console.error("Erro no carregamento de permissÃƒÂµes: ", err);
+        console.error("Erro no carregamento de permissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes: ", err);
     }
 };
 
@@ -465,60 +465,60 @@ function updateBreadcrumb(key) {
 
     if (bar) bar.style.backgroundColor = pageColor;
 
-    // Atualiza botÃƒÂ£o de scroll flutuante
+    // Atualiza botÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de scroll flutuante
     const scrollerBtn = document.getElementById('global-scroll-top');
     if (scrollerBtn) {
         scrollerBtn.style.backgroundColor = pageColor;
     }
 
-    // Mostra a estrela APENAS se for tela de menu principal ou telas base (sem setas 'Ã¢â€ â€™', exceto Diretoria)
+    // Mostra a estrela APENAS se for tela de menu principal ou telas base (sem setas 'ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢', exceto Diretoria)
     const starBtn = document.getElementById('btn-star-page');
     if (starBtn && entryObj) {
         starBtn.style.color = pageColor;
-        if ((!entryObj.path.includes('Ã¢â€ â€™') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario') {
+        if ((!entryObj.path.includes('ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario') {
             starBtn.style.display = 'flex';
         } else {
             starBtn.style.display = 'none';
         }
     }
     
-    if (typeof renderBookmarks === 'function') setTimeout(renderBookmarks, 50); // ForÃƒÂ§a render com o novo key
+    if (typeof renderBookmarks === 'function') setTimeout(renderBookmarks, 50); // ForÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§a render com o novo key
     if (!bar) return;
     const entry = BREADCRUMB_MAP[key] || { path: key, code: '' };
-    const parts = entry.path.split('Ã¢â€ â€™').map(p => p.trim());
+    const parts = entry.path.split('ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢').map(p => p.trim());
     const code = entry.code ? ` (${entry.code})` : '';
     bar.innerHTML = '<span style="opacity:0.7;margin-right:4px;">Caminho:</span>' +
         parts.map((p, i) =>
             i < parts.length - 1
-                ? `<span style="opacity:0.75;">${p}</span><span style="margin:0 5px;opacity:0.5;">Ã¢â€ â€™</span>`
+                ? `<span style="opacity:0.75;">${p}</span><span style="margin:0 5px;opacity:0.5;">ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢</span>`
                 : `<strong>${p}</strong><span style="margin-left:6px;background:rgba(0,0,0,0.18);padding:1px 7px;border-radius:10px;font-size:0.78rem;font-weight:700;letter-spacing:0.4px;">${code.replace(/[()]/g,'')}</span>`
         ).join('');
 }
 let appOpenTabs = [];
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ METADADOS DE ABAS: cor, ÃƒÂ­cone e mÃƒÂ³dulo por tela Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ METADADOS DE ABAS: cor, ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­cone e mÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³dulo por tela ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
 const TAB_META = {
     // RH - Rosa
     'dashboard':              { color: '#f503c5', icon: 'ph-squares-four',    title: 'Dashboard' },
     'colaboradores':          { color: '#f503c5', icon: 'ph-address-book',    title: 'Colaboradores' },
     'form-colaborador':       { color: '#f503c5', icon: 'ph-user-plus',       title: 'Cadastro Colaborador' },
-    'prontuario':             { color: '#f503c5', icon: 'ph-folder-open',     title: 'ProntuÃƒÂ¡rio Digital' },
-    'admissao':               { color: '#f503c5', icon: 'ph-list-checks',     title: 'AdmissÃƒÂ£o' },
-    'integracao':             { color: '#f503c5', icon: 'ph-users-three',     title: 'IntegraÃƒÂ§ÃƒÂ£o' },
+    'prontuario':             { color: '#f503c5', icon: 'ph-folder-open',     title: 'ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio Digital' },
+    'admissao':               { color: '#f503c5', icon: 'ph-list-checks',     title: 'AdmissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o' },
+    'integracao':             { color: '#f503c5', icon: 'ph-users-three',     title: 'IntegraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o' },
     'cargos':                 { color: '#f503c5', icon: 'ph-briefcase',       title: 'Cargos' },
     'departamentos':          { color: '#f503c5', icon: 'ph-buildings',       title: 'Departamentos' },
     'faculdade':              { color: '#f503c5', icon: 'ph-graduation-cap',  title: 'Faculdade' },
     'geradores':              { color: '#f503c5', icon: 'ph-file-text',       title: 'Geradores' },
     'ficha-epi':              { color: '#f503c5', icon: 'ph-shield-check',    title: 'Ficha EPI' },
-    'gerenciar-avaliacoes':   { color: '#f503c5', icon: 'ph-clipboard-text',  title: 'AvaliaÃƒÂ§ÃƒÂµes' },
+    'gerenciar-avaliacoes':   { color: '#f503c5', icon: 'ph-clipboard-text',  title: 'AvaliaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes' },
     'assinaturas-digitais':   { color: '#f503c5', icon: 'ph-signature',       title: 'Assinaturas' },
     // Diretoria - Laranja
-    'usuarios-permissoes':    { color: '#d9480f', icon: 'ph-users-three',     title: 'UsuÃƒÂ¡rios e PermissÃƒÂµes' },
+    'usuarios-permissoes':    { color: '#d9480f', icon: 'ph-users-three',     title: 'UsuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rios e PermissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes' },
     'certificado-digital':    { color: '#d9480f', icon: 'ph-certificate',     title: 'Certificado Digital' },
     'chaves':                 { color: '#d9480f', icon: 'ph-key',             title: 'Chaves' },
-    'form-usuario':           { color: '#d9480f', icon: 'ph-user-gear',      title: 'Cadastro de UsuÃƒÂ¡rio' },
-    // LogÃƒÂ­stica - Verde
-    'logistica-em-breve':     { color: '#2d9e5f', icon: 'ph-truck',          title: 'LogÃƒÂ­stica' },
+    'form-usuario':           { color: '#d9480f', icon: 'ph-user-gear',      title: 'Cadastro de UsuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio' },
+    // LogÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­stica - Verde
+    'logistica-em-breve':     { color: '#2d9e5f', icon: 'ph-truck',          title: 'LogÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­stica' },
     // Financeiro - Azul
     'financeiro-em-breve':    { color: '#1971c2', icon: 'ph-currency-dollar', title: 'Financeiro' },
     // Comercial - Roxo
@@ -558,7 +558,7 @@ function renderAppTabs() {
              onmouseover="this.style.opacity='1'; if(!${t.active}) this.style.background='#f1f5f9';"
              onmouseout="this.style.opacity='${t.active ? '1' : '0.55'}'; if(!${t.active}) this.style.background='transparent';">
             ${t.icon ? `<i class="ph ${t.icon}" style="font-size:0.88rem;"></i>` : ''}
-            <span title="${t.title}">${t.title.length > 15 ? t.title.substring(0, 15) + 'Ã¢â‚¬Â¦' : t.title}</span>
+            <span title="${t.title}">${t.title.length > 15 ? t.title.substring(0, 15) + 'ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦' : t.title}</span>
             <i class="ph-bold ph-x"
                onclick="event.stopPropagation(); closeAppTab('${t.tabId}')"
                style="color:#ef4444; margin-left:4px; border-radius:50%; padding:2px; font-size:0.75rem;"
@@ -568,7 +568,7 @@ function renderAppTabs() {
     }).join('');
 }
 
-// Navegar para uma aba existente pelo seu tabId ÃƒÂºnico
+// Navegar para uma aba existente pelo seu tabId ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºnico
 window.navigateToTab = function(tabId) {
     const tab = appOpenTabs.find(t => t.tabId === tabId);
     if (!tab) return;
@@ -583,7 +583,7 @@ window.navigateToTab = function(tabId) {
     const targetNavObj = document.querySelector(`[data-target="${tab.target}"]`);
     if (targetNavObj) targetNavObj.classList.add('active');
     updateBreadcrumb(tab.target);
-    // Se a aba tem dados de colaborador (prontuÃƒÂ¡rio ou form), restaura o viewedColaborador
+    // Se a aba tem dados de colaborador (prontuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio ou form), restaura o viewedColaborador
     if (tab._colaboradorData) {
         viewedColaborador = tab._colaboradorData;
     }
@@ -606,8 +606,8 @@ window.closeAppTab = function(tabId) {
     }
 };
 
-// navigateTo: abre uma aba ÃƒÅ¡NICA por target (telas de lista/config).
-// Para colaborador/prontuÃƒÂ¡rio, use openColaboradorTab / openProntuarioTab.
+// navigateTo: abre uma aba ÃƒÆ’Ã†â€™Ãƒâ€¦Ã‚Â¡NICA por target (telas de lista/config).
+// Para colaborador/prontuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio, use openColaboradorTab / openProntuarioTab.
 function navigateTo(target) {
     if (target !== 'login') {
         const meta = getTabMeta(target);
@@ -629,7 +629,7 @@ function navigateTo(target) {
     if (currentUser && !isTopAdmin) {
         const targetNav = document.querySelector(`.nav-item[data-target="${target}"]`);
         if (targetNav && targetNav.style.display === 'none') {
-            alert('VocÃƒÂª nÃƒÂ£o tem permissÃƒÂ£o para acessar esta tela.');
+            alert('VocÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âª nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o tem permissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o para acessar esta tela.');
             return;
         }
     }
@@ -679,7 +679,7 @@ function navigateTo(target) {
 }
 
 // Abre uma aba de CADASTRO de colaborador, nomeada com o colaborador.
-// Se jÃƒÂ¡ existir aba para esse colaborador, apenas ativa. Novo colaborador usa tabId 'form-colaborador-novo'.
+// Se jÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ existir aba para esse colaborador, apenas ativa. Novo colaborador usa tabId 'form-colaborador-novo'.
 window._openColaboradorTab = function(colabId, nomeColab) {
     const tabId = colabId ? `form-colaborador-${colabId}` : 'form-colaborador-novo';
     const label = nomeColab ? `Cadastro: ${nomeColab.split(' ')[0]}` : 'Novo Colaborador';
@@ -689,7 +689,7 @@ window._openColaboradorTab = function(colabId, nomeColab) {
     if (!existingTab) {
         appOpenTabs.push({ tabId, target: 'form-colaborador', title: label, color: meta.color, icon: meta.icon, active: true });
     } else {
-        existingTab.title = label; // Atualiza nome se necessÃƒÂ¡rio
+        existingTab.title = label; // Atualiza nome se necessÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio
     }
     appOpenTabs.forEach(t => t.active = (t.tabId === tabId));
     renderAppTabs();
@@ -703,11 +703,11 @@ window._openColaboradorTab = function(colabId, nomeColab) {
     updateBreadcrumb('form-colaborador');
 };
 
-// Abre uma aba de PRONTUÃƒÂRIO, nomeada com o colaborador.
+// Abre uma aba de PRONTUÃƒÆ’Ã†â€™Ãƒâ€šÃ‚ÂRIO, nomeada com o colaborador.
 window._openProntuarioTab = function(colabId, nomeColab, colaboradorData) {
     const tabId = `prontuario-${colabId}`;
     const firstName = (nomeColab || '').split(' ')[0];
-    const label = `ProntuÃƒÂ¡rio: ${firstName}`;
+    const label = `ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio: ${firstName}`;
     const meta = getTabMeta('prontuario');
 
     const existingTab = appOpenTabs.find(t => t.tabId === tabId);
@@ -720,7 +720,7 @@ window._openProntuarioTab = function(colabId, nomeColab, colaboradorData) {
     appOpenTabs.forEach(t => t.active = (t.tabId === tabId));
     renderAppTabs();
 
-    // Mostra a view de prontuÃƒÂ¡rio
+    // Mostra a view de prontuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio
     document.querySelectorAll('.content-view').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
     const targetView = document.getElementById('view-prontuario');
@@ -735,7 +735,7 @@ function setupNavigation() {
         item.addEventListener('click', (e) => {
             e.preventDefault();
             navigateTo(e.currentTarget.dataset.target);
-            // Recolhe o submenu automaticamente apÃƒÂ³s o clique
+            // Recolhe o submenu automaticamente apÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³s o clique
             const deptItem = e.currentTarget.closest('.dept-item');
             if (deptItem) {
                 deptItem.classList.add('submenu-force-close');
@@ -798,7 +798,7 @@ async function apiGet(endpoint) {
             headers: { 'Authorization': `Bearer ${currentToken}` },
             cache: 'no-store'
         });
-        if (!res.ok) throw new Error('Falha na requisiÃƒÂ§ÃƒÂ£o');
+        if (!res.ok) throw new Error('Falha na requisiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o');
         return res.json();
     } catch(e) {
         console.error(e);
@@ -825,7 +825,7 @@ async function apiPost(endpoint, data, options = {}) {
         return res.json();
     } else {
         const text = await res.text();
-        console.error("Erro na API (NÃƒÂ£o ÃƒÂ© JSON):", text);
+        console.error("Erro na API (NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© JSON):", text);
         return { error: "Servidor retornou resposta inesperada. Verifique o console." };
     }
 }
@@ -872,7 +872,7 @@ async function loadCargos() {
         `;
     });
 
-    // TambÃƒÂ©m popula o select do formulÃƒÂ¡rio de colaborador (para quando estiver cadastrando alguÃƒÂ©m)
+    // TambÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©m popula o select do formulÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio de colaborador (para quando estiver cadastrando alguÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©m)
     const selectColab = document.getElementById('colab-cargo');
     if (selectColab) {
         selectColab.innerHTML = '<option value="" selected disabled>Selecionar</option>';
@@ -913,12 +913,12 @@ window.toggleCargoView = async function(mode, id = null) {
     if (mode === 'list') {
         if(listContainer) listContainer.style.display = 'block';
         if(formContainer) formContainer.style.display = 'none';
-        if(headerActions) headerActions.style.display = 'none'; // Esconde botÃƒÂµes no topo ao ver a lista
+        if(headerActions) headerActions.style.display = 'none'; // Esconde botÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes no topo ao ver a lista
         loadCargos();
     } else {
         if(listContainer) listContainer.style.display = 'none';
         if(formContainer) formContainer.style.display = 'block';
-        if(headerActions) headerActions.style.display = 'flex'; // Mostra botÃƒÂµes no topo ao editar/criar
+        if(headerActions) headerActions.style.display = 'flex'; // Mostra botÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes no topo ao editar/criar
         
         if (mode === 'new') {
             document.getElementById('manage-cargo-id').value = '';
@@ -1035,7 +1035,7 @@ async function handleCargoFormSubmit() {
         toggleCargoView('list');
     } catch(err) {
         console.error('Erro ao salvar cargo:', err);
-        alert('Erro de conexÃƒÂ£o ao salvar cargo.');
+        alert('Erro de conexÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o ao salvar cargo.');
     }
 }
 
@@ -1050,7 +1050,7 @@ window.handleDeleteCargoUI = async function() {
     if(!id) return;
 
     if(nome.toUpperCase() === 'MOTORISTA') {
-        alert('O cargo MOTORISTA ÃƒÂ© essencial para o sistema e nÃƒÂ£o pode ser excluÃƒÂ­do.');
+        alert('O cargo MOTORISTA ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© essencial para o sistema e nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o pode ser excluÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­do.');
         return;
     }
 
@@ -1063,10 +1063,10 @@ window.handleDeleteCargoUI = async function() {
     }
 }
 
-// Excluir cargo diretamente da listagem (sem precisar abrir o formulÃƒÂ¡rio de ediÃƒÂ§ÃƒÂ£o)
+// Excluir cargo diretamente da listagem (sem precisar abrir o formulÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio de ediÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o)
 window.deletarCargoDireto = async function(id, nome) {
     if (nome.toUpperCase() === 'MOTORISTA') {
-        alert('O cargo MOTORISTA ÃƒÂ© essencial para o sistema e nÃƒÂ£o pode ser excluÃƒÂ­do.');
+        alert('O cargo MOTORISTA ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© essencial para o sistema e nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o pode ser excluÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­do.');
         return;
     }
     if (!confirm(`Tem certeza que deseja excluir o cargo "${nome}"?`)) return;
@@ -1078,8 +1078,8 @@ window.deletarCargoDireto = async function(id, nome) {
     }
 }
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ CERTIFICADO DIGITAL PÃƒâ€œS-ASSINATURA Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
-// Aplica o certificado A1 da empresa no PDF apÃƒÂ³s o colaborador assinar no Assinafy
+// ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ CERTIFICADO DIGITAL PÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œS-ASSINATURA ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
+// Aplica o certificado A1 da empresa no PDF apÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³s o colaborador assinar no Assinafy
 window.assinarComCertificado = async function(assId, event) {
     if (event) { event.preventDefault(); event.stopPropagation(); }
     const btn = event?.currentTarget || event?.target;
@@ -1100,19 +1100,19 @@ window.assinarComCertificado = async function(assId, event) {
             btn.style.background = '#f0fdf4';
             btn.style.borderColor = '#16a34a';
             btn.style.color = '#16a34a';
-            btn.innerHTML = '<i class="ph ph-seal-check"></i> Ã¢Å“â€¦ Certificado Aplicado';
+            btn.innerHTML = '<i class="ph ph-seal-check"></i> ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ Certificado Aplicado';
             setTimeout(() => {
                 // Recarregar a view para refletir o novo status
                 if (viewedColaborador) window.viewColaborador(viewedColaborador.id);
             }, 1500);
         }
-        if (typeof showToast === 'function') showToast('Ã¢Å“â€¦ ' + data.mensagem, 'success');
-        else alert('Ã¢Å“â€¦ ' + data.mensagem);
+        if (typeof showToast === 'function') showToast('ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ ' + data.mensagem, 'success');
+        else alert('ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ ' + data.mensagem);
 
     } catch(e) {
         if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
-        if (typeof showToast === 'function') showToast('Ã¢ÂÅ’ ' + e.message, 'error');
-        else alert('Ã¢ÂÅ’ ' + e.message);
+        if (typeof showToast === 'function') showToast('ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€¦Ã¢â‚¬â„¢ ' + e.message, 'error');
+        else alert('ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€¦Ã¢â‚¬â„¢ ' + e.message);
     }
 };
 
@@ -1182,7 +1182,7 @@ document.getElementById('form-chaves')?.addEventListener('submit', async (e) => 
 });
 
 
-// --- HELPER PARA ESCALAS NO FORMULÃƒÂRIO ---
+// --- HELPER PARA ESCALAS NO FORMULÃƒÆ’Ã†â€™Ãƒâ€šÃ‚ÂRIO ---
 window.toggleFormEscalaTipo = function() {
     const tipo = document.getElementById('colab-escala-padrao').value;
     const boxFolgas = document.getElementById('colab-box-folgas');
@@ -1209,10 +1209,32 @@ window.toggleFormEscalaTipo = function() {
 }
 
 window.toggleTipoDocumento = function() {
-    const tipo = document.getElementById('colab-rg-tipo').value;
+    const sel = document.getElementById('colab-rg-tipo');
+    const rgInput = document.getElementById('colab-rg');
+    const cpfInput = document.getElementById('colab-cpf');
     const lbl = document.getElementById('lbl-colab-rg');
-    if (lbl) {
-        lbl.textContent = tipo === 'CIN' ? 'NÃƒÂºmero (CIN)' : 'NÃƒÂºmero (RG)';
+    const boxOrgao = document.getElementById('box-rg-orgao');
+    const boxData = document.getElementById('box-rg-data');
+    
+    if (sel && rgInput && cpfInput && lbl) {
+        if (sel.value === 'CIN') {
+            lbl.textContent = 'NÃºmero (CIN)';
+            rgInput.value = cpfInput.value;
+            rgInput.setAttribute('readonly', 'true');
+            rgInput.style.backgroundColor = '#e9ecef';
+            if(boxOrgao) boxOrgao.style.display = 'none';
+            if(boxData) boxData.style.display = 'none';
+        } else {
+            lbl.textContent = 'NÃºmero (RG)';
+            rgInput.removeAttribute('readonly');
+            rgInput.style.backgroundColor = '';
+            if(boxOrgao) boxOrgao.style.display = 'block';
+            if(boxData) boxData.style.display = 'block';
+            
+            if (rgInput.value === cpfInput.value) {
+                rgInput.value = '';
+            }
+        }
     }
 };
 
@@ -1220,7 +1242,7 @@ window.toggleFormacaoFields = function(val) {
     const section = document.getElementById('section-formacao');
     if (section) {
         section.style.display = (val === 'Sim') ? 'block' : 'none';
-        if (val === 'NÃƒÂ£o') {
+        if (val === 'NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o') {
             const cInput = document.getElementById('colab-faculdade-curso');
             const d1Input = document.getElementById('colab-faculdade-data-inicio');
             const d2Input = document.getElementById('colab-faculdade-data-termino');
@@ -1235,7 +1257,7 @@ window.toggleAcademiaFields = function(val) {
     const section = document.getElementById('section-academia');
     if (section) {
         section.style.display = (val === 'Sim') ? 'block' : 'none';
-        if (val === 'NÃƒÂ£o') {
+        if (val === 'NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o') {
             const diInput = document.getElementById('colab-academia-data-inicio');
             if (diInput) diInput.value = '';
         }
@@ -1246,7 +1268,7 @@ window.toggleTerapiaFields = function(val) {
     const section = document.getElementById('section-terapia');
     if (section) {
         section.style.display = (val === 'Sim') ? 'block' : 'none';
-        if (val === 'NÃƒÂ£o') {
+        if (val === 'NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o') {
             const diInput = document.getElementById('colab-terapia-data-inicio');
             if (diInput) diInput.value = '';
         }
@@ -1257,7 +1279,7 @@ window.toggleCelularFields = function(val) {
     const section = document.getElementById('section-celular');
     if (section) {
         section.style.display = (val === 'Sim') ? 'block' : 'none';
-        if (val === 'NÃƒÂ£o') {
+        if (val === 'NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o') {
             const dInput = document.getElementById('colab-celular-data');
             if (dInput) dInput.value = '';
         }
@@ -1268,7 +1290,7 @@ window.toggleChavesColabFields = function(val) {
     const section = document.getElementById('section-chaves-colab');
     if (section) {
         section.style.display = (val === 'Sim') ? 'block' : 'none';
-        if (val === 'NÃƒÂ£o') {
+        if (val === 'NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o') {
             const container = document.getElementById('colab-chaves-rows-container');
             if (container) container.innerHTML = '';
         } else if (val === 'Sim') {
@@ -1286,7 +1308,7 @@ window.addNewChaveRow = async function(selectedChaveId = null, selectedDate = nu
         const container = document.getElementById('colab-chaves-rows-container');
         if (!container) return;
 
-        // Remover BotÃƒÂ£o de + das linhas anteriores se houver
+        // Remover BotÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de + das linhas anteriores se houver
         document.querySelectorAll('.btn-add-chave-row').forEach(b => b.style.display = 'none');
 
         const rowDiv = document.createElement('div');
@@ -1321,14 +1343,14 @@ window.addNewChaveRow = async function(selectedChaveId = null, selectedDate = nu
 window.removeChaveRow = function(btn) {
     const row = btn.closest('.chave-entry-row');
     row.remove();
-    // Reexibir o botÃƒÂ£o + na nova "ÃƒÂºltima linha"
+    // Reexibir o botÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o + na nova "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºltima linha"
     const rows = document.querySelectorAll('.chave-entry-row');
     if (rows.length > 0) {
         const lastBtn = rows[rows.length - 1].querySelector('.btn-add-chave-row');
         if (lastBtn) lastBtn.style.display = 'flex';
     } else {
         // Se todas as linhas foram removidas, talvez queira adicionar uma vazia de volta?
-        // Ou deixar o toggle Sim/NÃƒÂ£o resolver.
+        // Ou deixar o toggle Sim/NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o resolver.
     }
 };
 
@@ -1361,7 +1383,7 @@ window.toggleTransporteValor = function(val) {
     const input = document.getElementById('colab-valor-transporte');
     if (group) {
         // Mostrar se for VT ou VC
-        if (val === 'Vale Transporte (VT)' || val === 'Vale CombustÃƒÂ­vel (VC)') {
+        if (val === 'Vale Transporte (VT)' || val === 'Vale CombustÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel (VC)') {
             group.style.display = 'block';
         } else {
             group.style.display = 'none';
@@ -1378,7 +1400,7 @@ window.calcularHorarioSaida = function() {
     const outSaida = document.getElementById('colab-saida');
     
     if (tipo && entrada) {
-        // Calcula duraÃƒÂ§ÃƒÂ£o do intervalo em minutos
+        // Calcula duraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o do intervalo em minutos
         let intervaloMins = 0;
         if (intEntrada && intSaida) {
             const [h1, m1] = intEntrada.split(':').map(Number);
@@ -1387,7 +1409,7 @@ window.calcularHorarioSaida = function() {
             if (intervaloMins < 0) intervaloMins += 24 * 60;
         }
 
-        // Define horas brutas de trabalho diÃƒÂ¡rio (sem intervalo)
+        // Define horas brutas de trabalho diÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio (sem intervalo)
         let workMins = 0;
         if (tipo === 'padrao_seis_dias') {
             workMins = 7 * 60 + 20; // 7h 20m
@@ -1410,7 +1432,7 @@ window.calcularHorarioSaida = function() {
         outSaida.value = '';
     }
 
-    // SÃƒÂ¡bado
+    // SÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡bado
     const sabEntrada = document.getElementById('colab-sabado-entrada').value;
     const outSabSaida = document.getElementById('colab-sabado-saida');
     if (sabEntrada && outSabSaida) {
@@ -1481,11 +1503,11 @@ window.updateVacationInfo = function(admissaoStr) {
         const adm = new Date(admissaoStr + 'T12:00:00');
         if (isNaN(adm.getTime())) return;
 
-        // Fim do PerÃƒÂ­odo Aquisitivo: +1 ano
+        // Fim do PerÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­odo Aquisitivo: +1 ano
         const aqEnd = new Date(adm);
         aqEnd.setFullYear(adm.getFullYear() + 1);
         
-        // PerÃƒÂ­odo Concessivo: +2 anos (menos 1 dia)
+        // PerÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­odo Concessivo: +2 anos (menos 1 dia)
         const concEnd = new Date(aqEnd);
         concEnd.setFullYear(aqEnd.getFullYear() + 1);
         concEnd.setDate(concEnd.getDate() - 1);
@@ -1496,22 +1518,22 @@ window.updateVacationInfo = function(admissaoStr) {
         const today = new Date();
         today.setHours(0,0,0,0);
         
-        // --- LÃƒÂ³gica condicional da cor vermelha ---
+        // --- LÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³gica condicional da cor vermelha ---
         const inConcessivo = today >= aqEnd && today <= concEnd;
         const diasRestantes = Math.floor((concEnd - today) / (1000 * 60 * 60 * 24));
         
-        // Verificar se hÃƒÂ¡ fÃƒÂ©rias programadas dentro do perÃƒÂ­odo concessivo
+        // Verificar se hÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rias programadas dentro do perÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­odo concessivo
         const fInicioEl = document.getElementById('colab-ferias-programadas-inicio');
         const fFimEl = document.getElementById('colab-ferias-programadas-fim');
         let feriasNoPeriodo = false;
         if (fInicioEl && fInicioEl.value && fFimEl && fFimEl.value) {
             const fInicio = new Date(fInicioEl.value + 'T12:00:00');
             const fFim = new Date(fFimEl.value + 'T12:00:00');
-            // FÃƒÂ©rias estÃƒÂ£o dentro do perÃƒÂ­odo concessivo se houver sobreposiÃƒÂ§ÃƒÂ£o
+            // FÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rias estÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o dentro do perÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­odo concessivo se houver sobreposiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o
             feriasNoPeriodo = fInicio <= concEnd && fFim >= aqEnd;
         }
 
-        // Pintar vermelho apenas se: em perÃƒÂ­odo concessivo, sem fÃƒÂ©rias programadas, e Ã¢â€°Â¤ 90 dias
+        // Pintar vermelho apenas se: em perÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­odo concessivo, sem fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rias programadas, e ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°Ãƒâ€šÃ‚Â¤ 90 dias
         if (inConcessivo && !feriasNoPeriodo && diasRestantes <= 90) {
             concField.style.color = '#e03131';
             concField.style.fontWeight = '700';
@@ -1520,14 +1542,14 @@ window.updateVacationInfo = function(admissaoStr) {
             concField.style.fontWeight = '600';
         }
 
-        // Mostrar indicador de alerta se jÃƒÂ¡ passou do perÃƒÂ­odo aquisitivo
+        // Mostrar indicador de alerta se jÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ passou do perÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­odo aquisitivo
         if (today >= aqEnd) {
             indicator.style.display = 'flex';
         } else {
             indicator.style.display = 'none';
         }
     } catch (e) {
-        console.error('Erro ao calcular datas de fÃƒÂ©rias:', e);
+        console.error('Erro ao calcular datas de fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rias:', e);
     }
 }
 
@@ -1553,7 +1575,7 @@ window.calculateVacationDays = function() {
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
     if (diffDays < 0) {
-        totalField.value = 'Data InvÃƒÂ¡lida';
+        totalField.value = 'Data InvÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡lida';
     } else {
         totalField.value = `${diffDays} ${diffDays === 1 ? 'dia' : 'dias'}`;
     }
@@ -1684,12 +1706,12 @@ async function loadDashboard() {
             });
         }
 
-        // Render FÃƒÂ©rias Table
+        // Render FÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rias Table
         const tbFerias = document.getElementById('dash-table-ferias');
         if (tbFerias) {
             tbFerias.innerHTML = '';
             if (!chartsData.feriasVencendo || chartsData.feriasVencendo.length === 0) {
-                tbFerias.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#999;font-style:italic;">Nenhuma fÃƒÂ©rias a vencer em 60 dias.</td></tr>';
+                tbFerias.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#999;font-style:italic;">Nenhuma fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rias a vencer em 60 dias.</td></tr>';
             } else {
                 chartsData.feriasVencendo.forEach(f => {
                     const cfPts = f.concessivo_fim.split('-');
@@ -1806,7 +1828,7 @@ function aplicarFiltrosColaboradores() {
         
         if (f.escala && c.escala_tipo !== f.escala) return false;
         
-        // Verifica dependentes (pode estar como "Sim", "NÃƒÂ£o", true, false, etc.)
+        // Verifica dependentes (pode estar como "Sim", "NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o", true, false, etc.)
         const temDep = c.tem_dependentes === 'Sim' || c.tem_dependentes === 'true' || c.tem_dependentes === true;
         if (f.dependentes === 'sim' && !temDep) return false;
         if (f.dependentes === 'nao' && temDep) return false;
@@ -1827,7 +1849,7 @@ function aplicarFiltrosColaboradores() {
             const faltas = c.faltas_ano || 0;
             const punicoes = c.punicoes || 0;
             const statusEf = getEffectiveStatus(c);
-            let admDias = 999; // Assume apto se data nÃƒÂ£o informada
+            let admDias = 999; // Assume apto se data nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o informada
             if (c.data_admissao) {
                 if (c.data_admissao.includes('-')) {
                     admDias = Math.floor((new Date() - new Date(c.data_admissao + 'T12:00:00')) / 86400000);
@@ -1842,7 +1864,7 @@ function aplicarFiltrosColaboradores() {
             
             const isApto = (faltas <= 3) && 
                            (punicoes === 0) &&
-                           (['Ativo', 'Afastado', 'FÃƒÂ©rias'].includes(statusEf)) &&
+                           (['Ativo', 'Afastado', 'FÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rias'].includes(statusEf)) &&
                            (admDias >= 90) &&
                            isCLT;
             
@@ -1867,7 +1889,7 @@ function limparFiltrosColaboradores() {
      'f-tam-camiseta','f-tam-calca','f-tam-calcado','f-apto-sorteio'
     ].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     
-    // Atualizar botÃƒÂµes visuais de tipo cadastro
+    // Atualizar botÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes visuais de tipo cadastro
     document.querySelectorAll('.btn-tipo-cadastro').forEach(btn => {
         btn.style.opacity = '0.5';
         if(btn.dataset.status === ''){
@@ -1940,23 +1962,23 @@ window.exportarColaboradoresXLSX = async function() {
     }
 
     worksheet.mergeCells('D1', 'H3');
-    worksheet.getCell('D1').value = "RELATÃƒâ€œRIO DE COLABORADORES";
+    worksheet.getCell('D1').value = "RELATÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œRIO DE COLABORADORES";
     worksheet.getCell('D1').font = { size: 16, bold: true, color: { argb: 'FF334155' } };
     worksheet.getCell('D1').alignment = { vertical: 'middle', horizontal: 'left' };
 
     worksheet.addRow([]);
 
     const headerRow = worksheet.addRow([
-        "Status", "Nome Completo", "CPF", "RG", "Data Nascimento", "Nome da MÃƒÂ£e", "Nome do Pai",
-        "Estado Civil", "Sexo", "E-mail", "Telefone", "Contato EmergÃƒÂªncia",
-        "CEP", "Rua", "NÃ‚Âº", "Complemento", "Bairro", "Cidade", "Estado",
-        "Banco", "AgÃƒÂªncia", "Conta", "Tipo Conta", "PIX",
-        "Departamento", "Cargo", "Data AdmissÃƒÂ£o", "SalÃƒÂ¡rio", "Escala Trabalho",
-        "PIS", "CTPS", "TÃƒÂ­tulo Eleitor", "Certificado Militar",
-        "CNH", "Cat CNH", "EmissÃƒÂ£o CNH", "Validade CNH", "CID",
-        "FÃƒÂ©rias InÃƒÂ­cio", "FÃƒÂ©rias Fim", "FÃƒÂ©rias Retorno", "Possui Dependentes",
+        "Status", "Nome Completo", "CPF", "RG", "Data Nascimento", "Nome da MÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£e", "Nome do Pai",
+        "Estado Civil", "Sexo", "E-mail", "Telefone", "Contato EmergÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia",
+        "CEP", "Rua", "NÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âº", "Complemento", "Bairro", "Cidade", "Estado",
+        "Banco", "AgÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia", "Conta", "Tipo Conta", "PIX",
+        "Departamento", "Cargo", "Data AdmissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o", "SalÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio", "Escala Trabalho",
+        "PIS", "CTPS", "TÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­tulo Eleitor", "Certificado Militar",
+        "CNH", "Cat CNH", "EmissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o CNH", "Validade CNH", "CID",
+        "FÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rias InÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­cio", "FÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rias Fim", "FÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rias Retorno", "Possui Dependentes",
         "Faculdade", "Academia", "Terapia", "Celular", "Chaves",
-        "Tamanho Camiseta", "Tamanho CalÃƒÂ§a", "Tamanho CalÃƒÂ§ado"
+        "Tamanho Camiseta", "Tamanho CalÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§a", "Tamanho CalÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ado"
     ]);
 
     headerRow.eachCell(cell => {
@@ -2010,12 +2032,12 @@ window.exportarColaboradoresXLSX = async function() {
             safeDate(c.ferias_inicio),
             safeDate(c.ferias_fim),
             safeDate(c.ferias_retorno),
-            c.tem_dependentes ? 'Sim' : 'NÃƒÂ£o',
-            c.faculdade_participa === 'Sim' ? 'Sim' : 'NÃƒÂ£o',
-            c.academia_participa === 'Sim' ? 'Sim' : 'NÃƒÂ£o',
-            c.terapia_participa === 'Sim' ? 'Sim' : 'NÃƒÂ£o',
-            c.celular_participa === 'Sim' ? 'Sim' : 'NÃƒÂ£o',
-            c.chaves_participa === 'Sim' ? 'Sim' : 'NÃƒÂ£o',
+            c.tem_dependentes ? 'Sim' : 'NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o',
+            c.faculdade_participa === 'Sim' ? 'Sim' : 'NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o',
+            c.academia_participa === 'Sim' ? 'Sim' : 'NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o',
+            c.terapia_participa === 'Sim' ? 'Sim' : 'NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o',
+            c.celular_participa === 'Sim' ? 'Sim' : 'NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o',
+            c.chaves_participa === 'Sim' ? 'Sim' : 'NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o',
             c.tamanho_camiseta || '',
             c.tamanho_calca || '',
             c.tamanho_calcado || ''
@@ -2030,7 +2052,7 @@ window.exportarColaboradoresXLSX = async function() {
         col.width = i === 1 ? 30 : 18;
     });
 
-    // Congela as 5 primeiras linhas (cabeÃƒÂ§alho) e as 2 primeiras colunas (Status e Nome)
+    // Congela as 5 primeiras linhas (cabeÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§alho) e as 2 primeiras colunas (Status e Nome)
     worksheet.views = [
         { state: 'frozen', xSplit: 2, ySplit: 5 }
     ];
@@ -2051,10 +2073,10 @@ function renderColaboradores(lista) {
     const wrapper = document.querySelector('#view-colaboradores .card');
     if (!wrapper) return;
 
-    // FunÃƒÂ§ÃƒÂ£o auxiliar para escalar tipo "padrao_seis_dias" -> "Padrao Seis Dias"
+    // FunÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o auxiliar para escalar tipo "padrao_seis_dias" -> "Padrao Seis Dias"
     const formatEscala = (e) => (e||'').replace(/_/g, ' ').replace(/\b\w/g, c=>c.toUpperCase());
 
-    // Coletar opÃƒÂ§ÃƒÂµes ÃƒÂºnicas para os selects dos filtros
+    // Coletar opÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºnicas para os selects dos filtros
     const deptos  = [...new Set(_todosColaboradores.map(c => c.departamento).filter(Boolean))].sort();
     const cargos  = [...new Set(_todosColaboradores.map(c => c.cargo).filter(Boolean))].sort();
     const escalas = [...new Set(_todosColaboradores.map(c => c.escala_tipo).filter(Boolean))].sort();
@@ -2076,10 +2098,10 @@ function renderColaboradores(lista) {
                 <div style="display:flex; gap:0.5rem; align-items:center; margin-right:0.5rem;">
                     <button class="btn-tipo-cadastro" data-status="" onclick="selecionarTipoCadastro(this, '')" style="padding:0.35rem 0.75rem; border:none; border-radius:999px; font-size:0.8rem; font-weight:600; cursor:pointer; background:#e2e8f0; color:#475569; display:flex; gap:4px; align-items:center; transition:0.2s;">Todos</button>
                     <button class="btn-tipo-cadastro" data-status="Processo iniciado" onclick="selecionarTipoCadastro(this, 'Processo iniciado')" style="padding:0.35rem 0.75rem; border:none; border-radius:999px; font-size:0.8rem; font-weight:600; cursor:pointer; background:#f3e8ff; color:#7e22ce; display:flex; gap:4px; align-items:center; transition:0.2s; opacity:0.5;"><i class="ph ph-play-circle"></i> Iniciado</button>
-                    <button class="btn-tipo-cadastro" data-status="Aguardando inÃƒÂ­cio" onclick="selecionarTipoCadastro(this, 'Aguardando inÃƒÂ­cio')" style="padding:0.35rem 0.75rem; border:none; border-radius:999px; font-size:0.8rem; font-weight:600; cursor:pointer; background:#cbd5e1; color:#334155; display:flex; gap:4px; align-items:center; transition:0.2s; opacity:0.5;"><i class="ph ph-hourglass-high"></i> Aguardando</button>
+                    <button class="btn-tipo-cadastro" data-status="Aguardando inÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­cio" onclick="selecionarTipoCadastro(this, 'Aguardando inÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­cio')" style="padding:0.35rem 0.75rem; border:none; border-radius:999px; font-size:0.8rem; font-weight:600; cursor:pointer; background:#cbd5e1; color:#334155; display:flex; gap:4px; align-items:center; transition:0.2s; opacity:0.5;"><i class="ph ph-hourglass-high"></i> Aguardando</button>
                     <button class="btn-tipo-cadastro" data-status="Ativo" onclick="selecionarTipoCadastro(this, 'Ativo')" style="padding:0.35rem 0.75rem; border:none; border-radius:999px; font-size:0.8rem; font-weight:600; cursor:pointer; background:#dcfce7; color:#166534; display:flex; gap:4px; align-items:center; transition:0.2s; opacity:0.5;"><i class="ph ph-check-circle"></i> Ativo</button>
                     <button class="btn-tipo-cadastro" data-status="Afastado" onclick="selecionarTipoCadastro(this, 'Afastado')" style="padding:0.35rem 0.75rem; border:none; border-radius:999px; font-size:0.8rem; font-weight:600; cursor:pointer; background:#ffedd5; color:#c2410c; display:flex; gap:4px; align-items:center; transition:0.2s; opacity:0.5;"><i class="ph ph-first-aid"></i> Afastado</button>
-                    <button class="btn-tipo-cadastro" data-status="FÃƒÂ©rias" onclick="selecionarTipoCadastro(this, 'FÃƒÂ©rias')" style="padding:0.35rem 0.75rem; border:none; border-radius:999px; font-size:0.8rem; font-weight:600; cursor:pointer; background:#dbeafe; color:#1e40af; display:flex; gap:4px; align-items:center; transition:0.2s; opacity:0.5;"><i class="ph ph-airplane-tilt"></i> FÃƒÂ©rias</button>
+                    <button class="btn-tipo-cadastro" data-status="FÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rias" onclick="selecionarTipoCadastro(this, 'FÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rias')" style="padding:0.35rem 0.75rem; border:none; border-radius:999px; font-size:0.8rem; font-weight:600; cursor:pointer; background:#dbeafe; color:#1e40af; display:flex; gap:4px; align-items:center; transition:0.2s; opacity:0.5;"><i class="ph ph-airplane-tilt"></i> FÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rias</button>
                     <button class="btn-tipo-cadastro" data-status="Desligado" onclick="selecionarTipoCadastro(this, 'Desligado')" style="padding:0.35rem 0.75rem; border:none; border-radius:999px; font-size:0.8rem; font-weight:600; cursor:pointer; background:#fee2e2; color:#b91c1c; display:flex; gap:4px; align-items:center; transition:0.2s; opacity:0.5;"><i class="ph ph-x-circle"></i> Desligado</button>
                 </div>
                 <div style="width:1px; height:24px; background:#e2e8f0; margin:0 4px;"></div>
@@ -2102,7 +2124,7 @@ function renderColaboradores(lista) {
             
             <div style="padding:1.5rem; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; background:#fff; z-index:10;">
                 <span style="font-weight:700; color:#334155; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
-                    <i class="ph ph-funnel"></i> Filtros AvanÃƒÂ§ados
+                    <i class="ph ph-funnel"></i> Filtros AvanÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ados
                 </span>
                 <button onclick="document.getElementById('filtro-sidebar').style.right='-400px'" style="background:none; border:none; cursor:pointer; color:#94a3b8; font-size:1.25rem;">
                     <i class="ph ph-x"></i>
@@ -2118,7 +2140,7 @@ function renderColaboradores(lista) {
                 <div>
                     <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Apto ao Sorteio?</label>
                     <select id="f-apto-sorteio" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
-                        <option value="">Todos</option><option value="sim">Sim</option><option value="nao">NÃƒÂ£o</option>
+                        <option value="">Todos</option><option value="sim">Sim</option><option value="nao">NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o</option>
                     </select>
                 </div>
                 <div>
@@ -2131,14 +2153,14 @@ function renderColaboradores(lista) {
                         <input id="f-nasc-ini" type="date" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
                     </div>
                     <div style="flex:1;">
-                        <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">AtÃƒÂ©</label>
+                        <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">AtÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©</label>
                         <input id="f-nasc-fim" type="date" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
                     </div>
                 </div>
                 <div>
                     <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Estado Civil</label>
                     <select id="f-estado-civil" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
-                        <option value="">Todos</option><option>Solteiro(a)</option><option>Casado(a)</option><option>Divorciado(a)</option><option>ViÃƒÂºvo(a)</option><option>UniÃƒÂ£o EstÃƒÂ¡vel</option>
+                        <option value="">Todos</option><option>Solteiro(a)</option><option>Casado(a)</option><option>Divorciado(a)</option><option>ViÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºvo(a)</option><option>UniÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o EstÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡vel</option>
                     </select>
                 </div>
                 <div>
@@ -2160,18 +2182,18 @@ function renderColaboradores(lista) {
                     </select>
                 </div>
                 <div>
-                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Em ExperiÃƒÂªncia</label>
+                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Em ExperiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia</label>
                     <select id="f-experiencia" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
-                        <option value="">Todos</option><option value="sim">Sim (atÃƒÂ© 90 dias)</option>
+                        <option value="">Todos</option><option value="sim">Sim (atÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© 90 dias)</option>
                     </select>
                 </div>
                 <div style="display:flex; gap:1rem;">
                     <div style="flex:1;">
-                        <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">SalÃƒÂ¡rio De</label>
+                        <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">SalÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio De</label>
                         <input id="f-sal-min" type="number" min="0" placeholder="R$" oninput="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
                     </div>
                     <div style="flex:1;">
-                        <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">SalÃƒÂ¡rio AtÃƒÂ©</label>
+                        <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">SalÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio AtÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©</label>
                         <input id="f-sal-max" type="number" min="0" placeholder="R$" oninput="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
                     </div>
                 </div>
@@ -2184,11 +2206,11 @@ function renderColaboradores(lista) {
                 <div>
                     <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Possui Dependentes</label>
                     <select id="f-dependentes" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
-                        <option value="">Todos</option><option value="sim">Sim</option><option value="nao">NÃƒÂ£o</option>
+                        <option value="">Todos</option><option value="sim">Sim</option><option value="nao">NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o</option>
                     </select>
                 </div>
                 <div>
-                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">BenefÃƒÂ­cios</label>
+                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">BenefÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­cios</label>
                     <div style="display:flex; flex-direction:column; gap:0.5rem; padding:0.5rem; border:1px solid #e2e8f0; border-radius:6px; max-height:150px; overflow-y:auto; background:#f8fafc;">
                         ${beneficiosList.map(b=>`
                             <label style="font-size:0.85rem; color:#334155; display:flex; align-items:center; gap:6px; cursor:pointer;">
@@ -2204,13 +2226,13 @@ function renderColaboradores(lista) {
                     </select>
                 </div>
                 <div>
-                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Tamanho CalÃƒÂ§a</label>
+                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Tamanho CalÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§a</label>
                     <select id="f-tam-calca" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
                         <option value="">Todos</option><option value="PP">PP</option><option value="P">P</option><option value="M">M</option><option value="G">G</option><option value="GG">GG</option><option value="EXGG">EXGG</option>
                     </select>
                 </div>
                 <div>
-                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Tamanho CalÃƒÂ§ado</label>
+                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Tamanho CalÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ado</label>
                     <select id="f-tam-calcado" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
                         <option value="">Todos</option>
                         ${Array.from({length: 14}, (_, i) => 33 + i).map(size => `<option value="${size}">${size}</option>`).join('')}
@@ -2252,13 +2274,13 @@ function renderTabelaColaboradores(lista) {
                 <thead><tr>
                     <th style="padding-left:1rem;width:50px;">Foto</th>
                     <th>Nome</th>
-                    <th>ExperiÃƒÂªncia</th>
+                    <th>ExperiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia</th>
                     <th>CPF</th>
                     <th>Departamento</th>
                     <th>Cargo</th>
-                    <th>AdmissÃƒÂ£o</th>
+                    <th>AdmissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o</th>
                     <th>Status</th>
-                    <th style="text-align:right;padding-right:1.5rem;">AÃƒÂ§ÃƒÂµes</th>
+                    <th style="text-align:right;padding-right:1.5rem;">AÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes</th>
                 </tr></thead>
                 <tbody>
                     ${lista.map(c => {
@@ -2269,14 +2291,14 @@ function renderTabelaColaboradores(lista) {
                             const adm = new Date(c.data_admissao + 'T12:00:00');
                             const d45 = new Date(adm); d45.setDate(adm.getDate() + 45);
                             const d90 = new Date(adm); d90.setDate(adm.getDate() + 90);
-                            probationDatesHtml = `<div style="font-size:7pt;color:#94a3b8;line-height:1.1;margin-top:2px;">1Ã‚Âº: ${d45.toLocaleDateString('pt-BR')}<br>2Ã‚Âº: ${d90.toLocaleDateString('pt-BR')}</div>`;
+                            probationDatesHtml = `<div style="font-size:7pt;color:#94a3b8;line-height:1.1;margin-top:2px;">1ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âº: ${d45.toLocaleDateString('pt-BR')}<br>2ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âº: ${d90.toLocaleDateString('pt-BR')}</div>`;
                         }
                         let statusHtml = '';
                         const effectiveStatus = getEffectiveStatus(c);
-                        if (effectiveStatus === 'Aguardando inÃƒÂ­cio') statusHtml = `<div style="background:#f1f3f5;color:#495057;border:2px solid #adb5bd;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-clock"></i> Aguardando</div>`;
+                        if (effectiveStatus === 'Aguardando inÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­cio') statusHtml = `<div style="background:#f1f3f5;color:#495057;border:2px solid #adb5bd;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-clock"></i> Aguardando</div>`;
                         else if (effectiveStatus === 'Processo iniciado') statusHtml = `<div style="background:#e7f5ff;color:#1864ab;border:2px solid #1864ab;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-hourglass"></i> Iniciado</div>`;
                         else if (effectiveStatus === 'Ativo') statusHtml = `<div style="background:#e8f5e9;color:#196b36;border:2px solid #196b36;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-check-circle"></i> Ativo</div>`;
-                        else if (effectiveStatus === 'FÃƒÂ©rias') statusHtml = `<div style="background:#fdf7e3;color:#c2aa72;border:2px solid #c2aa72;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-airplane-tilt"></i> FÃƒÂ©rias</div>`;
+                        else if (effectiveStatus === 'FÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rias') statusHtml = `<div style="background:#fdf7e3;color:#c2aa72;border:2px solid #c2aa72;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-airplane-tilt"></i> FÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rias</div>`;
                         else if (effectiveStatus === 'Afastado') statusHtml = `<div style="background:#faeed9;color:#eaa15f;border:2px solid transparent;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-warning"></i> Afastado</div>`;
                         else if (effectiveStatus === 'Desligado') statusHtml = `<div style="background:#fceeee;color:#ba7881;border:2px solid transparent;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-x-circle"></i> Desligado</div>`;
                         else if (effectiveStatus === 'Incompleto') statusHtml = `<div style="background:#f8f9fa;color:#6c757d;border:2px solid transparent;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-pencil-simple"></i> Incompleto</div>`;
@@ -2289,8 +2311,8 @@ function renderTabelaColaboradores(lista) {
                             const diffDays = Math.floor((today - adm) / (1000 * 60 * 60 * 24));
                             if (diffDays >= 0 && diffDays <= 90) {
                                 let tagHtml = diffDays <= 45
-                                    ? `<span class="probation-badge" style="font-size:0.65rem;padding:0.2rem 0.5rem;min-width:50px;">1Ã‚Âº 45</span>`
-                                    : `<span class="probation-badge second" style="font-size:0.65rem;padding:0.2rem 0.5rem;min-width:50px;">2Ã‚Âº 45</span>`;
+                                    ? `<span class="probation-badge" style="font-size:0.65rem;padding:0.2rem 0.5rem;min-width:50px;">1ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âº 45</span>`
+                                    : `<span class="probation-badge second" style="font-size:0.65rem;padding:0.2rem 0.5rem;min-width:50px;">2ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âº 45</span>`;
                                 experienceColHtml = `<div style="display:flex;flex-direction:column;align-items:flex-start;">${tagHtml}${probationDatesHtml}</div>`;
                             }
                         }
@@ -2310,7 +2332,7 @@ function renderTabelaColaboradores(lista) {
                             <td style="text-align:right;padding-right:1rem;">
                                 <div style="display:flex;gap:0.4rem;justify-content:flex-end;">
                                     <button class="btn btn-warning btn-sm" onclick="editColaborador(${c.id})" title="Editar" style="padding:0.4rem;width:32px;height:32px;justify-content:center;"><i class="ph ph-pencil-simple"></i></button>
-                                    <button class="btn btn-primary btn-sm" onclick="openProntuario(${c.id},'${(c.nome_completo||'').replace(/'/g,"\\'")}','${(c.cargo||'').replace(/'/g,"\\'")}','${c.cpf||''}','${c.sexo||''}','${c.data_admissao||''}','${c.status||''}','${c.rg_tipo||'RG'}')" title="ProntuÃƒÂ¡rio" style="padding:0.4rem;width:32px;height:32px;justify-content:center;background:#2563eb;"><i class="ph ph-folder-open"></i></button>
+                                    <button class="btn btn-primary btn-sm" onclick="openProntuario(${c.id},'${(c.nome_completo||'').replace(/'/g,"\\'")}','${(c.cargo||'').replace(/'/g,"\\'")}','${c.cpf||''}','${c.sexo||''}','${c.data_admissao||''}','${c.status||''}','${c.rg_tipo||'RG'}')" title="ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio" style="padding:0.4rem;width:32px;height:32px;justify-content:center;background:#2563eb;"><i class="ph ph-folder-open"></i></button>
                                     
                                 </div>
                             </td>
@@ -2323,9 +2345,9 @@ function renderTabelaColaboradores(lista) {
 }
 
 window.deleteColaborador = async function(id, isStatusIncompleto = false) {
-    let msg = 'Ã°Å¸Å¡Â¨ ATENÃƒâ€¡ÃƒÆ’O: Tem certeza que deseja inativar este colaborador?\n\nO status dele(a) serÃƒÂ¡ alterado para "Desligado" mantendo todos os arquivos intactos.';
+    let msg = 'ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â¨ ATENÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢O: Tem certeza que deseja inativar este colaborador?\n\nO status dele(a) serÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ alterado para "Desligado" mantendo todos os arquivos intactos.';
     if (isStatusIncompleto) {
-        msg = 'Ã°Å¸Å¡Â¨ ATENÃƒâ€¡ÃƒÆ’O: Este colaborador estÃƒÂ¡ INCOMPLETO. A exclusÃƒÂ£o irÃƒÂ¡ DELETAR PERMANENTEMENTE todos os dados e eventuais arquivos jÃƒÂ¡ enviados. Deseja prosseguir?';
+        msg = 'ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â¨ ATENÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢O: Este colaborador estÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ INCOMPLETO. A exclusÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o irÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ DELETAR PERMANENTEMENTE todos os dados e eventuais arquivos jÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ enviados. Deseja prosseguir?';
     }
     if(!confirm(msg)) return;
     try {
@@ -2354,7 +2376,7 @@ window.resetFormColaborador = function() {
     // CNH reset
     const sectionCnh = document.getElementById('section-cnh');
     if (sectionCnh) sectionCnh.style.display = 'none';
-    if(document.getElementById('doc-driver-license-id')) document.getElementById('doc-driver-license-id').value = '';
+    if(document.getElementById('colab-cnh-numero')) document.getElementById('colab-cnh-numero').value = '';
     if(document.getElementById('colab-cnh-vencimento')) document.getElementById('colab-cnh-vencimento').value = '';
     if(document.getElementById('colab-cnh-categoria')) document.getElementById('colab-cnh-categoria').value = '';
     
@@ -2374,7 +2396,7 @@ window.resetFormColaborador = function() {
         if (el) el.value = '';
     });
     
-    // Reset FÃƒÂ©rias Info
+    // Reset FÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rias Info
     if (document.getElementById('ferias-periodo-aquisitivo')) document.getElementById('ferias-periodo-aquisitivo').value = '-';
     if (document.getElementById('ferias-periodo-concessivo')) document.getElementById('ferias-periodo-concessivo').value = '-';
     if (document.getElementById('ferias-concessivo-indicator')) document.getElementById('ferias-concessivo-indicator').style.display = 'none';
@@ -2384,19 +2406,19 @@ window.resetFormColaborador = function() {
     
     // Reset Alergias e novos campos
     if (document.getElementById('colab-alergias')) document.getElementById('colab-alergias').value = '';
-    const radA = document.querySelector('input[name="alergia_check"][value="NÃƒÂ£o"]');
+    const radA = document.querySelector('input[name="alergia_check"][value="NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o"]');
     if (radA) radA.checked = true;
-    if (typeof window.toggleAlergias === 'function') window.toggleAlergias('NÃƒÂ£o');
+    if (typeof window.toggleAlergias === 'function') window.toggleAlergias('NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o');
 
-    const radAdt = document.querySelector('input[name="adiantamento_check"][value="NÃƒÂ£o"]');
+    const radAdt = document.querySelector('input[name="adiantamento_check"][value="NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o"]');
     if (radAdt) radAdt.checked = true;
-    if (typeof window.toggleAdiantamento === 'function') window.toggleAdiantamento('NÃƒÂ£o');
+    if (typeof window.toggleAdiantamento === 'function') window.toggleAdiantamento('NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o');
     if (document.getElementById('colab-adiantamento-valor')) document.getElementById('colab-adiantamento-valor').value = '';
 
-    const radioInN = document.querySelector('input[name="insalubridade_check"][value="NÃƒÂ£o"]');
+    const radioInN = document.querySelector('input[name="insalubridade_check"][value="NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o"]');
     if(radioInN) radioInN.checked = true;
     if(document.getElementById('colab-insalubridade-valor')) document.getElementById('colab-insalubridade-valor').value = '';
-    if (typeof window.toggleInsalubridade === 'function') window.toggleInsalubridade('NÃƒÂ£o');
+    if (typeof window.toggleInsalubridade === 'function') window.toggleInsalubridade('NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o');
     
     if (document.getElementById('colab-rg-tipo')) {
         document.getElementById('colab-rg-tipo').value = 'RG';
@@ -2409,7 +2431,7 @@ window.resetFormColaborador = function() {
     // Reset status badges (no longer used, but good to clean if they were there)
     const statusContainer = document.getElementById('status-chips-container');
     if (statusContainer) {
-        updateStatusChip('Aguardando inÃƒÂ­cio');
+        updateStatusChip('Aguardando inÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­cio');
     }
 
     const admissionBar = document.getElementById('admission-status-bar');
@@ -2457,24 +2479,24 @@ window.resetFormColaborador = function() {
     const errorCpf = document.getElementById('cpf-error');
     if(errorCpf) errorCpf.style.display = 'none';
 
-    const radioFacNao = document.querySelector('input[name="faculdade_participa"][value="NÃƒÂ£o"]');
-    if (radioFacNao) { radioFacNao.checked = true; toggleFormacaoFields('NÃƒÂ£o'); }
+    const radioFacNao = document.querySelector('input[name="faculdade_participa"][value="NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o"]');
+    if (radioFacNao) { radioFacNao.checked = true; toggleFormacaoFields('NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o'); }
     
-    const radioAcadNao = document.querySelector('input[name="academia_participa"][value="NÃƒÂ£o"]');
-    if (radioAcadNao) { radioAcadNao.checked = true; toggleAcademiaFields('NÃƒÂ£o'); }
+    const radioAcadNao = document.querySelector('input[name="academia_participa"][value="NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o"]');
+    if (radioAcadNao) { radioAcadNao.checked = true; toggleAcademiaFields('NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o'); }
     
-    const radioTeraNao = document.querySelector('input[name="terapia_participa"][value="NÃƒÂ£o"]');
-    if (radioTeraNao) { radioTeraNao.checked = true; toggleTerapiaFields('NÃƒÂ£o'); }
+    const radioTeraNao = document.querySelector('input[name="terapia_participa"][value="NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o"]');
+    if (radioTeraNao) { radioTeraNao.checked = true; toggleTerapiaFields('NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o'); }
     
-    const radioCeluNao = document.querySelector('input[name="celular_participa"][value="NÃƒÂ£o"]');
-    if (radioCeluNao) { radioCeluNao.checked = true; toggleCelularFields('NÃƒÂ£o'); }
+    const radioCeluNao = document.querySelector('input[name="celular_participa"][value="NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o"]');
+    if (radioCeluNao) { radioCeluNao.checked = true; toggleCelularFields('NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o'); }
     
-    const radioChavesNao = document.querySelector('input[name="chaves_participa"][value="NÃƒÂ£o"]');
-    if (radioChavesNao) { radioChavesNao.checked = true; toggleChavesColabFields('NÃƒÂ£o'); }
+    const radioChavesNao = document.querySelector('input[name="chaves_participa"][value="NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o"]');
+    if (radioChavesNao) { radioChavesNao.checked = true; toggleChavesColabFields('NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o'); }
 };
 
 window.editColaborador = async function(id) {
-    // BotÃƒÂ£o de sincronizaÃƒÂ§ÃƒÂ£o manual ocultado (a automaÃƒÂ§ÃƒÂ£o jÃƒÂ¡ faz isso ao salvar)
+    // BotÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de sincronizaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o manual ocultado (a automaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o jÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ faz isso ao salvar)
     const formSyncBtn = document.getElementById('btn-form-sync-onedrive');
     if (formSyncBtn) {
         formSyncBtn.style.display = 'none';
@@ -2574,7 +2596,7 @@ window.editColaborador = async function(id) {
         if (document.getElementById('colab-banco-agencia')) document.getElementById('colab-banco-agencia').value = c.banco_agencia || '';
         if (document.getElementById('colab-banco-conta')) document.getElementById('colab-banco-conta').value = c.banco_conta || '';
 
-        // Contato de EmergÃƒÂªncia
+        // Contato de EmergÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia
         if (document.getElementById('colab-emergencia-nome')) document.getElementById('colab-emergencia-nome').value = c.contato_emergencia_nome || '';
         if (document.getElementById('colab-emergencia-telefone')) document.getElementById('colab-emergencia-telefone').value = c.contato_emergencia_telefone || '';
 
@@ -2609,12 +2631,12 @@ window.editColaborador = async function(id) {
             }
         }
 
-        // toggleMotorista ANTES de carregar CNH Ã¢â‚¬â€ se chamado depois limpa os campos
+        // toggleMotorista ANTES de carregar CNH ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â se chamado depois limpa os campos
         if(typeof toggleMotorista === 'function') toggleMotorista();
-        if(document.getElementById('doc-driver-license-id')) document.getElementById('doc-driver-license-id').value = c.cnh_numero || '';
+        if(document.getElementById('colab-cnh-numero')) document.getElementById('colab-cnh-numero').value = c.cnh_numero || '';
         if(document.getElementById('colab-cnh-categoria')) document.getElementById('colab-cnh-categoria').value = c.cnh_categoria || '';
 
-        // FÃƒÂ©rias
+        // FÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rias
         if(document.getElementById('colab-ferias-programadas-inicio')) document.getElementById('colab-ferias-programadas-inicio').value = c.ferias_programadas_inicio || '';
         if(document.getElementById('colab-ferias-programadas-fim')) document.getElementById('colab-ferias-programadas-fim').value = c.ferias_programadas_fim || '';
         if(typeof updateVacationInfo === 'function') updateVacationInfo(admDate);
@@ -2622,15 +2644,15 @@ window.editColaborador = async function(id) {
 
         // Alergias
         if (document.getElementById('colab-alergias')) {
-            const hasAlergia = c.alergias && c.alergias.trim() !== '' ? 'Sim' : 'NÃƒÂ£o';
+            const hasAlergia = c.alergias && c.alergias.trim() !== '' ? 'Sim' : 'NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o';
             const radioAlergia = document.querySelector(`input[name="alergia_check"][value="${hasAlergia}"]`);
             if (radioAlergia) radioAlergia.checked = true;
             if (typeof window.toggleAlergias === 'function') window.toggleAlergias(hasAlergia);
             document.getElementById('colab-alergias').value = c.alergias || '';
         }
 
-        // Adiantamento Ã¢â‚¬â€ formatar valor como moeda ao carregar
-        const adiVal = c.adiantamento_salarial || 'NÃƒÂ£o';
+        // Adiantamento ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â formatar valor como moeda ao carregar
+        const adiVal = c.adiantamento_salarial || 'NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o';
         const radioAdt = document.querySelector(`input[name="adiantamento_check"][value="${adiVal}"]`);
         if (radioAdt) radioAdt.checked = true;
         if (typeof window.toggleAdiantamento === 'function') window.toggleAdiantamento(adiVal);
@@ -2646,9 +2668,9 @@ window.editColaborador = async function(id) {
             }
         }
 
-        // Insalubridade Ã¢â‚¬â€ formatar valor como moeda ao carregar
-        const insVal = c.insalubridade || 'NÃƒÂ£o';
-        const radioInS = document.querySelector(`input[name="insalubridade_check"][value="${insVal === 'Sim' ? 'Sim' : 'NÃƒÂ£o'}"]`);
+        // Insalubridade ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â formatar valor como moeda ao carregar
+        const insVal = c.insalubridade || 'NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o';
+        const radioInS = document.querySelector(`input[name="insalubridade_check"][value="${insVal === 'Sim' ? 'Sim' : 'NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o'}"]`);
         if(radioInS) radioInS.checked = true;
         if(document.getElementById('colab-insalubridade-valor')) {
             const rawIns = c.insalubridade_valor;
@@ -2664,7 +2686,7 @@ window.editColaborador = async function(id) {
         if (typeof window.toggleInsalubridade === 'function') window.toggleInsalubridade(insVal);
         
         // Faculdade fields
-        const participa = c.faculdade_participa || 'NÃƒÂ£o';
+        const participa = c.faculdade_participa || 'NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o';
         const radioP = document.querySelector(`input[name="faculdade_participa"][value="${participa}"]`);
         if (radioP) radioP.checked = true;
         toggleFormacaoFields(participa);
@@ -2672,28 +2694,28 @@ window.editColaborador = async function(id) {
         if (document.getElementById('colab-faculdade-data-termino')) document.getElementById('colab-faculdade-data-termino').value = c.faculdade_data_termino || '';
 
         // Academia
-        const participaAcad = c.academia_participa || 'NÃƒÂ£o';
+        const participaAcad = c.academia_participa || 'NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o';
         const radioAcad = document.querySelector(`input[name="academia_participa"][value="${participaAcad}"]`);
         if (radioAcad) radioAcad.checked = true;
         toggleAcademiaFields(participaAcad);
         if (document.getElementById('colab-academia-data-inicio')) document.getElementById('colab-academia-data-inicio').value = c.academia_data_inicio || '';
 
         // Terapia
-        const participaTera = c.terapia_participa || 'NÃƒÂ£o';
+        const participaTera = c.terapia_participa || 'NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o';
         const radioTera = document.querySelector(`input[name="terapia_participa"][value="${participaTera}"]`);
         if (radioTera) radioTera.checked = true;
         toggleTerapiaFields(participaTera);
         if (document.getElementById('colab-terapia-data-inicio')) document.getElementById('colab-terapia-data-inicio').value = c.terapia_data_inicio || '';
 
         // Celular
-        const participaCelu = c.celular_participa || 'NÃƒÂ£o';
+        const participaCelu = c.celular_participa || 'NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o';
         const radioCelu = document.querySelector(`input[name="celular_participa"][value="${participaCelu}"]`);
         if (radioCelu) radioCelu.checked = true;
         toggleCelularFields(participaCelu);
         if (document.getElementById('colab-celular-data')) document.getElementById('colab-celular-data').value = c.celular_data || '';
 
         // Chaves
-        const participaChaves = c.chaves_participa || 'NÃƒÂ£o';
+        const participaChaves = c.chaves_participa || 'NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o';
         const radioChaves = document.querySelector(`input[name="chaves_participa"][value="${participaChaves}"]`);
         if (radioChaves) radioChaves.checked = true;
         toggleChavesColabFields(participaChaves);
@@ -2713,9 +2735,9 @@ window.editColaborador = async function(id) {
 
         updateStatusChip(getEffectiveStatus(c));
         
-        if (c.estado_civil === 'Casado' || c.estado_civil === 'UniÃƒÂ£o EstÃƒÂ¡vel') {
+        if (c.estado_civil === 'Casado' || c.estado_civil === 'UniÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o EstÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡vel') {
             toggleConjuge();
-            // CÃƒÂ´njuge agora salvo diretamente no colaborador (conjuge_nome / conjuge_cpf)
+            // CÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â´njuge agora salvo diretamente no colaborador (conjuge_nome / conjuge_cpf)
             if (document.getElementById('conjuge-nome')) document.getElementById('conjuge-nome').value = c.conjuge_nome || '';
             if (document.getElementById('conjuge-cpf')) document.getElementById('conjuge-cpf').value = c.conjuge_cpf || '';
         } else {
@@ -2763,17 +2785,17 @@ window.editColaborador = async function(id) {
         const admissionBtn = document.getElementById('btn-iniciar-admissao');
         
         if (admissionBar && admissionText && admissionBtn) {
-            if (c.status === 'Aguardando inÃƒÂ­cio' || c.status === 'Processo iniciado') {
+            if (c.status === 'Aguardando inÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­cio' || c.status === 'Processo iniciado') {
                 admissionBar.style.display = 'flex';
                 admissionText.textContent = c.status;
-                admissionBtn.innerHTML = '<i class="ph ph-arrow-right"></i> PÃƒÂ¡gina AdmissÃƒÂ£o';
+                admissionBtn.innerHTML = '<i class="ph ph-arrow-right"></i> PÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡gina AdmissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o';
                 admissionBtn.onclick = () => navigateTo('admissao');
                 admissionBtn.style.opacity = '1';
                 admissionBtn.style.cursor = 'pointer';
             } else if (c.status === 'Ativo') {
                 admissionBar.style.display = 'flex';
-                admissionText.textContent = 'AdmissÃƒÂ£o ConcluÃƒÂ­da';
-                admissionBtn.innerHTML = '<i class="ph ph-check-square"></i> ConcluÃƒÂ­da';
+                admissionText.textContent = 'AdmissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o ConcluÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­da';
+                admissionBtn.innerHTML = '<i class="ph ph-check-square"></i> ConcluÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­da';
                 admissionBtn.onclick = null;
                 admissionBtn.style.opacity = '0.7';
                 admissionBtn.style.cursor = 'default';
@@ -2786,8 +2808,8 @@ window.editColaborador = async function(id) {
         const container = document.getElementById('dependentes-container');
         if (container) {
             container.innerHTML = '';
-            // Filtra cÃƒÂ´njuge para nÃƒÂ£o aparecer na lista de dependentes
-            const children = (c.dependentes || []).filter(d => d.grau_parentesco !== 'CÃƒÂ´njuge');
+            // Filtra cÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â´njuge para nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o aparecer na lista de dependentes
+            const children = (c.dependentes || []).filter(d => d.grau_parentesco !== 'CÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â´njuge');
             if (children.length > 0) {
                 document.getElementById('no-dependentes-msg').style.display = 'none';
                 children.forEach(dep => {
@@ -2825,7 +2847,7 @@ window.editColaborador = async function(id) {
         }, 100);
     } catch (err) {
         console.error('Erro ao editar colaborador:', err);
-        alert('Ocorreu um erro ao carregar os dados para ediÃƒÂ§ÃƒÂ£o: ' + err.message);
+        alert('Ocorreu um erro ao carregar os dados para ediÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o: ' + err.message);
     }
 };
 
@@ -2856,7 +2878,7 @@ if (formColab) {
 
         const isPartial = e.submitter && e.submitter.id === 'btn-salvar-parcial';
 
-        // ValidaÃƒÂ§ÃƒÂµes obrigatÃƒÂ³rias
+        // ValidaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes obrigatÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rias
         if (!isPartial) {
             if (!nomeInput || !nomeInput.value.trim()) {
                 alert("Por favor, preencha o Nome Completo do colaborador.");
@@ -2864,10 +2886,10 @@ if (formColab) {
                 return;
             }
             if (cpfInput && cpfInput.value.replace(/\D/g, '').length < 11) {
-                alert("CPF do Colaborador invÃƒÂ¡lido ou incompleto.");
+                alert("CPF do Colaborador invÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡lido ou incompleto.");
                 return;
             }
-            // CÃƒÂ´njuge e CNH: preenchimento opcional
+            // CÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â´njuge e CNH: preenchimento opcional
         }
 
         const submitter = e.submitter;
@@ -2898,7 +2920,7 @@ if (formColab) {
             status: statusInput ? statusInput.value : '',
             contato_emergencia_nome: document.getElementById('colab-emergencia-nome').value,
             contato_emergencia_telefone: document.getElementById('colab-emergencia-telefone').value,
-            cnh_numero: document.getElementById('doc-driver-license-id') ? document.getElementById('doc-driver-license-id').value : null,
+            cnh_numero: document.getElementById('colab-cnh-numero') ? document.getElementById('colab-cnh-numero').value : null,
             cnh_categoria: document.getElementById('colab-cnh-categoria') ? document.getElementById('colab-cnh-categoria').value : null,
             matricula_esocial: document.getElementById('colab-matricula-esocial') ? document.getElementById('colab-matricula-esocial').value : null,
             local_nascimento: document.getElementById('colab-local-nascimento') ? document.getElementById('colab-local-nascimento').value : null,
@@ -2919,7 +2941,7 @@ if (formColab) {
             
             dependentes: (() => {
                 const results = [];
-                // Incluir Filhos / Dependentes (CÃƒÂ´njuge nÃƒÂ£o ÃƒÂ© mais dependente)
+                // Incluir Filhos / Dependentes (CÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â´njuge nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© mais dependente)
                 const rows = document.querySelectorAll('.dependente-row');
                 rows.forEach(row => {
                     const nome = row.querySelector('.dep-nome').value;
@@ -2932,10 +2954,10 @@ if (formColab) {
                         });
                     }
                 });
-                // Incluir apenas filhos como dependentes (cÃƒÂ´njuge ÃƒÂ© salvo separadamente)
+                // Incluir apenas filhos como dependentes (cÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â´njuge ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© salvo separadamente)
                 return results;
             })(),
-            // CÃƒÂ´njuge salvo como colunas diretas no colaborador
+            // CÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â´njuge salvo como colunas diretas no colaborador
             conjuge_nome: document.getElementById('conjuge-nome') ? document.getElementById('conjuge-nome').value.trim() : null,
             conjuge_cpf: document.getElementById('conjuge-cpf') ? document.getElementById('conjuge-cpf').value.trim() : null,
             cbo: (function() {
@@ -2961,33 +2983,33 @@ if (formColab) {
             meio_transporte: document.getElementById('colab-meio-transporte') ? document.getElementById('colab-meio-transporte').value : null,
             valor_transporte: document.getElementById('colab-valor-transporte') ? document.getElementById('colab-valor-transporte').value : null,
             alergias: document.getElementById('colab-alergias') ? document.getElementById('colab-alergias').value : null,
-            faculdade_participa: document.querySelector('input[name="faculdade_participa"]:checked')?.value || 'NÃƒÂ£o',
+            faculdade_participa: document.querySelector('input[name="faculdade_participa"]:checked')?.value || 'NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o',
             faculdade_curso_id: document.getElementById('colab-faculdade-curso') ? document.getElementById('colab-faculdade-curso').value : null,
             faculdade_data_inicio: document.getElementById('colab-faculdade-data-inicio') ? document.getElementById('colab-faculdade-data-inicio').value : null,
             faculdade_data_termino: document.getElementById('colab-faculdade-data-termino') ? document.getElementById('colab-faculdade-data-termino').value : null,
-            academia_participa: document.querySelector('input[name="academia_participa"]:checked')?.value || 'NÃƒÂ£o',
+            academia_participa: document.querySelector('input[name="academia_participa"]:checked')?.value || 'NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o',
             academia_data_inicio: document.getElementById('colab-academia-data-inicio') ? document.getElementById('colab-academia-data-inicio').value : null,
-            terapia_participa: document.querySelector('input[name="terapia_participa"]:checked')?.value || 'NÃƒÂ£o',
+            terapia_participa: document.querySelector('input[name="terapia_participa"]:checked')?.value || 'NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o',
             terapia_data_inicio: document.getElementById('colab-terapia-data-inicio') ? document.getElementById('colab-terapia-data-inicio').value : null,
-            celular_participa: document.querySelector('input[name="celular_participa"]:checked')?.value || 'NÃƒÂ£o',
+            celular_participa: document.querySelector('input[name="celular_participa"]:checked')?.value || 'NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o',
             celular_data: document.getElementById('colab-celular-data') ? document.getElementById('colab-celular-data').value : null,
-            chaves_participa: document.querySelector('input[name="chaves_participa"]:checked')?.value || 'NÃƒÂ£o',
+            chaves_participa: document.querySelector('input[name="chaves_participa"]:checked')?.value || 'NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o',
             chaves_lista: Array.from(document.querySelectorAll('.chave-entry-row')).map(row => ({
                 chave_id: row.querySelector('.colab-chave-select').value,
                 data_entrega: row.querySelector('.colab-chave-date').value
             })).filter(x => x.chave_id),
             ferias_programadas_inicio: document.getElementById('colab-ferias-programadas-inicio') ? document.getElementById('colab-ferias-programadas-inicio').value : null,
             ferias_programadas_fim: document.getElementById('colab-ferias-programadas-fim') ? document.getElementById('colab-ferias-programadas-fim').value : null,
-            adiantamento_salarial: document.querySelector('input[name="adiantamento_check"]:checked')?.value || 'NÃƒÂ£o',
+            adiantamento_salarial: document.querySelector('input[name="adiantamento_check"]:checked')?.value || 'NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o',
             adiantamento_valor: document.getElementById('colab-adiantamento-valor') ? document.getElementById('colab-adiantamento-valor').value : null,
-            insalubridade: document.querySelector('input[name="insalubridade_check"]:checked')?.value || 'NÃƒÂ£o',
+            insalubridade: document.querySelector('input[name="insalubridade_check"]:checked')?.value || 'NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o',
             insalubridade_valor: document.getElementById('colab-insalubridade-valor') ? document.getElementById('colab-insalubridade-valor').value : null,
             tamanho_camiseta: document.getElementById('tamanho_camiseta') ? document.getElementById('tamanho_camiseta').value : null,
             tamanho_calca: document.getElementById('tamanho_calca') ? document.getElementById('tamanho_calca').value : null,
             tamanho_calcado: document.getElementById('tamanho_calcado') ? document.getElementById('tamanho_calcado').value : null
         };
 
-        // Converter valores formatados (R$) para nÃƒÂºmeros antes de enviar
+        // Converter valores formatados (R$) para nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºmeros antes de enviar
         const parseMoeda = (v) => {
             if (!v || typeof v !== 'string') return v;
             const clean = v.replace(/[^\d,]/g, "").replace(",", ".");
@@ -3001,13 +3023,13 @@ if (formColab) {
         if (data.escala_tipo === 'escala_duas_folgas' && !isPartial) {
             const folgas = Array.from(document.querySelectorAll('.cb-folga-colab:checked')).map(cb => cb.value);
             if (folgas.length !== 2) {
-                alert('AtenÃƒÂ§ÃƒÂ£o: Para o esquema 5x2 (Revezamento), vocÃƒÂª deve marcar *exatamente 2 dias* de folga na lista.');
+                alert('AtenÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o: Para o esquema 5x2 (Revezamento), vocÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âª deve marcar *exatamente 2 dias* de folga na lista.');
                 btnRestorer();
                 return;
             }
             data.escala_folgas = JSON.stringify(folgas);
         } else if (data.escala_tipo && data.escala_tipo !== 'escala_duas_folgas') {
-            data.escala_folgas = JSON.stringify(['Dom']); // PadrÃƒÂ£o para as outras escalas
+            data.escala_folgas = JSON.stringify(['Dom']); // PadrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o para as outras escalas
         }
 
         const btnRestorer = () => {
@@ -3017,42 +3039,42 @@ if (formColab) {
             }
         };
 
-        let c_status = statusInput ? statusInput.value : 'Aguardando inÃƒÂ­cio';
+        let c_status = statusInput ? statusInput.value : 'Aguardando inÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­cio';
         if (!id) {
-            // Todos novos registros iniciam como Aguardando inÃƒÂ­cio
-            c_status = 'Aguardando inÃƒÂ­cio';
+            // Todos novos registros iniciam como Aguardando inÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­cio
+            c_status = 'Aguardando inÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­cio';
         }
         data.status = c_status;
 
-        // VALIDAÃƒâ€¡ÃƒÆ’O FRONT-END (MÃƒÂNIMO)
+        // VALIDAÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢O FRONT-END (MÃƒÆ’Ã†â€™Ãƒâ€šÃ‚ÂNIMO)
         if (!data.nome_completo || data.nome_completo.trim() === '') {
-            alert('Preenchimento ObrigatÃƒÂ³rio: O campo "Nome Completo" nÃƒÂ£o pode ficar vazio.');
+            alert('Preenchimento ObrigatÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rio: O campo "Nome Completo" nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o pode ficar vazio.');
             btnRestorer();
             return;
         }
         
         if (!data.cpf || data.cpf.trim() === '') {
-            alert('Preenchimento ObrigatÃƒÂ³rio: O campo "CPF" nÃƒÂ£o pode ficar vazio.');
+            alert('Preenchimento ObrigatÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rio: O campo "CPF" nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o pode ficar vazio.');
             btnRestorer();
             return;
         }
 
-        // ValidaÃƒÂ§ÃƒÂ£o de Motorista
+        // ValidaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de Motorista
         if (data.cargo && data.cargo.toUpperCase().includes('MOTORISTA')) {
             if (!isPartial) {
-                const cnhNumeroEl = document.getElementById('doc-driver-license-id');
+                const cnhNumeroEl = document.getElementById('colab-cnh-numero');
                 const cnhCatEl = document.getElementById('colab-cnh-categoria');
                 const cnhNumeroVal = cnhNumeroEl ? cnhNumeroEl.value.trim() : (data.cnh_numero || '').trim();
                 const cnhCatVal = cnhCatEl ? cnhCatEl.value : (data.cnh_categoria || '');
                 if (cnhNumeroEl && cnhCatEl) {
-                    // SÃƒÂ³ valida se os campos estiverem no DOM
+                    // SÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³ valida se os campos estiverem no DOM
                     if (!cnhNumeroVal || !cnhCatVal) {
-                        alert('Preenchimento ObrigatÃƒÂ³rio: Dados da CNH (NÃƒÂºmero e Categoria) para Motorista nÃƒÂ£o podem ficar vazios.');
+                        alert('Preenchimento ObrigatÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rio: Dados da CNH (NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºmero e Categoria) para Motorista nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o podem ficar vazios.');
                         btnRestorer();
                         return;
                     }
                     if (cnhNumeroVal.length < 11) {
-                        alert('Preenchimento ObrigatÃƒÂ³rio: O nÃƒÂºmero da CNH deve conter pelo menos 11 dÃƒÂ­gitos.');
+                        alert('Preenchimento ObrigatÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rio: O nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºmero da CNH deve conter pelo menos 11 dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­gitos.');
                         btnRestorer();
                         return;
                     }
@@ -3082,7 +3104,7 @@ if (formColab) {
                     headers: { 'Authorization': `Bearer ${currentToken}` }
                 });
                 const dataSync = await syncRes.json();
-                // NavegaÃƒÂ§ÃƒÂ£o silenciosa Ã¢â‚¬â€ sem alertas de confirmaÃƒÂ§ÃƒÂ£o
+                // NavegaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o silenciosa ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â sem alertas de confirmaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o
             } else {
                 // Colaborador salvo sem sync (novo colaborador)
             }
@@ -3117,11 +3139,11 @@ window.openProntuarioFromCurrentForm = function() {
     window.openProntuario(id, nome, cargo, cpf, sexo, admissao, status, rgTipo);
 }
 
-// --- PRONTUÃƒÂRIO DIGITAL ---
+// --- PRONTUÃƒÆ’Ã†â€™Ãƒâ€šÃ‚ÂRIO DIGITAL ---
 window.openProntuario = async function(id, nome, cargo, cpf, sexo = '', admissao = '', status = '', rgTipo = 'RG') {
     viewedColaborador = { id, nome_completo: nome, cargo, cpf, sexo, data_admissao: admissao, status, rg_tipo: rgTipo };
     
-    // Vincular botÃƒÂ£o IMEDIATAMENTE (antes de qualquer await)
+    // Vincular botÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o IMEDIATAMENTE (antes de qualquer await)
     const syncBtn = document.getElementById('btn-sync-onedrive');
     if (syncBtn) {
         syncBtn.onclick = function() { window.syncOneDriveManual(id, this); };
@@ -3145,16 +3167,16 @@ window.openProntuario = async function(id, nome, cargo, cpf, sexo = '', admissao
     if (statusDisplay) {
         const s = getEffectiveStatus(viewedColaborador || { status });
         let statusHtml = '';
-        if (s === 'Aguardando inÃƒÂ­cio') statusHtml = `<div style="background:#f1f3f5; color:#495057; border: 1px solid #adb5bd; border-radius:20px; font-weight:600; padding:2px 10px; font-size:0.75rem; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-clock"></i> Aguardando</div>`;
+        if (s === 'Aguardando inÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­cio') statusHtml = `<div style="background:#f1f3f5; color:#495057; border: 1px solid #adb5bd; border-radius:20px; font-weight:600; padding:2px 10px; font-size:0.75rem; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-clock"></i> Aguardando</div>`;
         else if (s === 'Processo iniciado') statusHtml = `<div style="background:#e7f5ff; color:#1864ab; border: 1px solid #1864ab; border-radius:20px; font-weight:600; padding:2px 10px; font-size:0.75rem; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-hourglass"></i> Iniciado</div>`;
         else if (s === 'Ativo') statusHtml = `<div style="background:#e8f5e9; color:#196b36; border: 1px solid #196b36; border-radius:20px; font-weight:600; padding:2px 10px; font-size:0.75rem; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-check-circle"></i> Ativo</div>`;
-        else if (s === 'FÃƒÂ©rias') statusHtml = `<div style="background:#fdf7e3; color:#c2aa72; border: 1px solid #c2aa72; border-radius:20px; font-weight:600; padding:2px 10px; font-size:0.75rem; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-airplane-tilt"></i> FÃƒÂ©rias</div>`;
+        else if (s === 'FÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rias') statusHtml = `<div style="background:#fdf7e3; color:#c2aa72; border: 1px solid #c2aa72; border-radius:20px; font-weight:600; padding:2px 10px; font-size:0.75rem; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-airplane-tilt"></i> FÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rias</div>`;
         else if (s === 'Afastado') statusHtml = `<div style="background:#faeed9; color:#eaa15f; border: 1px solid #eaa15f; border-radius:20px; font-weight:600; padding:2px 10px; font-size:0.75rem; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-warning"></i> Afastado</div>`;
         else if (s === 'Desligado') statusHtml = `<div style="background:#fceeee; color:#ba7881; border: 1px solid #ba7881; border-radius:20px; font-weight:600; padding:2px 10px; font-size:0.75rem; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-x-circle"></i> Desligado</div>`;
         statusDisplay.innerHTML = statusHtml;
     }
 
-    // Foto no ProntuÃƒÂ¡rio
+    // Foto no ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio
     const fotoImg = document.getElementById('prontuario-foto-img');
     const fotoPlaceholder = document.getElementById('prontuario-photo-placeholder');
     if (fotoImg && fotoPlaceholder) {
@@ -3174,10 +3196,10 @@ window.openProntuario = async function(id, nome, cargo, cpf, sexo = '', admissao
     const firstTab = document.querySelector('#tabs-list li[data-tab="00.CheckList"]');
     if (firstTab) firstTab.classList.add('active');
 
-    // Exibir aba CÃƒÂ´njuge apenas para Casado ou UniÃƒÂ£o EstÃƒÂ¡vel
+    // Exibir aba CÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â´njuge apenas para Casado ou UniÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o EstÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡vel
     const tabConjuge = document.getElementById('tab-conjuge');
     if (tabConjuge) {
-        tabConjuge.style.display = 'none'; // Aba de CÃƒÂ´njuge extinta nativamente (migrado para Passo 4)
+        tabConjuge.style.display = 'none'; // Aba de CÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â´njuge extinta nativamente (migrado para Passo 4)
     }
 
     const _nomePront = viewedColaborador ? (viewedColaborador.nome_completo || viewedColaborador.nome || nome) : nome;
@@ -3204,7 +3226,7 @@ window.uploadFotoProntuario = async function(input) {
         });
         
         if (response.ok) {
-            // Recarregar prontuÃƒÂ¡rio para atualizar foto
+            // Recarregar prontuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio para atualizar foto
             const updated = await apiGet(`/colaboradores/${colabId}`);
             if (updated) {
                 viewedColaborador = updated;
@@ -3221,7 +3243,7 @@ window.uploadFotoProntuario = async function(input) {
         }
     } catch (err) {
         console.error(err);
-        alert('Erro na conexÃƒÂ£o ao enviar foto.');
+        alert('Erro na conexÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o ao enviar foto.');
     }
 };
 
@@ -3234,9 +3256,9 @@ async function loadDocumentosList() {
 }
 
 const FIXED_DOCS = {
-    'ASO': ['ASO PadrÃƒÂ£o'],
+    'ASO': ['ASO PadrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o'],
     'Ficha de EPI': ['Ficha de EPI Assinada'],
-    'Multas': ['Contrato de Responsabilidade com o VeÃƒÂ­culo']
+    'Multas': ['Contrato de Responsabilidade com o VeÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­culo']
 };
 
 function getFichaCadastralDocs() {
@@ -3293,7 +3315,7 @@ function getAnosAdmissaoOptions(selectedYear = null) {
 }
 
 // ============================================================
-// GERADOR DE OCORRÃƒÅ NCIA - Renderiza painel na aba OcorrÃƒÂªncias (tabId: AdvertÃƒÂªncias)
+// GERADOR DE OCORRÃƒÆ’Ã†â€™Ãƒâ€¦Ã‚Â NCIA - Renderiza painel na aba OcorrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncias (tabId: AdvertÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncias)
 // ============================================================
 window.renderAdvertenciasTab = function(listContainer, filteredDocs) {
     const safeTabId = 'Advert_ncias';
@@ -3309,36 +3331,36 @@ window.renderAdvertenciasTab = function(listContainer, filteredDocs) {
                     <i class="ph ph-warning" style="color:#fff; font-size:1.3rem;"></i>
                 </div>
                 <div>
-                    <h4 style="margin:0; font-size:1rem; font-weight:700; color:#1e293b;">Gerar OcorrÃƒÂªncia</h4>
-                    <p style="margin:0; font-size:0.8rem; color:#64748b;">Preencha os campos e gere o documento jÃƒÂ¡ com os dados do colaborador</p>
+                    <h4 style="margin:0; font-size:1rem; font-weight:700; color:#1e293b;">Gerar OcorrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia</h4>
+                    <p style="margin:0; font-size:0.8rem; color:#64748b;">Preencha os campos e gere o documento jÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ com os dados do colaborador</p>
                 </div>
             </div>
 
             <div style="display:grid; grid-template-columns:1.5fr 2fr 1fr; gap:1rem; margin-bottom:1rem;">
                 <div>
-                    <label style="font-size:0.75rem; font-weight:700; color:#475569; display:block; margin-bottom:4px;">Tipo de AdvertÃƒÂªncia</label>
+                    <label style="font-size:0.75rem; font-weight:700; color:#475569; display:block; margin-bottom:4px;">Tipo de AdvertÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia</label>
                     <select id="adv-tipo" class="form-control" style="padding:0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.9rem;">
-                        <option value="ocorrencia">OcorrÃƒÂªncia</option>
-                        <option value="verbal">AdvertÃƒÂªncia Verbal</option>
-                        <option value="escrita">AdvertÃƒÂªncia Escrita</option>
-                        <option value="suspensao_1">SuspensÃƒÂ£o Ã¢â‚¬â€ 1 dia</option>
-                        <option value="suspensao_2">SuspensÃƒÂ£o Ã¢â‚¬â€ 2 dias</option>
-                        <option value="suspensao_3">SuspensÃƒÂ£o Ã¢â‚¬â€ 3 dias</option>
+                        <option value="ocorrencia">OcorrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia</option>
+                        <option value="verbal">AdvertÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia Verbal</option>
+                        <option value="escrita">AdvertÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia Escrita</option>
+                        <option value="suspensao_1">SuspensÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â 1 dia</option>
+                        <option value="suspensao_2">SuspensÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â 2 dias</option>
+                        <option value="suspensao_3">SuspensÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â 3 dias</option>
                     </select>
                 </div>
                 <div>
-                    <label style="font-size:0.75rem; font-weight:700; color:#475569; display:block; margin-bottom:4px;">TÃƒÂ­tulo da AdvertÃƒÂªncia <span style="color:#94a3b8; font-weight:400;">(opcional)</span></label>
-                    <input type="text" id="adv-titulo" class="form-control" placeholder="Ex: Desrespeito ÃƒÂ s normas internas..." style="padding:0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.9rem;">
+                    <label style="font-size:0.75rem; font-weight:700; color:#475569; display:block; margin-bottom:4px;">TÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­tulo da AdvertÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia <span style="color:#94a3b8; font-weight:400;">(opcional)</span></label>
+                    <input type="text" id="adv-titulo" class="form-control" placeholder="Ex: Desrespeito ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â s normas internas..." style="padding:0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.9rem;">
                 </div>
                 <div>
-                    <label style="font-size:0.75rem; font-weight:700; color:#475569; display:block; margin-bottom:4px;">Data OcorrÃƒÂªncia</label>
+                    <label style="font-size:0.75rem; font-weight:700; color:#475569; display:block; margin-bottom:4px;">Data OcorrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia</label>
                     <input type="date" id="adv-data" class="form-control" value="${new Date().toISOString().split('T')[0]}" style="padding:0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.9rem;">
                 </div>
             </div>
 
             <div style="margin-bottom:1rem;">
-                <label style="font-size:0.75rem; font-weight:700; color:#475569; display:block; margin-bottom:4px;">Motivo / DescriÃƒÂ§ÃƒÂ£o da InfraÃƒÂ§ÃƒÂ£o <span style="color:#ef4444;">*</span></label>
-                <textarea id="adv-motivo" rows="3" class="form-control" placeholder="Descreva o motivo da advertÃƒÂªncia..." style="padding:0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.9rem; resize:vertical; width:100%; box-sizing:border-box;"></textarea>
+                <label style="font-size:0.75rem; font-weight:700; color:#475569; display:block; margin-bottom:4px;">Motivo / DescriÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o da InfraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o <span style="color:#ef4444;">*</span></label>
+                <textarea id="adv-motivo" rows="3" class="form-control" placeholder="Descreva o motivo da advertÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia..." style="padding:0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.9rem; resize:vertical; width:100%; box-sizing:border-box;"></textarea>
             </div>
 
             <div style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
@@ -3350,20 +3372,20 @@ window.renderAdvertenciasTab = function(listContainer, filteredDocs) {
                 </span>
             </div>
 
-            <!-- O painel de preview inline foi removido, pois agora abrirÃƒÂ¡ no modal -->
+            <!-- O painel de preview inline foi removido, pois agora abrirÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ no modal -->
         </div>
 
         <!-- Seletor de ano + lista de documentos -->
         <div class="card p-3 mb-4 bg-light" style="display:flex; gap:1.5rem; align-items:center;">
             <label style="margin:0; font-weight:600;">Ano referente:</label>
-            <select id="temporal_year_Advert_ncias" class="form-control" style="padding:0.4rem; max-width:120px;" onchange="renderTemporalAno('AdvertÃƒÂªncias')">
+            <select id="temporal_year_Advert_ncias" class="form-control" style="padding:0.4rem; max-width:120px;" onchange="renderTemporalAno('AdvertÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncias')">
                 ${optionsHtml}
             </select>
         </div>
         <div id="temporal_ano_container_Advert_ncias"></div>
     `;
     listContainer.appendChild(geradorPanel);
-    renderTemporalAno('AdvertÃƒÂªncias');
+    renderTemporalAno('AdvertÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncias');
 };
 
 window.gerarAdvertencia = function() {
@@ -3374,23 +3396,23 @@ window.gerarAdvertencia = function() {
     const titulo = document.getElementById('adv-titulo').value.trim();
     const motivo = document.getElementById('adv-motivo').value.trim();
 
-    if (!motivo) { alert('Por favor, descreva o motivo da advertÃƒÂªncia.'); document.getElementById('adv-motivo').focus(); return; }
+    if (!motivo) { alert('Por favor, descreva o motivo da advertÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia.'); document.getElementById('adv-motivo').focus(); return; }
 
     const tipoMap = {
-        verbal:      'ADVERTÃƒÅ NCIA VERBAL',
-        escrita:     'ADVERTÃƒÅ NCIA ESCRITA',
-        suspensao_1: 'SUSPENSÃƒÆ’O DISCIPLINAR Ã¢â‚¬â€ 1 DIA',
-        suspensao_2: 'SUSPENSÃƒÆ’O DISCIPLINAR Ã¢â‚¬â€ 2 DIAS',
-        suspensao_3: 'SUSPENSÃƒÆ’O DISCIPLINAR Ã¢â‚¬â€ 3 DIAS',
-        ocorrencia:  'OCORRÃƒÅ NCIA'
+        verbal:      'ADVERTÃƒÆ’Ã†â€™Ãƒâ€¦Ã‚Â NCIA VERBAL',
+        escrita:     'ADVERTÃƒÆ’Ã†â€™Ãƒâ€¦Ã‚Â NCIA ESCRITA',
+        suspensao_1: 'SUSPENSÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢O DISCIPLINAR ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â 1 DIA',
+        suspensao_2: 'SUSPENSÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢O DISCIPLINAR ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â 2 DIAS',
+        suspensao_3: 'SUSPENSÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢O DISCIPLINAR ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â 3 DIAS',
+        ocorrencia:  'OCORRÃƒÆ’Ã†â€™Ãƒâ€¦Ã‚Â NCIA'
     };
-    const tipoTexto = tipoMap[tipo] || 'ADVERTÃƒÅ NCIA';
+    const tipoTexto = tipoMap[tipo] || 'ADVERTÃƒÆ’Ã†â€™Ãƒâ€¦Ã‚Â NCIA';
     const isSuspensao = tipo.startsWith('suspensao');
     const diasSuspensao = tipo === 'suspensao_1' ? 1 : tipo === 'suspensao_2' ? 2 : tipo === 'suspensao_3' ? 3 : 0;
 
     const [ay, am, ad] = (dataOcorrencia || new Date().toISOString().split('T')[0]).split('-');
     const dataFormatada = `${ad}/${am}/${ay}`;
-    const meses = ["janeiro","fevereiro","marÃƒÂ§o","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+    const meses = ["janeiro","fevereiro","marÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
     const dataExtenso = `${parseInt(ad)} de ${meses[parseInt(am)-1]} de ${ay}`;
     const dataHoje = new Date();
     const dataHojeFormatada = `${String(dataHoje.getDate()).padStart(2,'0')}/${String(dataHoje.getMonth()+1).padStart(2,'0')}/${dataHoje.getFullYear()}`;
@@ -3405,9 +3427,9 @@ window.gerarAdvertencia = function() {
 
     const suspensaoParag = isSuspensao ? `
         <p style="margin-top:1rem; text-align:justify;">
-            Em decorrÃƒÂªncia da gravidade da infraÃƒÂ§ÃƒÂ£o cometida, o(a) colaborador(a) cumprirÃƒÂ¡
-            <strong>suspensÃƒÂ£o disciplinar de ${diasSuspensao} (${diasSuspensao === 1 ? 'um' : diasSuspensao === 2 ? 'dois' : 'trÃƒÂªs'}) dia(s)</strong>,
-            sem remuneraÃƒÂ§ÃƒÂ£o, a contar da data da ciÃƒÂªncia deste documento.
+            Em decorrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia da gravidade da infraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o cometida, o(a) colaborador(a) cumprirÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡
+            <strong>suspensÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o disciplinar de ${diasSuspensao} (${diasSuspensao === 1 ? 'um' : diasSuspensao === 2 ? 'dois' : 'trÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªs'}) dia(s)</strong>,
+            sem remuneraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o, a contar da data da ciÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia deste documento.
         </p>` : '';
 
 
@@ -3415,44 +3437,44 @@ window.gerarAdvertencia = function() {
 
     const htmlDoc = `
         <p style="margin-top:1.5rem; text-align:justify;">
-            A empresa <strong>AMERICA RENTAL EQUIPAMENTOS LTDA</strong>, inscrita no CNPJ sob o nÃ‚Âº 03.434.448/0001-01,
-            situada na Rua Salto da Divisa, nÃ‚Âº 97, CEP 07252-300, Parque Alvorada Ã¢â‚¬â€œ Guarulhos/SP,
+            A empresa <strong>AMERICA RENTAL EQUIPAMENTOS LTDA</strong>, inscrita no CNPJ sob o nÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âº 03.434.448/0001-01,
+            situada na Rua Salto da Divisa, nÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âº 97, CEP 07252-300, Parque Alvorada ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ Guarulhos/SP,
             ${isOcorrencia
-                ? `vem por meio deste documento <strong>registrar a seguinte ocorrÃƒÂªncia</strong> envolvendo o(a) colaborador(a) <strong>${nomeColab}</strong>.`
-                : `vem por meio deste documento aplicar ao(ÃƒÂ ) colaborador(a) <strong>${nomeColab}</strong> a presente <strong>${tipoTexto}</strong>.`
+                ? `vem por meio deste documento <strong>registrar a seguinte ocorrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia</strong> envolvendo o(a) colaborador(a) <strong>${nomeColab}</strong>.`
+                : `vem por meio deste documento aplicar ao(ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â ) colaborador(a) <strong>${nomeColab}</strong> a presente <strong>${tipoTexto}</strong>.`
             }
         </p>
         ${titulo ? `<p style="margin-top:0.75rem; text-align:center; font-size:1rem; font-weight:700; color:#92400e; text-transform:uppercase; letter-spacing:0.04em; border-bottom:1px solid #fdba74; padding-bottom:0.4rem;">${titulo}</p>` : ''}
 
         <p style="margin-top:1rem; text-align:justify;">
-            <strong>${isOcorrencia ? 'DescriÃƒÂ§ÃƒÂ£o da ocorrÃƒÂªncia:' : 'Motivo / InfraÃƒÂ§ÃƒÂ£o cometida:'}</strong><br>
+            <strong>${isOcorrencia ? 'DescriÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o da ocorrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia:' : 'Motivo / InfraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o cometida:'}</strong><br>
             ${motivo.replace(/\n/g, '<br>')}
         </p>
         ${suspensaoParag}
         ${!isOcorrencia ? `
         <p style="margin-top:1rem; text-align:justify;">
-            Informamos que esta ÃƒÂ© <strong>uma medida disciplinar</strong> e que reincidÃƒÂªncias poderÃƒÂ£o acarretar
-            penalidades mais severas, inclusive a rescisÃƒÂ£o do contrato de trabalho por justa causa,
-            nos termos do artigo 482 da ConsolidaÃƒÂ§ÃƒÂ£o das Leis do Trabalho (CLT).
+            Informamos que esta ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© <strong>uma medida disciplinar</strong> e que reincidÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncias poderÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o acarretar
+            penalidades mais severas, inclusive a rescisÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o do contrato de trabalho por justa causa,
+            nos termos do artigo 482 da ConsolidaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o das Leis do Trabalho (CLT).
         </p>
 
         <p style="margin-top:1rem; text-align:justify;">
-            O(A) colaborador(a) declara, com sua assinatura, estar ciente do conteÃƒÂºdo desta advertÃƒÂªncia
-            e de que a mesma serÃƒÂ¡ arquivada em seu prontuÃƒÂ¡rio.
+            O(A) colaborador(a) declara, com sua assinatura, estar ciente do conteÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºdo desta advertÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia
+            e de que a mesma serÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ arquivada em seu prontuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio.
         </p>` : `
         <p style="margin-top:1rem; text-align:justify; color:#475569; font-size:0.92em;">
-            Este registro ÃƒÂ© de carÃƒÂ¡ter informativo e serÃƒÂ¡ arquivado no prontuÃƒÂ¡rio do colaborador.
+            Este registro ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© de carÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ter informativo e serÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ arquivado no prontuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio do colaborador.
         </p>`}
     `;
 
-    // Montar dados do colaborador para o padrÃƒÂ£o do preview
+    // Montar dados do colaborador para o padrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o do preview
     const tipoSimples = {
-        verbal:      'AdvertÃƒÂªncia Verbal',
-        escrita:     'AdvertÃƒÂªncia Escrita',
-        suspensao_1: 'SuspensÃƒÂ£o 1 dia',
-        suspensao_2: 'SuspensÃƒÂ£o 2 dias',
-        suspensao_3: 'SuspensÃƒÂ£o 3 dias',
-        ocorrencia:  'OcorrÃƒÂªncia'
+        verbal:      'AdvertÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia Verbal',
+        escrita:     'AdvertÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia Escrita',
+        suspensao_1: 'SuspensÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o 1 dia',
+        suspensao_2: 'SuspensÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o 2 dias',
+        suspensao_3: 'SuspensÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o 3 dias',
+        ocorrencia:  'OcorrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia'
     }[tipo] || tipoTexto;
     window._advertenciaData = {
         html: htmlDoc,
@@ -3483,11 +3505,11 @@ window.gerarAdvertencia = function() {
     if (fb) { fb.style.display = 'inline-flex'; setTimeout(() => { fb.style.display = 'none'; }, 3000); }
 };
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Template ÃƒÂºnico para Preview e PDF de AdvertÃƒÂªncias / SuspensÃƒÂµes / OcorrÃƒÂªncias Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Template ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºnico para Preview e PDF de AdvertÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncias / SuspensÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes / OcorrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncias ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
 function buildAdvertenciaTemplate(data, logoSrc) {
     const isOcorrencia = data.isOcorrencia;
 
-    // SeÃƒÂ§ÃƒÂ£o de assinaturas (nÃƒÂ£o exibida para ocorrÃƒÂªncias)
+    // SeÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de assinaturas (nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o exibida para ocorrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncias)
     const assinaturasHtml = !isOcorrencia ? `
         <div style="margin-top:40px;">
             <div style="display:flex; gap:40px; justify-content:center;">
@@ -3517,7 +3539,7 @@ function buildAdvertenciaTemplate(data, logoSrc) {
         <!-- LOGO BANNER - largura total sem margens -->
         <img src="${logoSrc}" style="width:100%; max-width:794px; display:block; margin:0; padding:0;" onerror="this.style.display='none'">
 
-        <!-- CONTEÃƒÅ¡DO COM MARGENS LATERAIS -->
+        <!-- CONTEÃƒÆ’Ã†â€™Ãƒâ€¦Ã‚Â¡DO COM MARGENS LATERAIS -->
         <div style="padding:20px 40px 40px 40px;">
 
             <!-- LINHA EMPRESA / CNPJ -->
@@ -3538,7 +3560,7 @@ function buildAdvertenciaTemplate(data, logoSrc) {
 
             <hr style="border:none; border-top:1px solid #ccc; margin:10px 0 14px;">
 
-            <!-- TÃƒÂTULO -->
+            <!-- TÃƒÆ’Ã†â€™Ãƒâ€šÃ‚ÂTULO -->
             <h1 style="text-align:center; font-size:14px; font-weight:bold; text-transform:uppercase; margin:0 0 14px; color:#1e293b;">${data.gerador_nome}</h1>
 
             <!-- CORPO DO DOCUMENTO -->
@@ -3549,7 +3571,7 @@ function buildAdvertenciaTemplate(data, logoSrc) {
             <!-- DATA -->
             <p style="margin-top:24px; font-size:12px; font-weight:bold;">Guarulhos, ${data.dataHojeExtenso}.</p>
 
-            <!-- ESPAÃƒâ€¡O RESERVADO PARA ASSINATURAS (desenhadas pelo pdf-lib apÃƒÂ³s coleta) -->
+            <!-- ESPAÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¡O RESERVADO PARA ASSINATURAS (desenhadas pelo pdf-lib apÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³s coleta) -->
             ${!isOcorrencia ? '<div style="height:180px;"></div>' : ''}
         </div>
     </div>`;
@@ -3557,7 +3579,7 @@ function buildAdvertenciaTemplate(data, logoSrc) {
 
 window.abrirPreviewAdvertencia = function(data) {
 
-    // Voltar para o modal centralizado tradicional onde os botÃƒÂµes ficam no topo
+    // Voltar para o modal centralizado tradicional onde os botÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes ficam no topo
     const container = document.getElementById('preview-doc-body');
     if (!container) return;
 
@@ -3571,7 +3593,7 @@ window.abrirPreviewAdvertencia = function(data) {
     if (btnsContainer) {
         btnsContainer.innerHTML = `
             <button onclick="window.anexarAdvertenciaAoProntuario()" id="btn-anexar-adv" class="btn btn-primary" style="background:#2f9e44; border-color:#2b8a3e; align-items:center; gap:5px;">
-                <i class="ph ph-paperclip"></i> Anexar ao ProntuÃƒÂ¡rio
+                <i class="ph ph-paperclip"></i> Anexar ao ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio
             </button>
             <button onclick="window.imprimirDocumento()" class="btn btn-primary" style="align-items:center; gap:5px;">
                 <i class="ph ph-printer"></i> Imprimir / PDF
@@ -3589,7 +3611,7 @@ window.abrirPreviewAdvertencia = function(data) {
 window.anexarAdvertenciaAoProntuario = async function() {
     if (!viewedColaborador || !window._advertenciaData) return;
     if (typeof html2pdf === 'undefined') {
-        alert('A biblioteca de PDF ainda nÃƒÂ£o foi carregada. Tente imprimir como PDF nativo.');
+        alert('A biblioteca de PDF ainda nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o foi carregada. Tente imprimir como PDF nativo.');
         return;
     }
 
@@ -3619,7 +3641,7 @@ window.anexarAdvertenciaAoProntuario = async function() {
         const logoSrc = `${apiBase}/assets/logo-header.png`;
         const data = window._advertenciaData;
 
-        // PrÃƒÂ©-carregar o logo
+        // PrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©-carregar o logo
         const imgPreload = new Image();
         imgPreload.src = logoSrc;
         await new Promise(resolve => {
@@ -3629,17 +3651,17 @@ window.anexarAdvertenciaAoProntuario = async function() {
             setTimeout(resolve, 2000);
         });
 
-        // Ã¢â€â‚¬Ã¢â€â‚¬ Capturar direto do preview que jÃƒÂ¡ estÃƒÂ¡ renderizado corretamente na tela Ã¢â€â‚¬Ã¢â€â‚¬
+        // ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Capturar direto do preview que jÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ estÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ renderizado corretamente na tela ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
         const previewEl = document.getElementById('preview-doc-body');
-        if (!previewEl) throw new Error('Preview nÃƒÂ£o encontrado. Abra o documento antes de anexar.');
+        if (!previewEl) throw new Error('Preview nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o encontrado. Abra o documento antes de anexar.');
 
-        // Remover temporariamente sombra/borda/min-height para PDF mais limpo e sem pÃƒÂ¡gina em branco extra
+        // Remover temporariamente sombra/borda/min-height para PDF mais limpo e sem pÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡gina em branco extra
         const origBoxShadow = previewEl.style.boxShadow;
         const origBorder    = previewEl.style.border;
         const origMinHeight = previewEl.style.minHeight;
         previewEl.style.boxShadow = 'none';
         previewEl.style.border    = 'none';
-        previewEl.style.minHeight = 'auto'; // evita pÃƒÂ¡gina em branco extra
+        previewEl.style.minHeight = 'auto'; // evita pÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡gina em branco extra
 
         const canvas = await html2canvas(previewEl, {
             scale: 2,
@@ -3654,7 +3676,7 @@ window.anexarAdvertenciaAoProntuario = async function() {
         previewEl.style.border    = origBorder;
         previewEl.style.minHeight = origMinHeight;
 
-        // Converter canvas Ã¢â€ â€™ PDF A4 com suporte a mÃƒÂºltiplas pÃƒÂ¡ginas
+        // Converter canvas ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ PDF A4 com suporte a mÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºltiplas pÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ginas
         const { jsPDF } = window.jspdf;
         const pdf   = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
         const pageW = pdf.internal.pageSize.getWidth();   // 210mm
@@ -3677,8 +3699,8 @@ window.anexarAdvertenciaAoProntuario = async function() {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('colaborador_id', viewedColaborador.id);
-        formData.append('tab_name', 'AdvertÃƒÂªncias');
-        // document_type = 'Titulo###TipoSimples' para exibir badge no prontuÃƒÂ¡rio
+        formData.append('tab_name', 'AdvertÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncias');
+        // document_type = 'Titulo###TipoSimples' para exibir badge no prontuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio
         const docType = `${window._advertenciaData.titulo}###${window._advertenciaData.tipoSimples}`;
         formData.append('document_type', docType);
         formData.append('year', new Date().getFullYear().toString());
@@ -3690,13 +3712,13 @@ window.anexarAdvertenciaAoProntuario = async function() {
             body: formData
         });
 
-        // O servidor pode retornar 5xx se o OneDrive falhar, mas o doc JÃƒÂ foi salvo no banco.
-        // SÃƒÂ³ consideramos falha real se nÃƒÂ£o houver resposta ou status 400.
+        // O servidor pode retornar 5xx se o OneDrive falhar, mas o doc JÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â foi salvo no banco.
+        // SÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³ consideramos falha real se nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o houver resposta ou status 400.
         const resData = await response.json().catch(() => ({}));
-        if (response.status === 400) throw new Error(resData.error || 'Arquivo nÃƒÂ£o recebido pelo servidor.');
+        if (response.status === 400) throw new Error(resData.error || 'Arquivo nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o recebido pelo servidor.');
 
-        // OcorrÃƒÂªncia: sem assinatura e sem OneDrive Ã¢â‚¬â€ apenas salvo no prontuÃƒÂ¡rio local
-        // (AdvertÃƒÂªncia Verbal Ã¢â€ â€™ OneDrive ocorre apÃƒÂ³s testemunhas; Escrita/SuspensÃƒÂ£o Ã¢â€ â€™ apÃƒÂ³s testemunhas + colaborador)
+        // OcorrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia: sem assinatura e sem OneDrive ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â apenas salvo no prontuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio local
+        // (AdvertÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia Verbal ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ OneDrive ocorre apÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³s testemunhas; Escrita/SuspensÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ apÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³s testemunhas + colaborador)
 
         document.getElementById('modal-preview-doc').style.display = 'none';
 
@@ -3707,7 +3729,7 @@ window.anexarAdvertenciaAoProntuario = async function() {
             btn.disabled = true;
         }
 
-        // Recarregar documentos e re-renderizar a aba AdvertÃƒÂªncias
+        // Recarregar documentos e re-renderizar a aba AdvertÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncias
         try {
             const docs = await apiGet(`/colaboradores/${viewedColaborador.id}/documentos`);
             if (docs) {
@@ -3716,11 +3738,11 @@ window.anexarAdvertenciaAoProntuario = async function() {
                 if (activeTab) {
                     renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
                 } else {
-                    renderTabContent('AdvertÃƒÂªncias', 'OcorrÃƒÂªncias', true);
+                    renderTabContent('AdvertÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncias', 'OcorrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncias', true);
                 }
             }
         } catch (refreshErr) {
-            console.warn('Aviso: nÃƒÂ£o foi possÃƒÂ­vel atualizar a lista automaticamente.', refreshErr);
+            console.warn('Aviso: nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o foi possÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel atualizar a lista automaticamente.', refreshErr);
         }
 
     } catch (e) {
@@ -3824,7 +3846,7 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
     `;
     container.innerHTML = filterHtml;
 
-    // Focar no final do input se houver texto para nÃƒÂ£o perder o cursor na re-renderizaÃƒÂ§ÃƒÂ£o
+    // Focar no final do input se houver texto para nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o perder o cursor na re-renderizaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o
     const searchInput = document.getElementById('doc-search-input');
     if (searchInput && searchInput.value) {
         searchInput.focus();
@@ -3836,7 +3858,7 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
     const searchTerm = document.getElementById('doc-search-input')?.value.toLowerCase() || '';
     const sortOrder = document.getElementById('doc-sort-select')?.value || 'recent';
 
-    // Filtragem e OrdenaÃƒÂ§ÃƒÂ£o dos dados
+    // Filtragem e OrdenaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o dos dados
     let filteredDocs = currentDocs.filter(d => d.tab_name === tabId);
     
     // Filtro de Texto
@@ -3844,7 +3866,7 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
         filteredDocs = filteredDocs.filter(d => d.document_type.toLowerCase().includes(searchTerm) || (d.file_name && d.file_name.toLowerCase().includes(searchTerm)));
     }
 
-    // OrdenaÃƒÂ§ÃƒÂ£o
+    // OrdenaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o
     filteredDocs.sort((a, b) => {
         if (sortOrder === 'alpha') return a.document_type.localeCompare(b.document_type);
         const dateA = new Date(a.upload_date || 0);
@@ -3853,17 +3875,17 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
     });
 
     if (tabId === 'Multas') {
-        // Aba de multas Ã¢â‚¬â€ renderiza a UI customizada de gestÃƒÂ£o de multas
+        // Aba de multas ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â renderiza a UI customizada de gestÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de multas
         if (typeof window.renderMultasMotoristaTab === 'function') {
             window.renderMultasMotoristaTab(listContainer);
         } else {
-            listContainer.innerHTML = '<div class="alert alert-warning"><i class="ph ph-warning"></i> MÃƒÂ³dulo de multas nÃƒÂ£o carregado. Tente recarregar a pÃƒÂ¡gina.</div>';
+            listContainer.innerHTML = '<div class="alert alert-warning"><i class="ph ph-warning"></i> MÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³dulo de multas nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o carregado. Tente recarregar a pÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡gina.</div>';
         }
     } else if (tabId === 'Sinistros') {
         if (typeof window.renderSinistrosTab === 'function') {
             window.renderSinistrosTab(listContainer);
         } else {
-            listContainer.innerHTML = '<div class="alert alert-warning"><i class="ph ph-warning"></i> MÃƒÂ³dulo de sinistros nÃƒÂ£o carregado. Tente recarregar a pÃƒÂ¡gina.</div>';
+            listContainer.innerHTML = '<div class="alert alert-warning"><i class="ph ph-warning"></i> MÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³dulo de sinistros nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o carregado. Tente recarregar a pÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡gina.</div>';
         }
     } else if (tabId === 'Contratos') {
         
@@ -3876,14 +3898,14 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
         renderAtestadosTab(listContainer, filteredDocs);
     } else if (tabId === 'Faltas') {
         renderFaltasTab(listContainer);
-    } else if (tabId === 'AvaliaÃƒÂ§ÃƒÂ£o') {
+    } else if (tabId === 'AvaliaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o') {
         if (window.renderAvaliacaoTab) window.renderAvaliacaoTab(listContainer);
-    } else if (tabId === 'AdvertÃƒÂªncias') {
+    } else if (tabId === 'AdvertÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncias') {
         renderAdvertenciasTab(listContainer, filteredDocs);
     } else if (tabId === 'Ficha de EPI') {
         renderFichaEpiTab(listContainer);
     } else if (tabId === '01_FICHA_CADASTRAL') {
-        // Usa a MESMA lista ordenada do Passo 3 da AdmissÃƒÂ£o para garantir espelhamento
+        // Usa a MESMA lista ordenada do Passo 3 da AdmissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o para garantir espelhamento
         const _ec = (viewedColaborador && viewedColaborador.estado_civil || '').toLowerCase();
         const _isCasado = _ec.includes('casad') || _ec.includes('vi\u00fav') || _ec.includes('viuv') || _ec.includes('divorc');
         const _certidao = _isCasado ? 'Certid\u00e3o de Casamento' : 'Certid\u00e3o de Nascimento';
@@ -3904,9 +3926,9 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
             fixed.push(rgTipo === 'CIN' ? 'CIN-CPF' : 'RG-CPF');
         }
         
-        fixed.push('Carteira de vacinaÃƒÂ§ÃƒÂ£o', 'CurrÃƒÂ­culo', 'Carteira de Trabalho');
+        fixed.push('Carteira de vacinaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o', 'CurrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­culo', 'Carteira de Trabalho');
         if (_isCasado) {
-            fixed.push('CPF do CÃƒÂ´njuge');
+            fixed.push('CPF do CÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â´njuge');
         }
 
         fixed.forEach(docType => {  
@@ -3915,12 +3937,12 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
                 listContainer.appendChild(createDocSlot(tabId, docType, existingDoc));
             }
         });
-        filteredDocs.filter(d => !fixed.includes(d.document_type) && d.document_type !== 'PensÃƒÂ£o AlimentÃƒÂ­cia').forEach(d => {
+        filteredDocs.filter(d => !fixed.includes(d.document_type) && d.document_type !== 'PensÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o AlimentÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­cia').forEach(d => {
             listContainer.appendChild(createDocSlot(tabId, d.document_type, d));
         });
 
-        // === PENSÃƒÆ’O ALIMENTÃƒÂCIA (Condicional - ProntuÃƒÂ¡rio) ===
-        const pensaoDocPront = filteredDocs.find(d => d.document_type === 'PensÃƒÂ£o AlimentÃƒÂ­cia');
+        // === PENSÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢O ALIMENTÃƒÆ’Ã†â€™Ãƒâ€šÃ‚ÂCIA (Condicional - ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio) ===
+        const pensaoDocPront = filteredDocs.find(d => d.document_type === 'PensÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o AlimentÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­cia');
         const temPensaoPront = (viewedColaborador && viewedColaborador.tem_pensao_alimenticia === 'Sim') || !!pensaoDocPront;
         const pensaoWrapperPront = document.createElement('div');
         pensaoWrapperPront.id = 'pensao-wrapper-pront';
@@ -3929,11 +3951,11 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
             <div style="display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
                 <div style="display:flex; align-items:center; gap:8px;">
                     <i class="ph ph-scales" style="color:#f503c5; font-size:1.1rem;"></i>
-                    <span style="font-weight:600; font-size:0.9rem; color:#334155;">Possui documento de PensÃƒÂ£o AlimentÃƒÂ­cia?</span>
+                    <span style="font-weight:600; font-size:0.9rem; color:#334155;">Possui documento de PensÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o AlimentÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­cia?</span>
                 </div>
                 <div style="display:flex; gap:6px;">
                     <button type="button" id="pensao-sim-pront" onclick="window.setPensaoPront('Sim')" style="padding:0.35rem 1rem; border-radius:6px; border:1.5px solid ${temPensaoPront ? '#10b981' : '#e2e8f0'}; background:${temPensaoPront ? '#ecfdf5' : '#fff'}; color:${temPensaoPront ? '#065f46' : '#334155'}; font-weight:700; cursor:pointer; font-size:0.85rem;">Sim</button>
-                    <button type="button" id="pensao-nao-pront" onclick="window.setPensaoPront('NÃƒÂ£o')" style="padding:0.35rem 1rem; border-radius:6px; border:1.5px solid ${!temPensaoPront ? '#10b981' : '#e2e8f0'}; background:${!temPensaoPront ? '#ecfdf5' : '#fff'}; color:${!temPensaoPront ? '#065f46' : '#334155'}; font-weight:700; cursor:pointer; font-size:0.85rem;">NÃƒÂ£o</button>
+                    <button type="button" id="pensao-nao-pront" onclick="window.setPensaoPront('NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o')" style="padding:0.35rem 1rem; border-radius:6px; border:1.5px solid ${!temPensaoPront ? '#10b981' : '#e2e8f0'}; background:${!temPensaoPront ? '#ecfdf5' : '#fff'}; color:${!temPensaoPront ? '#065f46' : '#334155'}; font-weight:700; cursor:pointer; font-size:0.85rem;">NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o</button>
                 </div>
             </div>
             <div id="pensao-slot-pront" style="margin-top:0.75rem; display:${temPensaoPront ? 'block' : 'none'};"></div>
@@ -3941,7 +3963,7 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
         listContainer.appendChild(pensaoWrapperPront);
         if (temPensaoPront) {
             const slotPront = listContainer.querySelector('#pensao-slot-pront');
-            if (slotPront) slotPront.appendChild(createDocSlot(tabId, 'PensÃƒÂ£o AlimentÃƒÂ­cia', pensaoDocPront || null));
+            if (slotPront) slotPront.appendChild(createDocSlot(tabId, 'PensÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o AlimentÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­cia', pensaoDocPront || null));
         }
         window.setPensaoPront = function(resposta) {
             const simBtn = document.getElementById('pensao-sim-pront');
@@ -3953,7 +3975,7 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
             if (slot) {
                 slot.style.display = isSimNow ? 'block' : 'none';
                 if (isSimNow && slot.children.length === 0) {
-                    slot.appendChild(createDocSlot(tabId, 'PensÃƒÂ£o AlimentÃƒÂ­cia', null));
+                    slot.appendChild(createDocSlot(tabId, 'PensÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o AlimentÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­cia', null));
                 }
             }
             if (viewedColaborador) viewedColaborador.tem_pensao_alimenticia = resposta;
@@ -3974,7 +3996,7 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
     } else if (tabId === 'Terapia') {
         const participa = viewedColaborador && (viewedColaborador.terapia_participa === 'Sim');
         if (!participa) {
-            listContainer.innerHTML = '<div class="alert alert-info"><i class="ph ph-info"></i> Esta aba estÃƒÂ¡ disponÃƒÂ­vel apenas para colaboradores que participam da Terapia em Grupo.</div>';
+            listContainer.innerHTML = '<div class="alert alert-info"><i class="ph ph-info"></i> Esta aba estÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ disponÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel apenas para colaboradores que participam da Terapia em Grupo.</div>';
             return;
         }
         renderTerapiaTab(listContainer, tabId, filteredDocs);
@@ -3982,14 +4004,14 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
         if (tabId === 'Conjuge') {
             const isCasado = viewedColaborador && (viewedColaborador.estado_civil === 'Casado');
             if (!isCasado) {
-                listContainer.innerHTML = '<div class="alert alert-info"><i class="ph ph-info"></i> Esta aba estÃƒÂ¡ disponÃƒÂ­vel apenas para colaboradores com estado civil <strong>"Casado(a)"</strong> registrado.</div>';
+                listContainer.innerHTML = '<div class="alert alert-info"><i class="ph ph-info"></i> Esta aba estÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ disponÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel apenas para colaboradores com estado civil <strong>"Casado(a)"</strong> registrado.</div>';
                 return;
             }
         }
         if (tabId === 'Dependentes') {
-            const deps = (viewedColaborador.dependentes || []).filter(d => d.grau_parentesco !== 'CÃƒÂ´njuge');
+            const deps = (viewedColaborador.dependentes || []).filter(d => d.grau_parentesco !== 'CÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â´njuge');
             if (!deps.length) {
-                listContainer.innerHTML = '<div class="alert alert-info"><i class="ph ph-info"></i> Esta aba estÃƒÂ¡ disponÃƒÂ­vel apenas para colaboradores que tenham dependentes cadastrados no sistema.</div>';
+                listContainer.innerHTML = '<div class="alert alert-info"><i class="ph ph-info"></i> Esta aba estÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ disponÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel apenas para colaboradores que tenham dependentes cadastrados no sistema.</div>';
                 return;
             }
 
@@ -4003,10 +4025,10 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
                     if (!isNaN(nasc)) idade = Math.floor((hoje - nasc) / (365.25 * 24 * 3600 * 1000));
                 }
 
-                // Nome seguro para montar o document_type ÃƒÂºnico por dependente
+                // Nome seguro para montar o document_type ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºnico por dependente
                 const safeDepName = (dep.nome || 'DEP').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'');
 
-                // CabeÃƒÂ§alho da seÃƒÂ§ÃƒÂ£o do dependente
+                // CabeÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§alho da seÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o do dependente
                 const header = document.createElement('div');
                 header.style.cssText = 'display:flex; align-items:center; gap:10px; background:#f0f9ff; border:1px solid #bae6fd; border-radius:8px; padding:0.6rem 1rem; margin-bottom:0.75rem; margin-top:' + (idx > 0 ? '1.25rem' : '0');
                 header.innerHTML = `
@@ -4018,12 +4040,12 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
                     </div>`;
                 listContainer.appendChild(header);
 
-                // Documentos condÃƒÂ­cionais por faixa etÃƒÂ¡ria
+                // Documentos condÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­cionais por faixa etÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ria
                 const docsConfig = [
                     { label: 'CPF ou RG',                    show: true },
-                    { label: 'Caderneta de VacinaÃƒÂ§ÃƒÂ£o',      show: idade !== null && idade < 7 },
-                    { label: 'Atestado de FrequÃƒÂªncia Escolar', show: idade !== null && idade >= 7 && idade <= 17 },
-                    { label: 'CertidÃƒÂ£o de Nascimento',       show: true },
+                    { label: 'Caderneta de VacinaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o',      show: idade !== null && idade < 7 },
+                    { label: 'Atestado de FrequÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia Escolar', show: idade !== null && idade >= 7 && idade <= 17 },
+                    { label: 'CertidÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de Nascimento',       show: true },
                 ];
 
                 docsConfig.filter(d => d.show).forEach(docCfg => {
@@ -4037,13 +4059,13 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
         if (tabId === 'Faculdade') {
             const participa = viewedColaborador && (viewedColaborador.faculdade_participa === 'Sim');
             if (!participa) {
-                listContainer.innerHTML = '<div class="alert alert-info"><i class="ph ph-info"></i> Esta aba estÃƒÂ¡ disponÃƒÂ­vel apenas para colaboradores que participam do programa FormaAÃƒÂ§ÃƒÂ£o.</div>';
+                listContainer.innerHTML = '<div class="alert alert-info"><i class="ph ph-info"></i> Esta aba estÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ disponÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel apenas para colaboradores que participam do programa FormaAÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o.</div>';
                 return;
             }
             renderFaculdadeTab(listContainer, tabId);
             return;
         }
-        const btnLabelMap = { 'Dependentes': 'Documento de Dependente', 'Treinamento': 'Certificado/Curso', 'Conjuge': 'Documento do CÃƒÂ´njuge', 'NRs': 'Certificado NR' };
+        const btnLabelMap = { 'Dependentes': 'Documento de Dependente', 'Treinamento': 'Certificado/Curso', 'Conjuge': 'Documento do CÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â´njuge', 'NRs': 'Certificado NR' };
         const form = createDynamicUploadForm(tabId, `Adicionar ${btnLabelMap[tabId] || tabId}`);
         listContainer.appendChild(form);
         listContainer.appendChild(document.createElement('hr'));
@@ -4056,7 +4078,7 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
             if (typeof window.renderMultasMotoristaTab === 'function') {
                 window.renderMultasMotoristaTab(listContainer);
             } else {
-                listContainer.innerHTML = '<div class="alert alert-info">Carregando mÃƒÂ³dulo de multas...</div>';
+                listContainer.innerHTML = '<div class="alert alert-info">Carregando mÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³dulo de multas...</div>';
             }
             return;
         }
@@ -4065,26 +4087,26 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
             if (typeof window.renderSinistrosTab === 'function') {
                 window.renderSinistrosTab(listContainer);
             } else {
-                listContainer.innerHTML = '<div class="alert alert-info">Carregando mÃƒÂ³dulo de sinistros...</div>';
+                listContainer.innerHTML = '<div class="alert alert-info">Carregando mÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³dulo de sinistros...</div>';
             }
             return;
         }
         FIXED_DOCS[tabId].forEach(docType => {
             if (!searchTerm || docType.toLowerCase().includes(searchTerm)) {
-                if (tabId === 'Contratos' && docType === 'Acordo de auxÃƒÂ­lio combustÃƒÂ­vel') {
+                if (tabId === 'Contratos' && docType === 'Acordo de auxÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­lio combustÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel') {
                     const meio = (viewedColaborador && viewedColaborador.meio_transporte) ? viewedColaborador.meio_transporte.toLowerCase() : '';
                     if (meio === 'vale transporte') {
                         const existingDoc = filteredDocs.find(d => d.document_type === docType);
-                        const msg = 'NÃƒÂ£o aplicÃƒÂ¡vel para usuÃƒÂ¡rios de Vale Transporte.';
+                        const msg = 'NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o aplicÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡vel para usuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rios de Vale Transporte.';
                         listContainer.appendChild(createDocSlot(tabId, docType, existingDoc, null, null, msg));
                         return;
                     }
                 }
                 if (tabId === 'Contratos' && docType === 'Contrato faculdade') {
-                    const participa = (viewedColaborador && viewedColaborador.faculdade_participa) ? viewedColaborador.faculdade_participa : 'NÃƒÂ£o';
-                    if (participa === 'NÃƒÂ£o') {
+                    const participa = (viewedColaborador && viewedColaborador.faculdade_participa) ? viewedColaborador.faculdade_participa : 'NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o';
+                    if (participa === 'NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o') {
                         const existingDoc = filteredDocs.find(d => d.document_type === docType);
-                        const msg = 'NÃƒÂ£o aplicÃƒÂ¡vel para colaboradores que nÃƒÂ£o participam do programa FormaAÃƒÂ§ÃƒÂ£o.';
+                        const msg = 'NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o aplicÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡vel para colaboradores que nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o participam do programa FormaAÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o.';
                         listContainer.appendChild(createDocSlot(tabId, docType, existingDoc, null, null, msg));
                         return;
                     }
@@ -4115,7 +4137,7 @@ async function renderCargoDocsChecklist(container) {
         if (!cargoAtual) {
             container.innerHTML = `
                 <div class="alert alert-warning">
-                    <i class="ph ph-warning"></i> Cargo "${viewedColaborador.cargo || 'NÃƒÂ£o Definido'}" nÃƒÂ£o encontrado nas configuraÃƒÂ§ÃƒÂµes de cargos.
+                    <i class="ph ph-warning"></i> Cargo "${viewedColaborador.cargo || 'NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o Definido'}" nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o encontrado nas configuraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes de cargos.
                 </div>
             `;
             return;
@@ -4126,7 +4148,7 @@ async function renderCargoDocsChecklist(container) {
         if (!docsExigidos || docsExigidos.length === 0) {
             container.innerHTML = `
                 <div class="alert alert-info">
-                    <i class="ph ph-info"></i> Nenhuma documentaÃƒÂ§ÃƒÂ£o especÃƒÂ­fica configurada para o cargo <strong>${cargoAtual.nome}</strong>.
+                    <i class="ph ph-info"></i> Nenhuma documentaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o especÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­fica configurada para o cargo <strong>${cargoAtual.nome}</strong>.
                 </div>
             `;
             return;
@@ -4134,8 +4156,8 @@ async function renderCargoDocsChecklist(container) {
         
         container.innerHTML = `
             <div style="margin-bottom: 2rem; padding: 1rem; background: #fffcf0; border: 1px solid #ffeeba; border-radius: 8px;">
-                <h4 style="color: #856404; margin-bottom: 0.5rem;"><i class="ph ph-briefcase"></i> DocumentaÃƒÂ§ÃƒÂ£o Exigida: ${cargoAtual.nome}</h4>
-                <p style="font-size: 0.85rem; color: #856404;">Anexe abaixo os documentos que foram selecionados como obrigatÃƒÂ³rios no gerenciamento de cargos.</p>
+                <h4 style="color: #856404; margin-bottom: 0.5rem;"><i class="ph ph-briefcase"></i> DocumentaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o Exigida: ${cargoAtual.nome}</h4>
+                <p style="font-size: 0.85rem; color: #856404;">Anexe abaixo os documentos que foram selecionados como obrigatÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rios no gerenciamento de cargos.</p>
             </div>
         `;
         
@@ -4159,18 +4181,18 @@ async function renderFaculdadeSummary(container) {
     summaryDiv.style.background = '#f0f9ff';
     summaryDiv.style.border = '1px solid #bae6fd';
     summaryDiv.style.padding = '1rem';
-    const cursoNome = cursoObj ? cursoObj.nome_curso : 'NÃƒÂ£o selecionado';
+    const cursoNome = cursoObj ? cursoObj.nome_curso : 'NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o selecionado';
     const instituicao = cursoObj ? cursoObj.instituicao : 'N/A';
     const tempo = cursoObj ? (cursoObj.tempo_curso || 'N/A') : 'N/A';
     const inicio = viewedColaborador.faculdade_data_inicio ? new Date(viewedColaborador.faculdade_data_inicio + 'T12:00:00').toLocaleDateString() : 'N/A';
     const termino = viewedColaborador.faculdade_data_termino ? new Date(viewedColaborador.faculdade_data_termino + 'T12:00:00').toLocaleDateString() : 'N/A';
     summaryDiv.innerHTML = `
-        <h4 style="color: #0369a1; margin-bottom: 0.5rem;"><i class="ph ph-graduation-cap"></i> Detalhes da GraduaÃƒÂ§ÃƒÂ£o</h4>
+        <h4 style="color: #0369a1; margin-bottom: 0.5rem;"><i class="ph ph-graduation-cap"></i> Detalhes da GraduaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o</h4>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: 0.9rem; color: #0c4a6e;">
             <div><strong>Curso:</strong> ${cursoNome}</div>
-            <div><strong>InstituiÃƒÂ§ÃƒÂ£o:</strong> ${instituicao}</div>
-            <div><strong>InÃƒÂ­cio:</strong> ${inicio}</div>
-            <div><strong>PrevisÃƒÂ£o TÃƒÂ©rmino:</strong> ${termino}</div>
+            <div><strong>InstituiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o:</strong> ${instituicao}</div>
+            <div><strong>InÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­cio:</strong> ${inicio}</div>
+            <div><strong>PrevisÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o TÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rmino:</strong> ${termino}</div>
             <div class="span-2"><strong>Tempo de Curso:</strong> ${tempo}</div>
         </div>
     `;
@@ -4192,7 +4214,7 @@ async function renderFaculdadeTab(container, tabId) {
                 <select id="fac_year" class="form-control" style="padding:0.4rem;" onchange="renderFaculdadeCompetencia()">
                     ${optionsYears}
                 </select>
-                <label>MÃƒÂªs:</label>
+                <label>MÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªs:</label>
                 <select id="fac_month" class="form-control" style="padding:0.4rem;" onchange="renderFaculdadeCompetencia()">
                     <option value="01">Jan</option><option value="02">Fev</option><option value="03">Mar</option>
                     <option value="04">Abr</option><option value="05">Mai</option><option value="06">Jun</option>
@@ -4229,7 +4251,7 @@ window.renderFaculdadeCompetencia = function() {
 
     const docsMatch = currentDocs.filter(d => d.tab_name === 'Faculdade' && d.year == y && d.month == m);
     
-    // Lista de documentos por competÃƒÂªncia
+    // Lista de documentos por competÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia
     const required = ['Boleto'];
     if (m === '01' || m === '07') {
         required.push('Boletim');
@@ -4240,7 +4262,7 @@ window.renderFaculdadeCompetencia = function() {
         subContainer.appendChild(createDocSlot('Faculdade', type, doc, `'${y}'`, `'${m}'`));
     });
 
-    // Outros documentos dinÃƒÂ¢micos para este mÃƒÂªs
+    // Outros documentos dinÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢micos para este mÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªs
     docsMatch.filter(d => !required.includes(d.document_type)).forEach(d => {
         subContainer.appendChild(createDocSlot('Faculdade', d.document_type, d, `'${y}'`, `'${m}'`));
     });
@@ -4258,11 +4280,11 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
     // Limita o nome do arquivo a 40 caracteres
     let rawFileName = isSaved ? (existingDoc.file_name || '') : '';
     try {
-        if (rawFileName.includes('ÃƒÆ’')) {
+        if (rawFileName.includes('ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢')) {
             rawFileName = decodeURIComponent(escape(rawFileName));
         }
     } catch (e) {}
-    const displayFileName = rawFileName.length > 40 ? rawFileName.substring(0, 40) + 'Ã¢â‚¬Â¦' : rawFileName;
+    const displayFileName = rawFileName.length > 40 ? rawFileName.substring(0, 40) + 'ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦' : rawFileName;
 
     // Vencimento com cor vermelha se estiver dentro de 30 dias
     let vencInfoHtml = '';
@@ -4296,7 +4318,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
         const enviadoDate = `${dd}/${mm}/${yyyy} - ${h}h${min}m`;
         enviadoHtml = ` <span style="color:#64748b;">|</span> <span style="color:#2f9e44; font-weight:600;">Enviado: ${enviadoDate}</span>`;
         
-        // Link de assinatura em linha prÃƒÂ³pria abaixo do Enviado
+        // Link de assinatura em linha prÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³pria abaixo do Enviado
         if (existingDoc.assinafy_url) {
             const encodedUrl = encodeURIComponent(existingDoc.assinafy_url);
             linkAssinaturaHtml = `<p style="margin:1px 0 0; font-size:0.75rem;"><span data-copy-url="${encodedUrl}" onclick="copiarLinkAssinafy(this)" style="color:#64748b; display:inline-flex; align-items:center; gap:3px; cursor:pointer;" title="Clique para copiar o link de assinatura"><i class="ph ph-copy" style="font-size:0.9rem;"></i> Link para assinatura</span></p>`;
@@ -4327,9 +4349,9 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                 const isColabAfastado = viewedColaborador && viewedColaborador.status === 'Afastado';
                 const isAtivo = (isColabAfastado && existingDoc.atestado_inicio && existingDoc.atestado_fim && existingDoc.atestado_inicio <= hojeStr && hojeStr <= existingDoc.atestado_fim);
                 const corText = isAtivo ? '#d9480f' : '#868e96';
-                atestadoInfoHtml = ` <span style="color:${corText}; font-weight:600;"><i class="ph ph-warning" style="font-size:0.9em; color:${corText}; margin-right:2px;"></i> ${ini} atÃƒÂ© ${fim}</span> `;
+                atestadoInfoHtml = ` <span style="color:${corText}; font-weight:600;"><i class="ph ph-warning" style="font-size:0.9em; color:${corText}; margin-right:2px;"></i> ${ini} atÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© ${fim}</span> `;
             } else {
-                atestadoInfoHtml = ` <span style="color:#1098ad; font-weight:600;"><i class="ph ph-clock"></i> ${existingDoc.atestado_inicio} ÃƒÂ s ${existingDoc.atestado_fim}</span> `;
+                atestadoInfoHtml = ` <span style="color:#1098ad; font-weight:600;"><i class="ph ph-clock"></i> ${existingDoc.atestado_inicio} ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â s ${existingDoc.atestado_fim}</span> `;
             }
         }
         
@@ -4351,7 +4373,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
         ? `<p style="margin:2px 0 0; font-size:0.78rem;">${atestadoInfoHtml}${atestadoContabHtml}${vencInfoHtml}${enviadoHtml}</p>${linkAssinaturaHtml}`
         : '';
 
-    // Suporte ao separador ### para AdvertÃƒÂªncias: 'TÃƒÂ­tulo###TipoSimples'
+    // Suporte ao separador ### para AdvertÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncias: 'TÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­tulo###TipoSimples'
     let docLabel = docType;
     let docBadge = '';
     let tipoAdvSimples = '';
@@ -4400,13 +4422,13 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
     `;
 
     let vencimentoInputHtml = '';
-    const needsVencimentoList = ['ASO', 'CNH', 'Exames Complementares', 'RG-CPF', 'CIN-CPF', 'Comprovante de endereÃƒÂ§o'];
+    const needsVencimentoList = ['ASO', 'CNH', 'Exames Complementares', 'RG-CPF', 'CIN-CPF', 'Comprovante de endereÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o'];
     const needsVencimento = needsVencimentoList.includes(docType) || tabId === 'ASO';
     const safeDocType = docType.replace(/\s+/g, '-');
 
     if (needsVencimento) {
         let existingVencimento = existingDoc && existingDoc.vencimento ? existingDoc.vencimento : '';
-        if (!existingVencimento && docType === 'Comprovante de endereÃƒÂ§o') {
+        if (!existingVencimento && docType === 'Comprovante de endereÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o') {
             const d = new Date();
             d.setFullYear(d.getFullYear() + 1);
             existingVencimento = d.toISOString().split('T')[0];
@@ -4422,7 +4444,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
         `;
     }
 
-    // Status Assinafy: apenas botÃƒÂ£o de baixar quando assinado
+    // Status Assinafy: apenas botÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de baixar quando assinado
     let assStatusIcon = '';
     const stMain = isSaved ? (existingDoc.assinafy_status || '') : '';
     const isAssinado = isSaved && (stMain === 'Assinado' || stMain === 'Testemunhas' || stMain.includes('Testemunhas'));
@@ -4430,11 +4452,11 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
     if (isSaved) {
         const st = existingDoc.assinafy_status || '';
         // Buscar o assId da tabela admissao_assinaturas para este documento
-        // Se o existingDoc ÃƒÂ© da tabela documentos mas tem um ass relacionado
+        // Se o existingDoc ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© da tabela documentos mas tem um ass relacionado
         const assId = existingDoc.admissao_ass_id || existingDoc.id;
         if (st === 'Assinado') {
-            // Tenta usar o assId da tabela admissao_assinaturas se disponÃƒÂ­vel
-            // caso contrÃƒÂ¡rio usa o id do prÃƒÂ³prio documento
+            // Tenta usar o assId da tabela admissao_assinaturas se disponÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel
+            // caso contrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio usa o id do prÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³prio documento
             assStatusIcon = `<button type="button" onclick="window.openSignedDocPopupDocumento(${existingDoc.id}, '${(docType||'').replace(/'/g,"\\'")}')"
                 style="height:42px;display:inline-flex;align-items:center;gap:6px;background:#2f9e44;color:#fff;border:none;border-radius:6px;padding:0 0.85rem;font-size:0.85rem;font-weight:600;cursor:pointer;white-space:nowrap;"
                 title="Visualizar PDF Assinado">
@@ -4477,7 +4499,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         <button type="button" class="btn btn-danger" onclick="deleteDoc(${existingDoc.id}, this)" title="Excluir" style="height: 42px;"><i class="ph ph-trash"></i></button>
                     ` : ''}
                 </div>
-            ` : (tabId === 'AdvertÃƒÂªncias') ? `
+            ` : (tabId === 'AdvertÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncias') ? `
                 <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; justify-content: flex-end; flex: 1;">
                     ${vencimentoInputHtml}
 
@@ -4485,10 +4507,10 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         <button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height: 42px;"><i class="ph ph-eye"></i></button>
                     ` : ''}
 
-                    ${(tabId === 'AdvertÃƒÂªncias' && isSaved) ? (() => {
+                    ${(tabId === 'AdvertÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncias' && isSaved) ? (() => {
                         const _isOcorrDoc  = (docType || '').includes('###Ocorr');
                         const _isVerbalDoc = (docType || '').toLowerCase().includes('###advert') && (docType || '').toLowerCase().includes('verbal');
-                        if (_isOcorrDoc) return ''; // OcorrÃƒÂªncia nÃƒÂ£o tem assinatura
+                        if (_isOcorrDoc) return ''; // OcorrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o tem assinatura
                         return `
                         ${(!stMain || stMain === 'Nenhum') ? `
                         <button type="button" class="btn btn-secondary"
@@ -4512,7 +4534,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         <button type="button" class="btn btn-danger" onclick="deleteDoc(${existingDoc.id}, this)" title="Excluir" style="height: 42px;"><i class="ph ph-trash"></i></button>
                     ` : ''}
 
-                    ${(tabId === 'AdvertÃƒÂªncias' && isSaved && ['Assinado', 'Testemunhas', 'Aguardando', 'Pendente'].includes(stMain) && tipoAdvSimples && tipoAdvSimples.toLowerCase().includes('suspens')) ? `
+                    ${(tabId === 'AdvertÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncias' && isSaved && ['Assinado', 'Testemunhas', 'Aguardando', 'Pendente'].includes(stMain) && tipoAdvSimples && tipoAdvSimples.toLowerCase().includes('suspens')) ? `
                     <div style="display:flex; flex-direction:column; gap:0.35rem; margin-top:0.35rem; align-items:flex-end; width:100%; border-top: 1px dashed #e2e8f0; padding-top: 0.5rem;">
                         <div style="display:flex; gap:0.5rem; align-items:center; justify-content:flex-end; width:100%;">
                             <input type="email" id="susp-contab-email-${existingDoc.id}"
@@ -4541,7 +4563,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                                 <input type="radio" name="exig-assin-${(docType||'').replace(/[^a-zA-Z0-9]/g,'_')}" value="PENDENTE" ${stMain !== 'NAO_EXIGE' ? 'checked' : ''}> Sim
                             </label>
                             <label style="display:flex;align-items:center;gap:3px;cursor:pointer;margin:0;font-weight:500;">
-                                <input type="radio" name="exig-assin-${(docType||'').replace(/[^a-zA-Z0-9]/g,'_')}" value="NAO_EXIGE" ${stMain === 'NAO_EXIGE' ? 'checked' : ''}> NÃƒÂ£o
+                                <input type="radio" name="exig-assin-${(docType||'').replace(/[^a-zA-Z0-9]/g,'_')}" value="NAO_EXIGE" ${stMain === 'NAO_EXIGE' ? 'checked' : ''}> NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o
                             </label>
                         </div>
                         ` : ''}
@@ -4550,7 +4572,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                             <i class="ph ph-upload-simple"></i> ${isSaved ? 'Substituir' : 'Upload'}
                             <input type="file" accept=".pdf" style="display:none;" onchange="
                                 const venc = this.closest('.doc-item').querySelector('.venc-input')?.value; 
-                                if((${needsVencimento}) && !venc) { alert('Data de vencimento ÃƒÂ© obrigatÃƒÂ³ria'); this.value=''; return; } 
+                                if((${needsVencimento}) && !venc) { alert('Data de vencimento ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© obrigatÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³ria'); this.value=''; return; } 
                                 let assStatus = null;
                                 if('${tabId}' === 'Pagamentos' || '${tabId}' === 'ASO') {
                                     const r = this.closest('.doc-item').querySelector('input[name^=\\'exig-assin-\\']:checked');
@@ -4596,7 +4618,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
 }
 
 function createDynamicUploadForm(tabId, btnLabel, defaultDocType = '') {
-    const showVencimento = tabId !== 'AdvertÃƒÂªncias';
+    const showVencimento = tabId !== 'AdvertÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncias';
     const div = document.createElement('div');
     div.className = 'mb-4 card p-3 bg-light form-dyn';
     div.innerHTML = `
@@ -4615,7 +4637,7 @@ function createDynamicUploadForm(tabId, btnLabel, defaultDocType = '') {
                 <label style="font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 2px; display: flex;">Exige Assinatura?</label>
                 <div style="display:flex; gap:0.5rem; height: 38px; align-items:center; font-size: 0.82rem; font-weight: 500;">
                     <label style="margin:0; display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="radio" name="dyn-assin-${tabId}" value="PENDENTE" checked> Sim</label>
-                    <label style="margin:0; display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="radio" name="dyn-assin-${tabId}" value="NAO_EXIGE"> NÃƒÂ£o</label>
+                    <label style="margin:0; display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="radio" name="dyn-assin-${tabId}" value="NAO_EXIGE"> NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o</label>
                 </div>
             </div>
             ` : ''}
@@ -4642,7 +4664,7 @@ function renderPagamentosTab(container, tabId, docs) {
                 <select id="pag_year" class="form-control" style="padding:0.4rem;" onchange="renderPagamentosCompetencia()">
                     ${optionsYears}
                 </select>
-                <label>MÃƒÂªs:</label>
+                <label>MÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªs:</label>
                 <select id="pag_month" class="form-control" style="padding:0.4rem;" onchange="renderPagamentosCompetencia()">
                     <option value="01">Jan</option><option value="02">Fev</option><option value="03">Mar</option>
                     <option value="04">Abr</option><option value="05">Mai</option><option value="06">Jun</option>
@@ -4679,7 +4701,7 @@ function renderTerapiaTab(container, tabId, docs) {
                 <select id="terapia_year" class="form-control" style="padding:0.4rem;" onchange="renderTerapiaCompetencia()">
                     ${optionsYears}
                 </select>
-                <label>MÃƒÂªs:</label>
+                <label>MÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªs:</label>
                 <select id="terapia_month" class="form-control" style="padding:0.4rem;" onchange="renderTerapiaCompetencia()">
                     <option value="01">Jan</option><option value="02">Fev</option><option value="03">Mar</option>
                     <option value="04">Abr</option><option value="05">Mai</option><option value="06">Jun</option>
@@ -4710,7 +4732,7 @@ window.renderTerapiaCompetencia = function() {
     });
 
     subContainer.appendChild(document.createElement('hr'));
-    const form = createDynamicUploadForm('Terapia', 'Adicionar SessÃƒÂ£o/RelatÃƒÂ³rio', '');
+    const form = createDynamicUploadForm('Terapia', 'Adicionar SessÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o/RelatÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rio', '');
     subContainer.appendChild(form);
 }
 
@@ -4744,7 +4766,7 @@ window.renderASOTab = function(container, filteredDocs) {
         <!-- Card IACI -->
         <div class="card p-3 mb-4" style="background:#f8fafc; border:1.5px dashed #e2e8f0; border-radius:12px;">
             <h4 style="font-size:0.9rem; color:#64748b; margin-bottom:0.75rem; font-weight:600;">
-                <i class="ph ph-envelope-simple"></i> Enviar SolicitaÃƒÂ§ÃƒÂ£o de Exame ÃƒÂ  IACI
+                <i class="ph ph-envelope-simple"></i> Enviar SolicitaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de Exame ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  IACI
             </h4>
             ${noticeHtml}
             <div style="display:flex; gap:0.75rem; align-items:flex-end; flex-wrap:wrap;">
@@ -4754,14 +4776,14 @@ window.renderASOTab = function(container, filteredDocs) {
                            value="${exameData ? exameData.split('/').reverse().join('-') : ''}">
                 </div>
                 <div class="input-group" style="flex:1; min-width:200px; margin-bottom:0;">
-                    <label style="font-size:0.75rem; font-weight:700;">DestinatÃƒÂ¡rio</label>
+                    <label style="font-size:0.75rem; font-weight:700;">DestinatÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio</label>
                     <input type="email" id="aso-email-dest-tab" value="thais.ricci@americarental.com.br"
                            style="padding:0.5rem; font-size:0.85rem; height:38px;">
                 </div>
                 <button class="btn btn-primary" id="btn-enviar-aso-email-tab"
                         onclick="window.sendASOEmailTab()"
                         style="height:38px; white-space:nowrap; padding:0 1.2rem; display:flex; align-items:center; gap:8px;">
-                    <i class="ph ph-paper-plane-tilt"></i> Enviar SolicitaÃƒÂ§ÃƒÂ£o
+                    <i class="ph ph-paper-plane-tilt"></i> Enviar SolicitaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o
                 </button>
             </div>
         </div>
@@ -4774,9 +4796,9 @@ window.renderASOTab = function(container, filteredDocs) {
     renderASOAno();
 }
 
-// FunÃƒÂ§ÃƒÂ£o especÃƒÂ­fica para envio pela aba ASO (nÃƒÂ£o conflita com a de AdmissÃƒÂ£o)
+// FunÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o especÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­fica para envio pela aba ASO (nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o conflita com a de AdmissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o)
 window.sendASOEmailTab = async function() {
-    if (!viewedColaborador) { alert('Colaborador nÃƒÂ£o selecionado.'); return; }
+    if (!viewedColaborador) { alert('Colaborador nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o selecionado.'); return; }
 
     const dataExame  = document.getElementById('aso-exame-data-tab').value;
     const destinatario = document.getElementById('aso-email-dest-tab').value;
@@ -4787,9 +4809,9 @@ window.sendASOEmailTab = async function() {
     const cargo = (viewedColaborador.cargo || '').toLowerCase();
     const exames = cargo.includes('motorista')
         ? 'Exames Complementares, acuidade visual, E.E.G, E.C.G e Glicemia.'
-        : 'Exame PadrÃƒÂ£o';
+        : 'Exame PadrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o';
 
-    const mailBody = `TÃƒÂ­tulo: Exame MÃƒÂ©dico\n\nSegue abaixo as informaÃƒÂ§ÃƒÂµes para a realizaÃƒÂ§ÃƒÂ£o do exame do colaborador.\n\nData: ${dt}\nNome: ${viewedColaborador.nome_completo || viewedColaborador.nome}\nCPF: ${viewedColaborador.cpf || '-'}\nFunÃƒÂ§ÃƒÂ£o: ${viewedColaborador.cargo || '-'}\nDepartamento: ${viewedColaborador.departamento || '-'}\n\nExames:\n${exames}\n\nÃ¢Å¡Â Ã¯Â¸Â IMPORTANTE:\nApÃƒÂ³s o exame ficar pronto, favor enviar o documento por e-mail para: rh@americarental.com.br`;
+    const mailBody = `TÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­tulo: Exame MÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©dico\n\nSegue abaixo as informaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes para a realizaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o do exame do colaborador.\n\nData: ${dt}\nNome: ${viewedColaborador.nome_completo || viewedColaborador.nome}\nCPF: ${viewedColaborador.cpf || '-'}\nFunÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o: ${viewedColaborador.cargo || '-'}\nDepartamento: ${viewedColaborador.departamento || '-'}\n\nExames:\n${exames}\n\nÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â IMPORTANTE:\nApÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³s o exame ficar pronto, favor enviar o documento por e-mail para: rh@americarental.com.br`;
 
     const btn = document.getElementById('btn-enviar-aso-email-tab');
     const originalContent = btn.innerHTML;
@@ -4805,7 +4827,7 @@ window.sendASOEmailTab = async function() {
         });
 
         if (res.sucesso) {
-            alert('Ã¢Å“â€¦ E-mail enviado com sucesso para a IACI!');
+            alert('ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ E-mail enviado com sucesso para a IACI!');
             // Recarregar aba para mostrar aviso
             viewedColaborador.aso_email_enviado = res.data_envio;
             viewedColaborador.aso_exame_data    = res.data_agendada;
@@ -4815,8 +4837,8 @@ window.sendASOEmailTab = async function() {
             throw new Error(res.error || 'Erro no servidor');
         }
     } catch (e) {
-        if (confirm(`NÃƒÂ£o foi possÃƒÂ­vel enviar automaticamente. Erro do Servidor:\n\n${e.message}\n\nDeseja abrir seu e-mail com o texto preenchido?`)) {
-            window.location.href = `mailto:${destinatario}?cc=rh@americarental.com.br,rh2@americarental.com.br&subject=Exame MÃƒÂ©dico - ${viewedColaborador.nome_completo || viewedColaborador.nome}&body=${encodeURIComponent(mailBody)}`;
+        if (confirm(`NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o foi possÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel enviar automaticamente. Erro do Servidor:\n\n${e.message}\n\nDeseja abrir seu e-mail com o texto preenchido?`)) {
+            window.location.href = `mailto:${destinatario}?cc=rh@americarental.com.br,rh2@americarental.com.br&subject=Exame MÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©dico - ${viewedColaborador.nome_completo || viewedColaborador.nome}&body=${encodeURIComponent(mailBody)}`;
         }
     } finally {
         if (btn) { btn.disabled = false; btn.innerHTML = originalContent; }
@@ -4832,14 +4854,14 @@ window.renderASOAno = function() {
     if (!container) return;
     container.innerHTML = '';
 
-    // Usar os documentos jÃƒÂ¡ filtrados pela barra global
+    // Usar os documentos jÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ filtrados pela barra global
     const docsToUse = window.lastASODocs || currentDocs.filter(d => d.tab_name === 'ASO');
     const filteredByYear = docsToUse.filter(d => d.year == y);
     const isMotorista = viewedColaborador && (viewedColaborador.cargo || '').toUpperCase().includes('MOTORISTA');
     const isDesligado = viewedColaborador && (viewedColaborador.status === 'Desligado');
 
-    // Documentos obrigatÃƒÂ³rios
-    const list = ['ASO PadrÃƒÂ£o'];
+    // Documentos obrigatÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rios
+    const list = ['ASO PadrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o'];
     if (isMotorista) list.push('Exames Complementares');
     if (isDesligado) list.push('ASO Demissional');
 
@@ -4848,14 +4870,14 @@ window.renderASOAno = function() {
         container.appendChild(createDocSlot('ASO', docType, existingDoc, `'${y}'`));
     });
 
-    // Outros documentos dinÃƒÂ¢micos jÃƒÂ¡ salvos para este ano (considerando o filtro de busca)
+    // Outros documentos dinÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢micos jÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ salvos para este ano (considerando o filtro de busca)
     filteredByYear.filter(d => !list.includes(d.document_type)).forEach(d => {
         container.appendChild(createDocSlot('ASO', d.document_type, d, `'${y}'`));
     });
 
     container.appendChild(document.createElement('hr'));
 
-    // BotÃƒÂ£o para adicionar outro exame avÃƒÂ¼lso
+    // BotÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o para adicionar outro exame avÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼lso
     const form = createDynamicUploadForm('ASO', 'Adicionar Outro Exame', '');
     container.appendChild(form);
 }
@@ -4874,7 +4896,7 @@ async function renderFaltasTab(container) {
         return `${d}/${m}/${y}`;
     };
 
-    const turnoColor = { 'Dia todo': '#e03131', 'ManhÃƒÂ£': '#f08c00', 'Tarde': '#1971c2' };
+    const turnoColor = { 'Dia todo': '#e03131', 'ManhÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£': '#f08c00', 'Tarde': '#1971c2' };
 
     const tableRows = faltas.length === 0
         ? `<tr><td colspan="5" style="text-align:center; color:#94a3b8; padding:1.5rem;">Nenhuma falta registrada.</td></tr>`
@@ -4886,10 +4908,10 @@ async function renderFaltasTab(container) {
                 </td>
                 <td style="padding:0.65rem 0.75rem; text-align:center;">
                     <span style="background:${f.avisado_previamente === 'Sim' ? '#dcfce7' : '#fee2e2'}; color:${f.avisado_previamente === 'Sim' ? '#166534' : '#991b1b'}; padding:2px 10px; border-radius:10px; font-size:0.75rem; font-weight:700;">
-                        ${f.avisado_previamente === 'Sim' ? 'Ã¢Å“â€œ Sim' : 'Ã¢Å“â€” NÃƒÂ£o'}
+                        ${f.avisado_previamente === 'Sim' ? 'ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ Sim' : 'ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o'}
                     </span>
                 </td>
-                <td style="padding:0.65rem 0.75rem; color:#475569; font-size:0.88rem;">${f.observacao || 'Ã¢â‚¬â€'}</td>
+                <td style="padding:0.65rem 0.75rem; color:#475569; font-size:0.88rem;">${f.observacao || 'ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â'}</td>
                 <td style="padding:0.65rem 0.75rem; text-align:right;">
                     <button onclick="window.deletarFalta(${f.id}, this)" style="background:none; border:none; cursor:pointer; color:#e03131;" title="Excluir">
                         <i class="ph ph-trash" style="font-size:1.1rem;"></i>
@@ -4898,7 +4920,7 @@ async function renderFaltasTab(container) {
             </tr>`).join('');
 
     container.innerHTML = `
-        <!-- FormulÃƒÂ¡rio de registro -->
+        <!-- FormulÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio de registro -->
         <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:1.25rem; margin-bottom:1.5rem;">
             <h4 style="margin:0 0 1rem; font-size:1rem; color:#1e293b; display:flex; align-items:center; gap:8px;">
                 <i class="ph ph-calendar-x" style="color:#e03131;"></i> Registrar Falta
@@ -4912,7 +4934,7 @@ async function renderFaltasTab(container) {
                     <label style="font-size:0.8rem; font-weight:600; color:#475569;">Turno</label>
                     <select id="falta-turno" style="height:38px; padding:0 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.9rem;">
                         <option value="Dia todo">Dia todo</option>
-                        <option value="ManhÃƒÂ£">ManhÃƒÂ£</option>
+                        <option value="ManhÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£">ManhÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£</option>
                         <option value="Tarde">Tarde</option>
                     </select>
                 </div>
@@ -4923,13 +4945,13 @@ async function renderFaltasTab(container) {
                             <input type="radio" name="falta-avisado" value="Sim" checked> Sim
                         </label>
                         <label style="display:flex; align-items:center; gap:4px; cursor:pointer; margin:0; font-weight:500;">
-                            <input type="radio" name="falta-avisado" value="NÃƒÂ£o"> NÃƒÂ£o
+                            <input type="radio" name="falta-avisado" value="NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o"> NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o
                         </label>
                     </div>
                 </div>
                 <div style="display:flex; flex-direction:column; gap:0.25rem; flex:1; min-width:180px;">
-                    <label style="font-size:0.8rem; font-weight:600; color:#475569;">ObservaÃƒÂ§ÃƒÂ£o (opcional)</label>
-                    <input type="text" id="falta-obs" placeholder="Ex: nÃƒÂ£o comunicou, sem justificativa..." style="height:38px; padding:0 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.9rem;">
+                    <label style="font-size:0.8rem; font-weight:600; color:#475569;">ObservaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o (opcional)</label>
+                    <input type="text" id="falta-obs" placeholder="Ex: nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o comunicou, sem justificativa..." style="height:38px; padding:0 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.9rem;">
                 </div>
                 <button onclick="window.registrarFalta()" style="height:38px; background:#e03131; color:#fff; border:none; border-radius:6px; padding:0 1.2rem; font-size:0.88rem; font-weight:700; cursor:pointer; white-space:nowrap; display:inline-flex; align-items:center; gap:6px;">
                     <i class="ph ph-plus"></i> Registrar
@@ -4950,7 +4972,7 @@ async function renderFaltasTab(container) {
                         <th style="padding:0.6rem 0.75rem; color:#64748b; font-size:0.78rem; text-transform:uppercase;">Data</th>
                         <th style="padding:0.6rem 0.75rem; color:#64748b; font-size:0.78rem; text-transform:uppercase;">Turno</th>
                         <th style="padding:0.6rem 0.75rem; color:#64748b; font-size:0.78rem; text-transform:uppercase; text-align:center;">Avisado Prev.</th>
-                        <th style="padding:0.6rem 0.75rem; color:#64748b; font-size:0.78rem; text-transform:uppercase;">ObservaÃƒÂ§ÃƒÂ£o</th>
+                        <th style="padding:0.6rem 0.75rem; color:#64748b; font-size:0.78rem; text-transform:uppercase;">ObservaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o</th>
                         <th style="padding:0.6rem 0.75rem;"></th>
                     </tr>
                 </thead>
@@ -4964,7 +4986,7 @@ window.registrarFalta = async function() {
     const data = document.getElementById('falta-data')?.value;
     const turno = document.getElementById('falta-turno')?.value;
     const obs = document.getElementById('falta-obs')?.value || '';
-    const avisado = document.querySelector('input[name="falta-avisado"]:checked')?.value || 'NÃƒÂ£o';
+    const avisado = document.querySelector('input[name="falta-avisado"]:checked')?.value || 'NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o';
     if (!data) { alert('Informe a data da falta.'); return; }
     if (!viewedColaborador) return;
 
@@ -4991,7 +5013,7 @@ window.renderAtestadosTab = function(container, filteredDocs) {
     window.lastAtestadoDocs = filteredDocs; 
     const optionsHtml = getAnosAdmissaoOptions(selected);
 
-    // Injetar CSS do autocomplete se nÃƒÂ£o existir
+    // Injetar CSS do autocomplete se nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o existir
     if (!document.getElementById('cid-style')) {
         const s = document.createElement('style');
         s.id = 'cid-style';
@@ -5037,7 +5059,7 @@ window.renderAtestadosTab = function(container, filteredDocs) {
                 <!-- Campos Dias -->
                 <div id="atestado-dias-fields" style="display:flex; gap:1rem; flex-shrink:0; align-items:flex-end;">
                     <div>
-                        <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">Data InÃƒÂ­cio</label>
+                        <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">Data InÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­cio</label>
                         <input type="date" id="atestado_inicio_dia" class="form-control" style="padding:0.4rem; width:130px;" oninput="calcAtestadoFim()">
                     </div>
                     <div>
@@ -5045,7 +5067,7 @@ window.renderAtestadosTab = function(container, filteredDocs) {
                         <input type="number" id="atestado_qtd_dias" class="form-control" min="1" value="1" style="padding:0.4rem; width:75px;" oninput="calcAtestadoFim()">
                     </div>
                     <div>
-                        <label style="font-size:0.75rem; font-weight:600; color:#94a3b8; margin-bottom:3px; display:block;">TÃƒÂ©rmino (calc.)</label>
+                        <label style="font-size:0.75rem; font-weight:600; color:#94a3b8; margin-bottom:3px; display:block;">TÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rmino (calc.)</label>
                         <input type="date" id="atestado_fim_dia" class="form-control" style="padding:0.4rem; width:130px; background:#f1f5f9; color:#64748b;" readonly>
                     </div>
                 </div>
@@ -5053,11 +5075,11 @@ window.renderAtestadosTab = function(container, filteredDocs) {
                 <!-- Campos Horas -->
                 <div id="atestado-horas-fields" style="display:none; gap:1rem; flex-shrink:0;">
                     <div>
-                        <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">HorÃƒÂ¡rio InÃƒÂ­cio</label>
+                        <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">HorÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio InÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­cio</label>
                         <input type="time" id="atestado_inicio_hora" class="form-control" style="padding:0.4rem; width:110px;">
                     </div>
                     <div>
-                        <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">HorÃƒÂ¡rio Fim</label>
+                        <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">HorÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio Fim</label>
                         <input type="time" id="atestado_fim_hora" class="form-control" style="padding:0.4rem; width:110px;">
                     </div>
                 </div>
@@ -5089,7 +5111,7 @@ window.searchCID = async function(val) {
         if (!data.length) { dd.style.display = 'none'; return; }
         dd.innerHTML = data.map((c, i) =>
             `<div class="cid-option" data-code="${c.code}" data-desc="${c.desc.replace(/"/g,'&quot;')}" onclick="selectCID('${c.code}', this.dataset.desc)">
-                <strong>${c.code}</strong> Ã¢â‚¬â€ ${c.desc}
+                <strong>${c.code}</strong> ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ${c.desc}
              </div>`
         ).join('');
         dd.style.display = 'block';
@@ -5099,7 +5121,7 @@ window.searchCID = async function(val) {
 window.selectCID = function(code, desc) {
     selectedCID = { code, desc };
     document.getElementById('cid-dropdown').style.display = 'none';
-    document.getElementById('cid-search').value = `${code} Ã¢â‚¬â€ ${desc}`;
+    document.getElementById('cid-search').value = `${code} ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ${desc}`;
     
     const todayStr = new Date().toISOString().split('T')[0];
     document.getElementById('atestado_inicio_dia').value = todayStr;
@@ -5109,7 +5131,7 @@ window.selectCID = function(code, desc) {
 
 window.triggerAtestadoUpload = function() {
     if (!selectedCID) {
-        alert('Selecione primeiro qual ÃƒÂ© o CID (cÃƒÂ³digo) do atestado digitando na barra de busca!');
+        alert('Selecione primeiro qual ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© o CID (cÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³digo) do atestado digitando na barra de busca!');
         const s = document.getElementById('cid-search');
         if (s) { s.focus(); s.style.border = '2px solid red'; setTimeout(()=> s.style.border='', 2000); }
         return;
@@ -5128,7 +5150,7 @@ window.toggleAtestadoPeriodFields = function() {
     }
 }
 
-// Calcula data de tÃƒÂ©rmino automaticamente
+// Calcula data de tÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rmino automaticamente
 window.calcAtestadoFim = function() {
     const inicio = document.getElementById('atestado_inicio_dia')?.value;
     const qtd = parseInt(document.getElementById('atestado_qtd_dias')?.value, 10) || 1;
@@ -5143,7 +5165,7 @@ window.calcAtestadoFim = function() {
 window.uploadAtestadoWithCID = async function(inputEl) {
     const file = inputEl.files[0];
     if (!file || !selectedCID) return;
-    if (!viewedColaborador) { alert('Colaborador nÃƒÂ£o selecionado.'); return; }
+    if (!viewedColaborador) { alert('Colaborador nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o selecionado.'); return; }
 
     // Loading state
     const uploadBtn   = document.getElementById('cid-upload-btn');
@@ -5151,7 +5173,7 @@ window.uploadAtestadoWithCID = async function(inputEl) {
     if (uploadBtn) { uploadBtn.style.opacity = '0.7'; uploadBtn.style.pointerEvents = 'none'; }
     if (uploadIcon)  uploadIcon.className = 'ph ph-spinner ph-spin';
 
-    // Gerar nome no padrÃƒÂ£o Z01_DD-MM-AA_NomeColab
+    // Gerar nome no padrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o Z01_DD-MM-AA_NomeColab
     const today = new Date();
     const dd  = String(today.getDate()).padStart(2, '0');
     const mm  = String(today.getMonth() + 1).padStart(2, '0');
@@ -5172,13 +5194,13 @@ window.uploadAtestadoWithCID = async function(inputEl) {
     formData.append('cloud_name', customName + '.pdf'); // nome final sem timestamp para OneDrive
     formData.append('year', year);
 
-    // Campos de perÃƒÂ­odo
+    // Campos de perÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­odo
     const tipo = document.getElementById('atestado_tipo').value;
     formData.append('atestado_tipo', tipo);
     if (tipo === 'dias') {
         const inicioVal = document.getElementById('atestado_inicio_dia').value;
         const fimVal = document.getElementById('atestado_fim_dia').value;
-        if (!inicioVal) { alert('Informe a Data de InÃƒÂ­cio do atestado.'); return; }
+        if (!inicioVal) { alert('Informe a Data de InÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­cio do atestado.'); return; }
         formData.append('atestado_inicio', inicioVal);
         formData.append('atestado_fim', fimVal || inicioVal);
     } else {
@@ -5214,7 +5236,7 @@ window.uploadAtestadoWithCID = async function(inputEl) {
             await loadDocumentosList();
             renderAtestadosAno();
 
-            // Quiet success Ã¢â‚¬â€œ no toast needed when just attaching an atestado
+            // Quiet success ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ no toast needed when just attaching an atestado
 
         } else {
             const errData = await res.json().catch(() => ({}));
@@ -5240,7 +5262,7 @@ window.saveVencimento = async function(docId, inputId) {
         });
         if (res.ok) {
             alert('Validade atualizada com sucesso!');
-            await loadDocumentosList(); // Para atualizar a exibiÃƒÂ§ÃƒÂ£o do Venc: dd/mm/aaaa no texto
+            await loadDocumentosList(); // Para atualizar a exibiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o do Venc: dd/mm/aaaa no texto
             
             const viewAdm = document.getElementById('view-admissao');
             const isAdmActive = viewAdm && viewAdm.classList.contains('active');
@@ -5345,7 +5367,7 @@ window.renderAtestadosAno = function() {
     if (!listContainer) return;
     listContainer.innerHTML = '';
 
-    // Usar os documentos jÃƒÂ¡ filtrados pela barra global
+    // Usar os documentos jÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ filtrados pela barra global
     const docsToUse = window.lastAtestadoDocs || currentDocs.filter(d => d.tab_name === 'Atestados');
     const filteredByYear = docsToUse.filter(d => d.year == y);
 
@@ -5371,7 +5393,7 @@ window.renderPagamentosCompetencia = function() {
     subContainer.innerHTML = '';
 
     const docs = currentDocs.filter(d => d.tab_name === 'Pagamentos' && d.year == y && d.month == m);
-    ['Ponto', 'Holerite', 'Recibo CombustÃƒÂ­vel', 'Recibo AlimentaÃƒÂ§ÃƒÂ£o'].forEach(type => {
+    ['Ponto', 'Holerite', 'Recibo CombustÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel', 'Recibo AlimentaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o'].forEach(type => {
         const d = docs.find(x => x.document_type === type);
         subContainer.appendChild(createDocSlot('Pagamentos', type, d, `'${y}'`, `'${m}'`));
     });
@@ -5504,7 +5526,7 @@ window.deleteDoc = async function(docId, btnEl) {
         return;
     }
 
-    // RemoÃƒÂ§ÃƒÂ£o otimista: esconde o card imediatamente para feedback visual instantÃƒÂ¢neo
+    // RemoÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o otimista: esconde o card imediatamente para feedback visual instantÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢neo
     const docCard = btnEl ? btnEl.closest('.doc-item') : null;
     if (docCard) {
         docCard.style.transition = 'opacity 0.2s ease';
@@ -5521,7 +5543,7 @@ window.deleteDoc = async function(docId, btnEl) {
             // Remover o card do DOM imediatamente
             if (docCard) docCard.remove();
 
-            // Atualizar lista em memÃƒÂ³ria e re-renderizar a aba em background
+            // Atualizar lista em memÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³ria e re-renderizar a aba em background
             await loadDocumentosList();
 
             const viewAdm = document.getElementById('view-admissao');
@@ -5539,7 +5561,7 @@ window.deleteDoc = async function(docId, btnEl) {
                 }
             }
         } else {
-            // Reverter a remoÃƒÂ§ÃƒÂ£o otimista em caso de erro
+            // Reverter a remoÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o otimista em caso de erro
             if (docCard) {
                 docCard.style.opacity = '1';
                 docCard.style.pointerEvents = 'auto';
@@ -5566,7 +5588,7 @@ window.viewDoc = async function(docId) {
         const viewUrl = `${API_URL}/documentos/view/${docId}?token=${token}`;
         const downloadUrl = `${API_URL}/documentos/download/${docId}?token=${token}`;
 
-        // Verificar se popup de doc-modal existe, caso contrÃƒÂ¡rio abrir numa nova janela
+        // Verificar se popup de doc-modal existe, caso contrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio abrir numa nova janela
         const modal = document.getElementById('doc-modal');
         const modalBody = document.getElementById('modal-doc-body');
         const modalTitle = document.getElementById('modal-doc-title');
@@ -5601,7 +5623,7 @@ window.viewAssinado = async function(docId) {
         document.body.style.cursor = 'default';
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
-            alert(err.error || 'PDF assinado ainda nÃƒÂ£o estÃƒÂ¡ disponÃƒÂ­vel.');
+            alert(err.error || 'PDF assinado ainda nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o estÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ disponÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel.');
             return;
         }
         const blob = await res.blob();
@@ -5632,7 +5654,7 @@ window.viewAssinado = async function(docId) {
         `;
         document.body.appendChild(overlay);
 
-        // BotÃƒÂ£o de download
+        // BotÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de download
         document.getElementById('btn-download-signed-pdf').addEventListener('click', () => {
             const a = document.createElement('a');
             a.href = blobUrl;
@@ -5649,7 +5671,7 @@ window.downloadAssinado = async function(docId) {
     const url = `${API_URL}/documentos/download-assinado/${docId}`;
     try {
         let handle = null;
-        // Pede a pasta ao usuÃƒÂ¡rio antes do fetch para garantir que nÃƒÂ£o perde o foco/evento de clique do navegador (exigÃƒÂªncia de seguranÃƒÂ§a do Chrome)
+        // Pede a pasta ao usuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio antes do fetch para garantir que nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o perde o foco/evento de clique do navegador (exigÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia de seguranÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§a do Chrome)
         if (window.showSaveFilePicker) {
             try {
                 handle = await window.showSaveFilePicker({
@@ -5657,7 +5679,7 @@ window.downloadAssinado = async function(docId) {
                     types: [{ description: 'Documento PDF', accept: { 'application/pdf': ['.pdf'] } }]
                 });
             } catch (e) {
-                if (e.name === 'AbortError') return; // UsuÃƒÂ¡rio cancelou a janela Salvar Como
+                if (e.name === 'AbortError') return; // UsuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio cancelou a janela Salvar Como
             }
         }
 
@@ -5668,7 +5690,7 @@ window.downloadAssinado = async function(docId) {
         if (!res.ok) {
             document.body.style.cursor = 'default';
             const err = await res.json().catch(() => ({}));
-            alert(err.error || 'PDF assinado ainda nÃƒÂ£o estÃƒÂ¡ pronto para download. Tente via Atualizar.');
+            alert(err.error || 'PDF assinado ainda nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o estÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ pronto para download. Tente via Atualizar.');
             return;
         }
 
@@ -5679,10 +5701,10 @@ window.downloadAssinado = async function(docId) {
             const writable = await handle.createWritable();
             await writable.write(blob);
             await writable.close();
-            return; // Sucesso, arquivo salvo onde o usuÃƒÂ¡rio quis
+            return; // Sucesso, arquivo salvo onde o usuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio quis
         }
 
-        // Fallback: se o navegador nÃƒÂ£o suportar a janela Salvar Como (ex: Safari antigo, Firefox padrÃƒÂ£o)
+        // Fallback: se o navegador nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o suportar a janela Salvar Como (ex: Safari antigo, Firefox padrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o)
         let fileName = 'documento_assinado_' + docId + '.pdf';
         const disposition = res.headers.get('content-disposition');
         if (disposition && disposition.indexOf('filename=') !== -1) {
@@ -5706,17 +5728,17 @@ function getEffectiveStatus(c) {
     if (!c) return 'Ativo';
     let status = c.status || 'Ativo';
     
-    // Se estÃƒÂ¡ "Ativo" ou "FÃƒÂ©rias", verificamos as datas para saber se deve mostrar FÃƒÂ©rias
-    if (status === 'Ativo' || status === 'FÃƒÂ©rias') {
+    // Se estÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ "Ativo" ou "FÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rias", verificamos as datas para saber se deve mostrar FÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rias
+    if (status === 'Ativo' || status === 'FÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rias') {
         if (c.ferias_programadas_inicio && c.ferias_programadas_fim) {
             const today = new Date().toISOString().split('T')[0];
             if (today >= c.ferias_programadas_inicio && today <= c.ferias_programadas_fim) {
-                return 'FÃƒÂ©rias';
+                return 'FÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rias';
             }
         }
     }
-    // Se o status era FÃƒÂ©rias mas saiu do perÃƒÂ­odo e nÃƒÂ£o mudou manualmente para outra coisa, volta a ser Ativo
-    if (status === 'FÃƒÂ©rias' && c.ferias_programadas_fim) {
+    // Se o status era FÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rias mas saiu do perÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­odo e nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o mudou manualmente para outra coisa, volta a ser Ativo
+    if (status === 'FÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rias' && c.ferias_programadas_fim) {
         const today = new Date().toISOString().split('T')[0];
         if (today > c.ferias_programadas_fim) return 'Ativo';
     }
@@ -5727,7 +5749,7 @@ function getEffectiveStatus(c) {
 function updateStatusChip(val) {
     document.querySelectorAll('.status-chip').forEach(c => {
         c.classList.remove('active');
-        // c.style.display = 'none'; // Mantido visÃƒÂ­vel para permitir a seleÃƒÂ§ÃƒÂ£o
+        // c.style.display = 'none'; // Mantido visÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel para permitir a seleÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o
     });
     const target = document.querySelector(`.status-chip[data-value="${val}"]`);
     if (target) {
@@ -5768,9 +5790,9 @@ window.previewFoto = function(input) {
             .then(res => res.json())
             .then(data => {
                 if (data.sucesso) {
-                    // A prÃƒÂ©-visualizaÃƒÂ§ÃƒÂ£o base64 jÃƒÂ¡ estÃƒÂ¡ correta no cÃƒÂ­rculo.
-                    // NÃƒÂ£o substituÃƒÂ­mos src por URL do servidor (efÃƒÂªmero no Render).
-                    // Apenas garantimos que a foto seja visÃƒÂ­vel apÃƒÂ³s o upload.
+                    // A prÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©-visualizaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o base64 jÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ estÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ correta no cÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­rculo.
+                    // NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o substituÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­mos src por URL do servidor (efÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªmero no Render).
+                    // Apenas garantimos que a foto seja visÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel apÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³s o upload.
                     const preview = document.getElementById('colab-foto-preview');
                     const stateSaved = document.getElementById('photo-state-saved');
                     if (preview) preview.style.display = 'block';
@@ -5815,18 +5837,24 @@ window.toggleTipoDocumento = function() {
     const rgInput = document.getElementById('colab-rg');
     const cpfInput = document.getElementById('colab-cpf');
     const lbl = document.getElementById('lbl-colab-rg');
+    const boxOrgao = document.getElementById('box-rg-orgao');
+    const boxData = document.getElementById('box-rg-data');
     
     if (sel && rgInput && cpfInput && lbl) {
         if (sel.value === 'CIN') {
-            lbl.textContent = 'NÃƒÂºmero (CIN)';
+            lbl.textContent = 'NÃºmero (CIN)';
             rgInput.value = cpfInput.value;
             rgInput.setAttribute('readonly', 'true');
             rgInput.style.backgroundColor = '#e9ecef';
+            if(boxOrgao) boxOrgao.style.display = 'none';
+            if(boxData) boxData.style.display = 'none';
         } else {
-            lbl.textContent = 'NÃƒÂºmero (RG)';
+            lbl.textContent = 'NÃºmero (RG)';
             rgInput.removeAttribute('readonly');
             rgInput.style.backgroundColor = '';
-            // Limpa apenas se estiver igual ao CPF (ou seja, foi preenchido por CIN)
+            if(boxOrgao) boxOrgao.style.display = 'block';
+            if(boxData) boxData.style.display = 'block';
+            
             if (rgInput.value === cpfInput.value) {
                 rgInput.value = '';
             }
@@ -5837,7 +5865,7 @@ window.toggleTipoDocumento = function() {
 window.mascaraRG = function(el) {
     let v = el.value.toUpperCase().replace(/[^0-9X]/g, "");
     
-    // Se tiver 'X' no meio, remove mantendo apenas os nÃƒÂºmeros e o ÃƒÂºltimo 'X' (se houver)
+    // Se tiver 'X' no meio, remove mantendo apenas os nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºmeros e o ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºltimo 'X' (se houver)
     let numbers = v.replace(/X/g, "");
     if (v.endsWith("X")) {
         v = numbers + "X";
@@ -5893,7 +5921,7 @@ window.toggleCertificadoMilitar = function(sexo) {
 };
 
 
-// Validar campo genÃƒÂ©rico no frontend
+// Validar campo genÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rico no frontend
 window.validarCPFCampo = function(el) {
     const v = el.value.replace(/\D/g, "");
     const errorMsg = document.getElementById(el.id === 'colab-cpf' ? 'cpf-error' : '');
@@ -5912,7 +5940,7 @@ window.toggleConjuge = function() {
     const nome = document.getElementById('conjuge-nome');
     const cpf = document.getElementById('conjuge-cpf');
     
-    if (estado && (estado.value === 'Casado' || estado.value === 'UniÃƒÂ£o EstÃƒÂ¡vel')) {
+    if (estado && (estado.value === 'Casado' || estado.value === 'UniÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o EstÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡vel')) {
         section.style.display = 'block';
     } else if (section) {
         section.style.display = 'none';
@@ -5924,7 +5952,7 @@ window.toggleConjuge = function() {
 window.toggleMotorista = function() {
     const cargoSelect = document.getElementById('colab-cargo');
     const section = document.getElementById('section-cnh');
-    const num = document.getElementById('doc-driver-license-id');
+    const num = document.getElementById('colab-cnh-numero');
     const cat = document.getElementById('colab-cnh-categoria');
     
     if (cargoSelect && cargoSelect.value.toUpperCase().includes('MOTORISTA')) {
@@ -5954,11 +5982,11 @@ window.mascaraCNH = function(el) {
 window.mascaraTelefone = function(i) {
 
     let v = i.value;
-    v = v.replace(/\D/g, ""); // Remove nÃƒÂ£o-dÃƒÂ­gitos
+    v = v.replace(/\D/g, ""); // Remove nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o-dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­gitos
     if (v.length > 10) {
-        v = v.replace(/^(\d\d)(\d{5})(\d{4}).*/, "($1) $2-$3"); // 11 dÃƒÂ­gitos
+        v = v.replace(/^(\d\d)(\d{5})(\d{4}).*/, "($1) $2-$3"); // 11 dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­gitos
     } else if (v.length > 5) {
-        v = v.replace(/^(\d\d)(\d{4})(\d{0,4}).*/, "($1) $2-$3"); // 10 dÃƒÂ­gitos (fixo)
+        v = v.replace(/^(\d\d)(\d{4})(\d{0,4}).*/, "($1) $2-$3"); // 10 dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­gitos (fixo)
     } else if (v.length > 2) {
         v = v.replace(/^(\d\d)(\d{0,5})/, "($1) $2");
     } else {
@@ -6019,12 +6047,12 @@ function updateProbationBadge(admissaoDate) {
         
         containers.forEach(container => {
             if (diffDays <= 45) {
-                container.innerHTML = '<span class="probation-badge">1Ã‚Âº 45</span>';
+                container.innerHTML = '<span class="probation-badge">1ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âº 45</span>';
             } else if (diffDays <= 90) {
-                container.innerHTML = '<span class="probation-badge second">2Ã‚Âº 45</span>';
+                container.innerHTML = '<span class="probation-badge second">2ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âº 45</span>';
             }
         });
-    } catch(e) { console.error('Erro ao calcular perÃƒÂ­odo de experiÃƒÂªncia:', e); }
+    } catch(e) { console.error('Erro ao calcular perÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­odo de experiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia:', e); }
 }
 
 // --- CBO LOOKUP ---
@@ -6074,7 +6102,7 @@ window.selecionarCBO = function(code, desc) {
     if (dropdown) dropdown.style.display = 'none';
 };
 
-// --- GESTÃƒÆ’O DE FACULDADE ---
+// --- GESTÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢O DE FACULDADE ---
 window.loadFaculdadeCursos = async function() {
     try {
         const response = await fetch(`${API_URL}/cursos-faculdade`, {
@@ -6193,7 +6221,7 @@ document.addEventListener('click', (e) => {
     }
 });
 
-// --- GESTÃƒÆ’O DE GERADORES DE DOCUMENTOS ---
+// --- GESTÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢O DE GERADORES DE DOCUMENTOS ---
 
 window.loadGeradores = async function() {
     try {
@@ -6203,7 +6231,7 @@ window.loadGeradores = async function() {
             apiGet('/gerador-outros-contratos-templates').catch(() => [])
         ]);
 
-        // Garantir lista nÃƒÂ£o vazia
+        // Garantir lista nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o vazia
         let geradores = Array.isArray(items) ? items : [];
         if (geradores.length === 0) {
             await seedInitialGeradores();
@@ -6237,24 +6265,24 @@ window.renderGeradoresList = function(items) {
 
     // Labels e styles por tipo de template
     const TEMPLATE_LABELS = {
-        admissao:  { label: 'AdmissÃƒÂ£o',  bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
+        admissao:  { label: 'AdmissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o',  bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
         contratos: { label: 'Contratos', bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' },
         ambos:     { label: 'Ambos',     bg: '#fdf4ff', color: '#c026d3', border: '#f0abfc' },
-        nenhum:    { label: 'Ã¢â‚¬â€',         bg: '#f8fafc', color: '#94a3b8', border: '#e2e8f0' },
+        nenhum:    { label: 'ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â',         bg: '#f8fafc', color: '#94a3b8', border: '#e2e8f0' },
     };
 
     const PROTECTED_NAMES = [
-        'autorizaÃƒÂ§ÃƒÂ£o de desconto em folha',
-        'ordem de serviÃƒÂ§o nr01',
-        'termo de nÃƒÂ£o interesse terapia',
+        'autorizaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de desconto em folha',
+        'ordem de serviÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o nr01',
+        'termo de nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o interesse terapia',
         'termo de interesse terapia',
         'responsabilidade chaves',
         'termo de responsabilidade de chaves',
         'responsabilidade celular',
-        'responsabilidade bilhete ÃƒÂºnico',
+        'responsabilidade bilhete ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºnico',
         'contrato faculdade',
         'contrato academia',
-        'acordo de auxÃƒÂ­lio-combustÃƒÂ­vel',
+        'acordo de auxÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­lio-combustÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel',
         'contrato intermitente'
     ];
     
@@ -6262,20 +6290,20 @@ window.renderGeradoresList = function(items) {
         const originalName = (nome || '').trim();
         const u = originalName.toLowerCase();
         
-        // Expor essas cÃƒÂ³pias precisas para que o usuÃƒÂ¡rio consiga excluÃƒÂ­-las
+        // Expor essas cÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³pias precisas para que o usuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio consiga excluÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­-las
         const BAD_EXACT_NAMES = [
-            'AUTORIZAÃƒâ€¡ÃƒÆ’O DE DESCONTO EM FOLHA DE PAGAMENTO',
-            'ORDEM DE SERVIÃƒâ€¡O NR01'
+            'AUTORIZAÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢O DE DESCONTO EM FOLHA DE PAGAMENTO',
+            'ORDEM DE SERVIÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¡O NR01'
         ];
         if (BAD_EXACT_NAMES.includes(originalName)) return false;
 
         // Forcefully allow these to be deleted
-        if (u.includes('equipamento') || u.includes('veÃƒÂ­culo') || u.includes('veiculo')) return false;
+        if (u.includes('equipamento') || u.includes('veÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­culo') || u.includes('veiculo')) return false;
 
         return PROTECTED_NAMES.some(pn => u.includes(pn));
     };
 
-    // Sort: protegidos primeiro, depois alfabÃƒÂ©tico
+    // Sort: protegidos primeiro, depois alfabÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©tico
     const sortedItems = [...items].sort((a, b) => {
         const aProt = isProtected(a.nome);
         const bProt = isProtected(b.nome);
@@ -6410,8 +6438,8 @@ window.renderGeradoresTemplates = function(departamentos, geradores, templates) 
         docMap[t.gerador_id].push(Number(t.departamento_id));
     });
 
-    // Contratos de uso exclusivo de outros fluxos (ex: Multas) nÃƒÂ£o devem aparecer nos templates de admissÃƒÂ£o
-    const GERADORES_EXCLUSIVOS_AVULSO = ['AUTORIZAÃƒâ€¡ÃƒÆ’O DE DESCONTO EM FOLHA DE PAGAMENTO', 'AUTORIZAÃƒâ€¡ÃƒÆ’O DE DESCONTO EM FOLHA'];
+    // Contratos de uso exclusivo de outros fluxos (ex: Multas) nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o devem aparecer nos templates de admissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o
+    const GERADORES_EXCLUSIVOS_AVULSO = ['AUTORIZAÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢O DE DESCONTO EM FOLHA DE PAGAMENTO', 'AUTORIZAÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢O DE DESCONTO EM FOLHA'];
     const geradoresParaTemplate = geradores.filter(g => !GERADORES_EXCLUSIVOS_AVULSO.includes((g.nome || '').toUpperCase().trim()));
 
     const listHTML = geradoresParaTemplate.map(g => {
@@ -6615,98 +6643,98 @@ window.selecionarTodosSetoresOutros = function(docId) {
 async function seedInitialGeradores() {
     const templates = [
         {
-            nome: "Acordo Individual BenefÃƒÂ­cios",
+            nome: "Acordo Individual BenefÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­cios",
             conteudo: `
 <p style="margin-top: 1.5rem;">CARO COLABORADOR,</p>
-<p>ÃƒÂ EMPRESA:</p>
+<p>ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â EMPRESA:</p>
 
 <p style="margin-top: 1.5rem;">
-    <b>AMERICA RENTAL EQUIPAMENTOS LTDA</b>, Situada na Rua Salto da Divisa, nÃ‚Âº 97, CEP 07252-300, Pq Alvorada - Guarulhos SP, inscrita no CNPJ sob o nÃ‚Âº 03.434.448/0001-01, neste ato representado pela sÃƒÂ³cia proprietÃƒÂ¡ria Sra. Nicole Mezuraro Maio, brasileira, solteira, empresÃƒÂ¡ria, portadora da cÃƒÂ©dula de identidade R.G. nÃ‚Âº 43.690.066 SSP/SP e CPF/MF nÃ‚Âº 355.026.968-47, doravante denominada EMPRESA.
+    <b>AMERICA RENTAL EQUIPAMENTOS LTDA</b>, Situada na Rua Salto da Divisa, nÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âº 97, CEP 07252-300, Pq Alvorada - Guarulhos SP, inscrita no CNPJ sob o nÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âº 03.434.448/0001-01, neste ato representado pela sÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³cia proprietÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ria Sra. Nicole Mezuraro Maio, brasileira, solteira, empresÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ria, portadora da cÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©dula de identidade R.G. nÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âº 43.690.066 SSP/SP e CPF/MF nÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âº 355.026.968-47, doravante denominada EMPRESA.
 </p>
 
 <p style="margin-top: 1.5rem;">
-    Decidem as partes, na melhor forma de direito, celebrar o presente <b>ACORDO INDIVIDUAL</b>, para fins de alterar algumas condiÃƒÂ§ÃƒÂµes do atual contrato de trabalho vigente, que reger-se-ÃƒÂ¡ mediante as clÃƒÂ¡usulas e condiÃƒÂ§ÃƒÂµes adiante estipuladas.
+    Decidem as partes, na melhor forma de direito, celebrar o presente <b>ACORDO INDIVIDUAL</b>, para fins de alterar algumas condiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes do atual contrato de trabalho vigente, que reger-se-ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ mediante as clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡usulas e condiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes adiante estipuladas.
 </p>
 
-<p style="margin-top: 1.5rem;"><b>CLÃƒÂUSULA PRIMEIRA - DOS MOTIVOS</b></p>
-<p>Com o foco de acrescentar melhorias e qualidade de vida aos colaboradores a empresa <b>AMERICA RENTAL EQUIPAMENTOS LTDA</b>, por mera liberalidade, disponibiliza convÃƒÂªnios com os estabelecimentos:</p>
+<p style="margin-top: 1.5rem;"><b>CLÃƒÆ’Ã†â€™Ãƒâ€šÃ‚ÂUSULA PRIMEIRA - DOS MOTIVOS</b></p>
+<p>Com o foco de acrescentar melhorias e qualidade de vida aos colaboradores a empresa <b>AMERICA RENTAL EQUIPAMENTOS LTDA</b>, por mera liberalidade, disponibiliza convÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªnios com os estabelecimentos:</p>
 
 <ol style="margin-top: 1rem; line-height: 2;">
-    <li>REDE DROGA LESTE FARMÃƒÂCIA</li>
+    <li>REDE DROGA LESTE FARMÃƒÆ’Ã†â€™Ãƒâ€šÃ‚ÂCIA</li>
     <li>SUPERMERCADO PARAISO - MERCADINHO BERLIM LTDA - ME</li>
     <li>ACADEMIA - ATITUDE FITNESS</li>
 </ol>
 
-<p style="margin-top: 1.5rem;"><b>CLÃƒÂUSULA SEGUNDA Ã¢â‚¬â€œ DOS DESCONTOS E DOS ESTABELICIMENTOS</b></p>
-<p>O colaborador autoriza os descontos de seu salÃƒÂ¡rio caso venha utilizar os convÃƒÂªnios colocados a sua disposiÃƒÂ§ÃƒÂ£o, conforme numerados na clÃƒÂ¡usula anterior. Ademais, o colaborador fica ciente que nÃƒÂ£o ÃƒÂ© obrigado a utilizar o convÃƒÂªnio, logo, sem a utilizaÃƒÂ§ÃƒÂ£o nÃƒÂ£o haverÃƒÂ¡ qualquer desconto de sua folha de pagamento.</p>
+<p style="margin-top: 1.5rem;"><b>CLÃƒÆ’Ã†â€™Ãƒâ€šÃ‚ÂUSULA SEGUNDA ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ DOS DESCONTOS E DOS ESTABELICIMENTOS</b></p>
+<p>O colaborador autoriza os descontos de seu salÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio caso venha utilizar os convÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªnios colocados a sua disposiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o, conforme numerados na clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡usula anterior. Ademais, o colaborador fica ciente que nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© obrigado a utilizar o convÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªnio, logo, sem a utilizaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o haverÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ qualquer desconto de sua folha de pagamento.</p>
 
-<p style="margin-top: 1.5rem;"><b>CLÃƒÂUSULA TERCEIRA - DA VIGÃƒÅ NCIA</b></p>
-<p>O presente acordo vigorarÃƒÂ¡ a partir da presente data pelo perÃƒÂ­odo da vigÃƒÂªncia do contrato de trabalho do Colaborador.</p>
+<p style="margin-top: 1.5rem;"><b>CLÃƒÆ’Ã†â€™Ãƒâ€šÃ‚ÂUSULA TERCEIRA - DA VIGÃƒÆ’Ã†â€™Ãƒâ€¦Ã‚Â NCIA</b></p>
+<p>O presente acordo vigorarÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ a partir da presente data pelo perÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­odo da vigÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia do contrato de trabalho do Colaborador.</p>
             `,
             variaveis: ""
         },
         {
-            nome: "AutorizaÃƒÂ§ÃƒÂ£o de Uso de Imagem",
+            nome: "AutorizaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de Uso de Imagem",
             conteudo: `
 <p style="margin-top: 2rem;">
-    <b>AUTORIZO</b> o uso de minha imagem e voz, em todo e qualquer material entre fotos, documentos e outros meios de comunicaÃƒÂ§ÃƒÂ£o, para campanhas promocionais e institucionais e etc. desta empresa, <b>AMERICA RENTAL EQUIPAMENTOS LTDA</b>, Situada na Rua Salto da Divisa, nÃ‚Âº 97, CEP 07252-300, Pq Alvorada - Guarulhos SP, inscrita no CNPJ sob o nÃ‚Âº 03.434.448/0001-01, sejam essas destinadas ÃƒÂ  divulgaÃƒÂ§ÃƒÂ£o ao pÃƒÂºblico em geral e/ou apenas para uso interno, e desde que nÃƒÂ£o haja desvirtuamento da sua finalidade.
+    <b>AUTORIZO</b> o uso de minha imagem e voz, em todo e qualquer material entre fotos, documentos e outros meios de comunicaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o, para campanhas promocionais e institucionais e etc. desta empresa, <b>AMERICA RENTAL EQUIPAMENTOS LTDA</b>, Situada na Rua Salto da Divisa, nÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âº 97, CEP 07252-300, Pq Alvorada - Guarulhos SP, inscrita no CNPJ sob o nÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âº 03.434.448/0001-01, sejam essas destinadas ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  divulgaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o ao pÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºblico em geral e/ou apenas para uso interno, e desde que nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o haja desvirtuamento da sua finalidade.
 </p>
 
 <p style="margin-top: 1.5rem;">
-    A presente autorizaÃƒÂ§ÃƒÂ£o ÃƒÂ© concedida a tÃƒÂ­tulo gratuito, abrangendo o uso da imagem acima mencionada em todo territÃƒÂ³rio nacional e no exterior, sob qualquer forma e meios, ou sejam, em destaque: (I) out-door; (II) bus-door; folhetos em geral (encartes, mala direta, catÃƒÂ¡logo, etc.); (III) folder de apresentaÃƒÂ§ÃƒÂ£o; (IV) anÃƒÂºncios em revistas e jornais em geral; (V) home page; (VI) cartazes; (VII) back-light; (VIII) mÃƒÂ­dia eletrÃƒÂ´nica (painÃƒÂ©is, vÃƒÂ­deo-tapes, televisÃƒÂ£o, cinema, programa para rÃƒÂ¡dio, rede social entre outros).
+    A presente autorizaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© concedida a tÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­tulo gratuito, abrangendo o uso da imagem acima mencionada em todo territÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rio nacional e no exterior, sob qualquer forma e meios, ou sejam, em destaque: (I) out-door; (II) bus-door; folhetos em geral (encartes, mala direta, catÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡logo, etc.); (III) folder de apresentaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o; (IV) anÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºncios em revistas e jornais em geral; (V) home page; (VI) cartazes; (VII) back-light; (VIII) mÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­dia eletrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â´nica (painÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©is, vÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­deo-tapes, televisÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o, cinema, programa para rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡dio, rede social entre outros).
 </p>
 
 <p style="margin-top: 1.5rem;">
-    Por esta ser a expressÃƒÂ£o da minha vontade declaro que autorizo o uso acima descrito sem que nada haja a ser reclamado a tÃƒÂ­tulo de direitos conexos ÃƒÂ  minha imagem ou a qualquer outro.
+    Por esta ser a expressÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o da minha vontade declaro que autorizo o uso acima descrito sem que nada haja a ser reclamado a tÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­tulo de direitos conexos ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  minha imagem ou a qualquer outro.
 </p>
             `,
             variaveis: ""
         },
         {
-            nome: "Acordo de AuxÃƒÂ­lio-CombustÃƒÂ­vel",
+            nome: "Acordo de AuxÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­lio-CombustÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel",
             conteudo: `
 <p style="margin-top: 1.5rem;">
-    <b>AMERICA RENTAL EQUIPAMENTOS LTDA</b>, Situada na Rua Salto da Divisa, nÃ‚Âº 97, CEP 07252-300, Parque Alvorada - Guarulhos SP, Inscrita no CNPJ sob o nÃ‚Âº 03.434.448/0001-01, denominada empregador, e Colaborador, de comum acordo e na melhor forma do direito, as partes celebram o presente Acordo Individual Escrito, com apoio nos art. 444, 457, 458 e art. 468 da CLT para tratar exclusivamente das condiÃƒÂ§ÃƒÂµes para fornecimento de auxÃƒÂ­lio-combustÃƒÂ­vel, mantendo-se inalteradas as demais clÃƒÂ¡usulas contratuais firmadas.
+    <b>AMERICA RENTAL EQUIPAMENTOS LTDA</b>, Situada na Rua Salto da Divisa, nÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âº 97, CEP 07252-300, Parque Alvorada - Guarulhos SP, Inscrita no CNPJ sob o nÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âº 03.434.448/0001-01, denominada empregador, e Colaborador, de comum acordo e na melhor forma do direito, as partes celebram o presente Acordo Individual Escrito, com apoio nos art. 444, 457, 458 e art. 468 da CLT para tratar exclusivamente das condiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes para fornecimento de auxÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­lio-combustÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel, mantendo-se inalteradas as demais clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡usulas contratuais firmadas.
 </p>
 
 <p style="margin-top: 1.5rem;">
-    <b>ClÃƒÂ¡usula Primeira:</b> O empregador fornecerÃƒÂ¡ mensalmente o valor fixo de R$220,00 (duzentos e vinte reais) a tÃƒÂ­tulo de auxÃƒÂ­lio-combustÃƒÂ­vel ao trabalhador que comprovar a necessidade de utilizaÃƒÂ§ÃƒÂ£o de veÃƒÂ­culo prÃƒÂ³prio para o deslocamento casa Ã¢â‚¬â€œ trabalho, de forma escrita.
+    <b>ClÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡usula Primeira:</b> O empregador fornecerÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ mensalmente o valor fixo de R$220,00 (duzentos e vinte reais) a tÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­tulo de auxÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­lio-combustÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel ao trabalhador que comprovar a necessidade de utilizaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de veÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­culo prÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³prio para o deslocamento casa ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ trabalho, de forma escrita.
 </p>
 
 <p style="margin-top: 1rem;">
-    <b>ParÃƒÂ¡grafo primeiro:</b> A comprovaÃƒÂ§ÃƒÂ£o de que trata essa clÃƒÂ¡usula, deverÃƒÂ¡ ser feita mediante apresentaÃƒÂ§ÃƒÂ£o de comprovante de residÃƒÂªncia em nome prÃƒÂ³prio e identificaÃƒÂ§ÃƒÂ£o de veÃƒÂ­culo utilizado no ato da contrataÃƒÂ§ÃƒÂ£o.
+    <b>ParÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡grafo primeiro:</b> A comprovaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de que trata essa clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡usula, deverÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ ser feita mediante apresentaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de comprovante de residÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia em nome prÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³prio e identificaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de veÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­culo utilizado no ato da contrataÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o.
 </p>
 
 <p style="margin-top: 1rem;">
-    <b>ParÃƒÂ¡grafo Segundo:</b> O valor a tÃƒÂ­tulo de auxÃƒÂ­lio-combustÃƒÂ­vel serÃƒÂ¡ reajustado anualmente a critÃƒÂ©rio do empregador.
+    <b>ParÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡grafo Segundo:</b> O valor a tÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­tulo de auxÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­lio-combustÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel serÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ reajustado anualmente a critÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rio do empregador.
 </p>
 
 <p style="margin-top: 1.5rem;">
-    <b>ClÃƒÂ¡usula Segunda:</b> As partes esclarecem que referido auxÃƒÂ­lio-combustÃƒÂ­vel possui natureza indenizatÃƒÂ³ria, nÃƒÂ£o se integrando ÃƒÂ  remuneraÃƒÂ§ÃƒÂ£o para quaisquer fins.
+    <b>ClÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡usula Segunda:</b> As partes esclarecem que referido auxÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­lio-combustÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel possui natureza indenizatÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³ria, nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o se integrando ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  remuneraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o para quaisquer fins.
 </p>
 
 <p style="margin-top: 1.5rem;">
-    <b>ClÃƒÂ¡usula Terceira:</b> SÃƒÂ£o condiÃƒÂ§ÃƒÂµes para o fornecimento do auxÃƒÂ­lio-combustÃƒÂ­vel mensalmente ao trabalhador, de forma cumulativa, a utilizaÃƒÂ§ÃƒÂ£o de veÃƒÂ­culo prÃƒÂ³prio para deslocamento e a inexistÃƒÂªncia de qualquer falta ao trabalho no mÃƒÂªs correspondente.
+    <b>ClÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡usula Terceira:</b> SÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o condiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes para o fornecimento do auxÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­lio-combustÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel mensalmente ao trabalhador, de forma cumulativa, a utilizaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de veÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­culo prÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³prio para deslocamento e a inexistÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia de qualquer falta ao trabalho no mÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªs correspondente.
 </p>
 
 <p style="margin-top: 1.5rem;">
-    <b>ClÃƒÂ¡usula Quarta:</b> Em caso de ausÃƒÂªncia injustificada por parte do empregado ao trabalho o auxÃƒÂ­lio-combustÃƒÂ­vel nÃƒÂ£o serÃƒÂ¡ fornecido.
+    <b>ClÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡usula Quarta:</b> Em caso de ausÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia injustificada por parte do empregado ao trabalho o auxÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­lio-combustÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o serÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ fornecido.
 </p>
 
 <p style="margin-top: 1rem;">
-    <b>ParÃƒÂ¡grafo ÃƒÂºnico:</b> Considera-se como ausÃƒÂªncia injustificada, qualquer hipÃƒÂ³tese distinta da prevista no art. 473 da CLT.
+    <b>ParÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡grafo ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºnico:</b> Considera-se como ausÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia injustificada, qualquer hipÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³tese distinta da prevista no art. 473 da CLT.
 </p>
 
 <p style="margin-top: 1.5rem;">
-    <b>ClÃƒÂ¡usula Quinta:</b> Ao trabalhador que nÃƒÂ£o utilizar veÃƒÂ­culo prÃƒÂ³prio para deslocamento casa trabalho, nÃƒÂ£o serÃƒÂ¡ pago o auxÃƒÂ­lio-combustÃƒÂ­vel.
+    <b>ClÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡usula Quinta:</b> Ao trabalhador que nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o utilizar veÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­culo prÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³prio para deslocamento casa trabalho, nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o serÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ pago o auxÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­lio-combustÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel.
 </p>
 
 <p style="margin-top: 1.5rem;">
-    <b>ClÃƒÂ¡usula Sexta:</b> Fica desde jÃƒÂ¡ autorizada a revisÃƒÂ£o das condiÃƒÂ§ÃƒÂµes para o fornecimento e/ou supressÃƒÂ£o do referido auxÃƒÂ­lio-combustÃƒÂ­vel pelo empregador a qualquer tempo, e sem aviso prÃƒÂ©vio, nÃƒÂ£o importando em direito adquirido do trabalhador, nÃƒÂ£o se aderindo ao contrato de trabalho.
+    <b>ClÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡usula Sexta:</b> Fica desde jÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ autorizada a revisÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o das condiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes para o fornecimento e/ou supressÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o do referido auxÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­lio-combustÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel pelo empregador a qualquer tempo, e sem aviso prÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©vio, nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o importando em direito adquirido do trabalhador, nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o se aderindo ao contrato de trabalho.
 </p>
 
 <p style="margin-top: 1.5rem;">
-    <b>ClÃƒÂ¡usula SÃƒÂ©tima:</b> As partes firmam o presente de comum acordo, assinando em duas vias de igual teor.
+    <b>ClÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡usula SÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©tima:</b> As partes firmam o presente de comum acordo, assinando em duas vias de igual teor.
 </p>
             `,
             variaveis: ""
@@ -6723,7 +6751,7 @@ window.openModalGerador = function() {
     document.getElementById('form-gerador').reset();
     document.getElementById('gerador-id').value = '';
     document.getElementById('gerador-conteudo-editor').innerHTML = '';
-    // PadrÃƒÂ£o: marcar ambos os templates
+    // PadrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o: marcar ambos os templates
     const chkAdm = document.getElementById('gerador-template-admissao');
     const chkOut = document.getElementById('gerador-template-outros');
     if (chkAdm) chkAdm.checked = true;
@@ -6747,7 +6775,7 @@ window.editGerador = async function(id) {
         document.getElementById('gerador-id').value = g.id;
         document.getElementById('gerador-nome').value = g.nome;
         
-        // Detectar se ÃƒÂ© texto puro legÃƒÂ­vel (legado) ou HTML
+        // Detectar se ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© texto puro legÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel (legado) ou HTML
         let finalContent = g.conteudo;
         if (!finalContent.includes('<') && !finalContent.includes('>')) {
             finalContent = finalContent.replace(/\n/g, '<br>');
@@ -6777,8 +6805,8 @@ function setupGeradores() {
     console.log('Setup Geradores initialized...');
     const form = document.getElementById('form-gerador');
     if (!form) {
-        console.warn('FormulÃƒÂ¡rio de gerador nÃƒÂ£o encontrado na inicializaÃƒÂ§ÃƒÂ£o. Tentando novamente em breve.');
-        setTimeout(setupGeradores, 500); // Tentar novamente se o HTML nÃƒÂ£o carregou
+        console.warn('FormulÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio de gerador nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o encontrado na inicializaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o. Tentando novamente em breve.');
+        setTimeout(setupGeradores, 500); // Tentar novamente se o HTML nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o carregou
         return;
     }
     
@@ -6810,7 +6838,7 @@ function setupGeradores() {
                     const deptIds = (depts || []).map(d => Number(d.id));
 
                     if (geradorId && deptIds.length > 0) {
-                        // Buscar templates atuais para nÃƒÂ£o sobrescrever os de outros geradores
+                        // Buscar templates atuais para nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o sobrescrever os de outros geradores
                         const [admAtual, outAtual] = await Promise.all([
                             apiGet('/gerador-departamento-templates').catch(() => []),
                             apiGet('/gerador-outros-contratos-templates').catch(() => [])
@@ -6838,12 +6866,12 @@ function setupGeradores() {
             }
         } catch (e) { 
             console.error(e);
-            alert('Falha crÃƒÂ­tica ao salvar gerador. Verifique o console.');
+            alert('Falha crÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­tica ao salvar gerador. Verifique o console.');
         }
     });
 }
 
-// FunÃƒÂ§ÃƒÂµes do Editor de Texto
+// FunÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes do Editor de Texto
 window.formatDoc = function(cmd, value = null) {
     document.execCommand(cmd, false, value);
 };
@@ -6876,7 +6904,7 @@ window.abrirModalSelecaoColab = async function(geradorId) {
 window.calcParcelaDesconto = function() {
     let valStr = document.getElementById('desconto-valor').value;
     if(!valStr) valStr = '0';
-    // Substituir vÃƒÂ­rgula por ponto para cÃƒÂ¡lculo
+    // Substituir vÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­rgula por ponto para cÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡lculo
     valStr = valStr.replace(',', '.');
     const valor = parseFloat(valStr) || 0;
     const parcelas = parseInt(document.getElementById('desconto-parcelas').value) || 1;
@@ -6894,7 +6922,7 @@ window.processarGeracao = async function() {
     let requestBody = {};
     const gerador = (window.allGeradores || []).find(g => g.id == geradorId);
     if (gerador && (gerador.nome || '').toUpperCase().includes('DESCONTO EM FOLHA')) {
-        requestBody.desconto_descricao = document.getElementById('desconto-descricao').value || 'NÃƒÂ£o informado';
+        requestBody.desconto_descricao = document.getElementById('desconto-descricao').value || 'NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o informado';
         requestBody.desconto_valor = document.getElementById('desconto-valor').value || '0,00';
         requestBody.desconto_parcelas = document.getElementById('desconto-parcelas').value || '1';
         requestBody.desconto_valor_parcela = document.getElementById('desconto-valor-parcelamento').innerText.replace('Valor de cada parcela: R$ ', '');
@@ -6928,8 +6956,8 @@ window.processarGeracao = async function() {
 window.abrirPreviewDocumento = function(data) {
     let container = document.getElementById('preview-doc-body');
     if (!container) {
-        // Fallback robusto se o modal foi removido erroneamente por cache/cÃƒÂ³digos antigos
-        console.warn("Modal preview doc nÃƒÂ£o encontrado. Recriando...");
+        // Fallback robusto se o modal foi removido erroneamente por cache/cÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³digos antigos
+        console.warn("Modal preview doc nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o encontrado. Recriando...");
         const htmlFallback = `
         <div id="modal-preview-doc" class="modal" style="display:block; z-index:99999;">
             <div class="modal-content fullness">
@@ -6951,7 +6979,7 @@ window.abrirPreviewDocumento = function(data) {
 
     const previewBtnSalvar = document.querySelector('#modal-preview-doc button.btn-primary');
     if (previewBtnSalvar) {
-        previewBtnSalvar.innerHTML = '<i class="ph ph-paperclip"></i> Anexar ao ProntuÃƒÂ¡rio';
+        previewBtnSalvar.innerHTML = '<i class="ph ph-paperclip"></i> Anexar ao ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio';
         previewBtnSalvar.onclick = async function() {
             const self = this;
             const oldHtml = self.innerHTML;
@@ -6971,7 +6999,7 @@ window.abrirPreviewDocumento = function(data) {
                     || data.colabId;
 
                 if (!colaboradorId) {
-                    throw new Error('NÃƒÂ£o foi possÃƒÂ­vel identificar o colaborador. Abra o prontuÃƒÂ¡rio e tente novamente.');
+                    throw new Error('NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o foi possÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel identificar o colaborador. Abra o prontuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio e tente novamente.');
                 }
 
                 const formData = new FormData();
@@ -6993,7 +7021,7 @@ window.abrirPreviewDocumento = function(data) {
                 document.getElementById('modal-preview-doc').style.display = 'none';
 
                 if (typeof showToast !== 'undefined') {
-                    showToast('Documento anexado ao prontuÃƒÂ¡rio com sucesso!', 'success');
+                    showToast('Documento anexado ao prontuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio com sucesso!', 'success');
                 } else {
                     Swal.close(); if(typeof showToast !== 'undefined') showToast('Documento anexado!', 'success');
                 }
@@ -7008,11 +7036,11 @@ window.abrirPreviewDocumento = function(data) {
             }
         };
     }
-    // Verificar opÃƒÂ§ÃƒÂ£o de assinatura manual
+    // Verificar opÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de assinatura manual
     const comAssinatura = document.querySelector('input[name="assinatura-tipo"]:checked')?.value === 'sim';
 
 
-    // 1. CabeÃƒÂ§alho com Logotipo Ã¢â‚¬â€ sem margem para colar no topo da pÃƒÂ¡gina
+    // 1. CabeÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§alho com Logotipo ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â sem margem para colar no topo da pÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡gina
     const logoBanner = `<div style="margin:0;padding:0;line-height:0;"><img src="${API_URL.replace('/api', '')}/assets/logo-header.png" style="width:100%;display:block;margin:0;padding:0;"></div>`;
 
     // 2. Dados do Colaborador
@@ -7023,7 +7051,7 @@ window.abrirPreviewDocumento = function(data) {
                 <span>NOME: <b>${data.colaborador.NOME_COMPLETO}</b></span>
                 <span>CPF: <b>${data.colaborador.CPF}</b></span>
             </div>
-            <p style="margin: 0px;">ENDEREÃƒâ€¡O: ${data.colaborador.ENDERECO || '---'}</p>
+            <p style="margin: 0px;">ENDEREÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¡O: ${data.colaborador.ENDERECO || '---'}</p>
             <p style="margin: 0px;">CARGO: ${data.colaborador.CARGO || '---'}</p>
             <div style="display: grid; grid-template-columns: 55% 45%; margin-top: 0px;">
                 <span>CELULAR: ${data.colaborador.TELEFONE || '---'}</span>
@@ -7032,7 +7060,7 @@ window.abrirPreviewDocumento = function(data) {
         </div>
     `;
 
-    // 3. ConteÃƒÂºdo Ã¢â‚¬â€ compactar espaÃƒÂ§amento de parÃƒÂ¡grafos
+    // 3. ConteÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºdo ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â compactar espaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§amento de parÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡grafos
     const htmlComDestaque = (data.html || '')
         .replace(/AMERICA RENTAL EQUIPAMENTOS LTDA/g, '<b>AMERICA RENTAL EQUIPAMENTOS LTDA</b>');
 
@@ -7040,7 +7068,7 @@ window.abrirPreviewDocumento = function(data) {
     const customFontSize   = isSantander ? '0.68rem' : '0.82rem';
     const customLineHeight = isSantander ? '1.2'    : '1.45';
 
-    // CSS de quebra de pÃƒÂ¡gina correta Ã¢â‚¬â€ evita cortar parÃƒÂ¡grafos e clÃƒÂ¡usulas no meio
+    // CSS de quebra de pÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡gina correta ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â evita cortar parÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡grafos e clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡usulas no meio
     const conteudoPrincipal = `
         <style>
             #preview-doc-body p  { margin: 0.1rem 0; line-height: ${customLineHeight}; page-break-inside: avoid; }
@@ -7051,18 +7079,18 @@ window.abrirPreviewDocumento = function(data) {
             ${htmlComDestaque}
         </div>`;
 
-    // 4. Data atual formatada Ã¢â‚¬â€ "Guarulhos, 01 de abril de 2026."
-    const meses = ['janeiro','fevereiro','marÃƒÂ§o','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+    // 4. Data atual formatada ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â "Guarulhos, 01 de abril de 2026."
+    const meses = ['janeiro','fevereiro','marÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
     const hoje = new Date();
     const dataFormatada = `Guarulhos, ${String(hoje.getDate()).padStart(2,'0')} de ${meses[hoje.getMonth()]} de ${hoje.getFullYear()}.`;
 
-    // 5. RodapÃƒÂ© Ã¢â‚¬â€ com ou sem campo de assinatura manual
+    // 5. RodapÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â com ou sem campo de assinatura manual
     const colabNome = data.colaborador.NOME_COMPLETO;
     const logoSrc = `${API_URL.replace('/api', '')}/assets/logo-header.png`;
 
     let footerHtml;
     if (comAssinatura) {
-        // Com campos de assinatura para impressÃƒÂ£o e assinatura ÃƒÂ  mÃƒÂ£o
+        // Com campos de assinatura para impressÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o e assinatura ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  mÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o
         footerHtml = `
         <div style="margin-top: 1.5rem;">
             <p style="font-weight: 700; font-size: 0.9rem;">${dataFormatada}</p>
@@ -7079,21 +7107,21 @@ window.abrirPreviewDocumento = function(data) {
                         <p style="font-size: 0.5rem; margin-top: 1px; font-weight: 700; line-height: 1.1;">AMERICA RENTAL EQUIPAMENTOS LTDA<br>CNPJ: 03.434.448/0001-01</p>
                     </div>
                     <div style="border-top: 1.5px solid #000; padding-top: 0.35rem;">
-                        <span style="font-weight: 700; font-size: 0.85rem;">AmÃƒÂ©rica Rental Equipamentos Ltda</span><br>
+                        <span style="font-weight: 700; font-size: 0.85rem;">AmÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rica Rental Equipamentos Ltda</span><br>
                         <span style="font-size: 0.75rem; color: #555;">Empresa</span>
                     </div>
                 </div>
             </div>
         </div>`;
     } else {
-        // Sem campos de assinatura Ã¢â‚¬â€ apenas a data (assinatura serÃƒÂ¡ digital)
+        // Sem campos de assinatura ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â apenas a data (assinatura serÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ digital)
         footerHtml = `
         <div style="margin-top: 1.5rem;">
             <p style="font-weight: 700; font-size: 0.9rem;">${dataFormatada}</p>
         </div>`;
     }
 
-    // Logo cola no topo (sem padding), o resto do conteÃƒÂºdo tem padding lateral uniforme
+    // Logo cola no topo (sem padding), o resto do conteÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºdo tem padding lateral uniforme
     const conteudoComPadding = `<div style="padding: 20px 60px 40px 60px;">${colabInfoBase}${conteudoPrincipal}${footerHtml}</div>`;
     container.innerHTML = logoBanner + conteudoComPadding;
     // Guardar nome para uso no salvar PDF
@@ -7104,7 +7132,7 @@ window.abrirPreviewDocumento = function(data) {
     document.getElementById('modal-preview-doc').style.display = 'block';
 };
 
-// Salvar como PDF Ã¢â‚¬â€ usa o diÃƒÂ¡logo de impressÃƒÂ£o do navegador com destino "Salvar em PDF"
+// Salvar como PDF ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â usa o diÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡logo de impressÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o do navegador com destino "Salvar em PDF"
 window.salvarDocumentoPDF = function() {
     const container = document.getElementById('preview-doc-body');
     if (!container) return;
@@ -7158,7 +7186,7 @@ window.imprimirDocumento = function() {
     win.document.close();
 };
 
-// --- GESTÃƒÆ’O DE CHAVES ---
+// --- GESTÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢O DE CHAVES ---
 window.loadChaves = async function() {
     try {
         const rows = await apiGet('/chaves');
@@ -7200,12 +7228,12 @@ window.deleteChave = async function(id) {
     } catch (e) { alert(e.message); }
 };
 
-// --- GESTÃƒÆ’O DE ADMISSÃƒÆ’O ---
+// --- GESTÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢O DE ADMISSÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢O ---
 const ADMISSAO_STATUS_STYLES = {
-    'Aguardando inÃƒÂ­cio': { bg:'#f1f3f5', color:'#495057', border:'#adb5bd', icon:'ph-hourglass-high', label:'Aguardando' },
+    'Aguardando inÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­cio': { bg:'#f1f3f5', color:'#495057', border:'#adb5bd', icon:'ph-hourglass-high', label:'Aguardando' },
     'Processo iniciado': { bg:'#f3e8ff', color:'#7e22ce', border:'#c084fc', icon:'ph-play-circle',   label:'Iniciado' },
     'Ativo':             { bg:'#e8f5e9', color:'#196b36', border:'#196b36', icon:'ph-check-circle',   label:'Ativo' },
-    'FÃƒÂ©rias':            { bg:'#fdf7e3', color:'#c2aa72', border:'#c2aa72', icon:'ph-airplane-tilt',  label:'FÃƒÂ©rias' },
+    'FÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rias':            { bg:'#fdf7e3', color:'#c2aa72', border:'#c2aa72', icon:'ph-airplane-tilt',  label:'FÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rias' },
     'Afastado':          { bg:'#faeed9', color:'#eaa15f', border:'#eaa15f', icon:'ph-warning',        label:'Afastado' },
     'Desligado':         { bg:'#fceeee', color:'#ba7881', border:'#ba7881', icon:'ph-x-circle',       label:'Desligado' }
 };
@@ -7218,19 +7246,19 @@ window.loadAdmissaoSelect = async function() {
         const label = document.getElementById('admissao-dropdown-label');
         if (!dropdownList) return;
 
-        // Apenas colaboradores pendentes de admissÃƒÂ£o
-        // Apenas colaboradores com status de admissÃƒÂ£o pendente
+        // Apenas colaboradores pendentes de admissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o
+        // Apenas colaboradores com status de admissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o pendente
         const ADMISSAO_PENDENTES = [
-            'aguardando inicio', 'aguardando inÃƒÂ­cio',
-            'processo iniciado', 'em admissao', 'em admissÃƒÂ£o',
+            'aguardando inicio', 'aguardando inÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­cio',
+            'processo iniciado', 'em admissao', 'em admissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o',
             'aguardando', 'pendente'
         ];
         const pendentes = rows.filter(r => {
             const s = (r.status || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
             const admStatus = (r.admissao_status || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-            // Inclui se o status for de admissÃƒÂ£o pendente OU se admissao_status indicar processo em aberto
+            // Inclui se o status for de admissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o pendente OU se admissao_status indicar processo em aberto
             if (ADMISSAO_PENDENTES.includes(s)) return true;
-            if (admStatus && admStatus !== 'concluida' && admStatus !== 'concluÃƒÂ­do') return true;
+            if (admStatus && admStatus !== 'concluida' && admStatus !== 'concluÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­do') return true;
             return false;
         });
         window._admissaoPendentes = pendentes;
@@ -7242,7 +7270,7 @@ window.loadAdmissaoSelect = async function() {
         // Popula lista customizada
         dropdownList.innerHTML = '';
 
-        // OpÃƒÂ§ÃƒÂ£o vazia
+        // OpÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o vazia
         const empty = document.createElement('div');
         empty.style.cssText = 'padding:0.6rem 1rem; color:#94a3b8; font-size:0.88rem; cursor:pointer;';
         empty.textContent = 'Selecione um colaborador...';
@@ -7317,11 +7345,11 @@ window.selectAdmissaoColab = function(id, colab, s) {
             <span style="font-weight:600;">${colab.nome_completo}</span>
             <span style="color:#94a3b8; font-size:0.82rem; margin-left:4px;">&mdash; ${cargo}</span>`;
     }
-    // Atualiza tÃƒÂ­tulo da aba AdmissÃƒÂ£o com o nome do colaborador
+    // Atualiza tÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­tulo da aba AdmissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o com o nome do colaborador
     const admissaoTab = appOpenTabs.find(t => t.tabId === 'admissao');
     if (admissaoTab && colab) {
         const firstName = (colab.nome_completo || '').split(' ')[0];
-        admissaoTab.title = `AdmissÃƒÂ£o: ${firstName}`;
+        admissaoTab.title = `AdmissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o: ${firstName}`;
         renderAppTabs();
     }
     window.initAdmissaoWorkflow(id);
@@ -7345,7 +7373,7 @@ document.addEventListener('click', function(e) {
 
 window.sendAssinafyWhatsApp = async function(tipo, suffix) {
     if (!viewedColaborador || !viewedColaborador.telefone) {
-        alert('Telefone do colaborador nÃƒÂ£o encontrado para enviar WhatsApp.');
+        alert('Telefone do colaborador nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o encontrado para enviar WhatsApp.');
         return;
     }
     const inputLink = document.getElementById(`aso-assinafy-link-${suffix}`);
@@ -7365,7 +7393,7 @@ window.sendAssinafyWhatsApp = async function(tipo, suffix) {
         viewedColaborador[dbField] = linkAssinafy;
     } catch (e) { console.error('Erro ao salvar link:', e); }
 
-    const msg = `OlÃƒÂ¡, ${viewedColaborador.nome_completo}.\n\nSeu Exame Admissional estÃƒÂ¡ disponÃƒÂ­vel para assinatura digital.\n\nClique no link abaixo para assinar:\n${linkAssinafy}\n\nAmÃƒÂ©rica Rental Equipamentos Ltda.`;
+    const msg = `OlÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡, ${viewedColaborador.nome_completo}.\n\nSeu Exame Admissional estÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ disponÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel para assinatura digital.\n\nClique no link abaixo para assinar:\n${linkAssinafy}\n\nAmÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rica Rental Equipamentos Ltda.`;
     
     const fone = viewedColaborador.telefone.replace(/\D/g, '');
     const url = `https://wa.me/55${fone}?text=${encodeURIComponent(msg)}`;
@@ -7373,7 +7401,7 @@ window.sendAssinafyWhatsApp = async function(tipo, suffix) {
 };
 
 window.currentActiveAdmissaoStep = 1;
-// --- RefatoraÃƒÂ§ÃƒÂ£o: FunÃƒÂ§ÃƒÂ£o genÃƒÂ©rica para construir HTML da lista de contratos (AdmissÃƒÂ£o / ProntuÃƒÂ¡rio) ---
+// --- RefatoraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o: FunÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o genÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rica para construir HTML da lista de contratos (AdmissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o / ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio) ---
 window.buildAdmissaoSignatureRows = function(availableGeradores, assinaturas, docs, colab) {
     return availableGeradores.map(g => {
         const ass = assinaturas.find(a => a.gerador_id === g.id || a.nome_documento === g.nome);
@@ -7433,7 +7461,7 @@ window.buildAdmissaoSignatureRows = function(availableGeradores, assinaturas, do
 
         const fileNameTag = fileName ? '<span style="font-size:0.72rem;color:#94a3b8;margin-top:1px;"><i class="ph ph-file"></i> ' + fileName + '</span>' : '';
 
-        // BotÃƒÂ£o do olho sempre existe
+        // BotÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o do olho sempre existe
         let eyeBtn = '';
         if (ass && ass.id && isSigned) {
             eyeBtn = '<button onclick="window.openSignedDocPopup(' + ass.id + ', \'' + g.nome.replace(/'/g, "\\'") + '\', event)" style="border:none;background:none;cursor:pointer;color:#16a34a;" title="Ver documento assinado"><i class="ph ph-eye" style="font-size:1.4rem;"></i></button>';
@@ -7452,7 +7480,7 @@ window.buildAdmissaoSignatureRows = function(availableGeradores, assinaturas, do
                         <input type="radio" name="req-ass-adm-${g.id}" value="sim" onchange="window.renderInlineAdmissaoAction('${g.id}', 'sim', '${colabId}')"> Sim
                     </label>
                     <label style="display:flex; align-items:center; gap:4px; margin:0; cursor:pointer;">
-                        <input type="radio" name="req-ass-adm-${g.id}" value="nao" onchange="window.renderInlineAdmissaoAction('${g.id}', 'nao', '${colabId}')"> NÃƒÂ£o
+                        <input type="radio" name="req-ass-adm-${g.id}" value="nao" onchange="window.renderInlineAdmissaoAction('${g.id}', 'nao', '${colabId}')"> NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o
                     </label>
                 </div>
                 <div id="admissao-inline-action-${g.id}"></div>
@@ -7502,7 +7530,7 @@ window.sendSingleAdmissaoSignature = async function(geradorId, colabId, btn) {
 
     try {
         const gerador = window._admissaoGeradores?.find(g => String(g.id) === String(geradorId));
-        if (!gerador) throw new Error("Gerador nÃƒÂ£o encontrado.");
+        if (!gerador) throw new Error("Gerador nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o encontrado.");
 
         const admObj = viewedColaborador || { id: colabId };
         const reqData = {
@@ -7539,7 +7567,7 @@ window.uploadAdmissaoAvulso = async function(geradorId, colabId, fileInput) {
     const file = fileInput.files[0];
     
     const gerador = window._admissaoGeradores?.find(g => String(g.id) === String(geradorId));
-    if (!gerador) return alert('Gerador nÃƒÂ£o encontrado.');
+    if (!gerador) return alert('Gerador nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o encontrado.');
 
     const formData = new FormData();
     formData.append('file', file);
@@ -7569,20 +7597,20 @@ window.uploadAdmissaoAvulso = async function(geradorId, colabId, fileInput) {
     fileInput.value = '';
 };
 
-// ===== ABA CONTRATOS (PRONTUÃƒÂRIO DIGITAL) Ã¢â‚¬â€ apenas Outros Contratos =====
+// ===== ABA CONTRATOS (PRONTUÃƒÆ’Ã†â€™Ãƒâ€šÃ‚ÂRIO DIGITAL) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â apenas Outros Contratos =====
 window.renderContratosTab = async function(container) {
     if (!viewedColaborador) return;
     container.innerHTML = '<p class="text-muted" style="padding:0.5rem;"><i class="ph ph-spinner ph-spin"></i> Carregando geradores...</p>';
-    // Vai direto para Outros Contratos Ã¢â‚¬â€ sem sub-aba de AdmissÃƒÂ£o
+    // Vai direto para Outros Contratos ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â sem sub-aba de AdmissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o
     await window.renderContratosAvulso(container);
 };
 
 // Helper: recarrega a aba Contratos no container correto
-// SÃƒÂ³ roda se ca-list-container estiver no DOM (indica que a aba Contratos estÃƒÂ¡ ativa)
+// SÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³ roda se ca-list-container estiver no DOM (indica que a aba Contratos estÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ ativa)
 window._reloadContratosContainer = async function() {
     window._contratosAvulsoLoaded = false;
-    // O elemento ca-list-container ÃƒÂ© renderizado por renderContratosAvulso
-    // Se ele existe, o usuÃƒÂ¡rio ESTÃƒÂ na aba Contratos
+    // O elemento ca-list-container ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© renderizado por renderContratosAvulso
+    // Se ele existe, o usuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio ESTÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â na aba Contratos
     const caList = document.getElementById('ca-list-container');
     let ct = document.getElementById('docs-list-container') ||
              document.getElementById('tab-dynamic-content');
@@ -7601,14 +7629,14 @@ window._avaliarRegraGerador = function(g, colab, deptNome) {
 
     if (!regra.visivel_automatico) return false;
 
-    // Verificar restriÃƒÂ§ÃƒÂ£o de departamento
+    // Verificar restriÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de departamento
     if (regra.departamentos && regra.departamentos.length > 0) {
         const deptNomeLower = (deptNome || '').toLowerCase().trim();
         const match = regra.departamentos.some(d => d.toLowerCase().trim() === deptNomeLower);
         if (!match) return false;
     }
 
-    // Verificar condiÃƒÂ§ÃƒÂ£o de campo do colaborador
+    // Verificar condiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de campo do colaborador
     if (regra.condicao) {
         const [campo, ...resto] = regra.condicao.split('~').length > 1
             ? regra.condicao.split('~') : regra.condicao.split('=');
@@ -7622,7 +7650,7 @@ window._avaliarRegraGerador = function(g, colab, deptNome) {
         if (operador === 'contains') {
             if (!valorColab.includes(valorEsperado)) return false;
         } else {
-            // Aceitar variaÃƒÂ§ÃƒÂµes "Sim"/"sim", "Nao"/"NÃƒÂ£o"/"nÃƒÂ£o", "Intermitente" etc.
+            // Aceitar variaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes "Sim"/"sim", "Nao"/"NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o"/"nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o", "Intermitente" etc.
             const normalize = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
             if (normalize(valorColab) !== normalize(valorEsperado)) return false;
         }
@@ -7659,7 +7687,7 @@ window.renderContratosAvulso = async function(container) {
 
         // Nomes que NUNCA devem aparecer em Outros Contratos
         const EXCLUIDOS_FIXOS = [
-            'autorizaÃƒÂ§ÃƒÂ£o de desconto em folha de pagamento',
+            'autorizaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de desconto em folha de pagamento',
             'autorizacao de desconto em folha de pagamento',
             'autorizar desconto',
             'termo de responsabilidade de chaves'
@@ -7668,13 +7696,13 @@ window.renderContratosAvulso = async function(container) {
             const nLower = (g.nome || '').toLowerCase().trim();
             if (EXCLUIDOS_FIXOS.includes(nLower)) return true;
             if (g.is_sinistro_only) return true;
-            // Excluir geradores cujo nome comeÃƒÂ§a com "Sinistro"
+            // Excluir geradores cujo nome comeÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§a com "Sinistro"
             if (nLower.startsWith('sinistro')) return true;
             if (nLower.startsWith('sinistro -')) return true;
             return false;
         };
 
-        // Geradores elegÃƒÂ­veis (sem excluÃƒÂ­dos e sem sinistro)
+        // Geradores elegÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­veis (sem excluÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­dos e sem sinistro)
         const geradoresElegiveis = geradores.filter(g => !isExcluido(g));
 
         // Determinar quais aparecem automaticamente pelo perfil (usa regras do banco)
@@ -7687,16 +7715,16 @@ window.renderContratosAvulso = async function(container) {
         if (!algumTemRegra) {
             const deNorm = s => (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
             const LEGACY_MAP = [
-                { nome: 'Termo de NÃƒÆ’O Interesse Terapia',  cond: deNorm(c.terapia_participa) === 'nao' || deNorm(c.terapia_participa) === 'nao' },
+                { nome: 'Termo de NÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢O Interesse Terapia',  cond: deNorm(c.terapia_participa) === 'nao' || deNorm(c.terapia_participa) === 'nao' },
                 { nome: 'Termo de Interesse Terapia',       cond: deNorm(c.terapia_participa) === 'sim' },
-                { nome: 'Responsabilidade Bilhete ÃƒÅ¡nico',   cond: (c.meio_transporte||'').toLowerCase().includes('vt') },
+                { nome: 'Responsabilidade Bilhete ÃƒÆ’Ã†â€™Ãƒâ€¦Ã‚Â¡nico',   cond: (c.meio_transporte||'').toLowerCase().includes('vt') },
                 { nome: 'Responsabilidade Celular',         cond: deNorm(c.celular_participa) === 'sim' },
                 { nome: 'Responsabilidade Chaves',          cond: deNorm(c.chaves_participa) === 'sim' },
                 { nome: 'Contrato Faculdade',               cond: deNorm(c.faculdade_participa) === 'sim' },
                 { nome: 'Contrato Academia',                cond: deNorm(c.academia_participa) === 'sim' },
                 { nome: 'Contrato Intermitente',            cond: deNorm(c.tipo_contrato) === 'intermitente' },
-                { nome: 'Acordo Individual BenefÃƒÂ­cios',     cond: true },
-                { nome: 'AutorizaÃƒÂ§ÃƒÂ£o de Uso de Imagem',     cond: true },
+                { nome: 'Acordo Individual BenefÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­cios',     cond: true },
+                { nome: 'AutorizaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de Uso de Imagem',     cond: true },
                 { nome: 'Compartilhamento de Dados',        cond: true },
                 { nome: 'Recebimento de Regimento Interno', cond: true },
                 { nome: 'Regras Sorteio Final de Ano',      cond: true },
@@ -7709,14 +7737,14 @@ window.renderContratosAvulso = async function(container) {
         }
 
         // Geradores para a lista suspensa "Gerar Novo"
-        // Regra: mostrar TODOS os elegÃƒÂ­veis na lista suspensa de qualquer colaborador
-        // (excetos sinistro e excluÃƒÂ­dos, jÃƒÂ¡ tratados acima)
+        // Regra: mostrar TODOS os elegÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­veis na lista suspensa de qualquer colaborador
+        // (excetos sinistro e excluÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­dos, jÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ tratados acima)
         // Quando as regras estiverem no banco, aplica filtro adicional de dropdown_todos
         const dropdownGeradores = geradoresElegiveis.filter(g => {
             if (!g.visibilidade_regra) return true; // sem regra = aparece sempre
             let regra = {};
             try { regra = JSON.parse(g.visibilidade_regra); } catch(e) {}
-            // Se dropdown_todos = false e nÃƒÂ£o ÃƒÂ© auto-visÃƒÂ­vel para este colab, nÃƒÂ£o aparece no dropdown
+            // Se dropdown_todos = false e nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© auto-visÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel para este colab, nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o aparece no dropdown
             if (regra.dropdown_todos === false && !window._avaliarRegraGerador(g, c, deptNome)) return false;
             return true;
         });
@@ -7726,10 +7754,10 @@ window.renderContratosAvulso = async function(container) {
         // filteredDocs: apenas documentos da aba CONTRATOS_AVULSOS
         const filteredDocs = docs.filter(d => d.tab_name === 'CONTRATOS_AVULSOS');
 
-        // NormalizaÃƒÂ§ÃƒÂ£o para matching de nomes
+        // NormalizaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o para matching de nomes
         const _norm = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 
-        // FunÃƒÂ§ÃƒÂ£o para encontrar doc correspondente a um gerador
+        // FunÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o para encontrar doc correspondente a um gerador
         const _findDocForGerador = (g) => {
             const gNorm = _norm(g.nome);
             return filteredDocs.find(d => {
@@ -7738,22 +7766,22 @@ window.renderContratosAvulso = async function(container) {
             });
         };
 
-        // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
-        // RenderizaÃƒÂ§ÃƒÂ£o INTERCALADA: para cada gerador de perfil, mostra o doc
-        // correspondente (se jÃƒÂ¡ existir) ou a linha pendente (se ainda nÃƒÂ£o).
+        // ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
+        // RenderizaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o INTERCALADA: para cada gerador de perfil, mostra o doc
+        // correspondente (se jÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ existir) ou a linha pendente (se ainda nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o).
         // Docs avulsos sem gerador correspondente ficam no final.
-        // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+        // ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
         const docsUsados = new Set();
         let combinedHtml = '';
 
         for (const g of autoGeradores) {
             const docMatch = _findDocForGerador(g);
             if (docMatch) {
-                // Gerador jÃƒÂ¡ tem documento: renderiza a linha do doc no lugar da linha pendente
+                // Gerador jÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ tem documento: renderiza a linha do doc no lugar da linha pendente
                 docsUsados.add(docMatch.id);
                 combinedHtml += window.buildContratosSignatureRows(assinaturas, [docMatch], viewedColaborador);
             } else {
-                // Gerador pendente: renderiza a linha de perfil aguardando geraÃƒÂ§ÃƒÂ£o
+                // Gerador pendente: renderiza a linha de perfil aguardando geraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o
                 const escNome = (g.nome||'').replace(/'/g,"\\'").replace(/"/g, "&quot;");
                 combinedHtml += `
                 <div style="display:flex; align-items:center; justify-content:space-between; padding:0.65rem 0.75rem; border:1.5px dashed #c026d3; border-radius:8px; background:#fdf4ff; gap:0.75rem;">
@@ -7761,7 +7789,7 @@ window.renderContratosAvulso = async function(container) {
                         <span style="background:#fdf4ff;color:#c026d3;border:1px solid #f0abfc;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Perfil</span>
                         <div>
                             <span style="font-weight:600; color:#334155; font-size:0.9rem;">${g.nome}</span>
-                            <div id="perfil-status-txt-${g.id}" style="font-size:0.75rem; color:#a21caf; margin-top:1px;">NecessÃƒÂ¡rio pelo perfil do colaborador Ã¢â‚¬â€ aguardando geraÃƒÂ§ÃƒÂ£o</div>
+                            <div id="perfil-status-txt-${g.id}" style="font-size:0.75rem; color:#a21caf; margin-top:1px;">NecessÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio pelo perfil do colaborador ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â aguardando geraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o</div>
                         </div>
                     </div>
                     <div style="display:flex; align-items:center; gap:0.75rem; border-left: 1px solid #f0abfc; padding-left: 1rem;">
@@ -7770,11 +7798,11 @@ window.renderContratosAvulso = async function(container) {
                             <input type="radio" name="req-ass-${g.id}" value="sim" onchange="window.toggleAcaoContratoPerfil('${g.id}', 'sim', '${escNome}')"> Sim
                         </label>
                         <label style="cursor:pointer; display:flex; align-items:center; gap:0.25rem; font-size:0.85rem; color:#0f172a; margin:0;">
-                            <input type="radio" name="req-ass-${g.id}" value="nao" onchange="window.toggleAcaoContratoPerfil('${g.id}', 'nao', '${escNome}')"> NÃƒÂ£o
+                            <input type="radio" name="req-ass-${g.id}" value="nao" onchange="window.toggleAcaoContratoPerfil('${g.id}', 'nao', '${escNome}')"> NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o
                         </label>
                     </div>
                     <div id="pg-action-${g.id}" style="min-width: 160px; text-align: right; display: flex; justify-content: flex-end;">
-                        <span style="font-size:0.8rem; color:#64748b; font-style:italic;">Selecione uma opÃƒÂ§ÃƒÂ£o</span>
+                        <span style="font-size:0.8rem; color:#64748b; font-style:italic;">Selecione uma opÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o</span>
                     </div>
                 </div>`;
             }
@@ -7789,7 +7817,7 @@ window.renderContratosAvulso = async function(container) {
         container.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
                 <div>
-                     <h3 style="margin:0; font-size:1.1rem; color:#1e293b; font-weight:700;"><i class="ph ph-files"></i> Contratos e AutorizaÃƒÂ§ÃƒÂµes</h3>
+                     <h3 style="margin:0; font-size:1.1rem; color:#1e293b; font-weight:700;"><i class="ph ph-files"></i> Contratos e AutorizaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes</h3>
                      <p style="margin:0; font-size:0.85rem; color:#64748b;">Gere templates ou anexe PDFs para assinatura.</p>
                 </div>
                 <div style="display:flex; gap:0.5rem;">
@@ -7815,40 +7843,40 @@ window.renderContratosAvulso = async function(container) {
 
 
 
-// Guard: impede execuÃƒÂ§ÃƒÂµes concorrentes do sync
+// Guard: impede execuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes concorrentes do sync
 window._syncContratosRunning = false;
 
 // Helper: sincroniza o status de documentos Pendentes no Assinafy
 // showFeedback=true => mostra toast ao concluir; false => silencioso
 window.sincronizarStatusAssinaturas = async function(showFeedback) {
     if (!viewedColaborador) return;
-    // Evita execuÃƒÂ§ÃƒÂµes concorrentes (loop de reload)
+    // Evita execuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes concorrentes (loop de reload)
     if (window._syncContratosRunning) return;
     window._syncContratosRunning = true;
 
-    const btn = null; // botÃƒÂ£o manual removido, mantido por compatibilidade
+    const btn = null; // botÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o manual removido, mantido por compatibilidade
 
     try {
         const docs = await apiGet(`/colaboradores/${viewedColaborador.id}/documentos`).catch(() => []);
         const contratosDocs = (Array.isArray(docs) ? docs : []).filter(d => d.tab_name === 'CONTRATOS_AVULSOS');
 
-        // Docs que o banco JÃƒÂ atualizou para Assinado (backend polling jÃƒÂ¡ rodou)
+        // Docs que o banco JÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â atualizou para Assinado (backend polling jÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ rodou)
         const jaAssinados = contratosDocs.filter(d => d.assinafy_status === 'Assinado');
 
         // Docs Pendentes ou Aguardando que precisamos verificar no Assinafy
-        // 'Pendente' = salvo mas ainda nÃƒÂ£o enviado / 'Aguardando' = jÃƒÂ¡ enviado ao Assinafy
+        // 'Pendente' = salvo mas ainda nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o enviado / 'Aguardando' = jÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ enviado ao Assinafy
         const pendentes = contratosDocs.filter(d =>
             (d.assinafy_status === 'Pendente' || d.assinafy_status === 'Aguardando') && d.assinafy_id
         );
 
-        // Se nÃƒÂ£o hÃƒÂ¡ pendentes mas hÃƒÂ¡ assinados recentes: se ÃƒÂ© o botÃƒÂ£o manual, apenas recarregar a lista
+        // Se nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o hÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ pendentes mas hÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ assinados recentes: se ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© o botÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o manual, apenas recarregar a lista
         if (pendentes.length === 0) {
             if (showFeedback) {
                 // Recarrega para garantir que a UI esteja atualizada com o que o banco tem
                 await window._reloadContratosContainer();
                 if (typeof showToast !== 'undefined') {
                     const msg = jaAssinados.length > 0
-                        ? `Lista atualizada Ã¢â‚¬â€ ${jaAssinados.length} documento(s) assinado(s).`
+                        ? `Lista atualizada ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ${jaAssinados.length} documento(s) assinado(s).`
                         : 'Nenhum documento pendente de assinatura.';
                     showToast(msg, jaAssinados.length > 0 ? 'success' : 'info');
                 }
@@ -7870,8 +7898,8 @@ window.sincronizarStatusAssinaturas = async function(showFeedback) {
             } catch(e) { /* ignora erros individuais */ }
         }
 
-        // SÃƒÂ³ recarrega a lista se algum status mudou para Assinado
-        // Evita loop infinito: reload Ã¢â€ â€™ auto-sync Ã¢â€ â€™ reload
+        // SÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³ recarrega a lista se algum status mudou para Assinado
+        // Evita loop infinito: reload ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ auto-sync ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ reload
         if (atualizado > 0) {
             window._syncContratosRunning = false; // libera ANTES do reload (reload vai setar novo contexto)
             await window._reloadContratosContainer();
@@ -7880,7 +7908,7 @@ window.sincronizarStatusAssinaturas = async function(showFeedback) {
         if (showFeedback && typeof showToast !== 'undefined') {
             const msg = atualizado > 0
                 ? `${atualizado} documento(s) atualizado(s) para Assinado!`
-                : `Verificado Ã¢â‚¬â€ ${pendentes.length} documento(s) ainda aguardando assinatura.`;
+                : `Verificado ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ${pendentes.length} documento(s) ainda aguardando assinatura.`;
             showToast(msg, atualizado > 0 ? 'success' : 'info');
         }
     } catch(e) {
@@ -7960,11 +7988,11 @@ window.previewContratoPerfilAssinado = async function(geradorId, geradorNome) {
             if (previewBtns) {
                 previewBtns.innerHTML = `
                     <button class="btn btn-secondary" onclick="window.fecharPreviewEHabitarEnvio()">
-                        <i class="ph ph-x"></i> Fechar PrÃƒÂ©via
+                        <i class="ph ph-x"></i> Fechar PrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©via
                     </button>
                     <button id="btn-anexar-prontuario" class="btn" onclick="window.anexarAoProntuarioPerfil(this)"
                         style="background:#7c3aed;color:#fff;border-color:#7c3aed;display:inline-flex;align-items:center;gap:6px;font-weight:600;">
-                        <i class="ph ph-paperclip"></i> Anexar ao ProntuÃƒÂ¡rio
+                        <i class="ph ph-paperclip"></i> Anexar ao ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio
                     </button>
                 `;
             }
@@ -7993,8 +8021,8 @@ window.fecharPreviewEHabitarEnvio = function() {
     }
 };
 
-// Anexar ao ProntuÃƒÂ¡rio direto do preview (com assinatura pendente)
-// Salva o PDF como 'Pendente', fecha o preview e mostra o botÃƒÂ£o "Enviar para Assinatura"
+// Anexar ao ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio direto do preview (com assinatura pendente)
+// Salva o PDF como 'Pendente', fecha o preview e mostra o botÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o "Enviar para Assinatura"
 window.anexarAoProntuarioPerfil = async function(btn) {
     const geradorId = window._perfilGeradorIdCtx;
     const geradorNome = window._perfilGeradorNomeCtx;
@@ -8007,10 +8035,10 @@ window.anexarAoProntuarioPerfil = async function(btn) {
     try {
         const previewContent = document.querySelector('#modal-preview-doc #preview-doc-body') ||
                                document.querySelector('#doc-modal .preview-content');
-        if (!previewContent) throw new Error('ConteÃƒÂºdo do preview nÃƒÂ£o encontrado. Feche e gere novamente.');
+        if (!previewContent) throw new Error('ConteÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºdo do preview nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o encontrado. Feche e gere novamente.');
 
         const pdfBlob = await window.gerarPDFBlob(previewContent);
-        const safeName = (geradorNome || 'documento').replace(/[^a-zA-Z0-9Ãƒâ‚¬-ÃƒÂ¿ _-]/g, '');
+        const safeName = (geradorNome || 'documento').replace(/[^a-zA-Z0-9ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬-ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¿ _-]/g, '');
         const colabNome = (viewedColaborador.nome_completo || viewedColaborador.id).toString();
 
         const formData = new FormData();
@@ -8050,7 +8078,7 @@ window.anexarAoProntuarioPerfil = async function(btn) {
     }
 };
 
-// Enviar para assinatura um doc jÃƒÂ¡ salvo no banco (Pendente, sem assinafy_id)
+// Enviar para assinatura um doc jÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ salvo no banco (Pendente, sem assinafy_id)
 // docId pode ser o document_id real (quando vindo de anexarAoProntuarioPerfil)
 // ou o gerador_id como fallback (fluxo antigo)
 window.enviarAssinaturaDocSalvo = async function(docId, geradorNome) {
@@ -8072,7 +8100,7 @@ window.enviarAssinaturaDocSalvo = async function(docId, geradorNome) {
         if (!res.ok) throw new Error(data.error || 'Erro ao enviar para assinatura');
 
         if (typeof showToast !== 'undefined') showToast('Documento enviado para assinatura!', 'success');
-        // Recarrega para refletir o novo status do banco (assinafy_id preenchido Ã¢â€ â€™ estado "Aguardando")
+        // Recarrega para refletir o novo status do banco (assinafy_id preenchido ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ estado "Aguardando")
         await window._reloadContratosContainer();
     } catch(e) {
         Swal.fire('Erro ao enviar', e.message, 'error');
@@ -8098,10 +8126,10 @@ window.enviarAssinaturaPerfilDireto = async function(event) {
 
     try {
         const previewContent = document.querySelector('#modal-preview-doc #preview-doc-body') || document.querySelector('#doc-modal .preview-content');
-        if (!previewContent) throw new Error('ConteÃƒÂºdo do formulÃƒÂ¡rio foi perdido. Tente gerar novamente.');
+        if (!previewContent) throw new Error('ConteÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºdo do formulÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio foi perdido. Tente gerar novamente.');
 
         const pdfBlob = await window.gerarPDFBlob(previewContent);
-        const safeName = (geradorNome || 'documento').replace(/[^a-zA-Z0-9Ãƒâ‚¬-ÃƒÂ¿ _-]/g, '');
+        const safeName = (geradorNome || 'documento').replace(/[^a-zA-Z0-9ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬-ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¿ _-]/g, '');
         const colabId  = viewedColaborador?.id || '';
         const colabNome = (viewedColaborador?.nome_completo || colabId).toString();
 
@@ -8188,7 +8216,7 @@ window.uploadContratoExterno = async function(input) {
                 });
                 var data = await res.json().catch(function() { return {}; });
                 if (!res.ok) throw new Error(data.error || 'Falha ao anexar PDF');
-                if (typeof showToast !== 'undefined') showToast('Documento anexado no ProntuÃƒÂ¡rio!', 'success');
+                if (typeof showToast !== 'undefined') showToast('Documento anexado no ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio!', 'success');
                 return true;
             } catch(err) {
                 Swal.showValidationMessage(err.message);
@@ -8204,13 +8232,13 @@ window.uploadContratoExterno = async function(input) {
 
 window.openContratoViewerById = function(docId, nomeDoc) {
     var token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
-    if (!token) { alert('SessÃƒÂ£o expirada. FaÃƒÂ§a login novamente.'); return; }
+    if (!token) { alert('SessÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o expirada. FaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§a login novamente.'); return; }
     var pdfUrl = API_URL + '/documentos/view/' + docId + '?token=' + encodeURIComponent(token);
     window.openContratoViewerPopup(pdfUrl, nomeDoc);
 };
 
 window.openContratoViewerPopup = function(pdfUrl, nomeDoc) {
-    if (!pdfUrl || pdfUrl.endsWith('undefined')) { alert('URL do documento nÃƒÂ£o encontrada.'); return; }
+    if (!pdfUrl || pdfUrl.endsWith('undefined')) { alert('URL do documento nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o encontrada.'); return; }
     var token = window.currentToken || localStorage.getItem('erp_token') || '';
     var finalUrl = pdfUrl;
     if ((pdfUrl.indexOf('onrender.com') >= 0 || pdfUrl.indexOf(window.location.hostname) >= 0) && pdfUrl.indexOf('token=') === -1) {
@@ -8282,7 +8310,7 @@ window.reenviarAssinaturaContrato = async function(docId, ev) {
         if(trBtn) { ogHtml = trBtn.innerHTML; trBtn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Aguarde...'; trBtn.disabled = true; }
 
         let targetColabId = (viewedColaborador && viewedColaborador.id) ? viewedColaborador.id : window.lastColaboradorId;
-        if (!targetColabId) throw new Error('NÃƒÂ£o foi possÃƒÂ­vel identificar o colaborador atual.');
+        if (!targetColabId) throw new Error('NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o foi possÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel identificar o colaborador atual.');
 
         const res = await fetch(`${API_URL}/assinafy/upload`, {
             method: 'POST',
@@ -8312,9 +8340,9 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
 
     let html = '';
     docs.forEach(doc => {
-        let realStatus = 'NÃƒÂ£o enviado';
+        let realStatus = 'NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o enviado';
         if (doc.assinafy_status === 'Assinado') realStatus = 'Assinado';
-        // 'Pendente' SEM assinafy_id = doc salvo localmente, nunca enviado ao Assinafy (1Ã‚Âª vez)
+        // 'Pendente' SEM assinafy_id = doc salvo localmente, nunca enviado ao Assinafy (1ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âª vez)
         // 'Pendente' COM assinafy_id = enviado, aguardando assinatura
         // 'Aguardando' = confirmado no Assinafy
         else if (doc.assinafy_status === 'Pendente' && !doc.assinafy_id) realStatus = 'ProntoParaEnviar';
@@ -8359,11 +8387,11 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
             statusBadge = `<span style="color:#2563eb;font-size:0.75rem;font-weight:600;">Enviado para Assinatura${_sentStr ? ': ' + _sentStr : ''}</span>`;
             sendBtn = `<button type="button" onclick="window.reenviarAssinaturaContrato(${doc.id}, event);" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-pen"></i> Reenviar para Assinatura</button>`;
         } else if (isPronto) {
-            // Documento salvo localmente (Pendente sem assinafy_id) Ã¢â‚¬â€ aguardando envio ao Assinafy
+            // Documento salvo localmente (Pendente sem assinafy_id) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â aguardando envio ao Assinafy
             const gerDocId = doc.gerador_id || '';
             const escNomeDoc = (doc.document_type || '').replace(/'/g,"\\'");
             leftIconMarkup = `<div data-role="status-icon" style="display:flex;align-items:center;justify-content:center;width:24px;color:#7c3aed;"><i class="ph ph-paperclip" style="font-size:1.4rem;"></i></div>`;
-            statusBadge = `<span data-role="status-badge" style="color:#7c3aed;font-size:0.75rem;font-weight:600;">Documento salvo Ã¢â‚¬â€ clique em Enviar para Assinatura${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
+            statusBadge = `<span data-role="status-badge" style="color:#7c3aed;font-size:0.75rem;font-weight:600;">Documento salvo ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â clique em Enviar para Assinatura${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
             sendBtn = `<button type="button" onclick="window.enviarDocumentoAvulsoAssinatura('${doc.id}', this)" style="background:#0056b3;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-paper-plane-tilt"></i> Enviar para Assinatura</button>`;
         } else if (literallyNaoExige) {
             leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#9333ea;"><i class="ph ph-file-text" style="font-size:1.4rem;"></i></div>`;
@@ -8379,11 +8407,11 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
                         <input type="radio" name="req-ass-doc-${doc.id}" value="sim" onchange="window.toggleAcaoDocumentoAvulso('${doc.id}', 'sim', '${escNome}')"> Sim
                     </label>
                     <label style="cursor:pointer; display:flex; align-items:center; gap:0.25rem; font-size:0.85rem; color:#0f172a; margin:0;">
-                        <input type="radio" name="req-ass-doc-${doc.id}" value="nao" onchange="window.toggleAcaoDocumentoAvulso('${doc.id}', 'nao', '${escNome}')"> NÃƒÂ£o
+                        <input type="radio" name="req-ass-doc-${doc.id}" value="nao" onchange="window.toggleAcaoDocumentoAvulso('${doc.id}', 'nao', '${escNome}')"> NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o
                     </label>
                 </div>
                 <div id="pg-action-doc-${doc.id}" style="min-width: 160px; text-align: right; display: flex; justify-content: flex-end;">
-                    <span style="font-size:0.8rem; color:#64748b; font-style:italic;">Selecione uma opÃƒÂ§ÃƒÂ£o</span>
+                    <span style="font-size:0.8rem; color:#64748b; font-style:italic;">Selecione uma opÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o</span>
                 </div>
             `;
         }
@@ -8448,25 +8476,25 @@ window.enviarDocumentoAvulsoAssinatura = async function(docId, btn) {
             const sentAt = data.assinafy_sent_at ? new Date(data.assinafy_sent_at) : new Date();
             const fmt = `${String(sentAt.getDate()).padStart(2,'0')}/${String(sentAt.getMonth()+1).padStart(2,'0')}/${sentAt.getFullYear()} - ${String(sentAt.getHours()).padStart(2,'0')}:${String(sentAt.getMinutes()).padStart(2,'0')}`;
 
-            // Atualiza o card diretamente no DOM usando data-role (imune ÃƒÂ  normalizaÃƒÂ§ÃƒÂ£o de estilos do browser)
+            // Atualiza o card diretamente no DOM usando data-role (imune ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  normalizaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de estilos do browser)
             const card = btn ? btn.closest('.doc-check-item') : null;
             if (card) {
                 // Borda e fundo: azul
                 card.style.border = '1px solid #bfdbfe';
                 card.style.background = '#eff6ff';
 
-                // ÃƒÂcone: paperclip Ã¢â€ â€™ aviÃƒÂ£o (usa data-role para seleÃƒÂ§ÃƒÂ£o confiÃƒÂ¡vel)
+                // ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âcone: paperclip ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ aviÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o (usa data-role para seleÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o confiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡vel)
                 const iconWrap = card.querySelector('[data-role="status-icon"]');
                 if (iconWrap) iconWrap.innerHTML = '<i class="ph ph-paper-plane-tilt" style="font-size:1.4rem;color:#2563eb;"></i>';
 
-                // Status badge (usa data-role para seleÃƒÂ§ÃƒÂ£o confiÃƒÂ¡vel)
+                // Status badge (usa data-role para seleÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o confiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡vel)
                 const statusEl = card.querySelector('[data-role="status-badge"]');
                 if (statusEl) {
                     statusEl.style.color = '#2563eb';
                     statusEl.textContent = `Enviado para Assinatura: ${fmt}`;
                 }
 
-                // Troca botÃƒÂ£o por "Reenviar"
+                // Troca botÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o por "Reenviar"
                 if (btn && btn.parentElement) {
                     const reenviarBtn = document.createElement('button');
                     reenviarBtn.type = 'button';
@@ -8476,11 +8504,11 @@ window.enviarDocumentoAvulsoAssinatura = async function(docId, btn) {
                     btn.parentElement.replaceChild(reenviarBtn, btn);
                 }
             }
-            // Nota: NÃƒÆ’O recarrega aqui Ã¢â‚¬â€ novo_processo demora 3s+ e reload antecipado reverte UI.
-            // O interval de 30s sincroniza com o DB apÃƒÂ³s o processo completar.
+            // Nota: NÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢O recarrega aqui ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â novo_processo demora 3s+ e reload antecipado reverte UI.
+            // O interval de 30s sincroniza com o DB apÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³s o processo completar.
             window._syncContratosRunning = false;
         } else {
-            Swal.fire('AtenÃƒÂ§ÃƒÂ£o', 'Erro no envio para assinar: ' + (data.error || 'Erro desconhecido'), 'warning');
+            Swal.fire('AtenÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o', 'Erro no envio para assinar: ' + (data.error || 'Erro desconhecido'), 'warning');
             if (btn) { btn.disabled = false; btn.innerHTML = oldHtml; }
         }
     } catch(err) {
@@ -8510,7 +8538,7 @@ window.uploadContratoAvulsoSobrescrever = async function(input, docId, docType) 
         });
         if (!resUpload.ok) throw new Error('Falha no upload do arquivo');
         Swal.close();
-        if (typeof showToast !== 'undefined') showToast('Documento anexado no ProntuÃƒÂ¡rio!', 'success');
+        if (typeof showToast !== 'undefined') showToast('Documento anexado no ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio!', 'success');
         await window._reloadContratosContainer();
     } catch (err) {
         Swal.close();
@@ -8638,11 +8666,11 @@ window.gerarContratoAvulso = async function() {
             geradorId: geradorId
         });
 
-        // Sobrescreve o botÃƒÂ£o Salvar para fazer upload ao prontuÃƒÂ¡rio
+        // Sobrescreve o botÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o Salvar para fazer upload ao prontuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio
         setTimeout(() => {
             const previewBtnSalvar = document.querySelector('#modal-preview-doc button.btn-primary') || document.querySelector('#doc-modal button.btn-primary');
             if (previewBtnSalvar) {
-                previewBtnSalvar.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar no ProntuÃƒÂ¡rio';
+                previewBtnSalvar.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar no ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio';
                 previewBtnSalvar.onclick = async function() {
                     const oldHtml = this.innerHTML;
                     this.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...';
@@ -8671,7 +8699,7 @@ window.gerarContratoAvulso = async function() {
                         if (modalPrev) modalPrev.style.display = 'none';
                         if (docModal)  docModal.style.display  = 'none';
 
-                        if (typeof showToast !== 'undefined') showToast('Documento gerado e salvo no prontuÃƒÂ¡rio!', 'success');
+                        if (typeof showToast !== 'undefined') showToast('Documento gerado e salvo no prontuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio!', 'success');
 
                         await window._reloadContratosContainer();
                     } catch(err) {
@@ -8696,7 +8724,7 @@ window.gerarContratoAvulso = async function() {
 window.previewAdmissaoDoc = async function(geradorId, colabId, evt) {
     if (evt) { evt.preventDefault(); evt.stopPropagation(); }
 
-    if (!colabId) { alert('Colaborador nÃƒÂ£o identificado.'); return; }
+    if (!colabId) { alert('Colaborador nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o identificado.'); return; }
 
     try {
         // Usa o endpoint existente que retorna HTML + dados do colaborador
@@ -8707,15 +8735,15 @@ window.previewAdmissaoDoc = async function(geradorId, colabId, evt) {
         const data = await response.json();
 
         if (!data.html) {
-            alert('NÃƒÂ£o foi possÃƒÂ­vel carregar o documento.');
+            alert('NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o foi possÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel carregar o documento.');
             return;
         }
 
-        // Reutiliza a funÃƒÂ§ÃƒÂ£o de preview do gerador (com layout completo)
-        // Precisamos temporariamente salvar a seleÃƒÂ§ÃƒÂ£o de assinatura para nÃƒÂ£o alterar o modal principal
+        // Reutiliza a funÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de preview do gerador (com layout completo)
+        // Precisamos temporariamente salvar a seleÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de assinatura para nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o alterar o modal principal
         window.abrirPreviewDocumento(data);
 
-        // Subscreve o evento de salvar na AdmissÃƒÂ£o para enviar ao backend
+        // Subscreve o evento de salvar na AdmissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o para enviar ao backend
         setTimeout(() => {
             const btnSalvar = document.querySelector('#modal-preview-doc button.btn-primary');
             if (!btnSalvar) return;
@@ -8727,10 +8755,10 @@ window.previewAdmissaoDoc = async function(geradorId, colabId, evt) {
                 try {
                     const previewContent = document.querySelector('#modal-preview-doc .preview-content') ||
                                           document.querySelector('#modal-preview-doc #preview-doc-body');
-                    if (!previewContent) throw new Error('ConteÃƒÂºdo do preview nÃƒÂ£o encontrado');
+                    if (!previewContent) throw new Error('ConteÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºdo do preview nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o encontrado');
                     
                     const pdfBlob = await window.gerarPDFBlob(previewContent);
-                    const safeName = (data.gerador_nome || 'documento_admissao').replace(/[^a-zA-Z0-9Ãƒâ‚¬-ÃƒÂ¿ _-]/g, '');
+                    const safeName = (data.gerador_nome || 'documento_admissao').replace(/[^a-zA-Z0-9ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬-ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¿ _-]/g, '');
                     const cNome = (data.colaborador?.NOME_COMPLETO || colabId).toString();
                     
                     const formData = new FormData();
@@ -8753,7 +8781,7 @@ window.previewAdmissaoDoc = async function(geradorId, colabId, evt) {
                         icon: 'question',
                         showCancelButton: true,
                         confirmButtonText: 'Sim, enviar',
-                        cancelButtonText: 'NÃƒÂ£o'
+                        cancelButtonText: 'NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o'
                     });
 
                     if (sendPrompt.isConfirmed) {
@@ -8763,7 +8791,7 @@ window.previewAdmissaoDoc = async function(geradorId, colabId, evt) {
                         });
                         if(typeof showToast !== 'undefined') showToast('Documento enviado para assinatura.', 'success');
                     } else {
-                        showToast('Documento de admissÃƒÂ£o salvo na pasta do colaborador.', 'success');
+                        showToast('Documento de admissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o salvo na pasta do colaborador.', 'success');
                     }
                     
                     // Recarrega workflow se estiver aberto para atualizar status do item
@@ -8780,7 +8808,7 @@ window.previewAdmissaoDoc = async function(geradorId, colabId, evt) {
         }, 150);
 
     } catch(e) {
-        alert('Erro ao carregar prÃƒÂ©-visualizaÃƒÂ§ÃƒÂ£o: ' + e.message);
+        alert('Erro ao carregar prÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©-visualizaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o: ' + e.message);
     }
 };
 
@@ -8801,7 +8829,7 @@ window.rodarDiagnosticoAssinafy = async function() {
             });
         }
         
-        alert("DiagnÃƒÂ³stico completo! A tela seguinte mostrarÃƒÂ¡ o status exato.");
+        alert("DiagnÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³stico completo! A tela seguinte mostrarÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ o status exato.");
         alert(msg);
     } catch(e) {
         alert("Erro no diagnostico: " + e.message);
@@ -8814,12 +8842,12 @@ window.sendAdmissaoSignatures = async function(listId = 'admissao-signature-list
 
     // Buscar checkboxes somente dentro do container correto
     const container = document.getElementById(listId);
-    if (!container) { alert('Lista de documentos nÃƒÂ£o encontrada.'); return; }
+    if (!container) { alert('Lista de documentos nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o encontrada.'); return; }
     
     const checks = container.querySelectorAll('input[type="checkbox"]:checked');
     if (checks.length === 0) { alert('Selecione ao menos um documento para enviar.'); return; }
 
-    // Dedup: garantir que nÃƒÂ£o hÃƒÂ¡ IDs duplicados
+    // Dedup: garantir que nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o hÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ IDs duplicados
     const geradorIds = [...new Set(Array.from(checks).map(c => Number(c.value)))];
     
     if (!confirm(`Deseja enviar ${geradorIds.length} documento(s) para assinatura digital via Assinafy?`)) return;
@@ -8836,11 +8864,11 @@ window.sendAdmissaoSignatures = async function(listId = 'admissao-signature-list
         const erros = (res.resultados || []).filter(r => r.erro);
         const ok    = (res.resultados || []).filter(r => r.ok);
 
-        let msg = `Ã¢Å“â€¦ ${ok.length} documento(s) enviado(s) para assinatura no e-mail do colaborador.`;
-        if (erros.length > 0) msg += `\n\nÃ¢Å¡Â Ã¯Â¸Â ${erros.length} erro(s):\n` + erros.map(e => `Ã¢â‚¬Â¢ ${e.nome || e.id}: ${e.erro}`).join('\n');
+        let msg = `ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ ${ok.length} documento(s) enviado(s) para assinatura no e-mail do colaborador.`;
+        if (erros.length > 0) msg += `\n\nÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â ${erros.length} erro(s):\n` + erros.map(e => `ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ ${e.nome || e.id}: ${e.erro}`).join('\n');
         alert(msg);
 
-        // Recarregar a aba em que o usuÃƒÂ¡rio estÃƒÂ¡ (Passo 2 AdmissÃƒÂ£o ou Contratos no ProntuÃƒÂ¡rio)
+        // Recarregar a aba em que o usuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio estÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ (Passo 2 AdmissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o ou Contratos no ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio)
         if (document.getElementById('current-tab-title') && document.getElementById('current-tab-title').innerText === 'Contratos') {
             await renderContratosTab(document.getElementById('docs-list-container'));
         } else {
@@ -8906,7 +8934,7 @@ window.openSignedDocPopup = function(assId, nomeDoc, evt) {
     overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
 };
 
-// FunÃƒÂ§ÃƒÂ£o para visualizar documentos assinados via tabela 'documentos' (ASO, EPI, Contratos)
+// FunÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o para visualizar documentos assinados via tabela 'documentos' (ASO, EPI, Contratos)
 window.openSignedDocPopupDocumento = function(docId, nomeDoc) {
     const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
     const pdfUrl = `${API_URL}/documentos/view/${docId}?token=${token}`;
@@ -8952,8 +8980,8 @@ window.openSignedDocPopupDocumento = function(docId, nomeDoc) {
     overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
 };
 
-// ===== INIT ADMISSÃƒÆ’O WORKFLOW =====
-// Exibe o painel correto (botÃƒÂ£o "Iniciar" ou stepper) dependendo do status do colaborador
+// ===== INIT ADMISSÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢O WORKFLOW =====
+// Exibe o painel correto (botÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o "Iniciar" ou stepper) dependendo do status do colaborador
 window.initAdmissaoWorkflow = async function(colabId, step, silent) {
     // Se colabId vazio = reset (chamado por selectAdmissaoColab com id vazio)
     if (!colabId) {
@@ -8969,12 +8997,12 @@ window.initAdmissaoWorkflow = async function(colabId, step, silent) {
             colab = cols.find(c => String(c.id) === String(colabId));
         } catch(e) { colab = viewedColaborador; }
 
-        if (!colab) { if (!silent) console.warn('[Admissao] Colaborador nÃƒÂ£o encontrado:', colabId); return; }
+        if (!colab) { if (!silent) console.warn('[Admissao] Colaborador nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o encontrado:', colabId); return; }
 
-        // Atualiza referÃƒÂªncia global
+        // Atualiza referÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia global
         viewedColaborador = colab;
 
-        // PrÃƒÂ©-carrega documentos, assinaturas e geradores para o dashboard de admissÃƒÂ£o funcionar sem dependÃƒÂªncia da aba prontuÃƒÂ¡rio
+        // PrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©-carrega documentos, assinaturas e geradores para o dashboard de admissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o funcionar sem dependÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia da aba prontuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio
         try {
             const [docs, admissaoAssinaturas, geradores, departamentos] = await Promise.all([
                 apiGet(`/colaboradores/${colabId}/documentos`).catch(() => []),
@@ -8986,12 +9014,12 @@ window.initAdmissaoWorkflow = async function(colabId, step, silent) {
             window._admissaoAssinaturas = admissaoAssinaturas;
             window._todosGeradores = geradores;
 
-            // Resolve Auto Geradores exactly like ProntuÃƒÂ¡rio Digital unified Contratos Tab
+            // Resolve Auto Geradores exactly like ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio Digital unified Contratos Tab
             const empDeptId = colab.departamento;
             const deptObj = (departamentos||[]).find(d => String(d.id) === String(empDeptId) || String(d.nome).trim().toLowerCase() === String(empDeptId).trim().toLowerCase());
             const deptNome = deptObj ? deptObj.nome : String(empDeptId || '');
 
-            const EXCLUIDOS_FIXOS = ['autorizaÃƒÂ§ÃƒÂ£o de desconto em folha de pagamento','autorizacao de desconto em folha de pagamento','autorizar desconto','termo de responsabilidade de chaves'];
+            const EXCLUIDOS_FIXOS = ['autorizaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de desconto em folha de pagamento','autorizacao de desconto em folha de pagamento','autorizar desconto','termo de responsabilidade de chaves'];
             const isExcluido = (g) => {
                 const nLower = (g.nome || '').toLowerCase().trim();
                 return EXCLUIDOS_FIXOS.includes(nLower) || g.is_sinistro_only || nLower.startsWith('sinistro') || nLower.startsWith('sinistro -');
@@ -9005,16 +9033,16 @@ window.initAdmissaoWorkflow = async function(colabId, step, silent) {
                 const deNorm = s => (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
                 const c = colab;
                 const LEGACY_MAP = [
-                    { nome: 'Termo de NÃƒÆ’O Interesse Terapia',  cond: deNorm(c.terapia_participa) === 'nao' },
+                    { nome: 'Termo de NÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢O Interesse Terapia',  cond: deNorm(c.terapia_participa) === 'nao' },
                     { nome: 'Termo de Interesse Terapia',       cond: deNorm(c.terapia_participa) === 'sim' },
-                    { nome: 'Responsabilidade Bilhete ÃƒÅ¡nico',   cond: (c.meio_transporte||'').toLowerCase().includes('vt') },
+                    { nome: 'Responsabilidade Bilhete ÃƒÆ’Ã†â€™Ãƒâ€¦Ã‚Â¡nico',   cond: (c.meio_transporte||'').toLowerCase().includes('vt') },
                     { nome: 'Responsabilidade Celular',         cond: deNorm(c.celular_participa) === 'sim' },
                     { nome: 'Responsabilidade Chaves',          cond: deNorm(c.chaves_participa) === 'sim' },
                     { nome: 'Contrato Faculdade',               cond: deNorm(c.faculdade_participa) === 'sim' },
                     { nome: 'Contrato Academia',                cond: deNorm(c.academia_participa) === 'sim' },
                     { nome: 'Contrato Intermitente',            cond: deNorm(c.tipo_contrato) === 'intermitente' },
-                    { nome: 'Acordo Individual BenefÃƒÂ­cios',     cond: true },
-                    { nome: 'AutorizaÃƒÂ§ÃƒÂ£o de Uso de Imagem',     cond: true },
+                    { nome: 'Acordo Individual BenefÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­cios',     cond: true },
+                    { nome: 'AutorizaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de Uso de Imagem',     cond: true },
                     { nome: 'Compartilhamento de Dados',        cond: true },
                     { nome: 'Recebimento de Regimento Interno', cond: true },
                     { nome: 'Regras Sorteio Final de Ano',      cond: true },
@@ -9023,7 +9051,7 @@ window.initAdmissaoWorkflow = async function(colabId, step, silent) {
                 autoGeradores = LEGACY_MAP.filter(m => m.cond).map(m => geradoresElegiveis.find(g => deNorm(g.nome) === deNorm(m.nome))).filter(Boolean);
             }
             window._admissaoGeradores = autoGeradores;
-        } catch(e) { console.error('Erro ao prÃƒÂ©-carregar dependÃƒÂªncias da admissÃƒÂ£o:', e); }
+        } catch(e) { console.error('Erro ao prÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©-carregar dependÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncias da admissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o:', e); }
 
         const wf    = document.getElementById('admissao-workflow');
         const start = document.getElementById('admissao-start-action');
@@ -9034,7 +9062,7 @@ window.initAdmissaoWorkflow = async function(colabId, step, silent) {
         const statusNorm = (colab.status || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
         const admStatusNorm = (colab.admissao_status || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
-        // Se o processo jÃƒÂ¡ foi iniciado, mostrar o stepper
+        // Se o processo jÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ foi iniciado, mostrar o stepper
         const INICIADOS = ['processo iniciado', 'em admissao', 'em andamento'];
         const processoIniciado = INICIADOS.some(s => statusNorm.includes(s)) ||
                                  (admStatusNorm && admStatusNorm !== 'concluida' && admStatusNorm !== '' && admStatusNorm !== 'pendente');
@@ -9054,7 +9082,7 @@ window.initAdmissaoWorkflow = async function(colabId, step, silent) {
             const targetStep = step || window.currentActiveAdmissaoStep || 1;
             window.nextAdmissaoStep(targetStep, true);
         } else {
-            // Mostrar botÃƒÂ£o de iniciar
+            // Mostrar botÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de iniciar
             wf.style.display = 'none';
             start.style.display = 'block';
             const nameEl = document.getElementById('admissao-start-name');
@@ -9067,7 +9095,7 @@ window.initAdmissaoWorkflow = async function(colabId, step, silent) {
 
 window.startFinalAdmission = async function() {
 
-    console.log("[Admissao] BotÃƒÂ£o 'Iniciar' clicado. viewedColaborador:", viewedColaborador);
+    console.log("[Admissao] BotÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o 'Iniciar' clicado. viewedColaborador:", viewedColaborador);
     if (!viewedColaborador) {
         alert("Erro: Nenhum colaborador selecionado.");
         return;
@@ -9132,7 +9160,7 @@ window.handleAdmissaoFotoUpload = async function(event) {
     if (!file || !viewedColaborador) return;
 
     if (file.size > 5 * 1024 * 1024) {
-        showToast('Foto muito grande! MÃƒÂ¡ximo 5MB.', 'error');
+        showToast('Foto muito grande! MÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ximo 5MB.', 'error');
         return;
     }
 
@@ -9146,7 +9174,7 @@ window.handleAdmissaoFotoUpload = async function(event) {
         const result = await apiPostMultipard('/documentos', formData);
         
         // Update viewedColaborador object specifically
-        viewedColaborador.foto = result.file_path; // Simular que tÃƒÂ¡ com a foto preenchida (se o back atualiza o collab tambÃƒÂ©m era ÃƒÂ³timo). O back jÃƒÂ¡ lida com os documentos tab_name FOTO_PERFIL ou a gente pode mandar o path e fazer um PUT no colab pra gravar "foto"
+        viewedColaborador.foto = result.file_path; // Simular que tÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ com a foto preenchida (se o back atualiza o collab tambÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©m era ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³timo). O back jÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ lida com os documentos tab_name FOTO_PERFIL ou a gente pode mandar o path e fazer um PUT no colab pra gravar "foto"
         
         // Atualizando o campo 'foto' no colaborador via PUT pra garantir 100%
         await apiPut(`/colaboradores/${viewedColaborador.id}`, {
@@ -9183,7 +9211,7 @@ window.renderAdmissaoDataSummary = async function(colab) {
         
         let fieldsHtml = '';
         if (missing.length === 0) {
-            fieldsHtml = `<div style="color:#059669; font-weight:700; margin-top:0.5rem;"><i class="ph ph-check-circle"></i> Todos os dados essenciais estÃƒÂ£o preenchidos!</div>`;
+            fieldsHtml = `<div style="color:#059669; font-weight:700; margin-top:0.5rem;"><i class="ph ph-check-circle"></i> Todos os dados essenciais estÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o preenchidos!</div>`;
         } else {
             fieldsHtml = `<div style="color:#475569; margin-top:0.5rem;"><b>${complete} de ${total}</b> campos preenchidos. Para atingir 100%, certifique-se de preencher todos no cadastro do colaborador.</div>`;
         }
@@ -9193,7 +9221,7 @@ window.renderAdmissaoDataSummary = async function(colab) {
         if (alertEl && listEl) {
             if (missing.length > 0) {
                 alertEl.style.display = 'block';
-                listEl.innerHTML = missing.map(f => `<div>Ã¢â‚¬Â¢ ${f}</div>`).join('');
+                listEl.innerHTML = missing.map(f => `<div>ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ ${f}</div>`).join('');
                 const nextBtn = document.getElementById('btn-admissao-step1-next');
                 if (nextBtn) nextBtn.disabled = false;
             } else {
@@ -9209,7 +9237,7 @@ window.renderAdmissaoDataSummary = async function(colab) {
                             ${f.label} ${f.filled ? '<i class="ph-bold ph-check-circle" style="color:#22c55e; margin-left:4px;"></i>' : '<span style="color:#ef4444!important; margin-left:4px;">(PENDENTE)</span>'}
                         </label>
                         <div style="font-size:0.95rem; font-weight:600; color:${f.filled ? '#1e293b' : '#ef4444'}; text-overflow:ellipsis; overflow:hidden; white-space:nowrap;">
-                            ${f.value || 'NÃƒÆ’O PREENCHIDO'}
+                            ${f.value || 'NÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢O PREENCHIDO'}
                         </div>
                     </div>
                 `).join('')}
@@ -9243,10 +9271,10 @@ window.saveAdmissaoResponsavel = async function(colabId, nomeResponsavel) {
             body: JSON.stringify({ admissao_responsavel_nome: nomeResponsavel })
         });
         
-        if (!res.ok) throw new Error('Falha ao salvar responsÃƒÂ¡vel');
+        if (!res.ok) throw new Error('Falha ao salvar responsÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡vel');
         
         if (typeof Toastify !== 'undefined') {
-            Toastify({ text: 'ResponsÃƒÂ¡vel atribuÃƒÂ­do com sucesso!', backgroundColor: '#059669' }).showToast();
+            Toastify({ text: 'ResponsÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡vel atribuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­do com sucesso!', backgroundColor: '#059669' }).showToast();
         }
         
         if (window.viewedColaborador && window.viewedColaborador.id === colabId) {
@@ -9254,14 +9282,14 @@ window.saveAdmissaoResponsavel = async function(colabId, nomeResponsavel) {
         }
     } catch(e) {
         console.error(e);
-        alert('Erro ao salvar responsÃƒÂ¡vel.');
+        alert('Erro ao salvar responsÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡vel.');
     }
 };
 
 
 
 function calculateAdmissaoStep1Completion(c) {
-    // Checklist base Ã¢â‚¬â€ todos os campos obrigatÃƒÂ³rios
+    // Checklist base ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â todos os campos obrigatÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rios
     const baseChecklist = [
         { key: 'nome_completo', label: 'Nome Completo' },
         { key: 'cpf', label: 'CPF' },
@@ -9269,53 +9297,53 @@ function calculateAdmissaoStep1Completion(c) {
         { key: 'local_nascimento', label: 'Naturalidade' },
         { key: 'estado_civil', label: 'Estado Civil' },
         { key: 'sexo', label: 'Sexo' },
-        { key: 'cor_raca', label: 'Cor/RaÃƒÂ§a' },
+        { key: 'cor_raca', label: 'Cor/RaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§a' },
         { key: 'nacionalidade', label: 'Nacionalidade' },
-        { key: 'grau_instrucao', label: 'Grau InstruÃƒÂ§ÃƒÂ£o' },
-        { key: 'nome_mae', label: 'Nome MÃƒÂ£e' },
+        { key: 'grau_instrucao', label: 'Grau InstruÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o' },
+        { key: 'nome_mae', label: 'Nome MÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£e' },
         { key: 'nome_pai', label: 'Nome Pai' },
         { key: 'rg_tipo', label: 'Tipo Doc' },
-        { key: 'rg', label: 'NÃƒÂºmero Doc' },
+        { key: 'rg', label: 'NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºmero Doc' },
         { key: 'pis', label: 'PIS/PASEP' },
-        { key: 'titulo_eleitoral', label: 'TÃƒÂ­tulo Eleitoral' },
+        { key: 'titulo_eleitoral', label: 'TÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­tulo Eleitoral' },
         { key: 'titulo_zona', label: 'Zona Eletr.' },
-        { key: 'titulo_secao', label: 'SeÃƒÂ§ÃƒÂ£o Eletr.' },
-        { key: 'ctps_numero', label: 'CTPS NÃƒÂºm.' },
-        { key: 'ctps_serie', label: 'CTPS SÃƒÂ©rie' },
+        { key: 'titulo_secao', label: 'SeÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o Eletr.' },
+        { key: 'ctps_numero', label: 'CTPS NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºm.' },
+        { key: 'ctps_serie', label: 'CTPS SÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rie' },
         { key: 'ctps_uf', label: 'CTPS UF' },
         { key: 'ctps_data_expedicao', label: 'CTPS Data' },
         { key: 'telefone', label: 'Telefone' },
         { key: 'email', label: 'E-mail' },
         { key: 'contato_emergencia_nome', label: 'Emg. Nome' },
         { key: 'contato_emergencia_telefone', label: 'Emg. Tel.' },
-        { key: 'endereco', label: 'EndereÃƒÂ§o' },
-        { key: 'matricula_esocial', label: 'MatrÃƒÂ­cula eSocial' },
+        { key: 'endereco', label: 'EndereÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o' },
+        { key: 'matricula_esocial', label: 'MatrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­cula eSocial' },
         { key: 'cargo', label: 'Cargo' },
         { key: 'departamento', label: 'Departamento' },
         { key: 'cbo', label: 'CBO' },
-        { key: 'data_admissao', label: 'AdmissÃƒÂ£o' },
+        { key: 'data_admissao', label: 'AdmissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o' },
         { key: 'tipo_contrato', label: 'Tipo Contrato' },
-        { key: 'salario', label: 'SalÃƒÂ¡rio Base' },
+        { key: 'salario', label: 'SalÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio Base' },
         { key: 'meio_transporte', label: 'Meio Transp.' },
         { key: 'adiantamento_salarial', label: 'Adiantamento' },
         { key: 'insalubridade', label: 'Insalubridade' },
-        { key: 'escala_tipo', label: 'Escala PadrÃƒÂ£o' },
+        { key: 'escala_tipo', label: 'Escala PadrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o' },
         { key: 'horario_entrada', label: 'Entrada' },
-        { key: 'horario_saida', label: 'SaÃƒÂ­da' },
+        { key: 'horario_saida', label: 'SaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­da' },
         { key: 'intervalo_entrada', label: 'Intervalo Ini' },
         { key: 'intervalo_saida', label: 'Intervalo Fim' },
         { key: 'banco_nome', label: 'Banco' },
-        { key: 'banco_agencia', label: 'AgÃƒÂªncia' },
+        { key: 'banco_agencia', label: 'AgÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia' },
         { key: 'banco_conta', label: 'Conta' }
     ];
 
     let activeChecklist = [...baseChecklist];
 
-    // Campos condicionais por tipo de documento (RG = exige ÃƒÂ³rgÃƒÂ£o e data; CIN/CNH = nÃƒÂ£o exige)
+    // Campos condicionais por tipo de documento (RG = exige ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rgÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o e data; CIN/CNH = nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o exige)
     const rgTipo = c.rg_tipo || 'RG';
     if (rgTipo === 'RG') {
-        activeChecklist.push({ key: 'rg_orgao', label: 'Ãƒâ€œrgÃƒÂ£o Emissor' });
-        activeChecklist.push({ key: 'rg_data_emissao', label: 'ExpediÃƒÂ§ÃƒÂ£o Doc' });
+        activeChecklist.push({ key: 'rg_orgao', label: 'Órgão Emissor' });
+        activeChecklist.push({ key: 'rg_data_emissao', label: 'Expedição Doc' });
     }
 
     // Campo condicional por sexo
@@ -9326,25 +9354,25 @@ function calculateAdmissaoStep1Completion(c) {
     // Campo condicional por cargo (motorista)
     const isMotorista = (c.cargo || '').toUpperCase().includes('MOTORISTA');
     if (isMotorista) {
-        activeChecklist.push({ key: 'cnh_numero', label: 'CNH NÃƒÂºm.' });
+        activeChecklist.push({ key: 'cnh_numero', label: 'CNH Núm.' });
         activeChecklist.push({ key: 'cnh_categoria', label: 'CNH Cat.' });
     }
 
-    // CÃƒÂ´njuge: mostrar se casado/uniÃƒÂ£o estÃƒÂ¡vel
+    // CÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â´njuge: mostrar se casado/uniÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o estÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡vel
     const isCasado = c.estado_civil && (c.estado_civil.toLowerCase().includes('casad') || c.estado_civil.toLowerCase().includes('uni'));
 
-    // CÃƒÂ´njuge agora salvo diretamente no colaborador (nÃƒÂ£o nos dependentes)
+    // CÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â´njuge agora salvo diretamente no colaborador (nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o nos dependentes)
     const conjuge_nome = c.conjuge_nome || '';
     const conjuge_cpf = c.conjuge_cpf || '';
 
     // Dependentes (apenas filhos/outros)
     let depArr = [];
     try { depArr = c.dependentes ? (typeof c.dependentes === 'string' ? JSON.parse(c.dependentes) : c.dependentes) : []; } catch(e) {}
-    const filhos = depArr.filter(d => d.grau_parentesco !== 'CÃƒÂ´njuge');
+    const filhos = depArr.filter(d => d.grau_parentesco !== 'CÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â´njuge');
 
     if (isCasado) {
-        activeChecklist.push({ key: 'conjuge_nome', label: 'Nome CÃƒÂ´njuge' });
-        activeChecklist.push({ key: 'conjuge_cpf', label: 'CPF CÃƒÂ´njuge' });
+        activeChecklist.push({ key: 'conjuge_nome', label: 'Nome CÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â´njuge' });
+        activeChecklist.push({ key: 'conjuge_cpf', label: 'CPF CÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â´njuge' });
     }
 
     // Clonar c com campos resolvidos
@@ -9368,11 +9396,11 @@ function calculateAdmissaoStep1Completion(c) {
         resultFields.push({ label: item.label, value: displayVal, filled: isFilled });
     });
 
-    // Adicionar blocos informativos (cÃƒÂ´njuge/dependentes/valores) Ã¢â‚¬â€ sem contar na porcentagem
+    // Adicionar blocos informativos (cÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â´njuge/dependentes/valores) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â sem contar na porcentagem
     const extraFields = [];
     if (conjuge_nome) {
-        extraFields.push({ label: 'CÃƒÂ´njuge - Nome', value: conjuge_nome, filled: true, isExtra: true });
-        extraFields.push({ label: 'CÃƒÂ´njuge - CPF', value: conjuge_cpf, filled: !!conjuge_cpf, isExtra: true });
+        extraFields.push({ label: 'CÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â´njuge - Nome', value: conjuge_nome, filled: true, isExtra: true });
+        extraFields.push({ label: 'CÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â´njuge - CPF', value: conjuge_cpf, filled: !!conjuge_cpf, isExtra: true });
     }
     filhos.forEach((f, i) => {
         extraFields.push({ label: `Dependente ${i+1} - Nome`, value: f.nome, filled: !!f.nome, isExtra: true });
@@ -9389,7 +9417,7 @@ function calculateAdmissaoStep1Completion(c) {
     if (c.insalubridade === 'Sim') {
         extraFields.push({ label: 'Valor Insalubridade', value: c.insalubridade_valor, filled: !!c.insalubridade_valor, isExtra: true });
     }
-    if (c.meio_transporte && c.meio_transporte !== 'PrÃƒÂ³prio / A pÃƒÂ©') {
+    if (c.meio_transporte && c.meio_transporte !== 'PrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³prio / A pÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©') {
         extraFields.push({ label: 'Valor Transporte', value: c.valor_transporte, filled: !!c.valor_transporte, isExtra: true });
     }
 
@@ -9406,14 +9434,14 @@ function updateAdmissaoStepPercentages(colab) {
     const targetColab = colab || viewedColaborador;
     if (!targetColab) return;
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Passo 1: Dados cadastrais Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+    // ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Passo 1: Dados cadastrais ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
     const step1 = calculateAdmissaoStep1Completion(targetColab);
     const pc1 = step1.percent;
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Passo 2: Santander Ã¢â‚¬â€ 100% se ficha foi gerada Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+    // ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Passo 2: Santander ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â 100% se ficha foi gerada ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
     const pc2 = targetColab.santander_ficha_data ? 100 : 0;
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Passo 3: Assinaturas Ã¢â‚¬â€ usa geradores/assinaturas carregados via AdmissÃƒÂ£o Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+    // ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Passo 3: Assinaturas ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â usa geradores/assinaturas carregados via AdmissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
     let pc3 = 0;
     const geradores = window._admissaoGeradores || [];
     const assinaturas = window._admissaoAssinaturas || [];
@@ -9457,7 +9485,7 @@ function updateAdmissaoStepPercentages(colab) {
         });
 
         if (combinedList.length === 0) {
-            containerSignature.innerHTML = `<div style="padding:1rem; text-align:center; color:#64748b; font-size:0.85rem; font-style:italic;">Nenhum contrato configurado no sistema ou anexado no prontuÃƒÂ¡rio.</div>`;
+            containerSignature.innerHTML = `<div style="padding:1rem; text-align:center; color:#64748b; font-size:0.85rem; font-style:italic;">Nenhum contrato configurado no sistema ou anexado no prontuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio.</div>`;
         } else {
             containerSignature.innerHTML = combinedList.map(item => {
                 const hasFile = !!item.doc;
@@ -9471,7 +9499,7 @@ function updateAdmissaoStepPercentages(colab) {
                     const d = new Date(item.doc.created_at + (item.doc.created_at.includes('Z') ? '' : 'Z'));
                     dataText = `<div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Anexado em: <b>${d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</b></div>`;
                 } else if (!hasFile) {
-                    dataText = `<div style="font-size:0.75rem; color:#94a3b8; margin-top:2px;"><i>Upload obrigatÃƒÂ³rio via ProntuÃƒÂ¡rio Digital</i></div>`;
+                    dataText = `<div style="font-size:0.75rem; color:#94a3b8; margin-top:2px;"><i>Upload obrigatÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rio via ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio Digital</i></div>`;
                 }
 
                 return `
@@ -9488,16 +9516,16 @@ function updateAdmissaoStepPercentages(colab) {
         }
     }
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Passo 4: Ficha Cadastral Ã¢â‚¬â€ documentos do colaborador (01_FICHA_CADASTRAL) Ã¢â€â‚¬Ã¢â€â‚¬
+    // ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Passo 4: Ficha Cadastral ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â documentos do colaborador (01_FICHA_CADASTRAL) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
     const _ec = (targetColab.estado_civil || '').toLowerCase();
-    const _isCasado = _ec.includes('casad') || _ec.includes('viÃƒÂºv') || _ec.includes('viuv') || _ec.includes('divorc');
-    const _certidao = _isCasado ? 'CertidÃƒÂ£o de Casamento' : 'CertidÃƒÂ£o de Nascimento';
+    const _isCasado = _ec.includes('casad') || _ec.includes('viÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºv') || _ec.includes('viuv') || _ec.includes('divorc');
+    const _certidao = _isCasado ? 'CertidÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de Casamento' : 'CertidÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de Nascimento';
     const _isMotorista2 = (targetColab.cargo || '').toUpperCase().includes('MOTORISTA');
     const fixed = [
-        'TÃƒÂ­tulo Eleitoral',
+        'TÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­tulo Eleitoral',
         _certidao,
-        'Comprovante de endereÃƒÂ§o',
-        'HistÃƒÂ³rico escolar'
+        'Comprovante de endereÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o',
+        'HistÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rico escolar'
     ];
     const isMasc = targetColab.sexo === 'Masculino';
     if (isMasc) fixed.push('Reservista');
@@ -9509,16 +9537,16 @@ function updateAdmissaoStepPercentages(colab) {
         fixed.push(rgTipo === 'CIN' ? 'CIN-CPF' : 'RG-CPF');
     }
     
-    fixed.push('Carteira de vacinaÃƒÂ§ÃƒÂ£o', 'CurrÃƒÂ­culo', 'Carteira de Trabalho');
+    fixed.push('Carteira de vacinaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o', 'CurrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­culo', 'Carteira de Trabalho');
     if (_isCasado) {
-        fixed.push('CPF do CÃƒÂ´njuge');
+        fixed.push('CPF do CÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â´njuge');
     }
 
     const fichaDocs = (window.currentDocs || []).filter(d => d.tab_name === '01_FICHA_CADASTRAL');
     
-    // PensÃƒÂ£o (DinÃƒÂ¢mico)
-    const temPensaoPront = (targetColab.tem_pensao_alimenticia === 'Sim') || !!fichaDocs.find(d => d.document_type === 'PensÃƒÂ£o AlimentÃƒÂ­cia');
-    if (temPensaoPront) fixed.push('PensÃƒÂ£o AlimentÃƒÂ­cia');
+    // PensÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o (DinÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢mico)
+    const temPensaoPront = (targetColab.tem_pensao_alimenticia === 'Sim') || !!fichaDocs.find(d => d.document_type === 'PensÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o AlimentÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­cia');
+    if (temPensaoPront) fixed.push('PensÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o AlimentÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­cia');
 
     let preenchidos4 = 0;
     let totalEsperado4 = fixed.length;
@@ -9541,7 +9569,7 @@ function updateAdmissaoStepPercentages(colab) {
 
     // === DEPENDENTES (Adicionado ao Passo 4) ===
     const depList = targetColab.dependentes ? (typeof targetColab.dependentes === 'string' ? JSON.parse(targetColab.dependentes) : targetColab.dependentes) : [];
-    const deps = depList.filter(d => d.grau_parentesco !== 'CÃƒÂ´njuge');
+    const deps = depList.filter(d => d.grau_parentesco !== 'CÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â´njuge');
     const hoje = new Date();
     const dependentDocs = (window.currentDocs || []).filter(d => d.tab_name === 'Dependentes');
     
@@ -9556,9 +9584,9 @@ function updateAdmissaoStepPercentages(colab) {
                 
         const docsConfig = [
             { label: 'CPF ou RG',                    show: true },
-            { label: 'Caderneta de VacinaÃƒÂ§ÃƒÂ£o',      show: idade !== null && idade < 7 },
-            { label: 'Atestado de FrequÃƒÂªncia Escolar', show: idade !== null && idade >= 7 && idade <= 17 },
-            { label: 'CertidÃƒÂ£o de Nascimento',       show: true },
+            { label: 'Caderneta de VacinaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o',      show: idade !== null && idade < 7 },
+            { label: 'Atestado de FrequÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia Escolar', show: idade !== null && idade >= 7 && idade <= 17 },
+            { label: 'CertidÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de Nascimento',       show: true },
         ];
 
         const expectedForDep = docsConfig.filter(d => d.show);
@@ -9592,7 +9620,7 @@ function updateAdmissaoStepPercentages(colab) {
              const statusBadge = hasFile 
                 ? `<span style="background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-check-circle"></i> Anexado</span>` 
                 : `<span style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-x-circle"></i> Faltante</span>`;
-             const dateText = hasFile ? (item.doc && item.doc.created_at ? `<div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Anexado em: <b>${new Date(item.doc.created_at + (item.doc.created_at.includes('Z') ? '' : 'Z')).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</b></div>` : '') : `<div style="font-size:0.75rem; color:#94a3b8; margin-top:2px;"><i>Upload obrigatÃƒÂ³rio via ProntuÃƒÂ¡rio Digital</i></div>`;
+             const dateText = hasFile ? (item.doc && item.doc.created_at ? `<div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Anexado em: <b>${new Date(item.doc.created_at + (item.doc.created_at.includes('Z') ? '' : 'Z')).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</b></div>` : '') : `<div style="font-size:0.75rem; color:#94a3b8; margin-top:2px;"><i>Upload obrigatÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rio via ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio Digital</i></div>`;
              
              return `
              <div style="background:#fff; border:1px solid ${hasFile?'#bbf7d0':'#e2e8f0'}; border-radius:8px; padding:0.6rem 0.8rem; margin-bottom:0.4rem; display:flex; justify-content:space-between; align-items:center;">
@@ -9607,12 +9635,12 @@ function updateAdmissaoStepPercentages(colab) {
          }).join('');
     }
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Passo 5: ASO Ã¢â‚¬â€ 50% e-mail / 100% doc  Ã¢â€â‚¬Ã¢â€â‚¬
+    // ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Passo 5: ASO ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â 50% e-mail / 100% doc  ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
     let pc5 = 0;
     const asoDocs = (window.currentDocs || []).filter(d => d.tab_name === 'ASO');
     
     // Reproduzir regras de ASO
-    const listAso = ['ASO PadrÃƒÂ£o'];
+    const listAso = ['ASO PadrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o'];
     if ((targetColab.cargo || '').toUpperCase().includes('MOTORISTA')) listAso.push('Exames Complementares');
 
     let preenchidos5 = 0;
@@ -9651,7 +9679,7 @@ function updateAdmissaoStepPercentages(colab) {
              const statusBadge = hasFile 
                 ? `<span style="background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-check-circle"></i> Anexado</span>` 
                 : `<span style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-x-circle"></i> Faltante</span>`;
-             const dateText = hasFile ? (item.doc && item.doc.created_at ? `<div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Anexado em: <b>${new Date(item.doc.created_at + (item.doc.created_at.includes('Z') ? '' : 'Z')).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</b></div>` : '') : `<div style="font-size:0.75rem; color:#94a3b8; margin-top:2px;"><i>Upload obrigatÃƒÂ³rio via ProntuÃƒÂ¡rio Digital</i></div>`;
+             const dateText = hasFile ? (item.doc && item.doc.created_at ? `<div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Anexado em: <b>${new Date(item.doc.created_at + (item.doc.created_at.includes('Z') ? '' : 'Z')).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</b></div>` : '') : `<div style="font-size:0.75rem; color:#94a3b8; margin-top:2px;"><i>Upload obrigatÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rio via ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio Digital</i></div>`;
              
              return `
              <div style="background:#fff; border:1px solid ${hasFile?'#bbf7d0':'#e2e8f0'}; border-radius:8px; padding:0.6rem 0.8rem; margin-bottom:0.4rem; display:flex; justify-content:space-between; align-items:center;">
@@ -9666,10 +9694,10 @@ function updateAdmissaoStepPercentages(colab) {
          }).join('');
     }
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Passo 6: Contabilidade Ã¢â‚¬â€ 100% se ficha enviada Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+    // ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Passo 6: Contabilidade ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â 100% se ficha enviada ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
     const pc6 = targetColab.admissao_contabil_enviada_em ? 100 : 0;
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Passo 7: EfetivaÃƒÂ§ÃƒÂ£o Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+    // ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Passo 7: EfetivaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
     const pc7 = targetColab.status === 'Ativo' ? 100 : 0;
 
     const pc8 = 0;
@@ -9768,8 +9796,8 @@ window.filterAdmissaoDocs = function() {
 // Hook into toggleCheck to update counts
 const originalToggleCheck = window.toggleCheck;
 window.toggleCheck = function(el) {
-    // Desativado: seleÃƒÂ§ÃƒÂ£o agora ÃƒÂ© apenas via upload
-    console.log('Toggle desativado. Use o botÃƒÂ£o de Upload.');
+    // Desativado: seleÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o agora ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© apenas via upload
+    console.log('Toggle desativado. Use o botÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de Upload.');
 };
 
 window.editColabFromAdmission = function() {
@@ -9781,7 +9809,7 @@ window.editColabFromAdmission = function() {
 
 window.sendASOEmail = async function() {
     if (!viewedColaborador) {
-        alert('Carregue um colaborador primeiro abrindo a ediÃƒÂ§ÃƒÂ£o ou admissÃƒÂ£o.');
+        alert('Carregue um colaborador primeiro abrindo a ediÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o ou admissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o.');
         return;
     }
     const dataExame = document.getElementById('aso-exame-data').value;
@@ -9797,9 +9825,9 @@ window.sendASOEmail = async function() {
     const cargo = (viewedColaborador.cargo || '').toLowerCase();
     const exames = cargo.includes('motorista') 
         ? 'Exames Complementares, acuidade visual, E.E.G, E.C.G e Glicemia.' 
-        : 'Exame PadrÃƒÂ£o';
+        : 'Exame PadrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o';
 
-    const mailBody = `TÃƒÂ­tulo: Exame Admissional\n\nSegue abaixo as informaÃƒÂ§ÃƒÂµes para a realizaÃƒÂ§ÃƒÂ£o do exame Admissional do colaborador que deve comparecer.\n\nData: ${dt}\n\nNome: ${viewedColaborador.nome_completo}\nCPF: ${viewedColaborador.cpf}\nFunÃƒÂ§ÃƒÂ£o: ${viewedColaborador.cargo || '-'}\nDepartamento: ${viewedColaborador.departamento || '-'}\n\nExames:\n${exames}\n\nÃ¢Å¡Â Ã¯Â¸Â IMPORTANTE:\nApÃƒÂ³s o exame ficar pronto, favor enviar o documento por e-mail diretamente para: rh@americarental.com.br`;
+    const mailBody = `TÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­tulo: Exame Admissional\n\nSegue abaixo as informaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes para a realizaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o do exame Admissional do colaborador que deve comparecer.\n\nData: ${dt}\n\nNome: ${viewedColaborador.nome_completo}\nCPF: ${viewedColaborador.cpf}\nFunÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o: ${viewedColaborador.cargo || '-'}\nDepartamento: ${viewedColaborador.departamento || '-'}\n\nExames:\n${exames}\n\nÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â IMPORTANTE:\nApÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³s o exame ficar pronto, favor enviar o documento por e-mail diretamente para: rh@americarental.com.br`;
 
     const btn = document.getElementById('btn-enviar-aso-email');
     const originalContent = btn.innerHTML;
@@ -9833,7 +9861,7 @@ window.sendASOEmail = async function() {
         }
     } catch (e) {
         console.error('Erro ao enviar e-mail ASO:', e);
-        if (confirm(`NÃƒÂ£o foi possÃƒÂ­vel enviar automaticamente pelo servidor. Erro do Servidor:\n\n${e.message}\n\nDeseja abrir o seu programa de e-mail (Outlook/Gmail) com o texto jÃƒÂ¡ preenchido?`)) {
+        if (confirm(`NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o foi possÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel enviar automaticamente pelo servidor. Erro do Servidor:\n\n${e.message}\n\nDeseja abrir o seu programa de e-mail (Outlook/Gmail) com o texto jÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ preenchido?`)) {
             const mailtoUrl = `mailto:${destinatario}?cc=rh@americarental.com.br,rh2@americarental.com.br&subject=Exame Admissional - ${viewedColaborador.nome_completo}&body=${encodeURIComponent(mailBody)}`;
             window.location.href = mailtoUrl;
         }
@@ -9920,39 +9948,39 @@ window.resetAdmissao = function() {
 window.finalizarAdmissao = async function() {
     if (!viewedColaborador) return;
 
-    if (!confirm(`Confirmar a admissÃƒÂ£o definitiva de ${viewedColaborador.nome_completo}?\n\nO colaborador passarÃƒÂ¡ para o status "Em IntegraÃƒÂ§ÃƒÂ£o".`)) return;
+    if (!confirm(`Confirmar a admissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o definitiva de ${viewedColaborador.nome_completo}?\n\nO colaborador passarÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ para o status "Em IntegraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o".`)) return;
 
     try {
         await apiPut(`/colaboradores/${viewedColaborador.id}`, {
-            status: 'Em IntegraÃƒÂ§ÃƒÂ£o',
-            admissao_status: 'ConcluÃƒÂ­da'
+            status: 'Em IntegraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o',
+            admissao_status: 'ConcluÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­da'
         });
 
         // Atualizar o objeto local
-        viewedColaborador.status = 'Em IntegraÃƒÂ§ÃƒÂ£o';
-        if (viewedColaborador) viewedColaborador.status = 'Em IntegraÃƒÂ§ÃƒÂ£o';
+        viewedColaborador.status = 'Em IntegraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o';
+        if (viewedColaborador) viewedColaborador.status = 'Em IntegraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o';
 
         // Toast de sucesso
         if (typeof admissaoToast === 'function') {
-            admissaoToast(`Ã¢Å“â€¦ ${viewedColaborador.nome_completo} admitido com sucesso! Agora em IntegraÃƒÂ§ÃƒÂ£o.`, 'success');
+            admissaoToast(`ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ ${viewedColaborador.nome_completo} admitido com sucesso! Agora em IntegraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o.`, 'success');
         } else {
-            alert('AdmissÃƒÂ£o realizada com sucesso! O colaborador agora estÃƒÂ¡ Em IntegraÃƒÂ§ÃƒÂ£o.');
+            alert('AdmissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o realizada com sucesso! O colaborador agora estÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ Em IntegraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o.');
         }
 
-        // Navegar para mÃƒÂ³dulo de integraÃƒÂ§ÃƒÂ£o
+        // Navegar para mÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³dulo de integraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o
         setTimeout(() => {
             if (typeof navigateTo === 'function') navigateTo('integracao');
             // Recarregar lista de colaboradores para refletir o novo status
             if (typeof loadColaboradores === 'function') loadColaboradores();
         }, 800);
     } catch (e) {
-        alert('Erro ao finalizar admissÃƒÂ£o: ' + e.message);
+        alert('Erro ao finalizar admissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o: ' + e.message);
     }
 };
 
 
 /**
- * Copia o link de assinatura para a ÃƒÂ¡rea de transferÃƒÂªncia
+ * Copia o link de assinatura para a ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rea de transferÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia
  */
 function copiarLinkAssinafy(el) {
     const url = decodeURIComponent(el.getAttribute('data-copy-url') || '');
@@ -10021,7 +10049,7 @@ window.iniciarAssinafy = async function(docType, tabName, btn) {
             
             const docInfoDiv = btn.closest('.doc-item') && btn.closest('.doc-item').querySelector('.doc-info div');
             if (docInfoDiv) {
-                // Atualizar ou criar o parÃƒÂ¡grafo de data de envio
+                // Atualizar ou criar o parÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡grafo de data de envio
                 let subInfoP = docInfoDiv.querySelector('p.subinfo-line');
                 if (!subInfoP) {
                     subInfoP = document.createElement('p');
@@ -10033,7 +10061,7 @@ window.iniciarAssinafy = async function(docType, tabName, btn) {
                 const vencHtml = vencSpan ? vencSpan.outerHTML + ' <span style="color:#64748b;">|</span> ' : '';
                 subInfoP.innerHTML = vencHtml + '<span style="color:#2f9e44; font-weight:600;">Enviado: ' + hojeFormatado + '</span>';
 
-                // Link de assinatura em parÃƒÂ¡grafo separado abaixo
+                // Link de assinatura em parÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡grafo separado abaixo
                 const urlAssinatura = res.urlAssinatura || null;
                 if (urlAssinatura) {
                     // Remover link antigo se existir
@@ -10076,7 +10104,7 @@ window.iniciarAssinafy = async function(docType, tabName, btn) {
     } catch (e) {
         console.error('Erro Assinafy:', e);
         if (e.name === 'AbortError') {
-            alert('Ã¢ÂÂ³ O processo estÃƒÂ¡ demorando mais que o esperado.\n\nO Assinafy pode jÃƒÂ¡ ter processado o documento. Aguarde 1 minuto e recarregue a pÃƒÂ¡gina para verificar o status.');
+            alert('ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€šÃ‚Â³ O processo estÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ demorando mais que o esperado.\n\nO Assinafy pode jÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ ter processado o documento. Aguarde 1 minuto e recarregue a pÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡gina para verificar o status.');
         } else {
             alert('Falha ao iniciar Assinafy: ' + e.message);
         }
@@ -10114,9 +10142,9 @@ window.syncAssinafyStatus = async function(docId, btn) {
             alert('Falha ao checar status: ' + (data.error || 'Erro desconhecido.'));
         }
     } catch (err) {
-        console.error('Erro requisiÃƒÂ§ÃƒÂ£o sync Assinafy:', err);
+        console.error('Erro requisiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o sync Assinafy:', err);
     } finally {
-        // Redesenho da aba reescreverÃƒÂ¡ o icone, mas por cautela revertermos a animacao se falhar
+        // Redesenho da aba reescreverÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ o icone, mas por cautela revertermos a animacao se falhar
         if (icon) {
             icon.classList.remove('ph-spinner', 'ph-spin');
             icon.classList.add('ph-arrows-clockwise');
@@ -10138,9 +10166,9 @@ window.forceOnedriveSync = async function(docId, btn) {
         const logText = (data.log || []).join('\n');
 
         if (data.sucesso) {
-            alert(`Ã¢Å“â€¦ Sincronizado com sucesso!\n\nArquivo: ${data.cloudName}\nPasta: ${data.targetDir}\n\n--- LOG ---\n${logText}`);
+            alert(`ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ Sincronizado com sucesso!\n\nArquivo: ${data.cloudName}\nPasta: ${data.targetDir}\n\n--- LOG ---\n${logText}`);
         } else {
-            alert(`Ã¢ÂÅ’ Falha na sincronizaÃƒÂ§ÃƒÂ£o OneDrive:\n${data.error}\n\n--- LOG ---\n${logText}`);
+            alert(`ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€¦Ã¢â‚¬â„¢ Falha na sincronizaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o OneDrive:\n${data.error}\n\n--- LOG ---\n${logText}`);
         }
     } catch (e) {
         alert('Erro de rede: ' + e.message);
@@ -10167,7 +10195,7 @@ window.syncAllAtestados = async function(ids, btn) {
     }
     btn.disabled = false;
     btn.innerHTML = original;
-    alert(`Ã¢Å“â€¦ SincronizaÃƒÂ§ÃƒÂ£o concluÃƒÂ­da!\nÃ¢Å“â€œ Sucesso: ${ok}\nÃ¢Å“â€” Falha: ${fail}\n\nUse o botÃƒÂ£o Ã¢ËœÂ individual para ver o log de cada falha.`);
+    alert(`ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ SincronizaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o concluÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­da!\nÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ Sucesso: ${ok}\nÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Falha: ${fail}\n\nUse o botÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o ÃƒÆ’Ã‚Â¢Ãƒâ€¹Ã…â€œÃƒâ€šÃ‚Â individual para ver o log de cada falha.`);
 };
 
 window.testOneDriveConnection = async function() {
@@ -10187,23 +10215,23 @@ window.testOneDriveConnection = async function() {
             let gpsRH = "";
             if (data.rhLocation) {
                 let dId = data.rhLocation.parentReference?.driveId;
-                gpsRH = `\n\nÃ¢Å¡Â Ã¯Â¸Â PASTA 'RH' ENCONTRADA EM OUTRO LUGAR:\nEndereÃƒÂ§o: ${data.rhLocation.webUrl}\nID Drive: ${dId}`;
+                gpsRH = `\n\nÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â PASTA 'RH' ENCONTRADA EM OUTRO LUGAR:\nEndereÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o: ${data.rhLocation.webUrl}\nID Drive: ${dId}`;
             }
             
-            let msg = `Ã¢Å“â€¦ O OneDrive estÃƒÂ¡ CONECTADO corretamente!\n\n` +
+            let msg = `ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ O OneDrive estÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ CONECTADO corretamente!\n\n` +
                       `Biblioteca: ${data.driveName}\n` +
                       `Link Direto: ${data.config.webUrlBase || data.config.webUrlRaiz}` +
                       gpsRH + 
                       `\n\nTudo pronto para sincronizar colaboradores.`;
             alert(msg);
         } else {
-            let errorMsg = `Ã¢ÂÅ’ ${data.error}\n`;
-            if (data.code) errorMsg += `CÃƒÂ³digo: ${data.code}\n`;
+            let errorMsg = `ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€¦Ã¢â‚¬â„¢ ${data.error}\n`;
+            if (data.code) errorMsg += `CÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³digo: ${data.code}\n`;
             if (data.details) errorMsg += `Detalhes: ${JSON.stringify(data.details)}`;
             alert(errorMsg);
         }
     } catch (e) {
-        alert("Erro na requisiÃƒÂ§ÃƒÂ£o: " + e.message);
+        alert("Erro na requisiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o: " + e.message);
     } finally {
         btn.disabled = false;
         btn.innerHTML = originalHtml;
@@ -10211,7 +10239,7 @@ window.testOneDriveConnection = async function() {
 };
 
 window.syncOneDriveManual = async function(id, btnElement = null) {
-    // Se nÃƒÂ£o passou o elemento, tenta achar pelos IDs conhecidos
+    // Se nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o passou o elemento, tenta achar pelos IDs conhecidos
     const btn = btnElement || document.getElementById('btn-sync-onedrive') || document.getElementById('btn-form-sync-onedrive');
     const originalHtml = btn ? btn.innerHTML : '';
     if (btn) {
@@ -10232,12 +10260,12 @@ window.syncOneDriveManual = async function(id, btnElement = null) {
         const data = await res.json();
         
         if (data.sucesso) {
-            alert(`Ã¢Å“â€¦ SUCESSO TOTAL!\nCaminho: ${data.path}`);
+            alert(`ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ SUCESSO TOTAL!\nCaminho: ${data.path}`);
         } else {
-            alert(`Ã¢ÂÅ’ Erro na SincronizaÃƒÂ§ÃƒÂ£o:\n${data.message || data.error}`);
+            alert(`ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€¦Ã¢â‚¬â„¢ Erro na SincronizaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o:\n${data.message || data.error}`);
         }
     } catch (e) {
-        alert("Erro na requisiÃƒÂ§ÃƒÂ£o: " + e.message);
+        alert("Erro na requisiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o: " + e.message);
     } finally {
         if(btn) {
             btn.disabled = false;
@@ -10247,10 +10275,10 @@ window.syncOneDriveManual = async function(id, btnElement = null) {
 };
 
 window.resetSystem = async function() {
-    const confirmation1 = confirm("Ã°Å¸Å¡Â¨ ATENÃƒâ€¡ÃƒÆ’O: VocÃƒÂª tem certeza que deseja LIMPAR TODOS os colaboradores do sistema?\n\nIsso apagarÃƒÂ¡ todos os dados do banco de dados (dependentes, fotos, documentos registrados). Os arquivos fÃƒÂ­sicos no OneDrive nÃƒÂ£o serÃƒÂ£o apagados por seguranÃƒÂ§a.");
+    const confirmation1 = confirm("ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â¨ ATENÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢O: VocÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âª tem certeza que deseja LIMPAR TODOS os colaboradores do sistema?\n\nIsso apagarÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ todos os dados do banco de dados (dependentes, fotos, documentos registrados). Os arquivos fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­sicos no OneDrive nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o serÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o apagados por seguranÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§a.");
     if (!confirmation1) return;
 
-    const confirmation2 = confirm("CONFIRMAÃƒâ€¡ÃƒÆ’O FINAL: Deseja realmente excluir permanentemente todos os registros de colaboradores?");
+    const confirmation2 = confirm("CONFIRMAÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢O FINAL: Deseja realmente excluir permanentemente todos os registros de colaboradores?");
     if (!confirmation2) return;
 
     const btn = document.getElementById('btn-reset-sistema');
@@ -10266,7 +10294,7 @@ window.resetSystem = async function() {
         const data = await res.json();
         
         if (data.sucesso) {
-            alert("Sistema limpo com sucesso! A pÃƒÂ¡gina serÃƒÂ¡ recarregada.");
+            alert("Sistema limpo com sucesso! A pÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡gina serÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ recarregada.");
             location.reload();
         } else {
             alert("Erro ao resetar sistema: " + (data.error || "Erro desconhecido"));
@@ -10323,7 +10351,7 @@ setInterval(async () => {
     }
 }, 30000);
 
-// --- LÃƒâ€œGICA RENDER PDF (PDF.js) ---
+// --- LÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œGICA RENDER PDF (PDF.js) ---
 async function renderPdfToContainer(pdfUrl, containerId, onScrollEnd) {
     const container = document.getElementById(containerId);
     container.innerHTML = '<div style="color:white; padding: 2rem;">Carregando PDF...</div>';
@@ -10331,7 +10359,7 @@ async function renderPdfToContainer(pdfUrl, containerId, onScrollEnd) {
     container.onscroll = null;
 
     try {
-        if (!window.pdfjsLib) throw new Error('Biblioteca pdf.js nÃƒÂ£o carregada');
+        if (!window.pdfjsLib) throw new Error('Biblioteca pdf.js nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o carregada');
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
         const loadingTask = pdfjsLib.getDocument(pdfUrl);
@@ -10371,7 +10399,7 @@ async function renderPdfToContainer(pdfUrl, containerId, onScrollEnd) {
         
     } catch (e) {
         console.error("PDFJS Erro:", e);
-        container.innerHTML = '<div style="color:red; padding:2rem;">Erro ao carregar renderizaÃƒÂ§ÃƒÂ£o do PDF: ' + e.message + '</div>';
+        container.innerHTML = '<div style="color:red; padding:2rem;">Erro ao carregar renderizaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o do PDF: ' + e.message + '</div>';
         onScrollEnd(); 
     }
 }
@@ -10442,7 +10470,7 @@ function isCanvasBlank(canvasId) {
     return canvas.toDataURL() === blank.toDataURL();
 }
 
-// --- LÃƒâ€œGICA ASSINATURA TESTEMUNHAS ---
+// --- LÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œGICA ASSINATURA TESTEMUNHAS ---
 let ctxTestemunhas = {};
 let currentDocIdForWitness = null;
 let currentDocDataForWitness = null;
@@ -10472,7 +10500,7 @@ window.abrirModalAssinaturaTestemunhas = async function(docId) {
     
     console.log('[Testemunhas] Total colaboradores carregados:', cols.length);
     
-    // Mostrar todos os colaboradores cadastrados como possÃƒÂ­veis testemunhas
+    // Mostrar todos os colaboradores cadastrados como possÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­veis testemunhas
     const todos = (cols || []).filter(c => (c.nome_completo || c.nome || '').trim() !== '');
     todos.sort((a,b) => (a.nome_completo||a.nome||'').localeCompare(b.nome_completo||b.nome||''));
 
@@ -10518,8 +10546,8 @@ window.salvarAssinaturasTestemunhas = async function() {
     }
 
     const doc = currentDocDataForWitness;
-    if(!doc || !doc.file_path) { alert('Documento original nÃƒÂ£o encontrado.'); return; }
-    if (typeof PDFLib === 'undefined') { alert('A biblioteca de processamento de PDF nÃƒÂ£o estÃƒÂ¡ carregada.'); return; }
+    if(!doc || !doc.file_path) { alert('Documento original nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o encontrado.'); return; }
+    if (typeof PDFLib === 'undefined') { alert('A biblioteca de processamento de PDF nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o estÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ carregada.'); return; }
 
     const btn = document.getElementById('btn-salvar-testemunhas');
     const originalBtn = btn.innerHTML;
@@ -10529,7 +10557,7 @@ window.salvarAssinaturasTestemunhas = async function() {
 
         const pdfUrl = `${API_URL}/documentos/download/${doc.id}?token=${currentToken}`;
         const pdfResp = await fetch(pdfUrl);
-        if(!pdfResp.ok) throw new Error('NÃƒÂ£o foi possÃƒÂ­vel baixar o PDF original.');
+        if(!pdfResp.ok) throw new Error('NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o foi possÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel baixar o PDF original.');
         const existingPdfBytes = await pdfResp.arrayBuffer();
 
         const pdfDoc = await PDFLib.PDFDocument.load(existingPdfBytes);
@@ -10539,7 +10567,7 @@ window.salvarAssinaturasTestemunhas = async function() {
         const { width: pageWidth, height: pageHeight } = sigPage.getSize(); // 794 x 1123
         const innerWidth = (pageWidth - 112) / 2 - 20;
 
-        // --- Captura canvas em alta resoluÃƒÂ§ÃƒÂ£o (3x DPI) ---
+        // --- Captura canvas em alta resoluÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o (3x DPI) ---
         async function getHQCanvas(canvasId) {
             const src = document.getElementById(canvasId);
             const dpr = window.devicePixelRatio || 1;
@@ -10556,16 +10584,16 @@ window.salvarAssinaturasTestemunhas = async function() {
         const data1 = s1.split('###');
         const data2 = s2.split('###');
 
-        // Coordenadas PDF-Lib (Y=0 na base da pÃƒÂ¡gina. Altura Ã¢â€°Ë† 841pt para A4)
-        // Posicionamento compacto: label Ã¢â€ â€™ imagem Ã¢â€ â€™ linha Ã¢â€ â€™ nome Ã¢â€ â€™ CPF
+        // Coordenadas PDF-Lib (Y=0 na base da pÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡gina. Altura ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°Ãƒâ€¹Ã¢â‚¬Â  841pt para A4)
+        // Posicionamento compacto: label ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ imagem ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ linha ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ nome ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ CPF
         const t1LabelY = 310;
         const tImgH    = 70;
-        const t1ImgY   = 230; // imagem de Y=230 atÃƒÂ© Y=300
+        const t1ImgY   = 230; // imagem de Y=230 atÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© Y=300
         const t1LineY  = 222; // linha logo abaixo da imagem
-        const t1NameY  = 208; // nome bem prÃƒÂ³ximo da linha
+        const t1NameY  = 208; // nome bem prÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³ximo da linha
         const t1CpfY   = 195; // CPF logo abaixo do nome
 
-        // Ã¢â€¢ÂÃ¢â€¢Â TESTEMUNHA 1 (Esquerda) Ã¢â€¢ÂÃ¢â€¢Â
+        // ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚Â TESTEMUNHA 1 (Esquerda) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚Â
         const t1X = 56;
         sigPage.drawText('Testemunha 1:', { x: t1X, y: t1LabelY, size: 10, color: PDFLib.rgb(0.2, 0.2, 0.2) });
         
@@ -10577,7 +10605,7 @@ window.salvarAssinaturasTestemunhas = async function() {
         sigPage.drawText(data1[0], { x: t1X, y: t1NameY, size: 10, color: PDFLib.rgb(0, 0, 0) });
         sigPage.drawText(`CPF: ${data1[1] || 'N/D'}`, { x: t1X, y: t1CpfY, size: 9, color: PDFLib.rgb(0.35, 0.35, 0.35) });
 
-        // Ã¢â€¢ÂÃ¢â€¢Â TESTEMUNHA 2 (Direita) Ã¢â€¢ÂÃ¢â€¢Â
+        // ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚Â TESTEMUNHA 2 (Direita) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚Â
         const t2X = pageWidth - 56 - innerWidth;
         sigPage.drawText('Testemunha 2:', { x: t2X, y: t1LabelY, size: 10, color: PDFLib.rgb(0.2, 0.2, 0.2) });
 
@@ -10592,7 +10620,7 @@ window.salvarAssinaturasTestemunhas = async function() {
         const modifiedPdfBytes = await pdfDoc.save();
         const file = new File([modifiedPdfBytes], doc.file_name, { type: 'application/pdf' });
         const formData = new FormData();
-        formData.append('document_id', doc.id); // ForÃƒÂ§a UPDATE em vez de INSERT
+        formData.append('document_id', doc.id); // ForÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§a UPDATE em vez de INSERT
         formData.append('file', file);
         formData.append('colaborador_id', viewedColaborador.id);
         formData.append('colaborador_nome', viewedColaborador.nome_completo || 'Desconhecido');
@@ -10622,7 +10650,7 @@ window.salvarAssinaturasTestemunhas = async function() {
         if(activeTab) {
             renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
         } else {
-            renderTabContent('AdvertÃƒÂªncias', 'OcorrÃƒÂªncias', true);
+            renderTabContent('AdvertÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncias', 'OcorrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncias', true);
         }
     } catch (e) {
         console.error(e);
@@ -10633,7 +10661,7 @@ window.salvarAssinaturasTestemunhas = async function() {
     }
 };
 
-// --- LÃƒâ€œGICA ASSINATURA COLABORADOR (AdvertÃƒÂªncia) ---
+// --- LÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œGICA ASSINATURA COLABORADOR (AdvertÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia) ---
 let ctxColaborador = {};
 let currentDocIdForColab = null;
 
@@ -10667,11 +10695,11 @@ window.limparCanvasColaborador = function() {
 
 window.salvarAssinaturaColaborador = async function() {
     if (isCanvasBlank('canvas-colaborador')) {
-        alert('A assinatura do colaborador ÃƒÂ© obrigatÃƒÂ³ria.'); return;
+        alert('A assinatura do colaborador ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© obrigatÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³ria.'); return;
     }
 
     const doc = currentDocs.find(d => d.id === currentDocIdForColab);
-    if(!doc || !doc.file_path) { alert('Documento nÃƒÂ£o encontrado.'); return; }
+    if(!doc || !doc.file_path) { alert('Documento nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o encontrado.'); return; }
 
     const btn = document.getElementById('btn-salvar-colaborador');
     const originalBtn = btn.innerHTML;
@@ -10681,12 +10709,12 @@ window.salvarAssinaturaColaborador = async function() {
 
         const pdfUrl = `${API_URL}/documentos/download/${doc.id}?token=${currentToken}`;
         const pdfResp = await fetch(pdfUrl);
-        if(!pdfResp.ok) throw new Error('NÃƒÂ£o foi possÃƒÂ­vel baixar o PDF original.');
+        if(!pdfResp.ok) throw new Error('NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o foi possÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel baixar o PDF original.');
         const existingPdfBytes = await pdfResp.arrayBuffer();
 
         const pdfDoc = await PDFLib.PDFDocument.load(existingPdfBytes);
         const pages = pdfDoc.getPages();
-        const lastPage = pages[0]; // Agora garantimos que tudo fica na pÃƒÂ¡gina 1
+        const lastPage = pages[0]; // Agora garantimos que tudo fica na pÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡gina 1
         const { width: pgW, height: pgH } = lastPage.getSize();
 
         // Captura de alta qualidade
@@ -10761,7 +10789,7 @@ window.salvarAssinaturaColaborador = async function() {
         if(activeTab) {
             renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
         } else {
-            renderTabContent('AdvertÃƒÂªncias', 'OcorrÃƒÂªncias', true);
+            renderTabContent('AdvertÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncias', 'OcorrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncias', true);
         }
     } catch (e) {
         console.error(e);
@@ -10773,12 +10801,12 @@ window.salvarAssinaturaColaborador = async function() {
 };
 
 // ============================================================
-// ABA FICHA DE EPI NO PRONTUÃƒÂRIO
+// ABA FICHA DE EPI NO PRONTUÃƒÆ’Ã†â€™Ãƒâ€šÃ‚ÂRIO
 // ============================================================
 async function renderFichaEpiTab(container) {
     container.innerHTML = '<p class="text-muted">Carregando fichas de EPI...</p>';
     const colabId = viewedColaborador?.id;
-    if (!colabId) { container.innerHTML = '<div class="alert alert-info">Colaborador nÃƒÂ£o identificado.</div>'; return; }
+    if (!colabId) { container.innerHTML = '<div class="alert alert-info">Colaborador nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o identificado.</div>'; return; }
 
     let fichas = [], templates = [];
     try {
@@ -10836,7 +10864,7 @@ async function renderFichaEpiTab(container) {
         <div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:10px;padding:1rem 1.25rem;margin-bottom:1.25rem;display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;">
             <div style="display:flex;align-items:center;gap:0.75rem;">
                 <i class="ph ph-warning" style="color:#f59e0b;font-size:1.5rem;"></i>
-                <p style="margin:0;font-size:0.88rem;color:#92400e;">Nenhuma ficha ativa disponÃƒÂ­vel para ${cargo || dept}.</p>
+                <p style="margin:0;font-size:0.88rem;color:#92400e;">Nenhuma ficha ativa disponÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel para ${cargo || dept}.</p>
             </div>
             ${templateDoColab ? `
                 <button onclick="window.gerarFichaEpiManualProntuario(${templateDoColab.id})" class="btn btn-warning" style="height:34px;display:flex;align-items:center;gap:4px;font-weight:700;background:#f59e0b;color:#fff;border:none;">
@@ -10872,14 +10900,14 @@ async function renderFichaEpiTab(container) {
 // ============================================================
 
 window.gerarFichaEpiManualProntuario = async function(templateId) {
-    if (!confirm('Deseja gerar a Ficha de EPI para esse colaborador usando o template padrÃƒÂ£o vinculado a este cargo?')) return;
+    if (!confirm('Deseja gerar a Ficha de EPI para esse colaborador usando o template padrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o vinculado a este cargo?')) return;
     
     const colabId = viewedColaborador?.id;
     if (!colabId) return;
 
     // Acha o template no state
     const template = window._epiProntuarioData?.templates?.find(t => t.id === templateId);
-    if (!template) return alert('Template invÃƒÂ¡lido.');
+    if (!template) return alert('Template invÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡lido.');
 
     const payload = {
         template_id: template.id,
@@ -10902,7 +10930,7 @@ window.gerarFichaEpiManualProntuario = async function(templateId) {
         });
         if (!res.ok) throw new Error('Erro na resposta do servidor.');
         
-        // Recarrega a aba para exibir a ficha ativa recÃƒÂ©m-criada
+        // Recarrega a aba para exibir a ficha ativa recÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©m-criada
         renderTabContent('Ficha de EPI', 'Ficha de EPI');
     } catch(err) {
         console.error(err);
@@ -11056,7 +11084,7 @@ window._renderEpiGrid = function(filtro) {
         card.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:0.65rem 1rem;border:2px solid '+(qty>0?'#16a34a':'#e2e8f0')+';border-radius:10px;background:'+(qty>0?'#f0fdf4':'#fff')+';box-shadow:0 1px 3px rgba(0,0,0,0.06);';
         const lbl=document.createElement('span'); lbl.style.cssText='font-size:0.88rem;color:#0f172a;font-weight:600;flex:1;margin-right:0.5rem;line-height:1.3;'; lbl.textContent=epi;
         const ctrl=document.createElement('div'); ctrl.style.cssText='display:flex;align-items:center;gap:6px;flex-shrink:0;';
-        const btnM=document.createElement('button'); btnM.textContent='Ã¢Ë†â€™'; btnM.style.cssText='background:'+(qty>0?'#1e3a5f':'#e2e8f0')+';color:#fff;border:none;border-radius:6px;width:32px;height:32px;cursor:pointer;font-size:1.1rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;';
+        const btnM=document.createElement('button'); btnM.textContent='ÃƒÆ’Ã‚Â¢Ãƒâ€¹Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢'; btnM.style.cssText='background:'+(qty>0?'#1e3a5f':'#e2e8f0')+';color:#fff;border:none;border-radius:6px;width:32px;height:32px;cursor:pointer;font-size:1.1rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;';
         btnM.addEventListener('click',()=>window._setEpiQty(epi,Math.max(0,(window._assinQtds[epi]||0)-1)));
         const inp=document.createElement('input'); inp.type='number'; inp.min='0'; inp.value=qty; inp.style.cssText='width:48px;text-align:center;border:1.5px solid #e2e8f0;border-radius:6px;padding:4px;font-size:0.95rem;font-weight:700;color:#0f172a;';
         inp.addEventListener('input',()=>window._setEpiQty(epi,Math.max(0,parseInt(inp.value)||0)));
@@ -11131,7 +11159,7 @@ window._assinStep = function(n) {
     }
 };
 
-// BotÃƒÂ£o "PrÃƒÂ³ximo / Confirmar / Fechar"
+// BotÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o "PrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³ximo / Confirmar / Fechar"
 window._assinNextStep = async function() {
     const step = window._assinCurrentStep;
 
@@ -11187,7 +11215,7 @@ window._assinNextStep = async function() {
                         const tpl = (templates||[]).find(t => t.grupo === fich.grupo) || fich;
                         const { jsPDF } = window.jspdf;
 
-                        // Buscar TODAS as entregas jÃƒÂ¡ registradas para esta ficha (histÃƒÂ³rico completo)
+                        // Buscar TODAS as entregas jÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ registradas para esta ficha (histÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rico completo)
                         const todasEntregas = await fetch(`${API_URL}/epi-fichas/${window._assinFichaId}/entregas`, {
                             headers: { 'Authorization': 'Bearer ' + currentToken }
                         }).then(r => r.json()).catch(() => []);
@@ -11212,7 +11240,7 @@ window._assinNextStep = async function() {
                     }
                 } catch(se) { console.warn('[save-onedrive]', se); }
             })();
-            // Recarrega a aba apÃƒÂ³s 2s e abre o PDF na tela
+            // Recarrega a aba apÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³s 2s e abre o PDF na tela
             setTimeout(() => {
                 const old = document.getElementById('epi-assinatura-overlay');
                 if (old) old.remove();
@@ -11308,7 +11336,7 @@ window.gerarNovaFichaEpi = async function() {
     }
 
     if (fichaAtiva) {
-        const ok = confirm(`JÃƒÂ¡ existe uma ficha ativa (${fichaAtiva.grupo}). Deseja fechar a atual e criar nova?`);
+        const ok = confirm(`JÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ existe uma ficha ativa (${fichaAtiva.grupo}). Deseja fechar a atual e criar nova?`);
         if (!ok) return;
     }
 
@@ -11330,7 +11358,7 @@ window.gerarNovaFichaEpi = async function() {
     const activeTab = document.querySelector('#tabs-list li.active');
     if (activeTab) renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
     
-    // Abre a visualizaÃƒÂ§ÃƒÂ£o automaticamente apÃƒÂ³s criar a nova ficha (assinada)
+    // Abre a visualizaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o automaticamente apÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³s criar a nova ficha (assinada)
     if (created.id) {
         setTimeout(() => { window.previewFichaEpi(created.id); }, 500);
     }
@@ -11412,20 +11440,20 @@ window._pageBookmarks = JSON.parse(localStorage.getItem('pageBookmarks') || '[]'
 function getNormalizedPageSearchData() {
     const pages = [];
     for (const [key, obj] of Object.entries(BREADCRUMB_MAP)) {
-        const parts = obj.path.split('Ã¢â€ â€™').map(p => p.trim());
+        const parts = obj.path.split('ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢').map(p => p.trim());
         const rootPath = parts[0];
         
         let targetKey = key;
         let rootCode = obj.code;
         
-        // Se a tela for interna (sem cÃƒÂ³digo), redireciona o clique para a root (a raiz, ex: Colaboradores)
+        // Se a tela for interna (sem cÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³digo), redireciona o clique para a root (a raiz, ex: Colaboradores)
         if (!obj.code) {
             const rootEntry = Object.entries(BREADCRUMB_MAP).find(([k, v]) => v.path === rootPath && v.code);
             if (rootEntry) {
                 targetKey = rootEntry[0];
                 rootCode = rootEntry[1].code;
             } else {
-                // Algumas rotas raÃƒÂ­zes podem variar os nomes, tentar deduÃƒÂ§ÃƒÂµes cruas:
+                // Algumas rotas raÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­zes podem variar os nomes, tentar deduÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes cruas:
                 if (rootPath.includes('Colaboradores')) {
                     targetKey = 'colaboradores'; rootCode = 'RHCL00';
                 } else if (rootPath.includes('EPI')) {
@@ -11449,7 +11477,7 @@ window.handlePageSearch = function(q) {
     const filtered = all.filter(p => p.name.toLowerCase().includes(q) || (p.code && p.code.toLowerCase().includes(q)));
     
     if (filtered.length === 0) {
-        resDiv.innerHTML = '<div style="padding:10px; color:#64748b; font-size:0.85rem;">Nenhuma pÃƒÂ¡gina encontrada.</div>';
+        resDiv.innerHTML = '<div style="padding:10px; color:#64748b; font-size:0.85rem;">Nenhuma pÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡gina encontrada.</div>';
     } else {
         resDiv.innerHTML = filtered.map(p => `
             <div onclick="abrirAbaOuNavegar('${p.key}')" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'" style="padding:10px 14px; cursor:pointer; border-bottom:1px solid #f1f5f9; font-size:0.85rem; display:flex; align-items:center; gap:10px;">
@@ -11466,8 +11494,8 @@ window.abrirAbaOuNavegar = function(key) {
         const tabName = key.replace('tab:', '');
         const li = document.querySelector(`#tabs-list li[data-tab="${tabName}"]`);
         if (li) {
-            // Se estivermos fora do prontuÃƒÂ¡rio, nÃƒÂ£o rola assim direto sem abrir o colab. 
-            // Mas vamos assumir que o usuÃƒÂ¡rio sÃƒÂ³ favorita as abas quando estÃƒÂ¡ num colaborador
+            // Se estivermos fora do prontuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio, nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o rola assim direto sem abrir o colab. 
+            // Mas vamos assumir que o usuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio sÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³ favorita as abas quando estÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ num colaborador
             renderTabContent(tabName, li.textContent.trim());
         }
     } else {
@@ -11505,7 +11533,7 @@ window.renderBookmarks = function() {
         if (!obj) return '';
 
         // Ignorar tabs ou caminhos com setas, a menos que seja usuarios-permissoes ou form-usuario
-        if ((obj.path.includes('Ã¢â€ â€™') && key !== 'usuarios-permissoes' && key !== 'form-usuario') || key.startsWith('tab:')) return '';
+        if ((obj.path.includes('ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢') && key !== 'usuarios-permissoes' && key !== 'form-usuario') || key.startsWith('tab:')) return '';
         
         let btnColor = '#f503c5';
         if (obj.path.includes('Diretoria')) {
@@ -11514,7 +11542,7 @@ window.renderBookmarks = function() {
 
         let btnLabel = obj.path;
         if (key === 'usuarios-permissoes' || key === 'form-usuario') {
-            btnLabel = 'UsuÃƒÂ¡rios';
+            btnLabel = 'UsuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rios';
         }
 
         return `<button onclick="abrirAbaOuNavegar('${key}')" style="background:${btnColor}; color:white; border:none; border-radius:16px; padding:4px 12px; font-size:0.75rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px; box-shadow:0 2px 4px rgba(0,0,0,0.2); transition:transform 0.2s;" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'">${btnLabel}</button>`;
@@ -11576,14 +11604,14 @@ window.toggleSidebar = function() {
 })();
 
 // ==========================================
-// PRONTUÃƒÂRIO TABS SEARCH FILTER
+// PRONTUÃƒÆ’Ã†â€™Ãƒâ€šÃ‚ÂRIO TABS SEARCH FILTER
 // ==========================================
 window.filterTabsList = function(q) {
     q = (q || '').toLowerCase().trim();
     document.querySelectorAll('#tabs-list li').forEach(li => {
         const text = li.textContent.trim().toLowerCase();
         // Never hide the hidden ones (Boletim, Conjuge) unless they match
-        const originallyHidden = li.id === 'tab-conjuge' || li.dataset.tab === 'Boletim de ocorrÃƒÂªncia';
+        const originallyHidden = li.id === 'tab-conjuge' || li.dataset.tab === 'Boletim de ocorrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia';
         if (!q) {
             li.style.display = originallyHidden ? 'none' : '';
         } else {
@@ -11593,20 +11621,20 @@ window.filterTabsList = function(q) {
 };
 
 
-// Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
-// CERTIFICADO DIGITAL (.PFX) Ã¢â‚¬â€ Assinatura AutomÃƒÂ¡tica da America Rental
-// Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
+// ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚Â
+// CERTIFICADO DIGITAL (.PFX) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Assinatura AutomÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡tica da America Rental
+// ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚Â
 
 /**
  * Carrega o status do certificado digital e atualiza o banner.
- * Chamado ao entrar no step 2 da admissÃƒÂ£o e tambÃƒÂ©m nas abas ASO / Pagamentos do ProntuÃƒÂ¡rio.
+ * Chamado ao entrar no step 2 da admissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o e tambÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©m nas abas ASO / Pagamentos do ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio.
  */
 window.carregarStatusCertificado = async function(customBannerId = null) {
     const bannerId = customBannerId || 'cert-digital-banner';
     const banner = document.getElementById(bannerId);
     if (!banner) return;
 
-    // Verificar se o usuÃƒÂ¡rio ÃƒÂ© da Diretoria
+    // Verificar se o usuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© da Diretoria
     const isDiretoria = currentUser && (
         currentUser.role === 'Diretoria' ||
         currentUser.role === 'Administrador' ||
@@ -11616,7 +11644,7 @@ window.carregarStatusCertificado = async function(customBannerId = null) {
     const btnGerenciar = isDiretoria
         ? `<button onclick="navigateTo('certificado-digital')"
                style="border:none;background:rgba(22,163,74,0.15);color:#166534;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:4px;flex-shrink:0;">
-               <i class="ph ph-arrow-square-out"></i> Diretoria Ã¢â€ â€™ Certificado
+               <i class="ph ph-arrow-square-out"></i> Diretoria ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Certificado
            </button>`
         : '';
 
@@ -11625,7 +11653,7 @@ window.carregarStatusCertificado = async function(customBannerId = null) {
                style="border:none;background:#fef3c7;color:#92400e;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:4px;flex-shrink:0;">
                <i class="ph ph-arrow-square-out"></i> Configurar na Diretoria
            </button>`
-        : `<span style="font-size:0.76rem;opacity:0.75;white-space:nowrap;">Configure em Diretoria Ã¢â€ â€™ Certificado Digital</span>`;
+        : `<span style="font-size:0.76rem;opacity:0.75;white-space:nowrap;">Configure em Diretoria ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Certificado Digital</span>`;
 
     try {
         const data = await apiGet('/certificado-digital/status');
@@ -11637,10 +11665,10 @@ window.carregarStatusCertificado = async function(customBannerId = null) {
             banner.innerHTML = `
                 <i class="ph ph-seal-check" style="font-size:1.3rem;color:#16a34a;flex-shrink:0;"></i>
                 <div style="flex:1;">
-                    <div style="font-weight:700;">Ã¢Å“â€¦ Assinatura Digital da Empresa Ativa</div>
+                    <div style="font-weight:700;">ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ Assinatura Digital da Empresa Ativa</div>
                     <div style="font-size:0.76rem;margin-top:2px;opacity:0.85;">
-                        ${data.cn ? `<b>${data.cn}</b> Ã¢â‚¬â€ ` : ''}Validade: ${data.validade || 'N/A'}
-                        Ã¢â‚¬â€ Os documentos serÃƒÂ£o prÃƒÂ©-assinados com o certificado antes de ir ao colaborador
+                        ${data.cn ? `<b>${data.cn}</b> ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ` : ''}Validade: ${data.validade || 'N/A'}
+                        ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Os documentos serÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o prÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©-assinados com o certificado antes de ir ao colaborador
                     </div>
                 </div>
                 ${btnGerenciar}`;
@@ -11651,10 +11679,10 @@ window.carregarStatusCertificado = async function(customBannerId = null) {
             banner.innerHTML = `
                 <i class="ph ph-warning" style="font-size:1.3rem;color:#d97706;flex-shrink:0;"></i>
                 <div style="flex:1;">
-                    <div style="font-weight:700;">Assinatura Digital nÃƒÂ£o configurada</div>
+                    <div style="font-weight:700;">Assinatura Digital nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o configurada</div>
                     <div style="font-size:0.76rem;margin-top:2px;opacity:0.85;">
-                        Os documentos serÃƒÂ£o enviados <b>sem assinatura digital</b>.
-                        ${isDiretoria ? 'Configure o certificado .pfx na Diretoria.' : 'Solicite ÃƒÂ  Diretoria para configurar o certificado digital.'}
+                        Os documentos serÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o enviados <b>sem assinatura digital</b>.
+                        ${isDiretoria ? 'Configure o certificado .pfx na Diretoria.' : 'Solicite ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  Diretoria para configurar o certificado digital.'}
                     </div>
                 </div>
                 ${btnConfigurar}`;
@@ -11663,7 +11691,7 @@ window.carregarStatusCertificado = async function(customBannerId = null) {
         banner.style.background = '#f1f5f9';
         banner.style.border     = '1.5px solid #e2e8f0';
         banner.style.color      = '#64748b';
-        banner.innerHTML = `<i class="ph ph-info" style="font-size:1.1rem;"></i> <span style="flex:1;">Assinatura digital: verificaÃƒÂ§ÃƒÂ£o indisponÃƒÂ­vel</span>`;
+        banner.innerHTML = `<i class="ph ph-info" style="font-size:1.1rem;"></i> <span style="flex:1;">Assinatura digital: verificaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o indisponÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel</span>`;
     }
 };
 
@@ -11671,7 +11699,7 @@ window.carregarStatusCertificado = async function(customBannerId = null) {
  * Abre o modal de gerenciamento do certificado digital.
  */
 window.abrirModalCertificado = function() {
-    // Criar modal se nÃƒÂ£o existir
+    // Criar modal se nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o existir
     let modal = document.getElementById('modal-cert-digital');
     if (!modal) {
         modal = document.createElement('div');
@@ -11687,7 +11715,7 @@ window.abrirModalCertificado = function() {
                         </div>
                         <div>
                             <div style="font-weight:700;color:#fff;font-size:1rem;">Certificado Digital (.PFX)</div>
-                            <div style="font-size:0.75rem;color:#94a3b8;">Assinatura automÃƒÂ¡tica da America Rental</div>
+                            <div style="font-size:0.75rem;color:#94a3b8;">Assinatura automÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡tica da America Rental</div>
                         </div>
                     </div>
                     <button onclick="window.fecharModalCertificado()" style="background:rgba(255,255,255,0.1);border:none;width:32px;height:32px;border-radius:8px;color:#fff;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">
@@ -11703,15 +11731,15 @@ window.abrirModalCertificado = function() {
                         <i class="ph ph-spinner ph-spin"></i> Carregando status...
                     </div>
 
-                    <!-- ExplicaÃƒÂ§ÃƒÂ£o -->
+                    <!-- ExplicaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o -->
                     <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:0.85rem 1rem;font-size:0.82rem;color:#1e40af;">
                         <div style="font-weight:700;margin-bottom:4px;"><i class="ph ph-info"></i> Como funciona</div>
-                        O certificado digital A1 (.pfx) da empresa ÃƒÂ© usado para assinar os PDFs gerados <b>antes</b> de serem 
-                        enviados ao colaborador via Assinafy. Isso garante que o documento jÃƒÂ¡ sai com a assinatura oficial 
+                        O certificado digital A1 (.pfx) da empresa ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© usado para assinar os PDFs gerados <b>antes</b> de serem 
+                        enviados ao colaborador via Assinafy. Isso garante que o documento jÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ sai com a assinatura oficial 
                         da <b>America Rental Equipamentos Ltda</b>.
                     </div>
 
-                    <!-- Upload formulÃƒÂ¡rio -->
+                    <!-- Upload formulÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio -->
                     <div>
                         <label style="font-size:0.82rem;font-weight:700;color:#374151;display:block;margin-bottom:6px;">
                             Arquivo .PFX <span style="font-weight:400;color:#94a3b8;">(Certificado A1)</span>
@@ -11859,14 +11887,14 @@ window.salvarCertificado = async function() {
 
         if (!res.ok) throw new Error(data.error || 'Erro ao salvar o certificado');
 
-        if (msgEl) { msgEl.style.background = '#f0fdf4'; msgEl.style.border = '1px solid #bbf7d0'; msgEl.style.color = '#166534'; msgEl.innerHTML = `Ã¢Å“â€¦ Certificado salvo com sucesso! CN: <b>${data.cn}</b> | Validade: ${data.validade}`; }
+        if (msgEl) { msgEl.style.background = '#f0fdf4'; msgEl.style.border = '1px solid #bbf7d0'; msgEl.style.color = '#166534'; msgEl.innerHTML = `ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ Certificado salvo com sucesso! CN: <b>${data.cn}</b> | Validade: ${data.validade}`; }
         
         // Atualizar status no modal e no banner
         await window._atualizarStatusModalCert();
         window.carregarStatusCertificado();
 
     } catch(e) {
-        if (msgEl) { msgEl.style.background = '#fef2f2'; msgEl.style.border = '1px solid #fca5a5'; msgEl.style.color = '#dc2626'; msgEl.innerHTML = `Ã¢ÂÅ’ ${e.message}`; }
+        if (msgEl) { msgEl.style.background = '#fef2f2'; msgEl.style.border = '1px solid #fca5a5'; msgEl.style.color = '#dc2626'; msgEl.innerHTML = `ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€¦Ã¢â‚¬â„¢ ${e.message}`; }
     } finally {
         if (btnSalvar) { btnSalvar.disabled = false; btnSalvar.innerHTML = `<i class="ph ph-floppy-disk"></i> Salvar Certificado`; }
     }
@@ -11882,16 +11910,16 @@ window.testarCertificado = async function() {
         const res  = await fetch(`${API_URL}/certificado-digital/testar`, { method: 'POST', headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' } });
         const data = await res.json();
         if (!res.ok || !data.ok) throw new Error(data.erro || 'Falha no teste');
-        if (msgEl) { msgEl.style.background = '#f0fdf4'; msgEl.style.border = '1px solid #bbf7d0'; msgEl.style.color = '#166534'; msgEl.innerHTML = `${data.message || 'Ã¢Å“â€¦ Assinatura funcionando!'} (PDF: ${(data.tamanho_bytes/1024).toFixed(1)} KB)`; }
+        if (msgEl) { msgEl.style.background = '#f0fdf4'; msgEl.style.border = '1px solid #bbf7d0'; msgEl.style.color = '#166534'; msgEl.innerHTML = `${data.message || 'ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ Assinatura funcionando!'} (PDF: ${(data.tamanho_bytes/1024).toFixed(1)} KB)`; }
     } catch(e) {
-        if (msgEl) { msgEl.style.background = '#fef2f2'; msgEl.style.border = '1px solid #fca5a5'; msgEl.style.color = '#dc2626'; msgEl.innerHTML = `Ã¢ÂÅ’ Teste falhou: ${e.message}`; }
+        if (msgEl) { msgEl.style.background = '#fef2f2'; msgEl.style.border = '1px solid #fca5a5'; msgEl.style.color = '#dc2626'; msgEl.innerHTML = `ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€¦Ã¢â‚¬â„¢ Teste falhou: ${e.message}`; }
     } finally {
         if (btnTest) { btnTest.disabled = false; }
     }
 };
 
 window.removerCertificado = async function() {
-    if (!confirm('Tem certeza que deseja remover o certificado digital? Os documentos serÃƒÂ£o enviados sem assinatura automÃƒÂ¡tica da empresa.')) return;
+    if (!confirm('Tem certeza que deseja remover o certificado digital? Os documentos serÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o enviados sem assinatura automÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡tica da empresa.')) return;
     try {
         const res  = await fetch(`${API_URL}/certificado-digital`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${currentToken}` } });
         const data = await res.json();
@@ -11899,14 +11927,14 @@ window.removerCertificado = async function() {
         await window._atualizarStatusModalCert();
         window.carregarStatusCertificado();
         const msgEl = document.getElementById('cert-upload-msg');
-        if (msgEl) { msgEl.style.display = 'block'; msgEl.style.background = '#f0fdf4'; msgEl.style.border = '1px solid #bbf7d0'; msgEl.style.color = '#166534'; msgEl.innerHTML = 'Ã¢Å“â€¦ Certificado removido com sucesso.'; }
+        if (msgEl) { msgEl.style.display = 'block'; msgEl.style.background = '#f0fdf4'; msgEl.style.border = '1px solid #bbf7d0'; msgEl.style.color = '#166534'; msgEl.innerHTML = 'ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ Certificado removido com sucesso.'; }
     } catch(e) { alert(e.message); }
 };
 
 
-// Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
-// CERTIFICADO DIGITAL Ã¢â‚¬â€ FunÃƒÂ§ÃƒÂµes da View da Diretoria
-// Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
+// ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚Â
+// CERTIFICADO DIGITAL ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â FunÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes da View da Diretoria
+// ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢Ãƒâ€šÃ‚Â
 
 /** Carrega o status na view de Diretoria > Certificado Digital */
 window.carregarCertificadoView = async function() {
@@ -11924,11 +11952,11 @@ window.carregarCertificadoView = async function() {
             statusEl.innerHTML = `
                 <i class="ph ph-seal-check" style="font-size:1.8rem;color:#16a34a;flex-shrink:0;"></i>
                 <div>
-                    <div style="font-weight:700;font-size:0.95rem;margin-bottom:4px;">Ã¢Å“â€¦ Certificado Digital Ativo</div>
+                    <div style="font-weight:700;font-size:0.95rem;margin-bottom:4px;">ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ Certificado Digital Ativo</div>
                     <div style="display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font-size:0.82rem;">
                         <span style="opacity:0.7;">Titular:</span> <b>${data.cn || 'N/A'}</b>
-                        <span style="opacity:0.7;">OrganizaÃƒÂ§ÃƒÂ£o:</span> <span>${data.org || 'N/A'}</span>
-                        <span style="opacity:0.7;">Validade:</span> <b style="color:${isDateNear(data.validade) ? '#dc2626' : '#166534'}">${data.validade || 'N/A'} ${isDateNear(data.validade) ? 'Ã¢Å¡Â Ã¯Â¸Â PrÃƒÂ³ximo do vencimento!' : ''}</b>
+                        <span style="opacity:0.7;">OrganizaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o:</span> <span>${data.org || 'N/A'}</span>
+                        <span style="opacity:0.7;">Validade:</span> <b style="color:${isDateNear(data.validade) ? '#dc2626' : '#166534'}">${data.validade || 'N/A'} ${isDateNear(data.validade) ? 'ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â PrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³ximo do vencimento!' : ''}</b>
                         <span style="opacity:0.7;">Serial:</span> <span style="font-family:monospace;">${(data.serial||'').slice(-12)}</span>
                     </div>
                 </div>`;
@@ -11937,7 +11965,7 @@ window.carregarCertificadoView = async function() {
         } else {
             const isErro = data.configurado && !data.ok;
             const titulo = isErro ? 'Problema no Certificado Atual' : 'Nenhum certificado configurado';
-            const subtitulo = isErro ? `Ã¢Å¡Â Ã¯Â¸Â ${data.erro || 'Falha ao ler o certificado (senha invÃƒÂ¡lida ou arquivo corrompido).'}` : (data.motivo || 'Configure o arquivo .pfx ao lado para ativar a assinatura automÃƒÂ¡tica.');
+            const subtitulo = isErro ? `ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â ${data.erro || 'Falha ao ler o certificado (senha invÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡lida ou arquivo corrompido).'}` : (data.motivo || 'Configure o arquivo .pfx ao lado para ativar a assinatura automÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡tica.');
             
             statusEl.style.cssText = `padding:1rem;border-radius:10px;background:#fffbeb;border:1.5px solid ${isErro ? '#fca5a5' : '#fcd34d'};font-size:0.88rem;color:${isErro ? '#dc2626' : '#92400e'};display:flex;align-items:center;gap:0.75rem;min-height:70px;`;
             statusEl.innerHTML = `
@@ -12000,13 +12028,13 @@ window.salvarCertificadoView = async function() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Erro ao salvar');
 
-        if (msgEl) { msgEl.style.cssText='display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;margin-bottom:0.75rem;'; msgEl.innerHTML = `Ã¢Å“â€¦ Certificado salvo com sucesso! Ativo para sempre atÃƒÂ© o vencimento.<br><b>Titular:</b> ${data.cn} | <b>Validade:</b> ${data.validade}`; }
+        if (msgEl) { msgEl.style.cssText='display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;margin-bottom:0.75rem;'; msgEl.innerHTML = `ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ Certificado salvo com sucesso! Ativo para sempre atÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© o vencimento.<br><b>Titular:</b> ${data.cn} | <b>Validade:</b> ${data.validade}`; }
 
         // Recarregar status
         await window.carregarCertificadoView();
 
     } catch(e) {
-        if (msgEl) { msgEl.style.cssText='display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#fef2f2;border:1px solid #fca5a5;color:#dc2626;margin-bottom:0.75rem;'; msgEl.innerHTML = `Ã¢ÂÅ’ ${e.message}`; }
+        if (msgEl) { msgEl.style.cssText='display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#fef2f2;border:1px solid #fca5a5;color:#dc2626;margin-bottom:0.75rem;'; msgEl.innerHTML = `ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€¦Ã¢â‚¬â„¢ ${e.message}`; }
     } finally {
         if (btnSalvar) { btnSalvar.disabled = false; btnSalvar.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar Certificado'; }
     }
@@ -12026,16 +12054,16 @@ window.testarAssinaturaView = async function() {
         const res  = await fetch(`${API_URL}/certificado-digital/testar-assinatura`, { method: 'POST', headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' } });
         const data = await res.json();
         if (!res.ok || !data.ok) throw new Error(data.erro || 'Falha no teste');
-        if (resultEl) { resultEl.style.cssText='display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;'; resultEl.innerHTML = `Ã¢Å“â€¦ ${data.mensagem} PDF assinado: ${(data.tamanhoAssinado/1024).toFixed(1)} KB`; }
+        if (resultEl) { resultEl.style.cssText='display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;'; resultEl.innerHTML = `ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ ${data.mensagem} PDF assinado: ${(data.tamanhoAssinado/1024).toFixed(1)} KB`; }
     } catch(e) {
-        if (resultEl) { resultEl.style.cssText='display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#fef2f2;border:1px solid #fca5a5;color:#dc2626;'; resultEl.innerHTML = `Ã¢ÂÅ’ Erro: ${e.message}`; }
+        if (resultEl) { resultEl.style.cssText='display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#fef2f2;border:1px solid #fca5a5;color:#dc2626;'; resultEl.innerHTML = `ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€¦Ã¢â‚¬â„¢ Erro: ${e.message}`; }
     } finally {
         if (btn) btn.disabled = false;
     }
 };
 
 window.removerCertificadoView = async function() {
-    if (!confirm('Remover o certificado digital? Os documentos serÃƒÂ£o enviados SEM assinatura automÃƒÂ¡tica da empresa atÃƒÂ© que outro seja configurado.')) return;
+    if (!confirm('Remover o certificado digital? Os documentos serÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o enviados SEM assinatura automÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡tica da empresa atÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© que outro seja configurado.')) return;
     try {
         const res  = await fetch(`${API_URL}/certificado-digital`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${currentToken}` } });
         const data = await res.json();
@@ -12049,7 +12077,7 @@ const _origShowView = window.showView;
 window.showView = function(id) {
     if (typeof _origShowView === 'function') _origShowView(id);
 };
-// JÃƒÂ¡ existe o navigateTo Ã¢â‚¬â€ adicionar hook para certificado-digital
+// JÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ existe o navigateTo ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â adicionar hook para certificado-digital
 const _origNavigateTo = window.navigateTo;
 if (typeof _origNavigateTo === 'function') {
     window.navigateTo = function(view) {
@@ -12071,13 +12099,13 @@ window.limparAsssinaturasTeste = async function() {
         });
         const data = await res.json();
         if (res.ok) {
-            alert('Ã¢Å“â€¦ Registros de teste removidos com sucesso!');
+            alert('ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ Registros de teste removidos com sucesso!');
             window.loadAssinaturasDigitais();
         } else {
             alert('Erro: ' + (data.error || 'Falha ao limpar.'));
         }
     } catch(e) {
-        alert('Erro de conexÃƒÂ£o: ' + e.message);
+        alert('Erro de conexÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o: ' + e.message);
     }
 };
 
@@ -12093,12 +12121,12 @@ window.loadAssinaturasDigitais = async function() {
             return;
         }
 
-        // Coletar tipos ÃƒÂºnicos de documentos e statuses para filtros
+        // Coletar tipos ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºnicos de documentos e statuses para filtros
         const tipos = [...new Set(dados.map(d => d.nome_documento).filter(Boolean))].sort();
         const statuses = ['Todos', 'Assinado', 'Pendente'];
 
         const fmtDate = (v) => {
-            if (!v) return 'Ã¢â‚¬â€';
+            if (!v) return 'ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â';
             try {
                 const d = new Date(String(v).includes('Z') ? v : v + 'Z');
                 return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -12119,8 +12147,8 @@ window.loadAssinaturasDigitais = async function() {
                 <select id="ass-filter-status" onchange="window.filtrarAssinaturas()"
                     style="border:1px solid #e2e8f0;border-radius:6px;padding:0.4rem 0.75rem;font-size:0.85rem;color:#334155;background:#fff;cursor:pointer;">
                     <option value="">Todos os status</option>
-                    <option value="Assinado">Ã¢Å“â€¦ Assinado</option>
-                    <option value="Pendente">Ã¢ÂÂ³ Aguardando</option>
+                    <option value="Assinado">ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ Assinado</option>
+                    <option value="Pendente">ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€šÃ‚Â³ Aguardando</option>
                 </select>
                 <select id="ass-filter-tipo" onchange="window.filtrarAssinaturas()"
                     style="border:1px solid #e2e8f0;border-radius:6px;padding:0.4rem 0.75rem;font-size:0.85rem;color:#334155;background:#fff;cursor:pointer;">
@@ -12139,7 +12167,7 @@ window.loadAssinaturasDigitais = async function() {
                             <th style="padding:0.75rem 1rem;text-align:center;font-weight:700;color:#475569;white-space:nowrap;">Status</th>
                             <th style="padding:0.75rem 1rem;text-align:left;font-weight:700;color:#475569;white-space:nowrap;">Enviado em</th>
                             <th style="padding:0.75rem 1rem;text-align:left;font-weight:700;color:#475569;white-space:nowrap;">Assinado em</th>
-                            <th style="padding:0.75rem 1rem;text-align:center;font-weight:700;color:#475569;white-space:nowrap;">AÃƒÂ§ÃƒÂµes</th>
+                            <th style="padding:0.75rem 1rem;text-align:center;font-weight:700;color:#475569;white-space:nowrap;">AÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes</th>
                         </tr>
                     </thead>
                     <tbody id="ass-table-body">
@@ -12160,7 +12188,7 @@ window.loadAssinaturasDigitais = async function() {
 
 
 window.setStatusOutroMeio = async function(id, source) {
-    if (!confirm('Tem certeza que deseja marcar este documento como assinado por "Outro Meio"? Ele saÃƒÂ­ra da fila de pendentes.')) return;
+    if (!confirm('Tem certeza que deseja marcar este documento como assinado por "Outro Meio"? Ele saÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­ra da fila de pendentes.')) return;
     try {
         const res = await apiPost('/admissao-assinaturas/outro-meio', { id, source });
         alert(res.message || 'Status atualizado com sucesso!');
@@ -12196,7 +12224,7 @@ window.filtrarAssinaturas = function() {
     if (label) label.textContent = `${filtered.length} registro(s)`;
 
     const fmtDate = (v) => {
-        if (!v) return 'Ã¢â‚¬â€';
+        if (!v) return 'ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â';
         try {
             const d = new Date(String(v).includes('Z') ? v : v + 'Z');
             return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -12217,9 +12245,9 @@ window.filtrarAssinaturas = function() {
             ? '<span style="background:#dcfce7;color:#15803d;border-radius:20px;padding:3px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-check-circle"></i> Assinado</span>'
             : d.assinafy_status === 'Pendente'
             ? '<span style="background:#fef9c3;color:#92400e;border-radius:20px;padding:3px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-clock"></i> Aguardando</span>'
-            : '<span style="background:#f1f5f9;color:#64748b;border-radius:20px;padding:3px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;">Ã¢â‚¬â€</span>';
+            : '<span style="background:#f1f5f9;color:#64748b;border-radius:20px;padding:3px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;">ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â</span>';
 
-        let viewBtn = `<span style="color:#94a3b8;font-size:0.78rem;">Ã¢â‚¬â€</span>`;
+        let viewBtn = `<span style="color:#94a3b8;font-size:0.78rem;">ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â</span>`;
         if (isSigned) {
             const nomeEsc = (d.nome_documento||'').replace(/'/g, "\\'");
             if (d.source === 'documento') {
@@ -12234,11 +12262,11 @@ window.filtrarAssinaturas = function() {
         return `
         <tr style="border-bottom:1px solid #f1f5f9;transition:background 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
             <td style="padding:0.75rem 1rem;">
-                <div style="font-weight:600;color:#1e293b;">${d.colaborador_nome || 'Ã¢â‚¬â€'}</div>
-                <div style="font-size:0.75rem;color:#94a3b8;">${d.colaborador_cargo || ''} ${d.colaborador_departamento ? 'Ã‚Â· ' + d.colaborador_departamento : ''}</div>
+                <div style="font-weight:600;color:#1e293b;">${d.colaborador_nome || 'ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â'}</div>
+                <div style="font-size:0.75rem;color:#94a3b8;">${d.colaborador_cargo || ''} ${d.colaborador_departamento ? 'ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ' + d.colaborador_departamento : ''}</div>
             </td>
             <td style="padding:0.75rem 1rem;">
-                <div style="font-weight:600;color:#334155;">${d.nome_documento || 'Ã¢â‚¬â€'}</div>
+                <div style="font-weight:600;color:#334155;">${d.nome_documento || 'ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â'}</div>
             </td>
             <td style="padding:0.75rem 1rem;text-align:center;">${statusBadge}</td>
             <td style="padding:0.75rem 1rem;color:#475569;white-space:nowrap;">${fmtDate(d.enviado_em)}</td>
@@ -12267,7 +12295,7 @@ window.reenviarAssinatura = async function(id, source, btn) {
         
         if (res.ok && data.success) {
             if (data.warn) {
-                alert('AtenÃƒÂ§ÃƒÂ£o: ' + data.warn + '\n\nO link ÃƒÂ©: ' + (data.link || ''));
+                alert('AtenÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o: ' + data.warn + '\n\nO link ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©: ' + (data.link || ''));
             } else {
                 alert('E-mail de lembrete enviado com sucesso para o colaborador!');
             }
@@ -12281,7 +12309,7 @@ window.reenviarAssinatura = async function(id, source, btn) {
     }
 };
 
-// Registrar navegaÃƒÂ§ÃƒÂ£o para a tela de assinaturas
+// Registrar navegaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o para a tela de assinaturas
 (function() {
     const origNavigate = window.navigateTo;
     if (typeof origNavigate === 'function') {
@@ -12301,7 +12329,7 @@ window.reenviarAssinatura = async function(id, source, btn) {
 })();
 
 
-// === SISTEMA DE HISTÃƒâ€œRICO DE AUDITORIA ===
+// === SISTEMA DE HISTÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œRICO DE AUDITORIA ===
 window._historyData = [];
 window._historyPage = 1;
 const HISTORY_PER_PAGE = 20;
@@ -12325,12 +12353,12 @@ window._renderHistoryPage = function() {
     const start = (page - 1) * HISTORY_PER_PAGE;
     const slice = data.slice(start, start + HISTORY_PER_PAGE);
 
-    if (pageInfo) pageInfo.textContent = `PÃƒÂ¡g. ${page} / ${totalPages}`;
+    if (pageInfo) pageInfo.textContent = `PÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡g. ${page} / ${totalPages}`;
     if (prevBtn) prevBtn.disabled = page <= 1;
     if (nextBtn) nextBtn.disabled = page >= totalPages;
 
     if (slice.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 2rem; color: #94a3b8;">Nenhum registro de alteraÃƒÂ§ÃƒÂ£o encontrado.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 2rem; color: #94a3b8;">Nenhum registro de alteraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o encontrado.</td></tr>';
         return;
     }
 
@@ -12349,10 +12377,10 @@ window._renderHistoryPage = function() {
         const campoLabel = log.campo ? `<span style="color:#94a3b8;font-size:0.75rem;font-weight:600;">${log.campo}: </span>` : '';
         const anteriorCell = log.conteudo_anterior
             ? `${campoLabel}<span>${log.conteudo_anterior}</span>`
-            : `<span style="color:#cbd5e1;">Ã¢â‚¬â€</span>`;
+            : `<span style="color:#cbd5e1;">ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â</span>`;
         const atualCell = log.conteudo_atual
             ? `${campoLabel}<span style="font-weight:600;">${log.conteudo_atual}</span>`
-            : `<span style="color:#cbd5e1;">Ã¢â‚¬â€</span>`;
+            : `<span style="color:#cbd5e1;">ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â</span>`;
 
         html += `<tr style="${stripBg}border-bottom:1px solid #f1f5f9;">
             <td style="padding:0.7rem 1rem; white-space:nowrap; color:#334155; font-size:0.82rem;">${dateStr}</td>
@@ -12379,7 +12407,7 @@ window.showHistoryPopup = async function() {
 
     try {
         let url = `${API_URL}/auditoria`;
-        let labelText = 'Todas as alteraÃƒÂ§ÃƒÂµes do sistema';
+        let labelText = 'Todas as alteraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes do sistema';
         
         const viewPront = document.getElementById('view-prontuario');
         const viewAdm = document.getElementById('view-admissao');
@@ -12402,13 +12430,13 @@ window.showHistoryPopup = async function() {
         const isAvaliacoesActive = viewAvaliacoes && viewAvaliacoes.classList.contains('active');
 
         if (isColabActive && viewedColaborador && viewedColaborador.id) {
-            // ProntuÃƒÂ¡rio ou AdmissÃƒÂ£o de um colaborador especÃƒÂ­fico
+            // ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio ou AdmissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de um colaborador especÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­fico
             url += `?contexto=colaborador&id=${viewedColaborador.id}`;
             labelText = `Colaborador: ${viewedColaborador.nome_completo || viewedColaborador.nome || ''}`;
         } else if (isColabActive) {
-            // Lista de colaboradores = todas as alteraÃƒÂ§ÃƒÂµes em todos os colaboradores
+            // Lista de colaboradores = todas as alteraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes em todos os colaboradores
             url += `?contexto=colaboradores_geral`;
-            labelText = 'Todas as alteraÃƒÂ§ÃƒÂµes em Colaboradores';
+            labelText = 'Todas as alteraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes em Colaboradores';
         } else if (isGerActive) {
             url += `?contexto=gerador`;
             labelText = 'Tela: Geradores de Documentos';
@@ -12423,7 +12451,7 @@ window.showHistoryPopup = async function() {
             labelText = 'Tela: Fichas EPI';
         } else if (isAvaliacoesActive) {
             url += `?programa=Avalia`;
-            labelText = 'Tela: AvaliaÃƒÂ§ÃƒÂµes';
+            labelText = 'Tela: AvaliaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes';
         } else {
             url += `?contexto=geral`;
         }
@@ -12431,7 +12459,7 @@ window.showHistoryPopup = async function() {
         if (contextLabel) contextLabel.textContent = labelText;
 
         const res = await fetch(url, { headers: { 'Authorization': `Bearer ${currentToken}` } });
-        if (!res.ok) throw new Error('Falha ao carregar histÃƒÂ³rico');
+        if (!res.ok) throw new Error('Falha ao carregar histÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rico');
         const data = await res.json();
 
         loading.style.display = 'none';
@@ -12440,7 +12468,7 @@ window.showHistoryPopup = async function() {
 
     } catch (e) {
         loading.style.display = 'none';
-        document.getElementById('history-table-body').innerHTML = `<tr><td colspan="5" style="text-align:center; color:#ef4444; padding:1rem;">Erro ao carregar histÃƒÂ³rico: ${e.message}</td></tr>`;
+        document.getElementById('history-table-body').innerHTML = `<tr><td colspan="5" style="text-align:center; color:#ef4444; padding:1rem;">Erro ao carregar histÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rico: ${e.message}</td></tr>`;
     }
 };
 
@@ -12468,7 +12496,7 @@ setInterval(() => {
     }
 }, 500);
 
-// ===== SISTEMA DE TOAST: NOTIFICAÃƒâ€¡Ãƒâ€¢ES DE DOCUMENTOS ASSINADOS (ADMISSÃƒÆ’O) =====
+// ===== SISTEMA DE TOAST: NOTIFICAÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ES DE DOCUMENTOS ASSINADOS (ADMISSÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢O) =====
 (function() {
     // Container de toasts
     function getToastContainer() {
@@ -12520,7 +12548,7 @@ setInterval(() => {
             <i class="ph-fill ph-check-circle" style="font-size:1.8rem;color:${colorMain};flex-shrink:0;margin-top:1px;"></i>
             <div style="flex:1;min-width:0;">
                 <div style="font-size:0.7rem;font-weight:700;color:${colorText};text-transform:uppercase;letter-spacing:0.6px;margin-bottom:2px;">
-                    Ã¢Å“â€¦ Documento Assinado
+                    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ Documento Assinado
                 </div>
                 <div style="font-size:0.9rem;font-weight:700;color:#f0fdf4;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
                     ${nomeDoc}
@@ -12534,7 +12562,7 @@ setInterval(() => {
             </div>
             <button onclick="this.closest('[data-toast-item]')?.remove()"
                 style="background:none;border:none;color:#64748b;cursor:pointer;font-size:1.1rem;padding:0 0 0 4px;flex-shrink:0;pointer-events:all;line-height:1;"
-                title="Fechar">Ã¢Å“â€¢</button>
+                title="Fechar">ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢</button>
         `;
         // Inject animation keyframes once
         if (!document.getElementById('toast-anim-style')) {
@@ -12553,10 +12581,10 @@ setInterval(() => {
             document.head.appendChild(style);
         }
         container.appendChild(toast);
-        // Removido auto-remove: o popup ficarÃƒÂ¡ ativo atÃƒÂ© ser fechado manualmente
+        // Removido auto-remove: o popup ficarÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ ativo atÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© ser fechado manualmente
     }
 
-    // Polling: verifica a cada 30 segundos por documentos recÃƒÂ©m-assinados
+    // Polling: verifica a cada 30 segundos por documentos recÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©m-assinados
     const SEEN_KEY = 'admissao_toasts_vistos';
     const SEEN_TTL_KEY = 'admissao_toasts_ttl';
     function getSeenIds() {
@@ -12575,7 +12603,7 @@ setInterval(() => {
         try {
             const seen = getSeenIds();
             ids.forEach(id => seen.add(id));
-            // Manter apenas os ÃƒÂºltimos 200 para nÃƒÂ£o encher o storage
+            // Manter apenas os ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºltimos 200 para nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o encher o storage
             const arr = Array.from(seen).slice(-200);
             localStorage.setItem(SEEN_KEY, JSON.stringify(arr));
         } catch {}
@@ -12585,7 +12613,7 @@ setInterval(() => {
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
         if (!token) return;
 
-        // VerificaÃƒÂ§ÃƒÂ£o simples: apenas requer login
+        // VerificaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o simples: apenas requer login
         try {
             const resp = await fetch(`${API_URL}/admissao-assinaturas/alertas-recentes`, {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -12606,10 +12634,10 @@ setInterval(() => {
             markSeen(novos.map(a => String(a.unq_id)));
 
             // AUTO-REFRESH STATUS ao detectar novo documento assinado
-            // Sempre tenta recarregar a aba Contratos; _reloadContratosContainer sÃƒÂ³ executa
-            // se o usuÃƒÂ¡rio estiver de fato na aba Contratos (ca-list-container no DOM)
+            // Sempre tenta recarregar a aba Contratos; _reloadContratosContainer sÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³ executa
+            // se o usuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio estiver de fato na aba Contratos (ca-list-container no DOM)
             window._reloadContratosContainer().catch(() => {});
-            // Se o workflow de admissÃƒÂ£o estiver aberto, atualiza tambÃƒÂ©m
+            // Se o workflow de admissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o estiver aberto, atualiza tambÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©m
             if (document.getElementById('admissao-signature-list') && typeof window.initAdmissaoWorkflow === 'function' && viewedColaborador) {
                 window.initAdmissaoWorkflow(viewedColaborador.id, 2, true);
             }
@@ -12617,14 +12645,14 @@ setInterval(() => {
     }
 
 
-    // Iniciar polling apÃƒÂ³s 5 segundos (aguarda login completo) e repetir a cada 15s
+    // Iniciar polling apÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³s 5 segundos (aguarda login completo) e repetir a cada 15s
     setTimeout(() => {
         checkAlertasRecentes();
         setInterval(checkAlertasRecentes, 15000);
     }, 5000);
 
-    // SEGUNDO POLL: a cada 30s verifica silenciosamente se hÃƒÂ¡ docs Pendentes que
-    // foram assinados (fallback para quando alertas-recentes nÃƒÂ£o captura o evento)
+    // SEGUNDO POLL: a cada 30s verifica silenciosamente se hÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ docs Pendentes que
+    // foram assinados (fallback para quando alertas-recentes nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o captura o evento)
     setInterval(() => {
         if (document.getElementById('ca-list-container') && viewedColaborador) {
             window.sincronizarStatusAssinaturas(false);
@@ -12633,7 +12661,7 @@ setInterval(() => {
 
 })();
 
-// --- GESTÃƒÆ’O DE INTEGRAÃƒâ€¡ÃƒÆ’O ---
+// --- GESTÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢O DE INTEGRAÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢O ---
 window.startIntegracao = function(val) {
     if(val) {
         document.getElementById('integracao-workflow').style.display = 'block';
@@ -12672,7 +12700,7 @@ window.loadIntegracaoColabs = async function() {
     try {
         const colaboradores = await apiGet('/colaboradores');
         if(!colaboradores) return;
-        const integracaoUsers = colaboradores.filter(c => c.status === 'Em IntegraÃƒÂ§ÃƒÂ£o');
+        const integracaoUsers = colaboradores.filter(c => c.status === 'Em IntegraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o');
         const sel = document.getElementById('select-integracao-colab');
         if(sel) {
             sel.innerHTML = '<option value="">Selecione um colaborador...</option>';
@@ -12693,7 +12721,7 @@ window.toggleAlergias = function(val) {
         input.style.background = '#fff';
         input.style.cursor = 'text';
         input.style.color = '#0f172a';
-        input.placeholder = 'Descreva aqui alergias, restriÃ§Ãµes ou intolerÃ¢ncias...';
+        input.placeholder = 'Descreva aqui alergias, restriÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Âµes ou intolerÃƒÆ’Ã‚Â¢ncias...';
     } else {
         input.disabled = true;
         input.style.background = '#f8fafc';
@@ -12781,11 +12809,11 @@ window.enviarFichaContabilidade = async function(btn) {
         return;
     }
     if (!dataInicio) {
-        alert("Preencha a Data de InÃƒÂ­cio Prevista.");
+        alert("Preencha a Data de InÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­cio Prevista.");
         return;
     }
 
-    // Verificar se todos os passos estÃƒÂ£o em 100%
+    // Verificar se todos os passos estÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o em 100%
     const stepBadges = document.querySelectorAll('.step-badge .step-pct');
     let allComplete = true;
     stepBadges.forEach(badge => {
@@ -12793,7 +12821,7 @@ window.enviarFichaContabilidade = async function(btn) {
         if (pct < 100) allComplete = false;
     });
     if (!allComplete) {
-        const ok = confirm('Ã¢Å¡Â Ã¯Â¸Â AtenÃƒÂ§ÃƒÂ£o! Ainda existem passos nÃƒÂ£o concluÃƒÂ­dos (nÃƒÂ£o estÃƒÂ£o em 100%).\n\nDeseja continuar mesmo assim e enviar os documentos para a Contabilidade?');
+        const ok = confirm('ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â AtenÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o! Ainda existem passos nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o concluÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­dos (nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o estÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o em 100%).\n\nDeseja continuar mesmo assim e enviar os documentos para a Contabilidade?');
         if (!ok) return;
     }
 
@@ -12820,11 +12848,11 @@ window.enviarFichaContabilidade = async function(btn) {
             }
             // Mostrar toast em vez de alert bloqueante
             if (typeof admissaoToast === 'function') {
-                admissaoToast(`Ã¢Å“â€¦ E-mail enviado para ${email}`, 'success');
+                admissaoToast(`ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ E-mail enviado para ${email}`, 'success');
             } else {
                 alert('Ficha e anexos enviados com sucesso para ' + email);
             }
-            // Refresh assÃƒÂ­ncrono em background para garantir consistÃƒÂªncia
+            // Refresh assÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­ncrono em background para garantir consistÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia
             apiGet(`/colaboradores/${colabId}`).then(ref => {
                 if (ref && viewedColaborador) {
                     viewedColaborador = Object.assign(viewedColaborador, ref);
@@ -12837,7 +12865,7 @@ window.enviarFichaContabilidade = async function(btn) {
             alert('Erro ao enviar para Contabilidade: ' + (data.error || 'Erro desconhecido.'));
         }
     } catch(err) {
-        alert('Erro de conexÃƒÂ£o: ' + err.message);
+        alert('Erro de conexÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o: ' + err.message);
     } finally {
         btn.innerHTML = originalText;
         btn.disabled = false;
@@ -12864,7 +12892,7 @@ window.renderEnvioContabilidadeLog = function() {
         const dt = new Date(enviada_em.endsWith('Z') ? enviada_em : enviada_em + 'Z');
         const dia = dt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
         const hora = dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-        dataFormatada = `${dia} ÃƒÂ s ${hora}`;
+        dataFormatada = `${dia} ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â s ${hora}`;
     } catch(e) {}
 
     if (dataEl) dataEl.textContent = dataFormatada;
@@ -12873,7 +12901,7 @@ window.renderEnvioContabilidadeLog = function() {
     if (anexosEl && colab.admissao_contabil_anexos) {
         const lista = colab.admissao_contabil_anexos.split(',').map(s => s.trim()).filter(Boolean);
         if (lista.length > 0) {
-            anexosEl.innerHTML = lista.map(a => `<li>Ã°Å¸â€œâ€ž ${a}</li>`).join('');
+            anexosEl.innerHTML = lista.map(a => `<li>ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾ ${a}</li>`).join('');
         } else {
             anexosEl.innerHTML = '<li style="color:#94a3b8">Nenhum anexo registrado</li>';
         }
@@ -12884,7 +12912,7 @@ window.renderEnvioContabilidadeLog = function() {
 
 
 // ============================================================
-// PASSO 2 ADMISSÃƒÆ’O Ã¢â‚¬â€ SANTANDER (Pedido de Abertura de Conta)
+// PASSO 2 ADMISSÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢O ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â SANTANDER (Pedido de Abertura de Conta)
 // ============================================================
 // Helper: atualiza UI do Step 2 Santander (usada ao gerar e ao voltar ao passo)
 window._updateSantanderStepUI = function(dataSantander) {
@@ -12903,15 +12931,15 @@ window._updateSantanderStepUI = function(dataSantander) {
     }
 
     // === Marcar step 2 como 100% ===
-    // EstratÃƒÂ©gia 1: element com id step-2-pc
+    // EstratÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©gia 1: element com id step-2-pc
     var elPc = document.getElementById('step-2-pc');
     if (elPc) elPc.textContent = '100%';
 
-    // EstratÃƒÂ©gia 2: o step-item do stepper (bolinha)
+    // EstratÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©gia 2: o step-item do stepper (bolinha)
     var stepEl = document.getElementById('step-2');
     if (stepEl) {
         // Checar em diferentes estilos de stepper
-        // Aplicar via classe CSS (nÃƒÂ£o via style inline - conflita com .active:not(.pc-success))
+        // Aplicar via classe CSS (nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o via style inline - conflita com .active:not(.pc-success))
         stepEl.classList.remove('pc-warning');
         stepEl.classList.add('pc-success');
         var iconEl = stepEl.querySelector('.step-icon');
@@ -12921,12 +12949,12 @@ window._updateSantanderStepUI = function(dataSantander) {
             iconEl.style.removeProperty('color');
         }
         var numEl = stepEl.querySelector('.num, .step-number');
-        if (numEl) numEl.style.removeProperty('display'); // NUNCA esconder o nÃƒÂºmero
+        if (numEl) numEl.style.removeProperty('display'); // NUNCA esconder o nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºmero
         var pcEl = stepEl.querySelector('.percent, .step-percent, .pc');
         if (pcEl) { pcEl.style.display = 'inline'; pcEl.textContent = '100%'; }
     }
 
-    // EstratÃƒÂ©gia 3: procurar qualquer elemento que contenha "step-2" e "pc"
+    // EstratÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©gia 3: procurar qualquer elemento que contenha "step-2" e "pc"
     var allPc = document.querySelectorAll('[id*="step"][id*="pc"]');
     allPc.forEach(function(el) {
         if (el.id === 'step-2-pc' || el.id.match(/step.?2.?pc/i)) {
@@ -12939,7 +12967,7 @@ window.populateSantanderPreview = async function() {
     var colab = viewedColaborador || window._admissaoColabSelecionado;
     if (!colab) return;
 
-    // Se ainda nÃƒÂ£o tem a data na memÃƒÂ³ria, busca do servidor (dados podem estar desatualizados)
+    // Se ainda nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o tem a data na memÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³ria, busca do servidor (dados podem estar desatualizados)
     if (!colab.santander_ficha_data && colab.id) {
         try {
             var fresh = await apiGet('/colaboradores/' + colab.id);
@@ -12957,22 +12985,22 @@ window.gerarFichaSantander = async function() {
     const colab = viewedColaborador || window._admissaoColabSelecionado;
     if (!colab) { alert('Selecione um colaborador primeiro.'); return; }
 
-    const fmt = (v) => v || 'Ã¢â‚¬â€';
+    const fmt = (v) => v || 'ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â';
     const hoje = new Date();
     const dataHoje = hoje.toLocaleDateString('pt-BR');
     const mesExtenso = hoje.toLocaleDateString('pt-BR', { month: 'long' });
     const anoStr = hoje.getFullYear();
     
-    // SalÃƒÂ¡rio formatado
-    const salario = colab.salario ? parseFloat(colab.salario).toLocaleString('pt-BR', {style:'currency', currency:'BRL'}) : 'Ã¢â‚¬â€';
+    // SalÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio formatado
+    const salario = colab.salario ? parseFloat(colab.salario).toLocaleString('pt-BR', {style:'currency', currency:'BRL'}) : 'ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â';
     
-    // EndereÃƒÂ§o e Cidade extraÃƒÂ­dos corretamente do endereÃƒÂ§o do Colaborador (agora separado por vÃƒÂ­rgula e traÃƒÂ§o)
+    // EndereÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o e Cidade extraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­dos corretamente do endereÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o do Colaborador (agora separado por vÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­rgula e traÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o)
     let enderecoPuro = fmt(colab.endereco_completo);
-    let numero = 'Ã¢â‚¬â€', complemento = 'Ã¢â‚¬â€', bairro = 'Ã¢â‚¬â€', cidade = 'Ã¢â‚¬â€', estado = 'Ã¢â‚¬â€', cep = 'Ã¢â‚¬â€';
+    let numero = 'ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â', complemento = 'ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â', bairro = 'ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â', cidade = 'ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â', estado = 'ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â', cep = 'ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â';
     if (colab.endereco_completo) {
-        // SeparaÃƒÂ§ÃƒÂ£o tÃƒÂ­pica: "Rua X, 123, Bairro, Cidade - SP, CEP"
+        // SeparaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o tÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­pica: "Rua X, 123, Bairro, Cidade - SP, CEP"
         const parts = colab.endereco_completo.split(',');
-        enderecoPuro = parts[0] ? parts[0].trim() : 'Ã¢â‚¬â€';
+        enderecoPuro = parts[0] ? parts[0].trim() : 'ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â';
         if (parts.length > 1) {
             const part2 = parts[1].trim(); 
             numero = part2.split(' ')[0] || part2;
@@ -12987,8 +13015,8 @@ window.gerarFichaSantander = async function() {
         if (colab.cep) cep = colab.cep;
     }
     
-    // Data admissÃƒÂ£o formatada
-    let admissaoFmt = 'Ã¢â‚¬â€';
+    // Data admissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o formatada
+    let admissaoFmt = 'ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â';
     if (colab.data_admissao) {
         const d = new Date(colab.data_admissao);
         d.setMinutes(d.getMinutes() + d.getTimezoneOffset());
@@ -13029,9 +13057,9 @@ window.gerarFichaSantander = async function() {
 </head>
 <body>
 <div class="page">
-  <!-- Logo real da AmÃƒÂ©rica Rental -->
+  <!-- Logo real da AmÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rica Rental -->
   <div class="logo-area">
-    <img src="data:image/png;base64,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" alt="AmÃƒÂ©rica Rental">
+    <img src="data:image/png;base64,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" alt="AmÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rica Rental">
   </div>
 
   <h1 class="titulo">PEDIDO DE ABERTURA DE CONTA</h1>
@@ -13040,41 +13068,41 @@ window.gerarFichaSantander = async function() {
   <div class="colab-nome">${fmt(colab.nome_completo)}</div>
 
   <p class="body-text">Prezado (a)</p>
-  <p class="body-text">Escolhemos o Santander como nosso parceiro para o processamento do pagamento do seu salÃƒÂ¡rio.</p>
-  <p class="body-text">Conforme determinam as ResoluÃƒÂ§ÃƒÂµes nÃ‚Âº 3.402 e 3.424/06, do Conselho MonetÃƒÂ¡rio Nacional, seu salÃƒÂ¡rio serÃƒÂ¡ creditado em uma conta de registro, denominada 'conta salÃƒÂ¡rio', que nÃƒÂ£o ÃƒÂ© movimentÃƒÂ¡vel por cheque, nÃƒÂ£o admite crÃƒÂ©ditos de outras naturezas que nÃƒÂ£o salariais e possui serviÃƒÂ§os limitados.</p>
-  <p class="body-text">VocÃƒÂª tambÃƒÂ©m poderÃƒÂ¡ aproveitar as vantagens de ter uma <b>CONTA CORRENTE</b> e transferir automaticamente o seu salÃƒÂ¡rio, possibilitando assim fazer uso de diversos outros serviÃƒÂ§os e condiÃƒÂ§ÃƒÂµes diferenciadas oferecidas pelo Santander, que acreditamos que tenham um valor diferenciado para vocÃƒÂª. Para conhecer as vantagens de uma conta corrente compareÃƒÂ§a a uma agÃƒÂªncia atÃƒÂ© a data da sua admissÃƒÂ£o e apresente o original e uma cÃƒÂ³pia simples (frente e verso) dos documentos abaixo indicados:</p>
+  <p class="body-text">Escolhemos o Santander como nosso parceiro para o processamento do pagamento do seu salÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio.</p>
+  <p class="body-text">Conforme determinam as ResoluÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes nÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âº 3.402 e 3.424/06, do Conselho MonetÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio Nacional, seu salÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio serÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ creditado em uma conta de registro, denominada 'conta salÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio', que nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© movimentÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡vel por cheque, nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o admite crÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©ditos de outras naturezas que nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o salariais e possui serviÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§os limitados.</p>
+  <p class="body-text">VocÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âª tambÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©m poderÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ aproveitar as vantagens de ter uma <b>CONTA CORRENTE</b> e transferir automaticamente o seu salÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio, possibilitando assim fazer uso de diversos outros serviÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§os e condiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes diferenciadas oferecidas pelo Santander, que acreditamos que tenham um valor diferenciado para vocÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âª. Para conhecer as vantagens de uma conta corrente compareÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§a a uma agÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia atÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© a data da sua admissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o e apresente o original e uma cÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³pia simples (frente e verso) dos documentos abaixo indicados:</p>
 
   <ul class="docs">
     <li>Esta carta;</li>
     <li>Documento de identidade com foto;</li>
-    <li>CPF Ã¢â‚¬â€œ Cadastro de Pessoa FÃƒÂ­sica;</li>
-    <li>Comprovante de endereÃƒÂ§o residencial (onde prefere receber correspondÃƒÂªncia) com prazo inferior a 60 dias da data de vencimento. Ex.: conta de luz, de ÃƒÂ¡gua, de gÃƒÂ¡s, de telefone fixo, IPTU;</li>
-    <li>Se casado (a), apresentar nome completo do cÃƒÂ´njuge, nÃƒÂºmero do CPF, data de nascimento e data do casamento.</li>
+    <li>CPF ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ Cadastro de Pessoa FÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­sica;</li>
+    <li>Comprovante de endereÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o residencial (onde prefere receber correspondÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia) com prazo inferior a 60 dias da data de vencimento. Ex.: conta de luz, de ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡gua, de gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡s, de telefone fixo, IPTU;</li>
+    <li>Se casado (a), apresentar nome completo do cÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â´njuge, nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºmero do CPF, data de nascimento e data do casamento.</li>
   </ul>
 
-  <p class="body-text">Se a sua opÃƒÂ§ÃƒÂ£o for apenas pela utilizaÃƒÂ§ÃƒÂ£o da conta salÃƒÂ¡rio, vocÃƒÂª poderÃƒÂ¡ realizar a portabilidade de salÃƒÂ¡rio para outra instituiÃƒÂ§ÃƒÂ£o ou utilizar o cartÃƒÂ£o de dÃƒÂ©bito, fornecido sem custo*, para os serviÃƒÂ§os mensais gratuitos** disponÃƒÂ­veis para a conta salÃƒÂ¡rio. Procure a agÃƒÂªncia Santander de sua conveniÃƒÂªncia e fale com o gerente que estÃƒÂ¡ apto a orientar-lo e a prestar todas as informaÃƒÂ§ÃƒÂµes necessÃƒÂ¡rias para a movimentaÃƒÂ§ÃƒÂ£o da sua conta.</p>
+  <p class="body-text">Se a sua opÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o for apenas pela utilizaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o da conta salÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio, vocÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âª poderÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ realizar a portabilidade de salÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio para outra instituiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o ou utilizar o cartÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©bito, fornecido sem custo*, para os serviÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§os mensais gratuitos** disponÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­veis para a conta salÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio. Procure a agÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia Santander de sua conveniÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia e fale com o gerente que estÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ apto a orientar-lo e a prestar todas as informaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes necessÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rias para a movimentaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o da sua conta.</p>
 
   <!-- Dados do colaborador -->
   <div class="data-box">
     <div class="data-box-title">Dados do Colaborador</div>
     <div class="data-grid">
       <div class="data-line">Declaramos que o Sr (a) <b>${fmt(colab.nome_completo)}</b></div>
-      <div class="data-line">CPF: <b>${fmt(colab.cpf)}</b>&nbsp;&nbsp;&nbsp;AdmissÃƒÂ£o: <b>${admissaoFmt}</b></div>
-      <div class="data-line">EndereÃƒÂ§o: <b>${enderecoPuro}</b></div>
-      <div class="data-line">NÃ‚Âº <b>${numero}</b>&nbsp;&nbsp;Complemento: <b>${complemento}</b></div>
+      <div class="data-line">CPF: <b>${fmt(colab.cpf)}</b>&nbsp;&nbsp;&nbsp;AdmissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o: <b>${admissaoFmt}</b></div>
+      <div class="data-line">EndereÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o: <b>${enderecoPuro}</b></div>
+      <div class="data-line">NÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âº <b>${numero}</b>&nbsp;&nbsp;Complemento: <b>${complemento}</b></div>
       <div class="data-line">Bairro: <b>${bairro}</b></div>
       <div class="data-line">Cidade: <b>${cidade}</b>&nbsp;&nbsp;&nbsp;Estado: <b>${estado}</b>&nbsp;&nbsp;&nbsp;CEP: <b>${cep}</b></div>
       <div class="data-line">Cargo: <b>${fmt(colab.cargo)}</b></div>
-      <div class="data-line">SalÃƒÂ¡rio Mensal: <b>${salario}</b></div>
+      <div class="data-line">SalÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio Mensal: <b>${salario}</b></div>
     </div>
   </div>
 
   <!-- Assinaturas -->
   <div class="assinaturas">
-    <!-- Bloco empresa: linha + nome abaixo (espaÃƒÂ§o para carimbo fÃƒÂ­sico acima) -->
+    <!-- Bloco empresa: linha + nome abaixo (espaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o para carimbo fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­sico acima) -->
     <div class="assin-block">
       <div class="assin-line">
-        AmÃƒÂ©rica Rental
+        AmÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rica Rental
       </div>
     </div>
     <!-- Bloco colaborador -->
@@ -13099,7 +13127,7 @@ window.gerarFichaSantander = async function() {
         if (log) log.style.display = 'block';
         if (logText) logText.textContent = `Ficha gerada em ${new Date().toLocaleString('pt-BR')}`;
         
-        // Exibe o botÃƒÂ£o de visualizaÃƒÂ§ÃƒÂ£o
+        // Exibe o botÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de visualizaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o
         const btnVer = document.getElementById('btn-ver-santander');
         if (btnVer) btnVer.style.display = 'flex';
 
@@ -13117,13 +13145,13 @@ window.gerarFichaSantander = async function() {
         } catch(e) { console.error('[Santander] Erro ao salvar data:', e); }
         
         if (typeof showToast === 'function') {
-            showToast('Ficha gerada com sucesso! Use o botÃƒÂ£o Visualizar para imprimir.', 'success');
-        } else alert('Ficha gerada com sucesso! Use o botÃƒÂ£o Visualizar para imprimir.');
+            showToast('Ficha gerada com sucesso! Use o botÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o Visualizar para imprimir.', 'success');
+        } else alert('Ficha gerada com sucesso! Use o botÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o Visualizar para imprimir.');
     }
 };
 
 window.verFichaSantander = async function() {
-    // Se nÃƒÂ£o tem cache mas a ficha jÃƒÂ¡ foi gerada: regenera silenciosamente
+    // Se nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o tem cache mas a ficha jÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ foi gerada: regenera silenciosamente
     const colab = viewedColaborador || window._admissaoColabSelecionado;
     if (!window._santanderPreVHtml && colab && colab.santander_ficha_data) {
         // Mostrar loading
@@ -13131,7 +13159,7 @@ window.verFichaSantander = async function() {
         if (btn) { btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Gerando...'; btn.disabled = true; }
         
         try {
-            // Reutiliza a funÃƒÂ§ÃƒÂ£o de geraÃƒÂ§ÃƒÂ£o, mas sem exibir toast de sucesso
+            // Reutiliza a funÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de geraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o, mas sem exibir toast de sucesso
             window._silentSantanderGen = true;
             await window.gerarFichaSantander();
             window._silentSantanderGen = false;
@@ -13182,11 +13210,11 @@ window.irAoProntuarioDigital = function(tabName) {
     const colab = window._admissaoColabSelecionado || window.viewedColaborador;
     if (!colab) return;
     
-    // Switch to ProntuÃƒÂ¡rio section
+    // Switch to ProntuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio section
     const btnColabs = document.querySelector('button[onclick*="showSection(\\\'colaboradores\\\'"]');
     if (btnColabs) btnColabs.click();
     
-    // Abrir prontuÃƒÂ¡rio digital e ir para aba
+    // Abrir prontuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio digital e ir para aba
     window.openProntuario(colab.id, colab.nome_completo || colab.nome, colab.cargo_nome_exibindo || colab.cargo, colab.cpf, colab.genero || colab.sexo, colab.data_admissao || colab.admissao, colab.status).then(() => {
         if (tabName && typeof window.abas.switchTab === 'function') {
             setTimeout(() => window.abas.switchTab('colab-tabs', tabName), 500);
@@ -13194,7 +13222,7 @@ window.irAoProntuarioDigital = function(tabName) {
     });
 };
 
-// FunÃƒÂ§ao mockup caso nÃƒÂ²o exista _recalculateAdmissaoFinalProg
+// FunÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ao mockup caso nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â²o exista _recalculateAdmissaoFinalProg
 if (typeof window._recalculateAdmissaoFinalProg !== 'function') {
     window._recalculateAdmissaoFinalProg = function() {
         const bar = document.getElementById('admissao-progress-bar');
@@ -13205,7 +13233,7 @@ if (typeof window._recalculateAdmissaoFinalProg !== 'function') {
 
 
 // ============================================================
-// ABA MULTAS Ã¢â‚¬â€ MOTORISTAS (v2 Ã¢â‚¬â€ Novo Fluxo de Processo)
+// ABA MULTAS ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â MOTORISTAS (v2 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Novo Fluxo de Processo)
 // ============================================================
 
 window._recarregarListaMultas = async function(colabId) {
@@ -13264,18 +13292,18 @@ window._renderMultaCard = function(m, colabId, container) {
     card.innerHTML = `
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
             <div>
-                <span style="font-weight:700;font-size:1rem;color:#1e293b;">Ã°Å¸Å¡Â¦ ${m.codigo_infracao || 'Ã¢â‚¬â€'}</span>
+                <span style="font-weight:700;font-size:1rem;color:#1e293b;">ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â¦ ${m.codigo_infracao || 'ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â'}</span>
                 <span style="margin-left:8px;color:#64748b;font-size:0.85rem;">${m.descricao_infracao || ''}</span>
             </div>
             <span style="background:${cor}20;color:${cor};font-weight:700;font-size:0.78rem;padding:3px 10px;border-radius:20px;">${statusLabel[m.status] || m.status}</span>
         </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px;margin-top:8px;font-size:0.82rem;color:#475569;">
-            <span><b>Placa:</b> ${m.placa || 'Ã¢â‚¬â€'}</span>
-            <span><b>VeÃƒÂ­culo:</b> ${m.veiculo || 'Ã¢â‚¬â€'}</span>
-            <span><b>Data:</b> ${m.data_infracao || 'Ã¢â‚¬â€'} ${m.hora_infracao || ''}</span>
-            <span><b>Valor:</b> ${m.valor_multa || 'Ã¢â‚¬â€'}</span>
-            <span><b>Pontos:</b> ${m.pontuacao || 'Ã¢â‚¬â€'}</span>
-            ${m.processo_iniciado ? `<span><b>Tipo:</b> ${m.tipo_resolucao === 'indicacao' ? 'IndicaÃƒÂ§ÃƒÂ£o' : m.tipo_resolucao === 'nic' ? 'NIC' : 'Ã¢â‚¬â€'}</span>
+            <span><b>Placa:</b> ${m.placa || 'ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â'}</span>
+            <span><b>VeÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­culo:</b> ${m.veiculo || 'ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â'}</span>
+            <span><b>Data:</b> ${m.data_infracao || 'ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â'} ${m.hora_infracao || ''}</span>
+            <span><b>Valor:</b> ${m.valor_multa || 'ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â'}</span>
+            <span><b>Pontos:</b> ${m.pontuacao || 'ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â'}</span>
+            ${m.processo_iniciado ? `<span><b>Tipo:</b> ${m.tipo_resolucao === 'indicacao' ? 'IndicaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o' : m.tipo_resolucao === 'nic' ? 'NIC' : 'ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â'}</span>
             <span><b>Parcelas:</b> ${m.parcelas || 1}x</span>` : ''}
         </div>
         <div id="multa-actions-${m.id}" style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center;">
@@ -13289,7 +13317,7 @@ window._renderMultaActions = function(m, colabId, actionsDiv) {
     actionsDiv.innerHTML = '';
     const assinFinalizado = m.assinaturas_finalizadas || m.status === 'assinado' || m.status === 'confirmado';
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ BotÃƒÂ£o Iniciar / Processo Iniciado Ã¢â€â‚¬Ã¢â€â‚¬
+    // ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ BotÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o Iniciar / Processo Iniciado ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
     if (!m.processo_iniciado) {
         const btnIniciar = document.createElement('button');
         btnIniciar.style = 'background:linear-gradient(135deg,#f503c5,#8b5cf6);color:#fff;border:none;border-radius:8px;padding:6px 14px;cursor:pointer;font-weight:700;font-size:0.85rem;display:inline-flex;align-items:center;gap:6px;';
@@ -13310,7 +13338,7 @@ window._renderMultaActions = function(m, colabId, actionsDiv) {
         }
         actionsDiv.appendChild(btnPI);
 
-        // Ã¢â€â‚¬Ã¢â€â‚¬ BotÃƒÂ£o Ã°Å¸â€˜Â Visualizar Ã¢â€â‚¬Ã¢â€â‚¬
+        // ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ BotÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‹Å“Ãƒâ€šÃ‚Â Visualizar ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
         const btnEye = document.createElement('button');
         btnEye.style = 'background:#dbeafe;color:#1d4ed8;border:1.5px solid #93c5fd;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:0.85rem;display:inline-flex;align-items:center;gap:4px;';
         btnEye.innerHTML = '<i class="ph ph-eye"></i>';
@@ -13318,12 +13346,12 @@ window._renderMultaActions = function(m, colabId, actionsDiv) {
         btnEye.onclick = () => window.verDocumentoMulta(m.id, colabId, m.tipo_resolucao || 'indicacao', m);
         actionsDiv.appendChild(btnEye);
 
-        // Ã¢â€â‚¬Ã¢â€â‚¬ BotÃƒÂ£o Testemunhas Ã¢â€â‚¬Ã¢â€â‚¬
+        // ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ BotÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o Testemunhas ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
         const testemunhasOk = m.assinatura_testemunha1_base64;
         const btnTest = document.createElement('button');
         if (testemunhasOk) {
             btnTest.style = 'background:#d1fae5;color:#065f46;border:1.5px solid #6ee7b7;border-radius:8px;padding:6px 12px;cursor:not-allowed;font-weight:700;font-size:0.85rem;display:inline-flex;align-items:center;gap:5px;opacity:0.7;';
-            btnTest.innerHTML = '<i class="ph ph-users"></i> Testemunhas Ã¢Å“â€œ';
+            btnTest.innerHTML = '<i class="ph ph-users"></i> Testemunhas ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ';
             btnTest.disabled = true;
         } else {
             btnTest.style = 'background:#f3e8ff;color:#7c3aed;border:1.5px solid #c4b5fd;border-radius:8px;padding:6px 12px;cursor:pointer;font-weight:700;font-size:0.85rem;display:inline-flex;align-items:center;gap:5px;';
@@ -13332,13 +13360,13 @@ window._renderMultaActions = function(m, colabId, actionsDiv) {
         }
         actionsDiv.appendChild(btnTest);
 
-        // Ã¢â€â‚¬Ã¢â€â‚¬ BotÃƒÂ£o Assinatura do Condutor (sÃƒÂ³ apÃƒÂ³s testemunhas) Ã¢â€â‚¬Ã¢â€â‚¬
+        // ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ BotÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o Assinatura do Condutor (sÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³ apÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³s testemunhas) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
         if (testemunhasOk) {
             const condutorOk = m.assinatura_condutor_base64;
             const btnCond = document.createElement('button');
             if (condutorOk) {
                 btnCond.style = 'background:#d1fae5;color:#065f46;border:1.5px solid #6ee7b7;border-radius:8px;padding:6px 12px;cursor:not-allowed;font-weight:700;font-size:0.85rem;display:inline-flex;align-items:center;gap:5px;opacity:0.7;';
-                btnCond.innerHTML = '<i class="ph ph-pen"></i> Condutor Ã¢Å“â€œ';
+                btnCond.innerHTML = '<i class="ph ph-pen"></i> Condutor ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ';
                 btnCond.disabled = true;
             } else {
                 btnCond.style = 'background:#fef3c7;color:#92400e;border:1.5px solid #fcd34d;border-radius:8px;padding:6px 12px;cursor:pointer;font-weight:700;font-size:0.85rem;display:inline-flex;align-items:center;gap:5px;';
@@ -13349,7 +13377,7 @@ window._renderMultaActions = function(m, colabId, actionsDiv) {
         }
     }
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Excluir (apenas pendente/doc_gerado nÃƒÂ£o assinado) Ã¢â€â‚¬Ã¢â€â‚¬
+    // ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Excluir (apenas pendente/doc_gerado nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o assinado) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
     if (!assinFinalizado && (m.status === 'pendente' || m.status === 'doc_gerado') && !m.assinatura_testemunha1_base64) {
         const btnDel = document.createElement('button');
         btnDel.style = 'background:#fee2e2;color:#dc2626;border:1.5px solid #fca5a5;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:0.8rem;display:inline-flex;align-items:center;gap:4px;';
@@ -13359,7 +13387,7 @@ window._renderMultaActions = function(m, colabId, actionsDiv) {
     }
 };
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Modal: FormulÃƒÂ¡rio de nova multa (SEM tipo/parcelas) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Modal: FormulÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio de nova multa (SEM tipo/parcelas) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
 window.abrirFormNovaMulta = function(colabId, container) {
     let modal = document.getElementById('modal-nova-multa');
     if (modal) modal.remove();
@@ -13369,14 +13397,14 @@ window.abrirFormNovaMulta = function(colabId, container) {
     modal.innerHTML = `
         <div style="background:#fff;border-radius:16px;padding:2rem;width:100%;max-width:680px;max-height:90vh;overflow-y:auto;">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;">
-                <h3 style="margin:0;color:#1e293b;font-size:1.1rem;"><i class="ph ph-traffic-sign" style="color:#f503c5;"></i> Nova Multa de TrÃƒÂ¢nsito</h3>
-                <button onclick="document.getElementById('modal-nova-multa').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#64748b;">Ãƒâ€”</button>
+                <h3 style="margin:0;color:#1e293b;font-size:1.1rem;"><i class="ph ph-traffic-sign" style="color:#f503c5;"></i> Nova Multa de TrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢nsito</h3>
+                <button onclick="document.getElementById('modal-nova-multa').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#64748b;">ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</button>
             </div>
 
             <div style="border:2px dashed #e2e8f0;border-radius:10px;padding:1.5rem;text-align:center;margin-bottom:1.5rem;cursor:pointer;background:#f8fafc;" id="multa-upload-area">
                 <i class="ph ph-file-pdf" style="font-size:2.5rem;color:#ef4444;display:block;margin-bottom:8px;"></i>
-                <p style="margin:0;font-weight:600;color:#334155;">Anexar NotificaÃƒÂ§ÃƒÂ£o de AutuaÃƒÂ§ÃƒÂ£o (PDF)</p>
-                <p style="margin:4px 0 0;font-size:0.8rem;color:#94a3b8;">Clique ou arraste o PDF Ã¢â‚¬â€ dados serÃƒÂ£o extraÃƒÂ­dos automaticamente</p>
+                <p style="margin:0;font-weight:600;color:#334155;">Anexar NotificaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de AutuaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o (PDF)</p>
+                <p style="margin:4px 0 0;font-size:0.8rem;color:#94a3b8;">Clique ou arraste o PDF ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â dados serÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o extraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­dos automaticamente</p>
                 <input type="file" id="multa-notificacao-input" accept=".pdf" style="display:none;" onchange="window.processarNotificacaoMulta(this, ${colabId})">
             </div>
             <div id="multa-loader" style="display:none;text-align:center;color:#64748b;padding:1rem;">
@@ -13384,21 +13412,21 @@ window.abrirFormNovaMulta = function(colabId, container) {
             </div>
 
             <div id="multa-dados" style="display:none;">
-                <h4 style="color:#475569;font-size:0.9rem;margin-bottom:0.75rem;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">Ã°Å¸â€œâ€¹ Dados da InfraÃƒÂ§ÃƒÂ£o</h4>
+                <h4 style="color:#475569;font-size:0.9rem;margin-bottom:0.75rem;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¹ Dados da InfraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o</h4>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1.5rem;">
                     <div class="input-group"><label>Placa</label><input id="m-placa" class="form-control" placeholder="AAA0000"></div>
-                    <div class="input-group"><label>VeÃƒÂ­culo</label><input id="m-veiculo" class="form-control"></div>
-                    <div class="input-group"><label>CÃƒÂ³digo da InfraÃƒÂ§ÃƒÂ£o</label><input id="m-codigo" class="form-control" placeholder="Ex: 7455" oninput="window.lookupCtb(this.value)"></div>
-                    <div class="input-group"><label>NÃ‚Â° AIT</label><input id="m-ait" class="form-control"></div>
-                    <div class="input-group" style="grid-column:span 2;"><label>DescriÃƒÂ§ÃƒÂ£o</label><input id="m-descricao" class="form-control"></div>
+                    <div class="input-group"><label>VeÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­culo</label><input id="m-veiculo" class="form-control"></div>
+                    <div class="input-group"><label>CÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³digo da InfraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o</label><input id="m-codigo" class="form-control" placeholder="Ex: 7455" oninput="window.lookupCtb(this.value)"></div>
+                    <div class="input-group"><label>NÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â° AIT</label><input id="m-ait" class="form-control"></div>
+                    <div class="input-group" style="grid-column:span 2;"><label>DescriÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o</label><input id="m-descricao" class="form-control"></div>
                     <div class="input-group"><label>Data</label><input id="m-data" class="form-control" placeholder="DD/MM/AAAA"></div>
                     <div class="input-group"><label>Hora</label><input id="m-hora" class="form-control" placeholder="HH:MM"></div>
                     <div class="input-group" style="grid-column:span 2;"><label>Local</label><input id="m-local" class="form-control"></div>
-                    <div class="input-group"><label>PontuaÃƒÂ§ÃƒÂ£o</label><input id="m-pontuacao" class="form-control" readonly style="background:#f1f5f9;"></div>
+                    <div class="input-group"><label>PontuaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o</label><input id="m-pontuacao" class="form-control" readonly style="background:#f1f5f9;"></div>
                     <div class="input-group"><label>Valor da Multa</label><input id="m-valor" class="form-control" readonly style="background:#f1f5f9;"></div>
                 </div>
                 <p style="font-size:0.8rem;color:#64748b;background:#f8fafc;padding:10px;border-radius:8px;margin-bottom:1rem;">
-                    <i class="ph ph-info"></i> ApÃƒÂ³s salvar, clique em <b>"Iniciar Processo"</b> no card para escolher a forma de resoluÃƒÂ§ÃƒÂ£o e parcelamento.
+                    <i class="ph ph-info"></i> ApÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³s salvar, clique em <b>"Iniciar Processo"</b> no card para escolher a forma de resoluÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o e parcelamento.
                 </p>
                 <button onclick="window.salvarNovaMulta(${colabId})"
                     style="width:100%;padding:0.85rem;background:linear-gradient(135deg,#f503c5,#8b5cf6);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:1rem;cursor:pointer;">
@@ -13412,7 +13440,7 @@ window.abrirFormNovaMulta = function(colabId, container) {
     window._multaArquivo = null;
 };
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Popup: Iniciar Processo (popup menor, nÃƒÂ£o fullscreen) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Popup: Iniciar Processo (popup menor, nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o fullscreen) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
 window.abrirPopupIniciarProcesso = function(m, colabId) {
     let modal = document.getElementById('modal-iniciar-processo');
     if (modal) modal.remove();
@@ -13426,23 +13454,23 @@ window.abrirPopupIniciarProcesso = function(m, colabId) {
     modal.innerHTML = `
         <div style="background:#fff;border-radius:16px;padding:2rem;width:100%;max-width:520px;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;">
-                <h3 style="margin:0;color:#1e293b;font-size:1.1rem;">Ã¢Å¡â€“Ã¯Â¸Â Iniciar Processo Ã¢â‚¬â€ Multa ${m.codigo_infracao || ''}</h3>
-                <button onclick="document.getElementById('modal-iniciar-processo').remove()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#64748b;">Ãƒâ€”</button>
+                <h3 style="margin:0;color:#1e293b;font-size:1.1rem;">ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Iniciar Processo ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Multa ${m.codigo_infracao || ''}</h3>
+                <button onclick="document.getElementById('modal-iniciar-processo').remove()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#64748b;">ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</button>
             </div>
 
-            <h4 style="color:#475569;font-size:0.9rem;margin:0 0 0.75rem;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">Ã¢Å¡â€“Ã¯Â¸Â Forma de ResoluÃƒÂ§ÃƒÂ£o</h4>
+            <h4 style="color:#475569;font-size:0.9rem;margin:0 0 0.75rem;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Forma de ResoluÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o</h4>
             <div style="display:flex;gap:12px;margin-bottom:1.5rem;">
                 <button id="tipo-indicacao" onclick="window.selecionarTipoMulta('indicacao')"
                     style="flex:1;padding:0.75rem;border-radius:8px;border:2px solid ${tipoAtual==='indicacao'?'#f503c5':'#e2e8f0'};background:${tipoAtual==='indicacao'?'#fdf4ff':'#fff'};cursor:pointer;font-weight:600;color:${tipoAtual==='indicacao'?'#f503c5':'#334155'};">
-                    Ã°Å¸â€œâ€¹ Seguir com a IndicaÃƒÂ§ÃƒÂ£o
+                    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¹ Seguir com a IndicaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o
                 </button>
                 <button id="tipo-nic" onclick="window.selecionarTipoMulta('nic')"
                     style="flex:1;padding:0.75rem;border-radius:8px;border:2px solid ${tipoAtual==='nic'?'#f503c5':'#e2e8f0'};background:${tipoAtual==='nic'?'#fdf4ff':'#fff'};cursor:pointer;font-weight:600;color:${tipoAtual==='nic'?'#f503c5':'#334155'};">
-                    Ã°Å¸â€™Â³ Pagamento da Multa NIC
+                    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢Ãƒâ€šÃ‚Â³ Pagamento da Multa NIC
                 </button>
             </div>
 
-            <h4 style="color:#475569;font-size:0.9rem;margin:0 0 0.75rem;">Ã°Å¸â€™Â° Parcelamento do Desconto</h4>
+            <h4 style="color:#475569;font-size:0.9rem;margin:0 0 0.75rem;">ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢Ãƒâ€šÃ‚Â° Parcelamento do Desconto</h4>
             <div style="display:flex;gap:10px;margin-bottom:1.5rem;">
                 ${[1,2,3].map(n=>`<button id="parc-${n}" onclick="window.selecionarParcelas(${n})"
                     style="flex:1;padding:0.6rem;border-radius:8px;border:2px solid ${parcAtual===n?'#8b5cf6':'#e2e8f0'};background:${parcAtual===n?'#f5f3ff':'#fff'};cursor:pointer;font-weight:700;color:${parcAtual===n?'#8b5cf6':'#334155'};">${n}x</button>`).join('')}
@@ -13462,7 +13490,7 @@ window.abrirPopupIniciarProcesso = function(m, colabId) {
 
 window.confirmarIniciarProcesso = async function(multaId, colabId) {
     if (!window._multaTipoSelecionado) {
-        alert('Selecione a forma de resoluÃƒÂ§ÃƒÂ£o antes de continuar.'); return;
+        alert('Selecione a forma de resoluÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o antes de continuar.'); return;
     }
     try {
         // Gera o documento HTML
@@ -13488,7 +13516,7 @@ window.confirmarIniciarProcesso = async function(multaId, colabId) {
     } catch(e) { alert('Erro: ' + e.message); }
 };
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Modal Testemunhas (100% fullscreen) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Modal Testemunhas (100% fullscreen) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
 window.abrirModalTestemunhas = async function(m, colabId) {
     let modal = document.getElementById('modal-testemunhas-multa');
     if (modal) modal.remove();
@@ -13517,11 +13545,11 @@ window.abrirModalTestemunhas = async function(m, colabId) {
     modal.style = 'position:fixed;inset:0;z-index:10001;background:#0f172a;display:flex;flex-direction:column;overflow:hidden;';
     modal.innerHTML = `
         <div style="background:#1e293b;padding:0.85rem 1.5rem;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
-            <h3 style="margin:0;color:#fff;font-size:1rem;"><i class="ph ph-users" style="color:#a78bfa;"></i> Assinatura das Testemunhas Ã¢â‚¬â€ Multa ${m.codigo_infracao || ''}</h3>
+            <h3 style="margin:0;color:#fff;font-size:1rem;"><i class="ph ph-users" style="color:#a78bfa;"></i> Assinatura das Testemunhas ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Multa ${m.codigo_infracao || ''}</h3>
             <button onclick="document.getElementById('modal-testemunhas-multa').remove()" style="background:rgba(255,255,255,0.1);border:none;color:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;">Fechar</button>
         </div>
         <div style="flex:1;display:flex;overflow:hidden;">
-            <!-- Documento ÃƒÂ  esquerda -->
+            <!-- Documento ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  esquerda -->
             <div style="flex:1;overflow-y:auto;background:#f1f5f9;padding:1rem;" id="doc-preview-testemunhas">
                 <div style="color:#64748b;text-align:center;padding:2rem;">Carregando documento...</div>
             </div>
@@ -13551,7 +13579,7 @@ window.abrirModalTestemunhas = async function(m, colabId) {
                     <canvas id="canvas-test2" width="340" height="130" style="border:1.5px solid #e2e8f0;border-radius:8px;touch-action:none;background:#fafafa;cursor:crosshair;width:100%;"></canvas>
                     <button onclick="window._limparCanvasMulta('canvas-test2')" style="margin-top:4px;background:none;border:none;color:#64748b;cursor:pointer;font-size:0.8rem;"><i class="ph ph-eraser"></i> Limpar</button>
                 </div>
-                <p style="font-size:0.78rem;color:#94a3b8;background:#f8fafc;padding:8px;border-radius:6px;">Role o documento atÃƒÂ© o final antes de assinar.</p>
+                <p style="font-size:0.78rem;color:#94a3b8;background:#f8fafc;padding:8px;border-radius:6px;">Role o documento atÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© o final antes de assinar.</p>
                 <button id="btn-confirmar-testemunhas"
                     onclick="window.confirmarAssinaturaTestemunhas(${m.id}, ${colabId})"
                     style="padding:0.85rem;background:linear-gradient(135deg,#7c3aed,#f503c5);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:1rem;cursor:pointer;">
@@ -13574,7 +13602,7 @@ window.abrirModalTestemunhas = async function(m, colabId) {
             doc.open(); doc.write(docHtml); doc.close();
         }, 50);
     } else {
-        docPreview.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:3rem;">Documento nÃƒÂ£o disponÃƒÂ­vel.</div>';
+        docPreview.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:3rem;">Documento nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o disponÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel.</div>';
     }
 
     // Inicializar canvas
@@ -13641,7 +13669,7 @@ window.confirmarAssinaturaTestemunhas = async function(multaId, colabId) {
     }
 };
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Modal Assinatura do Condutor (fullscreen) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Modal Assinatura do Condutor (fullscreen) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
 window.abrirModalAssinaturaCondutor = async function(m, colabId) {
     let modal = document.getElementById('modal-condutor-multa');
     if (modal) modal.remove();
@@ -13667,7 +13695,7 @@ window.abrirModalAssinaturaCondutor = async function(m, colabId) {
     modal.style = 'position:fixed;inset:0;z-index:10001;background:#0f172a;display:flex;flex-direction:column;overflow:hidden;';
     modal.innerHTML = `
         <div style="background:#1e293b;padding:0.85rem 1.5rem;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
-            <h3 style="margin:0;color:#fff;font-size:1rem;"><i class="ph ph-pen" style="color:#fcd34d;"></i> Assinatura do Condutor Ã¢â‚¬â€ Multa ${m.codigo_infracao || ''}</h3>
+            <h3 style="margin:0;color:#fff;font-size:1rem;"><i class="ph ph-pen" style="color:#fcd34d;"></i> Assinatura do Condutor ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Multa ${m.codigo_infracao || ''}</h3>
             <button onclick="document.getElementById('modal-condutor-multa').remove()" style="background:rgba(255,255,255,0.1);border:none;color:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;">Fechar</button>
         </div>
         <div style="flex:1;display:flex;overflow:hidden;">
@@ -13678,7 +13706,7 @@ window.abrirModalAssinaturaCondutor = async function(m, colabId) {
             <!-- Painel assinatura -->
             <div style="width:360px;background:#fff;overflow-y:auto;padding:1.5rem;display:flex;flex-direction:column;gap:1rem;border-left:1px solid #e2e8f0;flex-shrink:0;">
                 <div style="background:#fef3c7;border-radius:8px;padding:10px;">
-                    <p style="margin:0;font-size:0.82rem;color:#92400e;"><i class="ph ph-warning"></i> <b>Role o documento atÃƒÂ© o final</b> antes de assinar.</p>
+                    <p style="margin:0;font-size:0.82rem;color:#92400e;"><i class="ph ph-warning"></i> <b>Role o documento atÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© o final</b> antes de assinar.</p>
                 </div>
                 <div>
                     <label style="font-size:0.85rem;font-weight:700;color:#374151;display:block;margin-bottom:6px;">Assinatura do Condutor *</label>
@@ -13758,7 +13786,7 @@ window.confirmarAssinaturaCondutor = async function(multaId, colabId) {
     }
 };
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Helpers de canvas Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Helpers de canvas ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
 window._initCanvasMulta = function(id) {
     const canvas = document.getElementById(id);
     if (!canvas) return;
@@ -13791,7 +13819,7 @@ window._canvasTemConteudo = function(id) {
     return false;
 };
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Helpers legados (compatibilidade) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Helpers legados (compatibilidade) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
 window.selecionarTipoMulta = function(tipo) {
     window._multaTipoSelecionado = tipo;
     ['indicacao','nic'].forEach(t => {
@@ -13857,10 +13885,10 @@ window.processarNotificacaoMulta = async function(input, colabId) {
         set('m-local', data.local_infracao); set('m-valor', data.valor_multa);
         set('m-pontuacao', data.pontuacao); set('m-ait', data.numero_ait);
         dadosDiv.style.display = 'block';
-        loader.textContent = 'Ã¢Å“â€¦ Dados extraÃƒÂ­dos! Confira e corrija se necessÃƒÂ¡rio.';
+        loader.textContent = 'ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ Dados extraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­dos! Confira e corrija se necessÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio.';
         loader.style.color = '#10b981';
     } catch(e) {
-        loader.textContent = `Ã¢Å¡Â Ã¯Â¸Â Falha ao extrair: ${e.message || 'Preencha manualmente.'}`;
+        loader.textContent = `ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Falha ao extrair: ${e.message || 'Preencha manualmente.'}`;
         loader.style.color = '#ef4444';
         document.getElementById('multa-dados').style.display = 'block';
     }
@@ -13895,7 +13923,7 @@ window.salvarNovaMulta = async function(colabId) {
 };
 
 window.excluirMulta = async function(multaId, colabId, btn) {
-    if (!confirm('Excluir este registro de multa? Esta aÃƒÂ§ÃƒÂ£o nÃƒÂ£o pode ser desfeita.')) return;
+    if (!confirm('Excluir este registro de multa? Esta aÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o pode ser desfeita.')) return;
     if (btn) { btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>'; btn.disabled = true; }
     try {
         const res = await fetch(`${API_URL}/colaboradores/${colabId}/multas/${multaId}`, {
@@ -13903,7 +13931,7 @@ window.excluirMulta = async function(multaId, colabId, btn) {
         });
         if (!res.ok) throw new Error('Falha ao excluir');
         await window._recarregarListaMultas(colabId);
-        if (typeof showToast === 'function') showToast('Multa excluÃƒÂ­da.', 'success');
+        if (typeof showToast === 'function') showToast('Multa excluÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­da.', 'success');
     } catch(e) {
         if (btn) { btn.innerHTML = '<i class="ph ph-trash"></i>'; btn.disabled = false; }
         alert('Erro: ' + e.message);
@@ -13962,5 +13990,7 @@ window.verDocumentoMulta = async function(multaId, colabId, tipo, multaObj) {
         }, 50);
     } catch(e) { alert('Erro: ' + e.message); }
 };
+
+
 
 
