@@ -3533,8 +3533,8 @@ function buildGeradoresHtml(gerador, colaborador, baseUrl) {
 <meta charset="UTF-8">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; color: #1e293b; }
-  @page { size: A4; margin: 1.8cm; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; color: #1e293b; width: 210mm; padding: 1.8cm; box-sizing: border-box; }
+  @page { size: A4; margin: 0; }
   .logo-banner img { width: 100%; display: block; margin-bottom: 12px; }
   h1.doc-title { text-align: center; font-size: 13pt; text-transform: uppercase; margin: 6px 0; }
   .colab-header { margin-top: 8px; font-size: 10pt; }
