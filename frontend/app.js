@@ -1128,11 +1128,8 @@ async function loadDepartamentos() {
             : 'background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;';
         tbody.innerHTML += `<tr>
             <td>${d.id}</td>
-            <td>${d.nome}</td>
+            <td><span style="display:flex;align-items:center;gap:0.5rem;">${d.nome} <button class="btn btn-secondary btn-sm" onclick="editDepartamento(${d.id}, '${d.nome.replace(/'/g,"\\'")}',' ${tipo}')" title="Editar" style="padding:2px 7px;font-size:0.7rem;"><i class="ph ph-pencil-simple"></i></button></span></td>
             <td><span style="${badgeColor}font-size:0.75rem;padding:2px 10px;border-radius:999px;font-weight:600;">${tipo}</span></td>
-            <td>
-                <button class="btn btn-secondary btn-sm" onclick="editDepartamento(${d.id}, '${d.nome.replace(/'/g,"\\'")}',' ${tipo}')" title="Editar"><i class="ph ph-pencil-simple"></i></button>
-            </td>
         </tr>`;
     });
 }

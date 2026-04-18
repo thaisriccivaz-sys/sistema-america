@@ -363,6 +363,9 @@ const db = new sqlite3.Database(dbPath, (err) => {
             // Migration: remover definitivamente o departamento 'Ajudante' se ainda existir
             db.run("DELETE FROM departamentos WHERE nome = 'Ajudante'");
             db.run("INSERT OR IGNORE INTO departamentos_excluidos (nome) VALUES ('Ajudante')");
+            // Migration: limpar dados de teste
+            db.run("DELETE FROM cargos WHERE LOWER(TRIM(nome)) = 'teste 3'");
+            db.run("DELETE FROM departamentos WHERE LOWER(TRIM(nome)) = 'teste'");
 
             // Migrações para adicionar colunas se não existirem
             db.serialize(() => {
