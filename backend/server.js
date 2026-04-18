@@ -3533,7 +3533,7 @@ function buildGeradoresHtml(gerador, colaborador, baseUrl) {
 <meta charset="UTF-8">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { width: 100%; }
+  html, body { width: 210mm; }
   body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; color: #1e293b; }
   @page { size: A4; margin: 0; }
   .logo-banner { width: 100%; display: block; }
@@ -3611,7 +3611,7 @@ app.get('/api/geradores/:id/preview-pdf/:colaborador_id', authenticateToken, asy
         const pdfBuffer = await htmlPdf.generatePdf(
             { content: html },
             { format: 'A4', margin: { top: '0', bottom: '0', left: '0', right: '0' },
-              printBackground: true, preferCSSPageSize: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] }
+              printBackground: true, preferCSSPageSize: true, args: ['--no-sandbox', '--disable-setuid-sandbox', '--window-size=794,1123'] }
         );
 
         res.setHeader('Content-Type', 'application/pdf');
@@ -3661,7 +3661,7 @@ app.post('/api/admissao-assinaturas/enviar-lote', authenticateToken, async (req,
                 { format: 'A4',
                   margin: { top: '0', bottom: '0', left: '0', right: '0' },
                   printBackground: true, preferCSSPageSize: true,
-                  args: ['--no-sandbox', '--disable-setuid-sandbox'] }
+                  args: ['--no-sandbox', '--disable-setuid-sandbox', '--window-size=794,1123'] }
             );
 
             const tmpDir = path.join(BASE_PATH, '_tmp_gerados');
