@@ -8011,22 +8011,9 @@ window.anexarAoProntuarioPerfil = async function(btn) {
         const elModal = document.getElementById('modal-preview-doc') || document.getElementById('doc-modal');
         if (elModal) elModal.style.display = 'none';
 
-        // Mostrar botão "Enviar para Assinatura" na linha do perfil
-        // Passa o document_id real (savedDocId) em vez do gerador_id para garantir
-        // que o documento correto receba o assinafy_id ao enviar
-        const actionDiv = document.getElementById('pg-action-' + geradorId);
-        if (actionDiv) {
-            actionDiv.innerHTML = `
-                <button class="btn btn-primary" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-size:0.95rem;font-weight:500;padding:0.55rem 1.25rem;border-radius:8px;background:#0056b3;border-color:#0056b3;color:#fff;"
-                    onclick="window.enviarAssinaturaDocSalvo(${savedDocId || geradorId}, '${(geradorNome||'').replace(/'/g,"\\'")}')">
-                    <i class="ph ph-paper-plane-tilt"></i> Enviar para Assinatura
-                </button>
-            `;
-        }
-        const statusTxt = document.getElementById('perfil-status-txt-' + geradorId);
-        if (statusTxt) statusTxt.innerHTML = '<span style="color:#7c3aed;font-weight:600;"><i class="ph ph-paperclip"></i> Documento anexado — pronto para envio</span>';
-
         if (typeof showToast !== 'undefined') showToast('Documento salvo! Clique em "Enviar para Assinatura".', 'success');
+
+        await window._reloadContratosContainer();
 
     } catch(e) {
         Swal.fire('Erro', e.message, 'error');
