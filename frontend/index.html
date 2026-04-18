@@ -1414,7 +1414,7 @@
                                 <div class="step-icon"><span class="num">2</span><span class="percent" id="step-2-pc">0%</span></div>
                                 <span class="step-label">Santander</span>
                             </div>
-                            <div class="step-item" id="step-3" onclick="window.nextAdmissaoStep(3)">
+                            <div class="step-item" id="step-3" onclick="window.nextAdmissaoStep(3)" style="display:none;">
                                 <div class="step-icon"><span class="num">3</span><span class="percent" id="step-3-pc">0%</span></div>
                                 <span class="step-label">Assinaturas</span>
                             </div>
@@ -1521,13 +1521,13 @@
 
                                 <div class="flex-between" style="margin-top:1rem;">
                                     <button class="btn btn-secondary" onclick="window.nextAdmissaoStep(1)"><i class="ph ph-arrow-left"></i> Voltar</button>
-                                    <button class="btn btn-primary" onclick="window.nextAdmissaoStep(3)">Próximo: Assinaturas <i class="ph ph-arrow-right"></i></button>
+                                    <button class="btn btn-primary" onclick="window.nextAdmissaoStep(4)">Próximo: Ficha Cadastral <i class="ph ph-arrow-right"></i></button>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- PANEL 3: ASSINATURAS (Acompanhamento) -->
-                        <div class="admissao-panel" id="panel-step-3">
+                        <!-- PANEL 3: ASSINATURAS (Oculto) -->
+                        <div class="admissao-panel" id="panel-step-3" style="display:none;">
                             <div class="card p-4">
                                 <h3 class="section-title"><i class="ph ph-signature"></i> Passo 3: Acompanhamento de Assinaturas</h3>
                                 <p class="text-muted mb-4">Acompanhe o status de assinatura dos documentos. O envio e gestão são realizados pelo Prontuário Digital.</p>
