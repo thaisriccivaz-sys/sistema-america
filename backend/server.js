@@ -30,6 +30,9 @@ db.run("CREATE TABLE IF NOT EXISTS geradores_excluidos (nome TEXT PRIMARY KEY)",
     db.run("INSERT OR IGNORE INTO geradores_excluidos (nome) VALUES ('AUTORIZACAO DE DESCONTO EM FOLHA DE PAGAMENTO')");
     db.run("INSERT OR IGNORE INTO geradores_excluidos (nome) VALUES ('Autorizar Desconto')");
 });
+// Blacklist de cargos e departamentos excluidos manualmente (impede que o seed os recrie)
+db.run("CREATE TABLE IF NOT EXISTS cargos_excluidos (nome TEXT PRIMARY KEY)");
+db.run("CREATE TABLE IF NOT EXISTS departamentos_excluidos (nome TEXT PRIMARY KEY)");
 
 // MIGRATION: Colunas de visibilidade dos geradores (Movido para database.js)
 
@@ -332,16 +335,21 @@ const cargosDeptosSync = [
 ];
 
 cargosDeptosSync.forEach(([cNome, cDepto]) => {
-    // Garante que o departamento existe
-    db.run("INSERT OR IGNORE INTO departamentos (nome) VALUES (?)", [cDepto]);
-    
-    // Atualiza ou insere o cargo
-    db.get("SELECT id FROM cargos WHERE nome = ?", [cNome], (err, row) => {
-        if (row) {
-            db.run("UPDATE cargos SET departamento = ? WHERE id = ?", [cDepto, row.id]);
-        } else {
-            db.run("INSERT INTO cargos (nome, departamento, documentos_obrigatorios) VALUES (?, ?, '')", [cNome, cDepto]);
-        }
+    // Pula se foi excluido manualmente pelo usuario
+    db.get("SELECT nome FROM cargos_excluidos WHERE nome = ?", [cNome], (err, excluido) => {
+        if (excluido) return;
+        // Garante que o departamento existe (se nao foi excluido)
+        db.get("SELECT nome FROM departamentos_excluidos WHERE nome = ?", [cDepto], (e2, dexcluido) => {
+            if (!dexcluido) db.run("INSERT OR IGNORE INTO departamentos (nome) VALUES (?)", [cDepto]);
+        });
+        // Atualiza ou insere o cargo
+        db.get("SELECT id FROM cargos WHERE nome = ?", [cNome], (err2, row) => {
+            if (row) {
+                db.run("UPDATE cargos SET departamento = ? WHERE id = ?", [cDepto, row.id]);
+            } else {
+                db.run("INSERT INTO cargos (nome, departamento, documentos_obrigatorios) VALUES (?, ?, '')", [cNome, cDepto]);
+            }
+        });
     });
 });
 
@@ -3388,14 +3396,24 @@ app.put('/api/cargos/:id', authenticateToken, (req, res) => {
 app.delete('/api/cargos/:id', authenticateToken, (req, res) => {
     db.get("SELECT nome FROM cargos WHERE id = ?", [req.params.id], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
-        if (row && row.nome.trim().toUpperCase() === 'MOTORISTA') {
+        if (!row) return res.status(404).json({ error: 'Cargo não encontrado.' });
+        if (row.nome.trim().toUpperCase() === 'MOTORISTA') {
             return res.status(403).json({ error: 'O cargo Motorista é fixo e não pode ser apagado do sistema.' });
         }
-        db.serialize(() => {
-            db.run("DELETE FROM cargo_documentos WHERE cargo_id = ?", [req.params.id]);
-            db.run("DELETE FROM cargos WHERE id = ?", [req.params.id], function(delErr) {
-                if (delErr) return res.status(500).json({ error: delErr.message });
-                res.json({ message: 'Cargo removido' });
+        // Verificar se algum colaborador usa este cargo
+        db.get("SELECT COUNT(*) as total FROM colaboradores WHERE LOWER(TRIM(cargo)) = LOWER(TRIM(?))", [row.nome], (err2, count) => {
+            if (err2) return res.status(500).json({ error: err2.message });
+            if (count && count.total > 0) {
+                return res.status(409).json({ error: `Não é possível excluir o cargo "${row.nome}" pois há ${count.total} colaborador(es) cadastrado(s) com ele.` });
+            }
+            db.serialize(() => {
+                // Registra na blacklist para que o seed nao recrie
+                db.run("INSERT OR IGNORE INTO cargos_excluidos (nome) VALUES (?)", [row.nome]);
+                db.run("DELETE FROM cargo_documentos WHERE cargo_id = ?", [req.params.id]);
+                db.run("DELETE FROM cargos WHERE id = ?", [req.params.id], function(delErr) {
+                    if (delErr) return res.status(500).json({ error: delErr.message });
+                    res.json({ message: 'Cargo removido permanentemente.' });
+                });
             });
         });
     });
@@ -3457,9 +3475,22 @@ app.put('/api/departamentos/:id', authenticateToken, (req, res) => {
 });
 
 app.delete('/api/departamentos/:id', authenticateToken, (req, res) => {
-    db.run("DELETE FROM departamentos WHERE id = ?", [req.params.id], function(err) {
+    db.get("SELECT nome FROM departamentos WHERE id = ?", [req.params.id], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
-        res.json({ message: 'Departamento removido' });
+        if (!row) return res.status(404).json({ error: 'Departamento não encontrado.' });
+        // Verificar se algum colaborador está neste departamento
+        db.get("SELECT COUNT(*) as total FROM colaboradores WHERE LOWER(TRIM(departamento)) = LOWER(TRIM(?))", [row.nome], (err2, count) => {
+            if (err2) return res.status(500).json({ error: err2.message });
+            if (count && count.total > 0) {
+                return res.status(409).json({ error: `Não é possível excluir o departamento "${row.nome}" pois há ${count.total} colaborador(es) cadastrado(s) nele.` });
+            }
+            // Registra na blacklist para que o seed nao recrie
+            db.run("INSERT OR IGNORE INTO departamentos_excluidos (nome) VALUES (?)", [row.nome]);
+            db.run("DELETE FROM departamentos WHERE id = ?", [req.params.id], function(delErr) {
+                if (delErr) return res.status(500).json({ error: delErr.message });
+                res.json({ message: 'Departamento removido permanentemente.' });
+            });
+        });
     });
 });
 
