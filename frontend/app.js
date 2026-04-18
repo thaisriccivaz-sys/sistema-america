@@ -6811,7 +6811,7 @@ window.processarGeracao = async function() {
                                 margin: 0,
                                 filename: nomeArquivo, 
                                 image: { type: 'jpeg', quality: 0.98 },
-                                html2canvas: { scale: 2, useCORS: true },
+                                html2canvas: { scale: 2, useCORS: true, windowWidth: 794, scrollY: 0 },
                                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
                                 pagebreak: { mode: ['avoid-all', 'css', 'legacy'], before: '.page-break', avoid: ['p', 'li'] }
                             };
@@ -6819,16 +6819,22 @@ window.processarGeracao = async function() {
                             const origWidth    = previewContent.style.width;
                             const origMaxWidth = previewContent.style.maxWidth;
                             const origMinH     = previewContent.style.minHeight;
+                            const origBorder   = previewContent.style.border;
+                            const origShadow   = previewContent.style.boxShadow;
 
                             previewContent.style.width     = '794px';
                             previewContent.style.maxWidth  = '794px';
                             previewContent.style.minHeight = '0';
+                            previewContent.style.border    = 'none';
+                            previewContent.style.boxShadow = 'none';
 
                             const pdfBlob = await html2pdf().set(opt).from(previewContent).output('blob');
                             
                             previewContent.style.width     = origWidth;
                             previewContent.style.maxWidth  = origMaxWidth;
                             previewContent.style.minHeight = origMinH;
+                            previewContent.style.border    = origBorder;
+                            previewContent.style.boxShadow = origShadow;
                             
                             const formData = new FormData();
                             formData.append('file', new File([pdfBlob], nomeArquivo, { type: 'application/pdf' }));
@@ -6915,7 +6921,7 @@ window.abrirPreviewDocumento = function(data) {
                     margin: 0,
                     filename: nomeArquivo,
                     image: { type: 'jpeg', quality: 0.98 },
-                    html2canvas: { scale: 2, useCORS: true },
+                    html2canvas: { scale: 2, useCORS: true, windowWidth: 794, scrollY: 0 },
                     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
                     pagebreak: { mode: ['avoid-all', 'css', 'legacy'], before: '.page-break', avoid: ['p', 'li'] }
                 };
@@ -6923,13 +6929,22 @@ window.abrirPreviewDocumento = function(data) {
                 const origWidth    = previewContent.style.width;
                 const origMaxWidth = previewContent.style.maxWidth;
                 const origMinH     = previewContent.style.minHeight;
+                const origBorder   = previewContent.style.border;
+                const origShadow   = previewContent.style.boxShadow;
+
                 previewContent.style.width     = '794px';
                 previewContent.style.maxWidth  = '794px';
                 previewContent.style.minHeight = '0';
+                previewContent.style.border    = 'none';
+                previewContent.style.boxShadow = 'none';
+
                 const pdfBlob = await html2pdf().set(opt).from(previewContent).output('blob');
+
                 previewContent.style.width     = origWidth;
                 previewContent.style.maxWidth  = origMaxWidth;
                 previewContent.style.minHeight = origMinH;
+                previewContent.style.border    = origBorder;
+                previewContent.style.boxShadow = origShadow;
 
                 // Determinar colaborador_id: prioridade viewedColaborador, depois data.colaborador.ID (retornado pelo backend /gerar)
                 const colaboradorId = (viewedColaborador && viewedColaborador.id)
@@ -8627,7 +8642,7 @@ window.gerarContratoAvulso = async function() {
                             margin: 0,
                             filename: nomeArquivo,
                             image: { type: 'jpeg', quality: 0.98 },
-                            html2canvas: { scale: 2, useCORS: true },
+                            html2canvas: { scale: 2, useCORS: true, windowWidth: 794, scrollY: 0 },
                             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
                             pagebreak: { mode: ['avoid-all', 'css', 'legacy'], before: '.page-break', avoid: ['p', 'li'] }
                         };
@@ -8635,15 +8650,22 @@ window.gerarContratoAvulso = async function() {
                         const origWidth    = htmlTemplate.style.width;
                         const origMaxWidth = htmlTemplate.style.maxWidth;
                         const origMinH     = htmlTemplate.style.minHeight;
+                        const origBorder   = htmlTemplate.style.border;
+                        const origShadow   = htmlTemplate.style.boxShadow;
+
                         htmlTemplate.style.width     = '794px';
                         htmlTemplate.style.maxWidth  = '794px';
                         htmlTemplate.style.minHeight = '0';
+                        htmlTemplate.style.border    = 'none';
+                        htmlTemplate.style.boxShadow = 'none';
 
                         const pdfBlob = await html2pdf().set(opt).from(htmlTemplate).output('blob');
 
                         htmlTemplate.style.width     = origWidth;
                         htmlTemplate.style.maxWidth  = origMaxWidth;
                         htmlTemplate.style.minHeight = origMinH;
+                        htmlTemplate.style.border    = origBorder;
+                        htmlTemplate.style.boxShadow = origShadow;
 
                         const file = new File([pdfBlob], nomeArquivo, { type: 'application/pdf' });
                         const formData = new FormData();
