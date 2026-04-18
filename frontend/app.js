@@ -24,29 +24,37 @@ let viewedColaborador = null;
 window.gerarPDFBlob = async function(element, filename = 'documento.pdf') {
     return new Promise((resolve, reject) => {
         if (typeof html2pdf === 'undefined') return reject(new Error('Biblioteca html2pdf não carregada'));
-        
-        // Clone para evitar que o scroll/modal afete a posição do canvas (causando cortes ou bordas brancas)
-        const clone = element.cloneNode(true);
-        const wrapper = document.createElement('div');
-        wrapper.style.position = 'absolute';
-        wrapper.style.top = '0px';
-        wrapper.style.left = '0px';
-        wrapper.style.width = '794px';
-        wrapper.style.margin = '0';
-        wrapper.style.padding = '0';
-        wrapper.style.background = 'white';
-        wrapper.style.zIndex = '-9999';
-        
-        clone.style.width = '794px';
-        clone.style.maxWidth = '794px';
-        clone.style.minHeight = '0';
-        clone.style.border = 'none';
-        clone.style.boxShadow = 'none';
-        clone.style.margin = '0';
-        clone.style.transform = 'none';
-        
-        wrapper.appendChild(clone);
-        document.body.appendChild(wrapper);
+
+        // Salvar estilo original
+        const origWidth    = element.style.width;
+        const origMaxWidth = element.style.maxWidth;
+        const origMinH     = element.style.minHeight;
+        const origBorder   = element.style.border;
+        const origShadow   = element.style.boxShadow;
+        const origMargin   = element.style.margin;
+
+        // Limpar estilo para não vazar bordas (evita 2a pagina vazia)
+        element.style.width     = '794px';
+        element.style.maxWidth  = '794px';
+        element.style.minHeight = '0';
+        element.style.border    = 'none';
+        element.style.boxShadow = 'none';
+        element.style.margin    = '0';
+
+        // Salvar e zerar rolagem da janela e de qualquer container pai para evitar branco no topo
+        const origWinScrollY = window.scrollY;
+        const origWinScrollX = window.scrollX;
+        window.scrollTo(0, 0);
+
+        let parentScrolls = [];
+        let scrollableParent = element.parentElement;
+        while (scrollableParent && scrollableParent !== document.body && scrollableParent !== document.documentElement) {
+            if (scrollableParent.scrollTop > 0) {
+                parentScrolls.push({ el: scrollableParent, top: scrollableParent.scrollTop });
+                scrollableParent.scrollTop = 0;
+            }
+            scrollableParent = scrollableParent.parentElement;
+        }
 
         const opt = {
             margin: 0,
@@ -59,14 +67,28 @@ window.gerarPDFBlob = async function(element, filename = 'documento.pdf') {
 
         html2pdf()
             .set(opt)
-            .from(wrapper)
+            .from(element)
             .output('blob')
             .then(blob => {
-                document.body.removeChild(wrapper);
+                element.style.width     = origWidth;
+                element.style.maxWidth  = origMaxWidth;
+                element.style.minHeight = origMinH;
+                element.style.border    = origBorder;
+                element.style.boxShadow = origShadow;
+                element.style.margin    = origMargin;
+                parentScrolls.forEach(s => s.el.scrollTop = s.top);
+                window.scrollTo(origWinScrollX, origWinScrollY);
                 resolve(blob);
             })
             .catch(err => {
-                if(document.body.contains(wrapper)) document.body.removeChild(wrapper);
+                element.style.width     = origWidth;
+                element.style.maxWidth  = origMaxWidth;
+                element.style.minHeight = origMinH;
+                element.style.border    = origBorder;
+                element.style.boxShadow = origShadow;
+                element.style.margin    = origMargin;
+                parentScrolls.forEach(s => s.el.scrollTop = s.top);
+                window.scrollTo(origWinScrollX, origWinScrollY);
                 reject(err);
             });
     });
