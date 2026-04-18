@@ -431,7 +431,15 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     if (!cols.includes('atestado_tipo'))  db.run("ALTER TABLE documentos ADD COLUMN atestado_tipo TEXT");  // 'dias' | 'horas'
                     if (!cols.includes('atestado_inicio')) db.run("ALTER TABLE documentos ADD COLUMN atestado_inicio TEXT"); // data ISO ou HH:MM
                     if (!cols.includes('atestado_fim'))    db.run("ALTER TABLE documentos ADD COLUMN atestado_fim TEXT");   // data ISO ou HH:MM
-                    if (!cols.includes('atestado_contab_enviado_em')) db.run("ALTER TABLE documentos ADD COLUMN atestado_contab_enviado_em DATETIME"); // timestamp envio contabilidade
+                });
+                
+                // Geradores
+                db.all("PRAGMA table_info(geradores)", (err, rows) => {
+                    if (err || !rows) return;
+                    const cols = rows.map(r => r.name);
+                    if (!cols.includes('tipo')) db.run("ALTER TABLE geradores ADD COLUMN tipo TEXT DEFAULT 'html'");
+                    if (!cols.includes('is_sinistro_only')) db.run("ALTER TABLE geradores ADD COLUMN is_sinistro_only INTEGER DEFAULT 0");
+                    if (!cols.includes('visibilidade_regra')) db.run("ALTER TABLE geradores ADD COLUMN visibilidade_regra TEXT");
                 });
             });
 

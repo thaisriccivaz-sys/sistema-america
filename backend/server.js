@@ -31,9 +31,7 @@ db.run("CREATE TABLE IF NOT EXISTS geradores_excluidos (nome TEXT PRIMARY KEY)",
     db.run("INSERT OR IGNORE INTO geradores_excluidos (nome) VALUES ('Autorizar Desconto')");
 });
 
-// MIGRATION: Colunas de visibilidade dos geradores
-db.run("ALTER TABLE geradores ADD COLUMN is_sinistro_only INTEGER DEFAULT 0", () => {});
-db.run("ALTER TABLE geradores ADD COLUMN visibilidade_regra TEXT", () => {});
+// MIGRATION: Colunas de visibilidade dos geradores (Movido para database.js)
 
 // MIGRATION: Marcar geradores de sinistro
 const sinistroNomes = [
@@ -69,6 +67,7 @@ const REGRAS_VISIBILIDADE = [
     { nome: 'Responsabilidade Equipamento',       regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: null, departamentos: ['Administrativo'] } },
     { nome: 'Responsabilidade Veículo',           regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: null, departamentos: ['Motoristas','Liderança'] } },
     { nome: 'Termo de Confidencialidade',         regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: null, departamentos: null } },
+    { nome: 'Aceite de Recebimento por E-mail',   regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: null, departamentos: null } },
 ];
 REGRAS_VISIBILIDADE.forEach(({ nome, regra }) => {
     db.run("UPDATE geradores SET visibilidade_regra = ? WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?))",
@@ -308,9 +307,9 @@ GERADORES_PERFIL.forEach(nome => {
         });
     });
 
-    // Regra de visibilidade: aparece no dropdown para todos, mas não é automático
+    // Regra de visibilidade: aparece no dropdown para todos, e é visível automaticamente na aba contratos
     db.run("UPDATE geradores SET visibilidade_regra = ? WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?))",
-        [JSON.stringify({ dropdown_todos: true, visivel_automatico: false, condicao: null, departamentos: null }), nomeGerador]
+        [JSON.stringify({ dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null }), nomeGerador]
     );
 })();
 
