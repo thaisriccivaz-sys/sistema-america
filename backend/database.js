@@ -466,7 +466,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
             // Migration: adicionar coluna 'categoria' à tabela epi_templates
             db.run(`ALTER TABLE epi_templates ADD COLUMN categoria TEXT DEFAULT 'Outros'`, (err) => {});
             // Migration: atualizar categoria dos templates existentes pelo nome
-            db.run(`UPDATE epi_templates SET categoria='Operacional' WHERE grupo IN ('Manutenção','Limpeza','Motorista','Ajudante','Ajudante Pátio','Ajudante Pátio e Liderança')`);
+            db.run(`UPDATE epi_templates SET categoria='Operacional' WHERE grupo IN ('Manutenção','Limpeza','Motorista','Ajudante','Ajudante Pátio','Ajudante Pátio e Liderança','Ajudante Pátio, Liderança')`);
             db.run(`UPDATE epi_templates SET categoria='Administrativo' WHERE grupo IN ('Escritório')`);
 
             // Tabela de Templates de EPI por departamento

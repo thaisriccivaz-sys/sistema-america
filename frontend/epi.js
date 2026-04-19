@@ -6,7 +6,7 @@ let epiTemplates = [];
 let editingEpiId = null;
 let allDepartamentos = [];
 
-const GRUPOS_OPERACIONAL = ['Manutenção', 'Limpeza', 'Motorista', 'Ajudante', 'Ajudante Pátio e Liderança']; // legado — usado como fallback
+const GRUPOS_OPERACIONAL = ['Manutenção', 'Limpeza', 'Motorista', 'Ajudante', 'Ajudante Pátio', 'Ajudante Pátio e Liderança', 'Ajudante Pátio, Liderança']; // legado — usado como fallback
 const GRUPOS_ADMIN      = ['Escritório'];
 
 const TERMO_PADRAO = '•Confirmo perante minha assinatura que recebi o Equipamento de Proteção Individual - EPI, da Empresa: AMERICA RENTAL EQUIPAMENTOS LTDA. Vinculada ao CNPJ: 03.434.448/0001-01 de Inscrição estadual IE: 336.715.410.116 conforme descrito abaixo, para uso exclusivo no local de trabalho, conforme regulamentação da Norma Regulamentadora Nº 6, do Ministério do Trabalho e Emprego.\n•Declaro que estou ciente da obrigatoriedade do uso do EPI e da responsabilidade de usá-lo e conservá-lo. Minha recusa injustificada na utilização deste equipamento ou seu mau uso, constitui ato faltoso, conforme disposto no artigo 158 da CLT.\n•Declaro estar ciente da obrigatoriedade da devolução do Equipamento atual, quando da troca ou substituição dos mesmos.';
