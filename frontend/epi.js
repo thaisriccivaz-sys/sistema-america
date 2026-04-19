@@ -413,7 +413,26 @@ window.openEpiModal = function(id) {
     const deptSection = deptContainer.parentElement;
     if (deptSection) deptSection.style.display = isEscritorioOuNovo ? '' : 'none';
 
+    
     const episList = document.getElementById('epi-items-list');
+    
+    // Configura o drag and drop global no contêiner se não estiver configurado
+    if (!episList.hasAttribute('data-drag-init')) {
+        episList.setAttribute('data-drag-init', 'true');
+        episList.addEventListener('dragover', e => {
+            e.preventDefault(); // Necessário para permitir o drop no contêiner
+            e.dataTransfer.dropEffect = 'move';
+        });
+        episList.addEventListener('drop', e => {
+            e.preventDefault();
+            // Solta no espaço vazio, insere antes do placeholder se ele existir
+            if (_epiDragSrc && _epiPlaceholder && _epiPlaceholder.parentNode) {
+                _epiPlaceholder.parentNode.insertBefore(_epiDragSrc, _epiPlaceholder);
+                _epiPlaceholder.parentNode.removeChild(_epiPlaceholder);
+            }
+        });
+    }
+
     episList.innerHTML = '';
     (t ? (t.epis || []) : []).forEach(epi => addEpiRow(epi));
 
@@ -443,9 +462,10 @@ function addEpiRow(value = '') {
 
     const handle = row.querySelector('.epi-drag-handle');
 
-    // Só ativa draggable ao pressionar o handle
-    handle.addEventListener('mousedown', () => { row.draggable = true; });
-    document.addEventListener('mouseup', () => { row.draggable = false; }, { once: false });
+    // Ativa drag apenas pelo handle
+    handle.addEventListener('mousedown', () => { row.setAttribute('draggable', 'true'); });
+    handle.addEventListener('mouseup', () => { row.removeAttribute('draggable'); });
+    handle.addEventListener('mouseleave', () => { row.removeAttribute('draggable'); });
 
     row.addEventListener('dragstart', (e) => {
         _epiDragSrc = row;
@@ -460,7 +480,7 @@ function addEpiRow(value = '') {
 
     row.addEventListener('dragend', () => {
         if (_epiDragSrc) _epiDragSrc.style.opacity = '';
-        row.draggable = false;
+        row.removeAttribute('draggable');
         if (_epiPlaceholder && _epiPlaceholder.parentNode) {
             _epiPlaceholder.parentNode.removeChild(_epiPlaceholder);
         }
@@ -471,6 +491,7 @@ function addEpiRow(value = '') {
 
     row.addEventListener('dragover', (e) => {
         e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
         if (!_epiDragSrc || _epiDragSrc === row || !_epiPlaceholder) return;
         const mid = row.getBoundingClientRect().top + row.getBoundingClientRect().height / 2;
         if (e.clientY < mid) {
@@ -483,11 +504,18 @@ function addEpiRow(value = '') {
     row.addEventListener('drop', (e) => {
         e.preventDefault();
         if (!_epiDragSrc || _epiDragSrc === row) return;
-        const mid = row.getBoundingClientRect().top + row.getBoundingClientRect().height / 2;
-        if (e.clientY < mid) {
-            row.parentNode.insertBefore(_epiDragSrc, row);
+        // Substitui o placeholder real com o src arrastado
+        if (_epiPlaceholder && _epiPlaceholder.parentNode) {
+            _epiPlaceholder.parentNode.insertBefore(_epiDragSrc, _epiPlaceholder);
+            _epiPlaceholder.parentNode.removeChild(_epiPlaceholder);
         } else {
-            row.parentNode.insertBefore(_epiDragSrc, row.nextSibling);
+            // Fallback se placeholder se perder
+            const mid = row.getBoundingClientRect().top + row.getBoundingClientRect().height / 2;
+            if (e.clientY < mid) {
+                row.parentNode.insertBefore(_epiDragSrc, row);
+            } else {
+                row.parentNode.insertBefore(_epiDragSrc, row.nextSibling);
+            }
         }
     });
 

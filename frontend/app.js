@@ -1,4 +1,4 @@
-﻿const API_URL = `${window.location.origin}/api`;
+const API_URL = `${window.location.origin}/api`;
 function showToast(msg, type) {
     const toast = document.getElementById('global-toast');
     if (toast) {
@@ -23,7 +23,7 @@ let viewedColaborador = null;
 // Helper global para PDF
 window.gerarPDFBlob = async function(element, filename = 'documento.pdf') {
     return new Promise((resolve, reject) => {
-        if (typeof html2pdf === 'undefined') return reject(new Error('Biblioteca html2pdf nÃ£o carregada'));
+        if (typeof html2pdf === 'undefined') return reject(new Error('Biblioteca html2pdf não carregada'));
 
         // Salvar estilo original
         const origWidth    = element.style.width;
@@ -33,7 +33,7 @@ window.gerarPDFBlob = async function(element, filename = 'documento.pdf') {
         const origShadow   = element.style.boxShadow;
         const origMargin   = element.style.margin;
 
-        // Limpar estilo para nÃ£o vazar bordas (evita 2a pagina vazia)
+        // Limpar estilo para não vazar bordas (evita 2a pagina vazia)
         element.style.width     = '794px';
         element.style.maxWidth  = '794px';
         element.style.minHeight = '0';
@@ -57,7 +57,7 @@ window.gerarPDFBlob = async function(element, filename = 'documento.pdf') {
         }
 
         const opt = {
-            margin: [5, 0, 10, 0], // 5mm topo, 0 esq, 10mm inferior, 0 dir para margem de seguranÃ§a na emenda das pÃ¡ginas
+            margin: [5, 0, 10, 0], // 5mm topo, 0 esq, 10mm inferior, 0 dir para margem de segurança na emenda das páginas
             filename: filename,
             image: { type: 'jpeg', quality: 0.98 },
             html2canvas: { scale: 2, useCORS: true },
@@ -94,18 +94,18 @@ window.gerarPDFBlob = async function(element, filename = 'documento.pdf') {
     });
 };
 
-// --- INICIALIZAÃ‡ÃƒO E ROTAS BÃSICAS ---
+// --- INICIALIZAÇÃO E ROTAS BÁSICAS ---
 
 const DOCS_DISPONIVEIS = [
-    "Acordo Individual BenefÃ­cios", "AutorizaÃ§Ã£o Uso de Imagem", "AuxÃ­lio CombustÃ­vel", 
-    "Coca Cola Desconto", "Contrato Academia", "Contrato Faculdade", "DescriÃ§Ã£o de cargos", 
+    "Acordo Individual Benefícios", "Autorização Uso de Imagem", "Auxílio Combustível", 
+    "Coca Cola Desconto", "Contrato Academia", "Contrato Faculdade", "Descrição de cargos", 
     "EPI", "Gerador Bloqueio Farmacia e mercado", "Gerador Desconto folha", 
     "Gerador Sorteio", "Intermitente", "NR01", "NR18", "Pedido Abertura de Conta", 
     "Terapia", "Termo de Acordo de Desligamento", "Termo de Confidencialidade", 
     "Termo de Responsabilidade Bilhete unico", "Termo de Responsabilidade Cracha", 
     "Termo de Responsabilidade de Celulares", "Termo de Responsabilidade de Chaves", 
     "Termo de Responsabilidade de Notebook", "Termo de Responsabilidade entrega de kit veicular", 
-    "Termo de Responsabilidade VeÃ­culo"
+    "Termo de Responsabilidade Veículo"
 ];
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -136,7 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 navigateTo('dashboard');
             }
         } else {
-            console.warn('O elemento app-shell nÃ£o foi encontrado. Interface antiga detectada ou HTML incompleto.');
+            console.warn('O elemento app-shell não foi encontrado. Interface antiga detectada ou HTML incompleto.');
             const formSection = document.querySelector('.form-section');
             if (formSection) formSection.style.display = 'block';
         }
@@ -145,7 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// â”€â”€ LEMBRAR USUÃRIO: preencher campos se houver dados salvos â”€â”€
+// ── LEMBRAR USUÁRIO: preencher campos se houver dados salvos ──
 (function() {
     const saved = localStorage.getItem('erp_remember');
     if (saved) {
@@ -204,7 +204,7 @@ if (formLogin) {
 
             carregarFotoUsuarioTopbar();
 
-            // Carrega permissÃµes se existir funÃ§Ã£o global
+            // Carrega permissões se existir função global
             if (typeof window.carregarPermissoesOnline === 'function') {
                 await window.carregarPermissoesOnline();
             }
@@ -300,117 +300,117 @@ function showView(viewId) {
     }
 }
 
-// â”€â”€ BREADCRUMB SYSTEM â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── BREADCRUMB SYSTEM ───────────────────────────────────────────────────────
 const BREADCRUMB_MAP = {
     // Telas principais
-    'integracao': { path: 'IntegraÃ§Ã£o', code: 'RHAD06' },
+    'integracao': { path: 'Integração', code: 'RHAD06' },
     'assinaturas-digitais': { path: 'Assinaturas Digitais', code: 'RHAD07' },
     'dashboard':          { path: 'Dashboard',                                                    code: 'RH001' },
     'colaboradores':      { path: 'Colaboradores',                                                code: 'RHCL00' },
-    'form-colaborador':   { path: 'Colaboradores â†’ Cadastro / EdiÃ§Ã£o'                             },
+    'form-colaborador':   { path: 'Colaboradores → Cadastro / Edição'                             },
     'cargos':             { path: 'Cargos',                                                       code: 'RHAD01' },
     'departamentos':      { path: 'Departamentos',                                                code: 'RHAD02' },
     'faculdade':          { path: 'Faculdade',                                                    code: 'RHAD03' },
     'chaves':             { path: 'Chaves',                                                       code: 'RHAD04' },
     'geradores':          { path: 'Geradores',                                                    code: 'RHDOC01' },
-    'admissao':           { path: 'AdmissÃ£o',                                                     code: 'RHAD05' },
+    'admissao':           { path: 'Admissão',                                                     code: 'RHAD05' },
     'ficha-epi':          { path: 'Ficha EPI',                                                    code: 'RHEPI01' },
-    'avaliacoes':         { path: 'AvaliaÃ§Ãµes',                                                   code: 'RHAV01' },
-    'gerenciar-avaliacoes': { path: 'Gerenciar AvaliaÃ§Ãµes',                                       code: 'RHAV02' },
-    'usuarios-permissoes':  { path: 'Diretoria â†’ UsuÃ¡rios e PermissÃµes',                          code: 'DIR001' },
-    'form-usuario':         { path: 'Diretoria â†’ UsuÃ¡rios e PermissÃµes â†’ Cadastro',               code: 'DIR002' },
-    'certificado-digital':  { path: 'Diretoria â†’ Certificado Digital',                            code: 'DIR003' },
-    // Sub-telas (ProntuÃ¡rio Digital - abas)
-    'tab:00. CheckList':          { path: 'Colaboradores â†’ ProntuÃ¡rio Digital â†’ 00. CheckList',          },
-    'tab:01_FICHA_CADASTRAL':     { path: 'Colaboradores â†’ ProntuÃ¡rio Digital â†’ Ficha Cadastral',        },
-    'tab:Ficha Cadastral':        { path: 'Colaboradores â†’ ProntuÃ¡rio Digital â†’ Ficha Cadastral',        },
-    'tab:Pagamentos':             { path: 'Colaboradores â†’ ProntuÃ¡rio Digital â†’ Pagamentos',             },
-    'tab:ASO':                    { path: 'Colaboradores â†’ ProntuÃ¡rio Digital â†’ ASO',                    },
-    'tab:Ficha de EPI':           { path: 'Colaboradores â†’ ProntuÃ¡rio Digital â†’ Ficha de EPI',           },
-    'tab:Atestados':              { path: 'Colaboradores â†’ ProntuÃ¡rio Digital â†’ Atestados',              },
-    'tab:Faltas':                 { path: 'Colaboradores â†’ ProntuÃ¡rio Digital â†’ Faltas',                 },
-    'tab:Contratos':              { path: 'Colaboradores â†’ ProntuÃ¡rio Digital â†’ Contratos',              },
-    'tab:AvaliaÃ§Ã£o':              { path: 'Colaboradores â†’ ProntuÃ¡rio Digital â†’ AvaliaÃ§Ã£o',              },
-    'tab:AvaliaÃ§Ãµes':             { path: 'Colaboradores â†’ ProntuÃ¡rio Digital â†’ AvaliaÃ§Ãµes',             },
-    'tab:AdvertÃªncias':           { path: 'Colaboradores â†’ ProntuÃ¡rio Digital â†’ OcorrÃªncias',           },
-    'tab:Faculdade':              { path: 'Colaboradores â†’ ProntuÃ¡rio Digital â†’ Faculdade',              },
-    'tab:Boletim de ocorrÃªncia':  { path: 'Colaboradores â†’ ProntuÃ¡rio Digital â†’ Boletim de OcorrÃªncia',  },
-    'tab:Certificados':           { path: 'Colaboradores â†’ ProntuÃ¡rio Digital â†’ Certificados',           },
-    'tab:Conjuge':                { path: 'Colaboradores â†’ ProntuÃ¡rio Digital â†’ Conjuge',                },
-    'tab:Dependentes':            { path: 'Colaboradores â†’ ProntuÃ¡rio Digital â†’ Dependentes',            },
-    'tab:Fotos':                  { path: 'Colaboradores â†’ ProntuÃ¡rio Digital â†’ Fotos',                  },
-    'tab:Multas':                 { path: 'Colaboradores â†’ ProntuÃ¡rio Digital â†’ Multas',                 },
-    'tab:NRs':                    { path: 'Colaboradores â†’ ProntuÃ¡rio Digital â†’ NRs',                    },
-    'tab:Terapia':                { path: 'Colaboradores â†’ ProntuÃ¡rio Digital â†’ Terapia',                },
-    'tab:Treinamento':            { path: 'Colaboradores â†’ ProntuÃ¡rio Digital â†’ Treinamento',            },
-    'tab:Documentos':             { path: 'Colaboradores â†’ ProntuÃ¡rio Digital â†’ Documentos',             },
-    'tab:Afastamentos':           { path: 'Colaboradores â†’ ProntuÃ¡rio Digital â†’ Afastamentos',           },
-    'tab:Chaves':                 { path: 'Colaboradores â†’ ProntuÃ¡rio Digital â†’ Chaves',                 },
-    'tab:ProntuÃ¡rio Digital':     { path: 'Colaboradores â†’ ProntuÃ¡rio Digital',                          },
+    'avaliacoes':         { path: 'Avaliações',                                                   code: 'RHAV01' },
+    'gerenciar-avaliacoes': { path: 'Gerenciar Avaliações',                                       code: 'RHAV02' },
+    'usuarios-permissoes':  { path: 'Diretoria → Usuários e Permissões',                          code: 'DIR001' },
+    'form-usuario':         { path: 'Diretoria → Usuários e Permissões → Cadastro',               code: 'DIR002' },
+    'certificado-digital':  { path: 'Diretoria → Certificado Digital',                            code: 'DIR003' },
+    // Sub-telas (Prontuário Digital - abas)
+    'tab:00. CheckList':          { path: 'Colaboradores → Prontuário Digital → 00. CheckList',          },
+    'tab:01_FICHA_CADASTRAL':     { path: 'Colaboradores → Prontuário Digital → Ficha Cadastral',        },
+    'tab:Ficha Cadastral':        { path: 'Colaboradores → Prontuário Digital → Ficha Cadastral',        },
+    'tab:Pagamentos':             { path: 'Colaboradores → Prontuário Digital → Pagamentos',             },
+    'tab:ASO':                    { path: 'Colaboradores → Prontuário Digital → ASO',                    },
+    'tab:Ficha de EPI':           { path: 'Colaboradores → Prontuário Digital → Ficha de EPI',           },
+    'tab:Atestados':              { path: 'Colaboradores → Prontuário Digital → Atestados',              },
+    'tab:Faltas':                 { path: 'Colaboradores → Prontuário Digital → Faltas',                 },
+    'tab:Contratos':              { path: 'Colaboradores → Prontuário Digital → Contratos',              },
+    'tab:Avaliação':              { path: 'Colaboradores → Prontuário Digital → Avaliação',              },
+    'tab:Avaliações':             { path: 'Colaboradores → Prontuário Digital → Avaliações',             },
+    'tab:Advertências':           { path: 'Colaboradores → Prontuário Digital → Ocorrências',           },
+    'tab:Faculdade':              { path: 'Colaboradores → Prontuário Digital → Faculdade',              },
+    'tab:Boletim de ocorrência':  { path: 'Colaboradores → Prontuário Digital → Boletim de Ocorrência',  },
+    'tab:Certificados':           { path: 'Colaboradores → Prontuário Digital → Certificados',           },
+    'tab:Conjuge':                { path: 'Colaboradores → Prontuário Digital → Conjuge',                },
+    'tab:Dependentes':            { path: 'Colaboradores → Prontuário Digital → Dependentes',            },
+    'tab:Fotos':                  { path: 'Colaboradores → Prontuário Digital → Fotos',                  },
+    'tab:Multas':                 { path: 'Colaboradores → Prontuário Digital → Multas',                 },
+    'tab:NRs':                    { path: 'Colaboradores → Prontuário Digital → NRs',                    },
+    'tab:Terapia':                { path: 'Colaboradores → Prontuário Digital → Terapia',                },
+    'tab:Treinamento':            { path: 'Colaboradores → Prontuário Digital → Treinamento',            },
+    'tab:Documentos':             { path: 'Colaboradores → Prontuário Digital → Documentos',             },
+    'tab:Afastamentos':           { path: 'Colaboradores → Prontuário Digital → Afastamentos',           },
+    'tab:Chaves':                 { path: 'Colaboradores → Prontuário Digital → Chaves',                 },
+    'tab:Prontuário Digital':     { path: 'Colaboradores → Prontuário Digital',                          },
 };
 
 window.carregarPermissoesOnline = async function() {
     if (!currentUser || !currentToken) return;
 
-    // Define quem Ã© super admin e pode ver tudo por padrÃ£o (Apenas Diretoria!)
-    // Verifica: role do banco, departamento OU nome do grupo de permissÃ£o
+    // Define quem é super admin e pode ver tudo por padrão (Apenas Diretoria!)
+    // Verifica: role do banco, departamento OU nome do grupo de permissão
     const isTopAdmin = currentUser.role === 'Diretoria' 
         || currentUser.departamento === 'Diretoria'
         || (currentUser.grupo_nome && currentUser.grupo_nome.toLowerCase() === 'diretoria');
     window.isTopAdmin = isTopAdmin;
 
-    // Remove qualquer display-none forÃ§ado das categorias primeiro
+    // Remove qualquer display-none forçado das categorias primeiro
     document.querySelectorAll('.dept-item').forEach(el => el.style.display = '');
 
     if (isTopAdmin) {
-        // Regra fixa solicitada: Ocultar mÃ³dulos nunca se aplica a lideranÃ§a da Diretoria.
-        // Eles tÃªm acesso automÃ¡tico e irrestrito a todas as telas visualmente.
+        // Regra fixa solicitada: Ocultar módulos nunca se aplica a liderança da Diretoria.
+        // Eles têm acesso automático e irrestrito a todas as telas visualmente.
         document.querySelectorAll('.nav-item').forEach(el => el.style.display = '');
         return; // Retorna cedo ignorando qualquer grupo
     }
 
     if (!currentUser.grupo_permissao_id) {
-        // UsuÃ¡rio comum sem permissÃµes. Ocultar tudo.
+        // Usuário comum sem permissões. Ocultar tudo.
         document.querySelectorAll('.nav-item').forEach(el => el.style.cssText = 'display: none !important;');
         document.querySelectorAll('.dept-item').forEach(el => el.style.cssText = 'display: none !important;');
         return;
     }
 
-    // AvanÃ§a para ler as regras reais do grupo (se for usuÃ¡rio comum com grupo)
+    // Avança para ler as regras reais do grupo (se for usuário comum com grupo)
 
     try {
         const res = await fetch(`${API_URL}/grupos-permissao/${currentUser.grupo_permissao_id}/permissoes`, {
             headers: { Authorization: `Bearer ${currentToken}` }
         });
-        if (!res.ok) throw new Error('Falha ao obter permissÃµes do grupo.');
+        if (!res.ok) throw new Error('Falha ao obter permissões do grupo.');
         const permissoes = await res.json();
 
-        // Cria um mapa rÃ¡pido das permissoes ativas
+        // Cria um mapa rápido das permissoes ativas
         const mapPerms = {};
         permissoes.forEach(p => {
             const v = p.visualizar;
             mapPerms[p.pagina_id] = (v === 1 || v === '1' || v === true || v === 'true');
         });
 
-        // Auto-liberar certificado-digital para quem jÃ¡ tem acesso a usuarios-permissoes
+        // Auto-liberar certificado-digital para quem já tem acesso a usuarios-permissoes
         if (mapPerms['usuarios-permissoes']) {
             mapPerms['certificado-digital'] = true;
         }
         window.activeUserPerms = mapPerms;
 
-        // Percorre todos os botÃµes de navegaÃ§Ã£o (.nav-item)
+        // Percorre todos os botões de navegação (.nav-item)
         document.querySelectorAll('.nav-item[data-target]').forEach(link => {
             const pathId = link.getAttribute('data-target');
             
-            // Hardcode: mÃ³dulos "Em breve" nunca devem aparecer para usuÃ¡rios comuns, 
+            // Hardcode: módulos "Em breve" nunca devem aparecer para usuários comuns, 
             // mesmo que marcados sem querer no banco.
             if (pathId && pathId.includes('em-breve')) {
                 link.style.cssText = 'display: none !important;';
-                mapPerms[pathId] = false; // ForÃ§a no mapa para ocultar a bolota tambÃ©m
+                mapPerms[pathId] = false; // Força no mapa para ocultar a bolota também
                 return;
             }
 
-            // Se existir no mapa de permissoes e for TRUE, mostra. SenÃ£o, esconde robustamente.
+            // Se existir no mapa de permissoes e for TRUE, mostra. Senão, esconde robustamente.
             if (mapPerms[pathId]) {
                 link.style.display = '';
             } else {
@@ -418,14 +418,14 @@ window.carregarPermissoesOnline = async function() {
             }
         });
 
-        // Agora vamos ocultar os "blocos grandes" (Departamentos) inteiros se nÃ£o sobrar nenhum nav-item Ãºtil
+        // Agora vamos ocultar os "blocos grandes" (Departamentos) inteiros se não sobrar nenhum nav-item útil
         const deptSubmenus = document.querySelectorAll('.dept-submenu');
         deptSubmenus.forEach(submenu => {
             const navItems = Array.from(submenu.querySelectorAll('.nav-item[data-target]'));
-            const headerObj = submenu.parentElement; // o `.dept-item` Ã© o pai
+            const headerObj = submenu.parentElement; // o `.dept-item` é o pai
             
             if (navItems.length > 0) {
-                // Checa diretamente no mapa de permissÃµes se o cara tem algo liberado aqui!
+                // Checa diretamente no mapa de permissões se o cara tem algo liberado aqui!
                 const isAnyVisible = navItems.some(i => mapPerms[i.getAttribute('data-target')] === true);
                 if (!isAnyVisible) {
                     headerObj.style.cssText = 'display: none !important;'; 
@@ -438,10 +438,10 @@ window.carregarPermissoesOnline = async function() {
             }
         });
         
-        // Sempre garantimos que o Ã­cone de SAIR apareÃ§a entÃ£o nÃ£o hÃ¡ risco.
+        // Sempre garantimos que o ícone de SAIR apareça então não há risco.
 
     } catch (err) {
-        console.error("Erro no carregamento de permissÃµes: ", err);
+        console.error("Erro no carregamento de permissões: ", err);
     }
 };
 
@@ -465,60 +465,60 @@ function updateBreadcrumb(key) {
 
     if (bar) bar.style.backgroundColor = pageColor;
 
-    // Atualiza botÃ£o de scroll flutuante
+    // Atualiza botão de scroll flutuante
     const scrollerBtn = document.getElementById('global-scroll-top');
     if (scrollerBtn) {
         scrollerBtn.style.backgroundColor = pageColor;
     }
 
-    // Mostra a estrela APENAS se for tela de menu principal ou telas base (sem setas 'â†’', exceto Diretoria)
+    // Mostra a estrela APENAS se for tela de menu principal ou telas base (sem setas '→', exceto Diretoria)
     const starBtn = document.getElementById('btn-star-page');
     if (starBtn && entryObj) {
         starBtn.style.color = pageColor;
-        if ((!entryObj.path.includes('â†’') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario') {
+        if ((!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario') {
             starBtn.style.display = 'flex';
         } else {
             starBtn.style.display = 'none';
         }
     }
     
-    if (typeof renderBookmarks === 'function') setTimeout(renderBookmarks, 50); // ForÃ§a render com o novo key
+    if (typeof renderBookmarks === 'function') setTimeout(renderBookmarks, 50); // Força render com o novo key
     if (!bar) return;
     const entry = BREADCRUMB_MAP[key] || { path: key, code: '' };
-    const parts = entry.path.split('â†’').map(p => p.trim());
+    const parts = entry.path.split('→').map(p => p.trim());
     const code = entry.code ? ` (${entry.code})` : '';
     bar.innerHTML = '<span style="opacity:0.7;margin-right:4px;">Caminho:</span>' +
         parts.map((p, i) =>
             i < parts.length - 1
-                ? `<span style="opacity:0.75;">${p}</span><span style="margin:0 5px;opacity:0.5;">â†’</span>`
+                ? `<span style="opacity:0.75;">${p}</span><span style="margin:0 5px;opacity:0.5;">→</span>`
                 : `<strong>${p}</strong><span style="margin-left:6px;background:rgba(0,0,0,0.18);padding:1px 7px;border-radius:10px;font-size:0.78rem;font-weight:700;letter-spacing:0.4px;">${code.replace(/[()]/g,'')}</span>`
         ).join('');
 }
 let appOpenTabs = [];
 
-// â”€â”€ METADADOS DE ABAS: cor, Ã­cone e mÃ³dulo por tela â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── METADADOS DE ABAS: cor, ícone e módulo por tela ─────────────────────────
 const TAB_META = {
     // RH - Rosa
     'dashboard':              { color: '#f503c5', icon: 'ph-squares-four',    title: 'Dashboard' },
     'colaboradores':          { color: '#f503c5', icon: 'ph-address-book',    title: 'Colaboradores' },
     'form-colaborador':       { color: '#f503c5', icon: 'ph-user-plus',       title: 'Cadastro Colaborador' },
-    'prontuario':             { color: '#f503c5', icon: 'ph-folder-open',     title: 'ProntuÃ¡rio Digital' },
-    'admissao':               { color: '#f503c5', icon: 'ph-list-checks',     title: 'AdmissÃ£o' },
-    'integracao':             { color: '#f503c5', icon: 'ph-users-three',     title: 'IntegraÃ§Ã£o' },
+    'prontuario':             { color: '#f503c5', icon: 'ph-folder-open',     title: 'Prontuário Digital' },
+    'admissao':               { color: '#f503c5', icon: 'ph-list-checks',     title: 'Admissão' },
+    'integracao':             { color: '#f503c5', icon: 'ph-users-three',     title: 'Integração' },
     'cargos':                 { color: '#f503c5', icon: 'ph-briefcase',       title: 'Cargos' },
     'departamentos':          { color: '#f503c5', icon: 'ph-buildings',       title: 'Departamentos' },
     'faculdade':              { color: '#f503c5', icon: 'ph-graduation-cap',  title: 'Faculdade' },
     'geradores':              { color: '#f503c5', icon: 'ph-file-text',       title: 'Geradores' },
     'ficha-epi':              { color: '#f503c5', icon: 'ph-shield-check',    title: 'Ficha EPI' },
-    'gerenciar-avaliacoes':   { color: '#f503c5', icon: 'ph-clipboard-text',  title: 'AvaliaÃ§Ãµes' },
+    'gerenciar-avaliacoes':   { color: '#f503c5', icon: 'ph-clipboard-text',  title: 'Avaliações' },
     'assinaturas-digitais':   { color: '#f503c5', icon: 'ph-signature',       title: 'Assinaturas' },
     // Diretoria - Laranja
-    'usuarios-permissoes':    { color: '#d9480f', icon: 'ph-users-three',     title: 'UsuÃ¡rios e PermissÃµes' },
+    'usuarios-permissoes':    { color: '#d9480f', icon: 'ph-users-three',     title: 'Usuários e Permissões' },
     'certificado-digital':    { color: '#d9480f', icon: 'ph-certificate',     title: 'Certificado Digital' },
     'chaves':                 { color: '#d9480f', icon: 'ph-key',             title: 'Chaves' },
-    'form-usuario':           { color: '#d9480f', icon: 'ph-user-gear',      title: 'Cadastro de UsuÃ¡rio' },
-    // LogÃ­stica - Verde
-    'logistica-em-breve':     { color: '#2d9e5f', icon: 'ph-truck',          title: 'LogÃ­stica' },
+    'form-usuario':           { color: '#d9480f', icon: 'ph-user-gear',      title: 'Cadastro de Usuário' },
+    // Logística - Verde
+    'logistica-em-breve':     { color: '#2d9e5f', icon: 'ph-truck',          title: 'Logística' },
     // Financeiro - Azul
     'financeiro-em-breve':    { color: '#1971c2', icon: 'ph-currency-dollar', title: 'Financeiro' },
     // Comercial - Roxo
@@ -558,7 +558,7 @@ function renderAppTabs() {
              onmouseover="this.style.opacity='1'; if(!${t.active}) this.style.background='#f1f5f9';"
              onmouseout="this.style.opacity='${t.active ? '1' : '0.55'}'; if(!${t.active}) this.style.background='transparent';">
             ${t.icon ? `<i class="ph ${t.icon}" style="font-size:0.88rem;"></i>` : ''}
-            <span title="${t.title}">${t.title.length > 15 ? t.title.substring(0, 15) + 'â€¦' : t.title}</span>
+            <span title="${t.title}">${t.title.length > 15 ? t.title.substring(0, 15) + '…' : t.title}</span>
             <i class="ph-bold ph-x"
                onclick="event.stopPropagation(); closeAppTab('${t.tabId}')"
                style="color:#ef4444; margin-left:4px; border-radius:50%; padding:2px; font-size:0.75rem;"
@@ -568,7 +568,7 @@ function renderAppTabs() {
     }).join('');
 }
 
-// Navegar para uma aba existente pelo seu tabId Ãºnico
+// Navegar para uma aba existente pelo seu tabId único
 window.navigateToTab = function(tabId) {
     const tab = appOpenTabs.find(t => t.tabId === tabId);
     if (!tab) return;
@@ -583,7 +583,7 @@ window.navigateToTab = function(tabId) {
     const targetNavObj = document.querySelector(`[data-target="${tab.target}"]`);
     if (targetNavObj) targetNavObj.classList.add('active');
     updateBreadcrumb(tab.target);
-    // Se a aba tem dados de colaborador (prontuÃ¡rio ou form), restaura o viewedColaborador
+    // Se a aba tem dados de colaborador (prontuário ou form), restaura o viewedColaborador
     if (tab._colaboradorData) {
         viewedColaborador = tab._colaboradorData;
     }
@@ -606,8 +606,8 @@ window.closeAppTab = function(tabId) {
     }
 };
 
-// navigateTo: abre uma aba ÃšNICA por target (telas de lista/config).
-// Para colaborador/prontuÃ¡rio, use openColaboradorTab / openProntuarioTab.
+// navigateTo: abre uma aba ÚNICA por target (telas de lista/config).
+// Para colaborador/prontuário, use openColaboradorTab / openProntuarioTab.
 function navigateTo(target) {
     if (target !== 'login') {
         const meta = getTabMeta(target);
@@ -629,7 +629,7 @@ function navigateTo(target) {
     if (currentUser && !isTopAdmin) {
         const targetNav = document.querySelector(`.nav-item[data-target="${target}"]`);
         if (targetNav && targetNav.style.display === 'none') {
-            alert('VocÃª nÃ£o tem permissÃ£o para acessar esta tela.');
+            alert('Você não tem permissão para acessar esta tela.');
             return;
         }
     }
@@ -679,7 +679,7 @@ function navigateTo(target) {
 }
 
 // Abre uma aba de CADASTRO de colaborador, nomeada com o colaborador.
-// Se jÃ¡ existir aba para esse colaborador, apenas ativa. Novo colaborador usa tabId 'form-colaborador-novo'.
+// Se já existir aba para esse colaborador, apenas ativa. Novo colaborador usa tabId 'form-colaborador-novo'.
 window._openColaboradorTab = function(colabId, nomeColab) {
     const tabId = colabId ? `form-colaborador-${colabId}` : 'form-colaborador-novo';
     const label = nomeColab ? `Cadastro: ${nomeColab.split(' ')[0]}` : 'Novo Colaborador';
@@ -689,7 +689,7 @@ window._openColaboradorTab = function(colabId, nomeColab) {
     if (!existingTab) {
         appOpenTabs.push({ tabId, target: 'form-colaborador', title: label, color: meta.color, icon: meta.icon, active: true });
     } else {
-        existingTab.title = label; // Atualiza nome se necessÃ¡rio
+        existingTab.title = label; // Atualiza nome se necessário
     }
     appOpenTabs.forEach(t => t.active = (t.tabId === tabId));
     renderAppTabs();
@@ -703,11 +703,11 @@ window._openColaboradorTab = function(colabId, nomeColab) {
     updateBreadcrumb('form-colaborador');
 };
 
-// Abre uma aba de PRONTUÃRIO, nomeada com o colaborador.
+// Abre uma aba de PRONTUÁRIO, nomeada com o colaborador.
 window._openProntuarioTab = function(colabId, nomeColab, colaboradorData) {
     const tabId = `prontuario-${colabId}`;
     const firstName = (nomeColab || '').split(' ')[0];
-    const label = `ProntuÃ¡rio: ${firstName}`;
+    const label = `Prontuário: ${firstName}`;
     const meta = getTabMeta('prontuario');
 
     const existingTab = appOpenTabs.find(t => t.tabId === tabId);
@@ -720,7 +720,7 @@ window._openProntuarioTab = function(colabId, nomeColab, colaboradorData) {
     appOpenTabs.forEach(t => t.active = (t.tabId === tabId));
     renderAppTabs();
 
-    // Mostra a view de prontuÃ¡rio
+    // Mostra a view de prontuário
     document.querySelectorAll('.content-view').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
     const targetView = document.getElementById('view-prontuario');
@@ -735,7 +735,7 @@ function setupNavigation() {
         item.addEventListener('click', (e) => {
             e.preventDefault();
             navigateTo(e.currentTarget.dataset.target);
-            // Recolhe o submenu automaticamente apÃ³s o clique
+            // Recolhe o submenu automaticamente após o clique
             const deptItem = e.currentTarget.closest('.dept-item');
             if (deptItem) {
                 deptItem.classList.add('submenu-force-close');
@@ -798,7 +798,7 @@ async function apiGet(endpoint) {
             headers: { 'Authorization': `Bearer ${currentToken}` },
             cache: 'no-store'
         });
-        if (!res.ok) throw new Error('Falha na requisiÃ§Ã£o');
+        if (!res.ok) throw new Error('Falha na requisição');
         return res.json();
     } catch(e) {
         console.error(e);
@@ -825,7 +825,7 @@ async function apiPost(endpoint, data, options = {}) {
         return res.json();
     } else {
         const text = await res.text();
-        console.error("Erro na API (NÃ£o Ã© JSON):", text);
+        console.error("Erro na API (Não é JSON):", text);
         return { error: "Servidor retornou resposta inesperada. Verifique o console." };
     }
 }
@@ -876,7 +876,7 @@ async function loadCargos() {
         `;
     });
 
-    // TambÃ©m popula o select do formulÃ¡rio de colaborador (para quando estiver cadastrando alguÃ©m)
+    // Também popula o select do formulário de colaborador (para quando estiver cadastrando alguém)
     const selectColab = document.getElementById('colab-cargo');
     if (selectColab) {
         selectColab.innerHTML = '<option value="" selected disabled>Selecionar</option>';
@@ -890,7 +890,7 @@ async function loadCargos() {
 }
 
 window.deleteCargo = async function(id, nome) {
-    if (!confirm(`Excluir permanentemente o cargo "${nome}"?\n\nEsta aÃ§Ã£o nÃ£o pode ser desfeita.`)) return;
+    if (!confirm(`Excluir permanentemente o cargo "${nome}"?\n\nEsta ação não pode ser desfeita.`)) return;
     try {
         const res = await fetch(`${API_URL}/cargos/${id}`, {
             method: 'DELETE',
@@ -936,12 +936,12 @@ window.toggleCargoView = async function(mode, id = null) {
     if (mode === 'list') {
         if(listContainer) listContainer.style.display = 'block';
         if(formContainer) formContainer.style.display = 'none';
-        if(headerActions) headerActions.style.display = 'none'; // Esconde botÃµes no topo ao ver a lista
+        if(headerActions) headerActions.style.display = 'none'; // Esconde botões no topo ao ver a lista
         loadCargos();
     } else {
         if(listContainer) listContainer.style.display = 'none';
         if(formContainer) formContainer.style.display = 'block';
-        if(headerActions) headerActions.style.display = 'flex'; // Mostra botÃµes no topo ao editar/criar
+        if(headerActions) headerActions.style.display = 'flex'; // Mostra botões no topo ao editar/criar
         
         if (mode === 'new') {
             document.getElementById('manage-cargo-id').value = '';
@@ -1058,7 +1058,7 @@ async function handleCargoFormSubmit() {
         toggleCargoView('list');
     } catch(err) {
         console.error('Erro ao salvar cargo:', err);
-        alert('Erro de conexÃ£o ao salvar cargo.');
+        alert('Erro de conexão ao salvar cargo.');
     }
 }
 
@@ -1073,7 +1073,7 @@ window.handleDeleteCargoUI = async function() {
     if(!id) return;
 
     if(nome.toUpperCase() === 'MOTORISTA') {
-        alert('O cargo MOTORISTA Ã© essencial para o sistema e nÃ£o pode ser excluÃ­do.');
+        alert('O cargo MOTORISTA é essencial para o sistema e não pode ser excluído.');
         return;
     }
 
@@ -1086,10 +1086,10 @@ window.handleDeleteCargoUI = async function() {
     }
 }
 
-// Excluir cargo diretamente da listagem (sem precisar abrir o formulÃ¡rio de ediÃ§Ã£o)
+// Excluir cargo diretamente da listagem (sem precisar abrir o formulário de edição)
 window.deletarCargoDireto = async function(id, nome) {
     if (nome.toUpperCase() === 'MOTORISTA') {
-        alert('O cargo MOTORISTA Ã© essencial para o sistema e nÃ£o pode ser excluÃ­do.');
+        alert('O cargo MOTORISTA é essencial para o sistema e não pode ser excluído.');
         return;
     }
     if (!confirm(`Tem certeza que deseja excluir o cargo "${nome}"?`)) return;
@@ -1101,8 +1101,8 @@ window.deletarCargoDireto = async function(id, nome) {
     }
 }
 
-// â”€â”€â”€ CERTIFICADO DIGITAL PÃ“S-ASSINATURA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Aplica o certificado A1 da empresa no PDF apÃ³s o colaborador assinar no Assinafy
+// ─── CERTIFICADO DIGITAL PÓS-ASSINATURA ───────────────────────────────────────
+// Aplica o certificado A1 da empresa no PDF após o colaborador assinar no Assinafy
 window.assinarComCertificado = async function(assId, event) {
     if (event) { event.preventDefault(); event.stopPropagation(); }
     const btn = event?.currentTarget || event?.target;
@@ -1123,19 +1123,19 @@ window.assinarComCertificado = async function(assId, event) {
             btn.style.background = '#f0fdf4';
             btn.style.borderColor = '#16a34a';
             btn.style.color = '#16a34a';
-            btn.innerHTML = '<i class="ph ph-seal-check"></i> âœ… Certificado Aplicado';
+            btn.innerHTML = '<i class="ph ph-seal-check"></i> ✅ Certificado Aplicado';
             setTimeout(() => {
                 // Recarregar a view para refletir o novo status
                 if (viewedColaborador) window.viewColaborador(viewedColaborador.id);
             }, 1500);
         }
-        if (typeof showToast === 'function') showToast('âœ… ' + data.mensagem, 'success');
-        else alert('âœ… ' + data.mensagem);
+        if (typeof showToast === 'function') showToast('✅ ' + data.mensagem, 'success');
+        else alert('✅ ' + data.mensagem);
 
     } catch(e) {
         if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
-        if (typeof showToast === 'function') showToast('âŒ ' + e.message, 'error');
-        else alert('âŒ ' + e.message);
+        if (typeof showToast === 'function') showToast('❌ ' + e.message, 'error');
+        else alert('❌ ' + e.message);
     }
 };
 
@@ -1205,7 +1205,7 @@ document.getElementById('form-chaves')?.addEventListener('submit', async (e) => 
 });
 
 
-// --- HELPER PARA ESCALAS NO FORMULÃRIO ---
+// --- HELPER PARA ESCALAS NO FORMULÁRIO ---
 window.toggleFormEscalaTipo = function() {
     const tipo = document.getElementById('colab-escala-padrao').value;
     const boxFolgas = document.getElementById('colab-box-folgas');
@@ -1241,14 +1241,14 @@ window.toggleTipoDocumento = function() {
 
     if (sel && rgInput && cpfInput && lbl) {
         if (sel.value === 'CIN') {
-            lbl.textContent = 'NÃºmero (CIN)';
+            lbl.textContent = 'Número (CIN)';
             rgInput.value = cpfInput.value;
             rgInput.setAttribute('readonly', 'true');
             rgInput.style.backgroundColor = '#e9ecef';
             if(boxOrgao) boxOrgao.style.display = 'none';
             if(boxData) boxData.style.display = 'none';
         } else {
-            lbl.textContent = 'NÃºmero (RG)';
+            lbl.textContent = 'Número (RG)';
             rgInput.removeAttribute('readonly');
             rgInput.style.backgroundColor = '';
             if(boxOrgao) boxOrgao.style.display = 'block';
@@ -1266,7 +1266,7 @@ window.toggleFormacaoFields = function(val) {
     const section = document.getElementById('section-formacao');
     if (section) {
         section.style.display = (val === 'Sim') ? 'block' : 'none';
-        if (val === 'NÃ£o') {
+        if (val === 'Não') {
             const cInput = document.getElementById('colab-faculdade-curso');
             const d1Input = document.getElementById('colab-faculdade-data-inicio');
             const d2Input = document.getElementById('colab-faculdade-data-termino');
@@ -1281,7 +1281,7 @@ window.toggleAcademiaFields = function(val) {
     const section = document.getElementById('section-academia');
     if (section) {
         section.style.display = (val === 'Sim') ? 'block' : 'none';
-        if (val === 'NÃ£o') {
+        if (val === 'Não') {
             const diInput = document.getElementById('colab-academia-data-inicio');
             if (diInput) diInput.value = '';
         }
@@ -1292,7 +1292,7 @@ window.toggleTerapiaFields = function(val) {
     const section = document.getElementById('section-terapia');
     if (section) {
         section.style.display = (val === 'Sim') ? 'block' : 'none';
-        if (val === 'NÃ£o') {
+        if (val === 'Não') {
             const diInput = document.getElementById('colab-terapia-data-inicio');
             if (diInput) diInput.value = '';
         }
@@ -1303,7 +1303,7 @@ window.toggleCelularFields = function(val) {
     const section = document.getElementById('section-celular');
     if (section) {
         section.style.display = (val === 'Sim') ? 'block' : 'none';
-        if (val === 'NÃ£o') {
+        if (val === 'Não') {
             const dInput = document.getElementById('colab-celular-data');
             if (dInput) dInput.value = '';
         }
@@ -1314,7 +1314,7 @@ window.toggleChavesColabFields = function(val) {
     const section = document.getElementById('section-chaves-colab');
     if (section) {
         section.style.display = (val === 'Sim') ? 'block' : 'none';
-        if (val === 'NÃ£o') {
+        if (val === 'Não') {
             const container = document.getElementById('colab-chaves-rows-container');
             if (container) container.innerHTML = '';
         } else if (val === 'Sim') {
@@ -1330,7 +1330,7 @@ window.toggleBrigadistaFields = function(val) {
     const section = document.getElementById('section-brigadista');
     if (section) {
         section.style.display = (val === 'Sim') ? 'block' : 'none';
-        if (val === 'NÃ£o') {
+        if (val === 'Não') {
             const vld = document.getElementById('colab-brigadista-validade');
             if (vld) vld.value = '';
         }
@@ -1343,7 +1343,7 @@ window.addNewChaveRow = async function(selectedChaveId = null, selectedDate = nu
         const container = document.getElementById('colab-chaves-rows-container');
         if (!container) return;
 
-        // Remover BotÃ£o de + das linhas anteriores se houver
+        // Remover Botão de + das linhas anteriores se houver
         document.querySelectorAll('.btn-add-chave-row').forEach(b => b.style.display = 'none');
 
         const rowDiv = document.createElement('div');
@@ -1378,14 +1378,14 @@ window.addNewChaveRow = async function(selectedChaveId = null, selectedDate = nu
 window.removeChaveRow = function(btn) {
     const row = btn.closest('.chave-entry-row');
     row.remove();
-    // Reexibir o botÃ£o + na nova "Ãºltima linha"
+    // Reexibir o botão + na nova "última linha"
     const rows = document.querySelectorAll('.chave-entry-row');
     if (rows.length > 0) {
         const lastBtn = rows[rows.length - 1].querySelector('.btn-add-chave-row');
         if (lastBtn) lastBtn.style.display = 'flex';
     } else {
         // Se todas as linhas foram removidas, talvez queira adicionar uma vazia de volta?
-        // Ou deixar o toggle Sim/NÃ£o resolver.
+        // Ou deixar o toggle Sim/Não resolver.
     }
 };
 
@@ -1418,7 +1418,7 @@ window.toggleTransporteValor = function(val) {
     const input = document.getElementById('colab-valor-transporte');
     if (group) {
         // Mostrar se for VT ou VC
-        if (val === 'Vale Transporte (VT)' || val === 'Vale CombustÃ­vel (VC)') {
+        if (val === 'Vale Transporte (VT)' || val === 'Vale Combustível (VC)') {
             group.style.display = 'block';
         } else {
             group.style.display = 'none';
@@ -1435,7 +1435,7 @@ window.calcularHorarioSaida = function() {
     const outSaida = document.getElementById('colab-saida');
     
     if (tipo && entrada) {
-        // Calcula duraÃ§Ã£o do intervalo em minutos
+        // Calcula duração do intervalo em minutos
         let intervaloMins = 0;
         if (intEntrada && intSaida) {
             const [h1, m1] = intEntrada.split(':').map(Number);
@@ -1444,7 +1444,7 @@ window.calcularHorarioSaida = function() {
             if (intervaloMins < 0) intervaloMins += 24 * 60;
         }
 
-        // Define horas brutas de trabalho diÃ¡rio (sem intervalo)
+        // Define horas brutas de trabalho diário (sem intervalo)
         let workMins = 0;
         if (tipo === 'padrao_seis_dias') {
             workMins = 7 * 60 + 20; // 7h 20m
@@ -1467,7 +1467,7 @@ window.calcularHorarioSaida = function() {
         outSaida.value = '';
     }
 
-    // SÃ¡bado
+    // Sábado
     const sabEntrada = document.getElementById('colab-sabado-entrada').value;
     const outSabSaida = document.getElementById('colab-sabado-saida');
     if (sabEntrada && outSabSaida) {
@@ -1538,11 +1538,11 @@ window.updateVacationInfo = function(admissaoStr) {
         const adm = new Date(admissaoStr + 'T12:00:00');
         if (isNaN(adm.getTime())) return;
 
-        // Fim do PerÃ­odo Aquisitivo: +1 ano
+        // Fim do Período Aquisitivo: +1 ano
         const aqEnd = new Date(adm);
         aqEnd.setFullYear(adm.getFullYear() + 1);
         
-        // PerÃ­odo Concessivo: +2 anos (menos 1 dia)
+        // Período Concessivo: +2 anos (menos 1 dia)
         const concEnd = new Date(aqEnd);
         concEnd.setFullYear(aqEnd.getFullYear() + 1);
         concEnd.setDate(concEnd.getDate() - 1);
@@ -1553,22 +1553,22 @@ window.updateVacationInfo = function(admissaoStr) {
         const today = new Date();
         today.setHours(0,0,0,0);
         
-        // --- LÃ³gica condicional da cor vermelha ---
+        // --- Lógica condicional da cor vermelha ---
         const inConcessivo = today >= aqEnd && today <= concEnd;
         const diasRestantes = Math.floor((concEnd - today) / (1000 * 60 * 60 * 24));
         
-        // Verificar se hÃ¡ fÃ©rias programadas dentro do perÃ­odo concessivo
+        // Verificar se há férias programadas dentro do período concessivo
         const fInicioEl = document.getElementById('colab-ferias-programadas-inicio');
         const fFimEl = document.getElementById('colab-ferias-programadas-fim');
         let feriasNoPeriodo = false;
         if (fInicioEl && fInicioEl.value && fFimEl && fFimEl.value) {
             const fInicio = new Date(fInicioEl.value + 'T12:00:00');
             const fFim = new Date(fFimEl.value + 'T12:00:00');
-            // FÃ©rias estÃ£o dentro do perÃ­odo concessivo se houver sobreposiÃ§Ã£o
+            // Férias estão dentro do período concessivo se houver sobreposição
             feriasNoPeriodo = fInicio <= concEnd && fFim >= aqEnd;
         }
 
-        // Pintar vermelho apenas se: em perÃ­odo concessivo, sem fÃ©rias programadas, e â‰¤ 90 dias
+        // Pintar vermelho apenas se: em período concessivo, sem férias programadas, e ≤ 90 dias
         if (inConcessivo && !feriasNoPeriodo && diasRestantes <= 90) {
             concField.style.color = '#e03131';
             concField.style.fontWeight = '700';
@@ -1577,14 +1577,14 @@ window.updateVacationInfo = function(admissaoStr) {
             concField.style.fontWeight = '600';
         }
 
-        // Mostrar indicador de alerta se jÃ¡ passou do perÃ­odo aquisitivo
+        // Mostrar indicador de alerta se já passou do período aquisitivo
         if (today >= aqEnd) {
             indicator.style.display = 'flex';
         } else {
             indicator.style.display = 'none';
         }
     } catch (e) {
-        console.error('Erro ao calcular datas de fÃ©rias:', e);
+        console.error('Erro ao calcular datas de férias:', e);
     }
 }
 
@@ -1610,7 +1610,7 @@ window.calculateVacationDays = function() {
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
     if (diffDays < 0) {
-        totalField.value = 'Data InvÃ¡lida';
+        totalField.value = 'Data Inválida';
     } else {
         totalField.value = `${diffDays} ${diffDays === 1 ? 'dia' : 'dias'}`;
     }
@@ -1741,12 +1741,12 @@ async function loadDashboard() {
             });
         }
 
-        // Render FÃ©rias Table
+        // Render Férias Table
         const tbFerias = document.getElementById('dash-table-ferias');
         if (tbFerias) {
             tbFerias.innerHTML = '';
             if (!chartsData.feriasVencendo || chartsData.feriasVencendo.length === 0) {
-                tbFerias.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#999;font-style:italic;">Nenhuma fÃ©rias a vencer em 60 dias.</td></tr>';
+                tbFerias.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#999;font-style:italic;">Nenhuma férias a vencer em 60 dias.</td></tr>';
             } else {
                 chartsData.feriasVencendo.forEach(f => {
                     const cfPts = f.concessivo_fim.split('-');
@@ -1864,7 +1864,7 @@ function aplicarFiltrosColaboradores() {
         
         if (f.escala && c.escala_tipo !== f.escala) return false;
         
-        // Verifica dependentes (pode estar como "Sim", "NÃ£o", true, false, etc.)
+        // Verifica dependentes (pode estar como "Sim", "Não", true, false, etc.)
         const temDep = c.tem_dependentes === 'Sim' || c.tem_dependentes === 'true' || c.tem_dependentes === true;
         if (f.dependentes === 'sim' && !temDep) return false;
         if (f.dependentes === 'nao' && temDep) return false;
@@ -1888,7 +1888,7 @@ function aplicarFiltrosColaboradores() {
             const faltas = c.faltas_ano || 0;
             const punicoes = c.punicoes || 0;
             const statusEf = getEffectiveStatus(c);
-            let admDias = 999; // Assume apto se data nÃ£o informada
+            let admDias = 999; // Assume apto se data não informada
             if (c.data_admissao) {
                 if (c.data_admissao.includes('-')) {
                     admDias = Math.floor((new Date() - new Date(c.data_admissao + 'T12:00:00')) / 86400000);
@@ -1903,7 +1903,7 @@ function aplicarFiltrosColaboradores() {
             
             const isApto = (faltas <= 3) && 
                            (punicoes === 0) &&
-                           (['Ativo', 'Afastado', 'FÃ©rias'].includes(statusEf)) &&
+                           (['Ativo', 'Afastado', 'Férias'].includes(statusEf)) &&
                            (admDias >= 90) &&
                            isCLT;
             
@@ -1928,7 +1928,7 @@ function limparFiltrosColaboradores() {
      'f-tam-camiseta','f-tam-calca','f-tam-calcado','f-apto-sorteio','f-brigadista'
     ].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     
-    // Atualizar botÃµes visuais de tipo cadastro
+    // Atualizar botões visuais de tipo cadastro
     document.querySelectorAll('.btn-tipo-cadastro').forEach(btn => {
         btn.style.opacity = '0.5';
         if(btn.dataset.status === ''){
@@ -2001,23 +2001,23 @@ window.exportarColaboradoresXLSX = async function() {
     }
 
     worksheet.mergeCells('D1', 'H3');
-    worksheet.getCell('D1').value = "RELATÃ“RIO DE COLABORADORES";
+    worksheet.getCell('D1').value = "RELATÓRIO DE COLABORADORES";
     worksheet.getCell('D1').font = { size: 16, bold: true, color: { argb: 'FF334155' } };
     worksheet.getCell('D1').alignment = { vertical: 'middle', horizontal: 'left' };
 
     worksheet.addRow([]);
 
     const headerRow = worksheet.addRow([
-        "Status", "Nome Completo", "CPF", "RG", "Data Nascimento", "Nome da MÃ£e", "Nome do Pai",
-        "Estado Civil", "Sexo", "E-mail", "Telefone", "Contato EmergÃªncia",
-        "CEP", "Rua", "NÂº", "Complemento", "Bairro", "Cidade", "Estado",
-        "Banco", "AgÃªncia", "Conta", "Tipo Conta", "PIX",
-        "Departamento", "Cargo", "Data AdmissÃ£o", "SalÃ¡rio", "Escala Trabalho",
-        "PIS", "CTPS", "TÃ­tulo Eleitor", "Certificado Militar",
-        "CNH", "Cat CNH", "EmissÃ£o CNH", "Validade CNH", "CID",
-        "FÃ©rias InÃ­cio", "FÃ©rias Fim", "FÃ©rias Retorno", "Possui Dependentes",
+        "Status", "Nome Completo", "CPF", "RG", "Data Nascimento", "Nome da Mãe", "Nome do Pai",
+        "Estado Civil", "Sexo", "E-mail", "Telefone", "Contato Emergência",
+        "CEP", "Rua", "Nº", "Complemento", "Bairro", "Cidade", "Estado",
+        "Banco", "Agência", "Conta", "Tipo Conta", "PIX",
+        "Departamento", "Cargo", "Data Admissão", "Salário", "Escala Trabalho",
+        "PIS", "CTPS", "Título Eleitor", "Certificado Militar",
+        "CNH", "Cat CNH", "Emissão CNH", "Validade CNH", "CID",
+        "Férias Início", "Férias Fim", "Férias Retorno", "Possui Dependentes",
         "Faculdade", "Academia", "Terapia", "Celular", "Chaves",
-        "Tamanho Camiseta", "Tamanho CalÃ§a", "Tamanho CalÃ§ado"
+        "Tamanho Camiseta", "Tamanho Calça", "Tamanho Calçado"
     ]);
 
     headerRow.eachCell(cell => {
@@ -2071,12 +2071,12 @@ window.exportarColaboradoresXLSX = async function() {
             safeDate(c.ferias_inicio),
             safeDate(c.ferias_fim),
             safeDate(c.ferias_retorno),
-            c.tem_dependentes ? 'Sim' : 'NÃ£o',
-            c.faculdade_participa === 'Sim' ? 'Sim' : 'NÃ£o',
-            c.academia_participa === 'Sim' ? 'Sim' : 'NÃ£o',
-            c.terapia_participa === 'Sim' ? 'Sim' : 'NÃ£o',
-            c.celular_participa === 'Sim' ? 'Sim' : 'NÃ£o',
-            c.chaves_participa === 'Sim' ? 'Sim' : 'NÃ£o',
+            c.tem_dependentes ? 'Sim' : 'Não',
+            c.faculdade_participa === 'Sim' ? 'Sim' : 'Não',
+            c.academia_participa === 'Sim' ? 'Sim' : 'Não',
+            c.terapia_participa === 'Sim' ? 'Sim' : 'Não',
+            c.celular_participa === 'Sim' ? 'Sim' : 'Não',
+            c.chaves_participa === 'Sim' ? 'Sim' : 'Não',
             c.tamanho_camiseta || '',
             c.tamanho_calca || '',
             c.tamanho_calcado || ''
@@ -2091,7 +2091,7 @@ window.exportarColaboradoresXLSX = async function() {
         col.width = i === 1 ? 30 : 18;
     });
 
-    // Congela as 5 primeiras linhas (cabeÃ§alho) e as 2 primeiras colunas (Status e Nome)
+    // Congela as 5 primeiras linhas (cabeçalho) e as 2 primeiras colunas (Status e Nome)
     worksheet.views = [
         { state: 'frozen', xSplit: 2, ySplit: 5 }
     ];
@@ -2112,10 +2112,10 @@ function renderColaboradores(lista) {
     const wrapper = document.querySelector('#view-colaboradores .card');
     if (!wrapper) return;
 
-    // FunÃ§Ã£o auxiliar para escalar tipo "padrao_seis_dias" -> "Padrao Seis Dias"
+    // Função auxiliar para escalar tipo "padrao_seis_dias" -> "Padrao Seis Dias"
     const formatEscala = (e) => (e||'').replace(/_/g, ' ').replace(/\b\w/g, c=>c.toUpperCase());
 
-    // Coletar opÃ§Ãµes Ãºnicas para os selects dos filtros
+    // Coletar opções únicas para os selects dos filtros
     const deptos  = [...new Set(_todosColaboradores.map(c => c.departamento).filter(Boolean))].sort();
     const cargos  = [...new Set(_todosColaboradores.map(c => c.cargo).filter(Boolean))].sort();
     const escalas = [...new Set(_todosColaboradores.map(c => c.escala_tipo).filter(Boolean))].sort();
@@ -2137,10 +2137,10 @@ function renderColaboradores(lista) {
                 <div style="display:flex; gap:0.5rem; align-items:center; margin-right:0.5rem;">
                     <button class="btn-tipo-cadastro" data-status="" onclick="selecionarTipoCadastro(this, '')" style="padding:0.35rem 0.75rem; border:none; border-radius:999px; font-size:0.8rem; font-weight:600; cursor:pointer; background:#e2e8f0; color:#475569; display:flex; gap:4px; align-items:center; transition:0.2s;">Todos</button>
                     <button class="btn-tipo-cadastro" data-status="Processo iniciado" onclick="selecionarTipoCadastro(this, 'Processo iniciado')" style="padding:0.35rem 0.75rem; border:none; border-radius:999px; font-size:0.8rem; font-weight:600; cursor:pointer; background:#f3e8ff; color:#7e22ce; display:flex; gap:4px; align-items:center; transition:0.2s; opacity:0.5;"><i class="ph ph-play-circle"></i> Iniciado</button>
-                    <button class="btn-tipo-cadastro" data-status="Aguardando inÃ­cio" onclick="selecionarTipoCadastro(this, 'Aguardando inÃ­cio')" style="padding:0.35rem 0.75rem; border:none; border-radius:999px; font-size:0.8rem; font-weight:600; cursor:pointer; background:#cbd5e1; color:#334155; display:flex; gap:4px; align-items:center; transition:0.2s; opacity:0.5;"><i class="ph ph-hourglass-high"></i> Aguardando</button>
+                    <button class="btn-tipo-cadastro" data-status="Aguardando início" onclick="selecionarTipoCadastro(this, 'Aguardando início')" style="padding:0.35rem 0.75rem; border:none; border-radius:999px; font-size:0.8rem; font-weight:600; cursor:pointer; background:#cbd5e1; color:#334155; display:flex; gap:4px; align-items:center; transition:0.2s; opacity:0.5;"><i class="ph ph-hourglass-high"></i> Aguardando</button>
                     <button class="btn-tipo-cadastro" data-status="Ativo" onclick="selecionarTipoCadastro(this, 'Ativo')" style="padding:0.35rem 0.75rem; border:none; border-radius:999px; font-size:0.8rem; font-weight:600; cursor:pointer; background:#dcfce7; color:#166534; display:flex; gap:4px; align-items:center; transition:0.2s; opacity:0.5;"><i class="ph ph-check-circle"></i> Ativo</button>
                     <button class="btn-tipo-cadastro" data-status="Afastado" onclick="selecionarTipoCadastro(this, 'Afastado')" style="padding:0.35rem 0.75rem; border:none; border-radius:999px; font-size:0.8rem; font-weight:600; cursor:pointer; background:#ffedd5; color:#c2410c; display:flex; gap:4px; align-items:center; transition:0.2s; opacity:0.5;"><i class="ph ph-first-aid"></i> Afastado</button>
-                    <button class="btn-tipo-cadastro" data-status="FÃ©rias" onclick="selecionarTipoCadastro(this, 'FÃ©rias')" style="padding:0.35rem 0.75rem; border:none; border-radius:999px; font-size:0.8rem; font-weight:600; cursor:pointer; background:#dbeafe; color:#1e40af; display:flex; gap:4px; align-items:center; transition:0.2s; opacity:0.5;"><i class="ph ph-airplane-tilt"></i> FÃ©rias</button>
+                    <button class="btn-tipo-cadastro" data-status="Férias" onclick="selecionarTipoCadastro(this, 'Férias')" style="padding:0.35rem 0.75rem; border:none; border-radius:999px; font-size:0.8rem; font-weight:600; cursor:pointer; background:#dbeafe; color:#1e40af; display:flex; gap:4px; align-items:center; transition:0.2s; opacity:0.5;"><i class="ph ph-airplane-tilt"></i> Férias</button>
                     <button class="btn-tipo-cadastro" data-status="Desligado" onclick="selecionarTipoCadastro(this, 'Desligado')" style="padding:0.35rem 0.75rem; border:none; border-radius:999px; font-size:0.8rem; font-weight:600; cursor:pointer; background:#fee2e2; color:#b91c1c; display:flex; gap:4px; align-items:center; transition:0.2s; opacity:0.5;"><i class="ph ph-x-circle"></i> Desligado</button>
                 </div>
                 <div style="width:1px; height:24px; background:#e2e8f0; margin:0 4px;"></div>
@@ -2163,7 +2163,7 @@ function renderColaboradores(lista) {
             
             <div style="padding:1.5rem; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; background:#fff; z-index:10;">
                 <span style="font-weight:700; color:#334155; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
-                    <i class="ph ph-funnel"></i> Filtros AvanÃ§ados
+                    <i class="ph ph-funnel"></i> Filtros Avançados
                 </span>
                 <button onclick="document.getElementById('filtro-sidebar').style.right='-400px'" style="background:none; border:none; cursor:pointer; color:#94a3b8; font-size:1.25rem;">
                     <i class="ph ph-x"></i>
@@ -2179,7 +2179,7 @@ function renderColaboradores(lista) {
                 <div>
                     <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Apto ao Sorteio?</label>
                     <select id="f-apto-sorteio" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
-                        <option value="">Todos</option><option value="sim">Sim</option><option value="nao">NÃ£o</option>
+                        <option value="">Todos</option><option value="sim">Sim</option><option value="nao">Não</option>
                     </select>
                 </div>
                 <div>
@@ -2192,14 +2192,14 @@ function renderColaboradores(lista) {
                         <input id="f-nasc-ini" type="date" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
                     </div>
                     <div style="flex:1;">
-                        <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">AtÃ©</label>
+                        <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Até</label>
                         <input id="f-nasc-fim" type="date" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
                     </div>
                 </div>
                 <div>
                     <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Estado Civil</label>
                     <select id="f-estado-civil" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
-                        <option value="">Todos</option><option>Solteiro(a)</option><option>Casado(a)</option><option>Divorciado(a)</option><option>ViÃºvo(a)</option><option>UniÃ£o EstÃ¡vel</option>
+                        <option value="">Todos</option><option>Solteiro(a)</option><option>Casado(a)</option><option>Divorciado(a)</option><option>Viúvo(a)</option><option>União Estável</option>
                     </select>
                 </div>
                 <div>
@@ -2221,18 +2221,18 @@ function renderColaboradores(lista) {
                     </select>
                 </div>
                 <div>
-                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Em ExperiÃªncia</label>
+                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Em Experiência</label>
                     <select id="f-experiencia" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
-                        <option value="">Todos</option><option value="sim">Sim (atÃ© 90 dias)</option>
+                        <option value="">Todos</option><option value="sim">Sim (até 90 dias)</option>
                     </select>
                 </div>
                 <div style="display:flex; gap:1rem;">
                     <div style="flex:1;">
-                        <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">SalÃ¡rio De</label>
+                        <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Salário De</label>
                         <input id="f-sal-min" type="number" min="0" placeholder="R$" oninput="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
                     </div>
                     <div style="flex:1;">
-                        <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">SalÃ¡rio AtÃ©</label>
+                        <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Salário Até</label>
                         <input id="f-sal-max" type="number" min="0" placeholder="R$" oninput="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
                     </div>
                 </div>
@@ -2245,11 +2245,11 @@ function renderColaboradores(lista) {
                 <div>
                     <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Possui Dependentes</label>
                     <select id="f-dependentes" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
-                        <option value="">Todos</option><option value="sim">Sim</option><option value="nao">NÃ£o</option>
+                        <option value="">Todos</option><option value="sim">Sim</option><option value="nao">Não</option>
                     </select>
                 </div>
                 <div>
-                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">BenefÃ­cios</label>
+                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Benefícios</label>
                     <div style="display:flex; flex-direction:column; gap:0.5rem; padding:0.5rem; border:1px solid #e2e8f0; border-radius:6px; max-height:150px; overflow-y:auto; background:#f8fafc;">
                         ${beneficiosList.map(b=>`
                             <label style="font-size:0.85rem; color:#334155; display:flex; align-items:center; gap:6px; cursor:pointer;">
@@ -2265,13 +2265,13 @@ function renderColaboradores(lista) {
                     </select>
                 </div>
                 <div>
-                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Tamanho CalÃ§a</label>
+                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Tamanho Calça</label>
                     <select id="f-tam-calca" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
                         <option value="">Todos</option><option value="PP">PP</option><option value="P">P</option><option value="M">M</option><option value="G">G</option><option value="GG">GG</option><option value="EXGG">EXGG</option>
                     </select>
                 </div>
                 <div>
-                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Tamanho CalÃ§ado</label>
+                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Tamanho Calçado</label>
                     <select id="f-tam-calcado" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
                         <option value="">Todos</option>
                         ${Array.from({length: 14}, (_, i) => 33 + i).map(size => `<option value="${size}">${size}</option>`).join('')}
@@ -2319,13 +2319,13 @@ function renderTabelaColaboradores(lista) {
                 <thead><tr>
                     <th style="padding-left:1rem;width:50px;">Foto</th>
                     <th>Nome</th>
-                    <th>ExperiÃªncia</th>
+                    <th>Experiência</th>
                     <th>CPF</th>
                     <th>Departamento</th>
                     <th>Cargo</th>
-                    <th>AdmissÃ£o</th>
+                    <th>Admissão</th>
                     <th>Status</th>
-                    <th style="text-align:right;padding-right:1.5rem;">AÃ§Ãµes</th>
+                    <th style="text-align:right;padding-right:1.5rem;">Ações</th>
                 </tr></thead>
                 <tbody>
                     ${lista.map(c => {
@@ -2336,14 +2336,14 @@ function renderTabelaColaboradores(lista) {
                             const adm = new Date(c.data_admissao + 'T12:00:00');
                             const d45 = new Date(adm); d45.setDate(adm.getDate() + 45);
                             const d90 = new Date(adm); d90.setDate(adm.getDate() + 90);
-                            probationDatesHtml = `<div style="font-size:7pt;color:#94a3b8;line-height:1.1;margin-top:2px;">1Âº: ${d45.toLocaleDateString('pt-BR')}<br>2Âº: ${d90.toLocaleDateString('pt-BR')}</div>`;
+                            probationDatesHtml = `<div style="font-size:7pt;color:#94a3b8;line-height:1.1;margin-top:2px;">1º: ${d45.toLocaleDateString('pt-BR')}<br>2º: ${d90.toLocaleDateString('pt-BR')}</div>`;
                         }
                         let statusHtml = '';
                         const effectiveStatus = getEffectiveStatus(c);
-                        if (effectiveStatus === 'Aguardando inÃ­cio') statusHtml = `<div style="background:#f1f3f5;color:#495057;border:2px solid #adb5bd;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-clock"></i> Aguardando</div>`;
+                        if (effectiveStatus === 'Aguardando início') statusHtml = `<div style="background:#f1f3f5;color:#495057;border:2px solid #adb5bd;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-clock"></i> Aguardando</div>`;
                         else if (effectiveStatus === 'Processo iniciado') statusHtml = `<div style="background:#e7f5ff;color:#1864ab;border:2px solid #1864ab;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-hourglass"></i> Iniciado</div>`;
                         else if (effectiveStatus === 'Ativo') statusHtml = `<div style="background:#e8f5e9;color:#196b36;border:2px solid #196b36;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-check-circle"></i> Ativo</div>`;
-                        else if (effectiveStatus === 'FÃ©rias') statusHtml = `<div style="background:#fdf7e3;color:#c2aa72;border:2px solid #c2aa72;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-airplane-tilt"></i> FÃ©rias</div>`;
+                        else if (effectiveStatus === 'Férias') statusHtml = `<div style="background:#fdf7e3;color:#c2aa72;border:2px solid #c2aa72;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-airplane-tilt"></i> Férias</div>`;
                         else if (effectiveStatus === 'Afastado') statusHtml = `<div style="background:#faeed9;color:#eaa15f;border:2px solid transparent;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-warning"></i> Afastado</div>`;
                         else if (effectiveStatus === 'Desligado') statusHtml = `<div style="background:#fceeee;color:#ba7881;border:2px solid transparent;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-x-circle"></i> Desligado</div>`;
                         else if (effectiveStatus === 'Incompleto') statusHtml = `<div style="background:#f8f9fa;color:#6c757d;border:2px solid transparent;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-pencil-simple"></i> Incompleto</div>`;
@@ -2356,8 +2356,8 @@ function renderTabelaColaboradores(lista) {
                             const diffDays = Math.floor((today - adm) / (1000 * 60 * 60 * 24));
                             if (diffDays >= 0 && diffDays <= 90) {
                                 let tagHtml = diffDays <= 45
-                                    ? `<span class="probation-badge" style="font-size:0.65rem;padding:0.2rem 0.5rem;min-width:50px;">1Âº 45</span>`
-                                    : `<span class="probation-badge second" style="font-size:0.65rem;padding:0.2rem 0.5rem;min-width:50px;">2Âº 45</span>`;
+                                    ? `<span class="probation-badge" style="font-size:0.65rem;padding:0.2rem 0.5rem;min-width:50px;">1º 45</span>`
+                                    : `<span class="probation-badge second" style="font-size:0.65rem;padding:0.2rem 0.5rem;min-width:50px;">2º 45</span>`;
                                 experienceColHtml = `<div style="display:flex;flex-direction:column;align-items:flex-start;">${tagHtml}${probationDatesHtml}</div>`;
                             }
                         }
@@ -2377,7 +2377,7 @@ function renderTabelaColaboradores(lista) {
                             <td style="text-align:right;padding-right:1rem;">
                                 <div style="display:flex;gap:0.4rem;justify-content:flex-end;">
                                     <button class="btn btn-warning btn-sm" onclick="editColaborador(${c.id})" title="Editar" style="padding:0.4rem;width:32px;height:32px;justify-content:center;"><i class="ph ph-pencil-simple"></i></button>
-                                    <button class="btn btn-primary btn-sm" onclick="openProntuario(${c.id},'${(c.nome_completo||'').replace(/'/g,"\\'")}','${(c.cargo||'').replace(/'/g,"\\'")}','${c.cpf||''}','${c.sexo||''}','${c.data_admissao||''}','${c.status||''}','${c.rg_tipo||'RG'}')" title="ProntuÃ¡rio" style="padding:0.4rem;width:32px;height:32px;justify-content:center;background:#2563eb;"><i class="ph ph-folder-open"></i></button>
+                                    <button class="btn btn-primary btn-sm" onclick="openProntuario(${c.id},'${(c.nome_completo||'').replace(/'/g,"\\'")}','${(c.cargo||'').replace(/'/g,"\\'")}','${c.cpf||''}','${c.sexo||''}','${c.data_admissao||''}','${c.status||''}','${c.rg_tipo||'RG'}')" title="Prontuário" style="padding:0.4rem;width:32px;height:32px;justify-content:center;background:#2563eb;"><i class="ph ph-folder-open"></i></button>
                                     
                                 </div>
                             </td>
@@ -2390,9 +2390,9 @@ function renderTabelaColaboradores(lista) {
 }
 
 window.deleteColaborador = async function(id, isStatusIncompleto = false) {
-    let msg = 'ðŸš¨ ATENÃ‡ÃƒO: Tem certeza que deseja inativar este colaborador?\n\nO status dele(a) serÃ¡ alterado para "Desligado" mantendo todos os arquivos intactos.';
+    let msg = '🚨 ATENÇÃO: Tem certeza que deseja inativar este colaborador?\n\nO status dele(a) será alterado para "Desligado" mantendo todos os arquivos intactos.';
     if (isStatusIncompleto) {
-        msg = 'ðŸš¨ ATENÃ‡ÃƒO: Este colaborador estÃ¡ INCOMPLETO. A exclusÃ£o irÃ¡ DELETAR PERMANENTEMENTE todos os dados e eventuais arquivos jÃ¡ enviados. Deseja prosseguir?';
+        msg = '🚨 ATENÇÃO: Este colaborador está INCOMPLETO. A exclusão irá DELETAR PERMANENTEMENTE todos os dados e eventuais arquivos já enviados. Deseja prosseguir?';
     }
     if(!confirm(msg)) return;
     try {
@@ -2441,7 +2441,7 @@ window.resetFormColaborador = function() {
         if (el) el.value = '';
     });
     
-    // Reset FÃ©rias Info
+    // Reset Férias Info
     if (document.getElementById('ferias-periodo-aquisitivo')) document.getElementById('ferias-periodo-aquisitivo').value = '-';
     if (document.getElementById('ferias-periodo-concessivo')) document.getElementById('ferias-periodo-concessivo').value = '-';
     if (document.getElementById('ferias-concessivo-indicator')) document.getElementById('ferias-concessivo-indicator').style.display = 'none';
@@ -2451,19 +2451,19 @@ window.resetFormColaborador = function() {
     
     // Reset Alergias e novos campos
     if (document.getElementById('colab-alergias')) document.getElementById('colab-alergias').value = '';
-    const radA = document.querySelector('input[name="alergia_check"][value="NÃ£o"]');
+    const radA = document.querySelector('input[name="alergia_check"][value="Não"]');
     if (radA) radA.checked = true;
-    if (typeof window.toggleAlergias === 'function') window.toggleAlergias('NÃ£o');
+    if (typeof window.toggleAlergias === 'function') window.toggleAlergias('Não');
 
-    const radAdt = document.querySelector('input[name="adiantamento_check"][value="NÃ£o"]');
+    const radAdt = document.querySelector('input[name="adiantamento_check"][value="Não"]');
     if (radAdt) radAdt.checked = true;
-    if (typeof window.toggleAdiantamento === 'function') window.toggleAdiantamento('NÃ£o');
+    if (typeof window.toggleAdiantamento === 'function') window.toggleAdiantamento('Não');
     if (document.getElementById('colab-adiantamento-valor')) document.getElementById('colab-adiantamento-valor').value = '';
 
-    const radioInN = document.querySelector('input[name="insalubridade_check"][value="NÃ£o"]');
+    const radioInN = document.querySelector('input[name="insalubridade_check"][value="Não"]');
     if(radioInN) radioInN.checked = true;
     if(document.getElementById('colab-insalubridade-valor')) document.getElementById('colab-insalubridade-valor').value = '';
-    if (typeof window.toggleInsalubridade === 'function') window.toggleInsalubridade('NÃ£o');
+    if (typeof window.toggleInsalubridade === 'function') window.toggleInsalubridade('Não');
     
     if (document.getElementById('colab-rg-tipo')) {
         document.getElementById('colab-rg-tipo').value = 'RG';
@@ -2476,7 +2476,7 @@ window.resetFormColaborador = function() {
     // Reset status badges (no longer used, but good to clean if they were there)
     const statusContainer = document.getElementById('status-chips-container');
     if (statusContainer) {
-        updateStatusChip('Aguardando inÃ­cio');
+        updateStatusChip('Aguardando início');
     }
 
     const admissionBar = document.getElementById('admission-status-bar');
@@ -2524,24 +2524,24 @@ window.resetFormColaborador = function() {
     const errorCpf = document.getElementById('cpf-error');
     if(errorCpf) errorCpf.style.display = 'none';
 
-    const radioFacNao = document.querySelector('input[name="faculdade_participa"][value="NÃ£o"]');
-    if (radioFacNao) { radioFacNao.checked = true; toggleFormacaoFields('NÃ£o'); }
+    const radioFacNao = document.querySelector('input[name="faculdade_participa"][value="Não"]');
+    if (radioFacNao) { radioFacNao.checked = true; toggleFormacaoFields('Não'); }
     
-    const radioAcadNao = document.querySelector('input[name="academia_participa"][value="NÃ£o"]');
-    if (radioAcadNao) { radioAcadNao.checked = true; toggleAcademiaFields('NÃ£o'); }
+    const radioAcadNao = document.querySelector('input[name="academia_participa"][value="Não"]');
+    if (radioAcadNao) { radioAcadNao.checked = true; toggleAcademiaFields('Não'); }
     
-    const radioTeraNao = document.querySelector('input[name="terapia_participa"][value="NÃ£o"]');
-    if (radioTeraNao) { radioTeraNao.checked = true; toggleTerapiaFields('NÃ£o'); }
+    const radioTeraNao = document.querySelector('input[name="terapia_participa"][value="Não"]');
+    if (radioTeraNao) { radioTeraNao.checked = true; toggleTerapiaFields('Não'); }
     
-    const radioCeluNao = document.querySelector('input[name="celular_participa"][value="NÃ£o"]');
-    if (radioCeluNao) { radioCeluNao.checked = true; toggleCelularFields('NÃ£o'); }
+    const radioCeluNao = document.querySelector('input[name="celular_participa"][value="Não"]');
+    if (radioCeluNao) { radioCeluNao.checked = true; toggleCelularFields('Não'); }
     
-    const radioChavesNao = document.querySelector('input[name="chaves_participa"][value="NÃ£o"]');
-    if (radioChavesNao) { radioChavesNao.checked = true; toggleChavesColabFields('NÃ£o'); }
+    const radioChavesNao = document.querySelector('input[name="chaves_participa"][value="Não"]');
+    if (radioChavesNao) { radioChavesNao.checked = true; toggleChavesColabFields('Não'); }
 };
 
 window.editColaborador = async function(id) {
-    // BotÃ£o de sincronizaÃ§Ã£o manual ocultado (a automaÃ§Ã£o jÃ¡ faz isso ao salvar)
+    // Botão de sincronização manual ocultado (a automação já faz isso ao salvar)
     const formSyncBtn = document.getElementById('btn-form-sync-onedrive');
     if (formSyncBtn) {
         formSyncBtn.style.display = 'none';
@@ -2641,7 +2641,7 @@ window.editColaborador = async function(id) {
         if (document.getElementById('colab-banco-agencia')) document.getElementById('colab-banco-agencia').value = c.banco_agencia || '';
         if (document.getElementById('colab-banco-conta')) document.getElementById('colab-banco-conta').value = c.banco_conta || '';
 
-        // Contato de EmergÃªncia
+        // Contato de Emergência
         if (document.getElementById('colab-emergencia-nome')) document.getElementById('colab-emergencia-nome').value = c.contato_emergencia_nome || '';
         if (document.getElementById('colab-emergencia-telefone')) document.getElementById('colab-emergencia-telefone').value = c.contato_emergencia_telefone || '';
 
@@ -2676,12 +2676,12 @@ window.editColaborador = async function(id) {
             }
         }
 
-        // toggleMotorista ANTES de carregar CNH â€” se chamado depois limpa os campos
+        // toggleMotorista ANTES de carregar CNH — se chamado depois limpa os campos
         if(typeof toggleMotorista === 'function') toggleMotorista();
         if(document.getElementById('colab-cnh-numero')) document.getElementById('colab-cnh-numero').value = c.cnh_numero || '';
         if(document.getElementById('colab-cnh-categoria')) document.getElementById('colab-cnh-categoria').value = c.cnh_categoria || '';
 
-        // FÃ©rias
+        // Férias
         if(document.getElementById('colab-ferias-programadas-inicio')) document.getElementById('colab-ferias-programadas-inicio').value = c.ferias_programadas_inicio || '';
         if(document.getElementById('colab-ferias-programadas-fim')) document.getElementById('colab-ferias-programadas-fim').value = c.ferias_programadas_fim || '';
         if(typeof updateVacationInfo === 'function') updateVacationInfo(admDate);
@@ -2689,15 +2689,15 @@ window.editColaborador = async function(id) {
 
         // Alergias
         if (document.getElementById('colab-alergias')) {
-            const hasAlergia = c.alergias && c.alergias.trim() !== '' ? 'Sim' : 'NÃ£o';
+            const hasAlergia = c.alergias && c.alergias.trim() !== '' ? 'Sim' : 'Não';
             const radioAlergia = document.querySelector(`input[name="alergia_check"][value="${hasAlergia}"]`);
             if (radioAlergia) radioAlergia.checked = true;
             if (typeof window.toggleAlergias === 'function') window.toggleAlergias(hasAlergia);
             document.getElementById('colab-alergias').value = c.alergias || '';
         }
 
-        // Adiantamento â€” formatar valor como moeda ao carregar
-        const adiVal = c.adiantamento_salarial || 'NÃ£o';
+        // Adiantamento — formatar valor como moeda ao carregar
+        const adiVal = c.adiantamento_salarial || 'Não';
         const radioAdt = document.querySelector(`input[name="adiantamento_check"][value="${adiVal}"]`);
         if (radioAdt) radioAdt.checked = true;
         if (typeof window.toggleAdiantamento === 'function') window.toggleAdiantamento(adiVal);
@@ -2713,9 +2713,9 @@ window.editColaborador = async function(id) {
             }
         }
 
-        // Insalubridade â€” formatar valor como moeda ao carregar
-        const insVal = c.insalubridade || 'NÃ£o';
-        const radioInS = document.querySelector(`input[name="insalubridade_check"][value="${insVal === 'Sim' ? 'Sim' : 'NÃ£o'}"]`);
+        // Insalubridade — formatar valor como moeda ao carregar
+        const insVal = c.insalubridade || 'Não';
+        const radioInS = document.querySelector(`input[name="insalubridade_check"][value="${insVal === 'Sim' ? 'Sim' : 'Não'}"]`);
         if(radioInS) radioInS.checked = true;
         if(document.getElementById('colab-insalubridade-valor')) {
             const rawIns = c.insalubridade_valor;
@@ -2731,7 +2731,7 @@ window.editColaborador = async function(id) {
         if (typeof window.toggleInsalubridade === 'function') window.toggleInsalubridade(insVal);
         
         // Faculdade fields
-        const participa = c.faculdade_participa || 'NÃ£o';
+        const participa = c.faculdade_participa || 'Não';
         const radioP = document.querySelector(`input[name="faculdade_participa"][value="${participa}"]`);
         if (radioP) radioP.checked = true;
         toggleFormacaoFields(participa);
@@ -2739,34 +2739,34 @@ window.editColaborador = async function(id) {
         if (document.getElementById('colab-faculdade-data-termino')) document.getElementById('colab-faculdade-data-termino').value = c.faculdade_data_termino || '';
 
         // Academia
-        const participaAcad = c.academia_participa || 'NÃ£o';
+        const participaAcad = c.academia_participa || 'Não';
         const radioAcad = document.querySelector(`input[name="academia_participa"][value="${participaAcad}"]`);
         if (radioAcad) radioAcad.checked = true;
         toggleAcademiaFields(participaAcad);
         if (document.getElementById('colab-academia-data-inicio')) document.getElementById('colab-academia-data-inicio').value = c.academia_data_inicio || '';
 
         // Terapia
-        const participaTera = c.terapia_participa || 'NÃ£o';
+        const participaTera = c.terapia_participa || 'Não';
         const radioTera = document.querySelector(`input[name="terapia_participa"][value="${participaTera}"]`);
         if (radioTera) radioTera.checked = true;
         toggleTerapiaFields(participaTera);
         if (document.getElementById('colab-terapia-data-inicio')) document.getElementById('colab-terapia-data-inicio').value = c.terapia_data_inicio || '';
 
         // Celular
-        const participaCelu = c.celular_participa || 'NÃ£o';
+        const participaCelu = c.celular_participa || 'Não';
         const radioCelu = document.querySelector(`input[name="celular_participa"][value="${participaCelu}"]`);
         if (radioCelu) radioCelu.checked = true;
         toggleCelularFields(participaCelu);
         if (document.getElementById('colab-celular-data')) document.getElementById('colab-celular-data').value = c.celular_data || '';
 
         // Chaves
-        const participaChaves = c.chaves_participa || 'NÃ£o';
+        const participaChaves = c.chaves_participa || 'Não';
         const radioChaves = document.querySelector(`input[name="chaves_participa"][value="${participaChaves}"]`);
         if (radioChaves) radioChaves.checked = true;
         toggleChavesColabFields(participaChaves);
         
         // Brigadista
-        const participaBrig = c.brigadista_participa || 'NÃ£o';
+        const participaBrig = c.brigadista_participa || 'Não';
         const radioBrig = document.querySelector(`input[name="brigadista_participa"][value="${participaBrig}"]`);
         if (radioBrig) radioBrig.checked = true;
         toggleBrigadistaFields(participaBrig);
@@ -2787,9 +2787,9 @@ window.editColaborador = async function(id) {
 
         updateStatusChip(getEffectiveStatus(c));
         
-        if (c.estado_civil === 'Casado' || c.estado_civil === 'UniÃ£o EstÃ¡vel') {
+        if (c.estado_civil === 'Casado' || c.estado_civil === 'União Estável') {
             toggleConjuge();
-            // CÃ´njuge agora salvo diretamente no colaborador (conjuge_nome / conjuge_cpf)
+            // Cônjuge agora salvo diretamente no colaborador (conjuge_nome / conjuge_cpf)
             if (document.getElementById('conjuge-nome')) document.getElementById('conjuge-nome').value = c.conjuge_nome || '';
             if (document.getElementById('conjuge-cpf')) document.getElementById('conjuge-cpf').value = c.conjuge_cpf || '';
         } else {
@@ -2837,17 +2837,17 @@ window.editColaborador = async function(id) {
         const admissionBtn = document.getElementById('btn-iniciar-admissao');
         
         if (admissionBar && admissionText && admissionBtn) {
-            if (c.status === 'Aguardando inÃ­cio' || c.status === 'Processo iniciado') {
+            if (c.status === 'Aguardando início' || c.status === 'Processo iniciado') {
                 admissionBar.style.display = 'flex';
                 admissionText.textContent = c.status;
-                admissionBtn.innerHTML = '<i class="ph ph-arrow-right"></i> PÃ¡gina AdmissÃ£o';
+                admissionBtn.innerHTML = '<i class="ph ph-arrow-right"></i> Página Admissão';
                 admissionBtn.onclick = () => navigateTo('admissao');
                 admissionBtn.style.opacity = '1';
                 admissionBtn.style.cursor = 'pointer';
             } else if (c.status === 'Ativo') {
                 admissionBar.style.display = 'flex';
-                admissionText.textContent = 'AdmissÃ£o ConcluÃ­da';
-                admissionBtn.innerHTML = '<i class="ph ph-check-square"></i> ConcluÃ­da';
+                admissionText.textContent = 'Admissão Concluída';
+                admissionBtn.innerHTML = '<i class="ph ph-check-square"></i> Concluída';
                 admissionBtn.onclick = null;
                 admissionBtn.style.opacity = '0.7';
                 admissionBtn.style.cursor = 'default';
@@ -2860,8 +2860,8 @@ window.editColaborador = async function(id) {
         const container = document.getElementById('dependentes-container');
         if (container) {
             container.innerHTML = '';
-            // Filtra cÃ´njuge para nÃ£o aparecer na lista de dependentes
-            const children = (c.dependentes || []).filter(d => d.grau_parentesco !== 'CÃ´njuge');
+            // Filtra cônjuge para não aparecer na lista de dependentes
+            const children = (c.dependentes || []).filter(d => d.grau_parentesco !== 'Cônjuge');
             if (children.length > 0) {
                 document.getElementById('no-dependentes-msg').style.display = 'none';
                 children.forEach(dep => {
@@ -2899,7 +2899,7 @@ window.editColaborador = async function(id) {
         }, 100);
     } catch (err) {
         console.error('Erro ao editar colaborador:', err);
-        alert('Ocorreu um erro ao carregar os dados para ediÃ§Ã£o: ' + err.message);
+        alert('Ocorreu um erro ao carregar os dados para edição: ' + err.message);
     }
 };
 
@@ -2930,7 +2930,7 @@ if (formColab) {
 
         const isPartial = e.submitter && e.submitter.id === 'btn-salvar-parcial';
 
-        // ValidaÃ§Ãµes obrigatÃ³rias
+        // Validações obrigatórias
         if (!isPartial) {
             if (!nomeInput || !nomeInput.value.trim()) {
                 alert("Por favor, preencha o Nome Completo do colaborador.");
@@ -2938,10 +2938,10 @@ if (formColab) {
                 return;
             }
             if (cpfInput && cpfInput.value.replace(/\D/g, '').length < 11) {
-                alert("CPF do Colaborador invÃ¡lido ou incompleto.");
+                alert("CPF do Colaborador inválido ou incompleto.");
                 return;
             }
-            // CÃ´njuge e CNH: preenchimento opcional
+            // Cônjuge e CNH: preenchimento opcional
         }
 
         const submitter = e.submitter;
@@ -2993,7 +2993,7 @@ if (formColab) {
             
             dependentes: (() => {
                 const results = [];
-                // Incluir Filhos / Dependentes (CÃ´njuge nÃ£o Ã© mais dependente)
+                // Incluir Filhos / Dependentes (Cônjuge não é mais dependente)
                 const rows = document.querySelectorAll('.dependente-row');
                 rows.forEach(row => {
                     const nome = row.querySelector('.dep-nome').value;
@@ -3006,10 +3006,10 @@ if (formColab) {
                         });
                     }
                 });
-                // Incluir apenas filhos como dependentes (cÃ´njuge Ã© salvo separadamente)
+                // Incluir apenas filhos como dependentes (cônjuge é salvo separadamente)
                 return results;
             })(),
-            // CÃ´njuge salvo como colunas diretas no colaborador
+            // Cônjuge salvo como colunas diretas no colaborador
             conjuge_nome: document.getElementById('conjuge-nome') ? document.getElementById('conjuge-nome').value.trim() : null,
             conjuge_cpf: document.getElementById('conjuge-cpf') ? document.getElementById('conjuge-cpf').value.trim() : null,
             cbo: (function() {
@@ -3035,33 +3035,33 @@ if (formColab) {
             meio_transporte: document.getElementById('colab-meio-transporte') ? document.getElementById('colab-meio-transporte').value : null,
             valor_transporte: document.getElementById('colab-valor-transporte') ? document.getElementById('colab-valor-transporte').value : null,
             alergias: document.getElementById('colab-alergias') ? document.getElementById('colab-alergias').value : null,
-            faculdade_participa: document.querySelector('input[name="faculdade_participa"]:checked')?.value || 'NÃ£o',
+            faculdade_participa: document.querySelector('input[name="faculdade_participa"]:checked')?.value || 'Não',
             faculdade_curso_id: document.getElementById('colab-faculdade-curso') ? document.getElementById('colab-faculdade-curso').value : null,
             faculdade_data_inicio: document.getElementById('colab-faculdade-data-inicio') ? document.getElementById('colab-faculdade-data-inicio').value : null,
             faculdade_data_termino: document.getElementById('colab-faculdade-data-termino') ? document.getElementById('colab-faculdade-data-termino').value : null,
-            academia_participa: document.querySelector('input[name="academia_participa"]:checked')?.value || 'NÃ£o',
+            academia_participa: document.querySelector('input[name="academia_participa"]:checked')?.value || 'Não',
             academia_data_inicio: document.getElementById('colab-academia-data-inicio') ? document.getElementById('colab-academia-data-inicio').value : null,
-            terapia_participa: document.querySelector('input[name="terapia_participa"]:checked')?.value || 'NÃ£o',
+            terapia_participa: document.querySelector('input[name="terapia_participa"]:checked')?.value || 'Não',
             terapia_data_inicio: document.getElementById('colab-terapia-data-inicio') ? document.getElementById('colab-terapia-data-inicio').value : null,
-            celular_participa: document.querySelector('input[name="celular_participa"]:checked')?.value || 'NÃ£o',
+            celular_participa: document.querySelector('input[name="celular_participa"]:checked')?.value || 'Não',
             celular_data: document.getElementById('colab-celular-data') ? document.getElementById('colab-celular-data').value : null,
-            chaves_participa: document.querySelector('input[name="chaves_participa"]:checked')?.value || 'NÃ£o',
+            chaves_participa: document.querySelector('input[name="chaves_participa"]:checked')?.value || 'Não',
             chaves_lista: Array.from(document.querySelectorAll('.chave-entry-row')).map(row => ({
                 chave_id: row.querySelector('.colab-chave-select').value,
                 data_entrega: row.querySelector('.colab-chave-date').value
             })).filter(x => x.chave_id),
             ferias_programadas_inicio: document.getElementById('colab-ferias-programadas-inicio') ? document.getElementById('colab-ferias-programadas-inicio').value : null,
             ferias_programadas_fim: document.getElementById('colab-ferias-programadas-fim') ? document.getElementById('colab-ferias-programadas-fim').value : null,
-            adiantamento_salarial: document.querySelector('input[name="adiantamento_check"]:checked')?.value || 'NÃ£o',
+            adiantamento_salarial: document.querySelector('input[name="adiantamento_check"]:checked')?.value || 'Não',
             adiantamento_valor: document.getElementById('colab-adiantamento-valor') ? document.getElementById('colab-adiantamento-valor').value : null,
-            insalubridade: document.querySelector('input[name="insalubridade_check"]:checked')?.value || 'NÃ£o',
+            insalubridade: document.querySelector('input[name="insalubridade_check"]:checked')?.value || 'Não',
             insalubridade_valor: document.getElementById('colab-insalubridade-valor') ? document.getElementById('colab-insalubridade-valor').value : null,
             tamanho_camiseta: document.getElementById('tamanho_camiseta') ? document.getElementById('tamanho_camiseta').value : null,
             tamanho_calca: document.getElementById('tamanho_calca') ? document.getElementById('tamanho_calca').value : null,
             tamanho_calcado: document.getElementById('tamanho_calcado') ? document.getElementById('tamanho_calcado').value : null
         };
 
-        // Converter valores formatados (R$) para nÃºmeros antes de enviar
+        // Converter valores formatados (R$) para números antes de enviar
         const parseMoeda = (v) => {
             if (!v || typeof v !== 'string') return v;
             const clean = v.replace(/[^\d,]/g, "").replace(",", ".");
@@ -3075,13 +3075,13 @@ if (formColab) {
         if (data.escala_tipo === 'escala_duas_folgas' && !isPartial) {
             const folgas = Array.from(document.querySelectorAll('.cb-folga-colab:checked')).map(cb => cb.value);
             if (folgas.length !== 2) {
-                alert('AtenÃ§Ã£o: Para o esquema 5x2 (Revezamento), vocÃª deve marcar *exatamente 2 dias* de folga na lista.');
+                alert('Atenção: Para o esquema 5x2 (Revezamento), você deve marcar *exatamente 2 dias* de folga na lista.');
                 btnRestorer();
                 return;
             }
             data.escala_folgas = JSON.stringify(folgas);
         } else if (data.escala_tipo && data.escala_tipo !== 'escala_duas_folgas') {
-            data.escala_folgas = JSON.stringify(['Dom']); // PadrÃ£o para as outras escalas
+            data.escala_folgas = JSON.stringify(['Dom']); // Padrão para as outras escalas
         }
 
         const btnRestorer = () => {
@@ -3091,27 +3091,27 @@ if (formColab) {
             }
         };
 
-        let c_status = statusInput ? statusInput.value : 'Aguardando inÃ­cio';
+        let c_status = statusInput ? statusInput.value : 'Aguardando início';
         if (!id) {
-            // Todos novos registros iniciam como Aguardando inÃ­cio
-            c_status = 'Aguardando inÃ­cio';
+            // Todos novos registros iniciam como Aguardando início
+            c_status = 'Aguardando início';
         }
         data.status = c_status;
 
-        // VALIDAÃ‡ÃƒO FRONT-END (MÃNIMO)
+        // VALIDAÇÃO FRONT-END (MÍNIMO)
         if (!data.nome_completo || data.nome_completo.trim() === '') {
-            alert('Preenchimento ObrigatÃ³rio: O campo "Nome Completo" nÃ£o pode ficar vazio.');
+            alert('Preenchimento Obrigatório: O campo "Nome Completo" não pode ficar vazio.');
             btnRestorer();
             return;
         }
         
         if (!data.cpf || data.cpf.trim() === '') {
-            alert('Preenchimento ObrigatÃ³rio: O campo "CPF" nÃ£o pode ficar vazio.');
+            alert('Preenchimento Obrigatório: O campo "CPF" não pode ficar vazio.');
             btnRestorer();
             return;
         }
 
-        // ValidaÃ§Ã£o de Motorista
+        // Validação de Motorista
         if (data.cargo && data.cargo.toUpperCase().includes('MOTORISTA')) {
             if (!isPartial) {
                 const cnhNumeroEl = document.getElementById('colab-cnh-numero');
@@ -3119,14 +3119,14 @@ if (formColab) {
                 const cnhNumeroVal = cnhNumeroEl ? cnhNumeroEl.value.trim() : (data.cnh_numero || '').trim();
                 const cnhCatVal = cnhCatEl ? cnhCatEl.value : (data.cnh_categoria || '');
                 if (cnhNumeroEl && cnhCatEl) {
-                    // SÃ³ valida se os campos estiverem no DOM
+                    // Só valida se os campos estiverem no DOM
                     if (!cnhNumeroVal || !cnhCatVal) {
-                        alert('Preenchimento ObrigatÃ³rio: Dados da CNH (NÃºmero e Categoria) para Motorista nÃ£o podem ficar vazios.');
+                        alert('Preenchimento Obrigatório: Dados da CNH (Número e Categoria) para Motorista não podem ficar vazios.');
                         btnRestorer();
                         return;
                     }
                     if (cnhNumeroVal.length < 11) {
-                        alert('Preenchimento ObrigatÃ³rio: O nÃºmero da CNH deve conter pelo menos 11 dÃ­gitos.');
+                        alert('Preenchimento Obrigatório: O número da CNH deve conter pelo menos 11 dígitos.');
                         btnRestorer();
                         return;
                     }
@@ -3156,7 +3156,7 @@ if (formColab) {
                     headers: { 'Authorization': `Bearer ${currentToken}` }
                 });
                 const dataSync = await syncRes.json();
-                // NavegaÃ§Ã£o silenciosa â€” sem alertas de confirmaÃ§Ã£o
+                // Navegação silenciosa — sem alertas de confirmação
             } else {
                 // Colaborador salvo sem sync (novo colaborador)
             }
@@ -3191,11 +3191,11 @@ window.openProntuarioFromCurrentForm = function() {
     window.openProntuario(id, nome, cargo, cpf, sexo, admissao, status, rgTipo);
 }
 
-// --- PRONTUÃRIO DIGITAL ---
+// --- PRONTUÁRIO DIGITAL ---
 window.openProntuario = async function(id, nome, cargo, cpf, sexo = '', admissao = '', status = '', rgTipo = 'RG') {
     viewedColaborador = { id, nome_completo: nome, cargo, cpf, sexo, data_admissao: admissao, status, rg_tipo: rgTipo };
     
-    // Vincular botÃ£o IMEDIATAMENTE (antes de qualquer await)
+    // Vincular botão IMEDIATAMENTE (antes de qualquer await)
     const syncBtn = document.getElementById('btn-sync-onedrive');
     if (syncBtn) {
         syncBtn.onclick = function() { window.syncOneDriveManual(id, this); };
@@ -3219,16 +3219,16 @@ window.openProntuario = async function(id, nome, cargo, cpf, sexo = '', admissao
     if (statusDisplay) {
         const s = getEffectiveStatus(viewedColaborador || { status });
         let statusHtml = '';
-        if (s === 'Aguardando inÃ­cio') statusHtml = `<div style="background:#f1f3f5; color:#495057; border: 1px solid #adb5bd; border-radius:20px; font-weight:600; padding:2px 10px; font-size:0.75rem; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-clock"></i> Aguardando</div>`;
+        if (s === 'Aguardando início') statusHtml = `<div style="background:#f1f3f5; color:#495057; border: 1px solid #adb5bd; border-radius:20px; font-weight:600; padding:2px 10px; font-size:0.75rem; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-clock"></i> Aguardando</div>`;
         else if (s === 'Processo iniciado') statusHtml = `<div style="background:#e7f5ff; color:#1864ab; border: 1px solid #1864ab; border-radius:20px; font-weight:600; padding:2px 10px; font-size:0.75rem; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-hourglass"></i> Iniciado</div>`;
         else if (s === 'Ativo') statusHtml = `<div style="background:#e8f5e9; color:#196b36; border: 1px solid #196b36; border-radius:20px; font-weight:600; padding:2px 10px; font-size:0.75rem; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-check-circle"></i> Ativo</div>`;
-        else if (s === 'FÃ©rias') statusHtml = `<div style="background:#fdf7e3; color:#c2aa72; border: 1px solid #c2aa72; border-radius:20px; font-weight:600; padding:2px 10px; font-size:0.75rem; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-airplane-tilt"></i> FÃ©rias</div>`;
+        else if (s === 'Férias') statusHtml = `<div style="background:#fdf7e3; color:#c2aa72; border: 1px solid #c2aa72; border-radius:20px; font-weight:600; padding:2px 10px; font-size:0.75rem; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-airplane-tilt"></i> Férias</div>`;
         else if (s === 'Afastado') statusHtml = `<div style="background:#faeed9; color:#eaa15f; border: 1px solid #eaa15f; border-radius:20px; font-weight:600; padding:2px 10px; font-size:0.75rem; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-warning"></i> Afastado</div>`;
         else if (s === 'Desligado') statusHtml = `<div style="background:#fceeee; color:#ba7881; border: 1px solid #ba7881; border-radius:20px; font-weight:600; padding:2px 10px; font-size:0.75rem; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-x-circle"></i> Desligado</div>`;
         statusDisplay.innerHTML = statusHtml;
     }
 
-    // Foto no ProntuÃ¡rio
+    // Foto no Prontuário
     const fotoImg = document.getElementById('prontuario-foto-img');
     const fotoPlaceholder = document.getElementById('prontuario-photo-placeholder');
     if (fotoImg && fotoPlaceholder) {
@@ -3248,10 +3248,10 @@ window.openProntuario = async function(id, nome, cargo, cpf, sexo = '', admissao
     const firstTab = document.querySelector('#tabs-list li[data-tab="00.CheckList"]');
     if (firstTab) firstTab.classList.add('active');
 
-    // Exibir aba CÃ´njuge apenas para Casado ou UniÃ£o EstÃ¡vel
+    // Exibir aba Cônjuge apenas para Casado ou União Estável
     const tabConjuge = document.getElementById('tab-conjuge');
     if (tabConjuge) {
-        tabConjuge.style.display = 'none'; // Aba de CÃ´njuge extinta nativamente (migrado para Passo 4)
+        tabConjuge.style.display = 'none'; // Aba de Cônjuge extinta nativamente (migrado para Passo 4)
     }
 
     const _nomePront = viewedColaborador ? (viewedColaborador.nome_completo || viewedColaborador.nome || nome) : nome;
@@ -3278,7 +3278,7 @@ window.uploadFotoProntuario = async function(input) {
         });
         
         if (response.ok) {
-            // Recarregar prontuÃ¡rio para atualizar foto
+            // Recarregar prontuário para atualizar foto
             const updated = await apiGet(`/colaboradores/${colabId}`);
             if (updated) {
                 viewedColaborador = updated;
@@ -3295,7 +3295,7 @@ window.uploadFotoProntuario = async function(input) {
         }
     } catch (err) {
         console.error(err);
-        alert('Erro na conexÃ£o ao enviar foto.');
+        alert('Erro na conexão ao enviar foto.');
     }
 };
 
@@ -3308,9 +3308,9 @@ async function loadDocumentosList() {
 }
 
 const FIXED_DOCS = {
-    'ASO': ['ASO PadrÃ£o'],
+    'ASO': ['ASO Padrão'],
     'Ficha de EPI': ['Ficha de EPI Assinada'],
-    'Multas': ['Contrato de Responsabilidade com o VeÃ­culo']
+    'Multas': ['Contrato de Responsabilidade com o Veículo']
 };
 
 function getFichaCadastralDocs() {
@@ -3367,7 +3367,7 @@ function getAnosAdmissaoOptions(selectedYear = null) {
 }
 
 // ============================================================
-// GERADOR DE OCORRÃŠNCIA - Renderiza painel na aba OcorrÃªncias (tabId: AdvertÃªncias)
+// GERADOR DE OCORRÊNCIA - Renderiza painel na aba Ocorrências (tabId: Advertências)
 // ============================================================
 window.renderAdvertenciasTab = function(listContainer, filteredDocs) {
     const safeTabId = 'Advert_ncias';
@@ -3383,36 +3383,36 @@ window.renderAdvertenciasTab = function(listContainer, filteredDocs) {
                     <i class="ph ph-warning" style="color:#fff; font-size:1.3rem;"></i>
                 </div>
                 <div>
-                    <h4 style="margin:0; font-size:1rem; font-weight:700; color:#1e293b;">Gerar OcorrÃªncia</h4>
-                    <p style="margin:0; font-size:0.8rem; color:#64748b;">Preencha os campos e gere o documento jÃ¡ com os dados do colaborador</p>
+                    <h4 style="margin:0; font-size:1rem; font-weight:700; color:#1e293b;">Gerar Ocorrência</h4>
+                    <p style="margin:0; font-size:0.8rem; color:#64748b;">Preencha os campos e gere o documento já com os dados do colaborador</p>
                 </div>
             </div>
 
             <div style="display:grid; grid-template-columns:1.5fr 2fr 1fr; gap:1rem; margin-bottom:1rem;">
                 <div>
-                    <label style="font-size:0.75rem; font-weight:700; color:#475569; display:block; margin-bottom:4px;">Tipo de AdvertÃªncia</label>
+                    <label style="font-size:0.75rem; font-weight:700; color:#475569; display:block; margin-bottom:4px;">Tipo de Advertência</label>
                     <select id="adv-tipo" class="form-control" style="padding:0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.9rem;">
-                        <option value="ocorrencia">OcorrÃªncia</option>
-                        <option value="verbal">AdvertÃªncia Verbal</option>
-                        <option value="escrita">AdvertÃªncia Escrita</option>
-                        <option value="suspensao_1">SuspensÃ£o â€” 1 dia</option>
-                        <option value="suspensao_2">SuspensÃ£o â€” 2 dias</option>
-                        <option value="suspensao_3">SuspensÃ£o â€” 3 dias</option>
+                        <option value="ocorrencia">Ocorrência</option>
+                        <option value="verbal">Advertência Verbal</option>
+                        <option value="escrita">Advertência Escrita</option>
+                        <option value="suspensao_1">Suspensão — 1 dia</option>
+                        <option value="suspensao_2">Suspensão — 2 dias</option>
+                        <option value="suspensao_3">Suspensão — 3 dias</option>
                     </select>
                 </div>
                 <div>
-                    <label style="font-size:0.75rem; font-weight:700; color:#475569; display:block; margin-bottom:4px;">TÃ­tulo da AdvertÃªncia <span style="color:#94a3b8; font-weight:400;">(opcional)</span></label>
-                    <input type="text" id="adv-titulo" class="form-control" placeholder="Ex: Desrespeito Ã s normas internas..." style="padding:0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.9rem;">
+                    <label style="font-size:0.75rem; font-weight:700; color:#475569; display:block; margin-bottom:4px;">Título da Advertência <span style="color:#94a3b8; font-weight:400;">(opcional)</span></label>
+                    <input type="text" id="adv-titulo" class="form-control" placeholder="Ex: Desrespeito às normas internas..." style="padding:0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.9rem;">
                 </div>
                 <div>
-                    <label style="font-size:0.75rem; font-weight:700; color:#475569; display:block; margin-bottom:4px;">Data OcorrÃªncia</label>
+                    <label style="font-size:0.75rem; font-weight:700; color:#475569; display:block; margin-bottom:4px;">Data Ocorrência</label>
                     <input type="date" id="adv-data" class="form-control" value="${new Date().toISOString().split('T')[0]}" style="padding:0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.9rem;">
                 </div>
             </div>
 
             <div style="margin-bottom:1rem;">
-                <label style="font-size:0.75rem; font-weight:700; color:#475569; display:block; margin-bottom:4px;">Motivo / DescriÃ§Ã£o da InfraÃ§Ã£o <span style="color:#ef4444;">*</span></label>
-                <textarea id="adv-motivo" rows="3" class="form-control" placeholder="Descreva o motivo da advertÃªncia..." style="padding:0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.9rem; resize:vertical; width:100%; box-sizing:border-box;"></textarea>
+                <label style="font-size:0.75rem; font-weight:700; color:#475569; display:block; margin-bottom:4px;">Motivo / Descrição da Infração <span style="color:#ef4444;">*</span></label>
+                <textarea id="adv-motivo" rows="3" class="form-control" placeholder="Descreva o motivo da advertência..." style="padding:0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.9rem; resize:vertical; width:100%; box-sizing:border-box;"></textarea>
             </div>
 
             <div style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
@@ -3424,20 +3424,20 @@ window.renderAdvertenciasTab = function(listContainer, filteredDocs) {
                 </span>
             </div>
 
-            <!-- O painel de preview inline foi removido, pois agora abrirÃ¡ no modal -->
+            <!-- O painel de preview inline foi removido, pois agora abrirá no modal -->
         </div>
 
         <!-- Seletor de ano + lista de documentos -->
         <div class="card p-3 mb-4 bg-light" style="display:flex; gap:1.5rem; align-items:center;">
             <label style="margin:0; font-weight:600;">Ano referente:</label>
-            <select id="temporal_year_Advert_ncias" class="form-control" style="padding:0.4rem; max-width:120px;" onchange="renderTemporalAno('AdvertÃªncias')">
+            <select id="temporal_year_Advert_ncias" class="form-control" style="padding:0.4rem; max-width:120px;" onchange="renderTemporalAno('Advertências')">
                 ${optionsHtml}
             </select>
         </div>
         <div id="temporal_ano_container_Advert_ncias"></div>
     `;
     listContainer.appendChild(geradorPanel);
-    renderTemporalAno('AdvertÃªncias');
+    renderTemporalAno('Advertências');
 };
 
 window.gerarAdvertencia = function() {
@@ -3448,23 +3448,23 @@ window.gerarAdvertencia = function() {
     const titulo = document.getElementById('adv-titulo').value.trim();
     const motivo = document.getElementById('adv-motivo').value.trim();
 
-    if (!motivo) { alert('Por favor, descreva o motivo da advertÃªncia.'); document.getElementById('adv-motivo').focus(); return; }
+    if (!motivo) { alert('Por favor, descreva o motivo da advertência.'); document.getElementById('adv-motivo').focus(); return; }
 
     const tipoMap = {
-        verbal:      'ADVERTÃŠNCIA VERBAL',
-        escrita:     'ADVERTÃŠNCIA ESCRITA',
-        suspensao_1: 'SUSPENSÃƒO DISCIPLINAR â€” 1 DIA',
-        suspensao_2: 'SUSPENSÃƒO DISCIPLINAR â€” 2 DIAS',
-        suspensao_3: 'SUSPENSÃƒO DISCIPLINAR â€” 3 DIAS',
-        ocorrencia:  'OCORRÃŠNCIA'
+        verbal:      'ADVERTÊNCIA VERBAL',
+        escrita:     'ADVERTÊNCIA ESCRITA',
+        suspensao_1: 'SUSPENSÃO DISCIPLINAR — 1 DIA',
+        suspensao_2: 'SUSPENSÃO DISCIPLINAR — 2 DIAS',
+        suspensao_3: 'SUSPENSÃO DISCIPLINAR — 3 DIAS',
+        ocorrencia:  'OCORRÊNCIA'
     };
-    const tipoTexto = tipoMap[tipo] || 'ADVERTÃŠNCIA';
+    const tipoTexto = tipoMap[tipo] || 'ADVERTÊNCIA';
     const isSuspensao = tipo.startsWith('suspensao');
     const diasSuspensao = tipo === 'suspensao_1' ? 1 : tipo === 'suspensao_2' ? 2 : tipo === 'suspensao_3' ? 3 : 0;
 
     const [ay, am, ad] = (dataOcorrencia || new Date().toISOString().split('T')[0]).split('-');
     const dataFormatada = `${ad}/${am}/${ay}`;
-    const meses = ["janeiro","fevereiro","marÃ§o","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+    const meses = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
     const dataExtenso = `${parseInt(ad)} de ${meses[parseInt(am)-1]} de ${ay}`;
     const dataHoje = new Date();
     const dataHojeFormatada = `${String(dataHoje.getDate()).padStart(2,'0')}/${String(dataHoje.getMonth()+1).padStart(2,'0')}/${dataHoje.getFullYear()}`;
@@ -3479,9 +3479,9 @@ window.gerarAdvertencia = function() {
 
     const suspensaoParag = isSuspensao ? `
         <p style="margin-top:1rem; text-align:justify;">
-            Em decorrÃªncia da gravidade da infraÃ§Ã£o cometida, o(a) colaborador(a) cumprirÃ¡
-            <strong>suspensÃ£o disciplinar de ${diasSuspensao} (${diasSuspensao === 1 ? 'um' : diasSuspensao === 2 ? 'dois' : 'trÃªs'}) dia(s)</strong>,
-            sem remuneraÃ§Ã£o, a contar da data da ciÃªncia deste documento.
+            Em decorrência da gravidade da infração cometida, o(a) colaborador(a) cumprirá
+            <strong>suspensão disciplinar de ${diasSuspensao} (${diasSuspensao === 1 ? 'um' : diasSuspensao === 2 ? 'dois' : 'três'}) dia(s)</strong>,
+            sem remuneração, a contar da data da ciência deste documento.
         </p>` : '';
 
 
@@ -3489,44 +3489,44 @@ window.gerarAdvertencia = function() {
 
     const htmlDoc = `
         <p style="margin-top:1.5rem; text-align:justify;">
-            A empresa <strong>AMERICA RENTAL EQUIPAMENTOS LTDA</strong>, inscrita no CNPJ sob o nÂº 03.434.448/0001-01,
-            situada na Rua Salto da Divisa, nÂº 97, CEP 07252-300, Parque Alvorada â€“ Guarulhos/SP,
+            A empresa <strong>AMERICA RENTAL EQUIPAMENTOS LTDA</strong>, inscrita no CNPJ sob o nº 03.434.448/0001-01,
+            situada na Rua Salto da Divisa, nº 97, CEP 07252-300, Parque Alvorada – Guarulhos/SP,
             ${isOcorrencia
-                ? `vem por meio deste documento <strong>registrar a seguinte ocorrÃªncia</strong> envolvendo o(a) colaborador(a) <strong>${nomeColab}</strong>.`
-                : `vem por meio deste documento aplicar ao(Ã ) colaborador(a) <strong>${nomeColab}</strong> a presente <strong>${tipoTexto}</strong>.`
+                ? `vem por meio deste documento <strong>registrar a seguinte ocorrência</strong> envolvendo o(a) colaborador(a) <strong>${nomeColab}</strong>.`
+                : `vem por meio deste documento aplicar ao(à) colaborador(a) <strong>${nomeColab}</strong> a presente <strong>${tipoTexto}</strong>.`
             }
         </p>
         ${titulo ? `<p style="margin-top:0.75rem; text-align:center; font-size:1rem; font-weight:700; color:#92400e; text-transform:uppercase; letter-spacing:0.04em; border-bottom:1px solid #fdba74; padding-bottom:0.4rem;">${titulo}</p>` : ''}
 
         <p style="margin-top:1rem; text-align:justify;">
-            <strong>${isOcorrencia ? 'DescriÃ§Ã£o da ocorrÃªncia:' : 'Motivo / InfraÃ§Ã£o cometida:'}</strong><br>
+            <strong>${isOcorrencia ? 'Descrição da ocorrência:' : 'Motivo / Infração cometida:'}</strong><br>
             ${motivo.replace(/\n/g, '<br>')}
         </p>
         ${suspensaoParag}
         ${!isOcorrencia ? `
         <p style="margin-top:1rem; text-align:justify;">
-            Informamos que esta Ã© <strong>uma medida disciplinar</strong> e que reincidÃªncias poderÃ£o acarretar
-            penalidades mais severas, inclusive a rescisÃ£o do contrato de trabalho por justa causa,
-            nos termos do artigo 482 da ConsolidaÃ§Ã£o das Leis do Trabalho (CLT).
+            Informamos que esta é <strong>uma medida disciplinar</strong> e que reincidências poderão acarretar
+            penalidades mais severas, inclusive a rescisão do contrato de trabalho por justa causa,
+            nos termos do artigo 482 da Consolidação das Leis do Trabalho (CLT).
         </p>
 
         <p style="margin-top:1rem; text-align:justify;">
-            O(A) colaborador(a) declara, com sua assinatura, estar ciente do conteÃºdo desta advertÃªncia
-            e de que a mesma serÃ¡ arquivada em seu prontuÃ¡rio.
+            O(A) colaborador(a) declara, com sua assinatura, estar ciente do conteúdo desta advertência
+            e de que a mesma será arquivada em seu prontuário.
         </p>` : `
         <p style="margin-top:1rem; text-align:justify; color:#475569; font-size:0.92em;">
-            Este registro Ã© de carÃ¡ter informativo e serÃ¡ arquivado no prontuÃ¡rio do colaborador.
+            Este registro é de caráter informativo e será arquivado no prontuário do colaborador.
         </p>`}
     `;
 
-    // Montar dados do colaborador para o padrÃ£o do preview
+    // Montar dados do colaborador para o padrão do preview
     const tipoSimples = {
-        verbal:      'AdvertÃªncia Verbal',
-        escrita:     'AdvertÃªncia Escrita',
-        suspensao_1: 'SuspensÃ£o 1 dia',
-        suspensao_2: 'SuspensÃ£o 2 dias',
-        suspensao_3: 'SuspensÃ£o 3 dias',
-        ocorrencia:  'OcorrÃªncia'
+        verbal:      'Advertência Verbal',
+        escrita:     'Advertência Escrita',
+        suspensao_1: 'Suspensão 1 dia',
+        suspensao_2: 'Suspensão 2 dias',
+        suspensao_3: 'Suspensão 3 dias',
+        ocorrencia:  'Ocorrência'
     }[tipo] || tipoTexto;
     window._advertenciaData = {
         html: htmlDoc,
@@ -3557,11 +3557,11 @@ window.gerarAdvertencia = function() {
     if (fb) { fb.style.display = 'inline-flex'; setTimeout(() => { fb.style.display = 'none'; }, 3000); }
 };
 
-// â”€â”€â”€ Template Ãºnico para Preview e PDF de AdvertÃªncias / SuspensÃµes / OcorrÃªncias â”€â”€â”€
+// ─── Template único para Preview e PDF de Advertências / Suspensões / Ocorrências ───
 function buildAdvertenciaTemplate(data, logoSrc) {
     const isOcorrencia = data.isOcorrencia;
 
-    // SeÃ§Ã£o de assinaturas (nÃ£o exibida para ocorrÃªncias)
+    // Seção de assinaturas (não exibida para ocorrências)
     const assinaturasHtml = !isOcorrencia ? `
         <div style="margin-top:40px;">
             <div style="display:flex; gap:40px; justify-content:center;">
@@ -3591,7 +3591,7 @@ function buildAdvertenciaTemplate(data, logoSrc) {
         <!-- LOGO BANNER - largura total sem margens -->
         <img src="${logoSrc}" style="width:100%; max-width:794px; display:block; margin:0; padding:0;" onerror="this.style.display='none'">
 
-        <!-- CONTEÃšDO COM MARGENS LATERAIS -->
+        <!-- CONTEÚDO COM MARGENS LATERAIS -->
         <div style="padding:20px 40px 40px 40px;">
 
             <!-- LINHA EMPRESA / CNPJ -->
@@ -3612,7 +3612,7 @@ function buildAdvertenciaTemplate(data, logoSrc) {
 
             <hr style="border:none; border-top:1px solid #ccc; margin:10px 0 14px;">
 
-            <!-- TÃTULO -->
+            <!-- TÍTULO -->
             <h1 style="text-align:center; font-size:14px; font-weight:bold; text-transform:uppercase; margin:0 0 14px; color:#1e293b;">${data.gerador_nome}</h1>
 
             <!-- CORPO DO DOCUMENTO -->
@@ -3623,7 +3623,7 @@ function buildAdvertenciaTemplate(data, logoSrc) {
             <!-- DATA -->
             <p style="margin-top:24px; font-size:12px; font-weight:bold;">Guarulhos, ${data.dataHojeExtenso}.</p>
 
-            <!-- ESPAÃ‡O RESERVADO PARA ASSINATURAS (desenhadas pelo pdf-lib apÃ³s coleta) -->
+            <!-- ESPAÇO RESERVADO PARA ASSINATURAS (desenhadas pelo pdf-lib após coleta) -->
             ${!isOcorrencia ? '<div style="height:180px;"></div>' : ''}
         </div>
     </div>`;
@@ -3631,7 +3631,7 @@ function buildAdvertenciaTemplate(data, logoSrc) {
 
 window.abrirPreviewAdvertencia = function(data) {
 
-    // Voltar para o modal centralizado tradicional onde os botÃµes ficam no topo
+    // Voltar para o modal centralizado tradicional onde os botões ficam no topo
     const container = document.getElementById('preview-doc-body');
     if (!container) return;
 
@@ -3645,7 +3645,7 @@ window.abrirPreviewAdvertencia = function(data) {
     if (btnsContainer) {
         btnsContainer.innerHTML = `
             <button onclick="window.anexarAdvertenciaAoProntuario()" id="btn-anexar-adv" class="btn btn-primary" style="background:#2f9e44; border-color:#2b8a3e; align-items:center; gap:5px;">
-                <i class="ph ph-paperclip"></i> Anexar ao ProntuÃ¡rio
+                <i class="ph ph-paperclip"></i> Anexar ao Prontuário
             </button>
             <button onclick="window.imprimirDocumento()" class="btn btn-primary" style="align-items:center; gap:5px;">
                 <i class="ph ph-printer"></i> Imprimir / PDF
@@ -3663,7 +3663,7 @@ window.abrirPreviewAdvertencia = function(data) {
 window.anexarAdvertenciaAoProntuario = async function() {
     if (!viewedColaborador || !window._advertenciaData) return;
     if (typeof html2pdf === 'undefined') {
-        alert('A biblioteca de PDF ainda nÃ£o foi carregada. Tente imprimir como PDF nativo.');
+        alert('A biblioteca de PDF ainda não foi carregada. Tente imprimir como PDF nativo.');
         return;
     }
 
@@ -3693,7 +3693,7 @@ window.anexarAdvertenciaAoProntuario = async function() {
         const logoSrc = `${apiBase}/assets/logo-header.png`;
         const data = window._advertenciaData;
 
-        // PrÃ©-carregar o logo
+        // Pré-carregar o logo
         const imgPreload = new Image();
         imgPreload.src = logoSrc;
         await new Promise(resolve => {
@@ -3703,17 +3703,17 @@ window.anexarAdvertenciaAoProntuario = async function() {
             setTimeout(resolve, 2000);
         });
 
-        // â”€â”€ Capturar direto do preview que jÃ¡ estÃ¡ renderizado corretamente na tela â”€â”€
+        // ── Capturar direto do preview que já está renderizado corretamente na tela ──
         const previewEl = document.getElementById('preview-doc-body');
-        if (!previewEl) throw new Error('Preview nÃ£o encontrado. Abra o documento antes de anexar.');
+        if (!previewEl) throw new Error('Preview não encontrado. Abra o documento antes de anexar.');
 
-        // Remover temporariamente sombra/borda/min-height para PDF mais limpo e sem pÃ¡gina em branco extra
+        // Remover temporariamente sombra/borda/min-height para PDF mais limpo e sem página em branco extra
         const origBoxShadow = previewEl.style.boxShadow;
         const origBorder    = previewEl.style.border;
         const origMinHeight = previewEl.style.minHeight;
         previewEl.style.boxShadow = 'none';
         previewEl.style.border    = 'none';
-        previewEl.style.minHeight = 'auto'; // evita pÃ¡gina em branco extra
+        previewEl.style.minHeight = 'auto'; // evita página em branco extra
 
         const canvas = await html2canvas(previewEl, {
             scale: 2,
@@ -3728,7 +3728,7 @@ window.anexarAdvertenciaAoProntuario = async function() {
         previewEl.style.border    = origBorder;
         previewEl.style.minHeight = origMinHeight;
 
-        // Converter canvas â†’ PDF A4 com suporte a mÃºltiplas pÃ¡ginas
+        // Converter canvas → PDF A4 com suporte a múltiplas páginas
         const { jsPDF } = window.jspdf;
         const pdf   = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
         const pageW = pdf.internal.pageSize.getWidth();   // 210mm
@@ -3751,8 +3751,8 @@ window.anexarAdvertenciaAoProntuario = async function() {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('colaborador_id', viewedColaborador.id);
-        formData.append('tab_name', 'AdvertÃªncias');
-        // document_type = 'Titulo###TipoSimples' para exibir badge no prontuÃ¡rio
+        formData.append('tab_name', 'Advertências');
+        // document_type = 'Titulo###TipoSimples' para exibir badge no prontuário
         const docType = `${window._advertenciaData.titulo}###${window._advertenciaData.tipoSimples}`;
         formData.append('document_type', docType);
         formData.append('year', new Date().getFullYear().toString());
@@ -3764,13 +3764,13 @@ window.anexarAdvertenciaAoProntuario = async function() {
             body: formData
         });
 
-        // O servidor pode retornar 5xx se o OneDrive falhar, mas o doc JÃ foi salvo no banco.
-        // SÃ³ consideramos falha real se nÃ£o houver resposta ou status 400.
+        // O servidor pode retornar 5xx se o OneDrive falhar, mas o doc JÁ foi salvo no banco.
+        // Só consideramos falha real se não houver resposta ou status 400.
         const resData = await response.json().catch(() => ({}));
-        if (response.status === 400) throw new Error(resData.error || 'Arquivo nÃ£o recebido pelo servidor.');
+        if (response.status === 400) throw new Error(resData.error || 'Arquivo não recebido pelo servidor.');
 
-        // OcorrÃªncia: sem assinatura e sem OneDrive â€” apenas salvo no prontuÃ¡rio local
-        // (AdvertÃªncia Verbal â†’ OneDrive ocorre apÃ³s testemunhas; Escrita/SuspensÃ£o â†’ apÃ³s testemunhas + colaborador)
+        // Ocorrência: sem assinatura e sem OneDrive — apenas salvo no prontuário local
+        // (Advertência Verbal → OneDrive ocorre após testemunhas; Escrita/Suspensão → após testemunhas + colaborador)
 
         document.getElementById('modal-preview-doc').style.display = 'none';
 
@@ -3781,7 +3781,7 @@ window.anexarAdvertenciaAoProntuario = async function() {
             btn.disabled = true;
         }
 
-        // Recarregar documentos e re-renderizar a aba AdvertÃªncias
+        // Recarregar documentos e re-renderizar a aba Advertências
         try {
             const docs = await apiGet(`/colaboradores/${viewedColaborador.id}/documentos`);
             if (docs) {
@@ -3790,11 +3790,11 @@ window.anexarAdvertenciaAoProntuario = async function() {
                 if (activeTab) {
                     renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
                 } else {
-                    renderTabContent('AdvertÃªncias', 'OcorrÃªncias', true);
+                    renderTabContent('Advertências', 'Ocorrências', true);
                 }
             }
         } catch (refreshErr) {
-            console.warn('Aviso: nÃ£o foi possÃ­vel atualizar a lista automaticamente.', refreshErr);
+            console.warn('Aviso: não foi possível atualizar a lista automaticamente.', refreshErr);
         }
 
     } catch (e) {
@@ -3898,7 +3898,7 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
     `;
     container.innerHTML = filterHtml;
 
-    // Focar no final do input se houver texto para nÃ£o perder o cursor na re-renderizaÃ§Ã£o
+    // Focar no final do input se houver texto para não perder o cursor na re-renderização
     const searchInput = document.getElementById('doc-search-input');
     if (searchInput && searchInput.value) {
         searchInput.focus();
@@ -3910,7 +3910,7 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
     const searchTerm = document.getElementById('doc-search-input')?.value.toLowerCase() || '';
     const sortOrder = document.getElementById('doc-sort-select')?.value || 'recent';
 
-    // Filtragem e OrdenaÃ§Ã£o dos dados
+    // Filtragem e Ordenação dos dados
     let filteredDocs = currentDocs.filter(d => d.tab_name === tabId);
     
     // Filtro de Texto
@@ -3918,7 +3918,7 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
         filteredDocs = filteredDocs.filter(d => d.document_type.toLowerCase().includes(searchTerm) || (d.file_name && d.file_name.toLowerCase().includes(searchTerm)));
     }
 
-    // OrdenaÃ§Ã£o
+    // Ordenação
     filteredDocs.sort((a, b) => {
         if (sortOrder === 'alpha') return a.document_type.localeCompare(b.document_type);
         const dateA = new Date(a.upload_date || 0);
@@ -3927,17 +3927,17 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
     });
 
     if (tabId === 'Multas') {
-        // Aba de multas â€” renderiza a UI customizada de gestÃ£o de multas
+        // Aba de multas — renderiza a UI customizada de gestão de multas
         if (typeof window.renderMultasMotoristaTab === 'function') {
             window.renderMultasMotoristaTab(listContainer);
         } else {
-            listContainer.innerHTML = '<div class="alert alert-warning"><i class="ph ph-warning"></i> MÃ³dulo de multas nÃ£o carregado. Tente recarregar a pÃ¡gina.</div>';
+            listContainer.innerHTML = '<div class="alert alert-warning"><i class="ph ph-warning"></i> Módulo de multas não carregado. Tente recarregar a página.</div>';
         }
     } else if (tabId === 'Sinistros') {
         if (typeof window.renderSinistrosTab === 'function') {
             window.renderSinistrosTab(listContainer);
         } else {
-            listContainer.innerHTML = '<div class="alert alert-warning"><i class="ph ph-warning"></i> MÃ³dulo de sinistros nÃ£o carregado. Tente recarregar a pÃ¡gina.</div>';
+            listContainer.innerHTML = '<div class="alert alert-warning"><i class="ph ph-warning"></i> Módulo de sinistros não carregado. Tente recarregar a página.</div>';
         }
     } else if (tabId === 'Contratos') {
         
@@ -3950,14 +3950,14 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
         renderAtestadosTab(listContainer, filteredDocs);
     } else if (tabId === 'Faltas') {
         renderFaltasTab(listContainer);
-    } else if (tabId === 'AvaliaÃ§Ã£o') {
+    } else if (tabId === 'Avaliação') {
         if (window.renderAvaliacaoTab) window.renderAvaliacaoTab(listContainer);
-    } else if (tabId === 'AdvertÃªncias') {
+    } else if (tabId === 'Advertências') {
         renderAdvertenciasTab(listContainer, filteredDocs);
     } else if (tabId === 'Ficha de EPI') {
         renderFichaEpiTab(listContainer);
     } else if (tabId === '01_FICHA_CADASTRAL') {
-        // Usa a MESMA lista ordenada do Passo 3 da AdmissÃ£o para garantir espelhamento
+        // Usa a MESMA lista ordenada do Passo 3 da Admissão para garantir espelhamento
         const _ec = (viewedColaborador && viewedColaborador.estado_civil || '').toLowerCase();
         const _isCasado = _ec.includes('casad') || _ec.includes('vi\u00fav') || _ec.includes('viuv') || _ec.includes('divorc');
         const _certidao = _isCasado ? 'Certid\u00e3o de Casamento' : 'Certid\u00e3o de Nascimento';
@@ -3978,9 +3978,9 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
             fixed.push(rgTipo === 'CIN' ? 'CIN-CPF' : 'RG-CPF');
         }
         
-        fixed.push('Carteira de vacinaÃ§Ã£o', 'CurrÃ­culo', 'Carteira de Trabalho');
+        fixed.push('Carteira de vacinação', 'Currículo', 'Carteira de Trabalho');
         if (_isCasado) {
-            fixed.push('CPF do CÃ´njuge');
+            fixed.push('CPF do Cônjuge');
         }
 
         fixed.forEach(docType => {  
@@ -3989,12 +3989,12 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
                 listContainer.appendChild(createDocSlot(tabId, docType, existingDoc));
             }
         });
-        filteredDocs.filter(d => !fixed.includes(d.document_type) && d.document_type !== 'PensÃ£o AlimentÃ­cia').forEach(d => {
+        filteredDocs.filter(d => !fixed.includes(d.document_type) && d.document_type !== 'Pensão Alimentícia').forEach(d => {
             listContainer.appendChild(createDocSlot(tabId, d.document_type, d));
         });
 
-        // === PENSÃƒO ALIMENTÃCIA (Condicional - ProntuÃ¡rio) ===
-        const pensaoDocPront = filteredDocs.find(d => d.document_type === 'PensÃ£o AlimentÃ­cia');
+        // === PENSÃO ALIMENTÍCIA (Condicional - Prontuário) ===
+        const pensaoDocPront = filteredDocs.find(d => d.document_type === 'Pensão Alimentícia');
         const temPensaoPront = (viewedColaborador && viewedColaborador.tem_pensao_alimenticia === 'Sim') || !!pensaoDocPront;
         const pensaoWrapperPront = document.createElement('div');
         pensaoWrapperPront.id = 'pensao-wrapper-pront';
@@ -4003,11 +4003,11 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
             <div style="display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
                 <div style="display:flex; align-items:center; gap:8px;">
                     <i class="ph ph-scales" style="color:#f503c5; font-size:1.1rem;"></i>
-                    <span style="font-weight:600; font-size:0.9rem; color:#334155;">Possui documento de PensÃ£o AlimentÃ­cia?</span>
+                    <span style="font-weight:600; font-size:0.9rem; color:#334155;">Possui documento de Pensão Alimentícia?</span>
                 </div>
                 <div style="display:flex; gap:6px;">
                     <button type="button" id="pensao-sim-pront" onclick="window.setPensaoPront('Sim')" style="padding:0.35rem 1rem; border-radius:6px; border:1.5px solid ${temPensaoPront ? '#10b981' : '#e2e8f0'}; background:${temPensaoPront ? '#ecfdf5' : '#fff'}; color:${temPensaoPront ? '#065f46' : '#334155'}; font-weight:700; cursor:pointer; font-size:0.85rem;">Sim</button>
-                    <button type="button" id="pensao-nao-pront" onclick="window.setPensaoPront('NÃ£o')" style="padding:0.35rem 1rem; border-radius:6px; border:1.5px solid ${!temPensaoPront ? '#10b981' : '#e2e8f0'}; background:${!temPensaoPront ? '#ecfdf5' : '#fff'}; color:${!temPensaoPront ? '#065f46' : '#334155'}; font-weight:700; cursor:pointer; font-size:0.85rem;">NÃ£o</button>
+                    <button type="button" id="pensao-nao-pront" onclick="window.setPensaoPront('Não')" style="padding:0.35rem 1rem; border-radius:6px; border:1.5px solid ${!temPensaoPront ? '#10b981' : '#e2e8f0'}; background:${!temPensaoPront ? '#ecfdf5' : '#fff'}; color:${!temPensaoPront ? '#065f46' : '#334155'}; font-weight:700; cursor:pointer; font-size:0.85rem;">Não</button>
                 </div>
             </div>
             <div id="pensao-slot-pront" style="margin-top:0.75rem; display:${temPensaoPront ? 'block' : 'none'};"></div>
@@ -4015,7 +4015,7 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
         listContainer.appendChild(pensaoWrapperPront);
         if (temPensaoPront) {
             const slotPront = listContainer.querySelector('#pensao-slot-pront');
-            if (slotPront) slotPront.appendChild(createDocSlot(tabId, 'PensÃ£o AlimentÃ­cia', pensaoDocPront || null));
+            if (slotPront) slotPront.appendChild(createDocSlot(tabId, 'Pensão Alimentícia', pensaoDocPront || null));
         }
         window.setPensaoPront = function(resposta) {
             const simBtn = document.getElementById('pensao-sim-pront');
@@ -4027,7 +4027,7 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
             if (slot) {
                 slot.style.display = isSimNow ? 'block' : 'none';
                 if (isSimNow && slot.children.length === 0) {
-                    slot.appendChild(createDocSlot(tabId, 'PensÃ£o AlimentÃ­cia', null));
+                    slot.appendChild(createDocSlot(tabId, 'Pensão Alimentícia', null));
                 }
             }
             if (viewedColaborador) viewedColaborador.tem_pensao_alimenticia = resposta;
@@ -4048,7 +4048,7 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
     } else if (tabId === 'Terapia') {
         const participa = viewedColaborador && (viewedColaborador.terapia_participa === 'Sim');
         if (!participa) {
-            listContainer.innerHTML = '<div class="alert alert-info"><i class="ph ph-info"></i> Esta aba estÃ¡ disponÃ­vel apenas para colaboradores que participam da Terapia em Grupo.</div>';
+            listContainer.innerHTML = '<div class="alert alert-info"><i class="ph ph-info"></i> Esta aba está disponível apenas para colaboradores que participam da Terapia em Grupo.</div>';
             return;
         }
         renderTerapiaTab(listContainer, tabId, filteredDocs);
@@ -4056,14 +4056,14 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
         if (tabId === 'Conjuge') {
             const isCasado = viewedColaborador && (viewedColaborador.estado_civil === 'Casado');
             if (!isCasado) {
-                listContainer.innerHTML = '<div class="alert alert-info"><i class="ph ph-info"></i> Esta aba estÃ¡ disponÃ­vel apenas para colaboradores com estado civil <strong>"Casado(a)"</strong> registrado.</div>';
+                listContainer.innerHTML = '<div class="alert alert-info"><i class="ph ph-info"></i> Esta aba está disponível apenas para colaboradores com estado civil <strong>"Casado(a)"</strong> registrado.</div>';
                 return;
             }
         }
         if (tabId === 'Dependentes') {
-            const deps = (viewedColaborador.dependentes || []).filter(d => d.grau_parentesco !== 'CÃ´njuge');
+            const deps = (viewedColaborador.dependentes || []).filter(d => d.grau_parentesco !== 'Cônjuge');
             if (!deps.length) {
-                listContainer.innerHTML = '<div class="alert alert-info"><i class="ph ph-info"></i> Esta aba estÃ¡ disponÃ­vel apenas para colaboradores que tenham dependentes cadastrados no sistema.</div>';
+                listContainer.innerHTML = '<div class="alert alert-info"><i class="ph ph-info"></i> Esta aba está disponível apenas para colaboradores que tenham dependentes cadastrados no sistema.</div>';
                 return;
             }
 
@@ -4077,10 +4077,10 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
                     if (!isNaN(nasc)) idade = Math.floor((hoje - nasc) / (365.25 * 24 * 3600 * 1000));
                 }
 
-                // Nome seguro para montar o document_type Ãºnico por dependente
+                // Nome seguro para montar o document_type único por dependente
                 const safeDepName = (dep.nome || 'DEP').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'');
 
-                // CabeÃ§alho da seÃ§Ã£o do dependente
+                // Cabeçalho da seção do dependente
                 const header = document.createElement('div');
                 header.style.cssText = 'display:flex; align-items:center; gap:10px; background:#f0f9ff; border:1px solid #bae6fd; border-radius:8px; padding:0.6rem 1rem; margin-bottom:0.75rem; margin-top:' + (idx > 0 ? '1.25rem' : '0');
                 header.innerHTML = `
@@ -4092,12 +4092,12 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
                     </div>`;
                 listContainer.appendChild(header);
 
-                // Documentos condÃ­cionais por faixa etÃ¡ria
+                // Documentos condícionais por faixa etária
                 const docsConfig = [
                     { label: 'CPF ou RG',                    show: true },
-                    { label: 'Caderneta de VacinaÃ§Ã£o',      show: idade !== null && idade < 7 },
-                    { label: 'Atestado de FrequÃªncia Escolar', show: idade !== null && idade >= 7 && idade <= 17 },
-                    { label: 'CertidÃ£o de Nascimento',       show: true },
+                    { label: 'Caderneta de Vacinação',      show: idade !== null && idade < 7 },
+                    { label: 'Atestado de Frequência Escolar', show: idade !== null && idade >= 7 && idade <= 17 },
+                    { label: 'Certidão de Nascimento',       show: true },
                 ];
 
                 docsConfig.filter(d => d.show).forEach(docCfg => {
@@ -4111,13 +4111,13 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
         if (tabId === 'Faculdade') {
             const participa = viewedColaborador && (viewedColaborador.faculdade_participa === 'Sim');
             if (!participa) {
-                listContainer.innerHTML = '<div class="alert alert-info"><i class="ph ph-info"></i> Esta aba estÃ¡ disponÃ­vel apenas para colaboradores que participam do programa FormaAÃ§Ã£o.</div>';
+                listContainer.innerHTML = '<div class="alert alert-info"><i class="ph ph-info"></i> Esta aba está disponível apenas para colaboradores que participam do programa FormaAção.</div>';
                 return;
             }
             renderFaculdadeTab(listContainer, tabId);
             return;
         }
-        const btnLabelMap = { 'Dependentes': 'Documento de Dependente', 'Treinamento': 'Certificado/Curso', 'Conjuge': 'Documento do CÃ´njuge', 'NRs': 'Certificado NR' };
+        const btnLabelMap = { 'Dependentes': 'Documento de Dependente', 'Treinamento': 'Certificado/Curso', 'Conjuge': 'Documento do Cônjuge', 'NRs': 'Certificado NR' };
         const form = createDynamicUploadForm(tabId, `Adicionar ${btnLabelMap[tabId] || tabId}`);
         listContainer.appendChild(form);
         listContainer.appendChild(document.createElement('hr'));
@@ -4130,7 +4130,7 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
             if (typeof window.renderMultasMotoristaTab === 'function') {
                 window.renderMultasMotoristaTab(listContainer);
             } else {
-                listContainer.innerHTML = '<div class="alert alert-info">Carregando mÃ³dulo de multas...</div>';
+                listContainer.innerHTML = '<div class="alert alert-info">Carregando módulo de multas...</div>';
             }
             return;
         }
@@ -4139,26 +4139,26 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
             if (typeof window.renderSinistrosTab === 'function') {
                 window.renderSinistrosTab(listContainer);
             } else {
-                listContainer.innerHTML = '<div class="alert alert-info">Carregando mÃ³dulo de sinistros...</div>';
+                listContainer.innerHTML = '<div class="alert alert-info">Carregando módulo de sinistros...</div>';
             }
             return;
         }
         FIXED_DOCS[tabId].forEach(docType => {
             if (!searchTerm || docType.toLowerCase().includes(searchTerm)) {
-                if (tabId === 'Contratos' && docType === 'Acordo de auxÃ­lio combustÃ­vel') {
+                if (tabId === 'Contratos' && docType === 'Acordo de auxílio combustível') {
                     const meio = (viewedColaborador && viewedColaborador.meio_transporte) ? viewedColaborador.meio_transporte.toLowerCase() : '';
                     if (meio === 'vale transporte') {
                         const existingDoc = filteredDocs.find(d => d.document_type === docType);
-                        const msg = 'NÃ£o aplicÃ¡vel para usuÃ¡rios de Vale Transporte.';
+                        const msg = 'Não aplicável para usuários de Vale Transporte.';
                         listContainer.appendChild(createDocSlot(tabId, docType, existingDoc, null, null, msg));
                         return;
                     }
                 }
                 if (tabId === 'Contratos' && docType === 'Contrato faculdade') {
-                    const participa = (viewedColaborador && viewedColaborador.faculdade_participa) ? viewedColaborador.faculdade_participa : 'NÃ£o';
-                    if (participa === 'NÃ£o') {
+                    const participa = (viewedColaborador && viewedColaborador.faculdade_participa) ? viewedColaborador.faculdade_participa : 'Não';
+                    if (participa === 'Não') {
                         const existingDoc = filteredDocs.find(d => d.document_type === docType);
-                        const msg = 'NÃ£o aplicÃ¡vel para colaboradores que nÃ£o participam do programa FormaAÃ§Ã£o.';
+                        const msg = 'Não aplicável para colaboradores que não participam do programa FormaAção.';
                         listContainer.appendChild(createDocSlot(tabId, docType, existingDoc, null, null, msg));
                         return;
                     }
@@ -4189,7 +4189,7 @@ async function renderCargoDocsChecklist(container) {
         if (!cargoAtual) {
             container.innerHTML = `
                 <div class="alert alert-warning">
-                    <i class="ph ph-warning"></i> Cargo "${viewedColaborador.cargo || 'NÃ£o Definido'}" nÃ£o encontrado nas configuraÃ§Ãµes de cargos.
+                    <i class="ph ph-warning"></i> Cargo "${viewedColaborador.cargo || 'Não Definido'}" não encontrado nas configurações de cargos.
                 </div>
             `;
             return;
@@ -4200,7 +4200,7 @@ async function renderCargoDocsChecklist(container) {
         if (!docsExigidos || docsExigidos.length === 0) {
             container.innerHTML = `
                 <div class="alert alert-info">
-                    <i class="ph ph-info"></i> Nenhuma documentaÃ§Ã£o especÃ­fica configurada para o cargo <strong>${cargoAtual.nome}</strong>.
+                    <i class="ph ph-info"></i> Nenhuma documentação específica configurada para o cargo <strong>${cargoAtual.nome}</strong>.
                 </div>
             `;
             return;
@@ -4208,8 +4208,8 @@ async function renderCargoDocsChecklist(container) {
         
         container.innerHTML = `
             <div style="margin-bottom: 2rem; padding: 1rem; background: #fffcf0; border: 1px solid #ffeeba; border-radius: 8px;">
-                <h4 style="color: #856404; margin-bottom: 0.5rem;"><i class="ph ph-briefcase"></i> DocumentaÃ§Ã£o Exigida: ${cargoAtual.nome}</h4>
-                <p style="font-size: 0.85rem; color: #856404;">Anexe abaixo os documentos que foram selecionados como obrigatÃ³rios no gerenciamento de cargos.</p>
+                <h4 style="color: #856404; margin-bottom: 0.5rem;"><i class="ph ph-briefcase"></i> Documentação Exigida: ${cargoAtual.nome}</h4>
+                <p style="font-size: 0.85rem; color: #856404;">Anexe abaixo os documentos que foram selecionados como obrigatórios no gerenciamento de cargos.</p>
             </div>
         `;
         
@@ -4233,18 +4233,18 @@ async function renderFaculdadeSummary(container) {
     summaryDiv.style.background = '#f0f9ff';
     summaryDiv.style.border = '1px solid #bae6fd';
     summaryDiv.style.padding = '1rem';
-    const cursoNome = cursoObj ? cursoObj.nome_curso : 'NÃ£o selecionado';
+    const cursoNome = cursoObj ? cursoObj.nome_curso : 'Não selecionado';
     const instituicao = cursoObj ? cursoObj.instituicao : 'N/A';
     const tempo = cursoObj ? (cursoObj.tempo_curso || 'N/A') : 'N/A';
     const inicio = viewedColaborador.faculdade_data_inicio ? new Date(viewedColaborador.faculdade_data_inicio + 'T12:00:00').toLocaleDateString() : 'N/A';
     const termino = viewedColaborador.faculdade_data_termino ? new Date(viewedColaborador.faculdade_data_termino + 'T12:00:00').toLocaleDateString() : 'N/A';
     summaryDiv.innerHTML = `
-        <h4 style="color: #0369a1; margin-bottom: 0.5rem;"><i class="ph ph-graduation-cap"></i> Detalhes da GraduaÃ§Ã£o</h4>
+        <h4 style="color: #0369a1; margin-bottom: 0.5rem;"><i class="ph ph-graduation-cap"></i> Detalhes da Graduação</h4>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: 0.9rem; color: #0c4a6e;">
             <div><strong>Curso:</strong> ${cursoNome}</div>
-            <div><strong>InstituiÃ§Ã£o:</strong> ${instituicao}</div>
-            <div><strong>InÃ­cio:</strong> ${inicio}</div>
-            <div><strong>PrevisÃ£o TÃ©rmino:</strong> ${termino}</div>
+            <div><strong>Instituição:</strong> ${instituicao}</div>
+            <div><strong>Início:</strong> ${inicio}</div>
+            <div><strong>Previsão Término:</strong> ${termino}</div>
             <div class="span-2"><strong>Tempo de Curso:</strong> ${tempo}</div>
         </div>
     `;
@@ -4266,7 +4266,7 @@ async function renderFaculdadeTab(container, tabId) {
                 <select id="fac_year" class="form-control" style="padding:0.4rem;" onchange="renderFaculdadeCompetencia()">
                     ${optionsYears}
                 </select>
-                <label>MÃªs:</label>
+                <label>Mês:</label>
                 <select id="fac_month" class="form-control" style="padding:0.4rem;" onchange="renderFaculdadeCompetencia()">
                     <option value="01">Jan</option><option value="02">Fev</option><option value="03">Mar</option>
                     <option value="04">Abr</option><option value="05">Mai</option><option value="06">Jun</option>
@@ -4303,7 +4303,7 @@ window.renderFaculdadeCompetencia = function() {
 
     const docsMatch = currentDocs.filter(d => d.tab_name === 'Faculdade' && d.year == y && d.month == m);
     
-    // Lista de documentos por competÃªncia
+    // Lista de documentos por competência
     const required = ['Boleto'];
     if (m === '01' || m === '07') {
         required.push('Boletim');
@@ -4314,7 +4314,7 @@ window.renderFaculdadeCompetencia = function() {
         subContainer.appendChild(createDocSlot('Faculdade', type, doc, `'${y}'`, `'${m}'`));
     });
 
-    // Outros documentos dinÃ¢micos para este mÃªs
+    // Outros documentos dinâmicos para este mês
     docsMatch.filter(d => !required.includes(d.document_type)).forEach(d => {
         subContainer.appendChild(createDocSlot('Faculdade', d.document_type, d, `'${y}'`, `'${m}'`));
     });
@@ -4332,11 +4332,11 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
     // Limita o nome do arquivo a 40 caracteres
     let rawFileName = isSaved ? (existingDoc.file_name || '') : '';
     try {
-        if (rawFileName.includes('Ãƒ')) {
+        if (rawFileName.includes('Ã')) {
             rawFileName = decodeURIComponent(escape(rawFileName));
         }
     } catch (e) {}
-    const displayFileName = rawFileName.length > 40 ? rawFileName.substring(0, 40) + 'â€¦' : rawFileName;
+    const displayFileName = rawFileName.length > 40 ? rawFileName.substring(0, 40) + '…' : rawFileName;
 
     // Vencimento com cor vermelha se estiver dentro de 30 dias
     let vencInfoHtml = '';
@@ -4370,7 +4370,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
         const enviadoDate = `${dd}/${mm}/${yyyy} - ${h}h${min}m`;
         enviadoHtml = ` <span style="color:#64748b;">|</span> <span style="color:#2f9e44; font-weight:600;">Enviado: ${enviadoDate}</span>`;
         
-        // Link de assinatura em linha prÃ³pria abaixo do Enviado
+        // Link de assinatura em linha própria abaixo do Enviado
         if (existingDoc.assinafy_url) {
             const encodedUrl = encodeURIComponent(existingDoc.assinafy_url);
             linkAssinaturaHtml = `<p style="margin:1px 0 0; font-size:0.75rem;"><span data-copy-url="${encodedUrl}" onclick="copiarLinkAssinafy(this)" style="color:#64748b; display:inline-flex; align-items:center; gap:3px; cursor:pointer;" title="Clique para copiar o link de assinatura"><i class="ph ph-copy" style="font-size:0.9rem;"></i> Link para assinatura</span></p>`;
@@ -4401,9 +4401,9 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                 const isColabAfastado = viewedColaborador && viewedColaborador.status === 'Afastado';
                 const isAtivo = (isColabAfastado && existingDoc.atestado_inicio && existingDoc.atestado_fim && existingDoc.atestado_inicio <= hojeStr && hojeStr <= existingDoc.atestado_fim);
                 const corText = isAtivo ? '#d9480f' : '#868e96';
-                atestadoInfoHtml = ` <span style="color:${corText}; font-weight:600;"><i class="ph ph-warning" style="font-size:0.9em; color:${corText}; margin-right:2px;"></i> ${ini} atÃ© ${fim}</span> `;
+                atestadoInfoHtml = ` <span style="color:${corText}; font-weight:600;"><i class="ph ph-warning" style="font-size:0.9em; color:${corText}; margin-right:2px;"></i> ${ini} até ${fim}</span> `;
             } else {
-                atestadoInfoHtml = ` <span style="color:#1098ad; font-weight:600;"><i class="ph ph-clock"></i> ${existingDoc.atestado_inicio} Ã s ${existingDoc.atestado_fim}</span> `;
+                atestadoInfoHtml = ` <span style="color:#1098ad; font-weight:600;"><i class="ph ph-clock"></i> ${existingDoc.atestado_inicio} às ${existingDoc.atestado_fim}</span> `;
             }
         }
         
@@ -4425,7 +4425,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
         ? `<p style="margin:2px 0 0; font-size:0.78rem;">${atestadoInfoHtml}${atestadoContabHtml}${vencInfoHtml}${enviadoHtml}</p>${linkAssinaturaHtml}`
         : '';
 
-    // Suporte ao separador ### para AdvertÃªncias: 'TÃ­tulo###TipoSimples'
+    // Suporte ao separador ### para Advertências: 'Título###TipoSimples'
     let docLabel = docType;
     let docBadge = '';
     let tipoAdvSimples = '';
@@ -4474,13 +4474,13 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
     `;
 
     let vencimentoInputHtml = '';
-    const needsVencimentoList = ['ASO', 'CNH', 'Exames Complementares', 'RG-CPF', 'CIN-CPF', 'Comprovante de endereÃ§o'];
+    const needsVencimentoList = ['ASO', 'CNH', 'Exames Complementares', 'RG-CPF', 'CIN-CPF', 'Comprovante de endereço'];
     const needsVencimento = needsVencimentoList.includes(docType) || tabId === 'ASO';
     const safeDocType = docType.replace(/\s+/g, '-');
 
     if (needsVencimento) {
         let existingVencimento = existingDoc && existingDoc.vencimento ? existingDoc.vencimento : '';
-        if (!existingVencimento && docType === 'Comprovante de endereÃ§o') {
+        if (!existingVencimento && docType === 'Comprovante de endereço') {
             const d = new Date();
             d.setFullYear(d.getFullYear() + 1);
             existingVencimento = d.toISOString().split('T')[0];
@@ -4496,7 +4496,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
         `;
     }
 
-    // Status Assinafy: apenas botÃ£o de baixar quando assinado
+    // Status Assinafy: apenas botão de baixar quando assinado
     let assStatusIcon = '';
     const stMain = isSaved ? (existingDoc.assinafy_status || '') : '';
     const isAssinado = isSaved && (stMain === 'Assinado' || stMain === 'Testemunhas' || stMain.includes('Testemunhas'));
@@ -4504,11 +4504,11 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
     if (isSaved) {
         const st = existingDoc.assinafy_status || '';
         // Buscar o assId da tabela admissao_assinaturas para este documento
-        // Se o existingDoc Ã© da tabela documentos mas tem um ass relacionado
+        // Se o existingDoc é da tabela documentos mas tem um ass relacionado
         const assId = existingDoc.admissao_ass_id || existingDoc.id;
         if (st === 'Assinado') {
-            // Tenta usar o assId da tabela admissao_assinaturas se disponÃ­vel
-            // caso contrÃ¡rio usa o id do prÃ³prio documento
+            // Tenta usar o assId da tabela admissao_assinaturas se disponível
+            // caso contrário usa o id do próprio documento
             assStatusIcon = `<button type="button" onclick="window.openSignedDocPopupDocumento(${existingDoc.id}, '${(docType||'').replace(/'/g,"\\'")}')"
                 style="height:42px;display:inline-flex;align-items:center;gap:6px;background:#2f9e44;color:#fff;border:none;border-radius:6px;padding:0 0.85rem;font-size:0.85rem;font-weight:600;cursor:pointer;white-space:nowrap;"
                 title="Visualizar PDF Assinado">
@@ -4551,7 +4551,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         <button type="button" class="btn btn-danger" onclick="deleteDoc(${existingDoc.id}, this)" title="Excluir" style="height: 42px;"><i class="ph ph-trash"></i></button>
                     ` : ''}
                 </div>
-            ` : (tabId === 'AdvertÃªncias') ? `
+            ` : (tabId === 'Advertências') ? `
                 <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; justify-content: flex-end; flex: 1;">
                     ${vencimentoInputHtml}
 
@@ -4559,10 +4559,10 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         <button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height: 42px;"><i class="ph ph-eye"></i></button>
                     ` : ''}
 
-                    ${(tabId === 'AdvertÃªncias' && isSaved) ? (() => {
+                    ${(tabId === 'Advertências' && isSaved) ? (() => {
                         const _isOcorrDoc  = (docType || '').includes('###Ocorr');
                         const _isVerbalDoc = (docType || '').toLowerCase().includes('###advert') && (docType || '').toLowerCase().includes('verbal');
-                        if (_isOcorrDoc) return ''; // OcorrÃªncia nÃ£o tem assinatura
+                        if (_isOcorrDoc) return ''; // Ocorrência não tem assinatura
                         return `
                         ${(!stMain || stMain === 'Nenhum') ? `
                         <button type="button" class="btn btn-secondary"
@@ -4586,7 +4586,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         <button type="button" class="btn btn-danger" onclick="deleteDoc(${existingDoc.id}, this)" title="Excluir" style="height: 42px;"><i class="ph ph-trash"></i></button>
                     ` : ''}
 
-                    ${(tabId === 'AdvertÃªncias' && isSaved && ['Assinado', 'Testemunhas', 'Aguardando', 'Pendente'].includes(stMain) && tipoAdvSimples && tipoAdvSimples.toLowerCase().includes('suspens')) ? `
+                    ${(tabId === 'Advertências' && isSaved && ['Assinado', 'Testemunhas', 'Aguardando', 'Pendente'].includes(stMain) && tipoAdvSimples && tipoAdvSimples.toLowerCase().includes('suspens')) ? `
                     <div style="display:flex; flex-direction:column; gap:0.35rem; margin-top:0.35rem; align-items:flex-end; width:100%; border-top: 1px dashed #e2e8f0; padding-top: 0.5rem;">
                         <div style="display:flex; gap:0.5rem; align-items:center; justify-content:flex-end; width:100%;">
                             <input type="email" id="susp-contab-email-${existingDoc.id}"
@@ -4629,7 +4629,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                                 <input type="radio" name="exig-assin-${(docType||'').replace(/[^a-zA-Z0-9]/g,'_')}" value="PENDENTE" ${stMain !== 'NAO_EXIGE' ? 'checked' : ''}> Sim
                             </label>
                             <label style="display:flex;align-items:center;gap:3px;cursor:pointer;margin:0;font-weight:500;">
-                                <input type="radio" name="exig-assin-${(docType||'').replace(/[^a-zA-Z0-9]/g,'_')}" value="NAO_EXIGE" ${stMain === 'NAO_EXIGE' ? 'checked' : ''}> NÃ£o
+                                <input type="radio" name="exig-assin-${(docType||'').replace(/[^a-zA-Z0-9]/g,'_')}" value="NAO_EXIGE" ${stMain === 'NAO_EXIGE' ? 'checked' : ''}> Não
                             </label>
                         </div>
                         ` : ''}
@@ -4638,7 +4638,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                             <i class="ph ph-upload-simple"></i> ${isSaved ? 'Substituir' : 'Upload'}
                             <input type="file" accept=".pdf" style="display:none;" onchange="
                                 const venc = this.closest('.doc-item').querySelector('.venc-input')?.value; 
-                                if((${needsVencimento}) && !venc) { alert('Data de vencimento Ã© obrigatÃ³ria'); this.value=''; return; } 
+                                if((${needsVencimento}) && !venc) { alert('Data de vencimento é obrigatória'); this.value=''; return; } 
                                 let assStatus = null;
                                 if('${tabId}' === 'Pagamentos' || '${tabId}' === 'ASO') {
                                     const r = this.closest('.doc-item').querySelector('input[name^=\\'exig-assin-\\']:checked');
@@ -4698,7 +4698,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
 }
 
 function createDynamicUploadForm(tabId, btnLabel, defaultDocType = '') {
-    const showVencimento = tabId !== 'AdvertÃªncias';
+    const showVencimento = tabId !== 'Advertências';
     const div = document.createElement('div');
     div.className = 'mb-4 card p-3 bg-light form-dyn';
     div.innerHTML = `
@@ -4717,7 +4717,7 @@ function createDynamicUploadForm(tabId, btnLabel, defaultDocType = '') {
                 <label style="font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 2px; display: flex;">Exige Assinatura?</label>
                 <div style="display:flex; gap:0.5rem; height: 38px; align-items:center; font-size: 0.82rem; font-weight: 500;">
                     <label style="margin:0; display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="radio" name="dyn-assin-${tabId}" value="PENDENTE" checked> Sim</label>
-                    <label style="margin:0; display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="radio" name="dyn-assin-${tabId}" value="NAO_EXIGE"> NÃ£o</label>
+                    <label style="margin:0; display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="radio" name="dyn-assin-${tabId}" value="NAO_EXIGE"> Não</label>
                 </div>
             </div>
             ` : ''}
@@ -4744,7 +4744,7 @@ function renderPagamentosTab(container, tabId, docs) {
                 <select id="pag_year" class="form-control" style="padding:0.4rem;" onchange="renderPagamentosCompetencia()">
                     ${optionsYears}
                 </select>
-                <label>MÃªs:</label>
+                <label>Mês:</label>
                 <select id="pag_month" class="form-control" style="padding:0.4rem;" onchange="renderPagamentosCompetencia()">
                     <option value="01">Jan</option><option value="02">Fev</option><option value="03">Mar</option>
                     <option value="04">Abr</option><option value="05">Mai</option><option value="06">Jun</option>
@@ -4781,7 +4781,7 @@ function renderTerapiaTab(container, tabId, docs) {
                 <select id="terapia_year" class="form-control" style="padding:0.4rem;" onchange="renderTerapiaCompetencia()">
                     ${optionsYears}
                 </select>
-                <label>MÃªs:</label>
+                <label>Mês:</label>
                 <select id="terapia_month" class="form-control" style="padding:0.4rem;" onchange="renderTerapiaCompetencia()">
                     <option value="01">Jan</option><option value="02">Fev</option><option value="03">Mar</option>
                     <option value="04">Abr</option><option value="05">Mai</option><option value="06">Jun</option>
@@ -4812,7 +4812,7 @@ window.renderTerapiaCompetencia = function() {
     });
 
     subContainer.appendChild(document.createElement('hr'));
-    const form = createDynamicUploadForm('Terapia', 'Adicionar SessÃ£o/RelatÃ³rio', '');
+    const form = createDynamicUploadForm('Terapia', 'Adicionar Sessão/Relatório', '');
     subContainer.appendChild(form);
 }
 
@@ -4846,7 +4846,7 @@ window.renderASOTab = function(container, filteredDocs) {
         <!-- Card IACI -->
         <div class="card p-3 mb-4" style="background:#f8fafc; border:1.5px dashed #e2e8f0; border-radius:12px;">
             <h4 style="font-size:0.9rem; color:#64748b; margin-bottom:0.75rem; font-weight:600;">
-                <i class="ph ph-envelope-simple"></i> Enviar SolicitaÃ§Ã£o de Exame Ã  IACI
+                <i class="ph ph-envelope-simple"></i> Enviar Solicitação de Exame à IACI
             </h4>
             ${noticeHtml}
             <div style="display:flex; gap:0.75rem; align-items:flex-end; flex-wrap:wrap;">
@@ -4856,14 +4856,14 @@ window.renderASOTab = function(container, filteredDocs) {
                            value="${exameData ? exameData.split('/').reverse().join('-') : ''}">
                 </div>
                 <div class="input-group" style="flex:1; min-width:200px; margin-bottom:0;">
-                    <label style="font-size:0.75rem; font-weight:700;">DestinatÃ¡rio</label>
+                    <label style="font-size:0.75rem; font-weight:700;">Destinatário</label>
                     <input type="email" id="aso-email-dest-tab" value="thais.ricci@americarental.com.br"
                            style="padding:0.5rem; font-size:0.85rem; height:38px;">
                 </div>
                 <button class="btn btn-primary" id="btn-enviar-aso-email-tab"
                         onclick="window.sendASOEmailTab()"
                         style="height:38px; white-space:nowrap; padding:0 1.2rem; display:flex; align-items:center; gap:8px;">
-                    <i class="ph ph-paper-plane-tilt"></i> Enviar SolicitaÃ§Ã£o
+                    <i class="ph ph-paper-plane-tilt"></i> Enviar Solicitação
                 </button>
             </div>
         </div>
@@ -4876,9 +4876,9 @@ window.renderASOTab = function(container, filteredDocs) {
     renderASOAno();
 }
 
-// FunÃ§Ã£o especÃ­fica para envio pela aba ASO (nÃ£o conflita com a de AdmissÃ£o)
+// Função específica para envio pela aba ASO (não conflita com a de Admissão)
 window.sendASOEmailTab = async function() {
-    if (!viewedColaborador) { alert('Colaborador nÃ£o selecionado.'); return; }
+    if (!viewedColaborador) { alert('Colaborador não selecionado.'); return; }
 
     const dataExame  = document.getElementById('aso-exame-data-tab').value;
     const destinatario = document.getElementById('aso-email-dest-tab').value;
@@ -4889,9 +4889,9 @@ window.sendASOEmailTab = async function() {
     const cargo = (viewedColaborador.cargo || '').toLowerCase();
     const exames = cargo.includes('motorista')
         ? 'Exames Complementares, acuidade visual, E.E.G, E.C.G e Glicemia.'
-        : 'Exame PadrÃ£o';
+        : 'Exame Padrão';
 
-    const mailBody = `TÃ­tulo: Exame MÃ©dico\n\nSegue abaixo as informaÃ§Ãµes para a realizaÃ§Ã£o do exame do colaborador.\n\nData: ${dt}\nNome: ${viewedColaborador.nome_completo || viewedColaborador.nome}\nCPF: ${viewedColaborador.cpf || '-'}\nFunÃ§Ã£o: ${viewedColaborador.cargo || '-'}\nDepartamento: ${viewedColaborador.departamento || '-'}\n\nExames:\n${exames}\n\nâš ï¸ IMPORTANTE:\nApÃ³s o exame ficar pronto, favor enviar o documento por e-mail para: rh@americarental.com.br`;
+    const mailBody = `Título: Exame Médico\n\nSegue abaixo as informações para a realização do exame do colaborador.\n\nData: ${dt}\nNome: ${viewedColaborador.nome_completo || viewedColaborador.nome}\nCPF: ${viewedColaborador.cpf || '-'}\nFunção: ${viewedColaborador.cargo || '-'}\nDepartamento: ${viewedColaborador.departamento || '-'}\n\nExames:\n${exames}\n\n⚠️ IMPORTANTE:\nApós o exame ficar pronto, favor enviar o documento por e-mail para: rh@americarental.com.br`;
 
     const btn = document.getElementById('btn-enviar-aso-email-tab');
     const originalContent = btn.innerHTML;
@@ -4907,7 +4907,7 @@ window.sendASOEmailTab = async function() {
         });
 
         if (res.sucesso) {
-            alert('âœ… E-mail enviado com sucesso para a IACI!');
+            alert('✅ E-mail enviado com sucesso para a IACI!');
             // Recarregar aba para mostrar aviso
             viewedColaborador.aso_email_enviado = res.data_envio;
             viewedColaborador.aso_exame_data    = res.data_agendada;
@@ -4917,8 +4917,8 @@ window.sendASOEmailTab = async function() {
             throw new Error(res.error || 'Erro no servidor');
         }
     } catch (e) {
-        if (confirm(`NÃ£o foi possÃ­vel enviar automaticamente. Erro do Servidor:\n\n${e.message}\n\nDeseja abrir seu e-mail com o texto preenchido?`)) {
-            window.location.href = `mailto:${destinatario}?cc=rh@americarental.com.br,rh2@americarental.com.br&subject=Exame MÃ©dico - ${viewedColaborador.nome_completo || viewedColaborador.nome}&body=${encodeURIComponent(mailBody)}`;
+        if (confirm(`Não foi possível enviar automaticamente. Erro do Servidor:\n\n${e.message}\n\nDeseja abrir seu e-mail com o texto preenchido?`)) {
+            window.location.href = `mailto:${destinatario}?cc=rh@americarental.com.br,rh2@americarental.com.br&subject=Exame Médico - ${viewedColaborador.nome_completo || viewedColaborador.nome}&body=${encodeURIComponent(mailBody)}`;
         }
     } finally {
         if (btn) { btn.disabled = false; btn.innerHTML = originalContent; }
@@ -4934,14 +4934,14 @@ window.renderASOAno = function() {
     if (!container) return;
     container.innerHTML = '';
 
-    // Usar os documentos jÃ¡ filtrados pela barra global
+    // Usar os documentos já filtrados pela barra global
     const docsToUse = window.lastASODocs || currentDocs.filter(d => d.tab_name === 'ASO');
     const filteredByYear = docsToUse.filter(d => d.year == y);
     const isMotorista = viewedColaborador && (viewedColaborador.cargo || '').toUpperCase().includes('MOTORISTA');
     const isDesligado = viewedColaborador && (viewedColaborador.status === 'Desligado');
 
-    // Documentos obrigatÃ³rios
-    const list = ['ASO PadrÃ£o'];
+    // Documentos obrigatórios
+    const list = ['ASO Padrão'];
     if (isMotorista) list.push('Exames Complementares');
     if (isDesligado) list.push('ASO Demissional');
 
@@ -4950,14 +4950,14 @@ window.renderASOAno = function() {
         container.appendChild(createDocSlot('ASO', docType, existingDoc, `'${y}'`));
     });
 
-    // Outros documentos dinÃ¢micos jÃ¡ salvos para este ano (considerando o filtro de busca)
+    // Outros documentos dinâmicos já salvos para este ano (considerando o filtro de busca)
     filteredByYear.filter(d => !list.includes(d.document_type)).forEach(d => {
         container.appendChild(createDocSlot('ASO', d.document_type, d, `'${y}'`));
     });
 
     container.appendChild(document.createElement('hr'));
 
-    // BotÃ£o para adicionar outro exame avÃ¼lso
+    // Botão para adicionar outro exame avülso
     const form = createDynamicUploadForm('ASO', 'Adicionar Outro Exame', '');
     container.appendChild(form);
 }
@@ -4976,7 +4976,7 @@ async function renderFaltasTab(container) {
         return `${d}/${m}/${y}`;
     };
 
-    const turnoColor = { 'Dia todo': '#e03131', 'ManhÃ£': '#f08c00', 'Tarde': '#1971c2' };
+    const turnoColor = { 'Dia todo': '#e03131', 'Manhã': '#f08c00', 'Tarde': '#1971c2' };
 
     const tableRows = faltas.length === 0
         ? `<tr><td colspan="5" style="text-align:center; color:#94a3b8; padding:1.5rem;">Nenhuma falta registrada.</td></tr>`
@@ -4988,10 +4988,10 @@ async function renderFaltasTab(container) {
                 </td>
                 <td style="padding:0.65rem 0.75rem; text-align:center;">
                     <span style="background:${f.avisado_previamente === 'Sim' ? '#dcfce7' : '#fee2e2'}; color:${f.avisado_previamente === 'Sim' ? '#166534' : '#991b1b'}; padding:2px 10px; border-radius:10px; font-size:0.75rem; font-weight:700;">
-                        ${f.avisado_previamente === 'Sim' ? 'âœ“ Sim' : 'âœ— NÃ£o'}
+                        ${f.avisado_previamente === 'Sim' ? '✓ Sim' : '✗ Não'}
                     </span>
                 </td>
-                <td style="padding:0.65rem 0.75rem; color:#475569; font-size:0.88rem;">${f.observacao || 'â€”'}</td>
+                <td style="padding:0.65rem 0.75rem; color:#475569; font-size:0.88rem;">${f.observacao || '—'}</td>
                 <td style="padding:0.65rem 0.75rem; text-align:right;">
                     <button onclick="window.deletarFalta(${f.id}, this)" style="background:none; border:none; cursor:pointer; color:#e03131;" title="Excluir">
                         <i class="ph ph-trash" style="font-size:1.1rem;"></i>
@@ -5000,7 +5000,7 @@ async function renderFaltasTab(container) {
             </tr>`).join('');
 
     container.innerHTML = `
-        <!-- FormulÃ¡rio de registro -->
+        <!-- Formulário de registro -->
         <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:1.25rem; margin-bottom:1.5rem;">
             <h4 style="margin:0 0 1rem; font-size:1rem; color:#1e293b; display:flex; align-items:center; gap:8px;">
                 <i class="ph ph-calendar-x" style="color:#e03131;"></i> Registrar Falta
@@ -5014,7 +5014,7 @@ async function renderFaltasTab(container) {
                     <label style="font-size:0.8rem; font-weight:600; color:#475569;">Turno</label>
                     <select id="falta-turno" style="height:38px; padding:0 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.9rem;">
                         <option value="Dia todo">Dia todo</option>
-                        <option value="ManhÃ£">ManhÃ£</option>
+                        <option value="Manhã">Manhã</option>
                         <option value="Tarde">Tarde</option>
                     </select>
                 </div>
@@ -5025,13 +5025,13 @@ async function renderFaltasTab(container) {
                             <input type="radio" name="falta-avisado" value="Sim" checked> Sim
                         </label>
                         <label style="display:flex; align-items:center; gap:4px; cursor:pointer; margin:0; font-weight:500;">
-                            <input type="radio" name="falta-avisado" value="NÃ£o"> NÃ£o
+                            <input type="radio" name="falta-avisado" value="Não"> Não
                         </label>
                     </div>
                 </div>
                 <div style="display:flex; flex-direction:column; gap:0.25rem; flex:1; min-width:180px;">
-                    <label style="font-size:0.8rem; font-weight:600; color:#475569;">ObservaÃ§Ã£o (opcional)</label>
-                    <input type="text" id="falta-obs" placeholder="Ex: nÃ£o comunicou, sem justificativa..." style="height:38px; padding:0 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.9rem;">
+                    <label style="font-size:0.8rem; font-weight:600; color:#475569;">Observação (opcional)</label>
+                    <input type="text" id="falta-obs" placeholder="Ex: não comunicou, sem justificativa..." style="height:38px; padding:0 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.9rem;">
                 </div>
                 <button onclick="window.registrarFalta()" style="height:38px; background:#e03131; color:#fff; border:none; border-radius:6px; padding:0 1.2rem; font-size:0.88rem; font-weight:700; cursor:pointer; white-space:nowrap; display:inline-flex; align-items:center; gap:6px;">
                     <i class="ph ph-plus"></i> Registrar
@@ -5052,7 +5052,7 @@ async function renderFaltasTab(container) {
                         <th style="padding:0.6rem 0.75rem; color:#64748b; font-size:0.78rem; text-transform:uppercase;">Data</th>
                         <th style="padding:0.6rem 0.75rem; color:#64748b; font-size:0.78rem; text-transform:uppercase;">Turno</th>
                         <th style="padding:0.6rem 0.75rem; color:#64748b; font-size:0.78rem; text-transform:uppercase; text-align:center;">Avisado Prev.</th>
-                        <th style="padding:0.6rem 0.75rem; color:#64748b; font-size:0.78rem; text-transform:uppercase;">ObservaÃ§Ã£o</th>
+                        <th style="padding:0.6rem 0.75rem; color:#64748b; font-size:0.78rem; text-transform:uppercase;">Observação</th>
                         <th style="padding:0.6rem 0.75rem;"></th>
                     </tr>
                 </thead>
@@ -5066,7 +5066,7 @@ window.registrarFalta = async function() {
     const data = document.getElementById('falta-data')?.value;
     const turno = document.getElementById('falta-turno')?.value;
     const obs = document.getElementById('falta-obs')?.value || '';
-    const avisado = document.querySelector('input[name="falta-avisado"]:checked')?.value || 'NÃ£o';
+    const avisado = document.querySelector('input[name="falta-avisado"]:checked')?.value || 'Não';
     if (!data) { alert('Informe a data da falta.'); return; }
     if (!viewedColaborador) return;
 
@@ -5093,7 +5093,7 @@ window.renderAtestadosTab = function(container, filteredDocs) {
     window.lastAtestadoDocs = filteredDocs; 
     const optionsHtml = getAnosAdmissaoOptions(selected);
 
-    // Injetar CSS do autocomplete se nÃ£o existir
+    // Injetar CSS do autocomplete se não existir
     if (!document.getElementById('cid-style')) {
         const s = document.createElement('style');
         s.id = 'cid-style';
@@ -5139,7 +5139,7 @@ window.renderAtestadosTab = function(container, filteredDocs) {
                 <!-- Campos Dias -->
                 <div id="atestado-dias-fields" style="display:flex; gap:1rem; flex-shrink:0; align-items:flex-end;">
                     <div>
-                        <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">Data InÃ­cio</label>
+                        <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">Data Início</label>
                         <input type="date" id="atestado_inicio_dia" class="form-control" style="padding:0.4rem; width:130px;" oninput="calcAtestadoFim()">
                     </div>
                     <div>
@@ -5147,7 +5147,7 @@ window.renderAtestadosTab = function(container, filteredDocs) {
                         <input type="number" id="atestado_qtd_dias" class="form-control" min="1" value="1" style="padding:0.4rem; width:75px;" oninput="calcAtestadoFim()">
                     </div>
                     <div>
-                        <label style="font-size:0.75rem; font-weight:600; color:#94a3b8; margin-bottom:3px; display:block;">TÃ©rmino (calc.)</label>
+                        <label style="font-size:0.75rem; font-weight:600; color:#94a3b8; margin-bottom:3px; display:block;">Término (calc.)</label>
                         <input type="date" id="atestado_fim_dia" class="form-control" style="padding:0.4rem; width:130px; background:#f1f5f9; color:#64748b;" readonly>
                     </div>
                 </div>
@@ -5155,11 +5155,11 @@ window.renderAtestadosTab = function(container, filteredDocs) {
                 <!-- Campos Horas -->
                 <div id="atestado-horas-fields" style="display:none; gap:1rem; flex-shrink:0;">
                     <div>
-                        <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">HorÃ¡rio InÃ­cio</label>
+                        <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">Horário Início</label>
                         <input type="time" id="atestado_inicio_hora" class="form-control" style="padding:0.4rem; width:110px;">
                     </div>
                     <div>
-                        <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">HorÃ¡rio Fim</label>
+                        <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">Horário Fim</label>
                         <input type="time" id="atestado_fim_hora" class="form-control" style="padding:0.4rem; width:110px;">
                     </div>
                 </div>
@@ -5191,7 +5191,7 @@ window.searchCID = async function(val) {
         if (!data.length) { dd.style.display = 'none'; return; }
         dd.innerHTML = data.map((c, i) =>
             `<div class="cid-option" data-code="${c.code}" data-desc="${c.desc.replace(/"/g,'&quot;')}" onclick="selectCID('${c.code}', this.dataset.desc)">
-                <strong>${c.code}</strong> â€” ${c.desc}
+                <strong>${c.code}</strong> — ${c.desc}
              </div>`
         ).join('');
         dd.style.display = 'block';
@@ -5201,7 +5201,7 @@ window.searchCID = async function(val) {
 window.selectCID = function(code, desc) {
     selectedCID = { code, desc };
     document.getElementById('cid-dropdown').style.display = 'none';
-    document.getElementById('cid-search').value = `${code} â€” ${desc}`;
+    document.getElementById('cid-search').value = `${code} — ${desc}`;
     
     const todayStr = new Date().toISOString().split('T')[0];
     document.getElementById('atestado_inicio_dia').value = todayStr;
@@ -5211,7 +5211,7 @@ window.selectCID = function(code, desc) {
 
 window.triggerAtestadoUpload = function() {
     if (!selectedCID) {
-        alert('Selecione primeiro qual Ã© o CID (cÃ³digo) do atestado digitando na barra de busca!');
+        alert('Selecione primeiro qual é o CID (código) do atestado digitando na barra de busca!');
         const s = document.getElementById('cid-search');
         if (s) { s.focus(); s.style.border = '2px solid red'; setTimeout(()=> s.style.border='', 2000); }
         return;
@@ -5230,7 +5230,7 @@ window.toggleAtestadoPeriodFields = function() {
     }
 }
 
-// Calcula data de tÃ©rmino automaticamente
+// Calcula data de término automaticamente
 window.calcAtestadoFim = function() {
     const inicio = document.getElementById('atestado_inicio_dia')?.value;
     const qtd = parseInt(document.getElementById('atestado_qtd_dias')?.value, 10) || 1;
@@ -5245,7 +5245,7 @@ window.calcAtestadoFim = function() {
 window.uploadAtestadoWithCID = async function(inputEl) {
     const file = inputEl.files[0];
     if (!file || !selectedCID) return;
-    if (!viewedColaborador) { alert('Colaborador nÃ£o selecionado.'); return; }
+    if (!viewedColaborador) { alert('Colaborador não selecionado.'); return; }
 
     // Loading state
     const uploadBtn   = document.getElementById('cid-upload-btn');
@@ -5253,7 +5253,7 @@ window.uploadAtestadoWithCID = async function(inputEl) {
     if (uploadBtn) { uploadBtn.style.opacity = '0.7'; uploadBtn.style.pointerEvents = 'none'; }
     if (uploadIcon)  uploadIcon.className = 'ph ph-spinner ph-spin';
 
-    // Gerar nome no padrÃ£o Z01_DD-MM-AA_NomeColab
+    // Gerar nome no padrão Z01_DD-MM-AA_NomeColab
     const today = new Date();
     const dd  = String(today.getDate()).padStart(2, '0');
     const mm  = String(today.getMonth() + 1).padStart(2, '0');
@@ -5274,13 +5274,13 @@ window.uploadAtestadoWithCID = async function(inputEl) {
     formData.append('cloud_name', customName + '.pdf'); // nome final sem timestamp para OneDrive
     formData.append('year', year);
 
-    // Campos de perÃ­odo
+    // Campos de período
     const tipo = document.getElementById('atestado_tipo').value;
     formData.append('atestado_tipo', tipo);
     if (tipo === 'dias') {
         const inicioVal = document.getElementById('atestado_inicio_dia').value;
         const fimVal = document.getElementById('atestado_fim_dia').value;
-        if (!inicioVal) { alert('Informe a Data de InÃ­cio do atestado.'); return; }
+        if (!inicioVal) { alert('Informe a Data de Início do atestado.'); return; }
         formData.append('atestado_inicio', inicioVal);
         formData.append('atestado_fim', fimVal || inicioVal);
     } else {
@@ -5316,7 +5316,7 @@ window.uploadAtestadoWithCID = async function(inputEl) {
             await loadDocumentosList();
             renderAtestadosAno();
 
-            // Quiet success â€“ no toast needed when just attaching an atestado
+            // Quiet success – no toast needed when just attaching an atestado
 
         } else {
             const errData = await res.json().catch(() => ({}));
@@ -5342,7 +5342,7 @@ window.saveVencimento = async function(docId, inputId) {
         });
         if (res.ok) {
             alert('Validade atualizada com sucesso!');
-            await loadDocumentosList(); // Para atualizar a exibiÃ§Ã£o do Venc: dd/mm/aaaa no texto
+            await loadDocumentosList(); // Para atualizar a exibição do Venc: dd/mm/aaaa no texto
             
             const viewAdm = document.getElementById('view-admissao');
             const isAdmActive = viewAdm && viewAdm.classList.contains('active');
@@ -5483,7 +5483,7 @@ window.renderAtestadosAno = function() {
     if (!listContainer) return;
     listContainer.innerHTML = '';
 
-    // Usar os documentos jÃ¡ filtrados pela barra global
+    // Usar os documentos já filtrados pela barra global
     const docsToUse = window.lastAtestadoDocs || currentDocs.filter(d => d.tab_name === 'Atestados');
     const filteredByYear = docsToUse.filter(d => d.year == y);
 
@@ -5509,7 +5509,7 @@ window.renderPagamentosCompetencia = function() {
     subContainer.innerHTML = '';
 
     const docs = currentDocs.filter(d => d.tab_name === 'Pagamentos' && d.year == y && d.month == m);
-    ['Ponto', 'Holerite', 'Recibo CombustÃ­vel', 'Recibo AlimentaÃ§Ã£o'].forEach(type => {
+    ['Ponto', 'Holerite', 'Recibo Combustível', 'Recibo Alimentação'].forEach(type => {
         const d = docs.find(x => x.document_type === type);
         subContainer.appendChild(createDocSlot('Pagamentos', type, d, `'${y}'`, `'${m}'`));
     });
@@ -5642,7 +5642,7 @@ window.deleteDoc = async function(docId, btnEl) {
         return;
     }
 
-    // RemoÃ§Ã£o otimista: esconde o card imediatamente para feedback visual instantÃ¢neo
+    // Remoção otimista: esconde o card imediatamente para feedback visual instantâneo
     const docCard = btnEl ? btnEl.closest('.doc-item') : null;
     if (docCard) {
         docCard.style.transition = 'opacity 0.2s ease';
@@ -5659,7 +5659,7 @@ window.deleteDoc = async function(docId, btnEl) {
             // Remover o card do DOM imediatamente
             if (docCard) docCard.remove();
 
-            // Atualizar lista em memÃ³ria e re-renderizar a aba em background
+            // Atualizar lista em memória e re-renderizar a aba em background
             await loadDocumentosList();
 
             const viewAdm = document.getElementById('view-admissao');
@@ -5677,7 +5677,7 @@ window.deleteDoc = async function(docId, btnEl) {
                 }
             }
         } else {
-            // Reverter a remoÃ§Ã£o otimista em caso de erro
+            // Reverter a remoção otimista em caso de erro
             if (docCard) {
                 docCard.style.opacity = '1';
                 docCard.style.pointerEvents = 'auto';
@@ -5704,7 +5704,7 @@ window.viewDoc = async function(docId) {
         const viewUrl = `${API_URL}/documentos/view/${docId}?token=${token}`;
         const downloadUrl = `${API_URL}/documentos/download/${docId}?token=${token}`;
 
-        // Verificar se popup de doc-modal existe, caso contrÃ¡rio abrir numa nova janela
+        // Verificar se popup de doc-modal existe, caso contrário abrir numa nova janela
         const modal = document.getElementById('doc-modal');
         const modalBody = document.getElementById('modal-doc-body');
         const modalTitle = document.getElementById('modal-doc-title');
@@ -5739,7 +5739,7 @@ window.viewAssinado = async function(docId) {
         document.body.style.cursor = 'default';
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
-            alert(err.error || 'PDF assinado ainda nÃ£o estÃ¡ disponÃ­vel.');
+            alert(err.error || 'PDF assinado ainda não está disponível.');
             return;
         }
         const blob = await res.blob();
@@ -5770,7 +5770,7 @@ window.viewAssinado = async function(docId) {
         `;
         document.body.appendChild(overlay);
 
-        // BotÃ£o de download
+        // Botão de download
         document.getElementById('btn-download-signed-pdf').addEventListener('click', () => {
             const a = document.createElement('a');
             a.href = blobUrl;
@@ -5787,7 +5787,7 @@ window.downloadAssinado = async function(docId) {
     const url = `${API_URL}/documentos/download-assinado/${docId}`;
     try {
         let handle = null;
-        // Pede a pasta ao usuÃ¡rio antes do fetch para garantir que nÃ£o perde o foco/evento de clique do navegador (exigÃªncia de seguranÃ§a do Chrome)
+        // Pede a pasta ao usuário antes do fetch para garantir que não perde o foco/evento de clique do navegador (exigência de segurança do Chrome)
         if (window.showSaveFilePicker) {
             try {
                 handle = await window.showSaveFilePicker({
@@ -5795,7 +5795,7 @@ window.downloadAssinado = async function(docId) {
                     types: [{ description: 'Documento PDF', accept: { 'application/pdf': ['.pdf'] } }]
                 });
             } catch (e) {
-                if (e.name === 'AbortError') return; // UsuÃ¡rio cancelou a janela Salvar Como
+                if (e.name === 'AbortError') return; // Usuário cancelou a janela Salvar Como
             }
         }
 
@@ -5806,7 +5806,7 @@ window.downloadAssinado = async function(docId) {
         if (!res.ok) {
             document.body.style.cursor = 'default';
             const err = await res.json().catch(() => ({}));
-            alert(err.error || 'PDF assinado ainda nÃ£o estÃ¡ pronto para download. Tente via Atualizar.');
+            alert(err.error || 'PDF assinado ainda não está pronto para download. Tente via Atualizar.');
             return;
         }
 
@@ -5817,10 +5817,10 @@ window.downloadAssinado = async function(docId) {
             const writable = await handle.createWritable();
             await writable.write(blob);
             await writable.close();
-            return; // Sucesso, arquivo salvo onde o usuÃ¡rio quis
+            return; // Sucesso, arquivo salvo onde o usuário quis
         }
 
-        // Fallback: se o navegador nÃ£o suportar a janela Salvar Como (ex: Safari antigo, Firefox padrÃ£o)
+        // Fallback: se o navegador não suportar a janela Salvar Como (ex: Safari antigo, Firefox padrão)
         let fileName = 'documento_assinado_' + docId + '.pdf';
         const disposition = res.headers.get('content-disposition');
         if (disposition && disposition.indexOf('filename=') !== -1) {
@@ -5844,17 +5844,17 @@ function getEffectiveStatus(c) {
     if (!c) return 'Ativo';
     let status = c.status || 'Ativo';
     
-    // Se estÃ¡ "Ativo" ou "FÃ©rias", verificamos as datas para saber se deve mostrar FÃ©rias
-    if (status === 'Ativo' || status === 'FÃ©rias') {
+    // Se está "Ativo" ou "Férias", verificamos as datas para saber se deve mostrar Férias
+    if (status === 'Ativo' || status === 'Férias') {
         if (c.ferias_programadas_inicio && c.ferias_programadas_fim) {
             const today = new Date().toISOString().split('T')[0];
             if (today >= c.ferias_programadas_inicio && today <= c.ferias_programadas_fim) {
-                return 'FÃ©rias';
+                return 'Férias';
             }
         }
     }
-    // Se o status era FÃ©rias mas saiu do perÃ­odo e nÃ£o mudou manualmente para outra coisa, volta a ser Ativo
-    if (status === 'FÃ©rias' && c.ferias_programadas_fim) {
+    // Se o status era Férias mas saiu do período e não mudou manualmente para outra coisa, volta a ser Ativo
+    if (status === 'Férias' && c.ferias_programadas_fim) {
         const today = new Date().toISOString().split('T')[0];
         if (today > c.ferias_programadas_fim) return 'Ativo';
     }
@@ -5865,7 +5865,7 @@ function getEffectiveStatus(c) {
 function updateStatusChip(val) {
     document.querySelectorAll('.status-chip').forEach(c => {
         c.classList.remove('active');
-        // c.style.display = 'none'; // Mantido visÃ­vel para permitir a seleÃ§Ã£o
+        // c.style.display = 'none'; // Mantido visível para permitir a seleção
     });
     const target = document.querySelector(`.status-chip[data-value="${val}"]`);
     if (target) {
@@ -5906,9 +5906,9 @@ window.previewFoto = function(input) {
             .then(res => res.json())
             .then(data => {
                 if (data.sucesso) {
-                    // A prÃ©-visualizaÃ§Ã£o base64 jÃ¡ estÃ¡ correta no cÃ­rculo.
-                    // NÃ£o substituÃ­mos src por URL do servidor (efÃªmero no Render).
-                    // Apenas garantimos que a foto seja visÃ­vel apÃ³s o upload.
+                    // A pré-visualização base64 já está correta no círculo.
+                    // Não substituímos src por URL do servidor (efêmero no Render).
+                    // Apenas garantimos que a foto seja visível após o upload.
                     const preview = document.getElementById('colab-foto-preview');
                     const stateSaved = document.getElementById('photo-state-saved');
                     if (preview) preview.style.display = 'block';
@@ -5956,12 +5956,12 @@ window.toggleTipoDocumento = function() {
     
     if (sel && rgInput && cpfInput && lbl) {
         if (sel.value === 'CIN') {
-            lbl.textContent = 'NÃºmero (CIN)';
+            lbl.textContent = 'Número (CIN)';
             rgInput.value = cpfInput.value;
             rgInput.setAttribute('readonly', 'true');
             rgInput.style.backgroundColor = '#e9ecef';
         } else {
-            lbl.textContent = 'NÃºmero (RG)';
+            lbl.textContent = 'Número (RG)';
             rgInput.removeAttribute('readonly');
             rgInput.style.backgroundColor = '';
             // Limpa apenas se estiver igual ao CPF (ou seja, foi preenchido por CIN)
@@ -6039,7 +6039,7 @@ window.toggleCertificadoMilitar = function(sexo) {
 };
 
 
-// Validar campo genÃ©rico no frontend
+// Validar campo genérico no frontend
 window.validarCPFCampo = function(el) {
     const v = el.value.replace(/\D/g, "");
     const errorMsg = document.getElementById(el.id === 'colab-cpf' ? 'cpf-error' : '');
@@ -6058,7 +6058,7 @@ window.toggleConjuge = function() {
     const nome = document.getElementById('conjuge-nome');
     const cpf = document.getElementById('conjuge-cpf');
     
-    if (estado && (estado.value === 'Casado' || estado.value === 'UniÃ£o EstÃ¡vel')) {
+    if (estado && (estado.value === 'Casado' || estado.value === 'União Estável')) {
         section.style.display = 'block';
     } else if (section) {
         section.style.display = 'none';
@@ -6075,7 +6075,7 @@ window.toggleMotorista = function() {
         if(section) section.style.display = 'block';
     } else if(section) {
         section.style.display = 'none';
-        // NEVER auto-clear CNH fields â€” user must edit them manually
+        // NEVER auto-clear CNH fields — user must edit them manually
     }
 };
 
@@ -6098,11 +6098,11 @@ window.mascaraCNH = function(el) {
 window.mascaraTelefone = function(i) {
 
     let v = i.value;
-    v = v.replace(/\D/g, ""); // Remove nÃ£o-dÃ­gitos
+    v = v.replace(/\D/g, ""); // Remove não-dígitos
     if (v.length > 10) {
-        v = v.replace(/^(\d\d)(\d{5})(\d{4}).*/, "($1) $2-$3"); // 11 dÃ­gitos
+        v = v.replace(/^(\d\d)(\d{5})(\d{4}).*/, "($1) $2-$3"); // 11 dígitos
     } else if (v.length > 5) {
-        v = v.replace(/^(\d\d)(\d{4})(\d{0,4}).*/, "($1) $2-$3"); // 10 dÃ­gitos (fixo)
+        v = v.replace(/^(\d\d)(\d{4})(\d{0,4}).*/, "($1) $2-$3"); // 10 dígitos (fixo)
     } else if (v.length > 2) {
         v = v.replace(/^(\d\d)(\d{0,5})/, "($1) $2");
     } else {
@@ -6163,12 +6163,12 @@ function updateProbationBadge(admissaoDate) {
         
         containers.forEach(container => {
             if (diffDays <= 45) {
-                container.innerHTML = '<span class="probation-badge">1Âº 45</span>';
+                container.innerHTML = '<span class="probation-badge">1º 45</span>';
             } else if (diffDays <= 90) {
-                container.innerHTML = '<span class="probation-badge second">2Âº 45</span>';
+                container.innerHTML = '<span class="probation-badge second">2º 45</span>';
             }
         });
-    } catch(e) { console.error('Erro ao calcular perÃ­odo de experiÃªncia:', e); }
+    } catch(e) { console.error('Erro ao calcular período de experiência:', e); }
 }
 
 // --- CBO LOOKUP ---
@@ -6218,7 +6218,7 @@ window.selecionarCBO = function(code, desc) {
     if (dropdown) dropdown.style.display = 'none';
 };
 
-// --- GESTÃƒO DE FACULDADE ---
+// --- GESTÃO DE FACULDADE ---
 window.loadFaculdadeCursos = async function() {
     try {
         const response = await fetch(`${API_URL}/cursos-faculdade`, {
@@ -6337,7 +6337,7 @@ document.addEventListener('click', (e) => {
     }
 });
 
-// --- GESTÃƒO DE GERADORES DE DOCUMENTOS ---
+// --- GESTÃO DE GERADORES DE DOCUMENTOS ---
 
 window.loadGeradores = async function() {
     try {
@@ -6347,7 +6347,7 @@ window.loadGeradores = async function() {
             apiGet('/gerador-outros-contratos-templates').catch(() => [])
         ]);
 
-        // Garantir lista nÃ£o vazia
+        // Garantir lista não vazia
         let geradores = Array.isArray(items) ? items : [];
         if (geradores.length === 0) {
             await seedInitialGeradores();
@@ -6381,24 +6381,24 @@ window.renderGeradoresList = function(items) {
 
     // Labels e styles por tipo de template
     const TEMPLATE_LABELS = {
-        admissao:  { label: 'AdmissÃ£o',  bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
+        admissao:  { label: 'Admissão',  bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
         contratos: { label: 'Contratos', bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' },
         ambos:     { label: 'Ambos',     bg: '#fdf4ff', color: '#c026d3', border: '#f0abfc' },
-        nenhum:    { label: 'â€”',         bg: '#f8fafc', color: '#94a3b8', border: '#e2e8f0' },
+        nenhum:    { label: '—',         bg: '#f8fafc', color: '#94a3b8', border: '#e2e8f0' },
     };
 
     const PROTECTED_NAMES = [
-        'autorizaÃ§Ã£o de desconto em folha',
-        'ordem de serviÃ§o nr01',
-        'termo de nÃ£o interesse terapia',
+        'autorização de desconto em folha',
+        'ordem de serviço nr01',
+        'termo de não interesse terapia',
         'termo de interesse terapia',
         'responsabilidade chaves',
         'termo de responsabilidade de chaves',
         'responsabilidade celular',
-        'responsabilidade bilhete Ãºnico',
+        'responsabilidade bilhete único',
         'contrato faculdade',
         'contrato academia',
-        'acordo de auxÃ­lio-combustÃ­vel',
+        'acordo de auxílio-combustível',
         'contrato intermitente'
     ];
     
@@ -6406,20 +6406,20 @@ window.renderGeradoresList = function(items) {
         const originalName = (nome || '').trim();
         const u = originalName.toLowerCase();
         
-        // Expor essas cÃ³pias precisas para que o usuÃ¡rio consiga excluÃ­-las
+        // Expor essas cópias precisas para que o usuário consiga excluí-las
         const BAD_EXACT_NAMES = [
-            'AUTORIZAÃ‡ÃƒO DE DESCONTO EM FOLHA DE PAGAMENTO',
-            'ORDEM DE SERVIÃ‡O NR01'
+            'AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO',
+            'ORDEM DE SERVIÇO NR01'
         ];
         if (BAD_EXACT_NAMES.includes(originalName)) return false;
 
         // Forcefully allow these to be deleted
-        if (u.includes('equipamento') || u.includes('veÃ­culo') || u.includes('veiculo')) return false;
+        if (u.includes('equipamento') || u.includes('veículo') || u.includes('veiculo')) return false;
 
         return PROTECTED_NAMES.some(pn => u.includes(pn));
     };
 
-    // Sort: protegidos primeiro, depois alfabÃ©tico
+    // Sort: protegidos primeiro, depois alfabético
     const sortedItems = [...items].sort((a, b) => {
         const aProt = isProtected(a.nome);
         const bProt = isProtected(b.nome);
@@ -6554,8 +6554,8 @@ window.renderGeradoresTemplates = function(departamentos, geradores, templates) 
         docMap[t.gerador_id].push(Number(t.departamento_id));
     });
 
-    // Contratos de uso exclusivo de outros fluxos (ex: Multas) nÃ£o devem aparecer nos templates de admissÃ£o
-    const GERADORES_EXCLUSIVOS_AVULSO = ['AUTORIZAÃ‡ÃƒO DE DESCONTO EM FOLHA DE PAGAMENTO', 'AUTORIZAÃ‡ÃƒO DE DESCONTO EM FOLHA'];
+    // Contratos de uso exclusivo de outros fluxos (ex: Multas) não devem aparecer nos templates de admissão
+    const GERADORES_EXCLUSIVOS_AVULSO = ['AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO', 'AUTORIZAÇÃO DE DESCONTO EM FOLHA'];
     const geradoresParaTemplate = geradores.filter(g => !GERADORES_EXCLUSIVOS_AVULSO.includes((g.nome || '').toUpperCase().trim()));
 
     const listHTML = geradoresParaTemplate.map(g => {
@@ -6759,98 +6759,98 @@ window.selecionarTodosSetoresOutros = function(docId) {
 async function seedInitialGeradores() {
     const templates = [
         {
-            nome: "Acordo Individual BenefÃ­cios",
+            nome: "Acordo Individual Benefícios",
             conteudo: `
 <p style="margin-top: 1.5rem;">CARO COLABORADOR,</p>
-<p>Ã EMPRESA:</p>
+<p>Á EMPRESA:</p>
 
 <p style="margin-top: 1.5rem;">
-    <b>AMERICA RENTAL EQUIPAMENTOS LTDA</b>, Situada na Rua Salto da Divisa, nÂº 97, CEP 07252-300, Pq Alvorada - Guarulhos SP, inscrita no CNPJ sob o nÂº 03.434.448/0001-01, neste ato representado pela sÃ³cia proprietÃ¡ria Sra. Nicole Mezuraro Maio, brasileira, solteira, empresÃ¡ria, portadora da cÃ©dula de identidade R.G. nÂº 43.690.066 SSP/SP e CPF/MF nÂº 355.026.968-47, doravante denominada EMPRESA.
+    <b>AMERICA RENTAL EQUIPAMENTOS LTDA</b>, Situada na Rua Salto da Divisa, nº 97, CEP 07252-300, Pq Alvorada - Guarulhos SP, inscrita no CNPJ sob o nº 03.434.448/0001-01, neste ato representado pela sócia proprietária Sra. Nicole Mezuraro Maio, brasileira, solteira, empresária, portadora da cédula de identidade R.G. nº 43.690.066 SSP/SP e CPF/MF nº 355.026.968-47, doravante denominada EMPRESA.
 </p>
 
 <p style="margin-top: 1.5rem;">
-    Decidem as partes, na melhor forma de direito, celebrar o presente <b>ACORDO INDIVIDUAL</b>, para fins de alterar algumas condiÃ§Ãµes do atual contrato de trabalho vigente, que reger-se-Ã¡ mediante as clÃ¡usulas e condiÃ§Ãµes adiante estipuladas.
+    Decidem as partes, na melhor forma de direito, celebrar o presente <b>ACORDO INDIVIDUAL</b>, para fins de alterar algumas condições do atual contrato de trabalho vigente, que reger-se-á mediante as cláusulas e condições adiante estipuladas.
 </p>
 
-<p style="margin-top: 1.5rem;"><b>CLÃUSULA PRIMEIRA - DOS MOTIVOS</b></p>
-<p>Com o foco de acrescentar melhorias e qualidade de vida aos colaboradores a empresa <b>AMERICA RENTAL EQUIPAMENTOS LTDA</b>, por mera liberalidade, disponibiliza convÃªnios com os estabelecimentos:</p>
+<p style="margin-top: 1.5rem;"><b>CLÁUSULA PRIMEIRA - DOS MOTIVOS</b></p>
+<p>Com o foco de acrescentar melhorias e qualidade de vida aos colaboradores a empresa <b>AMERICA RENTAL EQUIPAMENTOS LTDA</b>, por mera liberalidade, disponibiliza convênios com os estabelecimentos:</p>
 
 <ol style="margin-top: 1rem; line-height: 2;">
-    <li>REDE DROGA LESTE FARMÃCIA</li>
+    <li>REDE DROGA LESTE FARMÁCIA</li>
     <li>SUPERMERCADO PARAISO - MERCADINHO BERLIM LTDA - ME</li>
     <li>ACADEMIA - ATITUDE FITNESS</li>
 </ol>
 
-<p style="margin-top: 1.5rem;"><b>CLÃUSULA SEGUNDA â€“ DOS DESCONTOS E DOS ESTABELICIMENTOS</b></p>
-<p>O colaborador autoriza os descontos de seu salÃ¡rio caso venha utilizar os convÃªnios colocados a sua disposiÃ§Ã£o, conforme numerados na clÃ¡usula anterior. Ademais, o colaborador fica ciente que nÃ£o Ã© obrigado a utilizar o convÃªnio, logo, sem a utilizaÃ§Ã£o nÃ£o haverÃ¡ qualquer desconto de sua folha de pagamento.</p>
+<p style="margin-top: 1.5rem;"><b>CLÁUSULA SEGUNDA – DOS DESCONTOS E DOS ESTABELICIMENTOS</b></p>
+<p>O colaborador autoriza os descontos de seu salário caso venha utilizar os convênios colocados a sua disposição, conforme numerados na cláusula anterior. Ademais, o colaborador fica ciente que não é obrigado a utilizar o convênio, logo, sem a utilização não haverá qualquer desconto de sua folha de pagamento.</p>
 
-<p style="margin-top: 1.5rem;"><b>CLÃUSULA TERCEIRA - DA VIGÃŠNCIA</b></p>
-<p>O presente acordo vigorarÃ¡ a partir da presente data pelo perÃ­odo da vigÃªncia do contrato de trabalho do Colaborador.</p>
+<p style="margin-top: 1.5rem;"><b>CLÁUSULA TERCEIRA - DA VIGÊNCIA</b></p>
+<p>O presente acordo vigorará a partir da presente data pelo período da vigência do contrato de trabalho do Colaborador.</p>
             `,
             variaveis: ""
         },
         {
-            nome: "AutorizaÃ§Ã£o de Uso de Imagem",
+            nome: "Autorização de Uso de Imagem",
             conteudo: `
 <p style="margin-top: 2rem;">
-    <b>AUTORIZO</b> o uso de minha imagem e voz, em todo e qualquer material entre fotos, documentos e outros meios de comunicaÃ§Ã£o, para campanhas promocionais e institucionais e etc. desta empresa, <b>AMERICA RENTAL EQUIPAMENTOS LTDA</b>, Situada na Rua Salto da Divisa, nÂº 97, CEP 07252-300, Pq Alvorada - Guarulhos SP, inscrita no CNPJ sob o nÂº 03.434.448/0001-01, sejam essas destinadas Ã  divulgaÃ§Ã£o ao pÃºblico em geral e/ou apenas para uso interno, e desde que nÃ£o haja desvirtuamento da sua finalidade.
+    <b>AUTORIZO</b> o uso de minha imagem e voz, em todo e qualquer material entre fotos, documentos e outros meios de comunicação, para campanhas promocionais e institucionais e etc. desta empresa, <b>AMERICA RENTAL EQUIPAMENTOS LTDA</b>, Situada na Rua Salto da Divisa, nº 97, CEP 07252-300, Pq Alvorada - Guarulhos SP, inscrita no CNPJ sob o nº 03.434.448/0001-01, sejam essas destinadas à divulgação ao público em geral e/ou apenas para uso interno, e desde que não haja desvirtuamento da sua finalidade.
 </p>
 
 <p style="margin-top: 1.5rem;">
-    A presente autorizaÃ§Ã£o Ã© concedida a tÃ­tulo gratuito, abrangendo o uso da imagem acima mencionada em todo territÃ³rio nacional e no exterior, sob qualquer forma e meios, ou sejam, em destaque: (I) out-door; (II) bus-door; folhetos em geral (encartes, mala direta, catÃ¡logo, etc.); (III) folder de apresentaÃ§Ã£o; (IV) anÃºncios em revistas e jornais em geral; (V) home page; (VI) cartazes; (VII) back-light; (VIII) mÃ­dia eletrÃ´nica (painÃ©is, vÃ­deo-tapes, televisÃ£o, cinema, programa para rÃ¡dio, rede social entre outros).
+    A presente autorização é concedida a título gratuito, abrangendo o uso da imagem acima mencionada em todo território nacional e no exterior, sob qualquer forma e meios, ou sejam, em destaque: (I) out-door; (II) bus-door; folhetos em geral (encartes, mala direta, catálogo, etc.); (III) folder de apresentação; (IV) anúncios em revistas e jornais em geral; (V) home page; (VI) cartazes; (VII) back-light; (VIII) mídia eletrônica (painéis, vídeo-tapes, televisão, cinema, programa para rádio, rede social entre outros).
 </p>
 
 <p style="margin-top: 1.5rem;">
-    Por esta ser a expressÃ£o da minha vontade declaro que autorizo o uso acima descrito sem que nada haja a ser reclamado a tÃ­tulo de direitos conexos Ã  minha imagem ou a qualquer outro.
+    Por esta ser a expressão da minha vontade declaro que autorizo o uso acima descrito sem que nada haja a ser reclamado a título de direitos conexos à minha imagem ou a qualquer outro.
 </p>
             `,
             variaveis: ""
         },
         {
-            nome: "Acordo de AuxÃ­lio-CombustÃ­vel",
+            nome: "Acordo de Auxílio-Combustível",
             conteudo: `
 <p style="margin-top: 1.5rem;">
-    <b>AMERICA RENTAL EQUIPAMENTOS LTDA</b>, Situada na Rua Salto da Divisa, nÂº 97, CEP 07252-300, Parque Alvorada - Guarulhos SP, Inscrita no CNPJ sob o nÂº 03.434.448/0001-01, denominada empregador, e Colaborador, de comum acordo e na melhor forma do direito, as partes celebram o presente Acordo Individual Escrito, com apoio nos art. 444, 457, 458 e art. 468 da CLT para tratar exclusivamente das condiÃ§Ãµes para fornecimento de auxÃ­lio-combustÃ­vel, mantendo-se inalteradas as demais clÃ¡usulas contratuais firmadas.
+    <b>AMERICA RENTAL EQUIPAMENTOS LTDA</b>, Situada na Rua Salto da Divisa, nº 97, CEP 07252-300, Parque Alvorada - Guarulhos SP, Inscrita no CNPJ sob o nº 03.434.448/0001-01, denominada empregador, e Colaborador, de comum acordo e na melhor forma do direito, as partes celebram o presente Acordo Individual Escrito, com apoio nos art. 444, 457, 458 e art. 468 da CLT para tratar exclusivamente das condições para fornecimento de auxílio-combustível, mantendo-se inalteradas as demais cláusulas contratuais firmadas.
 </p>
 
 <p style="margin-top: 1.5rem;">
-    <b>ClÃ¡usula Primeira:</b> O empregador fornecerÃ¡ mensalmente o valor fixo de R$220,00 (duzentos e vinte reais) a tÃ­tulo de auxÃ­lio-combustÃ­vel ao trabalhador que comprovar a necessidade de utilizaÃ§Ã£o de veÃ­culo prÃ³prio para o deslocamento casa â€“ trabalho, de forma escrita.
+    <b>Cláusula Primeira:</b> O empregador fornecerá mensalmente o valor fixo de R$220,00 (duzentos e vinte reais) a título de auxílio-combustível ao trabalhador que comprovar a necessidade de utilização de veículo próprio para o deslocamento casa – trabalho, de forma escrita.
 </p>
 
 <p style="margin-top: 1rem;">
-    <b>ParÃ¡grafo primeiro:</b> A comprovaÃ§Ã£o de que trata essa clÃ¡usula, deverÃ¡ ser feita mediante apresentaÃ§Ã£o de comprovante de residÃªncia em nome prÃ³prio e identificaÃ§Ã£o de veÃ­culo utilizado no ato da contrataÃ§Ã£o.
+    <b>Parágrafo primeiro:</b> A comprovação de que trata essa cláusula, deverá ser feita mediante apresentação de comprovante de residência em nome próprio e identificação de veículo utilizado no ato da contratação.
 </p>
 
 <p style="margin-top: 1rem;">
-    <b>ParÃ¡grafo Segundo:</b> O valor a tÃ­tulo de auxÃ­lio-combustÃ­vel serÃ¡ reajustado anualmente a critÃ©rio do empregador.
+    <b>Parágrafo Segundo:</b> O valor a título de auxílio-combustível será reajustado anualmente a critério do empregador.
 </p>
 
 <p style="margin-top: 1.5rem;">
-    <b>ClÃ¡usula Segunda:</b> As partes esclarecem que referido auxÃ­lio-combustÃ­vel possui natureza indenizatÃ³ria, nÃ£o se integrando Ã  remuneraÃ§Ã£o para quaisquer fins.
+    <b>Cláusula Segunda:</b> As partes esclarecem que referido auxílio-combustível possui natureza indenizatória, não se integrando à remuneração para quaisquer fins.
 </p>
 
 <p style="margin-top: 1.5rem;">
-    <b>ClÃ¡usula Terceira:</b> SÃ£o condiÃ§Ãµes para o fornecimento do auxÃ­lio-combustÃ­vel mensalmente ao trabalhador, de forma cumulativa, a utilizaÃ§Ã£o de veÃ­culo prÃ³prio para deslocamento e a inexistÃªncia de qualquer falta ao trabalho no mÃªs correspondente.
+    <b>Cláusula Terceira:</b> São condições para o fornecimento do auxílio-combustível mensalmente ao trabalhador, de forma cumulativa, a utilização de veículo próprio para deslocamento e a inexistência de qualquer falta ao trabalho no mês correspondente.
 </p>
 
 <p style="margin-top: 1.5rem;">
-    <b>ClÃ¡usula Quarta:</b> Em caso de ausÃªncia injustificada por parte do empregado ao trabalho o auxÃ­lio-combustÃ­vel nÃ£o serÃ¡ fornecido.
+    <b>Cláusula Quarta:</b> Em caso de ausência injustificada por parte do empregado ao trabalho o auxílio-combustível não será fornecido.
 </p>
 
 <p style="margin-top: 1rem;">
-    <b>ParÃ¡grafo Ãºnico:</b> Considera-se como ausÃªncia injustificada, qualquer hipÃ³tese distinta da prevista no art. 473 da CLT.
+    <b>Parágrafo único:</b> Considera-se como ausência injustificada, qualquer hipótese distinta da prevista no art. 473 da CLT.
 </p>
 
 <p style="margin-top: 1.5rem;">
-    <b>ClÃ¡usula Quinta:</b> Ao trabalhador que nÃ£o utilizar veÃ­culo prÃ³prio para deslocamento casa trabalho, nÃ£o serÃ¡ pago o auxÃ­lio-combustÃ­vel.
+    <b>Cláusula Quinta:</b> Ao trabalhador que não utilizar veículo próprio para deslocamento casa trabalho, não será pago o auxílio-combustível.
 </p>
 
 <p style="margin-top: 1.5rem;">
-    <b>ClÃ¡usula Sexta:</b> Fica desde jÃ¡ autorizada a revisÃ£o das condiÃ§Ãµes para o fornecimento e/ou supressÃ£o do referido auxÃ­lio-combustÃ­vel pelo empregador a qualquer tempo, e sem aviso prÃ©vio, nÃ£o importando em direito adquirido do trabalhador, nÃ£o se aderindo ao contrato de trabalho.
+    <b>Cláusula Sexta:</b> Fica desde já autorizada a revisão das condições para o fornecimento e/ou supressão do referido auxílio-combustível pelo empregador a qualquer tempo, e sem aviso prévio, não importando em direito adquirido do trabalhador, não se aderindo ao contrato de trabalho.
 </p>
 
 <p style="margin-top: 1.5rem;">
-    <b>ClÃ¡usula SÃ©tima:</b> As partes firmam o presente de comum acordo, assinando em duas vias de igual teor.
+    <b>Cláusula Sétima:</b> As partes firmam o presente de comum acordo, assinando em duas vias de igual teor.
 </p>
             `,
             variaveis: ""
@@ -6867,7 +6867,7 @@ window.openModalGerador = function() {
     document.getElementById('form-gerador').reset();
     document.getElementById('gerador-id').value = '';
     document.getElementById('gerador-conteudo-editor').innerHTML = '';
-    // PadrÃ£o: marcar ambos os templates
+    // Padrão: marcar ambos os templates
     const chkAdm = document.getElementById('gerador-template-admissao');
     const chkOut = document.getElementById('gerador-template-outros');
     if (chkAdm) chkAdm.checked = true;
@@ -6891,7 +6891,7 @@ window.editGerador = async function(id) {
         document.getElementById('gerador-id').value = g.id;
         document.getElementById('gerador-nome').value = g.nome;
         
-        // Detectar se Ã© texto puro legÃ­vel (legado) ou HTML
+        // Detectar se é texto puro legível (legado) ou HTML
         let finalContent = g.conteudo;
         if (!finalContent.includes('<') && !finalContent.includes('>')) {
             finalContent = finalContent.replace(/\n/g, '<br>');
@@ -6921,8 +6921,8 @@ function setupGeradores() {
     console.log('Setup Geradores initialized...');
     const form = document.getElementById('form-gerador');
     if (!form) {
-        console.warn('FormulÃ¡rio de gerador nÃ£o encontrado na inicializaÃ§Ã£o. Tentando novamente em breve.');
-        setTimeout(setupGeradores, 500); // Tentar novamente se o HTML nÃ£o carregou
+        console.warn('Formulário de gerador não encontrado na inicialização. Tentando novamente em breve.');
+        setTimeout(setupGeradores, 500); // Tentar novamente se o HTML não carregou
         return;
     }
     
@@ -6954,7 +6954,7 @@ function setupGeradores() {
                     const deptIds = (depts || []).map(d => Number(d.id));
 
                     if (geradorId && deptIds.length > 0) {
-                        // Buscar templates atuais para nÃ£o sobrescrever os de outros geradores
+                        // Buscar templates atuais para não sobrescrever os de outros geradores
                         const [admAtual, outAtual] = await Promise.all([
                             apiGet('/gerador-departamento-templates').catch(() => []),
                             apiGet('/gerador-outros-contratos-templates').catch(() => [])
@@ -6982,12 +6982,12 @@ function setupGeradores() {
             }
         } catch (e) { 
             console.error(e);
-            alert('Falha crÃ­tica ao salvar gerador. Verifique o console.');
+            alert('Falha crítica ao salvar gerador. Verifique o console.');
         }
     });
 }
 
-// FunÃ§Ãµes do Editor de Texto
+// Funções do Editor de Texto
 window.formatDoc = function(cmd, value = null) {
     document.execCommand(cmd, false, value);
 };
@@ -7020,7 +7020,7 @@ window.abrirModalSelecaoColab = async function(geradorId) {
 window.calcParcelaDesconto = function() {
     let valStr = document.getElementById('desconto-valor').value;
     if(!valStr) valStr = '0';
-    // Substituir vÃ­rgula por ponto para cÃ¡lculo
+    // Substituir vírgula por ponto para cálculo
     valStr = valStr.replace(',', '.');
     const valor = parseFloat(valStr) || 0;
     const parcelas = parseInt(document.getElementById('desconto-parcelas').value) || 1;
@@ -7038,7 +7038,7 @@ window.processarGeracao = async function() {
     let requestBody = {};
     const gerador = (window.allGeradores || []).find(g => g.id == geradorId);
     if (gerador && (gerador.nome || '').toUpperCase().includes('DESCONTO EM FOLHA')) {
-        requestBody.desconto_descricao = document.getElementById('desconto-descricao').value || 'NÃ£o informado';
+        requestBody.desconto_descricao = document.getElementById('desconto-descricao').value || 'Não informado';
         requestBody.desconto_valor = document.getElementById('desconto-valor').value || '0,00';
         requestBody.desconto_parcelas = document.getElementById('desconto-parcelas').value || '1';
         requestBody.desconto_valor_parcela = document.getElementById('desconto-valor-parcelamento').innerText.replace('Valor de cada parcela: R$ ', '');
@@ -7072,8 +7072,8 @@ window.processarGeracao = async function() {
 window.abrirPreviewDocumento = function(data) {
     let container = document.getElementById('preview-doc-body');
     if (!container) {
-        // Fallback robusto se o modal foi removido erroneamente por cache/cÃ³digos antigos
-        console.warn("Modal preview doc nÃ£o encontrado. Recriando...");
+        // Fallback robusto se o modal foi removido erroneamente por cache/códigos antigos
+        console.warn("Modal preview doc não encontrado. Recriando...");
         const htmlFallback = `
         <div id="modal-preview-doc" class="modal" style="display:block; z-index:99999;">
             <div class="modal-content fullness">
@@ -7095,7 +7095,7 @@ window.abrirPreviewDocumento = function(data) {
 
     const previewBtnSalvar = document.querySelector('#modal-preview-doc button.btn-primary');
     if (previewBtnSalvar) {
-        previewBtnSalvar.innerHTML = '<i class="ph ph-paperclip"></i> Anexar ao ProntuÃ¡rio';
+        previewBtnSalvar.innerHTML = '<i class="ph ph-paperclip"></i> Anexar ao Prontuário';
         previewBtnSalvar.onclick = async function() {
             const self = this;
             const oldHtml = self.innerHTML;
@@ -7115,7 +7115,7 @@ window.abrirPreviewDocumento = function(data) {
                     || data.colabId;
 
                 if (!colaboradorId) {
-                    throw new Error('NÃ£o foi possÃ­vel identificar o colaborador. Abra o prontuÃ¡rio e tente novamente.');
+                    throw new Error('Não foi possível identificar o colaborador. Abra o prontuário e tente novamente.');
                 }
 
                 const formData = new FormData();
@@ -7137,7 +7137,7 @@ window.abrirPreviewDocumento = function(data) {
                 document.getElementById('modal-preview-doc').style.display = 'none';
 
                 if (typeof showToast !== 'undefined') {
-                    showToast('Documento anexado ao prontuÃ¡rio com sucesso!', 'success');
+                    showToast('Documento anexado ao prontuário com sucesso!', 'success');
                 } else {
                     Swal.close(); if(typeof showToast !== 'undefined') showToast('Documento anexado!', 'success');
                 }
@@ -7152,11 +7152,11 @@ window.abrirPreviewDocumento = function(data) {
             }
         };
     }
-    // Verificar opÃ§Ã£o de assinatura manual
+    // Verificar opção de assinatura manual
     const comAssinatura = document.querySelector('input[name="assinatura-tipo"]:checked')?.value === 'sim';
 
 
-    // 1. CabeÃ§alho com Logotipo â€” sem margem para colar no topo da pÃ¡gina
+    // 1. Cabeçalho com Logotipo — sem margem para colar no topo da página
     const logoBanner = `<div style="margin:0;padding:0;line-height:0;"><img src="${API_URL.replace('/api', '')}/assets/logo-header.png" style="width:100%;display:block;margin:0;padding:0;"></div>`;
 
     // 2. Dados do Colaborador
@@ -7167,7 +7167,7 @@ window.abrirPreviewDocumento = function(data) {
                 <span>NOME: <b>${data.colaborador.NOME_COMPLETO}</b></span>
                 <span>CPF: <b>${data.colaborador.CPF}</b></span>
             </div>
-            <p style="margin: 0px;">ENDEREÃ‡O: ${data.colaborador.ENDERECO || '---'}</p>
+            <p style="margin: 0px;">ENDEREÇO: ${data.colaborador.ENDERECO || '---'}</p>
             <p style="margin: 0px;">CARGO: ${data.colaborador.CARGO || '---'}</p>
             <div style="display: grid; grid-template-columns: 55% 45%; margin-top: 0px;">
                 <span>CELULAR: ${data.colaborador.TELEFONE || '---'}</span>
@@ -7176,7 +7176,7 @@ window.abrirPreviewDocumento = function(data) {
         </div>
     `;
 
-    // 3. ConteÃºdo â€” compactar espaÃ§amento de parÃ¡grafos
+    // 3. Conteúdo — compactar espaçamento de parágrafos
     const htmlComDestaque = (data.html || '')
         .replace(/AMERICA RENTAL EQUIPAMENTOS LTDA/g, '<b>AMERICA RENTAL EQUIPAMENTOS LTDA</b>');
 
@@ -7184,7 +7184,7 @@ window.abrirPreviewDocumento = function(data) {
     const customFontSize   = isSantander ? '0.68rem' : '0.82rem';
     const customLineHeight = isSantander ? '1.2'    : '1.45';
 
-    // CSS de quebra de pÃ¡gina correta â€” evita cortar parÃ¡grafos e clÃ¡usulas no meio
+    // CSS de quebra de página correta — evita cortar parágrafos e cláusulas no meio
     const conteudoPrincipal = `
         <style>
             #preview-doc-body p  { margin: 0.1rem 0; line-height: ${customLineHeight}; page-break-inside: avoid; }
@@ -7195,18 +7195,18 @@ window.abrirPreviewDocumento = function(data) {
             ${htmlComDestaque}
         </div>`;
 
-    // 4. Data atual formatada â€” "Guarulhos, 01 de abril de 2026."
-    const meses = ['janeiro','fevereiro','marÃ§o','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+    // 4. Data atual formatada — "Guarulhos, 01 de abril de 2026."
+    const meses = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
     const hoje = new Date();
     const dataFormatada = `Guarulhos, ${String(hoje.getDate()).padStart(2,'0')} de ${meses[hoje.getMonth()]} de ${hoje.getFullYear()}.`;
 
-    // 5. RodapÃ© â€” com ou sem campo de assinatura manual
+    // 5. Rodapé — com ou sem campo de assinatura manual
     const colabNome = data.colaborador.NOME_COMPLETO;
     const logoSrc = `${API_URL.replace('/api', '')}/assets/logo-header.png`;
 
     let footerHtml;
     if (comAssinatura) {
-        // Com campos de assinatura para impressÃ£o e assinatura Ã  mÃ£o
+        // Com campos de assinatura para impressão e assinatura à mão
         footerHtml = `
         <div style="margin-top: 1.5rem;">
             <p style="font-weight: 700; font-size: 0.9rem;">${dataFormatada}</p>
@@ -7223,21 +7223,21 @@ window.abrirPreviewDocumento = function(data) {
                         <p style="font-size: 0.5rem; margin-top: 1px; font-weight: 700; line-height: 1.1;">AMERICA RENTAL EQUIPAMENTOS LTDA<br>CNPJ: 03.434.448/0001-01</p>
                     </div>
                     <div style="border-top: 1.5px solid #000; padding-top: 0.35rem;">
-                        <span style="font-weight: 700; font-size: 0.85rem;">AmÃ©rica Rental Equipamentos Ltda</span><br>
+                        <span style="font-weight: 700; font-size: 0.85rem;">América Rental Equipamentos Ltda</span><br>
                         <span style="font-size: 0.75rem; color: #555;">Empresa</span>
                     </div>
                 </div>
             </div>
         </div>`;
     } else {
-        // Sem campos de assinatura â€” apenas a data (assinatura serÃ¡ digital)
+        // Sem campos de assinatura — apenas a data (assinatura será digital)
         footerHtml = `
         <div style="margin-top: 1.5rem;">
             <p style="font-weight: 700; font-size: 0.9rem;">${dataFormatada}</p>
         </div>`;
     }
 
-    // Logo cola no topo (sem padding), o resto do conteÃºdo tem padding lateral uniforme
+    // Logo cola no topo (sem padding), o resto do conteúdo tem padding lateral uniforme
     const conteudoComPadding = `<div style="padding: 20px 60px 40px 60px;">${colabInfoBase}${conteudoPrincipal}${footerHtml}</div>`;
     container.innerHTML = logoBanner + conteudoComPadding;
     // Guardar nome para uso no salvar PDF
@@ -7248,7 +7248,7 @@ window.abrirPreviewDocumento = function(data) {
     document.getElementById('modal-preview-doc').style.display = 'block';
 };
 
-// Salvar como PDF â€” usa o diÃ¡logo de impressÃ£o do navegador com destino "Salvar em PDF"
+// Salvar como PDF — usa o diálogo de impressão do navegador com destino "Salvar em PDF"
 window.salvarDocumentoPDF = function() {
     const container = document.getElementById('preview-doc-body');
     if (!container) return;
@@ -7302,7 +7302,7 @@ window.imprimirDocumento = function() {
     win.document.close();
 };
 
-// --- GESTÃƒO DE CHAVES ---
+// --- GESTÃO DE CHAVES ---
 window.loadChaves = async function() {
     try {
         const rows = await apiGet('/chaves');
@@ -7344,12 +7344,12 @@ window.deleteChave = async function(id) {
     } catch (e) { alert(e.message); }
 };
 
-// --- GESTÃƒO DE ADMISSÃƒO ---
+// --- GESTÃO DE ADMISSÃO ---
 const ADMISSAO_STATUS_STYLES = {
-    'Aguardando inÃ­cio': { bg:'#f1f3f5', color:'#495057', border:'#adb5bd', icon:'ph-hourglass-high', label:'Aguardando' },
+    'Aguardando início': { bg:'#f1f3f5', color:'#495057', border:'#adb5bd', icon:'ph-hourglass-high', label:'Aguardando' },
     'Processo iniciado': { bg:'#f3e8ff', color:'#7e22ce', border:'#c084fc', icon:'ph-play-circle',   label:'Iniciado' },
     'Ativo':             { bg:'#e8f5e9', color:'#196b36', border:'#196b36', icon:'ph-check-circle',   label:'Ativo' },
-    'FÃ©rias':            { bg:'#fdf7e3', color:'#c2aa72', border:'#c2aa72', icon:'ph-airplane-tilt',  label:'FÃ©rias' },
+    'Férias':            { bg:'#fdf7e3', color:'#c2aa72', border:'#c2aa72', icon:'ph-airplane-tilt',  label:'Férias' },
     'Afastado':          { bg:'#faeed9', color:'#eaa15f', border:'#eaa15f', icon:'ph-warning',        label:'Afastado' },
     'Desligado':         { bg:'#fceeee', color:'#ba7881', border:'#ba7881', icon:'ph-x-circle',       label:'Desligado' }
 };
@@ -7362,19 +7362,19 @@ window.loadAdmissaoSelect = async function() {
         const label = document.getElementById('admissao-dropdown-label');
         if (!dropdownList) return;
 
-        // Apenas colaboradores pendentes de admissÃ£o
-        // Apenas colaboradores com status de admissÃ£o pendente
+        // Apenas colaboradores pendentes de admissão
+        // Apenas colaboradores com status de admissão pendente
         const ADMISSAO_PENDENTES = [
-            'aguardando inicio', 'aguardando inÃ­cio',
-            'processo iniciado', 'em admissao', 'em admissÃ£o',
+            'aguardando inicio', 'aguardando início',
+            'processo iniciado', 'em admissao', 'em admissão',
             'aguardando', 'pendente'
         ];
         const pendentes = rows.filter(r => {
             const s = (r.status || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
             const admStatus = (r.admissao_status || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-            // Inclui se o status for de admissÃ£o pendente OU se admissao_status indicar processo em aberto
+            // Inclui se o status for de admissão pendente OU se admissao_status indicar processo em aberto
             if (ADMISSAO_PENDENTES.includes(s)) return true;
-            if (admStatus && admStatus !== 'concluida' && admStatus !== 'concluÃ­do') return true;
+            if (admStatus && admStatus !== 'concluida' && admStatus !== 'concluído') return true;
             return false;
         });
         window._admissaoPendentes = pendentes;
@@ -7386,7 +7386,7 @@ window.loadAdmissaoSelect = async function() {
         // Popula lista customizada
         dropdownList.innerHTML = '';
 
-        // OpÃ§Ã£o vazia
+        // Opção vazia
         const empty = document.createElement('div');
         empty.style.cssText = 'padding:0.6rem 1rem; color:#94a3b8; font-size:0.88rem; cursor:pointer;';
         empty.textContent = 'Selecione um colaborador...';
@@ -7461,11 +7461,11 @@ window.selectAdmissaoColab = function(id, colab, s) {
             <span style="font-weight:600;">${colab.nome_completo}</span>
             <span style="color:#94a3b8; font-size:0.82rem; margin-left:4px;">&mdash; ${cargo}</span>`;
     }
-    // Atualiza tÃ­tulo da aba AdmissÃ£o com o nome do colaborador
+    // Atualiza título da aba Admissão com o nome do colaborador
     const admissaoTab = appOpenTabs.find(t => t.tabId === 'admissao');
     if (admissaoTab && colab) {
         const firstName = (colab.nome_completo || '').split(' ')[0];
-        admissaoTab.title = `AdmissÃ£o: ${firstName}`;
+        admissaoTab.title = `Admissão: ${firstName}`;
         renderAppTabs();
     }
     window.initAdmissaoWorkflow(id);
@@ -7489,7 +7489,7 @@ document.addEventListener('click', function(e) {
 
 window.sendAssinafyWhatsApp = async function(tipo, suffix) {
     if (!viewedColaborador || !viewedColaborador.telefone) {
-        alert('Telefone do colaborador nÃ£o encontrado para enviar WhatsApp.');
+        alert('Telefone do colaborador não encontrado para enviar WhatsApp.');
         return;
     }
     const inputLink = document.getElementById(`aso-assinafy-link-${suffix}`);
@@ -7509,7 +7509,7 @@ window.sendAssinafyWhatsApp = async function(tipo, suffix) {
         viewedColaborador[dbField] = linkAssinafy;
     } catch (e) { console.error('Erro ao salvar link:', e); }
 
-    const msg = `OlÃ¡, ${viewedColaborador.nome_completo}.\n\nSeu Exame Admissional estÃ¡ disponÃ­vel para assinatura digital.\n\nClique no link abaixo para assinar:\n${linkAssinafy}\n\nAmÃ©rica Rental Equipamentos Ltda.`;
+    const msg = `Olá, ${viewedColaborador.nome_completo}.\n\nSeu Exame Admissional está disponível para assinatura digital.\n\nClique no link abaixo para assinar:\n${linkAssinafy}\n\nAmérica Rental Equipamentos Ltda.`;
     
     const fone = viewedColaborador.telefone.replace(/\D/g, '');
     const url = `https://wa.me/55${fone}?text=${encodeURIComponent(msg)}`;
@@ -7517,7 +7517,7 @@ window.sendAssinafyWhatsApp = async function(tipo, suffix) {
 };
 
 window.currentActiveAdmissaoStep = 1;
-// --- RefatoraÃ§Ã£o: FunÃ§Ã£o genÃ©rica para construir HTML da lista de contratos (AdmissÃ£o / ProntuÃ¡rio) ---
+// --- Refatoração: Função genérica para construir HTML da lista de contratos (Admissão / Prontuário) ---
 window.buildAdmissaoSignatureRows = function(availableGeradores, assinaturas, docs, colab) {
     return availableGeradores.map(g => {
         const ass = assinaturas.find(a => a.gerador_id === g.id || a.nome_documento === g.nome);
@@ -7577,7 +7577,7 @@ window.buildAdmissaoSignatureRows = function(availableGeradores, assinaturas, do
 
         const fileNameTag = fileName ? '<span style="font-size:0.72rem;color:#94a3b8;margin-top:1px;"><i class="ph ph-file"></i> ' + fileName + '</span>' : '';
 
-        // BotÃ£o do olho sempre existe
+        // Botão do olho sempre existe
         let eyeBtn = '';
         if (ass && ass.id && isSigned) {
             eyeBtn = '<button onclick="window.openSignedDocPopup(' + ass.id + ', \'' + g.nome.replace(/'/g, "\\'") + '\', event)" style="border:none;background:none;cursor:pointer;color:#16a34a;" title="Ver documento assinado"><i class="ph ph-eye" style="font-size:1.4rem;"></i></button>';
@@ -7596,7 +7596,7 @@ window.buildAdmissaoSignatureRows = function(availableGeradores, assinaturas, do
                         <input type="radio" name="req-ass-adm-${g.id}" value="sim" onchange="window.renderInlineAdmissaoAction('${g.id}', 'sim', '${colabId}')"> Sim
                     </label>
                     <label style="display:flex; align-items:center; gap:4px; margin:0; cursor:pointer;">
-                        <input type="radio" name="req-ass-adm-${g.id}" value="nao" onchange="window.renderInlineAdmissaoAction('${g.id}', 'nao', '${colabId}')"> NÃ£o
+                        <input type="radio" name="req-ass-adm-${g.id}" value="nao" onchange="window.renderInlineAdmissaoAction('${g.id}', 'nao', '${colabId}')"> Não
                     </label>
                 </div>
                 <div id="admissao-inline-action-${g.id}"></div>
@@ -7646,7 +7646,7 @@ window.sendSingleAdmissaoSignature = async function(geradorId, colabId, btn) {
 
     try {
         const gerador = window._admissaoGeradores?.find(g => String(g.id) === String(geradorId));
-        if (!gerador) throw new Error("Gerador nÃ£o encontrado.");
+        if (!gerador) throw new Error("Gerador não encontrado.");
 
         const admObj = viewedColaborador || { id: colabId };
         const reqData = {
@@ -7683,7 +7683,7 @@ window.uploadAdmissaoAvulso = async function(geradorId, colabId, fileInput) {
     const file = fileInput.files[0];
     
     const gerador = window._admissaoGeradores?.find(g => String(g.id) === String(geradorId));
-    if (!gerador) return alert('Gerador nÃ£o encontrado.');
+    if (!gerador) return alert('Gerador não encontrado.');
 
     const formData = new FormData();
     formData.append('file', file);
@@ -7713,20 +7713,20 @@ window.uploadAdmissaoAvulso = async function(geradorId, colabId, fileInput) {
     fileInput.value = '';
 };
 
-// ===== ABA CONTRATOS (PRONTUÃRIO DIGITAL) â€” apenas Outros Contratos =====
+// ===== ABA CONTRATOS (PRONTUÁRIO DIGITAL) — apenas Outros Contratos =====
 window.renderContratosTab = async function(container) {
     if (!viewedColaborador) return;
     container.innerHTML = '<p class="text-muted" style="padding:0.5rem;"><i class="ph ph-spinner ph-spin"></i> Carregando geradores...</p>';
-    // Vai direto para Outros Contratos â€” sem sub-aba de AdmissÃ£o
+    // Vai direto para Outros Contratos — sem sub-aba de Admissão
     await window.renderContratosAvulso(container);
 };
 
 // Helper: recarrega a aba Contratos no container correto
-// SÃ³ roda se ca-list-container estiver no DOM (indica que a aba Contratos estÃ¡ ativa)
+// Só roda se ca-list-container estiver no DOM (indica que a aba Contratos está ativa)
 window._reloadContratosContainer = async function() {
     window._contratosAvulsoLoaded = false;
-    // O elemento ca-list-container Ã© renderizado por renderContratosAvulso
-    // Se ele existe, o usuÃ¡rio ESTÃ na aba Contratos
+    // O elemento ca-list-container é renderizado por renderContratosAvulso
+    // Se ele existe, o usuário ESTÁ na aba Contratos
     const caList = document.getElementById('ca-list-container');
     let ct = document.getElementById('docs-list-container') ||
              document.getElementById('tab-dynamic-content');
@@ -7745,14 +7745,14 @@ window._avaliarRegraGerador = function(g, colab, deptNome) {
 
     if (!regra.visivel_automatico) return false;
 
-    // Verificar restriÃ§Ã£o de departamento
+    // Verificar restrição de departamento
     if (regra.departamentos && regra.departamentos.length > 0) {
         const deptNomeLower = (deptNome || '').toLowerCase().trim();
         const match = regra.departamentos.some(d => d.toLowerCase().trim() === deptNomeLower);
         if (!match) return false;
     }
 
-    // Verificar condiÃ§Ã£o de campo do colaborador
+    // Verificar condição de campo do colaborador
     if (regra.condicao) {
         const [campo, ...resto] = regra.condicao.split('~').length > 1
             ? regra.condicao.split('~') : regra.condicao.split('=');
@@ -7766,7 +7766,7 @@ window._avaliarRegraGerador = function(g, colab, deptNome) {
         if (operador === 'contains') {
             if (!valorColab.includes(valorEsperado)) return false;
         } else {
-            // Aceitar variaÃ§Ãµes "Sim"/"sim", "Nao"/"NÃ£o"/"nÃ£o", "Intermitente" etc.
+            // Aceitar variações "Sim"/"sim", "Nao"/"Não"/"não", "Intermitente" etc.
             const normalize = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
             if (normalize(valorColab) !== normalize(valorEsperado)) return false;
         }
@@ -7803,7 +7803,7 @@ window.renderContratosAvulso = async function(container) {
 
         // Nomes que NUNCA devem aparecer em Outros Contratos
         const EXCLUIDOS_FIXOS = [
-            'autorizaÃ§Ã£o de desconto em folha de pagamento',
+            'autorização de desconto em folha de pagamento',
             'autorizacao de desconto em folha de pagamento',
             'autorizar desconto',
             'termo de responsabilidade de chaves'
@@ -7812,13 +7812,13 @@ window.renderContratosAvulso = async function(container) {
             const nLower = (g.nome || '').toLowerCase().trim();
             if (EXCLUIDOS_FIXOS.includes(nLower)) return true;
             if (g.is_sinistro_only) return true;
-            // Excluir geradores cujo nome comeÃ§a com "Sinistro"
+            // Excluir geradores cujo nome começa com "Sinistro"
             if (nLower.startsWith('sinistro')) return true;
             if (nLower.startsWith('sinistro -')) return true;
             return false;
         };
 
-        // Geradores elegÃ­veis (sem excluÃ­dos e sem sinistro)
+        // Geradores elegíveis (sem excluídos e sem sinistro)
         const geradoresElegiveis = geradores.filter(g => !isExcluido(g));
 
         // Determinar quais aparecem automaticamente pelo perfil (usa regras do banco)
@@ -7831,16 +7831,16 @@ window.renderContratosAvulso = async function(container) {
         if (!algumTemRegra) {
             const deNorm = s => (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
             const LEGACY_MAP = [
-                { nome: 'Termo de NÃƒO Interesse Terapia',  cond: deNorm(c.terapia_participa) === 'nao' || deNorm(c.terapia_participa) === 'nao' },
+                { nome: 'Termo de NÃO Interesse Terapia',  cond: deNorm(c.terapia_participa) === 'nao' || deNorm(c.terapia_participa) === 'nao' },
                 { nome: 'Termo de Interesse Terapia',       cond: deNorm(c.terapia_participa) === 'sim' },
-                { nome: 'Responsabilidade Bilhete Ãšnico',   cond: (c.meio_transporte||'').toLowerCase().includes('vt') },
+                { nome: 'Responsabilidade Bilhete Único',   cond: (c.meio_transporte||'').toLowerCase().includes('vt') },
                 { nome: 'Responsabilidade Celular',         cond: deNorm(c.celular_participa) === 'sim' },
                 { nome: 'Responsabilidade Chaves',          cond: deNorm(c.chaves_participa) === 'sim' },
                 { nome: 'Contrato Faculdade',               cond: deNorm(c.faculdade_participa) === 'sim' },
                 { nome: 'Contrato Academia',                cond: deNorm(c.academia_participa) === 'sim' },
                 { nome: 'Contrato Intermitente',            cond: deNorm(c.tipo_contrato) === 'intermitente' },
-                { nome: 'Acordo Individual BenefÃ­cios',     cond: true },
-                { nome: 'AutorizaÃ§Ã£o de Uso de Imagem',     cond: true },
+                { nome: 'Acordo Individual Benefícios',     cond: true },
+                { nome: 'Autorização de Uso de Imagem',     cond: true },
                 { nome: 'Compartilhamento de Dados',        cond: true },
                 { nome: 'Recebimento de Regimento Interno', cond: true },
                 { nome: 'Regras Sorteio Final de Ano',      cond: true },
@@ -7853,14 +7853,14 @@ window.renderContratosAvulso = async function(container) {
         }
 
         // Geradores para a lista suspensa "Gerar Novo"
-        // Regra: mostrar TODOS os elegÃ­veis na lista suspensa de qualquer colaborador
-        // (excetos sinistro e excluÃ­dos, jÃ¡ tratados acima)
+        // Regra: mostrar TODOS os elegíveis na lista suspensa de qualquer colaborador
+        // (excetos sinistro e excluídos, já tratados acima)
         // Quando as regras estiverem no banco, aplica filtro adicional de dropdown_todos
         const dropdownGeradores = geradoresElegiveis.filter(g => {
             if (!g.visibilidade_regra) return true; // sem regra = aparece sempre
             let regra = {};
             try { regra = JSON.parse(g.visibilidade_regra); } catch(e) {}
-            // Se dropdown_todos = false e nÃ£o Ã© auto-visÃ­vel para este colab, nÃ£o aparece no dropdown
+            // Se dropdown_todos = false e não é auto-visível para este colab, não aparece no dropdown
             if (regra.dropdown_todos === false && !window._avaliarRegraGerador(g, c, deptNome)) return false;
             return true;
         });
@@ -7870,10 +7870,10 @@ window.renderContratosAvulso = async function(container) {
         // filteredDocs: apenas documentos da aba CONTRATOS_AVULSOS
         const filteredDocs = docs.filter(d => d.tab_name === 'CONTRATOS_AVULSOS');
 
-        // NormalizaÃ§Ã£o para matching de nomes
+        // Normalização para matching de nomes
         const _norm = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 
-        // FunÃ§Ã£o para encontrar doc correspondente a um gerador
+        // Função para encontrar doc correspondente a um gerador
         const _findDocForGerador = (g) => {
             const gNorm = _norm(g.nome);
             return filteredDocs.find(d => {
@@ -7882,22 +7882,22 @@ window.renderContratosAvulso = async function(container) {
             });
         };
 
-        // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-        // RenderizaÃ§Ã£o INTERCALADA: para cada gerador de perfil, mostra o doc
-        // correspondente (se jÃ¡ existir) ou a linha pendente (se ainda nÃ£o).
+        // ──────────────────────────────────────────────────────────────────────
+        // Renderização INTERCALADA: para cada gerador de perfil, mostra o doc
+        // correspondente (se já existir) ou a linha pendente (se ainda não).
         // Docs avulsos sem gerador correspondente ficam no final.
-        // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ──────────────────────────────────────────────────────────────────────
         const docsUsados = new Set();
         let combinedHtml = '';
 
         for (const g of autoGeradores) {
             const docMatch = _findDocForGerador(g);
             if (docMatch) {
-                // Gerador jÃ¡ tem documento: renderiza a linha do doc no lugar da linha pendente
+                // Gerador já tem documento: renderiza a linha do doc no lugar da linha pendente
                 docsUsados.add(docMatch.id);
                 combinedHtml += window.buildContratosSignatureRows(assinaturas, [docMatch], viewedColaborador);
             } else {
-                // Gerador pendente: renderiza a linha de perfil aguardando geraÃ§Ã£o
+                // Gerador pendente: renderiza a linha de perfil aguardando geração
                 const escNome = (g.nome||'').replace(/'/g,"\\'").replace(/"/g, "&quot;");
                 combinedHtml += `
                 <div style="display:flex; align-items:center; justify-content:space-between; padding:0.65rem 0.75rem; border:1.5px dashed #c026d3; border-radius:8px; background:#fdf4ff; gap:0.75rem;">
@@ -7905,7 +7905,7 @@ window.renderContratosAvulso = async function(container) {
                         <span style="background:#fdf4ff;color:#c026d3;border:1px solid #f0abfc;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Perfil</span>
                         <div>
                             <span style="font-weight:600; color:#334155; font-size:0.9rem;">${g.nome}</span>
-                            <div id="perfil-status-txt-${g.id}" style="font-size:0.75rem; color:#a21caf; margin-top:1px;">NecessÃ¡rio pelo perfil do colaborador â€” aguardando geraÃ§Ã£o</div>
+                            <div id="perfil-status-txt-${g.id}" style="font-size:0.75rem; color:#a21caf; margin-top:1px;">Necessário pelo perfil do colaborador — aguardando geração</div>
                         </div>
                     </div>
                     <div style="display:flex; align-items:center; gap:0.75rem; border-left: 1px solid #f0abfc; padding-left: 1rem;">
@@ -7914,11 +7914,11 @@ window.renderContratosAvulso = async function(container) {
                             <input type="radio" name="req-ass-${g.id}" value="sim" onchange="window.toggleAcaoContratoPerfil('${g.id}', 'sim', '${escNome}')"> Sim
                         </label>
                         <label style="cursor:pointer; display:flex; align-items:center; gap:0.25rem; font-size:0.85rem; color:#0f172a; margin:0;">
-                            <input type="radio" name="req-ass-${g.id}" value="nao" onchange="window.toggleAcaoContratoPerfil('${g.id}', 'nao', '${escNome}')"> NÃ£o
+                            <input type="radio" name="req-ass-${g.id}" value="nao" onchange="window.toggleAcaoContratoPerfil('${g.id}', 'nao', '${escNome}')"> Não
                         </label>
                     </div>
                     <div id="pg-action-${g.id}" style="min-width: 160px; text-align: right; display: flex; justify-content: flex-end;">
-                        <span style="font-size:0.8rem; color:#64748b; font-style:italic;">Selecione uma opÃ§Ã£o</span>
+                        <span style="font-size:0.8rem; color:#64748b; font-style:italic;">Selecione uma opção</span>
                     </div>
                 </div>`;
             }
@@ -7933,7 +7933,7 @@ window.renderContratosAvulso = async function(container) {
         container.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
                 <div>
-                     <h3 style="margin:0; font-size:1.1rem; color:#1e293b; font-weight:700;"><i class="ph ph-files"></i> Contratos e AutorizaÃ§Ãµes</h3>
+                     <h3 style="margin:0; font-size:1.1rem; color:#1e293b; font-weight:700;"><i class="ph ph-files"></i> Contratos e Autorizações</h3>
                      <p style="margin:0; font-size:0.85rem; color:#64748b;">Gere templates ou anexe PDFs para assinatura.</p>
                 </div>
                 <div style="display:flex; gap:0.5rem;">
@@ -7959,40 +7959,40 @@ window.renderContratosAvulso = async function(container) {
 
 
 
-// Guard: impede execuÃ§Ãµes concorrentes do sync
+// Guard: impede execuções concorrentes do sync
 window._syncContratosRunning = false;
 
 // Helper: sincroniza o status de documentos Pendentes no Assinafy
 // showFeedback=true => mostra toast ao concluir; false => silencioso
 window.sincronizarStatusAssinaturas = async function(showFeedback) {
     if (!viewedColaborador) return;
-    // Evita execuÃ§Ãµes concorrentes (loop de reload)
+    // Evita execuções concorrentes (loop de reload)
     if (window._syncContratosRunning) return;
     window._syncContratosRunning = true;
 
-    const btn = null; // botÃ£o manual removido, mantido por compatibilidade
+    const btn = null; // botão manual removido, mantido por compatibilidade
 
     try {
         const docs = await apiGet(`/colaboradores/${viewedColaborador.id}/documentos`).catch(() => []);
         const contratosDocs = (Array.isArray(docs) ? docs : []).filter(d => d.tab_name === 'CONTRATOS_AVULSOS');
 
-        // Docs que o banco JÃ atualizou para Assinado (backend polling jÃ¡ rodou)
+        // Docs que o banco JÁ atualizou para Assinado (backend polling já rodou)
         const jaAssinados = contratosDocs.filter(d => d.assinafy_status === 'Assinado');
 
         // Docs Pendentes ou Aguardando que precisamos verificar no Assinafy
-        // 'Pendente' = salvo mas ainda nÃ£o enviado / 'Aguardando' = jÃ¡ enviado ao Assinafy
+        // 'Pendente' = salvo mas ainda não enviado / 'Aguardando' = já enviado ao Assinafy
         const pendentes = contratosDocs.filter(d =>
             (d.assinafy_status === 'Pendente' || d.assinafy_status === 'Aguardando') && d.assinafy_id
         );
 
-        // Se nÃ£o hÃ¡ pendentes mas hÃ¡ assinados recentes: se Ã© o botÃ£o manual, apenas recarregar a lista
+        // Se não há pendentes mas há assinados recentes: se é o botão manual, apenas recarregar a lista
         if (pendentes.length === 0) {
             if (showFeedback) {
                 // Recarrega para garantir que a UI esteja atualizada com o que o banco tem
                 await window._reloadContratosContainer();
                 if (typeof showToast !== 'undefined') {
                     const msg = jaAssinados.length > 0
-                        ? `Lista atualizada â€” ${jaAssinados.length} documento(s) assinado(s).`
+                        ? `Lista atualizada — ${jaAssinados.length} documento(s) assinado(s).`
                         : 'Nenhum documento pendente de assinatura.';
                     showToast(msg, jaAssinados.length > 0 ? 'success' : 'info');
                 }
@@ -8014,8 +8014,8 @@ window.sincronizarStatusAssinaturas = async function(showFeedback) {
             } catch(e) { /* ignora erros individuais */ }
         }
 
-        // SÃ³ recarrega a lista se algum status mudou para Assinado
-        // Evita loop infinito: reload â†’ auto-sync â†’ reload
+        // Só recarrega a lista se algum status mudou para Assinado
+        // Evita loop infinito: reload → auto-sync → reload
         if (atualizado > 0) {
             window._syncContratosRunning = false; // libera ANTES do reload (reload vai setar novo contexto)
             await window._reloadContratosContainer();
@@ -8024,7 +8024,7 @@ window.sincronizarStatusAssinaturas = async function(showFeedback) {
         if (showFeedback && typeof showToast !== 'undefined') {
             const msg = atualizado > 0
                 ? `${atualizado} documento(s) atualizado(s) para Assinado!`
-                : `Verificado â€” ${pendentes.length} documento(s) ainda aguardando assinatura.`;
+                : `Verificado — ${pendentes.length} documento(s) ainda aguardando assinatura.`;
             showToast(msg, atualizado > 0 ? 'success' : 'info');
         }
     } catch(e) {
@@ -8104,11 +8104,11 @@ window.previewContratoPerfilAssinado = async function(geradorId, geradorNome) {
             if (previewBtns) {
                 previewBtns.innerHTML = `
                     <button class="btn btn-secondary" onclick="window.fecharPreviewEHabitarEnvio()">
-                        <i class="ph ph-x"></i> Fechar PrÃ©via
+                        <i class="ph ph-x"></i> Fechar Prévia
                     </button>
                     <button id="btn-anexar-prontuario" class="btn" onclick="window.anexarAoProntuarioPerfil(this)"
                         style="background:#7c3aed;color:#fff;border-color:#7c3aed;display:inline-flex;align-items:center;gap:6px;font-weight:600;">
-                        <i class="ph ph-paperclip"></i> Anexar ao ProntuÃ¡rio
+                        <i class="ph ph-paperclip"></i> Anexar ao Prontuário
                     </button>
                 `;
             }
@@ -8137,8 +8137,8 @@ window.fecharPreviewEHabitarEnvio = function() {
     }
 };
 
-// Anexar ao ProntuÃ¡rio direto do preview (com assinatura pendente)
-// Salva o PDF como 'Pendente', fecha o preview e mostra o botÃ£o "Enviar para Assinatura"
+// Anexar ao Prontuário direto do preview (com assinatura pendente)
+// Salva o PDF como 'Pendente', fecha o preview e mostra o botão "Enviar para Assinatura"
 window.anexarAoProntuarioPerfil = async function(btn) {
     const geradorId = window._perfilGeradorIdCtx;
     const geradorNome = window._perfilGeradorNomeCtx;
@@ -8151,10 +8151,10 @@ window.anexarAoProntuarioPerfil = async function(btn) {
     try {
         const previewContent = document.querySelector('#modal-preview-doc #preview-doc-body') ||
                                document.querySelector('#doc-modal .preview-content');
-        if (!previewContent) throw new Error('ConteÃºdo do preview nÃ£o encontrado. Feche e gere novamente.');
+        if (!previewContent) throw new Error('Conteúdo do preview não encontrado. Feche e gere novamente.');
 
         const pdfBlob = await window.gerarPDFBlob(previewContent);
-        const safeName = (geradorNome || 'documento').replace(/[^a-zA-Z0-9Ã€-Ã¿ _-]/g, '');
+        const safeName = (geradorNome || 'documento').replace(/[^a-zA-Z0-9À-� _-]/g, '');
         const colabNome = (viewedColaborador.nome_completo || viewedColaborador.id).toString();
 
         const formData = new FormData();
@@ -8194,7 +8194,7 @@ window.anexarAoProntuarioPerfil = async function(btn) {
     }
 };
 
-// Enviar para assinatura um doc jÃ¡ salvo no banco (Pendente, sem assinafy_id)
+// Enviar para assinatura um doc já salvo no banco (Pendente, sem assinafy_id)
 // docId pode ser o document_id real (quando vindo de anexarAoProntuarioPerfil)
 // ou o gerador_id como fallback (fluxo antigo)
 window.enviarAssinaturaDocSalvo = async function(docId, geradorNome) {
@@ -8216,7 +8216,7 @@ window.enviarAssinaturaDocSalvo = async function(docId, geradorNome) {
         if (!res.ok) throw new Error(data.error || 'Erro ao enviar para assinatura');
 
         if (typeof showToast !== 'undefined') showToast('Documento enviado para assinatura!', 'success');
-        // Recarrega para refletir o novo status do banco (assinafy_id preenchido â†’ estado "Aguardando")
+        // Recarrega para refletir o novo status do banco (assinafy_id preenchido → estado "Aguardando")
         await window._reloadContratosContainer();
     } catch(e) {
         Swal.fire('Erro ao enviar', e.message, 'error');
@@ -8242,10 +8242,10 @@ window.enviarAssinaturaPerfilDireto = async function(event) {
 
     try {
         const previewContent = document.querySelector('#modal-preview-doc #preview-doc-body') || document.querySelector('#doc-modal .preview-content');
-        if (!previewContent) throw new Error('ConteÃºdo do formulÃ¡rio foi perdido. Tente gerar novamente.');
+        if (!previewContent) throw new Error('Conteúdo do formulário foi perdido. Tente gerar novamente.');
 
         const pdfBlob = await window.gerarPDFBlob(previewContent);
-        const safeName = (geradorNome || 'documento').replace(/[^a-zA-Z0-9Ã€-Ã¿ _-]/g, '');
+        const safeName = (geradorNome || 'documento').replace(/[^a-zA-Z0-9À-� _-]/g, '');
         const colabId  = viewedColaborador?.id || '';
         const colabNome = (viewedColaborador?.nome_completo || colabId).toString();
 
@@ -8332,7 +8332,7 @@ window.uploadContratoExterno = async function(input) {
                 });
                 var data = await res.json().catch(function() { return {}; });
                 if (!res.ok) throw new Error(data.error || 'Falha ao anexar PDF');
-                if (typeof showToast !== 'undefined') showToast('Documento anexado no ProntuÃ¡rio!', 'success');
+                if (typeof showToast !== 'undefined') showToast('Documento anexado no Prontuário!', 'success');
                 return true;
             } catch(err) {
                 Swal.showValidationMessage(err.message);
@@ -8348,13 +8348,13 @@ window.uploadContratoExterno = async function(input) {
 
 window.openContratoViewerById = function(docId, nomeDoc) {
     var token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
-    if (!token) { alert('SessÃ£o expirada. FaÃ§a login novamente.'); return; }
+    if (!token) { alert('Sessão expirada. Faça login novamente.'); return; }
     var pdfUrl = API_URL + '/documentos/view/' + docId + '?token=' + encodeURIComponent(token);
     window.openContratoViewerPopup(pdfUrl, nomeDoc);
 };
 
 window.openContratoViewerPopup = function(pdfUrl, nomeDoc) {
-    if (!pdfUrl || pdfUrl.endsWith('undefined')) { alert('URL do documento nÃ£o encontrada.'); return; }
+    if (!pdfUrl || pdfUrl.endsWith('undefined')) { alert('URL do documento não encontrada.'); return; }
     var token = window.currentToken || localStorage.getItem('erp_token') || '';
     var finalUrl = pdfUrl;
     if ((pdfUrl.indexOf('onrender.com') >= 0 || pdfUrl.indexOf(window.location.hostname) >= 0) && pdfUrl.indexOf('token=') === -1) {
@@ -8426,7 +8426,7 @@ window.reenviarAssinaturaContrato = async function(docId, ev) {
         if(trBtn) { ogHtml = trBtn.innerHTML; trBtn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Aguarde...'; trBtn.disabled = true; }
 
         let targetColabId = (viewedColaborador && viewedColaborador.id) ? viewedColaborador.id : window.lastColaboradorId;
-        if (!targetColabId) throw new Error('NÃ£o foi possÃ­vel identificar o colaborador atual.');
+        if (!targetColabId) throw new Error('Não foi possível identificar o colaborador atual.');
 
         const res = await fetch(`${API_URL}/assinafy/upload`, {
             method: 'POST',
@@ -8456,9 +8456,9 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
 
     let html = '';
     docs.forEach(doc => {
-        let realStatus = 'NÃ£o enviado';
+        let realStatus = 'Não enviado';
         if (doc.assinafy_status === 'Assinado') realStatus = 'Assinado';
-        // 'Pendente' SEM assinafy_id = doc salvo localmente, nunca enviado ao Assinafy (1Âª vez)
+        // 'Pendente' SEM assinafy_id = doc salvo localmente, nunca enviado ao Assinafy (1ª vez)
         // 'Pendente' COM assinafy_id = enviado, aguardando assinatura
         // 'Aguardando' = confirmado no Assinafy
         else if (doc.assinafy_status === 'Pendente' && !doc.assinafy_id) realStatus = 'ProntoParaEnviar';
@@ -8503,11 +8503,11 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
             statusBadge = `<span style="color:#2563eb;font-size:0.75rem;font-weight:600;">Enviado para Assinatura${_sentStr ? ': ' + _sentStr : ''}</span>`;
             sendBtn = `<button type="button" onclick="window.reenviarAssinaturaContrato(${doc.id}, event);" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-pen"></i> Reenviar para Assinatura</button>`;
         } else if (isPronto) {
-            // Documento salvo localmente (Pendente sem assinafy_id) â€” aguardando envio ao Assinafy
+            // Documento salvo localmente (Pendente sem assinafy_id) — aguardando envio ao Assinafy
             const gerDocId = doc.gerador_id || '';
             const escNomeDoc = (doc.document_type || '').replace(/'/g,"\\'");
             leftIconMarkup = `<div data-role="status-icon" style="display:flex;align-items:center;justify-content:center;width:24px;color:#7c3aed;"><i class="ph ph-paperclip" style="font-size:1.4rem;"></i></div>`;
-            statusBadge = `<span data-role="status-badge" style="color:#7c3aed;font-size:0.75rem;font-weight:600;">Documento salvo â€” clique em Enviar para Assinatura${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
+            statusBadge = `<span data-role="status-badge" style="color:#7c3aed;font-size:0.75rem;font-weight:600;">Documento salvo — clique em Enviar para Assinatura${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
             sendBtn = `<button type="button" onclick="window.enviarDocumentoAvulsoAssinatura('${doc.id}', this)" style="background:#0056b3;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-paper-plane-tilt"></i> Enviar para Assinatura</button>`;
         } else if (literallyNaoExige) {
             leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#9333ea;"><i class="ph ph-file-text" style="font-size:1.4rem;"></i></div>`;
@@ -8523,11 +8523,11 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
                         <input type="radio" name="req-ass-doc-${doc.id}" value="sim" onchange="window.toggleAcaoDocumentoAvulso('${doc.id}', 'sim', '${escNome}')"> Sim
                     </label>
                     <label style="cursor:pointer; display:flex; align-items:center; gap:0.25rem; font-size:0.85rem; color:#0f172a; margin:0;">
-                        <input type="radio" name="req-ass-doc-${doc.id}" value="nao" onchange="window.toggleAcaoDocumentoAvulso('${doc.id}', 'nao', '${escNome}')"> NÃ£o
+                        <input type="radio" name="req-ass-doc-${doc.id}" value="nao" onchange="window.toggleAcaoDocumentoAvulso('${doc.id}', 'nao', '${escNome}')"> Não
                     </label>
                 </div>
                 <div id="pg-action-doc-${doc.id}" style="min-width: 160px; text-align: right; display: flex; justify-content: flex-end;">
-                    <span style="font-size:0.8rem; color:#64748b; font-style:italic;">Selecione uma opÃ§Ã£o</span>
+                    <span style="font-size:0.8rem; color:#64748b; font-style:italic;">Selecione uma opção</span>
                 </div>
             `;
         }
@@ -8592,25 +8592,25 @@ window.enviarDocumentoAvulsoAssinatura = async function(docId, btn) {
             const sentAt = data.assinafy_sent_at ? new Date(data.assinafy_sent_at) : new Date();
             const fmt = `${String(sentAt.getDate()).padStart(2,'0')}/${String(sentAt.getMonth()+1).padStart(2,'0')}/${sentAt.getFullYear()} - ${String(sentAt.getHours()).padStart(2,'0')}:${String(sentAt.getMinutes()).padStart(2,'0')}`;
 
-            // Atualiza o card diretamente no DOM usando data-role (imune Ã  normalizaÃ§Ã£o de estilos do browser)
+            // Atualiza o card diretamente no DOM usando data-role (imune à normalização de estilos do browser)
             const card = btn ? btn.closest('.doc-check-item') : null;
             if (card) {
                 // Borda e fundo: azul
                 card.style.border = '1px solid #bfdbfe';
                 card.style.background = '#eff6ff';
 
-                // Ãcone: paperclip â†’ aviÃ£o (usa data-role para seleÃ§Ã£o confiÃ¡vel)
+                // Ícone: paperclip → avião (usa data-role para seleção confiável)
                 const iconWrap = card.querySelector('[data-role="status-icon"]');
                 if (iconWrap) iconWrap.innerHTML = '<i class="ph ph-paper-plane-tilt" style="font-size:1.4rem;color:#2563eb;"></i>';
 
-                // Status badge (usa data-role para seleÃ§Ã£o confiÃ¡vel)
+                // Status badge (usa data-role para seleção confiável)
                 const statusEl = card.querySelector('[data-role="status-badge"]');
                 if (statusEl) {
                     statusEl.style.color = '#2563eb';
                     statusEl.textContent = `Enviado para Assinatura: ${fmt}`;
                 }
 
-                // Troca botÃ£o por "Reenviar"
+                // Troca botão por "Reenviar"
                 if (btn && btn.parentElement) {
                     const reenviarBtn = document.createElement('button');
                     reenviarBtn.type = 'button';
@@ -8620,11 +8620,11 @@ window.enviarDocumentoAvulsoAssinatura = async function(docId, btn) {
                     btn.parentElement.replaceChild(reenviarBtn, btn);
                 }
             }
-            // Nota: NÃƒO recarrega aqui â€” novo_processo demora 3s+ e reload antecipado reverte UI.
-            // O interval de 30s sincroniza com o DB apÃ³s o processo completar.
+            // Nota: NÃO recarrega aqui — novo_processo demora 3s+ e reload antecipado reverte UI.
+            // O interval de 30s sincroniza com o DB após o processo completar.
             window._syncContratosRunning = false;
         } else {
-            Swal.fire('AtenÃ§Ã£o', 'Erro no envio para assinar: ' + (data.error || 'Erro desconhecido'), 'warning');
+            Swal.fire('Atenção', 'Erro no envio para assinar: ' + (data.error || 'Erro desconhecido'), 'warning');
             if (btn) { btn.disabled = false; btn.innerHTML = oldHtml; }
         }
     } catch(err) {
@@ -8654,7 +8654,7 @@ window.uploadContratoAvulsoSobrescrever = async function(input, docId, docType) 
         });
         if (!resUpload.ok) throw new Error('Falha no upload do arquivo');
         Swal.close();
-        if (typeof showToast !== 'undefined') showToast('Documento anexado no ProntuÃ¡rio!', 'success');
+        if (typeof showToast !== 'undefined') showToast('Documento anexado no Prontuário!', 'success');
         await window._reloadContratosContainer();
     } catch (err) {
         Swal.close();
@@ -8782,11 +8782,11 @@ window.gerarContratoAvulso = async function() {
             geradorId: geradorId
         });
 
-        // Sobrescreve o botÃ£o Salvar para fazer upload ao prontuÃ¡rio
+        // Sobrescreve o botão Salvar para fazer upload ao prontuário
         setTimeout(() => {
             const previewBtnSalvar = document.querySelector('#modal-preview-doc button.btn-primary') || document.querySelector('#doc-modal button.btn-primary');
             if (previewBtnSalvar) {
-                previewBtnSalvar.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar no ProntuÃ¡rio';
+                previewBtnSalvar.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar no Prontuário';
                 previewBtnSalvar.onclick = async function() {
                     const oldHtml = this.innerHTML;
                     this.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...';
@@ -8815,7 +8815,7 @@ window.gerarContratoAvulso = async function() {
                         if (modalPrev) modalPrev.style.display = 'none';
                         if (docModal)  docModal.style.display  = 'none';
 
-                        if (typeof showToast !== 'undefined') showToast('Documento gerado e salvo no prontuÃ¡rio!', 'success');
+                        if (typeof showToast !== 'undefined') showToast('Documento gerado e salvo no prontuário!', 'success');
 
                         await window._reloadContratosContainer();
                     } catch(err) {
@@ -8840,7 +8840,7 @@ window.gerarContratoAvulso = async function() {
 window.previewAdmissaoDoc = async function(geradorId, colabId, evt) {
     if (evt) { evt.preventDefault(); evt.stopPropagation(); }
 
-    if (!colabId) { alert('Colaborador nÃ£o identificado.'); return; }
+    if (!colabId) { alert('Colaborador não identificado.'); return; }
 
     try {
         // Usa o endpoint existente que retorna HTML + dados do colaborador
@@ -8851,15 +8851,15 @@ window.previewAdmissaoDoc = async function(geradorId, colabId, evt) {
         const data = await response.json();
 
         if (!data.html) {
-            alert('NÃ£o foi possÃ­vel carregar o documento.');
+            alert('Não foi possível carregar o documento.');
             return;
         }
 
-        // Reutiliza a funÃ§Ã£o de preview do gerador (com layout completo)
-        // Precisamos temporariamente salvar a seleÃ§Ã£o de assinatura para nÃ£o alterar o modal principal
+        // Reutiliza a função de preview do gerador (com layout completo)
+        // Precisamos temporariamente salvar a seleção de assinatura para não alterar o modal principal
         window.abrirPreviewDocumento(data);
 
-        // Subscreve o evento de salvar na AdmissÃ£o para enviar ao backend
+        // Subscreve o evento de salvar na Admissão para enviar ao backend
         setTimeout(() => {
             const btnSalvar = document.querySelector('#modal-preview-doc button.btn-primary');
             if (!btnSalvar) return;
@@ -8871,10 +8871,10 @@ window.previewAdmissaoDoc = async function(geradorId, colabId, evt) {
                 try {
                     const previewContent = document.querySelector('#modal-preview-doc .preview-content') ||
                                           document.querySelector('#modal-preview-doc #preview-doc-body');
-                    if (!previewContent) throw new Error('ConteÃºdo do preview nÃ£o encontrado');
+                    if (!previewContent) throw new Error('Conteúdo do preview não encontrado');
                     
                     const pdfBlob = await window.gerarPDFBlob(previewContent);
-                    const safeName = (data.gerador_nome || 'documento_admissao').replace(/[^a-zA-Z0-9Ã€-Ã¿ _-]/g, '');
+                    const safeName = (data.gerador_nome || 'documento_admissao').replace(/[^a-zA-Z0-9À-� _-]/g, '');
                     const cNome = (data.colaborador?.NOME_COMPLETO || colabId).toString();
                     
                     const formData = new FormData();
@@ -8897,7 +8897,7 @@ window.previewAdmissaoDoc = async function(geradorId, colabId, evt) {
                         icon: 'question',
                         showCancelButton: true,
                         confirmButtonText: 'Sim, enviar',
-                        cancelButtonText: 'NÃ£o'
+                        cancelButtonText: 'Não'
                     });
 
                     if (sendPrompt.isConfirmed) {
@@ -8907,7 +8907,7 @@ window.previewAdmissaoDoc = async function(geradorId, colabId, evt) {
                         });
                         if(typeof showToast !== 'undefined') showToast('Documento enviado para assinatura.', 'success');
                     } else {
-                        showToast('Documento de admissÃ£o salvo na pasta do colaborador.', 'success');
+                        showToast('Documento de admissão salvo na pasta do colaborador.', 'success');
                     }
                     
                     // Recarrega workflow se estiver aberto para atualizar status do item
@@ -8924,7 +8924,7 @@ window.previewAdmissaoDoc = async function(geradorId, colabId, evt) {
         }, 150);
 
     } catch(e) {
-        alert('Erro ao carregar prÃ©-visualizaÃ§Ã£o: ' + e.message);
+        alert('Erro ao carregar pré-visualização: ' + e.message);
     }
 };
 
@@ -8945,7 +8945,7 @@ window.rodarDiagnosticoAssinafy = async function() {
             });
         }
         
-        alert("DiagnÃ³stico completo! A tela seguinte mostrarÃ¡ o status exato.");
+        alert("Diagnóstico completo! A tela seguinte mostrará o status exato.");
         alert(msg);
     } catch(e) {
         alert("Erro no diagnostico: " + e.message);
@@ -8958,12 +8958,12 @@ window.sendAdmissaoSignatures = async function(listId = 'admissao-signature-list
 
     // Buscar checkboxes somente dentro do container correto
     const container = document.getElementById(listId);
-    if (!container) { alert('Lista de documentos nÃ£o encontrada.'); return; }
+    if (!container) { alert('Lista de documentos não encontrada.'); return; }
     
     const checks = container.querySelectorAll('input[type="checkbox"]:checked');
     if (checks.length === 0) { alert('Selecione ao menos um documento para enviar.'); return; }
 
-    // Dedup: garantir que nÃ£o hÃ¡ IDs duplicados
+    // Dedup: garantir que não há IDs duplicados
     const geradorIds = [...new Set(Array.from(checks).map(c => Number(c.value)))];
     
     if (!confirm(`Deseja enviar ${geradorIds.length} documento(s) para assinatura digital via Assinafy?`)) return;
@@ -8980,11 +8980,11 @@ window.sendAdmissaoSignatures = async function(listId = 'admissao-signature-list
         const erros = (res.resultados || []).filter(r => r.erro);
         const ok    = (res.resultados || []).filter(r => r.ok);
 
-        let msg = `âœ… ${ok.length} documento(s) enviado(s) para assinatura no e-mail do colaborador.`;
-        if (erros.length > 0) msg += `\n\nâš ï¸ ${erros.length} erro(s):\n` + erros.map(e => `â€¢ ${e.nome || e.id}: ${e.erro}`).join('\n');
+        let msg = `✅ ${ok.length} documento(s) enviado(s) para assinatura no e-mail do colaborador.`;
+        if (erros.length > 0) msg += `\n\n⚠️ ${erros.length} erro(s):\n` + erros.map(e => `• ${e.nome || e.id}: ${e.erro}`).join('\n');
         alert(msg);
 
-        // Recarregar a aba em que o usuÃ¡rio estÃ¡ (Passo 2 AdmissÃ£o ou Contratos no ProntuÃ¡rio)
+        // Recarregar a aba em que o usuário está (Passo 2 Admissão ou Contratos no Prontuário)
         if (document.getElementById('current-tab-title') && document.getElementById('current-tab-title').innerText === 'Contratos') {
             await renderContratosTab(document.getElementById('docs-list-container'));
         } else {
@@ -9050,7 +9050,7 @@ window.openSignedDocPopup = function(assId, nomeDoc, evt) {
     overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
 };
 
-// FunÃ§Ã£o para visualizar documentos assinados via tabela 'documentos' (ASO, EPI, Contratos)
+// Função para visualizar documentos assinados via tabela 'documentos' (ASO, EPI, Contratos)
 window.openSignedDocPopupDocumento = function(docId, nomeDoc) {
     const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
     const pdfUrl = `${API_URL}/documentos/view/${docId}?token=${token}`;
@@ -9096,8 +9096,8 @@ window.openSignedDocPopupDocumento = function(docId, nomeDoc) {
     overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
 };
 
-// ===== INIT ADMISSÃƒO WORKFLOW =====
-// Exibe o painel correto (botÃ£o "Iniciar" ou stepper) dependendo do status do colaborador
+// ===== INIT ADMISSÃO WORKFLOW =====
+// Exibe o painel correto (botão "Iniciar" ou stepper) dependendo do status do colaborador
 window.initAdmissaoWorkflow = async function(colabId, step, silent) {
     // Se colabId vazio = reset (chamado por selectAdmissaoColab com id vazio)
     if (!colabId) {
@@ -9113,12 +9113,12 @@ window.initAdmissaoWorkflow = async function(colabId, step, silent) {
             colab = cols.find(c => String(c.id) === String(colabId));
         } catch(e) { colab = viewedColaborador; }
 
-        if (!colab) { if (!silent) console.warn('[Admissao] Colaborador nÃ£o encontrado:', colabId); return; }
+        if (!colab) { if (!silent) console.warn('[Admissao] Colaborador não encontrado:', colabId); return; }
 
-        // Atualiza referÃªncia global
+        // Atualiza referência global
         viewedColaborador = colab;
 
-        // PrÃ©-carrega documentos, assinaturas e geradores para o dashboard de admissÃ£o funcionar sem dependÃªncia da aba prontuÃ¡rio
+        // Pré-carrega documentos, assinaturas e geradores para o dashboard de admissão funcionar sem dependência da aba prontuário
         try {
             const [docs, admissaoAssinaturas, geradores, departamentos] = await Promise.all([
                 apiGet(`/colaboradores/${colabId}/documentos`).catch(() => []),
@@ -9130,12 +9130,12 @@ window.initAdmissaoWorkflow = async function(colabId, step, silent) {
             window._admissaoAssinaturas = admissaoAssinaturas;
             window._todosGeradores = geradores;
 
-            // Resolve Auto Geradores exactly like ProntuÃ¡rio Digital unified Contratos Tab
+            // Resolve Auto Geradores exactly like Prontuário Digital unified Contratos Tab
             const empDeptId = colab.departamento;
             const deptObj = (departamentos||[]).find(d => String(d.id) === String(empDeptId) || String(d.nome).trim().toLowerCase() === String(empDeptId).trim().toLowerCase());
             const deptNome = deptObj ? deptObj.nome : String(empDeptId || '');
 
-            const EXCLUIDOS_FIXOS = ['autorizaÃ§Ã£o de desconto em folha de pagamento','autorizacao de desconto em folha de pagamento','autorizar desconto','termo de responsabilidade de chaves'];
+            const EXCLUIDOS_FIXOS = ['autorização de desconto em folha de pagamento','autorizacao de desconto em folha de pagamento','autorizar desconto','termo de responsabilidade de chaves'];
             const isExcluido = (g) => {
                 const nLower = (g.nome || '').toLowerCase().trim();
                 return EXCLUIDOS_FIXOS.includes(nLower) || g.is_sinistro_only || nLower.startsWith('sinistro') || nLower.startsWith('sinistro -');
@@ -9149,16 +9149,16 @@ window.initAdmissaoWorkflow = async function(colabId, step, silent) {
                 const deNorm = s => (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
                 const c = colab;
                 const LEGACY_MAP = [
-                    { nome: 'Termo de NÃƒO Interesse Terapia',  cond: deNorm(c.terapia_participa) === 'nao' },
+                    { nome: 'Termo de NÃO Interesse Terapia',  cond: deNorm(c.terapia_participa) === 'nao' },
                     { nome: 'Termo de Interesse Terapia',       cond: deNorm(c.terapia_participa) === 'sim' },
-                    { nome: 'Responsabilidade Bilhete Ãšnico',   cond: (c.meio_transporte||'').toLowerCase().includes('vt') },
+                    { nome: 'Responsabilidade Bilhete Único',   cond: (c.meio_transporte||'').toLowerCase().includes('vt') },
                     { nome: 'Responsabilidade Celular',         cond: deNorm(c.celular_participa) === 'sim' },
                     { nome: 'Responsabilidade Chaves',          cond: deNorm(c.chaves_participa) === 'sim' },
                     { nome: 'Contrato Faculdade',               cond: deNorm(c.faculdade_participa) === 'sim' },
                     { nome: 'Contrato Academia',                cond: deNorm(c.academia_participa) === 'sim' },
                     { nome: 'Contrato Intermitente',            cond: deNorm(c.tipo_contrato) === 'intermitente' },
-                    { nome: 'Acordo Individual BenefÃ­cios',     cond: true },
-                    { nome: 'AutorizaÃ§Ã£o de Uso de Imagem',     cond: true },
+                    { nome: 'Acordo Individual Benefícios',     cond: true },
+                    { nome: 'Autorização de Uso de Imagem',     cond: true },
                     { nome: 'Compartilhamento de Dados',        cond: true },
                     { nome: 'Recebimento de Regimento Interno', cond: true },
                     { nome: 'Regras Sorteio Final de Ano',      cond: true },
@@ -9167,7 +9167,7 @@ window.initAdmissaoWorkflow = async function(colabId, step, silent) {
                 autoGeradores = LEGACY_MAP.filter(m => m.cond).map(m => geradoresElegiveis.find(g => deNorm(g.nome) === deNorm(m.nome))).filter(Boolean);
             }
             window._admissaoGeradores = autoGeradores;
-        } catch(e) { console.error('Erro ao prÃ©-carregar dependÃªncias da admissÃ£o:', e); }
+        } catch(e) { console.error('Erro ao pré-carregar dependências da admissão:', e); }
 
         const wf    = document.getElementById('admissao-workflow');
         const start = document.getElementById('admissao-start-action');
@@ -9178,7 +9178,7 @@ window.initAdmissaoWorkflow = async function(colabId, step, silent) {
         const statusNorm = (colab.status || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
         const admStatusNorm = (colab.admissao_status || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
-        // Se o processo jÃ¡ foi iniciado, mostrar o stepper
+        // Se o processo já foi iniciado, mostrar o stepper
         const INICIADOS = ['processo iniciado', 'em admissao', 'em andamento'];
         const processoIniciado = INICIADOS.some(s => statusNorm.includes(s)) ||
                                  (admStatusNorm && admStatusNorm !== 'concluida' && admStatusNorm !== '' && admStatusNorm !== 'pendente');
@@ -9198,7 +9198,7 @@ window.initAdmissaoWorkflow = async function(colabId, step, silent) {
             const targetStep = step || window.currentActiveAdmissaoStep || 1;
             window.nextAdmissaoStep(targetStep, true);
         } else {
-            // Mostrar botÃ£o de iniciar
+            // Mostrar botão de iniciar
             wf.style.display = 'none';
             start.style.display = 'block';
             const nameEl = document.getElementById('admissao-start-name');
@@ -9211,7 +9211,7 @@ window.initAdmissaoWorkflow = async function(colabId, step, silent) {
 
 window.startFinalAdmission = async function() {
 
-    console.log("[Admissao] BotÃ£o 'Iniciar' clicado. viewedColaborador:", viewedColaborador);
+    console.log("[Admissao] Botão 'Iniciar' clicado. viewedColaborador:", viewedColaborador);
     if (!viewedColaborador) {
         alert("Erro: Nenhum colaborador selecionado.");
         return;
@@ -9276,7 +9276,7 @@ window.handleAdmissaoFotoUpload = async function(event) {
     if (!file || !viewedColaborador) return;
 
     if (file.size > 5 * 1024 * 1024) {
-        showToast('Foto muito grande! MÃ¡ximo 5MB.', 'error');
+        showToast('Foto muito grande! Máximo 5MB.', 'error');
         return;
     }
 
@@ -9290,7 +9290,7 @@ window.handleAdmissaoFotoUpload = async function(event) {
         const result = await apiPostMultipard('/documentos', formData);
         
         // Update viewedColaborador object specifically
-        viewedColaborador.foto = result.file_path; // Simular que tÃ¡ com a foto preenchida (se o back atualiza o collab tambÃ©m era Ã³timo). O back jÃ¡ lida com os documentos tab_name FOTO_PERFIL ou a gente pode mandar o path e fazer um PUT no colab pra gravar "foto"
+        viewedColaborador.foto = result.file_path; // Simular que tá com a foto preenchida (se o back atualiza o collab também era ótimo). O back já lida com os documentos tab_name FOTO_PERFIL ou a gente pode mandar o path e fazer um PUT no colab pra gravar "foto"
         
         // Atualizando o campo 'foto' no colaborador via PUT pra garantir 100%
         await apiPut(`/colaboradores/${viewedColaborador.id}`, {
@@ -9327,7 +9327,7 @@ window.renderAdmissaoDataSummary = async function(colab) {
         
         let fieldsHtml = '';
         if (missing.length === 0) {
-            fieldsHtml = `<div style="color:#059669; font-weight:700; margin-top:0.5rem;"><i class="ph ph-check-circle"></i> Todos os dados essenciais estÃ£o preenchidos!</div>`;
+            fieldsHtml = `<div style="color:#059669; font-weight:700; margin-top:0.5rem;"><i class="ph ph-check-circle"></i> Todos os dados essenciais estão preenchidos!</div>`;
         } else {
             fieldsHtml = `<div style="color:#475569; margin-top:0.5rem;"><b>${complete} de ${total}</b> campos preenchidos. Para atingir 100%, certifique-se de preencher todos no cadastro do colaborador.</div>`;
         }
@@ -9337,7 +9337,7 @@ window.renderAdmissaoDataSummary = async function(colab) {
         if (alertEl && listEl) {
             if (missing.length > 0) {
                 alertEl.style.display = 'block';
-                listEl.innerHTML = missing.map(f => `<div>â€¢ ${f}</div>`).join('');
+                listEl.innerHTML = missing.map(f => `<div>• ${f}</div>`).join('');
                 const nextBtn = document.getElementById('btn-admissao-step1-next');
                 if (nextBtn) nextBtn.disabled = false;
             } else {
@@ -9353,7 +9353,7 @@ window.renderAdmissaoDataSummary = async function(colab) {
                             ${f.label} ${f.filled ? '<i class="ph-bold ph-check-circle" style="color:#22c55e; margin-left:4px;"></i>' : '<span style="color:#ef4444!important; margin-left:4px;">(PENDENTE)</span>'}
                         </label>
                         <div style="font-size:0.95rem; font-weight:600; color:${f.filled ? '#1e293b' : '#ef4444'}; text-overflow:ellipsis; overflow:hidden; white-space:nowrap;">
-                            ${f.value || 'NÃƒO PREENCHIDO'}
+                            ${f.value || 'NÃO PREENCHIDO'}
                         </div>
                     </div>
                 `).join('')}
@@ -9387,10 +9387,10 @@ window.saveAdmissaoResponsavel = async function(colabId, nomeResponsavel) {
             body: JSON.stringify({ admissao_responsavel_nome: nomeResponsavel })
         });
         
-        if (!res.ok) throw new Error('Falha ao salvar responsÃ¡vel');
+        if (!res.ok) throw new Error('Falha ao salvar responsável');
         
         if (typeof Toastify !== 'undefined') {
-            Toastify({ text: 'ResponsÃ¡vel atribuÃ­do com sucesso!', backgroundColor: '#059669' }).showToast();
+            Toastify({ text: 'Responsável atribuído com sucesso!', backgroundColor: '#059669' }).showToast();
         }
         
         if (window.viewedColaborador && window.viewedColaborador.id === colabId) {
@@ -9398,14 +9398,14 @@ window.saveAdmissaoResponsavel = async function(colabId, nomeResponsavel) {
         }
     } catch(e) {
         console.error(e);
-        alert('Erro ao salvar responsÃ¡vel.');
+        alert('Erro ao salvar responsável.');
     }
 };
 
 
 
 function calculateAdmissaoStep1Completion(c) {
-    // Checklist base â€” todos os campos obrigatÃ³rios
+    // Checklist base — todos os campos obrigatórios
     const baseChecklist = [
         { key: 'nome_completo', label: 'Nome Completo' },
         { key: 'cpf', label: 'CPF' },
@@ -9413,53 +9413,53 @@ function calculateAdmissaoStep1Completion(c) {
         { key: 'local_nascimento', label: 'Naturalidade' },
         { key: 'estado_civil', label: 'Estado Civil' },
         { key: 'sexo', label: 'Sexo' },
-        { key: 'cor_raca', label: 'Cor/RaÃ§a' },
+        { key: 'cor_raca', label: 'Cor/Raça' },
         { key: 'nacionalidade', label: 'Nacionalidade' },
-        { key: 'grau_instrucao', label: 'Grau InstruÃ§Ã£o' },
-        { key: 'nome_mae', label: 'Nome MÃ£e' },
+        { key: 'grau_instrucao', label: 'Grau Instrução' },
+        { key: 'nome_mae', label: 'Nome Mãe' },
         { key: 'nome_pai', label: 'Nome Pai' },
         { key: 'rg_tipo', label: 'Tipo Doc' },
-        { key: 'rg', label: 'NÃºmero Doc' },
+        { key: 'rg', label: 'Número Doc' },
         { key: 'pis', label: 'PIS/PASEP' },
-        { key: 'titulo_eleitoral', label: 'TÃ­tulo Eleitoral' },
+        { key: 'titulo_eleitoral', label: 'Título Eleitoral' },
         { key: 'titulo_zona', label: 'Zona Eletr.' },
-        { key: 'titulo_secao', label: 'SeÃ§Ã£o Eletr.' },
-        { key: 'ctps_numero', label: 'CTPS NÃºm.' },
-        { key: 'ctps_serie', label: 'CTPS SÃ©rie' },
+        { key: 'titulo_secao', label: 'Seção Eletr.' },
+        { key: 'ctps_numero', label: 'CTPS Núm.' },
+        { key: 'ctps_serie', label: 'CTPS Série' },
         { key: 'ctps_uf', label: 'CTPS UF' },
         { key: 'ctps_data_expedicao', label: 'CTPS Data' },
         { key: 'telefone', label: 'Telefone' },
         { key: 'email', label: 'E-mail' },
         { key: 'contato_emergencia_nome', label: 'Emg. Nome' },
         { key: 'contato_emergencia_telefone', label: 'Emg. Tel.' },
-        { key: 'endereco', label: 'EndereÃ§o' },
-        { key: 'matricula_esocial', label: 'MatrÃ­cula eSocial' },
+        { key: 'endereco', label: 'Endereço' },
+        { key: 'matricula_esocial', label: 'Matrícula eSocial' },
         { key: 'cargo', label: 'Cargo' },
         { key: 'departamento', label: 'Departamento' },
         { key: 'cbo', label: 'CBO' },
-        { key: 'data_admissao', label: 'AdmissÃ£o' },
+        { key: 'data_admissao', label: 'Admissão' },
         { key: 'tipo_contrato', label: 'Tipo Contrato' },
-        { key: 'salario', label: 'SalÃ¡rio Base' },
+        { key: 'salario', label: 'Salário Base' },
         { key: 'meio_transporte', label: 'Meio Transp.' },
         { key: 'adiantamento_salarial', label: 'Adiantamento' },
         { key: 'insalubridade', label: 'Insalubridade' },
-        { key: 'escala_tipo', label: 'Escala PadrÃ£o' },
+        { key: 'escala_tipo', label: 'Escala Padrão' },
         { key: 'horario_entrada', label: 'Entrada' },
-        { key: 'horario_saida', label: 'SaÃ­da' },
+        { key: 'horario_saida', label: 'Saída' },
         { key: 'intervalo_entrada', label: 'Intervalo Ini' },
         { key: 'intervalo_saida', label: 'Intervalo Fim' },
         { key: 'banco_nome', label: 'Banco' },
-        { key: 'banco_agencia', label: 'AgÃªncia' },
+        { key: 'banco_agencia', label: 'Agência' },
         { key: 'banco_conta', label: 'Conta' }
     ];
 
     let activeChecklist = [...baseChecklist];
 
-    // Campos condicionais por tipo de documento (RG = exige Ã³rgÃ£o e data; CIN/CNH = nÃ£o exige)
+    // Campos condicionais por tipo de documento (RG = exige órgão e data; CIN/CNH = não exige)
     const rgTipo = c.rg_tipo || 'RG';
     if (rgTipo === 'RG') {
-        activeChecklist.push({ key: 'rg_orgao', label: 'Ã“rgÃ£o Emissor' });
-        activeChecklist.push({ key: 'rg_data_emissao', label: 'ExpediÃ§Ã£o Doc' });
+        activeChecklist.push({ key: 'rg_orgao', label: 'Órgão Emissor' });
+        activeChecklist.push({ key: 'rg_data_emissao', label: 'Expedição Doc' });
     }
 
     // Campo condicional por sexo
@@ -9470,25 +9470,25 @@ function calculateAdmissaoStep1Completion(c) {
     // Campo condicional por cargo (motorista)
     const isMotorista = (c.cargo || '').toUpperCase().includes('MOTORISTA');
     if (isMotorista) {
-        activeChecklist.push({ key: 'cnh_numero', label: 'CNH NÃºm.' });
+        activeChecklist.push({ key: 'cnh_numero', label: 'CNH Núm.' });
         activeChecklist.push({ key: 'cnh_categoria', label: 'CNH Cat.' });
     }
 
-    // CÃ´njuge: mostrar se casado/uniÃ£o estÃ¡vel
+    // Cônjuge: mostrar se casado/união estável
     const isCasado = c.estado_civil && (c.estado_civil.toLowerCase().includes('casad') || c.estado_civil.toLowerCase().includes('uni'));
 
-    // CÃ´njuge agora salvo diretamente no colaborador (nÃ£o nos dependentes)
+    // Cônjuge agora salvo diretamente no colaborador (não nos dependentes)
     const conjuge_nome = c.conjuge_nome || '';
     const conjuge_cpf = c.conjuge_cpf || '';
 
     // Dependentes (apenas filhos/outros)
     let depArr = [];
     try { depArr = c.dependentes ? (typeof c.dependentes === 'string' ? JSON.parse(c.dependentes) : c.dependentes) : []; } catch(e) {}
-    const filhos = depArr.filter(d => d.grau_parentesco !== 'CÃ´njuge');
+    const filhos = depArr.filter(d => d.grau_parentesco !== 'Cônjuge');
 
     if (isCasado) {
-        activeChecklist.push({ key: 'conjuge_nome', label: 'Nome CÃ´njuge' });
-        activeChecklist.push({ key: 'conjuge_cpf', label: 'CPF CÃ´njuge' });
+        activeChecklist.push({ key: 'conjuge_nome', label: 'Nome Cônjuge' });
+        activeChecklist.push({ key: 'conjuge_cpf', label: 'CPF Cônjuge' });
     }
 
     // Clonar c com campos resolvidos
@@ -9512,11 +9512,11 @@ function calculateAdmissaoStep1Completion(c) {
         resultFields.push({ label: item.label, value: displayVal, filled: isFilled });
     });
 
-    // Adicionar blocos informativos (cÃ´njuge/dependentes/valores) â€” sem contar na porcentagem
+    // Adicionar blocos informativos (cônjuge/dependentes/valores) — sem contar na porcentagem
     const extraFields = [];
     if (conjuge_nome) {
-        extraFields.push({ label: 'CÃ´njuge - Nome', value: conjuge_nome, filled: true, isExtra: true });
-        extraFields.push({ label: 'CÃ´njuge - CPF', value: conjuge_cpf, filled: !!conjuge_cpf, isExtra: true });
+        extraFields.push({ label: 'Cônjuge - Nome', value: conjuge_nome, filled: true, isExtra: true });
+        extraFields.push({ label: 'Cônjuge - CPF', value: conjuge_cpf, filled: !!conjuge_cpf, isExtra: true });
     }
     filhos.forEach((f, i) => {
         extraFields.push({ label: `Dependente ${i+1} - Nome`, value: f.nome, filled: !!f.nome, isExtra: true });
@@ -9533,7 +9533,7 @@ function calculateAdmissaoStep1Completion(c) {
     if (c.insalubridade === 'Sim') {
         extraFields.push({ label: 'Valor Insalubridade', value: c.insalubridade_valor, filled: !!c.insalubridade_valor, isExtra: true });
     }
-    if (c.meio_transporte && c.meio_transporte !== 'PrÃ³prio / A pÃ©') {
+    if (c.meio_transporte && c.meio_transporte !== 'Próprio / A pé') {
         extraFields.push({ label: 'Valor Transporte', value: c.valor_transporte, filled: !!c.valor_transporte, isExtra: true });
     }
 
@@ -9550,14 +9550,14 @@ function updateAdmissaoStepPercentages(colab) {
     const targetColab = colab || viewedColaborador;
     if (!targetColab) return;
 
-    // â”€â”€ Passo 1: Dados cadastrais â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Passo 1: Dados cadastrais ─────────────────────────────────────
     const step1 = calculateAdmissaoStep1Completion(targetColab);
     const pc1 = step1.percent;
 
-    // â”€â”€ Passo 2: Santander â€” 100% se ficha foi gerada â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Passo 2: Santander — 100% se ficha foi gerada ─────────────────
     const pc2 = targetColab.santander_ficha_data ? 100 : 0;
 
-    // â”€â”€ Passo 3: Assinaturas â€” usa geradores/assinaturas carregados via AdmissÃ£o â”€â”€â”€
+    // ── Passo 3: Assinaturas — usa geradores/assinaturas carregados via Admissão ───
     let pc3 = 0;
     const geradores = window._admissaoGeradores || [];
     const assinaturas = window._admissaoAssinaturas || [];
@@ -9601,7 +9601,7 @@ function updateAdmissaoStepPercentages(colab) {
         });
 
         if (combinedList.length === 0) {
-            containerSignature.innerHTML = `<div style="padding:1rem; text-align:center; color:#64748b; font-size:0.85rem; font-style:italic;">Nenhum contrato configurado no sistema ou anexado no prontuÃ¡rio.</div>`;
+            containerSignature.innerHTML = `<div style="padding:1rem; text-align:center; color:#64748b; font-size:0.85rem; font-style:italic;">Nenhum contrato configurado no sistema ou anexado no prontuário.</div>`;
         } else {
             containerSignature.innerHTML = combinedList.map(item => {
                 const hasFile = !!item.doc;
@@ -9615,7 +9615,7 @@ function updateAdmissaoStepPercentages(colab) {
                     const d = new Date(item.doc.created_at + (item.doc.created_at.includes('Z') ? '' : 'Z'));
                     dataText = `<div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Anexado em: <b>${d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</b></div>`;
                 } else if (!hasFile) {
-                    dataText = `<div style="font-size:0.75rem; color:#94a3b8; margin-top:2px;"><i>Upload obrigatÃ³rio via ProntuÃ¡rio Digital</i></div>`;
+                    dataText = `<div style="font-size:0.75rem; color:#94a3b8; margin-top:2px;"><i>Upload obrigatório via Prontuário Digital</i></div>`;
                 }
 
                 return `
@@ -9632,16 +9632,16 @@ function updateAdmissaoStepPercentages(colab) {
         }
     }
 
-    // â”€â”€ Passo 4: Ficha Cadastral â€” documentos do colaborador (01_FICHA_CADASTRAL) â”€â”€
+    // ── Passo 4: Ficha Cadastral — documentos do colaborador (01_FICHA_CADASTRAL) ──
     const _ec = (targetColab.estado_civil || '').toLowerCase();
-    const _isCasado = _ec.includes('casad') || _ec.includes('viÃºv') || _ec.includes('viuv') || _ec.includes('divorc');
-    const _certidao = _isCasado ? 'CertidÃ£o de Casamento' : 'CertidÃ£o de Nascimento';
+    const _isCasado = _ec.includes('casad') || _ec.includes('viúv') || _ec.includes('viuv') || _ec.includes('divorc');
+    const _certidao = _isCasado ? 'Certidão de Casamento' : 'Certidão de Nascimento';
     const _isMotorista2 = (targetColab.cargo || '').toUpperCase().includes('MOTORISTA');
     const fixed = [
-        'TÃ­tulo Eleitoral',
+        'Título Eleitoral',
         _certidao,
-        'Comprovante de endereÃ§o',
-        'HistÃ³rico escolar'
+        'Comprovante de endereço',
+        'Histórico escolar'
     ];
     const isMasc = targetColab.sexo === 'Masculino';
     if (isMasc) fixed.push('Reservista');
@@ -9653,16 +9653,16 @@ function updateAdmissaoStepPercentages(colab) {
         fixed.push(rgTipo === 'CIN' ? 'CIN-CPF' : 'RG-CPF');
     }
     
-    fixed.push('Carteira de vacinaÃ§Ã£o', 'CurrÃ­culo', 'Carteira de Trabalho');
+    fixed.push('Carteira de vacinação', 'Currículo', 'Carteira de Trabalho');
     if (_isCasado) {
-        fixed.push('CPF do CÃ´njuge');
+        fixed.push('CPF do Cônjuge');
     }
 
     const fichaDocs = (window.currentDocs || []).filter(d => d.tab_name === '01_FICHA_CADASTRAL');
     
-    // PensÃ£o (DinÃ¢mico)
-    const temPensaoPront = (targetColab.tem_pensao_alimenticia === 'Sim') || !!fichaDocs.find(d => d.document_type === 'PensÃ£o AlimentÃ­cia');
-    if (temPensaoPront) fixed.push('PensÃ£o AlimentÃ­cia');
+    // Pensão (Dinâmico)
+    const temPensaoPront = (targetColab.tem_pensao_alimenticia === 'Sim') || !!fichaDocs.find(d => d.document_type === 'Pensão Alimentícia');
+    if (temPensaoPront) fixed.push('Pensão Alimentícia');
 
     let preenchidos4 = 0;
     let totalEsperado4 = fixed.length;
@@ -9685,7 +9685,7 @@ function updateAdmissaoStepPercentages(colab) {
 
     // === DEPENDENTES (Adicionado ao Passo 4) ===
     const depList = targetColab.dependentes ? (typeof targetColab.dependentes === 'string' ? JSON.parse(targetColab.dependentes) : targetColab.dependentes) : [];
-    const deps = depList.filter(d => d.grau_parentesco !== 'CÃ´njuge');
+    const deps = depList.filter(d => d.grau_parentesco !== 'Cônjuge');
     const hoje = new Date();
     const dependentDocs = (window.currentDocs || []).filter(d => d.tab_name === 'Dependentes');
     
@@ -9700,9 +9700,9 @@ function updateAdmissaoStepPercentages(colab) {
                 
         const docsConfig = [
             { label: 'CPF ou RG',                    show: true },
-            { label: 'Caderneta de VacinaÃ§Ã£o',      show: idade !== null && idade < 7 },
-            { label: 'Atestado de FrequÃªncia Escolar', show: idade !== null && idade >= 7 && idade <= 17 },
-            { label: 'CertidÃ£o de Nascimento',       show: true },
+            { label: 'Caderneta de Vacinação',      show: idade !== null && idade < 7 },
+            { label: 'Atestado de Frequência Escolar', show: idade !== null && idade >= 7 && idade <= 17 },
+            { label: 'Certidão de Nascimento',       show: true },
         ];
 
         const expectedForDep = docsConfig.filter(d => d.show);
@@ -9736,7 +9736,7 @@ function updateAdmissaoStepPercentages(colab) {
              const statusBadge = hasFile 
                 ? `<span style="background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-check-circle"></i> Anexado</span>` 
                 : `<span style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-x-circle"></i> Faltante</span>`;
-             const dateText = hasFile ? (item.doc && item.doc.created_at ? `<div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Anexado em: <b>${new Date(item.doc.created_at + (item.doc.created_at.includes('Z') ? '' : 'Z')).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</b></div>` : '') : `<div style="font-size:0.75rem; color:#94a3b8; margin-top:2px;"><i>Upload obrigatÃ³rio via ProntuÃ¡rio Digital</i></div>`;
+             const dateText = hasFile ? (item.doc && item.doc.created_at ? `<div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Anexado em: <b>${new Date(item.doc.created_at + (item.doc.created_at.includes('Z') ? '' : 'Z')).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</b></div>` : '') : `<div style="font-size:0.75rem; color:#94a3b8; margin-top:2px;"><i>Upload obrigatório via Prontuário Digital</i></div>`;
              
              return `
              <div style="background:#fff; border:1px solid ${hasFile?'#bbf7d0':'#e2e8f0'}; border-radius:8px; padding:0.6rem 0.8rem; margin-bottom:0.4rem; display:flex; justify-content:space-between; align-items:center;">
@@ -9751,12 +9751,12 @@ function updateAdmissaoStepPercentages(colab) {
          }).join('');
     }
 
-    // â”€â”€ Passo 5: ASO â€” 50% e-mail / 100% doc  â”€â”€
+    // ── Passo 5: ASO — 50% e-mail / 100% doc  ──
     let pc5 = 0;
     const asoDocs = (window.currentDocs || []).filter(d => d.tab_name === 'ASO');
     
     // Reproduzir regras de ASO
-    const listAso = ['ASO PadrÃ£o'];
+    const listAso = ['ASO Padrão'];
     if ((targetColab.cargo || '').toUpperCase().includes('MOTORISTA')) listAso.push('Exames Complementares');
 
     let preenchidos5 = 0;
@@ -9795,7 +9795,7 @@ function updateAdmissaoStepPercentages(colab) {
              const statusBadge = hasFile 
                 ? `<span style="background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-check-circle"></i> Anexado</span>` 
                 : `<span style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-x-circle"></i> Faltante</span>`;
-             const dateText = hasFile ? (item.doc && item.doc.created_at ? `<div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Anexado em: <b>${new Date(item.doc.created_at + (item.doc.created_at.includes('Z') ? '' : 'Z')).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</b></div>` : '') : `<div style="font-size:0.75rem; color:#94a3b8; margin-top:2px;"><i>Upload obrigatÃ³rio via ProntuÃ¡rio Digital</i></div>`;
+             const dateText = hasFile ? (item.doc && item.doc.created_at ? `<div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Anexado em: <b>${new Date(item.doc.created_at + (item.doc.created_at.includes('Z') ? '' : 'Z')).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</b></div>` : '') : `<div style="font-size:0.75rem; color:#94a3b8; margin-top:2px;"><i>Upload obrigatório via Prontuário Digital</i></div>`;
              
              return `
              <div style="background:#fff; border:1px solid ${hasFile?'#bbf7d0':'#e2e8f0'}; border-radius:8px; padding:0.6rem 0.8rem; margin-bottom:0.4rem; display:flex; justify-content:space-between; align-items:center;">
@@ -9810,10 +9810,10 @@ function updateAdmissaoStepPercentages(colab) {
          }).join('');
     }
 
-    // â”€â”€ Passo 6: Contabilidade â€” 100% se ficha enviada â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Passo 6: Contabilidade — 100% se ficha enviada ────────────────
     const pc6 = targetColab.admissao_contabil_enviada_em ? 100 : 0;
 
-    // â”€â”€ Passo 7: EfetivaÃ§Ã£o â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Passo 7: Efetivação ───────────────────────────────────────────
     const pc7 = targetColab.status === 'Ativo' ? 100 : 0;
 
     const pc8 = 0;
@@ -9912,8 +9912,8 @@ window.filterAdmissaoDocs = function() {
 // Hook into toggleCheck to update counts
 const originalToggleCheck = window.toggleCheck;
 window.toggleCheck = function(el) {
-    // Desativado: seleÃ§Ã£o agora Ã© apenas via upload
-    console.log('Toggle desativado. Use o botÃ£o de Upload.');
+    // Desativado: seleção agora é apenas via upload
+    console.log('Toggle desativado. Use o botão de Upload.');
 };
 
 window.editColabFromAdmission = function() {
@@ -9925,7 +9925,7 @@ window.editColabFromAdmission = function() {
 
 window.sendASOEmail = async function() {
     if (!viewedColaborador) {
-        alert('Carregue um colaborador primeiro abrindo a ediÃ§Ã£o ou admissÃ£o.');
+        alert('Carregue um colaborador primeiro abrindo a edição ou admissão.');
         return;
     }
     const dataExame = document.getElementById('aso-exame-data').value;
@@ -9941,9 +9941,9 @@ window.sendASOEmail = async function() {
     const cargo = (viewedColaborador.cargo || '').toLowerCase();
     const exames = cargo.includes('motorista') 
         ? 'Exames Complementares, acuidade visual, E.E.G, E.C.G e Glicemia.' 
-        : 'Exame PadrÃ£o';
+        : 'Exame Padrão';
 
-    const mailBody = `TÃ­tulo: Exame Admissional\n\nSegue abaixo as informaÃ§Ãµes para a realizaÃ§Ã£o do exame Admissional do colaborador que deve comparecer.\n\nData: ${dt}\n\nNome: ${viewedColaborador.nome_completo}\nCPF: ${viewedColaborador.cpf}\nFunÃ§Ã£o: ${viewedColaborador.cargo || '-'}\nDepartamento: ${viewedColaborador.departamento || '-'}\n\nExames:\n${exames}\n\nâš ï¸ IMPORTANTE:\nApÃ³s o exame ficar pronto, favor enviar o documento por e-mail diretamente para: rh@americarental.com.br`;
+    const mailBody = `Título: Exame Admissional\n\nSegue abaixo as informações para a realização do exame Admissional do colaborador que deve comparecer.\n\nData: ${dt}\n\nNome: ${viewedColaborador.nome_completo}\nCPF: ${viewedColaborador.cpf}\nFunção: ${viewedColaborador.cargo || '-'}\nDepartamento: ${viewedColaborador.departamento || '-'}\n\nExames:\n${exames}\n\n⚠️ IMPORTANTE:\nApós o exame ficar pronto, favor enviar o documento por e-mail diretamente para: rh@americarental.com.br`;
 
     const btn = document.getElementById('btn-enviar-aso-email');
     const originalContent = btn.innerHTML;
@@ -9977,7 +9977,7 @@ window.sendASOEmail = async function() {
         }
     } catch (e) {
         console.error('Erro ao enviar e-mail ASO:', e);
-        if (confirm(`NÃ£o foi possÃ­vel enviar automaticamente pelo servidor. Erro do Servidor:\n\n${e.message}\n\nDeseja abrir o seu programa de e-mail (Outlook/Gmail) com o texto jÃ¡ preenchido?`)) {
+        if (confirm(`Não foi possível enviar automaticamente pelo servidor. Erro do Servidor:\n\n${e.message}\n\nDeseja abrir o seu programa de e-mail (Outlook/Gmail) com o texto já preenchido?`)) {
             const mailtoUrl = `mailto:${destinatario}?cc=rh@americarental.com.br,rh2@americarental.com.br&subject=Exame Admissional - ${viewedColaborador.nome_completo}&body=${encodeURIComponent(mailBody)}`;
             window.location.href = mailtoUrl;
         }
@@ -10064,39 +10064,39 @@ window.resetAdmissao = function() {
 window.finalizarAdmissao = async function() {
     if (!viewedColaborador) return;
 
-    if (!confirm(`Confirmar a admissÃ£o definitiva de ${viewedColaborador.nome_completo}?\n\nO colaborador passarÃ¡ para o status "Em IntegraÃ§Ã£o".`)) return;
+    if (!confirm(`Confirmar a admissão definitiva de ${viewedColaborador.nome_completo}?\n\nO colaborador passará para o status "Em Integração".`)) return;
 
     try {
         await apiPut(`/colaboradores/${viewedColaborador.id}`, {
-            status: 'Em IntegraÃ§Ã£o',
-            admissao_status: 'ConcluÃ­da'
+            status: 'Em Integração',
+            admissao_status: 'Concluída'
         });
 
         // Atualizar o objeto local
-        viewedColaborador.status = 'Em IntegraÃ§Ã£o';
-        if (viewedColaborador) viewedColaborador.status = 'Em IntegraÃ§Ã£o';
+        viewedColaborador.status = 'Em Integração';
+        if (viewedColaborador) viewedColaborador.status = 'Em Integração';
 
         // Toast de sucesso
         if (typeof admissaoToast === 'function') {
-            admissaoToast(`âœ… ${viewedColaborador.nome_completo} admitido com sucesso! Agora em IntegraÃ§Ã£o.`, 'success');
+            admissaoToast(`✅ ${viewedColaborador.nome_completo} admitido com sucesso! Agora em Integração.`, 'success');
         } else {
-            alert('AdmissÃ£o realizada com sucesso! O colaborador agora estÃ¡ Em IntegraÃ§Ã£o.');
+            alert('Admissão realizada com sucesso! O colaborador agora está Em Integração.');
         }
 
-        // Navegar para mÃ³dulo de integraÃ§Ã£o
+        // Navegar para módulo de integração
         setTimeout(() => {
             if (typeof navigateTo === 'function') navigateTo('integracao');
             // Recarregar lista de colaboradores para refletir o novo status
             if (typeof loadColaboradores === 'function') loadColaboradores();
         }, 800);
     } catch (e) {
-        alert('Erro ao finalizar admissÃ£o: ' + e.message);
+        alert('Erro ao finalizar admissão: ' + e.message);
     }
 };
 
 
 /**
- * Copia o link de assinatura para a Ã¡rea de transferÃªncia
+ * Copia o link de assinatura para a área de transferência
  */
 function copiarLinkAssinafy(el) {
     const url = decodeURIComponent(el.getAttribute('data-copy-url') || '');
@@ -10165,7 +10165,7 @@ window.iniciarAssinafy = async function(docType, tabName, btn) {
             
             const docInfoDiv = btn.closest('.doc-item') && btn.closest('.doc-item').querySelector('.doc-info div');
             if (docInfoDiv) {
-                // Atualizar ou criar o parÃ¡grafo de data de envio
+                // Atualizar ou criar o parágrafo de data de envio
                 let subInfoP = docInfoDiv.querySelector('p.subinfo-line');
                 if (!subInfoP) {
                     subInfoP = document.createElement('p');
@@ -10177,7 +10177,7 @@ window.iniciarAssinafy = async function(docType, tabName, btn) {
                 const vencHtml = vencSpan ? vencSpan.outerHTML + ' <span style="color:#64748b;">|</span> ' : '';
                 subInfoP.innerHTML = vencHtml + '<span style="color:#2f9e44; font-weight:600;">Enviado: ' + hojeFormatado + '</span>';
 
-                // Link de assinatura em parÃ¡grafo separado abaixo
+                // Link de assinatura em parágrafo separado abaixo
                 const urlAssinatura = res.urlAssinatura || null;
                 if (urlAssinatura) {
                     // Remover link antigo se existir
@@ -10220,7 +10220,7 @@ window.iniciarAssinafy = async function(docType, tabName, btn) {
     } catch (e) {
         console.error('Erro Assinafy:', e);
         if (e.name === 'AbortError') {
-            alert('â³ O processo estÃ¡ demorando mais que o esperado.\n\nO Assinafy pode jÃ¡ ter processado o documento. Aguarde 1 minuto e recarregue a pÃ¡gina para verificar o status.');
+            alert('⏳ O processo está demorando mais que o esperado.\n\nO Assinafy pode já ter processado o documento. Aguarde 1 minuto e recarregue a página para verificar o status.');
         } else {
             alert('Falha ao iniciar Assinafy: ' + e.message);
         }
@@ -10258,9 +10258,9 @@ window.syncAssinafyStatus = async function(docId, btn) {
             alert('Falha ao checar status: ' + (data.error || 'Erro desconhecido.'));
         }
     } catch (err) {
-        console.error('Erro requisiÃ§Ã£o sync Assinafy:', err);
+        console.error('Erro requisição sync Assinafy:', err);
     } finally {
-        // Redesenho da aba reescreverÃ¡ o icone, mas por cautela revertermos a animacao se falhar
+        // Redesenho da aba reescreverá o icone, mas por cautela revertermos a animacao se falhar
         if (icon) {
             icon.classList.remove('ph-spinner', 'ph-spin');
             icon.classList.add('ph-arrows-clockwise');
@@ -10282,9 +10282,9 @@ window.forceOnedriveSync = async function(docId, btn) {
         const logText = (data.log || []).join('\n');
 
         if (data.sucesso) {
-            alert(`âœ… Sincronizado com sucesso!\n\nArquivo: ${data.cloudName}\nPasta: ${data.targetDir}\n\n--- LOG ---\n${logText}`);
+            alert(`✅ Sincronizado com sucesso!\n\nArquivo: ${data.cloudName}\nPasta: ${data.targetDir}\n\n--- LOG ---\n${logText}`);
         } else {
-            alert(`âŒ Falha na sincronizaÃ§Ã£o OneDrive:\n${data.error}\n\n--- LOG ---\n${logText}`);
+            alert(`❌ Falha na sincronização OneDrive:\n${data.error}\n\n--- LOG ---\n${logText}`);
         }
     } catch (e) {
         alert('Erro de rede: ' + e.message);
@@ -10311,7 +10311,7 @@ window.syncAllAtestados = async function(ids, btn) {
     }
     btn.disabled = false;
     btn.innerHTML = original;
-    alert(`âœ… SincronizaÃ§Ã£o concluÃ­da!\nâœ“ Sucesso: ${ok}\nâœ— Falha: ${fail}\n\nUse o botÃ£o â˜ individual para ver o log de cada falha.`);
+    alert(`✅ Sincronização concluída!\n✓ Sucesso: ${ok}\n✗ Falha: ${fail}\n\nUse o botão ☁ individual para ver o log de cada falha.`);
 };
 
 window.testOneDriveConnection = async function() {
@@ -10331,23 +10331,23 @@ window.testOneDriveConnection = async function() {
             let gpsRH = "";
             if (data.rhLocation) {
                 let dId = data.rhLocation.parentReference?.driveId;
-                gpsRH = `\n\nâš ï¸ PASTA 'RH' ENCONTRADA EM OUTRO LUGAR:\nEndereÃ§o: ${data.rhLocation.webUrl}\nID Drive: ${dId}`;
+                gpsRH = `\n\n⚠️ PASTA 'RH' ENCONTRADA EM OUTRO LUGAR:\nEndereço: ${data.rhLocation.webUrl}\nID Drive: ${dId}`;
             }
             
-            let msg = `âœ… O OneDrive estÃ¡ CONECTADO corretamente!\n\n` +
+            let msg = `✅ O OneDrive está CONECTADO corretamente!\n\n` +
                       `Biblioteca: ${data.driveName}\n` +
                       `Link Direto: ${data.config.webUrlBase || data.config.webUrlRaiz}` +
                       gpsRH + 
                       `\n\nTudo pronto para sincronizar colaboradores.`;
             alert(msg);
         } else {
-            let errorMsg = `âŒ ${data.error}\n`;
-            if (data.code) errorMsg += `CÃ³digo: ${data.code}\n`;
+            let errorMsg = `❌ ${data.error}\n`;
+            if (data.code) errorMsg += `Código: ${data.code}\n`;
             if (data.details) errorMsg += `Detalhes: ${JSON.stringify(data.details)}`;
             alert(errorMsg);
         }
     } catch (e) {
-        alert("Erro na requisiÃ§Ã£o: " + e.message);
+        alert("Erro na requisição: " + e.message);
     } finally {
         btn.disabled = false;
         btn.innerHTML = originalHtml;
@@ -10355,7 +10355,7 @@ window.testOneDriveConnection = async function() {
 };
 
 window.syncOneDriveManual = async function(id, btnElement = null) {
-    // Se nÃ£o passou o elemento, tenta achar pelos IDs conhecidos
+    // Se não passou o elemento, tenta achar pelos IDs conhecidos
     const btn = btnElement || document.getElementById('btn-sync-onedrive') || document.getElementById('btn-form-sync-onedrive');
     const originalHtml = btn ? btn.innerHTML : '';
     if (btn) {
@@ -10376,12 +10376,12 @@ window.syncOneDriveManual = async function(id, btnElement = null) {
         const data = await res.json();
         
         if (data.sucesso) {
-            alert(`âœ… SUCESSO TOTAL!\nCaminho: ${data.path}`);
+            alert(`✅ SUCESSO TOTAL!\nCaminho: ${data.path}`);
         } else {
-            alert(`âŒ Erro na SincronizaÃ§Ã£o:\n${data.message || data.error}`);
+            alert(`❌ Erro na Sincronização:\n${data.message || data.error}`);
         }
     } catch (e) {
-        alert("Erro na requisiÃ§Ã£o: " + e.message);
+        alert("Erro na requisição: " + e.message);
     } finally {
         if(btn) {
             btn.disabled = false;
@@ -10391,10 +10391,10 @@ window.syncOneDriveManual = async function(id, btnElement = null) {
 };
 
 window.resetSystem = async function() {
-    const confirmation1 = confirm("ðŸš¨ ATENÃ‡ÃƒO: VocÃª tem certeza que deseja LIMPAR TODOS os colaboradores do sistema?\n\nIsso apagarÃ¡ todos os dados do banco de dados (dependentes, fotos, documentos registrados). Os arquivos fÃ­sicos no OneDrive nÃ£o serÃ£o apagados por seguranÃ§a.");
+    const confirmation1 = confirm("🚨 ATENÇÃO: Você tem certeza que deseja LIMPAR TODOS os colaboradores do sistema?\n\nIsso apagará todos os dados do banco de dados (dependentes, fotos, documentos registrados). Os arquivos físicos no OneDrive não serão apagados por segurança.");
     if (!confirmation1) return;
 
-    const confirmation2 = confirm("CONFIRMAÃ‡ÃƒO FINAL: Deseja realmente excluir permanentemente todos os registros de colaboradores?");
+    const confirmation2 = confirm("CONFIRMAÇÃO FINAL: Deseja realmente excluir permanentemente todos os registros de colaboradores?");
     if (!confirmation2) return;
 
     const btn = document.getElementById('btn-reset-sistema');
@@ -10410,7 +10410,7 @@ window.resetSystem = async function() {
         const data = await res.json();
         
         if (data.sucesso) {
-            alert("Sistema limpo com sucesso! A pÃ¡gina serÃ¡ recarregada.");
+            alert("Sistema limpo com sucesso! A página será recarregada.");
             location.reload();
         } else {
             alert("Erro ao resetar sistema: " + (data.error || "Erro desconhecido"));
@@ -10467,7 +10467,7 @@ setInterval(async () => {
     }
 }, 30000);
 
-// --- LÃ“GICA RENDER PDF (PDF.js) ---
+// --- LÓGICA RENDER PDF (PDF.js) ---
 async function renderPdfToContainer(pdfUrl, containerId, onScrollEnd) {
     const container = document.getElementById(containerId);
     container.innerHTML = '<div style="color:white; padding: 2rem;">Carregando PDF...</div>';
@@ -10475,7 +10475,7 @@ async function renderPdfToContainer(pdfUrl, containerId, onScrollEnd) {
     container.onscroll = null;
 
     try {
-        if (!window.pdfjsLib) throw new Error('Biblioteca pdf.js nÃ£o carregada');
+        if (!window.pdfjsLib) throw new Error('Biblioteca pdf.js não carregada');
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
         const loadingTask = pdfjsLib.getDocument(pdfUrl);
@@ -10515,7 +10515,7 @@ async function renderPdfToContainer(pdfUrl, containerId, onScrollEnd) {
         
     } catch (e) {
         console.error("PDFJS Erro:", e);
-        container.innerHTML = '<div style="color:red; padding:2rem;">Erro ao carregar renderizaÃ§Ã£o do PDF: ' + e.message + '</div>';
+        container.innerHTML = '<div style="color:red; padding:2rem;">Erro ao carregar renderização do PDF: ' + e.message + '</div>';
         onScrollEnd(); 
     }
 }
@@ -10586,7 +10586,7 @@ function isCanvasBlank(canvasId) {
     return canvas.toDataURL() === blank.toDataURL();
 }
 
-// --- LÃ“GICA ASSINATURA TESTEMUNHAS ---
+// --- LÓGICA ASSINATURA TESTEMUNHAS ---
 let ctxTestemunhas = {};
 let currentDocIdForWitness = null;
 let currentDocDataForWitness = null;
@@ -10616,7 +10616,7 @@ window.abrirModalAssinaturaTestemunhas = async function(docId) {
     
     console.log('[Testemunhas] Total colaboradores carregados:', cols.length);
     
-    // Mostrar todos os colaboradores cadastrados como possÃ­veis testemunhas
+    // Mostrar todos os colaboradores cadastrados como possíveis testemunhas
     const todos = (cols || []).filter(c => (c.nome_completo || c.nome || '').trim() !== '');
     todos.sort((a,b) => (a.nome_completo||a.nome||'').localeCompare(b.nome_completo||b.nome||''));
 
@@ -10662,8 +10662,8 @@ window.salvarAssinaturasTestemunhas = async function() {
     }
 
     const doc = currentDocDataForWitness;
-    if(!doc || !doc.file_path) { alert('Documento original nÃ£o encontrado.'); return; }
-    if (typeof PDFLib === 'undefined') { alert('A biblioteca de processamento de PDF nÃ£o estÃ¡ carregada.'); return; }
+    if(!doc || !doc.file_path) { alert('Documento original não encontrado.'); return; }
+    if (typeof PDFLib === 'undefined') { alert('A biblioteca de processamento de PDF não está carregada.'); return; }
 
     const btn = document.getElementById('btn-salvar-testemunhas');
     const originalBtn = btn.innerHTML;
@@ -10673,7 +10673,7 @@ window.salvarAssinaturasTestemunhas = async function() {
 
         const pdfUrl = `${API_URL}/documentos/download/${doc.id}?token=${currentToken}`;
         const pdfResp = await fetch(pdfUrl);
-        if(!pdfResp.ok) throw new Error('NÃ£o foi possÃ­vel baixar o PDF original.');
+        if(!pdfResp.ok) throw new Error('Não foi possível baixar o PDF original.');
         const existingPdfBytes = await pdfResp.arrayBuffer();
 
         const pdfDoc = await PDFLib.PDFDocument.load(existingPdfBytes);
@@ -10683,7 +10683,7 @@ window.salvarAssinaturasTestemunhas = async function() {
         const { width: pageWidth, height: pageHeight } = sigPage.getSize(); // 794 x 1123
         const innerWidth = (pageWidth - 112) / 2 - 20;
 
-        // --- Captura canvas em alta resoluÃ§Ã£o (3x DPI) ---
+        // --- Captura canvas em alta resolução (3x DPI) ---
         async function getHQCanvas(canvasId) {
             const src = document.getElementById(canvasId);
             const dpr = window.devicePixelRatio || 1;
@@ -10700,16 +10700,16 @@ window.salvarAssinaturasTestemunhas = async function() {
         const data1 = s1.split('###');
         const data2 = s2.split('###');
 
-        // Coordenadas PDF-Lib (Y=0 na base da pÃ¡gina. Altura â‰ˆ 841pt para A4)
-        // Posicionamento compacto: label â†’ imagem â†’ linha â†’ nome â†’ CPF
+        // Coordenadas PDF-Lib (Y=0 na base da página. Altura ≈ 841pt para A4)
+        // Posicionamento compacto: label → imagem → linha → nome → CPF
         const t1LabelY = 310;
         const tImgH    = 70;
-        const t1ImgY   = 230; // imagem de Y=230 atÃ© Y=300
+        const t1ImgY   = 230; // imagem de Y=230 até Y=300
         const t1LineY  = 222; // linha logo abaixo da imagem
-        const t1NameY  = 208; // nome bem prÃ³ximo da linha
+        const t1NameY  = 208; // nome bem próximo da linha
         const t1CpfY   = 195; // CPF logo abaixo do nome
 
-        // â•â• TESTEMUNHA 1 (Esquerda) â•â•
+        // ══ TESTEMUNHA 1 (Esquerda) ══
         const t1X = 56;
         sigPage.drawText('Testemunha 1:', { x: t1X, y: t1LabelY, size: 10, color: PDFLib.rgb(0.2, 0.2, 0.2) });
         
@@ -10721,7 +10721,7 @@ window.salvarAssinaturasTestemunhas = async function() {
         sigPage.drawText(data1[0], { x: t1X, y: t1NameY, size: 10, color: PDFLib.rgb(0, 0, 0) });
         sigPage.drawText(`CPF: ${data1[1] || 'N/D'}`, { x: t1X, y: t1CpfY, size: 9, color: PDFLib.rgb(0.35, 0.35, 0.35) });
 
-        // â•â• TESTEMUNHA 2 (Direita) â•â•
+        // ══ TESTEMUNHA 2 (Direita) ══
         const t2X = pageWidth - 56 - innerWidth;
         sigPage.drawText('Testemunha 2:', { x: t2X, y: t1LabelY, size: 10, color: PDFLib.rgb(0.2, 0.2, 0.2) });
 
@@ -10736,7 +10736,7 @@ window.salvarAssinaturasTestemunhas = async function() {
         const modifiedPdfBytes = await pdfDoc.save();
         const file = new File([modifiedPdfBytes], doc.file_name, { type: 'application/pdf' });
         const formData = new FormData();
-        formData.append('document_id', doc.id); // ForÃ§a UPDATE em vez de INSERT
+        formData.append('document_id', doc.id); // Força UPDATE em vez de INSERT
         formData.append('file', file);
         formData.append('colaborador_id', viewedColaborador.id);
         formData.append('colaborador_nome', viewedColaborador.nome_completo || 'Desconhecido');
@@ -10766,7 +10766,7 @@ window.salvarAssinaturasTestemunhas = async function() {
         if(activeTab) {
             renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
         } else {
-            renderTabContent('AdvertÃªncias', 'OcorrÃªncias', true);
+            renderTabContent('Advertências', 'Ocorrências', true);
         }
     } catch (e) {
         console.error(e);
@@ -10777,7 +10777,7 @@ window.salvarAssinaturasTestemunhas = async function() {
     }
 };
 
-// --- LÃ“GICA ASSINATURA COLABORADOR (AdvertÃªncia) ---
+// --- LÓGICA ASSINATURA COLABORADOR (Advertência) ---
 let ctxColaborador = {};
 let currentDocIdForColab = null;
 
@@ -10811,11 +10811,11 @@ window.limparCanvasColaborador = function() {
 
 window.salvarAssinaturaColaborador = async function() {
     if (isCanvasBlank('canvas-colaborador')) {
-        alert('A assinatura do colaborador Ã© obrigatÃ³ria.'); return;
+        alert('A assinatura do colaborador é obrigatória.'); return;
     }
 
     const doc = currentDocs.find(d => d.id === currentDocIdForColab);
-    if(!doc || !doc.file_path) { alert('Documento nÃ£o encontrado.'); return; }
+    if(!doc || !doc.file_path) { alert('Documento não encontrado.'); return; }
 
     const btn = document.getElementById('btn-salvar-colaborador');
     const originalBtn = btn.innerHTML;
@@ -10825,12 +10825,12 @@ window.salvarAssinaturaColaborador = async function() {
 
         const pdfUrl = `${API_URL}/documentos/download/${doc.id}?token=${currentToken}`;
         const pdfResp = await fetch(pdfUrl);
-        if(!pdfResp.ok) throw new Error('NÃ£o foi possÃ­vel baixar o PDF original.');
+        if(!pdfResp.ok) throw new Error('Não foi possível baixar o PDF original.');
         const existingPdfBytes = await pdfResp.arrayBuffer();
 
         const pdfDoc = await PDFLib.PDFDocument.load(existingPdfBytes);
         const pages = pdfDoc.getPages();
-        const lastPage = pages[0]; // Agora garantimos que tudo fica na pÃ¡gina 1
+        const lastPage = pages[0]; // Agora garantimos que tudo fica na página 1
         const { width: pgW, height: pgH } = lastPage.getSize();
 
         // Captura de alta qualidade
@@ -10905,7 +10905,7 @@ window.salvarAssinaturaColaborador = async function() {
         if(activeTab) {
             renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
         } else {
-            renderTabContent('AdvertÃªncias', 'OcorrÃªncias', true);
+            renderTabContent('Advertências', 'Ocorrências', true);
         }
     } catch (e) {
         console.error(e);
@@ -10917,12 +10917,12 @@ window.salvarAssinaturaColaborador = async function() {
 };
 
 // ============================================================
-// ABA FICHA DE EPI NO PRONTUÃRIO
+// ABA FICHA DE EPI NO PRONTUÁRIO
 // ============================================================
 async function renderFichaEpiTab(container) {
     container.innerHTML = '<p class="text-muted">Carregando fichas de EPI...</p>';
     const colabId = viewedColaborador?.id;
-    if (!colabId) { container.innerHTML = '<div class="alert alert-info">Colaborador nÃ£o identificado.</div>'; return; }
+    if (!colabId) { container.innerHTML = '<div class="alert alert-info">Colaborador não identificado.</div>'; return; }
 
     let fichas = [], templates = [];
     try {
@@ -10980,7 +10980,7 @@ async function renderFichaEpiTab(container) {
         <div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:10px;padding:1rem 1.25rem;margin-bottom:1.25rem;display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;">
             <div style="display:flex;align-items:center;gap:0.75rem;">
                 <i class="ph ph-warning" style="color:#f59e0b;font-size:1.5rem;"></i>
-                <p style="margin:0;font-size:0.88rem;color:#92400e;">Nenhuma ficha ativa disponÃ­vel para ${cargo || dept}.</p>
+                <p style="margin:0;font-size:0.88rem;color:#92400e;">Nenhuma ficha ativa disponível para ${cargo || dept}.</p>
             </div>
             ${templateDoColab ? `
                 <button onclick="window.gerarFichaEpiManualProntuario(${templateDoColab.id})" class="btn btn-warning" style="height:34px;display:flex;align-items:center;gap:4px;font-weight:700;background:#f59e0b;color:#fff;border:none;">
@@ -11016,14 +11016,14 @@ async function renderFichaEpiTab(container) {
 // ============================================================
 
 window.gerarFichaEpiManualProntuario = async function(templateId) {
-    if (!confirm('Deseja gerar a Ficha de EPI para esse colaborador usando o template padrÃ£o vinculado a este cargo?')) return;
+    if (!confirm('Deseja gerar a Ficha de EPI para esse colaborador usando o template padrão vinculado a este cargo?')) return;
     
     const colabId = viewedColaborador?.id;
     if (!colabId) return;
 
     // Acha o template no state
     const template = window._epiProntuarioData?.templates?.find(t => t.id === templateId);
-    if (!template) return alert('Template invÃ¡lido.');
+    if (!template) return alert('Template inválido.');
 
     const payload = {
         template_id: template.id,
@@ -11046,7 +11046,7 @@ window.gerarFichaEpiManualProntuario = async function(templateId) {
         });
         if (!res.ok) throw new Error('Erro na resposta do servidor.');
         
-        // Recarrega a aba para exibir a ficha ativa recÃ©m-criada
+        // Recarrega a aba para exibir a ficha ativa recém-criada
         renderTabContent('Ficha de EPI', 'Ficha de EPI');
     } catch(err) {
         console.error(err);
@@ -11200,7 +11200,7 @@ window._renderEpiGrid = function(filtro) {
         card.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:0.65rem 1rem;border:2px solid '+(qty>0?'#16a34a':'#e2e8f0')+';border-radius:10px;background:'+(qty>0?'#f0fdf4':'#fff')+';box-shadow:0 1px 3px rgba(0,0,0,0.06);';
         const lbl=document.createElement('span'); lbl.style.cssText='font-size:0.88rem;color:#0f172a;font-weight:600;flex:1;margin-right:0.5rem;line-height:1.3;'; lbl.textContent=epi;
         const ctrl=document.createElement('div'); ctrl.style.cssText='display:flex;align-items:center;gap:6px;flex-shrink:0;';
-        const btnM=document.createElement('button'); btnM.textContent='âˆ’'; btnM.style.cssText='background:'+(qty>0?'#1e3a5f':'#e2e8f0')+';color:#fff;border:none;border-radius:6px;width:32px;height:32px;cursor:pointer;font-size:1.1rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;';
+        const btnM=document.createElement('button'); btnM.textContent='−'; btnM.style.cssText='background:'+(qty>0?'#1e3a5f':'#e2e8f0')+';color:#fff;border:none;border-radius:6px;width:32px;height:32px;cursor:pointer;font-size:1.1rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;';
         btnM.addEventListener('click',()=>window._setEpiQty(epi,Math.max(0,(window._assinQtds[epi]||0)-1)));
         const inp=document.createElement('input'); inp.type='number'; inp.min='0'; inp.value=qty; inp.style.cssText='width:48px;text-align:center;border:1.5px solid #e2e8f0;border-radius:6px;padding:4px;font-size:0.95rem;font-weight:700;color:#0f172a;';
         inp.addEventListener('input',()=>window._setEpiQty(epi,Math.max(0,parseInt(inp.value)||0)));
@@ -11275,7 +11275,7 @@ window._assinStep = function(n) {
     }
 };
 
-// BotÃ£o "PrÃ³ximo / Confirmar / Fechar"
+// Botão "Próximo / Confirmar / Fechar"
 window._assinNextStep = async function() {
     const step = window._assinCurrentStep;
 
@@ -11331,7 +11331,7 @@ window._assinNextStep = async function() {
                         const tpl = (templates||[]).find(t => t.grupo === fich.grupo) || fich;
                         const { jsPDF } = window.jspdf;
 
-                        // Buscar TODAS as entregas jÃ¡ registradas para esta ficha (histÃ³rico completo)
+                        // Buscar TODAS as entregas já registradas para esta ficha (histórico completo)
                         const todasEntregas = await fetch(`${API_URL}/epi-fichas/${window._assinFichaId}/entregas`, {
                             headers: { 'Authorization': 'Bearer ' + currentToken }
                         }).then(r => r.json()).catch(() => []);
@@ -11356,7 +11356,7 @@ window._assinNextStep = async function() {
                     }
                 } catch(se) { console.warn('[save-onedrive]', se); }
             })();
-            // Recarrega a aba apÃ³s 2s e abre o PDF na tela
+            // Recarrega a aba após 2s e abre o PDF na tela
             setTimeout(() => {
                 const old = document.getElementById('epi-assinatura-overlay');
                 if (old) old.remove();
@@ -11452,7 +11452,7 @@ window.gerarNovaFichaEpi = async function() {
     }
 
     if (fichaAtiva) {
-        const ok = confirm(`JÃ¡ existe uma ficha ativa (${fichaAtiva.grupo}). Deseja fechar a atual e criar nova?`);
+        const ok = confirm(`Já existe uma ficha ativa (${fichaAtiva.grupo}). Deseja fechar a atual e criar nova?`);
         if (!ok) return;
     }
 
@@ -11474,7 +11474,7 @@ window.gerarNovaFichaEpi = async function() {
     const activeTab = document.querySelector('#tabs-list li.active');
     if (activeTab) renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
     
-    // Abre a visualizaÃ§Ã£o automaticamente apÃ³s criar a nova ficha (assinada)
+    // Abre a visualização automaticamente após criar a nova ficha (assinada)
     if (created.id) {
         setTimeout(() => { window.previewFichaEpi(created.id); }, 500);
     }
@@ -11556,20 +11556,20 @@ window._pageBookmarks = JSON.parse(localStorage.getItem('pageBookmarks') || '[]'
 function getNormalizedPageSearchData() {
     const pages = [];
     for (const [key, obj] of Object.entries(BREADCRUMB_MAP)) {
-        const parts = obj.path.split('â†’').map(p => p.trim());
+        const parts = obj.path.split('→').map(p => p.trim());
         const rootPath = parts[0];
         
         let targetKey = key;
         let rootCode = obj.code;
         
-        // Se a tela for interna (sem cÃ³digo), redireciona o clique para a root (a raiz, ex: Colaboradores)
+        // Se a tela for interna (sem código), redireciona o clique para a root (a raiz, ex: Colaboradores)
         if (!obj.code) {
             const rootEntry = Object.entries(BREADCRUMB_MAP).find(([k, v]) => v.path === rootPath && v.code);
             if (rootEntry) {
                 targetKey = rootEntry[0];
                 rootCode = rootEntry[1].code;
             } else {
-                // Algumas rotas raÃ­zes podem variar os nomes, tentar deduÃ§Ãµes cruas:
+                // Algumas rotas raízes podem variar os nomes, tentar deduções cruas:
                 if (rootPath.includes('Colaboradores')) {
                     targetKey = 'colaboradores'; rootCode = 'RHCL00';
                 } else if (rootPath.includes('EPI')) {
@@ -11593,7 +11593,7 @@ window.handlePageSearch = function(q) {
     const filtered = all.filter(p => p.name.toLowerCase().includes(q) || (p.code && p.code.toLowerCase().includes(q)));
     
     if (filtered.length === 0) {
-        resDiv.innerHTML = '<div style="padding:10px; color:#64748b; font-size:0.85rem;">Nenhuma pÃ¡gina encontrada.</div>';
+        resDiv.innerHTML = '<div style="padding:10px; color:#64748b; font-size:0.85rem;">Nenhuma página encontrada.</div>';
     } else {
         resDiv.innerHTML = filtered.map(p => `
             <div onclick="abrirAbaOuNavegar('${p.key}')" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'" style="padding:10px 14px; cursor:pointer; border-bottom:1px solid #f1f5f9; font-size:0.85rem; display:flex; align-items:center; gap:10px;">
@@ -11610,8 +11610,8 @@ window.abrirAbaOuNavegar = function(key) {
         const tabName = key.replace('tab:', '');
         const li = document.querySelector(`#tabs-list li[data-tab="${tabName}"]`);
         if (li) {
-            // Se estivermos fora do prontuÃ¡rio, nÃ£o rola assim direto sem abrir o colab. 
-            // Mas vamos assumir que o usuÃ¡rio sÃ³ favorita as abas quando estÃ¡ num colaborador
+            // Se estivermos fora do prontuário, não rola assim direto sem abrir o colab. 
+            // Mas vamos assumir que o usuário só favorita as abas quando está num colaborador
             renderTabContent(tabName, li.textContent.trim());
         }
     } else {
@@ -11649,7 +11649,7 @@ window.renderBookmarks = function() {
         if (!obj) return '';
 
         // Ignorar tabs ou caminhos com setas, a menos que seja usuarios-permissoes ou form-usuario
-        if ((obj.path.includes('â†’') && key !== 'usuarios-permissoes' && key !== 'form-usuario') || key.startsWith('tab:')) return '';
+        if ((obj.path.includes('→') && key !== 'usuarios-permissoes' && key !== 'form-usuario') || key.startsWith('tab:')) return '';
         
         let btnColor = '#f503c5';
         if (obj.path.includes('Diretoria')) {
@@ -11658,7 +11658,7 @@ window.renderBookmarks = function() {
 
         let btnLabel = obj.path;
         if (key === 'usuarios-permissoes' || key === 'form-usuario') {
-            btnLabel = 'UsuÃ¡rios';
+            btnLabel = 'Usuários';
         }
 
         return `<button onclick="abrirAbaOuNavegar('${key}')" style="background:${btnColor}; color:white; border:none; border-radius:16px; padding:4px 12px; font-size:0.75rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px; box-shadow:0 2px 4px rgba(0,0,0,0.2); transition:transform 0.2s;" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'">${btnLabel}</button>`;
@@ -11720,14 +11720,14 @@ window.toggleSidebar = function() {
 })();
 
 // ==========================================
-// PRONTUÃRIO TABS SEARCH FILTER
+// PRONTUÁRIO TABS SEARCH FILTER
 // ==========================================
 window.filterTabsList = function(q) {
     q = (q || '').toLowerCase().trim();
     document.querySelectorAll('#tabs-list li').forEach(li => {
         const text = li.textContent.trim().toLowerCase();
         // Never hide the hidden ones (Boletim, Conjuge) unless they match
-        const originallyHidden = li.id === 'tab-conjuge' || li.dataset.tab === 'Boletim de ocorrÃªncia';
+        const originallyHidden = li.id === 'tab-conjuge' || li.dataset.tab === 'Boletim de ocorrência';
         if (!q) {
             li.style.display = originallyHidden ? 'none' : '';
         } else {
@@ -11737,20 +11737,20 @@ window.filterTabsList = function(q) {
 };
 
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// CERTIFICADO DIGITAL (.PFX) â€” Assinatura AutomÃ¡tica da America Rental
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════════════════════════
+// CERTIFICADO DIGITAL (.PFX) — Assinatura Automática da America Rental
+// ══════════════════════════════════════════════════════════════════════
 
 /**
  * Carrega o status do certificado digital e atualiza o banner.
- * Chamado ao entrar no step 2 da admissÃ£o e tambÃ©m nas abas ASO / Pagamentos do ProntuÃ¡rio.
+ * Chamado ao entrar no step 2 da admissão e também nas abas ASO / Pagamentos do Prontuário.
  */
 window.carregarStatusCertificado = async function(customBannerId = null) {
     const bannerId = customBannerId || 'cert-digital-banner';
     const banner = document.getElementById(bannerId);
     if (!banner) return;
 
-    // Verificar se o usuÃ¡rio Ã© da Diretoria
+    // Verificar se o usuário é da Diretoria
     const isDiretoria = currentUser && (
         currentUser.role === 'Diretoria' ||
         currentUser.role === 'Administrador' ||
@@ -11760,7 +11760,7 @@ window.carregarStatusCertificado = async function(customBannerId = null) {
     const btnGerenciar = isDiretoria
         ? `<button onclick="navigateTo('certificado-digital')"
                style="border:none;background:rgba(22,163,74,0.15);color:#166534;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:4px;flex-shrink:0;">
-               <i class="ph ph-arrow-square-out"></i> Diretoria â†’ Certificado
+               <i class="ph ph-arrow-square-out"></i> Diretoria → Certificado
            </button>`
         : '';
 
@@ -11769,7 +11769,7 @@ window.carregarStatusCertificado = async function(customBannerId = null) {
                style="border:none;background:#fef3c7;color:#92400e;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:4px;flex-shrink:0;">
                <i class="ph ph-arrow-square-out"></i> Configurar na Diretoria
            </button>`
-        : `<span style="font-size:0.76rem;opacity:0.75;white-space:nowrap;">Configure em Diretoria â†’ Certificado Digital</span>`;
+        : `<span style="font-size:0.76rem;opacity:0.75;white-space:nowrap;">Configure em Diretoria → Certificado Digital</span>`;
 
     try {
         const data = await apiGet('/certificado-digital/status');
@@ -11781,10 +11781,10 @@ window.carregarStatusCertificado = async function(customBannerId = null) {
             banner.innerHTML = `
                 <i class="ph ph-seal-check" style="font-size:1.3rem;color:#16a34a;flex-shrink:0;"></i>
                 <div style="flex:1;">
-                    <div style="font-weight:700;">âœ… Assinatura Digital da Empresa Ativa</div>
+                    <div style="font-weight:700;">✅ Assinatura Digital da Empresa Ativa</div>
                     <div style="font-size:0.76rem;margin-top:2px;opacity:0.85;">
-                        ${data.cn ? `<b>${data.cn}</b> â€” ` : ''}Validade: ${data.validade || 'N/A'}
-                        â€” Os documentos serÃ£o prÃ©-assinados com o certificado antes de ir ao colaborador
+                        ${data.cn ? `<b>${data.cn}</b> — ` : ''}Validade: ${data.validade || 'N/A'}
+                        — Os documentos serão pré-assinados com o certificado antes de ir ao colaborador
                     </div>
                 </div>
                 ${btnGerenciar}`;
@@ -11795,10 +11795,10 @@ window.carregarStatusCertificado = async function(customBannerId = null) {
             banner.innerHTML = `
                 <i class="ph ph-warning" style="font-size:1.3rem;color:#d97706;flex-shrink:0;"></i>
                 <div style="flex:1;">
-                    <div style="font-weight:700;">Assinatura Digital nÃ£o configurada</div>
+                    <div style="font-weight:700;">Assinatura Digital não configurada</div>
                     <div style="font-size:0.76rem;margin-top:2px;opacity:0.85;">
-                        Os documentos serÃ£o enviados <b>sem assinatura digital</b>.
-                        ${isDiretoria ? 'Configure o certificado .pfx na Diretoria.' : 'Solicite Ã  Diretoria para configurar o certificado digital.'}
+                        Os documentos serão enviados <b>sem assinatura digital</b>.
+                        ${isDiretoria ? 'Configure o certificado .pfx na Diretoria.' : 'Solicite à Diretoria para configurar o certificado digital.'}
                     </div>
                 </div>
                 ${btnConfigurar}`;
@@ -11807,7 +11807,7 @@ window.carregarStatusCertificado = async function(customBannerId = null) {
         banner.style.background = '#f1f5f9';
         banner.style.border     = '1.5px solid #e2e8f0';
         banner.style.color      = '#64748b';
-        banner.innerHTML = `<i class="ph ph-info" style="font-size:1.1rem;"></i> <span style="flex:1;">Assinatura digital: verificaÃ§Ã£o indisponÃ­vel</span>`;
+        banner.innerHTML = `<i class="ph ph-info" style="font-size:1.1rem;"></i> <span style="flex:1;">Assinatura digital: verificação indisponível</span>`;
     }
 };
 
@@ -11815,7 +11815,7 @@ window.carregarStatusCertificado = async function(customBannerId = null) {
  * Abre o modal de gerenciamento do certificado digital.
  */
 window.abrirModalCertificado = function() {
-    // Criar modal se nÃ£o existir
+    // Criar modal se não existir
     let modal = document.getElementById('modal-cert-digital');
     if (!modal) {
         modal = document.createElement('div');
@@ -11831,7 +11831,7 @@ window.abrirModalCertificado = function() {
                         </div>
                         <div>
                             <div style="font-weight:700;color:#fff;font-size:1rem;">Certificado Digital (.PFX)</div>
-                            <div style="font-size:0.75rem;color:#94a3b8;">Assinatura automÃ¡tica da America Rental</div>
+                            <div style="font-size:0.75rem;color:#94a3b8;">Assinatura automática da America Rental</div>
                         </div>
                     </div>
                     <button onclick="window.fecharModalCertificado()" style="background:rgba(255,255,255,0.1);border:none;width:32px;height:32px;border-radius:8px;color:#fff;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">
@@ -11847,15 +11847,15 @@ window.abrirModalCertificado = function() {
                         <i class="ph ph-spinner ph-spin"></i> Carregando status...
                     </div>
 
-                    <!-- ExplicaÃ§Ã£o -->
+                    <!-- Explicação -->
                     <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:0.85rem 1rem;font-size:0.82rem;color:#1e40af;">
                         <div style="font-weight:700;margin-bottom:4px;"><i class="ph ph-info"></i> Como funciona</div>
-                        O certificado digital A1 (.pfx) da empresa Ã© usado para assinar os PDFs gerados <b>antes</b> de serem 
-                        enviados ao colaborador via Assinafy. Isso garante que o documento jÃ¡ sai com a assinatura oficial 
+                        O certificado digital A1 (.pfx) da empresa é usado para assinar os PDFs gerados <b>antes</b> de serem 
+                        enviados ao colaborador via Assinafy. Isso garante que o documento já sai com a assinatura oficial 
                         da <b>America Rental Equipamentos Ltda</b>.
                     </div>
 
-                    <!-- Upload formulÃ¡rio -->
+                    <!-- Upload formulário -->
                     <div>
                         <label style="font-size:0.82rem;font-weight:700;color:#374151;display:block;margin-bottom:6px;">
                             Arquivo .PFX <span style="font-weight:400;color:#94a3b8;">(Certificado A1)</span>
@@ -12003,14 +12003,14 @@ window.salvarCertificado = async function() {
 
         if (!res.ok) throw new Error(data.error || 'Erro ao salvar o certificado');
 
-        if (msgEl) { msgEl.style.background = '#f0fdf4'; msgEl.style.border = '1px solid #bbf7d0'; msgEl.style.color = '#166534'; msgEl.innerHTML = `âœ… Certificado salvo com sucesso! CN: <b>${data.cn}</b> | Validade: ${data.validade}`; }
+        if (msgEl) { msgEl.style.background = '#f0fdf4'; msgEl.style.border = '1px solid #bbf7d0'; msgEl.style.color = '#166534'; msgEl.innerHTML = `✅ Certificado salvo com sucesso! CN: <b>${data.cn}</b> | Validade: ${data.validade}`; }
         
         // Atualizar status no modal e no banner
         await window._atualizarStatusModalCert();
         window.carregarStatusCertificado();
 
     } catch(e) {
-        if (msgEl) { msgEl.style.background = '#fef2f2'; msgEl.style.border = '1px solid #fca5a5'; msgEl.style.color = '#dc2626'; msgEl.innerHTML = `âŒ ${e.message}`; }
+        if (msgEl) { msgEl.style.background = '#fef2f2'; msgEl.style.border = '1px solid #fca5a5'; msgEl.style.color = '#dc2626'; msgEl.innerHTML = `❌ ${e.message}`; }
     } finally {
         if (btnSalvar) { btnSalvar.disabled = false; btnSalvar.innerHTML = `<i class="ph ph-floppy-disk"></i> Salvar Certificado`; }
     }
@@ -12026,16 +12026,16 @@ window.testarCertificado = async function() {
         const res  = await fetch(`${API_URL}/certificado-digital/testar`, { method: 'POST', headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' } });
         const data = await res.json();
         if (!res.ok || !data.ok) throw new Error(data.erro || 'Falha no teste');
-        if (msgEl) { msgEl.style.background = '#f0fdf4'; msgEl.style.border = '1px solid #bbf7d0'; msgEl.style.color = '#166534'; msgEl.innerHTML = `${data.message || 'âœ… Assinatura funcionando!'} (PDF: ${(data.tamanho_bytes/1024).toFixed(1)} KB)`; }
+        if (msgEl) { msgEl.style.background = '#f0fdf4'; msgEl.style.border = '1px solid #bbf7d0'; msgEl.style.color = '#166534'; msgEl.innerHTML = `${data.message || '✅ Assinatura funcionando!'} (PDF: ${(data.tamanho_bytes/1024).toFixed(1)} KB)`; }
     } catch(e) {
-        if (msgEl) { msgEl.style.background = '#fef2f2'; msgEl.style.border = '1px solid #fca5a5'; msgEl.style.color = '#dc2626'; msgEl.innerHTML = `âŒ Teste falhou: ${e.message}`; }
+        if (msgEl) { msgEl.style.background = '#fef2f2'; msgEl.style.border = '1px solid #fca5a5'; msgEl.style.color = '#dc2626'; msgEl.innerHTML = `❌ Teste falhou: ${e.message}`; }
     } finally {
         if (btnTest) { btnTest.disabled = false; }
     }
 };
 
 window.removerCertificado = async function() {
-    if (!confirm('Tem certeza que deseja remover o certificado digital? Os documentos serÃ£o enviados sem assinatura automÃ¡tica da empresa.')) return;
+    if (!confirm('Tem certeza que deseja remover o certificado digital? Os documentos serão enviados sem assinatura automática da empresa.')) return;
     try {
         const res  = await fetch(`${API_URL}/certificado-digital`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${currentToken}` } });
         const data = await res.json();
@@ -12043,14 +12043,14 @@ window.removerCertificado = async function() {
         await window._atualizarStatusModalCert();
         window.carregarStatusCertificado();
         const msgEl = document.getElementById('cert-upload-msg');
-        if (msgEl) { msgEl.style.display = 'block'; msgEl.style.background = '#f0fdf4'; msgEl.style.border = '1px solid #bbf7d0'; msgEl.style.color = '#166534'; msgEl.innerHTML = 'âœ… Certificado removido com sucesso.'; }
+        if (msgEl) { msgEl.style.display = 'block'; msgEl.style.background = '#f0fdf4'; msgEl.style.border = '1px solid #bbf7d0'; msgEl.style.color = '#166534'; msgEl.innerHTML = '✅ Certificado removido com sucesso.'; }
     } catch(e) { alert(e.message); }
 };
 
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// CERTIFICADO DIGITAL â€” FunÃ§Ãµes da View da Diretoria
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════════════════════════
+// CERTIFICADO DIGITAL — Funções da View da Diretoria
+// ══════════════════════════════════════════════════════════════════════
 
 /** Carrega o status na view de Diretoria > Certificado Digital */
 window.carregarCertificadoView = async function() {
@@ -12068,11 +12068,11 @@ window.carregarCertificadoView = async function() {
             statusEl.innerHTML = `
                 <i class="ph ph-seal-check" style="font-size:1.8rem;color:#16a34a;flex-shrink:0;"></i>
                 <div>
-                    <div style="font-weight:700;font-size:0.95rem;margin-bottom:4px;">âœ… Certificado Digital Ativo</div>
+                    <div style="font-weight:700;font-size:0.95rem;margin-bottom:4px;">✅ Certificado Digital Ativo</div>
                     <div style="display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font-size:0.82rem;">
                         <span style="opacity:0.7;">Titular:</span> <b>${data.cn || 'N/A'}</b>
-                        <span style="opacity:0.7;">OrganizaÃ§Ã£o:</span> <span>${data.org || 'N/A'}</span>
-                        <span style="opacity:0.7;">Validade:</span> <b style="color:${isDateNear(data.validade) ? '#dc2626' : '#166534'}">${data.validade || 'N/A'} ${isDateNear(data.validade) ? 'âš ï¸ PrÃ³ximo do vencimento!' : ''}</b>
+                        <span style="opacity:0.7;">Organização:</span> <span>${data.org || 'N/A'}</span>
+                        <span style="opacity:0.7;">Validade:</span> <b style="color:${isDateNear(data.validade) ? '#dc2626' : '#166534'}">${data.validade || 'N/A'} ${isDateNear(data.validade) ? '⚠️ Próximo do vencimento!' : ''}</b>
                         <span style="opacity:0.7;">Serial:</span> <span style="font-family:monospace;">${(data.serial||'').slice(-12)}</span>
                     </div>
                 </div>`;
@@ -12081,7 +12081,7 @@ window.carregarCertificadoView = async function() {
         } else {
             const isErro = data.configurado && !data.ok;
             const titulo = isErro ? 'Problema no Certificado Atual' : 'Nenhum certificado configurado';
-            const subtitulo = isErro ? `âš ï¸ ${data.erro || 'Falha ao ler o certificado (senha invÃ¡lida ou arquivo corrompido).'}` : (data.motivo || 'Configure o arquivo .pfx ao lado para ativar a assinatura automÃ¡tica.');
+            const subtitulo = isErro ? `⚠️ ${data.erro || 'Falha ao ler o certificado (senha inválida ou arquivo corrompido).'}` : (data.motivo || 'Configure o arquivo .pfx ao lado para ativar a assinatura automática.');
             
             statusEl.style.cssText = `padding:1rem;border-radius:10px;background:#fffbeb;border:1.5px solid ${isErro ? '#fca5a5' : '#fcd34d'};font-size:0.88rem;color:${isErro ? '#dc2626' : '#92400e'};display:flex;align-items:center;gap:0.75rem;min-height:70px;`;
             statusEl.innerHTML = `
@@ -12144,13 +12144,13 @@ window.salvarCertificadoView = async function() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Erro ao salvar');
 
-        if (msgEl) { msgEl.style.cssText='display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;margin-bottom:0.75rem;'; msgEl.innerHTML = `âœ… Certificado salvo com sucesso! Ativo para sempre atÃ© o vencimento.<br><b>Titular:</b> ${data.cn} | <b>Validade:</b> ${data.validade}`; }
+        if (msgEl) { msgEl.style.cssText='display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;margin-bottom:0.75rem;'; msgEl.innerHTML = `✅ Certificado salvo com sucesso! Ativo para sempre até o vencimento.<br><b>Titular:</b> ${data.cn} | <b>Validade:</b> ${data.validade}`; }
 
         // Recarregar status
         await window.carregarCertificadoView();
 
     } catch(e) {
-        if (msgEl) { msgEl.style.cssText='display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#fef2f2;border:1px solid #fca5a5;color:#dc2626;margin-bottom:0.75rem;'; msgEl.innerHTML = `âŒ ${e.message}`; }
+        if (msgEl) { msgEl.style.cssText='display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#fef2f2;border:1px solid #fca5a5;color:#dc2626;margin-bottom:0.75rem;'; msgEl.innerHTML = `❌ ${e.message}`; }
     } finally {
         if (btnSalvar) { btnSalvar.disabled = false; btnSalvar.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar Certificado'; }
     }
@@ -12170,16 +12170,16 @@ window.testarAssinaturaView = async function() {
         const res  = await fetch(`${API_URL}/certificado-digital/testar-assinatura`, { method: 'POST', headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' } });
         const data = await res.json();
         if (!res.ok || !data.ok) throw new Error(data.erro || 'Falha no teste');
-        if (resultEl) { resultEl.style.cssText='display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;'; resultEl.innerHTML = `âœ… ${data.mensagem} PDF assinado: ${(data.tamanhoAssinado/1024).toFixed(1)} KB`; }
+        if (resultEl) { resultEl.style.cssText='display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;'; resultEl.innerHTML = `✅ ${data.mensagem} PDF assinado: ${(data.tamanhoAssinado/1024).toFixed(1)} KB`; }
     } catch(e) {
-        if (resultEl) { resultEl.style.cssText='display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#fef2f2;border:1px solid #fca5a5;color:#dc2626;'; resultEl.innerHTML = `âŒ Erro: ${e.message}`; }
+        if (resultEl) { resultEl.style.cssText='display:block;padding:0.6rem 0.85rem;border-radius:8px;font-size:0.82rem;background:#fef2f2;border:1px solid #fca5a5;color:#dc2626;'; resultEl.innerHTML = `❌ Erro: ${e.message}`; }
     } finally {
         if (btn) btn.disabled = false;
     }
 };
 
 window.removerCertificadoView = async function() {
-    if (!confirm('Remover o certificado digital? Os documentos serÃ£o enviados SEM assinatura automÃ¡tica da empresa atÃ© que outro seja configurado.')) return;
+    if (!confirm('Remover o certificado digital? Os documentos serão enviados SEM assinatura automática da empresa até que outro seja configurado.')) return;
     try {
         const res  = await fetch(`${API_URL}/certificado-digital`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${currentToken}` } });
         const data = await res.json();
@@ -12193,7 +12193,7 @@ const _origShowView = window.showView;
 window.showView = function(id) {
     if (typeof _origShowView === 'function') _origShowView(id);
 };
-// JÃ¡ existe o navigateTo â€” adicionar hook para certificado-digital
+// Já existe o navigateTo — adicionar hook para certificado-digital
 const _origNavigateTo = window.navigateTo;
 if (typeof _origNavigateTo === 'function') {
     window.navigateTo = function(view) {
@@ -12215,13 +12215,13 @@ window.limparAsssinaturasTeste = async function() {
         });
         const data = await res.json();
         if (res.ok) {
-            alert('âœ… Registros de teste removidos com sucesso!');
+            alert('✅ Registros de teste removidos com sucesso!');
             window.loadAssinaturasDigitais();
         } else {
             alert('Erro: ' + (data.error || 'Falha ao limpar.'));
         }
     } catch(e) {
-        alert('Erro de conexÃ£o: ' + e.message);
+        alert('Erro de conexão: ' + e.message);
     }
 };
 
@@ -12237,12 +12237,12 @@ window.loadAssinaturasDigitais = async function() {
             return;
         }
 
-        // Coletar tipos Ãºnicos de documentos e statuses para filtros
+        // Coletar tipos únicos de documentos e statuses para filtros
         const tipos = [...new Set(dados.map(d => d.nome_documento).filter(Boolean))].sort();
         const statuses = ['Todos', 'Assinado', 'Pendente'];
 
         const fmtDate = (v) => {
-            if (!v) return 'â€”';
+            if (!v) return '—';
             try {
                 const d = new Date(String(v).includes('Z') ? v : v + 'Z');
                 return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -12263,8 +12263,8 @@ window.loadAssinaturasDigitais = async function() {
                 <select id="ass-filter-status" onchange="window.filtrarAssinaturas()"
                     style="border:1px solid #e2e8f0;border-radius:6px;padding:0.4rem 0.75rem;font-size:0.85rem;color:#334155;background:#fff;cursor:pointer;">
                     <option value="">Todos os status</option>
-                    <option value="Assinado">âœ… Assinado</option>
-                    <option value="Pendente">â³ Aguardando</option>
+                    <option value="Assinado">✅ Assinado</option>
+                    <option value="Pendente">⏳ Aguardando</option>
                 </select>
                 <select id="ass-filter-tipo" onchange="window.filtrarAssinaturas()"
                     style="border:1px solid #e2e8f0;border-radius:6px;padding:0.4rem 0.75rem;font-size:0.85rem;color:#334155;background:#fff;cursor:pointer;">
@@ -12283,7 +12283,7 @@ window.loadAssinaturasDigitais = async function() {
                             <th style="padding:0.75rem 1rem;text-align:center;font-weight:700;color:#475569;white-space:nowrap;">Status</th>
                             <th style="padding:0.75rem 1rem;text-align:left;font-weight:700;color:#475569;white-space:nowrap;">Enviado em</th>
                             <th style="padding:0.75rem 1rem;text-align:left;font-weight:700;color:#475569;white-space:nowrap;">Assinado em</th>
-                            <th style="padding:0.75rem 1rem;text-align:center;font-weight:700;color:#475569;white-space:nowrap;">AÃ§Ãµes</th>
+                            <th style="padding:0.75rem 1rem;text-align:center;font-weight:700;color:#475569;white-space:nowrap;">Ações</th>
                         </tr>
                     </thead>
                     <tbody id="ass-table-body">
@@ -12304,7 +12304,7 @@ window.loadAssinaturasDigitais = async function() {
 
 
 window.setStatusOutroMeio = async function(id, source) {
-    if (!confirm('Tem certeza que deseja marcar este documento como assinado por "Outro Meio"? Ele saÃ­ra da fila de pendentes.')) return;
+    if (!confirm('Tem certeza que deseja marcar este documento como assinado por "Outro Meio"? Ele saíra da fila de pendentes.')) return;
     try {
         const res = await apiPost('/admissao-assinaturas/outro-meio', { id, source });
         alert(res.message || 'Status atualizado com sucesso!');
@@ -12340,7 +12340,7 @@ window.filtrarAssinaturas = function() {
     if (label) label.textContent = `${filtered.length} registro(s)`;
 
     const fmtDate = (v) => {
-        if (!v) return 'â€”';
+        if (!v) return '—';
         try {
             const d = new Date(String(v).includes('Z') ? v : v + 'Z');
             return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -12361,9 +12361,9 @@ window.filtrarAssinaturas = function() {
             ? '<span style="background:#dcfce7;color:#15803d;border-radius:20px;padding:3px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-check-circle"></i> Assinado</span>'
             : d.assinafy_status === 'Pendente'
             ? '<span style="background:#fef9c3;color:#92400e;border-radius:20px;padding:3px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-clock"></i> Aguardando</span>'
-            : '<span style="background:#f1f5f9;color:#64748b;border-radius:20px;padding:3px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;">â€”</span>';
+            : '<span style="background:#f1f5f9;color:#64748b;border-radius:20px;padding:3px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;">—</span>';
 
-        let viewBtn = `<span style="color:#94a3b8;font-size:0.78rem;">â€”</span>`;
+        let viewBtn = `<span style="color:#94a3b8;font-size:0.78rem;">—</span>`;
         if (isSigned) {
             const nomeEsc = (d.nome_documento||'').replace(/'/g, "\\'");
             if (d.source === 'documento') {
@@ -12378,11 +12378,11 @@ window.filtrarAssinaturas = function() {
         return `
         <tr style="border-bottom:1px solid #f1f5f9;transition:background 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
             <td style="padding:0.75rem 1rem;">
-                <div style="font-weight:600;color:#1e293b;">${d.colaborador_nome || 'â€”'}</div>
-                <div style="font-size:0.75rem;color:#94a3b8;">${d.colaborador_cargo || ''} ${d.colaborador_departamento ? 'Â· ' + d.colaborador_departamento : ''}</div>
+                <div style="font-weight:600;color:#1e293b;">${d.colaborador_nome || '—'}</div>
+                <div style="font-size:0.75rem;color:#94a3b8;">${d.colaborador_cargo || ''} ${d.colaborador_departamento ? '· ' + d.colaborador_departamento : ''}</div>
             </td>
             <td style="padding:0.75rem 1rem;">
-                <div style="font-weight:600;color:#334155;">${d.nome_documento || 'â€”'}</div>
+                <div style="font-weight:600;color:#334155;">${d.nome_documento || '—'}</div>
             </td>
             <td style="padding:0.75rem 1rem;text-align:center;">${statusBadge}</td>
             <td style="padding:0.75rem 1rem;color:#475569;white-space:nowrap;">${fmtDate(d.enviado_em)}</td>
@@ -12411,7 +12411,7 @@ window.reenviarAssinatura = async function(id, source, btn) {
         
         if (res.ok && data.success) {
             if (data.warn) {
-                alert('AtenÃ§Ã£o: ' + data.warn + '\n\nO link Ã©: ' + (data.link || ''));
+                alert('Atenção: ' + data.warn + '\n\nO link é: ' + (data.link || ''));
             } else {
                 alert('E-mail de lembrete enviado com sucesso para o colaborador!');
             }
@@ -12425,7 +12425,7 @@ window.reenviarAssinatura = async function(id, source, btn) {
     }
 };
 
-// Registrar navegaÃ§Ã£o para a tela de assinaturas
+// Registrar navegação para a tela de assinaturas
 (function() {
     const origNavigate = window.navigateTo;
     if (typeof origNavigate === 'function') {
@@ -12445,7 +12445,7 @@ window.reenviarAssinatura = async function(id, source, btn) {
 })();
 
 
-// === SISTEMA DE HISTÃ“RICO DE AUDITORIA ===
+// === SISTEMA DE HISTÓRICO DE AUDITORIA ===
 window._historyData = [];
 window._historyPage = 1;
 const HISTORY_PER_PAGE = 20;
@@ -12469,12 +12469,12 @@ window._renderHistoryPage = function() {
     const start = (page - 1) * HISTORY_PER_PAGE;
     const slice = data.slice(start, start + HISTORY_PER_PAGE);
 
-    if (pageInfo) pageInfo.textContent = `PÃ¡g. ${page} / ${totalPages}`;
+    if (pageInfo) pageInfo.textContent = `Pág. ${page} / ${totalPages}`;
     if (prevBtn) prevBtn.disabled = page <= 1;
     if (nextBtn) nextBtn.disabled = page >= totalPages;
 
     if (slice.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 2rem; color: #94a3b8;">Nenhum registro de alteraÃ§Ã£o encontrado.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 2rem; color: #94a3b8;">Nenhum registro de alteração encontrado.</td></tr>';
         return;
     }
 
@@ -12493,10 +12493,10 @@ window._renderHistoryPage = function() {
         const campoLabel = log.campo ? `<span style="color:#94a3b8;font-size:0.75rem;font-weight:600;">${log.campo}: </span>` : '';
         const anteriorCell = log.conteudo_anterior
             ? `${campoLabel}<span>${log.conteudo_anterior}</span>`
-            : `<span style="color:#cbd5e1;">â€”</span>`;
+            : `<span style="color:#cbd5e1;">—</span>`;
         const atualCell = log.conteudo_atual
             ? `${campoLabel}<span style="font-weight:600;">${log.conteudo_atual}</span>`
-            : `<span style="color:#cbd5e1;">â€”</span>`;
+            : `<span style="color:#cbd5e1;">—</span>`;
 
         html += `<tr style="${stripBg}border-bottom:1px solid #f1f5f9;">
             <td style="padding:0.7rem 1rem; white-space:nowrap; color:#334155; font-size:0.82rem;">${dateStr}</td>
@@ -12523,7 +12523,7 @@ window.showHistoryPopup = async function() {
 
     try {
         let url = `${API_URL}/auditoria`;
-        let labelText = 'Todas as alteraÃ§Ãµes do sistema';
+        let labelText = 'Todas as alterações do sistema';
         
         const viewPront = document.getElementById('view-prontuario');
         const viewAdm = document.getElementById('view-admissao');
@@ -12546,13 +12546,13 @@ window.showHistoryPopup = async function() {
         const isAvaliacoesActive = viewAvaliacoes && viewAvaliacoes.classList.contains('active');
 
         if (isColabActive && viewedColaborador && viewedColaborador.id) {
-            // ProntuÃ¡rio ou AdmissÃ£o de um colaborador especÃ­fico
+            // Prontuário ou Admissão de um colaborador específico
             url += `?contexto=colaborador&id=${viewedColaborador.id}`;
             labelText = `Colaborador: ${viewedColaborador.nome_completo || viewedColaborador.nome || ''}`;
         } else if (isColabActive) {
-            // Lista de colaboradores = todas as alteraÃ§Ãµes em todos os colaboradores
+            // Lista de colaboradores = todas as alterações em todos os colaboradores
             url += `?contexto=colaboradores_geral`;
-            labelText = 'Todas as alteraÃ§Ãµes em Colaboradores';
+            labelText = 'Todas as alterações em Colaboradores';
         } else if (isGerActive) {
             url += `?contexto=gerador`;
             labelText = 'Tela: Geradores de Documentos';
@@ -12567,7 +12567,7 @@ window.showHistoryPopup = async function() {
             labelText = 'Tela: Fichas EPI';
         } else if (isAvaliacoesActive) {
             url += `?programa=Avalia`;
-            labelText = 'Tela: AvaliaÃ§Ãµes';
+            labelText = 'Tela: Avaliações';
         } else {
             url += `?contexto=geral`;
         }
@@ -12575,7 +12575,7 @@ window.showHistoryPopup = async function() {
         if (contextLabel) contextLabel.textContent = labelText;
 
         const res = await fetch(url, { headers: { 'Authorization': `Bearer ${currentToken}` } });
-        if (!res.ok) throw new Error('Falha ao carregar histÃ³rico');
+        if (!res.ok) throw new Error('Falha ao carregar histórico');
         const data = await res.json();
 
         loading.style.display = 'none';
@@ -12584,7 +12584,7 @@ window.showHistoryPopup = async function() {
 
     } catch (e) {
         loading.style.display = 'none';
-        document.getElementById('history-table-body').innerHTML = `<tr><td colspan="5" style="text-align:center; color:#ef4444; padding:1rem;">Erro ao carregar histÃ³rico: ${e.message}</td></tr>`;
+        document.getElementById('history-table-body').innerHTML = `<tr><td colspan="5" style="text-align:center; color:#ef4444; padding:1rem;">Erro ao carregar histórico: ${e.message}</td></tr>`;
     }
 };
 
@@ -12612,7 +12612,7 @@ setInterval(() => {
     }
 }, 500);
 
-// ===== SISTEMA DE TOAST: NOTIFICAÃ‡Ã•ES DE DOCUMENTOS ASSINADOS (ADMISSÃƒO) =====
+// ===== SISTEMA DE TOAST: NOTIFICAÇÕES DE DOCUMENTOS ASSINADOS (ADMISSÃO) =====
 (function() {
     // Container de toasts
     function getToastContainer() {
@@ -12664,7 +12664,7 @@ setInterval(() => {
             <i class="ph-fill ph-check-circle" style="font-size:1.8rem;color:${colorMain};flex-shrink:0;margin-top:1px;"></i>
             <div style="flex:1;min-width:0;">
                 <div style="font-size:0.7rem;font-weight:700;color:${colorText};text-transform:uppercase;letter-spacing:0.6px;margin-bottom:2px;">
-                    âœ… Documento Assinado
+                    ✅ Documento Assinado
                 </div>
                 <div style="font-size:0.9rem;font-weight:700;color:#f0fdf4;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
                     ${nomeDoc}
@@ -12678,7 +12678,7 @@ setInterval(() => {
             </div>
             <button onclick="this.closest('[data-toast-item]')?.remove()"
                 style="background:none;border:none;color:#64748b;cursor:pointer;font-size:1.1rem;padding:0 0 0 4px;flex-shrink:0;pointer-events:all;line-height:1;"
-                title="Fechar">âœ•</button>
+                title="Fechar">✕</button>
         `;
         // Inject animation keyframes once
         if (!document.getElementById('toast-anim-style')) {
@@ -12697,10 +12697,10 @@ setInterval(() => {
             document.head.appendChild(style);
         }
         container.appendChild(toast);
-        // Removido auto-remove: o popup ficarÃ¡ ativo atÃ© ser fechado manualmente
+        // Removido auto-remove: o popup ficará ativo até ser fechado manualmente
     }
 
-    // Polling: verifica a cada 30 segundos por documentos recÃ©m-assinados
+    // Polling: verifica a cada 30 segundos por documentos recém-assinados
     const SEEN_KEY = 'admissao_toasts_vistos';
     const SEEN_TTL_KEY = 'admissao_toasts_ttl';
     function getSeenIds() {
@@ -12719,7 +12719,7 @@ setInterval(() => {
         try {
             const seen = getSeenIds();
             ids.forEach(id => seen.add(id));
-            // Manter apenas os Ãºltimos 200 para nÃ£o encher o storage
+            // Manter apenas os últimos 200 para não encher o storage
             const arr = Array.from(seen).slice(-200);
             localStorage.setItem(SEEN_KEY, JSON.stringify(arr));
         } catch {}
@@ -12729,7 +12729,7 @@ setInterval(() => {
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
         if (!token) return;
 
-        // VerificaÃ§Ã£o simples: apenas requer login
+        // Verificação simples: apenas requer login
         try {
             const resp = await fetch(`${API_URL}/admissao-assinaturas/alertas-recentes`, {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -12750,10 +12750,10 @@ setInterval(() => {
             markSeen(novos.map(a => String(a.unq_id)));
 
             // AUTO-REFRESH STATUS ao detectar novo documento assinado
-            // Sempre tenta recarregar a aba Contratos; _reloadContratosContainer sÃ³ executa
-            // se o usuÃ¡rio estiver de fato na aba Contratos (ca-list-container no DOM)
+            // Sempre tenta recarregar a aba Contratos; _reloadContratosContainer só executa
+            // se o usuário estiver de fato na aba Contratos (ca-list-container no DOM)
             window._reloadContratosContainer().catch(() => {});
-            // Se o workflow de admissÃ£o estiver aberto, atualiza tambÃ©m
+            // Se o workflow de admissão estiver aberto, atualiza também
             if (document.getElementById('admissao-signature-list') && typeof window.initAdmissaoWorkflow === 'function' && viewedColaborador) {
                 window.initAdmissaoWorkflow(viewedColaborador.id, 2, true);
             }
@@ -12761,14 +12761,14 @@ setInterval(() => {
     }
 
 
-    // Iniciar polling apÃ³s 5 segundos (aguarda login completo) e repetir a cada 15s
+    // Iniciar polling após 5 segundos (aguarda login completo) e repetir a cada 15s
     setTimeout(() => {
         checkAlertasRecentes();
         setInterval(checkAlertasRecentes, 15000);
     }, 5000);
 
-    // SEGUNDO POLL: a cada 30s verifica silenciosamente se hÃ¡ docs Pendentes que
-    // foram assinados (fallback para quando alertas-recentes nÃ£o captura o evento)
+    // SEGUNDO POLL: a cada 30s verifica silenciosamente se há docs Pendentes que
+    // foram assinados (fallback para quando alertas-recentes não captura o evento)
     setInterval(() => {
         if (document.getElementById('ca-list-container') && viewedColaborador) {
             window.sincronizarStatusAssinaturas(false);
@@ -12777,7 +12777,7 @@ setInterval(() => {
 
 })();
 
-// --- GESTÃƒO DE INTEGRAÃ‡ÃƒO ---
+// --- GESTÃO DE INTEGRAÇÃO ---
 window.startIntegracao = function(val) {
     if(val) {
         document.getElementById('integracao-workflow').style.display = 'block';
@@ -12816,7 +12816,7 @@ window.loadIntegracaoColabs = async function() {
     try {
         const colaboradores = await apiGet('/colaboradores');
         if(!colaboradores) return;
-        const integracaoUsers = colaboradores.filter(c => c.status === 'Em IntegraÃ§Ã£o');
+        const integracaoUsers = colaboradores.filter(c => c.status === 'Em Integração');
         const sel = document.getElementById('select-integracao-colab');
         if(sel) {
             sel.innerHTML = '<option value="">Selecione um colaborador...</option>';
@@ -12837,7 +12837,7 @@ window.toggleAlergias = function(val) {
         input.style.background = '#fff';
         input.style.cursor = 'text';
         input.style.color = '#0f172a';
-        input.placeholder = 'Descreva aqui alergias, restriÃ§Ãµes ou intolerÃ¢ncias...';
+        input.placeholder = 'Descreva aqui alergias, restrições ou intolerâncias...';
     } else {
         input.disabled = true;
         input.style.background = '#f8fafc';
@@ -12926,11 +12926,11 @@ window.enviarFichaContabilidade = async function(btn) {
         return;
     }
     if (!dataInicio) {
-        alert("Preencha a Data de InÃ­cio Prevista.");
+        alert("Preencha a Data de Início Prevista.");
         return;
     }
 
-    // Verificar se todos os passos estÃ£o em 100%
+    // Verificar se todos os passos estão em 100%
     const stepBadges = document.querySelectorAll('.step-badge .step-pct');
     let allComplete = true;
     stepBadges.forEach(badge => {
@@ -12938,7 +12938,7 @@ window.enviarFichaContabilidade = async function(btn) {
         if (pct < 100) allComplete = false;
     });
     if (!allComplete) {
-        const ok = confirm('âš ï¸ AtenÃ§Ã£o! Ainda existem passos nÃ£o concluÃ­dos (nÃ£o estÃ£o em 100%).\n\nDeseja continuar mesmo assim e enviar os documentos para a Contabilidade?');
+        const ok = confirm('⚠️ Atenção! Ainda existem passos não concluídos (não estão em 100%).\n\nDeseja continuar mesmo assim e enviar os documentos para a Contabilidade?');
         if (!ok) return;
     }
 
@@ -12965,11 +12965,11 @@ window.enviarFichaContabilidade = async function(btn) {
             }
             // Mostrar toast em vez de alert bloqueante
             if (typeof admissaoToast === 'function') {
-                admissaoToast(`âœ… E-mail enviado para ${email}`, 'success');
+                admissaoToast(`✅ E-mail enviado para ${email}`, 'success');
             } else {
                 alert('Ficha e anexos enviados com sucesso para ' + email);
             }
-            // Refresh assÃ­ncrono em background para garantir consistÃªncia
+            // Refresh assíncrono em background para garantir consistência
             apiGet(`/colaboradores/${colabId}`).then(ref => {
                 if (ref && viewedColaborador) {
                     viewedColaborador = Object.assign(viewedColaborador, ref);
@@ -12982,7 +12982,7 @@ window.enviarFichaContabilidade = async function(btn) {
             alert('Erro ao enviar para Contabilidade: ' + (data.error || 'Erro desconhecido.'));
         }
     } catch(err) {
-        alert('Erro de conexÃ£o: ' + err.message);
+        alert('Erro de conexão: ' + err.message);
     } finally {
         btn.innerHTML = originalText;
         btn.disabled = false;
@@ -13009,7 +13009,7 @@ window.renderEnvioContabilidadeLog = function() {
         const dt = new Date(enviada_em.endsWith('Z') ? enviada_em : enviada_em + 'Z');
         const dia = dt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
         const hora = dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-        dataFormatada = `${dia} Ã s ${hora}`;
+        dataFormatada = `${dia} às ${hora}`;
     } catch(e) {}
 
     if (dataEl) dataEl.textContent = dataFormatada;
@@ -13018,7 +13018,7 @@ window.renderEnvioContabilidadeLog = function() {
     if (anexosEl && colab.admissao_contabil_anexos) {
         const lista = colab.admissao_contabil_anexos.split(',').map(s => s.trim()).filter(Boolean);
         if (lista.length > 0) {
-            anexosEl.innerHTML = lista.map(a => `<li>ðŸ“„ ${a}</li>`).join('');
+            anexosEl.innerHTML = lista.map(a => `<li>📄 ${a}</li>`).join('');
         } else {
             anexosEl.innerHTML = '<li style="color:#94a3b8">Nenhum anexo registrado</li>';
         }
@@ -13029,7 +13029,7 @@ window.renderEnvioContabilidadeLog = function() {
 
 
 // ============================================================
-// PASSO 2 ADMISSÃƒO â€” SANTANDER (Pedido de Abertura de Conta)
+// PASSO 2 ADMISSÃO — SANTANDER (Pedido de Abertura de Conta)
 // ============================================================
 // Helper: atualiza UI do Step 2 Santander (usada ao gerar e ao voltar ao passo)
 window._updateSantanderStepUI = function(dataSantander) {
@@ -13048,15 +13048,15 @@ window._updateSantanderStepUI = function(dataSantander) {
     }
 
     // === Marcar step 2 como 100% ===
-    // EstratÃ©gia 1: element com id step-2-pc
+    // Estratégia 1: element com id step-2-pc
     var elPc = document.getElementById('step-2-pc');
     if (elPc) elPc.textContent = '100%';
 
-    // EstratÃ©gia 2: o step-item do stepper (bolinha)
+    // Estratégia 2: o step-item do stepper (bolinha)
     var stepEl = document.getElementById('step-2');
     if (stepEl) {
         // Checar em diferentes estilos de stepper
-        // Aplicar via classe CSS (nÃ£o via style inline - conflita com .active:not(.pc-success))
+        // Aplicar via classe CSS (não via style inline - conflita com .active:not(.pc-success))
         stepEl.classList.remove('pc-warning');
         stepEl.classList.add('pc-success');
         var iconEl = stepEl.querySelector('.step-icon');
@@ -13066,12 +13066,12 @@ window._updateSantanderStepUI = function(dataSantander) {
             iconEl.style.removeProperty('color');
         }
         var numEl = stepEl.querySelector('.num, .step-number');
-        if (numEl) numEl.style.removeProperty('display'); // NUNCA esconder o nÃºmero
+        if (numEl) numEl.style.removeProperty('display'); // NUNCA esconder o número
         var pcEl = stepEl.querySelector('.percent, .step-percent, .pc');
         if (pcEl) { pcEl.style.display = 'inline'; pcEl.textContent = '100%'; }
     }
 
-    // EstratÃ©gia 3: procurar qualquer elemento que contenha "step-2" e "pc"
+    // Estratégia 3: procurar qualquer elemento que contenha "step-2" e "pc"
     var allPc = document.querySelectorAll('[id*="step"][id*="pc"]');
     allPc.forEach(function(el) {
         if (el.id === 'step-2-pc' || el.id.match(/step.?2.?pc/i)) {
@@ -13084,7 +13084,7 @@ window.populateSantanderPreview = async function() {
     var colab = viewedColaborador || window._admissaoColabSelecionado;
     if (!colab) return;
 
-    // Se ainda nÃ£o tem a data na memÃ³ria, busca do servidor (dados podem estar desatualizados)
+    // Se ainda não tem a data na memória, busca do servidor (dados podem estar desatualizados)
     if (!colab.santander_ficha_data && colab.id) {
         try {
             var fresh = await apiGet('/colaboradores/' + colab.id);
@@ -13102,22 +13102,22 @@ window.gerarFichaSantander = async function() {
     const colab = viewedColaborador || window._admissaoColabSelecionado;
     if (!colab) { alert('Selecione um colaborador primeiro.'); return; }
 
-    const fmt = (v) => v || 'â€”';
+    const fmt = (v) => v || '—';
     const hoje = new Date();
     const dataHoje = hoje.toLocaleDateString('pt-BR');
     const mesExtenso = hoje.toLocaleDateString('pt-BR', { month: 'long' });
     const anoStr = hoje.getFullYear();
     
-    // SalÃ¡rio formatado
-    const salario = colab.salario ? parseFloat(colab.salario).toLocaleString('pt-BR', {style:'currency', currency:'BRL'}) : 'â€”';
+    // Salário formatado
+    const salario = colab.salario ? parseFloat(colab.salario).toLocaleString('pt-BR', {style:'currency', currency:'BRL'}) : '—';
     
-    // EndereÃ§o e Cidade extraÃ­dos corretamente do endereÃ§o do Colaborador (agora separado por vÃ­rgula e traÃ§o)
+    // Endereço e Cidade extraídos corretamente do endereço do Colaborador (agora separado por vírgula e traço)
     let enderecoPuro = fmt(colab.endereco_completo);
-    let numero = 'â€”', complemento = 'â€”', bairro = 'â€”', cidade = 'â€”', estado = 'â€”', cep = 'â€”';
+    let numero = '—', complemento = '—', bairro = '—', cidade = '—', estado = '—', cep = '—';
     if (colab.endereco_completo) {
-        // SeparaÃ§Ã£o tÃ­pica: "Rua X, 123, Bairro, Cidade - SP, CEP"
+        // Separação típica: "Rua X, 123, Bairro, Cidade - SP, CEP"
         const parts = colab.endereco_completo.split(',');
-        enderecoPuro = parts[0] ? parts[0].trim() : 'â€”';
+        enderecoPuro = parts[0] ? parts[0].trim() : '—';
         if (parts.length > 1) {
             const part2 = parts[1].trim(); 
             numero = part2.split(' ')[0] || part2;
@@ -13132,8 +13132,8 @@ window.gerarFichaSantander = async function() {
         if (colab.cep) cep = colab.cep;
     }
     
-    // Data admissÃ£o formatada
-    let admissaoFmt = 'â€”';
+    // Data admissão formatada
+    let admissaoFmt = '—';
     if (colab.data_admissao) {
         const d = new Date(colab.data_admissao);
         d.setMinutes(d.getMinutes() + d.getTimezoneOffset());
@@ -13174,9 +13174,9 @@ window.gerarFichaSantander = async function() {
 </head>
 <body>
 <div class="page">
-  <!-- Logo real da AmÃ©rica Rental -->
+  <!-- Logo real da América Rental -->
   <div class="logo-area">
-    <img src="data:image/png;base64,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" alt="AmÃ©rica Rental">
+    <img src="data:image/png;base64,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" alt="América Rental">
   </div>
 
   <h1 class="titulo">PEDIDO DE ABERTURA DE CONTA</h1>
@@ -13185,41 +13185,41 @@ window.gerarFichaSantander = async function() {
   <div class="colab-nome">${fmt(colab.nome_completo)}</div>
 
   <p class="body-text">Prezado (a)</p>
-  <p class="body-text">Escolhemos o Santander como nosso parceiro para o processamento do pagamento do seu salÃ¡rio.</p>
-  <p class="body-text">Conforme determinam as ResoluÃ§Ãµes nÂº 3.402 e 3.424/06, do Conselho MonetÃ¡rio Nacional, seu salÃ¡rio serÃ¡ creditado em uma conta de registro, denominada 'conta salÃ¡rio', que nÃ£o Ã© movimentÃ¡vel por cheque, nÃ£o admite crÃ©ditos de outras naturezas que nÃ£o salariais e possui serviÃ§os limitados.</p>
-  <p class="body-text">VocÃª tambÃ©m poderÃ¡ aproveitar as vantagens de ter uma <b>CONTA CORRENTE</b> e transferir automaticamente o seu salÃ¡rio, possibilitando assim fazer uso de diversos outros serviÃ§os e condiÃ§Ãµes diferenciadas oferecidas pelo Santander, que acreditamos que tenham um valor diferenciado para vocÃª. Para conhecer as vantagens de uma conta corrente compareÃ§a a uma agÃªncia atÃ© a data da sua admissÃ£o e apresente o original e uma cÃ³pia simples (frente e verso) dos documentos abaixo indicados:</p>
+  <p class="body-text">Escolhemos o Santander como nosso parceiro para o processamento do pagamento do seu salário.</p>
+  <p class="body-text">Conforme determinam as Resoluções nº 3.402 e 3.424/06, do Conselho Monetário Nacional, seu salário será creditado em uma conta de registro, denominada 'conta salário', que não é movimentável por cheque, não admite créditos de outras naturezas que não salariais e possui serviços limitados.</p>
+  <p class="body-text">Você também poderá aproveitar as vantagens de ter uma <b>CONTA CORRENTE</b> e transferir automaticamente o seu salário, possibilitando assim fazer uso de diversos outros serviços e condições diferenciadas oferecidas pelo Santander, que acreditamos que tenham um valor diferenciado para você. Para conhecer as vantagens de uma conta corrente compareça a uma agência até a data da sua admissão e apresente o original e uma cópia simples (frente e verso) dos documentos abaixo indicados:</p>
 
   <ul class="docs">
     <li>Esta carta;</li>
     <li>Documento de identidade com foto;</li>
-    <li>CPF â€“ Cadastro de Pessoa FÃ­sica;</li>
-    <li>Comprovante de endereÃ§o residencial (onde prefere receber correspondÃªncia) com prazo inferior a 60 dias da data de vencimento. Ex.: conta de luz, de Ã¡gua, de gÃ¡s, de telefone fixo, IPTU;</li>
-    <li>Se casado (a), apresentar nome completo do cÃ´njuge, nÃºmero do CPF, data de nascimento e data do casamento.</li>
+    <li>CPF – Cadastro de Pessoa Física;</li>
+    <li>Comprovante de endereço residencial (onde prefere receber correspondência) com prazo inferior a 60 dias da data de vencimento. Ex.: conta de luz, de água, de gás, de telefone fixo, IPTU;</li>
+    <li>Se casado (a), apresentar nome completo do cônjuge, número do CPF, data de nascimento e data do casamento.</li>
   </ul>
 
-  <p class="body-text">Se a sua opÃ§Ã£o for apenas pela utilizaÃ§Ã£o da conta salÃ¡rio, vocÃª poderÃ¡ realizar a portabilidade de salÃ¡rio para outra instituiÃ§Ã£o ou utilizar o cartÃ£o de dÃ©bito, fornecido sem custo*, para os serviÃ§os mensais gratuitos** disponÃ­veis para a conta salÃ¡rio. Procure a agÃªncia Santander de sua conveniÃªncia e fale com o gerente que estÃ¡ apto a orientar-lo e a prestar todas as informaÃ§Ãµes necessÃ¡rias para a movimentaÃ§Ã£o da sua conta.</p>
+  <p class="body-text">Se a sua opção for apenas pela utilização da conta salário, você poderá realizar a portabilidade de salário para outra instituição ou utilizar o cartão de débito, fornecido sem custo*, para os serviços mensais gratuitos** disponíveis para a conta salário. Procure a agência Santander de sua conveniência e fale com o gerente que está apto a orientar-lo e a prestar todas as informações necessárias para a movimentação da sua conta.</p>
 
   <!-- Dados do colaborador -->
   <div class="data-box">
     <div class="data-box-title">Dados do Colaborador</div>
     <div class="data-grid">
       <div class="data-line">Declaramos que o Sr (a) <b>${fmt(colab.nome_completo)}</b></div>
-      <div class="data-line">CPF: <b>${fmt(colab.cpf)}</b>&nbsp;&nbsp;&nbsp;AdmissÃ£o: <b>${admissaoFmt}</b></div>
-      <div class="data-line">EndereÃ§o: <b>${enderecoPuro}</b></div>
-      <div class="data-line">NÂº <b>${numero}</b>&nbsp;&nbsp;Complemento: <b>${complemento}</b></div>
+      <div class="data-line">CPF: <b>${fmt(colab.cpf)}</b>&nbsp;&nbsp;&nbsp;Admissão: <b>${admissaoFmt}</b></div>
+      <div class="data-line">Endereço: <b>${enderecoPuro}</b></div>
+      <div class="data-line">Nº <b>${numero}</b>&nbsp;&nbsp;Complemento: <b>${complemento}</b></div>
       <div class="data-line">Bairro: <b>${bairro}</b></div>
       <div class="data-line">Cidade: <b>${cidade}</b>&nbsp;&nbsp;&nbsp;Estado: <b>${estado}</b>&nbsp;&nbsp;&nbsp;CEP: <b>${cep}</b></div>
       <div class="data-line">Cargo: <b>${fmt(colab.cargo)}</b></div>
-      <div class="data-line">SalÃ¡rio Mensal: <b>${salario}</b></div>
+      <div class="data-line">Salário Mensal: <b>${salario}</b></div>
     </div>
   </div>
 
   <!-- Assinaturas -->
   <div class="assinaturas">
-    <!-- Bloco empresa: linha + nome abaixo (espaÃ§o para carimbo fÃ­sico acima) -->
+    <!-- Bloco empresa: linha + nome abaixo (espaço para carimbo físico acima) -->
     <div class="assin-block">
       <div class="assin-line">
-        AmÃ©rica Rental
+        América Rental
       </div>
     </div>
     <!-- Bloco colaborador -->
@@ -13244,7 +13244,7 @@ window.gerarFichaSantander = async function() {
         if (log) log.style.display = 'block';
         if (logText) logText.textContent = `Ficha gerada em ${new Date().toLocaleString('pt-BR')}`;
         
-        // Exibe o botÃ£o de visualizaÃ§Ã£o
+        // Exibe o botão de visualização
         const btnVer = document.getElementById('btn-ver-santander');
         if (btnVer) btnVer.style.display = 'flex';
 
@@ -13262,13 +13262,13 @@ window.gerarFichaSantander = async function() {
         } catch(e) { console.error('[Santander] Erro ao salvar data:', e); }
         
         if (typeof showToast === 'function') {
-            showToast('Ficha gerada com sucesso! Use o botÃ£o Visualizar para imprimir.', 'success');
-        } else alert('Ficha gerada com sucesso! Use o botÃ£o Visualizar para imprimir.');
+            showToast('Ficha gerada com sucesso! Use o botão Visualizar para imprimir.', 'success');
+        } else alert('Ficha gerada com sucesso! Use o botão Visualizar para imprimir.');
     }
 };
 
 window.verFichaSantander = async function() {
-    // Se nÃ£o tem cache mas a ficha jÃ¡ foi gerada: regenera silenciosamente
+    // Se não tem cache mas a ficha já foi gerada: regenera silenciosamente
     const colab = viewedColaborador || window._admissaoColabSelecionado;
     if (!window._santanderPreVHtml && colab && colab.santander_ficha_data) {
         // Mostrar loading
@@ -13276,7 +13276,7 @@ window.verFichaSantander = async function() {
         if (btn) { btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Gerando...'; btn.disabled = true; }
         
         try {
-            // Reutiliza a funÃ§Ã£o de geraÃ§Ã£o, mas sem exibir toast de sucesso
+            // Reutiliza a função de geração, mas sem exibir toast de sucesso
             window._silentSantanderGen = true;
             await window.gerarFichaSantander();
             window._silentSantanderGen = false;
@@ -13330,7 +13330,7 @@ window.irAoProntuarioDigital = function(tabName) {
         return;
     }
 
-    // Close admissÃ£o panel and show colaboradores
+    // Close admissão panel and show colaboradores
     const admPanel = document.getElementById('admissao-modal') || document.getElementById('panel-admissao');
     if (admPanel) admPanel.style.display = 'none';
 
@@ -13342,7 +13342,7 @@ window.irAoProntuarioDigital = function(tabName) {
         }
     });
 
-    // Open prontuÃ¡rio then switch tab
+    // Open prontuário then switch tab
     const prom = window.openProntuario(
         colab.id,
         colab.nome_completo || colab.nome,
@@ -13371,7 +13371,7 @@ window.irAoProntuarioDigital = function(tabName) {
     }
 };
 
-// FunÃ§ao mockup caso nÃ²o exista _recalculateAdmissaoFinalProg
+// Funçao mockup caso nòo exista _recalculateAdmissaoFinalProg
 if (typeof window._recalculateAdmissaoFinalProg !== 'function') {
     window._recalculateAdmissaoFinalProg = function() {
         const bar = document.getElementById('admissao-progress-bar');
@@ -13382,7 +13382,7 @@ if (typeof window._recalculateAdmissaoFinalProg !== 'function') {
 
 
 // ============================================================
-// ABA MULTAS â€” MOTORISTAS (v2 â€” Novo Fluxo de Processo)
+// ABA MULTAS — MOTORISTAS (v2 — Novo Fluxo de Processo)
 // ============================================================
 
 window._recarregarListaMultas = async function(colabId) {
@@ -13441,18 +13441,18 @@ window._renderMultaCard = function(m, colabId, container) {
     card.innerHTML = `
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
             <div>
-                <span style="font-weight:700;font-size:1rem;color:#1e293b;">ðŸš¦ ${m.codigo_infracao || 'â€”'}</span>
+                <span style="font-weight:700;font-size:1rem;color:#1e293b;">🚦 ${m.codigo_infracao || '—'}</span>
                 <span style="margin-left:8px;color:#64748b;font-size:0.85rem;">${m.descricao_infracao || ''}</span>
             </div>
             <span style="background:${cor}20;color:${cor};font-weight:700;font-size:0.78rem;padding:3px 10px;border-radius:20px;">${statusLabel[m.status] || m.status}</span>
         </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px;margin-top:8px;font-size:0.82rem;color:#475569;">
-            <span><b>Placa:</b> ${m.placa || 'â€”'}</span>
-            <span><b>VeÃ­culo:</b> ${m.veiculo || 'â€”'}</span>
-            <span><b>Data:</b> ${m.data_infracao || 'â€”'} ${m.hora_infracao || ''}</span>
-            <span><b>Valor:</b> ${m.valor_multa || 'â€”'}</span>
-            <span><b>Pontos:</b> ${m.pontuacao || 'â€”'}</span>
-            ${m.processo_iniciado ? `<span><b>Tipo:</b> ${m.tipo_resolucao === 'indicacao' ? 'IndicaÃ§Ã£o' : m.tipo_resolucao === 'nic' ? 'NIC' : 'â€”'}</span>
+            <span><b>Placa:</b> ${m.placa || '—'}</span>
+            <span><b>Veículo:</b> ${m.veiculo || '—'}</span>
+            <span><b>Data:</b> ${m.data_infracao || '—'} ${m.hora_infracao || ''}</span>
+            <span><b>Valor:</b> ${m.valor_multa || '—'}</span>
+            <span><b>Pontos:</b> ${m.pontuacao || '—'}</span>
+            ${m.processo_iniciado ? `<span><b>Tipo:</b> ${m.tipo_resolucao === 'indicacao' ? 'Indicação' : m.tipo_resolucao === 'nic' ? 'NIC' : '—'}</span>
             <span><b>Parcelas:</b> ${m.parcelas || 1}x</span>` : ''}
         </div>
         <div id="multa-actions-${m.id}" style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center;">
@@ -13466,7 +13466,7 @@ window._renderMultaActions = function(m, colabId, actionsDiv) {
     actionsDiv.innerHTML = '';
     const assinFinalizado = m.assinaturas_finalizadas || m.status === 'assinado' || m.status === 'confirmado';
 
-    // â”€â”€ BotÃ£o Iniciar / Processo Iniciado â”€â”€
+    // ── Botão Iniciar / Processo Iniciado ──
     if (!m.processo_iniciado) {
         const btnIniciar = document.createElement('button');
         btnIniciar.style = 'background:linear-gradient(135deg,#f503c5,#8b5cf6);color:#fff;border:none;border-radius:8px;padding:6px 14px;cursor:pointer;font-weight:700;font-size:0.85rem;display:inline-flex;align-items:center;gap:6px;';
@@ -13487,7 +13487,7 @@ window._renderMultaActions = function(m, colabId, actionsDiv) {
         }
         actionsDiv.appendChild(btnPI);
 
-        // â”€â”€ BotÃ£o ðŸ‘ Visualizar â”€â”€
+        // ── Botão 👁 Visualizar ──
         const btnEye = document.createElement('button');
         btnEye.style = 'background:#dbeafe;color:#1d4ed8;border:1.5px solid #93c5fd;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:0.85rem;display:inline-flex;align-items:center;gap:4px;';
         btnEye.innerHTML = '<i class="ph ph-eye"></i>';
@@ -13495,12 +13495,12 @@ window._renderMultaActions = function(m, colabId, actionsDiv) {
         btnEye.onclick = () => window.verDocumentoMulta(m.id, colabId, m.tipo_resolucao || 'indicacao', m);
         actionsDiv.appendChild(btnEye);
 
-        // â”€â”€ BotÃ£o Testemunhas â”€â”€
+        // ── Botão Testemunhas ──
         const testemunhasOk = m.assinatura_testemunha1_base64;
         const btnTest = document.createElement('button');
         if (testemunhasOk) {
             btnTest.style = 'background:#d1fae5;color:#065f46;border:1.5px solid #6ee7b7;border-radius:8px;padding:6px 12px;cursor:not-allowed;font-weight:700;font-size:0.85rem;display:inline-flex;align-items:center;gap:5px;opacity:0.7;';
-            btnTest.innerHTML = '<i class="ph ph-users"></i> Testemunhas âœ“';
+            btnTest.innerHTML = '<i class="ph ph-users"></i> Testemunhas ✓';
             btnTest.disabled = true;
         } else {
             btnTest.style = 'background:#f3e8ff;color:#7c3aed;border:1.5px solid #c4b5fd;border-radius:8px;padding:6px 12px;cursor:pointer;font-weight:700;font-size:0.85rem;display:inline-flex;align-items:center;gap:5px;';
@@ -13509,13 +13509,13 @@ window._renderMultaActions = function(m, colabId, actionsDiv) {
         }
         actionsDiv.appendChild(btnTest);
 
-        // â”€â”€ BotÃ£o Assinatura do Condutor (sÃ³ apÃ³s testemunhas) â”€â”€
+        // ── Botão Assinatura do Condutor (só após testemunhas) ──
         if (testemunhasOk) {
             const condutorOk = m.assinatura_condutor_base64;
             const btnCond = document.createElement('button');
             if (condutorOk) {
                 btnCond.style = 'background:#d1fae5;color:#065f46;border:1.5px solid #6ee7b7;border-radius:8px;padding:6px 12px;cursor:not-allowed;font-weight:700;font-size:0.85rem;display:inline-flex;align-items:center;gap:5px;opacity:0.7;';
-                btnCond.innerHTML = '<i class="ph ph-pen"></i> Condutor âœ“';
+                btnCond.innerHTML = '<i class="ph ph-pen"></i> Condutor ✓';
                 btnCond.disabled = true;
             } else {
                 btnCond.style = 'background:#fef3c7;color:#92400e;border:1.5px solid #fcd34d;border-radius:8px;padding:6px 12px;cursor:pointer;font-weight:700;font-size:0.85rem;display:inline-flex;align-items:center;gap:5px;';
@@ -13526,7 +13526,7 @@ window._renderMultaActions = function(m, colabId, actionsDiv) {
         }
     }
 
-    // â”€â”€ Excluir (apenas pendente/doc_gerado nÃ£o assinado) â”€â”€
+    // ── Excluir (apenas pendente/doc_gerado não assinado) ──
     if (!assinFinalizado && (m.status === 'pendente' || m.status === 'doc_gerado') && !m.assinatura_testemunha1_base64) {
         const btnDel = document.createElement('button');
         btnDel.style = 'background:#fee2e2;color:#dc2626;border:1.5px solid #fca5a5;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:0.8rem;display:inline-flex;align-items:center;gap:4px;';
@@ -13536,7 +13536,7 @@ window._renderMultaActions = function(m, colabId, actionsDiv) {
     }
 };
 
-// â”€â”€â”€ Modal: FormulÃ¡rio de nova multa (SEM tipo/parcelas) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Modal: Formulário de nova multa (SEM tipo/parcelas) ──────────────────────
 window.abrirFormNovaMulta = function(colabId, container) {
     let modal = document.getElementById('modal-nova-multa');
     if (modal) modal.remove();
@@ -13546,14 +13546,14 @@ window.abrirFormNovaMulta = function(colabId, container) {
     modal.innerHTML = `
         <div style="background:#fff;border-radius:16px;padding:2rem;width:100%;max-width:680px;max-height:90vh;overflow-y:auto;">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;">
-                <h3 style="margin:0;color:#1e293b;font-size:1.1rem;"><i class="ph ph-traffic-sign" style="color:#f503c5;"></i> Nova Multa de TrÃ¢nsito</h3>
-                <button onclick="document.getElementById('modal-nova-multa').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#64748b;">Ã—</button>
+                <h3 style="margin:0;color:#1e293b;font-size:1.1rem;"><i class="ph ph-traffic-sign" style="color:#f503c5;"></i> Nova Multa de Trânsito</h3>
+                <button onclick="document.getElementById('modal-nova-multa').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#64748b;">×</button>
             </div>
 
             <div style="border:2px dashed #e2e8f0;border-radius:10px;padding:1.5rem;text-align:center;margin-bottom:1.5rem;cursor:pointer;background:#f8fafc;" id="multa-upload-area">
                 <i class="ph ph-file-pdf" style="font-size:2.5rem;color:#ef4444;display:block;margin-bottom:8px;"></i>
-                <p style="margin:0;font-weight:600;color:#334155;">Anexar NotificaÃ§Ã£o de AutuaÃ§Ã£o (PDF)</p>
-                <p style="margin:4px 0 0;font-size:0.8rem;color:#94a3b8;">Clique ou arraste o PDF â€” dados serÃ£o extraÃ­dos automaticamente</p>
+                <p style="margin:0;font-weight:600;color:#334155;">Anexar Notificação de Autuação (PDF)</p>
+                <p style="margin:4px 0 0;font-size:0.8rem;color:#94a3b8;">Clique ou arraste o PDF — dados serão extraídos automaticamente</p>
                 <input type="file" id="multa-notificacao-input" accept=".pdf" style="display:none;" onchange="window.processarNotificacaoMulta(this, ${colabId})">
             </div>
             <div id="multa-loader" style="display:none;text-align:center;color:#64748b;padding:1rem;">
@@ -13561,21 +13561,21 @@ window.abrirFormNovaMulta = function(colabId, container) {
             </div>
 
             <div id="multa-dados" style="display:none;">
-                <h4 style="color:#475569;font-size:0.9rem;margin-bottom:0.75rem;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">ðŸ“‹ Dados da InfraÃ§Ã£o</h4>
+                <h4 style="color:#475569;font-size:0.9rem;margin-bottom:0.75rem;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">📋 Dados da Infração</h4>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1.5rem;">
                     <div class="input-group"><label>Placa</label><input id="m-placa" class="form-control" placeholder="AAA0000"></div>
-                    <div class="input-group"><label>VeÃ­culo</label><input id="m-veiculo" class="form-control"></div>
-                    <div class="input-group"><label>CÃ³digo da InfraÃ§Ã£o</label><input id="m-codigo" class="form-control" placeholder="Ex: 7455" oninput="window.lookupCtb(this.value)"></div>
-                    <div class="input-group"><label>NÂ° AIT</label><input id="m-ait" class="form-control"></div>
-                    <div class="input-group" style="grid-column:span 2;"><label>DescriÃ§Ã£o</label><input id="m-descricao" class="form-control"></div>
+                    <div class="input-group"><label>Veículo</label><input id="m-veiculo" class="form-control"></div>
+                    <div class="input-group"><label>Código da Infração</label><input id="m-codigo" class="form-control" placeholder="Ex: 7455" oninput="window.lookupCtb(this.value)"></div>
+                    <div class="input-group"><label>N° AIT</label><input id="m-ait" class="form-control"></div>
+                    <div class="input-group" style="grid-column:span 2;"><label>Descrição</label><input id="m-descricao" class="form-control"></div>
                     <div class="input-group"><label>Data</label><input id="m-data" class="form-control" placeholder="DD/MM/AAAA"></div>
                     <div class="input-group"><label>Hora</label><input id="m-hora" class="form-control" placeholder="HH:MM"></div>
                     <div class="input-group" style="grid-column:span 2;"><label>Local</label><input id="m-local" class="form-control"></div>
-                    <div class="input-group"><label>PontuaÃ§Ã£o</label><input id="m-pontuacao" class="form-control" readonly style="background:#f1f5f9;"></div>
+                    <div class="input-group"><label>Pontuação</label><input id="m-pontuacao" class="form-control" readonly style="background:#f1f5f9;"></div>
                     <div class="input-group"><label>Valor da Multa</label><input id="m-valor" class="form-control" readonly style="background:#f1f5f9;"></div>
                 </div>
                 <p style="font-size:0.8rem;color:#64748b;background:#f8fafc;padding:10px;border-radius:8px;margin-bottom:1rem;">
-                    <i class="ph ph-info"></i> ApÃ³s salvar, clique em <b>"Iniciar Processo"</b> no card para escolher a forma de resoluÃ§Ã£o e parcelamento.
+                    <i class="ph ph-info"></i> Após salvar, clique em <b>"Iniciar Processo"</b> no card para escolher a forma de resolução e parcelamento.
                 </p>
                 <button onclick="window.salvarNovaMulta(${colabId})"
                     style="width:100%;padding:0.85rem;background:linear-gradient(135deg,#f503c5,#8b5cf6);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:1rem;cursor:pointer;">
@@ -13589,7 +13589,7 @@ window.abrirFormNovaMulta = function(colabId, container) {
     window._multaArquivo = null;
 };
 
-// â”€â”€â”€ Popup: Iniciar Processo (popup menor, nÃ£o fullscreen) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Popup: Iniciar Processo (popup menor, não fullscreen) ────────────────────
 window.abrirPopupIniciarProcesso = function(m, colabId) {
     let modal = document.getElementById('modal-iniciar-processo');
     if (modal) modal.remove();
@@ -13603,23 +13603,23 @@ window.abrirPopupIniciarProcesso = function(m, colabId) {
     modal.innerHTML = `
         <div style="background:#fff;border-radius:16px;padding:2rem;width:100%;max-width:520px;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;">
-                <h3 style="margin:0;color:#1e293b;font-size:1.1rem;">âš–ï¸ Iniciar Processo â€” Multa ${m.codigo_infracao || ''}</h3>
-                <button onclick="document.getElementById('modal-iniciar-processo').remove()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#64748b;">Ã—</button>
+                <h3 style="margin:0;color:#1e293b;font-size:1.1rem;">⚖️ Iniciar Processo — Multa ${m.codigo_infracao || ''}</h3>
+                <button onclick="document.getElementById('modal-iniciar-processo').remove()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#64748b;">×</button>
             </div>
 
-            <h4 style="color:#475569;font-size:0.9rem;margin:0 0 0.75rem;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">âš–ï¸ Forma de ResoluÃ§Ã£o</h4>
+            <h4 style="color:#475569;font-size:0.9rem;margin:0 0 0.75rem;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">⚖️ Forma de Resolução</h4>
             <div style="display:flex;gap:12px;margin-bottom:1.5rem;">
                 <button id="tipo-indicacao" onclick="window.selecionarTipoMulta('indicacao')"
                     style="flex:1;padding:0.75rem;border-radius:8px;border:2px solid ${tipoAtual==='indicacao'?'#f503c5':'#e2e8f0'};background:${tipoAtual==='indicacao'?'#fdf4ff':'#fff'};cursor:pointer;font-weight:600;color:${tipoAtual==='indicacao'?'#f503c5':'#334155'};">
-                    ðŸ“‹ Seguir com a IndicaÃ§Ã£o
+                    📋 Seguir com a Indicação
                 </button>
                 <button id="tipo-nic" onclick="window.selecionarTipoMulta('nic')"
                     style="flex:1;padding:0.75rem;border-radius:8px;border:2px solid ${tipoAtual==='nic'?'#f503c5':'#e2e8f0'};background:${tipoAtual==='nic'?'#fdf4ff':'#fff'};cursor:pointer;font-weight:600;color:${tipoAtual==='nic'?'#f503c5':'#334155'};">
-                    ðŸ’³ Pagamento da Multa NIC
+                    💳 Pagamento da Multa NIC
                 </button>
             </div>
 
-            <h4 style="color:#475569;font-size:0.9rem;margin:0 0 0.75rem;">ðŸ’° Parcelamento do Desconto</h4>
+            <h4 style="color:#475569;font-size:0.9rem;margin:0 0 0.75rem;">💰 Parcelamento do Desconto</h4>
             <div style="display:flex;gap:10px;margin-bottom:1.5rem;">
                 ${[1,2,3].map(n=>`<button id="parc-${n}" onclick="window.selecionarParcelas(${n})"
                     style="flex:1;padding:0.6rem;border-radius:8px;border:2px solid ${parcAtual===n?'#8b5cf6':'#e2e8f0'};background:${parcAtual===n?'#f5f3ff':'#fff'};cursor:pointer;font-weight:700;color:${parcAtual===n?'#8b5cf6':'#334155'};">${n}x</button>`).join('')}
@@ -13639,7 +13639,7 @@ window.abrirPopupIniciarProcesso = function(m, colabId) {
 
 window.confirmarIniciarProcesso = async function(multaId, colabId) {
     if (!window._multaTipoSelecionado) {
-        alert('Selecione a forma de resoluÃ§Ã£o antes de continuar.'); return;
+        alert('Selecione a forma de resolução antes de continuar.'); return;
     }
     try {
         // Gera o documento HTML
@@ -13665,7 +13665,7 @@ window.confirmarIniciarProcesso = async function(multaId, colabId) {
     } catch(e) { alert('Erro: ' + e.message); }
 };
 
-// â”€â”€â”€ Modal Testemunhas (100% fullscreen) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Modal Testemunhas (100% fullscreen) ──────────────────────────────────────
 window.abrirModalTestemunhas = async function(m, colabId) {
     let modal = document.getElementById('modal-testemunhas-multa');
     if (modal) modal.remove();
@@ -13694,11 +13694,11 @@ window.abrirModalTestemunhas = async function(m, colabId) {
     modal.style = 'position:fixed;inset:0;z-index:10001;background:#0f172a;display:flex;flex-direction:column;overflow:hidden;';
     modal.innerHTML = `
         <div style="background:#1e293b;padding:0.85rem 1.5rem;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
-            <h3 style="margin:0;color:#fff;font-size:1rem;"><i class="ph ph-users" style="color:#a78bfa;"></i> Assinatura das Testemunhas â€” Multa ${m.codigo_infracao || ''}</h3>
+            <h3 style="margin:0;color:#fff;font-size:1rem;"><i class="ph ph-users" style="color:#a78bfa;"></i> Assinatura das Testemunhas — Multa ${m.codigo_infracao || ''}</h3>
             <button onclick="document.getElementById('modal-testemunhas-multa').remove()" style="background:rgba(255,255,255,0.1);border:none;color:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;">Fechar</button>
         </div>
         <div style="flex:1;display:flex;overflow:hidden;">
-            <!-- Documento Ã  esquerda -->
+            <!-- Documento à esquerda -->
             <div style="flex:1;overflow-y:auto;background:#f1f5f9;padding:1rem;" id="doc-preview-testemunhas">
                 <div style="color:#64748b;text-align:center;padding:2rem;">Carregando documento...</div>
             </div>
@@ -13728,7 +13728,7 @@ window.abrirModalTestemunhas = async function(m, colabId) {
                     <canvas id="canvas-test2" width="340" height="130" style="border:1.5px solid #e2e8f0;border-radius:8px;touch-action:none;background:#fafafa;cursor:crosshair;width:100%;"></canvas>
                     <button onclick="window._limparCanvasMulta('canvas-test2')" style="margin-top:4px;background:none;border:none;color:#64748b;cursor:pointer;font-size:0.8rem;"><i class="ph ph-eraser"></i> Limpar</button>
                 </div>
-                <p style="font-size:0.78rem;color:#94a3b8;background:#f8fafc;padding:8px;border-radius:6px;">Role o documento atÃ© o final antes de assinar.</p>
+                <p style="font-size:0.78rem;color:#94a3b8;background:#f8fafc;padding:8px;border-radius:6px;">Role o documento até o final antes de assinar.</p>
                 <button id="btn-confirmar-testemunhas"
                     onclick="window.confirmarAssinaturaTestemunhas(${m.id}, ${colabId})"
                     style="padding:0.85rem;background:linear-gradient(135deg,#7c3aed,#f503c5);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:1rem;cursor:pointer;">
@@ -13751,7 +13751,7 @@ window.abrirModalTestemunhas = async function(m, colabId) {
             doc.open(); doc.write(docHtml); doc.close();
         }, 50);
     } else {
-        docPreview.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:3rem;">Documento nÃ£o disponÃ­vel.</div>';
+        docPreview.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:3rem;">Documento não disponível.</div>';
     }
 
     // Inicializar canvas
@@ -13818,7 +13818,7 @@ window.confirmarAssinaturaTestemunhas = async function(multaId, colabId) {
     }
 };
 
-// â”€â”€â”€ Modal Assinatura do Condutor (fullscreen) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Modal Assinatura do Condutor (fullscreen) ────────────────────────────────
 window.abrirModalAssinaturaCondutor = async function(m, colabId) {
     let modal = document.getElementById('modal-condutor-multa');
     if (modal) modal.remove();
@@ -13844,7 +13844,7 @@ window.abrirModalAssinaturaCondutor = async function(m, colabId) {
     modal.style = 'position:fixed;inset:0;z-index:10001;background:#0f172a;display:flex;flex-direction:column;overflow:hidden;';
     modal.innerHTML = `
         <div style="background:#1e293b;padding:0.85rem 1.5rem;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
-            <h3 style="margin:0;color:#fff;font-size:1rem;"><i class="ph ph-pen" style="color:#fcd34d;"></i> Assinatura do Condutor â€” Multa ${m.codigo_infracao || ''}</h3>
+            <h3 style="margin:0;color:#fff;font-size:1rem;"><i class="ph ph-pen" style="color:#fcd34d;"></i> Assinatura do Condutor — Multa ${m.codigo_infracao || ''}</h3>
             <button onclick="document.getElementById('modal-condutor-multa').remove()" style="background:rgba(255,255,255,0.1);border:none;color:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;">Fechar</button>
         </div>
         <div style="flex:1;display:flex;overflow:hidden;">
@@ -13855,7 +13855,7 @@ window.abrirModalAssinaturaCondutor = async function(m, colabId) {
             <!-- Painel assinatura -->
             <div style="width:360px;background:#fff;overflow-y:auto;padding:1.5rem;display:flex;flex-direction:column;gap:1rem;border-left:1px solid #e2e8f0;flex-shrink:0;">
                 <div style="background:#fef3c7;border-radius:8px;padding:10px;">
-                    <p style="margin:0;font-size:0.82rem;color:#92400e;"><i class="ph ph-warning"></i> <b>Role o documento atÃ© o final</b> antes de assinar.</p>
+                    <p style="margin:0;font-size:0.82rem;color:#92400e;"><i class="ph ph-warning"></i> <b>Role o documento até o final</b> antes de assinar.</p>
                 </div>
                 <div>
                     <label style="font-size:0.85rem;font-weight:700;color:#374151;display:block;margin-bottom:6px;">Assinatura do Condutor *</label>
@@ -13935,7 +13935,7 @@ window.confirmarAssinaturaCondutor = async function(multaId, colabId) {
     }
 };
 
-// â”€â”€â”€ Helpers de canvas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Helpers de canvas ────────────────────────────────────────────────────────
 window._initCanvasMulta = function(id) {
     const canvas = document.getElementById(id);
     if (!canvas) return;
@@ -13968,7 +13968,7 @@ window._canvasTemConteudo = function(id) {
     return false;
 };
 
-// â”€â”€â”€ Helpers legados (compatibilidade) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Helpers legados (compatibilidade) ───────────────────────────────────────
 window.selecionarTipoMulta = function(tipo) {
     window._multaTipoSelecionado = tipo;
     ['indicacao','nic'].forEach(t => {
@@ -14034,10 +14034,10 @@ window.processarNotificacaoMulta = async function(input, colabId) {
         set('m-local', data.local_infracao); set('m-valor', data.valor_multa);
         set('m-pontuacao', data.pontuacao); set('m-ait', data.numero_ait);
         dadosDiv.style.display = 'block';
-        loader.textContent = 'âœ… Dados extraÃ­dos! Confira e corrija se necessÃ¡rio.';
+        loader.textContent = '✅ Dados extraídos! Confira e corrija se necessário.';
         loader.style.color = '#10b981';
     } catch(e) {
-        loader.textContent = `âš ï¸ Falha ao extrair: ${e.message || 'Preencha manualmente.'}`;
+        loader.textContent = `⚠️ Falha ao extrair: ${e.message || 'Preencha manualmente.'}`;
         loader.style.color = '#ef4444';
         document.getElementById('multa-dados').style.display = 'block';
     }
@@ -14072,7 +14072,7 @@ window.salvarNovaMulta = async function(colabId) {
 };
 
 window.excluirMulta = async function(multaId, colabId, btn) {
-    if (!confirm('Excluir este registro de multa? Esta aÃ§Ã£o nÃ£o pode ser desfeita.')) return;
+    if (!confirm('Excluir este registro de multa? Esta ação não pode ser desfeita.')) return;
     if (btn) { btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>'; btn.disabled = true; }
     try {
         const res = await fetch(`${API_URL}/colaboradores/${colabId}/multas/${multaId}`, {
@@ -14080,7 +14080,7 @@ window.excluirMulta = async function(multaId, colabId, btn) {
         });
         if (!res.ok) throw new Error('Falha ao excluir');
         await window._recarregarListaMultas(colabId);
-        if (typeof showToast === 'function') showToast('Multa excluÃ­da.', 'success');
+        if (typeof showToast === 'function') showToast('Multa excluída.', 'success');
     } catch(e) {
         if (btn) { btn.innerHTML = '<i class="ph ph-trash"></i>'; btn.disabled = false; }
         alert('Erro: ' + e.message);
