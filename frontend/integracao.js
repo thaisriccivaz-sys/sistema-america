@@ -1,6 +1,5 @@
 window.downloadDatabase = async function() {
-    // Try different token key names the system might use
-    const token = localStorage.getItem('token') || localStorage.getItem('authToken') || localStorage.getItem('jwt');
+    const token = window.currentToken || localStorage.getItem('erp_token');
     if (!token) {
         alert('Sessão expirada. Faça login novamente.');
         return;
@@ -56,7 +55,7 @@ window.uploadDatabase = async function() {
         const res = await fetch(`${window.location.origin}/api/maintenance/upload-db`, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
+                'Authorization': `Bearer ${window.currentToken || localStorage.getItem('erp_token')}`
             },
             body: formData
         });
