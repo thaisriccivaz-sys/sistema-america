@@ -5351,7 +5351,7 @@ window.enviarBoletoFinanceiro = async function(docId, emailInputId, btn) {
             btn.innerHTML = '<i class="ph ph-check-circle"></i> Enviado!';
             btn.style.background = '#16a34a';
             if (viewedColaborador) {
-                apiGet(/colaboradores/${viewedColaborador.id}/documentos).then(docs => {
+                apiGet(`/colaboradores/${viewedColaborador.id}/documentos`).then(docs => {
                     if (docs) {
                         currentDocs = docs;
                         const activeTab = document.querySelector('#tabs-list li.active');
