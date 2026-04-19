@@ -4668,6 +4668,88 @@ app.post('/api/send-atestado-contabilidade', authenticateToken, async (req, res)
 });
 
 /**
+ * Envio de Boleto de Faculdade para o Financeiro
+ */
+app.post('/api/send-boleto-financeiro', authenticateToken, async (req, res) => {
+    const { document_id, email_to } = req.body;
+    if (!document_id || !email_to) {
+        return res.status(400).json({ sucesso: false, error: 'document_id e email_to são obrigatórios.' });
+    }
+
+    try {
+        const doc = await new Promise((resolve, reject) =>
+            db.get('SELECT * FROM documentos WHERE id = ?', [document_id], (err, row) => err ? reject(err) : resolve(row)));
+        if (!doc) return res.status(404).json({ sucesso: false, error: 'Documento não encontrado.' });
+
+        const colab = await new Promise((resolve, reject) =>
+            db.get('SELECT * FROM colaboradores WHERE id = ?', [doc.colaborador_id], (err, row) => err ? reject(err) : resolve(row)));
+        if (!colab) return res.status(404).json({ sucesso: false, error: 'Colaborador não encontrado.' });
+
+        // Data do documento
+        const dataDoc = doc.upload_date
+            ? new Date(doc.upload_date).toLocaleDateString('pt-BR')
+            : new Date().toLocaleDateString('pt-BR');
+
+        // Arquivo em anexo
+        const attachments = [];
+        const activeFilePath = path.resolve(doc.file_path);
+        if (fs.existsSync(activeFilePath)) {
+            const nomeNorm = (colab.nome_completo || 'Colaborador')
+                .toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]+/g, '_');
+            const md = String(doc.month || '0').padStart(2, '0');
+            const yyyy = doc.year || new Date().getFullYear();
+            attachments.push({ filename: `Boleto_Faculdade_${md}-${yyyy}_${nomeNorm}.pdf`, path: activeFilePath, contentType: 'application/pdf' });
+        } else {
+            return res.status(404).json({ sucesso: false, error: 'Arquivo PDF do boleto não encontrado no servidor.' });
+        }
+
+        const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+        attachments.unshift({ filename: 'logo.png', path: logoPath, cid: 'empresa-logo' });
+
+        const htmlContent = `
+            <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px; border-radius:8px;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <img src="cid:empresa-logo" style="max-height: 80px; max-width:100%;">
+                </div>
+                <h2 style="color: #16a34a; border-bottom: 2px solid #16a34a; padding-bottom: 10px;">📉 Boleto Faculdade</h2>
+                <p>Informamos que o colaborador anexou o boleto da <strong>Faculdade</strong> referente à competência ${md}/${yyyy}.</p>
+
+                <div style="background:#f0fdf4; padding:15px; border-radius:8px; margin:20px 0; border: 1px solid #bbf7d0;">
+                    <p style="margin:4px 0;"><strong>Colaborador:</strong> ${colab.nome_completo}</p>
+                    <p style="margin:4px 0;"><strong>CPF:</strong> ${colab.cpf || '-'}</p>
+                    <p style="margin:4px 0;"><strong>Competência:</strong> ${md}/${yyyy}</p>
+                    <p style="margin:4px 0;"><strong>Data do upload:</strong> ${dataDoc}</p>
+                </div>
+
+                <div style="background:#fff3cd; border:1px solid #ffc107; padding:15px; border-radius:8px; margin:20px 0; text-align:center;">
+                    <p style="margin:0; color:#856404; font-weight:700; font-size:1rem;">
+                        Favor verificar as informações em anexo e prosseguir com a programação de pagamento deste título.
+                    </p>
+                </div>
+
+                ${attachments.length > 1 ? '<p>O documento em PDF está em anexo neste e-mail.</p>' : ''}
+                <p style="margin-top:30px; font-size:0.9em; color:#7f8c8d;">Atenciosamente,<br>Equipe de RH — América Rental</p>
+            </div>
+        `;
+
+        const transporter = nodemailer.createTransport(SMTP_CONFIG);
+
+        await transporter.sendMail({
+            from: \`"América Rental RH" <\${SMTP_CONFIG.auth.user}>\`,
+            to: email_to,
+            subject: \`📉 Boleto Faculdade - \${colab.nome_completo}\`,
+            html: htmlContent,
+            attachments: attachments
+        });
+
+        res.json({ sucesso: true, message: 'Boleto enviado ao financeiro com sucesso.' });
+    } catch (err) {
+        console.error('[ERRO BOLETO FINANCEIRO]', err);
+        res.status(500).json({ sucesso: false, error: 'Erro ao enviar boleto: ' + err.message });
+    }
+});
+
+/**
  * Envio de Suspensão para a Contabilidade (Fechamento de Folha)
  */
 app.post('/api/send-suspensao-contabilidade', authenticateToken, async (req, res) => {

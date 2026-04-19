@@ -4548,6 +4548,20 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                             </button>
                         </div>
                     </div>` : ''}
+                    
+                    ${(tabId === 'Faculdade' && isSaved && docType === 'Boleto') ? ` 
+                    <div style="display:flex; flex-direction:column; gap:0.35rem; margin-top:0.35rem; align-items:flex-end; width:100%; border-top: 1px dashed #e2e8f0; padding-top: 0.5rem;">
+                        <div style="display:flex; gap:0.5rem; align-items:center; justify-content:flex-end; width:100%;">
+                            <input type="email" id="faculdade-financeiro-email-${existingDoc.id}"
+                                   value="thais.ricci@americarental.com.br"
+                                   style="height:36px; padding:0 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; width:100%; max-width:250px;">
+                            <button type="button"
+                                    onclick="window.enviarBoletoFinanceiro(${existingDoc.id}, 'faculdade-financeiro-email-${existingDoc.id}', this)"
+                                    style="height:36px; display:flex; align-items:center; justify-content:center; gap:6px; background:#16a34a; color:#fff; border:none; border-radius:6px; padding:0 0.85rem; font-size:0.82rem; font-weight:600; cursor:pointer; white-space:nowrap; max-width:250px;">
+                                <i class="ph ph-currency-circle-dollar"></i> Enviar para o Financeiro
+                            </button>
+                        </div>
+                    </div>` : ''}
                 </div>
             ` : `
                 <div style="display: flex; flex-direction: column; gap: 0.5rem;">
@@ -5311,6 +5325,42 @@ window.enviarAtestadoContabilidade = async function(docId, emailInputId, btn) {
                 }).catch(err => console.warn('Falha ao recarregar atestados:', err));
             }
             
+            setTimeout(() => { btn.innerHTML = originalHtml; btn.style.background = ''; btn.disabled = false; }, 3000);
+        } else {
+            throw new Error(res?.error || 'Erro desconhecido');
+        }
+    } catch (e) {
+        alert('Erro ao enviar: ' + e.message);
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+    }
+};
+
+window.enviarBoletoFinanceiro = async function(docId, emailInputId, btn) {
+    const emailInput = document.getElementById(emailInputId);
+    const email = emailInput ? emailInput.value.trim() : '';
+    if (!email) { alert('Informe o e-mail do financeiro.'); return; }
+
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando...';
+
+    try {
+        const res = await apiPost('/send-boleto-financeiro', { document_id: docId, email_to: email, colaborador_id: viewedColaborador?.id });
+        if (res && res.sucesso) {
+            btn.innerHTML = '<i class="ph ph-check-circle"></i> Enviado!';
+            btn.style.background = '#16a34a';
+            if (viewedColaborador) {
+                apiGet(/colaboradores/${viewedColaborador.id}/documentos).then(docs => {
+                    if (docs) {
+                        currentDocs = docs;
+                        const activeTab = document.querySelector('#tabs-list li.active');
+                        if (activeTab) {
+                            renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
+                        }
+                    }
+                }).catch(() => {});
+            }
             setTimeout(() => { btn.innerHTML = originalHtml; btn.style.background = ''; btn.disabled = false; }, 3000);
         } else {
             throw new Error(res?.error || 'Erro desconhecido');
