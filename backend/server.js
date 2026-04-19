@@ -4591,8 +4591,8 @@ app.post('/api/send-atestado-contabilidade', authenticateToken, async (req, res)
 
         // Textos dinâmicos conforme período
         const emailTitulo = ehEsocial
-            ? '?? Atestado Médico — Inclusão eSocial'
-            : '?? Atestado Médico — Controle Interno';
+            ? '📋 Atestado Médico — Inclusão eSocial'
+            : '📋 Atestado Médico — Controle Interno';
         const emailSubject = ehEsocial
             ? `Atestado Médico eSocial — ${colab.nome_completo} (${cidCode})`
             : `Atestado Médico (Controle) — ${colab.nome_completo} (${cidCode})`;
