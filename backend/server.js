@@ -890,14 +890,14 @@ async function pollAdmissaoAssinaturas() {
                         if (doc.source === 'documento') {
                             const safeTab = doc.tab_name ? tabToOneDrivePath(doc.tab_name) : 'DOCUMENTOS';
                             const isContratosAvulso = doc.tab_name === 'CONTRATOS_AVULSOS';
-                            cloudName = isAtestado
-                                ? (doc.file_name || 'Atestado.pdf').replace(/_\d{8}_\d{6}(\.\w+)$/, '$1')
-                                : (() => {
-                                    const ts = new Date().toISOString().slice(0,19).replace(/[-T:]/g,'');
-                                    return isContratosAvulso
-                                        ? `${formatarPasta(doc.nome_documento || doc.tab_name || 'Documento').replace(/\s+/g, '_')}_${docYear}_${ts}_${safeColab}.pdf`
-                                        : `${formatarPasta(doc.nome_documento || doc.tab_name || 'Documento').replace(/\s+/g, '_')}_${docYear}_${safeColab}.pdf`;
-                                  })();
+                            
+                            if (doc.tab_name === 'CONTRATOS' || doc.tab_name === 'CONTRATOS_AVULSOS') {
+                                cloudName = doc.file_name;
+                            } else {
+                                cloudName = isAtestado
+                                    ? (doc.file_name || 'Atestado.pdf').replace(/_\d{8}_\d{6}(\.\w+)$/, '$1')
+                                    : `${formatarPasta(doc.nome_documento || doc.tab_name || 'Documento').replace(/\s+/g, '_')}_${docYear}_${safeColab}.pdf`;
+                            }
                             if (isContratosAvulso) {
                                 // Contratos avulsos vão em CONTRATOS/outros/
                                 const contratosDir = `${onedriveBasePath}/${safeColab}/CONTRATOS`;
