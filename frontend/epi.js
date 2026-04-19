@@ -542,12 +542,14 @@ function pdfColabBox(doc, W, margin, y, colab) {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(0, 0, 0);
     doc.text(`NOME:`, col1, y + 4.5);
     doc.setFont('helvetica', 'normal');
-    doc.text(colab.nome || '—', col1 + 10, y + 4.5);
+    const nomeExibir = colab.nome || colab.nome_completo || colab.NOME_COMPLETO || '—';
+    doc.text(nomeExibir, col1 + 10, y + 4.5);
     
     doc.setFont('helvetica', 'bold');
     doc.text(`ADMISSÃO:`, col2, y + 4.5);
     doc.setFont('helvetica', 'normal');
-    doc.text(fmtData(colab.admissao), col2 + 18, y + 4.5);
+    const admissaoExibir = colab.admissao || colab.data_admissao || '—';
+    doc.text(fmtData(admissaoExibir), col2 + 18, y + 4.5);
     
     // Row 2
     doc.setFont('helvetica', 'bold');
