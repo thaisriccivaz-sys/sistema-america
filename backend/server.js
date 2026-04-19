@@ -1751,7 +1751,8 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
         'adiantamento_salarial', 'adiantamento_valor', 'insalubridade', 'insalubridade_valor',
         'conjuge_nome', 'conjuge_cpf',
         'santander_ficha_data',
-        'tamanho_camiseta', 'tamanho_calca', 'tamanho_calcado'
+        'tamanho_camiseta', 'tamanho_calca', 'tamanho_calcado',
+        'brigadista_participa', 'brigadista_validade'
     ];
 
     const values = colunas.map(col => {
@@ -1989,7 +1990,8 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
         'adiantamento_salarial', 'adiantamento_valor', 'insalubridade', 'insalubridade_valor',
         'conjuge_nome', 'conjuge_cpf',
         'santander_ficha_data',
-        'tamanho_camiseta', 'tamanho_calca', 'tamanho_calcado'
+        'tamanho_camiseta', 'tamanho_calca', 'tamanho_calcado',
+        'brigadista_participa', 'brigadista_validade'
     ];
 
     const allowedColunas = colunas;

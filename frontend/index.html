@@ -1222,6 +1222,26 @@
                                                 </div>
                                             </div>
                                         </div>
+
+                                        <!-- 5.6 Brigadista -->
+                                        <div class="opcional-item">
+                                            <div class="opcional-info">
+                                                <h4><i class="ph ph-fire-extinguisher"></i> Brigadista</h4>
+                                                <div class="opcional-question-row">
+                                                    <span class="opcional-question">Colaborador é Brigadista?</span>
+                                                    <div class="radio-pill-group">
+                                                        <label><input type="radio" name="brigadista_participa" value="Não" checked onchange="toggleBrigadistaFields(this.value)"> Não</label>
+                                                        <label><input type="radio" name="brigadista_participa" value="Sim" onchange="toggleBrigadistaFields(this.value)"> Sim</label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div id="section-brigadista" class="opcional-details-box" style="display:none;">
+                                                <div class="input-group">
+                                                    <label>Validade do Certificado</label>
+                                                    <input type="date" id="colab-brigadista-validade">
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div><!-- End module-opcionais card -->
                                 
