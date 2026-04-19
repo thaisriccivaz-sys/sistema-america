@@ -472,20 +472,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
             db.run(`DELETE FROM epi_templates WHERE grupo = 'Ajudante Pátio, Liderança'`, (err) => {
                 if (!err) console.log('[EPI migration] Removida ficha duplicada Ajudante Pátio, Liderança (se existia).');
             });
-            // Migration: adicionar item faltante à ficha de Manutenção
-            db.get(`SELECT id, epis_json FROM epi_templates WHERE grupo = 'Manutenção'`, [], (err, row) => {
-                if (err || !row) return;
-                try {
-                    const epis = JSON.parse(row.epis_json || '[]');
-                    const novoItem = 'MASCARA RESPIRADOR FACIAL COM FILTRO CA 14.781';
-                    if (!epis.includes(novoItem)) {
-                        epis.push(novoItem);
-                        db.run(`UPDATE epi_templates SET epis_json = ? WHERE id = ?`, [JSON.stringify(epis), row.id], (e) => {
-                            if (!e) console.log('[EPI migration] Item adicionado à ficha de Manutenção: ' + novoItem);
-                        });
-                    }
-                } catch(e) {}
-            });
+            // Migration: adicionar item faltante à ficha de Manutenção (será aplicado dentro do callback do seed)
 
             // Tabela de Templates de EPI por departamento
             db.run(`
@@ -501,11 +488,9 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 )
             `, (err) => {
                 if (err) return;
-                // AUTO-MIGRAÇÃO EPI: corrição das listas por departamento
-                // Remove grupos legados/duplicados antes de re-inserir
-                ['Motorista', 'Ajudante', 'Ajudante Pátio', 'Manutenção', 'Limpeza', 'Ajudante Pátio, Liderança'].forEach(g => {
-                    db.run('DELETE FROM epi_templates WHERE grupo = ?', [g]);
-                });
+                // Remove ficha duplicada se existir
+                db.run(`DELETE FROM epi_templates WHERE grupo = 'Ajudante Pátio, Liderança'`);
+
                 const TERMO_PADRAO = '•Confirmo perante minha assinatura que recebi o Equipamento de Proteção Individual - EPI, da Empresa: AMERICA RENTAL EQUIPAMENTOS LTDA. Vinculada ao CNPJ: 03.434.448/0001-01 de Inscrição estadual IE: 336.715.410.116 conforme descrito abaixo, para uso exclusivo no local de trabalho, conforme regulamentação da Norma Regulamentadora Nº 6, do Ministério do Trabalho e Emprego.\\n•Declaro que estou ciente da obrigatoriedade do uso do EPI e da responsabilidade de usá-lo e conservá-lo. Minha recusa injustificada na utilização deste equipamento ou seu mau uso, constitui ato faltoso, conforme disposto no artigo 158 da CLT.\\n•Declaro estar ciente da obrigatoriedade da devolução do Equipamento atual, quando da troca ou substituição dos mesmos.';
                 const RODAPE_PADRAO = 'LIBERAÇÃO DO EQUIPAMENTO DE SEGURANÇA SOMENTE APÓS ASSINATURA DESTE TERMO.';
                 const EPI_A1 = JSON.stringify(['BOTA DE PVC CA 42.291','BOTA BICO DE AÇO CA 43.339','CAPACETE CA 31.469','CAPA DE CHUVA CA 31.413','ÓCULOS DE PROTEÇÃO CA 19.176','LUVA DE PVC VERDE CA34570','LUVA DE NEOLATEX CURTA EXG CA 5.774','RESPIRADOR PURIFICADOR DE AR CA 14.781','RESPIRADOR PURIFICADOR DE AR AZUL CA 39.238','REFIL DO RESPIRADOR','PROTETOR SOLAR FPS30','PROTETOR AUDITIVO CA 36.817','COLETE REFLETIVO','CALÇA','CAMISETA MANGA CURTA','CAMISETA MANGA LONGA','LUVA DE HELANCA CA 37.931','LUVA NITRILICA CA 38.975']);
@@ -519,11 +504,39 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     { grupo: 'Manutenção', categoria: 'Operacional', departamentos_json: JSON.stringify(['Manutenção']), epis_json: EPI_A3, termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO },
                     { grupo: 'Limpeza', categoria: 'Operacional', departamentos_json: JSON.stringify(['Limpeza']), epis_json: EPI_A4, termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO }
                 ];
+                // INSERT OR IGNORE: só insere templates que não existem ainda (nunca destrói existentes)
                 newSeeds.forEach(s => {
-                    db.run('INSERT OR REPLACE INTO epi_templates (grupo, categoria, departamentos_json, epis_json, termo_texto, rodape_texto) VALUES (?,?,?,?,?,?)',
+                    db.run('INSERT OR IGNORE INTO epi_templates (grupo, categoria, departamentos_json, epis_json, termo_texto, rodape_texto) VALUES (?,?,?,?,?,?)',
                         [s.grupo, s.categoria, s.departamentos_json, s.epis_json, s.termo_texto, s.rodape_texto],
                         (e) => { if (e) console.error('[EPI seed] Erro:', s.grupo, e.message); });
                 });
+
+                // Após o seed, garantir que Manutenção tem o 14º item e tem a categoria correta
+                db.get(`SELECT id, epis_json, categoria FROM epi_templates WHERE grupo = 'Manutenção'`, [], (e2, row) => {
+                    if (e2 || !row) return;
+                    try {
+                        const epis = JSON.parse(row.epis_json || '[]');
+                        const novoItem = 'MASCARA RESPIRADOR FACIAL COM FILTRO CA 14.781';
+                        const updates = [];
+                        const params = [];
+                        if (!epis.includes(novoItem)) {
+                            epis.push(novoItem);
+                            updates.push('epis_json = ?');
+                            params.push(JSON.stringify(epis));
+                        }
+                        if (row.categoria !== 'Operacional') {
+                            updates.push("categoria = 'Operacional'");
+                        }
+                        if (updates.length) {
+                            params.push(row.id);
+                            db.run(`UPDATE epi_templates SET ${updates.join(', ')} WHERE id = ?`, params, (e3) => {
+                                if (!e3) console.log('[EPI migration] Manutenção atualizada: ' + updates.join(', '));
+                            });
+                        }
+                    } catch(e3) { console.error('[EPI migration] Erro Manutenção:', e3.message); }
+                });
+                // Garantir categoria do Motorista
+                db.run(`UPDATE epi_templates SET categoria = 'Operacional' WHERE grupo = 'Motorista' AND (categoria IS NULL OR categoria = 'Outros')`);
             });
 
             // Tabela de fichas de EPI por colaborador (histórico/versionamento)
