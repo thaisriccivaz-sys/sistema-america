@@ -1,6 +1,39 @@
-window.downloadDatabase = function() {
-    const token = localStorage.getItem('token');
-    window.window.location.href = `${window.location.origin}/api/maintenance/download-db?token=${token}`;
+window.downloadDatabase = async function() {
+    // Try different token key names the system might use
+    const token = localStorage.getItem('token') || localStorage.getItem('authToken') || localStorage.getItem('jwt');
+    if (!token) {
+        alert('Sessão expirada. Faça login novamente.');
+        return;
+    }
+
+    try {
+        const btn = document.querySelector('[onclick="window.downloadDatabase()"]');
+        if (btn) { btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Baixando...'; btn.disabled = true; }
+
+        const res = await fetch(`${window.location.origin}/api/maintenance/download-db`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            alert('Erro: ' + (err.error || 'Falha no download'));
+            return;
+        }
+
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'hr_system_v2.sqlite';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        if (btn) { btn.innerHTML = '<i class="ph ph-download-simple"></i> Baixar Banco de Dados'; btn.disabled = false; }
+    } catch(e) {
+        alert('Erro no download: ' + e.message);
+    }
 };
 
 window.uploadDatabase = async function() {
