@@ -137,6 +137,7 @@
                     <a href="#" class="nav-item" data-target="usuarios-permissoes"><i class="ph ph-users-three"></i> Usuários</a>
                     <a href="#" class="nav-item" data-target="chaves"><i class="ph ph-key"></i> Chaves</a>
                     <a href="#" class="nav-item" data-target="certificado-digital"><i class="ph ph-certificate"></i> Certificado Digital</a>
+                    <a href="#" class="nav-item" data-target="integracao"><i class="ph ph-database"></i> Integração</a>
                 </div>
             </div>
 
@@ -2278,6 +2279,53 @@
                     </div>
                 </section>
 
+                <!-- VIEW: INTEGRAÇÃO (DIRETORIA) -->
+                <section id="view-integracao" class="content-view">
+                    <div class="page-header flex-between mb-4">
+                        <div class="flex-align" style="gap: 15px;">
+                            <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); width: 50px; height: 50px; border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2);">
+                                <i class="ph ph-database" style="font-size:1.8rem;color:#fff;"></i>
+                            </div>
+                            <div>
+                                <h2 style="margin:0;color:#0f172a;">Integração e Banco de Dados</h2>
+                                <p style="margin:2px 0 0;color:#64748b;font-size:0.85rem;">Gerencie a transferência de dados entre Produção e Homologação</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card" style="margin-bottom: 20px;">
+                        <div class="card-header border-bottom">
+                            <h3 class="card-title"><i class="ph ph-arrows-left-right text-primary"></i> Migração de Dados (SQLite)</h3>
+                        </div>
+                        <div class="card-body">
+                            <p style="color: #475569; margin-bottom: 15px;">
+                                Utilize esta ferramenta para clona o banco de dados oficial (Produção) para o ambiente de testes (Homologação). 
+                                Ao fazer upload, o banco de dados atual será <strong>substituído</strong> imediatamente e o servidor será reiniciado.
+                            </p>
+                            
+                            <div style="display: flex; gap: 20px; align-items: center; background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px dashed #cbd5e1;">
+                                <div style="flex: 1; text-align: center; border-right: 1px solid #e2e8f0; padding-right: 20px;">
+                                    <h4 style="margin-top: 0; color: #0f172a;">1. Baixar Banco Atual</h4>
+                                    <p style="font-size: 0.85rem; color: #64748b;">Baixa o arquivo hr_system_v2.sqlite contendo todos os cadastros e fichas.</p>
+                                    <button class="btn btn-primary" onclick="window.downloadDatabase()" style="width: 100%;">
+                                        <i class="ph ph-download-simple"></i> Baixar Banco de Dados
+                                    </button>
+                                </div>
+                                <div style="flex: 1; text-align: center; padding-left: 20px;">
+                                    <h4 style="margin-top: 0; color: #0f172a;">2. Subir Banco</h4>
+                                    <p style="font-size: 0.85rem; color: #64748b;">Atenção: Apenas suba este arquivo no servidor de Homologação!</p>
+                                    <div class="flex-align" style="gap: 10px;">
+                                        <input type="file" id="db-upload-file" accept=".sqlite" class="form-control" style="flex: 1;">
+                                        <button class="btn btn-success" onclick="window.uploadDatabase()" id="btn-upload-db">
+                                            <i class="ph ph-upload-simple"></i> Enviar
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
             </main>
         </div>
     </div>
@@ -2577,6 +2625,7 @@
     <script src="epi.js?v=17"></script>
     <script src="sinistros.js"></script>
     <script src="usuarios.js?v=1"></script>
+    <script src="integracao.js"></script>
     <script src="app.js?v=118"></script>
 
     <!-- Global Scroll-to-Top Button -->
