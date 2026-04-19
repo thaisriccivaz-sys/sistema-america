@@ -4735,9 +4735,9 @@ app.post('/api/send-boleto-financeiro', authenticateToken, async (req, res) => {
         const transporter = nodemailer.createTransport(SMTP_CONFIG);
 
         await transporter.sendMail({
-            from: \`"América Rental RH" <\${SMTP_CONFIG.auth.user}>\`,
+            from: `"América Rental RH" <${SMTP_CONFIG.auth.user}>`,
             to: email_to,
-            subject: \`📉 Boleto Faculdade - \${colab.nome_completo}\`,
+            subject: `📉 Boleto Faculdade - ${colab.nome_completo}`,
             html: htmlContent,
             attachments: attachments
         });
