@@ -373,6 +373,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
             });
             // Migration: remover definitivamente o departamento 'Ajudante' se ainda existir
             db.run("DELETE FROM departamentos WHERE nome = 'Ajudante'");
+            db.run("CREATE TABLE IF NOT EXISTS departamentos_excluidos (nome TEXT PRIMARY KEY)");
             db.run("INSERT OR IGNORE INTO departamentos_excluidos (nome) VALUES ('Ajudante')");
             // Migration: limpar dados de teste
             db.run("DELETE FROM cargos WHERE LOWER(TRIM(nome)) = 'teste 3'");
@@ -463,9 +464,9 @@ const db = new sqlite3.Database(dbPath, (err) => {
             });
 
             // Migration: adicionar coluna 'categoria' à tabela epi_templates
-            db.run(`ALTER TABLE epi_templates ADD COLUMN categoria TEXT DEFAULT 'Outros'`, () => {});
+            db.run(`ALTER TABLE epi_templates ADD COLUMN categoria TEXT DEFAULT 'Outros'`, (err) => {});
             // Migration: atualizar categoria dos templates existentes pelo nome
-            db.run(`UPDATE epi_templates SET categoria='Operacional' WHERE grupo IN ('Manutenção','Limpeza','Motorista','Ajudante','Ajudante Pátio')`);
+            db.run(`UPDATE epi_templates SET categoria='Operacional' WHERE grupo IN ('Manutenção','Limpeza','Motorista','Ajudante','Ajudante Pátio','Ajudante Pátio e Liderança')`);
             db.run(`UPDATE epi_templates SET categoria='Administrativo' WHERE grupo IN ('Escritório')`);
 
             // Tabela de Templates de EPI por departamento
@@ -494,7 +495,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 const EPI_A4 = JSON.stringify(['AVENTAL DE PLÁSTICO','LUVA DE NEOLATEX M','CALÇA','AVENTAL','SAPATO ANTIDERRAPANTE']);
                 const newSeeds = [
                     { grupo: 'Escritório', categoria: 'Administrativo', departamentos_json: JSON.stringify(['Recursos Humanos','Financeiro','Logística','Administrativo','Comercial']), epis_json: JSON.stringify(['BONÉ','CAMISETA POLO PRETA','CAMISETA POLO PRETA MANGA LONGA','CAMISETA POLO ROXA','PORTA CANETAS','PORTA ARQUIVOS DE MESA','MOUSE PAD ERGONÔMICO','APOIO ERGONÔMICO DE TECLADO','SUPORTE ERGONÔMICO DE PÉS','APOIO NOTEBOOK']), termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO },
-                    { grupo: 'Ajudante Pátio', categoria: 'Operacional', departamentos_json: JSON.stringify(['Ajudante Pátio','Liderança']), epis_json: EPI_A1, termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO },
+                    { grupo: 'Ajudante Pátio e Liderança', categoria: 'Operacional', departamentos_json: JSON.stringify(['Ajudante Pátio','Liderança']), epis_json: EPI_A1, termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO },
                     { grupo: 'Motorista', categoria: 'Operacional', departamentos_json: JSON.stringify(['Motorista','Ajudante Geral']), epis_json: EPI_A2, termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO },
                     { grupo: 'Manutenção', categoria: 'Operacional', departamentos_json: JSON.stringify(['Manutenção']), epis_json: EPI_A3, termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO },
                     { grupo: 'Limpeza', categoria: 'Operacional', departamentos_json: JSON.stringify(['Limpeza']), epis_json: EPI_A4, termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO }

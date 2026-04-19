@@ -6,7 +6,7 @@ let epiTemplates = [];
 let editingEpiId = null;
 let allDepartamentos = [];
 
-const GRUPOS_OPERACIONAL = ['Manutenção', 'Limpeza', 'Motorista', 'Ajudante', 'Ajudante Pátio']; // legado — usado como fallback
+const GRUPOS_OPERACIONAL = ['Manutenção', 'Limpeza', 'Motorista', 'Ajudante', 'Ajudante Pátio e Liderança']; // legado — usado como fallback
 const GRUPOS_ADMIN      = ['Escritório'];
 
 const TERMO_PADRAO = '•Confirmo perante minha assinatura que recebi o Equipamento de Proteção Individual - EPI, da Empresa: AMERICA RENTAL EQUIPAMENTOS LTDA. Vinculada ao CNPJ: 03.434.448/0001-01 de Inscrição estadual IE: 336.715.410.116 conforme descrito abaixo, para uso exclusivo no local de trabalho, conforme regulamentação da Norma Regulamentadora Nº 6, do Ministério do Trabalho e Emprego.\n•Declaro que estou ciente da obrigatoriedade do uso do EPI e da responsabilidade de usá-lo e conservá-lo. Minha recusa injustificada na utilização deste equipamento ou seu mau uso, constitui ato faltoso, conforme disposto no artigo 158 da CLT.\n•Declaro estar ciente da obrigatoriedade da devolução do Equipamento atual, quando da troca ou substituição dos mesmos.';
@@ -123,8 +123,8 @@ window.initEpiModule = function() {
 // Restaura Ajudante se tiver sido editado incorretamente (chamado manualmente se necessário)
 window.restaurarAjudante = async function() {
     const epis = ['BOTA DE PVC CA 42.291','BOTA BICO DE AÇO CA 43.339','CAPACETE CA 31.469','CAPA DE CHUVA CA 31.413','ÓCULOS DE PROTEÇÃO CA 19.176','LUVA DE PVC VERDE CA34570','LUVA DE NEOLATEX CURTA EXG CA 5.774','RESPIRADOR PURIFICADOR DE AR CA 14.781','PROTETOR SOLAR FPS30','PROTETOR AUDITIVO CA 36.817','BONÉ','CALÇA','CAMISETA MANGA CURTA','CAMISETA MANGA LONGA'];
-    const grupos = ['Ajudante', 'Ajudante Pátio'];
-    const depts  = { 'Ajudante': ['Ajudante'], 'Ajudante Pátio': ['Ajudante Pátio'] };
+    const grupos = ['Ajudante', 'Ajudante Pátio e Liderança'];
+    const depts  = { 'Ajudante': ['Ajudante'], 'Ajudante Pátio e Liderança': ['Ajudante Pátio', 'Liderança'] };
     for (const g of grupos) {
         const t = epiTemplates.find(x => x.grupo === g);
         if (!t) continue;
@@ -435,6 +435,14 @@ function addEpiRow(value = '') {
 }
 
 window.addEpiItemRow = function() { addEpiRow(); };
+
+window.addEpiItem = function() {
+    const input = document.getElementById('epi-ca-input');
+    const val = input ? input.value.trim() : '';
+    if (!val) { input.focus(); return; }
+    addEpiRow(val);
+    if (input) { input.value = ''; input.focus(); }
+};
 
 window.addEpiManual = function() {
     const caInput = document.getElementById('ca-manual-input');
