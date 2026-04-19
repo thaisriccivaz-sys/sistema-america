@@ -6,6 +6,10 @@ let epiTemplates = [];
 let editingEpiId = null;
 let allDepartamentos = [];
 
+// Estado compartilhado do drag-and-drop da lista de EPIs
+let _epiDragSrc = null;
+let _epiPlaceholder = null;
+
 const GRUPOS_OPERACIONAL = ['Manutenção', 'Limpeza', 'Motorista', 'Ajudante', 'Ajudante Pátio', 'Ajudante Pátio e Liderança', 'Ajudante Pátio, Liderança']; // legado — usado como fallback
 const GRUPOS_ADMIN      = ['Escritório'];
 
@@ -422,15 +426,71 @@ window.openEpiModal = function(id) {
 function addEpiRow(value = '') {
     const list = document.getElementById('epi-items-list');
     const row = document.createElement('div');
-    row.style.cssText = 'display:flex; gap:0.5rem; margin-bottom:0.4rem; align-items:center;';
+    row.className = 'epi-drag-row';
+    row.style.cssText = 'display:flex; gap:0.5rem; margin-bottom:0.4rem; align-items:center; transition:opacity 0.15s;';
+    row.draggable = false;
+
     row.innerHTML = `
-        <i class="ph ph-dots-six-vertical" style="cursor:grab;color:#94a3b8;font-size:1.1rem;flex-shrink:0;"></i>
+        <i class="ph ph-dots-six-vertical epi-drag-handle"
+           style="cursor:grab;color:#94a3b8;font-size:1.2rem;flex-shrink:0;padding:0 2px;touch-action:none;"
+           title="Arrastar para reordenar"></i>
         <input type="text" class="form-control epi-item-input" value="${value.replace(/"/g, '&quot;')}"
                placeholder="Nome do EPI..." style="height:36px;font-size:0.87rem;flex:1;">
-        <button type="button" onclick="this.closest('div').remove()"
+        <button type="button" onclick="this.closest('.epi-drag-row').remove()"
                 style="background:none;border:none;color:#e03131;cursor:pointer;font-size:1.1rem;flex-shrink:0;">
             <i class="ph ph-x-circle"></i>
         </button>`;
+
+    const handle = row.querySelector('.epi-drag-handle');
+
+    // Só ativa draggable ao pressionar o handle
+    handle.addEventListener('mousedown', () => { row.draggable = true; });
+    document.addEventListener('mouseup', () => { row.draggable = false; }, { once: false });
+
+    row.addEventListener('dragstart', (e) => {
+        _epiDragSrc = row;
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', '');
+        setTimeout(() => { row.style.opacity = '0.3'; }, 0);
+
+        _epiPlaceholder = document.createElement('div');
+        _epiPlaceholder.className = 'epi-drop-placeholder';
+        _epiPlaceholder.style.cssText = 'height:3px;background:#3b82f6;border-radius:4px;margin:3px 0;pointer-events:none;';
+    });
+
+    row.addEventListener('dragend', () => {
+        if (_epiDragSrc) _epiDragSrc.style.opacity = '';
+        row.draggable = false;
+        if (_epiPlaceholder && _epiPlaceholder.parentNode) {
+            _epiPlaceholder.parentNode.removeChild(_epiPlaceholder);
+        }
+        document.querySelectorAll('.epi-drop-placeholder').forEach(p => p.remove());
+        _epiDragSrc = null;
+        _epiPlaceholder = null;
+    });
+
+    row.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        if (!_epiDragSrc || _epiDragSrc === row || !_epiPlaceholder) return;
+        const mid = row.getBoundingClientRect().top + row.getBoundingClientRect().height / 2;
+        if (e.clientY < mid) {
+            row.parentNode.insertBefore(_epiPlaceholder, row);
+        } else {
+            row.parentNode.insertBefore(_epiPlaceholder, row.nextSibling);
+        }
+    });
+
+    row.addEventListener('drop', (e) => {
+        e.preventDefault();
+        if (!_epiDragSrc || _epiDragSrc === row) return;
+        const mid = row.getBoundingClientRect().top + row.getBoundingClientRect().height / 2;
+        if (e.clientY < mid) {
+            row.parentNode.insertBefore(_epiDragSrc, row);
+        } else {
+            row.parentNode.insertBefore(_epiDragSrc, row.nextSibling);
+        }
+    });
+
     list.appendChild(row);
 }
 
