@@ -712,7 +712,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     { modulo: 'Sistema',       pagina_id: 'usuarios-permissoes',  pagina_nome: 'Usuários e Permissões' },
                 ];
 
-                db.get("SELECT id, grupo_permissao_id FROM usuarios WHERE username = 'teste.2'", [], (err, userRow) => {
+                db.get("SELECT id, grupo_permissao_id FROM usuarios WHERE username = 'diretoria.1'", [], (err, userRow) => {
                     if (err || !userRow) return; // usuário não existe, nada a fazer
 
                     const aplicarPermissoes = (grupoId) => {
@@ -741,12 +741,12 @@ const db = new sqlite3.Database(dbPath, (err) => {
                                     // já existia com esse nome — buscar o id
                                     db.get("SELECT id FROM grupos_permissao WHERE nome = 'Diretoria (teste.2)'", [], (e, g) => {
                                         if (g) {
-                                            db.run("UPDATE usuarios SET grupo_permissao_id = ? WHERE username = 'teste.2'", [g.id]);
+                                            db.run("UPDATE usuarios SET grupo_permissao_id = ? WHERE username = 'diretoria.1'", [g.id]);
                                             aplicarPermissoes(g.id);
                                         }
                                     });
                                 } else {
-                                    db.run("UPDATE usuarios SET grupo_permissao_id = ? WHERE username = 'teste.2'", [novoGrupoId]);
+                                    db.run("UPDATE usuarios SET grupo_permissao_id = ? WHERE username = 'diretoria.1'", [novoGrupoId]);
                                     aplicarPermissoes(novoGrupoId);
                                 }
                             }
