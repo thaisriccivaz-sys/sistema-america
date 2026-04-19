@@ -81,6 +81,8 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     foto_path TEXT,
                     contato_emergencia_nome TEXT,
                     contato_emergencia_telefone TEXT,
+                    contato_emergencia2_nome TEXT,
+                    contato_emergencia2_telefone TEXT,
                     cnh_numero TEXT,
                     cnh_vencimento TEXT,
                     cnh_categoria TEXT,
@@ -137,6 +139,8 @@ const db = new sqlite3.Database(dbPath, (err) => {
             // Auto-Migration Silenciosa para Bancos Existentes
             db.run("ALTER TABLE colaboradores ADD COLUMN contato_emergencia_nome TEXT", (err) => { /* Ignora se já existir */ });
             db.run("ALTER TABLE colaboradores ADD COLUMN contato_emergencia_telefone TEXT", (err) => { /* Ignora se já existir */ });
+            db.run("ALTER TABLE colaboradores ADD COLUMN contato_emergencia2_nome TEXT", (err) => { /* Ignora se já existir */ });
+            db.run("ALTER TABLE colaboradores ADD COLUMN contato_emergencia2_telefone TEXT", (err) => { /* Ignora se já existir */ });
             db.run("ALTER TABLE colaboradores ADD COLUMN cnh_numero TEXT", (err) => { /* Ignora se já existir */ });
             db.run("ALTER TABLE colaboradores ADD COLUMN cnh_vencimento TEXT", (err) => { /* Ignora se já existir */ });
             db.run("ALTER TABLE colaboradores ADD COLUMN cnh_categoria TEXT", (err) => { /* Ignora se já existir */ });

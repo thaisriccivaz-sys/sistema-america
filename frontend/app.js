@@ -2644,6 +2644,8 @@ window.editColaborador = async function(id) {
         // Contato de Emergência
         if (document.getElementById('colab-emergencia-nome')) document.getElementById('colab-emergencia-nome').value = c.contato_emergencia_nome || '';
         if (document.getElementById('colab-emergencia-telefone')) document.getElementById('colab-emergencia-telefone').value = c.contato_emergencia_telefone || '';
+        if (document.getElementById('colab-emergencia2-nome')) document.getElementById('colab-emergencia2-nome').value = c.contato_emergencia2_nome || '';
+        if (document.getElementById('colab-emergencia2-telefone')) document.getElementById('colab-emergencia2-telefone').value = c.contato_emergencia2_telefone || '';
 
         // Meio de transporte
         if (document.getElementById('colab-meio-transporte')) {
@@ -2972,6 +2974,8 @@ if (formColab) {
             status: statusInput ? statusInput.value : '',
             contato_emergencia_nome: document.getElementById('colab-emergencia-nome').value,
             contato_emergencia_telefone: document.getElementById('colab-emergencia-telefone').value,
+            contato_emergencia2_nome: document.getElementById('colab-emergencia2-nome') ? document.getElementById('colab-emergencia2-nome').value : '',
+            contato_emergencia2_telefone: document.getElementById('colab-emergencia2-telefone') ? document.getElementById('colab-emergencia2-telefone').value : '',
             cnh_numero: document.getElementById('colab-cnh-numero') ? document.getElementById('colab-cnh-numero').value : null,
             cnh_categoria: document.getElementById('colab-cnh-categoria') ? document.getElementById('colab-cnh-categoria').value : null,
             matricula_esocial: document.getElementById('colab-matricula-esocial') ? document.getElementById('colab-matricula-esocial').value : null,
@@ -8154,7 +8158,7 @@ window.anexarAoProntuarioPerfil = async function(btn) {
         if (!previewContent) throw new Error('Conteúdo do preview não encontrado. Feche e gere novamente.');
 
         const pdfBlob = await window.gerarPDFBlob(previewContent);
-        const safeName = (geradorNome || 'documento').replace(/[^a-zA-Z0-9À-� _-]/g, '');
+        const safeName = (geradorNome || 'documento').replace(/[^a-zA-Z0-9À-� _-]/g, '');
         const colabNome = (viewedColaborador.nome_completo || viewedColaborador.id).toString();
 
         const formData = new FormData();
@@ -8245,7 +8249,7 @@ window.enviarAssinaturaPerfilDireto = async function(event) {
         if (!previewContent) throw new Error('Conteúdo do formulário foi perdido. Tente gerar novamente.');
 
         const pdfBlob = await window.gerarPDFBlob(previewContent);
-        const safeName = (geradorNome || 'documento').replace(/[^a-zA-Z0-9À-� _-]/g, '');
+        const safeName = (geradorNome || 'documento').replace(/[^a-zA-Z0-9À-� _-]/g, '');
         const colabId  = viewedColaborador?.id || '';
         const colabNome = (viewedColaborador?.nome_completo || colabId).toString();
 
@@ -8874,7 +8878,7 @@ window.previewAdmissaoDoc = async function(geradorId, colabId, evt) {
                     if (!previewContent) throw new Error('Conteúdo do preview não encontrado');
                     
                     const pdfBlob = await window.gerarPDFBlob(previewContent);
-                    const safeName = (data.gerador_nome || 'documento_admissao').replace(/[^a-zA-Z0-9À-� _-]/g, '');
+                    const safeName = (data.gerador_nome || 'documento_admissao').replace(/[^a-zA-Z0-9À-� _-]/g, '');
                     const cNome = (data.colaborador?.NOME_COMPLETO || colabId).toString();
                     
                     const formData = new FormData();
@@ -9432,6 +9436,8 @@ function calculateAdmissaoStep1Completion(c) {
         { key: 'email', label: 'E-mail' },
         { key: 'contato_emergencia_nome', label: 'Emg. Nome' },
         { key: 'contato_emergencia_telefone', label: 'Emg. Tel.' },
+        { key: 'contato_emergencia2_nome', label: 'Emg. Nome 2' },
+        { key: 'contato_emergencia2_telefone', label: 'Emg. Tel. 2' },
         { key: 'endereco', label: 'Endereço' },
         { key: 'matricula_esocial', label: 'Matrícula eSocial' },
         { key: 'cargo', label: 'Cargo' },
