@@ -4222,7 +4222,7 @@ async function renderFaculdadeTab(container, tabId) {
                     <option value="07">Jul</option><option value="08">Ago</option><option value="09">Set</option>
                     <option value="10">Out</option><option value="11">Nov</option><option value="12">Dez</option>
                 </select>
-                <button type="button" class="btn btn-primary" onclick="renderFaculdadeCompetencia()">Carregar</button>
+                <button type="button" class="btn btn-primary" onclick="renderFaculdadeCompetencia()" style="display:none;">Carregar</button>
             </div>
         </div>
         <div id="fac_competencia_container"></div>
@@ -4622,6 +4622,20 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                                 style="height:36px; display:flex; align-items:center; justify-content:center; gap:6px; background:#0f4c81; color:#fff; border:none; border-radius:6px; padding:0 0.85rem; font-size:0.82rem; font-weight:600; cursor:pointer; white-space:nowrap; width:100%; min-width:230px; max-width:250px;">
                             <i class="ph ph-buildings"></i> Enviar para Contabilidade
                         </button>
+                    </div>` : ''}
+
+                    ${(tabId === 'Faculdade' && isSaved && docType === 'Boleto') ? `
+                    <div style="display:flex; flex-direction:column; gap:0.35rem; margin-top:0.35rem; align-items:flex-end; width:100%; border-top: 1px dashed #e2e8f0; padding-top: 0.5rem;">
+                        <div style="display:flex; gap:0.5rem; align-items:center; justify-content:flex-end; width:100%;">
+                            <input type="email" id="faculdade-financeiro-email-${existingDoc.id}"
+                                   value="thais.ricci@americarental.com.br"
+                                   style="height:36px; padding:0 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; width:100%; max-width:260px;">
+                            <button type="button"
+                                    onclick="window.enviarBoletoFinanceiro(${existingDoc.id}, 'faculdade-financeiro-email-${existingDoc.id}', this)"
+                                    style="height:36px; display:flex; align-items:center; justify-content:center; gap:6px; background:#16a34a; color:#fff; border:none; border-radius:6px; padding:0 0.85rem; font-size:0.82rem; font-weight:600; cursor:pointer; white-space:nowrap;">
+                                <i class="ph ph-currency-circle-dollar"></i> Enviar para o Financeiro
+                            </button>
+                        </div>
                     </div>` : ''}
                 </div>
             `}
