@@ -4692,14 +4692,15 @@ app.post('/api/send-boleto-financeiro', authenticateToken, async (req, res) => {
             ? new Date(doc.upload_date).toLocaleDateString('pt-BR')
             : new Date().toLocaleDateString('pt-BR');
 
+        const md = String(doc.month || '0').padStart(2, '0');
+        const yyyy = doc.year || new Date().getFullYear();
+
         // Arquivo em anexo
         const attachments = [];
         const activeFilePath = path.resolve(doc.file_path);
         if (fs.existsSync(activeFilePath)) {
             const nomeNorm = (colab.nome_completo || 'Colaborador')
                 .toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]+/g, '_');
-            const md = String(doc.month || '0').padStart(2, '0');
-            const yyyy = doc.year || new Date().getFullYear();
             attachments.push({ filename: `Boleto_Faculdade_${md}-${yyyy}_${nomeNorm}.pdf`, path: activeFilePath, contentType: 'application/pdf' });
         } else {
             return res.status(404).json({ sucesso: false, error: 'Arquivo PDF do boleto não encontrado no servidor.' });
