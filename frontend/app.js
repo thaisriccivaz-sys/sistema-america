@@ -863,9 +863,13 @@ async function loadCargos() {
             <tr>
                 <td>${c.id}</td>
                 <td style="font-weight: 600;">${c.nome}</td>
-                <td style="text-align: right;">
+                <td style="text-align: right; display:flex; gap:0.4rem; justify-content:flex-end; align-items:center;">
                     <button type="button" class="btn btn-primary btn-sm" onclick="window.toggleCargoView('edit', ${c.id})">
                         <i class="ph ph-note-pencil"></i> Editar
+                    </button>
+                    <button type="button" class="btn btn-danger btn-sm" onclick="window.deleteCargo(${c.id}, '${c.nome.replace(/'/g, "\\'")}')"
+                        style="background:#e03131; border-color:#e03131;">
+                        <i class="ph ph-trash"></i> Excluir
                     </button>
                 </td>
             </tr>
@@ -884,6 +888,25 @@ async function loadCargos() {
         });
     }
 }
+
+window.deleteCargo = async function(id, nome) {
+    if (!confirm(`Excluir permanentemente o cargo "${nome}"?\n\nEsta ação não pode ser desfeita.`)) return;
+    try {
+        const res = await fetch(`${API_URL}/cargos/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${currentToken}` }
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            alert(data.error || 'Erro ao excluir cargo.');
+            return;
+        }
+        // Recarrega a lista
+        await loadCargos();
+    } catch(e) {
+        alert('Erro ao excluir cargo: ' + e.message);
+    }
+};
 
 // Filtra as linhas da tabela de cargos pelo texto digitado
 window.filtrarListaCargos = function(query) {
