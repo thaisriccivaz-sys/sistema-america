@@ -5336,15 +5336,16 @@ app.post('/api/documentos/:id/force-onedrive-sync', authenticateToken, async (re
 
 const os = require('os');
 const uploadDB = multer({ dest: os.tmpdir() });
+const _dbPath = process.env.DATABASE_PATH || path.join(__dirname, 'data', 'hr_system_v2.sqlite');
 
 app.get('/api/maintenance/download-db', authenticateToken, (req, res) => {
     const isDiretoria = req.user?.role === 'Diretoria' || req.user?.role === 'Administrador' || req.user?.departamento === 'Diretoria' || (req.user?.grupo_nome && req.user.grupo_nome.toLowerCase() === 'diretoria') || req.user?.username === 'diretoria.1';
     if (!isDiretoria) return res.status(403).json({ error: 'Acesso negado' });
     
-    if (fs.existsSync(dbPath)) {
-        res.download(dbPath, 'hr_system_v2.sqlite');
+    if (fs.existsSync(_dbPath)) {
+        res.download(_dbPath, 'hr_system_v2.sqlite');
     } else {
-        res.status(404).json({ error: 'DB não encontrado' });
+        res.status(404).json({ error: 'DB não encontrado em: ' + _dbPath });
     }
 });
 
@@ -5354,7 +5355,7 @@ app.post('/api/maintenance/upload-db', authenticateToken, uploadDB.single('datab
     if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
     
     try {
-        fs.copyFileSync(req.file.path, dbPath);
+        fs.copyFileSync(req.file.path, _dbPath);
         fs.unlinkSync(req.file.path);
         res.json({ message: 'DB importado com sucesso. Reiniciando...' });
         
