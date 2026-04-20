@@ -6949,7 +6949,7 @@ app.post('/api/dissidio/aplicar', authenticateToken, async (req, res) => {
         
         let totalAntes = 0;
         let atualizados = 0;
-        const salNewStr = 'R$ ' + formatBRL(targetSalary);
+        const salNewStr = formatBRL(targetSalary);
 
         for (const colab of colabs) {
             const salOld = parseSalary(colab.salario);

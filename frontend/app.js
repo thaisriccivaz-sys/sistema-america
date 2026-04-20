@@ -2715,8 +2715,16 @@ window.editColaborador = async function(id) {
         document.getElementById('colab-contrato').value = c.tipo_contrato || 'CLT';
         const rawSal = c.salario;
         if (rawSal !== undefined && rawSal !== null && rawSal !== '') {
-            const numSal = parseFloat(String(rawSal).replace(/[^\d.]/g, ''));
-            document.getElementById('colab-salario').value = !isNaN(numSal)
+            let str = String(rawSal).replace(/R\$\s*/g, '').trim();
+            let numSal = 0;
+            if (str.includes(',') && str.includes('.')) {
+                numSal = parseFloat(str.replace(/\./g, '').replace(',', '.'));
+            } else if (str.includes(',')) {
+                numSal = parseFloat(str.replace(',', '.'));
+            } else {
+                numSal = parseFloat(str);
+            }
+            document.getElementById('colab-salario').value = !isNaN(numSal) && numSal > 0
                 ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(numSal)
                 : rawSal;
         } else {

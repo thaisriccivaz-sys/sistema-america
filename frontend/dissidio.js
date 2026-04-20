@@ -30,10 +30,9 @@
 
                     <div style="flex:1;min-width:150px;">
                         <label style="display:block;font-size:0.85rem;font-weight:600;color:#334155;margin-bottom:0.5rem;">Novo Salário Bruto Final (R$)</label>
-                        <input type="text" id="dissidio-novo-salario" placeholder="Ex: 2.800,00" inputmode="decimal"
+                        <input type="text" id="dissidio-novo-salario" placeholder="R$ 0,00" inputmode="numeric"
                             style="width:100%;padding:0.65rem 0.85rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.95rem;color:#0f172a;background:#fff;box-sizing:border-box;outline:none;"
-                            onblur="window.dissidioFormatSalario(this); window.dissidioPreview()"
-                            oninput="window.dissidioPreview()">
+                            oninput="window.dissidioFormatSalario(this); window.dissidioPreview()">
                     </div>
 
                     <div id="dissidio-preview-box" style="background:#f8fafc;border:1.5px dashed #cbd5e1;border-radius:8px;padding:0.65rem 0.85rem;min-height:43px;display:flex;align-items:center;gap:0.5rem;color:#64748b;font-size:0.9rem;flex:2;min-width:250px;">
@@ -90,49 +89,24 @@
         window.dissidioLoadHistorico();
     }
 
-    // ---- BRL Currency Formatter (blur-based, not centavos-first) ----
+    // ---- BRL formatter (ATM-style, formats while typing) ----
     window.dissidioFormatSalario = function(input) {
-        let val = input.value.replace(/R\$\s*/g, '').trim();
-        if (!val) return;
-        // Parse whatever the user typed: 2800 or 2800.50 or 2800,50 or 2.800,00
-        let num = 0;
-        if (val.includes(',') && val.includes('.')) {
-            const lastComma = val.lastIndexOf(',');
-            const lastDot = val.lastIndexOf('.');
-            num = lastComma > lastDot
-                ? parseFloat(val.replace(/\./g, '').replace(',', '.'))
-                : parseFloat(val.replace(/,/g, ''));
-        } else if (val.includes(',')) {
-            num = parseFloat(val.replace(',', '.'));
-        } else {
-            num = parseFloat(val);
+        let v = input.value.replace(/\D/g, "");
+        if (v === "") {
+            input.value = "";
+            return;
         }
-        if (!num || isNaN(num) || num <= 0) { input.value = ''; return; }
-        // Format as R$ 2.800,00
-        const numRounded = Math.round(num * 100);
-        const cents = (numRounded % 100).toString().padStart(2, '0');
-        const reais = Math.floor(numRounded / 100).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-        input.value = `R$ ${reais},${cents}`;
+        v = (parseInt(v) / 100).toFixed(2) + "";
+        v = v.replace(".", ",");
+        v = v.replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1.");
+        input.value = "R$ " + v;
     };
 
-    // Parse BRL text to float (handles "R$ 2.800,00" → 2800.00)
+    // Parse BRL text formatted string to plain float
     window.parseBRLInput = function(val) {
-        if (!val) return 0;
-        let s = String(val).replace(/R\$\s*/g, '').trim();
-        if (!s) return 0;
-        if (s.includes(',') && s.includes('.')) {
-            const lastComma = s.lastIndexOf(',');
-            const lastDot = s.lastIndexOf('.');
-            if (lastComma > lastDot) {
-                // PT-BR: 2.800,00
-                return parseFloat(s.replace(/\./g, '').replace(',', '.')) || 0;
-            } else {
-                // EN: 2,800.00
-                return parseFloat(s.replace(/,/g, '')) || 0;
-            }
-        }
-        if (s.includes(',')) return parseFloat(s.replace(',', '.')) || 0;
-        return parseFloat(s) || 0;
+        if (!val || typeof val !== 'string') return typeof val === 'number' ? val : 0;
+        const clean = val.replace(/[^\d,]/g, "").replace(",", ".");
+        return clean ? parseFloat(clean) : 0;
     };
 
     // ---- Load unique cargo list from backend ----
