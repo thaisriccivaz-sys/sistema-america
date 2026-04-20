@@ -2484,12 +2484,17 @@ function renderTabelaColaboradores(lista) {
                         const photoUrl = `${API_URL}/colaboradores/foto/${c.id}?t=${Date.now()}`;
                         const fallbackIcon = `data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNjYmQ1ZTEiIHN0cm9rZS13aWR0aD0iMS41IiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik0yMCAyMWE4IDggMCAwMC0xNiAwIi8+PGNpcmNsZSBjeD0iMTIiIGN5PSI3IiByPSI0Ii8+PC9zdmc+`;
 
+                        let cargoDisplay = c.cargo || '-';
+                        if (cargoDisplay.toLowerCase().includes('motorista') && c.cnh_categoria) {
+                            cargoDisplay += ` (${c.cnh_categoria})`;
+                        }
+
                         return `<tr>
                             <td style="padding-left:1rem;"><div style="width:36px;height:36px;border-radius:50%;overflow:hidden;border:1px solid #e2e8f0;background:#f8fafc;"><img src="${photoUrl}" onerror="this.src='${fallbackIcon}'" style="width:100%;height:100%;object-fit:cover;"></div></td>
                             <td><div style="display:flex;flex-direction:column;"><strong style="color:#334155;font-size:0.95rem;">${c.nome_completo || 'Sem Nome'}</strong>${experienceUnderName}</div></td>
                             <td style="color:#64748b;font-size:0.85rem;">${c.cpf || '-'}</td>
                             <td style="color:#64748b;font-size:0.85rem;">${c.departamento || '-'}</td>
-                            <td style="color:#64748b;font-size:0.85rem;">${c.cargo || '-'}</td>
+                            <td style="color:#64748b;font-size:0.85rem;">${cargoDisplay}</td>
                             <td>${expInfoHtml}</td>
                             <td>${statusHtml}</td>
                             <td style="text-align:right;padding-right:1rem;">
