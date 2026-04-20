@@ -936,8 +936,6 @@ body {
 
 .opcional-item:last-child {
     border-bottom: none;
-    flex-direction: column;
-    align-items: flex-start;
 }
 
 .opcional-info {
