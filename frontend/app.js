@@ -2669,7 +2669,15 @@ window.editColaborador = async function(id) {
         document.getElementById('colab-admissao').value = admDate;
         updateProbationBadge(admDate);
         document.getElementById('colab-contrato').value = c.tipo_contrato || 'CLT';
-        document.getElementById('colab-salario').value = c.salario || '';
+        const rawSal = c.salario;
+        if (rawSal !== undefined && rawSal !== null && rawSal !== '') {
+            const numSal = parseFloat(String(rawSal).replace(/[^\d.]/g, ''));
+            document.getElementById('colab-salario').value = !isNaN(numSal)
+                ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(numSal)
+                : rawSal;
+        } else {
+            document.getElementById('colab-salario').value = '';
+        }
         
         if (document.getElementById('colab-matricula-esocial')) document.getElementById('colab-matricula-esocial').value = c.matricula_esocial || '';
         if (document.getElementById('colab-numero-registro')) document.getElementById('colab-numero-registro').value = c.numero_registro || '';
