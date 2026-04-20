@@ -117,6 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     if (savedToken && savedUser) {
         currentToken = savedToken;
+        window.currentToken = currentToken;
         currentUser = JSON.parse(savedUser);
         
         const nameEl = document.getElementById('logged-user-name');
@@ -195,6 +196,7 @@ if (formLogin) {
 
             currentToken = data.token;
             currentUser = data.user;
+            window.currentToken = currentToken;
             
             localStorage.setItem('erp_token', currentToken);
             localStorage.setItem('erp_user', JSON.stringify(currentUser));

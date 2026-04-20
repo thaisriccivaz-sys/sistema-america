@@ -188,31 +188,38 @@
 
     async function loadColabs() {
         try {
-            // Reutiliza dados já carregados no app.js se disponíveis
+            let data = null;
+
+            // 1. Tenta reutilizar dados já carregados na tela de Colaboradores
             if (typeof _todosColaboradores !== 'undefined' && Array.isArray(_todosColaboradores) && _todosColaboradores.length > 0) {
-                _allColabs = _todosColaboradores;
-                preencherFiltros();
-                feriasFiltrar();
-                return;
+                data = _todosColaboradores;
             }
 
-            // Caso contrário, carrega da API
-            const token = getToken();
-            const url = getApiUrl();
-            const res = await fetch(`${url}/colaboradores`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            // 2. Usa a função apiGet do app.js (já tem o token correto no closure)
+            if (!data && typeof apiGet === 'function') {
+                data = await apiGet('/colaboradores');
+            }
 
-            if (!res.ok) throw new Error(`Erro ${res.status}: ${res.statusText}`);
-            const data = await res.json();
+            // 3. Fallback manual usando window.currentToken ou localStorage
+            if (!data) {
+                const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+                const url = (typeof API_URL !== 'undefined' && API_URL) ? API_URL : (window.location.origin + '/api');
+                const res = await fetch(`${url}/colaboradores`, {
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    cache: 'no-store'
+                });
+                if (!res.ok) throw new Error(`Erro ${res.status}: ${res.statusText}`);
+                data = await res.json();
+            }
 
-            // Garante que é array mesmo se a API retornar objeto
-            _allColabs = Array.isArray(data) ? data : (data.colaboradores || data.data || []);
+            // Normaliza para array independente do formato retornado
+            _allColabs = Array.isArray(data) ? data : (data && (data.colaboradores || data.data || []));
+            if (!Array.isArray(_allColabs)) _allColabs = [];
 
             preencherFiltros();
             feriasFiltrar();
         } catch (e) {
-            console.error('[Férias] Erro ao carregar:', e);
+            console.error('[Férias] Erro ao carregar colaboradores:', e);
             const wrap = document.getElementById('ferias-table-wrap');
             if (wrap) wrap.innerHTML = `
                 <div style="padding:3rem;text-align:center;color:#ef4444;">
@@ -225,6 +232,7 @@
                 </div>`;
         }
     }
+
 
     function preencherFiltros() {
         const deptos = [...new Set(_allColabs.map(c => c.departamento).filter(Boolean))].sort();
