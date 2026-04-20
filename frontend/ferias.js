@@ -192,10 +192,14 @@
         const diasRestantes = ult.diasParaVencer;
 
         // Cor da barra
+        const hoje = hj();
+        const emFerias = fIni && fFim && hoje >= fIni && hoje <= fFim;
         const temAgendadoFuturo = fIni && fIni > hoje;
         let barColor;
-        if (temAgendadoFuturo) {
-            barColor = '#16a34a';         // verde — tem férias agendadas
+        if (emFerias) {
+            barColor = '#7c3aed';         // roxo — colaborador está de férias agora
+        } else if (temAgendadoFuturo) {
+            barColor = '#16a34a';         // verde — tem férias agendadas (futuras)
         } else if (diasRestantes <= 90 || ult.vencida) {
             barColor = '#ef4444';         // vermelho — urgente
         } else if (diasRestantes <= 180) {
@@ -268,14 +272,6 @@
                             <option value="">Todos</option>
                         </select>
                     </div>
-                    <div style="flex:1;min-width:105px;">
-                        <label style="display:block;font-size:0.72rem;font-weight:700;color:#475569;margin-bottom:0.28rem;text-transform:uppercase;letter-spacing:.05em;">Situação</label>
-                        <select id="ferias-f-situacao" style="width:100%;padding:0.48rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.87rem;color:#0f172a;background:#f8fafc;outline:none;" onchange="window.feriasFiltrar()">
-                            <option value="">Todos</option>
-                            <option value="Ativo">Ativos</option>
-                            <option value="Inativo">Inativos</option>
-                        </select>
-                    </div>
                     <button onclick="window.feriasClearFiltro()"
                         style="padding:0.48rem 0.9rem;background:#f1f5f9;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.8rem;color:#64748b;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px;">
                         <i class="ph ph-x"></i> Limpar
@@ -297,7 +293,7 @@
         window.feriasFiltrar = feriasFiltrar;
         window.feriasClearFiltro = () => {
             _filtroStatus = null;
-            ['ferias-f-nome','ferias-f-dept','ferias-f-situacao'].forEach(id => {
+            ['ferias-f-nome','ferias-f-dept'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.value = '';
             });
@@ -362,22 +358,25 @@
         }
     }
 
-    /* ═══════════════════════════════════════════════
-       FILTRAR E RENDERIZAR
-    ═══════════════════════════════════════════════ */
+    // Status considerados "ativos" para exibição nesta tela
+    const STATUS_ATIVOS = new Set(['ativo', 'afastado', 'f\u00e9rias', 'ferias']);
+
     function feriasFiltrar() {
         const nome = (document.getElementById('ferias-f-nome')?.value || '').toLowerCase().trim();
         const dept = (document.getElementById('ferias-f-dept')?.value || '');
-        const sit  = (document.getElementById('ferias-f-situacao')?.value || '');
 
-        const todos = _allColabs.map(c => ({ ...c, _status: getStatus(c) }));
+        // Apenas colaboradores com situa\u00e7\u00e3o ativa (Ativo, Afastado, F\u00e9rias)
+        const ativos = _allColabs.filter(c =>
+            STATUS_ATIVOS.has((c.status || 'Ativo').trim().toLowerCase())
+        );
+
+        const todos = ativos.map(c => ({ ...c, _status: getStatus(c) }));
 
         // Contadores por status (total, antes dos filtros de texto)
         const contadores = {};
         todos.forEach(c => { contadores[c._status] = (contadores[c._status] || 0) + 1; });
 
         const colabs = todos.filter(c => {
-            if (sit  && (c.status || 'Ativo').trim().toLowerCase() !== sit.toLowerCase()) return false;
             if (dept && (c.departamento || '').trim() !== dept) return false;
             if (nome && !`${c.nome_completo||''} ${c.cargo||''} ${c.departamento||''}`.toLowerCase().includes(nome)) return false;
             if (_filtroStatus && c._status !== _filtroStatus) return false;
