@@ -2875,6 +2875,8 @@ window.editColaborador = async function(id) {
             ? [{ data_inicio: c.ferias_programadas_inicio, data_fim: c.ferias_programadas_fim }]
             : [];
         calculateVacationDays();
+        // Re-avaliar APÓS tudo preenchido para que o alerta reflita as férias já cadastradas
+        window.updateVacationInfo(c.data_admissao || '');
 
         updateStatusChip(getEffectiveStatus(c));
         
