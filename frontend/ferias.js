@@ -104,7 +104,13 @@
 
     /**
      * Determina o status de férias de um colaborador.
-     * Retorna: 'de_ferias' | 'agendado' | 'urgente' | 'sem_agenda' | 'em_aquisicao'
+     *
+     * Prioridades (em ordem):
+     *  1. DE FÉRIAS  → hoje está dentro do período de gozo agendado               (roxo)
+     *  2. EM AQUISIÇÃO → menos de 12 meses de trabalho, sem direito               (cinza)
+     *  3. URGENTE    → prazo máximo do período (fim + 12 meses) ≤ 90 dias         (vermelho)
+     *  4. AGENDADO   → tem férias marcadas dentro do período aquisitivo ativo     (verde)
+     *  5. SEM AGENDA → tem direito mas nenhuma férias agendada no período         (amarelo)
      */
     function getStatus(c) {
         const hj = hoje();
@@ -112,36 +118,28 @@
         const fIni = parseDate(c.ferias_programadas_inicio);
         const fFim = c.ferias_programadas_fim ? parseDate(c.ferias_programadas_fim) : null;
 
-        // 1. DE FÉRIAS: hoje está entre o início e fim das férias agendadas
-        if (fIni && fFim && hj >= fIni && hj <= fFim) return 'de_ferias';
-        if (fIni && !fFim && hj >= fIni) return 'de_ferias'; // sem data fim = assumimos em férias
+        // 1. DE FÉRIAS: hoje está entre início e fim das férias
+        if (fIni && hj >= fIni && (!fFim || hj <= fFim)) return 'de_ferias';
 
-        // 2. Sem direito ainda
+        // 2. EM AQUISIÇÃO: menos de 12 meses de trabalho (ainda sem direito)
         if (!info || !info.temDireitoAtual) return 'em_aquisicao';
 
-        // Pegar o período mais recente (último período aquisitivo completo)
         const periodos = info.periodos;
         const ult = periodos.length > 0 ? periodos[periodos.length - 1] : null;
         if (!ult) return 'em_aquisicao';
 
-        // Verifica se há férias agendadas DENTRO deste período (ou de qualquer período aberto)
-        const temAgendamentoDentroPeriodo = periodos.some(p =>
+        // 3. URGENTE: prazo de gozo (fim do período + 12 meses) ≤ 90 dias OU já vencido
+        //    Independe de ter ou não férias agendadas — o prazo legal está se esgotando
+        if (ult.vencida || ult.diasParaVencer <= 90) return 'urgente';
+
+        // 4. AGENDADO: tem férias marcadas dentro de algum período ativo (prazo não urgente)
+        const temAgendado = periodos.some(p =>
             !p.vencida && agendadaDentroDoPeriodo(c.ferias_programadas_inicio, c.ferias_programadas_fim, p)
         );
+        if (temAgendado) return 'agendado';
 
-        // 3. AGENDADO: tem férias marcadas dentro do período ativo
-        if (temAgendamentoDentroPeriodo) return 'agendado';
-
-        // 4. URGENTE: período vencendo em ≤90 dias E sem agendamento dentro do período
-        //    Também considera quem já tem período VENCIDO sem ter tirado férias
-        if (ult.vencida) return 'urgente'; // período já passou do prazo — crítico!
-        if (ult.diasParaVencer <= 90) return 'urgente';
-
-        // 5. SEM AGENDA: tem direito, período não urgente, mas sem férias agendadas
-        if (!c.ferias_programadas_inicio) return 'sem_agenda';
-
-        // 6. Tem férias agendadas mas fora do período ativo (ex: já tirou e agendou para o próximo)
-        return 'agendado';
+        // 5. SEM AGENDA: tem direito, prazo folgado, mas sem férias agendadas no período
+        return 'sem_agenda';
     }
 
     /* ─── Paleta de status ─── */
@@ -234,7 +232,8 @@
             feriasFiltrar();
         };
         window.feriasSetFiltroStatus = (st) => {
-            _filtroStatus = (_filtroStatus === st) ? null : st; // toggle
+            // null = Todos; clique no mesmo chip remove o filtro (toggle)
+            _filtroStatus = (st === null || _filtroStatus === st) ? null : st;
             feriasFiltrar();
         };
 
@@ -330,16 +329,36 @@
         const el = document.getElementById('ferias-status-cards');
         if (!el) return;
 
-        // Ordem de exibição
+        const total = Object.values(contadores).reduce((a, b) => a + b, 0);
         const ordem = ['urgente', 'sem_agenda', 'agendado', 'de_ferias', 'em_aquisicao'];
 
-        el.innerHTML = ordem.map(st => {
+        // Botão TODOS
+        const todosAtivo = _filtroStatus === null;
+        const btnTodos = `
+        <button onclick="window.feriasSetFiltroStatus(null)"
+            title="Mostrar todos os colaboradores"
+            style="display:flex;align-items:center;gap:0.6rem;padding:0.65rem 1.1rem;
+                background:${todosAtivo ? '#0f172a' : '#f1f5f9'};
+                color:${todosAtivo ? '#fff' : '#475569'};
+                border:2px solid ${todosAtivo ? '#0f172a' : '#e2e8f0'};
+                border-radius:11px;cursor:pointer;transition:all .15s;
+                font-weight:700;font-size:0.82rem;
+                box-shadow:${todosAtivo ? '0 2px 8px rgba(0,0,0,.2)' : '0 1px 2px rgba(0,0,0,.05)'};
+                outline:none;">
+            <i class="ph ph-users" style="font-size:1.1rem;"></i>
+            <span>Todos</span>
+            <span style="background:${todosAtivo ? 'rgba(255,255,255,.2)' : 'rgba(0,0,0,.08)'};
+                border-radius:99px;padding:1px 8px;font-size:0.82rem;font-weight:800;
+                min-width:22px;text-align:center;">${total}</span>
+        </button>`;
+
+        const chips = ordem.map(st => {
             const cfg = STATUS_CONFIG[st];
             const n = contadores[st] || 0;
             const ativo = _filtroStatus === st;
             return `
             <button onclick="window.feriasSetFiltroStatus('${st}')"
-                title="${ativo ? 'Clique para remover filtro' : 'Clique para filtrar por: ' + cfg.label}"
+                title="${ativo ? 'Remover filtro' : 'Filtrar: ' + cfg.label}"
                 style="display:flex;align-items:center;gap:0.6rem;padding:0.65rem 1.1rem;
                     background:${ativo ? cfg.color : cfg.bg};
                     color:${ativo ? '#fff' : cfg.color};
@@ -355,6 +374,8 @@
                     min-width:22px;text-align:center;">${n}</span>
             </button>`;
         }).join('');
+
+        el.innerHTML = btnTodos + chips;
     }
 
     /* ─── Tabela ─── */
