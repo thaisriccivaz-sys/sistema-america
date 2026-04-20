@@ -192,7 +192,6 @@
         const diasRestantes = ult.diasParaVencer;
 
         // Cor da barra
-        const hoje = hj();
         const emFerias = fIni && fFim && hoje >= fIni && hoje <= fFim;
         const temAgendadoFuturo = fIni && fIni > hoje;
         let barColor;
