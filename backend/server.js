@@ -6864,6 +6864,83 @@ app.post('/api/colaboradores/:id/multas/:multaId/assinar-condutor', authenticate
     }
 });
 
+// =============================================
+// DISSÍDIO - Reajuste de Salário em Massa
+// =============================================
+
+// Migration: criar tabela de histórico de dissídios
+db.run(`CREATE TABLE IF NOT EXISTS dissidios (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    cargo TEXT NOT NULL,
+    percentual REAL NOT NULL,
+    salario_antes_media REAL,
+    salario_depois_media REAL,
+    total_colaboradores INTEGER DEFAULT 0,
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+)`, (err) => {
+    if (err) console.error('[Migration] Dissídios:', err.message);
+    else console.log('[Migration] Tabela dissidios OK');
+});
+
+// POST /api/dissidio/aplicar — aplica reajuste em massa por cargo
+app.post('/api/dissidio/aplicar', authenticateToken, async (req, res) => {
+    const { cargo, percentual } = req.body;
+    if (!cargo || !percentual || isNaN(parseFloat(percentual))) {
+        return res.status(400).json({ error: 'cargo e percentual são obrigatórios.' });
+    }
+    const pct = parseFloat(percentual);
+    if (pct <= 0 || pct > 100) {
+        return res.status(400).json({ error: 'Percentual deve ser entre 0 e 100.' });
+    }
+    try {
+        const colabs = await new Promise((resolve, reject) =>
+            db.all(`SELECT id, salario FROM colaboradores WHERE trim(cargo) = trim(?)`, [cargo], (err, rows) =>
+                err ? reject(err) : resolve(rows || []))
+        );
+        if (colabs.length === 0) {
+            return res.status(404).json({ error: 'Nenhum colaborador encontrado para este cargo.' });
+        }
+        const parseSalary = (val) => {
+            if (!val) return 0;
+            if (typeof val === 'number') return val;
+            const s = String(val).replace(/R\$|\s/g, '').trim();
+            if (s.includes(',') && s.includes('.')) return parseFloat(s.replace(/\./g, '').replace(',', '.'));
+            if (s.includes(',')) return parseFloat(s.replace(',', '.'));
+            return parseFloat(s) || 0;
+        };
+        const formatBRL = (val) => val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        let totalAntes = 0, totalDepois = 0, atualizados = 0;
+        for (const colab of colabs) {
+            const salOld = parseSalary(colab.salario);
+            const salNew = parseFloat((salOld * (1 + pct / 100)).toFixed(2));
+            const salNewStr = 'R$ ' + formatBRL(salNew);
+            totalAntes += salOld; totalDepois += salNew;
+            await new Promise((resolve, reject) =>
+                db.run(`UPDATE colaboradores SET salario = ? WHERE id = ?`, [salNewStr, colab.id], (err) => err ? reject(err) : resolve())
+            );
+            atualizados++;
+        }
+        const mediaAntes = totalAntes / atualizados;
+        const mediaDepois = totalDepois / atualizados;
+        await new Promise((resolve, reject) =>
+            db.run(`INSERT INTO dissidios (cargo, percentual, salario_antes_media, salario_depois_media, total_colaboradores) VALUES (?, ?, ?, ?, ?)`,
+                [cargo, pct, mediaAntes, mediaDepois, atualizados], (err) => err ? reject(err) : resolve())
+        );
+        res.json({ ok: true, atualizados, cargo, percentual: pct });
+    } catch(e) {
+        console.error('[Dissídio] Erro ao aplicar:', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// GET /api/dissidio/historico — retorna histórico de dissídios
+app.get('/api/dissidio/historico', authenticateToken, (req, res) => {
+    db.all(`SELECT * FROM dissidios ORDER BY criado_em DESC LIMIT 200`, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
 app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
     console.log('Versão do Servidor: V29_PDF_LAYOUT_FIX');
