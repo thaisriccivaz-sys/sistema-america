@@ -1244,18 +1244,18 @@
                                         <div class="opcional-item">
                                             <div class="opcional-info">
                                                 <h4><i class="ph ph-fire-extinguisher"></i> Brigadista</h4>
-                                                <div class="opcional-question-row" style="display:flex; align-items:center; gap:1.5rem; flex-wrap:wrap;">
+                                                <div class="opcional-question-row">
                                                     <span class="opcional-question">Colaborador é Brigadista?</span>
                                                     <div class="radio-pill-group">
                                                         <label><input type="radio" name="brigadista_participa" value="Não" checked onchange="toggleBrigadistaFields(this.value)"> Não</label>
                                                         <label><input type="radio" name="brigadista_participa" value="Sim" onchange="toggleBrigadistaFields(this.value)"> Sim</label>
                                                     </div>
-                                                    <div id="section-brigadista" style="display:none;">
-                                                        <div class="input-group" style="margin:0;">
-                                                            <label style="font-size:0.8rem; margin-bottom:2px;">Validade do Certificado</label>
-                                                            <input type="date" id="colab-brigadista-validade">
-                                                        </div>
-                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div id="section-brigadista" class="opcional-details-box" style="display:none;">
+                                                <div class="input-group">
+                                                    <label>Validade do Certificado</label>
+                                                    <input type="date" id="colab-brigadista-validade">
                                                 </div>
                                             </div>
                                         </div>
