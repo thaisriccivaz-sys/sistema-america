@@ -877,14 +877,13 @@ async function loadCargos() {
     });
 
     // Também popula o select do formulário de colaborador (para quando estiver cadastrando alguém)
-    const selectColab = document.getElementById('colab-cargo');
-    if (selectColab) {
-        selectColab.innerHTML = '<option value="" selected disabled>Selecionar</option>';
+    const cargoList = document.getElementById('colab-cargo-list');
+    if (cargoList) {
+        cargoList.innerHTML = '';
         cargos.forEach(c => {
             const option = document.createElement('option');
             option.value = c.nome;
-            option.textContent = c.nome;
-            selectColab.appendChild(option);
+            cargoList.appendChild(option);
         });
     }
 }

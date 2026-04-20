@@ -878,9 +878,8 @@
                                             <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
                                                 <div class="input-group" style="padding-right: 0.5rem;">
                                                     <label>Cargo *</label>
-                                                    <select id="colab-cargo" onchange="toggleMotorista(); autoFillDepartamento();" required>
-                                                        <option value="" selected disabled>Selecionar</option>
-                                                    </select>
+                                                    <input list="colab-cargo-list" id="colab-cargo" oninput="toggleMotorista(); autoFillDepartamento();" required style="width:100%;padding:0.75rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.9rem;" autocomplete="off" placeholder="Digite para buscar...">
+                                                    <datalist id="colab-cargo-list"></datalist>
                                                 </div>
                                                 <div class="input-group" style="padding-left: 0.5rem;">
                                                     <label>Departamento (Automático) *</label>

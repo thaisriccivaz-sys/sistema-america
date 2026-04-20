@@ -6868,6 +6868,22 @@ app.post('/api/colaboradores/:id/multas/:multaId/assinar-condutor', authenticate
 // DISSÍDIO - Reajuste de Salário em Massa
 // =============================================
 
+// Migration: Excluir cargo genérico 'Manutenção' e adicionar cargos específicos de manutenção
+db.serialize(() => {
+    db.run("DELETE FROM cargos WHERE LOWER(TRIM(nome)) = 'manutencao' OR LOWER(TRIM(nome)) = 'manutenção'");
+    db.run("INSERT OR IGNORE INTO departamentos (nome) VALUES ('Manutenção')");
+    const cargosManut = [
+        'Aux. de Manutenção',
+        'Ass. de Manutenção 1',
+        'Ass. de Manutenção 2',
+        'Téc. de Manutenção',
+        'Sup. de Manutenção'
+    ];
+    cargosManut.forEach(nome => {
+        db.run("INSERT OR IGNORE INTO cargos (nome, departamento) VALUES (?, 'Manutenção')", [nome]);
+    });
+});
+
 // Migration: criar tabela de histórico de dissídios
 db.run(`CREATE TABLE IF NOT EXISTS dissidios (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
