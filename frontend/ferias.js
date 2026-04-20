@@ -190,29 +190,37 @@
         try {
             let data = null;
 
-            // 1. Tenta reutilizar dados já carregados na tela de Colaboradores
+            // 1. Reutiliza dados já na memória (_todosColaboradores é a variável global do app.js)
             if (typeof _todosColaboradores !== 'undefined' && Array.isArray(_todosColaboradores) && _todosColaboradores.length > 0) {
                 data = _todosColaboradores;
             }
 
-            // 2. Usa a função apiGet do app.js (já tem o token correto no closure)
+            // 2. Tentativa via apiGet do app.js (usa currentToken diretamente via closure do app.js)
             if (!data && typeof apiGet === 'function') {
-                data = await apiGet('/colaboradores');
+                try { data = await apiGet('/colaboradores'); } catch(_) {}
             }
 
-            // 3. Fallback manual usando window.currentToken ou localStorage
+            // 3. Fetch direto — lê o token do localStorage no momento da chamada
+            //    (mesma chave 'erp_token' que o app.js usa ao salvar o login)
             if (!data) {
-                const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
-                const url = (typeof API_URL !== 'undefined' && API_URL) ? API_URL : (window.location.origin + '/api');
-                const res = await fetch(`${url}/colaboradores`, {
-                    headers: { 'Authorization': `Bearer ${token}` },
+                const token = localStorage.getItem('erp_token')
+                    || window.currentToken
+                    || localStorage.getItem('token')
+                    || '';
+                const baseUrl = (typeof API_URL !== 'undefined' && API_URL)
+                    ? API_URL
+                    : (window.location.origin + '/api');
+                const res = await fetch(`${baseUrl}/colaboradores`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
                     cache: 'no-store'
                 });
                 if (!res.ok) throw new Error(`Erro ${res.status}: ${res.statusText}`);
                 data = await res.json();
             }
 
-            // Normaliza para array independente do formato retornado
             _allColabs = Array.isArray(data) ? data : (data && (data.colaboradores || data.data || []));
             if (!Array.isArray(_allColabs)) _allColabs = [];
 
@@ -225,8 +233,8 @@
                 <div style="padding:3rem;text-align:center;color:#ef4444;">
                     <i class="ph ph-warning-circle" style="font-size:2.5rem;display:block;margin-bottom:0.5rem;"></i>
                     <strong>Erro ao carregar colaboradores</strong><br>
-                    <small style="color:#94a3b8;">${e.message}</small><br><br>
-                    <button onclick="window.renderFerias()" style="background:#0891b2;color:#fff;border:none;border-radius:8px;padding:0.5rem 1rem;cursor:pointer;font-size:0.85rem;">
+                    <small style="color:#94a3b8;font-size:0.8rem;">${e.message}</small><br><br>
+                    <button onclick="window.renderFerias()" style="background:#0891b2;color:#fff;border:none;border-radius:8px;padding:0.5rem 1rem;cursor:pointer;font-size:0.85rem;display:inline-flex;align-items:center;gap:6px;">
                         <i class="ph ph-arrow-clockwise"></i> Tentar novamente
                     </button>
                 </div>`;
