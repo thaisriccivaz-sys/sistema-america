@@ -691,6 +691,24 @@ const db = new sqlite3.Database(dbPath, (err) => {
             // Remover grupo Administrador legados
             db.run("DELETE FROM grupos_permissao WHERE nome='Administrador'", (err) => {});
 
+            // ── MIGRAÇÃO: Garantir usuário diretoria.1 com senha 123 se tabela estiver vazia ──
+            const bcryptjs = require('bcryptjs');
+            db.get("SELECT COUNT(*) as count FROM usuarios", [], (err, row) => {
+                if (err) return;
+                if (row && row.count === 0) {
+                    bcryptjs.hash('123', 10, (hashErr, hash) => {
+                        if (hashErr) return console.error('[MIGRAÇÃO] Erro ao gerar hash:', hashErr);
+                        db.run(
+                            "INSERT INTO usuarios (username, password_hash, role) VALUES ('diretoria.1', ?, 'Diretoria')",
+                            [hash],
+                            (insErr) => {
+                                if (!insErr) console.log('[MIGRAÇÃO] Usuário diretoria.1 criado automaticamente (senha: 123)');
+                            }
+                        );
+                    });
+                }
+            });
+
             // ── MIGRAÇÃO: Garantir acesso total ao usuário teste.2 ───────
             setTimeout(() => {
                 const TODAS_TELAS = [
