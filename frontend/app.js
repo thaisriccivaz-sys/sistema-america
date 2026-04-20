@@ -2426,7 +2426,7 @@ window.resetFormColaborador = function() {
     if(document.getElementById('colab-cnh-categoria')) document.getElementById('colab-cnh-categoria').value = '';
     
     const novosCamposIds = [
-        'colab-matricula-esocial', 'colab-local-nascimento', 'colab-rg-orgao', 'colab-rg-data',
+        'colab-matricula-esocial', 'colab-numero-registro', 'colab-local-nascimento', 'colab-rg-orgao', 'colab-rg-data',
         'colab-titulo', 'colab-titulo-zona', 'colab-titulo-secao',
         'colab-ctps', 'colab-ctps-serie', 'colab-ctps-uf', 'colab-ctps-data',
         'colab-pis', 'colab-cor-raca', 'colab-sexo', 'colab-grau-instrucao', 'colab-cbo',
@@ -2594,6 +2594,7 @@ window.editColaborador = async function(id) {
         document.getElementById('colab-salario').value = c.salario || '';
         
         if (document.getElementById('colab-matricula-esocial')) document.getElementById('colab-matricula-esocial').value = c.matricula_esocial || '';
+        if (document.getElementById('colab-numero-registro')) document.getElementById('colab-numero-registro').value = c.numero_registro || '';
         if (document.getElementById('colab-local-nascimento')) document.getElementById('colab-local-nascimento').value = c.local_nascimento || '';
         if (document.getElementById('colab-rg-orgao')) document.getElementById('colab-rg-orgao').value = c.rg_orgao || '';
         if (document.getElementById('colab-rg-data')) document.getElementById('colab-rg-data').value = c.rg_data_emissao ? new Date(c.rg_data_emissao).toISOString().split('T')[0] : '';
@@ -2979,6 +2980,7 @@ if (formColab) {
             cnh_numero: document.getElementById('colab-cnh-numero') ? document.getElementById('colab-cnh-numero').value : null,
             cnh_categoria: document.getElementById('colab-cnh-categoria') ? document.getElementById('colab-cnh-categoria').value : null,
             matricula_esocial: document.getElementById('colab-matricula-esocial') ? document.getElementById('colab-matricula-esocial').value : null,
+            numero_registro: document.getElementById('colab-numero-registro') ? document.getElementById('colab-numero-registro').value : null,
             local_nascimento: document.getElementById('colab-local-nascimento') ? document.getElementById('colab-local-nascimento').value : null,
             rg_orgao: document.getElementById('colab-rg-orgao') ? document.getElementById('colab-rg-orgao').value : null,
             rg_data_emissao: document.getElementById('colab-rg-data') ? document.getElementById('colab-rg-data').value : null,

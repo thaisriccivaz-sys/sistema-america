@@ -147,7 +147,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
             
             // Novos campos da ficha de registro adicionais
             const novosCampos = [
-                'matricula_esocial', 'local_nascimento', 'rg_orgao', 'rg_data_emissao', 'rg_tipo',
+                'matricula_esocial', 'numero_registro', 'local_nascimento', 'rg_orgao', 'rg_data_emissao', 'rg_tipo',
                 'titulo_eleitoral', 'titulo_zona', 'titulo_secao',
                 'ctps_numero', 'ctps_serie', 'ctps_uf', 'ctps_data_expedicao',
                 'pis', 'cor_raca', 'sexo', 'grau_instrucao', 'cbo',
