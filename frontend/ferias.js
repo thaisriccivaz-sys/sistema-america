@@ -357,21 +357,23 @@
         }
     }
 
-    // Status considerados "ativos" para exibição nesta tela
-    const STATUS_ATIVOS = new Set(['ativo', 'afastado', 'f\u00e9rias', 'ferias']);
+    // Bloqueia apenas quem está explicitamente inativo/desligado
+    // Null, vazio, Ativo, Afastado, Férias e qualquer outro valor são exibidos
+    const STATUS_EXCLUIDOS = new Set(['inativo', 'demitido', 'desligado', 'rescindido', 'exonerado']);
 
     function feriasFiltrar() {
         const nome = (document.getElementById('ferias-f-nome')?.value || '').toLowerCase().trim();
         const dept = (document.getElementById('ferias-f-dept')?.value || '');
 
-        // Apenas colaboradores com situa\u00e7\u00e3o ativa (Ativo, Afastado, F\u00e9rias)
-        const ativos = _allColabs.filter(c =>
-            STATUS_ATIVOS.has((c.status || 'Ativo').trim().toLowerCase())
-        );
+        // Exclui apenas desligados/inativos; todos os demais (Ativo, Afastado, Férias, nulo) aparecem
+        const ativos = _allColabs.filter(c => {
+            const st = (c.status || '').trim().toLowerCase();
+            return !st || !STATUS_EXCLUIDOS.has(st);
+        });
 
         const todos = ativos.map(c => ({ ...c, _status: getStatus(c) }));
 
-        // Contadores por status (total, antes dos filtros de texto)
+        // Contadores por status (antes dos filtros de texto)
         const contadores = {};
         todos.forEach(c => { contadores[c._status] = (contadores[c._status] || 0) + 1; });
 
