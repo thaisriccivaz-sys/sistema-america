@@ -1795,6 +1795,33 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
             syncStatus = "Sincronização SharePoint iniciada";
         }
 
+        // Criar estrutura de pastas locais no OneDrive para o novo colaborador
+        try {
+            const _fsLocal = require('fs');
+            const _pathLocal = require('path');
+            const LOCAL_ONEDRIVE_BASE = process.env.LOCAL_ONEDRIVE_PATH || 
+                'C:\\A\\OneDrive - AMERICA RENTAL EQUIPAMENTOS LTDA\\Documentos - America Rental\\RH\\1.Colaboradores\\Sistema';
+            const PASTAS_PADRAO = [
+                '00_CHECKLIST', '01_FICHA_CADASTRAL', 'ASO', 'ATESTADOS',
+                'AVALIACAO', 'CERTIFICADOS', 'CONTRATOS', 'DEPENDENTES',
+                'EPI', 'FACULDADE', 'FOTOS', 'MULTAS', 'OCORRENCIAS',
+                'PAGAMENTOS', 'SINISTROS', 'TERAPIA', 'TREINAMENTO'
+            ];
+            const safeNome = (nomeOriginal || '')
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-zA-Z0-9 \-_]/g, '')
+                .trim().replace(/\s+/g, '_').toUpperCase();
+            const colabDir = _pathLocal.join(LOCAL_ONEDRIVE_BASE, safeNome);
+            if (!_fsLocal.existsSync(colabDir)) _fsLocal.mkdirSync(colabDir, { recursive: true });
+            PASTAS_PADRAO.forEach(sub => {
+                const subDir = _pathLocal.join(colabDir, sub);
+                if (!_fsLocal.existsSync(subDir)) _fsLocal.mkdirSync(subDir, { recursive: true });
+            });
+            console.log(`[PASTAS] Estrutura criada para: ${safeNome}`);
+        } catch(eFolder) {
+            console.error('[PASTAS] Erro ao criar pastas locais:', eFolder.message);
+        }
+
         res.status(201).json({ id: newColabId, sucesso: true, syncMsg: syncStatus });
     });
 });
