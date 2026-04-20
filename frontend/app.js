@@ -1546,14 +1546,14 @@ window.autoFillDepartamento = function() {
 }
 
 window.updateVacationInfo = function(admissaoStr) {
-    const aqField = document.getElementById('ferias-periodo-aquisitivo');
-    const concField = document.getElementById('ferias-periodo-concessivo');
-    const indicator = document.getElementById('ferias-concessivo-indicator');
-    
+    const aqField    = document.getElementById('ferias-periodo-aquisitivo');
+    const concField  = document.getElementById('ferias-periodo-concessivo');
+    const indicator  = document.getElementById('ferias-concessivo-indicator');
+
     if (!admissaoStr || !aqField || !concField) {
-        if(aqField) aqField.value = '-';
-        if(concField) { concField.value = '-'; concField.style.color = '#495057'; }
-        if(indicator) indicator.style.display = 'none';
+        if (aqField)    aqField.value = '-';
+        if (concField) { concField.value = '-'; concField.style.color = '#495057'; }
+        if (indicator)  indicator.style.display = 'none';
         return;
     }
 
@@ -1561,55 +1561,106 @@ window.updateVacationInfo = function(admissaoStr) {
         const adm = new Date(admissaoStr + 'T12:00:00');
         if (isNaN(adm.getTime())) return;
 
-        // Fim do Período Aquisitivo: +1 ano
-        const aqEnd = new Date(adm);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // ─── 1. Encontrar o ciclo atual com base nos anos completos desde a admissão ───
+        // Cada ciclo dura 12 meses. Avançamos ciclos até encontrar aquele cujo
+        // período concessivo ainda não venceu ou que está mais próximo de vencer.
+        let aqStart    = new Date(adm);
+        let aqEnd      = new Date(adm);
         aqEnd.setFullYear(adm.getFullYear() + 1);
-        
-        // Período Concessivo: +2 anos (menos 1 dia)
-        const concEnd = new Date(aqEnd);
+
+        // Percorre os ciclos enquanto o período concessivo já tiver vencido
+        while (true) {
+            // período_concessivo_fim = aqEnd + 12 meses - 1 dia
+            const concEnd = new Date(aqEnd);
+            concEnd.setFullYear(aqEnd.getFullYear() + 1);
+            concEnd.setDate(concEnd.getDate() - 1);
+
+            if (concEnd >= today) break; // Este ciclo ainda está válido ou é o atual
+
+            // Avança para o próximo ciclo
+            aqStart = new Date(aqEnd);
+            aqEnd.setFullYear(aqEnd.getFullYear() + 1);
+        }
+
+        // ─── 2. Período concessivo do ciclo atual ───
+        // periodo_concessivo_inicio = aqEnd (= aqStart + 12 meses)
+        // periodo_concessivo_fim    = aqEnd + 12 meses - 1 dia
+        const concStart = new Date(aqEnd);
+        const concEnd   = new Date(aqEnd);
         concEnd.setFullYear(aqEnd.getFullYear() + 1);
         concEnd.setDate(concEnd.getDate() - 1);
 
-        aqField.value = aqEnd.toLocaleDateString('pt-BR');
+        // ─── 3. Exibir datas nos campos ───
+        // Campo "Início do Período Concessivo" = début do concessivo
+        // Campo "Máximo do Período Concessivo" = fim do concessivo
+        aqField.value   = concStart.toLocaleDateString('pt-BR');
         concField.value = concEnd.toLocaleDateString('pt-BR');
 
-        const today = new Date();
-        today.setHours(0,0,0,0);
-        
-        // --- Lógica condicional da cor vermelha ---
-        const inConcessivo = today >= aqEnd && today <= concEnd;
-        const diasRestantes = Math.floor((concEnd - today) / (1000 * 60 * 60 * 24));
-        
-        // Verificar se há férias programadas dentro do período concessivo
+        // ─── 4. Calcular dias restantes para o vencimento ───
+        const diasParaVencimento = Math.floor((concEnd - today) / (1000 * 60 * 60 * 24));
+
+        // ─── 5. Verificar se há férias agendadas dentro do período concessivo ───
+        // Busca nas férias programadas do formulário atual (campo único)
         const fInicioEl = document.getElementById('colab-ferias-programadas-inicio');
-        const fFimEl = document.getElementById('colab-ferias-programadas-fim');
-        let feriasNoPeriodo = false;
-        if (fInicioEl && fInicioEl.value && fFimEl && fFimEl.value) {
+        const fFimEl    = document.getElementById('colab-ferias-programadas-fim');
+        let feriasValidas = false;
+
+        if (fInicioEl?.value && fFimEl?.value) {
             const fInicio = new Date(fInicioEl.value + 'T12:00:00');
-            const fFim = new Date(fFimEl.value + 'T12:00:00');
-            // Férias estão dentro do período concessivo se houver sobreposição
-            feriasNoPeriodo = fInicio <= concEnd && fFim >= aqEnd;
+            const fFim    = new Date(fFimEl.value   + 'T12:00:00');
+            // Sobreposição: fInicio <= concEnd E fFim >= concStart
+            feriasValidas = fInicio <= concEnd && fFim >= concStart;
         }
 
-        // Pintar vermelho apenas se: em período concessivo, sem férias programadas, e ≤ 90 dias
-        if (inConcessivo && !feriasNoPeriodo && diasRestantes <= 90) {
-            concField.style.color = '#e03131';
+        // Também verificar férias salvas no banco (lista de férias do colaborador)
+        if (!feriasValidas && window._feriasListCache && Array.isArray(window._feriasListCache)) {
+            feriasValidas = window._feriasListCache.some(f => {
+                if (!f.data_inicio || !f.data_fim) return false;
+                const fI = new Date(f.data_inicio + 'T12:00:00');
+                const fF = new Date(f.data_fim    + 'T12:00:00');
+                return fI <= concEnd && fF >= concStart;
+            });
+        }
+
+        // ─── 6. Regra de exibição do alerta ───
+        // Exibir SOMENTE se:
+        //   - dias_para_vencimento >= 0 (não vencido)
+        //   - dias_para_vencimento <= 90 (próximo do prazo)
+        //   - NÃO há férias válidas no período concessivo
+        const emPeriodoConcessivo = today >= concStart; // já entrou no concessivo
+
+        const exibirAlerta = emPeriodoConcessivo
+            && diasParaVencimento >= 0
+            && diasParaVencimento <= 90
+            && !feriasValidas;
+
+        if (exibirAlerta) {
+            // Cor e alerta vermelho
+            concField.style.color      = '#e03131';
             concField.style.fontWeight = '700';
+            if (indicator) {
+                indicator.style.display = 'flex';
+                const span = indicator.querySelector('span');
+                if (span) {
+                    span.textContent = diasParaVencimento === 0
+                        ? 'Atenção: Férias vencem HOJE! Devem ser concedidas imediatamente.'
+                        : `Atenção: As férias vencem em ${diasParaVencimento} dia(s). Devem ser concedidas antes de ${concEnd.toLocaleDateString('pt-BR')}!`;
+                }
+            }
         } else {
-            concField.style.color = '#495057';
+            concField.style.color      = '#495057';
             concField.style.fontWeight = '600';
+            if (indicator) indicator.style.display = 'none';
         }
 
-        // Mostrar indicador de alerta se já passou do período aquisitivo
-        if (today >= aqEnd) {
-            indicator.style.display = 'flex';
-        } else {
-            indicator.style.display = 'none';
-        }
     } catch (e) {
         console.error('Erro ao calcular datas de férias:', e);
     }
 }
+
 
 window.calculateVacationDays = function() {
     const inicioStr = document.getElementById('colab-ferias-programadas-inicio').value;
@@ -1637,6 +1688,10 @@ window.calculateVacationDays = function() {
     } else {
         totalField.value = `${diffDays} ${diffDays === 1 ? 'dia' : 'dias'}`;
     }
+
+    // Re-avaliar alerta de férias ao alterar as datas do formulário
+    const admissaoEl = document.getElementById('colab-data-admissao');
+    if (admissaoEl?.value) window.updateVacationInfo(admissaoEl.value);
 }
 
 // --- DASHBOARD ---
@@ -2815,6 +2870,10 @@ window.editColaborador = async function(id) {
 
         document.getElementById('colab-ferias-programadas-inicio').value = c.ferias_programadas_inicio || '';
         document.getElementById('colab-ferias-programadas-fim').value = c.ferias_programadas_fim || '';
+        // Popula o cache de férias para checagem de sobreposição no alerta CLT
+        window._feriasListCache = (c.ferias_programadas_inicio && c.ferias_programadas_fim)
+            ? [{ data_inicio: c.ferias_programadas_inicio, data_fim: c.ferias_programadas_fim }]
+            : [];
         calculateVacationDays();
 
         updateStatusChip(getEffectiveStatus(c));
