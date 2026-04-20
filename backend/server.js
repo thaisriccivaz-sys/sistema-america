@@ -2279,56 +2279,58 @@ app.post('/api/upload-foto/:id', authenticateToken, uploadFoto.single('foto'), a
                     await onedrive.uploadToOneDrive(`${onedriveBase}/FOTOS`, filename, processedBuffer);
                     console.log(`[OneDrive] Foto sincronizada: ${filename} e Foto_${safeNome}.jpg`);
                 } catch (syncErr) {
-                    console.error("[OneDrive] Erro ao sincronizar foto:", syncErr.message);
+                    console.error('[OneDrive] Erro ao sincronizar foto:', syncErr.message);
                 }
             })();
         }
 
         res.json({ sucesso: true, caminho: caminhoRelativo });
     } catch (erro) {
-        console.error("Erro no processamento da foto:", erro);
+        console.error('Erro no processamento da foto:', erro);
         res.status(500).json({ error: erro.message });
     }
 });
 
 app.get('/api/colaboradores/foto/:id', (req, res) => {
-    const logFile = path.resolve('tmp_photo_debug.log');
-    const log = (msg) => {
-        const time = new Date().toISOString();
-        fs.appendFileSync(logFile, `${time} - ${msg}\n`);
-        console.log(msg);
-    };
+    db.get('SELECT foto_base64, foto_path FROM colaboradores WHERE id = ?', [req.params.id], (err, row) => {
+        if (err || !row) {
+            return res.status(404).json({ error: 'Colaborador não encontrado' });
+        }
 
-    db.get('SELECT foto_path FROM colaboradores WHERE id = ?', [req.params.id], (err, row) => {
-        if (err || !row || !row.foto_path) {
-            log(`Foto não encontrada no banco para ID ${req.params.id}`);
+        // Prioridade 1: base64 salvo no banco
+        if (row.foto_base64 && row.foto_base64.startsWith('data:image')) {
+            const matches = row.foto_base64.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+            if (matches && matches.length === 3) {
+                const mimeType = matches[1];
+                const buffer = Buffer.from(matches[2], 'base64');
+                res.set('Content-Type', mimeType);
+                res.set('Cache-Control', 'public, max-age=86400');
+                return res.send(buffer);
+            }
+        }
+
+        // Prioridade 2: arquivo físico via foto_path
+        if (!row.foto_path) {
             return res.status(404).json({ error: 'Foto não encontrada' });
         }
-        
-        let file_path = row.foto_path;
-        log(`Buscando foto: ID ${req.params.id} -> Path: ${file_path}`);
 
-        // Converter se for relativo
+        let file_path = row.foto_path;
         if (file_path.startsWith('files/') || file_path.startsWith('files\\')) {
             file_path = path.join(BASE_PATH, '..', file_path.replace(/^files[\\\/]/, ''));
         } else if (file_path.startsWith('Colaboradores/') || file_path.startsWith('Colaboradores\\')) {
             file_path = path.join(BASE_PATH, '..', file_path);
         }
-        
         file_path = path.normalize(file_path);
-        if (!path.isAbsolute(file_path)) {
-            file_path = path.resolve(file_path);
-        }
-        
+        if (!path.isAbsolute(file_path)) file_path = path.resolve(file_path);
+
         if (!fs.existsSync(file_path)) {
-            log(`Arquivo NÃƒO encontrado: ${file_path}`);
             return res.status(404).json({ error: 'Arquivo físico não encontrado' });
         }
-        
-        log(`Sucesso: Enviando arquivo ${file_path}`);
+
         res.sendFile(file_path);
     });
 });
+
 
 // --- ROTAS DE DEPENDENTES ---
 app.get('/api/colaboradores/:id/dependentes', authenticateToken, (req, res) => {
