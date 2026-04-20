@@ -12960,10 +12960,12 @@ window.toggleAdiantamento = function(val) {
         input.disabled = false;
         input.style.background = '#fff';
         input.style.cursor = 'text';
+        input.style.color = '#0f172a';
     } else {
         input.disabled = true;
         input.style.background = '#f8fafc';
         input.style.cursor = 'not-allowed';
+        input.style.color = '#94a3b8';
         input.value = '';
     }
 };
@@ -12975,10 +12977,12 @@ window.toggleInsalubridade = function(val) {
         input.disabled = false;
         input.style.background = '#fff';
         input.style.cursor = 'text';
+        input.style.color = '#0f172a';
     } else {
         input.disabled = true;
         input.style.background = '#f8fafc';
         input.style.cursor = 'not-allowed';
+        input.style.color = '#94a3b8';
         input.value = '';
     }
 };
