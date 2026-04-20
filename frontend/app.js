@@ -1883,6 +1883,24 @@ async function loadColaboradores() {
     }
 }
 
+window._colabSortCol = null;
+window._colabSortDir = 'asc';
+
+window.colabToggleSort = function(col) {
+    if (window._colabSortCol === col) {
+        window._colabSortDir = window._colabSortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+        window._colabSortCol = col;
+        window._colabSortDir = 'asc';
+    }
+    aplicarFiltrosColaboradores();
+};
+
+function getSortIcon(col) {
+    if (window._colabSortCol !== col) return '<i class="ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;margin-left:4px;"></i>';
+    return window._colabSortDir === 'asc' ? '<i class="ph ph-arrow-up" style="color:#3b82f6;font-size:0.8rem;margin-left:4px;"></i>' : '<i class="ph ph-arrow-down" style="color:#3b82f6;font-size:0.8rem;margin-left:4px;"></i>';
+}
+
 function aplicarFiltrosColaboradores() {
     const parseCurrency = (val) => {
         if (!val) return 0;
@@ -1991,6 +2009,25 @@ function aplicarFiltrosColaboradores() {
 
         return true;
     });
+
+    if (window._colabSortCol) {
+        lista.sort((a, b) => {
+            let valA, valB;
+            switch(window._colabSortCol) {
+                case 'nome': valA = (a.nome_completo||'').toLowerCase(); valB = (b.nome_completo||'').toLowerCase(); break;
+                case 'departamento': valA = (a.departamento||'').toLowerCase(); valB = (b.departamento||'').toLowerCase(); break;
+                case 'cargo': valA = (a.cargo||'').toLowerCase(); valB = (b.cargo||'').toLowerCase(); break;
+                case 'admissao': 
+                    valA = a.data_admissao ? new Date(a.data_admissao).getTime() : 0; 
+                    valB = b.data_admissao ? new Date(b.data_admissao).getTime() : 0; 
+                    break;
+                default: valA = ''; valB = '';
+            }
+            if (valA < valB) return window._colabSortDir === 'asc' ? -1 : 1;
+            if (valA > valB) return window._colabSortDir === 'asc' ? 1 : -1;
+            return 0;
+        });
+    }
 
     window._listaColaboradoresFiltrada = lista;
 
@@ -2396,12 +2433,11 @@ function renderTabelaColaboradores(lista) {
             <table class="table">
                 <thead><tr>
                     <th style="padding-left:1rem;width:50px;">Foto</th>
-                    <th>Nome</th>
-                    <th>Experiência</th>
+                    <th style="cursor:pointer;white-space:nowrap;user-select:none;" onclick="colabToggleSort('nome')">Nome ${getSortIcon('nome')}</th>
                     <th>CPF</th>
-                    <th>Departamento</th>
-                    <th>Cargo</th>
-                    <th>Admissão</th>
+                    <th style="cursor:pointer;white-space:nowrap;user-select:none;" onclick="colabToggleSort('departamento')">Departamento ${getSortIcon('departamento')}</th>
+                    <th style="cursor:pointer;white-space:nowrap;user-select:none;" onclick="colabToggleSort('cargo')">Cargo ${getSortIcon('cargo')}</th>
+                    <th style="cursor:pointer;white-space:nowrap;user-select:none;" onclick="colabToggleSort('admissao')">Admissão ${getSortIcon('admissao')}</th>
                     <th>Status</th>
                     <th style="text-align:right;padding-right:1.5rem;">Ações</th>
                 </tr></thead>
@@ -2427,16 +2463,21 @@ function renderTabelaColaboradores(lista) {
                         else if (effectiveStatus === 'Incompleto') statusHtml = `<div style="background:#f8f9fa;color:#6c757d;border:2px solid transparent;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-pencil-simple"></i> Incompleto</div>`;
                         else statusHtml = `<div style="background:#f1f3f5;color:#495057;border:2px solid #adb5bd;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-clock"></i> Aguardando</div>`;
 
-                        let experienceColHtml = '-';
+                        let experienceUnderName = '';
                         if (c.data_admissao) {
                             const adm = new Date(c.data_admissao + 'T12:00:00');
                             const today = new Date(); today.setHours(12,0,0,0);
                             const diffDays = Math.floor((today - adm) / (1000 * 60 * 60 * 24));
                             if (diffDays >= 0 && diffDays <= 90) {
+                                const d45 = new Date(adm); d45.setDate(adm.getDate() + 45);
+                                const d90 = new Date(adm); d90.setDate(adm.getDate() + 90);
                                 let tagHtml = diffDays <= 45
-                                    ? `<span class="probation-badge" style="font-size:0.65rem;padding:0.2rem 0.5rem;min-width:50px;">1º 45</span>`
-                                    : `<span class="probation-badge second" style="font-size:0.65rem;padding:0.2rem 0.5rem;min-width:50px;">2º 45</span>`;
-                                experienceColHtml = `<div style="display:flex;flex-direction:column;align-items:flex-start;">${tagHtml}${probationDatesHtml}</div>`;
+                                    ? `<span class="probation-badge" style="font-size:0.6rem;padding:0.15rem 0.4rem;border-radius:4px;white-space:nowrap;">1º 45</span>`
+                                    : `<span class="probation-badge second" style="font-size:0.6rem;padding:0.15rem 0.4rem;border-radius:4px;white-space:nowrap;">2º 45</span>`;
+                                let vigenciaHtml = diffDays <= 45
+                                    ? `<span style="font-size:0.65rem;color:#64748b;white-space:nowrap;font-weight:600;">1º: ${d45.toLocaleDateString('pt-BR')}</span>`
+                                    : `<span style="font-size:0.65rem;color:#64748b;white-space:nowrap;font-weight:600;">2º: ${d90.toLocaleDateString('pt-BR')}</span>`;
+                                experienceUnderName = `<div style="display:flex;align-items:center;gap:6px;margin-top:4px;">${tagHtml}${vigenciaHtml}</div>`;
                             }
                         }
 
@@ -2445,8 +2486,7 @@ function renderTabelaColaboradores(lista) {
 
                         return `<tr>
                             <td style="padding-left:1rem;"><div style="width:36px;height:36px;border-radius:50%;overflow:hidden;border:1px solid #e2e8f0;background:#f8fafc;"><img src="${photoUrl}" onerror="this.src='${fallbackIcon}'" style="width:100%;height:100%;object-fit:cover;"></div></td>
-                            <td><div style="display:flex;flex-direction:column;"><strong style="color:#334155;font-size:0.95rem;">${c.nome_completo || 'Sem Nome'}</strong></div></td>
-                            <td>${experienceColHtml}</td>
+                            <td><div style="display:flex;flex-direction:column;"><strong style="color:#334155;font-size:0.95rem;">${c.nome_completo || 'Sem Nome'}</strong>${experienceUnderName}</div></td>
                             <td style="color:#64748b;font-size:0.85rem;">${c.cpf || '-'}</td>
                             <td style="color:#64748b;font-size:0.85rem;">${c.departamento || '-'}</td>
                             <td style="color:#64748b;font-size:0.85rem;">${c.cargo || '-'}</td>
