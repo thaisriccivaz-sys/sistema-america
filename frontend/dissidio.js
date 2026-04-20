@@ -12,82 +12,69 @@
 
         container.innerHTML = `
             <div class="page-header flex-between" style="margin-bottom:0;">
-                <div style="display:flex;align-items:center;gap:1.25rem;">
-                    <div style="width:56px;height:56px;background:linear-gradient(135deg,#0f172a,#0d9488);border-radius:14px;display:flex;align-items:center;justify-content:center;">
-                        <i class="ph ph-trend-up" style="font-size:1.8rem;color:#fff;"></i>
-                    </div>
-                    <div>
-                        <h1 style="margin:0;font-size:1.6rem;font-weight:800;color:#0f172a;">Dissídio Coletivo</h1>
-                        <p style="margin:0;color:#64748b;font-size:0.9rem;">Reajuste de salário em massa por cargo</p>
-                    </div>
-                </div>
+                <h1 style="margin:0;font-size:1.6rem;font-weight:800;color:#0f172a;">Dissídio Coletivo</h1>
             </div>
 
             <!-- Formulário de Reajuste -->
-            <div class="card" style="margin-top:1.5rem;border-radius:14px;overflow:hidden;">
-                <div style="background:linear-gradient(90deg,#0f172a,#134e4a);padding:1.25rem 1.5rem;display:flex;align-items:center;gap:0.75rem;">
-                    <i class="ph ph-calculator" style="font-size:1.3rem;color:#5eead4;"></i>
-                    <h2 style="margin:0;font-size:1.1rem;font-weight:700;color:#fff;">Aplicar Reajuste de Salário</h2>
-                </div>
-                <div style="padding:1.75rem;display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:1.25rem;align-items:end;">
+            <div class="card" style="margin-top:1.5rem;border-radius:14px;padding:1.5rem;">
+                <h2 class="section-title" style="margin:0 0 1.5rem 0;">Aplicar Reajuste de Salário</h2>
+                
+                <div style="display:flex;gap:1.25rem;align-items:end;flex-wrap:wrap;">
 
-                    <div>
-                        <label style="display:block;font-size:0.78rem;font-weight:700;color:#64748b;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">Cargo</label>
-                        <select id="dissidio-cargo-select" style="width:100%;padding:0.65rem 0.85rem;border:1.5px solid #e2e8f0;border-radius:9px;font-size:0.92rem;color:#0f172a;background:#fff;appearance:none;">
+                    <div style="flex:1;min-width:200px;">
+                        <label style="display:block;font-size:0.85rem;font-weight:600;color:#334155;margin-bottom:0.5rem;">Cargo</label>
+                        <select id="dissidio-cargo-select" style="width:100%;padding:0.65rem 0.85rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.95rem;color:#0f172a;background:#fff;appearance:none;outline:none;" onchange="window.dissidioPreview()">
                             <option value="">Carregando cargos...</option>
                         </select>
                     </div>
 
-                    <div>
-                        <label style="display:block;font-size:0.78rem;font-weight:700;color:#64748b;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">Percentual de Reajuste (%)</label>
+                    <div style="flex:1;min-width:150px;">
+                        <label style="display:block;font-size:0.85rem;font-weight:600;color:#334155;margin-bottom:0.5rem;">Percentual de Reajuste (%)</label>
                         <input type="number" id="dissidio-percentual" min="0" max="100" step="0.01" placeholder="Ex: 5.00"
-                            style="width:100%;padding:0.65rem 0.85rem;border:1.5px solid #e2e8f0;border-radius:9px;font-size:0.92rem;color:#0f172a;background:#fff;box-sizing:border-box;"
+                            style="width:100%;padding:0.65rem 0.85rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.95rem;color:#0f172a;background:#fff;box-sizing:border-box;outline:none;"
                             oninput="window.dissidioPreview()">
                     </div>
 
-                    <div id="dissidio-preview-box" style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:9px;padding:0.65rem 0.85rem;min-height:46px;display:flex;align-items:center;gap:0.5rem;color:#166534;font-size:0.9rem;">
-                        <i class="ph ph-info" style="font-size:1.1rem;color:#15803d;"></i>
+                    <div id="dissidio-preview-box" style="background:#f8fafc;border:1.5px dashed #cbd5e1;border-radius:8px;padding:0.65rem 0.85rem;min-height:43px;display:flex;align-items:center;gap:0.5rem;color:#64748b;font-size:0.9rem;flex:2;min-width:250px;">
+                        <i class="ph ph-info" style="font-size:1.1rem;"></i>
                         <span id="dissidio-preview-text">Selecione um cargo e percentual para ver a prévia</span>
                     </div>
 
-                    <button onclick="window.dissidioAplicar()" id="btn-dissidio-aplicar"
-                        style="padding:0.7rem 1.5rem;background:linear-gradient(135deg,#0d9488,#0f766e);color:#fff;border:none;border-radius:9px;font-weight:700;font-size:0.95rem;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;line-height:1.3;height:46px;">
+                    <button onclick="window.dissidioAplicar()" id="btn-dissidio-aplicar" class="btn btn-primary"
+                        style="height:44px;display:flex;align-items:center;gap:6px;white-space:nowrap;padding:0 1.5rem;">
                         <i class="ph ph-check-circle"></i> Aplicar Dissídio
                     </button>
                 </div>
 
-                <div id="dissidio-affected-Preview" style="display:none;padding:0 1.75rem 1.5rem;">
-                    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:9px;padding:1rem 1.25rem;">
+                <div id="dissidio-affected-Preview" style="display:none;margin-top:1.5rem;">
+                    <div style="background:#fdf9c4;border:1px solid #fde047;border-radius:8px;padding:1rem 1.25rem;">
                         <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;">
-                            <i class="ph ph-warning" style="color:#b45309;font-size:1.2rem;"></i>
-                            <strong style="color:#92400e;font-size:0.9rem;">Colaboradores que serão afetados:</strong>
+                            <i class="ph ph-warning" style="color:#ca8a04;font-size:1.2rem;"></i>
+                            <strong style="color:#a16207;font-size:0.9rem;">Colaboradores que serão afetados:</strong>
                         </div>
-                        <div id="dissidio-affected-list" style="font-size:0.85rem;color:#78350f;line-height:1.8;"></div>
+                        <div id="dissidio-affected-list" style="font-size:0.85rem;color:#854d0e;line-height:1.8;"></div>
                     </div>
                 </div>
             </div>
 
             <!-- Histórico de Dissídios -->
-            <div class="card" style="margin-top:1.5rem;border-radius:14px;overflow:hidden;">
-                <div style="background:linear-gradient(90deg,#0f172a,#1e1b4b);padding:1.25rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
-                    <div style="display:flex;align-items:center;gap:0.75rem;">
-                        <i class="ph ph-clock-counter-clockwise" style="font-size:1.3rem;color:#a5b4fc;"></i>
-                        <h2 style="margin:0;font-size:1.1rem;font-weight:700;color:#fff;">Histórico de Dissídios</h2>
-                    </div>
-                    <button onclick="window.dissidioLoadHistorico()" style="background:transparent;border:1px solid rgba(255,255,255,0.2);color:#fff;border-radius:7px;padding:0.4rem 0.9rem;font-size:0.8rem;cursor:pointer;display:flex;align-items:center;gap:4px;">
+            <div class="card" style="margin-top:1.5rem;border-radius:14px;padding:1.5rem;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;">
+                    <h2 class="section-title" style="margin:0;">Histórico de Dissídios</h2>
+                    <button class="btn btn-outline" onclick="window.dissidioLoadHistorico()" style="display:flex;align-items:center;gap:4px;padding:0.4rem 0.9rem;font-size:0.85rem;">
                         <i class="ph ph-arrow-clockwise"></i> Atualizar
                     </button>
                 </div>
                 <div id="dissidio-historico-wrapper" style="overflow-x:auto;">
-                    <table style="width:100%;border-collapse:collapse;">
+                    <table class="table" style="width:100%;">
                         <thead>
-                            <tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;">
-                                <th style="padding:0.85rem 1.25rem;text-align:left;font-size:0.78rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">Data</th>
-                                <th style="padding:0.85rem 1.25rem;text-align:left;font-size:0.78rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">Cargo</th>
-                                <th style="padding:0.85rem 1.25rem;text-align:right;font-size:0.78rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">Salário Antes</th>
-                                <th style="padding:0.85rem 1.25rem;text-align:right;font-size:0.78rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">Salário Depois</th>
-                                <th style="padding:0.85rem 1.25rem;text-align:center;font-size:0.78rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">Reajuste %</th>
-                                <th style="padding:0.85rem 1.25rem;text-align:center;font-size:0.78rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">Colaboradores</th>
+                            <tr>
+                                <th>Data</th>
+                                <th>Cargo</th>
+                                <th>Salário Antes</th>
+                                <th>Salário Depois</th>
+                                <th>Reajuste %</th>
+                                <th>Colaboradores</th>
                             </tr>
                         </thead>
                         <tbody id="dissidio-historico-body">
@@ -161,11 +148,11 @@
             affectedList.innerHTML = colabs.map(c => {
                 const salOld = parseFloat(String(c.salario || '0').replace(/[R$\s.]/g, '').replace(',', '.')) || 0;
                 const salNew = salOld * (1 + pct / 100);
-                return `<div style="display:flex;gap:1rem;align-items:center;padding:4px 0;border-bottom:1px solid #fde68a;">
+                return `<div style="display:flex;gap:1rem;align-items:center;padding:4px 0;border-bottom:1px solid rgba(202, 138, 4, 0.2);">
                     <span style="flex:2;font-weight:600;">${c.nome_completo}</span>
-                    <span style="flex:1;text-align:right;text-decoration:line-through;color:#b45309;">${formatBRL(salOld)}</span>
-                    <i class="ph ph-arrow-right" style="color:#b45309;"></i>
-                    <span style="flex:1;text-align:right;font-weight:700;color:#166534;">${formatBRL(salNew)}</span>
+                    <span style="flex:1;text-decoration:line-through;color:#ca8a04;">${formatBRL(salOld)}</span>
+                    <i class="ph ph-arrow-right" style="color:#ca8a04;"></i>
+                    <span style="flex:1;font-weight:700;color:#16a34a;">${formatBRL(salNew)}</span>
                 </div>`;
             }).join('');
             affectedBox.style.display = 'block';
@@ -259,17 +246,17 @@
             const formatDate = s => s ? new Date(s).toLocaleString('pt-BR') : '-';
 
             tbody.innerHTML = data.map((row, i) => `
-                <tr style="border-bottom:1px solid #f1f5f9;${i%2===0?'background:#fff;':'background:#f8fafc;'}transition:background 0.15s;" onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background='${i%2===0?'#fff':'#f8fafc'}'">
-                    <td style="padding:0.85rem 1.25rem;font-size:0.85rem;color:#64748b;white-space:nowrap;">${formatDate(row.criado_em)}</td>
-                    <td style="padding:0.85rem 1.25rem;font-size:0.9rem;font-weight:600;color:#0f172a;">${row.cargo}</td>
-                    <td style="padding:0.85rem 1.25rem;text-align:right;font-size:0.9rem;color:#64748b;">${formatBRL(row.salario_antes_media)}</td>
-                    <td style="padding:0.85rem 1.25rem;text-align:right;font-size:0.9rem;font-weight:700;color:#0d9488;">${formatBRL(row.salario_depois_media)}</td>
-                    <td style="padding:0.85rem 1.25rem;text-align:center;">
-                        <span style="background:#dcfce7;color:#166534;font-weight:800;font-size:0.85rem;padding:0.25rem 0.75rem;border-radius:20px;display:inline-flex;align-items:center;gap:4px;">
+                <tr>
+                    <td>${formatDate(row.criado_em)}</td>
+                    <td style="font-weight:600;color:#0f172a;">${row.cargo}</td>
+                    <td>${formatBRL(row.salario_antes_media)}</td>
+                    <td style="font-weight:700;color:#0d9488;">${formatBRL(row.salario_depois_media)}</td>
+                    <td>
+                        <span class="status-badge status-ativo" style="gap:4px;">
                             <i class="ph ph-trend-up"></i> +${parseFloat(row.percentual || 0).toFixed(2).replace('.',',')}%
                         </span>
                     </td>
-                    <td style="padding:0.85rem 1.25rem;text-align:center;font-size:0.9rem;color:#475569;font-weight:600;">${row.total_colaboradores}</td>
+                    <td style="font-weight:600;">${row.total_colaboradores}</td>
                 </tr>
             `).join('');
         } catch(e) {
