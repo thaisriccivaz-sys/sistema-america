@@ -29,8 +29,8 @@
                     </div>
 
                     <div style="flex:1;min-width:150px;">
-                        <label style="display:block;font-size:0.85rem;font-weight:600;color:#334155;margin-bottom:0.5rem;">Percentual de Reajuste (%)</label>
-                        <input type="number" id="dissidio-percentual" min="0" max="100" step="0.01" placeholder="Ex: 5.00"
+                        <label style="display:block;font-size:0.85rem;font-weight:600;color:#334155;margin-bottom:0.5rem;">Novo Salário Bruto Final (R$)</label>
+                        <input type="number" id="dissidio-novo-salario" min="0" step="0.01" placeholder="Ex: 2500.00"
                             style="width:100%;padding:0.65rem 0.85rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.95rem;color:#0f172a;background:#fff;box-sizing:border-box;outline:none;"
                             oninput="window.dissidioPreview()">
                     </div>
@@ -93,7 +93,8 @@
     window.dissidioLoadCargos = async function() {
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch(`${API_URL}/colaboradores`, {
+            const url = (typeof API_URL !== 'undefined') ? API_URL : (window.location.origin + '/api');
+            const res = await fetch(`${url}/colaboradores`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const colabs = await res.json();
@@ -117,13 +118,13 @@
     // ---- Preview affected employees and new salary ----
     window.dissidioPreview = function() {
         const cargo = (document.getElementById('dissidio-cargo-select')?.value || '').trim();
-        const pct = parseFloat(document.getElementById('dissidio-percentual')?.value || '0');
+        const novoSalario = parseFloat(document.getElementById('dissidio-novo-salario')?.value || '0');
         const previewText = document.getElementById('dissidio-preview-text');
         const affectedBox = document.getElementById('dissidio-affected-Preview');
         const affectedList = document.getElementById('dissidio-affected-list');
 
-        if (!cargo || !pct || pct <= 0) {
-            if (previewText) previewText.textContent = 'Selecione um cargo e percentual para ver a prévia';
+        if (!cargo || !novoSalario || novoSalario <= 0) {
+            if (previewText) previewText.textContent = 'Selecione um cargo e informe o novo salário para ver a prévia';
             if (affectedBox) affectedBox.style.display = 'none';
             return;
         }
@@ -140,19 +141,33 @@
             return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         };
 
+        let totalAntigo = 0;
+        colabs.forEach(c => {
+            totalAntigo += parseFloat(String(c.salario || '0').replace(/[R$\s.]/g, '').replace(',', '.')) || 0;
+        });
+        const mediaAntiga = totalAntigo / colabs.length;
+        let pct = 0;
+        if (mediaAntiga > 0) {
+            pct = ((novoSalario - mediaAntiga) / mediaAntiga) * 100;
+        }
+
         if (previewText) {
-            previewText.innerHTML = `<strong>${colabs.length}</strong> ${colabs.length === 1 ? 'colaborador' : 'colaboradores'} serão reajustados em <strong>${pct.toFixed(2).replace('.',',')}%</strong>`;
+            let infoPct = pct > 0 ? `+${pct.toFixed(2).replace('.',',')}%` : `${pct.toFixed(2).replace('.',',')}%`;
+            previewText.innerHTML = `<strong>${colabs.length}</strong> colaborador(es) será(ão) igualados a <strong>${formatBRL(novoSalario)}</strong> (Média: ${infoPct})`;
         }
 
         if (affectedBox && affectedList) {
             affectedList.innerHTML = colabs.map(c => {
                 const salOld = parseFloat(String(c.salario || '0').replace(/[R$\s.]/g, '').replace(',', '.')) || 0;
-                const salNew = salOld * (1 + pct / 100);
+                let indPct = 0;
+                if(salOld > 0) indPct = ((novoSalario - salOld) / salOld) * 100;
+                let pctStr = indPct > 0 ? `+${indPct.toFixed(1).replace('.',',')}%` : `${indPct.toFixed(1).replace('.',',')}%`;
+
                 return `<div style="display:flex;gap:1rem;align-items:center;padding:4px 0;border-bottom:1px solid rgba(202, 138, 4, 0.2);">
                     <span style="flex:2;font-weight:600;">${c.nome_completo}</span>
                     <span style="flex:1;text-decoration:line-through;color:#ca8a04;">${formatBRL(salOld)}</span>
                     <i class="ph ph-arrow-right" style="color:#ca8a04;"></i>
-                    <span style="flex:1;font-weight:700;color:#16a34a;">${formatBRL(salNew)}</span>
+                    <span style="flex:1;font-weight:700;color:#16a34a;">${formatBRL(novoSalario)} <small style="color:#64748b;font-weight:normal;opacity:0.8;">(${pctStr})</small></span>
                 </div>`;
             }).join('');
             affectedBox.style.display = 'block';
@@ -162,17 +177,19 @@
     // ---- Apply Dissídio ----
     window.dissidioAplicar = async function() {
         const cargo = (document.getElementById('dissidio-cargo-select')?.value || '').trim();
-        const pct = parseFloat(document.getElementById('dissidio-percentual')?.value || '0');
+        const novoSalario = parseFloat(document.getElementById('dissidio-novo-salario')?.value || '0');
 
         if (!cargo) { Swal.fire('Atenção', 'Selecione um cargo.', 'warning'); return; }
-        if (!pct || pct <= 0) { Swal.fire('Atenção', 'Informe um percentual de reajuste válido.', 'warning'); return; }
+        if (!novoSalario || novoSalario <= 0) { Swal.fire('Atenção', 'Informe um novo salário válido maior que zero.', 'warning'); return; }
 
         const colabs = (window._dissidioColabs || []).filter(c => (c.cargo || '').trim() === cargo);
         if (colabs.length === 0) { Swal.fire('Atenção', 'Nenhum colaborador encontrado para este cargo.', 'warning'); return; }
 
+        const formatBRL = v => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
         const confirm = await Swal.fire({
-            title: 'Confirmar Dissídio',
-            html: `Aplicar reajuste de <strong>${pct.toFixed(2).replace('.',',')}%</strong> para <strong>${colabs.length} colaborador${colabs.length > 1 ? 'es' : ''}</strong> do cargo <strong>${cargo}</strong>?<br><br><span style="font-size:0.85rem;color:#ef4444;">Esta ação não pode ser desfeita automaticamente.</span>`,
+            title: 'Confirmar Reajuste',
+            html: `Alterar o salário de <strong>${colabs.length} colaborador(es)</strong> do cargo <strong>${cargo}</strong> para <strong>${formatBRL(novoSalario)}</strong>?<br><br><span style="font-size:0.85rem;color:#ef4444;">Esta ação não pode ser desfeita automaticamente.</span>`,
             icon: 'question',
             showCancelButton: true,
             confirmButtonText: 'Sim, aplicar',
@@ -186,10 +203,11 @@
 
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch(`${API_URL}/dissidio/aplicar`, {
+            const url = (typeof API_URL !== 'undefined') ? API_URL : (window.location.origin + '/api');
+            const res = await fetch(`${url}/dissidio/aplicar`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ cargo, percentual: pct })
+                body: JSON.stringify({ cargo, novo_salario: novoSalario })
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Erro desconhecido');
@@ -203,9 +221,9 @@
 
             // Reset form
             document.getElementById('dissidio-cargo-select').value = '';
-            document.getElementById('dissidio-percentual').value = '';
+            document.getElementById('dissidio-novo-salario').value = '';
             document.getElementById('dissidio-affected-Preview').style.display = 'none';
-            document.getElementById('dissidio-preview-text').textContent = 'Selecione um cargo e percentual para ver a prévia';
+            document.getElementById('dissidio-preview-text').textContent = 'Selecione um cargo e informe o novo salário para ver a prévia';
 
             // Refresh historico and cargos
             window.dissidioLoadCargos();
@@ -226,7 +244,8 @@
 
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch(`${API_URL}/dissidio/historico`, {
+            const url = (typeof API_URL !== 'undefined') ? API_URL : (window.location.origin + '/api');
+            const res = await fetch(`${url}/dissidio/historico`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();

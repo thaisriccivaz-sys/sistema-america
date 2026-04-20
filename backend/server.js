@@ -6884,13 +6884,13 @@ db.run(`CREATE TABLE IF NOT EXISTS dissidios (
 
 // POST /api/dissidio/aplicar — aplica reajuste em massa por cargo
 app.post('/api/dissidio/aplicar', authenticateToken, async (req, res) => {
-    const { cargo, percentual } = req.body;
-    if (!cargo || !percentual || isNaN(parseFloat(percentual))) {
-        return res.status(400).json({ error: 'cargo e percentual são obrigatórios.' });
+    const { cargo, novo_salario } = req.body;
+    if (!cargo || !novo_salario || isNaN(parseFloat(novo_salario))) {
+        return res.status(400).json({ error: 'cargo e novo_salario são obrigatórios.' });
     }
-    const pct = parseFloat(percentual);
-    if (pct <= 0 || pct > 100) {
-        return res.status(400).json({ error: 'Percentual deve ser entre 0 e 100.' });
+    const targetSalary = parseFloat(novo_salario);
+    if (targetSalary <= 0) {
+        return res.status(400).json({ error: 'Salário deve ser maior que zero.' });
     }
     try {
         const colabs = await new Promise((resolve, reject) =>
@@ -6909,24 +6909,35 @@ app.post('/api/dissidio/aplicar', authenticateToken, async (req, res) => {
             return parseFloat(s) || 0;
         };
         const formatBRL = (val) => val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        let totalAntes = 0, totalDepois = 0, atualizados = 0;
+        
+        let totalAntes = 0;
+        let atualizados = 0;
+        const salNewStr = 'R$ ' + formatBRL(targetSalary);
+
         for (const colab of colabs) {
             const salOld = parseSalary(colab.salario);
-            const salNew = parseFloat((salOld * (1 + pct / 100)).toFixed(2));
-            const salNewStr = 'R$ ' + formatBRL(salNew);
-            totalAntes += salOld; totalDepois += salNew;
+            totalAntes += salOld;
             await new Promise((resolve, reject) =>
                 db.run(`UPDATE colaboradores SET salario = ? WHERE id = ?`, [salNewStr, colab.id], (err) => err ? reject(err) : resolve())
             );
             atualizados++;
         }
+        
         const mediaAntes = totalAntes / atualizados;
-        const mediaDepois = totalDepois / atualizados;
+        const totalDepois = targetSalary * atualizados;
+        const mediaDepois = targetSalary;
+        
+        // Calcular % de reajuste com base na média anterior vs média atual
+        let pct = 0;
+        if (mediaAntes > 0) {
+            pct = ((mediaDepois - mediaAntes) / mediaAntes) * 100;
+        }
+
         await new Promise((resolve, reject) =>
             db.run(`INSERT INTO dissidios (cargo, percentual, salario_antes_media, salario_depois_media, total_colaboradores) VALUES (?, ?, ?, ?, ?)`,
                 [cargo, pct, mediaAntes, mediaDepois, atualizados], (err) => err ? reject(err) : resolve())
         );
-        res.json({ ok: true, atualizados, cargo, percentual: pct });
+        res.json({ ok: true, atualizados, cargo, novo_salario: targetSalary, percentual: pct });
     } catch(e) {
         console.error('[Dissídio] Erro ao aplicar:', e.message);
         res.status(500).json({ error: e.message });
