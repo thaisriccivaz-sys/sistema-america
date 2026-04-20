@@ -436,6 +436,37 @@
     }
 
     /* ═══════════════════════════════════════════════
+       ORDENAÇÃO
+    ═══════════════════════════════════════════════ */
+    let _sortCol  = null;  // coluna atualmente ordenada
+    let _sortAsc  = true;  // direção da ordenação
+
+    const SORT_KEYS = {
+        nome:      c => (c.nome_completo || '').toLowerCase(),
+        admissao:  c => c.data_admissao || '',
+        periodo:   c => { const i = calcularFerias(c.data_admissao); return i && i.periodos.length ? i.periodos[i.periodos.length-1].fim : ''; },
+        situacao:  c => c._status || '',
+        agendado:  c => c.ferias_programadas_inicio || '',
+        prazo:     c => { const i = calcularFerias(c.data_admissao); return i && i.periodos.length ? i.periodos[i.periodos.length-1].prazoGozo : ''; },
+    };
+
+    window.feriasSort = function(col) {
+        if (_sortCol === col) _sortAsc = !_sortAsc;
+        else { _sortCol = col; _sortAsc = true; }
+        feriasFiltrar();
+    };
+
+    function sortColabs(colabs) {
+        if (!_sortCol || !SORT_KEYS[_sortCol]) return colabs;
+        const fn = SORT_KEYS[_sortCol];
+        return [...colabs].sort((a, b) => {
+            const va = fn(a), vb = fn(b);
+            const cmp = va < vb ? -1 : va > vb ? 1 : 0;
+            return _sortAsc ? cmp : -cmp;
+        });
+    }
+
+    /* ═══════════════════════════════════════════════
        TABELA
     ═══════════════════════════════════════════════ */
     function renderTabela(colabs) {
@@ -451,8 +482,20 @@
         }
 
         const hoje = hj();
+        const sorted = sortColabs(colabs);
 
-        const linhas = colabs.map(c => {
+        const thStyle = 'padding:0.6rem 0.65rem;text-align:left;font-size:0.69rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;cursor:pointer;user-select:none;';
+        const thStyleL = 'padding:0.6rem 0.9rem 0.6rem 1.2rem;' + thStyle;
+        const thStyleR = 'padding:0.6rem 1.2rem 0.6rem 0.65rem;text-align:right;font-size:0.69rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;';
+
+        const sFn = (col, label) => {
+            const ativo = _sortCol === col;
+            const arrow = !ativo ? '↕' : _sortAsc ? '↑' : '↓';
+            return `<th onclick="window.feriasSort('${col}')" style="${col === 'nome' ? thStyleL : thStyle}${ativo ? 'color:#0891b2;' : ''}">
+                ${label} <span style="font-size:0.8rem;opacity:${ativo ? 1 : 0.4};">${arrow}</span></th>`;
+        };
+
+        const linhas = sorted.map(c => {
             const info = calcularFerias(c.data_admissao);
             const st = c._status || getStatus(c);
             const cfg = STATUS_CONFIG[st];
@@ -520,9 +563,12 @@
                 onmouseout="this.style.background='${rowBg}'">
                 <td style="padding:0.78rem 0.9rem 0.78rem 1.2rem;">
                     <div style="display:flex;align-items:center;gap:0.55rem;">
-                        <div style="width:31px;height:31px;border-radius:50%;background:${cfg.color};display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:800;color:#fff;flex-shrink:0;opacity:.9;">
-                            ${(c.nome_completo||'?').trim().split(/\s+/).filter(w=>w).slice(0,2).map(w=>w[0]).join('').toUpperCase()}
-                        </div>
+                        ${c.foto
+                          ? `<img src="${c.foto}" alt="" style="width:31px;height:31px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1.5px solid ${cfg.color}40;">`
+                          : `<div style="width:31px;height:31px;border-radius:50%;background:${cfg.color};display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:800;color:#fff;flex-shrink:0;opacity:.9;">
+                              ${(c.nome_completo||'?').trim().split(/\s+/).filter(w=>w).slice(0,2).map(w=>w[0]).join('').toUpperCase()}
+                             </div>`
+                        }
                         <div>
                             <div style="font-weight:700;color:#0f172a;font-size:0.85rem;line-height:1.2;">${c.nome_completo||'—'}</div>
                             <div style="font-size:0.71rem;color:#94a3b8;margin-top:1px;">${c.cargo||'—'} · ${c.departamento||'—'}</div>
@@ -536,8 +582,8 @@
                 <td style="padding:0.78rem 0.85rem;">${barra}</td>
                 <td style="padding:0.78rem 1.2rem 0.78rem 0.65rem;text-align:right;">
                     <button onclick="window.feriasProntuario(${c.id})"
-                        style="background:linear-gradient(135deg,#0891b2,#0e7490);color:#fff;border:none;border-radius:8px;padding:0.38rem 0.8rem;font-size:0.77rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;"
-                        onmouseover="this.style.opacity='0.82'" onmouseout="this.style.opacity='1'">
+                        style="background:#0891b2;color:#fff;border:none;border-radius:8px;padding:0.38rem 0.8rem;font-size:0.77rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;"
+                        onmouseover="this.style.background='#0e7490'" onmouseout="this.style.background='#0891b2'">
                         <i class="ph ph-notebook"></i> Prontuário
                     </button>
                 </td>
@@ -548,13 +594,13 @@
         <table style="width:100%;border-collapse:collapse;">
             <thead>
                 <tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;">
-                    <th style="padding:0.6rem 0.9rem 0.6rem 1.2rem;text-align:left;font-size:0.69rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;">Colaborador</th>
-                    <th style="padding:0.6rem 0.65rem;text-align:left;font-size:0.69rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;">Admissão</th>
-                    <th style="padding:0.6rem 0.65rem;text-align:left;font-size:0.69rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;">Período Aquisitivo</th>
-                    <th style="padding:0.6rem 0.65rem;text-align:left;font-size:0.69rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;">Situação</th>
-                    <th style="padding:0.6rem 0.65rem;text-align:left;font-size:0.69rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;">Férias Agendadas</th>
-                    <th style="padding:0.6rem 0.65rem;text-align:left;font-size:0.69rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;">Período em Curso</th>
-                    <th style="padding:0.6rem 1.2rem 0.6rem 0.65rem;text-align:right;font-size:0.69rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;">Ação</th>
+                    ${sFn('nome',     'Colaborador')}
+                    ${sFn('admissao', 'Admissão')}
+                    ${sFn('periodo',  'Período Aquisitivo')}
+                    ${sFn('situacao', 'Situação')}
+                    ${sFn('agendado', 'Férias Agendadas')}
+                    ${sFn('prazo',    'Período em Curso')}
+                    <th style="${thStyleR}">Ação</th>
                 </tr>
             </thead>
             <tbody>${linhas}</tbody>
