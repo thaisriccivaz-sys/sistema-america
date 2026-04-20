@@ -92,7 +92,7 @@
     // ---- Load unique cargo list from backend ----
     window.dissidioLoadCargos = async function() {
         try {
-            const token = localStorage.getItem('token');
+            const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
             const url = (typeof API_URL !== 'undefined') ? API_URL : (window.location.origin + '/api');
             const res = await fetch(`${url}/colaboradores`, {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -202,7 +202,7 @@
         if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Aplicando...'; }
 
         try {
-            const token = localStorage.getItem('token');
+            const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
             const url = (typeof API_URL !== 'undefined') ? API_URL : (window.location.origin + '/api');
             const res = await fetch(`${url}/dissidio/aplicar`, {
                 method: 'POST',
@@ -243,14 +243,20 @@
         tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:#94a3b8;"><i class="ph ph-spinner ph-spin" style="font-size:1.5rem;"></i></td></tr>`;
 
         try {
-            const token = localStorage.getItem('token');
+            const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
             const url = (typeof API_URL !== 'undefined') ? API_URL : (window.location.origin + '/api');
             const res = await fetch(`${url}/dissidio/historico`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
 
-            if (!data || data.length === 0) {
+            if (!res.ok) {
+                const errMsg = data.error || `Erro HTTP ${res.status}`;
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:#ef4444;">${errMsg}</td></tr>`;
+                return;
+            }
+
+            if (!data || !Array.isArray(data) || data.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:3rem;color:#94a3b8;">
                     <i class="ph ph-clock-counter-clockwise" style="font-size:2.5rem;display:block;margin-bottom:0.5rem;"></i>
                     Nenhum dissídio registrado ainda.
