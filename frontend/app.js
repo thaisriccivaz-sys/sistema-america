@@ -1690,7 +1690,7 @@ window.calculateVacationDays = function() {
     }
 
     // Re-avaliar alerta de férias ao alterar as datas do formulário
-    const admissaoEl = document.getElementById('colab-data-admissao');
+    const admissaoEl = document.getElementById('colab-admissao');
     if (admissaoEl?.value) window.updateVacationInfo(admissaoEl.value);
 }
 
