@@ -2628,9 +2628,15 @@ window.editColaborador = async function(id) {
         
         const cboFull = c.cbo || '';
         const cboParts = cboFull.match(/^(\S+)\s*-\s*(.+)$/);
-        if (document.getElementById('colab-cbo-codigo')) document.getElementById('colab-cbo-codigo').value = cboParts ? cboParts[1] : cboFull;
-        if (document.getElementById('colab-cbo')) document.getElementById('colab-cbo').value = cboParts ? cboParts[2] : '';
-        if (!cboParts && cboFull) { if (document.getElementById('colab-cbo')) document.getElementById('colab-cbo').value = cboFull; }
+        let cboCode = cboParts ? cboParts[1] : cboFull;
+        const cboDesc = cboParts ? cboParts[2] : '';
+        // Normalizar código: se tiver 6 dígitos sem traço (ex: 342125), formatar como 3421-25
+        if (cboCode && /^\d{6}$/.test(cboCode.replace(/-/g, ''))) {
+            const digits = cboCode.replace(/-/g, '');
+            cboCode = digits.slice(0, 4) + '-' + digits.slice(4);
+        }
+        if (document.getElementById('colab-cbo-codigo')) document.getElementById('colab-cbo-codigo').value = cboCode;
+        if (document.getElementById('colab-cbo')) document.getElementById('colab-cbo').value = cboDesc;
         
         if (document.getElementById('colab-militar')) document.getElementById('colab-militar').value = c.certificado_militar || '';
         if (document.getElementById('colab-militar-categoria')) document.getElementById('colab-militar-categoria').value = c.militar_categoria || '';
