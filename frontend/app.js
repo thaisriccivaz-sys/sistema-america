@@ -1444,7 +1444,7 @@ window.calcularHorarioSaida = function() {
             if (intervaloMins < 0) intervaloMins += 24 * 60;
         }
 
-        // Define horas brutas de trabalho diário (sem intervalo)
+        // Tempo líquido de trabalho diário
         let workMins = 0;
         if (tipo === 'padrao_seis_dias') {
             workMins = 7 * 60 + 20; // 7h 20m
@@ -1454,9 +1454,32 @@ window.calcularHorarioSaida = function() {
             workMins = 8 * 60 + 48; // 8h 48m
         }
 
+        // Definir e preencher intervalo automaticamente se o turno for >= 6 horas (regras da CLT)
+        let almoçoPadraoMin = 0;
+        if (workMins >= (6 * 60)) {
+            almoçoPadraoMin = 60; // 1 hora de almoço
+            
+            // Se os campos de intervalo estiverem em branco, preenchemos com um padrão inteligente
+            if (!intEntrada && !intSaida) {
+                const [he, me] = entrada.split(':').map(Number);
+                // Sugere almoço 4 horas após a entrada
+                let tempEntradaAlmoco = (he * 60 + me) + (4 * 60);
+                const hEntAlmoco = Math.floor(tempEntradaAlmoco / 60) % 24;
+                const mEntAlmoco = tempEntradaAlmoco % 60;
+                
+                let tempSaidaAlmoco = tempEntradaAlmoco + almoçoPadraoMin;
+                const hSaiAlmoco = Math.floor(tempSaidaAlmoco / 60) % 24;
+                const mSaiAlmoco = tempSaidaAlmoco % 60;
+                
+                document.getElementById('colab-intervalo-entrada').value = `${String(hEntAlmoco).padStart(2, '0')}:${String(mEntAlmoco).padStart(2, '0')}`;
+                document.getElementById('colab-intervalo-saida').value = `${String(hSaiAlmoco).padStart(2, '0')}:${String(mSaiAlmoco).padStart(2, '0')}`;
+                intervaloMins = almoçoPadraoMin;
+            }
+        }
+
         if (workMins > 0) {
             const [he, me] = entrada.split(':').map(Number);
-            let totalMins = (he * 60 + me) + workMins + intervaloMins;
+            let totalMins = (he * 60 + me) + workMins + intervaloMins; // O total do dia no relógio é o trabalho + o intervalo
             const hFinal = Math.floor(totalMins / 60) % 24;
             const mFinal = totalMins % 60;
             if(outSaida) outSaida.value = `${String(hFinal).padStart(2, '0')}:${String(mFinal).padStart(2, '0')}`;
