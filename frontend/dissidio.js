@@ -30,9 +30,9 @@
 
                     <div style="flex:1;min-width:150px;">
                         <label style="display:block;font-size:0.85rem;font-weight:600;color:#334155;margin-bottom:0.5rem;">Novo Salário Bruto Final (R$)</label>
-                        <input type="number" id="dissidio-novo-salario" min="0" step="0.01" placeholder="Ex: 2500.00"
+                        <input type="text" id="dissidio-novo-salario" placeholder="Ex: R$ 2.800,00" inputmode="numeric"
                             style="width:100%;padding:0.65rem 0.85rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.95rem;color:#0f172a;background:#fff;box-sizing:border-box;outline:none;"
-                            oninput="window.dissidioPreview()">
+                            oninput="window.dissidioMaskSalario(this); window.dissidioPreview()">
                     </div>
 
                     <div id="dissidio-preview-box" style="background:#f8fafc;border:1.5px dashed #cbd5e1;border-radius:8px;padding:0.65rem 0.85rem;min-height:43px;display:flex;align-items:center;gap:0.5rem;color:#64748b;font-size:0.9rem;flex:2;min-width:250px;">
@@ -89,6 +89,24 @@
         window.dissidioLoadHistorico();
     }
 
+    // ---- BRL Currency Mask ----
+    window.dissidioMaskSalario = function(input) {
+        let raw = input.value.replace(/\D/g, ''); // keep digits only
+        if (!raw) { input.value = ''; return; }
+        const cents = parseInt(raw, 10);
+        const reais = Math.floor(cents / 100);
+        const centsPart = (cents % 100).toString().padStart(2, '0');
+        const reaisStr = reais.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        input.value = `R$ ${reaisStr},${centsPart}`;
+    };
+
+    window.parseBRLInput = function(val) {
+        if (!val) return 0;
+        const digits = String(val).replace(/\D/g, '');
+        if (!digits) return 0;
+        return parseInt(digits, 10) / 100;
+    };
+
     // ---- Load unique cargo list from backend ----
     window.dissidioLoadCargos = async function() {
         try {
@@ -118,7 +136,7 @@
     // ---- Preview affected employees and new salary ----
     window.dissidioPreview = function() {
         const cargo = (document.getElementById('dissidio-cargo-select')?.value || '').trim();
-        const novoSalario = parseFloat(document.getElementById('dissidio-novo-salario')?.value || '0');
+        const novoSalario = window.parseBRLInput(document.getElementById('dissidio-novo-salario')?.value || '');
         const previewText = document.getElementById('dissidio-preview-text');
         const affectedBox = document.getElementById('dissidio-affected-Preview');
         const affectedList = document.getElementById('dissidio-affected-list');
@@ -136,14 +154,28 @@
             return;
         }
 
+        // Safe locale-independent BRL formatter
         const formatBRL = v => {
-            const n = parseFloat(String(v || '0').replace(/[R$\s.]/g, '').replace(',', '.')) || 0;
-            return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            const num = Math.round(parseFloat(v || 0) * 100);
+            const cents = (num % 100).toString().padStart(2, '0');
+            const reais = Math.floor(num / 100).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            return `R$ ${reais},${cents}`;
         };
 
         let totalAntigo = 0;
         colabs.forEach(c => {
-            totalAntigo += parseFloat(String(c.salario || '0').replace(/[R$\s.]/g, '').replace(',', '.')) || 0;
+            // parseSalary: handles both R$ 2.800,00 (PT-BR) and plain 2800
+            let s = String(c.salario || '0').replace(/R\$\s*/g, '').trim();
+            let salNum = 0;
+            if (s.includes(',') && s.includes('.')) {
+                const lastComma = s.lastIndexOf(','), lastDot = s.lastIndexOf('.');
+                salNum = lastComma > lastDot ? parseFloat(s.replace(/\./g, '').replace(',', '.')) : parseFloat(s.replace(/,/g, ''));
+            } else if (s.includes(',')) {
+                salNum = parseFloat(s.replace(',', '.'));
+            } else {
+                salNum = parseFloat(s);
+            }
+            totalAntigo += salNum || 0;
         });
         const mediaAntiga = totalAntigo / colabs.length;
         let pct = 0;
@@ -177,7 +209,7 @@
     // ---- Apply Dissídio ----
     window.dissidioAplicar = async function() {
         const cargo = (document.getElementById('dissidio-cargo-select')?.value || '').trim();
-        const novoSalario = parseFloat(document.getElementById('dissidio-novo-salario')?.value || '0');
+        const novoSalario = window.parseBRLInput(document.getElementById('dissidio-novo-salario')?.value || '');
 
         if (!cargo) { Swal.fire('Atenção', 'Selecione um cargo.', 'warning'); return; }
         if (!novoSalario || novoSalario <= 0) { Swal.fire('Atenção', 'Informe um novo salário válido maior que zero.', 'warning'); return; }
@@ -185,7 +217,12 @@
         const colabs = (window._dissidioColabs || []).filter(c => (c.cargo || '').trim() === cargo);
         if (colabs.length === 0) { Swal.fire('Atenção', 'Nenhum colaborador encontrado para este cargo.', 'warning'); return; }
 
-        const formatBRL = v => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        const formatBRL = v => {
+            const num = Math.round(parseFloat(v || 0) * 100);
+            const cents = (num % 100).toString().padStart(2, '0');
+            const reais = Math.floor(num / 100).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            return `R$ ${reais},${cents}`;
+        };
 
         const confirm = await Swal.fire({
             title: 'Confirmar Reajuste',

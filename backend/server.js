@@ -6919,12 +6919,33 @@ app.post('/api/dissidio/aplicar', authenticateToken, async (req, res) => {
         const parseSalary = (val) => {
             if (!val) return 0;
             if (typeof val === 'number') return val;
-            const s = String(val).replace(/R\$|\s/g, '').trim();
-            if (s.includes(',') && s.includes('.')) return parseFloat(s.replace(/\./g, '').replace(',', '.'));
-            if (s.includes(',')) return parseFloat(s.replace(',', '.'));
+            // Remove R$, spaces, and non-numeric chars except comma and dot
+            let s = String(val).replace(/R\$\s*/g, '').trim();
+            // Brazilian format: 2.800,00  =>  remove dots (thousands) then replace comma with dot
+            if (s.includes(',') && s.includes('.')) {
+                // Check if comma is decimal (last separator)
+                const lastComma = s.lastIndexOf(',');
+                const lastDot = s.lastIndexOf('.');
+                if (lastComma > lastDot) {
+                    // PT-BR: 2.800,00
+                    return parseFloat(s.replace(/\./g, '').replace(',', '.')) || 0;
+                } else {
+                    // EN: 2,800.00
+                    return parseFloat(s.replace(/,/g, '')) || 0;
+                }
+            }
+            if (s.includes(',')) return parseFloat(s.replace(',', '.')) || 0;
             return parseFloat(s) || 0;
         };
-        const formatBRL = (val) => val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        // Safe BRL formatter that works on any server locale
+        const formatBRL = (val) => {
+            const num = Math.round(parseFloat(val) * 100);
+            const cents = (num % 100).toString().padStart(2, '0');
+            const reais = Math.floor(num / 100).toString();
+            // Add thousands separator (dot)
+            const reaisFormatted = reais.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            return `R$ ${reaisFormatted},${cents}`;
+        };
         
         let totalAntes = 0;
         let atualizados = 0;
