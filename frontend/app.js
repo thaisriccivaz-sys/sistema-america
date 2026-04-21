@@ -10686,7 +10686,6 @@ setInterval(async () => {
         console.log('[POLLING] Documento(s) detectado(s) como Assinado(s). Tela atualizada com sucesso.');
     }
 }, 30000);
-}, 30000);
 
 // --- POLLING: Notificações de Formulário de Experiência (para usuários RH) ---
 const _expNotifSeen = new Set();
