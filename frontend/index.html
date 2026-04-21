@@ -14,6 +14,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="style.css?v=5">
+    <script src="experiencia.js?v=1" defer></script>
 </head>
 <body>
     
@@ -76,6 +77,7 @@
                     <a href="#" class="nav-item" data-target="geradores"><i class="ph ph-file-text"></i> Geradores</a>
                     <a href="#" class="nav-item" data-target="ficha-epi"><i class="ph ph-shield-check"></i> Ficha EPI</a>
                     <a href="#" class="nav-item" data-target="gerenciar-avaliacoes"><i class="ph ph-clipboard-text"></i> Avalia&ccedil;&otilde;es</a>
+                    <a href="#" class="nav-item" data-target="experiencia"><i class="ph ph-user-check"></i> Experi&ecirc;ncia</a>
                     <a href="#" class="nav-item" data-target="dissidio"><i class="ph ph-trend-up"></i> Diss&iacute;dio</a>
                 </div>
             </div>
@@ -1942,7 +1944,76 @@
                 </section>
 
                 <!-- VIEW: DISSÍDIO -->
+                <!-- VIEW: EXPERIÊNCIA -->
+                <section id="view-experiencia" class="content-view">
+                    <div class="page-header flex-between" style="position:sticky;top:60px;z-index:20;background:var(--bg-main);padding:1.25rem 0;margin-top:-1.5rem;margin-bottom:2rem;border-bottom:1px solid var(--border-color);">
+                        <div style="display:flex;align-items:center;gap:1.5rem;">
+                            <div style="width:56px;height:56px;border-radius:14px;background:#dbeafe;display:flex;align-items:center;justify-content:center;color:#1d4ed8;font-size:1.8rem;">
+                                <i class="ph ph-user-check"></i>
+                            </div>
+                            <div>
+                                <h1 style="margin:0;font-size:1.6rem;font-weight:700;color:#0f172a;">Controle de Experiência</h1>
+                                <p style="margin:4px 0 0;color:#64748b;font-size:0.85rem;">Gestão do período de experiência dos colaboradores — 2º prazo (45+45 dias)</p>
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:0.75rem;align-items:center;">
+                            <input type="text" id="exp-search" placeholder="Buscar colaborador..." oninput="filterExperienciaList(this.value)"
+                                style="padding:0.55rem 0.75rem 0.55rem 2rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;outline:none;min-width:220px;background:#f8fafc;">
+                            <select id="exp-filter-situacao" onchange="filterExperienciaList()" style="padding:0.55rem 0.75rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;outline:none;background:#fff;">
+                                <option value="">Todos os status</option>
+                                <option value="pendente">Pendente</option>
+                                <option value="enviado">Enviado</option>
+                                <option value="iniciado">Iniciado</option>
+                                <option value="finalizado">Finalizado</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Stats cards -->
+                    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem;" id="exp-stats-row">
+                        <div class="card p-3" style="text-align:center;">
+                            <div style="font-size:2rem;font-weight:800;color:#1d4ed8;" id="exp-stat-total">-</div>
+                            <div style="font-size:0.78rem;color:#64748b;font-weight:600;margin-top:2px;">EM EXPERIÊNCIA</div>
+                        </div>
+                        <div class="card p-3" style="text-align:center;">
+                            <div style="font-size:2rem;font-weight:800;color:#dc2626;" id="exp-stat-vencendo">-</div>
+                            <div style="font-size:0.78rem;color:#64748b;font-weight:600;margin-top:2px;">VENCENDO EM 15 DIAS</div>
+                        </div>
+                        <div class="card p-3" style="text-align:center;">
+                            <div style="font-size:2rem;font-weight:800;color:#059669;" id="exp-stat-aprovados">-</div>
+                            <div style="font-size:0.78rem;color:#64748b;font-weight:600;margin-top:2px;">APROVADOS</div>
+                        </div>
+                        <div class="card p-3" style="text-align:center;">
+                            <div style="font-size:2rem;font-weight:800;color:#d97706;" id="exp-stat-reprovados">-</div>
+                            <div style="font-size:0.78rem;color:#64748b;font-weight:600;margin-top:2px;">REPROVADOS</div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Colaborador</th>
+                                        <th>Cargo</th>
+                                        <th>Departamento</th>
+                                        <th>Admissão</th>
+                                        <th>Fim 2º Prazo</th>
+                                        <th>Resultado</th>
+                                        <th>Formulário</th>
+                                        <th style="text-align:right;">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-experiencia-body">
+                                    <tr><td colspan="8" style="text-align:center;color:#94a3b8;padding:2rem;">Carregando...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
                 <section id="view-dissidio" class="content-view">
+
                     <div id="dissidio-container">
                         <!-- Renderizado por dissidio.js -->
                     </div>
