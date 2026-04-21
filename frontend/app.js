@@ -1894,12 +1894,26 @@ async function loadDashboard() {
                 chartsData.feriasVencendo.forEach(f => {
                     const cfPts = f.concessivo_fim.split('-');
                     const cfmt = `${cfPts[2]}/${cfPts[1]}/${cfPts[0]}`;
-                    const corRestante = f.dias_restantes <= 15 ? 'color:#e03131;font-weight:bold;' : 'color:#f08c00;';
+                    
+                    const aqPts = f.aquisitivo_fim ? f.aquisitivo_fim.split('-') : cfPts; // fallback if missing
+                    const afmt = `${aqPts[2]}/${aqPts[1]}/${aqPts[0]}`;
+                    
+                    const pct = Math.max(0, Math.min(100, 100 - (f.dias_restantes / 365) * 100));
+                    const barColor = f.dias_restantes <= 0 ? '#ef4444' : f.dias_restantes <= 30 ? '#f97316' : '#22c55e';
+                    const labelRestante = f.dias_restantes <= 0 ? '⚠️ Prazo vencido!' : `${f.dias_restantes}d p/ vencer`;
+                    
+                    const progressBarHtml = `<div style="min-width:145px;">
+                        <div style="font-size:0.71rem;color:#64748b;margin-bottom:3px;">${afmt} &rarr; ${cfmt}</div>
+                        <div style="background:#e2e8f0;border-radius:99px;height:6px;position:relative;">
+                            <div style="width:${pct}%;background:${barColor};height:100%;border-radius:99px;position:relative;z-index:1;"></div>
+                        </div>
+                        <div style="font-size:0.69rem;color:${f.dias_restantes <= 0 ? '#ef4444' : '#94a3b8'};margin-top:2px;">${labelRestante}</div>
+                    </div>`;
+
                     tbFerias.innerHTML += `
                         <tr>
                             <td><a href="#" style="color:#1c7ed6;text-decoration:none;" onclick="event.preventDefault(); viewColaborador(${f.id})">${f.nome}</a></td>
-                            <td>${cfmt}</td>
-                            <td style="${corRestante}">${f.dias_restantes} dias</td>
+                            <td colspan="2">${progressBarHtml}</td>
                         </tr>
                     `;
                 });

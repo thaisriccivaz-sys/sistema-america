@@ -1620,6 +1620,7 @@ app.get('/api/dashboard/charts', authenticateToken, async (req, res) => {
                          id: r.id, 
                          nome: r.nome,
                          admissao: adm,
+                         aquisitivo_fim: aquisitivoFim.toISOString().split('T')[0],
                          concessivo_fim: concessivoEnd.toISOString().split('T')[0],
                          dias_restantes: diffDays,
                          ferias_agendadas: feriasValidasAtual
