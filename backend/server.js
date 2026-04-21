@@ -2188,21 +2188,37 @@ app.post('/api/colaboradores/:id/sync-onedrive', authenticateToken, async (req, 
 
 app.delete('/api/colaboradores/:id', authenticateToken, (req, res) => {
     const id = req.params.id;
-    
+    const force = req.query.force === 'true';
+
     db.get("SELECT status, nome_completo FROM colaboradores WHERE id = ?", [id], (err, row) => {
         if (err || !row) return res.status(404).json({ error: 'Não encontrado' });
-        
-        if (row.status === 'Incompleto') {
-            db.run("DELETE FROM dependentes WHERE colaborador_id = ?", [id]);
-            db.run("DELETE FROM documentos WHERE colaborador_id = ?", [id]);
+
+        const excluirDefinitivamente = () => {
+            // Limpar todos os dados relacionados
+            const tabelas = [
+                "DELETE FROM dependentes WHERE colaborador_id = ?",
+                "DELETE FROM documentos WHERE colaborador_id = ?",
+                "DELETE FROM sinistros WHERE colaborador_id = ?",
+                "DELETE FROM admissao_assinaturas WHERE colaborador_id = ?",
+                "DELETE FROM colaborador_chaves WHERE colaborador_id = ?",
+                "DELETE FROM colaborador_epi_fichas WHERE colaborador_id = ?",
+                "DELETE FROM auditoria WHERE registro_id = ?",
+            ];
+            tabelas.forEach(sql => { try { db.run(sql, [id]); } catch(e) {} });
+
             db.run("DELETE FROM colaboradores WHERE id = ?", [id], function(delErr) {
                 if (delErr) return res.status(500).json({ error: delErr.message });
                 try {
                     const pasta = path.join(BASE_PATH, formatarNome(row.nome_completo));
                     if (fs.existsSync(pasta)) fs.rmSync(pasta, { recursive: true, force: true });
                 } catch(e) {}
-                res.json({ message: 'Colaborador incompleto foi excluído definitivamente.' });
+                console.log(`[DELETE FORCE] Colaborador ID=${id} "${row.nome_completo}" excluído permanentemente.`);
+                res.json({ message: `Colaborador "${row.nome_completo}" excluído permanentemente do sistema.`, id });
             });
+        };
+
+        if (force || row.status === 'Incompleto') {
+            excluirDefinitivamente();
         } else {
             db.run("UPDATE colaboradores SET status = 'Desligado' WHERE id = ?", [id], function(updateErr) {
                 if (updateErr) return res.status(500).json({ error: updateErr.message });
@@ -2211,6 +2227,7 @@ app.delete('/api/colaboradores/:id', authenticateToken, (req, res) => {
         }
     });
 });
+
 
 // Photo Upload Endpoint com Filtro de IA de Estúdio
 app.post('/api/upload-foto/:id', authenticateToken, uploadFoto.single('foto'), async (req, res) => {
