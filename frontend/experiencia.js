@@ -607,6 +607,7 @@ function renderExperienciaList(lista) {
         }
 
         const tr = document.createElement('tr');
+        const isFinalized = situacao === 'finalizado';
         tr.innerHTML = `
             <td style="font-weight:600;"><a href="#" style="color:#1c7ed6;text-decoration:none;" onclick="event.preventDefault();viewColaborador(${c.id})">${c.nome_completo}</a></td>
             <td>${c.cargo || '-'}</td>
@@ -617,9 +618,14 @@ function renderExperienciaList(lista) {
             <td>${statusBadge}</td>
             <td>${formBadge}</td>
             <td style="text-align:right;">
-                <button onclick="openExperienciaModal(${c.id})" class="btn btn-sm" style="background:#f1f5f9;color:#334155;border:1px solid #e2e8f0;font-size:0.8rem;padding:4px 10px;border-radius:6px;cursor:pointer;" title="Ver/Editar Formulário">
-                    <i class="ph ph-clipboard-text"></i> Formulário
-                </button>
+                ${isFinalized
+                    ? `<button onclick="openExperienciaModal(${c.id})" class="btn btn-sm" style="background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;font-size:0.8rem;padding:4px 10px;border-radius:6px;cursor:pointer;" title="Visualizar Formulário Preenchido">
+                        <i class="ph ph-eye"></i> Visualizar
+                       </button>`
+                    : `<button onclick="openExperienciaModal(${c.id})" class="btn btn-sm" style="background:#f1f5f9;color:#334155;border:1px solid #e2e8f0;font-size:0.8rem;padding:4px 10px;border-radius:6px;cursor:pointer;" title="Ver/Editar Formulário">
+                        <i class="ph ph-clipboard-text"></i> Formulário
+                       </button>`
+                }
             </td>
         `;
         tbody.appendChild(tr);
@@ -698,14 +704,31 @@ async function openExperienciaModal(colaboradorId) {
     `;
 
     let itemGlobalIdx = 0;
+    
+    // Legenda de pontuação
+    modalHtml += `
+        <div style="background:#f8fafc;border-radius:10px;padding:0.75rem 1.25rem;margin-bottom:1.25rem;border:1px solid #e2e8f0;display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+            <span style="font-size:0.75rem;font-weight:700;color:#475569;margin-right:4px;">LEGENDA:</span>
+            <span style="background:#dc2626;color:#fff;border-radius:20px;padding:2px 10px;font-size:0.75rem;font-weight:700;">1 Muito Ruim</span>
+            <span style="background:#ea580c;color:#fff;border-radius:20px;padding:2px 10px;font-size:0.75rem;font-weight:700;">2 Ruim</span>
+            <span style="background:#ca8a04;color:#fff;border-radius:20px;padding:2px 10px;font-size:0.75rem;font-weight:700;">3 Médio</span>
+            <span style="background:#65a30d;color:#fff;border-radius:20px;padding:2px 10px;font-size:0.75rem;font-weight:700;">4 Bom</span>
+            <span style="background:#16a34a;color:#fff;border-radius:20px;padding:2px 10px;font-size:0.75rem;font-weight:700;">5 Muito Bom</span>
+        </div>
+    `;
+
     formularioDef.secoes.forEach((secao, si) => {
-        modalHtml += `
+        const startIdx = itemGlobalIdx;
+        let secaoHtml = `
             <div style="margin-bottom:1.5rem;">
-                <div style="background:#1e3a5f;color:#fff;padding:0.6rem 1rem;border-radius:8px;font-weight:700;font-size:0.85rem;letter-spacing:0.5px;margin-bottom:0.75rem;">${secao.nome}</div>
+                <div style="background:#1e3a5f;color:#fff;padding:0.6rem 1rem;border-radius:8px;font-weight:700;font-size:0.85rem;letter-spacing:0.5px;margin-bottom:0.75rem;display:flex;justify-content:space-between;align-items:center;">
+                    <span>${secao.nome}</span>
+                    <span style="font-size:0.75rem;font-weight:400;opacity:0.8;">Total: <span id="secao-total-${si}" style="font-weight:700;">0</span> / ${secao.itens.length * 5}</span>
+                </div>
                 <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
                     <thead><tr>
                         <th style="text-align:left;padding:8px 12px;background:#f1f5f9;color:#475569;font-weight:600;border:1px solid #e2e8f0;">Pontos Avaliados</th>
-                        <th style="width:100px;text-align:center;padding:8px 12px;background:#f1f5f9;color:#475569;font-weight:600;border:1px solid #e2e8f0;">Nota (1-5)</th>
+                        <th style="width:240px;text-align:center;padding:8px 12px;background:#f1f5f9;color:#475569;font-weight:600;border:1px solid #e2e8f0;">Nota (1-5)</th>
                         <th style="width:200px;text-align:left;padding:8px 12px;background:#f1f5f9;color:#475569;font-weight:600;border:1px solid #e2e8f0;">Obs.</th>
                     </tr></thead>
                     <tbody>
@@ -713,27 +736,51 @@ async function openExperienciaModal(colaboradorId) {
 
         secao.itens.forEach((item, ii) => {
             const idx = itemGlobalIdx++;
-            const nota = form && form.respostas && form.respostas[`nota_${idx}`] !== undefined ? form.respostas[`nota_${idx}`] : '';
+            const nota = form && form.respostas && form.respostas[`nota_${idx}`] !== undefined ? parseInt(form.respostas[`nota_${idx}`]) : 0;
             const obs = form && form.respostas && form.respostas[`obs_${idx}`] ? form.respostas[`obs_${idx}`] : '';
-            const disabled = situacao === 'finalizado' && !isRH ? 'disabled' : '';
+            const isReadOnly = situacao === 'finalizado' && !isRH;
 
-            modalHtml += `
+            const scoreColors = ['', '#dc2626', '#ea580c', '#ca8a04', '#65a30d', '#16a34a'];
+            const scoreLabels = ['', '1', '2', '3', '4', '5'];
+
+            let botoesNota = '';
+            if (isReadOnly) {
+                // Visualização apenas
+                const cor = nota >= 1 && nota <= 5 ? scoreColors[nota] : '#94a3b8';
+                const label = nota >= 1 && nota <= 5 ? scoreLabels[nota] : '-';
+                botoesNota = `
+                    <input type="hidden" name="nota_${idx}" id="nota-input-${idx}" value="${nota}">
+                    <span style="display:inline-block;width:36px;height:36px;border-radius:50%;background:${cor};color:#fff;font-weight:800;font-size:1rem;line-height:36px;text-align:center;">${label}</span>
+                `;
+            } else {
+                botoesNota = `<input type="hidden" name="nota_${idx}" id="nota-input-${idx}" value="${nota}">
+                <div style="display:flex;gap:4px;justify-content:center;">` +
+                [1,2,3,4,5].map(n => {
+                    const cor = scoreColors[n];
+                    const selected = nota === n ? `box-shadow:0 0 0 3px ${cor}50;transform:scale(1.15);` : 'opacity:0.4;';
+                    return `<button type="button" onclick="selecionarNotaExp(${idx}, ${n}, ${si})" 
+                        id="nota-btn-${idx}-${n}"
+                        style="width:34px;height:34px;border-radius:50%;background:${cor};color:#fff;border:2px solid ${cor};font-weight:800;font-size:0.85rem;cursor:pointer;transition:all 0.15s;${selected}">${n}</button>`;
+                }).join('') +
+                `</div>`;
+            }
+
+            secaoHtml += `
                 <tr>
                     <td style="padding:8px 12px;border:1px solid #e2e8f0;color:#334155;">${item}</td>
                     <td style="padding:8px 12px;border:1px solid #e2e8f0;text-align:center;">
-                        <input type="number" name="nota_${idx}" min="0" max="10" value="${nota}" ${disabled}
-                            oninput="calcularPontuacaoExp()"
-                            style="width:70px;padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:0.9rem;outline:none;${disabled ? 'background:#f8fafc;' : ''}">
+                        ${botoesNota}
                     </td>
                     <td style="padding:8px 12px;border:1px solid #e2e8f0;">
-                        <input type="text" name="obs_${idx}" value="${obs}" ${disabled}
-                            style="width:100%;padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;outline:none;box-sizing:border-box;${disabled ? 'background:#f8fafc;' : ''}">
+                        <input type="text" name="obs_${idx}" value="${obs}" ${isReadOnly ? 'disabled' : ''}
+                            style="width:100%;padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;outline:none;box-sizing:border-box;${isReadOnly ? 'background:#f8fafc;' : ''}">
                     </td>
                 </tr>
             `;
         });
 
-        modalHtml += `</tbody></table></div>`;
+        secaoHtml += `</tbody></table></div>`;
+        modalHtml += secaoHtml;
     });
 
     const totalItens = itemGlobalIdx;
@@ -768,11 +815,9 @@ async function openExperienciaModal(colaboradorId) {
                 <!-- Actions -->
                 <div style="display:flex;gap:1rem;justify-content:space-between;margin-top:1.5rem;padding-top:1rem;border-top:1px solid #e2e8f0;">
                     <div>
-                        ${(situacao !== 'finalizado') ? `
                         <button type="button" onclick="reenviarEmailExperiencia(${colab.id}, this)" style="padding:0.6rem 1rem;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;color:#475569;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:6px;">
-                            <i class="ph ph-envelope-simple"></i> Enviar Link p/ Gestor
+                            <i class="ph ph-envelope-simple"></i> Reenviar E-mail de Formulário para Gestor
                         </button>
-                        ` : ''}
                     </div>
                     <div style="display:flex;gap:1rem;">
                         <button type="button" onclick="document.getElementById('modal-experiencia-overlay').remove()" style="padding:0.6rem 1.25rem;border:1px solid #e2e8f0;border-radius:8px;background:#f1f5f9;color:#334155;cursor:pointer;font-weight:600;">Fechar</button>
@@ -797,6 +842,29 @@ async function openExperienciaModal(colaboradorId) {
     calcularPontuacaoExp();
 }
 
+const _scoreColors = ['', '#dc2626', '#ea580c', '#ca8a04', '#65a30d', '#16a34a'];
+function selecionarNotaExp(idx, nota, secaoIdx) {
+    // Atualiza hidden input
+    const hidden = document.getElementById(`nota-input-${idx}`);
+    if (hidden) hidden.value = nota;
+    // Atualiza visual dos botoes do item
+    for (let n = 1; n <= 5; n++) {
+        const btn = document.getElementById(`nota-btn-${idx}-${n}`);
+        if (!btn) continue;
+        if (n === nota) {
+            btn.style.opacity = '1';
+            btn.style.boxShadow = `0 0 0 3px ${_scoreColors[n]}50`;
+            btn.style.transform = 'scale(1.15)';
+        } else {
+            btn.style.opacity = '0.4';
+            btn.style.boxShadow = '';
+            btn.style.transform = 'scale(1)';
+        }
+    }
+    calcularPontuacaoExp();
+}
+window.selecionarNotaExp = selecionarNotaExp;
+
 function calcularPontuacaoExp() {
     const form = document.getElementById('form-experiencia-avaliacao');
     if (!form) return;
@@ -804,10 +872,30 @@ function calcularPontuacaoExp() {
     let total = 0;
     inputs.forEach(inp => {
         const v = parseFloat(inp.value);
-        if (!isNaN(v)) total += v;
+        if (!isNaN(v) && v > 0) total += v;
     });
     const el = document.getElementById('exp-pontuacao-total');
-    if (el) el.textContent = total.toFixed(0);
+    if (el) {
+        el.textContent = total.toFixed(0);
+        // Colorir pontuação total
+        const pct = total / (inputs.length * 5);
+        el.style.color = pct >= 0.8 ? '#16a34a' : pct >= 0.6 ? '#65a30d' : pct >= 0.4 ? '#ca8a04' : pct >= 0.2 ? '#ea580c' : '#dc2626';
+    }
+    // Atualizar totais por seção
+    document.querySelectorAll('[id^="secao-total-"]').forEach(secEl => {
+        const si = secEl.id.split('-').pop();
+        let secSum = 0;
+        // Soma todos os inputs hidden de notas que pertencem a essa seção
+        // (não temos mapeamento direto, então recalculamos pelo DOM)
+        const secaoDiv = secEl.closest('[style*="margin-bottom:1.5rem"]');
+        if (secaoDiv) {
+            secaoDiv.querySelectorAll('input[name^="nota_"]').forEach(inp => {
+                const v = parseFloat(inp.value);
+                if (!isNaN(v) && v > 0) secSum += v;
+            });
+        }
+        secEl.textContent = secSum;
+    });
 }
 
 async function salvarFormularioExp(situacaoForm) {
