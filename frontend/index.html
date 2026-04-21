@@ -67,64 +67,9 @@
                     <div class="dept-submenu-header" style="color:#f503c5;"><i class="ph ph-users"></i> RH</div>
                     <a href="#" class="nav-item" data-target="dashboard"><i class="ph ph-squares-four"></i> Dashboard</a>
                     <a href="#" class="nav-item" data-target="colaboradores"><i class="ph ph-address-book"></i> Colaboradores</a>
-                    <a href="#" class="nav-item" data-target="ferias"><i class="ph ph-airplane-tilt"></i> F&eacute;rias</a>
                     <a href="#" class="nav-item" data-target="admissao"><i class="ph ph-list-checks"></i> Admiss&atilde;o</a>
                     <a href="#" class="nav-item" data-target="integracao"><i class="ph ph-users-three"></i> Integra&ccedil;&atilde;o</a>
-                    <a href="#" class="nav-item" data-target="assinaturas-digitais"><i class="ph ph-signature"></i> Assinaturas</a>
-                    <a href="#" class="nav-item" data-target="cargos"><i class="ph ph-briefcase"></i> Cargos e Dept</a>
-                    <a href="#" class="nav-item" data-target="faculdade"><i class="ph ph-graduation-cap"></i> Faculdade</a>
-                    <a href="#" class="nav-item" data-target="geradores"><i class="ph ph-file-text"></i> Geradores</a>
-                    <a href="#" class="nav-item" data-target="ficha-epi"><i class="ph ph-shield-check"></i> Ficha EPI</a>
-                    <a href="#" class="nav-item" data-target="gerenciar-avaliacoes"><i class="ph ph-clipboard-text"></i> Avalia&ccedil;&otilde;es</a>
-                    <a href="#" class="nav-item" data-target="dissidio"><i class="ph ph-trend-up"></i> Diss&iacute;dio</a>
-                </div>
-            </div>
-
-            <!-- Logística - Verde -->
-            <div class="dept-item" style="--dept-color:#2d9e5f; --dept-bg:#d6f5e5;">
-                <button class="dept-btn" title="Logística">
-                    <i class="ph ph-truck"></i>
-                    <span>Log&iacute;stica</span>
-                </button>
-                <div class="dept-submenu">
-                    <div class="dept-submenu-header" style="color:#2d9e5f;"><i class="ph ph-truck"></i> Logística</div>
-                    <a href="#" class="nav-item" data-target="logistica-em-breve" style="color:#94a3b8;pointer-events:none;"><i class="ph ph-hourglass"></i> Em breve...</a>
-                </div>
-            </div>
-
-            <!-- Financeiro - Azul -->
-            <div class="dept-item" style="--dept-color:#1971c2; --dept-bg:#d0e8fa;">
-                <button class="dept-btn" title="Financeiro">
-                    <i class="ph ph-currency-dollar"></i>
-                    <span>Financeiro</span>
-                </button>
-                <div class="dept-submenu">
-                    <div class="dept-submenu-header" style="color:#1971c2;"><i class="ph ph-currency-dollar"></i> Financeiro</div>
-                    <a href="#" class="nav-item" data-target="financeiro-em-breve" style="color:#94a3b8;pointer-events:none;"><i class="ph ph-hourglass"></i> Em breve...</a>
-                </div>
-            </div>
-
-            <!-- Comercial - Roxo -->
-            <div class="dept-item" style="--dept-color:#7048e8; --dept-bg:#ede9fc;">
-                <button class="dept-btn" title="Comercial">
-                    <i class="ph ph-handshake"></i>
-                    <span>Comercial</span>
-                </button>
-                <div class="dept-submenu">
-                    <div class="dept-submenu-header" style="color:#7048e8;"><i class="ph ph-handshake"></i> Comercial</div>
-                    <a href="#" class="nav-item" data-target="comercial-em-breve" style="color:#94a3b8;pointer-events:none;"><i class="ph ph-hourglass"></i> Em breve...</a>
-                </div>
-            </div>
-
-            <!-- Administrativo - Amarelo -->
-            <div class="dept-item" style="--dept-color:#e67700; --dept-bg:#fff3cd;">
-                <button class="dept-btn" title="Administrativo">
-                    <i class="ph ph-gear"></i>
-                    <span>Admin.</span>
-                </button>
-                <div class="dept-submenu">
-                    <div class="dept-submenu-header" style="color:#e67700;"><i class="ph ph-gear"></i> Administrativo</div>
-                    <a href="#" class="nav-item" data-target="admin-em-breve" style="color:#94a3b8;pointer-events:none;"><i class="ph ph-hourglass"></i> Em breve...</a>
+                    <a href="#" class="nav-item" data-target="ferias"><i class="ph ph-airplane-tilt"></i> F&eacute;rias</a>
                 </div>
             </div>
 
@@ -421,6 +366,13 @@
                                     <input type="text" id="novo-departamento-nome" placeholder="Ex: Logística" style="width:100%;padding:0.6rem 0.75rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;">
                                 </div>
                                 <div style="flex:1;min-width:160px;">
+                                    <label style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Tipo</label>
+                                    <select id="novo-departamento-tipo" style="width:100%;padding:0.6rem 0.75rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;background:#fff;outline:none;box-sizing:border-box;">
+                                        <option value="Operacional">Operacional</option>
+                                        <option value="Administrativo">Administrativo</option>
+                                    </select>
+                                </div>
+                                <div style="flex:1;min-width:160px;">
                                     <label style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Responsável</label>
                                     <select id="novo-departamento-responsavel" style="width:100%;padding:0.6rem 0.75rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;background:#fff;outline:none;box-sizing:border-box;">
                                         <option value="">Nenhum</option>
@@ -437,7 +389,7 @@
                                     style="width:100%;padding:0.55rem 0.75rem 0.55rem 2.2rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;">
                             </div>
                             <table class="table">
-                                <thead><tr><th>ID</th><th>Nome do Departamento</th><th>Responsável</th><th style="text-align: right;">Ações</th></tr></thead>
+                                <thead><tr><th>ID</th><th>Nome do Departamento</th><th>Tipo</th><th>Responsável</th><th style="text-align: right;">Ações</th></tr></thead>
                                 <tbody id="table-departamentos"></tbody>
                             </table>
                         </div>
@@ -2230,7 +2182,14 @@
                                 </div>
                                 <div class="input-group">
                                     <label>Senha <span id="fu-senha-desc" style="font-weight:normal;color:#64748b;">(Obrigatória para novos)</span></label>
-                                    <input id="fu-password" type="password" placeholder="Senha de acesso">
+                                    <div style="position:relative;">
+                                        <input id="fu-password" type="password" placeholder="Senha de acesso" style="width:100%;padding:0.6rem 2.5rem 0.6rem 0.75rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.9rem;outline:none;box-sizing:border-box;">
+                                        <button type="button"
+                                            onclick="const i=document.getElementById('fu-password'); const icon=this.querySelector('i'); if(i.type==='password'){i.type='text';icon.className='ph ph-eye-slash'}else{i.type='password';icon.className='ph ph-eye'}"
+                                            style="position:absolute;right:0.6rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#94a3b8;font-size:1.1rem;padding:0;">
+                                            <i class="ph ph-eye"></i>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -2514,7 +2473,13 @@
             <div class="modal-body" style="padding:1.25rem;">
                 <form id="form-editar-departamento">
                     <input type="hidden" id="edit-departamento-id">
-                    <input type="hidden" id="edit-departamento-tipo" value="Operacional">
+                    <div class="input-group mb-3">
+                        <label style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Tipo</label>
+                        <select id="edit-departamento-tipo" style="width:100%;padding:0.6rem 0.75rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;background:#fff;outline:none;">
+                            <option value="Operacional">Operacional</option>
+                            <option value="Administrativo">Administrativo</option>
+                        </select>
+                    </div>
                     <div class="input-group mb-3">
                         <label style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Nome do Departamento</label>
                         <input type="text" id="edit-departamento-nome" required style="width:100%;padding:0.6rem 0.75rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;">
