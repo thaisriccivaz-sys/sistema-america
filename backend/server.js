@@ -7111,6 +7111,8 @@ function calcPrazoExp(dataAdmissao) {
         prazo1_fim: prazo1_fim.toISOString().split('T')[0],
         prazo2_fim: prazo2_fim.toISOString().split('T')[0]
     };
+}
+
 // --- PUBLIC ENDPOINTS ---
 app.get('/api/experiencia/publico/info', (req, res) => {
     try {
