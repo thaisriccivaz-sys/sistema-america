@@ -7115,8 +7115,9 @@ db.run("ALTER TABLE experiencia_formularios ADD COLUMN data_envio_email TEXT", (
 // --- PUBLIC ENDPOINTS ---
 app.get('/api/experiencia/publico/info', (req, res) => {
     try {
-        const payload = JSON.parse(Buffer.from(req.query.token, 'base64').toString('utf8'));
-        if (Date.now() > payload.exp) return res.status(400).json({ error: 'Link expirado.' });
+        const payload = jwt.verify(req.query.token, SECRET_KEY);
+        // exp is handled automatically by jwt, but we included a custom one or just use standard
+        
         db.get(`SELECT c.*, (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as responsavel_nome FROM colaboradores c LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento)) WHERE c.id = ?`, [payload.colab_id], (err, colab) => {
             if (err || !colab) return res.status(404).json({ error: 'Colaborador não encontrado.' });
             
@@ -7131,14 +7132,13 @@ app.get('/api/experiencia/publico/info', (req, res) => {
             });
         });
     } catch(e) {
-        res.status(400).json({ error: 'Token inválido.' });
+        res.status(400).json({ error: 'Token inválido ou expirado.' });
     }
 });
 
 app.post('/api/experiencia/publico/submit', (req, res) => {
     try {
-        const payload = JSON.parse(Buffer.from(req.query.token, 'base64').toString('utf8'));
-        if (Date.now() > payload.exp) return res.status(400).json({ error: 'Link expirado.' });
+        const payload = jwt.verify(req.query.token, SECRET_KEY);
         
         const { respostas, pontuacao, situacao_avaliacao, comentarios } = req.body;
         
@@ -7164,7 +7164,7 @@ app.post('/api/experiencia/publico/submit', (req, res) => {
             });
         });
     } catch(e) {
-        res.status(400).json({ error: 'Token inválido.' });
+        res.status(400).json({ error: 'Token inválido ou expirado.' });
     }
 });
 
@@ -7350,11 +7350,10 @@ function verificarExperienciasVencendo() {
                 try {
                     const transporter = nodemailer.createTransport(SMTP_CONFIG);
                     
-                    const tokenPayload = Buffer.from(JSON.stringify({
+                    const tokenPayload = jwt.sign({
                         colab_id: r.id, 
-                        form_id: r.form_id || null, 
-                        exp: Date.now() + 15*86400000 
-                    })).toString('base64');
+                        form_id: r.form_id || null
+                    }, SECRET_KEY, { expiresIn: '15d' });
                     
                     const formLink = `${process.env.BASE_URL || 'https://sistema-america.onrender.com'}?exp_public_token=${tokenPayload}`;
                     
