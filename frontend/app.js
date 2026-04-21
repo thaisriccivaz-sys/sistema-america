@@ -1222,7 +1222,7 @@ async function loadDepartamentos() {
                 <button type="button" class="btn btn-primary btn-sm" onclick="editDepartamento(${d.id}, '${d.nome.replace(/'/g,"\\'")}','${tipo}','${d.responsavel_id || ''}')" title="Editar">
                     <i class="ph ph-note-pencil"></i> Editar
                 </button>
-                <button type="button" class="btn btn-danger btn-sm" onclick="deleteDepartamento(${d.id})" title="Excluir">
+                <button type="button" class="btn btn-danger btn-sm" onclick="deleteDepartamento(${d.id})" title="Excluir" style="display: none;">
                     <i class="ph ph-trash"></i> Excluir
                 </button>
             </td>
