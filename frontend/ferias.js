@@ -521,10 +521,6 @@
                     periodoAcol = `<span style="font-size:0.79rem;color:#334155;">${fmt(ult.inicio)} → ${fmt(ult.fim)}</span>`;
                     if (ult.vencida) {
                         alertaBadge = `<span style="display:inline-flex;align-items:center;gap:2px;background:#fee2e2;color:#dc2626;border-radius:5px;padding:1px 6px;font-size:0.67rem;font-weight:800;margin-left:4px;vertical-align:middle;"><i class="ph ph-x-circle"></i> VENCIDA</span>`;
-                    } else if (ult.diasParaVencer <= 30) {
-                        alertaBadge = `<span style="display:inline-flex;align-items:center;gap:2px;background:#fee2e2;color:#ef4444;border-radius:5px;padding:1px 6px;font-size:0.67rem;font-weight:800;margin-left:4px;vertical-align:middle;"><i class="ph ph-warning-circle"></i> ${ult.diasParaVencer}d</span>`;
-                    } else if (ult.diasParaVencer <= 90) {
-                        alertaBadge = `<span style="display:inline-flex;align-items:center;gap:2px;background:#fef9c3;color:#ca8a04;border-radius:5px;padding:1px 6px;font-size:0.67rem;font-weight:800;margin-left:4px;vertical-align:middle;"><i class="ph ph-warning"></i> ${ult.diasParaVencer}d</span>`;
                     }
                 }
             }
