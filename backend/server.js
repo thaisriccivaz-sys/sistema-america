@@ -7335,12 +7335,20 @@ app.post('/api/experiencia/enviar-email/:id', authenticateToken, (req, res) => {
         try {
             const transporter = nodemailer.createTransport(SMTP_CONFIG);
             
+            let expiresInSeconds = 15 * 86400; // default 15 days
+            if (prazos && prazos.prazo2_fim) {
+                const expDate = new Date(prazos.prazo2_fim + 'T23:59:59');
+                expDate.setDate(expDate.getDate() + 1); // dia seguinte
+                const diff = Math.floor((expDate.getTime() - Date.now()) / 1000);
+                if (diff > 0) expiresInSeconds = diff;
+            }
+            
             const tokenPayload = jwt.sign({
                 colab_id: r.id, 
                 form_id: r.form_id || null
-            }, SECRET_KEY, { expiresIn: '15d' });
+            }, SECRET_KEY, { expiresIn: expiresInSeconds });
             
-            const formLink = `${process.env.BASE_URL || 'https://sistema-america.onrender.com'}?exp_public_token=${tokenPayload}`;
+            const formLink = `${process.env.BASE_URL || 'https://sistema-america.onrender.com'}/avaliacao-publica.html?token=${tokenPayload}`;
             
             await transporter.sendMail({
                 from: `"América Rental RH" <${process.env.EMAIL_FROM || SMTP_CONFIG.auth.user}>`,
@@ -7423,12 +7431,20 @@ function verificarExperienciasVencendo() {
                 try {
                     const transporter = nodemailer.createTransport(SMTP_CONFIG);
                     
+                    let expiresInSeconds = 15 * 86400; // default 15 days
+                    if (prazos && prazos.prazo2_fim) {
+                        const expDate = new Date(prazos.prazo2_fim + 'T23:59:59');
+                        expDate.setDate(expDate.getDate() + 1); // dia seguinte
+                        const diff = Math.floor((expDate.getTime() - Date.now()) / 1000);
+                        if (diff > 0) expiresInSeconds = diff;
+                    }
+
                     const tokenPayload = jwt.sign({
                         colab_id: r.id, 
                         form_id: r.form_id || null
-                    }, SECRET_KEY, { expiresIn: '15d' });
+                    }, SECRET_KEY, { expiresIn: expiresInSeconds });
                     
-                    const formLink = `${process.env.BASE_URL || 'https://sistema-america.onrender.com'}?exp_public_token=${tokenPayload}`;
+                    const formLink = `${process.env.BASE_URL || 'https://sistema-america.onrender.com'}/avaliacao-publica.html?token=${tokenPayload}`;
                     
                     await transporter.sendMail({
                         from: `"América Rental RH" <${process.env.EMAIL_FROM || SMTP_CONFIG.auth.user}>`,

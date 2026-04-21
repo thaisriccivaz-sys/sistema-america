@@ -117,14 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const expPublicToken = urlParams.get('exp_public_token');
     
     if (expPublicToken) {
-        document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-        document.getElementById('view-public-exp').classList.add('active');
-        // Load the public form logic
-        if (typeof window.loadPublicExperiencia === 'function') {
-            window.loadPublicExperiencia(expPublicToken);
-        } else {
-            console.error('loadPublicExperiencia not found');
-        }
+        window.location.href = `/avaliacao-publica.html?token=${expPublicToken}`;
         return; // Stop normal boot
     }
 
