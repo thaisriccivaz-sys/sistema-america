@@ -518,7 +518,7 @@ const TAB_META = {
     'gerenciar-avaliacoes':   { color: '#f503c5', icon: 'ph-clipboard-text',  title: 'Avaliações' },
     'assinaturas-digitais':   { color: '#f503c5', icon: 'ph-signature',       title: 'Assinaturas' },
     'dissidio':               { color: '#f503c5', icon: 'ph-trend-up',        title: 'Dissídio' },
-    'ferias':                 { color: '#0891b2', icon: 'ph-beach',           title: 'Férias' },
+    'ferias':                 { color: '#f503c5', icon: 'ph-airplane-tilt',   title: 'Férias' },
     // Diretoria - Laranja
     'usuarios-permissoes':    { color: '#d9480f', icon: 'ph-users-three',     title: 'Usuários e Permissões' },
     'certificado-digital':    { color: '#d9480f', icon: 'ph-certificate',     title: 'Certificado Digital' },
