@@ -1910,10 +1910,19 @@ async function loadDashboard() {
                         <div style="font-size:0.69rem;color:${f.dias_restantes <= 0 ? '#ef4444' : '#94a3b8'};margin-top:2px;">${labelRestante}</div>
                     </div>`;
 
+                    const nomeStr = f.nome || '?';
+                    const iniciais = nomeStr.trim().split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+                    const fotoApiUrl = `/api/colaboradores/foto/${f.id}`;
                     tbFerias.innerHTML += `
-                        <tr>
-                            <td><a href="#" style="color:#1c7ed6;text-decoration:none;" onclick="event.preventDefault(); viewColaborador(${f.id})">${f.nome}</a></td>
-                            <td colspan="2">${progressBarHtml}</td>
+                        <tr style="border-bottom:1px solid #f1f5f9;">
+                            <td style="padding:0.6rem 0.65rem;">
+                                <div style="display:flex;align-items:center;gap:0.55rem;">
+                                    <img src="${fotoApiUrl}" alt="" style="width:31px;height:31px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1.5px solid #f503c540;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                                    <div style="display:none;width:31px;height:31px;border-radius:50%;background:#f503c5;align-items:center;justify-content:center;font-size:0.75rem;font-weight:800;color:#fff;flex-shrink:0;opacity:.9;">${iniciais}</div>
+                                    <a href="#" style="color:#1c7ed6;text-decoration:none;font-weight:600;font-size:0.85rem;" onclick="event.preventDefault(); viewColaborador(${f.id})">${nomeStr}</a>
+                                </div>
+                            </td>
+                            <td colspan="2" style="padding:0.6rem 0.65rem;vertical-align:middle;">${progressBarHtml}</td>
                         </tr>
                     `;
                 });
