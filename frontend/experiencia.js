@@ -510,7 +510,7 @@ async function openExperienciaModal(colaboradorId) {
                 <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
                     <thead><tr>
                         <th style="text-align:left;padding:8px 12px;background:#f1f5f9;color:#475569;font-weight:600;border:1px solid #e2e8f0;">Pontos Avaliados</th>
-                        <th style="width:100px;text-align:center;padding:8px 12px;background:#f1f5f9;color:#475569;font-weight:600;border:1px solid #e2e8f0;">Nota (0-10)</th>
+                        <th style="width:100px;text-align:center;padding:8px 12px;background:#f1f5f9;color:#475569;font-weight:600;border:1px solid #e2e8f0;">Nota (1-5)</th>
                         <th style="width:200px;text-align:left;padding:8px 12px;background:#f1f5f9;color:#475569;font-weight:600;border:1px solid #e2e8f0;">Obs.</th>
                     </tr></thead>
                     <tbody>
@@ -553,7 +553,7 @@ async function openExperienciaModal(colaboradorId) {
                         <div>
                             <span style="font-size:0.75rem;color:#94a3b8;font-weight:600;display:block;margin-bottom:4px;">PONTUAÇÃO TOTAL</span>
                             <span id="exp-pontuacao-total" style="font-size:2rem;font-weight:800;color:#d9480f;">${pontuacaoAtual}</span>
-                            <span style="color:#94a3b8;font-size:0.8rem;"> / ${totalItens * 10}</span>
+                            <span style="color:#94a3b8;font-size:0.8rem;"> / ${totalItens * 5}</span>
                         </div>
                         <div style="flex:1;min-width:200px;">
                             <span style="font-size:0.75rem;color:#94a3b8;font-weight:600;display:block;margin-bottom:4px;">SITUAÇÃO</span>
