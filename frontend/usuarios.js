@@ -6,19 +6,12 @@ const TELAS_SISTEMA = [
     { modulo: 'RH', pagina_id: 'dashboard',             pagina_nome: 'Dashboard' },
     { modulo: 'RH', pagina_id: 'colaboradores',          pagina_nome: 'Colaboradores' },
     { modulo: 'RH', pagina_id: 'admissao',               pagina_nome: 'Admissão' },
-    { modulo: 'RH', pagina_id: 'cargos',                 pagina_nome: 'Cargos' },
-    { modulo: 'RH', pagina_id: 'departamentos',          pagina_nome: 'Departamentos' },
-    { modulo: 'RH', pagina_id: 'faculdade',              pagina_nome: 'Faculdade' },
-    { modulo: 'RH', pagina_id: 'geradores',              pagina_nome: 'Geradores de Documentos' },
-    { modulo: 'RH', pagina_id: 'ficha-epi',              pagina_nome: 'Ficha EPI' },
-    { modulo: 'RH', pagina_id: 'gerenciar-avaliacoes',   pagina_nome: 'Avaliações' },
-    { modulo: 'Logística', pagina_id: 'logistica-em-breve', pagina_nome: 'Módulo Logística' },
-    { modulo: 'Financeiro', pagina_id: 'financeiro-em-breve', pagina_nome: 'Módulo Financeiro' },
-    { modulo: 'Comercial', pagina_id: 'comercial-em-breve', pagina_nome: 'Módulo Comercial' },
-    { modulo: 'Administrativo', pagina_id: 'admin-em-breve', pagina_nome: 'Módulo Administrativo' },
+    { modulo: 'RH', pagina_id: 'integracao',             pagina_nome: 'Integração' },
+    { modulo: 'RH', pagina_id: 'ferias',                 pagina_nome: 'Férias' },
     { modulo: 'Sistema', pagina_id: 'usuarios-permissoes', pagina_nome: 'Usuários e Permissões' },
     { modulo: 'Sistema', pagina_id: 'certificado-digital', pagina_nome: 'Certificado Digital' },
     { modulo: 'Sistema', pagina_id: 'chaves', pagina_nome: 'Chaves' },
+    { modulo: 'Sistema', pagina_id: 'homologacao',         pagina_nome: 'Homologação' },
 ];
 
 const DEPARTAMENTOS = ['RH', 'Financeiro', 'Comercial', 'Logística', 'Administrativo', 'Diretoria', 'Todas'];
@@ -486,55 +479,16 @@ const MENU_HIERARQUIA = [
     {
         modulo: 'RH', icone: 'ph-users',
         grupos: [
-            { titulo: 'Visão Geral e Administrativo', telas: ['dashboard', 'colaboradores', 'admissao', 'cargos', 'departamentos', 'faculdade'] },
-            { titulo: 'Prontuário Digital', telas: ['prontuario-checklist', 'prontuario-ficha', 'prontuario-pagamentos', 'prontuario-aso'] },
-            { titulo: 'Segurança (EPI)', telas: ['ficha-epi'] },
-            { titulo: 'Avaliações de Desempenho', telas: ['gerenciar-avaliacoes', 'avaliacoes'] },
-            { titulo: 'Gestão de Documentos', telas: ['geradores'] }
+            { titulo: 'Acesso Principal', telas: ['dashboard', 'colaboradores', 'admissao', 'integracao', 'ferias'] }
         ]
     },
     {
         modulo: 'Diretoria', icone: 'ph-crown',
         grupos: [
-            { titulo: 'Cadastros Base', telas: ['usuarios-permissoes', 'certificado-digital', 'chaves'] }
-        ]
-    },
-    {
-        modulo: 'Logística', icone: 'ph-truck',
-        grupos: [
-            { titulo: 'Visão Geral (Em breve)', telas: ['logistica-em-breve'] }
-        ]
-    },
-    {
-        modulo: 'Financeiro', icone: 'ph-currency-dollar',
-        grupos: [
-            { titulo: 'Visão Geral (Em breve)', telas: ['financeiro-em-breve'] }
-        ]
-    },
-    {
-        modulo: 'Comercial', icone: 'ph-handshake',
-        grupos: [
-            { titulo: 'Visão Geral (Em breve)', telas: ['comercial-em-breve'] }
-        ]
-    },
-    {
-        modulo: 'Administrativo', icone: 'ph-gear',
-        grupos: [
-            { titulo: 'Visão Geral (Em breve)', telas: ['admin-em-breve'] }
+            { titulo: 'Acesso Principal', telas: ['usuarios-permissoes', 'chaves', 'certificado-digital', 'homologacao'] }
         ]
     }
 ];
-
-// Oculta no objeto global TELAS_SISTEMA as telas extras para que fiquem ativaveis
-if (!TELAS_SISTEMA.find(t => t.pagina_id === 'prontuario-checklist')) {
-    TELAS_SISTEMA.push(
-        { modulo: 'RH', pagina_id: 'prontuario-checklist', pagina_nome: 'Prontuário - CheckList' },
-        { modulo: 'RH', pagina_id: 'prontuario-ficha', pagina_nome: 'Prontuário - Ficha Cadastral' },
-        { modulo: 'RH', pagina_id: 'prontuario-pagamentos', pagina_nome: 'Prontuário - Pagamentos' },
-        { modulo: 'RH', pagina_id: 'prontuario-aso', pagina_nome: 'Prontuário - ASO' },
-        { modulo: 'RH', pagina_id: 'avaliacoes', pagina_nome: 'Responder Avaliação (Colab)' }
-    );
-}
 
 async function carregarArvorePermissoesUsuario(grupoId) {
     _permissoesFormAtivas = {};
