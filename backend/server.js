@@ -7081,7 +7081,9 @@ db.run(`CREATE TABLE IF NOT EXISTS experiencia_formularios (
     criado_em TEXT DEFAULT (datetime('now')),
     atualizado_em TEXT DEFAULT (datetime('now')),
     FOREIGN KEY (colaborador_id) REFERENCES colaboradores(id)
-)`);
+)`, () => {
+    db.run("ALTER TABLE experiencia_formularios ADD COLUMN data_envio_email TEXT", () => {});
+});
 
 db.run(`CREATE TABLE IF NOT EXISTS experiencia_notificacoes_pendentes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -7108,10 +7110,6 @@ function calcPrazoExp(dataAdmissao) {
         prazo1_fim: prazo1_fim.toISOString().split('T')[0],
         prazo2_fim: prazo2_fim.toISOString().split('T')[0]
     };
-}
-
-db.run("ALTER TABLE experiencia_formularios ADD COLUMN data_envio_email TEXT", () => {});
-
 // --- PUBLIC ENDPOINTS ---
 app.get('/api/experiencia/publico/info', (req, res) => {
     try {
