@@ -7274,8 +7274,8 @@ function verificarExperienciasVencendo() {
                 
                 // Send email
                 try {
-                    const transporter = require('./utils/emailTransporter');
-                    const formLink = `${process.env.BASE_URL || 'https://sistema-america.onrender.com'}/api/experiencia/formulario-publico?token=${Buffer.from(JSON.stringify({id: r.id, exp: Date.now() + 7*86400000})).toString('base64')}`;
+                    const transporter = nodemailer.createTransport(SMTP_CONFIG);
+                    const formLink = `${process.env.BASE_URL || 'https://sistema-america.onrender.com'}`;
                     
                     await transporter.sendMail({
                         from: process.env.EMAIL_FROM || 'no-reply@americarental.com.br',
