@@ -32,7 +32,11 @@ db.run("CREATE TABLE IF NOT EXISTS geradores_excluidos (nome TEXT PRIMARY KEY)",
 });
 // Blacklist de cargos e departamentos excluidos manualmente (impede que o seed os recrie)
 db.run("CREATE TABLE IF NOT EXISTS cargos_excluidos (nome TEXT PRIMARY KEY)");
-db.run("CREATE TABLE IF NOT EXISTS departamentos_excluidos (nome TEXT PRIMARY KEY)");
+db.run("CREATE TABLE IF NOT EXISTS departamentos_excluidos (nome TEXT PRIMARY KEY)", () => {
+    // Excluir permanentemente o departamento duplicado 'Recursos Humanos' (ID 1136)
+    db.run("INSERT OR IGNORE INTO departamentos_excluidos (nome) VALUES ('Recursos Humanos')");
+    db.run("DELETE FROM departamentos WHERE nome = 'Recursos Humanos' AND id = 1136");
+});
 
 // MIGRATION: Colunas de visibilidade dos geradores (Movido para database.js)
 
