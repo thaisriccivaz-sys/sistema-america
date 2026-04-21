@@ -1,28 +1,6 @@
 const API_URL = '/api';
 
-// --- ONE-OFF DELETION MULTA ---
-if (!localStorage.getItem('deleted_total73_bug')) {
-    setTimeout(() => {
-        fetch('/api/colaboradores')
-            .then(res => res.json())
-            .then(data => {
-                const target = data.find(c => c.nome_completo && c.nome_completo.includes('total 73'));
-                if (target) {
-                    fetch('/api/colaboradores/' + target.id + '?force=true', {
-                        method: 'DELETE',
-                        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
-                    }).then(() => {
-                        console.log("Bug 'total 73' deleted.");
-                        localStorage.setItem('deleted_total73_bug', 'true');
-                        // Reload to reflect changes
-                        window.location.reload();
-                    });
-                } else {
-                    localStorage.setItem('deleted_total73_bug', 'true');
-                }
-            }).catch(console.error);
-    }, 3000);
-}
+
 
 function showToast(msg, type) {
     const toast = document.getElementById('global-toast');
@@ -1849,27 +1827,6 @@ async function loadDashboard() {
                     maintainAspectRatio: false,
                     plugins: { legend: { position: 'bottom' } },
                     scales: { x: { stacked: false }, y: { beginAtZero: true, ticks: { precision: 0 } } }
-                }
-            });
-
-            const dataMeses = chartsData.atestadosMes.map(d => d.count);
-            
-            chartAtestadosInst = new Chart(ctxAtestados, {
-                type: 'bar',
-                data: {
-                    labels: labelsMeses.length ? labelsMeses : ['Sem dados'],
-                    datasets: [{
-                        label: 'Qtd. de Atestados',
-                        data: dataMeses.length ? dataMeses : [0],
-                        backgroundColor: '#228be6',
-                        borderRadius: 4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
                 }
             });
         }
