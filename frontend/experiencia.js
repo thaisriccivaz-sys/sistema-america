@@ -322,6 +322,9 @@ async function loadExperiencia() {
     const section = document.getElementById('view-experiencia');
     if (!section) return;
 
+    window.currentBreadcrumbKey = 'experiencia';
+    if(typeof window.renderBookmarks === 'function') window.renderBookmarks();
+
     // Load data
     const data = await apiGet('/experiencia');
     if (!data) return;
@@ -392,7 +395,8 @@ function renderExperienciaList(lista) {
         } else if (situacao === 'iniciado') {
             formBadge = `<span style="background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:600;">Iniciado</span>`;
         } else if (situacao === 'enviado') {
-            formBadge = `<span style="background:#dbeafe;color:#1e40af;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:600;">Enviado</span>`;
+            const envioDate = c.data_envio_email ? new Date(c.data_envio_email).toLocaleString('pt-BR', {day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'}) : '';
+            formBadge = `<div style="display:flex; flex-direction:column; gap:2px;"><span style="background:#dbeafe;color:#1e40af;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:600;">Enviado</span><span style="font-size:0.65rem;color:#64748b;text-align:center;">${envioDate}</span></div>`;
         } else {
             formBadge = `<span style="background:#f1f5f9;color:#94a3b8;padding:3px 10px;border-radius:12px;font-size:0.8rem;">Pendente</span>`;
         }
@@ -418,6 +422,7 @@ function renderExperienciaList(lista) {
             <td>${c.cargo || '-'}</td>
             <td>${c.departamento || '-'}</td>
             <td>${admissao}</td>
+            <td>${c.responsavel_nome || '-'}</td>
             <td>${prazo2Fim}${diasRestantesHtml}</td>
             <td>${statusBadge}</td>
             <td>${formBadge}</td>
@@ -663,3 +668,206 @@ window.loadExperiencia = loadExperiencia;
 window.openExperienciaModal = openExperienciaModal;
 window.calcularPontuacaoExp = calcularPontuacaoExp;
 window.salvarFormularioExp = salvarFormularioExp;
+
+// ---- PUBLIC FORM LOGIC ----
+window.loadPublicExperiencia = async function(token) {
+    try {
+        const res = await fetch(`/api/experiencia/publico/info?token=${token}`);
+        const data = await res.json();
+        
+        if (!res.ok) {
+            document.getElementById('public-exp-content').innerHTML = `
+                <div style="text-align:center; padding: 2rem;">
+                    <i class="ph ph-warning-circle" style="font-size:3rem; color:#dc2626;"></i>
+                    <h3 style="margin-top:1rem; color:#dc2626;">Link Inválido ou Expirado</h3>
+                    <p style="color:#64748b; margin-top:0.5rem;">${data.error || 'Não foi possível carregar o formulário.'}</p>
+                </div>
+            `;
+            return;
+        }
+
+        renderPublicExpForm(data.colaborador, data.formulario, token);
+    } catch (e) {
+        console.error(e);
+        document.getElementById('public-exp-content').innerHTML = `<div style="text-align:center;color:#dc2626;">Erro de conexão.</div>`;
+    }
+};
+
+window.renderPublicExpForm = function(colab, form, token) {
+    let html = `
+        <div style="margin-bottom:2rem; border-bottom:1px solid #e2e8f0; padding-bottom:1rem;">
+            <p style="margin:0; color:#64748b; font-weight:600; text-transform:uppercase; font-size:0.85rem;">Colaborador</p>
+            <h3 style="margin:0; color:#1e293b; font-size:1.25rem;">${colab.nome_completo}</h3>
+            <p style="margin:4px 0 0; color:#475569;">${colab.cargo || ''} - ${colab.departamento || ''}</p>
+        </div>
+    `;
+
+    // Achar config do formulário do departamento
+    const dpt = colab.departamento || '';
+    let formConfig = null;
+    let fallback = null;
+    for (const [key, val] of Object.entries(FORMULARIOS_POR_DEPARTAMENTO)) {
+        if (dpt.toLowerCase().includes(key.toLowerCase())) formConfig = val;
+        if (key === 'Geral') fallback = val;
+    }
+    if (!formConfig) formConfig = fallback;
+
+    if (!formConfig) {
+        html += `<div style="padding:1rem;background:#fee2e2;color:#991b1b;border-radius:8px;">Formulário não configurado para o departamento: ${dpt}</div>`;
+        document.getElementById('public-exp-content').innerHTML = html;
+        return;
+    }
+
+    const disableEdit = form && form.situacao === 'finalizado';
+
+    html += `<form id="public-exp-form-element" onsubmit="window.submitPublicExpForm(event, '${token}')">`;
+
+    // Render Seções
+    formConfig.secoes.forEach((secao, sIdx) => {
+        html += `<div style="margin-bottom:1.5rem;">
+                    <h4 style="margin-bottom:0.75rem; color:#1d4ed8; border-bottom:1px solid #bfdbfe; padding-bottom:4px; font-size:1rem;">${secao.nome}</h4>`;
+        secao.itens.forEach((req, idx) => {
+            const key = `req_s${sIdx}_i${idx}`;
+            const value = (form && form.respostas && form.respostas[key]) ? form.respostas[key] : '';
+            html += `
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px dashed #e2e8f0;">
+                    <div style="flex:1; padding-right:1rem; font-size:0.9rem; color:#334155;">${req}</div>
+                    <div style="width:120px;">
+                        <select name="${key}" class="form-control" title="Nota de 1 a 5" style="padding:4px; font-size:0.9rem;" onchange="window.calcPublicExpScore()" required ${disableEdit ? 'disabled' : ''}>
+                            <option value="">Nota</option>
+                            <option value="1" ${value==='1'?'selected':''}>1 - Ruim</option>
+                            <option value="2" ${value==='2'?'selected':''}>2 - Regular</option>
+                            <option value="3" ${value==='3'?'selected':''}>3 - Bom</option>
+                            <option value="4" ${value==='4'?'selected':''}>4 - Muito Bom</option>
+                            <option value="5" ${value==='5'?'selected':''}>5 - Excelente</option>
+                        </select>
+                    </div>
+                </div>
+            `;
+        });
+        html += `</div>`;
+    });
+
+    // Subtotal e Resultado Final
+    html += `
+        <div style="background:#f1f5f9; padding:1rem; border-radius:8px; margin-bottom:1.5rem; text-align:center;">
+            <p style="margin:0; font-size:1rem; font-weight:600; color:#475569;">Pontuação Final (Média)</p>
+            <div id="public-exp-resultado-num" style="font-size:2rem; font-weight:700; color:#1d4ed8;">${form ? (form.pontuacao || '0.00') : '0.00'}</div>
+            <div id="public-exp-resultado-texto" style="font-size:1.1rem; font-weight:600; margin-top:8px;">${form ? (form.situacao_avaliacao || '-') : '-'}</div>
+            <input type="hidden" name="pontuacao" id="public-exp-pontuacao-val" value="${form ? form.pontuacao : '0'}">
+            <input type="hidden" name="situacao_avaliacao" id="public-exp-situacao-val" value="${form ? form.situacao_avaliacao : ''}">
+        </div>
+    `;
+
+    // Comentários
+    html += `
+        <div class="input-group" style="margin-bottom:1.5rem;">
+            <label>Comentários / Observações do Responsável:</label>
+            <textarea name="comentarios" rows="3" class="form-control" ${disableEdit ? 'readonly' : ''} placeholder="Opcional">${form ? (form.comentarios || '') : ''}</textarea>
+        </div>
+    `;
+
+    if (!disableEdit) {
+        html += `
+            <div style="padding-top:1rem; border-top:1px solid #e2e8f0; text-align:right;">
+                <button type="submit" class="btn btn-primary" style="padding:10px 20px; font-size:1rem;">
+                    <i class="ph ph-check-square-offset"></i> Enviar Avaliação
+                </button>
+            </div>
+        `;
+    }
+
+    html += `</form>`;
+    document.getElementById('public-exp-content').innerHTML = html;
+    
+    if(!disableEdit && form) {
+        setTimeout(window.calcPublicExpScore, 100);
+    }
+};
+
+window.calcPublicExpScore = function() {
+    const frm = document.getElementById('public-exp-form-element');
+    if(!frm) return;
+    const selects = frm.querySelectorAll('select[name^="req_"]');
+    let total = 0, count = 0;
+    selects.forEach(sel => {
+        if (sel.value) { total += parseInt(sel.value); count++; }
+    });
+    
+    const media = count > 0 ? (total / count).toFixed(2) : '0.00';
+    document.getElementById('public-exp-resultado-num').textContent = media;
+    document.getElementById('public-exp-pontuacao-val').value = media;
+    
+    const resTextoEl = document.getElementById('public-exp-resultado-texto');
+    const situacaoVal = document.getElementById('public-exp-situacao-val');
+    
+    if (count < selects.length) {
+        resTextoEl.textContent = 'Preencha todos os campos';
+        resTextoEl.style.color = '#94a3b8';
+        situacaoVal.value = '';
+    } else {
+        if (media >= 3) {
+            resTextoEl.textContent = 'APROVADO';
+            resTextoEl.style.color = '#059669';
+            situacaoVal.value = 'Aprovado';
+        } else {
+            resTextoEl.textContent = 'REPROVADO';
+            resTextoEl.style.color = '#dc2626';
+            situacaoVal.value = 'Reprovado';
+        }
+    }
+};
+
+window.submitPublicExpForm = async function(e, token) {
+    e.preventDefault();
+    const frm = e.target;
+    
+    const selects = frm.querySelectorAll('select[name^="req_"]');
+    for (let i = 0; i < selects.length; i++) {
+        if (!selects[i].value) { alert("Por favor, preencha todas as notas."); return; }
+    }
+    
+    window.calcPublicExpScore();
+    
+    const fData = new FormData(frm);
+    const payload = {
+        respostas: {},
+        pontuacao: parseFloat(fData.get('pontuacao')),
+        situacao_avaliacao: fData.get('situacao_avaliacao'),
+        comentarios: fData.get('comentarios') || ''
+    };
+    
+    selects.forEach(sel => { payload.respostas[sel.name] = sel.value; });
+    
+    try {
+        const btn = frm.querySelector('button[type="submit"]');
+        if(btn) { btn.disabled = true; btn.innerHTML = 'Enviando...'; }
+        
+        const res = await fetch(\`/api/experiencia/publico/submit?token=\${token}\`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const ans = await res.json();
+        
+        if (res.ok) {
+            document.getElementById('public-exp-content').innerHTML = \`
+                <div style="text-align:center; padding: 2rem;">
+                    <i class="ph ph-check-circle" style="font-size:4rem; color:#059669;"></i>
+                    <h3 style="margin-top:1rem; color:#1e40af;">Avaliação Preenchida com Sucesso!</h3>
+                    <p style="color:#64748b; margin-top:0.5rem;">Responsável: <b>\${ans.responsavel_nome || 'Liderança'}</b></p>
+                    <p style="color:#64748b;">Colaborador: <b>\${ans.colaborador_nome}</b></p>
+                    <div style="margin-top:2rem; color:#94a3b8; font-size:0.9rem;">
+                        Você pode fechar esta aba agora.
+                    </div>
+                </div>
+            \`;
+        } else {
+            alert("Erro: " + (ans.error || 'Tente novamente.'));
+            if(btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-check-square-offset"></i> Enviar Avaliação'; }
+        }
+    } catch(err) {
+        console.error(err);
+        alert("Erro de conexão.");
+    }
+};

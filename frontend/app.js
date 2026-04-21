@@ -112,6 +112,22 @@ const DOCS_DISPONIVEIS = [
 ];
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Check for public form token
+    const urlParams = new URLSearchParams(window.location.search);
+    const expPublicToken = urlParams.get('exp_public_token');
+    
+    if (expPublicToken) {
+        document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+        document.getElementById('view-public-exp').classList.add('active');
+        // Load the public form logic
+        if (typeof window.loadPublicExperiencia === 'function') {
+            window.loadPublicExperiencia(expPublicToken);
+        } else {
+            console.error('loadPublicExperiencia not found');
+        }
+        return; // Stop normal boot
+    }
+
     setupNavigation();
     setupGeradores();
     
@@ -530,7 +546,7 @@ const TAB_META = {
     'assinaturas-digitais':   { color: '#f503c5', icon: 'ph-signature',       title: 'Assinaturas' },
     'dissidio':               { color: '#f503c5', icon: 'ph-trend-up',        title: 'Dissídio' },
     'ferias':                 { color: '#f503c5', icon: 'ph-airplane-tilt',   title: 'Férias' },
-    'experiencia':            { color: '#1d4ed8', icon: 'ph-user-check',      title: 'Experiência' },
+    'experiencia':            { color: '#f503c5', icon: 'ph-user-check',      title: 'Experiência' },
     // Diretoria - Laranja
     'usuarios-permissoes':    { color: '#d9480f', icon: 'ph-users-three',     title: 'Usuários e Permissões' },
     'certificado-digital':    { color: '#d9480f', icon: 'ph-certificate',     title: 'Certificado Digital' },

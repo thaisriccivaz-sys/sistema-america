@@ -1,0 +1,1 @@
+const sqlite3 = require('sqlite3'); const db = new sqlite3.Database('data/hr_system_v2.sqlite'); db.all('SELECT nome, conteudo FROM geradores WHERE nome LIKE \'%Sinistro%\'', (err, rows) => { const fs = require('fs'); fs.writeFileSync('test_db_output.txt', JSON.stringify(rows, null, 2)); });

@@ -1624,7 +1624,7 @@ app.get('/api/dashboard/charts', authenticateToken, async (req, res) => {
                          dias_restantes: diffDays,
                          ferias_agendadas: feriasValidasAtual
                      };
-                 }).filter(r => r !== null && r.dias_restantes >= 0 && r.dias_restantes <= 90 && !r.ferias_agendadas)
+                 }).filter(r => r !== null && r.dias_restantes <= 90 && !r.ferias_agendadas)
                  .sort((a,b) => a.dias_restantes - b.dias_restantes);
 
                  resolve(resFerias);
@@ -7110,6 +7110,64 @@ function calcPrazoExp(dataAdmissao) {
     };
 }
 
+db.run("ALTER TABLE experiencia_formularios ADD COLUMN data_envio_email TEXT", () => {});
+
+// --- PUBLIC ENDPOINTS ---
+app.get('/api/experiencia/publico/info', (req, res) => {
+    try {
+        const payload = JSON.parse(Buffer.from(req.query.token, 'base64').toString('utf8'));
+        if (Date.now() > payload.exp) return res.status(400).json({ error: 'Link expirado.' });
+        db.get(`SELECT c.*, (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as responsavel_nome FROM colaboradores c LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento)) WHERE c.id = ?`, [payload.colab_id], (err, colab) => {
+            if (err || !colab) return res.status(404).json({ error: 'Colaborador não encontrado.' });
+            
+            db.get(`SELECT * FROM experiencia_formularios WHERE colaborador_id = ? ORDER BY criado_em DESC LIMIT 1`, [colab.id], (err2, form) => {
+                let parsedForm = null;
+                if (form) {
+                    parsedForm = { ...form };
+                    try { parsedForm.respostas = JSON.parse(form.respostas || '{}'); } catch(e) { parsedForm.respostas = {}; }
+                }
+                const prazos = calcPrazoExp(colab.data_admissao);
+                res.json({ colaborador: { ...colab, ...prazos }, formulario: parsedForm });
+            });
+        });
+    } catch(e) {
+        res.status(400).json({ error: 'Token inválido.' });
+    }
+});
+
+app.post('/api/experiencia/publico/submit', (req, res) => {
+    try {
+        const payload = JSON.parse(Buffer.from(req.query.token, 'base64').toString('utf8'));
+        if (Date.now() > payload.exp) return res.status(400).json({ error: 'Link expirado.' });
+        
+        const { respostas, pontuacao, situacao_avaliacao, comentarios } = req.body;
+        
+        db.get(`SELECT c.*, (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as responsavel_nome FROM colaboradores c LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento)) WHERE c.id = ?`, [payload.colab_id], (err, colab) => {
+            if (err || !colab) return res.status(404).json({ error: 'Colaborador não encontrado.' });
+            
+            db.get(`SELECT id FROM experiencia_formularios WHERE colaborador_id = ? ORDER BY criado_em DESC LIMIT 1`, [colab.id], (err2, exist) => {
+                if (exist) {
+                    db.run(`UPDATE experiencia_formularios SET respostas = ?, pontuacao = ?, situacao_avaliacao = ?, comentarios = ?, responsavel_nome = ?, situacao = 'finalizado', atualizado_em = datetime('now') WHERE id = ?`,
+                    [JSON.stringify(respostas), pontuacao, situacao_avaliacao, comentarios, colab.responsavel_nome, exist.id], (err3) => {
+                        if (err3) return res.status(500).json({ error: err3.message });
+                        db.run(`INSERT INTO experiencia_notificacoes_pendentes (tipo, dados) VALUES (?, ?)`, ['formulario_finalizado', JSON.stringify({ colaborador_nome: colab.nome_completo, departamento: colab.departamento, resultado: situacao_avaliacao, pontuacao })]);
+                        res.json({ ok: true, responsavel_nome: colab.responsavel_nome, colaborador_nome: colab.nome_completo });
+                    });
+                } else {
+                    db.run(`INSERT INTO experiencia_formularios (colaborador_id, responsavel_nome, respostas, pontuacao, situacao_avaliacao, comentarios, situacao) VALUES (?, ?, ?, ?, ?, ?, 'finalizado')`,
+                    [colab.id, colab.responsavel_nome, JSON.stringify(respostas), pontuacao, situacao_avaliacao, comentarios], function(err3) {
+                        if (err3) return res.status(500).json({ error: err3.message });
+                        db.run(`INSERT INTO experiencia_notificacoes_pendentes (tipo, dados) VALUES (?, ?)`, ['formulario_finalizado', JSON.stringify({ colaborador_nome: colab.nome_completo, departamento: colab.departamento, resultado: situacao_avaliacao, pontuacao })]);
+                        res.json({ ok: true, form_id: this.lastID, responsavel_nome: colab.responsavel_nome, colaborador_nome: colab.nome_completo });
+                    });
+                }
+            });
+        });
+    } catch(e) {
+        res.status(400).json({ error: 'Token inválido.' });
+    }
+});
+
 // GET /api/experiencia — Lista colaboradores em ou que passaram pelo período de experiência
 app.get('/api/experiencia', authenticateToken, (req, res) => {
     const hoje = new Date(); hoje.setHours(0,0,0,0);
@@ -7117,7 +7175,7 @@ app.get('/api/experiencia', authenticateToken, (req, res) => {
     db.all(`
         SELECT c.id, c.nome_completo, c.cargo, c.departamento, c.data_admissao,
                ef.id as form_id, ef.situacao, ef.situacao_avaliacao as formulario_resultado,
-               ef.pontuacao, ef.notificacao_15d_enviada,
+               ef.pontuacao, ef.notificacao_15d_enviada, ef.data_envio_email,
                (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as responsavel_nome
         FROM colaboradores c
         LEFT JOIN experiencia_formularios ef ON ef.colaborador_id = c.id
@@ -7291,10 +7349,17 @@ function verificarExperienciasVencendo() {
                 // Send email
                 try {
                     const transporter = nodemailer.createTransport(SMTP_CONFIG);
-                    const formLink = `${process.env.BASE_URL || 'https://sistema-america.onrender.com'}`;
+                    
+                    const tokenPayload = Buffer.from(JSON.stringify({
+                        colab_id: r.id, 
+                        form_id: r.form_id || null, 
+                        exp: Date.now() + 15*86400000 
+                    })).toString('base64');
+                    
+                    const formLink = `${process.env.BASE_URL || 'https://sistema-america.onrender.com'}?exp_public_token=${tokenPayload}`;
                     
                     await transporter.sendMail({
-                        from: process.env.EMAIL_FROM || 'no-reply@americarental.com.br',
+                        from: `"América Rental RH" <${process.env.EMAIL_FROM || SMTP_CONFIG.auth.user}>`,
                         to: emailDestino,
                         subject: `⚠️ Período de Experiência Vencendo — ${r.nome_completo}`,
                         html: `
@@ -7308,10 +7373,10 @@ function verificarExperienciasVencendo() {
                                 <p style="color:#334155;font-size:0.95rem;">O período de experiência do colaborador <strong>${r.nome_completo}</strong> (${r.cargo}) está se encerrando em <strong>${diasRestantes} dias</strong> (término em ${prazos.prazo2_fim.split('-').reverse().join('/')}).</p>
                                 <div style="background:#fef3c7;border-left:4px solid #f59e0b;padding:1rem;border-radius:0 8px 8px 0;margin:1.5rem 0;">
                                     <strong style="color:#92400e;">Ação necessária:</strong>
-                                    <p style="color:#92400e;margin:4px 0 0;font-size:0.9rem;">Por favor, preencha o formulário de avaliação de experiência acessando o sistema.</p>
+                                    <p style="color:#92400e;margin:4px 0 0;font-size:0.9rem;">Por favor, preencha o formulário de avaliação de experiência clicando no botão abaixo.</p>
                                 </div>
                                 <div style="text-align:center;margin-top:1.5rem;">
-                                    <a href="https://sistema-america.onrender.com" style="background:#1d4ed8;color:#fff;padding:0.75rem 2rem;border-radius:8px;text-decoration:none;font-weight:700;font-size:0.95rem;">Acessar Sistema de RH</a>
+                                    <a href="${formLink}" style="background:#1d4ed8;color:#fff;padding:0.75rem 2rem;border-radius:8px;text-decoration:none;font-weight:700;font-size:0.95rem;">Acessar Formulário</a>
                                 </div>
                                 <hr style="margin:2rem 0;border:none;border-top:1px solid #e2e8f0;">
                                 <p style="color:#94a3b8;font-size:0.8rem;text-align:center;">América Rental — Sistema de Gestão de Colaboradores | Este é um e-mail automático.</p>
@@ -7320,12 +7385,13 @@ function verificarExperienciasVencendo() {
                         `
                     });
                     
+                    const dataEnvioDataTime = new Date().toISOString();
                     // Mark notification as sent
                     if (r.form_id) {
-                        db.run(`UPDATE experiencia_formularios SET notificacao_15d_enviada = 1 WHERE id = ?`, [r.form_id]);
+                        db.run(`UPDATE experiencia_formularios SET notificacao_15d_enviada = 1, data_envio_email = ? WHERE id = ?`, [dataEnvioDataTime, r.form_id]);
                     } else {
                         // Create a form record to track notification sent
-                        db.run(`INSERT INTO experiencia_formularios (colaborador_id, situacao, notificacao_15d_enviada) VALUES (?, 'enviado', 1)`, [r.id]);
+                        db.run(`INSERT INTO experiencia_formularios (colaborador_id, situacao, notificacao_15d_enviada, data_envio_email) VALUES (?, 'enviado', 1, ?)`, [r.id, dataEnvioDataTime]);
                     }
                     
                     console.log(`[Experiência CRON] E-mail enviado para ${emailDestino} sobre ${r.nome_completo}.`);
