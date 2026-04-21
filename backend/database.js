@@ -175,6 +175,8 @@ const db = new sqlite3.Database(dbPath, (err) => {
             db.run(`ALTER TABLE documentos ADD COLUMN vencimento TEXT`, (err) => {});
             // Adicionar coluna 'tipo' à tabela departamentos (Administrativo | Operacional)
             db.run(`ALTER TABLE departamentos ADD COLUMN tipo TEXT DEFAULT 'Operacional'`, (err) => {});
+            db.run(`ALTER TABLE departamentos ADD COLUMN responsavel_nome TEXT`, (err) => {});
+            db.run(`ALTER TABLE departamentos ADD COLUMN responsavel_id INTEGER`, (err) => {});
 
             // Tabela de documentos por cargo (nova arquitetura - join table)
             db.run(`

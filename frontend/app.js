@@ -1170,40 +1170,79 @@ window.assinarComCertificado = async function(assId, event) {
     }
 };
 
+async function carregarOpcoesResponsavel(selectElementId, responsavelId) {
+    const select = document.getElementById(selectElementId);
+    if (!select) return;
+    
+    // Buscar colaboradores
+    const colabs = await apiGet('/colaboradores');
+    select.innerHTML = '<option value="">Nenhum</option>';
+    
+    if (colabs) {
+        colabs.forEach(c => {
+            if (c.status !== 'Ativo') return;
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            opt.dataset.nome = c.nome_completo;
+            opt.textContent = c.nome_completo;
+            if (responsavelId && c.id == responsavelId) opt.selected = true;
+            select.appendChild(opt);
+        });
+    }
+}
+
 async function loadDepartamentos() {
     const deptos = await apiGet('/departamentos');
     const tbody = document.getElementById('table-departamentos');
     if (!tbody || !deptos) return;
     tbody.innerHTML = '';
+    
+    carregarOpcoesResponsavel('novo-departamento-responsavel');
+    
     deptos.forEach(d => {
-        const tipo = d.tipo || 'Operacional';
-        const badgeColor = tipo === 'Administrativo'
-            ? 'background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;'
-            : 'background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;';
+        const responsavel = d.responsavel_nome ? d.responsavel_nome : '<span style="color:#94a3b8;font-style:italic;">Não definido</span>';
         tbody.innerHTML += `<tr>
             <td>${d.id}</td>
-            <td><span style="display:flex;align-items:center;gap:0.5rem;">${d.nome} <button class="btn btn-secondary btn-sm" onclick="editDepartamento(${d.id}, '${d.nome.replace(/'/g,"\\'")}',' ${tipo}')" title="Editar" style="padding:2px 7px;font-size:0.7rem;"><i class="ph ph-pencil-simple"></i></button></span></td>
-            <td><span style="${badgeColor}font-size:0.75rem;padding:2px 10px;border-radius:999px;font-weight:600;">${tipo}</span></td>
+            <td style="font-weight: 600;">${d.nome}</td>
+            <td>${responsavel}</td>
+            <td style="text-align: right; display:flex; gap:0.4rem; justify-content:flex-end; align-items:center;">
+                <button type="button" class="btn btn-primary btn-sm" onclick="editDepartamento(${d.id}, '${d.nome.replace(/'/g,"\\'")}','${d.responsavel_id || ''}')" title="Editar">
+                    <i class="ph ph-note-pencil"></i> Editar
+                </button>
+                <button type="button" class="btn btn-danger btn-sm" onclick="deleteDepartamento(${d.id})" title="Excluir">
+                    <i class="ph ph-trash"></i> Excluir
+                </button>
+            </td>
         </tr>`;
     });
 }
 
-window.editDepartamento = async function(id, nomeAtual, tipoAtual) {
-    const novoNome = prompt('Editar nome do departamento:', nomeAtual);
-    if (!novoNome || novoNome.trim() === '') return;
-    const tipoOpcoes = ['Operacional', 'Administrativo'];
-    const tipoPrompt = prompt(`Tipo do departamento (Operacional / Administrativo):`, (tipoAtual || 'Operacional').trim());
-    const novoTipo = tipoOpcoes.includes(tipoPrompt) ? tipoPrompt : (tipoAtual || 'Operacional').trim();
+window.editDepartamento = async function(id, nomeAtual, responsavelIdAtual) {
+    document.getElementById('edit-departamento-id').value = id;
+    document.getElementById('edit-departamento-nome').value = nomeAtual;
+    await carregarOpcoesResponsavel('edit-departamento-responsavel', responsavelIdAtual);
+    document.getElementById('modal-editar-departamento').style.display = 'flex';
+}
 
+document.getElementById('form-editar-departamento')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('edit-departamento-id').value;
+    const nome = document.getElementById('edit-departamento-nome').value.trim();
+    const selectResp = document.getElementById('edit-departamento-responsavel');
+    const responsavel_id = selectResp.value || null;
+    const responsavel_nome = selectResp.options[selectResp.selectedIndex]?.dataset.nome || null;
+    
     const res = await fetch(`${API_URL}/departamentos/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
-        body: JSON.stringify({ nome: novoNome.trim(), tipo: novoTipo })
+        body: JSON.stringify({ nome: nome, responsavel_id, responsavel_nome })
     });
     const data = await res.json();
     if (data.error) alert(data.error);
+    
+    document.getElementById('modal-editar-departamento').style.display = 'none';
     loadDepartamentos();
-}
+});
 
 window.deleteDepartamento = async function(id) {
     if(confirm('Tem certeza que deseja excluir este departamento?')) {
@@ -1216,9 +1255,12 @@ window.deleteDepartamento = async function(id) {
 document.getElementById('form-departamento')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const nome = document.getElementById('novo-departamento-nome').value.trim();
-    const tipo = document.getElementById('novo-departamento-tipo')?.value || 'Operacional';
+    const selectResp = document.getElementById('novo-departamento-responsavel');
+    const responsavel_id = selectResp.value || null;
+    const responsavel_nome = selectResp.options[selectResp.selectedIndex]?.dataset.nome || null;
+    
     if (!nome) return;
-    await apiPost('/departamentos', { nome, tipo });
+    await apiPost('/departamentos', { nome, responsavel_id, responsavel_nome });
     document.getElementById('novo-departamento-nome').value = '';
     loadDepartamentos();
 });
