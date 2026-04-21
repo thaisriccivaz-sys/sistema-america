@@ -3460,7 +3460,12 @@ app.post('/api/cargos', authenticateToken, (req, res) => {
     const { nome, documentos_obrigatorios, departamento } = req.body;
     db.run("INSERT INTO cargos (nome, documentos_obrigatorios, departamento) VALUES (?, ?, ?)", 
         [nome, documentos_obrigatorios || "", departamento || ""], function(err) {
-        if (err) return res.status(400).json({ error: err.message });
+        if (err) {
+            if (err.message.includes('UNIQUE constraint failed')) {
+                return res.status(400).json({ error: `Já existe um cargo com o nome "${nome}".` });
+            }
+            return res.status(400).json({ error: err.message });
+        }
         res.status(201).json({ id: this.lastID, nome });
     });
 });
@@ -3566,7 +3571,12 @@ app.get('/api/departamentos', authenticateToken, (req, res) => {
 app.post('/api/departamentos', authenticateToken, (req, res) => {
     const { nome, tipo, responsavel_id, responsavel_nome } = req.body;
     db.run("INSERT INTO departamentos (nome, tipo, responsavel_id, responsavel_nome) VALUES (?, ?, ?, ?)", [nome, tipo || 'Operacional', responsavel_id || null, responsavel_nome || null], function(err) {
-        if (err) return res.status(400).json({ error: err.message });
+        if (err) {
+            if (err.message.includes('UNIQUE constraint failed')) {
+                return res.status(400).json({ error: `Já existe um departamento com o nome "${nome}".` });
+            }
+            return res.status(400).json({ error: err.message });
+        }
         res.status(201).json({ id: this.lastID, nome, tipo: tipo || 'Operacional', responsavel_id: responsavel_id || null, responsavel_nome: responsavel_nome || null });
     });
 });
