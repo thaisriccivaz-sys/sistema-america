@@ -2034,6 +2034,9 @@ function aplicarFiltrosColaboradores() {
         }
         
         if (f.tipoCadastro && getEffectiveStatus(c) !== f.tipoCadastro) return false;
+
+        // Ocultar Desligados por padrão, a não ser que uma pesquisa ativa seja feita (nome, cpf) ou o filtro force um tipoCadastro
+        if (!f.tipoCadastro && !f.nome && !f.cpf && getEffectiveStatus(c) === 'Desligado') return false;
         
         const salColab = parseCurrency(c.salario);
         if (f.salMin !== null && salColab < f.salMin) return false;
