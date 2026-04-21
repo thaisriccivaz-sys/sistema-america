@@ -3564,16 +3564,16 @@ app.get('/api/departamentos', authenticateToken, (req, res) => {
 });
 
 app.post('/api/departamentos', authenticateToken, (req, res) => {
-    const { nome, tipo } = req.body;
-    db.run("INSERT INTO departamentos (nome, tipo) VALUES (?, ?)", [nome, tipo || 'Operacional'], function(err) {
+    const { nome, tipo, responsavel_id, responsavel_nome } = req.body;
+    db.run("INSERT INTO departamentos (nome, tipo, responsavel_id, responsavel_nome) VALUES (?, ?, ?, ?)", [nome, tipo || 'Operacional', responsavel_id || null, responsavel_nome || null], function(err) {
         if (err) return res.status(400).json({ error: err.message });
-        res.status(201).json({ id: this.lastID, nome, tipo: tipo || 'Operacional' });
+        res.status(201).json({ id: this.lastID, nome, tipo: tipo || 'Operacional', responsavel_id: responsavel_id || null, responsavel_nome: responsavel_nome || null });
     });
 });
 
 app.put('/api/departamentos/:id', authenticateToken, (req, res) => {
-    const { nome, tipo } = req.body;
-    db.run("UPDATE departamentos SET nome = ?, tipo = ? WHERE id = ?", [nome.trim(), tipo || 'Operacional', req.params.id], function(updateErr) {
+    const { nome, tipo, responsavel_id, responsavel_nome } = req.body;
+    db.run("UPDATE departamentos SET nome = ?, tipo = ?, responsavel_id = ?, responsavel_nome = ? WHERE id = ?", [nome.trim(), tipo || 'Operacional', responsavel_id || null, responsavel_nome || null, req.params.id], function(updateErr) {
         if (updateErr) return res.status(500).json({ error: updateErr.message });
         res.json({ message: 'Departamento atualizado com sucesso' });
     });
