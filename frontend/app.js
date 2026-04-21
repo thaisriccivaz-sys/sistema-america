@@ -1913,7 +1913,7 @@ async function loadDashboard() {
         if (tbFerias) {
             tbFerias.innerHTML = '';
             if (!chartsData.feriasVencendo || chartsData.feriasVencendo.length === 0) {
-                tbFerias.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#999;font-style:italic;">Nenhuma férias a vencer em 60 dias.</td></tr>';
+                tbFerias.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#999;font-style:italic;">Nenhuma férias a vencer em 90 dias com agendamento.</td></tr>';
             } else {
                 chartsData.feriasVencendo.forEach(f => {
                     const cfPts = f.concessivo_fim.split('-');

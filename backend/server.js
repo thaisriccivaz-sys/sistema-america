@@ -1557,20 +1557,32 @@ app.get('/api/dashboard/charts', authenticateToken, async (req, res) => {
         });
 
         const feriasVencendo = await new Promise((resolve, reject) => {
-             db.all("SELECT id, nome_completo as nome, data_admissao FROM colaboradores WHERE status = 'Ativo' AND data_admissao IS NOT NULL AND data_admissao != ''", [], (err, rows) => {
+             db.all("SELECT id, nome_completo as nome, data_admissao, ferias_programadas_inicio, ferias_programadas_fim FROM colaboradores WHERE status = 'Ativo' AND data_admissao IS NOT NULL AND data_admissao != ''", [], (err, rows) => {
                  if (err) return reject(err);
                  const today = new Date();
-                 const future = new Date();
-                 future.setDate(today.getDate() + 60);
+                 today.setHours(0,0,0,0);
 
                  const resFerias = rows.map(r => {
                      let adm = r.data_admissao;
+                     let admDias;
                      if (adm.includes('/')) {
                          const pts = adm.split('/');
-                         if (pts.length===3) adm = `${pts[2]}-${pts[1]}-${pts[0]}`;
+                         if (pts.length===3) admDias = new Date(`${pts[2]}-${pts[1]}-${pts[0]}T12:00:00`);
+                     } else {
+                         admDias = new Date(adm + 'T12:00:00');
                      }
-                     const concessivoEnd = new Date(adm + 'T12:00:00');
-                     concessivoEnd.setFullYear(concessivoEnd.getFullYear() + 2);
+                     if(!admDias || isNaN(admDias.getTime())) return null;
+                     
+                     let target = new Date(admDias);
+                     while (target <= today) {
+                         target.setFullYear(target.getFullYear() + 1);
+                     }
+                     
+                     const aquisitivoFim = new Date(target);
+                     aquisitivoFim.setFullYear(aquisitivoFim.getFullYear() - 1);
+                     
+                     const concessivoEnd = new Date(aquisitivoFim);
+                     concessivoEnd.setFullYear(concessivoEnd.getFullYear() + 1);
                      
                      const diffDays = Math.ceil((concessivoEnd - today) / (1000 * 60 * 60 * 24));
                      return {
@@ -1578,9 +1590,10 @@ app.get('/api/dashboard/charts', authenticateToken, async (req, res) => {
                          nome: r.nome,
                          admissao: adm,
                          concessivo_fim: concessivoEnd.toISOString().split('T')[0],
-                         dias_restantes: diffDays
+                         dias_restantes: diffDays,
+                         ferias_agendadas: !!r.ferias_programadas_inicio
                      };
-                 }).filter(r => r.dias_restantes >= 0 && r.dias_restantes <= 60)
+                 }).filter(r => r !== null && r.dias_restantes >= 0 && r.dias_restantes <= 90 && r.ferias_agendadas)
                  .sort((a,b) => a.dias_restantes - b.dias_restantes);
 
                  resolve(resFerias);
