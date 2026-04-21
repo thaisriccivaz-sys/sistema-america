@@ -4,31 +4,31 @@
 
 const TELAS_SISTEMA = [
     // Módulo RH
-    { modulo: 'RH', pagina_id: 'dashboard',             pagina_nome: 'Dashboard' },
-    { modulo: 'RH', pagina_id: 'colaboradores',          pagina_nome: 'Colaboradores' },
-    { modulo: 'RH', pagina_id: 'ferias',                 pagina_nome: 'Férias' },
-    { modulo: 'RH', pagina_id: 'admissao',               pagina_nome: 'Admissão' },
-    { modulo: 'RH', pagina_id: 'integracao',             pagina_nome: 'Integração' },
-    { modulo: 'RH', pagina_id: 'assinaturas-digitais',   pagina_nome: 'Assinaturas Digitais' },
-    { modulo: 'RH', pagina_id: 'cargos',                 pagina_nome: 'Cargos e Departamentos' },
-    { modulo: 'RH', pagina_id: 'faculdade',              pagina_nome: 'Faculdade' },
-    { modulo: 'RH', pagina_id: 'geradores',              pagina_nome: 'Geradores de Documentos' },
-    { modulo: 'RH', pagina_id: 'ficha-epi',              pagina_nome: 'Ficha EPI' },
-    { modulo: 'RH', pagina_id: 'gerenciar-avaliacoes',   pagina_nome: 'Avaliações' },
-    { modulo: 'RH', pagina_id: 'dissidio',               pagina_nome: 'Dissídio' },
+    { modulo: 'RH', pagina_id: 'dashboard',             pagina_nome: 'Dashboard', icone: 'ph-squares-four' },
+    { modulo: 'RH', pagina_id: 'colaboradores',          pagina_nome: 'Colaboradores', icone: 'ph-address-book' },
+    { modulo: 'RH', pagina_id: 'ferias',                 pagina_nome: 'Férias', icone: 'ph-airplane-tilt' },
+    { modulo: 'RH', pagina_id: 'admissao',               pagina_nome: 'Admissão', icone: 'ph-list-checks' },
+    { modulo: 'RH', pagina_id: 'integracao',             pagina_nome: 'Integração', icone: 'ph-users-three' },
+    { modulo: 'RH', pagina_id: 'assinaturas-digitais',   pagina_nome: 'Assinaturas Digitais', icone: 'ph-signature' },
+    { modulo: 'RH', pagina_id: 'cargos',                 pagina_nome: 'Cargos e Departamentos', icone: 'ph-briefcase' },
+    { modulo: 'RH', pagina_id: 'faculdade',              pagina_nome: 'Faculdade', icone: 'ph-graduation-cap' },
+    { modulo: 'RH', pagina_id: 'geradores',              pagina_nome: 'Geradores de Documentos', icone: 'ph-file-text' },
+    { modulo: 'RH', pagina_id: 'ficha-epi',              pagina_nome: 'Ficha EPI', icone: 'ph-shield-check' },
+    { modulo: 'RH', pagina_id: 'gerenciar-avaliacoes',   pagina_nome: 'Avaliações', icone: 'ph-clipboard-text' },
+    { modulo: 'RH', pagina_id: 'dissidio',               pagina_nome: 'Dissídio', icone: 'ph-trend-up' },
     // Módulo Logística
-    { modulo: 'Logística', pagina_id: 'logistica-em-breve', pagina_nome: 'Logística (Em breve)' },
+    { modulo: 'Logística', pagina_id: 'logistica-em-breve', pagina_nome: 'Logística (Em breve)', icone: 'ph-truck' },
     // Módulo Financeiro
-    { modulo: 'Financeiro', pagina_id: 'financeiro-em-breve', pagina_nome: 'Financeiro (Em breve)' },
+    { modulo: 'Financeiro', pagina_id: 'financeiro-em-breve', pagina_nome: 'Financeiro (Em breve)', icone: 'ph-currency-dollar' },
     // Módulo Comercial
-    { modulo: 'Comercial', pagina_id: 'comercial-em-breve', pagina_nome: 'Comercial (Em breve)' },
+    { modulo: 'Comercial', pagina_id: 'comercial-em-breve', pagina_nome: 'Comercial (Em breve)', icone: 'ph-handshake' },
     // Módulo Administrativo
-    { modulo: 'Administrativo', pagina_id: 'admin-em-breve', pagina_nome: 'Administrativo (Em breve)' },
+    { modulo: 'Administrativo', pagina_id: 'admin-em-breve', pagina_nome: 'Administrativo (Em breve)', icone: 'ph-gear' },
     // Módulo Diretoria / Sistema
-    { modulo: 'Diretoria', pagina_id: 'usuarios-permissoes', pagina_nome: 'Usuários e Permissões' },
-    { modulo: 'Diretoria', pagina_id: 'chaves',              pagina_nome: 'Chaves' },
-    { modulo: 'Diretoria', pagina_id: 'certificado-digital', pagina_nome: 'Certificado Digital' },
-    { modulo: 'Diretoria', pagina_id: 'homologacao',         pagina_nome: 'Homologação' },
+    { modulo: 'Diretoria', pagina_id: 'usuarios-permissoes', pagina_nome: 'Usuários e Permissões', icone: 'ph-users-three' },
+    { modulo: 'Diretoria', pagina_id: 'chaves',              pagina_nome: 'Chaves', icone: 'ph-key' },
+    { modulo: 'Diretoria', pagina_id: 'certificado-digital', pagina_nome: 'Certificado Digital', icone: 'ph-certificate' },
+    { modulo: 'Diretoria', pagina_id: 'homologacao',         pagina_nome: 'Homologação', icone: 'ph-database' },
 ];
 
 const DEPARTAMENTOS = ['RH', 'Financeiro', 'Comercial', 'Logística', 'Administrativo', 'Diretoria', 'Todas'];
@@ -573,7 +573,9 @@ function renderArvorePermissoesForm() {
                 
                 html += `
                         <div style="display:flex;align-items:center;justify-content:space-between;padding:0.4rem 0.75rem;background:#f8fafc;border-radius:6px;border:1px solid #f1f5f9;">
-                            <span style="font-size:0.85rem;font-weight:600;color:#334155;">&bull; ${nomeTela}</span>
+                            <span style="font-size:0.85rem;font-weight:600;color:#334155;display:flex;align-items:center;gap:6px;">
+                                <i class="ph ${telaInfo && telaInfo.icone ? telaInfo.icone : 'ph-app-window'}" style="font-size:1.1rem;color:#f37021;"></i> ${nomeTela}
+                            </span>
                             <div style="display:flex;gap:1.5rem;">
                                 <label style="display:flex;align-items:center;gap:4px;font-size:0.75rem;cursor:pointer;color:#1971c2;font-weight:600;">
                                     <input type="checkbox" onchange="togglePermForm('${telaId}', this.checked)" ${p.visualizar?'checked':''} style="accent-color:#1971c2;"> Acesso Liberado
