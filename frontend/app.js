@@ -1952,6 +1952,12 @@ async function loadDashboard() {
                 });
             }
         }
+    } else {
+        // API falhou - mostrar estado vazio nas tabelas
+        const tbFerias2 = document.getElementById('dash-table-ferias');
+        if (tbFerias2) tbFerias2.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#999;font-style:italic;">Sem dados disponíveis.</td></tr>';
+        const tbAso2 = document.getElementById('dash-table-aso');
+        if (tbAso2) tbAso2.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#999;font-style:italic;">Sem dados disponíveis.</td></tr>';
     }
 }
 
