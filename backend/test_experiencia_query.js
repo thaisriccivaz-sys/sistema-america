@@ -1,0 +1,6 @@
+const sqlite3 = require('sqlite3');
+const db = new sqlite3.Database('./backend/data/hr_system_v2.sqlite');
+db.all(`SELECT c.id, c.nome_completo, c.cargo, c.departamento, c.data_admissao, ef.id as form_id, ef.situacao, ef.situacao_avaliacao as formulario_resultado, ef.pontuacao, ef.notificacao_15d_enviada, ef.data_envio_email, (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as responsavel_nome FROM colaboradores c LEFT JOIN experiencia_formularios ef ON ef.colaborador_id = c.id LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento)) WHERE c.status != 'Desligado' AND c.data_admissao IS NOT NULL AND c.data_admissao != '' ORDER BY c.data_admissao DESC LIMIT 1`, (err, rows) => { 
+    if(err) console.error('ERROR_2:', err); 
+    else console.log('success_2:', rows);
+});

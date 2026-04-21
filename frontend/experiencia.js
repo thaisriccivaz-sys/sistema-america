@@ -3,18 +3,75 @@
 // ===========================================================
 
 let _experienciaLista = [];
+let _expStatFilter = '';
+let _expSortField = '';
+let _expSortAsc = true;
+
+function filterByStatExp(stat) {
+    _expStatFilter = stat;
+    filterExperienciaList();
+}
+window.filterByStatExp = filterByStatExp;
+
+function sortExperienciaList(field) {
+    if (_expSortField === field) {
+        _expSortAsc = !_expSortAsc;
+    } else {
+        _expSortField = field;
+        _expSortAsc = true;
+    }
+    filterExperienciaList();
+}
+window.sortExperienciaList = sortExperienciaList;
 
 function filterExperienciaList(searchVal) {
-    const search = (searchVal || document.getElementById('exp-search')?.value || '').toLowerCase();
+    const search = (typeof searchVal === 'string' ? searchVal : document.getElementById('exp-search')?.value || '').toLowerCase();
     const situacaoFiltro = document.getElementById('exp-filter-situacao')?.value || '';
     
-    const filtered = _experienciaLista.filter(c => {
+    let filtered = _experienciaLista.filter(c => {
         const matchSearch = !search || (c.nome_completo || '').toLowerCase().includes(search) ||
             (c.departamento || '').toLowerCase().includes(search) ||
             (c.cargo || '').toLowerCase().includes(search);
         const matchSituacao = !situacaoFiltro || (c.formulario_situacao || 'pendente') === situacaoFiltro;
-        return matchSearch && matchSituacao;
+        
+        let matchStat = true;
+        if (_expStatFilter === 'aprovados') {
+            matchStat = c.formulario_resultado === 'Aprovado';
+        } else if (_expStatFilter === 'reprovados') {
+            matchStat = c.formulario_resultado === 'Reprovado';
+        } else if (_expStatFilter === 'vencendo') {
+            const hoje = new Date(); hoje.setHours(0,0,0,0);
+            if (c.prazo2_fim) {
+                const fim = parseDateBR_or_ISO(c.prazo2_fim);
+                if (fim) {
+                    const diff = Math.ceil((fim - hoje) / 86400000);
+                    matchStat = (diff > 0 && diff <= 15);
+                } else matchStat = false;
+            } else matchStat = false;
+        }
+
+        return matchSearch && matchSituacao && matchStat;
     });
+
+    if (_expSortField) {
+        filtered.sort((a, b) => {
+            let valA = '', valB = '';
+            if (_expSortField === 'nome') {
+                valA = a.nome_completo || '';
+                valB = b.nome_completo || '';
+            } else if (_expSortField === 'admissao') {
+                valA = parseDateBR_or_ISO(a.data_admissao) || new Date(0);
+                valB = parseDateBR_or_ISO(b.data_admissao) || new Date(0);
+            } else if (_expSortField === 'vencimento') {
+                valA = parseDateBR_or_ISO(a.prazo2_fim) || new Date(0);
+                valB = parseDateBR_or_ISO(b.prazo2_fim) || new Date(0);
+            }
+            if (valA < valB) return _expSortAsc ? -1 : 1;
+            if (valA > valB) return _expSortAsc ? 1 : -1;
+            return 0;
+        });
+    }
+
     renderExperienciaList(filtered);
 }
 window.filterExperienciaList = filterExperienciaList;
@@ -580,12 +637,21 @@ async function openExperienciaModal(colaboradorId) {
                 </div>
 
                 <!-- Actions -->
-                <div style="display:flex;gap:1rem;justify-content:flex-end;margin-top:1.5rem;padding-top:1rem;border-top:1px solid #e2e8f0;">
-                    <button type="button" onclick="document.getElementById('modal-experiencia-overlay').remove()" style="padding:0.6rem 1.25rem;border:1px solid #e2e8f0;border-radius:8px;background:#f1f5f9;color:#334155;cursor:pointer;font-weight:600;">Fechar</button>
-                    ${canEdit ? `
-                    <button type="button" onclick="salvarFormularioExp('rascunho')" style="padding:0.6rem 1.25rem;border:1px solid #7c3aed;border-radius:8px;background:#ede9fe;color:#5b21b6;cursor:pointer;font-weight:600;"><i class="ph ph-floppy-disk"></i> Salvar Rascunho</button>
-                    <button type="button" onclick="salvarFormularioExp('finalizado')" style="padding:0.6rem 1.25rem;border:none;border-radius:8px;background:#1d4ed8;color:#fff;cursor:pointer;font-weight:600;"><i class="ph ph-check-circle"></i> Finalizar Avaliação</button>
-                    ` : ''}
+                <div style="display:flex;gap:1rem;justify-content:space-between;margin-top:1.5rem;padding-top:1rem;border-top:1px solid #e2e8f0;">
+                    <div>
+                        ${(situacao !== 'finalizado') ? `
+                        <button type="button" onclick="reenviarEmailExperiencia(${colab.id}, this)" style="padding:0.6rem 1rem;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;color:#475569;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:6px;">
+                            <i class="ph ph-envelope-simple"></i> Enviar Link p/ Gestor
+                        </button>
+                        ` : ''}
+                    </div>
+                    <div style="display:flex;gap:1rem;">
+                        <button type="button" onclick="document.getElementById('modal-experiencia-overlay').remove()" style="padding:0.6rem 1.25rem;border:1px solid #e2e8f0;border-radius:8px;background:#f1f5f9;color:#334155;cursor:pointer;font-weight:600;">Fechar</button>
+                        ${canEdit ? `
+                        <button type="button" onclick="salvarFormularioExp('rascunho')" style="padding:0.6rem 1.25rem;border:1px solid #7c3aed;border-radius:8px;background:#ede9fe;color:#5b21b6;cursor:pointer;font-weight:600;"><i class="ph ph-floppy-disk"></i> Salvar Rascunho</button>
+                        <button type="button" onclick="salvarFormularioExp('finalizado')" style="padding:0.6rem 1.25rem;border:none;border-radius:8px;background:#1d4ed8;color:#fff;cursor:pointer;font-weight:600;"><i class="ph ph-check-circle"></i> Finalizar Avaliação</button>
+                        ` : ''}
+                    </div>
                 </div>
             </form>
             </div>
@@ -666,6 +732,39 @@ async function salvarFormularioExp(situacaoForm) {
     // Reload list
     loadExperiencia();
 }
+
+async function reenviarEmailExperiencia(colaboradorId, btn) {
+    if (!confirm('Deseja enviar/reenviar o e-mail de avaliação para o gestor agora?')) return;
+    
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando...';
+    btn.disabled = true;
+
+    try {
+        const token = localStorage.getItem('token');
+        const resp = await fetch(`/api/experiencia/enviar-email/${colaboradorId}`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await resp.json();
+
+        if (!resp.ok) {
+            throw new Error(data.error || 'Falha ao enviar e-mail');
+        }
+
+        if (typeof showToast !== 'undefined') showToast('E-mail enviado com sucesso!', 'success');
+        
+        // Reload modal status implicitly by recreating list
+        loadExperiencia();
+
+    } catch (e) {
+        if (typeof showToast !== 'undefined') showToast(e.message, 'error');
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+window.reenviarEmailExperiencia = reenviarEmailExperiencia;
 
 // Register module globally
 window.loadExperiencia = loadExperiencia;

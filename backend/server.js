@@ -7312,6 +7312,78 @@ app.put('/api/experiencia/notificacoes/:id/lida', authenticateToken, (req, res) 
     });
 });
 
+// POST /api/experiencia/enviar-email/:id — Envia e-mail manualmente para o gestor
+app.post('/api/experiencia/enviar-email/:id', authenticateToken, (req, res) => {
+    db.get(`SELECT c.id, c.nome_completo, c.cargo, c.departamento, c.data_admissao, c.email_corporativo,
+                   d.responsavel_id,
+                   (SELECT email_corporativo FROM colaboradores WHERE id = d.responsavel_id) as resp_email,
+                   (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as resp_nome,
+                   ef.id as form_id
+            FROM colaboradores c
+            LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento))
+            LEFT JOIN experiencia_formularios ef ON ef.colaborador_id = c.id
+            WHERE c.id = ?`, [req.params.id], async (err, r) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!r) return res.status(404).json({ error: 'Colaborador não encontrado' });
+        
+        const emailDestino = r.resp_email;
+        if (!emailDestino) return res.status(400).json({ error: 'Responsável do departamento não possui e-mail cadastrado.' });
+        
+        const prazos = calcPrazoExp(r.data_admissao);
+        const diasRestantes = prazos ? Math.ceil((new Date(prazos.prazo2_fim + 'T23:59:59') - new Date()) / 86400000) : '-';
+
+        try {
+            const transporter = nodemailer.createTransport(SMTP_CONFIG);
+            
+            const tokenPayload = jwt.sign({
+                colab_id: r.id, 
+                form_id: r.form_id || null
+            }, SECRET_KEY, { expiresIn: '15d' });
+            
+            const formLink = `${process.env.BASE_URL || 'https://sistema-america.onrender.com'}?exp_public_token=${tokenPayload}`;
+            
+            await transporter.sendMail({
+                from: `"América Rental RH" <${process.env.EMAIL_FROM || SMTP_CONFIG.auth.user}>`,
+                to: emailDestino,
+                subject: `⚠️ Avaliação de Experiência — ${r.nome_completo}`,
+                html: `
+                <div style="font-family:Inter,Arial,sans-serif;max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+                    <div style="background:#1d4ed8;padding:1.5rem 2rem;">
+                        <h1 style="margin:0;color:#fff;font-size:1.4rem;">⏰ Avaliação de Experiência</h1>
+                        <p style="color:#bfdbfe;margin:4px 0 0;font-size:0.9rem;">América Rental — Sistema de RH</p>
+                    </div>
+                    <div style="padding:2rem;">
+                        <p style="color:#334155;font-size:0.95rem;">Olá, <strong>${r.resp_nome || 'Responsável'}</strong>,</p>
+                        <p style="color:#334155;font-size:0.95rem;">Por favor, preencha o formulário de avaliação de experiência do colaborador <strong>${r.nome_completo}</strong> (${r.cargo}).</p>
+                        ${prazos ? `<p style="color:#64748b;font-size:0.85rem;">Término do período de experiência: ${prazos.prazo2_fim.split('-').reverse().join('/')}</p>` : ''}
+                        <div style="background:#fef3c7;border-left:4px solid #f59e0b;padding:1rem;border-radius:0 8px 8px 0;margin:1.5rem 0;">
+                            <strong style="color:#92400e;">Ação necessária:</strong>
+                            <p style="color:#92400e;margin:4px 0 0;font-size:0.9rem;">Clique no botão abaixo para acessar o formulário.</p>
+                        </div>
+                        <div style="text-align:center;margin-top:1.5rem;">
+                            <a href="${formLink}" style="background:#1d4ed8;color:#fff;padding:0.75rem 2rem;border-radius:8px;text-decoration:none;font-weight:700;font-size:0.95rem;">Acessar Formulário</a>
+                        </div>
+                        <hr style="margin:2rem 0;border:none;border-top:1px solid #e2e8f0;">
+                        <p style="color:#94a3b8;font-size:0.8rem;text-align:center;">América Rental — Sistema de Gestão de Colaboradores | Este é um e-mail automático.</p>
+                    </div>
+                </div>
+                `
+            });
+            
+            const dataEnvioDataTime = new Date().toISOString();
+            if (r.form_id) {
+                db.run(`UPDATE experiencia_formularios SET notificacao_15d_enviada = 1, data_envio_email = ? WHERE id = ?`, [dataEnvioDataTime, r.form_id]);
+            } else {
+                db.run(`INSERT INTO experiencia_formularios (colaborador_id, situacao, notificacao_15d_enviada, data_envio_email) VALUES (?, 'enviado', 1, ?)`, [r.id, dataEnvioDataTime]);
+            }
+            res.json({ ok: true, message: 'E-mail enviado com sucesso para ' + emailDestino });
+        } catch(emailErr) {
+            console.error('[Experiência Manual]', emailErr);
+            res.status(500).json({ error: `Falha ao enviar e-mail: ${emailErr.message}` });
+        }
+    });
+});
+
 // CRON JOB — Verificar vencimentos de 15 dias e enviar e-mails
 function verificarExperienciasVencendo() {
     const hoje = new Date(); hoje.setHours(0, 0, 0, 0);

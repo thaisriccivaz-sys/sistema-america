@@ -1982,19 +1982,19 @@
 
                     <!-- Stats cards -->
                     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem;" id="exp-stats-row">
-                        <div class="card p-3" style="text-align:center;">
+                        <div class="card p-3" style="text-align:center;cursor:pointer;transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="filterByStatExp('')">
                             <div style="font-size:2rem;font-weight:800;color:#1d4ed8;" id="exp-stat-total">-</div>
                             <div style="font-size:0.78rem;color:#64748b;font-weight:600;margin-top:2px;">EM EXPERIÊNCIA</div>
                         </div>
-                        <div class="card p-3" style="text-align:center;">
+                        <div class="card p-3" style="text-align:center;cursor:pointer;transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="filterByStatExp('vencendo')">
                             <div style="font-size:2rem;font-weight:800;color:#dc2626;" id="exp-stat-vencendo">-</div>
                             <div style="font-size:0.78rem;color:#64748b;font-weight:600;margin-top:2px;">VENCENDO EM 15 DIAS</div>
                         </div>
-                        <div class="card p-3" style="text-align:center;">
+                        <div class="card p-3" style="text-align:center;cursor:pointer;transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="filterByStatExp('aprovados')">
                             <div style="font-size:2rem;font-weight:800;color:#059669;" id="exp-stat-aprovados">-</div>
                             <div style="font-size:0.78rem;color:#64748b;font-weight:600;margin-top:2px;">APROVADOS</div>
                         </div>
-                        <div class="card p-3" style="text-align:center;">
+                        <div class="card p-3" style="text-align:center;cursor:pointer;transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="filterByStatExp('reprovados')">
                             <div style="font-size:2rem;font-weight:800;color:#d97706;" id="exp-stat-reprovados">-</div>
                             <div style="font-size:0.78rem;color:#64748b;font-weight:600;margin-top:2px;">REPROVADOS</div>
                         </div>
@@ -2005,12 +2005,12 @@
                             <table class="table">
                                 <thead>
                                     <tr>
-                                        <th>Colaborador</th>
+                                        <th style="cursor:pointer;" onclick="sortExperienciaList('nome')">Colaborador <i class="ph ph-arrows-down-up" style="color:#94a3b8;font-size:0.8rem;"></i></th>
                                         <th>Cargo</th>
                                         <th>Departamento</th>
-                                        <th>Admissão</th>
+                                        <th style="cursor:pointer;" onclick="sortExperienciaList('admissao')">Admissão <i class="ph ph-arrows-down-up" style="color:#94a3b8;font-size:0.8rem;"></i></th>
                                         <th>Responsável</th>
-                                        <th>Fim 2º Prazo</th>
+                                        <th style="cursor:pointer;" onclick="sortExperienciaList('vencimento')">Fim 2º Prazo <i class="ph ph-arrows-down-up" style="color:#94a3b8;font-size:0.8rem;"></i></th>
                                         <th>Resultado</th>
                                         <th>Formulário</th>
                                         <th style="text-align:right;">Ações</th>
