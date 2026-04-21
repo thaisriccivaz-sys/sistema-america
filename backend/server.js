@@ -1572,7 +1572,7 @@ app.get('/api/dashboard/charts', authenticateToken, async (req, res) => {
         });
 
         const feriasVencendo = await new Promise((resolve, reject) => {
-             db.all("SELECT id, nome_completo as nome, data_admissao, ferias_programadas_inicio, ferias_programadas_fim FROM colaboradores WHERE status = 'Ativo' AND data_admissao IS NOT NULL AND data_admissao != ''", [], (err, rows) => {
+             db.all("SELECT id, nome_completo as nome, data_admissao, ferias_programadas_inicio, ferias_programadas_fim FROM colaboradores WHERE status != 'Desligado' AND data_admissao IS NOT NULL AND data_admissao != ''", [], (err, rows) => {
                  if (err) return reject(err);
                  const today = new Date();
                  today.setHours(0,0,0,0);
