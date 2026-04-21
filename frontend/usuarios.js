@@ -494,7 +494,7 @@ let _permissoesFormAtivas = {};
 
 const MENU_HIERARQUIA = [
     {
-        modulo: 'RH', icone: 'ph-users',
+        modulo: 'RH', icone: 'ph-users', cor: '#d63384',
         grupos: [
             {
                 titulo: 'Telas',
@@ -507,23 +507,23 @@ const MENU_HIERARQUIA = [
         ]
     },
     {
-        modulo: 'Logística', icone: 'ph-truck',
+        modulo: 'Logística', icone: 'ph-truck', cor: '#2b8a3e',
         grupos: [{ titulo: 'Telas', telas: ['logistica-em-breve'] }]
     },
     {
-        modulo: 'Financeiro', icone: 'ph-currency-dollar',
+        modulo: 'Financeiro', icone: 'ph-currency-dollar', cor: '#1864ab',
         grupos: [{ titulo: 'Telas', telas: ['financeiro-em-breve'] }]
     },
     {
-        modulo: 'Comercial', icone: 'ph-handshake',
+        modulo: 'Comercial', icone: 'ph-handshake', cor: '#5f3dc4',
         grupos: [{ titulo: 'Telas', telas: ['comercial-em-breve'] }]
     },
     {
-        modulo: 'Administrativo', icone: 'ph-gear',
+        modulo: 'Administrativo', icone: 'ph-gear', cor: '#e8590c',
         grupos: [{ titulo: 'Telas', telas: ['admin-em-breve'] }]
     },
     {
-        modulo: 'Diretoria', icone: 'ph-crown',
+        modulo: 'Diretoria', icone: 'ph-crown', cor: '#c92a2a',
         grupos: [
             {
                 titulo: 'Telas',
@@ -554,8 +554,8 @@ function renderArvorePermissoesForm() {
         html += `
         <div class="perm-mod" style="border-bottom:3px solid #e2e8f0;">
             <div style="background:#f8fafc;padding:0.6rem 1rem;cursor:pointer;display:flex;align-items:center;gap:0.5rem;" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'">
-                <i class="ph ${mod.icone}" style="font-size:1.1rem;color:#64748b;"></i>
-                <h4 style="margin:0;font-size:1rem;color:#1e293b;">Módulo: ${mod.modulo}</h4>
+                <i class="ph ${mod.icone}" style="font-size:1.1rem;color:${mod.cor || '#64748b'};"></i>
+                <h4 style="margin:0;font-size:1rem;color:${mod.cor || '#1e293b'};">Módulo: ${mod.modulo}</h4>
                 <i class="ph ph-caret-down" style="margin-left:auto;color:#94a3b8;"></i>
             </div>
             <div style="display:none;padding:1rem;background:#fff;">`;

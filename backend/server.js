@@ -1728,7 +1728,7 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
 
     const colunas = [
         'nome_completo', 'cpf', 'rg', 'data_nascimento', 'estado_civil', 'nacionalidade',
-        'nome_mae', 'nome_pai', 'telefone', 'email', 'endereco',
+        'nome_mae', 'nome_pai', 'telefone', 'email', 'email_corporativo', 'endereco',
         'cargo', 'departamento', 'data_admissao', 'tipo_contrato', 'salario', 'status',
         'contato_emergencia_nome', 'contato_emergencia_telefone',
         'contato_emergencia2_nome', 'contato_emergencia2_telefone',
@@ -1995,7 +1995,7 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
 
     const colunas = [
         'nome_completo', 'cpf', 'rg', 'data_nascimento', 'estado_civil', 'nacionalidade',
-        'nome_mae', 'nome_pai', 'telefone', 'email', 'endereco',
+        'nome_mae', 'nome_pai', 'telefone', 'email', 'email_corporativo', 'endereco',
         'cargo', 'departamento', 'data_admissao', 'tipo_contrato', 'salario', 'status',
         'contato_emergencia_nome', 'contato_emergencia_telefone',
         'contato_emergencia2_nome', 'contato_emergencia2_telefone',

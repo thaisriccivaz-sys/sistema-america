@@ -2797,6 +2797,8 @@ window.editColaborador = async function(id) {
         document.getElementById('colab-pai').value = c.nome_pai || '';
         document.getElementById('colab-telefone').value = c.telefone || '';
         document.getElementById('colab-email').value = c.email || '';
+        const emailCorpEl = document.getElementById('colab-email-corporativo');
+        if (emailCorpEl) emailCorpEl.value = c.email_corporativo || '';
         document.getElementById('colab-endereco').value = c.endereco || '';
         document.getElementById('colab-cargo').value = c.cargo || '';
         document.getElementById('colab-departamento').value = c.departamento || '';
@@ -3207,6 +3209,7 @@ if (formColab) {
             nome_pai: document.getElementById('colab-pai').value,
             telefone: document.getElementById('colab-telefone').value,
             email: document.getElementById('colab-email').value,
+            email_corporativo: document.getElementById('colab-email-corporativo') ? document.getElementById('colab-email-corporativo').value : '',
             endereco: document.getElementById('colab-endereco').value,
             cargo: document.getElementById('colab-cargo').value,
             departamento: document.getElementById('colab-departamento').value,
