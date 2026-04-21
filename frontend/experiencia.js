@@ -847,7 +847,7 @@ window.submitPublicExpForm = async function(e, token) {
         const btn = frm.querySelector('button[type="submit"]');
         if(btn) { btn.disabled = true; btn.innerHTML = 'Enviando...'; }
         
-        const res = await fetch(\`/api/experiencia/publico/submit?token=\${token}\`, {
+        const res = await fetch(`/api/experiencia/publico/submit?token=${token}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -855,17 +855,17 @@ window.submitPublicExpForm = async function(e, token) {
         const ans = await res.json();
         
         if (res.ok) {
-            document.getElementById('public-exp-content').innerHTML = \`
+            document.getElementById('public-exp-content').innerHTML = `
                 <div style="text-align:center; padding: 2rem;">
                     <i class="ph ph-check-circle" style="font-size:4rem; color:#059669;"></i>
                     <h3 style="margin-top:1rem; color:#1e40af;">Avaliação Preenchida com Sucesso!</h3>
-                    <p style="color:#64748b; margin-top:0.5rem;">Responsável: <b>\${ans.responsavel_nome || 'Liderança'}</b></p>
-                    <p style="color:#64748b;">Colaborador: <b>\${ans.colaborador_nome}</b></p>
+                    <p style="color:#64748b; margin-top:0.5rem;">Responsável: <b>${ans.responsavel_nome || 'Liderança'}</b></p>
+                    <p style="color:#64748b;">Colaborador: <b>${ans.colaborador_nome}</b></p>
                     <div style="margin-top:2rem; color:#94a3b8; font-size:0.9rem;">
                         Você pode fechar esta aba agora.
                     </div>
                 </div>
-            \`;
+            `;
         } else {
             alert("Erro: " + (ans.error || 'Tente novamente.'));
             if(btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-check-square-offset"></i> Enviar Avaliação'; }
