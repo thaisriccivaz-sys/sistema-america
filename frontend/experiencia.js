@@ -481,15 +481,43 @@ function renderExperienciaList(lista) {
 
         // Situação formulário badge
         let formBadge = '';
+        const hoje2 = new Date(); hoje2.setHours(0,0,0,0);
+        const fim2 = c.prazo2_fim ? parseDateBR_or_ISO(c.prazo2_fim) : null;
+        const diasParaVencer = fim2 ? Math.ceil((fim2 - hoje2) / 86400000) : null;
+        const estaEnviando = c._enviando;
+        
         if (situacao === 'finalizado') {
-            formBadge = `<span style="background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:600;">Finalizado</span>`;
+            const resultado = c.formulario_resultado || '';
+            if (resultado === 'Aprovado') {
+                formBadge = `<span style="background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:600;"><i class="ph ph-check-circle"></i> Finalizado</span>`;
+            } else if (resultado === 'Reprovado') {
+                formBadge = `<span style="background:#fee2e2;color:#991b1b;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:600;"><i class="ph ph-x-circle"></i> Finalizado</span>`;
+            } else {
+                formBadge = `<span style="background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:600;"><i class="ph ph-check"></i> Finalizado</span>`;
+            }
         } else if (situacao === 'iniciado') {
-            formBadge = `<span style="background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:600;">Iniciado</span>`;
+            formBadge = `<span style="background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:600;"><i class="ph ph-pencil"></i> Iniciado</span>`;
         } else if (situacao === 'enviado') {
-            const envioDate = c.data_envio_email ? new Date(c.data_envio_email).toLocaleString('pt-BR', {day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'}) : '';
-            formBadge = `<div style="display:flex; flex-direction:column; gap:2px;"><span style="background:#dbeafe;color:#1e40af;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:600;">Enviado</span><span style="font-size:0.65rem;color:#64748b;text-align:center;">${envioDate}</span></div>`;
+            const envioDate = c.data_envio_email
+                ? new Date(c.data_envio_email).toLocaleString('pt-BR', {day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'})
+                : '';
+            formBadge = `<div style="display:flex;flex-direction:column;gap:2px;">
+                <span style="background:#dbeafe;color:#1e40af;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-paper-plane-tilt"></i> Enviado</span>
+                ${envioDate ? `<span style="font-size:0.65rem;color:#64748b;padding-left:4px;"><i class="ph ph-clock"></i> ${envioDate}</span>` : ''}
+            </div>`;
+        } else if (estaEnviando) {
+            formBadge = `<div style="display:flex;flex-direction:column;gap:2px;">
+                <span style="background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;">
+                    <i class="ph ph-spinner" style="animation:spin 1s linear infinite;"></i> Enviando...
+                </span>
+            </div>`;
+        } else if (diasParaVencer !== null && diasParaVencer > 0 && diasParaVencer <= 15) {
+            formBadge = `<div style="display:flex;flex-direction:column;gap:2px;">
+                <span style="background:#f1f5f9;color:#94a3b8;padding:3px 10px;border-radius:12px;font-size:0.8rem;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-clock"></i> Pendente</span>
+                <span style="font-size:0.65rem;color:#f59e0b;padding-left:4px;"><i class="ph ph-bell"></i> E-mail será enviado automaticamente</span>
+            </div>`;
         } else {
-            formBadge = `<span style="background:#f1f5f9;color:#94a3b8;padding:3px 10px;border-radius:12px;font-size:0.8rem;">Pendente</span>`;
+            formBadge = `<span style="background:#f1f5f9;color:#94a3b8;padding:3px 10px;border-radius:12px;font-size:0.8rem;"><i class="ph ph-clock"></i> Pendente</span>`;
         }
 
         // Days left warning

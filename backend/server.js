@@ -8,6 +8,7 @@ const jwt = require('jsonwebtoken');
 const sharp = require('sharp');
 const nodemailer = require('nodemailer');
 const pdfParse = require('pdf-parse');
+const cron = require('node-cron');
 
 // --- CONFIGURAÃ‡ÃƒO SMTP (Preencher com dados reais para o e-mail funcionar) ---
 const SMTP_CONFIG = {
@@ -7510,20 +7511,42 @@ function verificarAtestadosVencidos() {
     });
 }
 
-// Rodar os Cron Jobs 1x por dia às 08:00 (a cada 5minutos avalia se já é horário)
-setInterval(() => {
-    const agora = new Date();
-    if (agora.getHours() === 8 && agora.getMinutes() < 5) {
-        verificarExperienciasVencendo();
-        verificarAtestadosVencidos();
-    }
-}, 5 * 60 * 1000); // check every 5 minutes
+// =====================================================================
+// CRON JOBS — Agendamento robusto com node-cron
+// =====================================================================
 
-// Run once on startup after 10s
-setTimeout(() => {
+// Variavel para rastrear a ultima execucao do cron
+let _cronUltimaExecucao = null;
+
+// Roda todos os dias às 08:00 (horário do servidor)
+cron.schedule('0 8 * * *', () => {
+    console.log('[CRON] Iniciando verificações diárias de 08:00...');
+    _cronUltimaExecucao = new Date().toISOString();
     verificarExperienciasVencendo();
     verificarAtestadosVencidos();
-}, 10000);
+}, { timezone: 'America/Sao_Paulo' });
+
+// Endpoint para forçar execução manual (apenas para admins / debug)
+app.post('/api/experiencia/cron/forcar', authenticateToken, (req, res) => {
+    console.log('[CRON] Execução forçada manualmente por:', req.user?.username || 'sistema');
+    _cronUltimaExecucao = new Date().toISOString();
+    verificarExperienciasVencendo();
+    verificarAtestadosVencidos();
+    res.json({ ok: true, message: 'CRON executado manualmente.', executadoEm: _cronUltimaExecucao });
+});
+
+// Endpoint para checar status do CRON (usado pelo frontend)
+app.get('/api/experiencia/cron/status', authenticateToken, (req, res) => {
+    res.json({ ultimaExecucao: _cronUltimaExecucao });
+});
+
+// Executa uma vez ao iniciar o servidor (com delay de 15s para o DB estar pronto)
+setTimeout(() => {
+    console.log('[CRON] Verificação inicial ao iniciar servidor...');
+    _cronUltimaExecucao = new Date().toISOString();
+    verificarExperienciasVencendo();
+    verificarAtestadosVencidos();
+}, 15000);
 
 // =====================================================================
 
