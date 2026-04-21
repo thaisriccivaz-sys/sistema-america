@@ -73,8 +73,38 @@ function filterExperienciaList(searchVal) {
     }
 
     renderExperienciaList(filtered);
+    updateExperienciaUIState();
 }
 window.filterExperienciaList = filterExperienciaList;
+
+function updateExperienciaUIState() {
+    // Atualizar cartões
+    const cards = document.querySelectorAll('#exp-stats-row .card');
+    cards.forEach((card, idx) => {
+        card.style.border = '1px solid #e2e8f0';
+        card.style.background = '#fff';
+        card.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+        
+        const isSelected = (idx === 0 && _expStatFilter === '') ||
+                           (idx === 1 && _expStatFilter === 'vencendo') ||
+                           (idx === 2 && _expStatFilter === 'aprovados') ||
+                           (idx === 3 && _expStatFilter === 'reprovados');
+        if (isSelected) {
+            card.style.border = '2px solid #3b82f6';
+            card.style.background = '#f8fafc';
+            card.style.boxShadow = '0 4px 6px -1px rgba(59,130,246,0.2)';
+        }
+    });
+
+    // Atualizar ícones de ordenação
+    const thNome = document.getElementById('th-exp-nome');
+    const thAdmissao = document.getElementById('th-exp-admissao');
+    const thVencimento = document.getElementById('th-exp-vencimento');
+    
+    if (thNome) thNome.innerHTML = `Colaborador <i class="ph ${_expSortField === 'nome' ? (_expSortAsc ? 'ph-arrow-up' : 'ph-arrow-down') : 'ph-arrows-down-up'}" style="color:${_expSortField === 'nome' ? '#3b82f6' : '#94a3b8'};font-size:0.8rem;font-weight:bold;"></i>`;
+    if (thAdmissao) thAdmissao.innerHTML = `Admissão <i class="ph ${_expSortField === 'admissao' ? (_expSortAsc ? 'ph-arrow-up' : 'ph-arrow-down') : 'ph-arrows-down-up'}" style="color:${_expSortField === 'admissao' ? '#3b82f6' : '#94a3b8'};font-size:0.8rem;font-weight:bold;"></i>`;
+    if (thVencimento) thVencimento.innerHTML = `Fim 2º Prazo <i class="ph ${_expSortField === 'vencimento' ? (_expSortAsc ? 'ph-arrow-up' : 'ph-arrow-down') : 'ph-arrows-down-up'}" style="color:${_expSortField === 'vencimento' ? '#3b82f6' : '#94a3b8'};font-size:0.8rem;font-weight:bold;"></i>`;
+}
 
 const FORMULARIOS_POR_DEPARTAMENTO = {
     'Ajudante Geral': {
