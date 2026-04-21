@@ -1599,6 +1599,22 @@ app.get('/api/dashboard/charts', authenticateToken, async (req, res) => {
                      const concessivoEnd = new Date(aquisitivoFim);
                      concessivoEnd.setFullYear(concessivoEnd.getFullYear() + 1);
                      
+                     // Considera como agendada apenas se a data de início for posterior ao fim do período aquisitivo atual
+                     let feriasValidasAtual = false;
+                     if (r.ferias_programadas_inicio) {
+                         let dStr = r.ferias_programadas_inicio;
+                         let dataAgendada;
+                         if (dStr.includes('/')) {
+                             const p = dStr.split('/');
+                             if(p.length===3) dataAgendada = new Date(`${p[2]}-${p[1]}-${p[0]}T12:00:00`);
+                         } else {
+                             dataAgendada = new Date(dStr + 'T12:00:00');
+                         }
+                         if (dataAgendada && !isNaN(dataAgendada) && dataAgendada >= aquisitivoFim) {
+                             feriasValidasAtual = true;
+                         }
+                     }
+                     
                      const diffDays = Math.ceil((concessivoEnd - today) / (1000 * 60 * 60 * 24));
                      return {
                          id: r.id, 
@@ -1606,7 +1622,7 @@ app.get('/api/dashboard/charts', authenticateToken, async (req, res) => {
                          admissao: adm,
                          concessivo_fim: concessivoEnd.toISOString().split('T')[0],
                          dias_restantes: diffDays,
-                         ferias_agendadas: !!r.ferias_programadas_inicio
+                         ferias_agendadas: feriasValidasAtual
                      };
                  }).filter(r => r !== null && r.dias_restantes >= 0 && r.dias_restantes <= 90 && !r.ferias_agendadas)
                  .sort((a,b) => a.dias_restantes - b.dias_restantes);
