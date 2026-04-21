@@ -426,6 +426,77 @@ async function loadExperiencia() {
     updateExperienciaStats(data);
 }
 
+// ---- DISPARAR E-MAILS PENDENTES ----
+window.dispararEmailsExperiencia = async function() {
+    const btn = document.getElementById('btn-disparar-emails');
+    const icon = document.getElementById('icon-disparar');
+    const txt = document.getElementById('txt-disparar');
+
+    if (btn) {
+        btn.disabled = true;
+        btn.style.background = '#64748b';
+        btn.style.cursor = 'not-allowed';
+    }
+    if (icon) icon.className = 'ph ph-spinner';
+    if (icon) icon.style.animation = 'spin 1s linear infinite';
+    if (txt) txt.textContent = 'Enviando...';
+
+    // Marca visualmente as linhas pendentes dentro de 15 dias como "enviando"
+    const hoje = new Date(); hoje.setHours(0,0,0,0);
+    const listaAtualizada = (_experienciaLista || []).map(c => {
+        const fim = c.prazo2_fim ? parseDateBR_or_ISO(c.prazo2_fim) : null;
+        const diff = fim ? Math.ceil((fim - hoje) / 86400000) : null;
+        const pendente = !c.formulario_situacao || c.formulario_situacao === 'pendente';
+        if (pendente && diff !== null && diff > 0 && diff <= 15) {
+            return { ...c, _enviando: true };
+        }
+        return c;
+    });
+    renderExperienciaList(listaAtualizada);
+
+    try {
+        const res = await fetch('/api/experiencia/cron/forcar', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + (window.currentToken || localStorage.getItem('erp_token')) }
+        });
+        const json = await res.json();
+
+        if (res.ok) {
+            // Recarrega a lista do servidor para obter status atualizados
+            await new Promise(r => setTimeout(r, 2000)); // Aguarda o servidor processar
+            const data = await apiGet('/experiencia');
+            if (data) {
+                _experienciaLista = data;
+                renderExperienciaList(data);
+                updateExperienciaStats(data);
+            }
+            if (typeof window.showToast === 'function') {
+                window.showToast('E-mails verificados e disparados com sucesso!', 'success');
+            }
+        } else {
+            if (typeof window.showToast === 'function') {
+                window.showToast('Erro ao disparar e-mails: ' + (json.error || 'Erro desconhecido'), 'error');
+            }
+            // Reverte estado visual
+            _experienciaLista && renderExperienciaList(_experienciaLista);
+        }
+    } catch (e) {
+        console.error('[Disparar E-mails]', e);
+        if (typeof window.showToast === 'function') {
+            window.showToast('Falha de conexão ao disparar e-mails.', 'error');
+        }
+        _experienciaLista && renderExperienciaList(_experienciaLista);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.style.background = '#1d4ed8';
+            btn.style.cursor = 'pointer';
+        }
+        if (icon) { icon.className = 'ph ph-paper-plane-tilt'; icon.style.animation = ''; }
+        if (txt) txt.textContent = 'Disparar E-mails';
+    }
+};
+
 function updateExperienciaStats(lista) {
     const hoje = new Date(); hoje.setHours(0,0,0,0);
     let vencendo = 0, aprovados = 0, reprovados = 0;
