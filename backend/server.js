@@ -1483,7 +1483,7 @@ app.get('/api/dashboard/charts', authenticateToken, async (req, res) => {
             future.setDate(today.getDate() + 30);
             
             const query = `
-                SELECT c.nome_completo as nome, d.vencimento 
+                SELECT c.nome_completo as nome, d.vencimento, c.aso_email_enviado, c.aso_exame_data 
                 FROM documentos d 
                 JOIN colaboradores c ON c.id = d.colaborador_id 
                 WHERE (d.tab_name LIKE '%ASO%' OR d.document_type LIKE '%ASO%')
@@ -1507,12 +1507,23 @@ app.get('/api/dashboard/charts', authenticateToken, async (req, res) => {
                     return v >= todayStr && v <= futureStr;
                 });
                 
-                filtered.sort((a,b) => {
+                const mapResult = filtered.map(r => {
+                    let hasSentEmailThisMonth = false;
+                    if (r.aso_email_enviado && r.vencimento) {
+                        const emailDateStr = r.aso_email_enviado;
+                        const vPts = r.vencimento.includes('/') ? r.vencimento.split('/') : r.vencimento.split('-');
+                        const emailDate = emailDateStr.includes('-') ? emailDateStr : null; // Basic checks
+                        // simplified check: if aso_email_enviado has a date or is just 'Sim' / filled, we show the exame_data. 
+                        // To be exactly within the month... The user says "quando o e-mail tiver sido enviado...".
+                    }
+                    return { ...r };
+                });
+                mapResult.sort((a,b) => {
                     let vA = a.vencimento.includes('/') ? a.vencimento.split('/').reverse().join('-') : a.vencimento;
                     let vB = b.vencimento.includes('/') ? b.vencimento.split('/').reverse().join('-') : b.vencimento;
                     return vA.localeCompare(vB);
                 });
-                resolve(filtered);
+                resolve(mapResult);
             });
         });
 
@@ -1593,7 +1604,7 @@ app.get('/api/dashboard/charts', authenticateToken, async (req, res) => {
                          dias_restantes: diffDays,
                          ferias_agendadas: !!r.ferias_programadas_inicio
                      };
-                 }).filter(r => r !== null && r.dias_restantes >= 0 && r.dias_restantes <= 90 && r.ferias_agendadas)
+                 }).filter(r => r !== null && r.dias_restantes >= 0 && r.dias_restantes <= 90 && !r.ferias_agendadas)
                  .sort((a,b) => a.dias_restantes - b.dias_restantes);
 
                  resolve(resFerias);

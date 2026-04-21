@@ -1935,13 +1935,18 @@ async function loadDashboard() {
         if (tbAso) {
             tbAso.innerHTML = '';
             if (!chartsData.asoVencendo || chartsData.asoVencendo.length === 0) {
-                tbAso.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#999;font-style:italic;">Nenhum ASO a vencer em 30 dias.</td></tr>';
+                tbAso.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#999;font-style:italic;">Nenhum ASO a vencer em 30 dias.</td></tr>';
             } else {
                 chartsData.asoVencendo.forEach(a => {
+                    let agendadoDisplay = '<span style="color:#999;font-size:0.8rem;">Não registrado</span>';
+                    if (a.aso_exame_data) {
+                        agendadoDisplay = `<span style="color:#166534;font-weight:600;"><i class="ph ph-calendar-check"></i> ${a.aso_exame_data}</span>`;
+                    }
                     tbAso.innerHTML += `
                         <tr>
                             <td>${a.nome}</td>
                             <td style="color:#d9480f;font-weight:600;">${a.vencimento}</td>
+                            <td>${agendadoDisplay}</td>
                         </tr>
                     `;
                 });
