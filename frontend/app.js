@@ -2246,34 +2246,32 @@ function renderColaboradores(lista) {
 
     wrapper.innerHTML = `
         <input type="hidden" id="f-tipo-cadastro-hidden" value="">
-        <!-- HEADER DA TABELA -->
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:1rem;">
-            <div style="display:flex; align-items:center; gap:1rem;">
-                <h3 style="margin:0; font-size:1.1rem; color:#334155;">Lista de Colaboradores</h3>
-                <span id="colab-count" style="background:#f1f5f9; padding:0.25rem 0.75rem; border-radius:999px; font-size:0.85rem; color:#64748b; font-weight:600;">${lista.length} registros</span>
-            </div>
-            
-            <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
-                <!-- Status Pills -->
-                <div style="display:flex; gap:0.5rem; align-items:center; margin-right:0.5rem;">
-                    <button class="btn-tipo-cadastro" data-status="" onclick="selecionarTipoCadastro(this, '')" style="padding:0.35rem 0.75rem; border:none; border-radius:999px; font-size:0.8rem; font-weight:600; cursor:pointer; background:#e2e8f0; color:#475569; display:flex; gap:4px; align-items:center; transition:0.2s;">Todos</button>
-                    <button class="btn-tipo-cadastro" data-status="Processo iniciado" onclick="selecionarTipoCadastro(this, 'Processo iniciado')" style="padding:0.35rem 0.75rem; border:none; border-radius:999px; font-size:0.8rem; font-weight:600; cursor:pointer; background:#f3e8ff; color:#7e22ce; display:flex; gap:4px; align-items:center; transition:0.2s; opacity:0.5;"><i class="ph ph-play-circle"></i> Iniciado</button>
-                    <button class="btn-tipo-cadastro" data-status="Aguardando início" onclick="selecionarTipoCadastro(this, 'Aguardando início')" style="padding:0.35rem 0.75rem; border:none; border-radius:999px; font-size:0.8rem; font-weight:600; cursor:pointer; background:#cbd5e1; color:#334155; display:flex; gap:4px; align-items:center; transition:0.2s; opacity:0.5;"><i class="ph ph-hourglass-high"></i> Aguardando</button>
-                    <button class="btn-tipo-cadastro" data-status="Ativo" onclick="selecionarTipoCadastro(this, 'Ativo')" style="padding:0.35rem 0.75rem; border:none; border-radius:999px; font-size:0.8rem; font-weight:600; cursor:pointer; background:#dcfce7; color:#166534; display:flex; gap:4px; align-items:center; transition:0.2s; opacity:0.5;"><i class="ph ph-check-circle"></i> Ativo</button>
-                    <button class="btn-tipo-cadastro" data-status="Afastado" onclick="selecionarTipoCadastro(this, 'Afastado')" style="padding:0.35rem 0.75rem; border:none; border-radius:999px; font-size:0.8rem; font-weight:600; cursor:pointer; background:#ffedd5; color:#c2410c; display:flex; gap:4px; align-items:center; transition:0.2s; opacity:0.5;"><i class="ph ph-first-aid"></i> Afastado</button>
-                    <button class="btn-tipo-cadastro" data-status="Férias" onclick="selecionarTipoCadastro(this, 'Férias')" style="padding:0.35rem 0.75rem; border:none; border-radius:999px; font-size:0.8rem; font-weight:600; cursor:pointer; background:#dbeafe; color:#1e40af; display:flex; gap:4px; align-items:center; transition:0.2s; opacity:0.5;"><i class="ph ph-airplane-tilt"></i> Férias</button>
-                    <button class="btn-tipo-cadastro" data-status="Desligado" onclick="selecionarTipoCadastro(this, 'Desligado')" style="padding:0.35rem 0.75rem; border:none; border-radius:999px; font-size:0.8rem; font-weight:600; cursor:pointer; background:#fee2e2; color:#b91c1c; display:flex; gap:4px; align-items:center; transition:0.2s; opacity:0.5;"><i class="ph ph-x-circle"></i> Desligado</button>
-                </div>
-                <div style="width:1px; height:24px; background:#e2e8f0; margin:0 4px;"></div>
+        <!-- HEADER DA TABELA - linha única -->
+        <div style="display:flex; align-items:center; flex-wrap:wrap; gap:0.4rem; margin-bottom:1rem;">
+            <h3 style="margin:0; font-size:1rem; color:#334155; white-space:nowrap; font-weight:700;">Lista de Colaboradores</h3>
+            <span id="colab-count" style="background:#f1f5f9; padding:0.2rem 0.65rem; border-radius:999px; font-size:0.78rem; color:#64748b; font-weight:600; white-space:nowrap; flex-shrink:0;">${lista.length} de ${_todosColaboradores.length} colaboradores</span>
 
-                <button onclick="document.getElementById('filtro-sidebar').style.right='0'" style="padding:0.45rem 1rem; border:1px solid #e2e8f0; border-radius:6px; background:#fff; font-size:0.85rem; cursor:pointer; color:#334155; font-weight:600; display:flex; align-items:center; gap:6px;">
-                    <i class="ph ph-funnel"></i> Filtros
-                </button>
-                <button onclick="exportarColaboradoresXLSX()" style="padding:0.45rem 1rem; border:none; border-radius:6px; background:#10b981; font-size:0.85rem; font-weight:600; cursor:pointer; color:#fff; display:flex; align-items:center; gap:6px;">
-                    <i class="ph ph-file-xls" style="font-size:1.1rem;"></i> Exportar XLSX
-                </button>
-            </div>
+            <div style="width:1px; height:20px; background:#e2e8f0; flex-shrink:0; margin:0 2px;"></div>
+
+            <!-- Status Pills -->
+            <button class="btn-tipo-cadastro" data-status="" onclick="selecionarTipoCadastro(this, '')" style="padding:0.25rem 0.65rem; border:none; border-radius:999px; font-size:0.78rem; font-weight:600; cursor:pointer; background:#e2e8f0; color:#475569; display:flex; gap:3px; align-items:center; transition:0.2s; white-space:nowrap;">Todos</button>
+            <button class="btn-tipo-cadastro" data-status="Processo iniciado" onclick="selecionarTipoCadastro(this, 'Processo iniciado')" style="padding:0.25rem 0.65rem; border:none; border-radius:999px; font-size:0.78rem; font-weight:600; cursor:pointer; background:#f3e8ff; color:#7e22ce; display:flex; gap:3px; align-items:center; transition:0.2s; opacity:0.5; white-space:nowrap;"><i class="ph ph-play-circle"></i> Iniciado</button>
+            <button class="btn-tipo-cadastro" data-status="Aguardando início" onclick="selecionarTipoCadastro(this, 'Aguardando início')" style="padding:0.25rem 0.65rem; border:none; border-radius:999px; font-size:0.78rem; font-weight:600; cursor:pointer; background:#cbd5e1; color:#334155; display:flex; gap:3px; align-items:center; transition:0.2s; opacity:0.5; white-space:nowrap;"><i class="ph ph-hourglass-high"></i> Aguardando</button>
+            <button class="btn-tipo-cadastro" data-status="Ativo" onclick="selecionarTipoCadastro(this, 'Ativo')" style="padding:0.25rem 0.65rem; border:none; border-radius:999px; font-size:0.78rem; font-weight:600; cursor:pointer; background:#dcfce7; color:#166534; display:flex; gap:3px; align-items:center; transition:0.2s; opacity:0.5; white-space:nowrap;"><i class="ph ph-check-circle"></i> Ativo</button>
+            <button class="btn-tipo-cadastro" data-status="Afastado" onclick="selecionarTipoCadastro(this, 'Afastado')" style="padding:0.25rem 0.65rem; border:none; border-radius:999px; font-size:0.78rem; font-weight:600; cursor:pointer; background:#ffedd5; color:#c2410c; display:flex; gap:3px; align-items:center; transition:0.2s; opacity:0.5; white-space:nowrap;"><i class="ph ph-first-aid"></i> Afastado</button>
+            <button class="btn-tipo-cadastro" data-status="Férias" onclick="selecionarTipoCadastro(this, 'Férias')" style="padding:0.25rem 0.65rem; border:none; border-radius:999px; font-size:0.78rem; font-weight:600; cursor:pointer; background:#dbeafe; color:#1e40af; display:flex; gap:3px; align-items:center; transition:0.2s; opacity:0.5; white-space:nowrap;"><i class="ph ph-airplane-tilt"></i> Férias</button>
+            <button class="btn-tipo-cadastro" data-status="Desligado" onclick="selecionarTipoCadastro(this, 'Desligado')" style="padding:0.25rem 0.65rem; border:none; border-radius:999px; font-size:0.78rem; font-weight:600; cursor:pointer; background:#fee2e2; color:#b91c1c; display:flex; gap:3px; align-items:center; transition:0.2s; opacity:0.5; white-space:nowrap;"><i class="ph ph-x-circle"></i> Desligado</button>
+
+            <div style="width:1px; height:20px; background:#e2e8f0; flex-shrink:0; margin:0 2px;"></div>
+
+            <button onclick="document.getElementById('filtro-sidebar').style.right='0'" style="padding:0.3rem 0.85rem; border:1px solid #e2e8f0; border-radius:6px; background:#fff; font-size:0.8rem; cursor:pointer; color:#334155; font-weight:600; display:flex; align-items:center; gap:5px; white-space:nowrap; flex-shrink:0;">
+                <i class="ph ph-funnel"></i> Filtros
+            </button>
+            <button onclick="exportarColaboradoresXLSX()" style="padding:0.3rem 0.85rem; border:none; border-radius:6px; background:#10b981; font-size:0.8rem; font-weight:600; cursor:pointer; color:#fff; display:flex; align-items:center; gap:5px; white-space:nowrap; flex-shrink:0;">
+                <i class="ph ph-file-xls" style="font-size:1rem;"></i> Exportar XLSX
+            </button>
         </div>
+
 
         <!-- TABELA -->
         <div id="colab-table-wrapper"></div>
