@@ -530,6 +530,7 @@ const TAB_META = {
     'assinaturas-digitais':   { color: '#f503c5', icon: 'ph-signature',       title: 'Assinaturas' },
     'dissidio':               { color: '#f503c5', icon: 'ph-trend-up',        title: 'Dissídio' },
     'ferias':                 { color: '#f503c5', icon: 'ph-airplane-tilt',   title: 'Férias' },
+    'experiencia':            { color: '#1d4ed8', icon: 'ph-user-check',      title: 'Experiência' },
     // Diretoria - Laranja
     'usuarios-permissoes':    { color: '#d9480f', icon: 'ph-users-three',     title: 'Usuários e Permissões' },
     'certificado-digital':    { color: '#d9480f', icon: 'ph-certificate',     title: 'Certificado Digital' },
@@ -693,6 +694,8 @@ function navigateTo(target) {
             window.abrirFormUsuario(window._editarUserId || null);
             window._editarUserId = null;
         }
+    } else if (target === 'experiencia') {
+        if (typeof window.loadExperiencia === 'function') window.loadExperiencia();
     }
 }
 
@@ -10683,8 +10686,92 @@ setInterval(async () => {
         console.log('[POLLING] Documento(s) detectado(s) como Assinado(s). Tela atualizada com sucesso.');
     }
 }, 30000);
+}, 30000);
+
+// --- POLLING: Notificações de Formulário de Experiência (para usuários RH) ---
+const _expNotifSeen = new Set();
+async function checkExperienciaNotificacoes() {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    // Only RH users: check via token permissions
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const permissoes = payload.permissoes || [];
+        const isRH = permissoes.includes('rh_completo') || permissoes.some(p => String(p).includes('rh'));
+        if (!isRH) return;
+    } catch(e) { return; }
+
+    try {
+        const resp = await fetch('/api/experiencia/notificacoes/pendentes', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!resp.ok) return;
+        const notifs = await resp.json();
+        
+        for (const notif of notifs) {
+            if (_expNotifSeen.has(notif.id)) continue;
+            _expNotifSeen.add(notif.id);
+            
+            try {
+                const dados = JSON.parse(notif.dados || '{}');
+                // Show popup - blue theme (like assinatura but azul)
+                const popup = document.createElement('div');
+                popup.style.cssText = `
+                    position:fixed; bottom:24px; right:24px; z-index:99999;
+                    background:#fff; border-radius:16px; padding:1.5rem;
+                    box-shadow: 0 20px 60px rgba(29,78,216,0.25), 0 0 0 1px rgba(29,78,216,0.1);
+                    max-width:380px; animation: slideInRight 0.4s ease-out;
+                    border-left: 4px solid #1d4ed8;
+                `;
+                popup.innerHTML = `
+                    <div style="display:flex;align-items:flex-start;gap:1rem;">
+                        <div style="width:44px;height:44px;border-radius:12px;background:#dbeafe;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.4rem;color:#1d4ed8;">
+                            <i class="ph ph-clipboard-text"></i>
+                        </div>
+                        <div style="flex:1;">
+                            <div style="font-weight:700;font-size:0.9rem;color:#0f172a;margin-bottom:4px;">
+                                <i class="ph ph-user-check" style="color:#1d4ed8;"></i> Formulário de Experiência Preenchido
+                            </div>
+                            <div style="color:#1d4ed8;font-weight:600;font-size:0.95rem;margin-bottom:4px;">${dados.colaborador_nome || 'Colaborador'}</div>
+                            <div style="color:#64748b;font-size:0.8rem;">
+                                ${dados.departamento ? dados.departamento + ' · ' : ''}
+                                ${dados.resultado ? `Resultado: <strong style="color:${dados.resultado === 'Aprovado' ? '#059669' : '#dc2626'}">${dados.resultado}</strong>` : 'Aguardando resultado'}
+                            </div>
+                            <div style="display:flex;gap:8px;margin-top:12px;">
+                                <button onclick="navigateTo('experiencia'); this.closest('[data-notif-id]').remove();" 
+                                    style="flex:1;padding:6px 12px;background:#1d4ed8;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.8rem;">
+                                    Ver Tela de Experiência
+                                </button>
+                                <button onclick="this.closest('[data-notif-id]').remove();" 
+                                    style="padding:6px 12px;background:#f1f5f9;color:#334155;border:none;border-radius:8px;cursor:pointer;font-size:0.8rem;">
+                                    ✕
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                popup.setAttribute('data-notif-id', notif.id);
+                document.body.appendChild(popup);
+                
+                // Mark as read
+                fetch(`/api/experiencia/notificacoes/${notif.id}/lida`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }).catch(() => {});
+                
+                // Auto-close after 30s
+                setTimeout(() => { if (popup.parentNode) popup.remove(); }, 30000);
+            } catch(parseErr) { /* skip malformed */ }
+        }
+    } catch(e) { /* silent */ }
+}
+
+// Poll every 60s
+setInterval(checkExperienciaNotificacoes, 60000);
+setTimeout(checkExperienciaNotificacoes, 5000); // first check after 5s
 
 // --- LÓGICA RENDER PDF (PDF.js) ---
+
 async function renderPdfToContainer(pdfUrl, containerId, onScrollEnd) {
     const container = document.getElementById(containerId);
     container.innerHTML = '<div style="color:white; padding: 2rem;">Carregando PDF...</div>';

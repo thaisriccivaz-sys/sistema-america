@@ -7046,8 +7046,296 @@ app.get('/api/dissidio/historico', authenticateToken, (req, res) => {
     });
 });
 
+
+// =====================================================================
+// MÓDULO: CONTROLE DE EXPERIÊNCIA (Período de Experiência)
+// =====================================================================
+
+// Migration: create experiencia tables
+db.run(`CREATE TABLE IF NOT EXISTS experiencia_formularios (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    colaborador_id INTEGER NOT NULL,
+    responsavel_nome TEXT,
+    respostas TEXT,
+    pontuacao REAL DEFAULT 0,
+    situacao_avaliacao TEXT,
+    comentarios TEXT,
+    situacao TEXT DEFAULT 'pendente',
+    notificacao_15d_enviada INTEGER DEFAULT 0,
+    criado_em TEXT DEFAULT (datetime('now')),
+    atualizado_em TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (colaborador_id) REFERENCES colaboradores(id)
+)`);
+
+db.run(`CREATE TABLE IF NOT EXISTS experiencia_notificacoes_pendentes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tipo TEXT,
+    dados TEXT,
+    criado_em TEXT DEFAULT (datetime('now')),
+    lido INTEGER DEFAULT 0
+)`);
+
+// Função para calcular 2º prazo de experiência (45+45 = 90 dias corridos)
+function calcPrazoExp(dataAdmissao) {
+    if (!dataAdmissao) return null;
+    let adm;
+    if (dataAdmissao.includes('/')) {
+        const [d, m, y] = dataAdmissao.split('/');
+        adm = new Date(`${y}-${m}-${d}T12:00:00`);
+    } else {
+        adm = new Date(dataAdmissao + 'T12:00:00');
+    }
+    if (!adm || isNaN(adm.getTime())) return null;
+    const prazo1_fim = new Date(adm); prazo1_fim.setDate(prazo1_fim.getDate() + 45);
+    const prazo2_fim = new Date(adm); prazo2_fim.setDate(prazo2_fim.getDate() + 90);
+    return {
+        prazo1_fim: prazo1_fim.toISOString().split('T')[0],
+        prazo2_fim: prazo2_fim.toISOString().split('T')[0]
+    };
+}
+
+// GET /api/experiencia — Lista colaboradores em ou que passaram pelo período de experiência
+app.get('/api/experiencia', authenticateToken, (req, res) => {
+    const hoje = new Date(); hoje.setHours(0,0,0,0);
+    // Show all active collaborators with up to 90 days + those who already have a form
+    db.all(`
+        SELECT c.id, c.nome_completo, c.cargo, c.departamento, c.data_admissao,
+               ef.id as form_id, ef.situacao, ef.situacao_avaliacao as formulario_resultado,
+               ef.pontuacao, ef.notificacao_15d_enviada,
+               (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as responsavel_nome
+        FROM colaboradores c
+        LEFT JOIN experiencia_formularios ef ON ef.colaborador_id = c.id
+        LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento))
+        WHERE c.status != 'Desligado'
+          AND c.data_admissao IS NOT NULL
+          AND c.data_admissao != ''
+        ORDER BY c.data_admissao DESC
+    `, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        
+        const result = rows.map(r => {
+            const prazos = calcPrazoExp(r.data_admissao);
+            if (!prazos) return null;
+            
+            const prazo2End = new Date(prazos.prazo2_fim + 'T23:59:59');
+            const admDate = new Date(r.data_admissao.includes('/') 
+                ? r.data_admissao.split('/').reverse().join('-') + 'T12:00:00'
+                : r.data_admissao + 'T12:00:00');
+            const daysSinceAdm = Math.floor((hoje - admDate) / 86400000);
+            
+            // Include if: within 90-day period OR has a form
+            if (daysSinceAdm > 120 && !r.form_id) return null;
+            
+            const diasRestantes = Math.ceil((prazo2End - hoje) / 86400000);
+            return {
+                ...r,
+                prazo1_fim: prazos.prazo1_fim,
+                prazo2_fim: prazos.prazo2_fim,
+                dias_restantes: diasRestantes,
+                formulario_situacao: r.situacao || 'pendente',
+                formulario_resultado: r.formulario_resultado || null
+            };
+        }).filter(Boolean);
+        
+        res.json(result);
+    });
+});
+
+// GET /api/experiencia/:colaborador_id — Detalhes + formulário
+app.get('/api/experiencia/:colaborador_id', authenticateToken, (req, res) => {
+    const { colaborador_id } = req.params;
+    db.get(`SELECT c.*, 
+            (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as responsavel_nome
+            FROM colaboradores c
+            LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento))
+            WHERE c.id = ?`, [colaborador_id], (err, colab) => {
+        if (err || !colab) return res.status(404).json({ error: 'Colaborador não encontrado.' });
+        
+        db.get(`SELECT * FROM experiencia_formularios WHERE colaborador_id = ? ORDER BY criado_em DESC LIMIT 1`, [colaborador_id], (err2, form) => {
+            let parsedForm = null;
+            if (form) {
+                parsedForm = { ...form };
+                try { parsedForm.respostas = JSON.parse(form.respostas || '{}'); } catch(e) { parsedForm.respostas = {}; }
+            }
+            
+            const prazos = calcPrazoExp(colab.data_admissao);
+            res.json({ colaborador: { ...colab, ...prazos }, formulario: parsedForm });
+        });
+    });
+});
+
+// POST /api/experiencia/formulario — Cria formulário
+app.post('/api/experiencia/formulario', authenticateToken, (req, res) => {
+    const { colaborador_id, respostas, pontuacao, situacao_avaliacao, comentarios, situacao } = req.body;
+    if (!colaborador_id) return res.status(400).json({ error: 'colaborador_id obrigatório.' });
+    
+    const respostasJson = JSON.stringify(respostas || {});
+    const now = new Date().toISOString();
+    
+    db.run(`INSERT INTO experiencia_formularios 
+            (colaborador_id, responsavel_nome, respostas, pontuacao, situacao_avaliacao, comentarios, situacao, criado_em, atualizado_em)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [colaborador_id, req.user?.nome || '', respostasJson, pontuacao || 0, situacao_avaliacao || '', comentarios || '', situacao || 'rascunho', now, now],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            
+            if (situacao === 'finalizado') {
+                // Notify RH users via pending notifications
+                db.get('SELECT nome_completo, departamento FROM colaboradores WHERE id = ?', [colaborador_id], (e, c) => {
+                    if (!e && c) {
+                        db.run(`INSERT INTO experiencia_notificacoes_pendentes (tipo, dados) VALUES (?, ?)`,
+                            ['formulario_finalizado', JSON.stringify({ colaborador_nome: c.nome_completo, departamento: c.departamento, resultado: situacao_avaliacao, pontuacao })]);
+                    }
+                });
+            }
+            
+            res.status(201).json({ id: this.lastID, ok: true });
+        }
+    );
+});
+
+// PUT /api/experiencia/formulario/:id — Atualiza formulário
+app.put('/api/experiencia/formulario/:id', authenticateToken, (req, res) => {
+    const { id } = req.params;
+    const { respostas, pontuacao, situacao_avaliacao, comentarios, situacao } = req.body;
+    const respostasJson = JSON.stringify(respostas || {});
+    const now = new Date().toISOString();
+    
+    db.run(`UPDATE experiencia_formularios SET respostas=?, pontuacao=?, situacao_avaliacao=?, comentarios=?, situacao=?, atualizado_em=?
+            WHERE id=?`,
+        [respostasJson, pontuacao || 0, situacao_avaliacao || '', comentarios || '', situacao || 'rascunho', now, id],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            
+            if (situacao === 'finalizado') {
+                db.get('SELECT c.nome_completo, c.departamento FROM experiencia_formularios ef JOIN colaboradores c ON c.id = ef.colaborador_id WHERE ef.id = ?', [id], (e, c) => {
+                    if (!e && c) {
+                        db.run(`INSERT INTO experiencia_notificacoes_pendentes (tipo, dados) VALUES (?, ?)`,
+                            ['formulario_finalizado', JSON.stringify({ colaborador_nome: c.nome_completo, departamento: c.departamento, resultado: situacao_avaliacao, pontuacao })]);
+                    }
+                });
+            }
+            
+            res.json({ ok: true });
+        }
+    );
+});
+
+// GET /api/experiencia/notificacoes/pendentes — Polling para popup de RH
+app.get('/api/experiencia/notificacoes/pendentes', authenticateToken, (req, res) => {
+    db.all(`SELECT * FROM experiencia_notificacoes_pendentes WHERE lido = 0 ORDER BY criado_em DESC LIMIT 20`, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+// PUT /api/experiencia/notificacoes/:id/lida — Marca como lida
+app.put('/api/experiencia/notificacoes/:id/lida', authenticateToken, (req, res) => {
+    db.run(`UPDATE experiencia_notificacoes_pendentes SET lido = 1 WHERE id = ?`, [req.params.id], (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ ok: true });
+    });
+});
+
+// CRON JOB — Verificar vencimentos de 15 dias e enviar e-mails
+function verificarExperienciasVencendo() {
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const em15Dias = new Date(hoje); em15Dias.setDate(em15Dias.getDate() + 15);
+    const em15Str = em15Dias.toISOString().split('T')[0];
+    
+    db.all(`SELECT c.id, c.nome_completo, c.cargo, c.departamento, c.data_admissao, c.email_corporativo,
+                   d.responsavel_id,
+                   (SELECT email_corporativo FROM colaboradores WHERE id = d.responsavel_id) as resp_email,
+                   (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as resp_nome,
+                   ef.id as form_id, ef.notificacao_15d_enviada
+            FROM colaboradores c
+            LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento))
+            LEFT JOIN experiencia_formularios ef ON ef.colaborador_id = c.id
+            WHERE c.status = 'Ativo'
+              AND c.data_admissao IS NOT NULL
+              AND c.data_admissao != ''`, [], async (err, rows) => {
+        if (err) { console.error('[Experiência CRON]', err.message); return; }
+        
+        for (const r of rows) {
+            const prazos = calcPrazoExp(r.data_admissao);
+            if (!prazos) continue;
+            
+            // Already sent or already has finalized form
+            if (r.notificacao_15d_enviada) continue;
+            
+            const diasRestantes = Math.ceil((new Date(prazos.prazo2_fim + 'T23:59:59') - hoje) / 86400000);
+            
+            if (diasRestantes > 0 && diasRestantes <= 15) {
+                const emailDestino = r.resp_email;
+                if (!emailDestino) {
+                    console.log(`[Experiência CRON] Sem e-mail do responsável para ${r.nome_completo} (${r.departamento}).`);
+                    continue;
+                }
+                
+                // Send email
+                try {
+                    const transporter = require('./utils/emailTransporter');
+                    const formLink = `${process.env.BASE_URL || 'https://sistema-america.onrender.com'}/api/experiencia/formulario-publico?token=${Buffer.from(JSON.stringify({id: r.id, exp: Date.now() + 7*86400000})).toString('base64')}`;
+                    
+                    await transporter.sendMail({
+                        from: process.env.EMAIL_FROM || 'no-reply@americarental.com.br',
+                        to: emailDestino,
+                        subject: `⚠️ Período de Experiência Vencendo — ${r.nome_completo}`,
+                        html: `
+                        <div style="font-family:Inter,Arial,sans-serif;max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+                            <div style="background:#1d4ed8;padding:1.5rem 2rem;">
+                                <h1 style="margin:0;color:#fff;font-size:1.4rem;">⏰ Período de Experiência Vencendo</h1>
+                                <p style="color:#bfdbfe;margin:4px 0 0;font-size:0.9rem;">América Rental — Sistema de RH</p>
+                            </div>
+                            <div style="padding:2rem;">
+                                <p style="color:#334155;font-size:0.95rem;">Olá, <strong>${r.resp_nome || 'Responsável'}</strong>,</p>
+                                <p style="color:#334155;font-size:0.95rem;">O período de experiência do colaborador <strong>${r.nome_completo}</strong> (${r.cargo}) está se encerrando em <strong>${diasRestantes} dias</strong> (término em ${prazos.prazo2_fim.split('-').reverse().join('/')}).</p>
+                                <div style="background:#fef3c7;border-left:4px solid #f59e0b;padding:1rem;border-radius:0 8px 8px 0;margin:1.5rem 0;">
+                                    <strong style="color:#92400e;">Ação necessária:</strong>
+                                    <p style="color:#92400e;margin:4px 0 0;font-size:0.9rem;">Por favor, preencha o formulário de avaliação de experiência acessando o sistema.</p>
+                                </div>
+                                <div style="text-align:center;margin-top:1.5rem;">
+                                    <a href="https://sistema-america.onrender.com" style="background:#1d4ed8;color:#fff;padding:0.75rem 2rem;border-radius:8px;text-decoration:none;font-weight:700;font-size:0.95rem;">Acessar Sistema de RH</a>
+                                </div>
+                                <hr style="margin:2rem 0;border:none;border-top:1px solid #e2e8f0;">
+                                <p style="color:#94a3b8;font-size:0.8rem;text-align:center;">América Rental — Sistema de Gestão de Colaboradores | Este é um e-mail automático.</p>
+                            </div>
+                        </div>
+                        `
+                    });
+                    
+                    // Mark notification as sent
+                    if (r.form_id) {
+                        db.run(`UPDATE experiencia_formularios SET notificacao_15d_enviada = 1 WHERE id = ?`, [r.form_id]);
+                    } else {
+                        // Create a form record to track notification sent
+                        db.run(`INSERT INTO experiencia_formularios (colaborador_id, situacao, notificacao_15d_enviada) VALUES (?, 'enviado', 1)`, [r.id]);
+                    }
+                    
+                    console.log(`[Experiência CRON] E-mail enviado para ${emailDestino} sobre ${r.nome_completo}.`);
+                } catch(emailErr) {
+                    console.error(`[Experiência CRON] Erro no e-mail para ${r.nome_completo}:`, emailErr.message);
+                }
+            }
+        }
+    });
+}
+
+// Rodar o cron de experiência 1x por dia às 08:00 (a cada hora verifica)
+setInterval(() => {
+    const agora = new Date();
+    if (agora.getHours() === 8 && agora.getMinutes() < 5) {
+        verificarExperienciasVencendo();
+    }
+}, 5 * 60 * 1000); // check every 5 minutes
+
+// Run once on startup after 10s
+setTimeout(verificarExperienciasVencendo, 10000);
+
+// =====================================================================
+
 app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
-    console.log('Versão do Servidor: V29_PDF_LAYOUT_FIX');
+    console.log('Versão do Servidor: V30_EXPERIENCIA_MODULE');
     console.log(`Caminho de Armazenamento Local: ${BASE_UPLOAD_PATH}`);
 });
