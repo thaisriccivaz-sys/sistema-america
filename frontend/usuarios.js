@@ -3,15 +3,32 @@
 // ============================================================
 
 const TELAS_SISTEMA = [
+    // Módulo RH
     { modulo: 'RH', pagina_id: 'dashboard',             pagina_nome: 'Dashboard' },
     { modulo: 'RH', pagina_id: 'colaboradores',          pagina_nome: 'Colaboradores' },
+    { modulo: 'RH', pagina_id: 'ferias',                 pagina_nome: 'Férias' },
     { modulo: 'RH', pagina_id: 'admissao',               pagina_nome: 'Admissão' },
     { modulo: 'RH', pagina_id: 'integracao',             pagina_nome: 'Integração' },
-    { modulo: 'RH', pagina_id: 'ferias',                 pagina_nome: 'Férias' },
-    { modulo: 'Sistema', pagina_id: 'usuarios-permissoes', pagina_nome: 'Usuários e Permissões' },
-    { modulo: 'Sistema', pagina_id: 'certificado-digital', pagina_nome: 'Certificado Digital' },
-    { modulo: 'Sistema', pagina_id: 'chaves', pagina_nome: 'Chaves' },
-    { modulo: 'Sistema', pagina_id: 'homologacao',         pagina_nome: 'Homologação' },
+    { modulo: 'RH', pagina_id: 'assinaturas-digitais',   pagina_nome: 'Assinaturas Digitais' },
+    { modulo: 'RH', pagina_id: 'cargos',                 pagina_nome: 'Cargos e Departamentos' },
+    { modulo: 'RH', pagina_id: 'faculdade',              pagina_nome: 'Faculdade' },
+    { modulo: 'RH', pagina_id: 'geradores',              pagina_nome: 'Geradores de Documentos' },
+    { modulo: 'RH', pagina_id: 'ficha-epi',              pagina_nome: 'Ficha EPI' },
+    { modulo: 'RH', pagina_id: 'gerenciar-avaliacoes',   pagina_nome: 'Avaliações' },
+    { modulo: 'RH', pagina_id: 'dissidio',               pagina_nome: 'Dissídio' },
+    // Módulo Logística
+    { modulo: 'Logística', pagina_id: 'logistica-em-breve', pagina_nome: 'Logística (Em breve)' },
+    // Módulo Financeiro
+    { modulo: 'Financeiro', pagina_id: 'financeiro-em-breve', pagina_nome: 'Financeiro (Em breve)' },
+    // Módulo Comercial
+    { modulo: 'Comercial', pagina_id: 'comercial-em-breve', pagina_nome: 'Comercial (Em breve)' },
+    // Módulo Administrativo
+    { modulo: 'Administrativo', pagina_id: 'admin-em-breve', pagina_nome: 'Administrativo (Em breve)' },
+    // Módulo Diretoria / Sistema
+    { modulo: 'Diretoria', pagina_id: 'usuarios-permissoes', pagina_nome: 'Usuários e Permissões' },
+    { modulo: 'Diretoria', pagina_id: 'chaves',              pagina_nome: 'Chaves' },
+    { modulo: 'Diretoria', pagina_id: 'certificado-digital', pagina_nome: 'Certificado Digital' },
+    { modulo: 'Diretoria', pagina_id: 'homologacao',         pagina_nome: 'Homologação' },
 ];
 
 const DEPARTAMENTOS = ['RH', 'Financeiro', 'Comercial', 'Logística', 'Administrativo', 'Diretoria', 'Todas'];
@@ -479,13 +496,39 @@ const MENU_HIERARQUIA = [
     {
         modulo: 'RH', icone: 'ph-users',
         grupos: [
-            { titulo: 'Acesso Principal', telas: ['dashboard', 'colaboradores', 'admissao', 'integracao', 'ferias'] }
+            {
+                titulo: 'Telas',
+                telas: [
+                    'dashboard', 'colaboradores', 'ferias', 'admissao', 'integracao',
+                    'assinaturas-digitais', 'cargos', 'faculdade', 'geradores',
+                    'ficha-epi', 'gerenciar-avaliacoes', 'dissidio'
+                ]
+            }
         ]
+    },
+    {
+        modulo: 'Logística', icone: 'ph-truck',
+        grupos: [{ titulo: 'Telas', telas: ['logistica-em-breve'] }]
+    },
+    {
+        modulo: 'Financeiro', icone: 'ph-currency-dollar',
+        grupos: [{ titulo: 'Telas', telas: ['financeiro-em-breve'] }]
+    },
+    {
+        modulo: 'Comercial', icone: 'ph-handshake',
+        grupos: [{ titulo: 'Telas', telas: ['comercial-em-breve'] }]
+    },
+    {
+        modulo: 'Administrativo', icone: 'ph-gear',
+        grupos: [{ titulo: 'Telas', telas: ['admin-em-breve'] }]
     },
     {
         modulo: 'Diretoria', icone: 'ph-crown',
         grupos: [
-            { titulo: 'Acesso Principal', telas: ['usuarios-permissoes', 'chaves', 'certificado-digital', 'homologacao'] }
+            {
+                titulo: 'Telas',
+                telas: ['usuarios-permissoes', 'chaves', 'certificado-digital', 'homologacao']
+            }
         ]
     }
 ];
@@ -518,12 +561,10 @@ function renderArvorePermissoesForm() {
             <div style="display:none;padding:1rem;background:#fff;">`;
             
         mod.grupos.forEach(grp => {
-            html += `
-                <div style="margin-bottom:1.5rem;">
-                    <h5 style="margin:0 0 0.5rem 0;font-size:0.85rem;color:#d9480f;text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid #f1f5f9;padding-bottom:0.25rem;">
-                        ${grp.titulo}
-                    </h5>
-                    <div style="display:grid;grid-template-columns:1fr;gap:0.5rem;">`;
+            const tituloHTML = grp.titulo && grp.titulo !== 'Telas'
+                ? '<h5 style="margin:0 0 0.75rem 0;font-size:0.8rem;color:#d9480f;text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid #f1f5f9;padding-bottom:0.25rem;">' + grp.titulo + '</h5>'
+                : '';
+            html += '<div style="margin-bottom:1rem;">' + tituloHTML + '<div style="display:grid;grid-template-columns:1fr;gap:0.5rem;">';
                     
             grp.telas.forEach(telaId => {
                 const telaInfo = TELAS_SISTEMA.find(t => t.pagina_id === telaId);
@@ -540,7 +581,7 @@ function renderArvorePermissoesForm() {
                             </div>
                         </div>`;
             });
-            html += `</div></div>`;
+            html += '</div></div>';
         });
         html += `</div></div>`;
     });
