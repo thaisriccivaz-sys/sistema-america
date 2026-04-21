@@ -384,6 +384,10 @@ const db = new sqlite3.Database(dbPath, (err) => {
             // Migration: limpar dados de teste
             db.run("DELETE FROM cargos WHERE LOWER(TRIM(nome)) = 'teste 3'");
             db.run("DELETE FROM departamentos WHERE LOWER(TRIM(nome)) = 'teste'");
+            // Migration: excluir permanentemente o colaborador de teste (CPF 555.555.555-55)
+            db.run("DELETE FROM colaboradores WHERE cpf = '555.555.555-55'", (err) => {
+                if (!err) console.log('[MIGRAÇÃO] Colaborador de teste (CPF 555.555.555-55) excluído permanentemente.');
+            });
 
             // Migrações para adicionar colunas se não existirem
             db.serialize(() => {
