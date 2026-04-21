@@ -1674,8 +1674,10 @@ app.get('/api/colaboradores', authenticateToken, (req, res) => {
             (SELECT COUNT(*) FROM documentos d 
              WHERE d.colaborador_id = c.id 
                AND (d.document_type LIKE '%Advertência%' OR d.document_type LIKE '%Suspensão%' OR d.tab_name LIKE '%Advertência%' OR d.tab_name LIKE '%Suspensão%')
-            ) as punicoes
+            ) as punicoes,
+            d.tipo as departamento_tipo
         FROM colaboradores c
+        LEFT JOIN departamentos d ON c.departamento = d.nome
     `;
     db.all(query, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });

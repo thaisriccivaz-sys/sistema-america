@@ -2007,6 +2007,7 @@ function aplicarFiltrosColaboradores() {
         nascFim:     document.getElementById('f-nasc-fim')?.value || '',
         estadoCivil: (document.getElementById('f-estado-civil')?.value || '').toLowerCase().trim(),
         sexo:        (document.getElementById('f-sexo')?.value || '').toLowerCase().trim(),
+        tipoDepartamento: (document.getElementById('f-tipo-departamento')?.value || '').toLowerCase().trim(),
         departamento:(document.getElementById('f-departamento')?.value || '').toLowerCase().trim(),
         cargo:       (document.getElementById('f-cargo')?.value || '').toLowerCase().trim(),
         experiencia: document.getElementById('f-experiencia')?.value || '',
@@ -2016,7 +2017,6 @@ function aplicarFiltrosColaboradores() {
         escala:      document.getElementById('f-escala')?.value || '',
         dependentes: document.getElementById('f-dependentes')?.value || '',
         beneficios:  [...(document.querySelectorAll('.f-beneficios-chk:checked') || [])].map(cb => cb.value),
-        brigadista:  document.getElementById('f-brigadista')?.value || '',
         tamCamiseta: document.getElementById('f-tam-camiseta')?.value || '',
         tamCalca:    document.getElementById('f-tam-calca')?.value || '',
         tamCalcado:  document.getElementById('f-tam-calcado')?.value || '',
@@ -2032,6 +2032,7 @@ function aplicarFiltrosColaboradores() {
         if (f.estadoCivil && (!c.estado_civil || c.estado_civil.toLowerCase().trim() !== f.estadoCivil)) return false;
         if (f.sexo && (!c.sexo || c.sexo.toLowerCase().trim() !== f.sexo)) return false;
         
+        if (f.tipoDepartamento && !(c.departamento_tipo || '').toLowerCase().includes(f.tipoDepartamento)) return false;
         if (f.departamento && !(c.departamento || '').toLowerCase().includes(f.departamento)) return false;
         if (f.cargo && !(c.cargo || '').toLowerCase().includes(f.cargo)) return false;
         
@@ -2065,8 +2066,6 @@ function aplicarFiltrosColaboradores() {
             if (f.beneficios.includes('Chaves') && c.chaves_participa !== 'Sim') return false;
             if (f.beneficios.includes('Brigadista') && c.brigadista_participa !== 'Sim') return false;
         }
-
-        if (f.brigadista && c.brigadista_participa !== f.brigadista) return false;
 
         if (f.tamCamiseta && (!c.tamanho_camiseta || c.tamanho_camiseta !== f.tamCamiseta)) return false;
         if (f.tamCalca && (!c.tamanho_calca || c.tamanho_calca !== f.tamCalca)) return false;
@@ -2129,10 +2128,10 @@ function aplicarFiltrosColaboradores() {
 }
 
 function limparFiltrosColaboradores() {
-    ['f-nome','f-cpf','f-nasc-ini','f-nasc-fim','f-estado-civil','f-sexo','f-departamento',
+    ['f-nome','f-cpf','f-nasc-ini','f-nasc-fim','f-estado-civil','f-sexo', 'f-tipo-departamento', 'f-departamento',
      'f-cargo','f-experiencia','f-sal-min','f-sal-max',
      'f-escala','f-dependentes','f-tipo-cadastro-hidden',
-     'f-tam-camiseta','f-tam-calca','f-tam-calcado','f-apto-sorteio','f-brigadista'
+     'f-tam-camiseta','f-tam-calca','f-tam-calcado','f-apto-sorteio'
     ].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     
     // Atualizar botões visuais de tipo cadastro
@@ -2414,6 +2413,12 @@ function renderColaboradores(lista) {
                     </select>
                 </div>
                 <div>
+                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Tipo de Departamento</label>
+                    <select id="f-tipo-departamento" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                        <option value="">Todos</option><option value="operacional">Operacional</option><option value="administrativo">Administrativo</option>
+                    </select>
+                </div>
+                <div>
                     <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Departamento</label>
                     <select id="f-departamento" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
                         <option value="">Todos</option>${deptos.map(d=>`<option>${d}</option>`).join('')}
@@ -2480,14 +2485,6 @@ function renderColaboradores(lista) {
                     <select id="f-tam-calcado" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
                         <option value="">Todos</option>
                         ${Array.from({length: 14}, (_, i) => 33 + i).map(size => `<option value="${size}">${size}</option>`).join('')}
-                    </select>
-                </div>
-
-                
-                <div>
-                    <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Brigadista</label>
-                    <select id="f-brigadista" onchange="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
-                        <option value="">Todos</option><option value="Sim">Sim</option><option value="N&atilde;o">N&atilde;o</option>
                     </select>
                 </div>
             </div>
