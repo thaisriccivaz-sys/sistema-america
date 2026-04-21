@@ -1188,7 +1188,7 @@ async function carregarOpcoesResponsavel(selectElementId, responsavelId) {
     
     if (colabs) {
         colabs.forEach(c => {
-            if (c.status !== 'Ativo') return;
+            if (c.status === 'Desligado') return;
             const opt = document.createElement('option');
             opt.value = c.id;
             opt.dataset.nome = c.nome_completo;
