@@ -2149,6 +2149,26 @@ function limparFiltrosColaboradores() {
     aplicarFiltrosColaboradores();
 }
 
+window.openFiltroSidebar = function() {
+    const sidebar = document.getElementById('filtro-sidebar');
+    const backdrop = document.getElementById('filtro-backdrop');
+    if (sidebar) sidebar.style.right = '0';
+    if (backdrop) {
+        backdrop.style.display = 'block';
+        setTimeout(() => { backdrop.style.opacity = '1'; }, 10);
+    }
+};
+
+window.closeFiltroSidebar = function() {
+    const sidebar = document.getElementById('filtro-sidebar');
+    const backdrop = document.getElementById('filtro-backdrop');
+    if (sidebar) sidebar.style.right = '-400px';
+    if (backdrop) {
+        backdrop.style.opacity = '0';
+        setTimeout(() => { backdrop.style.display = 'none'; }, 300);
+    }
+};
+
 window.selecionarTipoCadastro = function(btnElement, status) {
     document.getElementById('f-tipo-cadastro-hidden').value = status;
     document.querySelectorAll('.btn-tipo-cadastro').forEach(btn => {
@@ -2350,7 +2370,7 @@ function renderColaboradores(lista) {
 
             <div style="width:1px; height:20px; background:#e2e8f0; flex-shrink:0; margin:0 2px;"></div>
 
-            <button onclick="document.getElementById('filtro-sidebar').style.right='0'" style="padding:0.3rem 0.85rem; border:1px solid #e2e8f0; border-radius:6px; background:#fff; font-size:0.8rem; cursor:pointer; color:#334155; font-weight:600; display:flex; align-items:center; gap:5px; white-space:nowrap; flex-shrink:0;">
+            <button onclick="openFiltroSidebar()" style="padding:0.3rem 0.85rem; border:1px solid #e2e8f0; border-radius:6px; background:#fff; font-size:0.8rem; cursor:pointer; color:#334155; font-weight:600; display:flex; align-items:center; gap:5px; white-space:nowrap; flex-shrink:0;">
                 <i class="ph ph-funnel"></i> Filtros
             </button>
             <button onclick="exportarColaboradoresXLSX()" style="padding:0.3rem 0.85rem; border:none; border-radius:6px; background:#10b981; font-size:0.8rem; font-weight:600; cursor:pointer; color:#fff; display:flex; align-items:center; gap:5px; white-space:nowrap; flex-shrink:0;">
@@ -2363,6 +2383,9 @@ function renderColaboradores(lista) {
         <div id="colab-table-wrapper"></div>
 
 
+        <!-- BACKDROP DE FILTROS -->
+        <div id="filtro-backdrop" onclick="closeFiltroSidebar()" style="display:none; position:fixed; top:0; right:0; width:100vw; height:100vh; background:rgba(0,0,0,0.3); z-index:9998; transition:opacity 0.3s; opacity:0;"></div>
+
         <!-- SIDEBAR DE FILTROS -->
         <div id="filtro-sidebar" style="position:fixed; top:0; right:-400px; width:400px; max-width:100vw; height:100vh; background:#fff; z-index:9999; box-shadow:-4px 0 15px rgba(0,0,0,0.1); transition:right 0.3s cubic-bezier(0.4, 0, 0.2, 1); overflow-y:auto; display:flex; flex-direction:column;">
             
@@ -2370,7 +2393,7 @@ function renderColaboradores(lista) {
                 <span style="font-weight:700; color:#334155; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
                     <i class="ph ph-funnel"></i> Filtros Avançados
                 </span>
-                <button onclick="document.getElementById('filtro-sidebar').style.right='-400px'" style="background:none; border:none; cursor:pointer; color:#94a3b8; font-size:1.25rem;">
+                <button onclick="closeFiltroSidebar()" style="background:none; border:none; cursor:pointer; color:#94a3b8; font-size:1.25rem;">
                     <i class="ph ph-x"></i>
                 </button>
             </div>
