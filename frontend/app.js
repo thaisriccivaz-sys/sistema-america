@@ -485,11 +485,17 @@ function updateBreadcrumb(key) {
     }
 
     const activeNav = document.querySelector('.nav-item.active');
+    let deptIconHTML = '';
     if (activeNav) {
         const deptItem = activeNav.closest('.dept-item');
         if (deptItem) {
             const cssColor = deptItem.style.getPropertyValue('--dept-color').trim();
             if (cssColor) pageColor = cssColor;
+            
+            const iconEl = deptItem.querySelector('.dept-btn i');
+            if (iconEl) {
+                deptIconHTML = `<i class="${iconEl.className}" style="margin-right:6px; color:#fff; font-size:1.1rem; vertical-align:text-bottom; filter: brightness(1.2);"></i>`;
+            }
         }
     }
 
@@ -514,14 +520,16 @@ function updateBreadcrumb(key) {
     
     if (typeof renderBookmarks === 'function') setTimeout(renderBookmarks, 50); // Força render com o novo key
     if (!bar) return;
-    const entry = BREADCRUMB_MAP[key] || { path: key, code: '' };
+    const entry = BREADCRUMB_MAP[key] || { path: key };
     const parts = entry.path.split('→').map(p => p.trim());
-    const code = entry.code ? ` (${entry.code})` : '';
-    bar.innerHTML = '<span style="opacity:0.7;margin-right:4px;">Caminho:</span>' +
+    
+    // Assegurar que 'Diretoria' ou 'RH' não se duplique se colocarmos o ícone,
+    // mas o usuário pediu "icones dos setores e o código" (talvez "nome"?). Vamos por o ícone:
+    bar.innerHTML = `${deptIconHTML}<span style="opacity:0.7;margin-right:4px;">Caminho:</span>` +
         parts.map((p, i) =>
             i < parts.length - 1
                 ? `<span style="opacity:0.75;">${p}</span><span style="margin:0 5px;opacity:0.5;">→</span>`
-                : `<strong>${p}</strong><span style="margin-left:6px;background:rgba(0,0,0,0.18);padding:1px 7px;border-radius:10px;font-size:0.78rem;font-weight:700;letter-spacing:0.4px;">${code.replace(/[()]/g,'')}</span>`
+                : `<strong>${p}</strong>`
         ).join('');
 }
 let appOpenTabs = [];
