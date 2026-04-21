@@ -349,6 +349,9 @@ const BREADCRUMB_MAP = {
     'tab:Afastamentos':           { path: 'Colaboradores → Prontuário Digital → Afastamentos',           },
     'tab:Chaves':                 { path: 'Colaboradores → Prontuário Digital → Chaves',                 },
     'tab:Prontuário Digital':     { path: 'Colaboradores → Prontuário Digital',                          },
+    // Módulos adicionais
+    'dissidio':               { path: 'Dissídio',                                                  code: 'RHDIS01' },
+    'ferias':                 { path: 'Controle de Férias',                                        code: 'RHFER01' },
 };
 
 window.carregarPermissoesOnline = async function() {
@@ -11808,7 +11811,7 @@ window.renderBookmarks = function() {
 
     list.innerHTML = window._pageBookmarks.map(key => {
         const obj = BREADCRUMB_MAP[key];
-        if (!obj) return '';
+        if (!obj) return ''; // entrada não mapeada - ignorar com segurança
 
         // Ignorar tabs ou caminhos com setas, a menos que seja usuarios-permissoes ou form-usuario
         if ((obj.path.includes('→') && key !== 'usuarios-permissoes' && key !== 'form-usuario') || key.startsWith('tab:')) return '';
