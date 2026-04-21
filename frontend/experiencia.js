@@ -327,7 +327,11 @@ async function loadExperiencia() {
 
     // Load data
     const data = await apiGet('/experiencia');
-    if (!data) return;
+    if (!data) {
+        const tbody = document.getElementById('table-experiencia-body');
+        if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#ef4444;padding:2rem;">Erro ao carregar dados. Verifique a conexão.</td></tr>';
+        return;
+    }
 
     _experienciaLista = data;
     renderExperienciaList(data);
