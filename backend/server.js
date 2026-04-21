@@ -7337,16 +7337,39 @@ function verificarExperienciasVencendo() {
     });
 }
 
-// Rodar o cron de experiência 1x por dia às 08:00 (a cada hora verifica)
+// CRON JOB — Verificar atestados vencidos e retornar para Ativo
+function verificarAtestadosVencidos() {
+    const todayStr = new Date().toISOString().split('T')[0];
+    db.all(`SELECT id, nome_completo FROM colaboradores WHERE status = 'Afastado'`, [], (err, rows) => {
+        if (err) { console.error('[Atestados CRON]', err.message); return; }
+        rows.forEach(colab => {
+            db.get(`SELECT MAX(atestado_fim) as max_fim FROM documentos WHERE colaborador_id = ? AND tab_name = 'Atestados' AND atestado_tipo = 'dias' AND atestado_fim IS NOT NULL`, [colab.id], (err2, row2) => {
+                if (!err2 && row2 && row2.max_fim) {
+                    if (row2.max_fim < todayStr) {
+                        console.log(`[Atestados CRON] Retornando ${colab.nome_completo} para Ativo. Atestado venceu em ${row2.max_fim}`);
+                        db.run("UPDATE colaboradores SET status = 'Ativo' WHERE id = ?", [colab.id]);
+                        db.run("INSERT INTO system_logs (msg) VALUES (?)", [`Colaborador ${colab.nome_completo} retornou de afastamento para Ativo automaticamente (Atestado vencido em ${row2.max_fim}).`]);
+                    }
+                }
+            });
+        });
+    });
+}
+
+// Rodar os Cron Jobs 1x por dia às 08:00 (a cada 5minutos avalia se já é horário)
 setInterval(() => {
     const agora = new Date();
     if (agora.getHours() === 8 && agora.getMinutes() < 5) {
         verificarExperienciasVencendo();
+        verificarAtestadosVencidos();
     }
 }, 5 * 60 * 1000); // check every 5 minutes
 
 // Run once on startup after 10s
-setTimeout(verificarExperienciasVencendo, 10000);
+setTimeout(() => {
+    verificarExperienciasVencendo();
+    verificarAtestadosVencidos();
+}, 10000);
 
 // =====================================================================
 
