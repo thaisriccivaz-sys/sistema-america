@@ -564,13 +564,10 @@
                 <td style="padding:0.78rem 0.9rem 0.78rem 1.2rem;">
                     <div style="display:flex;align-items:center;gap:0.55rem;">
                         ${(() => {
-                            const fotoPath = c.foto || c.foto_path || '';
-                            const fotoUrl = fotoPath
-                                ? (fotoPath.startsWith('http') ? fotoPath : (window.BASE_URL || window.location.origin) + fotoPath)
-                                : '';
-                            return fotoUrl
-                                ? `<img src="${fotoUrl}" alt="" style="width:31px;height:31px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1.5px solid ${cfg.color}40;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div style="display:none;width:31px;height:31px;border-radius:50%;background:${cfg.color};align-items:center;justify-content:center;font-size:0.75rem;font-weight:800;color:#fff;flex-shrink:0;opacity:.9;">${(c.nome_completo||'?').trim().split(/\s+/).filter(w=>w).slice(0,2).map(w=>w[0]).join('').toUpperCase()}</div>`
-                                : `<div style="width:31px;height:31px;border-radius:50%;background:${cfg.color};display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:800;color:#fff;flex-shrink:0;opacity:.9;">${(c.nome_completo||'?').trim().split(/\s+/).filter(w=>w).slice(0,2).map(w=>w[0]).join('').toUpperCase()}</div>`;
+                            // Usa o endpoint dedicado que serve base64 do banco (persiste no Render) ou arquivo físico
+                            const fotoApiUrl = `/api/colaboradores/foto/${c.id}`;
+                            const iniciais = (c.nome_completo||'?').trim().split(/\s+/).filter(w=>w).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+                            return `<img src="${fotoApiUrl}" alt="" style="width:31px;height:31px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1.5px solid ${cfg.color}40;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div style="display:none;width:31px;height:31px;border-radius:50%;background:${cfg.color};align-items:center;justify-content:center;font-size:0.75rem;font-weight:800;color:#fff;flex-shrink:0;opacity:.9;">${iniciais}</div>`;
                         })()}
 
                         <div>
