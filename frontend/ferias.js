@@ -124,9 +124,8 @@
         const ult = periodos.length > 0 ? periodos[periodos.length - 1] : null;
         if (!ult) return 'em_aquisicao';
 
-        // 4. AGENDADO: tem férias futuras marcadas dentro do período de concessão
-        const temAgendadoFuturo = fIni && fIni > hoje &&
-            periodos.some(p => !p.vencida && agendadaDentroDoPeriodo(c.ferias_programadas_inicio, c.ferias_programadas_fim, p));
+        // 4. AGENDADO: tem férias futuras marcadas
+        const temAgendadoFuturo = fIni && fIni > hoje;
         if (temAgendadoFuturo) return 'agendado';
 
         // 5. URGENTE: sem agendamento E prazo de gozo ≤ 90 dias ou já vencido
@@ -209,12 +208,13 @@
 
         // Marcador da data de férias agendadas
         let marker = '';
-        if (fIni && fIni >= inicioConcessao && fIni <= fimConcessao) {
-            const markerPct = Math.min(99, Math.max(1, Math.round(diffDays(inicioConcessao, fIni) / totalDias * 100)));
-            const markerColor = temAgendadoFuturo ? '#15803d' : (diasRestantes <= 90 ? '#b91c1c' : '#92400e');
-            marker = `<div style="position:absolute;left:${markerPct}%;top:-2px;width:3px;height:10px;
-                background:${markerColor};border-radius:2px;transform:translateX(-50%);z-index:2;
-                box-shadow:0 0 0 1.5px white;"></div>`;
+        if (fIni && (fIni > hoje || emFerias)) {
+            let markerPct = Math.round(diffDays(inicioConcessao, fIni) / totalDias * 100);
+            markerPct = Math.min(100, Math.max(0, markerPct));
+            const markerColor = emFerias ? '#7c3aed' : '#15803d'; // roxo se em andamento, verde se futuro
+            marker = `<div style="position:absolute;left:${markerPct}%;top:-3px;width:4px;height:12px;
+                background:${markerColor};border-radius:2px;transform:translateX(-50%);z-index:3;
+                box-shadow:0 0 0 1.5px white;" title="Férias Programadas: ${fmt(fIni)}"></div>`;
         }
 
         const labelRestante = ult.vencida ? '⚠ Prazo vencido!' : `${diasRestantes}d p/ vencer`;
