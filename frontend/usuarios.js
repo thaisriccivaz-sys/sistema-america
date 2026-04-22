@@ -217,17 +217,17 @@ window.abrirFormUsuario = async function(userId = null) {
     if (user && user.grupo_permissao_id) {
         const userGrp = _permGrupos.find(g => g.id == user.grupo_permissao_id);
         if (userGrp && userGrp.tipo === 'personalizado') {
-            // Grupo personalizado → tipo = Personalizado
+            // Grupo personalizado → mostra como personalizado
             if (tipoSel) tipoSel.value = 'personalizado';
             await carregarArvorePermissoesUsuario(user.grupo_permissao_id);
-            window._treeIsModified = true;
         } else {
-            // Grupo padrão → tipo = Grupos Padrão + sub-grupo selecionado
+            // Grupo padrão → mostra selecionado, mas carrega permissoes reais do DB
             if (tipoSel) tipoSel.value = 'grupo';
             if (subGrupoSel) { subGrupoSel.value = user.grupo_permissao_id; subGrupoSel.style.display = 'block'; }
             await carregarArvorePermissoesUsuario(user.grupo_permissao_id);
-            window._treeIsModified = false;
         }
+        // Sempre salva como personalizado - _treeIsModified sempre true
+        window._treeIsModified = true;
     } else {
         if (tipoSel) tipoSel.value = 'personalizado';
         _permissoesFormAtivas = {};
@@ -281,7 +281,7 @@ window.aplicarModeloPermissao = function(val) {
         }
 
         renderArvorePermissoesForm();
-        window._treeIsModified = false; // Sem modificações manuais → vincula direto ao grupo
+        window._treeIsModified = true; // Grupo e apenas atalho, salva como personalizado
     } else if (tipo === 'user') {
         window.carregarPermissoesCopia(id);
         window._treeIsModified = true;
@@ -361,29 +361,19 @@ window.salvarUsuarioView = async function() {
     if (!username) return alert('Username é obrigatório');
     if (!userId && !password) return alert('Senha é obrigatória para novo usuário');
 
-    // ── Determinar se usará grupo padrão OU permissões personalizadas ──
-    let grupo_permissao_id = null;
-    let permissoesPersonalizadas = null;
+    // Sempre salva as permissoes individualmente (o grupo é apenas atalho para pre-marcar)
+    // Isso garante que o que esta visivel na tela eh exatamente o que sera salvo
+    permissoesPersonalizadas = TELAS_SISTEMA.map(t => ({
+        pagina_id: t.pagina_id,
+        pagina_nome: t.pagina_nome,
+        modulo: t.modulo,
+        ...(_permissoesFormAtivas[t.pagina_id] || { visualizar: false, alterar: false, incluir: false, excluir: false })
+    }));
+    const ativadas = permissoesPersonalizadas.filter(p => p.visualizar).length;
+    console.log(`[SALVAR] Permissoes: ${permissoesPersonalizadas.length} telas, ${ativadas} ativas`);
 
-    if (!window._treeIsModified && modeloSelecionado && modeloSelecionado.startsWith('grupo|')) {
-        // Sem alterações manuais: vincular ao grupo padrão selecionado
-        grupo_permissao_id = parseInt(modeloSelecionado.split('|')[1]);
-        console.log(`[SALVAR] Usando grupo padrão id=${grupo_permissao_id}`);
-    } else {
-        // Árvore modificada manualmente: salvar todas as telas como personalizado
-        permissoesPersonalizadas = TELAS_SISTEMA.map(t => ({
-            pagina_id: t.pagina_id,
-            pagina_nome: t.pagina_nome,
-            modulo: t.modulo,
-            ...(_permissoesFormAtivas[t.pagina_id] || { visualizar: false, alterar: false, incluir: false, excluir: false })
-        }));
-        const ativadas = permissoesPersonalizadas.filter(p => p.visualizar).length;
-        console.log(`[SALVAR] Permissões personalizadas: ${permissoesPersonalizadas.length} telas, ${ativadas} ativas`);
-    }
-
-    // ── Payload do usuário (sem grupo_permissao_id se for tratar separado) ──
+    // Payload do usuario (grupo_permissao_id sera definido apos criar grupo personalizado)
     const payload = { nome, username, email, departamento };
-    if (!permissoesPersonalizadas) payload.grupo_permissao_id = grupo_permissao_id;
     if (password) payload.password = password;
 
     try {

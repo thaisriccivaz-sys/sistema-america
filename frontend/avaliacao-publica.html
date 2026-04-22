@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Avaliação de Experiência - América Rental</title>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f1f5f9;
+            color: #1e293b;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .header {
+            width: 100%;
+            background: #ffffff;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 1rem 0;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .header img {
+            max-height: 60px;
+        }
+        .container {
+            width: 100%;
+            max-width: 900px;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            padding: 2.5rem;
+            margin: 2rem;
+            box-sizing: border-box;
+        }
+        .title-box {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+        .title-box h2 {
+            margin: 0;
+            color: #e11d48;
+            font-size: 1.75rem;
+        }
+        .title-box p {
+            color: #64748b;
+            margin: 8px 0 0;
+        }
+
+        /* Estilos globais utilizados pelo experiencia.js */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1.5rem;
+        }
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 0.85rem;
+            text-align: left;
+        }
+        th {
+            background: #f8fafc;
+            font-weight: 600;
+            color: #334155;
+        }
+        tr:hover td {
+            background: #f8fafc;
+        }
+        .btn-salvar {
+            background: #e11d48;
+            color: #ffffff;
+            border: none;
+            padding: 0.85rem 2rem;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 1rem;
+        }
+        .btn-salvar:hover {
+            background: #be123c;
+        }
+        .btn-salvar:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+        }
+        .alert-error { background: #fee2e2; color: #991b1b; padding: 1rem; border-radius: 8px; }
+        .alert-info { background: #e0f2fe; color: #075985; padding: 1rem; border-radius: 8px; }
+        
+        select.form-control, textarea.form-control {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            background-color: #fff;
+            color: #1e293b;
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            box-sizing: border-box;
+            outline: none;
+        }
+        select.form-control:focus, textarea.form-control:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                margin: 0;
+                border-radius: 0;
+                min-height: calc(100vh - 82px);
+                padding: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <img src="logo.png" alt="América Rental">
+    </header>
+
+    <div class="container">
+        <div class="title-box">
+            <h2>Avaliação de Experiência</h2>
+            <p>Formulário restrito para avaliação do colaborador</p>
+        </div>
+
+        <div id="public-exp-content">
+            <div style="text-align:center; padding: 3rem;">
+                <i class="ph ph-spinner-gap ph-spin" style="font-size: 3rem; color: #3b82f6;"></i>
+                <p style="color: #64748b; margin-top: 1rem; font-size: 1.1rem;">Carregando informações...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bibliotecas Necessárias -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <!-- Lógica de Avaliação de Experiência -->
+    <script src="/experiencia.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const token = urlParams.get('token');
+            
+            if (token && typeof window.loadPublicExperiencia === 'function') {
+                window.loadPublicExperiencia(token);
+            } else {
+                document.getElementById('public-exp-content').innerHTML = `
+                    <div style="text-align:center; padding: 2rem;">
+                        <i class="ph ph-warning-circle" style="font-size:3.5rem; color:#dc2626;"></i>
+                        <h3 style="margin-top:1rem; color:#dc2626; font-size:1.5rem;">Link Inválido</h3>
+                        <p style="color:#475569; margin-top:0.5rem;">Por favor, verifique se copiou corretamente o link recebido por e-mail.</p>
+                    </div>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>

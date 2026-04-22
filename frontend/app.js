@@ -112,6 +112,15 @@ const DOCS_DISPONIVEIS = [
 ];
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Check for public form token
+    const urlParams = new URLSearchParams(window.location.search);
+    const expPublicToken = urlParams.get('exp_public_token');
+    
+    if (expPublicToken) {
+        window.location.href = `/avaliacao-publica.html?token=${expPublicToken}`;
+        return; // Stop normal boot
+    }
+
     setupNavigation();
     setupGeradores();
     
@@ -530,7 +539,7 @@ const TAB_META = {
     'assinaturas-digitais':   { color: '#f503c5', icon: 'ph-signature',       title: 'Assinaturas' },
     'dissidio':               { color: '#f503c5', icon: 'ph-trend-up',        title: 'Dissídio' },
     'ferias':                 { color: '#f503c5', icon: 'ph-airplane-tilt',   title: 'Férias' },
-    'experiencia':            { color: '#1d4ed8', icon: 'ph-user-check',      title: 'Experiência' },
+    'experiencia':            { color: '#f503c5', icon: 'ph-user-check',      title: 'Experiência' },
     // Diretoria - Laranja
     'usuarios-permissoes':    { color: '#d9480f', icon: 'ph-users-three',     title: 'Usuários e Permissões' },
     'certificado-digital':    { color: '#d9480f', icon: 'ph-certificate',     title: 'Certificado Digital' },
@@ -1878,12 +1887,35 @@ async function loadDashboard() {
                 chartsData.feriasVencendo.forEach(f => {
                     const cfPts = f.concessivo_fim.split('-');
                     const cfmt = `${cfPts[2]}/${cfPts[1]}/${cfPts[0]}`;
-                    const corRestante = f.dias_restantes <= 15 ? 'color:#e03131;font-weight:bold;' : 'color:#f08c00;';
+                    
+                    const aqPts = f.aquisitivo_fim ? f.aquisitivo_fim.split('-') : cfPts; // fallback if missing
+                    const afmt = `${aqPts[2]}/${aqPts[1]}/${aqPts[0]}`;
+                    
+                    const pct = Math.max(0, Math.min(100, 100 - (f.dias_restantes / 365) * 100));
+                    const barColor = f.dias_restantes <= 0 ? '#ef4444' : f.dias_restantes <= 30 ? '#f97316' : '#22c55e';
+                    const labelRestante = f.dias_restantes <= 0 ? '⚠️ Prazo vencido!' : `${f.dias_restantes}d p/ vencer`;
+                    
+                    const progressBarHtml = `<div style="min-width:145px;">
+                        <div style="font-size:0.71rem;color:#64748b;margin-bottom:3px;">${afmt} &rarr; ${cfmt}</div>
+                        <div style="background:#e2e8f0;border-radius:99px;height:6px;position:relative;">
+                            <div style="width:${pct}%;background:${barColor};height:100%;border-radius:99px;position:relative;z-index:1;"></div>
+                        </div>
+                        <div style="font-size:0.69rem;color:${f.dias_restantes <= 0 ? '#ef4444' : '#94a3b8'};margin-top:2px;">${labelRestante}</div>
+                    </div>`;
+
+                    const nomeStr = f.nome || '?';
+                    const iniciais = nomeStr.trim().split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+                    const fotoApiUrl = `/api/colaboradores/foto/${f.id}`;
                     tbFerias.innerHTML += `
-                        <tr>
-                            <td><a href="#" style="color:#1c7ed6;text-decoration:none;" onclick="event.preventDefault(); viewColaborador(${f.id})">${f.nome}</a></td>
-                            <td>${cfmt}</td>
-                            <td style="${corRestante}">${f.dias_restantes} dias</td>
+                        <tr style="border-bottom:1px solid #f1f5f9;">
+                            <td style="padding:0.6rem 0.65rem;">
+                                <div style="display:flex;align-items:center;gap:0.55rem;">
+                                    <img src="${fotoApiUrl}" alt="" style="width:31px;height:31px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1.5px solid #f503c540;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                                    <div style="display:none;width:31px;height:31px;border-radius:50%;background:#f503c5;align-items:center;justify-content:center;font-size:0.75rem;font-weight:800;color:#fff;flex-shrink:0;opacity:.9;">${iniciais}</div>
+                                    <a href="#" style="color:#1c7ed6;text-decoration:none;font-weight:600;font-size:0.85rem;" onclick="event.preventDefault(); viewColaborador(${f.id})">${nomeStr}</a>
+                                </div>
+                            </td>
+                            <td colspan="2" style="padding:0.6rem 0.65rem;vertical-align:middle;">${progressBarHtml}</td>
                         </tr>
                     `;
                 });
@@ -2119,6 +2151,26 @@ function limparFiltrosColaboradores() {
     aplicarFiltrosColaboradores();
 }
 
+window.openFiltroSidebar = function() {
+    const sidebar = document.getElementById('filtro-sidebar');
+    const backdrop = document.getElementById('filtro-backdrop');
+    if (sidebar) sidebar.style.right = '0';
+    if (backdrop) {
+        backdrop.style.display = 'block';
+        setTimeout(() => { backdrop.style.opacity = '1'; }, 10);
+    }
+};
+
+window.closeFiltroSidebar = function() {
+    const sidebar = document.getElementById('filtro-sidebar');
+    const backdrop = document.getElementById('filtro-backdrop');
+    if (sidebar) sidebar.style.right = '-400px';
+    if (backdrop) {
+        backdrop.style.opacity = '0';
+        setTimeout(() => { backdrop.style.display = 'none'; }, 300);
+    }
+};
+
 window.selecionarTipoCadastro = function(btnElement, status) {
     document.getElementById('f-tipo-cadastro-hidden').value = status;
     document.querySelectorAll('.btn-tipo-cadastro').forEach(btn => {
@@ -2320,7 +2372,7 @@ function renderColaboradores(lista) {
 
             <div style="width:1px; height:20px; background:#e2e8f0; flex-shrink:0; margin:0 2px;"></div>
 
-            <button onclick="document.getElementById('filtro-sidebar').style.right='0'" style="padding:0.3rem 0.85rem; border:1px solid #e2e8f0; border-radius:6px; background:#fff; font-size:0.8rem; cursor:pointer; color:#334155; font-weight:600; display:flex; align-items:center; gap:5px; white-space:nowrap; flex-shrink:0;">
+            <button onclick="openFiltroSidebar()" style="padding:0.3rem 0.85rem; border:1px solid #e2e8f0; border-radius:6px; background:#fff; font-size:0.8rem; cursor:pointer; color:#334155; font-weight:600; display:flex; align-items:center; gap:5px; white-space:nowrap; flex-shrink:0;">
                 <i class="ph ph-funnel"></i> Filtros
             </button>
             <button onclick="exportarColaboradoresXLSX()" style="padding:0.3rem 0.85rem; border:none; border-radius:6px; background:#10b981; font-size:0.8rem; font-weight:600; cursor:pointer; color:#fff; display:flex; align-items:center; gap:5px; white-space:nowrap; flex-shrink:0;">
@@ -2333,6 +2385,9 @@ function renderColaboradores(lista) {
         <div id="colab-table-wrapper"></div>
 
 
+        <!-- BACKDROP DE FILTROS -->
+        <div id="filtro-backdrop" onclick="closeFiltroSidebar()" style="display:none; position:fixed; top:0; right:0; width:100vw; height:100vh; background:rgba(0,0,0,0.3); z-index:9998; transition:opacity 0.3s; opacity:0;"></div>
+
         <!-- SIDEBAR DE FILTROS -->
         <div id="filtro-sidebar" style="position:fixed; top:0; right:-400px; width:400px; max-width:100vw; height:100vh; background:#fff; z-index:9999; box-shadow:-4px 0 15px rgba(0,0,0,0.1); transition:right 0.3s cubic-bezier(0.4, 0, 0.2, 1); overflow-y:auto; display:flex; flex-direction:column;">
             
@@ -2340,7 +2395,7 @@ function renderColaboradores(lista) {
                 <span style="font-weight:700; color:#334155; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
                     <i class="ph ph-funnel"></i> Filtros Avançados
                 </span>
-                <button onclick="document.getElementById('filtro-sidebar').style.right='-400px'" style="background:none; border:none; cursor:pointer; color:#94a3b8; font-size:1.25rem;">
+                <button onclick="closeFiltroSidebar()" style="background:none; border:none; cursor:pointer; color:#94a3b8; font-size:1.25rem;">
                     <i class="ph ph-x"></i>
                 </button>
             </div>
@@ -8497,7 +8552,7 @@ window.enviarAssinaturaPerfilDireto = async function(event) {
             const dtStr = new Date().toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }).replace(',', ' -');
             const txt = document.getElementById('perfil-status-txt-' + geradorId);
             if (txt) {
-                txt.innerHTML = '<span style="color:#2563eb;font-weight:600;"><i class="ph ph-paper-plane-tilt"></i> Enviado para Assinatura: ' + dtStr + '</span>';
+                txt.innerHTML = '<div style="display:flex; flex-direction:column; gap:2px;"><span style="color:#2563eb;font-weight:600;"><i class="ph ph-paper-plane-tilt"></i> Enviado para Assinatura</span><span style="font-size:0.75rem;color:#64748b;margin-left:22px;">' + dtStr + '</span></div>';
             }
             targetBtn.parentElement.innerHTML = '<span style="color:#16a34a;font-weight:600;"><i class="ph ph-check"></i> OK</span>';
         }
@@ -8718,7 +8773,7 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
             statusBadge = `<span style="color:#16a34a;font-size:0.75rem;font-weight:600;">Documento Assinado${_signedStr ? ': ' + _signedStr : ''}</span>`;
         } else if (isPending) {
             leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#2563eb;"><i class="ph ph-paper-plane-tilt" style="font-size:1.4rem;"></i></div>`;
-            statusBadge = `<span style="color:#2563eb;font-size:0.75rem;font-weight:600;">Enviado para Assinatura${_sentStr ? ': ' + _sentStr : ''}</span>`;
+            statusBadge = `<div style="display:flex;flex-direction:column;gap:2px;"><span style="color:#2563eb;font-size:0.75rem;font-weight:600;">Enviado para Assinatura</span>${_sentStr ? '<span style="font-size:0.65rem;color:#64748b;">' + _sentStr + '</span>' : ''}</div>`;
             sendBtn = `<button type="button" onclick="window.reenviarAssinaturaContrato(${doc.id}, event);" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-pen"></i> Reenviar para Assinatura</button>`;
         } else if (isPronto) {
             // Documento salvo localmente (Pendente sem assinafy_id) — aguardando envio ao Assinafy
@@ -8825,7 +8880,7 @@ window.enviarDocumentoAvulsoAssinatura = async function(docId, btn) {
                 const statusEl = card.querySelector('[data-role="status-badge"]');
                 if (statusEl) {
                     statusEl.style.color = '#2563eb';
-                    statusEl.textContent = `Enviado para Assinatura: ${fmt}`;
+                    statusEl.innerHTML = `<div style="display:flex;flex-direction:column;gap:2px;"><span style="font-weight:600;">Enviado para Assinatura</span><span style="font-size:0.65rem;color:#64748b;">${fmt}</span></div>`;
                 }
 
                 // Troca botão por "Reenviar"
@@ -10685,7 +10740,6 @@ setInterval(async () => {
         
         console.log('[POLLING] Documento(s) detectado(s) como Assinado(s). Tela atualizada com sucesso.');
     }
-}, 30000);
 }, 30000);
 
 // --- POLLING: Notificações de Formulário de Experiência (para usuários RH) ---
