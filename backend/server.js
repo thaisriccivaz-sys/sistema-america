@@ -7186,8 +7186,12 @@ db.run(`CREATE TABLE IF NOT EXISTS experiencia_formularios (
     criado_em TEXT DEFAULT (datetime('now')),
     atualizado_em TEXT DEFAULT (datetime('now')),
     FOREIGN KEY (colaborador_id) REFERENCES colaboradores(id)
-)`, () => {
     db.run("ALTER TABLE experiencia_formularios ADD COLUMN data_envio_email TEXT", () => {});
+    
+    // ONE-OFF: Deletar formulários de teste para os colaboradores especificados
+    db.run("DELETE FROM experiencia_formularios WHERE colaborador_id IN (SELECT id FROM colaboradores WHERE nome_completo IN ('Wellington Moisés Oliveira de Moraes', 'Wendell Henrique Costa Santos', 'Gustavo Rodrigues Correia'))", (err) => {
+        if (!err) console.log('[MIGRAÇÃO] Formulários de teste de experiência deletados com sucesso.');
+    });
 });
 
 db.run(`CREATE TABLE IF NOT EXISTS experiencia_notificacoes_pendentes (
