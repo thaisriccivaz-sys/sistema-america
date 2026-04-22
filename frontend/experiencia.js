@@ -525,7 +525,7 @@ function renderExperienciaList(lista) {
     tbody.innerHTML = '';
 
     if (!lista || lista.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#94a3b8;padding:2rem;font-style:italic;">Nenhum colaborador em período de experiência encontrado.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:2rem;font-style:italic;">Nenhum colaborador em período de experiência encontrado.</td></tr>';
         return;
     }
 
@@ -547,7 +547,7 @@ function renderExperienciaList(lista) {
                 statusBadge = `<span style="background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:600;"><i class="ph ph-check"></i> Finalizado</span>`;
             }
         } else {
-            statusBadge = `<span style="background:#f1f5f9;color:#64748b;padding:3px 10px;border-radius:12px;font-size:0.8rem;"><i class="ph ph-clock"></i> Em andamento</span>`;
+            statusBadge = `<span style="background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:10px;font-size:0.75rem;"><i class="ph ph-clock"></i> Em andamento</span>`;
         }
 
         // Situação formulário badge
@@ -588,7 +588,7 @@ function renderExperienciaList(lista) {
                 <span style="font-size:0.65rem;color:#f59e0b;padding-left:4px;"><i class="ph ph-bell"></i> E-mail será enviado automaticamente</span>
             </div>`;
         } else {
-            formBadge = `<span style="background:#f1f5f9;color:#94a3b8;padding:3px 10px;border-radius:12px;font-size:0.8rem;"><i class="ph ph-clock"></i> Pendente</span>`;
+            formBadge = `<span style="background:#f1f5f9;color:#94a3b8;padding:2px 8px;border-radius:10px;font-size:0.75rem;"><i class="ph ph-clock"></i> Pendente</span>`;
         }
 
         // Days left warning
@@ -606,18 +606,25 @@ function renderExperienciaList(lista) {
             }
         }
 
+        const photoUrl = c.foto_path ? `${window.API_URL || ''}/files/${c.foto_path}` : '';
+        const initials = (c.nome_completo || '?').split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
+        const avatarHtml = photoUrl
+            ? `<img src="${photoUrl}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;border:2px solid #e2e8f0;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+               <div style="display:none;width:32px;height:32px;border-radius:50%;background:#dbeafe;color:#1d4ed8;font-size:0.65rem;font-weight:700;align-items:center;justify-content:center;">${initials}</div>`
+            : `<div style="width:32px;height:32px;border-radius:50%;background:#dbeafe;color:#1d4ed8;font-size:0.65rem;font-weight:700;display:flex;align-items:center;justify-content:center;">${initials}</div>`;
+
         const tr = document.createElement('tr');
         const isFinalized = situacao === 'finalizado';
         tr.innerHTML = `
-            <td style="font-weight:600;"><a href="#" style="color:#1c7ed6;text-decoration:none;" onclick="event.preventDefault();viewColaborador(${c.id})">${c.nome_completo}</a></td>
-            <td>${c.cargo || '-'}</td>
-            <td>${c.departamento || '-'}</td>
-            <td>${admissao}</td>
-            <td>${c.responsavel_nome || '-'}</td>
-            <td>${prazo2Fim}${diasRestantesHtml}</td>
-            <td>${statusBadge}</td>
-            <td>${formBadge}</td>
-            <td style="text-align:right;">
+            <td style="padding:6px 4px;">${avatarHtml}</td>
+            <td style="font-weight:600;padding:6px 8px;"><a href="#" style="color:#1c7ed6;text-decoration:none;font-size:0.82rem;" onclick="event.preventDefault();viewColaborador(${c.id})">${c.nome_completo}</a></td>
+            <td style="padding:6px 8px;font-size:0.82rem;">${c.cargo || '-'}</td>
+            <td style="padding:6px 8px;font-size:0.82rem;">${admissao}</td>
+            <td style="padding:6px 8px;font-size:0.82rem;">${c.responsavel_nome || '-'}</td>
+            <td style="padding:6px 8px;font-size:0.82rem;">${prazo2Fim}${diasRestantesHtml}</td>
+            <td style="padding:6px 8px;">${statusBadge}</td>
+            <td style="padding:6px 8px;">${formBadge}</td>
+            <td style="text-align:right;padding:6px 8px;">
                 ${isFinalized
                     ? `<button onclick="openExperienciaModal(${c.id})" class="btn btn-sm" style="background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;font-size:0.8rem;padding:4px 10px;border-radius:6px;cursor:pointer;" title="Visualizar Formulário Preenchido">
                         <i class="ph ph-eye"></i> Visualizar
