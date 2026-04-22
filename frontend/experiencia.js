@@ -689,7 +689,7 @@ function renderExperienciaList(lista) {
 
         const initials = (c.nome_completo || '?').split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
         const avatarHtml = c.foto_base64
-            ? `<img src="data:image/jpeg;base64,${c.foto_base64}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;border:2px solid #e2e8f0;">`
+            ? `<img src="${c.foto_base64.startsWith('data:') ? c.foto_base64 : 'data:image/jpeg;base64,' + c.foto_base64}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;border:2px solid #e2e8f0;">`
             : `<div style="width:32px;height:32px;border-radius:50%;background:#dbeafe;color:#1d4ed8;font-size:0.65rem;font-weight:700;display:flex;align-items:center;justify-content:center;">${initials}</div>`;
 
         const tr = document.createElement('tr');
