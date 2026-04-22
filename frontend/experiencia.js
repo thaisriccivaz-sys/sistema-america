@@ -644,13 +644,26 @@ function renderExperienciaList(lista) {
         
         if (situacao === 'finalizado') {
             const resultado = c.formulario_resultado || '';
+            let badgeHtml = '';
             if (resultado === 'Aprovado') {
-                formBadge = `<span style="background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:600;"><i class="ph ph-check-circle"></i> Finalizado</span>`;
+                badgeHtml = `<span style="background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:600;"><i class="ph ph-check-circle"></i> Finalizado</span>`;
             } else if (resultado === 'Reprovado') {
-                formBadge = `<span style="background:#fee2e2;color:#991b1b;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:600;"><i class="ph ph-x-circle"></i> Finalizado</span>`;
+                badgeHtml = `<span style="background:#fee2e2;color:#991b1b;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:600;"><i class="ph ph-x-circle"></i> Finalizado</span>`;
             } else {
-                formBadge = `<span style="background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:600;"><i class="ph ph-check"></i> Finalizado</span>`;
+                badgeHtml = `<span style="background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:600;"><i class="ph ph-check"></i> Finalizado</span>`;
             }
+            
+            const finalizadoDateStr = c.atualizado_em || c.data_envio_email;
+            let finalDateHtml = '';
+            if (finalizadoDateStr) {
+                const finalDate = new Date(finalizadoDateStr).toLocaleString('pt-BR', {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'});
+                finalDateHtml = `<span style="font-size:0.62rem;color:#64748b;padding-left:3px;"><i class="ph ph-clock"></i> ${finalDate}</span>`;
+            }
+            
+            formBadge = `<div style="display:flex;flex-direction:column;gap:1px;">
+                ${badgeHtml}
+                ${finalDateHtml}
+            </div>`;
         } else if (situacao === 'iniciado') {
             formBadge = `<span style="background:#fef3c7;color:#92400e;padding:2px 7px;border-radius:10px;font-size:0.72rem;font-weight:600;"><i class="ph ph-pencil"></i> Iniciado</span>`;
         } else if (situacao === 'enviado') {
@@ -674,7 +687,7 @@ function renderExperienciaList(lista) {
 
         // Days left warning
         let diasRestantesHtml = '';
-        if (c.prazo2_fim && situacao !== 'finalizado') {
+        if (c.prazo2_fim) {
             const hoje = new Date(); hoje.setHours(0,0,0,0);
             const fim = parseDateBR_or_ISO(c.prazo2_fim);
             if (fim) {
@@ -902,9 +915,9 @@ async function openExperienciaModal(colaboradorId) {
                 <!-- Actions -->
                 <div style="display:flex;gap:1rem;justify-content:space-between;margin-top:1.5rem;padding-top:1rem;border-top:1px solid #e2e8f0;">
                     <div>
-                        <button type="button" onclick="reenviarEmailExperiencia(${colab.id}, this)" style="padding:0.6rem 1rem;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;color:#475569;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:6px;">
+                        ${situacao !== 'finalizado' ? `<button type="button" onclick="reenviarEmailExperiencia(${colab.id}, this)" style="padding:0.6rem 1rem;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;color:#475569;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:6px;">
                             <i class="ph ph-envelope-simple"></i> Reenviar E-mail de Formulário para Gestor
-                        </button>
+                        </button>` : ''}
                     </div>
                     <div style="display:flex;gap:1rem;">
                         <button type="button" onclick="document.getElementById('modal-experiencia-overlay').remove()" style="padding:0.6rem 1.25rem;border:1px solid #e2e8f0;border-radius:8px;background:#f1f5f9;color:#334155;cursor:pointer;font-weight:600;">Fechar</button>
