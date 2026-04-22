@@ -671,7 +671,7 @@ async function openExperienciaModal(colaboradorId) {
     const form = resp.formulario;
     const formularioDef = getFormulario(colab.departamento || colab.cargo || '');
 
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('erp_token') || window.currentToken;
     let payload;
     try { payload = JSON.parse(atob(token.split('.')[1])); } catch(e) { payload = {}; }
     const isRH = payload.permissoes && (payload.permissoes.includes('rh_completo') || payload.permissoes.includes('rh'));
@@ -932,7 +932,7 @@ async function salvarFormularioExp(situacaoForm) {
     const url = formId ? `/experiencia/formulario/${formId}` : `/experiencia/formulario`;
     const method = formId ? 'PUT' : 'POST';
 
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('erp_token') || window.currentToken;
     const resp = await fetch(`/api${url}`, {
         method,
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -965,7 +965,7 @@ async function reenviarEmailExperiencia(colaboradorId, btn) {
     btn.disabled = true;
 
     try {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('erp_token') || window.currentToken;
         const resp = await fetch(`/api/experiencia/enviar-email/${colaboradorId}`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}` }
