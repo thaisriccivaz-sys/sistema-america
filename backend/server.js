@@ -7536,7 +7536,8 @@ function verificarExperienciasVencendo() {
                         form_id: r.form_id || null
                     }, SECRET_KEY, { expiresIn: expiresInSeconds });
                     
-                    const formLink = `${req.protocol}://${req.get('host')}/avaliacao-publica.html?token=${tokenPayload}`;
+                    const baseUrl = process.env.BASE_URL || 'https://sistema-america.onrender.com';
+                    const formLink = `${baseUrl}/avaliacao-publica.html?token=${tokenPayload}`;
                     
                     await transporter.sendMail({
                         from: `"América Rental RH" <${process.env.EMAIL_FROM || SMTP_CONFIG.auth.user}>`,

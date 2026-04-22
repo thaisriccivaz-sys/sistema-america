@@ -567,28 +567,24 @@ function renderExperienciaList(lista) {
                 formBadge = `<span style="background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:600;"><i class="ph ph-check"></i> Finalizado</span>`;
             }
         } else if (situacao === 'iniciado') {
-            formBadge = `<span style="background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:600;"><i class="ph ph-pencil"></i> Iniciado</span>`;
+            formBadge = `<span style="background:#fef3c7;color:#92400e;padding:2px 7px;border-radius:10px;font-size:0.72rem;font-weight:600;"><i class="ph ph-pencil"></i> Iniciado</span>`;
         } else if (situacao === 'enviado') {
             const envioDate = c.data_envio_email
-                ? new Date(c.data_envio_email).toLocaleString('pt-BR', {day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'})
+                ? new Date(c.data_envio_email).toLocaleString('pt-BR', {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'})
                 : '';
-            formBadge = `<div style="display:flex;flex-direction:column;gap:2px;">
-                <span style="background:#dbeafe;color:#1e40af;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-paper-plane-tilt"></i> Enviado</span>
-                ${envioDate ? `<span style="font-size:0.65rem;color:#64748b;padding-left:4px;"><i class="ph ph-clock"></i> ${envioDate}</span>` : ''}
+            formBadge = `<div style="display:flex;flex-direction:column;gap:1px;">
+                <span style="background:#dbeafe;color:#1e40af;padding:2px 7px;border-radius:10px;font-size:0.72rem;font-weight:600;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-paper-plane-tilt"></i> Enviado</span>
+                ${envioDate ? `<span style="font-size:0.62rem;color:#64748b;padding-left:3px;"><i class="ph ph-clock"></i> ${envioDate}</span>` : ''}
             </div>`;
         } else if (estaEnviando) {
-            formBadge = `<div style="display:flex;flex-direction:column;gap:2px;">
-                <span style="background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;">
-                    <i class="ph ph-spinner" style="animation:spin 1s linear infinite;"></i> Enviando...
-                </span>
-            </div>`;
+            formBadge = `<span style="background:#fef3c7;color:#92400e;padding:2px 7px;border-radius:10px;font-size:0.72rem;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-spinner" style="animation:spin 1s linear infinite;"></i> Enviando...</span>`;
         } else if (diasParaVencer !== null && diasParaVencer > 0 && diasParaVencer <= 15) {
-            formBadge = `<div style="display:flex;flex-direction:column;gap:2px;">
-                <span style="background:#f1f5f9;color:#94a3b8;padding:3px 10px;border-radius:12px;font-size:0.8rem;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-clock"></i> Pendente</span>
-                <span style="font-size:0.65rem;color:#f59e0b;padding-left:4px;"><i class="ph ph-bell"></i> E-mail será enviado automaticamente</span>
+            formBadge = `<div style="display:flex;flex-direction:column;gap:1px;">
+                <span style="background:#f1f5f9;color:#94a3b8;padding:2px 7px;border-radius:10px;font-size:0.72rem;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-clock"></i> Pendente</span>
+                <span style="font-size:0.6rem;color:#f59e0b;padding-left:3px;"><i class="ph ph-bell"></i> Envio automático</span>
             </div>`;
         } else {
-            formBadge = `<span style="background:#f1f5f9;color:#94a3b8;padding:2px 8px;border-radius:10px;font-size:0.75rem;"><i class="ph ph-clock"></i> Pendente</span>`;
+            formBadge = `<span style="background:#f1f5f9;color:#94a3b8;padding:2px 7px;border-radius:10px;font-size:0.72rem;"><i class="ph ph-clock"></i> Pendente</span>`;
         }
 
         // Days left warning
@@ -606,7 +602,6 @@ function renderExperienciaList(lista) {
             }
         }
 
-        const photoUrl = c.foto_path ? `${window.API_URL || ''}/files/${c.foto_path}` : '';
         const initials = (c.nome_completo || '?').split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
         const avatarHtml = c.foto_base64
             ? `<img src="data:image/jpeg;base64,${c.foto_base64}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;border:2px solid #e2e8f0;">`
