@@ -7281,7 +7281,7 @@ app.get('/api/experiencia', authenticateToken, (req, res) => {
         SELECT c.id, c.nome_completo, c.cargo, c.departamento, c.data_admissao,
                c.foto_base64,
                ef.id as form_id, ef.situacao, ef.situacao_avaliacao as formulario_resultado,
-               ef.pontuacao, ef.notificacao_15d_enviada, ef.data_envio_email,
+               ef.pontuacao, ef.notificacao_15d_enviada, ef.data_envio_email, ef.atualizado_em,
                (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as responsavel_nome
         FROM colaboradores c
         LEFT JOIN experiencia_formularios ef ON ef.colaborador_id = c.id
