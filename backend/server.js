@@ -7279,6 +7279,7 @@ app.get('/api/experiencia', authenticateToken, (req, res) => {
     // Show all active collaborators with up to 90 days + those who already have a form
     db.all(`
         SELECT c.id, c.nome_completo, c.cargo, c.departamento, c.data_admissao,
+               c.foto_base64,
                ef.id as form_id, ef.situacao, ef.situacao_avaliacao as formulario_resultado,
                ef.pontuacao, ef.notificacao_15d_enviada, ef.data_envio_email,
                (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as responsavel_nome
@@ -7452,7 +7453,7 @@ app.post('/api/experiencia/enviar-email/:id', authenticateToken, (req, res) => {
                 form_id: r.form_id || null
             }, SECRET_KEY, { expiresIn: expiresInSeconds });
             
-            const formLink = `${process.env.BASE_URL || 'https://sistema-america.onrender.com'}/avaliacao-publica.html?token=${tokenPayload}`;
+            const formLink = `${req.protocol}://${req.get('host')}/avaliacao-publica.html?token=${tokenPayload}`;
             
             await transporter.sendMail({
                 from: `"América Rental RH" <${process.env.EMAIL_FROM || SMTP_CONFIG.auth.user}>`,
@@ -7535,7 +7536,7 @@ function verificarExperienciasVencendo() {
                         form_id: r.form_id || null
                     }, SECRET_KEY, { expiresIn: expiresInSeconds });
                     
-                    const formLink = `${process.env.BASE_URL || 'https://sistema-america.onrender.com'}/avaliacao-publica.html?token=${tokenPayload}`;
+                    const formLink = `${req.protocol}://${req.get('host')}/avaliacao-publica.html?token=${tokenPayload}`;
                     
                     await transporter.sendMail({
                         from: `"América Rental RH" <${process.env.EMAIL_FROM || SMTP_CONFIG.auth.user}>`,
