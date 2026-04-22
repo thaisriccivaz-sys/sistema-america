@@ -7281,7 +7281,7 @@ app.get('/api/experiencia', authenticateToken, (req, res) => {
         SELECT c.id, c.nome_completo, c.cargo, c.departamento, c.data_admissao,
                c.foto_base64,
                ef.id as form_id, ef.situacao, ef.situacao_avaliacao as formulario_resultado,
-               ef.pontuacao, ef.notificacao_15d_enviada, ef.data_envio_email,
+               ef.pontuacao, ef.notificacao_15d_enviada, ef.data_envio_email, ef.atualizado_em,
                (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as responsavel_nome
         FROM colaboradores c
         LEFT JOIN experiencia_formularios ef ON ef.colaborador_id = c.id
@@ -7433,6 +7433,8 @@ app.post('/api/experiencia/enviar-email/:id', authenticateToken, (req, res) => {
         
         const emailDestino = r.resp_email;
         if (!emailDestino) return res.status(400).json({ error: 'Responsável do departamento não possui e-mail cadastrado.' });
+        if (r.situacao === 'finalizado') return res.status(400).json({ error: 'O formulário já foi respondido e finalizado.' });
+        if (diasRestantes !== '-' && diasRestantes < 0) return res.status(400).json({ error: 'O prazo de experiência deste colaborador já expirou.' });
         
         const prazos = calcPrazoExp(r.data_admissao);
         const diasRestantes = prazos ? Math.ceil((new Date(prazos.prazo2_fim + 'T23:59:59') - new Date()) / 86400000) : '-';
@@ -7494,7 +7496,7 @@ function verificarExperienciasVencendo() {
                    d.responsavel_id,
                    (SELECT email_corporativo FROM colaboradores WHERE id = d.responsavel_id) as resp_email,
                    (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as resp_nome,
-                   ef.id as form_id, ef.notificacao_15d_enviada
+                   ef.id as form_id, ef.notificacao_15d_enviada, ef.situacao
             FROM colaboradores c
             LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento))
             LEFT JOIN experiencia_formularios ef ON ef.colaborador_id = c.id
@@ -7509,6 +7511,7 @@ function verificarExperienciasVencendo() {
             
             // Already sent or already has finalized form
             if (r.notificacao_15d_enviada) continue;
+            if (r.situacao === 'finalizado') continue;
             
             const diasRestantes = Math.ceil((new Date(prazos.prazo2_fim + 'T23:59:59') - hoje) / 86400000);
             
@@ -7634,7 +7637,8 @@ app.post('/api/experiencia/cron/forcar', authenticateToken, async (req, res) => 
             const diasRestantes = Math.ceil((new Date(prazos.prazo2_fim + 'T23:59:59') - hoje) / 86400000);
 
             // Só envia para colaboradores dentro da janela de 1 a 15 dias
-            if (diasRestantes <= 0 || diasRestantes > 15) { pulados++; continue; }
+            if (diasRestantes < 0 || diasRestantes > 15) { pulados++; continue; }
+            if (r.situacao === 'finalizado') { pulados++; continue; }
 
             const emailDestino = r.resp_email;
             if (!emailDestino) {
