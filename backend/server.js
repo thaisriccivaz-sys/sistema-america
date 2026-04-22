@@ -7241,6 +7241,71 @@ app.get('/api/experiencia/publico/info', (req, res) => {
     }
 });
 
+async function gerarESalvarPDFExperiencia(colab, respostas, pontuacao, situacao_avaliacao, comentarios) {
+    try {
+        const htmlPdf = require('html-pdf-node');
+        const fs = require('fs');
+        const path = require('path');
+        
+        let htmlRespostas = '';
+        if (respostas) {
+            for (const [pergunta, resp] of Object.entries(respostas)) {
+                htmlRespostas += `<p><strong>${pergunta}:</strong> ${resp}</p>`;
+            }
+        }
+
+        const html = `<!DOCTYPE html>
+        <html><head><meta charset="UTF-8"><style>
+        body { font-family: Arial, sans-serif; padding: 40px; color: #333; }
+        h1 { color: #0f4c81; border-bottom: 2px solid #2db0d8; padding-bottom: 10px; }
+        h2 { color: #333; margin-top: 20px; font-size: 1.2rem; }
+        .info { background: #f1f5f9; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 0.95rem; }
+        .info p { margin: 5px 0; }
+        .respostas { margin-top: 20px; font-size: 0.9rem; }
+        </style></head>
+        <body>
+            <h1>Avaliação de Experiência</h1>
+            <div class="info">
+                <p><strong>Colaborador:</strong> ${colab.nome_completo || ''}</p>
+                <p><strong>Cargo:</strong> ${colab.cargo || ''}</p>
+                <p><strong>Departamento:</strong> ${colab.departamento || ''}</p>
+                <p><strong>Data de Admissão:</strong> ${colab.data_admissao || ''}</p>
+                <p><strong>Responsável pela Avaliação:</strong> ${colab.responsavel_nome || ''}</p>
+            </div>
+            <h2>Resultado da Avaliação</h2>
+            <div class="info">
+                <p><strong>Situação:</strong> ${situacao_avaliacao || 'Pendente'}</p>
+                <p><strong>Pontuação Total:</strong> ${pontuacao || 0}</p>
+            </div>
+            <h2>Comentários Adicionais</h2>
+            <p>${comentarios || 'Nenhum comentário adicionado.'}</p>
+            <h2>Respostas do Formulário</h2>
+            <div class="respostas">
+                ${htmlRespostas}
+            </div>
+        </body></html>`;
+
+        const options = { format: 'A4', margin: { top: '20px', bottom: '20px', left: '20px', right: '20px' } };
+        const fileBuffer = await htmlPdf.generatePdf({ content: html }, options);
+
+        const safeFolder = formatarNome(colab.nome_completo);
+        const baseDrivePath = "C:\\A\\OneDrive - AMERICA RENTAL EQUIPAMENTOS LTDA\\Documentos - America Rental\\RH\\1.Colaboradores\\Sistema";
+        const targetDir = path.join(baseDrivePath, safeFolder, "AVALIACAO");
+        
+        if (!fs.existsSync(targetDir)) {
+            fs.mkdirSync(targetDir, { recursive: true });
+        }
+        
+        const fileName = `Experiencia_${safeFolder}.pdf`;
+        const filePath = path.join(targetDir, fileName);
+        
+        fs.writeFileSync(filePath, fileBuffer);
+        console.log(`[PDF Experiencia] PDF salvo com sucesso em: ${filePath}`);
+    } catch(e) {
+        console.error('[PDF Experiencia] Erro ao gerar/salvar PDF:', e);
+    }
+}
+
 app.post('/api/experiencia/publico/submit', (req, res) => {
     try {
         const payload = jwt.verify(req.query.token, SECRET_KEY);
@@ -7256,6 +7321,7 @@ app.post('/api/experiencia/publico/submit', (req, res) => {
                     [JSON.stringify(respostas), pontuacao, situacao_avaliacao, comentarios, colab.responsavel_nome, exist.id], (err3) => {
                         if (err3) return res.status(500).json({ error: err3.message });
                         db.run(`INSERT INTO experiencia_notificacoes_pendentes (tipo, dados) VALUES (?, ?)`, ['formulario_finalizado', JSON.stringify({ colaborador_nome: colab.nome_completo, departamento: colab.departamento, resultado: situacao_avaliacao, pontuacao })]);
+                        gerarESalvarPDFExperiencia(colab, respostas, pontuacao, situacao_avaliacao, comentarios);
                         res.json({ ok: true, responsavel_nome: colab.responsavel_nome, colaborador_nome: colab.nome_completo });
                     });
                 } else {
@@ -7263,6 +7329,7 @@ app.post('/api/experiencia/publico/submit', (req, res) => {
                     [colab.id, colab.responsavel_nome, JSON.stringify(respostas), pontuacao, situacao_avaliacao, comentarios], function(err3) {
                         if (err3) return res.status(500).json({ error: err3.message });
                         db.run(`INSERT INTO experiencia_notificacoes_pendentes (tipo, dados) VALUES (?, ?)`, ['formulario_finalizado', JSON.stringify({ colaborador_nome: colab.nome_completo, departamento: colab.departamento, resultado: situacao_avaliacao, pontuacao })]);
+                        gerarESalvarPDFExperiencia(colab, respostas, pontuacao, situacao_avaliacao, comentarios);
                         res.json({ ok: true, form_id: this.lastID, responsavel_nome: colab.responsavel_nome, colaborador_nome: colab.nome_completo });
                     });
                 }
@@ -7361,10 +7428,17 @@ app.post('/api/experiencia/formulario', authenticateToken, (req, res) => {
             
             if (situacao === 'finalizado') {
                 // Notify RH users via pending notifications
-                db.get('SELECT nome_completo, departamento FROM colaboradores WHERE id = ?', [colaborador_id], (e, c) => {
+                db.get('SELECT c.*, (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as responsavel_nome FROM colaboradores c LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento)) WHERE c.id = ?', [colaborador_id], (e, c) => {
                     if (!e && c) {
                         db.run(`INSERT INTO experiencia_notificacoes_pendentes (tipo, dados) VALUES (?, ?)`,
                             ['formulario_finalizado', JSON.stringify({ colaborador_nome: c.nome_completo, departamento: c.departamento, resultado: situacao_avaliacao, pontuacao })]);
+                        gerarESalvarPDFExperiencia(c, respostas, pontuacao, situacao_avaliacao, comentarios);
+                    }
+                });
+            } else {
+                db.get('SELECT c.*, (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as responsavel_nome FROM colaboradores c LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento)) WHERE c.id = ?', [colaborador_id], (e, c) => {
+                    if (!e && c) {
+                        gerarESalvarPDFExperiencia(c, respostas, pontuacao, situacao_avaliacao, comentarios);
                     }
                 });
             }
@@ -7388,10 +7462,17 @@ app.put('/api/experiencia/formulario/:id', authenticateToken, (req, res) => {
             if (err) return res.status(500).json({ error: err.message });
             
             if (situacao === 'finalizado') {
-                db.get('SELECT c.nome_completo, c.departamento FROM experiencia_formularios ef JOIN colaboradores c ON c.id = ef.colaborador_id WHERE ef.id = ?', [id], (e, c) => {
+                db.get('SELECT c.*, (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as responsavel_nome FROM experiencia_formularios ef JOIN colaboradores c ON c.id = ef.colaborador_id LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento)) WHERE ef.id = ?', [id], (e, c) => {
                     if (!e && c) {
                         db.run(`INSERT INTO experiencia_notificacoes_pendentes (tipo, dados) VALUES (?, ?)`,
                             ['formulario_finalizado', JSON.stringify({ colaborador_nome: c.nome_completo, departamento: c.departamento, resultado: situacao_avaliacao, pontuacao })]);
+                        gerarESalvarPDFExperiencia(c, respostas, pontuacao, situacao_avaliacao, comentarios);
+                    }
+                });
+            } else {
+                db.get('SELECT c.*, (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as responsavel_nome FROM experiencia_formularios ef JOIN colaboradores c ON c.id = ef.colaborador_id LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento)) WHERE ef.id = ?', [id], (e, c) => {
+                    if (!e && c) {
+                        gerarESalvarPDFExperiencia(c, respostas, pontuacao, situacao_avaliacao, comentarios);
                     }
                 });
             }
@@ -7509,7 +7590,8 @@ function verificarExperienciasVencendo() {
             if (!prazos) continue;
             
             // Already sent or already has finalized form
-            if (r.notificacao_15d_enviada) continue;
+            // Removed notificacao_15d_enviada block to ensure it sends daily until answered
+            if (r.situacao === 'finalizado') continue;
             if (r.situacao === 'finalizado') continue;
             
             const diasRestantes = Math.ceil((new Date(prazos.prazo2_fim + 'T23:59:59') - hoje) / 86400000);
