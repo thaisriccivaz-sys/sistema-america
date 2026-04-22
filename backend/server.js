@@ -7472,7 +7472,7 @@ app.post('/api/experiencia/enviar-email/:id', authenticateToken, (req, res) => {
             
             const dataEnvioDataTime = new Date().toISOString();
             if (r.form_id) {
-                db.run(`UPDATE experiencia_formularios SET notificacao_15d_enviada = 1, data_envio_email = ? WHERE id = ?`, [dataEnvioDataTime, r.form_id]);
+                db.run(`UPDATE experiencia_formularios SET situacao = 'enviado', notificacao_15d_enviada = 1, data_envio_email = ? WHERE id = ?`, [dataEnvioDataTime, r.form_id]);
             } else {
                 db.run(`INSERT INTO experiencia_formularios (colaborador_id, situacao, notificacao_15d_enviada, data_envio_email) VALUES (?, 'enviado', 1, ?)`, [r.id, dataEnvioDataTime]);
             }
@@ -7606,13 +7606,93 @@ cron.schedule('0 8 * * *', () => {
     verificarAtestadosVencidos();
 }, { timezone: 'America/Sao_Paulo' });
 
-// Endpoint para forçar execução manual (apenas para admins / debug)
-app.post('/api/experiencia/cron/forcar', authenticateToken, (req, res) => {
-    console.log('[CRON] Execução forçada manualmente por:', req.user?.username || 'sistema');
-    _cronUltimaExecucao = new Date().toISOString();
-    verificarExperienciasVencendo();
-    verificarAtestadosVencidos();
-    res.json({ ok: true, message: 'CRON executado manualmente.', executadoEm: _cronUltimaExecucao });
+// Endpoint para forçar envio em lote (botão "Disparar E-mails")
+app.post('/api/experiencia/cron/forcar', authenticateToken, async (req, res) => {
+    console.log('[Disparar] Envio em lote iniciado por:', req.user?.username || 'sistema');
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+
+    db.all(`SELECT c.id, c.nome_completo, c.cargo, c.departamento, c.data_admissao,
+                   d.responsavel_id,
+                   (SELECT email_corporativo FROM colaboradores WHERE id = d.responsavel_id) as resp_email,
+                   (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as resp_nome,
+                   ef.id as form_id
+            FROM colaboradores c
+            LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento))
+            LEFT JOIN experiencia_formularios ef ON ef.colaborador_id = c.id
+            WHERE c.status = 'Ativo'
+              AND c.data_admissao IS NOT NULL
+              AND c.data_admissao != ''`, [], async (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+
+        let enviados = 0, pulados = 0, erros = 0;
+
+        for (const r of rows) {
+            const prazos = calcPrazoExp(r.data_admissao);
+            if (!prazos) { pulados++; continue; }
+
+            const diasRestantes = Math.ceil((new Date(prazos.prazo2_fim + 'T23:59:59') - hoje) / 86400000);
+
+            // Só envia para colaboradores dentro da janela de 1 a 15 dias
+            if (diasRestantes <= 0 || diasRestantes > 15) { pulados++; continue; }
+
+            const emailDestino = r.resp_email;
+            if (!emailDestino) {
+                console.log(`[Disparar] Sem e-mail do responsável para ${r.nome_completo}`);
+                pulados++;
+                continue;
+            }
+
+            try {
+                const transporter = nodemailer.createTransport(SMTP_CONFIG);
+
+                let expiresInSeconds = 15 * 86400;
+                if (prazos.prazo2_fim) {
+                    const expDate = new Date(prazos.prazo2_fim + 'T23:59:59');
+                    expDate.setDate(expDate.getDate() + 1);
+                    const diff = Math.floor((expDate.getTime() - Date.now()) / 1000);
+                    if (diff > 0) expiresInSeconds = diff;
+                }
+
+                const tokenPayload = jwt.sign({
+                    colab_id: r.id,
+                    form_id: r.form_id || null
+                }, SECRET_KEY, { expiresIn: expiresInSeconds });
+
+                const formLink = `${baseUrl}/avaliacao-publica.html?token=${tokenPayload}`;
+
+                await transporter.sendMail({
+                    from: `"América Rental RH" <${process.env.EMAIL_FROM || SMTP_CONFIG.auth.user}>`,
+                    to: emailDestino,
+                    subject: `Avaliação de Experiência — ${r.nome_completo} (${diasRestantes} dias restantes)`,
+                    html: gerarEmailExperienciaHTML({
+                        respNome: r.resp_nome,
+                        nomeCompleto: r.nome_completo,
+                        cargo: r.cargo,
+                        prazos,
+                        diasRestantes,
+                        formLink,
+                        tipo: 'automatico'
+                    })
+                });
+
+                const dataEnvio = new Date().toISOString();
+                if (r.form_id) {
+                    db.run(`UPDATE experiencia_formularios SET situacao = 'enviado', notificacao_15d_enviada = 1, data_envio_email = ? WHERE id = ?`, [dataEnvio, r.form_id]);
+                } else {
+                    db.run(`INSERT INTO experiencia_formularios (colaborador_id, situacao, notificacao_15d_enviada, data_envio_email) VALUES (?, 'enviado', 1, ?)`, [r.id, dataEnvio]);
+                }
+
+                console.log(`[Disparar] E-mail enviado para ${emailDestino} sobre ${r.nome_completo}`);
+                enviados++;
+            } catch (emailErr) {
+                console.error(`[Disparar] Erro ao enviar para ${r.nome_completo}:`, emailErr.message);
+                erros++;
+            }
+        }
+
+        res.json({ ok: true, enviados, pulados, erros, message: `${enviados} e-mail(s) enviado(s), ${pulados} pulado(s), ${erros} erro(s).` });
+    });
 });
 
 // Endpoint para checar status do CRON (usado pelo frontend)

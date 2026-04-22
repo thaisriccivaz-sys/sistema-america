@@ -471,7 +471,10 @@ window.dispararEmailsExperiencia = async function() {
                 updateExperienciaStats(data);
             }
             if (typeof window.showToast === 'function') {
-                window.showToast('E-mails verificados e disparados com sucesso!', 'success');
+                const msg = json.enviados > 0
+                    ? `✅ ${json.enviados} e-mail(s) enviado(s) com sucesso!`
+                    : `⚠️ Nenhum e-mail enviado. ${json.pulados} colaboradores fora da janela de 15 dias.`;
+                window.showToast(msg, json.enviados > 0 ? 'success' : 'warning');
             }
         } else {
             if (typeof window.showToast === 'function') {
