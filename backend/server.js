@@ -7289,18 +7289,31 @@ async function gerarESalvarPDFExperiencia(colab, respostas, pontuacao, situacao_
         const fileBuffer = await htmlPdf.generatePdf({ content: html }, options);
 
         const safeFolder = formatarNome(colab.nome_completo);
-        const baseDrivePath = "C:\\A\\OneDrive - AMERICA RENTAL EQUIPAMENTOS LTDA\\Documentos - America Rental\\RH\\1.Colaboradores\\Sistema";
-        const targetDir = path.join(baseDrivePath, safeFolder, "AVALIACAO");
-        
-        if (!fs.existsSync(targetDir)) {
-            fs.mkdirSync(targetDir, { recursive: true });
-        }
-        
         const fileName = `Experiencia_${safeFolder}.pdf`;
-        const filePath = path.join(targetDir, fileName);
         
-        fs.writeFileSync(filePath, fileBuffer);
-        console.log(`[PDF Experiencia] PDF salvo com sucesso em: ${filePath}`);
+        // Try to save to OneDrive if configured
+        if (typeof onedrive !== 'undefined' && onedrive) {
+            try {
+                const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || 'RH/1.Colaboradores/Sistema';
+                const targetDir = onedriveBasePath + '/' + safeFolder + '/AVALIACAO';
+                await onedrive.ensurePath(onedriveBasePath + '/' + safeFolder);
+                await onedrive.ensurePath(targetDir);
+                await onedrive.uploadToOneDrive(targetDir, fileName, fileBuffer);
+                console.log(`[PDF Experiencia] PDF salvo no OneDrive com sucesso: ${targetDir}/${fileName}`);
+            } catch (odErr) {
+                console.error('[PDF Experiencia] Erro OneDrive:', odErr.message);
+            }
+        } else {
+            // Local fallback (won't persist on Render, but good for local dev)
+            const baseDrivePath = path.join(__dirname, 'tmp');
+            const targetDir = path.join(baseDrivePath, safeFolder, "AVALIACAO");
+            if (!fs.existsSync(targetDir)) {
+                fs.mkdirSync(targetDir, { recursive: true });
+            }
+            const filePath = path.join(targetDir, fileName);
+            fs.writeFileSync(filePath, fileBuffer);
+            console.log(`[PDF Experiencia] PDF salvo localmente em: ${filePath}`);
+        }
     } catch(e) {
         console.error('[PDF Experiencia] Erro ao gerar/salvar PDF:', e);
     }

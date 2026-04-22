@@ -10751,7 +10751,7 @@ async function checkExperienciaNotificacoes() {
     try {
         const payload = JSON.parse(atob(token.split('.')[1]));
         const permissoes = payload.permissoes || [];
-        const isRH = permissoes.includes('rh_completo') || permissoes.some(p => String(p).includes('rh')) || permissoes.includes('experiencia');
+        const isRH = permissoes.includes('rh_completo') || permissoes.some(p => String(p).includes('rh')) || permissoes.includes('experiencia') || permissoes.includes('diretoria') || permissoes.includes('admin');
         if (!isRH) return;
     } catch(e) { return; }
 
