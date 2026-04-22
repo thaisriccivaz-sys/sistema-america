@@ -753,7 +753,7 @@ async function openExperienciaModal(colaboradorId) {
     const token = localStorage.getItem('erp_token') || window.currentToken;
     let payload;
     try { payload = JSON.parse(atob(token.split('.')[1])); } catch(e) { payload = {}; }
-    const isRH = payload.permissoes && (payload.permissoes.includes('rh_completo') || payload.permissoes.includes('rh'));
+    const isRH = payload.role === 'admin' || payload.role === 'Admin' || payload.role === 'Diretoria' || payload.role === 'diretoria' || (payload.permissoes && (payload.permissoes.includes('rh_completo') || payload.permissoes.includes('rh')));
     const isResponsavel = true; // RH can always edit
 
     // Determinar se pode editar
