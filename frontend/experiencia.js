@@ -822,8 +822,8 @@ async function openExperienciaModal(colaboradorId) {
 
         secao.itens.forEach((item, ii) => {
             const idx = itemGlobalIdx++;
-            const nota = form && form.respostas && form.respostas[`nota_${idx}`] !== undefined ? parseInt(form.respostas[`nota_${idx}`]) : 0;
-            const obs = form && form.respostas && form.respostas[`obs_${idx}`] ? form.respostas[`obs_${idx}`] : '';
+            const notaOld = form && form.respostas && form.respostas[`req_${idx}`] !== undefined ? parseInt(form.respostas[`req_${idx}`]) : 0; const nota = form && form.respostas && form.respostas[`nota_${idx}`] !== undefined ? parseInt(form.respostas[`nota_${idx}`]) : notaOld;
+            const obsOld = form && form.respostas && form.respostas[`obs_req_${idx}`] ? form.respostas[`obs_req_${idx}`] : ''; const obs = form && form.respostas && form.respostas[`obs_${idx}`] !== undefined ? form.respostas[`obs_${idx}`] : obsOld;
             const isReadOnly = situacao === 'finalizado' && !isRH;
 
             const scoreColors = ['', '#dc2626', '#ea580c', '#ca8a04', '#65a30d', '#16a34a'];
@@ -1171,8 +1171,8 @@ window.renderPublicExpForm = function(colab, form, token) {
 
         secao.itens.forEach((item, ii) => {
             const idx = itemGlobalIdx++;
-            const nota = form && form.respostas && form.respostas[`nota_${idx}`] !== undefined ? parseInt(form.respostas[`nota_${idx}`]) : 0;
-            const obs = form && form.respostas && form.respostas[`obs_${idx}`] ? form.respostas[`obs_${idx}`] : '';
+            const notaOld = form && form.respostas && form.respostas[`req_${idx}`] !== undefined ? parseInt(form.respostas[`req_${idx}`]) : 0; const nota = form && form.respostas && form.respostas[`nota_${idx}`] !== undefined ? parseInt(form.respostas[`nota_${idx}`]) : notaOld;
+            const obsOld = form && form.respostas && form.respostas[`obs_req_${idx}`] ? form.respostas[`obs_req_${idx}`] : ''; const obs = form && form.respostas && form.respostas[`obs_${idx}`] !== undefined ? form.respostas[`obs_${idx}`] : obsOld;
 
             const scoreColors = ['', '#dc2626', '#ea580c', '#ca8a04', '#65a30d', '#16a34a'];
             const scoreLabels = ['', '1', '2', '3', '4', '5'];
