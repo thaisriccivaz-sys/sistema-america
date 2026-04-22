@@ -7423,7 +7423,7 @@ app.post('/api/experiencia/enviar-email/:id', authenticateToken, (req, res) => {
                    d.responsavel_id,
                    (SELECT email_corporativo FROM colaboradores WHERE id = d.responsavel_id) as resp_email,
                    (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as resp_nome,
-                   ef.id as form_id
+                   ef.id as form_id, ef.situacao
             FROM colaboradores c
             LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento))
             LEFT JOIN experiencia_formularios ef ON ef.colaborador_id = c.id
@@ -7432,12 +7432,11 @@ app.post('/api/experiencia/enviar-email/:id', authenticateToken, (req, res) => {
         if (!r) return res.status(404).json({ error: 'Colaborador não encontrado' });
         
         const emailDestino = r.resp_email;
+        const prazos = calcPrazoExp(r.data_admissao);
+        const diasRestantes = prazos ? Math.ceil((new Date(prazos.prazo2_fim + 'T23:59:59') - new Date()) / 86400000) : '-';
         if (!emailDestino) return res.status(400).json({ error: 'Responsável do departamento não possui e-mail cadastrado.' });
         if (r.situacao === 'finalizado') return res.status(400).json({ error: 'O formulário já foi respondido e finalizado.' });
         if (diasRestantes !== '-' && diasRestantes < 0) return res.status(400).json({ error: 'O prazo de experiência deste colaborador já expirou.' });
-        
-        const prazos = calcPrazoExp(r.data_admissao);
-        const diasRestantes = prazos ? Math.ceil((new Date(prazos.prazo2_fim + 'T23:59:59') - new Date()) / 86400000) : '-';
 
         try {
             const transporter = nodemailer.createTransport(SMTP_CONFIG);
@@ -7619,7 +7618,7 @@ app.post('/api/experiencia/cron/forcar', authenticateToken, async (req, res) => 
                    d.responsavel_id,
                    (SELECT email_corporativo FROM colaboradores WHERE id = d.responsavel_id) as resp_email,
                    (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as resp_nome,
-                   ef.id as form_id
+                   ef.id as form_id, ef.situacao
             FROM colaboradores c
             LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento))
             LEFT JOIN experiencia_formularios ef ON ef.colaborador_id = c.id
