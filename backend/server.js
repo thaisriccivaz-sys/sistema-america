@@ -7241,49 +7241,120 @@ app.get('/api/experiencia/publico/info', (req, res) => {
     }
 });
 
+// Formulários por departamento (espelho do frontend) — usado para mapear nota_X -> texto da pergunta
+const FORMULARIOS_EXP = {
+    'Manutenção': { secoes: [
+        { nome: '1. DISCIPLINA E CUMPRIMENTO DE ROTINA', itens: ['Evita faltas não justificadas.','Mantém baixo número de faltas justificadas.','Comunica qualquer falta ou atraso com antecedência.','Evita saídas longas do posto de trabalho durante o dia.','Realiza todas as atividades com agilidade, evitando ociosidade durante uma atividade.','Mantém organização das atividades ao longo do dia.'] },
+        { nome: '2. QUALIDADE DO SERVIÇO', itens: ['Executa as atividades com cuidado e capricho.','Segue corretamente as orientações recebidas.','Demonstra atenção aos detalhes nas manutenções realizadas.','Verifica o serviço após a conclusão para evitar retrabalho.','Utiliza corretamente ferramentas e materiais.','Comunica quando identifica falhas ou necessidade de ajuste.'] },
+        { nome: '3. SEGURANÇA', itens: ['Utiliza corretamente os EPIs.','Respeita normas e procedimentos de segurança.','Tem atenção ao manusear ferramentas e equipamentos.','Comunica situações de risco ou condições inseguras.','Evita improvisações que possam gerar risco.','Demonstra responsabilidade com a própria segurança e a dos colegas.'] },
+        { nome: '4. ORGANIZAÇÃO E FERRAMENTAS', itens: ['Mantém ferramentas e materiais organizados após o uso.','Zela pelos equipamentos da empresa.','Mantém o local de trabalho limpo e organizado.','Evita perdas ou extravios de materiais.','Sabe identificar e separar corretamente cada ferramenta.','Comunica quando alguma ferramenta está danificada ou faltando.'] },
+        { nome: '5. COMPORTAMENTO E RELACIONAMENTO', itens: ['Mantém comunicação cordial e respeitosa com logística, liderança e equipe.','Aceita orientações e feedback sem resistência, buscando melhorar.','Mantém postura e apresentação adequadas (uniforme limpo, higiene e comportamento profissional).','Mantém postura profissional no ambiente de trabalho, evitando brincadeiras inadequadas e conflitos.','Respeita a hierarquia de modo geral.','Tem bom comportamento em confraternizações e reuniões.'] }
+    ]},
+    'Motorista': { secoes: [
+        { nome: '1. DISCIPLINA E CUMPRIMENTO DE ROTINA', itens: ['Evita faltas não justificadas.','Mantém baixo número de faltas justificadas.','Comunica qualquer falta ou atraso com antecedência.','Sai pontualmente para a rota no horário programado.','Realiza os atendimentos com agilidade garantindo que todos os clientes sejam atendidos.','É comprometido e flexível para realizar escalas extras quando solicitado.'] },
+        { nome: '2. CONDUÇÃO E CUIDADO COM O VEÍCULO', itens: ['Cuida do correto abastecimento do veículo conforme orientação.','Respeita as regras de trânsito, evitando multas e advertências.','Mantém postura profissional no trânsito, evitando conflitos e discussões.','Mantém a limpeza e organização do veículo ao final da rota.','Comunica imediatamente qualquer ruído, falha mecânica ou sinal de problema no veículo.','Mantém atenção durante a direção, evitando distrações.'] },
+        { nome: '3. OPERAÇÃO E SERVIÇO', itens: ['Realiza corretamente a sucção de dejetos, seguindo o padrão da empresa.','Evita desperdício de insumos e utiliza os recursos com consciência.','Demonstra atenção e cuidado com a segurança no manuseio de resíduos.','Mantém organização e limpeza do local após finalizar a operação.','Mantém postura profissional no manuseio de dejetos, sem demonstrar nojo.','Utiliza corretamente os EPIs obrigatórios durante as operações.'] },
+        { nome: '4. PROCESSOS, CONTROLES E DOCUMENTOS', itens: ['Demonstra facilidade na utilização das ferramentas e sistemas.','Preenche corretamente o checklist do veículo.','Garante que o registro do atendimento seja feito corretamente no aplicativo.','Comunica a logística antes de registrar falha no sistema.','Responde as mensagens e ligações de forma ágil e direta.','Está atento ao resumo da rota antes da saída pela manhã.'] },
+        { nome: '5. COMPORTAMENTO E RELACIONAMENTO', itens: ['Mantém comunicação cordial e respeitosa com logística, liderança e equipe.','Aceita orientações e feedback sem resistência, buscando melhorar.','Mantém postura e apresentação adequadas (uniforme limpo, higiene e comportamento profissional).','Mantém postura profissional com o cliente, evitando conflitos e preservando a imagem da empresa.','Respeita a hierarquia de modo geral.','Tem bom comportamento em confraternizações e reuniões.'] }
+    ]},
+    'Ajudante Geral': { secoes: [
+        { nome: '1. DISCIPLINA E CUMPRIMENTO DE ROTINA', itens: ['Evita faltas não justificadas.','Mantém baixo número de faltas justificadas.','Comunica qualquer falta ou atraso com antecedência.','Sai pontualmente para a rota no horário programado.','Realiza os atendimentos da rota com agilidade e bom ritmo.','É comprometido e flexível para realizar escalas extras quando solicitado.'] },
+        { nome: '2. CUIDADO COM OS MATERIAIS', itens: ['Demonstra cuidado ao entrar e sair do veículo.','Tem atenção ao abrir portas, caçamba ou equipamentos para não causar avarias.','Evita apoiar materiais ou ferramentas que possam riscar ou danificar o veículo.','Utiliza corretamente e preserva mangueiras, conexões e acessórios da operação.','Mostra interesse em preservar o patrimônio da empresa.','Utiliza os equipamentos e máquinas da empresa com cuidado e atenção, seguindo as orientações.'] },
+        { nome: '3. OPERAÇÃO E SERVIÇO', itens: ['Realiza corretamente a sucção de dejetos e a lavagem dos banheiros, seguindo o padrão.','Apresenta proatividade ao retornar cedo da rota.','Demonstra atenção e cuidado com a segurança no manuseio de resíduos.','Mantém organização e limpeza do local após finalizar a operação.','Mantém postura profissional no manuseio de dejetos, sem demonstrar nojo.','Utiliza corretamente os EPIs obrigatórios durante as operações.'] },
+        { nome: '4. APOIO AO MOTORISTA', itens: ['Mantém atenção ao trânsito durante a rota, alertando o motorista sobre riscos.','Auxilia o motorista com segurança em manobras (sinalização e orientação de espaço).','Segue orientações do motorista com a operação.','Auxilia o motorista a aprontar o veículo para rápida saída da rota.','Auxilia o motorista a finalizar a rota e alocar os materiais em seus devidos lugares.','Auxilia motorista no uso de aplicativo, evitando que ele utilize o celular enquanto dirige e outras situações.'] },
+        { nome: '5. COMPORTAMENTO E RELACIONAMENTO', itens: ['Mantém comunicação cordial e respeitosa com logística, liderança e equipe.','Aceita orientações e feedback sem resistência, buscando melhorar.','Mantém postura e apresentação adequadas (uniforme limpo, higiene e comportamento profissional).','Mantém postura profissional com o cliente, evitando conflitos e preservando a imagem da empresa.','Respeita a hierarquia de modo geral.','Tem bom comportamento em confraternizações e reuniões.'] }
+    ]},
+    'Comercial': { secoes: [
+        { nome: '1. DISCIPLINA E CUMPRIMENTO DE ROTINA', itens: ['Evita faltas não justificadas.','Mantém baixo número de faltas justificadas.','Comunica qualquer falta ou atraso com antecedência.','Evita saídas longas do posto de trabalho durante o dia.','Realiza os atendimentos com agilidade garantindo que todos os clientes sejam atendidos.','Mantém organização das atividades ao longo do dia.'] },
+        { nome: '2. COMUNICAÇÃO E ATENDIMENTO', itens: ['Apresenta boa escrita e clareza em mensagens, evitando erros e ruídos de comunicação.','Tem o perfil de encantamento do cliente, tentando ajudar e demostrando interesse.','Consegue explicar informações básicas de produtos ou serviços.','Consegue explicar informações complexas de produtos ou serviços.','Consegue lidar com reclamações e situações difíceis com calma, educação e foco em solução.','Tem agilidade no atendimento, respondendo rapidamente o cliente.'] },
+        { nome: '3. ORGANIZAÇÃO E ROTINAS', itens: ['Utiliza corretamente sistemas garantindo a integridade dos processos.','Cumpre prazos e mantém controles sobre retorno a clientes e colegas.','Tem fácil aprendizado para novas atividades.','Demonstra atenção ao preencher cadastros e propostas e contratos.','Mantém registros e informações atualizadas no sistema.','Acompanha follow-up de clientes (retornos, cobranças e pendências) sem deixar oportunidades morrerem.'] },
+        { nome: '4. RESULTADOS E PROATIVIDADE', itens: ['Demonstra iniciativa para ajudar nas demandas.','Contribui para organização de metas, orçamentos ou relatórios.','Apresenta habilidade e agilidade no uso de computadores e na execução das tarefas.','Consegue executar tarefas sem necessidade constante de supervisão.','Demonstra capacidade de identificar oportunidades de venda (novos clientes, renovação e reativação).','Busca atingir metas e acompanhar resultados do setor.'] },
+        { nome: '5. COMPORTAMENTO E RELACIONAMENTO', itens: ['Mantém comunicação cordial e respeitosa com logística, liderança e equipe.','Aceita orientações e feedback sem resistência, buscando melhorar.','Mantém postura e apresentação adequadas (uniforme limpo, higiene e comportamento profissional).','Mantém postura profissional no ambiente de trabalho, evitando brincadeiras inadequadas e conflitos.','Respeita a hierarquia de modo geral.','Tem bom comportamento em confraternizações e reuniões.'] }
+    ]},
+    'Geral': { secoes: [
+        { nome: '1. DISCIPLINA E CUMPRIMENTO DE ROTINA', itens: ['Evita faltas não justificadas.','Mantém baixo número de faltas justificadas.','Comunica qualquer falta ou atraso com antecedência.','Cumpre o horário de trabalho estabelecido.','Realiza suas atividades com agilidade e organização.','É comprometido com suas responsabilidades.'] },
+        { nome: '2. QUALIDADE E DESEMPENHO', itens: ['Executa as atividades com cuidado e capricho.','Segue corretamente as orientações recebidas.','Demonstra atenção aos detalhes nas tarefas realizadas.','Busca melhorar continuamente suas habilidades.','Entrega resultados dentro do prazo esperado.','Demonstra iniciativa para resolver problemas.'] },
+        { nome: '3. COMPORTAMENTO E RELACIONAMENTO', itens: ['Mantém comunicação cordial e respeitosa com a equipe.','Aceita orientações e feedback sem resistência, buscando melhorar.','Mantém postura e apresentação adequadas.','Mantém postura profissional no ambiente de trabalho.','Respeita a hierarquia de modo geral.','Tem bom comportamento em confraternizações e reuniões.'] }
+    ]}
+};
+
+function getFormularioExpBackend(departamento) {
+    if (!departamento) return FORMULARIOS_EXP['Geral'];
+    const d = departamento.trim();
+    if (FORMULARIOS_EXP[d]) return FORMULARIOS_EXP[d];
+    for (const key of Object.keys(FORMULARIOS_EXP)) {
+        if (d.toLowerCase().includes(key.toLowerCase()) || key.toLowerCase().includes(d.toLowerCase())) return FORMULARIOS_EXP[key];
+    }
+    return FORMULARIOS_EXP['Geral'];
+}
+
 async function gerarESalvarPDFExperiencia(colab, respostas, pontuacao, situacao_avaliacao, comentarios) {
     try {
         const htmlPdf = require('html-pdf-node');
         const fs = require('fs');
         const path = require('path');
-        
-        let htmlRespostas = '';
-        if (respostas) {
-            for (const [pergunta, resp] of Object.entries(respostas)) {
-                htmlRespostas += `<p><strong>${pergunta}:</strong> ${resp}</p>`;
+
+        const scoreColors = { 1: '#dc2626', 2: '#ea580c', 3: '#ca8a04', 4: '#65a30d', 5: '#16a34a' };
+        const scoreLabels = { 1: '1 – Muito Ruim', 2: '2 – Ruim', 3: '3 – Médio', 4: '4 – Bom', 5: '5 – Muito Bom' };
+
+        const formulario = getFormularioExpBackend(colab.departamento || colab.cargo || '');
+        let itemIdx = 0;
+        let secoesHtml = '';
+        let totalGeral = 0;
+
+        for (const secao of formulario.secoes) {
+            let linhasHtml = '';
+            let totalSecao = 0;
+            for (const item of secao.itens) {
+                const nota = parseInt((respostas || {})[`nota_${itemIdx}`]) || 0;
+                const cor = scoreColors[nota] || '#94a3b8';
+                const label = scoreLabels[nota] || '-';
+                linhasHtml += `<tr><td style="padding:6px 10px;border:1px solid #e2e8f0;font-size:0.85rem;color:#334155;">${item}</td><td style="text-align:center;padding:6px 10px;border:1px solid #e2e8f0;"><span style="display:inline-block;background:${cor};color:#fff;font-weight:700;border-radius:20px;padding:2px 12px;font-size:0.8rem;min-width:90px;text-align:center;">${label}</span></td></tr>`;
+                totalSecao += nota;
+                totalGeral += nota;
+                itemIdx++;
             }
+            const maxSecao = secao.itens.length * 5;
+            const pctSecao = maxSecao > 0 ? (totalSecao / maxSecao * 100).toFixed(0) : 0;
+            secoesHtml += `<div style="margin-bottom:20px;"><div style="background:#1e3a5f;color:#fff;padding:8px 14px;border-radius:6px 6px 0 0;font-weight:700;font-size:0.85rem;display:flex;justify-content:space-between;"><span>${secao.nome}</span><span>Total: ${totalSecao} / ${maxSecao} (${pctSecao}%)</span></div><table style="width:100%;border-collapse:collapse;"><thead><tr><th style="text-align:left;padding:7px 10px;background:#f1f5f9;color:#475569;font-size:0.8rem;border:1px solid #e2e8f0;">Ponto Avaliado</th><th style="width:160px;text-align:center;padding:7px 10px;background:#f1f5f9;color:#475569;font-size:0.8rem;border:1px solid #e2e8f0;">Nota</th></tr></thead><tbody>${linhasHtml}</tbody></table></div>`;
         }
 
-        const html = `<!DOCTYPE html>
-        <html><head><meta charset="UTF-8"><style>
-        body { font-family: Arial, sans-serif; padding: 40px; color: #333; }
-        h1 { color: #0f4c81; border-bottom: 2px solid #2db0d8; padding-bottom: 10px; }
-        h2 { color: #333; margin-top: 20px; font-size: 1.2rem; }
-        .info { background: #f1f5f9; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 0.95rem; }
-        .info p { margin: 5px 0; }
-        .respostas { margin-top: 20px; font-size: 0.9rem; }
-        </style></head>
-        <body>
-            <h1>Avaliação de Experiência</h1>
-            <div class="info">
-                <p><strong>Colaborador:</strong> ${colab.nome_completo || ''}</p>
-                <p><strong>Cargo:</strong> ${colab.cargo || ''}</p>
-                <p><strong>Departamento:</strong> ${colab.departamento || ''}</p>
-                <p><strong>Data de Admissão:</strong> ${colab.data_admissao || ''}</p>
-                <p><strong>Responsável pela Avaliação:</strong> ${colab.responsavel_nome || ''}</p>
-            </div>
-            <h2>Resultado da Avaliação</h2>
-            <div class="info">
-                <p><strong>Situação:</strong> ${situacao_avaliacao || 'Pendente'}</p>
-                <p><strong>Pontuação Total:</strong> ${pontuacao || 0}</p>
-            </div>
-            <h2>Comentários Adicionais</h2>
-            <p>${comentarios || 'Nenhum comentário adicionado.'}</p>
-            <h2>Respostas do Formulário</h2>
-            <div class="respostas">
-                ${htmlRespostas}
-            </div>
+        const maxTotal = itemIdx * 5;
+        const situacaoCor = situacao_avaliacao === 'Aprovado' ? '#059669' : situacao_avaliacao === 'Reprovado' ? '#dc2626' : '#64748b';
+        const dataHoje = new Date().toLocaleDateString('pt-BR');
+
+        const logoUrl = 'https://sistema-america.onrender.com/logo.png';
+
+        const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
+        body { font-family: Arial, sans-serif; padding: 30px 40px; color: #1e293b; font-size:13px; }
+        .header-logo { text-align:center; margin-bottom:18px; }
+        .header-logo img { max-height:70px; }
+        .titulo { text-align:center; font-size:1.2rem; font-weight:800; color:#1e3a5f; margin-bottom:4px; }
+        .subtitulo { text-align:center; color:#64748b; font-size:0.85rem; margin-bottom:20px; }
+        .info-box { background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:14px 18px; margin-bottom:20px; display:grid; grid-template-columns:1fr 1fr; gap:8px 24px; }
+        .info-label { font-size:0.7rem; color:#94a3b8; font-weight:700; text-transform:uppercase; margin-bottom:2px; }
+        .info-value { font-weight:700; color:#0f172a; }
+        .resultado-box { display:flex; gap:20px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:14px 18px; margin-top:20px; }
+        </style></head><body>
+        <div class="header-logo"><img src="${logoUrl}" onerror="this.style.display='none'" /></div>
+        <div class="titulo">AVALIAÇÃO DE PERÍODO DE EXPERIÊNCIA</div>
+        <div class="subtitulo">Segundo Prazo (45+45 dias) — Documento gerado em ${dataHoje}</div>
+        <div class="info-box">
+            <div><div class="info-label">Colaborador</div><div class="info-value">${colab.nome_completo || ''}</div></div>
+            <div><div class="info-label">Cargo</div><div class="info-value">${colab.cargo || ''}</div></div>
+            <div><div class="info-label">Departamento</div><div class="info-value">${colab.departamento || ''}</div></div>
+            <div><div class="info-label">Data de Admissão</div><div class="info-value">${colab.data_admissao || ''}</div></div>
+            <div><div class="info-label">Responsável pela Avaliação</div><div class="info-value">${colab.responsavel_nome || ''}</div></div>
+        </div>
+        ${secoesHtml}
+        <div class="resultado-box">
+            <div style="text-align:center;min-width:120px;"><div class="info-label">PONTUAÇÃO TOTAL</div><div style="font-size:2rem;font-weight:800;color:#1e3a5f;">${pontuacao || totalGeral}</div><div style="color:#94a3b8;font-size:0.8rem;">/ ${maxTotal}</div></div>
+            <div style="flex:1;"><div class="info-label">SITUAÇÃO</div><div style="font-size:1.1rem;font-weight:800;color:${situacaoCor};margin-top:4px;">${situacao_avaliacao || '—'}</div></div>
+            <div style="flex:2;"><div class="info-label">COMENTÁRIOS</div><div style="margin-top:4px;color:#334155;">${comentarios || 'Nenhum comentário.'}</div></div>
+        </div>
         </body></html>`;
+
+
 
         const options = { format: 'A4', margin: { top: '20px', bottom: '20px', left: '20px', right: '20px' } };
         const fileBuffer = await htmlPdf.generatePdf({ content: html }, options);
@@ -7401,7 +7472,7 @@ app.get('/api/experiencia', authenticateToken, (req, res) => {
     });
 });
 
-// GET /api/experiencia/:colaborador_id — Detalhes + formulário
+// GET /api/experiencia/:colaborador_id — Detalhes + formulário (must come AFTER /notificacoes routes)
 app.get('/api/experiencia/:colaborador_id', authenticateToken, (req, res) => {
     const { colaborador_id } = req.params;
     db.get(`SELECT c.*, 
@@ -7495,6 +7566,7 @@ app.put('/api/experiencia/formulario/:id', authenticateToken, (req, res) => {
     );
 });
 
+// *** IMPORTANT: These specific routes must be placed BEFORE /api/experiencia/:colaborador_id ***
 // GET /api/experiencia/notificacoes/pendentes — Polling para popup de RH
 app.get('/api/experiencia/notificacoes/pendentes', authenticateToken, (req, res) => {
     db.all(`SELECT * FROM experiencia_notificacoes_pendentes WHERE lido = 0 ORDER BY criado_em DESC LIMIT 20`, [], (err, rows) => {

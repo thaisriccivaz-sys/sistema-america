@@ -10813,6 +10813,11 @@ async function checkExperienciaNotificacoes() {
                     headers: { 'Authorization': `Bearer ${token}` }
                 }).catch(() => {});
                 
+                // Refresh experiencia list if currently visible
+                if (typeof window.loadExperiencia === 'function' && document.getElementById('view-experiencia')) {
+                    setTimeout(() => window.loadExperiencia(), 1000);
+                }
+                
                 // Auto-close after 30s
                 setTimeout(() => { if (popup.parentNode) popup.remove(); }, 30000);
             } catch(parseErr) { /* skip malformed */ }
