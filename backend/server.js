@@ -248,9 +248,23 @@ db.run("ALTER TABLE colaboradores ADD COLUMN tamanho_calcado TEXT", (err) => {
     if (err && !err.message.includes('duplicate column')) console.error(err);
 });
 
-// Exclusão forçada dos contratos legados
-db.run("DELETE FROM geradores WHERE UPPER(TRIM(nome)) LIKE '%AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO%' OR UPPER(TRIM(nome)) LIKE '%ORDEM DE SERVIÇO NR01%' OR UPPER(TRIM(nome)) LIKE '%BLOQUEIO DE FARMÁCIA E MERCADO%'", (err) => {
-    if (err) console.error("Erro ao excluir contratos legados:", err);
+// Exclusão forçada dos contratos legados (resolvendo problema de acentuação no SQLite)
+db.all("SELECT id, nome FROM geradores", [], (err, rows) => {
+    if (!err && rows) {
+        rows.forEach(row => {
+            const nLower = (row.nome || '').toLowerCase().trim();
+            if (nLower.includes('autorização de desconto') || 
+                nLower.includes('autorizacao de desconto') ||
+                nLower.includes('ordem de serviço nr01') || 
+                nLower.includes('ordem de servico nr01') ||
+                nLower.includes('bloqueio de farmácia') ||
+                nLower.includes('bloqueio de farmacia')) {
+                db.run("DELETE FROM geradores WHERE id = ?", [row.id], (e) => {
+                    if (e) console.error("Erro ao apagar:", e);
+                });
+            }
+        });
+    }
 });
 
 // MIGRATION: Garantir que os geradores baseados em perfil do colaborador existam no banco
