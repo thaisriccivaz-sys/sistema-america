@@ -5123,6 +5123,15 @@ window.renderASOTab = function(container, filteredDocs) {
             </h4>
             ${noticeHtml}
             <div style="display:flex; gap:0.75rem; align-items:flex-end; flex-wrap:wrap;">
+                <div class="input-group" style="width:170px; flex-shrink:0; margin-bottom:0;">
+                    <label style="font-size:0.75rem; font-weight:700;">Tipo de Exame</label>
+                    <select id="aso-tipo-exame-tab" style="padding:0.5rem; font-size:0.85rem; height:38px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; outline:none;">
+                        <option value="Admissional">Admissional</option>
+                        <option value="Periódico">Periódico</option>
+                        <option value="Demissional">Demissional</option>
+                        <option value="Retorno">Retorno</option>
+                    </select>
+                </div>
                 <div class="input-group" style="width:160px; flex-shrink:0; margin-bottom:0;">
                     <label style="font-size:0.75rem; font-weight:700;">Data Agendada</label>
                     <input type="date" id="aso-exame-data-tab" style="padding:0.5rem; font-size:0.85rem; height:38px;"
@@ -5155,6 +5164,7 @@ window.sendASOEmailTab = async function() {
 
     const dataExame  = document.getElementById('aso-exame-data-tab').value;
     const destinatario = document.getElementById('aso-email-dest-tab').value;
+    const tipoExame = (document.getElementById('aso-tipo-exame-tab') || {}).value || 'Admissional';
     if (!dataExame) { alert('Selecione a data do exame.'); return; }
 
     const [y, m, d] = dataExame.split('-');
@@ -5164,7 +5174,8 @@ window.sendASOEmailTab = async function() {
         ? 'Exames Complementares, acuidade visual, E.E.G, E.C.G e Glicemia.'
         : 'Exame Padrão';
 
-    const mailBody = `Título: Exame Médico\n\nSegue abaixo as informações para a realização do exame do colaborador.\n\nData: ${dt}\nNome: ${viewedColaborador.nome_completo || viewedColaborador.nome}\nCPF: ${viewedColaborador.cpf || '-'}\nFunção: ${viewedColaborador.cargo || '-'}\nDepartamento: ${viewedColaborador.departamento || '-'}\n\nExames:\n${exames}\n\n⚠️ IMPORTANTE:\nApós o exame ficar pronto, favor enviar o documento por e-mail para: rh@americarental.com.br`;
+    const mailBody = `Título: Exame Médico ${tipoExame}\n\nSegue abaixo as informações para a realização do exame do colaborador.\n\nTipo de Exame: ${tipoExame}\nData: ${dt}\nNome: ${viewedColaborador.nome_completo || viewedColaborador.nome}\nCPF: ${viewedColaborador.cpf || '-'}\nFunção: ${viewedColaborador.cargo || '-'}\nDepartamento: ${viewedColaborador.departamento || '-'}\n\nExames:\n${exames}\n\n⚠️ IMPORTANTE:\nApós o exame ficar pronto, favor enviar o documento por e-mail para: rh@americarental.com.br`;
+
 
     const btn = document.getElementById('btn-enviar-aso-email-tab');
     const originalContent = btn.innerHTML;
