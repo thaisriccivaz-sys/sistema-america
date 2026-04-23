@@ -249,7 +249,7 @@ db.run("ALTER TABLE colaboradores ADD COLUMN tamanho_calcado TEXT", (err) => {
 });
 
 // Exclusão forçada dos contratos legados
-db.run("DELETE FROM geradores WHERE nome IN ('AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO', 'ORDEM DE SERVIÇO NR01')", (err) => {
+db.run("DELETE FROM geradores WHERE UPPER(TRIM(nome)) LIKE '%AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO%' OR UPPER(TRIM(nome)) LIKE '%ORDEM DE SERVIÇO NR01%' OR UPPER(TRIM(nome)) LIKE '%BLOQUEIO DE FARMÁCIA E MERCADO%'", (err) => {
     if (err) console.error("Erro ao excluir contratos legados:", err);
 });
 
@@ -262,7 +262,6 @@ const GERADORES_PERFIL = [
     'Contrato Faculdade',
     'Contrato Academia',
     'Contrato Intermitente',
-    'Bloqueio de Farmácia e Mercado',
     'Compartilhamento de Dados',
     'Recebimento de Regimento Interno',
     'Regras Sorteio Final de Ano',
