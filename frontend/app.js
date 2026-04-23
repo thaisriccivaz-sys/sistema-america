@@ -5579,7 +5579,6 @@ window.uploadAtestadoWithCID = async function(inputEl) {
     formData.append('year', year);
 
     // Campos de período
-    const tipo = document.getElementById('atestado_tipo').value;
     formData.append('atestado_tipo', tipo);
     if (tipo === 'dias') {
         const inicioVal = document.getElementById('atestado_inicio_dia').value;
