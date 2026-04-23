@@ -6746,7 +6746,6 @@ window.renderGeradoresList = function(items) {
                 <div style="display:flex; gap:0.5rem; justify-content:flex-end;">
                     <button class="btn btn-primary btn-sm" onclick="window.abrirModalSelecaoColab(${g.id})" title="Visualizar"><i class="ph ph-eye"></i></button>
                     <button class="btn btn-warning btn-sm" onclick="window.editGerador(${g.id})" title="Editar"><i class="ph ph-pencil-simple"></i></button>
-                    ${!prot ? `<button class="btn btn-danger btn-sm" onclick="window.deleteGerador(${g.id})" title="Excluir"><i class="ph ph-trash"></i></button>` : ''}
                 </div>
             </td>
         </tr>`;

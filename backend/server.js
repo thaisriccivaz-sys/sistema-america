@@ -248,6 +248,10 @@ db.run("ALTER TABLE colaboradores ADD COLUMN tamanho_calcado TEXT", (err) => {
     if (err && !err.message.includes('duplicate column')) console.error(err);
 });
 
+// Exclusão forçada dos contratos legados
+db.run("DELETE FROM geradores WHERE nome IN ('AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO', 'ORDEM DE SERVIÇO NR01')", (err) => {
+    if (err) console.error("Erro ao excluir contratos legados:", err);
+});
 
 // MIGRATION: Garantir que os geradores baseados em perfil do colaborador existam no banco
 const GERADORES_PERFIL = [
