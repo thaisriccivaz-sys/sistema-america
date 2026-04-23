@@ -263,7 +263,6 @@ const GERADORES_PERFIL = [
     'Responsabilidade Equipamento',
     'Responsabilidade Veículo',
     'Termo de Confidencialidade',
-    'Termo de Responsabilidade - Sinistro',
     'Sinistro - Danos em Terceiros e Nosso',
     'Sinistro - Danos em Terceiros',
     'Sinistro - Danos no Nosso Veículo',
@@ -7890,7 +7889,8 @@ app.listen(PORT, () => {
                         nLower.includes('ordem de serviço nr01') || 
                         nLower.includes('ordem de servico nr01') ||
                         nLower.includes('bloqueio de farmácia') ||
-                        nLower.includes('bloqueio de farmacia')) {
+                        nLower.includes('bloqueio de farmacia') ||
+                        nLower === 'termo de responsabilidade - sinistro') {
                         
                         db.run("DELETE FROM geradores WHERE id = ?", [row.id], (e) => {
                             if (e) console.error("[ERRO EXCLUSÃO] ", e);
