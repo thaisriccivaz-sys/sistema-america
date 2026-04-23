@@ -248,25 +248,6 @@ db.run("ALTER TABLE colaboradores ADD COLUMN tamanho_calcado TEXT", (err) => {
     if (err && !err.message.includes('duplicate column')) console.error(err);
 });
 
-// Exclusão forçada dos contratos legados (resolvendo problema de acentuação no SQLite)
-db.all("SELECT id, nome FROM geradores", [], (err, rows) => {
-    if (!err && rows) {
-        rows.forEach(row => {
-            const nLower = (row.nome || '').toLowerCase().trim();
-            if (nLower.includes('autorização de desconto') || 
-                nLower.includes('autorizacao de desconto') ||
-                nLower.includes('ordem de serviço nr01') || 
-                nLower.includes('ordem de servico nr01') ||
-                nLower.includes('bloqueio de farmácia') ||
-                nLower.includes('bloqueio de farmacia')) {
-                db.run("DELETE FROM geradores WHERE id = ?", [row.id], (e) => {
-                    if (e) console.error("Erro ao apagar:", e);
-                });
-            }
-        });
-    }
-});
-
 // MIGRATION: Garantir que os geradores baseados em perfil do colaborador existam no banco
 const GERADORES_PERFIL = [
     'Termo de NÃO Interesse Terapia',
@@ -282,7 +263,11 @@ const GERADORES_PERFIL = [
     'Responsabilidade Equipamento',
     'Responsabilidade Veículo',
     'Termo de Confidencialidade',
-    'Termo de Responsabilidade - Sinistro'
+    'Termo de Responsabilidade - Sinistro',
+    'Sinistro - Danos em Terceiros e Nosso',
+    'Sinistro - Danos em Terceiros',
+    'Sinistro - Danos no Nosso Veículo',
+    'Sinistro - Outros Danos'
 ];
 GERADORES_PERFIL.forEach(nome => {
     // Verifica se o gerador foi excluido manualmente pelo usuario
@@ -7891,4 +7876,34 @@ app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
     console.log('Versão do Servidor: V30_EXPERIENCIA_MODULE');
     console.log(`Caminho de Armazenamento Local: ${BASE_UPLOAD_PATH}`);
+    
+    // EXCLUSÃO CIRÚRGICA DE CONTRATOS LEGADOS APÓS INICIALIZAÇÃO DO SERVIDOR
+    setTimeout(() => {
+        console.log('[SISTEMA] Varredura de exclusão de contratos legados iniciada...');
+        db.all("SELECT id, nome FROM geradores", [], (err, rows) => {
+            if (!err && rows) {
+                let deletedCount = 0;
+                rows.forEach(row => {
+                    const nLower = (row.nome || '').toLowerCase().trim();
+                    if (nLower.includes('autorização de desconto') || 
+                        nLower.includes('autorizacao de desconto') ||
+                        nLower.includes('ordem de serviço nr01') || 
+                        nLower.includes('ordem de servico nr01') ||
+                        nLower.includes('bloqueio de farmácia') ||
+                        nLower.includes('bloqueio de farmacia')) {
+                        
+                        db.run("DELETE FROM geradores WHERE id = ?", [row.id], (e) => {
+                            if (e) console.error("[ERRO EXCLUSÃO] ", e);
+                            else {
+                                deletedCount++;
+                                console.log(`[SUCESSO] Contrato '${row.nome}' excluído com sucesso!`);
+                            }
+                        });
+                    }
+                });
+            } else {
+                console.error("[ERRO DB] Falha ao consultar geradores:", err);
+            }
+        });
+    }, 5000); // Executa 5 segundos após a porta abrir
 });
