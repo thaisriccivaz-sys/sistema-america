@@ -257,7 +257,14 @@ const GERADORES_PERFIL = [
     'Responsabilidade Celular',
     'Contrato Faculdade',
     'Contrato Academia',
-    // 'Termo de Responsabilidade de Chaves' -- removido permanentemente
+    'Contrato Intermitente',
+    'Bloqueio de Farmácia e Mercado',
+    'Compartilhamento de Dados',
+    'Recebimento de Regimento Interno',
+    'Regras Sorteio Final de Ano',
+    'Responsabilidade Equipamento',
+    'Responsabilidade Veículo',
+    'Termo de Confidencialidade'
 ];
 GERADORES_PERFIL.forEach(nome => {
     // Verifica se o gerador foi excluido manualmente pelo usuario
