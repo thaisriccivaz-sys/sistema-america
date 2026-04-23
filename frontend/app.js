@@ -8851,10 +8851,34 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
                 ${actionUX}
                 ${sendBtn}
                 ${eyeBtn}
+                ${(doc.file_name || literallyNaoExige) && !isAssinado ? `<button onclick="window.deleteAdmissaoDoc(${doc.id}, this)" style="border:none;background:none;cursor:pointer;color:#dc2626;" title="Excluir Documento"><i class="ph ph-trash" style="font-size:1.4rem;"></i></button>` : ''}
             </div>
         </div>`;
     });
     return html;
+};
+
+window.deleteAdmissaoDoc = async function(docId, btnEl) {
+    if (!confirm('Tem certeza que deseja excluir este documento?')) return;
+    const card = btnEl ? btnEl.closest('.doc-check-item') : null;
+    if (card) { card.style.opacity = '0.3'; card.style.pointerEvents = 'none'; }
+    try {
+        const res = await fetch(`${API_URL}/admissao-assinaturas/${docId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${currentToken}` }
+        });
+        const data = await res.json();
+        if (res.ok) {
+            if (card) card.remove();
+            if (typeof showToast === 'function') showToast('Documento excluído!', 'success');
+        } else {
+            if (card) { card.style.opacity = '1'; card.style.pointerEvents = ''; }
+            alert('Erro ao excluir: ' + (data.error || 'Tente novamente.'));
+        }
+    } catch(e) {
+        if (card) { card.style.opacity = '1'; card.style.pointerEvents = ''; }
+        alert('Erro de conexão.');
+    }
 };
 
 window.toggleAcaoDocumentoAvulso = function(docId, exige, docType) {

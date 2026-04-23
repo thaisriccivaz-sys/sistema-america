@@ -3353,6 +3353,21 @@ app.delete('/api/documentos/:id', authenticateToken, (req, res) => {
     });
 });
 
+// DELETE /api/admissao-assinaturas/:id — exclui um documento anexado do prontuário (Contrato Academia, etc.)
+app.delete('/api/admissao-assinaturas/:id', authenticateToken, (req, res) => {
+    db.get('SELECT * FROM admissao_assinaturas WHERE id = ?', [req.params.id], (err, row) => {
+        if (err || !row) return res.status(404).json({ error: 'Documento não encontrado' });
+        // Se tiver arquivo local, apaga
+        if (row.file_path && fs.existsSync(row.file_path)) {
+            try { fs.unlinkSync(row.file_path); } catch(e) {}
+        }
+        db.run('DELETE FROM admissao_assinaturas WHERE id = ?', [req.params.id], deleteErr => {
+            if (deleteErr) return res.status(500).json({ error: deleteErr.message });
+            res.json({ message: 'Documento excluído com sucesso' });
+        });
+    });
+});
+
 app.get('/api/documentos/download/:id', authenticateToken, (req, res) => {
     db.get('SELECT * FROM documentos WHERE id = ?', [req.params.id], async (err, row) => {
         if (err || !row) return res.status(404).json({ error: 'Documento não encontrado' });
