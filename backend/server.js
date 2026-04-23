@@ -267,7 +267,8 @@ const GERADORES_PERFIL = [
     'Regras Sorteio Final de Ano',
     'Responsabilidade Equipamento',
     'Responsabilidade Veículo',
-    'Termo de Confidencialidade'
+    'Termo de Confidencialidade',
+    'Termo de Responsabilidade - Sinistro'
 ];
 GERADORES_PERFIL.forEach(nome => {
     // Verifica se o gerador foi excluido manualmente pelo usuario
