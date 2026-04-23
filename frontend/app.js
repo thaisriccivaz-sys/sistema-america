@@ -2776,6 +2776,14 @@ window.resetFormColaborador = function() {
     if (radioChavesNao) { radioChavesNao.checked = true; toggleChavesColabFields('Não'); }
 };
 
+window.abrirEdicaoCadastro = function() {
+    if (viewedColaborador) {
+        window.editColaborador(viewedColaborador.id);
+    } else {
+        alert('Colaborador não carregado corretamente.');
+    }
+};
+
 window.editColaborador = async function(id) {
     // Botão de sincronização manual ocultado (a automação já faz isso ao salvar)
     const formSyncBtn = document.getElementById('btn-form-sync-onedrive');
@@ -5139,7 +5147,7 @@ window.renderASOTab = function(container, filteredDocs) {
                 </div>
                 <div class="input-group" style="flex:1; min-width:200px; margin-bottom:0;">
                     <label style="font-size:0.75rem; font-weight:700;">Destinatário</label>
-                    <input type="email" id="aso-email-dest-tab" value="thais.ricci@americarental.com.br"
+                    <input type="email" id="aso-email-dest-tab" value="recepcao@iacimedtrab.com.br"
                            style="padding:0.5rem; font-size:0.85rem; height:38px;">
                 </div>
                 <button class="btn btn-primary" id="btn-enviar-aso-email-tab"
@@ -5534,8 +5542,11 @@ window.calcAtestadoFim = function() {
 
 window.uploadAtestadoWithCID = async function(inputEl) {
     const file = inputEl.files[0];
-    if (!file || !selectedCID) return;
+    if (!file) return;
     if (!viewedColaborador) { alert('Colaborador não selecionado.'); return; }
+    const tipo = document.getElementById('atestado_tipo')?.value || 'dias';
+    // CID obrigatório apenas para atestados de dias
+    if (tipo === 'dias' && !selectedCID) { alert('Selecione o CID antes de anexar!'); return; }
 
     // Loading state
     const uploadBtn   = document.getElementById('cid-upload-btn');
@@ -5550,9 +5561,12 @@ window.uploadAtestadoWithCID = async function(inputEl) {
     const aa  = String(today.getFullYear()).slice(2);
     const nomeColabNorm = (viewedColaborador.nome_completo || viewedColaborador.nome || 'COLAB')
         .toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]+/g, '_');
-    const customName = `${selectedCID.code}_${nomeColabNorm}_${dd}${mm}${aa}`;
+    // Para horas sem CID, usar nome genérico
+    const cidCode = selectedCID ? selectedCID.code : 'ATESTADO';
+    const cidDesc = selectedCID ? selectedCID.desc : 'Atestado de Horas';
+    const customName = `${cidCode}_${nomeColabNorm}_${dd}${mm}${aa}`;
 
-    const typeIn = `${selectedCID.code} - ${selectedCID.desc.substring(0, 60)}`;
+    const typeIn = selectedCID ? `${cidCode} - ${cidDesc.substring(0, 60)}` : `Atestado de Horas - ${cidDesc.substring(0, 60)}`;
     const year = document.getElementById('atestados_year') ? document.getElementById('atestados_year').value : today.getFullYear().toString();
 
     const formData = new FormData();
@@ -10221,7 +10235,8 @@ window.sendASOEmail = async function() {
         return;
     }
     const dataExame = document.getElementById('aso-exame-data').value;
-    const destinatario = document.getElementById('aso-email-destinatario').value;
+    const destInput = document.getElementById('aso-email-destinatario');
+    const destinatario = destInput ? destInput.value : 'recepcao@iacimedtrab.com.br';
     
     if (!dataExame) {
         alert('Por favor, selecione a data do exame.');
@@ -10245,7 +10260,7 @@ window.sendASOEmail = async function() {
         
         const res = await apiPost('/send-aso-email', {
             colaborador_id: viewedColaborador.id,
-            email_to: destinatario,
+            email_to: destinatario || 'recepcao@iacimedtrab.com.br',
             data_exame: dataExame,
             cc: ['rh@americarental.com.br', 'rh2@americarental.com.br']
         });
@@ -13984,6 +13999,20 @@ window.abrirPopupIniciarProcesso = function(m, colabId) {
     const tipoAtual = m.tipo_resolucao || '';
     const parcAtual = m.parcelas || 1;
 
+    // Calcular valor base da multa
+    const vlrRaw = (m.valor_multa || '').toString().replace('R$','').replace(/\./g,'').replace(',','.').trim();
+    const vlrNum = parseFloat(vlrRaw) || 0;
+    const nicVal = vlrNum * 2;
+
+    // Calcular valor para exibição inicial (se já tinha tipo selecionado)
+    const vlrInicial = tipoAtual === 'nic' ? nicVal : vlrNum;
+
+    // Gerar botões de parcela
+    const gerarBotoesParcela = (vlrCalc) => [1,2,3].map(n => {
+        const vlrParc = vlrCalc > 0 ? `<div class="parc-sublabel" style="font-size:0.72rem;font-weight:500;color:#6d28d9;margin-top:2px;">R$ ${(vlrCalc/n).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>` : '<div class="parc-sublabel"></div>';
+        return `<button id="parc-${n}" onclick="window.selecionarParcelas(${n})" style="flex:1;padding:0.6rem;border-radius:8px;border:2px solid ${parcAtual===n?'#8b5cf6':'#e2e8f0'};background:${parcAtual===n?'#f5f3ff':'#fff'};cursor:pointer;font-weight:700;color:${parcAtual===n?'#8b5cf6':'#334155'};text-align:center;">${n}x${vlrParc}</button>`;
+    }).join('');
+
     modal.innerHTML = `
         <div style="background:#fff;border-radius:16px;padding:2rem;width:100%;max-width:520px;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;">
@@ -14004,19 +14033,14 @@ window.abrirPopupIniciarProcesso = function(m, colabId) {
             </div>
 
             <h4 style="color:#475569;font-size:0.9rem;margin:0 0 0.75rem;">💰 Parcelamento do Desconto</h4>
-            ${(function(){
-                const vlrRaw = (m.valor_multa || '').toString().replace('R$','').replace(/\./g,'').replace(',','.').trim();
-                const vlrNum = parseFloat(vlrRaw) || 0;
-                const nicVal = vlrNum * 2;
-                const nicInfo = vlrNum > 0
-                    ? `<p style="font-size:0.82rem;color:#dc2626;background:#fff5f5;border:1px solid #fca5a5;border-radius:8px;padding:8px 12px;margin:0 0 0.75rem;">⚠️ Valor da Multa NIC: <strong>R$ ${nicVal.toLocaleString('pt-BR',{minimumFractionDigits:2})}</strong> (R$ ${vlrNum.toLocaleString('pt-BR',{minimumFractionDigits:2})} × 2)</p>`
-                    : '';
-                const bots = [1,2,3].map(n => {
-                    const vlrParc = vlrNum > 0 ? `<div style="font-size:0.72rem;font-weight:500;color:#6d28d9;margin-top:2px;">R$ ${(vlrNum/n).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>` : '';
-                    return `<button id="parc-${n}" onclick="window.selecionarParcelas(${n})" style="flex:1;padding:0.6rem;border-radius:8px;border:2px solid ${parcAtual===n?'#8b5cf6':'#e2e8f0'};background:${parcAtual===n?'#f5f3ff':'#fff'};cursor:pointer;font-weight:700;color:${parcAtual===n?'#8b5cf6':'#334155'};text-align:center;">${n}x${vlrParc}</button>`;
-                }).join('');
-                return nicInfo + `<div style="display:flex;gap:10px;margin-bottom:1.5rem;">${bots}</div>`;
-            })()}
+            <!-- hidden: armazena o valor base da multa para cálculos dinâmicos -->
+            <span id="popup-multa-valor" data-valor="${vlrNum}" style="display:none;"></span>
+            <p id="nic-valor-info" style="font-size:0.82rem;color:#dc2626;background:#fff5f5;border:1px solid #fca5a5;border-radius:8px;padding:8px 12px;margin:0 0 0.75rem;display:${tipoAtual==='nic'&&vlrNum>0?'block':'none'};">
+                ⚠️ Valor da Multa NIC: <strong>R$ ${nicVal.toLocaleString('pt-BR',{minimumFractionDigits:2})}</strong> (R$ ${vlrNum.toLocaleString('pt-BR',{minimumFractionDigits:2})} × 2)
+            </p>
+            <div style="display:flex;gap:10px;margin-bottom:1.5rem;">
+                ${gerarBotoesParcela(vlrInicial)}
+            </div>
 
             <button onclick="window.confirmarIniciarProcesso(${m.id}, ${colabId})"
                 style="width:100%;padding:0.85rem;background:linear-gradient(135deg,#f503c5,#8b5cf6);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:1rem;cursor:pointer;">
@@ -14371,6 +14395,33 @@ window.selecionarTipoMulta = function(tipo) {
         btn.style.borderColor = sel ? '#f503c5' : '#e2e8f0';
         btn.style.background  = sel ? '#fdf4ff' : '#fff';
         btn.style.color       = sel ? '#f503c5' : '#334155';
+    });
+
+    // Atualizar valores das parcelas conforme o tipo selecionado
+    const nicInfoEl = document.getElementById('nic-valor-info');
+    const parcBtns = [1,2,3];
+    const multaValorEl = document.getElementById('popup-multa-valor');
+    const vlrBase = multaValorEl ? (parseFloat(multaValorEl.dataset.valor) || 0) : 0;
+    const vlrCalc = tipo === 'nic' ? vlrBase * 2 : vlrBase;
+
+    // Mostrar/ocultar aviso NIC
+    if (nicInfoEl) {
+        if (tipo === 'nic' && vlrBase > 0) {
+            nicInfoEl.style.display = 'block';
+            nicInfoEl.innerHTML = `⚠️ Valor da Multa NIC: <strong>R$ ${vlrCalc.toLocaleString('pt-BR',{minimumFractionDigits:2})}</strong> (R$ ${vlrBase.toLocaleString('pt-BR',{minimumFractionDigits:2})} × 2)`;
+        } else {
+            nicInfoEl.style.display = 'none';
+        }
+    }
+
+    // Atualizar sub-labels dos botoes de parcela
+    parcBtns.forEach(n => {
+        const btn = document.getElementById(`parc-${n}`);
+        if (!btn) return;
+        const sublabel = btn.querySelector('.parc-sublabel');
+        if (sublabel && vlrCalc > 0) {
+            sublabel.textContent = `R$ ${(vlrCalc/n).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
+        }
     });
 };
 
