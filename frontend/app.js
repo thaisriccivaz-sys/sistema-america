@@ -5185,8 +5185,9 @@ window.sendASOEmailTab = async function() {
 
         const res = await apiPost('/send-aso-email', {
             colaborador_id: viewedColaborador.id,
-            email_to: destinatario,
+            email_to: destinatario || 'recepcao@iacimedtrab.com.br',
             data_exame: dataExame,
+            tipo_exame: tipoExame,
             cc: ['rh@americarental.com.br', 'rh2@americarental.com.br']
         });
 
@@ -5404,8 +5405,8 @@ window.renderAtestadosTab = function(container, filteredDocs) {
                     </select>
                 </div>
                 
-                <!-- CID-10 -->
-                <div class="cid-input-group" style="flex:2; min-width:150px; position:relative;">
+                <!-- CID-10 (oculto para horas, visível para dias) -->
+                <div class="cid-input-group" id="cid-input-wrapper" style="flex:2; min-width:150px; position:relative;">
                     <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;"><i class="ph ph-magnifying-glass"></i> CID-10</label>
                     <input type="text" id="cid-search" class="form-control" placeholder="J06 - Outros exames..." autocomplete="off" oninput="searchCID(this.value)" style="padding:.4rem;">
                     <div id="cid-dropdown" class="cid-dropdown" style="display:none;"></div>
@@ -5494,7 +5495,8 @@ window.selectCID = function(code, desc) {
 }
 
 window.triggerAtestadoUpload = function() {
-    if (!selectedCID) {
+    const tipo = document.getElementById('atestado_tipo')?.value || 'dias';
+    if (tipo === 'dias' && !selectedCID) {
         alert('Selecione primeiro qual é o CID (código) do atestado digitando na barra de busca!');
         const s = document.getElementById('cid-search');
         if (s) { s.focus(); s.style.border = '2px solid red'; setTimeout(()=> s.style.border='', 2000); }
@@ -5505,12 +5507,16 @@ window.triggerAtestadoUpload = function() {
 
 window.toggleAtestadoPeriodFields = function() {
     const tipo = document.getElementById('atestado_tipo').value;
+    const cidWrapper = document.getElementById('cid-input-wrapper');
     if (tipo === 'dias') {
         document.getElementById('atestado-dias-fields').style.display = 'flex';
         document.getElementById('atestado-horas-fields').style.display = 'none';
+        if (cidWrapper) cidWrapper.style.display = '';
     } else {
         document.getElementById('atestado-dias-fields').style.display = 'none';
         document.getElementById('atestado-horas-fields').style.display = 'flex';
+        if (cidWrapper) cidWrapper.style.display = 'none';
+        selectedCID = null;
     }
 }
 
@@ -13998,10 +14004,19 @@ window.abrirPopupIniciarProcesso = function(m, colabId) {
             </div>
 
             <h4 style="color:#475569;font-size:0.9rem;margin:0 0 0.75rem;">💰 Parcelamento do Desconto</h4>
-            <div style="display:flex;gap:10px;margin-bottom:1.5rem;">
-                ${[1,2,3].map(n=>`<button id="parc-${n}" onclick="window.selecionarParcelas(${n})"
-                    style="flex:1;padding:0.6rem;border-radius:8px;border:2px solid ${parcAtual===n?'#8b5cf6':'#e2e8f0'};background:${parcAtual===n?'#f5f3ff':'#fff'};cursor:pointer;font-weight:700;color:${parcAtual===n?'#8b5cf6':'#334155'};">${n}x</button>`).join('')}
-            </div>
+            ${(function(){
+                const vlrRaw = (m.valor_multa || '').toString().replace('R$','').replace(/\./g,'').replace(',','.').trim();
+                const vlrNum = parseFloat(vlrRaw) || 0;
+                const nicVal = vlrNum * 2;
+                const nicInfo = vlrNum > 0
+                    ? `<p style="font-size:0.82rem;color:#dc2626;background:#fff5f5;border:1px solid #fca5a5;border-radius:8px;padding:8px 12px;margin:0 0 0.75rem;">⚠️ Valor da Multa NIC: <strong>R$ ${nicVal.toLocaleString('pt-BR',{minimumFractionDigits:2})}</strong> (R$ ${vlrNum.toLocaleString('pt-BR',{minimumFractionDigits:2})} × 2)</p>`
+                    : '';
+                const bots = [1,2,3].map(n => {
+                    const vlrParc = vlrNum > 0 ? `<div style="font-size:0.72rem;font-weight:500;color:#6d28d9;margin-top:2px;">R$ ${(vlrNum/n).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>` : '';
+                    return `<button id="parc-${n}" onclick="window.selecionarParcelas(${n})" style="flex:1;padding:0.6rem;border-radius:8px;border:2px solid ${parcAtual===n?'#8b5cf6':'#e2e8f0'};background:${parcAtual===n?'#f5f3ff':'#fff'};cursor:pointer;font-weight:700;color:${parcAtual===n?'#8b5cf6':'#334155'};text-align:center;">${n}x${vlrParc}</button>`;
+                }).join('');
+                return nicInfo + `<div style="display:flex;gap:10px;margin-bottom:1.5rem;">${bots}</div>`;
+            })()}
 
             <button onclick="window.confirmarIniciarProcesso(${m.id}, ${colabId})"
                 style="width:100%;padding:0.85rem;background:linear-gradient(135deg,#f503c5,#8b5cf6);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:1rem;cursor:pointer;">

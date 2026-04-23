@@ -4563,7 +4563,9 @@ app.delete('/api/avaliacao-templates/:id', authenticateToken, (req, res) => {
 
 // --- ROTA DE ENVIO DE E-MAIL ASO ---
 app.post('/api/send-aso-email', authenticateToken, (req, res) => {
-    const { colaborador_id, email_to, data_exame, cc } = req.body;
+    const { colaborador_id, email_to, data_exame, cc, tipo_exame } = req.body;
+    const tipoLabel = tipo_exame || 'Admissional';
+    const emailDestino = email_to || 'recepcao@iacimedtrab.com.br';
     
     db.get('SELECT * FROM colaboradores WHERE id = ?', [colaborador_id], (err, colab) => {
         if (err || !colab) return res.status(404).json({ error: 'Colaborador não encontrado' });
@@ -4582,8 +4584,8 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
                 <div style="text-align: center; margin-bottom: 20px;">
                     <img src="cid:empresa-logo" style="max-height: 80px;">
                 </div>
-                <h2 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">Exame Admissional</h2>
-                <p>Segue abaixo as informações para a realização do exame Admissional do colaborador que deve comparecer.</p>
+                <h2 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">Exame ${tipoLabel}</h2>
+                <p>Segue abaixo as informa&#231;&#245;es para a realiza&#231;&#227;o do exame ${tipoLabel} do colaborador que deve comparecer.</p>
                 
                 <div style="background: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
                     <p><strong>Data:</strong> ${dataFormatada}</p>
@@ -4598,7 +4600,7 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
 
                 <div style="margin-top: 30px; padding: 15px; border: 2px solid #e74c3c; border-radius: 8px; background: #fff5f5; text-align: center;">
                     <p style="color: #c0392b; font-weight: bold; font-size: 1.1rem; margin: 0;">
-                        ?? IMPORTANTE:<br>Após o exame ficar pronto, favor enviar o documento por e-mail diretamente para:<br>
+                        &#9888;&#65039; IMPORTANTE:<br>Ap&#243;s o exame ficar pronto, favor enviar o documento por e-mail diretamente para:<br>
                         <span style="font-size: 1.2rem; color: #2c3e50;">rh@americarental.com.br</span>
                     </p>
                 </div>
@@ -4609,10 +4611,10 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
 
         const transporter = nodemailer.createTransport(SMTP_CONFIG);
         const mailOptions = {
-            from: `"RH América Rental" <${SMTP_CONFIG.auth.user}>`,
-            to: email_to,
+            from: `"RH Am\u00e9rica Rental" <${SMTP_CONFIG.auth.user}>`,
+            to: emailDestino,
             cc: cc || [],
-            subject: 'Solicitação de Exame Admissional',
+            subject: `Solicita\u00e7\u00e3o de Exame ${tipoLabel}`,
             html: htmlContent,
             attachments: [
                 {

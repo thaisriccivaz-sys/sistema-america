@@ -770,22 +770,22 @@
                                         <div class="span-2" style="border-top: 1px solid var(--border-color); margin-top: 1rem; padding-top: 1rem;">
                                             <h4 style="font-size: 0.95rem; color: var(--primary-color); margin-bottom: 1rem;">Documentação Pessoal</h4>
                                             <div class="form-grid">
-                                                <div class="input-group">
+                                                <div class="input-group" style="display:none">
                                                     <label>Tipo de Documento</label>
                                                     <select id="colab-rg-tipo" onchange="toggleTipoDocumento()">
                                                         <option value="RG">RG Tradicional</option>
                                                         <option value="CIN">CIN (Nova Identidade)</option>
                                                     </select>
                                                 </div>
-                                                <div class="input-group">
+                                                <div class="input-group" style="display:none">
                                                     <label id="lbl-colab-rg">Número (RG)</label>
                                                     <input type="text" id="colab-rg" onkeyup="mascaraRG(this)" maxlength="14">
                                                 </div>
-                                                <div class="input-group" id="box-rg-orgao">
+                                                <div class="input-group" id="box-rg-orgao" style="display:none">
                                                     <label>Órgão Emissor</label>
                                                     <input type="text" id="colab-rg-orgao" autocomplete="off">
                                                 </div>
-                                                <div class="input-group" id="box-rg-data">
+                                                <div class="input-group" id="box-rg-data" style="display:none">
                                                     <label>Data de Expedição</label>
                                                     <input type="date" id="colab-rg-data">
                                                 </div>
