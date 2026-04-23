@@ -14129,7 +14129,7 @@ window.abrirModalTestemunhas = async function(m, colabId) {
                 </div>
                 <div>
                     <label style="font-size:0.85rem;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Assinatura da Testemunha 1 *</label>
-                    <canvas id="canvas-test1" width="340" height="130" style="border:1.5px solid #c4b5fd;border-radius:8px;touch-action:none;background:#fafafa;cursor:crosshair;width:100%;"></canvas>
+                    <canvas id="canvas-test1" width="340" height="200" style="border:1.5px solid #c4b5fd;border-radius:8px;touch-action:none;background:#fafafa;cursor:crosshair;width:100%;height:200px;"></canvas>
                     <button onclick="window._limparCanvasMulta('canvas-test1')" style="margin-top:4px;background:none;border:none;color:#64748b;cursor:pointer;font-size:0.8rem;"><i class="ph ph-eraser"></i> Limpar</button>
                 </div>
                 <div>
@@ -14141,7 +14141,7 @@ window.abrirModalTestemunhas = async function(m, colabId) {
                 </div>
                 <div>
                     <label style="font-size:0.85rem;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Assinatura da Testemunha 2</label>
-                    <canvas id="canvas-test2" width="340" height="130" style="border:1.5px solid #e2e8f0;border-radius:8px;touch-action:none;background:#fafafa;cursor:crosshair;width:100%;"></canvas>
+                    <canvas id="canvas-test2" width="340" height="200" style="border:1.5px solid #e2e8f0;border-radius:8px;touch-action:none;background:#fafafa;cursor:crosshair;width:100%;height:200px;"></canvas>
                     <button onclick="window._limparCanvasMulta('canvas-test2')" style="margin-top:4px;background:none;border:none;color:#64748b;cursor:pointer;font-size:0.8rem;"><i class="ph ph-eraser"></i> Limpar</button>
                 </div>
                 <p style="font-size:0.78rem;color:#94a3b8;background:#f8fafc;padding:8px;border-radius:6px;">Role o documento até o final antes de assinar.</p>
@@ -14275,7 +14275,7 @@ window.abrirModalAssinaturaCondutor = async function(m, colabId) {
                 </div>
                 <div>
                     <label style="font-size:0.85rem;font-weight:700;color:#374151;display:block;margin-bottom:6px;">Assinatura do Condutor *</label>
-                    <canvas id="canvas-condutor" width="320" height="140" style="border:1.5px solid #fcd34d;border-radius:8px;touch-action:none;background:#fafafa;cursor:crosshair;width:100%;"></canvas>
+                    <canvas id="canvas-condutor" width="320" height="200" style="border:1.5px solid #fcd34d;border-radius:8px;touch-action:none;background:#fafafa;cursor:crosshair;width:100%;height:200px;"></canvas>
                     <button onclick="window._limparCanvasMulta('canvas-condutor')" style="margin-top:4px;background:none;border:none;color:#64748b;cursor:pointer;font-size:0.8rem;"><i class="ph ph-eraser"></i> Limpar</button>
                 </div>
                 <button id="btn-confirmar-condutor"
