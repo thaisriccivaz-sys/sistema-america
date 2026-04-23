@@ -1967,7 +1967,7 @@ async function loadColaboradores() {
         if (!response.ok) throw new Error('Falha na resposta do servidor');
         _todosColaboradores = await response.json();
 
-        renderColaboradores(_todosColaboradores);
+        aplicarFiltrosColaboradores();
     } catch(err) {
         console.error(err);
         const wrapper = document.querySelector('#view-colaboradores .card');
@@ -2047,8 +2047,8 @@ function aplicarFiltrosColaboradores() {
         
         if (f.tipoCadastro && getEffectiveStatus(c) !== f.tipoCadastro) return false;
 
-        // Ocultar Desligados por padrão, a não ser que uma pesquisa ativa seja feita (nome, cpf) ou o filtro force um tipoCadastro
-        if (!f.tipoCadastro && !f.nome && !f.cpf && getEffectiveStatus(c) === 'Desligado') return false;
+        // Ocultar Desligados por padrão — só aparecem se o filtro de status for explicitamente "Desligado"
+        if (getEffectiveStatus(c) === 'Desligado' && f.tipoCadastro !== 'Desligado') return false;
         
         const salColab = parseCurrency(c.salario);
         if (f.salMin !== null && salColab < f.salMin) return false;
