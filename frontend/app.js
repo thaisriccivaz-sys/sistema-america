@@ -1966,19 +1966,25 @@ async function loadColaboradores() {
         if (!wrapper) return;
         wrapper.innerHTML = '<div style="text-align:center; padding: 3rem;"><i class="ph ph-spinner ph-spin" style="font-size:2.5rem; color:var(--primary-color);"></i><p class="mt-3">Carregando lista...</p></div>';
 
-        const data = await apiGet('/colaboradores');
-        if (!data) throw new Error('Falha na resposta do servidor');
+        // Timeout de 20 segundos — se o servidor não responder, mostra erro
+        const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Tempo de resposta esgotado (20s). O servidor está lento.')), 20000)
+        );
+
+        const data = await Promise.race([apiGet('/colaboradores'), timeoutPromise]);
+        if (!data) throw new Error('Servidor retornou resposta vazia.');
         _todosColaboradores = Array.isArray(data) ? data : [];
 
         aplicarFiltrosColaboradores();
     } catch(err) {
-        console.error(err);
+        console.error('[loadColaboradores] Erro:', err.message);
         const wrapper = document.querySelector('#view-colaboradores .card');
-        if (wrapper) wrapper.innerHTML = `<div style="text-align:center; padding: 3rem; color: var(--danger-color);"><i class="ph ph-warning" style="font-size:2.5rem;"></i><p class="mt-3">Erro ao carregar colaboradores.</p><button class="btn btn-primary mt-3" onclick="loadColaboradores()">Tentar Novamente</button></div>`;
+        if (wrapper) wrapper.innerHTML = `<div style="text-align:center; padding: 3rem; color: var(--danger-color);"><i class="ph ph-warning" style="font-size:2.5rem;"></i><p class="mt-3">${err.message}</p><button class="btn btn-primary mt-3" onclick="loadColaboradores()">Tentar Novamente</button></div>`;
     } finally {
         window._loadColabEmAndamento = false;
     }
 }
+
 
 window._colabSortCol = null;
 window._colabSortDir = 'asc';
