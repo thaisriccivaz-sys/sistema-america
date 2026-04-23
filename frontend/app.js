@@ -1966,7 +1966,7 @@ async function loadColaboradores() {
         if (!wrapper) return;
         wrapper.innerHTML = '<div style="text-align:center; padding: 3rem;"><i class="ph ph-spinner ph-spin" style="font-size:2.5rem; color:var(--primary-color);"></i><p class="mt-3">Carregando lista...</p></div>';
 
-        // Timeout de 20 segundos — se o servidor não responder, mostra erro
+        // Timeout de 20 segundos
         const timeoutPromise = new Promise((_, reject) =>
             setTimeout(() => reject(new Error('Tempo de resposta esgotado (20s). O servidor está lento.')), 20000)
         );
@@ -1975,7 +1975,11 @@ async function loadColaboradores() {
         if (!data) throw new Error('Servidor retornou resposta vazia.');
         _todosColaboradores = Array.isArray(data) ? data : [];
 
-        aplicarFiltrosColaboradores();
+        // 1. renderColaboradores cria o shell do HTML (inclui #colab-table-wrapper)
+        renderColaboradores(_todosColaboradores);
+        // 2. renderTabelaColaboradores preenche o wrapper com os dados
+        renderTabelaColaboradores(_todosColaboradores);
+
     } catch(err) {
         console.error('[loadColaboradores] Erro:', err.message);
         const wrapper = document.querySelector('#view-colaboradores .card');
