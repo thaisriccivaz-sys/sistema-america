@@ -2752,7 +2752,8 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
         const tipoNorm = normalize(sin.tipo_sinistro);
         const todosGeradores = await new Promise((resolve) => db.all("SELECT * FROM geradores WHERE nome LIKE '%Sinistro%'", [], (e, r) => resolve(r || [])));
         console.log('[Sinistro] tipo_sinistro:', JSON.stringify(sin.tipo_sinistro), '| geradores disponiveis:', todosGeradores.map(g=>g.nome));
-        let gerador = todosGeradores.find(g => normalize(g.nome).includes(tipoNorm))
+        let gerador = todosGeradores.find(g => normalize(g.nome).endsWith(tipoNorm))
+                   || todosGeradores.find(g => normalize(g.nome).includes(tipoNorm))
                    || todosGeradores.find(g => tipoNorm.split(' ').filter(w=>w.length>3).every(w => normalize(g.nome).includes(w)))
                    || null;
         console.log('[Sinistro] gerador escolhido:', gerador ? gerador.nome : 'NENHUM');
