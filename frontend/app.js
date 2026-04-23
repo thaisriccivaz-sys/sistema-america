@@ -1958,20 +1958,25 @@ async function loadDashboard() {
 let _todosColaboradores = [];
 
 async function loadColaboradores() {
+    if (window._loadColabEmAndamento) return;
+    window._loadColabEmAndamento = true;
+
     try {
         const wrapper = document.querySelector('#view-colaboradores .card');
         if (!wrapper) return;
         wrapper.innerHTML = '<div style="text-align:center; padding: 3rem;"><i class="ph ph-spinner ph-spin" style="font-size:2.5rem; color:var(--primary-color);"></i><p class="mt-3">Carregando lista...</p></div>';
 
-        const response = await fetch(`${API_URL}/colaboradores`, { headers: { 'Authorization': `Bearer ${currentToken}` } });
-        if (!response.ok) throw new Error('Falha na resposta do servidor');
-        _todosColaboradores = await response.json();
+        const data = await apiGet('/colaboradores');
+        if (!data) throw new Error('Falha na resposta do servidor');
+        _todosColaboradores = Array.isArray(data) ? data : [];
 
         aplicarFiltrosColaboradores();
     } catch(err) {
         console.error(err);
         const wrapper = document.querySelector('#view-colaboradores .card');
-        if (wrapper) wrapper.innerHTML = `<div style="text-align:center; padding: 3rem; color: var(--danger-color);"><i class="ph ph-warning" style="font-size:2.5rem;"></i><p class="mt-3">Erro ao carregar colaboradores.</p></div>`;
+        if (wrapper) wrapper.innerHTML = `<div style="text-align:center; padding: 3rem; color: var(--danger-color);"><i class="ph ph-warning" style="font-size:2.5rem;"></i><p class="mt-3">Erro ao carregar colaboradores.</p><button class="btn btn-primary mt-3" onclick="loadColaboradores()">Tentar Novamente</button></div>`;
+    } finally {
+        window._loadColabEmAndamento = false;
     }
 }
 
