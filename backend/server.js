@@ -23,8 +23,7 @@ const SMTP_CONFIG = {
 
 const db = require('./database');
 
-db.run("DELETE FROM geradores WHERE nome = 'AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO'");
-db.run("DELETE FROM geradores WHERE nome = 'Termo de Responsabilidade de Chaves'");
+// As exclusões fixas de geradores foram removidas para evitar apagamento acidental
 // Registrar exclusoes permanentes para que o seed nao recrie
 db.run("CREATE TABLE IF NOT EXISTS geradores_excluidos (nome TEXT PRIMARY KEY)", () => {
     db.run("INSERT OR IGNORE INTO geradores_excluidos (nome) VALUES ('Termo de Responsabilidade de Chaves')");
@@ -220,31 +219,7 @@ db.run("DELETE FROM cargos WHERE nome = 'teste' OR nome = 'Teste'", (err) => {
     if (err) console.error("Erro ao remover cargo teste:", err);
 });
 
-// MIGRATION: Limpar duplicatas de geradores — executado em sequência garantida
-db.serialize(() => {
-    // 1. Renomear ORDEM DE SERVIÇO NR01 (maiúsculo) para caixa mista
-    db.run("UPDATE geradores SET nome = 'Ordem de Servi\u00e7o NR01' WHERE nome LIKE 'ORDEM%NR01' OR nome LIKE 'ORDEM%NR 01'", (err) => {
-        if (err) console.error('Erro ao renomear NR01 maiúsculo:', err);
-        else console.log('MIGRATION: ORDEM NR01 maiúsculo renomeado (se existia).');
-    });
-    // 2. Remover duplicatas de NR01 mantendo o mais antigo
-    db.run("DELETE FROM geradores WHERE (nome LIKE '%NR01%' OR nome LIKE '%NR 01%') AND id NOT IN (SELECT MIN(id) FROM geradores WHERE nome LIKE '%NR01%' OR nome LIKE '%NR 01%')", (err) => {
-        if (err) console.error('Erro ao deduplicar NR01:', err);
-        else console.log('MIGRATION: Duplicatas NR01 removidas (se existiam).');
-    });
-    // 3. Remover AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO (maiúsculo extra)
-    //    Mantém apenas o de ID menor (Autorização de Desconto em Folha, criado antes)
-    db.run("DELETE FROM geradores WHERE nome LIKE 'AUTORI%DESCONTO%PAGAMENTO'", (err) => {
-        if (err) console.error('Erro ao remover AUTORIZACAO DESCONTO PAGAMENTO maiúsculo:', err);
-        else console.log('MIGRATION: AUTORIZACAO DESCONTO PAGAMENTO maiúsculo removido (se existia).');
-    });
-    // 4. Remover qualquer outro gerador em CAIXA ALTA cujo nome = UPPER(nome) — exceto os já tratados
-    //    Detecta nomes 100% maiúsculos contendo mais de 3 palavras
-    db.run("DELETE FROM geradores WHERE nome = UPPER(nome) AND LENGTH(nome) > 10 AND nome NOT LIKE 'Ordem%'", (err) => {
-        if (err) console.error('Err ao remover geradores all-caps extra:', err);
-        else console.log('MIGRATION: Geradores all-caps extras removidos.');
-    });
-});
+// Rotina de exclusão automática de duplicatas removida permanentemente para blindagem de dados
 
 
 // MIGRATION: Remover " - Total" dos grupos de permissão
