@@ -13,8 +13,42 @@ let osState = {
     enderecoSelecionado: ''
 };
 
-const TIPOS_SERVICO = ['TANQUE', 'CARGA', 'VAC', 'UTILITARIO', 'TECNICO', 'CARRETINHA', 'CARROCERIA', 'TANQUE GRANDE'];
+const TIPOS_SERVICO_OS = [
+    'ENTREGA OBRA', 'RETIRADA OBRA', 'MANUTENCAO OBRA', 'SUCCAO OBRA',
+    'REPARO DE EQUIPAMENTO OBRA', 'VISITA TECNICA OBRA', 'LIMPA FOSSA OBRA',
+    'ENTREGA EVENTO', 'RETIRADA EVENTO', 'MANUTENCAO EVENTO', 'SUCCAO EVENTO',
+    'REPARO EQUIPAMENTO EVENTO', 'MANUTENCAO AVULSA OBRA', 'MANUTENCAO AVULSA EVENTO',
+    'LIMPA FOSSA EVENTO'
+];
+const HABILIDADES = ['TANQUE', 'CARGA', 'VAC', 'UTILITARIO', 'TECNICO', 'CARRETINHA', 'CARROCERIA', 'TANQUE GRANDE'];
 const ACOES = ['LEVAR CARRINHO', 'ATENÇÃO AO HORÁRIO', 'TROCA DE CABINE', 'CONTATO COM CLIENTE', 'LEVAR EXTENSORA', 'APOIO DE SUCÇÃO', 'INFORMAÇÕES IMPORTANTES', 'TROCA DE EQUIPAMENTO', 'CARRETINHA', 'VAC', 'LEVAR EPI', 'INTEGRAÇÃO', '! AVULSO', 'BANHEIRO ITINERANTE'];
+
+// ── CÁLCULO DE TEMPO (espelho do calcularTipoDeServico() do Flutter) ──────────
+function calcularTempo() {
+    const tipoServico = (document.getElementById('rr-tipo-servico')?.value || '').trim().toUpperCase();
+
+    // Base: 10 min para entregas/retiradas/visitas, 0 para manutenção
+    let baseMin = 10;
+    const tiposBase10 = ['RETIRADA OBRA','RETIRADA EVENTO','ENTREGA OBRA','ENTREGA EVENTO','VISITA TECNICA OBRA','VISITA TECNICA EVENTO'];
+    const tiposBase0  = ['MANUTENCAO OBRA','MANUTENCAO EVENTO','MANUTENCAO AVULSA','MANUTENCAO AVULSA OBRA','MANUTENCAO AVULSA EVENTO'];
+    if (tiposBase10.includes(tipoServico)) baseMin = 10;
+    else if (tiposBase0.some(t => tipoServico.includes('MANUTENCAO'))) baseMin = 0;
+
+    // Soma total de quantidades (igual ao Flutter: int totalItens = 0; for produto in produtosLogistica)
+    const totalItens = osState.produtos.reduce((acc, p) => acc + (parseInt(p.qtd) || 0), 0);
+
+    // Fórmula: base + 5min × totalItens
+    const totalMin = baseMin + (5 * totalItens);
+    const hh = String(Math.floor(totalMin / 60)).padStart(2, '0');
+    const mm = String(totalMin % 60).padStart(2, '0');
+    const resultado = `${hh}:${mm}`;
+
+    // Atualiza o badge de tempo na UI
+    const el = document.getElementById('rr-tempo-total');
+    if (el) el.innerText = resultado;
+
+    return resultado;
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     const observer = new MutationObserver((mutations) => {
@@ -72,6 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('rr-prod-desc').value = '';
                 document.getElementById('rr-prod-qtd').value = '';
                 atualizarUI();
+                calcularTempo(); // recalcula ao adicionar
             }
             return;
         }
@@ -82,6 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const id = parseInt(btnRemProd.dataset.id);
             osState.produtos = osState.produtos.filter(p => p.id !== id);
             atualizarUI();
+            calcularTempo(); // recalcula ao remover
             return;
         }
         
@@ -238,7 +274,7 @@ function abrirModalEnderecos(nomeCliente) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function atualizarUI() {
-    // Atualiza Tipos
+    // Atualiza Tipos (Habilidades)
     document.querySelectorAll('.btn-tipo-servico').forEach(btn => {
         const tipo = btn.dataset.tipo;
         if (osState.tiposServico.has(tipo)) {
@@ -382,11 +418,24 @@ function renderRotaRedonda() {
                     ${['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'].map(d => `<label style="display:flex; align-items:center; gap:2px; font-size:0.7rem; color:#475569; cursor:pointer;"><input type="checkbox"> ${d}</label>`).join('')}
                 </div>
 
-                <!-- TIPO SERVIÇO -->
+                <!-- TIPO SERVIÇO (dropdown — igual ao Flutter: tipoServicoController) -->
+                <div style="display: flex; gap: 0.5rem; align-items: flex-end;">
+                    <div style="flex: 2;">
+                        <label style="${labelStyle}">Tipo de Serviço</label>
+                        <select id="rr-tipo-servico"
+                            onchange="calcularTempo()"
+                            style="${inputStyle} cursor:pointer;">
+                            <option value="">Selecione o tipo de serviço...</option>
+                            ${TIPOS_SERVICO_OS.map(t => `<option value="${t}">${t}</option>`).join('')}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- HABILIDADES (pills: TANQUE, CARGA, VAC...) -->
                 <div>
-                    <label style="${labelStyle}">Selecione o tipo de serviço</label>
+                    <label style="${labelStyle}">Habilidades</label>
                     <div style="display: flex; gap: 4px; flex-wrap: wrap;">
-                        ${TIPOS_SERVICO.map(s => 
+                        ${HABILIDADES.map(s =>
                             `<button class="btn-tipo-servico" data-tipo="${s}" style="border: 1px solid #2d9e5f; color: #2d9e5f; background: transparent; border-radius: 99px; padding: 2px 10px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">${s}</button>`
                         ).join('')}
                     </div>
@@ -416,8 +465,8 @@ function renderRotaRedonda() {
                         
                         <div style="display: flex; gap: 0.75rem; font-size: 0.7rem; color: #64748b; margin-left: auto; align-items: center;">
                             <span style="background:#f1f5f9; padding:2px 6px; border-radius:4px;"><i class="ph ph-package"></i> Produtos: <strong id="rr-total-prod">0</strong></span>
-                            <span style="background:#f1f5f9; padding:2px 6px; border-radius:4px;"><i class="ph ph-clock"></i> Tempo: <strong>00:10</strong></span>
-                            <span style="background:#f1f5f9; padding:2px 6px; border-radius:4px;"><i class="ph ph-truck"></i> Tanques: <strong>0</strong></span>
+                            <span style="background:#f1f5f9; padding:2px 6px; border-radius:4px;"><i class="ph ph-clock"></i> Tempo: <strong id="rr-tempo-total">00:10</strong></span>
+                            <span style="background:#f1f5f9; padding:2px 6px; border-radius:4px;"><i class="ph ph-truck"></i> Tanques: <strong id="rr-total-tanques">0</strong></span>
                         </div>
                     </div>
                     
