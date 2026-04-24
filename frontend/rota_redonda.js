@@ -95,16 +95,20 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Botão Buscar Cliente (lupa verde no header)
-        const btnBuscarCliente = e.target.closest('#btn-buscar-cliente');
-        if (btnBuscarCliente) {
-            const nomeInput = document.getElementById('rr-input-cliente');
-            const nome = nomeInput ? nomeInput.value.trim() : '';
-            if (!nome) {
-                alert('Digite o nome do cliente antes de pesquisar.');
-                return;
-            }
-            // Simula seleção: abre modal de confirmação de endereço
+        // Pesquisar OS do cliente
+        const btnPesqCliente = e.target.closest('#btn-pesq-cliente-os');
+        if (btnPesqCliente) {
+            const nome = document.getElementById('rr-input-cliente')?.value.trim();
+            if (!nome) { alert('Digite o nome do cliente antes de pesquisar.'); return; }
+            abrirModalOSCliente(nome);
+            return;
+        }
+
+        // Pesquisar endereço do cliente
+        const btnBuscarEndereco = e.target.closest('#btn-buscar-endereco');
+        if (btnBuscarEndereco) {
+            const nome = document.getElementById('rr-input-cliente')?.value.trim();
+            if (!nome) { alert('Digite o nome do cliente antes de pesquisar o endereço.'); return; }
             abrirModalEnderecos(nome);
             return;
         }
@@ -112,26 +116,29 @@ document.addEventListener('DOMContentLoaded', () => {
         // Confirmar endereço no modal
         const btnConfEnd = e.target.closest('.btn-confirmar-endereco');
         if (btnConfEnd) {
-            const endereco = btnConfEnd.dataset.endereco;
-            const nome = btnConfEnd.dataset.nome;
             osState.clienteConfirmado = true;
-            osState.clienteNome = nome;
-            osState.enderecoSelecionado = endereco;
-            // Preenche campo de endereço
+            osState.clienteNome = btnConfEnd.dataset.nome;
+            osState.enderecoSelecionado = btnConfEnd.dataset.endereco;
             const inp = document.getElementById('rr-input-endereco');
-            if (inp) inp.value = endereco;
-            // Fecha modal
-            const modal = document.getElementById('rr-modal-enderecos');
-            if (modal) modal.remove();
+            if (inp) inp.value = btnConfEnd.dataset.endereco;
+            document.getElementById('rr-modal-enderecos')?.remove();
             atualizarBloqueio();
             return;
         }
 
-        // Fechar modal de endereços
+        // Fechar modal endereços com X — libera o formulário mesmo sem selecionar
         const btnFecharModal = e.target.closest('#btn-fechar-modal-end');
         if (btnFecharModal) {
-            const modal = document.getElementById('rr-modal-enderecos');
-            if (modal) modal.remove();
+            document.getElementById('rr-modal-enderecos')?.remove();
+            osState.clienteConfirmado = true; // Libera o formulário
+            atualizarBloqueio();
+            return;
+        }
+
+        // Fechar modal OS do cliente
+        const btnFecharModalOS = e.target.closest('#btn-fechar-modal-os');
+        if (btnFecharModalOS) {
+            document.getElementById('rr-modal-os-cliente')?.remove();
             return;
         }
     });
@@ -145,52 +152,77 @@ function atualizarBloqueio() {
 
     if (osState.clienteConfirmado) {
         overlay.style.display = 'none';
-        if (statusBar) {
-            statusBar.innerHTML = `<i class="ph ph-check-circle" style="color:#16a34a;"></i> <strong style="color:#16a34a;">${osState.clienteNome}</strong> <span style="color:#64748b; font-size:0.7rem;">— ${osState.enderecoSelecionado}</span>`;
-        }
     } else {
         overlay.style.display = 'flex';
-        if (statusBar) {
-            statusBar.innerHTML = `<i class="ph ph-warning" style="color:#f59e0b;"></i> <span style="color:#64748b;">Pesquise o cliente para liberar o formulário</span>`;
-        }
     }
 }
 
-function abrirModalEnderecos(nomeCliente) {
-    // Remove modal anterior se existir
-    const old = document.getElementById('rr-modal-enderecos');
-    if (old) old.remove();
-
-    // Endereços fictícios de exemplo — futuramente virão do backend
-    const enderecosMock = [
-        { endereco: `Rua das Flores, 123 - Centro - ${nomeCliente}`, lat: '-23.5', lng: '-46.6' },
-        { endereco: `Av. Paulista, 456 - Bela Vista - ${nomeCliente}`, lat: '-23.56', lng: '-46.65' },
-        { endereco: `Rua Geral, 789 - Jardins - ${nomeCliente}`, lat: '-23.57', lng: '-46.66' },
+function abrirModalOSCliente(nomeCliente) {
+    document.getElementById('rr-modal-os-cliente')?.remove();
+    // Futuramente: buscar OS reais do backend pelo nome do cliente
+    const osMock = [
+        { os: '10234', data: '10/04/2025', tipo: 'MANUTENCAO OBRA', endereco: 'Rua das Flores, 123' },
+        { os: '10198', data: '22/03/2025', tipo: 'ENTREGA OBRA',    endereco: 'Av. Paulista, 456' },
+        { os: '10087', data: '01/02/2025', tipo: 'RETIRADA EVENTO', endereco: 'Rua Geral, 789' },
     ];
+    const linhas = osMock.map(o => `
+        <div style="display:flex; align-items:center; gap:0.5rem; padding:0.4rem 0.75rem; border-bottom:1px solid #f1f5f9;">
+            <span style="font-size:0.72rem; font-weight:700; color:#2d9e5f; width:55px;">OS ${o.os}</span>
+            <span style="font-size:0.7rem; color:#64748b; width:80px;">${o.data}</span>
+            <span style="font-size:0.7rem; color:#334155; flex:1;">${o.tipo}</span>
+            <span style="font-size:0.7rem; color:#94a3b8; flex:1;">${o.endereco}</span>
+        </div>
+    `).join('');
+    const modal = document.createElement('div');
+    modal.id = 'rr-modal-os-cliente';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;';
+    modal.innerHTML = `
+        <div style="background:white;border-radius:10px;width:620px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,0.18);overflow:hidden;">
+            <div style="background:#2d9e5f;color:white;padding:0.75rem 1rem;display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-weight:700;font-size:0.9rem;"><i class="ph ph-clipboard-text"></i> OS de <em>${nomeCliente}</em></span>
+                <button id="btn-fechar-modal-os" style="background:transparent;border:none;color:white;font-size:1.1rem;cursor:pointer;"><i class="ph ph-x"></i></button>
+            </div>
+            <div style="display:flex;gap:0.5rem;padding:0.4rem 0.75rem;background:#f8fafc;border-bottom:1px solid #e2e8f0;">
+                <span style="font-size:0.68rem;font-weight:700;color:#64748b;width:55px;">OS</span>
+                <span style="font-size:0.68rem;font-weight:700;color:#64748b;width:80px;">DATA</span>
+                <span style="font-size:0.68rem;font-weight:700;color:#64748b;flex:1;">TIPO</span>
+                <span style="font-size:0.68rem;font-weight:700;color:#64748b;flex:1;">ENDEREÇO</span>
+            </div>
+            <div style="max-height:280px;overflow-y:auto;">${linhas}</div>
+            <div style="padding:0.5rem 0.75rem;background:#f8fafc;font-size:0.72rem;color:#94a3b8;text-align:center;">Histórico de OS — dados vindos do sistema</div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
 
+function abrirModalEnderecos(nomeCliente) {
+    document.getElementById('rr-modal-enderecos')?.remove();
+    // Futuramente: buscar endereços reais do backend
+    const enderecosMock = [
+        { endereco: 'Rua das Flores, 123 - Centro', lat: '-23.5', lng: '-46.6' },
+        { endereco: 'Av. Paulista, 456 - Bela Vista', lat: '-23.56', lng: '-46.65' },
+        { endereco: 'Rua Geral, 789 - Jardins', lat: '-23.57', lng: '-46.66' },
+    ];
     const linhas = enderecosMock.map(e => `
-        <div style="display:flex; justify-content:space-between; align-items:center; padding:0.5rem 0.75rem; border-bottom:1px solid #f1f5f9; hover:bg-gray-50;">
-            <span style="font-size:0.8rem; color:#334155;">${e.endereco}</span>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem 0.75rem;border-bottom:1px solid #f1f5f9;">
+            <span style="font-size:0.8rem;color:#334155;"><i class="ph ph-map-pin" style="color:#2d9e5f;"></i> ${e.endereco}</span>
             <button class="btn-confirmar-endereco" data-endereco="${e.endereco}" data-nome="${nomeCliente}"
-                style="background:#2d9e5f; color:white; border:none; border-radius:4px; padding:3px 10px; font-size:0.72rem; cursor:pointer; white-space:nowrap; margin-left:8px;">
+                style="background:#2d9e5f;color:white;border:none;border-radius:4px;padding:3px 10px;font-size:0.72rem;cursor:pointer;white-space:nowrap;margin-left:8px;">
                 <i class="ph ph-check"></i> Selecionar
             </button>
         </div>
     `).join('');
-
     const modal = document.createElement('div');
     modal.id = 'rr-modal-enderecos';
     modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;';
     modal.innerHTML = `
-        <div style="background:white; border-radius:10px; width:520px; max-width:95vw; box-shadow:0 8px 32px rgba(0,0,0,0.18); overflow:hidden;">
-            <div style="background:#2d9e5f; color:white; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center;">
-                <span style="font-weight:700; font-size:0.9rem;"><i class="ph ph-map-pin"></i> Endereços de <em>${nomeCliente}</em></span>
-                <button id="btn-fechar-modal-end" style="background:transparent;border:none;color:white;font-size:1.1rem;cursor:pointer;"><i class="ph ph-x"></i></button>
+        <div style="background:white;border-radius:10px;width:520px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,0.18);overflow:hidden;">
+            <div style="background:#2d9e5f;color:white;padding:0.75rem 1rem;display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-weight:700;font-size:0.9rem;"><i class="ph ph-map-pin"></i> Endereços de <em>${nomeCliente}</em></span>
+                <button id="btn-fechar-modal-end" style="background:transparent;border:none;color:white;font-size:1.1rem;cursor:pointer;" title="Fechar e liberar formulário"><i class="ph ph-x"></i></button>
             </div>
-            <div style="max-height:260px; overflow-y:auto;">
-                ${linhas}
-            </div>
-            <div style="padding:0.5rem 0.75rem; background:#f8fafc; font-size:0.72rem; color:#94a3b8; text-align:center;">Selecione o endereço para liberar o formulário de serviço</div>
+            <div style="max-height:260px;overflow-y:auto;">${linhas}</div>
+            <div style="padding:0.5rem 0.75rem;background:#f8fafc;font-size:0.72rem;color:#94a3b8;text-align:center;">Selecione para preencher endereço automaticamente — ou feche (X) para preencher manualmente</div>
         </div>
     `;
     document.body.appendChild(modal);
@@ -255,25 +287,23 @@ function renderRotaRedonda() {
 
     const inputStyle = 'background: white; border: 1px solid #cbd5e1; border-radius: 4px; padding: 2px 6px; font-size: 0.75rem; height: 26px; width: 100%; box-sizing: border-box;';
     const labelStyle = 'font-weight: 600; font-size: 0.7rem; color: #475569; display: block; margin-bottom: 2px; white-space: nowrap;';
-    // Input do Cliente com ID para a lupa acessar
-    const clienteInputHtml = `<input type="text" id="rr-input-cliente" style="${inputStyle} border:none;" placeholder="Nome do Cliente">`;
-    const btnBuscarClienteHtml = `<button id="btn-buscar-cliente" style="background:#20804a; border:none; color:white; border-radius:4px; width:26px; height:26px; cursor:pointer;" title="Pesquisar endereços do cliente"><i class="ph ph-magnifying-glass"></i></button>`;
+    const btnStyle = 'border:none; color:white; border-radius:4px; width:26px; height:26px; cursor:pointer; flex-shrink:0;';
 
     const html = `
     <div id="rota-redonda-content" style="background: #fff; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); padding: 0.75rem; display: flex; flex-direction: column; height: calc(100vh - 65px); box-sizing: border-box;">
         
         <!-- HEADER FORM -->
-        <div style="display: flex; gap: 0.5rem; align-items: flex-end; margin-bottom: 0.75rem; background: #2d9e5f; padding: 0.5rem 0.75rem; border-radius: 6px; color: white; flex-shrink: 0;">
+        <div style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.75rem; background: #2d9e5f; padding: 0.5rem 0.75rem; border-radius: 6px; color: white; flex-shrink: 0;">
             <div style="flex: 0 0 100px;">
                 <label style="${labelStyle} color:white;">Nº OS</label>
-                <input type="text" style="${inputStyle} border:none;" placeholder="Ex: 12345">
+                <input type="text" id="rr-input-os" style="${inputStyle} border:none;" placeholder="Ex: 12345">
             </div>
             <div style="flex: 1;">
                 <label style="${labelStyle} color:white;">Cliente</label>
-                <div style="display:flex; gap:2px;">${clienteInputHtml}${btnBuscarClienteHtml}</div>
-                <div id="rr-status-cliente" style="font-size:0.68rem; margin-top:2px; display:flex; align-items:center; gap:4px;">
-                    <i class="ph ph-warning" style="color:#fde68a;"></i>
-                    <span style="color:rgba(255,255,255,0.8);">Pesquise o cliente para liberar o formulário</span>
+                <div style="display:flex; gap:4px; align-items:center;">
+                    <input type="text" id="rr-input-cliente" style="${inputStyle} border:none;" placeholder="Nome do Cliente">
+                    <button id="btn-pesq-cliente-os" style="${btnStyle} background:#1a7a40;" title="Ver OS do cliente"><i class="ph ph-clipboard-text"></i></button>
+                    <button id="btn-buscar-endereco" style="${btnStyle} background:#0369a1;" title="Pesquisar endereço do cliente"><i class="ph ph-map-pin"></i></button>
                 </div>
             </div>
             <div style="flex: 0 0 120px;">
