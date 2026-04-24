@@ -770,26 +770,26 @@
                                         <div class="span-2" style="border-top: 1px solid var(--border-color); margin-top: 1rem; padding-top: 1rem;">
                                             <h4 style="font-size: 0.95rem; color: var(--primary-color); margin-bottom: 1rem;">Documentação Pessoal</h4>
                                             <div class="form-grid">
-                                                <div class="input-group" style="display:none">
+                                                <div class="input-group">
                                                     <label>Tipo de Documento</label>
                                                     <select id="colab-rg-tipo" onchange="toggleTipoDocumento()">
                                                         <option value="RG">RG Tradicional</option>
                                                         <option value="CIN">CIN (Nova Identidade)</option>
                                                     </select>
                                                 </div>
-                                                <div class="input-group" style="display:none">
+                                                <div class="input-group">
                                                     <label id="lbl-colab-rg">Número (RG)</label>
                                                     <input type="text" id="colab-rg" onkeyup="mascaraRG(this)" maxlength="14">
                                                 </div>
-                                                <div class="input-group" id="box-rg-orgao" style="display:none">
+                                                <div class="input-group" id="box-rg-orgao">
                                                     <label>Órgão Emissor</label>
                                                     <input type="text" id="colab-rg-orgao" autocomplete="off">
                                                 </div>
-                                                <div class="input-group" id="box-rg-data" style="display:none">
+                                                <div class="input-group" id="box-rg-data">
                                                     <label>Data de Expedição</label>
                                                     <input type="date" id="colab-rg-data">
                                                 </div>
-                                                <div class="input-group span-2" style="display:none">
+                                                <div class="input-group span-2">
                                                     <label>PIS</label>
                                                     <input type="text" id="colab-pis" maxlength="14" onkeyup="mascaraPIS(this)" placeholder="000.00000.00-0">
                                                 </div>
@@ -809,19 +809,19 @@
                                                     <label>Certificado Militar</label>
                                                     <input type="text" id="colab-militar" maxlength="15" onkeyup="mascaraMilitar(this)" disabled placeholder="Apenas para Masculino" style="background:#f8fafc;color:#94a3b8;">
                                                 </div>
-                                                <div class="input-group" style="display:none">
+                                                <div class="input-group">
                                                     <label>Número CTPS</label>
                                                     <input type="text" id="colab-ctps" autocomplete="off">
                                                 </div>
-                                                <div class="input-group" style="display:none">
+                                                <div class="input-group">
                                                     <label>Série (CTPS)</label>
                                                     <input type="text" id="colab-ctps-serie" autocomplete="off">
                                                 </div>
-                                                <div class="input-group" style="display:none">
+                                                <div class="input-group">
                                                     <label>UF (CTPS)</label>
                                                     <input type="text" id="colab-ctps-uf">
                                                 </div>
-                                                <div class="input-group" style="display:none">
+                                                <div class="input-group">
                                                     <label>Data de Expedição (CTPS)</label>
                                                     <input type="date" id="colab-ctps-data">
                                                 </div>
@@ -884,7 +884,7 @@
                                 <div class="card mb-4 p-4">
                                     <h3 class="section-title"><i class="ph ph-briefcase"></i> 3. Dados Profissionais</h3>
                                     <div class="form-grid">
-                                        <div class="span-2" style="display:none">
+                                        <div class="span-2">
                                             <div class="input-group">
                                                 <label>Matrícula eSocial</label>
                                                 <input type="text" id="colab-matricula-esocial" autocomplete="off">
@@ -1369,15 +1369,10 @@
                             </div>
                         </div>
 
-                        <!-- Back Button + Editar Cadastro -->
-                        <div style="display:flex; gap:0.5rem; align-items:center;">
-                            <button class="btn btn-secondary" onclick="navigateTo('colaboradores')" style="font-weight: 600; padding: 0.75rem 1.5rem; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                                <i class="ph ph-arrow-left"></i> Voltar
-                            </button>
-                            <button class="btn" id="btn-editar-cadastro-pront" onclick="window.abrirEdicaoCadastro()" style="font-weight:600; padding:0.75rem 1.5rem; border-radius:8px; background:#f59e0b; color:#fff; border:none; box-shadow:0 1px 2px rgba(0,0,0,0.1); display:flex; align-items:center; gap:6px;">
-                                <i class="ph ph-pencil-simple"></i> Editar Cadastro
-                            </button>
-                        </div>
+                        <!-- Back Button -->
+                        <button class="btn btn-secondary" onclick="navigateTo('colaboradores')" style="font-weight: 600; padding: 0.75rem 1.5rem; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                            <i class="ph ph-arrow-left"></i> Voltar
+                        </button>
                     </div>
                     
                     <div class="prontuario-layout">
@@ -2787,7 +2782,7 @@
     <script src="integracao.js"></script>
     <script src="dissidio.js?v=1"></script>
     <script src="ferias.js?v=1"></script>
-    <script src="app.js?v=127"></script>
+    <script src="app.js?v=120"></script>
 
     <!-- Global Scroll-to-Top Button -->
     <button id="global-scroll-top" onclick="window.scrollTo({top:0, behavior:'smooth'})" style="position:fixed; bottom:30px; right:30px; width:45px; height:45px; border-radius:50%; background:var(--primary-color, #0f172a); color:#fff; border:none; box-shadow:0 4px 10px rgba(0,0,0,0.3); justify-content:center; align-items:center; transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index:9000; display:none; opacity:0; cursor:pointer;" onmouseover="this.style.filter='brightness(0.9)'" onmouseout="this.style.filter='brightness(1)'">

@@ -705,6 +705,10 @@ function navigateTo(target) {
         }
     } else if (target === 'experiencia') {
         if (typeof window.loadExperiencia === 'function') window.loadExperiencia();
+    } else if (target === 'ferias') {
+        if (typeof window.renderFerias === 'function') window.renderFerias();
+    } else if (target === 'dissidio') {
+        if (typeof window.renderDissidio === 'function') window.renderDissidio();
     }
 }
 
@@ -1958,37 +1962,22 @@ async function loadDashboard() {
 let _todosColaboradores = [];
 
 async function loadColaboradores() {
-    if (window._loadColabEmAndamento) return;
-    window._loadColabEmAndamento = true;
-
     try {
         const wrapper = document.querySelector('#view-colaboradores .card');
         if (!wrapper) return;
         wrapper.innerHTML = '<div style="text-align:center; padding: 3rem;"><i class="ph ph-spinner ph-spin" style="font-size:2.5rem; color:var(--primary-color);"></i><p class="mt-3">Carregando lista...</p></div>';
 
-        // Timeout de 20 segundos
-        const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Tempo de resposta esgotado (20s). O servidor está lento.')), 20000)
-        );
+        const response = await fetch(`${API_URL}/colaboradores`, { headers: { 'Authorization': `Bearer ${currentToken}` } });
+        if (!response.ok) throw new Error('Falha na resposta do servidor');
+        _todosColaboradores = await response.json();
 
-        const data = await Promise.race([apiGet('/colaboradores'), timeoutPromise]);
-        if (!data) throw new Error('Servidor retornou resposta vazia.');
-        _todosColaboradores = Array.isArray(data) ? data : [];
-
-        // 1. renderColaboradores cria o shell do HTML (inclui #colab-table-wrapper)
         renderColaboradores(_todosColaboradores);
-        // 2. renderTabelaColaboradores preenche o wrapper com os dados
-        renderTabelaColaboradores(_todosColaboradores);
-
     } catch(err) {
-        console.error('[loadColaboradores] Erro:', err.message);
+        console.error(err);
         const wrapper = document.querySelector('#view-colaboradores .card');
-        if (wrapper) wrapper.innerHTML = `<div style="text-align:center; padding: 3rem; color: var(--danger-color);"><i class="ph ph-warning" style="font-size:2.5rem;"></i><p class="mt-3">${err.message}</p><button class="btn btn-primary mt-3" onclick="loadColaboradores()">Tentar Novamente</button></div>`;
-    } finally {
-        window._loadColabEmAndamento = false;
+        if (wrapper) wrapper.innerHTML = `<div style="text-align:center; padding: 3rem; color: var(--danger-color);"><i class="ph ph-warning" style="font-size:2.5rem;"></i><p class="mt-3">Erro ao carregar colaboradores.</p></div>`;
     }
 }
-
 
 window._colabSortCol = null;
 window._colabSortDir = 'asc';
@@ -2062,8 +2051,8 @@ function aplicarFiltrosColaboradores() {
         
         if (f.tipoCadastro && getEffectiveStatus(c) !== f.tipoCadastro) return false;
 
-        // Ocultar Desligados por padrão — só aparecem se o filtro de status for explicitamente "Desligado"
-        if (getEffectiveStatus(c) === 'Desligado' && f.tipoCadastro !== 'Desligado') return false;
+        // Ocultar Desligados por padrão, a não ser que uma pesquisa ativa seja feita (nome, cpf) ou o filtro force um tipoCadastro
+        if (!f.tipoCadastro && !f.nome && !f.cpf && getEffectiveStatus(c) === 'Desligado') return false;
         
         const salColab = parseCurrency(c.salario);
         if (f.salMin !== null && salColab < f.salMin) return false;
@@ -2789,14 +2778,6 @@ window.resetFormColaborador = function() {
     
     const radioChavesNao = document.querySelector('input[name="chaves_participa"][value="Não"]');
     if (radioChavesNao) { radioChavesNao.checked = true; toggleChavesColabFields('Não'); }
-};
-
-window.abrirEdicaoCadastro = function() {
-    if (viewedColaborador) {
-        window.editColaborador(viewedColaborador.id);
-    } else {
-        alert('Colaborador não carregado corretamente.');
-    }
 };
 
 window.editColaborador = async function(id) {
@@ -5146,15 +5127,6 @@ window.renderASOTab = function(container, filteredDocs) {
             </h4>
             ${noticeHtml}
             <div style="display:flex; gap:0.75rem; align-items:flex-end; flex-wrap:wrap;">
-                <div class="input-group" style="width:170px; flex-shrink:0; margin-bottom:0;">
-                    <label style="font-size:0.75rem; font-weight:700;">Tipo de Exame</label>
-                    <select id="aso-tipo-exame-tab" style="padding:0.5rem; font-size:0.85rem; height:38px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; outline:none;">
-                        <option value="Admissional">Admissional</option>
-                        <option value="Periódico">Periódico</option>
-                        <option value="Demissional">Demissional</option>
-                        <option value="Retorno">Retorno</option>
-                    </select>
-                </div>
                 <div class="input-group" style="width:160px; flex-shrink:0; margin-bottom:0;">
                     <label style="font-size:0.75rem; font-weight:700;">Data Agendada</label>
                     <input type="date" id="aso-exame-data-tab" style="padding:0.5rem; font-size:0.85rem; height:38px;"
@@ -5162,7 +5134,7 @@ window.renderASOTab = function(container, filteredDocs) {
                 </div>
                 <div class="input-group" style="flex:1; min-width:200px; margin-bottom:0;">
                     <label style="font-size:0.75rem; font-weight:700;">Destinatário</label>
-                    <input type="email" id="aso-email-dest-tab" value="recepcao@iacimedtrab.com.br"
+                    <input type="email" id="aso-email-dest-tab" value="thais.ricci@americarental.com.br"
                            style="padding:0.5rem; font-size:0.85rem; height:38px;">
                 </div>
                 <button class="btn btn-primary" id="btn-enviar-aso-email-tab"
@@ -5187,7 +5159,6 @@ window.sendASOEmailTab = async function() {
 
     const dataExame  = document.getElementById('aso-exame-data-tab').value;
     const destinatario = document.getElementById('aso-email-dest-tab').value;
-    const tipoExame = (document.getElementById('aso-tipo-exame-tab') || {}).value || 'Admissional';
     if (!dataExame) { alert('Selecione a data do exame.'); return; }
 
     const [y, m, d] = dataExame.split('-');
@@ -5197,8 +5168,7 @@ window.sendASOEmailTab = async function() {
         ? 'Exames Complementares, acuidade visual, E.E.G, E.C.G e Glicemia.'
         : 'Exame Padrão';
 
-    const mailBody = `Título: Exame Médico ${tipoExame}\n\nSegue abaixo as informações para a realização do exame do colaborador.\n\nTipo de Exame: ${tipoExame}\nData: ${dt}\nNome: ${viewedColaborador.nome_completo || viewedColaborador.nome}\nCPF: ${viewedColaborador.cpf || '-'}\nFunção: ${viewedColaborador.cargo || '-'}\nDepartamento: ${viewedColaborador.departamento || '-'}\n\nExames:\n${exames}\n\n⚠️ IMPORTANTE:\nApós o exame ficar pronto, favor enviar o documento por e-mail para: rh@americarental.com.br`;
-
+    const mailBody = `Título: Exame Médico\n\nSegue abaixo as informações para a realização do exame do colaborador.\n\nData: ${dt}\nNome: ${viewedColaborador.nome_completo || viewedColaborador.nome}\nCPF: ${viewedColaborador.cpf || '-'}\nFunção: ${viewedColaborador.cargo || '-'}\nDepartamento: ${viewedColaborador.departamento || '-'}\n\nExames:\n${exames}\n\n⚠️ IMPORTANTE:\nApós o exame ficar pronto, favor enviar o documento por e-mail para: rh@americarental.com.br`;
 
     const btn = document.getElementById('btn-enviar-aso-email-tab');
     const originalContent = btn.innerHTML;
@@ -5208,9 +5178,8 @@ window.sendASOEmailTab = async function() {
 
         const res = await apiPost('/send-aso-email', {
             colaborador_id: viewedColaborador.id,
-            email_to: destinatario || 'recepcao@iacimedtrab.com.br',
+            email_to: destinatario,
             data_exame: dataExame,
-            tipo_exame: tipoExame,
             cc: ['rh@americarental.com.br', 'rh2@americarental.com.br']
         });
 
@@ -5428,8 +5397,8 @@ window.renderAtestadosTab = function(container, filteredDocs) {
                     </select>
                 </div>
                 
-                <!-- CID-10 (oculto para horas, visível para dias) -->
-                <div class="cid-input-group" id="cid-input-wrapper" style="flex:2; min-width:150px; position:relative;">
+                <!-- CID-10 -->
+                <div class="cid-input-group" style="flex:2; min-width:150px; position:relative;">
                     <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;"><i class="ph ph-magnifying-glass"></i> CID-10</label>
                     <input type="text" id="cid-search" class="form-control" placeholder="J06 - Outros exames..." autocomplete="off" oninput="searchCID(this.value)" style="padding:.4rem;">
                     <div id="cid-dropdown" class="cid-dropdown" style="display:none;"></div>
@@ -5518,8 +5487,7 @@ window.selectCID = function(code, desc) {
 }
 
 window.triggerAtestadoUpload = function() {
-    const tipo = document.getElementById('atestado_tipo')?.value || 'dias';
-    if (tipo === 'dias' && !selectedCID) {
+    if (!selectedCID) {
         alert('Selecione primeiro qual é o CID (código) do atestado digitando na barra de busca!');
         const s = document.getElementById('cid-search');
         if (s) { s.focus(); s.style.border = '2px solid red'; setTimeout(()=> s.style.border='', 2000); }
@@ -5530,16 +5498,12 @@ window.triggerAtestadoUpload = function() {
 
 window.toggleAtestadoPeriodFields = function() {
     const tipo = document.getElementById('atestado_tipo').value;
-    const cidWrapper = document.getElementById('cid-input-wrapper');
     if (tipo === 'dias') {
         document.getElementById('atestado-dias-fields').style.display = 'flex';
         document.getElementById('atestado-horas-fields').style.display = 'none';
-        if (cidWrapper) cidWrapper.style.display = '';
     } else {
         document.getElementById('atestado-dias-fields').style.display = 'none';
         document.getElementById('atestado-horas-fields').style.display = 'flex';
-        if (cidWrapper) cidWrapper.style.display = 'none';
-        selectedCID = null;
     }
 }
 
@@ -5557,11 +5521,8 @@ window.calcAtestadoFim = function() {
 
 window.uploadAtestadoWithCID = async function(inputEl) {
     const file = inputEl.files[0];
-    if (!file) return;
+    if (!file || !selectedCID) return;
     if (!viewedColaborador) { alert('Colaborador não selecionado.'); return; }
-    const tipo = document.getElementById('atestado_tipo')?.value || 'dias';
-    // CID obrigatório apenas para atestados de dias
-    if (tipo === 'dias' && !selectedCID) { alert('Selecione o CID antes de anexar!'); return; }
 
     // Loading state
     const uploadBtn   = document.getElementById('cid-upload-btn');
@@ -5576,12 +5537,9 @@ window.uploadAtestadoWithCID = async function(inputEl) {
     const aa  = String(today.getFullYear()).slice(2);
     const nomeColabNorm = (viewedColaborador.nome_completo || viewedColaborador.nome || 'COLAB')
         .toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]+/g, '_');
-    // Para horas sem CID, usar nome genérico
-    const cidCode = selectedCID ? selectedCID.code : 'ATESTADO';
-    const cidDesc = selectedCID ? selectedCID.desc : 'Atestado de Horas';
-    const customName = `${cidCode}_${nomeColabNorm}_${dd}${mm}${aa}`;
+    const customName = `${selectedCID.code}_${nomeColabNorm}_${dd}${mm}${aa}`;
 
-    const typeIn = selectedCID ? `${cidCode} - ${cidDesc.substring(0, 60)}` : `Atestado de Horas - ${cidDesc.substring(0, 60)}`;
+    const typeIn = `${selectedCID.code} - ${selectedCID.desc.substring(0, 60)}`;
     const year = document.getElementById('atestados_year') ? document.getElementById('atestados_year').value : today.getFullYear().toString();
 
     const formData = new FormData();
@@ -5594,6 +5552,7 @@ window.uploadAtestadoWithCID = async function(inputEl) {
     formData.append('year', year);
 
     // Campos de período
+    const tipo = document.getElementById('atestado_tipo').value;
     formData.append('atestado_tipo', tipo);
     if (tipo === 'dias') {
         const inicioVal = document.getElementById('atestado_inicio_dia').value;
@@ -8866,34 +8825,10 @@ window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
                 ${actionUX}
                 ${sendBtn}
                 ${eyeBtn}
-                ${(doc.file_name || literallyNaoExige) && !isAssinado ? `<button onclick="window.deleteAdmissaoDoc(${doc.id}, this)" style="border:none;background:none;cursor:pointer;color:#dc2626;" title="Excluir Documento"><i class="ph ph-trash" style="font-size:1.4rem;"></i></button>` : ''}
             </div>
         </div>`;
     });
     return html;
-};
-
-window.deleteAdmissaoDoc = async function(docId, btnEl) {
-    if (!confirm('Tem certeza que deseja excluir este documento?')) return;
-    const card = btnEl ? btnEl.closest('.doc-check-item') : null;
-    if (card) { card.style.opacity = '0.3'; card.style.pointerEvents = 'none'; }
-    try {
-        const res = await fetch(`${API_URL}/admissao-assinaturas/${docId}`, {
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${currentToken}` }
-        });
-        const data = await res.json();
-        if (res.ok) {
-            if (card) card.remove();
-            if (typeof showToast === 'function') showToast('Documento excluído!', 'success');
-        } else {
-            if (card) { card.style.opacity = '1'; card.style.pointerEvents = ''; }
-            alert('Erro ao excluir: ' + (data.error || 'Tente novamente.'));
-        }
-    } catch(e) {
-        if (card) { card.style.opacity = '1'; card.style.pointerEvents = ''; }
-        alert('Erro de conexão.');
-    }
 };
 
 window.toggleAcaoDocumentoAvulso = function(docId, exige, docType) {
@@ -10273,8 +10208,7 @@ window.sendASOEmail = async function() {
         return;
     }
     const dataExame = document.getElementById('aso-exame-data').value;
-    const destInput = document.getElementById('aso-email-destinatario');
-    const destinatario = destInput ? destInput.value : 'recepcao@iacimedtrab.com.br';
+    const destinatario = document.getElementById('aso-email-destinatario').value;
     
     if (!dataExame) {
         alert('Por favor, selecione a data do exame.');
@@ -10298,7 +10232,7 @@ window.sendASOEmail = async function() {
         
         const res = await apiPost('/send-aso-email', {
             colaborador_id: viewedColaborador.id,
-            email_to: destinatario || 'recepcao@iacimedtrab.com.br',
+            email_to: destinatario,
             data_exame: dataExame,
             cc: ['rh@americarental.com.br', 'rh2@americarental.com.br']
         });
@@ -10821,7 +10755,7 @@ async function checkExperienciaNotificacoes() {
     try {
         const payload = JSON.parse(atob(token.split('.')[1]));
         const permissoes = payload.permissoes || [];
-        const isRH = permissoes.includes('rh_completo') || permissoes.some(p => String(p).includes('rh')) || permissoes.includes('experiencia') || permissoes.includes('diretoria') || permissoes.includes('admin');
+        const isRH = permissoes.includes('rh_completo') || permissoes.some(p => String(p).includes('rh')) || permissoes.includes('experiencia');
         if (!isRH) return;
     } catch(e) { return; }
 
@@ -10882,11 +10816,6 @@ async function checkExperienciaNotificacoes() {
                     method: 'PUT',
                     headers: { 'Authorization': `Bearer ${token}` }
                 }).catch(() => {});
-                
-                // Refresh experiencia list if currently visible
-                if (typeof window.loadExperiencia === 'function' && document.getElementById('view-experiencia')) {
-                    setTimeout(() => window.loadExperiencia(), 1000);
-                }
                 
                 // Auto-close after 30s
                 setTimeout(() => { if (popup.parentNode) popup.remove(); }, 30000);
@@ -14037,20 +13966,6 @@ window.abrirPopupIniciarProcesso = function(m, colabId) {
     const tipoAtual = m.tipo_resolucao || '';
     const parcAtual = m.parcelas || 1;
 
-    // Calcular valor base da multa
-    const vlrRaw = (m.valor_multa || '').toString().replace('R$','').replace(/\./g,'').replace(',','.').trim();
-    const vlrNum = parseFloat(vlrRaw) || 0;
-    const nicVal = vlrNum * 2;
-
-    // Calcular valor para exibição inicial (se já tinha tipo selecionado)
-    const vlrInicial = tipoAtual === 'nic' ? nicVal : vlrNum;
-
-    // Gerar botões de parcela
-    const gerarBotoesParcela = (vlrCalc) => [1,2,3].map(n => {
-        const vlrParc = vlrCalc > 0 ? `<div class="parc-sublabel" style="font-size:0.72rem;font-weight:500;color:#6d28d9;margin-top:2px;">R$ ${(vlrCalc/n).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>` : '<div class="parc-sublabel"></div>';
-        return `<button id="parc-${n}" onclick="window.selecionarParcelas(${n})" style="flex:1;padding:0.6rem;border-radius:8px;border:2px solid ${parcAtual===n?'#8b5cf6':'#e2e8f0'};background:${parcAtual===n?'#f5f3ff':'#fff'};cursor:pointer;font-weight:700;color:${parcAtual===n?'#8b5cf6':'#334155'};text-align:center;">${n}x${vlrParc}</button>`;
-    }).join('');
-
     modal.innerHTML = `
         <div style="background:#fff;border-radius:16px;padding:2rem;width:100%;max-width:520px;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;">
@@ -14071,13 +13986,9 @@ window.abrirPopupIniciarProcesso = function(m, colabId) {
             </div>
 
             <h4 style="color:#475569;font-size:0.9rem;margin:0 0 0.75rem;">💰 Parcelamento do Desconto</h4>
-            <!-- hidden: armazena o valor base da multa para cálculos dinâmicos -->
-            <span id="popup-multa-valor" data-valor="${vlrNum}" style="display:none;"></span>
-            <p id="nic-valor-info" style="font-size:0.82rem;color:#dc2626;background:#fff5f5;border:1px solid #fca5a5;border-radius:8px;padding:8px 12px;margin:0 0 0.75rem;display:${tipoAtual==='nic'&&vlrNum>0?'block':'none'};">
-                ⚠️ Valor da Multa NIC: <strong>R$ ${nicVal.toLocaleString('pt-BR',{minimumFractionDigits:2})}</strong> (R$ ${vlrNum.toLocaleString('pt-BR',{minimumFractionDigits:2})} × 2)
-            </p>
             <div style="display:flex;gap:10px;margin-bottom:1.5rem;">
-                ${gerarBotoesParcela(vlrInicial)}
+                ${[1,2,3].map(n=>`<button id="parc-${n}" onclick="window.selecionarParcelas(${n})"
+                    style="flex:1;padding:0.6rem;border-radius:8px;border:2px solid ${parcAtual===n?'#8b5cf6':'#e2e8f0'};background:${parcAtual===n?'#f5f3ff':'#fff'};cursor:pointer;font-weight:700;color:${parcAtual===n?'#8b5cf6':'#334155'};">${n}x</button>`).join('')}
             </div>
 
             <button onclick="window.confirmarIniciarProcesso(${m.id}, ${colabId})"
@@ -14168,7 +14079,7 @@ window.abrirModalTestemunhas = async function(m, colabId) {
                 </div>
                 <div>
                     <label style="font-size:0.85rem;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Assinatura da Testemunha 1 *</label>
-                    <canvas id="canvas-test1" width="340" height="200" style="border:1.5px solid #c4b5fd;border-radius:8px;touch-action:none;background:#fafafa;cursor:crosshair;width:100%;height:200px;"></canvas>
+                    <canvas id="canvas-test1" width="340" height="130" style="border:1.5px solid #c4b5fd;border-radius:8px;touch-action:none;background:#fafafa;cursor:crosshair;width:100%;"></canvas>
                     <button onclick="window._limparCanvasMulta('canvas-test1')" style="margin-top:4px;background:none;border:none;color:#64748b;cursor:pointer;font-size:0.8rem;"><i class="ph ph-eraser"></i> Limpar</button>
                 </div>
                 <div>
@@ -14180,7 +14091,7 @@ window.abrirModalTestemunhas = async function(m, colabId) {
                 </div>
                 <div>
                     <label style="font-size:0.85rem;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Assinatura da Testemunha 2</label>
-                    <canvas id="canvas-test2" width="340" height="200" style="border:1.5px solid #e2e8f0;border-radius:8px;touch-action:none;background:#fafafa;cursor:crosshair;width:100%;height:200px;"></canvas>
+                    <canvas id="canvas-test2" width="340" height="130" style="border:1.5px solid #e2e8f0;border-radius:8px;touch-action:none;background:#fafafa;cursor:crosshair;width:100%;"></canvas>
                     <button onclick="window._limparCanvasMulta('canvas-test2')" style="margin-top:4px;background:none;border:none;color:#64748b;cursor:pointer;font-size:0.8rem;"><i class="ph ph-eraser"></i> Limpar</button>
                 </div>
                 <p style="font-size:0.78rem;color:#94a3b8;background:#f8fafc;padding:8px;border-radius:6px;">Role o documento até o final antes de assinar.</p>
@@ -14314,7 +14225,7 @@ window.abrirModalAssinaturaCondutor = async function(m, colabId) {
                 </div>
                 <div>
                     <label style="font-size:0.85rem;font-weight:700;color:#374151;display:block;margin-bottom:6px;">Assinatura do Condutor *</label>
-                    <canvas id="canvas-condutor" width="320" height="200" style="border:1.5px solid #fcd34d;border-radius:8px;touch-action:none;background:#fafafa;cursor:crosshair;width:100%;height:200px;"></canvas>
+                    <canvas id="canvas-condutor" width="320" height="140" style="border:1.5px solid #fcd34d;border-radius:8px;touch-action:none;background:#fafafa;cursor:crosshair;width:100%;"></canvas>
                     <button onclick="window._limparCanvasMulta('canvas-condutor')" style="margin-top:4px;background:none;border:none;color:#64748b;cursor:pointer;font-size:0.8rem;"><i class="ph ph-eraser"></i> Limpar</button>
                 </div>
                 <button id="btn-confirmar-condutor"
@@ -14433,33 +14344,6 @@ window.selecionarTipoMulta = function(tipo) {
         btn.style.borderColor = sel ? '#f503c5' : '#e2e8f0';
         btn.style.background  = sel ? '#fdf4ff' : '#fff';
         btn.style.color       = sel ? '#f503c5' : '#334155';
-    });
-
-    // Atualizar valores das parcelas conforme o tipo selecionado
-    const nicInfoEl = document.getElementById('nic-valor-info');
-    const parcBtns = [1,2,3];
-    const multaValorEl = document.getElementById('popup-multa-valor');
-    const vlrBase = multaValorEl ? (parseFloat(multaValorEl.dataset.valor) || 0) : 0;
-    const vlrCalc = tipo === 'nic' ? vlrBase * 2 : vlrBase;
-
-    // Mostrar/ocultar aviso NIC
-    if (nicInfoEl) {
-        if (tipo === 'nic' && vlrBase > 0) {
-            nicInfoEl.style.display = 'block';
-            nicInfoEl.innerHTML = `⚠️ Valor da Multa NIC: <strong>R$ ${vlrCalc.toLocaleString('pt-BR',{minimumFractionDigits:2})}</strong> (R$ ${vlrBase.toLocaleString('pt-BR',{minimumFractionDigits:2})} × 2)`;
-        } else {
-            nicInfoEl.style.display = 'none';
-        }
-    }
-
-    // Atualizar sub-labels dos botoes de parcela
-    parcBtns.forEach(n => {
-        const btn = document.getElementById(`parc-${n}`);
-        if (!btn) return;
-        const sublabel = btn.querySelector('.parc-sublabel');
-        if (sublabel && vlrCalc > 0) {
-            sublabel.textContent = `R$ ${(vlrCalc/n).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
-        }
     });
 };
 

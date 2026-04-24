@@ -23,7 +23,8 @@ const SMTP_CONFIG = {
 
 const db = require('./database');
 
-// As exclusões fixas de geradores foram removidas para evitar apagamento acidental
+db.run("DELETE FROM geradores WHERE nome = 'AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO'");
+db.run("DELETE FROM geradores WHERE nome = 'Termo de Responsabilidade de Chaves'");
 // Registrar exclusoes permanentes para que o seed nao recrie
 db.run("CREATE TABLE IF NOT EXISTS geradores_excluidos (nome TEXT PRIMARY KEY)", () => {
     db.run("INSERT OR IGNORE INTO geradores_excluidos (nome) VALUES ('Termo de Responsabilidade de Chaves')");
@@ -219,7 +220,31 @@ db.run("DELETE FROM cargos WHERE nome = 'teste' OR nome = 'Teste'", (err) => {
     if (err) console.error("Erro ao remover cargo teste:", err);
 });
 
-// Rotina de exclusão automática de duplicatas removida permanentemente para blindagem de dados
+// MIGRATION: Limpar duplicatas de geradores — executado em sequência garantida
+db.serialize(() => {
+    // 1. Renomear ORDEM DE SERVIÇO NR01 (maiúsculo) para caixa mista
+    db.run("UPDATE geradores SET nome = 'Ordem de Servi\u00e7o NR01' WHERE nome LIKE 'ORDEM%NR01' OR nome LIKE 'ORDEM%NR 01'", (err) => {
+        if (err) console.error('Erro ao renomear NR01 maiúsculo:', err);
+        else console.log('MIGRATION: ORDEM NR01 maiúsculo renomeado (se existia).');
+    });
+    // 2. Remover duplicatas de NR01 mantendo o mais antigo
+    db.run("DELETE FROM geradores WHERE (nome LIKE '%NR01%' OR nome LIKE '%NR 01%') AND id NOT IN (SELECT MIN(id) FROM geradores WHERE nome LIKE '%NR01%' OR nome LIKE '%NR 01%')", (err) => {
+        if (err) console.error('Erro ao deduplicar NR01:', err);
+        else console.log('MIGRATION: Duplicatas NR01 removidas (se existiam).');
+    });
+    // 3. Remover AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO (maiúsculo extra)
+    //    Mantém apenas o de ID menor (Autorização de Desconto em Folha, criado antes)
+    db.run("DELETE FROM geradores WHERE nome LIKE 'AUTORI%DESCONTO%PAGAMENTO'", (err) => {
+        if (err) console.error('Erro ao remover AUTORIZACAO DESCONTO PAGAMENTO maiúsculo:', err);
+        else console.log('MIGRATION: AUTORIZACAO DESCONTO PAGAMENTO maiúsculo removido (se existia).');
+    });
+    // 4. Remover qualquer outro gerador em CAIXA ALTA cujo nome = UPPER(nome) — exceto os já tratados
+    //    Detecta nomes 100% maiúsculos contendo mais de 3 palavras
+    db.run("DELETE FROM geradores WHERE nome = UPPER(nome) AND LENGTH(nome) > 10 AND nome NOT LIKE 'Ordem%'", (err) => {
+        if (err) console.error('Err ao remover geradores all-caps extra:', err);
+        else console.log('MIGRATION: Geradores all-caps extras removidos.');
+    });
+});
 
 
 // MIGRATION: Remover " - Total" dos grupos de permissão
@@ -248,6 +273,7 @@ db.run("ALTER TABLE colaboradores ADD COLUMN tamanho_calcado TEXT", (err) => {
     if (err && !err.message.includes('duplicate column')) console.error(err);
 });
 
+
 // MIGRATION: Garantir que os geradores baseados em perfil do colaborador existam no banco
 const GERADORES_PERFIL = [
     'Termo de NÃO Interesse Terapia',
@@ -256,17 +282,7 @@ const GERADORES_PERFIL = [
     'Responsabilidade Celular',
     'Contrato Faculdade',
     'Contrato Academia',
-    'Contrato Intermitente',
-    'Compartilhamento de Dados',
-    'Recebimento de Regimento Interno',
-    'Regras Sorteio Final de Ano',
-    'Responsabilidade Equipamento',
-    'Responsabilidade Veículo',
-    'Termo de Confidencialidade',
-    'Sinistro - Danos em Terceiros e Nosso',
-    'Sinistro - Danos em Terceiros',
-    'Sinistro - Danos no Nosso Veículo',
-    'Sinistro - Outros Danos'
+    // 'Termo de Responsabilidade de Chaves' -- removido permanentemente
 ];
 GERADORES_PERFIL.forEach(nome => {
     // Verifica se o gerador foi excluido manualmente pelo usuario
@@ -2752,8 +2768,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
         const tipoNorm = normalize(sin.tipo_sinistro);
         const todosGeradores = await new Promise((resolve) => db.all("SELECT * FROM geradores WHERE nome LIKE '%Sinistro%'", [], (e, r) => resolve(r || [])));
         console.log('[Sinistro] tipo_sinistro:', JSON.stringify(sin.tipo_sinistro), '| geradores disponiveis:', todosGeradores.map(g=>g.nome));
-        let gerador = todosGeradores.find(g => normalize(g.nome).endsWith(tipoNorm))
-                   || todosGeradores.find(g => normalize(g.nome).includes(tipoNorm))
+        let gerador = todosGeradores.find(g => normalize(g.nome).includes(tipoNorm))
                    || todosGeradores.find(g => tipoNorm.split(' ').filter(w=>w.length>3).every(w => normalize(g.nome).includes(w)))
                    || null;
         console.log('[Sinistro] gerador escolhido:', gerador ? gerador.nome : 'NENHUM');
@@ -3349,21 +3364,6 @@ app.delete('/api/documentos/:id', authenticateToken, (req, res) => {
         db.run('DELETE FROM documentos WHERE id = ?', [req.params.id], deleteErr => {
             if (deleteErr) return res.status(500).json({ error: deleteErr.message });
             res.json({ message: 'Documento excluído' });
-        });
-    });
-});
-
-// DELETE /api/admissao-assinaturas/:id — exclui um documento anexado do prontuário (Contrato Academia, etc.)
-app.delete('/api/admissao-assinaturas/:id', authenticateToken, (req, res) => {
-    db.get('SELECT * FROM admissao_assinaturas WHERE id = ?', [req.params.id], (err, row) => {
-        if (err || !row) return res.status(404).json({ error: 'Documento não encontrado' });
-        // Se tiver arquivo local, apaga
-        if (row.file_path && fs.existsSync(row.file_path)) {
-            try { fs.unlinkSync(row.file_path); } catch(e) {}
-        }
-        db.run('DELETE FROM admissao_assinaturas WHERE id = ?', [req.params.id], deleteErr => {
-            if (deleteErr) return res.status(500).json({ error: deleteErr.message });
-            res.json({ message: 'Documento excluído com sucesso' });
         });
     });
 });
@@ -4563,9 +4563,7 @@ app.delete('/api/avaliacao-templates/:id', authenticateToken, (req, res) => {
 
 // --- ROTA DE ENVIO DE E-MAIL ASO ---
 app.post('/api/send-aso-email', authenticateToken, (req, res) => {
-    const { colaborador_id, email_to, data_exame, cc, tipo_exame } = req.body;
-    const tipoLabel = tipo_exame || 'Admissional';
-    const emailDestino = email_to || 'recepcao@iacimedtrab.com.br';
+    const { colaborador_id, email_to, data_exame, cc } = req.body;
     
     db.get('SELECT * FROM colaboradores WHERE id = ?', [colaborador_id], (err, colab) => {
         if (err || !colab) return res.status(404).json({ error: 'Colaborador não encontrado' });
@@ -4584,8 +4582,8 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
                 <div style="text-align: center; margin-bottom: 20px;">
                     <img src="cid:empresa-logo" style="max-height: 80px;">
                 </div>
-                <h2 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">Exame ${tipoLabel}</h2>
-                <p>Segue abaixo as informa&#231;&#245;es para a realiza&#231;&#227;o do exame ${tipoLabel} do colaborador que deve comparecer.</p>
+                <h2 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">Exame Admissional</h2>
+                <p>Segue abaixo as informações para a realização do exame Admissional do colaborador que deve comparecer.</p>
                 
                 <div style="background: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
                     <p><strong>Data:</strong> ${dataFormatada}</p>
@@ -4600,7 +4598,7 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
 
                 <div style="margin-top: 30px; padding: 15px; border: 2px solid #e74c3c; border-radius: 8px; background: #fff5f5; text-align: center;">
                     <p style="color: #c0392b; font-weight: bold; font-size: 1.1rem; margin: 0;">
-                        &#9888;&#65039; IMPORTANTE:<br>Ap&#243;s o exame ficar pronto, favor enviar o documento por e-mail diretamente para:<br>
+                        ?? IMPORTANTE:<br>Após o exame ficar pronto, favor enviar o documento por e-mail diretamente para:<br>
                         <span style="font-size: 1.2rem; color: #2c3e50;">rh@americarental.com.br</span>
                     </p>
                 </div>
@@ -4611,10 +4609,10 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
 
         const transporter = nodemailer.createTransport(SMTP_CONFIG);
         const mailOptions = {
-            from: `"RH Am\u00e9rica Rental" <${SMTP_CONFIG.auth.user}>`,
-            to: emailDestino,
+            from: `"RH América Rental" <${SMTP_CONFIG.auth.user}>`,
+            to: email_to,
             cc: cc || [],
-            subject: `Solicita\u00e7\u00e3o de Exame ${tipoLabel}`,
+            subject: 'Solicitação de Exame Admissional',
             html: htmlContent,
             attachments: [
                 {
@@ -6853,7 +6851,6 @@ app.post('/api/colaboradores/:id/multas/:multaId/gerar-documento', authenticateT
             conforme acordo com a empresa, até a quitação total do débito.</p>
         `;
 
-        const _logoB64Multa = getLogoBase64DataUri();
         const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
         <style>
             body { font-family: Arial, sans-serif; font-size: 12px; margin: 40px; color: #000; }
@@ -6873,7 +6870,7 @@ app.post('/api/colaboradores/:id/multas/:multaId/gerar-documento', authenticateT
             .assin-row { display: flex; gap: 30px; margin-bottom: 30px; }
             .assin-box { flex:1; border-top: 1px solid #000; padding-top: 5px; text-align: center; font-size: 10px; min-height: 80px; }
         </style></head><body>
-        <div class="logo-header">${_logoB64Multa ? `<img src="${_logoB64Multa}" alt="América Rental">` : '<p style="text-align:center;font-weight:bold;">América Rental</p>'}</div>
+        <div class="logo-header"><img src="data:image/png;base64,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" alt="América Rental"></div>
         <div class="box">
             <p><strong>DADOS COLABORADOR:</strong></p>
             <p>NOME: <strong>${nome}</strong>&nbsp;&nbsp;&nbsp;CPF: <strong>${cpf}</strong></p>
@@ -7191,11 +7188,6 @@ db.run(`CREATE TABLE IF NOT EXISTS experiencia_formularios (
     FOREIGN KEY (colaborador_id) REFERENCES colaboradores(id)
 )`, () => {
     db.run("ALTER TABLE experiencia_formularios ADD COLUMN data_envio_email TEXT", () => {});
-    
-    // ONE-OFF: Deletar formulários de teste para os colaboradores especificados
-    db.run("DELETE FROM experiencia_formularios WHERE colaborador_id IN (SELECT id FROM colaboradores WHERE nome_completo IN ('Wellington Moisés Oliveira de Moraes', 'Wendell Henrique Costa Santos', 'Gustavo Rodrigues Correia'))", (err) => {
-        if (!err) console.log('[MIGRAÇÃO] Formulários de teste de experiência deletados com sucesso.');
-    });
 });
 
 db.run(`CREATE TABLE IF NOT EXISTS experiencia_notificacoes_pendentes (
@@ -7249,150 +7241,66 @@ app.get('/api/experiencia/publico/info', (req, res) => {
     }
 });
 
-// Formulários por departamento (espelho do frontend) — usado para mapear nota_X -> texto da pergunta
-const FORMULARIOS_EXP = {
-    'Manutenção': { secoes: [
-        { nome: '1. DISCIPLINA E CUMPRIMENTO DE ROTINA', itens: ['Evita faltas não justificadas.','Mantém baixo número de faltas justificadas.','Comunica qualquer falta ou atraso com antecedência.','Evita saídas longas do posto de trabalho durante o dia.','Realiza todas as atividades com agilidade, evitando ociosidade durante uma atividade.','Mantém organização das atividades ao longo do dia.'] },
-        { nome: '2. QUALIDADE DO SERVIÇO', itens: ['Executa as atividades com cuidado e capricho.','Segue corretamente as orientações recebidas.','Demonstra atenção aos detalhes nas manutenções realizadas.','Verifica o serviço após a conclusão para evitar retrabalho.','Utiliza corretamente ferramentas e materiais.','Comunica quando identifica falhas ou necessidade de ajuste.'] },
-        { nome: '3. SEGURANÇA', itens: ['Utiliza corretamente os EPIs.','Respeita normas e procedimentos de segurança.','Tem atenção ao manusear ferramentas e equipamentos.','Comunica situações de risco ou condições inseguras.','Evita improvisações que possam gerar risco.','Demonstra responsabilidade com a própria segurança e a dos colegas.'] },
-        { nome: '4. ORGANIZAÇÃO E FERRAMENTAS', itens: ['Mantém ferramentas e materiais organizados após o uso.','Zela pelos equipamentos da empresa.','Mantém o local de trabalho limpo e organizado.','Evita perdas ou extravios de materiais.','Sabe identificar e separar corretamente cada ferramenta.','Comunica quando alguma ferramenta está danificada ou faltando.'] },
-        { nome: '5. COMPORTAMENTO E RELACIONAMENTO', itens: ['Mantém comunicação cordial e respeitosa com logística, liderança e equipe.','Aceita orientações e feedback sem resistência, buscando melhorar.','Mantém postura e apresentação adequadas (uniforme limpo, higiene e comportamento profissional).','Mantém postura profissional no ambiente de trabalho, evitando brincadeiras inadequadas e conflitos.','Respeita a hierarquia de modo geral.','Tem bom comportamento em confraternizações e reuniões.'] }
-    ]},
-    'Motorista': { secoes: [
-        { nome: '1. DISCIPLINA E CUMPRIMENTO DE ROTINA', itens: ['Evita faltas não justificadas.','Mantém baixo número de faltas justificadas.','Comunica qualquer falta ou atraso com antecedência.','Sai pontualmente para a rota no horário programado.','Realiza os atendimentos com agilidade garantindo que todos os clientes sejam atendidos.','É comprometido e flexível para realizar escalas extras quando solicitado.'] },
-        { nome: '2. CONDUÇÃO E CUIDADO COM O VEÍCULO', itens: ['Cuida do correto abastecimento do veículo conforme orientação.','Respeita as regras de trânsito, evitando multas e advertências.','Mantém postura profissional no trânsito, evitando conflitos e discussões.','Mantém a limpeza e organização do veículo ao final da rota.','Comunica imediatamente qualquer ruído, falha mecânica ou sinal de problema no veículo.','Mantém atenção durante a direção, evitando distrações.'] },
-        { nome: '3. OPERAÇÃO E SERVIÇO', itens: ['Realiza corretamente a sucção de dejetos, seguindo o padrão da empresa.','Evita desperdício de insumos e utiliza os recursos com consciência.','Demonstra atenção e cuidado com a segurança no manuseio de resíduos.','Mantém organização e limpeza do local após finalizar a operação.','Mantém postura profissional no manuseio de dejetos, sem demonstrar nojo.','Utiliza corretamente os EPIs obrigatórios durante as operações.'] },
-        { nome: '4. PROCESSOS, CONTROLES E DOCUMENTOS', itens: ['Demonstra facilidade na utilização das ferramentas e sistemas.','Preenche corretamente o checklist do veículo.','Garante que o registro do atendimento seja feito corretamente no aplicativo.','Comunica a logística antes de registrar falha no sistema.','Responde as mensagens e ligações de forma ágil e direta.','Está atento ao resumo da rota antes da saída pela manhã.'] },
-        { nome: '5. COMPORTAMENTO E RELACIONAMENTO', itens: ['Mantém comunicação cordial e respeitosa com logística, liderança e equipe.','Aceita orientações e feedback sem resistência, buscando melhorar.','Mantém postura e apresentação adequadas (uniforme limpo, higiene e comportamento profissional).','Mantém postura profissional com o cliente, evitando conflitos e preservando a imagem da empresa.','Respeita a hierarquia de modo geral.','Tem bom comportamento em confraternizações e reuniões.'] }
-    ]},
-    'Ajudante Geral': { secoes: [
-        { nome: '1. DISCIPLINA E CUMPRIMENTO DE ROTINA', itens: ['Evita faltas não justificadas.','Mantém baixo número de faltas justificadas.','Comunica qualquer falta ou atraso com antecedência.','Sai pontualmente para a rota no horário programado.','Realiza os atendimentos da rota com agilidade e bom ritmo.','É comprometido e flexível para realizar escalas extras quando solicitado.'] },
-        { nome: '2. CUIDADO COM OS MATERIAIS', itens: ['Demonstra cuidado ao entrar e sair do veículo.','Tem atenção ao abrir portas, caçamba ou equipamentos para não causar avarias.','Evita apoiar materiais ou ferramentas que possam riscar ou danificar o veículo.','Utiliza corretamente e preserva mangueiras, conexões e acessórios da operação.','Mostra interesse em preservar o patrimônio da empresa.','Utiliza os equipamentos e máquinas da empresa com cuidado e atenção, seguindo as orientações.'] },
-        { nome: '3. OPERAÇÃO E SERVIÇO', itens: ['Realiza corretamente a sucção de dejetos e a lavagem dos banheiros, seguindo o padrão.','Apresenta proatividade ao retornar cedo da rota.','Demonstra atenção e cuidado com a segurança no manuseio de resíduos.','Mantém organização e limpeza do local após finalizar a operação.','Mantém postura profissional no manuseio de dejetos, sem demonstrar nojo.','Utiliza corretamente os EPIs obrigatórios durante as operações.'] },
-        { nome: '4. APOIO AO MOTORISTA', itens: ['Mantém atenção ao trânsito durante a rota, alertando o motorista sobre riscos.','Auxilia o motorista com segurança em manobras (sinalização e orientação de espaço).','Segue orientações do motorista com a operação.','Auxilia o motorista a aprontar o veículo para rápida saída da rota.','Auxilia o motorista a finalizar a rota e alocar os materiais em seus devidos lugares.','Auxilia motorista no uso de aplicativo, evitando que ele utilize o celular enquanto dirige e outras situações.'] },
-        { nome: '5. COMPORTAMENTO E RELACIONAMENTO', itens: ['Mantém comunicação cordial e respeitosa com logística, liderança e equipe.','Aceita orientações e feedback sem resistência, buscando melhorar.','Mantém postura e apresentação adequadas (uniforme limpo, higiene e comportamento profissional).','Mantém postura profissional com o cliente, evitando conflitos e preservando a imagem da empresa.','Respeita a hierarquia de modo geral.','Tem bom comportamento em confraternizações e reuniões.'] }
-    ]},
-    'Comercial': { secoes: [
-        { nome: '1. DISCIPLINA E CUMPRIMENTO DE ROTINA', itens: ['Evita faltas não justificadas.','Mantém baixo número de faltas justificadas.','Comunica qualquer falta ou atraso com antecedência.','Evita saídas longas do posto de trabalho durante o dia.','Realiza os atendimentos com agilidade garantindo que todos os clientes sejam atendidos.','Mantém organização das atividades ao longo do dia.'] },
-        { nome: '2. COMUNICAÇÃO E ATENDIMENTO', itens: ['Apresenta boa escrita e clareza em mensagens, evitando erros e ruídos de comunicação.','Tem o perfil de encantamento do cliente, tentando ajudar e demostrando interesse.','Consegue explicar informações básicas de produtos ou serviços.','Consegue explicar informações complexas de produtos ou serviços.','Consegue lidar com reclamações e situações difíceis com calma, educação e foco em solução.','Tem agilidade no atendimento, respondendo rapidamente o cliente.'] },
-        { nome: '3. ORGANIZAÇÃO E ROTINAS', itens: ['Utiliza corretamente sistemas garantindo a integridade dos processos.','Cumpre prazos e mantém controles sobre retorno a clientes e colegas.','Tem fácil aprendizado para novas atividades.','Demonstra atenção ao preencher cadastros e propostas e contratos.','Mantém registros e informações atualizadas no sistema.','Acompanha follow-up de clientes (retornos, cobranças e pendências) sem deixar oportunidades morrerem.'] },
-        { nome: '4. RESULTADOS E PROATIVIDADE', itens: ['Demonstra iniciativa para ajudar nas demandas.','Contribui para organização de metas, orçamentos ou relatórios.','Apresenta habilidade e agilidade no uso de computadores e na execução das tarefas.','Consegue executar tarefas sem necessidade constante de supervisão.','Demonstra capacidade de identificar oportunidades de venda (novos clientes, renovação e reativação).','Busca atingir metas e acompanhar resultados do setor.'] },
-        { nome: '5. COMPORTAMENTO E RELACIONAMENTO', itens: ['Mantém comunicação cordial e respeitosa com logística, liderança e equipe.','Aceita orientações e feedback sem resistência, buscando melhorar.','Mantém postura e apresentação adequadas (uniforme limpo, higiene e comportamento profissional).','Mantém postura profissional no ambiente de trabalho, evitando brincadeiras inadequadas e conflitos.','Respeita a hierarquia de modo geral.','Tem bom comportamento em confraternizações e reuniões.'] }
-    ]},
-    'Geral': { secoes: [
-        { nome: '1. DISCIPLINA E CUMPRIMENTO DE ROTINA', itens: ['Evita faltas não justificadas.','Mantém baixo número de faltas justificadas.','Comunica qualquer falta ou atraso com antecedência.','Cumpre o horário de trabalho estabelecido.','Realiza suas atividades com agilidade e organização.','É comprometido com suas responsabilidades.'] },
-        { nome: '2. QUALIDADE E DESEMPENHO', itens: ['Executa as atividades com cuidado e capricho.','Segue corretamente as orientações recebidas.','Demonstra atenção aos detalhes nas tarefas realizadas.','Busca melhorar continuamente suas habilidades.','Entrega resultados dentro do prazo esperado.','Demonstra iniciativa para resolver problemas.'] },
-        { nome: '3. COMPORTAMENTO E RELACIONAMENTO', itens: ['Mantém comunicação cordial e respeitosa com a equipe.','Aceita orientações e feedback sem resistência, buscando melhorar.','Mantém postura e apresentação adequadas.','Mantém postura profissional no ambiente de trabalho.','Respeita a hierarquia de modo geral.','Tem bom comportamento em confraternizações e reuniões.'] }
-    ]}
-};
-
-function getFormularioExpBackend(departamento) {
-    if (!departamento) return FORMULARIOS_EXP['Geral'];
-    const d = departamento.trim();
-    if (FORMULARIOS_EXP[d]) return FORMULARIOS_EXP[d];
-    for (const key of Object.keys(FORMULARIOS_EXP)) {
-        if (d.toLowerCase().includes(key.toLowerCase()) || key.toLowerCase().includes(d.toLowerCase())) return FORMULARIOS_EXP[key];
-    }
-    return FORMULARIOS_EXP['Geral'];
-}
-
 async function gerarESalvarPDFExperiencia(colab, respostas, pontuacao, situacao_avaliacao, comentarios) {
     try {
         const htmlPdf = require('html-pdf-node');
         const fs = require('fs');
         const path = require('path');
-
-        const scoreColors = { 1: '#dc2626', 2: '#ea580c', 3: '#ca8a04', 4: '#65a30d', 5: '#16a34a' };
-        const scoreLabels = { 1: '1 – Muito Ruim', 2: '2 – Ruim', 3: '3 – Médio', 4: '4 – Bom', 5: '5 – Muito Bom' };
-
-        const formulario = getFormularioExpBackend(colab.departamento || colab.cargo || '');
-        let itemIdx = 0;
-        let secoesHtml = '';
-        let totalGeral = 0;
-
-        for (const secao of formulario.secoes) {
-            let linhasHtml = '';
-            let totalSecao = 0;
-            for (const item of secao.itens) {
-                const nota = parseInt((respostas || {})[`nota_${itemIdx}`]) || 0;
-                const cor = scoreColors[nota] || '#94a3b8';
-                const label = scoreLabels[nota] || '-';
-                linhasHtml += `<tr><td style="padding:6px 10px;border:1px solid #e2e8f0;font-size:0.85rem;color:#334155;">${item}</td><td style="text-align:center;padding:6px 10px;border:1px solid #e2e8f0;"><span style="display:inline-block;background:${cor};color:#fff;font-weight:700;border-radius:20px;padding:2px 12px;font-size:0.8rem;min-width:90px;text-align:center;">${label}</span></td></tr>`;
-                totalSecao += nota;
-                totalGeral += nota;
-                itemIdx++;
+        
+        let htmlRespostas = '';
+        if (respostas) {
+            for (const [pergunta, resp] of Object.entries(respostas)) {
+                htmlRespostas += `<p><strong>${pergunta}:</strong> ${resp}</p>`;
             }
-            const maxSecao = secao.itens.length * 5;
-            const pctSecao = maxSecao > 0 ? (totalSecao / maxSecao * 100).toFixed(0) : 0;
-            secoesHtml += `<div style="margin-bottom:20px;"><div style="background:#1e3a5f;color:#fff;padding:8px 14px;border-radius:6px 6px 0 0;font-weight:700;font-size:0.85rem;display:flex;justify-content:space-between;"><span>${secao.nome}</span><span>Total: ${totalSecao} / ${maxSecao} (${pctSecao}%)</span></div><table style="width:100%;border-collapse:collapse;"><thead><tr><th style="text-align:left;padding:7px 10px;background:#f1f5f9;color:#475569;font-size:0.8rem;border:1px solid #e2e8f0;">Ponto Avaliado</th><th style="width:160px;text-align:center;padding:7px 10px;background:#f1f5f9;color:#475569;font-size:0.8rem;border:1px solid #e2e8f0;">Nota</th></tr></thead><tbody>${linhasHtml}</tbody></table></div>`;
         }
 
-        const maxTotal = itemIdx * 5;
-        const situacaoCor = situacao_avaliacao === 'Aprovado' ? '#059669' : situacao_avaliacao === 'Reprovado' ? '#dc2626' : '#64748b';
-        const dataHoje = new Date().toLocaleDateString('pt-BR');
-
-        const logoUrl = 'https://sistema-america.onrender.com/logo.png';
-
-        const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
-        body { font-family: Arial, sans-serif; padding: 30px 40px; color: #1e293b; font-size:13px; }
-        .header-logo { text-align:center; margin-bottom:18px; }
-        .header-logo img { max-height:70px; }
-        .titulo { text-align:center; font-size:1.2rem; font-weight:800; color:#1e3a5f; margin-bottom:4px; }
-        .subtitulo { text-align:center; color:#64748b; font-size:0.85rem; margin-bottom:20px; }
-        .info-box { background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:14px 18px; margin-bottom:20px; display:grid; grid-template-columns:1fr 1fr; gap:8px 24px; }
-        .info-label { font-size:0.7rem; color:#94a3b8; font-weight:700; text-transform:uppercase; margin-bottom:2px; }
-        .info-value { font-weight:700; color:#0f172a; }
-        .resultado-box { display:flex; gap:20px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:14px 18px; margin-top:20px; }
-        </style></head><body>
-        <div class="header-logo"><img src="${logoUrl}" onerror="this.style.display='none'" /></div>
-        <div class="titulo">AVALIAÇÃO DE PERÍODO DE EXPERIÊNCIA</div>
-        <div class="subtitulo">Segundo Prazo (45+45 dias) — Documento gerado em ${dataHoje}</div>
-        <div class="info-box">
-            <div><div class="info-label">Colaborador</div><div class="info-value">${colab.nome_completo || ''}</div></div>
-            <div><div class="info-label">Cargo</div><div class="info-value">${colab.cargo || ''}</div></div>
-            <div><div class="info-label">Departamento</div><div class="info-value">${colab.departamento || ''}</div></div>
-            <div><div class="info-label">Data de Admissão</div><div class="info-value">${colab.data_admissao || ''}</div></div>
-            <div><div class="info-label">Responsável pela Avaliação</div><div class="info-value">${colab.responsavel_nome || ''}</div></div>
-        </div>
-        ${secoesHtml}
-        <div class="resultado-box">
-            <div style="text-align:center;min-width:120px;"><div class="info-label">PONTUAÇÃO TOTAL</div><div style="font-size:2rem;font-weight:800;color:#1e3a5f;">${pontuacao || totalGeral}</div><div style="color:#94a3b8;font-size:0.8rem;">/ ${maxTotal}</div></div>
-            <div style="flex:1;"><div class="info-label">SITUAÇÃO</div><div style="font-size:1.1rem;font-weight:800;color:${situacaoCor};margin-top:4px;">${situacao_avaliacao || '—'}</div></div>
-            <div style="flex:2;"><div class="info-label">COMENTÁRIOS</div><div style="margin-top:4px;color:#334155;">${comentarios || 'Nenhum comentário.'}</div></div>
-        </div>
+        const html = `<!DOCTYPE html>
+        <html><head><meta charset="UTF-8"><style>
+        body { font-family: Arial, sans-serif; padding: 40px; color: #333; }
+        h1 { color: #0f4c81; border-bottom: 2px solid #2db0d8; padding-bottom: 10px; }
+        h2 { color: #333; margin-top: 20px; font-size: 1.2rem; }
+        .info { background: #f1f5f9; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 0.95rem; }
+        .info p { margin: 5px 0; }
+        .respostas { margin-top: 20px; font-size: 0.9rem; }
+        </style></head>
+        <body>
+            <h1>Avaliação de Experiência</h1>
+            <div class="info">
+                <p><strong>Colaborador:</strong> ${colab.nome_completo || ''}</p>
+                <p><strong>Cargo:</strong> ${colab.cargo || ''}</p>
+                <p><strong>Departamento:</strong> ${colab.departamento || ''}</p>
+                <p><strong>Data de Admissão:</strong> ${colab.data_admissao || ''}</p>
+                <p><strong>Responsável pela Avaliação:</strong> ${colab.responsavel_nome || ''}</p>
+            </div>
+            <h2>Resultado da Avaliação</h2>
+            <div class="info">
+                <p><strong>Situação:</strong> ${situacao_avaliacao || 'Pendente'}</p>
+                <p><strong>Pontuação Total:</strong> ${pontuacao || 0}</p>
+            </div>
+            <h2>Comentários Adicionais</h2>
+            <p>${comentarios || 'Nenhum comentário adicionado.'}</p>
+            <h2>Respostas do Formulário</h2>
+            <div class="respostas">
+                ${htmlRespostas}
+            </div>
         </body></html>`;
-
-
 
         const options = { format: 'A4', margin: { top: '20px', bottom: '20px', left: '20px', right: '20px' } };
         const fileBuffer = await htmlPdf.generatePdf({ content: html }, options);
 
         const safeFolder = formatarNome(colab.nome_completo);
-        const fileName = `Experiencia_${safeFolder}.pdf`;
+        const baseDrivePath = "C:\\A\\OneDrive - AMERICA RENTAL EQUIPAMENTOS LTDA\\Documentos - America Rental\\RH\\1.Colaboradores\\Sistema";
+        const targetDir = path.join(baseDrivePath, safeFolder, "AVALIACAO");
         
-        // Try to save to OneDrive if configured
-        if (typeof onedrive !== 'undefined' && onedrive) {
-            try {
-                const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || 'RH/1.Colaboradores/Sistema';
-                const targetDir = onedriveBasePath + '/' + safeFolder + '/AVALIACAO';
-                await onedrive.ensurePath(onedriveBasePath + '/' + safeFolder);
-                await onedrive.ensurePath(targetDir);
-                await onedrive.uploadToOneDrive(targetDir, fileName, fileBuffer);
-                console.log(`[PDF Experiencia] PDF salvo no OneDrive com sucesso: ${targetDir}/${fileName}`);
-            } catch (odErr) {
-                console.error('[PDF Experiencia] Erro OneDrive:', odErr.message);
-            }
-        } else {
-            // Local fallback (won't persist on Render, but good for local dev)
-            const baseDrivePath = path.join(__dirname, 'tmp');
-            const targetDir = path.join(baseDrivePath, safeFolder, "AVALIACAO");
-            if (!fs.existsSync(targetDir)) {
-                fs.mkdirSync(targetDir, { recursive: true });
-            }
-            const filePath = path.join(targetDir, fileName);
-            fs.writeFileSync(filePath, fileBuffer);
-            console.log(`[PDF Experiencia] PDF salvo localmente em: ${filePath}`);
+        if (!fs.existsSync(targetDir)) {
+            fs.mkdirSync(targetDir, { recursive: true });
         }
+        
+        const fileName = `Experiencia_${safeFolder}.pdf`;
+        const filePath = path.join(targetDir, fileName);
+        
+        fs.writeFileSync(filePath, fileBuffer);
+        console.log(`[PDF Experiencia] PDF salvo com sucesso em: ${filePath}`);
     } catch(e) {
         console.error('[PDF Experiencia] Erro ao gerar/salvar PDF:', e);
     }
@@ -7480,7 +7388,7 @@ app.get('/api/experiencia', authenticateToken, (req, res) => {
     });
 });
 
-// GET /api/experiencia/:colaborador_id — Detalhes + formulário (must come AFTER /notificacoes routes)
+// GET /api/experiencia/:colaborador_id — Detalhes + formulário
 app.get('/api/experiencia/:colaborador_id', authenticateToken, (req, res) => {
     const { colaborador_id } = req.params;
     db.get(`SELECT c.*, 
@@ -7574,7 +7482,6 @@ app.put('/api/experiencia/formulario/:id', authenticateToken, (req, res) => {
     );
 });
 
-// *** IMPORTANT: These specific routes must be placed BEFORE /api/experiencia/:colaborador_id ***
 // GET /api/experiencia/notificacoes/pendentes — Polling para popup de RH
 app.get('/api/experiencia/notificacoes/pendentes', authenticateToken, (req, res) => {
     db.all(`SELECT * FROM experiencia_notificacoes_pendentes WHERE lido = 0 ORDER BY criado_em DESC LIMIT 20`, [], (err, rows) => {
@@ -7892,35 +7799,4 @@ app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
     console.log('Versão do Servidor: V30_EXPERIENCIA_MODULE');
     console.log(`Caminho de Armazenamento Local: ${BASE_UPLOAD_PATH}`);
-    
-    // EXCLUSÃO CIRÚRGICA DE CONTRATOS LEGADOS APÓS INICIALIZAÇÃO DO SERVIDOR
-    setTimeout(() => {
-        console.log('[SISTEMA] Varredura de exclusão de contratos legados iniciada...');
-        db.all("SELECT id, nome FROM geradores", [], (err, rows) => {
-            if (!err && rows) {
-                let deletedCount = 0;
-                rows.forEach(row => {
-                    const nLower = (row.nome || '').toLowerCase().trim();
-                    if (nLower.includes('autorização de desconto') || 
-                        nLower.includes('autorizacao de desconto') ||
-                        nLower.includes('ordem de serviço nr01') || 
-                        nLower.includes('ordem de servico nr01') ||
-                        nLower.includes('bloqueio de farmácia') ||
-                        nLower.includes('bloqueio de farmacia') ||
-                        nLower === 'termo de responsabilidade - sinistro') {
-                        
-                        db.run("DELETE FROM geradores WHERE id = ?", [row.id], (e) => {
-                            if (e) console.error("[ERRO EXCLUSÃO] ", e);
-                            else {
-                                deletedCount++;
-                                console.log(`[SUCESSO] Contrato '${row.nome}' excluído com sucesso!`);
-                            }
-                        });
-                    }
-                });
-            } else {
-                console.error("[ERRO DB] Falha ao consultar geradores:", err);
-            }
-        });
-    }, 5000); // Executa 5 segundos após a porta abrir
 });

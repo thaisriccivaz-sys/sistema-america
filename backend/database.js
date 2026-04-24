@@ -13,24 +13,11 @@ if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
 }
 
-// Verificação de Segurança e Cópia Automática (Migração para Disco Persistente)
-const defaultDbPath = path.join(__dirname, 'data', 'hr_system_v2.sqlite');
+// Verificação de Segurança
 if (!fs.existsSync(dbPath)) {
     console.warn('--- AVISO DE SEGURANÇA ---');
     console.warn(`Banco não encontrado em: ${dbPath}`);
-    
-    // Se estivermos usando um disco persistente e ele estiver vazio, mas existir um banco no repositório, copia
-    if (dbPath !== defaultDbPath && fs.existsSync(defaultDbPath)) {
-        console.warn(`Copiando banco pré-existente do repositório para o disco persistente...`);
-        try {
-            fs.copyFileSync(defaultDbPath, dbPath);
-            console.log(`Banco copiado com sucesso para ${dbPath}`);
-        } catch (e) {
-            console.error(`Erro ao copiar o banco de dados: ${e.message}`);
-        }
-    } else {
-        console.warn('Um novo banco vazio será criado se você continuar.');
-    }
+    console.warn('Um novo banco vazio será criado se você continuar.');
 }
 
 const db = new sqlite3.Database(dbPath, (err) => {

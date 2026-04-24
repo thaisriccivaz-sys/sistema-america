@@ -922,8 +922,8 @@ async function openExperienciaModal(colaboradorId) {
                     <div style="display:flex;gap:1rem;">
                         <button type="button" onclick="document.getElementById('modal-experiencia-overlay').remove()" style="padding:0.6rem 1.25rem;border:1px solid #e2e8f0;border-radius:8px;background:#f1f5f9;color:#334155;cursor:pointer;font-weight:600;">Fechar</button>
                         ${canEdit ? `
-                        ${situacao !== 'finalizado' ? `<button type="button" onclick="salvarFormularioExp('rascunho')" style="padding:0.6rem 1.25rem;border:1px solid #7c3aed;border-radius:8px;background:#ede9fe;color:#5b21b6;cursor:pointer;font-weight:600;"><i class="ph ph-floppy-disk"></i> Salvar Rascunho</button>` : ''}
-                        <button type="button" onclick="salvarFormularioExp('finalizado')" style="padding:0.6rem 1.25rem;border:none;border-radius:8px;background:#1d4ed8;color:#fff;cursor:pointer;font-weight:600;"><i class="ph ph-check-circle"></i> ${situacao === 'finalizado' ? 'Atualizar Avaliação' : 'Finalizar Avaliação'}</button>
+                        <button type="button" onclick="salvarFormularioExp('rascunho')" style="padding:0.6rem 1.25rem;border:1px solid #7c3aed;border-radius:8px;background:#ede9fe;color:#5b21b6;cursor:pointer;font-weight:600;"><i class="ph ph-floppy-disk"></i> Salvar Rascunho</button>
+                        <button type="button" onclick="salvarFormularioExp('finalizado')" style="padding:0.6rem 1.25rem;border:none;border-radius:8px;background:#1d4ed8;color:#fff;cursor:pointer;font-weight:600;"><i class="ph ph-check-circle"></i> Finalizar Avaliação</button>
                         ` : ''}
                     </div>
                 </div>
