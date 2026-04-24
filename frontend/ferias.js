@@ -217,7 +217,7 @@
                 box-shadow:0 0 0 1.5px white;" title="Férias Programadas: ${fmt(fIni)}"></div>`;
         }
 
-        const labelRestante = ult.vencida ? '⚠ Prazo vencido!' : `${diasRestantes}d p/ vencer`;
+        const labelRestante = ult.vencida ? '⚠ Prazo vencido!' : `Vence ${diasRestantes}d`;
 
         return `<div style="min-width:145px;">
             <div style="font-size:0.71rem;color:#64748b;margin-bottom:3px;">${fmt(ult.fim)} → ${fmt(ult.prazoGozo)}</div>
@@ -225,7 +225,7 @@
                 <div style="width:${pct}%;background:${barColor};height:100%;border-radius:99px;position:relative;z-index:1;"></div>
                 ${marker}
             </div>
-            <div style="font-size:0.69rem;color:${ult.vencida ? '#ef4444' : '#94a3b8'};margin-top:2px;">${labelRestante}</div>
+            <div style="font-size:0.69rem;color:${ult.vencida ? '#ef4444' : '#94a3b8'};margin-top:2px;white-space:nowrap;">${labelRestante}</div>
         </div>`;
     }
 

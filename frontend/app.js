@@ -1917,17 +1917,17 @@ async function loadDashboard() {
                     } else if (f.dias_restantes <= 30) {
                         // Vermelho — urgente (≤30 dias)
                         barColor = '#ef4444';
-                        labelRestante = `${f.dias_restantes}d p/ vencer`;
+                        labelRestante = `Vence ${f.dias_restantes}d`;
                         labelColor = '#ef4444';
                     } else if (f.dias_restantes <= 90) {
                         // Laranja — atenção (≤90 dias sem agenda)
                         barColor = '#f59e0b';
-                        labelRestante = `${f.dias_restantes}d p/ vencer`;
+                        labelRestante = `Vence ${f.dias_restantes}d`;
                         labelColor = '#b45309';
                     } else {
                         // Cinza — no prazo
                         barColor = '#94a3b8';
-                        labelRestante = `${f.dias_restantes}d p/ vencer`;
+                        labelRestante = `Vence ${f.dias_restantes}d`;
                         labelColor = '#94a3b8';
                     }
 
@@ -1936,7 +1936,7 @@ async function loadDashboard() {
                         <div style="background:#e2e8f0;border-radius:99px;height:6px;position:relative;">
                             <div style="width:${pct}%;background:${barColor};height:100%;border-radius:99px;position:relative;z-index:1;"></div>
                         </div>
-                        <div style="font-size:0.69rem;color:${labelColor};margin-top:2px;">${labelRestante}</div>
+                        <div style="font-size:0.69rem;color:${labelColor};margin-top:2px;white-space:nowrap;">${labelRestante}</div>
                     </div>`;
 
                     const nomeStr = f.nome || '?';
