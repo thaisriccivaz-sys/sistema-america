@@ -1888,23 +1888,50 @@ async function loadDashboard() {
             if (!chartsData.feriasVencendo || chartsData.feriasVencendo.length === 0) {
                 tbFerias.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#999;font-style:italic;">Nenhuma férias a vencer em 90 dias com agendamento.</td></tr>';
             } else {
-                chartsData.feriasVencendo.forEach(f => {
+                    chartsData.feriasVencendo.forEach(f => {
                     const cfPts = f.concessivo_fim.split('-');
                     const cfmt = `${cfPts[2]}/${cfPts[1]}/${cfPts[0]}`;
-                    
-                    const aqPts = f.aquisitivo_fim ? f.aquisitivo_fim.split('-') : cfPts; // fallback if missing
+
+                    const aqPts = f.aquisitivo_fim ? f.aquisitivo_fim.split('-') : cfPts;
                     const afmt = `${aqPts[2]}/${aqPts[1]}/${aqPts[0]}`;
-                    
+
                     const pct = Math.max(0, Math.min(100, 100 - (f.dias_restantes / 365) * 100));
-                    const barColor = f.dias_restantes <= 0 ? '#ef4444' : f.dias_restantes <= 30 ? '#f97316' : '#22c55e';
-                    const labelRestante = f.dias_restantes <= 0 ? '⚠️ Prazo vencido!' : `${f.dias_restantes}d p/ vencer`;
-                    
+
+                    // Lógica de cores igual à tela de Controle de Férias
+                    let barColor, labelRestante, labelColor;
+                    if (f.ferias_agendadas && f.ferias_inicio_fmt) {
+                        // Verde — férias agendadas
+                        barColor = '#16a34a';
+                        labelRestante = `✅ Agendada: ${f.ferias_inicio_fmt}`;
+                        labelColor = '#15803d';
+                    } else if (f.dias_restantes <= 0) {
+                        // Vermelho — prazo vencido
+                        barColor = '#ef4444';
+                        labelRestante = '⚠️ Prazo vencido!';
+                        labelColor = '#ef4444';
+                    } else if (f.dias_restantes <= 30) {
+                        // Vermelho — urgente (≤30 dias)
+                        barColor = '#ef4444';
+                        labelRestante = `${f.dias_restantes}d p/ vencer`;
+                        labelColor = '#ef4444';
+                    } else if (f.dias_restantes <= 90) {
+                        // Laranja — atenção (≤90 dias sem agenda)
+                        barColor = '#f59e0b';
+                        labelRestante = `${f.dias_restantes}d p/ vencer`;
+                        labelColor = '#b45309';
+                    } else {
+                        // Cinza — no prazo
+                        barColor = '#94a3b8';
+                        labelRestante = `${f.dias_restantes}d p/ vencer`;
+                        labelColor = '#94a3b8';
+                    }
+
                     const progressBarHtml = `<div style="min-width:145px;">
                         <div style="font-size:0.71rem;color:#64748b;margin-bottom:3px;">${afmt} &rarr; ${cfmt}</div>
                         <div style="background:#e2e8f0;border-radius:99px;height:6px;position:relative;">
                             <div style="width:${pct}%;background:${barColor};height:100%;border-radius:99px;position:relative;z-index:1;"></div>
                         </div>
-                        <div style="font-size:0.69rem;color:${f.dias_restantes <= 0 ? '#ef4444' : '#94a3b8'};margin-top:2px;">${labelRestante}</div>
+                        <div style="font-size:0.69rem;color:${labelColor};margin-top:2px;">${labelRestante}</div>
                     </div>`;
 
                     const nomeStr = f.nome || '?';
@@ -1923,6 +1950,7 @@ async function loadDashboard() {
                         </tr>
                     `;
                 });
+
             }
         }
 

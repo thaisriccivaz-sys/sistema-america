@@ -1617,17 +1617,37 @@ app.get('/api/dashboard/charts', authenticateToken, async (req, res) => {
                      }
                      
                      const diffDays = Math.ceil((concessivoEnd - today) / (1000 * 60 * 60 * 24));
+
+                     // Formatar data de início das férias agendadas para exibição
+                     let feriasInicioFmt = null;
+                     if (feriasValidasAtual && r.ferias_programadas_inicio) {
+                         const dStr = r.ferias_programadas_inicio;
+                         if (dStr.includes('/')) {
+                             feriasInicioFmt = dStr; // já está em DD/MM/AAAA
+                         } else {
+                             const pts = dStr.split('-');
+                             if (pts.length === 3) feriasInicioFmt = `${pts[2]}/${pts[1]}/${pts[0]}`;
+                         }
+                     }
+
                      return {
-                         id: r.id, 
+                         id: r.id,
                          nome: r.nome,
                          admissao: adm,
                          aquisitivo_fim: aquisitivoFim.toISOString().split('T')[0],
                          concessivo_fim: concessivoEnd.toISOString().split('T')[0],
                          dias_restantes: diffDays,
-                         ferias_agendadas: feriasValidasAtual
+                         ferias_agendadas: feriasValidasAtual,
+                         ferias_inicio_fmt: feriasInicioFmt
                      };
-                 }).filter(r => r !== null && r.dias_restantes <= 90 && !r.ferias_agendadas)
-                 .sort((a,b) => a.dias_restantes - b.dias_restantes);
+                 // Mostrar: agendados (sempre visíveis) + sem agenda dentro de 90 dias + vencidos
+                 }).filter(r => r !== null && (r.ferias_agendadas || r.dias_restantes <= 90))
+                 .sort((a, b) => {
+                     // Agendados vêm depois dos urgentes
+                     if (a.ferias_agendadas && !b.ferias_agendadas) return 1;
+                     if (!a.ferias_agendadas && b.ferias_agendadas) return -1;
+                     return a.dias_restantes - b.dias_restantes;
+                 });
 
                  resolve(resFerias);
              });
