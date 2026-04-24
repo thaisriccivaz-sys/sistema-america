@@ -1943,7 +1943,7 @@ async function loadDashboard() {
                                 <div style="display:flex;align-items:center;gap:0.55rem;">
                                     <img src="${fotoApiUrl}" alt="" style="width:31px;height:31px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1.5px solid #f503c540;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
                                     <div style="display:none;width:31px;height:31px;border-radius:50%;background:#f503c5;align-items:center;justify-content:center;font-size:0.75rem;font-weight:800;color:#fff;flex-shrink:0;opacity:.9;">${iniciais}</div>
-                                    <a href="#" style="color:#1c7ed6;text-decoration:none;font-weight:600;font-size:0.85rem;" onclick="event.preventDefault(); viewColaborador(${f.id})">${nomeStr}</a>
+                                    <a href="#" style="color:#1c7ed6;text-decoration:none;font-weight:600;font-size:0.85rem;" onclick="event.preventDefault(); editColaborador(${f.id})">${nomeStr}</a>
                                 </div>
                             </td>
                             <td colspan="2" style="padding:0.6rem 0.65rem;vertical-align:middle;">${progressBarHtml}</td>
