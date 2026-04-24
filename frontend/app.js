@@ -3466,7 +3466,11 @@ if (formColab) {
                 // Colaborador salvo sem sync (novo colaborador)
             }
 
-            navigateTo('dashboard');
+            // Fecha a aba do formulário e vai para a lista de colaboradores
+            const formTabIdx = appOpenTabs.findIndex(t => t.target === 'form-colaborador');
+            if (formTabIdx !== -1) appOpenTabs.splice(formTabIdx, 1);
+            renderAppTabs();
+            navigateTo('colaboradores');
 
         } catch(err) {
             console.error(err);
