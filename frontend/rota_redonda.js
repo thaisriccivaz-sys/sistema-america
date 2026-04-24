@@ -639,23 +639,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         
-        // Limpar OS
-        const btnLimpar = e.target.closest('#btn-limpar-os');
-        if (btnLimpar) {
-            osState.produtos = [];
-            osState.tiposServico.clear();
-            osState.acoes.clear();
-            osState.clienteConfirmado = false;
-            osState.clienteNome = '';
-            osState.enderecoSelecionado = '';
-            document.querySelectorAll('#view-logistica-rota-redonda input').forEach(inp => {
-                if(inp.type === 'checkbox') inp.checked = false;
-                else inp.value = '';
-            });
-            atualizarUI();
-            atualizarBloqueio();
-            return;
-        }
+        // (Limpar OS já tratado acima pelo novo handler)
 
         // Pesquisar OS do cliente
         const btnPesqCliente = e.target.closest('#btn-pesq-cliente-os');
