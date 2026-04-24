@@ -14547,3 +14547,61 @@ window.verDocumentoMulta = async function(multaId, colabId, tipo, multaObj) {
         }, 50);
     } catch(e) { alert('Erro: ' + e.message); }
 };
+
+window.destacarCamposVazios = function() {
+    const form = document.getElementById('form-colaborador');
+    if (!form) return;
+
+    // Resetar destaques anteriores
+    const allInputs = form.querySelectorAll('input, select, textarea');
+    allInputs.forEach(el => {
+        el.style.border = '';
+        el.style.backgroundColor = '';
+        el.style.boxShadow = '';
+    });
+
+    let count = 0;
+    // Filtrar e destacar
+    allInputs.forEach(el => {
+        // Ignorar campos hidden, readonly, disabled, inputs de arquivo ou botões de rádio não agrupados
+        if (el.type === 'hidden' || el.type === 'file' || el.readOnly || el.disabled || el.type === 'submit' || el.type === 'button') return;
+        
+        // Ignorar campos que não estão visíveis (offsetParent === null)
+        if (el.offsetParent === null) return; 
+
+        // Se for um select, verifica se tem valor válido (não vazio e diferente do placeholder padrão)
+        let vazio = false;
+        if (el.tagName === 'SELECT') {
+            vazio = !el.value || el.value === '';
+        } else if (el.type === 'checkbox' || el.type === 'radio') {
+            // Em formulários como esse, checkboxes de opção geralmente não são obrigatórios
+            return;
+        } else {
+            vazio = !el.value || el.value.trim() === '';
+        }
+
+        if (vazio) {
+            el.style.border = '2px solid #e03131';
+            el.style.backgroundColor = '#fff5f5';
+            el.style.boxShadow = '0 0 5px rgba(224, 49, 49, 0.4)';
+            count++;
+            
+            // Adicionar listener para remover o destaque quando preenchido
+            const removeHighlight = function() {
+                this.style.border = '';
+                this.style.backgroundColor = '';
+                this.style.boxShadow = '';
+                this.removeEventListener('input', removeHighlight);
+                this.removeEventListener('change', removeHighlight);
+            };
+            el.addEventListener('input', removeHighlight);
+            el.addEventListener('change', removeHighlight);
+        }
+    });
+
+    if (count > 0) {
+        showToast(`Foram encontrados ${count} campos não preenchidos.`, 'warning');
+    } else {
+        showToast('Todos os campos visíveis estão preenchidos!', 'success');
+    }
+};
