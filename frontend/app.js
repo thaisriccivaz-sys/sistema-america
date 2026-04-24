@@ -1645,40 +1645,28 @@ window.updateVacationInfo = function(admissaoStr) {
         if (isNaN(adm.getTime())) return;
 
         const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        today.setHours(12, 0, 0, 0);
 
-        // ─── 1. Encontrar o ciclo atual com base nos anos completos desde a admissão ───
-        // Cada ciclo dura 12 meses. Avançamos ciclos até encontrar aquele cujo
-        // período concessivo ainda não venceu ou que está mais próximo de vencer.
-        let aqStart    = new Date(adm);
-        let aqEnd      = new Date(adm);
-        aqEnd.setFullYear(adm.getFullYear() + 1);
+        // ─── 1. Mesma lógica do ferias.js: anos completos desde a admissão ───
+        // Evita avançar ciclo a mais como o while anterior fazia.
+        const diasTotal     = Math.floor((today - adm) / 86400000);
+        const anosCompletos = Math.floor(diasTotal / 365);
 
-        // Percorre os ciclos enquanto o período concessivo já tiver vencido
-        while (true) {
-            // período_concessivo_fim = aqEnd + 12 meses - 1 dia
-            const concEnd = new Date(aqEnd);
-            concEnd.setFullYear(aqEnd.getFullYear() + 1);
-            concEnd.setDate(concEnd.getDate() - 1);
-
-            if (concEnd >= today) break; // Este ciclo ainda está válido ou é o atual
-
-            // Avança para o próximo ciclo
-            aqStart = new Date(aqEnd);
-            aqEnd.setFullYear(aqEnd.getFullYear() + 1);
-        }
+        // Período aquisitivo atual em andamento
+        const aqStart = new Date(adm);
+        aqStart.setFullYear(adm.getFullYear() + anosCompletos);
+        const aqEnd = new Date(adm);
+        aqEnd.setFullYear(adm.getFullYear() + anosCompletos + 1);
 
         // ─── 2. Período concessivo do ciclo atual ───
-        // periodo_concessivo_inicio = aqEnd (= aqStart + 12 meses)
-        // periodo_concessivo_fim    = aqEnd + 12 meses - 1 dia
+        // inicio do concessivo = fim do aquisitivo (aqEnd)
+        // fim do concessivo    = aqEnd + 12 meses
         const concStart = new Date(aqEnd);
         const concEnd   = new Date(aqEnd);
         concEnd.setFullYear(aqEnd.getFullYear() + 1);
         concEnd.setDate(concEnd.getDate() - 1);
 
         // ─── 3. Exibir datas nos campos ───
-        // Campo "Início do Período Concessivo" = début do concessivo
-        // Campo "Máximo do Período Concessivo" = fim do concessivo
         aqField.value   = concStart.toLocaleDateString('pt-BR');
         concField.value = concEnd.toLocaleDateString('pt-BR');
 
@@ -1686,7 +1674,6 @@ window.updateVacationInfo = function(admissaoStr) {
         const diasParaVencimento = Math.floor((concEnd - today) / (1000 * 60 * 60 * 24));
 
         // ─── 5. Verificar se há férias agendadas dentro do período concessivo ───
-        // Busca nas férias programadas do formulário atual (campo único)
         const fInicioEl = document.getElementById('colab-ferias-programadas-inicio');
         const fFimEl    = document.getElementById('colab-ferias-programadas-fim');
         let feriasValidas = false;
@@ -1694,11 +1681,9 @@ window.updateVacationInfo = function(admissaoStr) {
         if (fInicioEl?.value && fFimEl?.value) {
             const fInicio = new Date(fInicioEl.value + 'T12:00:00');
             const fFim    = new Date(fFimEl.value   + 'T12:00:00');
-            // Sobreposição: fInicio <= concEnd E fFim >= concStart
             feriasValidas = fInicio <= concEnd && fFim >= concStart;
         }
 
-        // Também verificar férias salvas no banco (lista de férias do colaborador)
         if (!feriasValidas && window._feriasListCache && Array.isArray(window._feriasListCache)) {
             feriasValidas = window._feriasListCache.some(f => {
                 if (!f.data_inicio || !f.data_fim) return false;
@@ -1709,11 +1694,7 @@ window.updateVacationInfo = function(admissaoStr) {
         }
 
         // ─── 6. Regra de exibição do alerta ───
-        // Exibir SOMENTE se:
-        //   - dias_para_vencimento >= 0 (não vencido)
-        //   - dias_para_vencimento <= 90 (próximo do prazo)
-        //   - NÃO há férias válidas no período concessivo
-        const emPeriodoConcessivo = today >= concStart; // já entrou no concessivo
+        const emPeriodoConcessivo = today >= concStart;
 
         const exibirAlerta = emPeriodoConcessivo
             && diasParaVencimento >= 0
@@ -1721,7 +1702,6 @@ window.updateVacationInfo = function(admissaoStr) {
             && !feriasValidas;
 
         if (exibirAlerta) {
-            // Cor e alerta vermelho
             concField.style.color      = '#e03131';
             concField.style.fontWeight = '700';
             if (indicator) {
@@ -1743,6 +1723,7 @@ window.updateVacationInfo = function(admissaoStr) {
         console.error('Erro ao calcular datas de férias:', e);
     }
 }
+
 
 
 window.calculateVacationDays = function() {
