@@ -6,8 +6,11 @@ let osState = {
     produtos: [],
     tiposServico: new Set(),
     acoes: new Set(),
-    tempoTotal: 10, // em minutos
-    qtdTanques: 0
+    tempoTotal: 10,
+    qtdTanques: 0,
+    clienteConfirmado: false,  // BLOQUEIO: só libera após pesquisar cliente
+    clienteNome: '',
+    enderecoSelecionado: ''
 };
 
 const TIPOS_SERVICO = ['TANQUE', 'CARGA', 'VAC', 'UTILITARIO', 'TECNICO', 'CARRETINHA', 'CARROCERIA', 'TANQUE GRANDE'];
@@ -80,15 +83,119 @@ document.addEventListener('DOMContentLoaded', () => {
             osState.produtos = [];
             osState.tiposServico.clear();
             osState.acoes.clear();
+            osState.clienteConfirmado = false;
+            osState.clienteNome = '';
+            osState.enderecoSelecionado = '';
             document.querySelectorAll('#view-logistica-rota-redonda input').forEach(inp => {
                 if(inp.type === 'checkbox') inp.checked = false;
                 else inp.value = '';
             });
             atualizarUI();
+            atualizarBloqueio();
+            return;
+        }
+
+        // Botão Buscar Cliente (lupa verde no header)
+        const btnBuscarCliente = e.target.closest('#btn-buscar-cliente');
+        if (btnBuscarCliente) {
+            const nomeInput = document.getElementById('rr-input-cliente');
+            const nome = nomeInput ? nomeInput.value.trim() : '';
+            if (!nome) {
+                alert('Digite o nome do cliente antes de pesquisar.');
+                return;
+            }
+            // Simula seleção: abre modal de confirmação de endereço
+            abrirModalEnderecos(nome);
+            return;
+        }
+
+        // Confirmar endereço no modal
+        const btnConfEnd = e.target.closest('.btn-confirmar-endereco');
+        if (btnConfEnd) {
+            const endereco = btnConfEnd.dataset.endereco;
+            const nome = btnConfEnd.dataset.nome;
+            osState.clienteConfirmado = true;
+            osState.clienteNome = nome;
+            osState.enderecoSelecionado = endereco;
+            // Preenche campo de endereço
+            const inp = document.getElementById('rr-input-endereco');
+            if (inp) inp.value = endereco;
+            // Fecha modal
+            const modal = document.getElementById('rr-modal-enderecos');
+            if (modal) modal.remove();
+            atualizarBloqueio();
+            return;
+        }
+
+        // Fechar modal de endereços
+        const btnFecharModal = e.target.closest('#btn-fechar-modal-end');
+        if (btnFecharModal) {
+            const modal = document.getElementById('rr-modal-enderecos');
+            if (modal) modal.remove();
             return;
         }
     });
 });
+
+// ── BLOQUEIO PROGRESSIVO ──────────────────────────────────────────────────
+function atualizarBloqueio() {
+    const overlay = document.getElementById('rr-overlay-bloqueio');
+    const statusBar = document.getElementById('rr-status-cliente');
+    if (!overlay) return;
+
+    if (osState.clienteConfirmado) {
+        overlay.style.display = 'none';
+        if (statusBar) {
+            statusBar.innerHTML = `<i class="ph ph-check-circle" style="color:#16a34a;"></i> <strong style="color:#16a34a;">${osState.clienteNome}</strong> <span style="color:#64748b; font-size:0.7rem;">— ${osState.enderecoSelecionado}</span>`;
+        }
+    } else {
+        overlay.style.display = 'flex';
+        if (statusBar) {
+            statusBar.innerHTML = `<i class="ph ph-warning" style="color:#f59e0b;"></i> <span style="color:#64748b;">Pesquise o cliente para liberar o formulário</span>`;
+        }
+    }
+}
+
+function abrirModalEnderecos(nomeCliente) {
+    // Remove modal anterior se existir
+    const old = document.getElementById('rr-modal-enderecos');
+    if (old) old.remove();
+
+    // Endereços fictícios de exemplo — futuramente virão do backend
+    const enderecosMock = [
+        { endereco: `Rua das Flores, 123 - Centro - ${nomeCliente}`, lat: '-23.5', lng: '-46.6' },
+        { endereco: `Av. Paulista, 456 - Bela Vista - ${nomeCliente}`, lat: '-23.56', lng: '-46.65' },
+        { endereco: `Rua Geral, 789 - Jardins - ${nomeCliente}`, lat: '-23.57', lng: '-46.66' },
+    ];
+
+    const linhas = enderecosMock.map(e => `
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:0.5rem 0.75rem; border-bottom:1px solid #f1f5f9; hover:bg-gray-50;">
+            <span style="font-size:0.8rem; color:#334155;">${e.endereco}</span>
+            <button class="btn-confirmar-endereco" data-endereco="${e.endereco}" data-nome="${nomeCliente}"
+                style="background:#2d9e5f; color:white; border:none; border-radius:4px; padding:3px 10px; font-size:0.72rem; cursor:pointer; white-space:nowrap; margin-left:8px;">
+                <i class="ph ph-check"></i> Selecionar
+            </button>
+        </div>
+    `).join('');
+
+    const modal = document.createElement('div');
+    modal.id = 'rr-modal-enderecos';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;';
+    modal.innerHTML = `
+        <div style="background:white; border-radius:10px; width:520px; max-width:95vw; box-shadow:0 8px 32px rgba(0,0,0,0.18); overflow:hidden;">
+            <div style="background:#2d9e5f; color:white; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; font-size:0.9rem;"><i class="ph ph-map-pin"></i> Endereços de <em>${nomeCliente}</em></span>
+                <button id="btn-fechar-modal-end" style="background:transparent;border:none;color:white;font-size:1.1rem;cursor:pointer;"><i class="ph ph-x"></i></button>
+            </div>
+            <div style="max-height:260px; overflow-y:auto;">
+                ${linhas}
+            </div>
+            <div style="padding:0.5rem 0.75rem; background:#f8fafc; font-size:0.72rem; color:#94a3b8; text-align:center;">Selecione o endereço para liberar o formulário de serviço</div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 function atualizarUI() {
     // Atualiza Tipos
@@ -148,6 +255,9 @@ function renderRotaRedonda() {
 
     const inputStyle = 'background: white; border: 1px solid #cbd5e1; border-radius: 4px; padding: 2px 6px; font-size: 0.75rem; height: 26px; width: 100%; box-sizing: border-box;';
     const labelStyle = 'font-weight: 600; font-size: 0.7rem; color: #475569; display: block; margin-bottom: 2px; white-space: nowrap;';
+    // Input do Cliente com ID para a lupa acessar
+    const clienteInputHtml = `<input type="text" id="rr-input-cliente" style="${inputStyle} border:none;" placeholder="Nome do Cliente">`;
+    const btnBuscarClienteHtml = `<button id="btn-buscar-cliente" style="background:#20804a; border:none; color:white; border-radius:4px; width:26px; height:26px; cursor:pointer;" title="Pesquisar endereços do cliente"><i class="ph ph-magnifying-glass"></i></button>`;
 
     const html = `
     <div id="rota-redonda-content" style="background: #fff; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); padding: 0.75rem; display: flex; flex-direction: column; height: calc(100vh - 65px); box-sizing: border-box;">
@@ -160,10 +270,10 @@ function renderRotaRedonda() {
             </div>
             <div style="flex: 1;">
                 <label style="${labelStyle} color:white;">Cliente</label>
-                <div style="display:flex; gap:2px;">
-                    <input type="text" style="${inputStyle} border:none;" placeholder="Nome do Cliente">
-                    <button style="background:#20804a; border:none; color:white; border-radius:4px; width:26px; height:26px; cursor:pointer;"><i class="ph ph-magnifying-glass"></i></button>
-                    <button style="background:#0369a1; border:none; color:white; border-radius:4px; width:26px; height:26px; cursor:pointer;"><i class="ph ph-map-pin"></i></button>
+                <div style="display:flex; gap:2px;">${clienteInputHtml}${btnBuscarClienteHtml}</div>
+                <div id="rr-status-cliente" style="font-size:0.68rem; margin-top:2px; display:flex; align-items:center; gap:4px;">
+                    <i class="ph ph-warning" style="color:#fde68a;"></i>
+                    <span style="color:rgba(255,255,255,0.8);">Pesquise o cliente para liberar o formulário</span>
                 </div>
             </div>
             <div style="flex: 0 0 120px;">
@@ -185,13 +295,19 @@ function renderRotaRedonda() {
         <div style="display: flex; gap: 0.75rem; flex: 1; min-height: 0;">
             
             <!-- FORM LEFT COL -->
-            <div style="display: flex; flex-direction: column; gap: 0.5rem; flex: 2; min-width: 0; overflow-y: auto; padding-right: 4px;">
+            <div style="display: flex; flex-direction: column; gap: 0.5rem; flex: 2; min-width: 0; overflow-y: auto; padding-right: 4px; position: relative;">
+                <!-- OVERLAY DE BLOQUEIO -->
+                <div id="rr-overlay-bloqueio" style="position:absolute; inset:0; z-index:10; background:rgba(248,250,252,0.85); display:flex; flex-direction:column; align-items:center; justify-content:center; border-radius:6px; backdrop-filter:blur(2px);">
+                    <i class="ph ph-lock" style="font-size:2rem; color:#94a3b8; margin-bottom:0.5rem;"></i>
+                    <p style="font-size:0.82rem; font-weight:600; color:#64748b; margin:0;">Pesquise o cliente primeiro</p>
+                    <p style="font-size:0.72rem; color:#94a3b8; margin:4px 0 0;">Use a lupa ao lado do campo Cliente para selecionar o endereço</p>
+                </div>
                 
                 <div style="display: flex; gap: 0.5rem;">
                     <div style="flex: 2;">
                         <label style="${labelStyle}">Endereço</label>
                         <div style="display:flex; gap:2px;">
-                            <input type="text" style="${inputStyle}" placeholder="Endereço completo">
+                            <input type="text" id="rr-input-endereco" style="${inputStyle}" placeholder="Endereço completo" readonly>
                             <button style="background:#e2e8f0; border:none; color:#475569; width:26px; height:26px; border-radius:4px; cursor:pointer;"><i class="ph ph-magnifying-glass"></i></button>
                         </div>
                     </div>
@@ -312,5 +428,6 @@ function renderRotaRedonda() {
     `;
 
     container.innerHTML = html;
-    atualizarUI(); // Inicializa o estado visual
+    atualizarUI();
+    atualizarBloqueio(); // Aplica bloqueio inicial
 }
