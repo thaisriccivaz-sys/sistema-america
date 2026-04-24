@@ -621,5 +621,8 @@
         if (e.target.closest('[data-target="ferias"]')) setTimeout(() => renderFerias(), 50);
     });
 
-    window.renderFerias = renderFerias;
+    window.renderFerias      = renderFerias;
+    window._feriasCalc       = calcularFerias;   // usado pelo formulário do colaborador
+    window._feriasParse      = parseDate;
+    window._feriasFmt        = fmt;
 })();

@@ -1633,6 +1633,9 @@ window.updateVacationInfo = function(admissaoStr) {
     const concField  = document.getElementById('ferias-periodo-concessivo');
     const indicator  = document.getElementById('ferias-concessivo-indicator');
 
+    // Tenta ler do campo do formulário se admissaoStr vazio
+    if (!admissaoStr) admissaoStr = document.getElementById('colab-admissao')?.value || '';
+
     if (!admissaoStr || !aqField || !concField) {
         if (aqField)    aqField.value = '-';
         if (concField) { concField.value = '-'; concField.style.color = '#495057'; }
@@ -1641,91 +1644,105 @@ window.updateVacationInfo = function(admissaoStr) {
     }
 
     try {
-        // Strip qualquer componente de horário (igual ao ferias.js parseDate)
-        const admissaoClean = String(admissaoStr).split('T')[0].split(' ')[0];
-        const adm = new Date(admissaoClean + 'T12:00:00');
-        if (isNaN(adm.getTime())) return;
+        // ─── Usa calcularFerias do ferias.js se disponível (garante cálculo idêntico) ───
+        const fmt = window._feriasFmt || ((s) => {
+            if (!s) return '—';
+            const [y, m, d] = String(s).split('T')[0].split('-');
+            return (!y || !m || !d) ? s : `${d}/${m}/${y}`;
+        });
 
-        const today = new Date();
-        today.setHours(12, 0, 0, 0);
+        // Parse robusto: aceita YYYY-MM-DD, DD/MM/YYYY e timestamps
+        const parseAdm = (s) => {
+            if (!s) return null;
+            let clean = String(s).split('T')[0].split(' ')[0];
+            // Converte DD/MM/YYYY → YYYY-MM-DD
+            if (/^\d{2}\/\d{2}\/\d{4}$/.test(clean)) {
+                const [dd, mm, yyyy] = clean.split('/');
+                clean = `${yyyy}-${mm}-${dd}`;
+            }
+            const d = new Date(clean + 'T12:00:00');
+            return isNaN(d.getTime()) ? null : d;
+        };
 
-        // ─── 1. Mesma lógica do ferias.js: anos completos desde a admissão ───
-        const diasTotal     = Math.floor((today - adm) / 86400000);
-        const anosCompletos = Math.floor(diasTotal / 365);
-
-        // Sem direito ainda (menos de 1 ano)
-        if (anosCompletos < 1) {
-            const proximoAniv = new Date(adm);
-            proximoAniv.setFullYear(adm.getFullYear() + 1);
-            aqField.value  = '-';
+        const adm = parseAdm(admissaoStr);
+        if (!adm) {
+            aqField.value = '-';
             concField.value = '-';
-            concField.style.color      = '#495057';
-            concField.style.fontWeight = '600';
             if (indicator) indicator.style.display = 'none';
             return;
         }
 
-        // concStart = quando o direito às férias nasceu = adm + anosCompletos anos
-        // concEnd   = prazo limite para gozar          = adm + anosCompletos+1 anos
-        const concStart = new Date(adm);
-        concStart.setFullYear(adm.getFullYear() + anosCompletos);
-        const concEnd = new Date(adm);
-        concEnd.setFullYear(adm.getFullYear() + anosCompletos + 1);
+        const today = new Date(); today.setHours(12, 0, 0, 0);
 
+        // ─── Usa calcularFerias do ferias.js (exposta via window._feriasCalc) ───
+        if (typeof window._feriasCalc === 'function') {
+            // Normaliza para YYYY-MM-DD antes de passar
+            const admISO = adm.toISOString().split('T')[0];
+            const info = window._feriasCalc(admISO);
+            if (!info || !info.temDireitoAtual || info.periodos.length === 0) {
+                aqField.value = 'Em aquisição';
+                concField.value = '-';
+                concField.style.color = '#495057';
+                if (indicator) indicator.style.display = 'none';
+                return;
+            }
+            const ult = info.periodos[info.periodos.length - 1];
+            aqField.value   = fmt(ult.fim);       // início do concessivo
+            concField.value = fmt(ult.prazoGozo); // prazo limite
 
-        // ─── 3. Exibir datas nos campos ───
+            const diasParaVencimento = Math.floor((new Date(ult.prazoGozo + 'T12:00:00') - today) / 86400000);
+            const concStart = new Date(ult.fim + 'T12:00:00');
+            const concEnd   = new Date(ult.prazoGozo + 'T12:00:00');
+
+            const fInicioEl = document.getElementById('colab-ferias-programadas-inicio');
+            const fFimEl    = document.getElementById('colab-ferias-programadas-fim');
+            let feriasValidas = false;
+            if (fInicioEl?.value && fFimEl?.value) {
+                const fI = new Date(fInicioEl.value + 'T12:00:00');
+                const fF = new Date(fFimEl.value   + 'T12:00:00');
+                feriasValidas = fI <= concEnd && fF >= concStart;
+            }
+
+            const emConcessivo = today >= concStart;
+            const exibirAlerta = emConcessivo && diasParaVencimento >= 0 && diasParaVencimento <= 90 && !feriasValidas;
+
+            if (exibirAlerta) {
+                concField.style.color = '#e03131'; concField.style.fontWeight = '700';
+                if (indicator) {
+                    indicator.style.display = 'flex';
+                    const span = indicator.querySelector('span');
+                    if (span) span.textContent = diasParaVencimento === 0
+                        ? 'Atenção: Férias vencem HOJE!'
+                        : `Atenção: As férias vencem em ${diasParaVencimento} dia(s). Devem ser concedidas antes de ${concField.value}!`;
+                }
+            } else {
+                concField.style.color = '#495057'; concField.style.fontWeight = '600';
+                if (indicator) indicator.style.display = 'none';
+            }
+            return;
+        }
+
+        // ─── Fallback: cálculo interno (mesmo algoritmo do ferias.js) ───
+        const diasTotal     = Math.floor((today - adm) / 86400000);
+        const anosCompletos = Math.floor(diasTotal / 365);
+        if (anosCompletos < 1) {
+            aqField.value = 'Em aquisição'; concField.value = '-';
+            concField.style.color = '#495057'; concField.style.fontWeight = '600';
+            if (indicator) indicator.style.display = 'none';
+            return;
+        }
+        const concStart = new Date(adm); concStart.setFullYear(adm.getFullYear() + anosCompletos);
+        const concEnd   = new Date(adm); concEnd.setFullYear(adm.getFullYear() + anosCompletos + 1);
         aqField.value   = concStart.toLocaleDateString('pt-BR');
         concField.value = concEnd.toLocaleDateString('pt-BR');
-
-        // ─── 4. Calcular dias restantes para o vencimento ───
-        const diasParaVencimento = Math.floor((concEnd - today) / (1000 * 60 * 60 * 24));
-
-        // ─── 5. Verificar se há férias agendadas dentro do período concessivo ───
-        const fInicioEl = document.getElementById('colab-ferias-programadas-inicio');
-        const fFimEl    = document.getElementById('colab-ferias-programadas-fim');
-        let feriasValidas = false;
-
-        if (fInicioEl?.value && fFimEl?.value) {
-            const fInicio = new Date(fInicioEl.value + 'T12:00:00');
-            const fFim    = new Date(fFimEl.value   + 'T12:00:00');
-            feriasValidas = fInicio <= concEnd && fFim >= concStart;
-        }
-
-        if (!feriasValidas && window._feriasListCache && Array.isArray(window._feriasListCache)) {
-            feriasValidas = window._feriasListCache.some(f => {
-                if (!f.data_inicio || !f.data_fim) return false;
-                const fI = new Date(f.data_inicio + 'T12:00:00');
-                const fF = new Date(f.data_fim    + 'T12:00:00');
-                return fI <= concEnd && fF >= concStart;
-            });
-        }
-
-        // ─── 6. Regra de exibição do alerta ───
-        const emPeriodoConcessivo = today >= concStart;
-
-        const exibirAlerta = emPeriodoConcessivo
-            && diasParaVencimento >= 0
-            && diasParaVencimento <= 90
-            && !feriasValidas;
-
-        if (exibirAlerta) {
-            concField.style.color      = '#e03131';
-            concField.style.fontWeight = '700';
-            if (indicator) {
-                indicator.style.display = 'flex';
-                const span = indicator.querySelector('span');
-                if (span) {
-                    span.textContent = diasParaVencimento === 0
-                        ? 'Atenção: Férias vencem HOJE! Devem ser concedidas imediatamente.'
-                        : `Atenção: As férias vencem em ${diasParaVencimento} dia(s). Devem ser concedidas antes de ${concEnd.toLocaleDateString('pt-BR')}!`;
-                }
-            }
+        const diasParaVencimento = Math.floor((concEnd - today) / 86400000);
+        const emConcessivo = today >= concStart;
+        if (emConcessivo && diasParaVencimento >= 0 && diasParaVencimento <= 90) {
+            concField.style.color = '#e03131'; concField.style.fontWeight = '700';
         } else {
-            concField.style.color      = '#495057';
-            concField.style.fontWeight = '600';
+            concField.style.color = '#495057'; concField.style.fontWeight = '600';
             if (indicator) indicator.style.display = 'none';
         }
-
     } catch (e) {
         console.error('Erro ao calcular datas de férias:', e);
     }
@@ -3186,6 +3203,11 @@ window.editColaborador = async function(id) {
         setTimeout(() => {
             if(typeof toggleMotorista === 'function') toggleMotorista();
         }, 100);
+        // Failsafe: re-calcula período de férias após render completo
+        setTimeout(() => {
+            const admVal = document.getElementById('colab-admissao')?.value;
+            if (admVal) window.updateVacationInfo(admVal);
+        }, 400);
     } catch (err) {
         console.error('Erro ao editar colaborador:', err);
         alert('Ocorreu um erro ao carregar os dados para edição: ' + err.message);
