@@ -29,10 +29,7 @@ function calcularTempo() {
 
     // Base: 10 min para entregas/retiradas/visitas, 0 para manutenção
     let baseMin = 10;
-    const tiposBase10 = ['RETIRADA OBRA','RETIRADA EVENTO','ENTREGA OBRA','ENTREGA EVENTO','VISITA TECNICA OBRA','VISITA TECNICA EVENTO'];
-    const tiposBase0  = ['MANUTENCAO OBRA','MANUTENCAO EVENTO','MANUTENCAO AVULSA','MANUTENCAO AVULSA OBRA','MANUTENCAO AVULSA EVENTO'];
-    if (tiposBase10.includes(tipoServico)) baseMin = 10;
-    else if (tiposBase0.some(t => tipoServico.includes('MANUTENCAO'))) baseMin = 0;
+    if (tipoServico.includes('MANUTENCAO')) baseMin = 0;
 
     // Soma total de quantidades (igual ao Flutter: int totalItens = 0; for produto in produtosLogistica)
     const totalItens = osState.produtos.reduce((acc, p) => acc + (parseInt(p.qtd) || 0), 0);
@@ -43,11 +40,131 @@ function calcularTempo() {
     const mm = String(totalMin % 60).padStart(2, '0');
     const resultado = `${hh}:${mm}`;
 
-    // Atualiza o badge de tempo na UI
     const el = document.getElementById('rr-tempo-total');
     if (el) el.innerText = resultado;
 
+    // Após tempo, recalcula carga também (igual ao Flutter que chama calcularCargaTotalFromLista())
+    calcularCargaTotalFromLista();
+
     return resultado;
+}
+
+// ── CARGA PROPORCIONAL (Mictório) — regra de 33.33%, arredonda para par ────────
+function calcularCargaProporcional(quantidade) {
+    const proporcional = quantidade * 0.3333;
+    let carga = Math.ceil(proporcional);
+    if (carga % 2 !== 0) carga++;
+    return carga;
+}
+
+// ── CÁLCULO DE CARGA (espelho do calcularCargaTotalFromLista() do Flutter) ────
+function calcularCargaTotalFromLista() {
+    const tipoServico = (document.getElementById('rr-tipo-servico')?.value || '')
+        .replace(/  /g, ' ').trim().toUpperCase();
+    const isManutencao = tipoServico.includes('MANUTENCAO');
+
+    let totalCarga = 0;
+
+    for (const produto of osState.produtos) {
+        const equipamento = (produto.desc || '').trim().toUpperCase();
+        const quantidade = parseInt(produto.qtd) || 0;
+        if (!equipamento) continue;
+
+        let cargaCalculada = 0;
+
+        if (isManutencao) {
+            // ── MANUTENÇÃO EVENTO ─────────────────────────────────────────────
+            if (tipoServico.includes('EVENTO')) {
+                switch (equipamento) {
+                    case 'STD EVENTO': case 'LX EVENTO': case 'ELX EVENTO':
+                    case 'PCD EVENTO': case 'CHUVEIRO EVENTO': case 'HIDRÁULICO EVENTO':
+                        cargaCalculada = 5 * quantidade; break;
+                    case 'MICTÓRIO EVENTO':
+                        cargaCalculada = 10 * quantidade; break;
+                    case 'PIA II EVENTO': case 'PIA III EVENTO':
+                        cargaCalculada = 1 * quantidade; break;
+                    default:
+                        cargaCalculada = quantidade;
+                }
+            // ── MANUTENÇÃO OBRA / AVULSA ──────────────────────────────────────
+            } else if (tipoServico.includes('OBRA') || tipoServico.includes('AVULSA')) {
+                switch (equipamento) {
+                    case 'STD OBRA': case 'LX OBRA': case 'ELX OBRA':
+                    case 'PBII OBRA': case 'PBIII OBRA':
+                    case 'CHUVEIRO OBRA': case 'HIDRÁULICO OBRA':
+                        cargaCalculada = 1 * quantidade; break;
+                    case 'MICTÓRIO OBRA':
+                        cargaCalculada = 4 * quantidade; break;
+                    default:
+                        cargaCalculada = quantidade;
+                }
+            } else {
+                cargaCalculada = quantidade;
+            }
+        } else {
+            // ── ENTREGA / RETIRADA / OUTROS ───────────────────────────────────
+            if (equipamento.includes('OBRA')) {
+                switch (equipamento) {
+                    case 'STD OBRA': case 'LX OBRA': case 'ELX OBRA':
+                    case 'GUARITA INDIVIDUAL OBRA': case 'PBII OBRA': case 'PBIII OBRA':
+                    case 'CHUVEIRO OBRA': case 'HIDRÁULICO OBRA':
+                        cargaCalculada = quantidade; break;
+                    case 'GUARITA DUPLA OBRA': case 'PCD OBRA':
+                        cargaCalculada = 2 * quantidade; break;
+                    case 'MICTÓRIO OBRA':
+                        cargaCalculada = calcularCargaProporcional(quantidade); break;
+                    default:
+                        cargaCalculada = 0;
+                }
+            } else if (equipamento.includes('EVENTO')) {
+                switch (equipamento) {
+                    case 'STD EVENTO': case 'LX EVENTO': case 'ELX EVENTO':
+                    case 'GUARITA INDIVIDUAL EVENTO': case 'PIA II EVENTO': case 'PIA III EVENTO':
+                    case 'CHUVEIRO EVENTO': case 'HIDRÁULICO EVENTO':
+                        cargaCalculada = quantidade; break;
+                    case 'GUARITA DUPLA EVENTO': case 'PCD EVENTO':
+                        cargaCalculada = 2 * quantidade; break;
+                    case 'MICTÓRIO EVENTO':
+                        cargaCalculada = calcularCargaProporcional(quantidade); break;
+                    default:
+                        cargaCalculada = quantidade;
+                }
+            } else {
+                cargaCalculada = 0;
+            }
+        }
+
+        totalCarga += cargaCalculada;
+    }
+
+    // ── Decide qual veículo usa (Tanque / Carroceria / Carretinha) ─────────────
+    // Regra do Flutter:
+    //   Manutenção        → sempre TANQUE
+    //   carga <= 6        → CARROCERIA
+    //   carga > 6         → CARRETINHA
+    let tanque = '', carroceria = '', carretinha = '';
+    if (isManutencao) {
+        tanque = totalCarga > 0 ? String(totalCarga) : '';
+    } else if (totalCarga <= 6) {
+        carroceria = totalCarga > 0 ? String(totalCarga) : '';
+    } else {
+        carretinha = String(totalCarga);
+    }
+
+    // Atualiza badge Tanques na UI
+    const elTanques = document.getElementById('rr-total-tanques');
+    if (elTanques) {
+        if (tanque)      elTanques.innerText = `T: ${tanque}`;
+        else if (carroceria) elTanques.innerText = `Car: ${carroceria}`;
+        else if (carretinha) elTanques.innerText = `Crt: ${carretinha}`;
+        else             elTanques.innerText = '0';
+    }
+
+    // Guarda no estado para usar ao Gerar OS
+    osState.tanque     = tanque;
+    osState.carroceria = carroceria;
+    osState.carretinha = carretinha;
+    osState.totalCarga = totalCarga;
 }
 
 document.addEventListener('DOMContentLoaded', () => {
