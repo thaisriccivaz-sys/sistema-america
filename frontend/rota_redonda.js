@@ -8,10 +8,78 @@ let osState = {
     acoes: new Set(),
     tempoTotal: 10,
     qtdTanques: 0,
-    clienteConfirmado: false,  // BLOQUEIO: só libera após pesquisar cliente
+    clienteConfirmado: false,
     clienteNome: '',
-    enderecoSelecionado: ''
+    enderecoSelecionado: '',
+    tipoOs: '' // 'Obra' ou 'Evento' — definido no popup ao adicionar produto
 };
+
+// ── DICIONÁRIO DE EQUIPAMENTOS (do Flutter: equipamentosDict) ───────────────
+const EQUIPAMENTOS_DICT = {
+    'STD OBRA':               { icone: '💙', codigo: 'STD O' },
+    'STD EVENTO':             { icone: '💜', codigo: 'STD E' },
+    'LX OBRA':                { icone: '🟦', codigo: 'LX O' },
+    'LX EVENTO':              { icone: '🟣', codigo: 'LX E' },
+    'ELX OBRA':               { icone: '🔵', codigo: 'ELX O' },
+    'ELX EVENTO':             { icone: '🟣', codigo: 'ELX E' },
+    'PCD OBRA':               { icone: '♿',  codigo: 'PCD O' },
+    'PCD EVENTO':             { icone: '🧑🏾‍🦳', codigo: 'PCD E' },
+    'CHUVEIRO OBRA':          { icone: '🚣', codigo: 'CHUVEIRO O' },
+    'CHUVEIRO EVENTO':        { icone: '🚣', codigo: 'CHUVEIRO E' },
+    'HIDRÁULICO OBRA':        { icone: '🚽', codigo: 'HIDRÁULICO O' },
+    'HIDRÁULICO EVENTO':      { icone: '🚽', codigo: 'HIDRÁULICO E' },
+    'MICTÓRIO OBRA':          { icone: '💦', codigo: 'MICTÓRIO O' },
+    'MICTÓRIO EVENTO':        { icone: '💦', codigo: 'MICTÓRIO E' },
+    'PBII OBRA':              { icone: '🧼', codigo: 'PIA II O' },
+    'PBII EVENTO':            { icone: '🧼', codigo: 'PIA II E' },
+    'PBIII OBRA':             { icone: '🧼', codigo: 'PIA III O' },
+    'PBIII EVENTO':           { icone: '🧼', codigo: 'PIA III E' },
+    'GUARITA INDIVIDUAL OBRA':  { icone: '⬜', codigo: 'GUARITA INDIVIDUAL O' },
+    'GUARITA INDIVIDUAL EVENTO':{ icone: '⬜', codigo: 'GUARITA INDIVIDUAL E' },
+    'GUARITA DUPLA OBRA':     { icone: '⚪', codigo: 'GUARITA DUPLA O' },
+    'GUARITA DUPLA EVENTO':   { icone: '⚪', codigo: 'GUARITA DUPLA E' },
+    'LIMPA FOSSA OBRA':       { icone: '💧', codigo: 'LIMPA FOSSA OBRA' },
+    'LIMPA FOSSA EVENTO':     { icone: '💧', codigo: 'LIMPA FOSSA EVENTO' },
+    'VISITA TÉCNICA OBRA':    { icone: '⚙️',  codigo: 'VISITA TÉCNICA OBRA' },
+    'VISITA TÉCNICA EVENTO':  { icone: '⚙️',  codigo: 'VISITA TÉCNICA EVENTO' },
+    'CARRINHO':               { icone: '🛤', codigo: 'CARRINHO' },
+    'CAIXA DAGUA':            { icone: '🧊', codigo: 'CAIXA DAGUA' },
+};
+
+function getProdutosPorTipo(tipoOs) {
+    return Object.entries(EQUIPAMENTOS_DICT)
+        .filter(([nome]) =>
+            tipoOs === 'Obra'  ? nome.includes('OBRA')   :
+            tipoOs === 'Evento'? nome.includes('EVENTO') : true
+        )
+        .map(([nome, v]) => ({ nome, ...v }));
+}
+
+// ── POPUP SELEÇÃO OBRA / EVENTO (mostrarLightboxSelecaoTipoOs do Flutter) ─────
+function abrirPopupTipoOs(onSelecionar) {
+    document.getElementById('rr-popup-tipo-os')?.remove();
+    const popup = document.createElement('div');
+    popup.id = 'rr-popup-tipo-os';
+    popup.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;';
+    popup.innerHTML = `
+        <div style="background:#E0F8F5;border-radius:16px;padding:1.5rem 2rem;box-shadow:0 8px 32px rgba(0,0,0,0.2);text-align:center;min-width:280px;">
+            <p style="font-weight:700;font-size:1.1rem;color:#00251A;margin:0 0 1.2rem;">Selecione o tipo de OS</p>
+            <div style="display:flex;gap:1.5rem;justify-content:center;">
+                <button id="rr-btn-obra" style="width:100px;height:100px;background:#156EB6;border:none;border-radius:12px;color:white;font-weight:700;font-size:1rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;transition:background 0.2s;">
+                    <span style="font-size:2rem">🏗️</span>OBRA
+                </button>
+                <button id="rr-btn-evento" style="width:100px;height:100px;background:#8E24AA;border:none;border-radius:12px;color:white;font-weight:700;font-size:1rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;transition:background 0.2s;">
+                    <span style="font-size:2rem">🎉</span>EVENTO
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(popup);
+    popup.querySelector('#rr-btn-obra').onclick = () => { popup.remove(); onSelecionar('Obra'); };
+    popup.querySelector('#rr-btn-evento').onclick = () => { popup.remove(); onSelecionar('Evento'); };
+    // clique fora fecha sem selecionar
+    popup.addEventListener('click', e => { if (e.target === popup) popup.remove(); });
+}
 
 const TIPOS_SERVICO_OS = [
     'ENTREGA OBRA', 'RETIRADA OBRA', 'MANUTENCAO OBRA', 'SUCCAO OBRA',
@@ -178,6 +246,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 osState.clienteConfirmado = false;
                 osState.clienteNome = '';
                 osState.enderecoSelecionado = '';
+                osState.tipoOs = ''; // reseta escolha Obra/Evento
                 // Remove conteudo anterior e renderiza do zero
                 const c = document.getElementById('rota-redonda-container');
                 if (c) c.innerHTML = '';
@@ -213,17 +282,32 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Adicionar Produto
+        // Adicionar Produto — abre popup OBRA/EVENTO se ainda não definido
         const btnAddProd = e.target.closest('#btn-add-produto');
         if (btnAddProd) {
-            const desc = document.getElementById('rr-prod-desc').value.trim();
-            const qtd = parseInt(document.getElementById('rr-prod-qtd').value) || 1;
-            if (desc) {
+            const adicionarProduto = () => {
+                const desc = document.getElementById('rr-prod-desc')?.value.trim();
+                const qtd = parseInt(document.getElementById('rr-prod-qtd')?.value) || 1;
+                if (!desc) return;
                 osState.produtos.push({ id: Date.now(), desc, qtd });
                 document.getElementById('rr-prod-desc').value = '';
                 document.getElementById('rr-prod-qtd').value = '';
                 atualizarUI();
-                calcularTempo(); // recalcula ao adicionar
+                calcularTempo();
+                // Atualiza badge tipo OS na tela
+                const badge = document.getElementById('rr-badge-tipo-os');
+                if (badge) badge.textContent = osState.tipoOs;
+            };
+
+            if (!osState.tipoOs) {
+                // Ainda não definiu Obra ou Evento — exibe popup
+                abrirPopupTipoOs((tipo) => {
+                    osState.tipoOs = tipo;
+                    atualizarDropdownProdutos();
+                    adicionarProduto();
+                });
+            } else {
+                adicionarProduto();
             }
             return;
         }
@@ -308,13 +392,25 @@ document.addEventListener('DOMContentLoaded', () => {
 // ── BLOQUEIO PROGRESSIVO ──────────────────────────────────────────────────
 function atualizarBloqueio() {
     const overlay = document.getElementById('rr-overlay-bloqueio');
-    const statusBar = document.getElementById('rr-status-cliente');
     if (!overlay) return;
+    overlay.style.display = osState.clienteConfirmado ? 'none' : 'flex';
+}
 
-    if (osState.clienteConfirmado) {
-        overlay.style.display = 'none';
-    } else {
-        overlay.style.display = 'flex';
+// ── ATUALIZA LISTA DE PRODUTOS FILTRADA POR OBRA/EVENTO ───────────────────
+function atualizarDropdownProdutos() {
+    const datalist = document.getElementById('rr-prod-list');
+    const badge = document.getElementById('rr-badge-tipo-os');
+    if (!datalist) return;
+
+    const produtos = getProdutosPorTipo(osState.tipoOs);
+    datalist.innerHTML = produtos.map(p =>
+        `<option value="${p.nome}" label="${p.icone} ${p.nome}">${p.icone} ${p.nome}</option>`
+    ).join('');
+
+    if (badge) {
+        badge.textContent = osState.tipoOs || '';
+        badge.style.background = osState.tipoOs === 'Obra' ? '#156EB6' : osState.tipoOs === 'Evento' ? '#8E24AA' : '#94a3b8';
+        badge.style.display = osState.tipoOs ? 'inline-flex' : 'none';
     }
 }
 
@@ -576,9 +672,11 @@ function renderRotaRedonda() {
                 <!-- PRODUTOS LOGISTICA -->
                 <div style="display: flex; flex-direction: column; gap: 0.4rem;">
                     <div style="display: flex; gap: 4px; align-items: center;">
-                        <input type="text" id="rr-prod-desc" style="${inputStyle} flex: 2;" placeholder="Selecione um código ou digite a descrição...">
-                        <input type="number" id="rr-prod-qtd" style="${inputStyle} width: 60px;" placeholder="Qtd">
-                        <button id="btn-add-produto" style="background: #3b82f6; color: white; width:26px; height:26px; border:none; border-radius:4px; cursor:pointer;"><i class="ph ph-plus"></i></button>
+                        <span id="rr-badge-tipo-os" style="display:none; background:#94a3b8; color:white; font-size:0.65rem; font-weight:700; padding:2px 8px; border-radius:99px; white-space:nowrap; align-items:center;"></span>
+                        <input type="text" id="rr-prod-desc" list="rr-prod-list" style="${inputStyle} flex: 2;" placeholder="Selecione o produto...">
+                        <datalist id="rr-prod-list"></datalist>
+                        <input type="number" id="rr-prod-qtd" style="${inputStyle} width: 60px;" placeholder="Qtd" min="1">
+                        <button id="btn-add-produto" style="background: #3b82f6; color: white; width:26px; height:26px; border:none; border-radius:4px; cursor:pointer;" title="Adicionar produto"><i class="ph ph-plus"></i></button>
                         
                         <div style="display: flex; gap: 0.75rem; font-size: 0.7rem; color: #64748b; margin-left: auto; align-items: center;">
                             <span style="background:#f1f5f9; padding:2px 6px; border-radius:4px;"><i class="ph ph-package"></i> Produtos: <strong id="rr-total-prod">0</strong></span>
