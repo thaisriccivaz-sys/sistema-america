@@ -1589,16 +1589,20 @@ app.get('/api/dashboard/charts', authenticateToken, async (req, res) => {
                      }
                      if(!admDias || isNaN(admDias.getTime())) return null;
                      
-                     let target = new Date(admDias);
-                     while (target <= today) {
-                         target.setFullYear(target.getFullYear() + 1);
-                     }
-                     
-                     const aquisitivoFim = new Date(target);
-                     aquisitivoFim.setFullYear(aquisitivoFim.getFullYear() - 1);
-                     
-                     const concessivoEnd = new Date(aquisitivoFim);
-                     concessivoEnd.setFullYear(concessivoEnd.getFullYear() + 1);
+                     // Mesmo algoritmo do ferias.js: anos completos por dias trabalhados
+                     const diasTrabalhados = Math.floor((today - admDias) / 86400000);
+                     const anosCompletos = Math.floor(diasTrabalhados / 365);
+
+                     // Ainda em período aquisitivo (menos de 1 ano) → não exibir no dashboard
+                     if (anosCompletos < 1) return null;
+
+                     // aquisitivoFim = quando o direito nasceu = adm + anosCompletos anos
+                     const aquisitivoFim = new Date(admDias);
+                     aquisitivoFim.setFullYear(admDias.getFullYear() + anosCompletos);
+
+                     // concessivoEnd = prazo limite para gozar = adm + (anosCompletos+1) anos
+                     const concessivoEnd = new Date(admDias);
+                     concessivoEnd.setFullYear(admDias.getFullYear() + anosCompletos + 1);
                      
                      // Considera como agendada apenas se a data de início for posterior ao fim do período aquisitivo atual
                      let feriasValidasAtual = false;
