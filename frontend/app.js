@@ -1648,23 +1648,28 @@ window.updateVacationInfo = function(admissaoStr) {
         today.setHours(12, 0, 0, 0);
 
         // ─── 1. Mesma lógica do ferias.js: anos completos desde a admissão ───
-        // Evita avançar ciclo a mais como o while anterior fazia.
         const diasTotal     = Math.floor((today - adm) / 86400000);
         const anosCompletos = Math.floor(diasTotal / 365);
 
-        // Período aquisitivo atual em andamento
-        const aqStart = new Date(adm);
-        aqStart.setFullYear(adm.getFullYear() + anosCompletos);
-        const aqEnd = new Date(adm);
-        aqEnd.setFullYear(adm.getFullYear() + anosCompletos + 1);
+        // Sem direito ainda (menos de 1 ano)
+        if (anosCompletos < 1) {
+            const proximoAniv = new Date(adm);
+            proximoAniv.setFullYear(adm.getFullYear() + 1);
+            aqField.value  = '-';
+            concField.value = '-';
+            concField.style.color      = '#495057';
+            concField.style.fontWeight = '600';
+            if (indicator) indicator.style.display = 'none';
+            return;
+        }
 
-        // ─── 2. Período concessivo do ciclo atual ───
-        // inicio do concessivo = fim do aquisitivo (aqEnd)
-        // fim do concessivo    = aqEnd + 12 meses
-        const concStart = new Date(aqEnd);
-        const concEnd   = new Date(aqEnd);
-        concEnd.setFullYear(aqEnd.getFullYear() + 1);
-        concEnd.setDate(concEnd.getDate() - 1);
+        // concStart = quando o direito às férias nasceu = adm + anosCompletos anos
+        // concEnd   = prazo limite para gozar          = adm + anosCompletos+1 anos
+        const concStart = new Date(adm);
+        concStart.setFullYear(adm.getFullYear() + anosCompletos);
+        const concEnd = new Date(adm);
+        concEnd.setFullYear(adm.getFullYear() + anosCompletos + 1);
+
 
         // ─── 3. Exibir datas nos campos ───
         aqField.value   = concStart.toLocaleDateString('pt-BR');
