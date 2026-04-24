@@ -212,11 +212,9 @@ _multasMigCols.forEach(sql => {
     });
 });
 
-// MIGRATION: Limpar todos os usuários exceto Diretoria1
-db.run("DELETE FROM usuarios WHERE LOWER(REPLACE(username, '.', '')) != 'diretoria1'", (err) => {
-    if (err) console.error("Erro ao limpar usuários:", err);
-    else console.log("Usuários removidos com sucesso, mantendo apenas Diretoria1.");
-});
+// MIGRATION REMOVIDA: O DELETE abaixo apagava todos os usuarios a cada restart do servidor.
+// Foi usado uma unica vez para limpar dados de teste. NAO REATIVAR.
+// db.run("DELETE FROM usuarios WHERE LOWER(REPLACE(username, '.', '')) != 'diretoria1'", ...);
 
 // MIGRATION: Remover cargo 'teste'
 db.run("DELETE FROM cargos WHERE nome = 'teste' OR nome = 'Teste'", (err) => {
