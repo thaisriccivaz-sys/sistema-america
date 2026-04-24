@@ -1641,7 +1641,9 @@ window.updateVacationInfo = function(admissaoStr) {
     }
 
     try {
-        const adm = new Date(admissaoStr + 'T12:00:00');
+        // Strip qualquer componente de horário (igual ao ferias.js parseDate)
+        const admissaoClean = String(admissaoStr).split('T')[0].split(' ')[0];
+        const adm = new Date(admissaoClean + 'T12:00:00');
         if (isNaN(adm.getTime())) return;
 
         const today = new Date();
