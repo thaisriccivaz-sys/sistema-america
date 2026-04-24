@@ -139,7 +139,7 @@
        PALETA DE STATUS
     ═══════════════════════════════════════════════ */
     const STATUS_CONFIG = {
-        urgente:       { label: 'Vence em 90d',    bg: '#fee2e2', color: '#dc2626', border: '#fca5a5', icon: 'ph-warning-circle'  },
+        urgente:       { label: 'Vence 90d',       bg: '#fee2e2', color: '#dc2626', border: '#fca5a5', icon: 'ph-warning-circle'  },
         sem_agenda:    { label: 'Sem agenda',       bg: '#fef9c3', color: '#b45309', border: '#fde047', icon: 'ph-calendar-x'      },
         agendado:      { label: 'Agendado',          bg: '#dcfce7', color: '#15803d', border: '#86efac', icon: 'ph-calendar-check'  },
         de_ferias:     { label: 'De férias',         bg: '#f3e8ff', color: '#7c3aed', border: '#c4b5fd', icon: 'ph-island'          },
@@ -507,7 +507,7 @@
             const situacaoBadge = `
             <span style="display:inline-flex;align-items:center;gap:4px;
                 background:${cfg.bg};color:${cfg.color};border:1.5px solid ${cfg.border};
-                border-radius:7px;padding:3px 9px;font-size:0.77rem;font-weight:700;">
+                border-radius:7px;padding:3px 9px;font-size:0.77rem;font-weight:700;white-space:nowrap;">
                 <i class="ph ${cfg.icon}"></i> ${cfg.label}
             </span>`;
 
