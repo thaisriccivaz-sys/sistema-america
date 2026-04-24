@@ -100,8 +100,8 @@
                     <span>Log&iacute;stica</span>
                 </button>
                 <div class="dept-submenu">
-                    <div class="dept-submenu-header" style="color:#2d9e5f;"><i class="ph ph-truck"></i> Log&iacute;stica</div>
-                    <a href="#" class="nav-item" data-target="logistica-em-breve" style="color:#94a3b8;pointer-events:none;"><i class="ph ph-hourglass"></i> Em breve...</a>
+                    <div class="dept-submenu-header" style="color:#2d9e5f;"><i class="ph ph-truck"></i> Logística</div>
+                    <a href="#" class="nav-item" data-target="logistica-rota-redonda" onclick="navigateTo('logistica-rota-redonda'); return false;"><i class="ph ph-map-trifold"></i> Rota Redonda</a>
                 </div>
             </div>
 
@@ -2155,6 +2155,12 @@
                 </section>
 
                 <!-- VIEW: USUÁRIOS E PERMISS"ES -->
+                <!-- VIEW: LOGISTICA ROTA REDONDA -->
+                <section id="view-logistica-rota-redonda" class="content-view" style="display:none; padding: 1.5rem;">
+                    <!-- The content will be populated by rota_redonda.js -->
+                    <div id="rota-redonda-container"></div>
+                </section>
+
                 <section id="view-usuarios-permissoes" class="content-view">
 
                     <div class="page-header flex-between">
@@ -2785,7 +2791,8 @@
     <script src="integracao.js"></script>
     <script src="dissidio.js?v=1"></script>
     <script src="ferias.js?v=3"></script>
-    <script src="app.js?v=124"></script>
+    <script src="rota_redonda.js?v=1"></script>
+    <script src="app.js?v=125"></script>
 
 
     <!-- Global Scroll-to-Top Button -->
