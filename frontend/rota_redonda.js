@@ -345,7 +345,7 @@ function renderRotaRedonda() {
                     <div style="flex: 2;">
                         <label style="${labelStyle}">Endereço</label>
                         <div style="display:flex; gap:2px;">
-                            <input type="text" id="rr-input-endereco" style="${inputStyle}" placeholder="Endereço completo" readonly>
+                            <input type="text" id="rr-input-endereco" style="${inputStyle}" placeholder="Endereço completo">
                             <button style="background:#e2e8f0; border:none; color:#475569; width:26px; height:26px; border-radius:4px; cursor:pointer;"><i class="ph ph-magnifying-glass"></i></button>
                         </div>
                     </div>
