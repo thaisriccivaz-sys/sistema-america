@@ -1,4 +1,4 @@
-﻿/* ════════════════════════════════════════════════════════════════════════════
+/* ════════════════════════════════════════════════════════════════════════════
    MÓDULO: ROTA REDONDA (ORDENS DE SERVIÇO)
    ════════════════════════════════════════════════════════════════════════════ */
 
@@ -2271,6 +2271,10 @@ function abrirModalEnderecos(nomeCliente) {
         </div>
     `;
     document.body.appendChild(modal);
+    // Fechar ao clicar no backdrop (fora da caixa)
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+    // Fechar ao clicar no botão X
+    modal.querySelector('#btn-fechar-modal-end')?.addEventListener('click', () => modal.remove());
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
