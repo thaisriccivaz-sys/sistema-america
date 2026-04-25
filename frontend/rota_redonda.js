@@ -2462,24 +2462,8 @@ function atualizarBloqueio() {
     }
 
     // Desbloqueado: G concluído
-    if (osState.enderecoConfirmado) {
+    if (osState.enderecoConfirmado || osState.coordenadasConfirmadas) {
         overlayEnd.style.display = 'none';
-
-    // Passo 1 OK (G clicado)
-    } else if (osState.coordenadasConfirmadas) {
-        overlayEnd.style.display = 'none';
-            <div style="text-align:center;padding:1.2rem;">
-                <div style="font-size:1.6rem;margin-bottom:0.4rem;">&#128197;</div>
-                <div style="font-weight:700;font-size:0.85rem;color:#92400e;margin-bottom:0.3rem;">Coordenadas confirmadas!</div>
-                <div style="font-size:0.75rem;color:#78350f;">Clique no botão <strong>&#128197;</strong> (agenda) ao lado do endereço para liberar o formulário.</div>
-            </div>`;
-        overlayEnd.style.background = 'rgba(254,243,199,0.92)';
-        overlayEnd.style.cursor = 'default';
-        const btnAg = document.getElementById('btn-agenda-endereco');
-        if (btnAg) {
-            btnAg.style.boxShadow = '0 0 0 3px #f59e0b, 0 0 0 6px rgba(245,158,11,0.3)';
-            setTimeout(() => { if (btnAg) btnAg.style.boxShadow = ''; }, 3000);
-        }
 
     // Passo 0: aguardando botão G
     } else {
