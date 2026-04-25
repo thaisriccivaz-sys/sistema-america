@@ -69,11 +69,11 @@ function abrirPopupTipoOs(onSelecionar) {
         <div style="background:#E0F8F5;border-radius:16px;padding:1.5rem 2rem;box-shadow:0 8px 32px rgba(0,0,0,0.2);text-align:center;min-width:280px;">
             <p style="font-weight:700;font-size:1.1rem;color:#00251A;margin:0 0 1.2rem;">Selecione o tipo de OS</p>
             <div style="display:flex;gap:1.5rem;justify-content:center;">
-                <button id="rr-btn-obra" style="width:100px;height:100px;background:#156EB6;border:none;border-radius:12px;color:white;font-weight:700;font-size:1rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;transition:background 0.2s;">
-                    <span style="font-size:2rem">🏗️</span>OBRA
+                <button id="rr-btn-obra" style="width:120px;height:130px;background:#156EB6;border:none;border-radius:12px;color:white;font-weight:700;font-size:1rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;transition:background 0.2s;">
+                    <img src="assets/obra.png" style="height:65px; object-fit:contain;" alt="Obra">OBRA
                 </button>
-                <button id="rr-btn-evento" style="width:100px;height:100px;background:#8E24AA;border:none;border-radius:12px;color:white;font-weight:700;font-size:1rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;transition:background 0.2s;">
-                    <span style="font-size:2rem">🎉</span>EVENTO
+                <button id="rr-btn-evento" style="width:120px;height:130px;background:#8E24AA;border:none;border-radius:12px;color:white;font-weight:700;font-size:1rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;transition:background 0.2s;">
+                    <img src="assets/evento.png" style="height:65px; object-fit:contain;" alt="Evento">EVENTO
                 </button>
             </div>
         </div>
