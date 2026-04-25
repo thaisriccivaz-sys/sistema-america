@@ -1008,12 +1008,12 @@ async function buscarAgendaEndereco() {
             contSug.style.display = 'block';
             if (data.dias_sugeridos_2km && data.dias_sugeridos_2km.length > 0) {
                 const dias = data.dias_sugeridos_2km.map(d => d.dia).join(', ');
-                contSug.innerHTML = `<span style="color:#166534;"><i class="ph ph-check-circle"></i> Sugeridos (até 2km): <b>${dias}</b></span>`;
+                contSug.innerHTML = `<span style="color:#1d4ed8;font-size:0.55rem;font-weight:600;"><i class="ph ph-check-circle"></i> Sugeridos (≤1km): <b>${dias}</b></span>`;
             } else if (data.dias_sugeridos_5km && data.dias_sugeridos_5km.length > 0) {
                 const dias = data.dias_sugeridos_5km.map(d => d.dia).join(', ');
-                contSug.innerHTML = `<span style="color:#b45309;"><i class="ph ph-warning"></i> Sugeridos (até 5km): <b>${dias}</b></span>`;
+                contSug.innerHTML = `<span style="color:#b45309;font-size:0.55rem;font-weight:600;"><i class="ph ph-warning"></i> Sugeridos (1-3km): <b>${dias}</b></span>`;
             } else {
-                contSug.innerHTML = `<span style="color:#b91c1c;"><i class="ph ph-x-circle"></i> Nenhuma rota sugerida (raio maior que 5km).</span>`;
+                contSug.innerHTML = `<span style="color:#b91c1c;font-size:0.55rem;"><i class="ph ph-x-circle"></i> Sem rota em 3km.</span>`;
             }
         }
     } catch(e) {
