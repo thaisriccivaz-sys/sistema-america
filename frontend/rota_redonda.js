@@ -2650,10 +2650,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const btnAddProd = e.target.closest('#btn-add-produto');
         if (btnAddProd) {
             const adicionarProduto = () => {
-                const desc = document.getElementById('rr-prod-desc')?.value.trim();
+                const descRaw = document.getElementById('rr-prod-desc')?.value.trim().toUpperCase();
                 const qtd = parseInt(document.getElementById('rr-prod-qtd')?.value) || 1;
-                if (!desc) return;
-                osState.produtos.push({ id: Date.now(), desc, qtd });
+                if (!descRaw) return;
+                
+                // Remove ícones se vieram do dropdown
+                let descLimpa = descRaw;
+                for (const key in EQUIPAMENTOS_DICT) {
+                    if (descRaw.includes(key)) {
+                        descLimpa = key;
+                        break;
+                    }
+                }
+
+                osState.produtos.push({ id: Date.now(), desc: descLimpa, qtd });
                 document.getElementById('rr-prod-desc').value = '';
                 document.getElementById('rr-prod-qtd').value = '';
                 atualizarUI();
@@ -3347,16 +3357,18 @@ function atualizarUI() {
     if (osState.produtos.length === 0) {
         tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 1rem; color: #94a3b8; font-size:0.8rem;">Nenhum produto adicionado</td></tr>';
     } else {
-        tbody.innerHTML = osState.produtos.map(p => `
+        tbody.innerHTML = osState.produtos.map(p => {
+            const icone = EQUIPAMENTOS_DICT[p.desc]?.icone || '📦';
+            return `
             <tr style="border-bottom: 1px solid #f1f5f9;">
-                <td style="padding: 0.3rem 0.5rem; font-size:0.75rem;">${p.desc}</td>
+                <td style="padding: 0.3rem 0.5rem; font-size:0.75rem;"><span style="font-size:1.05rem; margin-right:4px;">${icone}</span> ${p.desc}</td>
                 <td style="padding: 0.3rem 0.5rem; text-align:center; font-size:0.75rem; font-weight:600;">${p.qtd}</td>
                 <td style="padding: 0.3rem 0.5rem; text-align:center; display:flex; gap:0.25rem; justify-content:center;">
                     <button class="btn-action btn-edit-prod" data-id="${p.id}" style="color:#3b82f6; background:transparent; border:none; padding:2px;" title="Editar"><i class="ph ph-pencil-simple"></i></button>
                     <button class="btn-action btn-rem-prod" data-id="${p.id}" style="color:#ef4444; background:transparent; border:none; padding:2px;" title="Remover"><i class="ph ph-trash"></i></button>
                 </td>
             </tr>
-        `).join('');
+        `}).join('');
     }
 
     // Atualiza Totais
