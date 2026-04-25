@@ -146,101 +146,95 @@ function calcularCargaTotalFromLista() {
         .replace(/  /g, ' ').trim().toUpperCase();
     const isManutencao = tipoServico.includes('MANUTENCAO');
 
-    let totalCarga = 0;
+    let totalCargaVeiculo = 0;
+    let totalCargaTanque = 0;
 
     for (const produto of osState.produtos) {
         const equipamento = (produto.desc || '').trim().toUpperCase();
         const quantidade = parseInt(produto.qtd) || 0;
         if (!equipamento) continue;
 
-        let cargaCalculada = 0;
+        let cargaVeic = 0;
+        let cargaTanq = 0;
 
-        if (isManutencao) {
-            // ── MANUTENÇÃO EVENTO ─────────────────────────────────────────────
-            if (tipoServico.includes('EVENTO')) {
-                switch (equipamento) {
-                    case 'STD EVENTO': case 'LX EVENTO': case 'ELX EVENTO':
-                    case 'PCD EVENTO': case 'CHUVEIRO EVENTO': case 'HIDRÁULICO EVENTO':
-                        cargaCalculada = 5 * quantidade; break;
-                    case 'MICTÓRIO EVENTO':
-                        cargaCalculada = 10 * quantidade; break;
-                    case 'PIA II EVENTO': case 'PIA III EVENTO':
-                        cargaCalculada = 1 * quantidade; break;
-                    default:
-                        cargaCalculada = quantidade;
-                }
-            // ── MANUTENÇÃO OBRA / AVULSA ──────────────────────────────────────
-            } else if (tipoServico.includes('OBRA') || tipoServico.includes('AVULSA')) {
-                switch (equipamento) {
-                    case 'STD OBRA': case 'LX OBRA': case 'ELX OBRA':
-                    case 'PBII OBRA': case 'PBIII OBRA':
-                    case 'CHUVEIRO OBRA': case 'HIDRÁULICO OBRA':
-                        cargaCalculada = 1 * quantidade; break;
-                    case 'MICTÓRIO OBRA':
-                        cargaCalculada = 4 * quantidade; break;
-                    default:
-                        cargaCalculada = quantidade;
-                }
-            } else {
-                cargaCalculada = quantidade;
-            }
-        } else {
-            // ── ENTREGA / RETIRADA / OUTROS ───────────────────────────────────
+        if (!isManutencao) {
             if (equipamento.includes('OBRA')) {
                 switch (equipamento) {
                     case 'STD OBRA': case 'LX OBRA': case 'ELX OBRA':
                     case 'GUARITA INDIVIDUAL OBRA': case 'PBII OBRA': case 'PBIII OBRA':
                     case 'CHUVEIRO OBRA': case 'HIDRÁULICO OBRA':
-                        cargaCalculada = quantidade; break;
+                        cargaVeic = quantidade; break;
                     case 'GUARITA DUPLA OBRA': case 'PCD OBRA':
-                        cargaCalculada = 2 * quantidade; break;
+                        cargaVeic = 2 * quantidade; break;
                     case 'MICTÓRIO OBRA':
-                        cargaCalculada = calcularCargaProporcional(quantidade); break;
+                        cargaVeic = calcularCargaProporcional(quantidade); break;
                     default:
-                        cargaCalculada = 0;
+                        cargaVeic = 0;
                 }
             } else if (equipamento.includes('EVENTO')) {
                 switch (equipamento) {
                     case 'STD EVENTO': case 'LX EVENTO': case 'ELX EVENTO':
                     case 'GUARITA INDIVIDUAL EVENTO': case 'PIA II EVENTO': case 'PIA III EVENTO':
                     case 'CHUVEIRO EVENTO': case 'HIDRÁULICO EVENTO':
-                        cargaCalculada = quantidade; break;
+                        cargaVeic = quantidade; break;
                     case 'GUARITA DUPLA EVENTO': case 'PCD EVENTO':
-                        cargaCalculada = 2 * quantidade; break;
+                        cargaVeic = 2 * quantidade; break;
                     case 'MICTÓRIO EVENTO':
-                        cargaCalculada = calcularCargaProporcional(quantidade); break;
+                        cargaVeic = calcularCargaProporcional(quantidade); break;
                     default:
-                        cargaCalculada = quantidade;
+                        cargaVeic = quantidade;
                 }
-            } else {
-                cargaCalculada = 0;
             }
         }
 
-        totalCarga += cargaCalculada;
+        if (isManutencao || tipoServico.includes('RETIRADA') || tipoServico.includes('TROCA')) {
+            if (equipamento.includes('EVENTO')) {
+                switch (equipamento) {
+                    case 'STD EVENTO': case 'LX EVENTO': case 'ELX EVENTO':
+                    case 'PCD EVENTO': case 'CHUVEIRO EVENTO': case 'HIDRÁULICO EVENTO':
+                        cargaTanq = 5 * quantidade; break;
+                    case 'MICTÓRIO EVENTO':
+                        cargaTanq = 10 * quantidade; break;
+                    case 'PIA II EVENTO': case 'PIA III EVENTO':
+                        cargaTanq = 1 * quantidade; break;
+                    default:
+                        cargaTanq = quantidade;
+                }
+            } else if (equipamento.includes('OBRA') || equipamento.includes('AVULSA')) {
+                switch (equipamento) {
+                    case 'STD OBRA': case 'LX OBRA': case 'ELX OBRA':
+                    case 'PBII OBRA': case 'PBIII OBRA':
+                    case 'CHUVEIRO OBRA': case 'HIDRÁULICO OBRA':
+                        cargaTanq = 1 * quantidade; break;
+                    case 'MICTÓRIO OBRA':
+                        cargaTanq = 4 * quantidade; break;
+                    default:
+                        cargaTanq = quantidade;
+                }
+            } else {
+                cargaTanq = quantidade;
+            }
+        }
+
+        totalCargaVeiculo += cargaVeic;
+        totalCargaTanque += cargaTanq;
     }
 
-    // Regra atualizada:
-    //   Manutenção        → apenas TANQUE
-    //   Retirada / Troca  → TANQUE e (CARROCERIA ou CARRETINHA)
-    //   Capacidades:
-    //      <= 12  → Carroceria total, Carretinha 0
-    //      > 12   → Carroceria 0, Carretinha total
     let tanque = '', carroceria = '', carretinha = '';
+    
     if (isManutencao) {
-        tanque = totalCarga > 0 ? String(totalCarga) : '0';
+        tanque = totalCargaTanque > 0 ? String(totalCargaTanque) : '0';
     } else {
-        if (totalCarga <= 12) {
-            carroceria = totalCarga > 0 ? String(totalCarga) : '0';
+        if (totalCargaVeiculo <= 12) {
+            carroceria = totalCargaVeiculo > 0 ? String(totalCargaVeiculo) : '0';
             carretinha = '0';
         } else {
             carroceria = '0';
-            carretinha = String(totalCarga);
+            carretinha = String(totalCargaVeiculo);
         }
         
-        // Se for Retirada ou Troca, o Tanque também contabiliza a carga
         if (tipoServico.includes('RETIRADA') || tipoServico.includes('TROCA')) {
-            tanque = totalCarga > 0 ? String(totalCarga) : '0';
+            tanque = totalCargaTanque > 0 ? String(totalCargaTanque) : '0';
         }
     }
 
