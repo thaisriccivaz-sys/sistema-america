@@ -712,6 +712,24 @@ function mostrarToastAviso(msg) {
     setTimeout(() => t.remove(), 9000);
 }
 
+// Atualiza o badge de link do Google Maps ao lado do label Endereço
+function atualizarLinkMapsBadge(url) {
+    const badge = document.getElementById('rr-link-maps-badge');
+    if (!badge) return;
+    if (!url) {
+        badge.style.display = 'none';
+        badge.innerHTML = '';
+        return;
+    }
+    const urlCurta = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+    badge.style.display = 'inline-flex';
+    badge.innerHTML = `<i class="ph ph-map-pin" style="font-size:0.85rem;"></i>
+        <a href="${url}" target="_blank" style="color:#f97316;text-decoration:none;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${url}">${urlCurta}</a>
+        <button onclick="navigator.clipboard.writeText('${url}').then(()=>mostrarToastAviso('✅ Link copiado!'))" title="Copiar link" style="background:none;border:none;cursor:pointer;padding:0 2px;color:#f97316;display:flex;align-items:center;">
+            <i class="ph ph-copy" style="font-size:0.85rem;"></i>
+        </button>`;
+}
+
 function exibirModalSucessoOS(osId, payload) {
     document.getElementById('rr-modal-sucesso-os')?.remove();
 
@@ -1666,16 +1684,15 @@ function preencherFormularioComDados(dados, tipoOs) {
 
     set('rr-input-os',          dados.numOs);
     set('rr-input-cliente',     dados.cliente);
-    // Se tiver link do Google Maps, coloca antes do endereço e armazena no estado
+    // Se tiver link do Google Maps, coloca apenas o endereço limpo no campo e atualiza o badge
     if (dados.linkGoogleMaps) {
-        const endEl = document.getElementById('rr-input-endereco');
-        if (endEl) {
-            endEl.value = dados.linkGoogleMaps + (dados.endereco ? ' ' + dados.endereco : '');
-            endEl.style.background = '#f0fdf4';
-        }
+        set('rr-input-endereco', dados.endereco);
         osState.linkGoogleMaps = dados.linkGoogleMaps;
+        atualizarLinkMapsBadge(dados.linkGoogleMaps);
     } else {
         set('rr-input-endereco', dados.endereco);
+        osState.linkGoogleMaps = '';
+        atualizarLinkMapsBadge('');
     }
 
     set('rr-input-responsavel', dados.responsavel);
@@ -3040,7 +3057,7 @@ function renderRotaRedonda() {
             <div style="display: flex; flex-direction: column; gap: 0.5rem; flex: 2; min-width: 0; padding-right: 4px; position: relative;">
                 <div style="display: flex; gap: 0.5rem; position: relative; z-index: 15;">
                     <div style="flex: 3;">
-                        <label style="${labelStyle}">Endereço</label>
+                        <label style="${labelStyle}; display:flex; align-items:center; gap:6px;">Endereço <span id="rr-link-maps-badge" style="display:none; align-items:center; gap:4px; font-size:0.72rem; font-weight:600; color:#f97316; cursor:pointer; border-radius:4px; padding:1px 5px; background:#fff7ed; border:1px solid #fed7aa; max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></span></label>
                         <div style="display:flex; gap:2px; position:relative;">
                             <div style="flex:1; position:relative;">
                                 <input type="text" id="rr-input-endereco" style="${inputStyle} width:100%;" placeholder="Ex: Rua das Flores, 123 - Bairro, Cidade/SP" autocomplete="off" onkeydown="if(event.key==='Enter') document.getElementById('btn-buscar-endereco-os').click();">
