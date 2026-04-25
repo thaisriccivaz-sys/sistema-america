@@ -7868,6 +7868,7 @@ db.run(`CREATE TABLE IF NOT EXISTS os_logistica (
 db.run(`CREATE TABLE IF NOT EXISTS os_videos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     token TEXT UNIQUE NOT NULL,
+    short_code TEXT UNIQUE,
     os_id INTEGER,
     numero_os TEXT,
     nome_original TEXT,
@@ -7877,7 +7878,10 @@ db.run(`CREATE TABLE IF NOT EXISTS os_videos (
     criado_em TEXT DEFAULT (datetime('now'))
 )`, (err) => {
     if (err) console.error('[OS Vídeos] Erro na criação da tabela:', err.message);
-    else console.log('[OS Vídeos] Tabela os_videos OK');
+    else {
+        console.log('[OS Vídeos] Tabela os_videos OK');
+        db.run("ALTER TABLE os_videos ADD COLUMN short_code TEXT", () => {});
+    }
 });
 
 // Diretório de vídeos das OS
@@ -7902,23 +7906,44 @@ const multerVideo = require('multer')({
     }
 });
 
+// Gera short_code único de 6 chars (alfanumérico case-insensitive)
+function gerarShortCode() {
+    const chars = 'abcdefghjkmnpqrstuvwxyz23456789'; // sem 0,1,i,l,o para evitar confusão
+    let code = '';
+    for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+    return code;
+}
+
 // ── UPLOAD DE VÍDEO (autenticado) ────────────────────────────────────────────
 app.post('/api/logistica/os/upload-video', authenticateToken, multerVideo.single('video'), (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
 
     const token = req._videoToken || path.basename(req.file.filename, path.extname(req.file.filename));
     const { os_id, numero_os } = req.body;
+    const shortCode = gerarShortCode();
 
     db.run(
-        `INSERT INTO os_videos (token, os_id, numero_os, nome_original, mime_type, tamanho, caminho_arquivo)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [token, os_id || null, numero_os || null, req.file.originalname, req.file.mimetype, req.file.size, req.file.path],
+        `INSERT INTO os_videos (token, short_code, os_id, numero_os, nome_original, mime_type, tamanho, caminho_arquivo)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [token, shortCode, os_id || null, numero_os || null, req.file.originalname, req.file.mimetype, req.file.size, req.file.path],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
-            const linkPublico = `/api/video/${token}`;
-            res.json({ ok: true, token, link: linkPublico, nome: req.file.originalname });
+            const linkPublico  = `/api/video/${token}`;
+            const linkCurto    = `/v/${shortCode}`;
+            res.json({ ok: true, token, short_code: shortCode, link: linkPublico, short_link: linkCurto, nome: req.file.originalname });
         }
     );
+});
+
+// ── ROTA CURTA PÚBLICA: /v/:code → redireciona para streaming ─────────────────
+// Link amigável para compartilhar (ex: /v/abc123)
+app.get('/v/:code', (req, res) => {
+    const code = (req.params.code || '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+    if (!code) return res.status(400).send('Código inválido.');
+    db.get(`SELECT token FROM os_videos WHERE short_code = ?`, [code], (err, row) => {
+        if (err || !row) return res.status(404).send('Vídeo não encontrado.');
+        res.redirect(302, `/api/video/${row.token}`);
+    });
 });
 
 // ── STREAMING PÚBLICO DE VÍDEO (SEM autenticação, SEM dados do sistema) ──────

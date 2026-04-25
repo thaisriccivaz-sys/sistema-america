@@ -712,23 +712,27 @@ function atualizarLinkMapsBadge(url) {
 }
 
 // ── UPLOAD DE VÍDEO ──────────────────────────────────────────────────────────
-function rrExibirLinkVideo(link) {
+// Armazena tanto o link longo (interno) quanto o link curto (para compartilhar)
+function rrExibirLinkVideo(linkLongo, linkCurto) {
     const hidden  = document.getElementById('rr-input-video');
     const display = document.getElementById('rr-video-link-display');
     const anchor  = document.getElementById('rr-video-link-anchor');
     if (!hidden) return;
-    if (!link) {
+    if (!linkLongo) {
         hidden.value = '';
-        if (display) { display.style.display = 'none'; display.innerHTML = ''; }
+        if (display) { display.style.display = 'none'; }
         return;
     }
-    hidden.value = link;
+    hidden.value = linkLongo;
+    // short_link fica em data-short para o botão de copia
+    if (display) display.dataset.shortLink = linkCurto || linkLongo;
     if (display && anchor) {
-        // Monta o link completo se for relativo
-        const fullLink = link.startsWith('http') ? link : window.location.origin + link;
-        anchor.href = fullLink;
-        anchor.textContent = link.replace(/^.+\/api\/video\//, '').substring(0, 16) + '…';
-        anchor.title = fullLink;
+        const fullShort = (linkCurto || linkLongo).startsWith('http')
+            ? (linkCurto || linkLongo)
+            : window.location.origin + (linkCurto || linkLongo);
+        anchor.href  = fullShort;
+        anchor.textContent = '📸 Vídeo do local';
+        anchor.title = fullShort;
         display.style.display = 'inline-flex';
     }
 }
@@ -741,9 +745,7 @@ async function rrFazerUploadVideo(input) {
     if (progress) { progress.style.display = 'inline'; progress.textContent = '⏳ Enviando...'; }
     if (btn) btn.disabled = true;
 
-    // Pega o OS id/numero se disponível no estado
     const osId = document.getElementById('rr-input-os')?.value?.trim() || '';
-
     const formData = new FormData();
     formData.append('video', file);
     formData.append('numero_os', osId);
@@ -757,8 +759,9 @@ async function rrFazerUploadVideo(input) {
         });
         const json = await resp.json();
         if (!resp.ok || !json.ok) throw new Error(json.error || 'Erro no upload');
-        rrExibirLinkVideo(json.link);
-        mostrarToastAviso('✅ Vídeo enviado com sucesso!');
+        // Usa o link curto (/v/abc123) se disponível, senão o longo
+        rrExibirLinkVideo(json.link, json.short_link || json.link);
+        mostrarToastAviso('✅ Vídeo enviado! Link curto pronto para copiar.');
         if (progress) progress.style.display = 'none';
     } catch(e) {
         mostrarToastAviso('❌ Erro ao enviar vídeo: ' + e.message);
@@ -770,10 +773,13 @@ async function rrFazerUploadVideo(input) {
 }
 
 function rrCopiarLinkVideo() {
-    const hidden = document.getElementById('rr-input-video');
-    if (!hidden || !hidden.value) return;
-    const fullLink = hidden.value.startsWith('http') ? hidden.value : window.location.origin + hidden.value;
-    navigator.clipboard.writeText(fullLink).then(() => mostrarToastAviso('✅ Link do vídeo copiado!'));
+    const display = document.getElementById('rr-video-link-display');
+    const hidden  = document.getElementById('rr-input-video');
+    // Prefere o link curto salvo em data-short
+    const linkParaCopiar = display?.dataset.shortLink || hidden?.value || '';
+    if (!linkParaCopiar) return;
+    const fullLink = linkParaCopiar.startsWith('http') ? linkParaCopiar : window.location.origin + linkParaCopiar;
+    navigator.clipboard.writeText(fullLink).then(() => mostrarToastAviso('✅ Link copiado: ' + fullLink));
 }
 
 function _abrirPopupCoordenadas(urlOrigem) {
@@ -1449,20 +1455,20 @@ function exibirModalAgendaEndereco(data, enderecoAtual) {
             const pills = data.dias_sugeridos_2km.map(d => {
                 const qtd = d.ocorrencias || 1;
                 const label = qtd === 1 ? '1' : `${qtd}`;
-                return `<span style="background:${colorMap[d.dia]||'#2563eb'};color:white;border-radius:4px;padding:1px 7px;font-size:0.65rem;font-weight:700;white-space:nowrap;">${d.dia.toUpperCase()} - ${label}cl</span>`;
+                return `<span style="background:${colorMap[d.dia]||'#2563eb'};color:white;border-radius:3px;padding:0px 5px;font-size:0.55rem;font-weight:700;white-space:nowrap;">${d.dia.toUpperCase()} - ${label}cl</span>`;
             }).join('');
-            containerSugestoes.innerHTML = `<span style="color:#1d4ed8;font-weight:600;font-size:0.65rem;opacity:0.85;"><i class="ph ph-check-square"></i> Sugeridos (≤1km):</span> ${pills}`;
-            containerSugestoes.style.cssText = 'display:flex;flex-wrap:wrap;gap:3px;align-items:center;margin-top:2px;';
+            containerSugestoes.innerHTML = `<span style="color:#1d4ed8;font-weight:600;font-size:0.55rem;opacity:0.85;"><i class="ph ph-check-square"></i> Sugeridos (≤1km):</span> ${pills}`;
+            containerSugestoes.style.cssText = 'display:flex;flex-wrap:wrap;gap:2px;align-items:center;margin-top:2px;';
         } else if (tem3km) {
             const pills = data.dias_sugeridos_5km.map(d => {
                 const qtd = d.ocorrencias || 1;
                 const label = qtd === 1 ? '1' : `${qtd}`;
-                return `<span style="background:${colorMap[d.dia]||'#ca8a04'};color:white;border-radius:4px;padding:1px 7px;font-size:0.65rem;font-weight:700;white-space:nowrap;">${d.dia.toUpperCase()} - ${label}cl</span>`;
+                return `<span style="background:${colorMap[d.dia]||'#ca8a04'};color:white;border-radius:3px;padding:0px 5px;font-size:0.55rem;font-weight:700;white-space:nowrap;">${d.dia.toUpperCase()} - ${label}cl</span>`;
             }).join('');
-            containerSugestoes.innerHTML = `<span style="color:#854d0e;font-weight:600;font-size:0.65rem;opacity:0.85;"><i class="ph ph-warning"></i> Sugeridos (1-3km):</span> ${pills}`;
-            containerSugestoes.style.cssText = 'display:flex;flex-wrap:wrap;gap:3px;align-items:center;margin-top:2px;';
+            containerSugestoes.innerHTML = `<span style="color:#854d0e;font-weight:600;font-size:0.55rem;opacity:0.85;"><i class="ph ph-warning"></i> Sugeridos (1-3km):</span> ${pills}`;
+            containerSugestoes.style.cssText = 'display:flex;flex-wrap:wrap;gap:2px;align-items:center;margin-top:2px;';
         } else {
-            containerSugestoes.innerHTML = `<span style="color:#b91c1c;font-size:0.62rem;opacity:0.8;"><i class="ph ph-warning-circle"></i> Sem rota em 3km.</span>`;
+            containerSugestoes.innerHTML = `<span style="color:#b91c1c;font-size:0.55rem;opacity:0.8;"><i class="ph ph-warning-circle"></i> Sem rota em 3km.</span>`;
             containerSugestoes.style.cssText = 'display:block;margin-top:2px;';
         }
     }
