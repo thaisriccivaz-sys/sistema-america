@@ -1813,10 +1813,8 @@ function gerarPrefixoIcones(tipoOverride = null) {
 
     // Coleta ícones dos produtos selecionados
     const iconesProdutos = [];
-    document.querySelectorAll('.rr-produto-row').forEach(row => {
-        const nomeInput = row.querySelector('input[type="text"]');
-        if (!nomeInput?.value) return;
-        const prod = EQUIPAMENTOS_DICT[nomeInput.value.trim()];
+    osState.produtos.forEach(p => {
+        const prod = EQUIPAMENTOS_DICT[p.desc.trim()];
         if (prod?.icone && !iconesProdutos.includes(prod.icone)) {
             iconesProdutos.push(prod.icone);
         }
