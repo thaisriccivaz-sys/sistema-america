@@ -7974,18 +7974,31 @@ function agregaDias(rows) {
 // GET /api/logistica/os/buscar — Busca OS por número
 // Retorna array de todos os serviços registrados para esse número de OS
 app.get('/api/logistica/os/buscar', authenticateToken, (req, res) => {
-    const { numero_os } = req.query;
-    if (!numero_os) return res.status(400).json({ error: 'Parâmetro numero_os obrigatório.' });
+    const { numero_os, cliente } = req.query;
+    if (!numero_os && !cliente) return res.status(400).json({ error: 'Parâmetro numero_os ou cliente obrigatório.' });
 
-    db.all(
-        `SELECT * FROM os_logistica WHERE numero_os = ? AND status = 'ativo' ORDER BY criado_em DESC`,
-        [numero_os.trim()],
-        (err, rows) => {
-            if (err) return res.status(500).json({ error: err.message });
-            if (!rows || rows.length === 0) return res.status(404).json({ error: 'OS não encontrada.' });
-            res.json(rows);
-        }
-    );
+    if (numero_os) {
+        db.all(
+            `SELECT * FROM os_logistica WHERE numero_os = ? AND status = 'ativo' ORDER BY criado_em DESC`,
+            [numero_os.trim()],
+            (err, rows) => {
+                if (err) return res.status(500).json({ error: err.message });
+                if (!rows || rows.length === 0) return res.status(404).json({ error: 'OS não encontrada.' });
+                res.json(rows);
+            }
+        );
+    } else if (cliente) {
+        const clienteSanitized = cliente.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\s🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘]+/u, '').trim();
+        db.all(
+            `SELECT * FROM os_logistica WHERE cliente LIKE ? AND status = 'ativo' ORDER BY criado_em DESC`,
+            [`%${clienteSanitized}%`],
+            (err, rows) => {
+                if (err) return res.status(500).json({ error: err.message });
+                if (!rows || rows.length === 0) return res.status(200).json([]);
+                res.json(rows);
+            }
+        );
+    }
 });
 
 // POST /api/logistica/os — Salvar nova OS (com validação de conflito de cliente)

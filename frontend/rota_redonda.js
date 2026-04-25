@@ -370,8 +370,14 @@ async function reverseGeocodeEndereco() {
             
             // Preenche o endereço
             if (endInput) {
-                endInput.value = data.display_name;
-                endInput.style.background = '#f0fdf4';
+                let override = true;
+                if (endInput.value.trim() !== '') {
+                    override = confirm(`O endereço atual é:\n${endInput.value}\n\nO endereço encontrado para a coordenada é:\n${data.display_name}\n\nDeseja substituir o endereço atual pelo endereço encontrado?`);
+                }
+                if (override) {
+                    endInput.value = data.display_name;
+                    endInput.style.background = '#f0fdf4';
+                }
             }
             
             osState.lat = lat;
