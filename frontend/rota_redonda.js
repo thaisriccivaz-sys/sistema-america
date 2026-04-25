@@ -696,12 +696,12 @@ window._aplicarUrlGoogleMaps = function() {
         _leafletMap.invalidateSize();
         posicionarMarcador(lat, lng);
         preencherLatLng(lat, lng);
-        // Passo 1 do desbloqueio: coordenadas confirmadas, aguarda agenda
+        // Coordenadas confirmadas via Google Maps: desbloqueia a tela diretamente
         osState.coordenadasConfirmadas = true;
-        osState.enderecoConfirmado = false; // ainda não desbloqueado
+        osState.enderecoConfirmado = true;
         atualizarBloqueio();
     }, 50);
-    mostrarToastAviso('\u2705 Coordenadas aplicadas! Agora clique no botão \ud83d\udcc5 para verificar a agenda e liberar o formulário.');
+    mostrarToastAviso('\u2705 Coordenadas aplicadas! O formulário foi desbloqueado.');
 };
 
 function mostrarToastAviso(msg) {
