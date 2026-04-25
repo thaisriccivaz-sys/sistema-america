@@ -1853,13 +1853,12 @@ function gerarPrefixoIcones(tipoOverride = null) {
     if (osState.tiposServico.has('VAC') && !iconesVariaveis.includes('🏗️')) iconesVariaveis.push('🏗️');
     if (osState.tiposServico.has('CARRETINHA') && !iconesVariaveis.includes('🔗')) iconesVariaveis.push('🔗');
 
-    // Oculta ícones de produto se for Retirada Total/Parcial, conforme regra: "independentemente do produto... o icone é sempre o mesmo"
-    // Mas se for uma TROCA virtual (antes de salvar), e o Override for "ENTREGA", incluimos os produtos!
+    // Mostrar os icones dos produtos apenas quando o serviço for o de entrega
     let todosIcones = [];
-    if (tipoServico.includes('RETIRADA') || (tipoServico.includes('TROCA') && !tipoOverride)) {
-        todosIcones = [iconeServico, ...iconesVariaveis];
-    } else {
+    if (tipoServico.includes('ENTREGA') || (tipoServico.includes('TROCA') && tipoOverride === 'ENTREGA')) {
         todosIcones = [iconeServico, ...iconesProdutos, ...iconesVariaveis].filter(Boolean);
+    } else {
+        todosIcones = [iconeServico, ...iconesVariaveis].filter(Boolean);
     }
     
     // Se for Noturno, adiciona 🌘 na frente de tudo!
