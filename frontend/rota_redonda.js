@@ -848,6 +848,17 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('click', (e) => {
         if (!document.getElementById('view-logistica-rota-redonda')?.classList.contains('active')) return;
 
+        // Botão + Tipo de OS (Obra/Evento)
+        const btnAddOsTipo = e.target.closest('#btn-add-os-tipo');
+        if (btnAddOsTipo) {
+            abrirPopupTipoOs((tipo) => {
+                osState.tipoOs = tipo;
+                atualizarDropdownProdutos();
+                mostrarToastAviso(`Tipo de OS definido como: ${tipo}.`);
+            });
+            return;
+        }
+
         // Botão Colar OS
         const btnColarOs = e.target.closest('#btn-colar-os');
         if (btnColarOs) { abrirModalColarOS(); return; }
@@ -1167,27 +1178,35 @@ function renderRotaRedonda() {
     <div id="rota-redonda-content" style="background: #fff; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); padding: 0.75rem; display: flex; flex-direction: column; height: calc(100vh - 65px); box-sizing: border-box;">
         
         <!-- HEADER FORM -->
-        <div style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.75rem; background: #2d9e5f; padding: 0.5rem 0.75rem; border-radius: 6px; color: white; flex-shrink: 0;">
-            <div style="flex: 0 0 100px;">
-                <label style="${labelStyle} color:white;">Nº OS</label>
-                <input type="text" id="rr-input-os" style="${inputStyle} border:none;" placeholder="Ex: 12345">
+        <div style="position: sticky; top: 0; z-index: 100; display: flex; gap: 1rem; align-items: center; margin-bottom: 0.75rem; background: #2d9e5f; padding: 0.5rem 0.75rem; border-radius: 6px; color: white; flex-shrink: 0; flex-wrap: wrap;">
+            
+            <div style="display: flex; align-items: center; gap: 4px;">
+                <label style="font-weight: 600; font-size: 0.75rem; color: white; white-space: nowrap; margin: 0;">OS</label>
+                <div style="display: flex; align-items: center; gap: 2px;">
+                    <input type="text" id="rr-input-os" style="${inputStyle} border:none; width: 80px;" placeholder="Ex: 12345">
+                    <button id="btn-add-os-tipo" style="${btnStyle} background:#1a7a40;" title="Definir tipo de OS (Obra/Evento)"><i class="ph ph-plus"></i></button>
+                </div>
             </div>
-            <div style="flex: 1;">
-                <label style="${labelStyle} color:white;">Cliente</label>
-                <div style="display:flex; gap:4px; align-items:center;">
+
+            <div style="display: flex; align-items: center; gap: 4px; flex: 1;">
+                <label style="font-weight: 600; font-size: 0.75rem; color: white; white-space: nowrap; margin: 0;">Cliente</label>
+                <div style="display:flex; gap:4px; align-items:center; width: 100%;">
                     <input type="text" id="rr-input-cliente" style="${inputStyle} border:none;" placeholder="Nome do Cliente">
-                    <button id="btn-pesq-cliente-os" style="${btnStyle} background:#1a7a40;" title="Ver OS do cliente"><i class="ph ph-clipboard-text"></i></button>
+                    <button id="btn-pesq-cliente-os" style="${btnStyle} background:#1a7a40;" title="Pesquisar cliente"><i class="ph ph-magnifying-glass"></i></button>
                     <button id="btn-buscar-endereco" style="${btnStyle} background:#0369a1;" title="Pesquisar endereço do cliente"><i class="ph ph-map-pin"></i></button>
                 </div>
             </div>
-            <div style="flex: 0 0 120px;">
-                <label style="${labelStyle} color:white;">Contrato</label>
-                <input type="text" style="${inputStyle} border:none;" placeholder="Nº Contrato">
+
+            <div style="display: flex; align-items: center; gap: 4px;">
+                <label style="font-weight: 600; font-size: 0.75rem; color: white; white-space: nowrap; margin: 0;">Contrato</label>
+                <input type="text" style="${inputStyle} border:none; width: 100px;" placeholder="Nº Contrato">
             </div>
-            <div style="flex: 0 0 120px;">
-                <label style="${labelStyle} color:white;">Data</label>
-                <input type="date" style="${inputStyle} border:none;">
+
+            <div style="display: flex; align-items: center; gap: 4px;">
+                <label style="font-weight: 600; font-size: 0.75rem; color: white; white-space: nowrap; margin: 0;">Data</label>
+                <input type="date" style="${inputStyle} border:none; width: 110px;">
             </div>
+
             <div style="display:flex; gap:0.5rem; margin-left: auto;">
                 <button id="btn-colar-os" style="background:#f59e0b; color:white; border:none; height:26px; padding:0 10px; border-radius:4px; font-size:0.75rem; cursor:pointer; font-weight:600;" title="Colar texto da OS e preencher automaticamente"><i class="ph ph-clipboard-text"></i> Colar OS</button>
                 <button id="btn-limpar-os" style="background:#ef4444; color:white; border:none; height:26px; padding:0 10px; border-radius:4px; font-size:0.75rem; cursor:pointer; font-weight:600;"><i class="ph ph-x"></i> Limpar</button>
