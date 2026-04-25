@@ -7876,20 +7876,23 @@ app.get('/api/logistica/os/agenda-endereco', authenticateToken, (req, res) => {
 
     // 1. Busca exata e parcial pelo texto do endereço
     const endTrimmed = (endereco || '').trim();
-    const endTokens = endTrimmed.split(/[\s,]+/).filter(t => t.length > 3);
+    // Separa por espaços/vírgulas e pega até os 6 primeiros termos (inclui número da casa)
+    const endTokens = endTrimmed.split(/[\s,]+/).filter(t => t.length >= 1).slice(0, 6);
 
-    // Gera condições LIKE dinâmicas para os tokens mais relevantes (até 3)
-    const likeConditions = endTokens.slice(0, 3).map(() => `endereco LIKE ?`).join(' AND ');
-    const likeParams = endTokens.slice(0, 3).map(t => `%${t}%`);
+    // Gera condições LIKE dinâmicas para todos os tokens extraídos
+    const likeConditions = endTokens.map(() => `endereco LIKE ?`).join(' AND ');
+    const likeParams = endTokens.map(t => `%${t}%`);
 
     const sqlExato = likeConditions
         ? `SELECT id, numero_os, cliente, endereco, tipo_servico, dias_semana, lat, lng, hora_inicio, hora_fim, turno
            FROM os_logistica WHERE status = 'ativo' AND (${likeConditions})
            ORDER BY criado_em DESC LIMIT 50`
         : `SELECT id, numero_os, cliente, endereco, tipo_servico, dias_semana, lat, lng, hora_inicio, hora_fim, turno
-           FROM os_logistica WHERE status = 'ativo' LIMIT 0`; // retorna vazio se sem endereço
+           FROM os_logistica WHERE status = 'ativo' AND endereco LIKE ? ORDER BY criado_em DESC LIMIT 50`;
 
-    db.all(sqlExato, likeParams, (err, rowsExatos) => {
+    const finalParams = likeConditions ? likeParams : [`%${endTrimmed}%`];
+
+    db.all(sqlExato, finalParams, (err, rowsExatos) => {
         if (err) return res.status(500).json({ error: err.message });
 
         // 2. Se tiver coordenadas, busca por raio de 5km
