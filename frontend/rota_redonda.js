@@ -1231,12 +1231,12 @@ function exibirModalAgendaEndereco(data, enderecoAtual) {
                 <p style="margin:0; font-size:0.7rem; color:#15803d;"><i class="ph ph-lightning"></i> Recomendamos agendar nestes mesmos dias para otimizar a logística.</p>
             </div>
         `;
-    } else if (data.dias_sugeridos_10km && data.dias_sugeridos_10km.length > 0) {
+    } else if (data.dias_sugeridos_5km && data.dias_sugeridos_5km.length > 0) {
         msgSugestao = `
             <div style="background:#fefce8; border:1px solid #fef08a; border-radius:8px; padding:0.75rem;">
-                <p style="margin:0 0 0.5rem 0; font-weight:700; color:#854d0e; font-size:0.85rem;"><i class="ph ph-warning"></i> Dias com manutenção programada nesta região (até 10km):</p>
+                <p style="margin:0 0 0.5rem 0; font-weight:700; color:#854d0e; font-size:0.85rem;"><i class="ph ph-warning"></i> Dias com manutenção programada nesta região (até 5km):</p>
                 <div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:0.5rem;">
-                    ${renderPills(data.dias_sugeridos_10km)}
+                    ${renderPills(data.dias_sugeridos_5km)}
                 </div>
                 <p style="margin:0; font-size:0.7rem; color:#a16207;"><i class="ph ph-info"></i> Considere agendar nestes dias se não houver outra opção mais próxima.</p>
             </div>
@@ -1244,14 +1244,14 @@ function exibirModalAgendaEndereco(data, enderecoAtual) {
     } else if (proximos.length > 0) {
         msgSugestao = `
             <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:0.75rem;">
-                <p style="margin:0; font-weight:700; color:#b91c1c; font-size:0.85rem;"><i class="ph ph-warning-circle"></i> Nenhuma rota programada com dias definidos num raio de 10km.</p>
+                <p style="margin:0; font-weight:700; color:#b91c1c; font-size:0.85rem;"><i class="ph ph-warning-circle"></i> Nenhuma rota programada com dias definidos num raio de 5km.</p>
                 <p style="margin:0.25rem 0 0 0; font-size:0.7rem; color:#991b1b;">As OS encontradas nas redondezas ainda não possuem dia da semana na agenda.</p>
             </div>
         `;
     } else {
         msgSugestao = `
             <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:0.75rem;">
-                <p style="margin:0; font-weight:700; color:#b91c1c; font-size:0.85rem;"><i class="ph ph-warning-circle"></i> Nenhuma manutenção encontrada em um raio de 10km.</p>
+                <p style="margin:0; font-weight:700; color:#b91c1c; font-size:0.85rem;"><i class="ph ph-warning-circle"></i> Nenhuma manutenção encontrada em um raio de 5km.</p>
                 <p style="margin:0.25rem 0 0 0; font-size:0.7rem; color:#991b1b;">Não há sugestões de dias baseados em proximidade.</p>
             </div>
         `;
@@ -1300,7 +1300,7 @@ function exibirModalAgendaEndereco(data, enderecoAtual) {
                             <th style="padding:4px 6px;font-size:0.68rem;color:#64748b;text-align:left;">Dias</th>
                         </tr></thead><tbody>${linhasExatos}</tbody></table></div>` : ''}
                 ${proximos.length > 0 ? `<div>
-                    <p style="font-size:0.75rem;font-weight:700;color:#92400e;margin:0 0 6px;"><i class="ph ph-circles-three"></i> Endereços próximos com manutenção — até 10km (${proximos.length}):</p>
+                    <p style="font-size:0.75rem;font-weight:700;color:#92400e;margin:0 0 6px;"><i class="ph ph-circles-three"></i> Endereços próximos com manutenção — até 5km (${proximos.length}):</p>
                     <table style="width:100%;border-collapse:collapse;">
                         <thead><tr style="background:#fffbeb;">
                             <th style="padding:4px 6px;font-size:0.68rem;color:#64748b;text-align:left;">OS</th>
@@ -1309,7 +1309,7 @@ function exibirModalAgendaEndereco(data, enderecoAtual) {
                             <th style="padding:4px 6px;font-size:0.68rem;color:#64748b;text-align:left;">Serviço</th>
                             <th style="padding:4px 6px;font-size:0.68rem;color:#64748b;text-align:left;">Dias</th>
                         </tr></thead><tbody>${linhasProximos}</tbody></table></div>` : ''}
-                ${exatos.length === 0 && proximos.length === 0 ? '<p style="text-align:center;color:#94a3b8;font-size:0.78rem;padding:1rem 0;">Nenhuma manutenção encontrada neste endereço ou num raio de 10km.</p>' : ''}
+                ${exatos.length === 0 && proximos.length === 0 ? '<p style="text-align:center;color:#94a3b8;font-size:0.78rem;padding:1rem 0;">Nenhuma manutenção encontrada neste endereço ou num raio de 5km.</p>' : ''}
             </div>
         </div>`;
     document.body.appendChild(modal);
@@ -1323,12 +1323,12 @@ function exibirModalAgendaEndereco(data, enderecoAtual) {
             const diasText = data.dias_sugeridos_2km.map(d => d.dia).join(', ');
             containerSugestoes.innerHTML = `<span style="color:#166534; font-weight:600;"><i class="ph ph-check-square"></i> Sugestão (Até 2km): ${diasText}</span>`;
             containerSugestoes.style.display = 'block';
-        } else if (data.dias_sugeridos_10km && data.dias_sugeridos_10km.length > 0) {
-            const diasText = data.dias_sugeridos_10km.map(d => d.dia).join(', ');
-            containerSugestoes.innerHTML = `<span style="color:#854d0e; font-weight:600;"><i class="ph ph-warning"></i> Sugestão (Até 10km): ${diasText}</span>`;
+        } else if (data.dias_sugeridos_5km && data.dias_sugeridos_5km.length > 0) {
+            const diasText = data.dias_sugeridos_5km.map(d => d.dia).join(', ');
+            containerSugestoes.innerHTML = `<span style="color:#854d0e; font-weight:600;"><i class="ph ph-warning"></i> Sugestão (Até 5km): ${diasText}</span>`;
             containerSugestoes.style.display = 'block';
         } else {
-            containerSugestoes.innerHTML = `<span style="color:#b91c1c;"><i class="ph ph-warning-circle"></i> Nenhuma rota sugerida (raio de 10km sem dias preenchidos).</span>`;
+            containerSugestoes.innerHTML = `<span style="color:#b91c1c;"><i class="ph ph-warning-circle"></i> Nenhuma rota sugerida (raio de 5km sem dias preenchidos).</span>`;
             containerSugestoes.style.display = 'block';
         }
     }
