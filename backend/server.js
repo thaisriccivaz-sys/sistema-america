@@ -7960,7 +7960,24 @@ function agregaDias(rows) {
                .sort((a, b) => b.ocorrencias - a.ocorrencias);
 }
 
-// POST /api/logistica/os — Salvar nova OS
+// GET /api/logistica/os/buscar — Busca OS por número
+// Retorna array de todos os serviços registrados para esse número de OS
+app.get('/api/logistica/os/buscar', authenticateToken, (req, res) => {
+    const { numero_os } = req.query;
+    if (!numero_os) return res.status(400).json({ error: 'Parâmetro numero_os obrigatório.' });
+
+    db.all(
+        `SELECT * FROM os_logistica WHERE numero_os = ? AND status = 'ativo' ORDER BY criado_em DESC`,
+        [numero_os.trim()],
+        (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            if (!rows || rows.length === 0) return res.status(404).json({ error: 'OS não encontrada.' });
+            res.json(rows);
+        }
+    );
+});
+
+// POST /api/logistica/os — Salvar nova OS (com validação de conflito de cliente)
 app.post('/api/logistica/os', authenticateToken, (req, res) => {
     const {
         numero_os, tipo_os, cliente, endereco, complemento, cep, lat, lng,
@@ -7968,25 +7985,51 @@ app.post('/api/logistica/os', authenticateToken, (req, res) => {
         hora_inicio, hora_fim, turno, dias_semana, produtos, observacoes, link_video
     } = req.body;
 
-    db.run(`INSERT INTO os_logistica (numero_os, tipo_os, cliente, endereco, complemento, cep, lat, lng,
-        contrato, data_os, responsavel, telefone, email, tipo_servico, hora_inicio, hora_fim,
-        turno, dias_semana, produtos, observacoes, link_video)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [numero_os, tipo_os, cliente, endereco, complemento, cep,
-         lat ? parseFloat(lat) : null, lng ? parseFloat(lng) : null,
-         contrato, data_os, responsavel, telefone, email, tipo_servico,
-         hora_inicio, hora_fim, turno,
-         typeof dias_semana === 'object' ? JSON.stringify(dias_semana) : dias_semana,
-         typeof produtos === 'object' ? JSON.stringify(produtos) : produtos,
-         observacoes, link_video],
-        function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.status(201).json({ ok: true, id: this.lastID });
+    if (!numero_os || !cliente) {
+        return res.status(400).json({ error: 'Número da OS e nome do cliente são obrigatórios.' });
+    }
+
+    // Verifica se já existe uma OS com esse número mas cliente DIFERENTE
+    db.get(
+        `SELECT cliente FROM os_logistica WHERE numero_os = ? AND status = 'ativo' LIMIT 1`,
+        [numero_os.trim()],
+        (errCheck, existente) => {
+            if (errCheck) return res.status(500).json({ error: errCheck.message });
+
+            if (existente) {
+                const clienteExistente = (existente.cliente || '').trim().toLowerCase();
+                const clienteNovo = (cliente || '').trim().toLowerCase();
+                if (clienteExistente !== clienteNovo) {
+                    return res.status(409).json({
+                        error: `O número de OS "${numero_os}" já está cadastrado para o cliente: "${existente.cliente}". Não é possível usar este número para outro cliente.`,
+                        cliente_existente: existente.cliente
+                    });
+                }
+            }
+
+            // Cliente OK (mesmo ou nova OS) — insere
+            db.run(`INSERT INTO os_logistica (numero_os, tipo_os, cliente, endereco, complemento, cep, lat, lng,
+                contrato, data_os, responsavel, telefone, email, tipo_servico, hora_inicio, hora_fim,
+                turno, dias_semana, produtos, observacoes, link_video)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [numero_os, tipo_os, cliente, endereco, complemento, cep,
+                 lat ? parseFloat(lat) : null, lng ? parseFloat(lng) : null,
+                 contrato, data_os, responsavel, telefone, email, tipo_servico,
+                 hora_inicio, hora_fim, turno,
+                 typeof dias_semana === 'object' ? JSON.stringify(dias_semana) : dias_semana,
+                 typeof produtos === 'object' ? JSON.stringify(produtos) : produtos,
+                 observacoes, link_video],
+                function(err) {
+                    if (err) return res.status(500).json({ error: err.message });
+                    res.status(201).json({ ok: true, id: this.lastID });
+                }
+            );
         }
     );
 });
 
 // =====================================================================
+
 
 app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);

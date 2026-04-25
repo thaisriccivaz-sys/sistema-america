@@ -8,7 +8,7 @@ let osState = {
     acoes: new Set(),
     tempoTotal: 10,
     qtdTanques: 0,
-    clienteConfirmado: false,
+    clienteConfirmado: true,
     clienteNome: '',
     enderecoSelecionado: '',
     tipoOs: '' // 'Obra' ou 'Evento' — definido no popup ao adicionar produto
@@ -597,6 +597,92 @@ async function buscarAgendaEndereco() {
     }
 }
 
+// ── CARREGAR OS PELO NÚMERO (Enter no campo OS) ──────────────────────────────
+async function carregarOsPorNumero(numOs) {
+    const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+    const btn = document.getElementById('rr-input-os');
+    if (btn) btn.style.background = '#fef3c7';
+
+    try {
+        const resp = await fetch(`/api/logistica/os/buscar?numero_os=${encodeURIComponent(numOs)}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!resp.ok) {
+            if (resp.status === 404) {
+                // Nenhuma OS com esse número — campo limpo para nova OS
+                btn.style.background = '';
+                mostrarToastAviso(`OS "${numOs}" não encontrada. Preencha os campos para criar uma nova.`);
+                return;
+            }
+            throw new Error(`HTTP ${resp.status}`);
+        }
+        const registros = await resp.json(); // array de OS com esse número
+        if (!registros || registros.length === 0) {
+            btn.style.background = '';
+            mostrarToastAviso(`OS "${numOs}" não encontrada. Preencha os campos para criar uma nova.`);
+            return;
+        }
+
+        // Verifica se o cliente atual (se já preenchido) conflita
+        const clienteDigitado = (document.getElementById('rr-input-cliente')?.dataset?.nomeBase
+            || document.getElementById('rr-input-cliente')?.value || '').trim().toLowerCase();
+        const clienteExistente = registros[0].cliente?.trim().toLowerCase();
+
+        if (clienteDigitado && clienteExistente && clienteDigitado !== clienteExistente) {
+            mostrarToastAviso(`⚠️ O número de OS "${numOs}" já está cadastrado para o cliente: "${registros[0].cliente}". Não é possível usar este número para outro cliente.`);
+            btn.style.background = '#fee2e2';
+            return;
+        }
+
+        // Preenche o formulário com os dados da OS mais recente
+        const os = registros[0];
+        btn.style.background = '#f0fdf4';
+        const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
+        set('rr-input-cliente', os.cliente);
+        if (document.getElementById('rr-input-cliente')) {
+            document.getElementById('rr-input-cliente').dataset.nomeBase = os.cliente || '';
+        }
+        set('rr-input-endereco', os.endereco);
+        set('rr-input-complemento', os.complemento);
+        set('rr-input-responsavel', os.responsavel);
+        set('rr-input-telefone', os.telefone);
+        set('rr-input-email', os.email);
+        set('rr-input-obs', os.observacoes);
+        set('rr-input-video', os.link_video);
+        if (os.lat && os.lng) set('rr-input-coord', `${os.lat}, ${os.lng}`);
+        // Tipo de OS
+        if (os.tipo_os) {
+            osState.tipoOs = os.tipo_os;
+            atualizarDropdownProdutos();
+            atualizarIconesCliente();
+        }
+        // Turno e horário
+        const diurno = document.getElementById('rr-chk-diurno');
+        const noturno = document.getElementById('rr-chk-noturno');
+        if (os.turno === 'Diurno' && diurno) { diurno.checked = true; if (noturno) noturno.checked = false; }
+        if (os.turno === 'Noturno' && noturno) { noturno.checked = true; if (diurno) diurno.checked = false; }
+        set('rr-input-hora-inicio', os.hora_inicio);
+        set('rr-input-hora-fim', os.hora_fim);
+        // Dias da semana
+        const diasSalvos = parseDiasFront(os.dias_semana);
+        const diasMap = { 'Seg': 'rr-chk-seg', 'Ter': 'rr-chk-ter', 'Qua': 'rr-chk-qua', 'Qui': 'rr-chk-qui', 'Sex': 'rr-chk-sex', 'Sáb': 'rr-chk-sab', 'Dom': 'rr-chk-dom' };
+        Object.entries(diasMap).forEach(([d, id]) => {
+            const el = document.getElementById(id);
+            if (el) el.checked = diasSalvos.includes(d);
+        });
+
+        osState.clienteNome = os.cliente || '';
+        atualizarUI();
+
+        const totalServicos = registros.length;
+        mostrarToastAviso(`✅ OS "${numOs}" carregada — Cliente: ${os.cliente}. ${totalServicos} serviço(s) registrado(s) para esta OS.`);
+    } catch(e) {
+        console.error('[Carregar OS]', e);
+        mostrarToastAviso('Erro ao buscar OS. Verifique a conexão.');
+        if (btn) btn.style.background = '';
+    }
+}
+
 function parseDiasFront(diasJson) {
     if (!diasJson) return [];
     try { return JSON.parse(diasJson); } catch { return typeof diasJson === 'string' ? [diasJson] : []; }
@@ -1012,6 +1098,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const view = document.getElementById('view-logistica-rota-redonda');
     if (view) observer.observe(view, { attributes: true, attributeFilter: ['class'] });
 
+    // ─ Enter no campo OS: carrega dados de uma OS existente ─────────────────
+    const inputOs = document.getElementById('rr-input-os');
+    if (inputOs) {
+        inputOs.addEventListener('keydown', async (e) => {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            const numOs = inputOs.value.trim();
+            if (!numOs) return;
+            await carregarOsPorNumero(numOs);
+        });
+    }
+
     // Event Delegation
     document.addEventListener('change', (e) => {
         if (!document.getElementById('view-logistica-rota-redonda')?.classList.contains('active')) return;
@@ -1133,6 +1231,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (resp.ok && result.ok) {
                     exibirModalSucessoOS(result.id, payload);
+                } else if (resp.status === 409) {
+                    mostrarToastAviso(result.error || 'Conflito: OS já cadastrada para outro cliente.');
                 } else {
                     mostrarToastAviso(`Erro ao salvar OS: ${result.error || 'Erro desconhecido.'}`);
                 }
@@ -1520,8 +1620,6 @@ function renderRotaRedonda() {
                 <label style="font-weight: 600; font-size: 0.75rem; color: white; white-space: nowrap; margin: 0;">Cliente</label>
                 <div style="display:flex; gap:4px; align-items:center; width: 100%;">
                     <input type="text" id="rr-input-cliente" style="${inputStyle} border:none;" placeholder="Nome do Cliente">
-                    <button id="btn-pesq-cliente-os" style="${btnStyle} background:#1a7a40;" title="Pesquisar cliente"><i class="ph ph-magnifying-glass"></i></button>
-                    <button id="btn-buscar-endereco" style="${btnStyle} background:#0369a1;" title="Pesquisar endereço do cliente"><i class="ph ph-map-pin"></i></button>
                 </div>
             </div>
 
