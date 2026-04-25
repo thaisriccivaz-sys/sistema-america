@@ -481,6 +481,119 @@ function mostrarToastAviso(msg) {
     setTimeout(() => t.remove(), 9000);
 }
 
+async function buscarAgendaEndereco() {
+    const endInput = document.getElementById('rr-input-endereco');
+    const coordInput = document.getElementById('rr-input-coord');
+    const btn = document.getElementById('btn-agenda-endereco');
+
+    const endereco = endInput?.value?.trim();
+    if (!endereco) { mostrarToastAviso('Preencha o campo de Endereço antes de verificar a agenda.'); return; }
+
+    const params = new URLSearchParams({ endereco });
+    if (coordInput?.value) {
+        const parts = coordInput.value.trim().replace(/,/g, ' ').replace(/\s+/g, ' ').split(' ');
+        if (parts.length >= 2 && !isNaN(parseFloat(parts[0])) && !isNaN(parseFloat(parts[1]))) {
+            params.set('lat', parts[0]);
+            params.set('lng', parts[1]);
+        }
+    }
+
+    if (btn) btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>';
+    try {
+        const token = localStorage.getItem('token') || '';
+        const resp = await fetch(`/api/logistica/os/agenda-endereco?${params.toString()}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await resp.json();
+        exibirModalAgendaEndereco(data, endereco);
+    } catch(e) {
+        console.error('[Agenda Endereço]', e);
+        mostrarToastAviso('Erro ao buscar agenda. Tente novamente.');
+    } finally {
+        if (btn) btn.innerHTML = '<i class="ph ph-calendar-check"></i>';
+    }
+}
+
+function parseDiasFront(diasJson) {
+    if (!diasJson) return [];
+    try { return JSON.parse(diasJson); } catch { return typeof diasJson === 'string' ? [diasJson] : []; }
+}
+
+function exibirModalAgendaEndereco(data, enderecoAtual) {
+    document.getElementById('rr-modal-agenda-end')?.remove();
+    const DIAS_ALL = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+    const diasSugeridos = data.dias_sugeridos || [];
+    const exatos = data.exatos || [];
+    const proximos = data.proximos || [];
+
+    const pilulasSugeridos = diasSugeridos.length > 0
+        ? diasSugeridos.map(d => `<span style="background:#dcfce7;color:#166534;border:1px solid #bbf7d0;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:700;margin:2px;">${d.dia} <small style="opacity:0.7;">(${d.ocorrencias}x)</small></span>`).join('')
+        : '<span style="color:#94a3b8;font-size:0.75rem;">Nenhuma manutenção encontrada para este endereço exato.</span>';
+
+    const linhasExatos = exatos.map(os => {
+        const dias = parseDiasFront(os.dias_semana);
+        const pills = DIAS_ALL.map(d => `<span style="display:inline-block;width:26px;height:20px;line-height:20px;text-align:center;border-radius:4px;font-size:0.6rem;font-weight:700;background:${dias.includes(d)?'#2d9e5f':'#f1f5f9'};color:${dias.includes(d)?'white':'#94a3b8'};">${d}</span>`).join('');
+        return `<tr style="border-bottom:1px solid #f1f5f9;">
+            <td style="padding:4px 6px;font-size:0.7rem;font-weight:600;color:#2d9e5f;">${os.numero_os||'-'}</td>
+            <td style="padding:4px 6px;font-size:0.7rem;">${os.cliente||'-'}</td>
+            <td style="padding:4px 6px;font-size:0.68rem;color:#64748b;">${os.tipo_servico||'-'}</td>
+            <td style="padding:4px 6px;">${pills}</td></tr>`;
+    }).join('');
+
+    const linhasProximos = proximos.map(os => {
+        const dias = parseDiasFront(os.dias_semana);
+        const pills = DIAS_ALL.map(d => `<span style="display:inline-block;width:26px;height:20px;line-height:20px;text-align:center;border-radius:4px;font-size:0.6rem;font-weight:700;background:${dias.includes(d)?'#f59e0b':'#f1f5f9'};color:${dias.includes(d)?'white':'#94a3b8'};">${d}</span>`).join('');
+        return `<tr style="border-bottom:1px solid #f1f5f9;">
+            <td style="padding:4px 6px;font-size:0.7rem;font-weight:600;color:#f59e0b;">${os.numero_os||'-'}</td>
+            <td style="padding:4px 6px;font-size:0.7rem;">${os.cliente||'-'}</td>
+            <td style="padding:4px 6px;font-size:0.68rem;color:#64748b;">${os.distancia_km} km</td>
+            <td style="padding:4px 6px;font-size:0.68rem;color:#64748b;">${os.tipo_servico||'-'}</td>
+            <td style="padding:4px 6px;">${pills}</td></tr>`;
+    }).join('');
+
+    const endLabel = enderecoAtual.length > 50 ? enderecoAtual.substring(0,50) + '…' : enderecoAtual;
+    const modal = document.createElement('div');
+    modal.id = 'rr-modal-agenda-end';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;';
+    modal.innerHTML = `
+        <div style="background:white;border-radius:12px;width:700px;max-width:96vw;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,0.2);overflow:hidden;">
+            <div style="background:#2d9e5f;color:white;padding:0.75rem 1rem;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+                <span style="font-weight:700;font-size:0.88rem;"><i class="ph ph-calendar-check"></i> Agenda de Manutenções — ${endLabel}</span>
+                <button id="btn-fechar-modal-agenda" style="background:transparent;border:none;color:white;font-size:1.1rem;cursor:pointer;"><i class="ph ph-x"></i></button>
+            </div>
+            <div style="overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:1rem;">
+                <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:0.75rem;">
+                    <p style="font-size:0.75rem;font-weight:700;color:#166534;margin:0 0 6px;">✅ Dias com manutenção já programada neste endereço:</p>
+                    <div style="display:flex;flex-wrap:wrap;gap:4px;">${pilulasSugeridos}</div>
+                    ${diasSugeridos.length > 0 ? '<p style="font-size:0.68rem;color:#166534;margin:6px 0 0;">💡 Recomendamos agendar nestes mesmos dias para otimizar a logística.</p>' : ''}
+                </div>
+                ${exatos.length > 0 ? `<div>
+                    <p style="font-size:0.75rem;font-weight:700;color:#334155;margin:0 0 6px;"><i class="ph ph-map-pin"></i> OS neste endereço (${exatos.length}):</p>
+                    <table style="width:100%;border-collapse:collapse;">
+                        <thead><tr style="background:#f8fafc;">
+                            <th style="padding:4px 6px;font-size:0.68rem;color:#64748b;text-align:left;">OS</th>
+                            <th style="padding:4px 6px;font-size:0.68rem;color:#64748b;text-align:left;">Cliente</th>
+                            <th style="padding:4px 6px;font-size:0.68rem;color:#64748b;text-align:left;">Serviço</th>
+                            <th style="padding:4px 6px;font-size:0.68rem;color:#64748b;text-align:left;">Dias</th>
+                        </tr></thead><tbody>${linhasExatos}</tbody></table></div>` : ''}
+                ${proximos.length > 0 ? `<div>
+                    <p style="font-size:0.75rem;font-weight:700;color:#92400e;margin:0 0 6px;"><i class="ph ph-circles-three"></i> Endereços próximos com manutenção — até 5km (${proximos.length}):</p>
+                    <table style="width:100%;border-collapse:collapse;">
+                        <thead><tr style="background:#fffbeb;">
+                            <th style="padding:4px 6px;font-size:0.68rem;color:#64748b;text-align:left;">OS</th>
+                            <th style="padding:4px 6px;font-size:0.68rem;color:#64748b;text-align:left;">Cliente</th>
+                            <th style="padding:4px 6px;font-size:0.68rem;color:#64748b;text-align:left;">Dist.</th>
+                            <th style="padding:4px 6px;font-size:0.68rem;color:#64748b;text-align:left;">Serviço</th>
+                            <th style="padding:4px 6px;font-size:0.68rem;color:#64748b;text-align:left;">Dias</th>
+                        </tr></thead><tbody>${linhasProximos}</tbody></table></div>` : ''}
+                ${exatos.length === 0 && proximos.length === 0 ? '<p style="text-align:center;color:#94a3b8;font-size:0.78rem;padding:1rem 0;">Nenhuma manutenção encontrada neste endereço ou num raio de 5km.</p>' : ''}
+            </div>
+        </div>`;
+    document.body.appendChild(modal);
+    modal.querySelector('#btn-fechar-modal-agenda')?.addEventListener('click', () => modal.remove());
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
 // CSS: spinner + fix Leaflet z-index dentro do layout
 if (!document.getElementById('rr-keyframes')) {
     const s = document.createElement('style');
@@ -894,6 +1007,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const btnGeocodeCoord = e.target.closest('#btn-geocode-coord');
         if (btnGeocodeCoord) { reverseGeocodeEndereco(); return; }
 
+        // Botão Agenda Endereço (verificar manutenções programadas)
+        const btnAgendaEnd = e.target.closest('#btn-agenda-endereco');
+        if (btnAgendaEnd) { buscarAgendaEndereco(); return; }
+
         // Botão Limpar OS
         const btnLimpar = e.target.closest('#btn-limpar-os');
         if (btnLimpar) {
@@ -1232,6 +1349,7 @@ function renderRotaRedonda() {
                         <div style="display:flex; gap:2px;">
                             <input type="text" id="rr-input-endereco" style="${inputStyle}" placeholder="Ex: Rua das Flores, 123 - Bairro, Cidade/SP">
                             <button id="btn-geocode-endereco" style="background:#0369a1; border:none; color:white; width:26px; height:26px; border-radius:4px; cursor:pointer; flex-shrink:0;" title="Buscar endereço no mapa e preencher latitude/longitude"><i class="ph ph-magnifying-glass"></i></button>
+                            <button id="btn-agenda-endereco" style="background:#f59e0b; border:none; color:white; width:26px; height:26px; border-radius:4px; cursor:pointer; flex-shrink:0;" title="Verificar manutenções programadas para este endereço e arredores (5km)"><i class="ph ph-calendar-check"></i></button>
                         </div>
                     </div>
                     <div style="flex: 1;">

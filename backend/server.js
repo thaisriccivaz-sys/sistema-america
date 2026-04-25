@@ -7819,9 +7819,177 @@ setTimeout(() => {
 }, 15000);
 
 // =====================================================================
+// MÓDULO: LOGÍSTICA — Ordens de Serviço (Rota Redonda)
+// =====================================================================
+
+// Cria tabela de OS de logística com suporte a coordenadas GPS
+db.run(`CREATE TABLE IF NOT EXISTS os_logistica (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    numero_os TEXT,
+    tipo_os TEXT,
+    cliente TEXT,
+    endereco TEXT,
+    complemento TEXT,
+    cep TEXT,
+    lat REAL,
+    lng REAL,
+    contrato TEXT,
+    data_os TEXT,
+    responsavel TEXT,
+    telefone TEXT,
+    email TEXT,
+    tipo_servico TEXT,
+    hora_inicio TEXT,
+    hora_fim TEXT,
+    turno TEXT,
+    dias_semana TEXT,
+    produtos TEXT,
+    observacoes TEXT,
+    link_video TEXT,
+    status TEXT DEFAULT 'ativo',
+    criado_em TEXT DEFAULT (datetime('now')),
+    atualizado_em TEXT DEFAULT (datetime('now'))
+)`, (err) => {
+    if (err) console.error('[OS Logística] Erro na criação da tabela:', err.message);
+    else console.log('[OS Logística] Tabela os_logistica OK');
+});
+
+// Função Haversine — calcula distância em km entre duas coordenadas GPS
+function haversineKm(lat1, lng1, lat2, lng2) {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLng/2) * Math.sin(dLng/2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// GET /api/logistica/os/agenda-endereco
+// Busca OS de manutenção pelo endereço (exata e parcial).
+// Retorna os dias da semana programados para o mesmo endereço.
+app.get('/api/logistica/os/agenda-endereco', authenticateToken, (req, res) => {
+    const { endereco, lat, lng } = req.query;
+    if (!endereco && (!lat || !lng)) {
+        return res.status(400).json({ error: 'Forneça "endereco" ou "lat" e "lng".' });
+    }
+
+    // 1. Busca exata e parcial pelo texto do endereço
+    const endTrimmed = (endereco || '').trim();
+    const endTokens = endTrimmed.split(/[\s,]+/).filter(t => t.length > 3);
+
+    // Gera condições LIKE dinâmicas para os tokens mais relevantes (até 3)
+    const likeConditions = endTokens.slice(0, 3).map(() => `endereco LIKE ?`).join(' AND ');
+    const likeParams = endTokens.slice(0, 3).map(t => `%${t}%`);
+
+    const sqlExato = likeConditions
+        ? `SELECT id, numero_os, cliente, endereco, tipo_servico, dias_semana, lat, lng, hora_inicio, hora_fim, turno
+           FROM os_logistica WHERE status = 'ativo' AND (${likeConditions})
+           ORDER BY criado_em DESC LIMIT 50`
+        : `SELECT id, numero_os, cliente, endereco, tipo_servico, dias_semana, lat, lng, hora_inicio, hora_fim, turno
+           FROM os_logistica WHERE status = 'ativo' LIMIT 0`; // retorna vazio se sem endereço
+
+    db.all(sqlExato, likeParams, (err, rowsExatos) => {
+        if (err) return res.status(500).json({ error: err.message });
+
+        // 2. Se tiver coordenadas, busca por raio de 5km
+        if (lat && lng) {
+            const userLat = parseFloat(lat);
+            const userLng = parseFloat(lng);
+
+            db.all(`SELECT id, numero_os, cliente, endereco, tipo_servico, dias_semana, lat, lng, hora_inicio, hora_fim, turno
+                    FROM os_logistica WHERE status = 'ativo' AND lat IS NOT NULL AND lng IS NOT NULL`, [], (err2, todasOs) => {
+                if (err2) return res.status(500).json({ error: err2.message });
+
+                // Filtra por raio e calcula distância
+                const exatosIds = new Set((rowsExatos || []).map(r => r.id));
+                const proximo = (todasOs || [])
+                    .filter(os => !exatosIds.has(os.id)) // evita duplicar os exatos
+                    .map(os => {
+                        const distancia = haversineKm(userLat, userLng, os.lat, os.lng);
+                        return { ...os, distancia_km: Math.round(distancia * 100) / 100 };
+                    })
+                    .filter(os => os.distancia_km <= 5)
+                    .sort((a, b) => a.distancia_km - b.distancia_km)
+                    .slice(0, 10);
+
+                // Agrega dias da semana dos resultados exatos
+                const diasAgregados = agregaDias(rowsExatos || []);
+                const diasProximos = proximo.map(os => ({
+                    ...os,
+                    dias_semana_arr: parseDias(os.dias_semana)
+                }));
+
+                res.json({
+                    exatos: rowsExatos || [],
+                    dias_sugeridos: diasAgregados,
+                    proximos: diasProximos,
+                    total_exatos: (rowsExatos || []).length,
+                    total_proximos: proximo.length
+                });
+            });
+        } else {
+            const diasAgregados = agregaDias(rowsExatos || []);
+            res.json({
+                exatos: rowsExatos || [],
+                dias_sugeridos: diasAgregados,
+                proximos: [],
+                total_exatos: (rowsExatos || []).length,
+                total_proximos: 0
+            });
+        }
+    });
+});
+
+function parseDias(diasJson) {
+    if (!diasJson) return [];
+    try { return JSON.parse(diasJson); } catch { return []; }
+}
+
+// Agrega e conta dias da semana mais frequentes nas OS retornadas
+function agregaDias(rows) {
+    const contagem = {};
+    const DIAS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+    for (const os of rows) {
+        const dias = parseDias(os.dias_semana);
+        for (const d of dias) {
+            contagem[d] = (contagem[d] || 0) + 1;
+        }
+    }
+    return DIAS.filter(d => contagem[d] > 0).map(d => ({ dia: d, ocorrencias: contagem[d] }))
+               .sort((a, b) => b.ocorrencias - a.ocorrencias);
+}
+
+// POST /api/logistica/os — Salvar nova OS
+app.post('/api/logistica/os', authenticateToken, (req, res) => {
+    const {
+        numero_os, tipo_os, cliente, endereco, complemento, cep, lat, lng,
+        contrato, data_os, responsavel, telefone, email, tipo_servico,
+        hora_inicio, hora_fim, turno, dias_semana, produtos, observacoes, link_video
+    } = req.body;
+
+    db.run(`INSERT INTO os_logistica (numero_os, tipo_os, cliente, endereco, complemento, cep, lat, lng,
+        contrato, data_os, responsavel, telefone, email, tipo_servico, hora_inicio, hora_fim,
+        turno, dias_semana, produtos, observacoes, link_video)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [numero_os, tipo_os, cliente, endereco, complemento, cep,
+         lat ? parseFloat(lat) : null, lng ? parseFloat(lng) : null,
+         contrato, data_os, responsavel, telefone, email, tipo_servico,
+         hora_inicio, hora_fim, turno,
+         typeof dias_semana === 'object' ? JSON.stringify(dias_semana) : dias_semana,
+         typeof produtos === 'object' ? JSON.stringify(produtos) : produtos,
+         observacoes, link_video],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.status(201).json({ ok: true, id: this.lastID });
+        }
+    );
+});
+
+// =====================================================================
 
 app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
-    console.log('Versão do Servidor: V30_EXPERIENCIA_MODULE');
+    console.log('Versão do Servidor: V31_OS_LOGISTICA_MODULE');
     console.log(`Caminho de Armazenamento Local: ${BASE_UPLOAD_PATH}`);
 });
