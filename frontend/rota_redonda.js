@@ -966,153 +966,92 @@ if (!document.getElementById('rr-keyframes')) {
 // ══════════════════════════════════════════════════════════════════════════════
 
 function parseOsText(texto) {
-    // Normaliza: remove caracteres de controle extras mas preserva quebras de linha
     const lines = texto.replace(/\r/g, '').split('\n').map(l => l.trim());
     const resultado = {
-        cliente: '', responsavel: '', telefone: '', endereco: '',
-        email: '', dataEntrega: '', produto: '', qtdProduto: 1,
-        observacoes: '', manutencaoFreq: '',
-        ambiguidades: [], // campos que precisam de revisão manual
-        avisos: []
+        numOs: '', tipoServico: '', cliente: '', contrato: '', tipoOs: '',
+        responsavel: '', telefone: '', endereco: '', email: '',
+        produto: '', qtdProduto: 1, observacoes: '', // produtos vai virar array na UI
+        ambiguidades: [], avisos: [], rawProdutos: ''
     };
 
-    // Helper: extrai valor após "label:" (remove emojis e espaços extras)
-    const extrairValor = (linha) => linha.replace(/^[^:]+:\s*/, '').replace(/^[\s\-–—]+$/, '').trim();
     const eVazio = (v) => !v || /^[\s\-–—*]*$/.test(v);
+    const extrairValor = (linha, prefixo) => linha.replace(prefixo, '').replace(/^[\s\-–—:]+/, '').trim();
 
-    for (const linha of lines) {
-        const lU = linha.toUpperCase();
+    for (let i = 0; i < lines.length; i++) {
+        const l = lines[i];
+        const lu = l.toUpperCase();
 
-        // ── CLIENTE ─────────────────────────────────────────────────────────
-        if (/cliente\s*:/i.test(linha)) {
-            const v = extrairValor(linha);
-            if (!eVazio(v)) resultado.cliente = v;
+        // OS -> Número na linha seguinte
+        if (lu === 'OS' && i + 1 < lines.length) {
+            resultado.numOs = lines[i + 1].trim();
+        }
+        
+        // Tipo -> Serviço na linha seguinte
+        else if (lu === 'TIPO' && i + 1 < lines.length) {
+            const val = lines[i + 1].trim();
+            // Pega o texto antes do [ ] se houver, ou a string inteira
+            const clean = val.split('[')[0].trim();
+            resultado.tipoServico = clean || val;
         }
 
-        // ── CONTATO / RESPONSÁVEL ────────────────────────────────────────────
-        // Separa nome do telefone. Usa apenas o primeiro contato se houver múltiplos.
-        else if (/contato|responsavel|instalação|instalacao/i.test(linha) && linha.includes(':')) {
-            if (resultado.responsavel) continue; // já preencheu com o primeiro
-            const v = extrairValor(linha);
-            if (eVazio(v)) continue;
-
-            // Extrai telefone: sequências de dígitos (8-11 dígitos, com ou sem formatação)
-            const telMatch = v.match(/[\(\d][\d\s\-\.\(\)]{7,14}\d/);
-            if (telMatch) {
-                const tel = telMatch[0].replace(/[^\d]/g, '');
-                const telFormatado = tel.length === 11
-                    ? `(${tel.slice(0,2)}) ${tel.slice(2,7)}-${tel.slice(7)}`
-                    : tel.length === 10
-                    ? `(${tel.slice(0,2)}) ${tel.slice(2,6)}-${tel.slice(6)}`
-                    : telMatch[0].trim();
-                resultado.telefone = telFormatado;
-                // Nome = tudo antes do telefone, sem emojis
-                const nome = v.slice(0, v.indexOf(telMatch[0])).replace(/[^\w\sÀ-ÿ]/g, '').trim();
-                if (nome) resultado.responsavel = nome;
-                else resultado.responsavel = v.replace(telMatch[0], '').replace(/[^\w\sÀ-ÿ]/g, '').trim();
-            } else {
-                resultado.responsavel = v.replace(/[^\w\sÀ-ÿ\.]/g, '').trim();
-            }
+        // Cliente -> ID (i+1), Nome (i+2)
+        else if (lu === 'CLIENTE' && i + 2 < lines.length && /^\d+$/.test(lines[i + 1].trim())) {
+            resultado.cliente = lines[i + 2].trim();
         }
 
-        // ── ENDEREÇO ─────────────────────────────────────────────────────────
-        else if (/endere[cç]o|entrega\s*:|local\s*:/i.test(linha) && !(/👉|retirada/i.test(linha))) {
-            const v = extrairValor(linha);
-            if (eVazio(v)) continue;
-            // Extrai CEP se presente na mesma linha
-            const cepMatch = v.match(/CEP\s*:?\s*([\d]{5}-?[\d]{3})/i);
-            let end = v.replace(/\|/g, ',').replace(/CEP\s*:?\s*[\d\-]+/i, '').trim();
-            // Remove separadores e espaços duplos
-            end = end.replace(/,\s*,/g, ',').replace(/\s+/g, ' ').trim().replace(/,\s*$/, '');
-            if (cepMatch) {
-                resultado.endereco = `${end} - CEP: ${cepMatch[1]}`.trim();
-            } else {
-                resultado.endereco = end;
-            }
+        // Contato -> Contrato (i+1)
+        else if (lu === 'CONTATO' && i + 1 < lines.length) {
+            const c = lines[i + 1].trim();
+            if (/^\d+$/.test(c)) resultado.contrato = c;
         }
 
-        // ── EMAIL ────────────────────────────────────────────────────────────
-        else if (/e-?mail|email/i.test(linha) && linha.includes(':')) {
-            const v = extrairValor(linha);
-            const emailMatch = v.match(/[\w.\-+]+@[\w.\-]+\.\w{2,}/);
-            if (emailMatch) resultado.email = emailMatch[0].toLowerCase();
+        // Tipo e Situação do Contrato -> Obra ou Evento (i+1)
+        else if (lu === 'TIPO E SITUAÇÃO DO CONTRATO' && i + 1 < lines.length) {
+            const val = lines[i + 1].toUpperCase();
+            if (val.includes('OBRA')) resultado.tipoOs = 'Obra';
+            else if (val.includes('EVENTO')) resultado.tipoOs = 'Evento';
         }
 
-        // ── DATA DE ENTREGA ──────────────────────────────────────────────────
-        // Retirada é IGNORADA sempre (regra explícita do usuário)
-        else if (/👉|entrega\s*:/i.test(linha) && !/retirada|👈/i.test(linha)) {
-            const v = extrairValor(linha);
-            if (eVazio(v)) continue;
-            // Detecta datas: dd/mm, dd/mm/aa, dd/mm/aaaa
-            const datasEncontradas = v.matchAll(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/g);
-            const datas = [...datasEncontradas];
-            if (datas.length === 1) {
-                const [, d, m, a] = datas[0];
-                const ano = a ? (a.length === 2 ? '20' + a : a) : new Date().getFullYear();
-                resultado.dataEntrega = `${ano}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
-            } else if (datas.length > 1) {
-                resultado.avisos.push('⚠️ Múltiplas datas encontradas no campo Entrega — data não preenchida.');
-                resultado.dataEntrega = '';
-            }
-        }
-
-        // ── PRODUTO ──────────────────────────────────────────────────────────
-        else if (/produto|equipamento/i.test(linha) && linha.includes(':')) {
-            const v = extrairValor(linha);
-            if (eVazio(v)) continue;
-            // Extrai quantidade (número no início)
-            const qtdMatch = v.match(/^(\d+)\s*/);
-            resultado.qtdProduto = qtdMatch ? parseInt(qtdMatch[1]) : 1;
-            const nomeProd = v.replace(/^\d+\s*/, '').trim().toUpperCase();
-
-            // Verifica se é guarita sem especificar individual/dupla
-            if (/guarita(?!\s+(individual|dupla|ind|dup))/i.test(nomeProd)) {
-                resultado.produto = ''; // deixa em branco
-                resultado.ambiguidades.push({
-                    campo: 'Produto',
-                    texto: v,
-                    aviso: `"${v}" — Guarita não especificada (Individual ou Dupla?). Produto não preenchido.`
-                });
-            } else {
-                // Mapeia apelativos para nomes do dicionário
-                const MAP_PROD = {
-                    'STD': 'STD', 'STANDARD': 'STD', 'LX': 'LX', 'ELX': 'ELX',
-                    'PCD': 'PCD', 'CHUVEIRO': 'CHUVEIRO', 'HIDRAULICO': 'HIDRÁULICO',
-                    'HIDRAU': 'HIDRÁULICO', 'MICTORIO': 'MICTÓRIO', 'MICT': 'MICTÓRIO',
-                    'GUARITA INDIVIDUAL': 'GUARITA INDIVIDUAL', 'GUARITA DUPLA': 'GUARITA DUPLA',
-                    'PBII': 'PBII', 'PIA II': 'PBII', 'PBIII': 'PBIII', 'PIA III': 'PBIII',
-                    'LIMPA FOSSA': 'LIMPA FOSSA', 'CARRINHO': 'CARRINHO', 'CAIXA': 'CAIXA DAGUA'
-                };
-                let base = nomeProd;
-                for (const [chave, valor] of Object.entries(MAP_PROD)) {
-                    if (nomeProd.includes(chave)) { base = valor; break; }
+        // 📞Contato de instalação:
+        else if (l.includes('📞Contato') || l.includes('Contato de instalação:')) {
+            const v = extrairValor(l, /📞?Contato de instala[cç][aã]o:/i);
+            if (!eVazio(v)) {
+                // "Alan - " ou "Alan - 1199999999"
+                const parts = v.split('-');
+                resultado.responsavel = parts[0].trim();
+                if (parts.length > 1) {
+                    const tel = parts[1].replace(/[^\d]/g, '');
+                    if (tel.length >= 8) {
+                        const t = tel;
+                        resultado.telefone = t.length === 11 ? `(${t.slice(0,2)}) ${t.slice(2,7)}-${t.slice(7)}` : t;
+                    }
                 }
-                resultado.produto = base; // tipoOs será definido no popup
             }
         }
 
-        // ── MANUTENÇÃO ───────────────────────────────────────────────────────
-        else if (/manuten[cç][aã]o/i.test(linha) && linha.includes(':')) {
-            const v = extrairValor(linha);
-            if (eVazio(v)) continue;
-            // Normaliza frequência: "1x semana", "02 por semana", "2x", "diaria"
-            const freqMatch = v.match(/(\d+)\s*[xX×]\s*(?:semana|por semana)?|(\d+)\s*por\s*semana|diaria|diário/i);
-            if (freqMatch) {
-                const n = freqMatch[1] || freqMatch[2] || '1';
-                resultado.manutencaoFreq = `${n}x por semana`;
-            } else if (!eVazio(v) && v !== '--') {
-                resultado.manutencaoFreq = v;
-            }
+        // 📍Endereço de entrega:
+        else if (l.includes('📍Endereço') || l.includes('Endereço de entrega:')) {
+            const v = extrairValor(l, /📍?Endere[cç]o de entrega:/i);
+            if (!eVazio(v)) resultado.endereco = v;
         }
 
-        // ── OBSERVAÇÕES ──────────────────────────────────────────────────────
-        else if (/obs[e]?r?v[a]?[cç][oõ]e?s?/i.test(linha) && linha.includes(':')) {
-            const v = extrairValor(linha);
-            if (!eVazio(v)) resultado.observacoes = v;
+        // 📨 E-mail recebimento OS:
+        else if (l.includes('📨 E-mail') || l.includes('E-mail recebimento OS:')) {
+            const v = extrairValor(l, /📨?\s*E-mail recebimento OS:/i);
+            if (!eVazio(v)) resultado.email = v;
         }
 
-        // ── RETIRADA — IGNORADA SEMPRE ───────────────────────────────────────
-        // (regra explícita: desconsiderar sempre)
+        // 💩Produto: 10 STD 1 PCD
+        else if (l.includes('💩Produto:') || l.includes('Produto:')) {
+            const v = extrairValor(l, /💩?Produto:/i);
+            if (!eVazio(v)) resultado.rawProdutos = v; // processado depois
+        }
+
+        // 💡Observações:--
+        else if (l.includes('💡Observações:') || l.includes('Observações:')) {
+            const v = extrairValor(l, /💡?Observa[cç][õo]es:/i);
+            if (!eVazio(v) && v !== '--') resultado.observacoes = v;
+        }
     }
 
     return resultado;
@@ -1163,14 +1102,16 @@ function abrirModalColarOS() {
                </div>` : '';
 
         let html = '';
+        html += linha('🔢 OS', dadosExtraidos.numOs);
+        html += linha('🏷️ Serviço', dadosExtraidos.tipoServico);
         html += linha('👤 Cliente', dadosExtraidos.cliente);
+        html += linha('📜 Contrato', dadosExtraidos.contrato);
+        html += linha('🏢 Tipo OS', dadosExtraidos.tipoOs);
         html += linha('👷 Responsável', dadosExtraidos.responsavel);
         html += linha('📞 Telefone', dadosExtraidos.telefone);
         html += linha('📍 Endereço', dadosExtraidos.endereco);
         html += linha('📧 Email', dadosExtraidos.email);
-        html += linha('📅 Data Entrega', dadosExtraidos.dataEntrega);
-        html += linha('📦 Produto', dadosExtraidos.produto ? `${dadosExtraidos.qtdProduto}x ${dadosExtraidos.produto}` : '');
-        html += linha('🔄 Manutenção', dadosExtraidos.manutencaoFreq);
+        html += linha('📦 Produtos', dadosExtraidos.rawProdutos);
         html += linha('📝 Observações', dadosExtraidos.observacoes);
 
         // Avisos
@@ -1188,12 +1129,16 @@ function abrirModalColarOS() {
     // Botão Confirmar → preenche o formulário
     modal.querySelector('#rr-colar-confirmar').onclick = () => {
         if (!dadosExtraidos) return;
-        const continuar = (tipoOs) => {
+        const continuar = (tOs) => {
             modal.remove();
-            preencherFormularioComDados(dadosExtraidos, tipoOs);
+            preencherFormularioComDados(dadosExtraidos, tOs);
         };
-        if (!osState.tipoOs && dadosExtraidos.produto) {
-            abrirPopupTipoOs(tipo => { osState.tipoOs = tipo; continuar(tipo); });
+        // Se a extração já encontrou o tipoOs (Obra/Evento), usa ele, senão pergunta
+        if (dadosExtraidos.tipoOs) {
+            osState.tipoOs = dadosExtraidos.tipoOs;
+            continuar(dadosExtraidos.tipoOs);
+        } else if (!osState.tipoOs) {
+            abrirPopupTipoOs(t => { osState.tipoOs = t; continuar(t); });
         } else {
             continuar(osState.tipoOs);
         }
@@ -1211,31 +1156,53 @@ function preencherFormularioComDados(dados, tipoOs) {
         if (el && val) { el.value = val; el.style.background = '#f0fdf4'; }
     };
 
+    set('rr-input-os',          dados.numOs);
+    set('rr-tipo-servico',      dados.tipoServico);
     set('rr-input-cliente',     dados.cliente);
     set('rr-input-endereco',    dados.endereco);
     set('rr-input-responsavel', dados.responsavel);
-    set('rr-input-sms',         dados.telefone);
+    // telefone fica em rr-input-telefone no sistema novo (não rr-input-sms)
+    set('rr-input-telefone',    dados.telefone);
     set('rr-input-email',       dados.email);
     set('rr-input-obs',         dados.observacoes);
 
-    if (dados.dataEntrega) {
-        const dateEl = document.querySelector('input[type="date"]');
-        if (dateEl) { dateEl.value = dados.dataEntrega; dateEl.style.background = '#f0fdf4'; }
+    if (dados.contrato) {
+        const contEl = document.querySelector('input[placeholder="Nº Contrato"]');
+        if (contEl) { contEl.value = dados.contrato; contEl.style.background = '#f0fdf4'; }
     }
 
     // Atualiza estado do cliente
     osState.clienteNome = dados.cliente;
 
-    // Adiciona produto se reconhecido
-    if (dados.produto && tipoOs) {
+    // Processa Produtos (ex: "10 STD 1 PCD")
+    if (dados.rawProdutos && tipoOs) {
         atualizarDropdownProdutos();
-        const nomeProdutoCompleto = `${dados.produto} ${tipoOs === 'Obra' ? 'OBRA' : 'EVENTO'}`;
-        const produtoExiste = Object.keys(EQUIPAMENTOS_DICT).find(k => k === nomeProdutoCompleto);
-        if (produtoExiste) {
-            osState.produtos.push({ id: Date.now(), desc: nomeProdutoCompleto, qtd: dados.qtdProduto });
-            atualizarUI();
-            calcularTempo();
+        // Extrai pares de "numero palavra"
+        const prodRegex = /(\d+)\s+([A-Za-z]+)/g;
+        let match;
+        while ((match = prodRegex.exec(dados.rawProdutos)) !== null) {
+            let qtd = parseInt(match[1], 10);
+            let nomeStr = match[2].toUpperCase();
+            
+            // Map básico para encontrar nome
+            const MAP_PROD = {
+                'STD': 'STD', 'STANDARD': 'STD', 'LX': 'LX', 'ELX': 'ELX',
+                'PCD': 'PCD', 'CHUVEIRO': 'CHUVEIRO', 'HIDRAULICO': 'HIDRÁULICO',
+                'HIDRAU': 'HIDRÁULICO', 'MICTORIO': 'MICTÓRIO', 'MICT': 'MICTÓRIO',
+                'PBII': 'PBII', 'PIA': 'PBII', 'CARRINHO': 'CARRINHO', 'CAIXA': 'CAIXA DAGUA'
+            };
+            let base = nomeStr;
+            for (const [chave, valor] of Object.entries(MAP_PROD)) {
+                if (nomeStr.includes(chave)) { base = valor; break; }
+            }
+
+            const nomeProdutoCompleto = `${base} ${tipoOs === 'Obra' ? 'OBRA' : 'EVENTO'}`;
+            const produtoExiste = Object.keys(EQUIPAMENTOS_DICT).find(k => k === nomeProdutoCompleto);
+            if (produtoExiste) {
+                osState.produtos.push({ id: Date.now() + Math.random(), desc: nomeProdutoCompleto, qtd: qtd });
+            }
         }
+        atualizarUI();
     }
 
     // Destaca campos ambíguos em amarelo
