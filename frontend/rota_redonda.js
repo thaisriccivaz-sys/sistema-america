@@ -370,11 +370,21 @@ async function reverseGeocodeEndereco() {
             
             // Preenche o endereço
             if (endInput) {
-                let override = true;
                 if (endInput.value.trim() !== '') {
-                    override = confirm(`O endereço atual é:\n${endInput.value}\n\nO endereço encontrado para a coordenada é:\n${data.display_name}\n\nDeseja substituir o endereço atual pelo endereço encontrado?`);
-                }
-                if (override) {
+                    Swal.fire({
+                        title: 'Atenção',
+                        html: `O endereço atual é:<br><b>${endInput.value}</b><br><br>O endereço encontrado para a coordenada é:<br><b>${data.display_name}</b><br><br>Deseja substituir o endereço atual pelo endereço encontrado?`,
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: 'Sim',
+                        cancelButtonText: 'Não'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            endInput.value = data.display_name;
+                            endInput.style.background = '#f0fdf4';
+                        }
+                    });
+                } else {
                     endInput.value = data.display_name;
                     endInput.style.background = '#f0fdf4';
                 }
@@ -768,10 +778,11 @@ function abrirModalListaOS(numOs, registros) {
     document.getElementById('rr-modal-lista-os')?.remove();
 
     const tbody = registros.map(r => {
-        let prod = '—';
+        let prod = '—'; let prodData = '';
         try {
             const parsedProd = JSON.parse(r.produtos);
             if (Array.isArray(parsedProd) && parsedProd.length > 0) {
+                prodData = parsedProd.map(p => (p.desc||'').toLowerCase()).join(' | ');
                 prod = parsedProd.map(p => {
                     const prodInfo = EQUIPAMENTOS_DICT[p.desc.trim()];
                     const icone = prodInfo?.icone ? `${prodInfo.icone} ` : '';
@@ -798,7 +809,7 @@ function abrirModalListaOS(numOs, registros) {
         const dataFormatada = r.data_os ? r.data_os.split('-').reverse().join('/') : '—';
         
         return `
-            <tr class="rr-os-row" data-cliente="${(r.cliente||'').toLowerCase()}" data-endereco="${(r.endereco||'').toLowerCase()}" style="border-bottom:1px solid #e2e8f0; transition:background 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+            <tr class="rr-os-row" data-cliente="${(r.cliente||'').toLowerCase()}" data-endereco="${(r.endereco||'').toLowerCase()}" data-tipo="${(r.tipo_servico||'').toLowerCase()}" data-data="${r.data_os||''}" data-produto="${prodData}" style="border-bottom:1px solid #e2e8f0; transition:background 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
                 <td style="padding:0.75rem 0.5rem;white-space:nowrap;">${r.numero_os}</td>
                 <td style="padding:0.75rem 0.5rem;font-weight:600;cursor:pointer;" onclick='window._carregarRegistroNaTela(${JSON.stringify(r)})'>${r.cliente}</td>
                 <td style="padding:0.75rem 0.5rem;">${r.endereco}</td>
@@ -1959,42 +1970,130 @@ function atualizarIconesCliente() {
 }
 
 
-function abrirModalOSCliente(nomeCliente) {
+async function abrirModalOSCliente(nomeCliente) {
     document.getElementById('rr-modal-os-cliente')?.remove();
-    // Futuramente: buscar OS reais do backend pelo nome do cliente
-    const osMock = [
-        { os: '10234', data: '10/04/2025', tipo: 'MANUTENCAO OBRA', endereco: 'Rua das Flores, 123' },
-        { os: '10198', data: '22/03/2025', tipo: 'ENTREGA OBRA',    endereco: 'Av. Paulista, 456' },
-        { os: '10087', data: '01/02/2025', tipo: 'RETIRADA EVENTO', endereco: 'Rua Geral, 789' },
-    ];
-    const linhas = osMock.map(o => `
-        <div style="display:flex; align-items:center; gap:0.5rem; padding:0.4rem 0.75rem; border-bottom:1px solid #f1f5f9;">
-            <span style="font-size:0.72rem; font-weight:700; color:#2d9e5f; width:55px;">OS ${o.os}</span>
-            <span style="font-size:0.7rem; color:#64748b; width:80px;">${o.data}</span>
-            <span style="font-size:0.7rem; color:#334155; flex:1;">${o.tipo}</span>
-            <span style="font-size:0.7rem; color:#94a3b8; flex:1;">${o.endereco}</span>
-        </div>
-    `).join('');
+
+    // Loading spinner modal
+    const loadingEl = document.createElement('div');
+    loadingEl.id = 'rr-modal-os-cliente';
+    loadingEl.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;';
+    loadingEl.innerHTML = `<div style="background:white;border-radius:10px;padding:2rem 3rem;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.18);">
+        <i class="ph ph-spinner ph-spin" style="font-size:2rem;color:#2d9e5f;"></i>
+        <p style="margin-top:0.75rem;font-size:0.9rem;color:#475569;">Buscando OS de <b>${nomeCliente}</b>...</p>
+    </div>`;
+    document.body.appendChild(loadingEl);
+
+    let registros = [];
+    try {
+        const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+        const nomeClean = nomeCliente.replace(/[^\w\s]/g, '').trim();
+        const resp = await fetch(`/api/logistica/os/buscar?cliente=${encodeURIComponent(nomeClean)}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (resp.ok) registros = await resp.json();
+    } catch(e) { console.error('Erro ao buscar OS por cliente', e); }
+
+    loadingEl.remove();
+
+    const gerarLinhas = (regs) => regs.map(r => {
+        let prod = '—'; let prodData = '';
+        try {
+            const pp = JSON.parse(r.produtos);
+            if (Array.isArray(pp) && pp.length > 0) {
+                prodData = pp.map(p => (p.desc||'').toLowerCase()).join(' | ');
+                prod = pp.map(p => {
+                    const info = typeof EQUIPAMENTOS_DICT !== 'undefined' ? EQUIPAMENTOS_DICT[p.desc?.trim()] : null;
+                    const ic = info?.icone ? `${info.icone} ` : '';
+                    return `<span style="background:#1e40af;color:white;padding:2px 5px;border-radius:10px;margin-right:3px;font-size:0.68rem;">${ic}${p.desc} (${p.qtd})</span>`;
+                }).join('');
+            }
+        } catch(e) {}
+        let dSemana = '—';
+        try { dSemana = JSON.parse(r.dias_semana).map(d => `<span style="background:#2563eb;color:white;padding:2px 5px;border-radius:4px;margin-right:3px;font-size:0.68rem;">${d}</span>`).join(''); } catch(e) {}
+        let hab = '—';
+        try { const h = JSON.parse(r.habilidades); if(h && h.length) hab = h.join(', '); } catch(e) { if(r.habilidades) hab = r.habilidades; }
+        let varis = '—';
+        try { const v = JSON.parse(r.variaveis); if(v && v.length) varis = v.join(', '); } catch(e) { if(r.variaveis) varis = r.variaveis; }
+        const dataFormatada = r.data_os ? r.data_os.split('-').reverse().join('/') : '—';
+        return `
+            <tr class="rr-os-row-cli" data-cliente="${(r.cliente||'').toLowerCase()}" data-endereco="${(r.endereco||'').toLowerCase()}" data-tipo="${(r.tipo_servico||'').toLowerCase()}" data-data="${r.data_os||''}" data-produto="${prodData}" style="border-bottom:1px solid #e2e8f0;transition:background 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+                <td style="padding:0.6rem 0.5rem;white-space:nowrap;font-weight:700;color:#2d9e5f;">${r.numero_os}</td>
+                <td style="padding:0.6rem 0.5rem;font-weight:600;">${r.cliente}</td>
+                <td style="padding:0.6rem 0.5rem;font-size:0.78rem;">${r.endereco||'—'}</td>
+                <td style="padding:0.6rem 0.5rem;font-size:0.78rem;">${r.tipo_servico||'—'}</td>
+                <td style="padding:0.6rem 0.5rem;white-space:nowrap;">${dataFormatada}</td>
+                <td style="padding:0.6rem 0.5rem;">${dSemana}</td>
+                <td style="padding:0.6rem 0.5rem;font-size:0.78rem;">${hab}</td>
+                <td style="padding:0.6rem 0.5rem;">${prod}</td>
+                <td style="padding:0.6rem 0.5rem;white-space:nowrap;">
+                    <button style="background:transparent;border:none;cursor:pointer;padding:4px;" onclick='window._carregarRegistroNaTela(${JSON.stringify(r)})' title="Editar"><i class="ph ph-pencil-simple" style="color:#f59e0b;font-size:1.1rem;"></i></button>
+                    <button style="background:transparent;border:none;cursor:pointer;padding:4px;" onclick='window._excluirOsLista(${r.id})' title="Excluir"><i class="ph ph-trash" style="color:#ef4444;font-size:1.1rem;"></i></button>
+                </td>
+            </tr>`;
+    }).join('');
+
+    const totalLabel = registros.length > 0 ? `${registros.length} registro(s)` : 'Nenhuma OS encontrada';
     const modal = document.createElement('div');
     modal.id = 'rr-modal-os-cliente';
-    modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;';
     modal.innerHTML = `
-        <div style="background:white;border-radius:10px;width:620px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,0.18);overflow:hidden;">
-            <div style="background:#2d9e5f;color:white;padding:0.75rem 1rem;display:flex;justify-content:space-between;align-items:center;">
-                <span style="font-weight:700;font-size:0.9rem;"><i class="ph ph-clipboard-text"></i> OS de <em>${nomeCliente}</em></span>
-                <button id="btn-fechar-modal-os" style="background:transparent;border:none;color:white;font-size:1.1rem;cursor:pointer;"><i class="ph ph-x"></i></button>
+        <div style="background:white;width:95vw;max-width:1100px;max-height:90vh;display:flex;flex-direction:column;border-radius:10px;overflow:hidden;box-shadow:0 16px 48px rgba(0,0,0,0.25);">
+            <div style="background:#2d9e5f;color:white;padding:0.9rem 1.25rem;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+                <div>
+                    <h3 style="margin:0;font-size:1.05rem;font-weight:700;"><i class="ph ph-clipboard-text"></i> OS de ${nomeCliente}</h3>
+                    <p style="margin:0;font-size:0.75rem;opacity:0.85;">${totalLabel}. Clique no lápis para carregar.</p>
+                </div>
+                <button id="btn-fechar-modal-os" style="background:transparent;border:none;color:white;font-size:1.4rem;cursor:pointer;"><i class="ph ph-x"></i></button>
             </div>
-            <div style="display:flex;gap:0.5rem;padding:0.4rem 0.75rem;background:#f8fafc;border-bottom:1px solid #e2e8f0;">
-                <span style="font-size:0.68rem;font-weight:700;color:#64748b;width:55px;">OS</span>
-                <span style="font-size:0.68rem;font-weight:700;color:#64748b;width:80px;">DATA</span>
-                <span style="font-size:0.68rem;font-weight:700;color:#64748b;flex:1;">TIPO</span>
-                <span style="font-size:0.68rem;font-weight:700;color:#64748b;flex:1;">ENDEREÇO</span>
+            <div style="padding:0.6rem 1rem;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;gap:8px;flex-wrap:wrap;align-items:center;flex-shrink:0;">
+                <input type="text" id="rr-filter-cli-os" placeholder="🔍 Cliente..." style="flex:1;min-width:110px;padding:6px 10px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.8rem;outline:none;">
+                <input type="text" id="rr-filter-end-os" placeholder="🔍 Endereço..." style="flex:1;min-width:110px;padding:6px 10px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.8rem;outline:none;">
+                <input type="text" id="rr-filter-tipo-os" placeholder="🔍 Tipo de Serviço..." style="flex:1;min-width:130px;padding:6px 10px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.8rem;outline:none;">
+                <input type="date" id="rr-filter-data-os" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.8rem;outline:none;" title="Filtrar por data">
+                <input type="text" id="rr-filter-prod-os" placeholder="🔍 Produto..." style="flex:1;min-width:100px;padding:6px 10px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.8rem;outline:none;">
+                <button onclick="['rr-filter-cli-os','rr-filter-end-os','rr-filter-tipo-os','rr-filter-data-os','rr-filter-prod-os'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';}); document.querySelectorAll('.rr-os-row-cli').forEach(r=>r.style.display='');" style="padding:6px 12px;background:#ef4444;color:white;border:none;border-radius:4px;font-size:0.78rem;cursor:pointer;white-space:nowrap;">✖ Limpar</button>
             </div>
-            <div style="max-height:280px;overflow-y:auto;">${linhas}</div>
-            <div style="padding:0.5rem 0.75rem;background:#f8fafc;font-size:0.72rem;color:#94a3b8;text-align:center;">Histórico de OS — dados vindos do sistema</div>
+            <div style="overflow-y:auto;flex:1;">
+                <table style="width:100%;border-collapse:collapse;font-size:0.82rem;text-align:left;">
+                    <thead style="position:sticky;top:0;z-index:1;">
+                        <tr style="background:#2d9e5f;color:white;">
+                            <th style="padding:0.6rem 0.5rem;font-weight:600;">Nº OS</th>
+                            <th style="padding:0.6rem 0.5rem;font-weight:600;">Cliente</th>
+                            <th style="padding:0.6rem 0.5rem;font-weight:600;">Endereço</th>
+                            <th style="padding:0.6rem 0.5rem;font-weight:600;">Tipo Serviço</th>
+                            <th style="padding:0.6rem 0.5rem;font-weight:600;">Data</th>
+                            <th style="padding:0.6rem 0.5rem;font-weight:600;">Dias Semana</th>
+                            <th style="padding:0.6rem 0.5rem;font-weight:600;">Habilidades</th>
+                            <th style="padding:0.6rem 0.5rem;font-weight:600;">Produtos</th>
+                            <th style="padding:0.6rem 0.5rem;font-weight:600;width:70px;">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rr-tbody-os-cli">${gerarLinhas(registros) || '<tr><td colspan="9" style="padding:2rem;text-align:center;color:#94a3b8;">Nenhuma OS encontrada para este cliente.</td></tr>'}</tbody>
+                </table>
+            </div>
         </div>
     `;
     document.body.appendChild(modal);
+    modal.querySelector('#btn-fechar-modal-os')?.addEventListener('click', () => modal.remove());
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+
+    const filterCli = () => {
+        const fCli  = (document.getElementById('rr-filter-cli-os')?.value  || '').toLowerCase();
+        const fEnd  = (document.getElementById('rr-filter-end-os')?.value  || '').toLowerCase();
+        const fTipo = (document.getElementById('rr-filter-tipo-os')?.value || '').toLowerCase();
+        const fData = (document.getElementById('rr-filter-data-os')?.value || '');
+        const fProd = (document.getElementById('rr-filter-prod-os')?.value || '').toLowerCase();
+        document.querySelectorAll('.rr-os-row-cli').forEach(row => {
+            const ok = (row.dataset.cliente  || '').includes(fCli)
+                    && (row.dataset.endereco || '').includes(fEnd)
+                    && (row.dataset.tipo     || '').includes(fTipo)
+                    && (!fData || (row.dataset.data || '') === fData)
+                    && (row.dataset.produto  || '').includes(fProd);
+            row.style.display = ok ? '' : 'none';
+        });
+    };
+    ['rr-filter-cli-os','rr-filter-end-os','rr-filter-tipo-os','rr-filter-data-os','rr-filter-prod-os']
+        .forEach(id => document.getElementById(id)?.addEventListener('input', filterCli));
 }
 
 function abrirModalEnderecos(nomeCliente) {
