@@ -1,4 +1,4 @@
-﻿/* ════════════════════════════════════════════════════════════════════════════
+/* ════════════════════════════════════════════════════════════════════════════
    MÓDULO: ROTA REDONDA (ORDENS DE SERVIÇO)
    ════════════════════════════════════════════════════════════════════════════ */
 
@@ -11,9 +11,10 @@ let osState = {
     clienteConfirmado: true,
     clienteNome: '',
     enderecoSelecionado: '',
-    tipoOs: '',           // 'Obra' ou 'Evento'
-    coordenadasConfirmadas: false, // Passo 1: Botão G aplicado
-    agendaVerificada: false,       // Passo 2: Botão Agenda clicado
+    tipoOs: '',                    // 'Obra' ou 'Evento'
+    coordenadasConfirmadas: false,  // Passo 1: Botão G aplicado
+    agendaVerificada: false,        // Passo 2: Botão Agenda clicado
+    enderecoObrigatorio: false,     // Ativado ao clicar em + ou Colar OS
 };
 
 // ── DICIONÁRIO DE EQUIPAMENTOS (do Flutter: equipamentosDict) ───────────────
@@ -1565,8 +1566,12 @@ function abrirModalColarOS() {
 }
 
 function preencherFormularioComDados(dados, tipoOs) {
-    // Desbloqueia o formulário
+    // Desbloqueia o formulário e ativa obrigatoriedade do endereço
     osState.clienteConfirmado = true;
+    osState.enderecoObrigatorio = true;     // Colar OS exige G + Agenda
+    osState.coordenadasConfirmadas = false;
+    osState.agendaVerificada = false;
+    osState.enderecoConfirmado = false;
     atualizarBloqueio();
 
     // Preenche os campos
@@ -1880,10 +1885,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         abrirPopupTipoOs((tipo) => {
                             osState.tipoOs = tipo;
+                            // Ativa a obrigatoriedade do endereço (2 etapas)
+                            osState.enderecoObrigatorio = true;
+                            osState.coordenadasConfirmadas = false;
+                            osState.agendaVerificada = false;
+                            osState.enderecoConfirmado = false;
                             atualizarDropdownProdutos();
                             atualizarIconesCliente();
                             atualizarBloqueio();
-                            mostrarToastAviso(`Nova OS iniciada. Tipo: ${tipo}. Preencha o endereço.`);
+                            mostrarToastAviso(`Nova OS iniciada. Tipo: ${tipo}. Use o botão G para confirmar o endereço.`);
                         });
                     }, 50);
 
@@ -1909,7 +1919,20 @@ document.addEventListener('DOMContentLoaded', () => {
         // Botão Gerar OS (validação)
         const btnGerarOsFinal = e.target.closest('#btn-gerar-os-final');
         if (btnGerarOsFinal) {
-            if (!osState.enderecoConfirmado) {
+            // Validação: se a OS foi digitada mas o + não foi clicado
+            const numOsVal = document.getElementById('rr-input-os')?.value?.trim();
+            if (numOsVal && !osState.tipoOs) {
+                mostrarToastAviso('⚠️ Número de OS preenchido: clique no botão <+> ao lado do campo OS para confirmar antes de salvar.');
+                const btnPlus = document.getElementById('btn-add-os-tipo');
+                if (btnPlus) {
+                    btnPlus.style.transition = 'transform 0.1s, box-shadow 0.1s';
+                    btnPlus.style.transform = 'scale(1.3)';
+                    btnPlus.style.boxShadow = '0 0 10px 4px #1a7a40';
+                    setTimeout(() => { btnPlus.style.transform = ''; btnPlus.style.boxShadow = ''; }, 600);
+                }
+                return;
+            }
+            if (osState.enderecoObrigatorio && !osState.enderecoConfirmado) {
                 mostrarToastAviso('Confirme o endereço: selecione um da lista de sugestões ou use o botão G para colar as coordenadas do Google Maps.');
                 // Destaca o botão G
                 const btnG = document.getElementById('btn-colar-gmaps');
@@ -2098,9 +2121,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const btnLimpar = e.target.closest('#btn-limpar-os');
         if (btnLimpar) {
             osState.produtos = []; osState.tiposServico = new Set();
-            osState.acoes = new Set(); osState.clienteConfirmado = false;
+            osState.acoes = new Set(); osState.clienteConfirmado = true;
             osState.enderecoConfirmado = false;
             osState.coordenadasConfirmadas = false; osState.agendaVerificada = false;
+            osState.enderecoObrigatorio = false;
             osState.clienteNome = ''; osState.enderecoSelecionado = ''; osState.tipoOs = '';
             const c = document.getElementById('rota-redonda-container');
             if (c) c.innerHTML = '';
@@ -2228,47 +2252,50 @@ function atualizarBloqueio() {
     const overlayOS  = document.getElementById('rr-overlay-bloqueio');
     const overlayEnd = document.getElementById('rr-overlay-bloqueio-endereco');
 
-    if (overlayOS) {
-        overlayOS.style.display = osState.tipoOs ? 'none' : 'flex';
+    // Bloqueio principal: sempre oculto (entrada manual livre; controle via validação ao salvar)
+    if (overlayOS) overlayOS.style.display = 'none';
+
+    if (!overlayEnd) return;
+
+    // Se o endereço não é obrigatório (entrada manual sem + pressionado), libera tudo
+    if (!osState.enderecoObrigatorio) {
+        overlayEnd.style.display = 'none';
+        return;
     }
-    if (overlayEnd) {
-        // Totalmente desbloqueado: coordenadas confirmadas E agenda verificada
-        if (osState.enderecoConfirmado) {
-            overlayEnd.style.display = 'none';
-        // Passo 1 completo (G clicado): mostra hint para clicar na agenda
-        } else if (osState.coordenadasConfirmadas && osState.tipoOs) {
-            overlayEnd.style.display = 'flex';
-            overlayEnd.innerHTML = `
-                <div style="text-align:center;padding:1rem;">
-                    <div style="font-size:1.5rem;margin-bottom:0.4rem;">&#128197;</div>
-                    <div style="font-weight:700;font-size:0.85rem;color:#92400e;margin-bottom:0.3rem;">Coordenadas confirmadas!</div>
-                    <div style="font-size:0.75rem;color:#78350f;">Clique no botão <strong>&#128197;</strong> ao lado do endereço para verificar a agenda e liberar o formulário.</div>
-                </div>`;
-            overlayEnd.style.background = 'rgba(254,243,199,0.92)';
-            overlayEnd.style.cursor = 'default';
-            // Destaca o botão de agenda
-            const btnAg = document.getElementById('btn-agenda-endereco');
-            if (btnAg) {
-                btnAg.style.animation = 'none';
-                btnAg.style.boxShadow = '0 0 0 3px #f59e0b, 0 0 0 6px rgba(245,158,11,0.3)';
-                setTimeout(() => { if (btnAg) btnAg.style.boxShadow = ''; }, 3000);
-            }
-        // Passo 0: aguardando coordenadas (botão G)
-        } else if (osState.tipoOs) {
-            overlayEnd.style.display = 'flex';
-            overlayEnd.innerHTML = `
-                <div style="text-align:center;padding:1rem;">
-                    <div style="font-size:1.5rem;margin-bottom:0.4rem;">&#127758;</div>
-                    <div style="font-weight:700;font-size:0.85rem;color:#1e293b;margin-bottom:0.3rem;">Confirme o endereço</div>
-                    <div style="font-size:0.75rem;color:#475569;">Use o botão <strong style="color:#16a34a;font-size:0.85rem;">G</strong> para abrir o Google Maps e confirmar as coordenadas.</div>
-                </div>`;
-            overlayEnd.style.background = 'rgba(248,250,252,0.90)';
-            overlayEnd.style.cursor = 'pointer';
-        } else {
-            overlayEnd.style.display = 'none';
+
+    // Totalmente desbloqueado: G + Agenda confirmados
+    if (osState.enderecoConfirmado) {
+        overlayEnd.style.display = 'none';
+    // Passo 1 completo (G clicado): aguarda clicar na Agenda
+    } else if (osState.coordenadasConfirmadas) {
+        overlayEnd.style.display = 'flex';
+        overlayEnd.innerHTML = `
+            <div style="text-align:center;padding:1rem;">
+                <div style="font-size:1.5rem;margin-bottom:0.4rem;">&#128197;</div>
+                <div style="font-weight:700;font-size:0.85rem;color:#92400e;margin-bottom:0.3rem;">Coordenadas confirmadas!</div>
+                <div style="font-size:0.75rem;color:#78350f;">Clique no botão <strong>&#128197;</strong> ao lado do endereço para verificar a agenda e liberar o formulário.</div>
+            </div>`;
+        overlayEnd.style.background = 'rgba(254,243,199,0.92)';
+        overlayEnd.style.cursor = 'default';
+        const btnAg = document.getElementById('btn-agenda-endereco');
+        if (btnAg) {
+            btnAg.style.boxShadow = '0 0 0 3px #f59e0b, 0 0 0 6px rgba(245,158,11,0.3)';
+            setTimeout(() => { if (btnAg) btnAg.style.boxShadow = ''; }, 3000);
         }
+    // Passo 0: aguardando coordenadas (botão G)
+    } else {
+        overlayEnd.style.display = 'flex';
+        overlayEnd.innerHTML = `
+            <div style="text-align:center;padding:1rem;">
+                <div style="font-size:1.5rem;margin-bottom:0.4rem;">&#127758;</div>
+                <div style="font-weight:700;font-size:0.85rem;color:#1e293b;margin-bottom:0.3rem;">Confirme o endereço</div>
+                <div style="font-size:0.75rem;color:#475569;">Use o botão <strong style="color:#16a34a;font-size:0.85rem;">G</strong> para abrir o Google Maps e confirmar as coordenadas.</div>
+            </div>`;
+        overlayEnd.style.background = 'rgba(248,250,252,0.90)';
+        overlayEnd.style.cursor = 'pointer';
     }
 }
+
 
 // ── ATUALIZA LISTA DE PRODUTOS FILTRADA POR OBRA/EVENTO ───────────────────
 // ── FILTRO DO DROPDOWN DE TIPO DE SERVIÇO ─────────────────────────────────
