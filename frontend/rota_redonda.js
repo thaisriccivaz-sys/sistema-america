@@ -1667,14 +1667,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (noturno) noturno.checked = false;
                 if (horaInicio) { horaInicio.value = '07:00'; horaInicio.style.background = '#f0fdf4'; }
                 if (horaFim) { horaFim.value = '18:00'; horaFim.style.background = '#f0fdf4'; }
-                // Auto-seleciona ATENÇÃO AO HORÁRIO
-                const btnAH = document.querySelector('.btn-acao-azul[data-acao="ATENÇÃO AO HORÁRIO"]');
-                if (btnAH && !osState.acoes.has('ATENÇÃO AO HORÁRIO')) {
-                    osState.acoes.add('ATENÇÃO AO HORÁRIO');
-                    btnAH.style.background = '#0284c7';
-                    btnAH.style.color = 'white';
-                    mostrarToastAviso('⏰ ATENÇÃO AO HORÁRIO selecionado automaticamente. Confirme o horário e preencha as observações ao motorista.');
-                }
+                // ATENÇÃO AO HORÁRIO só auto-seleciona quando o usuário editar o horário manualmente
+                // (tratado no listener de 'change' nos campos rr-input-hora-inicio / rr-input-hora-fim)
             }
         }
         if (e.target.id === 'rr-chk-noturno') {
@@ -1686,6 +1680,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (diurno) diurno.checked = false;
                 if (horaInicio) { horaInicio.value = ''; horaInicio.style.background = ''; }
                 if (horaFim) { horaFim.value = ''; horaFim.style.background = ''; }
+            }
+        }
+        // Auto-seleciona ATENÇÃO AO HORÁRIO apenas quando o usuário editar o horário após marcar Diurno
+        if ((e.target.id === 'rr-input-hora-inicio' || e.target.id === 'rr-input-hora-fim')
+            && document.getElementById('rr-chk-diurno')?.checked) {
+            const btnAH = document.querySelector('.btn-acao-azul[data-acao="ATENÇÃO AO HORÁRIO"]');
+            if (btnAH && !osState.acoes.has('ATENÇÃO AO HORÁRIO')) {
+                osState.acoes.add('ATENÇÃO AO HORÁRIO');
+                btnAH.style.background = '#0284c7';
+                btnAH.style.color = 'white';
+                mostrarToastAviso('⏰ ATENÇÃO AO HORÁRIO selecionado. Preencha as observações ao motorista.');
             }
         }
     });
@@ -1803,29 +1808,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 const resp = await fetch(`/api/logistica/os/buscar?numero_os=${encodeURIComponent(numOs)}`, { headers: { 'Authorization': `Bearer ${token}` } });
                 
                 if (resp.status === 404) {
-                    // Nova OS
+                    // Nova OS manual — libera formulário até o passo de endereço
                     const numSalvo = numOs;
-                    
-                    // Limpa todas as informações preenchidas na tela
                     osState.produtos = []; osState.tiposServico = new Set();
-                    osState.acoes = new Set(); osState.clienteConfirmado = true;
+                    osState.acoes = new Set();
+                    osState.clienteConfirmado = true;   // desbloqueia bloco principal
+                    osState.enderecoConfirmado = false;  // mantém bloqueio do endereço
                     osState.clienteNome = ''; osState.enderecoSelecionado = ''; osState.tipoOs = '';
                     const c = document.getElementById('rota-redonda-container');
                     if (c) c.innerHTML = '';
                     renderRotaRedonda();
-                    
+
                     setTimeout(() => {
                         const inputOs = document.getElementById('rr-input-os');
                         if (inputOs) inputOs.value = numSalvo;
-                        
+
                         abrirPopupTipoOs((tipo) => {
                             osState.tipoOs = tipo;
                             atualizarDropdownProdutos();
                             atualizarIconesCliente();
                             atualizarBloqueio();
-                            mostrarToastAviso(`Nova OS iniciada do zero. Tipo: ${tipo}.`);
+                            mostrarToastAviso(`Nova OS iniciada. Tipo: ${tipo}. Preencha o endereço.`);
                         });
                     }, 50);
+
                 } else if (resp.ok) {
                     const registros = await resp.json();
                     if (registros && registros.length > 0) {
@@ -1850,7 +1856,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (btnGerarOsFinal) {
             if (!osState.enderecoConfirmado) {
                 mostrarToastAviso("Pesquise e confirme o endereço na Lupa azul antes de salvar.");
-                // Anima o botão da lupa
                 const btnGeo = document.getElementById('btn-geocode-endereco');
                 if (btnGeo) {
                     btnGeo.style.transition = 'transform 0.1s, box-shadow 0.1s';
@@ -1859,6 +1864,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     setTimeout(() => { btnGeo.style.transform = 'scale(1)'; btnGeo.style.boxShadow = 'none'; }, 600);
                 }
                 return;
+            }
+
+            // Validação: se tiver obs de motorista, ao menos uma habilidade ou variável deve estar selecionada
+            const obsMotorista = document.getElementById('rr-input-obs')?.value?.trim() || '';
+            if (obsMotorista) {
+                const habSel  = document.querySelectorAll('.btn-tipo-servico[style*="background: rgb(45, 158, 95)"], .btn-tipo-servico[style*="background:#2d9e5f"], .btn-tipo-servico[style*="background: #2d9e5f"]').length;
+                const acaoSel = osState.acoes.size;
+                if (habSel === 0 && acaoSel === 0) {
+                    mostrarToastAviso('⚠️ Obs. Motoristas preenchida: selecione ao menos uma Habilidade ou Variável antes de salvar a OS.');
+                    // Destaca a seção de habilidades
+                    const habSection = document.querySelector('.btn-tipo-servico')?.closest('div');
+                    if (habSection) {
+                        habSection.style.outline = '2px solid #f59e0b';
+                        habSection.style.borderRadius = '6px';
+                        setTimeout(() => { habSection.style.outline = ''; }, 2500);
+                    }
+                    return;
+                }
             }
 
             const diurno = document.getElementById('rr-chk-diurno');
@@ -2154,8 +2177,13 @@ function atualizarBloqueio() {
 // ── FILTRO DO DROPDOWN DE TIPO DE SERVIÇO ─────────────────────────────────
 window.filtrarTiposServico = function(texto) {
     const q = texto.trim().toLowerCase();
+    // Filtra por categoria (Obra/Evento) e pelo texto digitado
+    const categoria = (osState.tipoOs || '').toUpperCase(); // 'OBRA', 'EVENTO' ou ''
     document.querySelectorAll('.rr-tipo-opt').forEach(el => {
-        el.style.display = el.dataset.val.toLowerCase().includes(q) ? 'block' : 'none';
+        const val = el.dataset.val.toUpperCase();
+        const matchCategoria = !categoria || val.includes(categoria);
+        const matchTexto     = !q || val.toLowerCase().includes(q);
+        el.style.display = (matchCategoria && matchTexto) ? 'block' : 'none';
     });
     document.getElementById('rr-tipo-dropdown').style.display = 'block';
 };
@@ -2174,38 +2202,47 @@ window.autoSelecionarPorObs = function() {
 
     // Mapeamento palavra-chave → habilidade
     const habKeywords = [
-        { keys: ['vac'],                              hab: 'VAC' },
+        { keys: ['vac'],                                              hab: 'VAC' },
         { keys: ['strada','utilitario','utiliário','courrier','pequeno'], hab: 'UTILITARIO' },
-        { keys: ['carretinha'],                       hab: 'CARRETINHA' },
+        { keys: ['carretinha'],                                       hab: 'CARRETINHA' },
     ];
     habKeywords.forEach(({ keys, hab }) => {
         const match = keys.some(k => obs.includes(k));
         const btn = document.querySelector(`.btn-tipo-servico[data-tipo="${hab}"]`);
-        if (btn && match) {
-            if (!osState.tiposServico.has(hab)) {
-                osState.tiposServico.add(hab);
-                btn.style.background = '#2d9e5f';
-                btn.style.color = 'white';
-            }
+        if (!btn) return;
+        if (match && !osState.tiposServico.has(hab)) {
+            osState.tiposServico.add(hab);
+            btn.style.background = '#2d9e5f';
+            btn.style.color = 'white';
+        } else if (!match && osState.tiposServico.has(hab)) {
+            // Desseleciona se palavra foi removida
+            osState.tiposServico.delete(hab);
+            btn.style.background = 'transparent';
+            btn.style.color = '#2d9e5f';
         }
     });
 
     // Mapeamento palavra-chave → variável
     const acaoKeywords = [
-        { keys: ['carrinho'],              acao: 'LEVAR CARRINHO' },
-        { keys: ['extensora'],             acao: 'LEVAR EXTENSORA' },
-        { keys: ['apoio'],                 acao: 'APOIO DE SUCCÃO' },
-        { keys: ['epi'],                   acao: 'LEVAR EPI' },
+        { keys: ['carrinho'],               acao: 'LEVAR CARRINHO' },
+        { keys: ['extensora'],              acao: 'LEVAR EXTENSORA' },
+        { keys: ['apoio'],                  acao: 'APOIO DE SUCCÃO' },
+        { keys: ['epi'],                    acao: 'LEVAR EPI' },
         { keys: ['integração','integracao'], acao: 'INTEGRAÇÃO' },
-        { keys: ['itinerante'],            acao: 'BANHEIRO ITINERANTE' },
+        { keys: ['itinerante'],             acao: 'BANHEIRO ITINERANTE' },
     ];
     acaoKeywords.forEach(({ keys, acao }) => {
         const match = keys.some(k => obs.includes(k));
         const btn = document.querySelector(`.btn-acao-azul[data-acao="${acao}"]`);
-        if (btn && match && !osState.acoes.has(acao)) {
+        if (!btn) return;
+        if (match && !osState.acoes.has(acao)) {
             osState.acoes.add(acao);
             btn.style.background = '#0284c7';
             btn.style.color = 'white';
+        } else if (!match && osState.acoes.has(acao)) {
+            osState.acoes.delete(acao);
+            btn.style.background = '#f0f9ff';
+            btn.style.color = '#0284c7';
         }
     });
 
