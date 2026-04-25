@@ -312,6 +312,19 @@ function posicionarMarcador(lat, lng) {
     _leafletMap.setView([lat, lng], 16, { animate: true });
 }
 
+function extractCoordinates(coordStr) {
+    if (!coordStr) return null;
+    const matches = coordStr.match(/-?\d+([.,]\d+)?/g);
+    if (matches && matches.length >= 2) {
+        const lat = parseFloat(matches[0].replace(',', '.'));
+        const lng = parseFloat(matches[1].replace(',', '.'));
+        if (!isNaN(lat) && !isNaN(lng)) {
+            return { lat, lng };
+        }
+    }
+    return null;
+}
+
 function preencherLatLng(lat, lng) {
     const coordInput = document.getElementById('rr-input-coord');
     if (coordInput) { 
@@ -331,24 +344,15 @@ async function reverseGeocodeEndereco() {
     if (!coordInput?.value) { coordInput?.focus(); return; }
 
     // Parse lat lng
-    // Accept standard coordinate formats like "lat, lng" or "lat lng"
-    const coordStr = coordInput.value.trim().replace(/,/g, ' ').replace(/\s+/g, ' ');
-    const parts = coordStr.split(' ');
+    const coords = extractCoordinates(coordInput.value);
     
-    if (parts.length < 2) {
-        alert("Por favor, digite a latitude e longitude separadas por espaço ou vírgula.");
+    if (!coords) {
+        alert("Por favor, digite coordenadas válidas separadas por espaço ou vírgula.");
         coordInput.focus();
         return;
     }
 
-    const lat = parseFloat(parts[0]);
-    const lng = parseFloat(parts[1]);
-
-    if (isNaN(lat) || isNaN(lng)) {
-        alert("Coordenadas inválidas.");
-        coordInput.focus();
-        return;
-    }
+    const { lat, lng } = coords;
 
     if (btn) btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>';
 
@@ -880,10 +884,10 @@ async function buscarAgendaEndereco() {
 
     const params = new URLSearchParams({ endereco });
     if (coordInput?.value) {
-        const parts = coordInput.value.trim().replace(/,/g, ' ').replace(/\s+/g, ' ').split(' ');
-        if (parts.length >= 2 && !isNaN(parseFloat(parts[0])) && !isNaN(parseFloat(parts[1]))) {
-            params.set('lat', parts[0]);
-            params.set('lng', parts[1]);
+        const coords = extractCoordinates(coordInput.value);
+        if (coords) {
+            params.set('lat', coords.lat);
+            params.set('lng', coords.lng);
         }
     }
 
@@ -2092,9 +2096,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Coleta todos os campos do formulário
             const coordStr = document.getElementById('rr-input-coord')?.value?.trim() || '';
-            const coordParts = coordStr.replace(/,/g, ' ').replace(/\s+/g, ' ').split(' ');
-            const lat = coordParts.length >= 2 ? parseFloat(coordParts[0]) : null;
-            const lng = coordParts.length >= 2 ? parseFloat(coordParts[1]) : null;
+            const coords = extractCoordinates(coordStr);
+            const lat = coords ? coords.lat : null;
+            const lng = coords ? coords.lng : null;
 
             // Coleta dias da semana selecionados
             const diasSelecionados = [];
