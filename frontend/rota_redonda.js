@@ -652,7 +652,7 @@ function duplicarOsNaTela(payload) {
             if (contEl) contEl.value = payload.contrato;
         }
         // Data — LIMPA (não preenche)
-        const dataEl = document.querySelector('input[type="date"]');
+        const dataEl = document.getElementById('rr-input-data');
         if (dataEl) dataEl.value = '';
         // Responsável, telefone, email — mantém
         set('rr-input-responsavel', payload.responsavel);
@@ -922,7 +922,7 @@ function carregarRegistroNaTela(os) {
         if (contEl) contEl.value = os.contrato;
     }
     if (os.data_os) {
-        const dataEl = document.querySelector('input[type="date"]');
+        const dataEl = document.getElementById('rr-input-data');
         if (dataEl) dataEl.value = os.data_os;
     }
 
@@ -1099,13 +1099,36 @@ function parseOsText(texto) {
             }
         }
 
-        if (lu.startsWith('CONTATO') || lu.startsWith('CONTRATO')) {
-            let c = extrairValor(l, /CONT[RA]ATO/i);
+        if (lu.startsWith('CONTRATO')) {
+            let c = extrairValor(l, /CONTRATO/i);
             if (eVazio(c) && i + 1 < lines.length) c = lines[i + 1];
             const matchNum = c.match(/^(\d+)/);
             if (matchNum) resultado.contrato = matchNum[1];
         }
 
+        if (lu.startsWith('CONTATO')) {
+            let v = extrairValor(l, /CONTATO/i);
+            if (eVazio(v) && i + 1 < lines.length) {
+                if (/^\d+$/.test(lines[i+1].trim()) && i + 2 < lines.length) {
+                    v = lines[i+2];
+                } else {
+                    v = lines[i+1];
+                }
+            }
+            if (!eVazio(v)) {
+                const fMatch = v.match(/[\d\s\-\(\)\+]{8,}/);
+                if (fMatch) {
+                    const telStr = fMatch[0];
+                    resultado.responsavel = v.replace(telStr, '').replace(/-/g, '').trim();
+                    const tel = telStr.replace(/[^\d]/g, '');
+                    if (tel.length >= 8) {
+                        resultado.telefone = tel.length === 11 ? `(${tel.slice(0,2)}) ${tel.slice(2,7)}-${tel.slice(7)}` : tel;
+                    }
+                } else {
+                    resultado.responsavel = v.replace(/-/g, '').trim();
+                }
+            }
+        }
         if (lu.includes('TIPO E SITUAÇÃO DO CONTRATO') || lu.includes('TIPO DE CONTRATO')) {
             let val = l;
             if (val.length < 30 && i + 1 < lines.length) val += ' ' + lines[i + 1];
@@ -1327,7 +1350,7 @@ function preencherFormularioComDados(dados, tipoOs) {
     set('rr-input-obs-internas',dados.observacoesInternas);
 
     if (dados.dataEntrega) {
-        const dateEl = document.querySelector('input[type="date"]');
+        const dateEl = document.getElementById('rr-input-data');
         if (dateEl) { dateEl.value = dados.dataEntrega; dateEl.style.background = '#f0fdf4'; }
     }
 
@@ -1576,7 +1599,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 lat: isNaN(lat) ? null : lat,
                 lng: isNaN(lng) ? null : lng,
                 contrato: document.querySelector('input[placeholder="Nº Contrato"]')?.value?.trim() || '',
-                data_os: document.querySelector('input[type="date"]')?.value || '',
+                data_os: document.getElementById('rr-input-data')?.value || '',
                 responsavel: document.getElementById('rr-input-responsavel')?.value?.trim() || '',
                 telefone: document.getElementById('rr-input-telefone')?.value?.trim() || '',
                 email: document.getElementById('rr-input-email')?.value?.trim() || '',
@@ -2095,7 +2118,7 @@ function renderRotaRedonda() {
 
             <div style="display: flex; align-items: center; gap: 4px;">
                 <label style="font-weight: 600; font-size: 0.75rem; color: white; white-space: nowrap; margin: 0;">Data</label>
-                <input type="date" style="${inputStyle} border:none; width: 110px;">
+                <input type="date" id="rr-input-data" style="${inputStyle} border:none; width: 110px;">
             </div>
 
             <div style="display:flex; gap:0.5rem; margin-left: auto;">
@@ -2193,7 +2216,7 @@ function renderRotaRedonda() {
                             onchange="onChangeTipoServico();"
                             style="${inputStyle} cursor:pointer;">
                             <option value="">Selecione o tipo de serviço...</option>
-                            ${TIPOS_SERVICO_OS.map(t => `<option value="${t}">${t}</option>`).join('')}
+                            ${TIPOS_SERVICO_OS.map(t => { let ic = ''; if(t.includes('RETIRADA')) ic = t.includes('TOTAL') ? '⭕' : '🔶'; else if(t.includes('SUCCAO')) ic = '💧'; else if(t.includes('LIMPA FOSSA')) ic = '💦'; else if(t.includes('REPARO')) ic = '⚙️'; else if(t.includes('VISITA TECNICA')) ic = '📋'; else if(t.includes('MANUTENCAO')) ic = t.includes('AVULSA') ? '❗' : ''; else if(t.includes('VAC')) ic = '🏗️'; else if(t.includes('ENTREGA')) ic = '🚚'; else if(t.includes('TROCA')) ic = '♻️'; return `<option value="${t}">${ic ? ic + ' ' : ''}${t}</option>`; }).join('')}
                         </select>
                     </div>
                 </div>
