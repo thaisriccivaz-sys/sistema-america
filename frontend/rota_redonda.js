@@ -1096,6 +1096,10 @@ function carregarRegistroNaTela(os) {
     set('rr-input-obs-internas', os.observacoes_internas);
     set('rr-input-video', os.link_video);
     set('rr-tipo-servico', os.tipo_servico);
+    // Preenche também o campo de busca visível do dropdown
+    const tsSearch = document.getElementById('rr-tipo-servico-search');
+    if (tsSearch && os.tipo_servico) tsSearch.value = os.tipo_servico;
+
     if (os.contrato) {
         const contEl = document.querySelector('input[placeholder="Nº Contrato"]');
         if (contEl) contEl.value = os.contrato;
@@ -1637,6 +1641,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (noturno) noturno.checked = false;
                 if (horaInicio) { horaInicio.value = '07:00'; horaInicio.style.background = '#f0fdf4'; }
                 if (horaFim) { horaFim.value = '18:00'; horaFim.style.background = '#f0fdf4'; }
+                // Auto-seleciona ATENÇÃO AO HORÁRIO
+                const btnAH = document.querySelector('.btn-acao-azul[data-acao="ATENÇÃO AO HORÁRIO"]');
+                if (btnAH && !osState.acoes.has('ATENÇÃO AO HORÁRIO')) {
+                    osState.acoes.add('ATENÇÃO AO HORÁRIO');
+                    btnAH.style.background = '#0284c7';
+                    btnAH.style.color = 'white';
+                    mostrarToastAviso('⏰ ATENÇÃO AO HORÁRIO selecionado automaticamente. Confirme o horário e preencha as observações ao motorista.');
+                }
             }
         }
         if (e.target.id === 'rr-chk-noturno') {
@@ -1650,6 +1662,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (horaFim) { horaFim.value = ''; horaFim.style.background = ''; }
             }
         }
+    });
+
+    // Auto-seleção por obs ao digitar
+    document.addEventListener('input', (e) => {
+        if (!document.getElementById('view-logistica-rota-redonda')?.classList.contains('active')) return;
+        if (e.target.id === 'rr-input-obs') autoSelecionarPorObs();
     });
 
     // Event Delegation
@@ -2020,6 +2038,67 @@ function atualizarBloqueio() {
 }
 
 // ── ATUALIZA LISTA DE PRODUTOS FILTRADA POR OBRA/EVENTO ───────────────────
+// ── FILTRO DO DROPDOWN DE TIPO DE SERVIÇO ─────────────────────────────────
+window.filtrarTiposServico = function(texto) {
+    const q = texto.trim().toLowerCase();
+    document.querySelectorAll('.rr-tipo-opt').forEach(el => {
+        el.style.display = el.dataset.val.toLowerCase().includes(q) ? 'block' : 'none';
+    });
+    document.getElementById('rr-tipo-dropdown').style.display = 'block';
+};
+window.selecionarTipoServico = function(val) {
+    const search = document.getElementById('rr-tipo-servico-search');
+    const hidden = document.getElementById('rr-tipo-servico');
+    const drop   = document.getElementById('rr-tipo-dropdown');
+    if (search) search.value = val;
+    if (hidden) { hidden.value = val; hidden.dispatchEvent(new Event('change')); }
+    if (drop)   drop.style.display = 'none';
+};
+
+// ── AUTO-SELEÇÃO DE HABILIDADES/VARIÁVEIS POR PALAVRAS-CHAVE NA OBS ────────
+window.autoSelecionarPorObs = function() {
+    const obs = (document.getElementById('rr-input-obs')?.value || '').toLowerCase();
+
+    // Mapeamento palavra-chave → habilidade
+    const habKeywords = [
+        { keys: ['vac'],                              hab: 'VAC' },
+        { keys: ['strada','utilitario','utiliário','courrier','pequeno'], hab: 'UTILITARIO' },
+        { keys: ['carretinha'],                       hab: 'CARRETINHA' },
+    ];
+    habKeywords.forEach(({ keys, hab }) => {
+        const match = keys.some(k => obs.includes(k));
+        const btn = document.querySelector(`.btn-tipo-servico[data-tipo="${hab}"]`);
+        if (btn && match) {
+            if (!osState.tiposServico.has(hab)) {
+                osState.tiposServico.add(hab);
+                btn.style.background = '#2d9e5f';
+                btn.style.color = 'white';
+            }
+        }
+    });
+
+    // Mapeamento palavra-chave → variável
+    const acaoKeywords = [
+        { keys: ['carrinho'],              acao: 'LEVAR CARRINHO' },
+        { keys: ['extensora'],             acao: 'LEVAR EXTENSORA' },
+        { keys: ['apoio'],                 acao: 'APOIO DE SUCCÃO' },
+        { keys: ['epi'],                   acao: 'LEVAR EPI' },
+        { keys: ['integração','integracao'], acao: 'INTEGRAÇÃO' },
+        { keys: ['itinerante'],            acao: 'BANHEIRO ITINERANTE' },
+    ];
+    acaoKeywords.forEach(({ keys, acao }) => {
+        const match = keys.some(k => obs.includes(k));
+        const btn = document.querySelector(`.btn-acao-azul[data-acao="${acao}"]`);
+        if (btn && match && !osState.acoes.has(acao)) {
+            osState.acoes.add(acao);
+            btn.style.background = '#0284c7';
+            btn.style.color = 'white';
+        }
+    });
+
+    atualizarIconesCliente();
+};
+
 window.onChangeTipoServico = function() {
     const val = (document.getElementById('rr-tipo-servico')?.value || '').toUpperCase();
     if (val.includes('VAC')) {
@@ -2501,26 +2580,32 @@ function renderRotaRedonda() {
                     <input type="time" id="rr-input-hora-fim" style="${inputStyle} width: 75px;">
                     <div style="width: 1px; height: 16px; background: #cbd5e1; margin: 0 2px;"></div>
                     ${[
-                        { d: 'Seg', c: '#ef4444' },
-                        { d: 'Ter', c: '#f97316' },
-                        { d: 'Qua', c: '#ca8a04' },
-                        { d: 'Qui', c: '#16a34a' },
-                        { d: 'Sex', c: '#3b82f6' },
-                        { d: 'Sáb', c: '#8b5cf6' },
-                        { d: 'Dom', c: '#ec4899' }
-                    ].map(item => `<label style="display:flex; align-items:center; gap:2px; font-size:0.7rem; color:${item.c}; font-weight:600; cursor:pointer;"><input type="checkbox"> ${item.d}</label>`).join('')}
+                        { d: 'Seg', id: 'rr-chk-seg', c: '#ef4444' },
+                        { d: 'Ter', id: 'rr-chk-ter', c: '#f97316' },
+                        { d: 'Qua', id: 'rr-chk-qua', c: '#ca8a04' },
+                        { d: 'Qui', id: 'rr-chk-qui', c: '#16a34a' },
+                        { d: 'Sex', id: 'rr-chk-sex', c: '#3b82f6' },
+                        { d: 'Sáb', id: 'rr-chk-sab', c: '#8b5cf6' },
+                        { d: 'Dom', id: 'rr-chk-dom', c: '#ec4899' }
+                    ].map(item => `<label id="lbl-${item.id}" style="display:flex; align-items:center; gap:2px; font-size:0.7rem; color:${item.c}; font-weight:700; cursor:pointer; padding:2px 6px; border-radius:4px; border:1.5px solid ${item.c}; transition:background 0.15s;"><input type="checkbox" id="${item.id}" onchange="(function(chk,lbl,cor){lbl.style.background=chk.checked?cor:'transparent';lbl.style.color=chk.checked?'white':cor;})(this,this.closest('label'),'${item.c}')"> ${item.d}</label>`).join('')}
                 </div>
 
-                <!-- TIPO SERVIÇO (dropdown — igual ao Flutter: tipoServicoController) -->
+                <!-- TIPO SERVIÇO (searchable) -->
                 <div style="display: flex; gap: 0.5rem; align-items: flex-end;">
                     <div style="flex: 2;">
                         <label style="${labelStyle}">Tipo de Serviço</label>
-                        <select id="rr-tipo-servico"
-                            onchange="onChangeTipoServico();"
-                            style="${inputStyle} cursor:pointer;">
-                            <option value="">Selecione o tipo de serviço...</option>
-                            ${TIPOS_SERVICO_OS.map(t => { let ic = ''; if(t.includes('RETIRADA')) ic = t.includes('TOTAL') ? '⭕' : '🔶'; else if(t.includes('SUCCAO')) ic = '💧'; else if(t.includes('LIMPA FOSSA')) ic = '💦'; else if(t.includes('REPARO')) ic = '⚙️'; else if(t.includes('VISITA TECNICA')) ic = '📋'; else if(t.includes('MANUTENCAO')) ic = t.includes('AVULSA') ? '❗' : '🔧'; else if(t.includes('VAC')) ic = '🏗️'; else if(t.includes('TROCA')) ic = '♻️'; /* ENTREGA: sem icone — icones vem dos produtos */ return `<option value="${t}">${ic ? ic + ' ' : ''}${t}</option>`; }).join('')}
-                        </select>
+                        <div style="position:relative;">
+                            <input type="text" id="rr-tipo-servico-search" placeholder="Digite para filtrar..." autocomplete="off"
+                                style="${inputStyle} width:100%; padding-right:22px;"
+                                oninput="filtrarTiposServico(this.value)"
+                                onfocus="document.getElementById('rr-tipo-dropdown').style.display='block'"
+                                onblur="setTimeout(()=>document.getElementById('rr-tipo-dropdown').style.display='none',200)">
+                            <i class="ph ph-caret-down" style="position:absolute;right:5px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:0.75rem;pointer-events:none;"></i>
+                            <div id="rr-tipo-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:200;background:white;border:1px solid #cbd5e1;border-radius:4px;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.12);">
+                                ${TIPOS_SERVICO_OS.map(t => { let ic = ''; if(t.includes('RETIRADA')) ic = t.includes('TOTAL') ? '⭕' : '🔶'; else if(t.includes('SUCCAO')) ic = '💧'; else if(t.includes('LIMPA FOSSA')) ic = '💦'; else if(t.includes('REPARO')) ic = '⚙️'; else if(t.includes('VISITA TECNICA')) ic = '📋'; else if(t.includes('MANUTENCAO')) ic = t.includes('AVULSA') ? '❗' : '🔧'; else if(t.includes('VAC')) ic = '🏗️'; else if(t.includes('TROCA')) ic = '♻️'; return `<div class="rr-tipo-opt" data-val="${t}" onclick="selecionarTipoServico('${t}')" style="padding:5px 10px;cursor:pointer;font-size:0.8rem;color:#1e293b;transition:background 0.1s;" onmouseover="this.style.background='#f0f9ff'" onmouseout="this.style.background=''"><span style="margin-right:4px;">${ic}</span>${t}</div>`; }).join('')}
+                            </div>
+                        </div>
+                        <input type="hidden" id="rr-tipo-servico" onchange="onChangeTipoServico();">
                     </div>
                 </div>
 
@@ -2528,7 +2613,7 @@ function renderRotaRedonda() {
                 <div>
                     <label style="${labelStyle}">Habilidades</label>
                     <div style="display: flex; gap: 4px; flex-wrap: wrap;">
-                        ${HABILIDADES.map(s =>
+                        ${HABILIDADES.filter(s => s !== 'TECNICO').map(s =>
                             `<button class="btn-tipo-servico" data-tipo="${s}" style="border: 1px solid #2d9e5f; color: #2d9e5f; background: transparent; border-radius: 99px; padding: 2px 10px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">${s}</button>`
                         ).join('')}
                     </div>
@@ -2588,7 +2673,7 @@ function renderRotaRedonda() {
 
                 <!-- BOTÕES DE AÇÃO (AZUIS) -->
                 <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: auto; padding-top: 0.5rem;">
-                    ${ACOES.map(s => 
+                    ${ACOES.filter(s => s !== 'TROCA DE CABINE' && s !== 'CARRETINHA').map(s => 
                         `<button class="btn-acao-azul" data-acao="${s}" style="font-size:0.65rem; font-weight: 700; border: 1px solid #bae6fd; background: #f0f9ff; color: #0284c7; padding: 0.2rem; border-radius: 4px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; min-height: 40px; transition: all 0.2s; line-height: 1.1; text-align: center;">
                             <span style="font-size:0.85rem; margin-bottom:1px;">${ACOES_DICT[s]}</span> ${s}
                         </button>`
