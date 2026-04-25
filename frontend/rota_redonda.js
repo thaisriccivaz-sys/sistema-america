@@ -227,21 +227,20 @@ function calcularCargaTotalFromLista() {
     //   carga > 6         → CARRETINHA
     let tanque = '', carroceria = '', carretinha = '';
     if (isManutencao) {
-        tanque = totalCarga > 0 ? String(totalCarga) : '';
+        tanque = totalCarga > 0 ? String(totalCarga) : '0';
     } else if (totalCarga <= 6) {
-        carroceria = totalCarga > 0 ? String(totalCarga) : '';
+        carroceria = totalCarga > 0 ? String(totalCarga) : '0';
     } else {
         carretinha = String(totalCarga);
     }
 
-    // Atualiza badge Tanques na UI
-    const elTanques = document.getElementById('rr-total-tanques');
-    if (elTanques) {
-        if (tanque)      elTanques.innerText = `T: ${tanque}`;
-        else if (carroceria) elTanques.innerText = `Car: ${carroceria}`;
-        else if (carretinha) elTanques.innerText = `Crt: ${carretinha}`;
-        else             elTanques.innerText = '0';
-    }
+    // Atualiza cada badge separadamente (igual ao Flutter)
+    const elTanquesF     = document.getElementById('rr-total-tanques');
+    const elCarroceriasF = document.getElementById('rr-total-carrocerias');
+    const elCarretinhasF = document.getElementById('rr-total-carretinhas');
+    if (elTanquesF)     elTanquesF.innerText     = tanque     || '0';
+    if (elCarroceriasF) elCarroceriasF.innerText = carroceria || '0';
+    if (elCarretinhasF) elCarretinhasF.innerText = carretinha || '0';
 
     // Guarda no estado para usar ao Gerar OS
     osState.tanque     = tanque;
@@ -250,7 +249,82 @@ function calcularCargaTotalFromLista() {
     osState.totalCarga = totalCarga;
 }
 
+// ── CALCULAR CAMPOS POR PRODUTO (espelho do Flutter) ──────────────────────
+// Chamado ao adicionar produto; ao final chama calcularTempo() que
+// recalcula tudo do zero via calcularCargaTotalFromLista()
+function calcularCamposPorProduto(produtoAdicionado) {
+    try {
+        const tipoServico = (document.getElementById('rr-tipo-servico')?.value || '').trim().toUpperCase();
+        const isManutencao = tipoServico === 'MANUTENCAO AVULSA' ||
+            tipoServico === 'MANUTENCAO OBRA' ||
+            tipoServico === 'MANUTENCAO EVENTO';
 
+        const equipamento = (produtoAdicionado.desc || '').trim().toUpperCase();
+        const quantidade  = parseInt(produtoAdicionado.qtd) || 0;
+        if (!equipamento) { calcularTempo(); return; }
+
+        let cargaTanque = 0, cargaCarretinha = 0;
+
+        if (isManutencao) {
+            if (tipoServico.includes('EVENTO')) {
+                switch (equipamento) {
+                    case 'STD EVENTO': case 'LX EVENTO': case 'ELX EVENTO':
+                    case 'SLX EVENTO': case 'PCD EVENTO': case 'CHUVEIRO EVENTO':
+                    case 'HIDRÁULICO EVENTO':
+                        cargaTanque = 5 * quantidade; break;
+                    case 'MICTÓRIO EVENTO':
+                        cargaTanque = 10 * quantidade; break;
+                    case 'PIA II EVENTO': case 'PIA III EVENTO':
+                        cargaTanque = 1 * quantidade; break;
+                    default: cargaTanque = quantidade;
+                }
+            } else if (tipoServico.includes('OBRA') || tipoServico.includes('AVULSA')) {
+                switch (equipamento) {
+                    case 'STD OBRA': case 'LX OBRA': case 'ELX OBRA': case 'SLX OBRA':
+                    case 'PBII OBRA': case 'PBIII OBRA': case 'CHUVEIRO OBRA':
+                    case 'HIDRÁULICO OBRA':
+                        cargaTanque = 1 * quantidade; break;
+                    case 'MICTÓRIO OBRA':
+                        cargaTanque = 4 * quantidade; break;
+                    default: cargaTanque = quantidade;
+                }
+            } else {
+                cargaTanque = quantidade;
+            }
+        } else {
+            if (equipamento.includes('OBRA')) {
+                switch (equipamento) {
+                    case 'STD OBRA': case 'LX OBRA': case 'ELX OBRA': case 'SLX OBRA':
+                    case 'GUARITA INDIVIDUAL OBRA': case 'PIA II OBRA': case 'PIA III OBRA':
+                    case 'HIDRÁULICO OBRA': case 'CHUVEIRO OBRA': case 'PBII OBRA': case 'PBIII OBRA':
+                        cargaTanque = quantidade; break;
+                    case 'GUARITA DUPLA OBRA': case 'PCD OBRA':
+                        cargaCarretinha = 2 * quantidade; break;
+                    case 'MICTÓRIO OBRA':
+                        cargaCarretinha = quantidade <= 6 ? 2 : quantidade <= 12 ? 4 : 6; break;
+                }
+            } else if (equipamento.includes('EVENTO')) {
+                switch (equipamento) {
+                    case 'STD EVENTO': case 'LX EVENTO': case 'ELX EVENTO': case 'SLX EVENTO':
+                    case 'GUARITA INDIVIDUAL EVENTO': case 'PIA II EVENTO': case 'PIA III EVENTO':
+                    case 'HIDRÁULICO EVENTO': case 'CHUVEIRO EVENTO':
+                        cargaTanque = quantidade; break;
+                    case 'GUARITA DUPLA EVENTO': case 'PCD EVENTO':
+                        cargaCarretinha = 2 * quantidade; break;
+                    case 'MICTÓRIO EVENTO':
+                        cargaCarretinha = quantidade <= 6 ? 2 : quantidade <= 12 ? 4 : 6; break;
+                    default: cargaTanque = quantidade;
+                }
+            }
+        }
+
+        // Recalcula tudo do zero (igual ao Flutter que chama calcularTipoDeServico no final)
+        calcularTempo();
+    } catch(e) {
+        console.error('❌ calcularCamposPorProduto:', e);
+        calcularTempo();
+    }
+}
 
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -2531,7 +2605,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('rr-prod-qtd').value = '';
                 atualizarUI();
                 atualizarIconesCliente();
-                calcularTempo();
+                // Chama calcularCamposPorProduto igual ao Flutter (que no final chama calcularTempo)
+                calcularCamposPorProduto({ desc, qtd });
                 // Atualiza badge tipo OS na tela
                 const badge = document.getElementById('rr-badge-tipo-os');
                 if (badge) badge.textContent = osState.tipoOs;
@@ -3339,7 +3414,9 @@ function renderRotaRedonda() {
                         <div style="display: flex; gap: 0.75rem; font-size: 0.7rem; color: #64748b; margin-left: auto; align-items: center;">
                             <span style="background:#f1f5f9; padding:2px 6px; border-radius:4px;"><i class="ph ph-package"></i> Produtos: <strong id="rr-total-prod">0</strong></span>
                             <span style="background:#f1f5f9; padding:2px 6px; border-radius:4px;"><i class="ph ph-clock"></i> Tempo: <strong id="rr-tempo-total">00:10</strong></span>
-                            <span style="background:#f1f5f9; padding:2px 6px; border-radius:4px;"><i class="ph ph-truck"></i> Tanques: <strong id="rr-total-tanques">0</strong></span>
+                            <span style="background:#dbeafe; padding:2px 6px; border-radius:4px;" title="Tanques"><i class="ph ph-fill-tray"></i> Tanques: <strong id="rr-total-tanques">0</strong></span>
+                            <span style="background:#dcfce7; padding:2px 6px; border-radius:4px;" title="Carrocerias"><i class="ph ph-truck"></i> Carrocerias: <strong id="rr-total-carrocerias">0</strong></span>
+                            <span style="background:#fef9c3; padding:2px 6px; border-radius:4px;" title="Carretinhas"><i class="ph ph-link"></i> Carretinhas: <strong id="rr-total-carretinhas">0</strong></span>
                         </div>
                     </div>
                     
