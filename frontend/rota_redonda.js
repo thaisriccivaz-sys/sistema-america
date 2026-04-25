@@ -2668,8 +2668,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('rr-prod-qtd').value = '';
                 atualizarUI();
                 atualizarIconesCliente();
-                // Recalcula Carga com a lista inteira
-                calcularCargaTotalFromLista();
+                // Recalcula tempo e carga com a lista inteira
+                calcularTempo();
                 // Recalcula habilidades (preserva manuais ao adicionar produto)
                 aplicarHabilidadesDoServico(false);
                 // Atualiza badge tipo OS na tela
