@@ -430,76 +430,83 @@ async function reverseGeocodeEndereco() {
 }
 
 async function geocodeEndereco() {
-    const endInput = document.getElementById('rr-input-endereco');
-    const btn      = document.getElementById('btn-geocode-endereco');
+    const endInput   = document.getElementById('rr-input-endereco');
+    const btn        = document.getElementById('btn-geocode-endereco');
     const placeholder = document.getElementById('rr-mapa-placeholder');
 
     const endereco = endInput?.value?.trim();
     if (!endereco) { endInput?.focus(); return; }
 
-    // Normaliza o endereco para a query do Nominatim (NAO altera o campo na tela)
+    if (btn) { btn.innerHTML = '<i class="ph ph-circle-notch" style="animation:spin 1s linear infinite;"></i>'; btn.disabled = true; }
+
+    const headers = { 'Accept-Language': 'pt-BR', 'User-Agent': 'AmericaRentalSistema/1.0' };
+
+    // ── Extrai partes do endereco ──────────────────────────────────────────────
+    const cepMatch    = endereco.match(/\b(\d{5})-?(\d{3})\b/);
+    const cep         = cepMatch ? `${cepMatch[1]}-${cepMatch[2]}` : '';
+    const temCidade   = /s[ao]o paulo|guarulhos|campinas|mogi|osasco/i.test(endereco);
+    const enderecoCompleto = !!cep && temCidade;
+
+    // Numero: primeiro grupo de digitos apos virgula/espaco
+    const numeroMatch  = endereco.match(/(?:,\s*|\s+)(\d+[A-Za-z]?)(?:\s*[,\-\/]|\s|$)/);
+    const numeroOriginal = numeroMatch ? numeroMatch[1].trim() : '';
+
+    // Extrai nome da rua (antes do 1o separador significativo)
+    const ruaMatch = endereco.match(/^([^,\d]+?)(?:,|\s+\d)/);
+    const nomRua   = ruaMatch ? ruaMatch[1].trim() : '';
+
+    // Cidade / estado
+    const cidadeMatch = endereco.match(/(?:,\s*)(S[ao]o Paulo|Guarulhos|Campinas|Osasco|[A-Z][a-zA-Z\s]+)(?:\s*[,\-\/]|$)/i);
+    const cidade = cidadeMatch ? cidadeMatch[1].trim() : 'Sao Paulo';
+
+    // ── Monta lista de queries em cascata ─────────────────────────────────────
+    // Prioridade: 1) Query estruturada (rua + numero + cep) — mais precisa
+    //             2) Query estruturada sem numero
+    //             3) Query livre normalizada
+    //             4) Busca pelo CEP puro
+    //             5) Fallback com cidade
+    const queries = [];
+
+    // 1. Query ESTRUTURADA com street=numero+rua, postalcode=cep (Nominatim interpreta melhor)
+    if (nomRua && numeroOriginal && cep) {
+        queries.push(
+            `https://nominatim.openstreetmap.org/search?street=${encodeURIComponent(numeroOriginal + ' ' + nomRua)}&city=${encodeURIComponent(cidade)}&postalcode=${encodeURIComponent(cep)}&country=Brazil&format=json&limit=5&addressdetails=1&accept-language=pt-BR`
+        );
+    }
+    // 2. Query estruturada sem numero mas com CEP
+    if (nomRua && cep) {
+        queries.push(
+            `https://nominatim.openstreetmap.org/search?street=${encodeURIComponent(nomRua)}&city=${encodeURIComponent(cidade)}&postalcode=${encodeURIComponent(cep)}&country=Brazil&format=json&limit=5&addressdetails=1&accept-language=pt-BR`
+        );
+    }
+    // 3. Query estruturada rua + numero + cidade (sem CEP obrigatorio)
+    if (nomRua && numeroOriginal) {
+        queries.push(
+            `https://nominatim.openstreetmap.org/search?street=${encodeURIComponent(numeroOriginal + ' ' + nomRua)}&city=${encodeURIComponent(cidade)}&country=Brazil&format=json&limit=5&addressdetails=1&accept-language=pt-BR`
+        );
+    }
+    // 4. Query livre normalizada
     let enderecoQuery = endereco
         .replace(/(\d)\.(\d{3})\b/g, '$1$2')
         .replace(/\|\s*CEP[:\s-]*\d{5}-?\d{3}\b/gi, '')
         .replace(/\s*\/\s*[A-Z]{2}\b/gi, '')
         .replace(/\s*\|\s*/g, ', ')
         .replace(/\s*-\s*(?=[a-zA-Z])/g, ', ')
-        .replace(/\s{2,}/g, ' ')
-        .trim();
-
-    // Spinner no botao
-    if (btn) { btn.innerHTML = '<i class="ph ph-circle-notch" style="animation:spin 1s linear infinite;"></i>'; btn.disabled = true; }
-
-    const headers = { 'Accept-Language': 'pt-BR', 'User-Agent': 'AmericaRentalSistema/1.0' };
-
-    // Extrai CEP do endereco original
-    const cepMatch = endereco.match(/\b(\d{5})-?(\d{3})\b/);
-    const temCidade = /s[aã]o paulo|sp|guarulhos|campinas|mogi|abc|santo andr|osasco|rio de jan/i.test(endereco);
-    const temBairro = /,\s*[a-zA-ZÀ-ú\s]{3,}\s*,/.test(endereco); // tem virgula antes e depois de algo
-
-    // Endereco completo = tem CEP + bairro/cidade → resultado unico, sem popup
-    const enderecoCompleto = !!cepMatch && temCidade;
-
-    // Extrai numero do endereco original (ex: "55" de "R. Maj. Paladino, 55 - Vila...")
-    // Captura digitos imediatamente apos virgula ou espaco, antes de separador
-    const numeroMatch = endereco.match(/(?:,\s*|\s+)(\d+[A-Za-z]?)(?:\s*[,\-\/]|\s|$)/);
-    const numeroOriginal = numeroMatch ? numeroMatch[1].trim() : '';
-
-    // Estrategia em cascata
-    const queries = [
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(enderecoQuery)}&format=json&limit=1&accept-language=pt-BR&countrycodes=br`,
-    ];
-
+        .replace(/\s{2,}/g, ' ').trim();
+    queries.push(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(enderecoQuery)}&format=json&limit=5&accept-language=pt-BR&countrycodes=br`);
+    // 5. Busca pelo CEP puro
+    if (cep) {
+        queries.push(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cep + ', Brasil')}&format=json&limit=3&accept-language=pt-BR`);
+    }
+    // 6. Fallback com cidade adicionada
     if (!temCidade) {
-        queries.push(
-            `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(enderecoQuery + ', Sao Paulo, SP, Brasil')}&format=json&limit=1&accept-language=pt-BR`
-        );
+        queries.push(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(enderecoQuery + ', Sao Paulo, SP, Brasil')}&format=json&limit=5&accept-language=pt-BR`);
     }
-
-    const partes = enderecoQuery.split(',');
-    if (partes.length > 2) {
-        const ruaNumero = partes[0].trim() + ', ' + partes[1].trim();
-        queries.push(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(ruaNumero)}&format=json&limit=1&accept-language=pt-BR&countrycodes=br`);
-        if (!temCidade) {
-            queries.push(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(ruaNumero + ', Sao Paulo, SP, Brasil')}&format=json&limit=1&accept-language=pt-BR`);
-        }
-    }
-
-    if (cepMatch) {
-        queries.push(
-            `https://nominatim.openstreetmap.org/search?q=${cepMatch[1]}-${cepMatch[2]},Brasil&format=json&limit=1&accept-language=pt-BR`
-        );
-    }
-
-    queries.push(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(enderecoQuery + ' Brasil')}&format=json&limit=1&accept-language=pt-BR`
-    );
 
     try {
         let data = null;
         for (const url of queries) {
-            const urlMulti = enderecoCompleto ? url : url.replace(/limit=\d+/, 'limit=5');
-            const resp = await fetch(urlMulti, { headers });
+            const resp   = await fetch(url, { headers });
             const result = await resp.json();
             if (result && result.length > 0) { data = result; break; }
             await new Promise(r => setTimeout(r, 300));
@@ -510,31 +517,35 @@ async function geocodeEndereco() {
             return;
         }
 
-        // ── Deduplica resultados por CEP + nome da rua (evita repetidos do Nominatim) ──
+        // Deduplica por CEP + rua
         const vistos = new Set();
         data = data.filter(d => {
-            // Extrai CEP do display_name (ex: "05426-200")
             const cepM = d.display_name.match(/\b\d{5}[- ]?\d{3}\b/);
-            const cep = cepM ? cepM[0].replace(/\s/, '-') : '';
-            // Usa o 1º segmento do nome como chave da rua
-            const rua = d.display_name.split(',')[0].trim().toLowerCase();
-            const chave = cep ? `${rua}||${cep}` : `${rua}||${d.lat.substring(0,7)}||${d.lon.substring(0,7)}`;
+            const cepD = cepM ? cepM[0].replace(/\s/, '-') : '';
+            const rua  = d.display_name.split(',')[0].trim().toLowerCase();
+            const chave = cepD ? `${rua}||${cepD}` : `${rua}||${d.lat.substring(0,7)}||${d.lon.substring(0,7)}`;
             if (vistos.has(chave)) return false;
-            vistos.add(chave);
-            return true;
+            vistos.add(chave); return true;
         });
 
-        // Monta o endereco final inserindo o numero digitado pelo usuario
-        const montarEnderecoComNumero = (displayName) => {
-            if (!numeroOriginal) return displayName;
-            const partesDisplay = displayName.split(',');
-            const logradouro = partesDisplay[0].trim();
-            const resto = partesDisplay.slice(1).join(',').trim();
-            // Verifica se o numero ja esta no display_name para nao duplicar
-            const jaTemNumero = new RegExp('\\b' + numeroOriginal + '\\b').test(logradouro);
-            if (jaTemNumero) return displayName;
-            return resto ? `${logradouro}, ${numeroOriginal}, ${resto}` : `${logradouro}, ${numeroOriginal}`;
+        // Formata display para mostrar: Rua, Numero, Bairro, Cidade - UF, CEP
+        const formatarDisplay = (d) => {
+            const a = d.address || {};
+            const partes = [];
+            const logr = a.road || a.pedestrian || a.path || d.display_name.split(',')[0].trim();
+            partes.push(logr);
+            if (numeroOriginal) partes.push(numeroOriginal);
+            if (a.suburb || a.neighbourhood || a.quarter) partes.push(a.suburb || a.neighbourhood || a.quarter);
+            if (a.city || a.town || a.municipality) partes.push(a.city || a.town || a.municipality);
+            const uf = a.state ? (a.state.length === 2 ? a.state : '') : '';
+            const cepD = a.postcode || '';
+            let linha = partes.join(', ');
+            if (uf)  linha += ` - ${uf}`;
+            if (cepD) linha += `, ${cepD}`;
+            return linha || d.display_name;
         };
+
+        const montarEnderecoComNumero = (d) => formatarDisplay(d);
 
         const aplicarGeoResult = (item, enderecoFinal) => {
             const lat = parseFloat(item.lat);
@@ -547,24 +558,20 @@ async function geocodeEndereco() {
                 _leafletMap.invalidateSize();
                 posicionarMarcador(lat, lng);
                 preencherLatLng(lat, lng);
-                // Preenche o campo com o endereco incluindo o numero
-                if (endInput && enderecoFinal) {
-                    endInput.value = enderecoFinal;
-                }
+                if (endInput && enderecoFinal) endInput.value = enderecoFinal;
                 if (endInput) endInput.style.background = '#f0fdf4';
                 osState.enderecoConfirmado = true;
                 atualizarBloqueio();
             }, 50);
         };
 
-        // Nao mostra popup se: endereco completo (CEP + cidade) OU resultado unico
         if (!enderecoCompleto && data.length > 1) {
             document.getElementById('rr-modal-geo-select')?.remove();
             const geoModal = document.createElement('div');
             geoModal.id = 'rr-modal-geo-select';
             geoModal.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;';
             const itens = data.map((d, idx) => {
-                const endFinal = montarEnderecoComNumero(d.display_name);
+                const endFinal = montarEnderecoComNumero(d);
                 const parts = endFinal.split(',');
                 const titulo = parts.slice(0,2).join(',').trim();
                 const detalhe = parts.slice(2).join(',').trim();
@@ -573,7 +580,7 @@ async function geocodeEndereco() {
                     <div style="font-size:0.72rem;color:#64748b;margin-top:2px;">${detalhe}</div>
                 </div>`;
             }).join('');
-            geoModal.innerHTML = `<div style="background:white;border-radius:12px;width:500px;max-width:95vw;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 16px 48px rgba(0,0,0,0.25);overflow:hidden;">
+            geoModal.innerHTML = `<div style="background:white;border-radius:12px;width:520px;max-width:95vw;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 16px 48px rgba(0,0,0,0.25);overflow:hidden;">
                 <div style="background:#0369a1;color:white;padding:1rem 1.25rem;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
                     <div>
                         <p style="margin:0;font-weight:700;font-size:0.95rem;">&#128506;&#65039; M\u00faltiplos endere\u00e7os encontrados</p>
@@ -585,13 +592,9 @@ async function geocodeEndereco() {
             </div>`;
             document.body.appendChild(geoModal);
             geoModal.addEventListener('click', e => { if (e.target === geoModal) geoModal.remove(); });
-            window._geoSelect = (idx) => {
-                geoModal.remove();
-                aplicarGeoResult(data[idx], montarEnderecoComNumero(data[idx].display_name));
-            };
+            window._geoSelect = (idx) => { geoModal.remove(); aplicarGeoResult(data[idx], montarEnderecoComNumero(data[idx])); };
         } else {
-            // Endereco completo ou unico resultado — aplica direto sem popup
-            aplicarGeoResult(data[0], montarEnderecoComNumero(data[0].display_name));
+            aplicarGeoResult(data[0], montarEnderecoComNumero(data[0]));
         }
 
     } catch (err) {
@@ -602,6 +605,40 @@ async function geocodeEndereco() {
     }
 }
 
+// ── COLAR URL GOOGLE MAPS: extrai lat/lng de URL do Google Maps ───────────────
+function colarUrlGoogleMaps() {
+    const url = prompt('\ud83d\uddfa\ufe0f Cole aqui o link do Google Maps:\n(Navegue at\u00e9 o endere\u00e7o correto no Google Maps, copie a URL da barra do navegador e cole aqui)');
+    if (!url) return;
+    // Formatos: /@lat,lng,zoom  ou  /data=...!3dlat!4dlng  ou  ?q=lat,lng  ou  ll=lat,lng
+    const patterns = [
+        /@(-?\d+\.\d+),(-?\d+\.\d+)/,
+        /[?&]ll=(-?\d+\.\d+),(-?\d+\.\d+)/,
+        /[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/,
+        /!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/,
+    ];
+    let lat = null, lng = null;
+    for (const pat of patterns) {
+        const m = url.match(pat);
+        if (m) { lat = parseFloat(m[1]); lng = parseFloat(m[2]); break; }
+    }
+    if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
+        mostrarToastAviso('\u274c N\u00e3o foi poss\u00edvel extrair coordenadas deste link. Certifique-se de copiar a URL completa ap\u00f3s clicar no ponto no Google Maps.');
+        return;
+    }
+    const placeholder = document.getElementById('rr-mapa-placeholder');
+    if (placeholder) placeholder.style.display = 'none';
+    const mapaDiv = document.getElementById('rr-mapa-leaflet');
+    if (mapaDiv) mapaDiv.style.display = 'block';
+    inicializarMapa();
+    setTimeout(() => {
+        _leafletMap.invalidateSize();
+        posicionarMarcador(lat, lng);
+        preencherLatLng(lat, lng);
+        osState.enderecoConfirmado = true;
+        atualizarBloqueio();
+    }, 50);
+    mostrarToastAviso('\u2705 Coordenadas do Google Maps aplicadas! O mapa foi atualizado.');
+}
 function mostrarToastAviso(msg) {
     const t = document.createElement('div');
     t.style.cssText = 'position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;background:#fef3c7;border:1px solid #f59e0b;color:#92400e;padding:0.75rem 1rem;border-radius:8px;font-size:0.78rem;max-width:380px;box-shadow:0 4px 12px rgba(0,0,0,0.15);line-height:1.5;';
@@ -1828,6 +1865,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const btnGeocode = e.target.closest('#btn-geocode-endereco');
         if (btnGeocode) { geocodeEndereco(); return; }
 
+        // Botão Colar URL Google Maps
+        const btnColarGmaps = e.target.closest('#btn-colar-gmaps');
+        if (btnColarGmaps) { colarUrlGoogleMaps(); return; }
+
         // Botão Geocode Coord (buscar lat/lng → endereço + mapa)
         const btnGeocodeCoord = e.target.closest('#btn-geocode-coord');
         if (btnGeocodeCoord) { reverseGeocodeEndereco(); return; }
@@ -2409,6 +2450,7 @@ function renderRotaRedonda() {
                         <div style="display:flex; gap:2px;">
                             <input type="text" id="rr-input-endereco" style="${inputStyle}" placeholder="Ex: Rua das Flores, 123 - Bairro, Cidade/SP">
                             <button id="btn-geocode-endereco" style="background:#0369a1; border:none; color:white; width:26px; height:26px; border-radius:4px; cursor:pointer; flex-shrink:0;" title="Buscar endereço no mapa e preencher latitude/longitude"><i class="ph ph-magnifying-glass"></i></button>
+                            <button id="btn-colar-gmaps" style="background:#16a34a; border:none; color:white; width:26px; height:26px; border-radius:4px; cursor:pointer; flex-shrink:0; font-weight:700; font-size:0.75rem;" title="Colar link do Google Maps para importar coordenadas precisas">G</button>
                             <button id="btn-agenda-endereco" style="background:#f59e0b; border:none; color:white; width:26px; height:26px; border-radius:4px; cursor:pointer; flex-shrink:0;" title="Verificar manutenções programadas para este endereço e arredores (5km)"><i class="ph ph-calendar-check"></i></button>
                         </div>
                     </div>
