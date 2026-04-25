@@ -828,6 +828,7 @@ function carregarRegistroNaTela(os) {
     set('rr-input-telefone', os.telefone);
     set('rr-input-email', os.email);
     set('rr-input-obs', os.observacoes);
+    set('rr-input-obs-internas', os.observacoes_internas);
     set('rr-input-video', os.link_video);
     set('rr-tipo-servico', os.tipo_servico);
     if (os.contrato) {
@@ -968,10 +969,10 @@ if (!document.getElementById('rr-keyframes')) {
 function parseOsText(texto) {
     const lines = texto.replace(/\r/g, '').split('\n').map(l => l.trim());
     const resultado = {
-        numOs: '', tipoServico: '', cliente: '', contrato: '', tipoOs: '',
+        numOs: '', cliente: '', contrato: '', tipoOs: '',
         responsavel: '', telefone: '', endereco: '', email: '',
-        produto: '', qtdProduto: 1, observacoes: '', // produtos vai virar array na UI
-        ambiguidades: [], avisos: [], rawProdutos: ''
+        dataEntrega: '', rawProdutos: '', observacoes: '', observacoesInternas: '',
+        ambiguidades: [], avisos: []
     };
 
     const eVazio = (v) => !v || /^[\s\-–—*]*$/.test(v);
@@ -986,12 +987,15 @@ function parseOsText(texto) {
             resultado.numOs = lines[i + 1].trim();
         }
         
-        // Tipo -> Serviço na linha seguinte
-        else if (lu === 'TIPO' && i + 1 < lines.length) {
-            const val = lines[i + 1].trim();
-            // Pega o texto antes do [ ] se houver, ou a string inteira
-            const clean = val.split('[')[0].trim();
-            resultado.tipoServico = clean || val;
+        // Data Cadastro -> Data (i+1)
+        else if (lu === 'DATA CADASTRO' && i + 1 < lines.length) {
+            const v = lines[i + 1].trim();
+            const datasEncontradas = [...v.matchAll(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/g)];
+            if (datasEncontradas.length > 0) {
+                const [, d, m, a] = datasEncontradas[0];
+                const ano = a ? (a.length === 2 ? '20' + a : a) : new Date().getFullYear();
+                resultado.dataEntrega = `${ano}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+            }
         }
 
         // Cliente -> ID (i+1), Nome (i+2)
@@ -1016,7 +1020,6 @@ function parseOsText(texto) {
         else if (l.includes('📞Contato') || l.includes('Contato de instalação:')) {
             const v = extrairValor(l, /📞?Contato de instala[cç][aã]o:/i);
             if (!eVazio(v)) {
-                // "Alan - " ou "Alan - 1199999999"
                 const parts = v.split('-');
                 resultado.responsavel = parts[0].trim();
                 if (parts.length > 1) {
@@ -1032,25 +1035,28 @@ function parseOsText(texto) {
         // 📍Endereço de entrega:
         else if (l.includes('📍Endereço') || l.includes('Endereço de entrega:')) {
             const v = extrairValor(l, /📍?Endere[cç]o de entrega:/i);
-            if (!eVazio(v)) resultado.endereco = v;
+            if (!eVazio(v)) resultado.endereco = v.replace(/- campo.*/i, '').trim();
         }
 
         // 📨 E-mail recebimento OS:
         else if (l.includes('📨 E-mail') || l.includes('E-mail recebimento OS:')) {
             const v = extrairValor(l, /📨?\s*E-mail recebimento OS:/i);
-            if (!eVazio(v)) resultado.email = v;
+            const emMatch = v.match(/[\w.\-+]+@[\w.\-]+\.\w{2,}/);
+            if (emMatch) resultado.email = emMatch[0].toLowerCase();
         }
 
         // 💩Produto: 10 STD 1 PCD
         else if (l.includes('💩Produto:') || l.includes('Produto:')) {
             const v = extrairValor(l, /💩?Produto:/i);
-            if (!eVazio(v)) resultado.rawProdutos = v; // processado depois
+            if (!eVazio(v)) resultado.rawProdutos = v.replace(/-.*(produto|icone).*/i, '').trim();
         }
 
         // 💡Observações:--
         else if (l.includes('💡Observações:') || l.includes('Observações:')) {
             const v = extrairValor(l, /💡?Observa[cç][õo]es:/i);
-            if (!eVazio(v) && v !== '--') resultado.observacoes = v;
+            if (!eVazio(v) && v !== '--') {
+                resultado.observacoesInternas = v.replace(/Ignorar.*/i, '').replace(/-.*campo.*/i, '').trim();
+            }
         }
     }
 
@@ -1088,31 +1094,60 @@ function abrirModalColarOS() {
     modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
 
     // Botão Analisar
-    modal.querySelector('#rr-colar-analisar').onclick = () => {
+    modal.querySelector('#rr-colar-analisar').onclick = async () => {
         const texto = document.getElementById('rr-textarea-os').value.trim();
         if (!texto) return;
+        
+        const btnAnalisar = document.getElementById('rr-colar-analisar');
+        const origText = btnAnalisar.innerHTML;
+        btnAnalisar.innerHTML = '<i class="ph ph-spinner ph-spin"></i>';
+        
         dadosExtraidos = parseOsText(texto);
+
+        // Verifica se a OS já existe
+        if (dadosExtraidos.numOs) {
+            try {
+                const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+                const resp = await fetch(`/api/logistica/os/buscar?numero_os=${encodeURIComponent(dadosExtraidos.numOs)}`, { headers: { 'Authorization': `Bearer ${token}` } });
+                if (resp.ok) {
+                    const registros = await resp.json();
+                    if (registros && registros.length > 0) {
+                        dadosExtraidos.osExiste = true;
+                        dadosExtraidos.tipoOsDB = registros[0].tipo_os; // Usa o tipo da base de dados!
+                    }
+                }
+            } catch(e) { console.error('Erro ao checar OS colada', e); }
+        }
+        btnAnalisar.innerHTML = origText;
+
         const preview = document.getElementById('rr-colar-preview');
         preview.style.display = 'block';
 
         const linha = (label, val, cor) => val
             ? `<div style="display:flex;gap:0.5rem;padding:2px 0;border-bottom:1px solid #f1f5f9;">
-                 <span style="min-width:130px;color:#64748b;font-weight:600;">${label}</span>
+                 <span style="min-width:140px;color:#64748b;font-weight:600;">${label}</span>
                  <span style="color:${cor||'#1e293b'};">${val}</span>
                </div>` : '';
 
         let html = '';
+        if (dadosExtraidos.osExiste) {
+            html += `<div style="color:#b45309;background:#fef3c7;padding:6px 10px;border-radius:4px;margin-bottom:8px;font-weight:bold;border:1px solid #f59e0b;">
+                        ⚠️ Esta OS (${dadosExtraidos.numOs}) já existe no sistema! Tipo identificado: ${dadosExtraidos.tipoOsDB || 'Desconhecido'}.
+                     </div>`;
+        }
+        
         html += linha('🔢 OS', dadosExtraidos.numOs);
-        html += linha('🏷️ Serviço', dadosExtraidos.tipoServico);
+        html += linha('📅 Data', dadosExtraidos.dataEntrega);
         html += linha('👤 Cliente', dadosExtraidos.cliente);
         html += linha('📜 Contrato', dadosExtraidos.contrato);
-        html += linha('🏢 Tipo OS', dadosExtraidos.tipoOs);
+        html += linha('🏢 Tipo OS', dadosExtraidos.tipoOsDB || dadosExtraidos.tipoOs);
         html += linha('👷 Responsável', dadosExtraidos.responsavel);
         html += linha('📞 Telefone', dadosExtraidos.telefone);
         html += linha('📍 Endereço', dadosExtraidos.endereco);
         html += linha('📧 Email', dadosExtraidos.email);
         html += linha('📦 Produtos', dadosExtraidos.rawProdutos);
-        html += linha('📝 Observações', dadosExtraidos.observacoes);
+        html += linha('📝 Obs Motorista', dadosExtraidos.observacoes);
+        html += linha('🔒 Obs Internas', dadosExtraidos.observacoesInternas);
 
         // Avisos
         dadosExtraidos.avisos.forEach(a => {
@@ -1133,8 +1168,11 @@ function abrirModalColarOS() {
             modal.remove();
             preencherFormularioComDados(dadosExtraidos, tOs);
         };
-        // Se a extração já encontrou o tipoOs (Obra/Evento), usa ele, senão pergunta
-        if (dadosExtraidos.tipoOs) {
+        // Se já existe na base, força o tipo da base
+        if (dadosExtraidos.osExiste && dadosExtraidos.tipoOsDB) {
+            osState.tipoOs = dadosExtraidos.tipoOsDB;
+            continuar(dadosExtraidos.tipoOsDB);
+        } else if (dadosExtraidos.tipoOs) {
             osState.tipoOs = dadosExtraidos.tipoOs;
             continuar(dadosExtraidos.tipoOs);
         } else if (!osState.tipoOs) {
@@ -1157,14 +1195,18 @@ function preencherFormularioComDados(dados, tipoOs) {
     };
 
     set('rr-input-os',          dados.numOs);
-    set('rr-tipo-servico',      dados.tipoServico);
     set('rr-input-cliente',     dados.cliente);
     set('rr-input-endereco',    dados.endereco);
     set('rr-input-responsavel', dados.responsavel);
-    // telefone fica em rr-input-telefone no sistema novo (não rr-input-sms)
     set('rr-input-telefone',    dados.telefone);
     set('rr-input-email',       dados.email);
     set('rr-input-obs',         dados.observacoes);
+    set('rr-input-obs-internas',dados.observacoesInternas);
+
+    if (dados.dataEntrega) {
+        const dateEl = document.querySelector('input[type="date"]');
+        if (dateEl) { dateEl.value = dados.dataEntrega; dateEl.style.background = '#f0fdf4'; }
+    }
 
     if (dados.contrato) {
         const contEl = document.querySelector('input[placeholder="Nº Contrato"]');
@@ -1404,6 +1446,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 dias_semana: diasSelecionados,
                 produtos: osState.produtos || [],
                 observacoes: document.getElementById('rr-input-obs')?.value?.trim() || '',
+                observacoes_internas: document.getElementById('rr-input-obs-internas')?.value?.trim() || '',
                 link_video: document.getElementById('rr-input-video')?.value?.trim() || '',
             };
 
@@ -1925,14 +1968,18 @@ function renderRotaRedonda() {
 
                 <!-- OBSERVAÇÕES -->
                 <div style="display: flex; gap: 0.5rem;">
-                    <div style="flex: 2;">
-                        <label style="${labelStyle}">Observações</label>
-                        <input type="text" id="rr-input-obs" style="${inputStyle}" placeholder="Observações Internas">
+                    <div style="flex: 1;">
+                        <label style="${labelStyle}">Obs. Motoristas</label>
+                        <input type="text" id="rr-input-obs" style="${inputStyle}" placeholder="Info para motorista">
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="${labelStyle}">Obs. Internas</label>
+                        <input type="text" id="rr-input-obs-internas" style="${inputStyle}" placeholder="Info interna">
                     </div>
                     <div style="flex: 1;">
                         <label style="${labelStyle}">Link Vídeo</label>
                         <div style="display: flex; gap: 2px;">
-                            <input type="text" style="${inputStyle}" placeholder="Link YouTube/Drive">
+                            <input type="text" id="rr-input-video" style="${inputStyle}" placeholder="Link YouTube/Drive">
                             <button style="background:#3b82f6; color:white; width:26px; height:26px; border:none; border-radius:4px; cursor:pointer;"><i class="ph ph-video-camera"></i></button>
                         </div>
                     </div>
