@@ -808,12 +808,63 @@ document.addEventListener('DOMContentLoaded', () => {
     if (view) observer.observe(view, { attributes: true, attributeFilter: ['class'] });
 
     // Event Delegation
+    document.addEventListener('change', (e) => {
+        if (!document.getElementById('view-logistica-rota-redonda')?.classList.contains('active')) return;
+
+        if (e.target.id === 'rr-chk-diurno') {
+            const isChecked = e.target.checked;
+            const noturno = document.getElementById('rr-chk-noturno');
+            const horaInicio = document.getElementById('rr-input-hora-inicio');
+            const horaFim = document.getElementById('rr-input-hora-fim');
+            if (isChecked) {
+                if (noturno) noturno.checked = false;
+                if (horaInicio) { horaInicio.value = '07:00'; horaInicio.style.background = '#f0fdf4'; }
+                if (horaFim) { horaFim.value = '18:00'; horaFim.style.background = '#f0fdf4'; }
+            }
+        }
+        if (e.target.id === 'rr-chk-noturno') {
+            const isChecked = e.target.checked;
+            const diurno = document.getElementById('rr-chk-diurno');
+            const horaInicio = document.getElementById('rr-input-hora-inicio');
+            const horaFim = document.getElementById('rr-input-hora-fim');
+            if (isChecked) {
+                if (diurno) diurno.checked = false;
+                if (horaInicio) { horaInicio.value = ''; horaInicio.style.background = ''; }
+                if (horaFim) { horaFim.value = ''; horaFim.style.background = ''; }
+            }
+        }
+    });
+
+    // Event Delegation
     document.addEventListener('click', (e) => {
         if (!document.getElementById('view-logistica-rota-redonda')?.classList.contains('active')) return;
 
         // Botão Colar OS
         const btnColarOs = e.target.closest('#btn-colar-os');
         if (btnColarOs) { abrirModalColarOS(); return; }
+
+        // Botão Gerar OS (validação)
+        const btnGerarOsFinal = e.target.closest('#btn-gerar-os-final');
+        if (btnGerarOsFinal) {
+            const diurno = document.getElementById('rr-chk-diurno');
+            const noturno = document.getElementById('rr-chk-noturno');
+            const horaInicio = document.getElementById('rr-input-hora-inicio');
+            const horaFim = document.getElementById('rr-input-hora-fim');
+
+            if (!diurno?.checked && !noturno?.checked) {
+                mostrarToastAviso("Selecione um turno: Diurno ou Noturno.");
+                return;
+            }
+
+            if (!horaInicio?.value || !horaFim?.value) {
+                mostrarToastAviso("Preencha os dois horários: início e fim.");
+                return;
+            }
+
+            mostrarToastAviso("Dados validados! (Lógica de salvamento em breve)");
+            // Aqui entra a lógica real de salvar futuramente
+            return;
+        }
 
         // Botão Geocode (buscar endereço → lat/lng + mapa)
         const btnGeocode = e.target.closest('#btn-geocode-endereco');
@@ -1131,7 +1182,7 @@ function renderRotaRedonda() {
             <div style="display:flex; gap:0.5rem; margin-left: auto;">
                 <button id="btn-colar-os" style="background:#f59e0b; color:white; border:none; height:26px; padding:0 10px; border-radius:4px; font-size:0.75rem; cursor:pointer; font-weight:600;" title="Colar texto da OS e preencher automaticamente"><i class="ph ph-clipboard-text"></i> Colar OS</button>
                 <button id="btn-limpar-os" style="background:#ef4444; color:white; border:none; height:26px; padding:0 10px; border-radius:4px; font-size:0.75rem; cursor:pointer; font-weight:600;"><i class="ph ph-x"></i> Limpar</button>
-                <button style="background:#14b8a6; color:white; border:none; height:26px; padding:0 10px; border-radius:4px; font-size:0.75rem; cursor:pointer; font-weight:600;"><i class="ph ph-check-circle"></i> Gerar OS</button>
+                <button id="btn-gerar-os-final" style="background:#14b8a6; color:white; border:none; height:26px; padding:0 10px; border-radius:4px; font-size:0.75rem; cursor:pointer; font-weight:600;"><i class="ph ph-check-circle"></i> Gerar OS</button>
             </div>
         </div>
 
@@ -1185,12 +1236,12 @@ function renderRotaRedonda() {
 
                 <!-- HORÁRIOS E DIAS -->
                 <div style="display: flex; gap: 0.5rem; align-items: center; background: #f8fafc; padding: 0.4rem 0.5rem; border-radius: 6px; border: 1px solid #e2e8f0; flex-wrap: wrap;">
-                    <label style="display:flex; align-items:center; gap:2px; font-size:0.75rem; color:#475569; cursor:pointer;"><input type="checkbox"> Diurno</label>
-                    <label style="display:flex; align-items:center; gap:2px; font-size:0.75rem; color:#475569; cursor:pointer;"><input type="checkbox"> Noturno</label>
+                    <label style="display:flex; align-items:center; gap:2px; font-size:0.75rem; color:#475569; cursor:pointer;"><input type="checkbox" id="rr-chk-diurno"> Diurno</label>
+                    <label style="display:flex; align-items:center; gap:2px; font-size:0.75rem; color:#475569; cursor:pointer;"><input type="checkbox" id="rr-chk-noturno"> Noturno</label>
                     <div style="width: 1px; height: 16px; background: #cbd5e1; margin: 0 2px;"></div>
                     <span style="font-size: 0.75rem; font-weight: 600; color:#475569;">Horário:</span>
-                    <input type="time" style="${inputStyle} width: 75px;"> às 
-                    <input type="time" style="${inputStyle} width: 75px;">
+                    <input type="time" id="rr-input-hora-inicio" style="${inputStyle} width: 75px;"> às 
+                    <input type="time" id="rr-input-hora-fim" style="${inputStyle} width: 75px;">
                     <div style="width: 1px; height: 16px; background: #cbd5e1; margin: 0 2px;"></div>
                     ${['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'].map(d => `<label style="display:flex; align-items:center; gap:2px; font-size:0.7rem; color:#475569; cursor:pointer;"><input type="checkbox"> ${d}</label>`).join('')}
                 </div>
