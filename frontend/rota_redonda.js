@@ -124,7 +124,10 @@ function calcularTempo() {
     const resultado = `${hh}:${mm}`;
 
     const el = document.getElementById('rr-tempo-total');
-    if (el) el.innerText = resultado;
+    if (el && !osState.tempoEditadoManualmente) {
+        if (el.tagName === 'INPUT') el.value = resultado;
+        else el.innerText = resultado;
+    }
 
     // Após tempo, recalcula carga também (igual ao Flutter que chama calcularCargaTotalFromLista())
     calcularCargaTotalFromLista();
@@ -190,9 +193,9 @@ function calcularCargaTotalFromLista() {
                 switch (equipamento) {
                     case 'STD OBRA': case 'LX OBRA': case 'ELX OBRA':
                     case 'GUARITA INDIVIDUAL OBRA': case 'PBII OBRA': case 'PBIII OBRA':
-                    case 'CHUVEIRO OBRA': case 'HIDRÁULICO OBRA':
+                    case 'CHUVEIRO OBRA': case 'HIDRÁULICO OBRA': case 'PCD OBRA':
                         cargaCalculada = quantidade; break;
-                    case 'GUARITA DUPLA OBRA': case 'PCD OBRA':
+                    case 'GUARITA DUPLA OBRA':
                         cargaCalculada = 2 * quantidade; break;
                     case 'MICTÓRIO OBRA':
                         cargaCalculada = calcularCargaProporcional(quantidade); break;
@@ -203,9 +206,9 @@ function calcularCargaTotalFromLista() {
                 switch (equipamento) {
                     case 'STD EVENTO': case 'LX EVENTO': case 'ELX EVENTO':
                     case 'GUARITA INDIVIDUAL EVENTO': case 'PIA II EVENTO': case 'PIA III EVENTO':
-                    case 'CHUVEIRO EVENTO': case 'HIDRÁULICO EVENTO':
+                    case 'CHUVEIRO EVENTO': case 'HIDRÁULICO EVENTO': case 'PCD EVENTO':
                         cargaCalculada = quantidade; break;
-                    case 'GUARITA DUPLA EVENTO': case 'PCD EVENTO':
+                    case 'GUARITA DUPLA EVENTO':
                         cargaCalculada = 2 * quantidade; break;
                     case 'MICTÓRIO EVENTO':
                         cargaCalculada = calcularCargaProporcional(quantidade); break;
@@ -2694,7 +2697,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const btnRemProd = e.target.closest('.btn-rem-prod');
         if (btnRemProd) {
-            const id = parseInt(btnRemProd.dataset.id);
+            const id = parseFloat(btnRemProd.dataset.id);
             osState.produtos = osState.produtos.filter(p => p.id !== id);
             atualizarUI();
             atualizarIconesCliente();
@@ -2706,7 +2709,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Editar Produto
         const btnEditProd = e.target.closest('.btn-edit-prod');
         if (btnEditProd) {
-            const id = parseInt(btnEditProd.dataset.id);
+            const id = parseFloat(btnEditProd.dataset.id);
             const p = osState.produtos.find(x => x.id === id);
             if (p) {
                 // Preenche os campos
@@ -2897,6 +2900,7 @@ window.autoSelecionarPorObs = function() {
 };
 
 window.onChangeTipoServico = function() {
+    osState.tempoEditadoManualmente = false;
     const val = (document.getElementById('rr-tipo-servico')?.value || '').toUpperCase();
     if (val.includes('VAC')) {
         osState.tiposServico.add('VAC');
@@ -3575,7 +3579,14 @@ function renderRotaRedonda() {
                         
                         <div style="display: flex; gap: 0.75rem; font-size: 0.7rem; color: #64748b; margin-left: auto; align-items: center;">
                             <span style="background:#f1f5f9; padding:2px 6px; border-radius:4px;"><i class="ph ph-package"></i> Produtos: <strong id="rr-total-prod">0</strong></span>
-                            <span style="background:#f1f5f9; padding:2px 6px; border-radius:4px;"><i class="ph ph-clock"></i> Tempo: <strong id="rr-tempo-total">00:10</strong></span>
+                            <span style="background:#f1f5f9; padding:2px 6px; border-radius:4px; display:flex; align-items:center; gap:2px;">
+                                <i class="ph ph-clock"></i> Tempo: 
+                                <input type="text" id="rr-tempo-total" value="00:10" 
+                                    style="width: 38px; border: none; background: transparent; font-weight: bold; color: inherit; padding: 0; outline: none; text-align: center; font-size: 0.7rem; font-family: inherit;"
+                                    oninput="osState.tempoEditadoManualmente = true;"
+                                    onblur="if(!this.value.includes(':')) this.value = this.value.replace(/(\\d{2})(\\d{2})/, '$1:$2');"
+                                >
+                            </span>
                             <span style="background:#dbeafe; padding:2px 6px; border-radius:4px;" title="Tanque"><i class="ph ph-fill-tray"></i> Tanque: <strong id="rr-total-tanques">0</strong></span>
                             <span style="background:#dcfce7; padding:2px 6px; border-radius:4px;" title="Carroceria"><i class="ph ph-truck"></i> Carroceria: <strong id="rr-total-carrocerias">0</strong></span>
                             <span style="background:#fef9c3; padding:2px 6px; border-radius:4px;" title="Carretinha"><i class="ph ph-link"></i> Carretinha: <strong id="rr-total-carretinhas">0</strong></span>
