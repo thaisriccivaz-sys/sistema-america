@@ -1308,6 +1308,23 @@ function exibirModalAgendaEndereco(data, enderecoAtual) {
     document.body.appendChild(modal);
     modal.querySelector('#btn-fechar-modal-agenda')?.addEventListener('click', () => modal.remove());
     modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+
+    // Atualiza a sugestão abaixo dos botões de dia da semana na tela principal
+    const containerSugestoes = document.getElementById('rr-sugestoes-dias-container');
+    if (containerSugestoes) {
+        if (data.dias_sugeridos_2km && data.dias_sugeridos_2km.length > 0) {
+            const diasText = data.dias_sugeridos_2km.map(d => d.dia).join(', ');
+            containerSugestoes.innerHTML = `<span style="color:#166534; font-weight:600;"><i class="ph ph-check-square"></i> Sugestão (Até 2km): ${diasText}</span>`;
+            containerSugestoes.style.display = 'block';
+        } else if (data.dias_sugeridos_5km && data.dias_sugeridos_5km.length > 0) {
+            const diasText = data.dias_sugeridos_5km.map(d => d.dia).join(', ');
+            containerSugestoes.innerHTML = `<span style="color:#854d0e; font-weight:600;"><i class="ph ph-warning"></i> Sugestão (Até 5km): ${diasText}</span>`;
+            containerSugestoes.style.display = 'block';
+        } else {
+            containerSugestoes.innerHTML = `<span style="color:#b91c1c;"><i class="ph ph-warning-circle"></i> Nenhuma rota sugerida (raio maior que 5km).</span>`;
+            containerSugestoes.style.display = 'block';
+        }
+    }
 }
 
 // CSS: spinner + fix Leaflet z-index dentro do layout
@@ -2107,6 +2124,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (document.getElementById(id)?.checked) diasSelecionados.push(label);
             });
 
+            const isManut = (document.getElementById('rr-tipo-servico')?.value || '').toUpperCase().includes('MANUTENCAO');
+            const clicouAgenda = document.getElementById('rr-chk-agenda-clicado')?.value === '1';
+
+            if (isManut) {
+                if (!clicouAgenda && !osState.loadedId) {
+                    mostrarToastAviso("Para serviços de Manutenção, é obrigatório clicar no botão Agenda para verificar as rotas na região.");
+                    return;
+                }
+                if (diasSelecionados.length === 0) {
+                    mostrarToastAviso("Para serviços de Manutenção, é obrigatório selecionar pelo menos um dia da semana sugerido.");
+                    return;
+                }
+            }
+
             const habilidadesSelecionadas = Array.from(document.querySelectorAll('.btn-tipo-servico.ativo')).map(b => b.dataset.tipo);
             const variaveisSelecionadas = Array.from(document.querySelectorAll('.btn-acao.ativo')).map(b => b.dataset.acao);
 
@@ -2430,14 +2461,13 @@ function atualizarBloqueio() {
         return;
     }
 
-    // Desbloqueado: G + Agenda concluídos
+    // Desbloqueado: G concluído
     if (osState.enderecoConfirmado) {
         overlayEnd.style.display = 'none';
 
-    // Passo 1 OK (G clicado): aguarda Agenda
+    // Passo 1 OK (G clicado)
     } else if (osState.coordenadasConfirmadas) {
-        overlayEnd.style.display = 'flex';
-        overlayEnd.innerHTML = `
+        overlayEnd.style.display = 'none';
             <div style="text-align:center;padding:1.2rem;">
                 <div style="font-size:1.6rem;margin-bottom:0.4rem;">&#128197;</div>
                 <div style="font-weight:700;font-size:0.85rem;color:#92400e;margin-bottom:0.3rem;">Coordenadas confirmadas!</div>
@@ -2933,44 +2963,44 @@ function renderRotaRedonda() {
     <div id="rota-redonda-content" style="background: #fff; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); display: flex; flex-direction: column; box-sizing: border-box;">
         
         <!-- HEADER FORM — Fixo no topo -->
-        <div style="position: sticky; top: 60px; z-index: 20; display: flex; gap: 1rem; align-items: center; background: #64748b; padding: 0.5rem 0.75rem; color: white; flex-shrink: 0; flex-wrap: wrap; border-radius: 6px 6px 0 0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); margin-top: -1.5rem; margin-left: -1.5rem; margin-right: -1.5rem; margin-bottom: 0.75rem;">
+        <div style="position: sticky; top: 60px; z-index: 20; display: flex; gap: 1rem; align-items: center; background: white; padding: 0.5rem 1.5rem; flex-shrink: 0; flex-wrap: wrap; border-bottom: 1px solid #e2e8f0; margin-top: -1.5rem; margin-left: -1.5rem; margin-right: -1.5rem; margin-bottom: 0.75rem;">
             
             <div style="display: flex; align-items: center; gap: 4px;">
-                <label style="font-weight: 600; font-size: 0.75rem; color: white; white-space: nowrap; margin: 0;">OS</label>
+                <label style="font-weight: 600; font-size: 0.75rem; color: #475569; white-space: nowrap; margin: 0;">OS</label>
                 <div style="display: flex; align-items: center; gap: 2px;">
                     <img id="rr-img-tipo-os" src="" style="height: 28px; display: none;" alt="Tipo OS">
-                    <input type="text" id="rr-input-os" style="${inputStyle} border:none; width: 80px;" placeholder="Ex: 12345">
-                    <button id="btn-add-os-tipo" style="${btnStyle} background:#334155;" title="Definir tipo de OS (Obra/Evento)"><i class="ph ph-plus"></i></button>
+                    <input type="text" id="rr-input-os" style="${inputStyle} border:1px solid #cbd5e1; width: 80px;" placeholder="Ex: 12345">
+                    <button id="btn-add-os-tipo" style="${btnStyle} background:#0284c7;" title="Definir tipo de OS (Obra/Evento)"><i class="ph ph-plus"></i></button>
                 </div>
             </div>
 
             <div style="display: flex; align-items: center; gap: 4px; flex: 1;">
-                <label style="font-weight: 600; font-size: 0.75rem; color: white; white-space: nowrap; margin: 0;">Cliente</label>
+                <label style="font-weight: 600; font-size: 0.75rem; color: #475569; white-space: nowrap; margin: 0;">Cliente</label>
                 <div style="display:flex; gap:4px; align-items:center; width: 100%;">
-                    <input type="text" id="rr-input-cliente" style="${inputStyle} border:none;" placeholder="Nome do Cliente" oninput="this.dataset.nomeBase = '';" onkeydown="if(event.key==='Enter') document.getElementById('btn-pesq-cliente-os').click();">
-                    <button id="btn-pesq-cliente-os" style="${btnStyle} background:#334155;" title="Pesquisar cliente"><i class="ph ph-magnifying-glass"></i></button>
+                    <input type="text" id="rr-input-cliente" style="${inputStyle} border:1px solid #cbd5e1;" placeholder="Nome do Cliente" oninput="this.dataset.nomeBase = '';" onkeydown="if(event.key==='Enter') document.getElementById('btn-pesq-cliente-os').click();">
+                    <button id="btn-pesq-cliente-os" style="${btnStyle} background:#0284c7;" title="Pesquisar cliente"><i class="ph ph-magnifying-glass"></i></button>
                 </div>
             </div>
 
             <div style="display: flex; align-items: center; gap: 4px;">
-                <label style="font-weight: 600; font-size: 0.75rem; color: white; white-space: nowrap; margin: 0;">Patr.</label>
+                <label style="font-weight: 600; font-size: 0.75rem; color: #475569; white-space: nowrap; margin: 0;">Patr.</label>
                 <div style="display:flex; position:relative;">
-                    <input type="text" id="rr-input-patrimonio" style="${inputStyle} border:none; width: 70px; padding-right:26px;" placeholder="Patr." onkeydown="if(event.key==='Enter') document.getElementById('btn-buscar-patrimonio').click();">
+                    <input type="text" id="rr-input-patrimonio" style="${inputStyle} border:1px solid #cbd5e1; width: 70px; padding-right:26px;" placeholder="Patr." onkeydown="if(event.key==='Enter') document.getElementById('btn-buscar-patrimonio').click();">
                     <button id="btn-buscar-patrimonio" style="position:absolute; right:0; top:0; bottom:0; background:transparent; border:none; color:#64748b; cursor:pointer; width:26px; display:flex; align-items:center; justify-content:center;" title="Buscar OS deste patrimônio"><i class="ph ph-magnifying-glass"></i></button>
                 </div>
             </div>
 
             <div style="display: flex; align-items: center; gap: 4px;">
-                <label style="font-weight: 600; font-size: 0.75rem; color: white; white-space: nowrap; margin: 0;">Contrato</label>
+                <label style="font-weight: 600; font-size: 0.75rem; color: #475569; white-space: nowrap; margin: 0;">Contrato</label>
                 <div style="display:flex; position:relative;">
-                    <input type="text" id="rr-input-contrato" style="${inputStyle} border:none; width: 100px; padding-right:26px;" placeholder="Nº Contrato" onkeydown="if(event.key==='Enter') document.getElementById('btn-buscar-contrato').click();">
+                    <input type="text" id="rr-input-contrato" style="${inputStyle} border:1px solid #cbd5e1; width: 100px; padding-right:26px;" placeholder="Nº Contrato" onkeydown="if(event.key==='Enter') document.getElementById('btn-buscar-contrato').click();">
                     <button id="btn-buscar-contrato" style="position:absolute; right:0; top:0; bottom:0; background:transparent; border:none; color:#64748b; cursor:pointer; width:26px; display:flex; align-items:center; justify-content:center;" title="Buscar OS deste contrato"><i class="ph ph-magnifying-glass"></i></button>
                 </div>
             </div>
 
             <div style="display: flex; align-items: center; gap: 4px;">
-                <label style="font-weight: 600; font-size: 0.75rem; color: white; white-space: nowrap; margin: 0;">Data</label>
-                <input type="date" id="rr-input-data" style="${inputStyle} border:none; width: 110px;">
+                <label style="font-weight: 600; font-size: 0.75rem; color: #475569; white-space: nowrap; margin: 0;">Data</label>
+                <input type="date" id="rr-input-data" style="${inputStyle} border:1px solid #cbd5e1; width: 110px;">
             </div>
 
             <div style="display:flex; gap:0.5rem; margin-left: auto;">
@@ -2999,7 +3029,6 @@ function renderRotaRedonda() {
                             <button id="btn-geocode-endereco" style="display:none;" title="Buscar endereço"></button>
                             <button id="btn-buscar-endereco-os" style="background:#1e40af; border:none; color:white; width:26px; height:26px; border-radius:4px; cursor:pointer; flex-shrink:0;" title="Pesquisar OS neste endereço"><i class="ph ph-magnifying-glass"></i></button>
                             <button id="btn-colar-gmaps" style="background:#16a34a; border:none; color:white; width:26px; height:26px; border-radius:4px; cursor:pointer; flex-shrink:0; font-weight:700; font-size:0.75rem;" title="Colar link do Google Maps para importar coordenadas precisas">G</button>
-                            <button id="btn-agenda-endereco" style="background:#f59e0b; border:none; color:white; width:26px; height:26px; border-radius:4px; cursor:pointer; flex-shrink:0;" title="Verificar manutenções programadas para este endereço e arredores (5km)"><i class="ph ph-calendar-check"></i></button>
                         </div>
                     </div>
                     <div style="flex: 1;">
@@ -3054,6 +3083,7 @@ function renderRotaRedonda() {
                     <input type="time" id="rr-input-hora-inicio" style="${inputStyle} width: 75px;"> às 
                     <input type="time" id="rr-input-hora-fim" style="${inputStyle} width: 75px;">
                     <div style="width: 1px; height: 16px; background: #cbd5e1; margin: 0 2px;"></div>
+                    <button id="btn-agenda-endereco" style="background:#f59e0b; border:none; color:white; height:26px; border-radius:4px; cursor:pointer; flex-shrink:0; display:flex; align-items:center; gap:4px; padding:0 8px; font-weight:600; font-size:0.7rem;" title="Verificar manutenções programadas para esta região" onclick="document.getElementById('rr-chk-agenda-clicado').value='1';"><i class="ph ph-calendar-check" style="font-size:0.9rem;"></i> Agenda</button>
                     ${[
                         { d: 'Seg', id: 'rr-chk-seg', c: '#ef4444' },
                         { d: 'Ter', id: 'rr-chk-ter', c: '#f97316' },
@@ -3063,8 +3093,10 @@ function renderRotaRedonda() {
                         { d: 'Sáb', id: 'rr-chk-sab', c: '#8b5cf6' },
                         { d: 'Dom', id: 'rr-chk-dom', c: '#ec4899' }
                     ].map(item => `<label id="lbl-${item.id}" style="display:flex; align-items:center; gap:2px; font-size:0.7rem; color:${item.c}; font-weight:700; cursor:pointer; padding:2px 6px; border-radius:4px; border:1.5px solid ${item.c}; transition:background 0.15s;"><input type="checkbox" id="${item.id}" onchange="(function(chk,lbl,cor){lbl.style.background=chk.checked?cor:'transparent';lbl.style.color=chk.checked?'white':cor;})(this,this.closest('label'),'${item.c}')"> ${item.d}</label>`).join('')}
+                    
+                    <div id="rr-sugestoes-dias-container" style="flex-basis: 100%; font-size: 0.75rem; padding: 2px 4px; display: none;"></div>
+                    <input type="hidden" id="rr-chk-agenda-clicado" value="0">
                 </div>
-                <div id="rr-sugestoes-dias-container" style="font-size: 0.75rem; padding: 2px 4px; display: none;"></div>
 
                 <!-- TIPO SERVIÇO (searchable) -->
                 <div style="display: flex; gap: 0.5rem; align-items: flex-end;">
