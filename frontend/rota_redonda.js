@@ -1041,7 +1041,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Event Delegation
-    document.addEventListener('click', (e) => {
+    document.addEventListener('click', async (e) => {
         if (!document.getElementById('view-logistica-rota-redonda')?.classList.contains('active')) return;
 
         // Botão + Tipo de OS (Obra/Evento)
