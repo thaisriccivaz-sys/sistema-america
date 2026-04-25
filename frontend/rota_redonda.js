@@ -3110,10 +3110,10 @@ function renderRotaRedonda() {
                     
                     <div style="flex: 2;">
                         <label style="${labelStyle}">Habilidades</label>
-                        <div style="display: flex; gap: 4px; flex-wrap: wrap; margin-top: 2px;">
+                        <div style="display: flex; gap: 4px; flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; margin-top: 2px;">
                             ${HABILIDADES.filter(s => s !== 'TECNICO').map(s => {
-                                const ic = {'TANQUE':'🚛', 'CARGA':'🚚', 'VAC':'🏗️', 'UTILITARIO':'🛻', 'CARRETINHA':'🔗', 'CARROCERIA':'🚛', 'TANQUE GRANDE':'🚛'}[s] || '';
-                                return `<button class="btn-tipo-servico" data-tipo="${s}" style="border: 1px solid #2d9e5f; color: #2d9e5f; background: transparent; border-radius: 99px; padding: 2px 10px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">${ic ? `<span style="margin-right:3px;font-size:0.8rem;">${ic}</span>` : ''}${s}</button>`;
+                                const ic = {'VAC':'🏗️', 'UTILITARIO':'🛻', 'CARRETINHA':'🔗'}[s] || '';
+                                return `<button class="btn-tipo-servico" data-tipo="${s}" style="border: 1px solid #2d9e5f; color: #2d9e5f; background: transparent; border-radius: 99px; padding: 2px 10px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap;">${ic ? `<span style="margin-right:3px;font-size:0.8rem;">${ic}</span>` : ''}${s}</button>`;
                             }).join('')}
                         </div>
                     </div>
