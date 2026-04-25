@@ -371,19 +371,44 @@ async function reverseGeocodeEndereco() {
             // Preenche o endereço
             if (endInput) {
                 if (endInput.value.trim() !== '') {
-                    Swal.fire({
-                        title: 'Atenção',
-                        html: `O endereço atual é:<br><b>${endInput.value}</b><br><br>O endereço encontrado para a coordenada é:<br><b>${data.display_name}</b><br><br>Deseja substituir o endereço atual pelo endereço encontrado?`,
-                        icon: 'warning',
-                        showCancelButton: true,
-                        confirmButtonText: 'Sim',
-                        cancelButtonText: 'Não'
-                    }).then((result) => {
-                        if (result.isConfirmed) {
-                            endInput.value = data.display_name;
-                            endInput.style.background = '#f0fdf4';
-                        }
-                    });
+                    // Modal de comparação customizado
+                    document.getElementById('rr-modal-coord-confirm')?.remove();
+                    const cm = document.createElement('div');
+                    cm.id = 'rr-modal-coord-confirm';
+                    cm.style.cssText = 'position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;';
+                    const endAtual = endInput.value;
+                    const endNovo  = data.display_name;
+                    cm.innerHTML = `<div style="background:white;border-radius:14px;width:560px;max-width:96vw;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+                        <div style="background:#b45309;color:white;padding:1rem 1.25rem;display:flex;align-items:center;gap:10px;">
+                            <i class="ph ph-warning" style="font-size:1.5rem;"></i>
+                            <div>
+                                <p style="margin:0;font-weight:700;font-size:0.95rem;">Substituir endereço?</p>
+                                <p style="margin:0;font-size:0.72rem;opacity:0.85;">Coordenada encontrou um endereço diferente do atual</p>
+                            </div>
+                        </div>
+                        <div style="padding:1.25rem;display:flex;flex-direction:column;gap:12px;">
+                            <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:12px;">
+                                <p style="margin:0 0 4px;font-size:0.68rem;font-weight:700;color:#991b1b;text-transform:uppercase;letter-spacing:0.5px;">📌 Endereço atual</p>
+                                <p style="margin:0;font-size:0.85rem;color:#1e293b;font-weight:600;">${endAtual}</p>
+                            </div>
+                            <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:12px;">
+                                <p style="margin:0 0 4px;font-size:0.68rem;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:0.5px;">📍 Endereço encontrado pela coordenada</p>
+                                <p style="margin:0;font-size:0.85rem;color:#1e293b;font-weight:600;">${endNovo}</p>
+                            </div>
+                            <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px;">
+                                <button id="btn-coord-nao" style="padding:8px 22px;background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:6px;font-weight:600;font-size:0.85rem;cursor:pointer;">Não, manter atual</button>
+                                <button id="btn-coord-sim" style="padding:8px 22px;background:#2d9e5f;color:white;border:none;border-radius:6px;font-weight:600;font-size:0.85rem;cursor:pointer;">Sim, substituir</button>
+                            </div>
+                        </div>
+                    </div>`;
+                    document.body.appendChild(cm);
+                    cm.querySelector('#btn-coord-sim').onclick = () => {
+                        endInput.value = endNovo;
+                        endInput.style.background = '#f0fdf4';
+                        cm.remove();
+                    };
+                    cm.querySelector('#btn-coord-nao').onclick = () => cm.remove();
+                    cm.addEventListener('click', e => { if (e.target === cm) cm.remove(); });
                 } else {
                     endInput.value = data.display_name;
                     endInput.style.background = '#f0fdf4';
@@ -469,7 +494,9 @@ async function geocodeEndereco() {
     try {
         let data = null;
         for (const url of queries) {
-            const resp = await fetch(url, { headers });
+            // Pede até 5 resultados para permitir seleção
+            const urlMulti = url.replace(/limit=\d+/, 'limit=5');
+            const resp = await fetch(urlMulti, { headers });
             const result = await resp.json();
             if (result && result.length > 0) { data = result; break; }
             // Respeita o rate limit do Nominatim (1 req/s)
@@ -481,28 +508,57 @@ async function geocodeEndereco() {
             return;
         }
 
-        const lat = parseFloat(data[0].lat);
-        const lng = parseFloat(data[0].lon);
-        const nomeFormatado = data[0].display_name;
+        const aplicarGeoResult = (item) => {
+            const lat = parseFloat(item.lat);
+            const lng = parseFloat(item.lon);
+            if (placeholder) placeholder.style.display = 'none';
+            const mapaDiv = document.getElementById('rr-mapa-leaflet');
+            if (mapaDiv) mapaDiv.style.display = 'block';
+            inicializarMapa();
+            setTimeout(() => {
+                _leafletMap.invalidateSize();
+                posicionarMarcador(lat, lng);
+                preencherLatLng(lat, lng);
+                if (endInput) endInput.style.background = '#f0fdf4';
+                osState.enderecoConfirmado = true;
+                atualizarBloqueio();
+            }, 50);
+        };
 
-        // Mostra o mapa e oculta placeholder
-        if (placeholder) placeholder.style.display = 'none';
-        const mapaDiv = document.getElementById('rr-mapa-leaflet');
-        if (mapaDiv) mapaDiv.style.display = 'block';
-
-        // Inicializa mapa se ainda não foi feito
-        inicializarMapa();
-
-        // Aguarda o mapa estar pronto e posiciona
-        setTimeout(() => {
-            _leafletMap.invalidateSize();
-            posicionarMarcador(lat, lng);
-            preencherLatLng(lat, lng);
-            // Mantém o endereço original do usuário — apenas destaca em verde
-            if (endInput) endInput.style.background = '#f0fdf4';
-            osState.enderecoConfirmado = true;
-            atualizarBloqueio();
-        }, 50);
+        if (data.length > 1) {
+            // Mostra modal de seleção
+            document.getElementById('rr-modal-geo-select')?.remove();
+            const geoModal = document.createElement('div');
+            geoModal.id = 'rr-modal-geo-select';
+            geoModal.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;';
+            const itens = data.map((d, idx) => {
+                const parts = d.display_name.split(',');
+                const titulo = parts.slice(0,2).join(',').trim();
+                const detalhe = parts.slice(2).join(',').trim();
+                return `<div onclick="window._geoSelect(${idx})" style="cursor:pointer;padding:10px 14px;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:8px;background:#f8fafc;transition:background 0.15s;" onmouseover="this.style.background='#e0f2fe'" onmouseout="this.style.background='#f8fafc'">
+                    <div style="font-weight:600;color:#1e293b;font-size:0.85rem;">📍 ${titulo}</div>
+                    <div style="font-size:0.72rem;color:#64748b;margin-top:2px;">${detalhe}</div>
+                </div>`;
+            }).join('');
+            geoModal.innerHTML = `<div style="background:white;border-radius:12px;width:500px;max-width:95vw;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 16px 48px rgba(0,0,0,0.25);overflow:hidden;">
+                <div style="background:#0369a1;color:white;padding:1rem 1.25rem;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+                    <div>
+                        <p style="margin:0;font-weight:700;font-size:0.95rem;">🗺️ Múltiplos endereços encontrados</p>
+                        <p style="margin:0;font-size:0.72rem;opacity:0.85;">Clique no endereço correto para confirmar</p>
+                    </div>
+                    <button onclick="document.getElementById('rr-modal-geo-select').remove()" style="background:transparent;border:none;color:white;font-size:1.3rem;cursor:pointer;">✕</button>
+                </div>
+                <div style="padding:1rem;overflow-y:auto;flex:1;">${itens}</div>
+            </div>`;
+            document.body.appendChild(geoModal);
+            geoModal.addEventListener('click', e => { if (e.target === geoModal) geoModal.remove(); });
+            window._geoSelect = (idx) => {
+                geoModal.remove();
+                aplicarGeoResult(data[idx]);
+            };
+        } else {
+            aplicarGeoResult(data[0]);
+        }
 
     } catch (err) {
         console.error('[Nominatim]', err);
@@ -840,9 +896,13 @@ function abrirModalListaOS(numOs, registros) {
                 <button id="btn-fechar-modal-lista-os" style="background:transparent;border:none;color:white;font-size:1.5rem;cursor:pointer;"><i class="ph ph-x"></i></button>
             </div>
             <!-- Filtros -->
-            <div style="padding:0.75rem 1.5rem; background:#f8fafc; border-bottom:1px solid #e2e8f0; display:flex; gap:10px;">
-                <input type="text" id="rr-filter-cliente" placeholder="Filtrar por Cliente..." style="flex:1; padding:8px 12px; border:1px solid #cbd5e1; border-radius:4px; font-size:0.85rem; outline:none;">
-                <input type="text" id="rr-filter-endereco" placeholder="Filtrar por Endereço..." style="flex:1; padding:8px 12px; border:1px solid #cbd5e1; border-radius:4px; font-size:0.85rem; outline:none;">
+            <div style="padding:0.6rem 1.5rem; background:#f8fafc; border-bottom:1px solid #e2e8f0; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                <input type="text" id="rr-filter-cliente" placeholder="🔍 Cliente..." style="flex:1; min-width:120px; padding:7px 10px; border:1px solid #cbd5e1; border-radius:4px; font-size:0.82rem; outline:none;">
+                <input type="text" id="rr-filter-endereco" placeholder="🔍 Endereço..." style="flex:1; min-width:120px; padding:7px 10px; border:1px solid #cbd5e1; border-radius:4px; font-size:0.82rem; outline:none;">
+                <input type="text" id="rr-filter-tipo" placeholder="🔍 Tipo de Serviço..." style="flex:1; min-width:140px; padding:7px 10px; border:1px solid #cbd5e1; border-radius:4px; font-size:0.82rem; outline:none;">
+                <input type="date" id="rr-filter-data" style="padding:7px 10px; border:1px solid #cbd5e1; border-radius:4px; font-size:0.82rem; outline:none;" title="Filtrar por data">
+                <select id="rr-filter-produto" style="flex:1; min-width:120px; padding:7px 10px; border:1px solid #cbd5e1; border-radius:4px; font-size:0.82rem; outline:none;"><option value="">🔍 Produto...</option></select>
+                <button onclick="['rr-filter-cliente','rr-filter-endereco','rr-filter-tipo','rr-filter-data','rr-filter-produto'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';}); document.querySelectorAll('.rr-os-row').forEach(r=>r.style.display='');" style="padding:7px 12px; background:#ef4444; color:white; border:none; border-radius:4px; font-size:0.78rem; cursor:pointer; white-space:nowrap;">✖ Limpar</button>
             </div>
             <div style="overflow-y:auto;padding:1rem;flex:1;">
                 <table style="width:100%;border-collapse:collapse;font-size:0.85rem;text-align:left;">
@@ -869,6 +929,36 @@ function abrirModalListaOS(numOs, registros) {
     modal.querySelector('#btn-fechar-modal-lista-os')?.addEventListener('click', () => modal.remove());
     modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
 
+    // Populate product dropdown
+    const prodSelMain = document.getElementById('rr-filter-produto');
+    if (prodSelMain) {
+        const allProdsMain = new Set();
+        registros.forEach(r => {
+            try { const pp = JSON.parse(r.produtos); if(Array.isArray(pp)) pp.forEach(p => { if(p.desc) allProdsMain.add(p.desc); }); } catch(e) {}
+        });
+        allProdsMain.forEach(nome => {
+            const info = typeof EQUIPAMENTOS_DICT !== 'undefined' ? EQUIPAMENTOS_DICT[nome?.trim()] : null;
+            const ic = info?.icone ? info.icone + ' ' : '';
+            const opt = document.createElement('option');
+            opt.value = nome.toLowerCase();
+            opt.textContent = ic + nome;
+            prodSelMain.appendChild(opt);
+        });
+    }
+
+    // Double-click on row loads the OS
+    modal.querySelectorAll('.rr-os-row td:nth-child(2)').forEach(td => {
+        td.style.cursor = 'pointer';
+        td.title = 'Duplo clique para carregar esta OS';
+        td.addEventListener('dblclick', () => {
+            const row = td.closest('tr');
+            if (!row) return;
+            const rIdx = parseInt(row.dataset.idx || '-1');
+            if (rIdx >= 0 && registros[rIdx]) window._carregarRegistroNaTela(registros[rIdx]);
+        });
+    });
+
+
     window._excluirOsLista = async (id) => {
         if (!confirm('Tem certeza que deseja excluir esta Ordem de Serviço?')) return;
         try {
@@ -889,17 +979,24 @@ function abrirModalListaOS(numOs, registros) {
     };
 
     // Lógica de Filtro
+
     const filterData = () => {
-        const fCli = (document.getElementById('rr-filter-cliente')?.value || '').toLowerCase();
-        const fEnd = (document.getElementById('rr-filter-endereco')?.value || '').toLowerCase();
+        const fCli  = (document.getElementById('rr-filter-cliente')?.value  || '').toLowerCase();
+        const fEnd  = (document.getElementById('rr-filter-endereco')?.value || '').toLowerCase();
+        const fTipo = (document.getElementById('rr-filter-tipo')?.value     || '').toLowerCase();
+        const fData = (document.getElementById('rr-filter-data')?.value     || '');
+        const fProd = (document.getElementById('rr-filter-produto')?.value  || '').toLowerCase();
         document.querySelectorAll('.rr-os-row').forEach(row => {
-            const cli = row.dataset.cliente || '';
-            const end = row.dataset.endereco || '';
-            row.style.display = (cli.includes(fCli) && end.includes(fEnd)) ? '' : 'none';
+            const ok = (row.dataset.cliente  || '').includes(fCli)
+                    && (row.dataset.endereco || '').includes(fEnd)
+                    && (row.dataset.tipo     || '').includes(fTipo)
+                    && (!fData || (row.dataset.data || '') === fData)
+                    && (!fProd || (row.dataset.produto || '').includes(fProd));
+            row.style.display = ok ? '' : 'none';
         });
     };
-    document.getElementById('rr-filter-cliente')?.addEventListener('input', filterData);
-    document.getElementById('rr-filter-endereco')?.addEventListener('input', filterData);
+    ['rr-filter-cliente','rr-filter-endereco','rr-filter-tipo'].forEach(id => document.getElementById(id)?.addEventListener('input', filterData));
+    ['rr-filter-data','rr-filter-produto'].forEach(id => document.getElementById(id)?.addEventListener('change', filterData));
 }
 
 function parseJsonFront(val) {
@@ -1987,7 +2084,7 @@ async function abrirModalOSCliente(nomeCliente) {
 
     loadingEl.remove();
 
-    const gerarLinhas = (regs) => regs.map(r => {
+    const gerarLinhas = (regs) => regs.map((r, i) => {
         let prod = '—'; let prodData = '';
         try {
             const pp = JSON.parse(r.produtos);
@@ -2008,7 +2105,7 @@ async function abrirModalOSCliente(nomeCliente) {
         try { const v = JSON.parse(r.variaveis); if(v && v.length) varis = v.join(', '); } catch(e) { if(r.variaveis) varis = r.variaveis; }
         const dataFormatada = r.data_os ? r.data_os.split('-').reverse().join('/') : '—';
         return `
-            <tr class="rr-os-row-cli" data-cliente="${(r.cliente||'').toLowerCase()}" data-endereco="${(r.endereco||'').toLowerCase()}" data-tipo="${(r.tipo_servico||'').toLowerCase()}" data-data="${r.data_os||''}" data-produto="${prodData}" style="border-bottom:1px solid #e2e8f0;transition:background 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+            <tr class="rr-os-row-cli" data-idx="${i}" data-cliente="${(r.cliente||'').toLowerCase()}" data-endereco="${(r.endereco||'').toLowerCase()}" data-tipo="${(r.tipo_servico||'').toLowerCase()}" data-data="${r.data_os||''}" data-produto="${prodData}" style="border-bottom:1px solid #e2e8f0;transition:background 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
                 <td style="padding:0.6rem 0.5rem;white-space:nowrap;font-weight:700;color:#2d9e5f;">${r.numero_os}</td>
                 <td style="padding:0.6rem 0.5rem;font-weight:600;">${r.cliente}</td>
                 <td style="padding:0.6rem 0.5rem;font-size:0.78rem;">${r.endereco||'—'}</td>
@@ -2029,20 +2126,20 @@ async function abrirModalOSCliente(nomeCliente) {
     modal.id = 'rr-modal-os-cliente';
     modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;';
     modal.innerHTML = `
-        <div style="background:white;width:95vw;max-width:1100px;max-height:90vh;display:flex;flex-direction:column;border-radius:10px;overflow:hidden;box-shadow:0 16px 48px rgba(0,0,0,0.25);">
-            <div style="background:#2d9e5f;color:white;padding:0.9rem 1.25rem;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+        <div style="background:white;width:100vw;height:100vh;max-width:100vw;max-height:100vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:none;">
+            <div style="background:#2d9e5f;color:white;padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
                 <div>
-                    <h3 style="margin:0;font-size:1.05rem;font-weight:700;"><i class="ph ph-clipboard-text"></i> OS de ${nomeCliente}</h3>
-                    <p style="margin:0;font-size:0.75rem;opacity:0.85;">${totalLabel}. Clique no lápis para carregar.</p>
+                    <h3 style="margin:0;font-size:1.1rem;font-weight:700;"><i class="ph ph-clipboard-text"></i> OS de ${nomeCliente}</h3>
+                    <p style="margin:0;font-size:0.75rem;opacity:0.85;">${totalLabel}. Duplo clique no cliente para carregar.</p>
                 </div>
-                <button id="btn-fechar-modal-os" style="background:transparent;border:none;color:white;font-size:1.4rem;cursor:pointer;"><i class="ph ph-x"></i></button>
+                <button id="btn-fechar-modal-os" style="background:transparent;border:none;color:white;font-size:1.5rem;cursor:pointer;"><i class="ph ph-x"></i></button>
             </div>
             <div style="padding:0.6rem 1rem;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;gap:8px;flex-wrap:wrap;align-items:center;flex-shrink:0;">
                 <input type="text" id="rr-filter-cli-os" placeholder="🔍 Cliente..." style="flex:1;min-width:110px;padding:6px 10px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.8rem;outline:none;">
                 <input type="text" id="rr-filter-end-os" placeholder="🔍 Endereço..." style="flex:1;min-width:110px;padding:6px 10px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.8rem;outline:none;">
                 <input type="text" id="rr-filter-tipo-os" placeholder="🔍 Tipo de Serviço..." style="flex:1;min-width:130px;padding:6px 10px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.8rem;outline:none;">
                 <input type="date" id="rr-filter-data-os" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.8rem;outline:none;" title="Filtrar por data">
-                <input type="text" id="rr-filter-prod-os" placeholder="🔍 Produto..." style="flex:1;min-width:100px;padding:6px 10px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.8rem;outline:none;">
+                <select id="rr-filter-prod-os" style="flex:1;min-width:110px;padding:6px 10px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.8rem;outline:none;"><option value="">🔍 Produto...</option></select>
                 <button onclick="['rr-filter-cli-os','rr-filter-end-os','rr-filter-tipo-os','rr-filter-data-os','rr-filter-prod-os'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';}); document.querySelectorAll('.rr-os-row-cli').forEach(r=>r.style.display='');" style="padding:6px 12px;background:#ef4444;color:white;border:none;border-radius:4px;font-size:0.78rem;cursor:pointer;white-space:nowrap;">✖ Limpar</button>
             </div>
             <div style="overflow-y:auto;flex:1;">
@@ -2069,6 +2166,40 @@ async function abrirModalOSCliente(nomeCliente) {
     modal.querySelector('#btn-fechar-modal-os')?.addEventListener('click', () => modal.remove());
     modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
 
+    // Populate product dropdown with unique products from all registros
+    const prodSelect = document.getElementById('rr-filter-prod-os');
+    if (prodSelect) {
+        const allProds = new Set();
+        registros.forEach(r => {
+            try {
+                const pp = JSON.parse(r.produtos);
+                if (Array.isArray(pp)) pp.forEach(p => { if(p.desc) allProds.add(p.desc); });
+            } catch(e) {}
+        });
+        allProds.forEach(nome => {
+            const info = typeof EQUIPAMENTOS_DICT !== 'undefined' ? EQUIPAMENTOS_DICT[nome?.trim()] : null;
+            const ic = info?.icone ? info.icone + ' ' : '';
+            const opt = document.createElement('option');
+            opt.value = nome.toLowerCase();
+            opt.textContent = ic + nome;
+            prodSelect.appendChild(opt);
+        });
+    }
+
+    // Double-click on client td loads the OS
+    modal.querySelectorAll('.rr-os-row-cli td:nth-child(2)').forEach(td => {
+        td.style.cursor = 'pointer';
+        td.title = 'Duplo clique para editar';
+        td.addEventListener('dblclick', () => {
+            const row = td.closest('tr');
+            if (!row) return;
+            const idx = parseInt(row.dataset.idx);
+            if (!isNaN(idx) && registros[idx]) {
+                window._carregarRegistroNaTela(registros[idx]);
+            }
+        });
+    });
+
     const filterCli = () => {
         const fCli  = (document.getElementById('rr-filter-cli-os')?.value  || '').toLowerCase();
         const fEnd  = (document.getElementById('rr-filter-end-os')?.value  || '').toLowerCase();
@@ -2085,7 +2216,8 @@ async function abrirModalOSCliente(nomeCliente) {
         });
     };
     ['rr-filter-cli-os','rr-filter-end-os','rr-filter-tipo-os','rr-filter-data-os','rr-filter-prod-os']
-        .forEach(id => document.getElementById(id)?.addEventListener('input', filterCli));
+        .forEach(id => document.getElementById(id)?.addEventListener('change', filterCli));
+    ['rr-filter-cli-os','rr-filter-end-os','rr-filter-tipo-os'].forEach(id => document.getElementById(id)?.addEventListener('input', filterCli));
 }
 
 function abrirModalEnderecos(nomeCliente) {
