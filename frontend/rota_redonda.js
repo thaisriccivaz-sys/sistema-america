@@ -749,7 +749,7 @@ async function rrFazerUploadVideo(input) {
     formData.append('numero_os', osId);
 
     try {
-        const token = localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+        const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || sessionStorage.getItem('token') || '';
         const resp = await fetch('/api/logistica/os/upload-video', {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}` },
@@ -2825,9 +2825,18 @@ function gerarPrefixoIcones(tipoOverride = null) {
     if (osState.tiposServico.has('CARRETINHA') && !iconesVariaveis.includes('🔗')) iconesVariaveis.push('🔗');
     if (osState.tiposServico.has('UTILITARIO') && !iconesVariaveis.includes('🛻')) iconesVariaveis.push('🛻');
 
-    // Mostrar os icones dos produtos apenas quando o serviço for o de entrega
+    // Mostrar ícones dos produtos para serviços de entrega/envio/instalação/devolução
+    const isEntregaOuEnvio = tipoServico.includes('ENTREGA') ||
+        tipoServico.includes('ENVIO') ||
+        tipoServico.includes('INSTALACAO') ||
+        tipoServico.includes('INSTALAÇÃO') ||
+        tipoServico.includes('DEVOLUCAO') ||
+        tipoServico.includes('DEVOLUÇÃO') ||
+        tipoServico.includes('RETIRADA TOTAL') ||
+        (!tipoOverride && tipoServico.includes('TROCA'));
+
     let todosIcones = [];
-    if (tipoServico.includes('ENTREGA') || (!tipoOverride && tipoServico.includes('TROCA'))) {
+    if (isEntregaOuEnvio) {
         todosIcones = [...new Set([iconeServico, ...iconesProdutos, ...iconesVariaveis].filter(Boolean))];
     } else {
         todosIcones = [...new Set([iconeServico, ...iconesVariaveis].filter(Boolean))];
