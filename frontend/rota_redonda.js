@@ -1,4 +1,4 @@
-/* ════════════════════════════════════════════════════════════════════════════
+﻿/* ════════════════════════════════════════════════════════════════════════════
    MÓDULO: ROTA REDONDA (ORDENS DE SERVIÇO)
    ════════════════════════════════════════════════════════════════════════════ */
 
@@ -852,7 +852,7 @@ function duplicarOsNaTela(payload) {
         if (dataEl) dataEl.value = '';
         // Responsável, telefone, email — mantém
         set('rr-input-responsavel', payload.responsavel);
-        set('rr-input-telefone', payload.telefone);
+        set('rr-input-sms', payload.telefone);
         set('rr-input-email', payload.email);
         // Obs / vídeo — mantém
         set('rr-input-obs', payload.observacoes);
@@ -1149,7 +1149,7 @@ function carregarRegistroNaTela(os) {
     set('rr-input-endereco', os.endereco);
     set('rr-input-complemento', os.complemento);
     set('rr-input-responsavel', os.responsavel);
-    set('rr-input-telefone', os.telefone);
+    set('rr-input-sms', os.telefone);
     set('rr-input-email', os.email);
     set('rr-input-obs', os.observacoes);
     set('rr-input-obs-internas', os.observacoes_internas);
@@ -1579,7 +1579,7 @@ function preencherFormularioComDados(dados, tipoOs) {
     set('rr-input-cliente',     dados.cliente);
     set('rr-input-endereco',    dados.endereco);
     set('rr-input-responsavel', dados.responsavel);
-    set('rr-input-telefone',    dados.telefone);
+    set('rr-input-sms',    dados.telefone);
     set('rr-input-email',       dados.email);
     set('rr-input-obs',         dados.observacoes);
     set('rr-input-obs-internas',dados.observacoesInternas);
@@ -1982,7 +1982,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 contrato: document.querySelector('input[placeholder="Nº Contrato"]')?.value?.trim() || '',
                 data_os: document.getElementById('rr-input-data')?.value || '',
                 responsavel: document.getElementById('rr-input-responsavel')?.value?.trim() || '',
-                telefone: document.getElementById('rr-input-telefone')?.value?.trim() || '',
+                telefone: document.getElementById('rr-input-sms')?.value?.trim() || '',
                 email: document.getElementById('rr-input-email')?.value?.trim() || '',
                 tipo_servico: document.getElementById('rr-tipo-servico')?.value || '',
                 hora_inicio: horaInicio?.value || '',
