@@ -268,7 +268,7 @@ function inicializarMapa() {
         const { lat, lng } = e.latlng;
         posicionarMarcador(lat, lng);
         preencherLatLng(lat, lng);
-        // Geocodificação reversa via Nominatim
+        // Geocodificação reversa via Nominatim (clique no mapa)
         try {
             const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=pt-BR`, {
                 headers: { 'Accept-Language': 'pt-BR', 'User-Agent': 'AmericaRentalSistema/1.0' }
@@ -276,7 +276,11 @@ function inicializarMapa() {
             const d = await r.json();
             if (d.display_name) {
                 const endInput = document.getElementById('rr-input-endereco');
-                if (endInput) { endInput.value = d.display_name; endInput.style.background = '#f0fdf4'; }
+                // Só preenche se o campo estiver vazio (não sobrescreve o que o usuário digitou)
+                if (endInput && !endInput.value.trim()) {
+                    endInput.value = d.display_name;
+                    endInput.style.background = '#f0fdf4';
+                }
             }
         } catch (_) {}
     });
@@ -376,7 +380,8 @@ async function geocodeEndereco() {
             _leafletMap.invalidateSize();
             posicionarMarcador(lat, lng);
             preencherLatLng(lat, lng);
-            if (endInput) { endInput.value = nomeFormatado; endInput.style.background = '#f0fdf4'; }
+            // Mantém o endereço original do usuário — apenas destaca em verde
+            if (endInput) endInput.style.background = '#f0fdf4';
         }, 50);
 
     } catch (err) {
