@@ -98,7 +98,6 @@ const ACOES_DICT = {
     'CARRETINHA': '🔗',
     'LEVAR EPI': '🦺',
     'INTEGRAÇÃO': '👷',
-    '! AVULSO': '❗',
     'BANHEIRO ITINERANTE': '🔛'
 };
 const ACOES = Object.keys(ACOES_DICT);
@@ -819,7 +818,7 @@ function abrirModalListaOS(numOs, registros) {
             <div style="background:#475569;color:white;padding:1.25rem 1.5rem;display:flex;justify-content:space-between;align-items:center;">
                 <div>
                     <h3 style="margin:0;font-size:1.2rem;font-weight:700;">Resultados da Busca</h3>
-                    <p style="margin:0;font-size:0.8rem;opacity:0.9;">Serviços vinculados à OS #${numOs}. Clique no botão Editar para carregar as informações.</p>
+                    <p style="margin:0;font-size:0.8rem;opacity:0.9;">Serviços vinculados à busca "${numOs}". Clique no botão Editar para carregar as informações.</p>
                 </div>
                 <button id="btn-fechar-modal-lista-os" style="background:transparent;border:none;color:white;font-size:1.5rem;cursor:pointer;"><i class="ph ph-x"></i></button>
             </div>
@@ -1817,6 +1816,16 @@ function atualizarBloqueio() {
 }
 
 // ── ATUALIZA LISTA DE PRODUTOS FILTRADA POR OBRA/EVENTO ───────────────────
+window.onChangeTipoServico = function() {
+    const val = (document.getElementById('rr-tipo-servico')?.value || '').toUpperCase();
+    if (val.includes('VAC')) {
+        osState.tiposServico.add('VAC');
+        atualizarUI();
+    }
+    calcularTempo();
+    atualizarIconesCliente();
+};
+
 function atualizarDropdownProdutos() {
     const datalist = document.getElementById('rr-prod-list');
     const badge = document.getElementById('rr-badge-tipo-os');
@@ -1824,7 +1833,7 @@ function atualizarDropdownProdutos() {
 
     const produtos = getProdutosPorTipo(osState.tipoOs);
     datalist.innerHTML = produtos.map(p =>
-        `<option value="${p.nome}" label="${p.icone} ${p.nome}">${p.icone} ${p.nome}</option>`
+        `<option value="${p.icone} ${p.nome}"></option>`
     ).join('');
 
     if (badge) {
@@ -1892,9 +1901,9 @@ function gerarPrefixoIcones(tipoOverride = null) {
     // Mostrar os icones dos produtos apenas quando o serviço for o de entrega
     let todosIcones = [];
     if (tipoServico.includes('ENTREGA') || (tipoServico.includes('TROCA') && tipoOverride === 'ENTREGA')) {
-        todosIcones = [iconeServico, ...iconesProdutos, ...iconesVariaveis].filter(Boolean);
+        todosIcones = [...new Set([iconeServico, ...iconesProdutos, ...iconesVariaveis].filter(Boolean))];
     } else {
-        todosIcones = [iconeServico, ...iconesVariaveis].filter(Boolean);
+        todosIcones = [...new Set([iconeServico, ...iconesVariaveis].filter(Boolean))];
     }
     
     // Se for Noturno, adiciona 🌘 na frente de tudo!
@@ -2175,7 +2184,7 @@ function renderRotaRedonda() {
                     <div style="flex: 2;">
                         <label style="${labelStyle}">Tipo de Serviço</label>
                         <select id="rr-tipo-servico"
-                            onchange="calcularTempo(); atualizarIconesCliente();"
+                            onchange="onChangeTipoServico();"
                             style="${inputStyle} cursor:pointer;">
                             <option value="">Selecione o tipo de serviço...</option>
                             ${TIPOS_SERVICO_OS.map(t => `<option value="${t}">${t}</option>`).join('')}
