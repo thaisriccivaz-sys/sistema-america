@@ -1,4 +1,4 @@
-/* ════════════════════════════════════════════════════════════════════════════
+﻿/* ════════════════════════════════════════════════════════════════════════════
    MÓDULO: ROTA REDONDA (ORDENS DE SERVIÇO)
    ════════════════════════════════════════════════════════════════════════════ */
 
@@ -1245,73 +1245,70 @@ function parseDiasFront(diasJson) {
 
 function exibirModalAgendaEndereco(data, enderecoAtual) {
     document.getElementById('rr-modal-agenda-end')?.remove();
-    const DIAS_ALL = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
-    const colorMap = { 'Seg':'#ef4444', 'Ter':'#f97316', 'Qua':'#ca8a04', 'Qui':'#16a34a', 'Sex':'#3b82f6', 'Sáb':'#8b5cf6', 'Dom':'#ec4899' };
+    const DIAS_ALL = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'S\u00e1b', 'Dom'];
+    const colorMap = { 'Seg':'#ef4444', 'Ter':'#f97316', 'Qua':'#ca8a04', 'Qui':'#16a34a', 'Sex':'#3b82f6', 'S\u00e1b':'#8b5cf6', 'Dom':'#ec4899' };
 
-    const exatos   = data.exatos   || [];
-    const proximos = data.proximos || [];
+    const modoCoord = data.modo === 'coordenadas';
+    const exatos    = data.exatos   || [];
+    const proximos  = data.proximos || [];
 
-    // Separar proximos em faixas de distância para exibição
-    const proximos2km = proximos.filter(o => o.distancia_km <= 2);
-    const proximos5km = proximos.filter(o => o.distancia_km > 2 && o.distancia_km <= 5);
+    // Faixas: \u22641km verde, 1-3km amarelo
+    const proximos1km = proximos.filter(o => o.distancia_km <= 1);
+    const proximos3km = proximos.filter(o => o.distancia_km > 1 && o.distancia_km <= 3);
 
-    // Regra: se tem dias_sugeridos_2km, ignorar dias_sugeridos_5km na sugestão principal
-    const tem2km = data.dias_sugeridos_2km && data.dias_sugeridos_2km.length > 0;
-    const tem5km = data.dias_sugeridos_5km && data.dias_sugeridos_5km.length > 0;
+    const tem1km = data.dias_sugeridos_2km && data.dias_sugeridos_2km.length > 0;
+    const tem3km = data.dias_sugeridos_5km && data.dias_sugeridos_5km.length > 0;
 
-    // Encontrar a menor distância por dia (para mostrar na pill)
+    // Menor dist\u00e2ncia por dia (para pills)
     const distanciaPorDia = {};
     [...exatos.map(o => ({...o, distancia_km: o.distancia_km ?? 0})), ...proximos].forEach(os => {
         const dias = parseDiasFront(os.dias_semana);
         const dist = parseFloat(os.distancia_km ?? 0);
         dias.forEach(d => {
-            if (distanciaPorDia[d] === undefined || dist < distanciaPorDia[d]) {
-                distanciaPorDia[d] = dist;
-            }
+            if (distanciaPorDia[d] === undefined || dist < distanciaPorDia[d]) distanciaPorDia[d] = dist;
         });
     });
 
-    const renderPills = (diasArr, showDist = true) => diasArr.map(d => {
+    const corDistancia = (km) => km <= 1 ? '#16a34a' : km <= 3 ? '#ca8a04' : '#ef4444';
+
+    const renderPills = (diasArr) => diasArr.map(d => {
         const cor = colorMap[d.dia] || '#2563eb';
         const dist = distanciaPorDia[d.dia];
-        const distLabel = showDist && dist !== undefined ? `<small style="opacity:0.85; font-size:0.68rem;"> ${dist === 0 ? 'Exato' : dist.toFixed(1)+'km'}</small>` : '';
+        const distLabel = dist !== undefined
+            ? `<small style="opacity:0.85; font-size:0.68rem;"> ${dist < 0.1 ? 'Exato' : dist.toFixed(1)+'km'}</small>` : '';
         return `<span style="background:${cor};color:white;border-radius:6px;padding:4px 12px;font-size:0.78rem;font-weight:700;display:inline-flex;align-items:center;gap:5px;box-shadow:0 2px 4px rgba(0,0,0,0.18);">${d.dia}${distLabel}<small style="opacity:0.75;">(${d.ocorrencias}x)</small></span>`;
     }).join('');
 
     let msgSugestao = '';
-    if (tem2km) {
+    if (tem1km) {
         msgSugestao = `
             <div style="background:#f0fdf4; border:1.5px solid #86efac; border-radius:10px; padding:1rem;">
-                <p style="margin:0 0 0.6rem 0; font-weight:700; color:#166534; font-size:0.9rem;"><i class="ph ph-check-circle-fill"></i> Manutenções a menos de 2km — prioridade máxima</p>
-                <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:0.5rem;">
-                    ${renderPills(data.dias_sugeridos_2km)}
-                </div>
-                <p style="margin:0; font-size:0.72rem; color:#15803d;"><i class="ph ph-lightning"></i> Recomendamos fortemente agendar nestes dias. Há banheiros muito próximos nessa rota!</p>
+                <p style="margin:0 0 0.6rem 0; font-weight:700; color:#166534; font-size:0.9rem;"><i class="ph ph-check-circle-fill"></i> Manuten\u00e7\u00f5es a menos de 1km \u2014 prioridade m\u00e1xima</p>
+                <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:0.5rem;">${renderPills(data.dias_sugeridos_2km)}</div>
+                <p style="margin:0; font-size:0.72rem; color:#15803d;"><i class="ph ph-lightning"></i> Recomendamos fortemente agendar nestes dias!</p>
             </div>`;
-        if (tem5km) {
+        if (tem3km) {
             msgSugestao += `
             <div style="background:#fefce8; border:1px solid #fde68a; border-radius:8px; padding:0.75rem; opacity:0.75;">
-                <p style="margin:0; font-size:0.75rem; color:#854d0e;"><i class="ph ph-warning"></i> Também há manutenções entre 2km e 5km — porém priorize os dias acima (mais próximos).</p>
+                <p style="margin:0; font-size:0.75rem; color:#854d0e;"><i class="ph ph-warning"></i> Tamb\u00e9m h\u00e1 manuten\u00e7\u00f5es entre 1km e 3km \u2014 priorize os dias acima.</p>
             </div>`;
         }
-    } else if (tem5km) {
+    } else if (tem3km) {
         msgSugestao = `
             <div style="background:#fefce8; border:1.5px solid #fde68a; border-radius:10px; padding:1rem;">
-                <p style="margin:0 0 0.6rem 0; font-weight:700; color:#854d0e; font-size:0.9rem;"><i class="ph ph-warning"></i> Manutenções na região (2 a 5km)</p>
-                <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:0.5rem;">
-                    ${renderPills(data.dias_sugeridos_5km)}
-                </div>
-                <p style="margin:0; font-size:0.72rem; color:#a16207;"><i class="ph ph-info"></i> Nenhuma manutenção a menos de 2km. Considere agendar nestes dias para otimizar a rota.</p>
+                <p style="margin:0 0 0.6rem 0; font-weight:700; color:#854d0e; font-size:0.9rem;"><i class="ph ph-warning"></i> Manuten\u00e7\u00f5es na regi\u00e3o (1 a 3km)</p>
+                <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:0.5rem;">${renderPills(data.dias_sugeridos_5km)}</div>
+                <p style="margin:0; font-size:0.72rem; color:#a16207;"><i class="ph ph-info"></i> Nenhuma manuten\u00e7\u00e3o a menos de 1km. Considere agendar nestes dias.</p>
             </div>`;
     } else if (proximos.length > 0) {
         msgSugestao = `
             <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:10px; padding:1rem;">
-                <p style="margin:0; font-weight:700; color:#b91c1c; font-size:0.88rem;"><i class="ph ph-warning-circle"></i> OS encontradas na região, mas sem dias de semana definidos ainda.</p>
+                <p style="margin:0; font-weight:700; color:#b91c1c; font-size:0.88rem;"><i class="ph ph-warning-circle"></i> OS encontradas na regi\u00e3o, mas sem dias de semana definidos ainda.</p>
             </div>`;
     } else {
         msgSugestao = `
             <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:10px; padding:1rem;">
-                <p style="margin:0; font-weight:700; color:#b91c1c; font-size:0.88rem;"><i class="ph ph-warning-circle"></i> Nenhuma manutenção cadastrada em raio de 5km.</p>
+                <p style="margin:0; font-weight:700; color:#b91c1c; font-size:0.88rem;"><i class="ph ph-warning-circle"></i> Nenhuma manuten\u00e7\u00e3o cadastrada em raio de 3km.</p>
             </div>`;
     }
 
@@ -1324,7 +1321,7 @@ function exibirModalAgendaEndereco(data, enderecoAtual) {
                 return `<span style="display:inline-flex;align-items:center;justify-content:center;min-width:32px;height:22px;border-radius:5px;font-size:0.65rem;font-weight:700;background:${ativo?(colorMap[d]||cor):'#f1f5f9'};color:${ativo?'white':'#94a3b8'};margin:1px;">${d}</span>`;
             }).join('');
             const distCell = !semDist && os.distancia_km !== undefined
-                ? `<td style="padding:5px 8px;font-size:0.72rem;font-weight:700;color:${os.distancia_km <= 2 ? '#16a34a' : '#f59e0b'};">${os.distancia_km}km</td>`
+                ? `<td style="padding:5px 8px;font-size:0.72rem;font-weight:700;color:${corDistancia(os.distancia_km)};">${os.distancia_km < 0.1 ? '<0.1' : os.distancia_km}km</td>`
                 : '';
             return `<tr style="border-bottom:1px solid #f1f5f9;">
                 <td style="padding:5px 8px;font-size:0.72rem;font-weight:700;color:${cor};">${os.numero_os||'-'}</td>
@@ -1336,10 +1333,17 @@ function exibirModalAgendaEndereco(data, enderecoAtual) {
         }).join('');
     };
 
-    const cabExatos = `<tr style="background:#f8fafc;"><th style="padding:5px 8px;font-size:0.7rem;color:#64748b;text-align:left;">OS</th><th style="padding:5px 8px;font-size:0.7rem;color:#64748b;text-align:left;">Cliente</th><th style="padding:5px 8px;font-size:0.7rem;color:#64748b;text-align:left;">Tipo</th><th style="padding:5px 8px;font-size:0.7rem;color:#64748b;text-align:left;">Dias</th></tr>`;
-    const cabProx  = `<tr style="background:#fffbeb;"><th style="padding:5px 8px;font-size:0.7rem;color:#64748b;text-align:left;">OS</th><th style="padding:5px 8px;font-size:0.7rem;color:#64748b;text-align:left;">Cliente</th><th style="padding:5px 8px;font-size:0.7rem;color:#64748b;text-align:left;">Dist.</th><th style="padding:5px 8px;font-size:0.7rem;color:#64748b;text-align:left;">Tipo</th><th style="padding:5px 8px;font-size:0.7rem;color:#64748b;text-align:left;">Dias</th></tr>`;
+    const cabDist = `<tr style="background:#f8fafc;"><th style="padding:5px 8px;font-size:0.7rem;color:#64748b;text-align:left;">OS</th><th style="padding:5px 8px;font-size:0.7rem;color:#64748b;text-align:left;">Cliente</th><th style="padding:5px 8px;font-size:0.7rem;color:#64748b;text-align:left;">Dist.</th><th style="padding:5px 8px;font-size:0.7rem;color:#64748b;text-align:left;">Tipo</th><th style="padding:5px 8px;font-size:0.7rem;color:#64748b;text-align:left;">Dias</th></tr>`;
 
-    const endLabel = enderecoAtual.length > 60 ? enderecoAtual.substring(0, 60) + '…' : enderecoAtual;
+    const labelExatos = modoCoord
+        ? `<i class="ph ph-crosshair"></i> No mesmo local \u2014 \u22640.1km (${exatos.length})`
+        : `<i class="ph ph-map-pin"></i> OS neste endere\u00e7o \u2014 texto (${exatos.length})`;
+
+    const modoLabel = modoCoord
+        ? '<span style="font-size:0.7rem;background:rgba(255,255,255,0.25);border-radius:4px;padding:1px 6px;margin-left:6px;">\ud83d\udccd por coordenadas</span>'
+        : '<span style="font-size:0.7rem;background:rgba(255,255,255,0.25);border-radius:4px;padding:1px 6px;margin-left:6px;">\ud83d\udd24 por endere\u00e7o</span>';
+
+    const endLabel = enderecoAtual.length > 60 ? enderecoAtual.substring(0, 60) + '\u2026' : enderecoAtual;
     const modal = document.createElement('div');
     modal.id = 'rr-modal-agenda-end';
     modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;padding:1rem;';
@@ -1347,7 +1351,7 @@ function exibirModalAgendaEndereco(data, enderecoAtual) {
         <div style="background:white;border-radius:14px;width:960px;max-width:98vw;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 16px 56px rgba(0,0,0,0.25);overflow:hidden;">
             <div style="background:#2d9e5f;color:white;padding:0.9rem 1.2rem;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
                 <div>
-                    <div style="font-weight:700;font-size:0.95rem;"><i class="ph ph-calendar-check"></i> Agenda de Manutenções</div>
+                    <div style="font-weight:700;font-size:0.95rem;display:flex;align-items:center;gap:6px;"><i class="ph ph-calendar-check"></i> Agenda de Manuten\u00e7\u00f5es${modoLabel}</div>
                     <div style="font-size:0.72rem;opacity:0.85;margin-top:2px;"><i class="ph ph-map-pin"></i> ${endLabel}</div>
                 </div>
                 <button id="btn-fechar-modal-agenda" style="background:rgba(255,255,255,0.2);border:none;color:white;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;"><i class="ph ph-x"></i></button>
@@ -1355,54 +1359,44 @@ function exibirModalAgendaEndereco(data, enderecoAtual) {
             <div style="overflow-y:auto;padding:1.2rem;display:flex;flex-direction:column;gap:1rem;">
                 ${msgSugestao}
                 ${exatos.length > 0 ? `<div>
-                    <p style="font-size:0.78rem;font-weight:700;color:#334155;margin:0 0 6px;"><i class="ph ph-map-pin"></i> OS neste endereço exato (${exatos.length}):</p>
-                    <table style="width:100%;border-collapse:collapse;"><thead>${cabExatos}</thead><tbody>${renderTabela(exatos, '#2d9e5f', true)}</tbody></table>
+                    <p style="font-size:0.78rem;font-weight:700;color:#334155;margin:0 0 6px;">${labelExatos}</p>
+                    <table style="width:100%;border-collapse:collapse;"><thead>${cabDist}</thead><tbody>${renderTabela(exatos, '#2d9e5f')}</tbody></table>
                 </div>` : ''}
-                ${proximos2km.length > 0 ? `<div>
-                    <p style="font-size:0.78rem;font-weight:700;color:#166534;margin:0 0 6px;"><i class="ph ph-circles-three"></i> Próximos — até 2km (${proximos2km.length}):</p>
-                    <table style="width:100%;border-collapse:collapse;"><thead>${cabProx}</thead><tbody>${renderTabela(proximos2km, '#16a34a')}</tbody></table>
+                ${proximos1km.length > 0 ? `<div>
+                    <p style="font-size:0.78rem;font-weight:700;color:#166534;margin:0 0 6px;"><i class="ph ph-circles-three"></i> Pr\u00f3ximos \u2014 at\u00e9 1km \ud83d\udfe2 (${proximos1km.length}):</p>
+                    <table style="width:100%;border-collapse:collapse;"><thead>${cabDist}</thead><tbody>${renderTabela(proximos1km, '#16a34a')}</tbody></table>
                 </div>` : ''}
-                ${proximos5km.length > 0 ? `<div>
-                    <p style="font-size:0.78rem;font-weight:700;color:#92400e;margin:0 0 6px;"><i class="ph ph-circles-three"></i> Próximos — 2 a 5km (${proximos5km.length}):</p>
-                    <table style="width:100%;border-collapse:collapse;"><thead>${cabProx}</thead><tbody>${renderTabela(proximos5km, '#f59e0b')}</tbody></table>
+                ${proximos3km.length > 0 ? `<div>
+                    <p style="font-size:0.78rem;font-weight:700;color:#92400e;margin:0 0 6px;"><i class="ph ph-circles-three"></i> Pr\u00f3ximos \u2014 1 a 3km \ud83d\udfe1 (${proximos3km.length}):</p>
+                    <table style="width:100%;border-collapse:collapse;"><thead>${cabDist}</thead><tbody>${renderTabela(proximos3km, '#ca8a04')}</tbody></table>
                 </div>` : ''}
-                ${exatos.length === 0 && proximos.length === 0 ? '<p style="text-align:center;color:#94a3b8;font-size:0.82rem;padding:1.5rem 0;"><i class="ph ph-empty"></i> Nenhuma manutenção encontrada neste endereço ou num raio de 5km.</p>' : ''}
+                ${exatos.length === 0 && proximos.length === 0 ? '<p style="text-align:center;color:#94a3b8;font-size:0.82rem;padding:1.5rem 0;"><i class="ph ph-empty"></i> Nenhuma manuten\u00e7\u00e3o encontrada em raio de 3km.</p>' : ''}
             </div>
         </div>`;
     document.body.appendChild(modal);
     modal.querySelector('#btn-fechar-modal-agenda')?.addEventListener('click', () => modal.remove());
     modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
 
-    // Atualiza a sugestão abaixo dos botões de dia da semana na tela principal
-    // Prioridade: mostrar apenas o faixa mais próxima
     const containerSugestoes = document.getElementById('rr-sugestoes-dias-container');
     if (containerSugestoes) {
-        if (tem2km) {
+        if (tem1km) {
             const pills = data.dias_sugeridos_2km.map(d => {
-                const cor = colorMap[d.dia] || '#2563eb';
                 const dist = distanciaPorDia[d.dia];
-                const distLabel = dist !== undefined ? ` (${dist === 0 ? 'Exato' : dist.toFixed(1)+'km'})` : '';
-                return `<span style="background:${cor};color:white;border-radius:5px;padding:2px 8px;font-size:0.72rem;font-weight:700;">${d.dia}${distLabel}</span>`;
+                const distLabel = dist !== undefined ? ` (${dist < 0.1 ? 'Exato' : dist.toFixed(1)+'km'})` : '';
+                return `<span style="background:${colorMap[d.dia]||'#16a34a'};color:white;border-radius:5px;padding:2px 8px;font-size:0.72rem;font-weight:700;">${d.dia}${distLabel}</span>`;
             }).join('');
-            containerSugestoes.innerHTML = `<span style="color:#166534; font-weight:600; font-size:0.75rem;"><i class="ph ph-check-square"></i> Sugestão (≤2km):</span> ${pills}`;
-            containerSugestoes.style.display = 'flex';
-            containerSugestoes.style.flexWrap = 'wrap';
-            containerSugestoes.style.gap = '4px';
-            containerSugestoes.style.alignItems = 'center';
-        } else if (tem5km) {
+            containerSugestoes.innerHTML = `<span style="color:#166534;font-weight:600;font-size:0.75rem;"><i class="ph ph-check-square"></i> Sugest\u00e3o (\u22641km \ud83d\udfe2):</span> ${pills}`;
+            containerSugestoes.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;align-items:center;';
+        } else if (tem3km) {
             const pills = data.dias_sugeridos_5km.map(d => {
-                const cor = colorMap[d.dia] || '#ca8a04';
                 const dist = distanciaPorDia[d.dia];
                 const distLabel = dist !== undefined ? ` (${dist.toFixed(1)+'km'})` : '';
-                return `<span style="background:${cor};color:white;border-radius:5px;padding:2px 8px;font-size:0.72rem;font-weight:700;">${d.dia}${distLabel}</span>`;
+                return `<span style="background:${colorMap[d.dia]||'#ca8a04'};color:white;border-radius:5px;padding:2px 8px;font-size:0.72rem;font-weight:700;">${d.dia}${distLabel}</span>`;
             }).join('');
-            containerSugestoes.innerHTML = `<span style="color:#854d0e; font-weight:600; font-size:0.75rem;"><i class="ph ph-warning"></i> Sugestão (≤5km):</span> ${pills}`;
-            containerSugestoes.style.display = 'flex';
-            containerSugestoes.style.flexWrap = 'wrap';
-            containerSugestoes.style.gap = '4px';
-            containerSugestoes.style.alignItems = 'center';
+            containerSugestoes.innerHTML = `<span style="color:#854d0e;font-weight:600;font-size:0.75rem;"><i class="ph ph-warning"></i> Sugest\u00e3o (1-3km \ud83d\udfe1):</span> ${pills}`;
+            containerSugestoes.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;align-items:center;';
         } else {
-            containerSugestoes.innerHTML = `<span style="color:#b91c1c; font-size:0.75rem;"><i class="ph ph-warning-circle"></i> Nenhuma rota sugerida (raio de 5km sem dias preenchidos).</span>`;
+            containerSugestoes.innerHTML = `<span style="color:#b91c1c;font-size:0.75rem;"><i class="ph ph-warning-circle"></i> Nenhuma rota sugerida em raio de 3km.</span>`;
             containerSugestoes.style.display = 'block';
         }
     }

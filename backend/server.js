@@ -7913,7 +7913,7 @@ app.get('/api/logistica/os/agenda-endereco', authenticateToken, (req, res) => {
     db.all(sqlExato, finalParams, (err, rowsExatos) => {
         if (err) return res.status(500).json({ error: err.message });
 
-        // 2. Se tiver coordenadas, busca por raio de 5km
+        // 2. Se tiver coordenadas, busca e classifica APENAS por distância (haversine)
         if (lat && lng) {
             const userLat = typeof lat === 'string' ? parseFloat(lat.replace(',', '.')) : parseFloat(lat);
             const userLng = typeof lng === 'string' ? parseFloat(lng.replace(',', '.')) : parseFloat(lng);
@@ -7922,50 +7922,46 @@ app.get('/api/logistica/os/agenda-endereco', authenticateToken, (req, res) => {
                     FROM os_logistica WHERE status = 'ativo' AND lat IS NOT NULL AND lng IS NOT NULL`, [], (err2, todasOs) => {
                 if (err2) return res.status(500).json({ error: err2.message });
 
-                // Filtra por raio e calcula distância
-                const exatosIds = new Set((rowsExatos || []).map(r => r.id));
-                const proximo = (todasOs || [])
-                    .filter(os => !exatosIds.has(os.id)) // evita duplicar os exatos
+                // Classifica TODAS as OS por distância real (ignora texto)
+                const todasComDistancia = (todasOs || [])
                     .map(os => {
                         const distancia = haversineKm(userLat, userLng, os.lat, os.lng);
                         return { ...os, distancia_km: Math.round(distancia * 100) / 100 };
                     })
-                    .filter(os => os.distancia_km <= 5)
-                    .sort((a, b) => a.distancia_km - b.distancia_km)
-                    .slice(0, 10);
+                    .filter(os => os.distancia_km <= 3) // só retorna até 3km
+                    .sort((a, b) => a.distancia_km - b.distancia_km);
 
-                // Agrega dias da semana dos resultados exatos e próximos
-                const os2km = [];
-                const os5km = [];
-                
-                const allOsWithDistance = [
-                    ...(rowsExatos || []).map(r => ({ ...r, distancia_km: r.lat && r.lng ? haversineKm(userLat, userLng, r.lat, r.lng) : 0 })),
-                    ...proximo
-                ];
+                // Faixas de distância: ≤1km (muito próximo), 1-3km (próximo)
+                const os1km = todasComDistancia.filter(os => os.distancia_km <= 1);
+                const os3km = todasComDistancia.filter(os => os.distancia_km > 1 && os.distancia_km <= 3);
 
-                for (const os of allOsWithDistance) {
-                    if (os.distancia_km <= 2) os2km.push(os);
-                    else if (os.distancia_km <= 5) os5km.push(os);
-                }
+                // "Exatos por coordenada": OS a menos de 0.1km (100m) — realmente no mesmo local
+                const exatosCoord = todasComDistancia
+                    .filter(os => os.distancia_km <= 0.1)
+                    .slice(0, 15);
 
-                const diasSugeridos2km = agregaDias(os2km);
-                const diasSugeridos5km = agregaDias(os5km);
+                // "Próximos" = tudo de 0.1km até 3km
+                const proximosCoord = todasComDistancia
+                    .filter(os => os.distancia_km > 0.1)
+                    .slice(0, 15)
+                    .map(os => ({ ...os, dias_semana_arr: parseDias(os.dias_semana) }));
 
-                const diasProximos = proximo.map(os => ({
-                    ...os,
-                    dias_semana_arr: parseDias(os.dias_semana)
-                }));
+                const diasSugeridos1km = agregaDias(os1km);
+                const diasSugeridos3km = agregaDias(os3km);
 
                 res.json({
-                    exatos: rowsExatos || [],
-                    dias_sugeridos_2km: diasSugeridos2km,
-                    dias_sugeridos_5km: diasSugeridos5km,
-                    proximos: diasProximos,
-                    total_exatos: (rowsExatos || []).length,
-                    total_proximos: proximo.length
+                    exatos: exatosCoord,                    // OS a ≤100m (coordenada)
+                    dias_sugeridos_2km: diasSugeridos1km,  // mantém nome do campo para compat. frontend
+                    dias_sugeridos_5km: diasSugeridos3km,  // mantém nome do campo para compat. frontend
+                    proximos: proximosCoord,               // 0.1 a 3km
+                    total_exatos: exatosCoord.length,
+                    total_proximos: proximosCoord.length,
+                    modo: 'coordenadas',                   // indica ao frontend que está usando coordenadas
+                    faixas: { verde: 1, amarelo: 3 }
                 });
             });
         } else {
+            // Sem coordenadas: usa só busca por texto
             const diasAgregados = agregaDias(rowsExatos || []);
             res.json({
                 exatos: rowsExatos || [],
@@ -7973,7 +7969,8 @@ app.get('/api/logistica/os/agenda-endereco', authenticateToken, (req, res) => {
                 dias_sugeridos_5km: [],
                 proximos: [],
                 total_exatos: (rowsExatos || []).length,
-                total_proximos: 0
+                total_proximos: 0,
+                modo: 'texto'
             });
         }
     });
