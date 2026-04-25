@@ -1,4 +1,4 @@
-﻿/* ════════════════════════════════════════════════════════════════════════════
+/* ════════════════════════════════════════════════════════════════════════════
    MÓDULO: ROTA REDONDA (ORDENS DE SERVIÇO)
    ════════════════════════════════════════════════════════════════════════════ */
 
@@ -613,39 +613,28 @@ function colarUrlGoogleMaps() {
     const mapsUrl = 'https://www.google.com/maps/search/' + encodeURIComponent(endereco || 'São Paulo, Brasil');
     window.open(mapsUrl, '_blank');
 
-    // Modal centralizado
+    // Modal centralizado — apenas lat/lng
     document.getElementById('rr-gmaps-modal')?.remove();
     const overlay = document.createElement('div');
     overlay.id = 'rr-gmaps-modal';
     overlay.style.cssText = 'position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;';
     overlay.innerHTML = `
-        <div style="background:white;border-radius:12px;width:460px;max-width:95vw;box-shadow:0 16px 48px rgba(0,0,0,0.28);overflow:hidden;">
+        <div style="background:white;border-radius:12px;width:380px;max-width:95vw;box-shadow:0 16px 48px rgba(0,0,0,0.28);overflow:hidden;">
             <div style="background:#15803d;color:white;padding:0.9rem 1.2rem;display:flex;justify-content:space-between;align-items:center;">
                 <div>
                     <div style="font-weight:700;font-size:0.95rem;">&#127758; Google Maps aberto</div>
-                    <div style="font-size:0.72rem;opacity:0.85;margin-top:2px;">Confirme o pin correto, depois cole a URL ou as coordenadas abaixo</div>
+                    <div style="font-size:0.72rem;opacity:0.85;margin-top:2px;">Confirme o pin correto e cole as coordenadas abaixo</div>
                 </div>
                 <button onclick="document.getElementById('rr-gmaps-modal').remove()" style="background:rgba(255,255,255,0.2);border:none;color:white;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">&#10005;</button>
             </div>
             <div style="padding:1.2rem;">
-                <div style="margin-bottom:1rem;">
-                    <label style="font-size:0.78rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">&#128279; URL do Google Maps</label>
-                    <input id="rr-gmaps-url-input" type="text" placeholder="Cole a URL da barra do navegador aqui..."
-                        style="width:100%;box-sizing:border-box;padding:7px 10px;border:1.5px solid #cbd5e1;border-radius:6px;font-size:0.8rem;outline:none;"
-                        onfocus="this.style.borderColor='#16a34a'" onblur="this.style.borderColor='#cbd5e1'">
-                    <div style="font-size:0.68rem;color:#6b7280;margin-top:3px;">Ex: https://www.google.com/maps/place/.../@-23.52,-46.73,17z/...</div>
-                </div>
-                <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem;">
-                    <div style="flex:1;height:1px;background:#e5e7eb;"></div>
-                    <span style="font-size:0.72rem;color:#9ca3af;white-space:nowrap;">ou informe diretamente</span>
-                    <div style="flex:1;height:1px;background:#e5e7eb;"></div>
-                </div>
-                <div style="margin-bottom:1rem;">
-                    <label style="font-size:0.78rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">&#128205; Latitude, Longitude</label>
-                    <input id="rr-gmaps-coord-input" type="text" placeholder="Ex: -23.5236807, -46.7391688"
-                        style="width:100%;box-sizing:border-box;padding:7px 10px;border:1.5px solid #cbd5e1;border-radius:6px;font-size:0.8rem;outline:none;"
-                        onfocus="this.style.borderColor='#16a34a'" onblur="this.style.borderColor='#cbd5e1'">
-                </div>
+                <label style="font-size:0.78rem;font-weight:600;color:#374151;display:block;margin-bottom:6px;">&#128205; Latitude, Longitude</label>
+                <input id="rr-gmaps-coord-input" type="text" placeholder="Ex: -23.5236807, -46.7391688"
+                    style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:6px;font-size:0.85rem;outline:none;margin-bottom:0.3rem;"
+                    onfocus="this.style.borderColor='#16a34a'" onblur="this.style.borderColor='#cbd5e1'"
+                    onkeydown="if(event.key==='Enter') _aplicarUrlGoogleMaps()">
+                <div style="font-size:0.68rem;color:#6b7280;margin-bottom:1rem;">Cole as coordenadas do Google Maps. Ex: <strong>-23.5236807, -46.7391688</strong></div>
+                <input id="rr-gmaps-url-input" type="hidden">
                 <button onclick="_aplicarUrlGoogleMaps()" style="width:100%;background:#15803d;color:white;border:none;border-radius:7px;padding:9px;font-size:0.85rem;font-weight:700;cursor:pointer;transition:background 0.15s;"
                     onmouseover="this.style.background='#166534'" onmouseout="this.style.background='#15803d'">&#10003; Aplicar coordenadas no mapa</button>
             </div>
@@ -653,7 +642,7 @@ function colarUrlGoogleMaps() {
     `;
     document.body.appendChild(overlay);
     overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
-    setTimeout(() => document.getElementById('rr-gmaps-url-input')?.focus(), 150);
+    setTimeout(() => document.getElementById('rr-gmaps-coord-input')?.focus(), 150);
 }
 
 window._aplicarUrlGoogleMaps = function() {
