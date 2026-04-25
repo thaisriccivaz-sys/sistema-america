@@ -300,10 +300,60 @@ function posicionarMarcador(lat, lng) {
 function preencherLatLng(lat, lng) {
     const latInput = document.getElementById('rr-input-lat');
     const lngInput = document.getElementById('rr-input-lng');
-    if (latInput) { latInput.removeAttribute('readonly'); latInput.value = lat.toFixed(7); latInput.style.background = '#f0fdf4'; latInput.setAttribute('readonly', ''); }
-    if (lngInput) { lngInput.removeAttribute('readonly'); lngInput.value = lng.toFixed(7); lngInput.style.background = '#f0fdf4'; lngInput.setAttribute('readonly', ''); }
+    if (latInput) { latInput.value = lat.toFixed(7); latInput.style.background = '#f0fdf4'; }
+    if (lngInput) { lngInput.value = lng.toFixed(7); lngInput.style.background = '#f0fdf4'; }
     osState.lat = lat;
     osState.lng = lng;
+}
+
+async function reverseGeocodeEndereco() {
+    const latInput = document.getElementById('rr-input-lat');
+    const lngInput = document.getElementById('rr-input-lng');
+    const endInput = document.getElementById('rr-input-endereco');
+    const btn      = document.getElementById('btn-geocode-coord');
+    const placeholder = document.getElementById('rr-mapa-placeholder');
+
+    const lat = parseFloat(latInput?.value?.replace(',', '.'));
+    const lng = parseFloat(lngInput?.value?.replace(',', '.'));
+
+    if (isNaN(lat) || isNaN(lng)) {
+        if (!latInput?.value) latInput?.focus();
+        else lngInput?.focus();
+        return;
+    }
+
+    if (btn) btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>';
+
+    try {
+        const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`;
+        const resp = await fetch(url);
+        const data = await resp.json();
+
+        if (data && data.display_name) {
+            // Posiciona no mapa
+            if (!_leafletMap) inicializarMapa();
+            if (placeholder) placeholder.style.display = 'none';
+            posicionarMarcador(lat, lng);
+            
+            // Preenche o endereço
+            if (endInput) {
+                endInput.value = data.display_name;
+                endInput.style.background = '#f0fdf4';
+            }
+            
+            osState.lat = lat;
+            osState.lng = lng;
+            if (latInput) latInput.style.background = '#f0fdf4';
+            if (lngInput) lngInput.style.background = '#f0fdf4';
+        } else {
+            alert('Não foi possível encontrar um endereço para estas coordenadas.');
+        }
+    } catch (e) {
+        console.error('Erro no reverse geocoding', e);
+        alert('Erro ao consultar endereço. Tente novamente mais tarde.');
+    } finally {
+        if (btn) btn.innerHTML = '<i class="ph ph-map-pin"></i>';
+    }
 }
 
 async function geocodeEndereco() {
@@ -757,6 +807,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const btnGeocode = e.target.closest('#btn-geocode-endereco');
         if (btnGeocode) { geocodeEndereco(); return; }
 
+        // Botão Geocode Coord (buscar lat/lng → endereço + mapa)
+        const btnGeocodeCoord = e.target.closest('#btn-geocode-coord');
+        if (btnGeocodeCoord) { reverseGeocodeEndereco(); return; }
+
         // Botão Limpar OS
         const btnLimpar = e.target.closest('#btn-limpar-os');
         if (btnLimpar) {
@@ -1095,11 +1149,14 @@ function renderRotaRedonda() {
                     </div>
                     <div style="flex: 0 0 90px;">
                         <label style="${labelStyle}">Latitude</label>
-                        <input type="text" id="rr-input-lat" style="${inputStyle} font-size:0.65rem;" placeholder="-23.5505" readonly>
+                        <input type="text" id="rr-input-lat" style="${inputStyle} font-size:0.65rem;" placeholder="-23.5505">
                     </div>
-                    <div style="flex: 0 0 90px;">
+                    <div style="flex: 0 0 118px;">
                         <label style="${labelStyle}">Longitude</label>
-                        <input type="text" id="rr-input-lng" style="${inputStyle} font-size:0.65rem;" placeholder="-46.6333" readonly>
+                        <div style="display:flex; gap:2px;">
+                            <input type="text" id="rr-input-lng" style="${inputStyle} font-size:0.65rem;" placeholder="-46.6333">
+                            <button id="btn-geocode-coord" style="background:#0369a1; border:none; color:white; width:26px; height:26px; border-radius:4px; cursor:pointer; flex-shrink:0;" title="Buscar endereço pelas coordenadas"><i class="ph ph-map-pin"></i></button>
+                        </div>
                     </div>
                 </div>
 
