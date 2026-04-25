@@ -759,9 +759,10 @@ async function rrFazerUploadVideo(input) {
         });
         const json = await resp.json();
         if (!resp.ok || !json.ok) throw new Error(json.error || 'Erro no upload');
-        // Usa o link curto (/v/abc123) se disponível, senão o longo
-        rrExibirLinkVideo(json.link, json.short_link || json.link);
-        mostrarToastAviso('✅ Vídeo enviado! Link curto pronto para copiar.');
+        // Prioridade: tiny_url (tinyurl.com) > short_link (/v/code) > link longo
+        const linkParaExibir = json.tiny_url || json.short_link || json.link;
+        rrExibirLinkVideo(json.link, linkParaExibir);
+        mostrarToastAviso('✅ Vídeo enviado! Link pronto para copiar.');
         if (progress) progress.style.display = 'none';
     } catch(e) {
         mostrarToastAviso('❌ Erro ao enviar vídeo: ' + e.message);
