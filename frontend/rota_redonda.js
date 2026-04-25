@@ -23,9 +23,9 @@ const EQUIPAMENTOS_DICT = {
     'ELX OBRA':               { icone: '🔵', codigo: 'ELX O' },
     'ELX EVENTO':             { icone: '🟣', codigo: 'ELX E' },
     'PCD OBRA':               { icone: '♿',  codigo: 'PCD O' },
-    'PCD EVENTO':             { icone: '🧑🏾‍🦳', codigo: 'PCD E' },
-    'CHUVEIRO OBRA':          { icone: '🚣', codigo: 'CHUVEIRO O' },
-    'CHUVEIRO EVENTO':        { icone: '🚣', codigo: 'CHUVEIRO E' },
+    'PCD EVENTO':             { icone: '♿', codigo: 'PCD E' },
+    'CHUVEIRO OBRA':          { icone: '🚿', codigo: 'CHUVEIRO O' },
+    'CHUVEIRO EVENTO':        { icone: '🚿', codigo: 'CHUVEIRO E' },
     'HIDRÁULICO OBRA':        { icone: '🚽', codigo: 'HIDRÁULICO O' },
     'HIDRÁULICO EVENTO':      { icone: '🚽', codigo: 'HIDRÁULICO E' },
     'MICTÓRIO OBRA':          { icone: '💦', codigo: 'MICTÓRIO O' },
@@ -1347,6 +1347,9 @@ function preencherFormularioComDados(dados, tipoOs) {
         document.body.appendChild(toast);
         setTimeout(() => toast.remove(), 8000);
     }
+
+    // Atualiza ícones com base nas infos pré-carregadas
+    atualizarIconesCliente();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -1664,6 +1667,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (osState.acoes.has(acao)) osState.acoes.delete(acao);
             else osState.acoes.add(acao);
             atualizarUI();
+            atualizarIconesCliente();
             return;
         }
 
@@ -1698,12 +1702,12 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Remover Produto
         const btnRemProd = e.target.closest('.btn-rem-prod');
         if (btnRemProd) {
             const id = parseInt(btnRemProd.dataset.id);
             osState.produtos = osState.produtos.filter(p => p.id !== id);
             atualizarUI();
+            atualizarIconesCliente();
             calcularTempo(); // recalcula ao remover
             return;
         }
@@ -2029,7 +2033,7 @@ function renderRotaRedonda() {
             <div style="display: flex; align-items: center; gap: 4px; flex: 1;">
                 <label style="font-weight: 600; font-size: 0.75rem; color: white; white-space: nowrap; margin: 0;">Cliente</label>
                 <div style="display:flex; gap:4px; align-items:center; width: 100%;">
-                    <input type="text" id="rr-input-cliente" style="${inputStyle} border:none;" placeholder="Nome do Cliente">
+                    <input type="text" id="rr-input-cliente" style="${inputStyle} border:none;" placeholder="Nome do Cliente" oninput="this.dataset.nomeBase = '';">
                     <button id="btn-pesq-cliente-os" style="${btnStyle} background:#1a7a40;" title="Pesquisar cliente"><i class="ph ph-magnifying-glass"></i></button>
                 </div>
             </div>
@@ -2128,7 +2132,7 @@ function renderRotaRedonda() {
                     <div style="flex: 2;">
                         <label style="${labelStyle}">Tipo de Serviço</label>
                         <select id="rr-tipo-servico"
-                            onchange="calcularTempo()"
+                            onchange="calcularTempo(); atualizarIconesCliente();"
                             style="${inputStyle} cursor:pointer;">
                             <option value="">Selecione o tipo de serviço...</option>
                             ${TIPOS_SERVICO_OS.map(t => `<option value="${t}">${t}</option>`).join('')}
