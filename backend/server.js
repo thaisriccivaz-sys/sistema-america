@@ -7864,6 +7864,106 @@ db.run(`CREATE TABLE IF NOT EXISTS os_logistica (
     }
 });
 
+// Tabela de vídeos das OS (token público UUID, imutável)
+db.run(`CREATE TABLE IF NOT EXISTS os_videos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    token TEXT UNIQUE NOT NULL,
+    os_id INTEGER,
+    numero_os TEXT,
+    nome_original TEXT,
+    mime_type TEXT,
+    tamanho INTEGER,
+    caminho_arquivo TEXT NOT NULL,
+    criado_em TEXT DEFAULT (datetime('now'))
+)`, (err) => {
+    if (err) console.error('[OS Vídeos] Erro na criação da tabela:', err.message);
+    else console.log('[OS Vídeos] Tabela os_videos OK');
+});
+
+// Diretório de vídeos das OS
+const OS_VIDEO_DIR = path.join(__dirname, 'uploads', 'os_videos');
+if (!fs.existsSync(OS_VIDEO_DIR)) fs.mkdirSync(OS_VIDEO_DIR, { recursive: true });
+
+// Multer para vídeos (sem limite de tamanho fixo — ajustar conforme necessário)
+const multerVideo = require('multer')({
+    storage: require('multer').diskStorage({
+        destination: (req, file, cb) => cb(null, OS_VIDEO_DIR),
+        filename: (req, file, cb) => {
+            const token = require('crypto').randomUUID();
+            req._videoToken = token;
+            const ext = path.extname(file.originalname) || '.mp4';
+            cb(null, token + ext);
+        }
+    }),
+    limits: { fileSize: 500 * 1024 * 1024 }, // 500MB
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype.startsWith('video/')) cb(null, true);
+        else cb(new Error('Apenas arquivos de vídeo são aceitos.'));
+    }
+});
+
+// ── UPLOAD DE VÍDEO (autenticado) ────────────────────────────────────────────
+app.post('/api/logistica/os/upload-video', authenticateToken, multerVideo.single('video'), (req, res) => {
+    if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+
+    const token = req._videoToken || path.basename(req.file.filename, path.extname(req.file.filename));
+    const { os_id, numero_os } = req.body;
+
+    db.run(
+        `INSERT INTO os_videos (token, os_id, numero_os, nome_original, mime_type, tamanho, caminho_arquivo)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [token, os_id || null, numero_os || null, req.file.originalname, req.file.mimetype, req.file.size, req.file.path],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            const linkPublico = `/api/video/${token}`;
+            res.json({ ok: true, token, link: linkPublico, nome: req.file.originalname });
+        }
+    );
+});
+
+// ── STREAMING PÚBLICO DE VÍDEO (SEM autenticação, SEM dados do sistema) ──────
+// Acesso apenas via token UUID — não expõe nenhuma informação interna
+app.get('/api/video/:token', (req, res) => {
+    const token = (req.params.token || '').replace(/[^a-zA-Z0-9\-]/g, '');
+    if (!token) return res.status(400).send('Token inválido.');
+
+    db.get(`SELECT caminho_arquivo, mime_type, nome_original, tamanho FROM os_videos WHERE token = ?`, [token], (err, row) => {
+        if (err || !row) return res.status(404).send('Vídeo não encontrado.');
+        if (!fs.existsSync(row.caminho_arquivo)) return res.status(404).send('Arquivo não localizado.');
+
+        const stat = fs.statSync(row.caminho_arquivo);
+        const fileSize = stat.size;
+        const mimeType = row.mime_type || 'video/mp4';
+        const range = req.headers.range;
+
+        if (range) {
+            // Suporte a streaming por range (para reprodução no browser)
+            const parts = range.replace(/bytes=/, '').split('-');
+            const start = parseInt(parts[0], 10);
+            const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+            const chunkSize = end - start + 1;
+            const file = fs.createReadStream(row.caminho_arquivo, { start, end });
+            res.writeHead(206, {
+                'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+                'Accept-Ranges': 'bytes',
+                'Content-Length': chunkSize,
+                'Content-Type': mimeType,
+                'Content-Disposition': `inline; filename="${encodeURIComponent(row.nome_original || 'video.mp4')}"`,
+                'Cache-Control': 'no-store'
+            });
+            file.pipe(res);
+        } else {
+            res.writeHead(200, {
+                'Content-Length': fileSize,
+                'Content-Type': mimeType,
+                'Content-Disposition': `inline; filename="${encodeURIComponent(row.nome_original || 'video.mp4')}"`,
+                'Cache-Control': 'no-store'
+            });
+            fs.createReadStream(row.caminho_arquivo).pipe(res);
+        }
+    });
+});
+
 // Função Haversine — calcula distância em km entre duas coordenadas GPS
 function haversineKm(lat1, lng1, lat2, lng2) {
     const parseCoord = (c) => typeof c === 'string' ? parseFloat(c.replace(',', '.')) : parseFloat(c);

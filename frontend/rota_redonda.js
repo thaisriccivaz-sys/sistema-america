@@ -711,7 +711,71 @@ function atualizarLinkMapsBadge(url) {
     });
 }
 
-// Abre o modal de colar lat/lng (usado pelo botão G e pelo badge do link)
+// ── UPLOAD DE VÍDEO ──────────────────────────────────────────────────────────
+function rrExibirLinkVideo(link) {
+    const hidden  = document.getElementById('rr-input-video');
+    const display = document.getElementById('rr-video-link-display');
+    const anchor  = document.getElementById('rr-video-link-anchor');
+    if (!hidden) return;
+    if (!link) {
+        hidden.value = '';
+        if (display) { display.style.display = 'none'; display.innerHTML = ''; }
+        return;
+    }
+    hidden.value = link;
+    if (display && anchor) {
+        // Monta o link completo se for relativo
+        const fullLink = link.startsWith('http') ? link : window.location.origin + link;
+        anchor.href = fullLink;
+        anchor.textContent = link.replace(/^.+\/api\/video\//, '').substring(0, 16) + '…';
+        anchor.title = fullLink;
+        display.style.display = 'inline-flex';
+    }
+}
+
+async function rrFazerUploadVideo(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const progress = document.getElementById('rr-video-upload-progress');
+    const btn = document.getElementById('btn-upload-video-os');
+    if (progress) { progress.style.display = 'inline'; progress.textContent = '⏳ Enviando...'; }
+    if (btn) btn.disabled = true;
+
+    // Pega o OS id/numero se disponível no estado
+    const osId = document.getElementById('rr-input-os')?.value?.trim() || '';
+
+    const formData = new FormData();
+    formData.append('video', file);
+    formData.append('numero_os', osId);
+
+    try {
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+        const resp = await fetch('/api/logistica/os/upload-video', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData
+        });
+        const json = await resp.json();
+        if (!resp.ok || !json.ok) throw new Error(json.error || 'Erro no upload');
+        rrExibirLinkVideo(json.link);
+        mostrarToastAviso('✅ Vídeo enviado com sucesso!');
+        if (progress) progress.style.display = 'none';
+    } catch(e) {
+        mostrarToastAviso('❌ Erro ao enviar vídeo: ' + e.message);
+        if (progress) { progress.style.display = 'inline'; progress.textContent = '❌ Falha no envio.'; }
+    } finally {
+        if (btn) btn.disabled = false;
+        input.value = '';
+    }
+}
+
+function rrCopiarLinkVideo() {
+    const hidden = document.getElementById('rr-input-video');
+    if (!hidden || !hidden.value) return;
+    const fullLink = hidden.value.startsWith('http') ? hidden.value : window.location.origin + hidden.value;
+    navigator.clipboard.writeText(fullLink).then(() => mostrarToastAviso('✅ Link do vídeo copiado!'));
+}
+
 function _abrirPopupCoordenadas(urlOrigem) {
     document.getElementById('rr-gmaps-modal')?.remove();
     const overlay = document.createElement('div');
@@ -879,7 +943,7 @@ function duplicarOsNaTela(payload) {
         set('rr-input-email', payload.email);
         // Obs / vídeo — mantém
         set('rr-input-obs', payload.observacoes);
-        set('rr-input-video', payload.link_video);
+        rrExibirLinkVideo(payload.link_video || '');
         // Turno e horário — mantém
         const diurno = document.getElementById('rr-chk-diurno');
         const noturno = document.getElementById('rr-chk-noturno');
@@ -1194,6 +1258,7 @@ function carregarRegistroNaTela(os) {
     set('rr-input-obs', os.observacoes);
     set('rr-input-obs-internas', os.observacoes_internas);
     set('rr-input-video', os.link_video);
+    rrExibirLinkVideo(os.link_video || '');
     set('rr-tipo-servico', os.tipo_servico);
     // Preenche também o campo de busca visível do dropdown
     const tsSearch = document.getElementById('rr-tipo-servico-search');
@@ -3229,12 +3294,23 @@ function renderRotaRedonda() {
                         <input type="text" id="rr-input-obs-internas" style="${inputStyle}" placeholder="Info interna">
                     </div>
                     <div style="flex: 1;">
-                        <label style="${labelStyle}">Link Vídeo</label>
-                        <div style="display: flex; gap: 2px;">
-                            <input type="text" id="rr-input-video" style="${inputStyle}" placeholder="Link YouTube/Drive">
-                            <button style="background:#3b82f6; color:white; width:26px; height:26px; border:none; border-radius:4px; cursor:pointer;"><i class="ph ph-video-camera"></i></button>
+                        <label style="${labelStyle}">Vídeo OS</label>
+                        <div style="display:flex; gap:2px; align-items:center; flex-wrap:wrap;">
+                            <input type="file" id="rr-input-video-file" accept="video/*" style="display:none;" onchange="rrFazerUploadVideo(this)">
+                            <button type="button" onclick="document.getElementById('rr-input-video-file').click()" id="btn-upload-video-os"
+                                style="background:#3b82f6;color:white;border:none;border-radius:4px;cursor:pointer;padding:0 8px;height:26px;font-size:0.72rem;font-weight:600;display:flex;align-items:center;gap:4px;white-space:nowrap;flex-shrink:0;">
+                                <i class="ph ph-upload-simple"></i> Upload Vídeo
+                            </button>
+                            <input type="hidden" id="rr-input-video">
+                            <span id="rr-video-link-display" style="display:none;align-items:center;gap:4px;font-size:0.7rem;background:#eff6ff;border:1px solid #bfdbfe;border-radius:4px;padding:2px 6px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                                <i class="ph ph-film-strip" style="color:#3b82f6;"></i>
+                                <a id="rr-video-link-anchor" href="#" target="_blank" style="color:#1d4ed8;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px;"></a>
+                                <button id="btn-copiar-link-video" onclick="rrCopiarLinkVideo()" title="Copiar link" style="background:none;border:none;cursor:pointer;padding:0;color:#3b82f6;display:flex;align-items:center;"><i class="ph ph-copy" style="font-size:0.85rem;"></i></button>
+                            </span>
+                            <span id="rr-video-upload-progress" style="display:none;font-size:0.7rem;color:#6b7280;"></span>
                         </div>
                     </div>
+
                 </div>
 
                 <!-- PRODUTOS LOGISTICA -->
