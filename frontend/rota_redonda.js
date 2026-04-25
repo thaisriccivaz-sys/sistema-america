@@ -1843,7 +1843,31 @@ function abrirModalColarOS() {
                         ⚠️ Esta OS (${dadosExtraidos.numOs}) já existe no sistema! Tipo identificado: ${dadosExtraidos.tipoOsDB || 'Desconhecido'}.
                      </div>`;
         }
+
+        // Renderiza Preview dos Produtos identificados NO TOPO
+        const tipoProvisorio = (dadosExtraidos.tipoOsDB || dadosExtraidos.tipoOs || '').toUpperCase().includes('OBRA') ? 'Obra' : 'Evento';
+        const parsedProds = parseProdutosString(dadosExtraidos.rawProdutos, tipoProvisorio);
+        if (parsedProds.length > 0) {
+            let prodHtml = `<div style="margin-bottom:12px;padding:10px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;">
+                <p style="margin:0 0 8px 0;font-weight:700;color:#0369a1;font-size:0.8rem;display:flex;align-items:center;gap:4px;">
+                    <i class="ph ph-package"></i> Produtos Identificados na OS
+                </p>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;">`;
+            parsedProds.forEach(p => {
+                prodHtml += `<div style="background:white;padding:4px 8px;border-radius:4px;border:1px solid #7dd3fc;font-weight:600;color:#0c4a6e;display:flex;align-items:center;gap:6px;box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+                    <span style="font-size:1.1rem;">${p.icone || '📦'}</span>
+                    <span>${p.qtd}x ${p.desc}</span>
+                </div>`;
+            });
+            prodHtml += `</div></div>`;
+            html += prodHtml;
+        } else if (dadosExtraidos.rawProdutos) {
+            html += `<div style="color:#b91c1c;background:#fef2f2;padding:6px 10px;border-radius:4px;margin-bottom:12px;font-size:0.75rem;border:1px solid #fca5a5;">
+                        ⚠️ Atenção: O texto contém produtos (${dadosExtraidos.rawProdutos}), mas nenhum foi reconhecido com os nomes padrões (ex: STD, Guarita). Eles não serão inseridos automaticamente.
+                     </div>`;
+        }
         
+        // Renderização dos campos texto...
         html += linha('🔢 OS', dadosExtraidos.numOs);
         html += linha('📅 Data', dadosExtraidos.dataEntrega);
         html += linha('👤 Cliente', dadosExtraidos.cliente);
@@ -1862,29 +1886,6 @@ function abrirModalColarOS() {
         html += linha('📝 Obs Motorista', dadosExtraidos.observacoes);
         html += linha('🔒 Obs Internas', dadosExtraidos.observacoesInternas);
 
-        // Renderiza Preview dos Produtos identificados
-        const tipoProvisorio = (dadosExtraidos.tipoOsDB || dadosExtraidos.tipoOs || '').toUpperCase().includes('OBRA') ? 'Obra' : 'Evento';
-        const parsedProds = parseProdutosString(dadosExtraidos.rawProdutos, tipoProvisorio);
-        if (parsedProds.length > 0) {
-            let prodHtml = `<div style="margin-top:12px;padding:10px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;">
-                <p style="margin:0 0 8px 0;font-weight:700;color:#0369a1;font-size:0.8rem;display:flex;align-items:center;gap:4px;">
-                    <i class="ph ph-package"></i> Produtos Identificados na OS
-                </p>
-                <div style="display:flex;flex-wrap:wrap;gap:8px;">`;
-            parsedProds.forEach(p => {
-                prodHtml += `<div style="background:white;padding:4px 8px;border-radius:4px;border:1px solid #7dd3fc;font-weight:600;color:#0c4a6e;display:flex;align-items:center;gap:6px;box-shadow:0 1px 2px rgba(0,0,0,0.05);">
-                    <span style="font-size:1.1rem;">${p.icone || '📦'}</span>
-                    <span>${p.qtd}x ${p.desc}</span>
-                </div>`;
-            });
-            prodHtml += `</div></div>`;
-            html += prodHtml;
-        } else if (dadosExtraidos.rawProdutos) {
-            html += linha('📦 Produtos (Texto Raw)', dadosExtraidos.rawProdutos);
-            html += `<div style="color:#b91c1c;background:#fef2f2;padding:6px 10px;border-radius:4px;margin-top:4px;font-size:0.75rem;border:1px solid #fca5a5;">
-                        ⚠️ Atenção: O texto contém produtos, mas nenhum foi reconhecido com os nomes padrões (ex: STD, Guarita). Eles não serão inseridos automaticamente.
-                     </div>`;
-        }
 
         // Avisos
         dadosExtraidos.avisos.forEach(a => {
