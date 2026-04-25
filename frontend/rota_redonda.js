@@ -1127,16 +1127,17 @@ function parseOsText(texto) {
                 }
             }
             if (!eVazio(v)) {
-                const fMatch = v.match(/[\d\s\-\(\)\+]{8,}/);
-                if (fMatch) {
-                    const telStr = fMatch[0];
-                    resultado.responsavel = v.replace(telStr, '').replace(/-/g, '').trim();
-                    const tel = telStr.replace(/[^\d]/g, '');
-                    if (tel.length >= 8) {
-                        resultado.telefone = tel.length === 11 ? `(${tel.slice(0,2)}) ${tel.slice(2,7)}-${tel.slice(7)}` : tel;
-                    }
+                const telMatch = v.match(/\(?\d{2}\)?\s*\d{4,5}[\s\-]?\d{4}/);
+                if (telMatch) {
+                    resultado.responsavel = v.replace(telMatch[0], '').replace(/[\-:]+$/, '').trim();
+                    const tel = telMatch[0].replace(/[^\d]/g, '');
+                    resultado.telefone = tel.length === 11
+                        ? `(${tel.slice(0,2)}) ${tel.slice(2,7)}-${tel.slice(7)}`
+                        : tel.length === 10
+                        ? `(${tel.slice(0,2)}) ${tel.slice(2,6)}-${tel.slice(6)}`
+                        : tel;
                 } else {
-                    resultado.responsavel = v.replace(/-/g, '').trim();
+                    resultado.responsavel = v.replace(/[-:]+$/, '').trim();
                 }
             }
         }
@@ -1152,31 +1153,22 @@ function parseOsText(texto) {
             let v = extrairValor(l, /📞?Contato de instala[cç][aã]o:/i);
             if (eVazio(v) && i + 1 < lines.length) v = lines[i + 1];
             if (!eVazio(v)) {
-                if (v.includes('-')) {
-                    const parts = v.split('-');
-                    resultado.responsavel = parts[0].trim();
-                    if (parts.length > 1) {
-                        const tel = parts[1].replace(/[^\d]/g, '');
-                        if (tel.length >= 8) {
-                            const t = tel;
-                            resultado.telefone = t.length === 11 ? `(${t.slice(0,2)}) ${t.slice(2,7)}-${t.slice(7)}` : t;
-                        }
-                    }
+                // Extrai qualquer sequência de dígitos/parênteses/hífens com 8+ dígitos
+                const telMatch = v.match(/\(?\d{2}\)?\s*\d{4,5}[\s\-]?\d{4}/);
+                if (telMatch) {
+                    resultado.responsavel = v.replace(telMatch[0], '').replace(/[\-:]+$/, '').trim();
+                    const tel = telMatch[0].replace(/[^\d]/g, '');
+                    resultado.telefone = tel.length === 11
+                        ? `(${tel.slice(0,2)}) ${tel.slice(2,7)}-${tel.slice(7)}`
+                        : tel.length === 10
+                        ? `(${tel.slice(0,2)}) ${tel.slice(2,6)}-${tel.slice(6)}`
+                        : tel;
                 } else {
-                    const fMatch = v.match(/[\d\s\-\(\)]{8,}/);
-                    if (fMatch) {
-                        const telStr = fMatch[0];
-                        resultado.responsavel = v.replace(telStr, '').trim();
-                        const tel = telStr.replace(/[^\d]/g, '');
-                        if (tel.length >= 8) {
-                            resultado.telefone = tel.length === 11 ? `(${tel.slice(0,2)}) ${tel.slice(2,7)}-${tel.slice(7)}` : tel;
-                        }
-                    } else {
-                        resultado.responsavel = v.trim();
-                    }
+                    resultado.responsavel = v.replace(/[-:]+$/, '').trim();
                 }
             }
         }
+
 
         if (l.includes('📍Endereço') || l.includes('Endereço de entrega:')) {
             let v = extrairValor(l, /📍?Endere[cç]o de entrega:/i);
