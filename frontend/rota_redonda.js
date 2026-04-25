@@ -1,6 +1,6 @@
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   MÃ“DULO: ROTA REDONDA (ORDENS DE SERVIÃ‡O)
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* ════════════════════════════════════════════════════════════════════════════
+   MÓDULO: ROTA REDONDA (ORDENS DE SERVIÇO)
+   ════════════════════════════════════════════════════════════════════════════ */
 
 let osState = {
     produtos: [],
@@ -11,39 +11,39 @@ let osState = {
     clienteConfirmado: true,
     clienteNome: '',
     enderecoSelecionado: '',
-    tipoOs: '' // 'Obra' ou 'Evento' â€” definido no popup ao adicionar produto
+    tipoOs: '' // 'Obra' ou 'Evento' — definido no popup ao adicionar produto
 };
 
-// â”€â”€ DICIONÃRIO DE EQUIPAMENTOS (do Flutter: equipamentosDict) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── DICIONÁRIO DE EQUIPAMENTOS (do Flutter: equipamentosDict) ───────────────
 const EQUIPAMENTOS_DICT = {
-    'STD OBRA':               { icone: 'ðŸ’™', codigo: 'STD O' },
-    'STD EVENTO':             { icone: 'ðŸ’œ', codigo: 'STD E' },
-    'LX OBRA':                { icone: 'ðŸŸ¦', codigo: 'LX O' },
-    'LX EVENTO':              { icone: 'ðŸŸ£', codigo: 'LX E' },
-    'ELX OBRA':               { icone: 'ðŸ”µ', codigo: 'ELX O' },
-    'ELX EVENTO':             { icone: 'ðŸŸ£', codigo: 'ELX E' },
-    'PCD OBRA':               { icone: 'â™¿',  codigo: 'PCD O' },
-    'PCD EVENTO':             { icone: 'â™¿', codigo: 'PCD E' },
-    'CHUVEIRO OBRA':          { icone: 'ðŸš¿', codigo: 'CHUVEIRO O' },
-    'CHUVEIRO EVENTO':        { icone: 'ðŸš¿', codigo: 'CHUVEIRO E' },
-    'HIDRÃULICO OBRA':        { icone: 'ðŸš½', codigo: 'HIDRÃULICO O' },
-    'HIDRÃULICO EVENTO':      { icone: 'ðŸš½', codigo: 'HIDRÃULICO E' },
-    'MICTÃ“RIO OBRA':          { icone: 'ðŸ’¦', codigo: 'MICTÃ“RIO O' },
-    'MICTÃ“RIO EVENTO':        { icone: 'ðŸ’¦', codigo: 'MICTÃ“RIO E' },
-    'PBII OBRA':              { icone: 'ðŸ§¼', codigo: 'PIA II O' },
-    'PBII EVENTO':            { icone: 'ðŸ§¼', codigo: 'PIA II E' },
-    'PBIII OBRA':             { icone: 'ðŸ§¼', codigo: 'PIA III O' },
-    'PBIII EVENTO':           { icone: 'ðŸ§¼', codigo: 'PIA III E' },
-    'GUARITA INDIVIDUAL OBRA':  { icone: 'â¬œ', codigo: 'GUARITA INDIVIDUAL O' },
-    'GUARITA INDIVIDUAL EVENTO':{ icone: 'â¬œ', codigo: 'GUARITA INDIVIDUAL E' },
-    'GUARITA DUPLA OBRA':     { icone: 'âšª', codigo: 'GUARITA DUPLA O' },
-    'GUARITA DUPLA EVENTO':   { icone: 'âšª', codigo: 'GUARITA DUPLA E' },
-    'LIMPA FOSSA OBRA':       { icone: 'ðŸ’§', codigo: 'LIMPA FOSSA OBRA' },
-    'LIMPA FOSSA EVENTO':     { icone: 'ðŸ’§', codigo: 'LIMPA FOSSA EVENTO' },
-    'VISITA TÃ‰CNICA OBRA':    { icone: 'âš™ï¸',  codigo: 'VISITA TÃ‰CNICA OBRA' },
-    'VISITA TÃ‰CNICA EVENTO':  { icone: 'âš™ï¸',  codigo: 'VISITA TÃ‰CNICA EVENTO' },
-    'CARRINHO':               { icone: 'ðŸ›¤', codigo: 'CARRINHO' },
-    'CAIXA DAGUA':            { icone: 'ðŸ§Š', codigo: 'CAIXA DAGUA' },
+    'STD OBRA':               { icone: '💙', codigo: 'STD O' },
+    'STD EVENTO':             { icone: '💜', codigo: 'STD E' },
+    'LX OBRA':                { icone: '🟦', codigo: 'LX O' },
+    'LX EVENTO':              { icone: '🟣', codigo: 'LX E' },
+    'ELX OBRA':               { icone: '🔵', codigo: 'ELX O' },
+    'ELX EVENTO':             { icone: '🟣', codigo: 'ELX E' },
+    'PCD OBRA':               { icone: '♿',  codigo: 'PCD O' },
+    'PCD EVENTO':             { icone: '♿', codigo: 'PCD E' },
+    'CHUVEIRO OBRA':          { icone: '🚿', codigo: 'CHUVEIRO O' },
+    'CHUVEIRO EVENTO':        { icone: '🚿', codigo: 'CHUVEIRO E' },
+    'HIDRÁULICO OBRA':        { icone: '🚽', codigo: 'HIDRÁULICO O' },
+    'HIDRÁULICO EVENTO':      { icone: '🚽', codigo: 'HIDRÁULICO E' },
+    'MICTÓRIO OBRA':          { icone: '💦', codigo: 'MICTÓRIO O' },
+    'MICTÓRIO EVENTO':        { icone: '💦', codigo: 'MICTÓRIO E' },
+    'PBII OBRA':              { icone: '🧼', codigo: 'PIA II O' },
+    'PBII EVENTO':            { icone: '🧼', codigo: 'PIA II E' },
+    'PBIII OBRA':             { icone: '🧼', codigo: 'PIA III O' },
+    'PBIII EVENTO':           { icone: '🧼', codigo: 'PIA III E' },
+    'GUARITA INDIVIDUAL OBRA':  { icone: '⬜', codigo: 'GUARITA INDIVIDUAL O' },
+    'GUARITA INDIVIDUAL EVENTO':{ icone: '⬜', codigo: 'GUARITA INDIVIDUAL E' },
+    'GUARITA DUPLA OBRA':     { icone: '⚪', codigo: 'GUARITA DUPLA O' },
+    'GUARITA DUPLA EVENTO':   { icone: '⚪', codigo: 'GUARITA DUPLA E' },
+    'LIMPA FOSSA OBRA':       { icone: '💧', codigo: 'LIMPA FOSSA OBRA' },
+    'LIMPA FOSSA EVENTO':     { icone: '💧', codigo: 'LIMPA FOSSA EVENTO' },
+    'VISITA TÉCNICA OBRA':    { icone: '⚙️',  codigo: 'VISITA TÉCNICA OBRA' },
+    'VISITA TÉCNICA EVENTO':  { icone: '⚙️',  codigo: 'VISITA TÉCNICA EVENTO' },
+    'CARRINHO':               { icone: '🛤', codigo: 'CARRINHO' },
+    'CAIXA DAGUA':            { icone: '🧊', codigo: 'CAIXA DAGUA' },
 };
 
 function getProdutosPorTipo(tipoOs) {
@@ -55,7 +55,7 @@ function getProdutosPorTipo(tipoOs) {
         .map(([nome, v]) => ({ nome, ...v }));
 }
 
-// â”€â”€ POPUP SELEÃ‡ÃƒO OBRA / EVENTO (mostrarLightboxSelecaoTipoOs do Flutter) â”€â”€â”€â”€â”€
+// ── POPUP SELEÇÃO OBRA / EVENTO (mostrarLightboxSelecaoTipoOs do Flutter) ─────
 function abrirPopupTipoOs(onSelecionar) {
     document.getElementById('rr-popup-tipo-os')?.remove();
     const popup = document.createElement('div');
@@ -66,10 +66,10 @@ function abrirPopupTipoOs(onSelecionar) {
             <p style="font-weight:700;font-size:1.1rem;color:#00251A;margin:0 0 1.2rem;">Selecione o tipo de OS</p>
             <div style="display:flex;gap:1.5rem;justify-content:center;">
                 <button id="rr-btn-obra" style="width:100px;height:100px;background:#156EB6;border:none;border-radius:12px;color:white;font-weight:700;font-size:1rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;transition:background 0.2s;">
-                    <span style="font-size:2rem">ðŸ—ï¸</span>OBRA
+                    <span style="font-size:2rem">🏗️</span>OBRA
                 </button>
                 <button id="rr-btn-evento" style="width:100px;height:100px;background:#8E24AA;border:none;border-radius:12px;color:white;font-weight:700;font-size:1rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;transition:background 0.2s;">
-                    <span style="font-size:2rem">ðŸŽ‰</span>EVENTO
+                    <span style="font-size:2rem">🎉</span>EVENTO
                 </button>
             </div>
         </div>
@@ -90,32 +90,31 @@ const TIPOS_SERVICO_OS = [
 const HABILIDADES = ['TANQUE', 'CARGA', 'VAC', 'UTILITARIO', 'TECNICO', 'CARRETINHA', 'CARROCERIA', 'TANQUE GRANDE'];
 const ACOES_DICT = {
     'LEVAR CARRINHO': '🛒',
-    'ATENÇÃO AO HORÁRIO': '⏳',
-    'TROCA DE CABINE': '🔄',
-    'LEVAR EXTENSORA': '🔌',
+    'ATENÇÃO AO HORÁRIO': '⏰',
+    'TROCA DE CABINE': '♻️',
+    'LEVAR EXTENSORA': '🌀',
     'APOIO DE SUCÇÃO': '💧',
-    'INFORMAÇÕES IMPORTANTES': '📝',
+    'INFORMAÇÕES IMPORTANTES': '🚨',
     'CARRETINHA': '🔗',
     'LEVAR EPI': '🦺',
     'INTEGRAÇÃO': '👷',
     '! AVULSO': '❗',
-    'BANHEIRO ITINERANTE': '🚚',
-    'COMPRAS AMÉRICA': '📦'
+    'BANHEIRO ITINERANTE': '🔛'
 };
 const ACOES = Object.keys(ACOES_DICT);
 
-// â”€â”€ CÃ LCULO DE TEMPO (espelho do calcularTipoDeServico() do Flutter) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── CÁLCULO DE TEMPO (espelho do calcularTipoDeServico() do Flutter) ──────────
 function calcularTempo() {
     const tipoServico = (document.getElementById('rr-tipo-servico')?.value || '').trim().toUpperCase();
 
-    // Base: 10 min para entregas/retiradas/visitas, 0 para manutenÃ§Ã£o
+    // Base: 10 min para entregas/retiradas/visitas, 0 para manutenção
     let baseMin = 10;
     if (tipoServico.includes('MANUTENCAO')) baseMin = 0;
 
     // Soma total de quantidades (igual ao Flutter: int totalItens = 0; for produto in produtosLogistica)
     const totalItens = osState.produtos.reduce((acc, p) => acc + (parseInt(p.qtd) || 0), 0);
 
-    // FÃ³rmula: base + 5min Ã— totalItens
+    // Fórmula: base + 5min × totalItens
     const totalMin = baseMin + (5 * totalItens);
     const hh = String(Math.floor(totalMin / 60)).padStart(2, '0');
     const mm = String(totalMin % 60).padStart(2, '0');
@@ -124,13 +123,13 @@ function calcularTempo() {
     const el = document.getElementById('rr-tempo-total');
     if (el) el.innerText = resultado;
 
-    // ApÃ³s tempo, recalcula carga tambÃ©m (igual ao Flutter que chama calcularCargaTotalFromLista())
+    // Após tempo, recalcula carga também (igual ao Flutter que chama calcularCargaTotalFromLista())
     calcularCargaTotalFromLista();
 
     return resultado;
 }
 
-// â”€â”€ CARGA PROPORCIONAL (MictÃ³rio) â€” regra de 33.33%, arredonda para par â”€â”€â”€â”€â”€â”€â”€â”€
+// ── CARGA PROPORCIONAL (Mictório) — regra de 33.33%, arredonda para par ────────
 function calcularCargaProporcional(quantidade) {
     const proporcional = quantidade * 0.3333;
     let carga = Math.ceil(proporcional);
@@ -138,7 +137,7 @@ function calcularCargaProporcional(quantidade) {
     return carga;
 }
 
-// â”€â”€ CÃ LCULO DE CARGA (espelho do calcularCargaTotalFromLista() do Flutter) â”€â”€â”€â”€
+// ── CÁLCULO DE CARGA (espelho do calcularCargaTotalFromLista() do Flutter) ────
 function calcularCargaTotalFromLista() {
     const tipoServico = (document.getElementById('rr-tipo-servico')?.value || '')
         .replace(/  /g, ' ').trim().toUpperCase();
@@ -154,27 +153,27 @@ function calcularCargaTotalFromLista() {
         let cargaCalculada = 0;
 
         if (isManutencao) {
-            // â”€â”€ MANUTENÃ‡ÃƒO EVENTO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ── MANUTENÇÃO EVENTO ─────────────────────────────────────────────
             if (tipoServico.includes('EVENTO')) {
                 switch (equipamento) {
                     case 'STD EVENTO': case 'LX EVENTO': case 'ELX EVENTO':
-                    case 'PCD EVENTO': case 'CHUVEIRO EVENTO': case 'HIDRÃ ULICO EVENTO':
+                    case 'PCD EVENTO': case 'CHUVEIRO EVENTO': case 'HIDRÁULICO EVENTO':
                         cargaCalculada = 5 * quantidade; break;
-                    case 'MICTÃ“RIO EVENTO':
+                    case 'MICTÓRIO EVENTO':
                         cargaCalculada = 10 * quantidade; break;
                     case 'PIA II EVENTO': case 'PIA III EVENTO':
                         cargaCalculada = 1 * quantidade; break;
                     default:
                         cargaCalculada = quantidade;
                 }
-            // â”€â”€ MANUTENÃ‡ÃƒO OBRA / AVULSA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ── MANUTENÇÃO OBRA / AVULSA ──────────────────────────────────────
             } else if (tipoServico.includes('OBRA') || tipoServico.includes('AVULSA')) {
                 switch (equipamento) {
                     case 'STD OBRA': case 'LX OBRA': case 'ELX OBRA':
                     case 'PBII OBRA': case 'PBIII OBRA':
-                    case 'CHUVEIRO OBRA': case 'HIDRÃ ULICO OBRA':
+                    case 'CHUVEIRO OBRA': case 'HIDRÁULICO OBRA':
                         cargaCalculada = 1 * quantidade; break;
-                    case 'MICTÃ“RIO OBRA':
+                    case 'MICTÓRIO OBRA':
                         cargaCalculada = 4 * quantidade; break;
                     default:
                         cargaCalculada = quantidade;
@@ -183,16 +182,16 @@ function calcularCargaTotalFromLista() {
                 cargaCalculada = quantidade;
             }
         } else {
-            // â”€â”€ ENTREGA / RETIRADA / OUTROS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ── ENTREGA / RETIRADA / OUTROS ───────────────────────────────────
             if (equipamento.includes('OBRA')) {
                 switch (equipamento) {
                     case 'STD OBRA': case 'LX OBRA': case 'ELX OBRA':
                     case 'GUARITA INDIVIDUAL OBRA': case 'PBII OBRA': case 'PBIII OBRA':
-                    case 'CHUVEIRO OBRA': case 'HIDRÃ ULICO OBRA':
+                    case 'CHUVEIRO OBRA': case 'HIDRÁULICO OBRA':
                         cargaCalculada = quantidade; break;
                     case 'GUARITA DUPLA OBRA': case 'PCD OBRA':
                         cargaCalculada = 2 * quantidade; break;
-                    case 'MICTÃ“RIO OBRA':
+                    case 'MICTÓRIO OBRA':
                         cargaCalculada = calcularCargaProporcional(quantidade); break;
                     default:
                         cargaCalculada = 0;
@@ -201,11 +200,11 @@ function calcularCargaTotalFromLista() {
                 switch (equipamento) {
                     case 'STD EVENTO': case 'LX EVENTO': case 'ELX EVENTO':
                     case 'GUARITA INDIVIDUAL EVENTO': case 'PIA II EVENTO': case 'PIA III EVENTO':
-                    case 'CHUVEIRO EVENTO': case 'HIDRÃ ULICO EVENTO':
+                    case 'CHUVEIRO EVENTO': case 'HIDRÁULICO EVENTO':
                         cargaCalculada = quantidade; break;
                     case 'GUARITA DUPLA EVENTO': case 'PCD EVENTO':
                         cargaCalculada = 2 * quantidade; break;
-                    case 'MICTÃ“RIO EVENTO':
+                    case 'MICTÓRIO EVENTO':
                         cargaCalculada = calcularCargaProporcional(quantidade); break;
                     default:
                         cargaCalculada = quantidade;
@@ -218,11 +217,11 @@ function calcularCargaTotalFromLista() {
         totalCarga += cargaCalculada;
     }
 
-    // â”€â”€ Decide qual veÃ­culo usa (Tanque / Carroceria / Carretinha) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Decide qual veículo usa (Tanque / Carroceria / Carretinha) ─────────────
     // Regra do Flutter:
-    //   ManutenÃ§Ã£o        â†’ sempre TANQUE
-    //   carga <= 6        â†’ CARROCERIA
-    //   carga > 6         â†’ CARRETINHA
+    //   Manutenção        → sempre TANQUE
+    //   carga <= 6        → CARROCERIA
+    //   carga > 6         → CARRETINHA
     let tanque = '', carroceria = '', carretinha = '';
     if (isManutencao) {
         tanque = totalCarga > 0 ? String(totalCarga) : '';
@@ -251,20 +250,20 @@ function calcularCargaTotalFromLista() {
 
 
 
-// â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• 
-// MAPA INTERATIVO â€” Leaflet.js + OpenStreetMap + Nominatim (100% gratuito)
-// â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• 
+// ══════════════════════════════════════════════════════════════════════════════
+// MAPA INTERATIVO — Leaflet.js + OpenStreetMap + Nominatim (100% gratuito)
+// ══════════════════════════════════════════════════════════════════════════════
 
-let _leafletMap    = null; // instÃ¢ncia Ãºnica do mapa
+let _leafletMap    = null; // instância única do mapa
 let _leafletMarker = null; // marcador atual
 
 function inicializarMapa() {
-    if (_leafletMap) return; // jÃ¡ inicializado
+    if (_leafletMap) return; // já inicializado
     const el = document.getElementById('rr-mapa-leaflet');
     if (!el || typeof L === 'undefined') return;
 
     _leafletMap = L.map('rr-mapa-leaflet', {
-        center: [-23.5505, -46.6333], // SÃ£o Paulo como centro inicial
+        center: [-23.5505, -46.6333], // São Paulo como centro inicial
         zoom: 11,
         zoomControl: true,
         attributionControl: true
@@ -272,16 +271,16 @@ function inicializarMapa() {
 
     // Tile layer OpenStreetMap
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: 'Â© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
         maxZoom: 19
     }).addTo(_leafletMap);
 
-    // Clique no mapa â†’ geocodificaÃ§Ã£o reversa (lat/lng â†’ endereÃ§o)
+    // Clique no mapa → geocodificação reversa (lat/lng → endereço)
     _leafletMap.on('click', async (e) => {
         const { lat, lng } = e.latlng;
         posicionarMarcador(lat, lng);
         preencherLatLng(lat, lng);
-        // GeocodificaÃ§Ã£o reversa via Nominatim (clique no mapa)
+        // Geocodificação reversa via Nominatim (clique no mapa)
         try {
             const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=pt-BR`, {
                 headers: { 'Accept-Language': 'pt-BR', 'User-Agent': 'AmericaRentalSistema/1.0' }
@@ -289,7 +288,7 @@ function inicializarMapa() {
             const d = await r.json();
             if (d.display_name) {
                 const endInput = document.getElementById('rr-input-endereco');
-                // SÃ³ preenche se o campo estiver vazio (nÃ£o sobrescreve o que o usuÃ¡rio digitou)
+                // Só preenche se o campo estiver vazio (não sobrescreve o que o usuário digitou)
                 if (endInput && !endInput.value.trim()) {
                     endInput.value = d.display_name;
                     endInput.style.background = '#f0fdf4';
@@ -334,7 +333,7 @@ async function reverseGeocodeEndereco() {
     const parts = coordStr.split(' ');
     
     if (parts.length < 2) {
-        alert("Por favor, digite a latitude e longitude separadas por espaÃ§o ou vÃ­rgula.");
+        alert("Por favor, digite a latitude e longitude separadas por espaço ou vírgula.");
         coordInput.focus();
         return;
     }
@@ -343,7 +342,7 @@ async function reverseGeocodeEndereco() {
     const lng = parseFloat(parts[1]);
 
     if (isNaN(lat) || isNaN(lng)) {
-        alert("Coordenadas invÃ¡lidas.");
+        alert("Coordenadas inválidas.");
         coordInput.focus();
         return;
     }
@@ -361,7 +360,7 @@ async function reverseGeocodeEndereco() {
             const mapaDiv = document.getElementById('rr-mapa-leaflet');
             if (mapaDiv) mapaDiv.style.display = 'block';
 
-            // Inicializa mapa se ainda nÃ£o foi feito
+            // Inicializa mapa se ainda não foi feito
             inicializarMapa();
 
             // Aguarda o mapa estar pronto e posiciona
@@ -370,7 +369,7 @@ async function reverseGeocodeEndereco() {
                 posicionarMarcador(lat, lng);
             }, 50);
             
-            // Preenche o endereÃ§o
+            // Preenche o endereço
             if (endInput) {
                 endInput.value = data.display_name;
                 endInput.style.background = '#f0fdf4';
@@ -380,11 +379,11 @@ async function reverseGeocodeEndereco() {
             osState.lng = lng;
             if (coordInput) coordInput.style.background = '#f0fdf4';
         } else {
-            alert('NÃ£o foi possÃ­vel encontrar um endereÃ§o para estas coordenadas.');
+            alert('Não foi possível encontrar um endereço para estas coordenadas.');
         }
     } catch (e) {
         console.error('Erro no reverse geocoding', e);
-        alert('Erro ao consultar endereÃ§o. Tente novamente mais tarde.');
+        alert('Erro ao consultar endereço. Tente novamente mais tarde.');
     } finally {
         if (btn) btn.innerHTML = '<i class="ph ph-map-pin"></i>';
     }
@@ -398,56 +397,56 @@ async function geocodeEndereco() {
     const endereco = endInput?.value?.trim();
     if (!endereco) { endInput?.focus(); return; }
 
-    // Normaliza o endereÃ§o para a query do Nominatim (NÃƒO altera o campo na tela)
+    // Normaliza o endereço para a query do Nominatim (NÃO altera o campo na tela)
     let enderecoQuery = endereco
-        .replace(/(\d)\.(\d{3})\b/g, '$1$2')            // 1.814 â†’ 1814
+        .replace(/(\d)\.(\d{3})\b/g, '$1$2')            // 1.814 → 1814
         .replace(/\|\s*CEP[:\s-]*\d{5}-?\d{3}\b/gi, '') // Remove " | CEP: 07025-000" (confunde a API se ficar no final com pipe)
-        .replace(/\s*\/\s*[A-Z]{2}\b/gi, '')            // Remove " /SP", " /RJ" (Nominatim nÃ£o lida bem com barra)
-        .replace(/\s*\|\s*/g, ', ')                     // Substitui pipes restantes por vÃ­rgula
-        .replace(/\s*-\s*(?=[a-zA-Z])/g, ', ')          // HÃ­fen solto por vÃ­rgula "VILA - GUARULHOS" â†’ "VILA, GUARULHOS"
-        .replace(/\s{2,}/g, ' ')                        // Remove espaÃ§os extras
+        .replace(/\s*\/\s*[A-Z]{2}\b/gi, '')            // Remove " /SP", " /RJ" (Nominatim não lida bem com barra)
+        .replace(/\s*\|\s*/g, ', ')                     // Substitui pipes restantes por vírgula
+        .replace(/\s*-\s*(?=[a-zA-Z])/g, ', ')          // Hífen solto por vírgula "VILA - GUARULHOS" → "VILA, GUARULHOS"
+        .replace(/\s{2,}/g, ' ')                        // Remove espaços extras
         .trim();
 
-    // Spinner no botÃ£o
+    // Spinner no botão
     if (btn) { btn.innerHTML = '<i class="ph ph-circle-notch" style="animation:spin 1s linear infinite;"></i>'; btn.disabled = true; }
 
     const headers = { 'Accept-Language': 'pt-BR', 'User-Agent': 'AmericaRentalSistema/1.0' };
 
-    // Extrai CEP do endereÃ§o original para busca direta (mais precisa)
+    // Extrai CEP do endereço original para busca direta (mais precisa)
     const cepMatch = endereco.match(/\b(\d{5})-?(\d{3})\b/);
-    const temCidade = /sÃ£o paulo|sp|guarulhos|campinas|mogi|abc|santo andr|osasco|rio de jan/i.test(endereco);
+    const temCidade = /são paulo|sp|guarulhos|campinas|mogi|abc|santo andr|osasco|rio de jan/i.test(endereco);
 
-    // EstratÃ©gia em cascata com endereÃ§o NORMALIZADO (sem separador de milhar)
+    // Estratégia em cascata com endereço NORMALIZADO (sem separador de milhar)
     const queries = [
-        // 1Âª: query normalizada com filtro Brasil
+        // 1ª: query normalizada com filtro Brasil
         `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(enderecoQuery)}&format=json&limit=1&accept-language=pt-BR&countrycodes=br`,
     ];
 
-    // 2Âª: se nÃ£o tem cidade, adiciona "SÃ£o Paulo, SP, Brasil"
+    // 2ª: se não tem cidade, adiciona "São Paulo, SP, Brasil"
     if (!temCidade) {
         queries.push(
-            `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(enderecoQuery + ', SÃ£o Paulo, SP, Brasil')}&format=json&limit=1&accept-language=pt-BR`
+            `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(enderecoQuery + ', São Paulo, SP, Brasil')}&format=json&limit=1&accept-language=pt-BR`
         );
     }
 
-    // 3Âª: Se a query tiver mais de uma vÃ­rgula (ex: Rua, NÃºmero, Bairro/Complemento), testa SÃ“ Rua e NÃºmero
+    // 3ª: Se a query tiver mais de uma vírgula (ex: Rua, Número, Bairro/Complemento), testa SÓ Rua e Número
     const partes = enderecoQuery.split(',');
     if (partes.length > 2) {
         const ruaNumero = partes[0].trim() + ', ' + partes[1].trim();
         queries.push(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(ruaNumero)}&format=json&limit=1&accept-language=pt-BR&countrycodes=br`);
         if (!temCidade) {
-            queries.push(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(ruaNumero + ', SÃ£o Paulo, SP, Brasil')}&format=json&limit=1&accept-language=pt-BR`);
+            queries.push(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(ruaNumero + ', São Paulo, SP, Brasil')}&format=json&limit=1&accept-language=pt-BR`);
         }
     }
 
-    // 3Âª: busca pelo CEP separado se tiver (mais precisa)
+    // 3ª: busca pelo CEP separado se tiver (mais precisa)
     if (cepMatch) {
         queries.push(
             `https://nominatim.openstreetmap.org/search?q=${cepMatch[1]}-${cepMatch[2]},Brasil&format=json&limit=1&accept-language=pt-BR`
         );
     }
 
-    // 4Âª: fallback global sem restriÃ§Ã£o
+    // 4ª: fallback global sem restrição
     queries.push(
         `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(enderecoQuery + ' Brasil')}&format=json&limit=1&accept-language=pt-BR`
     );
@@ -463,7 +462,7 @@ async function geocodeEndereco() {
         }
 
         if (!data || data.length === 0) {
-            mostrarToastAviso('â Œ EndereÃ§o nÃ£o encontrado. Tente: "Rua X, 123, Cidade/SP" ou inclua o CEP.');
+            mostrarToastAviso('❌ Endereço não encontrado. Tente: "Rua X, 123, Cidade/SP" ou inclua o CEP.');
             return;
         }
 
@@ -476,7 +475,7 @@ async function geocodeEndereco() {
         const mapaDiv = document.getElementById('rr-mapa-leaflet');
         if (mapaDiv) mapaDiv.style.display = 'block';
 
-        // Inicializa mapa se ainda nÃ£o foi feito
+        // Inicializa mapa se ainda não foi feito
         inicializarMapa();
 
         // Aguarda o mapa estar pronto e posiciona
@@ -484,7 +483,7 @@ async function geocodeEndereco() {
             _leafletMap.invalidateSize();
             posicionarMarcador(lat, lng);
             preencherLatLng(lat, lng);
-            // MantÃ©m o endereÃ§o original do usuÃ¡rio â€” apenas destaca em verde
+            // Mantém o endereço original do usuário — apenas destaca em verde
             if (endInput) endInput.style.background = '#f0fdf4';
             osState.enderecoConfirmado = true;
             atualizarBloqueio();
@@ -492,7 +491,7 @@ async function geocodeEndereco() {
 
     } catch (err) {
         console.error('[Nominatim]', err);
-        mostrarToastAviso('â Œ Erro ao buscar endereÃ§o. Verifique sua conexÃ£o.');
+        mostrarToastAviso('❌ Erro ao buscar endereço. Verifique sua conexão.');
     } finally {
         if (btn) { btn.innerHTML = '<i class="ph ph-magnifying-glass"></i>'; btn.disabled = false; }
     }
@@ -509,23 +508,23 @@ function mostrarToastAviso(msg) {
 function exibirModalSucessoOS(osId, payload) {
     document.getElementById('rr-modal-sucesso-os')?.remove();
 
-    const diasStr = (payload.dias_semana || []).join(', ') || 'â€”';
+    const diasStr = (payload.dias_semana || []).join(', ') || '—';
     const prodStr = (payload.produtos || []).length > 0
         ? payload.produtos.map(p => `${p.qtd}x ${p.desc}`).join(', ')
-        : 'â€”';
-    const tipoIcon = payload.tipo_os === 'Obra' ? 'ðŸ —ï¸ ' : payload.tipo_os === 'Evento' ? 'ðŸŽ‰' : 'ðŸ“‹';
+        : '—';
+    const tipoIcon = payload.tipo_os === 'Obra' ? '🏗️' : payload.tipo_os === 'Evento' ? '🎉' : '📋';
 
     const modal = document.createElement('div');
     modal.id = 'rr-modal-sucesso-os';
     modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;';
     modal.innerHTML = `
         <div style="background:white;border-radius:14px;width:500px;max-width:95vw;overflow:hidden;box-shadow:0 16px 48px rgba(0,0,0,0.25);">
-            <!-- CabeÃ§alho verde -->
+            <!-- Cabeçalho verde -->
             <div style="background:linear-gradient(135deg,#2d9e5f,#1a7a40);color:white;padding:1.25rem 1.5rem;display:flex;justify-content:space-between;align-items:center;">
                 <div style="display:flex;align-items:center;gap:10px;">
                     <i class="ph ph-check-circle" style="font-size:1.8rem;"></i>
                     <div>
-                        <p style="margin:0;font-size:0.72rem;opacity:0.8;">Ordem de ServiÃ§o salva com sucesso</p>
+                        <p style="margin:0;font-size:0.72rem;opacity:0.8;">Ordem de Serviço salva com sucesso</p>
                         <p style="margin:0;font-weight:800;font-size:1.1rem;">OS #${osId} gerada!</p>
                     </div>
                 </div>
@@ -536,22 +535,22 @@ function exibirModalSucessoOS(osId, payload) {
                 <div style="display:flex;gap:8px;align-items:center;background:#f0fdf4;border-radius:8px;padding:0.6rem 0.8rem;">
                     <span style="font-size:1.3rem;">${tipoIcon}</span>
                     <div>
-                        <p style="margin:0;font-size:0.68rem;color:#64748b;">Cliente Â· ${payload.tipo_os}</p>
+                        <p style="margin:0;font-size:0.68rem;color:#64748b;">Cliente · ${payload.tipo_os}</p>
                         <p style="margin:0;font-weight:700;font-size:0.9rem;color:#1e293b;">${payload.cliente}</p>
                     </div>
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:0.75rem;">
                     <div style="background:#f8fafc;border-radius:6px;padding:0.5rem 0.75rem;">
-                        <p style="margin:0;color:#64748b;font-size:0.65rem;">EndereÃ§o</p>
-                        <p style="margin:0;font-weight:600;color:#334155;">${payload.endereco || 'â€”'}</p>
+                        <p style="margin:0;color:#64748b;font-size:0.65rem;">Endereço</p>
+                        <p style="margin:0;font-weight:600;color:#334155;">${payload.endereco || '—'}</p>
                     </div>
                     <div style="background:#f8fafc;border-radius:6px;padding:0.5rem 0.75rem;">
-                        <p style="margin:0;color:#64748b;font-size:0.65rem;">ServiÃ§o</p>
-                        <p style="margin:0;font-weight:600;color:#334155;">${payload.tipo_servico || 'â€”'}</p>
+                        <p style="margin:0;color:#64748b;font-size:0.65rem;">Serviço</p>
+                        <p style="margin:0;font-weight:600;color:#334155;">${payload.tipo_servico || '—'}</p>
                     </div>
                     <div style="background:#f8fafc;border-radius:6px;padding:0.5rem 0.75rem;">
-                        <p style="margin:0;color:#64748b;font-size:0.65rem;">Turno Â· HorÃ¡rio</p>
-                        <p style="margin:0;font-weight:600;color:#334155;">${payload.turno} Â· ${payload.hora_inicio} Ã s ${payload.hora_fim}</p>
+                        <p style="margin:0;color:#64748b;font-size:0.65rem;">Turno · Horário</p>
+                        <p style="margin:0;font-weight:600;color:#334155;">${payload.turno} · ${payload.hora_inicio} às ${payload.hora_fim}</p>
                     </div>
                     <div style="background:#f8fafc;border-radius:6px;padding:0.5rem 0.75rem;">
                         <p style="margin:0;color:#64748b;font-size:0.65rem;">Dias da Semana</p>
@@ -562,19 +561,19 @@ function exibirModalSucessoOS(osId, payload) {
                         <p style="margin:0;font-weight:600;color:#334155;">${prodStr}</p>
                     </div>
                 </div>
-                <!-- Pergunta de duplicaÃ§Ã£o -->
+                <!-- Pergunta de duplicação -->
                 <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:0.75rem;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
                     <div style="display:flex;align-items:center;gap:8px;">
                         <i class="ph ph-copy" style="font-size:1.2rem;color:#d97706;"></i>
-                        <p style="margin:0;font-size:0.78rem;font-weight:600;color:#92400e;">Deseja duplicar para um novo serviÃ§o desta OS?</p>
+                        <p style="margin:0;font-size:0.78rem;font-weight:600;color:#92400e;">Deseja duplicar para um novo serviço desta OS?</p>
                     </div>
                     <div style="display:flex;gap:6px;">
-                        <button id="btn-duplicar-os-sim" style="background:#d97706;color:white;border:none;border-radius:6px;padding:4px 14px;font-size:0.75rem;font-weight:700;cursor:pointer;">âœ” Sim</button>
-                        <button id="btn-duplicar-os-nao" style="background:#e2e8f0;color:#334155;border:none;border-radius:6px;padding:4px 14px;font-size:0.75rem;font-weight:600;cursor:pointer;">âœ– NÃ£o</button>
+                        <button id="btn-duplicar-os-sim" style="background:#d97706;color:white;border:none;border-radius:6px;padding:4px 14px;font-size:0.75rem;font-weight:700;cursor:pointer;">✔ Sim</button>
+                        <button id="btn-duplicar-os-nao" style="background:#e2e8f0;color:#334155;border:none;border-radius:6px;padding:4px 14px;font-size:0.75rem;font-weight:600;cursor:pointer;">✖ Não</button>
                     </div>
                 </div>
             </div>
-            <!-- RodapÃ© -->
+            <!-- Rodapé -->
             <div style="display:flex;gap:8px;justify-content:flex-end;padding:0.75rem 1.5rem;background:#f8fafc;">
                 <button id="btn-nova-os-sucesso" style="background:#2d9e5f;color:white;border:none;border-radius:6px;padding:6px 18px;font-size:0.78rem;font-weight:700;cursor:pointer;"><i class="ph ph-plus"></i> Nova OS</button>
                 <button id="btn-fechar-sucesso-os-2" style="background:#e2e8f0;color:#334155;border:none;border-radius:6px;padding:6px 18px;font-size:0.78rem;font-weight:600;cursor:pointer;">Fechar</button>
@@ -594,13 +593,13 @@ function exibirModalSucessoOS(osId, payload) {
         duplicarOsNaTela(payload);
     });
 
-    // NÃ£o duplicar: fecha o painel de pergunta apenas
+    // Não duplicar: fecha o painel de pergunta apenas
     modal.querySelector('#btn-duplicar-os-nao')?.addEventListener('click', () => {
         const panel = modal.querySelector('#btn-duplicar-os-sim')?.closest('div');
         if (panel) panel.style.display = 'none';
     });
 
-    // BotÃ£o Nova OS: limpa tudo e comeÃ§a do zero
+    // Botão Nova OS: limpa tudo e começa do zero
     modal.querySelector('#btn-nova-os-sucesso')?.addEventListener('click', () => {
         fechar();
         osState.produtos = []; osState.tiposServico = new Set();
@@ -612,7 +611,7 @@ function exibirModalSucessoOS(osId, payload) {
     });
 }
 
-// â”€â”€ DUPLICAR OS NA TELA: carrega payload mas limpa Data e Tipo de ServiÃ§o â”€â”€
+// ── DUPLICAR OS NA TELA: carrega payload mas limpa Data e Tipo de Serviço ──
 function duplicarOsNaTela(payload) {
     // Preserva produtos e tipo de OS no state
     osState.tipoOs = payload.tipo_os || '';
@@ -632,53 +631,53 @@ function duplicarOsNaTela(payload) {
     setTimeout(() => {
         const set = (id, val) => { const el = document.getElementById(id); if (el && val !== undefined && val !== null) el.value = val; };
 
-        // OS â€” mantÃ©m o mesmo nÃºmero
+        // OS — mantém o mesmo número
         set('rr-input-os', payload.numero_os);
-        // Cliente â€” mantÃ©m
+        // Cliente — mantém
         const clienteEl = document.getElementById('rr-input-cliente');
         if (clienteEl) { clienteEl.value = payload.cliente || ''; clienteEl.dataset.nomeBase = payload.cliente || ''; }
-        // EndereÃ§o â€” mantÃ©m
+        // Endereço — mantém
         set('rr-input-endereco', payload.endereco);
         set('rr-input-complemento', payload.complemento);
-        // Coordenadas â€” mantÃ©m
+        // Coordenadas — mantém
         if (payload.lat && payload.lng) set('rr-input-coord', `${payload.lat}, ${payload.lng}`);
-        // Contrato â€” mantÃ©m
+        // Contrato — mantém
         if (payload.contrato) {
-            const contEl = document.querySelector('input[placeholder="NÂº Contrato"]');
+            const contEl = document.querySelector('input[placeholder="Nº Contrato"]');
             if (contEl) contEl.value = payload.contrato;
         }
-        // Data â€” LIMPA (nÃ£o preenche)
-        const dataEl = document.getElementById('rr-input-data');
+        // Data — LIMPA (não preenche)
+        const dataEl = document.querySelector('input[type="date"]');
         if (dataEl) dataEl.value = '';
-        // ResponsÃ¡vel, telefone, email â€” mantÃ©m
+        // Responsável, telefone, email — mantém
         set('rr-input-responsavel', payload.responsavel);
         set('rr-input-telefone', payload.telefone);
         set('rr-input-email', payload.email);
-        // Obs / vÃ­deo â€” mantÃ©m
+        // Obs / vídeo — mantém
         set('rr-input-obs', payload.observacoes);
         set('rr-input-video', payload.link_video);
-        // Turno e horÃ¡rio â€” mantÃ©m
+        // Turno e horário — mantém
         const diurno = document.getElementById('rr-chk-diurno');
         const noturno = document.getElementById('rr-chk-noturno');
         if (payload.turno === 'Diurno' && diurno) { diurno.checked = true; if (noturno) noturno.checked = false; }
         if (payload.turno === 'Noturno' && noturno) { noturno.checked = true; if (diurno) diurno.checked = false; }
         set('rr-input-hora-inicio', payload.hora_inicio);
         set('rr-input-hora-fim', payload.hora_fim);
-        // Dias da semana â€” mantÃ©m
-        const diasMap = { 'Seg': 'rr-chk-seg', 'Ter': 'rr-chk-ter', 'Qua': 'rr-chk-qua', 'Qui': 'rr-chk-qui', 'Sex': 'rr-chk-sex', 'SÃ¡b': 'rr-chk-sab', 'Dom': 'rr-chk-dom' };
+        // Dias da semana — mantém
+        const diasMap = { 'Seg': 'rr-chk-seg', 'Ter': 'rr-chk-ter', 'Qua': 'rr-chk-qua', 'Qui': 'rr-chk-qui', 'Sex': 'rr-chk-sex', 'Sáb': 'rr-chk-sab', 'Dom': 'rr-chk-dom' };
         Object.entries(diasMap).forEach(([d, id]) => {
             const el = document.getElementById(id);
             if (el) el.checked = (payload.dias_semana || []).includes(d);
         });
-        // Tipo de serviÃ§o â€” LIMPA
+        // Tipo de serviço — LIMPA
         const tipoServEl = document.getElementById('rr-tipo-servico');
         if (tipoServEl) tipoServEl.value = '';
-        // Atualiza UI (produtos, tipo OS, Ã­cones)
+        // Atualiza UI (produtos, tipo OS, ícones)
         atualizarDropdownProdutos();
         atualizarIconesCliente();
         atualizarUI();
         // Toast confirmando
-        mostrarToastAviso('âœ… OS duplicada! Preencha o novo Tipo de ServiÃ§o e a Data antes de gerar.');
+        mostrarToastAviso('✅ OS duplicada! Preencha o novo Tipo de Serviço e a Data antes de gerar.');
     }, 150);
 }
 
@@ -690,7 +689,7 @@ async function buscarAgendaEndereco() {
     const btn = document.getElementById('btn-agenda-endereco');
 
     const endereco = endInput?.value?.trim();
-    if (!endereco) { mostrarToastAviso('Preencha o campo de EndereÃ§o antes de verificar a agenda.'); return; }
+    if (!endereco) { mostrarToastAviso('Preencha o campo de Endereço antes de verificar a agenda.'); return; }
 
     const params = new URLSearchParams({ endereco });
     if (coordInput?.value) {
@@ -710,14 +709,14 @@ async function buscarAgendaEndereco() {
         const data = await resp.json();
         exibirModalAgendaEndereco(data, endereco);
     } catch(e) {
-        console.error('[Agenda EndereÃ§o]', e);
+        console.error('[Agenda Endereço]', e);
         mostrarToastAviso('Erro ao buscar agenda. Tente novamente.');
     } finally {
         if (btn) btn.innerHTML = '<i class="ph ph-calendar-check"></i>';
     }
 }
 
-// â”€â”€ CARREGAR OS PELO NÃšMERO (Enter no campo OS) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── CARREGAR OS PELO NÚMERO (Enter no campo OS) ──────────────────────────────
 async function carregarOsPorNumero(numOs) {
     const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
     const btn = document.getElementById('rr-input-os');
@@ -729,24 +728,24 @@ async function carregarOsPorNumero(numOs) {
         });
         if (!resp.ok) {
             if (resp.status === 404) {
-                // Nenhuma OS com esse nÃºmero â€” campo limpo para nova OS
+                // Nenhuma OS com esse número — campo limpo para nova OS
                 btn.style.background = '';
-                mostrarToastAviso(`OS "${numOs}" nÃ£o encontrada. Preencha os campos para criar uma nova.`);
+                mostrarToastAviso(`OS "${numOs}" não encontrada. Preencha os campos para criar uma nova.`);
                 return;
             }
             throw new Error(`HTTP ${resp.status}`);
         }
-        const registros = await resp.json(); // array de OS com esse nÃºmero
+        const registros = await resp.json(); // array de OS com esse número
         if (!registros || registros.length === 0) {
             btn.style.background = '';
-            mostrarToastAviso(`OS "${numOs}" nÃ£o encontrada. Preencha os campos para criar uma nova.`);
+            mostrarToastAviso(`OS "${numOs}" não encontrada. Preencha os campos para criar uma nova.`);
             return;
         }
 
         if (registros.length === 1) {
-            // Se sÃ³ tem 1, carrega direto
+            // Se só tem 1, carrega direto
             carregarRegistroNaTela(registros[0]);
-            mostrarToastAviso(`âœ… OS "${numOs}" carregada.`);
+            mostrarToastAviso(`✅ OS "${numOs}" carregada.`);
         } else {
             // Mais de 1, abre o modal
             btn.style.background = '#f0fdf4';
@@ -754,17 +753,17 @@ async function carregarOsPorNumero(numOs) {
         }
     } catch(e) {
         console.error('[Carregar OS]', e);
-        mostrarToastAviso('Erro ao buscar OS. Verifique a conexÃ£o.');
+        mostrarToastAviso('Erro ao buscar OS. Verifique a conexão.');
         if (btn) btn.style.background = '';
     }
 }
 
-// â”€â”€ MODAL COM LISTA DE SERVIÃ‡OS DA OS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── MODAL COM LISTA DE SERVIÇOS DA OS ─────────────────────────────────────────
 function abrirModalListaOS(numOs, registros) {
     document.getElementById('rr-modal-lista-os')?.remove();
 
     const tbody = registros.map(r => {
-        let prod = 'â€”';
+        let prod = '—';
         try {
             const parsedProd = JSON.parse(r.produtos);
             if (Array.isArray(parsedProd) && parsedProd.length > 0) {
@@ -776,29 +775,29 @@ function abrirModalListaOS(numOs, registros) {
             }
         } catch(e) {}
 
-        let dSemana = 'â€”';
+        let dSemana = '—';
         try { dSemana = JSON.parse(r.dias_semana).map(d => `<span style="background:#2563eb;color:white;padding:2px 6px;border-radius:4px;margin-right:4px;">${d}</span>`).join(''); } catch(e) {}
 
-        let hab = 'â€”';
+        let hab = '—';
         try { 
             const h = JSON.parse(r.habilidades);
             if(h && h.length) hab = h.join(', ');
         } catch(e) { if(r.habilidades) hab = r.habilidades; }
 
-        let varis = 'â€”';
+        let varis = '—';
         try { 
             const v = JSON.parse(r.variaveis);
             if(v && v.length) varis = v.join(', ');
         } catch(e) { if(r.variaveis) varis = r.variaveis; }
 
-        const dataFormatada = r.data_os ? r.data_os.split('-').reverse().join('/') : 'â€”';
+        const dataFormatada = r.data_os ? r.data_os.split('-').reverse().join('/') : '—';
         
         return `
             <tr class="rr-os-row" data-cliente="${(r.cliente||'').toLowerCase()}" data-endereco="${(r.endereco||'').toLowerCase()}" style="border-bottom:1px solid #e2e8f0; transition:background 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
                 <td style="padding:0.75rem 0.5rem;white-space:nowrap;">${r.numero_os}</td>
                 <td style="padding:0.75rem 0.5rem;font-weight:600;cursor:pointer;" onclick='window._carregarRegistroNaTela(${JSON.stringify(r)})'>${r.cliente}</td>
                 <td style="padding:0.75rem 0.5rem;">${r.endereco}</td>
-                <td style="padding:0.75rem 0.5rem;">${r.tipo_servico || 'â€”'}</td>
+                <td style="padding:0.75rem 0.5rem;">${r.tipo_servico || '—'}</td>
                 <td style="padding:0.75rem 0.5rem;">${dataFormatada}</td>
                 <td style="padding:0.75rem 0.5rem;">${dSemana}</td>
                 <td style="padding:0.75rem 0.5rem;">${hab}</td>
@@ -820,29 +819,29 @@ function abrirModalListaOS(numOs, registros) {
             <div style="background:#475569;color:white;padding:1.25rem 1.5rem;display:flex;justify-content:space-between;align-items:center;">
                 <div>
                     <h3 style="margin:0;font-size:1.2rem;font-weight:700;">Resultados da Busca</h3>
-                    <p style="margin:0;font-size:0.8rem;opacity:0.9;">ServiÃ§os vinculados Ã  OS #${numOs}. Clique no botÃ£o Editar para carregar as informaÃ§Ãµes.</p>
+                    <p style="margin:0;font-size:0.8rem;opacity:0.9;">Serviços vinculados à OS #${numOs}. Clique no botão Editar para carregar as informações.</p>
                 </div>
                 <button id="btn-fechar-modal-lista-os" style="background:transparent;border:none;color:white;font-size:1.5rem;cursor:pointer;"><i class="ph ph-x"></i></button>
             </div>
             <!-- Filtros -->
             <div style="padding:0.75rem 1.5rem; background:#f8fafc; border-bottom:1px solid #e2e8f0; display:flex; gap:10px;">
                 <input type="text" id="rr-filter-cliente" placeholder="Filtrar por Cliente..." style="flex:1; padding:8px 12px; border:1px solid #cbd5e1; border-radius:4px; font-size:0.85rem; outline:none;">
-                <input type="text" id="rr-filter-endereco" placeholder="Filtrar por EndereÃ§o..." style="flex:1; padding:8px 12px; border:1px solid #cbd5e1; border-radius:4px; font-size:0.85rem; outline:none;">
+                <input type="text" id="rr-filter-endereco" placeholder="Filtrar por Endereço..." style="flex:1; padding:8px 12px; border:1px solid #cbd5e1; border-radius:4px; font-size:0.85rem; outline:none;">
             </div>
             <div style="overflow-y:auto;padding:1rem;flex:1;">
                 <table style="width:100%;border-collapse:collapse;font-size:0.85rem;text-align:left;">
                     <thead>
                         <tr style="background:#2d9e5f;color:white;">
-                            <th style="padding:0.75rem 0.5rem;font-weight:600;">NÃºmero OS</th>
+                            <th style="padding:0.75rem 0.5rem;font-weight:600;">Número OS</th>
                             <th style="padding:0.75rem 0.5rem;font-weight:600;">Cliente</th>
-                            <th style="padding:0.75rem 0.5rem;font-weight:600;">EndereÃ§o</th>
-                            <th style="padding:0.75rem 0.5rem;font-weight:600;">Tipo ServiÃ§o</th>
+                            <th style="padding:0.75rem 0.5rem;font-weight:600;">Endereço</th>
+                            <th style="padding:0.75rem 0.5rem;font-weight:600;">Tipo Serviço</th>
                             <th style="padding:0.75rem 0.5rem;font-weight:600;">Data</th>
                             <th style="padding:0.75rem 0.5rem;font-weight:600;">Dias da Semana</th>
                             <th style="padding:0.75rem 0.5rem;font-weight:600;">Habilidades</th>
-                            <th style="padding:0.75rem 0.5rem;font-weight:600;">VariÃ¡veis</th>
-                            <th style="padding:0.75rem 0.5rem;font-weight:600;">Produtos LogÃ­stica</th>
-                            <th style="padding:0.75rem 0.5rem;font-weight:600;width:80px;">AÃ§Ãµes</th>
+                            <th style="padding:0.75rem 0.5rem;font-weight:600;">Variáveis</th>
+                            <th style="padding:0.75rem 0.5rem;font-weight:600;">Produtos Logística</th>
+                            <th style="padding:0.75rem 0.5rem;font-weight:600;width:80px;">Ações</th>
                         </tr>
                     </thead>
                     <tbody>${tbody}</tbody>
@@ -855,7 +854,7 @@ function abrirModalListaOS(numOs, registros) {
     modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
 
     window._excluirOsLista = async (id) => {
-        if (!confirm('Tem certeza que deseja excluir esta Ordem de ServiÃ§o?')) return;
+        if (!confirm('Tem certeza que deseja excluir esta Ordem de Serviço?')) return;
         try {
             const resp = await fetch(`/api/logistica/os/${id}`, {
                 method: 'DELETE',
@@ -865,7 +864,7 @@ function abrirModalListaOS(numOs, registros) {
                 const txt = await resp.text();
                 throw new Error(txt || 'Erro ao excluir');
             }
-            if (typeof showToast === 'function') showToast('OS excluÃ­da com sucesso!', 'success');
+            if (typeof showToast === 'function') showToast('OS excluída com sucesso!', 'success');
             modal.remove(); // Fecha o modal e obriga recarregar se buscar de novo
         } catch (e) {
             console.error(e);
@@ -873,7 +872,7 @@ function abrirModalListaOS(numOs, registros) {
         }
     };
 
-    // LÃ³gica de Filtro
+    // Lógica de Filtro
     const filterData = () => {
         const fCli = (document.getElementById('rr-filter-cliente')?.value || '').toLowerCase();
         const fEnd = (document.getElementById('rr-filter-endereco')?.value || '').toLowerCase();
@@ -895,7 +894,7 @@ function parseJsonFront(val) {
 window._carregarRegistroNaTela = function(os) {
     document.getElementById('rr-modal-lista-os')?.remove();
     carregarRegistroNaTela(os);
-    mostrarToastAviso(`âœ… ServiÃ§o carregado.`);
+    mostrarToastAviso(`✅ Serviço carregado.`);
 };
 
 function carregarRegistroNaTela(os) {
@@ -914,11 +913,11 @@ function carregarRegistroNaTela(os) {
     set('rr-input-video', os.link_video);
     set('rr-tipo-servico', os.tipo_servico);
     if (os.contrato) {
-        const contEl = document.querySelector('input[placeholder="NÂº Contrato"]');
+        const contEl = document.querySelector('input[placeholder="Nº Contrato"]');
         if (contEl) contEl.value = os.contrato;
     }
     if (os.data_os) {
-        const dataEl = document.getElementById('rr-input-data');
+        const dataEl = document.querySelector('input[type="date"]');
         if (dataEl) dataEl.value = os.data_os;
     }
 
@@ -929,7 +928,7 @@ function carregarRegistroNaTela(os) {
         atualizarDropdownProdutos();
         atualizarIconesCliente();
     }
-    // Turno e horÃ¡rio
+    // Turno e horário
     const diurno = document.getElementById('rr-chk-diurno');
     const noturno = document.getElementById('rr-chk-noturno');
     if (os.turno === 'Diurno' && diurno) { diurno.checked = true; if (noturno) noturno.checked = false; }
@@ -938,7 +937,7 @@ function carregarRegistroNaTela(os) {
     set('rr-input-hora-fim', os.hora_fim);
     // Dias da semana
     const diasSalvos = parseJsonFront(os.dias_semana);
-    const diasMap = { 'Seg': 'rr-chk-seg', 'Ter': 'rr-chk-ter', 'Qua': 'rr-chk-qua', 'Qui': 'rr-chk-qui', 'Sex': 'rr-chk-sex', 'SÃ¡b': 'rr-chk-sab', 'Dom': 'rr-chk-dom' };
+    const diasMap = { 'Seg': 'rr-chk-seg', 'Ter': 'rr-chk-ter', 'Qua': 'rr-chk-qua', 'Qui': 'rr-chk-qui', 'Sex': 'rr-chk-sex', 'Sáb': 'rr-chk-sab', 'Dom': 'rr-chk-dom' };
     Object.entries(diasMap).forEach(([d, id]) => {
         const el = document.getElementById(id);
         if (el) el.checked = diasSalvos.includes(d);
@@ -959,14 +958,14 @@ function parseDiasFront(diasJson) {
 
 function exibirModalAgendaEndereco(data, enderecoAtual) {
     document.getElementById('rr-modal-agenda-end')?.remove();
-    const DIAS_ALL = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'SÃ¡b', 'Dom'];
+    const DIAS_ALL = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
     const diasSugeridos = data.dias_sugeridos || [];
     const exatos = data.exatos || [];
     const proximos = data.proximos || [];
 
     const pilulasSugeridos = diasSugeridos.length > 0
         ? diasSugeridos.map(d => `<span style="background:#dcfce7;color:#166534;border:1px solid #bbf7d0;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:700;margin:2px;">${d.dia} <small style="opacity:0.7;">(${d.ocorrencias}x)</small></span>`).join('')
-        : '<span style="color:#94a3b8;font-size:0.75rem;">Nenhuma manutenÃ§Ã£o encontrada para este endereÃ§o exato.</span>';
+        : '<span style="color:#94a3b8;font-size:0.75rem;">Nenhuma manutenção encontrada para este endereço exato.</span>';
 
     const linhasExatos = exatos.map(os => {
         const dias = parseDiasFront(os.dias_semana);
@@ -989,42 +988,42 @@ function exibirModalAgendaEndereco(data, enderecoAtual) {
             <td style="padding:4px 6px;">${pills}</td></tr>`;
     }).join('');
 
-    const endLabel = enderecoAtual.length > 50 ? enderecoAtual.substring(0,50) + 'â€¦' : enderecoAtual;
+    const endLabel = enderecoAtual.length > 50 ? enderecoAtual.substring(0,50) + '…' : enderecoAtual;
     const modal = document.createElement('div');
     modal.id = 'rr-modal-agenda-end';
     modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;';
     modal.innerHTML = `
         <div style="background:white;border-radius:12px;width:700px;max-width:96vw;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,0.2);overflow:hidden;">
             <div style="background:#2d9e5f;color:white;padding:0.75rem 1rem;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
-                <span style="font-weight:700;font-size:0.88rem;"><i class="ph ph-calendar-check"></i> Agenda de ManutenÃ§Ãµes â€” ${endLabel}</span>
+                <span style="font-weight:700;font-size:0.88rem;"><i class="ph ph-calendar-check"></i> Agenda de Manutenções — ${endLabel}</span>
                 <button id="btn-fechar-modal-agenda" style="background:transparent;border:none;color:white;font-size:1.1rem;cursor:pointer;"><i class="ph ph-x"></i></button>
             </div>
             <div style="overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:1rem;">
                 <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:0.75rem;">
-                    <p style="font-size:0.75rem;font-weight:700;color:#166534;margin:0 0 6px;">âœ… Dias com manutenÃ§Ã£o jÃ¡ programada neste endereÃ§o:</p>
+                    <p style="font-size:0.75rem;font-weight:700;color:#166534;margin:0 0 6px;">✅ Dias com manutenção já programada neste endereço:</p>
                     <div style="display:flex;flex-wrap:wrap;gap:4px;">${pilulasSugeridos}</div>
-                    ${diasSugeridos.length > 0 ? '<p style="font-size:0.68rem;color:#166534;margin:6px 0 0;">ðŸ’¡ Recomendamos agendar nestes mesmos dias para otimizar a logÃ­stica.</p>' : ''}
+                    ${diasSugeridos.length > 0 ? '<p style="font-size:0.68rem;color:#166534;margin:6px 0 0;">💡 Recomendamos agendar nestes mesmos dias para otimizar a logística.</p>' : ''}
                 </div>
                 ${exatos.length > 0 ? `<div>
-                    <p style="font-size:0.75rem;font-weight:700;color:#334155;margin:0 0 6px;"><i class="ph ph-map-pin"></i> OS neste endereÃ§o (${exatos.length}):</p>
+                    <p style="font-size:0.75rem;font-weight:700;color:#334155;margin:0 0 6px;"><i class="ph ph-map-pin"></i> OS neste endereço (${exatos.length}):</p>
                     <table style="width:100%;border-collapse:collapse;">
                         <thead><tr style="background:#f8fafc;">
                             <th style="padding:4px 6px;font-size:0.68rem;color:#64748b;text-align:left;">OS</th>
                             <th style="padding:4px 6px;font-size:0.68rem;color:#64748b;text-align:left;">Cliente</th>
-                            <th style="padding:4px 6px;font-size:0.68rem;color:#64748b;text-align:left;">ServiÃ§o</th>
+                            <th style="padding:4px 6px;font-size:0.68rem;color:#64748b;text-align:left;">Serviço</th>
                             <th style="padding:4px 6px;font-size:0.68rem;color:#64748b;text-align:left;">Dias</th>
                         </tr></thead><tbody>${linhasExatos}</tbody></table></div>` : ''}
                 ${proximos.length > 0 ? `<div>
-                    <p style="font-size:0.75rem;font-weight:700;color:#92400e;margin:0 0 6px;"><i class="ph ph-circles-three"></i> EndereÃ§os prÃ³ximos com manutenÃ§Ã£o â€” atÃ© 5km (${proximos.length}):</p>
+                    <p style="font-size:0.75rem;font-weight:700;color:#92400e;margin:0 0 6px;"><i class="ph ph-circles-three"></i> Endereços próximos com manutenção — até 5km (${proximos.length}):</p>
                     <table style="width:100%;border-collapse:collapse;">
                         <thead><tr style="background:#fffbeb;">
                             <th style="padding:4px 6px;font-size:0.68rem;color:#64748b;text-align:left;">OS</th>
                             <th style="padding:4px 6px;font-size:0.68rem;color:#64748b;text-align:left;">Cliente</th>
                             <th style="padding:4px 6px;font-size:0.68rem;color:#64748b;text-align:left;">Dist.</th>
-                            <th style="padding:4px 6px;font-size:0.68rem;color:#64748b;text-align:left;">ServiÃ§o</th>
+                            <th style="padding:4px 6px;font-size:0.68rem;color:#64748b;text-align:left;">Serviço</th>
                             <th style="padding:4px 6px;font-size:0.68rem;color:#64748b;text-align:left;">Dias</th>
                         </tr></thead><tbody>${linhasProximos}</tbody></table></div>` : ''}
-                ${exatos.length === 0 && proximos.length === 0 ? '<p style="text-align:center;color:#94a3b8;font-size:0.78rem;padding:1rem 0;">Nenhuma manutenÃ§Ã£o encontrada neste endereÃ§o ou num raio de 5km.</p>' : ''}
+                ${exatos.length === 0 && proximos.length === 0 ? '<p style="text-align:center;color:#94a3b8;font-size:0.78rem;padding:1rem 0;">Nenhuma manutenção encontrada neste endereço ou num raio de 5km.</p>' : ''}
             </div>
         </div>`;
     document.body.appendChild(modal);
@@ -1044,12 +1043,13 @@ if (!document.getElementById('rr-keyframes')) {
     document.head.appendChild(s);
 }
 
-// â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• 
+// ══════════════════════════════════════════════════════════════════════════════
 // PARSER DE TEXTO LIVRE DE OS (Colar OS)
-// â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• 
+// ══════════════════════════════════════════════════════════════════════════════
 
 function parseOsText(texto) {
-    const lines = texto.replace(/\r/g, '').split('\n').map(l => l.trim());
+    texto = texto.replace(/\t/g, '\n');
+    const lines = texto.replace(/\r/g, '').split('\n').map(l => l.trim()).filter(l => l);
     const resultado = {
         numOs: '', cliente: '', contrato: '', tipoOs: '',
         responsavel: '', telefone: '', endereco: '', email: '',
@@ -1057,19 +1057,23 @@ function parseOsText(texto) {
         ambiguidades: [], avisos: []
     };
 
-    const eVazio = (v) => !v || /^[\s\-â€“â€”*]*$/.test(v);
+    const eVazio = (v) => !v || /^[\s\-–—*]*$/.test(v);
+    const extrairValor = (linha, regex) => linha.replace(regex, '').replace(/^[\s\-–—:]+/, '').trim();
 
     for (let i = 0; i < lines.length; i++) {
         const l = lines[i];
+        const lu = l.toUpperCase();
 
-        // OS -> NÃºmero na linha seguinte
-        if (/^OS/i.test(l) && i + 1 < lines.length) {
-            resultado.numOs = lines[i + 1].trim();
+        if (lu.startsWith('OS')) {
+            const match = lu.match(/OS\s*[:\-]?\s*(\d+)/);
+            if (match) resultado.numOs = match[1];
+            else if (i + 1 < lines.length && /^\d+$/.test(lines[i + 1])) resultado.numOs = lines[i + 1];
         }
         
-        // Data Cadastro -> Data (i+1)
-        else if (/^DATA CADASTRO/i.test(l) && i + 1 < lines.length) {
-            const v = lines[i + 1].trim();
+        if (lu.includes('DATA CADASTRO') || lu.includes('DATA')) {
+            let v = extrairValor(l, /DATA(?: CADASTRO)?/i);
+            if (eVazio(v) && i + 1 < lines.length) v = lines[i + 1];
+            
             const datasEncontradas = [...v.matchAll(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/g)];
             if (datasEncontradas.length > 0) {
                 const [, d, m, a] = datasEncontradas[0];
@@ -1078,64 +1082,64 @@ function parseOsText(texto) {
             }
         }
 
-        // Cliente -> ID (i+1), Nome (i+2)
-        else if (/^CLIENTE/i.test(l) && i + 2 < lines.length && /^\d+$/.test(lines[i + 1].trim())) {
-            resultado.cliente = lines[i + 2].trim();
+        if (lu.startsWith('CLIENTE')) {
+            let v = extrairValor(l, /CLIENTE/i);
+            if (!eVazio(v)) resultado.cliente = v;
+            else if (i + 1 < lines.length) {
+                 if (/^\d+$/.test(lines[i + 1])) {
+                     if (i + 2 < lines.length) resultado.cliente = lines[i + 2];
+                 } else {
+                     resultado.cliente = lines[i + 1];
+                 }
+            }
         }
 
-        // Contato -> Contrato (i+1)
-        else if (/^CONTATO/i.test(l) && i + 1 < lines.length) {
-            const c = lines[i + 1].trim();
+        if (lu.startsWith('CONTATO') || lu.startsWith('CONTRATO')) {
+            let c = extrairValor(l, /CONT[RA]ATO/i);
+            if (eVazio(c) && i + 1 < lines.length) c = lines[i + 1];
             if (/^\d+$/.test(c)) resultado.contrato = c;
         }
 
-        // Tipo e SituaÃ§Ã£o do Contrato -> Obra ou Evento (i+1)
-        else if (/^TIPO E SITUAÃ‡ÃƒO DO CONTRATO/i.test(l) && i + 1 < lines.length) {
-            const val = lines[i + 1].toUpperCase();
+        if (lu.includes('TIPO E SITUAÇÃO DO CONTRATO') || lu.includes('TIPO DE CONTRATO')) {
+            let val = l;
+            if (val.length < 30 && i + 1 < lines.length) val += ' ' + lines[i + 1];
+            val = val.toUpperCase();
             if (val.includes('OBRA')) resultado.tipoOs = 'Obra';
             else if (val.includes('EVENTO')) resultado.tipoOs = 'Evento';
         }
 
-        // ðŸ“žContato de instalaÃ§Ã£o:
-        else if (/contato de instala/i.test(l)) {
-            const v = l.replace(/^.*?contato de instala[^:]*:/i, '').trim();
+        if (l.includes('📞Contato') || l.includes('Contato de instalação:')) {
+            let v = extrairValor(l, /📞?Contato de instala[cç][aã]o:/i);
+            if (eVazio(v) && i + 1 < lines.length) v = lines[i + 1];
             if (!eVazio(v)) {
-                const telMatch = v.match(/(?:[-:]?\s*)?\(?\d{2}\)?\s*\d{4,5}[-\s]?\d{4}|\d{10,11}/);
-                if (telMatch) {
-                    const telRaw = telMatch[0];
-                    const t = telRaw.replace(/[^\d]/g, '');
-                    resultado.telefone = t.length === 11 ? `(${t.slice(0,2)}) ${t.slice(2,7)}-${t.slice(7)}` : t;
-                    resultado.responsavel = v.replace(telRaw, '').replace(/^-|-$/g, '').trim();
-                } else {
-                    const parts = v.split('-');
-                    resultado.responsavel = parts[0].trim();
-                    if (parts.length > 1) {
-                        const tel = parts[1].replace(/[^\d]/g, '');
-                        if (tel.length >= 8) {
-                            const t = tel;
-                            resultado.telefone = t.length === 11 ? `(${t.slice(0,2)}) ${t.slice(2,7)}-${t.slice(7)}` : t;
-                        }
+                const parts = v.split('-');
+                resultado.responsavel = parts[0].trim();
+                if (parts.length > 1) {
+                    const tel = parts[1].replace(/[^\d]/g, '');
+                    if (tel.length >= 8) {
+                        const t = tel;
+                        resultado.telefone = t.length === 11 ? `(${t.slice(0,2)}) ${t.slice(2,7)}-${t.slice(7)}` : t;
                     }
                 }
             }
         }
 
-        // ðŸ“ EndereÃ§o de entrega:
-        else if (l.includes('ðŸ“ EndereÃ§o') || l.includes('EndereÃ§o de entrega:') || /endere[cÃ§]o de entrega:/i.test(l)) {
-            const v = l.replace(/^.*?endere[cÃ§]o de entrega:/i, '').trim();
+        if (l.includes('📍Endereço') || l.includes('Endereço de entrega:')) {
+            let v = extrairValor(l, /📍?Endere[cç]o de entrega:/i);
+            if (eVazio(v) && i + 1 < lines.length) v = lines[i + 1];
             if (!eVazio(v)) resultado.endereco = v.replace(/- campo.*/i, '').trim();
         }
 
-        // ðŸ“¨ E-mail recebimento OS:
-        else if (l.includes('ðŸ“¨ E-mail') || l.includes('E-mail recebimento OS:') || /e-mail recebimento os:/i.test(l)) {
-            const v = l.replace(/^.*?e-mail recebimento os:/i, '').trim();
+        // 📨 E-mail recebimento OS:
+        else if (l.includes('📨 E-mail') || l.includes('E-mail recebimento OS:')) {
+            const v = extrairValor(l, /📨?\s*E-mail recebimento OS:/i);
             const emMatch = v.match(/[\w.\-+]+@[\w.\-]+\.\w{2,}/);
             if (emMatch) resultado.email = emMatch[0].toLowerCase();
         }
 
-        // ðŸ‘‰Entrega: 24/04/2026
-        else if (/entrega:/i.test(l)) {
-            const v = l.replace(/^.*?entrega:/i, '').trim();
+        // 👉Entrega: 24/04/2026
+        else if (l.includes('👉Entrega:') || l.includes('Entrega:')) {
+            const v = extrairValor(l, /👉?Entrega:/i);
             const datasEncontradas = [...v.matchAll(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/g)];
             if (datasEncontradas.length > 0) {
                 const [, d, m, a] = datasEncontradas[0];
@@ -1144,15 +1148,15 @@ function parseOsText(texto) {
             }
         }
 
-        // ðŸ’©Produto: 10 STD 1 PCD
-        else if (/produto:/i.test(l)) {
-            const v = l.replace(/^.*?produto:/i, '').trim();
+        // 💩Produto: 10 STD 1 PCD
+        else if (l.includes('💩Produto:') || l.includes('Produto:')) {
+            const v = extrairValor(l, /💩?Produto:/i);
             if (!eVazio(v)) resultado.rawProdutos = v.replace(/-.*(produto|icone).*/i, '').trim();
         }
 
-        // ðŸ’¡ObservaÃ§Ãµes:--
-        else if (/observa[cÃ§][Ãµo]es:/i.test(l)) {
-            const v = l.replace(/^.*?observa[cÃ§][Ãµo]es:/i, '').trim();
+        // 💡Observações:--
+        else if (l.includes('💡Observações:') || l.includes('Observações:')) {
+            const v = extrairValor(l, /💡?Observa[cç][õo]es:/i);
             if (!eVazio(v) && v !== '--') {
                 resultado.observacoesInternas = v.replace(/Ignorar.*/i, '').replace(/-.*campo.*/i, '').trim();
             }
@@ -1162,7 +1166,7 @@ function parseOsText(texto) {
     return resultado;
 }
 
-// â”€â”€ MODAL COLAR OS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── MODAL COLAR OS ─────────────────────────────────────────────────────────
 function abrirModalColarOS() {
     document.getElementById('rr-modal-colar-os')?.remove();
     const modal = document.createElement('div');
@@ -1172,16 +1176,16 @@ function abrirModalColarOS() {
         <div style="background:white;border-radius:12px;padding:1.5rem;width:560px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,0.25);display:flex;flex-direction:column;gap:1rem;">
             <div style="display:flex;align-items:center;justify-content:space-between;">
                 <div>
-                    <p style="font-weight:700;font-size:1rem;color:#1e293b;margin:0;">ðŸ“‹ Colar texto da OS</p>
-                    <p style="font-size:0.75rem;color:#64748b;margin:2px 0 0;">Cole o texto do pedido abaixo. O sistema interpretarÃ¡ os campos automaticamente.</p>
+                    <p style="font-weight:700;font-size:1rem;color:#1e293b;margin:0;">📋 Colar texto da OS</p>
+                    <p style="font-size:0.75rem;color:#64748b;margin:2px 0 0;">Cole o texto do pedido abaixo. O sistema interpretará os campos automaticamente.</p>
                 </div>
-                <button id="rr-colar-fechar" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#64748b;">âœ•</button>
+                <button id="rr-colar-fechar" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#64748b;">✕</button>
             </div>
             <textarea id="rr-textarea-os" style="width:100%;height:180px;border:1px solid #cbd5e1;border-radius:6px;padding:0.75rem;font-size:0.8rem;font-family:monospace;resize:vertical;box-sizing:border-box;" placeholder="Cole aqui o texto do pedido (WhatsApp, e-mail, etc)..."></textarea>
             <div id="rr-colar-preview" style="display:none;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:0.75rem;font-size:0.75rem;max-height:180px;overflow-y:auto;"></div>
             <div style="display:flex;gap:0.5rem;justify-content:flex-end;">
-                <button id="rr-colar-analisar" style="background:#2d9e5f;color:white;border:none;padding:0 1rem;height:32px;border-radius:6px;font-weight:600;cursor:pointer;">ðŸ”  Analisar</button>
-                <button id="rr-colar-confirmar" style="background:#0ea5e9;color:white;border:none;padding:0 1rem;height:32px;border-radius:6px;font-weight:600;cursor:pointer;display:none;">âœ… Preencher formulÃ¡rio</button>
+                <button id="rr-colar-analisar" style="background:#2d9e5f;color:white;border:none;padding:0 1rem;height:32px;border-radius:6px;font-weight:600;cursor:pointer;">🔍 Analisar</button>
+                <button id="rr-colar-confirmar" style="background:#0ea5e9;color:white;border:none;padding:0 1rem;height:32px;border-radius:6px;font-weight:600;cursor:pointer;display:none;">✅ Preencher formulário</button>
             </div>
         </div>
     `;
@@ -1192,7 +1196,7 @@ function abrirModalColarOS() {
     modal.querySelector('#rr-colar-fechar').onclick = () => modal.remove();
     modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
 
-    // BotÃ£o Analisar
+    // Botão Analisar
     modal.querySelector('#rr-colar-analisar').onclick = async () => {
         const texto = document.getElementById('rr-textarea-os').value.trim();
         if (!texto) return;
@@ -1203,7 +1207,7 @@ function abrirModalColarOS() {
         
         dadosExtraidos = parseOsText(texto);
 
-        // Verifica se a OS jÃ¡ existe
+        // Verifica se a OS já existe
         if (dadosExtraidos.numOs) {
             try {
                 const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
@@ -1231,43 +1235,43 @@ function abrirModalColarOS() {
         let html = '';
         if (dadosExtraidos.osExiste) {
             html += `<div style="color:#b45309;background:#fef3c7;padding:6px 10px;border-radius:4px;margin-bottom:8px;font-weight:bold;border:1px solid #f59e0b;">
-                        âš ï¸  Esta OS (${dadosExtraidos.numOs}) jÃ¡ existe no sistema! Tipo identificado: ${dadosExtraidos.tipoOsDB || 'Desconhecido'}.
+                        ⚠️ Esta OS (${dadosExtraidos.numOs}) já existe no sistema! Tipo identificado: ${dadosExtraidos.tipoOsDB || 'Desconhecido'}.
                      </div>`;
         }
         
-        html += linha('ðŸ”¢ OS', dadosExtraidos.numOs);
-        html += linha('ðŸ“… Data', dadosExtraidos.dataEntrega);
-        html += linha('ðŸ‘¤ Cliente', dadosExtraidos.cliente);
-        html += linha('ðŸ“œ Contrato', dadosExtraidos.contrato);
-        html += linha('ðŸ ¢ Tipo OS', dadosExtraidos.tipoOsDB || dadosExtraidos.tipoOs);
-        html += linha('ðŸ‘· ResponsÃ¡vel', dadosExtraidos.responsavel);
-        html += linha('ðŸ“ž Telefone', dadosExtraidos.telefone);
-        html += linha('ðŸ“  EndereÃ§o', dadosExtraidos.endereco);
-        html += linha('ðŸ“§ Email', dadosExtraidos.email);
-        html += linha('ðŸ“¦ Produtos', dadosExtraidos.rawProdutos);
-        html += linha('ðŸ“  Obs Motorista', dadosExtraidos.observacoes);
-        html += linha('ðŸ”’ Obs Internas', dadosExtraidos.observacoesInternas);
+        html += linha('🔢 OS', dadosExtraidos.numOs);
+        html += linha('📅 Data', dadosExtraidos.dataEntrega);
+        html += linha('👤 Cliente', dadosExtraidos.cliente);
+        html += linha('📜 Contrato', dadosExtraidos.contrato);
+        html += linha('🏢 Tipo OS', dadosExtraidos.tipoOsDB || dadosExtraidos.tipoOs);
+        html += linha('👷 Responsável', dadosExtraidos.responsavel);
+        html += linha('📞 Telefone', dadosExtraidos.telefone);
+        html += linha('📍 Endereço', dadosExtraidos.endereco);
+        html += linha('📧 Email', dadosExtraidos.email);
+        html += linha('📦 Produtos', dadosExtraidos.rawProdutos);
+        html += linha('📝 Obs Motorista', dadosExtraidos.observacoes);
+        html += linha('🔒 Obs Internas', dadosExtraidos.observacoesInternas);
 
         // Avisos
         dadosExtraidos.avisos.forEach(a => {
             html += `<div style="color:#b45309;background:#fef3c7;padding:4px 8px;border-radius:4px;margin-top:4px;">${a}</div>`;
         });
         dadosExtraidos.ambiguidades.forEach(amb => {
-            html += `<div style="color:#b45309;background:#fef3c7;padding:4px 8px;border-radius:4px;margin-top:4px;">âš ï¸  ${amb.aviso}</div>`;
+            html += `<div style="color:#b45309;background:#fef3c7;padding:4px 8px;border-radius:4px;margin-top:4px;">⚠️ ${amb.aviso}</div>`;
         });
 
         preview.innerHTML = html || '<p style="color:#94a3b8;margin:0;">Nenhum campo reconhecido.</p>';
         document.getElementById('rr-colar-confirmar').style.display = 'block';
     };
 
-    // BotÃ£o Confirmar â†’ preenche o formulÃ¡rio
+    // Botão Confirmar → preenche o formulário
     modal.querySelector('#rr-colar-confirmar').onclick = () => {
         if (!dadosExtraidos) return;
         const continuar = (tOs) => {
             modal.remove();
             preencherFormularioComDados(dadosExtraidos, tOs);
         };
-        // Se jÃ¡ existe na base, forÃ§a o tipo da base
+        // Se já existe na base, força o tipo da base
         if (dadosExtraidos.osExiste && dadosExtraidos.tipoOsDB) {
             osState.tipoOs = dadosExtraidos.tipoOsDB;
             continuar(dadosExtraidos.tipoOsDB);
@@ -1283,7 +1287,7 @@ function abrirModalColarOS() {
 }
 
 function preencherFormularioComDados(dados, tipoOs) {
-    // Desbloqueia o formulÃ¡rio
+    // Desbloqueia o formulário
     osState.clienteConfirmado = true;
     atualizarBloqueio();
 
@@ -1303,12 +1307,12 @@ function preencherFormularioComDados(dados, tipoOs) {
     set('rr-input-obs-internas',dados.observacoesInternas);
 
     if (dados.dataEntrega) {
-        const dateEl = document.getElementById('rr-input-data');
+        const dateEl = document.querySelector('input[type="date"]');
         if (dateEl) { dateEl.value = dados.dataEntrega; dateEl.style.background = '#f0fdf4'; }
     }
 
     if (dados.contrato) {
-        const contEl = document.querySelector('input[placeholder="NÂº Contrato"]');
+        const contEl = document.querySelector('input[placeholder="Nº Contrato"]');
         if (contEl) { contEl.value = dados.contrato; contEl.style.background = '#f0fdf4'; }
     }
 
@@ -1325,11 +1329,11 @@ function preencherFormularioComDados(dados, tipoOs) {
             let qtd = parseInt(match[1], 10);
             let nomeStr = match[2].toUpperCase();
             
-            // Map bÃ¡sico para encontrar nome
+            // Map básico para encontrar nome
             const MAP_PROD = {
                 'STD': 'STD', 'STANDARD': 'STD', 'LX': 'LX', 'ELX': 'ELX',
-                'PCD': 'PCD', 'CHUVEIRO': 'CHUVEIRO', 'HIDRAULICO': 'HIDRÃ ULICO',
-                'HIDRAU': 'HIDRÃ ULICO', 'MICTORIO': 'MICTÃ“RIO', 'MICT': 'MICTÃ“RIO',
+                'PCD': 'PCD', 'CHUVEIRO': 'CHUVEIRO', 'HIDRAULICO': 'HIDRÁULICO',
+                'HIDRAU': 'HIDRÁULICO', 'MICTORIO': 'MICTÓRIO', 'MICT': 'MICTÓRIO',
                 'PBII': 'PBII', 'PIA': 'PBII', 'CARRINHO': 'CARRINHO', 'CAIXA': 'CAIXA DAGUA'
             };
             let base = nomeStr;
@@ -1346,7 +1350,7 @@ function preencherFormularioComDados(dados, tipoOs) {
         atualizarUI();
     }
 
-    // Destaca campos ambÃ­guos em amarelo
+    // Destaca campos ambíguos em amarelo
     dados.ambiguidades.forEach(amb => {
         if (amb.campo === 'Produto') {
             const prodInput = document.getElementById('rr-prod-desc');
@@ -1359,99 +1363,17 @@ function preencherFormularioComDados(dados, tipoOs) {
         }
     });
 
-    // Avisos como toast rÃ¡pido
+    // Avisos como toast rápido
     if (dados.avisos.length || dados.ambiguidades.length) {
         const toast = document.createElement('div');
         toast.style.cssText = 'position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;background:#fef3c7;border:1px solid #f59e0b;color:#92400e;padding:0.75rem 1rem;border-radius:8px;font-size:0.8rem;max-width:340px;box-shadow:0 4px 12px rgba(0,0,0,0.15);';
-        toast.innerHTML = [...dados.avisos, ...dados.ambiguidades.map(a => 'âš ï¸  ' + a.aviso)].join('<br>');
+        toast.innerHTML = [...dados.avisos, ...dados.ambiguidades.map(a => '⚠️ ' + a.aviso)].join('<br>');
         document.body.appendChild(toast);
         setTimeout(() => toast.remove(), 8000);
     }
 
-    // Atualiza Ã­cones com base nas infos prÃ©-carregadas
+    // Atualiza ícones com base nas infos pré-carregadas
     atualizarIconesCliente();
-}
-
-function obterIconeServico(tipoServico) {
-    if (!tipoServico) return '';
-    tipoServico = tipoServico.toUpperCase();
-    if (tipoServico.includes('ENTREGA')) return '';
-    if (tipoServico.includes('RETIRADA')) return tipoServico.includes('TOTAL') ? '🔴' : '🔶';
-    if (tipoServico.includes('SUCCAO')) return '💧';
-    if (tipoServico.includes('LIMPA FOSSA')) return '💦';
-    if (tipoServico.includes('REPARO')) return '⚙️';
-    if (tipoServico.includes('VISITA TECNICA')) return '📋';
-    if (tipoServico.includes('MANUTENCAO AVULSA')) return '❗';
-    if (tipoServico.includes('VAC')) return '🏗️';
-    return '';
-}
-
-window._onChangeTipoServico = function() {
-    calcularTempo();
-    const val = document.getElementById('rr-tipo-servico').value.toUpperCase();
-    let mudouUI = false;
-    if (val.includes('VAC')) {
-        if (!osState.tiposServico.has('VAC')) {
-            osState.tiposServico.add('VAC');
-            mudouUI = true;
-        }
-    }
-    if (val.includes('MANUTENCAO AVULSA')) {
-        if (osState.acoes.has('! AVULSO')) {
-            osState.acoes.delete('! AVULSO');
-            mudouUI = true;
-        }
-    }
-    if (mudouUI) {
-        atualizarUI();
-    }
-    atualizarIconesCliente();
-};
-
-function gerarPrefixoIcones(tipoOverride = null) {
-    const tipoServico = (tipoOverride || document.getElementById('rr-tipo-servico')?.value || '').toUpperCase();
-
-    // Coleta Ã­cones dos produtos selecionados
-    const iconesProdutos = [];
-    osState.produtos.forEach(p => {
-        const prod = EQUIPAMENTOS_DICT[p.desc.trim()];
-        if (prod?.icone && !iconesProdutos.includes(prod.icone)) {
-            iconesProdutos.push(prod.icone);
-        }
-    });
-
-    let iconeServico = obterIconeServico(tipoServico);
-
-    const iconesVariaveis = [];
-    document.querySelectorAll('.btn-acao-azul').forEach(btn => {
-        const acao = btn.dataset.acao;
-        if (osState.acoes.has(acao) && ACOES_DICT[acao]) {
-            iconesVariaveis.push(ACOES_DICT[acao]);
-        }
-    });
-
-    // Ã cones extras das Habilidades
-    if (osState.tiposServico.has('VAC') && !iconesVariaveis.includes('🏗️') && iconeServico !== '🏗️') iconesVariaveis.push('🏗️');
-    if (osState.tiposServico.has('CARRETINHA') && !iconesVariaveis.includes('🔗')) iconesVariaveis.push('🔗');
-
-    const variaveisUnicas = iconesVariaveis.filter(ic => ic !== iconeServico);
-
-    return [...iconesProdutos, iconeServico, ...variaveisUnicas].filter(Boolean).join(' ');
-}
-
-// Atualiza os Ã­cones de produtos/serviÃ§os no nome do cliente
-function atualizarIconesCliente() {
-    const clienteInput = document.getElementById('rr-input-cliente');
-    if (!clienteInput) return;
-
-    let nomeBase = clienteInput.dataset.nomeBase;
-    if (!nomeBase) {
-        nomeBase = clienteInput.value.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\sðŸ —ðŸŽ‰â­•ðŸ”¶ðŸ’§ðŸ’¦âš™ï¸ ðŸ“‹ðŸ›’â™¦ï¸ â™»ï¸ ðŸ”—â —â °ðŸ“žðŸŒ€ðŸš¨ðŸ¦ºðŸ‘·ðŸ”›ðŸŒ˜]+/u, '').trim();
-        clienteInput.dataset.nomeBase = nomeBase || clienteInput.value.trim();
-    }
-
-    const prefixo = gerarPrefixoIcones();
-    clienteInput.value = `${prefixo} ${nomeBase}`.trim();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -1483,7 +1405,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.target.id === 'rr-input-os' && e.key === 'Enter') {
             e.preventDefault();
             const numOs = e.target.value.trim();
-            if (!numOs) { alert('Digite o nÃºmero da OS primeiro.'); return; }
+            if (!numOs) { alert('Digite o número da OS primeiro.'); return; }
             await carregarOsPorNumero(numOs);
         }
     });
@@ -1520,12 +1442,12 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('click', async (e) => {
         if (!document.getElementById('view-logistica-rota-redonda')?.classList.contains('active')) return;
 
-        // BotÃ£o + Tipo de OS (Obra/Evento)
+        // Botão + Tipo de OS (Obra/Evento)
         const btnAddOsTipo = e.target.closest('#btn-add-os-tipo');
         if (btnAddOsTipo) {
             const numOs = document.getElementById('rr-input-os')?.value?.trim();
             if (!numOs) {
-                mostrarToastAviso('Digite o nÃºmero da OS primeiro.');
+                mostrarToastAviso('Digite o número da OS primeiro.');
                 return;
             }
 
@@ -1539,7 +1461,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Nova OS
                     const numSalvo = numOs;
                     
-                    // Limpa todas as informaÃ§Ãµes preenchidas na tela
+                    // Limpa todas as informações preenchidas na tela
                     osState.produtos = []; osState.tiposServico = new Set();
                     osState.acoes = new Set(); osState.clienteConfirmado = true;
                     osState.clienteNome = ''; osState.enderecoSelecionado = ''; osState.tipoOs = '';
@@ -1574,16 +1496,16 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // BotÃ£o Colar OS
+        // Botão Colar OS
         const btnColarOs = e.target.closest('#btn-colar-os');
         if (btnColarOs) { abrirModalColarOS(); return; }
 
-        // BotÃ£o Gerar OS (validaÃ§Ã£o)
+        // Botão Gerar OS (validação)
         const btnGerarOsFinal = e.target.closest('#btn-gerar-os-final');
         if (btnGerarOsFinal) {
             if (!osState.enderecoConfirmado) {
-                mostrarToastAviso("Pesquise e confirme o endereÃ§o na Lupa azul antes de salvar.");
-                // Anima o botÃ£o da lupa
+                mostrarToastAviso("Pesquise e confirme o endereço na Lupa azul antes de salvar.");
+                // Anima o botão da lupa
                 const btnGeo = document.getElementById('btn-geocode-endereco');
                 if (btnGeo) {
                     btnGeo.style.transition = 'transform 0.1s, box-shadow 0.1s';
@@ -1604,11 +1526,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             if (!horaInicio?.value || !horaFim?.value) {
-                mostrarToastAviso("Preencha os dois horÃ¡rios: inÃ­cio e fim.");
+                mostrarToastAviso("Preencha os dois horários: início e fim.");
                 return;
             }
 
-            // Coleta todos os campos do formulÃ¡rio
+            // Coleta todos os campos do formulário
             const coordStr = document.getElementById('rr-input-coord')?.value?.trim() || '';
             const coordParts = coordStr.replace(/,/g, ' ').replace(/\s+/g, ' ').split(' ');
             const lat = coordParts.length >= 2 ? parseFloat(coordParts[0]) : null;
@@ -1616,7 +1538,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Coleta dias da semana selecionados
             const diasSelecionados = [];
-            const diasMap = { 'rr-chk-seg': 'Seg', 'rr-chk-ter': 'Ter', 'rr-chk-qua': 'Qua', 'rr-chk-qui': 'Qui', 'rr-chk-sex': 'Sex', 'rr-chk-sab': 'SÃ¡b', 'rr-chk-dom': 'Dom' };
+            const diasMap = { 'rr-chk-seg': 'Seg', 'rr-chk-ter': 'Ter', 'rr-chk-qua': 'Qua', 'rr-chk-qui': 'Qui', 'rr-chk-sex': 'Sex', 'rr-chk-sab': 'Sáb', 'rr-chk-dom': 'Dom' };
             Object.entries(diasMap).forEach(([id, label]) => {
                 if (document.getElementById(id)?.checked) diasSelecionados.push(label);
             });
@@ -1633,8 +1555,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 cep: document.getElementById('rr-input-cep')?.value?.trim() || '',
                 lat: isNaN(lat) ? null : lat,
                 lng: isNaN(lng) ? null : lng,
-                contrato: document.querySelector('input[placeholder="NÂº Contrato"]')?.value?.trim() || '',
-                data_os: document.getElementById('rr-input-data')?.value || '',
+                contrato: document.querySelector('input[placeholder="Nº Contrato"]')?.value?.trim() || '',
+                data_os: document.querySelector('input[type="date"]')?.value || '',
                 responsavel: document.getElementById('rr-input-responsavel')?.value?.trim() || '',
                 telefone: document.getElementById('rr-input-telefone')?.value?.trim() || '',
                 email: document.getElementById('rr-input-email')?.value?.trim() || '',
@@ -1651,13 +1573,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 link_video: document.getElementById('rr-input-video')?.value?.trim() || '',
             };
 
-            // ValidaÃ§Ã£o bÃ¡sica
+            // Validação básica
             if (!payload.cliente) { mostrarToastAviso('Preencha o nome do cliente antes de gerar a OS.'); return; }
-            if (!payload.tipo_os) { mostrarToastAviso('Defina o tipo de OS (Obra ou Evento) clicando no botÃ£o +.'); return; }
+            if (!payload.tipo_os) { mostrarToastAviso('Defina o tipo de OS (Obra ou Evento) clicando no botão +.'); return; }
 
-            // Desabilita botÃ£o durante o save
+            // Desabilita botão durante o save
             btnGerarOsFinal.disabled = true;
-            btnGerarOsFinal.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvandoâ€¦';
+            btnGerarOsFinal.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando…';
 
             try {
                 const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
@@ -1675,7 +1597,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     const payloadR = { ...payload };
                     payloadR.tipo_servico = `RETIRADA ${tipoOsSuffix} PARCIAL`;
-                    payloadR.cliente = `â™»ï¸  ${gerarPrefixoIcones('RETIRADA')} ${nomeBase}`.trim();
+                    payloadR.cliente = `♻️ ${gerarPrefixoIcones('RETIRADA')} ${nomeBase}`.trim();
                     payloadsParaEnviar.push(payloadR);
                 } else {
                     payload.cliente = document.getElementById('rr-input-cliente')?.value?.trim() || `${gerarPrefixoIcones()} ${nomeBase}`.trim();
@@ -1706,17 +1628,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (salvosComSucesso === payloadsParaEnviar.length) {
                     if (payloadsParaEnviar.length > 1) {
-                        mostrarToastAviso('âœ… Ambas as OS da Troca foram salvas (Entrega e Retirada)!');
+                        mostrarToastAviso('✅ Ambas as OS da Troca foram salvas (Entrega e Retirada)!');
                     }
                     exibirModalSucessoOS(firstId, payloadsParaEnviar[0]);
                 } else if (salvosComSucesso > 0) {
-                    mostrarToastAviso(`AtenÃ§Ã£o: Salvo parcialmente. Falhas: ${errorMsgs.join(', ')}`);
+                    mostrarToastAviso(`Atenção: Salvo parcialmente. Falhas: ${errorMsgs.join(', ')}`);
                 } else {
                     mostrarToastAviso(`Erro ao salvar OS: ${errorMsgs.join(', ') || 'Erro desconhecido.'}`);
                 }
             } catch(err) {
                 console.error('[Gerar OS]', err);
-                mostrarToastAviso('Falha de conexÃ£o ao salvar a OS. Tente novamente.');
+                mostrarToastAviso('Falha de conexão ao salvar a OS. Tente novamente.');
             } finally {
                 btnGerarOsFinal.disabled = false;
                 btnGerarOsFinal.innerHTML = '<i class="ph ph-check-circle"></i> Gerar OS';
@@ -1725,19 +1647,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
 
-        // BotÃ£o Geocode (buscar endereÃ§o â†’ lat/lng + mapa)
+        // Botão Geocode (buscar endereço → lat/lng + mapa)
         const btnGeocode = e.target.closest('#btn-geocode-endereco');
         if (btnGeocode) { geocodeEndereco(); return; }
 
-        // BotÃ£o Geocode Coord (buscar lat/lng â†’ endereÃ§o + mapa)
+        // Botão Geocode Coord (buscar lat/lng → endereço + mapa)
         const btnGeocodeCoord = e.target.closest('#btn-geocode-coord');
         if (btnGeocodeCoord) { reverseGeocodeEndereco(); return; }
 
-        // BotÃ£o Agenda EndereÃ§o (verificar manutenÃ§Ãµes programadas)
+        // Botão Agenda Endereço (verificar manutenções programadas)
         const btnAgendaEnd = e.target.closest('#btn-agenda-endereco');
         if (btnAgendaEnd) { buscarAgendaEndereco(); return; }
 
-        // BotÃ£o Limpar OS
+        // Botão Limpar OS
         const btnLimpar = e.target.closest('#btn-limpar-os');
         if (btnLimpar) {
             osState.produtos = []; osState.tiposServico = new Set();
@@ -1750,7 +1672,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Toggle Tipo ServiÃ§o (Habilidades)
+        // Toggle Tipo Serviço (Habilidades)
         const btnTipo = e.target.closest('.btn-tipo-servico');
         if (btnTipo) {
             const tipo = btnTipo.dataset.tipo;
@@ -1761,7 +1683,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Toggle AÃ§Ã£o
+        // Toggle Ação
         const btnAcao = e.target.closest('.btn-acao-azul');
         if (btnAcao) {
             const acao = btnAcao.dataset.acao;
@@ -1772,7 +1694,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Adicionar Produto â€” abre popup OBRA/EVENTO se ainda nÃ£o definido
+        // Adicionar Produto — abre popup OBRA/EVENTO se ainda não definido
         const btnAddProd = e.target.closest('#btn-add-produto');
         if (btnAddProd) {
             const adicionarProduto = () => {
@@ -1791,7 +1713,7 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             if (!osState.tipoOs) {
-                // Ainda nÃ£o definiu Obra ou Evento â€” exibe popup
+                // Ainda não definiu Obra ou Evento — exibe popup
                 abrirPopupTipoOs((tipo) => {
                     osState.tipoOs = tipo;
                     atualizarDropdownProdutos();
@@ -1813,7 +1735,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         
-        // (Limpar OS jÃ¡ tratado acima pelo novo handler)
+        // (Limpar OS já tratado acima pelo novo handler)
 
         // Pesquisar OS do cliente
         const btnPesqCliente = e.target.closest('#btn-pesq-cliente-os');
@@ -1824,16 +1746,16 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Pesquisar endereÃ§o do cliente
+        // Pesquisar endereço do cliente
         const btnBuscarEndereco = e.target.closest('#btn-buscar-endereco');
         if (btnBuscarEndereco) {
             const nome = document.getElementById('rr-input-cliente')?.value.trim();
-            if (!nome) { alert('Digite o nome do cliente antes de pesquisar o endereÃ§o.'); return; }
+            if (!nome) { alert('Digite o nome do cliente antes de pesquisar o endereço.'); return; }
             abrirModalEnderecos(nome);
             return;
         }
 
-        // Confirmar endereÃ§o no modal
+        // Confirmar endereço no modal
         const btnConfEnd = e.target.closest('.btn-confirmar-endereco');
         if (btnConfEnd) {
             osState.clienteConfirmado = true;
@@ -1846,11 +1768,11 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Fechar modal endereÃ§os com X â€” libera o formulÃ¡rio mesmo sem selecionar
+        // Fechar modal endereços com X — libera o formulário mesmo sem selecionar
         const btnFecharModal = e.target.closest('#btn-fechar-modal-end');
         if (btnFecharModal) {
             document.getElementById('rr-modal-enderecos')?.remove();
-            osState.clienteConfirmado = true; // Libera o formulÃ¡rio
+            osState.clienteConfirmado = true; // Libera o formulário
             // atualizarBloqueio();
             return;
         }
@@ -1864,8 +1786,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// â”€â”€ BLOQUEIO PROGRESSIVO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// â”€â”€ BLOQUEIO PROGRESSIVO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── BLOQUEIO PROGRESSIVO ──────────────────────────────────────────────────
+// ── BLOQUEIO PROGRESSIVO ──────────────────────────────────────────────────
 function atualizarBloqueio() {
     const overlayOS = document.getElementById('rr-overlay-bloqueio');
     const overlayEnd = document.getElementById('rr-overlay-bloqueio-endereco');
@@ -1874,12 +1796,12 @@ function atualizarBloqueio() {
         overlayOS.style.display = osState.tipoOs ? 'none' : 'flex';
     }
     if (overlayEnd) {
-        // SÃ³ mostra o bloqueio de endereÃ§o SE a OS jÃ¡ estiver liberada
+        // Só mostra o bloqueio de endereço SE a OS já estiver liberada
         overlayEnd.style.display = (osState.tipoOs && !osState.enderecoConfirmado) ? 'flex' : 'none';
     }
 }
 
-// â”€â”€ ATUALIZA LISTA DE PRODUTOS FILTRADA POR OBRA/EVENTO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── ATUALIZA LISTA DE PRODUTOS FILTRADA POR OBRA/EVENTO ───────────────────
 function atualizarDropdownProdutos() {
     const datalist = document.getElementById('rr-prod-list');
     const badge = document.getElementById('rr-badge-tipo-os');
@@ -1887,7 +1809,7 @@ function atualizarDropdownProdutos() {
 
     const produtos = getProdutosPorTipo(osState.tipoOs);
     datalist.innerHTML = produtos.map(p =>
-        `<option value="${p.nome}"></option>`
+        `<option value="${p.nome}" label="${p.icone} ${p.nome}">${p.icone} ${p.nome}</option>`
     ).join('');
 
     if (badge) {
@@ -1896,12 +1818,12 @@ function atualizarDropdownProdutos() {
         badge.style.display = osState.tipoOs ? 'inline-flex' : 'none';
     }
 
-    // Filtra o dropdown de Tipo de ServiÃ§o pelo tipo selecionado (Obra/Evento)
+    // Filtra o dropdown de Tipo de Serviço pelo tipo selecionado (Obra/Evento)
     const selectServico = document.getElementById('rr-tipo-servico');
     if (selectServico && osState.tipoOs) {
         const filtro = osState.tipoOs.toUpperCase(); // 'OBRA' ou 'EVENTO'
         Array.from(selectServico.options).forEach(opt => {
-            if (opt.value === '') return; // mantÃ©m o placeholder
+            if (opt.value === '') return; // mantém o placeholder
             opt.hidden = !opt.value.toUpperCase().includes(filtro);
         });
     }
@@ -1910,7 +1832,7 @@ function atualizarDropdownProdutos() {
 function gerarPrefixoIcones(tipoOverride = null) {
     const tipoServico = (tipoOverride || document.getElementById('rr-tipo-servico')?.value || '').toUpperCase();
 
-    // Coleta Ã­cones dos produtos selecionados
+    // Coleta ícones dos produtos selecionados
     const iconesProdutos = [];
     osState.produtos.forEach(p => {
         const prod = EQUIPAMENTOS_DICT[p.desc.trim()];
@@ -1922,22 +1844,22 @@ function gerarPrefixoIcones(tipoOverride = null) {
     let iconeServico = '';
     if (tipoServico.includes('RETIRADA')) {
         if (tipoServico.includes('TOTAL')) {
-            iconeServico = 'â­•';
+            iconeServico = '⭕';
         } else {
-            iconeServico = 'ðŸ”¶'; // Parcial
+            iconeServico = '🔶'; // Parcial
         }
     } else if (tipoServico.includes('SUCCAO')) {
-        iconeServico = 'ðŸ’§';
+        iconeServico = '💧';
     } else if (tipoServico.includes('LIMPA FOSSA')) {
-        iconeServico = 'ðŸ’¦';
+        iconeServico = '💦';
     } else if (tipoServico.includes('REPARO')) {
-        iconeServico = 'âš™ï¸';
+        iconeServico = '⚙️';
     } else if (tipoServico.includes('VISITA TECNICA')) {
-        iconeServico = 'ðŸ“‹';
+        iconeServico = '📋';
     } else if (tipoServico.includes('MANUTENCAO')) {
-        iconeServico = ''; // Sem Ã­cone
+        iconeServico = ''; // Sem ícone
     } else if (tipoServico.includes('VAC')) {
-        iconeServico = 'ðŸ—ï¸';
+        iconeServico = '🏗️';
     }
 
     const iconesVariaveis = [];
@@ -1948,11 +1870,11 @@ function gerarPrefixoIcones(tipoOverride = null) {
         }
     });
 
-    // Ãcones extras das Habilidades
-    if (osState.tiposServico.has('VAC') && !iconesVariaveis.includes('ðŸ—ï¸')) iconesVariaveis.push('ðŸ—ï¸');
-    if (osState.tiposServico.has('CARRETINHA') && !iconesVariaveis.includes('ðŸ”—')) iconesVariaveis.push('ðŸ”—');
+    // Ícones extras das Habilidades
+    if (osState.tiposServico.has('VAC') && !iconesVariaveis.includes('🏗️')) iconesVariaveis.push('🏗️');
+    if (osState.tiposServico.has('CARRETINHA') && !iconesVariaveis.includes('🔗')) iconesVariaveis.push('🔗');
 
-    // Mostrar os icones dos produtos apenas quando o serviÃ§o for o de entrega
+    // Mostrar os icones dos produtos apenas quando o serviço for o de entrega
     let todosIcones = [];
     if (tipoServico.includes('ENTREGA') || (tipoServico.includes('TROCA') && tipoOverride === 'ENTREGA')) {
         todosIcones = [iconeServico, ...iconesProdutos, ...iconesVariaveis].filter(Boolean);
@@ -1960,22 +1882,22 @@ function gerarPrefixoIcones(tipoOverride = null) {
         todosIcones = [iconeServico, ...iconesVariaveis].filter(Boolean);
     }
     
-    // Se for Noturno, adiciona ðŸŒ˜ na frente de tudo!
+    // Se for Noturno, adiciona 🌘 na frente de tudo!
     if (document.getElementById('rr-chk-noturno')?.checked) {
-        todosIcones.unshift('ðŸŒ˜');
+        todosIcones.unshift('🌘');
     }
     
     return todosIcones.join('');
 }
 
-// Atualiza os Ã­cones de produtos/serviÃ§os no nome do cliente
+// Atualiza os ícones de produtos/serviços no nome do cliente
 function atualizarIconesCliente() {
     const clienteInput = document.getElementById('rr-input-cliente');
     if (!clienteInput) return;
 
     let nomeBase = clienteInput.dataset.nomeBase;
     if (!nomeBase) {
-        nomeBase = clienteInput.value.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\sðŸ—ðŸŽ‰â­•ðŸ”¶ðŸ’§ðŸ’¦âš™ï¸ðŸ“‹ðŸ›’â™¦ï¸â™»ï¸ðŸ”—â—â°ðŸ“žðŸŒ€ðŸš¨ðŸ¦ºðŸ‘·ðŸ”›ðŸŒ˜]+/u, '').trim();
+        nomeBase = clienteInput.value.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\s🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘]+/u, '').trim();
         clienteInput.dataset.nomeBase = nomeBase || clienteInput.value.trim();
     }
 
@@ -2013,10 +1935,10 @@ function abrirModalOSCliente(nomeCliente) {
                 <span style="font-size:0.68rem;font-weight:700;color:#64748b;width:55px;">OS</span>
                 <span style="font-size:0.68rem;font-weight:700;color:#64748b;width:80px;">DATA</span>
                 <span style="font-size:0.68rem;font-weight:700;color:#64748b;flex:1;">TIPO</span>
-                <span style="font-size:0.68rem;font-weight:700;color:#64748b;flex:1;">ENDEREÃ‡O</span>
+                <span style="font-size:0.68rem;font-weight:700;color:#64748b;flex:1;">ENDEREÇO</span>
             </div>
             <div style="max-height:280px;overflow-y:auto;">${linhas}</div>
-            <div style="padding:0.5rem 0.75rem;background:#f8fafc;font-size:0.72rem;color:#94a3b8;text-align:center;">HistÃ³rico de OS â€” dados vindos do sistema</div>
+            <div style="padding:0.5rem 0.75rem;background:#f8fafc;font-size:0.72rem;color:#94a3b8;text-align:center;">Histórico de OS — dados vindos do sistema</div>
         </div>
     `;
     document.body.appendChild(modal);
@@ -2024,7 +1946,7 @@ function abrirModalOSCliente(nomeCliente) {
 
 function abrirModalEnderecos(nomeCliente) {
     document.getElementById('rr-modal-enderecos')?.remove();
-    // Futuramente: buscar endereÃ§os reais do backend
+    // Futuramente: buscar endereços reais do backend
     const enderecosMock = [
         { endereco: 'Rua das Flores, 123 - Centro', lat: '-23.5', lng: '-46.6' },
         { endereco: 'Av. Paulista, 456 - Bela Vista', lat: '-23.56', lng: '-46.65' },
@@ -2045,16 +1967,16 @@ function abrirModalEnderecos(nomeCliente) {
     modal.innerHTML = `
         <div style="background:white;border-radius:10px;width:520px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,0.18);overflow:hidden;">
             <div style="background:#2d9e5f;color:white;padding:0.75rem 1rem;display:flex;justify-content:space-between;align-items:center;">
-                <span style="font-weight:700;font-size:0.9rem;"><i class="ph ph-map-pin"></i> EndereÃ§os de <em>${nomeCliente}</em></span>
-                <button id="btn-fechar-modal-end" style="background:transparent;border:none;color:white;font-size:1.1rem;cursor:pointer;" title="Fechar e liberar formulÃ¡rio"><i class="ph ph-x"></i></button>
+                <span style="font-weight:700;font-size:0.9rem;"><i class="ph ph-map-pin"></i> Endereços de <em>${nomeCliente}</em></span>
+                <button id="btn-fechar-modal-end" style="background:transparent;border:none;color:white;font-size:1.1rem;cursor:pointer;" title="Fechar e liberar formulário"><i class="ph ph-x"></i></button>
             </div>
             <div style="max-height:260px;overflow-y:auto;">${linhas}</div>
-            <div style="padding:0.5rem 0.75rem;background:#f8fafc;font-size:0.72rem;color:#94a3b8;text-align:center;">Selecione para preencher endereÃ§o automaticamente â€” ou feche (X) para preencher manualmente</div>
+            <div style="padding:0.5rem 0.75rem;background:#f8fafc;font-size:0.72rem;color:#94a3b8;text-align:center;">Selecione para preencher endereço automaticamente — ou feche (X) para preencher manualmente</div>
         </div>
     `;
     document.body.appendChild(modal);
 }
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 
 function atualizarUI() {
     // Atualiza Tipos (Habilidades)
@@ -2069,7 +1991,7 @@ function atualizarUI() {
         }
     });
 
-    // Atualiza AÃ§Ãµes
+    // Atualiza Ações
     document.querySelectorAll('.btn-acao-azul').forEach(btn => {
         const acao = btn.dataset.acao;
         if (osState.acoes.has(acao)) {
@@ -2088,19 +2010,15 @@ function atualizarUI() {
     if (osState.produtos.length === 0) {
         tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 1rem; color: #94a3b8; font-size:0.8rem;">Nenhum produto adicionado</td></tr>';
     } else {
-        tbody.innerHTML = osState.produtos.map(p => {
-            const prodInfo = EQUIPAMENTOS_DICT[p.desc.trim()];
-            const icone = prodInfo?.icone ? `${prodInfo.icone} ` : '';
-            return `
+        tbody.innerHTML = osState.produtos.map(p => `
             <tr style="border-bottom: 1px solid #f1f5f9;">
-                <td style="padding: 0.3rem 0.5rem; font-size:0.75rem;">${icone}${p.desc}</td>
+                <td style="padding: 0.3rem 0.5rem; font-size:0.75rem;">${p.desc}</td>
                 <td style="padding: 0.3rem 0.5rem; text-align:center; font-size:0.75rem; font-weight:600;">${p.qtd}</td>
                 <td style="padding: 0.3rem 0.5rem; text-align:center;">
                     <button class="btn-action btn-rem-prod" data-id="${p.id}" style="color:#ef4444; background:transparent; border:none; padding:2px;"><i class="ph ph-trash"></i></button>
                 </td>
             </tr>
-            `;
-        }).join('');
+        `).join('');
     }
 
     // Atualiza Totais
@@ -2121,7 +2039,7 @@ function renderRotaRedonda() {
     const html = `
     <div id="rota-redonda-content" style="background: #fff; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); display: flex; flex-direction: column; box-sizing: border-box;">
         
-        <!-- HEADER FORM â€” Fixo no topo -->
+        <!-- HEADER FORM — Fixo no topo -->
         <div style="position: sticky; top: 60px; z-index: 20; display: flex; gap: 1rem; align-items: center; background: #2d9e5f; padding: 0.5rem 0.75rem; color: white; flex-shrink: 0; flex-wrap: wrap; border-radius: 6px 6px 0 0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); margin-top: -1.5rem; margin-left: -1.5rem; margin-right: -1.5rem; margin-bottom: 0.75rem;">
             
             <div style="display: flex; align-items: center; gap: 4px;">
@@ -2142,7 +2060,7 @@ function renderRotaRedonda() {
 
             <div style="display: flex; align-items: center; gap: 4px;">
                 <label style="font-weight: 600; font-size: 0.75rem; color: white; white-space: nowrap; margin: 0;">Contrato</label>
-                <input type="text" style="${inputStyle} border:none; width: 100px;" placeholder="NÂº Contrato">
+                <input type="text" style="${inputStyle} border:none; width: 100px;" placeholder="Nº Contrato">
             </div>
 
             <div style="display: flex; align-items: center; gap: 4px;">
@@ -2157,7 +2075,7 @@ function renderRotaRedonda() {
             </div>
         </div>
 
-        <!-- ÃREA SCROLLÃVEL -->
+        <!-- ÁREA SCROLLÁVEL -->
         <div style="flex: 1; padding: 0.75rem; box-sizing: border-box;">
         <!-- MAIN SPLIT -->
         <div style="display: flex; gap: 0.75rem; min-height: 500px;">
@@ -2168,16 +2086,16 @@ function renderRotaRedonda() {
                 <div id="rr-overlay-bloqueio" style="position:absolute; inset:0; z-index:20; background:rgba(248,250,252,0.85); display:flex; flex-direction:column; align-items:center; justify-content:center; border-radius:6px; backdrop-filter:blur(2px); cursor:pointer;" onclick="const btn = document.getElementById('btn-add-os-tipo'); btn.style.transition='transform 0.1s, box-shadow 0.1s'; btn.style.transform='scale(1.2)'; btn.style.boxShadow='0 0 10px 4px #1a7a40'; setTimeout(() => { btn.style.transform='scale(1)'; btn.style.boxShadow='none'; }, 600);">
                     <i class="ph ph-lock" style="font-size:2rem; color:#94a3b8; margin-bottom:0.5rem;"></i>
                     <p style="font-size:0.82rem; font-weight:600; color:#64748b; margin:0;">Defina a OS primeiro</p>
-                    <p style="font-size:0.72rem; color:#94a3b8; margin:4px 0 0; text-align:center;">Digite o nÃºmero da OS no topo e clique no botÃ£o <b style="color:#1a7a40">+</b><br>para criar ou carregar um serviÃ§o.</p>
+                    <p style="font-size:0.72rem; color:#94a3b8; margin:4px 0 0; text-align:center;">Digite o número da OS no topo e clique no botão <b style="color:#1a7a40">+</b><br>para criar ou carregar um serviço.</p>
                 </div>
                 
                 <div style="display: flex; gap: 0.5rem; position: relative; z-index: 15;">
                     <div style="flex: 3;">
-                        <label style="${labelStyle}">EndereÃ§o</label>
+                        <label style="${labelStyle}">Endereço</label>
                         <div style="display:flex; gap:2px;">
                             <input type="text" id="rr-input-endereco" style="${inputStyle}" placeholder="Ex: Rua das Flores, 123 - Bairro, Cidade/SP">
-                            <button id="btn-geocode-endereco" style="background:#0369a1; border:none; color:white; width:26px; height:26px; border-radius:4px; cursor:pointer; flex-shrink:0;" title="Buscar endereÃ§o no mapa e preencher latitude/longitude"><i class="ph ph-magnifying-glass"></i></button>
-                            <button id="btn-agenda-endereco" style="background:#f59e0b; border:none; color:white; width:26px; height:26px; border-radius:4px; cursor:pointer; flex-shrink:0;" title="Verificar manutenÃ§Ãµes programadas para este endereÃ§o e arredores (5km)"><i class="ph ph-calendar-check"></i></button>
+                            <button id="btn-geocode-endereco" style="background:#0369a1; border:none; color:white; width:26px; height:26px; border-radius:4px; cursor:pointer; flex-shrink:0;" title="Buscar endereço no mapa e preencher latitude/longitude"><i class="ph ph-magnifying-glass"></i></button>
+                            <button id="btn-agenda-endereco" style="background:#f59e0b; border:none; color:white; width:26px; height:26px; border-radius:4px; cursor:pointer; flex-shrink:0;" title="Verificar manutenções programadas para este endereço e arredores (5km)"><i class="ph ph-calendar-check"></i></button>
                         </div>
                     </div>
                     <div style="flex: 1;">
@@ -2188,23 +2106,23 @@ function renderRotaRedonda() {
                         <label style="${labelStyle}">Latitude, Longitude</label>
                         <div style="display:flex; gap:2px;">
                             <input type="text" id="rr-input-coord" style="${inputStyle} font-size:0.65rem;" placeholder="-23.5505, -46.6333">
-                            <button id="btn-geocode-coord" style="background:#0369a1; border:none; color:white; width:26px; height:26px; border-radius:4px; cursor:pointer; flex-shrink:0;" title="Buscar endereÃ§o pelas coordenadas"><i class="ph ph-map-pin"></i></button>
+                            <button id="btn-geocode-coord" style="background:#0369a1; border:none; color:white; width:26px; height:26px; border-radius:4px; cursor:pointer; flex-shrink:0;" title="Buscar endereço pelas coordenadas"><i class="ph ph-map-pin"></i></button>
                         </div>
                     </div>
                 </div>
 
-                <!-- BLOCO INFERIOR COM OVERLAY DE ENDEREÃ‡O -->
+                <!-- BLOCO INFERIOR COM OVERLAY DE ENDEREÇO -->
                 <div style="position: relative; display: flex; flex-direction: column; gap: 0.5rem; flex: 1;">
-                    <!-- OVERLAY DE BLOQUEIO ENDEREÃ‡O -->
+                    <!-- OVERLAY DE BLOQUEIO ENDEREÇO -->
                     <div id="rr-overlay-bloqueio-endereco" style="position:absolute; inset:0; z-index:10; background:rgba(248,250,252,0.85); display:none; flex-direction:column; align-items:center; justify-content:center; border-radius:6px; backdrop-filter:blur(2px); cursor:pointer;" onclick="const btn = document.getElementById('btn-geocode-endereco'); btn.style.transition='transform 0.1s, box-shadow 0.1s'; btn.style.transform='scale(1.3)'; btn.style.boxShadow='0 0 12px 4px #0369a1'; setTimeout(() => { btn.style.transform='scale(1)'; btn.style.boxShadow='none'; }, 600);">
                         <i class="ph ph-map-pin" style="font-size:2rem; color:#94a3b8; margin-bottom:0.5rem;"></i>
-                        <p style="font-size:0.82rem; font-weight:600; color:#64748b; margin:0;">Pesquise o EndereÃ§o</p>
-                        <p style="font-size:0.72rem; color:#94a3b8; margin:4px 0 0; text-align:center;">Clique na Lupa azul acima para buscar e confirmar o endereÃ§o.</p>
+                        <p style="font-size:0.82rem; font-weight:600; color:#64748b; margin:0;">Pesquise o Endereço</p>
+                        <p style="font-size:0.72rem; color:#94a3b8; margin:4px 0 0; text-align:center;">Clique na Lupa azul acima para buscar e confirmar o endereço.</p>
                     </div>
 
                     <div style="display: flex; gap: 0.5rem;">
                         <div style="flex: 1;">
-                        <label style="${labelStyle}">ResponsÃ¡vel</label>
+                        <label style="${labelStyle}">Responsável</label>
                         <input type="text" id="rr-input-responsavel" style="${inputStyle}" placeholder="Nome do contato">
                     </div>
                     <div style="flex: 1;">
@@ -2217,30 +2135,27 @@ function renderRotaRedonda() {
                     </div>
                 </div>
 
-                <!-- HORÃRIOS E DIAS -->
+                <!-- HORÁRIOS E DIAS -->
                 <div style="display: flex; gap: 0.5rem; align-items: center; background: #f8fafc; padding: 0.4rem 0.5rem; border-radius: 6px; border: 1px solid #e2e8f0; flex-wrap: wrap;">
                     <label style="display:flex; align-items:center; gap:2px; font-size:0.75rem; color:#475569; cursor:pointer;"><input type="checkbox" id="rr-chk-diurno"> Diurno</label>
                     <label style="display:flex; align-items:center; gap:2px; font-size:0.75rem; color:#475569; cursor:pointer;"><input type="checkbox" id="rr-chk-noturno" onchange="atualizarIconesCliente()"> Noturno</label>
                     <div style="width: 1px; height: 16px; background: #cbd5e1; margin: 0 2px;"></div>
-                    <span style="font-size: 0.75rem; font-weight: 600; color:#475569;">HorÃ¡rio:</span>
-                    <input type="time" id="rr-input-hora-inicio" style="${inputStyle} width: 75px;"> Ã s 
+                    <span style="font-size: 0.75rem; font-weight: 600; color:#475569;">Horário:</span>
+                    <input type="time" id="rr-input-hora-inicio" style="${inputStyle} width: 75px;"> às 
                     <input type="time" id="rr-input-hora-fim" style="${inputStyle} width: 75px;">
                     <div style="width: 1px; height: 16px; background: #cbd5e1; margin: 0 2px;"></div>
-                    ${['Seg','Ter','Qua','Qui','Sex','SÃ¡b','Dom'].map(d => `<label style="display:flex; align-items:center; gap:2px; font-size:0.7rem; color:#475569; cursor:pointer;"><input type="checkbox"> ${d}</label>`).join('')}
+                    ${['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'].map(d => `<label style="display:flex; align-items:center; gap:2px; font-size:0.7rem; color:#475569; cursor:pointer;"><input type="checkbox"> ${d}</label>`).join('')}
                 </div>
 
-                <!-- TIPO SERVIÃ‡O (dropdown â€” igual ao Flutter: tipoServicoController) -->
+                <!-- TIPO SERVIÇO (dropdown — igual ao Flutter: tipoServicoController) -->
                 <div style="display: flex; gap: 0.5rem; align-items: flex-end;">
                     <div style="flex: 2;">
-                        <label style="${labelStyle}">Tipo de ServiÃ§o</label>
+                        <label style="${labelStyle}">Tipo de Serviço</label>
                         <select id="rr-tipo-servico"
-                            onchange="window._onChangeTipoServico();"
+                            onchange="calcularTempo(); atualizarIconesCliente();"
                             style="${inputStyle} cursor:pointer;">
-                            <option value="">Selecione o tipo de serviÃ§o...</option>
-                            ${TIPOS_SERVICO_OS.map(t => {
-                                const ic = obterIconeServico(t);
-                                return `<option value="${t}">${ic ? ic + ' ' : ''}${t}</option>`;
-                            }).join('')}
+                            <option value="">Selecione o tipo de serviço...</option>
+                            ${TIPOS_SERVICO_OS.map(t => `<option value="${t}">${t}</option>`).join('')}
                         </select>
                     </div>
                 </div>
@@ -2255,7 +2170,7 @@ function renderRotaRedonda() {
                     </div>
                 </div>
 
-                <!-- OBSERVAÃ‡Ã•ES -->
+                <!-- OBSERVAÇÕES -->
                 <div style="display: flex; gap: 0.5rem;">
                     <div style="flex: 1;">
                         <label style="${labelStyle}">Obs. Motoristas</label>
@@ -2266,7 +2181,7 @@ function renderRotaRedonda() {
                         <input type="text" id="rr-input-obs-internas" style="${inputStyle}" placeholder="Info interna">
                     </div>
                     <div style="flex: 1;">
-                        <label style="${labelStyle}">Link VÃ­deo</label>
+                        <label style="${labelStyle}">Link Vídeo</label>
                         <div style="display: flex; gap: 2px;">
                             <input type="text" id="rr-input-video" style="${inputStyle}" placeholder="Link YouTube/Drive">
                             <button style="background:#3b82f6; color:white; width:26px; height:26px; border:none; border-radius:4px; cursor:pointer;"><i class="ph ph-video-camera"></i></button>
@@ -2295,9 +2210,9 @@ function renderRotaRedonda() {
                         <table style="width: 100%; border-collapse: collapse;">
                             <thead style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
                                 <tr>
-                                    <th style="padding: 0.3rem 0.5rem; text-align: left; font-size: 0.7rem; color: #64748b;">DescriÃ§Ã£o</th>
+                                    <th style="padding: 0.3rem 0.5rem; text-align: left; font-size: 0.7rem; color: #64748b;">Descrição</th>
                                     <th style="padding: 0.3rem 0.5rem; text-align: center; font-size: 0.7rem; color: #64748b; width: 50px;">Qtd</th>
-                                    <th style="padding: 0.3rem 0.5rem; text-align: center; font-size: 0.7rem; color: #64748b; width: 50px;">AÃ§Ãµes</th>
+                                    <th style="padding: 0.3rem 0.5rem; text-align: center; font-size: 0.7rem; color: #64748b; width: 50px;">Ações</th>
                                 </tr>
                             </thead>
                             <tbody id="rr-tbody-produtos">
@@ -2307,7 +2222,7 @@ function renderRotaRedonda() {
                     </div>
                 </div>
 
-                <!-- BOTÃ•ES DE AÃ‡ÃƒO (AZUIS) -->
+                <!-- BOTÕES DE AÇÃO (AZUIS) -->
                 <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: auto; padding-top: 0.5rem;">
                     ${ACOES.map(s => 
                         `<button class="btn-acao-azul" data-acao="${s}" style="font-size:0.65rem; font-weight: 700; border: 1px solid #bae6fd; background: #f0f9ff; color: #0284c7; padding: 0.2rem; border-radius: 4px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; min-height: 40px; transition: all 0.2s; line-height: 1.1; text-align: center;">
@@ -2325,24 +2240,24 @@ function renderRotaRedonda() {
                 <div id="rr-mapa-container" style="background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 6px; height: 100%; display: flex; flex-direction: column; position: relative; overflow: hidden;">
                     <!-- Header do Mapa -->
                     <div style="background: rgba(255,255,255,0.97); padding: 0.4rem 0.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; flex-shrink:0;">
-                        <span style="font-size:0.75rem; font-weight:700; color:#475569; display:flex; align-items:center; gap:4px;"><i class="ph ph-map-pin" style="color:#0ea5e9;"></i> LocalizaÃ§Ã£o <span style="font-size:0.65rem; background:#f0fdf4; color:#16a34a; border-radius:4px; padding:1px 5px; font-weight:600; margin-left:4px;">OpenStreetMap</span></span>
+                        <span style="font-size:0.75rem; font-weight:700; color:#475569; display:flex; align-items:center; gap:4px;"><i class="ph ph-map-pin" style="color:#0ea5e9;"></i> Localização <span style="font-size:0.65rem; background:#f0fdf4; color:#16a34a; border-radius:4px; padding:1px 5px; font-weight:600; margin-left:4px;">OpenStreetMap</span></span>
                         <button onclick="if(window.osState?.lat&&window.osState?.lng)window.open('https://www.openstreetmap.org/?mlat='+osState.lat+'&mlon='+osState.lng+'#map=17/'+osState.lat+'/'+osState.lng,'_blank');" style="background:#3b82f6; color:white; padding:2px 8px; font-size:0.7rem; border-radius:4px; border:none; cursor:pointer; font-weight:600;">
                             <i class="ph ph-arrows-out"></i> Ampliar
                         </button>
                     </div>
-                    <!-- Placeholder (visÃ­vel antes de buscar) -->
+                    <!-- Placeholder (visível antes de buscar) -->
                     <div id="rr-mapa-placeholder" style="flex:1; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:0.5rem; color:#94a3b8; padding:1rem; text-align:center;">
                         <i class="ph ph-map-trifold" style="font-size:2.5rem; color:#cbd5e1;"></i>
-                        <p style="font-size:0.75rem; margin:0; font-weight:500;">Digite o endereÃ§o e clique em ðŸ”<br>para carregar o mapa e obter as coordenadas</p>
-                        <span style="font-size:0.65rem; color:#b0bec5; margin-top:4px;">ðŸŒ Mapa gratuito via OpenStreetMap</span>
+                        <p style="font-size:0.75rem; margin:0; font-weight:500;">Digite o endereço e clique em 🔍<br>para carregar o mapa e obter as coordenadas</p>
+                        <span style="font-size:0.65rem; color:#b0bec5; margin-top:4px;">🌍 Mapa gratuito via OpenStreetMap</span>
                     </div>
-                    <!-- DIV do Leaflet (oculto atÃ© busca) -->
+                    <!-- DIV do Leaflet (oculto até busca) -->
                     <div id="rr-mapa-leaflet" style="display:none; flex:1; width:100%; min-height:200px;"></div>
                 </div>
             </div>
 
         </div>
-        </div><!-- fim Ã¡rea scrollÃ¡vel -->
+        </div><!-- fim área scrollável -->
     </div>
     `;
 
