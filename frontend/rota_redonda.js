@@ -429,6 +429,16 @@ async function geocodeEndereco() {
         );
     }
 
+    // 3ª: Se a query tiver mais de uma vírgula (ex: Rua, Número, Bairro/Complemento), testa SÓ Rua e Número
+    const partes = enderecoQuery.split(',');
+    if (partes.length > 2) {
+        const ruaNumero = partes[0].trim() + ', ' + partes[1].trim();
+        queries.push(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(ruaNumero)}&format=json&limit=1&accept-language=pt-BR&countrycodes=br`);
+        if (!temCidade) {
+            queries.push(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(ruaNumero + ', São Paulo, SP, Brasil')}&format=json&limit=1&accept-language=pt-BR`);
+        }
+    }
+
     // 3ª: busca pelo CEP separado se tiver (mais precisa)
     if (cepMatch) {
         queries.push(
