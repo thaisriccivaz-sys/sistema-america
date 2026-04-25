@@ -1340,10 +1340,9 @@ function exibirModalAgendaEndereco(data, enderecoAtual) {
 
     const renderPills = (diasArr) => diasArr.map(d => {
         const cor = colorMap[d.dia] || '#2563eb';
-        const dist = distanciaPorDia[d.dia];
-        const distLabel = dist !== undefined
-            ? `<small style="opacity:0.85; font-size:0.68rem;"> ${dist < 0.1 ? 'Exato' : dist.toFixed(1)+'km'}</small>` : '';
-        return `<span style="background:${cor};color:white;border-radius:6px;padding:4px 12px;font-size:0.78rem;font-weight:700;display:inline-flex;align-items:center;gap:5px;box-shadow:0 2px 4px rgba(0,0,0,0.18);">${d.dia}${distLabel}<small style="opacity:0.75;">(${d.ocorrencias}x)</small></span>`;
+        const qtd = d.ocorrencias || 1;
+        const label = qtd === 1 ? '1 cliente' : `${qtd} clientes`;
+        return `<span style="background:${cor};color:white;border-radius:6px;padding:4px 14px;font-size:0.8rem;font-weight:700;display:inline-flex;align-items:center;gap:6px;box-shadow:0 2px 4px rgba(0,0,0,0.18);white-space:nowrap;">${d.dia.toUpperCase()} <span style="opacity:0.5;">|</span> ${label}</span>`;
     }).join('');
 
     let msgSugestao = '';
@@ -1387,9 +1386,9 @@ function exibirModalAgendaEndereco(data, enderecoAtual) {
                 const ativo = dias.includes(d);
                 return `<span style="display:inline-flex;align-items:center;justify-content:center;min-width:32px;height:22px;border-radius:5px;font-size:0.65rem;font-weight:700;background:${ativo?(colorMap[d]||cor):'#f1f5f9'};color:${ativo?'white':'#94a3b8'};margin:1px;">${d}</span>`;
             }).join('');
-            const distCell = !semDist && os.distancia_km !== undefined
+            const distCell = os.distancia_km !== undefined
                 ? `<td style="padding:5px 8px;font-size:0.72rem;font-weight:700;color:${corDistancia(os.distancia_km)};">${os.distancia_km < 0.1 ? '<0.1' : os.distancia_km}km</td>`
-                : '';
+                : '<td></td>';
             return `<tr style="border-bottom:1px solid #f1f5f9;">
                 <td style="padding:5px 8px;font-size:0.72rem;font-weight:700;color:${cor};">${os.numero_os||'-'}</td>
                 <td style="padding:5px 8px;font-size:0.72rem;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${os.cliente||'-'}</td>
@@ -1448,23 +1447,23 @@ function exibirModalAgendaEndereco(data, enderecoAtual) {
     if (containerSugestoes) {
         if (tem1km) {
             const pills = data.dias_sugeridos_2km.map(d => {
-                const dist = distanciaPorDia[d.dia];
-                const distLabel = dist !== undefined ? ` (${dist < 0.1 ? 'Exato' : dist.toFixed(1)+'km'})` : '';
-                return `<span style="background:${colorMap[d.dia]||'#2563eb'};color:white;border-radius:5px;padding:2px 8px;font-size:0.72rem;font-weight:700;">${d.dia}${distLabel}</span>`;
+                const qtd = d.ocorrencias || 1;
+                const label = qtd === 1 ? '1' : `${qtd}`;
+                return `<span style="background:${colorMap[d.dia]||'#2563eb'};color:white;border-radius:4px;padding:1px 7px;font-size:0.65rem;font-weight:700;white-space:nowrap;">${d.dia.toUpperCase()} - ${label}cl</span>`;
             }).join('');
-            containerSugestoes.innerHTML = `<span style="color:#1d4ed8;font-weight:600;font-size:0.75rem;"><i class="ph ph-check-square"></i> Sugest\u00e3o (\u22641km \ud83d\udd35):</span> ${pills}`;
-            containerSugestoes.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;align-items:center;';
+            containerSugestoes.innerHTML = `<span style="color:#1d4ed8;font-weight:600;font-size:0.65rem;opacity:0.85;"><i class="ph ph-check-square"></i> Sugeridos (≤1km):</span> ${pills}`;
+            containerSugestoes.style.cssText = 'display:flex;flex-wrap:wrap;gap:3px;align-items:center;margin-top:2px;';
         } else if (tem3km) {
             const pills = data.dias_sugeridos_5km.map(d => {
-                const dist = distanciaPorDia[d.dia];
-                const distLabel = dist !== undefined ? ` (${dist.toFixed(1)+'km'})` : '';
-                return `<span style="background:${colorMap[d.dia]||'#ca8a04'};color:white;border-radius:5px;padding:2px 8px;font-size:0.72rem;font-weight:700;">${d.dia}${distLabel}</span>`;
+                const qtd = d.ocorrencias || 1;
+                const label = qtd === 1 ? '1' : `${qtd}`;
+                return `<span style="background:${colorMap[d.dia]||'#ca8a04'};color:white;border-radius:4px;padding:1px 7px;font-size:0.65rem;font-weight:700;white-space:nowrap;">${d.dia.toUpperCase()} - ${label}cl</span>`;
             }).join('');
-            containerSugestoes.innerHTML = `<span style="color:#854d0e;font-weight:600;font-size:0.75rem;"><i class="ph ph-warning"></i> Sugest\u00e3o (1-3km \ud83d\udfe1):</span> ${pills}`;
-            containerSugestoes.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;align-items:center;';
+            containerSugestoes.innerHTML = `<span style="color:#854d0e;font-weight:600;font-size:0.65rem;opacity:0.85;"><i class="ph ph-warning"></i> Sugeridos (1-3km):</span> ${pills}`;
+            containerSugestoes.style.cssText = 'display:flex;flex-wrap:wrap;gap:3px;align-items:center;margin-top:2px;';
         } else {
-            containerSugestoes.innerHTML = `<span style="color:#b91c1c;font-size:0.75rem;"><i class="ph ph-warning-circle"></i> Nenhuma rota sugerida em raio de 3km.</span>`;
-            containerSugestoes.style.display = 'block';
+            containerSugestoes.innerHTML = `<span style="color:#b91c1c;font-size:0.62rem;opacity:0.8;"><i class="ph ph-warning-circle"></i> Sem rota em 3km.</span>`;
+            containerSugestoes.style.cssText = 'display:block;margin-top:2px;';
         }
     }
 }
