@@ -1345,13 +1345,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if (resp.status === 404) {
                     // Nova OS
-                    abrirPopupTipoOs((tipo) => {
-                        osState.tipoOs = tipo;
-                        atualizarDropdownProdutos();
-                        atualizarIconesCliente();
-                        atualizarBloqueio();
-                        mostrarToastAviso(`Nova OS. Tipo definido como: ${tipo}.`);
-                    });
+                    const numSalvo = numOs;
+                    
+                    // Limpa todas as informações preenchidas na tela
+                    osState.produtos = []; osState.tiposServico = new Set();
+                    osState.acoes = new Set(); osState.clienteConfirmado = true;
+                    osState.clienteNome = ''; osState.enderecoSelecionado = ''; osState.tipoOs = '';
+                    const c = document.getElementById('rota-redonda-container');
+                    if (c) c.innerHTML = '';
+                    renderRotaRedonda();
+                    
+                    setTimeout(() => {
+                        const inputOs = document.getElementById('rr-input-os');
+                        if (inputOs) inputOs.value = numSalvo;
+                        
+                        abrirPopupTipoOs((tipo) => {
+                            osState.tipoOs = tipo;
+                            atualizarDropdownProdutos();
+                            atualizarIconesCliente();
+                            atualizarBloqueio();
+                            mostrarToastAviso(`Nova OS iniciada do zero. Tipo: ${tipo}.`);
+                        });
+                    }, 50);
                 } else if (resp.ok) {
                     const registros = await resp.json();
                     if (registros && registros.length > 0) {
@@ -1851,7 +1866,7 @@ function renderRotaRedonda() {
             <div style="display:flex; gap:0.5rem; margin-left: auto;">
                 <button id="btn-colar-os" style="background:#f59e0b; color:white; border:none; height:26px; padding:0 10px; border-radius:4px; font-size:0.75rem; cursor:pointer; font-weight:600;" title="Colar texto da OS e preencher automaticamente"><i class="ph ph-clipboard-text"></i> Colar OS</button>
                 <button id="btn-limpar-os" style="background:#ef4444; color:white; border:none; height:26px; padding:0 10px; border-radius:4px; font-size:0.75rem; cursor:pointer; font-weight:600;"><i class="ph ph-x"></i> Limpar</button>
-                <button id="btn-gerar-os-final" style="background:#14b8a6; color:white; border:none; height:26px; padding:0 10px; border-radius:4px; font-size:0.75rem; cursor:pointer; font-weight:600;"><i class="ph ph-check-circle"></i> Gerar OS</button>
+                <button id="btn-gerar-os-final" style="background:#14b8a6; color:white; border:none; height:26px; padding:0 10px; border-radius:4px; font-size:0.75rem; cursor:pointer; font-weight:600;"><i class="ph ph-check-circle"></i> Salvar</button>
             </div>
         </div>
 
