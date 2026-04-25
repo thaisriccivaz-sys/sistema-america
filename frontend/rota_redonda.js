@@ -1231,20 +1231,27 @@ function exibirModalAgendaEndereco(data, enderecoAtual) {
                 <p style="margin:0; font-size:0.7rem; color:#15803d;"><i class="ph ph-lightning"></i> Recomendamos agendar nestes mesmos dias para otimizar a logística.</p>
             </div>
         `;
-    } else if (data.dias_sugeridos_5km && data.dias_sugeridos_5km.length > 0) {
+    } else if (data.dias_sugeridos_10km && data.dias_sugeridos_10km.length > 0) {
         msgSugestao = `
             <div style="background:#fefce8; border:1px solid #fef08a; border-radius:8px; padding:0.75rem;">
-                <p style="margin:0 0 0.5rem 0; font-weight:700; color:#854d0e; font-size:0.85rem;"><i class="ph ph-warning"></i> Dias com manutenção programada nesta região (até 5km):</p>
+                <p style="margin:0 0 0.5rem 0; font-weight:700; color:#854d0e; font-size:0.85rem;"><i class="ph ph-warning"></i> Dias com manutenção programada nesta região (até 10km):</p>
                 <div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:0.5rem;">
-                    ${renderPills(data.dias_sugeridos_5km)}
+                    ${renderPills(data.dias_sugeridos_10km)}
                 </div>
                 <p style="margin:0; font-size:0.7rem; color:#a16207;"><i class="ph ph-info"></i> Considere agendar nestes dias se não houver outra opção mais próxima.</p>
+            </div>
+        `;
+    } else if (proximos.length > 0) {
+        msgSugestao = `
+            <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:0.75rem;">
+                <p style="margin:0; font-weight:700; color:#b91c1c; font-size:0.85rem;"><i class="ph ph-warning-circle"></i> Nenhuma rota programada com dias definidos num raio de 10km.</p>
+                <p style="margin:0.25rem 0 0 0; font-size:0.7rem; color:#991b1b;">As OS encontradas nas redondezas ainda não possuem dia da semana na agenda.</p>
             </div>
         `;
     } else {
         msgSugestao = `
             <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:0.75rem;">
-                <p style="margin:0; font-weight:700; color:#b91c1c; font-size:0.85rem;"><i class="ph ph-warning-circle"></i> Nenhuma manutenção programada em um raio de 5km.</p>
+                <p style="margin:0; font-weight:700; color:#b91c1c; font-size:0.85rem;"><i class="ph ph-warning-circle"></i> Nenhuma manutenção encontrada em um raio de 10km.</p>
                 <p style="margin:0.25rem 0 0 0; font-size:0.7rem; color:#991b1b;">Não há sugestões de dias baseados em proximidade.</p>
             </div>
         `;
@@ -1293,7 +1300,7 @@ function exibirModalAgendaEndereco(data, enderecoAtual) {
                             <th style="padding:4px 6px;font-size:0.68rem;color:#64748b;text-align:left;">Dias</th>
                         </tr></thead><tbody>${linhasExatos}</tbody></table></div>` : ''}
                 ${proximos.length > 0 ? `<div>
-                    <p style="font-size:0.75rem;font-weight:700;color:#92400e;margin:0 0 6px;"><i class="ph ph-circles-three"></i> Endereços próximos com manutenção — até 5km (${proximos.length}):</p>
+                    <p style="font-size:0.75rem;font-weight:700;color:#92400e;margin:0 0 6px;"><i class="ph ph-circles-three"></i> Endereços próximos com manutenção — até 10km (${proximos.length}):</p>
                     <table style="width:100%;border-collapse:collapse;">
                         <thead><tr style="background:#fffbeb;">
                             <th style="padding:4px 6px;font-size:0.68rem;color:#64748b;text-align:left;">OS</th>
@@ -1302,7 +1309,7 @@ function exibirModalAgendaEndereco(data, enderecoAtual) {
                             <th style="padding:4px 6px;font-size:0.68rem;color:#64748b;text-align:left;">Serviço</th>
                             <th style="padding:4px 6px;font-size:0.68rem;color:#64748b;text-align:left;">Dias</th>
                         </tr></thead><tbody>${linhasProximos}</tbody></table></div>` : ''}
-                ${exatos.length === 0 && proximos.length === 0 ? '<p style="text-align:center;color:#94a3b8;font-size:0.78rem;padding:1rem 0;">Nenhuma manutenção encontrada neste endereço ou num raio de 5km.</p>' : ''}
+                ${exatos.length === 0 && proximos.length === 0 ? '<p style="text-align:center;color:#94a3b8;font-size:0.78rem;padding:1rem 0;">Nenhuma manutenção encontrada neste endereço ou num raio de 10km.</p>' : ''}
             </div>
         </div>`;
     document.body.appendChild(modal);
@@ -1316,12 +1323,12 @@ function exibirModalAgendaEndereco(data, enderecoAtual) {
             const diasText = data.dias_sugeridos_2km.map(d => d.dia).join(', ');
             containerSugestoes.innerHTML = `<span style="color:#166534; font-weight:600;"><i class="ph ph-check-square"></i> Sugestão (Até 2km): ${diasText}</span>`;
             containerSugestoes.style.display = 'block';
-        } else if (data.dias_sugeridos_5km && data.dias_sugeridos_5km.length > 0) {
-            const diasText = data.dias_sugeridos_5km.map(d => d.dia).join(', ');
-            containerSugestoes.innerHTML = `<span style="color:#854d0e; font-weight:600;"><i class="ph ph-warning"></i> Sugestão (Até 5km): ${diasText}</span>`;
+        } else if (data.dias_sugeridos_10km && data.dias_sugeridos_10km.length > 0) {
+            const diasText = data.dias_sugeridos_10km.map(d => d.dia).join(', ');
+            containerSugestoes.innerHTML = `<span style="color:#854d0e; font-weight:600;"><i class="ph ph-warning"></i> Sugestão (Até 10km): ${diasText}</span>`;
             containerSugestoes.style.display = 'block';
         } else {
-            containerSugestoes.innerHTML = `<span style="color:#b91c1c;"><i class="ph ph-warning-circle"></i> Nenhuma rota sugerida (raio maior que 5km).</span>`;
+            containerSugestoes.innerHTML = `<span style="color:#b91c1c;"><i class="ph ph-warning-circle"></i> Nenhuma rota sugerida (raio de 10km sem dias preenchidos).</span>`;
             containerSugestoes.style.display = 'block';
         }
     }
@@ -2653,6 +2660,7 @@ function gerarPrefixoIcones(tipoOverride = null) {
     // Ícones extras das Habilidades
     if (osState.tiposServico.has('VAC') && !iconesVariaveis.includes('🏗️')) iconesVariaveis.push('🏗️');
     if (osState.tiposServico.has('CARRETINHA') && !iconesVariaveis.includes('🔗')) iconesVariaveis.push('🔗');
+    if (osState.tiposServico.has('UTILITARIO') && !iconesVariaveis.includes('🛻')) iconesVariaveis.push('🛻');
 
     // Mostrar os icones dos produtos apenas quando o serviço for o de entrega
     let todosIcones = [];
@@ -3067,7 +3075,7 @@ function renderRotaRedonda() {
                     <input type="time" id="rr-input-hora-inicio" style="${inputStyle} width: 75px;"> às 
                     <input type="time" id="rr-input-hora-fim" style="${inputStyle} width: 75px;">
                     <div style="width: 1px; height: 16px; background: #cbd5e1; margin: 0 2px;"></div>
-                    <button id="btn-agenda-endereco" style="background:#f59e0b; border:none; color:white; height:26px; border-radius:4px; cursor:pointer; flex-shrink:0; display:flex; align-items:center; gap:4px; padding:0 8px; font-weight:600; font-size:0.7rem;" title="Verificar manutenções programadas para esta região" onclick="document.getElementById('rr-chk-agenda-clicado').value='1';"><i class="ph ph-calendar-check" style="font-size:0.9rem;"></i> Agenda</button>
+                    <button id="btn-agenda-endereco" style="background:#f59e0b; border:none; color:white; height:26px; width:26px; border-radius:4px; cursor:pointer; flex-shrink:0; display:flex; align-items:center; justify-content:center; padding:0;" title="Verificar manutenções programadas para esta região" onclick="document.getElementById('rr-chk-agenda-clicado').value='1';"><i class="ph ph-calendar-check" style="font-size:1.1rem;"></i></button>
                     ${[
                         { d: 'Seg', id: 'rr-chk-seg', c: '#ef4444' },
                         { d: 'Ter', id: 'rr-chk-ter', c: '#f97316' },
@@ -3082,9 +3090,9 @@ function renderRotaRedonda() {
                     <input type="hidden" id="rr-chk-agenda-clicado" value="0">
                 </div>
 
-                <!-- TIPO SERVIÇO (searchable) -->
-                <div style="display: flex; gap: 0.5rem; align-items: flex-end;">
-                    <div style="flex: 2;">
+                <!-- TIPO SERVIÇO & HABILIDADES -->
+                <div style="display: flex; gap: 1rem; align-items: flex-start;">
+                    <div style="flex: 1;">
                         <label style="${labelStyle}">Tipo de Serviço</label>
                         <div style="position:relative;">
                             <input type="text" id="rr-tipo-servico-search" placeholder="Digite para filtrar..." autocomplete="off"
@@ -3099,15 +3107,15 @@ function renderRotaRedonda() {
                         </div>
                         <input type="hidden" id="rr-tipo-servico" onchange="onChangeTipoServico();">
                     </div>
-                </div>
-
-                <!-- HABILIDADES (pills: TANQUE, CARGA, VAC...) -->
-                <div>
-                    <label style="${labelStyle}">Habilidades</label>
-                    <div style="display: flex; gap: 4px; flex-wrap: wrap;">
-                        ${HABILIDADES.filter(s => s !== 'TECNICO').map(s =>
-                            `<button class="btn-tipo-servico" data-tipo="${s}" style="border: 1px solid #2d9e5f; color: #2d9e5f; background: transparent; border-radius: 99px; padding: 2px 10px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">${s}</button>`
-                        ).join('')}
+                    
+                    <div style="flex: 2;">
+                        <label style="${labelStyle}">Habilidades</label>
+                        <div style="display: flex; gap: 4px; flex-wrap: wrap; margin-top: 2px;">
+                            ${HABILIDADES.filter(s => s !== 'TECNICO').map(s => {
+                                const ic = {'TANQUE':'🚛', 'CARGA':'🚚', 'VAC':'🏗️', 'UTILITARIO':'🛻', 'CARRETINHA':'🔗', 'CARROCERIA':'🚛', 'TANQUE GRANDE':'🚛'}[s] || '';
+                                return `<button class="btn-tipo-servico" data-tipo="${s}" style="border: 1px solid #2d9e5f; color: #2d9e5f; background: transparent; border-radius: 99px; padding: 2px 10px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">${ic ? `<span style="margin-right:3px;font-size:0.8rem;">${ic}</span>` : ''}${s}</button>`;
+                            }).join('')}
+                        </div>
                     </div>
                 </div>
 

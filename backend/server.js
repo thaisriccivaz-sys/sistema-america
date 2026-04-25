@@ -7922,13 +7922,13 @@ app.get('/api/logistica/os/agenda-endereco', authenticateToken, (req, res) => {
                         const distancia = haversineKm(userLat, userLng, os.lat, os.lng);
                         return { ...os, distancia_km: Math.round(distancia * 100) / 100 };
                     })
-                    .filter(os => os.distancia_km <= 5)
+                    .filter(os => os.distancia_km <= 10)
                     .sort((a, b) => a.distancia_km - b.distancia_km)
                     .slice(0, 10);
 
                 // Agrega dias da semana dos resultados exatos e próximos
                 const os2km = [];
-                const os5km = [];
+                const os10km = [];
                 
                 const allOsWithDistance = [
                     ...(rowsExatos || []).map(r => ({ ...r, distancia_km: r.lat && r.lng ? haversineKm(userLat, userLng, r.lat, r.lng) : 0 })),
@@ -7937,11 +7937,11 @@ app.get('/api/logistica/os/agenda-endereco', authenticateToken, (req, res) => {
 
                 for (const os of allOsWithDistance) {
                     if (os.distancia_km <= 2) os2km.push(os);
-                    else if (os.distancia_km <= 5) os5km.push(os);
+                    else if (os.distancia_km <= 10) os10km.push(os);
                 }
 
                 const diasSugeridos2km = agregaDias(os2km);
-                const diasSugeridos5km = agregaDias(os5km);
+                const diasSugeridos10km = agregaDias(os10km);
 
                 const diasProximos = proximo.map(os => ({
                     ...os,
@@ -7951,7 +7951,7 @@ app.get('/api/logistica/os/agenda-endereco', authenticateToken, (req, res) => {
                 res.json({
                     exatos: rowsExatos || [],
                     dias_sugeridos_2km: diasSugeridos2km,
-                    dias_sugeridos_5km: diasSugeridos5km,
+                    dias_sugeridos_10km: diasSugeridos10km,
                     proximos: diasProximos,
                     total_exatos: (rowsExatos || []).length,
                     total_proximos: proximo.length
@@ -7962,7 +7962,7 @@ app.get('/api/logistica/os/agenda-endereco', authenticateToken, (req, res) => {
             res.json({
                 exatos: rowsExatos || [],
                 dias_sugeridos_2km: diasAgregados,
-                dias_sugeridos_5km: [],
+                dias_sugeridos_10km: [],
                 proximos: [],
                 total_exatos: (rowsExatos || []).length,
                 total_proximos: 0
