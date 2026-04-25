@@ -190,9 +190,9 @@ function calcularCargaTotalFromLista() {
                 switch (equipamento) {
                     case 'STD OBRA': case 'LX OBRA': case 'ELX OBRA':
                     case 'GUARITA INDIVIDUAL OBRA': case 'PBII OBRA': case 'PBIII OBRA':
-                    case 'CHUVEIRO OBRA': case 'HIDRÁULICO OBRA': case 'PCD OBRA':
+                    case 'CHUVEIRO OBRA': case 'HIDRÁULICO OBRA':
                         cargaCalculada = quantidade; break;
-                    case 'GUARITA DUPLA OBRA':
+                    case 'GUARITA DUPLA OBRA': case 'PCD OBRA':
                         cargaCalculada = 2 * quantidade; break;
                     case 'MICTÓRIO OBRA':
                         cargaCalculada = calcularCargaProporcional(quantidade); break;
@@ -203,9 +203,9 @@ function calcularCargaTotalFromLista() {
                 switch (equipamento) {
                     case 'STD EVENTO': case 'LX EVENTO': case 'ELX EVENTO':
                     case 'GUARITA INDIVIDUAL EVENTO': case 'PIA II EVENTO': case 'PIA III EVENTO':
-                    case 'CHUVEIRO EVENTO': case 'HIDRÁULICO EVENTO': case 'PCD EVENTO':
+                    case 'CHUVEIRO EVENTO': case 'HIDRÁULICO EVENTO':
                         cargaCalculada = quantidade; break;
-                    case 'GUARITA DUPLA EVENTO':
+                    case 'GUARITA DUPLA EVENTO': case 'PCD EVENTO':
                         cargaCalculada = 2 * quantidade; break;
                     case 'MICTÓRIO EVENTO':
                         cargaCalculada = calcularCargaProporcional(quantidade); break;
@@ -1944,6 +1944,15 @@ function abrirModalColarOS() {
 }
 
 function preencherFormularioComDados(dados, tipoOs) {
+    // Apaga os dados anteriores
+    osState.produtos = [];
+    osState.tiposServico = new Set();
+    osState.acoes = new Set();
+    document.querySelectorAll('#rota-redonda-tab input:not([type="radio"]), #rota-redonda-tab textarea').forEach(el => {
+        if (el.type === 'checkbox') el.checked = false;
+        else if (el.id !== 'rr-input-obs-internas') { el.value = ''; el.style.background = 'transparent'; }
+    });
+
     // Desbloqueia o formulário e ativa obrigatoriedade do endereço
     osState.clienteConfirmado = true;
     osState.enderecoObrigatorio = true;     // Colar OS exige G + Agenda
@@ -2439,54 +2448,33 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (document.getElementById(id)?.checked) diasSelecionados.push(label);
             });
 
-            const isManut = (document.getElementById('rr-tipo-servico')?.value || '').toUpperCase().includes('MANUTENCAO');
+            // Validação estrita de preenchimento
+            if (!payload.cliente) { mostrarToastAviso('Preencha o nome do cliente.'); return; }
+            if (!payload.tipo_os) { mostrarToastAviso('Defina o tipo de OS (Obra ou Evento) clicando no botão +.'); return; }
+            if (!payload.numero_os) { mostrarToastAviso('Preencha o número da OS.'); return; }
+            if (!payload.contrato) { mostrarToastAviso('Preencha o Contrato.'); return; }
+            if (!payload.data_os) { mostrarToastAviso('Preencha a Data da OS.'); return; }
+            if (!payload.endereco) { mostrarToastAviso('Preencha o Endereço.'); return; }
+            if (payload.lat === null || payload.lng === null) { mostrarToastAviso('Latitude e Longitude são obrigatórios. Use o botão G para verificar.'); return; }
+            if (!payload.responsavel) { mostrarToastAviso('Preencha o Responsável.'); return; }
+            if (!payload.telefone) { mostrarToastAviso('Preencha o Telefone.'); return; }
+            if (!payload.turno) { mostrarToastAviso('Selecione Diurno ou Noturno.'); return; }
+            if (osState.produtos.length === 0) { mostrarToastAviso('Adicione pelo menos um Produto.'); return; }
+
+            const isManut = (payload.tipo_servico || '').toUpperCase().includes('MANUTENCAO');
+            const isAvulsa = (payload.tipo_servico || '').toUpperCase().includes('AVULSA');
             const clicouAgenda = document.getElementById('rr-chk-agenda-clicado')?.value === '1';
 
-            if (isManut) {
+            if (isManut && !isAvulsa) {
                 if (!clicouAgenda && !osState.loadedId) {
-                    mostrarToastAviso("Para serviços de Manutenção, é obrigatório clicar no botão Agenda para verificar as rotas na região.");
+                    mostrarToastAviso("Para serviços de Manutenção, é obrigatório clicar no botão Agenda.");
                     return;
                 }
-                if (diasSelecionados.length === 0) {
-                    mostrarToastAviso("Para serviços de Manutenção, é obrigatório selecionar pelo menos um dia da semana sugerido.");
+                if (payload.dias_semana.length === 0) {
+                    mostrarToastAviso("Para serviços de Manutenção (Obra ou Evento), é obrigatório selecionar pelo menos um dia da semana.");
                     return;
                 }
             }
-
-            const habilidadesSelecionadas = Array.from(document.querySelectorAll('.btn-tipo-servico.ativo')).map(b => b.dataset.tipo);
-            const variaveisSelecionadas = Array.from(document.querySelectorAll('.btn-acao.ativo')).map(b => b.dataset.acao);
-
-            const payload = {
-                numero_os: document.getElementById('rr-input-os')?.value?.trim() || '',
-                tipo_os: osState.tipoOs || '',
-                patrimonio: document.getElementById('rr-input-patrimonio')?.value?.trim() || '',
-                cliente: (document.getElementById('rr-input-cliente')?.dataset?.nomeBase || document.getElementById('rr-input-cliente')?.value || '').trim(),
-                endereco: document.getElementById('rr-input-endereco')?.value?.trim() || '',
-                complemento: document.getElementById('rr-input-complemento')?.value?.trim() || '',
-                cep: document.getElementById('rr-input-cep')?.value?.trim() || '',
-                lat: isNaN(lat) ? null : lat,
-                lng: isNaN(lng) ? null : lng,
-                contrato: document.querySelector('input[placeholder="Nº Contrato"]')?.value?.trim() || '',
-                data_os: document.getElementById('rr-input-data')?.value || '',
-                responsavel: document.getElementById('rr-input-responsavel')?.value?.trim() || '',
-                telefone: document.getElementById('rr-input-sms')?.value?.trim() || '',
-                email: document.getElementById('rr-input-email')?.value?.trim() || '',
-                tipo_servico: document.getElementById('rr-tipo-servico')?.value || '',
-                hora_inicio: horaInicio?.value || '',
-                hora_fim: horaFim?.value || '',
-                turno: diurno?.checked ? 'Diurno' : 'Noturno',
-                dias_semana: diasSelecionados,
-                produtos: osState.produtos || [],
-                observacoes: document.getElementById('rr-input-obs')?.value?.trim() || '',
-                observacoes_internas: document.getElementById('rr-input-obs-internas')?.value?.trim() || '',
-                habilidades: habilidadesSelecionadas,
-                variaveis: variaveisSelecionadas,
-                link_video: document.getElementById('rr-input-video')?.value?.trim() || '',
-            };
-
-            // Validação básica
-            if (!payload.cliente) { mostrarToastAviso('Preencha o nome do cliente antes de gerar a OS.'); return; }
-            if (!payload.tipo_os) { mostrarToastAviso('Defina o tipo de OS (Obra ou Evento) clicando no botão +.'); return; }
 
             // Desabilita botão durante o save
             btnGerarOsFinal.disabled = true;
@@ -2792,6 +2780,26 @@ function atualizarBloqueio() {
     if (overlayOS) {
         overlayOS.style.display = osState.tipoOs ? 'none' : 'flex';
     }
+
+    // Controle de bloqueio dos dias da semana (desabilita até validar agenda)
+    const idsDias = ['rr-chk-seg', 'rr-chk-ter', 'rr-chk-qua', 'rr-chk-qui', 'rr-chk-sex', 'rr-chk-sab', 'rr-chk-dom'];
+    idsDias.forEach(id => {
+        const chk = document.getElementById(id);
+        const lbl = document.getElementById(`lbl-${id}`);
+        if (chk) {
+            chk.disabled = !osState.agendaVerificada;
+            if (!osState.agendaVerificada) {
+                chk.checked = false;
+                if (lbl) {
+                    lbl.style.background = 'transparent';
+                    lbl.style.opacity = '0.5';
+                    lbl.style.color = lbl.style.borderColor;
+                }
+            } else {
+                if (lbl) lbl.style.opacity = '1';
+            }
+        }
+    });
 
     if (!overlayEnd) return;
 
