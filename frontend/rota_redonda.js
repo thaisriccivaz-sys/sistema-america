@@ -494,7 +494,7 @@ function exibirModalSucessoOS(osId, payload) {
     modal.id = 'rr-modal-sucesso-os';
     modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;';
     modal.innerHTML = `
-        <div style="background:white;border-radius:14px;width:480px;max-width:95vw;overflow:hidden;box-shadow:0 16px 48px rgba(0,0,0,0.25);">
+        <div style="background:white;border-radius:14px;width:500px;max-width:95vw;overflow:hidden;box-shadow:0 16px 48px rgba(0,0,0,0.25);">
             <!-- Cabeçalho verde -->
             <div style="background:linear-gradient(135deg,#2d9e5f,#1a7a40);color:white;padding:1.25rem 1.5rem;display:flex;justify-content:space-between;align-items:center;">
                 <div style="display:flex;align-items:center;gap:10px;">
@@ -537,6 +537,17 @@ function exibirModalSucessoOS(osId, payload) {
                         <p style="margin:0;font-weight:600;color:#334155;">${prodStr}</p>
                     </div>
                 </div>
+                <!-- Pergunta de duplicação -->
+                <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:0.75rem;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <i class="ph ph-copy" style="font-size:1.2rem;color:#d97706;"></i>
+                        <p style="margin:0;font-size:0.78rem;font-weight:600;color:#92400e;">Deseja duplicar para um novo serviço desta OS?</p>
+                    </div>
+                    <div style="display:flex;gap:6px;">
+                        <button id="btn-duplicar-os-sim" style="background:#d97706;color:white;border:none;border-radius:6px;padding:4px 14px;font-size:0.75rem;font-weight:700;cursor:pointer;">✔ Sim</button>
+                        <button id="btn-duplicar-os-nao" style="background:#e2e8f0;color:#334155;border:none;border-radius:6px;padding:4px 14px;font-size:0.75rem;font-weight:600;cursor:pointer;">✖ Não</button>
+                    </div>
+                </div>
             </div>
             <!-- Rodapé -->
             <div style="display:flex;gap:8px;justify-content:flex-end;padding:0.75rem 1.5rem;background:#f8fafc;">
@@ -552,17 +563,101 @@ function exibirModalSucessoOS(osId, payload) {
     modal.querySelector('#btn-fechar-sucesso-os-2')?.addEventListener('click', fechar);
     modal.addEventListener('click', e => { if (e.target === modal) fechar(); });
 
-    // Botão Nova OS: limpa o formulário
+    // Duplicar: carrega tudo de volta EXCETO data e tipo_servico
+    modal.querySelector('#btn-duplicar-os-sim')?.addEventListener('click', () => {
+        fechar();
+        duplicarOsNaTela(payload);
+    });
+
+    // Não duplicar: fecha o painel de pergunta apenas
+    modal.querySelector('#btn-duplicar-os-nao')?.addEventListener('click', () => {
+        const panel = modal.querySelector('#btn-duplicar-os-sim')?.closest('div');
+        if (panel) panel.style.display = 'none';
+    });
+
+    // Botão Nova OS: limpa tudo e começa do zero
     modal.querySelector('#btn-nova-os-sucesso')?.addEventListener('click', () => {
         fechar();
         osState.produtos = []; osState.tiposServico = new Set();
-        osState.acoes = new Set(); osState.clienteConfirmado = false;
+        osState.acoes = new Set(); osState.clienteConfirmado = true;
         osState.clienteNome = ''; osState.enderecoSelecionado = ''; osState.tipoOs = '';
         const c = document.getElementById('rota-redonda-container');
         if (c) c.innerHTML = '';
         renderRotaRedonda();
     });
 }
+
+// ── DUPLICAR OS NA TELA: carrega payload mas limpa Data e Tipo de Serviço ──
+function duplicarOsNaTela(payload) {
+    // Preserva produtos e tipo de OS no state
+    osState.tipoOs = payload.tipo_os || '';
+    osState.produtos = (payload.produtos || []).map(p => ({ ...p, id: Date.now() + Math.random() }));
+    osState.tiposServico = new Set();
+    osState.acoes = new Set();
+    osState.clienteConfirmado = true;
+    osState.clienteNome = payload.cliente || '';
+    osState.enderecoSelecionado = payload.endereco || '';
+
+    // Re-renderiza a tela
+    const c = document.getElementById('rota-redonda-container');
+    if (c) c.innerHTML = '';
+    renderRotaRedonda();
+
+    // Aguarda render e preenche os campos
+    setTimeout(() => {
+        const set = (id, val) => { const el = document.getElementById(id); if (el && val !== undefined && val !== null) el.value = val; };
+
+        // OS — mantém o mesmo número
+        set('rr-input-os', payload.numero_os);
+        // Cliente — mantém
+        const clienteEl = document.getElementById('rr-input-cliente');
+        if (clienteEl) { clienteEl.value = payload.cliente || ''; clienteEl.dataset.nomeBase = payload.cliente || ''; }
+        // Endereço — mantém
+        set('rr-input-endereco', payload.endereco);
+        set('rr-input-complemento', payload.complemento);
+        // Coordenadas — mantém
+        if (payload.lat && payload.lng) set('rr-input-coord', `${payload.lat}, ${payload.lng}`);
+        // Contrato — mantém
+        if (payload.contrato) {
+            const contEl = document.querySelector('input[placeholder="Nº Contrato"]');
+            if (contEl) contEl.value = payload.contrato;
+        }
+        // Data — LIMPA (não preenche)
+        const dataEl = document.querySelector('input[type="date"]');
+        if (dataEl) dataEl.value = '';
+        // Responsável, telefone, email — mantém
+        set('rr-input-responsavel', payload.responsavel);
+        set('rr-input-telefone', payload.telefone);
+        set('rr-input-email', payload.email);
+        // Obs / vídeo — mantém
+        set('rr-input-obs', payload.observacoes);
+        set('rr-input-video', payload.link_video);
+        // Turno e horário — mantém
+        const diurno = document.getElementById('rr-chk-diurno');
+        const noturno = document.getElementById('rr-chk-noturno');
+        if (payload.turno === 'Diurno' && diurno) { diurno.checked = true; if (noturno) noturno.checked = false; }
+        if (payload.turno === 'Noturno' && noturno) { noturno.checked = true; if (diurno) diurno.checked = false; }
+        set('rr-input-hora-inicio', payload.hora_inicio);
+        set('rr-input-hora-fim', payload.hora_fim);
+        // Dias da semana — mantém
+        const diasMap = { 'Seg': 'rr-chk-seg', 'Ter': 'rr-chk-ter', 'Qua': 'rr-chk-qua', 'Qui': 'rr-chk-qui', 'Sex': 'rr-chk-sex', 'Sáb': 'rr-chk-sab', 'Dom': 'rr-chk-dom' };
+        Object.entries(diasMap).forEach(([d, id]) => {
+            const el = document.getElementById(id);
+            if (el) el.checked = (payload.dias_semana || []).includes(d);
+        });
+        // Tipo de serviço — LIMPA
+        const tipoServEl = document.getElementById('rr-tipo-servico');
+        if (tipoServEl) tipoServEl.value = '';
+        // Atualiza UI (produtos, tipo OS, ícones)
+        atualizarDropdownProdutos();
+        atualizarIconesCliente();
+        atualizarUI();
+        // Toast confirmando
+        mostrarToastAviso('✅ OS duplicada! Preencha o novo Tipo de Serviço e a Data antes de gerar.');
+    }, 150);
+}
+
+
 
 async function buscarAgendaEndereco() {
     const endInput = document.getElementById('rr-input-endereco');
@@ -583,7 +678,7 @@ async function buscarAgendaEndereco() {
 
     if (btn) btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>';
     try {
-        const token = localStorage.getItem('token') || '';
+        const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
         const resp = await fetch(`/api/logistica/os/agenda-endereco?${params.toString()}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
