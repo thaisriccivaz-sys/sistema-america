@@ -1739,32 +1739,53 @@ document.addEventListener('DOMContentLoaded', () => {
             _endAutoTimer = setTimeout(async () => {
                 try {
                     const headers = { 'Accept-Language': 'pt-BR', 'User-Agent': 'AmericaRentalSistema/1.0' };
-                    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q + ' Brasil')}&format=json&limit=6&addressdetails=1&accept-language=pt-BR&countrycodes=br`;
-                    const res  = await fetch(url, { headers });
+
+                    // Extrair número do texto digitado (ex: "rua salto da divisa, 97" -> num=97)
+                    const numMatch = q.match(/,?\s*(\d+)\s*$/);
+                    const numDigitado = numMatch ? numMatch[1] : '';
+                    const ruaBase = numDigitado ? q.replace(/,?\s*\d+\s*$/, '').trim() : q;
+
+                    // Montar URL Nominatim com query estruturada quando há número
+                    let apiUrl;
+                    if (numDigitado) {
+                        apiUrl = `https://nominatim.openstreetmap.org/search?street=${encodeURIComponent(numDigitado + ' ' + ruaBase)}&countrycodes=br&format=json&limit=8&addressdetails=1&accept-language=pt-BR`;
+                    } else {
+                        apiUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q + ' Brasil')}&format=json&limit=8&addressdetails=1&accept-language=pt-BR&countrycodes=br`;
+                    }
+
+                    const res  = await fetch(apiUrl, { headers });
                     const data = await res.json();
                     if (!data || data.length === 0) { sugg.style.display = 'none'; return; }
 
                     // Deduplica por rua + CEP
                     const vistos = new Set();
-                    const uniq = data.filter(d => {
+                    let uniq = data.filter(d => {
                         const cepM = d.display_name.match(/\b\d{5}[- ]?\d{3}\b/);
-                        const cep  = cepM ? cepM[0].replace(/\s/,'-') : '';
+                        const cep  = cepM ? cepM[0].replace(/\s/, '-') : '';
                         const rua  = d.display_name.split(',')[0].trim().toLowerCase();
-                        const ch   = cep ? `${rua}||${cep}` : `${rua}||${d.lat.substring(0,6)}`;
+                        const ch   = cep ? `${rua}||${cep}` : `${rua}||${d.lat.substring(0, 6)}`;
                         if (vistos.has(ch)) return false; vistos.add(ch); return true;
                     });
+
+                    // Ordenar por distância do ponto de referência (empresa)
+                    const refLat = -23.433822823875342, refLng = -46.42008224178194;
+                    const dist = (d) => {
+                        const dLat = parseFloat(d.lat) - refLat;
+                        const dLng = parseFloat(d.lon) - refLng;
+                        return dLat * dLat + dLng * dLng;
+                    };
+                    uniq.sort((a, b) => dist(a) - dist(b));
 
                     sugg.innerHTML = uniq.map((d, i) => {
                         const a = d.address || {};
                         const logr   = a.road || a.pedestrian || d.display_name.split(',')[0].trim();
-                        const num    = a.house_number || '';
+                        const num    = a.house_number || numDigitado || '';
                         const bairro = a.suburb || a.neighbourhood || a.quarter || '';
                         const city   = a.city || a.town || a.municipality || '';
                         const uf     = (a.state || '').length === 2 ? a.state : '';
                         const cep    = a.postcode || '';
                         const linha1 = [logr, num].filter(Boolean).join(', ');
                         const linha2 = [bairro, city, uf ? `- ${uf}` : ''].filter(Boolean).join(', ') + (cep ? `, ${cep}` : '');
-                        const full   = [linha1, linha2].filter(Boolean).join(', ');
                         return `<div data-idx="${i}" style="padding:7px 11px;cursor:pointer;border-bottom:1px solid #f1f5f9;font-size:0.78rem;transition:background 0.1s;"
                             onmouseover="this.style.background='#f0f9ff'" onmouseout="this.style.background=''"
                             onclick="window._endSuggSelect(${i})">
@@ -1778,7 +1799,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         const d = window._endSuggData[idx];
                         const a = d.address || {};
                         const logr   = a.road || a.pedestrian || d.display_name.split(',')[0].trim();
-                        const num    = a.house_number || '';
+                        const num    = a.house_number || numDigitado || '';
                         const bairro = a.suburb || a.neighbourhood || a.quarter || '';
                         const city   = a.city || a.town || a.municipality || '';
                         const uf     = (a.state || '').length === 2 ? a.state : '';
@@ -1884,13 +1905,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const btnGerarOsFinal = e.target.closest('#btn-gerar-os-final');
         if (btnGerarOsFinal) {
             if (!osState.enderecoConfirmado) {
-                mostrarToastAviso("Pesquise e confirme o endereço na Lupa azul antes de salvar.");
-                const btnGeo = document.getElementById('btn-geocode-endereco');
-                if (btnGeo) {
-                    btnGeo.style.transition = 'transform 0.1s, box-shadow 0.1s';
-                    btnGeo.style.transform = 'scale(1.3)';
-                    btnGeo.style.boxShadow = '0 0 12px 4px #0369a1';
-                    setTimeout(() => { btnGeo.style.transform = 'scale(1)'; btnGeo.style.boxShadow = 'none'; }, 600);
+                mostrarToastAviso('Confirme o endereço: selecione um da lista de sugestões ou use o botão G para colar as coordenadas do Google Maps.');
+                // Destaca o botão G
+                const btnG = document.getElementById('btn-colar-gmaps');
+                if (btnG) {
+                    btnG.style.transition = 'transform 0.1s, box-shadow 0.1s';
+                    btnG.style.transform = 'scale(1.3)';
+                    btnG.style.boxShadow = '0 0 12px 4px #16a34a';
+                    setTimeout(() => { btnG.style.transform = 'scale(1)'; btnG.style.boxShadow = 'none'; }, 600);
                 }
                 return;
             }
@@ -2710,7 +2732,7 @@ function renderRotaRedonda() {
                                 <input type="text" id="rr-input-endereco" style="${inputStyle} width:100%;" placeholder="Ex: Rua das Flores, 123 - Bairro, Cidade/SP" autocomplete="off">
                                 <div id="rr-endereco-suggestions" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:300;background:white;border:1px solid #cbd5e1;border-radius:4px;max-height:220px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,0.13);"></div>
                             </div>
-                            <button id="btn-geocode-endereco" style="background:#0369a1; border:none; color:white; width:26px; height:26px; border-radius:4px; cursor:pointer; flex-shrink:0;" title="Buscar endereço no mapa e preencher latitude/longitude"><i class="ph ph-magnifying-glass"></i></button>
+                            <button id="btn-geocode-endereco" style="display:none;" title="Buscar endereço"></button>
                             <button id="btn-colar-gmaps" style="background:#16a34a; border:none; color:white; width:26px; height:26px; border-radius:4px; cursor:pointer; flex-shrink:0; font-weight:700; font-size:0.75rem;" title="Colar link do Google Maps para importar coordenadas precisas">G</button>
                             <button id="btn-agenda-endereco" style="background:#f59e0b; border:none; color:white; width:26px; height:26px; border-radius:4px; cursor:pointer; flex-shrink:0;" title="Verificar manutenções programadas para este endereço e arredores (5km)"><i class="ph ph-calendar-check"></i></button>
                         </div>
