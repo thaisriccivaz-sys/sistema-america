@@ -1357,6 +1357,7 @@ function parseOsText(texto) {
         numOs: '', cliente: '', contrato: '', tipoOs: '',
         responsavel: '', telefone: '', endereco: '', email: '',
         dataEntrega: '', rawProdutos: '', observacoes: '', observacoesInternas: '',
+        linkGoogleMaps: '',
         ambiguidades: [], avisos: []
     };
 
@@ -1497,6 +1498,16 @@ function parseOsText(texto) {
         }
     }
 
+    // Extrai link do Google Maps de qualquer parte do texto (posição variável)
+    const urlGoogleMatch = texto.match(/https?:\/\/(?:maps\.app\.goo\.gl|www\.google\.com\/maps|goo\.gl\/maps)[^\s]*/i);
+    if (urlGoogleMatch) {
+        resultado.linkGoogleMaps = urlGoogleMatch[0].trim();
+        // Remove o link do endereço caso tenha sido capturado junto
+        if (resultado.endereco) {
+            resultado.endereco = resultado.endereco.replace(resultado.linkGoogleMaps, '').replace(/\s+$/, '').trim();
+        }
+    }
+
     return resultado;
 }
 
@@ -1581,6 +1592,12 @@ function abrirModalColarOS() {
         html += linha('👷 Responsável', dadosExtraidos.responsavel);
         html += linha('📞 Telefone', dadosExtraidos.telefone);
         html += linha('📍 Endereço', dadosExtraidos.endereco);
+        if (dadosExtraidos.linkGoogleMaps) {
+            html += `<div style="display:flex;gap:0.5rem;padding:2px 0;border-bottom:1px solid #f1f5f9;">
+                       <span style="min-width:140px;color:#64748b;font-weight:600;">🗺️ Link Maps</span>
+                       <span><a href="${dadosExtraidos.linkGoogleMaps}" target="_blank" style="color:#16a34a;font-size:0.8rem;word-break:break-all;">${dadosExtraidos.linkGoogleMaps}</a></span>
+                     </div>`;
+        }
         html += linha('📧 Email', dadosExtraidos.email);
         html += linha('📦 Produtos', dadosExtraidos.rawProdutos);
         html += linha('📝 Obs Motorista', dadosExtraidos.observacoes);
@@ -1649,7 +1666,18 @@ function preencherFormularioComDados(dados, tipoOs) {
 
     set('rr-input-os',          dados.numOs);
     set('rr-input-cliente',     dados.cliente);
-    set('rr-input-endereco',    dados.endereco);
+    // Se tiver link do Google Maps, coloca antes do endereço e armazena no estado
+    if (dados.linkGoogleMaps) {
+        const endEl = document.getElementById('rr-input-endereco');
+        if (endEl) {
+            endEl.value = dados.linkGoogleMaps + (dados.endereco ? ' ' + dados.endereco : '');
+            endEl.style.background = '#f0fdf4';
+        }
+        osState.linkGoogleMaps = dados.linkGoogleMaps;
+    } else {
+        set('rr-input-endereco', dados.endereco);
+    }
+
     set('rr-input-responsavel', dados.responsavel);
     set('rr-input-sms',    dados.telefone);
     set('rr-input-email',       dados.email);
