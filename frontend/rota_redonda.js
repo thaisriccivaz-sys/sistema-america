@@ -1978,16 +1978,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const btnCriarNovo = e.target.closest('#btn-criar-novo');
         if (btnCriarNovo) {
             osState.loadedId = null;
-            const dataEl = document.getElementById('rr-input-data');
-            if (dataEl) dataEl.value = '';
-            const tsEl = document.getElementById('rr-tipo-servico-search');
-            if (tsEl) tsEl.value = '';
-            const tsHidden = document.getElementById('rr-tipo-servico');
-            if (tsHidden) tsHidden.value = '';
-            document.querySelectorAll('.btn-tipo-servico').forEach(b => b.classList.remove('ativo'));
-            document.querySelectorAll('.btn-acao').forEach(b => b.classList.remove('ativo'));
-            mostrarToastAviso('Pronto para criar uma nova OS. Insira a data, defina os serviços e clique em Salvar.');
-            if (dataEl) dataEl.focus();
+            document.getElementById('btn-gerar-os-final')?.click();
             return;
         }
 
