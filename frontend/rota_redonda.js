@@ -2607,6 +2607,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 atualizarIconesCliente();
                 // Chama calcularCamposPorProduto igual ao Flutter (que no final chama calcularTempo)
                 calcularCamposPorProduto({ desc, qtd });
+                // Recalcula habilidades (bloqueio TANQUE, LEVAR CARRINHO, etc.)
+                aplicarHabilidadesDoServico();
                 // Atualiza badge tipo OS na tela
                 const badge = document.getElementById('rr-badge-tipo-os');
                 if (badge) badge.textContent = osState.tipoOs;
@@ -2632,6 +2634,7 @@ document.addEventListener('DOMContentLoaded', () => {
             atualizarUI();
             atualizarIconesCliente();
             calcularTempo(); // recalcula ao remover
+            aplicarHabilidadesDoServico(); // recalcula bloqueios
             return;
         }
         
@@ -2814,10 +2817,92 @@ window.onChangeTipoServico = function() {
     } else {
         osState.tiposServico.delete('VAC');
     }
+    // Aplica habilidades automáticas do serviço (espelho do Flutter)
+    aplicarHabilidadesDoServico();
     atualizarUI();
     calcularTempo();
     atualizarIconesCliente();
 };
+
+// ── HABILIDADES AUTOMÁTICAS POR TIPO DE SERVIÇO (espelho do recalcularHabilidadesAutomaticas do Flutter) ──
+// Regras extraidas do habilidadesDict + habilidadesDictSemTanque + ProdutosDict
+function aplicarHabilidadesDoServico() {
+    const tipoServico = (document.getElementById('rr-tipo-servico')?.value || '').trim().toUpperCase();
+
+    // ─ Produtos que bloqueiam TANQUE em RETIRADA (habilidadesDictSemTanque)
+    const BLOQUEAR_TANQUE = [
+        'GUARITA INDIVIDUAL OBRA', 'GUARITA INDIVIDUAL EVENTO',
+        'GUARITA DUPLA OBRA', 'GUARITA DUPLA EVENTO',
+        'CHUVEIRO OBRA', 'CHUVEIRO EVENTO',
+        'HIDRÁULICO OBRA', 'HIDRÁULICO EVENTO',
+    ];
+    const deveBloquearTanque = tipoServico.includes('RETIRADA') &&
+        osState.produtos.some(p => BLOQUEAR_TANQUE.includes((p.desc || '').trim().toUpperCase()));
+
+    // ─ habilidadesDict (igual ao Flutter)
+    const HABILIDADES_DICT = {
+        'LIMPA FOSSA OBRA':          'TANQUE GRANDE',
+        'LIMPA FOSSA EVENTO':        'TANQUE GRANDE',
+        'ENTREGA OBRA':              'CARGA',
+        'ENTREGA EVENTO':            'CARGA',
+        'RETIRADA OBRA':             'CARGA, TANQUE',
+        'RETIRADA EVENTO':           'CARGA, TANQUE',
+        'RETIRADA OBRA TOTAL':       'CARGA, TANQUE',
+        'RETIRADA EVENTO TOTAL':     'CARGA, TANQUE',
+        'RETIRADA OBRA PARCIAL':     'CARGA, TANQUE',
+        'RETIRADA EVENTO PARCIAL':   'CARGA, TANQUE',
+        'MANUTENCAO OBRA':           'TANQUE',
+        'MANUTENCAO EVENTO':         'TANQUE',
+        'MANUTENCAO AVULSA OBRA':    'TANQUE',
+        'MANUTENCAO AVULSA EVENTO':  'TANQUE',
+        'MANUTENCAO AVULSA':         'TANQUE',
+        'TROCA DE EQUIPAMENTO OBRA': '',
+        'TROCA DE EQUIPAMENTO EVENTO': '',
+        'VAC OBRA':                  'VAC',
+        'VAC EVENTO':                'VAC',
+        'SUCCAO OBRA':               '',
+        'SUCCAO EVENTO':             '',
+        'REPARO EQUIPAMENTO OBRA':   '',
+        'REPARO EQUIPAMENTO EVENTO': '',
+        'VISITA TECNICA OBRA':       '',
+        'VISITA TECNICA EVENTO':     '',
+    };
+
+    // ─ ProdutosDict (variáveis automáticas por produto)
+    const PRODUTOS_DICT = {
+        'HIDRÁULICO OBRA':    'LEVAR CARRINHO',
+        'HIDRÁULICO EVENTO':  'LEVAR CARRINHO',
+        'CHUVEIRO OBRA':      'LEVAR CARRINHO',
+        'CHUVEIRO EVENTO':    'LEVAR CARRINHO',
+        'ELX OBRA':           'LEVAR CARRINHO',
+        'ELX EVENTO':         'LEVAR CARRINHO',
+    };
+
+    // 1) Habilidades base do serviço (sem apagar manuais)
+    const habilidadesBase = new Set();
+    const habStr = HABILIDADES_DICT[tipoServico] || '';
+    habStr.split(',').map(h => h.trim()).filter(Boolean).forEach(h => {
+        if (h === 'TANQUE' && deveBloquearTanque) return; // bloqueado por produto
+        habilidadesBase.add(h);
+    });
+
+    // 2) Habilidades automáticas por produto (via ProdutosDict)
+    const habProdutos = new Set();
+    osState.produtos.forEach(p => {
+        const desc = (p.desc || '').trim().toUpperCase();
+        const hab = PRODUTOS_DICT[desc];
+        if (hab) habProdutos.add(hab === 'LEVAR CARRINHO' ? '🛒 LEVAR CARRINHO' : hab);
+    });
+
+    // 3) Preserva manuais (não automáticas)
+    const TODAS_AUTO = new Set([...habilidadesBase, ...habProdutos]);
+    const manuais = new Set([...osState.tiposServico].filter(h => !TODAS_AUTO.has(h)));
+
+    // 4) Reconstrói o conjunto final
+    osState.tiposServico = new Set([...habilidadesBase, ...habProdutos, ...manuais]);
+
+    console.log('[Habilidades] Tipo:', tipoServico, '| Selecionadas:', [...osState.tiposServico]);
+}
 
 function atualizarDropdownProdutos() {
     const datalist = document.getElementById('rr-prod-list');
