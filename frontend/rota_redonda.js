@@ -1,4 +1,4 @@
-/* ════════════════════════════════════════════════════════════════════════════
+﻿/* ════════════════════════════════════════════════════════════════════════════
    MÓDULO: ROTA REDONDA (ORDENS DE SERVIÇO)
    ════════════════════════════════════════════════════════════════════════════ */
 
@@ -437,56 +437,60 @@ async function geocodeEndereco() {
     const endereco = endInput?.value?.trim();
     if (!endereco) { endInput?.focus(); return; }
 
-    // Normaliza o endereço para a query do Nominatim (NÃO altera o campo na tela)
+    // Normaliza o endereco para a query do Nominatim (NAO altera o campo na tela)
     let enderecoQuery = endereco
-        .replace(/(\d)\.(\d{3})\b/g, '$1$2')            // 1.814 → 1814
-        .replace(/\|\s*CEP[:\s-]*\d{5}-?\d{3}\b/gi, '') // Remove " | CEP: 07025-000" (confunde a API se ficar no final com pipe)
-        .replace(/\s*\/\s*[A-Z]{2}\b/gi, '')            // Remove " /SP", " /RJ" (Nominatim não lida bem com barra)
-        .replace(/\s*\|\s*/g, ', ')                     // Substitui pipes restantes por vírgula
-        .replace(/\s*-\s*(?=[a-zA-Z])/g, ', ')          // Hífen solto por vírgula "VILA - GUARULHOS" → "VILA, GUARULHOS"
-        .replace(/\s{2,}/g, ' ')                        // Remove espaços extras
+        .replace(/(\d)\.(\d{3})\b/g, '$1$2')
+        .replace(/\|\s*CEP[:\s-]*\d{5}-?\d{3}\b/gi, '')
+        .replace(/\s*\/\s*[A-Z]{2}\b/gi, '')
+        .replace(/\s*\|\s*/g, ', ')
+        .replace(/\s*-\s*(?=[a-zA-Z])/g, ', ')
+        .replace(/\s{2,}/g, ' ')
         .trim();
 
-    // Spinner no botão
+    // Spinner no botao
     if (btn) { btn.innerHTML = '<i class="ph ph-circle-notch" style="animation:spin 1s linear infinite;"></i>'; btn.disabled = true; }
 
     const headers = { 'Accept-Language': 'pt-BR', 'User-Agent': 'AmericaRentalSistema/1.0' };
 
-    // Extrai CEP do endereço original para busca direta (mais precisa)
+    // Extrai CEP do endereco original
     const cepMatch = endereco.match(/\b(\d{5})-?(\d{3})\b/);
-    const temCidade = /são paulo|sp|guarulhos|campinas|mogi|abc|santo andr|osasco|rio de jan/i.test(endereco);
+    const temCidade = /s[aã]o paulo|sp|guarulhos|campinas|mogi|abc|santo andr|osasco|rio de jan/i.test(endereco);
+    const temBairro = /,\s*[a-zA-ZÀ-ú\s]{3,}\s*,/.test(endereco); // tem virgula antes e depois de algo
 
-    // Estratégia em cascata com endereço NORMALIZADO (sem separador de milhar)
+    // Endereco completo = tem CEP + bairro/cidade → resultado unico, sem popup
+    const enderecoCompleto = !!cepMatch && temCidade;
+
+    // Extrai numero do endereco original (ex: "55" de "R. Maj. Paladino, 55 - Vila...")
+    // Captura digitos imediatamente apos virgula ou espaco, antes de separador
+    const numeroMatch = endereco.match(/(?:,\s*|\s+)(\d+[A-Za-z]?)(?:\s*[,\-\/]|\s|$)/);
+    const numeroOriginal = numeroMatch ? numeroMatch[1].trim() : '';
+
+    // Estrategia em cascata
     const queries = [
-        // 1ª: query normalizada com filtro Brasil
         `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(enderecoQuery)}&format=json&limit=1&accept-language=pt-BR&countrycodes=br`,
     ];
 
-    // 2ª: se não tem cidade, adiciona "São Paulo, SP, Brasil"
     if (!temCidade) {
         queries.push(
-            `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(enderecoQuery + ', São Paulo, SP, Brasil')}&format=json&limit=1&accept-language=pt-BR`
+            `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(enderecoQuery + ', Sao Paulo, SP, Brasil')}&format=json&limit=1&accept-language=pt-BR`
         );
     }
 
-    // 3ª: Se a query tiver mais de uma vírgula (ex: Rua, Número, Bairro/Complemento), testa SÓ Rua e Número
     const partes = enderecoQuery.split(',');
     if (partes.length > 2) {
         const ruaNumero = partes[0].trim() + ', ' + partes[1].trim();
         queries.push(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(ruaNumero)}&format=json&limit=1&accept-language=pt-BR&countrycodes=br`);
         if (!temCidade) {
-            queries.push(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(ruaNumero + ', São Paulo, SP, Brasil')}&format=json&limit=1&accept-language=pt-BR`);
+            queries.push(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(ruaNumero + ', Sao Paulo, SP, Brasil')}&format=json&limit=1&accept-language=pt-BR`);
         }
     }
 
-    // 3ª: busca pelo CEP separado se tiver (mais precisa)
     if (cepMatch) {
         queries.push(
             `https://nominatim.openstreetmap.org/search?q=${cepMatch[1]}-${cepMatch[2]},Brasil&format=json&limit=1&accept-language=pt-BR`
         );
     }
 
-    // 4ª: fallback global sem restrição
     queries.push(
         `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(enderecoQuery + ' Brasil')}&format=json&limit=1&accept-language=pt-BR`
     );
@@ -494,21 +498,31 @@ async function geocodeEndereco() {
     try {
         let data = null;
         for (const url of queries) {
-            // Pede até 5 resultados para permitir seleção
-            const urlMulti = url.replace(/limit=\d+/, 'limit=5');
+            const urlMulti = enderecoCompleto ? url : url.replace(/limit=\d+/, 'limit=5');
             const resp = await fetch(urlMulti, { headers });
             const result = await resp.json();
             if (result && result.length > 0) { data = result; break; }
-            // Respeita o rate limit do Nominatim (1 req/s)
             await new Promise(r => setTimeout(r, 300));
         }
 
         if (!data || data.length === 0) {
-            mostrarToastAviso('❌ Endereço não encontrado. Tente: "Rua X, 123, Cidade/SP" ou inclua o CEP.');
+            mostrarToastAviso('\u274c Endere\u00e7o n\u00e3o encontrado. Tente: "Rua X, 123, Cidade/SP" ou inclua o CEP.');
             return;
         }
 
-        const aplicarGeoResult = (item) => {
+        // Monta o endereco final inserindo o numero digitado pelo usuario
+        const montarEnderecoComNumero = (displayName) => {
+            if (!numeroOriginal) return displayName;
+            const partesDisplay = displayName.split(',');
+            const logradouro = partesDisplay[0].trim();
+            const resto = partesDisplay.slice(1).join(',').trim();
+            // Verifica se o numero ja esta no display_name para nao duplicar
+            const jaTemNumero = new RegExp('\\b' + numeroOriginal + '\\b').test(logradouro);
+            if (jaTemNumero) return displayName;
+            return resto ? `${logradouro}, ${numeroOriginal}, ${resto}` : `${logradouro}, ${numeroOriginal}`;
+        };
+
+        const aplicarGeoResult = (item, enderecoFinal) => {
             const lat = parseFloat(item.lat);
             const lng = parseFloat(item.lon);
             if (placeholder) placeholder.style.display = 'none';
@@ -519,34 +533,39 @@ async function geocodeEndereco() {
                 _leafletMap.invalidateSize();
                 posicionarMarcador(lat, lng);
                 preencherLatLng(lat, lng);
+                // Preenche o campo com o endereco incluindo o numero
+                if (endInput && enderecoFinal) {
+                    endInput.value = enderecoFinal;
+                }
                 if (endInput) endInput.style.background = '#f0fdf4';
                 osState.enderecoConfirmado = true;
                 atualizarBloqueio();
             }, 50);
         };
 
-        if (data.length > 1) {
-            // Mostra modal de seleção
+        // Nao mostra popup se: endereco completo (CEP + cidade) OU resultado unico
+        if (!enderecoCompleto && data.length > 1) {
             document.getElementById('rr-modal-geo-select')?.remove();
             const geoModal = document.createElement('div');
             geoModal.id = 'rr-modal-geo-select';
             geoModal.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;';
             const itens = data.map((d, idx) => {
-                const parts = d.display_name.split(',');
+                const endFinal = montarEnderecoComNumero(d.display_name);
+                const parts = endFinal.split(',');
                 const titulo = parts.slice(0,2).join(',').trim();
                 const detalhe = parts.slice(2).join(',').trim();
                 return `<div onclick="window._geoSelect(${idx})" style="cursor:pointer;padding:10px 14px;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:8px;background:#f8fafc;transition:background 0.15s;" onmouseover="this.style.background='#e0f2fe'" onmouseout="this.style.background='#f8fafc'">
-                    <div style="font-weight:600;color:#1e293b;font-size:0.85rem;">📍 ${titulo}</div>
+                    <div style="font-weight:600;color:#1e293b;font-size:0.85rem;">&#128205; ${titulo}</div>
                     <div style="font-size:0.72rem;color:#64748b;margin-top:2px;">${detalhe}</div>
                 </div>`;
             }).join('');
             geoModal.innerHTML = `<div style="background:white;border-radius:12px;width:500px;max-width:95vw;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 16px 48px rgba(0,0,0,0.25);overflow:hidden;">
                 <div style="background:#0369a1;color:white;padding:1rem 1.25rem;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
                     <div>
-                        <p style="margin:0;font-weight:700;font-size:0.95rem;">🗺️ Múltiplos endereços encontrados</p>
-                        <p style="margin:0;font-size:0.72rem;opacity:0.85;">Clique no endereço correto para confirmar</p>
+                        <p style="margin:0;font-weight:700;font-size:0.95rem;">&#128506;&#65039; M\u00faltiplos endere\u00e7os encontrados</p>
+                        <p style="margin:0;font-size:0.72rem;opacity:0.85;">Clique no endere\u00e7o correto para confirmar</p>
                     </div>
-                    <button onclick="document.getElementById('rr-modal-geo-select').remove()" style="background:transparent;border:none;color:white;font-size:1.3rem;cursor:pointer;">✕</button>
+                    <button onclick="document.getElementById('rr-modal-geo-select').remove()" style="background:transparent;border:none;color:white;font-size:1.3rem;cursor:pointer;">\u2715</button>
                 </div>
                 <div style="padding:1rem;overflow-y:auto;flex:1;">${itens}</div>
             </div>`;
@@ -554,15 +573,16 @@ async function geocodeEndereco() {
             geoModal.addEventListener('click', e => { if (e.target === geoModal) geoModal.remove(); });
             window._geoSelect = (idx) => {
                 geoModal.remove();
-                aplicarGeoResult(data[idx]);
+                aplicarGeoResult(data[idx], montarEnderecoComNumero(data[idx].display_name));
             };
         } else {
-            aplicarGeoResult(data[0]);
+            // Endereco completo ou unico resultado — aplica direto sem popup
+            aplicarGeoResult(data[0], montarEnderecoComNumero(data[0].display_name));
         }
 
     } catch (err) {
         console.error('[Nominatim]', err);
-        mostrarToastAviso('❌ Erro ao buscar endereço. Verifique sua conexão.');
+        mostrarToastAviso('\u274c Erro ao buscar endere\u00e7o. Verifique sua conex\u00e3o.');
     } finally {
         if (btn) { btn.innerHTML = '<i class="ph ph-magnifying-glass"></i>'; btn.disabled = false; }
     }
