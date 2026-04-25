@@ -224,19 +224,15 @@ function calcularCargaTotalFromLista() {
     //   Manutenção        → apenas TANQUE
     //   Retirada / Troca  → TANQUE e (CARROCERIA ou CARRETINHA)
     //   Capacidades:
-    //      <= 6  → Carroceria total
-    //      7 a 12 → Carroceria 6, Carretinha (total - 6)
+    //      <= 12  → Carroceria total, Carretinha 0
     //      > 12   → Carroceria 0, Carretinha total
     let tanque = '', carroceria = '', carretinha = '';
     if (isManutencao) {
         tanque = totalCarga > 0 ? String(totalCarga) : '0';
     } else {
-        if (totalCarga <= 6) {
+        if (totalCarga <= 12) {
             carroceria = totalCarga > 0 ? String(totalCarga) : '0';
             carretinha = '0';
-        } else if (totalCarga <= 12) {
-            carroceria = '6';
-            carretinha = String(totalCarga - 6);
         } else {
             carroceria = '0';
             carretinha = String(totalCarga);
