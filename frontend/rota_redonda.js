@@ -124,10 +124,7 @@ function calcularTempo() {
     const resultado = `${hh}:${mm}`;
 
     const el = document.getElementById('rr-tempo-total');
-    if (el && !osState.tempoEditadoManualmente) {
-        if (el.tagName === 'INPUT') el.value = resultado;
-        else el.innerText = resultado;
-    }
+    if (el) el.value = resultado;
 
     // Após tempo, recalcula carga também (igual ao Flutter que chama calcularCargaTotalFromLista())
     calcularCargaTotalFromLista();
@@ -1385,13 +1382,7 @@ function carregarRegistroNaTela(os) {
     const diasMap = { 'Seg': 'rr-chk-seg', 'Ter': 'rr-chk-ter', 'Qua': 'rr-chk-qua', 'Qui': 'rr-chk-qui', 'Sex': 'rr-chk-sex', 'Sáb': 'rr-chk-sab', 'Dom': 'rr-chk-dom' };
     Object.entries(diasMap).forEach(([d, id]) => {
         const el = document.getElementById(id);
-        if (el) {
-            el.checked = diasSalvos.includes(d);
-            el.disabled = false;
-            // Atualiza cores
-            const ev = new Event('change');
-            el.dispatchEvent(ev);
-        }
+        if (el) el.checked = diasSalvos.includes(d);
     });
     
     // Produtos
@@ -2448,17 +2439,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (document.getElementById(id)?.checked) diasSelecionados.push(label);
             });
 
-            const tipoServicoTxt = (document.getElementById('rr-tipo-servico')?.value || '').toUpperCase();
-            const isManutObraEvento = tipoServicoTxt === 'MANUTENCAO OBRA' || tipoServicoTxt === 'MANUTENCAO EVENTO';
+            const isManut = (document.getElementById('rr-tipo-servico')?.value || '').toUpperCase().includes('MANUTENCAO');
             const clicouAgenda = document.getElementById('rr-chk-agenda-clicado')?.value === '1';
 
-            if (isManutObraEvento) {
+            if (isManut) {
                 if (!clicouAgenda && !osState.loadedId) {
-                    mostrarToastAviso("Para Manutenção (Obra/Evento), é obrigatório clicar no botão Agenda para verificar as rotas.");
+                    mostrarToastAviso("Para serviços de Manutenção, é obrigatório clicar no botão Agenda para verificar as rotas na região.");
                     return;
                 }
                 if (diasSelecionados.length === 0) {
-                    mostrarToastAviso("Para Manutenção (Obra/Evento), é obrigatório selecionar pelo menos um dia da semana.");
+                    mostrarToastAviso("Para serviços de Manutenção, é obrigatório selecionar pelo menos um dia da semana sugerido.");
                     return;
                 }
             }
@@ -2494,23 +2484,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 link_video: document.getElementById('rr-input-video')?.value?.trim() || '',
             };
 
-            // Validações obrigatórias
-            const camposFaltando = [];
-            if (!payload.numero_os) camposFaltando.push('OS');
-            if (!payload.cliente) camposFaltando.push('Cliente');
-            if (!payload.contrato) camposFaltando.push('Contrato');
-            if (!payload.data_os) camposFaltando.push('Data');
-            if (!payload.endereco) camposFaltando.push('Endereço');
-            if (payload.lat === null || payload.lng === null) camposFaltando.push('Latitude e Longitude');
-            if (!payload.responsavel) camposFaltando.push('Responsável');
-            if (!payload.telefone) camposFaltando.push('Telefone');
-            if (!diurno?.checked && !noturno?.checked) camposFaltando.push('Turno (Diurno/Noturno)');
-            if (payload.produtos.length === 0) camposFaltando.push('Produto');
-
-            if (camposFaltando.length > 0) {
-                mostrarToastAviso("Preencha os campos obrigatórios: " + camposFaltando.join(', '));
-                return;
-            }
+            // Validação básica
+            if (!payload.cliente) { mostrarToastAviso('Preencha o nome do cliente antes de gerar a OS.'); return; }
             if (!payload.tipo_os) { mostrarToastAviso('Defina o tipo de OS (Obra ou Evento) clicando no botão +.'); return; }
 
             // Desabilita botão durante o save
@@ -2695,8 +2670,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('rr-prod-qtd').value = '';
                 atualizarUI();
                 atualizarIconesCliente();
-                // Chama calcularCamposPorProduto igual ao Flutter (que no final chama calcularTempo)
-                calcularCamposPorProduto({ desc, qtd });
+                // Recalcula Carga com a lista inteira
+                calcularCargaTotalFromLista();
                 // Recalcula habilidades (preserva manuais ao adicionar produto)
                 aplicarHabilidadesDoServico(false);
                 // Atualiza badge tipo OS na tela
@@ -2719,7 +2694,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const btnRemProd = e.target.closest('.btn-rem-prod');
         if (btnRemProd) {
-            const id = parseFloat(btnRemProd.dataset.id);
+            const id = Number(btnRemProd.dataset.id);
             osState.produtos = osState.produtos.filter(p => p.id !== id);
             atualizarUI();
             atualizarIconesCliente();
@@ -2731,7 +2706,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Editar Produto
         const btnEditProd = e.target.closest('.btn-edit-prod');
         if (btnEditProd) {
-            const id = parseFloat(btnEditProd.dataset.id);
+            const id = Number(btnEditProd.dataset.id);
             const p = osState.produtos.find(x => x.id === id);
             if (p) {
                 // Preenche os campos
@@ -2922,7 +2897,6 @@ window.autoSelecionarPorObs = function() {
 };
 
 window.onChangeTipoServico = function() {
-    osState.tempoEditadoManualmente = false;
     const val = (document.getElementById('rr-tipo-servico')?.value || '').toUpperCase();
     if (val.includes('VAC')) {
         osState.tiposServico.add('VAC');
@@ -3516,7 +3490,7 @@ function renderRotaRedonda() {
                     <input type="time" id="rr-input-hora-inicio" style="${inputStyle} width: 75px;"> às 
                     <input type="time" id="rr-input-hora-fim" style="${inputStyle} width: 75px;">
                     <div style="width: 1px; height: 16px; background: #cbd5e1; margin: 0 2px;"></div>
-                    <button id="btn-agenda-endereco" style="background:#f59e0b; border:none; color:white; height:26px; width:26px; border-radius:4px; cursor:pointer; flex-shrink:0; display:flex; align-items:center; justify-content:center; padding:0;" title="Verificar manutenções programadas para esta região" onclick="document.getElementById('rr-chk-agenda-clicado').value='1'; Array.from(document.querySelectorAll('[id^=rr-chk-]')).forEach(el => el.disabled = false);"><i class="ph ph-calendar-check" style="font-size:1.1rem;"></i></button>
+                    <button id="btn-agenda-endereco" style="background:#f59e0b; border:none; color:white; height:26px; width:26px; border-radius:4px; cursor:pointer; flex-shrink:0; display:flex; align-items:center; justify-content:center; padding:0;" title="Verificar manutenções programadas para esta região" onclick="document.getElementById('rr-chk-agenda-clicado').value='1';"><i class="ph ph-calendar-check" style="font-size:1.1rem;"></i></button>
                     ${[
                         { d: 'Seg', id: 'rr-chk-seg', c: '#ef4444' },
                         { d: 'Ter', id: 'rr-chk-ter', c: '#f97316' },
@@ -3525,7 +3499,7 @@ function renderRotaRedonda() {
                         { d: 'Sex', id: 'rr-chk-sex', c: '#3b82f6' },
                         { d: 'Sáb', id: 'rr-chk-sab', c: '#8b5cf6' },
                         { d: 'Dom', id: 'rr-chk-dom', c: '#ec4899' }
-                    ].map(item => `<label id="lbl-${item.id}" style="display:flex; align-items:center; gap:2px; font-size:0.7rem; color:${item.c}; font-weight:700; cursor:pointer; padding:2px 6px; border-radius:4px; border:1.5px solid ${item.c}; transition:background 0.15s;"><input type="checkbox" disabled id="${item.id}" onchange="(function(chk,lbl,cor){lbl.style.background=chk.checked?cor:'transparent';lbl.style.color=chk.checked?'white':cor;})(this,this.closest('label'),'${item.c}')"> ${item.d}</label>`).join('')}
+                    ].map(item => `<label id="lbl-${item.id}" style="display:flex; align-items:center; gap:2px; font-size:0.7rem; color:${item.c}; font-weight:700; cursor:pointer; padding:2px 6px; border-radius:4px; border:1.5px solid ${item.c}; transition:background 0.15s;"><input type="checkbox" id="${item.id}" onchange="(function(chk,lbl,cor){lbl.style.background=chk.checked?cor:'transparent';lbl.style.color=chk.checked?'white':cor;})(this,this.closest('label'),'${item.c}')"> ${item.d}</label>`).join('')}
                     
                     <div id="rr-sugestoes-dias-container" style="flex-basis: 100%; font-size: 0.75rem; padding: 2px 4px; display: none;"></div>
                     <input type="hidden" id="rr-chk-agenda-clicado" value="0">
@@ -3601,14 +3575,7 @@ function renderRotaRedonda() {
                         
                         <div style="display: flex; gap: 0.75rem; font-size: 0.7rem; color: #64748b; margin-left: auto; align-items: center;">
                             <span style="background:#f1f5f9; padding:2px 6px; border-radius:4px;"><i class="ph ph-package"></i> Produtos: <strong id="rr-total-prod">0</strong></span>
-                            <span style="background:#f1f5f9; padding:2px 6px; border-radius:4px; display:flex; align-items:center; gap:2px;">
-                                <i class="ph ph-clock"></i> Tempo: 
-                                <input type="text" id="rr-tempo-total" value="00:10" 
-                                    style="width: 38px; border: none; background: transparent; font-weight: bold; color: inherit; padding: 0; outline: none; text-align: center; font-size: 0.7rem; font-family: inherit;"
-                                    oninput="osState.tempoEditadoManualmente = true;"
-                                    onblur="if(!this.value.includes(':')) this.value = this.value.replace(/(\\d{2})(\\d{2})/, '$1:$2');"
-                                >
-                            </span>
+                            <span style="background:#f1f5f9; padding:2px 6px; border-radius:4px; display:flex; align-items:center; gap:2px;"><i class="ph ph-clock"></i> Tempo: <input id="rr-tempo-total" value="00:10" style="width:42px; background:transparent; border:none; border-bottom:1px dashed #94a3b8; font-weight:bold; color:#0f172a; text-align:center; padding:0; outline:none; font-size:0.7rem;"></span>
                             <span style="background:#dbeafe; padding:2px 6px; border-radius:4px;" title="Tanque"><i class="ph ph-fill-tray"></i> Tanque: <strong id="rr-total-tanques">0</strong></span>
                             <span style="background:#dcfce7; padding:2px 6px; border-radius:4px;" title="Carroceria"><i class="ph ph-truck"></i> Carroceria: <strong id="rr-total-carrocerias">0</strong></span>
                             <span style="background:#fef9c3; padding:2px 6px; border-radius:4px;" title="Carretinha"><i class="ph ph-link"></i> Carretinha: <strong id="rr-total-carretinhas">0</strong></span>
