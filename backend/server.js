@@ -7866,11 +7866,19 @@ db.run(`CREATE TABLE IF NOT EXISTS os_logistica (
 
 // Função Haversine — calcula distância em km entre duas coordenadas GPS
 function haversineKm(lat1, lng1, lat2, lng2) {
+    const parseCoord = (c) => typeof c === 'string' ? parseFloat(c.replace(',', '.')) : parseFloat(c);
+    const l1 = parseCoord(lat1);
+    const ln1 = parseCoord(lng1);
+    const l2 = parseCoord(lat2);
+    const ln2 = parseCoord(lng2);
+
+    if (isNaN(l1) || isNaN(ln1) || isNaN(l2) || isNaN(ln2)) return Infinity;
+
     const R = 6371;
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const dLat = (l2 - l1) * Math.PI / 180;
+    const dLng = (ln2 - ln1) * Math.PI / 180;
     const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.cos(l1 * Math.PI / 180) * Math.cos(l2 * Math.PI / 180) *
               Math.sin(dLng/2) * Math.sin(dLng/2);
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
@@ -7907,8 +7915,8 @@ app.get('/api/logistica/os/agenda-endereco', authenticateToken, (req, res) => {
 
         // 2. Se tiver coordenadas, busca por raio de 5km
         if (lat && lng) {
-            const userLat = parseFloat(lat);
-            const userLng = parseFloat(lng);
+            const userLat = typeof lat === 'string' ? parseFloat(lat.replace(',', '.')) : parseFloat(lat);
+            const userLng = typeof lng === 'string' ? parseFloat(lng.replace(',', '.')) : parseFloat(lng);
 
             db.all(`SELECT id, numero_os, cliente, endereco, tipo_servico, dias_semana, lat, lng, hora_inicio, hora_fim, turno
                     FROM os_logistica WHERE status = 'ativo' AND lat IS NOT NULL AND lng IS NOT NULL`, [], (err2, todasOs) => {
