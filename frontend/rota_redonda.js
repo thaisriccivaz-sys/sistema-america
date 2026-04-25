@@ -343,10 +343,19 @@ async function reverseGeocodeEndereco() {
         const data = await resp.json();
 
         if (data && data.display_name) {
-            // Posiciona no mapa
-            if (!_leafletMap) inicializarMapa();
+            // Mostra o mapa e oculta placeholder
             if (placeholder) placeholder.style.display = 'none';
-            posicionarMarcador(lat, lng);
+            const mapaDiv = document.getElementById('rr-mapa-leaflet');
+            if (mapaDiv) mapaDiv.style.display = 'block';
+
+            // Inicializa mapa se ainda não foi feito
+            inicializarMapa();
+
+            // Aguarda o mapa estar pronto e posiciona
+            setTimeout(() => {
+                if (_leafletMap) _leafletMap.invalidateSize();
+                posicionarMarcador(lat, lng);
+            }, 50);
             
             // Preenche o endereço
             if (endInput) {
