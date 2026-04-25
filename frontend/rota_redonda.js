@@ -314,25 +314,35 @@ async function geocodeEndereco() {
     const endereco = endInput?.value?.trim();
     if (!endereco) { endInput?.focus(); return; }
 
+    // Normaliza o endereço para a query do Nominatim (NÃO altera o campo na tela)
+    // Remove separadores de milhar BR: 1.814 → 1814, 2.500 → 2500
+    let enderecoQuery = endereco
+        .replace(/(\d)\.(\d{3})\b/g, '$1$2')   // 1.814 → 1814
+        .replace(/\s*\|\s*/g, ', ')              // VILA JAU | SP → VILA JAU, SP
+        .replace(/\s*-\s*(?=[A-Z])/g, ', ')     // GUARULHOS /SP → GUARULHOS, SP
+        .replace(/\s*\/\s*/g, ' ')              // /SP → SP
+        .replace(/\s{2,}/g, ' ')                // espaços duplos
+        .trim();
+
     // Spinner no botão
     if (btn) { btn.innerHTML = '<i class="ph ph-circle-notch" style="animation:spin 1s linear infinite;"></i>'; btn.disabled = true; }
 
     const headers = { 'Accept-Language': 'pt-BR', 'User-Agent': 'AmericaRentalSistema/1.0' };
 
-    // Extrai CEP do endereço para busca direta (mais precisa)
+    // Extrai CEP do endereço original para busca direta (mais precisa)
     const cepMatch = endereco.match(/\b(\d{5})-?(\d{3})\b/);
     const temCidade = /são paulo|sp|guarulhos|campinas|mogi|abc|santo andr|osasco|rio de jan/i.test(endereco);
 
-    // Estratégia em cascata: tenta 3 queries, usa a primeira que retornar resultado
+    // Estratégia em cascata com endereço NORMALIZADO (sem separador de milhar)
     const queries = [
-        // 1ª: query exata com filtro Brasil
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(endereco)}&format=json&limit=1&accept-language=pt-BR&countrycodes=br`,
+        // 1ª: query normalizada com filtro Brasil
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(enderecoQuery)}&format=json&limit=1&accept-language=pt-BR&countrycodes=br`,
     ];
 
     // 2ª: se não tem cidade, adiciona "São Paulo, SP, Brasil"
     if (!temCidade) {
         queries.push(
-            `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(endereco + ', São Paulo, SP, Brasil')}&format=json&limit=1&accept-language=pt-BR`
+            `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(enderecoQuery + ', São Paulo, SP, Brasil')}&format=json&limit=1&accept-language=pt-BR`
         );
     }
 
@@ -345,7 +355,7 @@ async function geocodeEndereco() {
 
     // 4ª: fallback global sem restrição
     queries.push(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(endereco + ' Brasil')}&format=json&limit=1&accept-language=pt-BR`
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(enderecoQuery + ' Brasil')}&format=json&limit=1&accept-language=pt-BR`
     );
 
     try {
