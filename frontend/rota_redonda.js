@@ -1740,13 +1740,20 @@ function parseProdutosString(rawStr, tipoOs) {
         let nomeStr = match[2].toUpperCase().trim();
         
         const MAP_PROD = {
-            'STD': 'STD', 'STANDARD': 'STD', 'LX': 'LX', 'ELX': 'ELX', 'SLX': 'SLX',
-            'PCD': 'PCD', 'CHUVEIRO': 'CHUVEIRO', 'HIDRAULICO': 'HIDRÁULICO',
-            'HIDRAU': 'HIDRÁULICO', 'MICTORIO': 'MICTÓRIO', 'MICT': 'MICTÓRIO',
-            'PBII': 'PBII', 'PIA': 'PBII', 'CARRINHO': 'CARRINHO', 'CAIXA': 'CAIXA DAGUA',
-            'GUARITA INDIVIDUAL': 'GUARITA INDIVIDUAL', 'GUARITA DUPLA': 'GUARITA DUPLA',
-            'GUARITA IND': 'GUARITA INDIVIDUAL', 'GUARITA DUP': 'GUARITA DUPLA',
-            'GUARITA': 'GUARITA INDIVIDUAL' // fallback
+            'STD': 'STD', 'STANDARD': 'STD', 'STANDARDS': 'STD',
+            'LX': 'LX', 'ELX': 'ELX', 'SLX': 'SLX',
+            'PCD': 'PCD', 'PCDS': 'PCD',
+            'CHUVEIRO': 'CHUVEIRO', 'CHUVEIROS': 'CHUVEIRO',
+            'HIDRAULICO': 'HIDRÁULICO', 'HIDRAULICOS': 'HIDRÁULICO', 'HIDRAU': 'HIDRÁULICO',
+            'MICTORIO': 'MICTÓRIO', 'MICTORIOS': 'MICTÓRIO', 'MICT': 'MICTÓRIO',
+            'PBII': 'PBII', 'PIA': 'PBII', 'PIAS': 'PBII', 'LAVATORIO': 'PBII', 'LAVATORIOS': 'PBII',
+            'CARRINHO': 'CARRINHO', 'CARRINHOS': 'CARRINHO',
+            'CAIXA': 'CAIXA DAGUA', 'CAIXAS': 'CAIXA DAGUA',
+            'GUARITA INDIVIDUAL': 'GUARITA INDIVIDUAL', 'GUARITAS INDIVIDUAIS': 'GUARITA INDIVIDUAL',
+            'GUARITA DUPLA': 'GUARITA DUPLA', 'GUARITAS DUPLAS': 'GUARITA DUPLA',
+            'GUARITA IND': 'GUARITA INDIVIDUAL', 'GUARITAS IND': 'GUARITA INDIVIDUAL',
+            'GUARITA DUP': 'GUARITA DUPLA', 'GUARITAS DUP': 'GUARITA DUPLA',
+            'GUARITA': 'GUARITA INDIVIDUAL', 'GUARITAS': 'GUARITA INDIVIDUAL' // fallback
         };
         
         let base = nomeStr;
