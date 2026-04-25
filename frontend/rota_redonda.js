@@ -1,4 +1,4 @@
-/* ════════════════════════════════════════════════════════════════════════════
+﻿/* ════════════════════════════════════════════════════════════════════════════
    MÓDULO: ROTA REDONDA (ORDENS DE SERVIÇO)
    ════════════════════════════════════════════════════════════════════════════ */
 
@@ -583,8 +583,8 @@ async function geocodeEndereco() {
             geoModal.innerHTML = `<div style="background:white;border-radius:12px;width:520px;max-width:95vw;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 16px 48px rgba(0,0,0,0.25);overflow:hidden;">
                 <div style="background:#0369a1;color:white;padding:1rem 1.25rem;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
                     <div>
-                        <p style="margin:0;font-weight:700;font-size:0.95rem;">&#128506;&#65039; M\u00faltiplos endere\u00e7os encontrados</p>
-                        <p style="margin:0;font-size:0.72rem;opacity:0.85;">Clique no endere\u00e7o correto para confirmar</p>
+                        <p style="margin:0;font-weight:700;font-size:0.95rem;">&#128506;&#65039; Múltiplos endereços encontrados</p>
+                        <p style="margin:0;font-size:0.72rem;opacity:0.85;">Clique no endereço correto para confirmar</p>
                     </div>
                     <button onclick="document.getElementById('rr-modal-geo-select').remove()" style="background:transparent;border:none;color:white;font-size:1.3rem;cursor:pointer;">\u2715</button>
                 </div>
@@ -599,57 +599,97 @@ async function geocodeEndereco() {
 
     } catch (err) {
         console.error('[Nominatim]', err);
-        mostrarToastAviso('\u274c Erro ao buscar endere\u00e7o. Verifique sua conex\u00e3o.');
+        mostrarToastAviso('\u274c Erro ao buscar endereço. Verifique sua conexão.');
     } finally {
         if (btn) { btn.innerHTML = '<i class="ph ph-magnifying-glass"></i>'; btn.disabled = false; }
     }
 }
 
-// ── COLAR URL GOOGLE MAPS: extrai lat/lng de URL do Google Maps ───────────────
+// ── MODAL GOOGLE MAPS ─────────────────────────────────────────────────────────
 function colarUrlGoogleMaps() {
     const endereco = document.getElementById('rr-input-endereco')?.value?.trim();
 
-    // Abre Google Maps com o endereço atual em nova aba
+    // Abre Google Maps em nova aba com o endereço atual
     const mapsUrl = 'https://www.google.com/maps/search/' + encodeURIComponent(endereco || 'São Paulo, Brasil');
     window.open(mapsUrl, '_blank');
 
-    // Mostra painel flutuante para colar a URL de volta
-    document.getElementById('rr-gmaps-panel')?.remove();
-    const panel = document.createElement('div');
-    panel.id = 'rr-gmaps-panel';
-    panel.style.cssText = 'position:fixed;bottom:1.5rem;right:1.5rem;z-index:10001;background:white;border:1.5px solid #16a34a;border-radius:10px;padding:1rem;width:340px;box-shadow:0 8px 28px rgba(0,0,0,0.18);';
-    panel.innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
-            <span style="font-weight:700;font-size:0.82rem;color:#15803d;">&#127758; Google Maps aberto!</span>
-            <button onclick="document.getElementById('rr-gmaps-panel').remove()" style="background:none;border:none;cursor:pointer;font-size:1rem;color:#94a3b8;">&#10005;</button>
+    // Modal centralizado
+    document.getElementById('rr-gmaps-modal')?.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'rr-gmaps-modal';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;';
+    overlay.innerHTML = `
+        <div style="background:white;border-radius:12px;width:460px;max-width:95vw;box-shadow:0 16px 48px rgba(0,0,0,0.28);overflow:hidden;">
+            <div style="background:#15803d;color:white;padding:0.9rem 1.2rem;display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                    <div style="font-weight:700;font-size:0.95rem;">&#127758; Google Maps aberto</div>
+                    <div style="font-size:0.72rem;opacity:0.85;margin-top:2px;">Confirme o pin correto, depois cole a URL ou as coordenadas abaixo</div>
+                </div>
+                <button onclick="document.getElementById('rr-gmaps-modal').remove()" style="background:rgba(255,255,255,0.2);border:none;color:white;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">&#10005;</button>
+            </div>
+            <div style="padding:1.2rem;">
+                <div style="margin-bottom:1rem;">
+                    <label style="font-size:0.78rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">&#128279; URL do Google Maps</label>
+                    <input id="rr-gmaps-url-input" type="text" placeholder="Cole a URL da barra do navegador aqui..."
+                        style="width:100%;box-sizing:border-box;padding:7px 10px;border:1.5px solid #cbd5e1;border-radius:6px;font-size:0.8rem;outline:none;"
+                        onfocus="this.style.borderColor='#16a34a'" onblur="this.style.borderColor='#cbd5e1'">
+                    <div style="font-size:0.68rem;color:#6b7280;margin-top:3px;">Ex: https://www.google.com/maps/place/.../@-23.52,-46.73,17z/...</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem;">
+                    <div style="flex:1;height:1px;background:#e5e7eb;"></div>
+                    <span style="font-size:0.72rem;color:#9ca3af;white-space:nowrap;">ou informe diretamente</span>
+                    <div style="flex:1;height:1px;background:#e5e7eb;"></div>
+                </div>
+                <div style="margin-bottom:1rem;">
+                    <label style="font-size:0.78rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">&#128205; Latitude, Longitude</label>
+                    <input id="rr-gmaps-coord-input" type="text" placeholder="Ex: -23.5236807, -46.7391688"
+                        style="width:100%;box-sizing:border-box;padding:7px 10px;border:1.5px solid #cbd5e1;border-radius:6px;font-size:0.8rem;outline:none;"
+                        onfocus="this.style.borderColor='#16a34a'" onblur="this.style.borderColor='#cbd5e1'">
+                </div>
+                <button onclick="_aplicarUrlGoogleMaps()" style="width:100%;background:#15803d;color:white;border:none;border-radius:7px;padding:9px;font-size:0.85rem;font-weight:700;cursor:pointer;transition:background 0.15s;"
+                    onmouseover="this.style.background='#166534'" onmouseout="this.style.background='#15803d'">&#10003; Aplicar coordenadas no mapa</button>
+            </div>
         </div>
-        <p style="font-size:0.75rem;color:#475569;margin:0 0 0.5rem;">1. Confirme o pin correto no Maps<br>2. Copie a URL da barra do navegador<br>3. Cole aqui abaixo:</p>
-        <input id="rr-gmaps-url-input" type="text" placeholder="Cole o link do Google Maps aqui..." style="width:100%;box-sizing:border-box;padding:5px 8px;border:1px solid #cbd5e1;border-radius:5px;font-size:0.78rem;margin-bottom:0.5rem;">
-        <button onclick="_aplicarUrlGoogleMaps()" style="width:100%;background:#16a34a;color:white;border:none;border-radius:5px;padding:6px;font-size:0.8rem;font-weight:700;cursor:pointer;">&#10003; Aplicar coordenadas</button>
     `;
-    document.body.appendChild(panel);
-    setTimeout(() => document.getElementById('rr-gmaps-url-input')?.focus(), 100);
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+    setTimeout(() => document.getElementById('rr-gmaps-url-input')?.focus(), 150);
 }
 
 window._aplicarUrlGoogleMaps = function() {
-    const url = document.getElementById('rr-gmaps-url-input')?.value?.trim();
-    if (!url) return;
-    const patterns = [
-        /@(-?\d+\.\d+),(-?\d+\.\d+)/,
-        /[?&]ll=(-?\d+\.\d+),(-?\d+\.\d+)/,
-        /[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/,
-        /!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/,
-    ];
     let lat = null, lng = null;
-    for (const pat of patterns) {
-        const m = url.match(pat);
-        if (m) { lat = parseFloat(m[1]); lng = parseFloat(m[2]); break; }
+
+    // Tenta primeiro o campo de lat/lng direto
+    const coordRaw = document.getElementById('rr-gmaps-coord-input')?.value?.trim();
+    if (coordRaw) {
+        const m = coordRaw.match(/(-?\d+\.\d+)\s*[,;\s]\s*(-?\d+\.\d+)/);
+        if (m) { lat = parseFloat(m[1]); lng = parseFloat(m[2]); }
     }
+
+    // Se não encontrou, tenta a URL
     if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
-        mostrarToastAviso('\u274c N\u00e3o foi poss\u00edvel extrair coordenadas. Certifique-se de copiar a URL completa ap\u00f3s navegar at\u00e9 o ponto no Google Maps.');
+        const url = document.getElementById('rr-gmaps-url-input')?.value?.trim();
+        if (url) {
+            const patterns = [
+                /@(-?\d+\.\d+),(-?\d+\.\d+)/,
+                /[?&]ll=(-?\d+\.\d+),(-?\d+\.\d+)/,
+                /[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/,
+                /!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/,
+                /place\/[^/]+\/@(-?\d+\.\d+),(-?\d+\.\d+)/,
+            ];
+            for (const pat of patterns) {
+                const m = url.match(pat);
+                if (m) { lat = parseFloat(m[1]); lng = parseFloat(m[2]); break; }
+            }
+        }
+    }
+
+    if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
+        mostrarToastAviso('\u274c N\u00e3o foi poss\u00edvel extrair coordenadas. Use a URL completa do Google Maps ou informe Lat, Lng diretamente.');
         return;
     }
-    document.getElementById('rr-gmaps-panel')?.remove();
+
+    document.getElementById('rr-gmaps-modal')?.remove();
     const placeholder = document.getElementById('rr-mapa-placeholder');
     if (placeholder) placeholder.style.display = 'none';
     const mapaDiv = document.getElementById('rr-mapa-leaflet');
@@ -662,7 +702,7 @@ window._aplicarUrlGoogleMaps = function() {
         osState.enderecoConfirmado = true;
         atualizarBloqueio();
     }, 50);
-    mostrarToastAviso('\u2705 Coordenadas do Google Maps aplicadas!');
+    mostrarToastAviso('\u2705 Coordenadas aplicadas! Mapa atualizado.');
 };
 
 function mostrarToastAviso(msg) {
@@ -2276,12 +2316,12 @@ function atualizarDropdownProdutos() {
     }
 
     // Filtra o dropdown de Tipo de Serviço pelo tipo selecionado (Obra/Evento)
-    const selectServico = document.getElementById('rr-tipo-servico');
-    if (selectServico && osState.tipoOs) {
+    // rr-tipo-servico agora é um hidden input — filtra as opções do dropdown customizado
+    if (osState.tipoOs) {
         const filtro = osState.tipoOs.toUpperCase(); // 'OBRA' ou 'EVENTO'
-        Array.from(selectServico.options).forEach(opt => {
-            if (opt.value === '') return; // mantém o placeholder
-            opt.hidden = !opt.value.toUpperCase().includes(filtro);
+        document.querySelectorAll('.rr-tipo-opt').forEach(opt => {
+            if (!opt.dataset.val) return;
+            opt.style.display = opt.dataset.val.toUpperCase().includes(filtro) ? 'block' : 'none';
         });
     }
 }
