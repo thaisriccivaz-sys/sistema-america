@@ -236,6 +236,102 @@ function calcularCargaTotalFromLista() {
 }
 
 
+
+
+// ══════════════════════════════════════════════════════════════════════════════
+// GEOCODIFICAÇÃO DE ENDEREÇO (Google Maps Geocoding API)
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ⚠️  CONFIGURAR: Substitua pela sua Google Maps API Key no Render (variável de ambiente)
+// APIs necessárias: Maps JavaScript API + Geocoding API
+// Dashboard: https://console.cloud.google.com/apis/credentials
+const GOOGLE_MAPS_API_KEY = window.GOOGLE_MAPS_KEY || '';
+
+async function geocodeEndereco() {
+    const endInput = document.getElementById('rr-input-endereco');
+    const latInput = document.getElementById('rr-input-lat');
+    const lngInput = document.getElementById('rr-input-lng');
+    const btn      = document.getElementById('btn-geocode-endereco');
+    const mapa     = document.getElementById('rr-mapa-embed');
+
+    const endereco = endInput?.value?.trim();
+    if (!endereco) { endInput?.focus(); return; }
+
+    // Feedback visual: botão girando
+    if (btn) { btn.innerHTML = '<i class="ph ph-circle-notch" style="animation:spin 1s linear infinite;"></i>'; btn.disabled = true; }
+
+    try {
+        if (!GOOGLE_MAPS_API_KEY) {
+            // Sem API Key: usa apenas o Google Maps Embed (busca pelo nome, sem lat/lng automático)
+            if (mapa) {
+                const q = encodeURIComponent(endereco);
+                mapa.src = `https://maps.google.com/maps?q=${q}&output=embed&z=16`;
+                mapa.style.display = 'block';
+            }
+            if (latInput) { latInput.value = ''; latInput.placeholder = 'Configure a API Key'; }
+            if (lngInput) { lngInput.value = ''; lngInput.placeholder = 'Configure a API Key'; }
+
+            mostrarToastAviso('⚠️ Google Maps API Key não configurada. O mapa foi carregado, mas lat/lng não foram preenchidos automaticamente. Configure GOOGLE_MAPS_KEY nas variáveis de ambiente do Render.');
+            return;
+        }
+
+        // Com API Key: geocodificação completa
+        const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(endereco)}&key=${GOOGLE_MAPS_API_KEY}&language=pt-BR`;
+        const resp = await fetch(url);
+        const data = await resp.json();
+
+        if (data.status !== 'OK' || !data.results?.[0]) {
+            mostrarToastAviso('❌ Endereço não encontrado. Tente ser mais específico.');
+            return;
+        }
+
+        const result = data.results[0];
+        const loc = result.geometry.location;
+        const lat = loc.lat;
+        const lng = loc.lng;
+
+        // Preenche campos lat/lng (desbloqueados readonly temporariamente)
+        if (latInput) { latInput.removeAttribute('readonly'); latInput.value = lat.toFixed(7); latInput.style.background = '#f0fdf4'; latInput.setAttribute('readonly', ''); }
+        if (lngInput) { lngInput.removeAttribute('readonly'); lngInput.value = lng.toFixed(7); lngInput.style.background = '#f0fdf4'; lngInput.setAttribute('readonly', ''); }
+
+        // Atualiza estado
+        osState.lat = lat;
+        osState.lng = lng;
+
+        // Preenche o endereço formatado retornado pelo Google (se campo estiver vazio ou igual)
+        const endFormatado = result.formatted_address;
+        if (endInput && endInput.value === endereco) endInput.value = endFormatado;
+
+        // Carrega mapa embed com marcador exato
+        if (mapa) {
+            mapa.src = `https://maps.google.com/maps?q=${lat},${lng}&output=embed&z=17`;
+            mapa.style.display = 'block';
+        }
+
+    } catch (err) {
+        console.error('[Geocode]', err);
+        mostrarToastAviso('❌ Erro ao buscar endereço. Verifique sua conexão.');
+    } finally {
+        if (btn) { btn.innerHTML = '<i class="ph ph-magnifying-glass"></i>'; btn.disabled = false; }
+    }
+}
+
+function mostrarToastAviso(msg) {
+    const t = document.createElement('div');
+    t.style.cssText = 'position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;background:#fef3c7;border:1px solid #f59e0b;color:#92400e;padding:0.75rem 1rem;border-radius:8px;font-size:0.78rem;max-width:380px;box-shadow:0 4px 12px rgba(0,0,0,0.15);line-height:1.5;';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 9000);
+}
+
+// CSS keyframe para o spinner do botão
+if (!document.getElementById('rr-keyframes')) {
+    const s = document.createElement('style');
+    s.id = 'rr-keyframes';
+    s.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
+    document.head.appendChild(s);
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // PARSER DE TEXTO LIVRE DE OS (Colar OS)
 // ══════════════════════════════════════════════════════════════════════════════
@@ -567,6 +663,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const btnColarOs = e.target.closest('#btn-colar-os');
         if (btnColarOs) { abrirModalColarOS(); return; }
 
+        // Botão Geocode (buscar endereço → lat/lng + mapa)
+        const btnGeocode = e.target.closest('#btn-geocode-endereco');
+        if (btnGeocode) { geocodeEndereco(); return; }
+
         // Botão Limpar OS
         const btnLimpar = e.target.closest('#btn-limpar-os');
         if (btnLimpar) {
@@ -893,16 +993,24 @@ function renderRotaRedonda() {
                 </div>
                 
                 <div style="display: flex; gap: 0.5rem;">
-                    <div style="flex: 2;">
+                    <div style="flex: 3;">
                         <label style="${labelStyle}">Endereço</label>
                         <div style="display:flex; gap:2px;">
-                            <input type="text" id="rr-input-endereco" style="${inputStyle}" placeholder="Endereço completo">
-                            <button style="background:#e2e8f0; border:none; color:#475569; width:26px; height:26px; border-radius:4px; cursor:pointer;"><i class="ph ph-magnifying-glass"></i></button>
+                            <input type="text" id="rr-input-endereco" style="${inputStyle}" placeholder="Ex: Rua das Flores, 123 - Bairro, Cidade/SP">
+                            <button id="btn-geocode-endereco" style="background:#0369a1; border:none; color:white; width:26px; height:26px; border-radius:4px; cursor:pointer; flex-shrink:0;" title="Buscar endereço no mapa e preencher latitude/longitude"><i class="ph ph-magnifying-glass"></i></button>
                         </div>
                     </div>
                     <div style="flex: 1;">
-                        <label style="${labelStyle}">Complemento / Lat Long</label>
-                        <input type="text" style="${inputStyle}" placeholder="Apto, Sala, Bloco...">
+                        <label style="${labelStyle}">Complemento</label>
+                        <input type="text" id="rr-input-complemento" style="${inputStyle}" placeholder="Apto, Sala, Bloco...">
+                    </div>
+                    <div style="flex: 0 0 90px;">
+                        <label style="${labelStyle}">Latitude</label>
+                        <input type="text" id="rr-input-lat" style="${inputStyle} font-size:0.65rem;" placeholder="-23.5505" readonly>
+                    </div>
+                    <div style="flex: 0 0 90px;">
+                        <label style="${labelStyle}">Longitude</label>
+                        <input type="text" id="rr-input-lng" style="${inputStyle} font-size:0.65rem;" placeholder="-46.6333" readonly>
                     </div>
                 </div>
 
@@ -1017,13 +1125,21 @@ function renderRotaRedonda() {
 
             <!-- MAPA E RESUMO RIGHT COL -->
             <div style="display: flex; flex-direction: column; flex: 1; min-width: 0;">
-                <div style="background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 6px; height: 100%; display: flex; align-items: center; justify-content: center; flex-direction: column; color: #64748b; position: relative; overflow: hidden; background-image: url('https://upload.wikimedia.org/wikipedia/commons/b/bd/Google_Maps_Logo_2020.svg'); background-size: 40px; background-repeat: no-repeat; background-position: center 40%;">
+                <div id="rr-mapa-container" style="background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 6px; height: 100%; display: flex; flex-direction: column; position: relative; overflow: hidden;">
                     <!-- Header do Mapa -->
-                    <div style="position: absolute; top: 0; left: 0; right: 0; background: rgba(255,255,255,0.95); padding: 0.4rem 0.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; backdrop-filter: blur(2px);">
+                    <div style="background: rgba(255,255,255,0.97); padding: 0.4rem 0.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; flex-shrink:0;">
                         <span style="font-size:0.75rem; font-weight:700; color:#475569; display:flex; align-items:center; gap:4px;"><i class="ph ph-map-pin" style="color:#0ea5e9;"></i> Localização</span>
-                        <button style="background: #3b82f6; color: white; padding: 2px 8px; font-size: 0.7rem; border-radius: 4px; border:none; cursor:pointer; font-weight:600;">Ampliar mapa</button>
+                        <button onclick="const f=document.getElementById('rr-mapa-embed');if(f&&f.src&&f.src!=='about:blank')window.open(f.src.replace('output=embed','').replace('&z=17',''),'_blank');" style="background:#3b82f6; color:white; padding:2px 8px; font-size:0.7rem; border-radius:4px; border:none; cursor:pointer; font-weight:600;">
+                            <i class="ph ph-arrows-out"></i> Ampliar
+                        </button>
                     </div>
-                    <p style="margin-top: 3rem; font-size: 0.75rem; font-weight: 500; text-align: center; padding: 0 1rem;">O mapa será carregado aqui<br>(Integração Google Maps)</p>
+                    <!-- Placeholder (visível antes de buscar) -->
+                    <div id="rr-mapa-placeholder" style="flex:1; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:0.5rem; color:#94a3b8; padding:1rem; text-align:center;">
+                        <i class="ph ph-map-trifold" style="font-size:2.5rem; color:#cbd5e1;"></i>
+                        <p style="font-size:0.75rem; margin:0; font-weight:500;">Digite o endereço e clique em 🔍<br>para carregar o mapa e obter as coordenadas</p>
+                    </div>
+                    <!-- Iframe do mapa (oculto até busca) -->
+                    <iframe id="rr-mapa-embed" src="about:blank" style="display:none; flex:1; width:100%; height:100%; border:none;" allowfullscreen loading="lazy"></iframe>
                 </div>
             </div>
 
