@@ -222,15 +222,23 @@ function calcularCargaTotalFromLista() {
 
     // Regra atualizada:
     //   Manutenção        → apenas TANQUE
-    //   Entrega           → apenas CARROCERIA ou CARRETINHA (<=6 ou >6)
     //   Retirada / Troca  → TANQUE e (CARROCERIA ou CARRETINHA)
+    //   Capacidades:
+    //      <= 6  → Carroceria total
+    //      7 a 12 → Carroceria 6, Carretinha (total - 6)
+    //      > 12   → Carroceria 0, Carretinha total
     let tanque = '', carroceria = '', carretinha = '';
     if (isManutencao) {
         tanque = totalCarga > 0 ? String(totalCarga) : '0';
     } else {
         if (totalCarga <= 6) {
             carroceria = totalCarga > 0 ? String(totalCarga) : '0';
+            carretinha = '0';
+        } else if (totalCarga <= 12) {
+            carroceria = '6';
+            carretinha = String(totalCarga - 6);
         } else {
+            carroceria = '0';
             carretinha = String(totalCarga);
         }
         
@@ -3572,9 +3580,9 @@ function renderRotaRedonda() {
                         <div style="display: flex; gap: 0.75rem; font-size: 0.7rem; color: #64748b; margin-left: auto; align-items: center;">
                             <span style="background:#f1f5f9; padding:2px 6px; border-radius:4px;"><i class="ph ph-package"></i> Produtos: <strong id="rr-total-prod">0</strong></span>
                             <span style="background:#f1f5f9; padding:2px 6px; border-radius:4px;"><i class="ph ph-clock"></i> Tempo: <strong id="rr-tempo-total">00:10</strong></span>
-                            <span style="background:#dbeafe; padding:2px 6px; border-radius:4px;" title="Tanques"><i class="ph ph-fill-tray"></i> Tanques: <strong id="rr-total-tanques">0</strong></span>
-                            <span style="background:#dcfce7; padding:2px 6px; border-radius:4px;" title="Carrocerias"><i class="ph ph-truck"></i> Carrocerias: <strong id="rr-total-carrocerias">0</strong></span>
-                            <span style="background:#fef9c3; padding:2px 6px; border-radius:4px;" title="Carretinhas"><i class="ph ph-link"></i> Carretinhas: <strong id="rr-total-carretinhas">0</strong></span>
+                            <span style="background:#dbeafe; padding:2px 6px; border-radius:4px;" title="Tanque"><i class="ph ph-fill-tray"></i> Tanque: <strong id="rr-total-tanques">0</strong></span>
+                            <span style="background:#dcfce7; padding:2px 6px; border-radius:4px;" title="Carroceria"><i class="ph ph-truck"></i> Carroceria: <strong id="rr-total-carrocerias">0</strong></span>
+                            <span style="background:#fef9c3; padding:2px 6px; border-radius:4px;" title="Carretinha"><i class="ph ph-link"></i> Carretinha: <strong id="rr-total-carretinhas">0</strong></span>
                         </div>
                     </div>
                     
