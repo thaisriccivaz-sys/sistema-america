@@ -510,6 +510,20 @@ async function geocodeEndereco() {
             return;
         }
 
+        // ── Deduplica resultados por CEP + nome da rua (evita repetidos do Nominatim) ──
+        const vistos = new Set();
+        data = data.filter(d => {
+            // Extrai CEP do display_name (ex: "05426-200")
+            const cepM = d.display_name.match(/\b\d{5}[- ]?\d{3}\b/);
+            const cep = cepM ? cepM[0].replace(/\s/, '-') : '';
+            // Usa o 1º segmento do nome como chave da rua
+            const rua = d.display_name.split(',')[0].trim().toLowerCase();
+            const chave = cep ? `${rua}||${cep}` : `${rua}||${d.lat.substring(0,7)}||${d.lon.substring(0,7)}`;
+            if (vistos.has(chave)) return false;
+            vistos.add(chave);
+            return true;
+        });
+
         // Monta o endereco final inserindo o numero digitado pelo usuario
         const montarEnderecoComNumero = (displayName) => {
             if (!numeroOriginal) return displayName;
@@ -2463,7 +2477,7 @@ function renderRotaRedonda() {
                             onchange="onChangeTipoServico();"
                             style="${inputStyle} cursor:pointer;">
                             <option value="">Selecione o tipo de serviço...</option>
-                            ${TIPOS_SERVICO_OS.map(t => { let ic = ''; if(t.includes('RETIRADA')) ic = t.includes('TOTAL') ? '⭕' : '🔶'; else if(t.includes('SUCCAO')) ic = '💧'; else if(t.includes('LIMPA FOSSA')) ic = '💦'; else if(t.includes('REPARO')) ic = '⚙️'; else if(t.includes('VISITA TECNICA')) ic = '📋'; else if(t.includes('MANUTENCAO')) ic = t.includes('AVULSA') ? '❗' : ''; else if(t.includes('VAC')) ic = '🏗️'; else if(t.includes('ENTREGA')) ic = '🚚'; else if(t.includes('TROCA')) ic = '♻️'; return `<option value="${t}">${ic ? ic + ' ' : ''}${t}</option>`; }).join('')}
+                            ${TIPOS_SERVICO_OS.map(t => { let ic = ''; if(t.includes('RETIRADA')) ic = t.includes('TOTAL') ? '⭕' : '🔶'; else if(t.includes('SUCCAO')) ic = '💧'; else if(t.includes('LIMPA FOSSA')) ic = '💦'; else if(t.includes('REPARO')) ic = '⚙️'; else if(t.includes('VISITA TECNICA')) ic = '📋'; else if(t.includes('MANUTENCAO')) ic = t.includes('AVULSA') ? '❗' : '🔧'; else if(t.includes('VAC')) ic = '🏗️'; else if(t.includes('TROCA')) ic = '♻️'; /* ENTREGA: sem icone — icones vem dos produtos */ return `<option value="${t}">${ic ? ic + ' ' : ''}${t}</option>`; }).join('')}
                         </select>
                     </div>
                 </div>
