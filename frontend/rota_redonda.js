@@ -1385,7 +1385,13 @@ function carregarRegistroNaTela(os) {
     const diasMap = { 'Seg': 'rr-chk-seg', 'Ter': 'rr-chk-ter', 'Qua': 'rr-chk-qua', 'Qui': 'rr-chk-qui', 'Sex': 'rr-chk-sex', 'Sáb': 'rr-chk-sab', 'Dom': 'rr-chk-dom' };
     Object.entries(diasMap).forEach(([d, id]) => {
         const el = document.getElementById(id);
-        if (el) el.checked = diasSalvos.includes(d);
+        if (el) {
+            el.checked = diasSalvos.includes(d);
+            el.disabled = false;
+            // Atualiza cores
+            const ev = new Event('change');
+            el.dispatchEvent(ev);
+        }
     });
     
     // Produtos
@@ -2442,16 +2448,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (document.getElementById(id)?.checked) diasSelecionados.push(label);
             });
 
-            const isManut = (document.getElementById('rr-tipo-servico')?.value || '').toUpperCase().includes('MANUTENCAO');
+            const tipoServicoTxt = (document.getElementById('rr-tipo-servico')?.value || '').toUpperCase();
+            const isManutObraEvento = tipoServicoTxt === 'MANUTENCAO OBRA' || tipoServicoTxt === 'MANUTENCAO EVENTO';
             const clicouAgenda = document.getElementById('rr-chk-agenda-clicado')?.value === '1';
 
-            if (isManut) {
+            if (isManutObraEvento) {
                 if (!clicouAgenda && !osState.loadedId) {
-                    mostrarToastAviso("Para serviços de Manutenção, é obrigatório clicar no botão Agenda para verificar as rotas na região.");
+                    mostrarToastAviso("Para Manutenção (Obra/Evento), é obrigatório clicar no botão Agenda para verificar as rotas.");
                     return;
                 }
                 if (diasSelecionados.length === 0) {
-                    mostrarToastAviso("Para serviços de Manutenção, é obrigatório selecionar pelo menos um dia da semana sugerido.");
+                    mostrarToastAviso("Para Manutenção (Obra/Evento), é obrigatório selecionar pelo menos um dia da semana.");
                     return;
                 }
             }
@@ -2487,8 +2494,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 link_video: document.getElementById('rr-input-video')?.value?.trim() || '',
             };
 
-            // Validação básica
-            if (!payload.cliente) { mostrarToastAviso('Preencha o nome do cliente antes de gerar a OS.'); return; }
+            // Validações obrigatórias
+            const camposFaltando = [];
+            if (!payload.numero_os) camposFaltando.push('OS');
+            if (!payload.cliente) camposFaltando.push('Cliente');
+            if (!payload.contrato) camposFaltando.push('Contrato');
+            if (!payload.data_os) camposFaltando.push('Data');
+            if (!payload.endereco) camposFaltando.push('Endereço');
+            if (payload.lat === null || payload.lng === null) camposFaltando.push('Latitude e Longitude');
+            if (!payload.responsavel) camposFaltando.push('Responsável');
+            if (!payload.telefone) camposFaltando.push('Telefone');
+            if (!diurno?.checked && !noturno?.checked) camposFaltando.push('Turno (Diurno/Noturno)');
+            if (payload.produtos.length === 0) camposFaltando.push('Produto');
+
+            if (camposFaltando.length > 0) {
+                mostrarToastAviso("Preencha os campos obrigatórios: " + camposFaltando.join(', '));
+                return;
+            }
             if (!payload.tipo_os) { mostrarToastAviso('Defina o tipo de OS (Obra ou Evento) clicando no botão +.'); return; }
 
             // Desabilita botão durante o save
@@ -3494,7 +3516,7 @@ function renderRotaRedonda() {
                     <input type="time" id="rr-input-hora-inicio" style="${inputStyle} width: 75px;"> às 
                     <input type="time" id="rr-input-hora-fim" style="${inputStyle} width: 75px;">
                     <div style="width: 1px; height: 16px; background: #cbd5e1; margin: 0 2px;"></div>
-                    <button id="btn-agenda-endereco" style="background:#f59e0b; border:none; color:white; height:26px; width:26px; border-radius:4px; cursor:pointer; flex-shrink:0; display:flex; align-items:center; justify-content:center; padding:0;" title="Verificar manutenções programadas para esta região" onclick="document.getElementById('rr-chk-agenda-clicado').value='1';"><i class="ph ph-calendar-check" style="font-size:1.1rem;"></i></button>
+                    <button id="btn-agenda-endereco" style="background:#f59e0b; border:none; color:white; height:26px; width:26px; border-radius:4px; cursor:pointer; flex-shrink:0; display:flex; align-items:center; justify-content:center; padding:0;" title="Verificar manutenções programadas para esta região" onclick="document.getElementById('rr-chk-agenda-clicado').value='1'; Array.from(document.querySelectorAll('[id^=rr-chk-]')).forEach(el => el.disabled = false);"><i class="ph ph-calendar-check" style="font-size:1.1rem;"></i></button>
                     ${[
                         { d: 'Seg', id: 'rr-chk-seg', c: '#ef4444' },
                         { d: 'Ter', id: 'rr-chk-ter', c: '#f97316' },
@@ -3503,7 +3525,7 @@ function renderRotaRedonda() {
                         { d: 'Sex', id: 'rr-chk-sex', c: '#3b82f6' },
                         { d: 'Sáb', id: 'rr-chk-sab', c: '#8b5cf6' },
                         { d: 'Dom', id: 'rr-chk-dom', c: '#ec4899' }
-                    ].map(item => `<label id="lbl-${item.id}" style="display:flex; align-items:center; gap:2px; font-size:0.7rem; color:${item.c}; font-weight:700; cursor:pointer; padding:2px 6px; border-radius:4px; border:1.5px solid ${item.c}; transition:background 0.15s;"><input type="checkbox" id="${item.id}" onchange="(function(chk,lbl,cor){lbl.style.background=chk.checked?cor:'transparent';lbl.style.color=chk.checked?'white':cor;})(this,this.closest('label'),'${item.c}')"> ${item.d}</label>`).join('')}
+                    ].map(item => `<label id="lbl-${item.id}" style="display:flex; align-items:center; gap:2px; font-size:0.7rem; color:${item.c}; font-weight:700; cursor:pointer; padding:2px 6px; border-radius:4px; border:1.5px solid ${item.c}; transition:background 0.15s;"><input type="checkbox" disabled id="${item.id}" onchange="(function(chk,lbl,cor){lbl.style.background=chk.checked?cor:'transparent';lbl.style.color=chk.checked?'white':cor;})(this,this.closest('label'),'${item.c}')"> ${item.d}</label>`).join('')}
                     
                     <div id="rr-sugestoes-dias-container" style="flex-basis: 100%; font-size: 0.75rem; padding: 2px 4px; display: none;"></div>
                     <input type="hidden" id="rr-chk-agenda-clicado" value="0">
