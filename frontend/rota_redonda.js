@@ -11,10 +11,10 @@ let osState = {
     clienteConfirmado: true,
     clienteNome: '',
     enderecoSelecionado: '',
-    tipoOs: '',                    // 'Obra' ou 'Evento'
-    coordenadasConfirmadas: false,  // Passo 1: Botão G aplicado
-    agendaVerificada: false,        // Passo 2: Botão Agenda clicado
-    enderecoObrigatorio: false,     // Ativado ao clicar em + ou Colar OS
+    tipoOs: '',                   // 'Obra' ou 'Evento' — libera o corpo do formulário
+    coordenadasConfirmadas: false, // Passo 1: Botão G aplicado
+    agendaVerificada: false,       // Passo 2: Botão Agenda clicado
+    enderecoObrigatorio: false,    // Ativado ao clicar em + ou Colar OS
 };
 
 // ── DICIONÁRIO DE EQUIPAMENTOS (do Flutter: equipamentosDict) ───────────────
@@ -1895,6 +1895,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             atualizarBloqueio();
                             mostrarToastAviso(`Nova OS iniciada. Tipo: ${tipo}. Use o botão G para confirmar o endereço.`);
                         });
+
                     }, 50);
 
                 } else if (resp.ok) {
@@ -1932,6 +1933,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 return;
             }
+
             if (osState.enderecoObrigatorio && !osState.enderecoConfirmado) {
                 mostrarToastAviso('Confirme o endereço: selecione um da lista de sugestões ou use o botão G para colar as coordenadas do Google Maps.');
                 // Destaca o botão G
@@ -2252,28 +2254,30 @@ function atualizarBloqueio() {
     const overlayOS  = document.getElementById('rr-overlay-bloqueio');
     const overlayEnd = document.getElementById('rr-overlay-bloqueio-endereco');
 
-    // Bloqueio principal: sempre oculto (entrada manual livre; controle via validação ao salvar)
+    // Bloqueio principal: sempre oculto na entrada manual
+    // O controle do OS é feito na validação do botão Salvar
     if (overlayOS) overlayOS.style.display = 'none';
 
     if (!overlayEnd) return;
 
-    // Se o endereço não é obrigatório (entrada manual sem + pressionado), libera tudo
+    // Se o endereço não é obrigatório (entrada manual sem + pressionado), libera
     if (!osState.enderecoObrigatorio) {
         overlayEnd.style.display = 'none';
         return;
     }
 
-    // Totalmente desbloqueado: G + Agenda confirmados
+    // Desbloqueado: G + Agenda concluídos
     if (osState.enderecoConfirmado) {
         overlayEnd.style.display = 'none';
-    // Passo 1 completo (G clicado): aguarda clicar na Agenda
+
+    // Passo 1 OK (G clicado): aguarda Agenda
     } else if (osState.coordenadasConfirmadas) {
         overlayEnd.style.display = 'flex';
         overlayEnd.innerHTML = `
-            <div style="text-align:center;padding:1rem;">
-                <div style="font-size:1.5rem;margin-bottom:0.4rem;">&#128197;</div>
+            <div style="text-align:center;padding:1.2rem;">
+                <div style="font-size:1.6rem;margin-bottom:0.4rem;">&#128197;</div>
                 <div style="font-weight:700;font-size:0.85rem;color:#92400e;margin-bottom:0.3rem;">Coordenadas confirmadas!</div>
-                <div style="font-size:0.75rem;color:#78350f;">Clique no botão <strong>&#128197;</strong> ao lado do endereço para verificar a agenda e liberar o formulário.</div>
+                <div style="font-size:0.75rem;color:#78350f;">Clique no botão <strong>&#128197;</strong> (agenda) ao lado do endereço para liberar o formulário.</div>
             </div>`;
         overlayEnd.style.background = 'rgba(254,243,199,0.92)';
         overlayEnd.style.cursor = 'default';
@@ -2282,14 +2286,15 @@ function atualizarBloqueio() {
             btnAg.style.boxShadow = '0 0 0 3px #f59e0b, 0 0 0 6px rgba(245,158,11,0.3)';
             setTimeout(() => { if (btnAg) btnAg.style.boxShadow = ''; }, 3000);
         }
-    // Passo 0: aguardando coordenadas (botão G)
+
+    // Passo 0: aguardando botão G
     } else {
         overlayEnd.style.display = 'flex';
         overlayEnd.innerHTML = `
-            <div style="text-align:center;padding:1rem;">
-                <div style="font-size:1.5rem;margin-bottom:0.4rem;">&#127758;</div>
-                <div style="font-weight:700;font-size:0.85rem;color:#1e293b;margin-bottom:0.3rem;">Confirme o endereço</div>
-                <div style="font-size:0.75rem;color:#475569;">Use o botão <strong style="color:#16a34a;font-size:0.85rem;">G</strong> para abrir o Google Maps e confirmar as coordenadas.</div>
+            <div style="text-align:center;padding:1.2rem;">
+                <div style="font-size:1.6rem;margin-bottom:0.4rem;">&#127758;</div>
+                <div style="font-weight:700;font-size:0.85rem;color:#1e293b;margin-bottom:0.3rem;">Confirme o endereço no mapa</div>
+                <div style="font-size:0.75rem;color:#475569;">Use o botão <strong style="color:#16a34a;">G</strong> para abrir o Google Maps e confirmar as coordenadas do endereço.</div>
             </div>`;
         overlayEnd.style.background = 'rgba(248,250,252,0.90)';
         overlayEnd.style.cursor = 'pointer';
