@@ -315,13 +315,13 @@ async function geocodeEndereco() {
     if (!endereco) { endInput?.focus(); return; }
 
     // Normaliza o endereço para a query do Nominatim (NÃO altera o campo na tela)
-    // Remove separadores de milhar BR: 1.814 → 1814, 2.500 → 2500
     let enderecoQuery = endereco
-        .replace(/(\d)\.(\d{3})\b/g, '$1$2')   // 1.814 → 1814
-        .replace(/\s*\|\s*/g, ', ')              // VILA JAU | SP → VILA JAU, SP
-        .replace(/\s*-\s*(?=[A-Z])/g, ', ')     // GUARULHOS /SP → GUARULHOS, SP
-        .replace(/\s*\/\s*/g, ' ')              // /SP → SP
-        .replace(/\s{2,}/g, ' ')                // espaços duplos
+        .replace(/(\d)\.(\d{3})\b/g, '$1$2')            // 1.814 → 1814
+        .replace(/\|\s*CEP[:\s-]*\d{5}-?\d{3}\b/gi, '') // Remove " | CEP: 07025-000" (confunde a API se ficar no final com pipe)
+        .replace(/\s*\/\s*[A-Z]{2}\b/gi, '')            // Remove " /SP", " /RJ" (Nominatim não lida bem com barra)
+        .replace(/\s*\|\s*/g, ', ')                     // Substitui pipes restantes por vírgula
+        .replace(/\s*-\s*(?=[a-zA-Z])/g, ', ')          // Hífen solto por vírgula "VILA - GUARULHOS" → "VILA, GUARULHOS"
+        .replace(/\s{2,}/g, ' ')                        // Remove espaços extras
         .trim();
 
     // Spinner no botão
