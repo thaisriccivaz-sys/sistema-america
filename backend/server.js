@@ -8007,7 +8007,8 @@ app.get('/api/logistica/os/buscar', authenticateToken, (req, res) => {
             }
         );
     } else if (cliente) {
-        const clienteSanitized = cliente.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\s🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘]+/u, '').trim();
+        let clienteSanitized = cliente.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\s🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘]+/u, '').trim();
+        clienteSanitized = clienteSanitized.replace(/[aáàãâä]/gi, '_').replace(/[eéèêë]/gi, '_').replace(/[iíìîï]/gi, '_').replace(/[oóòõôö]/gi, '_').replace(/[uúùûü]/gi, '_').replace(/[cç]/gi, '_').replace(/\s+/g, '%');
         db.all(
             `SELECT * FROM os_logistica WHERE cliente LIKE ? AND status = 'ativo' ORDER BY criado_em DESC`,
             [`%${clienteSanitized}%`],
@@ -8028,9 +8029,10 @@ app.get('/api/logistica/os/buscar', authenticateToken, (req, res) => {
             }
         );
     } else if (endereco) {
+        let endSanitized = endereco.trim().replace(/[aáàãâä]/gi, '_').replace(/[eéèêë]/gi, '_').replace(/[iíìîï]/gi, '_').replace(/[oóòõôö]/gi, '_').replace(/[uúùûü]/gi, '_').replace(/[cç]/gi, '_').replace(/\s+/g, '%');
         db.all(
             `SELECT * FROM os_logistica WHERE endereco LIKE ? AND status = 'ativo' ORDER BY criado_em DESC`,
-            [`%${endereco.trim()}%`],
+            [`%${endSanitized}%`],
             (err, rows) => {
                 if (err) return res.status(500).json({ error: err.message });
                 if (!rows || rows.length === 0) return res.status(200).json([]);

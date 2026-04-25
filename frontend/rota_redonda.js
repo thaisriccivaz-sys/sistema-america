@@ -2039,7 +2039,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (btnPlus) {
                     btnPlus.style.transition = 'transform 0.1s, box-shadow 0.1s';
                     btnPlus.style.transform = 'scale(1.3)';
-                    btnPlus.style.boxShadow = '0 0 10px 4px #1a7a40';
+                    btnPlus.style.boxShadow = '0 0 10px 4px #334155';
                     setTimeout(() => { btnPlus.style.transform = ''; btnPlus.style.boxShadow = ''; }, 600);
                 }
                 return;
@@ -2929,14 +2929,14 @@ function renderRotaRedonda() {
     <div id="rota-redonda-content" style="background: #fff; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); display: flex; flex-direction: column; box-sizing: border-box;">
         
         <!-- HEADER FORM — Fixo no topo -->
-        <div style="position: sticky; top: 60px; z-index: 20; display: flex; gap: 1rem; align-items: center; background: #2d9e5f; padding: 0.5rem 0.75rem; color: white; flex-shrink: 0; flex-wrap: wrap; border-radius: 6px 6px 0 0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); margin-top: -1.5rem; margin-left: -1.5rem; margin-right: -1.5rem; margin-bottom: 0.75rem;">
+        <div style="position: sticky; top: 60px; z-index: 20; display: flex; gap: 1rem; align-items: center; background: #64748b; padding: 0.5rem 0.75rem; color: white; flex-shrink: 0; flex-wrap: wrap; border-radius: 6px 6px 0 0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); margin-top: -1.5rem; margin-left: -1.5rem; margin-right: -1.5rem; margin-bottom: 0.75rem;">
             
             <div style="display: flex; align-items: center; gap: 4px;">
                 <label style="font-weight: 600; font-size: 0.75rem; color: white; white-space: nowrap; margin: 0;">OS</label>
                 <div style="display: flex; align-items: center; gap: 2px;">
-                    <img id="rr-img-tipo-os" src="" style="height: 22px; display: none;" alt="Tipo OS">
+                    <img id="rr-img-tipo-os" src="" style="height: 28px; display: none;" alt="Tipo OS">
                     <input type="text" id="rr-input-os" style="${inputStyle} border:none; width: 80px;" placeholder="Ex: 12345">
-                    <button id="btn-add-os-tipo" style="${btnStyle} background:#1a7a40;" title="Definir tipo de OS (Obra/Evento)"><i class="ph ph-plus"></i></button>
+                    <button id="btn-add-os-tipo" style="${btnStyle} background:#334155;" title="Definir tipo de OS (Obra/Evento)"><i class="ph ph-plus"></i></button>
                 </div>
             </div>
 
@@ -2944,7 +2944,7 @@ function renderRotaRedonda() {
                 <label style="font-weight: 600; font-size: 0.75rem; color: white; white-space: nowrap; margin: 0;">Cliente</label>
                 <div style="display:flex; gap:4px; align-items:center; width: 100%;">
                     <input type="text" id="rr-input-cliente" style="${inputStyle} border:none;" placeholder="Nome do Cliente" oninput="this.dataset.nomeBase = '';" onkeydown="if(event.key==='Enter') document.getElementById('btn-pesq-cliente-os').click();">
-                    <button id="btn-pesq-cliente-os" style="${btnStyle} background:#1a7a40;" title="Pesquisar cliente"><i class="ph ph-magnifying-glass"></i></button>
+                    <button id="btn-pesq-cliente-os" style="${btnStyle} background:#334155;" title="Pesquisar cliente"><i class="ph ph-magnifying-glass"></i></button>
                 </div>
             </div>
 
@@ -3014,10 +3014,10 @@ function renderRotaRedonda() {
                 <!-- BLOCO INFERIOR COM OVERLAY DE ENDEREÇO -->
                 <div style="position: relative; display: flex; flex-direction: column; gap: 0.5rem; flex: 1; z-index: 10;">
                     <!-- OVERLAY DE BLOQUEIO OS -->
-                    <div id="rr-overlay-bloqueio" style="position:absolute; inset:0; z-index:20; background:rgba(248,250,252,0.85); display:flex; flex-direction:column; align-items:center; justify-content:center; border-radius:6px; backdrop-filter:blur(2px); cursor:pointer;" onclick="const btn = document.getElementById('btn-add-os-tipo'); btn.style.transition='transform 0.1s, box-shadow 0.1s'; btn.style.transform='scale(1.2)'; btn.style.boxShadow='0 0 10px 4px #1a7a40'; setTimeout(() => { btn.style.transform='scale(1)'; btn.style.boxShadow='none'; }, 600);">
+                    <div id="rr-overlay-bloqueio" style="position:absolute; inset:0; z-index:20; background:rgba(248,250,252,0.85); display:flex; flex-direction:column; align-items:center; justify-content:center; border-radius:6px; backdrop-filter:blur(2px); cursor:pointer;" onclick="const btn = document.getElementById('btn-add-os-tipo'); btn.style.transition='transform 0.1s, box-shadow 0.1s'; btn.style.transform='scale(1.2)'; btn.style.boxShadow='0 0 10px 4px #334155'; setTimeout(() => { btn.style.transform='scale(1)'; btn.style.boxShadow='none'; }, 600);">
                         <i class="ph ph-lock" style="font-size:2rem; color:#94a3b8; margin-bottom:0.5rem;"></i>
                         <p style="font-size:0.82rem; font-weight:600; color:#64748b; margin:0;">Defina a OS primeiro</p>
-                        <p style="font-size:0.72rem; color:#94a3b8; margin:4px 0 0; text-align:center;">Digite o número da OS no topo e clique no botão <b style="color:#1a7a40">+</b><br>para criar ou carregar um serviço.</p>
+                        <p style="font-size:0.72rem; color:#94a3b8; margin:4px 0 0; text-align:center;">Digite o número da OS no topo e clique no botão <b style="color:#334155">+</b><br>para criar ou carregar um serviço.</p>
                     </div>
                     <!-- OVERLAY DE BLOQUEIO ENDEREÇO -->
                     <div id="rr-overlay-bloqueio-endereco" style="position:absolute; inset:0; z-index:10; background:rgba(248,250,252,0.85); display:none; flex-direction:column; align-items:center; justify-content:center; border-radius:6px; backdrop-filter:blur(2px); cursor:pointer;" onclick="const btn = document.getElementById('btn-geocode-endereco'); btn.style.transition='transform 0.1s, box-shadow 0.1s'; btn.style.transform='scale(1.3)'; btn.style.boxShadow='0 0 12px 4px #0369a1'; setTimeout(() => { btn.style.transform='scale(1)'; btn.style.boxShadow='none'; }, 600);">
