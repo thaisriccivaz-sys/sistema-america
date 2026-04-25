@@ -911,6 +911,20 @@ async function buscarAgendaEndereco() {
         });
         const data = await resp.json();
         exibirModalAgendaEndereco(data, endereco);
+
+        const contSug = document.getElementById('rr-sugestoes-dias-container');
+        if (contSug) {
+            contSug.style.display = 'block';
+            if (data.dias_sugeridos_2km && data.dias_sugeridos_2km.length > 0) {
+                const dias = data.dias_sugeridos_2km.map(d => d.dia).join(', ');
+                contSug.innerHTML = `<span style="color:#166534;"><i class="ph ph-check-circle"></i> Sugeridos (até 2km): <b>${dias}</b></span>`;
+            } else if (data.dias_sugeridos_5km && data.dias_sugeridos_5km.length > 0) {
+                const dias = data.dias_sugeridos_5km.map(d => d.dia).join(', ');
+                contSug.innerHTML = `<span style="color:#b45309;"><i class="ph ph-warning"></i> Sugeridos (até 5km): <b>${dias}</b></span>`;
+            } else {
+                contSug.innerHTML = `<span style="color:#b91c1c;"><i class="ph ph-x-circle"></i> Nenhuma rota sugerida (raio maior que 5km).</span>`;
+            }
+        }
     } catch(e) {
         console.error('[Agenda Endereço]', e);
         mostrarToastAviso('Erro ao buscar agenda. Tente novamente.');
@@ -2111,12 +2125,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     const payloadE = { ...payload };
                     payloadE.tipo_servico = `ENTREGA ${tipoOsSuffix}`;
-                    payloadE.cliente = `🔄 ${gerarPrefixoIcones('ENTREGA')} ${nomeBase}`.trim();
+                    payloadE.cliente = `♻️ ${gerarPrefixoIcones('ENTREGA')} ${nomeBase}`.trim();
                     payloadsParaEnviar.push(payloadE);
 
                     const payloadR = { ...payload };
                     payloadR.tipo_servico = `RETIRADA ${tipoOsSuffix} PARCIAL`;
-                    payloadR.cliente = `🔄 ♻️ ${gerarPrefixoIcones('RETIRADA')} ${nomeBase}`.trim();
+                    payloadR.cliente = `♻️ 🔶 ${gerarPrefixoIcones('RETIRADA')} ${nomeBase}`.trim();
                     payloadsParaEnviar.push(payloadR);
                 } else {
                     payload.cliente = document.getElementById('rr-input-cliente')?.value?.trim() || `${gerarPrefixoIcones()} ${nomeBase}`.trim();
@@ -2195,6 +2209,36 @@ document.addEventListener('DOMContentLoaded', () => {
             osState.agendaVerificada = true;
             osState.enderecoConfirmado = true;
             atualizarBloqueio();
+            return;
+        }
+
+        // Pesquisar OS por endereço
+        const btnBuscarEndOs = e.target.closest('#btn-buscar-endereco-os');
+        if (btnBuscarEndOs) {
+            const endereco = document.getElementById('rr-input-endereco')?.value.trim();
+            if (!endereco) { mostrarToastAviso('Digite parte do endereço antes de pesquisar.'); return; }
+            
+            const originalHtml = btnBuscarEndOs.innerHTML;
+            btnBuscarEndOs.innerHTML = '<i class="ph ph-spinner ph-spin"></i>';
+            try {
+                const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+                const resp = await fetch(`/api/logistica/os/buscar?endereco=${encodeURIComponent(endereco)}`, { headers: { 'Authorization': `Bearer ${token}` } });
+                if (resp.ok) {
+                    const registros = await resp.json();
+                    if (registros && registros.length > 0) {
+                        abrirModalListaOS('Endereço: ' + endereco, registros);
+                    } else {
+                        mostrarToastAviso('Nenhuma OS encontrada para este endereço.');
+                    }
+                } else {
+                    mostrarToastAviso('Erro ao buscar OS.');
+                }
+            } catch (err) {
+                console.error(err);
+                mostrarToastAviso('Falha na comunicação.');
+            } finally {
+                btnBuscarEndOs.innerHTML = originalHtml;
+            }
             return;
         }
 
@@ -2334,7 +2378,13 @@ function atualizarBloqueio() {
     const overlayOS  = document.getElementById('rr-overlay-bloqueio');
     const overlayEnd = document.getElementById('rr-overlay-bloqueio-endereco');
 
-    // Bloqueio principal: cobre o corpo até definir Obra/Evento
+    if (osState.loadedId) {
+        if (overlayOS) overlayOS.style.display = 'none';
+        if (overlayEnd) overlayEnd.style.display = 'none';
+        return;
+    }
+
+    // Bloqueio principal: cobre o bloco inferior até definir Obra/Evento
     if (overlayOS) {
         overlayOS.style.display = osState.tipoOs ? 'none' : 'flex';
     }
@@ -2885,13 +2935,6 @@ function renderRotaRedonda() {
             
             <!-- FORM LEFT COL -->
             <div style="display: flex; flex-direction: column; gap: 0.5rem; flex: 2; min-width: 0; padding-right: 4px; position: relative;">
-                <!-- OVERLAY DE BLOQUEIO OS -->
-                <div id="rr-overlay-bloqueio" style="position:absolute; inset:0; z-index:20; background:rgba(248,250,252,0.85); display:flex; flex-direction:column; align-items:center; justify-content:center; border-radius:6px; backdrop-filter:blur(2px); cursor:pointer;" onclick="const btn = document.getElementById('btn-add-os-tipo'); btn.style.transition='transform 0.1s, box-shadow 0.1s'; btn.style.transform='scale(1.2)'; btn.style.boxShadow='0 0 10px 4px #1a7a40'; setTimeout(() => { btn.style.transform='scale(1)'; btn.style.boxShadow='none'; }, 600);">
-                    <i class="ph ph-lock" style="font-size:2rem; color:#94a3b8; margin-bottom:0.5rem;"></i>
-                    <p style="font-size:0.82rem; font-weight:600; color:#64748b; margin:0;">Defina a OS primeiro</p>
-                    <p style="font-size:0.72rem; color:#94a3b8; margin:4px 0 0; text-align:center;">Digite o número da OS no topo e clique no botão <b style="color:#1a7a40">+</b><br>para criar ou carregar um serviço.</p>
-                </div>
-                
                 <div style="display: flex; gap: 0.5rem; position: relative; z-index: 15;">
                     <div style="flex: 3;">
                         <label style="${labelStyle}">Endereço</label>
@@ -2901,6 +2944,7 @@ function renderRotaRedonda() {
                                 <div id="rr-endereco-suggestions" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:300;background:white;border:1px solid #cbd5e1;border-radius:4px;max-height:220px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,0.13);"></div>
                             </div>
                             <button id="btn-geocode-endereco" style="display:none;" title="Buscar endereço"></button>
+                            <button id="btn-buscar-endereco-os" style="background:#1e40af; border:none; color:white; width:26px; height:26px; border-radius:4px; cursor:pointer; flex-shrink:0;" title="Pesquisar OS neste endereço"><i class="ph ph-magnifying-glass"></i></button>
                             <button id="btn-colar-gmaps" style="background:#16a34a; border:none; color:white; width:26px; height:26px; border-radius:4px; cursor:pointer; flex-shrink:0; font-weight:700; font-size:0.75rem;" title="Colar link do Google Maps para importar coordenadas precisas">G</button>
                             <button id="btn-agenda-endereco" style="background:#f59e0b; border:none; color:white; width:26px; height:26px; border-radius:4px; cursor:pointer; flex-shrink:0;" title="Verificar manutenções programadas para este endereço e arredores (5km)"><i class="ph ph-calendar-check"></i></button>
                         </div>
@@ -2920,6 +2964,12 @@ function renderRotaRedonda() {
 
                 <!-- BLOCO INFERIOR COM OVERLAY DE ENDEREÇO -->
                 <div style="position: relative; display: flex; flex-direction: column; gap: 0.5rem; flex: 1;">
+                    <!-- OVERLAY DE BLOQUEIO OS -->
+                    <div id="rr-overlay-bloqueio" style="position:absolute; inset:0; z-index:20; background:rgba(248,250,252,0.85); display:flex; flex-direction:column; align-items:center; justify-content:center; border-radius:6px; backdrop-filter:blur(2px); cursor:pointer;" onclick="const btn = document.getElementById('btn-add-os-tipo'); btn.style.transition='transform 0.1s, box-shadow 0.1s'; btn.style.transform='scale(1.2)'; btn.style.boxShadow='0 0 10px 4px #1a7a40'; setTimeout(() => { btn.style.transform='scale(1)'; btn.style.boxShadow='none'; }, 600);">
+                        <i class="ph ph-lock" style="font-size:2rem; color:#94a3b8; margin-bottom:0.5rem;"></i>
+                        <p style="font-size:0.82rem; font-weight:600; color:#64748b; margin:0;">Defina a OS primeiro</p>
+                        <p style="font-size:0.72rem; color:#94a3b8; margin:4px 0 0; text-align:center;">Digite o número da OS no topo e clique no botão <b style="color:#1a7a40">+</b><br>para criar ou carregar um serviço.</p>
+                    </div>
                     <!-- OVERLAY DE BLOQUEIO ENDEREÇO -->
                     <div id="rr-overlay-bloqueio-endereco" style="position:absolute; inset:0; z-index:10; background:rgba(248,250,252,0.85); display:none; flex-direction:column; align-items:center; justify-content:center; border-radius:6px; backdrop-filter:blur(2px); cursor:pointer;" onclick="const btn = document.getElementById('btn-geocode-endereco'); btn.style.transition='transform 0.1s, box-shadow 0.1s'; btn.style.transform='scale(1.3)'; btn.style.boxShadow='0 0 12px 4px #0369a1'; setTimeout(() => { btn.style.transform='scale(1)'; btn.style.boxShadow='none'; }, 600);">
                         <i class="ph ph-map-pin" style="font-size:2rem; color:#94a3b8; margin-bottom:0.5rem;"></i>
@@ -2961,6 +3011,7 @@ function renderRotaRedonda() {
                         { d: 'Dom', id: 'rr-chk-dom', c: '#ec4899' }
                     ].map(item => `<label id="lbl-${item.id}" style="display:flex; align-items:center; gap:2px; font-size:0.7rem; color:${item.c}; font-weight:700; cursor:pointer; padding:2px 6px; border-radius:4px; border:1.5px solid ${item.c}; transition:background 0.15s;"><input type="checkbox" id="${item.id}" onchange="(function(chk,lbl,cor){lbl.style.background=chk.checked?cor:'transparent';lbl.style.color=chk.checked?'white':cor;})(this,this.closest('label'),'${item.c}')"> ${item.d}</label>`).join('')}
                 </div>
+                <div id="rr-sugestoes-dias-container" style="font-size: 0.75rem; padding: 2px 4px; display: none;"></div>
 
                 <!-- TIPO SERVIÇO (searchable) -->
                 <div style="display: flex; gap: 0.5rem; align-items: flex-end;">
