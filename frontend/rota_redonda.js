@@ -1540,7 +1540,7 @@ function abrirModalColarOS() {
 
         let html = '';
         if (dadosExtraidos.osExiste) {
-            html += `<div style="color:#b45309;background:#fef3c7;padding:6px 10px;border-radius:4px;margin-bottom:8px;font-weight:bold;border:1px solid #f59e0b;">
+            html += `<div style="color:#b91c1c;background:#fef2f2;padding:6px 10px;border-radius:4px;margin-bottom:8px;font-weight:bold;border:1px solid #f87171;">
                         ⚠️ Esta OS (${dadosExtraidos.numOs}) já existe no sistema! Tipo identificado: ${dadosExtraidos.tipoOsDB || 'Desconhecido'}.
                      </div>`;
         }
@@ -1567,7 +1567,19 @@ function abrirModalColarOS() {
         });
 
         preview.innerHTML = html || '<p style="color:#94a3b8;margin:0;">Nenhum campo reconhecido.</p>';
-        document.getElementById('rr-colar-confirmar').style.display = 'block';
+        const btnConfirmar = document.getElementById('rr-colar-confirmar');
+        btnConfirmar.style.display = 'block';
+        if (dadosExtraidos.osExiste) {
+            btnConfirmar.disabled = true;
+            btnConfirmar.style.opacity = '0.5';
+            btnConfirmar.style.cursor = 'not-allowed';
+            btnConfirmar.title = "Esta OS já existe no sistema";
+        } else {
+            btnConfirmar.disabled = false;
+            btnConfirmar.style.opacity = '1';
+            btnConfirmar.style.cursor = 'pointer';
+            btnConfirmar.title = "";
+        }
     };
 
     // Botão Confirmar → preenche o formulário
@@ -2553,6 +2565,18 @@ function atualizarDropdownProdutos() {
         badge.style.background = osState.tipoOs === 'Obra' ? '#156EB6' : osState.tipoOs === 'Evento' ? '#8E24AA' : '#94a3b8';
         badge.style.display = osState.tipoOs ? 'inline-flex' : 'none';
     }
+    const imgTipo = document.getElementById('rr-img-tipo-os');
+    if (imgTipo) {
+        if (osState.tipoOs === 'Obra') {
+            imgTipo.src = 'assets/obra.png';
+            imgTipo.style.display = 'block';
+        } else if (osState.tipoOs === 'Evento') {
+            imgTipo.src = 'assets/evento.png';
+            imgTipo.style.display = 'block';
+        } else {
+            imgTipo.style.display = 'none';
+        }
+    }
 
     // Filtra o dropdown de Tipo de Serviço pelo tipo selecionado (Obra/Evento)
     // rr-tipo-servico agora é um hidden input — filtra as opções do dropdown customizado
@@ -2910,6 +2934,7 @@ function renderRotaRedonda() {
             <div style="display: flex; align-items: center; gap: 4px;">
                 <label style="font-weight: 600; font-size: 0.75rem; color: white; white-space: nowrap; margin: 0;">OS</label>
                 <div style="display: flex; align-items: center; gap: 2px;">
+                    <img id="rr-img-tipo-os" src="" style="height: 22px; display: none;" alt="Tipo OS">
                     <input type="text" id="rr-input-os" style="${inputStyle} border:none; width: 80px;" placeholder="Ex: 12345">
                     <button id="btn-add-os-tipo" style="${btnStyle} background:#1a7a40;" title="Definir tipo de OS (Obra/Evento)"><i class="ph ph-plus"></i></button>
                 </div>
