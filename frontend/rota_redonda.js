@@ -11,7 +11,9 @@ let osState = {
     clienteConfirmado: true,
     clienteNome: '',
     enderecoSelecionado: '',
-    tipoOs: '' // 'Obra' ou 'Evento' — definido no popup ao adicionar produto
+    tipoOs: '',           // 'Obra' ou 'Evento'
+    coordenadasConfirmadas: false, // Passo 1: Botão G aplicado
+    agendaVerificada: false,       // Passo 2: Botão Agenda clicado
 };
 
 // ── DICIONÁRIO DE EQUIPAMENTOS (do Flutter: equipamentosDict) ───────────────
@@ -688,10 +690,12 @@ window._aplicarUrlGoogleMaps = function() {
         _leafletMap.invalidateSize();
         posicionarMarcador(lat, lng);
         preencherLatLng(lat, lng);
-        osState.enderecoConfirmado = true;
+        // Passo 1 do desbloqueio: coordenadas confirmadas, aguarda agenda
+        osState.coordenadasConfirmadas = true;
+        osState.enderecoConfirmado = false; // ainda não desbloqueado
         atualizarBloqueio();
     }, 50);
-    mostrarToastAviso('\u2705 Coordenadas aplicadas! Mapa atualizado.');
+    mostrarToastAviso('\u2705 Coordenadas aplicadas! Agora clique no botão \ud83d\udcc5 para verificar a agenda e liberar o formulário.');
 };
 
 function mostrarToastAviso(msg) {
@@ -1807,7 +1811,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         const endFinal = [logr, num, bairro, city, uf ? `- ${uf}` : '', cep].filter(Boolean).join(', ');
                         e.target.value = endFinal;
                         sugg.style.display = 'none';
-                        // Aplica no mapa
+                        // Atualiza mapa (sem desbloquear — desbloqueio é só via G + Agenda)
                         const placeholder = document.getElementById('rr-mapa-placeholder');
                         if (placeholder) placeholder.style.display = 'none';
                         const mapaDiv = document.getElementById('rr-mapa-leaflet');
@@ -1819,8 +1823,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             posicionarMarcador(lat, lng);
                             preencherLatLng(lat, lng);
                             e.target.style.background = '#f0fdf4';
-                            osState.enderecoConfirmado = true;
-                            atualizarBloqueio();
+                            // NÃO define enderecoConfirmado aqui
+                            // Desbloqueio real só ao usar botão G + Agenda
                         }, 50);
                     };
                     sugg.style.display = 'block';
@@ -2078,9 +2082,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const btnGeocodeCoord = e.target.closest('#btn-geocode-coord');
         if (btnGeocodeCoord) { reverseGeocodeEndereco(); return; }
 
-        // Botão Agenda Endereço (verificar manutenções programadas)
+        // Botão Agenda Endereço — Passo 2 do desbloqueio
         const btnAgendaEnd = e.target.closest('#btn-agenda-endereco');
-        if (btnAgendaEnd) { buscarAgendaEndereco(); return; }
+        if (btnAgendaEnd) {
+            await buscarAgendaEndereco();
+            // Marca agenda como verificada e libera a tela
+            osState.agendaVerificada = true;
+            osState.enderecoConfirmado = true;
+            atualizarBloqueio();
+            return;
+        }
 
         // Botão Limpar OS
         const btnLimpar = e.target.closest('#btn-limpar-os');
@@ -2088,6 +2099,7 @@ document.addEventListener('DOMContentLoaded', () => {
             osState.produtos = []; osState.tiposServico = new Set();
             osState.acoes = new Set(); osState.clienteConfirmado = false;
             osState.enderecoConfirmado = false;
+            osState.coordenadasConfirmadas = false; osState.agendaVerificada = false;
             osState.clienteNome = ''; osState.enderecoSelecionado = ''; osState.tipoOs = '';
             const c = document.getElementById('rota-redonda-container');
             if (c) c.innerHTML = '';
@@ -2212,15 +2224,48 @@ document.addEventListener('DOMContentLoaded', () => {
 // ── BLOQUEIO PROGRESSIVO ──────────────────────────────────────────────────
 // ── BLOQUEIO PROGRESSIVO ──────────────────────────────────────────────────
 function atualizarBloqueio() {
-    const overlayOS = document.getElementById('rr-overlay-bloqueio');
+    const overlayOS  = document.getElementById('rr-overlay-bloqueio');
     const overlayEnd = document.getElementById('rr-overlay-bloqueio-endereco');
-    
+
     if (overlayOS) {
         overlayOS.style.display = osState.tipoOs ? 'none' : 'flex';
     }
     if (overlayEnd) {
-        // Só mostra o bloqueio de endereço SE a OS já estiver liberada
-        overlayEnd.style.display = (osState.tipoOs && !osState.enderecoConfirmado) ? 'flex' : 'none';
+        // Totalmente desbloqueado: coordenadas confirmadas E agenda verificada
+        if (osState.enderecoConfirmado) {
+            overlayEnd.style.display = 'none';
+        // Passo 1 completo (G clicado): mostra hint para clicar na agenda
+        } else if (osState.coordenadasConfirmadas && osState.tipoOs) {
+            overlayEnd.style.display = 'flex';
+            overlayEnd.innerHTML = `
+                <div style="text-align:center;padding:1rem;">
+                    <div style="font-size:1.5rem;margin-bottom:0.4rem;">&#128197;</div>
+                    <div style="font-weight:700;font-size:0.85rem;color:#92400e;margin-bottom:0.3rem;">Coordenadas confirmadas!</div>
+                    <div style="font-size:0.75rem;color:#78350f;">Clique no botão <strong>&#128197;</strong> ao lado do endereço para verificar a agenda e liberar o formulário.</div>
+                </div>`;
+            overlayEnd.style.background = 'rgba(254,243,199,0.92)';
+            overlayEnd.style.cursor = 'default';
+            // Destaca o botão de agenda
+            const btnAg = document.getElementById('btn-agenda-endereco');
+            if (btnAg) {
+                btnAg.style.animation = 'none';
+                btnAg.style.boxShadow = '0 0 0 3px #f59e0b, 0 0 0 6px rgba(245,158,11,0.3)';
+                setTimeout(() => { if (btnAg) btnAg.style.boxShadow = ''; }, 3000);
+            }
+        // Passo 0: aguardando coordenadas (botão G)
+        } else if (osState.tipoOs) {
+            overlayEnd.style.display = 'flex';
+            overlayEnd.innerHTML = `
+                <div style="text-align:center;padding:1rem;">
+                    <div style="font-size:1.5rem;margin-bottom:0.4rem;">&#127758;</div>
+                    <div style="font-weight:700;font-size:0.85rem;color:#1e293b;margin-bottom:0.3rem;">Confirme o endereço</div>
+                    <div style="font-size:0.75rem;color:#475569;">Use o botão <strong style="color:#16a34a;font-size:0.85rem;">G</strong> para abrir o Google Maps e confirmar as coordenadas.</div>
+                </div>`;
+            overlayEnd.style.background = 'rgba(248,250,252,0.90)';
+            overlayEnd.style.cursor = 'pointer';
+        } else {
+            overlayEnd.style.display = 'none';
+        }
     }
 }
 
@@ -2738,8 +2783,8 @@ function renderRotaRedonda() {
                         </div>
                     </div>
                     <div style="flex: 1;">
-                        <label style="${labelStyle}">Complemento</label>
-                        <input type="text" id="rr-input-complemento" style="${inputStyle}" placeholder="Apto, Sala, Bloco...">
+                        <label style="${labelStyle}">Complem. / Referência</label>
+                        <input type="text" id="rr-input-complemento" style="${inputStyle}" placeholder="Apto, Sala, Referência...">
                     </div>
                     <div style="flex: 0 0 200px;">
                         <label style="${labelStyle}">Latitude, Longitude</label>
