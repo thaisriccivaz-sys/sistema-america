@@ -1752,7 +1752,8 @@ function preencherFormularioComDados(dados, tipoOs) {
     set('rr-input-sms',    dados.telefone);
     set('rr-input-email',       dados.email);
     set('rr-input-obs',         dados.observacoes);
-    set('rr-input-obs-internas',dados.observacoesInternas);
+    // rr-input-obs-internas NÃO é preenchido via Colar OS (campo manual)
+
 
     if (dados.dataEntrega) {
         const dateEl = document.getElementById('rr-input-data');
