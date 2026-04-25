@@ -1457,7 +1457,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const inp = document.getElementById('rr-input-endereco');
             if (inp) inp.value = btnConfEnd.dataset.endereco;
             document.getElementById('rr-modal-enderecos')?.remove();
-            atualizarBloqueio();
+            // atualizarBloqueio();
             return;
         }
 
@@ -1466,7 +1466,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (btnFecharModal) {
             document.getElementById('rr-modal-enderecos')?.remove();
             osState.clienteConfirmado = true; // Libera o formulário
-            atualizarBloqueio();
+            // atualizarBloqueio();
             return;
         }
 
@@ -1480,11 +1480,9 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ── BLOQUEIO PROGRESSIVO ──────────────────────────────────────────────────
-function atualizarBloqueio() {
-    const overlay = document.getElementById('rr-overlay-bloqueio');
-    if (!overlay) return;
-    overlay.style.display = osState.clienteConfirmado ? 'none' : 'flex';
-}
+// (Removido: formulário sempre livre)
+window.atualizarBloqueio = function() {};
+function atualizarBloqueio() {}
 
 // ── ATUALIZA LISTA DE PRODUTOS FILTRADA POR OBRA/EVENTO ───────────────────
 function atualizarDropdownProdutos() {
@@ -1715,6 +1713,7 @@ function renderRotaRedonda() {
                 <label style="font-weight: 600; font-size: 0.75rem; color: white; white-space: nowrap; margin: 0;">Cliente</label>
                 <div style="display:flex; gap:4px; align-items:center; width: 100%;">
                     <input type="text" id="rr-input-cliente" style="${inputStyle} border:none;" placeholder="Nome do Cliente">
+                    <button id="btn-pesq-cliente-os" style="${btnStyle} background:#1a7a40;" title="Pesquisar cliente"><i class="ph ph-magnifying-glass"></i></button>
                 </div>
             </div>
 
@@ -1742,12 +1741,7 @@ function renderRotaRedonda() {
             
             <!-- FORM LEFT COL -->
             <div style="display: flex; flex-direction: column; gap: 0.5rem; flex: 2; min-width: 0; overflow-y: auto; padding-right: 4px; position: relative;">
-                <!-- OVERLAY DE BLOQUEIO -->
-                <div id="rr-overlay-bloqueio" style="position:absolute; inset:0; z-index:10; background:rgba(248,250,252,0.85); display:flex; flex-direction:column; align-items:center; justify-content:center; border-radius:6px; backdrop-filter:blur(2px);">
-                    <i class="ph ph-lock" style="font-size:2rem; color:#94a3b8; margin-bottom:0.5rem;"></i>
-                    <p style="font-size:0.82rem; font-weight:600; color:#64748b; margin:0;">Pesquise o cliente primeiro</p>
-                    <p style="font-size:0.72rem; color:#94a3b8; margin:4px 0 0;">Use a lupa ao lado do campo Cliente para selecionar o endereço</p>
-                </div>
+                <!-- OVERLAY DE BLOQUEIO REMOVIDO -->
                 
                 <div style="display: flex; gap: 0.5rem;">
                     <div style="flex: 3;">
@@ -1908,5 +1902,5 @@ function renderRotaRedonda() {
 
     container.innerHTML = html;
     atualizarUI();
-    atualizarBloqueio(); // Aplica bloqueio inicial
+    // Aplica bloqueio inicial removido
 }
