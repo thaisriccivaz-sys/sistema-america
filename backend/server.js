@@ -7881,7 +7881,6 @@ db.run(`CREATE TABLE IF NOT EXISTS os_videos (
     else {
         console.log('[OS Vídeos] Tabela os_videos OK');
         db.run("ALTER TABLE os_videos ADD COLUMN short_code TEXT", () => {});
-        db.run("ALTER TABLE os_videos ADD COLUMN tiny_url TEXT", () => {});
     }
 });
 
@@ -7908,73 +7907,30 @@ const multerVideo = require('multer')({
 });
 
 // Gera short_code único de 6 chars (alfanumérico case-insensitive)
-// Gera short_code único de 6 chars (alfanumérico case-insensitive)
 function gerarShortCode() {
-    const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
+    const chars = 'abcdefghjkmnpqrstuvwxyz23456789'; // sem 0,1,i,l,o para evitar confusão
     let code = '';
     for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
     return code;
 }
 
-// Chama TinyURL para encurtar uma URL (retorna Promise<string|null>)
-function chamarTinyUrl(urlLonga) {
-    return new Promise((resolve) => {
-        const https = require('https');
-        const encodedUrl = encodeURIComponent(urlLonga);
-        const options = {
-            hostname: 'tinyurl.com',
-            path: `/api-create.php?url=${encodedUrl}`,
-            method: 'GET',
-            headers: { 'User-Agent': 'AmericaRental/1.0' },
-            timeout: 5000
-        };
-        const req = https.request(options, (resp) => {
-            let data = '';
-            resp.on('data', chunk => data += chunk);
-            resp.on('end', () => {
-                const url = data.trim();
-                resolve(url.startsWith('http') ? url : null);
-            });
-        });
-        req.on('error', () => resolve(null));
-        req.on('timeout', () => { req.destroy(); resolve(null); });
-        req.end();
-    });
-}
-
 // ── UPLOAD DE VÍDEO (autenticado) ────────────────────────────────────────────
-app.post('/api/logistica/os/upload-video', authenticateToken, multerVideo.single('video'), async (req, res) => {
+app.post('/api/logistica/os/upload-video', authenticateToken, multerVideo.single('video'), (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
 
-    const token    = req._videoToken || path.basename(req.file.filename, path.extname(req.file.filename));
+    const token = req._videoToken || path.basename(req.file.filename, path.extname(req.file.filename));
     const { os_id, numero_os } = req.body;
     const shortCode = gerarShortCode();
 
-    // Monta a URL pública completa para encurtar
-    const host       = req.headers.host || 'sistema-america.onrender.com';
-    const protocol   = req.headers['x-forwarded-proto'] || 'https';
-    const baseUrl    = `${protocol}://${host}`;
-    const linkPublico = `/api/video/${token}`;
-    const linkCurto   = `/v/${shortCode}`;
-    const linkCurtoFull = `${baseUrl}${linkCurto}`;
-
-    // Tenta encurtar via TinyURL (não bloqueia em caso de falha)
-    const tinyUrl = await chamarTinyUrl(linkCurtoFull).catch(() => null);
-
     db.run(
-        `INSERT INTO os_videos (token, short_code, tiny_url, os_id, numero_os, nome_original, mime_type, tamanho, caminho_arquivo)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [token, shortCode, tinyUrl || null, os_id || null, numero_os || null, req.file.originalname, req.file.mimetype, req.file.size, req.file.path],
+        `INSERT INTO os_videos (token, short_code, os_id, numero_os, nome_original, mime_type, tamanho, caminho_arquivo)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [token, shortCode, os_id || null, numero_os || null, req.file.originalname, req.file.mimetype, req.file.size, req.file.path],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
-            res.json({
-                ok: true, token,
-                short_code: shortCode,
-                link: linkPublico,
-                short_link: linkCurto,
-                tiny_url: tinyUrl || linkCurtoFull,  // fallback para o link curto próprio
-                nome: req.file.originalname
-            });
+            const linkPublico  = `/api/video/${token}`;
+            const linkCurto    = `/v/${shortCode}`;
+            res.json({ ok: true, token, short_code: shortCode, link: linkPublico, short_link: linkCurto, nome: req.file.originalname });
         }
     );
 });
