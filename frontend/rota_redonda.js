@@ -2144,7 +2144,15 @@ function renderRotaRedonda() {
                     <input type="time" id="rr-input-hora-inicio" style="${inputStyle} width: 75px;"> às 
                     <input type="time" id="rr-input-hora-fim" style="${inputStyle} width: 75px;">
                     <div style="width: 1px; height: 16px; background: #cbd5e1; margin: 0 2px;"></div>
-                    ${['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'].map(d => `<label style="display:flex; align-items:center; gap:2px; font-size:0.7rem; color:#475569; cursor:pointer;"><input type="checkbox"> ${d}</label>`).join('')}
+                    ${[
+                        { d: 'Seg', c: '#ef4444' },
+                        { d: 'Ter', c: '#f97316' },
+                        { d: 'Qua', c: '#ca8a04' },
+                        { d: 'Qui', c: '#16a34a' },
+                        { d: 'Sex', c: '#3b82f6' },
+                        { d: 'Sáb', c: '#8b5cf6' },
+                        { d: 'Dom', c: '#ec4899' }
+                    ].map(item => `<label style="display:flex; align-items:center; gap:2px; font-size:0.7rem; color:${item.c}; font-weight:600; cursor:pointer;"><input type="checkbox"> ${item.d}</label>`).join('')}
                 </div>
 
                 <!-- TIPO SERVIÇO (dropdown — igual ao Flutter: tipoServicoController) -->
