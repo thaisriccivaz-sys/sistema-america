@@ -1,0 +1,1 @@
+const sqlite3 = require('sqlite3'); const db = new sqlite3.Database('./backend/data/hr_system_v2.sqlite'); db.run('DELETE FROM colaboradores WHERE cpf = \'555.555.555-55\'', (err) => { console.log(err || 'Deleted'); db.close(); });

@@ -1,0 +1,1 @@
+const sqlite3 = require('sqlite3'); const db = new sqlite3.Database('./backend/database.sqlite'); db.all(SELECT id, file_name, tab_name, document_type, year FROM documentos ORDER BY id DESC LIMIT 5, function(err, rows) { console.log(JSON.stringify(rows, null, 2)); db.close(); });

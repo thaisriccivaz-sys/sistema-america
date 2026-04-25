@@ -1,0 +1,99 @@
+{
+  "resource": "document",
+  "id": "1025635da5014afcce1f3a604bd2",
+  "account_id": "10237785fb23cf473d54845a013e",
+  "template_id": null,
+  "name": "manifesto.pdf",
+  "status": "certificated",
+  "artifacts": {
+    "original": "https://api.assinafy.com.br/v1/documents/1025635da5014afcce1f3a604bd2/download/original",
+    "thumbnail": "https://api.assinafy.com.br/v1/documents/1025635da5014afcce1f3a604bd2/thumbnail",
+    "certificated": "https://api.assinafy.com.br/v1/documents/1025635da5014afcce1f3a604bd2/download/certificated",
+    "certificate-page": "https://api.assinafy.com.br/v1/documents/1025635da5014afcce1f3a604bd2/download/certificate-page",
+    "bundle": "https://api.assinafy.com.br/v1/documents/1025635da5014afcce1f3a604bd2/download/bundle"
+  },
+  "is_closed": true,
+  "signing_url": "https://app.assinafy.com.br/sign/1025635da5014afcce1f3a604bd2",
+  "decline_reason": null,
+  "declined_by": null,
+  "created_at": "2026-04-04T04:24:51Z",
+  "updated_at": "2026-04-04T04:25:33Z",
+  "assignment": {
+    "id": "1025635f12b3126e0ee9a9ec82ee",
+    "sender_email": "thaisriccivaz@gmail.com",
+    "method": "virtual",
+    "expires_at": null,
+    "message": null,
+    "signers": [
+      {
+        "id": "1023828430cdb2e4a265726e76f3",
+        "full_name": "Adf hhh",
+        "email": "thata.ricci@hotmail.com",
+        "whatsapp_phone_number": "11991036644",
+        "has_accepted_terms": true,
+        "verification_method": "Email",
+        "notification_methods": [
+          "Email"
+        ]
+      }
+    ],
+    "copy_receivers": [],
+    "items": [
+      {
+        "id": "1025635f12e24e0844b3d807efe5",
+        "page": null,
+        "signer": {
+          "id": "1023828430cdb2e4a265726e76f3",
+          "full_name": "Adf hhh",
+          "email": "thata.ricci@hotmail.com",
+          "whatsapp_phone_number": "11991036644",
+          "has_accepted_terms": true
+        },
+        "field": {
+          "id": "1023778608c24e6d39813c97710f",
+          "name": "Virtual",
+          "type": "virtual",
+          "regex": null,
+          "is_pre_defined": true,
+          "is_active": true,
+          "is_required": false,
+          "is_standard": false,
+          "is_read_only": false,
+          "is_visible": true
+        },
+        "display_settings": [],
+        "value": "SIGNED",
+        "completed": true
+      }
+    ],
+    "summary": {
+      "signer_count": 1,
+      "completed_count": 1,
+      "signers": [
+        {
+          "id": "1023828430cdb2e4a265726e76f3",
+          "full_name": "Adf hhh",
+          "email": "thata.ricci@hotmail.com",
+          "whatsapp_phone_number": "11991036644",
+          "has_accepted_terms": true,
+          "completed": true
+        }
+      ]
+    },
+    "signing_urls": [
+      {
+        "signer_id": "1023828430cdb2e4a265726e76f3",
+        "url": "https://app.assinafy.com.br/sign/1025635da5014afcce1f3a604bd2?email=thata.ricci%40hotmail.com"
+      }
+    ]
+  },
+  "pages": [
+    {
+      "id": "1025635e2ef1665b878c2f755177",
+      "number": 1,
+      "height": 1755,
+      "width": 1240,
+      "download_url": "https://api.assinafy.com.br/v1/documents/1025635da5014afcce1f3a604bd2/pages/1025635e2ef1665b878c2f755177/download"
+    }
+  ]
+}

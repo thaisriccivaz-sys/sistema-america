@@ -1,0 +1,1 @@
+window.renderAdmissaoDataSummary = function(colab) { console.log(colab); }

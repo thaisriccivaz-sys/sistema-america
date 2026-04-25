@@ -82,14 +82,26 @@ function abrirPopupTipoOs(onSelecionar) {
 }
 
 const TIPOS_SERVICO_OS = [
-    'ENTREGA OBRA', 'RETIRADA OBRA', 'MANUTENCAO OBRA', 'SUCCAO OBRA',
-    'REPARO DE EQUIPAMENTO OBRA', 'VISITA TECNICA OBRA', 'LIMPA FOSSA OBRA',
-    'ENTREGA EVENTO', 'RETIRADA EVENTO', 'MANUTENCAO EVENTO', 'SUCCAO EVENTO',
-    'REPARO EQUIPAMENTO EVENTO', 'MANUTENCAO AVULSA OBRA', 'MANUTENCAO AVULSA EVENTO',
-    'LIMPA FOSSA EVENTO'
+    'ENTREGA OBRA', 'RETIRADA OBRA TOTAL', 'RETIRADA OBRA PARCIAL', 'TROCA DE EQUIPAMENTO OBRA', 'MANUTENCAO OBRA', 'MANUTENCAO AVULSA OBRA', 'SUCCAO OBRA',
+    'REPARO EQUIPAMENTO OBRA', 'VISITA TECNICA OBRA', 'LIMPA FOSSA OBRA', 'VAC OBRA',
+    'ENTREGA EVENTO', 'RETIRADA EVENTO TOTAL', 'RETIRADA EVENTO PARCIAL', 'TROCA DE EQUIPAMENTO EVENTO', 'MANUTENCAO EVENTO', 'MANUTENCAO AVULSA EVENTO', 'SUCCAO EVENTO',
+    'REPARO EQUIPAMENTO EVENTO', 'VISITA TECNICA EVENTO', 'LIMPA FOSSA EVENTO', 'VAC EVENTO'
 ];
 const HABILIDADES = ['TANQUE', 'CARGA', 'VAC', 'UTILITARIO', 'TECNICO', 'CARRETINHA', 'CARROCERIA', 'TANQUE GRANDE'];
-const ACOES = ['LEVAR CARRINHO', 'ATENÇÃO AO HORÁRIO', 'TROCA DE CABINE', 'CONTATO COM CLIENTE', 'LEVAR EXTENSORA', 'APOIO DE SUCÇÃO', 'INFORMAÇÕES IMPORTANTES', 'TROCA DE EQUIPAMENTO', 'CARRETINHA', 'VAC', 'LEVAR EPI', 'INTEGRAÇÃO', '! AVULSO', 'BANHEIRO ITINERANTE'];
+const ACOES_DICT = {
+    'LEVAR CARRINHO': '🛒',
+    'ATENÇÃO AO HORÁRIO': '⏰',
+    'TROCA DE CABINE': '♻️',
+    'LEVAR EXTENSORA': '🌀',
+    'APOIO DE SUCÇÃO': '💧',
+    'INFORMAÇÕES IMPORTANTES': '🚨',
+    'CARRETINHA': '🔗',
+    'LEVAR EPI': '🦺',
+    'INTEGRAÇÃO': '👷',
+    '! AVULSO': '❗',
+    'BANHEIRO ITINERANTE': '🔛'
+};
+const ACOES = Object.keys(ACOES_DICT);
 
 // ── CÁLCULO DE TEMPO (espelho do calcularTipoDeServico() do Flutter) ──────────
 function calcularTempo() {
@@ -463,6 +475,8 @@ async function geocodeEndereco() {
             preencherLatLng(lat, lng);
             // Mantém o endereço original do usuário — apenas destaca em verde
             if (endInput) endInput.style.background = '#f0fdf4';
+            osState.enderecoConfirmado = true;
+            atualizarBloqueio();
         }, 50);
 
     } catch (err) {
@@ -739,16 +753,50 @@ function abrirModalListaOS(numOs, registros) {
     document.getElementById('rr-modal-lista-os')?.remove();
 
     const tbody = registros.map(r => {
-        const prod = parseJsonFront(r.produtos).map(p => `${p.qtd}x ${p.desc}`).join(', ') || '—';
-        const dSemana = parseJsonFront(r.dias_semana).join(', ') || '—';
+        let prod = '—';
+        try {
+            const parsedProd = JSON.parse(r.produtos);
+            if (Array.isArray(parsedProd) && parsedProd.length > 0) {
+                prod = parsedProd.map(p => {
+                    const prodInfo = EQUIPAMENTOS_DICT[p.desc.trim()];
+                    const icone = prodInfo?.icone ? `${prodInfo.icone} ` : '';
+                    return `<span style="background:#1e40af;color:white;padding:2px 6px;border-radius:12px;margin-right:4px;display:inline-block;white-space:nowrap;margin-bottom:2px;">${icone}${p.desc} (${p.qtd})</span>`;
+                }).join('');
+            }
+        } catch(e) {}
+
+        let dSemana = '—';
+        try { dSemana = JSON.parse(r.dias_semana).map(d => `<span style="background:#2563eb;color:white;padding:2px 6px;border-radius:4px;margin-right:4px;">${d}</span>`).join(''); } catch(e) {}
+
+        let hab = '—';
+        try { 
+            const h = JSON.parse(r.habilidades);
+            if(h && h.length) hab = h.join(', ');
+        } catch(e) { if(r.habilidades) hab = r.habilidades; }
+
+        let varis = '—';
+        try { 
+            const v = JSON.parse(r.variaveis);
+            if(v && v.length) varis = v.join(', ');
+        } catch(e) { if(r.variaveis) varis = r.variaveis; }
+
+        const dataFormatada = r.data_os ? r.data_os.split('-').reverse().join('/') : '—';
+        
         return `
-            <tr class="rr-os-row" data-cliente="${(r.cliente||'').toLowerCase()}" data-endereco="${(r.endereco||'').toLowerCase()}" style="border-bottom:1px solid #e2e8f0; cursor:pointer; transition:background 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'" onclick='window._carregarRegistroNaTela(${JSON.stringify(r)})'>
-                <td style="padding:0.5rem;">${r.cliente}</td>
-                <td style="padding:0.5rem;">${r.endereco}</td>
-                <td style="padding:0.5rem;">${r.tipo_servico || '—'}</td>
-                <td style="padding:0.5rem;">${r.turno}</td>
-                <td style="padding:0.5rem;">${r.hora_inicio} às ${r.hora_fim}</td>
-                <td style="padding:0.5rem;">${prod}</td>
+            <tr class="rr-os-row" data-cliente="${(r.cliente||'').toLowerCase()}" data-endereco="${(r.endereco||'').toLowerCase()}" style="border-bottom:1px solid #e2e8f0; transition:background 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+                <td style="padding:0.75rem 0.5rem;white-space:nowrap;">${r.numero_os}</td>
+                <td style="padding:0.75rem 0.5rem;font-weight:600;cursor:pointer;" onclick='window._carregarRegistroNaTela(${JSON.stringify(r)})'>${r.cliente}</td>
+                <td style="padding:0.75rem 0.5rem;">${r.endereco}</td>
+                <td style="padding:0.75rem 0.5rem;">${r.tipo_servico || '—'}</td>
+                <td style="padding:0.75rem 0.5rem;">${dataFormatada}</td>
+                <td style="padding:0.75rem 0.5rem;">${dSemana}</td>
+                <td style="padding:0.75rem 0.5rem;">${hab}</td>
+                <td style="padding:0.75rem 0.5rem;">${varis}</td>
+                <td style="padding:0.75rem 0.5rem;">${prod}</td>
+                <td style="padding:0.75rem 0.5rem;white-space:nowrap;">
+                    <button style="background:transparent;border:none;cursor:pointer;padding:4px;" onclick='window._carregarRegistroNaTela(${JSON.stringify(r)})' title="Editar"><i class="ph ph-pencil-simple" style="color:#f59e0b;font-size:1.2rem;"></i></button>
+                    <button style="background:transparent;border:none;cursor:pointer;padding:4px;" onclick='window._excluirOsLista(${r.id})' title="Excluir"><i class="ph ph-trash" style="color:#ef4444;font-size:1.2rem;"></i></button>
+                </td>
             </tr>
         `;
     }).join('');
@@ -757,29 +805,33 @@ function abrirModalListaOS(numOs, registros) {
     modal.id = 'rr-modal-lista-os';
     modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;';
     modal.innerHTML = `
-        <div style="background:white;border-radius:14px;width:900px;max-width:95vw;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 16px 48px rgba(0,0,0,0.25);">
-            <div style="background:#2d9e5f;color:white;padding:1.25rem 1.5rem;display:flex;justify-content:space-between;align-items:center;">
+        <div style="background:white;width:100vw;height:100vh;max-width:100vw;max-height:100vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:none;">
+            <div style="background:#475569;color:white;padding:1.25rem 1.5rem;display:flex;justify-content:space-between;align-items:center;">
                 <div>
-                    <h3 style="margin:0;font-size:1.1rem;font-weight:700;">Serviços da OS #${numOs}</h3>
-                    <p style="margin:0;font-size:0.75rem;opacity:0.9;">Clique em um serviço para carregar as informações na tela.</p>
+                    <h3 style="margin:0;font-size:1.2rem;font-weight:700;">Resultados da Busca</h3>
+                    <p style="margin:0;font-size:0.8rem;opacity:0.9;">Serviços vinculados à OS #${numOs}. Clique no botão Editar para carregar as informações.</p>
                 </div>
-                <button id="btn-fechar-modal-lista-os" style="background:transparent;border:none;color:white;font-size:1.2rem;cursor:pointer;"><i class="ph ph-x"></i></button>
+                <button id="btn-fechar-modal-lista-os" style="background:transparent;border:none;color:white;font-size:1.5rem;cursor:pointer;"><i class="ph ph-x"></i></button>
             </div>
             <!-- Filtros -->
             <div style="padding:0.75rem 1.5rem; background:#f8fafc; border-bottom:1px solid #e2e8f0; display:flex; gap:10px;">
-                <input type="text" id="rr-filter-cliente" placeholder="Filtrar por Cliente..." style="flex:1; padding:6px 10px; border:1px solid #cbd5e1; border-radius:4px; font-size:0.75rem; outline:none;">
-                <input type="text" id="rr-filter-endereco" placeholder="Filtrar por Endereço..." style="flex:1; padding:6px 10px; border:1px solid #cbd5e1; border-radius:4px; font-size:0.75rem; outline:none;">
+                <input type="text" id="rr-filter-cliente" placeholder="Filtrar por Cliente..." style="flex:1; padding:8px 12px; border:1px solid #cbd5e1; border-radius:4px; font-size:0.85rem; outline:none;">
+                <input type="text" id="rr-filter-endereco" placeholder="Filtrar por Endereço..." style="flex:1; padding:8px 12px; border:1px solid #cbd5e1; border-radius:4px; font-size:0.85rem; outline:none;">
             </div>
-            <div style="overflow-y:auto;padding:1rem;">
-                <table style="width:100%;border-collapse:collapse;font-size:0.75rem;text-align:left;">
+            <div style="overflow-y:auto;padding:1rem;flex:1;">
+                <table style="width:100%;border-collapse:collapse;font-size:0.85rem;text-align:left;">
                     <thead>
-                        <tr style="background:#f8fafc;border-bottom:2px solid #cbd5e1;color:#475569;">
-                            <th style="padding:0.5rem;">Cliente</th>
-                            <th style="padding:0.5rem;">Endereço</th>
-                            <th style="padding:0.5rem;">Serviço</th>
-                            <th style="padding:0.5rem;">Turno</th>
-                            <th style="padding:0.5rem;">Horário</th>
-                            <th style="padding:0.5rem;">Produtos</th>
+                        <tr style="background:#2d9e5f;color:white;">
+                            <th style="padding:0.75rem 0.5rem;font-weight:600;">Número OS</th>
+                            <th style="padding:0.75rem 0.5rem;font-weight:600;">Cliente</th>
+                            <th style="padding:0.75rem 0.5rem;font-weight:600;">Endereço</th>
+                            <th style="padding:0.75rem 0.5rem;font-weight:600;">Tipo Serviço</th>
+                            <th style="padding:0.75rem 0.5rem;font-weight:600;">Data</th>
+                            <th style="padding:0.75rem 0.5rem;font-weight:600;">Dias da Semana</th>
+                            <th style="padding:0.75rem 0.5rem;font-weight:600;">Habilidades</th>
+                            <th style="padding:0.75rem 0.5rem;font-weight:600;">Variáveis</th>
+                            <th style="padding:0.75rem 0.5rem;font-weight:600;">Produtos Logística</th>
+                            <th style="padding:0.75rem 0.5rem;font-weight:600;width:80px;">Ações</th>
                         </tr>
                     </thead>
                     <tbody>${tbody}</tbody>
@@ -790,6 +842,22 @@ function abrirModalListaOS(numOs, registros) {
     document.body.appendChild(modal);
     modal.querySelector('#btn-fechar-modal-lista-os')?.addEventListener('click', () => modal.remove());
     modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+
+    window._excluirOsLista = async (id) => {
+        if (!confirm('Tem certeza que deseja excluir esta Ordem de Serviço?')) return;
+        try {
+            const resp = await fetch(`/api/logistica/os/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
+            if (!resp.ok) throw new Error('Erro ao excluir');
+            if (typeof showToast === 'function') showToast('OS excluída com sucesso!', 'success');
+            modal.remove(); // Fecha o modal e obriga recarregar se buscar de novo
+        } catch (e) {
+            console.error(e);
+            alert('Erro ao excluir OS.');
+        }
+    };
 
     // Lógica de Filtro
     const filterData = () => {
@@ -1043,6 +1111,17 @@ function parseOsText(texto) {
             const v = extrairValor(l, /📨?\s*E-mail recebimento OS:/i);
             const emMatch = v.match(/[\w.\-+]+@[\w.\-]+\.\w{2,}/);
             if (emMatch) resultado.email = emMatch[0].toLowerCase();
+        }
+
+        // 👉Entrega: 24/04/2026
+        else if (l.includes('👉Entrega:') || l.includes('Entrega:')) {
+            const v = extrairValor(l, /👉?Entrega:/i);
+            const datasEncontradas = [...v.matchAll(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/g)];
+            if (datasEncontradas.length > 0) {
+                const [, d, m, a] = datasEncontradas[0];
+                const ano = a ? (a.length === 2 ? '20' + a : a) : new Date().getFullYear();
+                resultado.dataEntrega = `${ano}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+            }
         }
 
         // 💩Produto: 10 STD 1 PCD
@@ -1398,6 +1477,19 @@ document.addEventListener('DOMContentLoaded', () => {
         // Botão Gerar OS (validação)
         const btnGerarOsFinal = e.target.closest('#btn-gerar-os-final');
         if (btnGerarOsFinal) {
+            if (!osState.enderecoConfirmado) {
+                mostrarToastAviso("Pesquise e confirme o endereço na Lupa azul antes de salvar.");
+                // Anima o botão da lupa
+                const btnGeo = document.getElementById('btn-geocode-endereco');
+                if (btnGeo) {
+                    btnGeo.style.transition = 'transform 0.1s, box-shadow 0.1s';
+                    btnGeo.style.transform = 'scale(1.3)';
+                    btnGeo.style.boxShadow = '0 0 12px 4px #0369a1';
+                    setTimeout(() => { btnGeo.style.transform = 'scale(1)'; btnGeo.style.boxShadow = 'none'; }, 600);
+                }
+                return;
+            }
+
             const diurno = document.getElementById('rr-chk-diurno');
             const noturno = document.getElementById('rr-chk-noturno');
             const horaInicio = document.getElementById('rr-input-hora-inicio');
@@ -1425,6 +1517,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (document.getElementById(id)?.checked) diasSelecionados.push(label);
             });
 
+            const habilidadesSelecionadas = Array.from(document.querySelectorAll('.btn-tipo-servico.ativo')).map(b => b.dataset.tipo);
+            const variaveisSelecionadas = Array.from(document.querySelectorAll('.btn-acao.ativo')).map(b => b.dataset.acao);
+
             const payload = {
                 numero_os: document.getElementById('rr-input-os')?.value?.trim() || '',
                 tipo_os: osState.tipoOs || '',
@@ -1447,6 +1542,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 produtos: osState.produtos || [],
                 observacoes: document.getElementById('rr-input-obs')?.value?.trim() || '',
                 observacoes_internas: document.getElementById('rr-input-obs-internas')?.value?.trim() || '',
+                habilidades: habilidadesSelecionadas,
+                variaveis: variaveisSelecionadas,
                 link_video: document.getElementById('rr-input-video')?.value?.trim() || '',
             };
 
@@ -1460,19 +1557,58 @@ document.addEventListener('DOMContentLoaded', () => {
 
             try {
                 const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
-                const resp = await fetch('/api/logistica/os', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify(payload)
-                });
-                const result = await resp.json();
+                
+                let payloadsParaEnviar = [];
+                const nomeBase = document.getElementById('rr-input-cliente')?.dataset?.nomeBase || document.getElementById('rr-input-cliente')?.value || '';
 
-                if (resp.ok && result.ok) {
-                    exibirModalSucessoOS(result.id, payload);
-                } else if (resp.status === 409) {
-                    mostrarToastAviso(result.error || 'Conflito: OS já cadastrada para outro cliente.');
+                if (payload.tipo_servico.includes('TROCA DE EQUIPAMENTO')) {
+                    const tipoOsSuffix = payload.tipo_os.toUpperCase(); // OBRA ou EVENTO
+                    
+                    const payloadE = { ...payload };
+                    payloadE.tipo_servico = `ENTREGA ${tipoOsSuffix}`;
+                    payloadE.cliente = `${gerarPrefixoIcones('ENTREGA')} ${nomeBase}`.trim();
+                    payloadsParaEnviar.push(payloadE);
+
+                    const payloadR = { ...payload };
+                    payloadR.tipo_servico = `RETIRADA ${tipoOsSuffix} PARCIAL`;
+                    payloadR.cliente = `♻️ ${gerarPrefixoIcones('RETIRADA')} ${nomeBase}`.trim();
+                    payloadsParaEnviar.push(payloadR);
                 } else {
-                    mostrarToastAviso(`Erro ao salvar OS: ${result.error || 'Erro desconhecido.'}`);
+                    payload.cliente = document.getElementById('rr-input-cliente')?.value?.trim() || `${gerarPrefixoIcones()} ${nomeBase}`.trim();
+                    payloadsParaEnviar.push(payload);
+                }
+
+                let salvosComSucesso = 0;
+                let errorMsgs = [];
+                let firstId = null;
+
+                for (const p of payloadsParaEnviar) {
+                    const resp = await fetch('/api/logistica/os', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                        body: JSON.stringify(p)
+                    });
+                    const result = await resp.json();
+
+                    if (resp.ok && result.ok) {
+                        salvosComSucesso++;
+                        if (!firstId) firstId = result.id;
+                    } else if (resp.status === 409) {
+                        errorMsgs.push(`Conflito (${p.tipo_servico})`);
+                    } else {
+                        errorMsgs.push(`Erro (${p.tipo_servico})`);
+                    }
+                }
+
+                if (salvosComSucesso === payloadsParaEnviar.length) {
+                    if (payloadsParaEnviar.length > 1) {
+                        mostrarToastAviso('✅ Ambas as OS da Troca foram salvas (Entrega e Retirada)!');
+                    }
+                    exibirModalSucessoOS(firstId, payloadsParaEnviar[0]);
+                } else if (salvosComSucesso > 0) {
+                    mostrarToastAviso(`Atenção: Salvo parcialmente. Falhas: ${errorMsgs.join(', ')}`);
+                } else {
+                    mostrarToastAviso(`Erro ao salvar OS: ${errorMsgs.join(', ') || 'Erro desconhecido.'}`);
                 }
             } catch(err) {
                 console.error('[Gerar OS]', err);
@@ -1502,6 +1638,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (btnLimpar) {
             osState.produtos = []; osState.tiposServico = new Set();
             osState.acoes = new Set(); osState.clienteConfirmado = false;
+            osState.enderecoConfirmado = false;
             osState.clienteNome = ''; osState.enderecoSelecionado = ''; osState.tipoOs = '';
             const c = document.getElementById('rota-redonda-container');
             if (c) c.innerHTML = '';
@@ -1623,11 +1760,18 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ── BLOQUEIO PROGRESSIVO ──────────────────────────────────────────────────
+// ── BLOQUEIO PROGRESSIVO ──────────────────────────────────────────────────
 function atualizarBloqueio() {
-    const overlay = document.getElementById('rr-overlay-bloqueio');
-    if (!overlay) return;
-    // Só libera quando o tipo da OS estiver definido
-    overlay.style.display = osState.tipoOs ? 'none' : 'flex';
+    const overlayOS = document.getElementById('rr-overlay-bloqueio');
+    const overlayEnd = document.getElementById('rr-overlay-bloqueio-endereco');
+    
+    if (overlayOS) {
+        overlayOS.style.display = osState.tipoOs ? 'none' : 'flex';
+    }
+    if (overlayEnd) {
+        // Só mostra o bloqueio de endereço SE a OS já estiver liberada
+        overlayEnd.style.display = (osState.tipoOs && !osState.enderecoConfirmado) ? 'flex' : 'none';
+    }
 }
 
 // ── ATUALIZA LISTA DE PRODUTOS FILTRADA POR OBRA/EVENTO ───────────────────
@@ -1658,10 +1802,8 @@ function atualizarDropdownProdutos() {
     }
 }
 
-// Atualiza os ícones de produtos/serviços no nome do cliente
-function atualizarIconesCliente() {
-    const clienteInput = document.getElementById('rr-input-cliente');
-    if (!clienteInput) return;
+function gerarPrefixoIcones(tipoOverride = null) {
+    const tipoServico = (tipoOverride || document.getElementById('rr-tipo-servico')?.value || '').toUpperCase();
 
     // Coleta ícones dos produtos selecionados
     const iconesProdutos = [];
@@ -1674,38 +1816,69 @@ function atualizarIconesCliente() {
         }
     });
 
-    // Coleta ícone do tipo de OS
-    const tipoOs = osState.tipoOs;
-    let iconeOS = '';
-    if (tipoOs === 'Obra') iconeOS = '🏗️';
-    else if (tipoOs === 'Evento') iconeOS = '🎉';
+    let iconeServico = '';
+    if (tipoServico.includes('RETIRADA')) {
+        if (tipoServico.includes('TOTAL')) {
+            iconeServico = '⭕';
+        } else {
+            iconeServico = '🔶'; // Parcial
+        }
+    } else if (tipoServico.includes('SUCCAO')) {
+        iconeServico = '💧';
+    } else if (tipoServico.includes('LIMPA FOSSA')) {
+        iconeServico = '💦';
+    } else if (tipoServico.includes('REPARO')) {
+        iconeServico = '⚙️';
+    } else if (tipoServico.includes('VISITA TECNICA')) {
+        iconeServico = '📋';
+    } else if (tipoServico.includes('MANUTENCAO')) {
+        iconeServico = ''; // Sem ícone
+    } else if (tipoServico.includes('VAC')) {
+        iconeServico = '🏗️';
+    }
 
-    // Coleta ícones das habilidades selecionadas
-    const iconesHabilidades = {
-        'TANQUE': '🚛', 'CARGA': '📦', 'VAC': '🌀', 'UTILITARIO': '🚙',
-        'TECNICO': '🔧', 'CARRETINHA': '🚜', 'CARROCERIA': '🚚', 'TANQUE GRANDE': '⛽'
-    };
-    const iconesHab = [];
-    document.querySelectorAll('.btn-tipo-servico.ativo').forEach(btn => {
-        const ic = iconesHabilidades[btn.dataset.tipo];
-        if (ic && !iconesHab.includes(ic)) iconesHab.push(ic);
+    const iconesVariaveis = [];
+    document.querySelectorAll('.btn-acao-azul').forEach(btn => {
+        const acao = btn.dataset.acao;
+        if (osState.acoes.has(acao) && ACOES_DICT[acao]) {
+            iconesVariaveis.push(ACOES_DICT[acao]);
+        }
     });
 
-    // Monta string de ícones sem alterar o nome do cliente
-    const todosIcones = [iconeOS, ...iconesProdutos, ...iconesHab].filter(Boolean);
+    // Ícones extras das Habilidades
+    if (osState.tiposServico.has('VAC') && !iconesVariaveis.includes('🏗️')) iconesVariaveis.push('🏗️');
+    if (osState.tiposServico.has('CARRETINHA') && !iconesVariaveis.includes('🔗')) iconesVariaveis.push('🔗');
 
-    // Guarda nome base se não tiver já ícones
+    // Oculta ícones de produto se for Retirada Total/Parcial, conforme regra: "independentemente do produto... o icone é sempre o mesmo"
+    // Mas se for uma TROCA virtual (antes de salvar), e o Override for "ENTREGA", incluimos os produtos!
+    let todosIcones = [];
+    if (tipoServico.includes('RETIRADA') || (tipoServico.includes('TROCA') && !tipoOverride)) {
+        todosIcones = [iconeServico, ...iconesVariaveis];
+    } else {
+        todosIcones = [iconeServico, ...iconesProdutos, ...iconesVariaveis].filter(Boolean);
+    }
+    
+    // Se for Noturno, adiciona 🌘 na frente de tudo!
+    if (document.getElementById('rr-chk-noturno')?.checked) {
+        todosIcones.unshift('🌘');
+    }
+    
+    return todosIcones.join('');
+}
+
+// Atualiza os ícones de produtos/serviços no nome do cliente
+function atualizarIconesCliente() {
+    const clienteInput = document.getElementById('rr-input-cliente');
+    if (!clienteInput) return;
+
     let nomeBase = clienteInput.dataset.nomeBase;
     if (!nomeBase) {
-        nomeBase = clienteInput.value.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\s🏗🎉]+/u, '').trim();
+        nomeBase = clienteInput.value.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\s🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘]+/u, '').trim();
         clienteInput.dataset.nomeBase = nomeBase || clienteInput.value.trim();
     }
 
-    if (todosIcones.length > 0) {
-        clienteInput.value = todosIcones.join('') + ' ' + (clienteInput.dataset.nomeBase || '');
-    } else {
-        clienteInput.value = clienteInput.dataset.nomeBase || '';
-    }
+    const prefixo = gerarPrefixoIcones();
+    clienteInput.value = `${prefixo} ${nomeBase}`.trim();
 }
 
 
@@ -1800,11 +1973,9 @@ function atualizarUI() {
         if (osState.acoes.has(acao)) {
             btn.style.background = '#0284c7';
             btn.style.color = 'white';
-            btn.querySelector('i').style.color = 'white';
         } else {
             btn.style.background = '#f0f9ff';
             btn.style.color = '#0284c7';
-            btn.querySelector('i').style.color = '#f59e0b';
         }
     });
 
@@ -1887,14 +2058,14 @@ function renderRotaRedonda() {
             
             <!-- FORM LEFT COL -->
             <div style="display: flex; flex-direction: column; gap: 0.5rem; flex: 2; min-width: 0; overflow-y: auto; padding-right: 4px; position: relative;">
-                <!-- OVERLAY DE BLOQUEIO -->
-                <div id="rr-overlay-bloqueio" style="position:absolute; inset:0; z-index:10; background:rgba(248,250,252,0.85); display:flex; flex-direction:column; align-items:center; justify-content:center; border-radius:6px; backdrop-filter:blur(2px);">
+                <!-- OVERLAY DE BLOQUEIO OS -->
+                <div id="rr-overlay-bloqueio" style="position:absolute; inset:0; z-index:20; background:rgba(248,250,252,0.85); display:flex; flex-direction:column; align-items:center; justify-content:center; border-radius:6px; backdrop-filter:blur(2px); cursor:pointer;" onclick="const btn = document.getElementById('btn-add-os-tipo'); btn.style.transition='transform 0.1s, box-shadow 0.1s'; btn.style.transform='scale(1.2)'; btn.style.boxShadow='0 0 10px 4px #1a7a40'; setTimeout(() => { btn.style.transform='scale(1)'; btn.style.boxShadow='none'; }, 600);">
                     <i class="ph ph-lock" style="font-size:2rem; color:#94a3b8; margin-bottom:0.5rem;"></i>
                     <p style="font-size:0.82rem; font-weight:600; color:#64748b; margin:0;">Defina a OS primeiro</p>
                     <p style="font-size:0.72rem; color:#94a3b8; margin:4px 0 0; text-align:center;">Digite o número da OS no topo e clique no botão <b style="color:#1a7a40">+</b><br>para criar ou carregar um serviço.</p>
                 </div>
                 
-                <div style="display: flex; gap: 0.5rem;">
+                <div style="display: flex; gap: 0.5rem; position: relative; z-index: 15;">
                     <div style="flex: 3;">
                         <label style="${labelStyle}">Endereço</label>
                         <div style="display:flex; gap:2px;">
@@ -1916,8 +2087,17 @@ function renderRotaRedonda() {
                     </div>
                 </div>
 
-                <div style="display: flex; gap: 0.5rem;">
-                    <div style="flex: 1;">
+                <!-- BLOCO INFERIOR COM OVERLAY DE ENDEREÇO -->
+                <div style="position: relative; display: flex; flex-direction: column; gap: 0.5rem; flex: 1;">
+                    <!-- OVERLAY DE BLOQUEIO ENDEREÇO -->
+                    <div id="rr-overlay-bloqueio-endereco" style="position:absolute; inset:0; z-index:10; background:rgba(248,250,252,0.85); display:none; flex-direction:column; align-items:center; justify-content:center; border-radius:6px; backdrop-filter:blur(2px); cursor:pointer;" onclick="const btn = document.getElementById('btn-geocode-endereco'); btn.style.transition='transform 0.1s, box-shadow 0.1s'; btn.style.transform='scale(1.3)'; btn.style.boxShadow='0 0 12px 4px #0369a1'; setTimeout(() => { btn.style.transform='scale(1)'; btn.style.boxShadow='none'; }, 600);">
+                        <i class="ph ph-map-pin" style="font-size:2rem; color:#94a3b8; margin-bottom:0.5rem;"></i>
+                        <p style="font-size:0.82rem; font-weight:600; color:#64748b; margin:0;">Pesquise o Endereço</p>
+                        <p style="font-size:0.72rem; color:#94a3b8; margin:4px 0 0; text-align:center;">Clique na Lupa azul acima para buscar e confirmar o endereço.</p>
+                    </div>
+
+                    <div style="display: flex; gap: 0.5rem;">
+                        <div style="flex: 1;">
                         <label style="${labelStyle}">Responsável</label>
                         <input type="text" id="rr-input-responsavel" style="${inputStyle}" placeholder="Nome do contato">
                     </div>
@@ -1934,7 +2114,7 @@ function renderRotaRedonda() {
                 <!-- HORÁRIOS E DIAS -->
                 <div style="display: flex; gap: 0.5rem; align-items: center; background: #f8fafc; padding: 0.4rem 0.5rem; border-radius: 6px; border: 1px solid #e2e8f0; flex-wrap: wrap;">
                     <label style="display:flex; align-items:center; gap:2px; font-size:0.75rem; color:#475569; cursor:pointer;"><input type="checkbox" id="rr-chk-diurno"> Diurno</label>
-                    <label style="display:flex; align-items:center; gap:2px; font-size:0.75rem; color:#475569; cursor:pointer;"><input type="checkbox" id="rr-chk-noturno"> Noturno</label>
+                    <label style="display:flex; align-items:center; gap:2px; font-size:0.75rem; color:#475569; cursor:pointer;"><input type="checkbox" id="rr-chk-noturno" onchange="atualizarIconesCliente()"> Noturno</label>
                     <div style="width: 1px; height: 16px; background: #cbd5e1; margin: 0 2px;"></div>
                     <span style="font-size: 0.75rem; font-weight: 600; color:#475569;">Horário:</span>
                     <input type="time" id="rr-input-hora-inicio" style="${inputStyle} width: 75px;"> às 
@@ -2022,10 +2202,12 @@ function renderRotaRedonda() {
                 <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: auto; padding-top: 0.5rem;">
                     ${ACOES.map(s => 
                         `<button class="btn-acao-azul" data-acao="${s}" style="font-size:0.65rem; font-weight: 700; border: 1px solid #bae6fd; background: #f0f9ff; color: #0284c7; padding: 0.2rem; border-radius: 4px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; min-height: 40px; transition: all 0.2s; line-height: 1.1; text-align: center;">
-                            <i class="ph ph-info" style="font-size:0.85rem; color:#f59e0b; margin-bottom:1px;"></i> ${s}
+                            <span style="font-size:0.85rem; margin-bottom:1px;">${ACOES_DICT[s]}</span> ${s}
                         </button>`
                     ).join('')}
                 </div>
+
+                </div> <!-- FIM BLOCO INFERIOR COM OVERLAY -->
 
             </div>
 

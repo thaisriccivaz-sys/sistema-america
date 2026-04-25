@@ -7846,6 +7846,8 @@ db.run(`CREATE TABLE IF NOT EXISTS os_logistica (
     produtos TEXT,
     observacoes TEXT,
     observacoes_internas TEXT,
+    habilidades TEXT,
+    variaveis TEXT,
     link_video TEXT,
     status TEXT DEFAULT 'ativo',
     criado_em TEXT DEFAULT (datetime('now')),
@@ -7855,6 +7857,8 @@ db.run(`CREATE TABLE IF NOT EXISTS os_logistica (
     else {
         console.log('[OS Logística] Tabela os_logistica OK');
         db.run("ALTER TABLE os_logistica ADD COLUMN observacoes_internas TEXT", () => {});
+        db.run("ALTER TABLE os_logistica ADD COLUMN habilidades TEXT", () => {});
+        db.run("ALTER TABLE os_logistica ADD COLUMN variaveis TEXT", () => {});
     }
 });
 
@@ -7990,7 +7994,7 @@ app.post('/api/logistica/os', authenticateToken, (req, res) => {
         numero_os, tipo_os, cliente, endereco, complemento, cep, lat, lng,
         contrato, data_os, responsavel, telefone, email, tipo_servico,
         hora_inicio, hora_fim, turno, dias_semana, produtos, observacoes,
-        observacoes_internas, link_video
+        observacoes_internas, habilidades, variaveis, link_video
     } = req.body;
 
     if (!numero_os || !cliente) {
@@ -8018,15 +8022,18 @@ app.post('/api/logistica/os', authenticateToken, (req, res) => {
             // Cliente OK (mesmo ou nova OS) — insere
             db.run(`INSERT INTO os_logistica (numero_os, tipo_os, cliente, endereco, complemento, cep, lat, lng,
                 contrato, data_os, responsavel, telefone, email, tipo_servico, hora_inicio, hora_fim,
-                turno, dias_semana, produtos, observacoes, observacoes_internas, link_video)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                turno, dias_semana, produtos, observacoes, observacoes_internas, habilidades, variaveis, link_video)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [numero_os, tipo_os, cliente, endereco, complemento, cep,
                  lat ? parseFloat(lat) : null, lng ? parseFloat(lng) : null,
                  contrato, data_os, responsavel, telefone, email, tipo_servico,
                  hora_inicio, hora_fim, turno,
                  typeof dias_semana === 'object' ? JSON.stringify(dias_semana) : dias_semana,
                  typeof produtos === 'object' ? JSON.stringify(produtos) : produtos,
-                 observacoes, observacoes_internas, link_video],
+                 observacoes, observacoes_internas, 
+                 typeof habilidades === 'object' ? JSON.stringify(habilidades) : habilidades,
+                 typeof variaveis === 'object' ? JSON.stringify(variaveis) : variaveis,
+                 link_video],
                 function(err) {
                     if (err) return res.status(500).json({ error: err.message });
                     res.status(201).json({ ok: true, id: this.lastID });
@@ -8034,6 +8041,14 @@ app.post('/api/logistica/os', authenticateToken, (req, res) => {
             );
         }
     );
+});
+
+// DELETE /api/logistica/os/:id — Excluir OS
+app.delete('/api/logistica/os/:id', authenticateToken, (req, res) => {
+    db.run("DELETE FROM os_logistica WHERE id = ?", [req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ ok: true });
+    });
 });
 
 // =====================================================================

@@ -1,0 +1,250 @@
+﻿            ogHtml = trBtn.innerHTML;
+            trBtn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Aguarde...';
+            trBtn.disabled = true;
+        }
+        
+        let targetColabId = null;
+        if (typeof viewedColaborador !== 'undefined' && viewedColaborador && viewedColaborador.id) {
+            targetColabId = viewedColaborador.id;
+        } else if (window.viewedColaborador && window.viewedColaborador.id) {
+            targetColabId = window.viewedColaborador.id;
+        } else if (window.lastColaboradorId) {
+             targetColabId = window.lastColaboradorId;
+        }
+        
+        if (!targetColabId) throw new Error('N├úo foi poss├¡vel identificar o colaborador atual.');
+
+
+        const res = await fetch(`${API_URL}/assinafy/upload`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (window.currentToken || localStorage.getItem('token')) },
+            body: JSON.stringify({ document_id: Number(docId), colaborador_id: targetColabId })
+        });
+        const data = await res.json().catch(() => ({}));
+        
+        if(trBtn) {
+            trBtn.innerHTML = ogHtml;
+            trBtn.disabled = false;
+        }
+        
+        if(res.ok) {
+            if (typeof showToast !== 'undefined') showToast('E-mail de assinatura enviado ao colaborador!', 'success');
+            else alert('Documento enviado para assinatura com sucesso!');
+            window._contratosAvulsoLoaded = false; const avDiv = document.getElementById('contratos-sub-avulso'); if (avDiv) { avDiv.innerHTML = '<p class="text-muted" style="padding:1rem;"><i class="ph ph-spinner ph-spin"></i> Atualizando status...</p>'; window.renderContratosAvulso(avDiv); }
+        } else {
+            throw new Error(data.error || 'Erro ao reenviar assinatura');
+        }
+    } catch(err) {
+        if(trBtn) {
+            trBtn.innerHTML = ogHtml;
+            trBtn.disabled = false;
+        }
+        if (typeof showToast !== 'undefined') showToast(err.message, 'error');
+        else alert(err.message);
+    }
+};
+window.buildContratosSignatureRows = function(assinaturas, docs, colab) {
+    // assinaturas was kept here as argument for backward compatibility but is no longer used for linking
+    docs = Array.isArray(docs) ? docs : [];
+    if (docs.length === 0) {
+        return `<div style="padding:2rem;text-align:center;color:#94a3b8;border:2px dashed #e2e8f0;border-radius:12px;"><i class="ph ph-files" style="font-size:2rem;margin-bottom:0.5rem;display:block;"></i>Nenhum contrato listado.</div>`;
+    }
+
+    let html = '';
+    docs.forEach(doc => {
+       let realStatus = 'N├úo enviado';
+       if (doc.assinafy_status === 'Assinado') realStatus = 'Assinado';
+       else if (doc.assinafy_status === 'Pendente' || doc.assinafy_status === 'Aguardando') realStatus = 'Aguardando';
+
+       const isSigned = (realStatus === 'Assinado');
+       const isPending = (realStatus === 'Aguardando');
+       const literallyNaoExige = (doc.assinafy_status === 'NAO_EXIGE');
+       const requiresButNotSent = (!isSigned && !isPending && !literallyNaoExige);
+
+       const _docName = (doc.document_type || doc.file_name || 'Documento Avulso');
+       const _docTitle = _docName.replace(/_/g, ' ');
+
+       const formatDate = (str) => {
+           if (!str) return '';
+           const d = new Date(str);
+           if (isNaN(d.getTime())) return '';
+           const _dd = String(d.getDate()).padStart(2,'0');
+           const _mm = String(d.getMonth()+1).padStart(2,'0');
+           const _yy = d.getFullYear();
+           const _hh = String(d.getHours()).padStart(2,'0');
+           const _mi = String(d.getMinutes()).padStart(2,'0');
+           return `${_dd}/${_mm}/${_yy} - ${_hh}:${_mi}`;
+       };
+
+       const _uploadDt = doc.upload_date || doc.created_at;
+       const _uploadStr = formatDate(_uploadDt);
+       const _sentDt = doc.assinafy_sent_at || _uploadDt;
+       const _sentStr = formatDate(_sentDt);
+       // Prioridade: assinafy_signed_at do doc, depois upload date
+       const _signedDt = doc.assinafy_signed_at || _uploadDt;
+       const _signedStr = formatDate(_signedDt);
+
+       let statusBadge = '';
+       let leftIconMarkup = '';
+       let sendBtn = '';
+       let actionUX = ''; // novo container para UX customizada no lado direito
+       let borderBgColor = isSigned ? 'border:1px solid #bbf7d0; background:#f0fdf4;' : isPending ? 'border:1px solid #bfdbfe; background:#eff6ff;' : literallyNaoExige ? 'border:1px solid #e9d5ff; background:#faf5ff;' : 'border:1px solid #fde047; background:#fefce8;';
+       
+       if (isSigned) {
+           leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#16a34a;"><i class="ph ph-check-circle" style="font-size:1.4rem;"></i></div>`;
+           statusBadge = `<span style="color:#16a34a;font-size:0.75rem;font-weight:600;">Documento Assinado${_signedStr ? ': ' + _signedStr : ''}</span>`;
+           
+       } else if (isPending) {
+            leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#2563eb;"><i class="ph ph-paper-plane-tilt" style="font-size:1.4rem;"></i></div>`;
+            statusBadge = `<span style="color:#2563eb;font-size:0.75rem;font-weight:600;">Enviado para Assinatura${_sentStr ? ': ' + _sentStr : ''}</span>`;
+           if (window.reenviarAssinaturaContrato) {
+               sendBtn = `<button type="button" onclick="window.reenviarAssinaturaContrato(${doc.id}, event);" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:0.2s;"><i class="ph ph-pen"></i> Reenviar para Assinatura</button>`;
+           }
+       } else if (literallyNaoExige) {
+            leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#9333ea;"><i class="ph ph-file-text" style="font-size:1.4rem;"></i></div>`;
+            statusBadge = `<span style="color:#9333ea;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
+       } else {
+            leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#eab308;"><i class="ph ph-info" style="font-size:1.4rem;"></i></div>`;
+            statusBadge = `<span style="color:#eab308;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
+            
+            // O usu├írio acabou de anexar ou gerar, mas n├úo tomou decis├úo ainda (Exige Assinatura?)
+            const escNome = _docName.replace(/'/g,"\\'");
+            actionUX = `
+                <div style="display:flex; align-items:center; gap:0.75rem; border-left: 1px solid #fde047; padding-left: 1rem; margin-right:5px;">
+                    <span style="font-size:0.85rem; font-weight:600; color:#334155;">Exige Assinatura?</span>
+                    <label style="cursor:pointer; display:flex; align-items:center; gap:0.25rem; font-size:0.85rem; color:#0f172a; margin:0;">
+                        <input type="radio" name="req-ass-doc-${doc.id}" value="sim" onchange="window.toggleAcaoDocumentoAvulso('${doc.id}', 'sim', '${escNome}')"> Sim
+                    </label>
+                    <label style="cursor:pointer; display:flex; align-items:center; gap:0.25rem; font-size:0.85rem; color:#0f172a; margin:0;">
+                        <input type="radio" name="req-ass-doc-${doc.id}" value="nao" onchange="window.toggleAcaoDocumentoAvulso('${doc.id}', 'nao', '${escNome}')"> N├úo
+                    </label>
+                </div>
+                <div id="pg-action-doc-${doc.id}" style="min-width: 160px; text-align: right; display: flex; justify-content: flex-end;">
+                    <span style="font-size:0.8rem; color:#64748b; font-style:italic;">Selecione uma op├º├úo</span>
+                </div>
+            `;
+       }
+
+       let eyeBtn = `<button onclick="window.openContratoViewerById(${doc.id})" style="border:none;background:none;cursor:pointer;color:#64748b;" title="Visualizar Documento"><i class="ph ph-eye" style="font-size:1.4rem;"></i></button>`;
+
+       html += `
+        <div class="doc-check-item" style="display:flex; align-items:center; gap:0.6rem; padding:1.1rem 1.25rem; ${borderBgColor}; border-radius:8px; cursor:default; box-shadow:0 1px 2px rgba(0,0,0,0.03); transition:all 0.2s; justify-content:space-between; margin-bottom:12px;">
+            <div style="display:flex; align-items:center; gap:12px; flex:1;">
+                ${leftIconMarkup}
+                <div style="display:flex; flex-direction:column; gap:2px;">
+                    <span style="font-size:0.95rem; font-weight:700; color:#0f172a; margin-bottom:2px;">${_docTitle.toUpperCase()}</span>
+                    ${statusBadge}
+                    ${doc.file_name ? `<span style="font-size:0.72rem;color:#94a3b8;margin-top:1px;"><i class="ph ph-file"></i> ${doc.file_name}</span>` : ''}
+                </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px;">
+                ${actionUX}
+                ${sendBtn}
+                ${eyeBtn}
+            </div>
+        </div>`;
+    });
+    return html;
+};
+
+window.toggleAcaoDocumentoAvulso = function(docId, exige, docType) {
+    const actionDiv = document.getElementById('pg-action-doc-' + docId);
+    if (!actionDiv) return;
+    
+    if (exige === 'nao') {
+        actionDiv.innerHTML = `
+            <label class="btn btn-warning btn-sm" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:0.85rem;background:#eab308;color:#fff;border:none;padding:0.4rem 1rem;border-radius:6px;font-weight:600;">
+                <i class="ph ph-upload-simple"></i> Anexar PDF
+                <input type="file" accept=".pdf" style="display:none;" onchange="window.uploadContratoAvulsoSobrescrever(this, '${docId}', '${docType}')">
+            </label>
+        `;
+    } else {
+        actionDiv.innerHTML = `
+            <button type="button" class="btn btn-primary btn-sm" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:0.85rem;background:#0284c7;color:#fff;border:none;padding:0.4rem 1rem;border-radius:6px;font-weight:600;" 
+                onclick="window.enviarDocumentoAvulsoAssinatura('${docId}')">
+                <i class="ph ph-paper-plane-tilt"></i> Enviar p/ Assinatura
+            </button>
+        `;
+    }
+};
+
+window.enviarDocumentoAvulsoAssinatura = async function(docId) {
+    if (!docId || !viewedColaborador) return;
+    Swal.fire({ title: 'Enviando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    try {
+        const res = await fetch(API_URL + '/assinafy/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentToken },
+            body: JSON.stringify({ document_id: Number(docId), colaborador_id: viewedColaborador.id })
+        });
+        const data = await res.json().catch(() => ({}));
+        Swal.close();
+        if (res.ok) {
+            if (typeof showToast !== 'undefined') showToast('Documento enviado para assinatura!', 'success');
+            // Recarregar aba
+            window._contratosAvulsoLoaded = false;
+            window.switchContratosSubTab('avulso');
+        } else {
+            Swal.fire('Aten├º├úo', 'Erro no envio para assinar: ' + (data.error || 'Erro desconhecido'), 'warning');
+        }
+    } catch(err) {
+        Swal.close();
+        Swal.fire('Erro', err.message, 'error');
+    }
+};
+
+window.uploadContratoAvulsoSobrescrever = async function(input, docId, docType) {
+    const file = input.files[0];
+    if (!file || !viewedColaborador) return;
+    Swal.fire({ title: 'Sobrescrevendo...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('tab_name', 'CONTRATOS_AVULSOS');
+        formData.append('document_type', docType);
+        formData.append('colaborador_id', viewedColaborador.id);
+        formData.append('colaborador_nome', viewedColaborador.nome_completo || '');
+        formData.append('assinafy_status', 'NAO_EXIGE');
+        formData.append('document_id', docId);
+
+        const resUpload = await fetch(API_URL + '/documentos', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + currentToken },
+            body: formData
+        });
+        if (!resUpload.ok) throw new Error('Falha no upload do arquivo');
+        
+        Swal.close();
+        if (typeof showToast !== 'undefined') showToast('Documento anexado no Prontu├írio!', 'success');
+        
+        window._contratosAvulsoLoaded = false;
+        window.switchContratosSubTab('avulso');
+    } catch (err) {
+        Swal.close();
+        Swal.fire('Erro', err.message, 'error');
+    }
+};
+
+
+window.enviarAssinaturaLoteContratos = async function() {
+    const chks = document.querySelectorAll('.ca-row-chk:checked');
+    if(chks.length === 0) { alert('Selecione pelo menos um documento na lista.'); return; }
+
+    const docs = Array.from(chks).map(c => ({
+        id: c.dataset.docId,
+        nome: c.dataset.docType
+    }));
+    
+    if(!confirm(`Enviar ${docs.length} documento(s) para assinatura do colaborador via Assinafy?`)) return;
+    
+    const btn = document.getElementById('ca-btn-assinar-lote');
+    const oldHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando para Assinafy...';
+    btn.disabled = true;
+
+    try {
+        let errorCount = 0;
+        for (const doc of docs) {
+            try {
+                const resp = await fetch(`${API_URL}/assinafy/upload`, {
