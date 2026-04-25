@@ -718,64 +718,155 @@ async function carregarOsPorNumero(numOs) {
             return;
         }
 
-        // Verifica se o cliente atual (se já preenchido) conflita
-        const clienteDigitado = (document.getElementById('rr-input-cliente')?.dataset?.nomeBase
-            || document.getElementById('rr-input-cliente')?.value || '').trim().toLowerCase();
-        const clienteExistente = registros[0].cliente?.trim().toLowerCase();
-
-        if (clienteDigitado && clienteExistente && clienteDigitado !== clienteExistente) {
-            mostrarToastAviso(`⚠️ O número de OS "${numOs}" já está cadastrado para o cliente: "${registros[0].cliente}". Não é possível usar este número para outro cliente.`);
-            btn.style.background = '#fee2e2';
-            return;
+        if (registros.length === 1) {
+            // Se só tem 1, carrega direto
+            carregarRegistroNaTela(registros[0]);
+            mostrarToastAviso(`✅ OS "${numOs}" carregada.`);
+        } else {
+            // Mais de 1, abre o modal
+            btn.style.background = '#f0fdf4';
+            abrirModalListaOS(numOs, registros);
         }
-
-        // Preenche o formulário com os dados da OS mais recente
-        const os = registros[0];
-        btn.style.background = '#f0fdf4';
-        const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
-        set('rr-input-cliente', os.cliente);
-        if (document.getElementById('rr-input-cliente')) {
-            document.getElementById('rr-input-cliente').dataset.nomeBase = os.cliente || '';
-        }
-        set('rr-input-endereco', os.endereco);
-        set('rr-input-complemento', os.complemento);
-        set('rr-input-responsavel', os.responsavel);
-        set('rr-input-telefone', os.telefone);
-        set('rr-input-email', os.email);
-        set('rr-input-obs', os.observacoes);
-        set('rr-input-video', os.link_video);
-        if (os.lat && os.lng) set('rr-input-coord', `${os.lat}, ${os.lng}`);
-        // Tipo de OS
-        if (os.tipo_os) {
-            osState.tipoOs = os.tipo_os;
-            atualizarDropdownProdutos();
-            atualizarIconesCliente();
-        }
-        // Turno e horário
-        const diurno = document.getElementById('rr-chk-diurno');
-        const noturno = document.getElementById('rr-chk-noturno');
-        if (os.turno === 'Diurno' && diurno) { diurno.checked = true; if (noturno) noturno.checked = false; }
-        if (os.turno === 'Noturno' && noturno) { noturno.checked = true; if (diurno) diurno.checked = false; }
-        set('rr-input-hora-inicio', os.hora_inicio);
-        set('rr-input-hora-fim', os.hora_fim);
-        // Dias da semana
-        const diasSalvos = parseDiasFront(os.dias_semana);
-        const diasMap = { 'Seg': 'rr-chk-seg', 'Ter': 'rr-chk-ter', 'Qua': 'rr-chk-qua', 'Qui': 'rr-chk-qui', 'Sex': 'rr-chk-sex', 'Sáb': 'rr-chk-sab', 'Dom': 'rr-chk-dom' };
-        Object.entries(diasMap).forEach(([d, id]) => {
-            const el = document.getElementById(id);
-            if (el) el.checked = diasSalvos.includes(d);
-        });
-
-        osState.clienteNome = os.cliente || '';
-        atualizarUI();
-
-        const totalServicos = registros.length;
-        mostrarToastAviso(`✅ OS "${numOs}" carregada — Cliente: ${os.cliente}. ${totalServicos} serviço(s) registrado(s) para esta OS.`);
     } catch(e) {
         console.error('[Carregar OS]', e);
         mostrarToastAviso('Erro ao buscar OS. Verifique a conexão.');
         if (btn) btn.style.background = '';
     }
+}
+
+// ── MODAL COM LISTA DE SERVIÇOS DA OS ─────────────────────────────────────────
+function abrirModalListaOS(numOs, registros) {
+    document.getElementById('rr-modal-lista-os')?.remove();
+
+    const tbody = registros.map(r => {
+        const prod = parseJsonFront(r.produtos).map(p => `${p.qtd}x ${p.desc}`).join(', ') || '—';
+        const dSemana = parseJsonFront(r.dias_semana).join(', ') || '—';
+        return `
+            <tr class="rr-os-row" data-cliente="${(r.cliente||'').toLowerCase()}" data-endereco="${(r.endereco||'').toLowerCase()}" style="border-bottom:1px solid #e2e8f0; cursor:pointer; transition:background 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'" onclick='window._carregarRegistroNaTela(${JSON.stringify(r)})'>
+                <td style="padding:0.5rem;">${r.cliente}</td>
+                <td style="padding:0.5rem;">${r.endereco}</td>
+                <td style="padding:0.5rem;">${r.tipo_servico || '—'}</td>
+                <td style="padding:0.5rem;">${r.turno}</td>
+                <td style="padding:0.5rem;">${r.hora_inicio} às ${r.hora_fim}</td>
+                <td style="padding:0.5rem;">${prod}</td>
+            </tr>
+        `;
+    }).join('');
+
+    const modal = document.createElement('div');
+    modal.id = 'rr-modal-lista-os';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;';
+    modal.innerHTML = `
+        <div style="background:white;border-radius:14px;width:900px;max-width:95vw;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 16px 48px rgba(0,0,0,0.25);">
+            <div style="background:#2d9e5f;color:white;padding:1.25rem 1.5rem;display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                    <h3 style="margin:0;font-size:1.1rem;font-weight:700;">Serviços da OS #${numOs}</h3>
+                    <p style="margin:0;font-size:0.75rem;opacity:0.9;">Clique em um serviço para carregar as informações na tela.</p>
+                </div>
+                <button id="btn-fechar-modal-lista-os" style="background:transparent;border:none;color:white;font-size:1.2rem;cursor:pointer;"><i class="ph ph-x"></i></button>
+            </div>
+            <!-- Filtros -->
+            <div style="padding:0.75rem 1.5rem; background:#f8fafc; border-bottom:1px solid #e2e8f0; display:flex; gap:10px;">
+                <input type="text" id="rr-filter-cliente" placeholder="Filtrar por Cliente..." style="flex:1; padding:6px 10px; border:1px solid #cbd5e1; border-radius:4px; font-size:0.75rem; outline:none;">
+                <input type="text" id="rr-filter-endereco" placeholder="Filtrar por Endereço..." style="flex:1; padding:6px 10px; border:1px solid #cbd5e1; border-radius:4px; font-size:0.75rem; outline:none;">
+            </div>
+            <div style="overflow-y:auto;padding:1rem;">
+                <table style="width:100%;border-collapse:collapse;font-size:0.75rem;text-align:left;">
+                    <thead>
+                        <tr style="background:#f8fafc;border-bottom:2px solid #cbd5e1;color:#475569;">
+                            <th style="padding:0.5rem;">Cliente</th>
+                            <th style="padding:0.5rem;">Endereço</th>
+                            <th style="padding:0.5rem;">Serviço</th>
+                            <th style="padding:0.5rem;">Turno</th>
+                            <th style="padding:0.5rem;">Horário</th>
+                            <th style="padding:0.5rem;">Produtos</th>
+                        </tr>
+                    </thead>
+                    <tbody>${tbody}</tbody>
+                </table>
+            </div>
+        </div>`;
+    
+    document.body.appendChild(modal);
+    modal.querySelector('#btn-fechar-modal-lista-os')?.addEventListener('click', () => modal.remove());
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+
+    // Lógica de Filtro
+    const filterData = () => {
+        const fCli = (document.getElementById('rr-filter-cliente')?.value || '').toLowerCase();
+        const fEnd = (document.getElementById('rr-filter-endereco')?.value || '').toLowerCase();
+        document.querySelectorAll('.rr-os-row').forEach(row => {
+            const cli = row.dataset.cliente || '';
+            const end = row.dataset.endereco || '';
+            row.style.display = (cli.includes(fCli) && end.includes(fEnd)) ? '' : 'none';
+        });
+    };
+    document.getElementById('rr-filter-cliente')?.addEventListener('input', filterData);
+    document.getElementById('rr-filter-endereco')?.addEventListener('input', filterData);
+}
+
+function parseJsonFront(val) {
+    if (!val) return [];
+    try { return JSON.parse(val); } catch { return typeof val === 'string' ? [val] : []; }
+}
+
+window._carregarRegistroNaTela = function(os) {
+    document.getElementById('rr-modal-lista-os')?.remove();
+    carregarRegistroNaTela(os);
+    mostrarToastAviso(`✅ Serviço carregado.`);
+};
+
+function carregarRegistroNaTela(os) {
+    const set = (id, val) => { const el = document.getElementById(id); if (el && val !== undefined && val !== null) el.value = val; };
+    set('rr-input-cliente', os.cliente);
+    if (document.getElementById('rr-input-cliente')) {
+        document.getElementById('rr-input-cliente').dataset.nomeBase = os.cliente || '';
+    }
+    set('rr-input-endereco', os.endereco);
+    set('rr-input-complemento', os.complemento);
+    set('rr-input-responsavel', os.responsavel);
+    set('rr-input-telefone', os.telefone);
+    set('rr-input-email', os.email);
+    set('rr-input-obs', os.observacoes);
+    set('rr-input-video', os.link_video);
+    set('rr-tipo-servico', os.tipo_servico);
+    if (os.contrato) {
+        const contEl = document.querySelector('input[placeholder="Nº Contrato"]');
+        if (contEl) contEl.value = os.contrato;
+    }
+    if (os.data_os) {
+        const dataEl = document.querySelector('input[type="date"]');
+        if (dataEl) dataEl.value = os.data_os;
+    }
+
+    if (os.lat && os.lng) set('rr-input-coord', `${os.lat}, ${os.lng}`);
+    // Tipo de OS
+    if (os.tipo_os) {
+        osState.tipoOs = os.tipo_os;
+        atualizarDropdownProdutos();
+        atualizarIconesCliente();
+    }
+    // Turno e horário
+    const diurno = document.getElementById('rr-chk-diurno');
+    const noturno = document.getElementById('rr-chk-noturno');
+    if (os.turno === 'Diurno' && diurno) { diurno.checked = true; if (noturno) noturno.checked = false; }
+    if (os.turno === 'Noturno' && noturno) { noturno.checked = true; if (diurno) diurno.checked = false; }
+    set('rr-input-hora-inicio', os.hora_inicio);
+    set('rr-input-hora-fim', os.hora_fim);
+    // Dias da semana
+    const diasSalvos = parseJsonFront(os.dias_semana);
+    const diasMap = { 'Seg': 'rr-chk-seg', 'Ter': 'rr-chk-ter', 'Qua': 'rr-chk-qua', 'Qui': 'rr-chk-qui', 'Sex': 'rr-chk-sex', 'Sáb': 'rr-chk-sab', 'Dom': 'rr-chk-dom' };
+    Object.entries(diasMap).forEach(([d, id]) => {
+        const el = document.getElementById(id);
+        if (el) el.checked = diasSalvos.includes(d);
+    });
+    
+    // Produtos
+    osState.produtos = parseJsonFront(os.produtos).map(p => ({ ...p, id: Date.now() + Math.random() }));
+
+    osState.clienteNome = os.cliente || '';
+    atualizarUI();
+    atualizarBloqueio();
 }
 
 function parseDiasFront(diasJson) {
@@ -1240,12 +1331,39 @@ document.addEventListener('DOMContentLoaded', () => {
         // Botão + Tipo de OS (Obra/Evento)
         const btnAddOsTipo = e.target.closest('#btn-add-os-tipo');
         if (btnAddOsTipo) {
-            abrirPopupTipoOs((tipo) => {
-                osState.tipoOs = tipo;
-                atualizarDropdownProdutos();
-                atualizarIconesCliente();
-                mostrarToastAviso(`Tipo de OS definido como: ${tipo}.`);
-            });
+            const numOs = document.getElementById('rr-input-os')?.value?.trim();
+            if (!numOs) {
+                mostrarToastAviso('Digite o número da OS primeiro.');
+                return;
+            }
+
+            const originalHtml = btnAddOsTipo.innerHTML;
+            btnAddOsTipo.innerHTML = '<i class="ph ph-spinner ph-spin"></i>';
+            try {
+                const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+                const resp = await fetch(`/api/logistica/os/buscar?numero_os=${encodeURIComponent(numOs)}`, { headers: { 'Authorization': `Bearer ${token}` } });
+                
+                if (resp.status === 404) {
+                    // Nova OS
+                    abrirPopupTipoOs((tipo) => {
+                        osState.tipoOs = tipo;
+                        atualizarDropdownProdutos();
+                        atualizarIconesCliente();
+                        atualizarBloqueio();
+                        mostrarToastAviso(`Nova OS. Tipo definido como: ${tipo}.`);
+                    });
+                } else if (resp.ok) {
+                    const registros = await resp.json();
+                    if (registros && registros.length > 0) {
+                        abrirModalListaOS(numOs, registros);
+                    }
+                }
+            } catch(err) {
+                console.error(err);
+                mostrarToastAviso('Erro ao buscar OS.');
+            } finally {
+                btnAddOsTipo.innerHTML = originalHtml;
+            }
             return;
         }
 
@@ -1480,9 +1598,12 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ── BLOQUEIO PROGRESSIVO ──────────────────────────────────────────────────
-// (Removido: formulário sempre livre)
-window.atualizarBloqueio = function() {};
-function atualizarBloqueio() {}
+function atualizarBloqueio() {
+    const overlay = document.getElementById('rr-overlay-bloqueio');
+    if (!overlay) return;
+    // Só libera quando o tipo da OS estiver definido
+    overlay.style.display = osState.tipoOs ? 'none' : 'flex';
+}
 
 // ── ATUALIZA LISTA DE PRODUTOS FILTRADA POR OBRA/EVENTO ───────────────────
 function atualizarDropdownProdutos() {
@@ -1741,7 +1862,12 @@ function renderRotaRedonda() {
             
             <!-- FORM LEFT COL -->
             <div style="display: flex; flex-direction: column; gap: 0.5rem; flex: 2; min-width: 0; overflow-y: auto; padding-right: 4px; position: relative;">
-                <!-- OVERLAY DE BLOQUEIO REMOVIDO -->
+                <!-- OVERLAY DE BLOQUEIO -->
+                <div id="rr-overlay-bloqueio" style="position:absolute; inset:0; z-index:10; background:rgba(248,250,252,0.85); display:flex; flex-direction:column; align-items:center; justify-content:center; border-radius:6px; backdrop-filter:blur(2px);">
+                    <i class="ph ph-lock" style="font-size:2rem; color:#94a3b8; margin-bottom:0.5rem;"></i>
+                    <p style="font-size:0.82rem; font-weight:600; color:#64748b; margin:0;">Defina a OS primeiro</p>
+                    <p style="font-size:0.72rem; color:#94a3b8; margin:4px 0 0; text-align:center;">Digite o número da OS no topo e clique no botão <b style="color:#1a7a40">+</b><br>para criar ou carregar um serviço.</p>
+                </div>
                 
                 <div style="display: flex; gap: 0.5rem;">
                     <div style="flex: 3;">
@@ -1902,5 +2028,5 @@ function renderRotaRedonda() {
 
     container.innerHTML = html;
     atualizarUI();
-    // Aplica bloqueio inicial removido
+    atualizarBloqueio();
 }
