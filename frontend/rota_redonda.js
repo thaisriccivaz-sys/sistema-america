@@ -1097,7 +1097,8 @@ function parseOsText(texto) {
         if (lu.startsWith('CONTATO') || lu.startsWith('CONTRATO')) {
             let c = extrairValor(l, /CONT[RA]ATO/i);
             if (eVazio(c) && i + 1 < lines.length) c = lines[i + 1];
-            if (/^\d+$/.test(c)) resultado.contrato = c;
+            const matchNum = c.match(/^(\d+)/);
+            if (matchNum) resultado.contrato = matchNum[1];
         }
 
         if (lu.includes('TIPO E SITUAÇÃO DO CONTRATO') || lu.includes('TIPO DE CONTRATO')) {
@@ -1112,13 +1113,27 @@ function parseOsText(texto) {
             let v = extrairValor(l, /📞?Contato de instala[cç][aã]o:/i);
             if (eVazio(v) && i + 1 < lines.length) v = lines[i + 1];
             if (!eVazio(v)) {
-                const parts = v.split('-');
-                resultado.responsavel = parts[0].trim();
-                if (parts.length > 1) {
-                    const tel = parts[1].replace(/[^\d]/g, '');
-                    if (tel.length >= 8) {
-                        const t = tel;
-                        resultado.telefone = t.length === 11 ? `(${t.slice(0,2)}) ${t.slice(2,7)}-${t.slice(7)}` : t;
+                if (v.includes('-')) {
+                    const parts = v.split('-');
+                    resultado.responsavel = parts[0].trim();
+                    if (parts.length > 1) {
+                        const tel = parts[1].replace(/[^\d]/g, '');
+                        if (tel.length >= 8) {
+                            const t = tel;
+                            resultado.telefone = t.length === 11 ? `(${t.slice(0,2)}) ${t.slice(2,7)}-${t.slice(7)}` : t;
+                        }
+                    }
+                } else {
+                    const fMatch = v.match(/[\d\s\-\(\)]{8,}/);
+                    if (fMatch) {
+                        const telStr = fMatch[0];
+                        resultado.responsavel = v.replace(telStr, '').trim();
+                        const tel = telStr.replace(/[^\d]/g, '');
+                        if (tel.length >= 8) {
+                            resultado.telefone = tel.length === 11 ? `(${tel.slice(0,2)}) ${tel.slice(2,7)}-${tel.slice(7)}` : tel;
+                        }
+                    } else {
+                        resultado.responsavel = v.trim();
                     }
                 }
             }
