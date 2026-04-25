@@ -1358,9 +1358,10 @@ function parseOsText(texto) {
                 }
             }
             if (!eVazio(v)) {
-                const telMatch = v.match(/\(?\d{2}\)?\s*\d{4,5}[\s\-]?\d{4}/);
+                // Captura telefones com ou sem formatação: (11) 96769-1742, 11967691742, etc.
+                const telMatch = v.match(/\(?\d{2}\)?[\s\-]?\d{4,5}[\s\-]?\d{4}/) || v.match(/\b\d{10,11}\b/);
                 if (telMatch) {
-                    resultado.responsavel = v.replace(telMatch[0], '').replace(/[\-:]+$/, '').trim();
+                    resultado.responsavel = v.replace(telMatch[0], '').replace(/[\-:\s]+$/, '').trim();
                     const tel = telMatch[0].replace(/[^\d]/g, '');
                     resultado.telefone = tel.length === 11
                         ? `(${tel.slice(0,2)}) ${tel.slice(2,7)}-${tel.slice(7)}`
@@ -1384,10 +1385,10 @@ function parseOsText(texto) {
             let v = extrairValor(l, /📞?Contato de instala[cç][aã]o:/i);
             if (eVazio(v) && i + 1 < lines.length) v = lines[i + 1];
             if (!eVazio(v)) {
-                // Extrai qualquer sequência de dígitos/parênteses/hífens com 8+ dígitos
-                const telMatch = v.match(/\(?\d{2}\)?\s*\d{4,5}[\s\-]?\d{4}/);
+                // Captura telefones com ou sem formatação: (11) 96769-1742, 11967691742, etc.
+                const telMatch = v.match(/\(?\d{2}\)?[\s\-]?\d{4,5}[\s\-]?\d{4}/) || v.match(/\b\d{10,11}\b/);
                 if (telMatch) {
-                    resultado.responsavel = v.replace(telMatch[0], '').replace(/[\-:]+$/, '').trim();
+                    resultado.responsavel = v.replace(telMatch[0], '').replace(/[\-:\s]+$/, '').trim();
                     const tel = telMatch[0].replace(/[^\d]/g, '');
                     resultado.telefone = tel.length === 11
                         ? `(${tel.slice(0,2)}) ${tel.slice(2,7)}-${tel.slice(7)}`
