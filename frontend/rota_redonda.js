@@ -1940,6 +1940,38 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // Botão de buscar OS por Patrimônio
+        const btnBuscarPatrimonio = e.target.closest('#btn-buscar-patrimonio');
+        if (btnBuscarPatrimonio) {
+            const numPatr = document.getElementById('rr-input-patrimonio')?.value?.trim();
+            if (!numPatr) {
+                mostrarToastAviso('Digite o número do patrimônio primeiro.');
+                return;
+            }
+            const originalHtml = btnBuscarPatrimonio.innerHTML;
+            btnBuscarPatrimonio.innerHTML = '<i class="ph ph-spinner ph-spin"></i>';
+            try {
+                const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+                const resp = await fetch(`/api/logistica/os/buscar?patrimonio=${encodeURIComponent(numPatr)}`, { headers: { 'Authorization': `Bearer ${token}` } });
+                if (resp.ok) {
+                    const registros = await resp.json();
+                    if (registros && registros.length > 0) {
+                        abrirModalListaOS('Patrimônio: ' + numPatr, registros);
+                    } else {
+                        mostrarToastAviso('Nenhuma OS encontrada para este patrimônio.');
+                    }
+                } else {
+                    mostrarToastAviso('Erro ao buscar OS do patrimônio.');
+                }
+            } catch (err) {
+                console.error(err);
+                mostrarToastAviso('Falha na comunicação.');
+            } finally {
+                btnBuscarPatrimonio.innerHTML = originalHtml;
+            }
+            return;
+        }
+
         // Botão de buscar OS por Contrato
         const btnBuscarContrato = e.target.closest('#btn-buscar-contrato');
         if (btnBuscarContrato) {
@@ -2310,8 +2342,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Pesquisar OS do cliente
         const btnPesqCliente = e.target.closest('#btn-pesq-cliente-os');
         if (btnPesqCliente) {
-            const nome = document.getElementById('rr-input-cliente')?.value.trim();
+            let nome = document.getElementById('rr-input-cliente')?.value.trim();
             if (!nome) { alert('Digite o nome do cliente antes de pesquisar.'); return; }
+            nome = nome.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\s🔴🟢]+/u, '').trim();
             abrirModalOSCliente(nome);
             return;
         }
@@ -2885,20 +2918,23 @@ function renderRotaRedonda() {
             <div style="display: flex; align-items: center; gap: 4px; flex: 1;">
                 <label style="font-weight: 600; font-size: 0.75rem; color: white; white-space: nowrap; margin: 0;">Cliente</label>
                 <div style="display:flex; gap:4px; align-items:center; width: 100%;">
-                    <input type="text" id="rr-input-cliente" style="${inputStyle} border:none;" placeholder="Nome do Cliente" oninput="this.dataset.nomeBase = '';">
+                    <input type="text" id="rr-input-cliente" style="${inputStyle} border:none;" placeholder="Nome do Cliente" oninput="this.dataset.nomeBase = '';" onkeydown="if(event.key==='Enter') document.getElementById('btn-pesq-cliente-os').click();">
                     <button id="btn-pesq-cliente-os" style="${btnStyle} background:#1a7a40;" title="Pesquisar cliente"><i class="ph ph-magnifying-glass"></i></button>
                 </div>
             </div>
 
             <div style="display: flex; align-items: center; gap: 4px;">
                 <label style="font-weight: 600; font-size: 0.75rem; color: white; white-space: nowrap; margin: 0;">Patr.</label>
-                <input type="text" id="rr-input-patrimonio" style="${inputStyle} border:none; width: 70px;" placeholder="Patr.">
+                <div style="display:flex; position:relative;">
+                    <input type="text" id="rr-input-patrimonio" style="${inputStyle} border:none; width: 70px; padding-right:26px;" placeholder="Patr." onkeydown="if(event.key==='Enter') document.getElementById('btn-buscar-patrimonio').click();">
+                    <button id="btn-buscar-patrimonio" style="position:absolute; right:0; top:0; bottom:0; background:transparent; border:none; color:#64748b; cursor:pointer; width:26px; display:flex; align-items:center; justify-content:center;" title="Buscar OS deste patrimônio"><i class="ph ph-magnifying-glass"></i></button>
+                </div>
             </div>
 
             <div style="display: flex; align-items: center; gap: 4px;">
                 <label style="font-weight: 600; font-size: 0.75rem; color: white; white-space: nowrap; margin: 0;">Contrato</label>
                 <div style="display:flex; position:relative;">
-                    <input type="text" id="rr-input-contrato" style="${inputStyle} border:none; width: 100px; padding-right:26px;" placeholder="Nº Contrato">
+                    <input type="text" id="rr-input-contrato" style="${inputStyle} border:none; width: 100px; padding-right:26px;" placeholder="Nº Contrato" onkeydown="if(event.key==='Enter') document.getElementById('btn-buscar-contrato').click();">
                     <button id="btn-buscar-contrato" style="position:absolute; right:0; top:0; bottom:0; background:transparent; border:none; color:#64748b; cursor:pointer; width:26px; display:flex; align-items:center; justify-content:center;" title="Buscar OS deste contrato"><i class="ph ph-magnifying-glass"></i></button>
                 </div>
             </div>
@@ -2928,7 +2964,7 @@ function renderRotaRedonda() {
                         <label style="${labelStyle}">Endereço</label>
                         <div style="display:flex; gap:2px; position:relative;">
                             <div style="flex:1; position:relative;">
-                                <input type="text" id="rr-input-endereco" style="${inputStyle} width:100%;" placeholder="Ex: Rua das Flores, 123 - Bairro, Cidade/SP" autocomplete="off">
+                                <input type="text" id="rr-input-endereco" style="${inputStyle} width:100%;" placeholder="Ex: Rua das Flores, 123 - Bairro, Cidade/SP" autocomplete="off" onkeydown="if(event.key==='Enter') document.getElementById('btn-buscar-endereco-os').click();">
                                 <div id="rr-endereco-suggestions" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:300;background:white;border:1px solid #cbd5e1;border-radius:4px;max-height:220px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,0.13);"></div>
                             </div>
                             <button id="btn-geocode-endereco" style="display:none;" title="Buscar endereço"></button>
