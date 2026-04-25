@@ -3,6 +3,7 @@
    ════════════════════════════════════════════════════════════════════════════ */
 
 let osState = {
+    loadedId: null,
     produtos: [],
     tiposServico: new Set(),
     acoes: new Set(),
@@ -978,8 +979,9 @@ function abrirModalListaOS(numOs, registros) {
             }
         } catch(e) {}
 
+        const colorMap = { 'Seg':'#ef4444', 'Ter':'#f97316', 'Qua':'#ca8a04', 'Qui':'#16a34a', 'Sex':'#3b82f6', 'Sáb':'#8b5cf6', 'Dom':'#ec4899' };
         let dSemana = '—';
-        try { dSemana = JSON.parse(r.dias_semana).map(d => `<span style="background:#2563eb;color:white;padding:2px 6px;border-radius:4px;margin-right:4px;">${d}</span>`).join(''); } catch(e) {}
+        try { dSemana = JSON.parse(r.dias_semana).map(d => `<span style="background:${colorMap[d]||'#2563eb'};color:white;padding:2px 6px;border-radius:4px;margin-right:4px;">${d}</span>`).join(''); } catch(e) {}
 
         let hab = '—';
         try { 
@@ -1142,8 +1144,10 @@ window._carregarRegistroNaTela = function(os) {
 };
 
 function carregarRegistroNaTela(os) {
+    osState.loadedId = os.id;
     const set = (id, val) => { const el = document.getElementById(id); if (el && val !== undefined && val !== null) el.value = val; };
     set('rr-input-cliente', os.cliente);
+    set('rr-input-patrimonio', os.patrimonio);
     if (document.getElementById('rr-input-cliente')) {
         document.getElementById('rr-input-cliente').dataset.nomeBase = os.cliente || '';
     }
@@ -1945,6 +1949,23 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // Botão Criar Novo
+        const btnCriarNovo = e.target.closest('#btn-criar-novo');
+        if (btnCriarNovo) {
+            osState.loadedId = null;
+            const dataEl = document.getElementById('rr-input-data');
+            if (dataEl) dataEl.value = '';
+            const tsEl = document.getElementById('rr-tipo-servico-search');
+            if (tsEl) tsEl.value = '';
+            const tsHidden = document.getElementById('rr-tipo-servico');
+            if (tsHidden) tsHidden.value = '';
+            document.querySelectorAll('.btn-tipo-servico').forEach(b => b.classList.remove('ativo'));
+            document.querySelectorAll('.btn-acao').forEach(b => b.classList.remove('ativo'));
+            mostrarToastAviso('Pronto para criar uma nova OS. Insira a data, defina os serviços e clique em Salvar.');
+            if (dataEl) dataEl.focus();
+            return;
+        }
+
         // Botão Colar OS
         const btnColarOs = e.target.closest('#btn-colar-os');
         if (btnColarOs) { abrirModalColarOS(); return; }
@@ -2030,6 +2051,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const payload = {
                 numero_os: document.getElementById('rr-input-os')?.value?.trim() || '',
                 tipo_os: osState.tipoOs || '',
+                patrimonio: document.getElementById('rr-input-patrimonio')?.value?.trim() || '',
                 cliente: (document.getElementById('rr-input-cliente')?.dataset?.nomeBase || document.getElementById('rr-input-cliente')?.value || '').trim(),
                 endereco: document.getElementById('rr-input-endereco')?.value?.trim() || '',
                 complemento: document.getElementById('rr-input-complemento')?.value?.trim() || '',
@@ -2073,12 +2095,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     const payloadE = { ...payload };
                     payloadE.tipo_servico = `ENTREGA ${tipoOsSuffix}`;
-                    payloadE.cliente = `${gerarPrefixoIcones('ENTREGA')} ${nomeBase}`.trim();
+                    payloadE.cliente = `🔄 ${gerarPrefixoIcones('ENTREGA')} ${nomeBase}`.trim();
                     payloadsParaEnviar.push(payloadE);
 
                     const payloadR = { ...payload };
                     payloadR.tipo_servico = `RETIRADA ${tipoOsSuffix} PARCIAL`;
-                    payloadR.cliente = `♻️ ${gerarPrefixoIcones('RETIRADA')} ${nomeBase}`.trim();
+                    payloadR.cliente = `🔄 ♻️ ${gerarPrefixoIcones('RETIRADA')} ${nomeBase}`.trim();
                     payloadsParaEnviar.push(payloadR);
                 } else {
                     payload.cliente = document.getElementById('rr-input-cliente')?.value?.trim() || `${gerarPrefixoIcones()} ${nomeBase}`.trim();
@@ -2090,14 +2112,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 let firstId = null;
 
                 for (const p of payloadsParaEnviar) {
-                    const resp = await fetch('/api/logistica/os', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                        body: JSON.stringify(p)
-                    });
+                    let resp;
+                    if (osState.loadedId && payloadsParaEnviar.length === 1) {
+                        resp = await fetch(`/api/logistica/os/${osState.loadedId}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                            body: JSON.stringify(p)
+                        });
+                    } else {
+                        resp = await fetch('/api/logistica/os', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                            body: JSON.stringify(p)
+                        });
+                    }
                     const result = await resp.json();
 
-                    if (resp.ok && result.ok) {
+                    if (resp.ok && (result.ok || result.id)) {
                         salvosComSucesso++;
                         if (!firstId) firstId = result.id;
                     } else if (resp.status === 409) {
@@ -2154,6 +2185,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Botão Limpar OS
         const btnLimpar = e.target.closest('#btn-limpar-os');
         if (btnLimpar) {
+            osState.loadedId = null;
             osState.produtos = []; osState.tiposServico = new Set();
             osState.acoes = new Set(); osState.clienteConfirmado = true;
             osState.enderecoConfirmado = false;
@@ -2805,6 +2837,11 @@ function renderRotaRedonda() {
             </div>
 
             <div style="display: flex; align-items: center; gap: 4px;">
+                <label style="font-weight: 600; font-size: 0.75rem; color: white; white-space: nowrap; margin: 0;">Patr.</label>
+                <input type="text" id="rr-input-patrimonio" style="${inputStyle} border:none; width: 70px;" placeholder="Patr.">
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 4px;">
                 <label style="font-weight: 600; font-size: 0.75rem; color: white; white-space: nowrap; margin: 0;">Contrato</label>
                 <div style="display:flex; position:relative;">
                     <input type="text" id="rr-input-contrato" style="${inputStyle} border:none; width: 100px; padding-right:26px;" placeholder="Nº Contrato">
@@ -2820,6 +2857,7 @@ function renderRotaRedonda() {
             <div style="display:flex; gap:0.5rem; margin-left: auto;">
                 <button id="btn-colar-os" style="background:#f59e0b; color:white; border:none; height:26px; padding:0 10px; border-radius:4px; font-size:0.75rem; cursor:pointer; font-weight:600;" title="Colar texto da OS e preencher automaticamente"><i class="ph ph-clipboard-text"></i> Colar OS</button>
                 <button id="btn-limpar-os" style="background:#ef4444; color:white; border:none; height:26px; padding:0 10px; border-radius:4px; font-size:0.75rem; cursor:pointer; font-weight:600;"><i class="ph ph-x"></i> Limpar</button>
+                <button id="btn-criar-novo" style="background:#0284c7; color:white; border:none; height:26px; padding:0 10px; border-radius:4px; font-size:0.75rem; cursor:pointer; font-weight:600;" title="Criar nova OS com os dados carregados"><i class="ph ph-copy"></i> Criar Novo</button>
                 <button id="btn-gerar-os-final" style="background:#14b8a6; color:white; border:none; height:26px; padding:0 10px; border-radius:4px; font-size:0.75rem; cursor:pointer; font-weight:600;"><i class="ph ph-check-circle"></i> Salvar</button>
             </div>
         </div>

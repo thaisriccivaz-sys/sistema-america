@@ -7849,6 +7849,7 @@ db.run(`CREATE TABLE IF NOT EXISTS os_logistica (
     habilidades TEXT,
     variaveis TEXT,
     link_video TEXT,
+    patrimonio TEXT,
     status TEXT DEFAULT 'ativo',
     criado_em TEXT DEFAULT (datetime('now')),
     atualizado_em TEXT DEFAULT (datetime('now'))
@@ -7859,6 +7860,7 @@ db.run(`CREATE TABLE IF NOT EXISTS os_logistica (
         db.run("ALTER TABLE os_logistica ADD COLUMN observacoes_internas TEXT", () => {});
         db.run("ALTER TABLE os_logistica ADD COLUMN habilidades TEXT", () => {});
         db.run("ALTER TABLE os_logistica ADD COLUMN variaveis TEXT", () => {});
+        db.run("ALTER TABLE os_logistica ADD COLUMN patrimonio TEXT", () => {});
     }
 });
 
@@ -8017,12 +8019,14 @@ app.post('/api/logistica/os', authenticateToken, (req, res) => {
         numero_os, tipo_os, cliente, endereco, complemento, cep, lat, lng,
         contrato, data_os, responsavel, telefone, email, tipo_servico,
         hora_inicio, hora_fim, turno, dias_semana, produtos, observacoes,
-        observacoes_internas, habilidades, variaveis, link_video
+        observacoes_internas, habilidades, variaveis, link_video, patrimonio
     } = req.body;
 
     if (!numero_os || !cliente) {
         return res.status(400).json({ error: 'Número da OS e nome do cliente são obrigatórios.' });
     }
+
+    const sanitizeCliente = (str) => (str || '').replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\s🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘🟢🔴🔄]+/u, '').trim().toLowerCase();
 
     // Verifica se já existe uma OS com esse número mas cliente DIFERENTE
     db.get(
@@ -8032,8 +8036,8 @@ app.post('/api/logistica/os', authenticateToken, (req, res) => {
             if (errCheck) return res.status(500).json({ error: errCheck.message });
 
             if (existente) {
-                const clienteExistente = (existente.cliente || '').trim().toLowerCase();
-                const clienteNovo = (cliente || '').trim().toLowerCase();
+                const clienteExistente = sanitizeCliente(existente.cliente);
+                const clienteNovo = sanitizeCliente(cliente);
                 if (clienteExistente !== clienteNovo) {
                     return res.status(409).json({
                         error: `O número de OS "${numero_os}" já está cadastrado para o cliente: "${existente.cliente}". Não é possível usar este número para outro cliente.`,
@@ -8045,8 +8049,8 @@ app.post('/api/logistica/os', authenticateToken, (req, res) => {
             // Cliente OK (mesmo ou nova OS) — insere
             db.run(`INSERT INTO os_logistica (numero_os, tipo_os, cliente, endereco, complemento, cep, lat, lng,
                 contrato, data_os, responsavel, telefone, email, tipo_servico, hora_inicio, hora_fim,
-                turno, dias_semana, produtos, observacoes, observacoes_internas, habilidades, variaveis, link_video)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                turno, dias_semana, produtos, observacoes, observacoes_internas, habilidades, variaveis, link_video, patrimonio)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [numero_os, tipo_os, cliente, endereco, complemento, cep,
                  lat ? parseFloat(lat) : null, lng ? parseFloat(lng) : null,
                  contrato, data_os, responsavel, telefone, email, tipo_servico,
@@ -8056,7 +8060,7 @@ app.post('/api/logistica/os', authenticateToken, (req, res) => {
                  observacoes, observacoes_internas, 
                  typeof habilidades === 'object' ? JSON.stringify(habilidades) : habilidades,
                  typeof variaveis === 'object' ? JSON.stringify(variaveis) : variaveis,
-                 link_video],
+                 link_video, patrimonio],
                 function(err) {
                     if (err) return res.status(500).json({ error: err.message });
                     res.status(201).json({ ok: true, id: this.lastID });
@@ -8064,6 +8068,54 @@ app.post('/api/logistica/os', authenticateToken, (req, res) => {
             );
         }
     );
+});
+
+// PUT /api/logistica/os/:id — Atualizar OS existente
+app.put('/api/logistica/os/:id', authenticateToken, (req, res) => {
+    const {
+        numero_os, tipo_os, cliente, endereco, complemento, cep, lat, lng,
+        contrato, data_os, responsavel, telefone, email, tipo_servico,
+        hora_inicio, hora_fim, turno, dias_semana, produtos, observacoes,
+        observacoes_internas, habilidades, variaveis, link_video, patrimonio
+    } = req.body;
+
+    const sanitizeCliente = (str) => (str || '').replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\s🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘🟢🔴🔄]+/u, '').trim().toLowerCase();
+
+    db.get(`SELECT cliente FROM os_logistica WHERE numero_os = ? AND id != ? AND status = 'ativo' LIMIT 1`, [numero_os?.trim(), req.params.id], (errCheck, existente) => {
+        if (errCheck) return res.status(500).json({ error: errCheck.message });
+        
+        if (existente) {
+            const clienteExistente = sanitizeCliente(existente.cliente);
+            const clienteNovo = sanitizeCliente(cliente);
+            if (clienteExistente !== clienteNovo) {
+                return res.status(409).json({
+                    error: `O número de OS "${numero_os}" já está cadastrado para o cliente: "${existente.cliente}". Não é possível usar este número para outro cliente.`,
+                    cliente_existente: existente.cliente
+                });
+            }
+        }
+
+        db.run(`UPDATE os_logistica SET 
+            numero_os=?, tipo_os=?, cliente=?, endereco=?, complemento=?, cep=?, lat=?, lng=?,
+            contrato=?, data_os=?, responsavel=?, telefone=?, email=?, tipo_servico=?, hora_inicio=?, hora_fim=?,
+            turno=?, dias_semana=?, produtos=?, observacoes=?, observacoes_internas=?, habilidades=?, variaveis=?, link_video=?, patrimonio=?,
+            atualizado_em=datetime('now') WHERE id=?`,
+            [numero_os, tipo_os, cliente, endereco, complemento, cep,
+             lat ? parseFloat(lat) : null, lng ? parseFloat(lng) : null,
+             contrato, data_os, responsavel, telefone, email, tipo_servico,
+             hora_inicio, hora_fim, turno,
+             typeof dias_semana === 'object' ? JSON.stringify(dias_semana) : dias_semana,
+             typeof produtos === 'object' ? JSON.stringify(produtos) : produtos,
+             observacoes, observacoes_internas, 
+             typeof habilidades === 'object' ? JSON.stringify(habilidades) : habilidades,
+             typeof variaveis === 'object' ? JSON.stringify(variaveis) : variaveis,
+             link_video, patrimonio, req.params.id],
+            function(err) {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json({ ok: true });
+            }
+        );
+    });
 });
 
 // DELETE /api/logistica/os/:id — Excluir OS
