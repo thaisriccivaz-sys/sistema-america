@@ -7926,8 +7926,23 @@ app.get('/api/logistica/os/agenda-endereco', authenticateToken, (req, res) => {
                     .sort((a, b) => a.distancia_km - b.distancia_km)
                     .slice(0, 10);
 
-                // Agrega dias da semana dos resultados exatos
-                const diasAgregados = agregaDias(rowsExatos || []);
+                // Agrega dias da semana dos resultados exatos e próximos
+                const os2km = [];
+                const os5km = [];
+                
+                const allOsWithDistance = [
+                    ...(rowsExatos || []).map(r => ({ ...r, distancia_km: r.lat && r.lng ? haversineKm(userLat, userLng, r.lat, r.lng) : 0 })),
+                    ...proximo
+                ];
+
+                for (const os of allOsWithDistance) {
+                    if (os.distancia_km <= 2) os2km.push(os);
+                    else if (os.distancia_km <= 5) os5km.push(os);
+                }
+
+                const diasSugeridos2km = agregaDias(os2km);
+                const diasSugeridos5km = agregaDias(os5km);
+
                 const diasProximos = proximo.map(os => ({
                     ...os,
                     dias_semana_arr: parseDias(os.dias_semana)
@@ -7935,7 +7950,8 @@ app.get('/api/logistica/os/agenda-endereco', authenticateToken, (req, res) => {
 
                 res.json({
                     exatos: rowsExatos || [],
-                    dias_sugeridos: diasAgregados,
+                    dias_sugeridos_2km: diasSugeridos2km,
+                    dias_sugeridos_5km: diasSugeridos5km,
                     proximos: diasProximos,
                     total_exatos: (rowsExatos || []).length,
                     total_proximos: proximo.length
@@ -7945,7 +7961,8 @@ app.get('/api/logistica/os/agenda-endereco', authenticateToken, (req, res) => {
             const diasAgregados = agregaDias(rowsExatos || []);
             res.json({
                 exatos: rowsExatos || [],
-                dias_sugeridos: diasAgregados,
+                dias_sugeridos_2km: diasAgregados,
+                dias_sugeridos_5km: [],
                 proximos: [],
                 total_exatos: (rowsExatos || []).length,
                 total_proximos: 0

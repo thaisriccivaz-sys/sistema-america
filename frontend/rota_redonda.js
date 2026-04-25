@@ -1211,17 +1211,46 @@ function parseDiasFront(diasJson) {
 function exibirModalAgendaEndereco(data, enderecoAtual) {
     document.getElementById('rr-modal-agenda-end')?.remove();
     const DIAS_ALL = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
-    const diasSugeridos = data.dias_sugeridos || [];
+    const colorMap = { 'Seg':'#ef4444', 'Ter':'#f97316', 'Qua':'#ca8a04', 'Qui':'#16a34a', 'Sex':'#3b82f6', 'Sáb':'#8b5cf6', 'Dom':'#ec4899' };
+    
     const exatos = data.exatos || [];
     const proximos = data.proximos || [];
 
-    const pilulasSugeridos = diasSugeridos.length > 0
-        ? diasSugeridos.map(d => `<span style="background:#dcfce7;color:#166534;border:1px solid #bbf7d0;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:700;margin:2px;">${d.dia} <small style="opacity:0.7;">(${d.ocorrencias}x)</small></span>`).join('')
-        : '<span style="color:#94a3b8;font-size:0.75rem;">Nenhuma manutenção encontrada para este endereço exato.</span>';
+    let msgSugestao = '';
+    const renderPills = (diasArr) => diasArr.map(d => `<span style="background:${colorMap[d.dia]||'#2563eb'};color:white;border:none;border-radius:4px;padding:2px 10px;font-size:0.72rem;font-weight:700;margin:2px;box-shadow: 0 1px 2px rgba(0,0,0,0.2);">${d.dia} <small style="opacity:0.9;">(${d.ocorrencias}x)</small></span>`).join('');
+
+    if (data.dias_sugeridos_2km && data.dias_sugeridos_2km.length > 0) {
+        msgSugestao = `
+            <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:0.75rem;">
+                <p style="margin:0 0 0.5rem 0; font-weight:700; color:#166534; font-size:0.85rem;"><i class="ph ph-check-square"></i> Dias com manutenção já programada nesta área (até 2km):</p>
+                <div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:0.5rem;">
+                    ${renderPills(data.dias_sugeridos_2km)}
+                </div>
+                <p style="margin:0; font-size:0.7rem; color:#15803d;"><i class="ph ph-lightning"></i> Recomendamos agendar nestes mesmos dias para otimizar a logística.</p>
+            </div>
+        `;
+    } else if (data.dias_sugeridos_5km && data.dias_sugeridos_5km.length > 0) {
+        msgSugestao = `
+            <div style="background:#fefce8; border:1px solid #fef08a; border-radius:8px; padding:0.75rem;">
+                <p style="margin:0 0 0.5rem 0; font-weight:700; color:#854d0e; font-size:0.85rem;"><i class="ph ph-warning"></i> Dias com manutenção programada nesta região (até 5km):</p>
+                <div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:0.5rem;">
+                    ${renderPills(data.dias_sugeridos_5km)}
+                </div>
+                <p style="margin:0; font-size:0.7rem; color:#a16207;"><i class="ph ph-info"></i> Considere agendar nestes dias se não houver outra opção mais próxima.</p>
+            </div>
+        `;
+    } else {
+        msgSugestao = `
+            <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:0.75rem;">
+                <p style="margin:0; font-weight:700; color:#b91c1c; font-size:0.85rem;"><i class="ph ph-warning-circle"></i> Nenhuma manutenção programada em um raio de 5km.</p>
+                <p style="margin:0.25rem 0 0 0; font-size:0.7rem; color:#991b1b;">Não há sugestões de dias baseados em proximidade.</p>
+            </div>
+        `;
+    }
 
     const linhasExatos = exatos.map(os => {
         const dias = parseDiasFront(os.dias_semana);
-        const pills = DIAS_ALL.map(d => `<span style="display:inline-block;width:26px;height:20px;line-height:20px;text-align:center;border-radius:4px;font-size:0.6rem;font-weight:700;background:${dias.includes(d)?'#2d9e5f':'#f1f5f9'};color:${dias.includes(d)?'white':'#94a3b8'};">${d}</span>`).join('');
+        const pills = DIAS_ALL.map(d => `<span style="display:inline-block;width:26px;height:20px;line-height:20px;text-align:center;border-radius:4px;font-size:0.6rem;font-weight:700;background:${dias.includes(d)?(colorMap[d]||'#2563eb'):'#f1f5f9'};color:${dias.includes(d)?'white':'#94a3b8'};">${d}</span>`).join('');
         return `<tr style="border-bottom:1px solid #f1f5f9;">
             <td style="padding:4px 6px;font-size:0.7rem;font-weight:600;color:#2d9e5f;">${os.numero_os||'-'}</td>
             <td style="padding:4px 6px;font-size:0.7rem;">${os.cliente||'-'}</td>
@@ -1231,7 +1260,7 @@ function exibirModalAgendaEndereco(data, enderecoAtual) {
 
     const linhasProximos = proximos.map(os => {
         const dias = parseDiasFront(os.dias_semana);
-        const pills = DIAS_ALL.map(d => `<span style="display:inline-block;width:26px;height:20px;line-height:20px;text-align:center;border-radius:4px;font-size:0.6rem;font-weight:700;background:${dias.includes(d)?'#f59e0b':'#f1f5f9'};color:${dias.includes(d)?'white':'#94a3b8'};">${d}</span>`).join('');
+        const pills = DIAS_ALL.map(d => `<span style="display:inline-block;width:26px;height:20px;line-height:20px;text-align:center;border-radius:4px;font-size:0.6rem;font-weight:700;background:${dias.includes(d)?(colorMap[d]||'#f59e0b'):'#f1f5f9'};color:${dias.includes(d)?'white':'#94a3b8'};">${d}</span>`).join('');
         return `<tr style="border-bottom:1px solid #f1f5f9;">
             <td style="padding:4px 6px;font-size:0.7rem;font-weight:600;color:#f59e0b;">${os.numero_os||'-'}</td>
             <td style="padding:4px 6px;font-size:0.7rem;">${os.cliente||'-'}</td>
@@ -1251,11 +1280,7 @@ function exibirModalAgendaEndereco(data, enderecoAtual) {
                 <button id="btn-fechar-modal-agenda" style="background:transparent;border:none;color:white;font-size:1.1rem;cursor:pointer;"><i class="ph ph-x"></i></button>
             </div>
             <div style="overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:1rem;">
-                <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:0.75rem;">
-                    <p style="font-size:0.75rem;font-weight:700;color:#166534;margin:0 0 6px;">✅ Dias com manutenção já programada neste endereço:</p>
-                    <div style="display:flex;flex-wrap:wrap;gap:4px;">${pilulasSugeridos}</div>
-                    ${diasSugeridos.length > 0 ? '<p style="font-size:0.68rem;color:#166534;margin:6px 0 0;">💡 Recomendamos agendar nestes mesmos dias para otimizar a logística.</p>' : ''}
-                </div>
+                ${msgSugestao}
                 ${exatos.length > 0 ? `<div>
                     <p style="font-size:0.75rem;font-weight:700;color:#334155;margin:0 0 6px;"><i class="ph ph-map-pin"></i> OS neste endereço (${exatos.length}):</p>
                     <table style="width:100%;border-collapse:collapse;">
