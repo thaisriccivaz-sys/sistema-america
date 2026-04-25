@@ -616,42 +616,13 @@ async function geocodeEndereco() {
 // ── MODAL GOOGLE MAPS ─────────────────────────────────────────────────────────
 function colarUrlGoogleMaps() {
     const endereco = document.getElementById('rr-input-endereco')?.value?.trim();
-
     // Abre Google Maps em nova aba com o endereço atual
     const mapsUrl = 'https://www.google.com/maps/search/' + encodeURIComponent(endereco || 'São Paulo, Brasil');
     window.open(mapsUrl, '_blank');
-
-    // Modal centralizado — apenas lat/lng
-    document.getElementById('rr-gmaps-modal')?.remove();
-    const overlay = document.createElement('div');
-    overlay.id = 'rr-gmaps-modal';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;';
-    overlay.innerHTML = `
-        <div style="background:white;border-radius:12px;width:380px;max-width:95vw;box-shadow:0 16px 48px rgba(0,0,0,0.28);overflow:hidden;">
-            <div style="background:#15803d;color:white;padding:0.9rem 1.2rem;display:flex;justify-content:space-between;align-items:center;">
-                <div>
-                    <div style="font-weight:700;font-size:0.95rem;">&#127758; Google Maps aberto</div>
-                    <div style="font-size:0.72rem;opacity:0.85;margin-top:2px;">Confirme o pin correto e cole as coordenadas abaixo</div>
-                </div>
-                <button onclick="document.getElementById('rr-gmaps-modal').remove()" style="background:rgba(255,255,255,0.2);border:none;color:white;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">&#10005;</button>
-            </div>
-            <div style="padding:1.2rem;">
-                <label style="font-size:0.78rem;font-weight:600;color:#374151;display:block;margin-bottom:6px;">&#128205; Latitude, Longitude</label>
-                <input id="rr-gmaps-coord-input" type="text" placeholder="Ex: -23.5236807, -46.7391688"
-                    style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:6px;font-size:0.85rem;outline:none;margin-bottom:0.3rem;"
-                    onfocus="this.style.borderColor='#16a34a'" onblur="this.style.borderColor='#cbd5e1'"
-                    onkeydown="if(event.key==='Enter') _aplicarUrlGoogleMaps()">
-                <div style="font-size:0.68rem;color:#6b7280;margin-bottom:1rem;">Cole as coordenadas do Google Maps. Ex: <strong>-23.5236807, -46.7391688</strong></div>
-                <input id="rr-gmaps-url-input" type="hidden">
-                <button onclick="_aplicarUrlGoogleMaps()" style="width:100%;background:#15803d;color:white;border:none;border-radius:7px;padding:9px;font-size:0.85rem;font-weight:700;cursor:pointer;transition:background 0.15s;"
-                    onmouseover="this.style.background='#166534'" onmouseout="this.style.background='#15803d'">&#10003; Aplicar coordenadas no mapa</button>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(overlay);
-    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
-    setTimeout(() => document.getElementById('rr-gmaps-coord-input')?.focus(), 150);
+    // Reutiliza o popup centralizado de lat/lng
+    _abrirPopupCoordenadas(mapsUrl);
 }
+
 
 window._aplicarUrlGoogleMaps = function() {
     let lat = null, lng = null;
@@ -722,13 +693,57 @@ function atualizarLinkMapsBadge(url) {
         return;
     }
     const urlCurta = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+    // Guarda a URL no estado global para uso no modal de coordenadas
+    osState.linkGoogleMaps = url;
+
     badge.style.display = 'inline-flex';
     badge.innerHTML = `<i class="ph ph-map-pin" style="font-size:0.85rem;"></i>
         <a href="${url}" target="_blank" style="color:#f97316;text-decoration:none;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${url}">${urlCurta}</a>
-        <button onclick="navigator.clipboard.writeText('${url}').then(()=>mostrarToastAviso('✅ Link copiado!'))" title="Copiar link" style="background:none;border:none;cursor:pointer;padding:0 2px;color:#f97316;display:flex;align-items:center;">
-            <i class="ph ph-copy" style="font-size:0.85rem;"></i>
+        <button id="btn-abrir-link-maps" title="Abrir no Maps e informar coordenadas" style="background:none;border:none;cursor:pointer;padding:0 2px;color:#f97316;display:flex;align-items:center;">
+            <i class="ph ph-arrow-square-out" style="font-size:0.9rem;"></i>
         </button>`;
+
+    // Ao clicar no botão de abrir: abre o Maps e mostra o popup de lat/lng (igual ao botão G)
+    badge.querySelector('#btn-abrir-link-maps')?.addEventListener('click', () => {
+        window.open(url, '_blank');
+        // Reutiliza exatamente o mesmo modal do botão G
+        _abrirPopupCoordenadas(url);
+    });
 }
+
+// Abre o modal de colar lat/lng (usado pelo botão G e pelo badge do link)
+function _abrirPopupCoordenadas(urlOrigem) {
+    document.getElementById('rr-gmaps-modal')?.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'rr-gmaps-modal';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;';
+    overlay.innerHTML = `
+        <div style="background:white;border-radius:12px;width:380px;max-width:95vw;box-shadow:0 16px 48px rgba(0,0,0,0.28);overflow:hidden;">
+            <div style="background:#15803d;color:white;padding:0.9rem 1.2rem;display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                    <div style="font-weight:700;font-size:0.95rem;">&#127758; Google Maps aberto</div>
+                    <div style="font-size:0.72rem;opacity:0.85;margin-top:2px;">Confirme o pin correto e cole as coordenadas abaixo</div>
+                </div>
+                <button onclick="document.getElementById('rr-gmaps-modal').remove()" style="background:rgba(255,255,255,0.2);border:none;color:white;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">&#10005;</button>
+            </div>
+            <div style="padding:1.2rem;">
+                <label style="font-size:0.78rem;font-weight:600;color:#374151;display:block;margin-bottom:6px;">&#128205; Latitude, Longitude</label>
+                <input id="rr-gmaps-coord-input" type="text" placeholder="Ex: -23.5236807, -46.7391688"
+                    style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:6px;font-size:0.85rem;outline:none;margin-bottom:0.3rem;"
+                    onfocus="this.style.borderColor='#16a34a'" onblur="this.style.borderColor='#cbd5e1'"
+                    onkeydown="if(event.key==='Enter') _aplicarUrlGoogleMaps()">
+                <div style="font-size:0.68rem;color:#6b7280;margin-bottom:1rem;">Cole as coordenadas do Google Maps. Ex: <strong>-23.5236807, -46.7391688</strong></div>
+                <input id="rr-gmaps-url-input" type="hidden">
+                <button onclick="_aplicarUrlGoogleMaps()" style="width:100%;background:#15803d;color:white;border:none;border-radius:7px;padding:9px;font-size:0.85rem;font-weight:700;cursor:pointer;transition:background 0.15s;"
+                    onmouseover="this.style.background='#166534'" onmouseout="this.style.background='#15803d'">&#10003; Aplicar coordenadas no mapa</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+    setTimeout(() => document.getElementById('rr-gmaps-coord-input')?.focus(), 150);
+}
+
 
 function exibirModalSucessoOS(osId, payload) {
     document.getElementById('rr-modal-sucesso-os')?.remove();
