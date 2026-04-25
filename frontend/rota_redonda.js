@@ -239,77 +239,115 @@ function calcularCargaTotalFromLista() {
 
 
 // ══════════════════════════════════════════════════════════════════════════════
-// GEOCODIFICAÇÃO DE ENDEREÇO (Google Maps Geocoding API)
+// MAPA INTERATIVO — Leaflet.js + OpenStreetMap + Nominatim (100% gratuito)
 // ══════════════════════════════════════════════════════════════════════════════
 
-// ⚠️  CONFIGURAR: Substitua pela sua Google Maps API Key no Render (variável de ambiente)
-// APIs necessárias: Maps JavaScript API + Geocoding API
-// Dashboard: https://console.cloud.google.com/apis/credentials
-const GOOGLE_MAPS_API_KEY = window.GOOGLE_MAPS_KEY || '';
+let _leafletMap    = null; // instância única do mapa
+let _leafletMarker = null; // marcador atual
+
+function inicializarMapa() {
+    if (_leafletMap) return; // já inicializado
+    const el = document.getElementById('rr-mapa-leaflet');
+    if (!el || typeof L === 'undefined') return;
+
+    _leafletMap = L.map('rr-mapa-leaflet', {
+        center: [-23.5505, -46.6333], // São Paulo como centro inicial
+        zoom: 11,
+        zoomControl: true,
+        attributionControl: true
+    });
+
+    // Tile layer OpenStreetMap
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 19
+    }).addTo(_leafletMap);
+
+    // Clique no mapa → geocodificação reversa (lat/lng → endereço)
+    _leafletMap.on('click', async (e) => {
+        const { lat, lng } = e.latlng;
+        posicionarMarcador(lat, lng);
+        preencherLatLng(lat, lng);
+        // Geocodificação reversa via Nominatim
+        try {
+            const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=pt-BR`, {
+                headers: { 'Accept-Language': 'pt-BR', 'User-Agent': 'AmericaRentalSistema/1.0' }
+            });
+            const d = await r.json();
+            if (d.display_name) {
+                const endInput = document.getElementById('rr-input-endereco');
+                if (endInput) { endInput.value = d.display_name; endInput.style.background = '#f0fdf4'; }
+            }
+        } catch (_) {}
+    });
+}
+
+function posicionarMarcador(lat, lng) {
+    if (!_leafletMap) return;
+    const icon = L.divIcon({
+        html: '<div style="background:#ef4444;width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.4);"></div>',
+        className: '', iconAnchor: [7, 7]
+    });
+    if (_leafletMarker) _leafletMarker.remove();
+    _leafletMarker = L.marker([lat, lng], { icon }).addTo(_leafletMap);
+    _leafletMap.setView([lat, lng], 16, { animate: true });
+}
+
+function preencherLatLng(lat, lng) {
+    const latInput = document.getElementById('rr-input-lat');
+    const lngInput = document.getElementById('rr-input-lng');
+    if (latInput) { latInput.removeAttribute('readonly'); latInput.value = lat.toFixed(7); latInput.style.background = '#f0fdf4'; latInput.setAttribute('readonly', ''); }
+    if (lngInput) { lngInput.removeAttribute('readonly'); lngInput.value = lng.toFixed(7); lngInput.style.background = '#f0fdf4'; lngInput.setAttribute('readonly', ''); }
+    osState.lat = lat;
+    osState.lng = lng;
+}
 
 async function geocodeEndereco() {
     const endInput = document.getElementById('rr-input-endereco');
-    const latInput = document.getElementById('rr-input-lat');
-    const lngInput = document.getElementById('rr-input-lng');
     const btn      = document.getElementById('btn-geocode-endereco');
-    const mapa     = document.getElementById('rr-mapa-embed');
+    const placeholder = document.getElementById('rr-mapa-placeholder');
 
     const endereco = endInput?.value?.trim();
     if (!endereco) { endInput?.focus(); return; }
 
-    // Feedback visual: botão girando
+    // Spinner no botão
     if (btn) { btn.innerHTML = '<i class="ph ph-circle-notch" style="animation:spin 1s linear infinite;"></i>'; btn.disabled = true; }
 
     try {
-        if (!GOOGLE_MAPS_API_KEY) {
-            // Sem API Key: usa apenas o Google Maps Embed (busca pelo nome, sem lat/lng automático)
-            if (mapa) {
-                const q = encodeURIComponent(endereco);
-                mapa.src = `https://maps.google.com/maps?q=${q}&output=embed&z=16`;
-                mapa.style.display = 'block';
-            }
-            if (latInput) { latInput.value = ''; latInput.placeholder = 'Configure a API Key'; }
-            if (lngInput) { lngInput.value = ''; lngInput.placeholder = 'Configure a API Key'; }
-
-            mostrarToastAviso('⚠️ Google Maps API Key não configurada. O mapa foi carregado, mas lat/lng não foram preenchidos automaticamente. Configure GOOGLE_MAPS_KEY nas variáveis de ambiente do Render.');
-            return;
-        }
-
-        // Com API Key: geocodificação completa
-        const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(endereco)}&key=${GOOGLE_MAPS_API_KEY}&language=pt-BR`;
-        const resp = await fetch(url);
+        // Nominatim: geocodificação gratuita, sem API key
+        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(endereco)}&format=json&limit=1&accept-language=pt-BR&countrycodes=br`;
+        const resp = await fetch(url, {
+            headers: { 'Accept-Language': 'pt-BR', 'User-Agent': 'AmericaRentalSistema/1.0' }
+        });
         const data = await resp.json();
 
-        if (data.status !== 'OK' || !data.results?.[0]) {
-            mostrarToastAviso('❌ Endereço não encontrado. Tente ser mais específico.');
+        if (!data || data.length === 0) {
+            mostrarToastAviso('❌ Endereço não encontrado. Tente incluir cidade/estado ou CEP.');
             return;
         }
 
-        const result = data.results[0];
-        const loc = result.geometry.location;
-        const lat = loc.lat;
-        const lng = loc.lng;
+        const lat = parseFloat(data[0].lat);
+        const lng = parseFloat(data[0].lon);
+        const nomeFormatado = data[0].display_name;
 
-        // Preenche campos lat/lng (desbloqueados readonly temporariamente)
-        if (latInput) { latInput.removeAttribute('readonly'); latInput.value = lat.toFixed(7); latInput.style.background = '#f0fdf4'; latInput.setAttribute('readonly', ''); }
-        if (lngInput) { lngInput.removeAttribute('readonly'); lngInput.value = lng.toFixed(7); lngInput.style.background = '#f0fdf4'; lngInput.setAttribute('readonly', ''); }
+        // Mostra o mapa e oculta placeholder
+        if (placeholder) placeholder.style.display = 'none';
+        const mapaDiv = document.getElementById('rr-mapa-leaflet');
+        if (mapaDiv) mapaDiv.style.display = 'block';
 
-        // Atualiza estado
-        osState.lat = lat;
-        osState.lng = lng;
+        // Inicializa mapa se ainda não foi feito
+        inicializarMapa();
 
-        // Preenche o endereço formatado retornado pelo Google (se campo estiver vazio ou igual)
-        const endFormatado = result.formatted_address;
-        if (endInput && endInput.value === endereco) endInput.value = endFormatado;
-
-        // Carrega mapa embed com marcador exato
-        if (mapa) {
-            mapa.src = `https://maps.google.com/maps?q=${lat},${lng}&output=embed&z=17`;
-            mapa.style.display = 'block';
-        }
+        // Aguarda o mapa estar pronto e posiciona
+        setTimeout(() => {
+            _leafletMap.invalidateSize();
+            posicionarMarcador(lat, lng);
+            preencherLatLng(lat, lng);
+            if (endInput) { endInput.value = nomeFormatado; endInput.style.background = '#f0fdf4'; }
+        }, 50);
 
     } catch (err) {
-        console.error('[Geocode]', err);
+        console.error('[Nominatim]', err);
         mostrarToastAviso('❌ Erro ao buscar endereço. Verifique sua conexão.');
     } finally {
         if (btn) { btn.innerHTML = '<i class="ph ph-magnifying-glass"></i>'; btn.disabled = false; }
@@ -324,11 +362,15 @@ function mostrarToastAviso(msg) {
     setTimeout(() => t.remove(), 9000);
 }
 
-// CSS keyframe para o spinner do botão
+// CSS: spinner + fix Leaflet z-index dentro do layout
 if (!document.getElementById('rr-keyframes')) {
     const s = document.createElement('style');
     s.id = 'rr-keyframes';
-    s.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
+    s.textContent = `
+        @keyframes spin { to { transform: rotate(360deg); } }
+        #rr-mapa-leaflet .leaflet-control { z-index: 1; }
+        #rr-mapa-leaflet { background: #e8f4f8; }
+    `;
     document.head.appendChild(s);
 }
 
@@ -1128,8 +1170,8 @@ function renderRotaRedonda() {
                 <div id="rr-mapa-container" style="background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 6px; height: 100%; display: flex; flex-direction: column; position: relative; overflow: hidden;">
                     <!-- Header do Mapa -->
                     <div style="background: rgba(255,255,255,0.97); padding: 0.4rem 0.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; flex-shrink:0;">
-                        <span style="font-size:0.75rem; font-weight:700; color:#475569; display:flex; align-items:center; gap:4px;"><i class="ph ph-map-pin" style="color:#0ea5e9;"></i> Localização</span>
-                        <button onclick="const f=document.getElementById('rr-mapa-embed');if(f&&f.src&&f.src!=='about:blank')window.open(f.src.replace('output=embed','').replace('&z=17',''),'_blank');" style="background:#3b82f6; color:white; padding:2px 8px; font-size:0.7rem; border-radius:4px; border:none; cursor:pointer; font-weight:600;">
+                        <span style="font-size:0.75rem; font-weight:700; color:#475569; display:flex; align-items:center; gap:4px;"><i class="ph ph-map-pin" style="color:#0ea5e9;"></i> Localização <span style="font-size:0.65rem; background:#f0fdf4; color:#16a34a; border-radius:4px; padding:1px 5px; font-weight:600; margin-left:4px;">OpenStreetMap</span></span>
+                        <button onclick="if(window.osState?.lat&&window.osState?.lng)window.open('https://www.openstreetmap.org/?mlat='+osState.lat+'&mlon='+osState.lng+'#map=17/'+osState.lat+'/'+osState.lng,'_blank');" style="background:#3b82f6; color:white; padding:2px 8px; font-size:0.7rem; border-radius:4px; border:none; cursor:pointer; font-weight:600;">
                             <i class="ph ph-arrows-out"></i> Ampliar
                         </button>
                     </div>
@@ -1137,9 +1179,10 @@ function renderRotaRedonda() {
                     <div id="rr-mapa-placeholder" style="flex:1; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:0.5rem; color:#94a3b8; padding:1rem; text-align:center;">
                         <i class="ph ph-map-trifold" style="font-size:2.5rem; color:#cbd5e1;"></i>
                         <p style="font-size:0.75rem; margin:0; font-weight:500;">Digite o endereço e clique em 🔍<br>para carregar o mapa e obter as coordenadas</p>
+                        <span style="font-size:0.65rem; color:#b0bec5; margin-top:4px;">🌍 Mapa gratuito via OpenStreetMap</span>
                     </div>
-                    <!-- Iframe do mapa (oculto até busca) -->
-                    <iframe id="rr-mapa-embed" src="about:blank" style="display:none; flex:1; width:100%; height:100%; border:none;" allowfullscreen loading="lazy"></iframe>
+                    <!-- DIV do Leaflet (oculto até busca) -->
+                    <div id="rr-mapa-leaflet" style="display:none; flex:1; width:100%; min-height:200px;"></div>
                 </div>
             </div>
 
