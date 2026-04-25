@@ -850,12 +850,15 @@ function abrirModalListaOS(numOs, registros) {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
             });
-            if (!resp.ok) throw new Error('Erro ao excluir');
+            if (!resp.ok) {
+                const txt = await resp.text();
+                throw new Error(txt || 'Erro ao excluir');
+            }
             if (typeof showToast === 'function') showToast('OS excluída com sucesso!', 'success');
             modal.remove(); // Fecha o modal e obriga recarregar se buscar de novo
         } catch (e) {
             console.error(e);
-            alert('Erro ao excluir OS.');
+            alert(`Erro ao excluir OS: ${e.message}`);
         }
     };
 
@@ -1375,17 +1378,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const view = document.getElementById('view-logistica-rota-redonda');
     if (view) observer.observe(view, { attributes: true, attributeFilter: ['class'] });
 
-    // ─ Enter no campo OS: carrega dados de uma OS existente ─────────────────
-    const inputOs = document.getElementById('rr-input-os');
-    if (inputOs) {
-        inputOs.addEventListener('keydown', async (e) => {
-            if (e.key !== 'Enter') return;
+    // Event Delegation
+    document.addEventListener('keydown', async (e) => {
+        if (!document.getElementById('view-logistica-rota-redonda')?.classList.contains('active')) return;
+        if (e.target.id === 'rr-input-os' && e.key === 'Enter') {
             e.preventDefault();
-            const numOs = inputOs.value.trim();
-            if (!numOs) return;
+            const numOs = e.target.value.trim();
+            if (!numOs) { alert('Digite o número da OS primeiro.'); return; }
             await carregarOsPorNumero(numOs);
-        });
-    }
+        }
+    });
 
     // Event Delegation
     document.addEventListener('change', (e) => {
