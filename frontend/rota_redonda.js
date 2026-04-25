@@ -764,20 +764,10 @@ function exibirModalSucessoOS(osId, payload) {
                         <p style="margin:0;font-weight:600;color:#334155;">${prodStr}</p>
                     </div>
                 </div>
-                <!-- Pergunta de duplicação -->
-                <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:0.75rem;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
-                    <div style="display:flex;align-items:center;gap:8px;">
-                        <i class="ph ph-copy" style="font-size:1.2rem;color:#d97706;"></i>
-                        <p style="margin:0;font-size:0.78rem;font-weight:600;color:#92400e;">Deseja duplicar para um novo serviço desta OS?</p>
-                    </div>
-                    <div style="display:flex;gap:6px;">
-                        <button id="btn-duplicar-os-sim" style="background:#d97706;color:white;border:none;border-radius:6px;padding:4px 14px;font-size:0.75rem;font-weight:700;cursor:pointer;">✔ Sim</button>
-                        <button id="btn-duplicar-os-nao" style="background:#e2e8f0;color:#334155;border:none;border-radius:6px;padding:4px 14px;font-size:0.75rem;font-weight:600;cursor:pointer;">✖ Não</button>
-                    </div>
-                </div>
             </div>
             <!-- Rodapé -->
             <div style="display:flex;gap:8px;justify-content:flex-end;padding:0.75rem 1.5rem;background:#f8fafc;">
+                <button id="btn-duplicar-os-sim" style="background:#8b5cf6;color:white;border:none;border-radius:6px;padding:6px 18px;font-size:0.78rem;font-weight:700;cursor:pointer;"><i class="ph ph-copy"></i> Duplicar</button>
                 <button id="btn-nova-os-sucesso" style="background:#2d9e5f;color:white;border:none;border-radius:6px;padding:6px 18px;font-size:0.78rem;font-weight:700;cursor:pointer;"><i class="ph ph-plus"></i> Nova OS</button>
                 <button id="btn-fechar-sucesso-os-2" style="background:#e2e8f0;color:#334155;border:none;border-radius:6px;padding:6px 18px;font-size:0.78rem;font-weight:600;cursor:pointer;">Fechar</button>
             </div>
@@ -794,12 +784,6 @@ function exibirModalSucessoOS(osId, payload) {
     modal.querySelector('#btn-duplicar-os-sim')?.addEventListener('click', () => {
         fechar();
         duplicarOsNaTela(payload);
-    });
-
-    // Não duplicar: fecha o painel de pergunta apenas
-    modal.querySelector('#btn-duplicar-os-nao')?.addEventListener('click', () => {
-        const panel = modal.querySelector('#btn-duplicar-os-sim')?.closest('div');
-        if (panel) panel.style.display = 'none';
     });
 
     // Botão Nova OS: limpa tudo e começa do zero
@@ -2130,7 +2114,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     const payloadR = { ...payload };
                     payloadR.tipo_servico = `RETIRADA ${tipoOsSuffix} PARCIAL`;
-                    payloadR.cliente = `♻️ 🔶 ${gerarPrefixoIcones('RETIRADA')} ${nomeBase}`.trim();
+                    payloadR.cliente = `♻️ ${gerarPrefixoIcones('RETIRADA')} ${nomeBase}`.trim();
                     payloadsParaEnviar.push(payloadR);
                 } else {
                     payload.cliente = document.getElementById('rr-input-cliente')?.value?.trim() || `${gerarPrefixoIcones()} ${nomeBase}`.trim();
@@ -2183,7 +2167,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 mostrarToastAviso('Falha de conexão ao salvar a OS. Tente novamente.');
             } finally {
                 btnGerarOsFinal.disabled = false;
-                btnGerarOsFinal.innerHTML = '<i class="ph ph-check-circle"></i> Gerar OS';
+                btnGerarOsFinal.innerHTML = '<i class="ph ph-check-circle"></i> Salvar';
             }
             return;
         }
@@ -2597,7 +2581,7 @@ function gerarPrefixoIcones(tipoOverride = null) {
 
     // Mostrar os icones dos produtos apenas quando o serviço for o de entrega
     let todosIcones = [];
-    if (tipoServico.includes('ENTREGA') || (tipoServico.includes('TROCA') && tipoOverride === 'ENTREGA')) {
+    if (tipoServico.includes('ENTREGA') || (!tipoOverride && tipoServico.includes('TROCA'))) {
         todosIcones = [...new Set([iconeServico, ...iconesProdutos, ...iconesVariaveis].filter(Boolean))];
     } else {
         todosIcones = [...new Set([iconeServico, ...iconesVariaveis].filter(Boolean))];
@@ -2927,7 +2911,7 @@ function renderRotaRedonda() {
             <div style="display:flex; gap:0.5rem; margin-left: auto;">
                 <button id="btn-colar-os" style="background:#f59e0b; color:white; border:none; height:26px; padding:0 10px; border-radius:4px; font-size:0.75rem; cursor:pointer; font-weight:600;" title="Colar texto da OS e preencher automaticamente"><i class="ph ph-clipboard-text"></i> Colar OS</button>
                 <button id="btn-limpar-os" style="background:#ef4444; color:white; border:none; height:26px; padding:0 10px; border-radius:4px; font-size:0.75rem; cursor:pointer; font-weight:600;"><i class="ph ph-x"></i> Limpar</button>
-                <button id="btn-criar-novo" style="background:#0284c7; color:white; border:none; height:26px; padding:0 10px; border-radius:4px; font-size:0.75rem; cursor:pointer; font-weight:600;" title="Criar nova OS com os dados carregados"><i class="ph ph-copy"></i> Criar Novo</button>
+                <button id="btn-criar-novo" style="display:none; background:#0284c7; color:white; border:none; height:26px; padding:0 10px; border-radius:4px; font-size:0.75rem; cursor:pointer; font-weight:600;" title="Criar nova OS com os dados carregados"><i class="ph ph-copy"></i> Criar Novo</button>
                 <button id="btn-gerar-os-final" style="background:#14b8a6; color:white; border:none; height:26px; padding:0 10px; border-radius:4px; font-size:0.75rem; cursor:pointer; font-weight:600;"><i class="ph ph-check-circle"></i> Salvar</button>
             </div>
         </div>
@@ -2967,7 +2951,7 @@ function renderRotaRedonda() {
                 </div>
 
                 <!-- BLOCO INFERIOR COM OVERLAY DE ENDEREÇO -->
-                <div style="position: relative; display: flex; flex-direction: column; gap: 0.5rem; flex: 1;">
+                <div style="position: relative; display: flex; flex-direction: column; gap: 0.5rem; flex: 1; z-index: 10;">
                     <!-- OVERLAY DE BLOQUEIO OS -->
                     <div id="rr-overlay-bloqueio" style="position:absolute; inset:0; z-index:20; background:rgba(248,250,252,0.85); display:flex; flex-direction:column; align-items:center; justify-content:center; border-radius:6px; backdrop-filter:blur(2px); cursor:pointer;" onclick="const btn = document.getElementById('btn-add-os-tipo'); btn.style.transition='transform 0.1s, box-shadow 0.1s'; btn.style.transform='scale(1.2)'; btn.style.boxShadow='0 0 10px 4px #1a7a40'; setTimeout(() => { btn.style.transform='scale(1)'; btn.style.boxShadow='none'; }, 600);">
                         <i class="ph ph-lock" style="font-size:2rem; color:#94a3b8; margin-bottom:0.5rem;"></i>
