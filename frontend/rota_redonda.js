@@ -481,6 +481,89 @@ function mostrarToastAviso(msg) {
     setTimeout(() => t.remove(), 9000);
 }
 
+function exibirModalSucessoOS(osId, payload) {
+    document.getElementById('rr-modal-sucesso-os')?.remove();
+
+    const diasStr = (payload.dias_semana || []).join(', ') || '—';
+    const prodStr = (payload.produtos || []).length > 0
+        ? payload.produtos.map(p => `${p.qtd}x ${p.desc}`).join(', ')
+        : '—';
+    const tipoIcon = payload.tipo_os === 'Obra' ? '🏗️' : payload.tipo_os === 'Evento' ? '🎉' : '📋';
+
+    const modal = document.createElement('div');
+    modal.id = 'rr-modal-sucesso-os';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;';
+    modal.innerHTML = `
+        <div style="background:white;border-radius:14px;width:480px;max-width:95vw;overflow:hidden;box-shadow:0 16px 48px rgba(0,0,0,0.25);">
+            <!-- Cabeçalho verde -->
+            <div style="background:linear-gradient(135deg,#2d9e5f,#1a7a40);color:white;padding:1.25rem 1.5rem;display:flex;justify-content:space-between;align-items:center;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <i class="ph ph-check-circle" style="font-size:1.8rem;"></i>
+                    <div>
+                        <p style="margin:0;font-size:0.72rem;opacity:0.8;">Ordem de Serviço salva com sucesso</p>
+                        <p style="margin:0;font-weight:800;font-size:1.1rem;">OS #${osId} gerada!</p>
+                    </div>
+                </div>
+                <button id="btn-fechar-sucesso-os" style="background:transparent;border:none;color:white;font-size:1.2rem;cursor:pointer;"><i class="ph ph-x"></i></button>
+            </div>
+            <!-- Corpo -->
+            <div style="padding:1.25rem 1.5rem;display:flex;flex-direction:column;gap:0.6rem;">
+                <div style="display:flex;gap:8px;align-items:center;background:#f0fdf4;border-radius:8px;padding:0.6rem 0.8rem;">
+                    <span style="font-size:1.3rem;">${tipoIcon}</span>
+                    <div>
+                        <p style="margin:0;font-size:0.68rem;color:#64748b;">Cliente · ${payload.tipo_os}</p>
+                        <p style="margin:0;font-weight:700;font-size:0.9rem;color:#1e293b;">${payload.cliente}</p>
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:0.75rem;">
+                    <div style="background:#f8fafc;border-radius:6px;padding:0.5rem 0.75rem;">
+                        <p style="margin:0;color:#64748b;font-size:0.65rem;">Endereço</p>
+                        <p style="margin:0;font-weight:600;color:#334155;">${payload.endereco || '—'}</p>
+                    </div>
+                    <div style="background:#f8fafc;border-radius:6px;padding:0.5rem 0.75rem;">
+                        <p style="margin:0;color:#64748b;font-size:0.65rem;">Serviço</p>
+                        <p style="margin:0;font-weight:600;color:#334155;">${payload.tipo_servico || '—'}</p>
+                    </div>
+                    <div style="background:#f8fafc;border-radius:6px;padding:0.5rem 0.75rem;">
+                        <p style="margin:0;color:#64748b;font-size:0.65rem;">Turno · Horário</p>
+                        <p style="margin:0;font-weight:600;color:#334155;">${payload.turno} · ${payload.hora_inicio} às ${payload.hora_fim}</p>
+                    </div>
+                    <div style="background:#f8fafc;border-radius:6px;padding:0.5rem 0.75rem;">
+                        <p style="margin:0;color:#64748b;font-size:0.65rem;">Dias da Semana</p>
+                        <p style="margin:0;font-weight:600;color:#334155;">${diasStr}</p>
+                    </div>
+                    <div style="background:#f8fafc;border-radius:6px;padding:0.5rem 0.75rem;grid-column:1/-1;">
+                        <p style="margin:0;color:#64748b;font-size:0.65rem;">Produtos / Equipamentos</p>
+                        <p style="margin:0;font-weight:600;color:#334155;">${prodStr}</p>
+                    </div>
+                </div>
+            </div>
+            <!-- Rodapé -->
+            <div style="display:flex;gap:8px;justify-content:flex-end;padding:0.75rem 1.5rem;background:#f8fafc;">
+                <button id="btn-nova-os-sucesso" style="background:#2d9e5f;color:white;border:none;border-radius:6px;padding:6px 18px;font-size:0.78rem;font-weight:700;cursor:pointer;"><i class="ph ph-plus"></i> Nova OS</button>
+                <button id="btn-fechar-sucesso-os-2" style="background:#e2e8f0;color:#334155;border:none;border-radius:6px;padding:6px 18px;font-size:0.78rem;font-weight:600;cursor:pointer;">Fechar</button>
+            </div>
+        </div>`;
+
+    document.body.appendChild(modal);
+
+    const fechar = () => modal.remove();
+    modal.querySelector('#btn-fechar-sucesso-os')?.addEventListener('click', fechar);
+    modal.querySelector('#btn-fechar-sucesso-os-2')?.addEventListener('click', fechar);
+    modal.addEventListener('click', e => { if (e.target === modal) fechar(); });
+
+    // Botão Nova OS: limpa o formulário
+    modal.querySelector('#btn-nova-os-sucesso')?.addEventListener('click', () => {
+        fechar();
+        osState.produtos = []; osState.tiposServico = new Set();
+        osState.acoes = new Set(); osState.clienteConfirmado = false;
+        osState.clienteNome = ''; osState.enderecoSelecionado = ''; osState.tipoOs = '';
+        const c = document.getElementById('rota-redonda-container');
+        if (c) c.innerHTML = '';
+        renderRotaRedonda();
+    });
+}
+
 async function buscarAgendaEndereco() {
     const endInput = document.getElementById('rr-input-endereco');
     const coordInput = document.getElementById('rr-input-coord');
@@ -989,16 +1072,80 @@ document.addEventListener('DOMContentLoaded', () => {
                 mostrarToastAviso("Selecione um turno: Diurno ou Noturno.");
                 return;
             }
-
             if (!horaInicio?.value || !horaFim?.value) {
                 mostrarToastAviso("Preencha os dois horários: início e fim.");
                 return;
             }
 
-            mostrarToastAviso("Dados validados! (Lógica de salvamento em breve)");
-            // Aqui entra a lógica real de salvar futuramente
+            // Coleta todos os campos do formulário
+            const coordStr = document.getElementById('rr-input-coord')?.value?.trim() || '';
+            const coordParts = coordStr.replace(/,/g, ' ').replace(/\s+/g, ' ').split(' ');
+            const lat = coordParts.length >= 2 ? parseFloat(coordParts[0]) : null;
+            const lng = coordParts.length >= 2 ? parseFloat(coordParts[1]) : null;
+
+            // Coleta dias da semana selecionados
+            const diasSelecionados = [];
+            const diasMap = { 'rr-chk-seg': 'Seg', 'rr-chk-ter': 'Ter', 'rr-chk-qua': 'Qua', 'rr-chk-qui': 'Qui', 'rr-chk-sex': 'Sex', 'rr-chk-sab': 'Sáb', 'rr-chk-dom': 'Dom' };
+            Object.entries(diasMap).forEach(([id, label]) => {
+                if (document.getElementById(id)?.checked) diasSelecionados.push(label);
+            });
+
+            const payload = {
+                numero_os: document.getElementById('rr-input-os')?.value?.trim() || '',
+                tipo_os: osState.tipoOs || '',
+                cliente: (document.getElementById('rr-input-cliente')?.dataset?.nomeBase || document.getElementById('rr-input-cliente')?.value || '').trim(),
+                endereco: document.getElementById('rr-input-endereco')?.value?.trim() || '',
+                complemento: document.getElementById('rr-input-complemento')?.value?.trim() || '',
+                cep: document.getElementById('rr-input-cep')?.value?.trim() || '',
+                lat: isNaN(lat) ? null : lat,
+                lng: isNaN(lng) ? null : lng,
+                contrato: document.querySelector('input[placeholder="Nº Contrato"]')?.value?.trim() || '',
+                data_os: document.querySelector('input[type="date"]')?.value || '',
+                responsavel: document.getElementById('rr-input-responsavel')?.value?.trim() || '',
+                telefone: document.getElementById('rr-input-telefone')?.value?.trim() || '',
+                email: document.getElementById('rr-input-email')?.value?.trim() || '',
+                tipo_servico: document.getElementById('rr-tipo-servico')?.value || '',
+                hora_inicio: horaInicio?.value || '',
+                hora_fim: horaFim?.value || '',
+                turno: diurno?.checked ? 'Diurno' : 'Noturno',
+                dias_semana: diasSelecionados,
+                produtos: osState.produtos || [],
+                observacoes: document.getElementById('rr-input-obs')?.value?.trim() || '',
+                link_video: document.getElementById('rr-input-video')?.value?.trim() || '',
+            };
+
+            // Validação básica
+            if (!payload.cliente) { mostrarToastAviso('Preencha o nome do cliente antes de gerar a OS.'); return; }
+            if (!payload.tipo_os) { mostrarToastAviso('Defina o tipo de OS (Obra ou Evento) clicando no botão +.'); return; }
+
+            // Desabilita botão durante o save
+            btnGerarOsFinal.disabled = true;
+            btnGerarOsFinal.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando…';
+
+            try {
+                const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+                const resp = await fetch('/api/logistica/os', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify(payload)
+                });
+                const result = await resp.json();
+
+                if (resp.ok && result.ok) {
+                    exibirModalSucessoOS(result.id, payload);
+                } else {
+                    mostrarToastAviso(`Erro ao salvar OS: ${result.error || 'Erro desconhecido.'}`);
+                }
+            } catch(err) {
+                console.error('[Gerar OS]', err);
+                mostrarToastAviso('Falha de conexão ao salvar a OS. Tente novamente.');
+            } finally {
+                btnGerarOsFinal.disabled = false;
+                btnGerarOsFinal.innerHTML = '<i class="ph ph-check-circle"></i> Gerar OS';
+            }
             return;
         }
+
 
         // Botão Geocode (buscar endereço → lat/lng + mapa)
         const btnGeocode = e.target.closest('#btn-geocode-endereco');
