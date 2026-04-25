@@ -313,16 +313,49 @@ async function geocodeEndereco() {
     // Spinner no botão
     if (btn) { btn.innerHTML = '<i class="ph ph-circle-notch" style="animation:spin 1s linear infinite;"></i>'; btn.disabled = true; }
 
+    const headers = { 'Accept-Language': 'pt-BR', 'User-Agent': 'AmericaRentalSistema/1.0' };
+
+    // Extrai CEP do endereço para busca direta (mais precisa)
+    const cepMatch = endereco.match(/\b(\d{5})-?(\d{3})\b/);
+    const temCidade = /são paulo|sp|guarulhos|campinas|mogi|abc|santo andr|osasco|rio de jan/i.test(endereco);
+
+    // Estratégia em cascata: tenta 3 queries, usa a primeira que retornar resultado
+    const queries = [
+        // 1ª: query exata com filtro Brasil
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(endereco)}&format=json&limit=1&accept-language=pt-BR&countrycodes=br`,
+    ];
+
+    // 2ª: se não tem cidade, adiciona "São Paulo, SP, Brasil"
+    if (!temCidade) {
+        queries.push(
+            `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(endereco + ', São Paulo, SP, Brasil')}&format=json&limit=1&accept-language=pt-BR`
+        );
+    }
+
+    // 3ª: busca pelo CEP separado se tiver (mais precisa)
+    if (cepMatch) {
+        queries.push(
+            `https://nominatim.openstreetmap.org/search?q=${cepMatch[1]}-${cepMatch[2]},Brasil&format=json&limit=1&accept-language=pt-BR`
+        );
+    }
+
+    // 4ª: fallback global sem restrição
+    queries.push(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(endereco + ' Brasil')}&format=json&limit=1&accept-language=pt-BR`
+    );
+
     try {
-        // Nominatim: geocodificação gratuita, sem API key
-        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(endereco)}&format=json&limit=1&accept-language=pt-BR&countrycodes=br`;
-        const resp = await fetch(url, {
-            headers: { 'Accept-Language': 'pt-BR', 'User-Agent': 'AmericaRentalSistema/1.0' }
-        });
-        const data = await resp.json();
+        let data = null;
+        for (const url of queries) {
+            const resp = await fetch(url, { headers });
+            const result = await resp.json();
+            if (result && result.length > 0) { data = result; break; }
+            // Respeita o rate limit do Nominatim (1 req/s)
+            await new Promise(r => setTimeout(r, 300));
+        }
 
         if (!data || data.length === 0) {
-            mostrarToastAviso('❌ Endereço não encontrado. Tente incluir cidade/estado ou CEP.');
+            mostrarToastAviso('❌ Endereço não encontrado. Tente: "Rua X, 123, Cidade/SP" ou inclua o CEP.');
             return;
         }
 
