@@ -1913,6 +1913,38 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // Botão de buscar OS por Contrato
+        const btnBuscarContrato = e.target.closest('#btn-buscar-contrato');
+        if (btnBuscarContrato) {
+            const numContrato = document.querySelector('input[placeholder="Nº Contrato"]')?.value?.trim() || document.getElementById('rr-input-contrato')?.value?.trim();
+            if (!numContrato) {
+                mostrarToastAviso('Digite o número do contrato primeiro.');
+                return;
+            }
+            const originalHtml = btnBuscarContrato.innerHTML;
+            btnBuscarContrato.innerHTML = '<i class="ph ph-spinner ph-spin"></i>';
+            try {
+                const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+                const resp = await fetch(`/api/logistica/os/buscar?contrato=${encodeURIComponent(numContrato)}`, { headers: { 'Authorization': `Bearer ${token}` } });
+                if (resp.ok) {
+                    const registros = await resp.json();
+                    if (registros && registros.length > 0) {
+                        abrirModalListaOS('Contrato ' + numContrato, registros);
+                    } else {
+                        mostrarToastAviso('Nenhuma OS encontrada para este contrato.');
+                    }
+                } else {
+                    mostrarToastAviso('Erro ao buscar contrato.');
+                }
+            } catch (err) {
+                console.error(err);
+                mostrarToastAviso('Falha na comunicação com o servidor.');
+            } finally {
+                btnBuscarContrato.innerHTML = originalHtml;
+            }
+            return;
+        }
+
         // Botão Colar OS
         const btnColarOs = e.target.closest('#btn-colar-os');
         if (btnColarOs) { abrirModalColarOS(); return; }
@@ -2254,14 +2286,15 @@ function atualizarBloqueio() {
     const overlayOS  = document.getElementById('rr-overlay-bloqueio');
     const overlayEnd = document.getElementById('rr-overlay-bloqueio-endereco');
 
-    // Bloqueio principal: sempre oculto na entrada manual
-    // O controle do OS é feito na validação do botão Salvar
-    if (overlayOS) overlayOS.style.display = 'none';
+    // Bloqueio principal: cobre o corpo até definir Obra/Evento
+    if (overlayOS) {
+        overlayOS.style.display = osState.tipoOs ? 'none' : 'flex';
+    }
 
     if (!overlayEnd) return;
 
-    // Se o endereço não é obrigatório (entrada manual sem + pressionado), libera
-    if (!osState.enderecoObrigatorio) {
+    // Se o tipoOs ainda não foi definido, o endereço nem deve ter overlay (pois o principal já cobre)
+    if (!osState.tipoOs) {
         overlayEnd.style.display = 'none';
         return;
     }
@@ -2773,7 +2806,10 @@ function renderRotaRedonda() {
 
             <div style="display: flex; align-items: center; gap: 4px;">
                 <label style="font-weight: 600; font-size: 0.75rem; color: white; white-space: nowrap; margin: 0;">Contrato</label>
-                <input type="text" style="${inputStyle} border:none; width: 100px;" placeholder="Nº Contrato">
+                <div style="display:flex; position:relative;">
+                    <input type="text" id="rr-input-contrato" style="${inputStyle} border:none; width: 100px; padding-right:26px;" placeholder="Nº Contrato">
+                    <button id="btn-buscar-contrato" style="position:absolute; right:0; top:0; bottom:0; background:transparent; border:none; color:#64748b; cursor:pointer; width:26px; display:flex; align-items:center; justify-content:center;" title="Buscar OS deste contrato"><i class="ph ph-magnifying-glass"></i></button>
+                </div>
             </div>
 
             <div style="display: flex; align-items: center; gap: 4px;">

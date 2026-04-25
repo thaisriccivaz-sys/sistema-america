@@ -7974,8 +7974,8 @@ function agregaDias(rows) {
 // GET /api/logistica/os/buscar — Busca OS por número
 // Retorna array de todos os serviços registrados para esse número de OS
 app.get('/api/logistica/os/buscar', authenticateToken, (req, res) => {
-    const { numero_os, cliente } = req.query;
-    if (!numero_os && !cliente) return res.status(400).json({ error: 'Parâmetro numero_os ou cliente obrigatório.' });
+    const { numero_os, cliente, contrato } = req.query;
+    if (!numero_os && !cliente && !contrato) return res.status(400).json({ error: 'Parâmetro numero_os, cliente ou contrato obrigatório.' });
 
     if (numero_os) {
         db.all(
@@ -7992,6 +7992,16 @@ app.get('/api/logistica/os/buscar', authenticateToken, (req, res) => {
         db.all(
             `SELECT * FROM os_logistica WHERE cliente LIKE ? AND status = 'ativo' ORDER BY criado_em DESC`,
             [`%${clienteSanitized}%`],
+            (err, rows) => {
+                if (err) return res.status(500).json({ error: err.message });
+                if (!rows || rows.length === 0) return res.status(200).json([]);
+                res.json(rows);
+            }
+        );
+    } else if (contrato) {
+        db.all(
+            `SELECT * FROM os_logistica WHERE contrato = ? AND status = 'ativo' ORDER BY criado_em DESC`,
+            [contrato.trim()],
             (err, rows) => {
                 if (err) return res.status(500).json({ error: err.message });
                 if (!rows || rows.length === 0) return res.status(200).json([]);
