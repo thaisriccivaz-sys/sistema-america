@@ -86,7 +86,7 @@ function abrirPopupTipoOs(onSelecionar) {
 }
 
 const TIPOS_SERVICO_OS = [
-    'ENTREGA OBRA', 'RETIRADA OBRA TOTAL', 'RETIRADA OBRA PARCIAL', 'TROCA DE EQUIPAMENTO OBRA', 'MANUTENCAO OBRA', 'MANUTENCAO AVULSA OBRA', 'SUCCAO OBRA',
+    'ENTREGA OBRA', 'RETIRADA OBRA TOTAL', 'RETIRADA OBRA PARCIAL', 'TROCA DE EQUIPAMENTO OBRA', 'MANUTENCAO OBRA', 'MANUTENCAO AVULSA OBRA',
     'REPARO EQUIPAMENTO OBRA', 'VISITA TECNICA OBRA', 'LIMPA FOSSA OBRA', 'VAC OBRA',
     'ENTREGA EVENTO', 'RETIRADA EVENTO TOTAL', 'RETIRADA EVENTO PARCIAL', 'TROCA DE EQUIPAMENTO EVENTO', 'MANUTENCAO EVENTO', 'MANUTENCAO AVULSA EVENTO', 'SUCCAO EVENTO',
     'REPARO EQUIPAMENTO EVENTO', 'VISITA TECNICA EVENTO', 'LIMPA FOSSA EVENTO', 'VAC EVENTO'
@@ -220,18 +220,24 @@ function calcularCargaTotalFromLista() {
         totalCarga += cargaCalculada;
     }
 
-    // ── Decide qual veículo usa (Tanque / Carroceria / Carretinha) ─────────────
-    // Regra do Flutter:
-    //   Manutenção        → sempre TANQUE
-    //   carga <= 6        → CARROCERIA
-    //   carga > 6         → CARRETINHA
+    // Regra atualizada:
+    //   Manutenção        → apenas TANQUE
+    //   Entrega           → apenas CARROCERIA ou CARRETINHA (<=6 ou >6)
+    //   Retirada / Troca  → TANQUE e (CARROCERIA ou CARRETINHA)
     let tanque = '', carroceria = '', carretinha = '';
     if (isManutencao) {
         tanque = totalCarga > 0 ? String(totalCarga) : '0';
-    } else if (totalCarga <= 6) {
-        carroceria = totalCarga > 0 ? String(totalCarga) : '0';
     } else {
-        carretinha = String(totalCarga);
+        if (totalCarga <= 6) {
+            carroceria = totalCarga > 0 ? String(totalCarga) : '0';
+        } else {
+            carretinha = String(totalCarga);
+        }
+        
+        // Se for Retirada ou Troca, o Tanque também contabiliza a carga
+        if (tipoServico.includes('RETIRADA') || tipoServico.includes('TROCA')) {
+            tanque = totalCarga > 0 ? String(totalCarga) : '0';
+        }
     }
 
     // Atualiza cada badge separadamente (igual ao Flutter)
@@ -2662,8 +2668,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 atualizarIconesCliente();
                 // Chama calcularCamposPorProduto igual ao Flutter (que no final chama calcularTempo)
                 calcularCamposPorProduto({ desc, qtd });
-                // Recalcula habilidades (bloqueio TANQUE, LEVAR CARRINHO, etc.)
-                aplicarHabilidadesDoServico();
+                // Recalcula habilidades (preserva manuais ao adicionar produto)
+                aplicarHabilidadesDoServico(false);
                 // Atualiza badge tipo OS na tela
                 const badge = document.getElementById('rr-badge-tipo-os');
                 if (badge) badge.textContent = osState.tipoOs;
@@ -2689,7 +2695,28 @@ document.addEventListener('DOMContentLoaded', () => {
             atualizarUI();
             atualizarIconesCliente();
             calcularTempo(); // recalcula ao remover
-            aplicarHabilidadesDoServico(); // recalcula bloqueios
+            aplicarHabilidadesDoServico(false); // recalcula habilidades mantendo manuais
+            return;
+        }
+
+        // Editar Produto
+        const btnEditProd = e.target.closest('.btn-edit-prod');
+        if (btnEditProd) {
+            const id = parseInt(btnEditProd.dataset.id);
+            const p = osState.produtos.find(x => x.id === id);
+            if (p) {
+                // Preenche os campos
+                const inputDesc = document.getElementById('rr-prod-desc');
+                const inputQtd = document.getElementById('rr-prod-qtd');
+                if (inputDesc) inputDesc.value = p.desc;
+                if (inputQtd) inputQtd.value = p.qtd;
+                // Remove da lista
+                osState.produtos = osState.produtos.filter(x => x.id !== id);
+                atualizarUI();
+                atualizarIconesCliente();
+                calcularTempo();
+                aplicarHabilidadesDoServico(false);
+            }
             return;
         }
         
@@ -2872,27 +2899,16 @@ window.onChangeTipoServico = function() {
     } else {
         osState.tiposServico.delete('VAC');
     }
-    // Aplica habilidades automáticas do serviço (espelho do Flutter)
-    aplicarHabilidadesDoServico();
+    // Aplica habilidades automáticas do serviço. Como mudou o serviço, desabilita as que não fazem parte (wipeManuals=true)
+    aplicarHabilidadesDoServico(true);
     atualizarUI();
     calcularTempo();
     atualizarIconesCliente();
 };
 
 // ── HABILIDADES AUTOMÁTICAS POR TIPO DE SERVIÇO (espelho do recalcularHabilidadesAutomaticas do Flutter) ──
-// Regras extraidas do habilidadesDict + habilidadesDictSemTanque + ProdutosDict
-function aplicarHabilidadesDoServico() {
+function aplicarHabilidadesDoServico(wipeManuals = false) {
     const tipoServico = (document.getElementById('rr-tipo-servico')?.value || '').trim().toUpperCase();
-
-    // ─ Produtos que bloqueiam TANQUE em RETIRADA (habilidadesDictSemTanque)
-    const BLOQUEAR_TANQUE = [
-        'GUARITA INDIVIDUAL OBRA', 'GUARITA INDIVIDUAL EVENTO',
-        'GUARITA DUPLA OBRA', 'GUARITA DUPLA EVENTO',
-        'CHUVEIRO OBRA', 'CHUVEIRO EVENTO',
-        'HIDRÁULICO OBRA', 'HIDRÁULICO EVENTO',
-    ];
-    const deveBloquearTanque = tipoServico.includes('RETIRADA') &&
-        osState.produtos.some(p => BLOQUEAR_TANQUE.includes((p.desc || '').trim().toUpperCase()));
 
     // ─ habilidadesDict (igual ao Flutter)
     const HABILIDADES_DICT = {
@@ -2911,12 +2927,11 @@ function aplicarHabilidadesDoServico() {
         'MANUTENCAO AVULSA OBRA':    'TANQUE',
         'MANUTENCAO AVULSA EVENTO':  'TANQUE',
         'MANUTENCAO AVULSA':         'TANQUE',
-        'TROCA DE EQUIPAMENTO OBRA': '',
-        'TROCA DE EQUIPAMENTO EVENTO': '',
+        'TROCA DE EQUIPAMENTO OBRA': 'CARGA, TANQUE',
+        'TROCA DE EQUIPAMENTO EVENTO': 'CARGA, TANQUE',
         'VAC OBRA':                  'VAC',
         'VAC EVENTO':                'VAC',
-        'SUCCAO OBRA':               '',
-        'SUCCAO EVENTO':             '',
+        'SUCCAO EVENTO':             'TANQUE GRANDE',
         'REPARO EQUIPAMENTO OBRA':   '',
         'REPARO EQUIPAMENTO EVENTO': '',
         'VISITA TECNICA OBRA':       '',
@@ -2933,11 +2948,10 @@ function aplicarHabilidadesDoServico() {
         'ELX EVENTO':         'LEVAR CARRINHO',
     };
 
-    // 1) Habilidades base do serviço (sem apagar manuais)
+    // 1) Habilidades base do serviço
     const habilidadesBase = new Set();
     const habStr = HABILIDADES_DICT[tipoServico] || '';
     habStr.split(',').map(h => h.trim()).filter(Boolean).forEach(h => {
-        if (h === 'TANQUE' && deveBloquearTanque) return; // bloqueado por produto
         habilidadesBase.add(h);
     });
 
@@ -2949,14 +2963,17 @@ function aplicarHabilidadesDoServico() {
         if (hab) habProdutos.add(hab === 'LEVAR CARRINHO' ? '🛒 LEVAR CARRINHO' : hab);
     });
 
-    // 3) Preserva manuais (não automáticas)
-    const TODAS_AUTO = new Set([...habilidadesBase, ...habProdutos]);
-    const manuais = new Set([...osState.tiposServico].filter(h => !TODAS_AUTO.has(h)));
+    // 3) Preserva manuais se não for para limpar (wipeManuals)
+    let manuais = new Set();
+    if (!wipeManuals) {
+        const TODAS_AUTO = new Set([...habilidadesBase, ...habProdutos]);
+        manuais = new Set([...osState.tiposServico].filter(h => !TODAS_AUTO.has(h)));
+    }
 
     // 4) Reconstrói o conjunto final
     osState.tiposServico = new Set([...habilidadesBase, ...habProdutos, ...manuais]);
 
-    console.log('[Habilidades] Tipo:', tipoServico, '| Selecionadas:', [...osState.tiposServico]);
+    console.log('[Habilidades] Tipo:', tipoServico, '| Selecionadas:', [...osState.tiposServico], '| wipeManuals:', wipeManuals);
 }
 
 function atualizarDropdownProdutos() {
@@ -3322,8 +3339,9 @@ function atualizarUI() {
             <tr style="border-bottom: 1px solid #f1f5f9;">
                 <td style="padding: 0.3rem 0.5rem; font-size:0.75rem;">${p.desc}</td>
                 <td style="padding: 0.3rem 0.5rem; text-align:center; font-size:0.75rem; font-weight:600;">${p.qtd}</td>
-                <td style="padding: 0.3rem 0.5rem; text-align:center;">
-                    <button class="btn-action btn-rem-prod" data-id="${p.id}" style="color:#ef4444; background:transparent; border:none; padding:2px;"><i class="ph ph-trash"></i></button>
+                <td style="padding: 0.3rem 0.5rem; text-align:center; display:flex; gap:0.25rem; justify-content:center;">
+                    <button class="btn-action btn-edit-prod" data-id="${p.id}" style="color:#3b82f6; background:transparent; border:none; padding:2px;" title="Editar"><i class="ph ph-pencil-simple"></i></button>
+                    <button class="btn-action btn-rem-prod" data-id="${p.id}" style="color:#ef4444; background:transparent; border:none; padding:2px;" title="Remover"><i class="ph ph-trash"></i></button>
                 </td>
             </tr>
         `).join('');
