@@ -1092,12 +1092,12 @@ async function buscarAgendaEndereco() {
             contSug.style.display = 'block';
             if (data.dias_sugeridos_2km && data.dias_sugeridos_2km.length > 0) {
                 const dias = data.dias_sugeridos_2km.map(d => d.dia).join(', ');
-                contSug.innerHTML = `<span style="color:#1d4ed8;font-size:0.55rem;font-weight:600;"><i class="ph ph-check-circle"></i> Sugeridos (≤1km): <b>${dias}</b></span>`;
+                contSug.innerHTML = `<span style="color:#1d4ed8;font-size:0.65rem;font-weight:600;"><i class="ph ph-check-circle"></i> Sugeridos (≤1km): <b>${dias}</b></span>`;
             } else if (data.dias_sugeridos_5km && data.dias_sugeridos_5km.length > 0) {
                 const dias = data.dias_sugeridos_5km.map(d => d.dia).join(', ');
-                contSug.innerHTML = `<span style="color:#b45309;font-size:0.55rem;font-weight:600;"><i class="ph ph-warning"></i> Sugeridos (1-3km): <b>${dias}</b></span>`;
+                contSug.innerHTML = `<span style="color:#b45309;font-size:0.65rem;font-weight:600;"><i class="ph ph-warning"></i> Sugeridos (1-3km): <b>${dias}</b></span>`;
             } else {
-                contSug.innerHTML = `<span style="color:#b91c1c;font-size:0.55rem;"><i class="ph ph-x-circle"></i> Sem rota em 3km.</span>`;
+                contSug.innerHTML = `<span style="color:#b91c1c;font-size:0.65rem;"><i class="ph ph-x-circle"></i> Sem rota em 3km.</span>`;
             }
         }
     } catch(e) {
@@ -1539,20 +1539,20 @@ function exibirModalAgendaEndereco(data, enderecoAtual) {
             const pills = data.dias_sugeridos_2km.map(d => {
                 const qtd = d.ocorrencias || 1;
                 const label = qtd === 1 ? '1' : `${qtd}`;
-                return `<span style="background:${colorMap[d.dia]||'#2563eb'};color:white;border-radius:3px;padding:0px 5px;font-size:0.55rem;font-weight:700;white-space:nowrap;">${d.dia.toUpperCase()} - ${label}cl</span>`;
+                return `<span style="background:${colorMap[d.dia]||'#2563eb'};color:white;border-radius:3px;padding:0px 5px;font-size:0.65rem;font-weight:700;white-space:nowrap;">${d.dia.toUpperCase()} - ${label}cl</span>`;
             }).join('');
-            containerSugestoes.innerHTML = `<span style="color:#1d4ed8;font-weight:600;font-size:0.55rem;opacity:0.85;"><i class="ph ph-check-square"></i> Sugeridos (≤1km):</span> ${pills}`;
+            containerSugestoes.innerHTML = `<span style="color:#1d4ed8;font-weight:600;font-size:0.65rem;opacity:0.85;"><i class="ph ph-check-square"></i> Sugeridos (≤1km):</span> ${pills}`;
             containerSugestoes.style.cssText = 'display:flex;flex-wrap:wrap;gap:2px;align-items:center;margin-top:2px;';
         } else if (tem3km) {
             const pills = data.dias_sugeridos_5km.map(d => {
                 const qtd = d.ocorrencias || 1;
                 const label = qtd === 1 ? '1' : `${qtd}`;
-                return `<span style="background:${colorMap[d.dia]||'#ca8a04'};color:white;border-radius:3px;padding:0px 5px;font-size:0.55rem;font-weight:700;white-space:nowrap;">${d.dia.toUpperCase()} - ${label}cl</span>`;
+                return `<span style="background:${colorMap[d.dia]||'#ca8a04'};color:white;border-radius:3px;padding:0px 5px;font-size:0.65rem;font-weight:700;white-space:nowrap;">${d.dia.toUpperCase()} - ${label}cl</span>`;
             }).join('');
-            containerSugestoes.innerHTML = `<span style="color:#854d0e;font-weight:600;font-size:0.55rem;opacity:0.85;"><i class="ph ph-warning"></i> Sugeridos (1-3km):</span> ${pills}`;
+            containerSugestoes.innerHTML = `<span style="color:#854d0e;font-weight:600;font-size:0.65rem;opacity:0.85;"><i class="ph ph-warning"></i> Sugeridos (1-3km):</span> ${pills}`;
             containerSugestoes.style.cssText = 'display:flex;flex-wrap:wrap;gap:2px;align-items:center;margin-top:2px;';
         } else {
-            containerSugestoes.innerHTML = `<span style="color:#b91c1c;font-size:0.55rem;opacity:0.8;"><i class="ph ph-warning-circle"></i> Sem rota em 3km.</span>`;
+            containerSugestoes.innerHTML = `<span style="color:#b91c1c;font-size:0.65rem;opacity:0.8;"><i class="ph ph-warning-circle"></i> Sem rota em 3km.</span>`;
             containerSugestoes.style.cssText = 'display:block;margin-top:2px;';
         }
     }
