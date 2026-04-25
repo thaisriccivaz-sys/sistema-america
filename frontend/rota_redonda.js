@@ -1726,6 +1726,44 @@ function parseOsText(texto) {
     return resultado;
 }
 
+// ── EXTRAÇÃO DE PRODUTOS ───────────────────────────────────────────────────
+function parseProdutosString(rawStr, tipoOs) {
+    const prods = [];
+    if (!rawStr || !tipoOs) return prods;
+    
+    // Suporta "01 guarita individual / 01 STD"
+    // Pega o número e o texto seguinte (com ou sem espaços, ignorando pontuações iniciais)
+    const prodRegex = /(\d+)\s+([A-Za-zÀ-ÿ]+(?:\s+[A-Za-zÀ-ÿ]+)*)/g;
+    let match;
+    while ((match = prodRegex.exec(rawStr)) !== null) {
+        let qtd = parseInt(match[1], 10);
+        let nomeStr = match[2].toUpperCase().trim();
+        
+        const MAP_PROD = {
+            'STD': 'STD', 'STANDARD': 'STD', 'LX': 'LX', 'ELX': 'ELX', 'SLX': 'SLX',
+            'PCD': 'PCD', 'CHUVEIRO': 'CHUVEIRO', 'HIDRAULICO': 'HIDRÁULICO',
+            'HIDRAU': 'HIDRÁULICO', 'MICTORIO': 'MICTÓRIO', 'MICT': 'MICTÓRIO',
+            'PBII': 'PBII', 'PIA': 'PBII', 'CARRINHO': 'CARRINHO', 'CAIXA': 'CAIXA DAGUA',
+            'GUARITA INDIVIDUAL': 'GUARITA INDIVIDUAL', 'GUARITA DUPLA': 'GUARITA DUPLA',
+            'GUARITA IND': 'GUARITA INDIVIDUAL', 'GUARITA DUP': 'GUARITA DUPLA',
+            'GUARITA': 'GUARITA INDIVIDUAL' // fallback
+        };
+        
+        let base = nomeStr;
+        // Procura a chave correspondente (da mais longa para a mais curta para não ter match errado)
+        for (const [chave, valor] of Object.entries(MAP_PROD).sort((a,b) => b[0].length - a[0].length)) {
+            if (nomeStr.includes(chave)) { base = valor; break; }
+        }
+
+        const nomeProdutoCompleto = `${base} ${tipoOs === 'Obra' ? 'OBRA' : 'EVENTO'}`;
+        const produtoExiste = Object.keys(EQUIPAMENTOS_DICT).find(k => k === nomeProdutoCompleto);
+        if (produtoExiste) {
+            prods.push({ desc: nomeProdutoCompleto, qtd: qtd, icone: EQUIPAMENTOS_DICT[nomeProdutoCompleto].icone });
+        }
+    }
+    return prods;
+}
+
 // ── MODAL COLAR OS ─────────────────────────────────────────────────────────
 function abrirModalColarOS() {
     document.getElementById('rr-modal-colar-os')?.remove();
@@ -1814,9 +1852,32 @@ function abrirModalColarOS() {
                      </div>`;
         }
         html += linha('📧 Email', dadosExtraidos.email);
-        html += linha('📦 Produtos', dadosExtraidos.rawProdutos);
         html += linha('📝 Obs Motorista', dadosExtraidos.observacoes);
         html += linha('🔒 Obs Internas', dadosExtraidos.observacoesInternas);
+
+        // Renderiza Preview dos Produtos identificados
+        const tipoProvisorio = (dadosExtraidos.tipoOsDB || dadosExtraidos.tipoOs || '').toUpperCase().includes('OBRA') ? 'Obra' : 'Evento';
+        const parsedProds = parseProdutosString(dadosExtraidos.rawProdutos, tipoProvisorio);
+        if (parsedProds.length > 0) {
+            let prodHtml = `<div style="margin-top:12px;padding:10px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;">
+                <p style="margin:0 0 8px 0;font-weight:700;color:#0369a1;font-size:0.8rem;display:flex;align-items:center;gap:4px;">
+                    <i class="ph ph-package"></i> Produtos Identificados na OS
+                </p>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;">`;
+            parsedProds.forEach(p => {
+                prodHtml += `<div style="background:white;padding:4px 8px;border-radius:4px;border:1px solid #7dd3fc;font-weight:600;color:#0c4a6e;display:flex;align-items:center;gap:6px;box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+                    <span style="font-size:1.1rem;">${p.icone || '📦'}</span>
+                    <span>${p.qtd}x ${p.desc}</span>
+                </div>`;
+            });
+            prodHtml += `</div></div>`;
+            html += prodHtml;
+        } else if (dadosExtraidos.rawProdutos) {
+            html += linha('📦 Produtos (Texto Raw)', dadosExtraidos.rawProdutos);
+            html += `<div style="color:#b91c1c;background:#fef2f2;padding:6px 10px;border-radius:4px;margin-top:4px;font-size:0.75rem;border:1px solid #fca5a5;">
+                        ⚠️ Atenção: O texto contém produtos, mas nenhum foi reconhecido com os nomes padrões (ex: STD, Guarita). Eles não serão inseridos automaticamente.
+                     </div>`;
+        }
 
         // Avisos
         dadosExtraidos.avisos.forEach(a => {
@@ -1912,35 +1973,21 @@ function preencherFormularioComDados(dados, tipoOs) {
     // Atualiza estado do cliente
     osState.clienteNome = dados.cliente;
 
-    // Processa Produtos (ex: "10 STD 1 PCD")
+    // Processa Produtos (ex: "10 STD 1 PCD" ou "01 guarita individual")
     if (dados.rawProdutos && tipoOs) {
         atualizarDropdownProdutos();
-        // Extrai pares de "numero palavra"
-        const prodRegex = /(\d+)\s+([A-Za-z]+)/g;
-        let match;
-        while ((match = prodRegex.exec(dados.rawProdutos)) !== null) {
-            let qtd = parseInt(match[1], 10);
-            let nomeStr = match[2].toUpperCase();
-            
-            // Map básico para encontrar nome
-            const MAP_PROD = {
-                'STD': 'STD', 'STANDARD': 'STD', 'LX': 'LX', 'ELX': 'ELX',
-                'PCD': 'PCD', 'CHUVEIRO': 'CHUVEIRO', 'HIDRAULICO': 'HIDRÁULICO',
-                'HIDRAU': 'HIDRÁULICO', 'MICTORIO': 'MICTÓRIO', 'MICT': 'MICTÓRIO',
-                'PBII': 'PBII', 'PIA': 'PBII', 'CARRINHO': 'CARRINHO', 'CAIXA': 'CAIXA DAGUA'
-            };
-            let base = nomeStr;
-            for (const [chave, valor] of Object.entries(MAP_PROD)) {
-                if (nomeStr.includes(chave)) { base = valor; break; }
-            }
-
-            const nomeProdutoCompleto = `${base} ${tipoOs === 'Obra' ? 'OBRA' : 'EVENTO'}`;
-            const produtoExiste = Object.keys(EQUIPAMENTOS_DICT).find(k => k === nomeProdutoCompleto);
-            if (produtoExiste) {
-                osState.produtos.push({ id: Date.now() + Math.random(), desc: nomeProdutoCompleto, qtd: qtd });
-            }
+        const parsedProds = parseProdutosString(dados.rawProdutos, tipoOs);
+        
+        parsedProds.forEach(p => {
+            osState.produtos.push({ id: Date.now() + Math.random(), desc: p.desc, qtd: p.qtd });
+            calcularCamposPorProduto({ desc: p.desc, qtd: p.qtd });
+        });
+        
+        if (parsedProds.length > 0) {
+            aplicarHabilidadesDoServico();
+            atualizarUI();
+            atualizarIconesCliente();
         }
-        atualizarUI();
     }
 
     // Destaca campos ambíguos em amarelo
