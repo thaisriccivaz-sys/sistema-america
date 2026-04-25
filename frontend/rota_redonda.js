@@ -298,27 +298,40 @@ function posicionarMarcador(lat, lng) {
 }
 
 function preencherLatLng(lat, lng) {
-    const latInput = document.getElementById('rr-input-lat');
-    const lngInput = document.getElementById('rr-input-lng');
-    if (latInput) { latInput.value = lat.toFixed(7); latInput.style.background = '#f0fdf4'; }
-    if (lngInput) { lngInput.value = lng.toFixed(7); lngInput.style.background = '#f0fdf4'; }
+    const coordInput = document.getElementById('rr-input-coord');
+    if (coordInput) { 
+        coordInput.value = `${lat.toFixed(7)}, ${lng.toFixed(7)}`; 
+        coordInput.style.background = '#f0fdf4'; 
+    }
     osState.lat = lat;
     osState.lng = lng;
 }
 
 async function reverseGeocodeEndereco() {
-    const latInput = document.getElementById('rr-input-lat');
-    const lngInput = document.getElementById('rr-input-lng');
+    const coordInput = document.getElementById('rr-input-coord');
     const endInput = document.getElementById('rr-input-endereco');
     const btn      = document.getElementById('btn-geocode-coord');
     const placeholder = document.getElementById('rr-mapa-placeholder');
 
-    const lat = parseFloat(latInput?.value?.replace(',', '.'));
-    const lng = parseFloat(lngInput?.value?.replace(',', '.'));
+    if (!coordInput?.value) { coordInput?.focus(); return; }
+
+    // Parse lat lng
+    // Accept standard coordinate formats like "lat, lng" or "lat lng"
+    const coordStr = coordInput.value.trim().replace(/,/g, ' ').replace(/\s+/g, ' ');
+    const parts = coordStr.split(' ');
+    
+    if (parts.length < 2) {
+        alert("Por favor, digite a latitude e longitude separadas por espaço ou vírgula.");
+        coordInput.focus();
+        return;
+    }
+
+    const lat = parseFloat(parts[0]);
+    const lng = parseFloat(parts[1]);
 
     if (isNaN(lat) || isNaN(lng)) {
-        if (!latInput?.value) latInput?.focus();
-        else lngInput?.focus();
+        alert("Coordenadas inválidas.");
+        coordInput.focus();
         return;
     }
 
@@ -343,8 +356,7 @@ async function reverseGeocodeEndereco() {
             
             osState.lat = lat;
             osState.lng = lng;
-            if (latInput) latInput.style.background = '#f0fdf4';
-            if (lngInput) lngInput.style.background = '#f0fdf4';
+            if (coordInput) coordInput.style.background = '#f0fdf4';
         } else {
             alert('Não foi possível encontrar um endereço para estas coordenadas.');
         }
@@ -1147,14 +1159,10 @@ function renderRotaRedonda() {
                         <label style="${labelStyle}">Complemento</label>
                         <input type="text" id="rr-input-complemento" style="${inputStyle}" placeholder="Apto, Sala, Bloco...">
                     </div>
-                    <div style="flex: 0 0 90px;">
-                        <label style="${labelStyle}">Latitude</label>
-                        <input type="text" id="rr-input-lat" style="${inputStyle} font-size:0.65rem;" placeholder="-23.5505">
-                    </div>
-                    <div style="flex: 0 0 118px;">
-                        <label style="${labelStyle}">Longitude</label>
+                    <div style="flex: 0 0 200px;">
+                        <label style="${labelStyle}">Latitude, Longitude</label>
                         <div style="display:flex; gap:2px;">
-                            <input type="text" id="rr-input-lng" style="${inputStyle} font-size:0.65rem;" placeholder="-46.6333">
+                            <input type="text" id="rr-input-coord" style="${inputStyle} font-size:0.65rem;" placeholder="-23.5505, -46.6333">
                             <button id="btn-geocode-coord" style="background:#0369a1; border:none; color:white; width:26px; height:26px; border-radius:4px; cursor:pointer; flex-shrink:0;" title="Buscar endereço pelas coordenadas"><i class="ph ph-map-pin"></i></button>
                         </div>
                     </div>
