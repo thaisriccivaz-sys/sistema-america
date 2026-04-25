@@ -2020,7 +2020,7 @@ function renderRotaRedonda() {
     <div id="rota-redonda-content" style="background: #fff; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); display: flex; flex-direction: column; box-sizing: border-box;">
         
         <!-- HEADER FORM — Fixo no topo -->
-        <div style="position: sticky; top: 0; z-index: 100; display: flex; gap: 1rem; align-items: center; background: #2d9e5f; padding: 0.5rem 0.75rem; color: white; flex-shrink: 0; flex-wrap: wrap; border-radius: 6px 6px 0 0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+        <div style="position: sticky; top: 60px; z-index: 20; display: flex; gap: 1rem; align-items: center; background: #2d9e5f; padding: 0.5rem 0.75rem; color: white; flex-shrink: 0; flex-wrap: wrap; border-radius: 6px 6px 0 0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); margin-top: -1.5rem; margin-left: -1.5rem; margin-right: -1.5rem; margin-bottom: 0.75rem;">
             
             <div style="display: flex; align-items: center; gap: 4px;">
                 <label style="font-weight: 600; font-size: 0.75rem; color: white; white-space: nowrap; margin: 0;">OS</label>
