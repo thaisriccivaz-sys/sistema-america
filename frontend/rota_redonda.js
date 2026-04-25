@@ -2017,10 +2017,10 @@ function renderRotaRedonda() {
     const btnStyle = 'border:none; color:white; border-radius:4px; width:26px; height:26px; cursor:pointer; flex-shrink:0;';
 
     const html = `
-    <div id="rota-redonda-content" style="background: #fff; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); display: flex; flex-direction: column; height: calc(100vh - 65px); box-sizing: border-box; overflow: hidden;">
+    <div id="rota-redonda-content" style="background: #fff; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); display: flex; flex-direction: column; box-sizing: border-box;">
         
-        <!-- HEADER FORM — Fixo no topo, fora do scroll -->
-        <div style="position: relative; z-index: 100; display: flex; gap: 1rem; align-items: center; background: #2d9e5f; padding: 0.5rem 0.75rem; color: white; flex-shrink: 0; flex-wrap: wrap; border-radius: 6px 6px 0 0;">
+        <!-- HEADER FORM — Fixo no topo -->
+        <div style="position: sticky; top: 0; z-index: 100; display: flex; gap: 1rem; align-items: center; background: #2d9e5f; padding: 0.5rem 0.75rem; color: white; flex-shrink: 0; flex-wrap: wrap; border-radius: 6px 6px 0 0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
             
             <div style="display: flex; align-items: center; gap: 4px;">
                 <label style="font-weight: 600; font-size: 0.75rem; color: white; white-space: nowrap; margin: 0;">OS</label>
@@ -2056,12 +2056,12 @@ function renderRotaRedonda() {
         </div>
 
         <!-- ÁREA SCROLLÁVEL -->
-        <div style="flex: 1; overflow-y: auto; padding: 0.75rem; box-sizing: border-box;">
+        <div style="flex: 1; padding: 0.75rem; box-sizing: border-box;">
         <!-- MAIN SPLIT -->
-        <div style="display: flex; gap: 0.75rem; height: calc(100% - 0px); min-height: 500px;">
+        <div style="display: flex; gap: 0.75rem; min-height: 500px;">
             
             <!-- FORM LEFT COL -->
-            <div style="display: flex; flex-direction: column; gap: 0.5rem; flex: 2; min-width: 0; overflow-y: auto; padding-right: 4px; position: relative;">
+            <div style="display: flex; flex-direction: column; gap: 0.5rem; flex: 2; min-width: 0; padding-right: 4px; position: relative;">
                 <!-- OVERLAY DE BLOQUEIO OS -->
                 <div id="rr-overlay-bloqueio" style="position:absolute; inset:0; z-index:20; background:rgba(248,250,252,0.85); display:flex; flex-direction:column; align-items:center; justify-content:center; border-radius:6px; backdrop-filter:blur(2px); cursor:pointer;" onclick="const btn = document.getElementById('btn-add-os-tipo'); btn.style.transition='transform 0.1s, box-shadow 0.1s'; btn.style.transform='scale(1.2)'; btn.style.boxShadow='0 0 10px 4px #1a7a40'; setTimeout(() => { btn.style.transform='scale(1)'; btn.style.boxShadow='none'; }, 600);">
                     <i class="ph ph-lock" style="font-size:2rem; color:#94a3b8; margin-bottom:0.5rem;"></i>
