@@ -364,6 +364,8 @@ const BREADCRUMB_MAP = {
     // Módulos adicionais
     'dissidio':               { path: 'Dissídio',                                                  code: 'RHDIS01' },
     'ferias':                 { path: 'Controle de Férias',                                        code: 'RHFER01' },
+    // Logística
+    'logistica-rota-redonda': { path: 'Rota Redonda',                                              code: 'LOG001' },
 };
 
 window.carregarPermissoesOnline = async function() {
@@ -498,7 +500,8 @@ function updateBreadcrumb(key) {
     const starBtn = document.getElementById('btn-star-page');
     if (starBtn && entryObj) {
         starBtn.style.color = pageColor;
-        if ((!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario') {
+        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda';
+        if (isSimplePage) {
             starBtn.style.display = 'flex';
         } else {
             starBtn.style.display = 'none';
@@ -12056,9 +12059,11 @@ window.renderBookmarks = function() {
         // Ignorar tabs ou caminhos com setas, a menos que seja usuarios-permissoes ou form-usuario
         if ((obj.path.includes('→') && key !== 'usuarios-permissoes' && key !== 'form-usuario') || key.startsWith('tab:')) return '';
         
-        let btnColor = '#f503c5';
-        if (obj.path.includes('Diretoria')) {
-            btnColor = '#d9480f';
+        // Detecta a cor certa com base no TAB_META
+        const tabMeta = TAB_META[key];
+        let btnColor = tabMeta ? tabMeta.color : '#f503c5';
+        if (!tabMeta) {
+            if (obj.path.includes('Diretoria')) btnColor = '#d9480f';
         }
 
         let btnLabel = obj.path;

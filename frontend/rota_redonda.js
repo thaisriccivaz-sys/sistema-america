@@ -967,6 +967,7 @@ document.addEventListener('DOMContentLoaded', () => {
             abrirPopupTipoOs((tipo) => {
                 osState.tipoOs = tipo;
                 atualizarDropdownProdutos();
+                atualizarIconesCliente();
                 mostrarToastAviso(`Tipo de OS definido como: ${tipo}.`);
             });
             return;
@@ -1023,13 +1024,14 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Toggle Tipo Serviço
+        // Toggle Tipo Serviço (Habilidades)
         const btnTipo = e.target.closest('.btn-tipo-servico');
         if (btnTipo) {
             const tipo = btnTipo.dataset.tipo;
             if (osState.tiposServico.has(tipo)) osState.tiposServico.delete(tipo);
             else osState.tiposServico.add(tipo);
             atualizarUI();
+            atualizarIconesCliente();
             return;
         }
 
@@ -1054,6 +1056,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('rr-prod-desc').value = '';
                 document.getElementById('rr-prod-qtd').value = '';
                 atualizarUI();
+                atualizarIconesCliente();
                 calcularTempo();
                 // Atualiza badge tipo OS na tela
                 const badge = document.getElementById('rr-badge-tipo-os');
@@ -1157,7 +1160,68 @@ function atualizarDropdownProdutos() {
         badge.style.background = osState.tipoOs === 'Obra' ? '#156EB6' : osState.tipoOs === 'Evento' ? '#8E24AA' : '#94a3b8';
         badge.style.display = osState.tipoOs ? 'inline-flex' : 'none';
     }
+
+    // Filtra o dropdown de Tipo de Serviço pelo tipo selecionado (Obra/Evento)
+    const selectServico = document.getElementById('rr-tipo-servico');
+    if (selectServico && osState.tipoOs) {
+        const filtro = osState.tipoOs.toUpperCase(); // 'OBRA' ou 'EVENTO'
+        Array.from(selectServico.options).forEach(opt => {
+            if (opt.value === '') return; // mantém o placeholder
+            opt.hidden = !opt.value.toUpperCase().includes(filtro);
+        });
+    }
 }
+
+// Atualiza os ícones de produtos/serviços no nome do cliente
+function atualizarIconesCliente() {
+    const clienteInput = document.getElementById('rr-input-cliente');
+    if (!clienteInput) return;
+
+    // Coleta ícones dos produtos selecionados
+    const iconesProdutos = [];
+    document.querySelectorAll('.rr-produto-row').forEach(row => {
+        const nomeInput = row.querySelector('input[type="text"]');
+        if (!nomeInput?.value) return;
+        const prod = EQUIPAMENTOS_DICT[nomeInput.value.trim()];
+        if (prod?.icone && !iconesProdutos.includes(prod.icone)) {
+            iconesProdutos.push(prod.icone);
+        }
+    });
+
+    // Coleta ícone do tipo de OS
+    const tipoOs = osState.tipoOs;
+    let iconeOS = '';
+    if (tipoOs === 'Obra') iconeOS = '🏗️';
+    else if (tipoOs === 'Evento') iconeOS = '🎉';
+
+    // Coleta ícones das habilidades selecionadas
+    const iconesHabilidades = {
+        'TANQUE': '🚛', 'CARGA': '📦', 'VAC': '🌀', 'UTILITARIO': '🚙',
+        'TECNICO': '🔧', 'CARRETINHA': '🚜', 'CARROCERIA': '🚚', 'TANQUE GRANDE': '⛽'
+    };
+    const iconesHab = [];
+    document.querySelectorAll('.btn-tipo-servico.ativo').forEach(btn => {
+        const ic = iconesHabilidades[btn.dataset.tipo];
+        if (ic && !iconesHab.includes(ic)) iconesHab.push(ic);
+    });
+
+    // Monta string de ícones sem alterar o nome do cliente
+    const todosIcones = [iconeOS, ...iconesProdutos, ...iconesHab].filter(Boolean);
+
+    // Guarda nome base se não tiver já ícones
+    let nomeBase = clienteInput.dataset.nomeBase;
+    if (!nomeBase) {
+        nomeBase = clienteInput.value.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\s🏗🎉]+/u, '').trim();
+        clienteInput.dataset.nomeBase = nomeBase || clienteInput.value.trim();
+    }
+
+    if (todosIcones.length > 0) {
+        clienteInput.value = todosIcones.join('') + ' ' + (clienteInput.dataset.nomeBase || '');
+    } else {
+        clienteInput.value = clienteInput.dataset.nomeBase || '';
+    }
+}
+
 
 function abrirModalOSCliente(nomeCliente) {
     document.getElementById('rr-modal-os-cliente')?.remove();
@@ -1292,10 +1356,10 @@ function renderRotaRedonda() {
     const btnStyle = 'border:none; color:white; border-radius:4px; width:26px; height:26px; cursor:pointer; flex-shrink:0;';
 
     const html = `
-    <div id="rota-redonda-content" style="background: #fff; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); padding: 0.75rem; display: flex; flex-direction: column; height: calc(100vh - 65px); box-sizing: border-box;">
+    <div id="rota-redonda-content" style="background: #fff; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); display: flex; flex-direction: column; height: calc(100vh - 65px); box-sizing: border-box; overflow: hidden;">
         
-        <!-- HEADER FORM -->
-        <div style="position: sticky; top: 0; z-index: 100; display: flex; gap: 1rem; align-items: center; margin-bottom: 0.75rem; background: #2d9e5f; padding: 0.5rem 0.75rem; border-radius: 6px; color: white; flex-shrink: 0; flex-wrap: wrap;">
+        <!-- HEADER FORM — Fixo no topo, fora do scroll -->
+        <div style="position: relative; z-index: 100; display: flex; gap: 1rem; align-items: center; background: #2d9e5f; padding: 0.5rem 0.75rem; color: white; flex-shrink: 0; flex-wrap: wrap; border-radius: 6px 6px 0 0;">
             
             <div style="display: flex; align-items: center; gap: 4px;">
                 <label style="font-weight: 600; font-size: 0.75rem; color: white; white-space: nowrap; margin: 0;">OS</label>
@@ -1331,8 +1395,10 @@ function renderRotaRedonda() {
             </div>
         </div>
 
+        <!-- ÁREA SCROLLÁVEL -->
+        <div style="flex: 1; overflow-y: auto; padding: 0.75rem; box-sizing: border-box;">
         <!-- MAIN SPLIT -->
-        <div style="display: flex; gap: 0.75rem; flex: 1; min-height: 0;">
+        <div style="display: flex; gap: 0.75rem; height: calc(100% - 0px); min-height: 500px;">
             
             <!-- FORM LEFT COL -->
             <div style="display: flex; flex-direction: column; gap: 0.5rem; flex: 2; min-width: 0; overflow-y: auto; padding-right: 4px; position: relative;">
@@ -1496,6 +1562,7 @@ function renderRotaRedonda() {
             </div>
 
         </div>
+        </div><!-- fim área scrollável -->
     </div>
     `;
 
