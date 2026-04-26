@@ -519,7 +519,13 @@ function buscarPipelineDebounced() {
 function renderPipelinePage() {
     const container = document.getElementById('pipeline-container');
     if (!container) return;
-    const today = new Date().toISOString().split('T')[0];
+    
+    const hoje = new Date();
+    const today = hoje.toISOString().split('T')[0];
+    
+    // Data "Até" = +1 ano
+    const daquiUmAno = new Date(hoje.setFullYear(hoje.getFullYear() + 1));
+    const nextYear = daquiUmAno.toISOString().split('T')[0];
 
     container.innerHTML = `
     <div style="font-family:'Inter',sans-serif;background:#f1f5f9;min-height:100vh;">
@@ -551,7 +557,7 @@ function renderPipelinePage() {
         </div>
         <div style="display:flex;align-items:center;gap:5px;">
           <label style="color:#475569;font-size:0.78rem;font-weight:600;">Até:</label>
-          <input type="date" id="pipe-filtro-data-ate"
+          <input type="date" id="pipe-filtro-data-ate" value="${nextYear}"
             style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;background:white;color:#1e293b;outline:none;"
             onchange="buscarPipeline()">
         </div>
