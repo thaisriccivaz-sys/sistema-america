@@ -2526,7 +2526,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 let payloadsParaEnviar = [];
                 const nomeBase = document.getElementById('rr-input-cliente')?.dataset?.nomeBase || document.getElementById('rr-input-cliente')?.value || '';
 
-                if (payload.tipo_servico.includes('TROCA DE EQUIPAMENTO')) {
+                if (osState.loadedId) {
+                    payload.cliente = document.getElementById('rr-input-cliente')?.value?.trim() || `${gerarPrefixoIcones()} ${nomeBase}`.trim();
+                    payloadsParaEnviar.push(payload);
+                } else if (payload.tipo_servico.includes('TROCA DE EQUIPAMENTO')) {
                     const tipoOsSuffix = payload.tipo_os.toUpperCase(); // OBRA ou EVENTO
                     
                     const payloadE = { ...payload };
