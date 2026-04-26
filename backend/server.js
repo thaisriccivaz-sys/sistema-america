@@ -8438,13 +8438,17 @@ app.get('/api/logistica/pipeline', authenticateToken, (req, res) => {
     // Retorna Set com abreviações e nomes completos dos dias presentes no intervalo [de, ate]
     function diasNoIntervalo(de, ate) {
         const set = new Set();
-        if (!de) return set;
-        const fim = ate ? new Date(ate + 'T12:00:00') : new Date(de + 'T12:00:00');
+        // Se falta o 'De' ou o 'Até', o intervalo é aberto/infinito, então não há restrição de dias da semana
+        if (!de || !ate) return set;
+        
+        const fim = new Date(ate + 'T12:00:00');
         const cur = new Date(de + 'T12:00:00');
-        while (cur <= fim) { 
+        let limit = 0;
+        while (cur <= fim && limit < 8) { // no máximo 8 dias, depois disso todos os dias já estão no Set
             set.add(DIAS_ABBR[cur.getDay()]); 
             set.add(DIAS_FULL[cur.getDay()]); 
             cur.setDate(cur.getDate() + 1); 
+            limit++;
         }
         return set;
     }
