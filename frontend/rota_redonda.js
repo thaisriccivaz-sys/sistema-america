@@ -250,7 +250,15 @@ function calcularCargaTotalFromLista() {
     osState.tanque     = tanque;
     osState.carroceria = carroceria;
     osState.carretinha = carretinha;
-    osState.totalCarga = totalCarga;
+    osState.totalCarga = totalCargaVeiculo; // Bugfix
+
+    // Regra da Carretinha: se > 12 de carga veículo, adiciona habilidade Carretinha
+    if (totalCargaVeiculo > 12) {
+        osState.tiposServico.add('CARRETINHA');
+    } else {
+        osState.tiposServico.delete('CARRETINHA');
+    }
+    atualizarUI();
 }
 
 // ── CALCULAR CAMPOS POR PRODUTO (espelho do Flutter) ──────────────────────
@@ -2442,7 +2450,44 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (document.getElementById(id)?.checked) diasSelecionados.push(label);
             });
 
+            // Resgata Habilidades e Variaveis
+            const habilidadesSelecionadas = Array.from(osState.tiposServico);
+            const variaveisSelecionadas = Array.from(osState.acoes);
+
+            // Monta o PAYLOAD
+            const payload = {
+                numero_os: document.getElementById('rr-input-os')?.value?.trim() || '',
+                tipo_os: osState.tipoOs || '',
+                patrimonio: document.getElementById('rr-input-patrimonio')?.value?.trim() || '',
+                cliente: (document.getElementById('rr-input-cliente')?.dataset?.nomeBase || document.getElementById('rr-input-cliente')?.value || '').trim(),
+                endereco: document.getElementById('rr-input-endereco')?.value?.trim() || '',
+                complemento: document.getElementById('rr-input-complemento')?.value?.trim() || '',
+                cep: document.getElementById('rr-input-cep')?.value?.trim() || '',
+                lat: isNaN(lat) ? null : lat,
+                lng: isNaN(lng) ? null : lng,
+                contrato: document.querySelector('input[placeholder="Nº Contrato"]')?.value?.trim() || '',
+                data_os: document.getElementById('rr-input-data')?.value || '',
+                responsavel: document.getElementById('rr-input-responsavel')?.value?.trim() || '',
+                telefone: document.getElementById('rr-input-sms')?.value?.trim() || '',
+                email: document.getElementById('rr-input-email')?.value?.trim() || '',
+                tipo_servico: document.getElementById('rr-tipo-servico')?.value || '',
+                hora_inicio: horaInicio?.value || '',
+                hora_fim: horaFim?.value || '',
+                turno: diurno?.checked ? 'Diurno' : 'Noturno',
+                dias_semana: diasSelecionados,
+                produtos: osState.produtos || [],
+                observacoes: document.getElementById('rr-input-obs')?.value?.trim() || '',
+                observacoes_internas: document.getElementById('rr-input-obs-internas')?.value?.trim() || '',
+                habilidades: habilidadesSelecionadas,
+                variaveis: variaveisSelecionadas,
+                link_video: document.getElementById('rr-input-video')?.value?.trim() || '',
+            };
+
             // Validação estrita de preenchimento
+            if (payload.habilidades.includes('CARRETINHA') && !payload.observacoes) {
+                alert('É obrigatório preencher a Observação do Motorista quando a habilidade CARRETINHA estiver selecionada.');
+                return;
+            }
             if (!payload.cliente) { alert('Preencha o nome do cliente.'); return; }
             if (!payload.tipo_os) { alert('Defina o tipo de OS (Obra ou Evento) clicando no botão +.'); return; }
             if (!payload.numero_os) { alert('Preencha o número da OS.'); return; }
