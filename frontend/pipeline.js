@@ -57,8 +57,8 @@ function pipelineRenderVar(v) {
 function pipelineRenderProd(p) {
     const desc = (p.desc || '').trim().toUpperCase();
     const qtd  = p.qtd || 1;
-    const ic   = PIPELINE_EQ_ICONS[desc] || '📦';
-    return `<span style="background:#dbeafe;color:#1d4ed8;border-radius:6px;padding:2px 9px;font-size:0.68rem;font-weight:600;">${ic} ${desc} (${qtd})</span>`;
+    const ic   = PIPELINE_EQ_ICONS[desc] ? PIPELINE_EQ_ICONS[desc] + ' ' : '';
+    return `<span style="background:#dbeafe;color:#1d4ed8;border-radius:6px;padding:2px 9px;font-size:0.68rem;font-weight:600;">${ic}${desc} (${qtd})</span>`;
 }
 
 function pipelineGetIconServico(tipoServico) {
@@ -75,24 +75,27 @@ function pipelineGetIconServico(tipoServico) {
     return '📋';
 }
 
+// Recorrentes: Manutenção Obra e VAC Obra (dias da semana aparecem no card)
+function pipelineIsRecorrente(tipoServico) {
+    const t = (tipoServico || '').toLowerCase();
+    return t.includes('obra') && (t.includes('manutencao') || t.includes('manutenção') || t.includes('vac')) && !t.includes('avulsa');
+}
+
 function pipelineRenderCard(os) {
     const dias  = Array.isArray(os.dias_semana) ? os.dias_semana : [];
-    const vars  = Array.isArray(os.variaveis) ? os.variaveis.filter(v => v.trim()) : [];
-    const prods = Array.isArray(os.produtos) ? os.produtos : [];
-    const corCard = pipelineGetCorCard(os.tipo_servico);
+    const vars  = Array.isArray(os.variaveis)   ? os.variaveis.filter(v => v.trim()) : [];
+    const prods = Array.isArray(os.produtos)    ? os.produtos : [];
+    const isRec = pipelineIsRecorrente(os.tipo_servico);
 
     const endFull = [os.endereco, os.complemento, os.cep ? `CEP: ${os.cep}` : ''].filter(Boolean).join(', ');
 
-    const diasHtml = dias.length ? `
+    // Dias da semana: apenas para serviços RECORRENTES
+    const diasHtml = (isRec && dias.length) ? `
         <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:6px;">
         ${dias.map(d => `<span style="background:#dcfce7;color:#166534;border-radius:6px;padding:2px 8px;font-size:0.68rem;font-weight:600;">${d}</span>`).join('')}
         </div>` : '';
 
-    const varsHtml = vars.length ? `
-        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;">
-        ${vars.map(v => pipelineRenderVar(v)).join('')}
-        </div>` : '';
-
+    // Produtos (sem habilidades/variáveis — já aparecem como ícones no nome do cliente)
     const prodsHtml = prods.length ? `
         <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:5px;">
         ${prods.map(p => pipelineRenderProd(p)).join('')}
@@ -101,6 +104,10 @@ function pipelineRenderCard(os) {
     const obsHtml = (os.observacoes_internas || '').trim()
         ? `<div style="margin-top:5px;background:#fef9c3;border-radius:5px;padding:3px 8px;font-size:0.68rem;color:#854d0e;">📝 ${os.observacoes_internas}</div>` : '';
 
+    // 📦 compra interna ao lado do nome do cliente
+    const isCompra = vars.some(v => v.trim().toUpperCase().includes('COMPRA'));
+    const clienteLabel = `${isCompra ? '📦 ' : ''}${os.cliente || '—'}`;
+
     return `
     <div class="pipe-card" data-os-id="${os.id}"
          onclick="pipelineAbrirOS(${os.id},'${(os.numero_os||'').replace(/'/g,"\\'")}')">
@@ -108,15 +115,15 @@ function pipelineRenderCard(os) {
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
             <span style="font-weight:800;font-size:0.82rem;color:#1e3a5f;">OS: ${os.numero_os||'—'}</span>
         </div>
-        <!-- Cliente -->
-        <div style="font-size:0.73rem;font-weight:700;color:#1e293b;margin-bottom:2px;">${os.cliente||'—'}</div>
+        <!-- Cliente (com 📦 se compra interna) -->
+        <div style="font-size:0.73rem;font-weight:700;color:#1e293b;margin-bottom:2px;">${clienteLabel}</div>
         <!-- Endereço completo -->
         <div style="font-size:0.68rem;color:#475569;line-height:1.4;margin-bottom:2px;">${endFull || '—'}</div>
         <!-- Tipo de serviço -->
         <div style="font-size:0.68rem;color:#64748b;">${pipelineGetIconServico(os.tipo_servico)} <b>${(os.tipo_servico||'').toUpperCase()}</b></div>
         <!-- Data -->
         ${os.data_os ? `<div style="font-size:0.68rem;color:#94a3b8;">Data: ${os.data_os}</div>` : ''}
-        ${diasHtml}${varsHtml}${prodsHtml}${obsHtml}
+        ${diasHtml}${prodsHtml}${obsHtml}
     </div>`;
 }
 
