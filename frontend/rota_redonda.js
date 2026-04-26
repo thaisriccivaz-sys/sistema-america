@@ -3786,14 +3786,25 @@ function renderRotaRedonda() {
                 </div>
 
                 <!-- OBSERVAÇÕES -->
-                <div style="display: flex; gap: 0.5rem;">
-                    <div style="flex: 1;">
-                        <label style="${labelStyle}">Obs. Motoristas</label>
-                        <input type="text" id="rr-input-obs" style="${inputStyle}" placeholder="Info para motorista">
-                    </div>
+                <div style="display: flex; gap: 0.5rem; align-items: flex-end;">
                     <div style="flex: 1;">
                         <label style="${labelStyle}">Obs. Internas</label>
                         <input type="text" id="rr-input-obs-internas" style="${inputStyle}" placeholder="Info interna">
+                    </div>
+                    <!-- Seta: copia Obs. Internas → Obs. Motoristas -->
+                    <button type="button" title="Copiar para Obs. Motoristas"
+                        onclick="(function(){
+                            const src = document.getElementById('rr-input-obs-internas');
+                            const dst = document.getElementById('rr-input-obs');
+                            if(src && dst && src.value.trim()) {
+                                dst.value = src.value;
+                                dst.dispatchEvent(new Event('input', {bubbles:true}));
+                            }
+                        })()"
+                        style="flex-shrink:0;height:26px;padding:0 10px;background:#2d9e5f;color:white;border:none;border-radius:4px;font-size:1rem;font-weight:700;cursor:pointer;display:flex;align-items:center;margin-bottom:1px;" >›</button>
+                    <div style="flex: 1;">
+                        <label style="${labelStyle}">Obs. Motoristas</label>
+                        <input type="text" id="rr-input-obs" style="${inputStyle}" placeholder="Info para motorista">
                     </div>
                     <div style="flex: 1;">
                         <label style="${labelStyle}">Vídeo OS</label>
