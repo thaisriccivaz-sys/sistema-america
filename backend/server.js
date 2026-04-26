@@ -8298,6 +8298,43 @@ app.delete('/api/logistica/os/:id', authenticateToken, (req, res) => {
 // =====================================================================
 
 
+
+// GET /api/logistica/frota - Agrupa OS por data para resumo de frota
+app.get('/api/logistica/frota', authenticateToken, (req, res) => {
+    const { data } = req.query;
+    if (!data) return res.status(400).json({ error: 'Parâmetro data é obrigatório.' });
+    db.all(
+        `SELECT * FROM os_logistica WHERE data_os = ? AND status = 'ativo' ORDER BY cliente ASC`,
+        [data],
+        (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            const result = {};
+            (rows || []).forEach(r => {
+                let prods = [];
+                try { prods = JSON.parse(r.produtos || '[]'); } catch(e) { prods = []; }
+                let vars = [];
+                try { vars = JSON.parse(r.variaveis || '[]'); } catch(e) { vars = []; }
+                let habs = [];
+                try { habs = JSON.parse(r.habilidades || '[]'); } catch(e) { habs = []; }
+                let diasSemana = [];
+                try { diasSemana = JSON.parse(r.dias_semana || '[]'); } catch(e) { diasSemana = []; }
+                const veiculo = r.patrimonio && r.patrimonio.trim() ? r.patrimonio.trim().toUpperCase() : 'SEM VEÍCULO';
+                if (!result[veiculo]) result[veiculo] = { rotas: [], totalQtd: 0, servicosContagem: {}, produtosContagem: {} };
+                result[veiculo].rotas.push({ ...r, produtos: prods, variaveis: vars, habilidades: habs, dias_semana: diasSemana });
+                prods.forEach(p => {
+                    const k = (p.desc || '').toUpperCase();
+                    const q = parseInt(p.qtd) || 1;
+                    result[veiculo].produtosContagem[k] = (result[veiculo].produtosContagem[k] || 0) + q;
+                    result[veiculo].totalQtd += q;
+                });
+                const serv = (r.tipo_servico || 'NÃO INFORMADO').toUpperCase();
+                result[veiculo].servicosContagem[serv] = (result[veiculo].servicosContagem[serv] || 0) + 1;
+            });
+            res.json(result);
+        }
+    );
+});
+
 app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
     console.log('Versão do Servidor: V31_OS_LOGISTICA_MODULE');
