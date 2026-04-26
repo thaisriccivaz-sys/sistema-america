@@ -463,10 +463,23 @@ function pipelineExportarExcel() {
         // B: Endereço completo
         const endereco = [r.endereco, r.complemento, r.cep ? `CEP: ${r.cep}` : ''].filter(Boolean).join(', ');
 
-        // G: Anotações2 → TipoServico | produtos | dias (se manut obra/evento) | Obs.Motoristas
-        const prodStr  = (r.produtos || []).map(p => `${p.qtd}x ${p.desc}`).join(', ');
-        const diasStr  = mostrarDias ? abreviarDias(r.dias_semana) : '';
-        const anotacoes = [r.tipo_servico || '', prodStr, diasStr, r.observacoes || ''].filter(Boolean).join(' | ').toUpperCase();
+        // H: Anotações2
+        // Produtos: "QTD NOME" (sem X — X fica na frequência)
+        const prodStr = (r.produtos || []).map(p => `${p.qtd} ${p.desc}`).join(' - ');
+
+        // Frequência semanal: NX + abreviação dos dias (apenas para manutenção)
+        const numDias = (mostrarDias && Array.isArray(r.dias_semana)) ? r.dias_semana.length : 0;
+        const diasAbbr = mostrarDias ? abreviarDias(r.dias_semana) : '';
+        const diasComFreq = (mostrarDias && diasAbbr) ? `${numDias}X ${diasAbbr}` : '';
+
+        // Linha principal: TIPO | PRODUTOS | NX DIAS
+        const partesMain = [r.tipo_servico || '', prodStr, diasComFreq].filter(Boolean);
+        const linhaMain  = partesMain.join(' | ').toUpperCase();
+
+        // Observação do motorista em nova linha na mesma célula
+        const obsStr  = (r.observacoes || '').trim().toUpperCase();
+        const anotacoes = obsStr ? `${linhaMain}\n${obsStr}` : linhaMain;
+
 
         // H/I: Latitude e Longitude separadas
         let lat = r.latitude || r.lat || '';
