@@ -1,12 +1,12 @@
-/* ═══════════════════════════════════════════════════════════════
+﻿/* ═══════════════════════════════════════════════════════════════
    MÓDULO: PIPELINE OS (Kanban de Ordens de Serviço)
    ═══════════════════════════════════════════════════════════════ */
 
 const PIPELINE_COLS = [
-    { key: 'manutencao', label: 'Manutenção',    cor: '#607D8B', icon: '👤' },
-    { key: 'entrega',    label: 'Entrega',         cor: '#2d9e5f', icon: '🚛' },
-    { key: 'retirada',   label: 'Retirada',        cor: '#e67700', icon: '↩' },
-    { key: 'avulso',     label: 'Avulso',          cor: '#9C27B0', icon: '⚡' },
+    { key: 'manutencao', label: 'Manutenção',    cor: '#e2e8f0', icon: '<i class="ph ph-wrench"></i>', textCor: '#334155' },
+    { key: 'entrega',    label: 'Entrega',         cor: '#dcfce7', icon: '<i class="ph ph-truck"></i>', textCor: '#166534' },
+    { key: 'retirada',   label: 'Retirada',        cor: '#fef08a', icon: '<i class="ph ph-arrow-u-down-left"></i>', textCor: '#854d0e' },
+    { key: 'avulso',     label: 'Avulso',          cor: '#ffffff', icon: '<i class="ph ph-lightning"></i>', textCor: '#334155' },
 ];
 
 const PIPELINE_VARS_CORES = {
@@ -88,8 +88,8 @@ function pipelineRenderCard(os) {
     const isRec = pipelineIsRecorrente(os.tipo_servico);
 
     const _t = (os.tipo_servico || '').toLowerCase();
-    const bgCard     = _t.includes('obra')   ? '#dbeafe' : _t.includes('evento') ? '#ede9fe' : '#ffffff';
-    const borderCard = _t.includes('obra')   ? '#93c5fd' : _t.includes('evento') ? '#c4b5fd' : '#e2e8f0';
+    const bgCard     = _t.includes('obra')   ? '#dbeafe' : _t.includes('evento') ? '#e9d5ff' : '#ffffff';
+    const borderCard = _t.includes('obra')   ? '#93c5fd' : _t.includes('evento') ? '#d8b4fe' : '#e2e8f0';
 
     const endFull = [os.endereco, os.complemento, os.cep ? `CEP: ${os.cep}` : ''].filter(Boolean).join(', ');
 
@@ -146,9 +146,9 @@ function pipelineRenderKanban(dados) {
         <div style="flex:1;min-width:260px;display:flex;flex-direction:column;border-radius:12px;overflow:hidden;background:#f8fafc;box-shadow:0 2px 10px rgba(0,0,0,0.07);height:calc(100vh - 120px);">
             <!-- Header coluna sticky -->
             <div style="background:${col.cor};padding:10px 14px;display:flex;align-items:center;gap:8px;position:sticky;top:0;z-index:10;flex-shrink:0;">
-                <span style="font-size:1rem;">${col.icon}</span>
-                <span style="color:white;font-weight:800;font-size:0.9rem;flex:1;">${col.label}</span>
-                <span style="background:rgba(255,255,255,0.22);color:white;border-radius:20px;padding:1px 10px;font-size:0.8rem;font-weight:700;">${lista.length}</span>
+                <span style="font-size:1.1rem;color:${col.textCor};">${col.icon}</span>
+                <span style="color:${col.textCor};font-weight:800;font-size:0.9rem;flex:1;">${col.label}</span>
+                <span style="background:rgba(0,0,0,0.08);color:${col.textCor};border-radius:20px;padding:1px 10px;font-size:0.8rem;font-weight:700;">${lista.length}</span>
             </div>
             <!-- Cards com scroll interno -->
             <div style="flex:1;overflow-y:auto;padding:8px;">
@@ -416,5 +416,8 @@ function renderPipelinePage() {
 
     setTimeout(() => buscarPipeline(), 80);
 }
+
+
+
 
 

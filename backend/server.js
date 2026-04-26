@@ -8433,10 +8433,15 @@ app.get('/api/logistica/pipeline', authenticateToken, (req, res) => {
                 dias_semana: parseField(r.dias_semana)
             };
             const t = (r.tipo_servico || '').toLowerCase();
-            if (t.includes('entrega')) result.entrega.push(row);
-            else if (t.includes('retirada')) result.retirada.push(row);
-            else if ((t.includes('manutencao') || t.includes('manutenção')) && !t.includes('avulsa')) result.manutencao.push(row);
-            else result.avulso.push(row);
+            if (t.includes('entrega')) {
+                result.entrega.push(row);
+            } else if (t.includes('retirada')) {
+                result.retirada.push(row);
+            } else if (t.includes('manutencao obra') || t.includes('manutenção obra') || (t.includes('vac') && t.includes('obra'))) {
+                result.manutencao.push(row);
+            } else {
+                result.avulso.push(row);
+            }
         });
         res.json(result);
     });

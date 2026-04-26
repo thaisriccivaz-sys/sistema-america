@@ -3681,7 +3681,7 @@ function renderRotaRedonda() {
                                 onblur="setTimeout(()=>document.getElementById('rr-tipo-dropdown').style.display='none',200)">
                             <i class="ph ph-caret-down" style="position:absolute;right:5px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:0.75rem;pointer-events:none;"></i>
                             <div id="rr-tipo-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:200;background:white;border:1px solid #cbd5e1;border-radius:4px;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.12);">
-                                ${TIPOS_SERVICO_OS.map(t => { let ic = ''; if(t.includes('RETIRADA')) ic = t.includes('TOTAL') ? '⭕' : '🔶'; else if(t.includes('SUCCAO')) ic = '💧'; else if(t.includes('LIMPA FOSSA')) ic = '💦'; else if(t.includes('REPARO')) ic = '⚙️'; else if(t.includes('VISITA TECNICA')) ic = '📋'; else if(t.includes('MANUTENCAO')) ic = t.includes('AVULSA') ? '❗' : ''; else if(t.includes('VAC')) ic = '🏗️'; else if(t.includes('TROCA')) ic = '♻️'; return `<div class="rr-tipo-opt" data-val="${t}" onclick="selecionarTipoServico('${t}')" style="padding:5px 10px;cursor:pointer;font-size:0.8rem;color:#1e293b;transition:background 0.1s;" onmouseover="this.style.background='#f0f9ff'" onmouseout="this.style.background=''"><span style="margin-right:4px;">${ic}</span>${t}</div>`; }).join('')}
+                                ${TIPOS_SERVICO_OS.map(t => { let ic = ''; if(t.includes('RETIRADA')) ic = t.includes('TOTAL') ? '⭕' : '🔶'; else if(t.includes('SUCCAO')) ic = '💧'; else if(t.includes('LIMPA FOSSA')) ic = '💦'; else if(t.includes('REPARO')) ic = '🔧'; else if(t.includes('VISITA TECNICA')) ic = '⚙️'; else if(t.includes('MANUTENCAO')) ic = t.includes('AVULSA') ? '❗' : ''; else if(t.includes('VAC')) ic = '🏗️'; else if(t.includes('TROCA')) ic = '♻️'; return `<div class="rr-tipo-opt" data-val="${t}" onclick="selecionarTipoServico('${t}')" style="padding:5px 10px;cursor:pointer;font-size:0.8rem;color:#1e293b;transition:background 0.1s;" onmouseover="this.style.background='#f0f9ff'" onmouseout="this.style.background=''"><span style="margin-right:4px;">${ic}</span>${t}</div>`; }).join('')}
                             </div>
                         </div>
                         <input type="hidden" id="rr-tipo-servico" onchange="onChangeTipoServico();">
@@ -3806,3 +3806,4 @@ function renderRotaRedonda() {
     atualizarUI();
     atualizarBloqueio();
 }
+
