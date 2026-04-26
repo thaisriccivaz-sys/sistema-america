@@ -2619,6 +2619,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 mostrarToastAviso('É obrigatório preencher a Observação do Motorista quando a habilidade CARRETINHA estiver selecionada.');
                 return;
             }
+            if (payload.variaveis.length > 0 && !payload.observacoes) {
+                mostrarToastAviso('É obrigatório preencher a Observação do Motorista quando uma Variável estiver selecionada.');
+                return;
+            }
             if (!payload.cliente) { mostrarToastAviso('Preencha o nome do cliente.'); return; }
             if (!payload.tipo_os) { mostrarToastAviso('Defina o tipo de OS (Obra ou Evento) clicando no botão +.'); return; }
             if (!payload.numero_os) { mostrarToastAviso('Preencha o número da OS.'); return; }
@@ -3590,8 +3594,10 @@ function renderRotaRedonda() {
     const labelStyle = 'font-weight: 600; font-size: 0.7rem; color: #475569; display: block; margin-bottom: 2px; white-space: nowrap;';
     const btnStyle = 'border:none; color:white; border-radius:4px; width:26px; height:26px; cursor:pointer; flex-shrink:0;';
 
+    const duplicateStyle = osState.modoDuplicado ? 'border: 3px solid #eab308; box-shadow: 0 0 15px rgba(234, 179, 8, 0.4);' : '';
+
     const html = `
-    <div id="rota-redonda-content" style="background: #fff; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); display: flex; flex-direction: column; box-sizing: border-box;">
+    <div id="rota-redonda-content" style="background: #fff; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); display: flex; flex-direction: column; box-sizing: border-box; transition: all 0.3s ease; ${duplicateStyle}">
         
         <!-- HEADER FORM — Fixo no topo -->
         <div style="position: sticky; top: 60px; z-index: 20; display: flex; gap: 1rem; align-items: center; background: white; padding: 0.5rem 1.5rem; flex-shrink: 0; flex-wrap: wrap; border-bottom: 1px solid #e2e8f0; margin-top: -1.5rem; margin-left: -1.5rem; margin-right: -1.5rem; margin-bottom: 0.75rem;">
