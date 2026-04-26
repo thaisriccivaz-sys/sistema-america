@@ -994,8 +994,8 @@ function exibirModalSucessoOS(osId, payload) {
     // Botão Nova OS: limpa tudo e começa do zero
     modal.querySelector('#btn-nova-os-sucesso')?.addEventListener('click', () => {
         fechar();
-        osState.produtos = []; osState.tiposServico = new Set(payload.habilidades || []);
-      osState.acoes = new Set(payload.variaveis || []); osState.clienteConfirmado = true;
+        osState.produtos = []; osState.tiposServico = new Set();
+      osState.acoes = new Set(); osState.clienteConfirmado = true;
         osState.clienteNome = ''; osState.enderecoSelecionado = ''; osState.tipoOs = '';
         const c = document.getElementById('rota-redonda-container');
         if (c) c.innerHTML = '';
@@ -1996,8 +1996,8 @@ function abrirModalColarOS() {
 function preencherFormularioComDados(dados, tipoOs) {
     // Apaga os dados anteriores
     osState.produtos = [];
-    osState.tiposServico = new Set(payload.habilidades || []);
-      osState.acoes = new Set(payload.variaveis || []);
+    osState.tiposServico = new Set();
+      osState.acoes = new Set();
     document.querySelectorAll('#rota-redonda-tab input:not([type="radio"]), #rota-redonda-tab textarea').forEach(el => {
         if (el.type === 'checkbox') el.checked = false;
         else if (el.id !== 'rr-input-obs-internas') { el.value = ''; el.style.background = 'transparent'; }
@@ -2099,8 +2099,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (mutation.target.id === 'view-logistica-rota-redonda' && mutation.target.classList.contains('active')) {
                 // Sempre limpa e re-renderiza ao abrir a tela (equivale ao limparCampos() do Flutter)
                 osState.produtos = [];
-                osState.tiposServico = new Set(payload.habilidades || []);
-      osState.acoes = new Set(payload.variaveis || []);
+                osState.tiposServico = new Set();
+      osState.acoes = new Set();
                 osState.clienteConfirmado = false;
                 osState.clienteNome = '';
                 osState.enderecoSelecionado = '';
@@ -2343,8 +2343,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (resp.status === 404) {
                     // Nova OS manual — libera formulário até o passo de endereço
                     const numSalvo = numOs;
-                    osState.produtos = []; osState.tiposServico = new Set(payload.habilidades || []);
-      osState.acoes = new Set(payload.variaveis || []);
+                    osState.produtos = []; osState.tiposServico = new Set();
+      osState.acoes = new Set();
                     osState.clienteConfirmado = true;   // desbloqueia bloco principal
                     osState.enderecoConfirmado = false;  // mantém bloqueio do endereço
                     osState.clienteNome = ''; osState.enderecoSelecionado = ''; osState.tipoOs = '';
@@ -2754,8 +2754,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const btnLimpar = e.target.closest('#btn-limpar-os');
         if (btnLimpar) {
             osState.loadedId = null;
-            osState.produtos = []; osState.tiposServico = new Set(payload.habilidades || []);
-      osState.acoes = new Set(payload.variaveis || []); osState.clienteConfirmado = true;
+            osState.produtos = []; osState.tiposServico = new Set();
+      osState.acoes = new Set(); osState.clienteConfirmado = true;
             osState.enderecoConfirmado = false;
             osState.coordenadasConfirmadas = false; osState.agendaVerificada = false;
             osState.enderecoObrigatorio = false;
