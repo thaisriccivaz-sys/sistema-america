@@ -2784,6 +2784,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         break;
                     }
                 }
+                
+                const jaExiste = osState.produtos.find(p => p.desc.trim().toUpperCase() === descLimpa.trim().toUpperCase());
+                if (jaExiste) {
+                    mostrarToastAviso(`⚠️ O produto "${descLimpa}" já foi adicionado! Edite a quantidade na tabela se necessário.`);
+                    document.getElementById('rr-prod-desc').value = '';
+                    document.getElementById('rr-prod-qtd').value = '';
+                    return;
+                }
 
                 osState.produtos.push({ id: Date.now(), desc: descLimpa, qtd });
                 document.getElementById('rr-prod-desc').value = '';
@@ -3136,10 +3144,11 @@ function atualizarDropdownProdutos() {
     const badge = document.getElementById('rr-badge-tipo-os');
     if (!datalist) return;
 
-    const produtos = getProdutosPorTipo(osState.tipoOs);
-    datalist.innerHTML = produtos.map(p =>
-        `<option value="${p.icone} ${p.nome}"></option>`
-    ).join('');
+    const descAdicionadas = osState.produtos.map(p => p.desc.trim().toUpperCase());
+      const produtos = getProdutosPorTipo(osState.tipoOs).filter(p => !descAdicionadas.includes(p.nome.trim().toUpperCase()));
+      datalist.innerHTML = produtos.map(p =>
+          `<option value="${p.icone} ${p.nome}"></option>`
+      ).join('');
 
     if (badge) {
         badge.textContent = osState.tipoOs || '';
