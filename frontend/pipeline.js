@@ -203,10 +203,26 @@ function pipelineLimparFiltros() {
 
 function pipelineAbrirOS(id, numeroOs) {
     if (typeof navigateTo === 'function') navigateTo('logistica-rota-redonda');
-    setTimeout(() => {
-        if (typeof pesquisarOsParaEdicao === 'function') pesquisarOsParaEdicao(numeroOs);
-        else if (typeof carregarOsPorId === 'function') carregarOsPorId(id);
-    }, 500);
+
+    // Aguarda a página renderizar e tenta carregar a OS com retry
+    let tentativas = 0;
+    const maxTentativas = 15;
+    const intervalo = setInterval(() => {
+        tentativas++;
+        // Verifica se o container da Rota Redonda já foi renderizado
+        const containerReady = document.getElementById('rr-input-os') || document.getElementById('rota-redonda-content');
+        if (containerReady) {
+            clearInterval(intervalo);
+            if (typeof carregarOsPorNumero === 'function') {
+                carregarOsPorNumero(numeroOs);
+            } else if (typeof pesquisarOsParaEdicao === 'function') {
+                pesquisarOsParaEdicao(numeroOs);
+            }
+        } else if (tentativas >= maxTentativas) {
+            clearInterval(intervalo);
+            console.warn('[Pipeline] Timeout ao aguardar página Rota Redonda carregar para OS:', numeroOs);
+        }
+    }, 200);
 }
 
 function pipelineExportarCSV() {
