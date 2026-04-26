@@ -8053,8 +8053,9 @@ app.get('/api/logistica/os/agenda-endereco', authenticateToken, (req, res) => {
                     FROM os_logistica WHERE status = 'ativo' AND lat IS NOT NULL AND lng IS NOT NULL`, [], (err2, todasOs) => {
                 if (err2) return res.status(500).json({ error: err2.message });
 
-                // Classifica TODAS as OS por distância real (ignora texto)
+                // Classifica TODAS as OS por distância real (ignora texto) e filtra apenas RECORRENTES
                 const todasComDistancia = (todasOs || [])
+                    .filter(os => isRecorrente(os.tipo_servico))
                     .map(os => {
                         const distancia = haversineKm(userLat, userLng, os.lat, os.lng);
                         return { ...os, distancia_km: Math.round(distancia * 100) / 100 };
@@ -8093,13 +8094,14 @@ app.get('/api/logistica/os/agenda-endereco', authenticateToken, (req, res) => {
             });
         } else {
             // Sem coordenadas: usa só busca por texto
-            const diasAgregados = agregaDias(rowsExatos || []);
+            const exatosFiltrados = (rowsExatos || []).filter(os => isRecorrente(os.tipo_servico));
+            const diasAgregados = agregaDias(exatosFiltrados);
             res.json({
-                exatos: rowsExatos || [],
+                exatos: exatosFiltrados,
                 dias_sugeridos_2km: diasAgregados,
                 dias_sugeridos_5km: [],
                 proximos: [],
-                total_exatos: (rowsExatos || []).length,
+                total_exatos: exatosFiltrados.length,
                 total_proximos: 0,
                 modo: 'texto'
             });
