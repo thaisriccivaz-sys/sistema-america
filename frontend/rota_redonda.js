@@ -1586,7 +1586,6 @@ function exibirModalAgendaEndereco(data, enderecoAtual) {
 
     const containerSugestoes = document.getElementById('rr-sugestoes-dias-container');
     if (containerSugestoes) containerSugestoes.style.display = 'none';
-    }
 }
 
 // CSS: spinner + fix Leaflet z-index dentro do layout
