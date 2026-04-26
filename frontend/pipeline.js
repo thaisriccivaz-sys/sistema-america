@@ -319,12 +319,14 @@ function pipelineBuildTitulo(r) {
         icones.push(noturnoStyle[1].icon);
     }
 
-    // 2. Ícones de produtos (entrega e retirada usam PIPELINE_EQ_ICONS)
+    // 2. Ícones de produtos (entrega e retirada usam PIPELINE_EQ_ICONS — deduplica com Set)
     if (isEntregaOuRetirada && prods.length) {
+        const iconesProdSet = new Set();
         prods.forEach(p => {
             const desc = (p.desc || '').trim().toUpperCase();
-            if (PIPELINE_EQ_ICONS[desc]) icones.push(PIPELINE_EQ_ICONS[desc]);
+            if (PIPELINE_EQ_ICONS[desc]) iconesProdSet.add(PIPELINE_EQ_ICONS[desc]);
         });
+        iconesProdSet.forEach(ic => icones.push(ic));
     }
 
 
