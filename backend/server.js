@@ -8355,13 +8355,12 @@ app.get('/api/logistica/os/:id', authenticateToken, (req, res) => {
 });
 
 // GET /api/logistica/pipeline - OS agrupadas por tipo para o Pipeline Kanban
-// Lógica de data:
-//   Pontuais (Entrega, Retirada, Limpa Fossa, Visita Técnica, Manut.Avulsa, Reparo, Manut.Evento, VAC Evento):
-//     → filtrar por data_os dentro do intervalo [data_de, data_ate]
-//   Recorrentes (Manutenção Obra, VAC Obra):
-//     → data_os (data de início) <= data_ate, E algum dia da semana bate com o intervalo
 app.get('/api/logistica/pipeline', authenticateToken, (req, res) => {
-    const { os, cliente, endereco } = req.query;
+    const os = req.query.os || '';
+    const cliente = req.query.cliente || '';
+    const endereco = req.query.endereco || '';
+    const diaFiltro = req.query.dia || '';
+    const diaFiltroStr = diaFiltro ? diaFiltro.toLowerCase().substring(0, 3) : '';
     const dataDe  = req.query.data_de  || req.query.data || '';
     const dataAte = req.query.data_ate || '';
 
@@ -8405,21 +8404,30 @@ app.get('/api/logistica/pipeline', authenticateToken, (req, res) => {
         const temFiltroData = !!dataDe;
 
         const filtradas = (rows || []).filter(r => {
-            if (!temFiltroData) return true; // sem filtro de data: retorna tudo que passou no SQL
+            if (!temFiltroData && !diaFiltro) return true; // sem filtro de data nem dia: retorna tudo que passou no SQL
 
             if (isRecorrente(r.tipo_servico)) {
                 // Recorrente: data_os é a data de início da recorrência
                 const dataInicio = r.data_os || '';
                 // Só aparece se já iniciou (data_os <= data_ate ou data_os <= data_de se sem ate)
-                const limiteMax = dataAte || dataDe;
+                // Usar a data atual como fallback se for apenas busca por dia de semana
+                const limiteMax = dataAte || dataDe || new Date().toISOString().split('T')[0];
                 if (dataInicio && dataInicio > limiteMax) return false;
-                // Verifica se algum dia da semana da OS bate com o intervalo
+                
+                // Verifica se algum dia da semana da OS bate com o intervalo ou filtro explícito
                 let dias = [];
                 try { dias = JSON.parse(r.dias_semana || '[]'); } catch(e) {}
+                
+                if (diaFiltroStr) {
+                    return dias.some(d => d.toLowerCase().startsWith(diaFiltroStr));
+                }
+
                 if (diasRange.size === 0) return true;
                 return dias.some(d => diasRange.has(d));
             } else {
                 // Pontual: filtra por data_os
+                if (diaFiltroStr) return false; // Serviços pontuais não tem dia de semana
+
                 const dataOs = r.data_os || '';
                 if (!dataOs) return false;
                 if (dataDe && dataAte) return dataOs >= dataDe && dataOs <= dataAte;

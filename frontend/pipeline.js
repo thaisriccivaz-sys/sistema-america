@@ -217,6 +217,9 @@ async function buscarPipeline() {
     if (cliente)  params.set('cliente',  cliente);
     if (endereco) params.set('endereco', endereco);
 
+    const diaFiltro = document.getElementById('pipe-filtro-dia')?.value || '';
+    if (diaFiltro) params.set('dia', diaFiltro);
+
     try {
         const resp = await fetch(`/api/logistica/pipeline?${params}`, {
             headers: { 'Authorization': `Bearer ${token}` }
@@ -345,20 +348,20 @@ function renderPipelinePage() {
           <label style="color:#475569;font-size:0.78rem;font-weight:600;">OS:</label>
           <input type="text" id="pipe-filtro-os" placeholder="OS"
             style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;width:85px;background:white;color:#1e293b;outline:none;"
-            onkeydown="if(event.key==='Enter')buscarPipeline()">
+            oninput="buscarPipelineDebounced()">
         </div>
         <!-- Data De / Até -->
         <div style="display:flex;align-items:center;gap:5px;">
           <label style="color:#475569;font-size:0.78rem;font-weight:600;">De:</label>
           <input type="date" id="pipe-filtro-data-de" value="${today}"
             style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;background:white;color:#1e293b;outline:none;"
-            onkeydown="if(event.key==='Enter')buscarPipeline()">
+            onchange="buscarPipeline()">
         </div>
         <div style="display:flex;align-items:center;gap:5px;">
           <label style="color:#475569;font-size:0.78rem;font-weight:600;">Até:</label>
           <input type="date" id="pipe-filtro-data-ate"
             style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;background:white;color:#1e293b;outline:none;"
-            onkeydown="if(event.key==='Enter')buscarPipeline()">
+            onchange="buscarPipeline()">
         </div>
         <!-- Dia dropdown -->
         <div style="display:flex;align-items:center;gap:5px;">
@@ -390,22 +393,18 @@ function renderPipelinePage() {
           <label style="color:#475569;font-size:0.78rem;font-weight:600;">Endereço:</label>
           <input type="text" id="pipe-filtro-endereco" placeholder="Endereço"
             style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;width:180px;background:white;color:#1e293b;outline:none;"
-            onkeydown="if(event.key==='Enter')buscarPipeline()">
+            oninput="buscarPipelineDebounced()">
         </div>
         <!-- Cliente -->
         <div style="display:flex;align-items:center;gap:5px;">
           <label style="color:#475569;font-size:0.78rem;font-weight:600;">Cliente:</label>
           <input type="text" id="pipe-filtro-cliente" placeholder="Cliente"
             style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;width:180px;background:white;color:#1e293b;outline:none;"
-            onkeydown="if(event.key==='Enter')buscarPipeline()">
+            oninput="buscarPipelineDebounced()">
         </div>
         <!-- Botões à direita -->
         <div style="margin-left:auto;display:flex;gap:6px;align-items:center;">
           <span id="pipeline-total-badge" style="background:#e2e8f0;color:#475569;border-radius:20px;padding:3px 12px;font-size:0.78rem;font-weight:700;">—</span>
-          <button onclick="buscarPipeline()" title="Atualizar (F5)"
-            style="background:#0284c7;border:none;border-radius:7px;padding:6px 14px;color:white;font-weight:700;cursor:pointer;font-size:0.82rem;box-shadow:0 2px 4px rgba(2,132,199,0.2);">
-            <i class="ph ph-arrows-clockwise"></i>
-          </button>
           <button onclick="pipelineExportarCSV()" title="Exportar CSV"
             style="background:white;border:1px solid #cbd5e1;border-radius:7px;padding:6px 12px;color:#475569;font-weight:700;cursor:pointer;font-size:0.82rem;">
             ⬇️
