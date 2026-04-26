@@ -58,7 +58,13 @@ function pipelineRenderProd(p) {
     const desc = (p.desc || '').trim().toUpperCase();
     const qtd  = p.qtd || 1;
     const ic   = PIPELINE_EQ_ICONS[desc] ? PIPELINE_EQ_ICONS[desc] + ' ' : '';
-    return `<span style="background:#dbeafe;color:#1d4ed8;border-radius:6px;padding:2px 9px;font-size:0.68rem;font-weight:600;">${ic}${desc} (${qtd})</span>`;
+    
+    let bg = '#f1f5f9';
+    let color = '#334155';
+    if (desc.includes('OBRA')) { bg = '#dbeafe'; color = '#1d4ed8'; }
+    else if (desc.includes('EVENTO')) { bg = '#f3e8ff'; color = '#7e22ce'; }
+    
+    return `<span style="background:${bg};color:${color};border-radius:6px;padding:2px 9px;font-size:0.68rem;font-weight:600;">${ic}${desc} (${qtd})</span>`;
 }
 
 function pipelineGetIconServico(tipoServico) {
@@ -133,8 +139,13 @@ function pipelineRenderCard(os) {
          onclick="pipelineAbrirOS(${os.id},'${(os.numero_os||'').replace(/'/g,"\\'")}')">
         <!-- OS número e Turno -->
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-            <span style="font-weight:800;font-size:0.82rem;color:#1e3a5f;">OS: ${os.numero_os||'—'}</span>
-            ${(os.turno || '').toLowerCase() === 'noturno' ? '<span style="background:#1e293b;color:#f8fafc;padding:2px 6px;border-radius:4px;font-size:0.65rem;font-weight:700;display:flex;align-items:center;gap:3px;">🌒 Noturno</span>' : ''}
+            <span style="font-weight:800;font-size:0.82rem;color:#1e3a5f;display:flex;align-items:center;gap:4px;">
+                <span onclick="pipelineEditarTipoContrato(event, ${os.id}, '${(_t||'').replace(/'/g,"\\'")}')" style="cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;" title="Clique para alterar Obra/Evento">
+                    ${pipelineGetIconServico(os.tipo_servico)}
+                </span>
+                OS: ${os.numero_os||'—'}
+            </span>
+            ${(os.turno || '').toLowerCase() === 'noturno' ? '<span style="background:#1e293b;padding:3px 5px;border-radius:4px;font-size:0.85rem;display:flex;align-items:center;justify-content:center;" title="Turno Noturno">🌒</span>' : ''}
         </div>
         <!-- Cliente (com 📦 se compra interna) -->
         <div style="font-size:0.73rem;font-weight:700;color:#1e293b;margin-bottom:2px;">${clienteLabel}</div>
@@ -730,11 +741,66 @@ function renderPipelinePage() {
     }, 200);
 }
 
-
-
-
-
-
-
-
-
+// Função para alterar o tipo de contrato clicando no ícone do card
+window.pipelineEditarTipoContrato = async function(event, osId, tipoServicoAtual) {
+    if(event) event.stopPropagation(); // Evita abrir a modal da OS
+    
+    const isObra = tipoServicoAtual.toLowerCase().includes('obra');
+    const isEvento = tipoServicoAtual.toLowerCase().includes('evento');
+    
+    const { value: novoTipo } = await Swal.fire({
+        title: 'Alterar Tipo de Contrato',
+        text: 'Selecione a classificação do contrato:',
+        input: 'select',
+        inputOptions: {
+            'Obra': 'Obra',
+            'Evento': 'Evento'
+        },
+        inputPlaceholder: 'Selecione o tipo',
+        showCancelButton: true,
+        cancelButtonText: 'Cancelar',
+        confirmButtonText: 'Salvar',
+        inputValue: isObra ? 'Obra' : (isEvento ? 'Evento' : '')
+    });
+    
+    if (novoTipo) {
+        try {
+            // Primeiro precisamos buscar a OS atual para não sobrescrever outros campos vazios
+            const resGet = await fetch(`/api/logistica/os/${osId}`);
+            if (!resGet.ok) throw new Error('Falha ao buscar OS');
+            const osData = await resGet.json();
+            
+            let novoStr = (osData.tipo_servico || '').trim();
+            
+            // Remove as palavras obra ou evento
+            novoStr = novoStr.replace(/obra/ig, '').replace(/evento/ig, '').replace(/\s+/g, ' ').trim();
+            // Acrescenta a nova no final
+            novoStr = novoStr + ' ' + novoTipo.toUpperCase();
+            
+            osData.tipo_servico = novoStr;
+            
+            // Salvar
+            const resPut = await fetch(`/api/logistica/os/${osId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(osData)
+            });
+            
+            if (resPut.ok) {
+                Swal.fire({
+                    title: 'Salvo!',
+                    text: 'O tipo de contrato foi atualizado com sucesso.',
+                    icon: 'success',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+                buscarPipeline(); // Atualiza os cards
+            } else {
+                throw new Error('Falha ao salvar OS');
+            }
+        } catch (e) {
+            console.error('Erro ao atualizar tipo de contrato:', e);
+            Swal.fire('Erro', 'Ocorreu um erro ao tentar alterar o tipo de contrato.', 'error');
+        }
+    }
+};
