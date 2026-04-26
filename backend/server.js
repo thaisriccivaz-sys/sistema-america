@@ -8330,6 +8330,33 @@ app.delete('/api/logistica/os/:id', authenticateToken, (req, res) => {
     });
 });
 
+// POST /api/logistica/import-bulk — Importação em massa
+app.post('/api/logistica/import-bulk', (req, res) => {
+    const records = req.body;
+    if (!Array.isArray(records)) return res.status(400).json({ error: 'Expected array' });
+    
+    let inserted = 0;
+    const stmt = db.prepare(`INSERT INTO os_logistica (numero_os, tipo_os, cliente, endereco, cep, lat, lng, 
+        data_os, responsavel, telefone, email, tipo_servico, hora_inicio, hora_fim, turno, dias_semana, 
+        produtos, observacoes, observacoes_internas, habilidades) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+        
+    db.serialize(() => {
+        db.run("BEGIN TRANSACTION");
+        records.forEach(r => {
+            stmt.run([r.numero_os, r.tipo_os, r.cliente, r.endereco, r.cep, r.lat, r.lng,
+                r.data_os, r.responsavel, r.telefone, r.email, r.tipo_servico, r.hora_inicio, r.hora_fim, 
+                r.turno, JSON.stringify(r.dias_semana||[]), JSON.stringify(r.produtos||[]), 
+                r.observacoes, r.observacoes_internas, r.habilidades]);
+            inserted++;
+        });
+        stmt.finalize();
+        db.run("COMMIT", (err) => {
+            if (err) return res.status(500).json({error: err.message});
+            res.json({ ok: true, count: inserted });
+        });
+    });
+});
+
 // =====================================================================
 
 
