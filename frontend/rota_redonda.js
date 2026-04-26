@@ -1413,7 +1413,12 @@ function carregarRegistroNaTela(os) {
     if (os.lat && os.lng) set('rr-input-coord', `${os.lat}, ${os.lng}`);
 
     // Garante osState completo ANTES de qualquer chamada que trave campos (atualizarBloqueio)
-    if (os.tipo_os) osState.tipoOs = os.tipo_os;
+    osState.tipoOs = '';
+    const _to = (os.tipo_os || '').toUpperCase();
+    const _ts = (os.tipo_servico || '').toUpperCase();
+    if (_to.includes('OBRA') || _ts.includes('OBRA')) osState.tipoOs = 'Obra';
+    else if (_to.includes('EVENTO') || _ts.includes('EVENTO')) osState.tipoOs = 'Evento';
+    
     osState.clienteNome          = os.cliente  || '';
     osState.clienteConfirmado    = true;
     osState.enderecoSelecionado  = os.endereco || '';
@@ -3627,7 +3632,7 @@ function renderRotaRedonda() {
             <div style="display: flex; align-items: center; gap: 4px;">
                 <label style="font-weight: 600; font-size: 0.75rem; color: #475569; white-space: nowrap; margin: 0;">OS</label>
                 <div style="display: flex; align-items: center; gap: 2px;">
-                    <img id="rr-img-tipo-os" src="" style="height: 28px; display: none;" alt="Tipo OS">
+                    <img id="rr-img-tipo-os" src="" style="height: 28px; display: none; cursor: pointer; transition: transform 0.2s;" alt="Tipo OS" title="Clique para alterar Obra/Evento" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" onclick="abrirPopupTipoOs(tipo => { osState.tipoOs = tipo; atualizarDropdownProdutos(); atualizarUI(); atualizarIconesCliente(); })">
                     <input type="text" id="rr-input-os" style="${inputStyle} border:1px solid #cbd5e1; width: 80px;" placeholder="Ex: 12345">
                     <button id="btn-add-os-tipo" style="${btnStyle} background:#0284c7;" title="Definir tipo de OS (Obra/Evento)"><i class="ph ph-plus"></i></button>
                 </div>
