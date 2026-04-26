@@ -10,7 +10,7 @@ const PIPELINE_COLS = [
 ];
 
 const PIPELINE_VARS_CORES = {
-    'NOTURNO':              { bg:'#1e3a5f', text:'#fff', icon:'🌙' },
+    'NOTURNO':              { bg:'#1e3a5f', text:'#fff', icon:'🌘' },
     'INFORMACOES IMPORTANTES': { bg:'#dc2626', text:'#fff', icon:'🚨' },
     'ATENCAO AO HORARIO':   { bg:'#b45309', text:'#fff', icon:'⏰' },
     'AVULSO':               { bg:'#ea580c', text:'#fff', icon:'❗' },
@@ -302,6 +302,55 @@ async function pipelineAbrirOS(osId, numeroOs) {
     }, 200);
 }
 
+// Monta o Título (coluna A do SimpliRoute) com ícones na ordem:
+// 1-Lua(noturno) 2-Produtos(entrega) 3-Serviço 4-Variáveis 5-Habilidades + Nome do cliente
+function pipelineBuildTitulo(r) {
+    const vars  = Array.isArray(r.variaveis)   ? r.variaveis.map(v => v.trim().toUpperCase()) : [];
+    const habs  = Array.isArray(r.habilidades) ? r.habilidades.map(h => h.trim().toUpperCase()) : [];
+    const prods = Array.isArray(r.produtos)    ? r.produtos : [];
+    const ts    = (r.tipo_servico || '').toLowerCase();
+    const isEntrega = ts.includes('entrega');
+    const icones = [];
+
+    // 1. Lua — ler do objeto PIPELINE_VARS_CORES, não hardcodar
+    const noturnoStyle = Object.entries(PIPELINE_VARS_CORES).find(([k]) => k === 'NOTURNO');
+    if (noturnoStyle && vars.some(v => v.includes('NOTURNO'))) {
+        icones.push(noturnoStyle[1].icon);
+    }
+
+    // 2. Ícones de produtos (apenas para entregas, usa PIPELINE_EQ_ICONS)
+    if (isEntrega && prods.length) {
+        prods.forEach(p => {
+            const desc = (p.desc || '').trim().toUpperCase();
+            if (PIPELINE_EQ_ICONS[desc]) icones.push(PIPELINE_EQ_ICONS[desc]);
+        });
+    }
+
+    // 3. Ícone do tipo de serviço (exceto entrega, cujo ícone 🚛 não existe no sistema)
+    if (!isEntrega) {
+        const ic = pipelineGetIconServico(r.tipo_servico);
+        if (ic && ic !== '📋') icones.push(ic);
+    }
+
+    // 4. Ícones das variáveis (exceto NOTURNO, já adicionado)
+    vars.forEach(v => {
+        if (v.includes('NOTURNO')) return;
+        for (const [key, style] of Object.entries(PIPELINE_VARS_CORES)) {
+            if (v.includes(key)) { icones.push(style.icon); break; }
+        }
+    });
+
+    // 5. Ícones das habilidades (via PIPELINE_VARS_CORES onde existir)
+    habs.forEach(h => {
+        for (const [key, style] of Object.entries(PIPELINE_VARS_CORES)) {
+            if (h.includes(key)) { icones.push(style.icon); break; }
+        }
+    });
+
+    const prefixo = icones.length ? icones.join(' ') + ' ' : '';
+    return (prefixo + (r.cliente || '')).trim();
+}
+
 function pipelineExportarExcel() {
     if (!_pipelineDados || Object.keys(_pipelineDados).length === 0) {
         alert('Busque antes de exportar.');
@@ -365,9 +414,8 @@ function pipelineExportarExcel() {
         const isAvulsaObraEvento = ts.includes('avulsa') && (ts.includes('obra') || ts.includes('evento'));
         const mostrarDias = isManutObraEvento || isAvulsaObraEvento;
 
-        // A: Título — ícone + nome do cliente
-        const icone  = pipelineGetIconServico(r.tipo_servico);
-        const titulo = `${icone} ${r.cliente || ''}`.trim();
+        // A: Título — ícones na ordem correta + nome do cliente
+        const titulo = pipelineBuildTitulo(r);
 
         // B: Endereço completo
         const endereco = [r.endereco, r.complemento, r.cep ? `CEP: ${r.cep}` : ''].filter(Boolean).join(', ');
