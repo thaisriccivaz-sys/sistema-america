@@ -68,7 +68,7 @@ function pipelineGetIconServico(tipoServico) {
     if (t.includes('visita tecnica') || t.includes('visita técnica')) return '⚙️';
     if (t.includes('reparo'))              return '🔧';
     if (t.includes('limpa fossa'))         return '💧';
-    if (t.includes('manutencao avulsa') || t.includes('manutenção avulsa')) return '⚡';
+    if (t.includes('manutencao avulsa') || t.includes('manutenção avulsa')) return ''; // sem ícone para avulsa
     if (t.includes('manutencao') || t.includes('manutenção')) return '🔧';
     if (t.includes('vac'))                 return '🏗️';
     if (t.includes('succao') || t.includes('sucção')) return '💧';
