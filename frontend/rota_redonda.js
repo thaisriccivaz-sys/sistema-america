@@ -991,6 +991,7 @@ function exibirModalSucessoOS(osId, payload) {
         osState.clienteNome = ''; 
         osState.enderecoSelecionado = ''; 
         osState.tipoOs = '';
+        osState.modoDuplicado = false;
         
         const c = document.getElementById('rota-redonda-container');
         if (c) c.innerHTML = '';
@@ -1018,6 +1019,8 @@ function duplicarOsNaTela(payload) {
     osState.clienteConfirmado = true;
     osState.clienteNome = payload.cliente || '';
     osState.enderecoSelecionado = payload.endereco || '';
+    osState.modoDuplicado = true;
+    osState.agendaVerificada = false; // reativa a trava da agenda
 
     // Re-renderiza a tela
     const c = document.getElementById('rota-redonda-container');
@@ -1118,7 +1121,8 @@ async function buscarAgendaEndereco() {
                 const dias = data.dias_sugeridos_5km.map(d => d.dia).join(', ');
                 contSug.innerHTML = `<span style="color:#b45309;font-size:0.65rem;font-weight:600;"><i class="ph ph-warning"></i> Sugeridos (1-3km): <b>${dias}</b></span>`;
             } else {
-                contSug.innerHTML = `<span style="color:#b91c1c;font-size:0.65rem;"><i class="ph ph-x-circle"></i> Sem rota em 3km.</span>`;
+                contSug.style.display = 'none';
+                contSug.innerHTML = '';
             }
         }
     } catch(e) {
@@ -2437,11 +2441,55 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Botão Criar Novo
-        const btnCriarNovo = e.target.closest('#btn-criar-novo');
-        if (btnCriarNovo) {
+        // Botão Duplicar OS no formulário
+        const btnDuplicarForm = e.target.closest('#btn-duplicar-os-form');
+        if (btnDuplicarForm) {
             osState.loadedId = null;
-            document.getElementById('btn-gerar-os-final')?.click();
+            osState.modoDuplicado = true;
+            osState.tiposServico = new Set();
+            
+            // Limpa o input de tipo
+            const tipoServEl = document.getElementById('rr-tipo-servico');
+            if (tipoServEl) tipoServEl.value = '';
+            const tipoServSearch = document.getElementById('rr-tipo-servico-search');
+            if (tipoServSearch) tipoServSearch.value = '';
+            
+            // Limpa o input de data
+            const dataEl = document.getElementById('rr-input-data');
+            if (dataEl) dataEl.value = '';
+
+            // Renderiza novamente para mostrar o badge 'Modo: Duplicada'
+            const container = document.getElementById('rota-redonda-container');
+            if (container) {
+                // Guarda valores atuais dos outros campos (exceto data e tipo) para restaurar
+                const payloadForm = {
+                    numero_os: document.getElementById('rr-input-os')?.value,
+                    cliente: document.getElementById('rr-input-cliente')?.value,
+                    endereco: document.getElementById('rr-input-endereco')?.value,
+                    complemento: document.getElementById('rr-input-complemento')?.value,
+                    lat: osState.lat,
+                    lng: osState.lng,
+                    contrato: document.getElementById('rr-input-contrato')?.value,
+                    responsavel: document.getElementById('rr-input-responsavel')?.value,
+                    telefone: document.getElementById('rr-input-sms')?.value,
+                    email: document.getElementById('rr-input-email')?.value,
+                    observacoes: document.getElementById('rr-input-obs')?.value,
+                    turno: document.getElementById('rr-chk-diurno')?.checked ? 'Diurno' : (document.getElementById('rr-chk-noturno')?.checked ? 'Noturno' : ''),
+                    hora_inicio: document.getElementById('rr-input-hora-inicio')?.value,
+                    hora_fim: document.getElementById('rr-input-hora-fim')?.value,
+                    dias_semana: ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].filter(d => {
+                        const m = { 'Seg': 'seg', 'Ter': 'ter', 'Qua': 'qua', 'Qui': 'qui', 'Sex': 'sex', 'Sáb': 'sab', 'Dom': 'dom' };
+                        return document.getElementById(`rr-chk-${m[d]}`)?.checked;
+                    }),
+                    produtos: [...osState.produtos],
+                    tipo_os: osState.tipoOs,
+                    habilidades: [],
+                    variaveis: [...osState.acoes]
+                };
+
+                // Usa a mesma função de duplicar
+                duplicarOsNaTela(payloadForm);
+            }
             return;
         }
 
@@ -2741,6 +2789,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const btnLimpar = e.target.closest('#btn-limpar-os');
         if (btnLimpar) {
             osState.loadedId = null;
+            osState.modoDuplicado = false;
             osState.produtos = []; osState.tiposServico = new Set();
       osState.acoes = new Set(); osState.clienteConfirmado = true;
             osState.enderecoConfirmado = false;
@@ -3586,7 +3635,8 @@ function renderRotaRedonda() {
             <div style="display:flex; gap:0.5rem; margin-left: auto;">
                 <button id="btn-colar-os" style="background:#f59e0b; color:white; border:none; height:26px; padding:0 10px; border-radius:4px; font-size:0.75rem; cursor:pointer; font-weight:600;" title="Colar texto da OS e preencher automaticamente"><i class="ph ph-clipboard-text"></i> Colar OS</button>
                 <button id="btn-limpar-os" style="background:#ef4444; color:white; border:none; height:26px; padding:0 10px; border-radius:4px; font-size:0.75rem; cursor:pointer; font-weight:600;"><i class="ph ph-x"></i> Limpar</button>
-                <button id="btn-criar-novo" style="display:none; background:#0284c7; color:white; border:none; height:26px; padding:0 10px; border-radius:4px; font-size:0.75rem; cursor:pointer; font-weight:600;" title="Criar nova OS com os dados carregados"><i class="ph ph-copy"></i> Criar Novo</button>
+                ${osState.loadedId ? `<button id="btn-duplicar-os-form" style="background:#0284c7; color:white; border:none; height:26px; padding:0 10px; border-radius:4px; font-size:0.75rem; cursor:pointer; font-weight:600;" title="Duplicar esta OS para criar uma nova"><i class="ph ph-copy"></i> Duplicar OS</button>` : ''}
+                ${osState.modoDuplicado ? `<button style="background:#eab308; color:white; border:none; height:26px; padding:0 10px; border-radius:4px; font-size:0.75rem; cursor:default; font-weight:600;" title="Você está criando uma nova OS baseada em uma existente"><i class="ph ph-copy"></i> Modo: Duplicada</button>` : ''}
                 <button id="btn-gerar-os-final" style="background:#14b8a6; color:white; border:none; height:26px; padding:0 10px; border-radius:4px; font-size:0.75rem; cursor:pointer; font-weight:600;"><i class="ph ph-check-circle"></i> Salvar</button>
             </div>
         </div>
