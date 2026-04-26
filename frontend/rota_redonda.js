@@ -1210,14 +1210,10 @@ function abrirModalListaOS(numOs, registros) {
           let bgColor = 'transparent';
           let hoverColor = '#f1f5f9';
           const tServ = (r.tipo_servico || '').toUpperCase();
-          if (tServ.includes('ENTREGA')) { bgColor = '#dcfce7'; hoverColor = '#bbf7d0'; }
+          if (tServ.includes('ENTREGA')) { bgColor = '#bbf7d0'; hoverColor = '#86efac'; }
           else if (tServ.includes('RETIRADA')) { bgColor = '#fef9c3'; hoverColor = '#fef08a'; }
-          else if (tServ === 'MANUTENCAO OBRA') { bgColor = '#e2e8f0'; hoverColor = '#cbd5e1'; }
-          else if (tServ === 'MANUTENCAO EVENTO' || tServ.includes('AVULSA')) { bgColor = '#ffffff'; hoverColor = '#f8fafc'; }
-          else if (tServ.includes('LIMPA FOSSA')) { bgColor = '#dbeafe'; hoverColor = '#bfdbfe'; }
-          else if (tServ.includes('REPARO')) { bgColor = '#ffedd5'; hoverColor = '#fed7aa'; }
-          else if (tServ.includes('VISITA')) { bgColor = '#fef3c7'; hoverColor = '#fde68a'; }
-          else if (tServ.includes('VAC')) { bgColor = '#ccfbf1'; hoverColor = '#99f6e4'; }
+          else if (tServ.includes('LIMPA FOSSA')) { bgColor = '#bfdbfe'; hoverColor = '#93c5fd'; }
+          else if (tServ.includes('MANUTENCAO OBRA') || tServ.includes('VAC')) { bgColor = '#e2e8f0'; hoverColor = '#cbd5e1'; }
           else { bgColor = '#ffffff'; hoverColor = '#f8fafc'; }
           
           return `
