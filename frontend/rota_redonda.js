@@ -1474,30 +1474,31 @@ function exibirModalAgendaEndereco(data, enderecoAtual) {
     const maxCount = Math.max(1, ...Object.values(totaisPorDia));
 
     let chartHtml = `
-    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:1.5rem 1rem 1rem 1rem; margin-bottom:0.5rem; display:flex; flex-direction:column; gap:1.2rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
-        <p style="margin:0; font-weight:800; color:#1e293b; font-size:0.95rem; text-align:center;"><i class="ph ph-chart-bar" style="color:#0ea5e9; font-size:1.1rem; vertical-align:middle;"></i> Volume de Atendimentos na Região (3km)</p>
-        <div style="display:flex; justify-content:space-between; align-items:flex-end; height:140px; gap:8px; padding: 0 10px; border-bottom: 2px solid #e2e8f0;">
-    `;
-    
-    DIAS_ALL.forEach(d => {
-        const count = totaisPorDia[d];
-        if (count === 0) return;
-        const pct = Math.round((count / maxCount) * 100);
-        const cor = colorMap[d];
-        const heightStyle = count === 0 ? 'height: 4px; opacity: 0.2;' : `height: ${pct}%; box-shadow: 0 -4px 12px ${cor}40;`;
-        
-        chartHtml += `
-            <div style="display:flex; flex-direction:column; align-items:center; flex:1; gap:6px;">
-                <div style="font-size:0.8rem; font-weight:800; color:${count > 0 ? cor : '#94a3b8'};">${count}</div>
-                <div style="width:100%; max-width:48px; ${heightStyle} background:${cor}; border-radius:6px 6px 0 0; min-height:4px; transition:height 0.4s cubic-bezier(0.4, 0, 0.2, 1);"></div>
-                <div style="font-size:0.75rem; font-weight:700; color:#475569; text-transform:uppercase; margin-top:4px;">${d}</div>
-            </div>
-        `;
-    });
-    chartHtml += `
-        </div>
-    </div>
-    `;
+      <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:1.5rem 1rem 1rem 1rem; margin-bottom:0.5rem; display:flex; flex-direction:column; gap:1.2rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+          <p style="margin:0; font-weight:800; color:#1e293b; font-size:0.95rem; text-align:center;"><i class="ph ph-chart-bar" style="color:#0ea5e9; font-size:1.1rem; vertical-align:middle;"></i> Volume de Atendimentos na Região (3km)</p>
+          <div style="display:flex; justify-content:center; align-items:flex-end; height:140px; gap:24px; padding: 0 10px; border-bottom: 2px solid #e2e8f0;">
+      `;
+      
+      DIAS_ALL.forEach(d => {
+          const count = totaisPorDia[d];
+          if (count === 0) return;
+          const cor = colorMap[d];
+          // Altura em pixels baseada em 100px para aparecer direito no flex container
+          const barHeight = Math.max(4, Math.round((count / maxCount) * 100));
+          const heightStyle = count === 0 ? 'height: 4px; opacity: 0.2;' : `height: ${barHeight}px; box-shadow: 0 -4px 12px ${cor}40;`;
+          
+          chartHtml += `
+              <div style="display:flex; flex-direction:column; align-items:center; gap:6px; min-width: 50px;">
+                  <div style="font-size:0.8rem; font-weight:800; color:${count > 0 ? cor : '#94a3b8'};">${count}</div>
+                  <div style="width:100%; max-width:48px; ${heightStyle} background:${cor}; border-radius:6px 6px 0 0; transition:height 0.4s cubic-bezier(0.4, 0, 0.2, 1);"></div>
+                  <div style="font-size:0.75rem; font-weight:700; color:#475569; text-transform:uppercase; margin-top:4px;">${d}</div>
+              </div>
+          `;
+      });
+      chartHtml += `
+          </div>
+      </div>
+      `;
 
     let msgSugestao = chartHtml;
 
