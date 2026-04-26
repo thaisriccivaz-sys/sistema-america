@@ -251,7 +251,16 @@ async function buscarPipeline() {
 
         pipelineRenderKanban(_pipelineDados);
     } catch(e) {
-        if (container) container.innerHTML = `<div style="text-align:center;padding:3rem;color:#ef4444;width:100%;">${e.message}</div>`;
+        const msg = (e.message || '').toLowerCase();
+        const isAuth = msg.includes('token') || msg.includes('401') || msg.includes('403') || msg.includes('unauthorized');
+        const errHtml = isAuth
+            ? `<div style="text-align:center;padding:3rem;width:100%;">
+                <i class="ph ph-lock" style="font-size:2.5rem;color:#f59e0b;display:block;margin-bottom:0.75rem;"></i>
+                <p style="color:#92400e;font-weight:700;font-size:1rem;">Sessão expirada</p>
+                <p style="color:#78716c;font-size:0.85rem;margin-top:4px;">Faça logout e login novamente para continuar.</p>
+               </div>`
+            : `<div style="text-align:center;padding:3rem;color:#ef4444;width:100%;">${e.message}</div>`;
+        if (container) container.innerHTML = errHtml;
     }
 }
 
