@@ -110,7 +110,7 @@ function pipelineRenderCard(os) {
         <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:6px;">
         ${dias.map(d => {
             const cor = pipelineGetDiaColor(d);
-            return \`<span style="background:\${cor};color:white;border-radius:6px;padding:2px 8px;font-size:0.68rem;font-weight:700;">\${d}</span>\`;
+            return `<span style="background:${cor};color:white;border-radius:6px;padding:2px 8px;font-size:0.68rem;font-weight:700;">${d}</span>`;
         }).join('')}
         </div>` : '';
 
@@ -162,15 +162,15 @@ function pipelineRenderKanban(dados) {
     ${PIPELINE_COLS.map(col => {
         const lista = dados[col.key] || [];
         return `
-        <div style="flex:1;min-width:260px;display:flex;flex-direction:column;border-radius:12px;overflow:hidden;background:#f8fafc;box-shadow:0 2px 10px rgba(0,0,0,0.07);height:calc(100vh - 120px);">
+        <div style="flex:1;min-width:260px;display:flex;flex-direction:column;border-radius:12px;background:#f8fafc;box-shadow:0 2px 10px rgba(0,0,0,0.07);min-height:calc(100vh - 120px);padding-bottom:8px;">
             <!-- Header coluna sticky -->
-            <div style="background:${col.cor};padding:10px 14px;display:flex;align-items:center;gap:8px;position:sticky;top:0;z-index:10;flex-shrink:0;">
+            <div style="background:${col.cor};padding:10px 14px;display:flex;align-items:center;gap:8px;position:sticky;top:120px;z-index:90;border-radius:12px 12px 0 0;box-shadow:0 2px 4px rgba(0,0,0,0.05);">
                 <span style="font-size:1.1rem;color:${col.textCor};">${col.icon}</span>
                 <span style="color:${col.textCor};font-weight:800;font-size:0.9rem;flex:1;">${col.label}</span>
                 <span style="background:rgba(0,0,0,0.08);color:${col.textCor};border-radius:20px;padding:1px 10px;font-size:0.8rem;font-weight:700;">${lista.length}</span>
             </div>
-            <!-- Cards com scroll interno -->
-            <div style="flex:1;overflow-y:auto;padding:8px;">
+            <!-- Cards sem scroll interno (scroll da página) -->
+            <div style="flex:1;padding:8px;">
                 ${lista.length === 0
                     ? `<div style="text-align:center;padding:2rem;color:#94a3b8;font-size:0.78rem;"><i class="ph ph-clipboard-text" style="font-size:2rem;display:block;margin-bottom:8px;"></i>Nenhuma OS</div>`
                     : lista.map(os => pipelineRenderCard(os)).join('')}
@@ -325,36 +325,36 @@ function renderPipelinePage() {
     container.innerHTML = `
     <div style="font-family:'Inter',sans-serif;background:#f1f5f9;min-height:100vh;">
 
-      <!-- HEADER VERDE fixo no topo -->
-      <div style="background:#2d6a40;padding:8px 18px;display:flex;flex-wrap:wrap;align-items:center;gap:10px;box-shadow:0 3px 10px rgba(0,0,0,0.2);position:sticky;top:0;z-index:100;">
-        <span style="color:white;font-size:1.1rem;font-weight:800;margin-right:8px;">Pipeline OS</span>
+      <!-- HEADER BRANCO fixo no topo -->
+      <div id="pipeline-header-bar" style="position: sticky; top: 60px; z-index: 100; display: flex; gap: 1rem; align-items: center; background: white; padding: 0.5rem 1.5rem; flex-wrap: wrap; border-bottom: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+        <span style="color:#1e293b;font-size:1.1rem;font-weight:800;margin-right:8px;">Pipeline OS</span>
 
         <!-- OS -->
         <div style="display:flex;align-items:center;gap:5px;">
-          <label style="color:white;font-size:0.78rem;font-weight:600;">OS:</label>
+          <label style="color:#475569;font-size:0.78rem;font-weight:600;">OS:</label>
           <input type="text" id="pipe-filtro-os" placeholder="OS"
-            style="border:1px solid rgba(255,255,255,0.4);border-radius:6px;padding:5px 10px;font-size:0.8rem;width:85px;background:rgba(255,255,255,0.9);outline:none;"
+            style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;width:85px;background:white;color:#1e293b;outline:none;"
             onkeydown="if(event.key==='Enter')buscarPipeline()">
         </div>
         <!-- Data De / Até -->
         <div style="display:flex;align-items:center;gap:5px;">
-          <label style="color:white;font-size:0.78rem;font-weight:600;">De:</label>
+          <label style="color:#475569;font-size:0.78rem;font-weight:600;">De:</label>
           <input type="date" id="pipe-filtro-data-de" value="${today}"
-            style="border:1px solid rgba(255,255,255,0.4);border-radius:6px;padding:5px 10px;font-size:0.8rem;background:rgba(255,255,255,0.9);outline:none;"
+            style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;background:white;color:#1e293b;outline:none;"
             onkeydown="if(event.key==='Enter')buscarPipeline()">
         </div>
         <div style="display:flex;align-items:center;gap:5px;">
-          <label style="color:white;font-size:0.78rem;font-weight:600;">Até:</label>
+          <label style="color:#475569;font-size:0.78rem;font-weight:600;">Até:</label>
           <input type="date" id="pipe-filtro-data-ate"
-            style="border:1px solid rgba(255,255,255,0.4);border-radius:6px;padding:5px 10px;font-size:0.8rem;background:rgba(255,255,255,0.9);outline:none;"
+            style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;background:white;color:#1e293b;outline:none;"
             onkeydown="if(event.key==='Enter')buscarPipeline()">
         </div>
         <!-- Dia dropdown -->
         <div style="display:flex;align-items:center;gap:5px;">
-          <label style="color:white;font-size:0.78rem;font-weight:600;">Dia:</label>
+          <label style="color:#475569;font-size:0.78rem;font-weight:600;">Dia:</label>
           <select id="pipe-filtro-dia"
-            style="border:1px solid rgba(255,255,255,0.4);border-radius:6px;padding:5px 10px;font-size:0.8rem;background:rgba(255,255,255,0.9);outline:none;">
-            <option value="">Dia</option>
+            style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;background:white;color:#1e293b;outline:none;">
+            <option value="">Todos</option>
             <option value="Segunda">Segunda</option>
             <option value="Terça">Terça</option>
             <option value="Quarta">Quarta</option>
@@ -366,9 +366,9 @@ function renderPipelinePage() {
         </div>
         <!-- Tipo OS: Obra / Evento -->
         <div style="display:flex;align-items:center;gap:5px;">
-          <label style="color:white;font-size:0.78rem;font-weight:600;">Tipo:</label>
+          <label style="color:#475569;font-size:0.78rem;font-weight:600;">Tipo:</label>
           <select id="pipe-filtro-tipo-os"
-            style="border:1px solid rgba(255,255,255,0.4);border-radius:6px;padding:5px 10px;font-size:0.8rem;background:rgba(255,255,255,0.9);outline:none;">
+            style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;background:white;color:#1e293b;outline:none;">
             <option value="">Todos</option>
             <option value="obra">&#x1F535; Obra</option>
             <option value="evento">&#x1F7E3; Evento</option>
@@ -376,38 +376,38 @@ function renderPipelinePage() {
         </div>
         <!-- Endereco -->
         <div style="display:flex;align-items:center;gap:5px;">
-          <label style="color:white;font-size:0.78rem;font-weight:600;">Endereço:</label>
+          <label style="color:#475569;font-size:0.78rem;font-weight:600;">Endereço:</label>
           <input type="text" id="pipe-filtro-endereco" placeholder="Endereço"
-            style="border:1px solid rgba(255,255,255,0.4);border-radius:6px;padding:5px 10px;font-size:0.8rem;width:180px;background:rgba(255,255,255,0.9);outline:none;"
+            style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;width:180px;background:white;color:#1e293b;outline:none;"
             onkeydown="if(event.key==='Enter')buscarPipeline()">
         </div>
         <!-- Cliente -->
         <div style="display:flex;align-items:center;gap:5px;">
-          <label style="color:white;font-size:0.78rem;font-weight:600;">Cliente:</label>
+          <label style="color:#475569;font-size:0.78rem;font-weight:600;">Cliente:</label>
           <input type="text" id="pipe-filtro-cliente" placeholder="Cliente"
-            style="border:1px solid rgba(255,255,255,0.4);border-radius:6px;padding:5px 10px;font-size:0.8rem;width:180px;background:rgba(255,255,255,0.9);outline:none;"
+            style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;width:180px;background:white;color:#1e293b;outline:none;"
             onkeydown="if(event.key==='Enter')buscarPipeline()">
         </div>
         <!-- Botões à direita -->
         <div style="margin-left:auto;display:flex;gap:6px;align-items:center;">
-          <span id="pipeline-total-badge" style="background:rgba(0,0,0,0.25);color:white;border-radius:20px;padding:3px 12px;font-size:0.78rem;font-weight:700;">—</span>
+          <span id="pipeline-total-badge" style="background:#e2e8f0;color:#475569;border-radius:20px;padding:3px 12px;font-size:0.78rem;font-weight:700;">—</span>
           <button onclick="buscarPipeline()" title="Buscar"
-            style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.35);border-radius:7px;padding:6px 14px;color:white;font-weight:700;cursor:pointer;font-size:0.82rem;">
+            style="background:#0284c7;border:none;border-radius:7px;padding:6px 14px;color:white;font-weight:700;cursor:pointer;font-size:0.82rem;box-shadow:0 2px 4px rgba(2,132,199,0.2);">
             🔍 Buscar
           </button>
           <button onclick="pipelineExportarCSV()" title="Exportar CSV"
-            style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.35);border-radius:7px;padding:6px 12px;color:white;font-weight:700;cursor:pointer;font-size:0.82rem;">
+            style="background:white;border:1px solid #cbd5e1;border-radius:7px;padding:6px 12px;color:#475569;font-weight:700;cursor:pointer;font-size:0.82rem;">
             ⬇️
           </button>
           <button onclick="pipelineLimparFiltros()" title="Limpar filtros"
-            style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.35);border-radius:7px;padding:6px 12px;color:white;font-weight:700;cursor:pointer;font-size:0.82rem;">
+            style="background:white;border:1px solid #cbd5e1;border-radius:7px;padding:6px 12px;color:#ef4444;font-weight:700;cursor:pointer;font-size:0.82rem;">
             ✕
           </button>
         </div>
       </div>
 
       <!-- KANBAN BOARD -->
-      <div id="pipeline-kanban" style="display:flex;padding:1rem 1.2rem;gap:14px;overflow-x:auto;height:calc(100vh - 60px);box-sizing:border-box;align-items:flex-start;">
+      <div id="pipeline-kanban" style="display:flex;padding:1rem 1.2rem;gap:14px;align-items:flex-start;">
         <div style="width:100%;text-align:center;padding:4rem;color:#94a3b8;">
           <i class="ph ph-kanban" style="font-size:3rem;"></i>
           <p style="margin-top:1rem;">Carregando Pipeline...</p>
@@ -435,6 +435,7 @@ function renderPipelinePage() {
 
     setTimeout(() => buscarPipeline(), 80);
 }
+
 
 
 
