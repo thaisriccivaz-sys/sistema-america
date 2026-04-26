@@ -8532,21 +8532,61 @@ app.get('/api/logistica/pipeline', authenticateToken, (req, res) => {
     });
 });
 // =====================================================================
-// ROTINA DE LIMPEZA DE DUPLICATAS DA IMPORTAÇÃO
-db.serialize(() => {
-    console.log('[CLEANUP] Verificando e removendo duplicatas da importação...');
-    db.run(`
-        DELETE FROM os_logistica 
-        WHERE id NOT IN (
-            SELECT MIN(id) 
-            FROM os_logistica 
-            GROUP BY numero_os, tipo_servico, dias_semana, produtos, cliente
-        )
-    `, function(err) {
-        if(err) console.error('[CLEANUP] Erro:', err.message);
-        else console.log(`[CLEANUP] ${this.changes} linhas duplicadas foram removidas.`);
-    });
-});
+// =====================================================================
+// ROTINA DE REIMPORTAÇÃO COMPLETA (RESTAURA AS 158 LINHAS ORIGINAIS)
+const fs_module = require('fs');
+const path_module = require('path');
+const importPath = path_module.join(__dirname, 'import_data.json');
+if (fs_module.existsSync(importPath)) {
+    console.log('[IMPORT] Encontrado import_data.json, apagando dados antigos e reimportando...');
+    try {
+        const records = JSON.parse(fs_module.readFileSync(importPath, 'utf8'));
+        db.serialize(() => {
+            db.run("BEGIN TRANSACTION");
+            db.run("DELETE FROM os_logistica WHERE status='ativo'");
+            
+            let inserted = 0;
+            const stmt = db.prepare(`INSERT INTO os_logistica (numero_os, tipo_os, cliente, endereco, cep, lat, lng, 
+                data_os, responsavel, telefone, email, tipo_servico, hora_inicio, hora_fim, turno, dias_semana, 
+                produtos, observacoes, observacoes_internas, habilidades) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+                
+            records.forEach(r => {
+                // Correções embutidas no ato da importação:
+                let dias = Array.isArray(r.dias_semana) ? r.dias_semana : [];
+                dias = dias.map(d => d === 'SE' ? 'Sexta' : d);
+
+                let prods = Array.isArray(r.produtos) ? r.produtos : [];
+                prods = prods.map(p => {
+                    if(p.desc === 'GUARITA INDIVIDUAL O') p.desc = 'GUARITA INDIVIDUAL OBRA';
+                    if(p.desc === 'GUARITA DUPLA O') p.desc = 'GUARITA DUPLA OBRA';
+                    if(p.desc === 'STD O') p.desc = 'STD OBRA';
+                    if(p.desc === 'LX O') p.desc = 'LX OBRA';
+                    if(p.desc === 'PCD O') p.desc = 'PCD OBRA';
+                    if(p.desc === 'SLX O') p.desc = 'SLX OBRA';
+                    if(p.desc === 'ELX O') p.desc = 'ELX OBRA';
+                    if(p.desc === 'PBII O') p.desc = 'PBII OBRA';
+                    return p;
+                });
+
+                stmt.run([r.numero_os, r.tipo_os, r.cliente, r.endereco, r.cep, r.lat, r.lng,
+                    r.data_os, r.responsavel, r.telefone, r.email, r.tipo_servico, r.hora_inicio, r.hora_fim, 
+                    r.turno, JSON.stringify(dias), JSON.stringify(prods), 
+                    r.observacoes, r.observacoes_internas, r.habilidades]);
+                inserted++;
+            });
+            stmt.finalize();
+            db.run("COMMIT", (err) => {
+                if (err) console.error('[IMPORT] Erro no commit:', err.message);
+                else {
+                    console.log(`[IMPORT] Sucesso! Banco resetado e ${inserted} OS exatas reinseridas.`);
+                    fs_module.renameSync(importPath, importPath + '.done');
+                }
+            });
+        });
+    } catch(e) {
+        console.error('[IMPORT] Erro ao reimportar:', e.message);
+    }
+}
 // =====================================================================
 // =====================================================================
 // ROTINA DE CORREÇÃO DE DADOS (SE -> Sexta, GUARITA INDIVIDUAL O -> OBRA)
