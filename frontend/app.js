@@ -367,6 +367,7 @@ const BREADCRUMB_MAP = {
     // Logística
     'logistica-rota-redonda': { path: 'Rota Redonda',                                              code: 'LOG001' },
     'logistica-frota-resumo': { path: 'Resumo de Frota',                                            code: 'LOG002' },
+    'logistica-pipeline': { path: 'Pipeline OS',                                               code: 'LOG003' },
 };
 
 window.carregarPermissoesOnline = async function() {
@@ -553,6 +554,7 @@ const TAB_META = {
     'logistica-em-breve':     { color: '#2d9e5f', icon: 'ph-truck',          title: 'Logística' },
     'logistica-rota-redonda': { color: '#2d9e5f', icon: 'ph-map-trifold',   title: 'Rota Redonda' },
     'logistica-frota-resumo':  { color: '#1e3a5f', icon: 'ph-truck',          title: 'Resumo de Frota' },
+    'logistica-pipeline':    { color: '#2d6a40', icon: 'ph-kanban',       title: 'Pipeline' },
     // Financeiro - Azul
     'financeiro-em-breve':    { color: '#1971c2', icon: 'ph-currency-dollar', title: 'Financeiro' },
     // Comercial - Roxo
@@ -620,6 +622,11 @@ window.navigateToTab = function(tabId) {
       // Module-specific render hooks
       if (tab.target === 'logistica-frota-resumo' && typeof renderFrotaResumo === 'function') {
           setTimeout(() => renderFrotaResumo(), 50);
+      if (tab.target === 'logistica-pipeline' && typeof renderPipelinePage === 'function') {
+          setTimeout(() => renderPipelinePage(), 80);
+      }
+    } else if (target === 'logistica-pipeline') {
+        if (typeof renderPipelinePage === 'function') setTimeout(() => renderPipelinePage(), 80);
       }
     // Se a aba tem dados de colaborador (prontuário ou form), restaura o viewedColaborador
     if (tab._colaboradorData) {

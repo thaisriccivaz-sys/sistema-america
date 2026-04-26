@@ -103,6 +103,7 @@
                     <div class="dept-submenu-header" style="color:#2d9e5f;"><i class="ph ph-truck"></i> Logística</div>
                     <a href="#" class="nav-item" data-target="logistica-rota-redonda" onclick="navigateTo('logistica-rota-redonda'); return false;"><i class="ph ph-map-trifold"></i> Rota Redonda</a>
                     <a href="#" class="nav-item" data-target="logistica-frota-resumo" onclick="navigateTo('logistica-frota-resumo'); return false;"><i class="ph ph-truck"></i> Resumo de Frota</a>
+                    <a href="#" class="nav-item" data-target="logistica-pipeline" onclick="navigateTo('logistica-pipeline'); return false;"><i class="ph ph-kanban"></i> Pipeline</a>
                 </div>
             </div>
 
@@ -2167,6 +2168,11 @@
                     <div id="frota-resumo-container"></div>
                 </section>
 
+                <!-- VIEW: PIPELINE OS -->
+                <section id="view-logistica-pipeline" class="content-view" style="padding:0;">
+                    <div id="pipeline-container"></div>
+                </section>
+
                 <section id="view-usuarios-permissoes" class="content-view">
 
                     <div class="page-header flex-between">
@@ -2802,6 +2808,7 @@
     <script src="rota_redonda.js?v=19"></script>
     <script src="app.js?v=126"></script>
     <script src="frota_resumo.js?v=2"></script>
+    <script src="pipeline.js?v=1"></script>
 
 
     <!-- Global Scroll-to-Top Button -->

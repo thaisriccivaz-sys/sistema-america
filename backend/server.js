@@ -8335,6 +8335,42 @@ app.get('/api/logistica/frota', authenticateToken, (req, res) => {
     );
 });
 
+
+// GET /api/logistica/pipeline - OS agrupadas por tipo para o Pipeline Kanban
+app.get('/api/logistica/pipeline', authenticateToken, (req, res) => {
+    const { data, os, cliente, endereco } = req.query;
+    let sql = `SELECT * FROM os_logistica WHERE status = 'ativo'`;
+    const params = [];
+
+    if (data) { sql += ` AND data_os = ?`; params.push(data); }
+    if (os) { sql += ` AND numero_os LIKE ?`; params.push(`%${os}%`); }
+    if (cliente) { sql += ` AND cliente LIKE ?`; params.push(`%${cliente}%`); }
+    if (endereco) { sql += ` AND endereco LIKE ?`; params.push(`%${endereco}%`); }
+    sql += ` ORDER BY cliente ASC`;
+
+    db.all(sql, params, (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        const parseField = (val) => { try { return JSON.parse(val || '[]'); } catch(e) { return []; } };
+        const result = {
+            manutencao: [], entrega: [], retirada: [], avulso: []
+        };
+        (rows || []).forEach(r => {
+            const row = { ...r,
+                produtos: parseField(r.produtos),
+                variaveis: parseField(r.variaveis),
+                habilidades: parseField(r.habilidades),
+                dias_semana: parseField(r.dias_semana)
+            };
+            const t = (r.tipo_servico || '').toLowerCase();
+            if (t.includes('entrega')) result.entrega.push(row);
+            else if (t.includes('retirada')) result.retirada.push(row);
+            else if (t.includes('manutencao') && !t.includes('avulsa')) result.manutencao.push(row);
+            else result.avulso.push(row);
+        });
+        res.json(result);
+    });
+});
+
 app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
     console.log('Versão do Servidor: V31_OS_LOGISTICA_MODULE');
