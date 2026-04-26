@@ -366,6 +366,7 @@ const BREADCRUMB_MAP = {
     'ferias':                 { path: 'Controle de Férias',                                        code: 'RHFER01' },
     // Logística
     'logistica-rota-redonda': { path: 'Rota Redonda',                                              code: 'LOG001' },
+    'logistica-frota-resumo': { path: 'Resumo de Frota',                                            code: 'LOG002' },
 };
 
 window.carregarPermissoesOnline = async function() {
@@ -718,6 +719,8 @@ function navigateTo(target) {
         if (typeof window.renderFerias === 'function') window.renderFerias();
     } else if (target === 'dissidio') {
         if (typeof window.renderDissidio === 'function') window.renderDissidio();
+    } else if (target === 'logistica-frota-resumo') {
+        if (typeof renderFrotaResumo === 'function') setTimeout(() => renderFrotaResumo(), 80);
     }
 }
 
