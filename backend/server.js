@@ -8356,6 +8356,15 @@ app.get('/api/logistica/os/:id', authenticateToken, (req, res) => {
     });
 });
 
+// Verifica se o tipo de serviço é RECORRENTE (Manutenção ou VAC, seja Obra ou Evento, desde que não seja Avulsa)
+function isRecorrente(tipoServico) {
+    const t = (tipoServico || '').toLowerCase();
+    const isManutencao = t.includes('manutencao') || t.includes('manutenção');
+    const isVac = t.includes('vac');
+    const isAvulsa = t.includes('avulsa');
+    return (isManutencao || isVac) && !isAvulsa;
+}
+
 // GET /api/logistica/pipeline - OS agrupadas por tipo para o Pipeline Kanban
 app.get('/api/logistica/pipeline', authenticateToken, (req, res) => {
     const os = req.query.os || '';
@@ -8377,15 +8386,6 @@ app.get('/api/logistica/pipeline', authenticateToken, (req, res) => {
         const cur = new Date(de + 'T12:00:00');
         while (cur <= fim) { set.add(DIAS_ABBR[cur.getDay()]); cur.setDate(cur.getDate() + 1); }
         return set;
-    }
-
-    // Verifica se o tipo de serviço é RECORRENTE (Manutenção ou VAC, seja Obra ou Evento, desde que não seja Avulsa)
-    function isRecorrente(tipoServico) {
-        const t = (tipoServico || '').toLowerCase();
-        const isManutencao = t.includes('manutencao') || t.includes('manutenção');
-        const isVac = t.includes('vac');
-        const isAvulsa = t.includes('avulsa');
-        return (isManutencao || isVac) && !isAvulsa;
     }
 
     let sql = `SELECT * FROM os_logistica WHERE status = 'ativo'`;
