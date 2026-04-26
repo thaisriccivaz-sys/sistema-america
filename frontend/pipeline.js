@@ -302,26 +302,136 @@ async function pipelineAbrirOS(osId, numeroOs) {
     }, 200);
 }
 
-function pipelineExportarCSV() {
-    if (!_pipelineDados || Object.keys(_pipelineDados).length === 0) { alert('Busque antes de exportar.'); return; }
-    const ORDER = ['manutencao','entrega','retirada','avulso'];
-    const cab = ['OS','Cliente','Endereço','CEP','Tipo Serviço','Data','Produtos','Variáveis','Turno','Habilidades','Responsável','Telefone'];
-    const linhas = [cab.join(';')];
+function pipelineExportarExcel() {
+    if (!_pipelineDados || Object.keys(_pipelineDados).length === 0) {
+        alert('Busque antes de exportar.');
+        return;
+    }
+
+    const ORDER = ['manutencao', 'entrega', 'retirada', 'avulso'];
+    const registros = [];
     ORDER.forEach(key => {
-        (_pipelineDados[key]||[]).forEach(r => {
-            linhas.push([
-                r.numero_os, r.cliente, r.endereco, r.cep||'', r.tipo_servico,
-                r.data_os, (r.produtos||[]).map(p=>`${p.qtd}x ${p.desc}`).join('|'),
-                (r.variaveis||[]).join('|'), r.turno||'',
-                (r.habilidades||[]).join('|'), r.responsavel||'', r.telefone||''
-            ].map(v=>`"${(v||'').replace(/"/g,'""')}"`).join(';'));
-        });
+        (_pipelineDados[key] || []).forEach(r => registros.push(r));
     });
-    const blob = new Blob(['\uFEFF' + linhas.join('\r\n')], { type:'text/csv;charset=utf-8;' });
+    if (registros.length === 0) { alert('Nenhum registro para exportar.'); return; }
+
+    // Abreviação dos dias da semana para coluna G
+    const ABREV_DIA = {
+        'segunda':'seg','terça':'ter','terca':'ter',
+        'quarta':'qua','quinta':'qui','sexta':'sex',
+        'sábado':'sab','sabado':'sab','domingo':'dom'
+    };
+    function abreviarDias(dias) {
+        if (!Array.isArray(dias) || !dias.length) return '';
+        return dias.map(d => ABREV_DIA[d.toLowerCase()] || d.toLowerCase().substring(0,3)).join(', ');
+    }
+
+    // ── Títulos EXATOS das colunas (A–Z) ────────────────────────────────
+    const HEADERS = [
+        'Titulo',                       // A
+        'Endereço completo',            // B
+        'Carga',                        // C
+        'Janela de horário inicial',    // D
+        'Janela de horário final',      // E
+        'Tempo de serviço',             // F
+        'Anotações2',                   // G
+        'Latitude',                     // H
+        'Longitude',                    // I
+        'Identificação de referência',  // J
+        'Habilidade necessária',        // K
+        'Habilidade opcional',          // L — não preencher
+        'Telefone de contato',          // M — não preencher
+        'Pessoa de contato',            // N — não preencher
+        'Janela de horário inicial 2',  // O — não preencher
+        'Janela de horário final 2',    // P — não preencher
+        'Capacidade 2',                 // Q — Carroceria
+        'Capacidade 3',                 // R — Carretinha
+        'Prioridade',                   // S — não preencher
+        'SMS',                          // T — não preencher
+        'Correio eletrônico de contato',// U — Email
+        'Carga pick',                   // V — não preencher
+        'Carga pick 2',                 // W — não preencher
+        'Não preencher',                // X — não preencher
+        'Data Agendamento',             // Y — não preencher
+        'Tipo de visita'                // Z — Tipo de serviço
+    ];
+
+    const linhas = [HEADERS];
+
+    registros.forEach(r => {
+        const ts = (r.tipo_servico || '').toLowerCase();
+        // Mostrar dias da semana apenas para manutenção obra/evento e avulsa obra/evento
+        const isManutObraEvento  = (ts.includes('manut') && !ts.includes('avulsa')) && (ts.includes('obra') || ts.includes('evento'));
+        const isAvulsaObraEvento = ts.includes('avulsa') && (ts.includes('obra') || ts.includes('evento'));
+        const mostrarDias = isManutObraEvento || isAvulsaObraEvento;
+
+        // A: Título — ícone + nome do cliente
+        const icone  = pipelineGetIconServico(r.tipo_servico);
+        const titulo = `${icone} ${r.cliente || ''}`.trim();
+
+        // B: Endereço completo
+        const endereco = [r.endereco, r.complemento, r.cep ? `CEP: ${r.cep}` : ''].filter(Boolean).join(', ');
+
+        // G: Anotações2 → TipoServico | produtos | dias (se manut obra/evento) | Obs.Motoristas
+        const prodStr  = (r.produtos || []).map(p => `${p.qtd}x ${p.desc}`).join(', ');
+        const diasStr  = mostrarDias ? abreviarDias(r.dias_semana) : '';
+        const anotacoes = [r.tipo_servico || '', prodStr, diasStr, r.observacoes || ''].filter(Boolean).join(' | ');
+
+        // H/I: Latitude e Longitude separadas
+        let lat = r.latitude || r.lat || '';
+        let lng = r.longitude || r.lng || '';
+        if (!lat && r.lat_lng) {
+            const pts = r.lat_lng.toString().split(',');
+            lat = (pts[0] || '').trim();
+            lng = (pts[1] || '').trim();
+        }
+
+        // K: Habilidades separadas por vírgula
+        const habilidades = Array.isArray(r.habilidades) ? r.habilidades.join(', ') : (r.habilidades || '');
+
+        linhas.push([
+            titulo,                  // A Titulo
+            endereco,                // B Endereço completo
+            r.tanque || r.carga || '',// C Carga
+            r.hora_inicio || '',     // D Janela de horário inicial
+            r.hora_fim    || '',     // E Janela de horário final
+            r.tempo_servico || '',   // F Tempo de serviço
+            anotacoes,               // G Anotações2
+            lat,                     // H Latitude
+            lng,                     // I Longitude
+            r.numero_os || '',       // J Identificação de referência
+            habilidades,             // K Habilidade necessária
+            '',                      // L Habilidade opcional — não preencher
+            '',                      // M Telefone de contato — não preencher
+            '',                      // N Pessoa de contato — não preencher
+            '',                      // O Janela de horário inicial 2 — não preencher
+            '',                      // P Janela de horário final 2 — não preencher
+            r.carroceria || '',      // Q Capacidade 2 — Carroceria
+            r.carretinha || '',      // R Capacidade 3 — Carretinha
+            '',                      // S Prioridade — não preencher
+            '',                      // T SMS — não preencher
+            r.email || '',           // U Correio eletrônico de contato
+            '',                      // V Carga pick — não preencher
+            '',                      // W Carga pick 2 — não preencher
+            '',                      // X Não preencher
+            '',                      // Y Data Agendamento — não preencher
+            r.tipo_servico || ''     // Z Tipo de visita
+        ]);
+    });
+
+    const dataDe  = document.getElementById('pipe-filtro-data-de')?.value || '';
+    const dataAte = document.getElementById('pipe-filtro-data-ate')?.value || '';
+    const nomePlanilha = [dataDe, dataAte].filter(Boolean).join('_a_') || 'Pipeline';
+
+    // Exporta como CSV com separador ; compatível com SimpliRoute
+    const csvLinhas = linhas.map(row =>
+        row.map(v => `"${(v || '').toString().replace(/"/g, '""')}"`).join(';')
+    );
+    const blob = new Blob(['\uFEFF' + csvLinhas.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
-    a.href = url;
-    a.download = `Pipeline_${document.getElementById('pipe-filtro-data-de')?.value||'frota'}.csv`;
+    a.href     = url;
+    a.download = `SimpliRoute_${nomePlanilha}.csv`;
     a.click();
     URL.revokeObjectURL(url);
 }
@@ -406,9 +516,9 @@ function renderPipelinePage() {
         <!-- Botões à direita -->
         <div style="margin-left:auto;display:flex;gap:6px;align-items:center;">
           <span id="pipeline-total-badge" style="background:#e2e8f0;color:#475569;border-radius:20px;padding:3px 12px;font-size:0.78rem;font-weight:700;">—</span>
-          <button onclick="pipelineExportarCSV()" title="Exportar CSV"
-            style="background:white;border:1px solid #cbd5e1;border-radius:7px;padding:6px 12px;color:#475569;font-weight:700;cursor:pointer;font-size:0.82rem;">
-            ⬇️
+          <button onclick="pipelineExportarExcel()" title="Exportar SimpliRoute"
+            style="background:#16a34a;border:none;border-radius:7px;padding:6px 14px;color:white;font-weight:700;cursor:pointer;font-size:0.82rem;display:flex;align-items:center;gap:5px;">
+            ⬇️ SimpliRoute
           </button>
           <button onclick="pipelineLimparFiltros()" title="Limpar filtros"
             style="background:white;border:1px solid #cbd5e1;border-radius:7px;padding:6px 12px;color:#ef4444;font-weight:700;cursor:pointer;font-size:0.82rem;">
