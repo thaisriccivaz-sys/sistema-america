@@ -994,8 +994,8 @@ function exibirModalSucessoOS(osId, payload) {
     // Botão Nova OS: limpa tudo e começa do zero
     modal.querySelector('#btn-nova-os-sucesso')?.addEventListener('click', () => {
         fechar();
-        osState.produtos = []; osState.tiposServico = new Set();
-        osState.acoes = new Set(); osState.clienteConfirmado = true;
+        osState.produtos = []; osState.tiposServico = new Set(payload.habilidades || []);
+      osState.acoes = new Set(payload.variaveis || []); osState.clienteConfirmado = true;
         osState.clienteNome = ''; osState.enderecoSelecionado = ''; osState.tipoOs = '';
         const c = document.getElementById('rota-redonda-container');
         if (c) c.innerHTML = '';
@@ -1008,8 +1008,8 @@ function duplicarOsNaTela(payload) {
     // Preserva produtos e tipo de OS no state
     osState.tipoOs = payload.tipo_os || '';
     osState.produtos = (payload.produtos || []).map(p => ({ ...p, id: Date.now() + Math.random() }));
-    osState.tiposServico = new Set();
-    osState.acoes = new Set();
+    osState.tiposServico = new Set(payload.habilidades || []);
+      osState.acoes = new Set(payload.variaveis || []);
     osState.clienteConfirmado = true;
     osState.clienteNome = payload.cliente || '';
     osState.enderecoSelecionado = payload.endereco || '';
@@ -1063,7 +1063,9 @@ function duplicarOsNaTela(payload) {
         });
         // Tipo de serviço — LIMPA
         const tipoServEl = document.getElementById('rr-tipo-servico');
-        if (tipoServEl) tipoServEl.value = '';
+          if (tipoServEl) tipoServEl.value = '';
+          const tipoServSearch = document.getElementById('rr-tipo-servico-search');
+          if (tipoServSearch) tipoServSearch.value = '';
         // Atualiza UI (produtos, tipo OS, ícones)
         atualizarDropdownProdutos();
         atualizarIconesCliente();
@@ -1219,7 +1221,7 @@ function abrirModalListaOS(numOs, registros) {
           else { bgColor = '#ffffff'; hoverColor = '#f8fafc'; }
           
           return `
-              <tr class="rr-os-row" data-cliente="${(r.cliente||'').toLowerCase()}" data-endereco="${(r.endereco||'').toLowerCase()}" data-tipo="${(r.tipo_servico||'').toLowerCase()}" data-data="${r.data_os||''}" data-produto="${prodData}" style="border-bottom:1px solid #e2e8f0; background:${bgColor}; transition:background 0.2s;" onmouseover="this.style.background='${hoverColor}'" onmouseout="this.style.background='${bgColor}'">`
+              <tr class="rr-os-row" data-cliente="${(r.cliente||'').toLowerCase()}" data-endereco="${(r.endereco||'').toLowerCase()}" data-tipo="${(r.tipo_servico||'').toLowerCase()}" data-data="${r.data_os||''}" data-produto="${prodData}" style="border-bottom:1px solid #e2e8f0; background:${bgColor}; transition:background 0.2s;" onmouseover="this.style.background='${hoverColor}'" onmouseout="this.style.background='${bgColor}'">
                 <td style="padding:0.75rem 0.5rem;white-space:nowrap;">${r.numero_os}</td>
                 <td style="padding:0.75rem 0.5rem;font-weight:600;cursor:pointer;" onclick='window._carregarRegistroNaTela(${JSON.stringify(r)})'>${r.cliente}</td>
                 <td style="padding:0.75rem 0.5rem;">${r.endereco}</td>
@@ -1994,8 +1996,8 @@ function abrirModalColarOS() {
 function preencherFormularioComDados(dados, tipoOs) {
     // Apaga os dados anteriores
     osState.produtos = [];
-    osState.tiposServico = new Set();
-    osState.acoes = new Set();
+    osState.tiposServico = new Set(payload.habilidades || []);
+      osState.acoes = new Set(payload.variaveis || []);
     document.querySelectorAll('#rota-redonda-tab input:not([type="radio"]), #rota-redonda-tab textarea').forEach(el => {
         if (el.type === 'checkbox') el.checked = false;
         else if (el.id !== 'rr-input-obs-internas') { el.value = ''; el.style.background = 'transparent'; }
@@ -2097,8 +2099,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (mutation.target.id === 'view-logistica-rota-redonda' && mutation.target.classList.contains('active')) {
                 // Sempre limpa e re-renderiza ao abrir a tela (equivale ao limparCampos() do Flutter)
                 osState.produtos = [];
-                osState.tiposServico = new Set();
-                osState.acoes = new Set();
+                osState.tiposServico = new Set(payload.habilidades || []);
+      osState.acoes = new Set(payload.variaveis || []);
                 osState.clienteConfirmado = false;
                 osState.clienteNome = '';
                 osState.enderecoSelecionado = '';
@@ -2341,8 +2343,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (resp.status === 404) {
                     // Nova OS manual — libera formulário até o passo de endereço
                     const numSalvo = numOs;
-                    osState.produtos = []; osState.tiposServico = new Set();
-                    osState.acoes = new Set();
+                    osState.produtos = []; osState.tiposServico = new Set(payload.habilidades || []);
+      osState.acoes = new Set(payload.variaveis || []);
                     osState.clienteConfirmado = true;   // desbloqueia bloco principal
                     osState.enderecoConfirmado = false;  // mantém bloqueio do endereço
                     osState.clienteNome = ''; osState.enderecoSelecionado = ''; osState.tipoOs = '';
@@ -2752,8 +2754,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const btnLimpar = e.target.closest('#btn-limpar-os');
         if (btnLimpar) {
             osState.loadedId = null;
-            osState.produtos = []; osState.tiposServico = new Set();
-            osState.acoes = new Set(); osState.clienteConfirmado = true;
+            osState.produtos = []; osState.tiposServico = new Set(payload.habilidades || []);
+      osState.acoes = new Set(payload.variaveis || []); osState.clienteConfirmado = true;
             osState.enderecoConfirmado = false;
             osState.coordenadasConfirmadas = false; osState.agendaVerificada = false;
             osState.enderecoObrigatorio = false;
