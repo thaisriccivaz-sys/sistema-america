@@ -153,13 +153,18 @@ function pipelineRenderKanban(dados) {
     const container = document.getElementById('pipeline-kanban');
     if (!container) return;
 
-    const total = PIPELINE_COLS.reduce((a, c) => a + (dados[c.key]||[]).length, 0);
+    const diaSelecionado = document.getElementById('pipe-filtro-dia')?.value;
+    const colunasExibidas = diaSelecionado 
+        ? PIPELINE_COLS.filter(c => c.key === 'manutencao') 
+        : PIPELINE_COLS;
+
+    const total = colunasExibidas.reduce((a, c) => a + (dados[c.key]||[]).length, 0);
     const badge = document.getElementById('pipeline-total-badge');
     if (badge) badge.textContent = `${total} OS`;
 
     container.innerHTML = `
     <div style="display:flex;gap:14px;min-height:calc(100vh - 170px);padding:0.5rem 1.5rem 2rem 1.5rem;box-sizing:border-box;align-items:flex-start;flex-wrap:nowrap;">
-    ${PIPELINE_COLS.map(col => {
+    ${colunasExibidas.map(col => {
         const lista = dados[col.key] || [];
         return `
         <div style="flex:1;min-width:260px;display:flex;flex-direction:column;border-radius:12px;background:#f8fafc;box-shadow:0 2px 10px rgba(0,0,0,0.07);min-height:calc(100vh - 120px);padding-bottom:8px;">
@@ -317,6 +322,12 @@ function pipelineExportarCSV() {
     URL.revokeObjectURL(url);
 }
 
+let _pipelineDebounceTimer;
+function buscarPipelineDebounced() {
+    clearTimeout(_pipelineDebounceTimer);
+    _pipelineDebounceTimer = setTimeout(() => buscarPipeline(), 300);
+}
+
 function renderPipelinePage() {
     const container = document.getElementById('pipeline-container');
     if (!container) return;
@@ -352,7 +363,7 @@ function renderPipelinePage() {
         <!-- Dia dropdown -->
         <div style="display:flex;align-items:center;gap:5px;">
           <label style="color:#475569;font-size:0.78rem;font-weight:600;">Dia:</label>
-          <select id="pipe-filtro-dia"
+          <select id="pipe-filtro-dia" onchange="buscarPipeline()"
             style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;background:white;color:#1e293b;outline:none;">
             <option value="">Todos</option>
             <option value="Segunda">Segunda</option>
@@ -367,7 +378,7 @@ function renderPipelinePage() {
         <!-- Tipo OS: Obra / Evento -->
         <div style="display:flex;align-items:center;gap:5px;">
           <label style="color:#475569;font-size:0.78rem;font-weight:600;">Tipo:</label>
-          <select id="pipe-filtro-tipo-os"
+          <select id="pipe-filtro-tipo-os" onchange="buscarPipeline()"
             style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;background:white;color:#1e293b;outline:none;">
             <option value="">Todos</option>
             <option value="obra">&#x1F535; Obra</option>
@@ -391,9 +402,9 @@ function renderPipelinePage() {
         <!-- Botões à direita -->
         <div style="margin-left:auto;display:flex;gap:6px;align-items:center;">
           <span id="pipeline-total-badge" style="background:#e2e8f0;color:#475569;border-radius:20px;padding:3px 12px;font-size:0.78rem;font-weight:700;">—</span>
-          <button onclick="buscarPipeline()" title="Buscar"
+          <button onclick="buscarPipeline()" title="Atualizar (F5)"
             style="background:#0284c7;border:none;border-radius:7px;padding:6px 14px;color:white;font-weight:700;cursor:pointer;font-size:0.82rem;box-shadow:0 2px 4px rgba(2,132,199,0.2);">
-            🔍 Buscar
+            <i class="ph ph-arrows-clockwise"></i>
           </button>
           <button onclick="pipelineExportarCSV()" title="Exportar CSV"
             style="background:white;border:1px solid #cbd5e1;border-radius:7px;padding:6px 12px;color:#475569;font-weight:700;cursor:pointer;font-size:0.82rem;">
