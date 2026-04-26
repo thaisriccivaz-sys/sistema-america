@@ -1,4 +1,4 @@
-﻿/* ═══════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════
    MÓDULO: PIPELINE OS (Kanban de Ordens de Serviço)
    ═══════════════════════════════════════════════════════════════ */
 
@@ -81,6 +81,18 @@ function pipelineIsRecorrente(tipoServico) {
     return t.includes('obra') && (t.includes('manutencao') || t.includes('manutenção') || t.includes('vac')) && !t.includes('avulsa');
 }
 
+function pipelineGetDiaColor(d) {
+    const _d = (d||'').substring(0,3).toLowerCase();
+    if (_d === 'seg') return '#ef4444';
+    if (_d === 'ter') return '#f97316';
+    if (_d === 'qua') return '#ca8a04';
+    if (_d === 'qui') return '#16a34a';
+    if (_d === 'sex') return '#3b82f6';
+    if (_d === 'sáb' || _d === 'sab') return '#8b5cf6';
+    if (_d === 'dom') return '#ec4899';
+    return '#64748b';
+}
+
 function pipelineRenderCard(os) {
     const dias  = Array.isArray(os.dias_semana) ? os.dias_semana : [];
     const vars  = Array.isArray(os.variaveis)   ? os.variaveis.filter(v => v.trim()) : [];
@@ -96,7 +108,10 @@ function pipelineRenderCard(os) {
     // Dias da semana: apenas para serviços RECORRENTES
     const diasHtml = (isRec && dias.length) ? `
         <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:6px;">
-        ${dias.map(d => `<span style="background:#dcfce7;color:#166534;border-radius:6px;padding:2px 8px;font-size:0.68rem;font-weight:600;">${d}</span>`).join('')}
+        ${dias.map(d => {
+            const cor = pipelineGetDiaColor(d);
+            return \`<span style="background:\${cor};color:white;border-radius:6px;padding:2px 8px;font-size:0.68rem;font-weight:700;">\${d}</span>\`;
+        }).join('')}
         </div>` : '';
 
     // Produtos (sem habilidades/variáveis — já aparecem como ícones no nome do cliente)
@@ -124,6 +139,10 @@ function pipelineRenderCard(os) {
         <div style="font-size:0.73rem;font-weight:700;color:#1e293b;margin-bottom:2px;">${clienteLabel}</div>
         <!-- Endereço completo -->
         <div style="font-size:0.68rem;color:#475569;line-height:1.4;margin-bottom:2px;">${endFull || '—'}</div>
+        ${(!_t.includes('entrega') && !_t.includes('retirada') && !(_t.includes('manutencao obra') || _t.includes('manutenção obra') || (_t.includes('vac') && _t.includes('obra')))) ? `
+        <div style="font-size:0.68rem;color:#64748b;margin-bottom:2px;margin-top:3px;">
+            ${pipelineGetIconServico(os.tipo_servico)} <b>${(os.tipo_servico||'').toUpperCase()}</b>
+        </div>` : ''}
         <!-- Data -->
         ${os.data_os ? `<div style="font-size:0.68rem;color:#94a3b8;">Data: ${os.data_os}</div>` : ''}
         ${diasHtml}${prodsHtml}${obsHtml}
