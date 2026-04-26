@@ -449,7 +449,18 @@ function pipelineExportarExcel() {
         'Tipo de visita'                // AA — Tipo de serviço
     ];
 
-    const linhas = [HEADERS];
+    if (typeof ExcelJS === 'undefined') {
+        alert('Biblioteca ExcelJS não carregada. Atualize a página e tente novamente.');
+        return;
+    }
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('OS');
+
+    // Adiciona o cabeçalho
+    const headerRow = worksheet.addRow(HEADERS);
+    headerRow.font = { bold: true };
+    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1D5DB' } };
 
     registros.forEach(r => {
         const ts = (r.tipo_servico || '').toLowerCase();
@@ -481,7 +492,6 @@ function pipelineExportarExcel() {
         const obsStr  = (r.observacoes || '').trim().toUpperCase();
         const anotacoes = obsStr ? `${linhaMain}\n${obsStr}` : linhaMain;
 
-
         // H/I: Latitude e Longitude separadas
         let lat = r.latitude || r.lat || '';
         let lng = r.longitude || r.lng || '';
@@ -494,7 +504,7 @@ function pipelineExportarExcel() {
         // K: Habilidades separadas por vírgula
         const habilidades = Array.isArray(r.habilidades) ? r.habilidades.join(', ') : (r.habilidades || '');
 
-        linhas.push([
+        const rowData = [
             r.observacoes_internas || '', // A Obs Internas
             titulo,                  // B Titulo
             endereco,                // C Endereço completo
@@ -522,24 +532,45 @@ function pipelineExportarExcel() {
             '',                      // Y Não preencher
             '',                      // Z Data Agendamento — não preencher
             r.tipo_servico || ''     // AA Tipo de visita
-        ]);
+        ];
+
+        const row = worksheet.addRow(rowData);
+        row.getCell(8).alignment = { wrapText: true }; // Quebra de linha nas anotações
+
+        // Aplica a cor da linha baseada no tipo de serviço
+        const corHex = pipelineGetCorCard(r.tipo_servico);
+        if (corHex && corHex !== '#ffffff') {
+            const argb = 'FF' + corHex.substring(1).toUpperCase();
+            row.eachCell({ includeEmpty: true }, (cell) => {
+                cell.fill = {
+                    type: 'pattern',
+                    pattern: 'solid',
+                    fgColor: { argb: argb }
+                };
+            });
+        }
     });
 
     const dataDe  = document.getElementById('pipe-filtro-data-de')?.value || '';
     const dataAte = document.getElementById('pipe-filtro-data-ate')?.value || '';
     const nomePlanilha = [dataDe, dataAte].filter(Boolean).join('_a_') || 'Pipeline';
 
-    // Exporta como CSV com separador ; compatível com SimpliRoute
-    const csvLinhas = linhas.map(row =>
-        row.map(v => `"${(v || '').toString().replace(/"/g, '""')}"`).join(';')
-    );
-    const blob = new Blob(['\uFEFF' + csvLinhas.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href     = url;
-    a.download = `SimpliRoute_${nomePlanilha}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    // Ajusta largura das colunas
+    worksheet.columns.forEach(col => { col.width = 25; });
+
+    // Salva arquivo XLSX em vez de CSV
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    if (typeof saveAs !== 'undefined') {
+        saveAs(blob, `SimpliRoute_${nomePlanilha}.xlsx`);
+    } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `SimpliRoute_${nomePlanilha}.xlsx`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
 }
 
 let _pipelineDebounceTimer;
