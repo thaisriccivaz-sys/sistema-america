@@ -1365,6 +1365,11 @@ window._carregarRegistroNaTela = function(os) {
 function carregarRegistroNaTela(os) {
     osState.loadedId = os.id;
     const set = (id, val) => { const el = document.getElementById(id); if (el && val !== undefined && val !== null) el.value = val; };
+
+    // Número da OS e Contrato (campos críticos que faltavam)
+    set('rr-input-os',       os.numero_os);
+    set('rr-input-contrato', os.contrato || '');
+
     set('rr-input-cliente', os.cliente);
     set('rr-input-patrimonio', os.patrimonio);
     if (document.getElementById('rr-input-cliente')) {
@@ -1380,33 +1385,37 @@ function carregarRegistroNaTela(os) {
     set('rr-input-video', os.link_video);
     rrExibirLinkVideo(os.link_video || '');
     set('rr-tipo-servico', os.tipo_servico);
-    // Preenche também o campo de busca visível do dropdown
     const tsSearch = document.getElementById('rr-tipo-servico-search');
     if (tsSearch && os.tipo_servico) tsSearch.value = os.tipo_servico;
 
-    if (os.contrato) {
-        const contEl = document.getElementById('rr-input-contrato');
-        if (contEl) contEl.value = os.contrato;
-    }
     if (os.data_os) {
         const dataEl = document.getElementById('rr-input-data');
         if (dataEl) dataEl.value = os.data_os;
     }
-
     if (os.lat && os.lng) set('rr-input-coord', `${os.lat}, ${os.lng}`);
-    // Tipo de OS
-    if (os.tipo_os) {
-        osState.tipoOs = os.tipo_os;
-        atualizarDropdownProdutos();
-        atualizarIconesCliente();
-    }
+
+    // Garante osState completo ANTES de qualquer chamada que trave campos (atualizarBloqueio)
+    if (os.tipo_os) osState.tipoOs = os.tipo_os;
+    osState.clienteNome          = os.cliente  || '';
+    osState.clienteConfirmado    = true;
+    osState.enderecoSelecionado  = os.endereco || '';
+    osState.enderecoConfirmado   = true;
+    osState.enderecoObrigatorio  = false;
+    osState.produtos             = parseJsonFront(os.produtos).map(p => ({ ...p, id: Date.now() + Math.random() }));
+    osState.tiposServico         = new Set(parseJsonFront(os.habilidades));
+    osState.acoes                = new Set(parseJsonFront(os.variaveis));
+
+    atualizarDropdownProdutos();
+    atualizarIconesCliente();
+
     // Turno e horário
-    const diurno = document.getElementById('rr-chk-diurno');
+    const diurno  = document.getElementById('rr-chk-diurno');
     const noturno = document.getElementById('rr-chk-noturno');
-    if (os.turno === 'Diurno' && diurno) { diurno.checked = true; if (noturno) noturno.checked = false; }
-    if (os.turno === 'Noturno' && noturno) { noturno.checked = true; if (diurno) diurno.checked = false; }
+    if (os.turno === 'Diurno'  && diurno)  { diurno.checked  = true; if (noturno) noturno.checked = false; }
+    if (os.turno === 'Noturno' && noturno) { noturno.checked = true; if (diurno)  diurno.checked  = false; }
     set('rr-input-hora-inicio', os.hora_inicio);
-    set('rr-input-hora-fim', os.hora_fim);
+    set('rr-input-hora-fim',    os.hora_fim);
+
     // Dias da semana
     const diasSalvos = parseJsonFront(os.dias_semana);
     const diasMap = { 'Seg': 'rr-chk-seg', 'Ter': 'rr-chk-ter', 'Qua': 'rr-chk-qua', 'Qui': 'rr-chk-qui', 'Sex': 'rr-chk-sex', 'Sáb': 'rr-chk-sab', 'Dom': 'rr-chk-dom' };
@@ -1414,11 +1423,7 @@ function carregarRegistroNaTela(os) {
         const el = document.getElementById(id);
         if (el) el.checked = diasSalvos.includes(d);
     });
-    
-    // Produtos
-    osState.produtos = parseJsonFront(os.produtos).map(p => ({ ...p, id: Date.now() + Math.random() }));
 
-    osState.clienteNome = os.cliente || '';
     atualizarUI();
     atualizarBloqueio();
 }
