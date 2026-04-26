@@ -1,4 +1,4 @@
-﻿/* ════════════════════════════════════════════════════════════════════════════
+/* ════════════════════════════════════════════════════════════════════════════
    MÓDULO: ROTA REDONDA (ORDENS DE SERVIÇO)
    ════════════════════════════════════════════════════════════════════════════ */
 
@@ -980,18 +980,32 @@ function exibirModalSucessoOS(osId, payload) {
 
     document.body.appendChild(modal);
 
-    const fechar = () => modal.remove();
-    modal.querySelector('#btn-fechar-sucesso-os')?.addEventListener('click', fechar);
-    modal.querySelector('#btn-fechar-sucesso-os-2')?.addEventListener('click', fechar);
-    modal.addEventListener('click', e => { if (e.target === modal) fechar(); });
+    const fecharSomenteModal = () => modal.remove();
+    
+    const limparEFechar = () => {
+        fecharSomenteModal();
+        osState.produtos = []; 
+        osState.tiposServico = new Set();
+        osState.acoes = new Set(); 
+        osState.clienteConfirmado = true;
+        osState.clienteNome = ''; 
+        osState.enderecoSelecionado = ''; 
+        osState.tipoOs = '';
+        
+        const c = document.getElementById('rota-redonda-container');
+        if (c) c.innerHTML = '';
+        renderRotaRedonda();
+    };
+
+    modal.querySelector('#btn-fechar-sucesso-os')?.addEventListener('click', limparEFechar);
+    modal.querySelector('#btn-fechar-sucesso-os-2')?.addEventListener('click', limparEFechar);
+    modal.addEventListener('click', e => { if (e.target === modal) limparEFechar(); });
 
     // Duplicar: carrega tudo de volta EXCETO data e tipo_servico
     modal.querySelector('#btn-duplicar-os-sim')?.addEventListener('click', () => {
         fecharSomenteModal();
         duplicarOsNaTela(payload);
     });
-
-
 }
 
 // ── DUPLICAR OS NA TELA: carrega payload mas limpa Data e Tipo de Serviço ──
