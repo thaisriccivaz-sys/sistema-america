@@ -2638,7 +2638,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const isAvulsa = (payload.tipo_servico || '').toUpperCase().includes('AVULSA');
             const clicouAgenda = document.getElementById('rr-chk-agenda-clicado')?.value === '1';
 
-            if (isManut && !isAvulsa) {
+            if (isManut) {
                 if (!clicouAgenda && !osState.loadedId) {
                     mostrarToastAviso("Para serviços de Manutenção, é obrigatório clicar no botão Agenda.");
                     return;
