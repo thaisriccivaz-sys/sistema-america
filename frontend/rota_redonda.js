@@ -1519,22 +1519,7 @@ function exibirModalAgendaEndereco(data, enderecoAtual) {
 
     let msgSugestao = chartHtml;
 
-    if (tem1km) {
-        msgSugestao += `
-            <div style="background:#eff6ff; border:1.5px solid #93c5fd; border-radius:10px; padding:0.8rem 1rem; margin-bottom:0.5rem;">
-                <p style="margin:0; font-size:0.8rem; color:#1d4ed8; font-weight:600;"><i class="ph ph-check-circle-fill"></i> Recomendamos agendar nos dias com maior volume acima (especialmente os azuis e verdes).</p>
-            </div>`;
-    } else if (tem3km) {
-        msgSugestao += `
-            <div style="background:#fefce8; border:1.5px solid #fde68a; border-radius:10px; padding:0.8rem 1rem; margin-bottom:0.5rem;">
-                <p style="margin:0; font-size:0.8rem; color:#854d0e; font-weight:600;"><i class="ph ph-warning"></i> Nenhuma manutenção a menos de 1km. Analise o gráfico acima para escolher o melhor dia.</p>
-            </div>`;
-    } else if (proximos.length === 0) {
-        msgSugestao += `
-            <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:10px; padding:0.8rem 1rem; margin-bottom:0.5rem;">
-                <p style="margin:0; font-weight:600; color:#b91c1c; font-size:0.8rem;"><i class="ph ph-warning-circle"></i> Nenhuma manutenção cadastrada em raio de 3km.</p>
-            </div>`;
-    }
+
 
     const renderTabela = (lista, cor, semDist = false) => {
         if (!lista.length) return '';
