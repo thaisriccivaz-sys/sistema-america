@@ -163,19 +163,19 @@ function pipelineRenderKanban(dados) {
     if (badge) badge.textContent = `${total} OS`;
 
     container.innerHTML = `
-    <div style="display:flex;gap:14px;min-height:calc(100vh - 170px);padding:0.5rem 1.5rem 2rem 1.5rem;box-sizing:border-box;align-items:flex-start;flex-wrap:nowrap;">
+    <div style="display:flex;gap:14px;padding:0.5rem 1.5rem 1rem 1.5rem;box-sizing:border-box;align-items:flex-start;flex-wrap:nowrap;overflow-x:auto;min-height:0;">
     ${colunasExibidas.map(col => {
         const lista = dados[col.key] || [];
         return `
-        <div style="flex:1;min-width:260px;display:flex;flex-direction:column;border-radius:12px;background:${col.cor};box-shadow:0 2px 10px rgba(0,0,0,0.07);min-height:calc(100vh - 120px);padding-bottom:8px;">
-            <!-- Header coluna sticky -->
-            <div style="background:${col.cor};padding:10px 14px;display:flex;align-items:center;gap:8px;position:sticky;top:var(--pipe-header-height, 125px);z-index:90;border-radius:12px 12px 0 0;box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+        <div style="flex:1;min-width:260px;display:flex;flex-direction:column;border-radius:12px;background:${col.cor};box-shadow:0 2px 10px rgba(0,0,0,0.07);height:calc(100vh - 185px);position:sticky;top:0;overflow:hidden;">
+            <!-- Header coluna — sempre visível no topo da coluna -->
+            <div style="background:${col.cor};padding:10px 14px;display:flex;align-items:center;gap:8px;border-radius:12px 12px 0 0;box-shadow:0 2px 4px rgba(0,0,0,0.08);flex-shrink:0;z-index:2;">
                 <span style="font-size:1.1rem;color:${col.textCor};">${col.icon}</span>
                 <span style="color:${col.textCor};font-weight:800;font-size:0.9rem;flex:1;">${col.label}</span>
                 <span style="background:rgba(0,0,0,0.08);color:${col.textCor};border-radius:20px;padding:1px 10px;font-size:0.8rem;font-weight:700;">${lista.length}</span>
             </div>
-            <!-- Cards sem scroll interno (scroll da página) -->
-            <div style="flex:1;padding:8px;">
+            <!-- Cards com scroll interno da coluna -->
+            <div style="flex:1;padding:8px;overflow-y:auto;overflow-x:hidden;">
                 ${lista.length === 0
                     ? `<div style="text-align:center;padding:2rem;color:#94a3b8;font-size:0.78rem;"><i class="ph ph-clipboard-text" style="font-size:2rem;display:block;margin-bottom:8px;"></i>Nenhuma OS</div>`
                     : lista.map(os => pipelineRenderCard(os)).join('')}
