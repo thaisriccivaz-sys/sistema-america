@@ -129,18 +129,18 @@ function pipelineRenderKanban(dados) {
     if (badge) badge.textContent = `${total} OS`;
 
     container.innerHTML = `
-    <div style="display:flex;gap:14px;min-height:calc(100vh - 170px);padding:1rem 1.5rem;overflow-x:auto;box-sizing:border-box;">
+    <div style="display:flex;gap:14px;min-height:calc(100vh - 170px);padding:1rem 1.5rem;overflow-x:auto;box-sizing:border-box;align-items:flex-start;">
     ${PIPELINE_COLS.map(col => {
         const lista = dados[col.key] || [];
         return `
-        <div style="flex:1;min-width:260px;display:flex;flex-direction:column;border-radius:12px;overflow:hidden;background:#f8fafc;box-shadow:0 2px 10px rgba(0,0,0,0.07);">
-            <!-- Header coluna -->
-            <div style="background:${col.cor};padding:10px 14px;display:flex;align-items:center;gap:8px;">
+        <div style="flex:1;min-width:260px;display:flex;flex-direction:column;border-radius:12px;overflow:hidden;background:#f8fafc;box-shadow:0 2px 10px rgba(0,0,0,0.07);height:calc(100vh - 120px);">
+            <!-- Header coluna sticky -->
+            <div style="background:${col.cor};padding:10px 14px;display:flex;align-items:center;gap:8px;position:sticky;top:0;z-index:10;flex-shrink:0;">
                 <span style="font-size:1rem;">${col.icon}</span>
                 <span style="color:white;font-weight:800;font-size:0.9rem;flex:1;">${col.label}</span>
                 <span style="background:rgba(255,255,255,0.22);color:white;border-radius:20px;padding:1px 10px;font-size:0.8rem;font-weight:700;">${lista.length}</span>
             </div>
-            <!-- Cards -->
+            <!-- Cards com scroll interno -->
             <div style="flex:1;overflow-y:auto;padding:8px;">
                 ${lista.length === 0
                     ? `<div style="text-align:center;padding:2rem;color:#94a3b8;font-size:0.78rem;"><i class="ph ph-clipboard-text" style="font-size:2rem;display:block;margin-bottom:8px;"></i>Nenhuma OS</div>`
@@ -284,8 +284,8 @@ function renderPipelinePage() {
     container.innerHTML = `
     <div style="font-family:'Inter',sans-serif;background:#f1f5f9;min-height:100vh;">
 
-      <!-- HEADER VERDE (igual ao sistema legado) -->
-      <div style="background:#2d6a40;padding:8px 18px;display:flex;flex-wrap:wrap;align-items:center;gap:10px;box-shadow:0 3px 10px rgba(0,0,0,0.2);">
+      <!-- HEADER VERDE fixo no topo -->
+      <div style="background:#2d6a40;padding:8px 18px;display:flex;flex-wrap:wrap;align-items:center;gap:10px;box-shadow:0 3px 10px rgba(0,0,0,0.2);position:sticky;top:0;z-index:100;">
         <span style="color:white;font-size:1.1rem;font-weight:800;margin-right:8px;">Pipeline OS</span>
 
         <!-- OS -->
@@ -293,7 +293,6 @@ function renderPipelinePage() {
           <label style="color:white;font-size:0.78rem;font-weight:600;">OS:</label>
           <input type="text" id="pipe-filtro-os" placeholder="OS"
             style="border:1px solid rgba(255,255,255,0.4);border-radius:6px;padding:5px 10px;font-size:0.8rem;width:85px;background:rgba(255,255,255,0.9);outline:none;"
-            oninput="['pipe-filtro-data-de','pipe-filtro-data-ate'].forEach(id=>{const e=document.getElementById(id);if(this.value.trim()&&e)e.value='';});"
             onkeydown="if(event.key==='Enter')buscarPipeline()">
         </div>
         <!-- Data De / Até -->
@@ -357,7 +356,7 @@ function renderPipelinePage() {
       </div>
 
       <!-- KANBAN BOARD -->
-      <div id="pipeline-kanban" style="display:flex;padding:1rem 1.2rem;gap:14px;overflow-x:auto;min-height:calc(100vh - 58px);">
+      <div id="pipeline-kanban" style="display:flex;padding:1rem 1.2rem;gap:14px;overflow-x:auto;height:calc(100vh - 60px);box-sizing:border-box;align-items:flex-start;">
         <div style="width:100%;text-align:center;padding:4rem;color:#94a3b8;">
           <i class="ph ph-kanban" style="font-size:3rem;"></i>
           <p style="margin-top:1rem;">Carregando Pipeline...</p>
