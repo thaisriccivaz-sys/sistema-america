@@ -327,11 +327,6 @@ function pipelineBuildTitulo(r) {
         });
     }
 
-    // 3. Ícone do tipo de serviço (skipa entrega e retirada — ícones 🚛 e ↩️ não existem no sistema)
-    if (!isEntregaOuRetirada) {
-        const ic = pipelineGetIconServico(r.tipo_servico);
-        if (ic && ic !== '📋') icones.push(ic);
-    }
 
     // 4. Ícones das variáveis (exceto NOTURNO, já adicionado)
     vars.forEach(v => {

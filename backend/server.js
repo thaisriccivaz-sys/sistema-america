@@ -8383,9 +8383,11 @@ app.get('/api/logistica/os/:id', authenticateToken, (req, res) => {
     });
 });
 
-// Verifica se o tipo de serviço é Manutenção (agora incluindo Avulsa) ou VAC
+// Verifica se o tipo de serviço é recorrente (Manutenção regular ou VAC)
+// Manutenções AVULSAS são pontuais (filtradas por data_os) — não são recorrentes
 function isRecorrente(tipoServico) {
     const t = (tipoServico || '').toLowerCase();
+    if (t.includes('avulsa')) return false; // Avulsa = pontual, ignora dias da semana
     const isManutencao = t.includes('manuten');
     const isVac = t.includes('vac');
     return isManutencao || isVac;
