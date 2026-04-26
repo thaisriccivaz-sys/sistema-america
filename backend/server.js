@@ -8431,16 +8431,21 @@ app.get('/api/logistica/pipeline', authenticateToken, (req, res) => {
     const dataDe  = req.query.data_de  || req.query.data || '';
     const dataAte = req.query.data_ate || '';
 
-    // Abreviações dos dias da semana (como salvo no banco)
+    // Abreviações e nomes completos para suportar OS antigas e novas
     const DIAS_ABBR = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+    const DIAS_FULL = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
 
-    // Retorna Set com abreviações dos dias presentes no intervalo [de, ate]
+    // Retorna Set com abreviações e nomes completos dos dias presentes no intervalo [de, ate]
     function diasNoIntervalo(de, ate) {
         const set = new Set();
         if (!de) return set;
         const fim = ate ? new Date(ate + 'T12:00:00') : new Date(de + 'T12:00:00');
         const cur = new Date(de + 'T12:00:00');
-        while (cur <= fim) { set.add(DIAS_ABBR[cur.getDay()]); cur.setDate(cur.getDate() + 1); }
+        while (cur <= fim) { 
+            set.add(DIAS_ABBR[cur.getDay()]); 
+            set.add(DIAS_FULL[cur.getDay()]); 
+            cur.setDate(cur.getDate() + 1); 
+        }
         return set;
     }
 
