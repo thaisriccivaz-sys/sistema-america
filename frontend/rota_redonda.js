@@ -920,7 +920,8 @@ function exibirModalSucessoOS(osId, payload) {
     const prodStr = (payload.produtos || []).length > 0
         ? payload.produtos.map(p => `${p.qtd}x ${p.desc}`).join(', ')
         : '—';
-    const tipoIcon = payload.tipo_os === 'Obra' ? '🏗️' : payload.tipo_os === 'Evento' ? '🎉' : '📋';
+    const imgIcon = payload.tipo_os === 'Obra' ? 'assets/obra.png' : payload.tipo_os === 'Evento' ? 'assets/evento.png' : '';
+    const iconHtml = imgIcon ? `<img src="${imgIcon}" style="height:28px; object-fit:contain;" alt="${payload.tipo_os}">` : `<span style="font-size:1.3rem;">📋</span>`;
 
     const modal = document.createElement('div');
     modal.id = 'rr-modal-sucesso-os';
@@ -941,7 +942,7 @@ function exibirModalSucessoOS(osId, payload) {
             <!-- Corpo -->
             <div style="padding:1.25rem 1.5rem;display:flex;flex-direction:column;gap:0.6rem;">
                 <div style="display:flex;gap:8px;align-items:center;background:#f0fdf4;border-radius:8px;padding:0.6rem 0.8rem;">
-                    <span style="font-size:1.3rem;">${tipoIcon}</span>
+                    ${iconHtml}
                     <div>
                         <p style="margin:0;font-size:0.68rem;color:#64748b;">Cliente · ${payload.tipo_os}</p>
                         <p style="margin:0;font-weight:700;font-size:0.9rem;color:#1e293b;">${payload.cliente}</p>
