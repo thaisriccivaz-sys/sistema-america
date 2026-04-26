@@ -388,7 +388,7 @@ function pipelineBuildTitulo(r) {
     return (prefixo + (r.cliente || '')).trim();
 }
 
-function pipelineExportarExcel() {
+async function pipelineExportarExcel() {
     if (!_pipelineDados || Object.keys(_pipelineDados).length === 0) {
         alert('Busque antes de exportar.');
         return;
