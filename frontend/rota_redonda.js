@@ -3166,6 +3166,27 @@ function aplicarHabilidadesDoServico(wipeManuals = false) {
         habilidadesBase.add(h);
     });
 
+    // 1b) Para retiradas: remover TANQUE se TODOS os produtos forem do grupo que não precisa de tanque
+    //     (hidráulico, chuveiro, guarita individual, guarita dupla, PBII, mictório)
+    const isRetirada = tipoServico.includes('RETIRADA');
+    if (isRetirada && habilidadesBase.has('TANQUE') && osState.produtos.length > 0) {
+        const PRODS_SEM_TANQUE = new Set([
+            'HIDRÁULICO OBRA', 'HIDRÁULICO EVENTO', 'HIDRAULICO OBRA', 'HIDRAULICO EVENTO',
+            'CHUVEIRO OBRA', 'CHUVEIRO EVENTO',
+            'GUARITA INDIVIDUAL OBRA', 'GUARITA INDIVIDUAL EVENTO',
+            'GUARITA DUPLA OBRA', 'GUARITA DUPLA EVENTO',
+            'PBII OBRA', 'PBII EVENTO',
+            'MICTORIO OBRA', 'MICTÓRIO OBRA', 'MICTORIO EVENTO', 'MICTÓRIO EVENTO',
+        ]);
+        const todosSemTanque = osState.produtos.every(p =>
+            PRODS_SEM_TANQUE.has((p.desc || '').trim().toUpperCase())
+        );
+        if (todosSemTanque) {
+            habilidadesBase.delete('TANQUE');
+            console.log('[Habilidades] Retirada sem TANQUE: todos os produtos são do grupo sem-tanque.');
+        }
+    }
+
         // 2) Habilidades automáticas por produto (via ProdutosDict)
     const habProdutos = new Set();
     const acoesProdutos = new Set();
