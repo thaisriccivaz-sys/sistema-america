@@ -2939,11 +2939,15 @@ function atualizarBloqueio() {
                 chk.checked = false;
                 if (lbl) {
                     lbl.style.background = 'transparent';
-                    lbl.style.opacity = '0.5';
-                    lbl.style.color = lbl.style.borderColor;
+                    lbl.style.opacity = '0.4';
+                    lbl.style.color = lbl.dataset.cor || '';
                 }
             } else {
-                if (lbl) lbl.style.opacity = '1';
+                if (lbl) {
+                    lbl.style.opacity = '1';
+                    lbl.style.background = chk.checked ? (lbl.dataset.cor || '') : 'transparent';
+                    lbl.style.color = chk.checked ? 'white' : (lbl.dataset.cor || '');
+                }
             }
         }
     });
@@ -3668,7 +3672,7 @@ function renderRotaRedonda() {
                         { d: 'Sex', id: 'rr-chk-sex', c: '#3b82f6' },
                         { d: 'Sáb', id: 'rr-chk-sab', c: '#8b5cf6' },
                         { d: 'Dom', id: 'rr-chk-dom', c: '#ec4899' }
-                    ].map(item => `<label id="lbl-${item.id}" style="display:flex; align-items:center; gap:2px; font-size:0.7rem; color:${item.c}; font-weight:700; cursor:pointer; padding:2px 6px; border-radius:4px; border:1.5px solid ${item.c}; transition:background 0.15s;"><input type="checkbox" id="${item.id}" onchange="(function(chk,lbl,cor){lbl.style.background=chk.checked?cor:'transparent';lbl.style.color=chk.checked?'white':cor;})(this,this.closest('label'),'${item.c}')"> ${item.d}</label>`).join('')}
+                    ].map(item => `<label id="lbl-${item.id}" data-cor="${item.c}" style="display:flex; align-items:center; gap:2px; font-size:0.7rem; color:${item.c}; font-weight:700; cursor:pointer; padding:2px 6px; border-radius:4px; border:1.5px solid ${item.c}; transition:background 0.15s;"><input type="checkbox" id="${item.id}" onchange="(function(chk,lbl){lbl.style.background=chk.checked?lbl.dataset.cor:'transparent';lbl.style.color=chk.checked?'white':lbl.dataset.cor;})(this,this.closest('label'))"> ${item.d}</label>`).join('')}
                     
                     <div id="rr-sugestoes-dias-container" style="flex-basis: 100%; font-size: 0.75rem; padding: 2px 4px; display: none;"></div>
                     <input type="hidden" id="rr-chk-agenda-clicado" value="0">
