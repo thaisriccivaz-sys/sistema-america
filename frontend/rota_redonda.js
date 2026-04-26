@@ -1323,9 +1323,10 @@ function abrirModalListaOS(numOs, registros) {
     window._excluirOsLista = async (id) => {
         if (!confirm('Tem certeza que deseja excluir esta Ordem de Serviço?')) return;
         try {
+            const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
             const resp = await fetch(`/api/logistica/os/${id}`, {
                 method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                headers: { 'Authorization': `Bearer ${token}` }
             });
             if (!resp.ok) {
                 const txt = await resp.text();
