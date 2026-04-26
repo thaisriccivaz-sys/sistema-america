@@ -240,10 +240,11 @@ async function buscarPipeline() {
         // Filtro por dia da semana (client-side adicional)
         const dia = document.getElementById('pipe-filtro-dia')?.value || '';
         if (dia) {
+            const diaPrefix = dia.toLowerCase().substring(0, 3);
             ['manutencao','entrega','retirada','avulso'].forEach(key => {
                 _pipelineDados[key] = (_pipelineDados[key] || []).filter(item => {
                     const d = Array.isArray(item.dias_semana) ? item.dias_semana : [];
-                    return d.some(x => x.toLowerCase().includes(dia.toLowerCase()));
+                    return d.some(x => x.toLowerCase().startsWith(diaPrefix));
                 });
             });
         }
