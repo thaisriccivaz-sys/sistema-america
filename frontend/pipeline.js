@@ -339,13 +339,21 @@ function pipelineBuildTitulo(r) {
     });
 
     // 5. Ícones das habilidades (via PIPELINE_VARS_CORES onde existir)
+    //    VAC: ícone 🏗️ só aparece quando o próprio tipo de serviço é VAC
+    const isVac = ts.includes('vac');
     habs.forEach(h => {
         for (const [key, style] of Object.entries(PIPELINE_VARS_CORES)) {
-            if (h.includes(key)) { icones.push(style.icon); break; }
+            if (h.includes(key)) {
+                if (key === 'VAC' && !isVac) break; // 🏗️ só para serviço VAC
+                icones.push(style.icon);
+                break;
+            }
         }
     });
 
-    const prefixo = icones.length ? icones.join(' ') + ' ' : '';
+    // Deduplicação global: remove ícones repetidos de qualquer etapa, preservando ordem
+    const iconesUnicos = [...new Set(icones)];
+    const prefixo = iconesUnicos.length ? iconesUnicos.join(' ') + ' ' : '';
     return (prefixo + (r.cliente || '')).trim();
 }
 
