@@ -1,4 +1,4 @@
-﻿/* ═══════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════
    MÓDULO: PIPELINE OS (Kanban de Ordens de Serviço)
    ═══════════════════════════════════════════════════════════════ */
 
@@ -75,10 +75,10 @@ function pipelineGetIconServico(tipoServico) {
     return '📋';
 }
 
-// Recorrentes: Manutenção Obra e VAC Obra (dias da semana aparecem no card)
+// Recorrentes: Manutenção e VAC (dias da semana aparecem no card)
 function pipelineIsRecorrente(tipoServico) {
     const t = (tipoServico || '').toLowerCase();
-    return t.includes('obra') && (t.includes('manutencao') || t.includes('manutenção') || t.includes('vac')) && !t.includes('avulsa');
+    return (t.includes('manutencao') || t.includes('manutenção') || t.includes('vac')) && !t.includes('avulsa');
 }
 
 function pipelineGetDiaColor(d) {

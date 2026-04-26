@@ -1063,11 +1063,11 @@ function duplicarOsNaTela(payload) {
         if (payload.turno === 'Noturno' && noturno) { noturno.checked = true; if (diurno) diurno.checked = false; }
         set('rr-input-hora-inicio', payload.hora_inicio);
         set('rr-input-hora-fim', payload.hora_fim);
-        // Dias da semana — mantém
+        // Dias da semana — LIMPA (para o usuário selecionar os dias do novo ciclo)
         const diasMap = { 'Seg': 'rr-chk-seg', 'Ter': 'rr-chk-ter', 'Qua': 'rr-chk-qua', 'Qui': 'rr-chk-qui', 'Sex': 'rr-chk-sex', 'Sáb': 'rr-chk-sab', 'Dom': 'rr-chk-dom' };
         Object.entries(diasMap).forEach(([d, id]) => {
             const el = document.getElementById(id);
-            if (el) el.checked = (payload.dias_semana || []).includes(d);
+            if (el) el.checked = false;
         });
         // Tipo de serviço — LIMPA
         const tipoServEl = document.getElementById('rr-tipo-servico');
@@ -3288,18 +3288,11 @@ function gerarPrefixoIcones(tipoOverride = null) {
     if (osState.tiposServico.has('CARRETINHA') && !iconesVariaveis.includes('🔗')) iconesVariaveis.push('🔗');
     if (osState.tiposServico.has('UTILITARIO') && !iconesVariaveis.includes('🛻')) iconesVariaveis.push('🛻');
 
-    // Mostrar ícones dos produtos para serviços de entrega/envio/instalação/devolução
-    const isEntregaOuEnvio = tipoServico.includes('ENTREGA') ||
-        tipoServico.includes('ENVIO') ||
-        tipoServico.includes('INSTALACAO') ||
-        tipoServico.includes('INSTALAÇÃO') ||
-        tipoServico.includes('DEVOLUCAO') ||
-        tipoServico.includes('DEVOLUÇÃO') ||
-        tipoServico.includes('RETIRADA TOTAL') ||
-        (!tipoOverride && tipoServico.includes('TROCA'));
+    // Mostrar ícones dos produtos APENAS para serviços de ENTREGA
+    const isEntrega = tipoServico.includes('ENTREGA');
 
     let todosIcones = [];
-    if (isEntregaOuEnvio) {
+    if (isEntrega) {
         todosIcones = [...new Set([iconeServico, ...iconesProdutos, ...iconesVariaveis].filter(Boolean))];
     } else {
         todosIcones = [...new Set([iconeServico, ...iconesVariaveis].filter(Boolean))];

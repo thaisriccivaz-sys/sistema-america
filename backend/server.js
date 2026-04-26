@@ -8378,14 +8378,13 @@ app.get('/api/logistica/pipeline', authenticateToken, (req, res) => {
         return set;
     }
 
-    // Verifica se o tipo de serviço é RECORRENTE (Manut. Obra ou VAC Obra)
+    // Verifica se o tipo de serviço é RECORRENTE (Manutenção ou VAC, seja Obra ou Evento, desde que não seja Avulsa)
     function isRecorrente(tipoServico) {
         const t = (tipoServico || '').toLowerCase();
-        const isObra = t.includes('obra');
         const isManutencao = t.includes('manutencao') || t.includes('manutenção');
         const isVac = t.includes('vac');
         const isAvulsa = t.includes('avulsa');
-        return isObra && (isManutencao || isVac) && !isAvulsa;
+        return (isManutencao || isVac) && !isAvulsa;
     }
 
     let sql = `SELECT * FROM os_logistica WHERE status = 'ativo'`;
@@ -8443,8 +8442,12 @@ app.get('/api/logistica/pipeline', authenticateToken, (req, res) => {
                 result.entrega.push(row);
             } else if (t.includes('retirada')) {
                 result.retirada.push(row);
-            } else if (t.includes('manutencao obra') || t.includes('manutenção obra') || (t.includes('vac') && t.includes('obra'))) {
-                result.manutencao.push(row);
+            } else if (t.includes('manutencao') || t.includes('manutenção') || t.includes('vac')) {
+                if (t.includes('avulsa')) {
+                    result.avulso.push(row);
+                } else {
+                    result.manutencao.push(row);
+                }
             } else {
                 result.avulso.push(row);
             }
