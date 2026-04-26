@@ -1371,7 +1371,9 @@ function parseJsonFront(val) {
 }
 
 window._carregarRegistroNaTela = function(os) {
+    // Fecha qualquer modal de lista/pesquisa aberto
     document.getElementById('rr-modal-lista-os')?.remove();
+    document.getElementById('rr-modal-os-cliente')?.remove();
     carregarRegistroNaTela(os);
     mostrarToastAviso(`✅ Serviço carregado.`);
 };
@@ -3400,7 +3402,7 @@ async function abrirModalOSCliente(nomeCliente) {
         return `
             <tr class="rr-os-row-cli" data-idx="${i}" data-cliente="${(r.cliente||'').toLowerCase()}" data-endereco="${(r.endereco||'').toLowerCase()}" data-tipo="${(r.tipo_servico||'').toLowerCase()}" data-data="${r.data_os||''}" data-produto="${prodData}" style="border-bottom:1px solid #e2e8f0;background:${bgColor};transition:background 0.2s;" onmouseover="this.style.background='${hoverColor}'" onmouseout="this.style.background='${bgColor}'">
                 <td style="padding:0.6rem 0.5rem;white-space:nowrap;font-weight:700;color:#2d9e5f;">${r.numero_os}</td>
-                <td style="padding:0.6rem 0.5rem;font-weight:600;">${r.cliente}</td>
+                <td style="padding:0.6rem 0.5rem;font-weight:600;cursor:pointer;" onclick='window._carregarRegistroNaTela(${JSON.stringify(r)})' title="Clique para carregar">${r.cliente}</td>
                 <td style="padding:0.6rem 0.5rem;font-size:0.78rem;">${r.endereco||'—'}</td>
                 <td style="padding:0.6rem 0.5rem;font-size:0.78rem;">${r.tipo_servico||'—'}</td>
                 <td style="padding:0.6rem 0.5rem;white-space:nowrap;">${dataFormatada}</td>
