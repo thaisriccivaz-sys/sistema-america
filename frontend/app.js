@@ -622,11 +622,9 @@ window.navigateToTab = function(tabId) {
       // Module-specific render hooks
       if (tab.target === 'logistica-frota-resumo' && typeof renderFrotaResumo === 'function') {
           setTimeout(() => renderFrotaResumo(), 50);
+      }
       if (tab.target === 'logistica-pipeline' && typeof renderPipelinePage === 'function') {
           setTimeout(() => renderPipelinePage(), 80);
-      }
-    } else if (target === 'logistica-pipeline') {
-        if (typeof renderPipelinePage === 'function') setTimeout(() => renderPipelinePage(), 80);
       }
     // Se a aba tem dados de colaborador (prontuário ou form), restaura o viewedColaborador
     if (tab._colaboradorData) {
