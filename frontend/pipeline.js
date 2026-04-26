@@ -419,7 +419,7 @@ function pipelineExportarExcel() {
         // G: Anotações2 → TipoServico | produtos | dias (se manut obra/evento) | Obs.Motoristas
         const prodStr  = (r.produtos || []).map(p => `${p.qtd}x ${p.desc}`).join(', ');
         const diasStr  = mostrarDias ? abreviarDias(r.dias_semana) : '';
-        const anotacoes = [r.tipo_servico || '', prodStr, diasStr, r.observacoes || ''].filter(Boolean).join(' | ');
+        const anotacoes = [r.tipo_servico || '', prodStr, diasStr, r.observacoes || ''].filter(Boolean).join(' | ').toUpperCase();
 
         // H/I: Latitude e Longitude separadas
         let lat = r.latitude || r.lat || '';
