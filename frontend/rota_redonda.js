@@ -1204,9 +1204,22 @@ function abrirModalListaOS(numOs, registros) {
         } catch(e) { if(r.variaveis) varis = r.variaveis; }
 
         const dataFormatada = r.data_os ? r.data_os.split('-').reverse().join('/') : '—';
-        
-        return `
-            <tr class="rr-os-row" data-cliente="${(r.cliente||'').toLowerCase()}" data-endereco="${(r.endereco||'').toLowerCase()}" data-tipo="${(r.tipo_servico||'').toLowerCase()}" data-data="${r.data_os||''}" data-produto="${prodData}" style="border-bottom:1px solid #e2e8f0; transition:background 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+          
+          let bgColor = 'transparent';
+          let hoverColor = '#f1f5f9';
+          const tServ = (r.tipo_servico || '').toUpperCase();
+          if (tServ.includes('ENTREGA')) { bgColor = '#dcfce7'; hoverColor = '#bbf7d0'; }
+          else if (tServ.includes('RETIRADA')) { bgColor = '#fef9c3'; hoverColor = '#fef08a'; }
+          else if (tServ === 'MANUTENCAO OBRA') { bgColor = '#e2e8f0'; hoverColor = '#cbd5e1'; }
+          else if (tServ === 'MANUTENCAO EVENTO' || tServ.includes('AVULSA')) { bgColor = '#ffffff'; hoverColor = '#f8fafc'; }
+          else if (tServ.includes('LIMPA FOSSA')) { bgColor = '#dbeafe'; hoverColor = '#bfdbfe'; }
+          else if (tServ.includes('REPARO')) { bgColor = '#ffedd5'; hoverColor = '#fed7aa'; }
+          else if (tServ.includes('VISITA')) { bgColor = '#fef3c7'; hoverColor = '#fde68a'; }
+          else if (tServ.includes('VAC')) { bgColor = '#ccfbf1'; hoverColor = '#99f6e4'; }
+          else { bgColor = '#ffffff'; hoverColor = '#f8fafc'; }
+          
+          return `
+              <tr class="rr-os-row" data-cliente="${(r.cliente||'').toLowerCase()}" data-endereco="${(r.endereco||'').toLowerCase()}" data-tipo="${(r.tipo_servico||'').toLowerCase()}" data-data="${r.data_os||''}" data-produto="${prodData}" style="border-bottom:1px solid #e2e8f0; background:${bgColor}; transition:background 0.2s;" onmouseover="this.style.background='${hoverColor}'" onmouseout="this.style.background='${bgColor}'">`
                 <td style="padding:0.75rem 0.5rem;white-space:nowrap;">${r.numero_os}</td>
                 <td style="padding:0.75rem 0.5rem;font-weight:600;cursor:pointer;" onclick='window._carregarRegistroNaTela(${JSON.stringify(r)})'>${r.cliente}</td>
                 <td style="padding:0.75rem 0.5rem;">${r.endereco}</td>
