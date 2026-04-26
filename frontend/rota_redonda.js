@@ -44,8 +44,6 @@ const EQUIPAMENTOS_DICT = {
     'GUARITA DUPLA EVENTO':   { icone: '⚪', codigo: 'GUARITA DUPLA E' },
     'LIMPA FOSSA OBRA':       { icone: '💧', codigo: 'LIMPA FOSSA OBRA' },
     'LIMPA FOSSA EVENTO':     { icone: '💧', codigo: 'LIMPA FOSSA EVENTO' },
-    'VISITA TÉCNICA OBRA':    { icone: '⚙️',  codigo: 'VISITA TÉCNICA OBRA' },
-    'VISITA TÉCNICA EVENTO':  { icone: '⚙️',  codigo: 'VISITA TÉCNICA EVENTO' },
     'CARRINHO':               { icone: '🛤', codigo: 'CARRINHO' },
     'CAIXA DAGUA':            { icone: '🧊', codigo: 'CAIXA DAGUA' },
 };
@@ -156,6 +154,15 @@ function calcularCargaTotalFromLista() {
 
         let cargaVeic = 0;
         let cargaTanq = 0;
+
+        if (equipamento.includes('LIMPA FOSSA')) {
+            cargaTanq = 33 * quantidade;
+            cargaVeic = 0;
+            osState.tiposServico.add('TANQUE GRANDE');
+            totalCargaVeiculo += cargaVeic;
+            totalCargaTanque += cargaTanq;
+            continue;
+        }
 
         if (!isManutencao) {
             if (equipamento.includes('OBRA')) {
@@ -1449,6 +1456,7 @@ function exibirModalAgendaEndereco(data, enderecoAtual) {
     
     DIAS_ALL.forEach(d => {
         const count = totaisPorDia[d];
+        if (count === 0) return;
         const pct = Math.round((count / maxCount) * 100);
         const cor = colorMap[d];
         const heightStyle = count === 0 ? 'height: 4px; opacity: 0.2;' : `height: ${pct}%; box-shadow: 0 -4px 12px ${cor}40;`;
@@ -2516,6 +2524,18 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!payload.tipo_servico) { mostrarToastAviso('Selecione o Tipo de Serviço.'); return; }
             if (osState.produtos.length === 0) { mostrarToastAviso('Adicione pelo menos um Produto.'); return; }
 
+            // Bloqueia Manutencao para Guarita/Chuveiro/Hidraulico
+            if (payload.tipo_servico.toUpperCase().includes('MANUTENCAO')) {
+                const pProibidos = osState.produtos.filter(p => {
+                    const d = p.desc.toUpperCase();
+                    return d.includes('GUARITA') || d.includes('CHUVEIRO') || d.includes('HIDRÁULICO') || d.includes('HIDRAULICO');
+                });
+                if (pProibidos.length > 0) {
+                    mostrarToastAviso('O equipamento selecionado (' + pProibidos[0].desc + ') não permite manutenção.');
+                    return;
+                }
+            }
+
             const isManut = (payload.tipo_servico || '').toUpperCase().includes('MANUTENCAO');
             const isAvulsa = (payload.tipo_servico || '').toUpperCase().includes('AVULSA');
             const clicouAgenda = document.getElementById('rr-chk-agenda-clicado')?.value === '1';
@@ -3014,8 +3034,6 @@ function aplicarHabilidadesDoServico(wipeManuals = false) {
         'SUCCAO EVENTO':             'TANQUE GRANDE',
         'REPARO EQUIPAMENTO OBRA':   '',
         'REPARO EQUIPAMENTO EVENTO': '',
-        'VISITA TECNICA OBRA':       '',
-        'VISITA TECNICA EVENTO':     '',
     };
 
     // ─ ProdutosDict (variáveis automáticas por produto)
@@ -3132,8 +3150,8 @@ function gerarPrefixoIcones(tipoOverride = null) {
         iconeServico = '💦';
     } else if (tipoServico.includes('REPARO')) {
         iconeServico = '⚙️';
-    } else if (tipoServico.includes('VISITA TECNICA')) {
-        iconeServico = '📋';
+    } else if (tipoServico.includes('VISITA TÉCNICA') || tipoServico.includes('VISITA TECNICA')) {
+        iconeServico = '⚙️';
     } else if (tipoServico.includes('MANUTENCAO')) {
         iconeServico = tipoServico.includes('AVULSA') ? '❗' : '';
     } else if (tipoServico.includes('VAC')) {
