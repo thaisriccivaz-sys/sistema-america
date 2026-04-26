@@ -251,6 +251,16 @@ async function buscarPipeline() {
             });
         }
 
+        // Filtro por turno (Diurno / Noturno)
+        const turnoFiltro = document.getElementById('pipe-filtro-turno')?.value || '';
+        if (turnoFiltro) {
+            ['manutencao','entrega','retirada','avulso'].forEach(key => {
+                _pipelineDados[key] = (_pipelineDados[key] || []).filter(item =>
+                    (item.turno || '').toLowerCase() === turnoFiltro.toLowerCase()
+                );
+            });
+        }
+
         pipelineRenderKanban(_pipelineDados);
     } catch(e) {
         const msg = (e.message || '').toLowerCase();
@@ -275,6 +285,8 @@ function pipelineLimparFiltros() {
     if (dia) dia.value = '';
     const tipoOs = document.getElementById('pipe-filtro-tipo-os');
     if (tipoOs) tipoOs.value = '';
+    const turno = document.getElementById('pipe-filtro-turno');
+    if (turno) turno.value = '';
     buscarPipeline();
 }
 
@@ -384,7 +396,13 @@ function pipelineExportarExcel() {
     const ORDER = ['manutencao', 'entrega', 'retirada', 'avulso'];
     const registros = [];
     ORDER.forEach(key => {
-        (_pipelineDados[key] || []).forEach(r => registros.push(r));
+        // Dentro de cada categoria: Noturno primeiro, Diurno depois
+        const cat = (_pipelineDados[key] || []).slice().sort((a, b) => {
+            const aN = (a.turno || '').toLowerCase() === 'noturno' ? 0 : 1;
+            const bN = (b.turno || '').toLowerCase() === 'noturno' ? 0 : 1;
+            return aN - bN;
+        });
+        cat.forEach(r => registros.push(r));
     });
     if (registros.length === 0) { alert('Nenhum registro para exportar.'); return; }
 
@@ -584,6 +602,16 @@ function renderPipelinePage() {
             <option value="">Todos</option>
             <option value="obra">&#x1F535; Obra</option>
             <option value="evento">&#x1F7E3; Evento</option>
+          </select>
+        </div>
+        <!-- Turno: Diurno / Noturno -->
+        <div style="display:flex;align-items:center;gap:5px;">
+          <label style="color:#475569;font-size:0.78rem;font-weight:600;">Turno:</label>
+          <select id="pipe-filtro-turno" onchange="buscarPipeline()"
+            style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;background:white;color:#1e293b;outline:none;">
+            <option value="">Todos</option>
+            <option value="Diurno">☀️ Diurno</option>
+            <option value="Noturno">🌙 Noturno</option>
           </select>
         </div>
         <!-- Endereco -->
