@@ -87,8 +87,7 @@ function renderFrotaResumo() {
       </div>
     </div>`;
 
-    // Busca automática com data de hoje
-    setTimeout(() => buscarFrota(), 100);
+    // Auto-busca desabilitada aqui - use o botão Buscar
 }
 
 let frotaDados = {}; // cache global para exportação
@@ -430,21 +429,4 @@ function exportarSimpliroute() {
     URL.revokeObjectURL(url);
 }
 
-// ─────────────────────────────────────────────
-// Observer: ativa ao entrar na view
-// ─────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-    const observer = new MutationObserver(mutations => {
-        mutations.forEach(m => {
-            if (m.target.id === 'view-logistica-frota-resumo' && m.target.classList.contains('active')) {
-                const c = document.getElementById('frota-resumo-container');
-                if (c && !c.dataset.initialized) {
-                    c.dataset.initialized = '1';
-                    renderFrotaResumo();
-                }
-            }
-        });
-    });
-    const view = document.getElementById('view-logistica-frota-resumo');
-    if (view) observer.observe(view, { attributes: true, attributeFilter: ['class'] });
-});
+// renderFrotaResumo() is triggered by app.js navigateTo hook

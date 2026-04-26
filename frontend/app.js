@@ -551,6 +551,7 @@ const TAB_META = {
     // Logística - Verde
     'logistica-em-breve':     { color: '#2d9e5f', icon: 'ph-truck',          title: 'Logística' },
     'logistica-rota-redonda': { color: '#2d9e5f', icon: 'ph-map-trifold',   title: 'Rota Redonda' },
+    'logistica-frota-resumo':  { color: '#1e3a5f', icon: 'ph-truck',          title: 'Resumo de Frota' },
     // Financeiro - Azul
     'financeiro-em-breve':    { color: '#1971c2', icon: 'ph-currency-dollar', title: 'Financeiro' },
     // Comercial - Roxo
@@ -615,6 +616,10 @@ window.navigateToTab = function(tabId) {
     const targetNavObj = document.querySelector(`[data-target="${tab.target}"]`);
     if (targetNavObj) targetNavObj.classList.add('active');
     updateBreadcrumb(tab.target);
+      // Module-specific render hooks
+      if (tab.target === 'logistica-frota-resumo' && typeof renderFrotaResumo === 'function') {
+          setTimeout(() => renderFrotaResumo(), 50);
+      }
     // Se a aba tem dados de colaborador (prontuário ou form), restaura o viewedColaborador
     if (tab._colaboradorData) {
         viewedColaborador = tab._colaboradorData;
