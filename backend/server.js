@@ -8343,7 +8343,7 @@ app.get('/api/logistica/pipeline', authenticateToken, (req, res) => {
     const params = [];
 
     if (data) { sql += ` AND data_os = ?`; params.push(data); }
-    if (os) { sql += ` AND numero_os LIKE ?`; params.push(`%${os}%`); }
+    if (os) { sql += ` AND numero_os = ?`; params.push(os.trim()); }
     if (cliente) { sql += ` AND cliente LIKE ?`; params.push(`%${cliente}%`); }
     if (endereco) { sql += ` AND endereco LIKE ?`; params.push(`%${endereco}%`); }
     sql += ` ORDER BY cliente ASC`;
