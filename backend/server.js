@@ -8008,6 +8008,12 @@ function haversineKm(lat1, lng1, lat2, lng2) {
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+app.get('/api/limpar-os-teste', (req, res) => {
+    db.run("DELETE FROM os_logistica");
+    db.run("DELETE FROM os_videos");
+    res.json({ ok: true, message: "Base de OS Logística resetada para testes." });
+});
+
 // GET /api/logistica/os/agenda-endereco
 // Busca OS de manutenção pelo endereço (exata e parcial).
 // Retorna os dias da semana programados para o mesmo endereço.

@@ -1,4 +1,4 @@
-/* ═══════════════════════════════════════════════════════════════
+﻿/* ═══════════════════════════════════════════════════════════════
    MÓDULO: PIPELINE OS (Kanban de Ordens de Serviço)
    ═══════════════════════════════════════════════════════════════ */
 
@@ -164,7 +164,7 @@ function pipelineRenderKanban(dados) {
         return `
         <div style="flex:1;min-width:260px;display:flex;flex-direction:column;border-radius:12px;background:#f8fafc;box-shadow:0 2px 10px rgba(0,0,0,0.07);min-height:calc(100vh - 120px);padding-bottom:8px;">
             <!-- Header coluna sticky -->
-            <div style="background:${col.cor};padding:10px 14px;display:flex;align-items:center;gap:8px;position:sticky;top:125px;z-index:90;border-radius:12px 12px 0 0;box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+            <div style="background:${col.cor};padding:10px 14px;display:flex;align-items:center;gap:8px;position:sticky;top:var(--pipe-header-height, 125px);z-index:90;border-radius:12px 12px 0 0;box-shadow:0 2px 4px rgba(0,0,0,0.05);">
                 <span style="font-size:1.1rem;color:${col.textCor};">${col.icon}</span>
                 <span style="color:${col.textCor};font-weight:800;font-size:0.9rem;flex:1;">${col.label}</span>
                 <span style="background:rgba(0,0,0,0.08);color:${col.textCor};border-radius:20px;padding:1px 10px;font-size:0.8rem;font-weight:700;">${lista.length}</span>
@@ -434,7 +434,21 @@ function renderPipelinePage() {
     }
 
     setTimeout(() => buscarPipeline(), 80);
+
+    setTimeout(() => {
+        const headerEl = document.getElementById('pipeline-header-bar');
+        if (headerEl && window.ResizeObserver) {
+            const obs = new ResizeObserver(entries => {
+                for (let entry of entries) {
+                    const h = entry.borderBoxSize ? entry.borderBoxSize[0].blockSize : entry.contentRect.height;
+                    document.documentElement.style.setProperty('--pipe-header-height', (h + 65) + 'px');
+                }
+            });
+            obs.observe(headerEl);
+        }
+    }, 200);
 }
+
 
 
 

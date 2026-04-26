@@ -1,0 +1,7 @@
+{
+  "err": {
+    "errno": 1,
+    "code": "SQLITE_ERROR",
+    "__augmented": true
+  }
+}

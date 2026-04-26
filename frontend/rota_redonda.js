@@ -1,4 +1,4 @@
-/* ════════════════════════════════════════════════════════════════════════════
+﻿/* ════════════════════════════════════════════════════════════════════════════
    MÓDULO: ROTA REDONDA (ORDENS DE SERVIÇO)
    ════════════════════════════════════════════════════════════════════════════ */
 
@@ -973,7 +973,7 @@ function exibirModalSucessoOS(osId, payload) {
             <!-- Rodapé -->
             <div style="display:flex;gap:8px;justify-content:flex-end;padding:0.75rem 1.5rem;background:#f8fafc;">
                 <button id="btn-duplicar-os-sim" style="background:#8b5cf6;color:white;border:none;border-radius:6px;padding:6px 18px;font-size:0.78rem;font-weight:700;cursor:pointer;"><i class="ph ph-copy"></i> Duplicar</button>
-                <button id="btn-nova-os-sucesso" style="background:#2d9e5f;color:white;border:none;border-radius:6px;padding:6px 18px;font-size:0.78rem;font-weight:700;cursor:pointer;"><i class="ph ph-plus"></i> Nova OS</button>
+                
                 <button id="btn-fechar-sucesso-os-2" style="background:#e2e8f0;color:#334155;border:none;border-radius:6px;padding:6px 18px;font-size:0.78rem;font-weight:600;cursor:pointer;">Fechar</button>
             </div>
         </div>`;
@@ -987,20 +987,11 @@ function exibirModalSucessoOS(osId, payload) {
 
     // Duplicar: carrega tudo de volta EXCETO data e tipo_servico
     modal.querySelector('#btn-duplicar-os-sim')?.addEventListener('click', () => {
-        fechar();
+        fecharSomenteModal();
         duplicarOsNaTela(payload);
     });
 
-    // Botão Nova OS: limpa tudo e começa do zero
-    modal.querySelector('#btn-nova-os-sucesso')?.addEventListener('click', () => {
-        fechar();
-        osState.produtos = []; osState.tiposServico = new Set();
-      osState.acoes = new Set(); osState.clienteConfirmado = true;
-        osState.clienteNome = ''; osState.enderecoSelecionado = ''; osState.tipoOs = '';
-        const c = document.getElementById('rota-redonda-container');
-        if (c) c.innerHTML = '';
-        renderRotaRedonda();
-    });
+
 }
 
 // ── DUPLICAR OS NA TELA: carrega payload mas limpa Data e Tipo de Serviço ──
@@ -3806,4 +3797,5 @@ function renderRotaRedonda() {
     atualizarUI();
     atualizarBloqueio();
 }
+
 

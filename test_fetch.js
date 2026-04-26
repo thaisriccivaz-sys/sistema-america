@@ -1,0 +1,1 @@
+fetch('https://sistema-america.onrender.com/api/logistica/os/agenda-endereco?endereco=Rua&lat=-23.5505&lng=-46.6333', { headers: { 'Authorization': 'Bearer ' + process.env.TOKEN } }).then(r=>r.json()).then(d=>console.log(d));
