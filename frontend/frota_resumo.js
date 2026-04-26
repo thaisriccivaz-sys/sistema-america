@@ -2,7 +2,7 @@
    MÓDULO: RESUMO DE FROTA
    ═══════════════════════════════════════════════════════════════ */
 
-const FROTA_EQUIPAMENTOS = {
+const _FROTA_EQ = {
     'STD OBRA':             { icone: '💙', codigo: 'STD O' },
     'STD EVENTO':           { icone: '💜', codigo: 'STD E' },
     'LX OBRA':              { icone: '🟦', codigo: 'LX O' },
@@ -29,7 +29,7 @@ const FROTA_EQUIPAMENTOS = {
     'VISITA TECNICA':       { icone: '⚙️', codigo: 'VISITA TECNICA' },
 };
 
-const FROTA_VARIAVEIS = {
+const _FROTA_VARS = {
     'AVULSO':               '❗',
     'LEVAR CARRINHO':       '🛒',
     'LEVAR EXTENSORA':      '🌀',
@@ -45,10 +45,10 @@ const FROTA_VARIAVEIS = {
     'NOTURNO':              '🌙',
 };
 
-const DEPOSITO_LAT = -23.433792162004327;
-const DEPOSITO_LNG = -46.4201440193509;
+const __DEPOSITO_LAT = -23.433792162004327;
+const __DEPOSITO_LNG = -46.4201440193509;
 
-let frotaMaps = {}; // Leaflet map instances keyed by veiculo
+let __frotaMaps = {}; // Leaflet map instances keyed by veiculo
 
 function renderFrotaResumo() {
     const container = document.getElementById('frota-resumo-container');
@@ -90,7 +90,7 @@ function renderFrotaResumo() {
     // Auto-busca desabilitada aqui - use o botão Buscar
 }
 
-let frotaDados = {}; // cache global para exportação
+let __frotaDados = {}; // cache global para exportação
 
 async function buscarFrota() {
     const data = document.getElementById('frota-data-filtro')?.value;
@@ -110,7 +110,7 @@ async function buscarFrota() {
         });
         if (!resp.ok) throw new Error(await resp.text());
         const dados = await resp.json();
-        frotaDados = dados;
+        _frotaDados = dados;
         renderFrotaCards(dados, data);
     } catch (e) {
         cards.innerHTML = `<div style="text-align:center;padding:3rem;color:#ef4444;"><i class="ph ph-warning-circle" style="font-size:2rem;"></i><p>${e.message}</p></div>`;
@@ -149,7 +149,7 @@ function construirAnotacoes(rotas) {
     rotas.forEach(r => {
         (r.variaveis || []).forEach(v => {
             const vUp = v.trim().toUpperCase().replace(/[^A-Z\s]/g, '').trim();
-            for (const [key, em] of Object.entries(FROTA_VARIAVEIS)) {
+            for (const [key, em] of Object.entries(_FROTA_VARS)) {
                 if (vUp === key) { varSet.add(`${em} ${v.trim()}`); break; }
             }
         });
@@ -181,7 +181,7 @@ function construirAnotacoes(rotas) {
             if (!pertence) return;
             const emoji = getEmoji(tipo);
             Object.entries(prods).forEach(([desc, qtd]) => {
-                const icProd = FROTA_EQUIPAMENTOS[desc]?.icone || '';
+                const icProd = _FROTA_EQ[desc]?.icone || '';
                 lines.push(`${icProd ? icProd + ' ' : ''}${emoji} ${tipo} - ${qtd} × ${desc}`);
             });
             lines.push('-----------------------');
@@ -201,8 +201,8 @@ function renderFrotaCards(dados, data) {
     if (!cards) return;
 
     // Cleanup old maps
-    Object.values(frotaMaps).forEach(m => { try { m.remove(); } catch(e) {} });
-    frotaMaps = {};
+    Object.values(_frotaMaps).forEach(m => { try { m.remove(); } catch(e) {} });
+    _frotaMaps = {};
 
     const veiculos = Object.keys(dados);
     if (veiculos.length === 0) {
@@ -244,7 +244,7 @@ function renderFrotaCards(dados, data) {
         }).join('');
 
         const prodRows = Object.entries(d.produtosContagem).map(([desc, qtd]) => {
-            const icone = FROTA_EQUIPAMENTOS[desc]?.icone || '📦';
+            const icone = _FROTA_EQ[desc]?.icone || '📦';
             return `<tr>
                 <td style="padding:4px 8px;font-size:0.8rem;">${icone} ${desc}</td>
                 <td style="padding:4px 8px;text-align:center;font-size:0.8rem;font-weight:700;">${qtd}</td>
@@ -312,16 +312,16 @@ function renderFrotaCards(dados, data) {
                 .filter(r => r.lat && r.lng)
                 .map(r => [parseFloat(r.lat), parseFloat(r.lng)]);
 
-            const centro = pontos.length > 0 ? pontos[0] : [DEPOSITO_LAT, DEPOSITO_LNG];
+            const centro = pontos.length > 0 ? pontos[0] : [_DEPOSITO_LAT, _DEPOSITO_LNG];
 
             const map = L.map(mapId, { zoomControl: false }).setView(centro, 12);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '© OSM', maxZoom: 19
             }).addTo(map);
-            frotaMaps[mapId] = map;
+            _frotaMaps[mapId] = map;
 
             // Depósito
-            L.circleMarker([DEPOSITO_LAT, DEPOSITO_LNG], { color: '#1e3a5f', fillColor: '#1e3a5f', fillOpacity: 1, radius: 8 })
+            L.circleMarker([_DEPOSITO_LAT, _DEPOSITO_LNG], { color: '#1e3a5f', fillColor: '#1e3a5f', fillOpacity: 1, radius: 8 })
                 .addTo(map).bindPopup('🏭 Depósito (Saída/Retorno)');
 
             // Markers por OS
@@ -339,7 +339,7 @@ function renderFrotaCards(dados, data) {
 
             // Polyline
             if (pontos.length > 1) {
-                const allPts = [[DEPOSITO_LAT, DEPOSITO_LNG], ...pontos, [DEPOSITO_LAT, DEPOSITO_LNG]];
+                const allPts = [[_DEPOSITO_LAT, _DEPOSITO_LNG], ...pontos, [_DEPOSITO_LAT, _DEPOSITO_LNG]];
                 L.polyline(allPts, { color: '#2d9e5f', weight: 3, opacity: 0.8, dashArray: '6,4' }).addTo(map);
                 map.fitBounds(L.latLngBounds(allPts), { padding: [20, 20] });
             }
@@ -348,7 +348,7 @@ function renderFrotaCards(dados, data) {
 }
 
 function frotaZoom(mapId, delta) {
-    const map = frotaMaps[mapId];
+    const map = _frotaMaps[mapId];
     if (map) map.setZoom(map.getZoom() + delta);
 }
 
@@ -356,7 +356,7 @@ function frotaZoom(mapId, delta) {
 // EXPORTAÇÃO para SimpliRoute (xlsx)
 // ─────────────────────────────────────────────
 function exportarSimpliroute() {
-    if (!frotaDados || Object.keys(frotaDados).length === 0) {
+    if (!_frotaDados || Object.keys(_frotaDados).length === 0) {
         alert('Busque os dados antes de exportar.');
         return;
     }
@@ -377,9 +377,9 @@ function exportarSimpliroute() {
     const linhas = [cabecalho];
     let endCounter = 1;
 
-    const veiculos = Object.keys(frotaDados);
+    const veiculos = Object.keys(_frotaDados);
     veiculos.forEach(veiculo => {
-        const d = frotaDados[veiculo];
+        const d = _frotaDados[veiculo];
         const anotacoes = construirAnotacoes(d.rotas);
         const carga = d.totalQtd;
         const habs = [...new Set(d.rotas.flatMap(r => r.habilidades || []))].join(', ');
@@ -391,7 +391,7 @@ function exportarSimpliroute() {
             `${veiculo} - Saída`, endCounter, carga,
             '', '', '',
             anotacoes,
-            DEPOSITO_LAT, DEPOSITO_LNG,
+            _DEPOSITO_LAT, _DEPOSITO_LNG,
             habs, '', contato, tel,
             '', '', '', '', tel, '',
             '', '', '', '', ''
@@ -402,7 +402,7 @@ function exportarSimpliroute() {
             `${veiculo} - Retorno`, endCounter, '',
             '', '', '',
             '',
-            DEPOSITO_LAT, DEPOSITO_LNG,
+            _DEPOSITO_LAT, _DEPOSITO_LNG,
             '', '', '', '',
             '', '', '', '', '', '',
             '', '', '', '', ''
