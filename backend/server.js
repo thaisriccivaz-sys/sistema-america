@@ -8390,7 +8390,7 @@ app.get('/api/logistica/pipeline', authenticateToken, (req, res) => {
     if (cliente)  { sql += ` AND cliente LIKE ?`;      params.push(`%${cliente}%`); }
     if (endereco) { sql += ` AND endereco LIKE ?`;     params.push(`%${endereco}%`); }
     // Filtro de data aplicado em JS para suportar lógica pontual vs recorrente
-    sql += ` ORDER BY cliente ASC`;
+    sql += ` ORDER BY cliente ASC, CAST(numero_os AS REAL) ASC`;
 
     db.all(sql, params, (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
