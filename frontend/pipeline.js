@@ -266,6 +266,7 @@ function renderPipelinePage() {
           <label style="color:white;font-size:0.78rem;font-weight:600;">OS:</label>
           <input type="text" id="pipe-filtro-os" placeholder="OS"
             style="border:1px solid rgba(255,255,255,0.4);border-radius:6px;padding:5px 10px;font-size:0.8rem;width:85px;background:rgba(255,255,255,0.9);outline:none;"
+            oninput="const d=document.getElementById('pipe-filtro-data');if(this.value.trim()&&d)d.value='';"
             onkeydown="if(event.key==='Enter')buscarPipeline()">
         </div>
         <!-- Data -->

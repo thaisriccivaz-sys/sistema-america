@@ -8342,10 +8342,16 @@ app.get('/api/logistica/pipeline', authenticateToken, (req, res) => {
     let sql = `SELECT * FROM os_logistica WHERE status = 'ativo'`;
     const params = [];
 
-    if (data) { sql += ` AND data_os = ?`; params.push(data); }
-    if (os) { sql += ` AND numero_os = ?`; params.push(os.trim()); }
-    if (cliente) { sql += ` AND cliente LIKE ?`; params.push(`%${cliente}%`); }
-    if (endereco) { sql += ` AND endereco LIKE ?`; params.push(`%${endereco}%`); }
+    // Quando número de OS é informado, busca apenas por ele (ignora data/cliente/endereço)
+    // pois a OS pode ter qualquer data cadastrada
+    if (os) {
+        sql += ` AND numero_os = ?`;
+        params.push(os.trim());
+    } else {
+        if (data) { sql += ` AND data_os = ?`; params.push(data); }
+        if (cliente) { sql += ` AND cliente LIKE ?`; params.push(`%${cliente}%`); }
+        if (endereco) { sql += ` AND endereco LIKE ?`; params.push(`%${endereco}%`); }
+    }
     sql += ` ORDER BY cliente ASC`;
 
     db.all(sql, params, (err, rows) => {
