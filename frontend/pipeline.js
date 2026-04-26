@@ -144,7 +144,7 @@ function pipelineRenderCard(os) {
             ${pipelineGetIconServico(os.tipo_servico)} <b>${(os.tipo_servico||'').toUpperCase()}</b>
         </div>` : ''}
         <!-- Data -->
-        ${os.data_os ? `<div style="font-size:0.68rem;color:#94a3b8;">Data: ${os.data_os}</div>` : ''}
+        ${(()=>{ let d = os.data_os||""; if(d && d.includes("-")){ const p = d.split("-"); if(p.length===3 && p[0].length===4) d = `${p[2]}/${p[1]}/${p[0]}`; } return d ? `<div style="font-size:0.68rem;color:#94a3b8;">Data: ${d}</div>` : ""; })()}
         ${diasHtml}${prodsHtml}${obsHtml}
     </div>`;
 }
@@ -158,13 +158,13 @@ function pipelineRenderKanban(dados) {
     if (badge) badge.textContent = `${total} OS`;
 
     container.innerHTML = `
-    <div style="display:flex;gap:14px;min-height:calc(100vh - 170px);padding:1rem 1.5rem;overflow-x:auto;box-sizing:border-box;align-items:flex-start;">
+    <div style="display:flex;gap:14px;min-height:calc(100vh - 170px);padding:0.5rem 1.5rem 2rem 1.5rem;box-sizing:border-box;align-items:flex-start;flex-wrap:nowrap;">
     ${PIPELINE_COLS.map(col => {
         const lista = dados[col.key] || [];
         return `
         <div style="flex:1;min-width:260px;display:flex;flex-direction:column;border-radius:12px;background:#f8fafc;box-shadow:0 2px 10px rgba(0,0,0,0.07);min-height:calc(100vh - 120px);padding-bottom:8px;">
             <!-- Header coluna sticky -->
-            <div style="background:${col.cor};padding:10px 14px;display:flex;align-items:center;gap:8px;position:sticky;top:120px;z-index:90;border-radius:12px 12px 0 0;box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+            <div style="background:${col.cor};padding:10px 14px;display:flex;align-items:center;gap:8px;position:sticky;top:125px;z-index:90;border-radius:12px 12px 0 0;box-shadow:0 2px 4px rgba(0,0,0,0.05);">
                 <span style="font-size:1.1rem;color:${col.textCor};">${col.icon}</span>
                 <span style="color:${col.textCor};font-weight:800;font-size:0.9rem;flex:1;">${col.label}</span>
                 <span style="background:rgba(0,0,0,0.08);color:${col.textCor};border-radius:20px;padding:1px 10px;font-size:0.8rem;font-weight:700;">${lista.length}</span>
@@ -326,7 +326,7 @@ function renderPipelinePage() {
     <div style="font-family:'Inter',sans-serif;background:#f1f5f9;min-height:100vh;">
 
       <!-- HEADER BRANCO fixo no topo -->
-      <div id="pipeline-header-bar" style="position: sticky; top: 60px; z-index: 100; display: flex; gap: 1rem; align-items: center; background: white; padding: 0.5rem 1.5rem; flex-wrap: wrap; border-bottom: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+      <div id="pipeline-header-bar" style="position: sticky; top: 60px; z-index: 100; display: flex; gap: 1rem; align-items: center; background: white; padding: 0.8rem 1.5rem; flex-wrap: wrap; border-bottom: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 1rem;">
         <span style="color:#1e293b;font-size:1.1rem;font-weight:800;margin-right:8px;">Pipeline OS</span>
 
         <!-- OS -->
@@ -407,7 +407,7 @@ function renderPipelinePage() {
       </div>
 
       <!-- KANBAN BOARD -->
-      <div id="pipeline-kanban" style="display:flex;padding:1rem 1.2rem;gap:14px;align-items:flex-start;">
+      <div id="pipeline-kanban" style="display:flex;padding:0 1.2rem 1rem 1.2rem;gap:14px;align-items:flex-start;">
         <div style="width:100%;text-align:center;padding:4rem;color:#94a3b8;">
           <i class="ph ph-kanban" style="font-size:3rem;"></i>
           <p style="margin-top:1rem;">Carregando Pipeline...</p>
@@ -435,6 +435,8 @@ function renderPipelinePage() {
 
     setTimeout(() => buscarPipeline(), 80);
 }
+
+
 
 
 
