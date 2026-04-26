@@ -87,6 +87,10 @@ function pipelineRenderCard(os) {
     const prods = Array.isArray(os.produtos)    ? os.produtos : [];
     const isRec = pipelineIsRecorrente(os.tipo_servico);
 
+    const _t = (os.tipo_servico || '').toLowerCase();
+    const bgCard     = _t.includes('obra')   ? '#dbeafe' : _t.includes('evento') ? '#ede9fe' : '#ffffff';
+    const borderCard = _t.includes('obra')   ? '#93c5fd' : _t.includes('evento') ? '#c4b5fd' : '#e2e8f0';
+
     const endFull = [os.endereco, os.complemento, os.cep ? `CEP: ${os.cep}` : ''].filter(Boolean).join(', ');
 
     // Dias da semana: apenas para serviços RECORRENTES
@@ -110,6 +114,7 @@ function pipelineRenderCard(os) {
 
     return `
     <div class="pipe-card" data-os-id="${os.id}"
+         style="background:${bgCard};border-left:3px solid ${borderCard};"
          onclick="pipelineAbrirOS(${os.id},'${(os.numero_os||'').replace(/'/g,"\\'")}')">
         <!-- OS número -->
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
@@ -195,12 +200,22 @@ async function buscarPipeline() {
         if (!resp.ok) throw new Error(await resp.text());
         _pipelineDados = await resp.json();
 
+        // Filtro por Obra / Evento (client-side)
+        const tipoOs = document.getElementById('pipe-filtro-tipo-os')?.value || '';
+        if (tipoOs) {
+            ['manutencao','entrega','retirada','avulso'].forEach(key => {
+                _pipelineDados[key] = (_pipelineDados[key] || []).filter(item => {
+                    return (item.tipo_servico || '').toLowerCase().includes(tipoOs);
+                });
+            });
+        }
+
         // Filtro por dia da semana (client-side adicional)
         const dia = document.getElementById('pipe-filtro-dia')?.value || '';
         if (dia) {
             ['manutencao','entrega','retirada','avulso'].forEach(key => {
-                _pipelineDados[key] = (_pipelineDados[key] || []).filter(os => {
-                    const d = Array.isArray(os.dias_semana) ? os.dias_semana : [];
+                _pipelineDados[key] = (_pipelineDados[key] || []).filter(item => {
+                    const d = Array.isArray(item.dias_semana) ? item.dias_semana : [];
                     return d.some(x => x.toLowerCase().includes(dia.toLowerCase()));
                 });
             });
@@ -219,6 +234,8 @@ function pipelineLimparFiltros() {
     });
     const dia = document.getElementById('pipe-filtro-dia');
     if (dia) dia.value = '';
+    const tipoOs = document.getElementById('pipe-filtro-tipo-os');
+    if (tipoOs) tipoOs.value = '';
     buscarPipeline();
 }
 
@@ -328,7 +345,17 @@ function renderPipelinePage() {
             <option value="Domingo">Domingo</option>
           </select>
         </div>
-        <!-- Endereço -->
+        <!-- Tipo OS: Obra / Evento -->
+        <div style="display:flex;align-items:center;gap:5px;">
+          <label style="color:white;font-size:0.78rem;font-weight:600;">Tipo:</label>
+          <select id="pipe-filtro-tipo-os"
+            style="border:1px solid rgba(255,255,255,0.4);border-radius:6px;padding:5px 10px;font-size:0.8rem;background:rgba(255,255,255,0.9);outline:none;">
+            <option value="">Todos</option>
+            <option value="obra">&#x1F535; Obra</option>
+            <option value="evento">&#x1F7E3; Evento</option>
+          </select>
+        </div>
+        <!-- Endereco -->
         <div style="display:flex;align-items:center;gap:5px;">
           <label style="color:white;font-size:0.78rem;font-weight:600;">Endereço:</label>
           <input type="text" id="pipe-filtro-endereco" placeholder="Endereço"
@@ -389,3 +416,5 @@ function renderPipelinePage() {
 
     setTimeout(() => buscarPipeline(), 80);
 }
+
+
