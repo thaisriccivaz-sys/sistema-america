@@ -427,8 +427,8 @@ function pipelineExportarExcel() {
         const isAvulsaObraEvento = ts.includes('avulsa') && (ts.includes('obra') || ts.includes('evento'));
         const mostrarDias = isManutObraEvento || isAvulsaObraEvento;
 
-        // A: Título — ícones na ordem correta + nome do cliente
-        const titulo = pipelineBuildTitulo(r);
+        // A: Título — usa o nome do cliente exatamente como cadastrado (ícones já fazem parte do nome)
+        const titulo = (r.cliente || '').trim();
 
         // B: Endereço completo
         const endereco = [r.endereco, r.complemento, r.cep ? `CEP: ${r.cep}` : ''].filter(Boolean).join(', ');

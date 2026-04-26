@@ -3286,7 +3286,7 @@ function gerarPrefixoIcones(tipoOverride = null) {
     } else if (tipoServico.includes('LIMPA FOSSA')) {
         iconeServico = '💦';
     } else if (tipoServico.includes('REPARO')) {
-        iconeServico = '⚙️';
+        iconeServico = '🔧';
     } else if (tipoServico.includes('VISITA TÉCNICA') || tipoServico.includes('VISITA TECNICA')) {
         iconeServico = '⚙️';
     } else if (tipoServico.includes('MANUTENCAO')) {
