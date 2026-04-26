@@ -2485,20 +2485,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Validação estrita de preenchimento
             if (payload.habilidades.includes('CARRETINHA') && !payload.observacoes) {
-                alert('É obrigatório preencher a Observação do Motorista quando a habilidade CARRETINHA estiver selecionada.');
+                mostrarToastAviso('É obrigatório preencher a Observação do Motorista quando a habilidade CARRETINHA estiver selecionada.');
                 return;
             }
-            if (!payload.cliente) { alert('Preencha o nome do cliente.'); return; }
-            if (!payload.tipo_os) { alert('Defina o tipo de OS (Obra ou Evento) clicando no botão +.'); return; }
-            if (!payload.numero_os) { alert('Preencha o número da OS.'); return; }
-            if (!payload.contrato) { alert('Preencha o Contrato.'); return; }
-            if (!payload.data_os) { alert('Preencha a Data da OS.'); return; }
-            if (!payload.endereco) { alert('Preencha o Endereço.'); return; }
-            if (payload.lat === null || payload.lng === null) { alert('Latitude e Longitude são obrigatórios. Use o botão G para verificar.'); return; }
-            if (!payload.responsavel) { alert('Preencha o Responsável.'); return; }
-            if (!payload.telefone) { alert('Preencha o Telefone.'); return; }
-            if (!payload.turno) { alert('Selecione Diurno ou Noturno.'); return; }
-            if (osState.produtos.length === 0) { alert('Adicione pelo menos um Produto.'); return; }
+            if (!payload.cliente) { mostrarToastAviso('Preencha o nome do cliente.'); return; }
+            if (!payload.tipo_os) { mostrarToastAviso('Defina o tipo de OS (Obra ou Evento) clicando no botão +.'); return; }
+            if (!payload.numero_os) { mostrarToastAviso('Preencha o número da OS.'); return; }
+            if (!payload.contrato) { mostrarToastAviso('Preencha o Contrato.'); return; }
+            if (!payload.data_os) { mostrarToastAviso('Preencha a Data da OS.'); return; }
+            if (!payload.endereco) { mostrarToastAviso('Preencha o Endereço.'); return; }
+            if (payload.lat === null || payload.lng === null) { mostrarToastAviso('Latitude e Longitude são obrigatórios. Use o botão G para verificar.'); return; }
+            if (!payload.responsavel) { mostrarToastAviso('Preencha o Responsável.'); return; }
+            if (!payload.telefone) { mostrarToastAviso('Preencha o Telefone.'); return; }
+            if (!payload.turno) { mostrarToastAviso('Selecione Diurno ou Noturno.'); return; }
+            if (!payload.tipo_servico) { mostrarToastAviso('Selecione o Tipo de Serviço.'); return; }
+            if (osState.produtos.length === 0) { mostrarToastAviso('Adicione pelo menos um Produto.'); return; }
 
             const isManut = (payload.tipo_servico || '').toUpperCase().includes('MANUTENCAO');
             const isAvulsa = (payload.tipo_servico || '').toUpperCase().includes('AVULSA');
@@ -2506,11 +2507,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (isManut && !isAvulsa) {
                 if (!clicouAgenda && !osState.loadedId) {
-                    alert("Para serviços de Manutenção, é obrigatório clicar no botão Agenda.");
+                    mostrarToastAviso("Para serviços de Manutenção, é obrigatório clicar no botão Agenda.");
                     return;
                 }
                 if (payload.dias_semana.length === 0) {
-                    alert("Para serviços de Manutenção (Obra ou Evento), é obrigatório selecionar pelo menos um dia da semana.");
+                    mostrarToastAviso("Para serviços de Manutenção (Obra ou Evento), é obrigatório selecionar pelo menos um dia da semana.");
                     return;
                 }
             }
