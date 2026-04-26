@@ -1160,18 +1160,19 @@ async function carregarOsPorNumero(numOs) {
         const registros = await resp.json(); // array de OS com esse número
         if (!registros || registros.length === 0) {
             btn.style.background = '';
-            mostrarToastAviso(`OS "${numOs}" não encontrada. Preencha os campos para criar uma nova.`);
+            if (numOs) mostrarToastAviso(`OS "${numOs}" não encontrada. Preencha os campos para criar uma nova.`);
+            else mostrarToastAviso(`Nenhuma visita cadastrada no sistema.`);
             return;
         }
 
-        if (registros.length === 1) {
-            // Se só tem 1, carrega direto
+        if (registros.length === 1 && numOs) {
+            // Se só tem 1 e buscou específica, carrega direto
             carregarRegistroNaTela(registros[0]);
             mostrarToastAviso(`✅ OS "${numOs}" carregada.`);
         } else {
             // Mais de 1, abre o modal
             btn.style.background = '#f0fdf4';
-            abrirModalListaOS(numOs, registros);
+            abrirModalListaOS(numOs || 'Todas as Visitas', registros);
         }
     } catch(e) {
         console.error('[Carregar OS]', e);
@@ -2116,8 +2117,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!document.getElementById('view-logistica-rota-redonda')?.classList.contains('active')) return;
         if (e.target.id === 'rr-input-os' && e.key === 'Enter') {
             e.preventDefault();
-            const numOs = e.target.value.trim();
-            if (!numOs) { alert('Digite o número da OS primeiro.'); return; }
+            const numOs = e.target.value.trim() || '';
             await carregarOsPorNumero(numOs);
         }
     });
@@ -2323,11 +2323,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Botão + Tipo de OS (Obra/Evento)
         const btnAddOsTipo = e.target.closest('#btn-add-os-tipo');
         if (btnAddOsTipo) {
-            const numOs = document.getElementById('rr-input-os')?.value?.trim();
-            if (!numOs) {
-                mostrarToastAviso('Digite o número da OS primeiro.');
-                return;
-            }
+            const numOs = document.getElementById('rr-input-os')?.value?.trim() || '';
 
             const originalHtml = btnAddOsTipo.innerHTML;
             btnAddOsTipo.innerHTML = '<i class="ph ph-spinner ph-spin"></i>';
@@ -2335,7 +2331,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
                 const resp = await fetch(`/api/logistica/os/buscar?numero_os=${encodeURIComponent(numOs)}`, { headers: { 'Authorization': `Bearer ${token}` } });
                 
-                if (resp.status === 404) {
+                if (resp.status === 404 && numOs) {
                     // Nova OS manual — libera formulário até o passo de endereço
                     const numSalvo = numOs;
                     osState.produtos = []; osState.tiposServico = new Set();
@@ -2368,8 +2364,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 } else if (resp.ok) {
                     const registros = await resp.json();
-                    if (registros && registros.length > 0) {
-                        abrirModalListaOS(numOs, registros);
+                    if (!registros || registros.length === 0) {
+                        if (numOs) mostrarToastAviso(`OS "${numOs}" não encontrada.`);
+                        else mostrarToastAviso(`Nenhuma visita cadastrada no sistema.`);
+                        return;
+                    }
+
+                    if (registros.length === 1 && numOs) {
+                        carregarRegistroNaTela(registros[0]);
+                        mostrarToastAviso(`✅ OS "${numOs}" carregada.`);
+                    } else {
+                        abrirModalListaOS(numOs || 'Todas as Visitas', registros);
                     }
                 }
             } catch(err) {

@@ -8132,12 +8132,22 @@ function agregaDias(rows) {
 // Retorna array de todos os serviços registrados para esse número de OS
 app.get('/api/logistica/os/buscar', authenticateToken, (req, res) => {
     const { numero_os, cliente, contrato, endereco, patrimonio } = req.query;
-    if (!numero_os && !cliente && !contrato && !endereco && !patrimonio) return res.status(400).json({ error: 'Parâmetro obrigatório.' });
+    if (!numero_os && !cliente && !contrato && !endereco && !patrimonio) {
+        db.all(
+            `SELECT * FROM os_logistica WHERE status = 'ativo' ORDER BY criado_em DESC LIMIT 200`,
+            [],
+            (err, rows) => {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json(rows || []);
+            }
+        );
+        return;
+    }
 
     if (numero_os) {
         db.all(
-            `SELECT * FROM os_logistica WHERE numero_os = ? AND status = 'ativo' ORDER BY criado_em DESC`,
-            [numero_os.trim()],
+            `SELECT * FROM os_logistica WHERE numero_os LIKE ? AND status = 'ativo' ORDER BY criado_em DESC`,
+            [`%${numero_os.trim()}%`],
             (err, rows) => {
                 if (err) return res.status(500).json({ error: err.message });
                 if (!rows || rows.length === 0) return res.status(404).json({ error: 'OS não encontrada.' });
