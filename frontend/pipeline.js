@@ -319,12 +319,17 @@ function pipelineBuildTitulo(r) {
         icones.push(noturnoStyle[1].icon);
     }
 
-    // 2. Ícones de produtos (entrega e retirada usam PIPELINE_EQ_ICONS — deduplica com Set)
+    // 2. Ícones de produtos (entrega e retirada usam PIPELINE_EQ_ICONS)
+    //    Normaliza variante EVENTO → OBRA para que STD OBRA e STD EVENTO usem o mesmo ícone
+    //    e o Set elimine duplicatas corretamente
     if (isEntregaOuRetirada && prods.length) {
         const iconesProdSet = new Set();
         prods.forEach(p => {
             const desc = (p.desc || '').trim().toUpperCase();
-            if (PIPELINE_EQ_ICONS[desc]) iconesProdSet.add(PIPELINE_EQ_ICONS[desc]);
+            // Tenta o desc original primeiro; se não existir, tenta a variante OBRA
+            const descNorm = desc.replace(/ EVENTO$/, ' OBRA');
+            const ic = PIPELINE_EQ_ICONS[desc] || PIPELINE_EQ_ICONS[descNorm];
+            if (ic) iconesProdSet.add(ic);
         });
         iconesProdSet.forEach(ic => icones.push(ic));
     }
