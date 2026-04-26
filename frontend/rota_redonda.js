@@ -1129,11 +1129,16 @@ async function carregarOsPorNumero(numOs) {
         });
         if (!resp.ok) {
             if (resp.status === 404) {
-                // Nenhuma OS com esse número — campo limpo para nova OS
-                btn.style.background = '';
-                mostrarToastAviso(`OS "${numOs}" não encontrada. Preencha os campos para criar uma nova.`);
-                return;
-            }
+                  // Nenhuma OS com esse número
+                  btn.style.background = '';
+                  const btnPlus = document.getElementById('btn-add-os-tipo');
+                  if (btnPlus) {
+                      btnPlus.click();
+                  } else {
+                      mostrarToastAviso(`OS "${numOs}" não encontrada. Preencha os campos para criar uma nova.`);
+                  }
+                  return;
+              }
             throw new Error(`HTTP ${resp.status}`);
         }
         const registros = await resp.json(); // array de OS com esse número
