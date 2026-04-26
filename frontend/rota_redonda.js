@@ -708,7 +708,12 @@ async function geocodeEndereco() {
 
 // ── MODAL GOOGLE MAPS ─────────────────────────────────────────────────────────
 function colarUrlGoogleMaps() {
-    const endereco = document.getElementById('rr-input-endereco')?.value?.trim();
+      const endereco = document.getElementById('rr-input-endereco')?.value?.trim();
+      if (!endereco) {
+          mostrarToastAviso('Preencha o campo de endereço antes de clicar no botão do Google Maps.');
+          document.getElementById('rr-input-endereco')?.focus();
+          return;
+      }
     // Abre Google Maps em nova aba com o endereço atual
     const mapsUrl = 'https://www.google.com/maps/search/' + encodeURIComponent(endereco || 'São Paulo, Brasil');
     window.open(mapsUrl, '_blank');
@@ -1030,7 +1035,7 @@ function duplicarOsNaTela(payload) {
         if (payload.lat && payload.lng) set('rr-input-coord', `${payload.lat}, ${payload.lng}`);
         // Contrato — mantém
         if (payload.contrato) {
-            const contEl = document.querySelector('input[placeholder="Nº Contrato"]');
+            const contEl = document.getElementById('rr-input-contrato');
             if (contEl) contEl.value = payload.contrato;
         }
         // Data — LIMPA (não preenche)
@@ -1369,7 +1374,7 @@ function carregarRegistroNaTela(os) {
     if (tsSearch && os.tipo_servico) tsSearch.value = os.tipo_servico;
 
     if (os.contrato) {
-        const contEl = document.querySelector('input[placeholder="Nº Contrato"]');
+        const contEl = document.getElementById('rr-input-contrato');
         if (contEl) contEl.value = os.contrato;
     }
     if (os.data_os) {
@@ -2023,7 +2028,7 @@ function preencherFormularioComDados(dados, tipoOs) {
     }
 
     if (dados.contrato) {
-        const contEl = document.querySelector('input[placeholder="Nº Contrato"]');
+        const contEl = document.getElementById('rr-input-contrato');
         if (contEl) { contEl.value = dados.contrato; contEl.style.background = '#f0fdf4'; }
     }
 
@@ -2401,7 +2406,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Botão de buscar OS por Contrato
         const btnBuscarContrato = e.target.closest('#btn-buscar-contrato');
         if (btnBuscarContrato) {
-            const numContrato = document.querySelector('input[placeholder="Nº Contrato"]')?.value?.trim() || document.getElementById('rr-input-contrato')?.value?.trim();
+            const numContrato = document.getElementById('rr-input-contrato')?.value?.trim();
             if (!numContrato) {
                 mostrarToastAviso('Digite o número do contrato primeiro.');
                 return;
@@ -2532,7 +2537,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 cep: document.getElementById('rr-input-cep')?.value?.trim() || '',
                 lat: isNaN(lat) ? null : lat,
                 lng: isNaN(lng) ? null : lng,
-                contrato: document.querySelector('input[placeholder="Nº Contrato"]')?.value?.trim() || '',
+                contrato: document.getElementById('rr-input-contrato')?.value?.trim() || '',
                 data_os: document.getElementById('rr-input-data')?.value || '',
                 responsavel: document.getElementById('rr-input-responsavel')?.value?.trim() || '',
                 telefone: document.getElementById('rr-input-sms')?.value?.trim() || '',
