@@ -1430,43 +1430,58 @@ function exibirModalAgendaEndereco(data, enderecoAtual) {
 
     const corDistancia = (km) => km < 0.1 ? '#16a34a' : km <= 1 ? '#2563eb' : km <= 3 ? '#ca8a04' : '#ef4444';
 
-    const renderPills = (diasArr) => diasArr.map(d => {
-        const cor = colorMap[d.dia] || '#2563eb';
-        const qtd = d.ocorrencias || 1;
-        const label = qtd === 1 ? '1 cliente' : `${qtd} clientes`;
-        return `<span style="background:${cor};color:white;border-radius:6px;padding:4px 14px;font-size:0.8rem;font-weight:700;display:inline-flex;align-items:center;gap:6px;box-shadow:0 2px 4px rgba(0,0,0,0.18);white-space:nowrap;">${d.dia.toUpperCase()} <span style="opacity:0.5;">|</span> ${label}</span>`;
-    }).join('');
+    // Calcula o total de atendimentos por dia para o grafico
+    const totaisPorDia = { 'Seg':0, 'Ter':0, 'Qua':0, 'Qui':0, 'Sex':0, 'Sáb':0, 'Dom':0 };
+    [...exatos.map(o => ({...o, distancia_km: o.distancia_km ?? 0})), ...proximos].forEach(os => {
+        const dias = parseDiasFront(os.dias_semana);
+        dias.forEach(d => {
+            if (totaisPorDia[d] !== undefined) totaisPorDia[d]++;
+        });
+    });
 
-    let msgSugestao = '';
+    const maxCount = Math.max(1, ...Object.values(totaisPorDia));
+
+    let chartHtml = `
+    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:1.5rem 1rem 1rem 1rem; margin-bottom:0.5rem; display:flex; flex-direction:column; gap:1.2rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+        <p style="margin:0; font-weight:800; color:#1e293b; font-size:0.95rem; text-align:center;"><i class="ph ph-chart-bar" style="color:#0ea5e9; font-size:1.1rem; vertical-align:middle;"></i> Volume de Atendimentos na Região (3km)</p>
+        <div style="display:flex; justify-content:space-between; align-items:flex-end; height:140px; gap:8px; padding: 0 10px; border-bottom: 2px solid #e2e8f0;">
+    `;
+    
+    DIAS_ALL.forEach(d => {
+        const count = totaisPorDia[d];
+        const pct = Math.round((count / maxCount) * 100);
+        const cor = colorMap[d];
+        const heightStyle = count === 0 ? 'height: 4px; opacity: 0.2;' : `height: ${pct}%; box-shadow: 0 -4px 12px ${cor}40;`;
+        
+        chartHtml += `
+            <div style="display:flex; flex-direction:column; align-items:center; flex:1; gap:6px;">
+                <div style="font-size:0.8rem; font-weight:800; color:${count > 0 ? cor : '#94a3b8'};">${count}</div>
+                <div style="width:100%; max-width:48px; ${heightStyle} background:${cor}; border-radius:6px 6px 0 0; min-height:4px; transition:height 0.4s cubic-bezier(0.4, 0, 0.2, 1);"></div>
+                <div style="font-size:0.75rem; font-weight:700; color:#475569; text-transform:uppercase; margin-top:4px;">${d}</div>
+            </div>
+        `;
+    });
+    chartHtml += `
+        </div>
+    </div>
+    `;
+
+    let msgSugestao = chartHtml;
+
     if (tem1km) {
-        msgSugestao = `
-            <div style="background:#eff6ff; border:1.5px solid #93c5fd; border-radius:10px; padding:1rem;">
-                <p style="margin:0 0 0.6rem 0; font-weight:700; color:#1d4ed8; font-size:0.9rem;"><i class="ph ph-check-circle-fill"></i> Manuten\u00e7\u00f5es a menos de 1km \u2014 prioridade m\u00e1xima</p>
-                <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:0.5rem;">${renderPills(data.dias_sugeridos_2km)}</div>
-                <p style="margin:0; font-size:0.72rem; color:#1d4ed8;"><i class="ph ph-lightning"></i> Recomendamos fortemente agendar nestes dias!</p>
+        msgSugestao += `
+            <div style="background:#eff6ff; border:1.5px solid #93c5fd; border-radius:10px; padding:0.8rem 1rem; margin-bottom:0.5rem;">
+                <p style="margin:0; font-size:0.8rem; color:#1d4ed8; font-weight:600;"><i class="ph ph-check-circle-fill"></i> Recomendamos agendar nos dias com maior volume acima (especialmente os azuis e verdes).</p>
             </div>`;
-        if (tem3km) {
-            msgSugestao += `
-            <div style="background:#fefce8; border:1px solid #fde68a; border-radius:8px; padding:0.75rem; opacity:0.75;">
-                <p style="margin:0; font-size:0.75rem; color:#854d0e;"><i class="ph ph-warning"></i> Tamb\u00e9m h\u00e1 manuten\u00e7\u00f5es entre 1km e 3km \u2014 priorize os dias acima.</p>
-            </div>`;
-        }
     } else if (tem3km) {
-        msgSugestao = `
-            <div style="background:#fefce8; border:1.5px solid #fde68a; border-radius:10px; padding:1rem;">
-                <p style="margin:0 0 0.6rem 0; font-weight:700; color:#854d0e; font-size:0.9rem;"><i class="ph ph-warning"></i> Manuten\u00e7\u00f5es na regi\u00e3o (1 a 3km)</p>
-                <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:0.5rem;">${renderPills(data.dias_sugeridos_5km)}</div>
-                <p style="margin:0; font-size:0.72rem; color:#a16207;"><i class="ph ph-info"></i> Nenhuma manuten\u00e7\u00e3o a menos de 1km. Considere agendar nestes dias.</p>
+        msgSugestao += `
+            <div style="background:#fefce8; border:1.5px solid #fde68a; border-radius:10px; padding:0.8rem 1rem; margin-bottom:0.5rem;">
+                <p style="margin:0; font-size:0.8rem; color:#854d0e; font-weight:600;"><i class="ph ph-warning"></i> Nenhuma manutenção a menos de 1km. Analise o gráfico acima para escolher o melhor dia.</p>
             </div>`;
-    } else if (proximos.length > 0) {
-        msgSugestao = `
-            <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:10px; padding:1rem;">
-                <p style="margin:0; font-weight:700; color:#b91c1c; font-size:0.88rem;"><i class="ph ph-warning-circle"></i> OS encontradas na regi\u00e3o, mas sem dias de semana definidos ainda.</p>
-            </div>`;
-    } else {
-        msgSugestao = `
-            <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:10px; padding:1rem;">
-                <p style="margin:0; font-weight:700; color:#b91c1c; font-size:0.88rem;"><i class="ph ph-warning-circle"></i> Nenhuma manuten\u00e7\u00e3o cadastrada em raio de 3km.</p>
+    } else if (proximos.length === 0) {
+        msgSugestao += `
+            <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:10px; padding:0.8rem 1rem; margin-bottom:0.5rem;">
+                <p style="margin:0; font-weight:600; color:#b91c1c; font-size:0.8rem;"><i class="ph ph-warning-circle"></i> Nenhuma manutenção cadastrada em raio de 3km.</p>
             </div>`;
     }
 
