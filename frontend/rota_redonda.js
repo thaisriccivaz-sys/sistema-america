@@ -2807,7 +2807,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (btnPesqCliente) {
             let nome = document.getElementById('rr-input-cliente')?.value.trim();
             if (!nome) { alert('Digite o nome do cliente antes de pesquisar.'); return; }
-            nome = nome.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\s🔴🟢]+/u, '').trim();
+            nome = nome.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\uFE0F\s🔴🟢]+/u, '').trim();
             abrirModalOSCliente(nome);
             return;
         }
@@ -3205,7 +3205,7 @@ function atualizarIconesCliente() {
 
     let nomeBase = clienteInput.dataset.nomeBase;
     if (!nomeBase) {
-        nomeBase = clienteInput.value.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\s🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘]+/u, '').trim();
+        nomeBase = clienteInput.value.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\uFE0F\s🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘]+/u, '').trim();
         clienteInput.dataset.nomeBase = nomeBase || clienteInput.value.trim();
     }
 

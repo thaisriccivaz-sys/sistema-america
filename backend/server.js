@@ -8137,7 +8137,7 @@ app.get('/api/logistica/os/buscar', authenticateToken, (req, res) => {
             }
         );
     } else if (cliente) {
-        let clienteSanitized = cliente.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\s🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘]+/u, '').trim();
+        let clienteSanitized = cliente.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\uFE0F\s🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘]+/u, '').trim();
         clienteSanitized = clienteSanitized.replace(/[aáàãâä]/gi, '_').replace(/[eéèêë]/gi, '_').replace(/[iíìîï]/gi, '_').replace(/[oóòõôö]/gi, '_').replace(/[uúùûü]/gi, '_').replace(/[cç]/gi, '_').replace(/\s+/g, '%');
         db.all(
             `SELECT * FROM os_logistica WHERE cliente LIKE ? AND status = 'ativo' ORDER BY criado_em DESC`,
@@ -8195,7 +8195,7 @@ app.post('/api/logistica/os', authenticateToken, (req, res) => {
         return res.status(400).json({ error: 'Número da OS e nome do cliente são obrigatórios.' });
     }
 
-    const sanitizeCliente = (str) => (str || '').replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\s🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘🟢🔴🔄]+/u, '').trim().toLowerCase();
+    const sanitizeCliente = (str) => (str || '').replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\uFE0F\s🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘🟢🔴🔄]+/u, '').trim().toLowerCase();
 
     // Verifica se já existe uma OS com esse número mas cliente DIFERENTE
     db.get(
@@ -8248,7 +8248,7 @@ app.put('/api/logistica/os/:id', authenticateToken, (req, res) => {
         observacoes_internas, habilidades, variaveis, link_video, patrimonio
     } = req.body;
 
-    const sanitizeCliente = (str) => (str || '').replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\s🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘🟢🔴🔄]+/u, '').trim().toLowerCase();
+    const sanitizeCliente = (str) => (str || '').replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\uFE0F\s🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘🟢🔴🔄]+/u, '').trim().toLowerCase();
 
     db.get(`SELECT cliente FROM os_logistica WHERE numero_os = ? AND id != ? AND status = 'ativo' LIMIT 1`, [numero_os?.trim(), req.params.id], (errCheck, existente) => {
         if (errCheck) return res.status(500).json({ error: errCheck.message });
