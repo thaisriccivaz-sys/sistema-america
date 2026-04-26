@@ -303,13 +303,14 @@ async function pipelineAbrirOS(osId, numeroOs) {
 }
 
 // Monta o Título (coluna A do SimpliRoute) com ícones na ordem:
-// 1-Lua(noturno) 2-Produtos(entrega) 3-Serviço 4-Variáveis 5-Habilidades + Nome do cliente
+// 1-Lua(noturno) 2-Produtos(entrega/retirada) 3-Serviço 4-Variáveis 5-Habilidades + Nome do cliente
 function pipelineBuildTitulo(r) {
     const vars  = Array.isArray(r.variaveis)   ? r.variaveis.map(v => v.trim().toUpperCase()) : [];
     const habs  = Array.isArray(r.habilidades) ? r.habilidades.map(h => h.trim().toUpperCase()) : [];
     const prods = Array.isArray(r.produtos)    ? r.produtos : [];
     const ts    = (r.tipo_servico || '').toLowerCase();
-    const isEntrega = ts.includes('entrega');
+    // Entrega e Retirada usam ícones de produto — seus ícones de serviço (🚛 ↩️) não existem no sistema
+    const isEntregaOuRetirada = ts.includes('entrega') || ts.includes('retirada');
     const icones = [];
 
     // 1. Lua — ler do objeto PIPELINE_VARS_CORES, não hardcodar
@@ -318,16 +319,16 @@ function pipelineBuildTitulo(r) {
         icones.push(noturnoStyle[1].icon);
     }
 
-    // 2. Ícones de produtos (apenas para entregas, usa PIPELINE_EQ_ICONS)
-    if (isEntrega && prods.length) {
+    // 2. Ícones de produtos (entrega e retirada usam PIPELINE_EQ_ICONS)
+    if (isEntregaOuRetirada && prods.length) {
         prods.forEach(p => {
             const desc = (p.desc || '').trim().toUpperCase();
             if (PIPELINE_EQ_ICONS[desc]) icones.push(PIPELINE_EQ_ICONS[desc]);
         });
     }
 
-    // 3. Ícone do tipo de serviço (exceto entrega, cujo ícone 🚛 não existe no sistema)
-    if (!isEntrega) {
+    // 3. Ícone do tipo de serviço (skipa entrega e retirada — ícones 🚛 e ↩️ não existem no sistema)
+    if (!isEntregaOuRetirada) {
         const ic = pipelineGetIconServico(r.tipo_servico);
         if (ic && ic !== '📋') icones.push(ic);
     }
