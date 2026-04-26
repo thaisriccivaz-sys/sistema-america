@@ -8155,15 +8155,24 @@ app.get('/api/logistica/os/buscar', authenticateToken, (req, res) => {
             }
         );
     } else if (cliente) {
-        let clienteSanitized = cliente.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\uFE0F\s🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘]+/u, '').trim();
-        clienteSanitized = clienteSanitized.replace(/\s+/g, '%');
         db.all(
-            `SELECT * FROM os_logistica WHERE cliente LIKE ? AND status = 'ativo' ORDER BY criado_em DESC`,
-            [`%${clienteSanitized}%`],
+            `SELECT * FROM os_logistica WHERE status = 'ativo' ORDER BY criado_em DESC`,
+            [],
             (err, rows) => {
                 if (err) return res.status(500).json({ error: err.message });
-                if (!rows || rows.length === 0) return res.status(200).json([]);
-                res.json(rows);
+                
+                // Filtro em memória para ignorar acentos corretamente
+                const term = cliente.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                
+                const filtered = (rows || []).filter(r => {
+                    if (!r.cliente) return false;
+                    // Remove emojis e espaços extras apenas para a comparação
+                    let c = r.cliente.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\uFE0F\s🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘]+/u, '').trim();
+                    c = c.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                    return c.includes(term);
+                });
+
+                res.json(filtered);
             }
         );
     } else if (contrato) {
@@ -8177,14 +8186,22 @@ app.get('/api/logistica/os/buscar', authenticateToken, (req, res) => {
             }
         );
     } else if (endereco) {
-        let endSanitized = endereco.trim().replace(/\s+/g, '%');
         db.all(
-            `SELECT * FROM os_logistica WHERE endereco LIKE ? AND status = 'ativo' ORDER BY criado_em DESC`,
-            [`%${endSanitized}%`],
+            `SELECT * FROM os_logistica WHERE status = 'ativo' ORDER BY criado_em DESC`,
+            [],
             (err, rows) => {
                 if (err) return res.status(500).json({ error: err.message });
-                if (!rows || rows.length === 0) return res.status(200).json([]);
-                res.json(rows);
+
+                // Filtro em memória para ignorar acentos corretamente
+                const term = endereco.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                
+                const filtered = (rows || []).filter(r => {
+                    if (!r.endereco) return false;
+                    let end = r.endereco.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                    return end.includes(term);
+                });
+
+                res.json(filtered);
             }
         );
     } else if (patrimonio) {
