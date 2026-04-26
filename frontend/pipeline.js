@@ -131,9 +131,10 @@ function pipelineRenderCard(os) {
     <div class="pipe-card" data-os-id="${os.id}"
          style="background:${bgCard};border-left:3px solid ${borderCard};"
          onclick="pipelineAbrirOS(${os.id},'${(os.numero_os||'').replace(/'/g,"\\'")}')">
-        <!-- OS número -->
+        <!-- OS número e Turno -->
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
             <span style="font-weight:800;font-size:0.82rem;color:#1e3a5f;">OS: ${os.numero_os||'—'}</span>
+            ${(os.turno || '').toLowerCase() === 'noturno' ? '<span style="background:#1e293b;color:#f8fafc;padding:2px 6px;border-radius:4px;font-size:0.65rem;font-weight:700;display:flex;align-items:center;gap:3px;">🌒 Noturno</span>' : ''}
         </div>
         <!-- Cliente (com 📦 se compra interna) -->
         <div style="font-size:0.73rem;font-weight:700;color:#1e293b;margin-bottom:2px;">${clienteLabel}</div>
