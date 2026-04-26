@@ -203,6 +203,7 @@ async function buscarPipeline() {
     const dataDe   = document.getElementById('pipe-filtro-data-de')?.value  || '';
     const dataAte  = document.getElementById('pipe-filtro-data-ate')?.value || '';
     const os       = document.getElementById('pipe-filtro-os')?.value       || '';
+    const contrato = document.getElementById('pipe-filtro-contrato')?.value || '';
     const cliente  = document.getElementById('pipe-filtro-cliente')?.value  || '';
     const endereco = document.getElementById('pipe-filtro-endereco')?.value || '';
 
@@ -214,6 +215,7 @@ async function buscarPipeline() {
     if (dataDe)   params.set('data_de',  dataDe);
     if (dataAte)  params.set('data_ate', dataAte);
     if (os)       params.set('os',       os);
+    if (contrato) params.set('contrato', contrato);
     if (cliente)  params.set('cliente',  cliente);
     if (endereco) params.set('endereco', endereco);
 
@@ -265,7 +267,7 @@ async function buscarPipeline() {
 }
 
 function pipelineLimparFiltros() {
-    ['pipe-filtro-data-de','pipe-filtro-data-ate','pipe-filtro-os','pipe-filtro-cliente','pipe-filtro-endereco'].forEach(id => {
+    ['pipe-filtro-data-de','pipe-filtro-data-ate','pipe-filtro-os','pipe-filtro-contrato','pipe-filtro-cliente','pipe-filtro-endereco'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
@@ -531,6 +533,13 @@ function renderPipelinePage() {
           <label style="color:#475569;font-size:0.78rem;font-weight:600;">OS:</label>
           <input type="text" id="pipe-filtro-os" placeholder="OS"
             style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;width:85px;background:white;color:#1e293b;outline:none;"
+            oninput="buscarPipelineDebounced()">
+        </div>
+        <!-- Contrato -->
+        <div style="display:flex;align-items:center;gap:5px;">
+          <label style="color:#475569;font-size:0.78rem;font-weight:600;">Contrato:</label>
+          <input type="text" id="pipe-filtro-contrato" placeholder="Contrato"
+            style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;width:95px;background:white;color:#1e293b;outline:none;"
             oninput="buscarPipelineDebounced()">
         </div>
         <!-- Data De / Até -->

@@ -8396,6 +8396,7 @@ function isRecorrente(tipoServico) {
 // GET /api/logistica/pipeline - OS agrupadas por tipo para o Pipeline Kanban
 app.get('/api/logistica/pipeline', authenticateToken, (req, res) => {
     const os = req.query.os || '';
+    const contrato = req.query.contrato || '';
     const cliente = req.query.cliente || '';
     const endereco = req.query.endereco || '';
     const diaFiltro = req.query.dia || '';
@@ -8419,8 +8420,9 @@ app.get('/api/logistica/pipeline', authenticateToken, (req, res) => {
     let sql = `SELECT * FROM os_logistica WHERE status = 'ativo'`;
     const params = [];
 
-    // Todos os filtros são combinados (AND): OS + data + cliente + endereço
+    // Todos os filtros são combinados (AND): OS + contrato + data + cliente + endereço
     if (os)       { sql += ` AND numero_os = ?`;       params.push(os.trim()); }
+    if (contrato) { sql += ` AND contrato LIKE ?`;     params.push(`%${contrato.trim()}%`); }
     if (cliente)  { sql += ` AND cliente LIKE ?`;      params.push(`%${cliente}%`); }
     if (endereco) { sql += ` AND endereco LIKE ?`;     params.push(`%${endereco}%`); }
     // Filtro de data aplicado em JS para suportar lógica pontual vs recorrente
