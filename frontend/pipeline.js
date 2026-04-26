@@ -390,32 +390,33 @@ function pipelineExportarExcel() {
 
     // ── Títulos EXATOS das colunas (A–Z) ────────────────────────────────
     const HEADERS = [
-        'Titulo',                       // A
-        'Endereço completo',            // B
-        'Carga',                        // C
-        'Janela de horário inicial',    // D
-        'Janela de horário final',      // E
-        'Tempo de serviço',             // F
-        'Anotações2',                   // G
-        'Latitude',                     // H
-        'Longitude',                    // I
-        'Identificação de referência',  // J
-        'Habilidade necessária',        // K
-        'Habilidade opcional',          // L — não preencher
-        'Telefone de contato',          // M — não preencher
-        'Pessoa de contato',            // N — não preencher
-        'Janela de horário inicial 2',  // O — não preencher
-        'Janela de horário final 2',    // P — não preencher
-        'Capacidade 2',                 // Q — Carroceria
-        'Capacidade 3',                 // R — Carretinha
-        'Prioridade',                   // S — não preencher
-        'SMS',                          // T — não preencher
-        'Correio eletrônico de contato',// U — Email
-        'Carga pick',                   // V — não preencher
-        'Carga pick 2',                 // W — não preencher
-        'Não preencher',                // X — não preencher
-        'Data Agendamento',             // Y — não preencher
-        'Tipo de visita'                // Z — Tipo de serviço
+        'Obs Internas',                 // A — Observações internas
+        'Titulo',                       // B
+        'Endereço completo',            // C
+        'Carga',                        // D
+        'Janela de horário inicial',    // E
+        'Janela de horário final',      // F
+        'Tempo de serviço',             // G
+        'Anotações2',                   // H
+        'Latitude',                     // I
+        'Longitude',                    // J
+        'Identificação de referência',  // K
+        'Habilidade necessária',        // L
+        'Habilidade opcional',          // M — não preencher
+        'Telefone de contato',          // N — não preencher
+        'Pessoa de contato',            // O — não preencher
+        'Janela de horário inicial 2',  // P — não preencher
+        'Janela de horário final 2',    // Q — não preencher
+        'Capacidade 2',                 // R — Carroceria
+        'Capacidade 3',                 // S — Carretinha
+        'Prioridade',                   // T — não preencher
+        'SMS',                          // U — não preencher
+        'Correio eletrônico de contato',// V — Email
+        'Carga pick',                   // W — não preencher
+        'Carga pick 2',                 // X — não preencher
+        'Não preencher',                // Y — não preencher
+        'Data Agendamento',             // Z — não preencher
+        'Tipo de visita'                // AA — Tipo de serviço
     ];
 
     const linhas = [HEADERS];
@@ -451,32 +452,33 @@ function pipelineExportarExcel() {
         const habilidades = Array.isArray(r.habilidades) ? r.habilidades.join(', ') : (r.habilidades || '');
 
         linhas.push([
-            titulo,                  // A Titulo
-            endereco,                // B Endereço completo
-            r.tanque || r.carga || '',// C Carga
-            r.hora_inicio || '',     // D Janela de horário inicial
-            r.hora_fim    || '',     // E Janela de horário final
-            r.tempo_servico || '',   // F Tempo de serviço
-            anotacoes,               // G Anotações2
-            lat,                     // H Latitude
-            lng,                     // I Longitude
-            r.numero_os || '',       // J Identificação de referência
-            habilidades,             // K Habilidade necessária
-            '',                      // L Habilidade opcional — não preencher
-            '',                      // M Telefone de contato — não preencher
-            '',                      // N Pessoa de contato — não preencher
-            '',                      // O Janela de horário inicial 2 — não preencher
-            '',                      // P Janela de horário final 2 — não preencher
-            r.carroceria || '',      // Q Capacidade 2 — Carroceria
-            r.carretinha || '',      // R Capacidade 3 — Carretinha
-            '',                      // S Prioridade — não preencher
-            '',                      // T SMS — não preencher
-            r.email || '',           // U Correio eletrônico de contato
-            '',                      // V Carga pick — não preencher
-            '',                      // W Carga pick 2 — não preencher
-            '',                      // X Não preencher
-            '',                      // Y Data Agendamento — não preencher
-            r.tipo_servico || ''     // Z Tipo de visita
+            r.observacoes_internas || '', // A Obs Internas
+            titulo,                  // B Titulo
+            endereco,                // C Endereço completo
+            r.tanque || r.carga || '',// D Carga
+            r.hora_inicio || '',     // E Janela de horário inicial
+            r.hora_fim    || '',     // F Janela de horário final
+            r.tempo_servico || '',   // G Tempo de serviço
+            anotacoes,               // H Anotações2
+            lat,                     // I Latitude
+            lng,                     // J Longitude
+            r.numero_os || '',       // K Identificação de referência
+            habilidades,             // L Habilidade necessária
+            '',                      // M Habilidade opcional — não preencher
+            '',                      // N Telefone de contato — não preencher
+            '',                      // O Pessoa de contato — não preencher
+            '',                      // P Janela de horário inicial 2 — não preencher
+            '',                      // Q Janela de horário final 2 — não preencher
+            r.carroceria || '',      // R Capacidade 2 — Carroceria
+            r.carretinha || '',      // S Capacidade 3 — Carretinha
+            '',                      // T Prioridade — não preencher
+            '',                      // U SMS — não preencher
+            r.email || '',           // V Correio eletrônico de contato
+            '',                      // W Carga pick — não preencher
+            '',                      // X Carga pick 2 — não preencher
+            '',                      // Y Não preencher
+            '',                      // Z Data Agendamento — não preencher
+            r.tipo_servico || ''     // AA Tipo de visita
         ]);
     });
 
