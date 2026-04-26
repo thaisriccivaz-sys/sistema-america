@@ -726,6 +726,8 @@ function navigateTo(target) {
         if (typeof window.renderDissidio === 'function') window.renderDissidio();
     } else if (target === 'logistica-frota-resumo') {
         if (typeof renderFrotaResumo === 'function') setTimeout(() => renderFrotaResumo(), 80);
+    } else if (target === 'logistica-pipeline') {
+        if (typeof renderPipelinePage === 'function') setTimeout(() => renderPipelinePage(), 80);
     }
 }
 
