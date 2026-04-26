@@ -1223,7 +1223,7 @@ function abrirModalListaOS(numOs, registros) {
           if (tServ.includes('ENTREGA')) { bgColor = '#bbf7d0'; hoverColor = '#86efac'; }
           else if (tServ.includes('RETIRADA')) { bgColor = '#fef9c3'; hoverColor = '#fef08a'; }
           else if (tServ.includes('LIMPA FOSSA')) { bgColor = '#bfdbfe'; hoverColor = '#93c5fd'; }
-          else if (tServ.includes('MANUTENCAO OBRA') || tServ.includes('VAC')) { bgColor = '#e2e8f0'; hoverColor = '#cbd5e1'; }
+          else if (tServ.includes('MANUTEN') || tServ.includes('VAC')) { bgColor = '#e2e8f0'; hoverColor = '#cbd5e1'; }
           else { bgColor = '#ffffff'; hoverColor = '#f8fafc'; }
           
           return `
@@ -3379,8 +3379,18 @@ async function abrirModalOSCliente(nomeCliente) {
         let varis = '—';
         try { const v = JSON.parse(r.variaveis); if(v && v.length) varis = v.join(', '); } catch(e) { if(r.variaveis) varis = r.variaveis; }
         const dataFormatada = r.data_os ? r.data_os.split('-').reverse().join('/') : '—';
+        
+        let bgColor = 'transparent';
+        let hoverColor = '#f1f5f9';
+        const tServ = (r.tipo_servico || '').toUpperCase();
+        if (tServ.includes('ENTREGA')) { bgColor = '#bbf7d0'; hoverColor = '#86efac'; }
+        else if (tServ.includes('RETIRADA')) { bgColor = '#fef9c3'; hoverColor = '#fef08a'; }
+        else if (tServ.includes('LIMPA FOSSA')) { bgColor = '#bfdbfe'; hoverColor = '#93c5fd'; }
+        else if (tServ.includes('MANUTEN') || tServ.includes('VAC')) { bgColor = '#e2e8f0'; hoverColor = '#cbd5e1'; }
+        else { bgColor = '#ffffff'; hoverColor = '#f8fafc'; }
+
         return `
-            <tr class="rr-os-row-cli" data-idx="${i}" data-cliente="${(r.cliente||'').toLowerCase()}" data-endereco="${(r.endereco||'').toLowerCase()}" data-tipo="${(r.tipo_servico||'').toLowerCase()}" data-data="${r.data_os||''}" data-produto="${prodData}" style="border-bottom:1px solid #e2e8f0;transition:background 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+            <tr class="rr-os-row-cli" data-idx="${i}" data-cliente="${(r.cliente||'').toLowerCase()}" data-endereco="${(r.endereco||'').toLowerCase()}" data-tipo="${(r.tipo_servico||'').toLowerCase()}" data-data="${r.data_os||''}" data-produto="${prodData}" style="border-bottom:1px solid #e2e8f0;background:${bgColor};transition:background 0.2s;" onmouseover="this.style.background='${hoverColor}'" onmouseout="this.style.background='${bgColor}'">
                 <td style="padding:0.6rem 0.5rem;white-space:nowrap;font-weight:700;color:#2d9e5f;">${r.numero_os}</td>
                 <td style="padding:0.6rem 0.5rem;font-weight:600;">${r.cliente}</td>
                 <td style="padding:0.6rem 0.5rem;font-size:0.78rem;">${r.endereco||'—'}</td>
