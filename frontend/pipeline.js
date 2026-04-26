@@ -167,7 +167,7 @@ function pipelineRenderKanban(dados) {
     ${colunasExibidas.map(col => {
         const lista = dados[col.key] || [];
         return `
-        <div style="flex:1;min-width:260px;display:flex;flex-direction:column;border-radius:12px;background:#f8fafc;box-shadow:0 2px 10px rgba(0,0,0,0.07);min-height:calc(100vh - 120px);padding-bottom:8px;">
+        <div style="flex:1;min-width:260px;display:flex;flex-direction:column;border-radius:12px;background:${col.cor};box-shadow:0 2px 10px rgba(0,0,0,0.07);min-height:calc(100vh - 120px);padding-bottom:8px;">
             <!-- Header coluna sticky -->
             <div style="background:${col.cor};padding:10px 14px;display:flex;align-items:center;gap:8px;position:sticky;top:var(--pipe-header-height, 125px);z-index:90;border-radius:12px 12px 0 0;box-shadow:0 2px 4px rgba(0,0,0,0.05);">
                 <span style="font-size:1.1rem;color:${col.textCor};">${col.icon}</span>
