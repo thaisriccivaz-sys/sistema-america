@@ -1014,8 +1014,8 @@ function duplicarOsNaTela(payload) {
     // Preserva produtos e tipo de OS no state
     osState.tipoOs = payload.tipo_os || '';
     osState.produtos = (payload.produtos || []).map(p => ({ ...p, id: Date.now() + Math.random() }));
-    osState.tiposServico = new Set(payload.habilidades || []);
-      osState.acoes = new Set(payload.variaveis || []);
+    osState.tiposServico = new Set(); // Limpa o tipo de serviço
+    osState.acoes = new Set(); // Limpa ações/variáveis atreladas ao serviço
     osState.clienteConfirmado = true;
     osState.clienteNome = payload.cliente || '';
     osState.enderecoSelecionado = payload.endereco || '';
