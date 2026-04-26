@@ -8385,15 +8385,11 @@ app.get('/api/logistica/pipeline', authenticateToken, (req, res) => {
     let sql = `SELECT * FROM os_logistica WHERE status = 'ativo'`;
     const params = [];
 
-    if (os) {
-        // Busca por número de OS: ignora filtro de data
-        sql += ` AND numero_os = ?`;
-        params.push(os.trim());
-    } else {
-        if (cliente)  { sql += ` AND cliente LIKE ?`;  params.push(`%${cliente}%`); }
-        if (endereco) { sql += ` AND endereco LIKE ?`; params.push(`%${endereco}%`); }
-        // Filtro de data é aplicado em JS para suportar a lógica pontual vs recorrente
-    }
+    // Todos os filtros são combinados (AND): OS + data + cliente + endereço
+    if (os)       { sql += ` AND numero_os = ?`;       params.push(os.trim()); }
+    if (cliente)  { sql += ` AND cliente LIKE ?`;      params.push(`%${cliente}%`); }
+    if (endereco) { sql += ` AND endereco LIKE ?`;     params.push(`%${endereco}%`); }
+    // Filtro de data aplicado em JS para suportar lógica pontual vs recorrente
     sql += ` ORDER BY cliente ASC`;
 
     db.all(sql, params, (err, rows) => {
@@ -8404,7 +8400,7 @@ app.get('/api/logistica/pipeline', authenticateToken, (req, res) => {
         const temFiltroData = !!dataDe;
 
         const filtradas = (rows || []).filter(r => {
-            if (!temFiltroData || os) return true; // sem filtro de data ou busca por OS: retorna tudo
+            if (!temFiltroData) return true; // sem filtro de data: retorna tudo que passou no SQL
 
             if (isRecorrente(r.tipo_servico)) {
                 // Recorrente: data_os é a data de início da recorrência
