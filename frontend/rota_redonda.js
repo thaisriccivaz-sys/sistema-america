@@ -84,16 +84,16 @@ function abrirPopupTipoOs(onSelecionar) {
 }
 
 const TIPOS_SERVICO_OS = [
-    'ENTREGA OBRA', 'RETIRADA OBRA TOTAL', 'RETIRADA OBRA PARCIAL', 'TROCA DE EQUIPAMENTO OBRA', 'MANUTENCAO OBRA', 'MANUTENCAO AVULSA OBRA',
+    'ENTREGA OBRA', 'RETIRADA OBRA TOTAL', 'RETIRADA OBRA PARCIAL', 'MANUTENCAO OBRA', 'MANUTENCAO AVULSA OBRA',
     'REPARO EQUIPAMENTO OBRA', 'VISITA TECNICA OBRA', 'LIMPA FOSSA OBRA', 'VAC OBRA',
-    'ENTREGA EVENTO', 'RETIRADA EVENTO TOTAL', 'RETIRADA EVENTO PARCIAL', 'TROCA DE EQUIPAMENTO EVENTO', 'MANUTENCAO EVENTO', 'MANUTENCAO AVULSA EVENTO', 'SUCCAO EVENTO',
+    'ENTREGA EVENTO', 'RETIRADA EVENTO TOTAL', 'RETIRADA EVENTO PARCIAL', 'MANUTENCAO EVENTO', 'MANUTENCAO AVULSA EVENTO', 'SUCCAO EVENTO',
     'REPARO EQUIPAMENTO EVENTO', 'VISITA TECNICA EVENTO', 'LIMPA FOSSA EVENTO', 'VAC EVENTO'
 ];
 const HABILIDADES = ['TANQUE', 'CARGA', 'VAC', 'UTILITARIO', 'TECNICO', 'CARRETINHA', 'CARROCERIA', 'TANQUE GRANDE'];
 const ACOES_DICT = {
     'LEVAR CARRINHO': '🛒',
     'ATENÇÃO AO HORÁRIO': '⏰',
-    'TROCA DE CABINE': '♻️',
+    'TROCA DE EQUIPAMENTO': '♻️',
     'LEVAR EXTENSORA': '🌀',
     'APOIO DE SUCÇÃO': '💧',
     'INFORMAÇÕES IMPORTANTES': '🚨',
@@ -3016,6 +3016,7 @@ window.autoSelecionarPorObs = function() {
 
     // Mapeamento palavra-chave → variável
     const acaoKeywords = [
+        { keys: ['troca', 'trocar'], acao: 'TROCA DE EQUIPAMENTO' },
         { keys: ['carrinho'],               acao: 'LEVAR CARRINHO' },
         { keys: ['extensora'],              acao: 'LEVAR EXTENSORA' },
         { keys: ['apoio'],                  acao: 'APOIO DE SUCCÃO' },
@@ -3758,7 +3759,7 @@ function renderRotaRedonda() {
 
                 <!-- BOTÕES DE AÇÃO (AZUIS) -->
                 <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: auto; padding-top: 0.5rem;">
-                    ${ACOES.filter(s => s !== 'TROCA DE CABINE' && s !== 'CARRETINHA').map(s => 
+                    ${ACOES.filter(s => s !== 'CARRETINHA').map(s => 
                         `<button class="btn-acao-azul" data-acao="${s}" style="font-size:0.65rem; font-weight: 700; border: 1px solid #bae6fd; background: #f0f9ff; color: #0284c7; padding: 0.2rem; border-radius: 4px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; min-height: 40px; transition: all 0.2s; line-height: 1.1; text-align: center;">
                             <span style="font-size:0.85rem; margin-bottom:1px;">${ACOES_DICT[s]}</span> ${s}
                         </button>`
