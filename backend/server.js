@@ -8383,13 +8383,12 @@ app.get('/api/logistica/os/:id', authenticateToken, (req, res) => {
     });
 });
 
-// Verifica se o tipo de serviço é RECORRENTE (Manutenção ou VAC, seja Obra ou Evento, desde que não seja Avulsa)
+// Verifica se o tipo de serviço é Manutenção (agora incluindo Avulsa) ou VAC
 function isRecorrente(tipoServico) {
     const t = (tipoServico || '').toLowerCase();
-    const isManutencao = t.includes('manutencao') || t.includes('manutenção');
+    const isManutencao = t.includes('manuten');
     const isVac = t.includes('vac');
-    const isAvulsa = t.includes('avulsa');
-    return (isManutencao || isVac) && !isAvulsa;
+    return isManutencao || isVac;
 }
 
 // GET /api/logistica/pipeline - OS agrupadas por tipo para o Pipeline Kanban
