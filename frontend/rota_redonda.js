@@ -2102,6 +2102,45 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    
+    // Intercepta qualquer clique ou foco nos campos antes de validar o +
+    ['focusin', 'mousedown'].forEach(evt => {
+        document.addEventListener(evt, (e) => {
+            if (!document.getElementById('view-logistica-rota-redonda')?.classList.contains('active')) return;
+            
+            // Verifica se é um campo interativo dentro do form de Rota Redonda
+            const target = e.target;
+            const inContainer = target.closest('#rota-redonda-container');
+            if (!inContainer) return;
+
+            const isInteractive = target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'BUTTON' || target.tagName === 'TEXTAREA' || target.closest('.rr-tipo-opt');
+            
+            // Exceções que podem ser clicadas sem validar o +
+            const allowedIds = ['rr-input-os', 'btn-add-os-tipo', 'btn-colar-os', 'btn-limpar-os', 'btn-pesq-cliente-os'];
+            const isAllowed = allowedIds.includes(target.id) || target.closest('#btn-add-os-tipo') || target.closest('#btn-colar-os') || target.closest('#btn-limpar-os') || target.closest('#btn-pesq-cliente-os');
+
+            if (isInteractive && !isAllowed) {
+                const numOs = document.getElementById('rr-input-os')?.value?.trim();
+                // Se digitou número da OS mas não validou o tipo (Obra/Evento)
+                if (numOs && !osState.tipoOs) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    target.blur();
+                    
+                    mostrarToastAviso('Você digitou um número de OS. Valide o tipo clicando no botão [+] primeiro!');
+                    
+                    const btnPlus = document.getElementById('btn-add-os-tipo');
+                    if (btnPlus) {
+                        btnPlus.style.transition = 'transform 0.1s, box-shadow 0.1s';
+                        btnPlus.style.transform = 'scale(1.3)';
+                        btnPlus.style.boxShadow = '0 0 10px 4px #0284c7';
+                        setTimeout(() => { btnPlus.style.transform = ''; btnPlus.style.boxShadow = ''; }, 600);
+                    }
+                }
+            }
+        }, true); // Use capture to intercept before other handlers
+    });
+
     // Event Delegation
     document.addEventListener('change', (e) => {
         if (!document.getElementById('view-logistica-rota-redonda')?.classList.contains('active')) return;
