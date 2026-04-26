@@ -1027,7 +1027,7 @@ function duplicarOsNaTela(payload) {
         set('rr-input-os', payload.numero_os);
         // Cliente — mantém
         const clienteEl = document.getElementById('rr-input-cliente');
-        if (clienteEl) { clienteEl.value = payload.cliente || ''; clienteEl.dataset.nomeBase = payload.cliente || ''; }
+        if (clienteEl) { clienteEl.value = payload.cliente || ''; clienteEl.dataset.nomeBase = ''; }
         // Endereço — mantém
         set('rr-input-endereco', payload.endereco);
         set('rr-input-complemento', payload.complemento);
@@ -1372,7 +1372,7 @@ function carregarRegistroNaTela(os) {
     set('rr-input-cliente', os.cliente);
     set('rr-input-patrimonio', os.patrimonio);
     if (document.getElementById('rr-input-cliente')) {
-        document.getElementById('rr-input-cliente').dataset.nomeBase = os.cliente || '';
+        document.getElementById('rr-input-cliente').dataset.nomeBase = '';
     }
     set('rr-input-endereco', os.endereco);
     set('rr-input-complemento', os.complemento);
@@ -1585,27 +1585,7 @@ function exibirModalAgendaEndereco(data, enderecoAtual) {
     modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
 
     const containerSugestoes = document.getElementById('rr-sugestoes-dias-container');
-    if (containerSugestoes) {
-        if (tem1km) {
-            const pills = data.dias_sugeridos_2km.map(d => {
-                const qtd = d.ocorrencias || 1;
-                const label = qtd === 1 ? '1' : `${qtd}`;
-                return `<span style="background:${colorMap[d.dia]||'#2563eb'};color:white;border-radius:3px;padding:0px 5px;font-size:0.65rem;font-weight:700;white-space:nowrap;">${d.dia.toUpperCase()} - ${label}cl</span>`;
-            }).join('');
-            containerSugestoes.innerHTML = `<span style="color:#1d4ed8;font-weight:600;font-size:0.65rem;opacity:0.85;"><i class="ph ph-check-square"></i> Sugeridos (≤1km):</span> ${pills}`;
-            containerSugestoes.style.cssText = 'display:flex;flex-wrap:wrap;gap:2px;align-items:center;margin-top:2px;';
-        } else if (tem3km) {
-            const pills = data.dias_sugeridos_5km.map(d => {
-                const qtd = d.ocorrencias || 1;
-                const label = qtd === 1 ? '1' : `${qtd}`;
-                return `<span style="background:${colorMap[d.dia]||'#ca8a04'};color:white;border-radius:3px;padding:0px 5px;font-size:0.65rem;font-weight:700;white-space:nowrap;">${d.dia.toUpperCase()} - ${label}cl</span>`;
-            }).join('');
-            containerSugestoes.innerHTML = `<span style="color:#854d0e;font-weight:600;font-size:0.65rem;opacity:0.85;"><i class="ph ph-warning"></i> Sugeridos (1-3km):</span> ${pills}`;
-            containerSugestoes.style.cssText = 'display:flex;flex-wrap:wrap;gap:2px;align-items:center;margin-top:2px;';
-        } else {
-            containerSugestoes.innerHTML = `<span style="color:#b91c1c;font-size:0.65rem;opacity:0.8;"><i class="ph ph-warning-circle"></i> Sem rota em 3km.</span>`;
-            containerSugestoes.style.cssText = 'display:block;margin-top:2px;';
-        }
+    if (containerSugestoes) containerSugestoes.style.display = 'none';
     }
 }
 
