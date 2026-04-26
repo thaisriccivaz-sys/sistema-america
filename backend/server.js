@@ -8532,41 +8532,21 @@ app.get('/api/logistica/pipeline', authenticateToken, (req, res) => {
     });
 });
 // =====================================================================
-// ROTINA DE IMPORTAÇÃO AUTOMÁTICA
-const fs_module = require('fs');
-const path_module = require('path');
-const importPath = path_module.join(__dirname, 'import_data.json');
-if (fs_module.existsSync(importPath)) {
-    console.log('[IMPORT] Encontrado import_data.json, iniciando importação...');
-    try {
-        const records = JSON.parse(fs_module.readFileSync(importPath, 'utf8'));
-        let inserted = 0;
-        const stmt = db.prepare(`INSERT INTO os_logistica (numero_os, tipo_os, cliente, endereco, cep, lat, lng, 
-            data_os, responsavel, telefone, email, tipo_servico, hora_inicio, hora_fim, turno, dias_semana, 
-            produtos, observacoes, observacoes_internas, habilidades) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
-            
-        db.serialize(() => {
-            db.run("BEGIN TRANSACTION");
-            records.forEach(r => {
-                stmt.run([r.numero_os, r.tipo_os, r.cliente, r.endereco, r.cep, r.lat, r.lng,
-                    r.data_os, r.responsavel, r.telefone, r.email, r.tipo_servico, r.hora_inicio, r.hora_fim, 
-                    r.turno, JSON.stringify(r.dias_semana||[]), JSON.stringify(r.produtos||[]), 
-                    r.observacoes, r.observacoes_internas, r.habilidades]);
-                inserted++;
-            });
-            stmt.finalize();
-            db.run("COMMIT", (err) => {
-                if (err) console.error('[IMPORT] Erro no commit:', err.message);
-                else {
-                    console.log(`[IMPORT] Sucesso! ${inserted} OS inseridas.`);
-                    fs_module.renameSync(importPath, importPath + '.done');
-                }
-            });
-        });
-    } catch(e) {
-        console.error('[IMPORT] Erro ao importar:', e.message);
-    }
-}
+// ROTINA DE LIMPEZA DE DUPLICATAS DA IMPORTAÇÃO
+db.serialize(() => {
+    console.log('[CLEANUP] Verificando e removendo duplicatas da importação...');
+    db.run(`
+        DELETE FROM os_logistica 
+        WHERE id NOT IN (
+            SELECT MIN(id) 
+            FROM os_logistica 
+            GROUP BY numero_os, tipo_servico, dias_semana, produtos, cliente
+        )
+    `, function(err) {
+        if(err) console.error('[CLEANUP] Erro:', err.message);
+        else console.log(`[CLEANUP] ${this.changes} linhas duplicadas foram removidas.`);
+    });
+});
 // =====================================================================
 // =====================================================================
 // ROTINA DE CORREÇÃO DE DADOS (SE -> Sexta, GUARITA INDIVIDUAL O -> OBRA)
