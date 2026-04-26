@@ -329,6 +329,8 @@ function pipelineBuildTitulo(r) {
         iconesProdSet.forEach(ic => icones.push(ic));
     }
 
+    // 3. Ícone específico para Reparo de Equipamento (único serviço com ícone próprio confirmado)
+    if (ts.includes('reparo')) icones.push('🔧');
 
     // 4. Ícones das variáveis (exceto NOTURNO, já adicionado)
     vars.forEach(v => {
