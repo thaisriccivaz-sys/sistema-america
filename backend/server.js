@@ -8564,8 +8564,43 @@ if (fs_module.existsSync(importPath)) {
     }
 }
 // =====================================================================
+// =====================================================================
+// ROTINA DE CORREÇÃO DE DADOS (SE -> Sexta, GUARITA INDIVIDUAL O -> OBRA)
+db.serialize(() => {
+    db.all(`SELECT id, dias_semana, produtos FROM os_logistica WHERE dias_semana LIKE '%"SE"%' OR produtos LIKE '% O"%'`, (err, rows) => {
+        if(err) return;
+        if(rows && rows.length > 0) {
+            console.log(`[FIX] Encontradas ${rows.length} OS com "SE" ou "GUARITA O". Corrigindo...`);
+            const stmt = db.prepare('UPDATE os_logistica SET dias_semana = ?, produtos = ? WHERE id = ?');
+            rows.forEach(r => {
+                let dias = [];
+                try { dias = JSON.parse(r.dias_semana || '[]'); } catch(e) {}
+                dias = dias.map(d => d === 'SE' ? 'Sexta' : d);
+
+                let prods = [];
+                try { prods = JSON.parse(r.produtos || '[]'); } catch(e) {}
+                prods = prods.map(p => {
+                    if(p.desc === 'GUARITA INDIVIDUAL O') p.desc = 'GUARITA INDIVIDUAL OBRA';
+                    if(p.desc === 'GUARITA DUPLA O') p.desc = 'GUARITA DUPLA OBRA';
+                    if(p.desc === 'STD O') p.desc = 'STD OBRA';
+                    if(p.desc === 'LX O') p.desc = 'LX OBRA';
+                    if(p.desc === 'PCD O') p.desc = 'PCD OBRA';
+                    if(p.desc === 'SLX O') p.desc = 'SLX OBRA';
+                    if(p.desc === 'ELX O') p.desc = 'ELX OBRA';
+                    if(p.desc === 'PBII O') p.desc = 'PBII OBRA';
+                    return p;
+                });
+
+                stmt.run([JSON.stringify(dias), JSON.stringify(prods), r.id]);
+            });
+            stmt.finalize();
+        }
+    });
+});
+// =====================================================================
 
 app.listen(PORT, () => {
+
     console.log(`Servidor rodando na porta ${PORT}`);
     console.log('Versão do Servidor: V31_OS_LOGISTICA_MODULE');
     console.log(`Caminho de Armazenamento Local: ${BASE_UPLOAD_PATH}`);
