@@ -1353,6 +1353,7 @@ function abrirModalListaOS(numOs, registros) {
 
 function parseJsonFront(val) {
     if (!val) return [];
+    if (Array.isArray(val)) return val;          // já é array (vindo do pipeline por ID)
     try { return JSON.parse(val); } catch { return typeof val === 'string' ? [val] : []; }
 }
 

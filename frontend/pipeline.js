@@ -119,8 +119,6 @@ function pipelineRenderCard(os) {
         <div style="font-size:0.73rem;font-weight:700;color:#1e293b;margin-bottom:2px;">${clienteLabel}</div>
         <!-- Endereço completo -->
         <div style="font-size:0.68rem;color:#475569;line-height:1.4;margin-bottom:2px;">${endFull || '—'}</div>
-        <!-- Tipo de serviço -->
-        <div style="font-size:0.68rem;color:#64748b;">${pipelineGetIconServico(os.tipo_servico)} <b>${(os.tipo_servico||'').toUpperCase()}</b></div>
         <!-- Data -->
         ${os.data_os ? `<div style="font-size:0.68rem;color:#94a3b8;">Data: ${os.data_os}</div>` : ''}
         ${diasHtml}${prodsHtml}${obsHtml}
