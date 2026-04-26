@@ -8336,46 +8336,116 @@ app.get('/api/logistica/frota', authenticateToken, (req, res) => {
 });
 
 
+// GET /api/logistica/os/:id — Busca OS específica pelo ID
+app.get('/api/logistica/os/:id', authenticateToken, (req, res) => {
+    const id = parseInt(req.params.id);
+    if (!id) return res.status(400).json({ error: 'ID inválido.' });
+    db.get(`SELECT * FROM os_logistica WHERE id = ? AND status = 'ativo'`, [id], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!row) return res.status(404).json({ error: 'OS não encontrada.' });
+        const parseField = (val) => { try { return JSON.parse(val || '[]'); } catch(e) { return []; } };
+        res.json({ ...row, produtos: parseField(row.produtos), variaveis: parseField(row.variaveis), habilidades: parseField(row.habilidades), dias_semana: parseField(row.dias_semana) });
+    });
+});
+
 // GET /api/logistica/pipeline - OS agrupadas por tipo para o Pipeline Kanban
+// Lógica de data:
+//   Pontuais (Entrega, Retirada, Limpa Fossa, Visita Técnica, Manut.Avulsa, Reparo, Manut.Evento, VAC Evento):
+//     → filtrar por data_os dentro do intervalo [data_de, data_ate]
+//   Recorrentes (Manutenção Obra, VAC Obra):
+//     → data_os (data de início) <= data_ate, E algum dia da semana bate com o intervalo
 app.get('/api/logistica/pipeline', authenticateToken, (req, res) => {
-    const { data, os, cliente, endereco } = req.query;
+    const { os, cliente, endereco } = req.query;
+    const dataDe  = req.query.data_de  || req.query.data || '';
+    const dataAte = req.query.data_ate || '';
+
+    // Abreviações dos dias da semana (como salvo no banco)
+    const DIAS_ABBR = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+
+    // Retorna Set com abreviações dos dias presentes no intervalo [de, ate]
+    function diasNoIntervalo(de, ate) {
+        const set = new Set();
+        if (!de) return set;
+        const fim = ate ? new Date(ate + 'T12:00:00') : new Date(de + 'T12:00:00');
+        const cur = new Date(de + 'T12:00:00');
+        while (cur <= fim) { set.add(DIAS_ABBR[cur.getDay()]); cur.setDate(cur.getDate() + 1); }
+        return set;
+    }
+
+    // Verifica se o tipo de serviço é RECORRENTE (Manut. Obra ou VAC Obra)
+    function isRecorrente(tipoServico) {
+        const t = (tipoServico || '').toLowerCase();
+        const isObra = t.includes('obra');
+        const isManutencao = t.includes('manutencao') || t.includes('manutenção');
+        const isVac = t.includes('vac');
+        const isAvulsa = t.includes('avulsa');
+        return isObra && (isManutencao || isVac) && !isAvulsa;
+    }
+
     let sql = `SELECT * FROM os_logistica WHERE status = 'ativo'`;
     const params = [];
 
-    // Quando número de OS é informado, busca apenas por ele (ignora data/cliente/endereço)
-    // pois a OS pode ter qualquer data cadastrada
     if (os) {
+        // Busca por número de OS: ignora filtro de data
         sql += ` AND numero_os = ?`;
         params.push(os.trim());
     } else {
-        if (data) { sql += ` AND data_os = ?`; params.push(data); }
-        if (cliente) { sql += ` AND cliente LIKE ?`; params.push(`%${cliente}%`); }
+        if (cliente)  { sql += ` AND cliente LIKE ?`;  params.push(`%${cliente}%`); }
         if (endereco) { sql += ` AND endereco LIKE ?`; params.push(`%${endereco}%`); }
+        // Filtro de data é aplicado em JS para suportar a lógica pontual vs recorrente
     }
     sql += ` ORDER BY cliente ASC`;
 
     db.all(sql, params, (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         const parseField = (val) => { try { return JSON.parse(val || '[]'); } catch(e) { return []; } };
-        const result = {
-            manutencao: [], entrega: [], retirada: [], avulso: []
-        };
-        (rows || []).forEach(r => {
+
+        const diasRange = diasNoIntervalo(dataDe, dataAte);
+        const temFiltroData = !!dataDe;
+
+        const filtradas = (rows || []).filter(r => {
+            if (!temFiltroData || os) return true; // sem filtro de data ou busca por OS: retorna tudo
+
+            if (isRecorrente(r.tipo_servico)) {
+                // Recorrente: data_os é a data de início da recorrência
+                const dataInicio = r.data_os || '';
+                // Só aparece se já iniciou (data_os <= data_ate ou data_os <= data_de se sem ate)
+                const limiteMax = dataAte || dataDe;
+                if (dataInicio && dataInicio > limiteMax) return false;
+                // Verifica se algum dia da semana da OS bate com o intervalo
+                let dias = [];
+                try { dias = JSON.parse(r.dias_semana || '[]'); } catch(e) {}
+                if (diasRange.size === 0) return true;
+                return dias.some(d => diasRange.has(d));
+            } else {
+                // Pontual: filtra por data_os
+                const dataOs = r.data_os || '';
+                if (!dataOs) return false;
+                if (dataDe && dataAte) return dataOs >= dataDe && dataOs <= dataAte;
+                if (dataDe && !dataAte) return dataOs >= dataDe;
+                if (!dataDe && dataAte) return dataOs <= dataAte;
+                return true;
+            }
+        });
+
+        const result = { manutencao: [], entrega: [], retirada: [], avulso: [] };
+        filtradas.forEach(r => {
             const row = { ...r,
-                produtos: parseField(r.produtos),
-                variaveis: parseField(r.variaveis),
+                produtos:    parseField(r.produtos),
+                variaveis:   parseField(r.variaveis),
                 habilidades: parseField(r.habilidades),
                 dias_semana: parseField(r.dias_semana)
             };
             const t = (r.tipo_servico || '').toLowerCase();
             if (t.includes('entrega')) result.entrega.push(row);
             else if (t.includes('retirada')) result.retirada.push(row);
-            else if (t.includes('manutencao') && !t.includes('avulsa')) result.manutencao.push(row);
+            else if ((t.includes('manutencao') || t.includes('manutenção')) && !t.includes('avulsa')) result.manutencao.push(row);
             else result.avulso.push(row);
         });
         res.json(result);
     });
 });
+
 
 app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);

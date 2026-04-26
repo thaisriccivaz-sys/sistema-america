@@ -61,6 +61,20 @@ function pipelineRenderProd(p) {
     return `<span style="background:#dbeafe;color:#1d4ed8;border-radius:6px;padding:2px 9px;font-size:0.68rem;font-weight:600;">${ic} ${desc} (${qtd})</span>`;
 }
 
+function pipelineGetIconServico(tipoServico) {
+    const t = (tipoServico || '').toLowerCase();
+    if (t.includes('entrega'))             return '🚛';
+    if (t.includes('retirada'))            return '↩️';
+    if (t.includes('visita tecnica') || t.includes('visita técnica')) return '⚙️';
+    if (t.includes('reparo'))              return '🔧';
+    if (t.includes('limpa fossa'))         return '💧';
+    if (t.includes('manutencao avulsa') || t.includes('manutenção avulsa')) return '⚡';
+    if (t.includes('manutencao') || t.includes('manutenção')) return '🔧';
+    if (t.includes('vac'))                 return '🏗️';
+    if (t.includes('succao') || t.includes('sucção')) return '💧';
+    return '📋';
+}
+
 function pipelineRenderCard(os) {
     const dias  = Array.isArray(os.dias_semana) ? os.dias_semana : [];
     const vars  = Array.isArray(os.variaveis) ? os.variaveis.filter(v => v.trim()) : [];
@@ -99,7 +113,7 @@ function pipelineRenderCard(os) {
         <!-- Endereço completo -->
         <div style="font-size:0.68rem;color:#475569;line-height:1.4;margin-bottom:2px;">${endFull || '—'}</div>
         <!-- Tipo de serviço -->
-        <div style="font-size:0.68rem;color:#64748b;">Serviço: <b>${(os.tipo_servico||'').toUpperCase()}</b></div>
+        <div style="font-size:0.68rem;color:#64748b;">${pipelineGetIconServico(os.tipo_servico)} <b>${(os.tipo_servico||'').toUpperCase()}</b></div>
         <!-- Data -->
         ${os.data_os ? `<div style="font-size:0.68rem;color:#94a3b8;">Data: ${os.data_os}</div>` : ''}
         ${diasHtml}${varsHtml}${prodsHtml}${obsHtml}
@@ -152,19 +166,21 @@ function pipelineRenderKanban(dados) {
 let _pipelineDados = {};
 
 async function buscarPipeline() {
-    const data     = document.getElementById('pipe-filtro-data')?.value    || '';
-    const os       = document.getElementById('pipe-filtro-os')?.value      || '';
-    const cliente  = document.getElementById('pipe-filtro-cliente')?.value || '';
-    const endereco = document.getElementById('pipe-filtro-endereco')?.value|| '';
+    const dataDe   = document.getElementById('pipe-filtro-data-de')?.value  || '';
+    const dataAte  = document.getElementById('pipe-filtro-data-ate')?.value || '';
+    const os       = document.getElementById('pipe-filtro-os')?.value       || '';
+    const cliente  = document.getElementById('pipe-filtro-cliente')?.value  || '';
+    const endereco = document.getElementById('pipe-filtro-endereco')?.value || '';
 
     const container = document.getElementById('pipeline-kanban');
     if (container) container.innerHTML = `<div style="text-align:center;padding:4rem;color:#64748b;width:100%;"><i class="ph ph-spinner ph-spin" style="font-size:2rem;"></i><p style="margin-top:1rem;">Carregando Pipeline...</p></div>`;
 
     const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
     const params = new URLSearchParams();
-    if (data) params.set('data', data);
-    if (os) params.set('os', os);
-    if (cliente) params.set('cliente', cliente);
+    if (dataDe)   params.set('data_de',  dataDe);
+    if (dataAte)  params.set('data_ate', dataAte);
+    if (os)       params.set('os',       os);
+    if (cliente)  params.set('cliente',  cliente);
     if (endereco) params.set('endereco', endereco);
 
     try {
@@ -174,7 +190,7 @@ async function buscarPipeline() {
         if (!resp.ok) throw new Error(await resp.text());
         _pipelineDados = await resp.json();
 
-        // Filtro por dia (client-side)
+        // Filtro por dia da semana (client-side adicional)
         const dia = document.getElementById('pipe-filtro-dia')?.value || '';
         if (dia) {
             ['manutencao','entrega','retirada','avulso'].forEach(key => {
@@ -192,7 +208,7 @@ async function buscarPipeline() {
 }
 
 function pipelineLimparFiltros() {
-    ['pipe-filtro-data','pipe-filtro-os','pipe-filtro-cliente','pipe-filtro-endereco'].forEach(id => {
+    ['pipe-filtro-data-de','pipe-filtro-data-ate','pipe-filtro-os','pipe-filtro-cliente','pipe-filtro-endereco'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
@@ -201,26 +217,37 @@ function pipelineLimparFiltros() {
     buscarPipeline();
 }
 
-function pipelineAbrirOS(id, numeroOs) {
+async function pipelineAbrirOS(osId, numeroOs) {
+    // Busca o registro exato pelo ID antes de navegar
+    const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+    let osData = null;
+    try {
+        const resp = await fetch(`/api/logistica/os/${osId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (resp.ok) osData = await resp.json();
+    } catch(e) { console.warn('[Pipeline] Erro ao buscar OS por ID:', e); }
+
     if (typeof navigateTo === 'function') navigateTo('logistica-rota-redonda');
 
-    // Aguarda a página renderizar e tenta carregar a OS com retry
+    // Aguarda a página renderizar e carrega o registro exato
     let tentativas = 0;
-    const maxTentativas = 15;
     const intervalo = setInterval(() => {
         tentativas++;
-        // Verifica se o container da Rota Redonda já foi renderizado
         const containerReady = document.getElementById('rr-input-os') || document.getElementById('rota-redonda-content');
         if (containerReady) {
             clearInterval(intervalo);
-            if (typeof carregarOsPorNumero === 'function') {
+            if (osData && typeof carregarRegistroNaTela === 'function') {
+                // Carrega diretamente o registro exato (sem modal de lista)
+                carregarRegistroNaTela(osData);
+                if (typeof mostrarToastAviso === 'function') mostrarToastAviso(`✅ OS ${numeroOs} carregada.`);
+            } else if (typeof carregarOsPorNumero === 'function') {
+                // Fallback: busca por número
                 carregarOsPorNumero(numeroOs);
-            } else if (typeof pesquisarOsParaEdicao === 'function') {
-                pesquisarOsParaEdicao(numeroOs);
             }
-        } else if (tentativas >= maxTentativas) {
+        } else if (tentativas >= 15) {
             clearInterval(intervalo);
-            console.warn('[Pipeline] Timeout ao aguardar página Rota Redonda carregar para OS:', numeroOs);
+            console.warn('[Pipeline] Timeout ao aguardar Rota Redonda para OS:', numeroOs);
         }
     }, 200);
 }
@@ -244,7 +271,7 @@ function pipelineExportarCSV() {
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
     a.href = url;
-    a.download = `Pipeline_${document.getElementById('pipe-filtro-data')?.value||'frota'}.csv`;
+    a.download = `Pipeline_${document.getElementById('pipe-filtro-data-de')?.value||'frota'}.csv`;
     a.click();
     URL.revokeObjectURL(url);
 }
@@ -266,13 +293,19 @@ function renderPipelinePage() {
           <label style="color:white;font-size:0.78rem;font-weight:600;">OS:</label>
           <input type="text" id="pipe-filtro-os" placeholder="OS"
             style="border:1px solid rgba(255,255,255,0.4);border-radius:6px;padding:5px 10px;font-size:0.8rem;width:85px;background:rgba(255,255,255,0.9);outline:none;"
-            oninput="const d=document.getElementById('pipe-filtro-data');if(this.value.trim()&&d)d.value='';"
+            oninput="['pipe-filtro-data-de','pipe-filtro-data-ate'].forEach(id=>{const e=document.getElementById(id);if(this.value.trim()&&e)e.value='';});"
             onkeydown="if(event.key==='Enter')buscarPipeline()">
         </div>
-        <!-- Data -->
+        <!-- Data De / Até -->
         <div style="display:flex;align-items:center;gap:5px;">
-          <label style="color:white;font-size:0.78rem;font-weight:600;">Data:</label>
-          <input type="date" id="pipe-filtro-data" value="${today}"
+          <label style="color:white;font-size:0.78rem;font-weight:600;">De:</label>
+          <input type="date" id="pipe-filtro-data-de" value="${today}"
+            style="border:1px solid rgba(255,255,255,0.4);border-radius:6px;padding:5px 10px;font-size:0.8rem;background:rgba(255,255,255,0.9);outline:none;"
+            onkeydown="if(event.key==='Enter')buscarPipeline()">
+        </div>
+        <div style="display:flex;align-items:center;gap:5px;">
+          <label style="color:white;font-size:0.78rem;font-weight:600;">Até:</label>
+          <input type="date" id="pipe-filtro-data-ate"
             style="border:1px solid rgba(255,255,255,0.4);border-radius:6px;padding:5px 10px;font-size:0.8rem;background:rgba(255,255,255,0.9);outline:none;"
             onkeydown="if(event.key==='Enter')buscarPipeline()">
         </div>
