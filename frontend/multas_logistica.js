@@ -403,9 +403,14 @@ window.processarPDFMulta = async function(input) {
     if (file.type !== 'application/pdf') return;
 
     try {
-        if (typeof pdfjsLib === 'undefined') {
+        if (typeof pdfjsLib === 'undefined' && !window.pdfjsLib) {
             console.warn('pdf.js não carregado no escopo. A extração automática de dados foi cancelada.');
             return;
+        }
+
+        const pdfjs = window.pdfjsLib || pdfjsLib;
+        if (!pdfjs.GlobalWorkerOptions.workerSrc) {
+            pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
         }
 
         if (typeof mostrarToastSucesso === 'function') {
@@ -413,7 +418,7 @@ window.processarPDFMulta = async function(input) {
         }
 
         const arrayBuffer = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
         let fullText = '';
         
         for (let i = 1; i <= pdf.numPages; i++) {
