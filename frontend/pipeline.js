@@ -203,9 +203,10 @@ function pipelineRenderKanban(dados) {
         ? PIPELINE_COLS.filter(c => c.key === 'manutencao') 
         : PIPELINE_COLS;
 
-    const total = colunasExibidas.reduce((a, c) => a + (dados[c.key]||[]).length, 0);
+    const totalOS   = colunasExibidas.reduce((a,c)=> a+(dados[c.key]||[]).length, 0);
+    const totalProd  = colunasExibidas.reduce((a,c)=> a+(dados[c.key]||[]).reduce((s,o)=>(Array.isArray(o.produtos)?o.produtos.reduce((x,p)=>x+(+p.qtd||1),0):0)+s,0), 0);
     const badge = document.getElementById('pipeline-total-badge');
-    if (badge) badge.textContent = `${total} OS`;
+    if (badge) badge.textContent = `${totalOS} OS · ${totalProd} un.`;
 
     container.innerHTML = `
     <div style="display:flex;gap:14px;min-height:calc(100vh - 170px);padding:0.5rem 1.5rem 2rem 1.5rem;box-sizing:border-box;align-items:flex-start;flex-wrap:nowrap;">
@@ -214,10 +215,11 @@ function pipelineRenderKanban(dados) {
         return `
         <div style="flex:1;min-width:260px;display:flex;flex-direction:column;border-radius:12px;background:${col.cor};box-shadow:0 2px 10px rgba(0,0,0,0.07);min-height:calc(100vh - 120px);padding-bottom:8px;">
             <!-- Header coluna sticky — z-index alto para sempre ficar acima dos cards -->
-            <div style="background:${col.cor};padding:10px 14px;display:flex;align-items:center;gap:8px;position:sticky;top:var(--pipe-header-height,125px);z-index:500;border-radius:12px 12px 0 0;box-shadow:0 2px 6px rgba(0,0,0,0.10);">
+        <div style="background:${col.cor};padding:10px 14px;display:flex;align-items:center;gap:8px;position:sticky;top:var(--pipe-header-height,125px);z-index:500;border-radius:12px 12px 0 0;box-shadow:0 2px 6px rgba(0,0,0,0.10);">
                 <span style="font-size:1.1rem;color:${col.textCor};">${col.icon}</span>
                 <span style="color:${col.textCor};font-weight:800;font-size:0.9rem;flex:1;">${col.label}</span>
-                <span style="background:rgba(0,0,0,0.08);color:${col.textCor};border-radius:20px;padding:1px 10px;font-size:0.8rem;font-weight:700;">${lista.length}</span>
+                <span style="background:rgba(0,0,0,0.08);color:${col.textCor};border-radius:20px;padding:1px 10px;font-size:0.8rem;font-weight:700;" title="OS">${lista.length} OS</span>
+                <span style="background:rgba(0,0,0,0.08);color:${col.textCor};border-radius:20px;padding:1px 10px;font-size:0.8rem;font-weight:700;" title="Total de produtos">${lista.reduce((s,o)=>(Array.isArray(o.produtos)?o.produtos.reduce((a,p)=>a+(+p.qtd||1),0):0)+s,0)} un.</span>
             </div>
             <!-- Cards — scroll da página, sem overflow interno -->
             <div style="flex:1;padding:8px;">
@@ -667,6 +669,54 @@ function buscarPipelineDebounced() {
     _pipelineDebounceTimer = setTimeout(() => buscarPipeline(), 300);
 }
 
+// ── Helpers dos filtros em botão ────────────────────────────────────────
+function _pipeActivarBtn(groupPrefix, val, activeStyle) {
+    document.querySelectorAll(`[id^="${groupPrefix}"]`).forEach(b => {
+        b.style.background = 'white';
+        b.style.color = b.dataset.cor || b.style.borderColor || '#475569';
+        b.style.borderWidth = '1.5px';
+    });
+    const active = document.getElementById(`${groupPrefix}${val||'todos'}`);
+    if (active && activeStyle) {
+        active.style.background = activeStyle.bg;
+        active.style.color = activeStyle.text;
+    }
+}
+
+const _DIA_CORES = {'':'#64748b','Segunda':'#ef4444','Terça':'#f97316','Quarta':'#ca8a04','Quinta':'#16a34a','Sexta':'#3b82f6','Sábado':'#8b5cf6','Domingo':'#ec4899'};
+function _pipeFiltrarDia(val) {
+    const hidden = document.getElementById('pipe-filtro-dia');
+    if (hidden) hidden.value = val;
+    const cor = _DIA_CORES[val] || '#64748b';
+    document.querySelectorAll('[id^="pipe-dia-"]').forEach(b => {
+        const bcor = _DIA_CORES[b.id.replace('pipe-dia-','').replace('todos','')] || '#64748b';
+        b.style.background = 'white'; b.style.color = bcor;
+    });
+    const ab = document.getElementById(`pipe-dia-${val||'todos'}`);
+    if (ab) { ab.style.background = cor; ab.style.color = 'white'; }
+    _pipelineSalvarFiltros(); buscarPipeline();
+}
+function _pipeFiltrarTipo(val) {
+    const hidden = document.getElementById('pipe-filtro-tipo-os');
+    if (hidden) hidden.value = val;
+    const cores = {'':'#64748b','obra':'#3b82f6','evento':'#8b5cf6'};
+    const cor = cores[val] || '#64748b';
+    document.querySelectorAll('[id^="pipe-tipo-"]').forEach(b => { b.style.background='white'; b.style.color='#475569'; b.style.borderColor='#cbd5e1'; });
+    const ab = document.getElementById(`pipe-tipo-${val||'todos'}`);
+    if (ab) { ab.style.background = cor; ab.style.color = 'white'; ab.style.borderColor = cor; }
+    _pipelineSalvarFiltros(); buscarPipeline();
+}
+function _pipeFiltrarTurno(val) {
+    const hidden = document.getElementById('pipe-filtro-turno');
+    if (hidden) hidden.value = val;
+    const cores = {'':'#64748b','Diurno':'#f59e0b','Noturno':'#1e293b'};
+    const cor = cores[val] || '#64748b';
+    document.querySelectorAll('[id^="pipe-turno-"]').forEach(b => { b.style.background='white'; b.style.color='#475569'; b.style.borderColor='#cbd5e1'; });
+    const ab = document.getElementById(`pipe-turno-${val||'todos'}`);
+    if (ab) { ab.style.background = cor; ab.style.color = 'white'; ab.style.borderColor = cor; }
+    _pipelineSalvarFiltros(); buscarPipeline();
+}
+
 // ── Seleção de OS para exportação parcial ────────────────────────────────
 const _pipelineSelecionados = new Set(); // Set de IDs selecionados
 
@@ -799,40 +849,29 @@ function renderPipelinePage() {
             style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;background:white;color:#1e293b;outline:none;"
             onchange="_pipelineSalvarFiltros();buscarPipeline()">
         </div>
-        <!-- Dia dropdown -->
+        <!-- Dia: pílulas coloridas -->
         <div style="display:flex;align-items:center;gap:5px;">
           <label style="color:#475569;font-size:0.78rem;font-weight:600;">Dia:</label>
-          <select id="pipe-filtro-dia" onchange="_pipelineSalvarFiltros();buscarPipeline()"
-            style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;background:white;color:#1e293b;outline:none;">
-            <option value="">Todos</option>
-            <option value="Segunda">Segunda</option>
-            <option value="Terça">Terça</option>
-            <option value="Quarta">Quarta</option>
-            <option value="Quinta">Quinta</option>
-            <option value="Sexta">Sexta</option>
-            <option value="Sábado">Sábado</option>
-            <option value="Domingo">Domingo</option>
-          </select>
+          <div id="pipe-filtro-dia-group" style="display:flex;gap:3px;flex-wrap:wrap;">
+            ${[['','Todos','#64748b'],['Segunda','Seg','#ef4444'],['Terça','Ter','#f97316'],['Quarta','Qua','#ca8a04'],['Quinta','Qui','#16a34a'],['Sexta','Sex','#3b82f6'],['Sábado','Sáb','#8b5cf6'],['Domingo','Dom','#ec4899']].map(([val,label,cor])=>`<button type="button" onclick="_pipeFiltrarDia('${val}')" id="pipe-dia-${val||'todos'}" style="border:1.5px solid ${cor};border-radius:20px;padding:3px 9px;font-size:0.75rem;font-weight:700;cursor:pointer;background:white;color:${cor};transition:all 0.15s;">${label}</button>`).join('')}
+          </div>
+          <input type="hidden" id="pipe-filtro-dia" value="">
         </div>
-        <!-- Tipo OS: Obra / Evento -->
+        <!-- Tipo OS -->
         <div style="display:flex;align-items:center;gap:5px;">
           <label style="color:#475569;font-size:0.78rem;font-weight:600;">Tipo:</label>
-          <select id="pipe-filtro-tipo-os" onchange="_pipelineSalvarFiltros();buscarPipeline()"
-            style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;background:white;color:#1e293b;outline:none;">
-            <option value="">Todos</option>
-            <option value="obra">&#x1F535; Obra</option>
-            <option value="evento">&#x1F7E3; Evento</option>
-          </select>
+          <div style="display:flex;gap:3px;">
+            ${[['','Todos'],['obra','🔵 Obra'],['evento','🟣 Evento']].map(([val,label])=>`<button type="button" onclick="_pipeFiltrarTipo('${val}')" id="pipe-tipo-${val||'todos'}" style="border:1.5px solid #cbd5e1;border-radius:20px;padding:3px 9px;font-size:0.75rem;font-weight:700;cursor:pointer;background:white;color:#475569;transition:all 0.15s;">${label}</button>`).join('')}
+          </div>
+          <input type="hidden" id="pipe-filtro-tipo-os" value="">
         </div>
-        <!-- Turno: Diurno / Noturno -->
+        <!-- Turno -->
         <div style="display:flex;align-items:center;gap:5px;">
           <label style="color:#475569;font-size:0.78rem;font-weight:600;">Turno:</label>
-          <select id="pipe-filtro-turno" onchange="_pipelineSalvarFiltros();buscarPipeline()"
-            style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;background:white;color:#1e293b;outline:none;">
-            <option value="">Todos</option>
-            <option value="Diurno">☀️ Diurno</option>
-            <option value="Noturno">🌙 Noturno</option>
-          </select>
+          <div style="display:flex;gap:3px;">
+            ${[['','Todos'],['Diurno','☀️ Diurno'],['Noturno','🌘 Noturno']].map(([val,label])=>`<button type="button" onclick="_pipeFiltrarTurno('${val}')" id="pipe-turno-${val||'todos'}" style="border:1.5px solid #cbd5e1;border-radius:20px;padding:3px 9px;font-size:0.75rem;font-weight:700;cursor:pointer;background:white;color:#475569;transition:all 0.15s;">${label}</button>`).join('')}
+          </div>
+          <input type="hidden" id="pipe-filtro-turno" value="">
         </div>
         <!-- Endereco -->
         <div style="display:flex;align-items:center;gap:5px;">
@@ -858,7 +897,7 @@ function renderPipelinePage() {
           <span id="pipeline-total-badge" style="background:#e2e8f0;color:#475569;border-radius:20px;padding:3px 12px;font-size:0.78rem;font-weight:700;">—</span>
           <button onclick="pipelineExportarExcel()" title="Exportar todos"
             style="background:#16a34a;border:none;border-radius:7px;padding:6px 14px;color:white;font-weight:700;cursor:pointer;font-size:0.82rem;display:flex;align-items:center;gap:5px;">
-            ⬇️ SimpliRoute
+            <i class="ph ph-file-xls" style="font-size:1rem;"></i> SimpliRoute
           </button>
           <button onclick="pipelineLimparFiltros()" title="Limpar filtros"
             style="background:white;border:1px solid #cbd5e1;border-radius:7px;padding:6px 12px;color:#ef4444;font-weight:700;cursor:pointer;font-size:0.82rem;">
