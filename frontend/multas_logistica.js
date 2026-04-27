@@ -183,7 +183,7 @@ function abrirModalNovaMulta() {
                     
                     <div style="margin-bottom:1.5rem;">
                         <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Documento da Multa (Anexo)</label>
-                        <input type="file" id="nm-doc" accept=".pdf,.jpg,.jpeg,.png" style="width:100%; padding:0.4rem; border:1px dashed #cbd5e1; border-radius:4px;">
+                        <input type="file" id="nm-doc" accept=".pdf,.jpg,.jpeg,.png" onchange="processarPDFMulta(this)" style="width:100%; padding:0.4rem; border:1px dashed #cbd5e1; border-radius:4px;">
                     </div>
                     
                     <div style="display:flex; justify-content:flex-end; gap:1rem;">
@@ -396,3 +396,80 @@ async function excluirMultaLogistica(id) {
         mostrarToastErro('Erro de conexão.');
     }
 }
+
+window.processarPDFMulta = async function(input) {
+    if (!input.files || input.files.length === 0) return;
+    const file = input.files[0];
+    if (file.type !== 'application/pdf') return;
+
+    try {
+        if (typeof pdfjsLib === 'undefined') {
+            console.warn('pdf.js não carregado no escopo. A extração automática de dados foi cancelada.');
+            return;
+        }
+
+        if (typeof mostrarToastSucesso === 'function') {
+            mostrarToastSucesso('Lendo documento PDF...');
+        }
+
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let fullText = '';
+        
+        for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const content = await page.getTextContent();
+            const pageText = content.items.map(item => item.str).join(' ');
+            fullText += pageText + ' \n ';
+        }
+
+        // Limpeza básica do texto para facilitar as Regex
+        const textToSearch = fullText.replace(/\s+/g, ' ');
+
+        // AIT
+        const aitMatch = textToSearch.match(/AIT\s*:?\s*([A-Z0-9]+)/i) || textToSearch.match(/Auto\s*de\s*Infração\s*:?\s*([A-Z0-9]+)/i);
+        if (aitMatch) document.getElementById('nm-ait').value = aitMatch[1].trim();
+
+        // Data da Infração
+        const dataMatch = textToSearch.match(/(\d{2}\/\d{2}\/\d{4})/);
+        if (dataMatch) {
+            const parts = dataMatch[1].split('/');
+            document.getElementById('nm-data').value = `${parts[2]}-${parts[1]}-${parts[0]}`;
+        }
+
+        // Hora
+        const horaMatch = textToSearch.match(/(\d{2}:\d{2})/);
+        if (horaMatch) document.getElementById('nm-hora').value = horaMatch[1];
+
+        // Valor
+        const valorMatch = textToSearch.match(/R\$\s*([\d.,]+)/i) || textToSearch.match(/Valor\s*[:\s]*([\d.,]+)/i) || textToSearch.match(/Valor\s*da\s*Multa\s*[:\s]*([\d.,]+)/i);
+        if (valorMatch) document.getElementById('nm-valor').value = valorMatch[1].trim();
+
+        // Pontos / Gravidade
+        const pontosMatch = textToSearch.match(/(\d+)\s*pontos/i) || textToSearch.match(/Pontuação\s*:?\s*(\d+)/i) || textToSearch.match(/Gravidade\s*:?\s*(Gravíssima|Grave|Média|Leve)/i);
+        if (pontosMatch) {
+            let pontos = 0;
+            if (pontosMatch[1].toLowerCase() === 'gravíssima' || pontosMatch[1].toLowerCase() === 'gravissima') pontos = 7;
+            else if (pontosMatch[1].toLowerCase() === 'grave') pontos = 5;
+            else if (pontosMatch[1].toLowerCase() === 'média' || pontosMatch[1].toLowerCase() === 'media') pontos = 4;
+            else if (pontosMatch[1].toLowerCase() === 'leve') pontos = 3;
+            else pontos = pontosMatch[1].trim();
+            document.getElementById('nm-pontos').value = pontos;
+        }
+
+        // Tentativa de Motivo
+        const motivoMatch = textToSearch.match(/Infração\s*:?\s*([^.-]+)/i) || textToSearch.match(/Descrição\s*da\s*Infração\s*:?\s*([^.-]+)/i);
+        if (motivoMatch && document.getElementById('nm-motivo').value === '') {
+            document.getElementById('nm-motivo').value = motivoMatch[1].trim().substring(0, 100);
+        }
+
+        if (typeof mostrarToastSucesso === 'function') {
+            mostrarToastSucesso('Dados extraídos do PDF com sucesso!');
+        }
+    } catch(err) {
+        console.error('Erro ao processar PDF:', err);
+        if (typeof mostrarToastAviso === 'function') {
+            mostrarToastAviso('Não foi possível ler os dados automaticamente do PDF.');
+        }
+    }
+};
