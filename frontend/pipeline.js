@@ -506,8 +506,37 @@ async function pipelineExportarExcel() {
         const isAvulsaObraEvento = ts.includes('avulsa') && (ts.includes('obra') || ts.includes('evento'));
         const mostrarDias = isManutObraEvento || isAvulsaObraEvento;
 
-        // A: Título — usa o nome do cliente exatamente como cadastrado (ícones já fazem parte do nome)
-        const titulo = (r.cliente || '').trim();
+        // Inferir tipo de contrato (obra/evento) para colorir linhas de manutenção avulsa
+        let tipoContratoXls = (r.tipo_os || '').toLowerCase();
+        if (tipoContratoXls.includes('manut') || tipoContratoXls === 'entrega' || tipoContratoXls === 'retirada') tipoContratoXls = '';
+        if (!tipoContratoXls) {
+            if (ts.includes('obra'))   tipoContratoXls = 'obra';
+            else if (ts.includes('evento')) tipoContratoXls = 'evento';
+        }
+        if (!tipoContratoXls) {
+            const prodDescXls = (r.produtos || []).map(p => (p.desc || p.produto || '').toUpperCase()).join(' ');
+            if (prodDescXls.includes('OBRA'))   tipoContratoXls = 'obra';
+            else if (prodDescXls.includes('EVENTO')) tipoContratoXls = 'evento';
+        }
+
+        // A: Título — monta ícones dos produtos igual ao que aparece no nome do cliente no sistema
+        const EQ_ICONS = {
+            'STD OBRA':'💙','STD EVENTO':'💜','LX OBRA':'🟦','LX EVENTO':'🟪',
+            'ELX OBRA':'🔵','ELX EVENTO':'🟣','PCD OBRA':'♿','PCD EVENTO':'🧑🏾‍🦽',
+            'CHUVEIRO OBRA':'🚿','CHUVEIRO EVENTO':'🚿','HIDRAULICO OBRA':'🚽',
+            'MICTORIO OBRA':'💦','MICTORIO EVENTO':'💦','PBII OBRA':'🧼','PBII EVENTO':'🧼',
+            'GUARITA INDIVIDUAL OBRA':'⬜','GUARITA INDIVIDUAL EVENTO':'⬜',
+            'GUARITA DUPLA OBRA':'⚪','GUARITA DUPLA EVENTO':'⚪',
+            'LIMPA FOSSA':'💧','VISITA TECNICA':'⚙️','CARRINHO':'🛞',
+        };
+        const iconesProd = (r.produtos || [])
+            .map(p => {
+                const descUp = (p.desc || '').trim().toUpperCase();
+                return EQ_ICONS[descUp] || '';
+            })
+            .filter(Boolean)
+            .join('');
+        const titulo = (iconesProd ? iconesProd + ' ' : '') + (r.cliente || '').trim();
 
         // B: Endereço completo
         const endereco = [r.endereco, r.complemento, r.cep ? `CEP: ${r.cep}` : ''].filter(Boolean).join(', ');
@@ -574,9 +603,14 @@ async function pipelineExportarExcel() {
         const row = worksheet.addRow(rowData);
         row.getCell(8).alignment = { wrapText: true }; // Quebra de linha nas anotações
 
-        // Aplica a cor da linha baseada no tipo de serviço
-        const corHex = pipelineGetCorCard(r.tipo_servico);
-        if (corHex && corHex !== '#ffffff') {
+        // Aplica cor da linha baseada no TIPO DE SERVIÇO
+        let corHex = '';
+        if (ts.includes('entrega'))                              corHex = '#A6E3B7'; // verde
+        else if (ts.includes('retirada'))                        corHex = '#FDE49B'; // amarelo
+        else if (ts.includes('obra') || tipoContratoXls === 'obra')   corHex = '#BFDBFE'; // azul
+        else if (ts.includes('evento') || tipoContratoXls === 'evento') corHex = '#DDD6FE'; // roxo
+
+        if (corHex) {
             const argb = 'FF' + corHex.substring(1).toUpperCase();
             row.eachCell({ includeEmpty: true }, (cell) => {
                 cell.fill = {
