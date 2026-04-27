@@ -752,10 +752,16 @@ function pipelineToggleSelecionar(event, osId) {
         }
     }
     // Atualiza badge e botão
+    const n = _pipelineSelecionados.size;
     const badge = document.getElementById('pipeline-sel-badge');
-    const btnExp = document.getElementById('pipeline-btn-exp-sel');
-    if (badge) badge.textContent = _pipelineSelecionados.size > 0 ? `${_pipelineSelecionados.size} selecionado${_pipelineSelecionados.size > 1 ? 's' : ''}` : '';
-    if (btnExp) btnExp.style.display = _pipelineSelecionados.size > 0 ? 'flex' : 'none';
+    const btnTxt = document.getElementById('pipeline-btn-simpli-txt');
+    const btn = document.getElementById('pipeline-btn-simpli');
+    if (badge) {
+        badge.textContent = n > 0 ? `${n} selecionado${n > 1 ? 's' : ''}` : '';
+        badge.style.display = n > 0 ? 'inline-block' : 'none';
+    }
+    if (btnTxt) btnTxt.textContent = n > 0 ? `Exportar (${n})` : 'SimpliRoute';
+    if (btn) btn.style.background = n > 0 ? '#f59e0b' : '#16a34a';
 }
 
 function pipelineLimparSelecao() {
@@ -766,19 +772,23 @@ function pipelineLimparSelecao() {
         if (cb) { cb.textContent = ''; cb.style.background = 'white'; cb.style.color = 'transparent'; cb.style.borderColor = '#cbd5e1'; }
     });
     const badge = document.getElementById('pipeline-sel-badge');
-    const btnExp = document.getElementById('pipeline-btn-exp-sel');
-    if (badge) badge.textContent = '';
-    if (btnExp) btnExp.style.display = 'none';
+    const btnTxt = document.getElementById('pipeline-btn-simpli-txt');
+    const btn = document.getElementById('pipeline-btn-simpli');
+    if (badge) { badge.textContent = ''; badge.style.display = 'none'; }
+    if (btnTxt) btnTxt.textContent = 'SimpliRoute';
+    if (btn) btn.style.background = '#16a34a';
 }
 
-async function pipelineExportarSelecionados() {
-    if (_pipelineSelecionados.size === 0) { alert('Nenhum card selecionado.'); return; }
-    // Coleta os registros selecionados
-    const todos = Object.values(_pipelineDados || {}).flat();
-    const filtrados = todos.filter(r => _pipelineSelecionados.has(r.id));
-    if (!filtrados.length) { alert('Registros não encontrados.'); return; }
-    // Reutiliza a lógica de exportação passando os registros selecionados
-    await pipelineExportarExcel(filtrados);
+// Exportação inteligente: selecionados se houver, todos caso contrário
+async function pipelineExportarInteligente() {
+    if (_pipelineSelecionados.size > 0) {
+        const todos = Object.values(_pipelineDados || {}).flat();
+        const filtrados = todos.filter(r => _pipelineSelecionados.has(r.id));
+        if (!filtrados.length) { alert('Registros não encontrados.'); return; }
+        await pipelineExportarExcel(filtrados);
+    } else {
+        await pipelineExportarExcel(); // exporta todos
+    }
 }
 
 // Estado persistente dos filtros — sobrevive à troca de abas
@@ -900,15 +910,11 @@ function renderPipelinePage() {
         </div>
         <!-- Botões à direita -->
         <div style="margin-left:auto;display:flex;gap:6px;align-items:center;">
-          <span id="pipeline-sel-badge" style="background:#fef3c7;color:#92400e;border-radius:20px;padding:3px 12px;font-size:0.78rem;font-weight:700;display:${_pipelineSelecionados.size > 0 ? 'inline-block' : 'none'}">${_pipelineSelecionados.size > 0 ? _pipelineSelecionados.size + ' selecionado(s)' : ''}</span>
-          <button id="pipeline-btn-exp-sel" onclick="pipelineExportarSelecionados()" title="Exportar selecionados"
-            style="display:${_pipelineSelecionados.size > 0 ? 'flex' : 'none'};background:#f59e0b;border:none;border-radius:7px;padding:6px 14px;color:white;font-weight:700;cursor:pointer;font-size:0.82rem;align-items:center;gap:5px;">
-            ⬇️ Exportar (${_pipelineSelecionados.size})
-          </button>
+          <span id="pipeline-sel-badge" style="background:#fef3c7;color:#92400e;border-radius:20px;padding:3px 12px;font-size:0.78rem;font-weight:700;display:none;"></span>
           <span id="pipeline-total-badge" style="background:#e2e8f0;color:#475569;border-radius:20px;padding:3px 12px;font-size:0.78rem;font-weight:700;">—</span>
-          <button onclick="pipelineExportarExcel()" title="Exportar todos"
+          <button id="pipeline-btn-simpli" onclick="pipelineExportarInteligente()" title="Exportar SimpliRoute"
             style="background:#16a34a;border:none;border-radius:7px;padding:6px 14px;color:white;font-weight:700;cursor:pointer;font-size:0.82rem;display:flex;align-items:center;gap:5px;">
-            <i class="ph ph-file-xls" style="font-size:1rem;"></i> SimpliRoute
+            <i class="ph ph-file-xls" style="font-size:1rem;"></i> <span id="pipeline-btn-simpli-txt">SimpliRoute</span>
           </button>
           <button onclick="pipelineLimparFiltros()" title="Limpar filtros"
             style="background:white;border:1px solid #cbd5e1;border-radius:7px;padding:6px 12px;color:#ef4444;font-weight:700;cursor:pointer;font-size:0.82rem;">
