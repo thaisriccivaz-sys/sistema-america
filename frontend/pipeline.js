@@ -353,6 +353,8 @@ function pipelineLimparFiltros() {
     });
     // Atualiza _pipelineFiltros
     Object.keys(_pipelineFiltros).forEach(k => { _pipelineFiltros[k] = ''; });
+    // Limpa seleção de cards e restaura botão SimpliRoute
+    pipelineLimparSelecao();
     buscarPipeline();
 }
 
