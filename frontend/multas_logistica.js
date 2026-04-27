@@ -279,6 +279,17 @@ function abrirModalNovaMulta() {
                         <input type="text" id="nm-ait" required placeholder="Ex: AA123456789" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
                     </div>
 
+                    <div style="display:flex; gap:1rem; margin-bottom:1rem;">
+                        <div style="flex:1;">
+                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Placa</label>
+                            <input type="text" id="nm-placa" placeholder="ABC1D23" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
+                        </div>
+                        <div style="flex:2;">
+                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Local da Infração</label>
+                            <input type="text" id="nm-local" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
+                        </div>
+                    </div>
+
                     <div style="margin-bottom:1rem;">
                         <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Motivo da Multa</label>
                         <input type="text" id="nm-motivo" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
@@ -318,6 +329,8 @@ async function salvarNovaMulta(e) {
     formData.append('numero_ait', document.getElementById('nm-ait').value);
     formData.append('motivo', document.getElementById('nm-motivo').value);
     formData.append('valor_multa', document.getElementById('nm-valor').value);
+    formData.append('placa', document.getElementById('nm-placa').value);
+    formData.append('local_infracao', document.getElementById('nm-local').value);
     formData.append('pontuacao', document.getElementById('nm-pontos').value);
 
     const fileInput = document.getElementById('nm-doc');
@@ -447,6 +460,17 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
                             <div id="gm-valor-info" style="padding:0.6rem; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:600; color:#0f172a; min-height:38px; display:flex; align-items:center;">
                                 R$ 0,00
                             </div>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; gap:1.5rem; margin-bottom:1rem; flex-wrap:wrap;">
+                        <div style="flex:1; min-width:150px;">
+                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Placa</label>
+                            <input type="text" id="gm-placa" value="${multa.placa || ''}" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
+                        </div>
+                        <div style="flex:2; min-width:250px;">
+                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Local da Infração</label>
+                            <input type="text" id="gm-local" value="${multa.local_infracao || ''}" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
                         </div>
                     </div>
 
@@ -624,6 +648,8 @@ async function salvarGerenciamentoMulta(e, id) {
     const motoristaNome = motoristaId ? motoristaSel.options[motoristaSel.selectedIndex].text : null;
     const link = document.getElementById('gm-link').value.trim();
     const parcelas = document.getElementById('gm-parcelas').value;
+    const placa = document.getElementById('gm-placa')?.value.trim() || '';
+    const localInfracao = document.getElementById('gm-local')?.value.trim() || '';
 
     let settled = false;
     const fecharEAtualizar = async (msg, tipo = 'sucesso') => {
@@ -652,7 +678,9 @@ async function salvarGerenciamentoMulta(e, id) {
                 status: status,
                 observacao: obs,
                 link_formulario: link,
-                parcelas: parcelas
+                parcelas: parcelas,
+                placa: placa,
+                local_infracao: localInfracao
             })
         });
         clearTimeout(timeoutId);
@@ -844,21 +872,13 @@ window.processarPDFMulta = async function(input) {
         const textToSearch = fullText.replace(/[ \t]+/g, ' ');
 
         // ── AIT (múltiplos padrões) ──────────────────────────────────────────────
-        // Regras:
-        // 1. O AIT deve conter pelo menos um dígito (evitar capturar palavras puras como "RIDADE")
-        // 2. Usar \b (word boundary) antes do keyword para não casar no meio de palavras
-        // 3. Padrão genérico "Auto" REMOVIDO pois casava "AUTORIDADE" → "RIDADE"
         let aitVal = '';
         const aitPatterns = [
-            // "AIT: AA123456789" ou "A.I.T. 123456"
-            /\bA\.?\s*I\.?\s*T\.?\b\s*[:\-\/\.#\s]+([A-Z0-9]{4,20})/i,
-            // "Auto de Infração Nº AA123456789" – frase completa com word boundary
-            /\bAuto\s+de\s+Infra[çc][ãa]o\b[^A-Z0-9]{0,10}([A-Z0-9]{6,20})/i,
-            // "Nº 123456" ou "N° AA123456789" – símbolo de número seguido do AIT
+            /N[°ºo]\s*do\s*Auto\s*de\s*Infra[çc][ãa]o\s*[:\-]?\s*([A-Z0-9]{5,20})/i,
+            /\bAuto\s+de\s+Infra[çc][ãa]o\b[^A-Z0-9]{0,10}([A-Z0-9]{5,20})/i,
+            /\bA\.?\s*I\.?\s*T\.?\b\s*[:\-\/\.#\s]*([A-Z0-9]{5,20})/i,
             /\bn[°ºo]\s*\.?\s*([A-Z0-9]{6,20})/i,
-            // Sequência típica brasileira: 2 letras + 9 a 12 dígitos (ex: AA123456789)
             /(?:^|\s)([A-Z]{2}[0-9]{9,12})(?:\s|$)/m,
-            // Sequência só numérica longa (10 a 15 dígitos)
             /(?:^|\s)([0-9]{10,15})(?:\s|$)/m,
         ];
         for (const pat of aitPatterns) {
@@ -873,28 +893,41 @@ window.processarPDFMulta = async function(input) {
             document.getElementById('nm-ait').value = aitVal;
         }
 
+        // ── Placa ─────────────────────────────────────────────────────────
+        const placaMatch = textToSearch.match(/placa\s*[:\-]?\s*([A-Z]{3}[-\s]?\d[A-Z0-9]\d{2}|[A-Z]{3}[-\s]?\d{4})/i);
+        if (placaMatch && document.getElementById('nm-placa')) {
+            document.getElementById('nm-placa').value = placaMatch[1].replace(/[-\s]/g, '').toUpperCase();
+        }
+
+        // ── Local da Infração ─────────────────────────────────────────────
+        const localMatch = textToSearch.match(/local(?:\s+da)?\s+infra[çc][ãa]o\s*[:\-]?\s*([^\n]{5,120})/i);
+        if (localMatch && document.getElementById('nm-local')) {
+            document.getElementById('nm-local').value = localMatch[1].trim().substring(0, 150);
+        }
+
         // ── Data ──────────────────────────────────────────────────────────
-        const dataMatch = textToSearch.match(/(\d{2}[\/\-]\d{2}[\/\-]\d{4})/);
+        const dataMatch = textToSearch.match(/(?:data(?:\s+da)?\s+infra[çc][ãa]o\s*[:\-]?\s*)?(\d{2}[\/\-]\d{2}[\/\-]\d{4})/i);
         if (dataMatch) {
             const parts = dataMatch[1].split(/[\/\-]/);
             document.getElementById('nm-data').value = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
         }
 
         // ── Hora ──────────────────────────────────────────────────────────
-        const horaMatch = textToSearch.match(/(\d{1,2}:\d{2})(?::\d{2})?/);
+        const horaMatch = textToSearch.match(/(?:hora(?:\s+da)?\s+infra[çc][ãa]o\s*[:\-]?\s*)?(\d{1,2}:\d{2})(?::\d{2})?/i);
         if (horaMatch) document.getElementById('nm-hora').value = horaMatch[1].padStart(5, '0');
 
         // ── Valor ─────────────────────────────────────────────────────────
         const valorMatch =
-            textToSearch.match(/R\$\s*([\d]{1,}[.,][\d]{2})/i) ||
+            textToSearch.match(/valor(?:\s*da)?\s*infra[çc][ãa]o\s*[:\-]?\s*R?\$?\s*([\d]{1,}[.,][\d]{2})/i) ||
             textToSearch.match(/valor\s*(?:da\s*multa)?\s*[:\-]?\s*R?\$?\s*([\d]{1,}[.,][\d]{2})/i) ||
+            textToSearch.match(/R\$\s*([\d]{1,}[.,][\d]{2})/i) ||
             textToSearch.match(/multa[^\n]*?([\d]{2,}[.,]\d{2})/i);
         if (valorMatch) document.getElementById('nm-valor').value = valorMatch[1].trim();
 
         // ── Motivo ────────────────────────────────────────────────────────
         const motivoPatterns = [
             /descri[çc][ãa]o\s*(?:da\s*)?infra[çc][ãa]o\s*[:\-]?\s*([^\n]{10,120})/i,
-            /(?:^|\n)infra[çc][ãa]o\s*[:\-]\s*([^\n]{10,120})/im,
+            /infra[çc][ãa]o\s*[:\-]?\s*([^\n]{10,120})/i,
             /(?:enquadramento|artigo|art\.?)\s*[:\-]?\s*([^\n]{10,120})/i,
         ];
         const campoMotivo = document.getElementById('nm-motivo');

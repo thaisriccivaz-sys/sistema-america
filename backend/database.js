@@ -371,6 +371,9 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     link_formulario TEXT,
                     documento_path TEXT,
                     documento_nome TEXT,
+                    parcelas INTEGER DEFAULT 1,
+                    placa TEXT,
+                    local_infracao TEXT,
                     criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
                     atualizado_em DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
@@ -435,6 +438,15 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     if (!cols.includes('brigadista_participa')) db.run("ALTER TABLE colaboradores ADD COLUMN brigadista_participa TEXT DEFAULT 'Não'");
                     if (!cols.includes('brigadista_validade')) db.run("ALTER TABLE colaboradores ADD COLUMN brigadista_validade TEXT");
                     if (!cols.includes('email_corporativo')) db.run("ALTER TABLE colaboradores ADD COLUMN email_corporativo TEXT");
+                });
+
+                // Multas Logística
+                db.all("PRAGMA table_info(multas_logistica)", (err, rows) => {
+                    if (err || !rows) return;
+                    const cols = rows.map(r => r.name);
+                    if (!cols.includes('parcelas')) db.run("ALTER TABLE multas_logistica ADD COLUMN parcelas INTEGER DEFAULT 1");
+                    if (!cols.includes('placa')) db.run("ALTER TABLE multas_logistica ADD COLUMN placa TEXT");
+                    if (!cols.includes('local_infracao')) db.run("ALTER TABLE multas_logistica ADD COLUMN local_infracao TEXT");
                 });
 
                 // Avaliacoes (Migracao estrutural para Drop and Recreate caso a tabela antiga nao tenha 'tipo')
