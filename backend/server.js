@@ -3189,12 +3189,7 @@ async function notificarRHAuto(motoristaId, status, parcelas, valorMultaStr, dat
         db.get('SELECT * FROM colaboradores WHERE id = ?', [motoristaId], async (err, colab) => {
             if (err || !colab) return reject(new Error('Motorista não encontrado no banco de dados.'));
             const nodemailer = require('nodemailer');
-            const transporter = nodemailer.createTransport({
-                host: process.env.SMTP_HOST || 'smtp.hostinger.com',
-                port: process.env.SMTP_PORT || 465,
-                secure: true,
-                auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
-            });
+            const transporter = nodemailer.createTransport(SMTP_CONFIG);
             const numericStr = (valorMultaStr || "0").toString().replace(/[^\d,-]/g, '').replace(',', '.');
             let valorOriginal = parseFloat(numericStr) || 0;
             let multiplicador = (status === 'Multa NIC') ? 3 : 1;
@@ -3229,7 +3224,7 @@ async function notificarRHAuto(motoristaId, status, parcelas, valorMultaStr, dat
             `;
             try {
                 await transporter.sendMail({
-                    from: '"América Rental" <' + process.env.SMTP_USER + '>',
+                    from: `"América Rental" <${SMTP_CONFIG.auth.user}>`,
                     to: 'rh@americarental.com.br',
                     subject: `Desconto de Multa - ${colab.nome_completo || colab.nome}`,
                     html: htmlContent,
