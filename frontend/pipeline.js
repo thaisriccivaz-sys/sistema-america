@@ -206,7 +206,7 @@ function pipelineRenderKanban(dados) {
     const totalOS   = colunasExibidas.reduce((a,c)=> a+(dados[c.key]||[]).length, 0);
     const totalProd  = colunasExibidas.reduce((a,c)=> a+(dados[c.key]||[]).reduce((s,o)=>(Array.isArray(o.produtos)?o.produtos.reduce((x,p)=>x+(+p.qtd||1),0):0)+s,0), 0);
     const badge = document.getElementById('pipeline-total-badge');
-    if (badge) badge.textContent = `${totalOS} OS · ${totalProd} un.`;
+    if (badge) badge.innerHTML = `<i class="ph ph-list-checks" style="font-size:0.82rem;vertical-align:middle;"></i> ${totalOS} &nbsp;<i class="ph ph-toilet" style="font-size:0.82rem;vertical-align:middle;"></i> ${totalProd}`;
 
     container.innerHTML = `
     <div style="display:flex;gap:14px;min-height:calc(100vh - 170px);padding:0.5rem 1.5rem 2rem 1.5rem;box-sizing:border-box;align-items:flex-start;flex-wrap:nowrap;">
@@ -218,8 +218,8 @@ function pipelineRenderKanban(dados) {
         <div style="background:${col.cor};padding:10px 14px;display:flex;align-items:center;gap:8px;position:sticky;top:var(--pipe-header-height,125px);z-index:500;border-radius:12px 12px 0 0;box-shadow:0 2px 6px rgba(0,0,0,0.10);">
                 <span style="font-size:1.1rem;color:${col.textCor};">${col.icon}</span>
                 <span style="color:${col.textCor};font-weight:800;font-size:0.9rem;flex:1;">${col.label}</span>
-                <span style="background:rgba(0,0,0,0.08);color:${col.textCor};border-radius:20px;padding:1px 10px;font-size:0.8rem;font-weight:700;" title="OS">${lista.length} OS</span>
-                <span style="background:rgba(0,0,0,0.08);color:${col.textCor};border-radius:20px;padding:1px 10px;font-size:0.8rem;font-weight:700;" title="Total de produtos">${lista.reduce((s,o)=>(Array.isArray(o.produtos)?o.produtos.reduce((a,p)=>a+(+p.qtd||1),0):0)+s,0)} un.</span>
+                <span style="background:rgba(0,0,0,0.08);color:${col.textCor};border-radius:20px;padding:1px 10px;font-size:0.8rem;font-weight:700;" title="OS"><i class="ph ph-list-checks" style="font-size:0.8rem;vertical-align:middle;"></i> ${lista.length}</span>
+                <span style="background:rgba(0,0,0,0.08);color:${col.textCor};border-radius:20px;padding:1px 10px;font-size:0.8rem;font-weight:700;" title="Total de produtos"><i class="ph ph-toilet" style="font-size:0.8rem;vertical-align:middle;"></i> ${lista.reduce((s,o)=>(Array.isArray(o.produtos)?o.produtos.reduce((a,p)=>a+(+p.qtd||1),0):0)+s,0)}</span>
             </div>
             <!-- Cards — scroll da página, sem overflow interno -->
             <div style="flex:1;padding:8px;">
@@ -328,12 +328,23 @@ function pipelineLimparFiltros() {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
-    const dia = document.getElementById('pipe-filtro-dia');
-    if (dia) dia.value = '';
-    const tipoOs = document.getElementById('pipe-filtro-tipo-os');
-    if (tipoOs) tipoOs.value = '';
-    const turno = document.getElementById('pipe-filtro-turno');
-    if (turno) turno.value = '';
+    // Reseta hidden inputs
+    ['pipe-filtro-dia','pipe-filtro-tipo-os','pipe-filtro-turno'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    // Reseta visual dos botões de Dia
+    const _DIA_C = {'':'#64748b','Segunda':'#ef4444','Terça':'#f97316','Quarta':'#ca8a04','Quinta':'#16a34a','Sexta':'#3b82f6','Sábado':'#8b5cf6','Domingo':'#ec4899'};
+    document.querySelectorAll('[id^="pipe-dia-"]').forEach(b => {
+        const cor = _DIA_C[b.id.replace('pipe-dia-','').replace('todos','')] || '#64748b';
+        b.style.background = 'white'; b.style.color = cor;
+    });
+    // Reseta visual dos botões de Tipo e Turno
+    document.querySelectorAll('[id^="pipe-tipo-"],[id^="pipe-turno-"]').forEach(b => {
+        b.style.background = 'white'; b.style.color = '#475569'; b.style.borderColor = '#cbd5e1';
+    });
+    // Atualiza _pipelineFiltros
+    Object.keys(_pipelineFiltros).forEach(k => { _pipelineFiltros[k] = ''; });
     buscarPipeline();
 }
 

@@ -3367,7 +3367,8 @@ async function abrirModalOSCliente(nomeCliente) {
     let registros = [];
     try {
         const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
-        const nomeClean = nomeCliente.replace(/[^\w\s]/g, '').trim();
+        // Mantém acentos e caracteres especiais do português na pesquisa
+        const nomeClean = nomeCliente.trim();
         const resp = await fetch(`/api/logistica/os/buscar?cliente=${encodeURIComponent(nomeClean)}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
