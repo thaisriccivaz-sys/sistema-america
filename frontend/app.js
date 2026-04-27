@@ -1553,6 +1553,18 @@ window.toggleTransporteValor = function(val) {
         // Mostrar se for VT ou VC
         if (val === 'Vale Transporte (VT)' || val === 'Vale Combustível (VC)') {
             group.style.display = 'block';
+            // Se for VT e o campo estiver vazio, calcular 6% do salário
+            if (val === 'Vale Transporte (VT)' && input && !input.value) {
+                const salarioEl = document.getElementById('colab-salario');
+                if (salarioEl && salarioEl.value) {
+                    const salarioRaw = salarioEl.value.replace(/[R$\s.]/g, '').replace(',', '.');
+                    const salario = parseFloat(salarioRaw);
+                    if (!isNaN(salario) && salario > 0) {
+                        const vt = salario * 0.06;
+                        input.value = vt.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    }
+                }
+            }
         } else {
             group.style.display = 'none';
             if (input) input.value = '';
@@ -3002,7 +3014,19 @@ window.editColaborador = async function(id) {
         }
         if (document.getElementById('colab-valor-transporte')) {
             const valT = c.valor_transporte ? parseFloat(c.valor_transporte).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '';
-            document.getElementById('colab-valor-transporte').value = valT;
+            const inputT = document.getElementById('colab-valor-transporte');
+            inputT.value = valT;
+            // Se for VT e não tiver valor salvo, calcular 6% do salário
+            if (!valT && c.meio_transporte === 'Vale Transporte (VT)') {
+                const salarioEl = document.getElementById('colab-salario');
+                if (salarioEl && salarioEl.value) {
+                    const salarioRaw = salarioEl.value.replace(/[R$\s.]/g, '').replace(',', '.');
+                    const salario = parseFloat(salarioRaw);
+                    if (!isNaN(salario) && salario > 0) {
+                        inputT.value = (salario * 0.06).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    }
+                }
+            }
         }
 
         if (document.getElementById('colab-escala-padrao')) {
