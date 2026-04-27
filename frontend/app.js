@@ -13865,17 +13865,7 @@ window.irAoProntuarioDigital = function(tabName) {
         return;
     }
 
-    // Close admissão panel and show colaboradores
-    const admPanel = document.getElementById('admissao-modal') || document.getElementById('panel-admissao');
-    if (admPanel) admPanel.style.display = 'none';
-
-    // Try to find and click the "Colaboradores" nav button
-    const navBtns = document.querySelectorAll('[onclick*="showSection"]');
-    navBtns.forEach(btn => {
-        if (btn.getAttribute('onclick') && btn.getAttribute('onclick').includes("'colaboradores'")) {
-            btn.click();
-        }
-    });
+    // Usar o fluxo de abas. Não escondemos painéis nem clicamos em botões antigos de nav.
 
     // Open prontuário then switch tab
     const prom = window.openProntuario(
@@ -13888,21 +13878,24 @@ window.irAoProntuarioDigital = function(tabName) {
         colab.status
     );
 
+    const tryClickTab = () => {
+        if (tabName) {
+            setTimeout(() => {
+                // Procurar li do tab no prontuario
+                const tabLi = document.querySelector(`li[data-tab="${tabName}"]`);
+                if (tabLi) {
+                    tabLi.click();
+                } else if (typeof window.renderTabContent === 'function') {
+                    window.renderTabContent(tabName, tabName);
+                }
+            }, 600);
+        }
+    };
+
     if (prom && typeof prom.then === 'function') {
-        prom.then(() => {
-            if (tabName) {
-                setTimeout(() => {
-                    // Try multiple ways to switch tab
-                    if (window.abas && typeof window.abas.switchTab === 'function') {
-                        window.abas.switchTab('colab-tabs', tabName);
-                    } else {
-                        const tabBtn = document.querySelector(`[data-tab="${tabName}"]`) ||
-                                       document.querySelector(`[onclick*="'${tabName}'"]`);
-                        if (tabBtn) tabBtn.click();
-                    }
-                }, 600);
-            }
-        });
+        prom.then(tryClickTab);
+    } else {
+        tryClickTab();
     }
 };
 

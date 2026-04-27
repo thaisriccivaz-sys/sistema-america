@@ -3141,7 +3141,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/assinar-condutor', authen
 // --- ROTAS MULTAS LOGÍSTICA ---------------------------------------------------
 // GET /api/logistica/multas — lista todas as multas
 app.get('/api/logistica/multas', authenticateToken, (req, res) => {
-    db.all(`SELECT ml.*, c.nome as motorista_nome_colab, c.cpf as motorista_cpf, c.numero_habilitacao as motorista_habilitacao
+    db.all(`SELECT ml.*, c.nome as motorista_nome_colab, c.cpf as motorista_cpf, c.cnh_numero as motorista_habilitacao
             FROM multas_logistica ml
             LEFT JOIN colaboradores c ON ml.motorista_id = c.id
             ORDER BY ml.criado_em DESC`, [], (err, rows) => {
