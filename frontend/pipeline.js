@@ -544,9 +544,15 @@ async function pipelineExportarExcel(registrosOverride) {
             else if (prodDescXls.includes('EVENTO')) tipoContratoXls = 'evento';
         }
 
-        // B: Título — ícones das habilidades + variáveis + nome do cliente (igual ao Pipeline)
-        const habilidadesArr = Array.isArray(r.habilidades) ? r.habilidades : [];
-        const variaveisArr   = Array.isArray(r.variaveis)   ? r.variaveis   : [];
+        // Parse defensivo: campos podem chegar como string JSON da API
+        function parseArr(v) {
+            if (Array.isArray(v)) return v;
+            try { const p = JSON.parse(v); return Array.isArray(p) ? p : []; } catch(e) { return []; }
+        }
+        const habilidadesArr = parseArr(r.habilidades);
+        const variaveisArr   = parseArr(r.variaveis);
+        const produtosArr    = parseArr(r.produtos);
+        const diasArr        = parseArr(r.dias_semana);
 
         // Ícones das habilidades (PIPELINE_EQ_ICONS)
         const icHab = habilidadesArr
@@ -570,11 +576,11 @@ async function pipelineExportarExcel(registrosOverride) {
 
         // H: Anotações2
         // Produtos: "QTD NOME" (sem X — X fica na frequência)
-        const prodStr = (r.produtos || []).map(p => `${p.qtd} ${p.desc}`).join(' - ');
+        const prodStr = produtosArr.map(p => `${p.qtd} ${p.desc}`).join(' - ');
 
-        // Frequência semanal: NX + abreviação dos dias (apenas para manutenção)
-        const numDias = (mostrarDias && Array.isArray(r.dias_semana)) ? r.dias_semana.length : 0;
-        const diasAbbr = mostrarDias ? abreviarDias(r.dias_semana) : '';
+        // Frequência semanal (dias_semana já parseado acima)
+        const numDias = (mostrarDias && diasArr.length) ? diasArr.length : 0;
+        const diasAbbr = mostrarDias ? abreviarDias(diasArr) : '';
         const diasComFreq = (mostrarDias && diasAbbr) ? `${numDias}X ${diasAbbr}` : '';
 
         // Linha principal: TIPO | PRODUTOS | NX DIAS
@@ -729,14 +735,18 @@ function _pipeFiltrarTurno(val) {
 }
 
 // ── Seleção de OS para exportação parcial ────────────────────────────────
-const _pipelineSelecionados = new Set(); // Set de IDs selecionados
+// Map de ID → registro completo (evita inconsistência de encoding ao exportar)
+const _pipelineSelecionados = new Map();
 
 function pipelineToggleSelecionar(event, osId) {
     event.stopPropagation(); // não abre o modal da OS
     if (_pipelineSelecionados.has(osId)) {
         _pipelineSelecionados.delete(osId);
     } else {
-        _pipelineSelecionados.add(osId);
+        // Busca o registro na _pipelineDados para armazenar completo
+        const todosReg = Object.values(_pipelineDados || {}).flat();
+        const reg = todosReg.find(r => r.id == osId);
+        _pipelineSelecionados.set(osId, reg || { id: osId });
     }
     // Atualiza visual do card
     const card = document.querySelector(`.pipe-card[data-os-id="${osId}"]`);
@@ -753,13 +763,8 @@ function pipelineToggleSelecionar(event, osId) {
     }
     // Atualiza badge e botão
     const n = _pipelineSelecionados.size;
-    const badge = document.getElementById('pipeline-sel-badge');
     const btnTxt = document.getElementById('pipeline-btn-simpli-txt');
     const btn = document.getElementById('pipeline-btn-simpli');
-    if (badge) {
-        badge.textContent = n > 0 ? `${n} selecionado${n > 1 ? 's' : ''}` : '';
-        badge.style.display = n > 0 ? 'inline-block' : 'none';
-    }
     if (btnTxt) btnTxt.textContent = n > 0 ? `Exportar (${n})` : 'SimpliRoute';
     if (btn) btn.style.background = n > 0 ? '#f59e0b' : '#16a34a';
 }
@@ -771,10 +776,8 @@ function pipelineLimparSelecao() {
         const cb = card.querySelector('.pipe-sel-cb');
         if (cb) { cb.textContent = ''; cb.style.background = 'white'; cb.style.color = 'transparent'; cb.style.borderColor = '#cbd5e1'; }
     });
-    const badge = document.getElementById('pipeline-sel-badge');
     const btnTxt = document.getElementById('pipeline-btn-simpli-txt');
     const btn = document.getElementById('pipeline-btn-simpli');
-    if (badge) { badge.textContent = ''; badge.style.display = 'none'; }
     if (btnTxt) btnTxt.textContent = 'SimpliRoute';
     if (btn) btn.style.background = '#16a34a';
 }
@@ -782,12 +785,11 @@ function pipelineLimparSelecao() {
 // Exportação inteligente: selecionados se houver, todos caso contrário
 async function pipelineExportarInteligente() {
     if (_pipelineSelecionados.size > 0) {
-        const todos = Object.values(_pipelineDados || {}).flat();
-        const filtrados = todos.filter(r => _pipelineSelecionados.has(r.id));
-        if (!filtrados.length) { alert('Registros não encontrados.'); return; }
+        // Usa os registros armazenados diretamente (encoding preservado)
+        const filtrados = Array.from(_pipelineSelecionados.values());
         await pipelineExportarExcel(filtrados);
     } else {
-        await pipelineExportarExcel(); // exporta todos
+        await pipelineExportarExcel();
     }
 }
 
@@ -894,23 +896,20 @@ function renderPipelinePage() {
           </div>
           <input type="hidden" id="pipe-filtro-turno" value="">
         </div>
-        <!-- Endereco -->
-        <div style="display:flex;align-items:center;gap:5px;">
-          <label style="color:#475569;font-size:0.78rem;font-weight:600;">Endereço:</label>
-          <input type="text" id="pipe-filtro-endereco" placeholder="Endereço"
-            style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;width:180px;background:white;color:#1e293b;outline:none;"
-            oninput="_pipelineSalvarFiltros();buscarPipelineDebounced()">
-        </div>
-        <!-- Cliente -->
-        <div style="display:flex;align-items:center;gap:5px;">
-          <label style="color:#475569;font-size:0.78rem;font-weight:600;">Cliente:</label>
-          <input type="text" id="pipe-filtro-cliente" placeholder="Cliente"
-            style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;width:180px;background:white;color:#1e293b;outline:none;"
-            oninput="_pipelineSalvarFiltros();buscarPipelineDebounced()">
-        </div>
-        <!-- Botões à direita -->
-        <div style="margin-left:auto;display:flex;gap:6px;align-items:center;">
-          <span id="pipeline-sel-badge" style="background:#fef3c7;color:#92400e;border-radius:20px;padding:3px 12px;font-size:0.78rem;font-weight:700;display:none;"></span>
+        <!-- Botões à direita + Endereço + Cliente -->
+        <div style="margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+          <div style="display:flex;align-items:center;gap:5px;">
+            <label style="color:#475569;font-size:0.78rem;font-weight:600;">Endereço:</label>
+            <input type="text" id="pipe-filtro-endereco" placeholder="Endereço"
+              style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;width:160px;background:white;color:#1e293b;outline:none;"
+              oninput="_pipelineSalvarFiltros();buscarPipelineDebounced()">
+          </div>
+          <div style="display:flex;align-items:center;gap:5px;">
+            <label style="color:#475569;font-size:0.78rem;font-weight:600;">Cliente:</label>
+            <input type="text" id="pipe-filtro-cliente" placeholder="Cliente"
+              style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;width:160px;background:white;color:#1e293b;outline:none;"
+              oninput="_pipelineSalvarFiltros();buscarPipelineDebounced()">
+          </div>
           <span id="pipeline-total-badge" style="background:#e2e8f0;color:#475569;border-radius:20px;padding:3px 12px;font-size:0.78rem;font-weight:700;">—</span>
           <button id="pipeline-btn-simpli" onclick="pipelineExportarInteligente()" title="Exportar SimpliRoute"
             style="background:#16a34a;border:none;border-radius:7px;padding:6px 14px;color:white;font-weight:700;cursor:pointer;font-size:0.82rem;display:flex;align-items:center;gap:5px;">
