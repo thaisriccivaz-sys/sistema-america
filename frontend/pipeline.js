@@ -519,7 +519,7 @@ async function pipelineExportarExcel() {
             else if (prodDescXls.includes('EVENTO')) tipoContratoXls = 'evento';
         }
 
-        // A: Título — monta ícones dos produtos igual ao que aparece no nome do cliente no sistema
+        // B: Título — segue o padrão do Pipeline
         const EQ_ICONS = {
             'STD OBRA':'💙','STD EVENTO':'💜','LX OBRA':'🟦','LX EVENTO':'🟪',
             'ELX OBRA':'🔵','ELX EVENTO':'🟣','PCD OBRA':'♿','PCD EVENTO':'🧑🏾‍🦽',
@@ -529,14 +529,31 @@ async function pipelineExportarExcel() {
             'GUARITA DUPLA OBRA':'⚪','GUARITA DUPLA EVENTO':'⚪',
             'LIMPA FOSSA':'💧','VISITA TECNICA':'⚙️','CARRINHO':'🛞',
         };
-        const iconesProd = (r.produtos || [])
-            .map(p => {
-                const descUp = (p.desc || '').trim().toUpperCase();
-                return EQ_ICONS[descUp] || '';
-            })
-            .filter(Boolean)
-            .join('');
-        const titulo = (iconesProd ? iconesProd + ' ' : '') + (r.cliente || '').trim();
+
+        let iconesPrefixo = '';
+        if (ts.includes('entrega')) {
+            // Entrega: ícones dos produtos
+            const iconsProd = (r.produtos || [])
+                .map(p => EQ_ICONS[(p.desc || '').trim().toUpperCase()] || '')
+                .filter(Boolean).join('');
+            if (iconsProd) iconesPrefixo = iconsProd + ' ';
+        } else {
+            // Outros serviços: ícone do serviço + ícones das variáveis que têm ícone
+            const icServ = pipelineGetIconServico(r.tipo_servico);
+            const icVars = (r.variaveis || []).map(v => {
+                const vUp = v.trim().toUpperCase();
+                for (const [key, style] of Object.entries(PIPELINE_VARS_CORES)) {
+                    if (vUp.includes(key)) return style.icon;
+                }
+                return '';
+            }).filter(Boolean).join('');
+            const partes = [icServ, icVars].filter(Boolean).join('');
+            if (partes) iconesPrefixo = partes + ' ';
+        }
+
+        // 📦 compra interna
+        const isCompraXls = (r.variaveis || []).some(v => v.trim().toUpperCase().includes('COMPRA'));
+        const titulo = iconesPrefixo + (isCompraXls ? '📦 ' : '') + (r.cliente || '').trim();
 
         // B: Endereço completo
         const endereco = [r.endereco, r.complemento, r.cep ? `CEP: ${r.cep}` : ''].filter(Boolean).join(', ');
