@@ -2887,7 +2887,7 @@ window.editColaborador = async function(id) {
         document.getElementById('colab-id').value = c.id;
         document.getElementById('colab-nome').value = c.nome_completo || '';
         document.getElementById('colab-cpf').value = c.cpf || '';
-        document.getElementById('colab-rg').value = c.rg || '';
+        if (document.getElementById('colab-rg')) document.getElementById('colab-rg').value = c.rg || '';
         
         const rgTipoEl = document.getElementById('colab-rg-tipo');
         if (rgTipoEl) {
@@ -3316,7 +3316,7 @@ if (formColab) {
         const data = {
             nome_completo: nomeInput ? nomeInput.value : '',
             cpf: cpfInput ? cpfInput.value : '',
-            rg: document.getElementById('colab-rg').value,
+            rg: document.getElementById('colab-rg') ? document.getElementById('colab-rg').value : null,
             data_nascimento: document.getElementById('colab-nascimento').value,
             estado_civil: estadoCivilInput ? estadoCivilInput.value : '',
             nacionalidade: document.getElementById('colab-nacionalidade').value,
