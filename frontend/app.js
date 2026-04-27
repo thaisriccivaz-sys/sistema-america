@@ -13858,44 +13858,48 @@ window.imprimirFichaSantander = function() {
     }
 };
 
-window.irAoProntuarioDigital = function(tabName) {
+window.irAoProntuarioDigital = async function(tabName) {
+    console.log('[irAoProntuarioDigital] Iniciado com aba alvo:', tabName);
     const colab = window._admissaoColabSelecionado || window.viewedColaborador;
     if (!colab) {
-        console.warn('[irAoProntuarioDigital] Nenhum colaborador selecionado');
+        console.warn('[irAoProntuarioDigital] Nenhum colaborador selecionado. _admissaoColabSelecionado:', window._admissaoColabSelecionado);
+        alert('Nenhum colaborador selecionado na Admissão.');
         return;
     }
+    
+    console.log('[irAoProntuarioDigital] Colaborador detectado:', colab.nome_completo || colab.nome, colab.id);
 
-    // Usar o fluxo de abas. Não escondemos painéis nem clicamos em botões antigos de nav.
+    try {
+        console.log('[irAoProntuarioDigital] Chamando openProntuario...');
+        await window.openProntuario(
+            colab.id,
+            colab.nome_completo || colab.nome,
+            colab.cargo_nome_exibindo || colab.cargo,
+            colab.cpf,
+            colab.genero || colab.sexo,
+            colab.data_admissao || colab.admissao,
+            colab.status
+        );
+        console.log('[irAoProntuarioDigital] openProntuario concluído.');
 
-    // Open prontuário then switch tab
-    const prom = window.openProntuario(
-        colab.id,
-        colab.nome_completo || colab.nome,
-        colab.cargo_nome_exibindo || colab.cargo,
-        colab.cpf,
-        colab.genero || colab.sexo,
-        colab.data_admissao || colab.admissao,
-        colab.status
-    );
-
-    const tryClickTab = () => {
         if (tabName) {
             setTimeout(() => {
-                // Procurar li do tab no prontuario
+                console.log('[irAoProntuarioDigital] Procurando aba:', tabName);
                 const tabLi = document.querySelector(`li[data-tab="${tabName}"]`);
                 if (tabLi) {
+                    console.log('[irAoProntuarioDigital] Aba encontrada. Clicando...');
                     tabLi.click();
-                } else if (typeof window.renderTabContent === 'function') {
-                    window.renderTabContent(tabName, tabName);
+                } else {
+                    console.log('[irAoProntuarioDigital] Aba não encontrada no DOM. Forçando renderTabContent...');
+                    if (typeof window.renderTabContent === 'function') {
+                        window.renderTabContent(tabName, tabName);
+                    }
                 }
             }, 600);
         }
-    };
-
-    if (prom && typeof prom.then === 'function') {
-        prom.then(tryClickTab);
-    } else {
-        tryClickTab();
+    } catch (e) {
+        console.error('[irAoProntuarioDigital] Erro:', e);
+        alert('Erro ao abrir o Prontuário Digital: ' + e.message);
     }
 };
 
