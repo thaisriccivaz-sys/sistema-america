@@ -605,10 +605,13 @@ async function pipelineExportarExcel() {
 
         // Aplica cor da linha baseada no TIPO DE SERVIÇO
         let corHex = '';
-        if (ts.includes('entrega'))                              corHex = '#A6E3B7'; // verde
-        else if (ts.includes('retirada'))                        corHex = '#FDE49B'; // amarelo
-        else if (ts.includes('obra') || tipoContratoXls === 'obra')   corHex = '#BFDBFE'; // azul
-        else if (ts.includes('evento') || tipoContratoXls === 'evento') corHex = '#DDD6FE'; // roxo
+        const isAvulso = ts.includes('avulso') || ts.includes('avulsa');
+        const isManutRecorrente = ts.includes('manut') && !isAvulso;
+
+        if (ts.includes('entrega'))        corHex = '#A6E3B7'; // verde
+        else if (ts.includes('retirada')) corHex = '#FDE49B'; // amarelo
+        else if (isManutRecorrente)        corHex = '#E2E8F0'; // cinza claro
+        // avulsos e demais: sem cor (branco)
 
         if (corHex) {
             const argb = 'FF' + corHex.substring(1).toUpperCase();
