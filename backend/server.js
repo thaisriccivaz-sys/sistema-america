@@ -3184,60 +3184,62 @@ app.post('/api/logistica/multas', authenticateToken, multaUploadMiddleware.singl
 });
 
 async function notificarRHAuto(motoristaId, status, parcelas, valorMultaStr, dataInfracao, numAit) {
-    if (!motoristaId) return;
-    db.get('SELECT * FROM colaboradores WHERE id = ?', [motoristaId], async (err, colab) => {
-        if (err || !colab) return;
-        const nodemailer = require('nodemailer');
-        const transporter = nodemailer.createTransport({
-            host: process.env.SMTP_HOST || 'smtp.hostinger.com',
-            port: process.env.SMTP_PORT || 465,
-            secure: true,
-            auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
-        });
-        const numericStr = (valorMultaStr || "0").toString().replace(/[^\d,-]/g, '').replace(',', '.');
-        let valorOriginal = parseFloat(numericStr) || 0;
-        let multiplicador = (status === 'Multa NIC') ? 3 : 1;
-        let valorTotalNum = valorOriginal * multiplicador;
-        let p = parseInt(parcelas) || 1;
-        let valorParcelaNum = valorTotalNum / p;
-        const fmt = v => 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
-        const [y, m, d] = (dataInfracao || '').split('-');
-        const dataInfracaoFmt = d ? `${d}/${m}/${y}` : 'Não informada';
-        const htmlContent = `
-            <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px;">
-                <div style="text-align: center; margin-bottom: 20px;">
-                    <img src="cid:empresa-logo" style="max-height: 80px;">
-                </div>
-                <h2 style="color: #2c3e50; border-bottom: 2px solid #ea580c; padding-bottom: 10px;">Desconto Financeiro - Multa de Trânsito</h2>
-                <p>Olá RH, favor realizar o desconto financeiro referente à multa de trânsito abaixo:</p>
-                <div style="background: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                    <p><strong>Colaborador:</strong> ${colab.nome_completo || colab.nome}</p>
-                    <p><strong>CPF:</strong> ${colab.cpf}</p>
-                    <p><strong>Data da Infração:</strong> ${dataInfracaoFmt}</p>
-                    <p><strong>Nº do AIT (Multa):</strong> ${numAit || 'S/N'}</p>
-                    <p><strong>Tipo/Status:</strong> ${status} ${status === 'Multa NIC' ? '(Base x 3)' : ''}</p>
-                </div>
-                <div style="margin-top: 20px; padding: 15px; border: 2px solid #ea580c; border-radius: 8px; background: #fff7ed;">
-                    <h3 style="margin-top: 0; color: #c2410c;">Resumo do Desconto</h3>
-                    <p style="font-size: 1.1rem;"><strong>Valor Total a Descontar:</strong> ${fmt(valorTotalNum)}</p>
-                    <p style="font-size: 1.1rem;"><strong>Forma de Pagamento:</strong> ${p}x de ${fmt(valorParcelaNum)}</p>
-                </div>
-                <p style="margin-top: 30px; font-size: 0.9rem; color: #7f8c8d; text-align: center;">E-mail gerado automaticamente pelo Sistema RH & Logística</p>
-            </div>
-        `;
-        try {
-            await transporter.sendMail({
-                from: '"América Rental" <' + process.env.SMTP_USER + '>',
-                to: 'rh@americarental.com.br',
-                subject: `Desconto de Multa - ${colab.nome_completo || colab.nome}`,
-                html: htmlContent,
-                attachments: [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }]
+    return new Promise((resolve, reject) => {
+        if (!motoristaId) return reject(new Error('Motorista não informado. Não é possível notificar o RH.'));
+        db.get('SELECT * FROM colaboradores WHERE id = ?', [motoristaId], async (err, colab) => {
+            if (err || !colab) return reject(new Error('Motorista não encontrado no banco de dados.'));
+            const nodemailer = require('nodemailer');
+            const transporter = nodemailer.createTransport({
+                host: process.env.SMTP_HOST || 'smtp.hostinger.com',
+                port: process.env.SMTP_PORT || 465,
+                secure: true,
+                auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
             });
-            console.log('[Multas] E-mail de desconto enviado para o RH com sucesso.');
-        } catch (errSend) {
-            console.error('[ERRO EMAIL MULTA RH]', errSend.message);
-        }
+            const numericStr = (valorMultaStr || "0").toString().replace(/[^\d,-]/g, '').replace(',', '.');
+            let valorOriginal = parseFloat(numericStr) || 0;
+            let multiplicador = (status === 'Multa NIC') ? 3 : 1;
+            let valorTotalNum = valorOriginal * multiplicador;
+            let p = parseInt(parcelas) || 1;
+            let valorParcelaNum = valorTotalNum / p;
+            const fmt = v => 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+            const [y, m, d] = (dataInfracao || '').split('-');
+            const dataInfracaoFmt = d ? `${d}/${m}/${y}` : 'Não informada';
+            const htmlContent = `
+                <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px;">
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <img src="cid:empresa-logo" style="max-height: 80px;">
+                    </div>
+                    <h2 style="color: #2c3e50; border-bottom: 2px solid #ea580c; padding-bottom: 10px;">Desconto Financeiro - Multa de Trânsito</h2>
+                    <p>Olá RH, favor realizar o desconto financeiro referente à multa de trânsito abaixo:</p>
+                    <div style="background: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                        <p><strong>Colaborador:</strong> ${colab.nome_completo || colab.nome}</p>
+                        <p><strong>CPF:</strong> ${colab.cpf}</p>
+                        <p><strong>Data da Infração:</strong> ${dataInfracaoFmt}</p>
+                        <p><strong>Nº do AIT (Multa):</strong> ${numAit || 'S/N'}</p>
+                        <p><strong>Tipo/Status:</strong> ${status} ${status === 'Multa NIC' ? '(Base x 3)' : ''}</p>
+                    </div>
+                    <div style="margin-top: 20px; padding: 15px; border: 2px solid #ea580c; border-radius: 8px; background: #fff7ed;">
+                        <h3 style="margin-top: 0; color: #c2410c;">Resumo do Desconto</h3>
+                        <p style="font-size: 1.1rem;"><strong>Valor Total a Descontar:</strong> ${fmt(valorTotalNum)}</p>
+                        <p style="font-size: 1.1rem;"><strong>Forma de Pagamento:</strong> ${p}x de ${fmt(valorParcelaNum)}</p>
+                    </div>
+                    <p style="margin-top: 30px; font-size: 0.9rem; color: #7f8c8d; text-align: center;">E-mail gerado automaticamente pelo Sistema RH & Logística</p>
+                </div>
+            `;
+            try {
+                await transporter.sendMail({
+                    from: '"América Rental" <' + process.env.SMTP_USER + '>',
+                    to: 'rh@americarental.com.br',
+                    subject: `Desconto de Multa - ${colab.nome_completo || colab.nome}`,
+                    html: htmlContent,
+                    attachments: [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }]
+                });
+                resolve();
+            } catch (errSend) {
+                reject(errSend);
+            }
+        });
     });
 }
 
@@ -3270,17 +3272,24 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
             function(errUpdate) {
                 if (errUpdate) return res.status(500).json({ error: errUpdate.message });
                 if (this.changes === 0) return res.status(404).json({ error: 'Multa não atualizada' });
-                
-                res.json({ ok: true });
 
                 // Automatic Email Trigger
-                if (status && (status === 'Indicado' || status === 'Multa NIC') && status !== oldData.status) {
+                if (status && (status === 'Indicado' || status === 'Multa NIC')) {
                     const finalMotorista = motorista_id || oldData.motorista_id;
                     const finalValor = valor_multa || oldData.valor_multa;
                     const finalData = data_infracao || oldData.data_infracao;
                     const finalAit = numero_ait || oldData.numero_ait;
                     const finalParcelas = parcelas || oldData.parcelas || 1;
-                    notificarRHAuto(finalMotorista, status, finalParcelas, finalValor, finalData, finalAit);
+                    
+                    notificarRHAuto(finalMotorista, status, finalParcelas, finalValor, finalData, finalAit)
+                        .then(() => {
+                            res.json({ ok: true, emailEnviado: true });
+                        })
+                        .catch(errEmail => {
+                            res.status(500).json({ error: 'Salvo, mas o e-mail não foi enviado: ' + errEmail.message });
+                        });
+                } else {
+                    res.json({ ok: true });
                 }
             }
         );

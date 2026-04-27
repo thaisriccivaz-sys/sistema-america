@@ -656,11 +656,17 @@ async function salvarGerenciamentoMulta(e, id) {
             })
         });
         clearTimeout(timeoutId);
-        await fecharEAtualizar('Multa atualizada!');
+        
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(errData.error || 'Erro ao salvar multa.');
+        }
+
+        await fecharEAtualizar('Multa atualizada e e-mail enviado (se aplicável)!');
     } catch (err) {
         clearTimeout(timeoutId);
         console.error('[salvarGerenciamentoMulta]', err);
-        await fecharEAtualizar('Alterações salvas! Lista atualizada.', 'sucesso');
+        await fecharEAtualizar(err.message, 'aviso');
     }
 }
 
