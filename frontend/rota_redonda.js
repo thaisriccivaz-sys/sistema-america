@@ -1491,12 +1491,19 @@ function exibirModalAgendaEndereco(data, enderecoAtual) {
 
     // Calcula o total de atendimentos por dia para o grafico
     const totaisPorDia = { 'Seg':0, 'Ter':0, 'Qua':0, 'Qui':0, 'Sex':0, 'Sáb':0, 'Dom':0 };
+    // Normaliza variações de acento/capitalização para as chaves do mapa
+    const normalizarDia = (d) => {
+        const m = { 'seg':'Seg','ter':'Ter','qua':'Qua','qui':'Qui','sex':'Sex','sab':'Sáb','sáb':'Sáb','dom':'Dom' };
+        return m[(d||'').toLowerCase().substring(0,3)] || null;
+    };
     [...exatos.map(o => ({...o, distancia_km: o.distancia_km ?? 0})), ...proximos].forEach(os => {
         const dias = parseDiasFront(os.dias_semana);
         dias.forEach(d => {
-            if (totaisPorDia[d] !== undefined) totaisPorDia[d]++;
+            const chave = normalizarDia(d);
+            if (chave && totaisPorDia[chave] !== undefined) totaisPorDia[chave]++;
         });
     });
+
 
     const maxCount = Math.max(1, ...Object.values(totaisPorDia));
 
