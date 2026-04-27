@@ -142,16 +142,27 @@ function abrirModalNovaMulta() {
     modal.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; justify-content:center; align-items:center; z-index:9999;';
     
     modal.innerHTML = `
-        <div style="background:#fff; width:500px; max-width:90%; border-radius:8px; overflow:hidden; box-shadow:0 10px 25px rgba(0,0,0,0.2);">
+        <div style="background:#fff; width:520px; max-width:95%; border-radius:10px; overflow:hidden; box-shadow:0 10px 25px rgba(0,0,0,0.2);">
             <div style="background:#f8fafc; padding:1.2rem 1.5rem; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
-                <h3 style="margin:0; color:#0f172a; font-size:1.2rem;">Nova Multa</h3>
+                <h3 style="margin:0; color:#0f172a; font-size:1.2rem;">&#128196; Nova Multa</h3>
                 <button onclick="this.closest('#modal-nova-multa').remove()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#64748b;">&times;</button>
             </div>
             <div style="padding:1.5rem;">
                 <form id="form-nova-multa" onsubmit="salvarNovaMulta(event)">
+
+                    <!-- CAMPO PDF NO TOPO -->
+                    <div style="background:linear-gradient(135deg,#eff6ff,#dbeafe); border:1.5px dashed #3b82f6; border-radius:8px; padding:1rem 1.2rem; margin-bottom:1.3rem;">
+                        <div style="display:flex; align-items:center; gap:0.6rem; margin-bottom:0.5rem;">
+                            <span style="font-size:1.3rem;">&#129302;</span>
+                            <span style="font-weight:700; color:#1d4ed8; font-size:0.92rem;">Preenchimento Automático via PDF</span>
+                        </div>
+                        <p style="margin:0 0 0.7rem; color:#475569; font-size:0.82rem;">Anexe o documento da multa e os campos abaixo serão preenchidos automaticamente: Data, Hora, Número AIT, Motivo, Valor e Pontuação.</p>
+                        <input type="file" id="nm-doc" accept=".pdf" onchange="processarPDFMulta(this)" style="width:100%; padding:0.4rem 0.5rem; border:1px solid #bfdbfe; border-radius:5px; background:white; font-size:0.85rem; cursor:pointer;">
+                    </div>
+
                     <div style="display:flex; gap:1rem; margin-bottom:1rem;">
                         <div style="flex:1;">
-                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Data Infracão *</label>
+                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Data Infração *</label>
                             <input type="date" id="nm-data" required style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
                         </div>
                         <div style="flex:1;">
@@ -159,33 +170,28 @@ function abrirModalNovaMulta() {
                             <input type="time" id="nm-hora" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
                         </div>
                     </div>
-                    
+
                     <div style="margin-bottom:1rem;">
                         <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Número AIT *</label>
-                        <input type="text" id="nm-ait" required style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
+                        <input type="text" id="nm-ait" required placeholder="Ex: AA123456789" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
                     </div>
-                    
+
                     <div style="margin-bottom:1rem;">
                         <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Motivo da Multa</label>
                         <input type="text" id="nm-motivo" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
                     </div>
-                    
-                    <div style="display:flex; gap:1rem; margin-bottom:1rem;">
+
+                    <div style="display:flex; gap:1rem; margin-bottom:1.3rem;">
                         <div style="flex:1;">
                             <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Valor (R$)</label>
                             <input type="text" id="nm-valor" placeholder="0,00" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
                         </div>
                         <div style="flex:1;">
-                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Pontuação</label>
+                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Pontuação <span id="nm-pontos-badge" style="display:none; background:#fef08a; color:#854d0e; padding:1px 6px; border-radius:8px; font-size:0.72rem; font-weight:700;">Auto</span></label>
                             <input type="number" id="nm-pontos" placeholder="0" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
                         </div>
                     </div>
-                    
-                    <div style="margin-bottom:1.5rem;">
-                        <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Documento da Multa (Anexo)</label>
-                        <input type="file" id="nm-doc" accept=".pdf,.jpg,.jpeg,.png" onchange="processarPDFMulta(this)" style="width:100%; padding:0.4rem; border:1px dashed #cbd5e1; border-radius:4px;">
-                    </div>
-                    
+
                     <div style="display:flex; justify-content:flex-end; gap:1rem;">
                         <button type="button" onclick="this.closest('#modal-nova-multa').remove()" style="padding:0.6rem 1.2rem; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:4px; cursor:pointer; font-weight:600; color:#475569;">Cancelar</button>
                         <button type="submit" style="padding:0.6rem 1.2rem; background:#2563eb; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:600;">Iniciar Processo</button>
@@ -397,6 +403,30 @@ async function excluirMultaLogistica(id) {
     }
 }
 
+// Tabela de pontuação por artigo/infração (CTB brasileiro)
+const PONTUACAO_POR_INFRACAO = [
+    // Gravíssimas (7 pontos)
+    { pontos: 7, palavras: ['celular','uso de aparelho','equipamento de comunicação','cinto de segurança','capacete','embriaguez','alcoolemia','bafômetro','contramão','farol apagado','semáforo vermelho','parada obrigatória','velocidade superior a 50','ultrapassagem proibida','racha','competição','fuga','evasão','não parar no posto','transporte clandestino'] },
+    // Graves (5 pontos)
+    { pontos: 5, palavras: ['velocidade superior a 20','estacionamento proibido','conversão proibida','retorno proibido','acostamento','placa de identificação','habilitação vencida','sem habilitação','sem cnh','não possuir cnh','avanço de sinal','parar sobre faixa','parar sobre passagem','não usar indicador','luz','farol','extintor','triângulo','kit de primeiros','pneu','freio'] },
+    // Médias (4 pontos)
+    { pontos: 4, palavras: ['velocidade superior a 15','estacionar em local','documentação','documento','licenciamento','verificação anual','para-choque','buzina','limpador','espelho','velocidade superior a 5 km'] },
+    // Leves (3 pontos)
+    { pontos: 3, palavras: ['velocidade até 5','velocidade até 15','leve','circulação','transitar','ausência de documento','identificação do local'] },
+];
+
+function inferirPontuacaoPorMotivo(motivo) {
+    if (!motivo) return null;
+    const m = motivo.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    for (const grupo of PONTUACAO_POR_INFRACAO) {
+        for (const palavra of grupo.palavras) {
+            const p = palavra.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            if (m.includes(p)) return grupo.pontos;
+        }
+    }
+    return null;
+}
+
 window.processarPDFMulta = async function(input) {
     if (!input.files || input.files.length === 0) return;
     const file = input.files[0];
@@ -413,68 +443,117 @@ window.processarPDFMulta = async function(input) {
             pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
         }
 
-        if (typeof mostrarToastSucesso === 'function') {
-            mostrarToastSucesso('Lendo documento PDF...');
-        }
+        if (typeof mostrarToastSucesso === 'function') mostrarToastSucesso('🔍 Lendo documento PDF...');
 
         const arrayBuffer = await file.arrayBuffer();
         const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
         let fullText = '';
-        
         for (let i = 1; i <= pdf.numPages; i++) {
             const page = await pdf.getPage(i);
             const content = await page.getTextContent();
+            // Join com espaço e também tenta sem espaço para capturar tokens colados
             const pageText = content.items.map(item => item.str).join(' ');
-            fullText += pageText + ' \n ';
+            fullText += pageText + '\n';
         }
 
-        // Limpeza básica do texto para facilitar as Regex
-        const textToSearch = fullText.replace(/\s+/g, ' ');
+        console.log('[PDF Multa] Texto extraído:', fullText.substring(0, 1000));
 
-        // AIT
-        const aitMatch = textToSearch.match(/AIT\s*:?\s*([A-Z0-9]+)/i) || textToSearch.match(/Auto\s*de\s*Infração\s*:?\s*([A-Z0-9]+)/i);
-        if (aitMatch) document.getElementById('nm-ait').value = aitMatch[1].trim();
+        // Normaliza espaços mas preserva quebras para buscas linha a linha
+        const textToSearch = fullText.replace(/[ \t]+/g, ' ');
 
-        // Data da Infração
-        const dataMatch = textToSearch.match(/(\d{2}\/\d{2}\/\d{4})/);
+        // ── AIT (múltiplos padrões) ────────────────────────────────────────
+        // Ex: "AIT: AA123456789", "A.I.T. AA123456789", "Auto de Infração Nº AA123456789",
+        //     "Nº AA123456789" ou apenas uma sequência alfanumérica longa típica de AIT
+        let aitVal = '';
+        const aitPatterns = [
+            /A\.?\s*I\.?\s*T\.?\s*[:\-nNºo°\.#\s]+([A-Z0-9]{6,20})/i,
+            /Auto\s*de\s*Infra[çc][ãa]o\s*(?:(?:n[ºo°]?|n[\u00BA\u00AA]?|\.?|#?)\s*)?([A-Z0-9]{6,20})/i,
+            /(?:Auto|Infra[çc][ãa]o)\s*[:\-]?\s*([A-Z0-9]{6,20})/i,
+            /n[\u00BA\u00AA]?\s*[:\-]?\s*([A-Z0-9]{8,20})/i,
+            /(?:^|\s)([A-Z]{2}[0-9]{9,12})(?:\s|$)/m,
+        ];
+        for (const pat of aitPatterns) {
+            const m = textToSearch.match(pat);
+            if (m && m[1] && m[1].length >= 6) { aitVal = m[1].trim(); break; }
+        }
+        if (aitVal) {
+            document.getElementById('nm-ait').value = aitVal;
+        }
+
+        // ── Data ──────────────────────────────────────────────────────────
+        const dataMatch = textToSearch.match(/(\d{2}[\/\-]\d{2}[\/\-]\d{4})/);
         if (dataMatch) {
-            const parts = dataMatch[1].split('/');
-            document.getElementById('nm-data').value = `${parts[2]}-${parts[1]}-${parts[0]}`;
+            const parts = dataMatch[1].split(/[\/\-]/);
+            document.getElementById('nm-data').value = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
         }
 
-        // Hora
-        const horaMatch = textToSearch.match(/(\d{2}:\d{2})/);
-        if (horaMatch) document.getElementById('nm-hora').value = horaMatch[1];
+        // ── Hora ──────────────────────────────────────────────────────────
+        const horaMatch = textToSearch.match(/(\d{1,2}:\d{2})(?::\d{2})?/);
+        if (horaMatch) document.getElementById('nm-hora').value = horaMatch[1].padStart(5, '0');
 
-        // Valor
-        const valorMatch = textToSearch.match(/R\$\s*([\d.,]+)/i) || textToSearch.match(/Valor\s*[:\s]*([\d.,]+)/i) || textToSearch.match(/Valor\s*da\s*Multa\s*[:\s]*([\d.,]+)/i);
+        // ── Valor ─────────────────────────────────────────────────────────
+        const valorMatch =
+            textToSearch.match(/R\$\s*([\d]{1,}[.,][\d]{2})/i) ||
+            textToSearch.match(/valor\s*(?:da\s*multa)?\s*[:\-]?\s*R?\$?\s*([\d]{1,}[.,][\d]{2})/i) ||
+            textToSearch.match(/multa[^\n]*?([\d]{2,}[.,]\d{2})/i);
         if (valorMatch) document.getElementById('nm-valor').value = valorMatch[1].trim();
 
-        // Pontos / Gravidade
-        const pontosMatch = textToSearch.match(/(\d+)\s*pontos/i) || textToSearch.match(/Pontuação\s*:?\s*(\d+)/i) || textToSearch.match(/Gravidade\s*:?\s*(Gravíssima|Grave|Média|Leve)/i);
-        if (pontosMatch) {
-            let pontos = 0;
-            if (pontosMatch[1].toLowerCase() === 'gravíssima' || pontosMatch[1].toLowerCase() === 'gravissima') pontos = 7;
-            else if (pontosMatch[1].toLowerCase() === 'grave') pontos = 5;
-            else if (pontosMatch[1].toLowerCase() === 'média' || pontosMatch[1].toLowerCase() === 'media') pontos = 4;
-            else if (pontosMatch[1].toLowerCase() === 'leve') pontos = 3;
-            else pontos = pontosMatch[1].trim();
-            document.getElementById('nm-pontos').value = pontos;
+        // ── Motivo ────────────────────────────────────────────────────────
+        const motivoPatterns = [
+            /descri[çc][ãa]o\s*(?:da\s*)?infra[çc][ãa]o\s*[:\-]?\s*([^\n]{10,120})/i,
+            /(?:^|\n)infra[çc][ãa]o\s*[:\-]\s*([^\n]{10,120})/im,
+            /(?:enquadramento|artigo|art\.?)\s*[:\-]?\s*([^\n]{10,120})/i,
+        ];
+        const campoMotivo = document.getElementById('nm-motivo');
+        if (!campoMotivo.value) {
+            for (const pat of motivoPatterns) {
+                const m = textToSearch.match(pat);
+                if (m && m[1]) { campoMotivo.value = m[1].trim().substring(0, 150); break; }
+            }
         }
 
-        // Tentativa de Motivo
-        const motivoMatch = textToSearch.match(/Infração\s*:?\s*([^.-]+)/i) || textToSearch.match(/Descrição\s*da\s*Infração\s*:?\s*([^.-]+)/i);
-        if (motivoMatch && document.getElementById('nm-motivo').value === '') {
-            document.getElementById('nm-motivo').value = motivoMatch[1].trim().substring(0, 100);
+        // ── Pontuação: primeiro tenta extrair do PDF, senão infere pelo motivo ──
+        let pontosDefinidos = false;
+
+        // Tenta ler pontuação diretamente do PDF
+        const pontosMatch =
+            textToSearch.match(/(\d+)\s*(?:pontos|pts)/i) ||
+            textToSearch.match(/pontua[çc][ãa]o\s*[:\-]?\s*(\d+)/i) ||
+            textToSearch.match(/gravidade\s*[:\-]?\s*(Graví?ssima|Grave|Méd[ia]+|Leve)/i);
+        if (pontosMatch) {
+            const g = (pontosMatch[1] || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+            let pontos = 0;
+            if (g === 'gravissima' || g === 'gravissima') pontos = 7;
+            else if (g === 'grave') pontos = 5;
+            else if (g === 'media' || g === 'media') pontos = 4;
+            else if (g === 'leve') pontos = 3;
+            else if (/^\d+$/.test(g)) pontos = parseInt(g, 10);
+            if (pontos > 0) {
+                document.getElementById('nm-pontos').value = pontos;
+                pontosDefinidos = true;
+            }
+        }
+
+        // Se não encontrou pontuação no PDF, infere pelo motivo
+        if (!pontosDefinidos) {
+            const motivo = campoMotivo.value || textToSearch.substring(0, 500);
+            const pontosByMotivo = inferirPontuacaoPorMotivo(motivo);
+            if (pontosByMotivo !== null) {
+                document.getElementById('nm-pontos').value = pontosByMotivo;
+                // Mostra badge "Auto" no label
+                const badge = document.getElementById('nm-pontos-badge');
+                if (badge) badge.style.display = 'inline';
+                pontosDefinidos = true;
+            }
         }
 
         if (typeof mostrarToastSucesso === 'function') {
-            mostrarToastSucesso('Dados extraídos do PDF com sucesso!');
+            mostrarToastSucesso('✅ Dados extraídos do PDF com sucesso!');
         }
     } catch(err) {
         console.error('Erro ao processar PDF:', err);
         if (typeof mostrarToastAviso === 'function') {
-            mostrarToastAviso('Não foi possível ler os dados automaticamente do PDF.');
+            mostrarToastAviso('Não foi possível ler os dados automaticamente do PDF. Preencha manualmente.');
         }
     }
 };
