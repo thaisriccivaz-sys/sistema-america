@@ -142,11 +142,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typeof window.carregarPermissoesOnline === 'function') {
                 window.carregarPermissoesOnline().then(() => {
                     showView('app-shell');
-                    navigateTo('dashboard');
+                    window.navigateInitialPage();
                 });
             } else {
                 showView('app-shell');
-                navigateTo('dashboard');
+                window.navigateInitialPage();
             }
         } else {
             console.warn('O elemento app-shell não foi encontrado. Interface antiga detectada ou HTML incompleto.');
@@ -224,7 +224,7 @@ if (formLogin) {
             }
 
             showView('app-shell');
-            navigateTo('dashboard');
+            window.navigateInitialPage();
         } catch (err) {
             if (errorMsg) errorMsg.textContent = err.message;
             else alert(err.message);
@@ -246,6 +246,37 @@ if (btnLogout) {
         window.location.reload();
     });
 }
+
+window.navigateInitialPage = function() {
+    if (window.isTopAdmin) {
+        navigateTo('dashboard');
+        return;
+    }
+    
+    if (window.activeUserPerms) {
+        if (window.activeUserPerms['dashboard']) {
+            navigateTo('dashboard');
+            return;
+        }
+        if (window.activeUserPerms['logistica-pipeline']) {
+            navigateTo('logistica-pipeline');
+            return;
+        }
+        if (window.activeUserPerms['logistica-rota-redonda']) {
+            navigateTo('logistica-rota-redonda');
+            return;
+        }
+        // Pega a primeira aba autorizada caso nenhuma das favoritas esteja disponível
+        const firstPerm = Object.keys(window.activeUserPerms).find(k => window.activeUserPerms[k] && k !== 'logistica-em-breve');
+        if (firstPerm) {
+            navigateTo(firstPerm);
+            return;
+        }
+    }
+    
+    // Fallback
+    navigateTo('dashboard');
+};
 
 // --- CARREGAMENTO DE FOTO DO USUARIO NO TOPBAR ---
 async function carregarFotoUsuarioTopbar() {
