@@ -837,11 +837,13 @@ function renderPipelinePage() {
     if (!container) return;
     
     const hoje = new Date();
-    const today = hoje.toISOString().split('T')[0];
-    
-    // Data "Até" = +1 ano
-    const daquiUmAno = new Date(hoje.setFullYear(hoje.getFullYear() + 1));
-    const nextYear = daquiUmAno.toISOString().split('T')[0];
+    // Usa data LOCAL (evita UTC que avança 1 dia à noite no fuso Brasil)
+    const pad = n => String(n).padStart(2, '0');
+    const today = `${hoje.getFullYear()}-${pad(hoje.getMonth()+1)}-${pad(hoje.getDate())}`;
+
+    // Data "Até" = +1 ano (local)
+    const umAno = new Date(hoje.getFullYear()+1, hoje.getMonth(), hoje.getDate());
+    const nextYear = `${umAno.getFullYear()}-${pad(umAno.getMonth()+1)}-${pad(umAno.getDate())}`;
 
     // Salvar filtros atuais antes de recriar o HTML (caso o container já exista)
     _pipelineSalvarFiltros();
