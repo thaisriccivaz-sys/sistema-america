@@ -407,13 +407,13 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
         </div>`).join('');
 
     modal.innerHTML = `
-        <div style="background:#fff; width:540px; max-width:100%; max-height:90vh; overflow-y:auto; border-radius:10px; box-shadow:0 10px 25px rgba(0,0,0,0.2);">
-            <div style="background:#f8fafc; padding:1.2rem 1.5rem; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:1;">
+        <div style="background:#fff; width:95vw; height:95vh; max-width:1400px; display:flex; flex-direction:column; border-radius:10px; box-shadow:0 10px 25px rgba(0,0,0,0.2); overflow:hidden;">
+            <div style="background:#f8fafc; padding:1.2rem 1.5rem; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; flex-shrink:0; z-index:1;">
                 <h3 style="margin:0; color:#0f172a; font-size:1.1rem;">&#9998; Gerenciar Multa — ${multa.numero_ait || 'S/N'}</h3>
                 <button type="button" onclick="document.getElementById('modal-gerenciar-multa').remove()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#64748b;">&times;</button>
             </div>
-            <div style="padding:1.5rem;">
-                <form id="form-gerenciar-multa" onsubmit="salvarGerenciamentoMulta(event, ${multa.id})">
+            <div style="padding:1.5rem; flex:1; overflow-y:auto; background:#fdfdfd;">
+                <form id="form-gerenciar-multa" onsubmit="salvarGerenciamentoMulta(event, ${multa.id})" style="max-width:800px; margin:0 auto;">
 
                     <!-- INFO MOTORISTA -->
                     ${motoristaInfoHtml}
