@@ -99,7 +99,19 @@ function pipelineGetDiaColor(d) {
     return '#64748b';
 }
 
+// Fix de mojibake: corrige UTF-8 bytes interpretados como Latin-1 (ex: "Ã³" → "ó")
+function _fixMojibake(s) {
+    if (!s || typeof s !== 'string') return s || '';
+    try { return decodeURIComponent(escape(s)); } catch(e) { return s; }
+}
+
 function pipelineRenderCard(os) {
+    // Corrigir encoding dos campos de texto exibidos no card
+    const _cliente   = _fixMojibake(os.cliente   || '');
+    const _endereco  = _fixMojibake(os.endereco  || '');
+    const _complemento = _fixMojibake(os.complemento || '');
+    const _tipoServ  = _fixMojibake(os.tipo_servico || '');
+    const _obs       = _fixMojibake(os.observacoes_internas || '');
     const dias  = Array.isArray(os.dias_semana) ? os.dias_semana : [];
     const vars  = Array.isArray(os.variaveis)   ? os.variaveis.filter(v => v.trim()) : [];
     const prods = Array.isArray(os.produtos)    ? os.produtos : [];
@@ -132,12 +144,8 @@ function pipelineRenderCard(os) {
     const bgCard     = tipoContrato === 'obra' ? '#dbeafe' : tipoContrato === 'evento' ? '#ede9fe' : '#f8fafc';
     const borderCard = tipoContrato === 'obra' ? '#93c5fd' : tipoContrato === 'evento' ? '#c4b5fd' : '#e2e8f0';
 
-    let endFull = [os.endereco, os.complemento, os.cep ? `CEP: ${os.cep}` : ''].filter(Boolean).join(', ');
-    endFull = endFull.replace(/S[A-ZÃÁÀÂÄ]\W?O PAULO/gi, 'SÃO PAULO')
-                     .replace(/S[A-ZÃÁÀÂÄ]\W?O BERNARDO/gi, 'SÃO BERNARDO')
-                     .replace(/S[A-ZÃÁÀÂÄ]\W?O CAETANO/gi, 'SÃO CAETANO')
-                     .replace(/S[A-ZÃÁÀÂÄ]\W?O LOUREN/gi, 'SÃO LOUREN')
-                     .replace(/SÃ[^A-Z]?O\b/gi, 'SÃO');
+    let endFull = [_endereco, _complemento, os.cep ? `CEP: ${os.cep}` : ''].filter(Boolean).join(', ');
+
 
     // Dias da semana: apenas para serviços RECORRENTES
     const diasHtml = (isRec && dias.length) ? `
@@ -154,12 +162,12 @@ function pipelineRenderCard(os) {
         ${prods.map(p => pipelineRenderProd(p)).join('')}
         </div>` : '';
 
-    const obsHtml = (os.observacoes_internas || '').trim()
-        ? `<div style="margin-top:5px;background:#fef9c3;border-radius:5px;padding:3px 8px;font-size:0.68rem;color:#854d0e;">📝 ${os.observacoes_internas}</div>` : '';
+    const obsHtml = _obs.trim()
+        ? `<div style="margin-top:5px;background:#fef9c3;border-radius:5px;padding:3px 8px;font-size:0.68rem;color:#854d0e;">📝 ${_obs}</div>` : '';
 
     // 📦 compra interna ao lado do nome do cliente
     const isCompra = vars.some(v => v.trim().toUpperCase().includes('COMPRA'));
-    const clienteLabel = `${isCompra ? '📦 ' : ''}${os.cliente || '—'}`;
+    const clienteLabel = `${isCompra ? '📦 ' : ''}${_cliente || '—'}`;
 
     return `
     <div class="pipe-card" data-os-id="${os.id}"
