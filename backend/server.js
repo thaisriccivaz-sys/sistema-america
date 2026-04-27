@@ -3222,6 +3222,29 @@ app.delete('/api/logistica/multas/:id', authenticateToken, (req, res) => {
         res.json({ ok: true });
     });
 });
+
+// GET /api/logistica/multas/:id/documento — serve o PDF anexado à multa
+app.get('/api/logistica/multas/:id/documento', (req, res) => {
+    // Aceita token via query string (para abertura em nova aba) ou Bearer header
+    const token = req.query.token || (req.headers['authorization'] || '').replace('Bearer ', '');
+    if (!token) return res.status(401).json({ error: 'Não autorizado' });
+    try {
+        const jwt = require('jsonwebtoken');
+        jwt.verify(token, SECRET_KEY);
+    } catch(e) {
+        return res.status(401).json({ error: 'Token inválido' });
+    }
+
+    db.get('SELECT documento_path, documento_nome FROM multas_logistica WHERE id = ?', [req.params.id], (err, row) => {
+        if (err || !row || !row.documento_path) return res.status(404).json({ error: 'Documento não encontrado' });
+        const filePath = row.documento_path;
+        if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Arquivo não encontrado no servidor' });
+        const nome = row.documento_nome || 'documento_multa.pdf';
+        res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(nome)}"`);
+        res.setHeader('Content-Type', 'application/pdf');
+        res.sendFile(path.resolve(filePath));
+    });
+});
 // ------------------------------------------------------------------------------
 
 // =============================================================================

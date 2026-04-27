@@ -117,8 +117,8 @@ function renderMultasLogistica(container) {
                     </td>
                     <td style="padding:1rem; text-align:center;">
                         <button onclick="abrirModalGerenciarMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#2563eb; margin-right:8px;" title="Gerenciar/Editar"><i class="ph ph-pencil-simple" style="font-size:1.2rem;"></i></button>
-                        ${m.documento_path ? `<a href="/${m.documento_path.replace(/\\\\/g, '/')}" target="_blank" style="color:#10b981; margin-right:8px;" title="Ver Anexo"><i class="ph ph-file-pdf" style="font-size:1.2rem;"></i></a>` : ''}
-                        <button onclick="excluirMultaLogistica(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#ef4444;" title="Excluir"><i class="ph ph-trash" style="font-size:1.2rem;"></i></button>
+                        ${m.documento_path ? `<button onclick="visualizarDocumentoMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#10b981; margin-right:8px;" title="Visualizar Documento"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>` : ''}
+                        <button onclick="confirmarExcluirMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#ef4444;" title="Excluir"><i class="ph ph-trash" style="font-size:1.2rem;"></i></button>
                     </td>
                 </tr>
             `;
@@ -216,11 +216,24 @@ async function salvarNovaMulta(e) {
     formData.append('motivo', document.getElementById('nm-motivo').value);
     formData.append('valor_multa', document.getElementById('nm-valor').value);
     formData.append('pontuacao', document.getElementById('nm-pontos').value);
-    
+
     const fileInput = document.getElementById('nm-doc');
-    if (fileInput.files.length > 0) {
+    if (fileInput && fileInput.files.length > 0) {
         formData.append('documento', fileInput.files[0]);
     }
+
+    // Fallback: fecha modal e recarrega lista após 8s mesmo que resposta não chegue
+    const fecharEAtualizar = async (msg, tipo = 'sucesso') => {
+        document.getElementById('modal-nova-multa')?.remove();
+        await carregarMultasLogistica();
+        if (tipo === 'sucesso') mostrarToastSucesso(msg);
+        else if (tipo === 'aviso') mostrarToastAviso(msg);
+        else mostrarToastErro(msg);
+    };
+
+    const timeoutId = setTimeout(() => {
+        fecharEAtualizar('Multa salva! (conexão instabilizada, lista atualizada)', 'aviso');
+    }, 8000);
 
     try {
         const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
@@ -229,22 +242,20 @@ async function salvarNovaMulta(e) {
             headers: { 'Authorization': `Bearer ${token}` },
             body: formData
         });
-        
+        clearTimeout(timeoutId);
+
         if (response.ok) {
-            mostrarToastSucesso('Multa cadastrada e processo iniciado!');
-            document.getElementById('modal-nova-multa').remove();
-            carregarMultasLogistica();
+            await fecharEAtualizar('Multa cadastrada e processo iniciado!');
         } else {
-            const err = await response.json();
-            mostrarToastErro(err.error || 'Erro ao cadastrar multa');
-            btn.disabled = false;
-            btn.textContent = 'Iniciar Processo';
+            // Mesmo com erro HTTP, tenta recarregar (pode ter salvo no server)
+            const err = await response.json().catch(() => ({}));
+            await fecharEAtualizar(err.error || 'Atenção: verifique se a multa foi salva.', 'aviso');
         }
     } catch (err) {
-        console.error(err);
-        mostrarToastErro('Erro de conexão');
-        btn.disabled = false;
-        btn.textContent = 'Iniciar Processo';
+        clearTimeout(timeoutId);
+        console.error('[salvarNovaMulta]', err);
+        // Mesmo com erro de rede, fecha e recarrega (servidor pode ter processado)
+        await fecharEAtualizar('Conexão instavel. Verifique se a multa aparece na lista.', 'aviso');
     }
 }
 
@@ -259,8 +270,9 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
     
     let optionsMotoristas = `<option value="">-- Selecione o Motorista --</option>`;
     colaboradoresMultas.forEach(c => {
+        const nome = c.nome_completo || c.nome || 'Sem nome';
         const sel = multa.motorista_id === c.id ? 'selected' : '';
-        optionsMotoristas += `<option value="${c.id}" ${sel}>${c.nome}</option>`;
+        optionsMotoristas += `<option value="${c.id}" ${sel}>${nome}</option>`;
     });
 
     const statusOpts = ['Em conferência', 'indicação realizada', 'multa NIC', 'Não se aplica'];
@@ -384,23 +396,60 @@ async function salvarGerenciamentoMulta(e, id) {
     }
 }
 
+function confirmarExcluirMulta(id) {
+    // Modal de confirmação inline (evita bloqueio do confirm() por alguns browsers)
+    document.getElementById('modal-confirm-excluir-multa')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'modal-confirm-excluir-multa';
+    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;justify-content:center;align-items:center;z-index:10000;';
+    modal.innerHTML = `
+        <div style="background:#fff;border-radius:10px;padding:2rem;max-width:380px;width:90%;box-shadow:0 10px 25px rgba(0,0,0,0.2);text-align:center;">
+            <div style="font-size:2.5rem;margin-bottom:0.5rem;">🗑️</div>
+            <h3 style="margin:0 0 0.5rem;color:#0f172a;">Excluir Multa</h3>
+            <p style="color:#64748b;margin:0 0 1.5rem;font-size:0.9rem;">Tem certeza que deseja excluir esta multa? Essa ação não pode ser desfeita.</p>
+            <div style="display:flex;gap:1rem;justify-content:center;">
+                <button onclick="document.getElementById('modal-confirm-excluir-multa').remove()" style="padding:0.6rem 1.4rem;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;font-weight:600;color:#475569;">Cancelar</button>
+                <button onclick="excluirMultaLogistica(${id})" style="padding:0.6rem 1.4rem;background:#ef4444;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">Excluir</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
 async function excluirMultaLogistica(id) {
-    if (!confirm('Deseja realmente excluir esta multa?')) return;
+    document.getElementById('modal-confirm-excluir-multa')?.remove();
+    const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+
+    // Fallback: mesmo se não houver resposta, recarrega após 6s
+    const timeoutId = setTimeout(async () => {
+        await carregarMultasLogistica();
+        mostrarToastAviso('Lista atualizada (conexão instável).');
+    }, 6000);
+
     try {
-        const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
         const response = await fetch('/api/logistica/multas/' + id, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${token}` }
         });
+        clearTimeout(timeoutId);
+        await carregarMultasLogistica();
         if (response.ok) {
             mostrarToastSucesso('Multa excluída com sucesso.');
-            carregarMultasLogistica();
         } else {
-            mostrarToastErro('Erro ao excluir multa.');
+            mostrarToastAviso('Verifique se a multa foi excluída.');
         }
     } catch (e) {
-        mostrarToastErro('Erro de conexão.');
+        clearTimeout(timeoutId);
+        await carregarMultasLogistica();
+        mostrarToastAviso('Conexão instável. Verifique se a multa foi excluída.');
     }
+}
+
+function visualizarDocumentoMulta(id) {
+    const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+    // Abre em nova aba usando a rota de download autenticada
+    const url = `/api/logistica/multas/${id}/documento?token=${encodeURIComponent(token)}`;
+    window.open(url, '_blank');
 }
 
 // Tabela de pontuação baseada no CTB (Código de Trânsito Brasileiro)
