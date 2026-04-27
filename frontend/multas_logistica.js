@@ -460,8 +460,6 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
                         <input type="text" id="gm-link" value="${multa.link_formulario || ''}" placeholder="https://..." style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
                     </div>
 
-                
-
                     <!-- DOCUMENTOS EXTRAS -->
                     <div style="border-top:1px solid #e2e8f0; padding-top:1.2rem; margin-top:0.5rem;">
                         <label style="display:block; margin-bottom:0.6rem; font-size:0.85rem; font-weight:600; color:#475569;">&#128206; Documentos Adicionais</label>
@@ -524,8 +522,6 @@ function atualizarValoresMultaModal() {
         infoDiv.innerHTML = `<span style="color:#2563eb;">${parcelas}x de ${fmt(valorParcela)}</span> <span style="color:#64748b; font-size:0.85rem; margin-left:8px;">(Total: ${fmt(valorTotal)})</span>${status === 'Multa NIC' ? ' <span style="color:#d97706; font-size:0.8rem; margin-left:8px;">(3x valor original)</span>' : ''}`;
     }
 }
-
-
 
 // Atualiza bloco de info do motorista quando dropdown muda
 function atualizarInfoMotoristaModal(sel) {
