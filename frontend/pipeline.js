@@ -711,7 +711,7 @@ function _pipeActivarBtn(groupPrefix, val, activeStyle) {
 }
 
 const _DIA_CORES = {'':'#64748b','Segunda':'#ef4444','Terça':'#f97316','Quarta':'#ca8a04','Quinta':'#16a34a','Sexta':'#3b82f6','Sábado':'#8b5cf6','Domingo':'#ec4899'};
-function _pipeFiltrarDia(val) {
+function _pipeFiltrarDia(val, somenteVisual = false) {
     const hidden = document.getElementById('pipe-filtro-dia');
     if (hidden) hidden.value = val;
     const cor = _DIA_CORES[val] || '#64748b';
@@ -721,9 +721,9 @@ function _pipeFiltrarDia(val) {
     });
     const ab = document.getElementById(`pipe-dia-${val||'todos'}`);
     if (ab) { ab.style.background = cor; ab.style.color = 'white'; }
-    _pipelineSalvarFiltros(); buscarPipeline();
+    if (!somenteVisual) { _pipelineSalvarFiltros(); buscarPipeline(); }
 }
-function _pipeFiltrarTipo(val) {
+function _pipeFiltrarTipo(val, somenteVisual = false) {
     const hidden = document.getElementById('pipe-filtro-tipo-os');
     if (hidden) hidden.value = val;
     const cores = {'':'#64748b','obra':'#3b82f6','evento':'#8b5cf6'};
@@ -731,9 +731,9 @@ function _pipeFiltrarTipo(val) {
     document.querySelectorAll('[id^="pipe-tipo-"]').forEach(b => { b.style.background='white'; b.style.color='#475569'; b.style.borderColor='#cbd5e1'; });
     const ab = document.getElementById(`pipe-tipo-${val||'todos'}`);
     if (ab) { ab.style.background = cor; ab.style.color = 'white'; ab.style.borderColor = cor; }
-    _pipelineSalvarFiltros(); buscarPipeline();
+    if (!somenteVisual) { _pipelineSalvarFiltros(); buscarPipeline(); }
 }
-function _pipeFiltrarTurno(val) {
+function _pipeFiltrarTurno(val, somenteVisual = false) {
     const hidden = document.getElementById('pipe-filtro-turno');
     if (hidden) hidden.value = val;
     const cores = {'':'#64748b','Diurno':'#f59e0b','Noturno':'#1e293b'};
@@ -741,7 +741,7 @@ function _pipeFiltrarTurno(val) {
     document.querySelectorAll('[id^="pipe-turno-"]').forEach(b => { b.style.background='white'; b.style.color='#475569'; b.style.borderColor='#cbd5e1'; });
     const ab = document.getElementById(`pipe-turno-${val||'todos'}`);
     if (ab) { ab.style.background = cor; ab.style.color = 'white'; ab.style.borderColor = cor; }
-    _pipelineSalvarFiltros(); buscarPipeline();
+    if (!somenteVisual) { _pipelineSalvarFiltros(); buscarPipeline(); }
 }
 
 // ── Seleção de OS para exportação parcial ────────────────────────────────
@@ -832,6 +832,11 @@ function _pipelineRestaurarFiltros(hoje, nextYear) {
     if (el('pipe-filtro-turno'))    el('pipe-filtro-turno').value    = _pipelineFiltros.turno;
     if (el('pipe-filtro-endereco')) el('pipe-filtro-endereco').value = _pipelineFiltros.endereco;
     if (el('pipe-filtro-cliente'))  el('pipe-filtro-cliente').value  = _pipelineFiltros.cliente;
+
+    // Restaurar visual dos botões (sem disparar nova busca — apenas aparência)
+    if (_pipelineFiltros.dia)     setTimeout(() => _pipeFiltrarDia(_pipelineFiltros.dia, true), 0);
+    if (_pipelineFiltros.tipoOs)  setTimeout(() => _pipeFiltrarTipo(_pipelineFiltros.tipoOs, true), 0);
+    if (_pipelineFiltros.turno)   setTimeout(() => _pipeFiltrarTurno(_pipelineFiltros.turno, true), 0);
 }
 
 function renderPipelinePage() {
