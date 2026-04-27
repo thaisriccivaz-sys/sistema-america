@@ -3314,6 +3314,79 @@ app.get('/api/logistica/multas/:id/documento-extra/:idx', (req, res) => {
     });
 });
 
+// POST /api/logistica/multas/:id/notificar-rh - notifica o RH sobre uma multa
+app.post('/api/logistica/multas/:id/notificar-rh', authenticateToken, (req, res) => {
+    const { email_to, parcelas, status, motorista_id, valor_original } = req.body;
+    db.get('SELECT * FROM multas_logistica WHERE id = ?', [req.params.id], (err, multa) => {
+        if (err || !multa) return res.status(404).json({ error: 'Multa não encontrada' });
+        
+        db.get('SELECT * FROM colaboradores WHERE id = ?', [motorista_id || multa.motorista_id], async (err2, colab) => {
+            if (err2 || !colab) return res.status(404).json({ error: 'Colaborador não encontrado' });
+
+            const nodemailer = require('nodemailer');
+            const transporter = nodemailer.createTransport({
+                host: process.env.SMTP_HOST || 'smtp.hostinger.com',
+                port: process.env.SMTP_PORT || 465,
+                secure: true,
+                auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+            });
+
+            let multiplicador = (status === 'Multa NIC') ? 3 : 1;
+            let valorTotalNum = parseFloat(valor_original) * multiplicador;
+            let valorParcelaNum = valorTotalNum / parseInt(parcelas || 1);
+
+            const fmt = v => 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            
+            const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+
+            const [y, m, d] = (multa.data_infracao || '').split('-');
+            const dataInfracaoFmt = d ? `${d}/${m}/${y}` : 'Não informada';
+
+            const htmlContent = `
+                <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px;">
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <img src="cid:empresa-logo" style="max-height: 80px;">
+                    </div>
+                    <h2 style="color: #2c3e50; border-bottom: 2px solid #ea580c; padding-bottom: 10px;">Desconto Financeiro - Multa de Trânsito</h2>
+                    <p>Olá RH, favor realizar o desconto financeiro referente à multa de trânsito abaixo:</p>
+                    
+                    <div style="background: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                        <p><strong>Colaborador:</strong> ${colab.nome_completo || colab.nome}</p>
+                        <p><strong>CPF:</strong> ${colab.cpf}</p>
+                        <p><strong>Data da Infração:</strong> ${dataInfracaoFmt}</p>
+                        <p><strong>Nº do AIT (Multa):</strong> ${multa.numero_ait || 'S/N'}</p>
+                        <p><strong>Tipo/Status:</strong> ${status} ${status === 'Multa NIC' ? '(Base x 3)' : ''}</p>
+                    </div>
+
+                    <div style="margin-top: 20px; padding: 15px; border: 2px solid #ea580c; border-radius: 8px; background: #fff7ed;">
+                        <h3 style="margin-top: 0; color: #c2410c;">Resumo do Desconto</h3>
+                        <p style="font-size: 1.1rem;"><strong>Valor Total a Descontar:</strong> ${fmt(valorTotalNum)}</p>
+                        <p style="font-size: 1.1rem;"><strong>Forma de Pagamento:</strong> ${parcelas}x de ${fmt(valorParcelaNum)}</p>
+                    </div>
+
+                    <p style="margin-top: 30px; font-size: 0.9rem; color: #7f8c8d; text-align: center;">E-mail gerado automaticamente pelo Sistema RH & Logística</p>
+                </div>
+            `;
+
+            try {
+                await transporter.sendMail({
+                    from: '"América Rental" <' + process.env.SMTP_USER + '>',
+                    to: email_to || 'rh@americarental.com.br',
+                    subject: `Desconto de Multa - ${colab.nome_completo || colab.nome}`,
+                    html: htmlContent,
+                    attachments: [
+                        { filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }
+                    ]
+                });
+                res.json({ ok: true });
+            } catch (errSend) {
+                console.error('[ERRO EMAIL]', errSend);
+                res.status(500).json({ error: 'Erro ao enviar e-mail: ' + errSend.message });
+            }
+        });
+    });
+});
+
 // GET /api/colaboradores/:id/arquivo/cnh — serve o arquivo de CNH do colaborador
 app.get('/api/colaboradores/:id/arquivo/cnh', (req, res) => {
     const token = req.query.token || (req.headers['authorization'] || '').replace('Bearer ', '');

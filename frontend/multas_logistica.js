@@ -371,7 +371,7 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
         optionsMotoristas += `<option value="${c.id}" ${sel}>${nome}</option>`;
     });
 
-    const statusOpts = ['Conferência', 'Conferido', 'Indicado', 'Multa NIC', 'Não Se Aplica'];
+    const statusOpts = ['Conferência', 'Conferido', 'Indicado', 'Multa NIC', 'Financeiro', 'Não Se Aplica'];
     let optionsStatus = '';
     statusOpts.forEach(s => {
         const sel = (multa.status === s) ? 'selected' : '';
@@ -460,6 +460,16 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
                         <input type="text" id="gm-link" value="${multa.link_formulario || ''}" placeholder="https://..." style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
                     </div>
 
+                    <div id="gm-notificar-rh-container" style="display:none; margin-bottom:1.5rem; background:#fff7ed; padding:1rem; border:1px solid #fed7aa; border-radius:8px;">
+                        <h4 style="margin:0 0 0.8rem 0; color:#c2410c; font-size:0.95rem;">&#128231; Notificar RH (Desconto Financeiro)</h4>
+                        <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">E-mail do RH</label>
+                        <div style="display:flex; gap:0.5rem; align-items:center;">
+                            <input type="email" id="gm-email-rh" value="rh@americarental.com.br" style="flex:1; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
+                            <button type="button" id="btn-notificar-rh" onclick="notificarMultaRH(${multa.id})" style="background:#ea580c; color:white; border:none; border-radius:4px; padding:0.6rem 1.2rem; cursor:pointer; font-weight:600; white-space:nowrap;"><i class="ph ph-paper-plane-right"></i> Enviar E-mail</button>
+                        </div>
+                        <p style="margin:0.5rem 0 0; font-size:0.75rem; color:#9a3412;">O e-mail conterá o valor total a ser descontado (${multa.parcelas}x), tipo de multa e dados do motorista.</p>
+                    </div>
+
                     <!-- DOCUMENTOS EXTRAS -->
                     <div style="border-top:1px solid #e2e8f0; padding-top:1.2rem; margin-top:0.5rem;">
                         <label style="display:block; margin-bottom:0.6rem; font-size:0.85rem; font-weight:600; color:#475569;">&#128206; Documentos Adicionais</label>
@@ -520,6 +530,57 @@ function atualizarValoresMultaModal() {
         infoDiv.innerHTML = `${fmt(valorTotal)}${status === 'Multa NIC' ? ' <span style="color:#d97706; font-size:0.8rem; margin-left:8px;">(3x valor original)</span>' : ''}`;
     } else {
         infoDiv.innerHTML = `<span style="color:#2563eb;">${parcelas}x de ${fmt(valorParcela)}</span> <span style="color:#64748b; font-size:0.85rem; margin-left:8px;">(Total: ${fmt(valorTotal)})</span>${status === 'Multa NIC' ? ' <span style="color:#d97706; font-size:0.8rem; margin-left:8px;">(3x valor original)</span>' : ''}`;
+    }
+
+    const rhContainer = document.getElementById('gm-notificar-rh-container');
+    if (rhContainer) {
+        rhContainer.style.display = (status === 'Financeiro') ? 'block' : 'none';
+        const pDesc = rhContainer.querySelector('p');
+        if(pDesc) pDesc.innerText = `O e-mail conterá o valor total de ${fmt(valorTotal)} (${parcelas}x de ${fmt(valorParcela)}), tipo de multa e dados do motorista.`;
+    }
+}
+
+async function notificarMultaRH(multaId) {
+    const btn = document.getElementById('btn-notificar-rh');
+    const emailTo = document.getElementById('gm-email-rh').value.trim();
+    if(!emailTo) {
+        mostrarToastAviso('Informe o e-mail do RH.');
+        return;
+    }
+
+    const parcelas = document.getElementById('gm-parcelas').value;
+    const motoristaId = document.getElementById('gm-motorista').value;
+    const status = document.getElementById('gm-status').value;
+    const form = document.getElementById('form-gerenciar-multa');
+    let valorOriginalStr = form ? form.getAttribute('data-valor') : '0';
+    let valorOriginal = 0;
+    if (valorOriginalStr) {
+        const numeric = valorOriginalStr.replace(/[^\d,-]/g, '').replace(',', '.');
+        valorOriginal = parseFloat(numeric) || 0;
+    }
+    const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando...';
+
+    try {
+        const res = await fetch(`/api/logistica/multas/${multaId}/notificar-rh`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email_to: emailTo, parcelas, status, motorista_id: motoristaId, valor_original: valorOriginal })
+        });
+        const data = await res.json();
+        if(!res.ok) throw new Error(data.error || 'Erro ao notificar');
+        mostrarToastSucesso('E-mail enviado ao RH com sucesso!');
+    } catch(e) {
+        console.error(e);
+        mostrarToastAviso(e.message || 'Erro ao enviar e-mail');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="ph ph-paper-plane-right"></i> Enviar E-mail';
     }
 }
 
