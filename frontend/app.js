@@ -1343,7 +1343,8 @@ window.toggleFormEscalaTipo = function() {
     const tipo = document.getElementById('colab-escala-padrao').value;
     const boxFolgas = document.getElementById('colab-box-folgas');
     const boxSabado = document.getElementById('colab-box-sabado');
-    
+    const outSaida  = document.getElementById('colab-saida');
+
     if (tipo === 'escala_duas_folgas') {
         if(boxFolgas) boxFolgas.style.display = 'block';
     } else {
@@ -1360,9 +1361,25 @@ window.toggleFormEscalaTipo = function() {
             document.getElementById('colab-sabado-saida').value = '';
         }
     }
-    
+
+    // 12x36: saída calculada automaticamente (não editável)
+    if (outSaida) {
+        if (tipo === 'escala_12x36') {
+            outSaida.setAttribute('readonly', 'true');
+            outSaida.style.backgroundColor = '#e9ecef';
+            outSaida.style.cursor = 'not-allowed';
+            outSaida.title = 'Calculado automaticamente: entrada + 12h';
+        } else {
+            outSaida.removeAttribute('readonly');
+            outSaida.style.backgroundColor = '';
+            outSaida.style.cursor = '';
+            outSaida.title = '';
+        }
+    }
+
     calcularHorarioSaida();
 }
+
 
 window.toggleTipoDocumento = function() {
     const sel = document.getElementById('colab-rg-tipo');
@@ -1578,7 +1595,37 @@ window.calcularHorarioSaida = function() {
     const intEntrada = document.getElementById('colab-intervalo-entrada').value;
     const intSaida = document.getElementById('colab-intervalo-saida').value;
     const outSaida = document.getElementById('colab-saida');
-    
+
+    // ── Escala 12x36: lógica especial ──────────────────────────────────────────
+    if (tipo === 'escala_12x36') {
+        if (entrada) {
+            const [he, me] = entrada.split(':').map(Number);
+            const entradaMins = he * 60 + me;
+
+            // Saída = entrada + 12h (não editável)
+            const saidaMins = entradaMins + 12 * 60;
+            const hSaida = Math.floor(saidaMins / 60) % 24;
+            const mSaida = saidaMins % 60;
+            if (outSaida) outSaida.value = `${String(hSaida).padStart(2,'0')}:${String(mSaida).padStart(2,'0')}`;
+
+            // Pausa = 1h a partir de 6h após entrada (editável — só preenche se estiver vazio)
+            if (!intEntrada && !intSaida) {
+                const pausaInicioMins = entradaMins + 6 * 60;
+                const pausaFimMins   = pausaInicioMins + 60;
+                const hPI = Math.floor(pausaInicioMins / 60) % 24;
+                const mPI = pausaInicioMins % 60;
+                const hPF = Math.floor(pausaFimMins / 60) % 24;
+                const mPF = pausaFimMins % 60;
+                document.getElementById('colab-intervalo-entrada').value = `${String(hPI).padStart(2,'0')}:${String(mPI).padStart(2,'0')}`;
+                document.getElementById('colab-intervalo-saida').value   = `${String(hPF).padStart(2,'0')}:${String(mPF).padStart(2,'0')}`;
+            }
+        } else if (outSaida) {
+            outSaida.value = '';
+        }
+        return; // Encerra: 12x36 não tem cálculo de sábado
+    }
+    // ── Demais escalas ──────────────────────────────────────────────────────────
+
     if (tipo && entrada) {
         // Calcula duração do intervalo em minutos
         let intervaloMins = 0;
@@ -1648,6 +1695,7 @@ window.calcularHorarioSaida = function() {
         outSabSaida.value = '';
     }
 }
+
 
 async function populateCargoDeptoSelect(selectedValue = '') {
     const selectCargoDepto = document.getElementById('cargo-input-departamento');
