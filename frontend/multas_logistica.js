@@ -413,28 +413,46 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
                 <button type="button" onclick="document.getElementById('modal-gerenciar-multa').remove()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#64748b;">&times;</button>
             </div>
             <div style="padding:1.5rem; flex:1; overflow-y:auto; background:#fdfdfd;">
-                <form id="form-gerenciar-multa" onsubmit="salvarGerenciamentoMulta(event, ${multa.id})" style="max-width:800px; margin:0 auto;">
+                <form id="form-gerenciar-multa" data-valor="${multa.valor_multa || '0'}" onsubmit="salvarGerenciamentoMulta(event, ${multa.id})" style="max-width:800px; margin:0 auto;">
 
                     <!-- INFO MOTORISTA -->
                     ${motoristaInfoHtml}
 
-                    <div style="margin-bottom:1rem;">
-                        <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Motorista Responsável</label>
-                        <select id="gm-motorista" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;" onchange="atualizarInfoMotoristaModal(this)">
-                            ${optionsMotoristas}
-                        </select>
+                    <div style="display:flex; gap:1.5rem; margin-bottom:1rem; flex-wrap:wrap;">
+                        <div style="flex:1; min-width:250px;">
+                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Motorista Responsável</label>
+                            <select id="gm-motorista" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;" onchange="atualizarInfoMotoristaModal(this)">
+                                ${optionsMotoristas}
+                            </select>
+                        </div>
+                        <div style="flex:1; min-width:200px;">
+                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Status</label>
+                            <select id="gm-status" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;" onchange="atualizarValoresMultaModal()">
+                                ${optionsStatus}
+                            </select>
+                        </div>
                     </div>
 
-                    <div style="margin-bottom:1rem;">
-                        <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Status</label>
-                        <select id="gm-status" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
-                            ${optionsStatus}
-                        </select>
+                    <div style="display:flex; gap:1.5rem; margin-bottom:1rem; flex-wrap:wrap; background:#f1f5f9; padding:1rem; border-radius:8px; border:1px solid #e2e8f0;">
+                        <div style="flex:1; min-width:150px;">
+                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Parcelamento</label>
+                            <select id="gm-parcelas" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px; background:#fff;" onchange="atualizarValoresMultaModal()">
+                                <option value="1" ${multa.parcelas == 1 ? 'selected' : ''}>1x</option>
+                                <option value="2" ${multa.parcelas == 2 ? 'selected' : ''}>2x</option>
+                                <option value="3" ${multa.parcelas == 3 ? 'selected' : ''}>3x</option>
+                            </select>
+                        </div>
+                        <div style="flex:2; min-width:250px;">
+                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Valor a Descontar (Detalhes)</label>
+                            <div id="gm-valor-info" style="padding:0.6rem; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:600; color:#0f172a; min-height:38px; display:flex; align-items:center;">
+                                R$ 0,00
+                            </div>
+                        </div>
                     </div>
 
                     <div style="margin-bottom:1rem;">
                         <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Observação <span id="gm-obs-req" style="color:red; display:none;">*</span></label>
-                        <textarea id="gm-obs" rows="3" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px; resize:vertical;">${multa.observacao || ''}</textarea>
+                        <textarea id="gm-obs" rows="2" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px; resize:vertical;">${multa.observacao || ''}</textarea>
                     </div>
 
                     <div style="margin-bottom:1.5rem;">
@@ -472,7 +490,37 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
     });
     if (statusSel.value === 'Não Se Aplica') obsReq.style.display = 'inline';
 
+    atualizarValoresMultaModal();
+
     if (focoMotorista) document.getElementById('gm-motorista').focus();
+}
+
+function atualizarValoresMultaModal() {
+    const form = document.getElementById('form-gerenciar-multa');
+    if (!form) return;
+    const valorOriginalStr = form.getAttribute('data-valor');
+    const status = document.getElementById('gm-status').value;
+    const parcelas = parseInt(document.getElementById('gm-parcelas').value) || 1;
+    
+    // Parse value (e.g. "R$ 130,16" or "130.16")
+    let valorOriginal = 0;
+    if (valorOriginalStr) {
+        const numeric = valorOriginalStr.replace(/[^\d,-]/g, '').replace(',', '.');
+        valorOriginal = parseFloat(numeric) || 0;
+    }
+
+    let multiplicador = (status === 'Multa NIC') ? 3 : 1;
+    let valorTotal = valorOriginal * multiplicador;
+    let valorParcela = valorTotal / parcelas;
+
+    const fmt = v => 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    
+    const infoDiv = document.getElementById('gm-valor-info');
+    if (parcelas === 1) {
+        infoDiv.innerHTML = `${fmt(valorTotal)}${status === 'Multa NIC' ? ' <span style="color:#d97706; font-size:0.8rem; margin-left:8px;">(3x valor original)</span>' : ''}`;
+    } else {
+        infoDiv.innerHTML = `<span style="color:#2563eb;">${parcelas}x de ${fmt(valorParcela)}</span> <span style="color:#64748b; font-size:0.85rem; margin-left:8px;">(Total: ${fmt(valorTotal)})</span>${status === 'Multa NIC' ? ' <span style="color:#d97706; font-size:0.8rem; margin-left:8px;">(3x valor original)</span>' : ''}`;
+    }
 }
 
 // Atualiza bloco de info do motorista quando dropdown muda
@@ -575,6 +623,7 @@ async function salvarGerenciamentoMulta(e, id) {
     const motoristaId = motoristaSel.value;
     const motoristaNome = motoristaId ? motoristaSel.options[motoristaSel.selectedIndex].text : null;
     const link = document.getElementById('gm-link').value.trim();
+    const parcelas = document.getElementById('gm-parcelas').value;
 
     let settled = false;
     const fecharEAtualizar = async (msg, tipo = 'sucesso') => {
@@ -602,7 +651,8 @@ async function salvarGerenciamentoMulta(e, id) {
                 motorista_nome: motoristaNome,
                 status: status,
                 observacao: obs,
-                link_formulario: link
+                link_formulario: link,
+                parcelas: parcelas
             })
         });
         clearTimeout(timeoutId);

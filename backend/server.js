@@ -3185,7 +3185,7 @@ app.post('/api/logistica/multas', authenticateToken, multaUploadMiddleware.singl
 
 // PUT /api/logistica/multas/:id — atualiza campos da multa (motorista, status, obs, link)
 app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
-    const { motorista_id, motorista_nome, status, observacao, link_formulario, data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao } = req.body;
+    const { motorista_id, motorista_nome, status, observacao, link_formulario, data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao, parcelas } = req.body;
     db.run(
         `UPDATE multas_logistica SET
             motorista_id = COALESCE(?, motorista_id),
@@ -3199,10 +3199,11 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
             motivo = COALESCE(?, motivo),
             valor_multa = COALESCE(?, valor_multa),
             pontuacao = COALESCE(?, pontuacao),
+            parcelas = COALESCE(?, parcelas),
             atualizado_em = CURRENT_TIMESTAMP
          WHERE id = ?`,
         [motorista_id||null, motorista_nome||null, status||null, observacao||null, link_formulario||null,
-         data_infracao||null, hora_infracao||null, numero_ait||null, motivo||null, valor_multa||null, pontuacao||null,
+         data_infracao||null, hora_infracao||null, numero_ait||null, motivo||null, valor_multa||null, pontuacao||null, parcelas||null,
          req.params.id],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
@@ -3256,6 +3257,9 @@ app.get('/api/logistica/multas/:id/documento', (req, res) => {
 // MIGRATION: coluna documentos_extras (JSON array de base64)
 db.run("ALTER TABLE multas_logistica ADD COLUMN documentos_extras TEXT DEFAULT '[]'", (err) => {
     if (err && !err.message.includes('duplicate column')) console.error('[MIGRATION multas_logistica documentos_extras]', err.message);
+});
+db.run("ALTER TABLE multas_logistica ADD COLUMN parcelas INTEGER DEFAULT 1", (err) => {
+    if (err && !err.message.includes('duplicate column')) console.error('[MIGRATION multas_logistica parcelas]', err.message);
 });
 
 // POST /api/logistica/multas/:id/documento-extra — adiciona um documento extra à multa
