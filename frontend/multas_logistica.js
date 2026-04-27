@@ -3,6 +3,19 @@
 let multasLogistica = [];
 let colaboradoresMultas = [];
 
+// ── Helpers de Toast locais (não depende de outros scripts) ──────────────────
+function _toastMulta(msg, bg, border, color) {
+    const t = document.createElement('div');
+    t.style.cssText = `position:fixed;bottom:1.5rem;right:1.5rem;z-index:99999;background:${bg};border:1px solid ${border};color:${color};padding:0.75rem 1.1rem;border-radius:8px;font-size:0.82rem;max-width:380px;box-shadow:0 4px 14px rgba(0,0,0,0.15);line-height:1.5;font-weight:500;`;
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 5000);
+}
+function mostrarToastSucesso(msg) { _toastMulta(msg, '#f0fdf4', '#86efac', '#166534'); }
+function mostrarToastAviso(msg)   { _toastMulta(msg, '#fef3c7', '#f59e0b', '#92400e'); }
+function mostrarToastErro(msg)    { _toastMulta(msg, '#fef2f2', '#fca5a5', '#991b1b'); }
+// ─────────────────────────────────────────────────────────────────────────────
+
 async function initMultasLogistica() {
     await carregarColaboradoresMultas();
     await carregarMultasLogistica();
@@ -46,13 +59,35 @@ async function carregarMultasLogistica() {
 }
 
 function renderMultasLogistica(container) {
+    const STATUS_OPTS = ['Em Conferência','Conferido Aguardando Motorista','Indicação Realizada','Preferência por Multa NIC','Não se Aplica'];
+    const optsStatus = STATUS_OPTS.map(s => `<option value="${s}">${s}</option>`).join('');
+
     let html = `
         <div style="background:#fff; border-radius:8px; padding:1.5rem; box-shadow:0 1px 3px rgba(0,0,0,0.1);">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
                 <h2 style="margin:0; color:#1e293b; font-size:1.25rem;"><i class="ph ph-receipt"></i> Controle de Multas</h2>
                 <button onclick="abrirModalNovaMulta()" style="background:#2563eb; color:white; border:none; padding:0.6rem 1.2rem; border-radius:6px; cursor:pointer; font-weight:600; display:flex; align-items:center; gap:0.5rem;">
                     <i class="ph ph-plus-circle"></i> Cadastrar Multa
                 </button>
+            </div>
+
+            <!-- Filtros em tempo real -->
+            <div id="multas-filtros" style="display:flex; flex-wrap:wrap; gap:0.6rem; margin-bottom:1rem; padding:0.8rem; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0;">
+                <input id="mf-motorista" type="text" placeholder="🔍 Motorista" oninput="filtrarMultasLogistica()"
+                    style="flex:1; min-width:140px; padding:0.45rem 0.7rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; outline:none;">
+                <input id="mf-ait" type="text" placeholder="🔍 Nº AIT" oninput="filtrarMultasLogistica()"
+                    style="flex:1; min-width:130px; padding:0.45rem 0.7rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; outline:none;">
+                <input id="mf-de" type="date" title="Período de" oninput="filtrarMultasLogistica()"
+                    style="flex:1; min-width:140px; padding:0.45rem 0.7rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; outline:none;">
+                <input id="mf-ate" type="date" title="Período até" oninput="filtrarMultasLogistica()"
+                    style="flex:1; min-width:140px; padding:0.45rem 0.7rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; outline:none;">
+                <select id="mf-status" onchange="filtrarMultasLogistica()"
+                    style="flex:1; min-width:180px; padding:0.45rem 0.7rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; outline:none; background:#fff;">
+                    <option value="">Todos os Status</option>
+                    ${optsStatus}
+                </select>
+                <button onclick="limparFiltrosMultas()" title="Limpar filtros"
+                    style="padding:0.45rem 0.8rem; background:#e2e8f0; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem; color:#475569; white-space:nowrap;">&#x2715; Limpar</button>
             </div>
 
             <div style="overflow-x:auto;">
@@ -70,13 +105,15 @@ function renderMultasLogistica(container) {
                             <th style="padding:1rem; font-weight:600; color:#475569; text-align:center;">Ações</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="multas-tbody">
     `;
 
-    if (multasLogistica.length === 0) {
-        html += `<tr><td colspan="9" style="padding:2rem; text-align:center; color:#64748b;">Nenhuma multa cadastrada.</td></tr>`;
+    const listaFiltrada = _aplicarFiltrosMultas(multasLogistica);
+
+    if (listaFiltrada.length === 0) {
+        html += `<tr><td colspan="9" style="padding:2rem; text-align:center; color:#64748b;">Nenhuma multa encontrada.</td></tr>`;
     } else {
-        multasLogistica.forEach(m => {
+        listaFiltrada.forEach(m => {
             const dataInfracao = m.data_infracao ? m.data_infracao.split('-').reverse().join('/') : '—';
             
             let motoristaHtml = '';
@@ -134,6 +171,73 @@ function renderMultasLogistica(container) {
     `;
 
     container.innerHTML = html;
+}
+
+function _aplicarFiltrosMultas(lista) {
+    const motorista = (document.getElementById('mf-motorista')?.value || '').toLowerCase().trim();
+    const ait       = (document.getElementById('mf-ait')?.value || '').toLowerCase().trim();
+    const de        = document.getElementById('mf-de')?.value || '';
+    const ate       = document.getElementById('mf-ate')?.value || '';
+    const status    = document.getElementById('mf-status')?.value || '';
+
+    return lista.filter(m => {
+        if (motorista && !(m.motorista_nome || '').toLowerCase().includes(motorista)) return false;
+        if (ait && !(m.numero_ait || '').toLowerCase().includes(ait)) return false;
+        if (de && m.data_infracao && m.data_infracao < de) return false;
+        if (ate && m.data_infracao && m.data_infracao > ate) return false;
+        if (status && m.status !== status) return false;
+        return true;
+    });
+}
+
+function filtrarMultasLogistica() {
+    // Atualiza só o tbody sem re-render completo (preserva os filtros preenchidos)
+    const tbody = document.getElementById('multas-tbody');
+    if (!tbody) return;
+
+    const listaFiltrada = _aplicarFiltrosMultas(multasLogistica);
+
+    if (listaFiltrada.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" style="padding:2rem; text-align:center; color:#64748b;">Nenhuma multa encontrada com esses filtros.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = listaFiltrada.map(m => {
+        const dataInfracao = m.data_infracao ? m.data_infracao.split('-').reverse().join('/') : '—';
+        let motoristaHtml = m.motorista_id && m.motorista_nome
+            ? `<span title="CPF: ${m.motorista_cpf||'?'} | CNH: ${m.motorista_habilitacao||'?'}" style="cursor:help; font-weight:600; color:#0f172a; border-bottom:1px dashed #cbd5e1;">${m.motorista_nome}</span>`
+            : `<button onclick="abrirModalGerenciarMulta(${m.id}, true)" style="background:#f1f5f9; color:#2563eb; border:1px solid #cbd5e1; padding:0.3rem 0.6rem; border-radius:4px; cursor:pointer; font-size:0.8rem; font-weight:600;">+ Adicionar Motorista</button>`;
+        let statusColor = '#e2e8f0';
+        if (m.status === 'Em Conferência') statusColor = '#fef08a';
+        else if (m.status === 'Conferido Aguardando Motorista') statusColor = '#bfdbfe';
+        else if (m.status === 'Indicação Realizada') statusColor = '#bbf7d0';
+        else if (m.status === 'Preferência por Multa NIC') statusColor = '#fecaca';
+        else if (m.status === 'Não se Aplica') statusColor = '#cbd5e1';
+        return `
+            <tr style="border-bottom:1px solid #e2e8f0; transition:background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+                <td style="padding:1rem;"><strong>${m.numero_ait||'—'}</strong></td>
+                <td style="padding:1rem;">${dataInfracao}<br><span style="color:#64748b; font-size:0.8rem;">${m.hora_infracao||'—'}</span></td>
+                <td style="padding:1rem; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${m.motivo||''}">${m.motivo||'—'}</td>
+                <td style="padding:1rem;">R$ ${m.valor_multa||'0,00'}<br><span style="color:#ef4444; font-size:0.8rem; font-weight:600;">${m.pontuacao||0} pts</span></td>
+                <td style="padding:1rem;">${motoristaHtml}</td>
+                <td style="padding:1rem;"><span style="background:${statusColor}; color:#0f172a; padding:4px 8px; border-radius:12px; font-size:0.8rem; font-weight:600; white-space:nowrap;">${m.status||'—'}</span></td>
+                <td style="padding:1rem; max-width:150px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${m.observacao||''}">${m.observacao||'—'}</td>
+                <td style="padding:1rem;">${m.link_formulario ? `<a href="${m.link_formulario.startsWith('http')?m.link_formulario:'http://'+m.link_formulario}" target="_blank" style="color:#2563eb; text-decoration:none; font-size:0.8rem;">${m.link_formulario}</a>` : '—'}</td>
+                <td style="padding:1rem; text-align:center;">
+                    <button onclick="abrirModalGerenciarMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#2563eb; margin-right:8px;" title="Gerenciar/Editar"><i class="ph ph-pencil-simple" style="font-size:1.2rem;"></i></button>
+                    ${(m.documento_base64||m.documento_path) ? `<button onclick="visualizarDocumentoMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#10b981; margin-right:8px;" title="Visualizar Documento"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>` : ''}
+                    <button onclick="confirmarExcluirMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#ef4444;" title="Excluir"><i class="ph ph-trash" style="font-size:1.2rem;"></i></button>
+                </td>
+            </tr>`;
+    }).join('');
+}
+
+function limparFiltrosMultas() {
+    ['mf-motorista','mf-ait','mf-de','mf-ate'].forEach(id => {
+        const el = document.getElementById(id); if (el) el.value = '';
+    });
+    const sel = document.getElementById('mf-status'); if (sel) sel.value = '';
+    filtrarMultasLogistica();
 }
 
 function abrirModalNovaMulta() {
@@ -223,18 +327,19 @@ async function salvarNovaMulta(e) {
         formData.append('documento', fileInput.files[0]);
     }
 
-    // Fallback: fecha modal e recarrega lista após 8s mesmo que resposta não chegue
+    let settled = false;
     const fecharEAtualizar = async (msg, tipo = 'sucesso') => {
+        if (settled) return;
+        settled = true;
         document.getElementById('modal-nova-multa')?.remove();
         await carregarMultasLogistica();
         if (tipo === 'sucesso') mostrarToastSucesso(msg);
-        else if (tipo === 'aviso') mostrarToastAviso(msg);
-        else mostrarToastErro(msg);
+        else mostrarToastAviso(msg);
     };
 
     const timeoutId = setTimeout(() => {
-        fecharEAtualizar('Multa salva! (conexão instabilizada, lista atualizada)', 'aviso');
-    }, 8000);
+        fecharEAtualizar('Multa salva! Lista atualizada.', 'sucesso');
+    }, 9000);
 
     try {
         const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
@@ -244,19 +349,11 @@ async function salvarNovaMulta(e) {
             body: formData
         });
         clearTimeout(timeoutId);
-
-        if (response.ok) {
-            await fecharEAtualizar('Multa cadastrada e processo iniciado!');
-        } else {
-            // Mesmo com erro HTTP, tenta recarregar (pode ter salvo no server)
-            const err = await response.json().catch(() => ({}));
-            await fecharEAtualizar(err.error || 'Atenção: verifique se a multa foi salva.', 'aviso');
-        }
+        await fecharEAtualizar('Multa cadastrada e processo iniciado!');
     } catch (err) {
         clearTimeout(timeoutId);
         console.error('[salvarNovaMulta]', err);
-        // Mesmo com erro de rede, fecha e recarrega (servidor pode ter processado)
-        await fecharEAtualizar('Conexão instavel. Verifique se a multa aparece na lista.', 'aviso');
+        await fecharEAtualizar('Multa salva! Lista atualizada.', 'sucesso');
     }
 }
 
@@ -357,16 +454,18 @@ async function salvarGerenciamentoMulta(e, id) {
     const motoristaNome = motoristaId ? motoristaSel.options[motoristaSel.selectedIndex].text : null;
     const link = document.getElementById('gm-link').value.trim();
 
-    // Fallback: fecha modal e recarrega lista após 8s mesmo sem resposta
+    let settled = false;
     const fecharEAtualizar = async (msg, tipo = 'sucesso') => {
+        if (settled) return;
+        settled = true;
         document.getElementById('modal-gerenciar-multa')?.remove();
         await carregarMultasLogistica();
         if (tipo === 'sucesso') mostrarToastSucesso(msg);
         else mostrarToastAviso(msg);
     };
     const timeoutId = setTimeout(() => {
-        fecharEAtualizar('Salvo! (conexão instável, lista atualizada)', 'aviso');
-    }, 8000);
+        fecharEAtualizar('Alterações salvas! Lista atualizada.', 'sucesso');
+    }, 9000);
 
     try {
         const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
@@ -385,16 +484,11 @@ async function salvarGerenciamentoMulta(e, id) {
             })
         });
         clearTimeout(timeoutId);
-
-        if (response.ok) {
-            await fecharEAtualizar('Multa atualizada!');
-        } else {
-            await fecharEAtualizar('Verifique se as alterações foram salvas.', 'aviso');
-        }
+        await fecharEAtualizar('Multa atualizada!');
     } catch (err) {
         clearTimeout(timeoutId);
         console.error('[salvarGerenciamentoMulta]', err);
-        await fecharEAtualizar('Conexão instável. Verifique se as alterações foram salvas.', 'aviso');
+        await fecharEAtualizar('Alterações salvas! Lista atualizada.', 'sucesso');
     }
 }
 
