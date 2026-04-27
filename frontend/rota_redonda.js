@@ -3098,12 +3098,8 @@ window.autoSelecionarPorObs = function() {
             osState.tiposServico.add(hab);
             btn.style.background = '#2d9e5f';
             btn.style.color = 'white';
-        } else if (!match && osState.tiposServico.has(hab)) {
-            // Desseleciona se palavra foi removida
-            osState.tiposServico.delete(hab);
-            btn.style.background = 'transparent';
-            btn.style.color = '#2d9e5f';
         }
+        // Nota: não remove automaticamente ao apagar o texto
     });
 
     // Mapeamento palavra-chave → variável
@@ -3124,11 +3120,8 @@ window.autoSelecionarPorObs = function() {
             osState.acoes.add(acao);
             btn.style.background = '#0284c7';
             btn.style.color = 'white';
-        } else if (!match && osState.acoes.has(acao)) {
-            osState.acoes.delete(acao);
-            btn.style.background = '#f0f9ff';
-            btn.style.color = '#0284c7';
         }
+        // Nota: não remove automaticamente ao apagar o texto
     });
 
     atualizarIconesCliente();

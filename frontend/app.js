@@ -13928,39 +13928,69 @@ window._recarregarListaMultas = async function(colabId) {
 window.renderMultasMotoristaTab = async function(container) {
     const colab = viewedColaborador;
     if (!colab) return;
-    container.innerHTML = '';
-
-    const btnNova = document.createElement('button');
-    btnNova.className = 'btn btn-primary';
-    btnNova.style = 'margin-bottom:1.5rem; display:flex; align-items:center; gap:6px;';
-    btnNova.innerHTML = '<i class="ph ph-plus"></i> Registrar Nova Multa';
-    btnNova.onclick = () => window.abrirFormNovaMulta(colab.id, container);
-    container.appendChild(btnNova);
-
-    const listaContainer = document.createElement('div');
-    listaContainer.id = 'multas-lista-container';
-    listaContainer.innerHTML = `<div style="display:flex;align-items:center;gap:8px;color:#94a3b8;padding:1rem 0;">
-        <i class="ph ph-spinner ph-spin"></i> Carregando multas registradas...
+    container.innerHTML = `<div style="display:flex;align-items:center;gap:8px;color:#94a3b8;padding:1rem 0;">
+        <i class="ph ph-spinner ph-spin"></i> Carregando multas...
     </div>`;
-    container.appendChild(listaContainer);
+
+    // Aviso informativo
+    const aviso = document.createElement('div');
+    aviso.style = 'background:#f0f9ff;border:1px solid #7dd3fc;border-radius:10px;padding:0.85rem 1.1rem;display:flex;align-items:center;gap:10px;margin-bottom:1.25rem;font-size:0.85rem;color:#0369a1;';
+    aviso.innerHTML = '<i class="ph ph-info" style="font-size:1.2rem;flex-shrink:0;"></i><span>Para cadastrar uma nova multa, acesse o menu <strong>Logística → Multas</strong> e atribua o motorista ao registrar a infração.</span>';
 
     let multas = [];
     try {
-        multas = await apiGet(`/colaboradores/${colab.id}/multas`) || [];
+        const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || currentToken || '';
+        const resp = await fetch(`/api/logistica/multas?motorista_id=${colab.id}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (resp.ok) {
+            const todas = await resp.json();
+            multas = todas.filter(m => String(m.motorista_id) === String(colab.id));
+        }
     } catch(e) {
-        listaContainer.innerHTML = `<div class="alert alert-info"><i class="ph ph-info"></i> Nenhuma multa registrada ainda.</div>`;
-        return;
+        // fallback: tenta endpoint antigo
+        try { multas = await apiGet(`/colaboradores/${colab.id}/multas`) || []; } catch(_) {}
     }
 
-    listaContainer.innerHTML = '';
+    container.innerHTML = '';
+    container.appendChild(aviso);
+
     if (multas.length === 0) {
         const vazio = document.createElement('div');
         vazio.className = 'alert alert-info';
         vazio.innerHTML = '<i class="ph ph-traffic-cone"></i> Nenhuma multa registrada para este colaborador.';
-        listaContainer.appendChild(vazio);
-    } else {
-        multas.forEach(m => window._renderMultaCard(m, colab.id, listaContainer));
+        container.appendChild(vazio);
+        return;
     }
+
+    const STATUS_COLOR = {
+        'Em Conferência':                '#fef08a',
+        'Conferido Aguardando Motorista':'#bfdbfe',
+        'Indicação Realizada':           '#bbf7d0',
+        'Preferência por Multa NIC':     '#fecaca',
+        'Não se Aplica':                 '#e2e8f0',
+    };
+
+    multas.forEach(m => {
+        const dataFmt = m.data_infracao ? m.data_infracao.split('-').reverse().join('/') : '—';
+        const bgStatus = STATUS_COLOR[m.status] || '#e2e8f0';
+        const card = document.createElement('div');
+        card.style = 'border:1.5px solid #e2e8f0;border-radius:12px;padding:1rem 1.25rem;margin-bottom:1rem;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,0.06);';
+        card.innerHTML = `
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+                <span style="font-weight:700;font-size:0.95rem;color:#1e293b;">🚦 AIT: ${m.numero_ait || '—'}</span>
+                <span style="background:${bgStatus};color:#0f172a;font-weight:700;font-size:0.78rem;padding:3px 10px;border-radius:20px;white-space:nowrap;">${m.status || '—'}</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px;font-size:0.82rem;color:#475569;">
+                <span><b>Data:</b> ${dataFmt} ${m.hora_infracao || ''}</span>
+                <span><b>Valor:</b> R$ ${m.valor_multa || '—'}</span>
+                <span><b>Pontos:</b> ${m.pontuacao || '—'}</span>
+                <span style="grid-column:1/-1;"><b>Motivo:</b> ${m.motivo || '—'}</span>
+                ${m.observacao ? `<span style="grid-column:1/-1;"><b>Observação:</b> ${m.observacao}</span>` : ''}
+            </div>
+        `;
+        container.appendChild(card);
+    });
 };
 
 window._renderMultaCard = function(m, colabId, container) {
