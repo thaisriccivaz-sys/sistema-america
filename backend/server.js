@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
@@ -3316,17 +3316,22 @@ app.get('/api/colaboradores/:id/arquivo/cnh', (req, res) => {
     if (!token) return res.status(401).json({ error: 'Não autorizado' });
     try { require('jsonwebtoken').verify(token, SECRET_KEY); } catch(e) { return res.status(401).json({ error: 'Token inválido' }); }
 
-    db.get('SELECT nome_completo, cnh_arquivo, cnh_numero FROM colaboradores WHERE id = ?', [req.params.id], (err, row) => {
-        if (err || !row) return res.status(404).json({ error: 'Colaborador não encontrado' });
+    // Primeiro busca dados básicos (sempre existem)
+    db.get('SELECT id, nome_completo, cnh_numero FROM colaboradores WHERE id = ?', [req.params.id], (err, row) => {
+        if (err || !row) return res.status(404).json({ error: 'Colaborador não encontrado.' });
 
-        // Verifica se há arquivo de CNH armazenado como base64
-        if (row.cnh_arquivo) {
+        // Tenta buscar o arquivo de CNH (coluna pode não existir em instâncias antigas)
+        db.get('SELECT cnh_arquivo FROM colaboradores WHERE id = ?', [req.params.id], (err2, rowCnh) => {
+            const cnh = rowCnh && rowCnh.cnh_arquivo;
+            if (!cnh) {
+                return res.status(404).json({
+                    error: `Nenhum arquivo de CNH cadastrado para ${row.nome_completo || 'este colaborador'}. Acesse o Prontuário Digital → Ficha Cadastral para fazer o upload da CNH.`
+                });
+            }
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Content-Disposition', `inline; filename="CNH_${encodeURIComponent(row.nome_completo || row.cnh_numero || 'colaborador')}.pdf"`);
-            return res.end(Buffer.from(row.cnh_arquivo, 'base64'));
-        }
-
-        return res.status(404).json({ error: 'Arquivo de CNH não disponível para este colaborador.' });
+            return res.end(Buffer.from(cnh, 'base64'));
+        });
     });
 });
 // ------------------------------------------------------------------------------

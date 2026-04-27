@@ -1,4 +1,4 @@
-﻿// multas_logistica.js
+// multas_logistica.js
 
 let multasLogistica = [];
 let colaboradoresMultas = [];
@@ -390,10 +390,10 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
             <span style="font-size:0.82rem; color:#166534; font-weight:700;"><i class="ph ph-user"></i> ${motoristaColab.nome_completo || motoristaColab.nome}</span>
             <span style="flex:1;"></span>
             ${cpf ? `<span style="font-size:0.8rem; color:#374151;"><b>CPF:</b> <code id="gm-cpf-val">${cpf}</code></span>
-            <button onclick="navigator.clipboard.writeText('${cpf}'); mostrarToastSucesso('CPF copiado!')" title="Copiar CPF" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem; padding:0;"><i class="ph ph-copy"></i></button>` : ''}
+            <button type="button" onclick="navigator.clipboard.writeText('${cpf}'); mostrarToastSucesso('CPF copiado!'); event.stopPropagation();" title="Copiar CPF" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem; padding:0;"><i class="ph ph-copy"></i></button>` : ''}
             ${habilitacao ? `<span style="font-size:0.8rem; color:#374151;"><b>CNH:</b> <code id="gm-hab-val">${habilitacao}</code></span>
-            <button onclick="navigator.clipboard.writeText('${habilitacao}'); mostrarToastSucesso('Nº CNH copiado!')" title="Copiar CNH" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem; padding:0;"><i class="ph ph-copy"></i></button>` : ''}
-            ${multa.motorista_id ? `<button onclick="baixarCNHMotorista(${multa.motorista_id})" title="Baixar CNH" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:6px;padding:3px 10px;font-size:0.78rem;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-download-simple"></i> CNH</button>` : ''}
+            <button type="button" onclick="navigator.clipboard.writeText('${habilitacao}'); mostrarToastSucesso('Nº CNH copiado!'); event.stopPropagation();" title="Copiar CNH" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem; padding:0;"><i class="ph ph-copy"></i></button>` : ''}
+            ${multa.motorista_id ? `<button type="button" onclick="baixarCNHMotorista(${multa.motorista_id}); event.stopPropagation();" title="Baixar CNH" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:6px;padding:3px 10px;font-size:0.78rem;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-download-simple"></i> CNH</button>` : ''}
         </div>` : '';
 
     // Documentos extras já salvos
@@ -403,14 +403,14 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
         <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; margin-bottom:6px;">
             <i class="ph ph-file" style="color:#64748b;"></i>
             <span style="flex:1; font-size:0.8rem; color:#334155; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${d.nome || 'Documento ' + (i+1)}</span>
-            <button onclick="visualizarDocExtra(${id}, ${i})" title="Visualizar" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:0.8rem;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-eye"></i></button>
+            <button type="button" onclick="visualizarDocExtra(${id}, ${i}); event.stopPropagation();" title="Visualizar" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:0.8rem;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-eye"></i></button>
         </div>`).join('');
 
     modal.innerHTML = `
         <div style="background:#fff; width:540px; max-width:100%; max-height:90vh; overflow-y:auto; border-radius:10px; box-shadow:0 10px 25px rgba(0,0,0,0.2);">
             <div style="background:#f8fafc; padding:1.2rem 1.5rem; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:1;">
                 <h3 style="margin:0; color:#0f172a; font-size:1.1rem;">&#9998; Gerenciar Multa — ${multa.numero_ait || 'S/N'}</h3>
-                <button onclick="document.getElementById('modal-gerenciar-multa').remove()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#64748b;">&times;</button>
+                <button type="button" onclick="document.getElementById('modal-gerenciar-multa').remove()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#64748b;">&times;</button>
             </div>
             <div style="padding:1.5rem;">
                 <form id="form-gerenciar-multa" onsubmit="salvarGerenciamentoMulta(event, ${multa.id})">
@@ -487,10 +487,10 @@ function atualizarInfoMotoristaModal(sel) {
         <span style="font-size:0.82rem; color:#166534; font-weight:700;"><i class="ph ph-user"></i> ${c.nome_completo || c.nome}</span>
         <span style="flex:1;"></span>
         ${c.cpf ? `<span style="font-size:0.8rem; color:#374151;"><b>CPF:</b> <code>${c.cpf}</code></span>
-        <button onclick="navigator.clipboard.writeText('${c.cpf}'); mostrarToastSucesso('CPF copiado!')" title="Copiar CPF" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>` : ''}
+        <button type="button" onclick="navigator.clipboard.writeText('${c.cpf}'); mostrarToastSucesso('CPF copiado!'); event.stopPropagation();" title="Copiar CPF" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>` : ''}
         ${c.cnh_numero ? `<span style="font-size:0.8rem; color:#374151;"><b>CNH:</b> <code>${c.cnh_numero}</code></span>
-        <button onclick="navigator.clipboard.writeText('${c.cnh_numero}'); mostrarToastSucesso('CNH copiada!')" title="Copiar CNH" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>` : ''}
-        ${c.id ? `<button onclick="baixarCNHMotorista(${c.id})" title="Baixar CNH" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:6px;padding:3px 10px;font-size:0.78rem;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-download-simple"></i> CNH</button>` : ''}
+        <button type="button" onclick="navigator.clipboard.writeText('${c.cnh_numero}'); mostrarToastSucesso('CNH copiada!'); event.stopPropagation();" title="Copiar CNH" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>` : ''}
+        ${c.id ? `<button type="button" onclick="baixarCNHMotorista(${c.id}); event.stopPropagation();" title="Baixar CNH" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:6px;padding:3px 10px;font-size:0.78rem;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-download-simple"></i> CNH</button>` : ''}
     `;
 }
 
@@ -535,7 +535,7 @@ async function uploadDocExtra(multaId) {
                 <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; margin-bottom:6px;">
                     <i class="ph ph-file" style="color:#64748b;"></i>
                     <span style="flex:1; font-size:0.8rem; color:#334155; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${d.nome || 'Documento ' + (i+1)}</span>
-                    <button onclick="visualizarDocExtra(${multaId}, ${i})" title="Visualizar" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:0.8rem;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-eye"></i></button>
+                    <button type="button" onclick="visualizarDocExtra(${multaId}, ${i}); event.stopPropagation();" title="Visualizar" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:0.8rem;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-eye"></i></button>
                 </div>`).join('');
         }
         // Atualiza dados locais
