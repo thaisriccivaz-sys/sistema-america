@@ -519,41 +519,26 @@ async function pipelineExportarExcel() {
             else if (prodDescXls.includes('EVENTO')) tipoContratoXls = 'evento';
         }
 
-        // B: Título — segue o padrão do Pipeline
-        const EQ_ICONS = {
-            'STD OBRA':'💙','STD EVENTO':'💜','LX OBRA':'🟦','LX EVENTO':'🟪',
-            'ELX OBRA':'🔵','ELX EVENTO':'🟣','PCD OBRA':'♿','PCD EVENTO':'🧑🏾‍🦽',
-            'CHUVEIRO OBRA':'🚿','CHUVEIRO EVENTO':'🚿','HIDRAULICO OBRA':'🚽',
-            'MICTORIO OBRA':'💦','MICTORIO EVENTO':'💦','PBII OBRA':'🧼','PBII EVENTO':'🧼',
-            'GUARITA INDIVIDUAL OBRA':'⬜','GUARITA INDIVIDUAL EVENTO':'⬜',
-            'GUARITA DUPLA OBRA':'⚪','GUARITA DUPLA EVENTO':'⚪',
-            'LIMPA FOSSA':'💧','VISITA TECNICA':'⚙️','CARRINHO':'🛞',
-        };
+        // B: Título — ícones das habilidades + variáveis + nome do cliente (igual ao Pipeline)
+        const habilidadesArr = Array.isArray(r.habilidades) ? r.habilidades : [];
+        const variaveisArr   = Array.isArray(r.variaveis)   ? r.variaveis   : [];
 
-        let iconesPrefixo = '';
-        if (ts.includes('entrega')) {
-            // Entrega: ícones dos produtos
-            const iconsProd = (r.produtos || [])
-                .map(p => EQ_ICONS[(p.desc || '').trim().toUpperCase()] || '')
-                .filter(Boolean).join('');
-            if (iconsProd) iconesPrefixo = iconsProd + ' ';
-        } else {
-            // Outros serviços: ícone do serviço + ícones das variáveis que têm ícone
-            const icServ = pipelineGetIconServico(r.tipo_servico);
-            const icVars = (r.variaveis || []).map(v => {
-                const vUp = v.trim().toUpperCase();
-                for (const [key, style] of Object.entries(PIPELINE_VARS_CORES)) {
-                    if (vUp.includes(key)) return style.icon;
-                }
-                return '';
-            }).filter(Boolean).join('');
-            const partes = [icServ, icVars].filter(Boolean).join('');
-            if (partes) iconesPrefixo = partes + ' ';
-        }
+        // Ícones das habilidades (PIPELINE_EQ_ICONS)
+        const icHab = habilidadesArr
+            .map(h => PIPELINE_EQ_ICONS[(h || '').trim().toUpperCase()] || '')
+            .filter(Boolean).join('');
 
-        // 📦 compra interna
-        const isCompraXls = (r.variaveis || []).some(v => v.trim().toUpperCase().includes('COMPRA'));
-        const titulo = iconesPrefixo + (isCompraXls ? '📦 ' : '') + (r.cliente || '').trim();
+        // Ícones das variáveis que têm ícone cadastrado (PIPELINE_VARS_CORES)
+        const icVar = variaveisArr.map(v => {
+            const vUp = (v || '').trim().toUpperCase();
+            for (const [key, style] of Object.entries(PIPELINE_VARS_CORES)) {
+                if (vUp.includes(key)) return style.icon;
+            }
+            return '';
+        }).filter(Boolean).join('');
+
+        const iconesTitulo = [icHab, icVar].filter(Boolean).join('');
+        const titulo = (iconesTitulo ? iconesTitulo + ' ' : '') + (r.cliente || '').trim();
 
         // B: Endereço completo
         const endereco = [r.endereco, r.complemento, r.cep ? `CEP: ${r.cep}` : ''].filter(Boolean).join(', ');
