@@ -163,8 +163,15 @@ function pipelineRenderCard(os) {
 
     return `
     <div class="pipe-card" data-os-id="${os.id}"
-         style="background:${bgCard};border-left:3px solid ${borderCard};"
-         onclick="pipelineAbrirOS(${os.id},'${(os.numero_os||'').replace(/'/g,"\\'")}')">
+         style="background:${bgCard};border-left:3px solid ${borderCard};position:relative;"
+         onclick="pipelineAbrirOS(${os.id},'${(os.numero_os||'').replace(/'/g,"\\'")}')"
+         >
+        <!-- Checkbox de seleção -->
+        <span class="pipe-sel-cb"
+              onclick="pipelineToggleSelecionar(event, ${os.id})"
+              title="Selecionar para exportar"
+              style="position:absolute;top:6px;right:6px;width:16px;height:16px;border-radius:4px;border:1.5px solid #cbd5e1;background:white;display:flex;align-items:center;justify-content:center;font-size:0.65rem;cursor:pointer;color:transparent;transition:all 0.15s;z-index:10;"
+        ></span>
         <!-- OS número e Turno -->
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
             <span style="font-weight:800;font-size:0.82rem;color:#1e3a5f;display:flex;align-items:center;gap:4px;">
@@ -425,23 +432,28 @@ function pipelineBuildTitulo(r) {
     return (prefixo + (r.cliente || '')).trim();
 }
 
-async function pipelineExportarExcel() {
-    if (!_pipelineDados || Object.keys(_pipelineDados).length === 0) {
-        alert('Busque antes de exportar.');
-        return;
-    }
+async function pipelineExportarExcel(registrosOverride) {
+    // Se passado uma lista, usa ela; caso contrário usa todos os dados do pipeline
+    let registros;
+    if (Array.isArray(registrosOverride)) {
+        registros = registrosOverride;
+    } else {
 
-    const ORDER = ['manutencao', 'entrega', 'retirada', 'avulso'];
-    const registros = [];
-    ORDER.forEach(key => {
-        // Dentro de cada categoria: Noturno primeiro, Diurno depois
-        const cat = (_pipelineDados[key] || []).slice().sort((a, b) => {
-            const aN = (a.turno || '').toLowerCase() === 'noturno' ? 0 : 1;
-            const bN = (b.turno || '').toLowerCase() === 'noturno' ? 0 : 1;
-            return aN - bN;
+        if (!_pipelineDados || Object.keys(_pipelineDados).length === 0) {
+            alert('Busque antes de exportar.');
+            return;
+        }
+        const ORDER = ['manutencao', 'entrega', 'retirada', 'avulso'];
+        registros = [];
+        ORDER.forEach(key => {
+            const cat = (_pipelineDados[key] || []).slice().sort((a, b) => {
+                const aN = (a.turno || '').toLowerCase() === 'noturno' ? 0 : 1;
+                const bN = (b.turno || '').toLowerCase() === 'noturno' ? 0 : 1;
+                return aN - bN;
+            });
+            cat.forEach(r => registros.push(r));
         });
-        cat.forEach(r => registros.push(r));
-    });
+    }
     if (registros.length === 0) { alert('Nenhum registro para exportar.'); return; }
 
     // Abreviação dos dias da semana para coluna G
@@ -655,6 +667,59 @@ function buscarPipelineDebounced() {
     _pipelineDebounceTimer = setTimeout(() => buscarPipeline(), 300);
 }
 
+// ── Seleção de OS para exportação parcial ────────────────────────────────
+const _pipelineSelecionados = new Set(); // Set de IDs selecionados
+
+function pipelineToggleSelecionar(event, osId) {
+    event.stopPropagation(); // não abre o modal da OS
+    if (_pipelineSelecionados.has(osId)) {
+        _pipelineSelecionados.delete(osId);
+    } else {
+        _pipelineSelecionados.add(osId);
+    }
+    // Atualiza visual do card
+    const card = document.querySelector(`.pipe-card[data-os-id="${osId}"]`);
+    if (card) {
+        const cb = card.querySelector('.pipe-sel-cb');
+        if (_pipelineSelecionados.has(osId)) {
+            card.style.outline = '2.5px solid #f59e0b';
+            card.style.outlineOffset = '-2px';
+            if (cb) { cb.textContent = '✔'; cb.style.background = '#f59e0b'; cb.style.color = '#fff'; cb.style.borderColor = '#f59e0b'; }
+        } else {
+            card.style.outline = 'none';
+            if (cb) { cb.textContent = ''; cb.style.background = 'white'; cb.style.color = 'transparent'; cb.style.borderColor = '#cbd5e1'; }
+        }
+    }
+    // Atualiza badge e botão
+    const badge = document.getElementById('pipeline-sel-badge');
+    const btnExp = document.getElementById('pipeline-btn-exp-sel');
+    if (badge) badge.textContent = _pipelineSelecionados.size > 0 ? `${_pipelineSelecionados.size} selecionado${_pipelineSelecionados.size > 1 ? 's' : ''}` : '';
+    if (btnExp) btnExp.style.display = _pipelineSelecionados.size > 0 ? 'flex' : 'none';
+}
+
+function pipelineLimparSelecao() {
+    _pipelineSelecionados.clear();
+    document.querySelectorAll('.pipe-card').forEach(card => {
+        card.style.outline = 'none';
+        const cb = card.querySelector('.pipe-sel-cb');
+        if (cb) { cb.textContent = ''; cb.style.background = 'white'; cb.style.color = 'transparent'; cb.style.borderColor = '#cbd5e1'; }
+    });
+    const badge = document.getElementById('pipeline-sel-badge');
+    const btnExp = document.getElementById('pipeline-btn-exp-sel');
+    if (badge) badge.textContent = '';
+    if (btnExp) btnExp.style.display = 'none';
+}
+
+async function pipelineExportarSelecionados() {
+    if (_pipelineSelecionados.size === 0) { alert('Nenhum card selecionado.'); return; }
+    // Coleta os registros selecionados
+    const todos = Object.values(_pipelineDados || {}).flat();
+    const filtrados = todos.filter(r => _pipelineSelecionados.has(r.id));
+    if (!filtrados.length) { alert('Registros não encontrados.'); return; }
+    // Reutiliza a lógica de exportação passando os registros selecionados
+    await pipelineExportarExcel(filtrados);
+}
+
 // Estado persistente dos filtros — sobrevive à troca de abas
 const _pipelineFiltros = {
     os: '', contrato: '', dataDe: '', dataAte: '',
@@ -785,8 +850,13 @@ function renderPipelinePage() {
         </div>
         <!-- Botões à direita -->
         <div style="margin-left:auto;display:flex;gap:6px;align-items:center;">
+          <span id="pipeline-sel-badge" style="background:#fef3c7;color:#92400e;border-radius:20px;padding:3px 12px;font-size:0.78rem;font-weight:700;display:${_pipelineSelecionados.size > 0 ? 'inline-block' : 'none'}">${_pipelineSelecionados.size > 0 ? _pipelineSelecionados.size + ' selecionado(s)' : ''}</span>
+          <button id="pipeline-btn-exp-sel" onclick="pipelineExportarSelecionados()" title="Exportar selecionados"
+            style="display:${_pipelineSelecionados.size > 0 ? 'flex' : 'none'};background:#f59e0b;border:none;border-radius:7px;padding:6px 14px;color:white;font-weight:700;cursor:pointer;font-size:0.82rem;align-items:center;gap:5px;">
+            ⬇️ Exportar (${_pipelineSelecionados.size})
+          </button>
           <span id="pipeline-total-badge" style="background:#e2e8f0;color:#475569;border-radius:20px;padding:3px 12px;font-size:0.78rem;font-weight:700;">—</span>
-          <button onclick="pipelineExportarExcel()" title="Exportar SimpliRoute"
+          <button onclick="pipelineExportarExcel()" title="Exportar todos"
             style="background:#16a34a;border:none;border-radius:7px;padding:6px 14px;color:white;font-weight:700;cursor:pointer;font-size:0.82rem;display:flex;align-items:center;gap:5px;">
             ⬇️ SimpliRoute
           </button>
