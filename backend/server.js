@@ -3245,6 +3245,10 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
     db.get('SELECT status, valor_multa, data_infracao, numero_ait, motorista_id, parcelas FROM multas_logistica WHERE id = ?', [req.params.id], (err, oldData) => {
         if (err || !oldData) return res.status(404).json({ error: 'Multa não encontrada' });
         
+        if (oldData.status === 'Indicado' || oldData.status === 'Multa NIC') {
+            return res.status(403).json({ error: 'Esta multa já foi enviada ao RH e não pode ser editada.' });
+        }
+        
         db.run(
             `UPDATE multas_logistica SET
                 motorista_id = COALESCE(?, motorista_id),
@@ -3295,9 +3299,17 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
 
 // DELETE /api/logistica/multas/:id
 app.delete('/api/logistica/multas/:id', authenticateToken, (req, res) => {
-    db.run('DELETE FROM multas_logistica WHERE id = ?', [req.params.id], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ ok: true });
+    db.get('SELECT status FROM multas_logistica WHERE id = ?', [req.params.id], (err, row) => {
+        if (err || !row) return res.status(404).json({ error: 'Multa não encontrada' });
+        
+        if (row.status === 'Indicado' || row.status === 'Multa NIC') {
+            return res.status(403).json({ error: 'Esta multa já foi enviada ao RH e não pode ser excluída.' });
+        }
+        
+        db.run('DELETE FROM multas_logistica WHERE id = ?', [req.params.id], function(errDel) {
+            if (errDel) return res.status(500).json({ error: errDel.message });
+            res.json({ ok: true });
+        });
     });
 });
 

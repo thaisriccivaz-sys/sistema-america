@@ -120,7 +120,11 @@ function renderMultasLogistica(container) {
             if (m.motorista_id && m.motorista_nome) {
                 motoristaHtml = `<span style="font-weight:600; color:#0f172a;">${m.motorista_nome}</span>`;
             } else {
-                motoristaHtml = `<button onclick="abrirModalGerenciarMulta(${m.id}, true)" style="background:#f1f5f9; color:#2563eb; border:1px solid #cbd5e1; padding:0.3rem 0.6rem; border-radius:4px; cursor:pointer; font-size:0.8rem; font-weight:600;">+ Adicionar Motorista</button>`;
+                if (m.status === 'Indicado' || m.status === 'Multa NIC') {
+                    motoristaHtml = `<span style="color:#94a3b8; font-size:0.8rem;">—</span>`;
+                } else {
+                    motoristaHtml = `<button onclick="abrirModalGerenciarMulta(${m.id}, true)" style="background:#f1f5f9; color:#2563eb; border:1px solid #cbd5e1; padding:0.3rem 0.6rem; border-radius:4px; cursor:pointer; font-size:0.8rem; font-weight:600;">+ Adicionar Motorista</button>`;
+                }
             }
 
             let statusColor = '#e2e8f0';
@@ -152,9 +156,13 @@ function renderMultasLogistica(container) {
                             : '—'}
                     </td>
                     <td style="padding:1rem; text-align:center;">
-                        <button onclick="abrirModalGerenciarMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#2563eb; margin-right:8px;" title="Gerenciar/Editar"><i class="ph ph-pencil-simple" style="font-size:1.2rem;"></i></button>
-                        ${(m.documento_base64 || m.documento_path) ? `<button onclick="visualizarDocumentoMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#10b981; margin-right:8px;" title="Visualizar Documento"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>` : ''}
-                        <button onclick="confirmarExcluirMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#ef4444;" title="Excluir"><i class="ph ph-trash" style="font-size:1.2rem;"></i></button>
+                        ${(m.status === 'Indicado' || m.status === 'Multa NIC') ?
+                            `<button onclick="abrirModalGerenciarMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#64748b; margin-right:8px;" title="Visualizar"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`
+                            :
+                            `<button onclick="abrirModalGerenciarMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#2563eb; margin-right:8px;" title="Gerenciar/Editar"><i class="ph ph-pencil-simple" style="font-size:1.2rem;"></i></button>`
+                        }
+                        ${(m.documento_base64 || m.documento_path) ? `<button onclick="visualizarDocumentoMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#10b981; margin-right:8px;" title="Documento Original"><i class="ph ph-file-pdf" style="font-size:1.2rem;"></i></button>` : ''}
+                        ${(m.status === 'Indicado' || m.status === 'Multa NIC') ? '' : `<button onclick="confirmarExcluirMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#ef4444;" title="Excluir"><i class="ph ph-trash" style="font-size:1.2rem;"></i></button>`}
                     </td>
                 </tr>
             `;
@@ -465,6 +473,37 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
 
                     <div style="display:flex; gap:1.5rem; margin-bottom:1rem; flex-wrap:wrap;">
                         <div style="flex:1; min-width:150px;">
+                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Data da Infração</label>
+                            <input type="date" id="gm-data" value="${multa.data_infracao || ''}" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
+                        </div>
+                        <div style="flex:1; min-width:150px;">
+                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Hora</label>
+                            <input type="time" id="gm-hora" value="${multa.hora_infracao || ''}" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
+                        </div>
+                        <div style="flex:2; min-width:200px;">
+                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Número AIT</label>
+                            <input type="text" id="gm-ait" value="${multa.numero_ait || ''}" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom:1rem;">
+                        <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Motivo (Infração)</label>
+                        <input type="text" id="gm-motivo" value="${multa.motivo || ''}" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
+                    </div>
+
+                    <div style="display:flex; gap:1.5rem; margin-bottom:1rem; flex-wrap:wrap;">
+                        <div style="flex:1; min-width:150px;">
+                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Valor (R$)</label>
+                            <input type="text" id="gm-valor" value="${multa.valor_multa || ''}" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;" onchange="atualizarValoresMultaModal()">
+                        </div>
+                        <div style="flex:1; min-width:150px;">
+                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Pontuação</label>
+                            <input type="number" id="gm-pontos" value="${multa.pontuacao || ''}" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
+                        </div>
+                    </div>
+
+                    <div style="display:flex; gap:1.5rem; margin-bottom:1rem; flex-wrap:wrap;">
+                        <div style="flex:1; min-width:150px;">
                             <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Placa</label>
                             <input type="text" id="gm-placa" value="${multa.placa || ''}" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
                         </div>
@@ -516,7 +555,38 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
 
     atualizarValoresMultaModal();
 
-    if (focoMotorista) document.getElementById('gm-motorista').focus();
+    if (multa.status === 'Indicado' || multa.status === 'Multa NIC') {
+        const form = document.getElementById('form-gerenciar-multa');
+        const elements = form.querySelectorAll('input, select, textarea, button');
+        elements.forEach(el => {
+            if (el.textContent !== 'Cancelar' && !el.classList.contains('ph-eye') && !el.closest('button[title="Visualizar"]')) {
+                el.disabled = true;
+                el.style.opacity = '0.7';
+                el.style.cursor = 'not-allowed';
+            }
+        });
+        
+        // Disable "Salvar Alterações" explicitly
+        const btnSalvar = form.querySelector('button[type="submit"]');
+        if (btnSalvar) {
+            btnSalvar.disabled = true;
+            btnSalvar.style.display = 'none';
+        }
+        
+        // Hide file upload part
+        const docExtra = document.getElementById('gm-doc-extra');
+        if (docExtra) docExtra.parentElement.parentElement.style.display = 'none';
+
+        // Show warning
+        const avisoBlock = document.createElement('div');
+        avisoBlock.style.cssText = 'background:#fef2f2; border:1px solid #fecaca; color:#dc2626; padding:0.8rem; border-radius:6px; margin-bottom:1rem; font-weight:600; text-align:center;';
+        avisoBlock.innerHTML = '&#9888; Esta multa já foi enviada ao RH e não pode mais ser editada ou excluída.';
+        form.insertBefore(avisoBlock, form.firstChild);
+    }
+
+    if (focoMotorista && (multa.status !== 'Indicado' && multa.status !== 'Multa NIC')) {
+        document.getElementById('gm-motorista').focus();
+    }
 }
 
 function atualizarValoresMultaModal() {
@@ -650,6 +720,12 @@ async function salvarGerenciamentoMulta(e, id) {
     const parcelas = document.getElementById('gm-parcelas').value;
     const placa = document.getElementById('gm-placa')?.value.trim() || '';
     const localInfracao = document.getElementById('gm-local')?.value.trim() || '';
+    const dataInfracao = document.getElementById('gm-data')?.value || '';
+    const horaInfracao = document.getElementById('gm-hora')?.value || '';
+    const numeroAit = document.getElementById('gm-ait')?.value.trim() || '';
+    const motivo = document.getElementById('gm-motivo')?.value.trim() || '';
+    const valorMulta = document.getElementById('gm-valor')?.value.trim() || '';
+    const pontuacao = document.getElementById('gm-pontos')?.value || '';
 
     let settled = false;
     const fecharEAtualizar = async (msg, tipo = 'sucesso') => {
@@ -680,7 +756,13 @@ async function salvarGerenciamentoMulta(e, id) {
                 link_formulario: link,
                 parcelas: parcelas,
                 placa: placa,
-                local_infracao: localInfracao
+                local_infracao: localInfracao,
+                data_infracao: dataInfracao,
+                hora_infracao: horaInfracao,
+                numero_ait: numeroAit,
+                motivo: motivo,
+                valor_multa: valorMulta,
+                pontuacao: pontuacao
             })
         });
         clearTimeout(timeoutId);
