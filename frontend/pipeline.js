@@ -655,6 +655,37 @@ function buscarPipelineDebounced() {
     _pipelineDebounceTimer = setTimeout(() => buscarPipeline(), 300);
 }
 
+// Estado persistente dos filtros — sobrevive à troca de abas
+const _pipelineFiltros = {
+    os: '', contrato: '', dataDe: '', dataAte: '',
+    dia: '', tipoOs: '', turno: '', endereco: '', cliente: ''
+};
+
+function _pipelineSalvarFiltros() {
+    _pipelineFiltros.os        = document.getElementById('pipe-filtro-os')?.value        || '';
+    _pipelineFiltros.contrato  = document.getElementById('pipe-filtro-contrato')?.value  || '';
+    _pipelineFiltros.dataDe    = document.getElementById('pipe-filtro-data-de')?.value   || '';
+    _pipelineFiltros.dataAte   = document.getElementById('pipe-filtro-data-ate')?.value  || '';
+    _pipelineFiltros.dia       = document.getElementById('pipe-filtro-dia')?.value       || '';
+    _pipelineFiltros.tipoOs    = document.getElementById('pipe-filtro-tipo-os')?.value   || '';
+    _pipelineFiltros.turno     = document.getElementById('pipe-filtro-turno')?.value     || '';
+    _pipelineFiltros.endereco  = document.getElementById('pipe-filtro-endereco')?.value  || '';
+    _pipelineFiltros.cliente   = document.getElementById('pipe-filtro-cliente')?.value   || '';
+}
+
+function _pipelineRestaurarFiltros(hoje, nextYear) {
+    const el = (id) => document.getElementById(id);
+    if (el('pipe-filtro-os'))       el('pipe-filtro-os').value       = _pipelineFiltros.os;
+    if (el('pipe-filtro-contrato')) el('pipe-filtro-contrato').value = _pipelineFiltros.contrato;
+    if (el('pipe-filtro-data-de'))  el('pipe-filtro-data-de').value  = _pipelineFiltros.dataDe  || hoje;
+    if (el('pipe-filtro-data-ate')) el('pipe-filtro-data-ate').value = _pipelineFiltros.dataAte || nextYear;
+    if (el('pipe-filtro-dia'))      el('pipe-filtro-dia').value      = _pipelineFiltros.dia;
+    if (el('pipe-filtro-tipo-os'))  el('pipe-filtro-tipo-os').value  = _pipelineFiltros.tipoOs;
+    if (el('pipe-filtro-turno'))    el('pipe-filtro-turno').value    = _pipelineFiltros.turno;
+    if (el('pipe-filtro-endereco')) el('pipe-filtro-endereco').value = _pipelineFiltros.endereco;
+    if (el('pipe-filtro-cliente'))  el('pipe-filtro-cliente').value  = _pipelineFiltros.cliente;
+}
+
 function renderPipelinePage() {
     const container = document.getElementById('pipeline-container');
     if (!container) return;
@@ -665,6 +696,9 @@ function renderPipelinePage() {
     // Data "Até" = +1 ano
     const daquiUmAno = new Date(hoje.setFullYear(hoje.getFullYear() + 1));
     const nextYear = daquiUmAno.toISOString().split('T')[0];
+
+    // Salvar filtros atuais antes de recriar o HTML (caso o container já exista)
+    _pipelineSalvarFiltros();
 
     container.innerHTML = `
     <div style="font-family:'Inter',sans-serif;background:#f1f5f9;min-height:100vh;">
@@ -678,32 +712,32 @@ function renderPipelinePage() {
           <label style="color:#475569;font-size:0.78rem;font-weight:600;">OS:</label>
           <input type="text" id="pipe-filtro-os" placeholder="OS"
             style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;width:85px;background:white;color:#1e293b;outline:none;"
-            oninput="buscarPipelineDebounced()">
+            oninput="_pipelineSalvarFiltros();buscarPipelineDebounced()">
         </div>
         <!-- Contrato -->
         <div style="display:flex;align-items:center;gap:5px;">
           <label style="color:#475569;font-size:0.78rem;font-weight:600;">Contrato:</label>
           <input type="text" id="pipe-filtro-contrato" placeholder="Contrato"
             style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;width:95px;background:white;color:#1e293b;outline:none;"
-            oninput="buscarPipelineDebounced()">
+            oninput="_pipelineSalvarFiltros();buscarPipelineDebounced()">
         </div>
         <!-- Data De / Até -->
         <div style="display:flex;align-items:center;gap:5px;">
           <label style="color:#475569;font-size:0.78rem;font-weight:600;">De:</label>
           <input type="date" id="pipe-filtro-data-de" value="${today}"
             style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;background:white;color:#1e293b;outline:none;"
-            onchange="buscarPipeline()">
+            onchange="_pipelineSalvarFiltros();buscarPipeline()">
         </div>
         <div style="display:flex;align-items:center;gap:5px;">
           <label style="color:#475569;font-size:0.78rem;font-weight:600;">Até:</label>
           <input type="date" id="pipe-filtro-data-ate" value="${nextYear}"
             style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;background:white;color:#1e293b;outline:none;"
-            onchange="buscarPipeline()">
+            onchange="_pipelineSalvarFiltros();buscarPipeline()">
         </div>
         <!-- Dia dropdown -->
         <div style="display:flex;align-items:center;gap:5px;">
           <label style="color:#475569;font-size:0.78rem;font-weight:600;">Dia:</label>
-          <select id="pipe-filtro-dia" onchange="buscarPipeline()"
+          <select id="pipe-filtro-dia" onchange="_pipelineSalvarFiltros();buscarPipeline()"
             style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;background:white;color:#1e293b;outline:none;">
             <option value="">Todos</option>
             <option value="Segunda">Segunda</option>
@@ -718,7 +752,7 @@ function renderPipelinePage() {
         <!-- Tipo OS: Obra / Evento -->
         <div style="display:flex;align-items:center;gap:5px;">
           <label style="color:#475569;font-size:0.78rem;font-weight:600;">Tipo:</label>
-          <select id="pipe-filtro-tipo-os" onchange="buscarPipeline()"
+          <select id="pipe-filtro-tipo-os" onchange="_pipelineSalvarFiltros();buscarPipeline()"
             style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;background:white;color:#1e293b;outline:none;">
             <option value="">Todos</option>
             <option value="obra">&#x1F535; Obra</option>
@@ -728,7 +762,7 @@ function renderPipelinePage() {
         <!-- Turno: Diurno / Noturno -->
         <div style="display:flex;align-items:center;gap:5px;">
           <label style="color:#475569;font-size:0.78rem;font-weight:600;">Turno:</label>
-          <select id="pipe-filtro-turno" onchange="buscarPipeline()"
+          <select id="pipe-filtro-turno" onchange="_pipelineSalvarFiltros();buscarPipeline()"
             style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;background:white;color:#1e293b;outline:none;">
             <option value="">Todos</option>
             <option value="Diurno">☀️ Diurno</option>
@@ -740,14 +774,14 @@ function renderPipelinePage() {
           <label style="color:#475569;font-size:0.78rem;font-weight:600;">Endereço:</label>
           <input type="text" id="pipe-filtro-endereco" placeholder="Endereço"
             style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;width:180px;background:white;color:#1e293b;outline:none;"
-            oninput="buscarPipelineDebounced()">
+            oninput="_pipelineSalvarFiltros();buscarPipelineDebounced()">
         </div>
         <!-- Cliente -->
         <div style="display:flex;align-items:center;gap:5px;">
           <label style="color:#475569;font-size:0.78rem;font-weight:600;">Cliente:</label>
           <input type="text" id="pipe-filtro-cliente" placeholder="Cliente"
             style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;width:180px;background:white;color:#1e293b;outline:none;"
-            oninput="buscarPipelineDebounced()">
+            oninput="_pipelineSalvarFiltros();buscarPipelineDebounced()">
         </div>
         <!-- Botões à direita -->
         <div style="margin-left:auto;display:flex;gap:6px;align-items:center;">
@@ -790,6 +824,8 @@ function renderPipelinePage() {
         document.head.appendChild(style);
     }
 
+    // Restaurar filtros salvos e recarregar resultados
+    _pipelineRestaurarFiltros(today, nextYear);
     setTimeout(() => buscarPipeline(), 80);
 
     setTimeout(() => {
