@@ -1,4 +1,4 @@
-﻿const API_URL = '/api';
+const API_URL = '/api';
 
 
 
@@ -398,7 +398,8 @@ const BREADCRUMB_MAP = {
     // Logística
     'logistica-rota-redonda': { path: 'Rota Redonda',                                              code: 'LOG001' },
     'logistica-frota-resumo': { path: 'Resumo de Frota',                                            code: 'LOG002' },
-    'logistica-pipeline': { path: 'Pipeline OS',                                               code: 'LOG003' },
+    'logistica-pipeline':     { path: 'Pipeline OS',                                               code: 'LOG003' },
+    'logistica-multas':       { path: 'Multas',                                                    code: 'LOG004' },
 };
 
 window.carregarPermissoesOnline = async function() {
@@ -533,7 +534,7 @@ function updateBreadcrumb(key) {
     const starBtn = document.getElementById('btn-star-page');
     if (starBtn && entryObj) {
         starBtn.style.color = pageColor;
-        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda';
+        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-pipeline';
         if (isSimplePage) {
             starBtn.style.display = 'flex';
         } else {
