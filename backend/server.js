@@ -3324,9 +3324,17 @@ app.get('/api/colaboradores/:id/arquivo/cnh', (req, res) => {
         db.get('SELECT cnh_arquivo FROM colaboradores WHERE id = ?', [req.params.id], (err2, rowCnh) => {
             const cnh = rowCnh && rowCnh.cnh_arquivo;
             if (!cnh) {
-                return res.status(404).json({
-                    error: `Nenhum arquivo de CNH cadastrado para ${row.nome_completo || 'este colaborador'}. Acesse o Prontuário Digital → Ficha Cadastral para fazer o upload da CNH.`
+                // Tenta buscar na tabela de documentos (upload via Ficha Cadastral)
+                db.get("SELECT file_path, file_name FROM documentos WHERE colaborador_id = ? AND (document_type = 'CNH' OR file_name LIKE '%CNH%') ORDER BY id DESC LIMIT 1", [req.params.id], (err3, rowDoc) => {
+                    if (!err3 && rowDoc && rowDoc.file_path && fs.existsSync(rowDoc.file_path)) {
+                        return res.download(rowDoc.file_path, rowDoc.file_name || `CNH_${encodeURIComponent(row.nome_completo)}.pdf`);
+                    } else {
+                        return res.status(404).json({
+                            error: `Nenhum arquivo de CNH cadastrado para ${row.nome_completo || 'este colaborador'}. Acesse o Prontuário Digital → Ficha Cadastral para fazer o upload da CNH.`
+                        });
+                    }
                 });
+                return;
             }
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Content-Disposition', `inline; filename="CNH_${encodeURIComponent(row.nome_completo || row.cnh_numero || 'colaborador')}.pdf"`);
