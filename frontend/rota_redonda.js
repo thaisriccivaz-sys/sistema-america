@@ -2983,14 +2983,16 @@ function atualizarBloqueio() {
     const overlayEnd = document.getElementById('rr-overlay-bloqueio-endereco');
 
     if (osState.loadedId) {
+        // OS existente: remove os overlays mas NÃO retorna — continua para liberar os dias
         if (overlayOS) overlayOS.style.display = 'none';
         if (overlayEnd) overlayEnd.style.display = 'none';
-        return;
-    }
-
-    // Bloqueio principal: cobre o bloco inferior até definir Obra/Evento
-    if (overlayOS) {
-        overlayOS.style.display = osState.tipoOs ? 'none' : 'flex';
+        // Se ainda não marcou agenda verificada, libera de qualquer forma para OS existentes
+        if (!osState.agendaVerificada) osState.agendaVerificada = true;
+    } else {
+        // Bloqueio principal: cobre o bloco inferior até definir Obra/Evento
+        if (overlayOS) {
+            overlayOS.style.display = osState.tipoOs ? 'none' : 'flex';
+        }
     }
 
     // Controle de bloqueio dos dias da semana (desabilita até validar agenda)
@@ -3016,6 +3018,8 @@ function atualizarBloqueio() {
             }
         }
     });
+
+    if (osState.loadedId) return; // OS existente: overlays já tratados, dias liberados — encerra aqui
 
     if (!overlayEnd) return;
 
@@ -3043,8 +3047,8 @@ function atualizarBloqueio() {
     }
 }
 
-
 // ── ATUALIZA LISTA DE PRODUTOS FILTRADA POR OBRA/EVENTO ───────────────────
+
 // ── FILTRO DO DROPDOWN DE TIPO DE SERVIÇO ─────────────────────────────────
 window.filtrarTiposServico = function(texto) {
     const q = texto.trim().toLowerCase();
