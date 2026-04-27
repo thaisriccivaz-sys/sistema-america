@@ -586,6 +586,7 @@ const TAB_META = {
     'logistica-rota-redonda': { color: '#2d9e5f', icon: 'ph-map-trifold',   title: 'Rota Redonda' },
     'logistica-frota-resumo':  { color: '#1e3a5f', icon: 'ph-truck',          title: 'Resumo de Frota' },
     'logistica-pipeline':    { color: '#2d9e5f', icon: 'ph-kanban',       title: 'Pipeline' },
+    'logistica-multas':      { color: '#2d9e5f', icon: 'ph-receipt',      title: 'Multas' },
     // Financeiro - Azul
     'financeiro-em-breve':    { color: '#1971c2', icon: 'ph-currency-dollar', title: 'Financeiro' },
     // Comercial - Roxo
@@ -759,6 +760,8 @@ function navigateTo(target) {
         if (typeof renderFrotaResumo === 'function') setTimeout(() => renderFrotaResumo(), 80);
     } else if (target === 'logistica-pipeline') {
         if (typeof renderPipelinePage === 'function') setTimeout(() => renderPipelinePage(), 80);
+    } else if (target === 'logistica-multas') {
+        if (typeof initMultasLogistica === 'function') setTimeout(() => initMultasLogistica(), 80);
     }
 }
 

@@ -3137,8 +3137,96 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/assinar-condutor', authen
 });
 
 // =============================================================================
+// MIGRATION: tabela multas_logistica (controle de multas - módulo logística)
+db.run(`CREATE TABLE IF NOT EXISTS multas_logistica (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    motorista_id INTEGER,
+    motorista_nome TEXT,
+    data_infracao TEXT,
+    hora_infracao TEXT,
+    numero_ait TEXT,
+    motivo TEXT,
+    valor_multa TEXT,
+    pontuacao INTEGER DEFAULT 0,
+    status TEXT DEFAULT 'Em conferência',
+    observacao TEXT,
+    link_formulario TEXT,
+    documento_path TEXT,
+    documento_nome TEXT,
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+)`, err => { if (err) console.error('Erro multas_logistica:', err); else console.log('Tabela multas_logistica OK.'); });
+
+// --- ROTAS MULTAS LOGÍSTICA ---------------------------------------------------
+// GET /api/logistica/multas — lista todas as multas
+app.get('/api/logistica/multas', authenticateToken, (req, res) => {
+    db.all(`SELECT ml.*, c.nome as motorista_nome_colab, c.cpf as motorista_cpf, c.numero_habilitacao as motorista_habilitacao
+            FROM multas_logistica ml
+            LEFT JOIN colaboradores c ON ml.motorista_id = c.id
+            ORDER BY ml.criado_em DESC`, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+// POST /api/logistica/multas — cria nova multa
+app.post('/api/logistica/multas', authenticateToken, upload.single('documento'), (req, res) => {
+    const { data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao } = req.body;
+    const documento_path = req.file ? req.file.path : null;
+    const documento_nome = req.file ? req.file.originalname : null;
+    db.run(
+        `INSERT INTO multas_logistica (data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao, status, documento_path, documento_nome)
+         VALUES (?, ?, ?, ?, ?, ?, 'Em conferência', ?, ?)`,
+        [data_infracao || null, hora_infracao || null, numero_ait || null, motivo || null, valor_multa || null, pontuacao || 0, documento_path, documento_nome],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ id: this.lastID, ok: true });
+        }
+    );
+});
+
+// PUT /api/logistica/multas/:id — atualiza campos da multa (motorista, status, obs, link)
+app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
+    const { motorista_id, motorista_nome, status, observacao, link_formulario, data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao } = req.body;
+    db.run(
+        `UPDATE multas_logistica SET
+            motorista_id = COALESCE(?, motorista_id),
+            motorista_nome = COALESCE(?, motorista_nome),
+            status = COALESCE(?, status),
+            observacao = COALESCE(?, observacao),
+            link_formulario = COALESCE(?, link_formulario),
+            data_infracao = COALESCE(?, data_infracao),
+            hora_infracao = COALESCE(?, hora_infracao),
+            numero_ait = COALESCE(?, numero_ait),
+            motivo = COALESCE(?, motivo),
+            valor_multa = COALESCE(?, valor_multa),
+            pontuacao = COALESCE(?, pontuacao),
+            atualizado_em = CURRENT_TIMESTAMP
+         WHERE id = ?`,
+        [motorista_id||null, motorista_nome||null, status||null, observacao||null, link_formulario||null,
+         data_infracao||null, hora_infracao||null, numero_ait||null, motivo||null, valor_multa||null, pontuacao||null,
+         req.params.id],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            if (this.changes === 0) return res.status(404).json({ error: 'Multa não encontrada' });
+            res.json({ ok: true });
+        }
+    );
+});
+
+// DELETE /api/logistica/multas/:id
+app.delete('/api/logistica/multas/:id', authenticateToken, (req, res) => {
+    db.run('DELETE FROM multas_logistica WHERE id = ?', [req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ ok: true });
+    });
+});
+// ------------------------------------------------------------------------------
+
+// =============================================================================
 
 // --- ROTAS DE MULTAS DE TRÂNSITO ----------------------------------------------
+
 // GET /api/colaboradores/:id/multas — lista todas as multas de um colaborador
 app.get('/api/colaboradores/:id/multas', authenticateToken, (req, res) => {
     db.all('SELECT * FROM multas WHERE colaborador_id = ? ORDER BY created_at DESC', [req.params.id], (err, rows) => {

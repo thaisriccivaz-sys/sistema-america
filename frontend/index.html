@@ -107,6 +107,7 @@
                     <a href="#" class="nav-item" data-target="logistica-rota-redonda" onclick="navigateTo('logistica-rota-redonda'); return false;"><i class="ph ph-map-trifold"></i> Rota Redonda</a>
                     <a href="#" class="nav-item" data-target="logistica-frota-resumo" onclick="navigateTo('logistica-frota-resumo'); return false;" style="display:none !important;"><i class="ph ph-truck"></i> Resumo de Frota</a>
                     <a href="#" class="nav-item" data-target="logistica-pipeline" onclick="navigateTo('logistica-pipeline'); return false;"><i class="ph ph-kanban"></i> Pipeline</a>
+                    <a href="#" class="nav-item" data-target="logistica-multas" onclick="navigateTo('logistica-multas'); return false;"><i class="ph ph-receipt"></i> Multas</a>
                 </div>
             </div>
 
@@ -2141,6 +2142,11 @@
                     <div id="pipeline-container"></div>
                 </section>
 
+                <!-- VIEW: LOGISTICA MULTAS -->
+                <section id="view-logistica-multas" class="content-view" style="padding:1.5rem; background:#f1f5f9;">
+                    <div id="multas-logistica-container"></div>
+                </section>
+
                 <section id="view-usuarios-permissoes" class="content-view">
 
                     <div class="page-header flex-between">
@@ -2777,7 +2783,7 @@
     <script src="app.js?v=128"></script>
     <script src="frota_resumo.js?v=3"></script>
     <script src="pipeline.js?v=3"></script>
-
+    <script src="multas_logistica.js?v=1"></script>
 
     <!-- Global Scroll-to-Top Button -->
     <button id="global-scroll-top" onclick="window.scrollTo({top:0, behavior:'smooth'})" style="position:fixed; bottom:30px; right:30px; width:45px; height:45px; border-radius:50%; background:var(--primary-color, #0f172a); color:#fff; border:none; box-shadow:0 4px 10px rgba(0,0,0,0.3); justify-content:center; align-items:center; transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index:9000; display:none; opacity:0; cursor:pointer;" onmouseover="this.style.filter='brightness(0.9)'" onmouseout="this.style.filter='brightness(1)'">
