@@ -1411,10 +1411,10 @@ function carregarRegistroNaTela(os) {
     const tsSearch = document.getElementById('rr-tipo-servico-search');
     if (tsSearch && os.tipo_servico) tsSearch.value = os.tipo_servico;
 
-    if (os.data_os) {
-        const dataEl = document.getElementById('rr-input-data');
-        if (dataEl) dataEl.value = os.data_os;
-    }
+    // Data intencionalmente não preenchida ao abrir OS existente (usuário deve informar a data do atendimento)
+    const dataEl = document.getElementById('rr-input-data');
+    if (dataEl) dataEl.value = '';
+
     if (os.lat && os.lng) set('rr-input-coord', `${os.lat}, ${os.lng}`);
 
     // Garante osState completo ANTES de qualquer chamada que trave campos (atualizarBloqueio)
