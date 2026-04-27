@@ -1,4 +1,4 @@
-// multas_logistica.js
+﻿// multas_logistica.js
 
 let multasLogistica = [];
 let colaboradoresMultas = [];
@@ -59,7 +59,7 @@ async function carregarMultasLogistica() {
 }
 
 function renderMultasLogistica(container) {
-    const STATUS_OPTS = ['Em Conferência','Conferido Aguardando Motorista','Indicação Realizada','Preferência por Multa NIC','Não se Aplica'];
+    const STATUS_OPTS = ['Conferência','Conferido','Indicado','Multa NIC','Não Se Aplica'];
     const optsStatus = STATUS_OPTS.map(s => `<option value="${s}">${s}</option>`).join('');
 
     let html = `
@@ -118,19 +118,17 @@ function renderMultasLogistica(container) {
             
             let motoristaHtml = '';
             if (m.motorista_id && m.motorista_nome) {
-                const cpf = m.motorista_cpf || 'Não informado';
-                const hab = m.motorista_habilitacao || 'Não informado';
-                motoristaHtml = `<span title="CPF: ${cpf} | CNH: ${hab}" style="cursor:help; font-weight:600; color:#0f172a; border-bottom:1px dashed #cbd5e1;">${m.motorista_nome}</span>`;
+                motoristaHtml = `<span style="font-weight:600; color:#0f172a;">${m.motorista_nome}</span>`;
             } else {
                 motoristaHtml = `<button onclick="abrirModalGerenciarMulta(${m.id}, true)" style="background:#f1f5f9; color:#2563eb; border:1px solid #cbd5e1; padding:0.3rem 0.6rem; border-radius:4px; cursor:pointer; font-size:0.8rem; font-weight:600;">+ Adicionar Motorista</button>`;
             }
 
             let statusColor = '#e2e8f0';
-            if (m.status === 'Em Conferência') statusColor = '#fef08a';
-            else if (m.status === 'Conferido Aguardando Motorista') statusColor = '#bfdbfe';
-            else if (m.status === 'Indicação Realizada') statusColor = '#bbf7d0';
-            else if (m.status === 'Preferência por Multa NIC') statusColor = '#fecaca';
-            else if (m.status === 'Não se Aplica') statusColor = '#cbd5e1';
+            if (m.status === 'Conferência') statusColor = '#fef08a';
+            else if (m.status === 'Conferido') statusColor = '#bfdbfe';
+            else if (m.status === 'Indicado') statusColor = '#bbf7d0';
+            else if (m.status === 'Multa NIC') statusColor = '#fecaca';
+            else if (m.status === 'Não Se Aplica') statusColor = '#cbd5e1';
 
             html += `
                 <tr style="border-bottom:1px solid #e2e8f0; transition:background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
@@ -205,14 +203,14 @@ function filtrarMultasLogistica() {
     tbody.innerHTML = listaFiltrada.map(m => {
         const dataInfracao = m.data_infracao ? m.data_infracao.split('-').reverse().join('/') : '—';
         let motoristaHtml = m.motorista_id && m.motorista_nome
-            ? `<span title="CPF: ${m.motorista_cpf||'?'} | CNH: ${m.motorista_habilitacao||'?'}" style="cursor:help; font-weight:600; color:#0f172a; border-bottom:1px dashed #cbd5e1;">${m.motorista_nome}</span>`
+            ? `<span style="font-weight:600; color:#0f172a;">${m.motorista_nome}</span>`
             : `<button onclick="abrirModalGerenciarMulta(${m.id}, true)" style="background:#f1f5f9; color:#2563eb; border:1px solid #cbd5e1; padding:0.3rem 0.6rem; border-radius:4px; cursor:pointer; font-size:0.8rem; font-weight:600;">+ Adicionar Motorista</button>`;
         let statusColor = '#e2e8f0';
-        if (m.status === 'Em Conferência') statusColor = '#fef08a';
-        else if (m.status === 'Conferido Aguardando Motorista') statusColor = '#bfdbfe';
-        else if (m.status === 'Indicação Realizada') statusColor = '#bbf7d0';
-        else if (m.status === 'Preferência por Multa NIC') statusColor = '#fecaca';
-        else if (m.status === 'Não se Aplica') statusColor = '#cbd5e1';
+        if (m.status === 'Conferência') statusColor = '#fef08a';
+        else if (m.status === 'Conferido') statusColor = '#bfdbfe';
+        else if (m.status === 'Indicado') statusColor = '#bbf7d0';
+        else if (m.status === 'Multa NIC') statusColor = '#fecaca';
+        else if (m.status === 'Não Se Aplica') statusColor = '#cbd5e1';
         return `
             <tr style="border-bottom:1px solid #e2e8f0; transition:background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
                 <td style="padding:1rem;"><strong>${m.numero_ait||'—'}</strong></td>
@@ -364,8 +362,8 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
     document.getElementById('modal-gerenciar-multa')?.remove();
     const modal = document.createElement('div');
     modal.id = 'modal-gerenciar-multa';
-    modal.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; justify-content:center; align-items:center; z-index:9999;';
-    
+    modal.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; justify-content:center; align-items:center; z-index:9999; padding:1rem;';
+
     let optionsMotoristas = `<option value="">-- Selecione o Motorista --</option>`;
     colaboradoresMultas.forEach(c => {
         const nome = c.nome_completo || c.nome || 'Sem nome';
@@ -373,25 +371,56 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
         optionsMotoristas += `<option value="${c.id}" ${sel}>${nome}</option>`;
     });
 
-    const statusOpts = ['Em Conferência', 'Conferido Aguardando Motorista', 'Indicação Realizada', 'Preferência por Multa NIC', 'Não se Aplica'];
+    const statusOpts = ['Conferência', 'Conferido', 'Indicado', 'Multa NIC', 'Não Se Aplica'];
     let optionsStatus = '';
     statusOpts.forEach(s => {
         const sel = (multa.status === s) ? 'selected' : '';
         optionsStatus += `<option value="${s}" ${sel}>${s}</option>`;
     });
 
+    // Dados do motorista selecionado (se houver)
+    const motoristaColab = multa.motorista_id ? colaboradoresMultas.find(c => c.id === multa.motorista_id) : null;
+    const cpf = multa.motorista_cpf || motoristaColab?.cpf || '';
+    const habilitacao = multa.motorista_habilitacao || motoristaColab?.cnh_numero || '';
+    const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+
+    // Bloco info motorista
+    const motoristaInfoHtml = motoristaColab ? `
+        <div id="gm-info-motorista" style="background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:0.85rem 1rem; margin-bottom:1rem; display:flex; flex-wrap:wrap; gap:0.6rem; align-items:center;">
+            <span style="font-size:0.82rem; color:#166534; font-weight:700;"><i class="ph ph-user"></i> ${motoristaColab.nome_completo || motoristaColab.nome}</span>
+            <span style="flex:1;"></span>
+            ${cpf ? `<span style="font-size:0.8rem; color:#374151;"><b>CPF:</b> <code id="gm-cpf-val">${cpf}</code></span>
+            <button onclick="navigator.clipboard.writeText('${cpf}'); mostrarToastSucesso('CPF copiado!')" title="Copiar CPF" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem; padding:0;"><i class="ph ph-copy"></i></button>` : ''}
+            ${habilitacao ? `<span style="font-size:0.8rem; color:#374151;"><b>CNH:</b> <code id="gm-hab-val">${habilitacao}</code></span>
+            <button onclick="navigator.clipboard.writeText('${habilitacao}'); mostrarToastSucesso('Nº CNH copiado!')" title="Copiar CNH" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem; padding:0;"><i class="ph ph-copy"></i></button>` : ''}
+            ${multa.motorista_id ? `<button onclick="baixarCNHMotorista(${multa.motorista_id})" title="Baixar CNH" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:6px;padding:3px 10px;font-size:0.78rem;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-download-simple"></i> CNH</button>` : ''}
+        </div>` : '';
+
+    // Documentos extras já salvos
+    let docsExtras = [];
+    try { docsExtras = JSON.parse(multa.documentos_extras || '[]'); } catch(_) {}
+    const docsHtml = docsExtras.map((d, i) => `
+        <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; margin-bottom:6px;">
+            <i class="ph ph-file" style="color:#64748b;"></i>
+            <span style="flex:1; font-size:0.8rem; color:#334155; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${d.nome || 'Documento ' + (i+1)}</span>
+            <button onclick="visualizarDocExtra(${id}, ${i})" title="Visualizar" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:0.8rem;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-eye"></i></button>
+        </div>`).join('');
+
     modal.innerHTML = `
-        <div style="background:#fff; width:500px; max-width:90%; border-radius:8px; overflow:hidden; box-shadow:0 10px 25px rgba(0,0,0,0.2);">
-            <div style="background:#f8fafc; padding:1.2rem 1.5rem; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
-                <h3 style="margin:0; color:#0f172a; font-size:1.2rem;">Gerenciar Multa - ${multa.numero_ait || 'S/N'}</h3>
-                <button onclick="this.closest('#modal-gerenciar-multa').remove()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#64748b;">&times;</button>
+        <div style="background:#fff; width:540px; max-width:100%; max-height:90vh; overflow-y:auto; border-radius:10px; box-shadow:0 10px 25px rgba(0,0,0,0.2);">
+            <div style="background:#f8fafc; padding:1.2rem 1.5rem; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:1;">
+                <h3 style="margin:0; color:#0f172a; font-size:1.1rem;">&#9998; Gerenciar Multa — ${multa.numero_ait || 'S/N'}</h3>
+                <button onclick="document.getElementById('modal-gerenciar-multa').remove()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#64748b;">&times;</button>
             </div>
             <div style="padding:1.5rem;">
                 <form id="form-gerenciar-multa" onsubmit="salvarGerenciamentoMulta(event, ${multa.id})">
-                    
+
+                    <!-- INFO MOTORISTA -->
+                    ${motoristaInfoHtml}
+
                     <div style="margin-bottom:1rem;">
                         <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Motorista Responsável</label>
-                        <select id="gm-motorista" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
+                        <select id="gm-motorista" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;" onchange="atualizarInfoMotoristaModal(this)">
                             ${optionsMotoristas}
                         </select>
                     </div>
@@ -413,8 +442,21 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
                         <input type="text" id="gm-link" value="${multa.link_formulario || ''}" placeholder="https://..." style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
                     </div>
 
-                    <div style="display:flex; justify-content:flex-end; gap:1rem;">
-                        <button type="button" onclick="this.closest('#modal-gerenciar-multa').remove()" style="padding:0.6rem 1.2rem; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:4px; cursor:pointer; font-weight:600; color:#475569;">Cancelar</button>
+                    <!-- DOCUMENTOS EXTRAS -->
+                    <div style="border-top:1px solid #e2e8f0; padding-top:1.2rem; margin-top:0.5rem;">
+                        <label style="display:block; margin-bottom:0.6rem; font-size:0.85rem; font-weight:600; color:#475569;">&#128206; Documentos Adicionais</label>
+                        <div id="gm-docs-lista">${docsHtml || '<p style="font-size:0.8rem;color:#94a3b8;margin:0 0 0.5rem;">Nenhum documento anexado.</p>'}</div>
+                        <div style="border:1.5px dashed #cbd5e1; border-radius:8px; padding:0.75rem 1rem; background:#f8fafc; margin-top:4px;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <input type="file" id="gm-doc-extra" accept=".pdf,.jpg,.jpeg,.png" style="flex:1; font-size:0.82rem; border:none; background:transparent; cursor:pointer;">
+                                <button type="button" onclick="uploadDocExtra(${multa.id})" style="background:#2563eb;color:white;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:0.82rem;font-weight:600;white-space:nowrap;"><i class="ph ph-upload-simple"></i> Anexar</button>
+                            </div>
+                            <p style="margin:4px 0 0; font-size:0.75rem; color:#94a3b8;">PDF, JPG ou PNG até 10MB</p>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; justify-content:flex-end; gap:1rem; margin-top:1.5rem;">
+                        <button type="button" onclick="document.getElementById('modal-gerenciar-multa').remove()" style="padding:0.6rem 1.2rem; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:4px; cursor:pointer; font-weight:600; color:#475569;">Cancelar</button>
                         <button type="submit" style="padding:0.6rem 1.2rem; background:#2563eb; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:600;">Salvar Alterações</button>
                     </div>
                 </form>
@@ -426,22 +468,102 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
     const statusSel = document.getElementById('gm-status');
     const obsReq = document.getElementById('gm-obs-req');
     statusSel.addEventListener('change', () => {
-        obsReq.style.display = (statusSel.value === 'Não se Aplica') ? 'inline' : 'none';
+        obsReq.style.display = (statusSel.value === 'Não Se Aplica') ? 'inline' : 'none';
     });
-    if (statusSel.value === 'Não se Aplica') obsReq.style.display = 'inline';
+    if (statusSel.value === 'Não Se Aplica') obsReq.style.display = 'inline';
 
-    if (focoMotorista) {
-        document.getElementById('gm-motorista').focus();
+    if (focoMotorista) document.getElementById('gm-motorista').focus();
+}
+
+// Atualiza bloco de info do motorista quando dropdown muda
+function atualizarInfoMotoristaModal(sel) {
+    const id = parseInt(sel.value);
+    const c = id ? colaboradoresMultas.find(x => x.id === id) : null;
+    const bloco = document.getElementById('gm-info-motorista');
+    if (!bloco) return;
+    if (!c) { bloco.style.display = 'none'; return; }
+    bloco.style.display = 'flex';
+    bloco.innerHTML = `
+        <span style="font-size:0.82rem; color:#166534; font-weight:700;"><i class="ph ph-user"></i> ${c.nome_completo || c.nome}</span>
+        <span style="flex:1;"></span>
+        ${c.cpf ? `<span style="font-size:0.8rem; color:#374151;"><b>CPF:</b> <code>${c.cpf}</code></span>
+        <button onclick="navigator.clipboard.writeText('${c.cpf}'); mostrarToastSucesso('CPF copiado!')" title="Copiar CPF" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>` : ''}
+        ${c.cnh_numero ? `<span style="font-size:0.8rem; color:#374151;"><b>CNH:</b> <code>${c.cnh_numero}</code></span>
+        <button onclick="navigator.clipboard.writeText('${c.cnh_numero}'); mostrarToastSucesso('CNH copiada!')" title="Copiar CNH" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>` : ''}
+        ${c.id ? `<button onclick="baixarCNHMotorista(${c.id})" title="Baixar CNH" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:6px;padding:3px 10px;font-size:0.78rem;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-download-simple"></i> CNH</button>` : ''}
+    `;
+}
+
+// Baixar arquivo da CNH do colaborador
+async function baixarCNHMotorista(colabId) {
+    const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+    const url = `/api/colaboradores/${colabId}/arquivo/cnh?token=${encodeURIComponent(token)}`;
+    // Tenta abrir em nova aba (se a rota existir)
+    window.open(url, '_blank');
+}
+
+// Upload de documento extra para a multa
+async function uploadDocExtra(multaId) {
+    const input = document.getElementById('gm-doc-extra');
+    if (!input || !input.files.length) { mostrarToastAviso('Selecione um arquivo para anexar.'); return; }
+    const file = input.files[0];
+    if (file.size > 10 * 1024 * 1024) { mostrarToastAviso('Arquivo muito grande. Máximo 10MB.'); return; }
+
+    const btn = input.nextElementSibling;
+    const origHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>';
+
+    try {
+        const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+        const fd = new FormData();
+        fd.append('documento', file);
+        const resp = await fetch(`/api/logistica/multas/${multaId}/documento-extra`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: fd
+        });
+        if (!resp.ok) throw new Error('Falha no upload');
+        const data = await resp.json();
+        mostrarToastSucesso('Documento anexado!');
+        input.value = '';
+        // Atualiza lista de documentos no modal sem fechar
+        const lista = document.getElementById('gm-docs-lista');
+        if (lista) {
+            const docsExtras = data.documentos_extras || [];
+            lista.innerHTML = docsExtras.map((d, i) => `
+                <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; margin-bottom:6px;">
+                    <i class="ph ph-file" style="color:#64748b;"></i>
+                    <span style="flex:1; font-size:0.8rem; color:#334155; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${d.nome || 'Documento ' + (i+1)}</span>
+                    <button onclick="visualizarDocExtra(${multaId}, ${i})" title="Visualizar" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:0.8rem;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-eye"></i></button>
+                </div>`).join('');
+        }
+        // Atualiza dados locais
+        const m = multasLogistica.find(x => x.id === multaId);
+        if (m && data.documentos_extras) m.documentos_extras = JSON.stringify(data.documentos_extras);
+    } catch(e) {
+        mostrarToastErro('Erro ao anexar documento: ' + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = origHtml;
     }
 }
+
+// Visualizar documento extra em nova aba (inline)
+async function visualizarDocExtra(multaId, idx) {
+    const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+    const url = `/api/logistica/multas/${multaId}/documento-extra/${idx}?token=${encodeURIComponent(token)}`;
+    window.open(url, '_blank');
+}
+
 
 async function salvarGerenciamentoMulta(e, id) {
     e.preventDefault();
     const status = document.getElementById('gm-status').value;
     const obs = document.getElementById('gm-obs').value.trim();
     
-    if (status === 'Não se Aplica' && !obs) {
-        mostrarToastAviso('Preencha a observação quando o status for "Não se Aplica".');
+    if (status === 'Não Se Aplica' && !obs) {
+        mostrarToastAviso('Preencha a observação quando o status for "Não Se Aplica".');
         return;
     }
 
@@ -772,3 +894,4 @@ window.processarPDFMulta = async function(input) {
         }
     }
 };
+

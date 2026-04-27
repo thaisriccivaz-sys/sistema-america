@@ -1,4 +1,4 @@
-const API_URL = '/api';
+﻿const API_URL = '/api';
 
 
 
@@ -13964,11 +13964,11 @@ window.renderMultasMotoristaTab = async function(container) {
     }
 
     const STATUS_COLOR = {
-        'Em Conferência':                '#fef08a',
-        'Conferido Aguardando Motorista':'#bfdbfe',
-        'Indicação Realizada':           '#bbf7d0',
-        'Preferência por Multa NIC':     '#fecaca',
-        'Não se Aplica':                 '#e2e8f0',
+        'Conferência':                '#fef08a',
+        'Conferido':'#bfdbfe',
+        'Indicado':           '#bbf7d0',
+        'Multa NIC':     '#fecaca',
+        'Não Se Aplica':                 '#e2e8f0',
     };
 
     multas.forEach(m => {
@@ -14759,3 +14759,4 @@ window.destacarCamposVazios = function() {
         showToast('Todos os campos visíveis estão preenchidos!', 'success');
     }
 };
+

@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
@@ -3174,7 +3174,7 @@ app.post('/api/logistica/multas', authenticateToken, multaUploadMiddleware.singl
 
     db.run(
         `INSERT INTO multas_logistica (data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao, status, documento_nome, documento_base64)
-         VALUES (?, ?, ?, ?, ?, ?, 'Em Conferência', ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, 'Conferência', ?, ?)`,
         [data_infracao || null, hora_infracao || null, numero_ait || null, motivo || null, valor_multa || null, pontuacao || 0, documento_nome, documento_base64],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
@@ -3250,6 +3250,83 @@ app.get('/api/logistica/multas/:id/documento', (req, res) => {
         }
 
         return res.status(404).json({ error: 'Arquivo não disponível. Faça o upload novamente.' });
+    });
+});
+
+// MIGRATION: coluna documentos_extras (JSON array de base64)
+db.run("ALTER TABLE multas_logistica ADD COLUMN documentos_extras TEXT DEFAULT '[]'", (err) => {
+    if (err && !err.message.includes('duplicate column')) console.error('[MIGRATION multas_logistica documentos_extras]', err.message);
+});
+
+// POST /api/logistica/multas/:id/documento-extra — adiciona um documento extra à multa
+const multaExtraUpload = require('multer')({ storage: require('multer').memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+app.post('/api/logistica/multas/:id/documento-extra', authenticateToken, multaExtraUpload.single('documento'), (req, res) => {
+    if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+
+    db.get('SELECT documentos_extras FROM multas_logistica WHERE id = ?', [req.params.id], (err, row) => {
+        if (err || !row) return res.status(404).json({ error: 'Multa não encontrada' });
+
+        let extras = [];
+        try { extras = JSON.parse(row.documentos_extras || '[]'); } catch(_) {}
+
+        const novoDoc = {
+            nome: req.file.originalname,
+            tipo: req.file.mimetype,
+            base64: req.file.buffer.toString('base64'),
+            adicionado_em: new Date().toISOString()
+        };
+        extras.push(novoDoc);
+
+        const extrasJson = JSON.stringify(extras);
+        db.run('UPDATE multas_logistica SET documentos_extras = ? WHERE id = ?', [extrasJson, req.params.id], function(err2) {
+            if (err2) return res.status(500).json({ error: err2.message });
+            // Retorna lista sem o base64 (para não sobrecarregar a resposta)
+            res.json({
+                ok: true,
+                documentos_extras: extras.map((d, i) => ({ nome: d.nome, tipo: d.tipo, idx: i, adicionado_em: d.adicionado_em }))
+            });
+        });
+    });
+});
+
+// GET /api/logistica/multas/:id/documento-extra/:idx — serve um documento extra pelo índice
+app.get('/api/logistica/multas/:id/documento-extra/:idx', (req, res) => {
+    const token = req.query.token || (req.headers['authorization'] || '').replace('Bearer ', '');
+    if (!token) return res.status(401).json({ error: 'Não autorizado' });
+    try { require('jsonwebtoken').verify(token, SECRET_KEY); } catch(e) { return res.status(401).json({ error: 'Token inválido' }); }
+
+    db.get('SELECT documentos_extras FROM multas_logistica WHERE id = ?', [req.params.id], (err, row) => {
+        if (err || !row) return res.status(404).json({ error: 'Multa não encontrada' });
+        let extras = [];
+        try { extras = JSON.parse(row.documentos_extras || '[]'); } catch(_) {}
+        const idx = parseInt(req.params.idx);
+        const doc = extras[idx];
+        if (!doc || !doc.base64) return res.status(404).json({ error: 'Documento não encontrado' });
+
+        const tipoMime = doc.tipo || 'application/octet-stream';
+        res.setHeader('Content-Type', tipoMime);
+        res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(doc.nome || 'documento')}"`);
+        res.end(Buffer.from(doc.base64, 'base64'));
+    });
+});
+
+// GET /api/colaboradores/:id/arquivo/cnh — serve o arquivo de CNH do colaborador
+app.get('/api/colaboradores/:id/arquivo/cnh', (req, res) => {
+    const token = req.query.token || (req.headers['authorization'] || '').replace('Bearer ', '');
+    if (!token) return res.status(401).json({ error: 'Não autorizado' });
+    try { require('jsonwebtoken').verify(token, SECRET_KEY); } catch(e) { return res.status(401).json({ error: 'Token inválido' }); }
+
+    db.get('SELECT nome_completo, cnh_arquivo, cnh_numero FROM colaboradores WHERE id = ?', [req.params.id], (err, row) => {
+        if (err || !row) return res.status(404).json({ error: 'Colaborador não encontrado' });
+
+        // Verifica se há arquivo de CNH armazenado como base64
+        if (row.cnh_arquivo) {
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', `inline; filename="CNH_${encodeURIComponent(row.nome_completo || row.cnh_numero || 'colaborador')}.pdf"`);
+            return res.end(Buffer.from(row.cnh_arquivo, 'base64'));
+        }
+
+        return res.status(404).json({ error: 'Arquivo de CNH não disponível para este colaborador.' });
     });
 });
 // ------------------------------------------------------------------------------
@@ -8748,3 +8825,4 @@ app.listen(PORT, () => {
     console.log('Versão do Servidor: V31_OS_LOGISTICA_MODULE');
     console.log(`Caminho de Armazenamento Local: ${BASE_UPLOAD_PATH}`);
 });
+
