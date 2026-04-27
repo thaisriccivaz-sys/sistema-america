@@ -461,20 +461,31 @@ window.processarPDFMulta = async function(input) {
         // Normaliza espaços mas preserva quebras para buscas linha a linha
         const textToSearch = fullText.replace(/[ \t]+/g, ' ');
 
-        // ── AIT (múltiplos padrões) ────────────────────────────────────────
-        // Ex: "AIT: AA123456789", "A.I.T. AA123456789", "Auto de Infração Nº AA123456789",
-        //     "Nº AA123456789" ou apenas uma sequência alfanumérica longa típica de AIT
+        // ── AIT (múltiplos padrões) ──────────────────────────────────────────────
+        // Regras:
+        // 1. O AIT deve conter pelo menos um dígito (evitar capturar palavras puras como "RIDADE")
+        // 2. Usar \b (word boundary) antes do keyword para não casar no meio de palavras
+        // 3. Padrão genérico "Auto" REMOVIDO pois casava "AUTORIDADE" → "RIDADE"
         let aitVal = '';
         const aitPatterns = [
-            /A\.?\s*I\.?\s*T\.?\s*[:\-nNºo°\.#\s]+([A-Z0-9]{6,20})/i,
-            /Auto\s*de\s*Infra[çc][ãa]o\s*(?:(?:n[ºo°]?|n[\u00BA\u00AA]?|\.?|#?)\s*)?([A-Z0-9]{6,20})/i,
-            /(?:Auto|Infra[çc][ãa]o)\s*[:\-]?\s*([A-Z0-9]{6,20})/i,
-            /n[\u00BA\u00AA]?\s*[:\-]?\s*([A-Z0-9]{8,20})/i,
+            // "AIT: AA123456789" ou "A.I.T. 123456"
+            /\bA\.?\s*I\.?\s*T\.?\b\s*[:\-\/\.#\s]+([A-Z0-9]{4,20})/i,
+            // "Auto de Infração Nº AA123456789" – frase completa com word boundary
+            /\bAuto\s+de\s+Infra[çc][ãa]o\b[^A-Z0-9]{0,10}([A-Z0-9]{6,20})/i,
+            // "Nº 123456" ou "N° AA123456789" – símbolo de número seguido do AIT
+            /\bn[°ºo]\s*\.?\s*([A-Z0-9]{6,20})/i,
+            // Sequência típica brasileira: 2 letras + 9 a 12 dígitos (ex: AA123456789)
             /(?:^|\s)([A-Z]{2}[0-9]{9,12})(?:\s|$)/m,
+            // Sequência só numérica longa (10 a 15 dígitos)
+            /(?:^|\s)([0-9]{10,15})(?:\s|$)/m,
         ];
         for (const pat of aitPatterns) {
             const m = textToSearch.match(pat);
-            if (m && m[1] && m[1].length >= 6) { aitVal = m[1].trim(); break; }
+            // Garante que o valor capturado tem ao menos 1 dígito (evita palavras puras)
+            if (m && m[1] && m[1].length >= 6 && /\d/.test(m[1])) {
+                aitVal = m[1].trim();
+                break;
+            }
         }
         if (aitVal) {
             document.getElementById('nm-ait').value = aitVal;
