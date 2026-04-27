@@ -2664,13 +2664,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const isAvulsa = (payload.tipo_servico || '').toUpperCase().includes('AVULSA');
             const clicouAgenda = document.getElementById('rr-chk-agenda-clicado')?.value === '1';
 
-            if (isManut) {
+            if (isManut && !isAvulsa) {
                 if (!clicouAgenda && !osState.loadedId) {
                     mostrarToastAviso("Para serviços de Manutenção, é obrigatório clicar no botão Agenda.");
                     return;
                 }
                 if (payload.dias_semana.length === 0) {
-                    mostrarToastAviso("Para serviços de Manutenção (Obra ou Evento), é obrigatório selecionar pelo menos um dia da semana.");
+                    mostrarToastAviso("Para serviços de Manutenção recorrente, é obrigatório selecionar pelo menos um dia da semana.");
                     return;
                 }
             }
