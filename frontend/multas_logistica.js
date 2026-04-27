@@ -403,16 +403,75 @@ async function excluirMultaLogistica(id) {
     }
 }
 
-// Tabela de pontuação por artigo/infração (CTB brasileiro)
+// Tabela de pontuação baseada no CTB (Código de Trânsito Brasileiro)
+// IMPORTANTE: a ordem importa — frases mais específicas devem vir primeiro dentro de cada grupo,
+// e grupos de pontuação maior vêm antes para evitar falsos positivos.
 const PONTUACAO_POR_INFRACAO = [
-    // Gravíssimas (7 pontos)
-    { pontos: 7, palavras: ['celular','uso de aparelho','equipamento de comunicação','cinto de segurança','capacete','embriaguez','alcoolemia','bafômetro','contramão','farol apagado','semáforo vermelho','parada obrigatória','velocidade superior a 50','ultrapassagem proibida','racha','competição','fuga','evasão','não parar no posto','transporte clandestino'] },
-    // Graves (5 pontos)
-    { pontos: 5, palavras: ['velocidade superior a 20','estacionamento proibido','conversão proibida','retorno proibido','acostamento','placa de identificação','habilitação vencida','sem habilitação','sem cnh','não possuir cnh','avanço de sinal','parar sobre faixa','parar sobre passagem','não usar indicador','luz','farol','extintor','triângulo','kit de primeiros','pneu','freio'] },
-    // Médias (4 pontos)
-    { pontos: 4, palavras: ['velocidade superior a 15','estacionar em local','documentação','documento','licenciamento','verificação anual','para-choque','buzina','limpador','espelho','velocidade superior a 5 km'] },
-    // Leves (3 pontos)
-    { pontos: 3, palavras: ['velocidade até 5','velocidade até 15','leve','circulação','transitar','ausência de documento','identificação do local'] },
+    // ── Gravíssimas: 7 pontos ──────────────────────────────────────────────
+    { pontos: 7, palavras: [
+        'celular', 'aparelho de comunicacao', 'aparelho de comunicação',
+        'cinto de seguranca', 'cinto de segurança',
+        'capacete',
+        'embriaguez', 'alcoolemia', 'bafometro', 'alcool',
+        'contramaoo', 'contramao', 'contramão',
+        'sinal vermelho', 'semaforo vermelho', 'semáforo vermelho',
+        'velocidade superior a 50',
+        'racha', 'competicao', 'competição',
+        'fuga ao controle policial', 'evasao ao controle', 'evasão ao controle',
+        'nao parar no posto', 'não parar no posto',
+        'transporte de passageiros clandestino',
+        'ultrapassagem em local proibido',
+        'dirigir sem habilitacao', 'dirigir sem habilitação', 'sem cnh',
+        'nao possuir cnh', 'não possuir cnh',
+        'habilitacao cassada', 'habilitação cassada',
+        'freiar bruscamente',
+        'nao usar cadeirinha', 'nao usar dispositivo de retencao',
+    ]},
+    // ── Graves: 5 pontos ──────────────────────────────────────────────────
+    { pontos: 5, palavras: [
+        'velocidade superior a 20',
+        'estacionamento proibido', 'estacionar em local proibido',
+        'conversao proibida', 'conversão proibida',
+        'retorno proibido',
+        'habilitacao vencida', 'habilitação vencida',
+        'avancar sinal', 'avançar sinal', 'avanço de sinal',
+        'parar sobre faixa de pedestres', 'sobre faixa de pedestre',
+        'ultrapassagem proibida',
+        'acostamento',
+        'faixa exclusiva', 'faixa de onibus',
+        'nao dar preferencia ao pedestre', 'não dar preferência ao pedestre',
+        'placa de identificacao adulterada', 'placa adulterada',
+    ]},
+    // ── Médias: 4 pontos ──────────────────────────────────────────────────
+    { pontos: 4, palavras: [
+        'transitar em local', 'transitar em horario', 'transitar em horário',
+        'horario nao permitido', 'horário não permitido',
+        'local nao permitido', 'local não permitido',
+        'regulamentacao', 'regulamentação',         // Art. 185 - transitar em local/horário não permitido
+        'velocidade superior a 15',
+        'estacionar em local', 'estacionamento irregular',
+        'licenciamento', 'crlv', 'documento do veiculo', 'documento do veículo',
+        'verificacao anual', 'verificação anual',
+        'pneu liso', 'pneu careca', 'pneu com defeito',
+        'freio deficiente', 'freio com defeito',
+        'extintor', 'triangulo', 'triângulo',
+        'kit de primeiros socorros',
+        'excesso de peso',
+        'parar em local proibido', 'parar em fila dupla', 'segunda fila',
+        'nao acionar indicador', 'não acionar indicador',
+        'documentacao irregular', 'documentação irregular',
+    ]},
+    // ── Leves: 3 pontos ───────────────────────────────────────────────────
+    { pontos: 3, palavras: [
+        'velocidade ate 5', 'velocidade até 5',
+        'velocidade ate 15', 'velocidade até 15',
+        'nao sinalizar manobra', 'não sinalizar manobra',
+        'luz baixa em rodovia', 'farol baixo em rodovia',
+        'ausencia de documento', 'ausência de documento',
+        'nao portar documento', 'não portar documento',
+        'identificacao do local, data e hora',
+        'identificação do local, data e hora',
+    ]},
 ];
 
 function inferirPontuacaoPorMotivo(motivo) {
