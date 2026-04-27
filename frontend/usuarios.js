@@ -3,13 +3,14 @@
 // ============================================================
 
 const TELAS_SISTEMA = [
-    // Módulo RH
+    // Módulo RH (Ordem exata do menu lateral)
     { modulo: 'RH', pagina_id: 'dashboard',             pagina_nome: 'Dashboard', icone: 'ph-squares-four' },
     { modulo: 'RH', pagina_id: 'colaboradores',          pagina_nome: 'Colaboradores', icone: 'ph-address-book' },
+    { modulo: 'RH', pagina_id: 'assinaturas-digitais',   pagina_nome: 'Assinaturas Digitais', icone: 'ph-signature' },
     { modulo: 'RH', pagina_id: 'ferias',                 pagina_nome: 'Férias', icone: 'ph-airplane-tilt' },
+    { modulo: 'RH', pagina_id: 'experiencia',            pagina_nome: 'Experiência do Colaborador', icone: 'ph-user-check' },
     { modulo: 'RH', pagina_id: 'admissao',               pagina_nome: 'Admissão', icone: 'ph-list-checks' },
     { modulo: 'RH', pagina_id: 'integracao',             pagina_nome: 'Integração', icone: 'ph-users-three' },
-    { modulo: 'RH', pagina_id: 'assinaturas-digitais',   pagina_nome: 'Assinaturas Digitais', icone: 'ph-signature' },
     { modulo: 'RH', pagina_id: 'cargos',                 pagina_nome: 'Cargos e Departamentos', icone: 'ph-briefcase' },
     { modulo: 'RH', pagina_id: 'faculdade',              pagina_nome: 'Faculdade', icone: 'ph-graduation-cap' },
     { modulo: 'RH', pagina_id: 'geradores',              pagina_nome: 'Geradores de Documentos', icone: 'ph-file-text' },
@@ -17,7 +18,8 @@ const TELAS_SISTEMA = [
     { modulo: 'RH', pagina_id: 'gerenciar-avaliacoes',   pagina_nome: 'Avaliações', icone: 'ph-clipboard-text' },
     { modulo: 'RH', pagina_id: 'dissidio',               pagina_nome: 'Dissídio', icone: 'ph-trend-up' },
     // Módulo Logística
-    { modulo: 'Logística', pagina_id: 'logistica-em-breve', pagina_nome: 'Logística (Em breve)', icone: 'ph-truck' },
+    { modulo: 'Logística', pagina_id: 'logistica-rota-redonda', pagina_nome: 'Rota Redonda', icone: 'ph-map-trifold' },
+    { modulo: 'Logística', pagina_id: 'logistica-pipeline',     pagina_nome: 'Pipeline OS', icone: 'ph-kanban' },
     // Módulo Financeiro
     { modulo: 'Financeiro', pagina_id: 'financeiro-em-breve', pagina_nome: 'Financeiro (Em breve)', icone: 'ph-currency-dollar' },
     // Módulo Comercial
@@ -489,8 +491,8 @@ const MENU_HIERARQUIA = [
             {
                 titulo: 'Telas',
                 telas: [
-                    'dashboard', 'colaboradores', 'ferias', 'admissao', 'integracao',
-                    'assinaturas-digitais', 'cargos', 'faculdade', 'geradores',
+                    'dashboard', 'colaboradores', 'assinaturas-digitais', 'ferias', 'experiencia',
+                    'admissao', 'integracao', 'cargos', 'faculdade', 'geradores',
                     'ficha-epi', 'gerenciar-avaliacoes', 'dissidio'
                 ]
             }
@@ -498,7 +500,7 @@ const MENU_HIERARQUIA = [
     },
     {
         modulo: 'Logística', icone: 'ph-truck', cor: '#2b8a3e',
-        grupos: [{ titulo: 'Telas', telas: ['logistica-em-breve'] }]
+        grupos: [{ titulo: 'Telas', telas: ['logistica-rota-redonda', 'logistica-pipeline'] }]
     },
     {
         modulo: 'Financeiro', icone: 'ph-currency-dollar', cor: '#1864ab',
