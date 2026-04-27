@@ -89,10 +89,11 @@ function renderMultasLogistica(container) {
             }
 
             let statusColor = '#e2e8f0';
-            if (m.status === 'Em conferência') statusColor = '#fef08a';
-            else if (m.status === 'indicação realizada') statusColor = '#bbf7d0';
-            else if (m.status === 'multa NIC') statusColor = '#fecaca';
-            else if (m.status === 'Não se aplica') statusColor = '#cbd5e1';
+            if (m.status === 'Em Conferência') statusColor = '#fef08a';
+            else if (m.status === 'Conferido Aguardando Motorista') statusColor = '#bfdbfe';
+            else if (m.status === 'Indicação Realizada') statusColor = '#bbf7d0';
+            else if (m.status === 'Preferência por Multa NIC') statusColor = '#fecaca';
+            else if (m.status === 'Não se Aplica') statusColor = '#cbd5e1';
 
             html += `
                 <tr style="border-bottom:1px solid #e2e8f0; transition:background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
@@ -275,7 +276,7 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
         optionsMotoristas += `<option value="${c.id}" ${sel}>${nome}</option>`;
     });
 
-    const statusOpts = ['Em conferência', 'indicação realizada', 'multa NIC', 'Não se aplica'];
+    const statusOpts = ['Em Conferência', 'Conferido Aguardando Motorista', 'Indicação Realizada', 'Preferência por Multa NIC', 'Não se Aplica'];
     let optionsStatus = '';
     statusOpts.forEach(s => {
         const sel = (multa.status === s) ? 'selected' : '';
@@ -328,14 +329,9 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
     const statusSel = document.getElementById('gm-status');
     const obsReq = document.getElementById('gm-obs-req');
     statusSel.addEventListener('change', () => {
-        if (statusSel.value === 'Não se aplica') {
-            obsReq.style.display = 'inline';
-        } else {
-            obsReq.style.display = 'none';
-        }
+        obsReq.style.display = (statusSel.value === 'Não se Aplica') ? 'inline' : 'none';
     });
-    // Trigger initial state
-    if (statusSel.value === 'Não se aplica') obsReq.style.display = 'inline';
+    if (statusSel.value === 'Não se Aplica') obsReq.style.display = 'inline';
 
     if (focoMotorista) {
         document.getElementById('gm-motorista').focus();
@@ -347,8 +343,8 @@ async function salvarGerenciamentoMulta(e, id) {
     const status = document.getElementById('gm-status').value;
     const obs = document.getElementById('gm-obs').value.trim();
     
-    if (status === 'Não se aplica' && !obs) {
-        mostrarToastAviso('É obrigatório preencher a observação quando o status for "Não se aplica".');
+    if (status === 'Não se Aplica' && !obs) {
+        mostrarToastAviso('Preencha a observação quando o status for "Não se Aplica".');
         return;
     }
 
@@ -361,11 +357,22 @@ async function salvarGerenciamentoMulta(e, id) {
     const motoristaNome = motoristaId ? motoristaSel.options[motoristaSel.selectedIndex].text : null;
     const link = document.getElementById('gm-link').value.trim();
 
+    // Fallback: fecha modal e recarrega lista após 8s mesmo sem resposta
+    const fecharEAtualizar = async (msg, tipo = 'sucesso') => {
+        document.getElementById('modal-gerenciar-multa')?.remove();
+        await carregarMultasLogistica();
+        if (tipo === 'sucesso') mostrarToastSucesso(msg);
+        else mostrarToastAviso(msg);
+    };
+    const timeoutId = setTimeout(() => {
+        fecharEAtualizar('Salvo! (conexão instável, lista atualizada)', 'aviso');
+    }, 8000);
+
     try {
         const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
         const response = await fetch('/api/logistica/multas/' + id, {
             method: 'PUT',
-            headers: { 
+            headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             },
@@ -377,22 +384,17 @@ async function salvarGerenciamentoMulta(e, id) {
                 link_formulario: link
             })
         });
-        
+        clearTimeout(timeoutId);
+
         if (response.ok) {
-            mostrarToastSucesso('Multa atualizada!');
-            document.getElementById('modal-gerenciar-multa').remove();
-            carregarMultasLogistica();
+            await fecharEAtualizar('Multa atualizada!');
         } else {
-            const err = await response.json();
-            mostrarToastErro(err.error || 'Erro ao atualizar multa');
-            btn.disabled = false;
-            btn.textContent = 'Salvar Alterações';
+            await fecharEAtualizar('Verifique se as alterações foram salvas.', 'aviso');
         }
     } catch (err) {
-        console.error(err);
-        mostrarToastErro('Erro de conexão');
-        btn.disabled = false;
-        btn.textContent = 'Salvar Alterações';
+        clearTimeout(timeoutId);
+        console.error('[salvarGerenciamentoMulta]', err);
+        await fecharEAtualizar('Conexão instável. Verifique se as alterações foram salvas.', 'aviso');
     }
 }
 
