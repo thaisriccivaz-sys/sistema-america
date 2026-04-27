@@ -776,29 +776,6 @@
                                             <h4 style="font-size: 0.95rem; color: var(--primary-color); margin-bottom: 1rem;">Documentação Pessoal</h4>
                                             <div class="form-grid">
                                                 <div class="input-group">
-                                                    <label>Tipo de Documento</label>
-                                                    <select id="colab-rg-tipo" onchange="toggleTipoDocumento()">
-                                                        <option value="RG">RG Tradicional</option>
-                                                        <option value="CIN">CIN (Nova Identidade)</option>
-                                                    </select>
-                                                </div>
-                                                <div class="input-group">
-                                                    <label id="lbl-colab-rg">Número (RG)</label>
-                                                    <input type="text" id="colab-rg" onkeyup="mascaraRG(this)" maxlength="14">
-                                                </div>
-                                                <div class="input-group" id="box-rg-orgao">
-                                                    <label>Órgão Emissor</label>
-                                                    <input type="text" id="colab-rg-orgao" autocomplete="off">
-                                                </div>
-                                                <div class="input-group" id="box-rg-data">
-                                                    <label>Data de Expedição</label>
-                                                    <input type="date" id="colab-rg-data">
-                                                </div>
-                                                <div class="input-group span-2">
-                                                    <label>PIS</label>
-                                                    <input type="text" id="colab-pis" maxlength="14" onkeyup="mascaraPIS(this)" placeholder="000.00000.00-0">
-                                                </div>
-                                                <div class="input-group">
                                                     <label>Título Eleitoral</label>
                                                     <input type="text" id="colab-titulo" maxlength="14" onkeyup="mascaraTitulo(this)" placeholder="0000 0000 0000">
                                                 </div>
@@ -813,22 +790,6 @@
                                                 <div class="input-group" id="div-colab-militar">
                                                     <label>Certificado Militar</label>
                                                     <input type="text" id="colab-militar" maxlength="15" onkeyup="mascaraMilitar(this)" disabled placeholder="Apenas para Masculino" style="background:#f8fafc;color:#94a3b8;">
-                                                </div>
-                                                <div class="input-group">
-                                                    <label>Número CTPS</label>
-                                                    <input type="text" id="colab-ctps" autocomplete="off">
-                                                </div>
-                                                <div class="input-group">
-                                                    <label>Série (CTPS)</label>
-                                                    <input type="text" id="colab-ctps-serie" autocomplete="off">
-                                                </div>
-                                                <div class="input-group">
-                                                    <label>UF (CTPS)</label>
-                                                    <input type="text" id="colab-ctps-uf">
-                                                </div>
-                                                <div class="input-group">
-                                                    <label>Data de Expedição (CTPS)</label>
-                                                    <input type="date" id="colab-ctps-data">
                                                 </div>
                                             </div>
                                         </div>
