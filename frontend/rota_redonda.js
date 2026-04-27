@@ -1230,7 +1230,7 @@ function abrirModalListaOS(numOs, registros) {
           if (tServ.includes('ENTREGA')) { bgColor = '#bbf7d0'; hoverColor = '#86efac'; }
           else if (tServ.includes('RETIRADA')) { bgColor = '#fef9c3'; hoverColor = '#fef08a'; }
           else if (tServ.includes('LIMPA FOSSA')) { bgColor = '#bfdbfe'; hoverColor = '#93c5fd'; }
-          else if (tServ.includes('MANUTEN') || tServ.includes('VAC')) { bgColor = '#e2e8f0'; hoverColor = '#cbd5e1'; }
+          else if ((tServ.includes('MANUTEN') || tServ.includes('VAC')) && !tServ.includes('AVULSA')) { bgColor = '#e2e8f0'; hoverColor = '#cbd5e1'; }
           else { bgColor = '#ffffff'; hoverColor = '#f8fafc'; }
           
           return `
@@ -3424,7 +3424,7 @@ async function abrirModalOSCliente(nomeCliente) {
         if (tServ.includes('ENTREGA')) { bgColor = '#bbf7d0'; hoverColor = '#86efac'; }
         else if (tServ.includes('RETIRADA')) { bgColor = '#fef9c3'; hoverColor = '#fef08a'; }
         else if (tServ.includes('LIMPA FOSSA')) { bgColor = '#bfdbfe'; hoverColor = '#93c5fd'; }
-        else if (tServ.includes('MANUTEN') || tServ.includes('VAC')) { bgColor = '#e2e8f0'; hoverColor = '#cbd5e1'; }
+        else if ((tServ.includes('MANUTEN') || tServ.includes('VAC')) && !tServ.includes('AVULSA')) { bgColor = '#e2e8f0'; hoverColor = '#cbd5e1'; }
         else { bgColor = '#ffffff'; hoverColor = '#f8fafc'; }
 
         return `
