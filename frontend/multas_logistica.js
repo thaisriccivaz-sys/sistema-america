@@ -454,6 +454,17 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
                         </div>
                     </div>
 
+                    <div style="display:flex; gap:1.5rem; margin-bottom:1rem; flex-wrap:wrap;">
+                        <div style="flex:1; min-width:150px;">
+                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Valor (R$)</label>
+                            <input type="text" id="gm-valor" value="${multa.valor_multa || ''}" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;" oninput="atualizarValoresMultaModal()">
+                        </div>
+                        <div style="flex:1; min-width:150px;">
+                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Pontuação</label>
+                            <input type="number" id="gm-pontos" value="${multa.pontuacao || ''}" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
+                        </div>
+                    </div>
+
                     <div style="display:flex; gap:1.5rem; margin-bottom:1rem; flex-wrap:wrap; background:#f1f5f9; padding:1rem; border-radius:8px; border:1px solid #e2e8f0;">
                         <div style="flex:1; min-width:150px;">
                             <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Parcelamento</label>
@@ -489,17 +500,6 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
                     <div style="margin-bottom:1rem;">
                         <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Motivo (Infração)</label>
                         <input type="text" id="gm-motivo" value="${multa.motivo || ''}" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
-                    </div>
-
-                    <div style="display:flex; gap:1.5rem; margin-bottom:1rem; flex-wrap:wrap;">
-                        <div style="flex:1; min-width:150px;">
-                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Valor (R$)</label>
-                            <input type="text" id="gm-valor" value="${multa.valor_multa || ''}" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;" onchange="atualizarValoresMultaModal()">
-                        </div>
-                        <div style="flex:1; min-width:150px;">
-                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Pontuação</label>
-                            <input type="number" id="gm-pontos" value="${multa.pontuacao || ''}" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
-                        </div>
                     </div>
 
                     <div style="display:flex; gap:1.5rem; margin-bottom:1rem; flex-wrap:wrap;">
@@ -592,14 +592,17 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
 function atualizarValoresMultaModal() {
     const form = document.getElementById('form-gerenciar-multa');
     if (!form) return;
-    const valorOriginalStr = form.getAttribute('data-valor');
+    
+    const inputValor = document.getElementById('gm-valor');
+    const valorOriginalStr = inputValor ? inputValor.value : form.getAttribute('data-valor');
+    
     const status = document.getElementById('gm-status').value;
     const parcelas = parseInt(document.getElementById('gm-parcelas').value) || 1;
     
     // Parse value (e.g. "R$ 130,16" or "130.16")
     let valorOriginal = 0;
     if (valorOriginalStr) {
-        const numeric = valorOriginalStr.replace(/[^\d,-]/g, '').replace(',', '.');
+        const numeric = String(valorOriginalStr).replace(/[^\d,-]/g, '').replace(',', '.');
         valorOriginal = parseFloat(numeric) || 0;
     }
 
