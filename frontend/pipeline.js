@@ -129,8 +129,8 @@ function pipelineRenderCard(os) {
         else if (varText.includes('EVENTO')) tipoContrato = 'evento';
     }
 
-    const bgCard     = tipoContrato === 'obra' ? '#e0f2fe' : tipoContrato === 'evento' ? '#f3e8ff' : '#ffffff';
-    const borderCard = tipoContrato === 'obra' ? '#7dd3fc' : tipoContrato === 'evento' ? '#d8b4fe' : '#e2e8f0';
+    const bgCard     = tipoContrato === 'obra' ? '#dbeafe' : tipoContrato === 'evento' ? '#ede9fe' : '#f8fafc';
+    const borderCard = tipoContrato === 'obra' ? '#93c5fd' : tipoContrato === 'evento' ? '#c4b5fd' : '#e2e8f0';
 
     let endFull = [os.endereco, os.complemento, os.cep ? `CEP: ${os.cep}` : ''].filter(Boolean).join(', ');
     endFull = endFull.replace(/S[A-ZÃÁÀÂÄ]\W?O PAULO/gi, 'SÃO PAULO')
@@ -168,9 +168,7 @@ function pipelineRenderCard(os) {
         <!-- OS número e Turno -->
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
             <span style="font-weight:800;font-size:0.82rem;color:#1e3a5f;display:flex;align-items:center;gap:4px;">
-                <span onclick="pipelineEditarTipoContrato(event, ${os.id}, '${(_t||'').replace(/'/g,"\\'")}')" style="cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform='scale(1)'" title="Clique para alterar Obra/Evento">
-                    ${tipoContrato === 'obra' ? '<span style="font-size:1.1rem;" title="Obra">🏗️</span>' : tipoContrato === 'evento' ? '<span style="font-size:1.1rem;" title="Evento">🎪</span>' : '<span style="font-size:0.85rem;color:#94a3b8;" title="Tipo indefinido — clique para definir">○</span>'}
-                </span>
+                <span onclick="pipelineEditarTipoContrato(event, ${os.id}, '${(_t||'').replace(/'/g,"\\'")}')" style="cursor:pointer;width:6px;height:6px;border-radius:50%;flex-shrink:0;background:${tipoContrato === 'obra' ? '#3b82f6' : tipoContrato === 'evento' ? '#8b5cf6' : '#cbd5e1'};" title="Clique para alterar Obra/Evento"></span>
                 OS: ${os.numero_os||'—'}
             </span>
             ${(os.turno || '').toLowerCase() === 'noturno' ? '<span style="background:#1e293b;padding:3px 5px;border-radius:4px;font-size:0.85rem;display:flex;align-items:center;justify-content:center;" title="Turno Noturno">🌒</span>' : ''}
