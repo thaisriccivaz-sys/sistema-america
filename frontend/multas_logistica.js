@@ -118,7 +118,7 @@ function renderMultasLogistica(container) {
                     </td>
                     <td style="padding:1rem; text-align:center;">
                         <button onclick="abrirModalGerenciarMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#2563eb; margin-right:8px;" title="Gerenciar/Editar"><i class="ph ph-pencil-simple" style="font-size:1.2rem;"></i></button>
-                        ${m.documento_path ? `<button onclick="visualizarDocumentoMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#10b981; margin-right:8px;" title="Visualizar Documento"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>` : ''}
+                        ${(m.documento_base64 || m.documento_path) ? `<button onclick="visualizarDocumentoMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#10b981; margin-right:8px;" title="Visualizar Documento"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>` : ''}
                         <button onclick="confirmarExcluirMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#ef4444;" title="Excluir"><i class="ph ph-trash" style="font-size:1.2rem;"></i></button>
                     </td>
                 </tr>

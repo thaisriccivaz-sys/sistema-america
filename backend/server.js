@@ -3150,35 +3150,32 @@ app.get('/api/logistica/multas', authenticateToken, (req, res) => {
     });
 });
 
+// MIGRATION: coluna para armazenar PDF como base64 no banco (evita perda no filesystem efêmero do Render)
+db.run("ALTER TABLE multas_logistica ADD COLUMN documento_base64 TEXT", (err) => {
+    if (err && !err.message.includes('duplicate column')) console.error('[MIGRATION multas_logistica documento_base64]', err.message);
+});
+
 // POST /api/logistica/multas — cria nova multa
-const multaUploadMiddleware = require('multer')({ storage: require('multer').memoryStorage() });
+const multaUploadMiddleware = require('multer')({ storage: require('multer').memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 app.post('/api/logistica/multas', authenticateToken, multaUploadMiddleware.single('documento'), (req, res) => {
     const { data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao } = req.body;
 
-    let documento_path = null;
+    let documento_base64 = null;
     let documento_nome = null;
 
     if (req.file) {
         try {
-            const multasDir = path.join(__dirname, 'data', 'multas_logistica');
-            if (!fs.existsSync(multasDir)) fs.mkdirSync(multasDir, { recursive: true });
-            const ext = path.extname(req.file.originalname) || '.pdf';
-            const ts = Date.now();
-            const safeName = `multa_${ts}${ext}`;
-            const destPath = path.join(multasDir, safeName);
-            fs.writeFileSync(destPath, req.file.buffer);
-            documento_path = destPath;
+            documento_base64 = req.file.buffer.toString('base64');
             documento_nome = req.file.originalname;
         } catch (fileErr) {
-            console.error('[MULTA-UPLOAD] Erro ao salvar arquivo:', fileErr.message);
-            // Não bloqueia — salva a multa sem documento
+            console.error('[MULTA-UPLOAD] Erro ao converter PDF:', fileErr.message);
         }
     }
 
     db.run(
-        `INSERT INTO multas_logistica (data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao, status, documento_path, documento_nome)
-         VALUES (?, ?, ?, ?, ?, ?, 'Em conferência', ?, ?)`,
-        [data_infracao || null, hora_infracao || null, numero_ait || null, motivo || null, valor_multa || null, pontuacao || 0, documento_path, documento_nome],
+        `INSERT INTO multas_logistica (data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao, status, documento_nome, documento_base64)
+         VALUES (?, ?, ?, ?, ?, ?, 'Em Conferência', ?, ?)`,
+        [data_infracao || null, hora_infracao || null, numero_ait || null, motivo || null, valor_multa || null, pontuacao || 0, documento_nome, documento_base64],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ id: this.lastID, ok: true });
@@ -3223,9 +3220,8 @@ app.delete('/api/logistica/multas/:id', authenticateToken, (req, res) => {
     });
 });
 
-// GET /api/logistica/multas/:id/documento — serve o PDF anexado à multa
+// GET /api/logistica/multas/:id/documento — serve o PDF da multa (armazenado como base64 no banco)
 app.get('/api/logistica/multas/:id/documento', (req, res) => {
-    // Aceita token via query string (para abertura em nova aba) ou Bearer header
     const token = req.query.token || (req.headers['authorization'] || '').replace('Bearer ', '');
     if (!token) return res.status(401).json({ error: 'Não autorizado' });
     try {
@@ -3235,14 +3231,25 @@ app.get('/api/logistica/multas/:id/documento', (req, res) => {
         return res.status(401).json({ error: 'Token inválido' });
     }
 
-    db.get('SELECT documento_path, documento_nome FROM multas_logistica WHERE id = ?', [req.params.id], (err, row) => {
-        if (err || !row || !row.documento_path) return res.status(404).json({ error: 'Documento não encontrado' });
-        const filePath = row.documento_path;
-        if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Arquivo não encontrado no servidor' });
+    db.get('SELECT documento_base64, documento_nome, documento_path FROM multas_logistica WHERE id = ?', [req.params.id], (err, row) => {
+        if (err || !row) return res.status(404).json({ error: 'Multa não encontrada' });
+
         const nome = row.documento_nome || 'documento_multa.pdf';
         res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(nome)}"`);
         res.setHeader('Content-Type', 'application/pdf');
-        res.sendFile(path.resolve(filePath));
+
+        // Tenta servir do base64 salvo no banco
+        if (row.documento_base64) {
+            const buf = Buffer.from(row.documento_base64, 'base64');
+            return res.end(buf);
+        }
+
+        // Fallback: tenta servir do disco (registros antigos)
+        if (row.documento_path && fs.existsSync(row.documento_path)) {
+            return res.sendFile(path.resolve(row.documento_path));
+        }
+
+        return res.status(404).json({ error: 'Arquivo não disponível. Faça o upload novamente.' });
     });
 });
 // ------------------------------------------------------------------------------
