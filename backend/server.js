@@ -3151,10 +3151,30 @@ app.get('/api/logistica/multas', authenticateToken, (req, res) => {
 });
 
 // POST /api/logistica/multas — cria nova multa
-app.post('/api/logistica/multas', authenticateToken, upload.single('documento'), (req, res) => {
+const multaUploadMiddleware = require('multer')({ storage: require('multer').memoryStorage() });
+app.post('/api/logistica/multas', authenticateToken, multaUploadMiddleware.single('documento'), (req, res) => {
     const { data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao } = req.body;
-    const documento_path = req.file ? req.file.path : null;
-    const documento_nome = req.file ? req.file.originalname : null;
+
+    let documento_path = null;
+    let documento_nome = null;
+
+    if (req.file) {
+        try {
+            const multasDir = path.join(__dirname, 'data', 'multas_logistica');
+            if (!fs.existsSync(multasDir)) fs.mkdirSync(multasDir, { recursive: true });
+            const ext = path.extname(req.file.originalname) || '.pdf';
+            const ts = Date.now();
+            const safeName = `multa_${ts}${ext}`;
+            const destPath = path.join(multasDir, safeName);
+            fs.writeFileSync(destPath, req.file.buffer);
+            documento_path = destPath;
+            documento_nome = req.file.originalname;
+        } catch (fileErr) {
+            console.error('[MULTA-UPLOAD] Erro ao salvar arquivo:', fileErr.message);
+            // Não bloqueia — salva a multa sem documento
+        }
+    }
+
     db.run(
         `INSERT INTO multas_logistica (data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao, status, documento_path, documento_nome)
          VALUES (?, ?, ?, ?, ?, ?, 'Em conferência', ?, ?)`,
