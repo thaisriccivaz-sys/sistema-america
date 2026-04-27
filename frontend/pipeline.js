@@ -106,17 +106,31 @@ function pipelineRenderCard(os) {
     const isRec = pipelineIsRecorrente(os.tipo_servico);
 
     const _t = (os.tipo_servico || '').toLowerCase();
-    
+
+    // Inferência do tipo de contrato (Obra vs Evento)
     let tipoContrato = (os.tipo_os || '').toLowerCase();
+    // Sanitizar: ignorar valor literal 'manutenção' ou 'manutencao'
+    if (tipoContrato.includes('manut') || tipoContrato === 'entrega' || tipoContrato === 'retirada') tipoContrato = '';
     if (!tipoContrato) {
-        if (_t.includes('obra')) tipoContrato = 'obra';
+        // 1) pelo nome do tipo_servico
+        if (_t.includes('obra'))   tipoContrato = 'obra';
         else if (_t.includes('evento')) tipoContrato = 'evento';
-        else if (prods.some(p => (p.desc || '').toUpperCase().includes('OBRA'))) tipoContrato = 'obra';
-        else if (prods.some(p => (p.desc || '').toUpperCase().includes('EVENTO'))) tipoContrato = 'evento';
+    }
+    if (!tipoContrato) {
+        // 2) pelos produtos (ex: 'STD OBRA', 'STD EVENTO')
+        const prodDesc = prods.map(p => (p.desc || p.produto || '').toUpperCase()).join(' ');
+        if (prodDesc.includes('OBRA'))   tipoContrato = 'obra';
+        else if (prodDesc.includes('EVENTO')) tipoContrato = 'evento';
+    }
+    if (!tipoContrato) {
+        // 3) pelas variáveis (ex: 'STD OBRA')
+        const varText = vars.join(' ').toUpperCase();
+        if (varText.includes('OBRA'))   tipoContrato = 'obra';
+        else if (varText.includes('EVENTO')) tipoContrato = 'evento';
     }
 
-    const bgCard     = tipoContrato.includes('obra') ? '#e0f2fe' : tipoContrato.includes('evento') ? '#f3e8ff' : '#ffffff';
-    const borderCard = tipoContrato.includes('obra') ? '#7dd3fc' : tipoContrato.includes('evento') ? '#d8b4fe' : '#e2e8f0';
+    const bgCard     = tipoContrato === 'obra' ? '#e0f2fe' : tipoContrato === 'evento' ? '#f3e8ff' : '#ffffff';
+    const borderCard = tipoContrato === 'obra' ? '#7dd3fc' : tipoContrato === 'evento' ? '#d8b4fe' : '#e2e8f0';
 
     let endFull = [os.endereco, os.complemento, os.cep ? `CEP: ${os.cep}` : ''].filter(Boolean).join(', ');
     endFull = endFull.replace(/S[A-ZÃÁÀÂÄ]\W?O PAULO/gi, 'SÃO PAULO')
@@ -154,8 +168,8 @@ function pipelineRenderCard(os) {
         <!-- OS número e Turno -->
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
             <span style="font-weight:800;font-size:0.82rem;color:#1e3a5f;display:flex;align-items:center;gap:4px;">
-                <span onclick="pipelineEditarTipoContrato(event, ${os.id}, '${(_t||'').replace(/'/g,"\\'")}')" style="cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform 0.2s;height:18px;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" title="Clique para alterar Obra/Evento">
-                    ${tipoContrato.includes('obra') ? '<img src="assets/obra.png" style="height:16px;width:auto;" alt="Obra">' : tipoContrato.includes('evento') ? '<img src="assets/evento.png" style="height:16px;width:auto;" alt="Evento">' : '<span style="font-size:1.1rem;color:#cbd5e1;" title="Indefinido"><i class="ph ph-question"></i></span>'}
+                <span onclick="pipelineEditarTipoContrato(event, ${os.id}, '${(_t||'').replace(/'/g,"\\'")}')" style="cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform='scale(1)'" title="Clique para alterar Obra/Evento">
+                    ${tipoContrato === 'obra' ? '<span style="font-size:1.1rem;" title="Obra">🏗️</span>' : tipoContrato === 'evento' ? '<span style="font-size:1.1rem;" title="Evento">🎪</span>' : '<span style="font-size:0.85rem;color:#94a3b8;" title="Tipo indefinido — clique para definir">○</span>'}
                 </span>
                 OS: ${os.numero_os||'—'}
             </span>
