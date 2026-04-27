@@ -1202,8 +1202,13 @@ function abrirModalListaOS(numOs, registros) {
         } catch(e) {}
 
         const colorMap = { 'Seg':'#ef4444', 'Ter':'#f97316', 'Qua':'#ca8a04', 'Qui':'#16a34a', 'Sex':'#3b82f6', 'Sáb':'#8b5cf6', 'Dom':'#ec4899' };
+        // Dias da semana só aparecem em tipos recorrentes: manutenção (obra/evento) e manutenção avulsa (obra/evento)
+        const tServUp = (r.tipo_servico || '').toUpperCase();
+        const isRecorrente = (tServUp.includes('MANUTEN') || tServUp.includes('VAC'));
         let dSemana = '—';
-        try { dSemana = JSON.parse(r.dias_semana).map(d => `<span style="background:${colorMap[d]||'#2563eb'};color:white;padding:2px 6px;border-radius:4px;margin-right:4px;">${d}</span>`).join(''); } catch(e) {}
+        if (isRecorrente) {
+            try { dSemana = JSON.parse(r.dias_semana).map(d => `<span style="background:${colorMap[d]||'#2563eb'};color:white;padding:2px 6px;border-radius:4px;margin-right:4px;">${d}</span>`).join('') || '—'; } catch(e) {}
+        }
 
         let hab = '—';
         try { 
