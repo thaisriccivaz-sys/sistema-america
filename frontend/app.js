@@ -9837,8 +9837,8 @@ window.saveAdmissaoResponsavel = async function(colabId, nomeResponsavel) {
             Toastify({ text: 'Responsável atribuído com sucesso!', backgroundColor: '#059669' }).showToast();
         }
         
-        if (window.viewedColaborador && window.viewedColaborador.id === colabId) {
-            window.viewedColaborador.admissao_responsavel_nome = nomeResponsavel;
+        if (viewedColaborador && viewedColaborador.id === colabId) {
+            viewedColaborador.admissao_responsavel_nome = nomeResponsavel;
         }
     } catch(e) {
         console.error(e);
@@ -13860,9 +13860,9 @@ window.imprimirFichaSantander = function() {
 
 window.irAoProntuarioDigital = async function(tabName) {
     console.log('[irAoProntuarioDigital] Iniciado com aba alvo:', tabName);
-    const colab = window._admissaoColabSelecionado || window.viewedColaborador;
+    const colab = window._admissaoColabSelecionado || viewedColaborador;
     if (!colab) {
-        console.warn('[irAoProntuarioDigital] Nenhum colaborador selecionado. _admissaoColabSelecionado:', window._admissaoColabSelecionado);
+        console.warn('[irAoProntuarioDigital] Nenhum colaborador selecionado. _admissaoColabSelecionado:', window._admissaoColabSelecionado, 'viewedColaborador:', viewedColaborador);
         alert('Nenhum colaborador selecionado na Admissão.');
         return;
     }
