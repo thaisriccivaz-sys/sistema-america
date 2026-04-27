@@ -3137,25 +3137,6 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/assinar-condutor', authen
 });
 
 // =============================================================================
-// MIGRATION: tabela multas_logistica (controle de multas - módulo logística)
-db.run(`CREATE TABLE IF NOT EXISTS multas_logistica (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    motorista_id INTEGER,
-    motorista_nome TEXT,
-    data_infracao TEXT,
-    hora_infracao TEXT,
-    numero_ait TEXT,
-    motivo TEXT,
-    valor_multa TEXT,
-    pontuacao INTEGER DEFAULT 0,
-    status TEXT DEFAULT 'Em conferência',
-    observacao TEXT,
-    link_formulario TEXT,
-    documento_path TEXT,
-    documento_nome TEXT,
-    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
-    atualizado_em DATETIME DEFAULT CURRENT_TIMESTAMP
-)`, err => { if (err) console.error('Erro multas_logistica:', err); else console.log('Tabela multas_logistica OK.'); });
 
 // --- ROTAS MULTAS LOGÍSTICA ---------------------------------------------------
 // GET /api/logistica/multas — lista todas as multas

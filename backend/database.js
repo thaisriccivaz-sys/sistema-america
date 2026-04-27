@@ -354,6 +354,28 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 )
             `);
 
+            // Tabela Multas Logística
+            db.run(`
+                CREATE TABLE IF NOT EXISTS multas_logistica (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    motorista_id INTEGER,
+                    motorista_nome TEXT,
+                    data_infracao TEXT,
+                    hora_infracao TEXT,
+                    numero_ait TEXT,
+                    motivo TEXT,
+                    valor_multa TEXT,
+                    pontuacao INTEGER DEFAULT 0,
+                    status TEXT DEFAULT 'Em conferência',
+                    observacao TEXT,
+                    link_formulario TEXT,
+                    documento_path TEXT,
+                    documento_nome TEXT,
+                    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    atualizado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+
             // Tabela de Avaliações
             db.run(`
                 CREATE TABLE IF NOT EXISTS avaliacoes (
