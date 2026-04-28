@@ -1574,21 +1574,47 @@ window.toggleTransporteValor = function(val) {
         // Mostrar se for VT ou VC
         if (val === 'Vale Transporte (VT)' || val === 'Vale Combustível (VC)') {
             group.style.display = 'block';
-            // Se for VT e o campo estiver vazio, calcular 6% do salário
-            if (val === 'Vale Transporte (VT)' && input && !input.value) {
+            // Se for VT, sempre calcular 6% do salário automaticamente
+            if (val === 'Vale Transporte (VT)' && input) {
                 const salarioEl = document.getElementById('colab-salario');
                 if (salarioEl && salarioEl.value) {
-                    const salarioRaw = salarioEl.value.replace(/[R$\s.]/g, '').replace(',', '.');
+                    const salarioRaw = salarioEl.value.replace(/[R$\s]/g, '').replace(/\./g, '').replace(',', '.');
                     const salario = parseFloat(salarioRaw);
                     if (!isNaN(salario) && salario > 0) {
                         const vt = salario * 0.06;
                         input.value = vt.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                        // Indicador visual: destaca o campo brevemente
+                        input.style.transition = 'background 0.4s';
+                        input.style.background = '#f0fdf4';
+                        input.style.borderColor = '#16a34a';
+                        setTimeout(() => {
+                            input.style.background = '';
+                            input.style.borderColor = '';
+                        }, 2000);
                     }
                 }
+                // Atualiza o label com dica visual
+                const lbl = group.querySelector('label');
+                if (lbl && !lbl.querySelector('.vt-hint')) {
+                    const hint = document.createElement('small');
+                    hint.className = 'vt-hint';
+                    hint.style.cssText = 'color:#16a34a;font-weight:600;margin-left:6px;font-size:0.78rem;';
+                    hint.textContent = '(6% do salário — editável)';
+                    lbl.appendChild(hint);
+                }
+            } else {
+                // Para VC, remove hint se existir
+                const lbl = group.querySelector('label');
+                const hint = lbl && lbl.querySelector('.vt-hint');
+                if (hint) hint.remove();
             }
         } else {
             group.style.display = 'none';
             if (input) input.value = '';
+            // Remove hint se existir
+            const lbl = group && group.querySelector('label');
+            const hint = lbl && lbl.querySelector('.vt-hint');
+            if (hint) hint.remove();
         }
     }
 };
