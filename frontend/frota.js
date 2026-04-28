@@ -1,6 +1,14 @@
 (function(){
 function getMesVenc(placa){const c=(placa||'').trim().slice(-1).toUpperCase();return({'1':7,'2':7,'3':8,'4':8,'5':9,'6':9,'7':10,'8':10,'9':11,'0':12})[c]||null;}
-function alertaPlaca(placa,exercicio){const hoje=new Date();const ano=parseInt(exercicio);const mes=getMesVenc(placa);if(!mes||!ano)return null;const expirado=(ano<hoje.getFullYear())||(ano===hoje.getFullYear()&&hoje.getMonth()+1>mes);return expirado?'expirado':null;}
+function alertaPlaca(placa,exercicio){
+  const hoje=new Date();
+  const anoVencimento = parseInt(exercicio) + 1; // Exercício 2025 -> vence em 2026
+  const mesVencimento = getMesVenc(placa);
+  if(!mesVencimento||!anoVencimento) return null;
+  // Expirado se: estamos em um ano maior que o ano de vencimento OR estamos no mesmo ano de vencimento e o mês atual já PASSOU o mês de vencimento
+  const expirado = (hoje.getFullYear() > anoVencimento) || (hoje.getFullYear() === anoVencimento && hoje.getMonth() + 1 > mesVencimento);
+  return expirado ? 'expirado' : null;
+}
 async function extrairCRLV(file){
   return new Promise(resolve=>{
     const fr=new FileReader();
@@ -121,7 +129,8 @@ function renderTabelaFrota() {
   tb.innerHTML = rows.map((v, i) => {
     const alerta = alertaPlaca(v.placa, v.exercicio);
     const mesV = getMesVenc(v.placa);
-    const exStr = v.exercicio + (mesV ? ` (vence ${meses[mesV]})` : '');
+    const anoVencimento = parseInt(v.exercicio) + 1;
+    const exStr = v.exercicio + (mesV && anoVencimento ? ` (vence em ${meses[mesV]} / ${anoVencimento})` : '');
     const exStyle = alerta ? 'color:#dc2626;font-weight:700;' : '';
     return `<tr style="background:${i%2===0?'#fff':'#f8fafc'};border-bottom:none;">
 <td style="padding:10px 12px;font-weight:700;color:#2d9e5f;">${v.placa||''}</td>
