@@ -212,6 +212,7 @@ if (formLogin) {
             
             localStorage.setItem('erp_token', currentToken);
             localStorage.setItem('erp_user', JSON.stringify(currentUser));
+            localStorage.setItem('erp_login_time', Date.now().toString());
             
             const nameEl = document.getElementById('logged-user-name');
             if (nameEl) nameEl.textContent = currentUser.username;
@@ -243,9 +244,67 @@ if (btnLogout) {
         currentToken = null;
         localStorage.removeItem('erp_token');
         localStorage.removeItem('erp_user');
+        localStorage.removeItem('erp_login_time');
         window.location.reload();
     });
 }
+
+// ── Sessão automática: logout após 5 horas ─────────────────────────────
+(function() {
+    const SESSION_MS = 5 * 60 * 60 * 1000; // 5 horas em ms
+
+    function sessaoExpirada() {
+        const t = localStorage.getItem('erp_login_time');
+        if (!t) return false;
+        return (Date.now() - parseInt(t)) >= SESSION_MS;
+    }
+
+    function mostrarModalSessaoExpirada() {
+        if (document.getElementById('modal-sessao-expirada')) return;
+        const ov = document.createElement('div');
+        ov.id = 'modal-sessao-expirada';
+        ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.85);z-index:99999;display:flex;align-items:center;justify-content:center;';
+        ov.innerHTML = `
+            <div style="background:#fff;border-radius:16px;width:92vw;max-width:400px;box-shadow:0 25px 60px rgba(0,0,0,0.4);overflow:hidden;text-align:center;">
+                <div style="background:linear-gradient(135deg,#1e293b,#334155);padding:2rem 1.5rem;">
+                    <i class="ph ph-lock" style="font-size:2.8rem;color:#f59e0b;display:block;margin-bottom:0.5rem;"></i>
+                    <h3 style="margin:0;color:#fff;font-size:1.15rem;font-weight:700;">Sessão Expirada</h3>
+                </div>
+                <div style="padding:1.75rem 1.5rem;">
+                    <p style="color:#475569;margin:0 0 1.5rem;font-size:0.93rem;line-height:1.6;">
+                        Sua sessão expirou após <strong>5 horas</strong> de uso.<br>
+                        Por segurança, faça login novamente para continuar.
+                    </p>
+                    <button id="btn-sessao-ok" style="background:#1e293b;color:#fff;border:none;border-radius:10px;padding:0.8rem 2rem;font-weight:700;font-size:0.95rem;cursor:pointer;width:100%;display:flex;align-items:center;justify-content:center;gap:8px;">
+                        <i class="ph ph-sign-in"></i> Fazer Login Novamente
+                    </button>
+                </div>
+            </div>`;
+        document.body.appendChild(ov);
+        document.getElementById('btn-sessao-ok').addEventListener('click', function() {
+            localStorage.removeItem('erp_token');
+            localStorage.removeItem('erp_user');
+            localStorage.removeItem('erp_login_time');
+            window.location.reload();
+        });
+    }
+
+    function verificarSessao() {
+        if (!localStorage.getItem('erp_token')) return; // não logado
+        if (sessaoExpirada()) mostrarModalSessaoExpirada();
+    }
+
+    // Verificar ao carregar (caso o usuário reabra após 5h)
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() { setTimeout(verificarSessao, 3000); });
+    } else {
+        setTimeout(verificarSessao, 3000);
+    }
+
+    // Verificar a cada 60 segundos
+    setInterval(verificarSessao, 60 * 1000);
+})();
+
 
 window.navigateInitialPage = function() {
     if (window.isTopAdmin) {
