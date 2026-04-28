@@ -1012,12 +1012,12 @@ window.processarPDFMulta = async function(input) {
         // ── AIT (múltiplos padrões) ──────────────────────────────────────────────
         let aitVal = '';
         const aitPatterns = [
-            /N[°ºo]\s*do\s*Auto\s*de\s*Infra[çc][ãa]o\s*[:\-]?\s*([A-Z0-9]{5,20})/i,
+            /N[°º]\s*do\s*Auto\s*de\s*Infra[çc][ãa]o\s*[:\-]?\s*([A-Z0-9]{5,20})/i,
             /\bAuto\s+de\s+Infra[çc][ãa]o\b[^A-Z0-9]{0,10}([A-Z0-9]{5,20})/i,
             /\bA\.?\s*I\.?\s*T\.?\b\s*[:\-\/\.#\s]*([A-Z0-9]{5,20})/i,
-            /\bn[°ºo]\s*\.?\s*([A-Z0-9]{6,20})/i,
-            /(?:^|\s)([A-Z]{2}[0-9]{9,12})(?:\s|$)/m,
-            /(?:^|\s)([0-9]{10,15})(?:\s|$)/m,
+            /(?:c[óo]digo|n[úu]mero)\s+da\s+infra[çc][ãa]o[^\w]*([A-Z0-9]{5,20})/i,
+            /\bn[°º]\s*\.?\s*([A-Z0-9]{6,20})/i,
+            /\b([A-Z]{2,3}[0-9]{7,12})\b/
         ];
         for (const pat of aitPatterns) {
             const m = textToSearch.match(pat);
@@ -1044,15 +1044,23 @@ window.processarPDFMulta = async function(input) {
         }
 
         // ── Data ──────────────────────────────────────────────────────────
-        const dataMatch = textToSearch.match(/(?:data(?:\s+da)?\s+infra[çc][ãa]o\s*[:\-]?\s*)?(\d{2}[\/\-]\d{2}[\/\-]\d{4})/i);
+        let dataMatch = textToSearch.match(/data(?:\s+da)?\s+infra[çc][ãa]o[^\d]{0,40}(\d{2}[\/\-]\d{2}[\/\-]\d{4})/i);
+        if (!dataMatch) {
+            dataMatch = textToSearch.match(/\bdata\b(?!\s+(?:de\s+)?emiss[ãa]o)(?!\s+limite)[^\d]{0,40}(\d{2}[\/\-]\d{2}[\/\-]\d{4})/i);
+        }
         if (dataMatch) {
             const parts = dataMatch[1].split(/[\/\-]/);
             document.getElementById('nm-data').value = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
         }
 
         // ── Hora ──────────────────────────────────────────────────────────
-        const horaMatch = textToSearch.match(/(?:hora(?:\s+da)?\s+infra[çc][ãa]o\s*[:\-]?\s*)?(\d{1,2}:\d{2})(?::\d{2})?/i);
-        if (horaMatch) document.getElementById('nm-hora').value = horaMatch[1].padStart(5, '0');
+        let horaMatch = textToSearch.match(/hora(?:\s+da)?\s+infra[çc][ãa]o[^\d]{0,40}(\d{1,2}:\d{2})(?::\d{2})?/i);
+        if (!horaMatch) {
+            horaMatch = textToSearch.match(/\bhora\b[^\d]{0,40}(\d{1,2}:\d{2})(?::\d{2})?/i);
+        }
+        if (horaMatch) {
+            document.getElementById('nm-hora').value = horaMatch[1].padStart(5, '0');
+        }
 
         // ── Data Limite ───────────────────────────────────────────────────
         const limiteMatch = textToSearch.match(/(?:limite|at[ée])[^\d]*(\d{2}[\/\-]\d{2}[\/\-]\d{4})/i) || textToSearch.match(/(?:indica[çc][ãa]o|defesa)[^\d]*(\d{2}[\/\-]\d{2}[\/\-]\d{4})/i);
