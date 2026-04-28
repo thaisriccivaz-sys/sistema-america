@@ -456,6 +456,7 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
     const motoristaColab = multa.motorista_id ? colaboradoresMultas.find(c => c.id === multa.motorista_id) : null;
     const cpf = multa.motorista_cpf || motoristaColab?.cpf || '';
     const habilitacao = multa.motorista_habilitacao || motoristaColab?.cnh_numero || '';
+    const endereco = motoristaColab?.endereco || '';
     const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
 
     // Bloco info motorista
@@ -465,6 +466,8 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
             <span style="flex:1;"></span>
             ${cpf ? `<span style="font-size:0.8rem; color:#374151;"><b>CPF:</b> <code id="gm-cpf-val">${cpf}</code></span>
             <button type="button" onclick="navigator.clipboard.writeText('${cpf}'); mostrarToastSucesso('CPF copiado!'); event.stopPropagation();" title="Copiar CPF" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem; padding:0;"><i class="ph ph-copy"></i></button>` : ''}
+            ${endereco ? `<span style="font-size:0.8rem; color:#374151;"><b>Endereço:</b> <code id="gm-end-val">${endereco}</code></span>
+            <button type="button" onclick="navigator.clipboard.writeText('${endereco.replace(/'/g,&quot;\\&quot;)}'); mostrarToastSucesso('Endereço copiado!'); event.stopPropagation();" title="Copiar Endereço" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem; padding:0;"><i class="ph ph-copy"></i></button>` : ''}
             ${habilitacao ? `<span style="font-size:0.8rem; color:#374151;"><b>CNH:</b> <code id="gm-hab-val">${habilitacao}</code></span>
             <button type="button" onclick="navigator.clipboard.writeText('${habilitacao}'); mostrarToastSucesso('Nº CNH copiado!'); event.stopPropagation();" title="Copiar CNH" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem; padding:0;"><i class="ph ph-copy"></i></button>` : ''}
             ${multa.motorista_id ? `<button type="button" onclick="baixarCNHMotorista(${multa.motorista_id}); event.stopPropagation();" title="Baixar CNH" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:6px;padding:3px 10px;font-size:0.78rem;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-download-simple"></i> CNH</button>` : ''}
@@ -697,11 +700,14 @@ function atualizarInfoMotoristaModal(sel) {
     if (!bloco) return;
     if (!c) { bloco.style.display = 'none'; return; }
     bloco.style.display = 'flex';
+    const endColab = (c.endereco || '').replace(/'/g, "\\'");
     bloco.innerHTML = `
         <span style="font-size:0.82rem; color:#166534; font-weight:700;"><i class="ph ph-user"></i> ${c.nome_completo || c.nome}</span>
         <span style="flex:1;"></span>
         ${c.cpf ? `<span style="font-size:0.8rem; color:#374151;"><b>CPF:</b> <code>${c.cpf}</code></span>
         <button type="button" onclick="navigator.clipboard.writeText('${c.cpf}'); mostrarToastSucesso('CPF copiado!'); event.stopPropagation();" title="Copiar CPF" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>` : ''}
+        ${c.endereco ? `<span style="font-size:0.8rem; color:#374151;"><b>Endereço:</b> <code>${c.endereco}</code></span>
+        <button type="button" onclick="navigator.clipboard.writeText('${endColab}'); mostrarToastSucesso('Endereço copiado!'); event.stopPropagation();" title="Copiar Endereço" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>` : ''}
         ${c.cnh_numero ? `<span style="font-size:0.8rem; color:#374151;"><b>CNH:</b> <code>${c.cnh_numero}</code></span>
         <button type="button" onclick="navigator.clipboard.writeText('${c.cnh_numero}'); mostrarToastSucesso('CNH copiada!'); event.stopPropagation();" title="Copiar CNH" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>` : ''}
         ${c.id ? `<button type="button" onclick="baixarCNHMotorista(${c.id}); event.stopPropagation();" title="Baixar CNH" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:6px;padding:3px 10px;font-size:0.78rem;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-download-simple"></i> CNH</button>` : ''}
