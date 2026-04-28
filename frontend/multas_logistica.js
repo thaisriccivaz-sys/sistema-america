@@ -129,7 +129,7 @@ function renderMultasLogistica(container) {
                     style="padding:0.45rem 0.8rem; background:#e2e8f0; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem; color:#475569; white-space:nowrap;">&#x2715; Limpar</button>
             </div>
 
-            <div style="overflow-y:auto; height:calc(100vh - 260px);">
+            <div style="overflow-y:auto; height:calc(100vh - 340px);">
                 <table style="width:100%; border-collapse:collapse; min-width:1000px; font-size:0.9rem;">
                     <thead style="position:sticky; top:0; z-index:2; background:#f8fafc; outline:1px solid #e2e8f0;">
                         <tr style="text-align:left;">
