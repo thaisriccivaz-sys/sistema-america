@@ -3002,11 +3002,13 @@ window.editColaborador = async function(id) {
             if (typeof toggleTipoDocumento === 'function') toggleTipoDocumento();
         }
         
-        if (c.data_nascimento) {
-            document.getElementById('colab-nascimento').value = new Date(c.data_nascimento).toISOString().split('T')[0];
-        } else {
-            document.getElementById('colab-nascimento').value = '';
-        }
+        const _safeDate = (dStr) => {
+            if (!dStr) return '';
+            try { const d = new Date(dStr); return isNaN(d.getTime()) ? '' : d.toISOString().split('T')[0]; }
+            catch(e) { return ''; }
+        };
+        
+        document.getElementById('colab-nascimento').value = _safeDate(c.data_nascimento);
 
         document.getElementById('colab-estadocivil').value = c.estado_civil || '';
         document.getElementById('colab-nacionalidade').value = c.nacionalidade || 'Brasileira';
@@ -3045,14 +3047,14 @@ window.editColaborador = async function(id) {
         if (document.getElementById('colab-numero-registro')) document.getElementById('colab-numero-registro').value = c.numero_registro || '';
         if (document.getElementById('colab-local-nascimento')) document.getElementById('colab-local-nascimento').value = c.local_nascimento || '';
         if (document.getElementById('colab-rg-orgao')) document.getElementById('colab-rg-orgao').value = c.rg_orgao || '';
-        if (document.getElementById('colab-rg-data')) document.getElementById('colab-rg-data').value = c.rg_data_emissao ? new Date(c.rg_data_emissao).toISOString().split('T')[0] : '';
+        if (document.getElementById('colab-rg-data')) document.getElementById('colab-rg-data').value = _safeDate(c.rg_data_emissao);
         if (document.getElementById('colab-titulo')) document.getElementById('colab-titulo').value = c.titulo_eleitoral || '';
         if (document.getElementById('colab-titulo-zona')) document.getElementById('colab-titulo-zona').value = c.titulo_zona || '';
         if (document.getElementById('colab-titulo-secao')) document.getElementById('colab-titulo-secao').value = c.titulo_secao || '';
         if (document.getElementById('colab-ctps')) document.getElementById('colab-ctps').value = c.ctps_numero || '';
         if (document.getElementById('colab-ctps-serie')) document.getElementById('colab-ctps-serie').value = c.ctps_serie || '';
         if (document.getElementById('colab-ctps-uf')) document.getElementById('colab-ctps-uf').value = c.ctps_uf || '';
-        if (document.getElementById('colab-ctps-data')) document.getElementById('colab-ctps-data').value = c.ctps_data_expedicao ? new Date(c.ctps_data_expedicao).toISOString().split('T')[0] : '';
+        if (document.getElementById('colab-ctps-data')) document.getElementById('colab-ctps-data').value = _safeDate(c.ctps_data_expedicao);
         // Auto-preencher CTPS a partir do CPF
         (function() {
             const cpfDigits = (c.cpf || '').replace(/\D/g, '');
@@ -3091,7 +3093,7 @@ window.editColaborador = async function(id) {
         if (document.getElementById('colab-deficiencia')) document.getElementById('colab-deficiencia').value = c.deficiencia || '';
         if (document.getElementById('colab-horario-trabalho')) document.getElementById('colab-horario-trabalho').value = c.horario_trabalho || '';
         if (document.getElementById('colab-horario-intervalo')) document.getElementById('colab-horario-intervalo').value = c.horario_intervalo || '';
-        if (document.getElementById('colab-fgts-opcao')) document.getElementById('colab-fgts-opcao').value = c.fgts_opcao ? new Date(c.fgts_opcao).toISOString().split('T')[0] : '';
+        if (document.getElementById('colab-fgts-opcao')) document.getElementById('colab-fgts-opcao').value = _safeDate(c.fgts_opcao);
         if (document.getElementById('colab-banco-nome')) document.getElementById('colab-banco-nome').value = c.banco_nome || '';
         if (document.getElementById('colab-banco-agencia')) document.getElementById('colab-banco-agencia').value = c.banco_agencia || '';
         if (document.getElementById('colab-banco-conta')) document.getElementById('colab-banco-conta').value = c.banco_conta || '';
