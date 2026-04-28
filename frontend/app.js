@@ -2448,7 +2448,7 @@ window.exportarColaboradoresXLSX = async function() {
         cell.alignment = { vertical: 'middle', horizontal: 'center' };
     });
 
-    const safeDate = (dt) => dt ? new Date(dt).toLocaleDateString('pt-BR') : '';
+    const safeDate = (dt) => dt ? new Date(dt.includes('T') ? dt : dt + 'T12:00:00').toLocaleDateString('pt-BR') : '';
 
     colaboradores.forEach(c => {
         const row = worksheet.addRow([
@@ -2749,7 +2749,7 @@ function renderTabelaColaboradores(lista) {
                 </tr></thead>
                 <tbody>
                     ${lista.map(c => {
-                        const d = c.data_admissao ? new Date(c.data_admissao).toLocaleDateString('pt-BR') : '-';
+                        const d = c.data_admissao ? new Date(c.data_admissao.includes('T') ? c.data_admissao : c.data_admissao + 'T12:00:00').toLocaleDateString('pt-BR') : '-';
                         expInfoHtml = `<div style="font-size:0.95rem;">${d}</div>`;
                         let probationDatesHtml = '';
                         if (c.data_admissao) {
