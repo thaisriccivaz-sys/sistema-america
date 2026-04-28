@@ -194,7 +194,7 @@ function renderMultasLogistica(container) {
                         </span>
                     </td>
                     <td style="padding:1rem; white-space:nowrap;">${_dataLimiteBadge(m.data_limite)}</td>
-                    <td style="padding:1rem; text-align:center; min-width: 140px;">
+                    <td style="padding:1rem; text-align:center; min-width:140px; white-space:nowrap;">
                         ${(m.status === 'Indicado' || m.status === 'Multa NIC') ?
                             `<button onclick="abrirModalGerenciarMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#64748b; margin-right:8px;" title="Visualizar"><i class="ph ph-magnifying-glass" style="font-size:1.2rem;"></i></button>`
                             :
