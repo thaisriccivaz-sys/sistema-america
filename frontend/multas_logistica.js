@@ -137,12 +137,9 @@ function renderMultasLogistica(container) {
                             <th style="padding:1rem; font-weight:600; color:#475569;">Placa</th>
                             <th class="multa-th-sort" data-col="data_infracao" onclick="ordenarMultas('data_infracao')" style="padding:1rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Data/Hora <i class="sort-ico ph ph-arrow-down" style="color:#2563eb;font-size:0.8rem;"></i></th>
                             <th class="multa-th-sort" data-col="motivo" onclick="ordenarMultas('motivo')" style="padding:1rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Motivo <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
-                            <th style="padding:1rem; font-weight:600; color:#475569;">Valor / Pontos</th>
                             <th class="multa-th-sort" data-col="motorista_nome" onclick="ordenarMultas('motorista_nome')" style="padding:1rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Motorista <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
                             <th class="multa-th-sort" data-col="status" onclick="ordenarMultas('status')" style="padding:1rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Status <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
                             <th class="multa-th-sort" data-col="data_limite" onclick="ordenarMultas('data_limite')" style="padding:1rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Data Limite <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
-                            <th style="padding:1rem; font-weight:600; color:#475569;">Observação</th>
-                            <th style="padding:1rem; font-weight:600; color:#475569;">Link Form.</th>
                             <th style="padding:1rem; font-weight:600; color:#475569; text-align:center;">Ações</th>
                         </tr>
                     </thead>
@@ -152,7 +149,7 @@ function renderMultasLogistica(container) {
     const listaFiltrada = _aplicarFiltrosMultas(multasLogistica);
 
     if (listaFiltrada.length === 0) {
-        html += `<tr><td colspan="11" style="padding:2rem; text-align:center; color:#64748b;">Nenhuma multa encontrada.</td></tr>`;
+        html += `<tr><td colspan="8" style="padding:2rem; text-align:center; color:#64748b;">Nenhuma multa encontrada.</td></tr>`;
     } else {
         listaFiltrada.forEach(m => {
             const dataInfracao = m.data_infracao ? m.data_infracao.split('-').reverse().join('/') : '—';
@@ -181,7 +178,6 @@ function renderMultasLogistica(container) {
                     <td style="padding:1rem; font-weight:600; color:#334155; white-space:nowrap;">${m.placa || '—'}</td>
                     <td style="padding:1rem;">${dataInfracao}<br><span style="color:#64748b; font-size:0.8rem;">${m.hora_infracao || '—'}</span></td>
                     <td style="padding:1rem; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${m.motivo || ''}">${m.motivo || '—'}</td>
-                    <td style="padding:1rem;">R$ ${m.valor_multa || '0,00'}<br><span style="color:#ef4444; font-size:0.8rem; font-weight:600;">${m.pontuacao || 0} pts</span></td>
                     <td style="padding:1rem;">${motoristaHtml}</td>
                     <td style="padding:1rem;">
                         <span style="background:${statusColor}; color:#0f172a; padding:4px 8px; border-radius:12px; font-size:0.8rem; font-weight:600; white-space:nowrap;">
@@ -189,15 +185,6 @@ function renderMultasLogistica(container) {
                         </span>
                     </td>
                     <td style="padding:1rem; white-space:nowrap;">${_dataLimiteBadge(m.data_limite)}</td>
-                    <td style="padding:1rem; max-width:150px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${m.observacao || ''}">${m.observacao || '—'}</td>
-                    <td style="padding:1rem;">
-                        ${m.link_formulario ? 
-                            `<div style="display:flex; align-items:center; gap:0.3rem;">
-                                <a href="${m.link_formulario.startsWith('http') ? m.link_formulario : 'http://'+m.link_formulario}" target="_blank" style="color:#2563eb; text-decoration:none; max-width:100px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${m.link_formulario}</a>
-                                <button onclick="navigator.clipboard.writeText('${m.link_formulario}'); mostrarToastSucesso('Link copiado!')" style="background:none; border:none; cursor:pointer; color:#64748b;" title="Copiar Link"><i class="ph ph-copy"></i></button>
-                             </div>` 
-                            : '—'}
-                    </td>
                     <td style="padding:1rem; text-align:center;">
                         ${(m.status === 'Indicado' || m.status === 'Multa NIC') ?
                             `<button onclick="abrirModalGerenciarMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#64748b; margin-right:8px;" title="Visualizar"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`
@@ -256,7 +243,7 @@ function filtrarMultasLogistica() {
     });
 
     if (listaFiltrada.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="11" style="padding:2rem; text-align:center; color:#64748b;">Nenhuma multa encontrada com esses filtros.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" style="padding:2rem; text-align:center; color:#64748b;">Nenhuma multa encontrada com esses filtros.</td></tr>`;
         return;
     }
 
@@ -278,12 +265,9 @@ function filtrarMultasLogistica() {
                 <td style="padding:1rem; font-weight:600; color:#334155; white-space:nowrap;">${m.placa||'—'}</td>
                 <td style="padding:1rem;">${dataInfracao}<br><span style="color:#64748b; font-size:0.8rem;">${m.hora_infracao||'—'}</span></td>
                 <td style="padding:1rem; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${m.motivo||''}">${m.motivo||'—'}</td>
-                <td style="padding:1rem;">R$ ${m.valor_multa||'0,00'}<br><span style="color:#ef4444; font-size:0.8rem; font-weight:600;">${m.pontuacao||0} pts</span></td>
                 <td style="padding:1rem;">${motoristaHtml}</td>
                 <td style="padding:1rem;"><span style="background:${statusColor}; color:#0f172a; padding:4px 8px; border-radius:12px; font-size:0.8rem; font-weight:600; white-space:nowrap;">${m.status||'—'}</span></td>
                 <td style="padding:1rem; white-space:nowrap;">${_dataLimiteBadge(m.data_limite)}</td>
-                <td style="padding:1rem; max-width:150px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${m.observacao||''}">${m.observacao||'—'}</td>
-                <td style="padding:1rem;">${m.link_formulario ? `<a href="${m.link_formulario.startsWith('http')?m.link_formulario:'http://'+m.link_formulario}" target="_blank" style="color:#2563eb; text-decoration:none; font-size:0.8rem;">${m.link_formulario}</a>` : '—'}</td>
                 <td style="padding:1rem; text-align:center;">
                     <button onclick="abrirModalGerenciarMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#2563eb; margin-right:8px;" title="Gerenciar/Editar"><i class="ph ph-pencil-simple" style="font-size:1.2rem;"></i></button>
                     ${(m.documento_base64||m.documento_path) ? `<button onclick="visualizarDocumentoMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#10b981; margin-right:8px;" title="Visualizar Documento"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>` : ''}
@@ -308,7 +292,7 @@ function abrirModalNovaMulta() {
     modal.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; justify-content:center; align-items:center; z-index:9999;';
     
     modal.innerHTML = `
-        <div style="background:#fff; width:520px; max-width:95%; border-radius:10px; overflow:hidden; box-shadow:0 10px 25px rgba(0,0,0,0.2);">
+        <div style="background:#fff; width:800px; max-width:95%; border-radius:10px; overflow:hidden; box-shadow:0 10px 25px rgba(0,0,0,0.2);">
             <div style="background:#f8fafc; padding:1.2rem 1.5rem; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
                 <h3 style="margin:0; color:#0f172a; font-size:1.2rem;">&#128196; Nova Multa</h3>
                 <button onclick="this.closest('#modal-nova-multa').remove()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#64748b;">&times;</button>
@@ -322,56 +306,54 @@ function abrirModalNovaMulta() {
                             <span style="font-size:1.3rem;">&#129302;</span>
                             <span style="font-weight:700; color:#1d4ed8; font-size:0.92rem;">Preenchimento Automático via PDF</span>
                         </div>
-                        <p style="margin:0 0 0.7rem; color:#475569; font-size:0.82rem;">Anexe o documento da multa e os campos abaixo serão preenchidos automaticamente: Data, Hora, Número AIT, Motivo, Valor e Pontuação.</p>
+                        <p style="margin:0 0 0.7rem; color:#475569; font-size:0.82rem;">Anexe o documento da multa e os campos abaixo serão preenchidos automaticamente: Data, Hora, Número AIT, Motivo, Valor, Pontuação e Data Limite.</p>
                         <input type="file" id="nm-doc" accept=".pdf" onchange="processarPDFMulta(this)" style="width:100%; padding:0.4rem 0.5rem; border:1px solid #bfdbfe; border-radius:5px; background:white; font-size:0.85rem; cursor:pointer;">
                     </div>
 
-                    <div style="display:flex; gap:1rem; margin-bottom:1rem;">
-                        <div style="flex:1;">
+                    <div style="display:flex; gap:1rem; margin-bottom:1rem; flex-wrap:wrap;">
+                        <div style="flex:1; min-width:180px;">
                             <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Data Infração *</label>
                             <input type="date" id="nm-data" required style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
                         </div>
-                        <div style="flex:1;">
+                        <div style="flex:1; min-width:120px;">
                             <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Hora</label>
                             <input type="time" id="nm-hora" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
                         </div>
+                        <div style="flex:2; min-width:200px;">
+                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Número AIT *</label>
+                            <input type="text" id="nm-ait" required placeholder="Ex: AA123456789" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
+                        </div>
                     </div>
 
-                    <div style="margin-bottom:1rem;">
-                        <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Número AIT *</label>
-                        <input type="text" id="nm-ait" required placeholder="Ex: AA123456789" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
-                    </div>
-
-                    <div style="display:flex; gap:1rem; margin-bottom:1rem;">
-                        <div style="flex:1;">
+                    <div style="display:flex; gap:1rem; margin-bottom:1rem; flex-wrap:wrap;">
+                        <div style="flex:1; min-width:150px;">
                             <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Placa</label>
                             <input type="text" id="nm-placa" placeholder="ABC1D23" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
                         </div>
-                        <div style="flex:2;">
+                        <div style="flex:3; min-width:300px;">
                             <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Local da Infração</label>
                             <input type="text" id="nm-local" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
+                        </div>
+                    </div>
+
+                    <div style="display:flex; gap:1rem; margin-bottom:1rem; flex-wrap:wrap;">
+                        <div style="flex:2; min-width:250px;">
+                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Motivo da Multa</label>
+                            <input type="text" id="nm-motivo" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
+                        </div>
+                        <div style="flex:1; min-width:120px;">
+                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Valor (R$)</label>
+                            <input type="text" id="nm-valor" placeholder="0,00" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
+                        </div>
+                        <div style="flex:1; min-width:120px;">
+                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Pontuação <span id="nm-pontos-badge" style="display:none; background:#fef08a; color:#854d0e; padding:1px 6px; border-radius:8px; font-size:0.72rem; font-weight:700;">Auto</span></label>
+                            <input type="number" id="nm-pontos" placeholder="0" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
                         </div>
                     </div>
 
                     <div style="margin-bottom:1rem; background:#fff7ed; border:1.5px solid #fed7aa; border-radius:8px; padding:0.85rem 1rem;">
                         <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:700; color:#c2410c;">&#128197; Data Limite &mdash; Indicação de Condutor / Defesa de Autuação</label>
                         <input type="date" id="nm-data-limite" style="width:100%; padding:0.6rem; border:1px solid #fed7aa; border-radius:4px; font-size:0.9rem;">
-                    </div>
-
-                    <div style="margin-bottom:1rem;">
-                        <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Motivo da Multa</label>
-                        <input type="text" id="nm-motivo" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
-                    </div>
-
-                    <div style="display:flex; gap:1rem; margin-bottom:1.3rem;">
-                        <div style="flex:1;">
-                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Valor (R$)</label>
-                            <input type="text" id="nm-valor" placeholder="0,00" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
-                        </div>
-                        <div style="flex:1;">
-                            <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Pontuação <span id="nm-pontos-badge" style="display:none; background:#fef08a; color:#854d0e; padding:1px 6px; border-radius:8px; font-size:0.72rem; font-weight:700;">Auto</span></label>
-                            <input type="number" id="nm-pontos" placeholder="0" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
-                        </div>
                     </div>
 
                     <div style="display:flex; justify-content:flex-end; gap:1rem;">
@@ -586,7 +568,10 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
 
                     <div style="margin-bottom:1.5rem;">
                         <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Link Formulário Assinatura</label>
-                        <input type="text" id="gm-link" value="${multa.link_formulario || ''}" placeholder="https://..." style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
+                        <div style="display:flex; gap:0.5rem;">
+                            <input type="text" id="gm-link" value="${multa.link_formulario || ''}" placeholder="https://..." style="flex:1; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
+                            <button type="button" onclick="const l = document.getElementById('gm-link').value; if(l) window.open(l.startsWith('http') ? l : 'http://'+l, '_blank')" style="background:#f1f5f9; color:#2563eb; border:1px solid #cbd5e1; border-radius:4px; padding:0 1rem; cursor:pointer; font-weight:600; display:flex; align-items:center; gap:0.3rem;"><i class="ph ph-arrow-square-out"></i> Abrir</button>
+                        </div>
                     </div>
 
                     <!-- DOCUMENTOS EXTRAS -->
@@ -1068,6 +1053,13 @@ window.processarPDFMulta = async function(input) {
         // ── Hora ──────────────────────────────────────────────────────────
         const horaMatch = textToSearch.match(/(?:hora(?:\s+da)?\s+infra[çc][ãa]o\s*[:\-]?\s*)?(\d{1,2}:\d{2})(?::\d{2})?/i);
         if (horaMatch) document.getElementById('nm-hora').value = horaMatch[1].padStart(5, '0');
+
+        // ── Data Limite ───────────────────────────────────────────────────
+        const limiteMatch = textToSearch.match(/(?:limite|at[ée])[^\d]*(\d{2}[\/\-]\d{2}[\/\-]\d{4})/i) || textToSearch.match(/(?:indica[çc][ãa]o|defesa)[^\d]*(\d{2}[\/\-]\d{2}[\/\-]\d{4})/i);
+        if (limiteMatch && document.getElementById('nm-data-limite')) {
+            const parts = limiteMatch[1].split(/[\/\-]/);
+            document.getElementById('nm-data-limite').value = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+        }
 
         // ── Valor ─────────────────────────────────────────────────────────
         const valorMatch =
