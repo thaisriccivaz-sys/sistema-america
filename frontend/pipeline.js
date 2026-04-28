@@ -306,6 +306,16 @@ async function buscarPipeline() {
             });
         }
 
+        // Filtro por Serviço de Texto Livre
+        const srvText = document.getElementById('pipe-filtro-servico')?.value || '';
+        if (srvText) {
+            ['manutencao','entrega','retirada','avulso'].forEach(key => {
+                _pipelineDados[key] = (_pipelineDados[key] || []).filter(item => {
+                    return (item.tipo_servico || '').toLowerCase().includes(srvText.toLowerCase());
+                });
+            });
+        }
+
         // Filtro por turno (Diurno / Noturno)
         const turnoFiltro = document.getElementById('pipe-filtro-turno')?.value || '';
         if (turnoFiltro) {
@@ -332,7 +342,7 @@ async function buscarPipeline() {
 }
 
 function pipelineLimparFiltros() {
-    ['pipe-filtro-data-de','pipe-filtro-data-ate','pipe-filtro-os','pipe-filtro-contrato','pipe-filtro-cliente','pipe-filtro-endereco'].forEach(id => {
+    ['pipe-filtro-data-de','pipe-filtro-data-ate','pipe-filtro-os','pipe-filtro-contrato','pipe-filtro-cliente','pipe-filtro-endereco','pipe-filtro-servico'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
@@ -806,7 +816,7 @@ async function pipelineExportarInteligente() {
 // Estado persistente dos filtros — sobrevive à troca de abas
 const _pipelineFiltros = {
     os: '', contrato: '', dataDe: '', dataAte: '',
-    dia: '', tipoOs: '', turno: '', endereco: '', cliente: ''
+    dia: '', tipoOs: '', turno: '', endereco: '', cliente: '', servico: ''
 };
 
 function _pipelineSalvarFiltros() {
@@ -819,6 +829,7 @@ function _pipelineSalvarFiltros() {
     _pipelineFiltros.turno     = document.getElementById('pipe-filtro-turno')?.value     || '';
     _pipelineFiltros.endereco  = document.getElementById('pipe-filtro-endereco')?.value  || '';
     _pipelineFiltros.cliente   = document.getElementById('pipe-filtro-cliente')?.value   || '';
+    _pipelineFiltros.servico   = document.getElementById('pipe-filtro-servico')?.value   || '';
 }
 
 function _pipelineRestaurarFiltros(hoje, nextYear) {
@@ -832,6 +843,7 @@ function _pipelineRestaurarFiltros(hoje, nextYear) {
     if (el('pipe-filtro-turno'))    el('pipe-filtro-turno').value    = _pipelineFiltros.turno;
     if (el('pipe-filtro-endereco')) el('pipe-filtro-endereco').value = _pipelineFiltros.endereco;
     if (el('pipe-filtro-cliente'))  el('pipe-filtro-cliente').value  = _pipelineFiltros.cliente;
+    if (el('pipe-filtro-servico'))  el('pipe-filtro-servico').value  = _pipelineFiltros.servico;
 
     // Restaurar visual dos botões (sem disparar nova busca — apenas aparência)
     if (_pipelineFiltros.dia)     setTimeout(() => _pipeFiltrarDia(_pipelineFiltros.dia, true), 0);
@@ -874,6 +886,13 @@ function renderPipelinePage() {
           <label style="color:#475569;font-size:0.78rem;font-weight:600;">Contrato:</label>
           <input type="text" id="pipe-filtro-contrato" placeholder="Contrato"
             style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;width:95px;background:white;color:#1e293b;outline:none;"
+            oninput="_pipelineSalvarFiltros();buscarPipelineDebounced()">
+        </div>
+        <!-- Servico -->
+        <div style="display:flex;align-items:center;gap:5px;">
+          <label style="color:#475569;font-size:0.78rem;font-weight:600;">Serviço:</label>
+          <input type="text" id="pipe-filtro-servico" placeholder="Ex: VAC, Bomba"
+            style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;width:110px;background:white;color:#1e293b;outline:none;"
             oninput="_pipelineSalvarFiltros();buscarPipelineDebounced()">
         </div>
         <!-- Data De / Até -->
