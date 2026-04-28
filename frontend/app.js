@@ -1599,7 +1599,7 @@ window.toggleTransporteValor = function(val) {
                     const hint = document.createElement('small');
                     hint.className = 'vt-hint';
                     hint.style.cssText = 'color:#16a34a;font-weight:600;margin-left:6px;font-size:0.78rem;';
-                    hint.textContent = '(6% do salário — editável)';
+                    hint.textContent = '(6% do salário)';
                     lbl.appendChild(hint);
                 }
             } else {
@@ -1616,6 +1616,22 @@ window.toggleTransporteValor = function(val) {
             const hint = lbl && lbl.querySelector('.vt-hint');
             if (hint) hint.remove();
         }
+    }
+};
+
+// Recalcula VT em tempo real ao editar o salário (chamado pelo onkeyup do campo salário)
+window.atualizarVTSeSelecionado = function() {
+    const meioEl = document.getElementById('colab-meio-transporte');
+    if (!meioEl || meioEl.value !== 'Vale Transporte (VT)') return;
+    const salarioEl = document.getElementById('colab-salario');
+    const inputT = document.getElementById('colab-valor-transporte');
+    if (!salarioEl || !inputT) return;
+    const salarioRaw = salarioEl.value.replace(/[R$\s]/g, '').replace(/\./g, '').replace(',', '.');
+    const salario = parseFloat(salarioRaw);
+    if (!isNaN(salario) && salario > 0) {
+        inputT.value = (salario * 0.06).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    } else {
+        inputT.value = '';
     }
 };
 
