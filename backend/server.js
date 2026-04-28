@@ -8961,6 +8961,114 @@ db.serialize(() => {
 });
 // =====================================================================
 
+// =====================================================================
+// FROTA DE VEÍCULOS
+// =====================================================================
+
+// GET - listar todos os veículos da frota
+app.get('/api/frota/veiculos', authenticateToken, (req, res) => {
+    db.all('SELECT id, placa, marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo, capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_filename, created_at, updated_at FROM frota_veiculos ORDER BY placa ASC', [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+// GET - buscar veículo por id
+app.get('/api/frota/veiculos/:id', authenticateToken, (req, res) => {
+    db.get('SELECT * FROM frota_veiculos WHERE id = ?', [req.params.id], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!row) return res.status(404).json({ error: 'Veículo não encontrado' });
+        res.json(row);
+    });
+});
+
+// GET - visualizar CRLV (PDF em base64)
+app.get('/api/frota/veiculos/:id/crlv', authenticateToken, (req, res) => {
+    db.get('SELECT crlv_base64, crlv_filename FROM frota_veiculos WHERE id = ?', [req.params.id], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!row || !row.crlv_base64) return res.status(404).json({ error: 'CRLV não encontrado' });
+        res.json({ crlv_base64: row.crlv_base64, crlv_filename: row.crlv_filename });
+    });
+});
+
+// POST - cadastrar novo veículo
+app.post('/api/frota/veiculos', authenticateToken, (req, res) => {
+    const { placa, marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo, capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_base64, crlv_filename } = req.body;
+    if (!placa) return res.status(400).json({ error: 'Placa é obrigatória' });
+    db.run(
+        `INSERT INTO frota_veiculos (placa, marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo, capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_base64, crlv_filename, updated_at)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)`,
+        [placa?.toUpperCase(), marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo || 'caminhão', capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_base64 || null, crlv_filename || null],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ id: this.lastID, message: 'Veículo cadastrado com sucesso' });
+        }
+    );
+});
+
+// PUT - atualizar veículo (incluindo novo CRLV)
+app.put('/api/frota/veiculos/:id', authenticateToken, (req, res) => {
+    const { placa, marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo, capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_base64, crlv_filename } = req.body;
+    
+    const fields = [
+        placa?.toUpperCase(), marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo,
+        exercicio, renavam, motor, chassi, tipo_veiculo,
+        capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro,
+        largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro
+    ];
+    
+    // Se novo CRLV foi enviado, inclui no update e zera o alerta
+    if (crlv_base64) {
+        fields.push(crlv_base64, crlv_filename || null, 0);
+        db.run(
+            `UPDATE frota_veiculos SET placa=?, marca_modelo_versao=?, cor_predominante=?, ano_fabricacao=?, ano_modelo=?, exercicio=?, renavam=?, motor=?, chassi=?, tipo_veiculo=?, capacidade_tanque=?, capacidade_carga=?, altura_com_banheiro=?, altura_sem_banheiro=?, largura_com_banheiro=?, largura_sem_banheiro=?, profundidade_com_banheiro=?, profundidade_sem_banheiro=?, crlv_base64=?, crlv_filename=?, crlv_alerta_enviado=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+            [...fields, req.params.id],
+            function(err) {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json({ message: 'Veículo atualizado com sucesso' });
+            }
+        );
+    } else {
+        db.run(
+            `UPDATE frota_veiculos SET placa=?, marca_modelo_versao=?, cor_predominante=?, ano_fabricacao=?, ano_modelo=?, exercicio=?, renavam=?, motor=?, chassi=?, tipo_veiculo=?, capacidade_tanque=?, capacidade_carga=?, altura_com_banheiro=?, altura_sem_banheiro=?, largura_com_banheiro=?, largura_sem_banheiro=?, profundidade_com_banheiro=?, profundidade_sem_banheiro=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+            [...fields, req.params.id],
+            function(err) {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json({ message: 'Veículo atualizado com sucesso' });
+            }
+        );
+    }
+});
+
+// DELETE - excluir veículo
+app.delete('/api/frota/veiculos/:id', authenticateToken, (req, res) => {
+    db.run('DELETE FROM frota_veiculos WHERE id = ?', [req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: 'Veículo excluído com sucesso' });
+    });
+});
+
+// GET - veículos com CRLV vencendo em 30 dias (para popup de alerta)
+app.get('/api/frota/veiculos/alertas/vencimento', authenticateToken, (req, res) => {
+    db.all('SELECT id, placa, exercicio FROM frota_veiculos WHERE exercicio IS NOT NULL AND exercicio != \'\'', [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        const hoje = new Date();
+        const alertas = (rows || []).filter(v => {
+            if (!v.exercicio) return false;
+            // exercicio vem como ano (ex: "2025"). Vencimento é 31/dez desse ano
+            const ano = parseInt(v.exercicio);
+            if (isNaN(ano)) return false;
+            const vencimento = new Date(ano, 11, 31); // 31 de dezembro
+            const diff = (vencimento - hoje) / (1000 * 60 * 60 * 24);
+            return diff >= 0 && diff <= 30;
+        }).map(v => {
+            const ano = parseInt(v.exercicio);
+            return { ...v, vencimento: `31/12/${ano}`, dias_restantes: Math.ceil((new Date(ano, 11, 31) - hoje) / (1000 * 60 * 60 * 24)) };
+        });
+        res.json(alertas);
+    });
+});
+
 app.listen(PORT, () => {
 
     console.log(`Servidor rodando na porta ${PORT}`);

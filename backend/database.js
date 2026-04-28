@@ -822,6 +822,36 @@ const db = new sqlite3.Database(dbPath, (err) => {
             // Ela rodava em todo restart do servidor (Render dorme e reinicia), apagando permissoes salvas.
             // As permissões são definidas pelo admin via interface e persistidas no banco.
             
+            // ── Tabela de Frota de Veículos ───────────────────────────
+            db.run(`
+                CREATE TABLE IF NOT EXISTS frota_veiculos (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    placa TEXT NOT NULL UNIQUE,
+                    marca_modelo_versao TEXT,
+                    cor_predominante TEXT,
+                    ano_fabricacao TEXT,
+                    ano_modelo TEXT,
+                    exercicio TEXT,
+                    renavam TEXT,
+                    motor TEXT,
+                    chassi TEXT,
+                    tipo_veiculo TEXT DEFAULT 'caminhão',
+                    capacidade_tanque TEXT,
+                    capacidade_carga TEXT,
+                    altura_com_banheiro TEXT,
+                    altura_sem_banheiro TEXT,
+                    largura_com_banheiro TEXT,
+                    largura_sem_banheiro TEXT,
+                    profundidade_com_banheiro TEXT,
+                    profundidade_sem_banheiro TEXT,
+                    crlv_base64 TEXT,
+                    crlv_filename TEXT,
+                    crlv_alerta_enviado INTEGER DEFAULT 0,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+
             console.log('Tabelas do sistema RH verificadas/criadas com sucesso.');
 
         });
