@@ -184,7 +184,7 @@ window.initFrotaVeiculos = async function() {
     <div style="display:flex;align-items:center;gap:4px;">${label} <i class="ph ph-caret-down" style="color:#cbd5e1;font-size:0.9rem;"></i></div>
   </th>`;
 
-  c.innerHTML = `<div style="padding:1.5rem;background:#f1f5f9;">
+  c.innerHTML = `<div style="padding:1.5rem;background:#f1f5f9;height:100%;">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem;">
 <h2 style="margin:0;color:#1e293b;display:flex;align-items:center;gap:8px;"><i class="ph ph-truck" style="color:#2d9e5f;"></i> Frota de Veículos</h2>
 <div style="display:flex;align-items:center;gap:12px;">
@@ -195,7 +195,7 @@ window.initFrotaVeiculos = async function() {
   <button onclick="window.abrirModalFrota(null)" style="background:#2d9e5f;color:#fff;border:none;border-radius:8px;padding:0.6rem 1.2rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;"><i class="ph ph-plus"></i> Novo Veículo</button>
 </div>
 </div>
-<div style="background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.08);overflow-y:auto;height:calc(100vh - 160px);">
+<div style="background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.08);overflow-y:auto;height:calc(100vh - 260px);">
 <table style="width:100%;border-collapse:collapse;font-size:0.86rem;">
 <thead id="frota-thead"><tr>
 ${st('placa', 'Placa')}
