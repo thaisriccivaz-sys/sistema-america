@@ -11,27 +11,39 @@ async function extrairCRLV(file){
         let txt='';
         for(let i=1;i<=pdf.numPages;i++){const pg=await pdf.getPage(i);const ct=await pg.getTextContent();txt+=ct.items.map(x=>x.str).join('\n')+'\n';}
         console.log('[CRLV raw]',txt);
+        const linhas=txt.split('\n').map(l=>l.trim()).filter(l=>l.length>0);
+        console.log('[CRLV linhas]',linhas);
         const d={};
-        const mP=txt.match(/([A-Z]{3}[0-9][A-Z0-9][0-9]{2})/);
-        if(mP){d.placa=mP[1];const mE=txt.match(new RegExp(mP[1]+'(\\d{4})'));if(mE)d.exercicio=mE[1];}
-        const mR=txt.match(/\b(\d{9,11})\b/);if(mR)d.renavam=mR[1];
-        const mA=txt.match(/\b(\d{4})(\d{4})\b/);if(mA){d.ano_fabricacao=mA[1];d.ano_modelo=mA[2];}
-        const cores=['BRANCA','PRETA','CINZA','VERMELHA','AZUL','VERDE','AMARELA','LARANJA','MARROM','BEGE','PRATA','DOURADA','VINHO'];
-        for(const c of cores){if(txt.toUpperCase().includes(c)){d.cor=c;break;}}
-        // Marca/Modelo: linha não numérica que contenha letras e "/" ou seja conhecida
-        const linhas=txt.split('\n').map(l=>l.trim()).filter(l=>l.length>3);
-        for(const l of linhas){
-          if(/^[A-Z][A-Z0-9 \/\-\.]{3,40}$/.test(l)&&!/^(BRANCA|PRETA|CINZA|VERMELHA|AZUL|VERDE|AMARELA|LARANJA|MARROM|BEGE|PRATA|DOURADA|VINHO|PARTICULAR|COMERCIAL|CARROCERIA|CARGA|SEM|AMERICA|GUARULHOS|DETRAN|MINISTERIO|SENATRAN|INFORMACOES|MENSAGENS|DADOS|VOCE|SABIA|REPASSE|CUSTO|VALOR|TOTAL|CATEGORIA|ESPECIE|COMBUSTIVEL|MOTOR|CHASSI|NUMERO|LOCAL|DATA|CPF|CNPJ)/.test(l)&&l.includes('/')&&!/^\*/.test(l)){d.marca_modelo_versao=l;break;}
+        // PLACA: formato ABC1234 ou Mercosul ABC1D23
+        let placaIdx=-1;
+        for(let i=0;i<linhas.length;i++){if(/^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/.test(linhas[i])){d.placa=linhas[i];placaIdx=i;break;}}
+        // Após placa: próximo ano (4 dígitos) = EXERCÍCIO
+        if(placaIdx>=0){
+          for(let i=placaIdx+1;i<Math.min(placaIdx+8,linhas.length);i++){
+            if(/^\d{4}$/.test(linhas[i])&&parseInt(linhas[i])>=2020){d.exercicio=linhas[i];
+              // Próximo 4 dígitos = ANO FABRICAÇÃO
+              for(let j=i+1;j<Math.min(i+8,linhas.length);j++){
+                if(/^\d{4}$/.test(linhas[j])&&parseInt(linhas[j])>=1950){d.ano_fabricacao=linhas[j];
+                  // Próximo 4 dígitos = ANO MODELO
+                  for(let k=j+1;k<Math.min(j+8,linhas.length);k++){
+                    if(/^\d{4}$/.test(linhas[k])&&parseInt(linhas[k])>=1950){d.ano_modelo=linhas[k];break;}
+                  }break;}
+              }break;}
+          }
         }
+        // RENAVAM: linha com 9-11 dígitos somente
+        for(const l of linhas){if(/^\d{9,11}$/.test(l)&&l!==d.placa&&l!==d.exercicio&&l!==d.ano_fabricacao&&l!==d.ano_modelo){d.renavam=l;break;}}
+        // COR: lista de cores conhecidas
+        const cores=['BRANCA','PRETA','CINZA','VERMELHA','AZUL','VERDE','AMARELA','LARANJA','MARROM','BEGE','PRATA','DOURADA','VINHO','BEGE'];
+        for(const l of linhas){const u=l.toUpperCase();for(const c of cores){if(u===c||u.startsWith(c)){d.cor=c;break;}}if(d.cor)break;}
+        // MARCA/MODELO: linha com "/" que não seja chassi/motor, após placa
+        const excl=/^(BRANCA|PRETA|CINZA|VERMELHA|AZUL|VERDE|AMARELA|LARANJA|MARROM|BEGE|PRATA|DOURADA|VINHO|PARTICULAR|COMERCIAL|CARROCERIA|CARGA|SEM OBS|AMERICA|GUARULHOS|DETRAN|SENATRAN|INFORMACOES|REPASSE|CUSTO|VALOR|TOTAL|ESPECIE|COMBUSTIVEL|LOCAL|DATA|CPF|CNPJ|SP|MG|RJ|PR|SC|RS|BA|GO)/i;
+        for(let i=placaIdx>0?placaIdx:0;i<linhas.length;i++){const l=linhas[i];if(l.includes('/')&&!/^\*/.test(l)&&!/^\d/.test(l)&&l.length>4&&!excl.test(l)&&/[A-Z]{2}/.test(l)){d.marca_modelo_versao=l;break;}}
         resolve(d);
       }catch(err){console.error('[CRLV]',err);resolve({});}
     };
     fr.readAsArrayBuffer(file);
   });
-}
-async function carregarPDFjs(){
-  if(window.pdfjsLib)return;
-  await new Promise(r=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';s.onload=()=>{if(window.pdfjsLib)window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';r();};document.head.appendChild(s);});
 }
 function b64(file){return new Promise(r=>{const fr=new FileReader();fr.onload=e=>r(e.target.result);fr.readAsDataURL(file);});}
 window._frotaB64=null;window._frotaFN=null;
