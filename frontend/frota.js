@@ -1,6 +1,6 @@
-﻿(function(){
+(function(){
 function getMesVenc(placa){const c=(placa||'').trim().slice(-1).toUpperCase();return({'1':7,'2':7,'3':8,'4':8,'5':9,'6':9,'7':10,'8':10,'9':11,'0':12})[c]||null;}
-function alertaPlaca(placa,exercicio){const hoje=new Date();const ano=parseInt(exercicio);const mes=getMesVenc(placa);if(!mes||!ano)return null;const expirado=(ano<hoje.getFullYear())||(ano===hoje.getFullYear()&&hoje.getMonth()+1>=mes);return expirado?'expirado':null;}
+function alertaPlaca(placa,exercicio){const hoje=new Date();const ano=parseInt(exercicio);const mes=getMesVenc(placa);if(!mes||!ano)return null;const expirado=(ano<hoje.getFullYear())||(ano===hoje.getFullYear()&&hoje.getMonth()+1>mes);return expirado?'expirado':null;}
 async function extrairCRLV(file){
   return new Promise(resolve=>{
     const fr=new FileReader();
@@ -67,58 +67,119 @@ window.processarCRLV=async function(inp,modo){
     if(st)st.innerHTML=n>0?`<span style="color:#16a34a;font-weight:600">✅ ${n} campo(s) preenchido(s)</span>`:`<span style="color:#f59e0b;font-weight:600">⚠️ PDF processado mas dados não identificados</span>`;
   }
 };
-window.initFrotaVeiculos=async function(){
-  const c=document.getElementById('frota-veiculos-container');if(!c)return;
+window._frotaDados = [];
+window._frotaSort = { col: '', dir: 'asc' };
+
+window.ordenarFrota = function(col) {
+  if (window._frotaSort.col === col) {
+    window._frotaSort.dir = window._frotaSort.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    window._frotaSort.col = col;
+    window._frotaSort.dir = 'asc';
+  }
+  renderTabelaFrota();
+};
+
+function renderTabelaFrota() {
+  const tb = document.getElementById('frota-tbody');
+  if (!tb) return;
+  const ths = document.querySelectorAll('#frota-thead th');
+  ths.forEach(th => {
+    const s = th.querySelector('.ph-caret-down, .ph-caret-up');
+    if (s) {
+      if (th.dataset.col === window._frotaSort.col) {
+        s.className = window._frotaSort.dir === 'asc' ? 'ph ph-caret-up' : 'ph ph-caret-down';
+        s.style.color = '#2d9e5f';
+      } else {
+        s.className = 'ph ph-caret-down';
+        s.style.color = '#cbd5e1';
+      }
+    }
+  });
+
+  const rows = [...window._frotaDados];
+  if (window._frotaSort.col) {
+    rows.sort((a, b) => {
+      let va = a[window._frotaSort.col] || '';
+      let vb = b[window._frotaSort.col] || '';
+      if (typeof va === 'string') va = va.toLowerCase();
+      if (typeof vb === 'string') vb = vb.toLowerCase();
+      if (window._frotaSort.col === 'ano_modelo' || window._frotaSort.col === 'exercicio') {
+        va = parseInt(va) || 0; vb = parseInt(vb) || 0;
+      }
+      if (va < vb) return window._frotaSort.dir === 'asc' ? -1 : 1;
+      if (va > vb) return window._frotaSort.dir === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }
+
+  const meses = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  if (!rows || !rows.length) {
+    tb.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:2rem;color:#94a3b8;">Nenhum veículo cadastrado</td></tr>';
+    return;
+  }
+  tb.innerHTML = rows.map((v, i) => {
+    const alerta = alertaPlaca(v.placa, v.exercicio);
+    const mesV = getMesVenc(v.placa);
+    const exStr = v.exercicio + (mesV ? ` (vence ${meses[mesV]})` : '');
+    const exStyle = alerta ? 'color:#dc2626;font-weight:700;' : '';
+    return `<tr style="background:${i%2===0?'#fff':'#f8fafc'};border-bottom:none;">
+<td style="padding:10px 12px;font-weight:700;color:#2d9e5f;">${v.placa||''}</td>
+<td style="padding:10px 12px;">${v.marca_modelo_versao||''}</td>
+<td style="padding:10px 12px;">${v.cor_predominante||''}</td>
+<td style="padding:10px 12px;">${v.ano_modelo||''}</td>
+<td style="padding:10px 12px;"><span style="${exStyle}">${alerta?'⚠️ ':''}${exStr}</span></td>
+<td style="padding:10px 12px;">${v.renavam||''}</td>
+<td style="padding:10px 12px;">${v.capacidade_tanque?v.capacidade_tanque+' L':'-'}</td>
+<td style="padding:10px 12px;">${v.capacidade_carga?v.capacidade_carga+' kg':'-'}</td>
+<td style="padding:10px 12px;">${v.tipo_veiculo||''}</td>
+<td style="padding:10px 12px;text-align:center;white-space:nowrap;">
+<button onclick="window.abrirModalFrota(${v.id})" style="background:#2563eb;color:#fff;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;margin-right:4px;" title="Editar"><i class="ph ph-pencil"></i></button>
+<button onclick="window.excluirVeiculoFrota(${v.id},'${v.placa}')" style="background:#dc2626;color:#fff;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;" title="Excluir"><i class="ph ph-trash"></i></button>
+</td></tr>`;
+  }).join('');
+}
+
+window.initFrotaVeiculos = async function() {
+  const c = document.getElementById('frota-veiculos-container'); if (!c) return;
   await carregarPDFjs();
-  const tok=window.currentToken||localStorage.getItem('erp_token');
-  const meses=['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-  c.innerHTML=`<div style="padding:1.5rem;background:#f1f5f9;min-height:100vh;">
+  const tok = window.currentToken || localStorage.getItem('erp_token');
+  
+  const thStyle = "position:sticky;top:0;background:#fafafa;padding:12px;text-align:left;color:#475569;font-weight:700;border-bottom:1px solid #e2e8f0;cursor:pointer;user-select:none;z-index:2;";
+  const st = (col, label) => `<th data-col="${col}" onclick="window.ordenarFrota('${col}')" style="${thStyle}">
+    <div style="display:flex;align-items:center;gap:4px;">${label} <i class="ph ph-caret-down" style="color:#cbd5e1;font-size:0.9rem;"></i></div>
+  </th>`;
+
+  c.innerHTML = `<div style="padding:1.5rem;background:#f1f5f9;min-height:100vh;">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
 <h2 style="margin:0;color:#1e293b;display:flex;align-items:center;gap:8px;"><i class="ph ph-truck" style="color:#2d9e5f;"></i> Frota de Veículos</h2>
 <button onclick="window.abrirModalFrota(null)" style="background:#2d9e5f;color:#fff;border:none;border-radius:8px;padding:0.6rem 1.2rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-plus"></i> Novo Veículo</button>
 </div>
-<div style="background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.08);overflow:auto;">
-<table style="width:100%;border-collapse:collapse;font-size:0.84rem;">
-<thead><tr style="background:#1e293b;color:#fff;">
-<th style="padding:10px 12px;text-align:left;">Placa</th>
-<th style="padding:10px 12px;text-align:left;">Marca/Modelo/Versão</th>
-<th style="padding:10px 12px;text-align:left;">Cor</th>
-<th style="padding:10px 12px;text-align:left;">Ano Modelo</th>
-<th style="padding:10px 12px;text-align:left;">Exercício / Vencimento</th>
-<th style="padding:10px 12px;text-align:left;">RENAVAM</th>
-<th style="padding:10px 12px;text-align:left;">Tanque</th>
-<th style="padding:10px 12px;text-align:left;">Carga</th>
-<th style="padding:10px 12px;text-align:left;">Tipo</th>
-<th style="padding:10px 12px;text-align:center;">Ações</th>
+<div style="background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.08);overflow:auto;max-height:calc(100vh - 120px);">
+<table style="width:100%;border-collapse:collapse;font-size:0.86rem;">
+<thead id="frota-thead"><tr>
+${st('placa', 'Placa')}
+${st('marca_modelo_versao', 'Marca/Modelo/Versão')}
+${st('cor_predominante', 'Cor')}
+${st('ano_modelo', 'Ano Modelo')}
+${st('exercicio', 'Exercício / Vencimento')}
+${st('renavam', 'RENAVAM')}
+${st('capacidade_tanque', 'Tanque')}
+${st('capacidade_carga', 'Carga')}
+${st('tipo_veiculo', 'Tipo')}
+<th style="${thStyle.replace('cursor:pointer;','')} text-align:center;">Ações</th>
 </tr></thead>
 <tbody id="frota-tbody"><tr><td colspan="10" style="text-align:center;padding:2rem;color:#94a3b8;">Carregando...</td></tr></tbody>
 </table></div></div>`;
-  try{
-    const res=await fetch('/api/frota/veiculos',{headers:{Authorization:'Bearer '+tok}});
-    const rows=await res.json();
-    const tb=document.getElementById('frota-tbody');if(!tb)return;
-    if(!rows||!rows.length){tb.innerHTML='<tr><td colspan="10" style="text-align:center;padding:2rem;color:#94a3b8;">Nenhum veículo cadastrado</td></tr>';return;}
-    tb.innerHTML=rows.map((v,i)=>{
-      const alerta=alertaPlaca(v.placa,v.exercicio);
-      const mesV=getMesVenc(v.placa);
-      const exStr=v.exercicio+(mesV?` (vence ${meses[mesV]})`:'');
-      const exStyle=alerta?'background:#fef2f2;color:#dc2626;font-weight:700;border-radius:6px;padding:3px 8px;white-space:nowrap;':'';
-      return `<tr style="background:${i%2===0?'#fff':'#f8fafc'};border-bottom:1px solid #e2e8f0;${alerta?'outline:2px solid #fca5a5;':''}" >
-<td style="padding:9px 12px;font-weight:700;color:#2d9e5f;">${v.placa||''}</td>
-<td style="padding:9px 12px;">${v.marca_modelo_versao||''}</td>
-<td style="padding:9px 12px;">${v.cor_predominante||''}</td>
-<td style="padding:9px 12px;">${v.ano_modelo||''}</td>
-<td style="padding:9px 12px;"><span style="${exStyle}">${alerta?'⚠️ ':' '}${exStr}</span></td>
-<td style="padding:9px 12px;">${v.renavam||''}</td>
-<td style="padding:9px 12px;">${v.capacidade_tanque?v.capacidade_tanque+' L':'-'}</td>
-<td style="padding:9px 12px;">${v.capacidade_carga?v.capacidade_carga+' kg':'-'}</td>
-<td style="padding:9px 12px;">${v.tipo_veiculo||''}</td>
-<td style="padding:9px 12px;text-align:center;white-space:nowrap;">
-<button onclick="window.abrirModalFrota(${v.id})" style="background:#2563eb;color:#fff;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;margin-right:4px;" title="Editar"><i class="ph ph-pencil"></i></button>
-<button onclick="window.excluirVeiculoFrota(${v.id},'${v.placa}')" style="background:#dc2626;color:#fff;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;" title="Excluir"><i class="ph ph-trash"></i></button>
-</td></tr>`;
-    }).join('');
-  }catch(e){const tb=document.getElementById('frota-tbody');if(tb)tb.innerHTML=`<tr><td colspan="10" style="text-align:center;padding:2rem;color:#dc2626;">Erro: ${e.message}</td></tr>`;}
+  try {
+    const res = await fetch('/api/frota/veiculos', { headers: { Authorization: 'Bearer ' + tok } });
+    const rows = await res.json();
+    window._frotaDados = rows || [];
+    renderTabelaFrota();
+  } catch (e) {
+    const tb = document.getElementById('frota-tbody');
+    if (tb) tb.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:2rem;color:#dc2626;">Erro: ${e.message}</td></tr>`;
+  }
 };
 
 window.abrirModalFrota=async function(id){
