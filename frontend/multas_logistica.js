@@ -462,16 +462,25 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
 
     // Bloco info motorista
     const motoristaInfoHtml = motoristaColab ? `
-        <div id="gm-info-motorista" style="background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:0.85rem 1rem; margin-bottom:1rem; display:flex; flex-wrap:wrap; gap:0.6rem; align-items:center;">
-            <span style="font-size:0.82rem; color:#166534; font-weight:700;"><i class="ph ph-user"></i> ${motoristaColab.nome_completo || motoristaColab.nome}</span>
-            <span style="flex:1;"></span>
-            ${cpf ? `<span style="font-size:0.8rem; color:#374151;"><b>CPF:</b> <code id="gm-cpf-val">${cpf}</code></span>
-            <button type="button" onclick="navigator.clipboard.writeText('${cpf}'); mostrarToastSucesso('CPF copiado!'); event.stopPropagation();" title="Copiar CPF" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem; padding:0;"><i class="ph ph-copy"></i></button>` : ''}
-            ${endEsc ? `<span style="font-size:0.8rem; color:#374151;"><b>Endereço:</b> <code id="gm-end-val">${endEsc}</code></span>
-            <button type="button" onclick="navigator.clipboard.writeText('${endEsc}'); mostrarToastSucesso('Endereço copiado!'); event.stopPropagation();" title="Copiar Endereço" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem; padding:0;"><i class="ph ph-copy"></i></button>` : ''}
-            ${habilitacao ? `<span style="font-size:0.8rem; color:#374151;"><b>CNH:</b> <code id="gm-hab-val">${habilitacao}</code></span>
-            <button type="button" onclick="navigator.clipboard.writeText('${habilitacao}'); mostrarToastSucesso('Nº CNH copiado!'); event.stopPropagation();" title="Copiar CNH" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem; padding:0;"><i class="ph ph-copy"></i></button>` : ''}
-            ${multa.motorista_id ? `<button type="button" onclick="baixarCNHMotorista(${multa.motorista_id}); event.stopPropagation();" title="Baixar CNH" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:6px;padding:3px 10px;font-size:0.78rem;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-download-simple"></i> CNH</button>` : ''}
+        <div id="gm-info-motorista" style="background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:0.85rem 1rem; margin-bottom:1rem; display:flex; flex-direction:column; gap:0.35rem;">
+            <div style="display:flex; align-items:center; gap:6px;">
+                <i class="ph ph-user" style="color:#166534;"></i>
+                <span style="font-size:0.88rem; color:#166534; font-weight:700;">${motoristaColab.nome_completo || motoristaColab.nome}</span>
+                <button type="button" onclick="navigator.clipboard.writeText('${(motoristaColab.nome_completo || motoristaColab.nome)}'); mostrarToastSucesso('Nome copiado!'); event.stopPropagation();" title="Copiar Nome" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>
+            </div>
+            ${cpf ? `<div style="display:flex; align-items:center; gap:6px; padding-left:1.2rem;">
+                <span style="font-size:0.8rem; color:#374151;"><b>CPF:</b> <code id="gm-cpf-val">${cpf}</code></span>
+                <button type="button" onclick="navigator.clipboard.writeText('${cpf}'); mostrarToastSucesso('CPF copiado!'); event.stopPropagation();" title="Copiar CPF" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>
+            </div>` : ''}
+            ${habilitacao ? `<div style="display:flex; align-items:center; gap:6px; padding-left:1.2rem;">
+                <span style="font-size:0.8rem; color:#374151;"><b>CNH:</b> <code id="gm-hab-val">${habilitacao}</code></span>
+                <button type="button" onclick="navigator.clipboard.writeText('${habilitacao}'); mostrarToastSucesso('Nº CNH copiado!'); event.stopPropagation();" title="Copiar CNH" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>
+                ${multa.motorista_id ? `<button type="button" onclick="baixarCNHMotorista(${multa.motorista_id}); event.stopPropagation();" title="Baixar CNH" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:6px;padding:2px 10px;font-size:0.78rem;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-download-simple"></i> CNH</button>` : ''}
+            </div>` : '${multa.motorista_id ? `<div style="padding-left:1.2rem;"><button type="button" onclick="baixarCNHMotorista(${multa.motorista_id}); event.stopPropagation();" title="Baixar CNH" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:6px;padding:2px 10px;font-size:0.78rem;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-download-simple"></i> CNH</button></div>` : ""}'}
+            ${endEsc ? `<div style="display:flex; align-items:center; gap:6px; padding-left:1.2rem;">
+                <span style="font-size:0.8rem; color:#374151;"><b>Endereço:</b> <code id="gm-end-val">${endEsc}</code></span>
+                <button type="button" onclick="navigator.clipboard.writeText('${endEsc}'); mostrarToastSucesso('Endereço copiado!'); event.stopPropagation();" title="Copiar Endereço" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>
+            </div>` : ''}
         </div>` : '';
 
     // Documentos extras já salvos
@@ -701,17 +710,29 @@ function atualizarInfoMotoristaModal(sel) {
     if (!bloco) return;
     if (!c) { bloco.style.display = 'none'; return; }
     bloco.style.display = 'flex';
-    const endColab = (c.endereco || '').replace(/'/g, "\\'");
+    bloco.style.flexDirection = 'column';
+    bloco.style.gap = '0.35rem';
+    const endColab = (c.endereco || '').replace(/'/g, "'");
+    const nomeColab = (c.nome_completo || c.nome || '').replace(/'/g, "'");
     bloco.innerHTML = `
-        <span style="font-size:0.82rem; color:#166534; font-weight:700;"><i class="ph ph-user"></i> ${c.nome_completo || c.nome}</span>
-        <span style="flex:1;"></span>
-        ${c.cpf ? `<span style="font-size:0.8rem; color:#374151;"><b>CPF:</b> <code>${c.cpf}</code></span>
-        <button type="button" onclick="navigator.clipboard.writeText('${c.cpf}'); mostrarToastSucesso('CPF copiado!'); event.stopPropagation();" title="Copiar CPF" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>` : ''}
-        ${c.endereco ? `<span style="font-size:0.8rem; color:#374151;"><b>Endereço:</b> <code>${c.endereco}</code></span>
-        <button type="button" onclick="navigator.clipboard.writeText('${endColab}'); mostrarToastSucesso('Endereço copiado!'); event.stopPropagation();" title="Copiar Endereço" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>` : ''}
-        ${c.cnh_numero ? `<span style="font-size:0.8rem; color:#374151;"><b>CNH:</b> <code>${c.cnh_numero}</code></span>
-        <button type="button" onclick="navigator.clipboard.writeText('${c.cnh_numero}'); mostrarToastSucesso('CNH copiada!'); event.stopPropagation();" title="Copiar CNH" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>` : ''}
-        ${c.id ? `<button type="button" onclick="baixarCNHMotorista(${c.id}); event.stopPropagation();" title="Baixar CNH" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:6px;padding:3px 10px;font-size:0.78rem;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-download-simple"></i> CNH</button>` : ''}
+        <div style="display:flex; align-items:center; gap:6px;">
+            <i class="ph ph-user" style="color:#166534;"></i>
+            <span style="font-size:0.88rem; color:#166534; font-weight:700;">${c.nome_completo || c.nome}</span>
+            <button type="button" onclick="navigator.clipboard.writeText('${nomeColab}'); mostrarToastSucesso('Nome copiado!'); event.stopPropagation();" title="Copiar Nome" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>
+        </div>
+        ${c.cpf ? `<div style="display:flex; align-items:center; gap:6px; padding-left:1.2rem;">
+            <span style="font-size:0.8rem; color:#374151;"><b>CPF:</b> <code>${c.cpf}</code></span>
+            <button type="button" onclick="navigator.clipboard.writeText('${c.cpf}'); mostrarToastSucesso('CPF copiado!'); event.stopPropagation();" title="Copiar CPF" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>
+        </div>` : ''}
+        ${c.cnh_numero ? `<div style="display:flex; align-items:center; gap:6px; padding-left:1.2rem;">
+            <span style="font-size:0.8rem; color:#374151;"><b>CNH:</b> <code>${c.cnh_numero}</code></span>
+            <button type="button" onclick="navigator.clipboard.writeText('${c.cnh_numero}'); mostrarToastSucesso('CNH copiada!'); event.stopPropagation();" title="Copiar CNH" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>
+            ${c.id ? `<button type="button" onclick="baixarCNHMotorista(${c.id}); event.stopPropagation();" title="Baixar CNH" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:6px;padding:2px 10px;font-size:0.78rem;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-download-simple"></i> CNH</button>` : ''}
+        </div>` : ''}
+        ${c.endereco ? `<div style="display:flex; align-items:center; gap:6px; padding-left:1.2rem;">
+            <span style="font-size:0.8rem; color:#374151;"><b>Endereço:</b> <code>${c.endereco}</code></span>
+            <button type="button" onclick="navigator.clipboard.writeText('${endColab}'); mostrarToastSucesso('Endereço copiado!'); event.stopPropagation();" title="Copiar Endereço" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem;padding:0;"><i class="ph ph-copy"></i></button>
+        </div>` : ''}
     `;
 }
 
