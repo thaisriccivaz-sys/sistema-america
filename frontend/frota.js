@@ -250,3 +250,19 @@ window.excluirVeiculoFrota=async function(id,placa){
   window.initFrotaVeiculos();
 };
 })();
+
+function b64(file){return new Promise((r,j)=>{const f=new FileReader();f.onload=()=>r(f.result.split(',')[1]);f.onerror=j;f.readAsDataURL(file);});}
+async function carregarPDFjs() {
+  if (window.pdfjsLib) return;
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js';
+    script.onload = () => {
+      window.pdfjsLib = window['pdfjs-dist/build/pdf'];
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+      resolve();
+    };
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+}
