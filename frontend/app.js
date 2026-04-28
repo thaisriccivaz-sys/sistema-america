@@ -11470,9 +11470,16 @@ async function renderFichaEpiTab(container) {
     const dept = viewedColaborador?.departamento || '';
     const cargo = viewedColaborador?.cargo || '';
     
+    // Setores que devem usar o template Administrativo (Escritório)
+    const SETORES_ADMIN = ['Comercial', 'Financeiro', 'Logística', 'Logistica', 'Administrativo', 'RH'];
+    const isSetorAdmin = SETORES_ADMIN.includes(dept) || SETORES_ADMIN.includes(cargo);
+
     // Procura template por departamento ou por cargo (e.g. Motorista)
     let templateDoColab = templates.find(t => (t.departamentos||[]).includes(dept) || (t.departamentos||[]).includes(cargo)) ||
-                          templates.find(t => t.grupo === dept || t.grupo === cargo) || templates[0];
+                          templates.find(t => t.grupo === dept || t.grupo === cargo) ||
+                          // Fallback: se for setor admin, usa o template de categoria Administrativo
+                          (isSetorAdmin ? templates.find(t => t.categoria === 'Administrativo') : null) ||
+                          templates[0];
 
     let btnDesabilitado = false;
     if (fichaAtiva && templateDoColab) {
