@@ -422,6 +422,7 @@ async function salvarNovaMulta(e) {
 function abrirModalGerenciarMulta(id, focoMotorista = false) {
     const multa = multasLogistica.find(m => m.id === id);
     if (!multa) return;
+    const modoLeitura = (multa.status === 'Indicado' || multa.status === 'Multa NIC');
 
     document.getElementById('modal-gerenciar-multa')?.remove();
     const modal = document.createElement('div');
