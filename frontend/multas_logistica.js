@@ -129,10 +129,10 @@ function renderMultasLogistica(container) {
                     style="padding:0.45rem 0.8rem; background:#e2e8f0; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem; color:#475569; white-space:nowrap;">&#x2715; Limpar</button>
             </div>
 
-            <div style="overflow-x:auto;">
+            <div style="overflow-y:auto; height:calc(100vh - 260px);">
                 <table style="width:100%; border-collapse:collapse; min-width:1000px; font-size:0.9rem;">
-                    <thead>
-                        <tr style="background:#f8fafc; border-bottom:2px solid #e2e8f0; text-align:left;">
+                    <thead style="position:sticky; top:0; z-index:2; background:#f8fafc; outline:1px solid #e2e8f0;">
+                        <tr style="text-align:left;">
                             <th class="multa-th-sort" data-col="numero_ait" onclick="ordenarMultas('numero_ait')" style="padding:1rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">AIT <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
                             <th style="padding:1rem; font-weight:600; color:#475569;">Placa</th>
                             <th class="multa-th-sort" data-col="data_infracao" onclick="ordenarMultas('data_infracao')" style="padding:1rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Data/Hora <i class="sort-ico ph ph-arrow-down" style="color:#2563eb;font-size:0.8rem;"></i></th>
@@ -176,6 +176,11 @@ function renderMultasLogistica(container) {
             else if (m.status === 'Multa NIC') statusColor = '#fecaca';
             else if (m.status === 'Não Se Aplica') statusColor = '#cbd5e1';
 
+            let docsExtrasList = [];
+            try { docsExtrasList = JSON.parse(m.documentos_extras || '[]'); } catch(e){}
+            const olhoAzul = docsExtrasList[0] ? `<button onclick="visualizarDocExtra(${m.id}, 0)" style="background:transparent; border:none; cursor:pointer; color:#3b82f6; margin-right:8px;" title="Visualizar Documento 1"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>` : '';
+            const olhoVerde = docsExtrasList[1] ? `<button onclick="visualizarDocExtra(${m.id}, 1)" style="background:transparent; border:none; cursor:pointer; color:#10b981; margin-right:8px;" title="Visualizar Documento 2"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>` : '';
+
             html += `
                 <tr style="border-bottom:1px solid #e2e8f0; transition:background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
                     <td style="padding:1rem;"><strong>${m.numero_ait || '—'}</strong></td>
@@ -189,13 +194,14 @@ function renderMultasLogistica(container) {
                         </span>
                     </td>
                     <td style="padding:1rem; white-space:nowrap;">${_dataLimiteBadge(m.data_limite)}</td>
-                    <td style="padding:1rem; text-align:center;">
+                    <td style="padding:1rem; text-align:center; min-width: 140px;">
                         ${(m.status === 'Indicado' || m.status === 'Multa NIC') ?
-                            `<button onclick="abrirModalGerenciarMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#64748b; margin-right:8px;" title="Visualizar"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>`
+                            `<button onclick="abrirModalGerenciarMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#64748b; margin-right:8px;" title="Visualizar"><i class="ph ph-magnifying-glass" style="font-size:1.2rem;"></i></button>`
                             :
                             `<button onclick="abrirModalGerenciarMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#2563eb; margin-right:8px;" title="Gerenciar/Editar"><i class="ph ph-pencil-simple" style="font-size:1.2rem;"></i></button>`
                         }
-                        ${(m.documento_base64 || m.documento_path) ? `<button onclick="visualizarDocumentoMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#10b981; margin-right:8px;" title="Documento Original"><i class="ph ph-file-pdf" style="font-size:1.2rem;"></i></button>` : ''}
+                        ${olhoAzul}
+                        ${olhoVerde}
                         ${m.link_formulario ? `<button onclick="window.open(String('${m.link_formulario}').startsWith('http') ? '${m.link_formulario}' : 'https://${m.link_formulario}', '_blank')" style="background:transparent; border:none; cursor:pointer; color:#8b5cf6; margin-right:8px;" title="Abrir Formulário Externo"><i class="ph ph-link" style="font-size:1.2rem;"></i></button>` : ''}
                         ${(m.status === 'Indicado' || m.status === 'Multa NIC') ? '' : `<button onclick="confirmarExcluirMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#ef4444;" title="Excluir"><i class="ph ph-trash" style="font-size:1.2rem;"></i></button>`}
                     </td>
@@ -601,7 +607,7 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
 
                     <!-- DOCUMENTOS EXTRAS -->
                     <div style="border-top:1px solid #e2e8f0; padding-top:1.2rem; margin-top:0.5rem;">
-                        <label style="display:block; margin-bottom:0.6rem; font-size:0.85rem; font-weight:600; color:#475569;">&#128206; Documentos Adicionais</label>
+                        <label style="display:block; margin-bottom:0.6rem; font-size:0.85rem; font-weight:600; color:#dc2626;">&#128206; Documentos Obrigatórios (Necessário anexar 2 arquivos)</label>
                         <div id="gm-docs-lista">${docsHtml || '<p style="font-size:0.8rem;color:#94a3b8;margin:0 0 0.5rem;">Nenhum documento anexado.</p>'}</div>
                         <div style="border:1.5px dashed #cbd5e1; border-radius:8px; padding:0.75rem 1rem; background:#f8fafc; margin-top:4px;">
                             <div style="display:flex; align-items:center; gap:8px;">
@@ -838,6 +844,16 @@ async function salvarGerenciamentoMulta(e, id) {
     
     if (status === 'Não Se Aplica' && !obs) {
         mostrarToastAviso('Preencha a observação quando o status for "Não Se Aplica".');
+        return;
+    }
+
+    const m = multasLogistica.find(x => x.id === id);
+    let docsEx = [];
+    if (m) {
+        try { docsEx = JSON.parse(m.documentos_extras || '[]'); } catch(err){}
+    }
+    if (docsEx.length < 2) {
+        mostrarToastAviso('É obrigatório anexar os 2 documentos da multa antes de salvar.');
         return;
     }
 
