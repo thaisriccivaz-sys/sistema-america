@@ -457,6 +457,7 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
     const cpf = multa.motorista_cpf || motoristaColab?.cpf || '';
     const habilitacao = multa.motorista_habilitacao || motoristaColab?.cnh_numero || '';
     const endereco = motoristaColab?.endereco || '';
+    const endEsc = endereco.replace(/'/g, "'");
     const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
 
     // Bloco info motorista
@@ -466,8 +467,8 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
             <span style="flex:1;"></span>
             ${cpf ? `<span style="font-size:0.8rem; color:#374151;"><b>CPF:</b> <code id="gm-cpf-val">${cpf}</code></span>
             <button type="button" onclick="navigator.clipboard.writeText('${cpf}'); mostrarToastSucesso('CPF copiado!'); event.stopPropagation();" title="Copiar CPF" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem; padding:0;"><i class="ph ph-copy"></i></button>` : ''}
-            ${endereco ? `<span style="font-size:0.8rem; color:#374151;"><b>Endereço:</b> <code id="gm-end-val">${endereco}</code></span>
-            <button type="button" onclick="navigator.clipboard.writeText('${endereco.replace(/'/g,&quot;\\&quot;)}'); mostrarToastSucesso('Endereço copiado!'); event.stopPropagation();" title="Copiar Endereço" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem; padding:0;"><i class="ph ph-copy"></i></button>` : ''}
+            ${endEsc ? `<span style="font-size:0.8rem; color:#374151;"><b>Endereço:</b> <code id="gm-end-val">${endEsc}</code></span>
+            <button type="button" onclick="navigator.clipboard.writeText('${endEsc}'); mostrarToastSucesso('Endereço copiado!'); event.stopPropagation();" title="Copiar Endereço" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem; padding:0;"><i class="ph ph-copy"></i></button>` : ''}
             ${habilitacao ? `<span style="font-size:0.8rem; color:#374151;"><b>CNH:</b> <code id="gm-hab-val">${habilitacao}</code></span>
             <button type="button" onclick="navigator.clipboard.writeText('${habilitacao}'); mostrarToastSucesso('Nº CNH copiado!'); event.stopPropagation();" title="Copiar CNH" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:0.9rem; padding:0;"><i class="ph ph-copy"></i></button>` : ''}
             ${multa.motorista_id ? `<button type="button" onclick="baixarCNHMotorista(${multa.motorista_id}); event.stopPropagation();" title="Baixar CNH" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:6px;padding:3px 10px;font-size:0.78rem;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-download-simple"></i> CNH</button>` : ''}
