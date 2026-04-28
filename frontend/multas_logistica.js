@@ -1045,6 +1045,7 @@ window.processarPDFMulta = async function(input) {
         // ── AIT (múltiplos padrões) ──────────────────────────────────────────────
         let aitVal = '';
         const aitPatterns = [
+            /AIT\s*[:\-]?\s*([A-Z0-9]{5,20})/i,
             /N[°º]\s*do\s*Auto\s*de\s*Infra[çc][ãa]o\s*[:\-]?\s*([A-Z0-9]{5,20})/i,
             /\bAuto\s+de\s+Infra[çc][ãa]o\b[^A-Z0-9]{0,10}([A-Z0-9]{5,20})/i,
             /\bA\.?\s*I\.?\s*T\.?\b\s*[:\-\/\.#\s]*([A-Z0-9]{5,20})/i,
@@ -1071,13 +1072,16 @@ window.processarPDFMulta = async function(input) {
         }
 
         // ── Local da Infração ─────────────────────────────────────────────
-        const localMatch = textToSearch.match(/local(?:\s+da)?\s+infra[çc][ãa]o\s*[:\-]?\s*([^\n]{5,120})/i);
+        const localMatch = textToSearch.match(/ENDERE[ÇC]O DA INFRA[ÇC][ÃA]O\s*[:\-]?\s*([^\n]{5,120})/i) || textToSearch.match(/local(?:\s+da)?\s+infra[çc][ãa]o\s*[:\-]?\s*([^\n]{5,120})/i);
         if (localMatch && document.getElementById('nm-local')) {
             document.getElementById('nm-local').value = localMatch[1].trim().substring(0, 150);
         }
 
         // ── Data ──────────────────────────────────────────────────────────
-        let dataMatch = textToSearch.match(/data(?:\s+da)?\s+infra[çc][ãa]o[^\d]{0,40}(\d{2}[\/\-]\d{2}[\/\-]\d{4})/i);
+        let dataMatch = textToSearch.match(/DATA E HORA DA INFRA[ÇC][ÃA]O[^\d]*(\d{2}[\/\-]\d{2}[\/\-]\d{4})/i);
+        if (!dataMatch) {
+            dataMatch = textToSearch.match(/data(?:\s+da)?\s+infra[çc][ãa]o[^\d]{0,40}(\d{2}[\/\-]\d{2}[\/\-]\d{4})/i);
+        }
         if (!dataMatch) {
             dataMatch = textToSearch.match(/\bdata\b(?!\s+(?:de\s+)?emiss[ãa]o)(?!\s+limite)[^\d]{0,40}(\d{2}[\/\-]\d{2}[\/\-]\d{4})/i);
         }
@@ -1087,7 +1091,10 @@ window.processarPDFMulta = async function(input) {
         }
 
         // ── Hora ──────────────────────────────────────────────────────────
-        let horaMatch = textToSearch.match(/hora(?:\s+da)?\s+infra[çc][ãa]o[^\d]{0,40}(\d{1,2}:\d{2})(?::\d{2})?/i);
+        let horaMatch = textToSearch.match(/DATA E HORA DA INFRA[ÇC][ÃA]O[^\d]*\d{2}[\/\-]\d{2}[\/\-]\d{4}\s+(\d{1,2}:\d{2})/i);
+        if (!horaMatch) {
+            horaMatch = textToSearch.match(/hora(?:\s+da)?\s+infra[çc][ãa]o[^\d]{0,40}(\d{1,2}:\d{2})(?::\d{2})?/i);
+        }
         if (!horaMatch) {
             horaMatch = textToSearch.match(/\bhora\b[^\d]{0,40}(\d{1,2}:\d{2})(?::\d{2})?/i);
         }
@@ -1096,7 +1103,7 @@ window.processarPDFMulta = async function(input) {
         }
 
         // ── Data Limite ───────────────────────────────────────────────────
-        const limiteMatch = textToSearch.match(/(?:limite|at[ée])[^\d]*(\d{2}[\/\-]\d{2}[\/\-]\d{4})/i) || textToSearch.match(/(?:indica[çc][ãa]o|defesa)[^\d]*(\d{2}[\/\-]\d{2}[\/\-]\d{4})/i);
+        const limiteMatch = textToSearch.match(/PRAZO INDICA[ÇC][ÃA]O[^\d]*(\d{2}[\/\-]\d{2}[\/\-]\d{4})/i) || textToSearch.match(/(?:limite|at[ée])[^\d]*(\d{2}[\/\-]\d{2}[\/\-]\d{4})/i) || textToSearch.match(/(?:indica[çc][ãa]o|defesa)[^\d]*(\d{2}[\/\-]\d{2}[\/\-]\d{4})/i);
         if (limiteMatch && document.getElementById('nm-data-limite')) {
             const parts = limiteMatch[1].split(/[\/\-]/);
             document.getElementById('nm-data-limite').value = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
@@ -1112,6 +1119,7 @@ window.processarPDFMulta = async function(input) {
 
         // ── Motivo ────────────────────────────────────────────────────────
         const motivoPatterns = [
+            /DESCRI[ÇC][ÃA]O\s*[:\-]?\s*([^\n]{5,120})/i,
             /descri[çc][ãa]o\s*(?:da\s*)?infra[çc][ãa]o\s*[:\-]?\s*([^\n]{10,120})/i,
             /infra[çc][ãa]o\s*[:\-]?\s*([^\n]{10,120})/i,
             /(?:enquadramento|artigo|art\.?)\s*[:\-]?\s*([^\n]{10,120})/i,
