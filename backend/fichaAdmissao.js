@@ -107,8 +107,7 @@ function getFichaAdmissaoHtml(colaborador, baseUrl) {
 </div>
 
 ${showRg ? `<div class="grid-2">
-  <div class="row"><span class="label">C\u00e9dula de Identidade:</span><div class="value">${safeStr(c.rg)}</div></div>
-  <div class="row"><span class="label">Emiss\u00e3o:</span><div class="value">${c.rg_data_emissao ? new Date(c.rg_data_emissao+'T12:00:00').toLocaleDateString('pt-BR') : ''}</div></div>
+  <div class="row"><span class="label">CPF:</span><div class="value">${safeStr(c.cpf)}</div></div>
 </div>` : ''}
 
 <div class="grid-3">
