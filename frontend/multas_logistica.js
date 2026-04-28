@@ -156,7 +156,11 @@ function renderMultasLogistica(container) {
             
             let motoristaHtml = '';
             if (m.motorista_id && m.motorista_nome) {
-                motoristaHtml = `<span style="font-weight:600; color:#0f172a;">${m.motorista_nome}</span>`;
+                if (String(m.motorista_id) === '-1') {
+                    motoristaHtml = `<span style="font-weight:600; color:#ef4444;" title="Ex Colaborador">${m.motorista_nome}</span>`;
+                } else {
+                    motoristaHtml = `<span style="font-weight:600; color:#0f172a;">${m.motorista_nome}</span>`;
+                }
             } else {
                 if (m.status === 'Indicado' || m.status === 'Multa NIC') {
                     motoristaHtml = `<span style="color:#94a3b8; font-size:0.8rem;">—</span>`;
@@ -192,6 +196,7 @@ function renderMultasLogistica(container) {
                             `<button onclick="abrirModalGerenciarMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#2563eb; margin-right:8px;" title="Gerenciar/Editar"><i class="ph ph-pencil-simple" style="font-size:1.2rem;"></i></button>`
                         }
                         ${(m.documento_base64 || m.documento_path) ? `<button onclick="visualizarDocumentoMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#10b981; margin-right:8px;" title="Documento Original"><i class="ph ph-file-pdf" style="font-size:1.2rem;"></i></button>` : ''}
+                        ${m.link_formulario ? `<button onclick="window.open(String('${m.link_formulario}').startsWith('http') ? '${m.link_formulario}' : 'https://${m.link_formulario}', '_blank')" style="background:transparent; border:none; cursor:pointer; color:#8b5cf6; margin-right:8px;" title="Abrir Formulário Externo"><i class="ph ph-link" style="font-size:1.2rem;"></i></button>` : ''}
                         ${(m.status === 'Indicado' || m.status === 'Multa NIC') ? '' : `<button onclick="confirmarExcluirMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#ef4444;" title="Excluir"><i class="ph ph-trash" style="font-size:1.2rem;"></i></button>`}
                     </td>
                 </tr>
@@ -251,7 +256,7 @@ function filtrarMultasLogistica() {
 
         const dataInfracao = m.data_infracao ? m.data_infracao.split('-').reverse().join('/') : '—';
         let motoristaHtml = m.motorista_id && m.motorista_nome
-            ? `<span style="font-weight:600; color:#0f172a;">${m.motorista_nome}</span>`
+            ? (String(m.motorista_id) === '-1' ? `<span style="font-weight:600; color:#ef4444;" title="Ex Colaborador">${m.motorista_nome}</span>` : `<span style="font-weight:600; color:#0f172a;">${m.motorista_nome}</span>`)
             : `<button onclick="abrirModalGerenciarMulta(${m.id}, true)" style="background:#f1f5f9; color:#2563eb; border:1px solid #cbd5e1; padding:0.3rem 0.6rem; border-radius:4px; cursor:pointer; font-size:0.8rem; font-weight:600;">+ Adicionar Motorista</button>`;
         let statusColor = '#e2e8f0';
         if (m.status === 'Conferência') statusColor = '#fef08a';
@@ -270,7 +275,8 @@ function filtrarMultasLogistica() {
                 <td style="padding:1rem; white-space:nowrap;">${_dataLimiteBadge(m.data_limite)}</td>
                 <td style="padding:1rem; text-align:center;">
                     <button onclick="abrirModalGerenciarMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#2563eb; margin-right:8px;" title="Gerenciar/Editar"><i class="ph ph-pencil-simple" style="font-size:1.2rem;"></i></button>
-                    ${(m.documento_base64||m.documento_path) ? `<button onclick="visualizarDocumentoMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#10b981; margin-right:8px;" title="Visualizar Documento"><i class="ph ph-eye" style="font-size:1.2rem;"></i></button>` : ''}
+                    ${(m.documento_base64||m.documento_path) ? `<button onclick="visualizarDocumentoMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#10b981; margin-right:8px;" title="Visualizar Documento"><i class="ph ph-file-pdf" style="font-size:1.2rem;"></i></button>` : ''}
+                    ${m.link_formulario ? `<button onclick="window.open(String('${m.link_formulario}').startsWith('http') ? '${m.link_formulario}' : 'https://${m.link_formulario}', '_blank')" style="background:transparent; border:none; cursor:pointer; color:#8b5cf6; margin-right:8px;" title="Abrir Formulário Externo"><i class="ph ph-link" style="font-size:1.2rem;"></i></button>` : ''}
                     <button onclick="confirmarExcluirMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#ef4444;" title="Excluir"><i class="ph ph-trash" style="font-size:1.2rem;"></i></button>
                 </td>
             </tr>`;
@@ -430,13 +436,14 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
     modal.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; justify-content:center; align-items:center; z-index:9999; padding:1rem;';
 
     let optionsMotoristas = `<option value="">-- Selecione o Motorista --</option>`;
+    const selEx = (multa.motorista_id == -1) ? 'selected' : '';
+    optionsMotoristas += `<option value="-1" ${selEx}>Ex Colaborador</option>`;
+    
     colaboradoresMultas.forEach(c => {
         const nome = c.nome_completo || c.nome || 'Sem nome';
         const sel = multa.motorista_id === c.id ? 'selected' : '';
         optionsMotoristas += `<option value="${c.id}" ${sel}>${nome}</option>`;
     });
-    const selEx = (multa.motorista_id == -1) ? 'selected' : '';
-    optionsMotoristas += `<option value="-1" ${selEx}>Ex Colaborador</option>`;
 
     const statusOpts = ['Conferência', 'Conferido', 'Indicado', 'Multa NIC', 'Não Se Aplica'];
     let optionsStatus = '';
