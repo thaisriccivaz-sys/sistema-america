@@ -435,6 +435,8 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
         const sel = multa.motorista_id === c.id ? 'selected' : '';
         optionsMotoristas += `<option value="${c.id}" ${sel}>${nome}</option>`;
     });
+    const selEx = (multa.motorista_id == -1) ? 'selected' : '';
+    optionsMotoristas += `<option value="-1" ${selEx}>Ex Colaborador</option>`;
 
     const statusOpts = ['Conferência', 'Conferido', 'Indicado', 'Multa NIC', 'Não Se Aplica'];
     let optionsStatus = '';
@@ -490,6 +492,7 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
                             <select id="gm-motorista" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;" onchange="atualizarInfoMotoristaModal(this)">
                                 ${optionsMotoristas}
                             </select>
+                            <input type="text" id="gm-ex-colaborador-nome" placeholder="Digite o nome do Ex Colaborador" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px; margin-top:0.5rem; display:${multa.motorista_id == -1 ? 'block' : 'none'};" value="${multa.motorista_id == -1 ? (multa.motorista_nome || '') : ''}">
                         </div>
                         <div style="flex:1; min-width:200px;">
                             <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Status</label>
@@ -675,8 +678,14 @@ function atualizarValoresMultaModal() {
 
 // Atualiza bloco de info do motorista quando dropdown muda
 function atualizarInfoMotoristaModal(sel) {
+    const inputEx = document.getElementById('gm-ex-colaborador-nome');
+    if (inputEx) {
+        inputEx.style.display = (sel.value === '-1') ? 'block' : 'none';
+        if (sel.value !== '-1') inputEx.value = '';
+    }
+
     const id = parseInt(sel.value);
-    const c = id ? colaboradoresMultas.find(x => x.id === id) : null;
+    const c = id && id !== -1 ? colaboradoresMultas.find(x => x.id === id) : null;
     const bloco = document.getElementById('gm-info-motorista');
     if (!bloco) return;
     if (!c) { bloco.style.display = 'none'; return; }
@@ -802,8 +811,20 @@ async function salvarGerenciamentoMulta(e, id) {
     btn.textContent = 'Salvando...';
 
     const motoristaSel = document.getElementById('gm-motorista');
-    const motoristaId = motoristaSel.value;
-    const motoristaNome = motoristaId ? motoristaSel.options[motoristaSel.selectedIndex].text : null;
+    let motoristaId = motoristaSel.value;
+    let motoristaNome = motoristaId ? motoristaSel.options[motoristaSel.selectedIndex].text : null;
+    
+    if (motoristaId === '-1') {
+        const inputEx = document.getElementById('gm-ex-colaborador-nome');
+        if (inputEx && inputEx.value.trim()) {
+            motoristaNome = inputEx.value.trim();
+        } else {
+            btn.disabled = false;
+            btn.textContent = 'Salvar Alterações';
+            mostrarToastAviso('Preencha o nome do Ex Colaborador.');
+            return;
+        }
+    }
     const link = document.getElementById('gm-link').value.trim();
     const parcelas = document.getElementById('gm-parcelas').value;
     const placa = document.getElementById('gm-placa')?.value.trim() || '';
