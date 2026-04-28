@@ -95,6 +95,7 @@ function renderMultasLogistica(container) {
                     <thead>
                         <tr style="background:#f8fafc; border-bottom:2px solid #e2e8f0; text-align:left;">
                             <th style="padding:1rem; font-weight:600; color:#475569;">AIT</th>
+                            <th style="padding:1rem; font-weight:600; color:#475569;">Placa</th>
                             <th style="padding:1rem; font-weight:600; color:#475569;">Data/Hora</th>
                             <th style="padding:1rem; font-weight:600; color:#475569;">Motivo</th>
                             <th style="padding:1rem; font-weight:600; color:#475569;">Valor / Pontos</th>
@@ -111,7 +112,7 @@ function renderMultasLogistica(container) {
     const listaFiltrada = _aplicarFiltrosMultas(multasLogistica);
 
     if (listaFiltrada.length === 0) {
-        html += `<tr><td colspan="9" style="padding:2rem; text-align:center; color:#64748b;">Nenhuma multa encontrada.</td></tr>`;
+        html += `<tr><td colspan="10" style="padding:2rem; text-align:center; color:#64748b;">Nenhuma multa encontrada.</td></tr>`;
     } else {
         listaFiltrada.forEach(m => {
             const dataInfracao = m.data_infracao ? m.data_infracao.split('-').reverse().join('/') : '—';
@@ -137,6 +138,7 @@ function renderMultasLogistica(container) {
             html += `
                 <tr style="border-bottom:1px solid #e2e8f0; transition:background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
                     <td style="padding:1rem;"><strong>${m.numero_ait || '—'}</strong></td>
+                    <td style="padding:1rem; font-weight:600; color:#334155; white-space:nowrap;">${m.placa || '—'}</td>
                     <td style="padding:1rem;">${dataInfracao}<br><span style="color:#64748b; font-size:0.8rem;">${m.hora_infracao || '—'}</span></td>
                     <td style="padding:1rem; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${m.motivo || ''}">${m.motivo || '—'}</td>
                     <td style="padding:1rem;">R$ ${m.valor_multa || '0,00'}<br><span style="color:#ef4444; font-size:0.8rem; font-weight:600;">${m.pontuacao || 0} pts</span></td>
@@ -204,7 +206,7 @@ function filtrarMultasLogistica() {
     const listaFiltrada = _aplicarFiltrosMultas(multasLogistica);
 
     if (listaFiltrada.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="9" style="padding:2rem; text-align:center; color:#64748b;">Nenhuma multa encontrada com esses filtros.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="10" style="padding:2rem; text-align:center; color:#64748b;">Nenhuma multa encontrada com esses filtros.</td></tr>`;
         return;
     }
 
@@ -222,6 +224,7 @@ function filtrarMultasLogistica() {
         return `
             <tr style="border-bottom:1px solid #e2e8f0; transition:background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
                 <td style="padding:1rem;"><strong>${m.numero_ait||'—'}</strong></td>
+                <td style="padding:1rem; font-weight:600; color:#334155; white-space:nowrap;">${m.placa||'—'}</td>
                 <td style="padding:1rem;">${dataInfracao}<br><span style="color:#64748b; font-size:0.8rem;">${m.hora_infracao||'—'}</span></td>
                 <td style="padding:1rem; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${m.motivo||''}">${m.motivo||'—'}</td>
                 <td style="padding:1rem;">R$ ${m.valor_multa||'0,00'}<br><span style="color:#ef4444; font-size:0.8rem; font-weight:600;">${m.pontuacao||0} pts</span></td>
