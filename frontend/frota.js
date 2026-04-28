@@ -77,6 +77,7 @@ window.processarCRLV=async function(inp,modo){
 };
 window._frotaDados = [];
 window._frotaSort = { col: '', dir: 'asc' };
+window._frotaSearch = '';
 
 window.ordenarFrota = function(col) {
   if (window._frotaSort.col === col) {
@@ -85,6 +86,11 @@ window.ordenarFrota = function(col) {
     window._frotaSort.col = col;
     window._frotaSort.dir = 'asc';
   }
+  renderTabelaFrota();
+};
+
+window.filtrarFrota = function(val) {
+  window._frotaSearch = (val || '').trim().toLowerCase();
   renderTabelaFrota();
 };
 
@@ -105,7 +111,26 @@ function renderTabelaFrota() {
     }
   });
 
-  const rows = [...window._frotaDados];
+  let rows = [...window._frotaDados];
+  
+  if (window._frotaSearch) {
+    const s = window._frotaSearch;
+    rows = rows.filter(v => {
+      const p = v.placa || '';
+      const m = v.marca_modelo_versao || '';
+      const c = v.cor_predominante || '';
+      const a = String(v.ano_modelo || '');
+      const e = String(v.exercicio || '');
+      const r = v.renavam || '';
+      const t = String(v.capacidade_tanque || '');
+      const cg = String(v.capacidade_carga || '');
+      const tp = v.tipo_veiculo || '';
+      return p.toLowerCase().includes(s) || m.toLowerCase().includes(s) || 
+             c.toLowerCase().includes(s) || a.includes(s) || e.includes(s) || 
+             r.toLowerCase().includes(s) || t.includes(s) || cg.includes(s) || 
+             tp.toLowerCase().includes(s);
+    });
+  }
   if (window._frotaSort.col) {
     rows.sort((a, b) => {
       let va = a[window._frotaSort.col] || '';
@@ -160,9 +185,15 @@ window.initFrotaVeiculos = async function() {
   </th>`;
 
   c.innerHTML = `<div style="padding:1.5rem;background:#f1f5f9;min-height:100vh;">
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem;">
 <h2 style="margin:0;color:#1e293b;display:flex;align-items:center;gap:8px;"><i class="ph ph-truck" style="color:#2d9e5f;"></i> Frota de Veículos</h2>
-<button onclick="window.abrirModalFrota(null)" style="background:#2d9e5f;color:#fff;border:none;border-radius:8px;padding:0.6rem 1.2rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-plus"></i> Novo Veículo</button>
+<div style="display:flex;align-items:center;gap:12px;">
+  <div style="position:relative;">
+    <i class="ph ph-magnifying-glass" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;"></i>
+    <input type="text" placeholder="Buscar veículo..." onkeyup="window.filtrarFrota(this.value)" style="padding:0.6rem 1rem 0.6rem 2.2rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.88rem;width:250px;outline:none;" onfocus="this.style.borderColor='#2d9e5f'" onblur="this.style.borderColor='#cbd5e1'">
+  </div>
+  <button onclick="window.abrirModalFrota(null)" style="background:#2d9e5f;color:#fff;border:none;border-radius:8px;padding:0.6rem 1.2rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;"><i class="ph ph-plus"></i> Novo Veículo</button>
+</div>
 </div>
 <div style="background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.08);overflow:auto;max-height:calc(100vh - 120px);">
 <table style="width:100%;border-collapse:collapse;font-size:0.86rem;">
