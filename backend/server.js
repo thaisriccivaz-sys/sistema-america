@@ -8037,6 +8037,107 @@ function verificarAtestadosVencidos() {
         });
     });
 }
+// CRON JOB — Verificar CRLV Vencido (Logística)
+function verificarCRLVVencidoCron() {
+    console.log('[CRON] Verificando vencimento de CRLV...');
+    db.all(`SELECT id, placa, marca_modelo_versao, exercicio, crlv_alerta_enviado FROM frota_veiculos WHERE exercicio IS NOT NULL AND exercicio != ''`, [], (err, veiculos) => {
+        if (err) { console.error('[CRON CRLV]', err.message); return; }
+        
+        const now = new Date();
+        const anoAtual = now.getFullYear();
+        const mesAtual = now.getMonth(); // 0 a 11
+        
+        veiculos.forEach(v => {
+            if (v.crlv_alerta_enviado) return; // Ja enviou alerta
+            
+            let p = v.placa.replace(/[^a-zA-Z0-9]/g, '');
+            if (p.length < 7) return;
+            const last = p[p.length - 1];
+            let mesV = null;
+            if (last === '1') mesV = 3;
+            else if (last === '2') mesV = 4;
+            else if (last === '3') mesV = 5;
+            else if (last === '4') mesV = 6;
+            else if (last === '5' || last === '6') mesV = 7;
+            else if (last === '7') mesV = 8;
+            else if (last === '8') mesV = 9;
+            else if (last === '9') mesV = 10;
+            else if (last === '0') mesV = 11;
+            
+            if (mesV === null) return;
+            
+            const anoVencimento = parseInt(v.exercicio) + 1;
+            
+            // Fica vencido (vermelho) no mês seguinte ao mesV do ano de vencimento
+            let estaVencido = false;
+            if (anoAtual > anoVencimento) estaVencido = true;
+            else if (anoAtual === anoVencimento && mesAtual > mesV) estaVencido = true;
+            
+            if (estaVencido) {
+                enviarEmailAlertaCRLV(v);
+            }
+        });
+    });
+}
+
+function enviarEmailAlertaCRLV(v) {
+    db.get(`SELECT (SELECT email_corporativo FROM colaboradores WHERE id = d.responsavel_id) as email 
+            FROM departamentos d WHERE d.nome LIKE '%Log_stica%' LIMIT 1`, [], async (err, row) => {
+        if (err || !row || !row.email) {
+            console.log('[CRON CRLV] E-mail do responsável de Logística não encontrado para o veículo:', v.placa);
+            return;
+        }
+        
+        const emailDestino = row.email;
+        const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+
+        const htmlContent = \`
+            <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <img src="cid:empresa-logo" style="max-height: 80px;">
+                </div>
+                <h2 style="color: #c0392b; border-bottom: 2px solid #e74c3c; padding-bottom: 10px;">Aviso de Vencimento CRLV</h2>
+                <p>O documento CRLV do veículo abaixo consta como <strong>vencido</strong> no sistema. Por favor, providencie a atualização do documento.</p>
+                
+                <div style="background: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                    <p><strong>Placa:</strong> \${v.placa}</p>
+                    <p><strong>Veículo:</strong> \${v.marca_modelo_versao || '-'}</p>
+                    <p><strong>Exercício Atual:</strong> \${v.exercicio}</p>
+                </div>
+
+                <div style="margin-top: 30px; padding: 15px; border: 2px solid #3498db; border-radius: 8px; background: #ebf5fb; text-align: center;">
+                    <p style="color: #2980b9; font-weight: bold; margin: 0;">
+                        Por favor, acesse o módulo de Frota e atualize o ano de Exercício, anexando o novo CRLV.
+                    </p>
+                </div>
+
+                <p style="margin-top: 30px; font-size: 0.9em; color: #7f8c8d;">Atenciosamente,<br>Sistema América Rental</p>
+            </div>
+        \`;
+
+        try {
+            const transporter = nodemailer.createTransport(SMTP_CONFIG);
+            await transporter.sendMail({
+                from: \`"América Rental Sistema" <\${SMTP_CONFIG.auth.user}>\`,
+                to: emailDestino,
+                subject: \`Aviso de CRLV Vencido - Veículo \${v.placa}\`,
+                html: htmlContent,
+                attachments: [
+                    {
+                        filename: 'logo.png',
+                        path: logoPath,
+                        cid: 'empresa-logo'
+                    }
+                ]
+            });
+
+            db.run("UPDATE frota_veiculos SET crlv_alerta_enviado = 1 WHERE id = ?", [v.id]);
+            console.log(\`[CRON CRLV] E-mail de alerta enviado para \${emailDestino} (Placa: \${v.placa})\`);
+        } catch (e) {
+            console.error('[CRON CRLV] Erro ao enviar e-mail:', e.message);
+        }
+    });
+}
 
 // =====================================================================
 // CRON JOBS — Agendamento robusto com node-cron
@@ -8051,6 +8152,7 @@ cron.schedule('0 8 * * *', () => {
     _cronUltimaExecucao = new Date().toISOString();
     verificarExperienciasVencendo();
     verificarAtestadosVencidos();
+    verificarCRLVVencidoCron();
 }, { timezone: 'America/Sao_Paulo' });
 
 // Endpoint para forçar envio em lote (botão "Disparar E-mails")
