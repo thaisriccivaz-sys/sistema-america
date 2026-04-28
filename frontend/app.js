@@ -400,6 +400,7 @@ const BREADCRUMB_MAP = {
     'logistica-frota-resumo': { path: 'Resumo de Frota',                                            code: 'LOG002' },
     'logistica-pipeline':     { path: 'Pipeline OS',                                               code: 'LOG003' },
     'logistica-multas':       { path: 'Multas',                                                    code: 'LOG004' },
+    'logistica-frota':        { path: 'Frota',                                                     code: 'LOG005' },
 };
 
 window.carregarPermissoesOnline = async function() {
@@ -534,7 +535,7 @@ function updateBreadcrumb(key) {
     const starBtn = document.getElementById('btn-star-page');
     if (starBtn && entryObj) {
         starBtn.style.color = pageColor;
-        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-pipeline';
+        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-pipeline' || key === 'logistica-frota';
         if (isSimplePage) {
             starBtn.style.display = 'flex';
         } else {
@@ -588,6 +589,7 @@ const TAB_META = {
     'logistica-frota-resumo':  { color: '#1e3a5f', icon: 'ph-truck',          title: 'Resumo de Frota' },
     'logistica-pipeline':    { color: '#2d9e5f', icon: 'ph-kanban',       title: 'Pipeline' },
     'logistica-multas':      { color: '#2d9e5f', icon: 'ph-receipt',      title: 'Multas' },
+    'logistica-frota':       { color: '#2d9e5f', icon: 'ph-truck',        title: 'Frota' },
     // Financeiro - Azul
     'financeiro-em-breve':    { color: '#1971c2', icon: 'ph-currency-dollar', title: 'Financeiro' },
     // Comercial - Roxo
@@ -658,6 +660,9 @@ window.navigateToTab = function(tabId) {
       }
       if (tab.target === 'logistica-pipeline' && typeof renderPipelinePage === 'function') {
           setTimeout(() => renderPipelinePage(), 80);
+      }
+      if (tab.target === 'logistica-frota' && typeof window.initFrotaVeiculos === 'function') {
+          setTimeout(() => window.initFrotaVeiculos(), 80);
       }
     // Se a aba tem dados de colaborador (prontuário ou form), restaura o viewedColaborador
     if (tab._colaboradorData) {
@@ -763,6 +768,8 @@ function navigateTo(target) {
         if (typeof renderPipelinePage === 'function') setTimeout(() => renderPipelinePage(), 80);
     } else if (target === 'logistica-multas') {
         if (typeof initMultasLogistica === 'function') setTimeout(() => initMultasLogistica(), 80);
+    } else if (target === 'logistica-frota') {
+        if (typeof window.initFrotaVeiculos === 'function') setTimeout(() => window.initFrotaVeiculos(), 80);
     }
 }
 
