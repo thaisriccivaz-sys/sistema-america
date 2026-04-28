@@ -468,6 +468,7 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
             <i class="ph ph-file" style="color:#64748b;"></i>
             <span style="flex:1; font-size:0.8rem; color:#334155; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${d.nome || 'Documento ' + (i+1)}</span>
             <button type="button" onclick="visualizarDocExtra(${id}, ${i}); event.stopPropagation();" title="Visualizar" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:0.8rem;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-eye"></i></button>
+            ${modoLeitura ? '' : `<button type="button" onclick="excluirDocExtra(${id}, ${i}); event.stopPropagation();" title="Excluir Anexo" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:0.8rem;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-trash"></i></button>`}
         </div>`).join('');
 
     modal.innerHTML = `
@@ -732,6 +733,7 @@ async function uploadDocExtra(multaId) {
                     <i class="ph ph-file" style="color:#64748b;"></i>
                     <span style="flex:1; font-size:0.8rem; color:#334155; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${d.nome || 'Documento ' + (i+1)}</span>
                     <button type="button" onclick="visualizarDocExtra(${multaId}, ${i}); event.stopPropagation();" title="Visualizar" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:0.8rem;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-eye"></i></button>
+                    <button type="button" onclick="excluirDocExtra(${multaId}, ${i}); event.stopPropagation();" title="Excluir Anexo" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:0.8rem;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-trash"></i></button>
                 </div>`).join('');
         }
         // Atualiza dados locais
@@ -744,6 +746,37 @@ async function uploadDocExtra(multaId) {
         btn.innerHTML = origHtml;
     }
 }
+
+window.excluirDocExtra = async function(multaId, idx) {
+    if (!confirm('Deseja realmente excluir este anexo?')) return;
+    try {
+        const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+        const resp = await fetch(`/api/logistica/multas/${multaId}/documento-extra/${idx}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!resp.ok) throw new Error('Falha ao excluir anexo');
+        const data = await resp.json();
+        if (typeof mostrarToastSucesso === 'function') mostrarToastSucesso('Anexo excluído com sucesso!');
+        
+        const lista = document.getElementById('gm-docs-lista');
+        if (lista) {
+            const docsExtras = data.documentos_extras || [];
+            lista.innerHTML = docsExtras.map((d, i) => `
+                <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; margin-bottom:6px;">
+                    <i class="ph ph-file" style="color:#64748b;"></i>
+                    <span style="flex:1; font-size:0.8rem; color:#334155; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${d.nome || 'Documento ' + (i+1)}</span>
+                    <button type="button" onclick="visualizarDocExtra(${multaId}, ${i}); event.stopPropagation();" title="Visualizar" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:0.8rem;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-eye"></i></button>
+                    <button type="button" onclick="excluirDocExtra(${multaId}, ${i}); event.stopPropagation();" title="Excluir Anexo" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:0.8rem;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-trash"></i></button>
+                </div>`).join('') || '<p style="font-size:0.8rem;color:#94a3b8;margin:0 0 0.5rem;">Nenhum documento anexado.</p>';
+        }
+        
+        const m = multasLogistica.find(x => x.id === multaId);
+        if (m && data.documentos_extras) m.documentos_extras = JSON.stringify(data.documentos_extras);
+    } catch(e) {
+        if (typeof mostrarToastErro === 'function') mostrarToastErro(e.message);
+    }
+};
 
 // Visualizar documento extra em nova aba (inline)
 async function visualizarDocExtra(multaId, idx) {

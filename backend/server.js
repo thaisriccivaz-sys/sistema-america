@@ -3392,6 +3392,32 @@ app.post('/api/logistica/multas/:id/documento-extra', authenticateToken, multaEx
     });
 });
 
+// DELETE /api/logistica/multas/:id/documento-extra/:idx — deleta um documento extra pelo índice
+app.delete('/api/logistica/multas/:id/documento-extra/:idx', authenticateToken, (req, res) => {
+    db.get('SELECT documentos_extras FROM multas_logistica WHERE id = ?', [req.params.id], (err, row) => {
+        if (err || !row) return res.status(404).json({ error: 'Multa não encontrada' });
+        
+        let extras = [];
+        try { extras = JSON.parse(row.documentos_extras || '[]'); } catch(_) {}
+        
+        const idx = parseInt(req.params.idx);
+        if (isNaN(idx) || idx < 0 || idx >= extras.length) {
+            return res.status(404).json({ error: 'Documento não encontrado' });
+        }
+        
+        extras.splice(idx, 1);
+        const extrasJson = JSON.stringify(extras);
+        
+        db.run('UPDATE multas_logistica SET documentos_extras = ? WHERE id = ?', [extrasJson, req.params.id], function(err2) {
+            if (err2) return res.status(500).json({ error: err2.message });
+            res.json({
+                ok: true,
+                documentos_extras: extras.map((d, i) => ({ nome: d.nome, tipo: d.tipo, idx: i, adicionado_em: d.adicionado_em }))
+            });
+        });
+    });
+});
+
 // GET /api/logistica/multas/:id/documento-extra/:idx — serve um documento extra pelo índice
 app.get('/api/logistica/multas/:id/documento-extra/:idx', (req, res) => {
     const token = req.query.token || (req.headers['authorization'] || '').replace('Bearer ', '');
