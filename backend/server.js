@@ -212,6 +212,12 @@ _multasMigCols.forEach(sql => {
     });
 });
 
+// MIGRATION: Coluna data_limite na tabela multas_logistica
+db.run("ALTER TABLE multas_logistica ADD COLUMN data_limite TEXT", err => {
+    if (err && !err.message.includes('duplicate column')) console.error('Migration data_limite multas_logistica:', err.message);
+    else if (!err) console.log('[MIGRATION] Coluna data_limite adicionada em multas_logistica.');
+});
+
 // MIGRATION REMOVIDA: O DELETE abaixo apagava todos os usuarios a cada restart do servidor.
 // Foi usado uma unica vez para limpar dados de teste. NAO REATIVAR.
 // db.run("DELETE FROM usuarios WHERE LOWER(REPLACE(username, '.', '')) != 'diretoria1'", ...);
@@ -3158,7 +3164,7 @@ db.run("ALTER TABLE multas_logistica ADD COLUMN documento_base64 TEXT", (err) =>
 // POST /api/logistica/multas — cria nova multa
 const multaUploadMiddleware = require('multer')({ storage: require('multer').memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 app.post('/api/logistica/multas', authenticateToken, multaUploadMiddleware.single('documento'), (req, res) => {
-    const { data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao, placa, local_infracao } = req.body;
+    const { data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao, placa, local_infracao, data_limite } = req.body;
 
     let documento_base64 = null;
     let documento_nome = null;
@@ -3173,9 +3179,9 @@ app.post('/api/logistica/multas', authenticateToken, multaUploadMiddleware.singl
     }
 
     db.run(
-        `INSERT INTO multas_logistica (data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao, placa, local_infracao, status, documento_nome, documento_base64)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Conferência', ?, ?)`,
-        [data_infracao || null, hora_infracao || null, numero_ait || null, motivo || null, valor_multa || null, pontuacao || 0, placa || null, local_infracao || null, documento_nome, documento_base64],
+        `INSERT INTO multas_logistica (data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao, placa, local_infracao, data_limite, status, documento_nome, documento_base64)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Conferência', ?, ?)`,
+        [data_infracao || null, hora_infracao || null, numero_ait || null, motivo || null, valor_multa || null, pontuacao || 0, placa || null, local_infracao || null, data_limite || null, documento_nome, documento_base64],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ id: this.lastID, ok: true });
@@ -3240,7 +3246,7 @@ async function notificarRHAuto(motoristaId, status, parcelas, valorMultaStr, dat
 
 // PUT /api/logistica/multas/:id — atualiza campos da multa (motorista, status, obs, link)
 app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
-    const { motorista_id, motorista_nome, status, observacao, link_formulario, data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao, parcelas, placa, local_infracao } = req.body;
+    const { motorista_id, motorista_nome, status, observacao, link_formulario, data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao, parcelas, placa, local_infracao, data_limite } = req.body;
     
     db.get('SELECT status, valor_multa, data_infracao, numero_ait, motorista_id, parcelas FROM multas_logistica WHERE id = ?', [req.params.id], (err, oldData) => {
         if (err || !oldData) return res.status(404).json({ error: 'Multa não encontrada' });
@@ -3265,10 +3271,11 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
                 parcelas = COALESCE(?, parcelas),
                 placa = COALESCE(?, placa),
                 local_infracao = COALESCE(?, local_infracao),
+                data_limite = ?,
                 atualizado_em = CURRENT_TIMESTAMP
              WHERE id = ?`,
             [motorista_id||null, motorista_nome||null, status||null, observacao||null, link_formulario||null,
-             data_infracao||null, hora_infracao||null, numero_ait||null, motivo||null, valor_multa||null, pontuacao||null, parcelas||null, placa||null, local_infracao||null,
+             data_infracao||null, hora_infracao||null, numero_ait||null, motivo||null, valor_multa||null, pontuacao||null, parcelas||null, placa||null, local_infracao||null, data_limite||null,
              req.params.id],
             function(errUpdate) {
                 if (errUpdate) return res.status(500).json({ error: errUpdate.message });

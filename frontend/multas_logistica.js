@@ -2,6 +2,45 @@
 
 let multasLogistica = [];
 let colaboradoresMultas = [];
+let _multasSortCol = 'data_infracao';
+let _multasSortDir = 'desc'; // mais novo primeiro por padrão
+
+// Helper: badge de data limite (vermelho se < 10 dias)
+function _dataLimiteBadge(dl) {
+    if (!dl) return '—';
+    const [y,m,d] = dl.split('-');
+    const fmt = `${d}/${m}/${y}`;
+    const diff = Math.ceil((new Date(dl + 'T12:00:00') - new Date()) / 86400000);
+    if (diff <= 10) {
+        const urgente = diff <= 0 ? 'VENCIDA' : `${diff}d`;
+        return `<span style="color:#dc2626;font-weight:700;white-space:nowrap;" title="${urgente}">⚠️ ${fmt}</span>`;
+    }
+    return `<span style="white-space:nowrap;">${fmt}</span>`;
+}
+
+// Ordenação da tabela
+function ordenarMultas(col) {
+    if (_multasSortCol === col) {
+        _multasSortDir = _multasSortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+        _multasSortCol = col;
+        _multasSortDir = col === 'data_infracao' ? 'desc' : 'asc';
+    }
+    filtrarMultasLogistica();
+    // Atualizar icones no thead
+    document.querySelectorAll('.multa-th-sort').forEach(th => {
+        const c = th.dataset.col;
+        const ico = th.querySelector('.sort-ico');
+        if (!ico) return;
+        if (c === _multasSortCol) {
+            ico.className = 'sort-ico ph ' + (_multasSortDir === 'asc' ? 'ph-arrow-up' : 'ph-arrow-down');
+            ico.style.color = '#2563eb';
+        } else {
+            ico.className = 'sort-ico ph ph-arrows-down-up';
+            ico.style.color = '#cbd5e1';
+        }
+    });
+}
 
 // ── Helpers de Toast locais (não depende de outros scripts) ──────────────────
 function _toastMulta(msg, bg, border, color) {
@@ -94,13 +133,14 @@ function renderMultasLogistica(container) {
                 <table style="width:100%; border-collapse:collapse; min-width:1000px; font-size:0.9rem;">
                     <thead>
                         <tr style="background:#f8fafc; border-bottom:2px solid #e2e8f0; text-align:left;">
-                            <th style="padding:1rem; font-weight:600; color:#475569;">AIT</th>
+                            <th class="multa-th-sort" data-col="numero_ait" onclick="ordenarMultas('numero_ait')" style="padding:1rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">AIT <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
                             <th style="padding:1rem; font-weight:600; color:#475569;">Placa</th>
-                            <th style="padding:1rem; font-weight:600; color:#475569;">Data/Hora</th>
-                            <th style="padding:1rem; font-weight:600; color:#475569;">Motivo</th>
+                            <th class="multa-th-sort" data-col="data_infracao" onclick="ordenarMultas('data_infracao')" style="padding:1rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Data/Hora <i class="sort-ico ph ph-arrow-down" style="color:#2563eb;font-size:0.8rem;"></i></th>
+                            <th class="multa-th-sort" data-col="motivo" onclick="ordenarMultas('motivo')" style="padding:1rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Motivo <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
                             <th style="padding:1rem; font-weight:600; color:#475569;">Valor / Pontos</th>
-                            <th style="padding:1rem; font-weight:600; color:#475569;">Motorista</th>
-                            <th style="padding:1rem; font-weight:600; color:#475569;">Status</th>
+                            <th class="multa-th-sort" data-col="motorista_nome" onclick="ordenarMultas('motorista_nome')" style="padding:1rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Motorista <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
+                            <th class="multa-th-sort" data-col="status" onclick="ordenarMultas('status')" style="padding:1rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Status <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
+                            <th class="multa-th-sort" data-col="data_limite" onclick="ordenarMultas('data_limite')" style="padding:1rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Data Limite <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
                             <th style="padding:1rem; font-weight:600; color:#475569;">Observação</th>
                             <th style="padding:1rem; font-weight:600; color:#475569;">Link Form.</th>
                             <th style="padding:1rem; font-weight:600; color:#475569; text-align:center;">Ações</th>
@@ -112,7 +152,7 @@ function renderMultasLogistica(container) {
     const listaFiltrada = _aplicarFiltrosMultas(multasLogistica);
 
     if (listaFiltrada.length === 0) {
-        html += `<tr><td colspan="10" style="padding:2rem; text-align:center; color:#64748b;">Nenhuma multa encontrada.</td></tr>`;
+        html += `<tr><td colspan="11" style="padding:2rem; text-align:center; color:#64748b;">Nenhuma multa encontrada.</td></tr>`;
     } else {
         listaFiltrada.forEach(m => {
             const dataInfracao = m.data_infracao ? m.data_infracao.split('-').reverse().join('/') : '—';
@@ -148,6 +188,7 @@ function renderMultasLogistica(container) {
                             ${m.status || '—'}
                         </span>
                     </td>
+                    <td style="padding:1rem; white-space:nowrap;">${_dataLimiteBadge(m.data_limite)}</td>
                     <td style="padding:1rem; max-width:150px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${m.observacao || ''}">${m.observacao || '—'}</td>
                     <td style="padding:1rem;">
                         ${m.link_formulario ? 
@@ -205,12 +246,22 @@ function filtrarMultasLogistica() {
 
     const listaFiltrada = _aplicarFiltrosMultas(multasLogistica);
 
+    // Aplicar ordenação
+    listaFiltrada.sort((a, b) => {
+        let va = (a[_multasSortCol] || '').toString().toLowerCase();
+        let vb = (b[_multasSortCol] || '').toString().toLowerCase();
+        if (va < vb) return _multasSortDir === 'asc' ? -1 : 1;
+        if (va > vb) return _multasSortDir === 'asc' ? 1 : -1;
+        return 0;
+    });
+
     if (listaFiltrada.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="10" style="padding:2rem; text-align:center; color:#64748b;">Nenhuma multa encontrada com esses filtros.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="11" style="padding:2rem; text-align:center; color:#64748b;">Nenhuma multa encontrada com esses filtros.</td></tr>`;
         return;
     }
 
     tbody.innerHTML = listaFiltrada.map(m => {
+
         const dataInfracao = m.data_infracao ? m.data_infracao.split('-').reverse().join('/') : '—';
         let motoristaHtml = m.motorista_id && m.motorista_nome
             ? `<span style="font-weight:600; color:#0f172a;">${m.motorista_nome}</span>`
@@ -230,6 +281,7 @@ function filtrarMultasLogistica() {
                 <td style="padding:1rem;">R$ ${m.valor_multa||'0,00'}<br><span style="color:#ef4444; font-size:0.8rem; font-weight:600;">${m.pontuacao||0} pts</span></td>
                 <td style="padding:1rem;">${motoristaHtml}</td>
                 <td style="padding:1rem;"><span style="background:${statusColor}; color:#0f172a; padding:4px 8px; border-radius:12px; font-size:0.8rem; font-weight:600; white-space:nowrap;">${m.status||'—'}</span></td>
+                <td style="padding:1rem; white-space:nowrap;">${_dataLimiteBadge(m.data_limite)}</td>
                 <td style="padding:1rem; max-width:150px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${m.observacao||''}">${m.observacao||'—'}</td>
                 <td style="padding:1rem;">${m.link_formulario ? `<a href="${m.link_formulario.startsWith('http')?m.link_formulario:'http://'+m.link_formulario}" target="_blank" style="color:#2563eb; text-decoration:none; font-size:0.8rem;">${m.link_formulario}</a>` : '—'}</td>
                 <td style="padding:1rem; text-align:center;">
@@ -301,6 +353,11 @@ function abrirModalNovaMulta() {
                         </div>
                     </div>
 
+                    <div style="margin-bottom:1rem; background:#fff7ed; border:1.5px solid #fed7aa; border-radius:8px; padding:0.85rem 1rem;">
+                        <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:700; color:#c2410c;">&#128197; Data Limite &mdash; Indicação de Condutor / Defesa de Autuação</label>
+                        <input type="date" id="nm-data-limite" style="width:100%; padding:0.6rem; border:1px solid #fed7aa; border-radius:4px; font-size:0.9rem;">
+                    </div>
+
                     <div style="margin-bottom:1rem;">
                         <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Motivo da Multa</label>
                         <input type="text" id="nm-motivo" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
@@ -343,6 +400,7 @@ async function salvarNovaMulta(e) {
     formData.append('placa', document.getElementById('nm-placa').value);
     formData.append('local_infracao', document.getElementById('nm-local').value);
     formData.append('pontuacao', document.getElementById('nm-pontos').value);
+    formData.append('data_limite', document.getElementById('nm-data-limite')?.value || '');
 
     const fileInput = document.getElementById('nm-doc');
     if (fileInput && fileInput.files.length > 0) {
@@ -514,6 +572,11 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
                             <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Local da Infração</label>
                             <input type="text" id="gm-local" value="${multa.local_infracao || ''}" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
                         </div>
+                    </div>
+
+                    <div style="margin-bottom:1rem; background:#fff7ed; border:1.5px solid #fed7aa; border-radius:8px; padding:0.85rem 1rem;">
+                        <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:700; color:#c2410c;">&#128197; Data Limite &mdash; Indicação de Condutor / Defesa de Autuação</label>
+                        <input type="date" id="gm-data-limite" value="${multa.data_limite || ''}" style="width:100%; padding:0.6rem; border:1px solid #fed7aa; border-radius:4px; font-size:0.9rem;">
                     </div>
 
                     <div style="margin-bottom:1rem;">
@@ -732,6 +795,7 @@ async function salvarGerenciamentoMulta(e, id) {
     const motivo = document.getElementById('gm-motivo')?.value.trim() || '';
     const valorMulta = document.getElementById('gm-valor')?.value.trim() || '';
     const pontuacao = document.getElementById('gm-pontos')?.value || '';
+    const dataLimite = document.getElementById('gm-data-limite')?.value || '';
 
     let settled = false;
     const fecharEAtualizar = async (msg, tipo = 'sucesso') => {
@@ -768,7 +832,8 @@ async function salvarGerenciamentoMulta(e, id) {
                 numero_ait: numeroAit,
                 motivo: motivo,
                 valor_multa: valorMulta,
-                pontuacao: pontuacao
+                pontuacao: pontuacao,
+                data_limite: dataLimite
             })
         });
         clearTimeout(timeoutId);
