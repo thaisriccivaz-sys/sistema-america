@@ -253,6 +253,57 @@ db.serialize(() => {
     });
 });
 
+// MIGRATION: Inserir Gerador NR1 automaticamente se não existir
+const htmlNR1 = `
+<p style="text-align: center; font-weight: bold; font-size: 1.2rem; margin-bottom: 2rem;">ORDEM DE SERVIÇO - NR1</p>
+
+<p style="font-weight: bold; text-decoration: underline;">DESCRIÇÃO DA ATIVIDADE</p>
+<p style="text-transform: uppercase;">FAZER SUCÇÃO COM EQUIPAMENTOS APROPRIADOS DOS DEJETOS DOS BANHEIROS, REPOR OS DESODORANTES, EFETUAR LAVAGEM E SECAGEM DOS MESMOS E EFETUAR A CARGA E DESCARGA DOS BANHEIROS QUÍMICOS NOS CAMINHÕES E NOS LOCAIS DEFINIDOS PELO SEU SUPERIOR IMEDIATO, NORMAS E PROCEDIMENTOS INTERNOS.</p>
+
+<p style="font-weight: bold; text-decoration: underline; margin-top: 1.5rem;">IDENTIFICAÇÃO DOS RISCOS AMBIENTAIS</p>
+<p style="font-weight: bold;">RISCOS / FONTES GERADORAS</p>
+<ul style="list-style-type: none; padding-left: 0; margin-top: 0.5rem; line-height: 1.6;">
+    <li><b>Físicos:</b> Ruído peculiar a ambientes externos e umidade da lavagem dos sanitários.</li>
+    <li><b>Químicos:</b> Produtos saneantes: desinfetantes, bactericida e desodorização sanitária.</li>
+    <li><b>Biológicos:</b> Sucção de dejetos e limpeza de sanitários químicos.</li>
+    <li><b>Ergonômicos:</b> intensidade pequena (possível postura inadequada, possível stress).</li>
+    <li><b>Acidentes:</b> intensidade pequena (possíveis acidentes de quedas, cortes e perfurações e outros).</li>
+</ul>
+
+<p style="font-weight: bold; text-decoration: underline; margin-top: 1.5rem;">MEDIDAS PREVENTIVAS</p>
+<table style="width: 100%; border-collapse: collapse; margin-top: 0.5rem;" border="1">
+    <thead>
+        <tr style="background-color: #f1f5f9;">
+            <th style="padding: 8px; text-align: left;">EPI’s (Equipamentos de Proteção Individual)</th>
+            <th style="padding: 8px; text-align: left;">OBSERVAÇÕES</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td style="padding: 8px;">ÓCULOS DE PROTEÇÃO, LUVA DE NEOLATEX, CAPACETE COM JUGULAR, BOTA TIPO B COM BICO DE AÇO, UNIFORME COMPLETO, PROTETOR SOLAR, PROTETOR AUDITIVO, CAPA DE CHUVA.</td>
+            <td style="padding: 8px;">SEM MAIS</td>
+        </tr>
+    </tbody>
+</table>
+
+<p style="font-weight: bold; text-decoration: underline; margin-top: 1.5rem;">MEDIDAS ADMINISTRATIVAS</p>
+<ul style="margin-top: 0.5rem; line-height: 1.6;">
+    <li>TREINAMENTO E MONITORAMENTO DAS ATIVIDADES.</li>
+    <li>ORIENTAÇÕES DE SEGURANÇA DOS LOCAIS DE PRESTAÇÃO DE SERVIÇOS.</li>
+</ul>
+
+<p style="margin-top: 2rem;">Declaro ter recebido as instruções de Segurança e Saúde no Trabalho de acordo com a NR-1, bem como os EPIs necessários e comprometo-me a cumprir todas as normas estabelecidas.</p>
+`;
+
+db.get("SELECT * FROM geradores WHERE nome = 'NR1'", (err, row) => {
+    if (!row) {
+        db.run("INSERT INTO geradores (nome, conteudo) VALUES (?, ?)", ['NR1', htmlNR1], (err) => {
+            if (err) console.log("Erro ao inserir NR1:", err.message);
+            else console.log("MIGRATION: NR1 inserido com sucesso.");
+        });
+    }
+});
+
 
 // MIGRATION: Remover " - Total" dos grupos de permissão
 db.run("UPDATE grupos_permissao SET nome = REPLACE(nome, ' - Total', '') WHERE nome LIKE '% - Total'", (err) => {
@@ -9185,7 +9236,7 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
     const checkAndSend = (colabData, docsData) => {
         // Mapear os documentos requeridos para os nomes reais no sistema
         const docMap = {
-            'rg_cnh': ['RG-CPF', 'CIN-CPF', 'CNH'],
+            'cnh': ['CNH'],
             'cpf': ['RG-CPF', 'CIN-CPF', 'CPF'],
             'aso': ['ASO', 'ASO Padrão', 'ASO Padro'],
             'ficha_registro': ['Ficha de Registro', 'Ficha Cadastral'],
@@ -9197,7 +9248,7 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
         };
 
         const docNamesReadable = {
-            'rg_cnh': 'RG/CNH', 'cpf': 'CPF', 'aso': 'ASO', 'ficha_registro': 'Ficha de Registro',
+            'cnh': 'CNH', 'cpf': 'CPF', 'aso': 'ASO', 'ficha_registro': 'Ficha de Registro',
             'os': 'Ordem de Serviço', 'treinamento': 'Carteira de Vacinação', 'epi': 'Ficha de EPI',
             'contrato_esocial': 'Contrato e-social', 'nr1': 'NR1'
         };
@@ -9206,9 +9257,14 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
         if (colabIds.length > 0 && docs_exigidos && docs_exigidos.length > 0) {
             for (let cid of colabIds) {
                 const cDocs = docsData.filter(d => d.colaborador_id === cid).map(d => d.document_type ? d.document_type.toLowerCase().trim() : '');
-                const cNome = colabData.find(c => c.id === cid)?.nome_completo || 'Colaborador desconhecido';
+                const colabObj = colabData.find(c => c.id === cid);
+                const cNome = colabObj?.nome_completo || 'Colaborador desconhecido';
+                const isMotorista = colabObj && (colabObj.cargo || '').toUpperCase().includes('MOTORISTA');
                 
                 for (let reqDoc of docs_exigidos) {
+                    if (reqDoc === 'cnh' && !isMotorista) continue; // Não exige CNH se não for motorista
+                    if (reqDoc === 'cpf' && isMotorista) continue;  // Não exige CPF separado se for motorista
+
                     const acceptableNames = (docMap[reqDoc] || []).map(x => x.toLowerCase());
                     const hasDoc = cDocs.some(cd => acceptableNames.some(acc => cd.includes(acc)));
                     
@@ -9283,7 +9339,7 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
     };
 
     if (colabIds.length > 0) {
-        db.all(`SELECT id, nome_completo, cpf FROM colaboradores WHERE id IN (${colabIds.join(',')})`, (err, colabRows) => {
+        db.all(`SELECT id, nome_completo, cpf, cargo FROM colaboradores WHERE id IN (${colabIds.join(',')})`, (err, colabRows) => {
             if (err) return res.status(500).json({ error: err.message });
             db.all(`SELECT colaborador_id, document_type, tab_name FROM documentos WHERE colaborador_id IN (${colabIds.join(',')})`, (err2, docRows) => {
                 if (err2) return res.status(500).json({ error: err2.message });
