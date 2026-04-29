@@ -319,12 +319,12 @@
                 </section>
 
                 <!-- VIEW: LISTA DE COLABORADORES -->
-                <section id="view-colaboradores" class="content-view">
-                    <div class="page-header flex-between">
+                <section id="view-colaboradores" class="content-view" style="height: calc(100vh - 120px); overflow: hidden; display: flex; flex-direction: column;">
+                    <div class="page-header flex-between" style="flex-shrink: 0;">
                         <h2>Colaboradores</h2>
                         <button class="btn btn-primary" id="btn-novo-colab"><i class="ph ph-plus"></i> Novo Colaborador</button>
                     </div>
-                    <div style="overflow-y: auto; height: calc(100vh - 220px); background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+                    <div style="flex: 1; overflow-y: auto; background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.1); min-height: 0;">
                         <table class="table" style="width:100%; border-collapse:collapse; margin-bottom:0;">
                             <thead style="position:sticky; top:0; z-index:2; background:#f8fafc; outline:1px solid #e2e8f0;">
                                 <tr>
