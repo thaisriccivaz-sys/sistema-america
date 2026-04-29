@@ -10284,7 +10284,7 @@ function updateAdmissaoStepPercentages(colab) {
         fixed.push(rgTipo === 'CIN' ? 'CIN-CPF' : 'RG-CPF');
     }
     
-    fixed.push('Carteira de vacinação', 'Currículo', 'Carteira de Trabalho', 'Contrato e-social');
+    fixed.push('Carteira de vacinação', 'Currículo', 'Carteira de Trabalho');
     if (_isCasado) {
         fixed.push('CPF do Cônjuge');
     }
