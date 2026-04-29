@@ -2802,9 +2802,9 @@ function renderTabelaColaboradores(lista) {
     }
 
     wrapper.innerHTML = `
-        <div class="table-responsive">
-            <table class="table">
-                <thead><tr>
+        <div style="overflow-y:auto; height:calc(100vh - 260px); border-radius:8px;">
+            <table class="table" style="width:100%; border-collapse:collapse; margin-bottom:0;">
+                <thead style="position:sticky; top:0; z-index:2; background:#f8fafc; outline:1px solid #e2e8f0;"><tr>
                     <th style="padding-left:1rem;width:50px;">Foto</th>
                     <th style="cursor:pointer;white-space:nowrap;user-select:none;" onclick="colabToggleSort('nome')">Nome ${getSortIcon('nome')}</th>
                     <th>CPF</th>
