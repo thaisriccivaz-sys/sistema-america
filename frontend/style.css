@@ -409,18 +409,6 @@ body {
 .content-area {
     padding: 1.5rem;
     flex: 1;
-    overflow: hidden;
-    height: calc(100vh - var(--topbar-height));
-    display: flex;
-    flex-direction: column;
-}
-
-/* Colaboradores: view preenche altura disponível sem rolar a página */
-#view-colaboradores {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    overflow: hidden;
 }
 .page-header {
     position: sticky;
