@@ -852,6 +852,20 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 )
             `);
 
+            // ── Tabela de Credenciamentos (Logística) ───────────────────────────
+            db.run(`
+                CREATE TABLE IF NOT EXISTS credenciamentos (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    cliente_nome TEXT NOT NULL,
+                    cliente_email TEXT NOT NULL,
+                    token TEXT NOT NULL UNIQUE,
+                    colaboradores_ids TEXT,
+                    veiculos_ids TEXT,
+                    valid_until DATETIME,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+
             console.log('Tabelas do sistema RH verificadas/criadas com sucesso.');
 
         });

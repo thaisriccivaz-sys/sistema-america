@@ -108,6 +108,7 @@
                     <a href="#" class="nav-item" data-target="logistica-pipeline" onclick="navigateTo('logistica-pipeline'); return false;"><i class="ph ph-kanban"></i> Pipeline</a>
                     <a href="#" class="nav-item" data-target="logistica-multas" onclick="navigateTo('logistica-multas'); return false;"><i class="ph ph-receipt"></i> Multas</a>
                     <a href="#" class="nav-item" data-target="logistica-frota" onclick="navigateTo('logistica-frota'); return false;"><i class="ph ph-truck"></i> Frota</a>
+                    <a href="#" class="nav-item" data-target="logistica-credenciamento" onclick="navigateTo('logistica-credenciamento'); return false;"><i class="ph ph-identification-card"></i> Credenciamento</a>
                 </div>
             </div>
 
@@ -2140,6 +2141,71 @@
                     <div id="pipeline-container"></div>
                 </section>
 
+                <!-- Nova View: Frota Geral -->
+                <section id="view-logistica-frota" class="content-view" style="padding:0;">
+                </section>
+
+                <!-- Nova View: Credenciamento -->
+                <section id="view-logistica-credenciamento" class="content-view" style="padding:1.5rem;">
+                    <div class="page-header" style="margin-bottom: 2rem;">
+                        <div>
+                            <h2 style="font-size: 1.5rem; color: #1e293b; font-weight: bold; margin-bottom: 0.2rem;"><i class="ph ph-identification-card" style="margin-right:8px; color:#2d9e5f;"></i> Credenciamento de Equipe e Frota</h2>
+                            <p style="color: #64748b; font-size: 0.95rem;">Gere um link temporário com documentos para enviar aos clientes.</p>
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                        <!-- Coluna 1: Dados do Cliente e Colaboradores -->
+                        <div>
+                            <div class="card" style="margin-bottom: 1.5rem;">
+                                <h3><i class="ph ph-user"></i> Dados do Cliente</h3>
+                                <div class="form-grid" style="grid-template-columns: 1fr; gap: 1rem; margin-top: 1rem;">
+                                    <div class="form-group">
+                                        <label>Nome do Cliente / Obra <span class="required">*</span></label>
+                                        <input type="text" id="cred-cliente-nome" placeholder="Ex: Construtora XPTO">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>E-mail do Cliente <span class="required">*</span></label>
+                                        <input type="email" id="cred-cliente-email" placeholder="Ex: contato@xpto.com.br">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
+                                    <h3><i class="ph ph-users"></i> Colaboradores</h3>
+                                    <button class="btn btn-outline" style="padding: 4px 8px; font-size: 12px;" onclick="abrirModalAddCredColab()"><i class="ph ph-plus"></i> Adicionar</button>
+                                </div>
+                                <div id="cred-colabs-list" style="display:flex; flex-direction:column; gap: 8px;">
+                                    <p style="color:#94a3b8; font-size:13px; font-style:italic;">Nenhum colaborador selecionado.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Coluna 2: Veículos e Botão Gerar -->
+                        <div>
+                            <div class="card" style="margin-bottom: 1.5rem;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
+                                    <h3><i class="ph ph-truck"></i> Veículos</h3>
+                                    <button class="btn btn-outline" style="padding: 4px 8px; font-size: 12px;" onclick="abrirModalAddCredVeic()"><i class="ph ph-plus"></i> Adicionar</button>
+                                </div>
+                                <div id="cred-veiculos-list" style="display:flex; flex-direction:column; gap: 8px;">
+                                    <p style="color:#94a3b8; font-size:13px; font-style:italic;">Nenhum veículo selecionado.</p>
+                                </div>
+                            </div>
+
+                            <div class="card" style="background:#f8fafc; border: 1px solid #e2e8f0; text-align: center;">
+                                <i class="ph ph-envelope-simple" style="font-size: 2.5rem; color: #2d9e5f; margin-bottom: 1rem;"></i>
+                                <h3 style="margin-bottom: 0.5rem;">Enviar Credenciamento</h3>
+                                <p style="color:#64748b; font-size:13px; margin-bottom: 1.5rem;">Um e-mail será enviado com um link seguro válido por 7 dias, contendo todos os documentos e certificados da equipe selecionada.</p>
+                                <button class="btn btn-primary" style="width: 100%; justify-content: center; padding: 12px; font-size: 1rem;" onclick="gerarEnviarCredenciamento()" id="btn-enviar-cred">
+                                    <i class="ph ph-paper-plane-right"></i> Gerar e Enviar E-mail
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
                 <!-- VIEW: LOGISTICA MULTAS -->
                 <section id="view-logistica-multas" class="content-view" style="padding:1.5rem; background:#f1f5f9;">
                     <div id="multas-logistica-container"></div>
@@ -2443,6 +2509,46 @@
                 </section>
 
             </main>
+        </div>
+    </div>
+
+    <!-- MODAL: SELECIONAR COLABORADOR PARA CREDENCIAMENTO -->
+    <div id="modal-cred-colab" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>Selecionar Colaboradores</h3>
+                <span class="close-modal" onclick="fecharModalAddCredColab()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <input type="text" id="busca-cred-colab" class="form-control" placeholder="Buscar colaborador..." onkeyup="filtrarListaCred('lista-selecao-colab', this.value)" style="margin-bottom: 15px;">
+                <div id="lista-selecao-colab" style="max-height: 300px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 4px; padding: 10px;">
+                    <!-- Preenchido via JS -->
+                </div>
+            </div>
+            <div class="modal-footer" style="display:flex; justify-content:flex-end; gap: 10px; margin-top: 15px;">
+                <button class="btn btn-outline" onclick="fecharModalAddCredColab()">Cancelar</button>
+                <button class="btn btn-primary" onclick="confirmarSelecaoCredColab()">Adicionar Selecionados</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: SELECIONAR VEICULO PARA CREDENCIAMENTO -->
+    <div id="modal-cred-veic" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>Selecionar Veículos</h3>
+                <span class="close-modal" onclick="fecharModalAddCredVeic()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <input type="text" id="busca-cred-veic" class="form-control" placeholder="Buscar veículo (placa/modelo)..." onkeyup="filtrarListaCred('lista-selecao-veic', this.value)" style="margin-bottom: 15px;">
+                <div id="lista-selecao-veic" style="max-height: 300px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 4px; padding: 10px;">
+                    <!-- Preenchido via JS -->
+                </div>
+            </div>
+            <div class="modal-footer" style="display:flex; justify-content:flex-end; gap: 10px; margin-top: 15px;">
+                <button class="btn btn-outline" onclick="fecharModalAddCredVeic()">Cancelar</button>
+                <button class="btn btn-primary" onclick="confirmarSelecaoCredVeic()">Adicionar Selecionados</button>
+            </div>
         </div>
     </div>
 
@@ -2780,12 +2886,17 @@
     <script src="integracao.js"></script>
     <script src="dissidio.js?v=1"></script>
     <script src="ferias.js?v=3"></script>
+    <script src="pipeline.js?v=5"></script>
+    <script src="multas_logistica.js?v=30"></script>
+    <script src="frota.js?v=3"></script>
+    <script src="credenciamento.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="rota_redonda.js?v=22"></script>
     <script src="app.js?v=131"></script>
     <script src="frota_resumo.js?v=4"></script>
-    <script src="pipeline.js?v=5"></script>
+    <script src="pipeline.js"></script>
+</body>
     <script src="multas_logistica.js?v=30"></script>
     <script src="frota.js?v=3"></script>
 

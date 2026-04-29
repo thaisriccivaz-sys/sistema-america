@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Credenciamento América Rental</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body { background-color: #f3f4f6; font-family: 'Inter', sans-serif; }
+        .card { background: white; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); padding: 24px; margin-bottom: 20px; }
+        .btn-download { display: inline-flex; align-items: center; gap: 8px; background: #16a34a; color: white; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-size: 14px; transition: background 0.2s; }
+        .btn-download:hover { background: #15803d; }
+    </style>
+</head>
+<body>
+    <div class="min-h-screen flex flex-col">
+        <header class="bg-white shadow-sm p-4">
+            <div class="max-w-4xl mx-auto flex items-center justify-between">
+                <img src="/assets/logo-header.png" alt="Logo" class="h-10" onerror="this.src='https://via.placeholder.com/150x50?text=AMERICA+RENTAL'">
+                <h1 class="text-xl font-bold text-gray-800">Credenciamento de Equipe e Veículos</h1>
+            </div>
+        </header>
+
+        <main class="flex-grow max-w-4xl mx-auto w-full p-4 mt-6" id="app">
+            <div class="text-center py-10" id="loading">
+                <i class="fas fa-circle-notch fa-spin text-4xl text-green-600"></i>
+                <p class="mt-4 text-gray-600">Carregando dados do credenciamento...</p>
+            </div>
+
+            <div id="error-message" class="hidden text-center py-10">
+                <i class="fas fa-exclamation-circle text-5xl text-red-500"></i>
+                <h2 class="text-2xl font-bold text-gray-800 mt-4">Link Inválido ou Expirado</h2>
+                <p class="text-gray-600 mt-2" id="error-text">O link acessado não é válido ou já expirou sua validade de 7 dias.</p>
+            </div>
+
+            <div id="content" class="hidden">
+                <div class="card bg-green-50 border-l-4 border-green-600">
+                    <h2 class="text-lg font-bold text-green-800">Olá, <span id="client-name">Cliente</span>!</h2>
+                    <p class="text-green-700 mt-1">Abaixo estão os documentos da equipe e frota credenciada para sua obra/evento. O link expira em: <strong id="validade"></strong>.</p>
+                </div>
+
+                <div id="colaboradores-section" class="card">
+                    <h3 class="text-xl font-bold text-gray-800 border-b pb-2 mb-4"><i class="fas fa-users mr-2"></i> Equipe (Colaboradores)</h3>
+                    <div id="colaboradores-list" class="space-y-6"></div>
+                </div>
+
+                <div id="veiculos-section" class="card">
+                    <h3 class="text-xl font-bold text-gray-800 border-b pb-2 mb-4"><i class="fas fa-truck mr-2"></i> Frota (Veículos)</h3>
+                    <div id="veiculos-list" class="space-y-4"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const token = urlParams.get('token');
+
+            if (!token) {
+                showError('Token não fornecido na URL.');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/publico/credenciamento/${token}`);
+                const data = await response.json();
+
+                if (!response.ok) {
+                    showError(data.error || 'Erro ao buscar dados.');
+                    return;
+                }
+
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('content').classList.remove('hidden');
+
+                document.getElementById('client-name').textContent = data.cliente_nome;
+                const d = new Date(data.validade);
+                document.getElementById('validade').textContent = d.toLocaleDateString('pt-BR') + ' às ' + d.toLocaleTimeString('pt-BR');
+
+                renderColaboradores(data.colaboradores, token);
+                renderVeiculos(data.veiculos, token);
+
+            } catch (err) {
+                showError('Erro de conexão com o servidor.');
+            }
+        });
+
+        function showError(msg) {
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('error-message').classList.remove('hidden');
+            document.getElementById('error-text').textContent = msg;
+        }
+
+        function renderColaboradores(colaboradores, token) {
+            const list = document.getElementById('colaboradores-list');
+            if (!colaboradores || colaboradores.length === 0) {
+                document.getElementById('colaboradores-section').classList.add('hidden');
+                return;
+            }
+
+            list.innerHTML = colaboradores.map(c => `
+                <div class="bg-gray-50 p-4 rounded border">
+                    <h4 class="font-bold text-lg text-gray-800 mb-3">${c.nome}</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        ${c.documentos.length > 0 
+                            ? c.documentos.map(d => `
+                                <div class="flex items-center justify-between bg-white p-2 border rounded shadow-sm">
+                                    <span class="text-sm font-medium text-gray-700 truncate mr-2" title="${d.tipo} - ${d.nome_arquivo}">
+                                        <i class="far fa-file-pdf text-red-500 mr-1"></i> ${d.tipo}
+                                    </span>
+                                    <a href="/api/publico/credenciamento/${token}/doc/${d.id}" target="_blank" class="btn-download text-xs" title="Baixar ${d.nome_arquivo}">
+                                        <i class="fas fa-download"></i>
+                                    </a>
+                                </div>
+                            `).join('') 
+                            : '<p class="text-gray-500 text-sm italic col-span-full">Nenhum documento anexado ao prontuário.</p>'}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderVeiculos(veiculos, token) {
+            const list = document.getElementById('veiculos-list');
+            if (!veiculos || veiculos.length === 0) {
+                document.getElementById('veiculos-section').classList.add('hidden');
+                return;
+            }
+
+            list.innerHTML = veiculos.map(v => `
+                <div class="flex flex-col sm:flex-row items-center justify-between bg-gray-50 p-4 rounded border">
+                    <div>
+                        <h4 class="font-bold text-gray-800 uppercase">${v.placa}</h4>
+                        <p class="text-sm text-gray-600">${v.modelo || 'Modelo não especificado'}</p>
+                    </div>
+                    <div class="mt-3 sm:mt-0">
+                        ${v.has_crlv 
+                            ? `<a href="/api/publico/credenciamento/${token}/crlv/${v.id}" target="_blank" class="btn-download">
+                                  <i class="fas fa-file-invoice text-white"></i> Baixar CRLV
+                               </a>`
+                            : '<span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">Sem CRLV cadastrado</span>'
+                        }
+                    </div>
+                </div>
+            `).join('');
+        }
+    </script>
+</body>
+</html>

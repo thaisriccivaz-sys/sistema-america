@@ -9171,6 +9171,179 @@ app.get('/api/frota/veiculos/alertas/vencimento', authenticateToken, (req, res) 
     });
 });
 
+// =====================================================================
+// CREDENCIAMENTO DE LOGÍSTICA
+// =====================================================================
+
+app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
+    const { cliente_nome, cliente_email, colaboradores, veiculos } = req.body;
+    if (!cliente_nome || !cliente_email) return res.status(400).json({ error: 'Nome e email são obrigatórios.' });
+
+    const crypto = require('crypto');
+    const token = crypto.randomBytes(16).toString('hex');
+    const validUntil = new Date();
+    validUntil.setDate(validUntil.getDate() + 7);
+
+    db.run(`INSERT INTO credenciamentos (cliente_nome, cliente_email, token, colaboradores_ids, veiculos_ids, valid_until) VALUES (?, ?, ?, ?, ?, ?)`,
+        [cliente_nome, cliente_email, token, JSON.stringify(colaboradores || []), JSON.stringify(veiculos || []), validUntil.toISOString()],
+        async function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            
+            const baseUrl = process.env.PUBLIC_URL || \`\${req.protocol}://\${req.get('host')}\`;
+            const link = \`\${baseUrl}/credenciamento-publico.html?token=\${token}\`;
+            
+            let htmlCols = (colaboradores||[]).map(c => \`<li>\${c.nome}</li>\`).join('');
+            let htmlVeic = (veiculos||[]).map(v => \`<li>Placa: \${v.placa} - \${v.modelo}</li>\`).join('');
+
+            const mailOptions = {
+                from: process.env.EMAIL_USER,
+                to: cliente_email,
+                subject: 'Credenciamento de Equipe e Veículos - América Rental',
+                html: \`
+                    <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
+                        <div style="background-color: #16a34a; padding: 20px; text-align: center; color: white;">
+                            <h2 style="margin: 0;">Credenciamento de Equipe e Veículos</h2>
+                        </div>
+                        <div style="padding: 20px;">
+                            <p>Olá <b>\${cliente_nome}</b>,</p>
+                            <p>Abaixo estão os dados dos colaboradores e veículos credenciados para a sua obra/evento:</p>
+                            
+                            \${htmlCols ? \`<h3>Colaboradores</h3><ul>\${htmlCols}</ul>\` : ''}
+                            \${htmlVeic ? \`<h3>Veículos</h3><ul>\${htmlVeic}</ul>\` : ''}
+                            
+                            <p>Para baixar os documentos correspondentes (RG, CNH, ASO, CRLV, etc.), acesse o link seguro abaixo. <b>O link é válido por 7 dias.</b></p>
+                            <div style="text-align: center; margin: 30px 0;">
+                                <a href="\${link}" style="background:#16a34a;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;display:inline-block;">Acessar e Baixar Documentos</a>
+                            </div>
+                            <p style="color: #666; font-size: 12px; text-align: center;">Ou acesse diretamente: <br><a href="\${link}" style="color:#16a34a">\${link}</a></p>
+                        </div>
+                    </div>
+                \`
+            };
+
+            try {
+                await transporter.sendMail(mailOptions);
+                res.json({ ok: true, message: 'E-mail de credenciamento enviado com sucesso!' });
+            } catch (mailErr) {
+                res.status(500).json({ error: 'Erro ao enviar e-mail: ' + mailErr.message });
+            }
+        }
+    );
+});
+
+// GET Público: Busca dados do credenciamento e resolve os documentos
+app.get('/api/publico/credenciamento/:token', (req, res) => {
+    const token = req.params.token;
+    db.get('SELECT * FROM credenciamentos WHERE token = ?', [token], (err, cred) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!cred) return res.status(404).json({ error: 'Link inválido ou não encontrado.' });
+
+        const validUntil = new Date(cred.valid_until);
+        if (new Date() > validUntil) {
+            return res.status(403).json({ error: 'Este link de credenciamento já expirou (validade de 7 dias).' });
+        }
+
+        let colabs = [];
+        try { colabs = JSON.parse(cred.colaboradores_ids || '[]'); } catch(e){}
+        let veics = [];
+        try { veics = JSON.parse(cred.veiculos_ids || '[]'); } catch(e){}
+
+        // Buscar documentos dos colaboradores
+        const colabIds = colabs.map(c => c.id).filter(id => id);
+        const colabDocsPromise = new Promise((resolve) => {
+            if (colabIds.length === 0) return resolve([]);
+            const placeholders = colabIds.map(() => '?').join(',');
+            db.all(\`SELECT id, colaborador_id, document_type, file_name, file_path, signed_file_path FROM documentos WHERE colaborador_id IN (\${placeholders})\`, colabIds, (err, docs) => {
+                resolve(docs || []);
+            });
+        });
+
+        // Buscar CRLV dos veículos
+        const veicIds = veics.map(v => v.id).filter(id => id);
+        const veicDocsPromise = new Promise((resolve) => {
+            if (veicIds.length === 0) return resolve([]);
+            const placeholders = veicIds.map(() => '?').join(',');
+            db.all(\`SELECT id, placa, crlv_filename, crlv_base64 FROM frota_veiculos WHERE id IN (\${placeholders})\`, veicIds, (err, frotas) => {
+                resolve(frotas || []);
+            });
+        });
+
+        Promise.all([colabDocsPromise, veicDocsPromise]).then(([docs, frotas]) => {
+            res.json({
+                cliente_nome: cred.cliente_nome,
+                validade: cred.valid_until,
+                colaboradores: colabs.map(c => ({
+                    ...c,
+                    documentos: docs.filter(d => d.colaborador_id === c.id).map(d => ({
+                        id: d.id,
+                        tipo: d.document_type,
+                        nome_arquivo: d.file_name,
+                        tem_assinado: !!d.signed_file_path
+                    }))
+                })),
+                veiculos: veics.map(v => {
+                    const f = frotas.find(fr => fr.id === v.id);
+                    return {
+                        ...v,
+                        crlv_filename: f ? f.crlv_filename : null,
+                        has_crlv: f && !!f.crlv_base64
+                    };
+                })
+            });
+        });
+    });
+});
+
+// GET Público: Baixar documento de colaborador do credenciamento
+app.get('/api/publico/credenciamento/:token/doc/:docId', (req, res) => {
+    db.get('SELECT * FROM credenciamentos WHERE token = ?', [req.params.token], (err, cred) => {
+        if (!cred || new Date() > new Date(cred.valid_until)) return res.status(403).send('Link inválido/expirado');
+        
+        db.get('SELECT * FROM documentos WHERE id = ?', [req.params.docId], (err, doc) => {
+            if (!doc) return res.status(404).send('Documento não encontrado');
+            
+            // Validar se o doc pertence a um colaborador credenciado
+            let colabs = [];
+            try { colabs = JSON.parse(cred.colaboradores_ids || '[]'); } catch(e){}
+            if (!colabs.find(c => c.id === doc.colaborador_id)) return res.status(403).send('Acesso negado a este documento');
+
+            const filePath = doc.signed_file_path || doc.file_path;
+            const path_module = require('path');
+            const fs_module = require('fs');
+            const absolutePath = path_module.resolve(__dirname, '..', '..', filePath);
+            
+            if (fs_module.existsSync(absolutePath)) {
+                res.download(absolutePath, doc.file_name);
+            } else {
+                res.status(404).send('Arquivo físico não encontrado no servidor');
+            }
+        });
+    });
+});
+
+// GET Público: Baixar CRLV de veículo do credenciamento
+app.get('/api/publico/credenciamento/:token/crlv/:veicId', (req, res) => {
+    db.get('SELECT * FROM credenciamentos WHERE token = ?', [req.params.token], (err, cred) => {
+        if (!cred || new Date() > new Date(cred.valid_until)) return res.status(403).send('Link inválido/expirado');
+        
+        db.get('SELECT crlv_base64, crlv_filename FROM frota_veiculos WHERE id = ?', [req.params.veicId], (err, row) => {
+            if (!row || !row.crlv_base64) return res.status(404).send('CRLV não encontrado');
+            
+            let veics = [];
+            try { veics = JSON.parse(cred.veiculos_ids || '[]'); } catch(e){}
+            // Nota: JSON parsing converte números para int/string. Vamos comparar como string.
+            if (!veics.find(v => String(v.id) === String(req.params.veicId))) return res.status(403).send('Acesso negado a este veículo');
+
+            const base64Data = row.crlv_base64.replace(/^data:application\\/pdf;base64,/, "");
+            const buffer = Buffer.from(base64Data, 'base64');
+            res.setHeader('Content-Length', buffer.length);
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', \`attachment; filename="\${row.crlv_filename || 'CRLV.pdf'}"\`);
+            res.send(buffer);
+        });
+    });
+});
+
 app.listen(PORT, () => {
 
     console.log(`Servidor rodando na porta ${PORT}`);
