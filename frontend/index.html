@@ -962,9 +962,23 @@
                                                         <option value="padrao_sab_4h">Seg à Sexta e Sábado 4h</option>
                                                         <option value="padrao_sab_alternado">Seg à Sexta e Sábados Alternados (Compensado)</option>
                                                         <option value="padrao_seg_sexta">Seg à Sexta</option>
+                                                        <option value="escala_uma_folga">Folga 1 Dia na Semana</option>
                                                         <option value="escala_duas_folgas">Folga 2 Dias na Semana (Revezamento)</option>
                                                         <option value="escala_12x36">12x36</option>
                                                     </select>
+                                                </div>
+                                                <div class="input-group span-2" id="colab-box-uma-folga" style="display:none; background: #f0fdf4; padding: 1rem; border-radius: 4px; border: 1px solid #bbf7d0; margin-top: 0.5rem; margin-bottom: 0.5rem;">
+                                                    <label style="color: #15803d;"><i class="ph ph-calendar-check"></i> Selecione o dia de folga semanal deste colaborador</label>
+                                                    <div style="display:flex; flex-wrap:wrap; gap: 1rem; margin-top: 5px;">
+                                                        <label><input type="checkbox" class="cb-uma-folga-colab" value="Seg"> Seg</label>
+                                                        <label><input type="checkbox" class="cb-uma-folga-colab" value="Ter"> Ter</label>
+                                                        <label><input type="checkbox" class="cb-uma-folga-colab" value="Qua"> Qua</label>
+                                                        <label><input type="checkbox" class="cb-uma-folga-colab" value="Qui"> Qui</label>
+                                                        <label><input type="checkbox" class="cb-uma-folga-colab" value="Sex"> Sex</label>
+                                                        <label><input type="checkbox" class="cb-uma-folga-colab" value="Sab"> Sáb</label>
+                                                        <label><input type="checkbox" class="cb-uma-folga-colab" value="Dom"> Dom</label>
+                                                    </div>
+                                                    <small class="text-muted d-block mt-2" style="font-size: 0.8rem;"><i class="ph ph-info"></i> Marque exatamente 1 dia de folga por semana. Os demais dias serão trabalhados (7h20 por dia).</small>
                                                 </div>
                                                 <div class="input-group span-2" id="colab-box-folgas" style="display:none; background: #fffcf8; padding: 1rem; border-radius: 4px; border: 1px solid #ffe8cc; margin-top: 0.5rem; margin-bottom: 0.5rem;">
                                                     <label style="color: #fd7e14;"><i class="ph ph-calendar-plus"></i> Selecione os 2 dias de folga semanais deste colaborador</label>

@@ -1415,11 +1415,21 @@ window.toggleFormEscalaTipo = function() {
     const boxSabado = document.getElementById('colab-box-sabado');
     const outSaida  = document.getElementById('colab-saida');
 
-    if (tipo === 'escala_duas_folgas') {
-        if(boxFolgas) boxFolgas.style.display = 'block';
-    } else {
+    const boxUmaFolga = document.getElementById('colab-box-uma-folga');
+
+    if (tipo === 'escala_uma_folga') {
+        if(boxUmaFolga) boxUmaFolga.style.display = 'block';
         if(boxFolgas) boxFolgas.style.display = 'none';
         document.querySelectorAll('.cb-folga-colab').forEach(cb => cb.checked = false);
+    } else if (tipo === 'escala_duas_folgas') {
+        if(boxFolgas) boxFolgas.style.display = 'block';
+        if(boxUmaFolga) boxUmaFolga.style.display = 'none';
+        document.querySelectorAll('.cb-uma-folga-colab').forEach(cb => cb.checked = false);
+    } else {
+        if(boxFolgas) boxFolgas.style.display = 'none';
+        if(boxUmaFolga) boxUmaFolga.style.display = 'none';
+        document.querySelectorAll('.cb-folga-colab').forEach(cb => cb.checked = false);
+        document.querySelectorAll('.cb-uma-folga-colab').forEach(cb => cb.checked = false);
     }
 
     if(boxSabado) {
@@ -1750,7 +1760,7 @@ window.calcularHorarioSaida = function() {
 
         // Tempo líquido de trabalho diário
         let workMins = 0;
-        if (tipo === 'padrao_seis_dias') {
+        if (tipo === 'padrao_seis_dias' || tipo === 'escala_uma_folga') {
             workMins = 7 * 60 + 20; // 7h 20m
         } else if (tipo === 'padrao_sab_4h' || tipo === 'padrao_sab_alternado') {
             workMins = 8 * 60; // 8h
@@ -3205,7 +3215,12 @@ window.editColaborador = async function(id) {
             if (c.escala_folgas) {
                 try {
                     const folgasArr = JSON.parse(c.escala_folgas);
+                    // Carrega para a escala de 2 folgas
                     document.querySelectorAll('.cb-folga-colab').forEach(cb => {
+                        cb.checked = folgasArr.includes(cb.value);
+                    });
+                    // Carrega para a escala de 1 folga
+                    document.querySelectorAll('.cb-uma-folga-colab').forEach(cb => {
                         cb.checked = folgasArr.includes(cb.value);
                     });
                 } catch(e) { console.error('Erro ao ler folgas:', e); }
@@ -3623,7 +3638,15 @@ if (formColab) {
         data.adiantamento_valor = parseMoeda(data.adiantamento_valor);
         data.insalubridade_valor = parseMoeda(data.insalubridade_valor);
 
-        if (data.escala_tipo === 'escala_duas_folgas' && !isPartial) {
+        if (data.escala_tipo === 'escala_uma_folga' && !isPartial) {
+            const folgas = Array.from(document.querySelectorAll('.cb-uma-folga-colab:checked')).map(cb => cb.value);
+            if (folgas.length !== 1) {
+                alert('Atenção: Para a escala Folga 1 Dia na Semana, você deve marcar *exatamente 1 dia* de folga na lista.');
+                btnRestorer();
+                return;
+            }
+            data.escala_folgas = JSON.stringify(folgas);
+        } else if (data.escala_tipo === 'escala_duas_folgas' && !isPartial) {
             const folgas = Array.from(document.querySelectorAll('.cb-folga-colab:checked')).map(cb => cb.value);
             if (folgas.length !== 2) {
                 alert('Atenção: Para o esquema 5x2 (Revezamento), você deve marcar *exatamente 2 dias* de folga na lista.');
@@ -3631,7 +3654,7 @@ if (formColab) {
                 return;
             }
             data.escala_folgas = JSON.stringify(folgas);
-        } else if (data.escala_tipo && data.escala_tipo !== 'escala_duas_folgas') {
+        } else if (data.escala_tipo && data.escala_tipo !== 'escala_duas_folgas' && data.escala_tipo !== 'escala_uma_folga') {
             data.escala_folgas = JSON.stringify(['Dom']); // Padrão para as outras escalas
         }
 
