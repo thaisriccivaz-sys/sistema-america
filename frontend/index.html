@@ -324,24 +324,22 @@
                         <h2>Colaboradores</h2>
                         <button class="btn btn-primary" id="btn-novo-colab"><i class="ph ph-plus"></i> Novo Colaborador</button>
                     </div>
-                    <div class="card" style="padding: 0; overflow: hidden; display: flex; flex-direction: column;">
-                        <div class="table-responsive" style="overflow-y: auto; height: calc(100vh - 180px); margin: 0;">
-                            <table class="table" style="margin-bottom: 0;">
-                                <thead>
-                                    <tr>
-                                        <th>Nome</th>
-                                        <th>CPF</th>
-                                        <th>Cargo</th>
-                                        <th>Admissão</th>
-                                        <th>Status</th>
-                                        <th>Ações</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="table-colaboradores">
-                                    <!-- Preenchido via JS -->
-                                </tbody>
-                            </table>
-                        </div>
+                    <div style="overflow-y: auto; height: calc(100vh - 220px); background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+                        <table class="table" style="width:100%; border-collapse:collapse; margin-bottom:0;">
+                            <thead style="position:sticky; top:0; z-index:2; background:#f8fafc; outline:1px solid #e2e8f0;">
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>CPF</th>
+                                    <th>Cargo</th>
+                                    <th>Admissão</th>
+                                    <th>Status</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-colaboradores">
+                                <!-- Preenchido via JS -->
+                            </tbody>
+                        </table>
                     </div>
                 </section>
 
