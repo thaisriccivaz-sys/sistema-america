@@ -13,7 +13,7 @@ async function loadColaboradoresCred() {
     if (list) list.innerHTML = '<p style="text-align:center; color:#64748b; padding:20px;">Carregando...</p>';
 
     try {
-        const token = localStorage.getItem('token');
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
         if (!token) throw new Error('Sem token de autenticação.');
 
         const res = await fetch('/api/colaboradores', {
@@ -39,7 +39,7 @@ async function loadVeiculosCred() {
     if (list) list.innerHTML = '<p style="text-align:center; color:#64748b; padding:20px;">Carregando...</p>';
 
     try {
-        const token = localStorage.getItem('token');
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
         if (!token) throw new Error('Sem token de autenticação.');
 
         const res = await fetch('/api/frota/veiculos', {
@@ -253,7 +253,7 @@ async function gerarEnviarCredenciamento() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
+                'Authorization': `Bearer ${window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')}`
             },
             body: JSON.stringify(payload)
         });
