@@ -2801,11 +2801,10 @@ function renderTabelaColaboradores(lista) {
         return;
     }
 
-    wrapper.style.cssText = 'flex:1; overflow-y:auto; min-height:0;';
+    wrapper.style.cssText = 'flex:1; overflow:auto; min-height:0;';
     wrapper.innerHTML = `
-        <div style="overflow-x:auto;">
-            <table class="table" style="width:100%; border-collapse:collapse; min-width:800px;">
-                <thead style="position:sticky; top:0; z-index:2; background:#f8fafc; outline:1px solid #e2e8f0;"><tr>
+        <table class="table" style="width:100%; border-collapse:collapse; min-width:800px;">
+            <thead style="position:sticky; top:0; z-index:2; background:#f8fafc; outline:1px solid #e2e8f0;"><tr>
                     <th style="padding-left:1rem;width:50px;">Foto</th>
                     <th style="cursor:pointer;white-space:nowrap;user-select:none;" onclick="colabToggleSort('nome')">Nome ${getSortIcon('nome')}</th>
                     <th>CPF</th>
@@ -2880,9 +2879,8 @@ function renderTabelaColaboradores(lista) {
                             </td>
                         </tr>`;
                     }).join('')}
-                </tbody>
-            </table>
-        </div>
+        </tbody>
+        </table>
     `;
 }
 
