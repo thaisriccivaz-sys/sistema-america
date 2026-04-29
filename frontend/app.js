@@ -8474,7 +8474,6 @@ window.renderContratosAvulso = async function(container) {
                 { nome: 'Regras Sorteio Final de Ano',      cond: true },
                 { nome: 'Termo de Confidencialidade',       cond: true },
                 { nome: 'NR1',                              cond: true },
-                { nome: 'Ficha de Registro',                cond: true },
             ];
             autoGeradores = LEGACY_MAP
                 .filter(m => m.cond)
@@ -8558,6 +8557,31 @@ window.renderContratosAvulso = async function(container) {
         const avulsosDocs = filteredDocs.filter(d => !docsUsados.has(d.id));
         if (avulsosDocs.length > 0) {
             combinedHtml += window.buildContratosSignatureRows(assinaturas, avulsosDocs, viewedColaborador);
+        }
+
+        // ── Slot especial: Ficha de Registro (upload-only, não gerado por template) ──
+        const _normFR = s => (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+        const fichaRegistroDoc = [...filteredDocs, ...docs.filter(d => d.tab_name === '01_FICHA_CADASTRAL')]
+            .find(d => _normFR(d.document_type).includes('ficha de registro') || _normFR(d.document_type).includes('ficha cadastral'));
+        if (fichaRegistroDoc) {
+            docsUsados.add(fichaRegistroDoc.id);
+            combinedHtml += window.buildContratosSignatureRows(assinaturas, [fichaRegistroDoc], viewedColaborador);
+        } else {
+            // Slot vazio: exibe linha para anexar
+            combinedHtml += `
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:0.65rem 0.75rem; border:1.5px dashed #64748b; border-radius:8px; background:#f8fafc; gap:0.75rem;">
+                <div style="display:flex; align-items:center; gap:0.6rem; flex:1;">
+                    <span style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Upload</span>
+                    <div>
+                        <span style="font-weight:600; color:#334155; font-size:0.9rem;">Ficha de Registro</span>
+                        <div style="font-size:0.75rem; color:#64748b; margin-top:1px;">Anexe o PDF da Ficha de Registro para envio à assinatura</div>
+                    </div>
+                </div>
+                <label class="btn btn-secondary" style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.82rem;padding:0.35rem 0.8rem;margin:0;">
+                    <i class="ph ph-upload-simple"></i> Anexar PDF
+                    <input type="file" accept=".pdf" style="display:none" onchange="window.uploadContratoExternoComTipo(this, 'Ficha de Registro')">
+                </label>
+            </div>`;
         }
 
         container.innerHTML = `
@@ -8973,6 +8997,35 @@ window.uploadContratoExterno = async function(input) {
 
     if (modalResult.isConfirmed) {
         await window._reloadContratosContainer();
+    }
+};
+
+// Upload com tipo de documento pré-definido (ex: Ficha de Registro - não gerado por template)
+window.uploadContratoExternoComTipo = async function(input, docType) {
+    const file = input.files[0];
+    if (!file || !viewedColaborador) return;
+    input.value = '';
+
+    var formData = new FormData();
+    formData.append('file', file);
+    formData.append('tab_name', 'CONTRATOS_AVULSOS');
+    formData.append('document_type', docType);
+    formData.append('colaborador_id', viewedColaborador.id);
+    formData.append('colaborador_nome', viewedColaborador.nome_completo || '');
+    formData.append('assinafy_status', 'NAO_EXIGE');
+
+    try {
+        var res = await fetch(API_URL + '/documentos', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + currentToken },
+            body: formData
+        });
+        var data = await res.json().catch(function() { return {}; });
+        if (!res.ok) throw new Error(data.error || 'Falha ao anexar PDF');
+        if (typeof showToast !== 'undefined') showToast(docType + ' anexado com sucesso!', 'success');
+        await window._reloadContratosContainer();
+    } catch(err) {
+        alert('Erro: ' + err.message);
     }
 };
 
