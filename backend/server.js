@@ -9189,36 +9189,36 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
         async function(err) {
             if (err) return res.status(500).json({ error: err.message });
             
-            const baseUrl = process.env.PUBLIC_URL || \`\${req.protocol}://\${req.get('host')}\`;
-            const link = \`\${baseUrl}/credenciamento-publico.html?token=\${token}\`;
+            const baseUrl = process.env.PUBLIC_URL || `${req.protocol}://${req.get('host')}`;
+            const link = `${baseUrl}/credenciamento-publico.html?token=${token}`;
             
-            let htmlCols = (colaboradores||[]).map(c => \`<li>\${c.nome}</li>\`).join('');
-            let htmlVeic = (veiculos||[]).map(v => \`<li>Placa: \${v.placa} - \${v.modelo}</li>\`).join('');
+            let htmlCols = (colaboradores||[]).map(c => `<li>${c.nome}</li>`).join('');
+            let htmlVeic = (veiculos||[]).map(v => `<li>Placa: ${v.placa} - ${v.modelo}</li>`).join('');
 
             const mailOptions = {
                 from: process.env.EMAIL_USER,
                 to: cliente_email,
                 subject: 'Credenciamento de Equipe e Veículos - América Rental',
-                html: \`
+                html: `
                     <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
                         <div style="background-color: #16a34a; padding: 20px; text-align: center; color: white;">
                             <h2 style="margin: 0;">Credenciamento de Equipe e Veículos</h2>
                         </div>
                         <div style="padding: 20px;">
-                            <p>Olá <b>\${cliente_nome}</b>,</p>
+                            <p>Olá <b>${cliente_nome}</b>,</p>
                             <p>Abaixo estão os dados dos colaboradores e veículos credenciados para a sua obra/evento:</p>
                             
-                            \${htmlCols ? \`<h3>Colaboradores</h3><ul>\${htmlCols}</ul>\` : ''}
-                            \${htmlVeic ? \`<h3>Veículos</h3><ul>\${htmlVeic}</ul>\` : ''}
+                            ${htmlCols ? `<h3>Colaboradores</h3><ul>${htmlCols}</ul>` : ''}
+                            ${htmlVeic ? `<h3>Veículos</h3><ul>${htmlVeic}</ul>` : ''}
                             
                             <p>Para baixar os documentos correspondentes (RG, CNH, ASO, CRLV, etc.), acesse o link seguro abaixo. <b>O link é válido por 7 dias.</b></p>
                             <div style="text-align: center; margin: 30px 0;">
-                                <a href="\${link}" style="background:#16a34a;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;display:inline-block;">Acessar e Baixar Documentos</a>
+                                <a href="${link}" style="background:#16a34a;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;display:inline-block;">Acessar e Baixar Documentos</a>
                             </div>
-                            <p style="color: #666; font-size: 12px; text-align: center;">Ou acesse diretamente: <br><a href="\${link}" style="color:#16a34a">\${link}</a></p>
+                            <p style="color: #666; font-size: 12px; text-align: center;">Ou acesse diretamente: <br><a href="${link}" style="color:#16a34a">${link}</a></p>
                         </div>
                     </div>
-                \`
+                `
             };
 
             try {
@@ -9253,7 +9253,7 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
         const colabDocsPromise = new Promise((resolve) => {
             if (colabIds.length === 0) return resolve([]);
             const placeholders = colabIds.map(() => '?').join(',');
-            db.all(\`SELECT id, colaborador_id, document_type, file_name, file_path, signed_file_path FROM documentos WHERE colaborador_id IN (\${placeholders})\`, colabIds, (err, docs) => {
+            db.all(`SELECT id, colaborador_id, document_type, file_name, file_path, signed_file_path FROM documentos WHERE colaborador_id IN (${placeholders})`, colabIds, (err, docs) => {
                 resolve(docs || []);
             });
         });
@@ -9263,7 +9263,7 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
         const veicDocsPromise = new Promise((resolve) => {
             if (veicIds.length === 0) return resolve([]);
             const placeholders = veicIds.map(() => '?').join(',');
-            db.all(\`SELECT id, placa, crlv_filename, crlv_base64 FROM frota_veiculos WHERE id IN (\${placeholders})\`, veicIds, (err, frotas) => {
+            db.all(`SELECT id, placa, crlv_filename, crlv_base64 FROM frota_veiculos WHERE id IN (${placeholders})`, veicIds, (err, frotas) => {
                 resolve(frotas || []);
             });
         });
@@ -9334,11 +9334,11 @@ app.get('/api/publico/credenciamento/:token/crlv/:veicId', (req, res) => {
             // Nota: JSON parsing converte números para int/string. Vamos comparar como string.
             if (!veics.find(v => String(v.id) === String(req.params.veicId))) return res.status(403).send('Acesso negado a este veículo');
 
-            const base64Data = row.crlv_base64.replace(/^data:application\\/pdf;base64,/, "");
+            const base64Data = row.crlv_base64.replace(/^data:application\/pdf;base64,/, "");
             const buffer = Buffer.from(base64Data, 'base64');
             res.setHeader('Content-Length', buffer.length);
             res.setHeader('Content-Type', 'application/pdf');
-            res.setHeader('Content-Disposition', \`attachment; filename="\${row.crlv_filename || 'CRLV.pdf'}"\`);
+            res.setHeader('Content-Disposition', `attachment; filename="${row.crlv_filename || 'CRLV.pdf'}"`);
             res.send(buffer);
         });
     });
