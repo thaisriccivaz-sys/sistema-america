@@ -8473,6 +8473,7 @@ window.renderContratosAvulso = async function(container) {
                 { nome: 'Recebimento de Regimento Interno', cond: true },
                 { nome: 'Regras Sorteio Final de Ano',      cond: true },
                 { nome: 'Termo de Confidencialidade',       cond: true },
+                { nome: 'NR1',                              cond: true },
             ];
             autoGeradores = LEGACY_MAP
                 .filter(m => m.cond)
@@ -10283,7 +10284,7 @@ function updateAdmissaoStepPercentages(colab) {
         fixed.push(rgTipo === 'CIN' ? 'CIN-CPF' : 'RG-CPF');
     }
     
-    fixed.push('Carteira de vacinação', 'Currículo', 'Carteira de Trabalho');
+    fixed.push('Carteira de vacinação', 'Currículo', 'Carteira de Trabalho', 'Contrato e-social');
     if (_isCasado) {
         fixed.push('CPF do Cônjuge');
     }
