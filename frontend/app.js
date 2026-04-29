@@ -5243,9 +5243,9 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
 
                     ${(tabId === 'Atestados' && isSaved) ? `
                     <div style="display:flex; flex-direction:column; gap:0.35rem; margin-top:0.35rem; align-items:flex-end;">
-                        <input type="email" id="contab-email-${existingDoc.id}"
-                               value="thais.ricci@americarental.com.br"
-                               style="height:36px; padding:0 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; width:100%; min-width:230px; max-width:250px;">
+                        <input type="text" id="contab-email-${existingDoc.id}"
+                               value="vanessa.santana@grupowp.com.br; vanessa.caroline@grupowp.com.br"
+                               style="height:36px; padding:0 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; width:100%; min-width:340px; max-width:420px;">
                         <button type="button"
                                 onclick="window.enviarAtestadoContabilidade(${existingDoc.id}, 'contab-email-${existingDoc.id}', this)"
                                 style="height:36px; display:flex; align-items:center; justify-content:center; gap:6px; background:#0f4c81; color:#fff; border:none; border-radius:6px; padding:0 0.85rem; font-size:0.82rem; font-weight:600; cursor:pointer; white-space:nowrap; width:100%; min-width:230px; max-width:250px;">
@@ -5945,33 +5945,38 @@ window.enviarAtestadoContabilidade = async function(docId, emailInputId, btn) {
     const email = emailInput ? emailInput.value.trim() : '';
     if (!email) { alert('Informe o e-mail da contabilidade.'); return; }
 
+    // Suporte a múltiplos e-mails separados por ';'
+    const emails = email.split(';').map(e => e.trim()).filter(e => e.length > 0);
+    if (emails.length === 0) { alert('Informe ao menos um e-mail válido.'); return; }
+
     const originalHtml = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando...';
 
     try {
-        const res = await apiPost('/send-atestado-contabilidade', { document_id: docId, email_to: email });
-        if (res && res.sucesso) {
-            btn.innerHTML = '<i class="ph ph-check-circle"></i> Enviado!';
-            btn.style.background = '#2f9e44';
-            
-            // Reload the documents to show the updated timestamp immediately
-            if (viewedColaborador) {
-                apiGet(`/colaboradores/${viewedColaborador.id}/documentos`).then(docs => {
-                    if (docs) {
-                        currentDocs = docs;
-                        const activeTab = document.querySelector('#tabs-list li.active');
-                        if (activeTab) {
-                            renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
-                        }
-                    }
-                }).catch(err => console.warn('Falha ao recarregar atestados:', err));
-            }
-            
-            setTimeout(() => { btn.innerHTML = originalHtml; btn.style.background = ''; btn.disabled = false; }, 3000);
-        } else {
-            throw new Error(res?.error || 'Erro desconhecido');
+        // Envia para cada e-mail individualmente
+        for (const dest of emails) {
+            const res = await apiPost('/send-atestado-contabilidade', { document_id: docId, email_to: dest });
+            if (!res || !res.sucesso) { throw new Error(res?.error || `Falha ao enviar para ${dest}`); }
         }
+
+        btn.innerHTML = '<i class="ph ph-check-circle"></i> Enviado!';
+        btn.style.background = '#2f9e44';
+
+        // Reload the documents to show the updated timestamp immediately
+        if (viewedColaborador) {
+            apiGet(`/colaboradores/${viewedColaborador.id}/documentos`).then(docs => {
+                if (docs) {
+                    currentDocs = docs;
+                    const activeTab = document.querySelector('#tabs-list li.active');
+                    if (activeTab) {
+                        renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
+                    }
+                }
+            }).catch(err => console.warn('Falha ao recarregar atestados:', err));
+        }
+
+        setTimeout(() => { btn.innerHTML = originalHtml; btn.style.background = ''; btn.disabled = false; }, 3000);
     } catch (e) {
         alert('Erro ao enviar: ' + e.message);
         btn.disabled = false;
