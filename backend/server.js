@@ -9241,17 +9241,16 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
             'cpf': ['RG-CPF', 'CIN-CPF', 'CPF'],
             'aso': ['ASO', 'ASO Padrão', 'ASO Padro'],
             'ficha_registro': ['Ficha de Registro', 'Ficha Cadastral'],
-            'os': ['Ordem de Serviço', 'OS'],
             'treinamento': ['Carteira de vacinação', 'Carteira de Vacinação'],
             'epi': ['Ficha de EPI Assinada', 'Ficha de EPI'],
             'contrato_esocial': ['Contrato e-social'],
-            'nr1': ['NR1']
+            'nr1': ['NR1', 'Ordem de Serviço', 'OS', 'Ordem de Servico']
         };
 
         const docNamesReadable = {
             'cnh': 'CNH', 'cpf': 'CPF', 'aso': 'ASO', 'ficha_registro': 'Ficha de Registro',
-            'os': 'Ordem de Serviço', 'treinamento': 'Carteira de Vacinação', 'epi': 'Ficha de EPI',
-            'contrato_esocial': 'Contrato e-social', 'nr1': 'NR1'
+            'treinamento': 'Carteira de Vacinação', 'epi': 'Ficha de EPI',
+            'contrato_esocial': 'Contrato e-social', 'nr1': 'NR1 / Ordem de Serviço'
         };
 
         // Se há exigências de documentos, validar para cada colaborador
