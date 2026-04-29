@@ -177,7 +177,7 @@ function renderTabelaFrota() {
 window.initFrotaVeiculos = async function() {
   const c = document.getElementById('frota-veiculos-container'); if (!c) return;
   await carregarPDFjs();
-  const tok = window.currentToken || localStorage.getItem('erp_token');
+  const tok = window.currentToken || localStorage.getItem('token');
   
   const thStyle = "position:sticky;top:0;background:#fafafa;padding:12px;text-align:left;color:#475569;font-weight:700;border-bottom:1px solid #e2e8f0;cursor:pointer;user-select:none;z-index:2;";
   const st = (col, label) => `<th data-col="${col}" onclick="window.ordenarFrota('${col}')" style="${thStyle}">
@@ -223,7 +223,7 @@ ${st('tipo_veiculo', 'Tipo')}
 };
 
 window.abrirModalFrota=async function(id){
-  const tok=window.currentToken||localStorage.getItem('erp_token');
+  const tok = window.currentToken || localStorage.getItem('token');
   let v={};
   if(id){const r=await fetch('/api/frota/veiculos/'+id,{headers:{Authorization:'Bearer '+tok}});v=await r.json();}
   window._frotaB64=null;window._frotaFN=null;
@@ -313,7 +313,7 @@ window.abrirAtualizarCRLV=function(id){
 };
 
 window.confirmarAtualizarCRLV=async function(id){
-  const tok=window.currentToken||localStorage.getItem('erp_token');
+  const tok = window.currentToken || localStorage.getItem('token');
   const exEl=document.getElementById('fv-exercicio-upd');
   const novoExercicio=exEl?exEl.value.trim():'';
   if(!novoExercicio){alert('Informe o ano de exercício do novo CRLV');return;}
@@ -330,7 +330,7 @@ window.confirmarAtualizarCRLV=async function(id){
 };
 
 window.salvarVeiculoFrota=async function(id){
-  const tok=window.currentToken||localStorage.getItem('erp_token');
+  const tok = window.currentToken || localStorage.getItem('token');
   const g=sel=>{const el=document.getElementById(sel);return el?el.value.trim():'';};
   const placa=g('fv-placa');if(!placa){alert('Placa é obrigatória');return;}
   const body={placa,marca_modelo_versao:g('fv-marca'),cor_predominante:g('fv-cor'),ano_modelo:g('fv-anomodelo'),exercicio:g('fv-exercicio'),renavam:g('fv-renavam'),capacidade_tanque:g('fv-tanque'),capacidade_carga:g('fv-carga'),tipo_veiculo:g('fv-tipo'),altura_com_banheiro:g('fv-alt-c'),altura_sem_banheiro:g('fv-alt-s'),largura_com_banheiro:g('fv-larg-c'),largura_sem_banheiro:g('fv-larg-s'),profundidade_com_banheiro:g('fv-prof-c'),profundidade_sem_banheiro:g('fv-prof-s'),crlv_base64:window._frotaB64||null,crlv_filename:window._frotaFN||null};
@@ -346,7 +346,7 @@ window.salvarVeiculoFrota=async function(id){
 
 window.excluirVeiculoFrota=async function(id,placa){
   if(!confirm('Excluir o veículo '+placa+'?'))return;
-  const tok=window.currentToken||localStorage.getItem('erp_token');
+  const tok = window.currentToken || localStorage.getItem('token');
   await fetch('/api/frota/veiculos/'+id,{method:'DELETE',headers:{Authorization:'Bearer '+tok}});
   window.initFrotaVeiculos();
 };
