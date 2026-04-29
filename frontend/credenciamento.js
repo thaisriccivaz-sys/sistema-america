@@ -241,7 +241,8 @@ async function gerarEnviarCredenciamento() {
         veiculos: credenciamentoState.selecionadosVeic.map(idStr => {
             const v = credenciamentoState.veiculos.find(ve => String(ve.id) === idStr);
             return { id: parseInt(idStr), placa: v ? v.placa : idStr, modelo: v ? v.marca_modelo_versao : '' };
-        })
+        }),
+        docs_exigidos: Array.from(document.querySelectorAll('#cred-docs-exigidos input:checked')).map(cb => cb.value)
     };
 
     const btn = document.getElementById('btn-enviar-cred');
@@ -266,6 +267,7 @@ async function gerarEnviarCredenciamento() {
         // Limpar formulário
         if (document.getElementById('cred-cliente-nome')) document.getElementById('cred-cliente-nome').value = '';
         if (document.getElementById('cred-cliente-email')) document.getElementById('cred-cliente-email').value = '';
+        document.querySelectorAll('#cred-docs-exigidos input').forEach(cb => cb.checked = false);
         credenciamentoState.selecionadosColabs = [];
         credenciamentoState.selecionadosVeic = [];
         atualizarResumoColabs();

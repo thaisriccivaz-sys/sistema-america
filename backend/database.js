@@ -861,6 +861,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     token TEXT NOT NULL UNIQUE,
                     colaboradores_ids TEXT,
                     veiculos_ids TEXT,
+                    docs_exigidos TEXT,
                     valid_until DATETIME,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )

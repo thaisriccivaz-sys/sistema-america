@@ -3886,6 +3886,7 @@ async function loadDocumentosList() {
 }
 
 const FIXED_DOCS = {
+    'Contratos': ['Contrato de Trabalho', 'Termo de Confidencialidade', 'Acordo Individual Benefícios', 'Acordo Prorrogação e Compensação', 'Declaração Vale Transporte', 'Contrato Experiência 45 dias', 'Prorrogação de Contrato', 'Termo de Estágio', 'NR1'],
     'ASO': ['ASO Padrão'],
     'Ficha de EPI': ['Ficha de EPI Assinada'],
     'Multas': ['Contrato de Responsabilidade com o Veículo']
@@ -3919,7 +3920,8 @@ function getFichaCadastralDocs() {
     docs.push(
         "Carteira de vacina\u00e7\u00e3o",
         "Curr\u00edculo",
-        "Carteira de Trabalho"
+        "Carteira de Trabalho",
+        "Contrato e-social"
     );
     
     return docs;
@@ -7341,6 +7343,49 @@ window.selecionarTodosSetoresOutros = function(docId) {
 
 async function seedInitialGeradores() {
     const templates = [
+        {
+            nome: "NR1",
+            conteudo: `
+<p style="text-align: center; font-weight: bold; font-size: 1.2rem; margin-bottom: 2rem;">ORDEM DE SERVIÇO - NR1</p>
+
+<p style="font-weight: bold; text-decoration: underline;">DESCRIÇÃO DA ATIVIDADE</p>
+<p style="text-transform: uppercase;">FAZER SUCÇÃO COM EQUIPAMENTOS APROPRIADOS DOS DEJETOS DOS BANHEIROS, REPOR OS DESODORANTES, EFETUAR LAVAGEM E SECAGEM DOS MESMOS E EFETUAR A CARGA E DESCARGA DOS BANHEIROS QUÍMICOS NOS CAMINHÕES E NOS LOCAIS DEFINIDOS PELO SEU SUPERIOR IMEDIATO, NORMAS E PROCEDIMENTOS INTERNOS.</p>
+
+<p style="font-weight: bold; text-decoration: underline; margin-top: 1.5rem;">IDENTIFICAÇÃO DOS RISCOS AMBIENTAIS</p>
+<p style="font-weight: bold;">RISCOS / FONTES GERADORAS</p>
+<ul style="list-style-type: none; padding-left: 0; margin-top: 0.5rem; line-height: 1.6;">
+    <li><b>Físicos:</b> Ruído peculiar a ambientes externos e umidade da lavagem dos sanitários.</li>
+    <li><b>Químicos:</b> Produtos saneantes: desinfetantes, bactericida e desodorização sanitária.</li>
+    <li><b>Biológicos:</b> Sucção de dejetos e limpeza de sanitários químicos.</li>
+    <li><b>Ergonômicos:</b> intensidade pequena (possível postura inadequada, possível stress).</li>
+    <li><b>Acidentes:</b> intensidade pequena (possíveis acidentes de quedas, cortes e perfurações e outros).</li>
+</ul>
+
+<p style="font-weight: bold; text-decoration: underline; margin-top: 1.5rem;">MEDIDAS PREVENTIVAS</p>
+<table style="width: 100%; border-collapse: collapse; margin-top: 0.5rem;" border="1">
+    <thead>
+        <tr style="background-color: #f1f5f9;">
+            <th style="padding: 8px; text-align: left;">EPI’s (Equipamentos de Proteção Individual)</th>
+            <th style="padding: 8px; text-align: left;">OBSERVAÇÕES</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td style="padding: 8px;">ÓCULOS DE PROTEÇÃO, LUVA DE NEOLATEX, CAPACETE COM JUGULAR, BOTA TIPO B COM BICO DE AÇO, UNIFORME COMPLETO, PROTETOR SOLAR, PROTETOR AUDITIVO, CAPA DE CHUVA.</td>
+            <td style="padding: 8px;">SEM MAIS</td>
+        </tr>
+    </tbody>
+</table>
+
+<p style="font-weight: bold; text-decoration: underline; margin-top: 1.5rem;">MEDIDAS ADMINISTRATIVAS</p>
+<ul style="margin-top: 0.5rem; line-height: 1.6;">
+    <li>TREINAMENTO E MONITORAMENTO DAS ATIVIDADES.</li>
+    <li>ORIENTAÇÕES DE SEGURANÇA DOS LOCAIS DE PRESTAÇÃO DE SERVIÇOS.</li>
+</ul>
+
+<p style="margin-top: 2rem;">Declaro ter recebido as instruções de Segurança e Saúde no Trabalho de acordo com a NR-1, bem como os EPIs necessários e comprometo-me a cumprir todas as normas estabelecidas.</p>
+`
+        },
         {
             nome: "Acordo Individual Benefícios",
             conteudo: `
