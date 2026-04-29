@@ -9343,7 +9343,17 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
             if (err) return res.status(500).json({ error: err.message });
             db.all(`SELECT colaborador_id, document_type, tab_name FROM documentos WHERE colaborador_id IN (${colabIds.join(',')})`, (err2, docRows) => {
                 if (err2) return res.status(500).json({ error: err2.message });
-                checkAndSend(colabRows || [], docRows || []);
+                // Verificar fichas de EPI ativas na tabela propria
+                db.all(`SELECT colaborador_id FROM colaborador_epi_fichas WHERE colaborador_id IN (${colabIds.join(',')}) AND status='ativa'`, (err3, epiRows) => {
+                    if (err3) return res.status(500).json({ error: err3.message });
+                    // Injetar fichas de EPI ativas como se fossem documentos normais para a validacao
+                    const epiDocs = (epiRows || []).map(r => ({
+                        colaborador_id: r.colaborador_id,
+                        document_type: 'Ficha de EPI Assinada',
+                        tab_name: 'Ficha de EPI'
+                    }));
+                    checkAndSend(colabRows || [], [...(docRows || []), ...epiDocs]);
+                });
             });
         });
     } else {
