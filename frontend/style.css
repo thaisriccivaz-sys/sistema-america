@@ -428,6 +428,8 @@ body {
 .view-section.active { display: block; }
 .content-view { display: none; }
 .content-view.active { display: block; }
+/* View Colaboradores usa flex column como layout */
+#view-colaboradores.active { display: flex !important; }
 
 /* Novo Formulário 2 Colunas ERP */
 .form-layout-2col {
