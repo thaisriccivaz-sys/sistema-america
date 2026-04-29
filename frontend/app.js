@@ -2615,7 +2615,7 @@ function renderColaboradores(lista) {
     wrapper.innerHTML = `
         <input type="hidden" id="f-tipo-cadastro-hidden" value="">
         <!-- HEADER DA TABELA - linha única -->
-        <div style="display:flex; align-items:center; flex-wrap:wrap; gap:0.4rem; margin-bottom:1rem;">
+        <div style="display:flex; align-items:center; flex-wrap:wrap; gap:0.4rem; margin-bottom:1rem; flex-shrink:0;">
             <h3 style="margin:0; font-size:1rem; color:#334155; white-space:nowrap; font-weight:700;">Lista de Colaboradores</h3>
             <span id="colab-count" style="background:#f1f5f9; padding:0.2rem 0.65rem; border-radius:999px; font-size:0.78rem; color:#64748b; font-weight:600; white-space:nowrap; flex-shrink:0;">${lista.length} de ${_todosColaboradores.length} colaboradores</span>
 
@@ -2642,7 +2642,7 @@ function renderColaboradores(lista) {
 
 
         <!-- TABELA -->
-        <div id="colab-table-wrapper"></div>
+        <div id="colab-table-wrapper" style="flex:1; overflow-y:auto; min-height:0;"></div>
 
 
         <!-- BACKDROP DE FILTROS -->
@@ -2801,7 +2801,7 @@ function renderTabelaColaboradores(lista) {
         return;
     }
 
-    wrapper.style.cssText = 'overflow-y:auto; height:calc(100vh - 280px);';
+    wrapper.style.cssText = 'flex:1; overflow-y:auto; min-height:0;';
     wrapper.innerHTML = `
         <div style="overflow-x:auto;">
             <table class="table" style="width:100%; border-collapse:collapse; min-width:800px;">
