@@ -79,6 +79,7 @@ const REGRAS_VISIBILIDADE = [
     { nome: 'Responsabilidade Veículo',           regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: null, departamentos: ['Motoristas','Liderança'] } },
     { nome: 'Termo de Confidencialidade',         regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: null, departamentos: null } },
     { nome: 'Aceite de Recebimento por E-mail',   regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: null, departamentos: null } },
+    { nome: 'NR1',                                regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: null, departamentos: null } },
 ];
 REGRAS_VISIBILIDADE.forEach(({ nome, regra }) => {
     db.run("UPDATE geradores SET visibilidade_regra = ? WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?))",
