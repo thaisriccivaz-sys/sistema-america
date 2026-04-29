@@ -9222,6 +9222,7 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
             };
 
             try {
+                const transporter = require('nodemailer').createTransport(SMTP_CONFIG);
                 await transporter.sendMail(mailOptions);
                 res.json({ ok: true, message: 'E-mail de credenciamento enviado com sucesso!' });
             } catch (mailErr) {
