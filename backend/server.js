@@ -8091,7 +8091,7 @@ function enviarEmailAlertaCRLV(v) {
         const emailDestino = row.email;
         const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
 
-        const htmlContent = \`
+        const htmlContent = `
             <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px;">
                 <div style="text-align: center; margin-bottom: 20px;">
                     <img src="cid:empresa-logo" style="max-height: 80px;">
@@ -8100,9 +8100,9 @@ function enviarEmailAlertaCRLV(v) {
                 <p>O documento CRLV do veículo abaixo consta como <strong>vencido</strong> no sistema. Por favor, providencie a atualização do documento.</p>
                 
                 <div style="background: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                    <p><strong>Placa:</strong> \${v.placa}</p>
-                    <p><strong>Veículo:</strong> \${v.marca_modelo_versao || '-'}</p>
-                    <p><strong>Exercício Atual:</strong> \${v.exercicio}</p>
+                    <p><strong>Placa:</strong> ${v.placa}</p>
+                    <p><strong>Veículo:</strong> ${v.marca_modelo_versao || '-'}</p>
+                    <p><strong>Exercício Atual:</strong> ${v.exercicio}</p>
                 </div>
 
                 <div style="margin-top: 30px; padding: 15px; border: 2px solid #3498db; border-radius: 8px; background: #ebf5fb; text-align: center;">
@@ -8113,14 +8113,14 @@ function enviarEmailAlertaCRLV(v) {
 
                 <p style="margin-top: 30px; font-size: 0.9em; color: #7f8c8d;">Atenciosamente,<br>Sistema América Rental</p>
             </div>
-        \`;
+        `;
 
         try {
             const transporter = nodemailer.createTransport(SMTP_CONFIG);
             await transporter.sendMail({
-                from: \`"América Rental Sistema" <\${SMTP_CONFIG.auth.user}>\`,
+                from: `"América Rental Sistema" <${SMTP_CONFIG.auth.user}>`,
                 to: emailDestino,
-                subject: \`Aviso de CRLV Vencido - Veículo \${v.placa}\`,
+                subject: `Aviso de CRLV Vencido - Veículo ${v.placa}`,
                 html: htmlContent,
                 attachments: [
                     {
@@ -8132,7 +8132,7 @@ function enviarEmailAlertaCRLV(v) {
             });
 
             db.run("UPDATE frota_veiculos SET crlv_alerta_enviado = 1 WHERE id = ?", [v.id]);
-            console.log(\`[CRON CRLV] E-mail de alerta enviado para \${emailDestino} (Placa: \${v.placa})\`);
+            console.log(`[CRON CRLV] E-mail de alerta enviado para ${emailDestino} (Placa: ${v.placa})`);
         } catch (e) {
             console.error('[CRON CRLV] Erro ao enviar e-mail:', e.message);
         }
