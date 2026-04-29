@@ -23,9 +23,10 @@ async function loadColaboradoresCred() {
 
         const data = await res.json();
         // status pode ser 'Ativo' ou 'ativo' – comparação case-insensitive
-        credenciamentoState.colaboradores = (data || []).filter(c =>
-            (c.status || '').toLowerCase() === 'ativo'
-        );
+        credenciamentoState.colaboradores = (data || []).filter(c => {
+            const s = (c.status || '').toLowerCase();
+            return s === 'ativo' || s === 'férias' || s === 'ferias' || s === 'afastado';
+        });
         renderListaColabsCred();
     } catch (e) {
         console.error('[Credenciamento] Erro ao carregar colaboradores:', e);
@@ -65,13 +66,20 @@ function renderListaColabsCred() {
         return;
     }
 
-    list.innerHTML = credenciamentoState.colaboradores.map(c => `
+    list.innerHTML = credenciamentoState.colaboradores.map(c => {
+        const s = (c.status || 'Ativo');
+        const statusColor = s.toLowerCase() === 'ativo' ? '#16a34a' : s.toLowerCase() === 'afastado' ? '#dc2626' : '#d97706';
+        const statusBg = s.toLowerCase() === 'ativo' ? '#dcfce7' : s.toLowerCase() === 'afastado' ? '#fee2e2' : '#fef3c7';
+        return `
         <div class="cred-item-select" style="display:flex; align-items:center; gap: 10px; padding: 8px; border-bottom: 1px solid #eee;">
             <input type="checkbox" id="cred-colab-${c.id}" value="${c.id}"
                 ${credenciamentoState.selecionadosColabs.includes(String(c.id)) ? 'checked' : ''}>
-            <label for="cred-colab-${c.id}" style="cursor:pointer; margin:0; flex:1;">${c.nome_completo}</label>
+            <label for="cred-colab-${c.id}" style="cursor:pointer; margin:0; flex:1; display:flex; align-items:center; gap:8px;">
+                ${c.nome_completo}
+                <span style="font-size:0.7rem; font-weight:700; padding:1px 7px; border-radius:10px; background:${statusBg}; color:${statusColor}; white-space:nowrap;">${s}</span>
+            </label>
         </div>
-    `).join('');
+    `}).join('');
 }
 
 // ── Renderizar lista de veículos no modal ────────────────────────────────────
@@ -93,6 +101,26 @@ function renderListaVeicCred() {
             </label>
         </div>
     `).join('');
+}
+
+// ── Selecionar Todos Colaboradores ──────────────────────────────────────────────────────────
+function selecionarTodosColabs() {
+    // Marca todos os checkboxes visíveis no modal
+    const checkboxes = document.querySelectorAll('#lista-selecao-colab input[type="checkbox"]');
+    const todosChecked = Array.from(checkboxes).every(cb => cb.checked);
+    checkboxes.forEach(cb => cb.checked = !todosChecked);
+    // Atualiza o botão
+    const btn = document.getElementById('btn-todos-colabs');
+    if (btn) btn.textContent = todosChecked ? 'Selecionar Todos' : 'Desmarcar Todos';
+}
+
+// ── Selecionar Todos Veículos ──────────────────────────────────────────────────────────────
+function selecionarTodosVeiculos() {
+    const checkboxes = document.querySelectorAll('#lista-selecao-veic input[type="checkbox"]');
+    const todosChecked = Array.from(checkboxes).every(cb => cb.checked);
+    checkboxes.forEach(cb => cb.checked = !todosChecked);
+    const btn = document.getElementById('btn-todos-veics');
+    if (btn) btn.textContent = todosChecked ? 'Selecionar Todos' : 'Desmarcar Todos';
 }
 
 // ── Filtro de busca nos modais ────────────────────────────────────────────────
