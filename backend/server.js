@@ -8074,16 +8074,27 @@ function verificarExperienciasVencendo() {
 // CRON JOB — Verificar atestados vencidos e retornar para Ativo
 function verificarAtestadosVencidos() {
     const todayStr = new Date().toISOString().split('T')[0];
+    console.log(`[Atestados CRON] Verificando colaboradores Afastados em ${todayStr}...`);
     db.all(`SELECT id, nome_completo FROM colaboradores WHERE status = 'Afastado'`, [], (err, rows) => {
         if (err) { console.error('[Atestados CRON]', err.message); return; }
+        if (!rows || rows.length === 0) { console.log('[Atestados CRON] Nenhum colaborador Afastado encontrado.'); return; }
         rows.forEach(colab => {
             db.get(`SELECT MAX(atestado_fim) as max_fim FROM documentos WHERE colaborador_id = ? AND tab_name = 'Atestados' AND atestado_tipo = 'dias' AND atestado_fim IS NOT NULL`, [colab.id], (err2, row2) => {
                 if (!err2 && row2 && row2.max_fim) {
+                    // Retorna para Ativo quando o ultimo dia do atestado JA PASSOU (data fim <= ontem)
+                    // Ou seja: o colaborador retorna no dia SEGUINTE ao termino do atestado
                     if (row2.max_fim < todayStr) {
-                        console.log(`[Atestados CRON] Retornando ${colab.nome_completo} para Ativo. Atestado venceu em ${row2.max_fim}`);
-                        db.run("UPDATE colaboradores SET status = 'Ativo' WHERE id = ?", [colab.id]);
-                        db.run("INSERT INTO system_logs (msg) VALUES (?)", [`Colaborador ${colab.nome_completo} retornou de afastamento para Ativo automaticamente (Atestado vencido em ${row2.max_fim}).`]);
+                        console.log(`[Atestados CRON] Retornando ${colab.nome_completo} para Ativo. Atestado terminou em ${row2.max_fim}`);
+                        db.run("UPDATE colaboradores SET status = 'Ativo' WHERE id = ?", [colab.id], (e3) => {
+                            if (e3) console.error(`[Atestados CRON] Erro ao atualizar status de ${colab.nome_completo}:`, e3.message);
+                        });
+                    } else {
+                        console.log(`[Atestados CRON] ${colab.nome_completo} ainda afastado até ${row2.max_fim}.`);
                     }
+                } else {
+                    // Nao tem atestado com data fim registrado: retorna para Ativo por seguranca
+                    console.log(`[Atestados CRON] ${colab.nome_completo} sem atestado com data fim. Retornando para Ativo.`);
+                    db.run("UPDATE colaboradores SET status = 'Ativo' WHERE id = ?", [colab.id]);
                 }
             });
         });
@@ -8205,6 +8216,13 @@ cron.schedule('0 8 * * *', () => {
     verificarExperienciasVencendo();
     verificarAtestadosVencidos();
     verificarCRLVVencidoCron();
+}, { timezone: 'America/Sao_Paulo' });
+
+// Roda à meia-noite (00:01) para retornar colaboradores de atestado vencido
+// Garante que o colaborador volta a Ativo logo na virada do dia
+cron.schedule('1 0 * * *', () => {
+    console.log('[CRON 00:01] Verificando atestados vencidos na virada do dia...');
+    verificarAtestadosVencidos();
 }, { timezone: 'America/Sao_Paulo' });
 
 // Endpoint para forçar envio em lote (botão "Disparar E-mails")
