@@ -80,6 +80,7 @@ const REGRAS_VISIBILIDADE = [
     { nome: 'Termo de Confidencialidade',         regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: null, departamentos: null } },
     { nome: 'Aceite de Recebimento por E-mail',   regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: null, departamentos: null } },
     { nome: 'NR1',                                regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: null, departamentos: null } },
+    { nome: 'Ficha de Registro',                  regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: null, departamentos: null } },
 ];
 REGRAS_VISIBILIDADE.forEach(({ nome, regra }) => {
     db.run("UPDATE geradores SET visibilidade_regra = ? WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?))",
@@ -301,6 +302,19 @@ db.get("SELECT * FROM geradores WHERE nome = 'NR1'", (err, row) => {
         db.run("INSERT INTO geradores (nome, conteudo) VALUES (?, ?)", ['NR1', htmlNR1], (err) => {
             if (err) console.log("Erro ao inserir NR1:", err.message);
             else console.log("MIGRATION: NR1 inserido com sucesso.");
+        });
+    }
+});
+
+// MIGRATION: Inserir Gerador "Ficha de Registro" se n\u00e3o existir
+db.get("SELECT id FROM geradores WHERE LOWER(TRIM(nome)) = 'ficha de registro'", (err, row) => {
+    if (!row) {
+        db.run("INSERT INTO geradores (nome, conteudo) VALUES (?, ?)", [
+            'Ficha de Registro',
+            '<p style="text-align:center; font-weight:bold; font-size:1.1rem;">FICHA DE REGISTRO DE EMPREGADO</p><p>Nome: <b>{{NOME_COMPLETO}}</b></p><p>CPF: <b>{{CPF}}</b></p><p>Cargo: <b>{{CARGO}}</b></p><p>Data de Admiss\u00e3o: <b>{{DATA_ADMISSAO}}</b></p><p>Departamento: <b>{{DEPARTAMENTO}}</b></p>'
+        ], (err) => {
+            if (err) console.log("Erro ao inserir Ficha de Registro:", err.message);
+            else console.log("MIGRATION: Ficha de Registro inserida com sucesso.");
         });
     }
 });

@@ -8474,6 +8474,7 @@ window.renderContratosAvulso = async function(container) {
                 { nome: 'Regras Sorteio Final de Ano',      cond: true },
                 { nome: 'Termo de Confidencialidade',       cond: true },
                 { nome: 'NR1',                              cond: true },
+                { nome: 'Ficha de Registro',                cond: true },
             ];
             autoGeradores = LEGACY_MAP
                 .filter(m => m.cond)
