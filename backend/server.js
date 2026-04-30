@@ -9589,6 +9589,55 @@ app.listen(PORT, () => {
 const LICENCAS_UPLOAD_PATH = path.join(BASE_UPLOAD_PATH, 'LICENCAS');
 if (!fs.existsSync(LICENCAS_UPLOAD_PATH)) fs.mkdirSync(LICENCAS_UPLOAD_PATH, { recursive: true });
 
+app.post('/api/licencas/extrair-validade', authenticateToken, upload.single('file'), async (req, res) => {
+    if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+    if (req.file.mimetype !== 'application/pdf') return res.json({ validade: null });
+    try {
+        const data = await pdfParse(req.file.buffer);
+        const text = data.text;
+        let foundDate = null;
+        
+        // 1. Tenta achar data próxima a palavras chaves
+        const matchKeyword = text.match(/(?:v[aá]lido\s+at[eé]|validade|vencimento|expira|vence|venc).*?(\d{2}[\/\.-]\d{2}[\/\.-]\d{4})/i);
+        if (matchKeyword && matchKeyword[1]) {
+            foundDate = matchKeyword[1];
+        } else {
+            // 2. Se não achar palavra-chave, pega a data mais futura no texto
+            const allDates = [...text.matchAll(/\b(\d{2})[\/\.-](\d{2})[\/\.-](\d{4})\b/g)];
+            if (allDates.length > 0) {
+                let maxDateObj = null;
+                let maxDateStr = null;
+                for (const match of allDates) {
+                    const dia = parseInt(match[1], 10);
+                    const mes = parseInt(match[2], 10);
+                    const ano = parseInt(match[3], 10);
+                    if (ano >= 2020 && ano <= 2050 && mes >= 1 && mes <= 12 && dia >= 1 && dia <= 31) {
+                        const dObj = new Date(ano, mes - 1, dia);
+                        if (!maxDateObj || dObj > maxDateObj) {
+                            maxDateObj = dObj;
+                            maxDateStr = `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+                        }
+                    }
+                }
+                if (maxDateStr) {
+                    return res.json({ validade: maxDateStr });
+                }
+            }
+        }
+        
+        if (foundDate) {
+            const parts = foundDate.split(/[\/\.-]/);
+            if (parts.length === 3) {
+                return res.json({ validade: `${parts[2]}-${parts[1]}-${parts[0]}` });
+            }
+        }
+        res.json({ validade: null });
+    } catch (e) {
+        console.error('Erro no parse do PDF:', e.message);
+        res.json({ validade: null });
+    }
+});
+
 app.get('/api/licencas', authenticateToken, (req, res) => {
     db.all('SELECT * FROM licencas ORDER BY empresa, nome', [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });

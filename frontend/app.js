@@ -2206,11 +2206,25 @@ async function loadDashboard() {
                     if (a.aso_exame_data) {
                         agendadoDisplay = `<span style="color:#166534;font-weight:600;"><i class="ph ph-calendar-check"></i> ${a.aso_exame_data}</span>`;
                     }
+                    
+                    const dtParts = a.vencimento ? a.vencimento.split('-') : [];
+                    const vencfmt = dtParts.length === 3 ? `${dtParts[2]}/${dtParts[1]}/${dtParts[0]}` : a.vencimento;
+
+                    const nomeStr = a.nome || '?';
+                    const iniciais = nomeStr.trim().split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+                    const fotoApiUrl = `/api/colaboradores/foto/${a.id || 0}`;
+
                     tbAso.innerHTML += `
                         <tr>
-                            <td>${a.nome}</td>
-                            <td style="color:#d9480f;font-weight:600;">${a.vencimento}</td>
-                            <td>${agendadoDisplay}</td>
+                            <td style="padding:0.6rem 0.65rem;">
+                                <div style="display:flex;align-items:center;gap:0.55rem;">
+                                    <img src="${fotoApiUrl}" alt="" style="width:31px;height:31px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1.5px solid #d9480f40;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                                    <div style="display:none;width:31px;height:31px;border-radius:50%;background:#d9480f;align-items:center;justify-content:center;font-size:0.75rem;font-weight:800;color:#fff;flex-shrink:0;opacity:.9;">${iniciais}</div>
+                                    <a href="#" style="color:#1c7ed6;text-decoration:none;font-weight:600;font-size:0.85rem;" onclick="event.preventDefault(); editColaborador(${a.id || 0})">${nomeStr}</a>
+                                </div>
+                            </td>
+                            <td style="color:#d9480f;font-weight:600;vertical-align:middle;">${vencfmt}</td>
+                            <td style="vertical-align:middle;">${agendadoDisplay}</td>
                         </tr>
                     `;
                 });

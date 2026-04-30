@@ -216,13 +216,33 @@ function renderLicencasContent() {
 window.uploadLicenca = async function(input, empresa, nome) {
     const file = input.files[0];
     if (!file) return;
+    
+    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+    
+    let valAtual = '';
+    if (file.type === 'application/pdf') {
+        try {
+            if (typeof showToast !== 'undefined') showToast('Analisando documento...', 'info');
+            const extractData = new FormData();
+            extractData.append('file', file);
+            const extRes = await fetch('/api/licencas/extrair-validade', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: extractData
+            });
+            if (extRes.ok) {
+                const extJson = await extRes.json();
+                if (extJson.validade) valAtual = extJson.validade;
+            }
+        } catch(e) { console.error('Erro na extração:', e); }
+    }
+
     input.value = '';
 
     // Prompt para validade
-    const venc = await promptValidade(nome);
+    const venc = await promptValidade(nome, valAtual);
     if (venc === null) return; // cancelado
 
-    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
     const formData = new FormData();
     formData.append('file', file);
     formData.append('empresa', empresa);
