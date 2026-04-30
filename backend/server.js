@@ -9702,22 +9702,54 @@ app.get('/api/publico/credenciamento/:token/licenca/:licId', (req, res) => {
 });
 
 
-// GET Público: Baixar Ficha de EPI do credenciamento (gerada como PDF via snapshot)
+// GET Público: Dados da Ficha de EPI (o browser gera o PDF com jsPDF)
 app.get('/api/publico/credenciamento/:token/epi/:epiId', (req, res) => {
     db.get('SELECT * FROM credenciamentos WHERE token = ?', [req.params.token], (err, cred) => {
-        if (!cred || new Date() > new Date(cred.valid_until)) return res.status(403).send('Link inválido/expirado');
+        if (!cred || new Date() > new Date(cred.valid_until)) return res.status(403).json({ error: 'Link inválido/expirado' });
 
         let colabs = [];
         try { colabs = JSON.parse(cred.colaboradores_ids || '[]'); } catch(e) {}
 
         db.get('SELECT * FROM colaborador_epi_fichas WHERE id = ?', [req.params.epiId], (err2, ficha) => {
-            if (err2 || !ficha) return res.status(404).send('Ficha de EPI não encontrada');
-            if (!colabs.find(c => String(c.id) === String(ficha.colaborador_id))) return res.status(403).send('Acesso negado');
+            if (err2 || !ficha) return res.status(404).json({ error: 'Ficha de EPI não encontrada' });
 
-            // Redirecionar para o endpoint autenticado de geração de PDF de EPI via ficha
-            // Estratégia: usar o snapshot_epis e snapshot_termo para montar um PDF simples
-            // Como fallback, retornar JSON com os dados
-            res.status(404).json({ error: 'Download direto de Ficha EPI não disponível. Use o sistema interno para gerar o PDF.' });
+            const colabInfo = colabs.find(c => String(c.id) === String(ficha.colaborador_id));
+            if (!colabInfo) return res.status(403).json({ error: 'Acesso negado' });
+
+            // Buscar dados completos do colaborador
+            db.get('SELECT nome_completo, rg, cpf, cargo, departamento, data_admissao FROM colaboradores WHERE id = ?', [ficha.colaborador_id], (err3, colabRow) => {
+                // Buscar template de EPI
+                db.get('SELECT * FROM epi_templates WHERE id = ?', [ficha.template_id], (err4, template) => {
+                    // Buscar entregas assinadas
+                    db.all('SELECT * FROM epi_entregas WHERE ficha_id = ? ORDER BY data_entrega ASC', [ficha.id], (err5, entregas) => {
+                        const epis = (() => { try { return JSON.parse(ficha.snapshot_epis || '[]'); } catch(e) { return []; } })();
+                        const templateEpis = template ? (() => { try { return JSON.parse(template.epis_json || '[]'); } catch(e) { return []; } })() : epis;
+
+                        res.json({
+                            ficha: {
+                                id: ficha.id,
+                                grupo: ficha.grupo,
+                                snapshot_termo: ficha.snapshot_termo,
+                                snapshot_rodape: ficha.snapshot_rodape,
+                                epis: epis.length ? epis : templateEpis
+                            },
+                            colaborador: colabRow ? {
+                                nome: colabRow.nome_completo,
+                                rg: colabRow.rg,
+                                cpf: colabRow.cpf,
+                                cargo: colabRow.cargo,
+                                dept: colabRow.departamento,
+                                admissao: colabRow.data_admissao
+                            } : { nome: colabInfo.nome || 'Colaborador' },
+                            entregas: (entregas || []).map(e => ({
+                                data: e.data_entrega,
+                                descricao: (() => { try { return JSON.parse(e.epis_entregues || '[]').join(', '); } catch(er) { return ''; } })(),
+                                assinatura_base64: e.assinatura_base64
+                            }))
+                        });
+                    });
+                });
+            });
         });
     });
 });
