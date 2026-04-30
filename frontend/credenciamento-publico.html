@@ -49,6 +49,11 @@
                     <h3 class="text-xl font-bold text-gray-800 border-b pb-2 mb-4"><i class="fas fa-truck mr-2"></i> Frota (Veículos)</h3>
                     <div id="veiculos-list" class="space-y-4"></div>
                 </div>
+
+                <div id="licencas-section" class="card hidden">
+                    <h3 class="text-xl font-bold text-gray-800 border-b pb-2 mb-4"><i class="fas fa-certificate mr-2" style="color:#16a34a;"></i> Licenças da Empresa</h3>
+                    <div id="licencas-list" class="space-y-3"></div>
+                </div>
             </div>
         </main>
     </div>
@@ -81,6 +86,7 @@
 
                 renderColaboradores(data.colaboradores, token);
                 renderVeiculos(data.veiculos, token);
+                renderLicencas(data.licencas);
 
             } catch (err) {
                 showError('Erro de conexão com o servidor.');
@@ -144,6 +150,30 @@
                     </div>
                 </div>
             `).join('');
+        }
+        function renderLicencas(licencas) {
+            const section = document.getElementById('licencas-section');
+            const list = document.getElementById('licencas-list');
+            if (!licencas || licencas.length === 0) {
+                section.classList.add('hidden');
+                return;
+            }
+            section.classList.remove('hidden');
+            const hoje = new Date(); hoje.setHours(0,0,0,0);
+            list.innerHTML = licencas.map(l => {
+                const vencida = l.validade && new Date(l.validade + 'T12:00:00') < hoje;
+                const valStr = l.validade ? l.validade.split('-').reverse().join('/') : 'Sem vencimento definido';
+                return `
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-gray-50 p-4 rounded border ${vencida ? 'border-red-300 bg-red-50' : 'border-green-200'} gap-2">
+                        <div>
+                            <h4 class="font-bold text-gray-800">${l.nome}</h4>
+                            <p class="text-sm text-gray-500">${l.empresa || ''}</p>
+                        </div>
+                        <span class="text-xs font-bold px-3 py-1 rounded-full ${vencida ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'} whitespace-nowrap">
+                            ${vencida ? '⚠️ Vencida em ' : '✅ Válida até '}${valStr}
+                        </span>
+                    </div>`;
+            }).join('');
         }
     </script>
 </body>

@@ -9368,8 +9368,8 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
         const validUntil = new Date();
         validUntil.setDate(validUntil.getDate() + 7);
 
-        db.run(`INSERT INTO credenciamentos (cliente_nome, cliente_email, token, colaboradores_ids, veiculos_ids, docs_exigidos, valid_until) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [cliente_nome, cliente_email, token, JSON.stringify(colaboradores || []), JSON.stringify(veiculos || []), JSON.stringify(docs_exigidos || []), validUntil.toISOString()],
+        db.run(`INSERT INTO credenciamentos (cliente_nome, cliente_email, token, colaboradores_ids, veiculos_ids, docs_exigidos, licencas_ids, valid_until) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [cliente_nome, cliente_email, token, JSON.stringify(colaboradores || []), JSON.stringify(veiculos || []), JSON.stringify(docs_exigidos || []), JSON.stringify(licencas || []), validUntil.toISOString()],
             async function(err) {
                 if (err) return res.status(500).json({ error: err.message });
                 
@@ -9550,7 +9550,8 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
                         crlv_filename: f ? f.crlv_filename : null,
                         has_crlv: f && !!f.crlv_base64
                     };
-                })
+                }),
+                licencas: (() => { try { return JSON.parse(cred.licencas_ids || '[]'); } catch(e) { return []; } })()
             });
         });
     });
