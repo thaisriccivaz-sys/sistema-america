@@ -218,31 +218,37 @@ window.uploadLicenca = async function(input, empresa, nome) {
     if (!file) return;
     
     const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+    const isCNPJ = nome.toLowerCase().includes('cnpj');
     
-    let valAtual = '';
-    if (file.type === 'application/pdf') {
-        try {
-            if (typeof showToast !== 'undefined') showToast('Analisando documento...', 'info');
-            const extractData = new FormData();
-            extractData.append('file', file);
-            extractData.append('nome', nome);
-            const extRes = await fetch('/api/licencas/extrair-validade', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` },
-                body: extractData
-            });
-            if (extRes.ok) {
-                const extJson = await extRes.json();
-                if (extJson.validade) valAtual = extJson.validade;
-            }
-        } catch(e) { console.error('Erro na extração:', e); }
+    let venc = '';
+    
+    if (!isCNPJ) {
+        let valAtual = '';
+        if (file.type === 'application/pdf') {
+            try {
+                if (typeof showToast !== 'undefined') showToast('Analisando documento...', 'info');
+                const extractData = new FormData();
+                extractData.append('file', file);
+                extractData.append('nome', nome);
+                const extRes = await fetch('/api/licencas/extrair-validade', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: extractData
+                });
+                if (extRes.ok) {
+                    const extJson = await extRes.json();
+                    if (extJson.validade) valAtual = extJson.validade;
+                }
+            } catch(e) { console.error('Erro na extração:', e); }
+        }
+
+        // Prompt para validade
+        const promptRes = await promptValidade(nome, valAtual);
+        if (promptRes === null) { input.value = ''; return; } // cancelado
+        venc = promptRes;
     }
-
+    
     input.value = '';
-
-    // Prompt para validade
-    const venc = await promptValidade(nome, valAtual);
-    if (venc === null) return; // cancelado
 
     const formData = new FormData();
     formData.append('file', file);
@@ -272,8 +278,14 @@ window.uploadLicenca = async function(input, empresa, nome) {
 
 // ── Modal atualizar licença ──────────────────────────────────
 window.editLicencaModal = async function(empresa, nome, id, valAtual) {
-    const venc = await promptValidade(nome, valAtual);
-    if (venc === null) return;
+    const isCNPJ = nome.toLowerCase().includes('cnpj');
+    let venc = '';
+    
+    if (!isCNPJ) {
+        const promptRes = await promptValidade(nome, valAtual);
+        if (promptRes === null) return;
+        venc = promptRes;
+    }
 
     const input = document.createElement('input');
     input.type = 'file';
@@ -295,7 +307,10 @@ window.editLicencaModal = async function(empresa, nome, id, valAtual) {
     };
 
     input.onchange = async function() {
-        if (!this.files[0]) { await patchValidade(); return; }
+        if (!this.files[0]) { 
+            if (!isCNPJ) await patchValidade(); 
+            return; 
+        }
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
         const formData = new FormData();
         formData.append('file', this.files[0]);
@@ -318,10 +333,14 @@ window.editLicencaModal = async function(empresa, nome, id, valAtual) {
     };
 
     // Perguntar se quer trocar o arquivo também
-    if (confirm('Deseja também substituir o arquivo PDF?')) {
+    if (isCNPJ) {
         input.click();
     } else {
-        await patchValidade();
+        if (confirm('Deseja também substituir o arquivo PDF?')) {
+            input.click();
+        } else {
+            await patchValidade();
+        }
     }
 };
 
