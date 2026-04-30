@@ -221,18 +221,11 @@
                 (_credData.colaboradores || []).forEach(c => {
                     const nomeColab = sanitize(c.nome);
                     (c.documentos || []).filter(d => !d.is_epi).forEach(d => {
-                        const nomeTipo = sanitize(d.tipo);
-                        const nomeArq = d.nome_arquivo ? sanitize(d.nome_arquivo) : `${nomeTipo}.pdf`;
-                        const fname = `Colaboradores/${nomeColab}/${nomeArq}`;
+                        // Nome do arquivo = nome do campo (ex: "Ficha de Registro.pdf")
+                        const fname = `Colaboradores/${nomeColab}/${sanitize(d.tipo)}.pdf`;
                         fetches.push(
                             fetch(`/api/publico/credenciamento/${_token}/doc/${d.id}`)
-                                .then(r => {
-                                    if (!r.ok) return null;
-                                    const ct = r.headers.get('content-type') || '';
-                                    // Aceitar PDF ou octet-stream
-                                    if (!ct.includes('pdf') && !ct.includes('octet') && !ct.includes('application')) return null;
-                                    return r.blob();
-                                })
+                                .then(r => r.ok ? r.blob() : null)  // sem filtro de content-type
                                 .then(blob => { if (blob) { zip.file(fname, blob); totalAdded++; } })
                                 .catch(() => null)
                         );
