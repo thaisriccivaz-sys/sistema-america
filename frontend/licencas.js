@@ -101,7 +101,14 @@ function renderLicencasContent() {
     const hoje = new Date(); hoje.setHours(0,0,0,0);
 
     // Status helper
-    const getStatus = (validade) => {
+    const SEM_VALIDADE_NOMES = ['cnpj', 'inscrição estadual', 'inscricao estadual', 'inscrição municipal', 'inscricao municipal'];
+    const isSemValidade = (nome) => SEM_VALIDADE_NOMES.some(s => nome.toLowerCase().includes(s));
+
+    const getStatus = (validade, nome, temArquivo) => {
+        if (isSemValidade(nome)) {
+            if (temArquivo) return { label: 'Sem vencimento', color: '#16a34a', bg: '#dcfce7', icon: 'ph-check-circle' };
+            return { label: 'Sem documento', color: '#94a3b8', bg: '#f1f5f9', icon: 'ph-minus' };
+        }
         if (!validade) return { label: 'Sem data', color: '#94a3b8', bg: '#f1f5f9', icon: 'ph-minus' };
         const d = new Date(validade + 'T12:00:00');
         const diff = Math.ceil((d - hoje) / 86400000);
@@ -120,7 +127,8 @@ function renderLicencasContent() {
     // Construir cards de documentos fixos
     const cards = cfg.docs.map(nome => {
         const licenca = docs.find(d => d.nome === nome);
-        const status = getStatus(licenca ? licenca.validade : null);
+        const temArquivo = !!(licenca && licenca.file_name);
+        const status = getStatus(licenca ? licenca.validade : null, nome, temArquivo);
         const vencFormatted = licenca ? formatDate(licenca.validade) : null;
         const idSafe = `lic-${licencasActiveTab}-${nome.replace(/[^a-zA-Z0-9]/g,'_')}`;
 
@@ -151,14 +159,15 @@ function renderLicencasContent() {
                 <!-- Validade -->
                 ${licenca ? `
                 <div class="licenca-validade-row">
-                    <i class="ph ph-calendar-blank" style="color:${status.color};"></i>
-                    <span>Validade: <strong>${vencFormatted}</strong></span>
+                    <i class="ph ${isSemValidade(nome) ? 'ph-infinity' : 'ph-calendar-blank'}" style="color:${status.color};"></i>
+                    <span>${isSemValidade(nome) ? '<strong>Documento sem vencimento</strong>' : `Validade: <strong>${vencFormatted}</strong>`}</span>
                     ${licenca.updated_at ? `<span class="licenca-upload-date">• Atualizado: ${formatDate(licenca.updated_at.substring(0,10))}</span>` : ''}
                 </div>` : `
                 <div class="licenca-validade-row" style="color:#94a3b8;">
                     <i class="ph ph-upload-simple"></i>
                     <span>Nenhum documento cadastrado</span>
                 </div>`}
+
 
                 <!-- Ações -->
                 <div class="licenca-card-actions">
