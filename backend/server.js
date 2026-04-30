@@ -9655,7 +9655,8 @@ app.post('/api/licencas', authenticateToken, upload.single('file'), (req, res) =
     const safeName = nome.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]/g,'_').toUpperCase();
     const fileName = safeName + ext;
     const filePath = path.join(empresaDir, fileName);
-    fs.writeFileSync(filePath, req.file.buffer);
+    fs.copyFileSync(req.file.path, filePath);
+    fs.unlinkSync(req.file.path);
     const relPath = path.relative(path.join(BASE_UPLOAD_PATH, '..', '..'), filePath).replace(/\\/g, '/');
     db.run('INSERT INTO licencas (empresa, nome, validade, file_path, file_name, updated_at, created_at) VALUES (?, ?, ?, ?, ?, datetime("now"), datetime("now"))',
         [empresa, nome, validade || null, relPath, fileName],
@@ -9679,7 +9680,8 @@ app.put('/api/licencas/:id', authenticateToken, upload.single('file'), (req, res
             const safeName = row.nome.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]/g,'_').toUpperCase();
             fileName = safeName + ext;
             const absolutePath = path.join(empresaDir, fileName);
-            fs.writeFileSync(absolutePath, req.file.buffer);
+            fs.copyFileSync(req.file.path, absolutePath);
+            fs.unlinkSync(req.file.path);
             filePath = path.relative(path.join(BASE_UPLOAD_PATH, '..', '..'), absolutePath).replace(/\\/g, '/');
         }
         db.run('UPDATE licencas SET validade = ?, file_path = ?, file_name = ?, updated_at = datetime("now") WHERE id = ?',
