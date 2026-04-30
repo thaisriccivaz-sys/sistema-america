@@ -2248,6 +2248,34 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- NOVO: Histórico de Envios -->
+                    <div class="card" style="margin-top: 2rem;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
+                            <h3><i class="ph ph-clock-counter-clockwise"></i> Histórico de Envios</h3>
+                            <button class="btn btn-outline" style="padding: 4px 12px; font-size: 12px;" onclick="carregarHistoricoCredenciamento()">
+                                <i class="ph ph-arrows-clockwise"></i> Atualizar
+                            </button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table" style="font-size:0.85rem;">
+                                <thead>
+                                    <tr>
+                                        <th>Data/Hora</th>
+                                        <th>Cliente / Obra</th>
+                                        <th>Colaboradores</th>
+                                        <th>Veículos</th>
+                                        <th>Licenças</th>
+                                        <th>Status do Link</th>
+                                        <th style="text-align:right;">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-historico-cred">
+                                    <tr><td colspan="7" style="text-align:center; color:#94a3b8; padding:2rem;">Carregando histórico...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </section>
 
                 <!-- VIEW: LOGISTICA MULTAS -->

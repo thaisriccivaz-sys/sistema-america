@@ -870,6 +870,11 @@ const db = new sqlite3.Database(dbPath, (err) => {
             // Migration: adicionar coluna licencas_ids se nao existir
             db.run(`ALTER TABLE credenciamentos ADD COLUMN licencas_ids TEXT`, () => {});
 
+    // Adicionar coluna acessado_em se nao existir
+    db.run("ALTER TABLE credenciamentos ADD COLUMN acessado_em TEXT", (err) => {
+        if (err && !err.message.includes('duplicate')) { /* coluna ja existe */ }
+    });
+
 
             console.log('Tabelas do sistema RH verificadas/criadas com sucesso.');
 

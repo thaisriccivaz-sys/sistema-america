@@ -417,9 +417,107 @@ async function gerarEnviarCredenciamento() {
         atualizarResumoColabs();
         atualizarResumoVeiculos();
         atualizarResumoLicencas();
+        
+        // Atualizar histórico de credenciamentos
+        carregarHistoricoCredenciamento();
     } catch (e) {
         alert('Erro: ' + e.message);
     } finally {
         if (btn) { btn.innerHTML = originalHTML; btn.disabled = false; }
     }
 }
+
+// ── Histórico de Credenciamentos ─────────────────────────────────────────────
+window.carregarHistoricoCredenciamento = async function() {
+    const tbody = document.getElementById('tbody-historico-cred');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#94a3b8; padding:2rem;"><i class="ph ph-spinner ph-spin"></i> Carregando histórico...</td></tr>';
+    
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const res = await fetch('/api/logistica/credenciamentos', { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!res.ok) throw new Error('Falha ao carregar histórico');
+        const data = await res.json();
+        
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#94a3b8; padding:2rem;">Nenhum credenciamento gerado ainda.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = data.map(cred => {
+            // Parses
+            let colabs = []; try { colabs = JSON.parse(cred.colaboradores_ids || '[]'); } catch(e){}
+            let veics = []; try { veics = JSON.parse(cred.veiculos_ids || '[]'); } catch(e){}
+            let licencas = []; try { licencas = JSON.parse(cred.licencas_ids || '[]'); } catch(e){}
+            
+            // Format Data/Hora
+            const dt = new Date(cred.created_at);
+            const dtFormatada = dt.toLocaleDateString('pt-BR') + ' ' + dt.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+            
+            // Textos resumos
+            const colabsText = colabs.map(c => `• ${c.nome}`).join('<br>') || '<span style="color:#94a3b8;">Nenhum</span>';
+            const veicsText = veics.map(v => `• ${v.placa}`).join('<br>') || '<span style="color:#94a3b8;">Nenhum</span>';
+            const licencasText = licencas.map(l => `• ${l.nome}`).join('<br>') || '<span style="color:#94a3b8;">Nenhuma</span>';
+            
+            // Status do Link
+            const validade = new Date(cred.valid_until);
+            const expirado = new Date() > validade;
+            
+            let statusBadge = '';
+            if (expirado) {
+                statusBadge = '<span style="padding:2px 8px; border-radius:12px; background:#fee2e2; color:#dc2626; font-size:0.75rem; font-weight:700;"><i class="ph ph-x-circle"></i> Expirado</span>';
+            } else if (cred.acessado_em) {
+                statusBadge = '<span style="padding:2px 8px; border-radius:12px; background:#dcfce7; color:#16a34a; font-size:0.75rem; font-weight:700;" title="Acessado em ' + new Date(cred.acessado_em).toLocaleString('pt-BR') + '"><i class="ph ph-check-circle"></i> Acessado</span>';
+            } else {
+                statusBadge = '<span style="padding:2px 8px; border-radius:12px; background:#e0e7ff; color:#4f46e5; font-size:0.75rem; font-weight:700;"><i class="ph ph-paper-plane-right"></i> Enviado (Pendente)</span>';
+            }
+
+            return `
+            <tr>
+                <td style="white-space:nowrap; font-weight:500;">${dtFormatada}</td>
+                <td>
+                    <b>${cred.cliente_nome}</b><br>
+                    <span style="font-size:0.8rem; color:#64748b;">${cred.cliente_email}</span>
+                </td>
+                <td style="font-size:0.8rem; line-height:1.4;">${colabsText}</td>
+                <td style="font-size:0.8rem; line-height:1.4;">${veicsText}</td>
+                <td style="font-size:0.8rem; line-height:1.4;">${licencasText}</td>
+                <td>${statusBadge}</td>
+                <td style="text-align:right; white-space:nowrap;">
+                    <a href="/credenciamento-publico.html?token=${cred.token}" target="_blank" class="btn btn-outline" style="padding:4px 8px; font-size:12px; margin-right:4px;" title="Testar / Visualizar Link">
+                        <i class="ph ph-link"></i> Link
+                    </a>
+                    <button class="btn btn-outline" style="padding:4px 8px; font-size:12px; color:#dc2626; border-color:#fca5a5; background:#fff;" onclick="excluirCredenciamento('${cred.id}')" title="Excluir">
+                        <i class="ph ph-trash"></i>
+                    </button>
+                </td>
+            </tr>`;
+        }).join('');
+    } catch(e) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:#ef4444; padding:1rem;">Erro ao carregar histórico: ${e.message}</td></tr>`;
+    }
+};
+
+window.excluirCredenciamento = async function(id) {
+    if (!confirm('Deseja realmente excluir este credenciamento? O link enviado não funcionará mais.')) return;
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const res = await fetch('/api/logistica/credenciamentos/' + id, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error('Falha ao excluir credenciamento');
+        carregarHistoricoCredenciamento();
+    } catch(e) {
+        alert('Erro ao excluir: ' + e.message);
+    }
+};
+
+// Hook inicial para carregar histórico ao abrir a tela
+const __originalRenderLogisticaCredenciamento = window.renderLogisticaCredenciamentoPage;
+window.renderLogisticaCredenciamentoPage = function() {
+    if (typeof __originalRenderLogisticaCredenciamento === 'function') {
+        __originalRenderLogisticaCredenciamento();
+    }
+    carregarHistoricoCredenciamento();
+};
