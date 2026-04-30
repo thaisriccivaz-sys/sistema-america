@@ -9399,6 +9399,47 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
                     from: process.env.EMAIL_USER,
                     to: cliente_email,
                     subject: 'Credenciamento de Equipe e Veículos - América Rental',
+                    html: `
+                        <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
+                            <div style="background-color: #fff; padding: 0;">
+                                <img src="${logoUrl}" alt="América Rental" style="width: 100%; display: block; max-height: 120px; object-fit: cover;" onerror="this.style.display='none'">
+                            </div>
+                            <div style="background-color: #16a34a; padding: 15px; text-align: center; color: white;">
+                                <h2 style="margin: 0; font-size: 20px;">Credenciamento de Equipe e Veículos</h2>
+                            </div>
+                            <div style="padding: 20px;">
+                                <p>Olá <b>${cliente_nome}</b>,</p>
+                                <p>Abaixo estão os dados dos colaboradores e veículos credenciados para a sua obra/evento:</p>
+                                
+                                ${htmlCols ? `<h3>Colaboradores</h3><ul>${htmlCols}</ul>` : ''}
+                                ${htmlVeic ? `<h3>Veículos</h3><ul>${htmlVeic}</ul>` : ''}
+                                ${htmlLicencas}
+                                
+                                <p>Para baixar os documentos correspondentes (RG, CNH, ASO, CRLV, etc.), acesse o link seguro abaixo. <b>O link é válido por 7 dias.</b></p>
+                                <div style="text-align: center; margin: 30px 0;">
+                                    <a href="${link}" style="background:#16a34a;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;display:inline-block;">Acessar e Baixar Documentos</a>
+                                </div>
+                                <p style="color: #666; font-size: 12px; text-align: center;">Ou acesse diretamente: <br><a href="${link}" style="color:#16a34a">${link}</a></p>
+                                <hr style="border: none; border-top: 1px solid #eee; margin: 25px 0;">
+                                <p style="color: #999; font-size: 11px; text-align: center;">Este é um e-mail automático do Sistema América Rental, por favor não responda.</p>
+                            </div>
+                        </div>
+                    `
+                };
+
+                try {
+                    const transporter = require('nodemailer').createTransport(SMTP_CONFIG);
+                    await sendMailHelper(mailOptions);
+                    res.json({ ok: true, message: 'E-mail de credenciamento enviado com sucesso!' });
+                } catch (mailErr) {
+                    res.status(500).json({ error: 'Erro ao enviar e-mail: ' + mailErr.message });
+                }
+            }
+        );
+    };
+
+    if (colabIds.length > 0) {
+        db.all(`SELECT id, nome_completo, cpf, cargo FROM colaboradores WHERE id IN (${colabIds.join(',')})`, (err, colabRows) => {
             if (err) return res.status(500).json({ error: err.message });
             db.all(`SELECT colaborador_id, document_type, tab_name FROM documentos WHERE colaborador_id IN (${colabIds.join(',')})`, (err2, docRows) => {
                 if (err2) return res.status(500).json({ error: err2.message });
