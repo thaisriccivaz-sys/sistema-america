@@ -6,11 +6,15 @@
     <title>Credenciamento América Rental</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         body { background-color: #f3f4f6; font-family: 'Inter', sans-serif; }
         .card { background: white; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); padding: 24px; margin-bottom: 20px; }
-        .btn-download { display: inline-flex; align-items: center; gap: 8px; background: #16a34a; color: white; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-size: 14px; transition: background 0.2s; }
+        .btn-download { display: inline-flex; align-items: center; gap: 8px; background: #16a34a; color: white; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-size: 14px; transition: background 0.2s; cursor: pointer; border: none; }
         .btn-download:hover { background: #15803d; }
+        .btn-download-all { display: inline-flex; align-items: center; gap: 10px; background: linear-gradient(135deg, #1e3a5f, #2d6a9f); color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-size: 15px; font-weight: 700; transition: opacity 0.2s; cursor: pointer; border: none; box-shadow: 0 4px 14px rgba(30,58,95,0.3); }
+        .btn-download-all:hover { opacity: 0.9; }
+        .btn-download-all:disabled { opacity: 0.6; cursor: not-allowed; }
     </style>
 </head>
 <body>
@@ -35,9 +39,17 @@
             </div>
 
             <div id="content" class="hidden">
+                <!-- Banner info + Baixar Todos -->
                 <div class="card bg-green-50 border-l-4 border-green-600">
-                    <h2 class="text-lg font-bold text-green-800">Olá, <span id="client-name">Cliente</span>!</h2>
-                    <p class="text-green-700 mt-1">Abaixo estão os documentos da equipe e frota credenciada para sua obra/evento. O link expira em: <strong id="validade"></strong>.</p>
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-lg font-bold text-green-800">Olá, <span id="client-name">Cliente</span>!</h2>
+                            <p class="text-green-700 mt-1">Abaixo estão os documentos da equipe e frota credenciada para sua obra/evento. O link expira em: <strong id="validade"></strong>.</p>
+                        </div>
+                        <button id="btn-baixar-todos" class="btn-download-all" onclick="baixarTodos()" title="Baixar todos os documentos em um arquivo ZIP">
+                            <i class="fas fa-file-archive"></i> Baixar Todos
+                        </button>
+                    </div>
                 </div>
 
                 <div id="colaboradores-section" class="card">
@@ -59,23 +71,22 @@
     </div>
 
     <script>
+        let _credData = null;
+        let _token = null;
+
         document.addEventListener('DOMContentLoaded', async () => {
             const urlParams = new URLSearchParams(window.location.search);
-            const token = urlParams.get('token');
+            _token = urlParams.get('token');
 
-            if (!token) {
-                showError('Token não fornecido na URL.');
-                return;
-            }
+            if (!_token) { showError('Token não fornecido na URL.'); return; }
 
             try {
-                const response = await fetch(`/api/publico/credenciamento/${token}`);
+                const response = await fetch(`/api/publico/credenciamento/${_token}`);
                 const data = await response.json();
 
-                if (!response.ok) {
-                    showError(data.error || 'Erro ao buscar dados.');
-                    return;
-                }
+                if (!response.ok) { showError(data.error || 'Erro ao buscar dados.'); return; }
+
+                _credData = data;
 
                 document.getElementById('loading').classList.add('hidden');
                 document.getElementById('content').classList.remove('hidden');
@@ -84,9 +95,9 @@
                 const d = new Date(data.validade);
                 document.getElementById('validade').textContent = d.toLocaleDateString('pt-BR') + ' às ' + d.toLocaleTimeString('pt-BR');
 
-                renderColaboradores(data.colaboradores, token);
-                renderVeiculos(data.veiculos, token);
-                renderLicencas(data.licencas);
+                renderColaboradores(data.colaboradores, _token);
+                renderVeiculos(data.veiculos, _token);
+                renderLicencas(data.licencas, _token);
 
             } catch (err) {
                 showError('Erro de conexão com o servidor.');
@@ -105,12 +116,11 @@
                 document.getElementById('colaboradores-section').classList.add('hidden');
                 return;
             }
-
             list.innerHTML = colaboradores.map(c => `
                 <div class="bg-gray-50 p-4 rounded border">
                     <h4 class="font-bold text-lg text-gray-800 mb-3">${c.nome}</h4>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                        ${c.documentos.length > 0 
+                        ${c.documentos.length > 0
                             ? c.documentos.map(d => `
                                 <div class="flex items-center justify-between bg-white p-2 border rounded shadow-sm">
                                     <span class="text-sm font-medium text-gray-700 truncate mr-2" title="${d.tipo} - ${d.nome_arquivo}">
@@ -120,7 +130,7 @@
                                         <i class="fas fa-download"></i>
                                     </a>
                                 </div>
-                            `).join('') 
+                            `).join('')
                             : '<p class="text-gray-500 text-sm italic col-span-full">Nenhum documento anexado ao prontuário.</p>'}
                     </div>
                 </div>
@@ -133,7 +143,6 @@
                 document.getElementById('veiculos-section').classList.add('hidden');
                 return;
             }
-
             list.innerHTML = veiculos.map(v => `
                 <div class="flex flex-col sm:flex-row items-center justify-between bg-gray-50 p-4 rounded border">
                     <div>
@@ -141,7 +150,7 @@
                         <p class="text-sm text-gray-600">${v.modelo || 'Modelo não especificado'}</p>
                     </div>
                     <div class="mt-3 sm:mt-0">
-                        ${v.has_crlv 
+                        ${v.has_crlv
                             ? `<a href="/api/publico/credenciamento/${token}/crlv/${v.id}" target="_blank" class="btn-download">
                                   <i class="fas fa-file-invoice text-white"></i> Baixar CRLV
                                </a>`
@@ -151,29 +160,101 @@
                 </div>
             `).join('');
         }
-        function renderLicencas(licencas) {
+
+        function renderLicencas(licencas, token) {
             const section = document.getElementById('licencas-section');
             const list = document.getElementById('licencas-list');
-            if (!licencas || licencas.length === 0) {
-                section.classList.add('hidden');
-                return;
-            }
+            if (!licencas || licencas.length === 0) { section.classList.add('hidden'); return; }
             section.classList.remove('hidden');
             const hoje = new Date(); hoje.setHours(0,0,0,0);
             list.innerHTML = licencas.map(l => {
                 const vencida = l.validade && new Date(l.validade + 'T12:00:00') < hoje;
                 const valStr = l.validade ? l.validade.split('-').reverse().join('/') : 'Sem vencimento definido';
+                const temArquivo = !!l.file_name;
                 return `
-                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-gray-50 p-4 rounded border ${vencida ? 'border-red-300 bg-red-50' : 'border-green-200'} gap-2">
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-gray-50 p-4 rounded border ${vencida ? 'border-red-300 bg-red-50' : 'border-green-200'} gap-3">
                         <div>
                             <h4 class="font-bold text-gray-800">${l.nome}</h4>
                             <p class="text-sm text-gray-500">${l.empresa || ''}</p>
                         </div>
-                        <span class="text-xs font-bold px-3 py-1 rounded-full ${vencida ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'} whitespace-nowrap">
-                            ${vencida ? '⚠️ Vencida em ' : '✅ Válida até '}${valStr}
-                        </span>
+                        <div class="flex items-center gap-3 flex-shrink-0">
+                            <span class="text-xs font-bold px-3 py-1 rounded-full ${vencida ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'} whitespace-nowrap">
+                                ${vencida ? '⚠️ Vencida em ' : '✅ Válida até '}${valStr}
+                            </span>
+                            ${temArquivo
+                                ? `<a href="/api/publico/credenciamento/${token}/licenca/${l.id}" target="_blank" class="btn-download text-xs" title="Baixar ${l.file_name}">
+                                       <i class="fas fa-download"></i> Baixar
+                                   </a>`
+                                : '<span class="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded">Sem arquivo</span>'
+                            }
+                        </div>
                     </div>`;
             }).join('');
+        }
+
+        // ── Baixar Todos como ZIP ─────────────────────────────────────────────
+        async function baixarTodos() {
+            if (!_credData || !_token) return;
+            const btn = document.getElementById('btn-baixar-todos');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparando ZIP...';
+
+            try {
+                const zip = new JSZip();
+                const fetches = [];
+
+                // Documentos dos colaboradores
+                (_credData.colaboradores || []).forEach(c => {
+                    (c.documentos || []).forEach(d => {
+                        const fname = `Colaboradores/${c.nome}/${d.tipo}.pdf`;
+                        fetches.push(
+                            fetch(`/api/publico/credenciamento/${_token}/doc/${d.id}`)
+                                .then(r => r.ok ? r.blob() : null)
+                                .then(blob => blob && zip.file(fname, blob))
+                                .catch(() => null)
+                        );
+                    });
+                });
+
+                // CRLV dos veículos
+                (_credData.veiculos || []).filter(v => v.has_crlv).forEach(v => {
+                    const fname = `Veiculos/CRLV_${v.placa}.pdf`;
+                    fetches.push(
+                        fetch(`/api/publico/credenciamento/${_token}/crlv/${v.id}`)
+                            .then(r => r.ok ? r.blob() : null)
+                            .then(blob => blob && zip.file(fname, blob))
+                            .catch(() => null)
+                    );
+                });
+
+                // Licenças
+                (_credData.licencas || []).filter(l => l.file_name).forEach(l => {
+                    const fname = `Licencas/${l.nome.replace(/[^a-zA-Z0-9 ]/g, '')}.pdf`;
+                    fetches.push(
+                        fetch(`/api/publico/credenciamento/${_token}/licenca/${l.id}`)
+                            .then(r => r.ok ? r.blob() : null)
+                            .then(blob => blob && zip.file(fname, blob))
+                            .catch(() => null)
+                    );
+                });
+
+                await Promise.all(fetches);
+
+                const zipBlob = await zip.generateAsync({ type: 'blob' });
+                const url = URL.createObjectURL(zipBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `Credenciamento_America_Rental.zip`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch(e) {
+                alert('Erro ao gerar o ZIP: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-file-archive"></i> Baixar Todos';
+            }
         }
     </script>
 </body>

@@ -9498,7 +9498,17 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
             });
         });
 
-        Promise.all([colabDocsPromise, veicDocsPromise]).then(([docs, frotas]) => {
+        // Also fetch licencas file info from DB
+        let licencasRaw = [];
+        try { licencasRaw = JSON.parse(cred.licencas_ids || '[]'); } catch(e) {}
+        const licencaIds = licencasRaw.map(l => l.id).filter(Boolean);
+        const licencasDbPromise = new Promise((resolve) => {
+            if (licencaIds.length === 0) return resolve([]);
+            const ph = licencaIds.map(() => '?').join(',');
+            db.all(`SELECT id, file_name FROM licencas WHERE id IN (${ph})`, licencaIds, (err, rows) => resolve(rows || []));
+        });
+
+        Promise.all([colabDocsPromise, veicDocsPromise, licencasDbPromise]).then(([docs, frotas, licencasDb]) => {
 
             // Mapear docs_exigidos (chaves) para nomes reais de documentos
             let docsExigidos = [];
@@ -9551,7 +9561,10 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
                         has_crlv: f && !!f.crlv_base64
                     };
                 }),
-                licencas: (() => { try { return JSON.parse(cred.licencas_ids || '[]'); } catch(e) { return []; } })()
+                licencas: licencasRaw.map(l => {
+                    const dbRow = licencasDb.find(r => String(r.id) === String(l.id));
+                    return { ...l, file_name: dbRow ? dbRow.file_name : null };
+                })
             });
         });
     });
@@ -9603,6 +9616,39 @@ app.get('/api/publico/credenciamento/:token/crlv/:veicId', (req, res) => {
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Content-Disposition', `attachment; filename="${row.crlv_filename || 'CRLV.pdf'}"`);
             res.send(buffer);
+        });
+    });
+});
+
+
+// GET Público: Baixar arquivo de licença do credenciamento
+app.get('/api/publico/credenciamento/:token/licenca/:licId', (req, res) => {
+    db.get('SELECT * FROM credenciamentos WHERE token = ?', [req.params.token], (err, cred) => {
+        if (!cred || new Date() > new Date(cred.valid_until)) return res.status(403).send('Link inválido/expirado');
+        
+        // Verificar que a licença pertence ao credenciamento
+        let licencasIds = [];
+        try { licencasIds = JSON.parse(cred.licencas_ids || '[]'); } catch(e){}
+        if (!licencasIds.find(l => String(l.id) === String(req.params.licId))) {
+            return res.status(403).send('Acesso negado a esta licença');
+        }
+        
+        db.get('SELECT * FROM licencas WHERE id = ?', [req.params.licId], (err2, row) => {
+            if (err2 || !row) return res.status(404).send('Licença não encontrada');
+            if (!row.file_path && !row.file_name) return res.status(404).send('Nenhum arquivo anexado a esta licença');
+            
+            let absPath = '';
+            if (row.file_path) absPath = path.resolve(__dirname, '..', '..', row.file_path);
+            if (!absPath || !fs.existsSync(absPath)) {
+                const empresaDir = path.join(LICENCAS_UPLOAD_PATH, (row.empresa || 'GERAL').toUpperCase().replace(/[^A-Z0-9]/g, '_'));
+                const finalPath = path.join(empresaDir, row.file_name);
+                if (fs.existsSync(finalPath)) absPath = finalPath;
+            }
+            if (!absPath || !fs.existsSync(absPath)) return res.status(404).send('Arquivo físico não encontrado');
+            
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', 'attachment; filename="' + row.file_name + '"');
+            res.sendFile(absPath);
         });
     });
 });
