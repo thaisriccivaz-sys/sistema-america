@@ -2179,20 +2179,28 @@
                     <!-- NOVO: Histórico de Envios -->
                     <div class="card" style="margin-top: 2rem;">
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
-                            <h3><i class="ph ph-clock-counter-clockwise"></i> Histórico de Envios</h3>
-                            <button class="btn btn-outline" style="padding: 4px 12px; font-size: 12px;" onclick="carregarHistoricoCredenciamento()">
-                                <i class="ph ph-arrows-clockwise"></i> Atualizar
-                            </button>
+                            <div style="display:flex; align-items:center; gap: 15px; flex-wrap: wrap;">
+                                <h3><i class="ph ph-clock-counter-clockwise"></i> Histórico de Envios</h3>
+                                <div style="position:relative;">
+                                    <i class="ph ph-magnifying-glass" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#94a3b8;"></i>
+                                    <input type="text" id="filtro-pesquisa-cred" class="form-control" placeholder="Buscar cliente, e-mail ou endereço..." onkeyup="window.filtrarHistoricoCred()" style="width: 300px; padding: 6px 12px 6px 30px;">
+                                </div>
+                            </div>
+                            <div style="display:flex; gap: 10px;">
+                                <button class="btn btn-outline" style="padding: 4px 12px; font-size: 12px;" onclick="window.carregarHistoricoCredenciamento()">
+                                    <i class="ph ph-arrows-clockwise"></i> Atualizar
+                                </button>
+                            </div>
                         </div>
-                        <div class="table-responsive">
-                            <table class="table" style="font-size:0.85rem;">
-                                <thead>
+                        <div class="table-responsive" style="max-height: calc(100vh - 280px); overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
+                            <table class="table" style="font-size:0.85rem; margin:0; width:100%;">
+                                <thead style="position: sticky; top: 0; background: #f8fafc; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
                                     <tr>
-                                        <th>Cliente / Obra</th>
+                                        <th style="cursor:pointer; white-space:nowrap;" onclick="window.ordenarHistoricoCred('cliente')" title="Ordenar A-Z">Cliente / Obra <i class="ph ph-arrows-down-up" style="color:#94a3b8; font-size:12px;"></i></th>
                                         <th>Colaboradores</th>
                                         <th>Veículos</th>
                                         <th>Licenças</th>
-                                        <th>Status do Link</th>
+                                        <th style="cursor:pointer; white-space:nowrap;" onclick="window.ordenarHistoricoCred('data')" title="Ordenar Antigo/Novo">Status do Link <i class="ph ph-arrows-down-up" style="color:#94a3b8; font-size:12px;"></i></th>
                                         <th style="text-align:right;">Ações</th>
                                     </tr>
                                 </thead>
