@@ -9488,6 +9488,23 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
             });
         });
 
+        // Buscar fichas de EPI ativas (tabela separada)
+        const epiPromise = new Promise((resolve) => {
+            if (colabIds.length === 0) return resolve([]);
+            const placeholders = colabIds.map(() => '?').join(',');
+            db.all(`SELECT id, colaborador_id FROM colaborador_epi_fichas WHERE colaborador_id IN (${placeholders}) AND status='ativa' ORDER BY id DESC`, colabIds, (err, rows) => {
+                resolve((rows || []).map(r => ({
+                    id: r.id,
+                    colaborador_id: r.colaborador_id,
+                    document_type: 'Ficha de EPI',
+                    file_name: `Ficha_EPI_colab${r.colaborador_id}.pdf`,
+                    file_path: null,
+                    signed_file_path: null,
+                    _is_epi_ficha: true
+                })));
+            });
+        });
+
         // Buscar CRLV dos veículos
         const veicIds = veics.map(v => v.id).filter(id => id);
         const veicDocsPromise = new Promise((resolve) => {
@@ -9508,7 +9525,15 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
             db.all(`SELECT id, file_name FROM licencas WHERE id IN (${ph})`, licencaIds, (err, rows) => resolve(rows || []));
         });
 
-        Promise.all([colabDocsPromise, veicDocsPromise, licencasDbPromise]).then(([docs, frotas, licencasDb]) => {
+        Promise.all([colabDocsPromise, veicDocsPromise, licencasDbPromise, epiPromise]).then(([docs, frotas, licencasDb, epiDocs]) => {
+            // Merge EPI docs with regular docs (deduplicate by colaborador_id - keep only one EPI per collab)
+            const docsComEPI = [...docs];
+            epiDocs.forEach(ed => {
+                // Only add if not already present in documentos table
+                if (!docsComEPI.some(d => d.colaborador_id === ed.colaborador_id && (d.document_type || '').toLowerCase().includes('epi'))) {
+                    docsComEPI.push(ed);
+                }
+            });
 
             // Mapear docs_exigidos (chaves) para nomes reais de documentos
             let docsExigidos = [];
@@ -9539,19 +9564,42 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
                 return Array.from(tiposPermitidos).some(acc => dn.includes(acc) || acc.includes(dn));
             };
 
+            // Para cada chave do mapa, retorna qual chave bate num document_type
+            const getChaveDoc = (d) => {
+                const dn = norm(d.document_type);
+                for (const [chave, nomes] of Object.entries(docMapPublico)) {
+                    const normNomes = nomes.map(n => norm(n));
+                    if (normNomes.some(acc => dn.includes(acc) || acc.includes(dn))) return chave;
+                }
+                return null;
+            };
+
             res.json({
                 cliente_nome: cred.cliente_nome,
                 validade: cred.valid_until,
                 colaboradores: colabs.map(c => ({
                     ...c,
-                    documentos: docs
-                        .filter(d => d.colaborador_id === c.id && isPermitido(d))
-                        .map(d => ({
-                            id: d.id,
-                            tipo: d.document_type,
-                            nome_arquivo: d.file_name,
-                            tem_assinado: !!d.signed_file_path
-                        }))
+                    documentos: (() => {
+                        const filtrados = docsComEPI
+                            .filter(d => d.colaborador_id === c.id && isPermitido(d))
+                            .map(d => ({
+                                id: d.id,
+                                tipo: d.document_type,
+                                nome_arquivo: d.file_name,
+                                tem_assinado: !!d.signed_file_path,
+                                _chave: getChaveDoc(d),
+                                is_epi: !!d._is_epi_ficha
+                            }));
+                        // Deduplicar: se dois documentos mapeiam para a mesma chave (ex: NR1 e Ordem de Serviço),
+                        // manter apenas o primeiro (mais recente pelo id desc já que o DB retorna em ordem)
+                        const vistos = new Set();
+                        return filtrados.filter(d => {
+                            const key = d._chave || d.tipo; // fallback: usar tipo literal
+                            if (vistos.has(key)) return false;
+                            vistos.add(key);
+                            return true;
+                        }).map(({ _chave, ...rest }) => rest); // remover campo interno _chave
+                    })()
                 })),
                 veiculos: veics.map(v => {
                     const f = frotas.find(fr => fr.id === v.id);
@@ -9649,6 +9697,27 @@ app.get('/api/publico/credenciamento/:token/licenca/:licId', (req, res) => {
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Content-Disposition', 'attachment; filename="' + row.file_name + '"');
             res.sendFile(absPath);
+        });
+    });
+});
+
+
+// GET Público: Baixar Ficha de EPI do credenciamento (gerada como PDF via snapshot)
+app.get('/api/publico/credenciamento/:token/epi/:epiId', (req, res) => {
+    db.get('SELECT * FROM credenciamentos WHERE token = ?', [req.params.token], (err, cred) => {
+        if (!cred || new Date() > new Date(cred.valid_until)) return res.status(403).send('Link inválido/expirado');
+
+        let colabs = [];
+        try { colabs = JSON.parse(cred.colaboradores_ids || '[]'); } catch(e) {}
+
+        db.get('SELECT * FROM colaborador_epi_fichas WHERE id = ?', [req.params.epiId], (err2, ficha) => {
+            if (err2 || !ficha) return res.status(404).send('Ficha de EPI não encontrada');
+            if (!colabs.find(c => String(c.id) === String(ficha.colaborador_id))) return res.status(403).send('Acesso negado');
+
+            // Redirecionar para o endpoint autenticado de geração de PDF de EPI via ficha
+            // Estratégia: usar o snapshot_epis e snapshot_termo para montar um PDF simples
+            // Como fallback, retornar JSON com os dados
+            res.status(404).json({ error: 'Download direto de Ficha EPI não disponível. Use o sistema interno para gerar o PDF.' });
         });
     });
 });

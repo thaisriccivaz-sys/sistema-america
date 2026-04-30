@@ -121,16 +121,23 @@
                     <h4 class="font-bold text-lg text-gray-800 mb-3">${c.nome}</h4>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                         ${c.documentos.length > 0
-                            ? c.documentos.map(d => `
+                            ? c.documentos.map(d => {
+                                const docUrl = d.is_epi
+                                    ? null  // EPI nao tem download direto ainda
+                                    : `/api/publico/credenciamento/${token}/doc/${d.id}`;
+                                return `
                                 <div class="flex items-center justify-between bg-white p-2 border rounded shadow-sm">
-                                    <span class="text-sm font-medium text-gray-700 truncate mr-2" title="${d.tipo} - ${d.nome_arquivo}">
+                                    <span class="text-sm font-medium text-gray-700 truncate mr-2" title="${d.tipo}">
                                         <i class="far fa-file-pdf text-red-500 mr-1"></i> ${d.tipo}
                                     </span>
-                                    <a href="/api/publico/credenciamento/${token}/doc/${d.id}" target="_blank" class="btn-download text-xs" title="Baixar ${d.nome_arquivo}">
-                                        <i class="fas fa-download"></i>
-                                    </a>
-                                </div>
-                            `).join('')
+                                    ${docUrl
+                                        ? `<a href="${docUrl}" target="_blank" class="btn-download text-xs" title="Baixar">
+                                               <i class="fas fa-download"></i>
+                                           </a>`
+                                        : `<span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded" title="Acesse pelo sistema">No sistema</span>`
+                                    }
+                                </div>`;
+                              }).join('')
                             : '<p class="text-gray-500 text-sm italic col-span-full">Nenhum documento anexado ao prontuário.</p>'}
                     </div>
                 </div>
@@ -193,6 +200,12 @@
         }
 
         // ── Baixar Todos como ZIP ─────────────────────────────────────────────
+        const sanitize = s => (s || 'arquivo')
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove acentos
+            .replace(/[^a-zA-Z0-9 _\-\.]/g, '_')             // remove chars inválidos
+            .replace(/\s+/g, '_')
+            .substring(0, 60);
+
         async function baixarTodos() {
             if (!_credData || !_token) return;
             const btn = document.getElementById('btn-baixar-todos');
@@ -202,15 +215,25 @@
             try {
                 const zip = new JSZip();
                 const fetches = [];
+                let totalAdded = 0;
 
-                // Documentos dos colaboradores
+                // Documentos dos colaboradores (exceto EPI sem download direto)
                 (_credData.colaboradores || []).forEach(c => {
-                    (c.documentos || []).forEach(d => {
-                        const fname = `Colaboradores/${c.nome}/${d.tipo}.pdf`;
+                    const nomeColab = sanitize(c.nome);
+                    (c.documentos || []).filter(d => !d.is_epi).forEach(d => {
+                        const nomeTipo = sanitize(d.tipo);
+                        const nomeArq = d.nome_arquivo ? sanitize(d.nome_arquivo) : `${nomeTipo}.pdf`;
+                        const fname = `Colaboradores/${nomeColab}/${nomeArq}`;
                         fetches.push(
                             fetch(`/api/publico/credenciamento/${_token}/doc/${d.id}`)
-                                .then(r => r.ok ? r.blob() : null)
-                                .then(blob => blob && zip.file(fname, blob))
+                                .then(r => {
+                                    if (!r.ok) return null;
+                                    const ct = r.headers.get('content-type') || '';
+                                    // Aceitar PDF ou octet-stream
+                                    if (!ct.includes('pdf') && !ct.includes('octet') && !ct.includes('application')) return null;
+                                    return r.blob();
+                                })
+                                .then(blob => { if (blob) { zip.file(fname, blob); totalAdded++; } })
                                 .catch(() => null)
                         );
                     });
@@ -218,27 +241,32 @@
 
                 // CRLV dos veículos
                 (_credData.veiculos || []).filter(v => v.has_crlv).forEach(v => {
-                    const fname = `Veiculos/CRLV_${v.placa}.pdf`;
+                    const fname = `Veiculos/CRLV_${sanitize(v.placa)}.pdf`;
                     fetches.push(
                         fetch(`/api/publico/credenciamento/${_token}/crlv/${v.id}`)
                             .then(r => r.ok ? r.blob() : null)
-                            .then(blob => blob && zip.file(fname, blob))
+                            .then(blob => { if (blob) { zip.file(fname, blob); totalAdded++; } })
                             .catch(() => null)
                     );
                 });
 
                 // Licenças
                 (_credData.licencas || []).filter(l => l.file_name).forEach(l => {
-                    const fname = `Licencas/${l.nome.replace(/[^a-zA-Z0-9 ]/g, '')}.pdf`;
+                    const fname = `Licencas/${sanitize(l.nome)}.pdf`;
                     fetches.push(
                         fetch(`/api/publico/credenciamento/${_token}/licenca/${l.id}`)
                             .then(r => r.ok ? r.blob() : null)
-                            .then(blob => blob && zip.file(fname, blob))
+                            .then(blob => { if (blob) { zip.file(fname, blob); totalAdded++; } })
                             .catch(() => null)
                     );
                 });
 
                 await Promise.all(fetches);
+
+                if (totalAdded === 0) {
+                    alert('Nenhum arquivo disponível para download no momento.');
+                    return;
+                }
 
                 const zipBlob = await zip.generateAsync({ type: 'blob' });
                 const url = URL.createObjectURL(zipBlob);
