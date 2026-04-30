@@ -1244,3 +1244,104 @@ body {
     color: var(--primary-color) !important;
     font-weight: 900 !important;
 }
+
+/* ═══════════════════════════════════════════════
+   MÓDULO LICENÇAS
+   ═══════════════════════════════════════════════ */
+.licenca-tab-btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 0.6rem 1.2rem; border: none; cursor: pointer;
+    background: none; font-size: 0.88rem; font-weight: 600;
+    color: #64748b; border-bottom: 3px solid transparent;
+    transition: all 0.2s; border-radius: 4px 4px 0 0;
+    font-family: inherit;
+}
+.licenca-tab-btn:hover { color: var(--tab-color, #d9480f); background: #f8fafc; }
+.licenca-tab-btn.active { color: var(--tab-color, #d9480f); background: #fff; }
+
+.licencas-alert-bar {
+    display: flex; gap: 8px; flex-wrap: wrap;
+    margin-bottom: 1.25rem;
+}
+.licencas-alert-chip {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 14px; border-radius: 20px;
+    font-size: 0.8rem; font-weight: 600;
+}
+
+.licencas-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 1rem;
+}
+
+.licenca-card {
+    position: relative; border-radius: 12px; overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+    transition: box-shadow 0.2s, transform 0.2s;
+    background: #fff;
+}
+.licenca-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.12); transform: translateY(-2px); }
+.licenca-card-empty { opacity: 0.85; }
+
+.licenca-status-strip {
+    position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+}
+
+.licenca-card-body { padding: 1rem 1rem 0.85rem 1.25rem; }
+
+.licenca-card-header {
+    display: flex; align-items: flex-start; gap: 0.75rem;
+    margin-bottom: 0.6rem;
+}
+
+.licenca-doc-icon {
+    width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem;
+}
+
+.licenca-doc-nome {
+    font-weight: 700; color: #1e293b; font-size: 0.9rem;
+    line-height: 1.3;
+}
+
+.licenca-empresa-badge {
+    display: inline-block; font-size: 0.68rem; font-weight: 600;
+    padding: 1px 8px; border-radius: 10px; margin-top: 3px;
+    white-space: nowrap;
+}
+
+.licenca-status-badge {
+    display: flex; align-items: center; gap: 4px;
+    font-size: 0.72rem; font-weight: 700; padding: 3px 10px;
+    border-radius: 20px; white-space: nowrap; flex-shrink: 0;
+}
+
+.licenca-validade-row {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 0.82rem; color: #475569; margin-bottom: 0.6rem;
+}
+.licenca-validade-row strong { color: #1e293b; }
+.licenca-upload-date { color: #94a3b8; font-size: 0.75rem; }
+
+.licenca-card-actions {
+    display: flex; gap: 6px; align-items: center;
+    padding-top: 0.6rem; border-top: 1px solid #f1f5f9;
+    flex-wrap: wrap;
+}
+
+.licenca-btn {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 0.3rem 0.75rem; border-radius: 6px; font-size: 0.78rem;
+    font-weight: 600; cursor: pointer; border: 1px solid transparent;
+    transition: all 0.15s; font-family: inherit;
+}
+.licenca-btn-view   { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+.licenca-btn-view:hover { background: #dbeafe; }
+.licenca-btn-edit   { background: #fff7ed; color: #c2410c; border-color: #fed7aa; }
+.licenca-btn-edit:hover { background: #ffedd5; }
+.licenca-btn-del    { background: #fef2f2; color: #dc2626; border-color: #fecaca; padding: 0.3rem 0.5rem; }
+.licenca-btn-del:hover { background: #fee2e2; }
+.licenca-btn-upload { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
+.licenca-btn-upload:hover { background: #dcfce7; }

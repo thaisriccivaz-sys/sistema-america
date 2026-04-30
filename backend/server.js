@@ -311,6 +311,21 @@ db.run("ALTER TABLE credenciamentos ADD COLUMN docs_exigidos TEXT DEFAULT '[]'",
     // Ignora erro de coluna ja existente (expected)
 });
 
+// MIGRATION: Criar tabela de licencas empresariais
+db.run(`CREATE TABLE IF NOT EXISTS licencas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    empresa TEXT NOT NULL,
+    nome TEXT NOT NULL,
+    validade TEXT,
+    file_path TEXT,
+    file_name TEXT,
+    updated_at TEXT DEFAULT (datetime('now')),
+    created_at TEXT DEFAULT (datetime('now'))
+)`, (err) => {
+    if (err) console.error('[MIGRATION] Erro ao criar tabela licencas:', err.message);
+    else console.log('[MIGRATION] Tabela licencas verificada/criada.');
+});
+
 // MIGRATION: Excluir gerador Ordem de Servico (29/04/2026, substituido pela NR1)
 db.run(`DELETE FROM geradores WHERE UPPER(TRIM(nome)) LIKE '%ORDEM DE SERVI%'`, (err) => {
     if (err) console.error('[MIGRATION] Erro ao excluir gerador Ordem de Servico:', err.message);
@@ -9556,5 +9571,93 @@ app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
     console.log('Versão do Servidor: V31_OS_LOGISTICA_MODULE');
     console.log(`Caminho de Armazenamento Local: ${BASE_UPLOAD_PATH}`);
+});
+
+
+// ═══════════════════════════════════════════════════════════
+//  ROTAS DE LICENCAS EMPRESARIAIS
+// ═══════════════════════════════════════════════════════════
+
+const LICENCAS_UPLOAD_PATH = path.join(BASE_UPLOAD_PATH, 'LICENCAS');
+if (!fs.existsSync(LICENCAS_UPLOAD_PATH)) fs.mkdirSync(LICENCAS_UPLOAD_PATH, { recursive: true });
+
+app.get('/api/licencas', authenticateToken, (req, res) => {
+    db.all('SELECT * FROM licencas ORDER BY empresa, nome', [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+app.post('/api/licencas', authenticateToken, upload.single('file'), (req, res) => {
+    const { empresa, nome, validade } = req.body;
+    if (!empresa || !nome) return res.status(400).json({ error: 'Empresa e nome sao obrigatorios.' });
+    if (!req.file) return res.status(400).json({ error: 'Arquivo PDF obrigatorio.' });
+    const empresaDir = path.join(LICENCAS_UPLOAD_PATH, empresa.toUpperCase().replace(/[^A-Z0-9]/g, '_'));
+    if (!fs.existsSync(empresaDir)) fs.mkdirSync(empresaDir, { recursive: true });
+    const ext = path.extname(req.file.originalname) || '.pdf';
+    const safeName = nome.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]/g,'_').toUpperCase();
+    const fileName = safeName + ext;
+    const filePath = path.join(empresaDir, fileName);
+    fs.writeFileSync(filePath, req.file.buffer);
+    const relPath = path.relative(path.join(BASE_UPLOAD_PATH, '..', '..'), filePath).replace(/\\/g, '/');
+    db.run('INSERT INTO licencas (empresa, nome, validade, file_path, file_name, updated_at, created_at) VALUES (?, ?, ?, ?, ?, datetime("now"), datetime("now"))',
+        [empresa, nome, validade || null, relPath, fileName],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ id: this.lastID, message: 'Licenca salva.' });
+        }
+    );
+});
+
+app.put('/api/licencas/:id', authenticateToken, upload.single('file'), (req, res) => {
+    const id = req.params.id;
+    db.get('SELECT * FROM licencas WHERE id = ?', [id], (err, row) => {
+        if (err || !row) return res.status(404).json({ error: 'Licenca nao encontrada.' });
+        const validade = req.body.validade !== undefined ? req.body.validade : row.validade;
+        let filePath = row.file_path; let fileName = row.file_name;
+        if (req.file) {
+            const empresaDir = path.join(LICENCAS_UPLOAD_PATH, row.empresa.toUpperCase().replace(/[^A-Z0-9]/g, '_'));
+            if (!fs.existsSync(empresaDir)) fs.mkdirSync(empresaDir, { recursive: true });
+            const ext = path.extname(req.file.originalname) || '.pdf';
+            const safeName = row.nome.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]/g,'_').toUpperCase();
+            fileName = safeName + ext;
+            const absolutePath = path.join(empresaDir, fileName);
+            fs.writeFileSync(absolutePath, req.file.buffer);
+            filePath = path.relative(path.join(BASE_UPLOAD_PATH, '..', '..'), absolutePath).replace(/\\/g, '/');
+        }
+        db.run('UPDATE licencas SET validade = ?, file_path = ?, file_name = ?, updated_at = datetime("now") WHERE id = ?',
+            [validade || null, filePath, fileName, id],
+            (err2) => {
+                if (err2) return res.status(500).json({ error: err2.message });
+                res.json({ message: 'Licenca atualizada.' });
+            }
+        );
+    });
+});
+
+app.delete('/api/licencas/:id', authenticateToken, (req, res) => {
+    db.get('SELECT * FROM licencas WHERE id = ?', [req.params.id], (err, row) => {
+        if (err || !row) return res.status(404).json({ error: 'Licenca nao encontrada.' });
+        if (row.file_path) {
+            const absPath = path.resolve(__dirname, '..', '..', row.file_path);
+            if (fs.existsSync(absPath)) { try { fs.unlinkSync(absPath); } catch(e){} }
+        }
+        db.run('DELETE FROM licencas WHERE id = ?', [req.params.id], (err2) => {
+            if (err2) return res.status(500).json({ error: err2.message });
+            res.json({ message: 'Licenca excluida.' });
+        });
+    });
+});
+
+app.get('/api/licencas/:id/view', authenticateToken, (req, res) => {
+    db.get('SELECT * FROM licencas WHERE id = ?', [req.params.id], (err, row) => {
+        if (err || !row) return res.status(404).send('Licenca nao encontrada.');
+        if (!row.file_path) return res.status(404).send('Arquivo nao anexado.');
+        const absPath = path.resolve(__dirname, '..', '..', row.file_path);
+        if (!fs.existsSync(absPath)) return res.status(404).send('Arquivo fisico nao encontrado.');
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', 'inline; filename="' + row.file_name + '"');
+        res.sendFile(absPath);
+    });
 });
 

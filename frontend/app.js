@@ -655,6 +655,7 @@ const TAB_META = {
     'comercial-em-breve':     { color: '#7048e8', icon: 'ph-handshake',      title: 'Comercial' },
     // Administrativo - Amarelo
     'admin-em-breve':         { color: '#e67700', icon: 'ph-gear',           title: 'Administrativo' },
+    'licencas':               { color: '#e67700', icon: 'ph-certificate',    title: 'Licenças' },
 };
 
 function getTabMeta(target) {
@@ -829,6 +830,8 @@ function navigateTo(target) {
         if (typeof initMultasLogistica === 'function') setTimeout(() => initMultasLogistica(), 80);
     } else if (target === 'logistica-frota') {
         if (typeof window.initFrotaVeiculos === 'function') setTimeout(() => window.initFrotaVeiculos(), 80);
+    } else if (target === 'licencas') {
+        if (typeof window.initLicencas === 'function') setTimeout(() => window.initLicencas(), 80);
     }
 }
 

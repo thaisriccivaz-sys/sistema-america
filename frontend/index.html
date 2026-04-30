@@ -144,7 +144,7 @@
                 </button>
                 <div class="dept-submenu">
                     <div class="dept-submenu-header" style="color:#e67700;"><i class="ph ph-gear"></i> Administrativo</div>
-                    <a href="#" class="nav-item" data-target="admin-em-breve" style="color:#94a3b8;pointer-events:none;"><i class="ph ph-hourglass"></i> Em breve...</a>
+                    <a href="#" class="nav-item" data-target="licencas" onclick="navigateTo('licencas'); return false;"><i class="ph ph-certificate"></i> Licen&ccedil;as</a>
                 </div>
             </div>
 
@@ -1750,6 +1750,27 @@
                     </div>
                 </section>
 
+                <!-- VIEW: LICENÇAS -->
+                <section id="view-licencas" class="content-view">
+                    <div class="page-header flex-between" style="position:sticky; top:60px; z-index:20; background:var(--bg-main); padding:1.25rem 0; margin-top:-1.5rem; margin-bottom:2rem; border-bottom:1px solid var(--border-color);">
+                        <div style="display:flex; align-items:center; gap:1.5rem;">
+                            <div style="width:60px; height:60px; border-radius:50%; border:2px dashed #e67700; display:flex; align-items:center; justify-content:center; background:#fff5e6; color:#e67700; font-size:1.8rem;">
+                                <i class="ph ph-certificate"></i>
+                            </div>
+                            <div>
+                                <h1 style="margin:0; font-size:1.6rem; font-weight:700; color:#334155;">Gest&atilde;o de Licen&ccedil;as</h1>
+                                <p style="margin:4px 0 0; color:#64748b; font-size:0.88rem;">Controle de validade de licen&ccedil;as e alvar&aacute;s por empresa.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Abas de empresas -->
+                    <div id="licencas-tabs" style="display:flex; gap:4px; border-bottom:2px solid #e2e8f0; margin-bottom:1.5rem; flex-wrap:wrap;"></div>
+
+                    <!-- Conteúdo dinâmico -->
+                    <div id="licencas-content"></div>
+                </section>
+
                 <!-- VIEW: GERADORES -->
                 <section id="view-geradores" class="content-view">
                     <div class="page-header flex-between">
@@ -2902,6 +2923,7 @@
     <script src="multas_logistica.js?v=30"></script>
     <script src="frota.js?v=3"></script>
     <script src="credenciamento.js"></script>
+    <script src="licencas.js?v=1"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="rota_redonda.js?v=22"></script>
