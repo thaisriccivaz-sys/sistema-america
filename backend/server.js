@@ -1584,7 +1584,7 @@ app.get('/api/dashboard/charts', authenticateToken, async (req, res) => {
             future.setDate(today.getDate() + 30);
             
             const query = `
-                SELECT c.nome_completo as nome, d.vencimento, c.aso_email_enviado, c.aso_exame_data 
+                SELECT c.id, c.nome_completo as nome, d.vencimento, c.aso_email_enviado, c.aso_exame_data 
                 FROM documentos d 
                 JOIN colaboradores c ON c.id = d.colaborador_id 
                 WHERE (d.tab_name LIKE '%ASO%' OR d.document_type LIKE '%ASO%')
