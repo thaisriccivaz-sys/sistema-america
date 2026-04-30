@@ -461,6 +461,7 @@ const BREADCRUMB_MAP = {
     'logistica-pipeline':     { path: 'Pipeline OS',                                               code: 'LOG003' },
     'logistica-multas':       { path: 'Multas',                                                    code: 'LOG004' },
     'logistica-frota':        { path: 'Frota',                                                     code: 'LOG005' },
+    'logistica-credenciamento': { path: 'Credenciamento',                                          code: 'LOG006' },
 };
 
 window.carregarPermissoesOnline = async function() {
@@ -595,7 +596,7 @@ function updateBreadcrumb(key) {
     const starBtn = document.getElementById('btn-star-page');
     if (starBtn && entryObj) {
         starBtn.style.color = pageColor;
-        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-pipeline' || key === 'logistica-frota';
+        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-pipeline' || key === 'logistica-frota' || key === 'logistica-credenciamento';
         if (isSimplePage) {
             starBtn.style.display = 'flex';
         } else {
@@ -650,6 +651,7 @@ const TAB_META = {
     'logistica-pipeline':    { color: '#2d9e5f', icon: 'ph-kanban',       title: 'Pipeline' },
     'logistica-multas':      { color: '#2d9e5f', icon: 'ph-receipt',      title: 'Multas' },
     'logistica-frota':       { color: '#2d9e5f', icon: 'ph-truck',        title: 'Frota' },
+    'logistica-credenciamento': { color: '#2d9e5f', icon: 'ph-identification-card', title: 'Credenciamento' },
     // Financeiro - Azul
     'financeiro-em-breve':    { color: '#1971c2', icon: 'ph-currency-dollar', title: 'Financeiro' },
     // Comercial - Roxo
