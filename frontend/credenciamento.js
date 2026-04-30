@@ -449,15 +449,31 @@ window.carregarHistoricoCredenciamento = async function() {
             let colabs = []; try { colabs = JSON.parse(cred.colaboradores_ids || '[]'); } catch(e){}
             let veics = []; try { veics = JSON.parse(cred.veiculos_ids || '[]'); } catch(e){}
             let licencas = []; try { licencas = JSON.parse(cred.licencas_ids || '[]'); } catch(e){}
+            let docs = []; try { docs = JSON.parse(cred.docs_exigidos || '[]'); } catch(e){}
             
-            // Format Data/Hora
+            // Format Data/Hora do Envio
             const dt = new Date(cred.created_at);
-            const dtFormatada = dt.toLocaleDateString('pt-BR') + ' ' + dt.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+            const dtFormatada = dt.toLocaleDateString('pt-BR') + ' às ' + dt.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
             
             // Textos resumos
-            const colabsText = colabs.map(c => `• ${c.nome}`).join('<br>') || '<span style="color:#94a3b8;">Nenhum</span>';
-            const veicsText = veics.map(v => `• ${v.placa}`).join('<br>') || '<span style="color:#94a3b8;">Nenhum</span>';
-            const licencasText = licencas.map(l => `• ${l.nome}`).join('<br>') || '<span style="color:#94a3b8;">Nenhuma</span>';
+            const docNames = {
+                'cnh': 'CNH', 'cpf': 'CPF', 'aso': 'ASO', 'ficha_registro': 'Ficha de Registro',
+                'treinamento': 'Carteira de Vacinação', 'epi': 'Ficha de EPI',
+                'contrato_esocial': 'Contrato e-social', 'nr1': 'NR1 / Ordem de Serviço'
+            };
+            const docsStr = docs.length > 0 ? docs.map(d => docNames[d] || d).join(', ') : 'Apenas cadastro';
+            
+            const colabsText = colabs.length > 0 
+                ? colabs.map(c => `<span title="Documentos enviados: ${docsStr}" style="cursor:help; border-bottom:1px dotted #94a3b8;">• ${c.nome}</span>`).join('<br>') 
+                : '<span style="color:#94a3b8;">Nenhum</span>';
+                
+            const veicsText = veics.length > 0 
+                ? `<span title="${veics.map(v => '• ' + v.placa + ' (CRLV)').join('&#10;')}" style="cursor:help; border-bottom:1px dotted #94a3b8; font-weight:600; color:#0f172a;">Enviados (${veics.length})</span>` 
+                : '<span style="color:#94a3b8;">Nenhum</span>';
+                
+            const licencasText = licencas.length > 0 
+                ? `<span title="${licencas.map(l => '• ' + l.nome).join('&#10;')}" style="cursor:help; border-bottom:1px dotted #94a3b8; font-weight:600; color:#0f172a;">Enviadas (${licencas.length})</span>` 
+                : '<span style="color:#94a3b8;">Nenhuma</span>';
             
             // Status do Link
             const validade = new Date(cred.valid_until);
@@ -465,24 +481,25 @@ window.carregarHistoricoCredenciamento = async function() {
             
             let statusBadge = '';
             if (expirado) {
-                statusBadge = '<span style="padding:2px 8px; border-radius:12px; background:#fee2e2; color:#dc2626; font-size:0.75rem; font-weight:700;"><i class="ph ph-x-circle"></i> Expirado</span>';
+                statusBadge = `<span style="color:#dc2626; font-weight:600;"><i class="ph ph-x-circle"></i> Expirado</span>`;
             } else if (cred.acessado_em) {
-                statusBadge = '<span style="padding:2px 8px; border-radius:12px; background:#dcfce7; color:#16a34a; font-size:0.75rem; font-weight:700;" title="Acessado em ' + new Date(cred.acessado_em).toLocaleString('pt-BR') + '"><i class="ph ph-check-circle"></i> Acessado</span>';
+                const acessDt = new Date(cred.acessado_em);
+                const acessStr = acessDt.toLocaleDateString('pt-BR') + ' às ' + acessDt.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+                statusBadge = `<span style="color:#16a34a; font-weight:600;"><i class="ph ph-check-circle"></i> Acessado em ${acessStr}</span>`;
             } else {
-                statusBadge = '<span style="padding:2px 8px; border-radius:12px; background:#e0e7ff; color:#4f46e5; font-size:0.75rem; font-weight:700;"><i class="ph ph-paper-plane-right"></i> Enviado (Pendente)</span>';
+                statusBadge = `<span style="color:#4f46e5; font-weight:600;"><i class="ph ph-paper-plane-right"></i> Enviado em ${dtFormatada}</span>`;
             }
 
             return `
             <tr>
-                <td style="white-space:nowrap; font-weight:500;">${dtFormatada}</td>
                 <td>
                     <b>${cred.cliente_nome}</b><br>
                     <span style="font-size:0.8rem; color:#64748b;">${cred.cliente_email}</span>
                 </td>
-                <td style="font-size:0.8rem; line-height:1.4;">${colabsText}</td>
-                <td style="font-size:0.8rem; line-height:1.4;">${veicsText}</td>
-                <td style="font-size:0.8rem; line-height:1.4;">${licencasText}</td>
-                <td>${statusBadge}</td>
+                <td style="font-size:0.8rem; line-height:1.6;">${colabsText}</td>
+                <td style="font-size:0.8rem; line-height:1.6;">${veicsText}</td>
+                <td style="font-size:0.8rem; line-height:1.6;">${licencasText}</td>
+                <td style="font-size:0.85rem;">${statusBadge}</td>
                 <td style="text-align:right; white-space:nowrap;">
                     <a href="/credenciamento-publico.html?token=${cred.token}" target="_blank" class="btn btn-outline" style="padding:4px 8px; font-size:12px; margin-right:4px;" title="Testar / Visualizar Link">
                         <i class="ph ph-link"></i> Link
