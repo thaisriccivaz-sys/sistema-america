@@ -9612,6 +9612,17 @@ app.post('/api/licencas/extrair-validade', authenticateToken, uploadFoto.single(
             }
         }
         
+        // 0b. Caso especial: CLI / Alvará — priorizar "DATA DE VALIDADE" (ignora "DATA DA SOLICITAÇÃO")
+        if (docNome.includes('CLI') || docNome.includes('ALVAR')) {
+            const matchValidade = text.match(/DATA\s+DE\s+VALIDADE[\s\S]{0,50}?(\d{2}[\/\.-]\d{2}[\/\.-]\d{4})/i);
+            if (matchValidade && matchValidade[1]) {
+                const parts = matchValidade[1].split(/[\/\.-]/);
+                if (parts.length === 3) {
+                    return res.json({ validade: `${parts[2]}-${parts[1]}-${parts[0]}` });
+                }
+            }
+        }
+
         // 1. Tenta achar data próxima a palavras chaves (busca até 100 caracteres à frente suportando quebras de linha)
         const matchKeyword = text.match(/(?:v[aá]lido\s+at[eé]|validade|vencimento|expira|vence|venc)[\s\S]{0,100}?(\d{2}[\/\.-]\d{2}[\/\.-]\d{4})/i);
         if (matchKeyword && matchKeyword[1]) {
