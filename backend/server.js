@@ -319,11 +319,18 @@ db.run(`CREATE TABLE IF NOT EXISTS licencas (
     validade TEXT,
     file_path TEXT,
     file_name TEXT,
+    last_alert_date TEXT,
+    alerta_3_meses_enviado INTEGER DEFAULT 0,
     updated_at TEXT DEFAULT (datetime('now')),
     created_at TEXT DEFAULT (datetime('now'))
 )`, (err) => {
     if (err) console.error('[MIGRATION] Erro ao criar tabela licencas:', err.message);
-    else console.log('[MIGRATION] Tabela licencas verificada/criada.');
+    else {
+        console.log('[MIGRATION] Tabela licencas verificada/criada.');
+        // Adicionar colunas caso a tabela já exista
+        db.run("ALTER TABLE licencas ADD COLUMN last_alert_date TEXT", (err1) => {});
+        db.run("ALTER TABLE licencas ADD COLUMN alerta_3_meses_enviado INTEGER DEFAULT 0", (err2) => {});
+    }
 });
 
 // MIGRATION: Excluir gerador Ordem de Servico (29/04/2026, substituido pela NR1)
@@ -8246,6 +8253,7 @@ cron.schedule('0 8 * * *', () => {
     verificarExperienciasVencendo();
     verificarAtestadosVencidos();
     verificarCRLVVencidoCron();
+    verificarLicencasVencimentoCron();
 }, { timezone: 'America/Sao_Paulo' });
 
 // Roda à meia-noite (00:01) para retornar colaboradores de atestado vencido
@@ -9661,3 +9669,119 @@ app.get('/api/licencas/:id/view', authenticateToken, (req, res) => {
     });
 });
 
+
+function verificarLicencasVencimentoCron() {
+    console.log('[CRON] Verificando vencimento de Licencas Empresariais...');
+    db.all(`SELECT * FROM licencas WHERE validade IS NOT NULL AND validade != ''`, [], (err, licencas) => {
+        if (err) { console.error('[CRON Licencas]', err.message); return; }
+        
+        const hoje = new Date();
+        hoje.setHours(0,0,0,0);
+        
+        db.get(`SELECT (SELECT email_corporativo FROM colaboradores WHERE id = d.responsavel_id) as email 
+                FROM departamentos d WHERE LOWER(TRIM(d.nome)) = 'administrativo' LIMIT 1`, [], async (errD, rowD) => {
+            
+            const emailDestino = (rowD && rowD.email) ? rowD.email : 'roberta@americarental.com.br'; // Fallback
+            if (!emailDestino) {
+                console.log('[CRON Licencas] Email do Administrativo nao encontrado.');
+                return;
+            }
+
+            for (const lic of licencas) {
+                const dataValidade = new Date(lic.validade + 'T12:00:00');
+                const diffDias = Math.ceil((dataValidade - hoje) / 86400000);
+                
+                // Regras de envio
+                const envio3Meses = ['PCMSO', 'ALVARÁ', 'AVCB', 'CADRI', 'CLI', 'Licença de Operação', 'CETESB', 'LTCAT', 'LI - Licença de Instalação', 'LO - Licença de Operação', 'Declaração de Contrato', 'Declaração de Vigência', 'Contrato', 'Alvará', 'LO'];
+                const envioDia = ['CND Estadual', 'CND Federal', 'CND Municipal', 'CND Trabalhista', 'CTF IBAMA'];
+                
+                const nomeNorm = lic.nome.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+                const tipo3Meses = envio3Meses.some(n => n.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim() === nomeNorm);
+                const tipoDia = envioDia.some(n => n.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim() === nomeNorm);
+                
+                let deveEnviar = false;
+                
+                if (tipo3Meses) {
+                    if (diffDias <= 90) {
+                        // Verifica se ja enviou nos ultimos 15 dias
+                        if (!lic.last_alert_date) {
+                            deveEnviar = true;
+                        } else {
+                            const lastAlert = new Date(lic.last_alert_date);
+                            const diffLastAlert = Math.ceil((hoje - lastAlert) / 86400000);
+                            if (diffLastAlert >= 15) deveEnviar = true;
+                        }
+                    }
+                } else if (tipoDia) {
+                    if (diffDias === 0 && !lic.last_alert_date) {
+                        deveEnviar = true;
+                    }
+                }
+                
+                if (deveEnviar) {
+                    await dispararEmailLicenca(lic, diffDias, emailDestino);
+                    db.run('UPDATE licencas SET last_alert_date = ? WHERE id = ?', [new Date().toISOString(), lic.id]);
+                }
+            }
+        });
+    });
+}
+
+async function dispararEmailLicenca(lic, diffDias, emailDestino) {
+    const transporter = nodemailer.createTransport(SMTP_CONFIG);
+    const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+    
+    let statusText = '';
+    let colorTheme = '';
+    
+    if (diffDias < 0) {
+        statusText = 'VENCIDO HÁ ' + Math.abs(diffDias) + ' DIAS';
+        colorTheme = '#c0392b';
+    } else if (diffDias === 0) {
+        statusText = 'VENCE HOJE';
+        colorTheme = '#d35400';
+    } else {
+        statusText = 'VENCE EM ' + diffDias + ' DIAS';
+        colorTheme = '#f39c12';
+    }
+    
+    const validadeFormatada = lic.validade.split('-').reverse().join('/');
+    
+    const htmlContent = `
+        <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px;">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <img src="cid:empresa-logo" style="max-height: 80px;">
+            </div>
+            <h2 style="color: ${colorTheme}; border-bottom: 2px solid ${colorTheme}; padding-bottom: 10px;">Aviso de Vencimento de Licença</h2>
+            <p>O documento <strong>${lic.nome}</strong> da empresa <strong>${lic.empresa}</strong> exige sua atenção.</p>
+            
+            <div style="background: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid ${colorTheme};">
+                <p style="margin: 5px 0;"><strong>Empresa:</strong> ${lic.empresa}</p>
+                <p style="margin: 5px 0;"><strong>Documento:</strong> ${lic.nome}</p>
+                <p style="margin: 5px 0;"><strong>Data de Validade:</strong> ${validadeFormatada}</p>
+                <p style="margin: 5px 0; color: ${colorTheme}; font-weight: bold; font-size: 1.1em;">Status: ${statusText}</p>
+            </div>
+
+            <div style="margin-top: 30px; padding: 15px; border: 2px solid #3498db; border-radius: 8px; background: #ebf5fb; text-align: center;">
+                <p style="color: #2980b9; font-weight: bold; margin: 0;">
+                    Por favor, acesse o módulo Administrativo > Licenças e faça o upload do documento atualizado no sistema.
+                </p>
+            </div>
+
+            <p style="margin-top: 30px; font-size: 0.9em; color: #7f8c8d;">Atenciosamente,<br>Sistema América Rental</p>
+        </div>
+    `;
+
+    try {
+        await transporter.sendMail({
+            from: '"América Rental Administrativo" <' + SMTP_CONFIG.auth.user + '>',
+            to: emailDestino,
+            subject: `[Aviso] Vencimento: ${lic.nome} - ${lic.empresa}`,
+            html: htmlContent,
+            attachments: [{ filename: 'logo.png', path: logoPath, cid: 'empresa-logo' }]
+        });
+        console.log(`[CRON Licencas] Alerta enviado para ${emailDestino} sobre ${lic.nome}`);
+    } catch (e) {
+        console.error('[CRON Licencas] Erro ao enviar e-mail:', e.message);
+    }
+}
