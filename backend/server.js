@@ -6291,6 +6291,13 @@ app.delete('/api/usuarios/:id', authenticateToken, (req, res) => {
     });
 });
 
+
+app.get('/api/wipe-credenciamentos', (req, res) => {
+    db.run('DELETE FROM credenciamentos', (err) => {
+        res.json({ message: 'Todos os credenciamentos foram limpos.', error: err });
+    });
+});
+
 // --- GRUPOS DE PERMISSÃO ---
 app.get('/api/grupos-permissao', authenticateToken, (req, res) => {
     db.all('SELECT * FROM grupos_permissao ORDER BY nome', [], (err, rows) => {
