@@ -9304,7 +9304,7 @@ app.get('/api/frota/veiculos/alertas/vencimento', authenticateToken, (req, res) 
 // =====================================================================
 
 app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
-    const { cliente_nome, cliente_email, colaboradores, veiculos, docs_exigidos } = req.body;
+    const { cliente_nome, cliente_email, colaboradores, veiculos, docs_exigidos, licencas } = req.body;
     if (!cliente_nome || !cliente_email) return res.status(400).json({ error: 'Nome e email são obrigatórios.' });
 
     const colabIds = (colaboradores || []).map(c => c.id).filter(id => !isNaN(id) && id > 0);
@@ -9384,6 +9384,17 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
                 }).join('');
                 let htmlVeic = (veiculos||[]).map(v => `<li>Placa: ${v.placa} - ${v.modelo}</li>`).join('');
 
+                // Montar bloco de licenças para o e-mail
+                let htmlLicencas = '';
+                if (licencas && licencas.length > 0) {
+                    const licRows = licencas.map(l => {
+                        const valStr = l.validade ? l.validade.split('-').reverse().join('/') : 'Sem vencimento';
+                        return `<li><b>${l.nome}</b> (${l.empresa}) — Válida até: ${valStr}</li>`;
+                    }).join('');
+                    htmlLicencas = `<h3>Licenças da Empresa</h3><ul>${licRows}</ul>`;
+                }
+
+
                 const mailOptions = {
                     from: process.env.EMAIL_USER,
                     to: cliente_email,
@@ -9402,6 +9413,7 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
                                 
                                 ${htmlCols ? `<h3>Colaboradores</h3><ul>${htmlCols}</ul>` : ''}
                                 ${htmlVeic ? `<h3>Veículos</h3><ul>${htmlVeic}</ul>` : ''}
+                                ${htmlLicencas}
                                 
                                 <p>Para baixar os documentos correspondentes (RG, CNH, ASO, CRLV, etc.), acesse o link seguro abaixo. <b>O link é válido por 7 dias.</b></p>
                                 <div style="text-align: center; margin: 30px 0;">
