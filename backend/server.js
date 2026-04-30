@@ -9488,12 +9488,11 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
         const validUntil = new Date(cred.valid_until);
         if (new Date() > validUntil) {
             return res.status(403).json({ error: 'Este link de credenciamento já expirou (validade de 7 dias).' });
-
+        }
 
         // Registrar primeiro acesso do cliente
         if (!cred.acessado_em) {
             db.run('UPDATE credenciamentos SET acessado_em = ? WHERE id = ?', [new Date().toISOString(), cred.id], () => {});
-        }
         }
 
         let colabs = [];
