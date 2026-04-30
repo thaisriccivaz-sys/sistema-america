@@ -305,6 +305,12 @@ db.get("SELECT * FROM geradores WHERE nome = 'NR1'", (err, row) => {
     }
 });
 
+// MIGRATION: Adicionar coluna docs_exigidos na tabela credenciamentos (se nao existir)
+db.run("ALTER TABLE credenciamentos ADD COLUMN docs_exigidos TEXT DEFAULT '[]'", (err) => {
+    if (!err) console.log('[MIGRATION] Coluna docs_exigidos adicionada na tabela credenciamentos.');
+    // Ignora erro de coluna ja existente (expected)
+});
+
 // MIGRATION: Excluir gerador Ordem de Servico (29/04/2026, substituido pela NR1)
 db.run(`DELETE FROM geradores WHERE UPPER(TRIM(nome)) LIKE '%ORDEM DE SERVI%'`, (err) => {
     if (err) console.error('[MIGRATION] Erro ao excluir gerador Ordem de Servico:', err.message);
