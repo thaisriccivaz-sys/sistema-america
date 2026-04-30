@@ -13,9 +13,9 @@ window.abrirModalSolicitarCredenciamento = async function(id = null) {
         licContainer.innerHTML = '<p>Carregando...</p>';
         try {
             const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
-            const res = await fetch('/api/licencas', { headers: { 'Authorization': \`Bearer \${token}\` } });
+            const res = await fetch('/api/licencas', { headers: { 'Authorization': `Bearer ${token}` } });
             const licencas = await res.json();
-            licContainer.innerHTML = licencas.map(l => \`<div><label><input type="checkbox" name="solic_licencas" value="\${l.id}" data-nome="\${l.nome}"> \${l.nome}</label></div>\`).join('');
+            licContainer.innerHTML = licencas.map(l => `<div><label><input type="checkbox" name="solic_licencas" value="${l.id}" data-nome="${l.nome}"> ${l.nome}</label></div>`).join('');
         } catch (e) {
             licContainer.innerHTML = '<p style="color:red;">Erro ao carregar licenças.</p>';
         }
@@ -100,12 +100,12 @@ window.salvarSolicitacaoCredenciamento = async function() {
         btn.disabled = true;
         
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
-        const url = id ? \`/api/comercial/credenciamento/\${id}\` : '/api/comercial/credenciamento';
+        const url = id ? `/api/comercial/credenciamento/${id}` : '/api/comercial/credenciamento';
         const method = id ? 'PUT' : 'POST';
         
         const res = await fetch(url, {
             method,
-            headers: { 'Content-Type': 'application/json', 'Authorization': \`Bearer \${token}\` },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify(payload)
         });
         
@@ -129,7 +129,7 @@ window.carregarHistoricoComCred = async function() {
         if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#94a3b8; padding:2rem;">Carregando histórico...</td></tr>';
         
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
-        const res = await fetch('/api/logistica/credenciamento', { headers: { 'Authorization': \`Bearer \${token}\` } });
+        const res = await fetch('/api/logistica/credenciamento', { headers: { 'Authorization': `Bearer ${token}` } });
         const data = await res.json();
         
         window._historicoComCredDados = data || [];
@@ -137,7 +137,7 @@ window.carregarHistoricoComCred = async function() {
     } catch(e) {
         console.error(e);
         const tbody = document.getElementById('tbody-comercial-cred');
-        if (tbody) tbody.innerHTML = \`<tr><td colspan="7" style="text-align:center; color:red;">Erro: \${e.message}</td></tr>\`;
+        if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:red;">Erro: ${e.message}</td></tr>`;
     }
 }
 
@@ -190,15 +190,15 @@ window.ordenarHistoricoComCred = function(coluna) {
         
         let statusBadge = '';
         if (cred.status === 'solicitado') {
-            statusBadge = \`<span style="color:#eab308; font-weight:600;"><i class="ph ph-clock"></i> Solicitado em \${dtFormatada}</span>\`;
+            statusBadge = `<span style="color:#eab308; font-weight:600;"><i class="ph ph-clock"></i> Solicitado em ${dtFormatada}</span>`;
         } else if (cred.status === 'enviado') {
-            statusBadge = \`<span style="color:#4f46e5; font-weight:600;"><i class="ph ph-paper-plane-right"></i> Enviado</span>\`;
+            statusBadge = `<span style="color:#4f46e5; font-weight:600;"><i class="ph ph-paper-plane-right"></i> Enviado</span>`;
         } else if (new Date() > new Date(cred.valid_until)) {
-            statusBadge = \`<span style="color:#dc2626; font-weight:600;"><i class="ph ph-x-circle"></i> Expirado</span>\`;
+            statusBadge = `<span style="color:#dc2626; font-weight:600;"><i class="ph ph-x-circle"></i> Expirado</span>`;
         } else if (cred.acessado_em) {
-            statusBadge = \`<span style="color:#16a34a; font-weight:600;"><i class="ph ph-check-circle"></i> Acessado</span>\`;
+            statusBadge = `<span style="color:#16a34a; font-weight:600;"><i class="ph ph-check-circle"></i> Acessado</span>`;
         } else {
-            statusBadge = \`<span style="color:#4f46e5; font-weight:600;"><i class="ph ph-paper-plane-right"></i> Enviado</span>\`;
+            statusBadge = `<span style="color:#4f46e5; font-weight:600;"><i class="ph ph-paper-plane-right"></i> Enviado</span>`;
         }
         
         const docs = cred.docs_exigidos ? JSON.parse(cred.docs_exigidos) : [];
@@ -209,25 +209,25 @@ window.ordenarHistoricoComCred = function(coluna) {
         
         let acoes = '';
         if (cred.status === 'solicitado') {
-            acoes = \`<button class="btn btn-outline" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.abrirModalSolicitarCredenciamento('\${cred.id}')"><i class="ph ph-pencil"></i></button>\`;
+            acoes = `<button class="btn btn-outline" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.abrirModalSolicitarCredenciamento('${cred.id}')"><i class="ph ph-pencil"></i></button>`;
         }
         
         const dtLimite = cred.data_limite_envio ? new Date(cred.data_limite_envio).toLocaleDateString('pt-BR') : '-';
 
-        return \`
+        return `
         <tr>
             <td>
-                <b>\${cred.cliente_nome}</b><br>
-                <span style="font-size:0.8rem; color:#64748b;">\${cred.cliente_email}</span>
-                \${cred.endereco_instalacao ? \`<br><span style="font-size:0.75rem; color:#94a3b8;"><i class="ph ph-map-pin"></i> \${cred.endereco_instalacao}</span>\` : ''}
+                <b>${cred.cliente_nome}</b><br>
+                <span style="font-size:0.8rem; color:#64748b;">${cred.cliente_email}</span>
+                ${cred.endereco_instalacao ? `<br><span style="font-size:0.75rem; color:#94a3b8;"><i class="ph ph-map-pin"></i> ${cred.endereco_instalacao}</span>` : ''}
             </td>
-            <td title="Documentos: \${docsHover}" style="cursor:help; border-bottom:1px dotted #94a3b8;">\${cred.qtd_max_colaboradores || 0}</td>
-            <td>\${cred.qtd_max_veiculos || 0}</td>
-            <td title="\${licsHover}" style="cursor:help; border-bottom:1px dotted #94a3b8;">\${lics.length > 0 ? 'Sim' : 'Não'}</td>
-            <td>\${dtLimite}</td>
-            <td>\${statusBadge}</td>
-            <td style="text-align:right;">\${acoes}</td>
-        </tr>\`;
+            <td title="Documentos: ${docsHover}" style="cursor:help; border-bottom:1px dotted #94a3b8;">${cred.qtd_max_colaboradores || 0}</td>
+            <td>${cred.qtd_max_veiculos || 0}</td>
+            <td title="${licsHover}" style="cursor:help; border-bottom:1px dotted #94a3b8;">${lics.length > 0 ? 'Sim' : 'Não'}</td>
+            <td>${dtLimite}</td>
+            <td>${statusBadge}</td>
+            <td style="text-align:right;">${acoes}</td>
+        </tr>`;
     }).join('');
     
     window.filtrarHistoricoComCred();
