@@ -129,7 +129,7 @@ window.carregarHistoricoComCred = async function() {
         if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#94a3b8; padding:2rem;">Carregando histórico...</td></tr>';
         
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
-        const res = await fetch('/api/logistica/credenciamento', { headers: { 'Authorization': `Bearer ${token}` } });
+        const res = await fetch('/api/logistica/credenciamentos', { headers: { 'Authorization': `Bearer ${token}` } });
         const data = await res.json();
         
         window._historicoComCredDados = data || [];
