@@ -3886,7 +3886,7 @@ async function loadDocumentosList() {
 }
 
 const FIXED_DOCS = {
-    'Contratos': ['Contrato de Trabalho', 'Termo de Confidencialidade', 'Acordo Individual Benefícios', 'Acordo Prorrogação e Compensação', 'Declaração Vale Transporte', 'Contrato Experiência 45 dias', 'Prorrogação de Contrato', 'Termo de Estágio', 'NR1'],
+    'Contratos': ['Contrato de Trabalho', 'Termo de Confidencialidade', 'Acordo Individual Benefícios', 'Acordo Prorrogação e Compensação', 'Declaração Vale Transporte', 'Contrato Experiência 45 dias', 'Prorrogação de Contrato', 'Termo de Estágio'],
     'ASO': ['ASO Padrão'],
     'Ficha de EPI': ['Ficha de EPI Assinada'],
     'Multas': ['Contrato de Responsabilidade com o Veículo']
@@ -4751,10 +4751,45 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
             listContainer.appendChild(createDocSlot(tabId, d.document_type, d));
         });
     } else {
+        // Slot fixo NR1 para a aba Certificados (upload-only, equivale ao credenciamento NR1)
+        if (tabId === 'Certificados') {
+            const _normC = s => (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+            const nr1Doc = filteredDocs.find(d =>
+                _normC(d.document_type).includes('nr1') ||
+                _normC(d.document_type).includes('nr 1') ||
+                _normC(d.document_type).includes('ordem de servico') ||
+                _normC(d.document_type).includes('ordem de servi')
+            );
+            if (nr1Doc) {
+                listContainer.appendChild(createDocSlot(tabId, nr1Doc.document_type, nr1Doc));
+            } else {
+                const nr1Wrapper = document.createElement('div');
+                nr1Wrapper.style.cssText = 'display:flex; align-items:center; justify-content:space-between; padding:0.65rem 0.75rem; border:1.5px dashed #16a34a; border-radius:8px; background:#f0fdf4; gap:0.75rem; margin-bottom:0.5rem;';
+                nr1Wrapper.innerHTML = `
+                    <div style="display:flex; align-items:center; gap:0.6rem; flex:1;">
+                        <span style="background:#dcfce7;color:#15803d;border:1px solid #86efac;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">NR-1</span>
+                        <div>
+                            <span style="font-weight:600; color:#334155; font-size:0.9rem;">NR1 / Ordem de Serviço</span>
+                            <div style="font-size:0.75rem; color:#16a34a; margin-top:1px;">Documento exigido no credenciamento — faça o upload do PDF</div>
+                        </div>
+                    </div>
+                    <label class="btn btn-secondary" style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.82rem;padding:0.35rem 0.8rem;margin:0;">
+                        <i class="ph ph-upload-simple"></i> Anexar PDF
+                        <input type="file" accept=".pdf" style="display:none" onchange="window.uploadContratoExternoComTipo(this, 'NR1', 'Certificados')">
+                    </label>`;
+                listContainer.appendChild(nr1Wrapper);
+            }
+        }
+
         const form = createDynamicUploadForm(tabId, `Adicionar doc. em ${tabTitle.replace(/^\d+\.\s*/, '')}`);
         listContainer.appendChild(form);
         listContainer.appendChild(document.createElement('hr'));
-        filteredDocs.forEach(d => {
+        filteredDocs.filter(d => {
+            if (tabId !== 'Certificados') return true;
+            // Já mostrou NR1 no slot fixo — não duplicar
+            const _n = (s => (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim())(d.document_type);
+            return !(_n.includes('nr1') || _n.includes('nr 1') || _n.includes('ordem de servico') || _n.includes('ordem de servi'));
+        }).forEach(d => {
             listContainer.appendChild(createDocSlot(tabId, d.document_type, d));
         });
     }
@@ -8473,7 +8508,6 @@ window.renderContratosAvulso = async function(container) {
                 { nome: 'Recebimento de Regimento Interno', cond: true },
                 { nome: 'Regras Sorteio Final de Ano',      cond: true },
                 { nome: 'Termo de Confidencialidade',       cond: true },
-                { nome: 'NR1',                              cond: true },
             ];
             autoGeradores = LEGACY_MAP
                 .filter(m => m.cond)
@@ -9000,15 +9034,17 @@ window.uploadContratoExterno = async function(input) {
     }
 };
 
-// Upload com tipo de documento pré-definido (ex: Ficha de Registro - não gerado por template)
-window.uploadContratoExternoComTipo = async function(input, docType) {
+// Upload com tipo de documento pré-definido (ex: Ficha de Registro, NR1 - não gerados por template)
+window.uploadContratoExternoComTipo = async function(input, docType, tabName) {
     const file = input.files[0];
     if (!file || !viewedColaborador) return;
     input.value = '';
 
+    var tabToSave = tabName || 'CONTRATOS_AVULSOS';
+
     var formData = new FormData();
     formData.append('file', file);
-    formData.append('tab_name', 'CONTRATOS_AVULSOS');
+    formData.append('tab_name', tabToSave);
     formData.append('document_type', docType);
     formData.append('colaborador_id', viewedColaborador.id);
     formData.append('colaborador_nome', viewedColaborador.nome_completo || '');
@@ -9023,7 +9059,15 @@ window.uploadContratoExternoComTipo = async function(input, docType) {
         var data = await res.json().catch(function() { return {}; });
         if (!res.ok) throw new Error(data.error || 'Falha ao anexar PDF');
         if (typeof showToast !== 'undefined') showToast(docType + ' anexado com sucesso!', 'success');
-        await window._reloadContratosContainer();
+        // Recarregar a aba correta após upload
+        await loadDocumentosList();
+        if (tabName && tabName !== 'CONTRATOS_AVULSOS') {
+            if (typeof window.renderTabContent === 'function') {
+                window.renderTabContent(tabName, tabName, true);
+            }
+        } else {
+            await window._reloadContratosContainer();
+        }
     } catch(err) {
         alert('Erro: ' + err.message);
     }
