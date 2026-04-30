@@ -199,14 +199,14 @@ function renderListaVeicCred() {
 }
 
 // ── Selecionar Todos ──────────────────────────────────────────────────────────
-function selecionarTodosColabs() {
+window.selecionarTodosColabs = function() {
     const checkboxes = document.querySelectorAll('#lista-selecao-colab input[type="checkbox"]');
     const todosChecked = Array.from(checkboxes).every(cb => cb.checked);
     checkboxes.forEach(cb => cb.checked = !todosChecked);
     const btn = document.getElementById('btn-todos-colabs');
     if (btn) btn.textContent = todosChecked ? 'Selecionar Todos' : 'Desmarcar Todos';
 }
-function selecionarTodosVeiculos() {
+window.selecionarTodosVeiculos = function() {
     const checkboxes = document.querySelectorAll('#lista-selecao-veic input[type="checkbox"]');
     const todosChecked = Array.from(checkboxes).every(cb => cb.checked);
     checkboxes.forEach(cb => cb.checked = !todosChecked);
@@ -214,8 +214,19 @@ function selecionarTodosVeiculos() {
     if (btn) btn.textContent = todosChecked ? 'Selecionar Todos' : 'Desmarcar Todos';
 }
 
+
+window.selecionarTodasLicencas = function() {
+    const checkboxes = document.querySelectorAll('#cred-licencas-quadro input[type="checkbox"]');
+    const todosChecked = Array.from(checkboxes).every(cb => cb.checked);
+    checkboxes.forEach(cb => { 
+        cb.checked = !todosChecked; 
+        window.toggleLicencaCred(cb.value, cb.checked); 
+    });
+    const btn = document.getElementById('btn-todas-licencas');
+    if (btn) btn.textContent = todosChecked ? 'Selecionar Todas' : 'Desmarcar Todas';
+}
 // ── Filtro de busca nos modais ────────────────────────────────────────────────
-function filtrarListaCred(containerId, termo) {
+window.filtrarListaCred = function(containerId, termo) {
     const container = document.getElementById(containerId);
     if (!container) return;
     const divs = container.querySelectorAll('.cred-item-select');
@@ -229,37 +240,37 @@ function filtrarListaCred(containerId, termo) {
 }
 
 // ── Abrir / Fechar modais ─────────────────────────────────────────────────────
-function abrirModalAddCredColab() {
+window.abrirModalAddCredColab = function() {
     const modal = document.getElementById('modal-cred-colab');
     if (modal) modal.style.display = 'flex';
     loadColaboradoresCred();
     const busca = document.getElementById('busca-cred-colab');
     if (busca) busca.value = '';
 }
-function fecharModalAddCredColab() {
+window.fecharModalAddCredColab = function() {
     const modal = document.getElementById('modal-cred-colab');
     if (modal) modal.style.display = 'none';
 }
-function abrirModalAddCredVeic() {
+window.abrirModalAddCredVeic = function() {
     const modal = document.getElementById('modal-cred-veic');
     if (modal) modal.style.display = 'flex';
     loadVeiculosCred();
     const busca = document.getElementById('busca-cred-veic');
     if (busca) busca.value = '';
 }
-function fecharModalAddCredVeic() {
+window.fecharModalAddCredVeic = function() {
     const modal = document.getElementById('modal-cred-veic');
     if (modal) modal.style.display = 'none';
 }
 
 // ── Confirmar seleção ─────────────────────────────────────────────────────────
-function confirmarSelecaoCredColab() {
+window.confirmarSelecaoCredColab = function() {
     const checkboxes = document.querySelectorAll('#lista-selecao-colab input[type="checkbox"]');
     credenciamentoState.selecionadosColabs = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
     atualizarResumoColabs();
     fecharModalAddCredColab();
 }
-function confirmarSelecaoCredVeic() {
+window.confirmarSelecaoCredVeic = function() {
     const checkboxes = document.querySelectorAll('#lista-selecao-veic input[type="checkbox"]');
     credenciamentoState.selecionadosVeic = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
     atualizarResumoVeiculos();
@@ -349,7 +360,7 @@ async function validarVencimentosCredenciamento() {
 }
 
 // ── Gerar e Enviar credenciamento ─────────────────────────────────────────────
-async function gerarEnviarCredenciamento() {
+window.gerarEnviarCredenciamento = async function() {
     const clienteNome = (document.getElementById('cred-cliente-nome') || {}).value?.trim();
     const clienteEmail = (document.getElementById('cred-cliente-email') || {}).value?.trim();
     const enderecoInstalacao = (document.getElementById('cred-endereco-instalacao') || {}).value?.trim() || '';
