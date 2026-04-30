@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
@@ -9255,13 +9255,13 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
         // Mapear os documentos requeridos para os nomes reais no sistema
         const docMap = {
             'cnh': ['CNH'],
-            'cpf': ['RG-CPF', 'CIN-CPF', 'CPF'],
-            'aso': ['ASO', 'ASO Padrão', 'ASO Padro'],
-            'ficha_registro': ['Ficha de Registro', 'Ficha Cadastral'],
-            'treinamento': ['Carteira de vacinação', 'Carteira de Vacinação'],
-            'epi': ['Ficha de EPI Assinada', 'Ficha de EPI'],
-            'contrato_esocial': ['Contrato e-social'],
-            'nr1': ['NR1', 'Ordem de Serviço', 'OS', 'Ordem de Servico']
+            'cpf': ['RG-CPF', 'CIN-CPF', 'CPF', 'rg cpf', 'cin cpf'],
+            'aso': ['ASO', 'ASO Padrao', 'ASO Padrão', 'Atestado de Saúde Ocupacional'],
+            'ficha_registro': ['Ficha de Registro', 'Ficha Cadastral', 'Ficha de registro'],
+            'treinamento': ['Carteira de vacinacao', 'Carteira de vacinação', 'Carteira de Vacina', 'vacina'],
+            'epi': ['Ficha de EPI Assinada', 'Ficha de EPI', 'ficha epi', 'epi'],
+            'contrato_esocial': ['Contrato e-social', 'contrato esocial', 'e-social', 'esocial'],
+            'nr1': ['NR1', 'NR 1', 'Ordem de Servico', 'Ordem de Serviço', 'OS', 'ordem servico']
         };
 
         const docNamesReadable = {
@@ -9273,20 +9273,32 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
         // Se há exigências de documentos, validar para cada colaborador
         if (colabIds.length > 0 && docs_exigidos && docs_exigidos.length > 0) {
             for (let cid of colabIds) {
-                const cDocs = docsData.filter(d => d.colaborador_id === cid).map(d => d.document_type ? d.document_type.toLowerCase().trim() : '');
+                const cDocs = docsData
+                    .filter(d => d.colaborador_id === cid && d.document_type)
+                    .map(d => (d.document_type || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim());
+
                 const colabObj = colabData.find(c => c.id === cid);
                 const cNome = colabObj?.nome_completo || 'Colaborador desconhecido';
                 const isMotorista = colabObj && (colabObj.cargo || '').toUpperCase().includes('MOTORISTA');
-                
+
+                console.log(`[CRED] Validando ${cNome} | docs no sistema: [${cDocs.join(', ')}]`);
+
                 for (let reqDoc of docs_exigidos) {
                     if (reqDoc === 'cnh' && !isMotorista) continue; // Não exige CNH se não for motorista
                     if (reqDoc === 'cpf' && isMotorista) continue;  // Não exige CPF separado se for motorista
 
-                    const acceptableNames = (docMap[reqDoc] || []).map(x => x.toLowerCase());
-                    const hasDoc = cDocs.some(cd => acceptableNames.some(acc => cd.includes(acc)));
-                    
+                    const acceptableNames = (docMap[reqDoc] || [reqDoc]).map(x =>
+                        x.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim()
+                    );
+
+                    const hasDoc = cDocs.some(cd =>
+                        acceptableNames.some(acc => cd.includes(acc) || acc.includes(cd))
+                    );
+
+                    console.log(`[CRED] Req: ${reqDoc} | aceita: [${acceptableNames.join(', ')}] | encontrado: ${hasDoc}`);
+
                     if (!hasDoc) {
-                        return res.status(400).json({ error: `O e-mail não foi enviado pois o colaborador(a) ${cNome} não tem o documento ${docNamesReadable[reqDoc] || reqDoc} cadastrado no sistema, contactar o setor de RH.` });
+                        return res.status(400).json({ error: `O e-mail não foi enviado pois o colaborador(a) ${cNome} não tem o documento "${docNamesReadable[reqDoc] || reqDoc}" cadastrado no sistema. Contactar o setor de RH.` });
                     }
                 }
             }
