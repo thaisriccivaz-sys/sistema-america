@@ -655,6 +655,8 @@ const TAB_META = {
     // Financeiro - Azul
     'financeiro-em-breve':    { color: '#1971c2', icon: 'ph-currency-dollar', title: 'Financeiro' },
     // Comercial - Roxo
+    'comercial-credenciamento': { path: 'Comercial → Solicitar Credencial', code: 'COM001' },
+    'comercial-credenciamento': { color: '#7048e8', icon: 'ph-identification-card', title: 'Solicitar Credencial' },
     'comercial-em-breve':     { color: '#7048e8', icon: 'ph-handshake',      title: 'Comercial' },
     // Administrativo - Amarelo
     'admin-em-breve':         { color: '#e67700', icon: 'ph-gear',           title: 'Administrativo' },

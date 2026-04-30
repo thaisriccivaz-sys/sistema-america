@@ -521,7 +521,7 @@ window.carregarHistoricoCredenciamento = async function() {
 
         // Alterar badge se solicitado
         let statusBadge = '';
-        const expirado = cred.valid_until && (new Date() > new Date(cred.valid_until));
+        
         
         if (cred.status === 'solicitado') {
             const dtLim = cred.data_limite_envio ? new Date(cred.data_limite_envio).toLocaleDateString('pt-BR') : '-';
