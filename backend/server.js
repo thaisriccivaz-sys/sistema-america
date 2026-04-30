@@ -9716,9 +9716,28 @@ app.delete('/api/licencas/:id', authenticateToken, (req, res) => {
 app.get('/api/licencas/:id/view', authenticateToken, (req, res) => {
     db.get('SELECT * FROM licencas WHERE id = ?', [req.params.id], (err, row) => {
         if (err || !row) return res.status(404).send('Licenca nao encontrada.');
-        if (!row.file_path) return res.status(404).send('Arquivo nao anexado.');
-        const absPath = path.resolve(__dirname, '..', '..', row.file_path);
-        if (!fs.existsSync(absPath)) return res.status(404).send('Arquivo fisico nao encontrado.');
+        if (!row.file_path && !row.file_name) return res.status(404).send('Arquivo nao anexado.');
+        
+        let absPath = '';
+        if (row.file_path) absPath = path.resolve(__dirname, '..', '..', row.file_path);
+        
+        if (!absPath || !fs.existsSync(absPath)) {
+            // fallback se o caminho relativo foi gerado de forma diferente
+            if (row.file_path) {
+                const altPath = path.join(BASE_UPLOAD_PATH, row.file_path);
+                if (fs.existsSync(altPath)) absPath = altPath;
+            }
+        }
+        
+        if (!absPath || !fs.existsSync(absPath)) {
+            // fallback definitivo construindo o caminho do zero usando empresa e nome do arquivo
+            const empresaDir = path.join(LICENCAS_UPLOAD_PATH, row.empresa.toUpperCase().replace(/[^A-Z0-9]/g, '_'));
+            const finalPath = path.join(empresaDir, row.file_name);
+            if (fs.existsSync(finalPath)) absPath = finalPath;
+        }
+
+        if (!absPath || !fs.existsSync(absPath)) return res.status(404).send('Arquivo fisico nao encontrado.');
+        
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', 'inline; filename="' + row.file_name + '"');
         res.sendFile(absPath);
