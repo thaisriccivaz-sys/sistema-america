@@ -727,6 +727,9 @@ window.navigateToTab = function(tabId) {
       if (tab.target === 'logistica-frota' && typeof window.initFrotaVeiculos === 'function') {
           setTimeout(() => window.initFrotaVeiculos(), 80);
       }
+      if (tab.target === 'logistica-credenciamento' && typeof window.carregarHistoricoCredenciamento === 'function') {
+          setTimeout(() => window.carregarHistoricoCredenciamento(), 80);
+      }
     // Se a aba tem dados de colaborador (prontuário ou form), restaura o viewedColaborador
     if (tab._colaboradorData) {
         viewedColaborador = tab._colaboradorData;
@@ -833,6 +836,8 @@ function navigateTo(target) {
         if (typeof initMultasLogistica === 'function') setTimeout(() => initMultasLogistica(), 80);
     } else if (target === 'logistica-frota') {
         if (typeof window.initFrotaVeiculos === 'function') setTimeout(() => window.initFrotaVeiculos(), 80);
+    } else if (target === 'logistica-credenciamento') {
+        if (typeof window.carregarHistoricoCredenciamento === 'function') setTimeout(() => window.carregarHistoricoCredenciamento(), 80);
     } else if (target === 'licencas') {
         if (typeof window.initLicencas === 'function') setTimeout(() => window.initLicencas(), 80);
     }
