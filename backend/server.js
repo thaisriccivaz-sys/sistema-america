@@ -9303,6 +9303,136 @@ app.get('/api/frota/veiculos/alertas/vencimento', authenticateToken, (req, res) 
 // CREDENCIAMENTO DE LOGÍSTICA
 // =====================================================================
 
+
+// =====================================================================
+// CREDENCIAMENTO COMERCIAL (SOLICITAÇÕES)
+// =====================================================================
+
+app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
+    const { cliente_nome, cliente_email, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas } = req.body;
+    if (!cliente_nome || !cliente_email) return res.status(400).json({ error: 'Nome e email são obrigatórios.' });
+
+    db.run(`INSERT INTO credenciamentos (cliente_nome, cliente_email, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas_ids, status, token) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'solicitado', '')`,
+        [
+            cliente_nome, 
+            cliente_email, 
+            endereco_instalacao || '', 
+            qtd_max_colaboradores || 0, 
+            qtd_max_veiculos || 0, 
+            data_limite_envio || null, 
+            JSON.stringify(docs_exigidos || []), 
+            JSON.stringify(licencas || [])
+        ],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            
+            // Send email to logistics notifying them of the request
+            // const mailOptions = { ... }
+            // transportermultas.sendMail(mailOptions) ...
+            
+            res.json({ message: 'Solicitação criada com sucesso.', id: this.lastID });
+        }
+    );
+});
+
+app.put('/api/comercial/credenciamento/:id', authenticateToken, (req, res) => {
+    const { cliente_nome, cliente_email, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas } = req.body;
+    
+    db.run(`UPDATE credenciamentos SET cliente_nome = ?, cliente_email = ?, endereco_instalacao = ?, qtd_max_colaboradores = ?, qtd_max_veiculos = ?, data_limite_envio = ?, docs_exigidos = ?, licencas_ids = ? WHERE id = ? AND status = 'solicitado'`,
+        [
+            cliente_nome, 
+            cliente_email, 
+            endereco_instalacao || '', 
+            qtd_max_colaboradores || 0, 
+            qtd_max_veiculos || 0, 
+            data_limite_envio || null, 
+            JSON.stringify(docs_exigidos || []), 
+            JSON.stringify(licencas || []),
+            req.params.id
+        ],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ message: 'Solicitação atualizada com sucesso.' });
+        }
+    );
+});
+
+app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, res) => {
+    const { colaboradores, veiculos } = req.body;
+    const colabIds = (colaboradores || []).map(c => c.id).filter(id => !isNaN(id) && id > 0);
+    const veicIds = (veiculos || []).map(v => v.id).filter(id => !isNaN(id) && id > 0);
+
+    const crypto = require('crypto');
+    const token = crypto.randomBytes(16).toString('hex');
+    const validUntil = new Date();
+    validUntil.setDate(validUntil.getDate() + 7);
+
+    // Fetch original request to get email etc
+    db.get('SELECT * FROM credenciamentos WHERE id = ?', [req.params.id], (err, cred) => {
+        if (err || !cred) return res.status(500).json({ error: 'Credenciamento não encontrado' });
+
+        db.run(`UPDATE credenciamentos SET colaboradores_ids = ?, veiculos_ids = ?, token = ?, valid_until = ?, status = 'enviado', created_at = CURRENT_TIMESTAMP WHERE id = ?`,
+            [JSON.stringify(colaboradores || []), JSON.stringify(veiculos || []), token, validUntil.toISOString(), req.params.id],
+            async function(err2) {
+                if (err2) return res.status(500).json({ error: err2.message });
+
+                const baseUrl = process.env.PUBLIC_URL || `${req.protocol}://${req.get('host')}`;
+                const link = `${baseUrl}/credenciamento-publico.html?token=${token}`;
+                const logoUrl = `${baseUrl}/assets/logo-header.png`;
+
+                // Build HTML...
+                let htmlCols = (colaboradores||[]).map(c => {
+                    return `<li><b>${c.nome || c.nome_completo}</b></li>`;
+                }).join('');
+                let htmlVeics = (veiculos||[]).map(v => {
+                    return `<li><b>${v.placa}</b> - ${v.marca_modelo_versao}</li>`;
+                }).join('');
+
+                const mailOptions = {
+                    from: '"América Rental (Logística)" <multas@americarental.com.br>',
+                    to: cred.cliente_email,
+                    subject: `Credenciamento de Equipe - América Rental`,
+                    html: `
+                    <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; padding: 20px; border-radius: 8px;">
+                        <div style="text-align: center; margin-bottom: 20px;">
+                            <img src="${logoUrl}" alt="América Rental" style="max-height: 60px;">
+                        </div>
+                        <h2 style="color: #2d9e5f; text-align: center;">Credenciamento de Equipe Liberado</h2>
+                        <p>Olá <b>${cred.cliente_nome}</b>,</p>
+                        <p>Os documentos e certificados da equipe alocada para sua obra/evento foram liberados e estão disponíveis para download.</p>
+                        
+                        <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                            <h4 style="margin-top: 0; color: #0f172a;">Equipe:</h4>
+                            <ul style="margin: 0; padding-left: 20px;">${htmlCols}</ul>
+                            ${htmlVeics ? `<h4 style="margin-top: 15px; color: #0f172a;">Veículos:</h4><ul style="margin: 0; padding-left: 20px;">${htmlVeics}</ul>` : ''}
+                        </div>
+
+                        <div style="text-align: center; margin: 30px 0;">
+                            <a href="${link}" style="background: #2d9e5f; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+                                Acessar Prontuários e Documentos
+                            </a>
+                        </div>
+                        <p style="text-align: center; font-size: 12px; color: #999;">
+                            <i>Este link expira automaticamente em 7 dias (até ${validUntil.toLocaleDateString('pt-BR')}).</i>
+                        </p>
+                    </div>`
+                };
+
+                transportermultas.sendMail(mailOptions, (error, info) => {
+                    if (error) {
+                        console.error('Erro ao enviar e-mail de credenciamento:', error);
+                        // don't block response
+                    } else {
+                        console.log('E-mail de credenciamento enviado:', info.response);
+                    }
+                });
+
+                res.json({ message: 'E-mail de credenciamento enviado com sucesso.', link });
+            }
+        );
+    });
+});
+
 app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
     const { cliente_nome, cliente_email, endereco_instalacao, colaboradores, veiculos, docs_exigidos, licencas } = req.body;
     if (!cliente_nome || !cliente_email) return res.status(400).json({ error: 'Nome e email são obrigatórios.' });

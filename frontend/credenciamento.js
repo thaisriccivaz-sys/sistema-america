@@ -509,38 +509,48 @@ window.carregarHistoricoCredenciamento = async function() {
             const validade = new Date(cred.valid_until);
             const expirado = new Date() > validade;
             
-            let statusBadge = '';
-            if (expirado) {
-                statusBadge = `<span style="color:#dc2626; font-weight:600;"><i class="ph ph-x-circle"></i> Expirado</span>`;
-            } else if (cred.acessado_em) {
-                const acessDt = new Date(cred.acessado_em);
-                const acessStr = acessDt.toLocaleDateString('pt-BR') + ' às ' + acessDt.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
-                statusBadge = `<span style="color:#16a34a; font-weight:600;"><i class="ph ph-check-circle"></i> Acessado em ${acessStr}</span>`;
-            } else {
-                statusBadge = `<span style="color:#4f46e5; font-weight:600;"><i class="ph ph-paper-plane-right"></i> Enviado em ${dtFormatada}</span>`;
-            }
+            
+        let acoes = '';
+        if (cred.status === 'solicitado') {
+            acoes = `<button class="btn btn-primary" style="padding:4px 12px; font-size:12px;" onclick="window.abrirModalCumprirSolicitacao('${cred.id}')"><i class="ph ph-plus"></i> Adicionar</button>`;
+        } else {
+            acoes = `<a href="/credenciamento-publico.html?token=${cred.token}" target="_blank" class="btn btn-outline" style="padding:4px 8px; font-size:12px; margin-right:4px;" title="Testar / Visualizar Link">
+                <i class="ph ph-link"></i> Link
+            </a>`;
+        }
 
-            return `
-            <tr>
-                <td>
-                    <b>${cred.cliente_nome}</b><br>
-                    <span style="font-size:0.8rem; color:#64748b;">${cred.cliente_email}</span>
-                    ${cred.endereco_instalacao ? `<br><span style="font-size:0.75rem; color:#94a3b8;"><i class="ph ph-map-pin"></i> ${cred.endereco_instalacao}</span>` : ''}
-                </td>
-                <td style="font-size:0.8rem; line-height:1.6;">${colabsText}</td>
-                <td style="font-size:0.8rem; line-height:1.6;">${veicsText}</td>
-                <td style="font-size:0.8rem; line-height:1.6;">${licencasText}</td>
-                <td style="font-size:0.85rem;">${statusBadge}</td>
-                <td style="text-align:right; white-space:nowrap;">
-                    <a href="/credenciamento-publico.html?token=${cred.token}" target="_blank" class="btn btn-outline" style="padding:4px 8px; font-size:12px; margin-right:4px;" title="Testar / Visualizar Link">
-                        <i class="ph ph-link"></i> Link
-                    </a>
-                    <button class="btn btn-outline" style="padding:4px 8px; font-size:12px; color:#dc2626; border-color:#fca5a5; background:#fff;" onclick="excluirCredenciamento('${cred.id}')" title="Excluir">
-                        <i class="ph ph-trash"></i>
-                    </button>
-                </td>
-            </tr>`;
-        }).join('');
+        // Alterar badge se solicitado
+        let statusBadge = '';
+        const expirado = cred.valid_until && (new Date() > new Date(cred.valid_until));
+        
+        if (cred.status === 'solicitado') {
+            const dtLim = cred.data_limite_envio ? new Date(cred.data_limite_envio).toLocaleDateString('pt-BR') : '-';
+            statusBadge = `<span style="color:#eab308; font-weight:600;"><i class="ph ph-clock"></i> Solicitado (Limite: ${dtLim})</span>`;
+        } else if (expirado) {
+            statusBadge = `<span style="color:#dc2626; font-weight:600;"><i class="ph ph-x-circle"></i> Expirado</span>`;
+        } else if (cred.acessado_em) {
+            const acessDt = new Date(cred.acessado_em);
+            const acessStr = acessDt.toLocaleDateString('pt-BR') + ' às ' + acessDt.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+            statusBadge = `<span style="color:#16a34a; font-weight:600;"><i class="ph ph-check-circle"></i> Acessado em ${acessStr}</span>`;
+        } else {
+            statusBadge = `<span style="color:#4f46e5; font-weight:600;"><i class="ph ph-paper-plane-right"></i> Enviado em ${dtFormatada}</span>`;
+        }
+
+        return `
+        <tr>
+            <td>
+                <b>${cred.cliente_nome}</b><br>
+                <span style="font-size:0.8rem; color:#64748b;">${cred.cliente_email}</span>
+                ${cred.endereco_instalacao ? `<br><span style="font-size:0.75rem; color:#94a3b8;"><i class="ph ph-map-pin"></i> ${cred.endereco_instalacao}</span>` : ''}
+            </td>
+            <td style="font-size:0.8rem; line-height:1.6;">${colabsText}</td>
+            <td style="font-size:0.8rem; line-height:1.6;">${veicsText}</td>
+            <td style="font-size:0.8rem; line-height:1.6;">${licencasText}</td>
+            <td style="font-size:0.85rem;">${statusBadge}</td>
+            <td style="text-align:right; white-space:nowrap;">${acoes}</td>
+        </tr>`;
+        
+    }).join('');
     } catch(e) {
         tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:#ef4444; padding:1rem;">Erro ao carregar histórico: ${e.message}</td></tr>`;
     }
