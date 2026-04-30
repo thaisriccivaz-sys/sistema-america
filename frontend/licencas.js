@@ -225,6 +225,7 @@ window.uploadLicenca = async function(input, empresa, nome) {
             if (typeof showToast !== 'undefined') showToast('Analisando documento...', 'info');
             const extractData = new FormData();
             extractData.append('file', file);
+            extractData.append('nome', nome);
             const extRes = await fetch('/api/licencas/extrair-validade', {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` },
