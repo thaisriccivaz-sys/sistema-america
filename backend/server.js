@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
@@ -9444,17 +9444,49 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
         });
 
         Promise.all([colabDocsPromise, veicDocsPromise]).then(([docs, frotas]) => {
+
+            // Mapear docs_exigidos (chaves) para nomes reais de documentos
+            let docsExigidos = [];
+            try { docsExigidos = JSON.parse(cred.docs_exigidos || '[]'); } catch(e){}
+
+            const docMapPublico = {
+                'cnh':             ['CNH'],
+                'cpf':             ['RG-CPF', 'CIN-CPF', 'CPF', 'rg cpf', 'cin cpf'],
+                'aso':             ['ASO', 'ASO Padrao', 'ASO Padrão', 'Atestado de Saúde Ocupacional'],
+                'ficha_registro':  ['Ficha de Registro', 'Ficha Cadastral', 'Ficha de registro'],
+                'treinamento':     ['Carteira de vacinacao', 'Carteira de vacinação', 'Carteira de Vacina', 'vacina'],
+                'epi':             ['Ficha de EPI Assinada', 'Ficha de EPI', 'ficha epi', 'epi'],
+                'contrato_esocial':['Contrato e-social', 'contrato esocial', 'e-social', 'esocial'],
+                'nr1':             ['NR1', 'NR 1', 'Ordem de Servico', 'Ordem de Serviço', 'OS', 'ordem servico']
+            };
+
+            // Montar conjunto de nomes aceitos (normalizados sem acento)
+            const norm = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+            const tiposPermitidos = new Set();
+            docsExigidos.forEach(chave => {
+                (docMapPublico[chave] || []).forEach(nome => tiposPermitidos.add(norm(nome)));
+            });
+
+            // Função para saber se um documento é permitido
+            const isPermitido = (d) => {
+                if (tiposPermitidos.size === 0) return true; // se não há filtro, libera tudo
+                const dn = norm(d.document_type);
+                return Array.from(tiposPermitidos).some(acc => dn.includes(acc) || acc.includes(dn));
+            };
+
             res.json({
                 cliente_nome: cred.cliente_nome,
                 validade: cred.valid_until,
                 colaboradores: colabs.map(c => ({
                     ...c,
-                    documentos: docs.filter(d => d.colaborador_id === c.id).map(d => ({
-                        id: d.id,
-                        tipo: d.document_type,
-                        nome_arquivo: d.file_name,
-                        tem_assinado: !!d.signed_file_path
-                    }))
+                    documentos: docs
+                        .filter(d => d.colaborador_id === c.id && isPermitido(d))
+                        .map(d => ({
+                            id: d.id,
+                            tipo: d.document_type,
+                            nome_arquivo: d.file_name,
+                            tem_assinado: !!d.signed_file_path
+                        }))
                 })),
                 veiculos: veics.map(v => {
                     const f = frotas.find(fr => fr.id === v.id);
