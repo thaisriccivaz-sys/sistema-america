@@ -2212,7 +2212,19 @@
                             </div>
 
                             <div class="card" style="margin-bottom: 1.5rem;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
+                                    <h3><i class="ph ph-seal-check" style="color:#16a34a;"></i> Licenças da Empresa</h3>
+                                    <button class="btn btn-outline" style="padding: 4px 8px; font-size: 12px;" onclick="abrirModalAddCredLicenca()"><i class="ph ph-plus"></i> Adicionar</button>
+                                </div>
+                                <div id="cred-licencas-list" style="display:flex; flex-direction:column; gap: 8px;">
+                                    <p style="color:#94a3b8; font-size:13px; font-style:italic;">Nenhuma licença selecionada.</p>
+                                </div>
+                            </div>
+
+
+                            <div class="card" style="margin-bottom: 1.5rem;">
                                 <h3 style="margin-bottom: 1rem;"><i class="ph ph-files"></i> Documentos Exigidos</h3>
+
                                 <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 10px;" id="cred-docs-exigidos">
                                     <div><label><input type="checkbox" value="cnh"> CNH</label></div>
                                     <div><label><input type="checkbox" value="cpf"> CPF</label></div>
@@ -2223,6 +2235,7 @@
                                     <div><label><input type="checkbox" value="contrato_esocial"> Contrato e-social</label></div>
                                     <div><label><input type="checkbox" value="nr1"> NR1 / Ordem de Serviço</label></div>
                                 </div>
+
                             </div>
 
                             <div class="card" style="background:#f8fafc; border: 1px solid #e2e8f0; text-align: center;">
@@ -2581,6 +2594,26 @@
                 <button class="btn btn-outline" onclick="fecharModalAddCredVeic()">Cancelar</button>
                 <button id="btn-todos-veics" class="btn btn-secondary" onclick="selecionarTodosVeiculos()" style="background:#f1f5f9;color:#334155;border:1px solid #cbd5e1;">Selecionar Todos</button>
                 <button class="btn btn-primary" onclick="confirmarSelecaoCredVeic()">Adicionar Selecionados</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: SELECIONAR LICENÇA PARA CREDENCIAMENTO -->
+    <div id="modal-cred-licenca" class="modal">
+        <div class="modal-content" style="max-width: 540px;">
+            <div class="modal-header">
+                <h3><i class="ph ph-seal-check" style="color:#16a34a; margin-right:6px;"></i>Selecionar Licenças da Empresa</h3>
+                <span class="close-modal" onclick="fecharModalAddCredLicenca()">×</span>
+            </div>
+            <div class="modal-body">
+                <p style="font-size:13px; color:#64748b; margin-bottom:12px;">Licenças marcadas como ⚠ Vencida <strong>bloquearão o envio</strong> do credenciamento.</p>
+                <div id="cred-licencas-quadro" style="max-height:360px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; padding:8px;">
+                    <p style="color:#94a3b8; text-align:center; padding:20px;"><i class="ph ph-spinner"></i> Carregando...</p>
+                </div>
+            </div>
+            <div class="modal-footer" style="display:flex; justify-content:flex-end; gap:10px; margin-top:15px;">
+                <button class="btn btn-outline" onclick="fecharModalAddCredLicenca()">Cancelar</button>
+                <button class="btn btn-primary" onclick="confirmarSelecaoCredLicenca()"><i class="ph ph-check"></i> Confirmar</button>
             </div>
         </div>
     </div>
