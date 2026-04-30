@@ -8492,7 +8492,7 @@ app.post('/api/logistica/os/upload-video', authenticateToken, multerVideo.single
 
     db.run(
         `INSERT INTO os_videos (token, short_code, os_id, numero_os, nome_original, mime_type, tamanho, caminho_arquivo)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [token, shortCode, os_id || null, numero_os || null, req.file.originalname, req.file.mimetype, req.file.size, req.file.path],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
@@ -9463,7 +9463,7 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
 
 // GET Autenticado: Listar todos os credenciamentos
 app.get('/api/logistica/credenciamentos', authenticateToken, (req, res) => {
-    db.all(`SELECT id, cliente_nome, cliente_email, token, colaboradores_ids, veiculos_ids, licencas_ids, docs_exigidos, valid_until, acessado_em, created_at
+    db.all(`SELECT id, cliente_nome, cliente_email, endereco_instalacao, token, colaboradores_ids, veiculos_ids, licencas_ids, docs_exigidos, valid_until, acessado_em, created_at
             FROM credenciamentos ORDER BY created_at DESC`, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows || []);

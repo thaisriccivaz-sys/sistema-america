@@ -875,6 +875,11 @@ const db = new sqlite3.Database(dbPath, (err) => {
         if (err && !err.message.includes('duplicate')) { /* coluna ja existe */ }
     });
 
+    // Adicionar coluna endereco_instalacao se nao existir
+    db.run("ALTER TABLE credenciamentos ADD COLUMN endereco_instalacao TEXT", (err) => {
+        if (err && !err.message.includes('duplicate')) { /* coluna ja existe */ }
+    });
+
 
             console.log('Tabelas do sistema RH verificadas/criadas com sucesso.');
 

@@ -352,6 +352,7 @@ async function validarVencimentosCredenciamento() {
 async function gerarEnviarCredenciamento() {
     const clienteNome = (document.getElementById('cred-cliente-nome') || {}).value?.trim();
     const clienteEmail = (document.getElementById('cred-cliente-email') || {}).value?.trim();
+    const enderecoInstalacao = (document.getElementById('cred-endereco-instalacao') || {}).value?.trim() || '';
 
     if (!clienteNome || !clienteEmail) {
         alert('Por favor, preencha o nome e e-mail do cliente.');
@@ -379,6 +380,7 @@ async function gerarEnviarCredenciamento() {
     const payload = {
         cliente_nome: clienteNome,
         cliente_email: clienteEmail,
+        endereco_instalacao: enderecoInstalacao,
         colaboradores: credenciamentoState.selecionadosColabs.map(idStr => {
             const c = credenciamentoState.colaboradores.find(col => String(col.id) === idStr);
             return { id: parseInt(idStr), nome: c ? c.nome_completo : idStr };
@@ -410,6 +412,7 @@ async function gerarEnviarCredenciamento() {
 
         if (document.getElementById('cred-cliente-nome')) document.getElementById('cred-cliente-nome').value = '';
         if (document.getElementById('cred-cliente-email')) document.getElementById('cred-cliente-email').value = '';
+        if (document.getElementById('cred-endereco-instalacao')) document.getElementById('cred-endereco-instalacao').value = '';
         document.querySelectorAll('#cred-docs-exigidos input').forEach(cb => cb.checked = false);
         credenciamentoState.selecionadosColabs = [];
         credenciamentoState.selecionadosVeic = [];
@@ -420,12 +423,28 @@ async function gerarEnviarCredenciamento() {
         
         // Atualizar histórico de credenciamentos
         carregarHistoricoCredenciamento();
+        
+        // Fechar o modal após o envio
+        if (typeof window.fecharModalNovoCredenciamento === 'function') {
+            window.fecharModalNovoCredenciamento();
+        }
     } catch (e) {
         alert('Erro: ' + e.message);
     } finally {
         if (btn) { btn.innerHTML = originalHTML; btn.disabled = false; }
     }
 }
+
+// ── Modal de Novo Credenciamento ─────────────────────────────────────────────
+window.abrirModalNovoCredenciamento = function() {
+    const modal = document.getElementById('modal-novo-credenciamento');
+    if (modal) modal.style.display = 'flex';
+};
+
+window.fecharModalNovoCredenciamento = function() {
+    const modal = document.getElementById('modal-novo-credenciamento');
+    if (modal) modal.style.display = 'none';
+};
 
 // ── Histórico de Credenciamentos ─────────────────────────────────────────────
 window.carregarHistoricoCredenciamento = async function() {
@@ -495,6 +514,7 @@ window.carregarHistoricoCredenciamento = async function() {
                 <td>
                     <b>${cred.cliente_nome}</b><br>
                     <span style="font-size:0.8rem; color:#64748b;">${cred.cliente_email}</span>
+                    ${cred.endereco_instalacao ? `<br><span style="font-size:0.75rem; color:#94a3b8;"><i class="ph ph-map-pin"></i> ${cred.endereco_instalacao}</span>` : ''}
                 </td>
                 <td style="font-size:0.8rem; line-height:1.6;">${colabsText}</td>
                 <td style="font-size:0.8rem; line-height:1.6;">${veicsText}</td>

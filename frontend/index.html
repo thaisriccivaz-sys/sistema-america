@@ -2164,88 +2164,15 @@
 
                 <!-- Nova View: Credenciamento -->
                 <section id="view-logistica-credenciamento" class="content-view" style="padding:1.5rem;">
-                    <div class="page-header" style="margin-bottom: 2rem;">
+                                        <div class="page-header flex-between" style="margin-bottom: 2rem;">
                         <div>
                             <h2 style="font-size: 1.5rem; color: #1e293b; font-weight: bold; margin-bottom: 0.2rem;"><i class="ph ph-identification-card" style="margin-right:8px; color:#2d9e5f;"></i> Credenciamento de Equipe e Frota</h2>
                             <p style="color: #64748b; font-size: 0.95rem;">Gere um link temporário com documentos para enviar aos clientes.</p>
                         </div>
-                    </div>
-
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
-                        <!-- Coluna 1: Dados do Cliente e Colaboradores -->
                         <div>
-                            <div class="card" style="margin-bottom: 1.5rem;">
-                                <h3><i class="ph ph-user"></i> Dados do Cliente</h3>
-                                <div class="form-grid" style="grid-template-columns: 1fr; gap: 1rem; margin-top: 1rem;">
-                                    <div class="form-group">
-                                        <label>Nome do Cliente / Obra <span class="required">*</span></label>
-                                        <input type="text" id="cred-cliente-nome" placeholder="Ex: Construtora XPTO">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>E-mail do Cliente <span class="required">*</span></label>
-                                        <input type="email" id="cred-cliente-email" placeholder="Ex: contato@xpto.com.br">
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="card">
-                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
-                                    <h3><i class="ph ph-users"></i> Colaboradores</h3>
-                                    <button class="btn btn-outline" style="padding: 4px 8px; font-size: 12px;" onclick="abrirModalAddCredColab()"><i class="ph ph-plus"></i> Adicionar</button>
-                                </div>
-                                <div id="cred-colabs-list" style="display:flex; flex-direction:column; gap: 8px;">
-                                    <p style="color:#94a3b8; font-size:13px; font-style:italic;">Nenhum colaborador selecionado.</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Coluna 2: Veículos e Botão Gerar -->
-                        <div>
-                            <div class="card" style="margin-bottom: 1.5rem;">
-                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
-                                    <h3><i class="ph ph-truck"></i> Veículos</h3>
-                                    <button class="btn btn-outline" style="padding: 4px 8px; font-size: 12px;" onclick="abrirModalAddCredVeic()"><i class="ph ph-plus"></i> Adicionar</button>
-                                </div>
-                                <div id="cred-veiculos-list" style="display:flex; flex-direction:column; gap: 8px;">
-                                    <p style="color:#94a3b8; font-size:13px; font-style:italic;">Nenhum veículo selecionado.</p>
-                                </div>
-                            </div>
-
-                            <div class="card" style="margin-bottom: 1.5rem;">
-                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
-                                    <h3><i class="ph ph-seal-check" style="color:#16a34a;"></i> Licenças da Empresa</h3>
-                                    <button class="btn btn-outline" style="padding: 4px 8px; font-size: 12px;" onclick="abrirModalAddCredLicenca()"><i class="ph ph-plus"></i> Adicionar</button>
-                                </div>
-                                <div id="cred-licencas-list" style="display:flex; flex-direction:column; gap: 8px;">
-                                    <p style="color:#94a3b8; font-size:13px; font-style:italic;">Nenhuma licença selecionada.</p>
-                                </div>
-                            </div>
-
-
-                            <div class="card" style="margin-bottom: 1.5rem;">
-                                <h3 style="margin-bottom: 1rem;"><i class="ph ph-files"></i> Documentos Exigidos</h3>
-
-                                <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 10px;" id="cred-docs-exigidos">
-                                    <div><label><input type="checkbox" value="cnh"> CNH</label></div>
-                                    <div><label><input type="checkbox" value="cpf"> CPF</label></div>
-                                    <div><label><input type="checkbox" value="aso"> ASO</label></div>
-                                    <div><label><input type="checkbox" value="ficha_registro"> Ficha de Registro</label></div>
-                                    <div><label><input type="checkbox" value="treinamento"> Carteira de Vacinação</label></div>
-                                    <div><label><input type="checkbox" value="epi"> Ficha de EPI</label></div>
-                                    <div><label><input type="checkbox" value="contrato_esocial"> Contrato e-social</label></div>
-                                    <div><label><input type="checkbox" value="nr1"> NR1 / Ordem de Serviço</label></div>
-                                </div>
-
-                            </div>
-
-                            <div class="card" style="background:#f8fafc; border: 1px solid #e2e8f0; text-align: center;">
-                                <i class="ph ph-envelope-simple" style="font-size: 2.5rem; color: #2d9e5f; margin-bottom: 1rem;"></i>
-                                <h3 style="margin-bottom: 0.5rem;">Enviar Credenciamento</h3>
-                                <p style="color:#64748b; font-size:13px; margin-bottom: 1.5rem;">Um e-mail será enviado com um link seguro válido por 7 dias, contendo todos os documentos e certificados da equipe selecionada.</p>
-                                <button class="btn btn-primary" style="width: 100%; justify-content: center; padding: 12px; font-size: 1rem;" onclick="gerarEnviarCredenciamento()" id="btn-enviar-cred">
-                                    <i class="ph ph-paper-plane-right"></i> Gerar e Enviar E-mail
-                                </button>
-                            </div>
+                            <button class="btn btn-primary" onclick="window.abrirModalNovoCredenciamento()" style="display:flex; align-items:center; gap:8px;">
+                                <i class="ph ph-plus"></i> Novo Credenciamento
+                            </button>
                         </div>
                     </div>
 
@@ -2583,24 +2510,98 @@
         </div>
     </div>
 
-    <!-- MODAL: SELECIONAR COLABORADOR PARA CREDENCIAMENTO -->
-    <div id="modal-cred-colab" class="modal">
-        <div class="modal-content" style="max-width: 500px;">
-            <div class="modal-header">
-                <h3>Selecionar Colaboradores</h3>
-                <span class="close-modal" onclick="fecharModalAddCredColab()">&times;</span>
-            </div>
-            <div class="modal-body">
-                <input type="text" id="busca-cred-colab" class="form-control" placeholder="Buscar colaborador..." onkeyup="filtrarListaCred('lista-selecao-colab', this.value)" style="margin-bottom: 15px;">
-                <div id="lista-selecao-colab" style="max-height: 300px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 4px; padding: 10px;">
-                    <!-- Preenchido via JS -->
+    
+    <!-- MODAL: NOVO CREDENCIAMENTO (TELA CHEIA) -->
+    <div id="modal-novo-credenciamento" class="modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9998; align-items:center; justify-content:center; padding:1rem;">
+        <div style="background:#fff; border-radius:12px; width:100%; max-width:1100px; height:95vh; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+            <div style="padding:1rem 1.5rem; border-bottom:1.5px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; background:#f8fafc; border-radius:12px 12px 0 0;">
+                <div style="display:flex; align-items:center; gap:0.75rem;">
+                    <i class="ph ph-identification-card" style="color:#2d9e5f; font-size:1.4rem;"></i>
+                    <h3 style="margin:0; color:#0f172a; font-size:1.15rem; font-weight:700;">Novo Credenciamento</h3>
                 </div>
+                <button onclick="window.fecharModalNovoCredenciamento()" style="background:#f1f5f9; border:1px solid #e2e8f0; width:32px; height:32px; border-radius:8px; color:#64748b; cursor:pointer; font-size:1rem; display:flex; align-items:center; justify-content:center;"><i class="ph ph-x"></i></button>
             </div>
-            <div class="modal-footer" style="display:flex; justify-content:flex-end; gap: 10px; margin-top: 15px;">
-                <button class="btn btn-outline" onclick="fecharModalAddCredColab()">Cancelar</button>
-                <button id="btn-todos-colabs" class="btn btn-secondary" onclick="selecionarTodosColabs()" style="background:#f1f5f9;color:#334155;border:1px solid #cbd5e1;">Selecionar Todos</button>
-                <button class="btn btn-primary" onclick="confirmarSelecaoCredColab()">Adicionar Selecionados</button>
-            </div>
+            <div style="padding:1.5rem; overflow-y:auto; flex:1;">
+                <!-- Layout reorganizado conforme pedido -->
+                
+                <!-- 1. Dados do Cliente -->
+                <div class="card" style="margin-bottom: 1.5rem;">
+                    <h3><i class="ph ph-user"></i> Dados do Cliente</h3>
+                    <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
+                        <div class="form-group">
+                            <label>Nome do Cliente / Obra <span class="required">*</span></label>
+                            <input type="text" id="cred-cliente-nome" placeholder="Ex: Construtora XPTO">
+                        </div>
+                        <div class="form-group">
+                            <label>E-mail do Cliente <span class="required">*</span></label>
+                            <input type="email" id="cred-cliente-email" placeholder="Ex: contato@xpto.com.br">
+                        </div>
+                        <div class="form-group" style="grid-column: 1 / -1;">
+                            <label>Endereço de Instalação</label>
+                            <input type="text" id="cred-endereco-instalacao" placeholder="Ex: Rua das Flores, 123 - Centro">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Documentos -->
+                <div class="card" style="margin-bottom: 1.5rem;">
+                    <h3 style="margin-bottom: 1rem;"><i class="ph ph-files"></i> Documentos Exigidos</h3>
+                    <div class="form-grid" style="grid-template-columns: repeat(4, 1fr); gap: 10px;" id="cred-docs-exigidos">
+                        <div><label><input type="checkbox" value="cnh"> CNH</label></div>
+                        <div><label><input type="checkbox" value="cpf"> CPF</label></div>
+                        <div><label><input type="checkbox" value="aso"> ASO</label></div>
+                        <div><label><input type="checkbox" value="ficha_registro"> Ficha de Registro</label></div>
+                        <div><label><input type="checkbox" value="treinamento"> Carteira de Vacinação</label></div>
+                        <div><label><input type="checkbox" value="epi"> Ficha de EPI</label></div>
+                        <div><label><input type="checkbox" value="contrato_esocial"> Contrato e-social</label></div>
+                        <div><label><input type="checkbox" value="nr1"> NR1 / Ordem de Serviço</label></div>
+                    </div>
+                </div>
+
+                <!-- 3. Colaboradores e Veículos -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 1.5rem;">
+                    <div class="card">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
+                            <h3><i class="ph ph-users"></i> Colaboradores</h3>
+                            <button class="btn btn-outline" style="padding: 4px 8px; font-size: 12px;" onclick="window.abrirModalAddCredColab()"><i class="ph ph-plus"></i> Adicionar</button>
+                        </div>
+                        <div id="cred-colabs-list" style="display:flex; flex-direction:column; gap: 8px;">
+                            <p style="color:#94a3b8; font-size:13px; font-style:italic;">Nenhum colaborador selecionado.</p>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
+                            <h3><i class="ph ph-truck"></i> Veículos</h3>
+                            <button class="btn btn-outline" style="padding: 4px 8px; font-size: 12px;" onclick="window.abrirModalAddCredVeic()"><i class="ph ph-plus"></i> Adicionar</button>
+                        </div>
+                        <div id="cred-veiculos-list" style="display:flex; flex-direction:column; gap: 8px;">
+                            <p style="color:#94a3b8; font-size:13px; font-style:italic;">Nenhum veículo selecionado.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. Licenças -->
+                <div class="card" style="margin-bottom: 1.5rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
+                        <h3><i class="ph ph-seal-check" style="color:#16a34a;"></i> Licenças da Empresa</h3>
+                        <button class="btn btn-outline" style="padding: 4px 8px; font-size: 12px;" onclick="window.abrirModalAddCredLicenca()"><i class="ph ph-plus"></i> Adicionar</button>
+                    </div>
+                    <div id="cred-licencas-list" style="display:flex; flex-direction:column; gap: 8px;">
+                        <p style="color:#94a3b8; font-size:13px; font-style:italic;">Nenhuma licença selecionada.</p>
+                    </div>
+                </div>
+
+                <!-- 5. Botão Enviar -->
+                <div class="card" style="background:#f8fafc; border: 1px solid #e2e8f0; text-align: center;">
+                    <i class="ph ph-envelope-simple" style="font-size: 2.5rem; color: #2d9e5f; margin-bottom: 1rem;"></i>
+                    <h3 style="margin-bottom: 0.5rem;">Enviar Credenciamento</h3>
+                    <p style="color:#64748b; font-size:13px; margin-bottom: 1.5rem;">Um e-mail será enviado com um link seguro válido por 7 dias, contendo todos os documentos e certificados da equipe selecionada.</p>
+                    <button class="btn btn-primary" style="width: 100%; justify-content: center; padding: 12px; font-size: 1rem;" onclick="window.gerarEnviarCredenciamento()" id="btn-enviar-cred">
+                        <i class="ph ph-paper-plane-right"></i> Gerar e Enviar E-mail
+                    </button>
+                </div>
+</div>
         </div>
     </div>
 
