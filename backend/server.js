@@ -9601,12 +9601,25 @@ app.post('/api/licencas/extrair-validade', authenticateToken, uploadFoto.single(
         
         const docNome = req.body.nome ? req.body.nome.toUpperCase() : '';
         
-        // 0. Caso especial: CTF IBAMA — priorizar o campo "CR válido até:"
+        // 0. Caso especial: CTF IBAMA — priorizar "CR válido até:" e pegar a data mais futura nessa seção
         if (docNome.includes('CTF') || docNome.includes('IBAMA')) {
-            const matchCR = text.match(/CR\s+v[aá]lido\s+at[eé]\s*:?\s*[\s\S]{0,20}?(\d{2}[\/\.-]\d{2}[\/\.-]\d{4})/i);
-            if (matchCR && matchCR[1]) {
-                const parts = matchCR[1].split(/[\/\.-]/);
-                if (parts.length === 3) {
+            const crSection = text.match(/CR\s+v[aá]lido\s+at[eé][\s\S]{0,300}/i);
+            if (crSection) {
+                const datesInSection = [...crSection[0].matchAll(/(\d{2}[\/\.-]\d{2}[\/\.-]\d{4})/g)];
+                let maxDateObj = null;
+                let maxDateStr = null;
+                for (const d of datesInSection) {
+                    const parts = d[1].split(/[\/\.-]/);
+                    if (parts.length === 3) {
+                        const dia = parseInt(parts[0], 10), mes = parseInt(parts[1], 10), ano = parseInt(parts[2], 10);
+                        if (ano >= 2020 && ano <= 2050 && mes >= 1 && mes <= 12 && dia >= 1 && dia <= 31) {
+                            const dObj = new Date(ano, mes - 1, dia);
+                            if (!maxDateObj || dObj > maxDateObj) { maxDateObj = dObj; maxDateStr = d[1]; }
+                        }
+                    }
+                }
+                if (maxDateStr) {
+                    const parts = maxDateStr.split(/[\/\.-]/);
                     return res.json({ validade: `${parts[2]}-${parts[1]}-${parts[0]}` });
                 }
             }
