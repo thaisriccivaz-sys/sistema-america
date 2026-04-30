@@ -219,7 +219,7 @@ window.uploadLicenca = async function(input, empresa, nome) {
     
     const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
     const nLow = nome.toLowerCase();
-    const semValidade = nLow.includes('cnpj') || nLow.includes('inscrição estadual') || nLow.includes('inscricao estadual');
+    const semValidade = nLow.includes('cnpj') || nLow.includes('inscrição estadual') || nLow.includes('inscricao estadual') || nLow.includes('inscrição municipal') || nLow.includes('inscricao municipal');
     
     let venc = '';
     
@@ -280,7 +280,7 @@ window.uploadLicenca = async function(input, empresa, nome) {
 // ── Modal atualizar licença ──────────────────────────────────
 window.editLicencaModal = async function(empresa, nome, id, valAtual) {
     const nLow = nome.toLowerCase();
-    const semValidade = nLow.includes('cnpj') || nLow.includes('inscrição estadual') || nLow.includes('inscricao estadual');
+    const semValidade = nLow.includes('cnpj') || nLow.includes('inscrição estadual') || nLow.includes('inscricao estadual') || nLow.includes('inscrição municipal') || nLow.includes('inscricao municipal');
     let venc = '';
     
     if (!semValidade) {
