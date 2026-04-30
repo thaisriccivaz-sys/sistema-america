@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
@@ -303,6 +303,16 @@ db.get("SELECT * FROM geradores WHERE nome = 'NR1'", (err, row) => {
             else console.log("MIGRATION: NR1 inserido com sucesso.");
         });
     }
+});
+
+// MIGRATION: Excluir gerador Ordem de Servico (29/04/2026, substituido pela NR1)
+db.run(`DELETE FROM geradores WHERE UPPER(TRIM(nome)) LIKE '%ORDEM DE SERVI%'`, (err) => {
+    if (err) console.error('[MIGRATION] Erro ao excluir gerador Ordem de Servico:', err.message);
+    else console.log('[MIGRATION] Gerador Ordem de Servico excluido.');
+});
+db.run(`DELETE FROM documentos WHERE UPPER(TRIM(document_type)) LIKE '%ORDEM DE SERVI%' AND tab_name = 'CONTRATOS_AVULSOS'`, (err) => {
+    if (err) console.error('[MIGRATION] Erro ao excluir docs Ordem de Servico:', err.message);
+    else console.log('[MIGRATION] Docs Ordem de Servico removidos dos prontuarios.');
 });
 
 // MIGRATION: Remover " - Total" dos grupos de permissão
