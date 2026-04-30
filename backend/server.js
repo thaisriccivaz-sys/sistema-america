@@ -9599,8 +9599,8 @@ app.post('/api/licencas/extrair-validade', authenticateToken, uploadFoto.single(
         
         const docNome = req.body.nome ? req.body.nome.toUpperCase() : '';
         
-        // 1. Tenta achar data próxima a palavras chaves
-        const matchKeyword = text.match(/(?:v[aá]lido\s+at[eé]|validade|vencimento|expira|vence|venc).*?(\d{2}[\/\.-]\d{2}[\/\.-]\d{4})/i);
+        // 1. Tenta achar data próxima a palavras chaves (busca até 100 caracteres à frente suportando quebras de linha)
+        const matchKeyword = text.match(/(?:v[aá]lido\s+at[eé]|validade|vencimento|expira|vence|venc)[\s\S]{0,100}?(\d{2}[\/\.-]\d{2}[\/\.-]\d{4})/i);
         if (matchKeyword && matchKeyword[1]) {
             foundDate = matchKeyword[1];
         } else {
