@@ -327,6 +327,8 @@ db.run(`CREATE TABLE IF NOT EXISTS licencas (
     if (err) console.error('[MIGRATION] Erro ao criar tabela licencas:', err.message);
     else {
         console.log('[MIGRATION] Tabela licencas verificada/criada.');
+        db.run("UPDATE licencas SET nome = 'CLI - Alvará' WHERE nome IN ('CLI', 'ALVARÁ', 'Alvará')", () => {});
+        db.run("UPDATE licencas SET nome = 'LO - CETESB' WHERE nome IN ('Licença de Operação', 'CETESB', 'LO - Licença de Operação', 'LO')", () => {});
         // Adicionar colunas caso a tabela já exista
         db.run("ALTER TABLE licencas ADD COLUMN last_alert_date TEXT", (err1) => {});
         db.run("ALTER TABLE licencas ADD COLUMN alerta_3_meses_enviado INTEGER DEFAULT 0", (err2) => {});

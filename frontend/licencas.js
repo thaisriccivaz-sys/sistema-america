@@ -11,10 +11,10 @@ const LICENCAS_CONFIG = {
         border: '#ffd0b8',
         icon: 'ph-building-office',
         docs: [
-            'PCMSO', 'ALVARÁ', 'AVCB', 'CADRI', 'Cartão de CNPJ',
-            'CLI', 'CND Estadual', 'CND Federal', 'CND Municipal',
+            'PCMSO', 'CLI - Alvará', 'AVCB', 'CADRI', 'Cartão de CNPJ',
+            'CND Estadual', 'CND Federal', 'CND Municipal',
             'CND Trabalhista', 'CTF IBAMA', 'Inscrição Estadual',
-            'Inscrição Municipal', 'Licença de Operação', 'CETESB', 'LTCAT'
+            'Inscrição Municipal', 'LO - CETESB', 'LTCAT'
         ]
     },
     'attend-ambiental': {
@@ -24,9 +24,9 @@ const LICENCAS_CONFIG = {
         border: '#b8d9f5',
         icon: 'ph-leaf',
         docs: [
-            'Alvará', 'AVCB', 'CADRI', 'Cartão CNPJ', 'CTF IBAMA',
+            'CLI - Alvará', 'AVCB', 'CADRI', 'Cartão CNPJ', 'CTF IBAMA',
             'Declaração de Contrato', 'Declaração de Vigência',
-            'LI - Licença de Instalação', 'LO - Licença de Operação'
+            'LI - Licença de Instalação', 'LO - CETESB'
         ]
     },
     'brk': {
@@ -36,8 +36,8 @@ const LICENCAS_CONFIG = {
         border: '#b8f0d0',
         icon: 'ph-factory',
         docs: [
-            'Alvará', 'AVCB', 'CADRI', 'Cartão CNPJ', 'Contrato',
-            'CTF IBAMA', 'LO'
+            'CLI - Alvará', 'AVCB', 'CADRI', 'Cartão CNPJ', 'Contrato',
+            'CTF IBAMA', 'LO - CETESB'
         ]
     }
 };
@@ -218,11 +218,12 @@ window.uploadLicenca = async function(input, empresa, nome) {
     if (!file) return;
     
     const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
-    const isCNPJ = nome.toLowerCase().includes('cnpj');
+    const nLow = nome.toLowerCase();
+    const semValidade = nLow.includes('cnpj') || nLow.includes('inscrição estadual') || nLow.includes('inscricao estadual');
     
     let venc = '';
     
-    if (!isCNPJ) {
+    if (!semValidade) {
         let valAtual = '';
         if (file.type === 'application/pdf') {
             try {
@@ -278,10 +279,11 @@ window.uploadLicenca = async function(input, empresa, nome) {
 
 // ── Modal atualizar licença ──────────────────────────────────
 window.editLicencaModal = async function(empresa, nome, id, valAtual) {
-    const isCNPJ = nome.toLowerCase().includes('cnpj');
+    const nLow = nome.toLowerCase();
+    const semValidade = nLow.includes('cnpj') || nLow.includes('inscrição estadual') || nLow.includes('inscricao estadual');
     let venc = '';
     
-    if (!isCNPJ) {
+    if (!semValidade) {
         const promptRes = await promptValidade(nome, valAtual);
         if (promptRes === null) return;
         venc = promptRes;
@@ -308,7 +310,7 @@ window.editLicencaModal = async function(empresa, nome, id, valAtual) {
 
     input.onchange = async function() {
         if (!this.files[0]) { 
-            if (!isCNPJ) await patchValidade(); 
+            if (!semValidade) await patchValidade(); 
             return; 
         }
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
@@ -333,7 +335,7 @@ window.editLicencaModal = async function(empresa, nome, id, valAtual) {
     };
 
     // Perguntar se quer trocar o arquivo também
-    if (isCNPJ) {
+    if (semValidade) {
         input.click();
     } else {
         if (confirm('Deseja também substituir o arquivo PDF?')) {
