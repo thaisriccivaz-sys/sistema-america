@@ -44,6 +44,26 @@ const LICENCAS_CONFIG = {
 
 let licencasData = {}; // { 'america-rental': [...licencas], ... }
 let licencasActiveTab = 'america-rental';
+let licencasFiltro = ''; // texto de busca atual
+
+// ── Filtro de busca em tempo real ───────────────────────────
+window.filtrarLicencas = function(val) {
+    licencasFiltro = val.toLowerCase().trim();
+    // Filtra os cards já renderizados sem re-renderizar tudo
+    document.querySelectorAll('.licenca-card, .licenca-card-empty').forEach(card => {
+        const nomeEl = card.querySelector('.licenca-doc-nome');
+        if (!nomeEl) return;
+        const nomeCard = nomeEl.textContent.toLowerCase();
+        card.style.display = (!licencasFiltro || nomeCard.includes(licencasFiltro)) ? '' : 'none';
+    });
+    // Atualiza aviso de nenhum resultado
+    const grid = document.getElementById('licencas-grid-main');
+    if (grid) {
+        const visiveis = [...grid.querySelectorAll('.licenca-card, .licenca-card-empty')].filter(c => c.style.display !== 'none');
+        const semResultado = grid.querySelector('#licencas-sem-resultado');
+        if (semResultado) semResultado.style.display = visiveis.length === 0 ? '' : 'none';
+    }
+};
 
 // ── Inicializar módulo ───────────────────────────────────────
 window.initLicencas = async function() {
@@ -214,10 +234,32 @@ function renderLicencasContent() {
             <div class="licencas-alert-chip" style="background:#dcfce7; color:#16a34a; border:1px solid #86efac;"><i class="ph ph-check-circle"></i> Todas as licenças em dia</div>
         </div>`}
 
-        <!-- Grid de cards -->
-        <div class="licencas-grid">
-            ${cards}
+        <!-- Barra de busca -->
+        <div style="margin-bottom:12px;">
+            <div style="position:relative; max-width:380px;">
+                <i class="ph ph-magnifying-glass" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#94a3b8; font-size:16px; pointer-events:none;"></i>
+                <input type="text" id="licencas-search-input"
+                    placeholder="Pesquisar documento..."
+                    oninput="filtrarLicencas(this.value)"
+                    style="width:100%; padding:9px 12px 9px 36px; border:1.5px solid #e2e8f0; border-radius:10px;
+                           font-size:14px; color:#334155; background:#fff; outline:none;
+                           box-shadow:0 1px 4px rgba(0,0,0,0.06); transition:border .2s;"
+                    onfocus="this.style.borderColor='#6366f1'"
+                    onblur="this.style.borderColor='#e2e8f0'"
+                    value="${licencasFiltro}"
+                >
+            </div>
         </div>
+
+        <!-- Grid de cards -->
+        <div class="licencas-grid" id="licencas-grid-main">
+            ${cards}
+            <div id="licencas-sem-resultado" style="display:none; grid-column:1/-1; text-align:center; color:#94a3b8; padding:32px 0;">
+                <i class="ph ph-magnifying-glass" style="font-size:32px;"></i>
+                <p style="margin-top:8px;">Nenhum documento encontrado para "<span id="lsr-texto"></span>"</p>
+            </div>
+        </div>
+
     `;
 }
 
