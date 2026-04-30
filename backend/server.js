@@ -9589,7 +9589,7 @@ app.listen(PORT, () => {
 const LICENCAS_UPLOAD_PATH = path.join(BASE_UPLOAD_PATH, 'LICENCAS');
 if (!fs.existsSync(LICENCAS_UPLOAD_PATH)) fs.mkdirSync(LICENCAS_UPLOAD_PATH, { recursive: true });
 
-app.post('/api/licencas/extrair-validade', authenticateToken, upload.single('file'), async (req, res) => {
+app.post('/api/licencas/extrair-validade', authenticateToken, uploadFoto.single('file'), async (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
     if (req.file.mimetype !== 'application/pdf') return res.json({ validade: null });
     try {

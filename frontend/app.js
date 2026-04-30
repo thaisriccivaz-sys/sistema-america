@@ -424,6 +424,7 @@ const BREADCRUMB_MAP = {
     'usuarios-permissoes':  { path: 'Diretoria → Usuários e Permissões',                          code: 'DIR001' },
     'form-usuario':         { path: 'Diretoria → Usuários e Permissões → Cadastro',               code: 'DIR002' },
     'certificado-digital':  { path: 'Diretoria → Certificado Digital',                            code: 'DIR003' },
+    'licencas':             { path: 'Licenças',                                                   code: 'ADM001' },
     // Sub-telas (Prontuário Digital - abas)
     'tab:00. CheckList':          { path: 'Colaboradores → Prontuário Digital → 00. CheckList',          },
     'tab:01_FICHA_CADASTRAL':     { path: 'Colaboradores → Prontuário Digital → Ficha Cadastral',        },
