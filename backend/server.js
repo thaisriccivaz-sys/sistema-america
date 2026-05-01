@@ -9796,7 +9796,7 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
     db.get('SELECT * FROM credenciamentos WHERE id = ?', [req.params.id], (err, cred) => {
         if (err || !cred) return res.status(500).json({ error: 'Credenciamento não encontrado' });
 
-        db.run(`UPDATE credenciamentos SET colaboradores_ids = ?, veiculos_ids = ?, token = ?, valid_until = ?, status = 'enviado', created_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        db.run(`UPDATE credenciamentos SET colaboradores_ids = ?, veiculos_ids = ?, token = ?, valid_until = ?, status = 'enviado', enviado_em = CURRENT_TIMESTAMP, enviado_por_id = ? WHERE id = ?`,
             [JSON.stringify(colaboradores || []), JSON.stringify(veiculos || []), token, validUntil.toISOString(), req.params.id],
             async function (err2) {
                 if (err2) return res.status(500).json({ error: err2.message });
@@ -9923,7 +9923,7 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
         const validUntil = new Date();
         validUntil.setDate(validUntil.getDate() + 7);
 
-        db.run(`INSERT INTO credenciamentos (cliente_nome, cliente_email, endereco_instalacao, token, colaboradores_ids, veiculos_ids, docs_exigidos, licencas_ids, valid_until) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        db.run(`INSERT INTO credenciamentos (cliente_nome, cliente_email, endereco_instalacao, token, colaboradores_ids, veiculos_ids, docs_exigidos, licencas_ids, valid_until, enviado_em, enviado_por_id, status, solicitado_por_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, 'enviado', ?)`,
             [cliente_nome, cliente_email, endereco_instalacao || '', token, JSON.stringify(colaboradores || []), JSON.stringify(veiculos || []), JSON.stringify(docs_exigidos || []), JSON.stringify(licencas || []), validUntil.toISOString()],
             async function (err) {
                 if (err) return res.status(500).json({ error: err.message });
@@ -10018,8 +10018,8 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
 
 // GET Autenticado: Listar todos os credenciamentos
 app.get('/api/logistica/credenciamentos', authenticateToken, (req, res) => {
-    db.all(`SELECT id, cliente_nome, os, cliente_email, endereco_instalacao, token, colaboradores_ids, veiculos_ids, licencas_ids, docs_exigidos, valid_until, acessado_em, status, data_limite_envio, qtd_max_colaboradores, qtd_max_veiculos, created_at
-            FROM credenciamentos ORDER BY created_at DESC`, [], (err, rows) => {
+    db.all(`SELECT c.id, c.cliente_nome, c.os, c.cliente_email, c.endereco_instalacao, c.token, c.colaboradores_ids, c.veiculos_ids, c.licencas_ids, c.docs_exigidos, c.valid_until, c.acessado_em, c.status, c.data_limite_envio, c.qtd_max_colaboradores, c.qtd_max_veiculos, c.created_at, c.enviado_em, u1.username as solicitado_por_nome, u2.username as enviado_por_nome
+            FROM credenciamentos c LEFT JOIN usuarios u1 ON c.solicitado_por_id = u1.id LEFT JOIN usuarios u2 ON c.enviado_por_id = u2.id ORDER BY c.created_at DESC`, [], (err, rows) => {
         if (err) {
             // Fallback: try without 'os' and optional new columns in case migration hasn't run
             db.all(`SELECT id, cliente_nome, cliente_email, endereco_instalacao, token, colaboradores_ids, veiculos_ids, licencas_ids, docs_exigidos, valid_until, acessado_em, created_at

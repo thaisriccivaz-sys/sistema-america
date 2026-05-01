@@ -880,6 +880,11 @@ const db = new sqlite3.Database(dbPath, (err) => {
         if (err && !err.message.includes('duplicate')) { /* coluna ja existe */ }
     });
 
+    // Adicionar colunas de autoria do credenciamento
+    db.run("ALTER TABLE credenciamentos ADD COLUMN solicitado_por_id INTEGER", () => {});
+    db.run("ALTER TABLE credenciamentos ADD COLUMN enviado_por_id INTEGER", () => {});
+    db.run("ALTER TABLE credenciamentos ADD COLUMN enviado_em DATETIME", () => {});
+
 
             console.log('Tabelas do sistema RH verificadas/criadas com sucesso.');
 

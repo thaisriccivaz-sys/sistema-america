@@ -353,7 +353,47 @@ window.ordenarHistoricoComCred = function(coluna) {
                         <div style="color:#334155; line-height:1.6;">${licsFormatted}</div>
                     </div>
                 </div>
-                ${cred.observacoes ? `<div style="margin-top:10px; padding-top:10px; border-top:1px solid #e2e8f0;"><span style="color:#64748b; font-weight:600;">📝 Observações:</span> <span style="color:#475569;">${cred.observacoes}</span></div>` : ''}
+                ${cred.observacoes ? `<div style="margin-top:15px; padding-top:10px; border-top:1px solid #e2e8f0;"><span style="color:#64748b; font-weight:600;">📝 Observações:</span> <span style="color:#475569;">${cred.observacoes}</span></div>` : ''}
+                
+                <div style="margin-top:15px; padding-top:15px; border-top:1px solid #e2e8f0; display:flex; flex-wrap:wrap; gap:30px;">
+                    <div style="flex:1; min-width:250px;">
+                        <div style="color:#64748b; font-weight:600; margin-bottom:8px;">Envio do Credenciamento:</div>
+                        ${cred.status === 'enviado' || cred.enviado_em ? `
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <div style="width:36px; height:36px; border-radius:50%; background:#e2e8f0; display:flex; align-items:center; justify-content:center; font-weight:bold; color:#64748b; font-size:16px;">
+                                    ${(cred.enviado_por_nome || 'L')[0].toUpperCase()}
+                                </div>
+                                <div>
+                                    <div style="font-weight:600; color:#334155; font-size:0.9rem;">${cred.enviado_por_nome || 'Usuário Logística'}</div>
+                                    <div style="font-size:0.75rem; color:#64748b;">Enviado pela Logística</div>
+                                </div>
+                            </div>
+                            <div style="margin-top:8px; font-size:0.8rem; color:#475569;">
+                                <i class="ph ph-calendar-blank"></i> Enviado em: <b>${cred.enviado_em ? new Date(cred.enviado_em).toLocaleString('pt-BR') : 'Data não registrada'}</b>
+                            </div>
+                        ` : `
+                            <div style="padding:10px; background:#fef2f2; color:#ef4444; border-radius:6px; font-size:0.8rem; display:inline-block;">
+                                <i class="ph ph-x-circle"></i> Credenciamento não enviado
+                            </div>
+                        `}
+                    </div>
+                    
+                    <div style="flex:1; min-width:250px;">
+                        <div style="color:#64748b; font-weight:600; margin-bottom:8px;">Acesso do Cliente:</div>
+                        ${cred.acessado_em ? `
+                            <div style="padding:10px; background:#f0fdf4; color:#166534; border-radius:6px; font-size:0.8rem; display:inline-block; border:1px solid #bbf7d0;">
+                                <i class="ph ph-check-circle"></i> Link acessado pelo cliente
+                                <div style="margin-top:4px; font-weight:600;">
+                                    <i class="ph ph-clock"></i> Acessado em: ${new Date(cred.acessado_em).toLocaleString('pt-BR')}
+                                </div>
+                            </div>
+                        ` : `
+                            <div style="font-size:0.8rem; color:#94a3b8; font-style:italic;">
+                                Cliente ainda não abriu o link.
+                            </div>
+                        `}
+                    </div>
+                </div>
             </td>
         </tr>`;
     }).join('');
