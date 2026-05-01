@@ -2333,6 +2333,21 @@ app.get('/api/test-desligado/:id', authenticateToken, async (req, res) => {
     }
 });
 
+// ENDPOINT: lista todos os responsaveis por departamentos (util para diagnostico)
+app.get('/api/test-responsaveis-deptos', authenticateToken, async (req, res) => {
+    try {
+        const deptos = await new Promise((resolve, reject) =>
+            db.all('SELECT d.id, d.nome, d.tipo, d.responsavel_id, c.nome_completo as responsavel_nome, c.id as colab_id FROM departamentos d LEFT JOIN colaboradores c ON c.id = d.responsavel_id WHERE d.responsavel_id IS NOT NULL', [], (e, r) => e ? reject(e) : resolve(r || [])));
+        const diretoria = await new Promise((resolve, reject) =>
+            db.all("SELECT id, username, email, role, departamento FROM usuarios WHERE (departamento='Diretoria' OR role='Diretoria' OR role='Administrador') LIMIT 10", [], (e, r) => e ? reject(e) : resolve(r || [])));
+        const diretoriaColabs = await new Promise((resolve, reject) =>
+            db.all("SELECT id, nome_completo, email_corporativo, departamento FROM colaboradores WHERE departamento='Diretoria' AND status!='Desligado' AND email_corporativo IS NOT NULL LIMIT 10", [], (e, r) => e ? reject(e) : resolve(r || [])));
+        res.json({ deptos_com_responsavel: deptos, diretoria_usuarios: diretoria, diretoria_colabs: diretoriaColabs });
+    } catch (err) {
+        res.json({ error: err.message });
+    }
+});
+
 app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
     const data = req.body;
     const id = req.params.id;
