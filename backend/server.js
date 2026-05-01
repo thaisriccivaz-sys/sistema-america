@@ -9586,7 +9586,7 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
                 ['nova_solicitacao', JSON.stringify({ 
                     cliente_nome, 
                     os, 
-                    solicitante: req.user ? req.user.nome : 'Comercial' 
+                    solicitante: req.user ? req.user.username : 'Comercial' 
                 })]
             );
 
@@ -9647,7 +9647,7 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
                             </div>
                             <div style="padding: 20px;">
                                 <h2 style="color: #7048e8; text-align: center; margin-top: 0;">📋 Nova Solicitação de Credenciamento</h2>
-                                <p>Uma nova solicitação de credenciamento foi registrada pelo departamento <strong>Comercial</strong> e aguarda ação da Logística.</p>
+                                <p>Uma nova solicitação de credenciamento foi registrada por <strong>${req.user ? req.user.username : 'Comercial'}</strong> e aguarda ação da Logística.</p>
                                 <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #7048e8;">
                                     <table style="width:100%; border-collapse:collapse;">
                                         <tr><td style="padding:4px 8px; font-weight:bold; color:#475569; width: 40%;">Cliente / Obra:</td><td style="padding:4px 8px;">${cliente_nome}</td></tr>
