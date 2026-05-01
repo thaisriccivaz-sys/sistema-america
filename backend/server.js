@@ -6284,6 +6284,15 @@ app.put('/api/usuarios/:id', authenticateToken, (req, res) => {
     });
 });
 
+
+// DELETE Autenticado: Limpar toda a tabela de credenciamentos (Botão Limpar Lista)
+app.delete('/api/logistica/credenciamentos/limpar-lista', authenticateToken, (req, res) => {
+    db.run('DELETE FROM credenciamentos', (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: 'Todos os credenciamentos foram limpos.' });
+    });
+});
+
 app.delete('/api/usuarios/:id', authenticateToken, (req, res) => {
     db.run('UPDATE usuarios SET ativo = 0 WHERE id = ?', [req.params.id], function(err) {
         if (err) return res.status(500).json({ error: err.message });
@@ -6292,7 +6301,9 @@ app.delete('/api/usuarios/:id', authenticateToken, (req, res) => {
 });
 
 
-
+app.get('/api/wipe-credenciamentos', (req, res) => {
+    db.run('DELETE FROM credenciamentos', (err) => {
+        res.json({ message: 'Todos os credenciamentos foram limpos.', error: err });
     });
 });
 
@@ -9606,15 +9617,6 @@ app.get('/api/logistica/credenciamentos', authenticateToken, (req, res) => {
 });
 
 // DELETE Autenticado: Excluir credenciamento
-
-// DELETE Autenticado: Limpar toda a tabela de credenciamentos (Botão Limpar Lista)
-app.delete('/api/logistica/credenciamentos/limpar-lista', authenticateToken, (req, res) => {
-    db.run('DELETE FROM credenciamentos', (err) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ message: 'Todos os credenciamentos foram limpos.' });
-    });
-});
-
 app.delete('/api/logistica/credenciamentos/:id', authenticateToken, (req, res) => {
     db.run('DELETE FROM credenciamentos WHERE id = ?', [req.params.id], function(err) {
         if (err) return res.status(500).json({ error: err.message });
