@@ -25,6 +25,7 @@ window.abrirModalSolicitarCredenciamento = async function(id = null) {
         // Clear fields
         document.getElementById('solic-id-edit').value = '';
         document.getElementById('solic-cliente-nome').value = '';
+        document.getElementById('solic-os').value = '';
         document.getElementById('solic-cliente-email').value = '';
         document.getElementById('solic-endereco-instalacao').value = '';
         document.getElementById('solic-qtd-colabs').value = 0;
@@ -41,6 +42,7 @@ window.abrirModalSolicitarCredenciamento = async function(id = null) {
         if (item) {
             document.getElementById('solic-id-edit').value = item.id;
             document.getElementById('solic-cliente-nome').value = item.cliente_nome || '';
+            document.getElementById('solic-os').value = item.os || '';
             document.getElementById('solic-cliente-email').value = item.cliente_email || '';
             document.getElementById('solic-endereco-instalacao').value = item.endereco_instalacao || '';
             document.getElementById('solic-qtd-colabs').value = item.qtd_max_colaboradores || 0;
@@ -73,6 +75,7 @@ window.salvarSolicitacaoCredenciamento = async function() {
     
     const payload = {
         cliente_nome: document.getElementById('solic-cliente-nome').value,
+        os: document.getElementById('solic-os').value,
         cliente_email: document.getElementById('solic-cliente-email').value,
         endereco_instalacao: document.getElementById('solic-endereco-instalacao').value,
         qtd_max_colaboradores: document.getElementById('solic-qtd-colabs').value || 0,

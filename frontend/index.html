@@ -1775,7 +1775,7 @@
                                 </div>
                             </div>
                             <button class="btn btn-danger" style="padding: 4px 12px; font-size: 12px; margin-right: 8px;" onclick="window.limparListaCredenciamentos()"><i class="ph ph-trash"></i> Limpar Lista</button>
-                            <button class="btn btn-outline" style="padding: 4px 12px; font-size: 12px;" onclick="window.carregarHistoricoComCred()">
+                            <button class="btn btn-outline" style="padding: 4px 12px; font-size: 12px; display: none;" onclick="window.carregarHistoricoComCred()">
                                 <i class="ph ph-arrows-clockwise"></i> Atualizar
                             </button>
                         </div>
@@ -1801,8 +1801,8 @@
                 </section>
 
                 <!-- MODAL: SOLICITAR CREDENCIAMENTO -->
-                <div id="modal-solicitar-credenciamento" class="modal" style="z-index:9998; padding:20px;">
-                    <div class="modal-content" style="width: 95vw; max-width: 1600px; height: calc(100vh - 40px); display: flex; flex-direction: column;">
+                <div id="modal-solicitar-credenciamento" class="modal" style="z-index:10000; padding:20px;">
+                    <div class="modal-content" style="width: 95vw; max-width: 1600px; height: calc(100vh - 80px); margin-bottom: 30px; display: flex; flex-direction: column;">
                         <div class="modal-header">
                             <h2 style="margin:0;"><i class="ph ph-paper-plane-tilt" style="color:#7048e8; margin-right:8px;"></i> Solicitação de Credenciamento</h2>
                             <span class="close-modal" onclick="window.fecharModalSolicitarCredenciamento()">&times;</span>
@@ -1813,16 +1813,20 @@
                                 <h3><i class="ph ph-user"></i> Dados do Cliente</h3>
                                 <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
                                     <div class="form-group">
-                                        <label>Nome do Cliente / Obra <span class="required">*</span></label>
-                                        <input type="text" id="solic-cliente-nome" placeholder="Ex: Construtora XPTO">
+                                        <label style="display:block; margin-bottom:4px; font-weight:600;">Nome do Cliente / Obra <span class="required">*</span></label>
+                                        <input type="text" id="solic-cliente-nome" placeholder="Ex: Construtora XPTO" style="width:100%; padding:0.6rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box;">
                                     </div>
                                     <div class="form-group">
-                                        <label>E-mail do Cliente <span class="required">*</span></label>
-                                        <input type="email" id="solic-cliente-email" placeholder="Ex: contato@xpto.com.br">
+                                        <label style="display:block; margin-bottom:4px; font-weight:600;">E-mail do Cliente <span class="required">*</span></label>
+                                        <input type="email" id="solic-cliente-email" placeholder="Ex: contato@xpto.com.br" style="width:100%; padding:0.6rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box;">
+                                    </div>
+                                    <div class="form-group">
+                                        <label style="display:block; margin-bottom:4px; font-weight:600;">OS</label>
+                                        <input type="text" id="solic-os" placeholder="Ex: OS-12345" style="width:100%; padding:0.6rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box;">
                                     </div>
                                     <div class="form-group" style="grid-column: 1 / -1;">
-                                        <label>Endereço de Instalação</label>
-                                        <input type="text" id="solic-endereco-instalacao" placeholder="Ex: Rua das Flores, 123 - Centro">
+                                        <label style="display:block; margin-bottom:4px; font-weight:600;">Endereço de Instalação</label>
+                                        <input type="text" id="solic-endereco-instalacao" placeholder="Ex: Rua das Flores, 123 - Centro" style="width:100%; padding:0.6rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box;">
                                     </div>
                                 </div>
                             </div>
@@ -1831,16 +1835,26 @@
                                 <h3><i class="ph ph-users"></i> Requisitos da Equipe e Frota</h3>
                                 <div class="form-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-top: 1rem;">
                                     <div class="form-group">
-                                        <label>Máx. Colaboradores</label>
-                                        <input type="number" id="solic-qtd-colabs" value="0" min="0">
+                                        <label style="display:block; margin-bottom:4px; font-weight:600;">Máx. Colaboradores</label>
+                                        <div style="display:flex; align-items:center;">
+                                            <button type="button" class="btn btn-outline" style="padding:0.6rem 0.8rem; border-radius:6px 0 0 6px; border:1px solid #e2e8f0;" onclick="let el=document.getElementById('solic-qtd-colabs'); if(el.value==='Todos') el.value=0; else if(parseInt(el.value)>0) el.value=parseInt(el.value)-1;">-</button>
+                                            <input type="text" id="solic-qtd-colabs" value="0" style="width:60px; text-align:center; padding:0.6rem; border:1px solid #e2e8f0; border-left:none; border-right:none; box-sizing:border-box;">
+                                            <button type="button" class="btn btn-outline" style="padding:0.6rem 0.8rem; border:none; border-top:1px solid #e2e8f0; border-bottom:1px solid #e2e8f0; border-right:1px solid #e2e8f0; border-radius:0;" onclick="let el=document.getElementById('solic-qtd-colabs'); if(el.value==='Todos') el.value=1; else el.value=(parseInt(el.value)||0)+1;">+</button>
+                                            <button type="button" class="btn btn-secondary" style="padding:0.6rem 0.8rem; border-radius:0 6px 6px 0; margin-left: -1px; border:1px solid #e2e8f0;" onclick="document.getElementById('solic-qtd-colabs').value='Todos'">Todos</button>
+                                        </div>
                                     </div>
                                     <div class="form-group">
-                                        <label>Máx. Veículos</label>
-                                        <input type="number" id="solic-qtd-veiculos" value="0" min="0">
+                                        <label style="display:block; margin-bottom:4px; font-weight:600;">Máx. Veículos</label>
+                                        <div style="display:flex; align-items:center;">
+                                            <button type="button" class="btn btn-outline" style="padding:0.6rem 0.8rem; border-radius:6px 0 0 6px; border:1px solid #e2e8f0;" onclick="let el=document.getElementById('solic-qtd-veiculos'); if(el.value==='Todos') el.value=0; else if(parseInt(el.value)>0) el.value=parseInt(el.value)-1;">-</button>
+                                            <input type="text" id="solic-qtd-veiculos" value="0" style="width:60px; text-align:center; padding:0.6rem; border:1px solid #e2e8f0; border-left:none; border-right:none; box-sizing:border-box;">
+                                            <button type="button" class="btn btn-outline" style="padding:0.6rem 0.8rem; border:none; border-top:1px solid #e2e8f0; border-bottom:1px solid #e2e8f0; border-right:1px solid #e2e8f0; border-radius:0;" onclick="let el=document.getElementById('solic-qtd-veiculos'); if(el.value==='Todos') el.value=1; else el.value=(parseInt(el.value)||0)+1;">+</button>
+                                            <button type="button" class="btn btn-secondary" style="padding:0.6rem 0.8rem; border-radius:0 6px 6px 0; margin-left: -1px; border:1px solid #e2e8f0;" onclick="document.getElementById('solic-qtd-veiculos').value='Todos'">Todos</button>
+                                        </div>
                                     </div>
                                     <div class="form-group">
-                                        <label>Data Limite para Envio</label>
-                                        <input type="date" id="solic-data-limite">
+                                        <label style="display:block; margin-bottom:4px; font-weight:600;">Data Limite para Envio</label>
+                                        <input type="date" id="solic-data-limite" style="width:100%; padding:0.6rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box;">
                                     </div>
                                 </div>
                             </div>
@@ -1861,8 +1875,8 @@
 
                             <div class="card" style="margin-bottom: 1.5rem;">
                                 <h3 style="margin-bottom: 1rem;"><i class="ph ph-seal-check"></i> Licenças da Empresa Exigidas</h3>
-                                <div id="solic-licencas-list" style="display:flex; flex-direction:column; gap: 8px; border: 1px solid #e2e8f0; padding:10px; border-radius:4px; max-height:200px; overflow-y:auto;">
-                                    <p style="color:#94a3b8; font-size:13px;">Carregando licenças disponíveis...</p>
+                                <div id="solic-licencas-list" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px; border: 1px solid #e2e8f0; padding:10px; border-radius:4px; max-height:200px; overflow-y:auto;">
+                                    <p style="color:#94a3b8; font-size:13px; grid-column: 1 / -1;">Carregando licenças disponíveis...</p>
                                 </div>
                             </div>
 

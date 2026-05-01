@@ -9325,13 +9325,12 @@ app.get('/api/frota/veiculos/alertas/vencimento', authenticateToken, (req, res) 
 // =====================================================================
 
 app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
-    const { cliente_nome, cliente_email, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas } = req.body;
+    const { cliente_nome, os, cliente_email, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas } = req.body;
     if (!cliente_nome || !cliente_email) return res.status(400).json({ error: 'Nome e email são obrigatórios.' });
 
-    db.run(`INSERT INTO credenciamentos (cliente_nome, cliente_email, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas_ids, status, token) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'solicitado', '')`,
+    db.run(`INSERT INTO credenciamentos (cliente_nome, os, cliente_email, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas_ids, status, token) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'solicitado', '')`,
         [
-            cliente_nome, 
-            cliente_email, 
+            cliente_nome, os || '', cliente_email, 
             endereco_instalacao || '', 
             qtd_max_colaboradores || 0, 
             qtd_max_veiculos || 0, 
@@ -9352,12 +9351,11 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
 });
 
 app.put('/api/comercial/credenciamento/:id', authenticateToken, (req, res) => {
-    const { cliente_nome, cliente_email, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas } = req.body;
+    const { cliente_nome, os || '', cliente_email, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas } = req.body;
     
-    db.run(`UPDATE credenciamentos SET cliente_nome = ?, cliente_email = ?, endereco_instalacao = ?, qtd_max_colaboradores = ?, qtd_max_veiculos = ?, data_limite_envio = ?, docs_exigidos = ?, licencas_ids = ? WHERE id = ? AND status = 'solicitado'`,
+    db.run(`UPDATE credenciamentos SET cliente_nome = ?, os = ?, cliente_email = ?, endereco_instalacao = ?, qtd_max_colaboradores = ?, qtd_max_veiculos = ?, data_limite_envio = ?, docs_exigidos = ?, licencas_ids = ? WHERE id = ? AND status = 'solicitado'`,
         [
-            cliente_nome, 
-            cliente_email, 
+            cliente_nome, os || '', cliente_email, 
             endereco_instalacao || '', 
             qtd_max_colaboradores || 0, 
             qtd_max_veiculos || 0, 
@@ -9450,7 +9448,7 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
 });
 
 app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
-    const { cliente_nome, cliente_email, endereco_instalacao, colaboradores, veiculos, docs_exigidos, licencas } = req.body;
+    const { cliente_nome, os || '', cliente_email, endereco_instalacao, colaboradores, veiculos, docs_exigidos, licencas } = req.body;
     if (!cliente_nome || !cliente_email) return res.status(400).json({ error: 'Nome e email são obrigatórios.' });
 
     const colabIds = (colaboradores || []).map(c => c.id).filter(id => !isNaN(id) && id > 0);
@@ -9514,8 +9512,8 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
         const validUntil = new Date();
         validUntil.setDate(validUntil.getDate() + 7);
 
-        db.run(`INSERT INTO credenciamentos (cliente_nome, cliente_email, endereco_instalacao, token, colaboradores_ids, veiculos_ids, docs_exigidos, licencas_ids, valid_until) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [cliente_nome, cliente_email, endereco_instalacao || '', token, JSON.stringify(colaboradores || []), JSON.stringify(veiculos || []), JSON.stringify(docs_exigidos || []), JSON.stringify(licencas || []), validUntil.toISOString()],
+        db.run(`INSERT INTO credenciamentos (cliente_nome, os || '', cliente_email, endereco_instalacao, token, colaboradores_ids, veiculos_ids, docs_exigidos, licencas_ids, valid_until) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [cliente_nome, os || '', cliente_email, endereco_instalacao || '', token, JSON.stringify(colaboradores || []), JSON.stringify(veiculos || []), JSON.stringify(docs_exigidos || []), JSON.stringify(licencas || []), validUntil.toISOString()],
             async function(err) {
                 if (err) return res.status(500).json({ error: err.message });
                 
@@ -9609,7 +9607,7 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
 
 // GET Autenticado: Listar todos os credenciamentos
 app.get('/api/logistica/credenciamentos', authenticateToken, (req, res) => {
-    db.all(`SELECT id, cliente_nome, cliente_email, endereco_instalacao, token, colaboradores_ids, veiculos_ids, licencas_ids, docs_exigidos, valid_until, acessado_em, created_at
+    db.all(`SELECT id, cliente_nome, os, cliente_email, endereco_instalacao, token, colaboradores_ids, veiculos_ids, licencas_ids, docs_exigidos, valid_until, acessado_em, created_at
             FROM credenciamentos ORDER BY created_at DESC`, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows || []);
