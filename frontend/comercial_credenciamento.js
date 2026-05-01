@@ -95,7 +95,7 @@ async function _carregarLicencasAgrupadas(licsSelecionadas = []) {
                 : lics.map(l => {
                     const checked = licsSelecionadas.some(s => String(s.id) === String(l.id)) ? 'checked' : '';
                     return `<label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; padding:4px 0;">
-                        <input type="checkbox" name="solic_licencas" value="${l.id}" data-nome="${l.nome}" data-empresa="${emp}" ${checked}>
+                        <input type="checkbox" name="solic_licencas" value="${l.id}" data-nome="${l.nome}" data-empresa="${emp}" ${checked} onchange="window._updateLicencasTabCounts()">
                         ${l.nome}
                     </label>`;
                 }).join('');
