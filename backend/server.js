@@ -2428,6 +2428,7 @@ app.delete('/api/colaboradores/:id', authenticateToken, (req, res) => {
             excluirDefinitivamente();
         } else {
             db.run("UPDATE colaboradores SET status = 'Desligado' WHERE id = ?", [id], function (updateErr) {
+                if (!updateErr) checkColaboradorDesligado(id);
                 if (updateErr) return res.status(500).json({ error: updateErr.message });
                 res.json({ message: 'Colaborador inativado com sucesso (status: Desligado)' });
             });
@@ -8020,6 +8021,23 @@ app.put('/api/experiencia/notificacoes/:id/lida', authenticateToken, (req, res) 
     db.run(`UPDATE experiencia_notificacoes_pendentes SET lido = 1 WHERE id = ?`, [req.params.id], (err) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ ok: true });
+    });
+});
+
+
+// GET /api/diretoria/notificacoes/pendentes
+app.get('/api/diretoria/notificacoes/pendentes', authenticateToken, (req, res) => {
+    db.all("SELECT * FROM diretoria_notificacoes_pendentes WHERE lido = 0 ORDER BY criado_em DESC LIMIT 20", [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+// PUT /api/diretoria/notificacoes/:id/lida
+app.put('/api/diretoria/notificacoes/:id/lida', authenticateToken, (req, res) => {
+    db.run("UPDATE diretoria_notificacoes_pendentes SET lido = 1 WHERE id = ?", [req.params.id], (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: 'Lida' });
     });
 });
 
