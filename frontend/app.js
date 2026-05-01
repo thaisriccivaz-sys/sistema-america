@@ -598,7 +598,7 @@ function updateBreadcrumb(key) {
     const starBtn = document.getElementById('btn-star-page');
     if (starBtn && entryObj) {
         starBtn.style.color = pageColor;
-        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-pipeline' || key === 'logistica-frota' || key === 'logistica-credenciamento' || key === 'comercial-credenciamento';
+        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-pipeline' || key === 'logistica-frota' || key === 'logistica-credenciamento' || key === 'comercial-credenciamento' || key === 'departamentos';
         if (isSimplePage) {
             starBtn.style.display = 'flex';
         } else {
@@ -1027,6 +1027,8 @@ async function loadCargos() {
     const btnNovo = document.querySelector('button[onclick="toggleCargoView(\'new\')"]');
     if (btnNovo) btnNovo.style.display = isDir ? '' : 'none';
     const colsAcao = document.querySelectorAll('#cargo-list-container th:last-child');
+    // Remove action buttons if not top admin
+    if (!isDir) { setTimeout(() => { document.querySelectorAll('#table-cargos-body td:last-child').forEach(td => td.style.display = 'none'); }, 100); }
     colsAcao.forEach(c => c.style.display = isDir ? '' : 'none');
 
     const cargos = await apiGet('/cargos');

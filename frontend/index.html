@@ -149,7 +149,7 @@
             </div>
 
             <!-- Diretoria - Laranja -->
-            <div class="dept-item" style="--dept-color:#d9480f; --dept-bg:#ffddd0;">
+            <div class="dept-item" style="--dept-color:#c92a2a; --dept-bg:#fff5f5;">
                 <button class="dept-btn" title="Diretoria">
                     <i class="ph ph-crown"></i>
                     <span>Diretoria</span>
@@ -353,17 +353,7 @@
                         </div>
                     </div>
 
-                    <!-- ABAS INTERNAS (CARGOS E DEPARTAMENTOS) -->
-                    <div style="display: flex; gap: 4px; padding: 0 1rem; border-bottom: 2px solid #e2e8f0; margin-bottom: 1.5rem; background: var(--bg-main);">
-                        <button class="btn-sub-tab active" id="tab-btn-cargos" onclick="switchCargoDeptoTab('cargos')" style="padding: 0.75rem 1.5rem; background: none; border: none; border-bottom: 2px solid var(--primary-color); color: var(--primary-color); font-weight: 600; cursor: pointer; transition: all 0.2s; margin-bottom: -2px;">
-                            <i class="ph ph-briefcase"></i> Cargos
-                        </button>
-                        <button class="btn-sub-tab" id="tab-btn-departamentos" onclick="switchCargoDeptoTab('departamentos')" style="padding: 0.75rem 1.5rem; background: none; border: none; border-bottom: 2px solid transparent; color: #64748b; font-weight: 500; cursor: pointer; transition: all 0.2s; margin-bottom: -2px;">
-                            <i class="ph ph-buildings"></i> Departamentos
-                        </button>
-                    </div>
-
-                    <div id="tab-content-cargos">
+                    
                     <div class="card p-4">
                         <!-- CONTAINER 1: LISTA DE CARGOS -->
                         <div id="cargo-list-container">
@@ -417,9 +407,21 @@
                     </div>
                     </div>
 
-                    <!-- TAB 2: GEST�O DE DEPARTAMENTOS -->
-                    <div id="tab-content-departamentos" style="display: none;">
-                        <div class="card mb-4 p-4">
+                    </section>
+
+                <section id="view-departamentos" class="content-view">
+                    <div class="page-header flex-between" style="position: sticky; top: 60px; z-index: 20; background: var(--bg-main); padding: 1rem 0; margin-top: -1.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color);">
+                        <div style="display: flex; align-items: center; gap: 1.5rem;">
+                            <div style="width: 80px; height: 80px; border-radius: 50%; border: 2px dashed #cbd5e0; display: flex; align-items: center; justify-content: center; background: #fff5f5; color: #c92a2a; font-size: 2rem;">
+                                <i class="ph ph-buildings"></i>
+                            </div>
+                            <div>
+                                <h2 style="margin: 0; font-size: 1.4rem;">Gestão de Departamentos</h2>
+                                <p style="margin: 4px 0 0; color: #64748b; font-size: 0.85rem;">Gerencie a estrutura organizacional e responsáveis.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card mb-4 p-4">
                             <form id="form-departamento" style="display:flex;gap:0.75rem;align-items:flex-end;flex-wrap:wrap;">
                                 <div style="flex:2;min-width:180px;">
                                     <label style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Nome do Departamento</label>
@@ -452,9 +454,6 @@
                                 <thead><tr><th>ID</th><th>Nome do Departamento</th><th>Tipo</th><th>Responsável</th><th style="text-align: right;">Ações</th></tr></thead>
                                 <tbody id="table-departamentos"></tbody>
                             </table>
-                        </div>
-                    </div>
-
                 </section>
 
                 <!-- VIEW: INTEGRA�!ÒO -->
