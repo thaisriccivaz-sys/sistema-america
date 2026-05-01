@@ -9357,14 +9357,79 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
             
-            // Send email to logistics notifying them of the request
-            // const mailOptions = { ... }
-            // transportermultas.sendMail(mailOptions) ...
-            
-            res.json({ message: 'Solicitação criada com sucesso.', id: this.lastID });
+            const novoId = this.lastID;
+            res.json({ message: 'Solicitação criada com sucesso.', id: novoId });
+
+            // --- Enviar e-mail de notificação para equipe de Logística ---
+            // Busca colaboradores do departamento Logística com e-mail corporativo cadastrado
+            db.all(
+                "SELECT nome_completo, email_corporativo, email FROM colaboradores WHERE departamento LIKE '%ogist%' AND status = 'Ativo' AND (email_corporativo != '' AND email_corporativo IS NOT NULL OR email != '' AND email IS NOT NULL)",
+                [],
+                async (errColabs, colabs) => {
+                    // Monta lista de destinatários únicos
+                    const emails = new Set();
+                    (colabs || []).forEach(c => {
+                        if (c.email_corporativo && c.email_corporativo.includes('@')) emails.add(c.email_corporativo);
+                        else if (c.email && c.email.includes('@')) emails.add(c.email);
+                    });
+                    // Fallback: se nenhum colaborador tiver email, busca usuários com acesso à logística
+                    if (emails.size === 0) {
+                        // Tenta usuários com email cadastrado
+                        db.all("SELECT email FROM usuarios WHERE ativo = 1 AND email IS NOT NULL AND email != ''", [], (errU, users) => {
+                            (users || []).forEach(u => { if (u.email && u.email.includes('@')) emails.add(u.email); });
+                            // Se ainda vazio, não envia (sem destinatário)
+                            if (emails.size > 0) enviarEmailLogistica([...emails]);
+                        });
+                    } else {
+                        enviarEmailLogistica([...emails]);
+                    }
+
+                    function enviarEmailLogistica(destinatarios) {
+                        const baseUrl = process.env.PUBLIC_URL || 'https://sistema-america-homologacao.onrender.com';
+                        const dtLimite = data_limite_envio ? new Date(data_limite_envio).toLocaleDateString('pt-BR') : 'Não informada';
+                        const licNames = (licencas || []).map(l => l.nome).join(', ') || 'Nenhuma';
+                        const docsList = (docs_exigidos || []).join(', ') || 'Nenhum';
+                        const htmlMail = `
+                        <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; padding: 20px; border-radius: 8px;">
+                            <h2 style="color: #7048e8; text-align: center;">📋 Nova Solicitação de Credenciamento</h2>
+                            <p>Uma nova solicitação de credenciamento foi registrada pelo departamento <strong>Comercial</strong> e aguarda ação da Logística.</p>
+                            <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #7048e8;">
+                                <table style="width:100%; border-collapse:collapse;">
+                                    <tr><td style="padding:4px 8px; font-weight:bold; color:#475569;">Cliente / Obra:</td><td style="padding:4px 8px;">${cliente_nome}</td></tr>
+                                    ${os ? `<tr><td style="padding:4px 8px; font-weight:bold; color:#475569;">OS:</td><td style="padding:4px 8px;">${os}</td></tr>` : ''}
+                                    <tr><td style="padding:4px 8px; font-weight:bold; color:#475569;">E-mail do Cliente:</td><td style="padding:4px 8px;">${cliente_email}</td></tr>
+                                    ${endereco_instalacao ? `<tr><td style="padding:4px 8px; font-weight:bold; color:#475569;">Endereço:</td><td style="padding:4px 8px;">${endereco_instalacao}</td></tr>` : ''}
+                                    <tr><td style="padding:4px 8px; font-weight:bold; color:#475569;">Máx. Colaboradores:</td><td style="padding:4px 8px;">${qtd_max_colaboradores || 0}</td></tr>
+                                    <tr><td style="padding:4px 8px; font-weight:bold; color:#475569;">Máx. Veículos:</td><td style="padding:4px 8px;">${qtd_max_veiculos || 0}</td></tr>
+                                    <tr><td style="padding:4px 8px; font-weight:bold; color:#475569;">Data Limite:</td><td style="padding:4px 8px;">${dtLimite}</td></tr>
+                                    <tr><td style="padding:4px 8px; font-weight:bold; color:#475569;">Licenças Exigidas:</td><td style="padding:4px 8px;">${licNames}</td></tr>
+                                    <tr><td style="padding:4px 8px; font-weight:bold; color:#475569;">Documentos Exigidos:</td><td style="padding:4px 8px;">${docsList}</td></tr>
+                                </table>
+                            </div>
+                            <div style="text-align: center; margin: 25px 0;">
+                                <a href="${baseUrl}/" style="background:#7048e8; color:#fff; padding:12px 28px; text-decoration:none; border-radius:6px; font-weight:bold; display:inline-block;">
+                                    Acessar Sistema e Processar Credenciamento
+                                </a>
+                            </div>
+                            <p style="font-size:12px; color:#999; text-align:center;"><i>Esta notificação foi enviada automaticamente pelo Sistema América Rental.</i></p>
+                        </div>`;
+                        
+                        sendMailHelper({
+                            to: destinatarios.join(', '),
+                            subject: `📋 Nova Solicitação de Credenciamento - ${cliente_nome}`,
+                            html: htmlMail
+                        }).then(info => {
+                            console.log('[Credenciamento Comercial] E-mail de notificação enviado para Logística:', destinatarios.join(', '));
+                        }).catch(emailErr => {
+                            console.error('[Credenciamento Comercial] Erro ao enviar e-mail para Logística:', emailErr.message);
+                        });
+                    }
+                }
+            );
         }
     );
 });
+
 
 app.put('/api/comercial/credenciamento/:id', authenticateToken, (req, res) => {
     const { cliente_nome, os, cliente_email, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas } = req.body;

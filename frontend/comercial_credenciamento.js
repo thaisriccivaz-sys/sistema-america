@@ -166,9 +166,19 @@ window.ordenarHistoricoComCred = function(coluna) {
         window._historicoComCredSort.col = coluna;
         window._historicoComCredSort.dir = 'asc';
     }
-    if (!window._historicoComCredDados || window._historicoComCredDados.length === 0) return;
 
-    let dados = [...window._historicoComCredDados];
+    const tbody = document.getElementById('tbody-comercial-cred');
+    if (!tbody) return;
+
+    // Show all records (both solicitado and sent) for commercial view
+    const todos = Array.isArray(window._historicoComCredDados) ? window._historicoComCredDados : [];
+
+    if (todos.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#94a3b8; padding:2rem; font-style:italic;">Nenhuma solicitação encontrada.</td></tr>';
+        return;
+    }
+
+    let dados = [...todos];
 
     if (coluna === 'cliente') {
         dados.sort((a, b) => {
