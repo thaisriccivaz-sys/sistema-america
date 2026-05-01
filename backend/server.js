@@ -9418,28 +9418,29 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
             res.json({ message: 'Solicitação criada com sucesso.', id: novoId });
 
             // --- Enviar e-mail de notificação para equipe de Logística ---
-            // Busca colaboradores do departamento Logística com e-mail corporativo cadastrado
-            db.all(
-                "SELECT nome_completo, email_corporativo, email FROM colaboradores WHERE departamento LIKE '%ogist%' AND status = 'Ativo' AND (email_corporativo != '' AND email_corporativo IS NOT NULL OR email != '' AND email IS NOT NULL)",
-                [],
-                async (errColabs, colabs) => {
-                    // Monta lista de destinatários únicos
-                    const emails = new Set();
-                    (colabs || []).forEach(c => {
-                        if (c.email_corporativo && c.email_corporativo.includes('@')) emails.add(c.email_corporativo);
-                        else if (c.email && c.email.includes('@')) emails.add(c.email);
-                    });
-                    // Fallback: se nenhum colaborador tiver email, busca usuários com acesso à logística
-                    if (emails.size === 0) {
-                        // Tenta usuários com email cadastrado
-                        db.all("SELECT u.email FROM usuarios u LEFT JOIN grupos_permissao gp ON u.grupo_permissao_id = gp.id WHERE u.ativo = 1 AND u.email IS NOT NULL AND u.email != '' AND (gp.departamento LIKE '%ogíst%' OR gp.departamento LIKE '%ogist%' OR u.departamento LIKE '%ogíst%' OR u.departamento LIKE '%ogist%')", [], (errU, users) => {
-                            (users || []).forEach(u => { if (u.email && u.email.includes('@')) emails.add(u.email); });
-                            // Se ainda vazio, não envia (sem destinatário)
-                            if (emails.size > 0) enviarEmailLogistica([...emails]);
-                        });
-                    } else {
-                        enviarEmailLogistica([...emails]);
-                    }
+            // Busca tanto em colaboradores quanto em usuários que tenham a tag logistica
+            db.all(`
+                SELECT c.email_corporativo, c.email as c_email, u.email as u_email
+                FROM usuarios u
+                LEFT JOIN grupos_permissao gp ON u.grupo_permissao_id = gp.id
+                LEFT JOIN colaboradores c ON u.nome = c.nome_completo
+                WHERE u.ativo = 1 
+                  AND (gp.departamento LIKE '%ogíst%' OR gp.departamento LIKE '%ogist%' 
+                       OR u.departamento LIKE '%ogíst%' OR u.departamento LIKE '%ogist%'
+                       OR u.role LIKE '%ogist%')
+                UNION
+                SELECT email_corporativo, email as c_email, null as u_email
+                FROM colaboradores 
+                WHERE status = 'Ativo' AND (departamento LIKE '%ogist%' OR departamento LIKE '%ogíst%' OR cargo LIKE '%ogist%')
+            `, [], async (errColabs, rows) => {
+                const emails = new Set();
+                (rows || []).forEach(r => {
+                    if (r.email_corporativo && r.email_corporativo.includes('@')) emails.add(r.email_corporativo);
+                    else if (r.c_email && r.c_email.includes('@')) emails.add(r.c_email);
+                    else if (r.u_email && r.u_email.includes('@')) emails.add(r.u_email);
+                });
+
+                if (emails.size > 0) enviarEmailLogistica([...emails]);
 
                     function enviarEmailLogistica(destinatarios) {
                         const baseUrl = process.env.PUBLIC_URL || 'https://sistema-america-homologacao.onrender.com';

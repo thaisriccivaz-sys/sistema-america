@@ -504,7 +504,7 @@ const MENU_HIERARQUIA = [
     },
     {
         modulo: 'Logística', icone: 'ph-truck', cor: '#2b8a3e',
-        grupos: [{ titulo: 'Telas', telas: ['logistica-rota-redonda', 'logistica-pipeline', 'logistica-frota', 'logistica-multas'] }]
+        grupos: [{ titulo: 'Telas', telas: ['logistica-rota-redonda', 'logistica-pipeline', 'logistica-frota', 'logistica-multas', 'logistica-credenciamento'] }]
     },
     {
         modulo: 'Financeiro', icone: 'ph-currency-dollar', cor: '#1864ab',
@@ -512,7 +512,7 @@ const MENU_HIERARQUIA = [
     },
     {
         modulo: 'Comercial', icone: 'ph-handshake', cor: '#5f3dc4',
-        grupos: [{ titulo: 'Telas', telas: ['comercial-em-breve'] }]
+        grupos: [{ titulo: 'Telas', telas: ['comercial-credenciamento', 'comercial-em-breve'] }]
     },
     {
         modulo: 'Administrativo', icone: 'ph-gear', cor: '#e8590c',
