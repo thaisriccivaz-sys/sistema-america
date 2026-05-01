@@ -9561,7 +9561,7 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
     const crypto = require('crypto');
     const tokenPlaceholder = 'SOLIC-' + crypto.randomBytes(12).toString('hex');
 
-    db.run(`INSERT INTO credenciamentos (cliente_nome, os, cliente_email, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas_ids, observacoes, status, token) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'solicitado', ?)`,
+    db.run(`INSERT INTO credenciamentos (cliente_nome, os, cliente_email, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas_ids, observacoes, status, token, solicitado_por_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'solicitado', ?, ?)`,
         [
             cliente_nome,
             os || '',
@@ -9573,7 +9573,8 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
             JSON.stringify(docs_exigidos || []),
             JSON.stringify(licencas || []),
             observacoes || '',
-            tokenPlaceholder
+            tokenPlaceholder,
+            req.user.id
         ],
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
@@ -9797,7 +9798,7 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
         if (err || !cred) return res.status(500).json({ error: 'Credenciamento não encontrado' });
 
         db.run(`UPDATE credenciamentos SET colaboradores_ids = ?, veiculos_ids = ?, token = ?, valid_until = ?, status = 'enviado', enviado_em = CURRENT_TIMESTAMP, enviado_por_id = ? WHERE id = ?`,
-            [JSON.stringify(colaboradores || []), JSON.stringify(veiculos || []), token, validUntil.toISOString(), req.params.id],
+            [JSON.stringify(colaboradores || []), JSON.stringify(veiculos || []), token, validUntil.toISOString(), req.user.id, req.params.id],
             async function (err2) {
                 if (err2) return res.status(500).json({ error: err2.message });
 
