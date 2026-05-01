@@ -3,26 +3,72 @@
 window._historicoComCredDados = [];
 window._historicoComCredSort = { col: 'data', dir: 'desc' };
 
+// Load licenças grouped by empresa
+async function _carregarLicencasAgrupadas(licsSelecionadas = []) {
+    const container = document.getElementById('solic-licencas-empresas');
+    if (!container) return;
+    container.innerHTML = '<p style="color:#94a3b8; font-size:13px;">Carregando licenças...</p>';
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const res = await fetch('/api/licencas', { headers: { 'Authorization': `Bearer ${token}` } });
+        const todas = await res.json();
+
+        // Agrupar por empresa — priorizar as 3 empresas solicitadas + outras
+        const empresasPrioridade = ['América Rental', 'Attend Ambiental', 'BRK'];
+        const grupos = {};
+        todas.forEach(l => {
+            const emp = l.empresa || 'Outras';
+            if (!grupos[emp]) grupos[emp] = [];
+            grupos[emp].push(l);
+        });
+
+        // Ordenar: prioridade primeiro, depois o resto
+        const empresasOrdenadas = [
+            ...empresasPrioridade.filter(e => grupos[e]),
+            ...Object.keys(grupos).filter(e => !empresasPrioridade.includes(e))
+        ];
+
+        if (empresasOrdenadas.length === 0) {
+            container.innerHTML = '<p style="color:#94a3b8; font-size:13px; font-style:italic;">Nenhuma licença cadastrada no sistema.</p>';
+            return;
+        }
+
+        container.innerHTML = empresasOrdenadas.map(emp => {
+            const lics = grupos[emp];
+            const items = lics.map(l => {
+                const checked = licsSelecionadas.some(s => String(s.id) === String(l.id)) ? 'checked' : '';
+                const vencida = l.validade && new Date(l.validade) < new Date();
+                const badge = vencida
+                    ? `<span style="font-size:10px; color:#dc2626; background:#fee2e2; padding:1px 5px; border-radius:4px; margin-left:4px;">⚠ Vencida</span>`
+                    : '';
+                return `<div style="display:flex; align-items:center; gap:6px;">
+                    <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;">
+                        <input type="checkbox" name="solic_licencas" value="${l.id}" data-nome="${l.nome}" data-empresa="${emp}" ${checked}>
+                        ${l.nome}${badge}
+                    </label>
+                </div>`;
+            }).join('');
+
+            return `<div style="margin-bottom:12px;">
+                <div style="font-weight:700; font-size:13px; color:#475569; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+                    <i class="ph ph-buildings" style="color:#7048e8;"></i> ${emp}
+                </div>
+                <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap:6px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:10px;">
+                    ${items}
+                </div>
+            </div>`;
+        }).join('');
+    } catch (e) {
+        container.innerHTML = '<p style="color:#dc2626; font-size:13px;">Erro ao carregar licenças.</p>';
+    }
+}
+
 window.abrirModalSolicitarCredenciamento = async function(id = null) {
     const modal = document.getElementById('modal-solicitar-credenciamento');
     if (modal) modal.style.display = 'flex';
-    
-    // Carregar licencas
-    const licContainer = document.getElementById('solic-licencas-list');
-    if (licContainer && licContainer.children[0].tagName === 'P') {
-        licContainer.innerHTML = '<p>Carregando...</p>';
-        try {
-            const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
-            const res = await fetch('/api/licencas', { headers: { 'Authorization': `Bearer ${token}` } });
-            const licencas = await res.json();
-            licContainer.innerHTML = licencas.map(l => `<div><label><input type="checkbox" name="solic_licencas" value="${l.id}" data-nome="${l.nome}"> ${l.nome}</label></div>`).join('');
-        } catch (e) {
-            licContainer.innerHTML = '<p style="color:red;">Erro ao carregar licenças.</p>';
-        }
-    }
 
     if (!id) {
-        // Clear fields
+        // Limpar campos
         document.getElementById('solic-id-edit').value = '';
         document.getElementById('solic-cliente-nome').value = '';
         document.getElementById('solic-os').value = '';
@@ -31,13 +77,10 @@ window.abrirModalSolicitarCredenciamento = async function(id = null) {
         document.getElementById('solic-qtd-colabs').value = 0;
         document.getElementById('solic-qtd-veiculos').value = 0;
         document.getElementById('solic-data-limite').value = '';
-        
+        const obs = document.getElementById('solic-observacoes'); if (obs) obs.value = '';
         document.querySelectorAll('#solic-docs-exigidos input[type="checkbox"]').forEach(c => c.checked = false);
-        if (licContainer) {
-            document.querySelectorAll('#solic-licencas-list input[type="checkbox"]').forEach(c => c.checked = false);
-        }
+        await _carregarLicencasAgrupadas([]);
     } else {
-        // Load data to edit
         const item = window._historicoComCredDados.find(c => c.id == id);
         if (item) {
             document.getElementById('solic-id-edit').value = item.id;
@@ -48,18 +91,15 @@ window.abrirModalSolicitarCredenciamento = async function(id = null) {
             document.getElementById('solic-qtd-colabs').value = item.qtd_max_colaboradores || 0;
             document.getElementById('solic-qtd-veiculos').value = item.qtd_max_veiculos || 0;
             document.getElementById('solic-data-limite').value = item.data_limite_envio ? item.data_limite_envio.split('T')[0] : '';
-            
+            const obs = document.getElementById('solic-observacoes'); if (obs) obs.value = item.observacoes || '';
+
             const docs = item.docs_exigidos ? JSON.parse(item.docs_exigidos) : [];
             document.querySelectorAll('#solic-docs-exigidos input[type="checkbox"]').forEach(c => {
                 c.checked = docs.includes(c.value);
             });
-            
+
             const lics = item.licencas_ids ? JSON.parse(item.licencas_ids) : [];
-            if (licContainer) {
-                document.querySelectorAll('#solic-licencas-list input[type="checkbox"]').forEach(c => {
-                    c.checked = lics.some(l => l.id == c.value);
-                });
-            }
+            await _carregarLicencasAgrupadas(lics);
         }
     }
 }
@@ -81,6 +121,7 @@ window.salvarSolicitacaoCredenciamento = async function() {
         qtd_max_colaboradores: document.getElementById('solic-qtd-colabs').value || 0,
         qtd_max_veiculos: document.getElementById('solic-qtd-veiculos').value || 0,
         data_limite_envio: document.getElementById('solic-data-limite').value || null,
+        observacoes: (document.getElementById('solic-observacoes') || {}).value || '',
         docs_exigidos: [],
         licencas: []
     };
@@ -94,8 +135,9 @@ window.salvarSolicitacaoCredenciamento = async function() {
         payload.docs_exigidos.push(c.value);
     });
     
-    document.querySelectorAll('#solic-licencas-list input[type="checkbox"]:checked').forEach(c => {
-        payload.licencas.push({ id: c.value, nome: c.getAttribute('data-nome') });
+    // Coletar licenças do novo container agrupado
+    document.querySelectorAll('#solic-licencas-empresas input[type="checkbox"]:checked').forEach(c => {
+        payload.licencas.push({ id: c.value, nome: c.getAttribute('data-nome'), empresa: c.getAttribute('data-empresa') });
     });
     
     try {

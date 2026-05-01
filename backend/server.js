@@ -335,6 +335,11 @@ db.run("ALTER TABLE credenciamentos ADD COLUMN os TEXT DEFAULT ''", (err) => {
     // Ignora erro de coluna ja existente (expected)
 });
 
+// MIGRATION: Adicionar coluna observacoes na tabela credenciamentos
+db.run("ALTER TABLE credenciamentos ADD COLUMN observacoes TEXT DEFAULT ''", (err) => {
+    if (!err) console.log('[MIGRATION] Coluna observacoes adicionada na tabela credenciamentos.');
+});
+
 // MIGRATION: Adicionar colunas qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, status na tabela credenciamentos
 ['qtd_max_colaboradores INTEGER DEFAULT 0', 'qtd_max_veiculos INTEGER DEFAULT 0', 'data_limite_envio TEXT', 'status TEXT DEFAULT \'solicitado\'', 'licencas_ids TEXT DEFAULT \'[]\''].forEach(col => {
     const colName = col.split(' ')[0];
@@ -9339,10 +9344,10 @@ app.get('/api/frota/veiculos/alertas/vencimento', authenticateToken, (req, res) 
 // =====================================================================
 
 app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
-    const { cliente_nome, os, cliente_email, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas } = req.body;
+    const { cliente_nome, os, cliente_email, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas, observacoes } = req.body;
     if (!cliente_nome || !cliente_email) return res.status(400).json({ error: 'Nome e email são obrigatórios.' });
 
-    db.run(`INSERT INTO credenciamentos (cliente_nome, os, cliente_email, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas_ids, status, token) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'solicitado', NULL)`,
+    db.run(`INSERT INTO credenciamentos (cliente_nome, os, cliente_email, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas_ids, observacoes, status, token) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'solicitado', NULL)`,
         [
             cliente_nome, 
             os || '',
@@ -9352,7 +9357,8 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
             qtd_max_veiculos || 0, 
             data_limite_envio || null, 
             JSON.stringify(docs_exigidos || []), 
-            JSON.stringify(licencas || [])
+            JSON.stringify(licencas || []),
+            observacoes || ''
         ],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
@@ -9404,6 +9410,7 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
                                     <tr><td style="padding:4px 8px; font-weight:bold; color:#475569;">Data Limite:</td><td style="padding:4px 8px;">${dtLimite}</td></tr>
                                     <tr><td style="padding:4px 8px; font-weight:bold; color:#475569;">Licenças Exigidas:</td><td style="padding:4px 8px;">${licNames}</td></tr>
                                     <tr><td style="padding:4px 8px; font-weight:bold; color:#475569;">Documentos Exigidos:</td><td style="padding:4px 8px;">${docsList}</td></tr>
+                                    <tr><td style="padding:4px 8px; font-weight:bold; color:#475569;">Observações:</td><td style="padding:4px 8px;">${observacoes || 'Nenhuma'}</td></tr>
                                 </table>
                             </div>
                             <div style="text-align: center; margin: 25px 0;">
@@ -9418,7 +9425,7 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
                             to: destinatarios.join(', '),
                             subject: `📋 Nova Solicitação de Credenciamento - ${cliente_nome}`,
                             html: htmlMail
-                        }).then(info => {
+                        }).then(() => {
                             console.log('[Credenciamento Comercial] E-mail de notificação enviado para Logística:', destinatarios.join(', '));
                         }).catch(emailErr => {
                             console.error('[Credenciamento Comercial] Erro ao enviar e-mail para Logística:', emailErr.message);
@@ -9426,15 +9433,72 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
                     }
                 }
             );
+
+            // --- Enviar e-mail de confirmação para o CLIENTE ---
+            if (cliente_email && cliente_email.includes('@')) {
+                const docNamesMap = {
+                    'cnh': 'CNH', 'cpf': 'CPF', 'aso': 'ASO', 'ficha_registro': 'Ficha de Registro',
+                    'treinamento': 'Carteira de Vacinação', 'epi': 'Ficha de EPI',
+                    'contrato_esocial': 'Contrato e-social', 'nr1': 'NR1 / Ordem de Serviço'
+                };
+                const docsArr = (docs_exigidos || []).map(d => docNamesMap[d] || d);
+                const licArr = (licencas || []).map(l => l.nome);
+                const dtLimCliente = data_limite_envio ? new Date(data_limite_envio).toLocaleDateString('pt-BR') : null;
+
+                const docsHtml = docsArr.length > 0
+                    ? `<ul style="margin:8px 0; padding-left:20px;">${docsArr.map(d => `<li>${d}</li>`).join('')}</ul>`
+                    : '<p style="color:#94a3b8; font-style:italic; margin:4px 0;">Nenhum documento específico solicitado.</p>';
+
+                const licsHtml = licArr.length > 0
+                    ? `<h3 style="margin:12px 0 6px; color:#0f172a; font-size:0.95rem;">🏷️ Licenças Solicitadas</h3><ul style="margin:4px 0; padding-left:20px;">${licArr.map(l => `<li>${l}</li>`).join('')}</ul>`
+                    : '';
+
+                const htmlCliente = `
+                <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow:hidden;">
+                    <div style="background: #7048e8; padding: 24px 20px; text-align:center;">
+                        <h2 style="color:#fff; margin:0; font-size:1.3rem;">📋 Solicitação de Credenciamento Recebida</h2>
+                    </div>
+                    <div style="padding:24px 20px;">
+                        <p>Olá, <strong>${cliente_nome}</strong>!</p>
+                        <p>Sua solicitação de credenciamento foi recebida e encaminhada ao nosso setor de <strong>Logística</strong>. Em breve enviaremos os documentos da equipe alocada para o seu projeto.</p>
+
+                        <div style="background:#f8fafc; border-left:4px solid #7048e8; border-radius:6px; padding:16px; margin:20px 0;">
+                            <h3 style="margin:0 0 10px; color:#0f172a; font-size:0.95rem;">📄 Documentos Solicitados</h3>
+                            ${docsHtml}
+                            ${licsHtml}
+                        </div>
+
+                        ${dtLimCliente ? `<p style="font-size:13px; color:#64748b;">⏰ <strong>Prazo estimado de envio:</strong> ${dtLimCliente}</p>` : ''}
+                        ${observacoes ? `<div style="background:#fffbeb; border:1px solid #fcd34d; border-radius:6px; padding:12px; margin-top:16px;"><strong>📝 Observações:</strong><br><span style="color:#92400e;">${observacoes}</span></div>` : ''}
+
+                        <p style="margin-top:24px;">Em caso de dúvidas, entre em contato com nossa equipe.</p>
+                        <p style="color:#64748b; font-size:13px;">Atenciosamente,<br><strong>América Rental — Logística</strong></p>
+                    </div>
+                    <div style="background:#f1f5f9; padding:12px; text-align:center; font-size:11px; color:#94a3b8;">
+                        Esta mensagem foi enviada automaticamente pelo Sistema América Rental.
+                    </div>
+                </div>`;
+
+                sendMailHelper({
+                    to: cliente_email,
+                    subject: `✅ Solicitação de Credenciamento Recebida — América Rental`,
+                    html: htmlCliente
+                }).then(() => {
+                    console.log('[Credenciamento Comercial] E-mail de confirmação enviado ao cliente:', cliente_email);
+                }).catch(emailErr => {
+                    console.error('[Credenciamento Comercial] Erro ao enviar e-mail ao cliente:', emailErr.message);
+                });
+            }
         }
     );
 });
 
 
+
 app.put('/api/comercial/credenciamento/:id', authenticateToken, (req, res) => {
-    const { cliente_nome, os, cliente_email, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas } = req.body;
+    const { cliente_nome, os, cliente_email, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas, observacoes } = req.body;
     
-    db.run(`UPDATE credenciamentos SET cliente_nome = ?, os = ?, cliente_email = ?, endereco_instalacao = ?, qtd_max_colaboradores = ?, qtd_max_veiculos = ?, data_limite_envio = ?, docs_exigidos = ?, licencas_ids = ? WHERE id = ? AND status = 'solicitado'`,
+    db.run(`UPDATE credenciamentos SET cliente_nome = ?, os = ?, cliente_email = ?, endereco_instalacao = ?, qtd_max_colaboradores = ?, qtd_max_veiculos = ?, data_limite_envio = ?, docs_exigidos = ?, licencas_ids = ?, observacoes = ? WHERE id = ? AND status = 'solicitado'`,
         [
             cliente_nome, 
             os || '',
@@ -9445,6 +9509,7 @@ app.put('/api/comercial/credenciamento/:id', authenticateToken, (req, res) => {
             data_limite_envio || null, 
             JSON.stringify(docs_exigidos || []), 
             JSON.stringify(licencas || []),
+            observacoes || '',
             req.params.id
         ],
         function(err) {
