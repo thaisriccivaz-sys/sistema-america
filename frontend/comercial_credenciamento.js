@@ -295,12 +295,31 @@ window.ordenarHistoricoComCred = function(coluna) {
         const docs = cred.docs_exigidos ? JSON.parse(cred.docs_exigidos) : [];
         const lics = cred.licencas_ids ? JSON.parse(cred.licencas_ids) : [];
         
-        const docsHover = docs.length > 0 ? docs.join(', ') : 'Nenhum';
-        const licsHover = lics.length > 0 ? lics.map(l=>l.nome).join(', ') : 'Nenhuma';
+        const docNamesMap = {
+            'cnh': 'CNH', 'cpf': 'CPF', 'aso': 'ASO', 'ficha_registro': 'Ficha de Registro',
+            'treinamento': 'Carteira de Vacinação', 'epi': 'Ficha de EPI',
+            'contrato_esocial': 'Contrato e-social', 'nr1': 'NR1 / Ordem de Serviço'
+        };
+        const docsArr = docs.map(d => docNamesMap[d] || d);
+        const docsFormatted = docsArr.length > 0 ? docsArr.join(', ') : 'Nenhum';
+
+        const licGroups = {};
+        lics.forEach(l => {
+            const comp = l.empresa || 'América Rental';
+            if (!licGroups[comp]) licGroups[comp] = [];
+            licGroups[comp].push(l.nome);
+        });
+        
+        let licsFormatted = '';
+        if (Object.keys(licGroups).length > 0) {
+            licsFormatted = Object.entries(licGroups).map(([comp, nomes]) => `<b>${comp}:</b> ${nomes.join(' - ')}`).join('<br>');
+        } else {
+            licsFormatted = 'Nenhuma';
+        }
         
         let acoes = '';
         if (cred.status === 'solicitado') {
-            acoes = `<button class="btn btn-outline" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.abrirModalSolicitarCredenciamento('${cred.id}')"><i class="ph ph-pencil"></i></button>`;
+            acoes = `<button class="btn btn-warning btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.abrirModalSolicitarCredenciamento('${cred.id}')" title="Editar Solicitação"><i class="ph ph-pencil-simple"></i></button>`;
         }
         
         const dtLimite = cred.data_limite_envio ? new Date(cred.data_limite_envio).toLocaleDateString('pt-BR') : '-';
@@ -312,12 +331,30 @@ window.ordenarHistoricoComCred = function(coluna) {
                 <span style="font-size:0.8rem; color:#64748b;">${cred.cliente_email}</span>
                 ${cred.endereco_instalacao ? `<br><span style="font-size:0.75rem; color:#94a3b8;"><i class="ph ph-map-pin"></i> ${cred.endereco_instalacao}</span>` : ''}
             </td>
-            <td title="Documentos: ${docsHover}" style="cursor:help; border-bottom:1px dotted #94a3b8;">${cred.qtd_max_colaboradores || 0}</td>
+            <td>${cred.qtd_max_colaboradores || 0}</td>
             <td>${cred.qtd_max_veiculos || 0}</td>
-            <td title="${licsHover}" style="cursor:help; border-bottom:1px dotted #94a3b8;">${lics.length > 0 ? 'Sim' : 'Não'}</td>
+            <td>${lics.length > 0 ? 'Sim' : 'Não'}</td>
             <td>${dtLimite}</td>
             <td>${statusBadge}</td>
-            <td style="text-align:right;">${acoes}</td>
+            <td style="text-align:right;">
+                <button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="toggleCredDetails(this, 'cred-det-${cred.id}')" title="Ver Detalhes"><i class="ph ph-caret-down"></i></button>
+                ${acoes}
+            </td>
+        </tr>
+        <tr id="cred-det-${cred.id}" style="display:none; background:#f8fafc;">
+            <td colspan="7" style="padding:15px; font-size:0.85rem; border-left:3px solid #7048e8;">
+                <div style="display:flex; flex-wrap:wrap; gap:30px;">
+                    <div style="flex:1; min-width:250px;">
+                        <div style="color:#64748b; font-weight:600; margin-bottom:4px;">📄 Documentos Solicitados:</div>
+                        <div style="color:#334155;">${docsFormatted}</div>
+                    </div>
+                    <div style="flex:1; min-width:250px;">
+                        <div style="color:#64748b; font-weight:600; margin-bottom:4px;">🏷️ Licenças Solicitadas:</div>
+                        <div style="color:#334155; line-height:1.6;">${licsFormatted}</div>
+                    </div>
+                </div>
+                ${cred.observacoes ? `<div style="margin-top:10px; padding-top:10px; border-top:1px solid #e2e8f0;"><span style="color:#64748b; font-weight:600;">📝 Observações:</span> <span style="color:#475569;">${cred.observacoes}</span></div>` : ''}
+            </td>
         </tr>`;
     }).join('');
     
@@ -331,4 +368,18 @@ window.navigateTo = function(target) {
         window.carregarHistoricoComCred();
     }
     if (originalNavigateToComCred) originalNavigateToComCred(target);
+};
+
+window.toggleCredDetails = function(btn, id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (el.style.display === 'none') {
+        el.style.display = 'table-row';
+        btn.innerHTML = '<i class="ph ph-caret-up"></i>';
+        btn.classList.replace('btn-outline', 'btn-secondary');
+    } else {
+        el.style.display = 'none';
+        btn.innerHTML = '<i class="ph ph-caret-down"></i>';
+        btn.classList.replace('btn-secondary', 'btn-outline');
+    }
 };

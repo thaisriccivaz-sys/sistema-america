@@ -12,11 +12,11 @@ const cron = require('node-cron');
 
 // --- CONFIGURAÃ‡ÃƒO SMTP (Preencher com dados reais para o e-mail funcionar) ---
 const SMTP_CONFIG = {
-    host: "smtp.gmail.com", 
-    port: 465, 
+    host: "smtp.gmail.com",
+    port: 465,
     secure: true, // Gmail em 465 requer SSL direto
     auth: {
-        user: "americasistema48@gmail.com", 
+        user: "americasistema48@gmail.com",
         pass: "aigusxmgantdtxpd"
     }
 };
@@ -77,27 +77,27 @@ sinistroNomes.forEach(nome => {
 // Formato da regra JSON:
 // { dropdown_todos: bool, visivel_automatico: bool, condicao: 'campo=valor'|null, departamentos: ['Nome1']|null }
 const REGRAS_VISIBILIDADE = [
-    { nome: 'Autorização de Desconto em Folha',  regra: { dropdown_todos: true,  visivel_automatico: false, condicao: null, departamentos: null } },
-    { nome: 'Contrato Academia',                  regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: 'academia_participa=Sim', departamentos: null } },
-    { nome: 'Contrato Faculdade',                 regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: 'faculdade_participa=Sim', departamentos: null } },
-    { nome: 'Contrato Intermitente',              regra: { dropdown_todos: false, visivel_automatico: true,  condicao: 'tipo_contrato=Intermitente', departamentos: null } },
-    { nome: 'Ordem de Serviço NR01',              regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: null, departamentos: ['Ajudante Geral','Ajudante de Pátio','Liderança','Limpeza','Manutenção','Motoristas'] } },
-    { nome: 'Responsabilidade Bilhete Único',     regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: 'meio_transporte~vt', departamentos: null } },
-    { nome: 'Responsabilidade Celular',           regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: 'celular_participa=Sim', departamentos: null } },
-    { nome: 'Responsabilidade Chaves',            regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: 'chaves_participa=Sim', departamentos: null } },
-    { nome: 'Termo de Interesse Terapia',         regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: 'terapia_participa=Sim', departamentos: null } },
-    { nome: 'Termo de NÃO Interesse Terapia',     regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: 'terapia_participa=Nao', departamentos: null } },
-    { nome: 'Acordo Individual Benefícios',       regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: null, departamentos: null } },
-    { nome: 'Autorização de Uso de Imagem',       regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: null, departamentos: null } },
-    { nome: 'Bloqueio de Farmácia e Mercado',     regra: { dropdown_todos: true,  visivel_automatico: false, condicao: null, departamentos: null } },
-    { nome: 'Compartilhamento de Dados',          regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: null, departamentos: null } },
-    { nome: 'Recebimento de Regimento Interno',   regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: null, departamentos: null } },
-    { nome: 'Regras Sorteio Final de Ano',        regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: null, departamentos: null } },
-    { nome: 'Responsabilidade Equipamento',       regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: null, departamentos: ['Administrativo'] } },
-    { nome: 'Responsabilidade Veículo',           regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: null, departamentos: ['Motoristas','Liderança'] } },
-    { nome: 'Termo de Confidencialidade',         regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: null, departamentos: null } },
-    { nome: 'Aceite de Recebimento por E-mail',   regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: null, departamentos: null } },
-    { nome: 'NR1',                                regra: { dropdown_todos: true,  visivel_automatico: true,  condicao: null, departamentos: null } },
+    { nome: 'Autorização de Desconto em Folha', regra: { dropdown_todos: true, visivel_automatico: false, condicao: null, departamentos: null } },
+    { nome: 'Contrato Academia', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'academia_participa=Sim', departamentos: null } },
+    { nome: 'Contrato Faculdade', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'faculdade_participa=Sim', departamentos: null } },
+    { nome: 'Contrato Intermitente', regra: { dropdown_todos: false, visivel_automatico: true, condicao: 'tipo_contrato=Intermitente', departamentos: null } },
+    { nome: 'Ordem de Serviço NR01', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: ['Ajudante Geral', 'Ajudante de Pátio', 'Liderança', 'Limpeza', 'Manutenção', 'Motoristas'] } },
+    { nome: 'Responsabilidade Bilhete Único', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'meio_transporte~vt', departamentos: null } },
+    { nome: 'Responsabilidade Celular', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'celular_participa=Sim', departamentos: null } },
+    { nome: 'Responsabilidade Chaves', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'chaves_participa=Sim', departamentos: null } },
+    { nome: 'Termo de Interesse Terapia', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'terapia_participa=Sim', departamentos: null } },
+    { nome: 'Termo de NÃO Interesse Terapia', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'terapia_participa=Nao', departamentos: null } },
+    { nome: 'Acordo Individual Benefícios', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null } },
+    { nome: 'Autorização de Uso de Imagem', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null } },
+    { nome: 'Bloqueio de Farmácia e Mercado', regra: { dropdown_todos: true, visivel_automatico: false, condicao: null, departamentos: null } },
+    { nome: 'Compartilhamento de Dados', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null } },
+    { nome: 'Recebimento de Regimento Interno', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null } },
+    { nome: 'Regras Sorteio Final de Ano', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null } },
+    { nome: 'Responsabilidade Equipamento', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: ['Administrativo'] } },
+    { nome: 'Responsabilidade Veículo', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: ['Motoristas', 'Liderança'] } },
+    { nome: 'Termo de Confidencialidade', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null } },
+    { nome: 'Aceite de Recebimento por E-mail', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null } },
+    { nome: 'NR1', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null } },
 ];
 REGRAS_VISIBILIDADE.forEach(({ nome, regra }) => {
     db.run("UPDATE geradores SET visibilidade_regra = ? WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?))",
@@ -364,11 +364,11 @@ db.run(`CREATE TABLE IF NOT EXISTS licencas (
     if (err) console.error('[MIGRATION] Erro ao criar tabela licencas:', err.message);
     else {
         console.log('[MIGRATION] Tabela licencas verificada/criada.');
-        db.run("UPDATE licencas SET nome = 'CLI - Alvará' WHERE nome IN ('CLI', 'ALVARÁ', 'Alvará')", () => {});
-        db.run("UPDATE licencas SET nome = 'LO - CETESB' WHERE nome IN ('Licença de Operação', 'CETESB', 'LO - Licença de Operação', 'LO')", () => {});
+        db.run("UPDATE licencas SET nome = 'CLI - Alvará' WHERE nome IN ('CLI', 'ALVARÁ', 'Alvará')", () => { });
+        db.run("UPDATE licencas SET nome = 'LO - CETESB' WHERE nome IN ('Licença de Operação', 'CETESB', 'LO - Licença de Operação', 'LO')", () => { });
         // Adicionar colunas caso a tabela já exista
-        db.run("ALTER TABLE licencas ADD COLUMN last_alert_date TEXT", (err1) => {});
-        db.run("ALTER TABLE licencas ADD COLUMN alerta_3_meses_enviado INTEGER DEFAULT 0", (err2) => {});
+        db.run("ALTER TABLE licencas ADD COLUMN last_alert_date TEXT", (err1) => { });
+        db.run("ALTER TABLE licencas ADD COLUMN alerta_3_meses_enviado INTEGER DEFAULT 0", (err2) => { });
     }
 });
 
@@ -422,12 +422,12 @@ const GERADORES_PERFIL = [
 GERADORES_PERFIL.forEach(nome => {
     // Verifica se o gerador foi excluido manualmente pelo usuario
     db.get("SELECT nome FROM geradores_excluidos WHERE nome = ?", [nome], (e, excluido) => {
-      if (excluido) return; // Nao recriar se foi excluido manualmente
-      db.run(
-        "INSERT OR IGNORE INTO geradores (nome, conteudo) VALUES (?, ?)",
-        [nome, `<p>Documento: <b>${nome}</b></p><p>Colaborador: {{NOME_COMPLETO}}</p><p>Data: {{DATA_ATUAL}}</p>`],
-        (err) => { if (err && !err.message.includes('UNIQUE')) console.error(`Erro ao criar gerador "${nome}":`, err); }
-      );
+        if (excluido) return; // Nao recriar se foi excluido manualmente
+        db.run(
+            "INSERT OR IGNORE INTO geradores (nome, conteudo) VALUES (?, ?)",
+            [nome, `<p>Documento: <b>${nome}</b></p><p>Colaborador: {{NOME_COMPLETO}}</p><p>Data: {{DATA_ATUAL}}</p>`],
+            (err) => { if (err && !err.message.includes('UNIQUE')) console.error(`Erro ao criar gerador "${nome}":`, err); }
+        );
     });
 });
 
@@ -458,19 +458,19 @@ GERADORES_PERFIL.forEach(nome => {
 
 // MIGRATION: Inserir ou atualizar relação exata de Cargos x Departamentos solicitada
 const cargosDeptosSync = [
-    ['Aux. Administrativo', 'Administrativo'], ['Ass. Administrativo 1', 'Administrativo'], 
-    ['Ass. Administrativo', 'Administrativo'], ['Aux. Comercial', 'Comercial'], 
-    ['Vendedor', 'Comercial'], ['Sup. Comercial', 'Comercial'], 
-    ['Aux. Logística', 'Logística'], ['Ass. Logística 1', 'Logística'], 
-    ['Ass. Logística 2', 'Logística'], ['Sup. Logística', 'Logística'], 
-    ['Sup. Pátio', 'Logística'], ['Ger. Logística', 'Logística'], 
-    ['Lid. Logística', 'Logística'], ['Aux. Financeiro', 'Financeiro'], 
-    ['Ass. Financeiro 1', 'Financeiro'], ['Ass. Financeiro 2', 'Financeiro'], 
-    ['Sup. Financeiro', 'Financeiro'], ['Aux. RH', 'RH'], ['Ass. RH 1', 'RH'], 
-    ['Ass. RH 2', 'RH'], ['Ana. RH Jr.', 'RH'], ['Ana. RH Pl.', 'RH'], 
-    ['Ana. RH Sr.', 'RH'], ['Cor. de Processos', 'Administrativo'], 
-    ['Motorista', 'Motorista'], ['Ajudante Pátio', 'Ajudante Pátio'], 
-    ['Ajudante Geral', 'Ajudante Geral'], ['Manutenção', 'Manutenção'], 
+    ['Aux. Administrativo', 'Administrativo'], ['Ass. Administrativo 1', 'Administrativo'],
+    ['Ass. Administrativo', 'Administrativo'], ['Aux. Comercial', 'Comercial'],
+    ['Vendedor', 'Comercial'], ['Sup. Comercial', 'Comercial'],
+    ['Aux. Logística', 'Logística'], ['Ass. Logística 1', 'Logística'],
+    ['Ass. Logística 2', 'Logística'], ['Sup. Logística', 'Logística'],
+    ['Sup. Pátio', 'Logística'], ['Ger. Logística', 'Logística'],
+    ['Lid. Logística', 'Logística'], ['Aux. Financeiro', 'Financeiro'],
+    ['Ass. Financeiro 1', 'Financeiro'], ['Ass. Financeiro 2', 'Financeiro'],
+    ['Sup. Financeiro', 'Financeiro'], ['Aux. RH', 'RH'], ['Ass. RH 1', 'RH'],
+    ['Ass. RH 2', 'RH'], ['Ana. RH Jr.', 'RH'], ['Ana. RH Pl.', 'RH'],
+    ['Ana. RH Sr.', 'RH'], ['Cor. de Processos', 'Administrativo'],
+    ['Motorista', 'Motorista'], ['Ajudante Pátio', 'Ajudante Pátio'],
+    ['Ajudante Geral', 'Ajudante Geral'], ['Manutenção', 'Manutenção'],
     ['Ajudante Limpeza', 'Limpeza']
 ];
 
@@ -533,7 +533,7 @@ async function syncColaboradorOneDrive(nomeCompleto) {
         console.warn("[OneDrive] Pulando sincronização: OneDrive desabilitado ou não configurado.");
         return { sucesso: false, error: "OneDrive não configurado" };
     }
-    
+
     // Calcula o caminho ANTES para retornar na resposta
     const nomePasta = formatarNome(nomeCompleto);
     // V21: Usando ID do SharePoint diretamente. O Drive ID já é a pasta 'Documentos - America Rental'.
@@ -547,22 +547,22 @@ async function syncColaboradorOneDrive(nomeCompleto) {
         console.log(`[OneDrive API] Sincronizando ${nomeCompleto}...`);
         await onedrive.ensurePath(onedrivePath);
         await Promise.all(FOLDERS.map(f => onedrive.ensureFolder(`${onedrivePath}/${f}`)));
-        
+
         // Força o OneDrive a sincronizar a pasta em todos os computadores rapidamente
         console.log(`[OneDrive API] Criando arquivo de inicialização para forçar sincronia...`);
         await onedrive.uploadToOneDrive(onedrivePath, '_Sincronizado.txt', Buffer.from(`Pasta criada e sincronizada via Sistema América.\nColaborador: ${nomeCompleto}\nData: ${new Date().toLocaleString()}`, 'utf-8'));
-        
+
         console.log(`[OneDrive API] SUCESSO COMPLETO para ${nomeCompleto}`);
     } catch (e) {
         console.error(`[OneDrive API Error] ${nomeCompleto}:`, e.message);
         msgRetorno = "Atenção: A sincronização no OneDrive falhou, mas os dados foram salvos.";
     }
 
-    return { 
-        sucesso: true, 
+    return {
+        sucesso: true,
         message: msgRetorno,
         caminho: onedrivePath,
-        versao: "V24_AUTO_SYNC" 
+        versao: "V24_AUTO_SYNC"
     };
 }
 
@@ -597,8 +597,8 @@ async function uploadDocToOneDrive(docId) {
 
         const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || 'RH/1.Colaboradores/Sistema';
         const safeColab = formatarNome(doc.nome_completo || 'DESCONHECIDO');
-        const safeTab   = tabToOneDrivePath(doc.tab_name || 'DOCUMENTOS');
-        const docYear   = doc.year && doc.year !== 'null' ? String(doc.year).replace(/[^0-9]/g, '') : String(new Date().getFullYear());
+        const safeTab = tabToOneDrivePath(doc.tab_name || 'DOCUMENTOS');
+        const docYear = doc.year && doc.year !== 'null' ? String(doc.year).replace(/[^0-9]/g, '') : String(new Date().getFullYear());
 
         // Contratos avulsos (Outros contratos): salvar em CONTRATOS/outros/ independente do ano
         let targetDir;
@@ -724,7 +724,7 @@ function extractSignedUrl(docData) {
     if (!docData) return null;
     let u = docData.certificated_file_url || docData.report_url || docData.bundle_url || docData.signature_report_url || docData.artifacts?.certificated || docData.artifacts?.bundle || docData.artifacts?.signed_file || docData.signed_file_url;
     if (u) return u;
-    
+
     const jsonStr = JSON.stringify(docData);
     const matches = jsonStr.match(/https:\/\/[^"]+\.pdf[^"]*/gi);
     if (matches && matches.length) {
@@ -746,7 +746,7 @@ try {
 }
 
 // Nomes dos meses em português sem acentos (para caminhos de pasta no OneDrive)
-const MONTH_NAMES_PT = ['Janeiro','Fevereiro','Marco','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const MONTH_NAMES_PT = ['Janeiro', 'Fevereiro', 'Marco', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 function getMesNome(monthStr) {
     const idx = parseInt(monthStr, 10) - 1;
     return (idx >= 0 && idx < 12) ? MONTH_NAMES_PT[idx] : String(monthStr);
@@ -761,7 +761,7 @@ const storage = multer.diskStorage({
 
         const safeNomeColab = formatarNome(colab);
         const safeTab = formatarPasta(tab).toUpperCase();
-        
+
         let finalDir;
         if (safeTab === 'CONTRATOS' || safeTab === 'CONTRATOS_AVULSOS') {
             // Todos os Contratos na raiz
@@ -783,7 +783,7 @@ const storage = multer.diskStorage({
 
         console.log("-----------------------------------------");
         console.log("UPLOAD DESTINATION:", finalDir);
-        
+
         try {
             if (!fs.existsSync(finalDir)) {
                 fs.mkdirSync(finalDir, { recursive: true });
@@ -818,12 +818,12 @@ const storage = multer.diskStorage({
 
         // Timestamp formatado YYYYMMDD_HHMM para ser mais legível que milissegundos
         const d = new Date();
-        const ts = d.getFullYear() + 
-                   String(d.getMonth() + 1).padStart(2, '0') + 
-                   String(d.getDate()).padStart(2, '0') + "_" + 
-                   String(d.getHours()).padStart(2, '0') + 
-                   String(d.getMinutes()).padStart(2, '0') + 
-                   String(d.getSeconds()).padStart(2, '0');
+        const ts = d.getFullYear() +
+            String(d.getMonth() + 1).padStart(2, '0') +
+            String(d.getDate()).padStart(2, '0') + "_" +
+            String(d.getHours()).padStart(2, '0') +
+            String(d.getMinutes()).padStart(2, '0') +
+            String(d.getSeconds()).padStart(2, '0');
 
         const finalFilename = `${base}_${ts}${ext}`;
         console.log("UPLOAD FILENAME:", finalFilename);
@@ -847,12 +847,12 @@ app.get('/api/version', (req, res) => res.json({ version: 'V48_OUTROS_CONTRATOS_
 app.get('/api/debug-pfx3', async (req, res) => {
     try {
         const doc = await new Promise(r => db.get("SELECT assinafy_id FROM documentos WHERE assinafy_status = 'Assinado' ORDER BY id DESC LIMIT 1", [], (err, row) => r(row)));
-        if(!doc) return res.send("No doc");
+        if (!doc) return res.send("No doc");
         const fetch = require('node-fetch') || global.fetch;
         const rInfo = await fetch(`https://api.assinafy.com.br/v1/documents/${doc.assinafy_id}`, { headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey } });
         const dt = (await rInfo.json()).data;
         res.json({ dt });
-    } catch(e) { res.send(e.message); }
+    } catch (e) { res.send(e.message); }
 });
 
 app.get('/api/debug-pfx2', async (req, res) => {
@@ -870,16 +870,16 @@ app.get('/api/debug-pfx2', async (req, res) => {
         let buf = Buffer.from(pdfBytes);
         buf = await signPdfPfx.assinarPDF(buf, {});
         res.send("OK! length: " + buf.length);
-    } catch(e) {
+    } catch (e) {
         res.json({ error: e.message, stack: e.stack });
     }
 });
 app.get('/api/get-system-logs', (req, res) => {
     try {
         db.all('SELECT * FROM system_logs ORDER BY id DESC LIMIT 50', [], (err, rows) => {
-             res.json(err ? {error: err.message} : rows);
+            res.json(err ? { error: err.message } : rows);
         });
-    } catch(e) { res.status(500).json({error:e.message}) }
+    } catch (e) { res.status(500).json({ error: e.message }) }
 });
 
 
@@ -888,8 +888,8 @@ app.get('/api/check-pfx', (req, res) => {
         const signPdfPfx = require('./sign_pdf_pfx');
         const disp = signPdfPfx.verificarDisponibilidade();
         const info = disp.disponivel ? signPdfPfx.infosCertificado(signPdfPfx.getPfxPath(), signPdfPfx.getPfxPassword()) : null;
-        res.json({ disp, info, envs: { PFX_PATH: process.env.PFX_PATH || 'NOT SET', PFX_PASS: (process.env.PFX_PASSWORD ? 'SET' : 'NOT SET') }});
-    } catch(e) {
+        res.json({ disp, info, envs: { PFX_PATH: process.env.PFX_PATH || 'NOT SET', PFX_PASS: (process.env.PFX_PASSWORD ? 'SET' : 'NOT SET') } });
+    } catch (e) {
         res.status(500).json({ error: e.message, stack: e.stack });
     }
 });
@@ -942,7 +942,7 @@ async function pollAdmissaoAssinaturas() {
                         resp.on('data', c => chunks.push(c));
                         resp.on('end', () => {
                             try { resolve(JSON.parse(Buffer.concat(chunks).toString())); }
-                            catch(e) { resolve(null); }
+                            catch (e) { resolve(null); }
                         });
                     });
                     r.on('error', reject);
@@ -985,7 +985,7 @@ async function pollAdmissaoAssinaturas() {
                         } else {
                             console.warn(`[POLL-ADMISSAO] Falha ao baixar PDF: ${pdfResp.statusText}`);
                         }
-                    } catch(e) {
+                    } catch (e) {
                         console.warn(`[POLL-ADMISSAO] Erro ao baixar PDF: ${e.message}`);
                     }
                 }
@@ -1001,7 +1001,7 @@ async function pollAdmissaoAssinaturas() {
                                 nome: 'America Rental Equipamentos Ltda'
                             });
                             console.log(`[POLL-ADMISSAO] ? Certificado digital aplicado: ${certSignedBuffer.length} bytes`);
-                        } catch(pfxErr) {
+                        } catch (pfxErr) {
                             console.warn(`[POLL-ADMISSAO] Certificado não aplicado: ${pfxErr.message}`);
                         }
                     }
@@ -1020,7 +1020,7 @@ async function pollAdmissaoAssinaturas() {
                 if (onedrive && finalBuffer && !_skipOneDriveP) {
                     try {
                         const colabRow = await new Promise((res2, rej2) =>
-                            db.get('SELECT nome_completo FROM colaboradores WHERE id = ?', [doc.colaborador_id], (e,r) => e ? rej2(e) : res2(r))
+                            db.get('SELECT nome_completo FROM colaboradores WHERE id = ?', [doc.colaborador_id], (e, r) => e ? rej2(e) : res2(r))
                         );
                         const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || 'RH/1.Colaboradores/Sistema';
                         const safeColab = formatarNome(colabRow?.nome_completo || 'DESCONHECIDO');
@@ -1030,7 +1030,7 @@ async function pollAdmissaoAssinaturas() {
                         if (doc.source === 'documento') {
                             const safeTab = doc.tab_name ? tabToOneDrivePath(doc.tab_name) : 'DOCUMENTOS';
                             const isContratosAvulso = doc.tab_name === 'CONTRATOS_AVULSOS';
-                            
+
                             if (doc.tab_name === 'CONTRATOS' || doc.tab_name === 'CONTRATOS_AVULSOS') {
                                 cloudName = doc.file_name;
                             } else {
@@ -1061,15 +1061,15 @@ async function pollAdmissaoAssinaturas() {
                         await onedrive.uploadToOneDrive(targetDir, cloudName, finalBuffer);
                         console.log(`[POLL-ASSINATURAS] ? OneDrive sync: ${cloudName} -> ${targetDir}`);
                         onedriveOk = true;
-                    } catch(odErr) {
+                    } catch (odErr) {
                         console.warn('[POLL-ADMISSAO] OneDrive sync falhou:', odErr.message);
-try {
-    db.run("CREATE TABLE IF NOT EXISTS system_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, msg TEXT, ts DATETIME DEFAULT CURRENT_TIMESTAMP)", () => {
-        db.run("INSERT INTO system_logs (msg) VALUES (?)", ['OneDrive Sync Error: ' + odErr.message + ' | Path: ' + targetDir]);
-    });
-} catch(e) {}
+                        try {
+                            db.run("CREATE TABLE IF NOT EXISTS system_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, msg TEXT, ts DATETIME DEFAULT CURRENT_TIMESTAMP)", () => {
+                                db.run("INSERT INTO system_logs (msg) VALUES (?)", ['OneDrive Sync Error: ' + odErr.message + ' | Path: ' + targetDir]);
+                            });
+                        } catch (e) { }
 
-db.run("INSERT OR REPLACE INTO logs (msg) VALUES (?)", ['OneDrive Sync Error: ' + odErr.message + ' Path: ' + targetDir]);
+                        db.run("INSERT OR REPLACE INTO logs (msg) VALUES (?)", ['OneDrive Sync Error: ' + odErr.message + ' Path: ' + targetDir]);
                     }
                 }
                 // Salvar em disco local como fallback (caso OneDrive falhe)
@@ -1079,7 +1079,7 @@ db.run("INSERT OR REPLACE INTO logs (msg) VALUES (?)", ['OneDrive Sync Error: ' 
                         const destPath = path.join(BASE_PATH, `doc_${doc.id}.pdf`);
                         fs.writeFileSync(destPath, finalBuffer);
                         signedPath = destPath;
-                    } catch(e) {
+                    } catch (e) {
                         console.warn(`[POLL-ADMISSAO] Disco local indisponível (normal no Render): ${e.message}`);
                     }
                 }
@@ -1094,11 +1094,11 @@ db.run("INSERT OR REPLACE INTO logs (msg) VALUES (?)", ['OneDrive Sync Error: ' 
                     `UPDATE documentos SET assinafy_status = 'Assinado', signed_file_path = ?, assinafy_signed_at = CURRENT_TIMESTAMP WHERE assinafy_id = ?`,
                     [signedPath, doc.assinafy_id]
                 );
-            } catch(e) {
+            } catch (e) {
                 console.warn(`[POLL-ADMISSAO] Erro ao verificar doc ${doc.assinafy_id}: ${e.message}`);
             }
         }
-    } catch(e) {
+    } catch (e) {
         console.warn('[POLL-ADMISSAO] Erro no job de polling:', e.message);
     }
 }
@@ -1152,14 +1152,14 @@ app.post('/api/assinaturas/reenviar', authenticateToken, async (req, res) => {
     try {
         const table = source === 'documento' ? 'documentos' : 'admissao_assinaturas';
         const docColName = source === 'documento' ? 'document_type as nome_documento' : 'nome_documento';
-        
-        const doc = await new Promise((resolve, reject) => 
-            db.get(`SELECT assinafy_id, assinafy_url, colaborador_id, ${docColName} FROM ${table} WHERE id=?`, [id], (err, r) => err?reject(err):resolve(r))
+
+        const doc = await new Promise((resolve, reject) =>
+            db.get(`SELECT assinafy_id, assinafy_url, colaborador_id, ${docColName} FROM ${table} WHERE id=?`, [id], (err, r) => err ? reject(err) : resolve(r))
         );
         if (!doc || !doc.assinafy_id) return res.status(404).json({ error: 'Assinatura vinculada não encontrada.' });
-        
+
         let signLink = doc.assinafy_url;
-        
+
         if (!signLink) {
             const https = require('https');
             const docInfo = await new Promise((resolve, reject) => {
@@ -1169,7 +1169,7 @@ app.post('/api/assinaturas/reenviar', authenticateToken, async (req, res) => {
                 }, resp => {
                     const chunks = [];
                     resp.on('data', c => chunks.push(c));
-                    resp.on('end', () => { try { resolve(JSON.parse(Buffer.concat(chunks).toString())); } catch(e){resolve(null);} });
+                    resp.on('end', () => { try { resolve(JSON.parse(Buffer.concat(chunks).toString())); } catch (e) { resolve(null); } });
                 });
                 r.on('error', reject); r.end();
             });
@@ -1178,20 +1178,20 @@ app.post('/api/assinaturas/reenviar', authenticateToken, async (req, res) => {
                 signLink = d.sign_url || d.signUrl || (d.signers && d.signers[0] && (d.signers[0].sign_url || d.signers[0].url));
             }
         }
-        
+
         if (signLink) {
             // Atualizar link + timestamp de envio no banco
-            db.run(`UPDATE ${table} SET assinafy_url = ?, enviado_em = CURRENT_TIMESTAMP WHERE id = ?`, [signLink, id], () => {});
-            
+            db.run(`UPDATE ${table} SET assinafy_url = ?, enviado_em = CURRENT_TIMESTAMP WHERE id = ?`, [signLink, id], () => { });
+
             // Enviar email via nodemailer
             const colab = await new Promise((res2, rej2) => db.get('SELECT nome_completo, email FROM colaboradores WHERE id = ?', [doc.colaborador_id], (e, r) => e ? rej2(e) : res2(r)));
-            
+
             if (colab) {
                 const destEmail = colab.email;
                 if (destEmail) {
                     const nodemailer = require('nodemailer');
                     const transporter = nodemailer.createTransport(SMTP_CONFIG);
-                    
+
                     const apiBase = (process.env.BASE_URL || 'https://sistema-america.onrender.com');
                     const logoUrl = `${apiBase}/assets/logo-header.png`;
                     const html = `
@@ -1213,14 +1213,14 @@ app.post('/api/assinaturas/reenviar', authenticateToken, async (req, res) => {
                             </div>
                         </div>
                     `;
-                    
+
                     await sendMailHelper({
                         from: `"RH - América Rental" <${SMTP_CONFIG.auth.user}>`,
                         to: destEmail,
                         subject: `Lembrete de Assinatura - ${doc.nome_documento || 'Documento'}`,
                         html: html
                     });
-                    
+
                     return res.json({ success: true, messsage: 'E-mail enviado com sucesso.', link: signLink });
                 }
             }
@@ -1229,7 +1229,7 @@ app.post('/api/assinaturas/reenviar', authenticateToken, async (req, res) => {
         } else {
             res.status(400).json({ error: 'Não foi possível detectar o link do documento na nuvem.' });
         }
-    } catch(e) {
+    } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
@@ -1244,7 +1244,7 @@ app.delete('/api/assinaturas/limpar-testes', authenticateToken, async (req, res)
             db.run(`DELETE FROM admissao_assinaturas`, [], (err) => err ? reject(err) : resolve())
         );
         res.json({ success: true, message: 'Registros de teste removidos com sucesso.' });
-    } catch(e) {
+    } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
@@ -1257,7 +1257,7 @@ app.post('/api/admissao-assinaturas/outro-meio', authenticateToken, (req, res) =
     if (!id || !source) return res.status(400).json({ error: 'id e source são obrigatórios' });
 
     let table = source === 'admissao' ? 'admissao_assinaturas' : 'documentos';
-    db.run(`UPDATE ${table} SET assinafy_status = 'Outro Meio' WHERE id = ?`, [id], function(err) {
+    db.run(`UPDATE ${table} SET assinafy_status = 'Outro Meio' WHERE id = ?`, [id], function (err) {
         if (err) return res.status(500).json({ error: err.message });
         if (this.changes === 0) return res.status(404).json({ error: 'Documento não encontrado' });
         res.json({ ok: true, message: 'Documento marcado como resolvido (Outro Meio).' });
@@ -1304,14 +1304,14 @@ app.get('/api/admissao-assinaturas/todos', authenticateToken, async (req, res) =
                 FROM documentos WHERE assinafy_id IS NOT NULL
             `, []);
             datesRows.forEach(r => { docDates[r.id] = { enviado_em: r.enviado_em, assinado_em: r.assinado_em }; });
-        } catch(e) {
+        } catch (e) {
             console.warn('[/todos] Colunas de data assinafy não encontradas:', e.message);
         }
 
         // Merge das datas nos documentos
         const docRowsWithDates = docRows.map(d => ({
             ...d,
-            enviado_em:  docDates[d.id]?.enviado_em  || null,
+            enviado_em: docDates[d.id]?.enviado_em || null,
             assinado_em: docDates[d.id]?.assinado_em || null,
         }));
 
@@ -1333,7 +1333,7 @@ app.get('/api/admissao-assinaturas/todos', authenticateToken, async (req, res) =
         }
 
         res.json(all.slice(0, 500));
-    } catch(e) {
+    } catch (e) {
         console.error('[/admissao-assinaturas/todos] Erro:', e.message);
         res.status(500).json({ error: e.message });
     }
@@ -1368,7 +1368,7 @@ app.post('/api/admissao-assinaturas/verificar-status', authenticateToken, async 
                     }, resp => {
                         const chunks = [];
                         resp.on('data', c => chunks.push(c));
-                        resp.on('end', () => { try { resolve(JSON.parse(Buffer.concat(chunks).toString())); } catch(e) { resolve(null); } });
+                        resp.on('end', () => { try { resolve(JSON.parse(Buffer.concat(chunks).toString())); } catch (e) { resolve(null); } });
                     });
                     r.on('error', reject);
                     r.setTimeout(10000, () => r.destroy());
@@ -1386,13 +1386,13 @@ app.post('/api/admissao-assinaturas/verificar-status', authenticateToken, async 
                     db.run(`UPDATE admissao_assinaturas SET assinafy_status='Assinado', assinado_em=CURRENT_TIMESTAMP WHERE id=?`, [doc.id]);
                     atualizados++;
                 }
-            } catch(e) {
+            } catch (e) {
                 console.warn(`[VERIF] Erro doc ${doc.assinafy_id}: ${e.message}`);
             }
         }
 
         res.json({ ok: true, atualizados, verificados: pendentes.length });
-    } catch(e) {
+    } catch (e) {
         res.status(500).json({ ok: false, error: e.message });
     }
 });
@@ -1407,16 +1407,16 @@ app.get('/api/admissao-assinaturas/diagnostico/:colaborador_id', authenticateTok
         const docs = await new Promise((resolve, reject) =>
             db.all('SELECT id, assinafy_id, assinafy_status, signed_file_path FROM documentos WHERE colaborador_id = ? AND assinafy_id IS NOT NULL', [colaborador_id], (err, rows) => err ? reject(err) : resolve(rows))
         );
-        
+
         // Consultar Assinafy para cada admissao_assinatura com assinafy_id
         const https = require('https');
         const assinafyStatus = [];
         for (const doc of aa.filter(d => d.assinafy_id)) {
             const info = await new Promise((resolve) => {
-                const r = https.request({ hostname: 'api.assinafy.com.br', path: `/v1/documents/${doc.assinafy_id}`, method: 'GET', headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey, 'Accept': 'application/json' }}, resp => {
+                const r = https.request({ hostname: 'api.assinafy.com.br', path: `/v1/documents/${doc.assinafy_id}`, method: 'GET', headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey, 'Accept': 'application/json' } }, resp => {
                     const chunks = [];
                     resp.on('data', c => chunks.push(c));
-                    resp.on('end', () => { try { resolve(JSON.parse(Buffer.concat(chunks).toString())); } catch(e) { resolve({ erro: e.message }); } });
+                    resp.on('end', () => { try { resolve(JSON.parse(Buffer.concat(chunks).toString())); } catch (e) { resolve({ erro: e.message }); } });
                 });
                 r.on('error', e => resolve({ erro: e.message }));
                 r.setTimeout(8000, () => { r.destroy(); resolve({ erro: 'timeout' }); });
@@ -1427,7 +1427,7 @@ app.get('/api/admissao-assinaturas/diagnostico/:colaborador_id', authenticateTok
         }
 
         res.json({ admissao_assinaturas: aa, documentos_com_assinafy_id: docs, assinafy_api_status: assinafyStatus });
-    } catch(e) {
+    } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
@@ -1449,10 +1449,10 @@ app.post('/api/assinafy/upload', async (req, res) => {
     try {
         // Marca como pendente provisoriamente
         db.run("UPDATE documentos SET assinafy_status = 'Pendente', assinafy_sent_at = CURRENT_TIMESTAMP WHERE id = ?", [document_id]);
-        
+
         const novoProcesso = require('./novo_processo_assinafy');
         const resultado = await novoProcesso.enviarDocumentoParaAssinafy(document_id, colaborador_id);
-        
+
         console.log(`[ASSINAFY SYNC] Enviado! ID=${resultado?.assinafyDocId} URL=${resultado?.urlAssinatura}`);
 
         // Enviar cópia de notificação para o sistema via SMTP
@@ -1481,7 +1481,7 @@ app.post('/api/assinafy/upload', async (req, res) => {
             console.error('[ASSINAFY] Falha ao enviar cópia de notificação:', mailErr.message);
             // Não bloqueia o fluxo principal
         }
-        
+
         res.json({
             sucesso: true,
             processando_em_background: false,
@@ -1492,10 +1492,10 @@ app.post('/api/assinafy/upload', async (req, res) => {
         });
     } catch (error) {
         console.error('[ASSINAFY SYNC] ERRO:', error.message);
-        
+
         // Retorna para o status de erro
         db.run("UPDATE documentos SET assinafy_status = 'Erro' WHERE id = ?", [document_id]);
-        
+
         res.status(400).json({
             sucesso: false,
             error: error.message
@@ -1507,10 +1507,10 @@ app.post('/api/assinafy/upload', async (req, res) => {
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = (authHeader && authHeader.split(' ')[1]) || req.query.token;
-    
+
     // Fallback: se estiver em localhost sem auth ou para bypass se desejado, remova este bloco.
     if (!token) return res.status(401).json({ error: 'Acesso negado' });
-    
+
     jwt.verify(token, SECRET_KEY, (err, user) => {
         if (err) return res.status(403).json({ error: 'Token inválido' });
         req.user = user;
@@ -1534,7 +1534,7 @@ app.post('/api/auth/login', (req, res) => {
 // --- CID-10 SEARCH ---
 const CID10_PATH = path.join(__dirname, 'cid10.min.json');
 let cid10Data = [];
-try { cid10Data = JSON.parse(fs.readFileSync(CID10_PATH, 'utf8')); } catch(e) { console.error('Erro ao carregar CID-10:', e.message); }
+try { cid10Data = JSON.parse(fs.readFileSync(CID10_PATH, 'utf8')); } catch (e) { console.error('Erro ao carregar CID-10:', e.message); }
 
 app.get('/api/cid10', (req, res) => {
     const q = (req.query.q || '').toLowerCase().trim();
@@ -1548,13 +1548,13 @@ app.get('/api/cid10', (req, res) => {
 // --- CBO SEARCH ---
 const CBO_PATH = path.join(__dirname, 'cbo.min.json');
 let cboData = [];
-try { cboData = JSON.parse(fs.readFileSync(CBO_PATH, 'utf8')); } catch(e) { console.error('Erro ao carregar CBO:', e.message); }
+try { cboData = JSON.parse(fs.readFileSync(CBO_PATH, 'utf8')); } catch (e) { console.error('Erro ao carregar CBO:', e.message); }
 
 app.get('/api/cbo', (req, res) => {
     const q = (req.query.q || '').toLowerCase().trim();
     if (!q || q.length < 2) return res.json([]);
     const results = cboData.filter(c =>
-        c.code.toLowerCase().replace(/[-\s]/g,'').startsWith(q.replace(/[-\s]/g,'')) ||
+        c.code.toLowerCase().replace(/[-\s]/g, '').startsWith(q.replace(/[-\s]/g, '')) ||
         c.desc.toLowerCase().includes(q)
     ).slice(0, 12);
     res.json(results);
@@ -1563,7 +1563,7 @@ app.get('/api/cbo', (req, res) => {
 app.post('/api/auth/setup', (req, res) => {
     const { username, password } = req.body;
     const hash = bcrypt.hashSync(password, 10);
-    db.run('INSERT INTO usuarios (username, password_hash, role) VALUES (?, ?, ?)', [username, hash, 'RH'], function(err) {
+    db.run('INSERT INTO usuarios (username, password_hash, role) VALUES (?, ?, ?)', [username, hash, 'RH'], function (err) {
         if (err) return res.status(400).json({ error: 'Erro ao criar admin' });
         res.json({ message: 'Admin criado com sucesso' });
     });
@@ -1573,14 +1573,14 @@ app.post('/api/auth/setup', (req, res) => {
 app.get('/api/dashboard', authenticateToken, (req, res) => {
     const stats = { total: 0, ativos: 0, ferias: 0, afastados: 0, desligados: 0, aguardando: 0, iniciado: 0 };
     const today = new Date().toISOString().split('T')[0];
-    
+
     db.all('SELECT status, ferias_programadas_inicio, ferias_programadas_fim FROM colaboradores', [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
-        
+
         rows.forEach(row => {
             stats.total += 1;
             let effectiveStatus = row.status || 'Ativo';
-            
+
             // Lógica de férias automática: Se status é Ativo/Férias e hoje está no período, muda para Férias
             if (effectiveStatus === 'Ativo' || effectiveStatus === 'Férias') {
                 if (row.ferias_programadas_inicio && row.ferias_programadas_fim) {
@@ -1621,7 +1621,7 @@ app.get('/api/dashboard/charts', authenticateToken, async (req, res) => {
             const today = new Date();
             const future = new Date();
             future.setDate(today.getDate() + 30);
-            
+
             const query = `
                 SELECT c.id, c.nome_completo as nome, d.vencimento, c.aso_email_enviado, c.aso_exame_data 
                 FROM documentos d 
@@ -1633,10 +1633,10 @@ app.get('/api/dashboard/charts', authenticateToken, async (req, res) => {
             `;
             db.all(query, [], (err, rows) => {
                 if (err) return reject(err);
-                
+
                 const todayStr = today.toISOString().split('T')[0];
                 const futureStr = future.toISOString().split('T')[0];
-                
+
                 const filtered = rows.filter(r => {
                     if (!r.vencimento) return false;
                     let v = r.vencimento;
@@ -1646,7 +1646,7 @@ app.get('/api/dashboard/charts', authenticateToken, async (req, res) => {
                     }
                     return v >= todayStr && v <= futureStr;
                 });
-                
+
                 const mapResult = filtered.map(r => {
                     let hasSentEmailThisMonth = false;
                     if (r.aso_email_enviado && r.vencimento) {
@@ -1658,7 +1658,7 @@ app.get('/api/dashboard/charts', authenticateToken, async (req, res) => {
                     }
                     return { ...r };
                 });
-                mapResult.sort((a,b) => {
+                mapResult.sort((a, b) => {
                     let vA = a.vencimento.includes('/') ? a.vencimento.split('/').reverse().join('-') : a.vencimento;
                     let vB = b.vencimento.includes('/') ? b.vencimento.split('/').reverse().join('-') : b.vencimento;
                     return vA.localeCompare(vB);
@@ -1679,14 +1679,14 @@ app.get('/api/dashboard/charts', authenticateToken, async (req, res) => {
                 WHERE tab_name LIKE '%ATESTADO%' OR document_type LIKE '%Atestado%'
             `;
             const cQuery = "SELECT id, nome_completo as nome FROM colaboradores WHERE status = 'Ativo'";
-            
+
             db.all(faltasQuery, [], (e1, fRows) => {
                 if (e1) return reject(e1);
                 db.all(atestadosQuery, [], (e2, aRows) => {
                     if (e2) return reject(e2);
                     db.all(cQuery, [], (e3, cRows) => {
                         if (e3) return reject(e3);
-                        
+
                         const ranking = cRows.map(c => {
                             const faltas = fRows.find(f => f.colaborador_id === c.id)?.faltas_sem_atestado || 0;
                             const docs = aRows.filter(a => a.colaborador_id === c.id);
@@ -1696,117 +1696,117 @@ app.get('/api/dashboard/charts', authenticateToken, async (req, res) => {
                                     const diff = (new Date(doc.atestado_fim) - new Date(doc.atestado_inicio)) / (1000 * 60 * 60 * 24) + 1;
                                     diasAtestado += isNaN(diff) ? 1 : diff;
                                 } else {
-                                    diasAtestado += 1; 
+                                    diasAtestado += 1;
                                 }
                             });
                             return { id: c.id, nome: c.nome, faltas_sem_atestado: faltas, dias_atestado: diasAtestado, total: faltas + diasAtestado };
                         });
-                        resolve(ranking.filter(r => r.total > 0).sort((a,b) => b.total - a.total).slice(0, 10));
+                        resolve(ranking.filter(r => r.total > 0).sort((a, b) => b.total - a.total).slice(0, 10));
                     });
                 });
             });
         });
 
         const feriasVencendo = await new Promise((resolve, reject) => {
-             db.all("SELECT id, nome_completo as nome, data_admissao, ferias_programadas_inicio, ferias_programadas_fim FROM colaboradores WHERE status != 'Desligado' AND data_admissao IS NOT NULL AND data_admissao != ''", [], (err, rows) => {
-                 if (err) return reject(err);
-                 const today = new Date();
-                 today.setHours(0,0,0,0);
+            db.all("SELECT id, nome_completo as nome, data_admissao, ferias_programadas_inicio, ferias_programadas_fim FROM colaboradores WHERE status != 'Desligado' AND data_admissao IS NOT NULL AND data_admissao != ''", [], (err, rows) => {
+                if (err) return reject(err);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
 
-                 const resFerias = rows.map(r => {
-                     let adm = r.data_admissao;
-                     let admDias;
-                     if (adm.includes('/')) {
-                         const pts = adm.split('/');
-                         if (pts.length===3) admDias = new Date(`${pts[2]}-${pts[1]}-${pts[0]}T12:00:00`);
-                     } else {
-                         admDias = new Date(adm + 'T12:00:00');
-                     }
-                     if(!admDias || isNaN(admDias.getTime())) return null;
-                     
-                     // Mesmo algoritmo do ferias.js: anos completos por dias trabalhados
-                     const diasTrabalhados = Math.floor((today - admDias) / 86400000);
-                     const anosCompletos = Math.floor(diasTrabalhados / 365);
+                const resFerias = rows.map(r => {
+                    let adm = r.data_admissao;
+                    let admDias;
+                    if (adm.includes('/')) {
+                        const pts = adm.split('/');
+                        if (pts.length === 3) admDias = new Date(`${pts[2]}-${pts[1]}-${pts[0]}T12:00:00`);
+                    } else {
+                        admDias = new Date(adm + 'T12:00:00');
+                    }
+                    if (!admDias || isNaN(admDias.getTime())) return null;
 
-                     // Ainda em período aquisitivo (menos de 1 ano) → não exibir no dashboard
-                     if (anosCompletos < 1) return null;
+                    // Mesmo algoritmo do ferias.js: anos completos por dias trabalhados
+                    const diasTrabalhados = Math.floor((today - admDias) / 86400000);
+                    const anosCompletos = Math.floor(diasTrabalhados / 365);
 
-                     // aquisitivoFim = quando o direito nasceu = adm + anosCompletos anos
-                     const aquisitivoFim = new Date(admDias);
-                     aquisitivoFim.setFullYear(admDias.getFullYear() + anosCompletos);
+                    // Ainda em período aquisitivo (menos de 1 ano) → não exibir no dashboard
+                    if (anosCompletos < 1) return null;
 
-                     // concessivoEnd = prazo limite para gozar = adm + (anosCompletos+1) anos
-                     const concessivoEnd = new Date(admDias);
-                     concessivoEnd.setFullYear(admDias.getFullYear() + anosCompletos + 1);
-                     
-                     // Considera como agendada apenas se a data de início for posterior ao fim do período aquisitivo atual
-                     let feriasValidasAtual = false;
-                     if (r.ferias_programadas_inicio) {
-                         let dStr = r.ferias_programadas_inicio;
-                         let dataAgendada;
-                         if (dStr.includes('/')) {
-                             const p = dStr.split('/');
-                             if(p.length===3) dataAgendada = new Date(`${p[2]}-${p[1]}-${p[0]}T12:00:00`);
-                         } else {
-                             dataAgendada = new Date(dStr + 'T12:00:00');
-                         }
-                         if (dataAgendada && !isNaN(dataAgendada) && dataAgendada >= aquisitivoFim) {
-                             feriasValidasAtual = true;
-                         }
-                     }
-                     
-                     const diffDays = Math.ceil((concessivoEnd - today) / (1000 * 60 * 60 * 24));
+                    // aquisitivoFim = quando o direito nasceu = adm + anosCompletos anos
+                    const aquisitivoFim = new Date(admDias);
+                    aquisitivoFim.setFullYear(admDias.getFullYear() + anosCompletos);
 
-                     // Formatar data de início das férias agendadas para exibição
-                     let feriasInicioFmt = null;
-                     if (feriasValidasAtual && r.ferias_programadas_inicio) {
-                         const dStr = r.ferias_programadas_inicio;
-                         if (dStr.includes('/')) {
-                             feriasInicioFmt = dStr; // já está em DD/MM/AAAA
-                         } else {
-                             const pts = dStr.split('-');
-                             if (pts.length === 3) feriasInicioFmt = `${pts[2]}/${pts[1]}/${pts[0]}`;
-                         }
-                     }
+                    // concessivoEnd = prazo limite para gozar = adm + (anosCompletos+1) anos
+                    const concessivoEnd = new Date(admDias);
+                    concessivoEnd.setFullYear(admDias.getFullYear() + anosCompletos + 1);
 
-                     return {
-                         id: r.id,
-                         nome: r.nome,
-                         admissao: adm,
-                         aquisitivo_fim: aquisitivoFim.toISOString().split('T')[0],
-                         concessivo_fim: concessivoEnd.toISOString().split('T')[0],
-                         dias_restantes: diffDays,
-                         ferias_agendadas: feriasValidasAtual,
-                         ferias_inicio_fmt: feriasInicioFmt
-                     };
-                 // Mostrar: agendados (sempre visíveis) + sem agenda dentro de 90 dias + vencidos
-                 }).filter(r => r !== null && (r.ferias_agendadas || r.dias_restantes <= 90))
-                 .sort((a, b) => {
-                     // Agendados vêm depois dos urgentes
-                     if (a.ferias_agendadas && !b.ferias_agendadas) return 1;
-                     if (!a.ferias_agendadas && b.ferias_agendadas) return -1;
-                     return a.dias_restantes - b.dias_restantes;
-                 });
+                    // Considera como agendada apenas se a data de início for posterior ao fim do período aquisitivo atual
+                    let feriasValidasAtual = false;
+                    if (r.ferias_programadas_inicio) {
+                        let dStr = r.ferias_programadas_inicio;
+                        let dataAgendada;
+                        if (dStr.includes('/')) {
+                            const p = dStr.split('/');
+                            if (p.length === 3) dataAgendada = new Date(`${p[2]}-${p[1]}-${p[0]}T12:00:00`);
+                        } else {
+                            dataAgendada = new Date(dStr + 'T12:00:00');
+                        }
+                        if (dataAgendada && !isNaN(dataAgendada) && dataAgendada >= aquisitivoFim) {
+                            feriasValidasAtual = true;
+                        }
+                    }
 
-                 resolve(resFerias);
-             });
+                    const diffDays = Math.ceil((concessivoEnd - today) / (1000 * 60 * 60 * 24));
+
+                    // Formatar data de início das férias agendadas para exibição
+                    let feriasInicioFmt = null;
+                    if (feriasValidasAtual && r.ferias_programadas_inicio) {
+                        const dStr = r.ferias_programadas_inicio;
+                        if (dStr.includes('/')) {
+                            feriasInicioFmt = dStr; // já está em DD/MM/AAAA
+                        } else {
+                            const pts = dStr.split('-');
+                            if (pts.length === 3) feriasInicioFmt = `${pts[2]}/${pts[1]}/${pts[0]}`;
+                        }
+                    }
+
+                    return {
+                        id: r.id,
+                        nome: r.nome,
+                        admissao: adm,
+                        aquisitivo_fim: aquisitivoFim.toISOString().split('T')[0],
+                        concessivo_fim: concessivoEnd.toISOString().split('T')[0],
+                        dias_restantes: diffDays,
+                        ferias_agendadas: feriasValidasAtual,
+                        ferias_inicio_fmt: feriasInicioFmt
+                    };
+                    // Mostrar: agendados (sempre visíveis) + sem agenda dentro de 90 dias + vencidos
+                }).filter(r => r !== null && (r.ferias_agendadas || r.dias_restantes <= 90))
+                    .sort((a, b) => {
+                        // Agendados vêm depois dos urgentes
+                        if (a.ferias_agendadas && !b.ferias_agendadas) return 1;
+                        if (!a.ferias_agendadas && b.ferias_agendadas) return -1;
+                        return a.dias_restantes - b.dias_restantes;
+                    });
+
+                resolve(resFerias);
+            });
         });
 
         const faltasBd = await new Promise((res, rej) => db.all("SELECT strftime('%Y-%m', data_falta) as mes, COUNT(*) as count FROM faltas GROUP BY mes", [], (e, r) => e ? rej(e) : res(r)));
         const atestadosBd = await new Promise((res, rej) => db.all("SELECT strftime('%Y-%m', upload_date) as mes, COUNT(*) as count FROM documentos WHERE (tab_name LIKE '%ATESTADO%' OR document_type LIKE '%Atestado%') GROUP BY mes", [], (e, r) => e ? rej(e) : res(r)));
-        
+
         const mapMeses = {};
-        for(let i=0; i<6; i++){
+        for (let i = 0; i < 6; i++) {
             const d = new Date();
             d.setMonth(d.getMonth() - i);
-            const m = d.toISOString().split('T')[0].substring(0,7);
+            const m = d.toISOString().split('T')[0].substring(0, 7);
             mapMeses[m] = { mes: m, faltas: 0, atestados: 0 };
         }
-        
-        faltasBd.forEach(row => { if(mapMeses[row.mes]) mapMeses[row.mes].faltas += row.count; });
-        atestadosBd.forEach(row => { if(mapMeses[row.mes]) mapMeses[row.mes].atestados += row.count; });
-        
-        const faltasAgrupadasMes = Object.values(mapMeses).sort((a,b) => a.mes.localeCompare(b.mes));
+
+        faltasBd.forEach(row => { if (mapMeses[row.mes]) mapMeses[row.mes].faltas += row.count; });
+        atestadosBd.forEach(row => { if (mapMeses[row.mes]) mapMeses[row.mes].atestados += row.count; });
+
+        const faltasAgrupadasMes = Object.values(mapMeses).sort((a, b) => a.mes.localeCompare(b.mes));
 
         res.json({
             atestadosMes: atestadosMes.reverse(),
@@ -1855,7 +1855,7 @@ brokenVariants.forEach(broken => {
     db.run(
         "UPDATE documentos SET tab_name = 'Pensão Alimentícia' WHERE tab_name = ?",
         [broken],
-        () => {}
+        () => { }
     );
 });
 console.log('[Migration] Pensão Alimentícia encoding fix applied');
@@ -1893,11 +1893,11 @@ app.get('/api/colaboradores', authenticateToken, (req, res) => {
 app.get('/api/colaboradores/:id', authenticateToken, (req, res) => {
     db.get('SELECT * FROM colaboradores WHERE id = ?', [req.params.id], (err, row) => {
         if (err || !row) return res.status(err ? 500 : 404).json({ error: err ? err.message : 'Não encontrado' });
-        
+
         db.all('SELECT chave_id, data_entrega FROM colaborador_chaves WHERE colaborador_id = ?', [req.params.id], (err2, chaves) => {
             if (err2) return res.status(500).json({ error: err2.message });
             row.chaves_lista = chaves;
-            
+
             // Buscar dependentes
             db.all('SELECT * FROM dependentes WHERE colaborador_id = ?', [req.params.id], (err3, deps) => {
                 if (err3) return res.status(500).json({ error: err3.message });
@@ -1918,7 +1918,7 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
 
     const nomePasta = formatarNome(nomeOriginal);
     const pastaColaborador = path.join(BASE_PATH, nomePasta);
-    
+
     try {
         if (!fs.existsSync(pastaColaborador)) {
             fs.mkdirSync(pastaColaborador, { recursive: true });
@@ -1930,7 +1930,7 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
     } catch (erro) {
         console.error("ERRO AO CRIAR PASTAS LOCAIS:", erro);
     }
-    
+
     // (A Sincronização foi movida para o final do processo, após salvar no banco)
 
     const colunas = [
@@ -1947,7 +1947,7 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
         'certificado_militar', 'militar_categoria', 'deficiencia',
         'horario_entrada', 'horario_saida', 'intervalo_entrada', 'intervalo_saida',
         'sabado_entrada', 'sabado_saida',
-        'fgts_opcao', 'banco_nome', 'banco_agencia', 'banco_conta', 
+        'fgts_opcao', 'banco_nome', 'banco_agencia', 'banco_conta',
         'escala_tipo', 'escala_folgas',
         'meio_transporte', 'valor_transporte',
         'faculdade_participa', 'faculdade_curso_id', 'faculdade_data_inicio', 'faculdade_data_termino',
@@ -1971,18 +1971,18 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
 
     const query = `INSERT INTO colaboradores (${colunas.join(', ')}) VALUES (${Array(colunas.length).fill('?').join(', ')})`;
 
-    db.run(query, values, async function(err) {
+    db.run(query, values, async function (err) {
         if (err) {
             console.error("ERRO AO SALVAR:", err);
             const msg = err.message.includes("UNIQUE constraint failed") ? "Este CPF já está cadastrado." : err.message;
             return res.status(400).json({ error: msg });
         }
         const newColabId = this.lastID;
-        
+
         // Inserir chaves se houver
         if (data.chaves_lista && Array.isArray(data.chaves_lista)) {
             data.chaves_lista.forEach(item => {
-                db.run("INSERT INTO colaborador_chaves (colaborador_id, chave_id, data_entrega) VALUES (?, ?, ?)", 
+                db.run("INSERT INTO colaborador_chaves (colaborador_id, chave_id, data_entrega) VALUES (?, ?, ?)",
                     [newColabId, item.chave_id, item.data_entrega]);
             });
         }
@@ -1990,11 +1990,11 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
         // Inserir dependentes se houver
         if (data.dependentes && Array.isArray(data.dependentes)) {
             data.dependentes.forEach(dep => {
-                db.run("INSERT INTO dependentes (colaborador_id, nome, cpf, data_nascimento, grau_parentesco) VALUES (?, ?, ?, ?, ?)", 
+                db.run("INSERT INTO dependentes (colaborador_id, nome, cpf, data_nascimento, grau_parentesco) VALUES (?, ?, ?, ?, ?)",
                     [newColabId, dep.nome, dep.cpf, dep.data_nascimento, dep.grau_parentesco]);
             });
         }
-        
+
         let syncStatus = "Sincronização local";
         if (onedrive) {
             // Disparar sync no OneDrive sem bloquear a resposta HTTP
@@ -2006,7 +2006,7 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
         try {
             const _fsLocal = require('fs');
             const _pathLocal = require('path');
-            const LOCAL_ONEDRIVE_BASE = process.env.LOCAL_ONEDRIVE_PATH || 
+            const LOCAL_ONEDRIVE_BASE = process.env.LOCAL_ONEDRIVE_PATH ||
                 'C:\\A\\OneDrive - AMERICA RENTAL EQUIPAMENTOS LTDA\\Documentos - America Rental\\RH\\1.Colaboradores\\Sistema';
             const PASTAS_PADRAO = [
                 '00_CHECKLIST', '01_FICHA_CADASTRAL', 'ASO', 'ATESTADOS',
@@ -2025,7 +2025,7 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
                 if (!_fsLocal.existsSync(subDir)) _fsLocal.mkdirSync(subDir, { recursive: true });
             });
             console.log(`[PASTAS] Estrutura criada para: ${safeNome}`);
-        } catch(eFolder) {
+        } catch (eFolder) {
             console.error('[PASTAS] Erro ao criar pastas locais:', eFolder.message);
         }
 
@@ -2039,7 +2039,7 @@ app.get('/api/test/america', authenticateToken, async (req, res) => {
         const targetSite = await client.api(`/sites/americarentalltda.sharepoint.com:/sites/AmericaRental`).get();
         const sDrives = await client.api(`/sites/${targetSite.id}/drives`).get();
         res.json({ site: targetSite, drives: sDrives.value });
-    } catch(e) {
+    } catch (e) {
         res.status(500).json({ error: e.message, code: e.code, body: e.body });
     }
 });
@@ -2052,8 +2052,8 @@ app.get('/api/maintenance/db-info', authenticateToken, (req, res) => {
     const isPersistent = !!process.env.DATABASE_PATH;
     const fs = require('fs');
     let tamanho = 0;
-    try { tamanho = fs.statSync(dbPath).size; } catch(e) {}
-    
+    try { tamanho = fs.statSync(dbPath).size; } catch (e) { }
+
     // Contar registros nas tabelas chave
     db.get('SELECT COUNT(*) as total FROM usuarios', [], (e1, r1) => {
         db.get('SELECT COUNT(*) as total FROM grupos_permissao', [], (e2, r2) => {
@@ -2093,8 +2093,8 @@ app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) =>
         };
 
         if (!config.clientId || !config.tenantId || !config.clientSecret) {
-            return res.status(400).json({ 
-                sucesso: false, 
+            return res.status(400).json({
+                sucesso: false,
                 error: "Configurações incompletas no Render. Verifique CLIENT_ID, TENANT_ID e SECRET.",
                 details: config
             });
@@ -2105,7 +2105,7 @@ app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) =>
         // PRIORIDADE: ID Real da América Rental encontrado pelo Mega Finder
         const driveId = "b!giGJ-6SQo0q01aZkBQjqEzgftfBe2OJGpvVeTh2YrbQTUqm85gobSoh8CtELSzAF";
         const drivePrefix = driveId ? `/drives/${driveId}/root` : `/users/${config.email}/drive/root`;
-        
+
         // Tentar ler a RAIZ para ver o ponto de entrada real
         let infoRaiz = null;
         let rootItems = [];
@@ -2136,14 +2136,14 @@ app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) =>
         try {
             const drivePrefix = driveId ? `/drives/${driveId}/root` : `/users/${config.email}/drive/root`;
             driveInfo = await client.api(driveId ? `/drives/${driveId}` : `/users/${config.email}/drive`).get();
-            
+
             // Tentar listar itens no caminho base configurado
             const encodedBasePath = config.basePath.split('/').map(p => encodeURIComponent(p)).join('/');
-            
+
             try {
                 // Tenta pegar metadados da pasta base
                 infoPasta = await client.api(`${drivePrefix}:/${encodedBasePath}`).get();
-                
+
                 const items = await client.api(`${drivePrefix}:/${encodedBasePath}:/children`).get();
                 basePathItems = items.value.map(i => i.name);
             } catch (pErr) {
@@ -2183,8 +2183,8 @@ app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) =>
         });
     } catch (e) {
         console.error("OneDrive Test Failure:", e);
-        res.status(500).json({ 
-            sucesso: false, 
+        res.status(500).json({
+            sucesso: false,
             error: "Falha na conexão: " + e.message,
             code: e.code,
             details: e.body ? JSON.parse(e.body) : null
@@ -2214,7 +2214,7 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
         'certificado_militar', 'militar_categoria', 'deficiencia',
         'horario_entrada', 'horario_saida', 'intervalo_entrada', 'intervalo_saida',
         'sabado_entrada', 'sabado_saida',
-        'fgts_opcao', 'banco_nome', 'banco_agencia', 'banco_conta', 
+        'fgts_opcao', 'banco_nome', 'banco_agencia', 'banco_conta',
         'escala_tipo', 'escala_folgas',
         'meio_transporte', 'valor_transporte',
         'faculdade_participa', 'faculdade_curso_id', 'faculdade_data_inicio', 'faculdade_data_termino',
@@ -2233,23 +2233,23 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
     const allowedColunas = colunas;
     const bodyKeys = Object.keys(data);
     const updates = bodyKeys.filter(k => allowedColunas.includes(k));
-    
+
     if (updates.length === 0) {
         return res.json({ message: 'Nenhuma alteração enviada' });
     }
 
     const setClauses = updates.map(k => `${k} = ?`).join(', ');
     const values = updates.map(k => data[k]);
-    
+
     const query = `UPDATE colaboradores SET ${setClauses}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
     values.push(id);
-    
+
     console.log("EXEC QUERY:", query);
     console.log("EXEC VALUES:", values);
 
     db.get('SELECT * FROM colaboradores WHERE id = ?', [id], (err, oldColab) => {
         if (err || !oldColab) return res.status(404).json({ error: err ? err.message : 'Não encontrado' });
-        
+
         // Registrar mudanças na auditoria
         const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
         const auditProms = [];
@@ -2263,16 +2263,16 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
                 }));
             }
         }
-        Promise.all(auditProms).catch(() => {});
+        Promise.all(auditProms).catch(() => { });
 
         const oldName = oldColab.nome_completo;
         const newName = data.nome_completo || oldName;
         const oldSafeName = formatarNome(oldName);
         const newSafeName = formatarNome(newName);
 
-        db.run(query, values, async function(updateErr) {
+        db.run(query, values, async function (updateErr) {
             if (updateErr) return res.status(400).json({ error: updateErr.message });
-            
+
             const newDir = path.join(BASE_PATH, newSafeName);
 
             if (oldSafeName !== newSafeName) {
@@ -2280,14 +2280,14 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
                 if (fs.existsSync(oldDir) && !fs.existsSync(newDir)) {
                     try {
                         fs.renameSync(oldDir, newDir);
-                        db.run(`UPDATE colaboradores SET foto_path = REPLACE(foto_path, ?, ?) WHERE id = ?`, 
-                               [`Colaboradores/${oldSafeName}/`, `Colaboradores/${newSafeName}/`, id]);
-                        db.run(`UPDATE documentos SET file_path = REPLACE(file_path, ?, ?) WHERE colaborador_id = ?`, 
-                               [`Colaboradores\\${oldSafeName}\\`, `Colaboradores\\${newSafeName}\\`, id]); 
-                    } catch(e) { console.error('Erro ao renomear pasta: ', e); }
+                        db.run(`UPDATE colaboradores SET foto_path = REPLACE(foto_path, ?, ?) WHERE id = ?`,
+                            [`Colaboradores/${oldSafeName}/`, `Colaboradores/${newSafeName}/`, id]);
+                        db.run(`UPDATE documentos SET file_path = REPLACE(file_path, ?, ?) WHERE colaborador_id = ?`,
+                            [`Colaboradores\\${oldSafeName}\\`, `Colaboradores\\${newSafeName}\\`, id]);
+                    } catch (e) { console.error('Erro ao renomear pasta: ', e); }
                 }
             }
-            
+
             if (data.status !== 'Incompleto') {
                 try {
                     if (!fs.existsSync(newDir)) fs.mkdirSync(newDir, { recursive: true });
@@ -2296,7 +2296,7 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
                         if (!fs.existsSync(caminho)) fs.mkdirSync(caminho, { recursive: true });
                     });
                 } catch (erro) { console.error("ERRO AO GARANTIR PASTAS NO PUT:", erro); }
-                
+
                 // (Movidopara o final do fluxo PUT)
             }
 
@@ -2304,7 +2304,7 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
             db.run("DELETE FROM colaborador_chaves WHERE colaborador_id = ?", [id], (errD) => {
                 if (!errD && data.chaves_lista && Array.isArray(data.chaves_lista)) {
                     data.chaves_lista.forEach(item => {
-                        db.run("INSERT INTO colaborador_chaves (colaborador_id, chave_id, data_entrega) VALUES (?, ?, ?)", 
+                        db.run("INSERT INTO colaborador_chaves (colaborador_id, chave_id, data_entrega) VALUES (?, ?, ?)",
                             [id, item.chave_id, item.data_entrega]);
                     });
                 }
@@ -2314,7 +2314,7 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
             db.run("DELETE FROM dependentes WHERE colaborador_id = ? AND (grau_parentesco IS NULL OR grau_parentesco != 'Cônjuge')", [id], (errDep) => {
                 if (!errDep && data.dependentes && Array.isArray(data.dependentes)) {
                     data.dependentes.filter(d => d.grau_parentesco !== 'Cônjuge').forEach(dep => {
-                        db.run("INSERT INTO dependentes (colaborador_id, nome, cpf, data_nascimento, grau_parentesco) VALUES (?, ?, ?, ?, ?)", 
+                        db.run("INSERT INTO dependentes (colaborador_id, nome, cpf, data_nascimento, grau_parentesco) VALUES (?, ?, ?, ?, ?)",
                             [id, dep.nome, dep.cpf, dep.data_nascimento, dep.grau_parentesco]);
                     });
                 }
@@ -2364,20 +2364,20 @@ app.post('/api/colaboradores/:id/sync-onedrive', authenticateToken, async (req, 
     try {
         db.get('SELECT nome_completo FROM colaboradores WHERE id = ?', [id], async (err, row) => {
             if (err || !row) return res.status(404).json({ error: 'Colaborador não encontrado' });
-            
+
             try {
                 const result = await syncColaboradorOneDrive(row.nome_completo);
-                res.json({ 
-                    sucesso: true, 
-                    message: "Pastas básicas criadas! (Subpastas seguem em background)", 
-                    path: result.caminho, 
+                res.json({
+                    sucesso: true,
+                    message: "Pastas básicas criadas! (Subpastas seguem em background)",
+                    path: result.caminho,
                     versao: "V24_AUTO_SYNC",
                     basePath: result.basePath
                 });
             } catch (e) {
                 console.error("Erro Sync Manual:", e);
-                res.status(500).json({ 
-                    error: "Falha na sincronização Microsoft Graph", 
+                res.status(500).json({
+                    error: "Falha na sincronização Microsoft Graph",
                     message: e.message,
                     details: e.body ? JSON.parse(e.body) : null
                 });
@@ -2385,7 +2385,7 @@ app.post('/api/colaboradores/:id/sync-onedrive', authenticateToken, async (req, 
         });
     } catch (e) {
         console.error("[OneDrive Endpoint Error]:", e);
-        res.status(500).json({ 
+        res.status(500).json({
             error: "Erro na requisição de sincronização",
             message: e.message,
             details: e.body ? (typeof e.body === 'string' ? JSON.parse(e.body) : e.body) : null
@@ -2411,14 +2411,14 @@ app.delete('/api/colaboradores/:id', authenticateToken, (req, res) => {
                 "DELETE FROM colaborador_epi_fichas WHERE colaborador_id = ?",
                 "DELETE FROM auditoria WHERE registro_id = ?",
             ];
-            tabelas.forEach(sql => { try { db.run(sql, [id]); } catch(e) {} });
+            tabelas.forEach(sql => { try { db.run(sql, [id]); } catch (e) { } });
 
-            db.run("DELETE FROM colaboradores WHERE id = ?", [id], function(delErr) {
+            db.run("DELETE FROM colaboradores WHERE id = ?", [id], function (delErr) {
                 if (delErr) return res.status(500).json({ error: delErr.message });
                 try {
                     const pasta = path.join(BASE_PATH, formatarNome(row.nome_completo));
                     if (fs.existsSync(pasta)) fs.rmSync(pasta, { recursive: true, force: true });
-                } catch(e) {}
+                } catch (e) { }
                 console.log(`[DELETE FORCE] Colaborador ID=${id} "${row.nome_completo}" excluído permanentemente.`);
                 res.json({ message: `Colaborador "${row.nome_completo}" excluído permanentemente do sistema.`, id });
             });
@@ -2427,7 +2427,7 @@ app.delete('/api/colaboradores/:id', authenticateToken, (req, res) => {
         if (force || row.status === 'Incompleto') {
             excluirDefinitivamente();
         } else {
-            db.run("UPDATE colaboradores SET status = 'Desligado' WHERE id = ?", [id], function(updateErr) {
+            db.run("UPDATE colaboradores SET status = 'Desligado' WHERE id = ?", [id], function (updateErr) {
                 if (updateErr) return res.status(500).json({ error: updateErr.message });
                 res.json({ message: 'Colaborador inativado com sucesso (status: Desligado)' });
             });
@@ -2440,10 +2440,10 @@ app.delete('/api/colaboradores/:id', authenticateToken, (req, res) => {
 app.post('/api/upload-foto/:id', authenticateToken, uploadFoto.single('foto'), async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: "Nenhum arquivo enviado." });
-        
+
         const id = req.params.id;
         let nome = req.body.nome;
-        
+
         // Se o nome não vier no body (upload direto), buscar no banco
         if (!nome) {
             const colab = await new Promise((resolve, reject) => {
@@ -2566,7 +2566,7 @@ app.get('/api/colaboradores/:id/dependentes', authenticateToken, (req, res) => {
 app.post('/api/dependentes', authenticateToken, (req, res) => {
     const { colaborador_id, nome, cpf, data_nascimento, grau_parentesco } = req.body;
     db.run('INSERT INTO dependentes (colaborador_id, nome, cpf, data_nascimento, grau_parentesco) VALUES (?, ?, ?, ?, ?)',
-        [colaborador_id, nome, cpf, data_nascimento, grau_parentesco || 'Dependente'], function(err) {
+        [colaborador_id, nome, cpf, data_nascimento, grau_parentesco || 'Dependente'], function (err) {
             if (err) return res.status(400).json({ error: err.message });
             res.status(201).json({ id: this.lastID });
         });
@@ -2576,7 +2576,7 @@ app.put('/api/dependentes/:id', authenticateToken, (req, res) => {
     const query = `UPDATE dependentes SET nome = COALESCE(?, nome), cpf = COALESCE(?, cpf), 
                    data_nascimento = COALESCE(?, data_nascimento), grau_parentesco = COALESCE(?, grau_parentesco) 
                    WHERE id = ?`;
-    db.run(query, [nome, cpf, data_nascimento, grau_parentesco, req.params.id], function(err) {
+    db.run(query, [nome, cpf, data_nascimento, grau_parentesco, req.params.id], function (err) {
         if (err) return res.status(400).json({ error: err.message });
         res.json({ message: 'Ataulizado com sucesso' });
     });
@@ -2632,7 +2632,7 @@ app.put('/api/colaboradores/:id/admissao-responsavel', authenticateToken, (req, 
     db.run(
         'UPDATE colaboradores SET admissao_responsavel_nome = ? WHERE id = ?',
         [admissao_responsavel_nome, req.params.id],
-        function(err) {
+        function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ success: true, message: 'Responsável atribuído com sucesso.' });
         }
@@ -2644,11 +2644,11 @@ app.put('/api/colaboradores/:id/santander-status', authenticateToken, (req, res)
     const { santander_ficha_data } = req.body;
     const { id } = req.params;
     if (!santander_ficha_data) return res.status(400).json({ error: 'santander_ficha_data obrigatório' });
-    
+
     db.run(
         'UPDATE colaboradores SET santander_ficha_data = ? WHERE id = ?',
         [santander_ficha_data, id],
-        function(err) {
+        function (err) {
             if (err) {
                 console.error('[Santander Status] Erro:', err.message);
                 return res.status(500).json({ error: err.message });
@@ -2670,7 +2670,7 @@ app.get('/api/colaboradores/:id/dependentes', authenticateToken, (req, res) => {
 app.post('/api/dependentes', authenticateToken, (req, res) => {
     const { colaborador_id, nome, cpf, data_nascimento, grau_parentesco } = req.body;
     db.run('INSERT INTO dependentes (colaborador_id, nome, cpf, data_nascimento, grau_parentesco) VALUES (?, ?, ?, ?, ?)',
-        [colaborador_id, nome, cpf, data_nascimento, grau_parentesco || 'Dependente'], function(err) {
+        [colaborador_id, nome, cpf, data_nascimento, grau_parentesco || 'Dependente'], function (err) {
             if (err) return res.status(400).json({ error: err.message });
             res.status(201).json({ id: this.lastID });
         });
@@ -2680,7 +2680,7 @@ app.put('/api/dependentes/:id', authenticateToken, (req, res) => {
     const query = `UPDATE dependentes SET nome = COALESCE(?, nome), cpf = COALESCE(?, cpf), 
                    data_nascimento = COALESCE(?, data_nascimento), grau_parentesco = COALESCE(?, grau_parentesco) 
                    WHERE id = ?`;
-    db.run(query, [nome, cpf, data_nascimento, grau_parentesco, req.params.id], function(err) {
+    db.run(query, [nome, cpf, data_nascimento, grau_parentesco, req.params.id], function (err) {
         if (err) return res.status(400).json({ error: err.message });
         res.json({ message: 'Ataulizado com sucesso' });
     });
@@ -2735,11 +2735,11 @@ app.put('/api/colaboradores/:id/santander-status', authenticateToken, (req, res)
     const { santander_ficha_data } = req.body;
     const { id } = req.params;
     if (!santander_ficha_data) return res.status(400).json({ error: 'santander_ficha_data obrigatório' });
-    
+
     db.run(
         'UPDATE colaboradores SET santander_ficha_data = ? WHERE id = ?',
         [santander_ficha_data, id],
-        function(err) {
+        function (err) {
             if (err) {
                 console.error('[Santander Status] Erro:', err.message);
                 return res.status(500).json({ error: err.message });
@@ -2777,14 +2777,14 @@ app.post('/api/extrair-bo', authenticateToken, multerUploadMemoria.single('arqui
         // Boletim No: "FR6269-1/2026" ou "FR 6269-1/2026"
         let boletim = '';
         const matBO = cleanText.match(/([A-Z]{2}\s*\d+[-]\d+\/\d{4})/i)
-                   || cleanText.match(/Boletim[^\d]*(\d+[-]\d+\/\d{4})/i);
+            || cleanText.match(/Boletim[^\d]*(\d+[-]\d+\/\d{4})/i);
         if (matBO) boletim = matBO[1].replace(/\s/g, '').toUpperCase();
 
         // Ocorrencia: "13/04/2026 as 13:30"
         let dataHoraStr = '';
         const matOc = cleanText.match(/Ocorr[eê]ncia[:\s]+(\d{2}\/\d{2}\/\d{4})\s+[aà]s?\s+(\d{2}:\d{2})/i)
-                   || cleanText.match(/Data.*?Ocorr.*?:?\s*(\d{2}\/\d{2}\/\d{4}).*?(\d{2}:\d{2})/i)
-                   || cleanText.match(/(\d{2}\/\d{2}\/\d{4})\s*.*?(\d{2}:\d{2})/i); // aggressive fallback
+            || cleanText.match(/Data.*?Ocorr.*?:?\s*(\d{2}\/\d{2}\/\d{4}).*?(\d{2}:\d{2})/i)
+            || cleanText.match(/(\d{2}\/\d{2}\/\d{4})\s*.*?(\d{2}:\d{2})/i); // aggressive fallback
         if (matOc) dataHoraStr = matOc[1] + ' às ' + matOc[2];
 
         // Natureza
@@ -2792,10 +2792,10 @@ app.post('/api/extrair-bo', authenticateToken, multerUploadMemoria.single('arqui
         // Captura o que vem logo após Naturezas da Ocorrência... até encontrar Dados da Ocorrência ou Crime Consumado
         const matN = cleanText.match(/Naturezas? da Ocorr[eê]ncia\s*(.*?)(?:Dados da|Crime|\d+\s*-)/i);
         if (matN && matN[1].trim().length > 3) {
-             natureza = matN[1].trim();
+            natureza = matN[1].trim();
         } else {
-             const matN2 = cleanText.match(/(Crime Consumado.*?)(?:Dados da Ocorr[eê]ncia)/i);
-             if (matN2) natureza = matN2[1].trim();
+            const matN2 = cleanText.match(/(Crime Consumado.*?)(?:Dados da Ocorr[eê]ncia)/i);
+            if (matN2) natureza = matN2[1].trim();
         }
 
         // Marca/Modelo: "Marca/Modelo: IVECO/DAILY 35CS"
@@ -2806,8 +2806,8 @@ app.post('/api/extrair-bo', authenticateToken, multerUploadMemoria.single('arqui
         // Placa: "TLR0H81" (ou "TLR0H811" com typo do PDF real)
         let placa = '';
         const matPl = cleanText.match(/Placa[^\w]*([A-Z]{3}[-\s]*\d[A-Z0-9]\d{2,3})/i)
-                   || cleanText.match(/Placa[^\w]*([A-Z]{3}[-\s]*\d{4,5})/i)
-                   || cleanText.match(/(?:^|\s)([A-Z]{3}[-\s]*[0-9][A-Z0-9]{3,4})(?:[-\s]|$)/i); // aggressive fallback
+            || cleanText.match(/Placa[^\w]*([A-Z]{3}[-\s]*\d{4,5})/i)
+            || cleanText.match(/(?:^|\s)([A-Z]{3}[-\s]*[0-9][A-Z0-9]{3,4})(?:[-\s]|$)/i); // aggressive fallback
         if (matPl) {
             placa = matPl[1].replace(/[-\s]/g, '').toUpperCase();
             if (placa.length > 7) placa = placa.substring(0, 7); // Força 7 caracteres para remover lixo do pdf-parse
@@ -2817,7 +2817,7 @@ app.post('/api/extrair-bo', authenticateToken, multerUploadMemoria.single('arqui
         console.log('[BO-TEXT primeiros 300 chars]', cleanText.substring(0, 300));
         // _debug_text ainda é retornado para log no console do frontend (não mais em alert)
         res.json({ sucesso: true, boletim, data_hora: dataHoraStr, natureza, placa, marca_modelo: marcaModelo, _debug_text: text.substring(0, 2000) });
-    } catch(e) {
+    } catch (e) {
         console.error('[EXTRAIR-BO] Erro:', e.message);
         res.status(500).json({ error: e.message });
     }
@@ -2827,13 +2827,13 @@ app.post('/api/extrair-bo', authenticateToken, multerUploadMemoria.single('arqui
 
 app.delete('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, (req, res) => {
     const { id, sinistroId } = req.params;
-    
+
     // Nao deixamos excluir se ja estiver assinado, por seguranca da assinatura digital.
     db.get('SELECT status FROM sinistros WHERE id = ? AND colaborador_id = ?', [sinistroId, id], (err, row) => {
         if (err || !row) return res.status(404).json({ error: 'Sinistro nao encontrado' });
         if (row.status === 'assinado') return res.status(403).json({ error: 'Nao eh possivel excluir um sinistro ja assinado.' });
-        
-        db.run('DELETE FROM sinistros WHERE id = ? AND colaborador_id = ?', [sinistroId, id], function(err2) {
+
+        db.run('DELETE FROM sinistros WHERE id = ? AND colaborador_id = ?', [sinistroId, id], function (err2) {
             if (err2) return res.status(500).json({ error: err2.message });
             res.json({ sucesso: true });
         });
@@ -2844,7 +2844,7 @@ app.post('/api/colaboradores/:id/sinistros', authenticateToken, multerUploadMemo
     try {
         const { id } = req.params;
         const body = req.body;
-        
+
         const colab = await new Promise((resolve, reject) => {
             db.get('SELECT * FROM colaboradores WHERE id = ?', [id], (err, row) => err ? reject(err) : resolve(row));
         });
@@ -2855,7 +2855,7 @@ app.post('/api/colaboradores/:id/sinistros', authenticateToken, multerUploadMemo
             .replace(/\s+/g, '_').replace(/[^A-Z0-9_]/g, '');
 
         let dataFormatada = (body.data_hora || '').split(' ')[0].replace(/\D/g, '');
-        if(!dataFormatada) dataFormatada = String(new Date().getDate()).padStart(2,'0') + String(new Date().getMonth()+1).padStart(2,'0') + new Date().getFullYear();
+        if (!dataFormatada) dataFormatada = String(new Date().getDate()).padStart(2, '0') + String(new Date().getMonth() + 1).padStart(2, '0') + new Date().getFullYear();
 
         // Pasta padrao C:\...\THAIS_RICCI\SINISTROS\Datadoocorrido\
         const pastaDataStr = (body.data_hora || '').split(' ')[0].replace(/\//g, '-');
@@ -2863,23 +2863,23 @@ app.post('/api/colaboradores/:id/sinistros', authenticateToken, multerUploadMemo
         let targetDir = pastaRoot + '/' + nomeFormatado + '/SINISTROS/' + (pastaDataStr || dataFormatada);
 
         // Garantir unique numero se ja existir a mesma data - fazemos isso procurando o count
-        const qtdNoDia = await new Promise(r => db.get("SELECT count(*) as c FROM sinistros WHERE colaborador_id=? AND data_hora LIKE ?", [id, (body.data_hora || '').split(' ')[0] + '%'], (e, row) => r(row?row.c:0)));
-        if(qtdNoDia > 0) {
+        const qtdNoDia = await new Promise(r => db.get("SELECT count(*) as c FROM sinistros WHERE colaborador_id=? AND data_hora LIKE ?", [id, (body.data_hora || '').split(' ')[0] + '%'], (e, row) => r(row ? row.c : 0)));
+        if (qtdNoDia > 0) {
             targetDir += '_' + (qtdNoDia + 1);
         }
 
         const stmt = `INSERT INTO sinistros (colaborador_id, numero_boletim, data_hora, natureza, placa, veiculo,
             desconto, parcelas, valor_parcela, tipo_sinistro, boletim_path, processo_iniciado) 
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`;
-            
+
         // Nome padrão do doc: Sinistro_Datadoocorrido_Nome_do_Colaborador.pdf
-        const pnome = 'BO_Sinistro_' + (pastaDataStr || dataFormatada).replace(/-/g,'') + '_' + nomeFormatado + '.pdf';
+        const pnome = 'BO_Sinistro_' + (pastaDataStr || dataFormatada).replace(/-/g, '') + '_' + nomeFormatado + '.pdf';
         const docOnedrivePath = targetDir + '/' + pnome;
 
         db.run(stmt, [id, body.numero_boletim, body.data_hora, body.natureza, body.placa, body.veiculo,
             body.desconto, body.parcelas || 1, body.valor_parcela, body.tipo_sinistro, docOnedrivePath, body.desconto === 'Sim' ? 1 : 0],
-            async function(err) {
-                if(err) return res.status(500).json({ error: err.message });
+            async function (err) {
+                if (err) return res.status(500).json({ error: err.message });
                 const sinId = this.lastID;
 
                 // Sync OneDrive 
@@ -2889,28 +2889,28 @@ app.post('/api/colaboradores/:id/sinistros', authenticateToken, multerUploadMemo
                         await onedrive.ensurePath(pastaRoot + '/' + nomeFormatado + '/SINISTROS');
                         const finalDir = targetDir.substring(targetDir.lastIndexOf('/SINISTROS/') + 11);
                         await onedrive.ensurePath(pastaRoot + '/' + nomeFormatado + '/SINISTROS/' + finalDir);
-                        
+
                         await onedrive.uploadToOneDrive(targetDir, pnome, req.file.buffer);
-                        
+
                         // Upload de orçamentos se houver
-                        if(body.orcamentos_base64) {
+                        if (body.orcamentos_base64) {
                             const orcs = JSON.parse(body.orcamentos_base64);
                             let paths = [];
-                            for(let i=0; i<orcs.length; i++) {
+                            for (let i = 0; i < orcs.length; i++) {
                                 const orcBuf = Buffer.from(orcs[i].split(',')[1], 'base64');
-                                const orcNome = 'Orcamento_' + (i+1) + '.pdf';
+                                const orcNome = 'Orcamento_' + (i + 1) + '.pdf';
                                 await onedrive.uploadToOneDrive(targetDir, orcNome, orcBuf);
                                 paths.push(targetDir + '/' + orcNome);
                             }
                             db.run('UPDATE sinistros SET orcamentos_paths = ? WHERE id = ?', [JSON.stringify(paths), sinId]);
                         }
-                    } catch(e) { console.error('Erro OneDrive:', e); }
+                    } catch (e) { console.error('Erro OneDrive:', e); }
                 }
 
                 res.json({ sucesso: true, id: sinId, targetDir });
             });
-            
-    } catch(e) {
+
+    } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
@@ -2919,28 +2919,28 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
     try {
         const { id, sinistroId } = req.params;
         const colab = await new Promise((resolve) => db.get('SELECT * FROM colaboradores WHERE id = ?', [id], (e, r) => resolve(r)));
-        const sin   = await new Promise((resolve) => db.get('SELECT * FROM sinistros WHERE id = ?', [sinistroId], (e, r) => resolve(r)));
-        if(!sin || !colab) throw new Error('Não encontrado.');
+        const sin = await new Promise((resolve) => db.get('SELECT * FROM sinistros WHERE id = ?', [sinistroId], (e, r) => resolve(r)));
+        if (!sin || !colab) throw new Error('Não encontrado.');
 
         // Busca todos os geradores de Sinistro e acha o mais proximo ao tipo_sinistro
         const normalize = s => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, '').trim();
         const tipoNorm = normalize(sin.tipo_sinistro);
         const todosGeradores = await new Promise((resolve) => db.all("SELECT * FROM geradores WHERE nome LIKE '%Sinistro%'", [], (e, r) => resolve(r || [])));
-        console.log('[Sinistro] tipo_sinistro:', JSON.stringify(sin.tipo_sinistro), '| geradores disponiveis:', todosGeradores.map(g=>g.nome));
+        console.log('[Sinistro] tipo_sinistro:', JSON.stringify(sin.tipo_sinistro), '| geradores disponiveis:', todosGeradores.map(g => g.nome));
         let gerador = todosGeradores.find(g => normalize(g.nome).includes(tipoNorm))
-                   || todosGeradores.find(g => tipoNorm.split(' ').filter(w=>w.length>3).every(w => normalize(g.nome).includes(w)))
-                   || null;
+            || todosGeradores.find(g => tipoNorm.split(' ').filter(w => w.length > 3).every(w => normalize(g.nome).includes(w)))
+            || null;
         console.log('[Sinistro] gerador escolhido:', gerador ? gerador.nome : 'NENHUM');
-        
+
         let template = '';
-        if(!gerador) {
+        if (!gerador) {
             template = "<h2 style='text-align:center;'>TERMO DE RESPONSABILIDADE - SINISTRO</h2>"
-                     + "<p><strong>Colaborador:</strong> {NOME_COMPLETO}</p>"
-                     + "<p><strong>Tipo de Sinistro:</strong> " + sin.tipo_sinistro + "</p>"
-                     + "<p><strong>BO:</strong> " + sin.numero_boletim + " - " + sin.data_hora + "</p>"
-                     + "<p><strong>Placa/Veículo:</strong> " + sin.placa + " / " + sin.veiculo + "</p>"
-                     + "<p><strong>Condições de Desconto:</strong> " + sin.parcelas + "x de " + (sin.valor_parcela || '0,00') + "</p>"
-                     + "<br/><br/><br/>";
+                + "<p><strong>Colaborador:</strong> {NOME_COMPLETO}</p>"
+                + "<p><strong>Tipo de Sinistro:</strong> " + sin.tipo_sinistro + "</p>"
+                + "<p><strong>BO:</strong> " + sin.numero_boletim + " - " + sin.data_hora + "</p>"
+                + "<p><strong>Placa/Veículo:</strong> " + sin.placa + " / " + sin.veiculo + "</p>"
+                + "<p><strong>Condições de Desconto:</strong> " + sin.parcelas + "x de " + (sin.valor_parcela || '0,00') + "</p>"
+                + "<br/><br/><br/>";
         } else {
             template = gerador.conteudo;
         }
@@ -2950,7 +2950,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
         const colabNome = (colab.nome_completo || colab.nome || '').toUpperCase();
 
         const admissao = colab.data_admissao ? new Date(colab.data_admissao + 'T12:00:00').toLocaleDateString('pt-BR') : '';
-        const salario = colab.salario ? `R$ ${parseFloat(colab.salario).toLocaleString('pt-BR', {minimumFractionDigits: 2})}` : '---';
+        const salario = colab.salario ? `R$ ${parseFloat(colab.salario).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '---';
         const tituloBox = gerador ? gerador.nome.toUpperCase() : 'TERMO DE RESPONSABILIDADE - SINISTRO';
 
         let needsLogo = !htmlFinal.includes('logo-header.png');
@@ -3023,9 +3023,9 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
 
         // ===== SUBSTITUIÇÃO INTELIGENTE DE CAMPOS BLANK NO HTML =====
         // Separa data e hora da string "DD/MM/YYYY às HH:MM"
-        const dataHoraStr  = sin.data_hora || '';
-        const parteData    = dataHoraStr.split(' ')[0] || '';   // DD/MM/YYYY
-        const parteHora    = dataHoraStr.includes('às') ? dataHoraStr.split('às')[1]?.trim() : (dataHoraStr.split(' ')[1] || '');
+        const dataHoraStr = sin.data_hora || '';
+        const parteData = dataHoraStr.split(' ')[0] || '';   // DD/MM/YYYY
+        const parteHora = dataHoraStr.includes('às') ? dataHoraStr.split('às')[1]?.trim() : (dataHoraStr.split(' ')[1] || '');
 
         // Remove "(se houver)" se existir
         htmlFinal = htmlFinal.replace(/\s*\(se\s+houver\)/gi, '');
@@ -3075,10 +3075,10 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
             /(Placa[^:]*:[\s\S]{0,80}?)_{3,}/gi,
             `$1<strong>${sin.placa || ''}</strong>`
         );
-        
+
         // 6. Valor
         const valorTotal = sin.desconto_valor
-            || (sin.valor_parcela && sin.parcelas ? (parseFloat((sin.valor_parcela || '0').replace(',','.')) * (sin.parcelas || 1)).toFixed(2).replace('.',',') : sin.valor_parcela)
+            || (sin.valor_parcela && sin.parcelas ? (parseFloat((sin.valor_parcela || '0').replace(',', '.')) * (sin.parcelas || 1)).toFixed(2).replace('.', ',') : sin.valor_parcela)
             || '';
 
         htmlFinal = htmlFinal.replace(
@@ -3128,7 +3128,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
         // Salvar HTML
         db.run('UPDATE sinistros SET documento_html = ? WHERE id = ?', [htmlFinal, sin.id]);
         res.json({ sucesso: true, html: htmlFinal });
-    } catch(e) {
+    } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
@@ -3142,7 +3142,7 @@ function getLogoBase64DataUri() {
             const logoBuffer = fs.readFileSync(logoPath);
             return `data:image/png;base64,${logoBuffer.toString('base64')}`;
         }
-    } catch(e) {
+    } catch (e) {
         console.warn('[PDF] Não foi possível carregar logo-header.png:', e.message);
     }
     return null;
@@ -3181,8 +3181,10 @@ async function salvarPDFSinistroNoOneDrive(colaboradorId, sinistroId, htmlDoc, n
 
         const pdfBuffer = await htmlPdf.generatePdf(
             { content: htmlParaPdf },
-            { format: 'A4', margin: { top: '1cm', bottom: '1cm', left: '1cm', right: '1cm' },
-              printBackground: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] }
+            {
+                format: 'A4', margin: { top: '1cm', bottom: '1cm', left: '1cm', right: '1cm' },
+                printBackground: true, args: ['--no-sandbox', '--disable-setuid-sandbox']
+            }
         );
 
 
@@ -3199,7 +3201,7 @@ async function salvarPDFSinistroNoOneDrive(colaboradorId, sinistroId, htmlDoc, n
 
         console.log('[Sinistro] PDF salvo em:', pdfPath);
         return pdfPath;
-    } catch(e) {
+    } catch (e) {
         console.error('[Sinistro] Erro ao salvar PDF no OneDrive:', e.message);
         throw e;
     }
@@ -3213,8 +3215,8 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/assinar-testemunhas', aut
         await new Promise((resolve, reject) =>
             db.run(`UPDATE sinistros SET assinatura_testemunha1_nome=?, assinatura_testemunha1_base64=?, 
                     assinatura_testemunha2_nome=?, assinatura_testemunha2_base64=?, documento_html=? WHERE id=?`,
-                    [t1_nome, t1_base64, t2_nome, t2_base64, html_atualizado, sinistroId],
-                    err => err ? reject(err) : resolve())
+                [t1_nome, t1_base64, t2_nome, t2_base64, html_atualizado, sinistroId],
+                err => err ? reject(err) : resolve())
         );
 
         // Gerar e salvar PDF com assinaturas das testemunhas
@@ -3228,14 +3230,14 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/assinar-testemunhas', aut
             const nomeFormatado = (colab?.nome_completo || colab?.nome || 'COLAB')
                 .toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
                 .replace(/\s+/g, '_').replace(/[^A-Z0-9_]/g, '');
-            const dataStr = (sin?.data_hora || '').split(' ')[0].replace(/\//g,'-').replace(/-/g,'') || String(Date.now());
+            const dataStr = (sin?.data_hora || '').split(' ')[0].replace(/\//g, '-').replace(/-/g, '') || String(Date.now());
             const nomeArquivo = `Sinistro_${dataStr}_${nomeFormatado}.pdf`;
 
             await salvarPDFSinistroNoOneDrive(id, sinistroId, html_atualizado, nomeArquivo);
         }
 
         res.json({ sucesso: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/colaboradores/:id/sinistros/:sinistroId/assinar-condutor', authenticateToken, async (req, res) => {
@@ -3245,8 +3247,8 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/assinar-condutor', authen
 
         await new Promise((resolve, reject) =>
             db.run(`UPDATE sinistros SET assinatura_condutor_base64=?, documento_html=?, assinaturas_finalizadas=1, status='assinado' WHERE id=?`,
-                    [assinatura_base64, documento_html, sinistroId],
-                    err => err ? reject(err) : resolve())
+                [assinatura_base64, documento_html, sinistroId],
+                err => err ? reject(err) : resolve())
         );
 
         // Gerar e salvar PDF final (condutor + testemunhas) sobrepondo o arquivo anterior
@@ -3260,14 +3262,14 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/assinar-condutor', authen
             const nomeFormatado = (colab?.nome_completo || colab?.nome || 'COLAB')
                 .toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
                 .replace(/\s+/g, '_').replace(/[^A-Z0-9_]/g, '');
-            const dataStr = (sin?.data_hora || '').split(' ')[0].replace(/\//g,'-').replace(/-/g,'') || String(Date.now());
+            const dataStr = (sin?.data_hora || '').split(' ')[0].replace(/\//g, '-').replace(/-/g, '') || String(Date.now());
             const nomeArquivo = `Sinistro_${dataStr}_${nomeFormatado}.pdf`; // mesmo nome = sobrepõe
 
             await salvarPDFSinistroNoOneDrive(id, sinistroId, documento_html, nomeArquivo);
         }
 
         res.json({ sucesso: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // =============================================================================
@@ -3310,7 +3312,7 @@ app.post('/api/logistica/multas', authenticateToken, multaUploadMiddleware.singl
         `INSERT INTO multas_logistica (data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao, placa, local_infracao, data_limite, status, documento_nome, documento_base64)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Conferência', ?, ?)`,
         [data_infracao || null, hora_infracao || null, numero_ait || null, motivo || null, valor_multa || null, pontuacao || 0, placa || null, local_infracao || null, data_limite || null, documento_nome, documento_base64],
-        function(err) {
+        function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ id: this.lastID, ok: true });
         }
@@ -3375,14 +3377,14 @@ async function notificarRHAuto(motoristaId, status, parcelas, valorMultaStr, dat
 // PUT /api/logistica/multas/:id — atualiza campos da multa (motorista, status, obs, link)
 app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
     const { motorista_id, motorista_nome, status, observacao, link_formulario, data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao, parcelas, placa, local_infracao, data_limite } = req.body;
-    
+
     db.get('SELECT status, valor_multa, data_infracao, numero_ait, motorista_id, parcelas FROM multas_logistica WHERE id = ?', [req.params.id], (err, oldData) => {
         if (err || !oldData) return res.status(404).json({ error: 'Multa não encontrada' });
-        
+
         if (oldData.status === 'Indicado' || oldData.status === 'Multa NIC') {
             return res.status(403).json({ error: 'Esta multa já foi enviada ao RH e não pode ser editada.' });
         }
-        
+
         db.run(
             `UPDATE multas_logistica SET
                 motorista_id = COALESCE(?, motorista_id),
@@ -3402,10 +3404,10 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
                 data_limite = ?,
                 atualizado_em = CURRENT_TIMESTAMP
              WHERE id = ?`,
-            [motorista_id||null, motorista_nome||null, status||null, observacao||null, link_formulario||null,
-             data_infracao||null, hora_infracao||null, numero_ait||null, motivo||null, valor_multa||null, pontuacao||null, parcelas||null, placa||null, local_infracao||null, data_limite||null,
-             req.params.id],
-            function(errUpdate) {
+            [motorista_id || null, motorista_nome || null, status || null, observacao || null, link_formulario || null,
+            data_infracao || null, hora_infracao || null, numero_ait || null, motivo || null, valor_multa || null, pontuacao || null, parcelas || null, placa || null, local_infracao || null, data_limite || null,
+            req.params.id],
+            function (errUpdate) {
                 if (errUpdate) return res.status(500).json({ error: errUpdate.message });
                 if (this.changes === 0) return res.status(404).json({ error: 'Multa não atualizada' });
 
@@ -3416,7 +3418,7 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
                     const finalData = data_infracao || oldData.data_infracao;
                     const finalAit = numero_ait || oldData.numero_ait;
                     const finalParcelas = parcelas || oldData.parcelas || 1;
-                    
+
                     notificarRHAuto(finalMotorista, status, finalParcelas, finalValor, finalData, finalAit)
                         .then(() => {
                             res.json({ ok: true, emailEnviado: true });
@@ -3436,12 +3438,12 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
 app.delete('/api/logistica/multas/:id', authenticateToken, (req, res) => {
     db.get('SELECT status FROM multas_logistica WHERE id = ?', [req.params.id], (err, row) => {
         if (err || !row) return res.status(404).json({ error: 'Multa não encontrada' });
-        
+
         if (row.status === 'Indicado' || row.status === 'Multa NIC') {
             return res.status(403).json({ error: 'Esta multa já foi enviada ao RH e não pode ser excluída.' });
         }
-        
-        db.run('DELETE FROM multas_logistica WHERE id = ?', [req.params.id], function(errDel) {
+
+        db.run('DELETE FROM multas_logistica WHERE id = ?', [req.params.id], function (errDel) {
             if (errDel) return res.status(500).json({ error: errDel.message });
             res.json({ ok: true });
         });
@@ -3455,7 +3457,7 @@ app.get('/api/logistica/multas/:id/documento', (req, res) => {
     try {
         const jwt = require('jsonwebtoken');
         jwt.verify(token, SECRET_KEY);
-    } catch(e) {
+    } catch (e) {
         return res.status(401).json({ error: 'Token inválido' });
     }
 
@@ -3498,7 +3500,7 @@ app.post('/api/logistica/multas/:id/documento-extra', authenticateToken, multaEx
         if (err || !row) return res.status(404).json({ error: 'Multa não encontrada' });
 
         let extras = [];
-        try { extras = JSON.parse(row.documentos_extras || '[]'); } catch(_) {}
+        try { extras = JSON.parse(row.documentos_extras || '[]'); } catch (_) { }
 
         const novoDoc = {
             nome: req.file.originalname,
@@ -3509,7 +3511,7 @@ app.post('/api/logistica/multas/:id/documento-extra', authenticateToken, multaEx
         extras.push(novoDoc);
 
         const extrasJson = JSON.stringify(extras);
-        db.run('UPDATE multas_logistica SET documentos_extras = ? WHERE id = ?', [extrasJson, req.params.id], function(err2) {
+        db.run('UPDATE multas_logistica SET documentos_extras = ? WHERE id = ?', [extrasJson, req.params.id], function (err2) {
             if (err2) return res.status(500).json({ error: err2.message });
             // Retorna lista sem o base64 (para não sobrecarregar a resposta)
             res.json({
@@ -3524,19 +3526,19 @@ app.post('/api/logistica/multas/:id/documento-extra', authenticateToken, multaEx
 app.delete('/api/logistica/multas/:id/documento-extra/:idx', authenticateToken, (req, res) => {
     db.get('SELECT documentos_extras FROM multas_logistica WHERE id = ?', [req.params.id], (err, row) => {
         if (err || !row) return res.status(404).json({ error: 'Multa não encontrada' });
-        
+
         let extras = [];
-        try { extras = JSON.parse(row.documentos_extras || '[]'); } catch(_) {}
-        
+        try { extras = JSON.parse(row.documentos_extras || '[]'); } catch (_) { }
+
         const idx = parseInt(req.params.idx);
         if (isNaN(idx) || idx < 0 || idx >= extras.length) {
             return res.status(404).json({ error: 'Documento não encontrado' });
         }
-        
+
         extras.splice(idx, 1);
         const extrasJson = JSON.stringify(extras);
-        
-        db.run('UPDATE multas_logistica SET documentos_extras = ? WHERE id = ?', [extrasJson, req.params.id], function(err2) {
+
+        db.run('UPDATE multas_logistica SET documentos_extras = ? WHERE id = ?', [extrasJson, req.params.id], function (err2) {
             if (err2) return res.status(500).json({ error: err2.message });
             res.json({
                 ok: true,
@@ -3550,12 +3552,12 @@ app.delete('/api/logistica/multas/:id/documento-extra/:idx', authenticateToken, 
 app.get('/api/logistica/multas/:id/documento-extra/:idx', (req, res) => {
     const token = req.query.token || (req.headers['authorization'] || '').replace('Bearer ', '');
     if (!token) return res.status(401).json({ error: 'Não autorizado' });
-    try { require('jsonwebtoken').verify(token, SECRET_KEY); } catch(e) { return res.status(401).json({ error: 'Token inválido' }); }
+    try { require('jsonwebtoken').verify(token, SECRET_KEY); } catch (e) { return res.status(401).json({ error: 'Token inválido' }); }
 
     db.get('SELECT documentos_extras FROM multas_logistica WHERE id = ?', [req.params.id], (err, row) => {
         if (err || !row) return res.status(404).json({ error: 'Multa não encontrada' });
         let extras = [];
-        try { extras = JSON.parse(row.documentos_extras || '[]'); } catch(_) {}
+        try { extras = JSON.parse(row.documentos_extras || '[]'); } catch (_) { }
         const idx = parseInt(req.params.idx);
         const doc = extras[idx];
         if (!doc || !doc.base64) return res.status(404).json({ error: 'Documento não encontrado' });
@@ -3571,7 +3573,7 @@ app.get('/api/logistica/multas/:id/documento-extra/:idx', (req, res) => {
 app.get('/api/colaboradores/:id/arquivo/cnh', (req, res) => {
     const token = req.query.token || (req.headers['authorization'] || '').replace('Bearer ', '');
     if (!token) return res.status(401).json({ error: 'Não autorizado' });
-    try { require('jsonwebtoken').verify(token, SECRET_KEY); } catch(e) { return res.status(401).json({ error: 'Token inválido' }); }
+    try { require('jsonwebtoken').verify(token, SECRET_KEY); } catch (e) { return res.status(401).json({ error: 'Token inválido' }); }
 
     // Primeiro busca dados básicos (sempre existem)
     db.get('SELECT id, nome_completo, cnh_numero FROM colaboradores WHERE id = ?', [req.params.id], (err, row) => {
@@ -3620,7 +3622,7 @@ app.put('/api/multas/:id', authenticateToken, (req, res) => {
     db.run(
         `UPDATE multas SET status = COALESCE(?, status), monaco_confirmado = COALESCE(?, monaco_confirmado) WHERE id = ?`,
         [status, monaco_confirmado, req.params.id],
-        function(err) {
+        function (err) {
             if (err) return res.status(500).json({ error: err.message });
             if (this.changes === 0) return res.status(404).json({ error: 'Multa não encontrada' });
             res.json({ ok: true });
@@ -3631,11 +3633,11 @@ app.put('/api/multas/:id', authenticateToken, (req, res) => {
 
 app.post('/api/documentos', authenticateToken, upload.single('file'), async (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
-    
+
     const { document_id, colaborador_id, tab_name, document_type, year, month, vencimento, atestado_tipo, atestado_inicio, atestado_fim, assinafy_status } = req.body;
     const file_path = req.file.path;
     let file_name = req.file.originalname;
-    try { file_name = Buffer.from(file_name, 'latin1').toString('utf8'); } catch (e) {}
+    try { file_name = Buffer.from(file_name, 'latin1').toString('utf8'); } catch (e) { }
 
     if (tab_name === 'CONTRATOS_AVULSOS' || tab_name === 'CONTRATOS') {
         const uniqueCode = Date.now().toString().slice(-6);
@@ -3653,13 +3655,13 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), async (req
         // Somente faz isso se isMultiplo for TRuE, senão ele atualiza (comportamento original)
         let baseName = file_name.replace(/\.pdf$/i, '');
         let extension = '.pdf';
-        
+
         let dupCount = 0;
         let finalFileName = file_name;
-        
+
         while (true) {
             const hasDup = await new Promise((resolve) => {
-                db.get("SELECT id FROM documentos WHERE colaborador_id = ? AND tab_name = ? AND file_name = ?", 
+                db.get("SELECT id FROM documentos WHERE colaborador_id = ? AND tab_name = ? AND file_name = ?",
                     [colaborador_id, tab_name, finalFileName], (err, r) => resolve(!!r));
             });
             if (!hasDup) break;
@@ -3675,8 +3677,8 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), async (req
         checkSql = 'SELECT id, file_path FROM documentos WHERE id = ?';
         params = [document_id];
     } else {
-        checkSql = 'SELECT id, file_path FROM documentos WHERE colaborador_id = ? AND tab_name = ? AND document_type = ?' 
-            + (year ? ' AND year = ?' : ' AND year IS NULL') 
+        checkSql = 'SELECT id, file_path FROM documentos WHERE colaborador_id = ? AND tab_name = ? AND document_type = ?'
+            + (year ? ' AND year = ?' : ' AND year IS NULL')
             + (month ? ' AND month = ?' : ' AND month IS NULL');
         params = [colaborador_id, tab_name, document_type];
         if (year) params.push(year);
@@ -3685,37 +3687,37 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), async (req
 
     db.get(checkSql, params, (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
-        
+
         if (row && !isMultiplo) {
             // SET CLAUSE...
             if (fs.existsSync(row.file_path) && row.file_path !== file_path) {
-                try { fs.unlinkSync(row.file_path); } catch(e) {}
+                try { fs.unlinkSync(row.file_path); } catch (e) { }
             }
-            
+
             let setClause = 'file_name = ?, file_path = ?, upload_date = CURRENT_TIMESTAMP, vencimento = ?, atestado_tipo = ?, atestado_inicio = ?, atestado_fim = ?';
             const baseParams = [file_name, file_path, vencimento || null, atestado_tipo || null, atestado_inicio || null, atestado_fim || null];
-            
+
             if (assinafy_status) {
                 setClause += ', assinafy_status = ?';
                 baseParams.push(assinafy_status);
             }
-            
+
             db.run(`UPDATE documentos SET ${setClause} WHERE id = ?`,
-                [...baseParams, row.id], function(updateErr) {
+                [...baseParams, row.id], function (updateErr) {
                     if (updateErr) return res.status(500).json({ error: updateErr.message });
-                    
+
                     const path = require('path');
                     if (tab_name === 'Fotos' && ['.jpg', '.jpeg', '.png', '.webp'].includes(path.extname(file_path).toLowerCase())) {
                         db.run("UPDATE colaboradores SET foto_path = ? WHERE id = ?", [file_path, colaborador_id]);
                     }
 
                     const _tipoSimples2 = (document_type || '').split('###')[1] || '';
-                    const _isOcorr2  = /ocorr/i.test(_tipoSimples2);
+                    const _isOcorr2 = /ocorr/i.test(_tipoSimples2);
                     const _isVerbal2 = /verbal/i.test(_tipoSimples2);
                     const _podeOneDrive2 = tab_name === 'Advertências'
                         ? (!_isOcorr2 && ((assinafy_status === 'Testemunhas') || (!_isVerbal2 && assinafy_status === 'Assinado')))
                         : (tab_name !== 'CONTRATOS_AVULSOS' || assinafy_status === 'NAO_EXIGE');
-                        
+
                     if (onedrive && _podeOneDrive2) {
                         (async () => {
                             try {
@@ -3733,7 +3735,7 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), async (req
                                         targetDir += '/Boletim';
                                     }
                                 }
-                                
+
                                 if (targetDir !== parentDir) { await onedrive.ensurePath(parentDir); }
                                 await onedrive.ensurePath(targetDir);
 
@@ -3770,7 +3772,7 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), async (req
             db.run(`INSERT INTO documentos (colaborador_id, tab_name, document_type, file_name, file_path, year, month, vencimento, atestado_tipo, atestado_inicio, atestado_fim, assinafy_status) 
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [colaborador_id, tab_name, document_type, fileNameToStore, file_path, year || null, month || null, vencimento || null, atestado_tipo || null, atestado_inicio || null, atestado_fim || null, assinafy_status || 'Nenhum'],
-                function(insertErr) {
+                function (insertErr) {
                     if (insertErr) return res.status(500).json({ error: insertErr.message });
 
                     const path = require('path');
@@ -3780,7 +3782,7 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), async (req
 
                     const newDocId = this.lastID;
                     if ((tab_name === 'CONTRATOS_AVULSOS' || tab_name === 'CONTRATOS') && onedrive) {
-                        ;(async () => {
+                        ; (async () => {
                             try {
                                 const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || 'RH/1.Colaboradores/Sistema';
                                 const colabNome = req.body.colaborador_nome || '';
@@ -3800,13 +3802,13 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), async (req
                                 const fileBuffer = require('fs').readFileSync(file_path);
                                 await onedrive.uploadToOneDrive(targetDir, cloudFileName, fileBuffer);
                                 console.log(`[OD-INLINE] Upload OK: ${cloudFileName}`);
-                            } catch(odErr) {
+                            } catch (odErr) {
                                 console.error('[OD-INLINE] Falha OneDrive:', odErr.message);
                             }
                         })();
                     } else {
                         const _tipoSimples = (document_type || '').split('###')[1] || '';
-                        const _isOcorr  = /ocorr/i.test(_tipoSimples);
+                        const _isOcorr = /ocorr/i.test(_tipoSimples);
                         const _isVerbal = /verbal/i.test(_tipoSimples);
                         const _advStatus = req.body.assinafy_status || '';
                         const _podeOneDrive = tab_name === 'Advertências'
@@ -3834,8 +3836,8 @@ app.put('/api/documentos/:id/vencimento', authenticateToken, (req, res) => {
     const { vencimento } = req.body;
     const id = req.params.id;
     console.log(`Atualizando vencimento do documento ${id} para: ${vencimento}`);
-    
-    db.run('UPDATE documentos SET vencimento = ? WHERE id = ?', [vencimento, id], function(err) {
+
+    db.run('UPDATE documentos SET vencimento = ? WHERE id = ?', [vencimento, id], function (err) {
         if (err) {
             console.error("Erro ao atualizar vencimento:", err.message);
             return res.status(500).json({ error: err.message });
@@ -3847,11 +3849,11 @@ app.put('/api/documentos/:id/vencimento', authenticateToken, (req, res) => {
 app.delete('/api/documentos/:id', authenticateToken, (req, res) => {
     db.get('SELECT file_path FROM documentos WHERE id = ?', [req.params.id], (err, row) => {
         if (err || !row) return res.status(404).json({ error: 'Documento não encontrado' });
-        
+
         if (fs.existsSync(row.file_path)) {
-            try { fs.unlinkSync(row.file_path); } catch(e) {}
+            try { fs.unlinkSync(row.file_path); } catch (e) { }
         }
-        
+
         db.run('DELETE FROM documentos WHERE id = ?', [req.params.id], deleteErr => {
             if (deleteErr) return res.status(500).json({ error: deleteErr.message });
             res.json({ message: 'Documento excluído' });
@@ -3864,7 +3866,7 @@ app.get('/api/documentos/download/:id', authenticateToken, (req, res) => {
         if (err || !row) return res.status(404).json({ error: 'Documento não encontrado' });
 
         let pathLocal = row.signed_file_path; // Tentar assinado local primeiro
-        
+
         // Se existe fisicamente (.pfx concluído)
         if (pathLocal && fs.existsSync(pathLocal)) {
             return res.download(pathLocal, row.file_name || 'documento.pdf');
@@ -3888,16 +3890,16 @@ app.get('/api/documentos/download/:id', authenticateToken, (req, res) => {
                                     let finalBuf = Buffer.from(arrayBuffer);
                                     const signPdfPfx = require('./sign_pdf_pfx');
                                     if (signPdfPfx.verificarDisponibilidade().disponivel) {
-                                        try { finalBuf = await signPdfPfx.assinarPDF(finalBuf, { motivo: 'Assinado eletronicamente pela empresa', nome: 'America Rental Equipamentos Ltda' }); } catch(e) { console.error('PFX PROXY ERR:', e.message); try{ db.run("INSERT INTO system_logs (msg) VALUES (?)", ['PFX PROXY ERR ' + String(e.message)]); }catch(z){} }
+                                        try { finalBuf = await signPdfPfx.assinarPDF(finalBuf, { motivo: 'Assinado eletronicamente pela empresa', nome: 'America Rental Equipamentos Ltda' }); } catch (e) { console.error('PFX PROXY ERR:', e.message); try { db.run("INSERT INTO system_logs (msg) VALUES (?)", ['PFX PROXY ERR ' + String(e.message)]); } catch (z) { } }
                                     }
                                     res.setHeader('Content-Type', 'application/pdf');
                                     return res.send(finalBuf);
                                 }
                             }
-                        } catch(err) { }
+                        } catch (err) { }
                     }
                 }
-            } catch(e) { console.warn('Proxy Assinafy erro:', e.message); }
+            } catch (e) { console.warn('Proxy Assinafy erro:', e.message); }
         }
 
         // Fallback final: Devolve o arquivo original NÃO ASSINADO
@@ -3929,7 +3931,7 @@ app.get('/api/documentos/view/:id', authenticateToken, (req, res) => {
         if (err || !row) return res.status(404).json({ error: 'Documento não encontrado' });
 
         let pathLocal = row.signed_file_path; // Tentar assinado local primeiro
-        
+
         // Se existe fisicamente (.pfx concluído)
         if (pathLocal && fs.existsSync(pathLocal)) {
             res.setHeader('Content-Type', 'application/pdf');
@@ -3958,15 +3960,15 @@ app.get('/api/documentos/view/:id', authenticateToken, (req, res) => {
                                         if (signPdfPfx.verificarDisponibilidade().disponivel) {
                                             finalBuf = await signPdfPfx.assinarPDF(finalBuf, { motivo: 'Assinado eletronicamente pela empresa', nome: 'America Rental Equipamentos Ltda' });
                                         }
-                                    } catch(e) { console.error('PFX PROXY ERR:', e.message); try{ db.run("INSERT INTO system_logs (msg) VALUES (?)", ['PFX PROXY ERR ' + String(e.message)]); }catch(z){} }
+                                    } catch (e) { console.error('PFX PROXY ERR:', e.message); try { db.run("INSERT INTO system_logs (msg) VALUES (?)", ['PFX PROXY ERR ' + String(e.message)]); } catch (z) { } }
                                     res.setHeader('Content-Type', 'application/pdf');
                                     return res.send(finalBuf);
                                 }
                             }
-                        } catch(err) { }
+                        } catch (err) { }
                     }
                 }
-            } catch(e) { console.warn('Proxy Assinafy erro:', e.message); }
+            } catch (e) { console.warn('Proxy Assinafy erro:', e.message); }
         }
 
         // Fallback final: Devolve o arquivo original NÃO ASSINADO
@@ -3997,16 +3999,16 @@ app.get('/api/cargos', authenticateToken, (req, res) => {
 
 app.post('/api/cargos', authenticateToken, (req, res) => {
     const { nome, documentos_obrigatorios, departamento } = req.body;
-    db.run("INSERT INTO cargos (nome, documentos_obrigatorios, departamento) VALUES (?, ?, ?)", 
-        [nome, documentos_obrigatorios || "", departamento || ""], function(err) {
-        if (err) {
-            if (err.message.includes('UNIQUE constraint failed')) {
-                return res.status(400).json({ error: `Já existe um cargo com o nome "${nome}".` });
+    db.run("INSERT INTO cargos (nome, documentos_obrigatorios, departamento) VALUES (?, ?, ?)",
+        [nome, documentos_obrigatorios || "", departamento || ""], function (err) {
+            if (err) {
+                if (err.message.includes('UNIQUE constraint failed')) {
+                    return res.status(400).json({ error: `Já existe um cargo com o nome "${nome}".` });
+                }
+                return res.status(400).json({ error: err.message });
             }
-            return res.status(400).json({ error: err.message });
-        }
-        res.status(201).json({ id: this.lastID, nome });
-    });
+            res.status(201).json({ id: this.lastID, nome });
+        });
 });
 
 app.put('/api/cargos/:id', authenticateToken, (req, res) => {
@@ -4015,21 +4017,21 @@ app.put('/api/cargos/:id', authenticateToken, (req, res) => {
 
     db.get("SELECT nome FROM cargos WHERE id = ?", [req.params.id], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
-        
+
         let query = "UPDATE cargos SET documentos_obrigatorios = ?, departamento = ?";
         let params = [documentos_obrigatorios || "", departamento || ""];
-        
+
         if (row && row.nome.trim().toUpperCase() !== 'MOTORISTA') {
             query += ", nome = ?";
             params.push(nome.trim());
         }
-        
+
         query += " WHERE id = ?";
         params.push(req.params.id);
-        
+
         console.log("Executando query cargo:", query, params);
-        
-        db.run(query, params, function(updateErr) {
+
+        db.run(query, params, function (updateErr) {
             if (updateErr) {
                 console.error("Erro no UPDATE cargo:", updateErr);
                 return res.status(500).json({ error: updateErr.message });
@@ -4057,7 +4059,7 @@ app.delete('/api/cargos/:id', authenticateToken, (req, res) => {
                 // Registra na blacklist para que o seed nao recrie
                 db.run("INSERT OR IGNORE INTO cargos_excluidos (nome) VALUES (?)", [row.nome]);
                 db.run("DELETE FROM cargo_documentos WHERE cargo_id = ?", [req.params.id]);
-                db.run("DELETE FROM cargos WHERE id = ?", [req.params.id], function(delErr) {
+                db.run("DELETE FROM cargos WHERE id = ?", [req.params.id], function (delErr) {
                     if (delErr) return res.status(500).json({ error: delErr.message });
                     res.json({ message: 'Cargo removido permanentemente.' });
                 });
@@ -4072,9 +4074,9 @@ app.delete('/api/cargos/:id', authenticateToken, (req, res) => {
 app.get('/api/cargos/:id/documentos', authenticateToken, (req, res) => {
     db.all("SELECT documento FROM cargo_documentos WHERE cargo_id = ? ORDER BY documento ASC",
         [req.params.id], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows.map(r => r.documento));
-    });
+            if (err) return res.status(500).json({ error: err.message });
+            res.json(rows.map(r => r.documento));
+        });
 });
 
 // Adicionar um documento a um cargo (idempotente - INSERT OR IGNORE)
@@ -4082,10 +4084,10 @@ app.post('/api/cargos/:id/documentos', authenticateToken, (req, res) => {
     const { documento } = req.body;
     if (!documento) return res.status(400).json({ error: 'documento obrigatório' });
     db.run("INSERT OR IGNORE INTO cargo_documentos (cargo_id, documento) VALUES (?, ?)",
-        [req.params.id, documento], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ ok: true, added: this.changes > 0 });
-    });
+        [req.params.id, documento], function (err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ ok: true, added: this.changes > 0 });
+        });
 });
 
 // Remover um documento de um cargo
@@ -4093,10 +4095,10 @@ app.delete('/api/cargos/:id/documentos', authenticateToken, (req, res) => {
     const { documento } = req.body;
     if (!documento) return res.status(400).json({ error: 'documento obrigatório' });
     db.run("DELETE FROM cargo_documentos WHERE cargo_id = ? AND documento = ?",
-        [req.params.id, documento], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ ok: true, removed: this.changes > 0 });
-    });
+        [req.params.id, documento], function (err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ ok: true, removed: this.changes > 0 });
+        });
 });
 
 // Departamentos
@@ -4109,7 +4111,7 @@ app.get('/api/departamentos', authenticateToken, (req, res) => {
 
 app.post('/api/departamentos', authenticateToken, (req, res) => {
     const { nome, tipo, responsavel_id, responsavel_nome } = req.body;
-    db.run("INSERT INTO departamentos (nome, tipo, responsavel_id, responsavel_nome) VALUES (?, ?, ?, ?)", [nome, tipo || 'Operacional', responsavel_id || null, responsavel_nome || null], function(err) {
+    db.run("INSERT INTO departamentos (nome, tipo, responsavel_id, responsavel_nome) VALUES (?, ?, ?, ?)", [nome, tipo || 'Operacional', responsavel_id || null, responsavel_nome || null], function (err) {
         if (err) {
             if (err.message.includes('UNIQUE constraint failed')) {
                 return res.status(400).json({ error: `Já existe um departamento com o nome "${nome}".` });
@@ -4122,7 +4124,7 @@ app.post('/api/departamentos', authenticateToken, (req, res) => {
 
 app.put('/api/departamentos/:id', authenticateToken, (req, res) => {
     const { nome, tipo, responsavel_id, responsavel_nome } = req.body;
-    db.run("UPDATE departamentos SET nome = ?, tipo = ?, responsavel_id = ?, responsavel_nome = ? WHERE id = ?", [nome.trim(), tipo || 'Operacional', responsavel_id || null, responsavel_nome || null, req.params.id], function(updateErr) {
+    db.run("UPDATE departamentos SET nome = ?, tipo = ?, responsavel_id = ?, responsavel_nome = ? WHERE id = ?", [nome.trim(), tipo || 'Operacional', responsavel_id || null, responsavel_nome || null, req.params.id], function (updateErr) {
         if (updateErr) return res.status(500).json({ error: updateErr.message });
         res.json({ message: 'Departamento atualizado com sucesso' });
     });
@@ -4140,7 +4142,7 @@ app.delete('/api/departamentos/:id', authenticateToken, (req, res) => {
             }
             // Registra na blacklist para que o seed nao recrie
             db.run("INSERT OR IGNORE INTO departamentos_excluidos (nome) VALUES (?)", [row.nome]);
-            db.run("DELETE FROM departamentos WHERE id = ?", [req.params.id], function(delErr) {
+            db.run("DELETE FROM departamentos WHERE id = ?", [req.params.id], function (delErr) {
                 if (delErr) return res.status(500).json({ error: delErr.message });
                 res.json({ message: 'Departamento removido permanentemente.' });
             });
@@ -4159,9 +4161,9 @@ app.get('/api/cursos-faculdade', authenticateToken, (req, res) => {
 app.post('/api/cursos-faculdade', authenticateToken, (req, res) => {
     const { nome_curso, instituicao, tempo_curso, valor_mensalidade, data_inicio, data_termino_prevista } = req.body;
     db.run(`INSERT INTO cursos_faculdade (nome_curso, instituicao, tempo_curso, valor_mensalidade, data_inicio, data_termino_prevista) 
-            VALUES (?, ?, ?, ?, ?, ?)`, 
-        [nome_curso, instituicao, tempo_curso, valor_mensalidade || 0, data_inicio, data_termino_prevista], 
-        function(err) {
+            VALUES (?, ?, ?, ?, ?, ?)`,
+        [nome_curso, instituicao, tempo_curso, valor_mensalidade || 0, data_inicio, data_termino_prevista],
+        function (err) {
             if (err) return res.status(400).json({ error: err.message });
             res.status(201).json({ id: this.lastID, ...req.body });
         }
@@ -4171,9 +4173,9 @@ app.post('/api/cursos-faculdade', authenticateToken, (req, res) => {
 app.put('/api/cursos-faculdade/:id', authenticateToken, (req, res) => {
     const { nome_curso, instituicao, tempo_curso, valor_mensalidade, data_inicio, data_termino_prevista } = req.body;
     db.run(`UPDATE cursos_faculdade SET nome_curso = ?, instituicao = ?, tempo_curso = ?, valor_mensalidade = ?, data_inicio = ?, data_termino_prevista = ? 
-            WHERE id = ?`, 
-        [nome_curso, instituicao, tempo_curso, valor_mensalidade || 0, data_inicio, data_termino_prevista, req.params.id], 
-        function(err) {
+            WHERE id = ?`,
+        [nome_curso, instituicao, tempo_curso, valor_mensalidade || 0, data_inicio, data_termino_prevista, req.params.id],
+        function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ message: 'Curso atualizado com sucesso' });
         }
@@ -4181,7 +4183,7 @@ app.put('/api/cursos-faculdade/:id', authenticateToken, (req, res) => {
 });
 
 app.delete('/api/cursos-faculdade/:id', authenticateToken, (req, res) => {
-    db.run("DELETE FROM cursos_faculdade WHERE id = ?", [req.params.id], function(err) {
+    db.run("DELETE FROM cursos_faculdade WHERE id = ?", [req.params.id], function (err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ message: 'Curso removido' });
     });
@@ -4252,8 +4254,8 @@ app.get('/api/admissao-assinaturas/:colaborador_id', authenticateToken, (req, re
 // --- Helper: Gera HTML completo com layout do gerador ------------------------
 function buildGeradoresHtml(gerador, colaborador, baseUrl) {
     const dataAtual = new Date();
-    const meses = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
-    const mesesCap = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    const meses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+    const mesesCap = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
     const mapping = {
         BASE_URL: baseUrl,
@@ -4276,7 +4278,7 @@ function buildGeradoresHtml(gerador, colaborador, baseUrl) {
         CIDADE: 'Guarulhos',
         TELEFONE: colaborador.telefone || '',
         EMAIL: colaborador.email || '',
-        SALARIO: colaborador.salario ? `R$ ${parseFloat(colaborador.salario).toLocaleString('pt-BR', {minimumFractionDigits: 2})}` : '---',
+        SALARIO: colaborador.salario ? `R$ ${parseFloat(colaborador.salario).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '---',
         CHAVES: '',
         INSTITUICAO: '---', CURSO: '---', DURACAO: '---', MENSALIDADE: '---'
     };
@@ -4287,7 +4289,7 @@ function buildGeradoresHtml(gerador, colaborador, baseUrl) {
     });
 
     // Substituir campo texto de data Guarulhos por data real
-    const dataFormatada = `Guarulhos, ${String(dataAtual.getDate()).padStart(2,'0')} de ${meses[dataAtual.getMonth()]} de ${dataAtual.getFullYear()}.`;
+    const dataFormatada = `Guarulhos, ${String(dataAtual.getDate()).padStart(2, '0')} de ${meses[dataAtual.getMonth()]} de ${dataAtual.getFullYear()}.`;
     conteudo = conteudo
         .replace(/Guarulhos,\s*_{3,}.*?de\s*_{3,}.*?de\s*202_{3,}\.?/g, dataFormatada)
         .replace(/AMERICA RENTAL EQUIPAMENTOS LTDA/g, '<b>AMERICA RENTAL EQUIPAMENTOS LTDA</b>');
@@ -4370,14 +4372,16 @@ app.get('/api/geradores/:id/preview-pdf/:colaborador_id', authenticateToken, asy
 
         const pdfBuffer = await htmlPdf.generatePdf(
             { content: html },
-            { format: 'A4', margin: { top: '0', bottom: '0', left: '0', right: '0' },
-              printBackground: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] }
+            {
+                format: 'A4', margin: { top: '0', bottom: '0', left: '0', right: '0' },
+                printBackground: true, args: ['--no-sandbox', '--disable-setuid-sandbox']
+            }
         );
 
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(gerador.nome)}.pdf"`);
         res.send(pdfBuffer);
-    } catch(e) {
+    } catch (e) {
         console.error('[PREVIEW-PDF]', e.message);
         res.status(500).json({ error: e.message });
     }
@@ -4418,10 +4422,12 @@ app.post('/api/admissao-assinaturas/enviar-lote', authenticateToken, async (req,
             const html = buildGeradoresHtml(gerador, colab, baseUrl);
             const pdfBuffer = await htmlPdf.generatePdf(
                 { content: html },
-                { format: 'A4',
-                  margin: { top: '0', bottom: '0', left: '0', right: '0' },
-                  printBackground: true,
-                  args: ['--no-sandbox', '--disable-setuid-sandbox'] }
+                {
+                    format: 'A4',
+                    margin: { top: '0', bottom: '0', left: '0', right: '0' },
+                    printBackground: true,
+                    args: ['--no-sandbox', '--disable-setuid-sandbox']
+                }
             );
 
             const tmpDir = path.join(BASE_PATH, '_tmp_gerados');
@@ -4464,14 +4470,14 @@ app.post('/api/admissao-assinaturas/enviar-lote', authenticateToken, async (req,
             await new Promise((resolve, reject) =>
                 db.run(`UPDATE documentos SET file_path = ?, file_name = ?, assinafy_status = 'Pendente' WHERE id = ?`,
                     [filePath, path.basename(filePath), docId],
-                    function(err) { err ? reject(err) : resolve(); })
+                    function (err) { err ? reject(err) : resolve(); })
             );
         } else {
             docId = await new Promise((resolve, reject) =>
                 db.run(
                     `INSERT INTO documentos (colaborador_id, tab_name, document_type, file_path, file_name, assinafy_status) VALUES (?, 'CONTRATOS', ?, ?, ?, 'Pendente')`,
                     [colaborador_id, gerador.nome, filePath, path.basename(filePath)],
-                    function(err) { err ? reject(err) : resolve(this.lastID); }
+                    function (err) { err ? reject(err) : resolve(this.lastID); }
                 )
             );
         }
@@ -4542,16 +4548,16 @@ app.get('/api/admissao-assinaturas/:id/download', authenticateToken, async (req,
                                     return res.redirect(signedUrl);
                                 }
                             }
-                        } catch(err) { return res.redirect(signedUrl); }
+                        } catch (err) { return res.redirect(signedUrl); }
                     }
                 }
-            } catch(e) {
+            } catch (e) {
                 console.warn('[DOWNLOAD-ADMISSAO] Falha proxy Assinafy:', e.message);
             }
         }
 
         return res.status(404).json({ error: 'Arquivo assinado não encontrado no servidor.' });
-    } catch(e) {
+    } catch (e) {
         if (!res.headersSent) res.status(500).json({ error: e.message });
     }
 });
@@ -4586,14 +4592,16 @@ app.post('/api/admissao-assinaturas/:id/assinar-certificado', authenticateToken,
             console.log(`[CERT-POST] Baixando PDF do Assinafy (doc_id=${doc.assinafy_id})...`);
             const https = require('https');
             const docInfo = await new Promise((resolve, reject) => {
-                const opts = { hostname: 'api.assinafy.com.br', path: `/v1/documents/${doc.assinafy_id}`, method: 'GET',
-                    headers: { 'X-Api-Key': 'AxaT-FiXBckHqEYV0s_MtUhLF3pReRz3dX4zVpC173vmjDwzLGHYtDJuQje4-4Pd', 'Accept': 'application/json' } };
+                const opts = {
+                    hostname: 'api.assinafy.com.br', path: `/v1/documents/${doc.assinafy_id}`, method: 'GET',
+                    headers: { 'X-Api-Key': 'AxaT-FiXBckHqEYV0s_MtUhLF3pReRz3dX4zVpC173vmjDwzLGHYtDJuQje4-4Pd', 'Accept': 'application/json' }
+                };
                 const r = https.request(opts, resp => { const c = []; resp.on('data', d => c.push(d)); resp.on('end', () => resolve(JSON.parse(Buffer.concat(c).toString()))); });
                 r.on('error', reject); r.end();
             });
             const docData = docInfo.data || docInfo;
             const signedUrl = docData?.artifacts?.find(a => a.type === 'signed_document')?.url ||
-                              docData?.signed_url || docData?.download_url;
+                docData?.signed_url || docData?.download_url;
             if (!signedUrl) return res.status(400).json({ ok: false, error: 'PDF assinado ainda não disponível no Assinafy.' });
 
             pdfBuffer = await new Promise((resolve, reject) => {
@@ -4610,8 +4618,8 @@ app.post('/api/admissao-assinaturas/:id/assinar-certificado', authenticateToken,
         console.log(`[CERT-POST] Aplicando certificado A1 no PDF (${pdfBuffer.length} bytes)...`);
         const pdfAssinado = await signPdfPfx.assinarPDF(pdfBuffer, {
             motivo: `Assinado digitalmente pela empresa America Rental Equipamentos Ltda — Certificado A1`,
-            local:  'Brasil',
-            nome:   'America Rental Equipamentos Ltda'
+            local: 'Brasil',
+            nome: 'America Rental Equipamentos Ltda'
         });
 
         // Salvar PDF final com ambas as assinaturas
@@ -4624,7 +4632,7 @@ app.post('/api/admissao-assinaturas/:id/assinar-certificado', authenticateToken,
             [certPath, id]);
 
         res.json({ ok: true, mensagem: 'Certificado digital aplicado com sucesso! Ambas as assinaturas agora aparecem no gov.br.', tamanho: pdfAssinado.length });
-    } catch(e) {
+    } catch (e) {
         console.error('[CERT-POST] ERRO:', e.message);
         res.status(500).json({ ok: false, error: e.message });
     }
@@ -4637,7 +4645,7 @@ app.post('/api/admissao-assinaturas/sync-status', authenticateToken, (req, res) 
     const { assinafy_id, status } = req.body;
     if (!assinafy_id) return res.status(400).json({ error: 'assinafy_id obrigatório' });
     db.run(`UPDATE admissao_assinaturas SET assinafy_status = ?, assinado_em = CASE WHEN ? = 'Assinado' THEN CURRENT_TIMESTAMP ELSE assinado_em END WHERE assinafy_id = ?`,
-        [status, status, assinafy_id], function(err) {
+        [status, status, assinafy_id], function (err) {
             res.json({ ok: true, changes: this.changes });
         });
 });
@@ -4652,13 +4660,13 @@ db.run(`CREATE TABLE IF NOT EXISTS geradores (
     arquivo_pdf TEXT DEFAULT NULL
 )`, () => {
     // Adicionar colunas se por acaso a tabela for antiga (SQLite ignora se já existem)
-    db.run("ALTER TABLE geradores ADD COLUMN tipo TEXT DEFAULT 'html'", () => {});
-    db.run("ALTER TABLE geradores ADD COLUMN arquivo_pdf TEXT DEFAULT NULL", () => {});
+    db.run("ALTER TABLE geradores ADD COLUMN tipo TEXT DEFAULT 'html'", () => { });
+    db.run("ALTER TABLE geradores ADD COLUMN arquivo_pdf TEXT DEFAULT NULL", () => { });
 });
 // MIGRATION: coluna para rastrear quando o certificado digital A1 foi aplicado
-db.run("ALTER TABLE admissao_assinaturas ADD COLUMN certificado_assinado_em TEXT DEFAULT NULL", () => {});
+db.run("ALTER TABLE admissao_assinaturas ADD COLUMN certificado_assinado_em TEXT DEFAULT NULL", () => { });
 // MIGRATION: campo 'avisado previamente' para faltas
-db.run("ALTER TABLE faltas ADD COLUMN avisado_previamente TEXT DEFAULT 'Não'", () => {});
+db.run("ALTER TABLE faltas ADD COLUMN avisado_previamente TEXT DEFAULT 'Não'", () => { });
 
 // --- GERADORES DE DOCUMENTOS ---
 app.get('/api/geradores', authenticateToken, (req, res) => {
@@ -4680,13 +4688,13 @@ app.post('/api/geradores', authenticateToken, (req, res) => {
     const { nome, conteudo, variaveis } = req.body;
     const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
     db.run("INSERT INTO geradores (nome, conteudo, variaveis, tipo) VALUES (?, ?, ?, 'html')",
-        [nome, conteudo, variaveis], function(err) {
+        [nome, conteudo, variaveis], function (err) {
             if (err) return res.status(400).json({ error: err.message });
             const newId = this.lastID;
-            
+
             db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
                 [loggedUser, 'Geradores', 'Inclusão', '', nome, newId]);
-                
+
             res.status(201).json({ id: newId, ...req.body });
         });
 });
@@ -4699,7 +4707,7 @@ app.put('/api/geradores/:id', authenticateToken, (req, res) => {
         if (err || !oldRow) return res.status(500).json({ error: err ? err.message : 'Not found' });
 
         db.run("UPDATE geradores SET nome = ?, conteudo = ?, variaveis = ? WHERE id = ?",
-            [nome, conteudo, variaveis, req.params.id], function(err2) {
+            [nome, conteudo, variaveis, req.params.id], function (err2) {
                 if (err2) return res.status(500).json({ error: err2.message });
 
                 const changes = [];
@@ -4737,10 +4745,10 @@ app.delete('/api/geradores/:id', authenticateToken, (req, res) => {
             'responsabilidade equipamento',
             'responsabilidade veículo'
         ];
-        
+
         const originalName = (row.nome || '').trim();
         const u = originalName.toLowerCase();
-        
+
         const BAD_EXACT_NAMES = [
             'AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO',
             'ORDEM DE SERVIÇO NR01'
@@ -4751,9 +4759,9 @@ app.delete('/api/geradores/:id', authenticateToken, (req, res) => {
         }
 
         if (row && row.arquivo_pdf && fs.existsSync(row.arquivo_pdf)) {
-            try { fs.unlinkSync(row.arquivo_pdf); } catch(e) {}
+            try { fs.unlinkSync(row.arquivo_pdf); } catch (e) { }
         }
-        db.run("DELETE FROM geradores WHERE id = ?", [req.params.id], function(err) {
+        db.run("DELETE FROM geradores WHERE id = ?", [req.params.id], function (err) {
             if (err) return res.status(500).json({ error: err.message });
             // Registra na lista de excluidos para que o seed nao recrie ao reiniciar
             db.run("CREATE TABLE IF NOT EXISTS geradores_excluidos (nome TEXT PRIMARY KEY)", () => {
@@ -4766,18 +4774,18 @@ app.delete('/api/geradores/:id', authenticateToken, (req, res) => {
 
 // Upload de PDF externo como gerador
 const geradorPdfStorage = multer.diskStorage({
-    destination: function(req, file, cb) {
+    destination: function (req, file, cb) {
         const dir = path.join(BASE_PATH, '_geradores_pdf');
         if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
         cb(null, dir);
     },
-    filename: function(req, file, cb) {
+    filename: function (req, file, cb) {
         const ts = Date.now();
         const safe = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
         cb(null, `${ts}_${safe}`);
     }
 });
-const uploadGeradorPdf = multer({ 
+const uploadGeradorPdf = multer({
     storage: geradorPdfStorage,
     fileFilter: (req, file, cb) => {
         if (file.mimetype === 'application/pdf') cb(null, true);
@@ -4791,7 +4799,7 @@ app.post('/api/geradores/upload-pdf', authenticateToken, uploadGeradorPdf.single
     const nome = req.body.nome || path.basename(req.file.originalname, '.pdf');
     const arquivo_pdf = req.file.path;
     db.run("INSERT INTO geradores (nome, conteudo, variaveis, tipo, arquivo_pdf) VALUES (?, '', '', 'pdf', ?)",
-        [nome, arquivo_pdf], function(err) {
+        [nome, arquivo_pdf], function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ id: this.lastID, nome, tipo: 'pdf', arquivo_pdf });
         });
@@ -4802,10 +4810,10 @@ app.put('/api/geradores/:id/replace-pdf', authenticateToken, uploadGeradorPdf.si
     // Remove o arquivo antigo
     db.get("SELECT arquivo_pdf FROM geradores WHERE id = ?", [req.params.id], (err, row) => {
         if (row && row.arquivo_pdf && fs.existsSync(row.arquivo_pdf)) {
-            try { fs.unlinkSync(row.arquivo_pdf); } catch(e) {}
+            try { fs.unlinkSync(row.arquivo_pdf); } catch (e) { }
         }
         db.run("UPDATE geradores SET arquivo_pdf = ?, nome = ? WHERE id = ?",
-            [req.file.path, req.body.nome || row?.nome || 'PDF', req.params.id], function(err2) {
+            [req.file.path, req.body.nome || row?.nome || 'PDF', req.params.id], function (err2) {
                 if (err2) return res.status(500).json({ error: err2.message });
                 res.json({ ok: true });
             });
@@ -4828,10 +4836,10 @@ app.get('/api/geradores/:id/pdf', authenticateToken, (req, res) => {
 app.post(['/api/geradores/:id/gerar', '/api/geradores/:id/gerar/:colaborador_id'], authenticateToken, (req, res) => {
     const id = req.params.id;
     const colaborador_id = req.params.colaborador_id || req.body.colaborador_id || req.body.colabId;
-    
+
     db.get("SELECT * FROM geradores WHERE id = ?", [id], (err, gerador) => {
         if (err || !gerador) return res.status(404).json({ error: 'Gerador não encontrado' });
-        
+
         // Busca o colaborador e tenta cruzar com cursos_faculdade
         const sql = `
             SELECT c.*, f.nome_curso as f_nome, f.instituicao as f_inst, f.tempo_curso as f_tempo, f.valor_mensalidade as f_valor
@@ -4839,10 +4847,10 @@ app.post(['/api/geradores/:id/gerar', '/api/geradores/:id/gerar/:colaborador_id'
             LEFT JOIN cursos_faculdade f ON c.faculdade_curso_id = f.id
             WHERE c.id = ?
         `;
-        
+
         db.get(sql, [colaborador_id], (err, colaborador) => {
             if (err || !colaborador) return res.status(404).json({ error: 'Colaborador não encontrado' });
-            
+
             // Busca chaves do colaborador
             db.all(`
                 SELECT c.nome_chave 
@@ -4851,11 +4859,11 @@ app.post(['/api/geradores/:id/gerar', '/api/geradores/:id/gerar/:colaborador_id'
                 WHERE cc.colaborador_id = ?
             `, [colaborador_id], (err, chaves) => {
                 const listaChaves = (chaves || []).map(c => c.nome_chave).join('<br>');
-                
+
                 let conteudoFinal = gerador.conteudo;
                 const dataAtual = new Date();
                 const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-                
+
                 const mapping = {
                     'BASE_URL': `${req.protocol}://${req.get('host')}`,
                     'ID': colaborador.id,
@@ -4878,22 +4886,22 @@ app.post(['/api/geradores/:id/gerar', '/api/geradores/:id/gerar/:colaborador_id'
                     'CIDADE': 'Guarulhos',
                     'TELEFONE': colaborador.telefone || '',
                     'EMAIL': colaborador.email || '',
-                    'SALARIO': colaborador.salario ? `R$ ${parseFloat(colaborador.salario).toLocaleString('pt-BR', {minimumFractionDigits: 2})}` : '---',
+                    'SALARIO': colaborador.salario ? `R$ ${parseFloat(colaborador.salario).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '---',
                     'CHAVES': listaChaves || 'Nenhuma chave cadastrada',
                     // Variáveis de Faculdade
                     'INSTITUICAO': colaborador.f_inst || '---',
                     'CURSO': colaborador.f_nome || '---',
                     'DURACAO': colaborador.f_tempo || '---',
-                    'MENSALIDADE': colaborador.f_valor ? `R$ ${parseFloat(colaborador.f_valor).toLocaleString('pt-BR', {minimumFractionDigits: 2})}` : '---'
+                    'MENSALIDADE': colaborador.f_valor ? `R$ ${parseFloat(colaborador.f_valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '---'
                 };
-                
+
                 // Valores Dinâmicos Form (se presentes no body)
                 if (req.body) {
                     mapping['MODAL_DESCRICAO'] = req.body.desconto_descricao || '';
                     mapping['MODAL_VALOR'] = req.body.desconto_valor || '0,00';
                     mapping['MODAL_PARCELAMENTO'] = req.body.desconto_parcelas || '1';
                     mapping['MODAL_VALOR_PARCELA'] = req.body.desconto_valor_parcela || '0,00';
-                    
+
                     const p = parseInt(req.body.desconto_parcelas) || 1;
                     mapping['PARCELA_1'] = p === 1 ? 'X' : '&nbsp;&nbsp;';
                     mapping['PARCELA_2'] = p === 2 ? 'X' : '&nbsp;&nbsp;';
@@ -4909,8 +4917,8 @@ app.post(['/api/geradores/:id/gerar', '/api/geradores/:id/gerar/:colaborador_id'
                     regex = new RegExp(`\\{${key}\\}`, 'g');
                     conteudoFinal = conteudoFinal.replace(regex, mapping[key]);
                 });
-                
-                res.json({ 
+
+                res.json({
                     html: conteudoFinal,
                     colaborador: mapping,
                     gerador_nome: gerador.nome
@@ -4930,7 +4938,7 @@ app.get('/api/chaves', authenticateToken, (req, res) => {
 
 app.post('/api/chaves', authenticateToken, (req, res) => {
     const { nome_chave } = req.body;
-    db.run("INSERT INTO chaves (nome_chave) VALUES (?)", [nome_chave], function(err) {
+    db.run("INSERT INTO chaves (nome_chave) VALUES (?)", [nome_chave], function (err) {
         if (err) return res.status(400).json({ error: err.message });
         res.status(201).json({ id: this.lastID, nome_chave });
     });
@@ -4938,7 +4946,7 @@ app.post('/api/chaves', authenticateToken, (req, res) => {
 
 app.put('/api/chaves/:id', authenticateToken, (req, res) => {
     const { nome_chave } = req.body;
-    db.run("UPDATE chaves SET nome_chave = ? WHERE id = ?", [nome_chave, req.params.id], function(err) {
+    db.run("UPDATE chaves SET nome_chave = ? WHERE id = ?", [nome_chave, req.params.id], function (err) {
         if (err) return res.status(400).json({ error: err.message });
         res.json({ message: 'Chave atualizada' });
     });
@@ -4948,7 +4956,7 @@ app.delete('/api/chaves/:id', authenticateToken, (req, res) => {
     db.get('SELECT 1 FROM colaboradores WHERE id IN (SELECT colaborador_id FROM colaborador_chaves WHERE chave_id = ?)', [req.params.id], (err, row) => {
         // Por enquanto não temos a tabela de relacionamento, então vamos deletar direto.
         // Se no futuro houver chaves vinculadas, podemos avisar.
-        db.run("DELETE FROM chaves WHERE id = ?", [req.params.id], function(err) {
+        db.run("DELETE FROM chaves WHERE id = ?", [req.params.id], function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ message: 'Chave excluída' });
         });
@@ -4968,7 +4976,7 @@ app.post('/api/faltas', authenticateToken, (req, res) => {
     if (!colaborador_id || !data_falta) return res.status(400).json({ error: 'colaborador_id e data_falta são obrigatórios.' });
     db.run('INSERT INTO faltas (colaborador_id, data_falta, turno, observacao, avisado_previamente) VALUES (?, ?, ?, ?, ?)',
         [colaborador_id, data_falta, turno || 'Dia todo', observacao || '', avisado_previamente || 'Não'],
-        function(err) {
+        function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ id: this.lastID, colaborador_id, data_falta, turno: turno || 'Dia todo', observacao: observacao || '', avisado_previamente: avisado_previamente || 'Não' });
         }
@@ -4976,7 +4984,7 @@ app.post('/api/faltas', authenticateToken, (req, res) => {
 });
 
 app.delete('/api/faltas/:id', authenticateToken, (req, res) => {
-    db.run('DELETE FROM faltas WHERE id = ?', [req.params.id], function(err) {
+    db.run('DELETE FROM faltas WHERE id = ?', [req.params.id], function (err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ deleted: this.changes });
     });
@@ -4993,21 +5001,21 @@ app.get('/api/colaboradores/:id/avaliacoes', authenticateToken, (req, res) => {
 app.post('/api/avaliacoes', authenticateToken, (req, res) => {
     const { colaborador_id, tipo, ano, trimestre, respostas_json } = req.body;
     if (!colaborador_id || !tipo || !ano || !trimestre) return res.status(400).json({ error: 'colaborador_id, tipo, ano e trimestre são obrigatórios.' });
-    
+
     // Upsert (atualiza se já existir para o mesmo colaborador/ano/trimestre/tipo)
     db.run(`
         INSERT INTO avaliacoes (colaborador_id, tipo, ano, trimestre, respostas_json)
         VALUES (?, ?, ?, ?, ?)
         ON CONFLICT(colaborador_id, ano, trimestre, tipo) 
         DO UPDATE SET respostas_json=excluded.respostas_json, created_at=CURRENT_TIMESTAMP
-    `, [colaborador_id, tipo, ano, trimestre, (respostas_json || '{}')], function(err) {
+    `, [colaborador_id, tipo, ano, trimestre, (respostas_json || '{}')], function (err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ success: true, changes: this.changes });
     });
 });
 
 app.delete('/api/avaliacoes/:id', authenticateToken, (req, res) => {
-    db.run('DELETE FROM avaliacoes WHERE id = ?', [req.params.id], function(err) {
+    db.run('DELETE FROM avaliacoes WHERE id = ?', [req.params.id], function (err) {
         if (err) return res.status(500).json({ error: err.message });
         if (this.changes === 0) return res.status(404).json({ error: 'Avaliação não encontrada.' });
         res.json({ deleted: this.changes, message: 'Avaliação excluída com sucesso' });
@@ -5027,7 +5035,7 @@ app.post('/api/avaliacao-templates', authenticateToken, (req, res) => {
     if (!nome || !tipo || !grupo_key || !categorias_json) return res.status(400).json({ error: 'Campos obrigatórios faltando.' });
     db.run('INSERT INTO avaliacao_templates (nome, tipo, grupo_key, categorias_json) VALUES (?,?,?,?)',
         [nome, tipo, grupo_key, typeof categorias_json === 'string' ? categorias_json : JSON.stringify(categorias_json)],
-        function(err) {
+        function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ id: this.lastID, message: 'Template criado com sucesso.' });
         }
@@ -5038,7 +5046,7 @@ app.put('/api/avaliacao-templates/:id', authenticateToken, (req, res) => {
     const { nome, tipo, grupo_key, categorias_json } = req.body;
     db.run('UPDATE avaliacao_templates SET nome=?, tipo=?, grupo_key=?, categorias_json=? WHERE id=?',
         [nome, tipo, grupo_key, typeof categorias_json === 'string' ? categorias_json : JSON.stringify(categorias_json), req.params.id],
-        function(err) {
+        function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ changes: this.changes });
         }
@@ -5046,7 +5054,7 @@ app.put('/api/avaliacao-templates/:id', authenticateToken, (req, res) => {
 });
 
 app.delete('/api/avaliacao-templates/:id', authenticateToken, (req, res) => {
-    db.run('DELETE FROM avaliacao_templates WHERE id=?', [req.params.id], function(err) {
+    db.run('DELETE FROM avaliacao_templates WHERE id=?', [req.params.id], function (err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ deleted: this.changes });
     });
@@ -5055,13 +5063,13 @@ app.delete('/api/avaliacao-templates/:id', authenticateToken, (req, res) => {
 // --- ROTA DE ENVIO DE E-MAIL ASO ---
 app.post('/api/send-aso-email', authenticateToken, (req, res) => {
     const { colaborador_id, email_to, data_exame, cc } = req.body;
-    
+
     db.get('SELECT * FROM colaboradores WHERE id = ?', [colaborador_id], (err, colab) => {
         if (err || !colab) return res.status(404).json({ error: 'Colaborador não encontrado' });
-        
+
         const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
-        const exames = (colab.cargo || '').toLowerCase().includes('motorista') 
-            ? 'Audiometria, acuidade visual, E.E.G, E.C.G e Glicemia.' 
+        const exames = (colab.cargo || '').toLowerCase().includes('motorista')
+            ? 'Audiometria, acuidade visual, E.E.G, E.C.G e Glicemia.'
             : 'Exame Padrão';
 
         // Formatar data: YYYY-MM-DD to DD/MM/YYYY
@@ -5119,13 +5127,13 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
                 console.error('ERRO NODEMAILER:', error);
                 return res.status(500).json({ sucesso: false, error: `Erro SMTP: ${error.message}` });
             }
-            
+
             // Salvar a data de envio e a data agendada no banco de dados
             const hoje = new Date();
             const horas = String(hoje.getHours()).padStart(2, '0');
             const minutos = String(hoje.getMinutes()).padStart(2, '0');
             const dataEnvioStr = `${String(hoje.getDate()).padStart(2, '0')}/${String(hoje.getMonth() + 1).padStart(2, '0')}/${hoje.getFullYear()} - ${horas}h${minutos}m`;
-            
+
             const [y, m, d] = data_exame.split('-');
             const dataAgendadaStr = `${d}/${m}/${y}`;
 
@@ -5442,7 +5450,7 @@ app.post('/api/send-suspensao-contabilidade', authenticateToken, async (req, res
         });
 
         console.log(`[SUSPENSAO CONTAB] Enviado para ${email_to} | Doc: ${document_id} | Colab: ${colab.nome_completo}`);
-        
+
         // Salvar timestamp do envio no documento (usando o mesmo campo da contabilidade)
         const agora = new Date().toISOString();
         await new Promise((resolve, reject) =>
@@ -5463,10 +5471,10 @@ app.post('/api/send-suspensao-contabilidade', authenticateToken, async (req, res
 const salvarLinkAssinatura = async (assinafyId, link) => {
     return new Promise((resolve) => {
         // Tenta atualizar em admissao
-        db.run(`UPDATE admissao_assinaturas SET assinafy_url = ? WHERE assinafy_id = ?`, [link, assinafyId], function(err) {
+        db.run(`UPDATE admissao_assinaturas SET assinafy_url = ? WHERE assinafy_id = ?`, [link, assinafyId], function (err) {
             if (this.changes > 0) return resolve(true);
             // Se nao mudou, tenta em documentos
-            db.run(`UPDATE documentos SET assinafy_url = ? WHERE assinafy_id = ?`, [link, assinafyId], function() {
+            db.run(`UPDATE documentos SET assinafy_url = ? WHERE assinafy_id = ?`, [link, assinafyId], function () {
                 resolve(true);
             });
         });
@@ -5477,14 +5485,14 @@ app.post("/webhook/assinafy", async (req, res) => {
     try {
         const payload = req.body;
         console.log('--- WEBHOOK ASSINAFY RECEBIDO ---', JSON.stringify(payload));
-        
+
         // Retornar IMEDIATAMENTE para o Assinafy (evita timeout no webhook)
         res.status(200).send("OK");
-        
+
         // 1. Tentar encontrar o ID do documento
         const assinafyId = payload.document_id || payload.documentId || payload.id ||
-                          (payload.data && (payload.data.document_id || payload.data.id)) ||
-                          (payload.object && payload.object.id);
+            (payload.data && (payload.data.document_id || payload.data.id)) ||
+            (payload.object && payload.object.id);
 
         // 2. Tratar captura de link (Criação/Envio)
         let signLink = payload.sign_url || payload.signUrl;
@@ -5500,7 +5508,7 @@ app.post("/webhook/assinafy", async (req, res) => {
             console.log(`[WEBHOOK] Capturando link para Documento ${assinafyId}: ${signLink}`);
             await salvarLinkAssinatura(assinafyId, signLink);
         }
-        
+
         // 3. Processamento Unificado de Assinatura Completa via Polling
         // Em vez de duplicar a lógica complexa de downlaod, Assinatura Digital (PFX) por cima, 
         // Sync Onedrive e Updates de DB, nós simplesmente acionamos nosso POLLING.
@@ -5521,7 +5529,7 @@ app.post("/webhook/assinafy", async (req, res) => {
 app.get('/api/documentos/download-assinado/:id', authenticateToken, (req, res) => {
     db.get('SELECT file_name, signed_file_path, assinafy_id FROM documentos WHERE id = ?', [req.params.id], async (err, row) => {
         if (err || !row) return res.status(404).json({ error: 'Documento não encontrado' });
-        
+
         // Se já temos baixado, entrega o arquivo diretamente
         if (row.signed_file_path && require('fs').existsSync(row.signed_file_path)) {
             const signedName = `ASSINADO_${row.file_name}`;
@@ -5550,7 +5558,7 @@ app.get('/api/documentos/download-assinado/:id', authenticateToken, (req, res) =
 
                 const assinafyRes = await getDocData();
                 const docData = assinafyRes.data || assinafyRes;
-                
+
                 // Forçar o recálculo da melhor URL pra evitar cache do antigo (sem certificado)
                 let targetUrl = extractSignedUrl(docData);
 
@@ -5562,12 +5570,12 @@ app.get('/api/documentos/download-assinado/:id', authenticateToken, (req, res) =
                             'X-Api-Key': 'AxaT-FiXBckHqEYV0s_MtUhLF3pReRz3dX4zVpC173vmjDwzLGHYtDJuQje4-4Pd'
                         }
                     };
-                    
+
                     const storagePath = process.env.STORAGE_PATH || path.join(__dirname, 'data', 'uploads');
                     const assDir = path.join(storagePath, 'assinados');
                     if (!require('fs').existsSync(assDir)) require('fs').mkdirSync(assDir, { recursive: true });
                     const newPath = path.join(assDir, `ASSINADO_${row.file_name.replace('.pdf', '')}_${Date.now()}.pdf`);
-                    
+
                     // Helper para baixar na memoria
                     const downloadToBuffer = (url) => new Promise((resolve, reject) => {
                         getProtocol.get(url, reqOptions, (response) => {
@@ -5599,11 +5607,11 @@ app.get('/api/documentos/download-assinado/:id', authenticateToken, (req, res) =
                                 console.warn('[DOWNLOAD-ASSINADO] Erro ao aplicar PFX:', e.message);
                             }
                         }
-                        
+
                         require('fs').writeFileSync(newPath, pdfBuffer);
-                        
+
                         db.run('UPDATE documentos SET signed_file_path = ?, assinafy_signed_at = COALESCE(assinafy_signed_at, CURRENT_TIMESTAMP) WHERE id = ?', [newPath, req.params.id]);
-                        
+
                         res.setHeader('Content-Type', 'application/pdf');
                         res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
                         res.send(pdfBuffer);
@@ -5611,7 +5619,7 @@ app.get('/api/documentos/download-assinado/:id', authenticateToken, (req, res) =
                         console.error('[DOWNLOAD-ASSINADO] Erro ao baixar/assinar:', err);
                         res.status(500).json({ error: 'Falha ao baixar do Assinafy' });
                     });
-                    
+
                     return; // Retorna para não executar o bloco else
                 } else {
                     return res.status(404).json({ error: 'URL do PDF assinado não encontrada no Assinafy' });
@@ -5669,7 +5677,7 @@ app.post('/api/documentos/:id/sync-assinafy', authenticateToken, async (req, res
 
         // Assinafy v1 retorna os dados normalmente no body (ex: assinafyRes.data ou direto)
         const documentData = assinafyRes.data || assinafyRes;
-        
+
         let newStatus = doc.assinafy_status;
         let pStatus = (documentData.status || documentData.status_id || '').toString().toLowerCase();
 
@@ -5684,7 +5692,7 @@ app.post('/api/documentos/:id/sync-assinafy', authenticateToken, async (req, res
 
         // Se assinado, pega o link e baixa se não tiver path ainda
         let signedUrl = extractSignedUrl(documentData);
-        
+
         if (newStatus === 'Assinado' && signedUrl) {
             // Reaproveita logica de webhook de download e salvar status
             const path = require('path');
@@ -5692,28 +5700,28 @@ app.post('/api/documentos/:id/sync-assinafy', authenticateToken, async (req, res
             const storagePath = process.env.STORAGE_PATH || path.join(__dirname, 'data', 'uploads');
             const assDir = path.join(storagePath, 'assinados');
             if (!fs.existsSync(assDir)) fs.mkdirSync(assDir, { recursive: true });
-            
+
             const originalName = path.basename(doc.file_name || 'doc.pdf', '.pdf');
             const finalPath = path.join(assDir, `ASSINADO_${originalName}_${Date.now()}.pdf`);
-            
+
             await new Promise((resolve, reject) => {
                 const file = fs.createWriteStream(finalPath);
                 const reqOptions = { headers: { 'X-Api-Key': 'AxaT-FiXBckHqEYV0s_MtUhLF3pReRz3dX4zVpC173vmjDwzLGHYtDJuQje4-4Pd' } };
-                
+
                 https.get(signedUrl, reqOptions, (response) => {
                     if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
                         https.get(response.headers.location, (redirRes) => {
                             redirRes.pipe(file);
                             file.on('finish', () => { file.close(); resolve(); });
-                        }).on('error', (err) => { fs.unlink(finalPath, () => {}); reject(err); });
+                        }).on('error', (err) => { fs.unlink(finalPath, () => { }); reject(err); });
                     } else if (response.statusCode >= 400) {
-                        fs.unlink(finalPath, () => {});
+                        fs.unlink(finalPath, () => { });
                         resolve(); // ignora o erro para não travar o sync
                     } else {
                         response.pipe(file);
                         file.on('finish', () => { file.close(); resolve(); });
                     }
-                }).on('error', (err) => { fs.unlink(finalPath, () => {}); reject(err); });
+                }).on('error', (err) => { fs.unlink(finalPath, () => { }); reject(err); });
             });
 
             // -- Aplicar selo do certificado digital da empresa no arquivo LOCAL --
@@ -5735,7 +5743,7 @@ app.post('/api/documentos/:id/sync-assinafy', authenticateToken, async (req, res
             }
 
             await new Promise((resolve, reject) => {
-                db.run(`UPDATE documentos SET assinafy_status = ?, signed_file_path = ?, assinafy_signed_at = COALESCE(assinafy_signed_at, CURRENT_TIMESTAMP) WHERE id = ?`, 
+                db.run(`UPDATE documentos SET assinafy_status = ?, signed_file_path = ?, assinafy_signed_at = COALESCE(assinafy_signed_at, CURRENT_TIMESTAMP) WHERE id = ?`,
                     [newStatus, finalPath, docId], err => err ? reject(err) : resolve());
             });
 
@@ -5751,25 +5759,25 @@ app.post('/api/documentos/:id/sync-assinafy', authenticateToken, async (req, res
                     if (doc.month && doc.month !== 'null' && doc.month !== '') {
                         targetDir += `/${getMesNome(doc.month)}`;
                     }
-                    
+
                     console.log(`[OneDrive Sync] Sincronizando para: ${targetDir}`);
                     await onedrive.ensurePath(targetDir);
 
                     // Reutiliza buffer já com PFX (aplicado acima), sem re-processar
                     const safeType = formatarPasta(doc.document_type || doc.tab_name || 'Documento').replace(/\s+/g, '_');
                     const cloudName = `${safeType}_${docYear}_${safeColab}.pdf`;
-                    
+
                     await onedrive.uploadToOneDrive(targetDir, cloudName, localPfxBuffer);
                     console.log(`[OneDrive] ? Documento assinado sincronizado (com certificado): ${cloudName}`);
-                } catch (e) { 
-                    console.error("[OneDrive] Erro de sync assinado:", e.message); 
+                } catch (e) {
+                    console.error("[OneDrive] Erro de sync assinado:", e.message);
                 }
             }
         } else {
             // Apenas atualiza o status se mudou
             if (newStatus !== doc.assinafy_status) {
                 await new Promise((resolve, reject) => {
-                    db.run(`UPDATE documentos SET assinafy_status = ? WHERE id = ?`, [newStatus, docId], 
+                    db.run(`UPDATE documentos SET assinafy_status = ? WHERE id = ?`, [newStatus, docId],
                         err => err ? reject(err) : resolve());
                 });
             }
@@ -5812,35 +5820,35 @@ app.post('/api/documentos/:id/force-onedrive-sync', authenticateToken, async (re
                 localPath = doc.file_path;
                 addLog(`Usando file_path regular: ${localPath}`);
             }
-        // Força download direto do Assinafy para evitar reaproveitar cache antigo sem selo
-        addLog('Buscando URL atualizada no Assinafy...');
+            // Força download direto do Assinafy para evitar reaproveitar cache antigo sem selo
+            addLog('Buscando URL atualizada no Assinafy...');
 
-        const assinafyRes = await new Promise((resolve, reject) => {
-            const https = require('https');
-            const opts = {
-                hostname: 'api.assinafy.com.br', path: `/v1/documents/${doc.assinafy_id}`, method: 'GET',
-                headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey, 'Accept': 'application/json' }
-            };
-            const r = https.request(opts, (resp) => {
-                const chunks = [];
-                resp.on('data', c => chunks.push(c));
-                resp.on('end', () => { try { resolve(JSON.parse(Buffer.concat(chunks).toString())); } catch(e) { reject(e); } });
+            const assinafyRes = await new Promise((resolve, reject) => {
+                const https = require('https');
+                const opts = {
+                    hostname: 'api.assinafy.com.br', path: `/v1/documents/${doc.assinafy_id}`, method: 'GET',
+                    headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey, 'Accept': 'application/json' }
+                };
+                const r = https.request(opts, (resp) => {
+                    const chunks = [];
+                    resp.on('data', c => chunks.push(c));
+                    resp.on('end', () => { try { resolve(JSON.parse(Buffer.concat(chunks).toString())); } catch (e) { reject(e); } });
+                });
+                r.on('error', reject); r.end();
             });
-            r.on('error', reject); r.end();
-        });
 
-        const docData = assinafyRes.data || assinafyRes;
-        addLog(`Status Assinafy: ${docData.status} | Keys: ${Object.keys(docData).join(',')}`);
-        addLog(`Artifacts: ${JSON.stringify(docData.artifacts || 'nenhum')}`);
+            const docData = assinafyRes.data || assinafyRes;
+            addLog(`Status Assinafy: ${docData.status} | Keys: ${Object.keys(docData).join(',')}`);
+            addLog(`Artifacts: ${JSON.stringify(docData.artifacts || 'nenhum')}`);
 
-        const signedUrl = extractSignedUrl(docData);
-        addLog(`URL extraída: ${signedUrl || 'NENHUMA URL ENCONTRADA'}`);
-        if (!signedUrl) return res.json({ log, error: 'URL do PDF assinado não encontrada.', raw: docData });
+            const signedUrl = extractSignedUrl(docData);
+            addLog(`URL extraída: ${signedUrl || 'NENHUMA URL ENCONTRADA'}`);
+            if (!signedUrl) return res.json({ log, error: 'URL do PDF assinado não encontrada.', raw: docData });
 
-        const storagePath = process.env.STORAGE_PATH || path.join(__dirname, 'data', 'uploads');
-        const assDir = path.join(storagePath, 'assinados');
-        if (!fs.existsSync(assDir)) fs.mkdirSync(assDir, { recursive: true });
-        let localPath = path.join(assDir, `ASSINADO_${path.basename(doc.file_name, '.pdf')}_${Date.now()}.pdf`);
+            const storagePath = process.env.STORAGE_PATH || path.join(__dirname, 'data', 'uploads');
+            const assDir = path.join(storagePath, 'assinados');
+            if (!fs.existsSync(assDir)) fs.mkdirSync(assDir, { recursive: true });
+            let localPath = path.join(assDir, `ASSINADO_${path.basename(doc.file_name, '.pdf')}_${Date.now()}.pdf`);
 
             const downloadToBuffer = (url) => new Promise((resolve, reject) => {
                 const https = require('https');
@@ -5862,7 +5870,7 @@ app.post('/api/documentos/:id/force-onedrive-sync', authenticateToken, async (re
 
             try {
                 let pdfBuffer = await downloadToBuffer(signedUrl);
-                
+
                 // Aplicar selo PFX
                 const signPdfPfx = require('./sign_pdf_pfx');
                 const dispCert = signPdfPfx.verificarDisponibilidade();
@@ -5877,7 +5885,7 @@ app.post('/api/documentos/:id/force-onedrive-sync', authenticateToken, async (re
                         addLog('Falha ao aplicar selo PFX: ' + e.message);
                     }
                 }
-                
+
                 fs.writeFileSync(localPath, pdfBuffer);
             } catch (err) {
                 addLog('Erro no download/assinatura: ' + err.message);
@@ -5938,7 +5946,7 @@ const _dbPath = process.env.DATABASE_PATH || path.join(__dirname, 'data', 'hr_sy
 app.get('/api/maintenance/download-db', authenticateToken, (req, res) => {
     const isDiretoria = req.user?.role === 'Diretoria' || req.user?.role === 'Administrador' || req.user?.departamento === 'Diretoria' || (req.user?.grupo_nome && req.user.grupo_nome.toLowerCase() === 'diretoria') || req.user?.username === 'diretoria.1';
     if (!isDiretoria) return res.status(403).json({ error: 'Acesso negado' });
-    
+
     if (fs.existsSync(_dbPath)) {
         res.download(_dbPath, 'hr_system_v2.sqlite');
     } else {
@@ -5950,17 +5958,17 @@ app.post('/api/maintenance/upload-db', authenticateToken, uploadDB.single('datab
     const isDiretoria = req.user?.role === 'Diretoria' || req.user?.role === 'Administrador' || req.user?.departamento === 'Diretoria' || (req.user?.grupo_nome && req.user.grupo_nome.toLowerCase() === 'diretoria') || req.user?.username === 'diretoria.1';
     if (!isDiretoria) return res.status(403).json({ error: 'Acesso negado' });
     if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
-    
+
     try {
         fs.copyFileSync(req.file.path, _dbPath);
         fs.unlinkSync(req.file.path);
         res.json({ message: 'DB importado com sucesso. Reiniciando...' });
-        
+
         setTimeout(() => {
             console.log('Forçando reinicialização devido a upload de DB...');
             process.exit(1);
         }, 1000);
-    } catch(e) {
+    } catch (e) {
         res.status(500).json({ error: 'Erro ao substituir DB: ' + e.message });
     }
 });
@@ -5986,33 +5994,33 @@ app.post('/api/maintenance/reset', authenticateToken, (req, res) => {
 // FORCE SYNC: Reenviar TODOS os CONTRATOS_AVULSOS sem assinatura para o OneDrive
 app.post('/api/force-sync-contratos-avulsos', authenticateToken, async (req, res) => {
     if (!onedrive) return res.status(503).json({ error: 'OneDrive nao configurado' });
-    
+
     db.all("SELECT d.*, c.nome_completo FROM documentos d LEFT JOIN colaboradores c ON d.colaborador_id = c.id WHERE d.tab_name = 'CONTRATOS_AVULSOS' AND (d.assinafy_status IS NULL OR d.assinafy_status = 'Nenhum' OR d.assinafy_status = 'NAO_EXIGE') ORDER BY d.id DESC", [], async (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
-        
+
         let ok = 0, fail = 0;
         const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || 'RH/1.Colaboradores/Sistema';
-        
+
         for (const doc of (rows || [])) {
             try {
                 const locPath = doc.signed_file_path && require('fs').existsSync(doc.signed_file_path)
                     ? doc.signed_file_path
                     : (doc.file_path && require('fs').existsSync(doc.file_path) ? doc.file_path : null);
                 if (!locPath) { console.log(`[SYNC-CA] Doc ${doc.id}: arquivo nao encontrado no disco`); fail++; continue; }
-                
+
                 const colabNome = doc.nome_completo || 'DESCONHECIDO';
                 const safeColab = formatarNome(colabNome);
                 const safeType = formatarPasta(doc.document_type || doc.tab_name);
                 const cloudFileName = doc.file_name;
                 const targetDir = `${onedriveBasePath}/${safeColab}/CONTRATOS`;
-                
+
                 await onedrive.ensurePath(`${onedriveBasePath}/${safeColab}`);
                 await onedrive.ensurePath(targetDir);
                 const buf = require('fs').readFileSync(locPath);
                 await onedrive.uploadToOneDrive(targetDir, cloudFileName, buf);
                 console.log(`[SYNC-CA] OK: ${cloudFileName}`);
                 ok++;
-            } catch(e) {
+            } catch (e) {
                 console.error(`[SYNC-CA] Falha doc ${doc.id}:`, e.message);
                 fail++;
             }
@@ -6036,7 +6044,7 @@ app.get('/avaliacao-publica.html', (req, res) => {
 
 // --- SERVIR ARQUIVOS ESTÁTICOS ---
 app.use(express.static(path.join(__dirname, '../frontend')));
-app.use('/files', express.static(path.join(__dirname, '..', '..'))); 
+app.use('/files', express.static(path.join(__dirname, '..', '..')));
 
 // ====================================================================
 // EPI TEMPLATES - CRUD
@@ -6065,7 +6073,7 @@ app.put('/api/epi-templates/:id', authenticateToken, (req, res) => {
         db.run(
             `UPDATE epi_templates SET grupo=?, departamentos_json=?, epis_json=?, termo_texto=?, rodape_texto=?, categoria=COALESCE(categoria, ?), updated_at=CURRENT_TIMESTAMP WHERE id=?`,
             [grupo, JSON.stringify(departamentos || []), JSON.stringify(epis || []), termo_texto, rodape_texto, categoriaOriginal, templateId],
-            function(err2) {
+            function (err2) {
                 if (err2) return res.status(500).json({ error: err2.message });
 
                 const oldEpis = old ? old.epis_json : '[]';
@@ -6144,7 +6152,7 @@ app.post('/api/colaboradores/:id/epi-fichas', authenticateToken, (req, res) => {
         `INSERT INTO colaborador_epi_fichas (colaborador_id, template_id, grupo, snapshot_epis, snapshot_termo, snapshot_rodape, linhas_usadas, status)
          VALUES (?,?,?,?,?,?,0,'ativa')`,
         [colaboradorId, template_id, grupo, JSON.stringify(snapshot_epis || []), snapshot_termo, snapshot_rodape],
-        function(err) {
+        function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ id: this.lastID });
         }
@@ -6157,7 +6165,7 @@ app.patch('/api/epi-fichas/:id/linhas', authenticateToken, (req, res) => {
     db.run(
         `UPDATE colaborador_epi_fichas SET linhas_usadas=? WHERE id=?`,
         [linhas_usadas, req.params.id],
-        function(err) {
+        function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ success: true });
         }
@@ -6166,7 +6174,7 @@ app.patch('/api/epi-fichas/:id/linhas', authenticateToken, (req, res) => {
 
 // DELETE: excluir ficha (se necessário)
 app.delete('/api/epi-fichas/:id', authenticateToken, (req, res) => {
-    db.run('DELETE FROM colaborador_epi_fichas WHERE id=?', [req.params.id], function(err) {
+    db.run('DELETE FROM colaborador_epi_fichas WHERE id=?', [req.params.id], function (err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ success: true });
     });
@@ -6193,7 +6201,7 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
     db.run(
         `INSERT INTO epi_entregas (ficha_id, colaborador_id, epis_entregues, assinatura_base64, data_entrega) VALUES (?,?,?,?,?)`,
         [fichaId, colaborador_id, JSON.stringify(epis_entregues), assinatura_base64, data_entrega || new Date().toLocaleDateString('pt-BR')],
-        function(err) {
+        function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ id: this.lastID });
         }
@@ -6224,7 +6232,7 @@ app.post('/api/epi-fichas/:id/save-onedrive', authenticateToken, async (req, res
         const epiFileName = `FichaEPI_${fichaId}_${safeNome}.pdf`;
         await onedrive.uploadToOneDrive(epiFolder, epiFileName, pdfBuffer);
         res.json({ success: true, arquivo_epi: epiFileName });
-    } catch(err) {
+    } catch (err) {
         console.error('[EPI save-onedrive]', err);
         res.status(500).json({ error: err.message });
     }
@@ -6236,7 +6244,7 @@ app.post('/api/epi-templates', authenticateToken, (req, res) => {
     db.run(
         `INSERT INTO epi_templates (grupo, categoria, departamentos_json, epis_json, termo_texto, rodape_texto) VALUES (?,?,?,?,?,?)`,
         [grupo, cat, JSON.stringify(departamentos || []), JSON.stringify(epis || []), termo_texto, rodape_texto],
-        function(err) {
+        function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ id: this.lastID });
         }
@@ -6244,7 +6252,7 @@ app.post('/api/epi-templates', authenticateToken, (req, res) => {
 });
 
 app.delete('/api/epi-templates/:id', authenticateToken, (req, res) => {
-    db.run('DELETE FROM epi_templates WHERE id=?', [req.params.id], function(err) {
+    db.run('DELETE FROM epi_templates WHERE id=?', [req.params.id], function (err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ success: true });
     });
@@ -6274,7 +6282,7 @@ app.post('/api/usuarios', authenticateToken, (req, res) => {
     db.run(
         'INSERT INTO usuarios (username, password_hash, nome, email, departamento, grupo_permissao_id, role, ativo) VALUES (?,?,?,?,?,?,?,1)',
         [username, hash, nome || username, email || null, departamento || 'RH', grupo_permissao_id || null, role || 'Operacional'],
-        function(err) {
+        function (err) {
             if (err) {
                 const msg = err.message.includes('UNIQUE') ? 'Este username já está cadastrado.' : err.message;
                 return res.status(400).json({ error: msg });
@@ -6288,16 +6296,16 @@ app.put('/api/usuarios/:id', authenticateToken, (req, res) => {
     const { nome, email, departamento, grupo_permissao_id, role, ativo, password } = req.body;
     const updates = [];
     const values = [];
-    if (nome !== undefined)               { updates.push('nome = ?');               values.push(nome); }
-    if (email !== undefined)              { updates.push('email = ?');              values.push(email); }
-    if (departamento !== undefined)       { updates.push('departamento = ?');       values.push(departamento); }
+    if (nome !== undefined) { updates.push('nome = ?'); values.push(nome); }
+    if (email !== undefined) { updates.push('email = ?'); values.push(email); }
+    if (departamento !== undefined) { updates.push('departamento = ?'); values.push(departamento); }
     if (grupo_permissao_id !== undefined) { updates.push('grupo_permissao_id = ?'); values.push(grupo_permissao_id); }
-    if (role !== undefined)               { updates.push('role = ?');               values.push(role); }
-    if (ativo !== undefined)              { updates.push('ativo = ?');              values.push(ativo); }
-    if (password)                         { updates.push('password_hash = ?');      values.push(bcrypt.hashSync(password, 10)); }
+    if (role !== undefined) { updates.push('role = ?'); values.push(role); }
+    if (ativo !== undefined) { updates.push('ativo = ?'); values.push(ativo); }
+    if (password) { updates.push('password_hash = ?'); values.push(bcrypt.hashSync(password, 10)); }
     if (updates.length === 0) return res.json({ message: 'Nenhuma alteração' });
     values.push(req.params.id);
-    db.run(`UPDATE usuarios SET ${updates.join(', ')} WHERE id = ?`, values, function(err) {
+    db.run(`UPDATE usuarios SET ${updates.join(', ')} WHERE id = ?`, values, function (err) {
         if (err) return res.status(400).json({ error: err.message });
         res.json({ message: 'Usuário atualizado com sucesso' });
     });
@@ -6313,7 +6321,7 @@ app.delete('/api/logistica/credenciamentos/limpar-lista', authenticateToken, (re
 });
 
 app.delete('/api/usuarios/:id', authenticateToken, (req, res) => {
-    db.run('UPDATE usuarios SET ativo = 0 WHERE id = ?', [req.params.id], function(err) {
+    db.run('UPDATE usuarios SET ativo = 0 WHERE id = ?', [req.params.id], function (err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ message: 'Usuário inativado' });
     });
@@ -6340,7 +6348,7 @@ app.post('/api/grupos-permissao', authenticateToken, (req, res) => {
     db.run(
         'INSERT INTO grupos_permissao (nome, descricao, departamento, tipo, base_usuario_id) VALUES (?,?,?,?,?)',
         [nome, descricao || '', departamento || 'Todas', tipo || 'personalizado', base_usuario_id || null],
-        function(err) {
+        function (err) {
             if (err) {
                 const msg = err.message.includes('UNIQUE') ? 'Já existe um grupo com este nome.' : err.message;
                 return res.status(400).json({ error: msg });
@@ -6355,7 +6363,7 @@ app.put('/api/grupos-permissao/:id', authenticateToken, (req, res) => {
     db.run(
         'UPDATE grupos_permissao SET nome=?, descricao=?, departamento=?, tipo=? WHERE id=?',
         [nome, descricao, departamento, tipo, req.params.id],
-        function(err) {
+        function (err) {
             if (err) return res.status(400).json({ error: err.message });
             res.json({ message: 'Grupo atualizado' });
         }
@@ -6363,7 +6371,7 @@ app.put('/api/grupos-permissao/:id', authenticateToken, (req, res) => {
 });
 
 app.delete('/api/grupos-permissao/:id', authenticateToken, (req, res) => {
-    db.run('DELETE FROM grupos_permissao WHERE id = ?', [req.params.id], function(err) {
+    db.run('DELETE FROM grupos_permissao WHERE id = ?', [req.params.id], function (err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ message: 'Grupo removido' });
     });
@@ -6402,7 +6410,7 @@ app.put('/api/grupos-permissao/:id/permissoes', authenticateToken, (req, res) =>
             permissoes.forEach(p => {
                 stmt.run(
                     [gid, p.modulo, p.pagina_id, p.pagina_nome,
-                     p.visualizar ? 1 : 0, p.alterar ? 1 : 0, p.incluir ? 1 : 0, p.excluir ? 1 : 0],
+                        p.visualizar ? 1 : 0, p.alterar ? 1 : 0, p.incluir ? 1 : 0, p.excluir ? 1 : 0],
                     (err) => { if (err) hasError = true; }
                 );
             });
@@ -6465,7 +6473,7 @@ app.get('/api/auditoria/:id?', authenticateToken, (req, res) => {
 
     let sql = `SELECT * FROM auditoria`;
     let params = [];
-    
+
     if (programa) {
         // Filtro por programa específico (Cargos, Faculdade, EPI, Avaliações)
         sql += ` WHERE programa LIKE ?`;
@@ -6484,7 +6492,7 @@ app.get('/api/auditoria/:id?', authenticateToken, (req, res) => {
         }
         // else: sem WHERE ? geral
     }
-    
+
     sql += ` ORDER BY data_hora DESC LIMIT 200`;
 
     db.all(sql, params, (err, rows) => {
@@ -6527,7 +6535,7 @@ app.post('/api/gerador-departamento-templates', authenticateToken, (req, res) =>
     const { gerador_id, departamento_id } = req.body;
     if (!gerador_id || !departamento_id) return res.status(400).json({ error: 'gerador_id e departamento_id são obrigatórios' });
     db.run('INSERT OR IGNORE INTO gerador_departamento_templates (gerador_id, departamento_id) VALUES (?, ?)',
-        [gerador_id, departamento_id], function(err) {
+        [gerador_id, departamento_id], function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ ok: true, id: this.lastID });
         });
@@ -6548,7 +6556,7 @@ app.post('/api/gerador-departamento-templates/batch', authenticateToken, (req, r
                 db.run('COMMIT');
                 return res.json({ ok: true });
             }
-            
+
             const stmt = db.prepare('INSERT INTO gerador_departamento_templates (gerador_id, departamento_id) VALUES (?, ?)');
             let errors = 0;
             templates.forEach(t => {
@@ -6571,7 +6579,7 @@ app.post('/api/gerador-departamento-templates/batch', authenticateToken, (req, r
 
 app.delete('/api/gerador-departamento-templates/:gerador_id/:departamento_id', authenticateToken, (req, res) => {
     db.run('DELETE FROM gerador_departamento_templates WHERE gerador_id = ? AND departamento_id = ?',
-        [req.params.gerador_id, req.params.departamento_id], function(err) {
+        [req.params.gerador_id, req.params.departamento_id], function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ ok: true, removed: this.changes });
         });
@@ -6601,7 +6609,7 @@ app.post('/api/gerador-outros-contratos-templates/batch', authenticateToken, (re
         db.run('DELETE FROM gerador_outros_contratos_templates', [], (err) => {
             if (err) { db.run('ROLLBACK'); return res.status(500).json({ error: err.message }); }
             if (templates.length === 0) { db.run('COMMIT'); return res.json({ ok: true }); }
-            
+
             const stmt = db.prepare('INSERT INTO gerador_outros_contratos_templates (gerador_id, departamento_id) VALUES (?, ?)');
             let errors = 0;
             templates.forEach(t => { stmt.run([t.gerador_id, t.departamento_id], err => { if (err) errors++; }); });
@@ -6625,13 +6633,13 @@ const CERT_DIR = (() => {
     }
     return path.join(__dirname, 'data', '_certificados');
 })();
-if (!fs.existsSync(CERT_DIR)) { try { fs.mkdirSync(CERT_DIR, { recursive: true }); } catch(e) {} }
+if (!fs.existsSync(CERT_DIR)) { try { fs.mkdirSync(CERT_DIR, { recursive: true }); } catch (e) { } }
 console.log(`[CERT] Diretório do certificado: ${CERT_DIR}`);
 
 const uploadCertificado = multer({
     storage: multer.diskStorage({
         destination: (req, file, cb) => cb(null, CERT_DIR),
-        filename:    (req, file, cb) => cb(null, 'certificado.pfx')
+        filename: (req, file, cb) => cb(null, 'certificado.pfx')
     }),
     fileFilter: (req, file, cb) => {
         if (file.originalname.toLowerCase().endsWith('.pfx') || file.mimetype === 'application/x-pkcs12') {
@@ -6672,7 +6680,7 @@ app.post('/api/certificado-digital/testar-assinatura', authenticateToken, async 
     try {
         const { PDFDocument } = require('pdf-lib');
         const tmpDoc = await PDFDocument.create();
-        const pg     = tmpDoc.addPage([595, 842]);
+        const pg = tmpDoc.addPage([595, 842]);
         pg.drawText('Teste de assinatura digital - America Rental', { x: 50, y: 700, size: 14 });
         pg.drawText(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, { x: 50, y: 680, size: 10 });
         const tmpBuffer = Buffer.from(await tmpDoc.save());
@@ -6690,7 +6698,7 @@ app.post('/api/certificado-digital/testar-assinatura', authenticateToken, async 
             tamanhoAssinado: pdfAssinado.length,
             mensagem: 'Assinatura digital funcionando corretamente!'
         });
-    } catch(e) {
+    } catch (e) {
         console.error('[CERT-TEST] ERRO na assinatura:', e.message);
         res.status(500).json({ ok: false, etapa: 'assinatura', erro: e.message });
     }
@@ -6703,8 +6711,8 @@ app.post('/api/certificado-digital/testar-assinatura', authenticateToken, async 
  */
 app.post('/api/certificado-digital/upload', authenticateToken, uploadCertificado.single('certificado'), async (req, res) => {
     // Apenas usuários da Diretoria podem gerenciar o certificado
-    const isDiretoria = req.user?.role === 'Diretoria' 
-        || req.user?.role === 'Administrador' 
+    const isDiretoria = req.user?.role === 'Diretoria'
+        || req.user?.role === 'Administrador'
         || req.user?.departamento === 'Diretoria'
         || (req.user?.grupo_nome && req.user.grupo_nome.toLowerCase() === 'diretoria');
     if (!isDiretoria) {
@@ -6719,7 +6727,7 @@ app.post('/api/certificado-digital/upload', authenticateToken, uploadCertificado
     const info = signPdfPfx.infosCertificado(pfxPath, senha);
     if (!info.ok) {
         // Remover arquivo inválido
-        try { fs.unlinkSync(pfxPath); } catch(e) {}
+        try { fs.unlinkSync(pfxPath); } catch (e) { }
         return res.status(400).json({ error: `Certificado inválido ou senha incorreta: ${info.erro}` });
     }
 
@@ -6742,8 +6750,8 @@ app.post('/api/certificado-digital/upload', authenticateToken, uploadCertificado
  * Remove o certificado configurado
  */
 app.delete('/api/certificado-digital', authenticateToken, (req, res) => {
-    const isDiretoria = req.user?.role === 'Diretoria' 
-        || req.user?.role === 'Administrador' 
+    const isDiretoria = req.user?.role === 'Diretoria'
+        || req.user?.role === 'Administrador'
         || req.user?.departamento === 'Diretoria'
         || (req.user?.grupo_nome && req.user.grupo_nome.toLowerCase() === 'diretoria');
     if (!isDiretoria) {
@@ -6753,7 +6761,7 @@ app.delete('/api/certificado-digital', authenticateToken, (req, res) => {
     db.run(`DELETE FROM configuracoes_sistema WHERE chave IN ('pfx_path','pfx_password_b64')`);
     // Remover arquivo físico do CERT_DIR
     const certFile = path.join(CERT_DIR, 'certificado.pfx');
-    if (fs.existsSync(certFile)) { try { fs.unlinkSync(certFile); } catch(e) {} }
+    if (fs.existsSync(certFile)) { try { fs.unlinkSync(certFile); } catch (e) { } }
     // Limpar env vars em memória
     delete process.env.PFX_PATH;
     delete process.env.PFX_PASSWORD;
@@ -6773,7 +6781,7 @@ app.post('/api/certificado-digital/testar', authenticateToken, async (req, res) 
         // Criar um PDF mínimo de teste via pdf-lib
         const { PDFDocument } = require('pdf-lib');
         const pdf = await PDFDocument.create();
-        const pg  = pdf.addPage();
+        const pg = pdf.addPage();
         pg.drawText('Teste de Assinatura Digital - America Rental', { x: 50, y: 700, size: 16 });
         pg.drawText(`Data: ${new Date().toLocaleString('pt-BR')}`, { x: 50, y: 670, size: 12 });
         const pdfBytes = await pdf.save({ useObjectStreams: false });
@@ -6781,7 +6789,7 @@ app.post('/api/certificado-digital/testar', authenticateToken, async (req, res) 
         const pdfAssinado = await signPdfPfx.assinarPDF(Buffer.from(pdfBytes));
         console.log(`[CERT-TEST] Tamanho do PDF assinado: ${pdfAssinado.length} bytes`);
         res.json({ ok: true, tamanho_bytes: pdfAssinado.length, message: '? Assinatura digital funcionando corretamente!' });
-    } catch(e) {
+    } catch (e) {
         res.status(500).json({ ok: false, erro: e.message });
     }
 });
@@ -6951,14 +6959,16 @@ app.get('/api/colaboradores/:id/ficha-admissao/html', authenticateToken, async (
             const html = getFichaAdmissaoHtml(row, baseUrl);
             const pdfBuffer = await htmlPdf.generatePdf(
                 { content: html },
-                { format: 'A4', margin: { top: '1cm', bottom: '1cm', left: '1cm', right: '1cm' },
-                  printBackground: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] }
+                {
+                    format: 'A4', margin: { top: '1cm', bottom: '1cm', left: '1cm', right: '1cm' },
+                    printBackground: true, args: ['--no-sandbox', '--disable-setuid-sandbox']
+                }
             );
             const nomeArq = encodeURIComponent(`Ficha_Admissao_${row.nome_completo || 'Colaborador'}.pdf`);
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Content-Disposition', `inline; filename="${nomeArq}"`);
             res.send(pdfBuffer);
-        } catch(e) {
+        } catch (e) {
             console.error('[FICHA-ADMISSAO]', e.message);
             res.status(500).json({ error: e.message });
         }
@@ -6970,10 +6980,10 @@ app.post('/api/colaboradores/:id/enviar-ficha-contabilidade', authenticateToken,
     const { email, data_inicio } = req.body;
     if (!email) return res.status(400).json({ error: 'Email destino é obrigatório' });
     if (!data_inicio) return res.status(400).json({ error: 'Data de início é obrigatória' });
-    
+
     db.get('SELECT * FROM colaboradores WHERE id = ?', [id], async (err, row) => {
         if (err || !row) return res.status(404).json({ error: 'Colaborador não encontrado' });
-        
+
         try {
             const deps = await new Promise((resolve) =>
                 db.all('SELECT * FROM dependentes WHERE colaborador_id = ?', [id], (e, r) => resolve(r || []))
@@ -7014,12 +7024,12 @@ app.post('/api/colaboradores/:id/enviar-ficha-contabilidade', authenticateToken,
             for (const doc of docsDb) {
                 const fs = require('fs');
                 const path = require('path');
-                
+
                 // For ASO docs: signed = assinado por ambos (empresa + colaborador)
                 // Priority: signed_file_path > file_path
                 let localPath = null;
                 let isSigned = false;
-                
+
                 if (doc.signed_file_path && fs.existsSync(doc.signed_file_path)) {
                     localPath = doc.signed_file_path;
                     isSigned = true;
@@ -7027,18 +7037,18 @@ app.post('/api/colaboradores/:id/enviar-ficha-contabilidade', authenticateToken,
                     localPath = doc.file_path;
                     isSigned = false;
                 }
-                
+
                 if (localPath) {
                     const ext = path.extname(localPath) || '.pdf';
                     let baseType = (doc.document_type || 'Documento').replace(/[^a-zA-Z0-9 áéíóúãõçÁÉÍÓÚÃÕÇ-]/g, '').trim();
                     // For ASO, annotate if it's the signed version
                     let signedTag = (doc.tab_name === 'ASO' && isSigned) ? ' (Assinado)' : '';
                     let safeName = `${baseType}${signedTag} - ${row.nome_completo || row.nome}${ext}`;
-                    
+
                     if (doc.tab_name === 'ASO' && !isSigned) {
                         console.warn(`[CONTABILIDADE] ASO sem assinatura sendo usado para ${row.nome_completo}. Signed path: ${doc.signed_file_path || 'N/A'}`);
                     }
-                    
+
                     anexosParaEnviar.push({
                         filename: safeName,
                         path: localPath
@@ -7174,16 +7184,16 @@ app.post('/api/colaboradores/:id/multas/upload-notificacao', authenticateToken, 
         };
 
         // Regex adaptados para o layout SENATRAN
-        const placa           = extract(/PLACA\s*\n([A-Z0-9]{7})/i) || extract(/PLACA\s+([A-Z]{3}[0-9][A-Z0-9][0-9]{2})/i);
-        const veiculo         = extract(/MARCA\/MODELO\/VERS[ÃA]O\s*\n(.+)/i);
-        const codigoInfracao  = extract(/C[ÓO]DIGO DA INFRA[ÇC][ÃA]O\s*\n(\d{4,6})/i);
-        const descricao       = extract(/DESCRI[ÇC][ÃA]O DA INFRA[ÇC][ÃA]O\s*\n(.+)/i);
-        const dataInfracao    = extract(/\bDATA\b\s*\n(\d{2}\/\d{2}\/\d{4})/i);
-        const horaInfracao    = extract(/\bHORA\b\s*\n(\d{2}:\d{2})/i);
-        const localInfracao   = extract(/LOCAL DA INFRA[ÇC][ÃA]O\s*\n(.+)/i);
-        const valorMulta      = extract(/VALOR DA MULTA\s*\nRS?\s*([\d.,]+)/i);
-        const numeroAit       = extract(/N[ÚU]MERO DO AUTO DE INFRA[ÇC][ÃA]O\s*\n([A-Z0-9]+)/i) ||
-                                 extract(/IDENTIFICA[ÇC][ÃA]O DO AUTO DE INFRA[ÇC][ÃA]O[^\n]*\n([A-Z0-9]+)/i);
+        const placa = extract(/PLACA\s*\n([A-Z0-9]{7})/i) || extract(/PLACA\s+([A-Z]{3}[0-9][A-Z0-9][0-9]{2})/i);
+        const veiculo = extract(/MARCA\/MODELO\/VERS[ÃA]O\s*\n(.+)/i);
+        const codigoInfracao = extract(/C[ÓO]DIGO DA INFRA[ÇC][ÃA]O\s*\n(\d{4,6})/i);
+        const descricao = extract(/DESCRI[ÇC][ÃA]O DA INFRA[ÇC][ÃA]O\s*\n(.+)/i);
+        const dataInfracao = extract(/\bDATA\b\s*\n(\d{2}\/\d{2}\/\d{4})/i);
+        const horaInfracao = extract(/\bHORA\b\s*\n(\d{2}:\d{2})/i);
+        const localInfracao = extract(/LOCAL DA INFRA[ÇC][ÃA]O\s*\n(.+)/i);
+        const valorMulta = extract(/VALOR DA MULTA\s*\nRS?\s*([\d.,]+)/i);
+        const numeroAit = extract(/N[ÚU]MERO DO AUTO DE INFRA[ÇC][ÃA]O\s*\n([A-Z0-9]+)/i) ||
+            extract(/IDENTIFICA[ÇC][ÃA]O DO AUTO DE INFRA[ÇC][ÃA]O[^\n]*\n([A-Z0-9]+)/i);
 
         // Lookup CTB para pontuação/valor oficial
         const ctb = CTB_TABLE[codigoInfracao] || {};
@@ -7231,7 +7241,7 @@ app.post('/api/colaboradores/:id/multas', authenticateToken, multaUpload.single(
         db.run(stmt, [id, body.codigo_infracao, body.descricao_infracao, body.placa, body.veiculo,
             body.data_infracao, body.hora_infracao, body.local_infracao, body.numero_ait,
             body.pontuacao, body.valor_multa, null],
-            function(insertErr) {
+            function (insertErr) {
                 if (insertErr) return res.status(500).json({ error: insertErr.message });
                 const multaId = this.lastID;
 
@@ -7240,14 +7250,14 @@ app.post('/api/colaboradores/:id/multas', authenticateToken, multaUpload.single(
                     ? (body.data_infracao.includes('-')
                         ? body.data_infracao.split('-').reverse().join('')
                         : body.data_infracao.replace(/\D/g, ''))
-                    : String(new Date().getDate()).padStart(2,'0') + String(new Date().getMonth()+1).padStart(2,'0') + new Date().getFullYear();
+                    : String(new Date().getDate()).padStart(2, '0') + String(new Date().getMonth() + 1).padStart(2, '0') + new Date().getFullYear();
                 const pastaNome = codigo + '_' + dataInf + '_' + multaId;
 
                 res.json({ sucesso: true, id: multaId, pasta: pastaNome });
 
                 // Upload da notificacao no OneDrive via Graph API (assíncrono)
                 if (req.file && onedrive) {
-                    ;(async () => {
+                    ; (async () => {
                         try {
                             const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || 'RH/1.Colaboradores/Sistema';
                             const targetDir = onedriveBasePath + '/' + nomeFormatado + '/MULTAS/' + pastaNome;
@@ -7259,7 +7269,7 @@ app.post('/api/colaboradores/:id/multas', authenticateToken, multaUpload.single(
                             await onedrive.uploadToOneDrive(targetDir, nomeNotif, req.file.buffer);
                             db.run('UPDATE multas SET notificacao_path = ? WHERE id = ?', [targetDir + '/' + nomeNotif, multaId]);
                             console.log('[MULTA-NOTIF] Notificacao salva: ' + targetDir + '/' + nomeNotif);
-                        } catch(e) { console.error('[MULTA-NOTIF] Erro OneDrive:', e.message); }
+                        } catch (e) { console.error('[MULTA-NOTIF] Erro OneDrive:', e.message); }
                     })();
                 }
             }
@@ -7290,7 +7300,7 @@ app.delete('/api/colaboradores/:id/multas/:multaId', authenticateToken, (req, re
         if (row.status === 'assinado' || row.status === 'confirmado') {
             return res.status(403).json({ error: 'Não é possível excluir uma multa já assinada ou confirmada.' });
         }
-        db.run('DELETE FROM multas WHERE id = ?', [multaId], function(e) {
+        db.run('DELETE FROM multas WHERE id = ?', [multaId], function (e) {
             if (e) return res.status(500).json({ error: e.message });
             res.json({ sucesso: true });
         });
@@ -7314,8 +7324,8 @@ app.post('/api/colaboradores/:id/multas/:multaId/gerar-documento', authenticateT
         const check2x = parcelas === 2 ? 'X' : '&nbsp;';
         const check3x = parcelas === 3 ? 'X' : '&nbsp;';
         // Calcular valor das parcelas
-        const _vBruto = multa.valor_multa ? parseFloat(String(multa.valor_multa).replace(/[^0-9,.]/g,'').replace(',','.')) : 0;
-        const _fmt = (v) => v > 0 ? 'R\$ ' + v.toFixed(2).replace('.',',') : '';
+        const _vBruto = multa.valor_multa ? parseFloat(String(multa.valor_multa).replace(/[^0-9,.]/g, '').replace(',', '.')) : 0;
+        const _fmt = (v) => v > 0 ? 'R\$ ' + v.toFixed(2).replace('.', ',') : '';
         const _v1 = _fmt(_vBruto);
         const _v2 = _fmt(_vBruto / 2);
         const _v3 = _fmt(_vBruto / 3);
@@ -7325,7 +7335,7 @@ app.post('/api/colaboradores/:id/multas/:multaId/gerar-documento', authenticateT
         const admissao = colab.data_admissao ? new Date(colab.data_admissao).toLocaleDateString('pt-BR') : '---';
         const endereco = [colab.endereco, colab.bairro, colab.cidade, colab.estado].filter(Boolean).join(', ') || '---';
         const cargo = colab.cargo || '';
-        const salario = colab.salario ? `R$ ${parseFloat(colab.salario).toFixed(2).replace('.',',')}` : '---';
+        const salario = colab.salario ? `R$ ${parseFloat(colab.salario).toFixed(2).replace('.', ',')}` : '---';
         const celular = colab.celular || colab.telefone || '---';
         const email = colab.email || '---';
 
@@ -7411,15 +7421,15 @@ app.post('/api/colaboradores/:id/multas/:multaId/gerar-documento', authenticateT
             (${check2x}) <strong>2x</strong>${_v2 ? ' — ' + _v2 + '/mês' : ''} &nbsp;&nbsp;&nbsp;
             (${check3x}) <strong>3x</strong>${_v3 ? ' — ' + _v3 + '/mês' : ''}
         </p>
-        ${(function() {
-            var meses = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
-            var d = multa.data_infracao ? new Date(multa.data_infracao + 'T12:00:00') : new Date();
-            var hoje = new Date();
-            var dia = hoje.getDate();
-            var mes = meses[hoje.getMonth()];
-            var ano = hoje.getFullYear();
-            return '<p class="data-local"><strong>Guarulhos, ' + dia + ' de ' + mes + ' de ' + ano + '.</strong></p>';
-        })()}
+        ${(function () {
+                var meses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+                var d = multa.data_infracao ? new Date(multa.data_infracao + 'T12:00:00') : new Date();
+                var hoje = new Date();
+                var dia = hoje.getDate();
+                var mes = meses[hoje.getMonth()];
+                var ano = hoje.getFullYear();
+                return '<p class="data-local"><strong>Guarulhos, ' + dia + ' de ' + mes + ' de ' + ano + '.</strong></p>';
+            })()}
         </body></html>`;
 
         res.json({ sucesso: true, html });
@@ -7462,7 +7472,7 @@ app.post('/api/colaboradores/:id/multas/:multaId/assinar-testemunhas', authentic
         (err) => {
             if (err) return res.status(500).json({ error: err.message });
             if (onedrive && documento_html) {
-                ;(async () => {
+                ; (async () => {
                     try {
                         const colab = await new Promise((resolve, reject) => db.get(
                             'SELECT c.nome_completo, m.codigo_infracao, m.data_infracao, m.id FROM multas m JOIN colaboradores c ON c.id = m.colaborador_id WHERE m.id = ?',
@@ -7512,7 +7522,7 @@ app.post('/api/colaboradores/:id/multas/:multaId/assinar-condutor', authenticate
         await new Promise((resolve, reject) => db.run(sqlUpdate, sqlParams, (e) => e ? reject(e) : resolve()));
         // Salvar PDF final no OneDrive (pasta unica por multa)
         if (onedrive && documento_html) {
-            ;(async () => {
+            ; (async () => {
                 try {
                     const colab = await new Promise((resolve, reject) => db.get(
                         'SELECT c.nome_completo, m.codigo_infracao, m.data_infracao, m.id FROM multas m JOIN colaboradores c ON c.id = m.colaborador_id WHERE m.id = ?',
@@ -7544,7 +7554,7 @@ app.post('/api/colaboradores/:id/multas/:multaId/assinar-condutor', authenticate
             })();
         }
         res.json({ sucesso: true });
-    } catch(e) {
+    } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
@@ -7631,7 +7641,7 @@ app.post('/api/dissidio/aplicar', authenticateToken, async (req, res) => {
             const reaisFormatted = reais.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
             return `R$ ${reaisFormatted},${cents}`;
         };
-        
+
         let totalAntes = 0;
         let atualizados = 0;
         const salNewStr = formatBRL(targetSalary);
@@ -7644,11 +7654,11 @@ app.post('/api/dissidio/aplicar', authenticateToken, async (req, res) => {
             );
             atualizados++;
         }
-        
+
         const mediaAntes = totalAntes / atualizados;
         const totalDepois = targetSalary * atualizados;
         const mediaDepois = targetSalary;
-        
+
         // Calcular % de reajuste com base na média anterior vs média atual
         let pct = 0;
         if (mediaAntes > 0) {
@@ -7660,7 +7670,7 @@ app.post('/api/dissidio/aplicar', authenticateToken, async (req, res) => {
                 [cargo, pct, mediaAntes, mediaDepois, atualizados], (err) => err ? reject(err) : resolve())
         );
         res.json({ ok: true, atualizados, cargo, novo_salario: targetSalary, percentual: pct });
-    } catch(e) {
+    } catch (e) {
         console.error('[Dissídio] Erro ao aplicar:', e.message);
         res.status(500).json({ error: e.message });
     }
@@ -7694,10 +7704,18 @@ db.run(`CREATE TABLE IF NOT EXISTS experiencia_formularios (
     atualizado_em TEXT DEFAULT (datetime('now')),
     FOREIGN KEY (colaborador_id) REFERENCES colaboradores(id)
 )`, () => {
-    db.run("ALTER TABLE experiencia_formularios ADD COLUMN data_envio_email TEXT", () => {});
+    db.run("ALTER TABLE experiencia_formularios ADD COLUMN data_envio_email TEXT", () => { });
 });
 
 db.run(`CREATE TABLE IF NOT EXISTS experiencia_notificacoes_pendentes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tipo TEXT,
+    dados TEXT,
+    criado_em TEXT DEFAULT (datetime('now')),
+    lido INTEGER DEFAULT 0
+)`);
+
+db.run(`CREATE TABLE IF NOT EXISTS logistica_notificacoes_pendentes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     tipo TEXT,
     dados TEXT,
@@ -7729,21 +7747,21 @@ app.get('/api/experiencia/publico/info', (req, res) => {
     try {
         const payload = jwt.verify(req.query.token, SECRET_KEY);
         // exp is handled automatically by jwt, but we included a custom one or just use standard
-        
+
         db.get(`SELECT c.*, (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as responsavel_nome FROM colaboradores c LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento)) WHERE c.id = ?`, [payload.colab_id], (err, colab) => {
             if (err || !colab) return res.status(404).json({ error: 'Colaborador não encontrado.' });
-            
+
             db.get(`SELECT * FROM experiencia_formularios WHERE colaborador_id = ? ORDER BY criado_em DESC LIMIT 1`, [colab.id], (err2, form) => {
                 let parsedForm = null;
                 if (form) {
                     parsedForm = { ...form };
-                    try { parsedForm.respostas = JSON.parse(form.respostas || '{}'); } catch(e) { parsedForm.respostas = {}; }
+                    try { parsedForm.respostas = JSON.parse(form.respostas || '{}'); } catch (e) { parsedForm.respostas = {}; }
                 }
                 const prazos = calcPrazoExp(colab.data_admissao);
                 res.json({ colaborador: { ...colab, ...prazos }, formulario: parsedForm });
             });
         });
-    } catch(e) {
+    } catch (e) {
         res.status(400).json({ error: 'Token inválido ou expirado.' });
     }
 });
@@ -7753,7 +7771,7 @@ async function gerarESalvarPDFExperiencia(colab, respostas, pontuacao, situacao_
         const htmlPdf = require('html-pdf-node');
         const fs = require('fs');
         const path = require('path');
-        
+
         let htmlRespostas = '';
         if (respostas) {
             for (const [pergunta, resp] of Object.entries(respostas)) {
@@ -7798,17 +7816,17 @@ async function gerarESalvarPDFExperiencia(colab, respostas, pontuacao, situacao_
         const safeFolder = formatarNome(colab.nome_completo);
         const baseDrivePath = "C:\\A\\OneDrive - AMERICA RENTAL EQUIPAMENTOS LTDA\\Documentos - America Rental\\RH\\1.Colaboradores\\Sistema";
         const targetDir = path.join(baseDrivePath, safeFolder, "AVALIACAO");
-        
+
         if (!fs.existsSync(targetDir)) {
             fs.mkdirSync(targetDir, { recursive: true });
         }
-        
+
         const fileName = `Experiencia_${safeFolder}.pdf`;
         const filePath = path.join(targetDir, fileName);
-        
+
         fs.writeFileSync(filePath, fileBuffer);
         console.log(`[PDF Experiencia] PDF salvo com sucesso em: ${filePath}`);
-    } catch(e) {
+    } catch (e) {
         console.error('[PDF Experiencia] Erro ao gerar/salvar PDF:', e);
     }
 }
@@ -7816,40 +7834,40 @@ async function gerarESalvarPDFExperiencia(colab, respostas, pontuacao, situacao_
 app.post('/api/experiencia/publico/submit', (req, res) => {
     try {
         const payload = jwt.verify(req.query.token, SECRET_KEY);
-        
+
         const { respostas, pontuacao, situacao_avaliacao, comentarios } = req.body;
-        
+
         db.get(`SELECT c.*, (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as responsavel_nome FROM colaboradores c LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento)) WHERE c.id = ?`, [payload.colab_id], (err, colab) => {
             if (err || !colab) return res.status(404).json({ error: 'Colaborador não encontrado.' });
-            
+
             db.get(`SELECT id FROM experiencia_formularios WHERE colaborador_id = ? ORDER BY criado_em DESC LIMIT 1`, [colab.id], (err2, exist) => {
                 if (exist) {
                     db.run(`UPDATE experiencia_formularios SET respostas = ?, pontuacao = ?, situacao_avaliacao = ?, comentarios = ?, responsavel_nome = ?, situacao = 'finalizado', atualizado_em = datetime('now') WHERE id = ?`,
-                    [JSON.stringify(respostas), pontuacao, situacao_avaliacao, comentarios, colab.responsavel_nome, exist.id], (err3) => {
-                        if (err3) return res.status(500).json({ error: err3.message });
-                        db.run(`INSERT INTO experiencia_notificacoes_pendentes (tipo, dados) VALUES (?, ?)`, ['formulario_finalizado', JSON.stringify({ colaborador_nome: colab.nome_completo, departamento: colab.departamento, resultado: situacao_avaliacao, pontuacao })]);
-                        gerarESalvarPDFExperiencia(colab, respostas, pontuacao, situacao_avaliacao, comentarios);
-                        res.json({ ok: true, responsavel_nome: colab.responsavel_nome, colaborador_nome: colab.nome_completo });
-                    });
+                        [JSON.stringify(respostas), pontuacao, situacao_avaliacao, comentarios, colab.responsavel_nome, exist.id], (err3) => {
+                            if (err3) return res.status(500).json({ error: err3.message });
+                            db.run(`INSERT INTO experiencia_notificacoes_pendentes (tipo, dados) VALUES (?, ?)`, ['formulario_finalizado', JSON.stringify({ colaborador_nome: colab.nome_completo, departamento: colab.departamento, resultado: situacao_avaliacao, pontuacao })]);
+                            gerarESalvarPDFExperiencia(colab, respostas, pontuacao, situacao_avaliacao, comentarios);
+                            res.json({ ok: true, responsavel_nome: colab.responsavel_nome, colaborador_nome: colab.nome_completo });
+                        });
                 } else {
                     db.run(`INSERT INTO experiencia_formularios (colaborador_id, responsavel_nome, respostas, pontuacao, situacao_avaliacao, comentarios, situacao) VALUES (?, ?, ?, ?, ?, ?, 'finalizado')`,
-                    [colab.id, colab.responsavel_nome, JSON.stringify(respostas), pontuacao, situacao_avaliacao, comentarios], function(err3) {
-                        if (err3) return res.status(500).json({ error: err3.message });
-                        db.run(`INSERT INTO experiencia_notificacoes_pendentes (tipo, dados) VALUES (?, ?)`, ['formulario_finalizado', JSON.stringify({ colaborador_nome: colab.nome_completo, departamento: colab.departamento, resultado: situacao_avaliacao, pontuacao })]);
-                        gerarESalvarPDFExperiencia(colab, respostas, pontuacao, situacao_avaliacao, comentarios);
-                        res.json({ ok: true, form_id: this.lastID, responsavel_nome: colab.responsavel_nome, colaborador_nome: colab.nome_completo });
-                    });
+                        [colab.id, colab.responsavel_nome, JSON.stringify(respostas), pontuacao, situacao_avaliacao, comentarios], function (err3) {
+                            if (err3) return res.status(500).json({ error: err3.message });
+                            db.run(`INSERT INTO experiencia_notificacoes_pendentes (tipo, dados) VALUES (?, ?)`, ['formulario_finalizado', JSON.stringify({ colaborador_nome: colab.nome_completo, departamento: colab.departamento, resultado: situacao_avaliacao, pontuacao })]);
+                            gerarESalvarPDFExperiencia(colab, respostas, pontuacao, situacao_avaliacao, comentarios);
+                            res.json({ ok: true, form_id: this.lastID, responsavel_nome: colab.responsavel_nome, colaborador_nome: colab.nome_completo });
+                        });
                 }
             });
         });
-    } catch(e) {
+    } catch (e) {
         res.status(400).json({ error: 'Token inválido ou expirado.' });
     }
 });
 
 // GET /api/experiencia — Lista colaboradores em ou que passaram pelo período de experiência
 app.get('/api/experiencia', authenticateToken, (req, res) => {
-    const hoje = new Date(); hoje.setHours(0,0,0,0);
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
     // Show all active collaborators with up to 90 days + those who already have a form
     db.all(`
         SELECT c.id, c.nome_completo, c.cargo, c.departamento, c.data_admissao,
@@ -7866,20 +7884,20 @@ app.get('/api/experiencia', authenticateToken, (req, res) => {
         ORDER BY c.data_admissao DESC
     `, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
-        
+
         const result = rows.map(r => {
             const prazos = calcPrazoExp(r.data_admissao);
             if (!prazos) return null;
-            
+
             const prazo2End = new Date(prazos.prazo2_fim + 'T23:59:59');
-            const admDate = new Date(r.data_admissao.includes('/') 
+            const admDate = new Date(r.data_admissao.includes('/')
                 ? r.data_admissao.split('/').reverse().join('-') + 'T12:00:00'
                 : r.data_admissao + 'T12:00:00');
             const daysSinceAdm = Math.floor((hoje - admDate) / 86400000);
-            
+
             // Include if: within 90-day period OR has a form
             if (daysSinceAdm > 120 && !r.form_id) return null;
-            
+
             const diasRestantes = Math.ceil((prazo2End - hoje) / 86400000);
             return {
                 ...r,
@@ -7890,7 +7908,7 @@ app.get('/api/experiencia', authenticateToken, (req, res) => {
                 formulario_resultado: r.formulario_resultado || null
             };
         }).filter(Boolean);
-        
+
         res.json(result);
     });
 });
@@ -7904,14 +7922,14 @@ app.get('/api/experiencia/:colaborador_id', authenticateToken, (req, res) => {
             LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento))
             WHERE c.id = ?`, [colaborador_id], (err, colab) => {
         if (err || !colab) return res.status(404).json({ error: 'Colaborador não encontrado.' });
-        
+
         db.get(`SELECT * FROM experiencia_formularios WHERE colaborador_id = ? ORDER BY criado_em DESC LIMIT 1`, [colaborador_id], (err2, form) => {
             let parsedForm = null;
             if (form) {
                 parsedForm = { ...form };
-                try { parsedForm.respostas = JSON.parse(form.respostas || '{}'); } catch(e) { parsedForm.respostas = {}; }
+                try { parsedForm.respostas = JSON.parse(form.respostas || '{}'); } catch (e) { parsedForm.respostas = {}; }
             }
-            
+
             const prazos = calcPrazoExp(colab.data_admissao);
             res.json({ colaborador: { ...colab, ...prazos }, formulario: parsedForm });
         });
@@ -7922,17 +7940,17 @@ app.get('/api/experiencia/:colaborador_id', authenticateToken, (req, res) => {
 app.post('/api/experiencia/formulario', authenticateToken, (req, res) => {
     const { colaborador_id, respostas, pontuacao, situacao_avaliacao, comentarios, situacao } = req.body;
     if (!colaborador_id) return res.status(400).json({ error: 'colaborador_id obrigatório.' });
-    
+
     const respostasJson = JSON.stringify(respostas || {});
     const now = new Date().toISOString();
-    
+
     db.run(`INSERT INTO experiencia_formularios 
             (colaborador_id, responsavel_nome, respostas, pontuacao, situacao_avaliacao, comentarios, situacao, criado_em, atualizado_em)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [colaborador_id, req.user?.nome || '', respostasJson, pontuacao || 0, situacao_avaliacao || '', comentarios || '', situacao || 'rascunho', now, now],
-        function(err) {
+        function (err) {
             if (err) return res.status(500).json({ error: err.message });
-            
+
             if (situacao === 'finalizado') {
                 // Notify RH users via pending notifications
                 db.get('SELECT c.*, (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as responsavel_nome FROM colaboradores c LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento)) WHERE c.id = ?', [colaborador_id], (e, c) => {
@@ -7949,7 +7967,7 @@ app.post('/api/experiencia/formulario', authenticateToken, (req, res) => {
                     }
                 });
             }
-            
+
             res.status(201).json({ id: this.lastID, ok: true });
         }
     );
@@ -7961,13 +7979,13 @@ app.put('/api/experiencia/formulario/:id', authenticateToken, (req, res) => {
     const { respostas, pontuacao, situacao_avaliacao, comentarios, situacao } = req.body;
     const respostasJson = JSON.stringify(respostas || {});
     const now = new Date().toISOString();
-    
+
     db.run(`UPDATE experiencia_formularios SET respostas=?, pontuacao=?, situacao_avaliacao=?, comentarios=?, situacao=?, atualizado_em=?
             WHERE id=?`,
         [respostasJson, pontuacao || 0, situacao_avaliacao || '', comentarios || '', situacao || 'rascunho', now, id],
-        function(err) {
+        function (err) {
             if (err) return res.status(500).json({ error: err.message });
-            
+
             if (situacao === 'finalizado') {
                 db.get('SELECT c.*, (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as responsavel_nome FROM experiencia_formularios ef JOIN colaboradores c ON c.id = ef.colaborador_id LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento)) WHERE ef.id = ?', [id], (e, c) => {
                     if (!e && c) {
@@ -7983,7 +8001,7 @@ app.put('/api/experiencia/formulario/:id', authenticateToken, (req, res) => {
                     }
                 });
             }
-            
+
             res.json({ ok: true });
         }
     );
@@ -8005,6 +8023,22 @@ app.put('/api/experiencia/notificacoes/:id/lida', authenticateToken, (req, res) 
     });
 });
 
+// GET /api/logistica/notificacoes/pendentes — Polling para popup de Logística
+app.get('/api/logistica/notificacoes/pendentes', authenticateToken, (req, res) => {
+    db.all(`SELECT * FROM logistica_notificacoes_pendentes WHERE lido = 0 ORDER BY criado_em DESC LIMIT 20`, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+// PUT /api/logistica/notificacoes/:id/lida — Marca como lida
+app.put('/api/logistica/notificacoes/:id/lida', authenticateToken, (req, res) => {
+    db.run(`UPDATE logistica_notificacoes_pendentes SET lido = 1 WHERE id = ?`, [req.params.id], (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ ok: true });
+    });
+});
+
 // POST /api/experiencia/enviar-email/:id — Envia e-mail manualmente para o gestor
 app.post('/api/experiencia/enviar-email/:id', authenticateToken, (req, res) => {
     db.get(`SELECT c.id, c.nome_completo, c.cargo, c.departamento, c.data_admissao, c.email_corporativo,
@@ -8018,7 +8052,7 @@ app.post('/api/experiencia/enviar-email/:id', authenticateToken, (req, res) => {
             WHERE c.id = ?`, [req.params.id], async (err, r) => {
         if (err) return res.status(500).json({ error: err.message });
         if (!r) return res.status(404).json({ error: 'Colaborador não encontrado' });
-        
+
         const emailDestino = r.resp_email;
         const prazos = calcPrazoExp(r.data_admissao);
         const diasRestantes = prazos ? Math.ceil((new Date(prazos.prazo2_fim + 'T23:59:59') - new Date()) / 86400000) : '-';
@@ -8028,7 +8062,7 @@ app.post('/api/experiencia/enviar-email/:id', authenticateToken, (req, res) => {
 
         try {
             const transporter = nodemailer.createTransport(SMTP_CONFIG);
-            
+
             let expiresInSeconds = 15 * 86400; // default 15 days
             if (prazos && prazos.prazo2_fim) {
                 const expDate = new Date(prazos.prazo2_fim + 'T23:59:59');
@@ -8036,14 +8070,14 @@ app.post('/api/experiencia/enviar-email/:id', authenticateToken, (req, res) => {
                 const diff = Math.floor((expDate.getTime() - Date.now()) / 1000);
                 if (diff > 0) expiresInSeconds = diff;
             }
-            
+
             const tokenPayload = jwt.sign({
-                colab_id: r.id, 
+                colab_id: r.id,
                 form_id: r.form_id || null
             }, SECRET_KEY, { expiresIn: expiresInSeconds });
-            
+
             const formLink = `${req.protocol}://${req.get('host')}/avaliacao-publica.html?token=${tokenPayload}`;
-            
+
             await sendMailHelper({
                 from: `"América Rental RH" <${process.env.EMAIL_FROM || SMTP_CONFIG.auth.user}>`,
                 to: emailDestino,
@@ -8058,7 +8092,7 @@ app.post('/api/experiencia/enviar-email/:id', authenticateToken, (req, res) => {
                     tipo: 'manual'
                 })
             });
-            
+
             const dataEnvioDataTime = new Date().toISOString();
             if (r.form_id) {
                 db.run(`UPDATE experiencia_formularios SET situacao = 'enviado', notificacao_15d_enviada = 1, data_envio_email = ? WHERE id = ?`, [dataEnvioDataTime, r.form_id]);
@@ -8066,7 +8100,7 @@ app.post('/api/experiencia/enviar-email/:id', authenticateToken, (req, res) => {
                 db.run(`INSERT INTO experiencia_formularios (colaborador_id, situacao, notificacao_15d_enviada, data_envio_email) VALUES (?, 'enviado', 1, ?)`, [r.id, dataEnvioDataTime]);
             }
             res.json({ ok: true, message: 'E-mail enviado com sucesso para ' + emailDestino });
-        } catch(emailErr) {
+        } catch (emailErr) {
             console.error('[Experiência Manual]', emailErr);
             res.status(500).json({ error: `Falha ao enviar e-mail: ${emailErr.message}` });
         }
@@ -8078,7 +8112,7 @@ function verificarExperienciasVencendo() {
     const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
     const em15Dias = new Date(hoje); em15Dias.setDate(em15Dias.getDate() + 15);
     const em15Str = em15Dias.toISOString().split('T')[0];
-    
+
     db.all(`SELECT c.id, c.nome_completo, c.cargo, c.departamento, c.data_admissao, c.email_corporativo,
                    d.responsavel_id,
                    (SELECT email_corporativo FROM colaboradores WHERE id = d.responsavel_id) as resp_email,
@@ -8091,29 +8125,29 @@ function verificarExperienciasVencendo() {
               AND c.data_admissao IS NOT NULL
               AND c.data_admissao != ''`, [], async (err, rows) => {
         if (err) { console.error('[Experiência CRON]', err.message); return; }
-        
+
         for (const r of rows) {
             const prazos = calcPrazoExp(r.data_admissao);
             if (!prazos) continue;
-            
+
             // Already sent or already has finalized form
             // Removed notificacao_15d_enviada block to ensure it sends daily until answered
             if (r.situacao === 'finalizado') continue;
             if (r.situacao === 'finalizado') continue;
-            
+
             const diasRestantes = Math.ceil((new Date(prazos.prazo2_fim + 'T23:59:59') - hoje) / 86400000);
-            
+
             if (diasRestantes > 0 && diasRestantes <= 15) {
                 const emailDestino = r.resp_email;
                 if (!emailDestino) {
                     console.log(`[Experiência CRON] Sem e-mail do responsável para ${r.nome_completo} (${r.departamento}).`);
                     continue;
                 }
-                
+
                 // Send email
                 try {
                     const transporter = nodemailer.createTransport(SMTP_CONFIG);
-                    
+
                     let expiresInSeconds = 15 * 86400; // default 15 days
                     if (prazos && prazos.prazo2_fim) {
                         const expDate = new Date(prazos.prazo2_fim + 'T23:59:59');
@@ -8123,13 +8157,13 @@ function verificarExperienciasVencendo() {
                     }
 
                     const tokenPayload = jwt.sign({
-                        colab_id: r.id, 
+                        colab_id: r.id,
                         form_id: r.form_id || null
                     }, SECRET_KEY, { expiresIn: expiresInSeconds });
-                    
+
                     const baseUrl = process.env.BASE_URL || 'https://sistema-america.onrender.com';
                     const formLink = `${baseUrl}/avaliacao-publica.html?token=${tokenPayload}`;
-                    
+
                     await sendMailHelper({
                         from: `"América Rental RH" <${process.env.EMAIL_FROM || SMTP_CONFIG.auth.user}>`,
                         to: emailDestino,
@@ -8144,7 +8178,7 @@ function verificarExperienciasVencendo() {
                             tipo: 'automatico'
                         })
                     });
-                    
+
                     const dataEnvioDataTime = new Date().toISOString();
                     // Mark notification as sent
                     if (r.form_id) {
@@ -8153,9 +8187,9 @@ function verificarExperienciasVencendo() {
                         // Create a form record to track notification sent
                         db.run(`INSERT INTO experiencia_formularios (colaborador_id, situacao, notificacao_15d_enviada, data_envio_email) VALUES (?, 'enviado', 1, ?)`, [r.id, dataEnvioDataTime]);
                     }
-                    
+
                     console.log(`[Experiência CRON] E-mail enviado para ${emailDestino} sobre ${r.nome_completo}.`);
-                } catch(emailErr) {
+                } catch (emailErr) {
                     console.error(`[Experiência CRON] Erro no e-mail para ${r.nome_completo}:`, emailErr.message);
                 }
             }
@@ -8197,14 +8231,14 @@ function verificarCRLVVencidoCron() {
     console.log('[CRON] Verificando vencimento de CRLV...');
     db.all(`SELECT id, placa, marca_modelo_versao, exercicio, crlv_alerta_enviado FROM frota_veiculos WHERE exercicio IS NOT NULL AND exercicio != ''`, [], (err, veiculos) => {
         if (err) { console.error('[CRON CRLV]', err.message); return; }
-        
+
         const now = new Date();
         const anoAtual = now.getFullYear();
         const mesAtual = now.getMonth(); // 0 a 11
-        
+
         veiculos.forEach(v => {
             if (v.crlv_alerta_enviado) return; // Ja enviou alerta
-            
+
             let p = v.placa.replace(/[^a-zA-Z0-9]/g, '');
             if (p.length < 7) return;
             const last = p[p.length - 1];
@@ -8218,16 +8252,16 @@ function verificarCRLVVencidoCron() {
             else if (last === '8') mesV = 9;
             else if (last === '9') mesV = 10;
             else if (last === '0') mesV = 11;
-            
+
             if (mesV === null) return;
-            
+
             const anoVencimento = parseInt(v.exercicio) + 1;
-            
+
             // Fica vencido (vermelho) no mês seguinte ao mesV do ano de vencimento
             let estaVencido = false;
             if (anoAtual > anoVencimento) estaVencido = true;
             else if (anoAtual === anoVencimento && mesAtual > mesV) estaVencido = true;
-            
+
             if (estaVencido) {
                 enviarEmailAlertaCRLV(v);
             }
@@ -8242,7 +8276,7 @@ function enviarEmailAlertaCRLV(v) {
             console.log('[CRON CRLV] E-mail do responsável de Logística não encontrado para o veículo:', v.placa);
             return;
         }
-        
+
         const emailDestino = row.email;
         const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
 
@@ -8460,10 +8494,10 @@ db.run(`CREATE TABLE IF NOT EXISTS os_logistica (
     if (err) console.error('[OS Logística] Erro na criação da tabela:', err.message);
     else {
         console.log('[OS Logística] Tabela os_logistica OK');
-        db.run("ALTER TABLE os_logistica ADD COLUMN observacoes_internas TEXT", () => {});
-        db.run("ALTER TABLE os_logistica ADD COLUMN habilidades TEXT", () => {});
-        db.run("ALTER TABLE os_logistica ADD COLUMN variaveis TEXT", () => {});
-        db.run("ALTER TABLE os_logistica ADD COLUMN patrimonio TEXT", () => {});
+        db.run("ALTER TABLE os_logistica ADD COLUMN observacoes_internas TEXT", () => { });
+        db.run("ALTER TABLE os_logistica ADD COLUMN habilidades TEXT", () => { });
+        db.run("ALTER TABLE os_logistica ADD COLUMN variaveis TEXT", () => { });
+        db.run("ALTER TABLE os_logistica ADD COLUMN patrimonio TEXT", () => { });
     }
 });
 
@@ -8483,7 +8517,7 @@ db.run(`CREATE TABLE IF NOT EXISTS os_videos (
     if (err) console.error('[OS Vídeos] Erro na criação da tabela:', err.message);
     else {
         console.log('[OS Vídeos] Tabela os_videos OK');
-        db.run("ALTER TABLE os_videos ADD COLUMN short_code TEXT", () => {});
+        db.run("ALTER TABLE os_videos ADD COLUMN short_code TEXT", () => { });
     }
 });
 
@@ -8529,10 +8563,10 @@ app.post('/api/logistica/os/upload-video', authenticateToken, multerVideo.single
         `INSERT INTO os_videos (token, short_code, os_id, numero_os, nome_original, mime_type, tamanho, caminho_arquivo)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [token, shortCode, os_id || null, numero_os || null, req.file.originalname, req.file.mimetype, req.file.size, req.file.path],
-        function(err) {
+        function (err) {
             if (err) return res.status(500).json({ error: err.message });
-            const linkPublico  = `/api/video/${token}`;
-            const linkCurto    = `/v/${shortCode}`;
+            const linkPublico = `/api/video/${token}`;
+            const linkCurto = `/v/${shortCode}`;
             res.json({ ok: true, token, short_code: shortCode, link: linkPublico, short_link: linkCurto, nome: req.file.originalname });
         }
     );
@@ -8605,9 +8639,9 @@ function haversineKm(lat1, lng1, lat2, lng2) {
     const R = 6371;
     const dLat = (l2 - l1) * Math.PI / 180;
     const dLng = (ln2 - ln1) * Math.PI / 180;
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(l1 * Math.PI / 180) * Math.cos(l2 * Math.PI / 180) *
-              Math.sin(dLng/2) * Math.sin(dLng/2);
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(l1 * Math.PI / 180) * Math.cos(l2 * Math.PI / 180) *
+        Math.sin(dLng / 2) * Math.sin(dLng / 2);
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
@@ -8728,7 +8762,7 @@ function agregaDias(rows) {
         }
     }
     return DIAS.filter(d => contagem[d] > 0).map(d => ({ dia: d, ocorrencias: contagem[d] }))
-               .sort((a, b) => b.ocorrencias - a.ocorrencias);
+        .sort((a, b) => b.ocorrencias - a.ocorrencias);
 }
 
 // GET /api/logistica/os/buscar — Busca OS por número
@@ -8763,10 +8797,10 @@ app.get('/api/logistica/os/buscar', authenticateToken, (req, res) => {
             [],
             (err, rows) => {
                 if (err) return res.status(500).json({ error: err.message });
-                
+
                 // Filtro em memória para ignorar acentos corretamente
                 const term = cliente.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-                
+
                 const filtered = (rows || []).filter(r => {
                     if (!r.cliente) return false;
                     // Remove emojis e espaços extras apenas para a comparação
@@ -8797,7 +8831,7 @@ app.get('/api/logistica/os/buscar', authenticateToken, (req, res) => {
 
                 // Filtro em memória para ignorar acentos corretamente
                 const term = endereco.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-                
+
                 const filtered = (rows || []).filter(r => {
                     if (!r.endereco) return false;
                     let end = r.endereco.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -8859,16 +8893,16 @@ app.post('/api/logistica/os', authenticateToken, (req, res) => {
                 turno, dias_semana, produtos, observacoes, observacoes_internas, habilidades, variaveis, link_video, patrimonio)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [numero_os, tipo_os, cliente, endereco, complemento, cep,
-                 lat ? parseFloat(lat) : null, lng ? parseFloat(lng) : null,
-                 contrato, data_os, responsavel, telefone, email, tipo_servico,
-                 hora_inicio, hora_fim, turno,
-                 typeof dias_semana === 'object' ? JSON.stringify(dias_semana) : dias_semana,
-                 typeof produtos === 'object' ? JSON.stringify(produtos) : produtos,
-                 observacoes, observacoes_internas, 
-                 typeof habilidades === 'object' ? JSON.stringify(habilidades) : habilidades,
-                 typeof variaveis === 'object' ? JSON.stringify(variaveis) : variaveis,
-                 link_video, patrimonio],
-                function(err) {
+                    lat ? parseFloat(lat) : null, lng ? parseFloat(lng) : null,
+                    contrato, data_os, responsavel, telefone, email, tipo_servico,
+                    hora_inicio, hora_fim, turno,
+                    typeof dias_semana === 'object' ? JSON.stringify(dias_semana) : dias_semana,
+                    typeof produtos === 'object' ? JSON.stringify(produtos) : produtos,
+                    observacoes, observacoes_internas,
+                    typeof habilidades === 'object' ? JSON.stringify(habilidades) : habilidades,
+                    typeof variaveis === 'object' ? JSON.stringify(variaveis) : variaveis,
+                    link_video, patrimonio],
+                function (err) {
                     if (err) return res.status(500).json({ error: err.message });
                     res.status(201).json({ ok: true, id: this.lastID });
                 }
@@ -8890,7 +8924,7 @@ app.put('/api/logistica/os/:id', authenticateToken, (req, res) => {
 
     db.get(`SELECT cliente FROM os_logistica WHERE numero_os = ? AND id != ? AND status = 'ativo' LIMIT 1`, [numero_os?.trim(), req.params.id], (errCheck, existente) => {
         if (errCheck) return res.status(500).json({ error: errCheck.message });
-        
+
         if (existente) {
             const clienteExistente = sanitizeCliente(existente.cliente);
             const clienteNovo = sanitizeCliente(cliente);
@@ -8908,16 +8942,16 @@ app.put('/api/logistica/os/:id', authenticateToken, (req, res) => {
             turno=?, dias_semana=?, produtos=?, observacoes=?, observacoes_internas=?, habilidades=?, variaveis=?, link_video=?, patrimonio=?,
             atualizado_em=datetime('now') WHERE id=?`,
             [numero_os, tipo_os, cliente, endereco, complemento, cep,
-             lat ? parseFloat(lat) : null, lng ? parseFloat(lng) : null,
-             contrato, data_os, responsavel, telefone, email, tipo_servico,
-             hora_inicio, hora_fim, turno,
-             typeof dias_semana === 'object' ? JSON.stringify(dias_semana) : dias_semana,
-             typeof produtos === 'object' ? JSON.stringify(produtos) : produtos,
-             observacoes, observacoes_internas, 
-             typeof habilidades === 'object' ? JSON.stringify(habilidades) : habilidades,
-             typeof variaveis === 'object' ? JSON.stringify(variaveis) : variaveis,
-             link_video, patrimonio, req.params.id],
-            function(err) {
+                lat ? parseFloat(lat) : null, lng ? parseFloat(lng) : null,
+                contrato, data_os, responsavel, telefone, email, tipo_servico,
+                hora_inicio, hora_fim, turno,
+                typeof dias_semana === 'object' ? JSON.stringify(dias_semana) : dias_semana,
+                typeof produtos === 'object' ? JSON.stringify(produtos) : produtos,
+                observacoes, observacoes_internas,
+                typeof habilidades === 'object' ? JSON.stringify(habilidades) : habilidades,
+                typeof variaveis === 'object' ? JSON.stringify(variaveis) : variaveis,
+                link_video, patrimonio, req.params.id],
+            function (err) {
                 if (err) return res.status(500).json({ error: err.message });
                 res.json({ ok: true });
             }
@@ -8927,7 +8961,7 @@ app.put('/api/logistica/os/:id', authenticateToken, (req, res) => {
 
 // DELETE /api/logistica/os/:id — Excluir OS
 app.delete('/api/logistica/os/:id', authenticateToken, (req, res) => {
-    db.run("DELETE FROM os_logistica WHERE id = ?", [req.params.id], function(err) {
+    db.run("DELETE FROM os_logistica WHERE id = ?", [req.params.id], function (err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ ok: true });
     });
@@ -8937,24 +8971,24 @@ app.delete('/api/logistica/os/:id', authenticateToken, (req, res) => {
 app.post('/api/logistica/import-bulk', (req, res) => {
     const records = req.body;
     if (!Array.isArray(records)) return res.status(400).json({ error: 'Expected array' });
-    
+
     let inserted = 0;
     const stmt = db.prepare(`INSERT INTO os_logistica (numero_os, tipo_os, cliente, endereco, cep, lat, lng, 
         data_os, responsavel, telefone, email, tipo_servico, hora_inicio, hora_fim, turno, dias_semana, 
         produtos, observacoes, observacoes_internas, habilidades) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
-        
+
     db.serialize(() => {
         db.run("BEGIN TRANSACTION");
         records.forEach(r => {
             stmt.run([r.numero_os, r.tipo_os, r.cliente, r.endereco, r.cep, r.lat, r.lng,
-                r.data_os, r.responsavel, r.telefone, r.email, r.tipo_servico, r.hora_inicio, r.hora_fim, 
-                r.turno, JSON.stringify(r.dias_semana||[]), JSON.stringify(r.produtos||[]), 
-                r.observacoes, r.observacoes_internas, r.habilidades]);
+            r.data_os, r.responsavel, r.telefone, r.email, r.tipo_servico, r.hora_inicio, r.hora_fim,
+            r.turno, JSON.stringify(r.dias_semana || []), JSON.stringify(r.produtos || []),
+            r.observacoes, r.observacoes_internas, r.habilidades]);
             inserted++;
         });
         stmt.finalize();
         db.run("COMMIT", (err) => {
-            if (err) return res.status(500).json({error: err.message});
+            if (err) return res.status(500).json({ error: err.message });
             res.json({ ok: true, count: inserted });
         });
     });
@@ -8976,13 +9010,13 @@ app.get('/api/logistica/frota', authenticateToken, (req, res) => {
             const result = {};
             (rows || []).forEach(r => {
                 let prods = [];
-                try { prods = JSON.parse(r.produtos || '[]'); } catch(e) { prods = []; }
+                try { prods = JSON.parse(r.produtos || '[]'); } catch (e) { prods = []; }
                 let vars = [];
-                try { vars = JSON.parse(r.variaveis || '[]'); } catch(e) { vars = []; }
+                try { vars = JSON.parse(r.variaveis || '[]'); } catch (e) { vars = []; }
                 let habs = [];
-                try { habs = JSON.parse(r.habilidades || '[]'); } catch(e) { habs = []; }
+                try { habs = JSON.parse(r.habilidades || '[]'); } catch (e) { habs = []; }
                 let diasSemana = [];
-                try { diasSemana = JSON.parse(r.dias_semana || '[]'); } catch(e) { diasSemana = []; }
+                try { diasSemana = JSON.parse(r.dias_semana || '[]'); } catch (e) { diasSemana = []; }
                 const veiculo = r.patrimonio && r.patrimonio.trim() ? r.patrimonio.trim().toUpperCase() : 'SEM VEÍCULO';
                 if (!result[veiculo]) result[veiculo] = { rotas: [], totalQtd: 0, servicosContagem: {}, produtosContagem: {} };
                 result[veiculo].rotas.push({ ...r, produtos: prods, variaveis: vars, habilidades: habs, dias_semana: diasSemana });
@@ -9008,7 +9042,7 @@ app.get('/api/logistica/os/:id', authenticateToken, (req, res) => {
     db.get(`SELECT * FROM os_logistica WHERE id = ? AND status = 'ativo'`, [id], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
         if (!row) return res.status(404).json({ error: 'OS não encontrada.' });
-        const parseField = (val) => { try { return JSON.parse(val || '[]'); } catch(e) { return []; } };
+        const parseField = (val) => { try { return JSON.parse(val || '[]'); } catch (e) { return []; } };
         res.json({ ...row, produtos: parseField(row.produtos), variaveis: parseField(row.variaveis), habilidades: parseField(row.habilidades), dias_semana: parseField(row.dias_semana) });
     });
 });
@@ -9031,26 +9065,26 @@ app.get('/api/logistica/pipeline', authenticateToken, (req, res) => {
     const endereco = req.query.endereco || '';
     const diaFiltro = req.query.dia || '';
     const diaFiltroStr = diaFiltro ? diaFiltro.toLowerCase().substring(0, 3) : '';
-    const dataDe  = req.query.data_de  || req.query.data || '';
+    const dataDe = req.query.data_de || req.query.data || '';
     const dataAte = req.query.data_ate || '';
 
     // Abreviações e nomes completos para suportar OS antigas e novas
-    const DIAS_ABBR = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
-    const DIAS_FULL = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+    const DIAS_ABBR = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    const DIAS_FULL = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 
     // Retorna Set com abreviações e nomes completos dos dias presentes no intervalo [de, ate]
     function diasNoIntervalo(de, ate) {
         const set = new Set();
         // Se falta o 'De' ou o 'Até', o intervalo é aberto/infinito, então não há restrição de dias da semana
         if (!de || !ate) return set;
-        
+
         const fim = new Date(ate + 'T12:00:00');
         const cur = new Date(de + 'T12:00:00');
         let limit = 0;
         while (cur <= fim && limit < 8) { // no máximo 8 dias, depois disso todos os dias já estão no Set
-            set.add(DIAS_ABBR[cur.getDay()]); 
-            set.add(DIAS_FULL[cur.getDay()]); 
-            cur.setDate(cur.getDate() + 1); 
+            set.add(DIAS_ABBR[cur.getDay()]);
+            set.add(DIAS_FULL[cur.getDay()]);
+            cur.setDate(cur.getDate() + 1);
             limit++;
         }
         return set;
@@ -9060,16 +9094,16 @@ app.get('/api/logistica/pipeline', authenticateToken, (req, res) => {
     const params = [];
 
     // Todos os filtros são combinados (AND): OS + contrato + data + cliente + endereço
-    if (os)       { sql += ` AND numero_os = ?`;       params.push(os.trim()); }
-    if (contrato) { sql += ` AND contrato LIKE ?`;     params.push(`%${contrato.trim()}%`); }
-    if (cliente)  { sql += ` AND cliente LIKE ?`;      params.push(`%${cliente}%`); }
-    if (endereco) { sql += ` AND endereco LIKE ?`;     params.push(`%${endereco}%`); }
+    if (os) { sql += ` AND numero_os = ?`; params.push(os.trim()); }
+    if (contrato) { sql += ` AND contrato LIKE ?`; params.push(`%${contrato.trim()}%`); }
+    if (cliente) { sql += ` AND cliente LIKE ?`; params.push(`%${cliente}%`); }
+    if (endereco) { sql += ` AND endereco LIKE ?`; params.push(`%${endereco}%`); }
     // Filtro de data aplicado em JS para suportar lógica pontual vs recorrente
     sql += ` ORDER BY cliente ASC, CAST(numero_os AS REAL) ASC`;
 
     db.all(sql, params, (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
-        const parseField = (val) => { try { return JSON.parse(val || '[]'); } catch(e) { return []; } };
+        const parseField = (val) => { try { return JSON.parse(val || '[]'); } catch (e) { return []; } };
 
         const diasRange = diasNoIntervalo(dataDe, dataAte);
         const temFiltroData = !!dataDe;
@@ -9084,11 +9118,11 @@ app.get('/api/logistica/pipeline', authenticateToken, (req, res) => {
                 // Usar a data atual como fallback se for apenas busca por dia de semana
                 const limiteMax = dataAte || dataDe || new Date().toISOString().split('T')[0];
                 if (dataInicio && dataInicio > limiteMax) return false;
-                
+
                 // Verifica se algum dia da semana da OS bate com o intervalo ou filtro explícito
                 let dias = [];
-                try { dias = JSON.parse(r.dias_semana || '[]'); } catch(e) {}
-                
+                try { dias = JSON.parse(r.dias_semana || '[]'); } catch (e) { }
+
                 if (diaFiltroStr) {
                     return dias.some(d => d.toLowerCase().startsWith(diaFiltroStr));
                 }
@@ -9110,9 +9144,10 @@ app.get('/api/logistica/pipeline', authenticateToken, (req, res) => {
 
         const result = { manutencao: [], entrega: [], retirada: [], avulso: [] };
         filtradas.forEach(r => {
-            const row = { ...r,
-                produtos:    parseField(r.produtos),
-                variaveis:   parseField(r.variaveis),
+            const row = {
+                ...r,
+                produtos: parseField(r.produtos),
+                variaveis: parseField(r.variaveis),
                 habilidades: parseField(r.habilidades),
                 dias_semana: parseField(r.dias_semana)
             };
@@ -9147,12 +9182,12 @@ if (fs_module.existsSync(importPath)) {
         db.serialize(() => {
             db.run("BEGIN TRANSACTION");
             db.run("DELETE FROM os_logistica WHERE status='ativo'");
-            
+
             let inserted = 0;
             const stmt = db.prepare(`INSERT INTO os_logistica (numero_os, tipo_os, cliente, endereco, cep, lat, lng, 
                 data_os, responsavel, telefone, email, tipo_servico, hora_inicio, hora_fim, turno, dias_semana, 
                 produtos, observacoes, observacoes_internas, habilidades) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
-                
+
             records.forEach(r => {
                 // Correções embutidas no ato da importação:
                 let dias = Array.isArray(r.dias_semana) ? r.dias_semana : [];
@@ -9160,21 +9195,21 @@ if (fs_module.existsSync(importPath)) {
 
                 let prods = Array.isArray(r.produtos) ? r.produtos : [];
                 prods = prods.map(p => {
-                    if(p.desc === 'GUARITA INDIVIDUAL O') p.desc = 'GUARITA INDIVIDUAL OBRA';
-                    if(p.desc === 'GUARITA DUPLA O') p.desc = 'GUARITA DUPLA OBRA';
-                    if(p.desc === 'STD O') p.desc = 'STD OBRA';
-                    if(p.desc === 'LX O') p.desc = 'LX OBRA';
-                    if(p.desc === 'PCD O') p.desc = 'PCD OBRA';
-                    if(p.desc === 'SLX O') p.desc = 'SLX OBRA';
-                    if(p.desc === 'ELX O') p.desc = 'ELX OBRA';
-                    if(p.desc === 'PBII O') p.desc = 'PBII OBRA';
+                    if (p.desc === 'GUARITA INDIVIDUAL O') p.desc = 'GUARITA INDIVIDUAL OBRA';
+                    if (p.desc === 'GUARITA DUPLA O') p.desc = 'GUARITA DUPLA OBRA';
+                    if (p.desc === 'STD O') p.desc = 'STD OBRA';
+                    if (p.desc === 'LX O') p.desc = 'LX OBRA';
+                    if (p.desc === 'PCD O') p.desc = 'PCD OBRA';
+                    if (p.desc === 'SLX O') p.desc = 'SLX OBRA';
+                    if (p.desc === 'ELX O') p.desc = 'ELX OBRA';
+                    if (p.desc === 'PBII O') p.desc = 'PBII OBRA';
                     return p;
                 });
 
                 stmt.run([r.numero_os, r.tipo_os, r.cliente, r.endereco, r.cep, r.lat, r.lng,
-                    r.data_os, r.responsavel, r.telefone, r.email, r.tipo_servico, r.hora_inicio, r.hora_fim, 
-                    r.turno, JSON.stringify(dias), JSON.stringify(prods), 
-                    r.observacoes, r.observacoes_internas, r.habilidades]);
+                r.data_os, r.responsavel, r.telefone, r.email, r.tipo_servico, r.hora_inicio, r.hora_fim,
+                r.turno, JSON.stringify(dias), JSON.stringify(prods),
+                r.observacoes, r.observacoes_internas, r.habilidades]);
                 inserted++;
             });
             stmt.finalize();
@@ -9186,7 +9221,7 @@ if (fs_module.existsSync(importPath)) {
                 }
             });
         });
-    } catch(e) {
+    } catch (e) {
         console.error('[IMPORT] Erro ao reimportar:', e.message);
     }
 }
@@ -9195,26 +9230,26 @@ if (fs_module.existsSync(importPath)) {
 // ROTINA DE CORREÇÃO DE DADOS (SE -> Sexta, GUARITA INDIVIDUAL O -> OBRA)
 db.serialize(() => {
     db.all(`SELECT id, dias_semana, produtos FROM os_logistica WHERE dias_semana LIKE '%"SE"%' OR produtos LIKE '% O"%'`, (err, rows) => {
-        if(err) return;
-        if(rows && rows.length > 0) {
+        if (err) return;
+        if (rows && rows.length > 0) {
             console.log(`[FIX] Encontradas ${rows.length} OS com "SE" ou "GUARITA O". Corrigindo...`);
             const stmt = db.prepare('UPDATE os_logistica SET dias_semana = ?, produtos = ? WHERE id = ?');
             rows.forEach(r => {
                 let dias = [];
-                try { dias = JSON.parse(r.dias_semana || '[]'); } catch(e) {}
+                try { dias = JSON.parse(r.dias_semana || '[]'); } catch (e) { }
                 dias = dias.map(d => d === 'SE' ? 'Sexta' : d);
 
                 let prods = [];
-                try { prods = JSON.parse(r.produtos || '[]'); } catch(e) {}
+                try { prods = JSON.parse(r.produtos || '[]'); } catch (e) { }
                 prods = prods.map(p => {
-                    if(p.desc === 'GUARITA INDIVIDUAL O') p.desc = 'GUARITA INDIVIDUAL OBRA';
-                    if(p.desc === 'GUARITA DUPLA O') p.desc = 'GUARITA DUPLA OBRA';
-                    if(p.desc === 'STD O') p.desc = 'STD OBRA';
-                    if(p.desc === 'LX O') p.desc = 'LX OBRA';
-                    if(p.desc === 'PCD O') p.desc = 'PCD OBRA';
-                    if(p.desc === 'SLX O') p.desc = 'SLX OBRA';
-                    if(p.desc === 'ELX O') p.desc = 'ELX OBRA';
-                    if(p.desc === 'PBII O') p.desc = 'PBII OBRA';
+                    if (p.desc === 'GUARITA INDIVIDUAL O') p.desc = 'GUARITA INDIVIDUAL OBRA';
+                    if (p.desc === 'GUARITA DUPLA O') p.desc = 'GUARITA DUPLA OBRA';
+                    if (p.desc === 'STD O') p.desc = 'STD OBRA';
+                    if (p.desc === 'LX O') p.desc = 'LX OBRA';
+                    if (p.desc === 'PCD O') p.desc = 'PCD OBRA';
+                    if (p.desc === 'SLX O') p.desc = 'SLX OBRA';
+                    if (p.desc === 'ELX O') p.desc = 'ELX OBRA';
+                    if (p.desc === 'PBII O') p.desc = 'PBII OBRA';
                     return p;
                 });
 
@@ -9264,7 +9299,7 @@ app.post('/api/frota/veiculos', authenticateToken, (req, res) => {
         `INSERT INTO frota_veiculos (placa, marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo, capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_base64, crlv_filename, updated_at)
          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)`,
         [placa?.toUpperCase(), marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo || 'caminhão', capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_base64 || null, crlv_filename || null],
-        function(err) {
+        function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ id: this.lastID, message: 'Veículo cadastrado com sucesso' });
         }
@@ -9274,21 +9309,21 @@ app.post('/api/frota/veiculos', authenticateToken, (req, res) => {
 // PUT - atualizar veículo (incluindo novo CRLV)
 app.put('/api/frota/veiculos/:id', authenticateToken, (req, res) => {
     const { placa, marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo, capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_base64, crlv_filename } = req.body;
-    
+
     const fields = [
         placa?.toUpperCase(), marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo,
         exercicio, renavam, motor, chassi, tipo_veiculo,
         capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro,
         largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro
     ];
-    
+
     // Se novo CRLV foi enviado, inclui no update e zera o alerta
     if (crlv_base64) {
         fields.push(crlv_base64, crlv_filename || null, 0);
         db.run(
             `UPDATE frota_veiculos SET placa=?, marca_modelo_versao=?, cor_predominante=?, ano_fabricacao=?, ano_modelo=?, exercicio=?, renavam=?, motor=?, chassi=?, tipo_veiculo=?, capacidade_tanque=?, capacidade_carga=?, altura_com_banheiro=?, altura_sem_banheiro=?, largura_com_banheiro=?, largura_sem_banheiro=?, profundidade_com_banheiro=?, profundidade_sem_banheiro=?, crlv_base64=?, crlv_filename=?, crlv_alerta_enviado=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
             [...fields, req.params.id],
-            function(err) {
+            function (err) {
                 if (err) return res.status(500).json({ error: err.message });
                 res.json({ message: 'Veículo atualizado com sucesso' });
             }
@@ -9297,7 +9332,7 @@ app.put('/api/frota/veiculos/:id', authenticateToken, (req, res) => {
         db.run(
             `UPDATE frota_veiculos SET placa=?, marca_modelo_versao=?, cor_predominante=?, ano_fabricacao=?, ano_modelo=?, exercicio=?, renavam=?, motor=?, chassi=?, tipo_veiculo=?, capacidade_tanque=?, capacidade_carga=?, altura_com_banheiro=?, altura_sem_banheiro=?, largura_com_banheiro=?, largura_sem_banheiro=?, profundidade_com_banheiro=?, profundidade_sem_banheiro=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
             [...fields, req.params.id],
-            function(err) {
+            function (err) {
                 if (err) return res.status(500).json({ error: err.message });
                 res.json({ message: 'Veículo atualizado com sucesso' });
             }
@@ -9307,7 +9342,7 @@ app.put('/api/frota/veiculos/:id', authenticateToken, (req, res) => {
 
 // DELETE - excluir veículo
 app.delete('/api/frota/veiculos/:id', authenticateToken, (req, res) => {
-    db.run('DELETE FROM frota_veiculos WHERE id = ?', [req.params.id], function(err) {
+    db.run('DELETE FROM frota_veiculos WHERE id = ?', [req.params.id], function (err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ message: 'Veículo excluído com sucesso' });
     });
@@ -9354,22 +9389,32 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
 
     db.run(`INSERT INTO credenciamentos (cliente_nome, os, cliente_email, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas_ids, observacoes, status, token) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'solicitado', ?)`,
         [
-            cliente_nome, 
+            cliente_nome,
             os || '',
-            cliente_email, 
-            endereco_instalacao || '', 
-            qtd_max_colaboradores || 0, 
-            qtd_max_veiculos || 0, 
-            data_limite_envio || null, 
-            JSON.stringify(docs_exigidos || []), 
+            cliente_email,
+            endereco_instalacao || '',
+            qtd_max_colaboradores || 0,
+            qtd_max_veiculos || 0,
+            data_limite_envio || null,
+            JSON.stringify(docs_exigidos || []),
             JSON.stringify(licencas || []),
             observacoes || '',
             tokenPlaceholder
         ],
-        function(err) {
+        function (err) {
             if (err) return res.status(500).json({ error: err.message });
-            
+
             const novoId = this.lastID;
+            
+            // Inserir notificação para a Logística
+            db.run(`INSERT INTO logistica_notificacoes_pendentes (tipo, dados) VALUES (?, ?)`, 
+                ['nova_solicitacao', JSON.stringify({ 
+                    cliente_nome, 
+                    os, 
+                    solicitante: req.user ? req.user.nome : 'Comercial' 
+                })]
+            );
+
             res.json({ message: 'Solicitação criada com sucesso.', id: novoId });
 
             // --- Enviar e-mail de notificação para equipe de Logística ---
@@ -9399,41 +9444,56 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
                     function enviarEmailLogistica(destinatarios) {
                         const baseUrl = process.env.PUBLIC_URL || 'https://sistema-america-homologacao.onrender.com';
                         const dtLimite = data_limite_envio ? new Date(data_limite_envio).toLocaleDateString('pt-BR') : 'Não informada';
-                        const licNames = (licencas || []).map(l => `[${l.empresa || 'Licença'}] ${l.nome}`).join(', ') || 'Nenhuma';
-                        const docsList = (docs_exigidos || []).join(', ') || 'Nenhum';
-                        const htmlMail = `
-                        <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; padding: 20px; border-radius: 8px;">
-                            <div style="text-align: center; margin-bottom: 20px;">
-                                <img src="${baseUrl}/logo.png" alt="América Rental" style="max-height: 50px;">
-                            </div>
-                            <h2 style="color: #7048e8; text-align: center; margin-top: 0;">📋 Nova Solicitação de Credenciamento</h2>
-                            <p>Uma nova solicitação de credenciamento foi registrada pelo departamento <strong>Comercial</strong> e aguarda ação da Logística.</p>
-                            <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #7048e8;">
-                                <table style="width:100%; border-collapse:collapse;">
-                                    <tr><td style="padding:4px 8px; font-weight:bold; color:#475569;">Cliente / Obra:</td><td style="padding:4px 8px;">${cliente_nome}</td></tr>
-                                    ${os ? `<tr><td style="padding:4px 8px; font-weight:bold; color:#475569;">OS:</td><td style="padding:4px 8px;">${os}</td></tr>` : ''}
-                                    <tr><td style="padding:4px 8px; font-weight:bold; color:#475569;">E-mail do Cliente:</td><td style="padding:4px 8px;">${cliente_email}</td></tr>
-                                    ${endereco_instalacao ? `<tr><td style="padding:4px 8px; font-weight:bold; color:#475569;">Endereço:</td><td style="padding:4px 8px;">${endereco_instalacao}</td></tr>` : ''}
-                                    <tr><td style="padding:4px 8px; font-weight:bold; color:#475569;">Máx. Colaboradores:</td><td style="padding:4px 8px;">${qtd_max_colaboradores || 0}</td></tr>
-                                    <tr><td style="padding:4px 8px; font-weight:bold; color:#475569;">Máx. Veículos:</td><td style="padding:4px 8px;">${qtd_max_veiculos || 0}</td></tr>
-                                    <tr><td style="padding:4px 8px; font-weight:bold; color:#475569;">Data Limite:</td><td style="padding:4px 8px;">${dtLimite}</td></tr>
-                                    <tr><td style="padding:4px 8px; font-weight:bold; color:#475569;">Licenças Exigidas:</td><td style="padding:4px 8px;">${licNames}</td></tr>
-                                    <tr><td style="padding:4px 8px; font-weight:bold; color:#475569;">Documentos Exigidos:</td><td style="padding:4px 8px;">${docsList}</td></tr>
-                                    <tr><td style="padding:4px 8px; font-weight:bold; color:#475569;">Observações:</td><td style="padding:4px 8px;">${observacoes || 'Nenhuma'}</td></tr>
-                                </table>
-                            </div>
-                            <div style="text-align: center; margin: 25px 0;">
-                                <a href="${baseUrl}/" style="background:#7048e8; color:#fff; padding:12px 28px; text-decoration:none; border-radius:6px; font-weight:bold; display:inline-block;">
-                                    Acessar Sistema e Processar Credenciamento
-                                </a>
-                            </div>
-                            <p style="font-size:12px; color:#999; text-align:center;"><i>Esta notificação foi enviada automaticamente pelo Sistema América Rental.</i></p>
-                        </div>`;
                         
+                        // Agrupar licenças por empresa
+                        const licGroups = {};
+                        (licencas || []).forEach(l => {
+                            const comp = l.empresa || 'Outras';
+                            if (!licGroups[comp]) licGroups[comp] = [];
+                            licGroups[comp].push(l.nome);
+                        });
+                        const licNames = Object.keys(licGroups).length > 0 
+                            ? Object.entries(licGroups).map(([comp, nomes]) => `• ${comp}: ${nomes.join(' - ')}`).join('<br>')
+                            : 'Nenhuma';
+                            
+                        const docsList = (docs_exigidos || []).join(', ') || 'Nenhum';
+                        const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+                        const htmlMail = `
+                        <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; padding: 0; border-radius: 8px; overflow: hidden;">
+                            <div style="text-align: center; background: #fff; border-bottom: 1px solid #eee;">
+                                <img src="cid:empresa-logo" alt="América Rental" style="width: 100%; max-width: 600px; height: auto; display: block;">
+                            </div>
+                            <div style="padding: 20px;">
+                                <h2 style="color: #7048e8; text-align: center; margin-top: 0;">📋 Nova Solicitação de Credenciamento</h2>
+                                <p>Uma nova solicitação de credenciamento foi registrada pelo departamento <strong>Comercial</strong> e aguarda ação da Logística.</p>
+                                <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #7048e8;">
+                                    <table style="width:100%; border-collapse:collapse;">
+                                        <tr><td style="padding:4px 8px; font-weight:bold; color:#475569; width: 40%;">Cliente / Obra:</td><td style="padding:4px 8px;">${cliente_nome}</td></tr>
+                                        ${os ? `<tr><td style="padding:4px 8px; font-weight:bold; color:#475569;">OS:</td><td style="padding:4px 8px;">${os}</td></tr>` : ''}
+                                        <tr><td style="padding:4px 8px; font-weight:bold; color:#475569;">E-mail do Cliente:</td><td style="padding:4px 8px;">${cliente_email}</td></tr>
+                                        ${endereco_instalacao ? `<tr><td style="padding:4px 8px; font-weight:bold; color:#475569;">Endereço:</td><td style="padding:4px 8px;">${endereco_instalacao}</td></tr>` : ''}
+                                        <tr><td style="padding:4px 8px; font-weight:bold; color:#475569;">Máx. Colaboradores:</td><td style="padding:4px 8px;">${qtd_max_colaboradores || 0}</td></tr>
+                                        <tr><td style="padding:4px 8px; font-weight:bold; color:#475569;">Máx. Veículos:</td><td style="padding:4px 8px;">${qtd_max_veiculos || 0}</td></tr>
+                                        <tr><td style="padding:4px 8px; font-weight:bold; color:#475569;">Data Limite:</td><td style="padding:4px 8px;">${dtLimite}</td></tr>
+                                        <tr><td style="padding:4px 8px; font-weight:bold; color:#475569; vertical-align: top;">Licenças Exigidas:</td><td style="padding:4px 8px;">${licNames}</td></tr>
+                                        <tr><td style="padding:4px 8px; font-weight:bold; color:#475569;">Documentos Exigidos:</td><td style="padding:4px 8px;">${docsList}</td></tr>
+                                        <tr><td style="padding:4px 8px; font-weight:bold; color:#475569;">Observações:</td><td style="padding:4px 8px;">${observacoes || 'Nenhuma'}</td></tr>
+                                    </table>
+                                </div>
+                                <div style="text-align: center; margin: 25px 0;">
+                                    <a href="${baseUrl}/" style="background:#7048e8; color:#fff; padding:12px 28px; text-decoration:none; border-radius:6px; font-weight:bold; display:inline-block;">
+                                        Acessar Sistema e Processar Credenciamento
+                                    </a>
+                                </div>
+                                <p style="font-size:12px; color:#999; text-align:center;"><i>Esta notificação foi enviada automaticamente pelo Sistema América Rental.</i></p>
+                            </div>
+                        </div>`;
+
                         sendMailHelper({
                             to: destinatarios.join(', '),
                             subject: `📋 Nova Solicitação de Credenciamento - ${cliente_nome}`,
-                            html: htmlMail
+                            html: htmlMail,
+                            attachments: [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }]
                         }).then(() => {
                             console.log('[Credenciamento Comercial] E-mail de notificação enviado para Logística:', destinatarios.join(', '));
                         }).catch(emailErr => {
@@ -9451,22 +9511,30 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
                     'contrato_esocial': 'Contrato e-social', 'nr1': 'NR1 / Ordem de Serviço'
                 };
                 const docsArr = (docs_exigidos || []).map(d => docNamesMap[d] || d);
-                const licArr = (licencas || []).map(l => `<b>${l.empresa || 'Licença'}</b>: ${l.nome}`);
+                // Agrupar licenças por empresa
+                const licGroups = {};
+                (licencas || []).forEach(l => {
+                    const comp = l.empresa || 'Outras';
+                    if (!licGroups[comp]) licGroups[comp] = [];
+                    licGroups[comp].push(l.nome);
+                });
+                
                 const dtLimCliente = data_limite_envio ? new Date(data_limite_envio).toLocaleDateString('pt-BR') : null;
-                const baseUrl = process.env.PUBLIC_URL || 'https://sistema-america-homologacao.onrender.com';
 
                 const docsHtml = docsArr.length > 0
                     ? `<ul style="margin:8px 0; padding-left:20px;">${docsArr.map(d => `<li>${d}</li>`).join('')}</ul>`
                     : '<p style="color:#94a3b8; font-style:italic; margin:4px 0;">Nenhum documento específico solicitado.</p>';
 
-                const licsHtml = licArr.length > 0
-                    ? `<h3 style="margin:12px 0 6px; color:#0f172a; font-size:0.95rem;">🏷️ Licenças Solicitadas</h3><ul style="margin:4px 0; padding-left:20px;">${licArr.map(l => `<li>${l}</li>`).join('')}</ul>`
+                const licsHtml = Object.keys(licGroups).length > 0
+                    ? `<h3 style="margin:12px 0 6px; color:#0f172a; font-size:0.95rem;">🏷️ Licenças Solicitadas</h3><ul style="margin:4px 0; padding-left:20px;">${Object.entries(licGroups).map(([comp, nomes]) => `<li><strong>${comp}:</strong> ${nomes.join(' - ')}</li>`).join('')}</ul>`
                     : '';
+
+                const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
 
                 const htmlCliente = `
                 <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow:hidden;">
-                    <div style="text-align: center; margin: 20px 0;">
-                        <img src="${baseUrl}/logo.png" alt="América Rental" style="max-height: 50px;">
+                    <div style="text-align: center; background: #fff; border-bottom: 1px solid #eee;">
+                        <img src="cid:empresa-logo" alt="América Rental" style="width: 100%; max-width: 600px; height: auto; display: block;">
                     </div>
                     <div style="background: #7048e8; padding: 24px 20px; text-align:center;">
                         <h2 style="color:#fff; margin:0; font-size:1.3rem;">📋 Solicitação de Credenciamento Recebida</h2>
@@ -9494,8 +9562,9 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
 
                 sendMailHelper({
                     to: cliente_email,
-                    subject: `✅ Solicitação de Credenciamento Recebida — América Rental`,
-                    html: htmlCliente
+                    subject: \`✅ Solicitação de Credenciamento Recebida — América Rental\`,
+                    html: htmlCliente,
+                    attachments: [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }]
                 }).then(() => {
                     console.log('[Credenciamento Comercial] E-mail de confirmação enviado ao cliente:', cliente_email);
                 }).catch(emailErr => {
@@ -9510,22 +9579,22 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
 
 app.put('/api/comercial/credenciamento/:id', authenticateToken, (req, res) => {
     const { cliente_nome, os, cliente_email, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas, observacoes } = req.body;
-    
+
     db.run(`UPDATE credenciamentos SET cliente_nome = ?, os = ?, cliente_email = ?, endereco_instalacao = ?, qtd_max_colaboradores = ?, qtd_max_veiculos = ?, data_limite_envio = ?, docs_exigidos = ?, licencas_ids = ?, observacoes = ? WHERE id = ? AND status = 'solicitado'`,
         [
-            cliente_nome, 
+            cliente_nome,
             os || '',
-            cliente_email, 
-            endereco_instalacao || '', 
-            qtd_max_colaboradores || 0, 
-            qtd_max_veiculos || 0, 
-            data_limite_envio || null, 
-            JSON.stringify(docs_exigidos || []), 
+            cliente_email,
+            endereco_instalacao || '',
+            qtd_max_colaboradores || 0,
+            qtd_max_veiculos || 0,
+            data_limite_envio || null,
+            JSON.stringify(docs_exigidos || []),
             JSON.stringify(licencas || []),
             observacoes || '',
             req.params.id
         ],
-        function(err) {
+        function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ message: 'Solicitação atualizada com sucesso.' });
         }
@@ -9548,7 +9617,7 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
 
         db.run(`UPDATE credenciamentos SET colaboradores_ids = ?, veiculos_ids = ?, token = ?, valid_until = ?, status = 'enviado', created_at = CURRENT_TIMESTAMP WHERE id = ?`,
             [JSON.stringify(colaboradores || []), JSON.stringify(veiculos || []), token, validUntil.toISOString(), req.params.id],
-            async function(err2) {
+            async function (err2) {
                 if (err2) return res.status(500).json({ error: err2.message });
 
                 const baseUrl = process.env.PUBLIC_URL || `${req.protocol}://${req.get('host')}`;
@@ -9556,10 +9625,10 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
                 const logoUrl = `${baseUrl}/assets/logo-header.png`;
 
                 // Build HTML...
-                let htmlCols = (colaboradores||[]).map(c => {
+                let htmlCols = (colaboradores || []).map(c => {
                     return `<li><b>${c.nome || c.nome_completo}</b></li>`;
                 }).join('');
-                let htmlVeics = (veiculos||[]).map(v => {
+                let htmlVeics = (veiculos || []).map(v => {
                     return `<li><b>${v.placa}</b> - ${v.marca_modelo_versao}</li>`;
                 }).join('');
 
@@ -9613,7 +9682,7 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
     if (!cliente_nome || !cliente_email) return res.status(400).json({ error: 'Nome e email são obrigatórios.' });
 
     const colabIds = (colaboradores || []).map(c => c.id).filter(id => !isNaN(id) && id > 0);
-    
+
     // Função para verificar
     const checkAndSend = (colabData, docsData) => {
         // Mapear os documentos requeridos para os nomes reais no sistema
@@ -9639,7 +9708,7 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
             for (let cid of colabIds) {
                 const cDocs = docsData
                     .filter(d => d.colaborador_id === cid && d.document_type)
-                    .map(d => (d.document_type || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim());
+                    .map(d => (d.document_type || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim());
 
                 const colabObj = colabData.find(c => c.id === cid);
                 const cNome = colabObj?.nome_completo || 'Colaborador desconhecido';
@@ -9652,7 +9721,7 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
                     if (reqDoc === 'cpf' && isMotorista) continue;  // Não exige CPF separado se for motorista
 
                     const acceptableNames = (docMap[reqDoc] || [reqDoc]).map(x =>
-                        x.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim()
+                        x.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
                     );
 
                     const hasDoc = cDocs.some(cd =>
@@ -9675,19 +9744,19 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
 
         db.run(`INSERT INTO credenciamentos (cliente_nome, cliente_email, endereco_instalacao, token, colaboradores_ids, veiculos_ids, docs_exigidos, licencas_ids, valid_until) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [cliente_nome, cliente_email, endereco_instalacao || '', token, JSON.stringify(colaboradores || []), JSON.stringify(veiculos || []), JSON.stringify(docs_exigidos || []), JSON.stringify(licencas || []), validUntil.toISOString()],
-            async function(err) {
+            async function (err) {
                 if (err) return res.status(500).json({ error: err.message });
-                
+
                 const baseUrl = process.env.PUBLIC_URL || `${req.protocol}://${req.get('host')}`;
                 const link = `${baseUrl}/credenciamento-publico.html?token=${token}`;
                 const logoUrl = `${baseUrl}/assets/logo-header.png`;
-                
-                let htmlCols = (colaboradores||[]).map(c => {
+
+                let htmlCols = (colaboradores || []).map(c => {
                     const cData = colabData.find(col => col.id === c.id);
                     const cpfInfo = cData && cData.cpf ? ` - CPF: ${cData.cpf}` : '';
                     return `<li>${c.nome}${cpfInfo}</li>`;
                 }).join('');
-                let htmlVeic = (veiculos||[]).map(v => `<li>Placa: ${v.placa} - ${v.modelo}</li>`).join('');
+                let htmlVeic = (veiculos || []).map(v => `<li>Placa: ${v.placa} - ${v.modelo}</li>`).join('');
 
                 // Montar bloco de licenças para o e-mail
                 let htmlLicencas = '';
@@ -9786,7 +9855,7 @@ app.get('/api/logistica/credenciamentos', authenticateToken, (req, res) => {
 
 // DELETE Autenticado: Excluir credenciamento
 app.delete('/api/logistica/credenciamentos/:id', authenticateToken, (req, res) => {
-    db.run('DELETE FROM credenciamentos WHERE id = ?', [req.params.id], function(err) {
+    db.run('DELETE FROM credenciamentos WHERE id = ?', [req.params.id], function (err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ ok: true });
     });
@@ -9806,13 +9875,13 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
 
         // Registrar primeiro acesso do cliente
         if (!cred.acessado_em) {
-            db.run('UPDATE credenciamentos SET acessado_em = ? WHERE id = ?', [new Date().toISOString(), cred.id], () => {});
+            db.run('UPDATE credenciamentos SET acessado_em = ? WHERE id = ?', [new Date().toISOString(), cred.id], () => { });
         }
 
         let colabs = [];
-        try { colabs = JSON.parse(cred.colaboradores_ids || '[]'); } catch(e){}
+        try { colabs = JSON.parse(cred.colaboradores_ids || '[]'); } catch (e) { }
         let veics = [];
-        try { veics = JSON.parse(cred.veiculos_ids || '[]'); } catch(e){}
+        try { veics = JSON.parse(cred.veiculos_ids || '[]'); } catch (e) { }
 
         // Buscar documentos dos colaboradores
         const colabIds = colabs.map(c => c.id).filter(id => id);
@@ -9853,7 +9922,7 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
 
         // Also fetch licencas file info from DB
         let licencasRaw = [];
-        try { licencasRaw = JSON.parse(cred.licencas_ids || '[]'); } catch(e) {}
+        try { licencasRaw = JSON.parse(cred.licencas_ids || '[]'); } catch (e) { }
         const licencaIds = licencasRaw.map(l => l.id).filter(Boolean);
         const licencasDbPromise = new Promise((resolve) => {
             if (licencaIds.length === 0) return resolve([]);
@@ -9873,21 +9942,21 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
 
             // Mapear docs_exigidos (chaves) para nomes reais de documentos
             let docsExigidos = [];
-            try { docsExigidos = JSON.parse(cred.docs_exigidos || '[]'); } catch(e){}
+            try { docsExigidos = JSON.parse(cred.docs_exigidos || '[]'); } catch (e) { }
 
             const docMapPublico = {
-                'cnh':             ['CNH'],
-                'cpf':             ['RG-CPF', 'CIN-CPF', 'CPF', 'rg cpf', 'cin cpf'],
-                'aso':             ['ASO', 'ASO Padrao', 'ASO Padrão', 'Atestado de Saúde Ocupacional'],
-                'ficha_registro':  ['Ficha de Registro', 'Ficha Cadastral', 'Ficha de registro'],
-                'treinamento':     ['Carteira de vacinacao', 'Carteira de vacinação', 'Carteira de Vacina', 'vacina'],
-                'epi':             ['Ficha de EPI Assinada', 'Ficha de EPI', 'ficha epi', 'epi'],
-                'contrato_esocial':['Contrato e-social', 'contrato esocial', 'e-social', 'esocial'],
-                'nr1':             ['NR1', 'NR 1', 'Ordem de Servico', 'Ordem de Serviço', 'OS', 'ordem servico']
+                'cnh': ['CNH'],
+                'cpf': ['RG-CPF', 'CIN-CPF', 'CPF', 'rg cpf', 'cin cpf'],
+                'aso': ['ASO', 'ASO Padrao', 'ASO Padrão', 'Atestado de Saúde Ocupacional'],
+                'ficha_registro': ['Ficha de Registro', 'Ficha Cadastral', 'Ficha de registro'],
+                'treinamento': ['Carteira de vacinacao', 'Carteira de vacinação', 'Carteira de Vacina', 'vacina'],
+                'epi': ['Ficha de EPI Assinada', 'Ficha de EPI', 'ficha epi', 'epi'],
+                'contrato_esocial': ['Contrato e-social', 'contrato esocial', 'e-social', 'esocial'],
+                'nr1': ['NR1', 'NR 1', 'Ordem de Servico', 'Ordem de Serviço', 'OS', 'ordem servico']
             };
 
             // Montar conjunto de nomes aceitos (normalizados sem acento)
-            const norm = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+            const norm = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
             const tiposPermitidos = new Set();
             docsExigidos.forEach(chave => {
                 (docMapPublico[chave] || []).forEach(nome => tiposPermitidos.add(norm(nome)));
@@ -9958,20 +10027,20 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
 app.get('/api/publico/credenciamento/:token/doc/:docId', (req, res) => {
     db.get('SELECT * FROM credenciamentos WHERE token = ?', [req.params.token], (err, cred) => {
         if (!cred || new Date() > new Date(cred.valid_until)) return res.status(403).send('Link inválido/expirado');
-        
+
         db.get('SELECT * FROM documentos WHERE id = ?', [req.params.docId], (err, doc) => {
             if (!doc) return res.status(404).send('Documento não encontrado');
-            
+
             // Validar se o doc pertence a um colaborador credenciado
             let colabs = [];
-            try { colabs = JSON.parse(cred.colaboradores_ids || '[]'); } catch(e){}
+            try { colabs = JSON.parse(cred.colaboradores_ids || '[]'); } catch (e) { }
             if (!colabs.find(c => c.id === doc.colaborador_id)) return res.status(403).send('Acesso negado a este documento');
 
             const filePath = doc.signed_file_path || doc.file_path;
             const path_module = require('path');
             const fs_module = require('fs');
             const absolutePath = path_module.resolve(__dirname, '..', '..', filePath);
-            
+
             if (fs_module.existsSync(absolutePath)) {
                 res.download(absolutePath, doc.file_name);
             } else {
@@ -9985,12 +10054,12 @@ app.get('/api/publico/credenciamento/:token/doc/:docId', (req, res) => {
 app.get('/api/publico/credenciamento/:token/crlv/:veicId', (req, res) => {
     db.get('SELECT * FROM credenciamentos WHERE token = ?', [req.params.token], (err, cred) => {
         if (!cred || new Date() > new Date(cred.valid_until)) return res.status(403).send('Link inválido/expirado');
-        
+
         db.get('SELECT crlv_base64, crlv_filename FROM frota_veiculos WHERE id = ?', [req.params.veicId], (err, row) => {
             if (!row || !row.crlv_base64) return res.status(404).send('CRLV não encontrado');
-            
+
             let veics = [];
-            try { veics = JSON.parse(cred.veiculos_ids || '[]'); } catch(e){}
+            try { veics = JSON.parse(cred.veiculos_ids || '[]'); } catch (e) { }
             // Nota: JSON parsing converte números para int/string. Vamos comparar como string.
             if (!veics.find(v => String(v.id) === String(req.params.veicId))) return res.status(403).send('Acesso negado a este veículo');
 
@@ -10009,18 +10078,18 @@ app.get('/api/publico/credenciamento/:token/crlv/:veicId', (req, res) => {
 app.get('/api/publico/credenciamento/:token/licenca/:licId', (req, res) => {
     db.get('SELECT * FROM credenciamentos WHERE token = ?', [req.params.token], (err, cred) => {
         if (!cred || new Date() > new Date(cred.valid_until)) return res.status(403).send('Link inválido/expirado');
-        
+
         // Verificar que a licença pertence ao credenciamento
         let licencasIds = [];
-        try { licencasIds = JSON.parse(cred.licencas_ids || '[]'); } catch(e){}
+        try { licencasIds = JSON.parse(cred.licencas_ids || '[]'); } catch (e) { }
         if (!licencasIds.find(l => String(l.id) === String(req.params.licId))) {
             return res.status(403).send('Acesso negado a esta licença');
         }
-        
+
         db.get('SELECT * FROM licencas WHERE id = ?', [req.params.licId], (err2, row) => {
             if (err2 || !row) return res.status(404).send('Licença não encontrada');
             if (!row.file_path && !row.file_name) return res.status(404).send('Nenhum arquivo anexado a esta licença');
-            
+
             let absPath = '';
             if (row.file_path) absPath = path.resolve(__dirname, '..', '..', row.file_path);
             if (!absPath || !fs.existsSync(absPath)) {
@@ -10029,7 +10098,7 @@ app.get('/api/publico/credenciamento/:token/licenca/:licId', (req, res) => {
                 if (fs.existsSync(finalPath)) absPath = finalPath;
             }
             if (!absPath || !fs.existsSync(absPath)) return res.status(404).send('Arquivo físico não encontrado');
-            
+
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Content-Disposition', 'attachment; filename="' + row.file_name + '"');
             res.sendFile(absPath);
@@ -10044,7 +10113,7 @@ app.get('/api/publico/credenciamento/:token/epi/:epiId', (req, res) => {
         if (!cred || new Date() > new Date(cred.valid_until)) return res.status(403).json({ error: 'Link inválido/expirado' });
 
         let colabs = [];
-        try { colabs = JSON.parse(cred.colaboradores_ids || '[]'); } catch(e) {}
+        try { colabs = JSON.parse(cred.colaboradores_ids || '[]'); } catch (e) { }
 
         db.get('SELECT * FROM colaborador_epi_fichas WHERE id = ?', [req.params.epiId], (err2, ficha) => {
             if (err2 || !ficha) return res.status(404).json({ error: 'Ficha de EPI não encontrada' });
@@ -10058,8 +10127,8 @@ app.get('/api/publico/credenciamento/:token/epi/:epiId', (req, res) => {
                 db.get('SELECT * FROM epi_templates WHERE id = ?', [ficha.template_id], (err4, template) => {
                     // Buscar entregas assinadas
                     db.all('SELECT * FROM epi_entregas WHERE ficha_id = ? ORDER BY data_entrega ASC', [ficha.id], (err5, entregas) => {
-                        const epis = (() => { try { return JSON.parse(ficha.snapshot_epis || '[]'); } catch(e) { return []; } })();
-                        const templateEpis = template ? (() => { try { return JSON.parse(template.epis_json || '[]'); } catch(e) { return []; } })() : epis;
+                        const epis = (() => { try { return JSON.parse(ficha.snapshot_epis || '[]'); } catch (e) { return []; } })();
+                        const templateEpis = template ? (() => { try { return JSON.parse(template.epis_json || '[]'); } catch (e) { return []; } })() : epis;
 
                         res.json({
                             ficha: {
@@ -10079,7 +10148,7 @@ app.get('/api/publico/credenciamento/:token/epi/:epiId', (req, res) => {
                             } : { nome: colabInfo.nome || 'Colaborador' },
                             entregas: (entregas || []).map(e => ({
                                 data: e.data_entrega,
-                                descricao: (() => { try { return JSON.parse(e.epis_entregues || '[]').join(', '); } catch(er) { return ''; } })(),
+                                descricao: (() => { try { return JSON.parse(e.epis_entregues || '[]').join(', '); } catch (er) { return ''; } })(),
                                 assinatura_base64: e.assinatura_base64
                             }))
                         });
@@ -10112,9 +10181,9 @@ app.post('/api/licencas/extrair-validade', authenticateToken, uploadFoto.single(
         const data = await pdfParse(req.file.buffer);
         const text = data.text;
         let foundDate = null;
-        
+
         const docNome = req.body.nome ? req.body.nome.toUpperCase() : '';
-        
+
         // 0. Caso especial: CTF IBAMA — priorizar "CR válido até:" e pegar a data mais futura nessa seção
         if (docNome.includes('CTF') || docNome.includes('IBAMA')) {
             const crSection = text.match(/CR\s+v[aá]lido\s+at[eé][\s\S]{0,300}/i);
@@ -10138,7 +10207,7 @@ app.post('/api/licencas/extrair-validade', authenticateToken, uploadFoto.single(
                 }
             }
         }
-        
+
         // 0b. Caso especial: CLI / Alvará — priorizar "DATA DE VALIDADE" (ignora "DATA DA SOLICITAÇÃO")
         if (docNome.includes('CLI') || docNome.includes('ALVAR')) {
             const matchValidade = text.match(/DATA\s+DE\s+VALIDADE[\s\S]{0,50}?(\d{2}[\/\.-]\d{2}[\/\.-]\d{4})/i);
@@ -10171,7 +10240,7 @@ app.post('/api/licencas/extrair-validade', authenticateToken, uploadFoto.single(
                             let dFinal = new Date(dObj);
                             if (docNome.includes('PCMSO')) dFinal.setFullYear(dFinal.getFullYear() + 1);
                             if (docNome.includes('CND') && docNome.includes('MUNICIPAL')) dFinal.setDate(dFinal.getDate() + 30);
-                            maxDateStr = `${dFinal.getFullYear()}-${String(dFinal.getMonth()+1).padStart(2,'0')}-${String(dFinal.getDate()).padStart(2,'0')}`;
+                            maxDateStr = `${dFinal.getFullYear()}-${String(dFinal.getMonth() + 1).padStart(2, '0')}-${String(dFinal.getDate()).padStart(2, '0')}`;
                         }
                     }
                 }
@@ -10180,14 +10249,14 @@ app.post('/api/licencas/extrair-validade', authenticateToken, uploadFoto.single(
                 }
             }
         }
-        
+
         if (foundDate) {
             const parts = foundDate.split(/[\/\.-]/);
             if (parts.length === 3) {
-                const dFinal = new Date(parseInt(parts[2],10), parseInt(parts[1],10)-1, parseInt(parts[0],10));
+                const dFinal = new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
                 if (docNome.includes('PCMSO')) dFinal.setFullYear(dFinal.getFullYear() + 1);
                 if (docNome.includes('CND') && docNome.includes('MUNICIPAL')) dFinal.setDate(dFinal.getDate() + 30);
-                const Y = dFinal.getFullYear(), M = String(dFinal.getMonth()+1).padStart(2,'0'), D = String(dFinal.getDate()).padStart(2,'0');
+                const Y = dFinal.getFullYear(), M = String(dFinal.getMonth() + 1).padStart(2, '0'), D = String(dFinal.getDate()).padStart(2, '0');
                 return res.json({ validade: `${Y}-${M}-${D}` });
             }
         }
@@ -10212,7 +10281,7 @@ app.post('/api/licencas', authenticateToken, upload.single('file'), (req, res) =
     const empresaDir = path.join(LICENCAS_UPLOAD_PATH, empresa.toUpperCase().replace(/[^A-Z0-9]/g, '_'));
     if (!fs.existsSync(empresaDir)) fs.mkdirSync(empresaDir, { recursive: true });
     const ext = path.extname(req.file.originalname) || '.pdf';
-    const safeName = nome.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]/g,'_').toUpperCase();
+    const safeName = nome.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
     const fileName = safeName + ext;
     const filePath = path.join(empresaDir, fileName);
     fs.copyFileSync(req.file.path, filePath);
@@ -10220,7 +10289,7 @@ app.post('/api/licencas', authenticateToken, upload.single('file'), (req, res) =
     const relPath = path.relative(path.join(BASE_UPLOAD_PATH, '..', '..'), filePath).replace(/\\/g, '/');
     db.run('INSERT INTO licencas (empresa, nome, validade, file_path, file_name, updated_at, created_at) VALUES (?, ?, ?, ?, ?, datetime("now"), datetime("now"))',
         [empresa, nome, validade || null, relPath, fileName],
-        function(err) {
+        function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ id: this.lastID, message: 'Licenca salva.' });
         }
@@ -10237,7 +10306,7 @@ app.put('/api/licencas/:id', authenticateToken, upload.single('file'), (req, res
             const empresaDir = path.join(LICENCAS_UPLOAD_PATH, row.empresa.toUpperCase().replace(/[^A-Z0-9]/g, '_'));
             if (!fs.existsSync(empresaDir)) fs.mkdirSync(empresaDir, { recursive: true });
             const ext = path.extname(req.file.originalname) || '.pdf';
-            const safeName = row.nome.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]/g,'_').toUpperCase();
+            const safeName = row.nome.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
             fileName = safeName + ext;
             const absolutePath = path.join(empresaDir, fileName);
             fs.copyFileSync(req.file.path, absolutePath);
@@ -10259,7 +10328,7 @@ app.delete('/api/licencas/:id', authenticateToken, (req, res) => {
         if (err || !row) return res.status(404).json({ error: 'Licenca nao encontrada.' });
         if (row.file_path) {
             const absPath = path.resolve(__dirname, '..', '..', row.file_path);
-            if (fs.existsSync(absPath)) { try { fs.unlinkSync(absPath); } catch(e){} }
+            if (fs.existsSync(absPath)) { try { fs.unlinkSync(absPath); } catch (e) { } }
         }
         db.run('DELETE FROM licencas WHERE id = ?', [req.params.id], (err2) => {
             if (err2) return res.status(500).json({ error: err2.message });
@@ -10272,10 +10341,10 @@ app.get('/api/licencas/:id/view', authenticateToken, (req, res) => {
     db.get('SELECT * FROM licencas WHERE id = ?', [req.params.id], (err, row) => {
         if (err || !row) return res.status(404).send('Licenca nao encontrada.');
         if (!row.file_path && !row.file_name) return res.status(404).send('Arquivo nao anexado.');
-        
+
         let absPath = '';
         if (row.file_path) absPath = path.resolve(__dirname, '..', '..', row.file_path);
-        
+
         if (!absPath || !fs.existsSync(absPath)) {
             // fallback se o caminho relativo foi gerado de forma diferente
             if (row.file_path) {
@@ -10283,7 +10352,7 @@ app.get('/api/licencas/:id/view', authenticateToken, (req, res) => {
                 if (fs.existsSync(altPath)) absPath = altPath;
             }
         }
-        
+
         if (!absPath || !fs.existsSync(absPath)) {
             // fallback definitivo construindo o caminho do zero usando empresa e nome do arquivo
             const empresaDir = path.join(LICENCAS_UPLOAD_PATH, row.empresa.toUpperCase().replace(/[^A-Z0-9]/g, '_'));
@@ -10292,7 +10361,7 @@ app.get('/api/licencas/:id/view', authenticateToken, (req, res) => {
         }
 
         if (!absPath || !fs.existsSync(absPath)) return res.status(404).send('Arquivo fisico nao encontrado.');
-        
+
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', 'inline; filename="' + row.file_name + '"');
         res.sendFile(absPath);
@@ -10304,13 +10373,13 @@ function verificarLicencasVencimentoCron() {
     console.log('[CRON] Verificando vencimento de Licencas Empresariais...');
     db.all(`SELECT * FROM licencas WHERE validade IS NOT NULL AND validade != ''`, [], (err, licencas) => {
         if (err) { console.error('[CRON Licencas]', err.message); return; }
-        
+
         const hoje = new Date();
-        hoje.setHours(0,0,0,0);
-        
+        hoje.setHours(0, 0, 0, 0);
+
         db.get(`SELECT (SELECT email_corporativo FROM colaboradores WHERE id = d.responsavel_id) as email 
                 FROM departamentos d WHERE LOWER(TRIM(d.nome)) = 'administrativo' LIMIT 1`, [], async (errD, rowD) => {
-            
+
             const emailDestino = (rowD && rowD.email) ? rowD.email : 'roberta@americarental.com.br'; // Fallback
             if (!emailDestino) {
                 console.log('[CRON Licencas] Email do Administrativo nao encontrado.');
@@ -10320,17 +10389,17 @@ function verificarLicencasVencimentoCron() {
             for (const lic of licencas) {
                 const dataValidade = new Date(lic.validade + 'T12:00:00');
                 const diffDias = Math.ceil((dataValidade - hoje) / 86400000);
-                
+
                 // Regras de envio
                 const envio3Meses = ['PCMSO', 'ALVARÁ', 'AVCB', 'CADRI', 'CLI', 'Licença de Operação', 'CETESB', 'LTCAT', 'LI - Licença de Instalação', 'LO - Licença de Operação', 'Declaração de Contrato', 'Declaração de Vigência', 'Contrato', 'Alvará', 'LO'];
                 const envioDia = ['CND Estadual', 'CND Federal', 'CND Municipal', 'CND Trabalhista', 'CTF IBAMA'];
-                
-                const nomeNorm = lic.nome.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
-                const tipo3Meses = envio3Meses.some(n => n.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim() === nomeNorm);
-                const tipoDia = envioDia.some(n => n.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim() === nomeNorm);
-                
+
+                const nomeNorm = lic.nome.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+                const tipo3Meses = envio3Meses.some(n => n.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() === nomeNorm);
+                const tipoDia = envioDia.some(n => n.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() === nomeNorm);
+
                 let deveEnviar = false;
-                
+
                 if (tipo3Meses) {
                     if (diffDias <= 90) {
                         // Verifica se ja enviou nos ultimos 15 dias
@@ -10347,7 +10416,7 @@ function verificarLicencasVencimentoCron() {
                         deveEnviar = true;
                     }
                 }
-                
+
                 if (deveEnviar) {
                     await dispararEmailLicenca(lic, diffDias, emailDestino);
                     db.run('UPDATE licencas SET last_alert_date = ? WHERE id = ?', [new Date().toISOString(), lic.id]);
@@ -10360,10 +10429,10 @@ function verificarLicencasVencimentoCron() {
 async function dispararEmailLicenca(lic, diffDias, emailDestino) {
     const transporter = nodemailer.createTransport(SMTP_CONFIG);
     const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
-    
+
     let statusText = '';
     let colorTheme = '';
-    
+
     if (diffDias < 0) {
         statusText = 'VENCIDO HÁ ' + Math.abs(diffDias) + ' DIAS';
         colorTheme = '#c0392b';
@@ -10374,9 +10443,9 @@ async function dispararEmailLicenca(lic, diffDias, emailDestino) {
         statusText = 'VENCE EM ' + diffDias + ' DIAS';
         colorTheme = '#f39c12';
     }
-    
+
     const validadeFormatada = lic.validade.split('-').reverse().join('/');
-    
+
     const htmlContent = `
         <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px;">
             <div style="text-align: center; margin-bottom: 20px;">
@@ -10441,5 +10510,5 @@ db.serialize(() => {
         });
     });
 
-    db.run("UPDATE credenciamentos SET status = 'enviado' WHERE status IS NULL", (err) => {});
+    db.run("UPDATE credenciamentos SET status = 'enviado' WHERE status IS NULL", (err) => { });
 });
