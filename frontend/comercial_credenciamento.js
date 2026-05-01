@@ -28,7 +28,8 @@ async function _carregarLicencasAgrupadas(licsSelecionadas = []) {
     try {
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
         const res = await fetch('/api/licencas', { headers: { 'Authorization': `Bearer ${token}` } });
-        const todas = Array.isArray(await res.json()) ? await res.clone().json() : [];
+        const data = await res.json();
+        const todas = Array.isArray(data) ? data : [];
 
         // Agrupar por empresa
         const grupos = {};
