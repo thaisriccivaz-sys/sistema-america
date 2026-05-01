@@ -2695,9 +2695,15 @@
                             <label>E-mail do Cliente <span class="required">*</span></label>
                             <input type="email" id="cred-cliente-email" placeholder="Ex: contato@xpto.com.br">
                         </div>
-                        <div class="form-group" style="grid-column: 1 / -1;">
-                            <label>Endereço de Instalação</label>
-                            <input type="text" id="cred-endereco-instalacao" placeholder="Ex: Rua das Flores, 123 - Centro">
+                        <div class="form-group" style="grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 3fr; gap: 1rem;">
+                            <div>
+                                <label style="display:block; margin-bottom:4px; font-weight:600;">OS</label>
+                                <input type="text" id="cred-os" placeholder="Ex: OS-12345" style="width:100%; padding:0.6rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box;">
+                            </div>
+                            <div>
+                                <label style="display:block; margin-bottom:4px; font-weight:600;">Endereço de Instalação</label>
+                                <input type="text" id="cred-endereco-instalacao" placeholder="Ex: Rua das Flores, 123 - Centro" style="width:100%; padding:0.6rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box;">
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2742,12 +2748,9 @@
 
                 <!-- 4. Licenças -->
                 <div class="card" style="margin-bottom: 1.5rem;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
-                        <h3><i class="ph ph-seal-check" style="color:#16a34a;"></i> Licenças da Empresa</h3>
-                        <button class="btn btn-outline" style="padding: 4px 8px; font-size: 12px;" onclick="window.abrirModalAddCredLicenca()"><i class="ph ph-plus"></i> Adicionar</button>
-                    </div>
-                    <div id="cred-licencas-list" style="display:flex; flex-direction:column; gap: 8px;">
-                        <p style="color:#94a3b8; font-size:13px; font-style:italic;">Nenhuma licença selecionada.</p>
+                    <h3 style="margin-bottom: 1rem;"><i class="ph ph-seal-check" style="color:#16a34a;"></i> Licenças da Empresa</h3>
+                    <div id="cred-licencas-empresas">
+                        <p style="color:#94a3b8; font-size:13px;">Carregando licenças...</p>
                     </div>
                 </div>
 

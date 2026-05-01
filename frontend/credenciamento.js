@@ -1,4 +1,124 @@
 
+window._switchLicencaTabCred = function(empresa) {
+    document.querySelectorAll('.cred-lic-tab-btn').forEach(btn => {
+        if (btn.getAttribute('data-emp') === empresa) {
+            btn.style.border = '1.5px solid #7048e8';
+            btn.style.background = '#7048e8';
+            btn.style.color = '#fff';
+            btn.style.fontWeight = '700';
+        } else {
+            btn.style.border = '1.5px solid #e2e8f0';
+            btn.style.background = '#f1f5f9';
+            btn.style.color = '#475569';
+            btn.style.fontWeight = '400';
+        }
+    });
+
+    document.querySelectorAll('.cred-lic-panel').forEach(panel => {
+        if (panel.getAttribute('data-emp') === empresa) {
+            panel.style.display = 'grid';
+        } else {
+            panel.style.display = 'none';
+        }
+    });
+};
+
+window._updateLicencasTabCountsCred = function() {
+    document.querySelectorAll('.cred-lic-tab-btn').forEach(btn => {
+        const emp = btn.getAttribute('data-emp');
+        const panel = document.querySelector(`.cred-lic-panel[data-emp="${emp}"]`);
+        if (panel) {
+            const count = panel.querySelectorAll('input[type="checkbox"]:checked').length;
+            const span = btn.querySelector('.tab-count');
+            if (span) span.textContent = `(${count})`;
+        }
+    });
+};
+
+async function _carregarLicencasAgrupadasLogistica(licsSelecionadas = []) {
+    const container = document.getElementById('cred-licencas-empresas');
+    if (!container) return;
+    container.innerHTML = '<p style="color:#94a3b8; font-size:13px;">Carregando licenças...</p>';
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const res = await fetch('/api/licencas', { headers: { 'Authorization': `Bearer ${token}` } });
+        const data = await res.json();
+        const todas = Array.isArray(data) ? data : [];
+        
+        credenciamentoState.licencas = todas; // For validation fallback
+        const EMPRESAS_LICENCAS = ['América Rental', 'Attend Ambiental', 'BRK'];
+
+        const grupos = {};
+        EMPRESAS_LICENCAS.forEach(e => grupos[e] = []);
+        todas.forEach(l => {
+            let emp = (l.empresa || 'Outras').trim();
+            const empStr = emp.toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (empStr === 'americarental') emp = 'América Rental';
+            else if (empStr === 'attendambiental') emp = 'Attend Ambiental';
+            else if (empStr === 'brk') emp = 'BRK';
+
+            if (!grupos[emp]) grupos[emp] = [];
+            grupos[emp].push(l);
+        });
+
+        const extras = Object.keys(grupos).filter(e => !EMPRESAS_LICENCAS.includes(e));
+        const todasEmpresas = [...EMPRESAS_LICENCAS, ...extras];
+        const primeiraEmp = todasEmpresas[0];
+
+        const tabsHtml = todasEmpresas.map(emp => {
+            const ativo = emp === primeiraEmp;
+            return `<button type="button" class="cred-lic-tab-btn" data-emp="${emp}" onclick="window._switchLicencaTabCred('${emp}')"
+                style="padding:6px 14px; border-radius:6px; border:1.5px solid ${ativo ? '#7048e8' : '#e2e8f0'};
+                background:${ativo ? '#7048e8' : '#f1f5f9'}; color:${ativo ? '#fff' : '#475569'};
+                font-weight:${ativo ? '700' : '400'}; font-size:13px; cursor:pointer; white-space:nowrap;">
+                <i class="ph ph-buildings"></i> ${emp}
+                <span class="tab-count" style="font-size:11px; opacity:0.75;">(0)</span>
+            </button>`;
+        }).join('');
+
+        const panelsHtml = todasEmpresas.map(emp => {
+            const lics = grupos[emp];
+            const isAtivo = emp === primeiraEmp;
+            const items = lics.length === 0
+                ? `<p style="color:#94a3b8; font-size:12px; font-style:italic; grid-column:1/-1; margin:4px 0;">Nenhuma licença cadastrada para esta empresa.</p>`
+                : lics.map(l => {
+                    const isChecked = licsSelecionadas.some(s => {
+                        const sid = typeof s === 'object' ? s.id : s;
+                        return String(sid) === String(l.id);
+                    });
+                    const checked = isChecked ? 'checked' : '';
+                    
+                    const hj = new Date(); hj.setHours(0,0,0,0);
+                    const isVencida = l.validade && new Date(l.validade + 'T12:00:00') < hj;
+                    const vencStyle = isVencida ? 'color:#dc2626;font-weight:bold;' : 'color:#94a3b8;';
+                    const vencIcon = isVencida ? '⚠ Vencida' : (l.validade ? l.validade.split('-').reverse().join('/') : 'Sem vencimento');
+
+                    return `<label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; padding:4px 0;">
+                        <input type="checkbox" name="cred_licencas" value="${l.id}" data-nome="${l.nome}" data-empresa="${emp}" data-validade="${l.validade || ''}" ${checked} onchange="window._updateLicencasTabCountsCred()">
+                        ${l.nome} <span style="font-size:11px; ${vencStyle}">(${vencIcon})</span>
+                    </label>`;
+                }).join('');
+
+            return `<div class="cred-lic-panel" data-emp="${emp}"
+                style="display:${isAtivo ? 'grid' : 'none'}; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:4px 16px;
+                background:#f8fafc; border:1px solid #e2e8f0; border-radius:0 6px 6px 6px; padding:12px; margin-top:0;">
+                ${items}
+            </div>`;
+        }).join('');
+
+        container.innerHTML = `
+            <div style="display:flex; gap:4px; flex-wrap:wrap; margin-bottom:-1px; position:relative; z-index:2;">
+                ${tabsHtml}
+            </div>
+            ${panelsHtml}
+        `;
+        window._updateLicencasTabCountsCred();
+    } catch(e) {
+        container.innerHTML = `<p style="color:#ef4444; font-size:13px;">Erro ao carregar licenças.</p>`;
+    }
+}
+
+
 window.renderAvatar = function(nome, foto, b64) {
     const initial = (nome || 'U')[0].toUpperCase();
     if (b64) return `<img src="${b64}" style="width:36px; height:36px; border-radius:50%; object-fit:cover;">`;
