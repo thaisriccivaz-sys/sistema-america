@@ -9399,11 +9399,14 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
                     function enviarEmailLogistica(destinatarios) {
                         const baseUrl = process.env.PUBLIC_URL || 'https://sistema-america-homologacao.onrender.com';
                         const dtLimite = data_limite_envio ? new Date(data_limite_envio).toLocaleDateString('pt-BR') : 'Não informada';
-                        const licNames = (licencas || []).map(l => l.nome).join(', ') || 'Nenhuma';
+                        const licNames = (licencas || []).map(l => `[${l.empresa || 'Licença'}] ${l.nome}`).join(', ') || 'Nenhuma';
                         const docsList = (docs_exigidos || []).join(', ') || 'Nenhum';
                         const htmlMail = `
                         <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; padding: 20px; border-radius: 8px;">
-                            <h2 style="color: #7048e8; text-align: center;">📋 Nova Solicitação de Credenciamento</h2>
+                            <div style="text-align: center; margin-bottom: 20px;">
+                                <img src="${baseUrl}/logo.png" alt="América Rental" style="max-height: 50px;">
+                            </div>
+                            <h2 style="color: #7048e8; text-align: center; margin-top: 0;">📋 Nova Solicitação de Credenciamento</h2>
                             <p>Uma nova solicitação de credenciamento foi registrada pelo departamento <strong>Comercial</strong> e aguarda ação da Logística.</p>
                             <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #7048e8;">
                                 <table style="width:100%; border-collapse:collapse;">
@@ -9448,8 +9451,9 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
                     'contrato_esocial': 'Contrato e-social', 'nr1': 'NR1 / Ordem de Serviço'
                 };
                 const docsArr = (docs_exigidos || []).map(d => docNamesMap[d] || d);
-                const licArr = (licencas || []).map(l => l.nome);
+                const licArr = (licencas || []).map(l => `<b>${l.empresa || 'Licença'}</b>: ${l.nome}`);
                 const dtLimCliente = data_limite_envio ? new Date(data_limite_envio).toLocaleDateString('pt-BR') : null;
+                const baseUrl = process.env.PUBLIC_URL || 'https://sistema-america-homologacao.onrender.com';
 
                 const docsHtml = docsArr.length > 0
                     ? `<ul style="margin:8px 0; padding-left:20px;">${docsArr.map(d => `<li>${d}</li>`).join('')}</ul>`
@@ -9461,6 +9465,9 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
 
                 const htmlCliente = `
                 <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow:hidden;">
+                    <div style="text-align: center; margin: 20px 0;">
+                        <img src="${baseUrl}/logo.png" alt="América Rental" style="max-height: 50px;">
+                    </div>
                     <div style="background: #7048e8; padding: 24px 20px; text-align:center;">
                         <h2 style="color:#fff; margin:0; font-size:1.3rem;">📋 Solicitação de Credenciamento Recebida</h2>
                     </div>
