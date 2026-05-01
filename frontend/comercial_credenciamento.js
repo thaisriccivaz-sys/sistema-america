@@ -35,7 +35,14 @@ async function _carregarLicencasAgrupadas(licsSelecionadas = []) {
         const grupos = {};
         EMPRESAS_LICENCAS.forEach(e => grupos[e] = []); // garante as 3 sempre existem
         todas.forEach(l => {
-            const emp = l.empresa || 'Outras';
+            let emp = (l.empresa || 'Outras').trim();
+            
+            // Normalizar nomes para garantir que caiam na aba certa (ex: 'america-rental' vira 'América Rental')
+            const empStr = emp.toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (empStr === 'americarental') emp = 'América Rental';
+            else if (empStr === 'attendambiental') emp = 'Attend Ambiental';
+            else if (empStr === 'brk') emp = 'BRK';
+
             if (!grupos[emp]) grupos[emp] = [];
             grupos[emp].push(l);
         });
