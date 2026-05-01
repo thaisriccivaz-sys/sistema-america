@@ -555,17 +555,16 @@ window.carregarHistoricoCredenciamento = async function() {
                 'contrato_esocial': 'Contrato e-social', 'nr1': 'NR1 / Ordem de Serviço'
             };
             const docsStr = docs.length > 0 ? docs.map(d => docNames[d] || d).join(' - ') : 'Apenas cadastro';
-            
             const colabsText = colabs.length > 0 
-                ? colabs.map(c => `<span title="Documentos enviados: ${docsStr}" style="cursor:help; border-bottom:1px dotted #94a3b8;">• ${c.nome}</span>`).join('<br>') 
+                ? colabs.map(c => `<span>• ${c.nome}</span>`).join('<br>') 
                 : '<span style="color:#94a3b8;">Nenhum</span>';
                 
             const veicsText = veics.length > 0 
-                ? `<span title="${veics.map(v => '• ' + v.placa + ' (CRLV)').join('&#10;')}" style="cursor:help; border-bottom:1px dotted #94a3b8; font-weight:600; color:#0f172a;">Enviados (${veics.length})</span>` 
+                ? `<span style="font-weight:600; color:#0f172a;">Enviados (${veics.length})</span>` 
                 : '<span style="color:#94a3b8;">Nenhum</span>';
                 
             const licencasText = licencas.length > 0 
-                ? `<span title="${licencas.map(l => '• ' + l.nome).join('&#10;')}" style="cursor:help; border-bottom:1px dotted #94a3b8; font-weight:600; color:#0f172a;">Enviadas (${licencas.length})</span>` 
+                ? `<span style="font-weight:600; color:#0f172a;">Enviadas (${licencas.length})</span>` 
                 : '<span style="color:#94a3b8;">Nenhuma</span>';
             
             // Status do Link
@@ -600,7 +599,7 @@ window.carregarHistoricoCredenciamento = async function() {
         }
 
         // Adicionar o botao toggle
-        acoes = `<button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="toggleCredDetails(this, 'cred-det-${cred.id}')" title="Ver Detalhes"><i class="ph ph-caret-down"></i></button>` + acoes;
+        acoes = `<button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="toggleCredDetails(this, 'log-cred-det-${cred.id}')" title="Ver Detalhes"><i class="ph ph-caret-down"></i></button>` + acoes;
 
         let docsFormatted = docs.length ? docs.map(d => docNames[d] || d).join(' - ') : '<span style="color:#94a3b8;font-style:italic;">Nenhum documento específico</span>';
         
@@ -629,7 +628,7 @@ window.carregarHistoricoCredenciamento = async function() {
             <td style="font-size:0.85rem;">${statusBadge}</td>
             <td style="text-align:right; white-space:nowrap;">${acoes}</td>
         </tr>
-        <tr id="cred-det-${cred.id}" style="display:none; background:#f8fafc;">
+        <tr id="log-cred-det-${cred.id}" style="display:none; background:#f8fafc;">
             <td colspan="7" style="padding:15px; font-size:0.85rem; border-left:3px solid #7048e8;">
                 <div style="display:flex; flex-wrap:wrap; gap:30px;">
                     <div style="flex:1; min-width:250px;">
