@@ -554,7 +554,7 @@ window.carregarHistoricoCredenciamento = async function() {
                 'treinamento': 'Carteira de Vacinação', 'epi': 'Ficha de EPI',
                 'contrato_esocial': 'Contrato e-social', 'nr1': 'NR1 / Ordem de Serviço'
             };
-            const docsStr = docs.length > 0 ? docs.map(d => docNames[d] || d).join(', ') : 'Apenas cadastro';
+            const docsStr = docs.length > 0 ? docs.map(d => docNames[d] || d).join(' - ') : 'Apenas cadastro';
             
             const colabsText = colabs.length > 0 
                 ? colabs.map(c => `<span title="Documentos enviados: ${docsStr}" style="cursor:help; border-bottom:1px dotted #94a3b8;">• ${c.nome}</span>`).join('<br>') 

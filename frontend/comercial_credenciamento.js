@@ -301,7 +301,7 @@ window.ordenarHistoricoComCred = function(coluna) {
             'contrato_esocial': 'Contrato e-social', 'nr1': 'NR1 / Ordem de Serviço'
         };
         const docsArr = docs.map(d => docNamesMap[d] || d);
-        const docsFormatted = docsArr.length > 0 ? docsArr.join(', ') : 'Nenhum';
+        const docsFormatted = docsArr.length > 0 ? docsArr.join(' - ') : 'Nenhum';
 
         const licGroups = {};
         lics.forEach(l => {
