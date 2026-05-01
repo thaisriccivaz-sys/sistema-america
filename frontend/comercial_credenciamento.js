@@ -196,8 +196,6 @@ window.ordenarHistoricoComCred = function(coluna) {
         });
     }
 
-    const tbody = document.getElementById('tbody-comercial-cred');
-    if (!tbody) return;
 
     tbody.innerHTML = dados.map(cred => {
         let dtFormatada = '';
