@@ -22,9 +22,11 @@ const TELAS_SISTEMA = [
     { modulo: 'Logística', pagina_id: 'logistica-pipeline',     pagina_nome: 'Pipeline OS',   icone: 'ph-kanban' },
     { modulo: 'Logística', pagina_id: 'logistica-frota',        pagina_nome: 'Frota',         icone: 'ph-truck' },
     { modulo: 'Logística', pagina_id: 'logistica-multas',       pagina_nome: 'Multas',         icone: 'ph-receipt' },
+    { modulo: 'Logística', pagina_id: 'logistica-credenciamento', pagina_nome: 'Credenciamento', icone: 'ph-identification-card' },
     // Módulo Financeiro
     { modulo: 'Financeiro', pagina_id: 'financeiro-em-breve', pagina_nome: 'Financeiro (Em breve)', icone: 'ph-currency-dollar' },
     // Módulo Comercial
+    { modulo: 'Comercial', pagina_id: 'comercial-credenciamento', pagina_nome: 'Solicitar Credencial', icone: 'ph-identification-card' },
     { modulo: 'Comercial', pagina_id: 'comercial-em-breve', pagina_nome: 'Comercial (Em breve)', icone: 'ph-handshake' },
     // Módulo Administrativo
     { modulo: 'Administrativo', pagina_id: 'admin-em-breve', pagina_nome: 'Administrativo (Em breve)', icone: 'ph-gear' },

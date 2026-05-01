@@ -9432,7 +9432,7 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
                     // Fallback: se nenhum colaborador tiver email, busca usuários com acesso à logística
                     if (emails.size === 0) {
                         // Tenta usuários com email cadastrado
-                        db.all("SELECT email FROM usuarios WHERE ativo = 1 AND email IS NOT NULL AND email != ''", [], (errU, users) => {
+                        db.all("SELECT u.email FROM usuarios u LEFT JOIN grupos_permissao gp ON u.grupo_permissao_id = gp.id WHERE u.ativo = 1 AND u.email IS NOT NULL AND u.email != '' AND (gp.departamento LIKE '%ogíst%' OR gp.departamento LIKE '%ogist%' OR u.departamento LIKE '%ogíst%' OR u.departamento LIKE '%ogist%')", [], (errU, users) => {
                             (users || []).forEach(u => { if (u.email && u.email.includes('@')) emails.add(u.email); });
                             // Se ainda vazio, não envia (sem destinatário)
                             if (emails.size > 0) enviarEmailLogistica([...emails]);
