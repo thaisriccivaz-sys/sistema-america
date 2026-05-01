@@ -345,6 +345,12 @@ window.ordenarHistoricoComCred = function(coluna) {
         
         const dtLimite = cred.data_limite_envio ? new Date(cred.data_limite_envio).toLocaleDateString('pt-BR') : '-';
 
+
+        const solNome = cred.sol_nome_usuario || cred.sol_username || cred.solicitado_por_nome || 'Usuário Comercial';
+        const envNome = cred.env_nome_usuario || cred.env_username || cred.enviado_por_nome || 'Usuário Logística';
+        const solDataStr = cred.created_at ? new Date(cred.created_at).toLocaleString('pt-BR') : 'Data não registrada';
+        const envDataStr = cred.enviado_em ? new Date(cred.enviado_em).toLocaleString('pt-BR') : 'Data não registrada';
+
         return `
         <tr>
             <td>

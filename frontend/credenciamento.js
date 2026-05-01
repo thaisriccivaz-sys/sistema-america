@@ -623,6 +623,12 @@ window.carregarHistoricoCredenciamento = async function() {
             licsFormatted = '<span style="color:#94a3b8;font-style:italic;">Nenhuma licença específica</span>';
         }
 
+
+        const solNome = cred.sol_nome_usuario || cred.sol_username || cred.solicitado_por_nome || 'Usuário Comercial';
+        const envNome = cred.env_nome_usuario || cred.env_username || cred.enviado_por_nome || 'Usuário Logística';
+        const solDataStr = cred.created_at ? new Date(cred.created_at).toLocaleString('pt-BR') : 'Data não registrada';
+        const envDataStr = cred.enviado_em ? new Date(cred.enviado_em).toLocaleString('pt-BR') : 'Data não registrada';
+
         return `
         <tr>
             <td>
