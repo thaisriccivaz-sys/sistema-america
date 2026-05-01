@@ -2861,19 +2861,34 @@ function renderTabelaColaboradores(lista) {
                         if (c.data_admissao) {
                             const admDate = new Date(c.data_admissao + 'T12:00:00');
                             const today = new Date();
-                            let years = today.getFullYear() - admDate.getFullYear();
-                            const m = today.getMonth() - admDate.getMonth();
-                            if (m < 0 || (m === 0 && today.getDate() < admDate.getDate())) {
-                                years--;
-                            }
-                            if (years >= 1) {
+                            if (today >= admDate) {
+                                let years = today.getFullYear() - admDate.getFullYear();
+                                let months = today.getMonth() - admDate.getMonth();
+                                if (today.getDate() < admDate.getDate()) {
+                                    months--;
+                                }
+                                if (months < 0) {
+                                    years--;
+                                    months += 12;
+                                }
+                                
                                 let badgeColor = '';
-                                if (years >= 1 && years < 3) badgeColor = '#10b981'; // verde claro
+                                if (years === 0) badgeColor = '#eab308'; // amarelo
+                                else if (years >= 1 && years < 3) badgeColor = '#f97316'; // laranja
                                 else if (years >= 3 && years < 5) badgeColor = '#3b82f6'; // azul
                                 else if (years >= 5 && years < 10) badgeColor = '#059669'; // verde escuro
                                 else if (years >= 10) badgeColor = '#8b5cf6'; // roxo
                                 
-                                expInfoHtml += `<div style="font-size:0.75rem; font-weight:700; margin-top:2px; color: ${badgeColor};">${years} ano${years > 1 ? 's' : ''}</div>`;
+                                let textPart = [];
+                                if (years > 0) textPart.push(`${years} ano${years > 1 ? 's' : ''}`);
+                                if (months > 0) textPart.push(`${months} mês${months > 1 ? 'es' : ''}`);
+                                
+                                if (textPart.length > 0) {
+                                    expInfoHtml += `<div style="font-size:0.75rem; font-weight:700; margin-top:2px; color: ${badgeColor};">${textPart.join(' e ')}</div>`;
+                                } else if (years === 0 && months === 0) {
+                                    // acabou de entrar
+                                    expInfoHtml += `<div style="font-size:0.75rem; font-weight:700; margin-top:2px; color: ${badgeColor};">Menos de 1 mês</div>`;
+                                }
                             }
                         }
                         let probationDatesHtml = '';
