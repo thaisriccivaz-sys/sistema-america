@@ -2348,7 +2348,9 @@
                                     <tr>
                                         <th style="cursor:pointer; white-space:nowrap;" onclick="window.ordenarHistoricoCred('os')" title="Ordenar OS">OS <i class="ph ph-arrows-down-up" style="color:#94a3b8; font-size:12px;"></i></th>
                                         <th style="cursor:pointer; white-space:nowrap;" onclick="window.ordenarHistoricoCred('cliente')" title="Ordenar A-Z">Cliente / Obra <i class="ph ph-arrows-down-up" style="color:#94a3b8; font-size:12px;"></i></th>
+                                        <th>Máx. Colab.</th>
                                         <th>Colaboradores</th>
+                                        <th>Máx. Veíc.</th>
                                         <th>Veículos</th>
                                         <th>Licenças</th>
                                         <th style="cursor:pointer; white-space:nowrap;" onclick="window.ordenarHistoricoCred('data')" title="Ordenar Antigo/Novo">Status do Link <i class="ph ph-arrows-down-up" style="color:#94a3b8; font-size:12px;"></i></th>
@@ -2356,7 +2358,7 @@
                                     </tr>
                                 </thead>
                                 <tbody id="tbody-historico-cred">
-                                    <tr><td colspan="6" style="text-align:center; color:#94a3b8; padding:2rem;">Carregando histórico...</td></tr>
+                                    <tr><td colspan="8" style="text-align:center; color:#94a3b8; padding:2rem;">Carregando histórico...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -2727,7 +2729,7 @@
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 1.5rem;">
                     <div class="card">
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
-                            <h3><i class="ph ph-users"></i> Colaboradores</h3>
+                            <h3><i class="ph ph-users"></i> Colaboradores <span id="cred-limit-colabs-span" style="font-size:12px; color:#64748b; font-weight:normal; margin-left:8px;"></span></h3>
                             <button class="btn btn-outline" style="padding: 4px 8px; font-size: 12px;" onclick="window.abrirModalAddCredColab()"><i class="ph ph-plus"></i> Adicionar</button>
                         </div>
                         <div id="cred-colabs-list" style="display:flex; flex-direction:column; gap: 8px;">
@@ -2737,7 +2739,7 @@
 
                     <div class="card">
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
-                            <h3><i class="ph ph-truck"></i> Veículos</h3>
+                            <h3><i class="ph ph-truck"></i> Veículos <span id="cred-limit-veics-span" style="font-size:12px; color:#64748b; font-weight:normal; margin-left:8px;"></span></h3>
                             <button class="btn btn-outline" style="padding: 4px 8px; font-size: 12px;" onclick="window.abrirModalAddCredVeic()"><i class="ph ph-plus"></i> Adicionar</button>
                         </div>
                         <div id="cred-veiculos-list" style="display:flex; flex-direction:column; gap: 8px;">
@@ -2772,7 +2774,7 @@
     <div id="modal-cred-colab" class="modal" style="z-index:9999;">
         <div class="modal-content" style="max-width: 500px;">
             <div class="modal-header">
-                <h3>Selecionar Colaboradores</h3>
+                <h3>Selecionar Colaboradores <span id="cred-modal-limit-colabs-span" style="font-size:12px; color:#64748b; font-weight:normal; margin-left:8px;"></span></h3>
                 <span class="close-modal" onclick="window.fecharModalAddCredColab()">&times;</span>
             </div>
             <div class="modal-body">
@@ -2793,7 +2795,7 @@
     <div id="modal-cred-veic" class="modal" style="z-index:9999;">
         <div class="modal-content" style="max-width: 500px;">
             <div class="modal-header">
-                <h3>Selecionar Veículos</h3>
+                <h3>Selecionar Veículos <span id="cred-modal-limit-veics-span" style="font-size:12px; color:#64748b; font-weight:normal; margin-left:8px;"></span></h3>
                 <span class="close-modal" onclick="fecharModalAddCredVeic()">&times;</span>
             </div>
             <div class="modal-body">

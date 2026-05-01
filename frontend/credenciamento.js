@@ -326,6 +326,29 @@ function renderListaVeicCred() {
         </div>`).join('');
 }
 
+
+window.verificarLimiteColabCred = function(cb) {
+    if (!cb.checked) return;
+    const limit = window._credLimites ? window._credLimites.colabs : 0;
+    if (limit <= 0) return;
+    const checkboxes = document.querySelectorAll('#lista-selecao-colab input[type="checkbox"]:checked');
+    if (checkboxes.length > limit) {
+        alert('Você não pode selecionar mais de ' + limit + ' colaborador(es) nesta solicitação.');
+        cb.checked = false;
+    }
+};
+
+window.verificarLimiteVeicCred = function(cb) {
+    if (!cb.checked) return;
+    const limit = window._credLimites ? window._credLimites.veics : 0;
+    if (limit <= 0) return;
+    const checkboxes = document.querySelectorAll('#lista-selecao-veic input[type="checkbox"]:checked');
+    if (checkboxes.length > limit) {
+        alert('Você não pode selecionar mais de ' + limit + ' veículo(s) nesta solicitação.');
+        cb.checked = false;
+    }
+};
+
 // ── Selecionar Todos ──────────────────────────────────────────────────────────
 window.selecionarTodosColabs = function() {
     const checkboxes = document.querySelectorAll('#lista-selecao-colab input[type="checkbox"]');
@@ -580,7 +603,12 @@ window.gerarEnviarCredenciamento = async function() {
 }
 
 // ── Modal de Novo Credenciamento ─────────────────────────────────────────────
-window._credSolicitacaoId = null; // ID da solicitação sendo cumprida (ou null para novo)
+window._credSolicitacaoId = null;
+    window._credLimites = { colabs: 0, veics: 0 };
+    const spanColabs = document.getElementById('cred-limit-colabs-span'); if (spanColabs) spanColabs.textContent = '(Ilimitado)';
+    const spanVeics = document.getElementById('cred-limit-veics-span'); if (spanVeics) spanVeics.textContent = '(Ilimitado)';
+    const spanModalColabs = document.getElementById('cred-modal-limit-colabs-span'); if (spanModalColabs) spanModalColabs.textContent = '(Ilimitado)';
+    const spanModalVeics = document.getElementById('cred-modal-limit-veics-span'); if (spanModalVeics) spanModalVeics.textContent = '(Ilimitado)'; // ID da solicitação sendo cumprida (ou null para novo)
 
 window.abrirModalNovoCredenciamento = function() {
     window._credSolicitacaoId = null;
@@ -608,6 +636,26 @@ window.abrirModalCumprirSolicitacao = function(id) {
     const dados = (window._historicoCredDados || []).find(c => String(c.id) === String(id));
     
     window._credSolicitacaoId = id;
+
+    window._credLimites = {
+        colabs: dados ? parseInt(dados.qtd_max_colaboradores || 0) : 0,
+        veics: dados ? parseInt(dados.qtd_max_veiculos || 0) : 0
+    };
+    
+    const maxColabsText = window._credLimites.colabs > 0 ? `(Máx: ${window._credLimites.colabs})` : '(Ilimitado)';
+    const maxVeicsText = window._credLimites.veics > 0 ? `(Máx: ${window._credLimites.veics})` : '(Ilimitado)';
+    
+    const spanColabs = document.getElementById('cred-limit-colabs-span');
+    if (spanColabs) spanColabs.textContent = maxColabsText;
+    
+    const spanVeics = document.getElementById('cred-limit-veics-span');
+    if (spanVeics) spanVeics.textContent = maxVeicsText;
+    
+    const spanModalColabs = document.getElementById('cred-modal-limit-colabs-span');
+    if (spanModalColabs) spanModalColabs.textContent = maxColabsText;
+    
+    const spanModalVeics = document.getElementById('cred-modal-limit-veics-span');
+    if (spanModalVeics) spanModalVeics.textContent = maxVeicsText;
 
     // Limpar seleções anteriores
     credenciamentoState.selecionadosColabs = [];
