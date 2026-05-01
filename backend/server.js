@@ -9342,7 +9342,7 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
     const { cliente_nome, os, cliente_email, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas } = req.body;
     if (!cliente_nome || !cliente_email) return res.status(400).json({ error: 'Nome e email são obrigatórios.' });
 
-    db.run(`INSERT INTO credenciamentos (cliente_nome, os, cliente_email, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas_ids, status, token) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'solicitado', '')`,
+    db.run(`INSERT INTO credenciamentos (cliente_nome, os, cliente_email, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas_ids, status, token) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'solicitado', NULL)`,
         [
             cliente_nome, 
             os || '',
