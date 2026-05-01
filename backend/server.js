@@ -2287,9 +2287,51 @@ async function checkColaboradorDesligado(colaboradorId) {
         });
                 console.log(`[checkColaboradorDesligado] E-mail enviado para ${emailsUnicos.join(', ')} — ${deptos.length} departamento(s) afetado(s)`);
     } catch (err) {
-        console.error('[checkColaboradorDesligado] Erro:', err.message);
+        console.error('[checkColaboradorDesligado] ERRO FATAL:', err.message, err.stack || '');
     }
 }
+
+// ENDPOINT DE DIAGNOSTICO: GET /api/test-desligado/:id
+app.get('/api/test-desligado/:id', authenticateToken, async (req, res) => {
+    const id = req.params.id;
+    const log = [];
+    try {
+        const colab = await new Promise((resolve, reject) =>
+            db.get('SELECT id, nome_completo, cargo, departamento FROM colaboradores WHERE id = ?', [id], (e, r) => e ? reject(e) : resolve(r)));
+        log.push({ step: '1_colab', data: colab });
+        if (!colab) return res.json({ ok: false, log, error: 'Colaborador nao encontrado' });
+        const deptos = await new Promise((resolve, reject) =>
+            db.all('SELECT id, nome, tipo, responsavel_id FROM departamentos WHERE responsavel_id = ?', [id], (e, r) => e ? reject(e) : resolve(r || [])));
+        log.push({ step: '2_deptos_como_responsavel', count: deptos.length, data: deptos });
+        const allDeptos = await new Promise((resolve, reject) =>
+            db.all('SELECT id, nome, responsavel_id FROM departamentos WHERE responsavel_id IS NOT NULL LIMIT 10', [], (e, r) => e ? reject(e) : resolve(r || [])));
+        log.push({ step: '2b_all_deptos_com_responsavel', data: allDeptos });
+        const diretoriaUsers = await new Promise((resolve, reject) =>
+            db.all("SELECT id, username, email, role, departamento FROM usuarios WHERE (departamento='Diretoria' OR role='Diretoria' OR role='Administrador') AND email IS NOT NULL AND email!=''", [], (e, r) => e ? reject(e) : resolve(r || [])));
+        log.push({ step: '3_diretoria_users', count: diretoriaUsers.length, data: diretoriaUsers });
+        const diretoriaColabs = await new Promise((resolve, reject) =>
+            db.all("SELECT id, nome_completo, email_corporativo FROM colaboradores WHERE departamento='Diretoria' AND status!='Desligado' AND email_corporativo IS NOT NULL AND email_corporativo!=''", [], (e, r) => e ? reject(e) : resolve(r || [])));
+        log.push({ step: '4_diretoria_colabs', count: diretoriaColabs.length, data: diretoriaColabs });
+        const emails = [...diretoriaUsers.map(u => u.email), ...diretoriaColabs.map(c => c.email_corporativo)].filter(Boolean);
+        const emailsUnicos = [...new Set(emails)];
+        log.push({ step: '5_emails_finais', emails: emailsUnicos });
+        const destinos = emailsUnicos.length ? emailsUnicos : ['americasistema48@gmail.com'];
+        try {
+            await sendMailHelper({
+                from: '"RH America Rental (TESTE)" <' + SMTP_CONFIG.auth.user + '>',
+                to: destinos.join(', '),
+                subject: '[TESTE] Desligado-Depto: ' + colab.nome_completo,
+                html: '<p><b>TESTE</b> - Colaborador: ' + colab.nome_completo + ' | Deptos: ' + deptos.length + '</p>'
+            });
+            log.push({ step: '6_email', status: 'ENVIADO', to: destinos });
+        } catch (mailErr) {
+            log.push({ step: '6_email', status: 'ERRO', error: mailErr.message });
+        }
+        res.json({ ok: true, log });
+    } catch (err) {
+        res.json({ ok: false, log, error: err.message });
+    }
+});
 
 app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
     const data = req.body;
