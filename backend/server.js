@@ -2191,6 +2191,91 @@ app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) =>
         });
     }
 });
+// ─────────────────────────────────────────────────────────────────────────────
+// CHECK: Colaborador desligado que era responsável por departamento
+// Envia e-mail automático para a Diretoria solicitar substituição
+// ─────────────────────────────────────────────────────────────────────────────
+async function checkColaboradorDesligado(colaboradorId) {
+    try {
+        // 1. Buscar dados do colaborador desligado
+        const colab = await new Promise((resolve, reject) => {
+            db.get('SELECT id, nome_completo, cargo, departamento FROM colaboradores WHERE id = ?', [colaboradorId], (err, row) => {
+                if (err) reject(err); else resolve(row);
+            });
+        });
+        if (!colab) return;
+
+        // 2. Verificar se é responsável por algum departamento
+        const deptos = await new Promise((resolve, reject) => {
+            db.all('SELECT id, nome, tipo FROM departamentos WHERE responsavel_id = ?', [colaboradorId], (err, rows) => {
+                if (err) reject(err); else resolve(rows || []);
+            });
+        });
+        if (!deptos.length) return; // Não era responsável por nenhum departamento
+
+        // 3. Buscar e-mails dos usuários do sistema com perfil Diretoria
+        const diretoriaUsers = await new Promise((resolve, reject) => {
+            db.all(
+                `SELECT u.email FROM usuarios u
+                 WHERE u.departamento = 'Diretoria' OR u.role = 'Diretoria' OR u.role = 'Administrador'
+                 AND u.email IS NOT NULL AND u.email != ''`,
+                [], (err, rows) => { if (err) reject(err); else resolve(rows || []); }
+            );
+        });
+
+        // 4. Buscar também colaboradores do departamento Diretoria com e-mail corporativo
+        const diretoriaColabs = await new Promise((resolve, reject) => {
+            db.all(
+                `SELECT email_corporativo as email FROM colaboradores
+                 WHERE departamento = 'Diretoria' AND status != 'Desligado'
+                 AND email_corporativo IS NOT NULL AND email_corporativo != ''`,
+                [], (err, rows) => { if (err) reject(err); else resolve(rows || []); }
+            );
+        });
+
+        const emails = [
+            ...diretoriaUsers.map(u => u.email),
+            ...diretoriaColabs.map(c => c.email)
+        ].filter(Boolean);
+
+        const emailsUnicos = [...new Set(emails)];
+        if (!emailsUnicos.length) {
+            console.warn('[checkColaboradorDesligado] Nenhum e-mail da Diretoria encontrado para notificação.');
+            return;
+        }
+
+        // 5. Montar e-mail
+        const deptosLista = deptos.map(d => `<li><strong>${d.nome}</strong> (${d.tipo || 'Operacional'})</li>`).join('');
+        const html = `
+        <div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
+            <div style="background:#c92a2a;padding:20px 24px;border-radius:8px 8px 0 0;">
+                <h2 style="color:#fff;margin:0;font-size:1.2rem;">⚠️ Responsável de Departamento Desligado</h2>
+            </div>
+            <div style="background:#fff;padding:24px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;">
+                <p style="color:#334155;">O colaborador <strong>${colab.nome_completo}</strong>
+                (${colab.cargo || 'Cargo não definido'} — ${colab.departamento || 'Depto não definido'})
+                foi <strong style="color:#c92a2a;">desligado</strong> do sistema e era responsável pelos seguintes departamentos:</p>
+                <ul style="color:#475569;line-height:1.8;">${deptosLista}</ul>
+                <p style="color:#334155;">Por favor, acesse o sistema e defina um novo responsável para cada departamento listado acima para que o fluxo de comunicação e aprovações continue funcionando corretamente.</p>
+                <a href="https://sistema-america-homologacao.onrender.com/?target=departamentos"
+                   style="display:inline-block;margin-top:16px;padding:10px 20px;background:#c92a2a;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;">
+                   → Acessar Gestão de Departamentos
+                </a>
+                <hr style="margin:24px 0;border:none;border-top:1px solid #e2e8f0;">
+                <p style="color:#94a3b8;font-size:0.8rem;">Este é um e-mail automático do sistema América Rental. Não responda diretamente.</p>
+            </div>
+        </div>`;
+
+        await sendMailHelper({
+            to: emailsUnicos.join(', '),
+            subject: `⚠️ Ação necessária: ${colab.nome_completo} foi desligado(a) e era responsável por departamento(s)`,
+            html
+        });
+        console.log(`[checkColaboradorDesligado] E-mail enviado para ${emailsUnicos.join(', ')} — ${deptos.length} departamento(s) afetado(s)`);
+    } catch (err) {
+        console.error('[checkColaboradorDesligado] Erro:', err.message);
+    }
+}
 
 app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
     const data = req.body;
@@ -2322,7 +2407,11 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
 
             res.json({ message: 'Colaborador atualizado com sucesso' });
 
-            // Se o departamento mudou, verificar se precisa trocar a ficha de EPI
+            // Se o status mudou para Desligado, verificar se era responsável por departamento
+            if (data.status === 'Desligado' && oldColab.status !== 'Desligado') {
+                checkColaboradorDesligado(id);
+            }
+
             const novoDept = data.departamento;
             const antigoDept = oldColab.departamento;
             if (novoDept && novoDept !== antigoDept) {
