@@ -9347,7 +9347,12 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
     const { cliente_nome, os, cliente_email, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas, observacoes } = req.body;
     if (!cliente_nome || !cliente_email) return res.status(400).json({ error: 'Nome e email são obrigatórios.' });
 
-    db.run(`INSERT INTO credenciamentos (cliente_nome, os, cliente_email, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas_ids, observacoes, status, token) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'solicitado', NULL)`,
+    // Token placeholder único para satisfazer a constraint NOT NULL + UNIQUE
+    // O token real só é gerado quando a Logística processar via /enviar
+    const crypto = require('crypto');
+    const tokenPlaceholder = 'SOLIC-' + crypto.randomBytes(12).toString('hex');
+
+    db.run(`INSERT INTO credenciamentos (cliente_nome, os, cliente_email, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas_ids, observacoes, status, token) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'solicitado', ?)`,
         [
             cliente_nome, 
             os || '',
@@ -9358,7 +9363,8 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
             data_limite_envio || null, 
             JSON.stringify(docs_exigidos || []), 
             JSON.stringify(licencas || []),
-            observacoes || ''
+            observacoes || '',
+            tokenPlaceholder
         ],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
