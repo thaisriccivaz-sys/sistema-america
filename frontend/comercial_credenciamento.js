@@ -133,12 +133,17 @@ window.carregarHistoricoComCred = async function() {
         
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
         const res = await fetch('/api/logistica/credenciamentos', { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.error || `Erro ${res.status}`);
+        }
         const data = await res.json();
         
-        window._historicoComCredDados = data || [];
+        window._historicoComCredDados = Array.isArray(data) ? data : [];
         window.ordenarHistoricoComCred(window._historicoComCredSort.col);
     } catch(e) {
         console.error(e);
+        window._historicoComCredDados = [];
         const tbody = document.getElementById('tbody-comercial-cred');
         if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:red;">Erro: ${e.message}</td></tr>`;
     }

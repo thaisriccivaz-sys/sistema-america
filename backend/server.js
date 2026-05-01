@@ -329,6 +329,20 @@ db.run("ALTER TABLE credenciamentos ADD COLUMN docs_exigidos TEXT DEFAULT '[]'",
     // Ignora erro de coluna ja existente (expected)
 });
 
+// MIGRATION: Adicionar coluna 'os' na tabela credenciamentos (se nao existir)
+db.run("ALTER TABLE credenciamentos ADD COLUMN os TEXT DEFAULT ''", (err) => {
+    if (!err) console.log('[MIGRATION] Coluna os adicionada na tabela credenciamentos.');
+    // Ignora erro de coluna ja existente (expected)
+});
+
+// MIGRATION: Adicionar colunas qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, status na tabela credenciamentos
+['qtd_max_colaboradores INTEGER DEFAULT 0', 'qtd_max_veiculos INTEGER DEFAULT 0', 'data_limite_envio TEXT', 'status TEXT DEFAULT \'solicitado\'', 'licencas_ids TEXT DEFAULT \'[]\''].forEach(col => {
+    const colName = col.split(' ')[0];
+    db.run(`ALTER TABLE credenciamentos ADD COLUMN ${col}`, (err) => {
+        if (!err) console.log(`[MIGRATION] Coluna ${colName} adicionada na tabela credenciamentos.`);
+    });
+});
+
 // MIGRATION: Criar tabela de licencas empresariais
 db.run(`CREATE TABLE IF NOT EXISTS licencas (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -9611,9 +9625,18 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
 
 // GET Autenticado: Listar todos os credenciamentos
 app.get('/api/logistica/credenciamentos', authenticateToken, (req, res) => {
-    db.all(`SELECT id, cliente_nome, os, cliente_email, endereco_instalacao, token, colaboradores_ids, veiculos_ids, licencas_ids, docs_exigidos, valid_until, acessado_em, created_at
+    db.all(`SELECT id, cliente_nome, os, cliente_email, endereco_instalacao, token, colaboradores_ids, veiculos_ids, licencas_ids, docs_exigidos, valid_until, acessado_em, status, data_limite_envio, qtd_max_colaboradores, qtd_max_veiculos, created_at
             FROM credenciamentos ORDER BY created_at DESC`, [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
+        if (err) {
+            // Fallback: try without 'os' and optional new columns in case migration hasn't run
+            db.all(`SELECT id, cliente_nome, cliente_email, endereco_instalacao, token, colaboradores_ids, veiculos_ids, licencas_ids, docs_exigidos, valid_until, acessado_em, created_at
+                    FROM credenciamentos ORDER BY created_at DESC`, [], (err2, rows2) => {
+                if (err2) return res.status(500).json({ error: err2.message });
+                const mapped = (rows2 || []).map(r => ({ ...r, os: '', status: r.status || 'enviado', qtd_max_colaboradores: 0, qtd_max_veiculos: 0, data_limite_envio: null }));
+                res.json(mapped);
+            });
+            return;
+        }
         res.json(rows || []);
     });
 });
