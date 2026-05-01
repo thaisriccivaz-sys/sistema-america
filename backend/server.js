@@ -2213,27 +2213,23 @@ async function checkColaboradorDesligado(colaboradorId) {
         });
         if (!deptos.length) return; // Não era responsável por nenhum departamento
 
-        // 3. Buscar e-mails dos usuários do sistema com perfil Diretoria
+        // 3.         // 3. Estrategia A: usuarios role Diretoria/Admin
         const diretoriaUsers = await new Promise((resolve, reject) => {
-            db.all(
-                `SELECT u.email FROM usuarios u
-                 WHERE (u.departamento = 'Diretoria' OR u.role = 'Diretoria' OR u.role = 'Administrador')
-                 AND u.email IS NOT NULL AND u.email != ''`,
-                [], (err, rows) => { if (err) reject(err); else resolve(rows || []); }
-            );
+            db.all("SELECT u.email FROM usuarios u WHERE (u.departamento='Diretoria' OR u.role='Diretoria' OR u.role='Administrador') AND u.email IS NOT NULL AND u.email!=''", [], (err, rows) => { if (err) reject(err); else resolve(rows || []); });
         });
 
-        // 4. Buscar também colaboradores do departamento Diretoria com e-mail corporativo
+        // 4. Estrategia B: colaboradores depto=Diretoria com email corporativo
         const diretoriaColabs = await new Promise((resolve, reject) => {
-            db.all(
-                `SELECT email_corporativo as email FROM colaboradores
-                 WHERE departamento = 'Diretoria' AND status != 'Desligado'
-                 AND email_corporativo IS NOT NULL AND email_corporativo != ''`,
-                [], (err, rows) => { if (err) reject(err); else resolve(rows || []); }
-            );
+            db.all("SELECT email_corporativo as email FROM colaboradores WHERE departamento='Diretoria' AND status!='Desligado' AND email_corporativo IS NOT NULL AND email_corporativo!=''", [], (err, rows) => { if (err) reject(err); else resolve(rows || []); });
+        });
+
+        // 5. ESTRATEGIA PRINCIPAL: responsavel cadastrado no depto Diretoria (mais confiavel)
+        const diretoriaDeptResps = await new Promise((resolve, reject) => {
+            db.all("SELECT COALESCE(c.email_corporativo, c.email) as email FROM departamentos d JOIN colaboradores c ON c.id = d.responsavel_id WHERE d.nome='Diretoria' AND c.status!='Desligado' AND (c.email_corporativo IS NOT NULL OR c.email IS NOT NULL)", [], (err, rows) => { if (err) reject(err); else resolve(rows || []); });
         });
 
         const emails = [
+            ...diretoriaDeptResps.map(r2 => r2.email),
             ...diretoriaUsers.map(u => u.email),
             ...diretoriaColabs.map(c => c.email)
         ].filter(Boolean);
