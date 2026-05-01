@@ -9,7 +9,7 @@ window.renderAvatar = function(nome, foto, b64) {
 // frontend/comercial_credenciamento.js
 
 window._historicoComCredDados = [];
-window._historicoComCredSort = { col: 'data', dir: 'desc' };
+window._historicoComCredSort = { col: 'data', dir: 'asc' };
 
 // Empresas fixas sempre exibidas como abas
 const EMPRESAS_LICENCAS = ['América Rental', 'Attend Ambiental', 'BRK'];

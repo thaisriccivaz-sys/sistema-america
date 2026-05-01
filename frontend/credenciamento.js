@@ -764,7 +764,7 @@ window.renderLogisticaCredenciamentoPage = function() {
 };
 
 // ── Filtro e Ordenação do Histórico ──────────────────────────────────────────
-window._historicoCredSort = { col: 'data', dir: 'desc' }; // Estado da ordenação
+window._historicoCredSort = { col: 'data', dir: 'asc' }; // Estado da ordenação
 
 window.filtrarHistoricoCred = function() {
     const termo = (document.getElementById('filtro-pesquisa-cred').value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
