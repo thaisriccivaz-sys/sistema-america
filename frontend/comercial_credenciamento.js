@@ -1,3 +1,11 @@
+
+window.renderAvatar = function(nome, foto, b64) {
+    const initial = (nome || 'U')[0].toUpperCase();
+    if (b64) return `<img src="${b64}" style="width:36px; height:36px; border-radius:50%; object-fit:cover;">`;
+    if (foto) return `<img src="/${foto}" style="width:36px; height:36px; border-radius:50%; object-fit:cover;" onerror="this.outerHTML='<div style=\'width:36px; height:36px; border-radius:50%; background:#e2e8f0; display:flex; align-items:center; justify-content:center; font-weight:bold; color:#64748b; font-size:16px;\'>${initial}</div>'">`;
+    return `<div style="width:36px; height:36px; border-radius:50%; background:#e2e8f0; display:flex; align-items:center; justify-content:center; font-weight:bold; color:#64748b; font-size:16px;">${initial}</div>`;
+};
+
 // frontend/comercial_credenciamento.js
 
 window._historicoComCredDados = [];
@@ -373,7 +381,7 @@ window.ordenarHistoricoComCred = function(coluna) {
                     <div style="flex:1; min-width:250px;">
                         <div style="color:#64748b; font-weight:600; margin-bottom:8px;">Solicitação (Comercial):</div>
                         <div style="display:flex; align-items:center; gap:10px;">
-                            ${renderAvatar(solNome, cred.sol_foto, cred.sol_foto_b64)}
+                            ${window.renderAvatar(solNome, cred.sol_foto, cred.sol_foto_b64)}
                             <div>
                                 <div style="font-weight:600; color:#334155; font-size:0.9rem;">${solNome}</div>
                                 <div style="font-size:0.75rem; color:#64748b;"><i class="ph ph-calendar-blank"></i> ${solDataStr}</div>
@@ -385,7 +393,7 @@ window.ordenarHistoricoComCred = function(coluna) {
                         <div style="color:#64748b; font-weight:600; margin-bottom:8px;">Envio do Credenciamento (Logística):</div>
                         ${cred.status === 'enviado' || cred.enviado_em ? `
                             <div style="display:flex; align-items:center; gap:10px;">
-                                ${renderAvatar(envNome, cred.env_foto, cred.env_foto_b64)}
+                                ${window.renderAvatar(envNome, cred.env_foto, cred.env_foto_b64)}
                                 <div>
                                     <div style="font-weight:600; color:#334155; font-size:0.9rem;">${envNome}</div>
                                     <div style="font-size:0.75rem; color:#64748b;"><i class="ph ph-calendar-blank"></i> ${envDataStr}</div>
