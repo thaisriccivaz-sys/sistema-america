@@ -659,7 +659,7 @@ window.carregarHistoricoCredenciamento = async function() {
                 
                 <div style="margin-top:15px; padding-top:15px; border-top:1px solid #e2e8f0; display:flex; flex-wrap:wrap; gap:30px;">
                     <div style="flex:1; min-width:250px;">
-                        <div style="color:#64748b; font-weight:600; margin-bottom:8px;">Solicitação (Comercial):</div>
+                        <div style="color:#64748b; font-weight:600; margin-bottom:8px;">Solicitação:</div>
                         <div style="display:flex; align-items:center; gap:10px;">
                             ${window.renderAvatar(solNome, cred.sol_foto, cred.sol_foto_b64)}
                             <div>
@@ -670,7 +670,7 @@ window.carregarHistoricoCredenciamento = async function() {
                     </div>
 
                     <div style="flex:1; min-width:250px;">
-                        <div style="color:#64748b; font-weight:600; margin-bottom:8px;">Envio do Credenciamento (Logística):</div>
+                        <div style="color:#64748b; font-weight:600; margin-bottom:8px;">Envio do Credenciamento:</div>
                         ${cred.status === 'enviado' || cred.enviado_em ? `
                             <div style="display:flex; align-items:center; gap:10px;">
                                 ${window.renderAvatar(envNome, cred.env_foto, cred.env_foto_b64)}
