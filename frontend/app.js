@@ -11262,7 +11262,7 @@ setInterval(async () => {
 // --- POLLING: Notificações de Formulário de Experiência (para usuários RH) ---
 const _expNotifSeen = new Set();
 async function checkExperienciaNotificacoes() {
-    const token = localStorage.getItem('token');
+    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
     if (!token) return;
     // Only RH users: check via token permissions
     try {
@@ -11345,10 +11345,10 @@ setTimeout(checkExperienciaNotificacoes, 5000); // first check after 5s
 // --- POLLING: Notificacoes de Logistica ---
 const _logNotifSeen = new Set();
 async function checkLogisticaNotificacoes() {
-    const token = localStorage.getItem('token');
+    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
     if (!token) return;
     try {
-        const isLog = window.isTopAdmin || (window.activeUserPerms && window.activeUserPerms['logistica-credenciamento']) || (currentUser && currentUser.departamento === 'Logística');
+        const isLog = window.isTopAdmin || (window.activeUserPerms && window.activeUserPerms['logistica-credenciamento']) || (typeof currentUser !== 'undefined' && currentUser && (String(currentUser.departamento).toLowerCase().includes('log') || String(currentUser.role).toLowerCase().includes('log')));
         if (!isLog) return;
     } catch(e) { return; }
 

@@ -602,7 +602,7 @@ window.carregarHistoricoCredenciamento = async function() {
         return `
         <tr>
             <td>
-                <b>${cred.cliente_nome}</b><br>
+                <b>${cred.os ? cred.os + ' - ' : ''}${cred.cliente_nome}</b><br>
                 <span style="font-size:0.8rem; color:#64748b;">${cred.cliente_email}</span>
                 ${cred.endereco_instalacao ? `<br><span style="font-size:0.75rem; color:#94a3b8;"><i class="ph ph-map-pin"></i> ${cred.endereco_instalacao}</span>` : ''}
             </td>
@@ -740,7 +740,7 @@ window._renderizarTabelaHistorico = function(dados) {
         return `
         <tr>
             <td>
-                <b>${cred.cliente_nome}</b><br>
+                <b>${cred.os ? cred.os + ' - ' : ''}${cred.cliente_nome}</b><br>
                 <span style="font-size:0.8rem; color:#64748b;">${cred.cliente_email}</span>
                 ${cred.endereco_instalacao ? `<br><span style="font-size:0.75rem; color:#94a3b8;"><i class="ph ph-map-pin"></i> ${cred.endereco_instalacao}</span>` : ''}
             </td>
