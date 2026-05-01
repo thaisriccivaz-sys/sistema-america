@@ -529,7 +529,7 @@ window.fecharModalNovoCredenciamento = function() {
 window.carregarHistoricoCredenciamento = async function() {
     const tbody = document.getElementById('tbody-historico-cred');
     if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#94a3b8; padding:2rem;"><i class="ph ph-spinner ph-spin"></i> Carregando histórico...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#94a3b8; padding:2rem;"><i class="ph ph-spinner ph-spin"></i> Carregando histórico...</td></tr>';
     
     try {
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
@@ -541,7 +541,7 @@ window.carregarHistoricoCredenciamento = async function() {
         window._historicoCredDados = Array.isArray(data) ? data : [];
 
         if (data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#94a3b8; padding:2rem;">Nenhum credenciamento gerado ainda.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#94a3b8; padding:2rem;">Nenhum credenciamento gerado ainda.</td></tr>';
             return;
         }
 
@@ -631,8 +631,9 @@ window.carregarHistoricoCredenciamento = async function() {
 
         return `
         <tr>
+            <td><b>${cred.os || '-'}</b></td>
             <td>
-                <b>${cred.os ? cred.os + ' - ' : ''}${cred.cliente_nome}</b><br>
+                <b>${cred.cliente_nome}</b><br>
                 <span style="font-size:0.8rem; color:#64748b;">${cred.cliente_email}</span>
                 ${cred.endereco_instalacao ? `<br><span style="font-size:0.75rem; color:#94a3b8;"><i class="ph ph-map-pin"></i> ${cred.endereco_instalacao}</span>` : ''}
             </td>
@@ -643,7 +644,7 @@ window.carregarHistoricoCredenciamento = async function() {
             <td style="text-align:right; white-space:nowrap;">${acoes}</td>
         </tr>
         <tr id="log-cred-det-${cred.id}" style="display:none; background:#f8fafc;">
-            <td colspan="7" style="padding:15px; font-size:0.85rem; border-left:3px solid #7048e8;">
+            <td colspan="8" style="padding:15px; font-size:0.85rem; border-left:3px solid #7048e8;">
                 <div style="display:flex; flex-wrap:wrap; gap:30px;">
                     <div style="flex:1; min-width:250px;">
                         <div style="color:#64748b; font-weight:600; margin-bottom:4px;">📄 Documentos Solicitados:</div>
@@ -707,7 +708,7 @@ window.carregarHistoricoCredenciamento = async function() {
         
     }).join('');
     } catch(e) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:#ef4444; padding:1rem;">Erro ao carregar histórico: ${e.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:#ef4444; padding:1rem;">Erro ao carregar histórico: ${e.message}</td></tr>`;
     }
 };
 
@@ -831,8 +832,9 @@ window._renderizarTabelaHistorico = function(dados) {
 
         return `
         <tr>
+            <td><b>${cred.os || '-'}</b></td>
             <td>
-                <b>${cred.os ? cred.os + ' - ' : ''}${cred.cliente_nome}</b><br>
+                <b>${cred.cliente_nome}</b><br>
                 <span style="font-size:0.8rem; color:#64748b;">${cred.cliente_email}</span>
                 ${cred.endereco_instalacao ? `<br><span style="font-size:0.75rem; color:#94a3b8;"><i class="ph ph-map-pin"></i> ${cred.endereco_instalacao}</span>` : ''}
             </td>

@@ -225,7 +225,7 @@ window.salvarSolicitacaoCredenciamento = async function() {
 window.carregarHistoricoComCred = async function() {
     try {
         const tbody = document.getElementById('tbody-comercial-cred');
-        if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#94a3b8; padding:2rem;">Carregando histórico...</td></tr>';
+        if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#94a3b8; padding:2rem;">Carregando histórico...</td></tr>';
         
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
         const res = await fetch('/api/logistica/credenciamentos', { headers: { 'Authorization': `Bearer ${token}` } });
@@ -241,7 +241,7 @@ window.carregarHistoricoComCred = async function() {
         console.error(e);
         window._historicoComCredDados = [];
         const tbody = document.getElementById('tbody-comercial-cred');
-        if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:red;">Erro: ${e.message}</td></tr>`;
+        if (tbody) tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:red;">Erro: ${e.message}</td></tr>`;
     }
 }
 
@@ -270,7 +270,7 @@ window.ordenarHistoricoComCred = function(coluna) {
     const todos = Array.isArray(window._historicoComCredDados) ? window._historicoComCredDados : [];
 
     if (todos.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#94a3b8; padding:2rem; font-style:italic;">Nenhuma solicitação encontrada.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#94a3b8; padding:2rem; font-style:italic;">Nenhuma solicitação encontrada.</td></tr>';
         return;
     }
 
@@ -353,8 +353,9 @@ window.ordenarHistoricoComCred = function(coluna) {
 
         return `
         <tr>
+            <td><b>${cred.os || '-'}</b></td>
             <td>
-                <b>${cred.os ? cred.os + ' - ' : ''}${cred.cliente_nome}</b><br>
+                <b>${cred.cliente_nome}</b><br>
                 <span style="font-size:0.8rem; color:#64748b;">${cred.cliente_email}</span>
                 ${cred.endereco_instalacao ? `<br><span style="font-size:0.75rem; color:#94a3b8;"><i class="ph ph-map-pin"></i> ${cred.endereco_instalacao}</span>` : ''}
             </td>
@@ -369,7 +370,7 @@ window.ordenarHistoricoComCred = function(coluna) {
             </td>
         </tr>
         <tr id="cred-det-${cred.id}" style="display:none; background:#f8fafc;">
-            <td colspan="7" style="padding:15px; font-size:0.85rem; border-left:3px solid #7048e8;">
+            <td colspan="8" style="padding:15px; font-size:0.85rem; border-left:3px solid #7048e8;">
                 <div style="display:flex; flex-wrap:wrap; gap:30px;">
                     <div style="flex:1; min-width:250px;">
                         <div style="color:#64748b; font-weight:600; margin-bottom:4px;">📄 Documentos Solicitados:</div>
