@@ -211,7 +211,24 @@ window.salvarSolicitacaoCredenciamento = async function() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Erro ao salvar');
         
-        alert("Solicitação salva e Logística notificada!");
+        
+        let cepAlert = "";
+        const cepMatchAlert = payload.endereco_instalacao ? payload.endereco_instalacao.match(/\b\d{5}-?\d{3}\b/) : null;
+        if (cepMatchAlert) {
+            const cepAlertVal = cepMatchAlert[0].replace('-', '');
+            const outroCredAlert = (window._historicoComCredDados || []).find(c => {
+                if (c.id == id) return false;
+                if (!c.endereco_instalacao) return false;
+                const m = c.endereco_instalacao.match(/\b\d{5}-?\d{3}\b/);
+                return m && m[0].replace('-', '') === cepAlertVal;
+            });
+            if (outroCredAlert) {
+                cepAlert = `\n\n⚠️ ATENÇÃO: O CEP ${cepMatchAlert[0]} também está cadastrado na OS ${outroCredAlert.os || '-'} do cliente ${outroCredAlert.cliente_nome}.`;
+            }
+        }
+        
+        alert("Solicitação salva e Logística notificada!" + cepAlert);
+    
         window.fecharModalSolicitarCredenciamento();
         window.carregarHistoricoComCred();
     } catch (e) {

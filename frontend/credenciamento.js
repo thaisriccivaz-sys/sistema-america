@@ -634,7 +634,7 @@ window.carregarHistoricoCredenciamento = async function() {
             const cepMatch = cred.endereco_instalacao.match(/\b\d{5}-?\d{3}\b/);
             if (cepMatch) {
                 const cep = cepMatch[0].replace('-', '');
-                const outroCred = dados.find(c => {
+                const outroCred = data.find(c => {
                     if (c.id === cred.id) return false;
                     if (!c.endereco_instalacao) return false;
                     const match = c.endereco_instalacao.match(/\b\d{5}-?\d{3}\b/);
