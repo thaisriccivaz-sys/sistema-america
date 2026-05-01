@@ -629,6 +629,32 @@ window.carregarHistoricoCredenciamento = async function() {
         const solDataStr = cred.created_at ? new Date(cred.created_at).toLocaleString('pt-BR') : 'Data não registrada';
         const envDataStr = cred.enviado_em ? new Date(cred.enviado_em).toLocaleString('pt-BR') : 'Data não registrada';
 
+        let alertaCepHtml = '';
+        if (cred.endereco_instalacao) {
+            const cepMatch = cred.endereco_instalacao.match(/\b\d{5}-?\d{3}\b/);
+            if (cepMatch) {
+                const cep = cepMatch[0].replace('-', '');
+                const outroCred = dados.find(c => {
+                    if (c.id === cred.id) return false;
+                    if (!c.endereco_instalacao) return false;
+                    const match = c.endereco_instalacao.match(/\b\d{5}-?\d{3}\b/);
+                    return match && match[0].replace('-', '') === cep;
+                });
+                if (outroCred) {
+                    alertaCepHtml = `
+                    <div style="background:#fffbeb; border:1px solid #fde68a; color:#b45309; padding:10px 15px; border-radius:8px; margin-bottom:15px; display:flex; align-items:flex-start; gap:10px;">
+                        <i class="ph-fill ph-warning" style="color:#d97706; font-size:1.4rem; margin-top:2px;"></i>
+                        <div>
+                            <strong style="display:block; margin-bottom:4px;">Atenção: CEP em comum</strong>
+                            A OS <b>${outroCred.os || '-'}</b> (Cliente: <b>${outroCred.cliente_nome}</b>) possui o mesmo número de CEP cadastrado: <b>${cepMatch[0]}</b>.
+                            <div style="font-size:0.8rem; margin-top:4px; opacity:0.8;">Endereço vinculado: ${outroCred.endereco_instalacao}</div>
+                        </div>
+                    </div>`;
+                }
+            }
+        }
+
+
         return `
         <tr>
             <td><b>${cred.os || '-'}</b></td>
@@ -645,6 +671,7 @@ window.carregarHistoricoCredenciamento = async function() {
         </tr>
         <tr id="log-cred-det-${cred.id}" style="display:none; background:#f8fafc;">
             <td colspan="8" style="padding:15px; font-size:0.85rem; border-left:3px solid #7048e8;">
+                ${alertaCepHtml}
                 <div style="display:flex; flex-wrap:wrap; gap:30px;">
                     <div style="flex:1; min-width:250px;">
                         <div style="color:#64748b; font-weight:600; margin-bottom:4px;">📄 Documentos Solicitados:</div>
