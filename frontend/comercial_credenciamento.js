@@ -3,7 +3,24 @@
 window._historicoComCredDados = [];
 window._historicoComCredSort = { col: 'data', dir: 'desc' };
 
-// Load licenças grouped by empresa
+// Empresas fixas sempre exibidas como abas
+const EMPRESAS_LICENCAS = ['América Rental', 'Attend Ambiental', 'BRK'];
+
+// Alterna aba ativa no painel de licenças (apenas show/hide — checkboxes ficam no DOM)
+window._switchLicencaTab = function(empKey) {
+    document.querySelectorAll('.solic-lic-tab-btn').forEach(btn => {
+        const ativo = btn.dataset.emp === empKey;
+        btn.style.background = ativo ? '#7048e8' : '#f1f5f9';
+        btn.style.color = ativo ? '#fff' : '#475569';
+        btn.style.borderColor = ativo ? '#7048e8' : '#e2e8f0';
+        btn.style.fontWeight = ativo ? '700' : '400';
+    });
+    document.querySelectorAll('.solic-lic-panel').forEach(panel => {
+        panel.style.display = panel.dataset.emp === empKey ? 'grid' : 'none';
+    });
+};
+
+// Carrega licenças em abas — todas no DOM, só ativa/oculta por CSS
 async function _carregarLicencasAgrupadas(licsSelecionadas = []) {
     const container = document.getElementById('solic-licencas-empresas');
     if (!container) return;
@@ -11,57 +28,65 @@ async function _carregarLicencasAgrupadas(licsSelecionadas = []) {
     try {
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
         const res = await fetch('/api/licencas', { headers: { 'Authorization': `Bearer ${token}` } });
-        const todas = await res.json();
+        const todas = Array.isArray(await res.json()) ? await res.clone().json() : [];
 
-        // Agrupar por empresa — priorizar as 3 empresas solicitadas + outras
-        const empresasPrioridade = ['América Rental', 'Attend Ambiental', 'BRK'];
+        // Agrupar por empresa
         const grupos = {};
+        EMPRESAS_LICENCAS.forEach(e => grupos[e] = []); // garante as 3 sempre existem
         todas.forEach(l => {
             const emp = l.empresa || 'Outras';
             if (!grupos[emp]) grupos[emp] = [];
             grupos[emp].push(l);
         });
 
-        // Ordenar: prioridade primeiro, depois o resto
-        const empresasOrdenadas = [
-            ...empresasPrioridade.filter(e => grupos[e]),
-            ...Object.keys(grupos).filter(e => !empresasPrioridade.includes(e))
-        ];
+        // Empresas para mostrar: 3 fixas + outras que existirem
+        const extras = Object.keys(grupos).filter(e => !EMPRESAS_LICENCAS.includes(e));
+        const todasEmpresas = [...EMPRESAS_LICENCAS, ...extras];
+        const primeiraEmp = todasEmpresas[0];
 
-        if (empresasOrdenadas.length === 0) {
-            container.innerHTML = '<p style="color:#94a3b8; font-size:13px; font-style:italic;">Nenhuma licença cadastrada no sistema.</p>';
-            return;
-        }
+        // Abas (botões)
+        const tabsHtml = todasEmpresas.map(emp => {
+            const ativo = emp === primeiraEmp;
+            const count = grupos[emp].length;
+            return `<button class="solic-lic-tab-btn" data-emp="${emp}" onclick="window._switchLicencaTab('${emp}')"
+                style="padding:6px 14px; border-radius:6px; border:1.5px solid ${ativo ? '#7048e8' : '#e2e8f0'};
+                background:${ativo ? '#7048e8' : '#f1f5f9'}; color:${ativo ? '#fff' : '#475569'};
+                font-weight:${ativo ? '700' : '400'}; font-size:13px; cursor:pointer; white-space:nowrap;">
+                <i class="ph ph-buildings"></i> ${emp}
+                <span style="font-size:11px; opacity:0.75;">(${count})</span>
+            </button>`;
+        }).join('');
 
-        container.innerHTML = empresasOrdenadas.map(emp => {
+        // Painéis (um por empresa — todos no DOM, só ativa é visível)
+        const panelsHtml = todasEmpresas.map(emp => {
             const lics = grupos[emp];
-            const items = lics.map(l => {
-                const checked = licsSelecionadas.some(s => String(s.id) === String(l.id)) ? 'checked' : '';
-                const vencida = l.validade && new Date(l.validade) < new Date();
-                const badge = vencida
-                    ? `<span style="font-size:10px; color:#dc2626; background:#fee2e2; padding:1px 5px; border-radius:4px; margin-left:4px;">⚠ Vencida</span>`
-                    : '';
-                return `<div style="display:flex; align-items:center; gap:6px;">
-                    <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;">
+            const isAtivo = emp === primeiraEmp;
+            const items = lics.length === 0
+                ? `<p style="color:#94a3b8; font-size:12px; font-style:italic; grid-column:1/-1; margin:4px 0;">Nenhuma licença cadastrada para esta empresa.</p>`
+                : lics.map(l => {
+                    const checked = licsSelecionadas.some(s => String(s.id) === String(l.id)) ? 'checked' : '';
+                    return `<label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; padding:4px 0;">
                         <input type="checkbox" name="solic_licencas" value="${l.id}" data-nome="${l.nome}" data-empresa="${emp}" ${checked}>
-                        ${l.nome}${badge}
-                    </label>
-                </div>`;
-            }).join('');
+                        ${l.nome}
+                    </label>`;
+                }).join('');
 
-            return `<div style="margin-bottom:12px;">
-                <div style="font-weight:700; font-size:13px; color:#475569; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
-                    <i class="ph ph-buildings" style="color:#7048e8;"></i> ${emp}
-                </div>
-                <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap:6px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:10px;">
-                    ${items}
-                </div>
+            return `<div class="solic-lic-panel" data-emp="${emp}"
+                style="display:${isAtivo ? 'grid' : 'none'}; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:4px 16px;
+                background:#f8fafc; border:1px solid #e2e8f0; border-radius:0 6px 6px 6px; padding:12px; margin-top:0;">
+                ${items}
             </div>`;
         }).join('');
+
+        container.innerHTML = `
+            <div style="display:flex; gap:4px; flex-wrap:wrap; margin-bottom:0;">${tabsHtml}</div>
+            ${panelsHtml}
+        `;
     } catch (e) {
         container.innerHTML = '<p style="color:#dc2626; font-size:13px;">Erro ao carregar licenças.</p>';
     }
 }
+
 
 window.abrirModalSolicitarCredenciamento = async function(id = null) {
     const modal = document.getElementById('modal-solicitar-credenciamento');
