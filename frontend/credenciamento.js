@@ -622,6 +622,7 @@ window.abrirModalCumprirSolicitacao = function(id) {
         const nome = document.getElementById('cred-cliente-nome'); if (nome) nome.value = dados.cliente_nome || '';
         const email = document.getElementById('cred-cliente-email'); if (email) email.value = dados.cliente_email || '';
         const end = document.getElementById('cred-endereco-instalacao'); if (end) end.value = dados.endereco_instalacao || '';
+        const osInput = document.getElementById('cred-os'); if (osInput) osInput.value = dados.os || '';
 
         // Pré-marcar documentos exigidos
         let docsArr = [];
@@ -629,6 +630,12 @@ window.abrirModalCumprirSolicitacao = function(id) {
         document.querySelectorAll('#cred-docs-exigidos input').forEach(cb => {
             cb.checked = docsArr.includes(cb.value);
         });
+
+        let licsSelecionadas = [];
+        try { licsSelecionadas = typeof dados.licencas_ids === 'string' ? JSON.parse(dados.licencas_ids || '[]') : (dados.licencas_ids || []); } catch(e) {}
+        if (typeof _carregarLicencasAgrupadasLogistica === 'function') {
+            _carregarLicencasAgrupadasLogistica(licsSelecionadas);
+        }
     }
 
     // Atualizar título
