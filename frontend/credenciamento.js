@@ -408,8 +408,13 @@ window.gerarEnviarCredenciamento = async function() {
     };
 
     try {
-        const res = await fetch('/api/logistica/credenciamento', {
-            method: 'POST',
+        // Se for cumprir uma solicitação existente, usa o endpoint /enviar
+        const solId = window._credSolicitacaoId;
+        const url = solId ? `/api/logistica/credenciamento/${solId}/enviar` : '/api/logistica/credenciamento';
+        const method = 'POST';
+
+        const res = await fetch(url, {
+            method,
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')}`
@@ -447,10 +452,65 @@ window.gerarEnviarCredenciamento = async function() {
 }
 
 // ── Modal de Novo Credenciamento ─────────────────────────────────────────────
+window._credSolicitacaoId = null; // ID da solicitação sendo cumprida (ou null para novo)
+
 window.abrirModalNovoCredenciamento = function() {
+    window._credSolicitacaoId = null;
+    // Limpar campos e seleções
+    const nome = document.getElementById('cred-cliente-nome'); if (nome) nome.value = '';
+    const email = document.getElementById('cred-cliente-email'); if (email) email.value = '';
+    const end = document.getElementById('cred-endereco-instalacao'); if (end) end.value = '';
+    document.querySelectorAll('#cred-docs-exigidos input').forEach(cb => cb.checked = false);
+    credenciamentoState.selecionadosColabs = [];
+    credenciamentoState.selecionadosVeic = [];
+    credenciamentoState.selecionadosLicencas = [];
+    atualizarResumoColabs();
+    atualizarResumoVeiculos();
+    atualizarResumoLicencas();
+    // Reset título
+    const titulo = document.querySelector('#modal-novo-credenciamento h3');
+    if (titulo) titulo.textContent = 'Novo Credenciamento';
     const modal = document.getElementById('modal-novo-credenciamento');
     if (modal) modal.style.display = 'flex';
 };
+
+// ── Cumprir uma Solicitação existente (botão Adicionar na tabela da Logística) ─
+window.abrirModalCumprirSolicitacao = function(id) {
+    // Pega os dados da solicitação do histórico já carregado
+    const dados = (window._historicoCredDados || []).find(c => String(c.id) === String(id));
+    
+    window._credSolicitacaoId = id;
+
+    // Limpar seleções anteriores
+    credenciamentoState.selecionadosColabs = [];
+    credenciamentoState.selecionadosVeic = [];
+    credenciamentoState.selecionadosLicencas = [];
+    atualizarResumoColabs();
+    atualizarResumoVeiculos();
+    atualizarResumoLicencas();
+
+    // Pré-preencher campos com os dados da solicitação
+    if (dados) {
+        const nome = document.getElementById('cred-cliente-nome'); if (nome) nome.value = dados.cliente_nome || '';
+        const email = document.getElementById('cred-cliente-email'); if (email) email.value = dados.cliente_email || '';
+        const end = document.getElementById('cred-endereco-instalacao'); if (end) end.value = dados.endereco_instalacao || '';
+
+        // Pré-marcar documentos exigidos
+        let docsArr = [];
+        try { docsArr = JSON.parse(dados.docs_exigidos || '[]'); } catch(e) {}
+        document.querySelectorAll('#cred-docs-exigidos input').forEach(cb => {
+            cb.checked = docsArr.includes(cb.value);
+        });
+    }
+
+    // Atualizar título
+    const titulo = document.querySelector('#modal-novo-credenciamento h3');
+    if (titulo) titulo.textContent = dados ? `Credenciar: ${dados.cliente_nome}` : 'Cumprir Solicitação';
+
+    const modal = document.getElementById('modal-novo-credenciamento');
+    if (modal) modal.style.display = 'flex';
+};
+
 
 window.fecharModalNovoCredenciamento = function() {
     const modal = document.getElementById('modal-novo-credenciamento');
@@ -469,6 +529,9 @@ window.carregarHistoricoCredenciamento = async function() {
         if (!res.ok) throw new Error('Falha ao carregar histórico');
         const data = await res.json();
         
+        // Salva os dados para uso em abrirModalCumprirSolicitacao
+        window._historicoCredDados = Array.isArray(data) ? data : [];
+
         if (data.length === 0) {
             tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#94a3b8; padding:2rem;">Nenhum credenciamento gerado ainda.</td></tr>';
             return;
