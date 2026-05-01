@@ -7,6 +7,7 @@ window._historicoComCredSort = { col: 'data', dir: 'desc' };
 const EMPRESAS_LICENCAS = ['América Rental', 'Attend Ambiental', 'BRK'];
 
 // Alterna aba ativa no painel de licenças (apenas show/hide — checkboxes ficam no DOM)
+
 window._switchLicencaTab = function(empKey) {
     document.querySelectorAll('.solic-lic-tab-btn').forEach(btn => {
         const ativo = btn.dataset.emp === empKey;
@@ -19,6 +20,19 @@ window._switchLicencaTab = function(empKey) {
         panel.style.display = panel.dataset.emp === empKey ? 'grid' : 'none';
     });
 };
+
+window._updateLicencasTabCounts = function() {
+    document.querySelectorAll('.solic-lic-tab-btn').forEach(btn => {
+        const emp = btn.dataset.emp;
+        const panel = document.querySelector(`.solic-lic-panel[data-emp="${emp}"]`);
+        if (panel) {
+            const count = panel.querySelectorAll('input[type="checkbox"]:checked').length;
+            const span = btn.querySelector('.tab-count');
+            if (span) span.textContent = `(${count})`;
+        }
+    });
+};
+
 
 // Carrega licenças em abas — todas no DOM, só ativa/oculta por CSS
 async function _carregarLicencasAgrupadas(licsSelecionadas = []) {
@@ -55,13 +69,12 @@ async function _carregarLicencasAgrupadas(licsSelecionadas = []) {
         // Abas (botões)
         const tabsHtml = todasEmpresas.map(emp => {
             const ativo = emp === primeiraEmp;
-            const count = grupos[emp].length;
-            return `<button class="solic-lic-tab-btn" data-emp="${emp}" onclick="window._switchLicencaTab('${emp}')"
+            return `<button type="button" class="solic-lic-tab-btn" data-emp="${emp}" onclick="window._switchLicencaTab('${emp}')"
                 style="padding:6px 14px; border-radius:6px; border:1.5px solid ${ativo ? '#7048e8' : '#e2e8f0'};
                 background:${ativo ? '#7048e8' : '#f1f5f9'}; color:${ativo ? '#fff' : '#475569'};
                 font-weight:${ativo ? '700' : '400'}; font-size:13px; cursor:pointer; white-space:nowrap;">
                 <i class="ph ph-buildings"></i> ${emp}
-                <span style="font-size:11px; opacity:0.75;">(${count})</span>
+                <span class="tab-count" style="font-size:11px; opacity:0.75;">(0)</span>
             </button>`;
         }).join('');
 
@@ -355,21 +368,28 @@ window.ordenarHistoricoComCred = function(coluna) {
                 </div>
                 ${cred.observacoes ? `<div style="margin-top:15px; padding-top:10px; border-top:1px solid #e2e8f0;"><span style="color:#64748b; font-weight:600;">📝 Observações:</span> <span style="color:#475569;">${cred.observacoes}</span></div>` : ''}
                 
+                
                 <div style="margin-top:15px; padding-top:15px; border-top:1px solid #e2e8f0; display:flex; flex-wrap:wrap; gap:30px;">
                     <div style="flex:1; min-width:250px;">
-                        <div style="color:#64748b; font-weight:600; margin-bottom:8px;">Envio do Credenciamento:</div>
+                        <div style="color:#64748b; font-weight:600; margin-bottom:8px;">Solicitação (Comercial):</div>
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            ${renderAvatar(solNome, cred.sol_foto, cred.sol_foto_b64)}
+                            <div>
+                                <div style="font-weight:600; color:#334155; font-size:0.9rem;">${solNome}</div>
+                                <div style="font-size:0.75rem; color:#64748b;"><i class="ph ph-calendar-blank"></i> ${solDataStr}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="flex:1; min-width:250px;">
+                        <div style="color:#64748b; font-weight:600; margin-bottom:8px;">Envio do Credenciamento (Logística):</div>
                         ${cred.status === 'enviado' || cred.enviado_em ? `
                             <div style="display:flex; align-items:center; gap:10px;">
-                                <div style="width:36px; height:36px; border-radius:50%; background:#e2e8f0; display:flex; align-items:center; justify-content:center; font-weight:bold; color:#64748b; font-size:16px;">
-                                    ${(cred.enviado_por_nome || 'L')[0].toUpperCase()}
-                                </div>
+                                ${renderAvatar(envNome, cred.env_foto, cred.env_foto_b64)}
                                 <div>
-                                    <div style="font-weight:600; color:#334155; font-size:0.9rem;">${cred.enviado_por_nome || 'Usuário Logística'}</div>
-                                    <div style="font-size:0.75rem; color:#64748b;">Enviado pela Logística</div>
+                                    <div style="font-weight:600; color:#334155; font-size:0.9rem;">${envNome}</div>
+                                    <div style="font-size:0.75rem; color:#64748b;"><i class="ph ph-calendar-blank"></i> ${envDataStr}</div>
                                 </div>
-                            </div>
-                            <div style="margin-top:8px; font-size:0.8rem; color:#475569;">
-                                <i class="ph ph-calendar-blank"></i> Enviado em: <b>${cred.enviado_em ? new Date(cred.enviado_em).toLocaleString('pt-BR') : 'Data não registrada'}</b>
                             </div>
                         ` : `
                             <div style="padding:10px; background:#fef2f2; color:#ef4444; border-radius:6px; font-size:0.8rem; display:inline-block;">
