@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
@@ -2217,7 +2217,7 @@ async function checkColaboradorDesligado(colaboradorId) {
         const diretoriaUsers = await new Promise((resolve, reject) => {
             db.all(
                 `SELECT u.email FROM usuarios u
-                 WHERE u.departamento = 'Diretoria' OR u.role = 'Diretoria' OR u.role = 'Administrador'
+                 WHERE (u.departamento = 'Diretoria' OR u.role = 'Diretoria' OR u.role = 'Administrador')
                  AND u.email IS NOT NULL AND u.email != ''`,
                 [], (err, rows) => { if (err) reject(err); else resolve(rows || []); }
             );
@@ -2240,38 +2240,52 @@ async function checkColaboradorDesligado(colaboradorId) {
 
         const emailsUnicos = [...new Set(emails)];
         if (!emailsUnicos.length) {
-            console.warn('[checkColaboradorDesligado] Nenhum e-mail da Diretoria encontrado para notificação.');
-            return;
+            console.warn('[checkColaboradorDesligado] Nenhum e-mail da Diretoria. Usando fallback do sistema.');
+            emailsUnicos.push('americasistema48@gmail.com');
         }
 
-        // 5. Montar e-mail
-        const deptosLista = deptos.map(d => `<li><strong>${d.nome}</strong> (${d.tipo || 'Operacional'})</li>`).join('');
-        const html = `
-        <div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
-            <div style="background:#c92a2a;padding:20px 24px;border-radius:8px 8px 0 0;">
-                <h2 style="color:#fff;margin:0;font-size:1.2rem;">⚠️ Responsável de Departamento Desligado</h2>
-            </div>
-            <div style="background:#fff;padding:24px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;">
-                <p style="color:#334155;">O colaborador <strong>${colab.nome_completo}</strong>
-                (${colab.cargo || 'Cargo não definido'} — ${colab.departamento || 'Depto não definido'})
-                foi <strong style="color:#c92a2a;">desligado</strong> do sistema e era responsável pelos seguintes departamentos:</p>
-                <ul style="color:#475569;line-height:1.8;">${deptosLista}</ul>
-                <p style="color:#334155;">Por favor, acesse o sistema e defina um novo responsável para cada departamento listado acima para que o fluxo de comunicação e aprovações continue funcionando corretamente.</p>
-                <a href="https://sistema-america-homologacao.onrender.com/?target=departamentos"
-                   style="display:inline-block;margin-top:16px;padding:10px 20px;background:#c92a2a;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;">
-                   → Acessar Gestão de Departamentos
-                </a>
-                <hr style="margin:24px 0;border:none;border-top:1px solid #e2e8f0;">
-                <p style="color:#94a3b8;font-size:0.8rem;">Este é um e-mail automático do sistema América Rental. Não responda diretamente.</p>
-            </div>
-        </div>`;
+        // 5. Montar e-mail no padrao visual do sistema
+        const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+        const dataHoje = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        const deptosRows = deptos.map(d =>
+            '<tr><td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;font-weight:600;color:#334155;">' + d.nome + '</td><td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;color:#64748b;">' + (d.tipo || 'Operacional') + '</td></tr>'
+        ).join('');
+        const htmlContent = '<div style="font-family:Arial,sans-serif;color:#333;line-height:1.6;max-width:600px;margin:0 auto;border:1px solid #eee;padding:20px;border-radius:8px;">'
+            + '<div style="text-align:center;margin-bottom:20px;"><img src="cid:empresa-logo" style="max-height:80px;max-width:100%;"></div>'
+            + '<h2 style="color:#c92a2a;border-bottom:2px solid #c92a2a;padding-bottom:10px;">Acao Necessaria - Responsavel de Departamento Desligado</h2>'
+            + '<p>Em <strong>' + dataHoje + '</strong>, o colaborador abaixo foi <strong style="color:#c92a2a;">desligado</strong> do sistema e era responsavel por departamento(s) que precisam de novo responsavel.</p>'
+            + '<div style="background:#f1f5f9;padding:15px;border-radius:8px;margin:20px 0;">'
+            + '<p style="margin:4px 0;"><strong>Colaborador:</strong> ' + colab.nome_completo + '</p>'
+            + '<p style="margin:4px 0;"><strong>Cargo:</strong> ' + (colab.cargo || 'Nao definido') + '</p>'
+            + '<p style="margin:4px 0;"><strong>Departamento:</strong> ' + (colab.departamento || 'Nao definido') + '</p>'
+            + '</div>'
+            + '<h3 style="color:#475569;font-size:0.95rem;margin-bottom:8px;">Departamentos afetados:</h3>'
+            + '<table style="width:100%;border-collapse:collapse;background:#fff;border:1px solid #e2e8f0;">'
+            + '<thead><tr style="background:#c92a2a;">'
+            + '<th style="padding:10px 12px;text-align:left;color:#fff;font-size:0.85rem;">Departamento</th>'
+            + '<th style="padding:10px 12px;text-align:left;color:#fff;font-size:0.85rem;">Tipo</th>'
+            + '</tr></thead><tbody>' + deptosRows + '</tbody></table>'
+            + '<p style="margin-top:20px;color:#334155;">Acesse o sistema e defina um novo responsavel para cada departamento acima, garantindo a continuidade do fluxo de comunicacao.</p>'
+            + '<div style="text-align:center;margin:24px 0;">'
+            + '<a href="https://sistema-america.onrender.com/?target=departamentos" style="display:inline-block;padding:12px 28px;background:#c92a2a;color:#fff;text-decoration:none;border-radius:6px;font-weight:700;font-size:0.95rem;">Acessar Gestao de Departamentos</a>'
+            + '</div>'
+            + '<p style="margin-top:30px;font-size:0.9em;color:#7f8c8d;">Atenciosamente,<br>Equipe de RH - America Rental</p>'
+            + '<p style="margin-top:10px;font-size:0.8em;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:12px;">Este e um e-mail automatico do sistema America Rental. Nao responda diretamente.</p>'
+            + '</div>';
+
+        const attachments = [];
+        if (fs.existsSync(logoPath)) {
+            attachments.push({ filename: 'logo.png', path: logoPath, cid: 'empresa-logo' });
+        }
 
         await sendMailHelper({
+            from: '"RH America Rental" <' + SMTP_CONFIG.auth.user + '>',
             to: emailsUnicos.join(', '),
-            subject: `⚠️ Ação necessária: ${colab.nome_completo} foi desligado(a) e era responsável por departamento(s)`,
-            html
+            subject: 'Acao necessaria: ' + colab.nome_completo + ' foi desligado(a) e era responsavel por departamento(s)',
+            html: htmlContent,
+            attachments
         });
-        console.log(`[checkColaboradorDesligado] E-mail enviado para ${emailsUnicos.join(', ')} — ${deptos.length} departamento(s) afetado(s)`);
+                console.log(`[checkColaboradorDesligado] E-mail enviado para ${emailsUnicos.join(', ')} — ${deptos.length} departamento(s) afetado(s)`);
     } catch (err) {
         console.error('[checkColaboradorDesligado] Erro:', err.message);
     }
