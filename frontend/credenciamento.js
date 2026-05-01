@@ -696,3 +696,33 @@ window._renderizarTabelaHistorico = function(dados) {
         </tr>`;
     }).join('');
 };
+
+
+// ==========================================
+// FUNÇÃO PARA LIMPAR TODA A LISTA
+// ==========================================
+window.limparListaCredenciamentos = async function() {
+    if (!confirm('ATENÇÃO: Tem certeza que deseja excluir TODOS os credenciamentos do sistema? Essa ação não pode ser desfeita.')) return;
+    
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const res = await fetch('/api/logistica/credenciamentos/limpar-lista', {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!res.ok) throw new Error('Erro ao limpar a lista.');
+        
+        showToast('Todos os credenciamentos foram limpos.', 'success');
+        
+        // Atualiza as duas listas caso estejam carregadas
+        if (typeof window.carregarHistoricoCredenciamento === 'function') {
+            window.carregarHistoricoCredenciamento();
+        }
+        if (typeof window.carregarHistoricoComCred === 'function') {
+            window.carregarHistoricoComCred();
+        }
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
+};
