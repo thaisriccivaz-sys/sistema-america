@@ -11348,9 +11348,7 @@ async function checkLogisticaNotificacoes() {
     const token = localStorage.getItem('token');
     if (!token) return;
     try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        const permissoes = payload.permissoes || [];
-        const isLog = permissoes.includes('logistica_completo') || permissoes.some(p => String(p).includes('logistica')) || permissoes.includes('logistica-credenciamento');
+        const isLog = window.isTopAdmin || (window.activeUserPerms && window.activeUserPerms['logistica-credenciamento']) || (currentUser && currentUser.departamento === 'Logística');
         if (!isLog) return;
     } catch(e) { return; }
 

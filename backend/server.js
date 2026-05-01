@@ -9457,7 +9457,13 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
                             ? Object.entries(licGroups).map(([comp, nomes]) => `• ${comp}: ${nomes.join(' - ')}`).join('<br>')
                             : 'Nenhuma';
                             
-                        const docsList = (docs_exigidos || []).join(', ') || 'Nenhum';
+                        const docNamesMap = {
+                            'cnh': 'CNH', 'cpf': 'CPF', 'aso': 'ASO', 'ficha_registro': 'Ficha de Registro',
+                            'treinamento': 'Carteira de Vacinação', 'epi': 'Ficha de EPI',
+                            'contrato_esocial': 'Contrato e-social', 'nr1': 'NR1 / Ordem de Serviço'
+                        };
+                        const docsArr = (docs_exigidos || []).map(d => docNamesMap[d] || d);
+                        const docsList = docsArr.join(' - ') || 'Nenhum';
                         const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
                         const htmlMail = `
                         <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; padding: 0; border-radius: 8px; overflow: hidden;">
