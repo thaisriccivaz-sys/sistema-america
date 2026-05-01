@@ -2540,7 +2540,7 @@ app.get('/api/colaboradores/foto/:id', (req, res) => {
 
         let file_path = row.foto_path;
         if (file_path.startsWith('files/') || file_path.startsWith('files\\')) {
-            file_path = path.join(BASE_PATH, '..', file_path.replace(/^files[\\\/]/, ''));
+            file_path = path.join(BASE_PATH, '..', file_path.replace(/^files[\/]/, ''));
         } else if (file_path.startsWith('Colaboradores/') || file_path.startsWith('Colaboradores\\')) {
             file_path = path.join(BASE_PATH, '..', file_path);
         }
@@ -9562,7 +9562,7 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
 
                 sendMailHelper({
                     to: cliente_email,
-                    subject: \`✅ Solicitação de Credenciamento Recebida — América Rental\`,
+                    subject: `✅ Solicitação de Credenciamento Recebida — América Rental`,
                     html: htmlCliente,
                     attachments: [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }]
                 }).then(() => {
