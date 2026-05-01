@@ -11259,6 +11259,16 @@ setInterval(async () => {
     }
 }, 30000);
 
+
+window.markExpNotifLida = function(id) {
+    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+    fetch('/api/experiencia/notificacoes/' + id + '/lida', { method: 'PUT', headers: { 'Authorization': 'Bearer ' + token } }).catch(()=>{});
+};
+window.markLogNotifLida = function(id) {
+    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+    fetch('/api/logistica/notificacoes/' + id + '/lida', { method: 'PUT', headers: { 'Authorization': 'Bearer ' + token } }).catch(()=>{});
+};
+
 // --- POLLING: Notificações de Formulário de Experiência (para usuários RH) ---
 const _expNotifSeen = new Set();
 async function checkExperienciaNotificacoes() {
@@ -11309,11 +11319,11 @@ async function checkExperienciaNotificacoes() {
                                 ${dados.resultado ? `Resultado: <strong style="color:${dados.resultado === 'Aprovado' ? '#059669' : '#dc2626'}">${dados.resultado}</strong>` : 'Aguardando resultado'}
                             </div>
                             <div style="display:flex;gap:8px;margin-top:12px;">
-                                <button onclick="navigateTo('experiencia'); this.closest('[data-notif-id]').remove();" 
+                                <button onclick="window.markExpNotifLida(`${notif.id}`); navigateTo('experiencia'); this.closest('[data-notif-id]').remove();" 
                                     style="flex:1;padding:6px 12px;background:#1d4ed8;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.8rem;">
                                     Ver Tela de Experiência
                                 </button>
-                                <button onclick="this.closest('[data-notif-id]').remove();" 
+                                <button onclick="window.markExpNotifLida(`${notif.id}`); this.closest('[data-notif-id]').remove();" 
                                     style="padding:6px 12px;background:#f1f5f9;color:#334155;border:none;border-radius:8px;cursor:pointer;font-size:0.8rem;">
                                     ✕
                                 </button>
@@ -11325,10 +11335,7 @@ async function checkExperienciaNotificacoes() {
                 document.body.appendChild(popup);
                 
                 // Mark as read
-                fetch(`/api/experiencia/notificacoes/${notif.id}/lida`, {
-                    method: 'PUT',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                }).catch(() => {});
+                // markExpNotifLida removed from auto
                 
                 // Auto-close after 30s
                 setTimeout(() => { if (popup.parentNode) popup.remove(); }, 30000);
@@ -11388,11 +11395,11 @@ async function checkLogisticaNotificacoes() {
                                 Solicitado por: <strong>${dados.solicitante || 'Comercial'}</strong>
                             </div>
                             <div style="display:flex;gap:8px;margin-top:12px;">
-                                <button onclick="navigateTo('logistica-credenciamento'); this.closest('[data-notif-id]').remove();" 
+                                <button onclick="window.markLogNotifLida(`${notif.id}`); navigateTo('logistica-credenciamento'); this.closest('[data-notif-id]').remove();" 
                                     style="flex:1;padding:6px 12px;background:#7048e8;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.8rem;">
                                     Ver Credenciamento
                                 </button>
-                                <button onclick="this.closest('[data-notif-id]').remove();" 
+                                <button onclick="window.markLogNotifLida(`${notif.id}`); this.closest('[data-notif-id]').remove();" 
                                     style="padding:6px 12px;background:#f1f5f9;color:#334155;border:none;border-radius:8px;cursor:pointer;font-size:0.8rem;">
                                     X 
                                 </button>
@@ -11403,10 +11410,7 @@ async function checkLogisticaNotificacoes() {
                 popup.setAttribute('data-notif-id', notif.id);
                 document.body.appendChild(popup);
                 
-                fetch(`/api/logistica/notificacoes/${notif.id}/lida`, {
-                    method: 'PUT',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                }).catch(() => {});
+                // markLogNotifLida removed from auto
                 
                 setTimeout(() => { if (popup.parentNode) popup.remove(); }, 30000);
             } catch(parseErr) { }
