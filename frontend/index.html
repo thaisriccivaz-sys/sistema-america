@@ -1771,7 +1771,7 @@
                                 <h3><i class="ph ph-list-dashes"></i> Minhas Solicitações</h3>
                                 <div style="position:relative;">
                                     <i class="ph ph-magnifying-glass" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#94a3b8;"></i>
-                                    <input type="text" id="filtro-pesquisa-com-cred" class="form-control" placeholder="Buscar cliente ou e-mail..." onkeyup="window.filtrarHistoricoComCred()" style="width: 300px; padding: 6px 12px 6px 30px;">
+                                    <input type="text" id="filtro-pesquisa-com-cred" class="form-control" placeholder="Buscar OS, cliente ou e-mail..." onkeyup="window.filtrarHistoricoComCred()" style="width: 300px; padding: 6px 12px 6px 30px;">
                                 </div>
                             </div>
                             <button class="btn btn-danger" style="padding: 4px 12px; font-size: 12px; margin-right: 8px;" onclick="window.limparListaCredenciamentos()"><i class="ph ph-trash"></i> Limpar Lista</button>
@@ -1783,7 +1783,7 @@
                             <table class="table" style="font-size:0.85rem; margin:0; width:100%;">
                                 <thead style="position: sticky; top: 0; background: #f8fafc; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
                                     <tr>
-                                        <th>OS</th>
+                                        <th style="cursor:pointer;" onclick="window.ordenarHistoricoComCred('os')">OS <i class="ph ph-arrows-down-up"></i></th>
                                         <th style="cursor:pointer;" onclick="window.ordenarHistoricoComCred('cliente')">Cliente / Obra <i class="ph ph-arrows-down-up"></i></th>
                                         <th>Colaboradores (Qtd Max)</th>
                                         <th>Veículos (Qtd Max)</th>
@@ -2332,7 +2332,7 @@
                                 <h3><i class="ph ph-clock-counter-clockwise"></i> Histórico de Envios</h3>
                                 <div style="position:relative;">
                                     <i class="ph ph-magnifying-glass" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#94a3b8;"></i>
-                                    <input type="text" id="filtro-pesquisa-cred" class="form-control" placeholder="Buscar cliente, e-mail ou endereço..." onkeyup="window.filtrarHistoricoCred()" style="width: 300px; padding: 6px 12px 6px 30px;">
+                                    <input type="text" id="filtro-pesquisa-cred" class="form-control" placeholder="Buscar OS, cliente, e-mail..." onkeyup="window.filtrarHistoricoCred()" style="width: 300px; padding: 6px 12px 6px 30px;">
                                 </div>
                             </div>
                             <div style="display:flex; gap: 10px;">
@@ -2346,7 +2346,7 @@
                             <table class="table" style="font-size:0.85rem; margin:0; width:100%;">
                                 <thead style="position: sticky; top: 0; background: #f8fafc; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
                                     <tr>
-                                        <th>OS</th>
+                                        <th style="cursor:pointer; white-space:nowrap;" onclick="window.ordenarHistoricoCred('os')" title="Ordenar OS">OS <i class="ph ph-arrows-down-up" style="color:#94a3b8; font-size:12px;"></i></th>
                                         <th style="cursor:pointer; white-space:nowrap;" onclick="window.ordenarHistoricoCred('cliente')" title="Ordenar A-Z">Cliente / Obra <i class="ph ph-arrows-down-up" style="color:#94a3b8; font-size:12px;"></i></th>
                                         <th>Colaboradores</th>
                                         <th>Veículos</th>

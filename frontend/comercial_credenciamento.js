@@ -250,7 +250,7 @@ window.filtrarHistoricoComCred = function() {
     const rows = document.querySelectorAll('#tbody-comercial-cred tr');
     rows.forEach(row => {
         if (row.cells.length === 1) return;
-        const texto = row.cells[0].textContent.toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '');
+        const texto = (row.cells[0].textContent + ' ' + row.cells[1].textContent).toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '');
         row.style.display = texto.includes(termo) ? '' : 'none';
     });
 }
@@ -282,6 +282,14 @@ window.ordenarHistoricoComCred = function(coluna) {
             const nomeB = (b.cliente_nome || '').toLowerCase();
             if (nomeA < nomeB) return window._historicoComCredSort.dir === 'asc' ? -1 : 1;
             if (nomeA > nomeB) return window._historicoComCredSort.dir === 'asc' ? 1 : -1;
+            return 0;
+        });
+    } else if (coluna === 'os') {
+        dados.sort((a, b) => {
+            const osA = (a.os || '').toLowerCase();
+            const osB = (b.os || '').toLowerCase();
+            if (osA < osB) return window._historicoComCredSort.dir === 'asc' ? -1 : 1;
+            if (osA > osB) return window._historicoComCredSort.dir === 'asc' ? 1 : -1;
             return 0;
         });
     } else if (coluna === 'data') {
