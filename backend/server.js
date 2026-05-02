@@ -9500,44 +9500,8 @@ app.put('/api/logistica/os/:id', authenticateToken, (req, res) => {
             );
         });
     });
-});u{2600}-\u{26FF}\u{2700}-\u{27BF}\uFE0F\s🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘🟢🔴🔄💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊]+/u, '').trim().toLowerCase();
-
-    db.get(`SELECT cliente FROM os_logistica WHERE numero_os = ? AND id != ? AND status = 'ativo' LIMIT 1`, [numero_os?.trim(), req.params.id], (errCheck, existente) => {
-        if (errCheck) return res.status(500).json({ error: errCheck.message });
-
-        if (existente) {
-            const clienteExistente = sanitizeCliente(existente.cliente);
-            const clienteNovo = sanitizeCliente(cliente);
-            if (clienteExistente !== clienteNovo) {
-                return res.status(409).json({
-                    error: `O número de OS "${numero_os}" já está cadastrado para o cliente: "${existente.cliente}". Não é possível usar este número para outro cliente.`,
-                    cliente_existente: existente.cliente
-                });
-            }
-        }
-
-        db.run(`UPDATE os_logistica SET 
-            numero_os=?, tipo_os=?, cliente=?, endereco=?, complemento=?, cep=?, lat=?, lng=?,
-            contrato=?, data_os=?, responsavel=?, telefone=?, email=?, tipo_servico=?, hora_inicio=?, hora_fim=?,
-            turno=?, dias_semana=?, produtos=?, observacoes=?, observacoes_internas=?, habilidades=?, variaveis=?, link_video=?, patrimonio=?,
-            atualizado_em=datetime('now') WHERE id=?`,
-            [numero_os, tipo_os, cliente, endereco, complemento, cep,
-                lat ? parseFloat(lat) : null, lng ? parseFloat(lng) : null,
-                contrato, data_os, responsavel, telefone, email, tipo_servico,
-                hora_inicio, hora_fim, turno,
-                typeof dias_semana === 'object' ? JSON.stringify(dias_semana) : dias_semana,
-                typeof produtos === 'object' ? JSON.stringify(produtos) : produtos,
-                observacoes, observacoes_internas,
-                typeof habilidades === 'object' ? JSON.stringify(habilidades) : habilidades,
-                typeof variaveis === 'object' ? JSON.stringify(variaveis) : variaveis,
-                link_video, patrimonio, req.params.id],
-            function (err) {
-                if (err) return res.status(500).json({ error: err.message });
-                res.json({ ok: true });
-            }
-        );
-    });
 });
+
 
 // DELETE /api/logistica/os/:id — Excluir OS
 app.delete('/api/logistica/os/:id', authenticateToken, (req, res) => {
