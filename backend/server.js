@@ -9844,13 +9844,10 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
                     </div>`
                 };
 
-                transportermultas.sendMail(mailOptions, (error, info) => {
-                    if (error) {
-                        console.error('Erro ao enviar e-mail de credenciamento:', error);
-                        // don't block response
-                    } else {
-                        console.log('E-mail de credenciamento enviado:', info.response);
-                    }
+                sendMailHelper(mailOptions).then(() => {
+                    console.log('E-mail de credenciamento enviado com sucesso.');
+                }).catch(error => {
+                    console.error('Erro ao enviar e-mail de credenciamento:', error.message);
                 });
 
                 res.json({ message: 'E-mail de credenciamento enviado com sucesso.', link });

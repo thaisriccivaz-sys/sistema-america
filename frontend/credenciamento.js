@@ -298,8 +298,7 @@ function renderListaColabsCred() {
         const statusBg = s.toLowerCase() === 'ativo' ? '#dcfce7' : s.toLowerCase() === 'afastado' ? '#fee2e2' : '#fef3c7';
         return `
         <div class="cred-item-select" style="display:flex; align-items:center; gap:10px; padding:8px; border-bottom:1px solid #eee;">
-            <input type="checkbox" id="cred-colab-${c.id}" value="${c.id}"
-                ${credenciamentoState.selecionadosColabs.includes(String(c.id)) ? 'checked' : ''}>
+            <input type="checkbox" id="cred-colab-${c.id}" value="${c.id}" ${credenciamentoState.selecionadosColabs.includes(String(c.id)) ? 'checked' : ''} onchange="window.verificarLimiteColabCred()">
             <label for="cred-colab-${c.id}" style="cursor:pointer; margin:0; flex:1; display:flex; align-items:center; gap:8px;">
                 ${c.nome_completo}
                 <span style="font-size:0.7rem; font-weight:700; padding:1px 7px; border-radius:10px; background:${statusBg}; color:${statusColor}; white-space:nowrap;">${s}</span>
@@ -318,8 +317,7 @@ function renderListaVeicCred() {
     }
     list.innerHTML = credenciamentoState.veiculos.map(v => `
         <div class="cred-item-select" style="display:flex; align-items:center; gap:10px; padding:8px; border-bottom:1px solid #eee;">
-            <input type="checkbox" id="cred-veic-${v.id}" value="${v.id}"
-                ${credenciamentoState.selecionadosVeic.includes(String(v.id)) ? 'checked' : ''}>
+            <input type="checkbox" id="cred-veic-${v.id}" value="${v.id}" ${credenciamentoState.selecionadosVeic.includes(String(v.id)) ? 'checked' : ''} onchange="window.verificarLimiteVeicCred()">
             <label for="cred-veic-${v.id}" style="cursor:pointer; margin:0; flex:1;">
                 <b>${v.placa}</b> — ${v.marca_modelo_versao || 'Sem modelo'}
             </label>
@@ -327,58 +325,40 @@ function renderListaVeicCred() {
 }
 
 
-window.verificarLimiteColabCred = function(cb) {
-    const limit = window._credLimites ? window._credLimites.colabs : 0;
-    const limitNum = parseInt(limit) || 0;
+window.verificarLimiteColabCred = function() {
+    const limitNum = window._credLimites ? parseInt(window._credLimites.colabs) || 0 : 0;
     const checkboxes = document.querySelectorAll('#lista-selecao-colab input[type="checkbox"]:checked');
     let count = checkboxes.length;
     
-    if (cb && cb.checked && limitNum > 0 && count > limitNum) {
-        alert('Você não pode selecionar mais de ' + limitNum + ' colaborador(es) nesta solicitação.');
-        cb.checked = false;
-        count--;
-    }
-    
-    // Update label text like 2/5
     const spanModal = document.getElementById('cred-modal-limit-colabs-span');
     if (spanModal) {
         spanModal.textContent = `(${count}/${limitNum > 0 ? limitNum : 'Todos'})`;
-    }
-
-    // Disable unchecked boxes if limit reached
-    const allCbs = document.querySelectorAll('#lista-selecao-colab input[type="checkbox"]');
-    allCbs.forEach(box => {
-        if (!box.checked) {
-            box.disabled = (limitNum > 0 && count >= limitNum);
+        if (limitNum > 0 && count > limitNum) {
+            spanModal.style.color = '#ef4444';
+            spanModal.style.fontWeight = 'bold';
+        } else {
+            spanModal.style.color = '#64748b';
+            spanModal.style.fontWeight = 'normal';
         }
-    });
+    }
 };
 
-window.verificarLimiteVeicCred = function(cb) {
-    const limit = window._credLimites ? window._credLimites.veics : 0;
-    const limitNum = parseInt(limit) || 0;
+window.verificarLimiteVeicCred = function() {
+    const limitNum = window._credLimites ? parseInt(window._credLimites.veics) || 0 : 0;
     const checkboxes = document.querySelectorAll('#lista-selecao-veic input[type="checkbox"]:checked');
     let count = checkboxes.length;
     
-    if (cb && cb.checked && limitNum > 0 && count > limitNum) {
-        alert('Você não pode selecionar mais de ' + limitNum + ' veículo(s) nesta solicitação.');
-        cb.checked = false;
-        count--;
-    }
-    
-    // Update label text like 2/5
     const spanModal = document.getElementById('cred-modal-limit-veics-span');
     if (spanModal) {
         spanModal.textContent = `(${count}/${limitNum > 0 ? limitNum : 'Todos'})`;
-    }
-
-    // Disable unchecked boxes if limit reached
-    const allCbs = document.querySelectorAll('#lista-selecao-veic input[type="checkbox"]');
-    allCbs.forEach(box => {
-        if (!box.checked) {
-            box.disabled = (limitNum > 0 && count >= limitNum);
+        if (limitNum > 0 && count > limitNum) {
+            spanModal.style.color = '#ef4444';
+            spanModal.style.fontWeight = 'bold';
+        } else {
+            spanModal.style.color = '#64748b';
+            spanModal.style.fontWeight = 'normal';
         }
-    });
+    }
 };
 
 // ── Selecionar Todos ──────────────────────────────────────────────────────────
@@ -386,6 +366,9 @@ window.selecionarTodosColabs = function() {
     const checkboxes = document.querySelectorAll('#lista-selecao-colab input[type="checkbox"]');
     const todosChecked = Array.from(checkboxes).every(cb => cb.checked);
     checkboxes.forEach(cb => cb.checked = !todosChecked);
+    
+    if (typeof window.verificarLimiteColabCred === 'function') window.verificarLimiteColabCred();
+    
     const btn = document.getElementById('btn-todos-colabs');
     if (btn) btn.textContent = todosChecked ? 'Selecionar Todos' : 'Desmarcar Todos';
 }
@@ -393,6 +376,9 @@ window.selecionarTodosVeiculos = function() {
     const checkboxes = document.querySelectorAll('#lista-selecao-veic input[type="checkbox"]');
     const todosChecked = Array.from(checkboxes).every(cb => cb.checked);
     checkboxes.forEach(cb => cb.checked = !todosChecked);
+    
+    if (typeof window.verificarLimiteVeicCred === 'function') window.verificarLimiteVeicCred();
+    
     const btn = document.getElementById('btn-todos-veics');
     if (btn) btn.textContent = todosChecked ? 'Selecionar Todos' : 'Desmarcar Todos';
 }
