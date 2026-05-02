@@ -876,16 +876,20 @@ window.carregarHistoricoCredenciamento = async function() {
                 <span style="font-size:0.8rem; color:#64748b;">${cred.cliente_email}</span>
                 ${cred.endereco_instalacao ? `<br><span style="font-size:0.75rem; color:#94a3b8;"><i class="ph ph-map-pin"></i> ${cred.endereco_instalacao}</span>` : ''}
             </td>
-            <td>${cred.qtd_max_colaboradores === 0 ? 'Ilimitado' : cred.qtd_max_colaboradores}</td>
-            <td style="font-size:0.8rem; line-height:1.6;">${colabsText}</td>
-            <td>${cred.qtd_max_veiculos === 0 ? 'Ilimitado' : cred.qtd_max_veiculos}</td>
-            <td style="font-size:0.8rem; line-height:1.6;">${veicsText}</td>
+            <td style="font-size:0.8rem; line-height:1.6;">
+                <div style="font-weight:600; margin-bottom:4px; color:#475569; background:#f1f5f9; padding:2px 6px; border-radius:4px; display:inline-block;">${colabs.length}/${cred.qtd_max_colaboradores === 0 ? 'Todos' : cred.qtd_max_colaboradores}</div><br>
+                ${colabsText}
+            </td>
+            <td style="font-size:0.8rem; line-height:1.6;">
+                <div style="font-weight:600; margin-bottom:4px; color:#475569; background:#f1f5f9; padding:2px 6px; border-radius:4px; display:inline-block;">${veics.length}/${cred.qtd_max_veiculos === 0 ? 'Todos' : cred.qtd_max_veiculos}</div><br>
+                ${veicsText}
+            </td>
             <td style="font-size:0.8rem; line-height:1.6;">${licencasText}</td>
             <td style="font-size:0.85rem;">${statusBadge}</td>
             <td style="text-align:right; white-space:nowrap;">${acoes}</td>
         </tr>
         <tr id="log-cred-det-${cred.id}" style="display:none; background:#f8fafc;">
-            <td colspan="8" style="padding:15px; font-size:0.85rem; border-left:3px solid #7048e8;">
+            <td colspan="6" style="padding:15px; font-size:0.85rem; border-left:3px solid #7048e8;">
                 ${alertaCepHtml}
                 <div style="display:flex; flex-wrap:wrap; gap:30px;">
                     <div style="flex:1; min-width:250px;">
@@ -1088,10 +1092,14 @@ window._renderizarTabelaHistorico = function(dados) {
                 <span style="font-size:0.8rem; color:#64748b;">${cred.cliente_email}</span>
                 ${cred.endereco_instalacao ? `<br><span style="font-size:0.75rem; color:#94a3b8;"><i class="ph ph-map-pin"></i> ${cred.endereco_instalacao}</span>` : ''}
             </td>
-            <td>${cred.qtd_max_colaboradores === 0 ? 'Ilimitado' : cred.qtd_max_colaboradores}</td>
-            <td style="font-size:0.8rem; line-height:1.6;">${colabsText}</td>
-            <td>${cred.qtd_max_veiculos === 0 ? 'Ilimitado' : cred.qtd_max_veiculos}</td>
-            <td style="font-size:0.8rem; line-height:1.6;">${veicsText}</td>
+            <td style="font-size:0.8rem; line-height:1.6;">
+                <div style="font-weight:600; margin-bottom:4px; color:#475569; background:#f1f5f9; padding:2px 6px; border-radius:4px; display:inline-block;">${colabs.length}/${cred.qtd_max_colaboradores === 0 ? 'Todos' : cred.qtd_max_colaboradores}</div><br>
+                ${colabsText}
+            </td>
+            <td style="font-size:0.8rem; line-height:1.6;">
+                <div style="font-weight:600; margin-bottom:4px; color:#475569; background:#f1f5f9; padding:2px 6px; border-radius:4px; display:inline-block;">${veics.length}/${cred.qtd_max_veiculos === 0 ? 'Todos' : cred.qtd_max_veiculos}</div><br>
+                ${veicsText}
+            </td>
             <td style="font-size:0.8rem; line-height:1.6;">${licencasText}</td>
             <td style="font-size:0.85rem;">${statusBadge}</td>
             <td style="text-align:right; white-space:nowrap;">
