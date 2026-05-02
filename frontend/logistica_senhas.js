@@ -87,7 +87,7 @@ function initLogisticaSenhas() {
 
 function carregarSenhas() {
     fetch('/api/logistica/senhas', {
-        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('erp_token') }
     })
     .then(r => r.json())
     .then(data => {
