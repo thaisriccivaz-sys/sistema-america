@@ -10143,7 +10143,11 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
 
         // Registrar primeiro acesso do cliente
         if (!cred.acessado_em) {
-            db.run('UPDATE credenciamentos SET acessado_em = ? WHERE id = ?', [new Date().toISOString(), cred.id], () => { });
+            db.run('UPDATE credenciamentos SET acessado_em = ? WHERE id = ?', [new Date().toISOString(), cred.id], () => {
+                if (cred.solicitado_por_id) {
+                    db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo) VALUES (?, ?, 'credenciamento_acessado')", [cred.solicitado_por_id, `O cliente ${cred.cliente_nome} acessou o link do credenciamento da OS ${cred.os || '-'}.`]);
+                }
+            });
         }
 
         let colabs = [];
