@@ -859,6 +859,8 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     cliente_nome TEXT NOT NULL,
                     cliente_email TEXT NOT NULL,
                     token TEXT NOT NULL UNIQUE,
+                    os TEXT DEFAULT '',
+                    observacoes TEXT DEFAULT '',
                     colaboradores_ids TEXT,
                     veiculos_ids TEXT,
                     docs_exigidos TEXT,

@@ -10773,8 +10773,11 @@ async function dispararEmailLicenca(lic, diffDias, emailDestino) {
 // =====================================================================
 // AUTO-MIGRATION PARA CREDENCIAMENTOS COMERCIAL
 // =====================================================================
+setTimeout(() => {
 db.serialize(() => {
     const columns = [
+        "ALTER TABLE credenciamentos ADD COLUMN os TEXT DEFAULT '';",
+        "ALTER TABLE credenciamentos ADD COLUMN observacoes TEXT DEFAULT '';",
         "ALTER TABLE credenciamentos ADD COLUMN licencas_ids TEXT;",
         "ALTER TABLE credenciamentos ADD COLUMN endereco_instalacao TEXT;",
         "ALTER TABLE credenciamentos ADD COLUMN acessado_em DATETIME;",
@@ -10796,3 +10799,5 @@ db.serialize(() => {
 
     db.run("UPDATE credenciamentos SET status = 'enviado' WHERE status IS NULL", (err) => { });
 });
+
+}, 3000);
