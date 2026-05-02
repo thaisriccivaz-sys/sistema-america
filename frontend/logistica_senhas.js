@@ -7,60 +7,69 @@ function initLogisticaSenhas() {
     if (!container) return;
 
     container.innerHTML = `
-        <div class="page-header flex-between mb-4">
-            <div style="display: flex; align-items: center; gap: 1rem;">
-                <div style="width: 50px; height: 50px; border-radius: 12px; background: #d6f5e5; color: #2d9e5f; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
-                    <i class="ph ph-lock-key"></i>
-                </div>
-                <div>
-                    <h2 style="margin: 0; font-size: 1.5rem; color: #1e293b;">Cofre de Senhas</h2>
-                    <p style="margin: 0; color: #64748b; font-size: 0.9rem;">Gerencie as senhas de acesso aos sistemas da logística.</p>
-                </div>
-            </div>
-            <div style="display: flex; gap: 0.75rem;">
-                <button class="btn btn-secondary" onclick="abrirHistoricoSenhas()" style="display:flex;align-items:center;gap:6px;border-color:#cbd5e1;color:#475569;"><i class="ph ph-clock-counter-clockwise"></i> Histórico</button>
-                <button class="btn btn-primary" onclick="openSenhasModal()"><i class="ph ph-plus"></i> Nova Senha</button>
-            </div>
-        </div>
+        <div style="display:flex; flex-direction:column; height:calc(100vh - 64px); overflow:hidden;">
 
-        <div class="tabs" style="display:flex; gap:1rem; margin-bottom:1rem; border-bottom:1px solid #e2e8f0; padding-bottom:0.5rem; margin-top: -0.5rem;">
-            <button id="tab-senha-comp" onclick="switchSenhaTab('compartilhada')" style="background:none; border:none; border-bottom:2px solid #2d9e5f; color:#2d9e5f; font-weight:600; padding:0.5rem 1rem; cursor:pointer; font-size:1rem;">Senhas Compartilhadas</button>
-            <button id="tab-senha-pess" onclick="switchSenhaTab('pessoal')" style="background:none; border:none; border-bottom:2px solid transparent; color:#64748b; font-weight:600; padding:0.5rem 1rem; cursor:pointer; font-size:1rem;">Senhas Pessoais</button>
-        </div>
-        <div class="card p-4">
-            <div class="form-grid mb-3" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
-                <div style="position:relative;">
-                    <i class="ph ph-funnel" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1rem;"></i>
-                    <input type="text" id="filter-senha-servico" placeholder="Filtrar por Serviço..." oninput="filtrarSenhasMulti()" style="width:100%;padding:0.6rem 0.75rem 0.6rem 2.2rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;">
+            <!-- CABEÇALHO FIXO -->
+            <div class="page-header flex-between" style="flex-shrink:0; padding:1rem 0 0.75rem; margin-bottom:0; border-bottom:1px solid #e2e8f0;">
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <div style="width: 50px; height: 50px; border-radius: 12px; background: #d6f5e5; color: #2d9e5f; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
+                        <i class="ph ph-lock-key"></i>
+                    </div>
+                    <div>
+                        <h2 style="margin: 0; font-size: 1.5rem; color: #1e293b;">Cofre de Senhas</h2>
+                        <p style="margin: 0; color: #64748b; font-size: 0.9rem;">Gerencie as senhas de acesso aos sistemas da logística.</p>
+                    </div>
                 </div>
-                <div style="position:relative;">
-                    <i class="ph ph-funnel" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1rem;"></i>
-                    <input type="text" id="filter-senha-usuario" placeholder="Filtrar por Usuário..." oninput="filtrarSenhasMulti()" style="width:100%;padding:0.6rem 0.75rem 0.6rem 2.2rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;">
-                </div>
-                <div style="position:relative;">
-                    <select id="filter-senha-status" onchange="filtrarSenhasMulti()" style="width:100%;padding:0.6rem 0.75rem 0.6rem 0.75rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;background:#fff;color:#64748b;appearance:none;cursor:pointer;">
-                        <option value="ativo" selected>🟢 Ativo (Padrão)</option>
-                        <option value="">Todos os Status</option>
-                        <option value="inativo">🔴 Inativo</option>
-                    </select>
-                </div>
-                <div style="position:relative;">
-                    <i class="ph ph-funnel" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1rem;"></i>
-                    <input type="text" id="filter-senha-link" placeholder="Filtrar por Link..." oninput="filtrarSenhasMulti()" style="width:100%;padding:0.6rem 0.75rem 0.6rem 2.2rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;">
+                <div style="display: flex; gap: 0.75rem;">
+                    <button class="btn btn-secondary" onclick="abrirHistoricoSenhas()" style="display:flex;align-items:center;gap:6px;border-color:#cbd5e1;color:#475569;"><i class="ph ph-clock-counter-clockwise"></i> Histórico</button>
+                    <button class="btn btn-primary" onclick="openSenhasModal()"><i class="ph ph-plus"></i> Nova Senha</button>
                 </div>
             </div>
-            <div class="table-responsive">
-                <table class="table">
+
+            <!-- ABAS FIXAS -->
+            <div class="tabs" style="flex-shrink:0; display:flex; gap:1rem; border-bottom:1px solid #e2e8f0; padding:0.5rem 0 0; margin-top:0.5rem;">
+                <button id="tab-senha-comp" onclick="switchSenhaTab('compartilhada')" style="background:none; border:none; border-bottom:2px solid #2d9e5f; color:#2d9e5f; font-weight:600; padding:0.5rem 1rem; cursor:pointer; font-size:1rem;">Senhas Compartilhadas</button>
+                <button id="tab-senha-pess" onclick="switchSenhaTab('pessoal')" style="background:none; border:none; border-bottom:2px solid transparent; color:#64748b; font-weight:600; padding:0.5rem 1rem; cursor:pointer; font-size:1rem;">Senhas Pessoais</button>
+            </div>
+
+            <!-- FILTROS FIXOS -->
+            <div style="flex-shrink:0; background:#fff; padding:0.75rem 0; border-bottom:1px solid #e2e8f0;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem;">
+                    <div style="position:relative;">
+                        <i class="ph ph-funnel" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1rem;"></i>
+                        <input type="text" id="filter-senha-servico" placeholder="Filtrar por Serviço..." oninput="filtrarSenhasMulti()" style="width:100%;padding:0.6rem 0.75rem 0.6rem 2.2rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;">
+                    </div>
+                    <div style="position:relative;">
+                        <i class="ph ph-funnel" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1rem;"></i>
+                        <input type="text" id="filter-senha-usuario" placeholder="Filtrar por Usuário..." oninput="filtrarSenhasMulti()" style="width:100%;padding:0.6rem 0.75rem 0.6rem 2.2rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;">
+                    </div>
+                    <div style="position:relative;">
+                        <select id="filter-senha-status" onchange="filtrarSenhasMulti()" style="width:100%;padding:0.6rem 0.75rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;background:#fff;color:#64748b;appearance:none;cursor:pointer;">
+                            <option value="ativo" selected>🟢 Ativo (Padrão)</option>
+                            <option value="">Todos os Status</option>
+                            <option value="inativo">🔴 Inativo</option>
+                        </select>
+                    </div>
+                    <div style="position:relative;">
+                        <i class="ph ph-funnel" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1rem;"></i>
+                        <input type="text" id="filter-senha-link" placeholder="Filtrar por Link..." oninput="filtrarSenhasMulti()" style="width:100%;padding:0.6rem 0.75rem 0.6rem 2.2rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;">
+                    </div>
+                </div>
+            </div>
+
+            <!-- TABELA COM SCROLL -->
+            <div style="flex:1; overflow-y:auto; overflow-x:auto; min-height:0;">
+                <table class="table" style="width:100%; border-collapse:collapse;">
                     <thead>
-                        <tr>
-                            <th>Status</th>
-                            <th>Nome</th>
-                            <th>Serviço / Acesso</th>
-                            <th>Link</th>
-                            <th>Usuário</th>
-                            <th id="th-dono-senha" style="display:none; color:#d9480f;">Dono do Sistema</th>
-                            <th style="width: 200px;">Senha</th>
-                            <th style="text-align: right; width: 120px;">Ações</th>
+                        <tr style="position:sticky; top:0; z-index:5; background:#f8fafc;">
+                            <th style="padding:0.75rem 1rem; border-bottom:2px solid #e2e8f0; white-space:nowrap;">Status</th>
+                            <th style="padding:0.75rem 1rem; border-bottom:2px solid #e2e8f0;">Nome</th>
+                            <th style="padding:0.75rem 1rem; border-bottom:2px solid #e2e8f0;">Serviço / Acesso</th>
+                            <th style="padding:0.75rem 1rem; border-bottom:2px solid #e2e8f0;">Link</th>
+                            <th style="padding:0.75rem 1rem; border-bottom:2px solid #e2e8f0;">Usuário</th>
+                            <th id="th-dono-senha" style="display:none; padding:0.75rem 1rem; border-bottom:2px solid #e2e8f0; color:#d9480f;">Dono do Sistema</th>
+                            <th style="padding:0.75rem 1rem; border-bottom:2px solid #e2e8f0; width:200px;">Senha</th>
+                            <th style="padding:0.75rem 1rem; border-bottom:2px solid #e2e8f0; text-align:right; width:120px;">Ações</th>
                         </tr>
                     </thead>
                     <tbody id="table-senhas-body">
@@ -68,6 +77,7 @@ function initLogisticaSenhas() {
                     </tbody>
                 </table>
             </div>
+
         </div>
 
         <!-- Modal Nova/Editar Senha -->
