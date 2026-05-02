@@ -7899,9 +7899,11 @@ db.run(`CREATE TABLE IF NOT EXISTS comercial_notificacoes (
             usuario_id INTEGER,
             mensagem TEXT,
             tipo TEXT,
+            dados TEXT,
             lida INTEGER DEFAULT 0,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
+        db.run("ALTER TABLE comercial_notificacoes ADD COLUMN dados TEXT", () => {});
     CREATE TABLE IF NOT EXISTS logistica_notificacoes_pendentes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     tipo TEXT,
@@ -9880,7 +9882,7 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
                     console.error('Erro ao enviar e-mail de credenciamento:', error.message);
                 });
 
-                db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo) VALUES (?, ?, 'credenciamento_enviado')", [cred.solicitado_por_id, `A Logística enviou o credenciamento da OS ${cred.os} para o cliente ${cred.cliente_nome}.`]);
+                db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo, dados) VALUES (?, ?, 'credenciamento_enviado', ?)", [cred.solicitado_por_id, `A Logística enviou o credenciamento da OS ${cred.os} para o cliente ${cred.cliente_nome}.`, JSON.stringify({ cliente_nome: cred.cliente_nome, remetente: req.user ? req.user.nome_completo : 'Logística' })]);
          res.json({ message: 'E-mail de credenciamento enviado com sucesso.', link });
             }
         );
@@ -10153,7 +10155,7 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
         if (!cred.acessado_em) {
             db.run('UPDATE credenciamentos SET acessado_em = ? WHERE id = ?', [new Date().toISOString(), cred.id], () => {
                 if (cred.solicitado_por_id) {
-                    db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo) VALUES (?, ?, 'credenciamento_acessado')", [cred.solicitado_por_id, `O cliente ${cred.cliente_nome} acessou o link do credenciamento da OS ${cred.os || '-'}.`]);
+                    db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo, dados) VALUES (?, ?, 'credenciamento_acessado', ?)", [cred.solicitado_por_id, `O cliente ${cred.cliente_nome} acessou o link do credenciamento da OS ${cred.os || '-'}.`, JSON.stringify({ cliente_nome: cred.cliente_nome, remetente: 'Cliente' })]);
                 }
             });
         }

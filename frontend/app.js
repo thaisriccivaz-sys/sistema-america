@@ -11310,21 +11310,30 @@ async function checkDiretoriaNotificacoes() {
                     max-width:380px; animation: slideInLeft 0.4s ease-out;
                     border-left: 4px solid #c92a2a;
                 `;
+                let dados = {};
+                try { dados = JSON.parse(notif.dados || '{}'); } catch(e) {}
+                const remetente = dados.remetente || 'Logística';
+                const clienteNome = dados.cliente_nome || 'Cliente não informado';
+
                 popup.innerHTML = `
-                    <div style="display:flex;align-items:flex-start;gap:12px;">
-                        <div style="width:40px;height:40px;border-radius:10px;background:#fff5f5;color:#c92a2a;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                            <i class="ph ph-warning-circle" style="font-size:1.5rem;"></i>
+                    <div style="display:flex;align-items:flex-start;gap:1rem;">
+                        <div style="width:44px;height:44px;border-radius:12px;background:#dcfce7;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.4rem;color:#16a34a;">
+                            <i class="ph ${icon}"></i>
                         </div>
                         <div style="flex:1;">
-                            <h4 style="margin:0 0 4px 0;font-size:1rem;color:#c92a2a;font-weight:700;">Aviso de Desligamento</h4>
-                            <p style="margin:0;font-size:0.85rem;color:#475569;line-height:1.4;">O colaborador <b>${dados.colab_nome || 'Desconhecido'}</b>, responsável pela área <b>${dados.area || 'Desconhecida'}</b>, foi desligado.</p>
-                            <p style="margin:8px 0 0 0;font-size:0.8rem;color:#e03131;font-weight:600;">Outro colaborador deve ser incluído na função.</p>
+                            <div style="font-weight:700;font-size:0.9rem;color:#0f172a;margin-bottom:4px;">
+                                <i class="ph ph-bell-ringing" style="color:#16a34a;"></i> ${titulo}
+                            </div>
+                            <div style="color:#16a34a;font-weight:600;font-size:0.95rem;margin-bottom:4px;">${clienteNome}</div>
+                            <div style="color:#64748b;font-size:0.8rem;">
+                                ${notif.tipo === 'credenciamento_enviado' ? `Enviado por: <strong>${remetente}</strong>` : `O cliente acessou o link gerado.`}
+                            </div>
                             <div style="display:flex;gap:8px;margin-top:12px;">
-                                <button onclick="window.markDirNotifLida('${notif.id}'); navigateTo('departamentos'); this.closest('[data-notif-id]').remove();" 
-                                    style="flex:1;padding:6px 12px;background:#c92a2a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.8rem;">
-                                    Gerenciar Áreas
+                                <button onclick="window.markComNotifLida('${notif.id}'); navigateTo('comercial-credenciamento'); this.closest('[data-notif-id]').remove();" 
+                                    style="flex:1;padding:6px 12px;background:#16a34a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.8rem;">
+                                    Ver Credenciamento
                                 </button>
-                                <button onclick="window.markDirNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove();" 
+                                <button onclick="window.markComNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove();" 
                                     style="padding:6px 12px;background:#f1f5f9;color:#334155;border:none;border-radius:8px;cursor:pointer;font-size:0.8rem;">
                                     X 
                                 </button>
@@ -11444,20 +11453,59 @@ async function checkComercialNotificacoes() {
         for (const notif of notificacoes) {
             if (!_comNotifSeen.has(notif.id)) {
                 _comNotifSeen.add(notif.id);
-                // Mostrar Toast verde (cor da logística #16a34a)
-                showToast(notif.mensagem, 'success');
                 
-                // Marcar como lida
-                fetch(`/api/comercial/notificacoes/${notif.id}/lida`, {
-                    method: 'PUT',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                }).catch(()=>{});
+                const popup = document.createElement('div');
+                popup.style.cssText = `
+                    position:fixed; bottom:24px; right:24px; z-index:99999;
+                    background:#fff; border-radius:16px; padding:1.5rem;
+                    box-shadow: 0 20px 60px rgba(22,163,74,0.25), 0 0 0 1px rgba(22,163,74,0.1);
+                    max-width:380px; animation: slideInRight 0.4s ease-out;
+                    border-left: 4px solid #16a34a;
+                `;
+                
+                let titulo = notif.tipo === 'credenciamento_enviado' ? 'Envio do Credenciamento' : 'Acesso ao Credenciamento';
+                let icon = notif.tipo === 'credenciamento_enviado' ? 'ph-paper-plane-right' : 'ph-eye';
+                
+                popup.innerHTML = `
+                    <div style="display:flex;align-items:flex-start;gap:1rem;">
+                        <div style="width:44px;height:44px;border-radius:12px;background:#dcfce7;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.4rem;color:#16a34a;">
+                            <i class="ph ${icon}"></i>
+                        </div>
+                        <div style="flex:1;">
+                            <div style="font-weight:700;font-size:0.9rem;color:#0f172a;margin-bottom:4px;">
+                                <i class="ph ph-bell-ringing" style="color:#16a34a;"></i> ${titulo}
+                            </div>
+                            <div style="color:#64748b;font-size:0.8rem;">
+                                ${notif.mensagem}
+                            </div>
+                            <div style="display:flex;gap:8px;margin-top:12px;">
+                                <button onclick="window.markComNotifLida('${notif.id}'); navigateTo('credenciamento'); this.closest('[data-notif-id]').remove();" 
+                                    style="flex:1;padding:6px 12px;background:#16a34a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.8rem;">
+                                    Ver Tela
+                                </button>
+                                <button onclick="window.markComNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove();" 
+                                    style="padding:6px 12px;background:#f1f5f9;color:#334155;border:none;border-radius:8px;cursor:pointer;font-size:0.8rem;">
+                                    X 
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                popup.setAttribute('data-notif-id', notif.id);
+                document.body.appendChild(popup);
+                setTimeout(() => { if (popup.parentNode) popup.remove(); }, 30000);
             }
         }
     } catch(err) {
         // ignora silently
     }
 }
+
+window.markComNotifLida = function(id) {
+    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+    fetch('/api/comercial/notificacoes/' + id + '/lida', { method: 'PUT', headers: { 'Authorization': 'Bearer ' + token } }).catch(()=>{});
+};
+
 setInterval(checkComercialNotificacoes, 60000);
 setTimeout(checkComercialNotificacoes, 3000);
 
