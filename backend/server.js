@@ -6963,6 +6963,14 @@ app.get('/api/auditoria/:id?', authenticateToken, (req, res) => {
                WHERE a.programa LIKE ?
                ORDER BY a.data_hora DESC LIMIT 200`;
         params.push(`%${programa}%`);
+    } else if (programa && programa.toLowerCase().includes('os log')) {
+        // OS Logística: retorna numero_os como documento_nome
+        sql = `SELECT a.*, os.numero_os as documento_nome
+               FROM auditoria a
+               LEFT JOIN os_logistica os ON a.registro_id = os.id
+               WHERE a.programa LIKE ?
+               ORDER BY a.data_hora DESC LIMIT 500`;
+        params.push(`%${programa}%`);
     } else if (programa) {
         sql = `SELECT a.* FROM auditoria a WHERE a.programa LIKE ? ORDER BY a.data_hora DESC LIMIT 200`;
         params.push(`%${programa}%`);

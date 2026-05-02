@@ -13603,7 +13603,11 @@ window._renderHistoryPage = function() {
     // Mostrar/ocultar coluna Documento
     const hasDocNome = data.some(r => r.documento_nome);
     const thDoc = document.getElementById('history-th-documento');
-    if (thDoc) thDoc.style.display = hasDocNome ? 'table-cell' : 'none';
+    if (thDoc) {
+        thDoc.style.display = hasDocNome ? 'table-cell' : 'none';
+        const isOsHistory = data.some(r => r.programa === 'OS Logística');
+        thDoc.textContent = isOsHistory ? 'Nº OS' : 'Registro / Relacionado';
+    }
 
     if (slice.length === 0) {
         tbody.innerHTML = `<tr><td colspan="${hasDocNome ? 6 : 5}" style="text-align:center; padding: 2rem; color: #94a3b8;">Nenhum registro de alteração encontrado.</td></tr>`;
@@ -13672,6 +13676,7 @@ window.showHistoryPopup = async function() {
         const viewEpi = document.getElementById('view-ficha-epi');
         const viewAvaliacoes = document.getElementById('view-gerenciar-avaliacoes');
         const viewDissidio = document.getElementById('view-dissidio');
+        const viewRotaRedonda = document.getElementById('rota-redonda-container');
 
         const isColabActive = (viewPront && viewPront.classList.contains('active')) || 
                               (viewAdm && viewAdm.classList.contains('active')) ||
@@ -13683,6 +13688,7 @@ window.showHistoryPopup = async function() {
         const isEpiActive = viewEpi && viewEpi.classList.contains('active');
         const isAvaliacoesActive = viewAvaliacoes && viewAvaliacoes.classList.contains('active');
         const isDissidioActive = viewDissidio && viewDissidio.classList.contains('active');
+        const isRotaRedondaActive = viewRotaRedonda && viewRotaRedonda.offsetParent !== null;
 
         if (isColabActive && viewedColaborador && viewedColaborador.id) {
             // Prontuário ou Admissão de um colaborador específico
@@ -13710,6 +13716,9 @@ window.showHistoryPopup = async function() {
         } else if (isDissidioActive) {
             url += `?programa=Dissídio`;
             labelText = 'Tela: Dissídio Coletivo';
+        } else if (isRotaRedondaActive) {
+            url += `?programa=OS Logística`;
+            labelText = 'Tela: Rota Redonda — Histórico de OS';
         } else {
             url += `?contexto=geral`;
         }
@@ -13769,9 +13778,13 @@ setInterval(() => {
     // Cofre de Senhas — container visível (não tem classe active, verifica display)
     const isSenhasActive = viewSenhas && viewSenhas.offsetParent !== null;
 
+    // Rota Redonda — container visível
+    const viewRotaRedondaInterval = document.getElementById('rota-redonda-container');
+    const isRotaRedondaActive = viewRotaRedondaInterval && viewRotaRedondaInterval.offsetParent !== null;
+
     const shouldShow = isColabActive || isGerActive || isCargosActive ||
                        isFaculdadeActive || isEpiActive || isAvaliacoesActive ||
-                       isDissidioActive || isSenhasActive;
+                       isDissidioActive || isSenhasActive || isRotaRedondaActive;
 
     btnHistory.style.display = shouldShow ? 'flex' : 'none';
 
@@ -13783,7 +13796,6 @@ setInterval(() => {
     }
 }, 500);
 
-// === INJEÇÃO ROBUSTA DE BOTÕES DE HISTÓRICO ===
 // === INJEÇÃO ROBUSTA DE BOTÕES DE HISTÓRICO ===
 (function _injectHistoryButtons() {
 
@@ -13848,6 +13860,18 @@ setInterval(() => {
 
         // Dissídio — header renderizado por JS
         injectStaticView('#view-dissidio', () => window.showHistoryPopup());
+
+        // Rota Redonda — header dinâmico renderizado por renderRotaRedonda()
+        const rrContainer = document.querySelector('#rota-redonda-container');
+        if (rrContainer && rrContainer.offsetParent !== null) {
+            // Busca o div de actions no topo da tela (onde ficam Colar OS, Limpar, etc.)
+            const rrHeader = rrContainer.querySelector('[style*="space-between"]') ||
+                             rrContainer.querySelector('.rr-topbar') ||
+                             rrContainer.firstElementChild;
+            if (rrHeader && !hasHistBtn(rrHeader)) {
+                rrHeader.appendChild(makeBtn(() => window.showHistoryPopup()));
+            }
+        }
 
         // Cofre de Senhas — header renderizado por initLogisticaSenhas()
         const senhasHeader = document.querySelector('#logistica-senhas-container .page-header');
