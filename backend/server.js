@@ -9101,7 +9101,16 @@ app.post('/api/logistica/os/upload-video', authenticateToken, multerVideo.single
             if (err) return res.status(500).json({ error: err.message });
             const linkPublico = `/api/video/${token}`;
             const linkCurto = `/v/${shortCode}`;
-            res.json({ ok: true, token, short_code: shortCode, link: linkPublico, short_link: linkCurto, nome: req.file.originalname });
+            
+            const handleResponse = () => res.json({ ok: true, token, short_code: shortCode, link: linkPublico, short_link: linkCurto, nome: req.file.originalname });
+
+            if (numero_os) {
+                db.run(`UPDATE os_logistica SET link_video = ? WHERE numero_os = ?`, [linkCurto, numero_os], handleResponse);
+            } else if (os_id) {
+                db.run(`UPDATE os_logistica SET link_video = ? WHERE id = ?`, [linkCurto, os_id], handleResponse);
+            } else {
+                handleResponse();
+            }
         }
     );
 });

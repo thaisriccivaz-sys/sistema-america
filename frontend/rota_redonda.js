@@ -870,14 +870,13 @@ async function rrFazerUploadVideo(input) {
     }
 }
 
-function rrCopiarLinkVideo() {
+function rrAbrirLinkVideo() {
     const display = document.getElementById('rr-video-link-display');
     const hidden  = document.getElementById('rr-input-video');
-    // Prefere o link curto salvo em data-short
     const linkParaCopiar = display?.dataset.shortLink || hidden?.value || '';
     if (!linkParaCopiar) return;
     const fullLink = linkParaCopiar.startsWith('http') ? linkParaCopiar : window.location.origin + linkParaCopiar;
-    navigator.clipboard.writeText(fullLink).then(() => mostrarToastAviso('✅ Link copiado: ' + fullLink));
+    window.open(fullLink, '_blank');
 }
 
 function _abrirPopupCoordenadas(urlOrigem) {
@@ -3839,7 +3838,7 @@ function renderRotaRedonda() {
                             <span id="rr-video-link-display" style="display:none;align-items:center;gap:4px;font-size:0.7rem;background:#eff6ff;border:1px solid #bfdbfe;border-radius:4px;padding:2px 6px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
                                 <i class="ph ph-film-strip" style="color:#3b82f6;"></i>
                                 <a id="rr-video-link-anchor" href="#" target="_blank" style="color:#1d4ed8;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px;"></a>
-                                <button id="btn-copiar-link-video" onclick="rrCopiarLinkVideo()" title="Copiar link" style="background:none;border:none;cursor:pointer;padding:0;color:#3b82f6;display:flex;align-items:center;"><i class="ph ph-copy" style="font-size:0.85rem;"></i></button>
+                                <button id="btn-abrir-link-video" onclick="rrAbrirLinkVideo()" title="Abrir vídeo" style="background:none;border:none;cursor:pointer;padding:0;color:#3b82f6;display:flex;align-items:center;"><i class="ph ph-arrow-square-out" style="font-size:0.85rem;"></i></button>
                             </span>
                             <span id="rr-video-upload-progress" style="display:none;font-size:0.7rem;color:#6b7280;"></span>
                         </div>
