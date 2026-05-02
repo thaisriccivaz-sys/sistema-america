@@ -5781,17 +5781,175 @@ window.deletarFalta = async function(id, btn) {
 };
 
 window.transformarFaltaEmAtestado = function(faltaId, dataFalta) {
-    document.getElementById('cid-search')?.focus();
-    const inicio = document.getElementById('atestado_inicio_dia');
-    if(inicio && dataFalta) {
-        inicio.value = dataFalta;
-        window.calcAtestadoFim();
-    }
     window.faltaIdParaAtestado = faltaId;
-    if(typeof showToast !== 'undefined') {
-        showToast('Preencha o CID e o período para transformar a falta em atestado e anexe o documento.', 'info');
-    } else {
-        alert('Preencha o CID e o período para transformar a falta em atestado e anexe o documento.');
+    
+    var overlay = document.getElementById('modal-transformar-falta-overlay');
+    if(overlay) overlay.remove();
+    
+    overlay = document.createElement('div');
+    overlay.id = 'modal-transformar-falta-overlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(15,23,42,0.6);z-index:999999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);';
+    
+    const today = new Date().toISOString().split('T')[0];
+    const dataInicial = dataFalta || today;
+
+    overlay.innerHTML = `
+        <div style="background:#fff;border-radius:12px;width:90%;max-width:550px;box-shadow:0 10px 25px rgba(0,0,0,0.1);display:flex;flex-direction:column;overflow:visible;">
+            <div style="padding:1.25rem 1.5rem;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">
+                <h3 style="margin:0;font-size:1.15rem;color:#1e293b;display:flex;align-items:center;gap:0.5rem;"><i class="ph ph-file-plus" style="color:#0ea5e9;"></i> Transformar em Atestado</h3>
+                <button onclick="document.getElementById('modal-transformar-falta-overlay').remove()" style="background:none;border:none;cursor:pointer;color:#94a3b8;font-size:1.2rem;"><i class="ph ph-x"></i></button>
+            </div>
+            <div style="padding:1.5rem;display:flex;flex-direction:column;gap:1.25rem;overflow:visible;">
+                
+                <div class="cid-input-group" style="position:relative;z-index:999;">
+                    <label style="font-size:0.8rem;font-weight:600;color:#334155;margin-bottom:0.25rem;display:block;">CID-10</label>
+                    <input type="text" id="modal_cid_search" class="form-control" placeholder="Digite para buscar o CID..." autocomplete="off" oninput="window.searchModalCID(this.value)" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px;">
+                    <div id="modal_cid_dropdown" class="cid-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #ccc;border-radius:4px;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.1);"></div>
+                </div>
+
+                <div style="display:flex;gap:1rem;">
+                    <div style="flex:1;">
+                        <label style="font-size:0.8rem;font-weight:600;color:#334155;margin-bottom:0.25rem;display:block;">Data Início</label>
+                        <input type="date" id="modal_atestado_inicio" class="form-control" value="${dataInicial}" oninput="window.calcModalAtestadoFim()" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px;">
+                    </div>
+                    <div style="flex:1;">
+                        <label style="font-size:0.8rem;font-weight:600;color:#334155;margin-bottom:0.25rem;display:block;">Qtd. Dias</label>
+                        <input type="number" id="modal_atestado_qtd" class="form-control" min="1" value="1" oninput="window.calcModalAtestadoFim()" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px;">
+                    </div>
+                    <div style="flex:1;">
+                        <label style="font-size:0.8rem;font-weight:600;color:#334155;margin-bottom:0.25rem;display:block;">Término</label>
+                        <input type="date" id="modal_atestado_fim" class="form-control" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px;background:#f1f5f9;" readonly>
+                    </div>
+                </div>
+
+                <div>
+                    <label style="font-size:0.8rem;font-weight:600;color:#334155;margin-bottom:0.25rem;display:block;">Anexar Documento (PDF/Imagem)</label>
+                    <input type="file" id="modal_cid_file" accept=".pdf,image/*" class="form-control" style="width:100%;padding:0.4rem;border:1px solid #cbd5e1;border-radius:6px;">
+                </div>
+
+            </div>
+            <div style="padding:1rem 1.5rem;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:0.75rem;background:#f8fafc;border-bottom-left-radius:12px;border-bottom-right-radius:12px;">
+                <button onclick="document.getElementById('modal-transformar-falta-overlay').remove()" class="btn btn-light" style="padding:0.5rem 1rem;border:1px solid #cbd5e1;border-radius:6px;background:#fff;cursor:pointer;">Cancelar</button>
+                <button onclick="window.uploadModalAtestado()" class="btn btn-primary" id="modal-btn-upload-atestado" style="padding:0.5rem 1rem;background:#0ea5e9;border:none;border-radius:6px;color:#fff;display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-weight:600;"><i class="ph ph-check"></i> Salvar Atestado</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+    window.calcModalAtestadoFim();
+};
+
+window.selectedModalCID = null;
+
+window.searchModalCID = async function(val) {
+    const dd = document.getElementById('modal_cid_dropdown');
+    if (!val || val.length < 2) { dd.style.display = 'none'; return; }
+    try {
+        const res = await fetch(`${API_URL}/cid10?q=${encodeURIComponent(val)}`, { headers: { 'Authorization': `Bearer ${currentToken}` } });
+        const data = await res.json();
+        if (!data.length) { dd.style.display = 'none'; return; }
+        dd.innerHTML = data.map((c, i) =>
+            `<div style="padding:0.6rem 0.8rem;cursor:pointer;font-size:0.85rem;border-bottom:1px solid #f1f5f9;" onclick="window.selectModalCID('${c.code}', this.dataset.desc)" data-desc="${c.desc.replace(/"/g,'&quot;')}">
+                <strong style="color:#1a73e8;">${c.code}</strong> — ${c.desc}
+             </div>`
+        ).join('');
+        dd.style.display = 'block';
+    } catch(e) { dd.style.display = 'none'; }
+};
+
+window.selectModalCID = function(code, desc) {
+    window.selectedModalCID = { code, desc };
+    document.getElementById('modal_cid_dropdown').style.display = 'none';
+    document.getElementById('modal_cid_search').value = `${code} — ${desc}`;
+};
+
+window.calcModalAtestadoFim = function() {
+    const inicio = document.getElementById('modal_atestado_inicio')?.value;
+    const qtd = parseInt(document.getElementById('modal_atestado_qtd')?.value, 10) || 1;
+    const fimEl = document.getElementById('modal_atestado_fim');
+    if (!fimEl) return;
+    if (!inicio) { fimEl.value = ''; return; }
+    const d = new Date(inicio + 'T12:00:00');
+    d.setDate(d.getDate() + qtd - 1);
+    fimEl.value = d.toISOString().split('T')[0];
+};
+
+window.uploadModalAtestado = async function() {
+    const fileEl = document.getElementById('modal_cid_file');
+    const file = fileEl.files[0];
+    if (!file) { alert('Anexe o documento do atestado.'); return; }
+    if (!window.selectedModalCID) { alert('Selecione o CID.'); return; }
+    if (!viewedColaborador) return;
+
+    const btn = document.getElementById('modal-btn-upload-atestado');
+    const oldHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...';
+    btn.disabled = true;
+
+    const today = new Date();
+    const dd  = String(today.getDate()).padStart(2, '0');
+    const mm  = String(today.getMonth() + 1).padStart(2, '0');
+    const aa  = String(today.getFullYear()).slice(2);
+    const nomeColabNorm = (viewedColaborador.nome_completo || viewedColaborador.nome || 'COLAB')
+        .toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]+/g, '_');
+    const customName = `${window.selectedModalCID.code}_${nomeColabNorm}_${dd}${mm}${aa}`;
+    const typeIn = `${window.selectedModalCID.code} - ${window.selectedModalCID.desc.substring(0, 60)}`;
+
+    const formData = new FormData();
+    formData.append('colaborador_id', viewedColaborador.id);
+    formData.append('colaborador_nome', viewedColaborador.nome || 'Desconhecido');
+    formData.append('tab_name', 'Atestados');
+    formData.append('document_type', typeIn);
+    formData.append('custom_name', customName);
+    formData.append('cloud_name', customName + '.pdf');
+    formData.append('year', document.getElementById('atestados_year') ? document.getElementById('atestados_year').value : today.getFullYear().toString());
+
+    const inicioVal = document.getElementById('modal_atestado_inicio').value;
+    const fimVal = document.getElementById('modal_atestado_fim').value;
+    formData.append('atestado_tipo', 'dias');
+    formData.append('atestado_inicio', inicioVal);
+    formData.append('atestado_fim', fimVal || inicioVal);
+    formData.append('file', file);
+
+    try {
+        const res = await fetch(`${API_URL}/documentos`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${currentToken}` },
+            body: formData
+        });
+        if (res.ok) {
+            // Remove a falta relacionada
+            if (window.faltaIdParaAtestado) {
+                try {
+                    await apiDelete(`/faltas/${window.faltaIdParaAtestado}`);
+                    window.faltaIdParaAtestado = null;
+                } catch(e) { console.error('Erro ao excluir falta:', e); }
+            }
+
+            // Atualiza status se o atestado for válido para hoje
+            const todayStr = today.toISOString().split('T')[0];
+            if (todayStr >= inicioVal && todayStr <= fimVal) {
+                viewedColaborador.status = 'Afastado';
+            }
+
+            document.getElementById('modal-transformar-falta-overlay').remove();
+            
+            await loadDocumentosList();
+            if (typeof renderAtestadosAno === 'function') renderAtestadosAno();
+            const faltasCont = document.getElementById('faltas-combined-container');
+            if (faltasCont) renderFaltasTab(faltasCont);
+            
+            if (typeof showToast !== 'undefined') showToast('Falta transformada em atestado com sucesso!', 'success');
+        } else {
+            const err = await res.json().catch(()=>({}));
+            alert('Erro: ' + (err.error || res.statusText));
+            btn.innerHTML = oldHtml;
+            btn.disabled = false;
+        }
+    } catch(e) {
+        alert('Erro: ' + e.message);
+        btn.innerHTML = oldHtml;
+        btn.disabled = false;
     }
 };
 
