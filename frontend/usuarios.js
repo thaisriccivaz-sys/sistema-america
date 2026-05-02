@@ -106,8 +106,12 @@ function renderTabelaUsuarios() {
         let exibirGrupo = u.grupo_nome ? u.grupo_nome : null;
         if (exibirGrupo && exibirGrupo.startsWith('Personalizado')) exibirGrupo = 'Personalizado';
 
+        let fotoHtml = u.foto_colaborador 
+            ? `<img src="${u.foto_colaborador}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid #e2e8f0;flex-shrink:0;">`
+            : `<div style="width:36px;height:36px;border-radius:50%;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-weight:bold;font-size:1rem;flex-shrink:0;border:2px solid #e2e8f0;"><i class="ph ph-user"></i></div>`;
+
         return `<tr style="opacity:${u.ativo ? 1 : 0.45};">
-            <td><strong>${u.nome || u.username}</strong></td>
+            <td><div style="display:flex;align-items:center;gap:12px;">${fotoHtml} <strong>${u.nome || u.username}</strong></div></td>
             <td><code>${u.username}</code></td>
             <td>${u.departamento || '-'}</td>
             <td>

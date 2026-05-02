@@ -36,8 +36,8 @@ function initLogisticaSenhas() {
                 </div>
                 <div style="position:relative;">
                     <select id="filter-senha-status" onchange="filtrarSenhasMulti()" style="width:100%;padding:0.6rem 0.75rem 0.6rem 0.75rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;background:#fff;color:#64748b;appearance:none;cursor:pointer;">
+                        <option value="ativo" selected>🟢 Ativo (Padrão)</option>
                         <option value="">Todos os Status</option>
-                        <option value="ativo">🟢 Ativo</option>
                         <option value="inativo">🔴 Inativo</option>
                     </select>
                 </div>

@@ -2505,9 +2505,12 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
 
             res.json({ message: 'Colaborador atualizado com sucesso' });
 
-            // Se o status mudou para Desligado, verificar se era responsável por departamento
+            // Se o status mudou para Desligado, verificar se era responsável por departamento e inativar usuário do sistema
             if (data.status === 'Desligado' && oldColab.status !== 'Desligado') {
                 checkColaboradorDesligado(id);
+                db.run("UPDATE usuarios SET ativo = 0 WHERE nome = ?", [data.nome_completo || oldColab.nome_completo], (err) => {
+                    if (err) console.error("Erro ao inativar usuário vinculado:", err);
+                });
             }
 
             const novoDept = data.departamento;
@@ -6579,9 +6582,11 @@ app.delete('/api/epi-templates/:id', authenticateToken, (req, res) => {
 // --- USUÁRIOS ---
 app.get('/api/usuarios', authenticateToken, (req, res) => {
     db.all(`SELECT u.id, u.username, u.nome, u.email, u.role, u.departamento, u.grupo_permissao_id, u.ativo,
-                   g.nome as grupo_nome
+                   g.nome as grupo_nome,
+                   c.foto as foto_colaborador
             FROM usuarios u
             LEFT JOIN grupos_permissao g ON g.id = u.grupo_permissao_id
+            LEFT JOIN colaboradores c ON c.nome_completo = u.nome
             ORDER BY u.nome`, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows);
