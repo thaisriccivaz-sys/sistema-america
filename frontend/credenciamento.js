@@ -328,25 +328,57 @@ function renderListaVeicCred() {
 
 
 window.verificarLimiteColabCred = function(cb) {
-    if (!cb.checked) return;
     const limit = window._credLimites ? window._credLimites.colabs : 0;
-    if (limit <= 0) return;
+    const limitNum = parseInt(limit) || 0;
     const checkboxes = document.querySelectorAll('#lista-selecao-colab input[type="checkbox"]:checked');
-    if (checkboxes.length > limit) {
-        alert('Você não pode selecionar mais de ' + limit + ' colaborador(es) nesta solicitação.');
+    let count = checkboxes.length;
+    
+    if (cb && cb.checked && limitNum > 0 && count > limitNum) {
+        alert('Você não pode selecionar mais de ' + limitNum + ' colaborador(es) nesta solicitação.');
         cb.checked = false;
+        count--;
     }
+    
+    // Update label text like 2/5
+    const spanModal = document.getElementById('cred-modal-limit-colabs-span');
+    if (spanModal) {
+        spanModal.textContent = `(${count}/${limitNum > 0 ? limitNum : 'Todos'})`;
+    }
+
+    // Disable unchecked boxes if limit reached
+    const allCbs = document.querySelectorAll('#lista-selecao-colab input[type="checkbox"]');
+    allCbs.forEach(box => {
+        if (!box.checked) {
+            box.disabled = (limitNum > 0 && count >= limitNum);
+        }
+    });
 };
 
 window.verificarLimiteVeicCred = function(cb) {
-    if (!cb.checked) return;
     const limit = window._credLimites ? window._credLimites.veics : 0;
-    if (limit <= 0) return;
+    const limitNum = parseInt(limit) || 0;
     const checkboxes = document.querySelectorAll('#lista-selecao-veic input[type="checkbox"]:checked');
-    if (checkboxes.length > limit) {
-        alert('Você não pode selecionar mais de ' + limit + ' veículo(s) nesta solicitação.');
+    let count = checkboxes.length;
+    
+    if (cb && cb.checked && limitNum > 0 && count > limitNum) {
+        alert('Você não pode selecionar mais de ' + limitNum + ' veículo(s) nesta solicitação.');
         cb.checked = false;
+        count--;
     }
+    
+    // Update label text like 2/5
+    const spanModal = document.getElementById('cred-modal-limit-veics-span');
+    if (spanModal) {
+        spanModal.textContent = `(${count}/${limitNum > 0 ? limitNum : 'Todos'})`;
+    }
+
+    // Disable unchecked boxes if limit reached
+    const allCbs = document.querySelectorAll('#lista-selecao-veic input[type="checkbox"]');
+    allCbs.forEach(box => {
+        if (!box.checked) {
+            box.disabled = (limitNum > 0 && count >= limitNum);
+        }
+    });
 };
 
 // ── Selecionar Todos ──────────────────────────────────────────────────────────
@@ -392,6 +424,9 @@ window.filtrarListaCred = function(containerId, termo) {
 
 // ── Abrir / Fechar modais ─────────────────────────────────────────────────────
 window.abrirModalAddCredColab = function() {
+    setTimeout(() => {
+        if (typeof window.verificarLimiteColabCred === 'function') window.verificarLimiteColabCred();
+    }, 100);
     const modal = document.getElementById('modal-cred-colab');
     if (modal) modal.style.display = 'flex';
     loadColaboradoresCred();
@@ -403,6 +438,9 @@ window.fecharModalAddCredColab = function() {
     if (modal) modal.style.display = 'none';
 }
 window.abrirModalAddCredVeic = function() {
+    setTimeout(() => {
+        if (typeof window.verificarLimiteVeicCred === 'function') window.verificarLimiteVeicCred();
+    }, 100);
     const modal = document.getElementById('modal-cred-veic');
     if (modal) modal.style.display = 'flex';
     loadVeiculosCred();
@@ -838,7 +876,9 @@ window.carregarHistoricoCredenciamento = async function() {
                 <span style="font-size:0.8rem; color:#64748b;">${cred.cliente_email}</span>
                 ${cred.endereco_instalacao ? `<br><span style="font-size:0.75rem; color:#94a3b8;"><i class="ph ph-map-pin"></i> ${cred.endereco_instalacao}</span>` : ''}
             </td>
+            <td>${cred.qtd_max_colaboradores === 0 ? 'Ilimitado' : cred.qtd_max_colaboradores}</td>
             <td style="font-size:0.8rem; line-height:1.6;">${colabsText}</td>
+            <td>${cred.qtd_max_veiculos === 0 ? 'Ilimitado' : cred.qtd_max_veiculos}</td>
             <td style="font-size:0.8rem; line-height:1.6;">${veicsText}</td>
             <td style="font-size:0.8rem; line-height:1.6;">${licencasText}</td>
             <td style="font-size:0.85rem;">${statusBadge}</td>
@@ -1048,7 +1088,9 @@ window._renderizarTabelaHistorico = function(dados) {
                 <span style="font-size:0.8rem; color:#64748b;">${cred.cliente_email}</span>
                 ${cred.endereco_instalacao ? `<br><span style="font-size:0.75rem; color:#94a3b8;"><i class="ph ph-map-pin"></i> ${cred.endereco_instalacao}</span>` : ''}
             </td>
+            <td>${cred.qtd_max_colaboradores === 0 ? 'Ilimitado' : cred.qtd_max_colaboradores}</td>
             <td style="font-size:0.8rem; line-height:1.6;">${colabsText}</td>
+            <td>${cred.qtd_max_veiculos === 0 ? 'Ilimitado' : cred.qtd_max_veiculos}</td>
             <td style="font-size:0.8rem; line-height:1.6;">${veicsText}</td>
             <td style="font-size:0.8rem; line-height:1.6;">${licencasText}</td>
             <td style="font-size:0.85rem;">${statusBadge}</td>

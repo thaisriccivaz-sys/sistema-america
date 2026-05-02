@@ -10023,10 +10023,10 @@ app.get('/api/logistica/credenciamentos', authenticateToken, (req, res) => {
             FROM credenciamentos c LEFT JOIN usuarios u1 ON c.solicitado_por_id = u1.id LEFT JOIN colaboradores col1 ON col1.nome_completo = u1.nome LEFT JOIN usuarios u2 ON c.enviado_por_id = u2.id LEFT JOIN colaboradores col2 ON col2.nome_completo = u2.nome ORDER BY c.created_at DESC`, [], (err, rows) => {
         if (err) {
             // Fallback: try without 'os' and optional new columns in case migration hasn't run
-            db.all(`SELECT id, cliente_nome, cliente_email, endereco_instalacao, token, colaboradores_ids, veiculos_ids, licencas_ids, docs_exigidos, valid_until, acessado_em, created_at
+            db.all(`SELECT id, cliente_nome, os, cliente_email, endereco_instalacao, token, colaboradores_ids, veiculos_ids, licencas_ids, docs_exigidos, valid_until, acessado_em, created_at, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, status
                     FROM credenciamentos ORDER BY created_at DESC`, [], (err2, rows2) => {
                 if (err2) return res.status(500).json({ error: err2.message });
-                const mapped = (rows2 || []).map(r => ({ ...r, os: '', status: r.status || 'enviado', qtd_max_colaboradores: 0, qtd_max_veiculos: 0, data_limite_envio: null }));
+                const mapped = (rows2 || []).map(r => ({ ...r, status: r.status || 'enviado' }));
                 res.json(mapped);
             });
             return;
