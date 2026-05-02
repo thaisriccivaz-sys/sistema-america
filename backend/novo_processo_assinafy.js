@@ -85,27 +85,53 @@ function uploadForm(urlPath, form) {
     });
 }
 
-// ─── HELPER: Resolve ou cria signatário pela tax_id ──────────────────────────
+// ─── HELPER: Resolve ou cria signatário ──────────────────────────────────────
+// Estratégia: busca por EMAIL primeiro (mais preciso), depois por CPF.
+// IMPORTANTE: A API Assinafy pode ignorar o filtro ?email= e retornar todos os signatários.
+// Por isso validamos SEMPRE que o e-mail do resultado bate exatamente com o solicitado.
 async function resolverSignatario({ full_name, email, tax_id, whatsapp_phone_number }) {
-    const searchRes = await req('GET', `/v1/accounts/${ACCOUNT_ID}/signers?tax_id=${tax_id}`, null);
-    const lista = searchRes.json?.data || [];
-
-    if (Array.isArray(lista) && lista.length > 0) {
-        const id = lista[0].id;
-        const currentEmail = lista[0].email;
-        
-        if (currentEmail.toLowerCase() !== email.toLowerCase()) {
-            console.log(`[SIGNER] Existente ID=${id}. Atualizando e-mail de ${currentEmail} para ${email}...`);
-            await req('PUT', `/v1/accounts/${ACCOUNT_ID}/signers/${id}`, {
-                full_name, email, tax_id,
-                ...(whatsapp_phone_number ? { whatsapp_phone_number } : {})
-            });
-        } else {
-            console.log(`[SIGNER] Encontrado ID=${id} (${email})`);
-        }
-        return id;
+    // 1. Tentar encontrar pelo e-mail exato
+    const searchByEmail = await req('GET', `/v1/accounts/${ACCOUNT_ID}/signers?email=${encodeURIComponent(email)}`, null);
+    const listaEmail = searchByEmail.json?.data || [];
+    // Validar que o retorno realmente tem o e-mail correto (API pode ignorar o filtro)
+    const exactEmailMatch = Array.isArray(listaEmail)
+        ? listaEmail.find(s => s.email && s.email.toLowerCase() === email.toLowerCase())
+        : null;
+    if (exactEmailMatch) {
+        console.log(`[SIGNER] Encontrado por e-mail: ID=${exactEmailMatch.id} (${email})`);
+        return exactEmailMatch.id;
     }
 
+    // 2. Tentar encontrar pelo CPF
+    const searchByCpf = await req('GET', `/v1/accounts/${ACCOUNT_ID}/signers?tax_id=${tax_id}`, null);
+    const listaCpf = searchByCpf.json?.data || [];
+    // Validar que o retorno realmente tem o CPF correto (API pode ignorar o filtro)
+    const exactCpfMatch = Array.isArray(listaCpf)
+        ? listaCpf.find(s => s.tax_id && s.tax_id.replace(/\D/g, '') === tax_id)
+        : null;
+
+    if (exactCpfMatch) {
+        const id = exactCpfMatch.id;
+        const emailAtual = exactCpfMatch.email;
+        if (emailAtual.toLowerCase() === email.toLowerCase()) {
+            console.log(`[SIGNER] Encontrado por CPF com e-mail correto: ID=${id} (${email})`);
+            return id;
+        }
+        // Encontrou pelo CPF mas e-mail diverge — atualiza
+        console.warn(`[SIGNER] ⚠️ CPF encontrado (ID=${id}) com e-mail diferente: Assinafy="${emailAtual}" → correto="${email}". Atualizando...`);
+        const putRes = await req('PUT', `/v1/accounts/${ACCOUNT_ID}/signers/${id}`, {
+            full_name, email, tax_id,
+            ...(whatsapp_phone_number ? { whatsapp_phone_number } : {})
+        });
+        if (putRes.status >= 200 && putRes.status < 300) {
+            console.log(`[SIGNER] E-mail atualizado com sucesso → ${email} (ID=${id})`);
+            return id;
+        }
+        // PUT falhou — cria novo signatário com e-mail correto
+        console.error(`[SIGNER] Falha ao atualizar (HTTP ${putRes.status}). Criando novo signatário com e-mail correto...`);
+    }
+
+    // 3. Criar novo signatário
     console.log(`[SIGNER] Criando: ${full_name} (${email})...`);
     const r = await req('POST', `/v1/accounts/${ACCOUNT_ID}/signers`, {
         full_name, email, tax_id,
@@ -132,15 +158,15 @@ async function enviarDocumentoParaAssinafy(documentId, colaboradorId) {
     if (!doc)   throw new Error('Documento não encontrado no banco.');
     if (!colab) throw new Error('Colaborador não encontrado no banco.');
 
-    const email = (colab.email    || '').trim();
-    const cpf   = (colab.cpf     || '').replace(/\D/g, '');
+    const email = (colab.email || '').trim();
+    const cpf   = (colab.cpf   || '').replace(/\D/g, '');
     const fone  = (colab.telefone || '').replace(/\D/g, '');
     const nome  = colab.nome_completo || 'Colaborador';
 
     if (!email) throw new Error(`Colaborador "${nome}" não tem e-mail cadastrado.`);
     if (!cpf)   throw new Error('CPF do colaborador é obrigatório.');
 
-    console.log(`[1] ${nome} | ${email} | CPF: ${cpf}`);
+    console.log(`[1] ${nome} | email=${email} | CPF: ${cpf}`);
 
     // 2. Upload do arquivo
     const filePath = path.resolve(doc.file_path);
