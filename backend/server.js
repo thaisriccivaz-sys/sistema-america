@@ -62,6 +62,20 @@ db.run("CREATE TABLE IF NOT EXISTS geradores_excluidos (nome TEXT PRIMARY KEY)",
     db.run("INSERT OR IGNORE INTO geradores_excluidos (nome) VALUES ('Autorizar Desconto')");
     db.run("INSERT OR IGNORE INTO geradores_excluidos (nome) VALUES ('ORDEM DE SERVIÇO NR01')");
 });
+
+// Migração: Cofre de Senhas da Logística
+db.run(`
+    CREATE TABLE IF NOT EXISTS logistica_senhas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        servico TEXT NOT NULL,
+        link TEXT,
+        usuario TEXT NOT NULL,
+        senha_encriptada TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+`);
+
 // Blacklist de cargos e departamentos excluidos manualmente (impede que o seed os recrie)
 db.run("CREATE TABLE IF NOT EXISTS cargos_excluidos (nome TEXT PRIMARY KEY)");
 db.run("CREATE TABLE IF NOT EXISTS departamentos_excluidos (nome TEXT PRIMARY KEY)", () => {

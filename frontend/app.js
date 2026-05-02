@@ -462,6 +462,7 @@ const BREADCRUMB_MAP = {
     'logistica-multas':       { path: 'Multas',                                                    code: 'LOG004' },
     'logistica-frota':        { path: 'Frota',                                                     code: 'LOG005' },
     'logistica-credenciamento': { path: 'Credenciamento',                                          code: 'LOG006' },
+    'logistica-senhas':       { path: 'Cofre de Senhas',                                           code: 'LOG007' },
     // Comercial
     'comercial-credenciamento': { path: 'Solicitar Credencial',                                    code: 'COM001' },
 };
@@ -598,7 +599,7 @@ function updateBreadcrumb(key) {
     const starBtn = document.getElementById('btn-star-page');
     if (starBtn && entryObj) {
         starBtn.style.color = pageColor;
-        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-pipeline' || key === 'logistica-frota' || key === 'logistica-credenciamento' || key === 'comercial-credenciamento' || key === 'departamentos';
+        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-pipeline' || key === 'logistica-frota' || key === 'logistica-credenciamento' || key === 'logistica-senhas' || key === 'comercial-credenciamento' || key === 'departamentos';
         if (isSimplePage) {
             starBtn.style.display = 'flex';
         } else {
@@ -654,6 +655,7 @@ const TAB_META = {
     'logistica-multas':      { color: '#2d9e5f', icon: 'ph-receipt',      title: 'Multas' },
     'logistica-frota':       { color: '#2d9e5f', icon: 'ph-truck',        title: 'Frota' },
     'logistica-credenciamento': { color: '#2d9e5f', icon: 'ph-identification-card', title: 'Credenciamento' },
+    'logistica-senhas':       { color: '#2d9e5f', icon: 'ph-lock-key',             title: 'Cofre de Senhas' },
     // Financeiro - Azul
     'financeiro-em-breve':    { color: '#1971c2', icon: 'ph-currency-dollar', title: 'Financeiro' },
     // Comercial - Roxo
