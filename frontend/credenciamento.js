@@ -1202,6 +1202,8 @@ window.reenviarEmailCredenciamento = async function(id) {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
         alert('E-mail reenviado com sucesso!');
+            if (window.carregarHistoricoCredenciamento) window.carregarHistoricoCredenciamento();
+            if (window.carregarHistoricoComCred) window.carregarHistoricoComCred();
     } catch(err) {
         alert('Erro ao reenviar e-mail: ' + err.message);
     }

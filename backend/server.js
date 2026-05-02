@@ -10111,9 +10111,13 @@ app.post('/api/credenciamentos/:id/reenviar', authenticateToken, (req, res) => {
                     </div>`
         };
         
-        sendMailHelper(mailOptions).then(() => {
-            res.json({ message: 'E-mail reenviado com sucesso.' });
-        }).catch(e => res.status(500).json({ error: e.message }));
+        db.run('UPDATE credenciamentos SET enviado_em = CURRENT_TIMESTAMP, enviado_por_id = ? WHERE id = ?', [req.user.id, req.params.id], function(errUpdate) {
+            if (errUpdate) console.error("Erro ao atualizar dados de reenvio:", errUpdate);
+            
+            sendMailHelper(mailOptions).then(() => {
+                res.json({ message: 'E-mail reenviado com sucesso e dados de envio atualizados.' });
+            }).catch(e => res.status(500).json({ error: e.message }));
+        });
     });
 });
 
