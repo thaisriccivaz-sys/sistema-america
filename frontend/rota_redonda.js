@@ -887,6 +887,28 @@ function rrAbrirLinkVideo() {
     });
 }
 
+async function rrExcluirLinkVideo() {
+    if (!confirm('Deseja excluir o vídeo desta OS? Esta ação não pode ser desfeita.')) return;
+    const osNum = document.getElementById('rr-input-os')?.value?.trim() || '';
+    if (!osNum) { mostrarToastAviso('Salve a OS antes de excluir o vídeo.'); return; }
+    const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+    try {
+        const resp = await fetch(`/api/logistica/os/${encodeURIComponent(osNum)}/link-video`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!resp.ok) throw new Error((await resp.json()).error || 'Erro ao excluir vídeo');
+        // Limpa UI
+        const hidden  = document.getElementById('rr-input-video');
+        const display = document.getElementById('rr-video-link-display');
+        if (hidden)  hidden.value = '';
+        if (display) display.style.display = 'none';
+        mostrarToastAviso('✅ Vídeo excluído com sucesso!');
+    } catch(e) {
+        mostrarToastAviso('❌ Erro ao excluir vídeo: ' + e.message);
+    }
+}
+
 function _abrirPopupCoordenadas(urlOrigem) {
     document.getElementById('rr-gmaps-modal')?.remove();
     const overlay = document.createElement('div');
@@ -3843,10 +3865,11 @@ function renderRotaRedonda() {
                                 <i class="ph ph-upload-simple"></i> Upload Vídeo
                             </button>
                             <input type="hidden" id="rr-input-video">
-                            <span id="rr-video-link-display" style="display:none;align-items:center;gap:4px;font-size:0.7rem;background:#eff6ff;border:1px solid #bfdbfe;border-radius:4px;padding:2px 6px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                            <span id="rr-video-link-display" style="display:none;align-items:center;gap:4px;font-size:0.7rem;background:#eff6ff;border:1px solid #bfdbfe;border-radius:4px;padding:2px 6px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
                                 <i class="ph ph-film-strip" style="color:#3b82f6;"></i>
                                 <a id="rr-video-link-anchor" href="#" target="_blank" style="color:#1d4ed8;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px;"></a>
                                 <button id="btn-abrir-link-video" onclick="rrAbrirLinkVideo()" title="Abrir vídeo" style="background:none;border:none;cursor:pointer;padding:0;color:#3b82f6;display:flex;align-items:center;"><i class="ph ph-arrow-square-out" style="font-size:0.85rem;"></i></button>
+                                <button id="btn-excluir-link-video" onclick="rrExcluirLinkVideo()" title="Excluir vídeo" style="background:none;border:none;cursor:pointer;padding:0;color:#ef4444;display:flex;align-items:center;"><i class="ph ph-trash" style="font-size:0.85rem;"></i></button>
                             </span>
                             <span id="rr-video-upload-progress" style="display:none;font-size:0.7rem;color:#6b7280;"></span>
                         </div>

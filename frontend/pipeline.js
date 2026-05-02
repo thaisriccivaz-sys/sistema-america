@@ -594,22 +594,67 @@ async function pipelineExportarExcel(registrosOverride) {
         // B: Endereço completo
         const endereco = [r.endereco, r.complemento, r.cep ? `CEP: ${r.cep}` : ''].filter(Boolean).join(', ');
 
-        // H: Anotações2
-        // Produtos: "QTD NOME" (sem X — X fica na frequência)
-        const prodStr = produtosArr.map(p => `${p.qtd} ${p.desc}`).join(' - ');
+        // ── Coluna H: Anotações2 ──────────────────────────────────────────
+        // Linha 1: 📸 Vídeo: [link] — apenas se a OS tiver link_video
+        const linkVideoRaw = r.link_video || '';
+        let videoLinks = [];
+        if (linkVideoRaw) {
+            try {
+                const parsed = JSON.parse(linkVideoRaw);
+                videoLinks = Array.isArray(parsed) ? parsed : [linkVideoRaw];
+            } catch(e) {
+                videoLinks = linkVideoRaw.split(',').map(s => s.trim()).filter(Boolean);
+            }
+        }
+        const videoLinhas = videoLinks.map(link => `📸 Vídeo: ${link}`);
 
-        // Frequência semanal (dias_semana já parseado acima)
+        // Linha 2: Ícone da variável + OBSERVAÇÕES (em maiúscula)
+        const obsStr = (r.observacoes || '').trim().toUpperCase();
+        let obsComIcone = '';
+        if (obsStr) {
+            // Encontra o ícone associado à primeira variável que casar
+            let iconeObs = '';
+            for (const v of variaveisArr) {
+                const vUp = (v || '').trim().toUpperCase();
+                for (const [key, style] of Object.entries(PIPELINE_VARS_CORES)) {
+                    if (vUp.includes(key)) { iconeObs = style.icon; break; }
+                }
+                if (iconeObs) break;
+            }
+            obsComIcone = (iconeObs ? iconeObs + ' ' : '') + obsStr;
+        }
+
+        // Linha 3: NOME DO SERVIÇO — sem ícone para Entrega e Manutenção Recorrente
+        const isEntrega = ts.includes('entrega');
+        const isManutRecorr = (ts.includes('manut') || ts.includes('manutenção')) && !ts.includes('avulsa');
+        let iconeServico = '';
+        if (!isEntrega && !isManutRecorr) {
+            iconeServico = pipelineGetIconServico(r.tipo_servico);
+        }
+        const nomeServico = ((iconeServico ? iconeServico + ' ' : '') + (r.tipo_servico || '').trim().toUpperCase());
+
+        // Linha 4: PRODUTOS — "IC QTD NOME" (ícone do produto)
+        const prodStr = produtosArr.map(p => {
+            const desc = (p.desc || '').trim().toUpperCase();
+            // Tenta ícone com nome exato, depois variante OBRA
+            const ic = PIPELINE_EQ_ICONS[desc] || PIPELINE_EQ_ICONS[desc.replace(/ EVENTO$/, ' OBRA')] || '';
+            return `${ic ? ic + ' ' : ''}${p.qtd} ${desc}`;
+        }).join('\n');
+
+        // Linha 5: Quantidade de manutenções - DIAS DA SEMANA
         const numDias = (mostrarDias && diasArr.length) ? diasArr.length : 0;
         const diasAbbr = mostrarDias ? abreviarDias(diasArr) : '';
-        const diasComFreq = (mostrarDias && diasAbbr) ? `${numDias}X ${diasAbbr}` : '';
+        const diasComFreq = (mostrarDias && diasAbbr) ? `${numDias}X - ${diasAbbr}` : '';
 
-        // Linha principal: TIPO | PRODUTOS | NX DIAS
-        const partesMain = [r.tipo_servico || '', prodStr, diasComFreq].filter(Boolean);
-        const linhaMain  = partesMain.join(' | ').toUpperCase();
-
-        // Observação do motorista em nova linha na mesma célula
-        const obsStr  = (r.observacoes || '').trim().toUpperCase();
-        const anotacoes = obsStr ? `${linhaMain}\n${obsStr}` : linhaMain;
+        // Monta a célula H: cada parte em linha separada, linhas vazias omitidas
+        const partesH = [
+            ...videoLinhas,
+            obsComIcone,
+            nomeServico,
+            prodStr,
+            diasComFreq
+        ].filter(Boolean);
+        const anotacoes = partesH.join('\n');
 
         // H/I: Latitude e Longitude separadas
         let lat = r.latitude || r.lat || '';

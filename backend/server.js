@@ -11028,6 +11028,16 @@ app.get('/api/licencas/:id/view', authenticateToken, (req, res) => {
 });
 
 
+// Excluir link_video de uma OS (por numero_os)
+app.delete('/api/logistica/os/:numero_os/link-video', authenticateToken, (req, res) => {
+    const { numero_os } = req.params;
+    db.run('UPDATE os_logistica SET link_video = NULL WHERE numero_os = ?', [numero_os], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        if (this.changes === 0) return res.status(404).json({ error: 'OS não encontrada.' });
+        res.json({ ok: true });
+    });
+});
+
 // Rota para a página de Entregas
 app.get('/api/logistica/entregas', authenticateToken, (req, res) => {
     db.all(`SELECT id, numero_os, cliente, endereco, data_os, tipo_servico, link_video 
