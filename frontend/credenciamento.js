@@ -944,6 +944,7 @@ window._renderizarTabelaHistorico = function(dados) {
         const colabs = cred.colaboradores_ids ? JSON.parse(cred.colaboradores_ids) : [];
         const veics = cred.veiculos_ids ? JSON.parse(cred.veiculos_ids) : [];
         const licencas = cred.licencas_ids ? JSON.parse(cred.licencas_ids) : [];
+        const docs = cred.docs_exigidos ? JSON.parse(cred.docs_exigidos) : [];
 
         const colabsText = colabs.length > 0 
             ? `<span title="${colabs.map(c => '• ' + c.nome).join('&#10;')}" style="cursor:help; border-bottom:1px dotted #94a3b8; font-weight:600; color:#0f172a;">Enviados (${colabs.length})</span>` 
