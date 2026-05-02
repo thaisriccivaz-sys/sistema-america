@@ -7833,6 +7833,7 @@ window.abrirPreviewDocumento = function(data) {
 
     const previewBtnSalvar = document.querySelector('#modal-preview-doc button.btn-primary');
     if (previewBtnSalvar) {
+        previewBtnSalvar.style.display = 'flex';
         previewBtnSalvar.innerHTML = '<i class="ph ph-paperclip"></i> Anexar ao Prontuário';
         previewBtnSalvar.onclick = async function() {
             const self = this;
@@ -9588,10 +9589,11 @@ window.gerarContratoAvulso = async function() {
         setTimeout(() => {
             const previewBtnSalvar = document.querySelector('#modal-preview-doc button.btn-primary') || document.querySelector('#doc-modal button.btn-primary');
             if (previewBtnSalvar) {
-                previewBtnSalvar.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar no Prontuário';
+                previewBtnSalvar.style.display = 'flex';
+                previewBtnSalvar.innerHTML = '<i class="ph ph-paperclip"></i> Anexar ao Prontuário';
                 previewBtnSalvar.onclick = async function() {
                     const oldHtml = this.innerHTML;
-                    this.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...';
+                    this.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Anexando...';
                     this.disabled = true;
                     try {
                         const htmlTemplate = document.getElementById('preview-doc-body');
@@ -9617,11 +9619,11 @@ window.gerarContratoAvulso = async function() {
                         if (modalPrev) modalPrev.style.display = 'none';
                         if (docModal)  docModal.style.display  = 'none';
 
-                        if (typeof showToast !== 'undefined') showToast('Documento gerado e salvo no prontuário!', 'success');
+                        if (typeof showToast !== 'undefined') showToast('Documento anexado com sucesso!', 'success');
 
                         await window._reloadContratosContainer();
                     } catch(err) {
-                        alert('Erro ao salvar: ' + err.message);
+                        alert('Erro ao anexar: ' + err.message);
                     } finally {
                         this.innerHTML = oldHtml;
                         this.disabled = false;
