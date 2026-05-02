@@ -4,8 +4,11 @@ const path = require('path');
 const fs = require('fs');
 
 // Usar v2 do banco para lidar com o novo schema expandido sem conflito
+// Caminho do banco local no repositório (fallback/origem)
+const localDbPath = path.join(__dirname, 'data', 'hr_system_v2.sqlite');
+
 // Caminho absoluto configurável via variável de ambiente (Render Disk)
-const dbPath = process.env.DATABASE_PATH || path.join(__dirname, 'data', 'hr_system_v2.sqlite');
+const dbPath = process.env.DATABASE_PATH || localDbPath;
 
 // Garantir que a pasta do banco existe
 const dataDir = path.dirname(dbPath);
@@ -13,11 +16,27 @@ if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
 }
 
-// Verificação de Segurança
-if (!fs.existsSync(dbPath)) {
-    console.warn('--- AVISO DE SEGURANÇA ---');
-    console.warn(`Banco não encontrado em: ${dbPath}`);
-    console.warn('Um novo banco vazio será criado se você continuar.');
+// Auto-migration para o Persistent Disk
+if (dbPath !== localDbPath) {
+    if (!fs.existsSync(dbPath)) {
+        console.log(`[MIGRAÇÃO DISCO] Banco não encontrado no disco persistente: ${dbPath}`);
+        if (fs.existsSync(localDbPath)) {
+            console.log(`[MIGRAÇÃO DISCO] Copiando banco local (${localDbPath}) para o disco persistente...`);
+            fs.copyFileSync(localDbPath, dbPath);
+            console.log(`[MIGRAÇÃO DISCO] Cópia concluída com sucesso! O sistema usará o banco do disco de agora em diante.`);
+        } else {
+            console.warn(`[MIGRAÇÃO DISCO] Banco local também não existe. Será criado um banco vazio no disco.`);
+        }
+    } else {
+        console.log(`[DISCO PERSISTENTE] Usando banco já existente no disco: ${dbPath}`);
+    }
+} else {
+    // Verificação de Segurança (rodando sem Persistent Disk)
+    if (!fs.existsSync(dbPath)) {
+        console.warn('--- AVISO DE SEGURANÇA ---');
+        console.warn(`Banco não encontrado em: ${dbPath}`);
+        console.warn('Um novo banco vazio será criado se você continuar.');
+    }
 }
 
 const db = new sqlite3.Database(dbPath, (err) => {
