@@ -617,10 +617,13 @@ window.gerarEnviarCredenciamento = async function() {
 
     if (btn) btn.innerHTML = '<i class="ph ph-spinner"></i> Enviando...';
 
+    const osValue = (document.getElementById('cred-os') || {}).value?.trim() || '';
+
     const payload = {
         cliente_nome: clienteNome,
         cliente_email: clienteEmail,
         endereco_instalacao: enderecoInstalacao,
+        os: osValue,
         colaboradores: credenciamentoState.selecionadosColabs.map(idStr => {
             const c = credenciamentoState.colaboradores.find(col => String(col.id) === idStr);
             return { id: parseInt(idStr), nome: c ? c.nome_completo : idStr };
@@ -798,203 +801,7 @@ window.carregarHistoricoCredenciamento = async function() {
         // Salva os dados para uso em abrirModalCumprirSolicitacao
         window._historicoCredDados = Array.isArray(data) ? data : [];
 
-        if (data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#94a3b8; padding:2rem;">Nenhum credenciamento gerado ainda.</td></tr>';
-            return;
-        }
-
-        tbody.innerHTML = data.map(cred => {
-            // Parses
-            let colabs = []; try { colabs = JSON.parse(cred.colaboradores_ids || '[]'); } catch(e){}
-            let veics = []; try { veics = JSON.parse(cred.veiculos_ids || '[]'); } catch(e){}
-            let licencas = []; try { licencas = JSON.parse(cred.licencas_ids || '[]'); } catch(e){}
-            let docs = []; try { docs = JSON.parse(cred.docs_exigidos || '[]'); } catch(e){}
-            
-            // Format Data/Hora do Envio
-            const dtFormatada = formatUTCDate(cred.created_at).replace(',', ' às');
-            
-            // Textos resumos
-            const docNames = {
-                'cnh': 'CNH', 'cpf': 'CPF', 'aso': 'ASO', 'ficha_registro': 'Ficha de Registro',
-                'treinamento': 'Carteira de Vacinação', 'epi': 'Ficha de EPI',
-                'contrato_esocial': 'Contrato e-social', 'nr1': 'NR1 / Ordem de Serviço'
-            };
-            const docsStr = docs.length > 0 ? docs.map(d => docNames[d] || d).join(' - ') : 'Apenas cadastro';
-            const colabsText = colabs.length > 0 
-                ? colabs.map(c => `<span>• ${c.nome}</span>`).join('<br>') 
-                : '<span style="color:#94a3b8;">Nenhum</span>';
-                
-            const veicsText = veics.length > 0 
-                ? `<span style="font-weight:600; color:#0f172a;">Enviados (${veics.length})</span>` 
-                : '<span style="color:#94a3b8;">Nenhum</span>';
-                
-            const licencasText = licencas.length > 0 
-                ? `<span style="font-weight:600; color:#0f172a;">Enviadas (${licencas.length})</span>` 
-                : '<span style="color:#94a3b8;">Nenhuma</span>';
-            
-            // Status do Link
-            const validade = new Date(cred.valid_until);
-            const expirado = new Date() > validade;
-            
-            
-        let acoes = '';
-        if (cred.status === 'solicitado') {
-            acoes = `<button class="btn btn-primary" style="padding:4px 12px; font-size:12px;" onclick="window.abrirModalCumprirSolicitacao('${cred.id}')"><i class="ph ph-plus"></i> Adicionar</button>`;
-        } else {
-            acoes = `${cred.token ? `<button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.reenviarEmailCredenciamento('${cred.id}')"><i class="ph ph-envelope-simple"></i> Reenviar</button>` : ''}`;
-        }
-
-        // Alterar badge se solicitado
-        let statusBadge = '';
-        
-        
-        if (cred.status === 'solicitado') {
-            const dtLim = cred.data_limite_envio ? new Date(cred.data_limite_envio).toLocaleDateString('pt-BR') : '-';
-            statusBadge = `<span style="color:#eab308; font-weight:600;"><i class="ph ph-clock"></i> Solicitado (Limite: ${dtLim})</span>`;
-        } else if (expirado) {
-            statusBadge = `<span style="color:#dc2626; font-weight:600;"><i class="ph ph-x-circle"></i> Expirado</span>`;
-        } else if (cred.acessado_em) {
-            const acessStr = formatUTCDate(cred.acessado_em).replace(',', ' às');
-            statusBadge = `<span style="color:#16a34a; font-weight:600;"><i class="ph ph-check-circle"></i> Acessado</span>`;
-        } else {
-            statusBadge = `<span style="color:#4f46e5; font-weight:600;"><i class="ph ph-paper-plane-right"></i> Enviado</span>`;
-        }
-
-        // Adicionar o botao toggle
-        acoes = `<button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="toggleCredDetails(this, 'log-cred-det-${cred.id}')" title="Ver Detalhes"><i class="ph ph-caret-down"></i></button>` + acoes;
-
-        let docsFormatted = docs.length ? docs.map(d => docNames[d] || d).join(' - ') : '<span style="color:#94a3b8;font-style:italic;">Nenhum documento específico</span>';
-        
-        let licsFormatted = '';
-        if (licencas.length) {
-            const groupLics = {};
-            licencas.forEach(l => {
-                if (!groupLics[l.empresa]) groupLics[l.empresa] = [];
-                groupLics[l.empresa].push(l.nome);
-            });
-            licsFormatted = Object.entries(groupLics).map(([emp, lst]) => `<b>${emp}</b>: ${lst.join(' - ')}`).join('<br>');
-        } else {
-            licsFormatted = '<span style="color:#94a3b8;font-style:italic;">Nenhuma licença específica</span>';
-        }
-
-
-        const solNome = cred.sol_nome_usuario || cred.sol_username || cred.solicitado_por_nome || 'Usuário Comercial';
-        const envNome = cred.env_nome_usuario || cred.env_username || cred.enviado_por_nome || 'Usuário Logística';
-        const solDataStr = cred.created_at ? formatUTCDate(cred.created_at) : 'Data não registrada';
-        const envDataStr = cred.enviado_em ? formatUTCDate(cred.enviado_em) : 'Data não registrada';
-
-        let alertaCepHtml = '';
-        if (cred.endereco_instalacao) {
-            const cepMatch = cred.endereco_instalacao.match(/\b\d{5}-?\d{3}\b/);
-            if (cepMatch) {
-                const cep = cepMatch[0].replace('-', '');
-                const outroCred = data.find(c => {
-                    if (c.id === cred.id) return false;
-                    if (!c.endereco_instalacao) return false;
-                    const match = c.endereco_instalacao.match(/\b\d{5}-?\d{3}\b/);
-                    return match && match[0].replace('-', '') === cep;
-                });
-                if (outroCred) {
-                    alertaCepHtml = `
-                    <div style="background:#fffbeb; border:1px solid #fde68a; color:#b45309; padding:10px 15px; border-radius:8px; margin-bottom:15px; display:flex; align-items:flex-start; gap:10px;">
-                        <i class="ph-fill ph-warning" style="color:#d97706; font-size:1.4rem; margin-top:2px;"></i>
-                        <div>
-                            <strong style="display:block; margin-bottom:4px;">Atenção: CEP em comum</strong>
-                            A OS <b>${outroCred.os || '-'}</b> (Cliente: <b>${outroCred.cliente_nome}</b>) possui o mesmo número de CEP cadastrado: <b>${cepMatch[0]}</b>.
-                            <div style="font-size:0.8rem; margin-top:4px; opacity:0.8;">Endereço vinculado: ${outroCred.endereco_instalacao}</div>
-                        </div>
-                    </div>`;
-                }
-            }
-        }
-
-
-        return `
-        <tr>
-            <td><b>${cred.os || '-'}</b></td>
-            <td>
-                <b>${cred.cliente_nome}</b><br>
-                <span style="font-size:0.8rem; color:#64748b;">${cred.cliente_email}</span>
-                ${cred.endereco_instalacao ? `<br><span style="font-size:0.75rem; color:#94a3b8;"><i class="ph ph-map-pin"></i> ${cred.endereco_instalacao}</span>` : ''}
-            </td>
-            <td style="font-size:0.8rem; line-height:1.6;">
-                <div style="font-weight:600; margin-bottom:4px; color:#475569; background:#f1f5f9; padding:2px 6px; border-radius:4px; display:inline-block;">${colabs.length}/${cred.qtd_max_colaboradores === 0 ? 'Todos' : cred.qtd_max_colaboradores}</div><br>
-                ${colabsText}
-            </td>
-            <td style="font-size:0.8rem; line-height:1.6;">
-                <div style="font-weight:600; margin-bottom:4px; color:#475569; background:#f1f5f9; padding:2px 6px; border-radius:4px; display:inline-block;">${veics.length}/${cred.qtd_max_veiculos === 0 ? 'Todos' : cred.qtd_max_veiculos}</div><br>
-                ${veicsText}
-            </td>
-            <td style="font-size:0.8rem; line-height:1.6;">${licencasText}</td>
-            <td style="font-size:0.85rem;">${statusBadge}</td>
-            <td style="text-align:right; white-space:nowrap;">${acoes}</td>
-        </tr>
-        <tr id="log-cred-det-${cred.id}" style="display:none; background:#f8fafc;">
-            <td colspan="6" style="padding:15px; font-size:0.85rem; border-left:3px solid #7048e8;">
-                ${alertaCepHtml}
-                <div style="display:flex; flex-wrap:wrap; gap:30px;">
-                    
-                    <div style="flex:1; min-width:250px;">
-                        <div style="color:#64748b; font-weight:600; margin-bottom:4px;">📄 Documentos Solicitados:</div>
-                        <div style="color:#334155;">${docsFormatted}</div>
-                    </div>
-                    <div style="flex:1; min-width:250px;">
-                        <div style="color:#64748b; font-weight:600; margin-bottom:4px;">🏷️ Licenças Solicitadas:</div>
-                        <div style="color:#334155; line-height:1.6;">${licsFormatted}</div>
-                    </div>
-                </div>
-                ${cred.observacoes ? `<div style="margin-top:15px; padding-top:10px; border-top:1px solid #e2e8f0;"><span style="color:#64748b; font-weight:600;">📝 Observações:</span> <span style="color:#475569;">${cred.observacoes}</span></div>` : ''}
-                
-                
-                <div style="margin-top:15px; padding-top:15px; border-top:1px solid #e2e8f0; display:flex; flex-wrap:wrap; gap:30px;">
-                    <div style="flex:1; min-width:250px;">
-                        <div style="color:#eab308; font-weight:600; margin-bottom:8px;">Solicitação:</div>
-                        <div style="display:flex; align-items:center; gap:10px;">
-                            ${window.renderAvatar(solNome, cred.sol_foto, cred.sol_foto_b64)}
-                            <div>
-                                <div style="font-weight:600; color:#334155; font-size:0.9rem;">${solNome}</div>
-                                <div style="font-size:0.75rem; color:#64748b;"><i class="ph ph-calendar-blank"></i> ${solDataStr}</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div style="flex:1; min-width:250px;">
-                        <div style="color:#3b82f6; font-weight:600; margin-bottom:8px;">Envio do Credenciamento:</div>
-                        ${cred.status === 'enviado' || cred.enviado_em ? `
-                            <div style="display:flex; align-items:center; gap:10px;">
-                                ${window.renderAvatar(envNome, cred.env_foto, cred.env_foto_b64)}
-                                <div>
-                                    <div style="font-weight:600; color:#334155; font-size:0.9rem;">${envNome}</div>
-                                    <div style="font-size:0.75rem; color:#64748b;"><i class="ph ph-calendar-blank"></i> ${envDataStr}</div>
-                                </div>
-                            </div>
-                        ` : `
-                            <div style="padding:10px; background:#fef2f2; color:#ef4444; border-radius:6px; font-size:0.8rem; display:inline-block;">
-                                <i class="ph ph-x-circle"></i> Credenciamento não enviado
-                            </div>
-                        `}
-                    </div>
-                    
-                    <div style="flex:1; min-width:250px;">
-                        <div style="color:#64748b; font-weight:600; margin-bottom:8px;">Acesso do Cliente:</div>
-                        ${cred.acessado_em ? `
-                            <div style="padding:10px; background:#f0fdf4; color:#166534; border-radius:6px; font-size:0.8rem; display:inline-block; border:1px solid #bbf7d0;">
-                                <i class="ph ph-check-circle"></i> Link acessado pelo cliente
-                                <div style="margin-top:4px; font-weight:600;">
-                                    <i class="ph ph-clock"></i> Acessado em: ${formatUTCDate(cred.acessado_em)}
-                                </div>
-                            </div>
-                        ` : `
-                            <div style="font-size:0.8rem; color:#94a3b8; font-style:italic;">
-                                Cliente ainda não abriu o link.
-                            </div>
-                        `}
-                    </div>
-                </div>
-            </td>
-        </tr>`;
-        
-    }).join('');
+        window.ordenarHistoricoCred('data', 'desc');
     } catch(e) {
         tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:#ef4444; padding:1rem;">Erro ao carregar histórico: ${e.message}</td></tr>`;
     }
@@ -1069,16 +876,24 @@ window.filtrarHistoricoCred = function() {
     });
 };
 
-window.ordenarHistoricoCred = function(coluna) {
-    // Alterna direção
-    if (window._historicoCredSort.col === coluna) {
+window.ordenarHistoricoCred = function(coluna, forceDir = null) {
+    if (forceDir) {
+        window._historicoCredSort.col = coluna;
+        window._historicoCredSort.dir = forceDir;
+    } else if (window._historicoCredSort.col === coluna) {
         window._historicoCredSort.dir = window._historicoCredSort.dir === 'asc' ? 'desc' : 'asc';
     } else {
         window._historicoCredSort.col = coluna;
         window._historicoCredSort.dir = 'asc';
     }
 
-    if (!window._historicoCredDados || window._historicoCredDados.length === 0) return;
+    const tbody = document.getElementById('tbody-historico-cred');
+    if (!tbody) return;
+
+    if (!window._historicoCredDados || window._historicoCredDados.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#94a3b8; padding:2rem;">Nenhum credenciamento gerado ainda.</td></tr>';
+        return;
+    }
 
     let dados = [...window._historicoCredDados];
 
@@ -1147,10 +962,13 @@ window._renderizarTabelaHistorico = function(dados) {
         const expirado = new Date() > validade;
         
         let statusBadge = '';
-        if (expirado) {
+        if (cred.status === 'solicitado') {
+            const dtLim = cred.data_limite_envio ? new Date(cred.data_limite_envio).toLocaleDateString('pt-BR') : '-';
+            statusBadge = `<span style="color:#eab308; font-weight:600;"><i class="ph ph-clock"></i> Solicitado (Limite: ${dtLim})</span>`;
+        } else if (expirado) {
             statusBadge = `<span style="color:#dc2626; font-weight:600;"><i class="ph ph-x-circle"></i> Expirado</span>`;
         } else if (cred.acessado_em) {
-            const acessStr = formatUTCDate(cred.acessado_em).replace(',', ' às');
+            const acessStr = window.formatUTCDate ? window.formatUTCDate(cred.acessado_em).replace(',', ' às') : cred.acessado_em;
             statusBadge = `<span style="color:#16a34a; font-weight:600;"><i class="ph ph-check-circle"></i> Acessado</span>`;
         } else {
             statusBadge = `<span style="color:#4f46e5; font-weight:600;"><i class="ph ph-paper-plane-right"></i> Enviado</span>`;

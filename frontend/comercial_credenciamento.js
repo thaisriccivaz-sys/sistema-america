@@ -260,7 +260,7 @@ window.carregarHistoricoComCred = async function() {
         const data = await res.json();
         
         window._historicoComCredDados = Array.isArray(data) ? data : [];
-        window.ordenarHistoricoComCred(window._historicoComCredSort.col);
+        window.ordenarHistoricoComCred('data', 'desc');
     } catch(e) {
         console.error(e);
         window._historicoComCredDados = [];
@@ -311,8 +311,11 @@ window.filtrarHistoricoComCred = function() {
     });
 }
 
-window.ordenarHistoricoComCred = function(coluna) {
-    if (window._historicoComCredSort.col === coluna) {
+window.ordenarHistoricoComCred = function(coluna, forceDir = null) {
+    if (forceDir) {
+        window._historicoComCredSort.col = coluna;
+        window._historicoComCredSort.dir = forceDir;
+    } else if (window._historicoComCredSort.col === coluna) {
         window._historicoComCredSort.dir = window._historicoComCredSort.dir === 'asc' ? 'desc' : 'asc';
     } else {
         window._historicoComCredSort.col = coluna;
@@ -367,8 +370,6 @@ window.ordenarHistoricoComCred = function(coluna) {
         let statusBadge = '';
         if (cred.status === 'solicitado') {
             statusBadge = `<span style="color:#eab308; font-weight:600;"><i class="ph ph-clock"></i> Solicitado</span>`;
-        } else if (cred.status === 'enviado') {
-            statusBadge = `<span style="color:#4f46e5; font-weight:600;"><i class="ph ph-paper-plane-right"></i> Enviado</span>`;
         } else if (new Date() > new Date(cred.valid_until)) {
             statusBadge = `<span style="color:#dc2626; font-weight:600;"><i class="ph ph-x-circle"></i> Expirado</span>`;
         } else if (cred.acessado_em) {

@@ -9888,7 +9888,7 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
 });
 
 app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
-    const { cliente_nome, cliente_email, endereco_instalacao, colaboradores, veiculos, docs_exigidos, licencas } = req.body;
+    const { cliente_nome, cliente_email, endereco_instalacao, os, colaboradores, veiculos, docs_exigidos, licencas } = req.body;
     if (!cliente_nome || !cliente_email) return res.status(400).json({ error: 'Nome e email são obrigatórios.' });
 
     const colabIds = (colaboradores || []).map(c => c.id).filter(id => !isNaN(id) && id > 0);
@@ -9952,8 +9952,8 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
         const validUntil = new Date();
         validUntil.setDate(validUntil.getDate() + 7);
 
-        db.run(`INSERT INTO credenciamentos (cliente_nome, cliente_email, endereco_instalacao, token, colaboradores_ids, veiculos_ids, docs_exigidos, licencas_ids, valid_until, enviado_em, enviado_por_id, status, solicitado_por_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, 'enviado', ?)`,
-            [cliente_nome, cliente_email, endereco_instalacao || '', token, JSON.stringify(colaboradores || []), JSON.stringify(veiculos || []), JSON.stringify(docs_exigidos || []), JSON.stringify(licencas || []), validUntil.toISOString()],
+        db.run(`INSERT INTO credenciamentos (cliente_nome, cliente_email, endereco_instalacao, os, token, colaboradores_ids, veiculos_ids, docs_exigidos, licencas_ids, valid_until, enviado_em, enviado_por_id, status, solicitado_por_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, 'enviado', ?)`,
+            [cliente_nome, cliente_email, endereco_instalacao || '', os || null, token, JSON.stringify(colaboradores || []), JSON.stringify(veiculos || []), JSON.stringify(docs_exigidos || []), JSON.stringify(licencas || []), validUntil.toISOString(), req.user.id, req.user.id],
             async function (err) {
                 if (err) return res.status(500).json({ error: err.message });
 
