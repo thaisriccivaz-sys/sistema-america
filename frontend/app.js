@@ -11310,30 +11310,24 @@ async function checkDiretoriaNotificacoes() {
                     max-width:380px; animation: slideInLeft 0.4s ease-out;
                     border-left: 4px solid #c92a2a;
                 `;
-                let dados = {};
-                try { dados = JSON.parse(notif.dados || '{}'); } catch(e) {}
-                const remetente = dados.remetente || 'Logística';
-                const clienteNome = dados.cliente_nome || 'Cliente não informado';
-
                 popup.innerHTML = `
                     <div style="display:flex;align-items:flex-start;gap:1rem;">
-                        <div style="width:44px;height:44px;border-radius:12px;background:#dcfce7;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.4rem;color:#16a34a;">
-                            <i class="ph ${icon}"></i>
+                        <div style="width:44px;height:44px;border-radius:12px;background:#fee2e2;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.4rem;color:#dc2626;">
+                            <i class="ph ph-warning-circle"></i>
                         </div>
                         <div style="flex:1;">
                             <div style="font-weight:700;font-size:0.9rem;color:#0f172a;margin-bottom:4px;">
-                                <i class="ph ph-bell-ringing" style="color:#16a34a;"></i> ${titulo}
+                                <i class="ph ph-bell-ringing" style="color:#dc2626;"></i> Notificação
                             </div>
-                            <div style="color:#16a34a;font-weight:600;font-size:0.95rem;margin-bottom:4px;">${clienteNome}</div>
                             <div style="color:#64748b;font-size:0.8rem;">
-                                ${notif.tipo === 'credenciamento_enviado' ? `Enviado por: <strong>${remetente}</strong>` : `O cliente acessou o link gerado.`}
+                                ${notif.mensagem}
                             </div>
                             <div style="display:flex;gap:8px;margin-top:12px;">
-                                <button onclick="window.markComNotifLida('${notif.id}'); navigateTo('comercial-credenciamento'); this.closest('[data-notif-id]').remove();" 
-                                    style="flex:1;padding:6px 12px;background:#16a34a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.8rem;">
-                                    Ver Credenciamento
+                                <button onclick="window.markDirNotifLida('${notif.id}'); navigateTo('multas'); this.closest('[data-notif-id]').remove();" 
+                                    style="flex:1;padding:6px 12px;background:#dc2626;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.8rem;">
+                                    Ver Tela
                                 </button>
-                                <button onclick="window.markComNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove();" 
+                                <button onclick="window.markDirNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove();" 
                                     style="padding:6px 12px;background:#f1f5f9;color:#334155;border:none;border-radius:8px;cursor:pointer;font-size:0.8rem;">
                                     X 
                                 </button>
@@ -11466,6 +11460,11 @@ async function checkComercialNotificacoes() {
                 let titulo = notif.tipo === 'credenciamento_enviado' ? 'Envio do Credenciamento' : 'Acesso ao Credenciamento';
                 let icon = notif.tipo === 'credenciamento_enviado' ? 'ph-paper-plane-right' : 'ph-eye';
                 
+                let dados = {};
+                try { dados = JSON.parse(notif.dados || '{}'); } catch(e) {}
+                const remetente = dados.remetente || 'Logística';
+                const clienteNome = dados.cliente_nome || 'Cliente não informado';
+
                 popup.innerHTML = `
                     <div style="display:flex;align-items:flex-start;gap:1rem;">
                         <div style="width:44px;height:44px;border-radius:12px;background:#dcfce7;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.4rem;color:#16a34a;">
@@ -11475,13 +11474,14 @@ async function checkComercialNotificacoes() {
                             <div style="font-weight:700;font-size:0.9rem;color:#0f172a;margin-bottom:4px;">
                                 <i class="ph ph-bell-ringing" style="color:#16a34a;"></i> ${titulo}
                             </div>
+                            <div style="color:#16a34a;font-weight:600;font-size:0.95rem;margin-bottom:4px;">${clienteNome}</div>
                             <div style="color:#64748b;font-size:0.8rem;">
-                                ${notif.mensagem}
+                                ${notif.tipo === 'credenciamento_enviado' ? `Enviado por: <strong>${remetente}</strong>` : `O cliente acessou o link gerado.`}
                             </div>
                             <div style="display:flex;gap:8px;margin-top:12px;">
                                 <button onclick="window.markComNotifLida('${notif.id}'); navigateTo('credenciamento'); this.closest('[data-notif-id]').remove();" 
                                     style="flex:1;padding:6px 12px;background:#16a34a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.8rem;">
-                                    Ver Tela
+                                    Ver Credenciamento
                                 </button>
                                 <button onclick="window.markComNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove();" 
                                     style="padding:6px 12px;background:#f1f5f9;color:#334155;border:none;border-radius:8px;cursor:pointer;font-size:0.8rem;">
