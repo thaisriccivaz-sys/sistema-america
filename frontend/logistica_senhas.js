@@ -131,7 +131,7 @@ function renderSenhasTable(senhas) {
     senhas.forEach((s, index) => {
         const tr = document.createElement('tr');
         
-        let linkHtml = s.link ? `<a href="${s.link}" target="_blank" style="color:#228be6; text-decoration:none; display:flex; align-items:center; gap:4px;"><i class="ph ph-link"></i> Acessar</a>` : '<span style="color:#94a3b8;">-</span>';
+        let linkHtml = s.link ? `<a href="${s.link}" target="_blank" style="color:#228be6; text-decoration:none; display:flex; align-items:center; gap:4px; max-width:250px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${s.link}"><i class="ph ph-link" style="flex-shrink:0;"></i> <span style="overflow:hidden; text-overflow:ellipsis;">${s.link}</span></a>` : '<span style="color:#94a3b8;">-</span>';
         
         // Input readonly password field para facilitar copiar/mostrar
         const pwdId = `table-pwd-${s.id}`;
