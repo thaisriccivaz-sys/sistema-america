@@ -3515,18 +3515,20 @@ function decryptPassword(text) {
 app.get('/api/logistica/senhas', authenticateToken, (req, res) => {
     const isDiretoria = req.user && (String(req.user.departamento).toLowerCase().includes('diretoria') || String(req.user.role).toLowerCase() === 'diretoria' || String(req.user.username).toLowerCase() === 'diretoria.1');
     let query = `
-        SELECT ls.*, u.nome as owner_nome, u.username as owner_username 
+        SELECT ls.*, u.nome as owner_nome, u.username as owner_username, c.status as colab_status
         FROM logistica_senhas ls
         LEFT JOIN usuarios u ON ls.owner_id = u.id
+        LEFT JOIN colaboradores c ON ls.nome = c.nome_completo
         WHERE ls.tipo = 'compartilhada' OR ls.owner_id = ?
     `;
     let params = [req.user.id];
 
     if (isDiretoria) {
         query = `
-            SELECT ls.*, u.nome as owner_nome, u.username as owner_username 
+            SELECT ls.*, u.nome as owner_nome, u.username as owner_username, c.status as colab_status
             FROM logistica_senhas ls
             LEFT JOIN usuarios u ON ls.owner_id = u.id
+            LEFT JOIN colaboradores c ON ls.nome = c.nome_completo
         `;
         params = [];
     }

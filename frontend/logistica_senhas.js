@@ -35,6 +35,13 @@ function initLogisticaSenhas() {
                     <input type="text" id="filter-senha-usuario" placeholder="Filtrar por Usuário..." oninput="filtrarSenhasMulti()" style="width:100%;padding:0.6rem 0.75rem 0.6rem 2.2rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;">
                 </div>
                 <div style="position:relative;">
+                    <select id="filter-senha-status" onchange="filtrarSenhasMulti()" style="width:100%;padding:0.6rem 0.75rem 0.6rem 0.75rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;background:#fff;color:#64748b;appearance:none;cursor:pointer;">
+                        <option value="">Todos os Status</option>
+                        <option value="ativo">🟢 Ativo</option>
+                        <option value="inativo">🔴 Inativo</option>
+                    </select>
+                </div>
+                <div style="position:relative;">
                     <i class="ph ph-funnel" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1rem;"></i>
                     <input type="text" id="filter-senha-link" placeholder="Filtrar por Link..." oninput="filtrarSenhasMulti()" style="width:100%;padding:0.6rem 0.75rem 0.6rem 2.2rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;">
                 </div>
@@ -43,6 +50,7 @@ function initLogisticaSenhas() {
                 <table class="table">
                     <thead>
                         <tr>
+                            <th>Status</th>
                             <th>Nome</th>
                             <th>Serviço / Acesso</th>
                             <th>Link</th>
@@ -53,7 +61,7 @@ function initLogisticaSenhas() {
                         </tr>
                     </thead>
                     <tbody id="table-senhas-body">
-                        <tr><td colspan="6" style="text-align:center; padding: 2rem; color: #94a3b8;">Carregando senhas...</td></tr>
+                        <tr><td colspan="7" style="text-align:center; padding: 2rem; color: #94a3b8;">Carregando senhas...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -71,7 +79,8 @@ function initLogisticaSenhas() {
                         <input type="hidden" id="senha-id">
                         <div class="input-group mb-3">
                             <label>Nome</label>
-                            <input type="text" id="senha-nome" placeholder="Ex: Conta Principal" autocomplete="off">
+                            <input type="text" id="senha-nome" list="colaboradores-senha-list" placeholder="Nome do Colaborador (ou Conta Principal)" autocomplete="off">
+                            <datalist id="colaboradores-senha-list"></datalist>
                         </div>
                         <div class="input-group mb-3">
                             <label>Visibilidade</label>
@@ -109,6 +118,7 @@ function initLogisticaSenhas() {
     `;
 
     carregarSenhas();
+    carregarColaboradoresParaSenhas();
 }
 
 function carregarSenhas() {
@@ -157,7 +167,7 @@ function renderSenhasTable(senhas) {
     }
 
     if (!senhas || senhas.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="${showDono ? 7 : 6}" style="text-align:center; padding:2rem; color:#64748b;">Nenhuma senha cadastrada.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="${showDono ? 8 : 7}" style="text-align:center; padding:2rem; color:#64748b;">Nenhuma senha cadastrada.</td></tr>`;
         return;
     }
 
@@ -183,7 +193,12 @@ function renderSenhasTable(senhas) {
 
         let donoHtml = showDono ? `<td style="color:#d9480f; font-weight:600; font-size:0.9rem;">${s.owner_nome || s.owner_username || 'Desconhecido'}</td>` : '';
 
+        
+        const statusClass = (s.colab_status === 'Desligado') ? 'color:#ef4444;background:#fee2e2;' : 'color:#155724;background:#d4edda;';
+        const statusIcon = (s.colab_status === 'Desligado') ? '🔴 Inativo' : '🟢 Ativo';
+        
         tr.innerHTML = `
+            <td><span style="${statusClass} padding:4px 8px; border-radius:12px; font-size:0.8rem; font-weight:600; white-space:nowrap;">${statusIcon}</span></td>
             <td style="font-weight:600; color:#1e293b;">${s.nome || '<span style="color:#94a3b8;">-</span>'}</td>
             <td>${s.servico || '-'}</td>
             <td>${linkHtml}</td>
@@ -205,18 +220,22 @@ function filtrarSenhasMulti() {
     const fServico = document.getElementById('filter-senha-servico')?.value.toLowerCase().trim() || '';
     const fUsuario = document.getElementById('filter-senha-usuario')?.value.toLowerCase().trim() || '';
     const fLink = document.getElementById('filter-senha-link')?.value.toLowerCase().trim() || '';
+    const fStatus = document.getElementById('filter-senha-status')?.value || '';
 
     const filtradas = senhasLogisticaList.filter(s => {
         let matchServico = true;
         let matchUsuario = true;
         let matchLink = true;
+        let matchStatus = true;
 
         if (fServico) matchServico = s.servico && s.servico.toLowerCase().includes(fServico);
         if (fUsuario) matchUsuario = s.usuario && s.usuario.toLowerCase().includes(fUsuario);
         if (fLink) matchLink = s.link && s.link.toLowerCase().includes(fLink);
+        if (fStatus === 'ativo') matchStatus = s.colab_status !== 'Desligado';
+        if (fStatus === 'inativo') matchStatus = s.colab_status === 'Desligado';
 
         let matchTab = (s.tipo === currentSenhaTab || (!s.tipo && currentSenhaTab === 'compartilhada'));
-        return matchServico && matchUsuario && matchLink && matchTab;
+        return matchServico && matchUsuario && matchLink && matchStatus && matchTab;
     });
 
     renderSenhasTable(filtradas);
@@ -393,4 +412,23 @@ function switchSenhaTab(tipo) {
         btnComp.style.borderBottomColor = 'transparent'; btnComp.style.color = '#64748b';
     }
     filtrarSenhasMulti();
+}
+
+
+function carregarColaboradoresParaSenhas() {
+    fetch('/api/colaboradores', {
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('erp_token') }
+    })
+    .then(r => r.json())
+    .then(data => {
+        const datalist = document.getElementById('colaboradores-senha-list');
+        if (!datalist) return;
+        datalist.innerHTML = '';
+        data.forEach(c => {
+            const option = document.createElement('option');
+            option.value = c.nome_completo;
+            datalist.appendChild(option);
+        });
+    })
+    .catch(console.error);
 }
