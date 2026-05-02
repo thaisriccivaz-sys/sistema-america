@@ -6583,7 +6583,7 @@ app.delete('/api/epi-templates/:id', authenticateToken, (req, res) => {
 app.get('/api/usuarios', authenticateToken, (req, res) => {
     db.all(`SELECT u.id, u.username, u.nome, u.email, u.role, u.departamento, u.grupo_permissao_id, u.ativo,
                    g.nome as grupo_nome,
-                   c.foto as foto_colaborador
+                   c.foto_base64 as foto_colaborador
             FROM usuarios u
             LEFT JOIN grupos_permissao g ON g.id = u.grupo_permissao_id
             LEFT JOIN colaboradores c ON c.nome_completo = u.nome
