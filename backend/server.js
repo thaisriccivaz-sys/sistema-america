@@ -9099,8 +9099,9 @@ app.post('/api/logistica/os/upload-video', authenticateToken, multerVideo.single
         [token, shortCode, os_id || null, numero_os || null, req.file.originalname, req.file.mimetype, req.file.size, req.file.path],
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
-            const linkPublico = `/api/video/${token}`;
-            const linkCurto = `/v/${shortCode}`;
+            const baseUrl = `${req.protocol}://${req.get('host')}`;
+            const linkPublico = `${baseUrl}/api/video/${token}`;
+            const linkCurto  = `${baseUrl}/v/${shortCode}`;
             
             const handleResponse = () => res.json({ ok: true, token, short_code: shortCode, link: linkPublico, short_link: linkCurto, nome: req.file.originalname });
 

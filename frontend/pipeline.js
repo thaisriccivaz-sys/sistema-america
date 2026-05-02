@@ -606,7 +606,10 @@ async function pipelineExportarExcel(registrosOverride) {
                 videoLinks = linkVideoRaw.split(',').map(s => s.trim()).filter(Boolean);
             }
         }
-        const videoLinhas = videoLinks.map(link => `📸 Vídeo: ${link}`);
+        const videoLinhas = videoLinks.map(link => {
+            const full = link.startsWith('http') ? link : window.location.origin + link;
+            return `📸 Vídeo: ${full}`;
+        });
 
         // Linha 2: Ícone da variável + OBSERVAÇÕES (em maiúscula)
         const obsStr = (r.observacoes || '').trim().toUpperCase();
