@@ -13734,23 +13734,52 @@ window.showHistoryPopup = async function() {
 setInterval(() => {
     const btnHistory = document.getElementById('btn-history-page');
     if (!btnHistory) return;
-    const viewPront = document.getElementById('view-prontuario');
-    const viewAdms = document.getElementById('view-admissao');
-    const viewForm = document.getElementById('view-form-colaborador');
-    const viewGer = document.getElementById('view-geradores');
-    // Including view-colaboradores to allow global collaborator history
-    const viewListColab = document.getElementById('view-colaboradores');
-    
-    const isColabActive = (viewPront && viewPront.classList.contains('active')) || 
-                          (viewAdms && viewAdms.classList.contains('active')) ||
-                          (viewForm && viewForm.classList.contains('active')) ||
-                          (viewListColab && viewListColab.classList.contains('active'));
-    const isGerActive = (viewGer && viewGer.classList.contains('active'));
 
-    if (isColabActive || isGerActive) {
-        btnHistory.style.display = 'flex';
+    // Colaboradores / Prontuário / Admissão
+    const viewPront = document.getElementById('view-prontuario');
+    const viewAdms  = document.getElementById('view-admissao');
+    const viewForm  = document.getElementById('view-form-colaborador');
+    const viewListColab = document.getElementById('view-colaboradores');
+
+    // Geradores
+    const viewGer = document.getElementById('view-geradores');
+
+    // RH extras
+    const viewCargos    = document.getElementById('view-cargos');
+    const viewFaculdade = document.getElementById('view-faculdade');
+    const viewEpi       = document.getElementById('view-ficha-epi');
+    const viewAvaliacoes = document.getElementById('view-gerenciar-avaliacoes');
+    const viewDissidio  = document.getElementById('view-dissidio');
+
+    // Logística
+    const viewSenhas = document.getElementById('logistica-senhas-container');
+
+    const isColabActive = (viewPront    && viewPront.classList.contains('active')) ||
+                          (viewAdms     && viewAdms.classList.contains('active'))  ||
+                          (viewForm     && viewForm.classList.contains('active'))   ||
+                          (viewListColab && viewListColab.classList.contains('active'));
+
+    const isGerActive       = viewGer        && viewGer.classList.contains('active');
+    const isCargosActive    = viewCargos     && viewCargos.classList.contains('active');
+    const isFaculdadeActive = viewFaculdade  && viewFaculdade.classList.contains('active');
+    const isEpiActive       = viewEpi        && viewEpi.classList.contains('active');
+    const isAvaliacoesActive = viewAvaliacoes && viewAvaliacoes.classList.contains('active');
+    const isDissidioActive  = viewDissidio   && viewDissidio.classList.contains('active');
+
+    // Cofre de Senhas — container visível (não tem classe active, verifica display)
+    const isSenhasActive = viewSenhas && viewSenhas.offsetParent !== null;
+
+    const shouldShow = isColabActive || isGerActive || isCargosActive ||
+                       isFaculdadeActive || isEpiActive || isAvaliacoesActive ||
+                       isDissidioActive || isSenhasActive;
+
+    btnHistory.style.display = shouldShow ? 'flex' : 'none';
+
+    // Redireciona o onclick para a função correta
+    if (isSenhasActive) {
+        btnHistory.onclick = () => typeof window.abrirHistoricoSenhas === 'function' ? window.abrirHistoricoSenhas() : null;
     } else {
-        btnHistory.style.display = 'none';
+        btnHistory.onclick = () => window.showHistoryPopup();
     }
 }, 500);
 
