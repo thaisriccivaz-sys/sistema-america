@@ -292,15 +292,12 @@ window.filtrarHistoricoComCred = function() {
         const osText = row.cells[0].textContent.toLowerCase().trim();
         let cName = '', cEmail = '', cEnd = '';
         
-        if (row.cells[1] && row.cells[1].children.length >= 3) {
-            cName = row.cells[1].children[0].textContent.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-            cEmail = row.cells[1].children[1].textContent.toLowerCase().trim();
-            cEnd = row.cells[1].children[2].textContent.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-        } else {
-            // Fallback se não tiver a estrutura exata de divs
-            cName = row.cells[1].textContent.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-            cEmail = cName;
-            cEnd = cName;
+        if (row.cells[1]) {
+            const b = row.cells[1].querySelector('b');
+            const spans = row.cells[1].querySelectorAll('span');
+            cName = b ? b.textContent.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') : '';
+            cEmail = spans.length > 0 ? spans[0].textContent.toLowerCase().trim() : '';
+            cEnd = spans.length > 1 ? spans[1].textContent.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') : '';
         }
         
         let match = true;
