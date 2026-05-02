@@ -13661,6 +13661,7 @@ window.showHistoryPopup = async function() {
         const viewFaculdade = document.getElementById('view-faculdade');
         const viewEpi = document.getElementById('view-ficha-epi');
         const viewAvaliacoes = document.getElementById('view-gerenciar-avaliacoes');
+        const viewDissidio = document.getElementById('view-dissidio');
 
         const isColabActive = (viewPront && viewPront.classList.contains('active')) || 
                               (viewAdm && viewAdm.classList.contains('active')) ||
@@ -13671,6 +13672,7 @@ window.showHistoryPopup = async function() {
         const isFaculdadeActive = viewFaculdade && viewFaculdade.classList.contains('active');
         const isEpiActive = viewEpi && viewEpi.classList.contains('active');
         const isAvaliacoesActive = viewAvaliacoes && viewAvaliacoes.classList.contains('active');
+        const isDissidioActive = viewDissidio && viewDissidio.classList.contains('active');
 
         if (isColabActive && viewedColaborador && viewedColaborador.id) {
             // Prontuário ou Admissão de um colaborador específico
@@ -13695,6 +13697,9 @@ window.showHistoryPopup = async function() {
         } else if (isAvaliacoesActive) {
             url += `?programa=Avalia`;
             labelText = 'Tela: Avaliações';
+        } else if (isDissidioActive) {
+            url += `?programa=Dissídio`;
+            labelText = 'Tela: Dissídio Coletivo';
         } else {
             url += `?contexto=geral`;
         }

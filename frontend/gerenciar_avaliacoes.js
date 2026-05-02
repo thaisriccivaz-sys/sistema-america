@@ -108,9 +108,14 @@ function renderGaListPage(allTemplates) {
                         <p style="margin:2px 0 0;color:#64748b;font-size:0.85rem;">Templates de perguntas por departamento</p>
                     </div>
                 </div>
-                <button onclick="window.gaAbrirFormNovo()" style="background:linear-gradient(135deg,#0f4c81,#1d6fb8);color:#fff;border:none;padding:0.65rem 1.4rem;border-radius:8px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:0.5rem;font-size:0.95rem;box-shadow:0 4px 12px rgba(15,76,129,0.35);transition:transform 0.1s;" onmousedown="this.style.transform='scale(0.97)'" onmouseup="this.style.transform='scale(1)'">
-                    <i class="ph ph-plus-circle"></i> Novo Template
-                </button>
+                <div style="display:flex; gap:0.75rem; align-items:center;">
+                    <button onclick="window.showHistoryPopup()" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;padding:0.65rem 1.2rem;border-radius:8px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:0.5rem;font-size:0.9rem;" title="Histórico de Alterações">
+                        <i class="ph ph-clock-counter-clockwise"></i> Histórico
+                    </button>
+                    <button onclick="window.gaAbrirFormNovo()" style="background:linear-gradient(135deg,#0f4c81,#1d6fb8);color:#fff;border:none;padding:0.65rem 1.4rem;border-radius:8px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:0.5rem;font-size:0.95rem;box-shadow:0 4px 12px rgba(15,76,129,0.35);transition:transform 0.1s;" onmousedown="this.style.transform='scale(0.97)'" onmouseup="this.style.transform='scale(1)'">
+                        <i class="ph ph-plus-circle"></i> Novo Template
+                    </button>
+                </div>
             </div>
 
             <!-- AVISO INFORMATIVO -->

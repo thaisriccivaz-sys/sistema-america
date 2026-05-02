@@ -352,6 +352,9 @@
                                 <i class="ph ph-floppy-disk"></i> Salvar Configuração
                             </button>
                         </div>
+                        <button type="button" class="btn btn-secondary" onclick="window.showHistoryPopup()" style="display:flex;align-items:center;gap:6px;border-color:#cbd5e1;color:#475569;" title="Histórico de Alterações">
+                            <i class="ph ph-clock-counter-clockwise"></i> Histórico
+                        </button>
                     </div>
 
                     
@@ -506,6 +509,9 @@
                 <section id="view-faculdade" class="content-view">
                     <div class="page-header flex-between">
                         <h2>Gestão de Cursos de Faculdade</h2>
+                        <button type="button" class="btn btn-secondary" onclick="window.showHistoryPopup()" style="display:flex;align-items:center;gap:6px;border-color:#cbd5e1;color:#475569;" title="Histórico de Alterações">
+                            <i class="ph ph-clock-counter-clockwise"></i> Histórico
+                        </button>
                     </div>
                     <div class="card mb-4 p-4">
                         <h3 class="mb-3" id="faculdade-form-title">Cadastrar Novo Curso</h3>
@@ -2011,9 +2017,14 @@
                                 <p style="margin:2px 0 0; color:#64748b; font-size:0.85rem;">Fichas obrigatórias de E.P.I por departamento — NR 06</p>
                             </div>
                         </div>
-                        <button class="btn btn-primary" onclick="window.openEpiModal(null)" style="height:40px; display:flex; align-items:center; gap:0.5rem; padding:0 1.25rem; font-weight:600; border-radius:8px;">
-                            <i class="ph ph-plus-circle"></i> Novo Grupo
-                        </button>
+                        <div style="display:flex;gap:0.75rem;align-items:center;">
+                            <button type="button" class="btn btn-secondary" onclick="window.showHistoryPopup()" style="display:flex;align-items:center;gap:6px;border-color:#cbd5e1;color:#475569;" title="Histórico de Alterações">
+                                <i class="ph ph-clock-counter-clockwise"></i> Histórico
+                            </button>
+                            <button class="btn btn-primary" onclick="window.openEpiModal(null)" style="height:40px; display:flex; align-items:center; gap:0.5rem; padding:0 1.25rem; font-weight:600; border-radius:8px;">
+                                <i class="ph ph-plus-circle"></i> Novo Grupo
+                            </button>
+                        </div>
                     </div>
                     <div id="epi-cards-container" style="padding: 0.5rem 0;">
                         <div class="alert alert-info"><i class="ph ph-spinner ph-spin"></i> Carregando...</div>
@@ -3193,12 +3204,12 @@
     <!-- Gerador PDF client-side -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="avaliacoes.js?v=6"></script>
-    <script src="gerenciar_avaliacoes.js?v=2"></script>
+    <script src="gerenciar_avaliacoes.js?v=3"></script>
     <script src="epi.js?v=17"></script>
     <script src="sinistros.js"></script>
     <script src="usuarios.js?v=5"></script>
     <script src="integracao.js"></script>
-    <script src="dissidio.js?v=1"></script>
+    <script src="dissidio.js?v=2"></script>
     <script src="ferias.js?v=3"></script>
     <script src="pipeline.js?v=7"></script>
     <script src="multas_logistica.js?v=30"></script>
@@ -3210,7 +3221,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="rota_redonda.js?v=22"></script>
-    <script src="app.js?v=134"></script>
+    <script src="app.js?v=135"></script>
     <script src="frota_resumo.js?v=4"></script>
     <!-- Global Scroll-to-Top Button -->
     <button id="global-scroll-top" onclick="window.scrollTo({top:0, behavior:'smooth'})" style="position:fixed; bottom:30px; right:30px; width:45px; height:45px; border-radius:50%; background:var(--primary-color, #0f172a); color:#fff; border:none; box-shadow:0 4px 10px rgba(0,0,0,0.3); justify-content:center; align-items:center; transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index:9000; display:none; opacity:0; cursor:pointer;" onmouseover="this.style.filter='brightness(0.9)'" onmouseout="this.style.filter='brightness(1)'">

@@ -13,6 +13,9 @@
         container.innerHTML = `
             <div class="page-header flex-between" style="margin-bottom:0;">
                 <h1 style="margin:0;font-size:1.6rem;font-weight:800;color:#0f172a;">Dissídio Coletivo</h1>
+                <button onclick="window.showHistoryPopup()" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;padding:0.6rem 1.2rem;border-radius:8px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:0.5rem;font-size:0.9rem;" title="Histórico de Alterações">
+                    <i class="ph ph-clock-counter-clockwise"></i> Histórico
+                </button>
             </div>
 
             <!-- Formulário de Reajuste -->
