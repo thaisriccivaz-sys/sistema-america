@@ -13600,8 +13600,13 @@ window._renderHistoryPage = function() {
     if (prevBtn) prevBtn.disabled = page <= 1;
     if (nextBtn) nextBtn.disabled = page >= totalPages;
 
+    // Mostrar/ocultar coluna Documento
+    const hasDocNome = data.some(r => r.documento_nome);
+    const thDoc = document.getElementById('history-th-documento');
+    if (thDoc) thDoc.style.display = hasDocNome ? 'table-cell' : 'none';
+
     if (slice.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 2rem; color: #94a3b8;">Nenhum registro de alteração encontrado.</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="${hasDocNome ? 6 : 5}" style="text-align:center; padding: 2rem; color: #94a3b8;">Nenhum registro de alteração encontrado.</td></tr>`;
         return;
     }
 
@@ -13625,10 +13630,15 @@ window._renderHistoryPage = function() {
             ? `${campoLabel}<span style="font-weight:600;">${log.conteudo_atual}</span>`
             : `<span style="color:#cbd5e1;">—</span>`;
 
+        const docCell = hasDocNome
+            ? `<td style="padding:0.7rem 1rem; font-weight:600; color:#0f4c81; font-size:0.82rem; max-width:160px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${log.documento_nome || '<span style="color:#cbd5e1;">—</span>'}</td>`
+            : '';
+
         html += `<tr style="${stripBg}border-bottom:1px solid #f1f5f9;">
             <td style="padding:0.7rem 1rem; white-space:nowrap; color:#334155; font-size:0.82rem;">${dateStr}</td>
             <td style="padding:0.7rem 1rem; white-space:nowrap; color:#64748b; font-family:monospace; font-size:0.82rem;">${horaStr}</td>
             <td style="padding:0.7rem 1rem; font-weight:700; color:#f503c5; font-size:0.82rem; text-transform:uppercase;">${log.usuario || 'SISTEMA'}</td>
+            ${docCell}
             <td style="padding:0.7rem 1rem; color:#ef4444; font-size:0.82rem;">${anteriorCell}</td>
             <td style="padding:0.7rem 1rem; color:#16a34a; font-size:0.82rem;">${atualCell}</td>
         </tr>`;
@@ -13743,6 +13753,113 @@ setInterval(() => {
         btnHistory.style.display = 'none';
     }
 }, 500);
+
+// === INJEÇÃO ROBUSTA DE BOTÕES DE HISTÓRICO ===
+// Garante que os botões apareçam em todas as telas mesmo com cache do index.html
+(function _injectHistoryButtons() {
+    const BTN_ID = 'injected-history-btn';
+
+    // Mapa: viewId → seletor do container de botões do header
+    const viewsConfig = [
+        {
+            viewId: 'view-cargos',
+            // insere após o div cargo-header-actions
+            insertAfter: '#cargo-header-actions',
+        },
+        {
+            viewId: 'view-faculdade',
+            // insere no page-header flex-between (filho direto)
+            appendTo: '#view-faculdade .page-header.flex-between',
+        },
+        {
+            viewId: 'view-ficha-epi',
+            // tenta inserir no div de botões que criamos; se não existir, appenda no header
+            appendTo: '#view-ficha-epi .page-header.flex-between',
+        },
+    ];
+
+    function makeBtn(onclick) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn btn-secondary';
+        btn.id = BTN_ID;
+        btn.title = 'Histórico de Alterações';
+        btn.style.cssText = 'display:flex;align-items:center;gap:6px;border-color:#cbd5e1;color:#475569;white-space:nowrap;';
+        btn.innerHTML = '<i class="ph ph-clock-counter-clockwise"></i> Histórico';
+        btn.onclick = onclick;
+        return btn;
+    }
+
+    function ensureBtn(viewId, container, onclick) {
+        const view = document.getElementById(viewId);
+        if (!view || !view.classList.contains('active')) return;
+        if (container.querySelector(`#${BTN_ID}, [data-hist-injected]`)) return; // já existe
+        const btn = makeBtn(onclick);
+        btn.dataset.histInjected = '1';
+        container.appendChild(btn);
+    }
+
+    setInterval(() => {
+        // Cargos
+        const cargoHeader = document.querySelector('#view-cargos.active #cargo-header-actions');
+        if (cargoHeader && !cargoHeader.parentElement.querySelector('[data-hist-injected]')) {
+            const btn = makeBtn(() => window.showHistoryPopup());
+            btn.dataset.histInjected = '1';
+            cargoHeader.insertAdjacentElement('afterend', btn);
+        }
+
+        // Faculdade
+        const facHeader = document.querySelector('#view-faculdade.active .page-header.flex-between');
+        if (facHeader && !facHeader.querySelector('[data-hist-injected]')) {
+            const btn = makeBtn(() => window.showHistoryPopup());
+            btn.dataset.histInjected = '1';
+            facHeader.appendChild(btn);
+        }
+
+        // EPI
+        const epiHeader = document.querySelector('#view-ficha-epi.active .page-header.flex-between');
+        if (epiHeader && !epiHeader.querySelector('[data-hist-injected]')) {
+            const btn = makeBtn(() => window.showHistoryPopup());
+            btn.dataset.histInjected = '1';
+            epiHeader.appendChild(btn);
+        }
+
+        // Avaliações (renderizado por JS — injeta no header dinâmico)
+        const avalContainer = document.querySelector('#view-gerenciar-avaliacoes.active #gerenciar-avaliacoes-container');
+        if (avalContainer && !avalContainer.querySelector('[data-hist-injected]')) {
+            // Procura o div com flex justify-content:space-between que tem o botão "Novo Template"
+            const headerFlex = Array.from(avalContainer.querySelectorAll('div')).find(d =>
+                d.style.justifyContent === 'space-between' && d.querySelector('button')
+            );
+            if (headerFlex && !headerFlex.querySelector('[data-hist-injected]')) {
+                const btn = makeBtn(() => window.showHistoryPopup());
+                btn.dataset.histInjected = '1';
+                headerFlex.insertBefore(btn, headerFlex.firstChild);
+            }
+        }
+
+        // Dissídio
+        const dissidioHeader = document.querySelector('#view-dissidio.active .page-header.flex-between');
+        if (dissidioHeader && !dissidioHeader.querySelector('[data-hist-injected]')) {
+            const btn = makeBtn(() => window.showHistoryPopup());
+            btn.dataset.histInjected = '1';
+            dissidioHeader.appendChild(btn);
+        }
+
+        // Cofre de Senhas
+        const senhasHeader = document.querySelector('#logistica-senhas-container .page-header.flex-between');
+        if (senhasHeader && !senhasHeader.querySelector('[data-hist-injected]')) {
+            const actionsDiv = senhasHeader.querySelector('div[style*="display: flex"]') || senhasHeader.querySelector('div');
+            const btn = makeBtn(() => typeof window.abrirHistoricoSenhas === 'function' ? window.abrirHistoricoSenhas() : null);
+            btn.dataset.histInjected = '1';
+            if (actionsDiv) {
+                actionsDiv.insertBefore(btn, actionsDiv.firstChild);
+            } else {
+                senhasHeader.appendChild(btn);
+            }
+        }
+    }, 800);
+})();
 
 // ===== SISTEMA DE TOAST: NOTIFICAÇÕES DE DOCUMENTOS ASSINADOS (ADMISSÃO) =====
 (function() {

@@ -6843,29 +6843,42 @@ app.get('/api/auditoria/:id?', authenticateToken, (req, res) => {
     const programa = req.query.programa;
     const qId = req.query.id || req.params.id;
 
-    let sql = `SELECT * FROM auditoria`;
-    let params = [];
+    let sql, params = [];
 
-    if (programa) {
-        // Filtro por programa específico (Cargos, Faculdade, EPI, Avaliações)
-        sql += ` WHERE programa LIKE ?`;
-        params.push(`%${programa}%`);
-    } else if (contexto === 'gerador') {
-        sql += ` WHERE programa = 'Geradores'`;
+    if (contexto === 'gerador') {
+        sql = `SELECT a.*, g.nome as documento_nome
+               FROM auditoria a
+               LEFT JOIN geradores g ON a.registro_id = g.id
+               WHERE a.programa = 'Geradores'
+               ORDER BY a.data_hora DESC LIMIT 200`;
     } else if (contexto === 'colaborador' && qId) {
-        sql += ` WHERE programa = 'Colaboradores' AND registro_id = ?`;
+        sql = `SELECT a.*, c.nome_completo as documento_nome
+               FROM auditoria a
+               LEFT JOIN colaboradores c ON a.registro_id = c.id
+               WHERE a.programa = 'Colaboradores' AND a.registro_id = ?
+               ORDER BY a.data_hora DESC LIMIT 200`;
         params.push(qId);
     } else if (contexto === 'colaboradores_geral') {
-        sql += ` WHERE programa = 'Colaboradores'`;
+        sql = `SELECT a.*, c.nome_completo as documento_nome
+               FROM auditoria a
+               LEFT JOIN colaboradores c ON a.registro_id = c.id
+               WHERE a.programa = 'Colaboradores'
+               ORDER BY a.data_hora DESC LIMIT 200`;
+    } else if (programa) {
+        sql = `SELECT a.* FROM auditoria a WHERE a.programa LIKE ? ORDER BY a.data_hora DESC LIMIT 200`;
+        params.push(`%${programa}%`);
     } else {
         if (qId) {
-            sql += ` WHERE programa = 'Colaboradores' AND registro_id = ?`;
+            sql = `SELECT a.*, c.nome_completo as documento_nome
+                   FROM auditoria a
+                   LEFT JOIN colaboradores c ON a.registro_id = c.id
+                   WHERE a.programa = 'Colaboradores' AND a.registro_id = ?
+                   ORDER BY a.data_hora DESC LIMIT 200`;
             params.push(qId);
+        } else {
+            sql = `SELECT a.* FROM auditoria a ORDER BY a.data_hora DESC LIMIT 200`;
         }
-        // else: sem WHERE ? geral
     }
-
-    sql += ` ORDER BY data_hora DESC LIMIT 200`;
 
     db.all(sql, params, (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
