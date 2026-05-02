@@ -71,10 +71,15 @@ db.run(`
         link TEXT,
         usuario TEXT NOT NULL,
         senha_encriptada TEXT NOT NULL,
+        owner_id INTEGER,
+        tipo TEXT DEFAULT 'compartilhada',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
-`);
+`, () => {
+    db.run("ALTER TABLE logistica_senhas ADD COLUMN owner_id INTEGER;", (err) => {});
+    db.run("ALTER TABLE logistica_senhas ADD COLUMN tipo TEXT DEFAULT 'compartilhada';", (err) => {});
+});
 
 // Blacklist de cargos e departamentos excluidos manualmente (impede que o seed os recrie)
 db.run("CREATE TABLE IF NOT EXISTS cargos_excluidos (nome TEXT PRIMARY KEY)");
@@ -3506,7 +3511,17 @@ function decryptPassword(text) {
 }
 
 app.get('/api/logistica/senhas', authenticateToken, (req, res) => {
-    db.all("SELECT * FROM logistica_senhas ORDER BY servico ASC", [], (err, rows) => {
+    const isDiretoria = req.user && (String(req.user.departamento).toLowerCase().includes('diretoria') || String(req.user.role).toLowerCase() === 'diretoria' || String(req.user.username).toLowerCase() === 'diretoria.1');
+    let query = "SELECT * FROM logistica_senhas WHERE tipo = 'compartilhada' OR owner_id = ?";
+    let params = [req.user.id];
+
+    if (isDiretoria) {
+        query = "SELECT * FROM logistica_senhas";
+        params = [];
+    }
+    query += " ORDER BY servico ASC";
+
+    db.all(query, params, (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         const senhas = rows.map(r => {
             r.senha = r.senha_encriptada ? decryptPassword(r.senha_encriptada) : '';
@@ -3518,24 +3533,26 @@ app.get('/api/logistica/senhas', authenticateToken, (req, res) => {
 });
 
 app.post('/api/logistica/senhas', authenticateToken, (req, res) => {
-    const { servico, link, usuario, senha } = req.body;
+    const { servico, link, usuario, senha, tipo } = req.body;
     if (!servico || !usuario || !senha) return res.status(400).json({ error: 'Serviço, usuário e senha são obrigatórios.' });
     
+    const tipoVal = tipo === 'pessoal' ? 'pessoal' : 'compartilhada';
     const senhaEncriptada = encryptPassword(senha);
-    db.run("INSERT INTO logistica_senhas (servico, link, usuario, senha_encriptada) VALUES (?, ?, ?, ?)", [servico, link, usuario, senhaEncriptada], function(err) {
+    db.run("INSERT INTO logistica_senhas (servico, link, usuario, senha_encriptada, owner_id, tipo) VALUES (?, ?, ?, ?, ?, ?)", [servico, link, usuario, senhaEncriptada, req.user.id, tipoVal], function(err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ id: this.lastID, message: 'Senha cadastrada com sucesso' });
     });
 });
 
 app.put('/api/logistica/senhas/:id', authenticateToken, (req, res) => {
-    const { servico, link, usuario, senha } = req.body;
+    const { servico, link, usuario, senha, tipo } = req.body;
     const updates = [];
     const params = [];
     
     if (servico) { updates.push("servico = ?"); params.push(servico); }
     if (link !== undefined) { updates.push("link = ?"); params.push(link); }
     if (usuario) { updates.push("usuario = ?"); params.push(usuario); }
+    if (tipo) { updates.push("tipo = ?"); params.push(tipo === 'pessoal' ? 'pessoal' : 'compartilhada'); }
     if (senha) { 
         updates.push("senha_encriptada = ?"); 
         params.push(encryptPassword(senha)); 

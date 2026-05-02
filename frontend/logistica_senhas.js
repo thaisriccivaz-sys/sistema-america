@@ -1,4 +1,5 @@
 let senhasLogisticaList = [];
+let currentSenhaTab = 'compartilhada';
 let uniqueServicos = new Set();
 
 function initLogisticaSenhas() {
@@ -19,6 +20,10 @@ function initLogisticaSenhas() {
             <button class="btn btn-primary" onclick="openSenhasModal()"><i class="ph ph-plus"></i> Nova Senha</button>
         </div>
 
+        <div class="tabs" style="display:flex; gap:1rem; margin-bottom:1rem; border-bottom:1px solid #e2e8f0; padding-bottom:0.5rem; margin-top: -0.5rem;">
+            <button id="tab-senha-comp" onclick="switchSenhaTab('compartilhada')" style="background:none; border:none; border-bottom:2px solid #2d9e5f; color:#2d9e5f; font-weight:600; padding:0.5rem 1rem; cursor:pointer; font-size:1rem;">Senhas Compartilhadas</button>
+            <button id="tab-senha-pess" onclick="switchSenhaTab('pessoal')" style="background:none; border:none; border-bottom:2px solid transparent; color:#64748b; font-weight:600; padding:0.5rem 1rem; cursor:pointer; font-size:1rem;">Senhas Pessoais</button>
+        </div>
         <div class="card p-4">
             <div class="form-grid mb-3" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
                 <div style="position:relative;">
@@ -62,6 +67,13 @@ function initLogisticaSenhas() {
                 <div style="padding:1.5rem;">
                     <form id="form-senhas" onsubmit="salvarSenha(event)">
                         <input type="hidden" id="senha-id">
+                        <div class="input-group mb-3">
+                            <label>Visibilidade *</label>
+                            <select id="senha-tipo" required style="width:100%;padding:0.6rem;border:1px solid #e2e8f0;border-radius:6px;outline:none;background:#f8fafc;">
+                                <option value="compartilhada">Senha Compartilhada (Uso Geral)</option>
+                                <option value="pessoal">Senha Pessoal (Privado)</option>
+                            </select>
+                        </div>
                         <div class="input-group mb-3">
                             <label>Nome do Serviço / Tipo de Acesso *</label>
                             <input type="text" id="senha-servico" list="servicos-list" placeholder="Ex: Cobli, SimpliRoute, etc" autocomplete="off" required>
@@ -185,7 +197,8 @@ function filtrarSenhasMulti() {
         if (fUsuario) matchUsuario = s.usuario && s.usuario.toLowerCase().includes(fUsuario);
         if (fLink) matchLink = s.link && s.link.toLowerCase().includes(fLink);
 
-        return matchServico && matchUsuario && matchLink;
+        let matchTab = (s.tipo === currentSenhaTab || (!s.tipo && currentSenhaTab === 'compartilhada'));
+        return matchServico && matchUsuario && matchLink && matchTab;
     });
 
     renderSenhasTable(filtradas);
@@ -193,6 +206,7 @@ function filtrarSenhasMulti() {
 
 function openSenhasModal() {
     document.getElementById('senha-id').value = '';
+    document.getElementById('senha-tipo').value = currentSenhaTab;
     document.getElementById('senha-servico').value = '';
     document.getElementById('senha-link').value = '';
     document.getElementById('senha-usuario').value = '';
@@ -210,6 +224,7 @@ function openSenhasModal() {
 
 function editarSenha(senhaObj) {
     document.getElementById('senha-id').value = senhaObj.id;
+    document.getElementById('senha-tipo').value = senhaObj.tipo || 'compartilhada';
     document.getElementById('senha-servico').value = senhaObj.servico;
     document.getElementById('senha-link').value = senhaObj.link || '';
     document.getElementById('senha-usuario').value = senhaObj.usuario;
@@ -231,13 +246,14 @@ function salvarSenha(e) {
     const link = document.getElementById('senha-link').value.trim();
     const usuario = document.getElementById('senha-usuario').value.trim();
     const senha = document.getElementById('senha-valor').value.trim();
+    const tipo = document.getElementById('senha-tipo').value;
 
     if (!servico || !usuario || !senha) {
         Swal.fire('Erro', 'Preencha os campos obrigatórios.', 'error');
         return;
     }
 
-    const payload = { servico, link, usuario, senha };
+    const payload = { servico, link, usuario, senha, tipo };
     const method = id ? 'PUT' : 'POST';
     const url = id ? '/api/logistica/senhas/' + id : '/api/logistica/senhas';
 
@@ -345,3 +361,18 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 });
+
+
+function switchSenhaTab(tipo) {
+    currentSenhaTab = tipo;
+    const btnComp = document.getElementById('tab-senha-comp');
+    const btnPess = document.getElementById('tab-senha-pess');
+    if (tipo === 'compartilhada') {
+        btnComp.style.borderBottomColor = '#2d9e5f'; btnComp.style.color = '#2d9e5f';
+        btnPess.style.borderBottomColor = 'transparent'; btnPess.style.color = '#64748b';
+    } else {
+        btnPess.style.borderBottomColor = '#2d9e5f'; btnPess.style.color = '#2d9e5f';
+        btnComp.style.borderBottomColor = 'transparent'; btnComp.style.color = '#64748b';
+    }
+    filtrarSenhasMulti();
+}
