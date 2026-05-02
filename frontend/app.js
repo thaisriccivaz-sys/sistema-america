@@ -13718,7 +13718,13 @@ window.showHistoryPopup = async function() {
             labelText = 'Tela: Dissídio Coletivo';
         } else if (isRotaRedondaActive) {
             url += `?programa=OS Logística`;
-            labelText = 'Tela: Rota Redonda — Histórico de OS';
+            labelText = 'Tela: Rota Redonda — Histórico Geral';
+            const numOsInput = document.getElementById('rr-input-os');
+            const numOsFiltro = numOsInput ? numOsInput.value.trim() : '';
+            if (numOsFiltro) {
+                url += `&numero_os=${encodeURIComponent(numOsFiltro)}`;
+                labelText = `OS Logística — Histórico do Número: ${numOsFiltro}`;
+            }
         } else {
             url += `?contexto=geral`;
         }
