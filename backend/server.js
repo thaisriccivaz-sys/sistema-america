@@ -11023,6 +11023,11 @@ app.get('/api/licencas/:id/view', authenticateToken, (req, res) => {
         res.sendFile(absPath);
     });
 
+
+
+});
+
+
 // Rota para a página de Entregas
 app.get('/api/logistica/entregas', authenticateToken, (req, res) => {
     db.all(`SELECT id, numero_os, cliente, endereco, data_os, tipo_servico, link_video 
@@ -11033,9 +11038,6 @@ app.get('/api/logistica/entregas', authenticateToken, (req, res) => {
         res.json(rows);
     });
 });
-
-});
-
 
 function verificarLicencasVencimentoCron() {
     console.log('[CRON] Verificando vencimento de Licencas Empresariais...');
