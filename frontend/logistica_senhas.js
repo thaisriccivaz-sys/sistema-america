@@ -17,7 +17,10 @@ function initLogisticaSenhas() {
                     <p style="margin: 0; color: #64748b; font-size: 0.9rem;">Gerencie as senhas de acesso aos sistemas da logística.</p>
                 </div>
             </div>
-            <button class="btn btn-primary" onclick="openSenhasModal()"><i class="ph ph-plus"></i> Nova Senha</button>
+            <div style="display: flex; gap: 0.75rem;">
+                <button class="btn btn-secondary" onclick="abrirHistoricoSenhas()" style="display:flex;align-items:center;gap:6px;border-color:#cbd5e1;color:#475569;"><i class="ph ph-clock-counter-clockwise"></i> Histórico</button>
+                <button class="btn btn-primary" onclick="openSenhasModal()"><i class="ph ph-plus"></i> Nova Senha</button>
+            </div>
         </div>
 
         <div class="tabs" style="display:flex; gap:1rem; margin-bottom:1rem; border-bottom:1px solid #e2e8f0; padding-bottom:0.5rem; margin-top: -0.5rem;">
@@ -119,6 +122,7 @@ function initLogisticaSenhas() {
 
     carregarSenhas();
     carregarColaboradoresParaSenhas();
+    _injetarModalHistoricoSenhas();
 }
 
 function carregarSenhas() {
@@ -431,4 +435,130 @@ function carregarColaboradoresParaSenhas() {
         });
     })
     .catch(console.error);
+}
+
+// ─── HISTÓRICO DE ALTERAÇÕES ────────────────────────────────────────────────
+
+function _injetarModalHistoricoSenhas() {
+    if (document.getElementById('modal-historico-senhas')) return; // já existe
+
+    const modal = document.createElement('div');
+    modal.id = 'modal-historico-senhas';
+    modal.style.cssText = 'display:none; position:fixed; inset:0; background:rgba(15,23,42,0.75); z-index:99999; align-items:flex-start; justify-content:center; padding:2rem 1rem; overflow-y:auto;';
+    modal.innerHTML = `
+        <div style="background:#fff; border-radius:14px; width:100%; max-width:900px; box-shadow:0 25px 80px rgba(0,0,0,0.35); display:flex; flex-direction:column; max-height:90vh;">
+            <!-- Header -->
+            <div style="background:#0f172a; padding:1.1rem 1.5rem; border-radius:14px 14px 0 0; display:flex; align-items:center; justify-content:space-between; flex-shrink:0;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <div style="width:36px;height:36px;background:rgba(45,158,95,0.25);border-radius:9px;display:flex;align-items:center;justify-content:center;">
+                        <i class="ph ph-clock-counter-clockwise" style="color:#2d9e5f;font-size:1.2rem;"></i>
+                    </div>
+                    <div>
+                        <h3 style="margin:0; color:#f1f5f9; font-size:1rem; font-weight:700;">HISTÓRICO DE ALTERAÇÕES — COFRE DE SENHAS</h3>
+                        <p id="hist-senhas-subtitle" style="margin:0; color:#94a3b8; font-size:0.75rem;">Últimas 200 operações registradas</p>
+                    </div>
+                </div>
+                <button onclick="document.getElementById('modal-historico-senhas').style.display='none'" style="background:rgba(255,255,255,0.1);border:none;color:#94a3b8;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1.2rem;display:flex;align-items:center;justify-content:center;">&times;</button>
+            </div>
+            <!-- Filtro -->
+            <div style="padding:0.75rem 1.5rem; border-bottom:1px solid #e2e8f0; background:#f8fafc; display:flex; gap:0.75rem; flex-shrink:0;">
+                <input type="text" id="hist-senhas-filtro" placeholder="🔍 Filtrar por usuário, serviço ou ação..." oninput="_filtrarHistoricoSenhas()" style="flex:1; padding:0.5rem 0.75rem; border:1px solid #e2e8f0; border-radius:8px; font-size:0.87rem; outline:none;">
+            </div>
+            <!-- Tabela -->
+            <div style="overflow-y:auto; flex:1;">
+                <table style="width:100%; border-collapse:collapse; font-size:0.84rem;">
+                    <thead>
+                        <tr style="background:#f8fafc; position:sticky; top:0; z-index:1;">
+                            <th style="padding:0.75rem 1rem; text-align:left; font-weight:700; color:#475569; border-bottom:2px solid #e2e8f0; white-space:nowrap;">Data/Hora</th>
+                            <th style="padding:0.75rem 1rem; text-align:left; font-weight:700; color:#475569; border-bottom:2px solid #e2e8f0;">Usuário</th>
+                            <th style="padding:0.75rem 1rem; text-align:left; font-weight:700; color:#475569; border-bottom:2px solid #e2e8f0;">Ação</th>
+                            <th style="padding:0.75rem 1rem; text-align:left; font-weight:700; color:#475569; border-bottom:2px solid #e2e8f0;">Serviço / Nome</th>
+                            <th style="padding:0.75rem 1rem; text-align:left; font-weight:700; color:#475569; border-bottom:2px solid #e2e8f0;">Campo</th>
+                            <th style="padding:0.75rem 1rem; text-align:left; font-weight:700; color:#ef4444; border-bottom:2px solid #e2e8f0;">Antes</th>
+                            <th style="padding:0.75rem 1rem; text-align:left; font-weight:700; color:#22c55e; border-bottom:2px solid #e2e8f0;">Depois</th>
+                        </tr>
+                    </thead>
+                    <tbody id="hist-senhas-tbody">
+                        <tr><td colspan="7" style="text-align:center; padding:2rem; color:#94a3b8;">Carregando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <!-- Footer -->
+            <div style="padding:0.75rem 1.5rem; background:#f8fafc; border-top:1px solid #e2e8f0; border-radius:0 0 14px 14px; display:flex; justify-content:flex-end; flex-shrink:0;">
+                <button onclick="document.getElementById('modal-historico-senhas').style.display='none'" style="background:#0f172a;color:#fff;border:none;border-radius:8px;padding:0.5rem 1.5rem;font-weight:600;cursor:pointer;">Fechar</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+let _histSenhasData = [];
+
+window.abrirHistoricoSenhas = async function() {
+    _injetarModalHistoricoSenhas();
+    const modal = document.getElementById('modal-historico-senhas');
+    modal.style.display = 'flex';
+
+    const tbody = document.getElementById('hist-senhas-tbody');
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:#94a3b8;"><i class="ph ph-circle-notch" style="animation:spin 1s linear infinite;font-size:1.5rem;"></i><br>Carregando histórico...</td></tr>';
+
+    try {
+        const tok = localStorage.getItem('erp_token') || '';
+        const res = await fetch('/api/logistica/senhas/historico', {
+            headers: { 'Authorization': 'Bearer ' + tok }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erro ao carregar histórico');
+        _histSenhasData = data;
+        _renderHistoricoSenhas(data);
+    } catch(e) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:2rem;color:#ef4444;">Erro ao carregar: ${e.message}</td></tr>`;
+    }
+};
+
+function _filtrarHistoricoSenhas() {
+    const q = (document.getElementById('hist-senhas-filtro')?.value || '').toLowerCase().trim();
+    if (!q) { _renderHistoricoSenhas(_histSenhasData); return; }
+    const filtrado = _histSenhasData.filter(r =>
+        (r.usuario_nome||'').toLowerCase().includes(q) ||
+        (r.acao||'').toLowerCase().includes(q) ||
+        (r.senha_servico||r.campo_alterado||'').toLowerCase().includes(q) ||
+        (r.senha_nome||'').toLowerCase().includes(q)
+    );
+    _renderHistoricoSenhas(filtrado);
+}
+
+function _renderHistoricoSenhas(rows) {
+    const tbody = document.getElementById('hist-senhas-tbody');
+    if (!tbody) return;
+
+    if (!rows || rows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:#94a3b8;">Nenhum registro encontrado.</td></tr>';
+        return;
+    }
+
+    const acaoLabel = { criacao: { txt: '✅ Criação', bg:'#d1fae5', cor:'#065f46' }, edicao: { txt: '✏️ Edição', bg:'#dbeafe', cor:'#1e40af' }, exclusao: { txt: '🗑️ Exclusão', bg:'#fee2e2', cor:'#991b1b' } };
+    const campoLabel = { servico: 'Serviço', usuario: 'Usuário/Login', nome: 'Nome', link: 'Link', senha: 'Senha', registro: 'Geral' };
+
+    tbody.innerHTML = rows.map(r => {
+        const dt = new Date(r.criado_em);
+        const data = dt.toLocaleDateString('pt-BR');
+        const hora = dt.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+        const acao = acaoLabel[r.acao] || { txt: r.acao, bg:'#f1f5f9', cor:'#334155' };
+        const campo = campoLabel[r.campo_alterado] || r.campo_alterado || '—';
+        const servico = r.senha_servico || r.campo_alterado === 'servico' ? (r.valor_novo || r.valor_anterior || '—') : (r.senha_servico || '—');
+        const nomeExibido = r.senha_nome || r.senha_servico || '—';
+        const antes = r.campo_alterado === 'senha' ? '●●●●●●' : (r.valor_anterior || '—');
+        const depois = r.campo_alterado === 'senha' ? '●●●●●●' : (r.valor_novo || '—');
+
+        return `<tr style="border-bottom:1px solid #f1f5f9; transition:background 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+            <td style="padding:0.65rem 1rem; white-space:nowrap; color:#64748b; font-size:0.8rem;">${data}<br><span style="color:#94a3b8;">${hora}</span></td>
+            <td style="padding:0.65rem 1rem; font-weight:600; color:#1e293b;">${r.usuario_nome || '—'}</td>
+            <td style="padding:0.65rem 1rem;"><span style="background:${acao.bg};color:${acao.cor};padding:3px 10px;border-radius:20px;font-size:0.78rem;font-weight:700;white-space:nowrap;">${acao.txt}</span></td>
+            <td style="padding:0.65rem 1rem; color:#334155;">${nomeExibido}</td>
+            <td style="padding:0.65rem 1rem; color:#64748b; font-size:0.82rem;">${campo}</td>
+            <td style="padding:0.65rem 1rem; color:#b91c1c; font-size:0.82rem; max-width:200px; word-break:break-all;">${antes}</td>
+            <td style="padding:0.65rem 1rem; color:#15803d; font-size:0.82rem; max-width:200px; word-break:break-all;">${depois}</td>
+        </tr>`;
+    }).join('');
 }

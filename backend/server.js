@@ -83,6 +83,21 @@ db.run(`
     db.run("ALTER TABLE logistica_senhas ADD COLUMN nome TEXT;", (err) => {});
 });
 
+// Migração: Histórico de Alterações do Cofre de Senhas
+db.run(`
+    CREATE TABLE IF NOT EXISTS logistica_senhas_historico (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        senha_id INTEGER,
+        acao TEXT NOT NULL,
+        campo_alterado TEXT,
+        valor_anterior TEXT,
+        valor_novo TEXT,
+        usuario_id INTEGER,
+        usuario_nome TEXT,
+        criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+`);
+
 // Blacklist de cargos e departamentos excluidos manualmente (impede que o seed os recrie)
 db.run("CREATE TABLE IF NOT EXISTS cargos_excluidos (nome TEXT PRIMARY KEY)");
 db.run("CREATE TABLE IF NOT EXISTS departamentos_excluidos (nome TEXT PRIMARY KEY)", () => {
@@ -3555,7 +3570,11 @@ app.post('/api/logistica/senhas', authenticateToken, (req, res) => {
     const senhaEncriptada = senha ? encryptPassword(senha) : '';
     db.run("INSERT INTO logistica_senhas (nome, servico, link, usuario, senha_encriptada, owner_id, tipo) VALUES (?, ?, ?, ?, ?, ?, ?)", [nome || '', servico || '', link || '', usuario || '', senhaEncriptada, req.user.id, tipoVal], function(err) {
         if (err) return res.status(500).json({ error: err.message });
-        res.json({ id: this.lastID, message: 'Senha cadastrada com sucesso' });
+        const newId = this.lastID;
+        // Registra no histórico
+        db.run("INSERT INTO logistica_senhas_historico (senha_id, acao, campo_alterado, valor_anterior, valor_novo, usuario_id, usuario_nome) VALUES (?, 'criacao', 'servico', null, ?, ?, ?)",
+            [newId, servico || '', req.user.id, req.user.nome || req.user.username]);
+        res.json({ id: newId, message: 'Senha cadastrada com sucesso' });
     });
 });
 
@@ -3563,6 +3582,7 @@ app.put('/api/logistica/senhas/:id', authenticateToken, (req, res) => {
     const { nome, servico, link, usuario, senha, tipo } = req.body;
     const updates = [];
     const params = [];
+    const senhaId = req.params.id;
     
     if (nome !== undefined) { updates.push("nome = ?"); params.push(nome); }
     if (servico !== undefined) { updates.push("servico = ?"); params.push(servico); }
@@ -3576,18 +3596,52 @@ app.put('/api/logistica/senhas/:id', authenticateToken, (req, res) => {
     
     if (updates.length === 0) return res.status(400).json({ error: 'Nenhum dado para atualizar.' });
     updates.push("updated_at = CURRENT_TIMESTAMP");
-    params.push(req.params.id);
+    params.push(senhaId);
     
-    db.run(`UPDATE logistica_senhas SET ${updates.join(', ')} WHERE id = ?`, params, function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ message: 'Senha atualizada com sucesso' });
+    // Buscar dados antes de alterar para logar
+    db.get("SELECT * FROM logistica_senhas WHERE id = ?", [senhaId], (err, oldRow) => {
+        db.run(`UPDATE logistica_senhas SET ${updates.join(', ')} WHERE id = ?`, params, function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            // Registra campos alterados no histórico
+            const camposAlterados = [];
+            if (servico !== undefined && oldRow && oldRow.servico !== servico) camposAlterados.push({ campo: 'servico', de: oldRow.servico, para: servico });
+            if (usuario !== undefined && oldRow && oldRow.usuario !== usuario) camposAlterados.push({ campo: 'usuario', de: oldRow.usuario, para: usuario });
+            if (nome !== undefined && oldRow && oldRow.nome !== nome) camposAlterados.push({ campo: 'nome', de: oldRow.nome, para: nome });
+            if (link !== undefined && oldRow && oldRow.link !== link) camposAlterados.push({ campo: 'link', de: oldRow.link, para: link });
+            if (senha !== undefined) camposAlterados.push({ campo: 'senha', de: '***', para: '***' });
+            if (camposAlterados.length === 0) camposAlterados.push({ campo: 'registro', de: null, para: null });
+            camposAlterados.forEach(c => {
+                db.run("INSERT INTO logistica_senhas_historico (senha_id, acao, campo_alterado, valor_anterior, valor_novo, usuario_id, usuario_nome) VALUES (?, 'edicao', ?, ?, ?, ?, ?)",
+                    [senhaId, c.campo, c.de, c.para, req.user.id, req.user.nome || req.user.username]);
+            });
+            res.json({ message: 'Senha atualizada com sucesso' });
+        });
     });
 });
 
 app.delete('/api/logistica/senhas/:id', authenticateToken, (req, res) => {
-    db.run("DELETE FROM logistica_senhas WHERE id = ?", [req.params.id], function(err) {
+    db.get("SELECT * FROM logistica_senhas WHERE id = ?", [req.params.id], (err, row) => {
+        db.run("DELETE FROM logistica_senhas WHERE id = ?", [req.params.id], function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            // Registra exclusão no histórico (mantém registro orphan)
+            db.run("INSERT INTO logistica_senhas_historico (senha_id, acao, campo_alterado, valor_anterior, valor_novo, usuario_id, usuario_nome) VALUES (?, 'exclusao', 'servico', ?, null, ?, ?)",
+                [req.params.id, row ? row.servico : '?', req.user.id, req.user.nome || req.user.username]);
+            res.json({ message: 'Senha deletada com sucesso' });
+        });
+    });
+});
+
+// GET histórico de alterações do cofre de senhas
+app.get('/api/logistica/senhas/historico', authenticateToken, (req, res) => {
+    db.all(`
+        SELECT h.*, ls.servico as senha_servico, ls.nome as senha_nome
+        FROM logistica_senhas_historico h
+        LEFT JOIN logistica_senhas ls ON h.senha_id = ls.id
+        ORDER BY h.criado_em DESC
+        LIMIT 200
+    `, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
-        res.json({ message: 'Senha deletada com sucesso' });
+        res.json(rows || []);
     });
 });
 
