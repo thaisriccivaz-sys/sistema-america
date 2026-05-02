@@ -5683,6 +5683,9 @@ async function renderFaltasTab(container) {
                 </td>
                 <td style="padding:0.65rem 0.75rem; color:#475569; font-size:0.88rem;">${f.observacao || '—'}</td>
                 <td style="padding:0.65rem 0.75rem; text-align:right;">
+                    <button onclick="window.transformarFaltaEmAtestado(${f.id}, '${f.data_falta}')" style="background:#0ea5e9; border:none; cursor:pointer; color:#fff; border-radius:6px; padding:4px 8px; font-size:0.75rem; font-weight:700; margin-right:8px;" title="Transformar em Atestado">
+                        <i class="ph ph-file-plus"></i> Transformar em Atestado
+                    </button>
                     <button onclick="window.deletarFalta(${f.id}, this)" style="background:none; border:none; cursor:pointer; color:#e03131;" title="Excluir">
                         <i class="ph ph-trash" style="font-size:1.1rem;"></i>
                     </button>
@@ -5762,8 +5765,7 @@ window.registrarFalta = async function() {
 
     try {
         await apiPost('/faltas', { colaborador_id: viewedColaborador.id, data_falta: data, turno, observacao: obs, avisado_previamente: avisado });
-        // Recarregar aba
-        const listContainer = document.getElementById('docs-list-container');
+        const listContainer = document.getElementById('faltas-combined-container') || document.getElementById('docs-list-container');
         if (listContainer) await renderFaltasTab(listContainer);
     } catch(e) { alert('Erro ao registrar falta: ' + e.message); }
 };
@@ -5773,9 +5775,24 @@ window.deletarFalta = async function(id, btn) {
     btn.disabled = true;
     try {
         await apiDelete(`/faltas/${id}`);
-        const listContainer = document.getElementById('docs-list-container');
+        const listContainer = document.getElementById('faltas-combined-container') || document.getElementById('docs-list-container');
         if (listContainer) await renderFaltasTab(listContainer);
     } catch(e) { alert('Erro ao excluir: ' + e.message); btn.disabled = false; }
+};
+
+window.transformarFaltaEmAtestado = function(faltaId, dataFalta) {
+    document.getElementById('cid-search')?.focus();
+    const inicio = document.getElementById('atestado_inicio_dia');
+    if(inicio && dataFalta) {
+        inicio.value = dataFalta;
+        window.calcAtestadoFim();
+    }
+    window.faltaIdParaAtestado = faltaId;
+    if(typeof showToast !== 'undefined') {
+        showToast('Preencha o CID e o período para transformar a falta em atestado e anexe o documento.', 'info');
+    } else {
+        alert('Preencha o CID e o período para transformar a falta em atestado e anexe o documento.');
+    }
 };
 
 window.renderAtestadosTab = function(container, filteredDocs) {
@@ -5865,9 +5882,12 @@ window.renderAtestadosTab = function(container, filteredDocs) {
             </div>
         </div>
         <div id="atestados-list-container"></div>
+        <hr style="margin:2rem 0; border-top:1px dashed #cbd5e1;">
+        <div id="faltas-combined-container"></div>
     `;
 
     renderAtestadosAno();
+    renderFaltasTab(document.getElementById('faltas-combined-container'));
 }
 
 let selectedCID = null;
@@ -5990,6 +6010,14 @@ window.uploadAtestadoWithCID = async function(inputEl) {
             const inicioSaved = formData.get('atestado_inicio');
             const fimSaved    = formData.get('atestado_fim');
             selectedCID = null;
+
+            if (window.faltaIdParaAtestado) {
+                try {
+                    await apiDelete(`/faltas/${window.faltaIdParaAtestado}`);
+                    window.faltaIdParaAtestado = null;
+                } catch(e) { console.error('Erro ao remover falta:', e); }
+            }
+
             document.getElementById('cid-search').value = '';
             document.getElementById('atestado_inicio_dia').value = '';
             if (document.getElementById('atestado_qtd_dias')) document.getElementById('atestado_qtd_dias').value = '1';
@@ -6005,8 +6033,8 @@ window.uploadAtestadoWithCID = async function(inputEl) {
 
             await loadDocumentosList();
             renderAtestadosAno();
-
-            // Quiet success – no toast needed when just attaching an atestado
+            const faltasCont = document.getElementById('faltas-combined-container');
+            if (faltasCont) renderFaltasTab(faltasCont);
 
         } else {
             const errData = await res.json().catch(() => ({}));
