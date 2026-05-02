@@ -995,7 +995,7 @@ window._renderizarTabelaHistorico = function(dados) {
             <td style="font-size:0.85rem;">${statusBadge}</td>
             <td style="text-align:right; white-space:nowrap;">
                 <button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="toggleCredDetails(this, 'log-cred-det-${cred.id}')" title="Ver Detalhes"><i class="ph ph-caret-down"></i></button>
-                ${cred.token ? `<button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.reenviarEmailCredenciamento('${cred.id}')"><i class="ph ph-envelope-simple"></i> Reenviar</button>` : ''}
+                ${cred.status === 'solicitado' ? `<button class="btn btn-primary btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.abrirModalCumprirSolicitacao('${cred.id}')"><i class="ph ph-plus"></i> Atender</button>` : (cred.token ? `<button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.reenviarEmailCredenciamento('${cred.id}')"><i class="ph ph-envelope-simple"></i> Reenviar</button>` : '')}
             </td>
         </tr>
         <tr id="log-cred-det-${cred.id}" style="display:none; background:#f8fafc;">
