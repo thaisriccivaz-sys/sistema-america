@@ -91,17 +91,18 @@ async function resolverSignatario({ full_name, email, tax_id, whatsapp_phone_num
     const lista = searchRes.json?.data || [];
 
     if (Array.isArray(lista) && lista.length > 0) {
-        const exact = lista.find(s => s.email.toLowerCase() === email.toLowerCase());
-        if (exact) {
-            console.log(`[SIGNER] Encontrado ID=${exact.id} (${email})`);
-            return exact.id;
-        }
         const id = lista[0].id;
-        console.log(`[SIGNER] Existente ID=${id}. Atualizando e-mail → ${email}...`);
-        await req('PUT', `/v1/accounts/${ACCOUNT_ID}/signers/${id}`, {
-            full_name, email, tax_id,
-            ...(whatsapp_phone_number ? { whatsapp_phone_number } : {})
-        });
+        const currentEmail = lista[0].email;
+        
+        if (currentEmail.toLowerCase() !== email.toLowerCase()) {
+            console.log(`[SIGNER] Existente ID=${id}. Atualizando e-mail de ${currentEmail} para ${email}...`);
+            await req('PUT', `/v1/accounts/${ACCOUNT_ID}/signers/${id}`, {
+                full_name, email, tax_id,
+                ...(whatsapp_phone_number ? { whatsapp_phone_number } : {})
+            });
+        } else {
+            console.log(`[SIGNER] Encontrado ID=${id} (${email})`);
+        }
         return id;
     }
 
