@@ -7902,9 +7902,11 @@ db.run(`CREATE TABLE IF NOT EXISTS comercial_notificacoes (
             dados TEXT,
             lida INTEGER DEFAULT 0,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        );
-        db.run("ALTER TABLE comercial_notificacoes ADD COLUMN dados TEXT", () => {});
-    CREATE TABLE IF NOT EXISTS logistica_notificacoes_pendentes (
+        );`, () => {
+            db.run("ALTER TABLE comercial_notificacoes ADD COLUMN dados TEXT", () => {});
+        });
+
+    db.run(`CREATE TABLE IF NOT EXISTS logistica_notificacoes_pendentes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     tipo TEXT,
     dados TEXT,
