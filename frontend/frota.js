@@ -137,8 +137,15 @@ function renderTabelaFrota() {
       let vb = b[window._frotaSort.col] || '';
       if (typeof va === 'string') va = va.toLowerCase();
       if (typeof vb === 'string') vb = vb.toLowerCase();
-      if (window._frotaSort.col === 'ano_modelo' || window._frotaSort.col === 'exercicio') {
+      if (window._frotaSort.col === 'ano_modelo') {
         va = parseInt(va) || 0; vb = parseInt(vb) || 0;
+      } else if (window._frotaSort.col === 'exercicio') {
+        let vaAno = parseInt(a.exercicio) || 0;
+        let vbAno = parseInt(b.exercicio) || 0;
+        let vaMes = getMesVenc(a.placa) || 0;
+        let vbMes = getMesVenc(b.placa) || 0;
+        va = vaAno * 100 + vaMes;
+        vb = vbAno * 100 + vbMes;
       }
       if (va < vb) return window._frotaSort.dir === 'asc' ? -1 : 1;
       if (va > vb) return window._frotaSort.dir === 'asc' ? 1 : -1;
