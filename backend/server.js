@@ -6505,6 +6505,7 @@ app.get('/api/epi-templates', authenticateToken, (req, res) => {
 app.put('/api/epi-templates/:id', authenticateToken, (req, res) => {
     const { grupo, departamentos, epis, termo_texto, rodape_texto } = req.body;
     const templateId = req.params.id;
+    const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
 
     db.get('SELECT * FROM epi_templates WHERE id=?', [templateId], (err, old) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -6526,12 +6527,20 @@ app.put('/api/epi-templates/:id', authenticateToken, (req, res) => {
                     (old && old.termo_texto !== termo_texto) ||
                     (old && old.rodape_texto !== rodape_texto);
 
+                // === AUDITORIA ===
+                const auditChanges = [];
+                if (old && old.grupo !== grupo) auditChanges.push({ campo: 'Nome do Grupo', old: old.grupo || '', new: grupo || '' });
+                if (oldEpis !== newEpis) auditChanges.push({ campo: 'Lista de EPIs', old: '[Lista anterior]', new: '[Lista atualizada]' });
+                if (old && old.termo_texto !== termo_texto) auditChanges.push({ campo: 'Termo de Responsabilidade', old: '[Anterior]', new: '[Atualizado]' });
+                if (old && old.rodape_texto !== rodape_texto) auditChanges.push({ campo: 'Rodapé', old: old.rodape_texto || '', new: rodape_texto || '' });
+                if (auditChanges.length === 0 && changed) auditChanges.push({ campo: 'Atualização', old: '', new: grupo || '' });
+                auditChanges.forEach(c => {
+                    db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
+                        [loggedUser, 'EPI', c.campo, c.old, c.new, templateId]);
+                });
+
                 if (changed) {
-                    const motivo = [];
-                    if (old && old.grupo !== grupo) motivo.push('Nome do grupo alterado');
-                    if (oldEpis !== newEpis) motivo.push('Lista de EPIs alterada');
-                    if (old && old.termo_texto !== termo_texto) motivo.push('Termo de responsabilidade alterado');
-                    if (old && old.rodape_texto !== rodape_texto) motivo.push('Rodapé alterado');
+                    const motivo = auditChanges.map(c => c.campo);
 
                     // Fechar fichas ativas deste template e criar novas para cada colaborador
                     db.all(
@@ -6683,20 +6692,31 @@ app.post('/api/epi-fichas/:id/save-onedrive', authenticateToken, async (req, res
 app.post('/api/epi-templates', authenticateToken, (req, res) => {
     const { grupo, departamentos, epis, termo_texto, rodape_texto, categoria } = req.body;
     const cat = categoria || 'Outros';
+    const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
     db.run(
         `INSERT INTO epi_templates (grupo, categoria, departamentos_json, epis_json, termo_texto, rodape_texto) VALUES (?,?,?,?,?,?)`,
         [grupo, cat, JSON.stringify(departamentos || []), JSON.stringify(epis || []), termo_texto, rodape_texto],
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
-            res.json({ id: this.lastID });
+            const newId = this.lastID;
+            db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
+                [loggedUser, 'EPI', 'Inclusão de Grupo', '', grupo, newId]);
+            res.json({ id: newId });
         }
     );
 });
 
 app.delete('/api/epi-templates/:id', authenticateToken, (req, res) => {
-    db.run('DELETE FROM epi_templates WHERE id=?', [req.params.id], function (err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ success: true });
+    const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
+    db.get('SELECT grupo FROM epi_templates WHERE id=?', [req.params.id], (err, row) => {
+        db.run('DELETE FROM epi_templates WHERE id=?', [req.params.id], function (err2) {
+            if (err2) return res.status(500).json({ error: err2.message });
+            if (row) {
+                db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
+                    [loggedUser, 'EPI', 'Exclusão de Grupo', row.grupo || '', '', req.params.id]);
+            }
+            res.json({ success: true });
+        });
     });
 });
 
@@ -8060,6 +8080,7 @@ db.run(`CREATE TABLE IF NOT EXISTS dissidios (
 // POST /api/dissidio/aplicar — aplica reajuste em massa por cargo
 app.post('/api/dissidio/aplicar', authenticateToken, async (req, res) => {
     const { cargo, novo_salario } = req.body;
+    const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
     if (!cargo || !novo_salario || isNaN(parseFloat(novo_salario))) {
         return res.status(400).json({ error: 'cargo e novo_salario são obrigatórios.' });
     }
@@ -8078,30 +8099,23 @@ app.post('/api/dissidio/aplicar', authenticateToken, async (req, res) => {
         const parseSalary = (val) => {
             if (!val) return 0;
             if (typeof val === 'number') return val;
-            // Remove R$, spaces, and non-numeric chars except comma and dot
             let s = String(val).replace(/R\$\s*/g, '').trim();
-            // Brazilian format: 2.800,00  =>  remove dots (thousands) then replace comma with dot
             if (s.includes(',') && s.includes('.')) {
-                // Check if comma is decimal (last separator)
                 const lastComma = s.lastIndexOf(',');
                 const lastDot = s.lastIndexOf('.');
                 if (lastComma > lastDot) {
-                    // PT-BR: 2.800,00
                     return parseFloat(s.replace(/\./g, '').replace(',', '.')) || 0;
                 } else {
-                    // EN: 2,800.00
                     return parseFloat(s.replace(/,/g, '')) || 0;
                 }
             }
             if (s.includes(',')) return parseFloat(s.replace(',', '.')) || 0;
             return parseFloat(s) || 0;
         };
-        // Safe BRL formatter that works on any server locale
         const formatBRL = (val) => {
             const num = Math.round(parseFloat(val) * 100);
             const cents = (num % 100).toString().padStart(2, '0');
             const reais = Math.floor(num / 100).toString();
-            // Add thousands separator (dot)
             const reaisFormatted = reais.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
             return `R$ ${reaisFormatted},${cents}`;
         };
@@ -8120,10 +8134,7 @@ app.post('/api/dissidio/aplicar', authenticateToken, async (req, res) => {
         }
 
         const mediaAntes = totalAntes / atualizados;
-        const totalDepois = targetSalary * atualizados;
         const mediaDepois = targetSalary;
-
-        // Calcular % de reajuste com base na média anterior vs média atual
         let pct = 0;
         if (mediaAntes > 0) {
             pct = ((mediaDepois - mediaAntes) / mediaAntes) * 100;
@@ -8133,12 +8144,21 @@ app.post('/api/dissidio/aplicar', authenticateToken, async (req, res) => {
             db.run(`INSERT INTO dissidios (cargo, percentual, salario_antes_media, salario_depois_media, total_colaboradores) VALUES (?, ?, ?, ?, ?)`,
                 [cargo, pct, mediaAntes, mediaDepois, atualizados], (err) => err ? reject(err) : resolve())
         );
+
+        // Auditoria
+        db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
+            [loggedUser, 'Dissídio', `Reajuste: ${cargo}`,
+             `Média antes: ${formatBRL(mediaAntes)} (${atualizados} colab.)`,
+             `Novo salário: ${salNewStr} | Reajuste: ${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`,
+             0]);
+
         res.json({ ok: true, atualizados, cargo, novo_salario: targetSalary, percentual: pct });
     } catch (e) {
         console.error('[Dissídio] Erro ao aplicar:', e.message);
         res.status(500).json({ error: e.message });
     }
 });
+
 
 // GET /api/dissidio/historico — retorna histórico de dissídios
 app.get('/api/dissidio/historico', authenticateToken, (req, res) => {
