@@ -174,7 +174,7 @@ window.abrirFormUsuario = async function(userId = null) {
             const ativos = all.filter(c => c.status !== 'Desligado');
             
             const colabOptions = ativos.map(c => {
-                const isVinculado = _permUsuarios.some(u => u.nome === c.nome_completo);
+                const isVinculado = _permUsuarios.some(u => u.nome === c.nome_completo && u.ativo === 1);
                 return `<option value="${isVinculado ? '' : c.id}" data-nome="${c.nome_completo}" data-email="${c.email || ''}" data-depto="${c.departamento || ''}" ${isVinculado ? 'disabled style="color:#94a3b8;"' : ''}>${c.nome_completo} — ${c.cargo || ''} / ${c.departamento || ''} ${isVinculado ? '(Já possui usuário)' : ''}</option>`;
             }).join('');
             document.getElementById('fu-colab-select').innerHTML = `<option value="">-- Selecione um colaborador --</option>${colabOptions}`;
