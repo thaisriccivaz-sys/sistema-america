@@ -18,6 +18,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="style.css?v=5">
     <script src="experiencia.js?v=1" defer></script>
+    <script src="entregas.js" defer></script>
 </head>
 <body>
     
@@ -63,6 +64,43 @@
         </div>
     </div>
 
+    
+    <!-- Módulo Logística: Entregas -->
+    <div id="view-logistica-entregas" class="content-view" style=" padding: 20px;">
+        <h2 style="margin-bottom: 20px; color: #1e293b;">Entregas Agendadas</h2>
+        
+        <div class="card p-3" style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+            <input type="text" id="filtro-entregas-os" class="form-control" placeholder="Nº OS" style="width: 120px;">
+            <input type="text" id="filtro-entregas-cliente" class="form-control" placeholder="Cliente" style="width: 200px;">
+            <input type="text" id="filtro-entregas-endereco" class="form-control" placeholder="Endereço" style="width: 200px;">
+            <select id="filtro-entregas-status" class="form-control" style="width: 150px;">
+                <option value="">Todos os Status</option>
+                <option value="aguardando">Aguardando Anexo</option>
+                <option value="anexado">Anexado</option>
+            </select>
+            <button class="btn btn-primary" onclick="renderEntregasTable()"><i class="ph ph-magnifying-glass"></i> Filtrar</button>
+        </div>
+
+        <div class="card" style="overflow-x: auto;">
+            <table class="data-table" style="width: 100%; min-width: 800px;">
+                <thead>
+                    <tr>
+                        <th>OS</th>
+                        <th>Data</th>
+                        <th>Cliente</th>
+                        <th>Endereço</th>
+                        <th>Status</th>
+                        <th style="width: 200px;">Anexos</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody-entregas">
+                    <!-- Preenchido via JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
     <!-- App Shell (ERP Layout) -->
     <div id="app-shell" class="view-section">
         <!-- Sidebar: Department Rail -->
@@ -105,6 +143,7 @@
                 <div class="dept-submenu">
                     <div class="dept-submenu-header" style="color:#2d9e5f;"><i class="ph ph-truck"></i> Logística</div>
                     <a href="#" class="nav-item" data-target="logistica-pipeline" onclick="navigateTo('logistica-pipeline'); return false;"><i class="ph ph-kanban"></i> Pipeline</a>
+                    <a href="#" class="nav-item" data-target="logistica-entregas" onclick="navigateTo('logistica-entregas'); return false;"><i class="ph ph-package"></i> Entregas</a>
                     <a href="#" class="nav-item" data-target="logistica-rota-redonda" onclick="navigateTo('logistica-rota-redonda'); return false;"><i class="ph ph-map-trifold"></i> Rota Redonda</a>
                     <a href="#" class="nav-item" data-target="logistica-multas" onclick="navigateTo('logistica-multas'); return false;"><i class="ph ph-receipt"></i> Multas</a>
                     <a href="#" class="nav-item" data-target="logistica-frota" onclick="navigateTo('logistica-frota'); return false;"><i class="ph ph-truck"></i> Frota</a>

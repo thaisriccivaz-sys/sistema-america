@@ -9105,9 +9105,39 @@ app.post('/api/logistica/os/upload-video', authenticateToken, multerVideo.single
             const handleResponse = () => res.json({ ok: true, token, short_code: shortCode, link: linkPublico, short_link: linkCurto, nome: req.file.originalname });
 
             if (numero_os) {
-                db.run(`UPDATE os_logistica SET link_video = ? WHERE numero_os = ?`, [linkCurto, numero_os], handleResponse);
+                db.get('SELECT link_video FROM os_logistica WHERE numero_os = ?', [numero_os], (errSelect, row) => {
+                    let newLinks = [linkCurto];
+                    if (row && row.link_video) {
+                        try {
+                            const parsed = JSON.parse(row.link_video);
+                            if (Array.isArray(parsed)) newLinks = [...parsed, linkCurto];
+                            else newLinks = [row.link_video, linkCurto];
+                        } catch(e) {
+                            if (row.link_video.trim() !== '') {
+                                newLinks = row.link_video.split(',').map(s=>s.trim()).filter(Boolean);
+                                newLinks.push(linkCurto);
+                            }
+                        }
+                    }
+                    db.run('UPDATE os_logistica SET link_video = ? WHERE numero_os = ?', [JSON.stringify(newLinks), numero_os], handleResponse);
+                });
             } else if (os_id) {
-                db.run(`UPDATE os_logistica SET link_video = ? WHERE id = ?`, [linkCurto, os_id], handleResponse);
+                db.get('SELECT link_video FROM os_logistica WHERE id = ?', [os_id], (errSelect, row) => {
+                    let newLinks = [linkCurto];
+                    if (row && row.link_video) {
+                        try {
+                            const parsed = JSON.parse(row.link_video);
+                            if (Array.isArray(parsed)) newLinks = [...parsed, linkCurto];
+                            else newLinks = [row.link_video, linkCurto];
+                        } catch(e) {
+                            if (row.link_video.trim() !== '') {
+                                newLinks = row.link_video.split(',').map(s=>s.trim()).filter(Boolean);
+                                newLinks.push(linkCurto);
+                            }
+                        }
+                    }
+                    db.run('UPDATE os_logistica SET link_video = ? WHERE id = ?', [JSON.stringify(newLinks), os_id], handleResponse);
+                });
             } else {
                 handleResponse();
             }
@@ -10992,6 +11022,18 @@ app.get('/api/licencas/:id/view', authenticateToken, (req, res) => {
         res.setHeader('Content-Disposition', 'inline; filename="' + row.file_name + '"');
         res.sendFile(absPath);
     });
+
+// Rota para a página de Entregas
+app.get('/api/logistica/entregas', authenticateToken, (req, res) => {
+    db.all(`SELECT id, numero_os, cliente, endereco, data_os, tipo_servico, link_video 
+            FROM os_logistica 
+            WHERE tipo_servico LIKE '%ENTREGA%' AND status != 'Finalizado' AND status != 'Cancelado'
+            ORDER BY data_os DESC`, (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
 });
 
 

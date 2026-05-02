@@ -875,8 +875,16 @@ function rrAbrirLinkVideo() {
     const hidden  = document.getElementById('rr-input-video');
     const linkParaCopiar = display?.dataset.shortLink || hidden?.value || '';
     if (!linkParaCopiar) return;
-    const fullLink = linkParaCopiar.startsWith('http') ? linkParaCopiar : window.location.origin + linkParaCopiar;
-    window.open(fullLink, '_blank');
+    
+    let links = [];
+    try { links = JSON.parse(linkParaCopiar); }
+    catch(e) { links = linkParaCopiar.split(',').filter(Boolean); }
+    if (!Array.isArray(links)) links = [links];
+    
+    links.forEach(l => {
+        const fullLink = l.startsWith('http') ? l : window.location.origin + l;
+        window.open(fullLink, '_blank');
+    });
 }
 
 function _abrirPopupCoordenadas(urlOrigem) {
