@@ -932,8 +932,8 @@ function renderPipelinePage() {
             style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;background:white;color:#1e293b;outline:none;"
             onchange="_pipelineSalvarFiltros();buscarPipeline()">
         </div>
-        <!-- Dia: pílulas coloridas -->
-        <div style="display:flex;align-items:center;gap:5px;">
+        <!-- Dia: pílulas coloridas (Oculto) -->
+        <div style="display:none;align-items:center;gap:5px;">
           <label style="color:#475569;font-size:0.78rem;font-weight:600;">Dia:</label>
           <div id="pipe-filtro-dia-group" style="display:flex;gap:3px;flex-wrap:wrap;">
             ${[['','Todos','#64748b'],['Segunda','Seg','#ef4444'],['Terça','Ter','#f97316'],['Quarta','Qua','#ca8a04'],['Quinta','Qui','#16a34a'],['Sexta','Sex','#3b82f6'],['Sábado','Sáb','#8b5cf6'],['Domingo','Dom','#ec4899']].map(([val,label,cor])=>`<button type="button" onclick="_pipeFiltrarDia('${val}')" id="pipe-dia-${val||'todos'}" style="border:1.5px solid ${cor};border-radius:20px;padding:3px 9px;font-size:0.75rem;font-weight:700;cursor:pointer;background:white;color:${cor};transition:all 0.15s;">${label}</button>`).join('')}
