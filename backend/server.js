@@ -67,10 +67,11 @@ db.run("CREATE TABLE IF NOT EXISTS geradores_excluidos (nome TEXT PRIMARY KEY)",
 db.run(`
     CREATE TABLE IF NOT EXISTS logistica_senhas (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        servico TEXT NOT NULL,
+        nome TEXT,
+        servico TEXT,
         link TEXT,
-        usuario TEXT NOT NULL,
-        senha_encriptada TEXT NOT NULL,
+        usuario TEXT,
+        senha_encriptada TEXT,
         owner_id INTEGER,
         tipo TEXT DEFAULT 'compartilhada',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -79,6 +80,7 @@ db.run(`
 `, () => {
     db.run("ALTER TABLE logistica_senhas ADD COLUMN owner_id INTEGER;", (err) => {});
     db.run("ALTER TABLE logistica_senhas ADD COLUMN tipo TEXT DEFAULT 'compartilhada';", (err) => {});
+    db.run("ALTER TABLE logistica_senhas ADD COLUMN nome TEXT;", (err) => {});
 });
 
 // Blacklist de cargos e departamentos excluidos manualmente (impede que o seed os recrie)
@@ -3542,29 +3544,29 @@ app.get('/api/logistica/senhas', authenticateToken, (req, res) => {
 });
 
 app.post('/api/logistica/senhas', authenticateToken, (req, res) => {
-    const { servico, link, usuario, senha, tipo } = req.body;
-    if (!servico || !usuario || !senha) return res.status(400).json({ error: 'Serviço, usuário e senha são obrigatórios.' });
+    const { nome, servico, link, usuario, senha, tipo } = req.body;
     
     const tipoVal = tipo === 'pessoal' ? 'pessoal' : 'compartilhada';
-    const senhaEncriptada = encryptPassword(senha);
-    db.run("INSERT INTO logistica_senhas (servico, link, usuario, senha_encriptada, owner_id, tipo) VALUES (?, ?, ?, ?, ?, ?)", [servico, link, usuario, senhaEncriptada, req.user.id, tipoVal], function(err) {
+    const senhaEncriptada = senha ? encryptPassword(senha) : '';
+    db.run("INSERT INTO logistica_senhas (nome, servico, link, usuario, senha_encriptada, owner_id, tipo) VALUES (?, ?, ?, ?, ?, ?, ?)", [nome || '', servico || '', link || '', usuario || '', senhaEncriptada, req.user.id, tipoVal], function(err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ id: this.lastID, message: 'Senha cadastrada com sucesso' });
     });
 });
 
 app.put('/api/logistica/senhas/:id', authenticateToken, (req, res) => {
-    const { servico, link, usuario, senha, tipo } = req.body;
+    const { nome, servico, link, usuario, senha, tipo } = req.body;
     const updates = [];
     const params = [];
     
-    if (servico) { updates.push("servico = ?"); params.push(servico); }
+    if (nome !== undefined) { updates.push("nome = ?"); params.push(nome); }
+    if (servico !== undefined) { updates.push("servico = ?"); params.push(servico); }
     if (link !== undefined) { updates.push("link = ?"); params.push(link); }
-    if (usuario) { updates.push("usuario = ?"); params.push(usuario); }
-    if (tipo) { updates.push("tipo = ?"); params.push(tipo === 'pessoal' ? 'pessoal' : 'compartilhada'); }
-    if (senha) { 
+    if (usuario !== undefined) { updates.push("usuario = ?"); params.push(usuario); }
+    if (tipo !== undefined) { updates.push("tipo = ?"); params.push(tipo === 'pessoal' ? 'pessoal' : 'compartilhada'); }
+    if (senha !== undefined) { 
         updates.push("senha_encriptada = ?"); 
-        params.push(encryptPassword(senha)); 
+        params.push(senha ? encryptPassword(senha) : ''); 
     }
     
     if (updates.length === 0) return res.status(400).json({ error: 'Nenhum dado para atualizar.' });

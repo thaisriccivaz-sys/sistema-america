@@ -43,6 +43,7 @@ function initLogisticaSenhas() {
                 <table class="table">
                     <thead>
                         <tr>
+                            <th>Nome</th>
                             <th>Serviço / Acesso</th>
                             <th>Link</th>
                             <th>Usuário</th>
@@ -69,15 +70,19 @@ function initLogisticaSenhas() {
                     <form id="form-senhas" onsubmit="salvarSenha(event)">
                         <input type="hidden" id="senha-id">
                         <div class="input-group mb-3">
-                            <label>Visibilidade *</label>
-                            <select id="senha-tipo" required style="width:100%;padding:0.6rem;border:1px solid #e2e8f0;border-radius:6px;outline:none;background:#f8fafc;">
+                            <label>Nome</label>
+                            <input type="text" id="senha-nome" placeholder="Ex: Conta Principal" autocomplete="off">
+                        </div>
+                        <div class="input-group mb-3">
+                            <label>Visibilidade</label>
+                            <select id="senha-tipo" style="width:100%;padding:0.6rem;border:1px solid #e2e8f0;border-radius:6px;outline:none;background:#f8fafc;">
                                 <option value="compartilhada">Senha Compartilhada (Uso Geral)</option>
                                 <option value="pessoal">Senha Pessoal (Privado)</option>
                             </select>
                         </div>
                         <div class="input-group mb-3">
-                            <label>Nome do Serviço / Tipo de Acesso *</label>
-                            <input type="text" id="senha-servico" list="servicos-list" placeholder="Ex: Cobli, SimpliRoute, etc" autocomplete="off" required>
+                            <label>Nome do Serviço / Tipo de Acesso</label>
+                            <input type="text" id="senha-servico" list="servicos-list" placeholder="Ex: Cobli, SimpliRoute, etc" autocomplete="off">
                             <datalist id="servicos-list"></datalist>
                         </div>
                         <div class="input-group mb-3">
@@ -85,12 +90,12 @@ function initLogisticaSenhas() {
                             <input type="url" id="senha-link" placeholder="https://..." autocomplete="off">
                         </div>
                         <div class="input-group mb-3">
-                            <label>Usuário *</label>
-                            <input type="text" id="senha-usuario" placeholder="Login ou e-mail" autocomplete="off" required>
+                            <label>Usuário</label>
+                            <input type="text" id="senha-usuario" placeholder="Login ou e-mail" autocomplete="off">
                         </div>
                         <div class="input-group mb-4" style="position:relative;">
-                            <label>Senha *</label>
-                            <input type="password" id="senha-valor" placeholder="Sua senha" autocomplete="new-password" required style="padding-right:40px;">
+                            <label>Senha</label>
+                            <input type="password" id="senha-valor" placeholder="Sua senha" autocomplete="new-password" style="padding-right:40px;">
                             <i class="ph ph-eye" id="toggle-senha-visibility" style="position:absolute; right:12px; top:36px; cursor:pointer; color:#94a3b8; font-size:1.2rem;" onclick="togglePasswordVisibility('senha-valor', 'toggle-senha-visibility')"></i>
                         </div>
                         <div class="flex-between" style="justify-content:flex-end; gap:1rem;">
@@ -152,7 +157,7 @@ function renderSenhasTable(senhas) {
     }
 
     if (!senhas || senhas.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="${showDono ? 6 : 5}" style="text-align:center; padding:2rem; color:#64748b;">Nenhuma senha cadastrada.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="${showDono ? 7 : 6}" style="text-align:center; padding:2rem; color:#64748b;">Nenhuma senha cadastrada.</td></tr>`;
         return;
     }
 
@@ -179,7 +184,8 @@ function renderSenhasTable(senhas) {
         let donoHtml = showDono ? `<td style="color:#d9480f; font-weight:600; font-size:0.9rem;">${s.owner_nome || s.owner_username || 'Desconhecido'}</td>` : '';
 
         tr.innerHTML = `
-            <td style="font-weight:600; color:#1e293b;">${s.servico}</td>
+            <td style="font-weight:600; color:#1e293b;">${s.nome || '<span style="color:#94a3b8;">-</span>'}</td>
+            <td>${s.servico || '-'}</td>
             <td>${linkHtml}</td>
             <td style="font-family:monospace; font-size:0.95rem;">${s.usuario}</td>
             ${donoHtml}
@@ -218,6 +224,7 @@ function filtrarSenhasMulti() {
 
 function openSenhasModal() {
     document.getElementById('senha-id').value = '';
+    document.getElementById('senha-nome').value = '';
     document.getElementById('senha-tipo').value = currentSenhaTab;
     document.getElementById('senha-servico').value = '';
     document.getElementById('senha-link').value = '';
@@ -236,6 +243,7 @@ function openSenhasModal() {
 
 function editarSenha(senhaObj) {
     document.getElementById('senha-id').value = senhaObj.id;
+    document.getElementById('senha-nome').value = senhaObj.nome || '';
     document.getElementById('senha-tipo').value = senhaObj.tipo || 'compartilhada';
     document.getElementById('senha-servico').value = senhaObj.servico;
     document.getElementById('senha-link').value = senhaObj.link || '';
@@ -254,18 +262,16 @@ function editarSenha(senhaObj) {
 function salvarSenha(e) {
     e.preventDefault();
     const id = document.getElementById('senha-id').value;
+    const nome = document.getElementById('senha-nome').value.trim();
     const servico = document.getElementById('senha-servico').value.trim();
     const link = document.getElementById('senha-link').value.trim();
     const usuario = document.getElementById('senha-usuario').value.trim();
     const senha = document.getElementById('senha-valor').value.trim();
     const tipo = document.getElementById('senha-tipo').value;
 
-    if (!servico || !usuario || !senha) {
-        Swal.fire('Erro', 'Preencha os campos obrigatórios.', 'error');
-        return;
-    }
+    
 
-    const payload = { servico, link, usuario, senha, tipo };
+    const payload = { nome, servico, link, usuario, senha, tipo };
     const method = id ? 'PUT' : 'POST';
     const url = id ? '/api/logistica/senhas/' + id : '/api/logistica/senhas';
 
