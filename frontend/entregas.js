@@ -115,7 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (module && module.classList.contains("active") && !module.dataset.loaded) {
             module.dataset.loaded = 'true';
             renderEntregasPage();
-        } else if (module && !module.classList.contains("active")) {
+        } else if (module && !module.classList.contains("active") && module.dataset.loaded) {
             module.dataset.loaded = '';
         }
     });

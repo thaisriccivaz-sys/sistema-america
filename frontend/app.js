@@ -652,6 +652,7 @@ const TAB_META = {
     'logistica-rota-redonda': { color: '#2d9e5f', icon: 'ph-map-trifold',   title: 'Rota Redonda' },
     'logistica-frota-resumo':  { color: '#1e3a5f', icon: 'ph-truck',          title: 'Resumo de Frota' },
     'logistica-pipeline':    { color: '#2d9e5f', icon: 'ph-kanban',       title: 'Pipeline' },
+    'logistica-entregas':             { color: '#2d9e5f', icon: 'ph-package',       title: 'Entregas' },
     'logistica-multas':      { color: '#2d9e5f', icon: 'ph-receipt',      title: 'Multas' },
     'logistica-frota':       { color: '#2d9e5f', icon: 'ph-truck',        title: 'Frota' },
     'logistica-credenciamento': { color: '#2d9e5f', icon: 'ph-identification-card', title: 'Credenciamento' },
