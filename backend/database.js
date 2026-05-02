@@ -324,17 +324,10 @@ const db = new sqlite3.Database(dbPath, (err) => {
 `;
                 // Antes de inserir os geradores padrão, garante que a tabela de geradores excluídos existe
                 db.run(`CREATE TABLE IF NOT EXISTS geradores_excluidos (nome TEXT PRIMARY KEY)`, () => {
-                    db.get("SELECT id FROM geradores WHERE nome = 'AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO'", [], (e, row) => {
+                    db.get("SELECT id FROM geradores WHERE nome = 'Autorização de Desconto em Folha'", [], (e, row) => {
                         if (!row) {
-                            db.get("SELECT nome FROM geradores_excluidos WHERE nome = 'AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO'", [], (e2, deleted) => {
-                                if (!deleted) db.run("INSERT INTO geradores (nome, conteudo, variaveis) VALUES ('AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO', ?, '[]')", autorizacaoHTML);
-                            });
-                        }
-                    });
-                    db.get("SELECT id FROM geradores WHERE nome = 'ORDEM DE SERVIÇO NR01'", [], (e, row) => {
-                        if (!row) {
-                            db.get("SELECT nome FROM geradores_excluidos WHERE nome = 'ORDEM DE SERVIÇO NR01'", [], (e2, deleted) => {
-                                if (!deleted) db.run("INSERT INTO geradores (nome, conteudo, variaveis) VALUES ('ORDEM DE SERVIÇO NR01', ?, '[]')", osHTML);
+                            db.get("SELECT nome FROM geradores_excluidos WHERE nome = 'Autorização de Desconto em Folha'", [], (e2, deleted) => {
+                                if (!deleted) db.run("INSERT INTO geradores (nome, conteudo, variaveis) VALUES ('Autorização de Desconto em Folha', ?, '[]')", autorizacaoHTML);
                             });
                         }
                     });
