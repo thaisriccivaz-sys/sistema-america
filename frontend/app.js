@@ -1363,7 +1363,7 @@ async function loadDepartamentos() {
                 <button type="button" class="btn btn-primary btn-sm" onclick="editDepartamento(${d.id}, '${d.nome.replace(/'/g,"\\'")}','${tipo}','${d.responsavel_id || ''}')" title="Editar">
                     <i class="ph ph-note-pencil"></i> Editar
                 </button>
-                <button type="button" class="btn btn-danger btn-sm" onclick="deleteDepartamento(${d.id})" title="Excluir" style="display: none;">
+                <button type="button" class="btn btn-danger btn-sm" onclick="deleteDepartamento(${d.id}, '${d.nome.replace(/'/g,"\\'").replace(/"/g,"&quot;")}')" title="Excluir" style="background:#e03131; border-color:#e03131;">
                     <i class="ph ph-trash"></i> Excluir
                 </button>
             </td>
@@ -1400,8 +1400,9 @@ document.getElementById('form-editar-departamento')?.addEventListener('submit', 
     loadDepartamentos();
 });
 
-window.deleteDepartamento = async function(id) {
-    if(confirm('Tem certeza que deseja excluir este departamento?')) {
+window.deleteDepartamento = async function(id, nome) {
+    const msg = nome ? `Tem certeza que deseja excluir o departamento "${nome}"?` : 'Tem certeza que deseja excluir este departamento?';
+    if(confirm(msg)) {
         const res = await apiDelete(`/departamentos/${id}`);
         if(res && res.error) alert(res.error);
         loadDepartamentos();
