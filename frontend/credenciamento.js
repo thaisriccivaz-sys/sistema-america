@@ -992,6 +992,7 @@ window._renderizarTabelaHistorico = function(dados) {
                 ${veicsText}
             </td>
             <td style="font-size:0.8rem; line-height:1.6;">${licencasText}</td>
+            <td style="font-size:0.8rem; font-weight:600; color:${cred.data_limite_envio ? '#475569' : '#94a3b8'};">${cred.data_limite_envio ? cred.data_limite_envio.split('-').reverse().join('/') : '-'}</td>
             <td style="font-size:0.85rem;">${statusBadge}</td>
             <td style="text-align:right; white-space:nowrap;">
                 <button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="toggleCredDetails(this, 'log-cred-det-${cred.id}')" title="Ver Detalhes"><i class="ph ph-caret-down"></i></button>
