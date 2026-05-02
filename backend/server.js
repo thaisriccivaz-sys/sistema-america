@@ -50,11 +50,17 @@ db.run("DELETE FROM documentos WHERE document_type = 'Contrato Faculdade' AND co
 
 db.run("DELETE FROM geradores WHERE nome = 'AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO'");
 db.run("DELETE FROM geradores WHERE nome = 'Termo de Responsabilidade de Chaves'");
+// Renomear Autorização de Desconto em Folha
+db.run("UPDATE geradores SET nome = 'Autorização de Desconto em Folha' WHERE nome LIKE '%AUTORIZA%DESCONTO%FOLHA%'");
+// Excluir permanentemente ORDEM DE SERVIÇO NR01
+db.run("DELETE FROM geradores WHERE nome = 'ORDEM DE SERVIÇO NR01'");
+
 // Registrar exclusoes permanentes para que o seed nao recrie
 db.run("CREATE TABLE IF NOT EXISTS geradores_excluidos (nome TEXT PRIMARY KEY)", () => {
     db.run("INSERT OR IGNORE INTO geradores_excluidos (nome) VALUES ('Termo de Responsabilidade de Chaves')");
     db.run("INSERT OR IGNORE INTO geradores_excluidos (nome) VALUES ('AUTORIZACAO DE DESCONTO EM FOLHA DE PAGAMENTO')");
     db.run("INSERT OR IGNORE INTO geradores_excluidos (nome) VALUES ('Autorizar Desconto')");
+    db.run("INSERT OR IGNORE INTO geradores_excluidos (nome) VALUES ('ORDEM DE SERVIÇO NR01')");
 });
 // Blacklist de cargos e departamentos excluidos manualmente (impede que o seed os recrie)
 db.run("CREATE TABLE IF NOT EXISTS cargos_excluidos (nome TEXT PRIMARY KEY)");
