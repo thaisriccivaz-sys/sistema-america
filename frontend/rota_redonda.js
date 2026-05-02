@@ -3685,6 +3685,7 @@ function renderRotaRedonda() {
                 <button id="btn-colar-os" style="background:#f59e0b; color:white; border:none; height:26px; padding:0 10px; border-radius:4px; font-size:0.75rem; cursor:pointer; font-weight:600;" title="Colar texto da OS e preencher automaticamente"><i class="ph ph-clipboard-text"></i> Colar OS</button>
                 <button id="btn-limpar-os" style="background:#ef4444; color:white; border:none; height:26px; padding:0 10px; border-radius:4px; font-size:0.75rem; cursor:pointer; font-weight:600;"><i class="ph ph-x"></i> Limpar</button>
                 <button id="btn-duplicar-os-form" style="display:${osState.loadedId ? 'block' : 'none'}; background:#8b5cf6; color:white; border:none; height:26px; padding:0 10px; border-radius:4px; font-size:0.75rem; cursor:pointer; font-weight:600;" title="Duplicar esta OS para criar uma nova"><i class="ph ph-copy"></i> Duplicar OS</button>
+                <button id="btn-historico-os-form" style="display:${osState.loadedId ? 'flex' : 'none'}; align-items:center; gap:4px; background:#0f4c81; color:white; border:none; height:26px; padding:0 10px; border-radius:4px; font-size:0.75rem; cursor:pointer; font-weight:600;" title="Ver histórico de alterações desta OS" onclick="window.showOsHistoricoModal(${osState.loadedId || 0})"><i class="ph ph-clock-clockwise"></i> Histórico</button>
                 <button id="btn-modo-duplicado" style="display:${osState.modoDuplicado ? 'block' : 'none'}; background:#eab308; color:white; border:none; height:26px; padding:0 10px; border-radius:4px; font-size:0.75rem; cursor:default; font-weight:600;" title="Você está criando uma nova OS baseada em uma existente"><i class="ph ph-copy"></i> Modo: Duplicada</button>
                 <button id="btn-gerar-os-final" style="background:#14b8a6; color:white; border:none; height:26px; padding:0 10px; border-radius:4px; font-size:0.75rem; cursor:pointer; font-weight:600;"><i class="ph ph-check-circle"></i> Salvar</button>
             </div>
@@ -3927,3 +3928,76 @@ function renderRotaRedonda() {
 }
 
 
+// ── HISTÓRICO DE ALTERAÇÕES DE UMA OS ESPECÍFICA ─────────────────────────────
+window.showOsHistoricoModal = async function(osId) {
+    if (!osId) return;
+    const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+
+    // Remove modal anterior se existir
+    document.getElementById('rr-modal-historico-os')?.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'rr-modal-historico-os';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(15,23,42,0.75);display:flex;align-items:center;justify-content:center;padding:1rem;';
+    modal.innerHTML = `
+        <div style="background:white;border-radius:14px;width:820px;max-width:98vw;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3);overflow:hidden;">
+            <div style="background:#0f4c81;color:white;padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+                <div>
+                    <div style="font-weight:700;font-size:1rem;display:flex;align-items:center;gap:6px;"><i class="ph ph-clock-clockwise"></i> HISTÓRICO DE ALTERAÇÕES</div>
+                    <div style="font-size:0.72rem;opacity:0.8;margin-top:2px;">OS Logística — ID #${osId}</div>
+                </div>
+                <button id="btn-fechar-hist-os" style="background:rgba(255,255,255,0.2);border:none;color:white;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;"><i class="ph ph-x"></i></button>
+            </div>
+            <div style="overflow-y:auto;flex:1;">
+                <div id="rr-hist-os-body" style="padding:1rem;">
+                    <div style="text-align:center;padding:2rem;color:#94a3b8;"><i class="ph ph-spinner ph-spin"></i> Carregando...</div>
+                </div>
+            </div>
+        </div>`;
+    document.body.appendChild(modal);
+
+    modal.querySelector('#btn-fechar-hist-os').addEventListener('click', () => modal.remove());
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+
+    try {
+        const resp = await fetch(`/api/logistica/os/${osId}/historico`, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!resp.ok) throw new Error('Falha ao carregar histórico');
+        const data = await resp.json();
+        const body = document.getElementById('rr-hist-os-body');
+        if (!data || data.length === 0) {
+            body.innerHTML = '<p style="text-align:center;color:#94a3b8;padding:2rem;">Nenhum registro de alteração encontrado para esta OS.</p>';
+            return;
+        }
+        let html = `<table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
+            <thead><tr style="background:#0f4c81;color:white;">
+                <th style="padding:0.7rem 0.8rem;text-align:left;white-space:nowrap;">Data</th>
+                <th style="padding:0.7rem 0.8rem;text-align:left;white-space:nowrap;">Hora</th>
+                <th style="padding:0.7rem 0.8rem;text-align:left;font-weight:700;color:#f9c430;">Usuário</th>
+                <th style="padding:0.7rem 0.8rem;text-align:left;">Campo</th>
+                <th style="padding:0.7rem 0.8rem;text-align:left;color:#fca5a5;">Antes</th>
+                <th style="padding:0.7rem 0.8rem;text-align:left;color:#86efac;">Depois</th>
+            </tr></thead><tbody>`;
+        data.forEach((log, i) => {
+            const rawDate = log.data_hora || '';
+            let dateStr = '-', horaStr = '-';
+            try {
+                const dt = new Date(rawDate.endsWith('Z') ? rawDate : rawDate + 'Z');
+                dateStr = dt.toLocaleDateString('pt-BR');
+                horaStr = dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            } catch(e) {}
+            const bg = i % 2 === 0 ? '#fff' : '#f8fafc';
+            html += `<tr style="background:${bg};border-bottom:1px solid #f1f5f9;">
+                <td style="padding:0.65rem 0.8rem;white-space:nowrap;color:#334155;">${dateStr}</td>
+                <td style="padding:0.65rem 0.8rem;white-space:nowrap;color:#64748b;font-family:monospace;">${horaStr}</td>
+                <td style="padding:0.65rem 0.8rem;font-weight:700;color:#f503c5;text-transform:uppercase;">${log.usuario || 'SISTEMA'}</td>
+                <td style="padding:0.65rem 0.8rem;font-weight:600;color:#0f4c81;">${log.campo || '-'}</td>
+                <td style="padding:0.65rem 0.8rem;color:#dc2626;">${log.conteudo_anterior || '<span style="color:#cbd5e1;">—</span>'}</td>
+                <td style="padding:0.65rem 0.8rem;color:#16a34a;font-weight:600;">${log.conteudo_atual || '<span style="color:#cbd5e1;">—</span>'}</td>
+            </tr>`;
+        });
+        html += '</tbody></table>';
+        body.innerHTML = html;
+    } catch(e) {
+        document.getElementById('rr-hist-os-body').innerHTML = `<p style="text-align:center;color:#ef4444;padding:2rem;">Erro ao carregar histórico: ${e.message}</p>`;
+    }
+};

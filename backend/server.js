@@ -9375,12 +9375,13 @@ app.post('/api/logistica/os', authenticateToken, (req, res) => {
         hora_inicio, hora_fim, turno, dias_semana, produtos, observacoes,
         observacoes_internas, habilidades, variaveis, link_video, patrimonio
     } = req.body;
+    const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
 
     if (!numero_os || !cliente) {
         return res.status(400).json({ error: 'Número da OS e nome do cliente são obrigatórios.' });
     }
 
-    const sanitizeCliente = (str) => (str || '').replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\uFE0F\s🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘🟢🔴🔄💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊]+/u, '').trim().toLowerCase();
+    const sanitizeCliente = (str) => (str || '').replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\uFE0F\s🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦵👷🔛🌘🟢🔴🔄💙💜🟦🟣🔵♿🚿🚽🧴⬜⚪🛤🧊]+/u, '').trim().toLowerCase();
 
     // Verifica se já existe uma OS com esse número mas cliente DIFERENTE
     db.get(
@@ -9417,14 +9418,19 @@ app.post('/api/logistica/os', authenticateToken, (req, res) => {
                     link_video, patrimonio],
                 function (err) {
                     if (err) return res.status(500).json({ error: err.message });
-                    res.status(201).json({ ok: true, id: this.lastID });
+                    const newId = this.lastID;
+                    db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
+                        [loggedUser, 'OS Logística', 'Criação de OS', '', `OS ${numero_os} | ${cliente} | ${tipo_servico || ''}`, newId]);
+                    res.status(201).json({ ok: true, id: newId });
                 }
             );
         }
     );
 });
 
-// PUT /api/logistica/os/:id — Atualizar OS existente
+
+
+
 app.put('/api/logistica/os/:id', authenticateToken, (req, res) => {
     const {
         numero_os, tipo_os, cliente, endereco, complemento, cep, lat, lng,
@@ -9432,8 +9438,69 @@ app.put('/api/logistica/os/:id', authenticateToken, (req, res) => {
         hora_inicio, hora_fim, turno, dias_semana, produtos, observacoes,
         observacoes_internas, habilidades, variaveis, link_video, patrimonio
     } = req.body;
+    const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
+    const osId = req.params.id;
 
-    const sanitizeCliente = (str) => (str || '').replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\uFE0F\s🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘🟢🔴🔄💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊]+/u, '').trim().toLowerCase();
+    const sanitizeCliente = (str) => (str || '').replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\uFE0F\s🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦵👷🔛🌘🟢🔴🔄💙💜🟦🟣🔵♿🚿🚽🧴⬜⚪🛤🧊]+/u, '').trim().toLowerCase();
+
+    db.get(`SELECT * FROM os_logistica WHERE id = ?`, [osId], (errOld, oldRow) => {
+        db.get(`SELECT cliente FROM os_logistica WHERE numero_os = ? AND id != ? AND status = 'ativo' LIMIT 1`, [numero_os?.trim(), osId], (errCheck, existente) => {
+            if (errCheck) return res.status(500).json({ error: errCheck.message });
+
+            if (existente) {
+                const clienteExistente = sanitizeCliente(existente.cliente);
+                const clienteNovo = sanitizeCliente(cliente);
+                if (clienteExistente !== clienteNovo) {
+                    return res.status(409).json({
+                        error: `O número de OS "${numero_os}" já está cadastrado para o cliente: "${existente.cliente}". Não é possível usar este número para outro cliente.`,
+                        cliente_existente: existente.cliente
+                    });
+                }
+            }
+
+            db.run(`UPDATE os_logistica SET 
+                numero_os=?, tipo_os=?, cliente=?, endereco=?, complemento=?, cep=?, lat=?, lng=?,
+                contrato=?, data_os=?, responsavel=?, telefone=?, email=?, tipo_servico=?, hora_inicio=?, hora_fim=?,
+                turno=?, dias_semana=?, produtos=?, observacoes=?, observacoes_internas=?, habilidades=?, variaveis=?, link_video=?, patrimonio=?,
+                atualizado_em=datetime('now') WHERE id=?`,
+                [numero_os, tipo_os, cliente, endereco, complemento, cep,
+                    lat ? parseFloat(lat) : null, lng ? parseFloat(lng) : null,
+                    contrato, data_os, responsavel, telefone, email, tipo_servico,
+                    hora_inicio, hora_fim, turno,
+                    typeof dias_semana === 'object' ? JSON.stringify(dias_semana) : dias_semana,
+                    typeof produtos === 'object' ? JSON.stringify(produtos) : produtos,
+                    observacoes, observacoes_internas,
+                    typeof habilidades === 'object' ? JSON.stringify(habilidades) : habilidades,
+                    typeof variaveis === 'object' ? JSON.stringify(variaveis) : variaveis,
+                    link_video, patrimonio, osId],
+                function (err) {
+                    if (err) return res.status(500).json({ error: err.message });
+
+                    // Auditoria: detectar campos alterados
+                    if (oldRow) {
+                        const changes = [];
+                        if (oldRow.cliente !== cliente) changes.push({ campo: 'Cliente', old: oldRow.cliente || '', new: cliente || '' });
+                        if (oldRow.endereco !== endereco) changes.push({ campo: 'Endereço', old: oldRow.endereco || '', new: endereco || '' });
+                        if (oldRow.tipo_servico !== tipo_servico) changes.push({ campo: 'Tipo de Serviço', old: oldRow.tipo_servico || '', new: tipo_servico || '' });
+                        if (oldRow.data_os !== data_os) changes.push({ campo: 'Data', old: oldRow.data_os || '', new: data_os || '' });
+                        if (oldRow.responsavel !== responsavel) changes.push({ campo: 'Responsável', old: oldRow.responsavel || '', new: responsavel || '' });
+                        if (oldRow.telefone !== telefone) changes.push({ campo: 'Telefone', old: oldRow.telefone || '', new: telefone || '' });
+                        if (oldRow.observacoes !== observacoes) changes.push({ campo: 'Observações', old: oldRow.observacoes || '', new: observacoes || '' });
+                        if (oldRow.turno !== turno) changes.push({ campo: 'Turno', old: oldRow.turno || '', new: turno || '' });
+                        if (oldRow.hora_inicio !== hora_inicio || oldRow.hora_fim !== hora_fim) changes.push({ campo: 'Horário', old: `${oldRow.hora_inicio||''}-${oldRow.hora_fim||''}`, new: `${hora_inicio||''}-${hora_fim||''}` });
+                        if (changes.length === 0) changes.push({ campo: 'Atualização', old: '', new: `OS ${numero_os} | ${cliente}` });
+                        changes.forEach(c => {
+                            db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
+                                [loggedUser, 'OS Logística', c.campo, c.old, c.new, osId]);
+                        });
+                    }
+
+                    res.json({ ok: true });
+                }
+            );
+        });
+    });
+});u{2600}-\u{26FF}\u{2700}-\u{27BF}\uFE0F\s🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘🟢🔴🔄💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊]+/u, '').trim().toLowerCase();
 
     db.get(`SELECT cliente FROM os_logistica WHERE numero_os = ? AND id != ? AND status = 'ativo' LIMIT 1`, [numero_os?.trim(), req.params.id], (errCheck, existente) => {
         if (errCheck) return res.status(500).json({ error: errCheck.message });
@@ -9474,10 +9541,27 @@ app.put('/api/logistica/os/:id', authenticateToken, (req, res) => {
 
 // DELETE /api/logistica/os/:id — Excluir OS
 app.delete('/api/logistica/os/:id', authenticateToken, (req, res) => {
-    db.run("DELETE FROM os_logistica WHERE id = ?", [req.params.id], function (err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ ok: true });
+    const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
+    db.get('SELECT numero_os, cliente FROM os_logistica WHERE id = ?', [req.params.id], (err, row) => {
+        db.run("DELETE FROM os_logistica WHERE id = ?", [req.params.id], function (err2) {
+            if (err2) return res.status(500).json({ error: err2.message });
+            if (row) {
+                db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
+                    [loggedUser, 'OS Logística', 'Exclusão de OS', `OS ${row.numero_os} | ${row.cliente}`, '', req.params.id]);
+            }
+            res.json({ ok: true });
+        });
     });
+});
+
+// GET /api/logistica/os/:id/historico — Histórico de alterações de uma OS específica
+app.get('/api/logistica/os/:id/historico', authenticateToken, (req, res) => {
+    db.all(`SELECT a.* FROM auditoria a WHERE a.programa = 'OS Logística' AND a.registro_id = ?
+            ORDER BY a.data_hora DESC LIMIT 100`,
+        [req.params.id], (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json(rows || []);
+        });
 });
 
 // POST /api/logistica/import-bulk — Importação em massa
