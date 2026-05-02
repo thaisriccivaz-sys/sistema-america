@@ -979,12 +979,10 @@ function renderPipelinePage() {
             style="background:white;border:1px solid #cbd5e1;border-radius:7px;padding:6px 12px;color:#ef4444;font-weight:700;cursor:pointer;font-size:0.82rem;">
             ✕
           </button>
-          <!-- Botão ocultado a pedido do usuário
           <button onclick="pipelineLimparTodasOS()" title="Apagar TODAS as OS cadastradas no sistema"
             style="background:#dc2626;border:none;border-radius:7px;padding:6px 12px;color:white;font-weight:700;cursor:pointer;font-size:0.82rem;display:flex;align-items:center;gap:5px;margin-left:4px;">
             <i class="ph ph-trash" style="font-size:1rem;"></i> Apagar Todas as OS
           </button>
-          -->
         </div>
       </div>
 
