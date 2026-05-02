@@ -31,6 +31,9 @@ const db = new sqlite3.Database(dbPath, (err) => {
         console.log('--------------------------------------------------');
         
         db.serialize(() => {
+            // [MIGRAÇÃO] Excluir departamento 1378 (Recursos Humanos) permanentemente a pedido do usuário
+            db.run(`DELETE FROM departamentos WHERE id = 1378`);
+
             // Tabela de Usuários (Acesso)
             db.run(`
                 CREATE TABLE IF NOT EXISTS usuarios (
