@@ -516,6 +516,35 @@ function atualizarResumoVeiculos() {
 async function validarVencimentosCredenciamento() {
     const hoje = new Date(); hoje.setHours(0,0,0,0);
     const erros = [];
+    
+    // Obter quais documentos foram solicitados
+    let requiredValues = [];
+    const containerDocs = document.getElementById('cred-docs-exigidos') || document.getElementById('comerc-docs-exigidos');
+    if (containerDocs) {
+        requiredValues = Array.from(containerDocs.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
+    } else {
+        // Se estiver num contexto onde não acha o form (ex: pipeline), pega os exigidos do state atual
+        // Mas por padrão o enviarCredenciamento sempre pega do formulário visível.
+        if (window._credSolicitacaoId && window._historicoCredDados) {
+            const dados = window._historicoCredDados.find(c => String(c.id) === String(window._credSolicitacaoId));
+            if (dados && dados.docs_exigidos) {
+                try { requiredValues = JSON.parse(dados.docs_exigidos); } catch(e){}
+            }
+        }
+    }
+
+    const mapDocTypeToValue = (docType) => {
+        const d = (docType || '').toLowerCase();
+        if (d.includes('cnh') || d.includes('habilita')) return 'cnh';
+        if (d.includes('cpf')) return 'cpf';
+        if (d.includes('aso')) return 'aso';
+        if (d.includes('ficha de registro') || d.includes('registro')) return 'ficha_registro';
+        if (d.includes('vacina') || d.includes('treinamento')) return 'treinamento';
+        if (d.includes('epi')) return 'epi';
+        if (d.includes('contrato') || d.includes('social')) return 'contrato_esocial';
+        if (d.includes('nr1') || d.includes('ordem de serv')) return 'nr1';
+        return null;
+    };
 
     // 1. Validar licenças selecionadas
     for (const id of credenciamentoState.selecionadosLicencas) {
@@ -526,7 +555,7 @@ async function validarVencimentosCredenciamento() {
         }
     }
 
-    // 2. Validar documentos com vencimento dos colaboradores selecionados
+    // 2. Validar documentos com vencimento dos colaboradores selecionados (apenas os exigidos)
     if (credenciamentoState.selecionadosColabs.length > 0) {
         try {
             const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
@@ -537,8 +566,12 @@ async function validarVencimentosCredenciamento() {
                 const docs = await res.json();
                 for (const doc of (docs || [])) {
                     if (doc.vencimento && new Date(doc.vencimento + 'T12:00:00') < hoje) {
-                        const nome = c ? c.nome_completo : `ID ${idStr}`;
-                        erros.push(`Documento "${doc.document_type}" de ${nome} está VENCIDO (${doc.vencimento.split('-').reverse().join('/')})`);
+                        const val = mapDocTypeToValue(doc.document_type);
+                        // Somente bloqueia se o documento estiver na lista de exigidos!
+                        if (val && requiredValues.includes(val)) {
+                            const nome = c ? c.nome_completo : `ID ${idStr}`;
+                            erros.push(`Documento "${doc.document_type}" de ${nome} está VENCIDO (${doc.vencimento.split('-').reverse().join('/')})`);
+                        }
                     }
                 }
             }
