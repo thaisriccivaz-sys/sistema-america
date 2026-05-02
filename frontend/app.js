@@ -12720,12 +12720,31 @@ window.handlePageSearch = function(q) {
     if (filtered.length === 0) {
         resDiv.innerHTML = '<div style="padding:10px; color:#64748b; font-size:0.85rem;">Nenhuma página encontrada.</div>';
     } else {
-        resDiv.innerHTML = filtered.map(p => `
-            <div onclick="abrirAbaOuNavegar('${p.key}')" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'" style="padding:10px 14px; cursor:pointer; border-bottom:1px solid #f1f5f9; font-size:0.85rem; display:flex; align-items:center; gap:10px;">
-                <span style="background:#f503c5; color:white; border-radius:12px; padding:2px 8px; font-size:0.7rem; font-weight:700; flex-shrink:0;">${p.code || ''}</span>
-                <span style="color:#334155; font-weight:500;">${p.name}</span>
+        resDiv.innerHTML = filtered.map(p => {
+            const tMeta = getTabMeta(p.key) || { color: '#64748b', icon: 'ph-browsers', title: p.name };
+            const color = tMeta.color || '#f503c5';
+            
+            let menuName = 'RH';
+            let menuIcon = 'ph-users';
+            if (color === '#d9480f') { menuName = 'Diretoria'; menuIcon = 'ph-crown'; }
+            else if (color === '#2d9e5f' || color === '#1e3a5f') { menuName = 'Logística'; menuIcon = 'ph-truck'; }
+            else if (color === '#1971c2') { menuName = 'Financeiro'; menuIcon = 'ph-currency-dollar'; }
+            else if (color === '#7048e8') { menuName = 'Comercial'; menuIcon = 'ph-handshake'; }
+            else if (color === '#e67700') { menuName = 'Administrativo'; menuIcon = 'ph-gear'; }
+
+            let screenName = tMeta.title || p.name;
+            if (p.key.startsWith('tab:')) screenName = 'Prontuário: ' + (p.key.replace('tab:', '') || screenName);
+
+            return `
+            <div onclick="abrirAbaOuNavegar('${p.key}')" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'" style="padding:10px 14px; cursor:pointer; border-bottom:1px solid #f1f5f9; font-size:0.85rem; display:flex; align-items:center; gap:8px; color:${color}; font-weight:600;">
+                <i class="ph ${menuIcon}" style="font-size:1.1rem;"></i>
+                <span>${menuName}</span>
+                <span style="color:#cbd5e1; margin:0 4px;">-</span>
+                <i class="ph ${tMeta.icon || 'ph-browsers'}" style="font-size:1.1rem;"></i>
+                <span>${screenName}</span>
             </div>
-        `).join('');
+            `;
+        }).join('');
     }
     resDiv.style.display = 'block';
 };
