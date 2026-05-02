@@ -9404,6 +9404,15 @@ function isRecorrente(tipoServico) {
     return isManutencao || isVac;
 }
 
+// DELETE /api/logistica/pipeline/limpar - Remove todas as OS ativas
+app.delete('/api/logistica/pipeline/limpar', authenticateToken, (req, res) => {
+    // ATENÇÃO: Isso vai remover permanentemente todas as OS que foram registradas/coladas.
+    db.run(`DELETE FROM os_logistica WHERE status='ativo'`, [], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: 'Todas as OS ativas foram removidas com sucesso.', changes: this.changes });
+    });
+});
+
 // GET /api/logistica/pipeline - OS agrupadas por tipo para o Pipeline Kanban
 app.get('/api/logistica/pipeline', authenticateToken, (req, res) => {
     const os = req.query.os || '';

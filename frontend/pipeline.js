@@ -819,6 +819,30 @@ const _pipelineFiltros = {
     dia: '', tipoOs: '', turno: '', endereco: '', cliente: '', servico: ''
 };
 
+window.pipelineLimparTodasOS = async function() {
+    if (!confirm('ATENÇÃO: Você tem certeza que deseja APAGAR TODAS as OS registradas no sistema? Esta ação é irreversível!')) return;
+    if (!confirm('Tem absoluta certeza? Todas as Ordens de Serviço serão excluídas permanentemente!')) return;
+
+    const tok = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+    try {
+        const res = await fetch('/api/logistica/pipeline/limpar', {
+            method: 'DELETE',
+            headers: { 'Authorization': 'Bearer ' + tok }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erro ao apagar OS');
+        
+        if (typeof mostrarToastSucesso === 'function') mostrarToastSucesso(data.message);
+        else alert(data.message);
+        
+        pipelineLimparSelecao();
+        buscarPipeline();
+    } catch (e) {
+        if (typeof mostrarToastErro === 'function') mostrarToastErro(e.message);
+        else alert('Erro: ' + e.message);
+    }
+};
+
 function _pipelineSalvarFiltros() {
     _pipelineFiltros.os        = document.getElementById('pipe-filtro-os')?.value        || '';
     _pipelineFiltros.contrato  = document.getElementById('pipe-filtro-contrato')?.value  || '';
@@ -954,6 +978,10 @@ function renderPipelinePage() {
           <button onclick="pipelineLimparFiltros()" title="Limpar filtros"
             style="background:white;border:1px solid #cbd5e1;border-radius:7px;padding:6px 12px;color:#ef4444;font-weight:700;cursor:pointer;font-size:0.82rem;">
             ✕
+          </button>
+          <button onclick="pipelineLimparTodasOS()" title="Apagar TODAS as OS cadastradas no sistema"
+            style="background:#dc2626;border:none;border-radius:7px;padding:6px 12px;color:white;font-weight:700;cursor:pointer;font-size:0.82rem;display:flex;align-items:center;gap:5px;margin-left:4px;">
+            <i class="ph ph-trash" style="font-size:1rem;"></i> Apagar Todos
           </button>
         </div>
       </div>
