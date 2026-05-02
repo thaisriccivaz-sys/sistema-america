@@ -9095,7 +9095,7 @@ app.post('/api/logistica/os/upload-video', authenticateToken, multerVideo.single
 
     db.run(
         `INSERT INTO os_videos (token, short_code, os_id, numero_os, nome_original, mime_type, tamanho, caminho_arquivo)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [token, shortCode, os_id || null, numero_os || null, req.file.originalname, req.file.mimetype, req.file.size, req.file.path],
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
