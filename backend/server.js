@@ -4530,32 +4530,66 @@ app.get('/api/cursos-faculdade', authenticateToken, (req, res) => {
 
 app.post('/api/cursos-faculdade', authenticateToken, (req, res) => {
     const { nome_curso, instituicao, tempo_curso, valor_mensalidade, data_inicio, data_termino_prevista } = req.body;
+    const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
     db.run(`INSERT INTO cursos_faculdade (nome_curso, instituicao, tempo_curso, valor_mensalidade, data_inicio, data_termino_prevista) 
             VALUES (?, ?, ?, ?, ?, ?)`,
         [nome_curso, instituicao, tempo_curso, valor_mensalidade || 0, data_inicio, data_termino_prevista],
         function (err) {
             if (err) return res.status(400).json({ error: err.message });
-            res.status(201).json({ id: this.lastID, ...req.body });
+            const newId = this.lastID;
+            db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
+                [loggedUser, 'Faculdade', 'Inclusão', '', nome_curso, newId]);
+            res.status(201).json({ id: newId, ...req.body });
         }
     );
 });
 
 app.put('/api/cursos-faculdade/:id', authenticateToken, (req, res) => {
     const { nome_curso, instituicao, tempo_curso, valor_mensalidade, data_inicio, data_termino_prevista } = req.body;
-    db.run(`UPDATE cursos_faculdade SET nome_curso = ?, instituicao = ?, tempo_curso = ?, valor_mensalidade = ?, data_inicio = ?, data_termino_prevista = ? 
-            WHERE id = ?`,
-        [nome_curso, instituicao, tempo_curso, valor_mensalidade || 0, data_inicio, data_termino_prevista, req.params.id],
-        function (err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ message: 'Curso atualizado com sucesso' });
-        }
-    );
+    const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
+    const id = req.params.id;
+
+    db.get('SELECT * FROM cursos_faculdade WHERE id = ?', [id], (err, oldRow) => {
+        if (err || !oldRow) return res.status(500).json({ error: err ? err.message : 'Not found' });
+
+        db.run(`UPDATE cursos_faculdade SET nome_curso = ?, instituicao = ?, tempo_curso = ?, valor_mensalidade = ?, data_inicio = ?, data_termino_prevista = ? 
+                WHERE id = ?`,
+            [nome_curso, instituicao, tempo_curso, valor_mensalidade || 0, data_inicio, data_termino_prevista, id],
+            function (err2) {
+                if (err2) return res.status(500).json({ error: err2.message });
+
+                const changes = [];
+                if (oldRow.nome_curso !== nome_curso) changes.push({ campo: 'Nome do Curso', old: oldRow.nome_curso, new: nome_curso });
+                if (oldRow.instituicao !== instituicao) changes.push({ campo: 'Instituição', old: oldRow.instituicao, new: instituicao });
+                if (String(oldRow.tempo_curso) !== String(tempo_curso)) changes.push({ campo: 'Tempo de Curso (meses)', old: String(oldRow.tempo_curso), new: String(tempo_curso) });
+                if (String(oldRow.valor_mensalidade) !== String(valor_mensalidade || 0)) changes.push({ campo: 'Valor Mensalidade', old: String(oldRow.valor_mensalidade), new: String(valor_mensalidade || 0) });
+                if (oldRow.data_inicio !== data_inicio) changes.push({ campo: 'Data Início', old: oldRow.data_inicio || '', new: data_inicio || '' });
+                if (oldRow.data_termino_prevista !== data_termino_prevista) changes.push({ campo: 'Data Término Prevista', old: oldRow.data_termino_prevista || '', new: data_termino_prevista || '' });
+
+                if (changes.length === 0) changes.push({ campo: 'Atualização', old: '', new: nome_curso });
+
+                changes.forEach(c => {
+                    db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
+                        [loggedUser, 'Faculdade', c.campo, c.old || '', c.new || '', id]);
+                });
+
+                res.json({ message: 'Curso atualizado com sucesso' });
+            }
+        );
+    });
 });
 
 app.delete('/api/cursos-faculdade/:id', authenticateToken, (req, res) => {
-    db.run("DELETE FROM cursos_faculdade WHERE id = ?", [req.params.id], function (err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ message: 'Curso removido' });
+    const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
+    db.get('SELECT nome_curso FROM cursos_faculdade WHERE id = ?', [req.params.id], (err, row) => {
+        db.run("DELETE FROM cursos_faculdade WHERE id = ?", [req.params.id], function (err2) {
+            if (err2) return res.status(500).json({ error: err2.message });
+            if (row) {
+                db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
+                    [loggedUser, 'Faculdade', 'Exclusão', row.nome_curso, '', req.params.id]);
+            }
+            res.json({ message: 'Curso removido' });
+        });
     });
 });
 
@@ -6864,6 +6898,13 @@ app.get('/api/auditoria/:id?', authenticateToken, (req, res) => {
                LEFT JOIN colaboradores c ON a.registro_id = c.id
                WHERE a.programa = 'Colaboradores'
                ORDER BY a.data_hora DESC LIMIT 200`;
+    } else if (programa && programa.toLowerCase().includes('faculdade')) {
+        sql = `SELECT a.*, f.nome_curso as documento_nome
+               FROM auditoria a
+               LEFT JOIN cursos_faculdade f ON a.registro_id = f.id
+               WHERE a.programa LIKE ?
+               ORDER BY a.data_hora DESC LIMIT 200`;
+        params.push(`%${programa}%`);
     } else if (programa) {
         sql = `SELECT a.* FROM auditoria a WHERE a.programa LIKE ? ORDER BY a.data_hora DESC LIMIT 200`;
         params.push(`%${programa}%`);
