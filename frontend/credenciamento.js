@@ -701,6 +701,11 @@ window.abrirModalNovoCredenciamento = function() {
     atualizarResumoColabs();
     atualizarResumoVeiculos();
     atualizarResumoLicencas();
+    
+    if (typeof _carregarLicencasAgrupadasLogistica === 'function') {
+        _carregarLicencasAgrupadasLogistica([]);
+    }
+
     // Reset título
     const titulo = document.querySelector('#modal-novo-credenciamento h3');
     if (titulo) titulo.textContent = 'Novo Credenciamento';
