@@ -46,12 +46,13 @@ function initLogisticaSenhas() {
                             <th>Serviço / Acesso</th>
                             <th>Link</th>
                             <th>Usuário</th>
+                            <th id="th-dono-senha" style="display:none; color:#d9480f;">Dono do Sistema</th>
                             <th style="width: 200px;">Senha</th>
                             <th style="text-align: right; width: 120px;">Ações</th>
                         </tr>
                     </thead>
                     <tbody id="table-senhas-body">
-                        <tr><td colspan="5" style="text-align:center; padding: 2rem; color: #94a3b8;">Carregando senhas...</td></tr>
+                        <tr><td colspan="6" style="text-align:center; padding: 2rem; color: #94a3b8;">Carregando senhas...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -123,7 +124,7 @@ function carregarSenhas() {
     })
     .catch(err => {
         console.error('Erro ao carregar senhas:', err);
-        document.getElementById('table-senhas-body').innerHTML = `<tr><td colspan="5" class="text-danger text-center">Erro ao carregar senhas.</td></tr>`;
+        document.getElementById('table-senhas-body').innerHTML = `<tr><td colspan="6" class="text-danger text-center">Erro ao carregar senhas.</td></tr>`;
     });
 }
 
@@ -140,10 +141,18 @@ function atualizarDatalist() {
 
 function renderSenhasTable(senhas) {
     const tbody = document.getElementById('table-senhas-body');
+    const thDono = document.getElementById('th-dono-senha');
     if (!tbody) return;
 
+    const isDiretoria = window.isTopAdmin || (window.currentUser && String(window.currentUser.departamento).toLowerCase().includes('diretoria') || String(window.currentUser?.role).toLowerCase() === 'diretoria');
+    const showDono = isDiretoria && currentSenhaTab === 'pessoal';
+
+    if (thDono) {
+        thDono.style.display = showDono ? 'table-cell' : 'none';
+    }
+
     if (!senhas || senhas.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:2rem; color:#64748b;">Nenhuma senha cadastrada.</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="${showDono ? 6 : 5}" style="text-align:center; padding:2rem; color:#64748b;">Nenhuma senha cadastrada.</td></tr>`;
         return;
     }
 
@@ -167,10 +176,13 @@ function renderSenhasTable(senhas) {
             </div>
         `;
 
+        let donoHtml = showDono ? `<td style="color:#d9480f; font-weight:600; font-size:0.9rem;">${s.owner_nome || s.owner_username || 'Desconhecido'}</td>` : '';
+
         tr.innerHTML = `
             <td style="font-weight:600; color:#1e293b;">${s.servico}</td>
             <td>${linkHtml}</td>
             <td style="font-family:monospace; font-size:0.95rem;">${s.usuario}</td>
+            ${donoHtml}
             <td>${pwdHtml}</td>
             <td style="text-align: right;">
                 <div style="display:flex; gap:0.5rem; justify-content:flex-end;">
