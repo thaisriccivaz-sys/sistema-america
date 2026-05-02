@@ -5975,77 +5975,111 @@ window.renderAtestadosTab = function(container, filteredDocs) {
     }
 
     container.innerHTML = `
-        <div class="card p-3 mb-4 bg-light" style="overflow: visible;">
-            <div style="display:flex; gap:0.75rem; align-items:flex-end; flex-wrap:nowrap; width:100%;">
-                <!-- Ano -->
-                <div style="flex-shrink:0;">
-                    <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">Ano</label>
-                    <select id="atestados_year" class="form-control" style="padding:0.4rem; width:80px;" onchange="renderAtestadosAno()">
-                        ${optionsHtml}
-                    </select>
-                </div>
-                
-                <!-- CID-10 -->
-                <div class="cid-input-group" style="flex:2; min-width:150px; position:relative;">
-                    <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;"><i class="ph ph-magnifying-glass"></i> CID-10</label>
-                    <input type="text" id="cid-search" class="form-control" placeholder="J06 - Outros exames..." autocomplete="off" oninput="searchCID(this.value)" style="padding:.4rem;">
-                    <div id="cid-dropdown" class="cid-dropdown" style="display:none;"></div>
-                </div>
+        <div style="display:flex; border-bottom:2px solid #e2e8f0; margin-bottom:1.5rem; gap:1rem;">
+            <button onclick="window.switchAtestadosSubTab('atestados')" id="subtab-atestados-btn" style="background:none; border:none; padding:0.75rem 1.5rem; font-weight:700; color:#0ea5e9; border-bottom:3px solid #0ea5e9; cursor:pointer; font-size:0.95rem; display:flex; align-items:center; gap:0.4rem; transition:all 0.2s;">
+                <i class="ph ph-file-plus"></i> Atestados
+            </button>
+            <button onclick="window.switchAtestadosSubTab('faltas')" id="subtab-faltas-btn" style="background:none; border:none; padding:0.75rem 1.5rem; font-weight:600; color:#64748b; border-bottom:3px solid transparent; cursor:pointer; font-size:0.95rem; display:flex; align-items:center; gap:0.4rem; transition:all 0.2s;">
+                <i class="ph ph-calendar-x"></i> Faltas
+            </button>
+        </div>
 
-                <!-- Tipo de Atestado -->
-                <div style="flex-shrink:0;">
-                    <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">Tipo de Atestado</label>
-                    <select id="atestado_tipo" class="form-control" style="padding:0.4rem; width:120px;" onchange="toggleAtestadoPeriodFields()">
-                        <option value="dias">Dias</option>
-                        <option value="horas">Horas</option>
-                    </select>
-                </div>
-                
-                <!-- Campos Dias -->
-                <div id="atestado-dias-fields" style="display:flex; gap:1rem; flex-shrink:0; align-items:flex-end;">
-                    <div>
-                        <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">Data Início</label>
-                        <input type="date" id="atestado_inicio_dia" class="form-control" style="padding:0.4rem; width:130px;" oninput="calcAtestadoFim()">
+        <div id="subtab-atestados-content">
+            <div class="card p-3 mb-4 bg-light" style="overflow: visible;">
+                <div style="display:flex; gap:0.75rem; align-items:flex-end; flex-wrap:nowrap; width:100%;">
+                    <!-- Ano -->
+                    <div style="flex-shrink:0;">
+                        <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">Ano</label>
+                        <select id="atestados_year" class="form-control" style="padding:0.4rem; width:80px;" onchange="renderAtestadosAno()">
+                            ${optionsHtml}
+                        </select>
                     </div>
-                    <div>
-                        <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">Qtd. Dias</label>
-                        <input type="number" id="atestado_qtd_dias" class="form-control" min="1" value="1" style="padding:0.4rem; width:75px;" oninput="calcAtestadoFim()">
+                    
+                    <!-- CID-10 -->
+                    <div class="cid-input-group" style="flex:2; min-width:150px; position:relative;">
+                        <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;"><i class="ph ph-magnifying-glass"></i> CID-10</label>
+                        <input type="text" id="cid-search" class="form-control" placeholder="J06 - Outros exames..." autocomplete="off" oninput="searchCID(this.value)" style="padding:.4rem;">
+                        <div id="cid-dropdown" class="cid-dropdown" style="display:none;"></div>
                     </div>
-                    <div>
-                        <label style="font-size:0.75rem; font-weight:600; color:#94a3b8; margin-bottom:3px; display:block;">Término (calc.)</label>
-                        <input type="date" id="atestado_fim_dia" class="form-control" style="padding:0.4rem; width:130px; background:#f1f5f9; color:#64748b;" readonly>
-                    </div>
-                </div>
 
-                <!-- Campos Horas -->
-                <div id="atestado-horas-fields" style="display:none; gap:1rem; flex-shrink:0;">
-                    <div>
-                        <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">Horário Início</label>
-                        <input type="time" id="atestado_inicio_hora" class="form-control" style="padding:0.4rem; width:110px;">
+                    <!-- Tipo de Atestado -->
+                    <div style="flex-shrink:0;">
+                        <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">Tipo de Atestado</label>
+                        <select id="atestado_tipo" class="form-control" style="padding:0.4rem; width:120px;" onchange="toggleAtestadoPeriodFields()">
+                            <option value="dias">Dias</option>
+                            <option value="horas">Horas</option>
+                        </select>
                     </div>
-                    <div>
-                        <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">Horário Fim</label>
-                        <input type="time" id="atestado_fim_hora" class="form-control" style="padding:0.4rem; width:110px;">
+                    
+                    <!-- Campos Dias -->
+                    <div id="atestado-dias-fields" style="display:flex; gap:1rem; flex-shrink:0; align-items:flex-end;">
+                        <div>
+                            <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">Data Início</label>
+                            <input type="date" id="atestado_inicio_dia" class="form-control" style="padding:0.4rem; width:130px;" oninput="calcAtestadoFim()">
+                        </div>
+                        <div>
+                            <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">Qtd. Dias</label>
+                            <input type="number" id="atestado_qtd_dias" class="form-control" min="1" value="1" style="padding:0.4rem; width:75px;" oninput="calcAtestadoFim()">
+                        </div>
+                        <div>
+                            <label style="font-size:0.75rem; font-weight:600; color:#94a3b8; margin-bottom:3px; display:block;">Término (calc.)</label>
+                            <input type="date" id="atestado_fim_dia" class="form-control" style="padding:0.4rem; width:130px; background:#f1f5f9; color:#64748b;" readonly>
+                        </div>
                     </div>
-                </div>
 
-                <!-- Upload Button -->
-                <div style="flex-shrink:0;">
-                    <input type="file" id="cid-file-input" accept=".pdf,image/*" style="display:none;" onchange="uploadAtestadoWithCID(this)">
-                    <button type="button" id="cid-upload-btn" class="btn btn-primary" onclick="window.triggerAtestadoUpload()"
-                            style="height:38px; width:45px; display:flex; align-items:center; justify-content:center; padding:0; border-radius:6px; font-size:1.2rem; background:#0056b3; border:none; margin-bottom: 2px;">
-                        <i class="ph ph-upload-simple" id="cid-upload-icon"></i>
-                    </button>
+                    <!-- Campos Horas -->
+                    <div id="atestado-horas-fields" style="display:none; gap:1rem; flex-shrink:0;">
+                        <div>
+                            <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">Horário Início</label>
+                            <input type="time" id="atestado_inicio_hora" class="form-control" style="padding:0.4rem; width:110px;">
+                        </div>
+                        <div>
+                            <label style="font-size:0.75rem; font-weight:600; color:#2c5282; margin-bottom:3px; display:block;">Horário Fim</label>
+                            <input type="time" id="atestado_fim_hora" class="form-control" style="padding:0.4rem; width:110px;">
+                        </div>
+                    </div>
+
+                    <!-- Upload Button -->
+                    <div style="flex-shrink:0;">
+                        <input type="file" id="cid-file-input" accept=".pdf,image/*" style="display:none;" onchange="uploadAtestadoWithCID(this)">
+                        <button type="button" id="cid-upload-btn" class="btn btn-primary" onclick="window.triggerAtestadoUpload()"
+                                style="height:38px; width:45px; display:flex; align-items:center; justify-content:center; padding:0; border-radius:6px; font-size:1.2rem; background:#0056b3; border:none; margin-bottom: 2px;">
+                            <i class="ph ph-upload-simple" id="cid-upload-icon"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
+            <div id="atestados-list-container"></div>
         </div>
-        <div id="atestados-list-container"></div>
-        <hr style="margin:2rem 0; border-top:1px dashed #cbd5e1;">
-        <div id="faltas-combined-container"></div>
+        
+        <div id="subtab-faltas-content" style="display:none;">
+            <div id="faltas-combined-container"></div>
+        </div>
     `;
 
     renderAtestadosAno();
     renderFaltasTab(document.getElementById('faltas-combined-container'));
+}
+
+window.switchAtestadosSubTab = function(tab) {
+    const btnAt = document.getElementById('subtab-atestados-btn');
+    const btnFa = document.getElementById('subtab-faltas-btn');
+    const contAt = document.getElementById('subtab-atestados-content');
+    const contFa = document.getElementById('subtab-faltas-content');
+
+    if (!btnAt || !btnFa || !contAt || !contFa) return;
+
+    if (tab === 'atestados') {
+        btnAt.style.color = '#0ea5e9'; btnAt.style.borderBottomColor = '#0ea5e9'; btnAt.style.fontWeight = '700';
+        btnFa.style.color = '#64748b'; btnFa.style.borderBottomColor = 'transparent'; btnFa.style.fontWeight = '600';
+        contAt.style.display = 'block';
+        contFa.style.display = 'none';
+    } else {
+        btnFa.style.color = '#0ea5e9'; btnFa.style.borderBottomColor = '#0ea5e9'; btnFa.style.fontWeight = '700';
+        btnAt.style.color = '#64748b'; btnAt.style.borderBottomColor = 'transparent'; btnAt.style.fontWeight = '600';
+        contFa.style.display = 'block';
+        contAt.style.display = 'none';
+    }
 }
 
 let selectedCID = null;
