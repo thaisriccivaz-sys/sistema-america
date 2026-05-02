@@ -18,11 +18,12 @@ const TELAS_SISTEMA = [
     { modulo: 'RH', pagina_id: 'gerenciar-avaliacoes',   pagina_nome: 'Avaliações', icone: 'ph-clipboard-text' },
     { modulo: 'RH', pagina_id: 'dissidio',               pagina_nome: 'Dissídio', icone: 'ph-trend-up' },
     // Módulo Logística
-    { modulo: 'Logística', pagina_id: 'logistica-rota-redonda', pagina_nome: 'Rota Redonda', icone: 'ph-map-trifold' },
     { modulo: 'Logística', pagina_id: 'logistica-pipeline',     pagina_nome: 'Pipeline OS',   icone: 'ph-kanban' },
+    { modulo: 'Logística', pagina_id: 'logistica-rota-redonda', pagina_nome: 'Rota Redonda', icone: 'ph-map-trifold' },
     { modulo: 'Logística', pagina_id: 'logistica-frota',        pagina_nome: 'Frota',         icone: 'ph-truck' },
     { modulo: 'Logística', pagina_id: 'logistica-multas',       pagina_nome: 'Multas',         icone: 'ph-receipt' },
     { modulo: 'Logística', pagina_id: 'logistica-credenciamento', pagina_nome: 'Credenciamento', icone: 'ph-identification-card' },
+    { modulo: 'Logística', pagina_id: 'logistica-senhas',         pagina_nome: 'Cofre de Senhas', icone: 'ph-lock-key' },
     // Módulo Financeiro
     { modulo: 'Financeiro', pagina_id: 'financeiro-em-breve', pagina_nome: 'Financeiro (Em breve)', icone: 'ph-currency-dollar' },
     // Módulo Comercial
@@ -504,7 +505,7 @@ const MENU_HIERARQUIA = [
     },
     {
         modulo: 'Logística', icone: 'ph-truck', cor: '#2b8a3e',
-        grupos: [{ titulo: 'Telas', telas: ['logistica-rota-redonda', 'logistica-pipeline', 'logistica-frota', 'logistica-multas', 'logistica-credenciamento'] }]
+        grupos: [{ titulo: 'Telas', telas: ['logistica-pipeline', 'logistica-rota-redonda', 'logistica-frota', 'logistica-multas', 'logistica-credenciamento', 'logistica-senhas'] }]
     },
     {
         modulo: 'Financeiro', icone: 'ph-currency-dollar', cor: '#1864ab',
