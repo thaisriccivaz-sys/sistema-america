@@ -4544,7 +4544,7 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
                 <!-- Busca -->
                 <div style="flex: 1; max-width: 400px; display: flex; align-items: center; gap: 0.75rem; background: #f8fafc; padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid #e2e8f0; transition: border-color 0.2s;" onfocusin="this.style.borderColor='var(--primary-color)'" onfocusout="this.style.borderColor='#e2e8f0'">
                     <i class="ph ph-magnifying-glass" style="color: #94a3b8;"></i>
-                    <input type="text" id="doc-search-input" placeholder="Pesquisar documento..." oninput="renderTabContent('${tabId}', '${tabTitle}')" 
+                    <input type="text" id="doc-search-input" placeholder="Pesquisar documento..." oninput="renderTabContent('${tabId}', '${tabTitle}')" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" onblur="this.setAttribute('readonly', 'readonly')"
                            style="border:none; outline:none; width:100%; font-size:0.9rem; font-family:inherit; background: transparent;" value="${document.getElementById('doc-search-input')?.value || ''}">
                 </div>
             </div>
@@ -9492,8 +9492,8 @@ window.abrirModalGerarContrato = function() {
                             type="text"
                             placeholder="Digite para filtrar..."
                             autocomplete="off"
+                            readonly onfocus="this.removeAttribute('readonly'); window._openGeradorDropdown()" onblur="this.setAttribute('readonly', 'readonly')"
                             style="width:100%;padding:0.65rem 2.2rem 0.65rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;box-sizing:border-box;outline:none;"
-                            onfocus="window._openGeradorDropdown()"
                             oninput="window._filterGeradorDropdown(this.value)"
                         >
                         <i class="ph ph-caret-down" style="position:absolute;right:0.65rem;top:50%;transform:translateY(-50%);color:#94a3b8;pointer-events:none;"></i>
@@ -13464,7 +13464,7 @@ window.loadAssinaturasDigitais = async function() {
             <div style="padding:1rem 1.25rem;border-bottom:1px solid #f1f5f9;display:flex;gap:0.75rem;flex-wrap:wrap;align-items:center;background:#f8fafc;">
                 <div style="display:flex;align-items:center;gap:0.5rem;flex:1;min-width:200px;">
                     <i class="ph ph-magnifying-glass" style="color:#94a3b8;"></i>
-                    <input type="text" id="ass-search" placeholder="Buscar colaborador ou documento..." oninput="window.filtrarAssinaturas()"
+                    <input type="text" id="ass-search" placeholder="Buscar colaborador ou documento..." oninput="window.filtrarAssinaturas()" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" onblur="this.setAttribute('readonly', 'readonly')"
                         style="border:none;outline:none;font-size:0.9rem;width:100%;background:transparent;color:#334155;">
                 </div>
                 <select id="ass-filter-status" onchange="window.filtrarAssinaturas()"
