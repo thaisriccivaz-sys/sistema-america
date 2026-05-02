@@ -409,19 +409,21 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 )
             `);
 
-            // Inserir Cargo "Motorista" fixo se não existir
-            db.run("INSERT INTO cargos (nome) SELECT 'Motorista' WHERE NOT EXISTS (SELECT 1 FROM cargos WHERE nome='Motorista')", (err) => {});
-            
-            // Inserir departamentos padrões ('Ajudante' removido definitivamente)
-            const depts = ['Motorista', 'Ajudante Pátio', 'Manutenção', 'Financeiro', 'Comercial', 'Administrativo', 'Logística', 'Recursos Humanos', 'Liderança', 'Limpeza'];
-            depts.forEach(d => {
-                db.run("INSERT INTO departamentos (nome) SELECT ? WHERE NOT EXISTS (SELECT 1 FROM departamentos WHERE nome=?)", [d, d]);
+            // Inserir Cargo "Motorista" fixo se não existir e não tiver sido excluído
+            db.run("CREATE TABLE IF NOT EXISTS cargos_excluidos (nome TEXT PRIMARY KEY)", () => {
+                db.run("INSERT INTO cargos (nome) SELECT 'Motorista' WHERE NOT EXISTS (SELECT 1 FROM cargos WHERE nome='Motorista') AND NOT EXISTS (SELECT 1 FROM cargos_excluidos WHERE nome='Motorista')");
             });
-            // Migration: remover definitivamente o departamento 'Ajudante' se ainda existir
-            db.run("DELETE FROM departamentos WHERE nome = 'Ajudante'");
-            db.run("CREATE TABLE IF NOT EXISTS departamentos_excluidos (nome TEXT PRIMARY KEY)");
-            db.run("INSERT OR IGNORE INTO departamentos_excluidos (nome) VALUES ('Ajudante')");
-            // Migration: limpar dados de teste
+            
+            db.run("CREATE TABLE IF NOT EXISTS departamentos_excluidos (nome TEXT PRIMARY KEY)", () => {
+                db.run("INSERT OR IGNORE INTO departamentos_excluidos (nome) VALUES ('Ajudante')");
+                // Inserir departamentos padrões respeitando a blacklist
+                const depts = ['Motorista', 'Ajudante Pátio', 'Manutenção', 'Financeiro', 'Comercial', 'Administrativo', 'Logística', 'Recursos Humanos', 'Liderança', 'Limpeza'];
+                depts.forEach(d => {
+                    db.run("INSERT INTO departamentos (nome) SELECT ? WHERE NOT EXISTS (SELECT 1 FROM departamentos WHERE nome=?) AND NOT EXISTS (SELECT 1 FROM departamentos_excluidos WHERE nome=?)", [d, d, d]);
+                });
+                // Migration: remover definitivamente o departamento 'Ajudante' se ainda existir
+                db.run("DELETE FROM departamentos WHERE nome = 'Ajudante'");
+            });
             db.run("DELETE FROM cargos WHERE LOWER(TRIM(nome)) = 'teste 3'");
             db.run("DELETE FROM departamentos WHERE LOWER(TRIM(nome)) = 'teste'");
             // Migration: excluir permanentemente o colaborador de teste (CPF 555.555.555-55)

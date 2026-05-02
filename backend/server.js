@@ -8068,7 +8068,10 @@ app.post('/api/colaboradores/:id/multas/:multaId/assinar-condutor', authenticate
 // Migration: Excluir cargo genérico 'Manutenção' e adicionar cargos específicos de manutenção
 db.serialize(() => {
     db.run("DELETE FROM cargos WHERE LOWER(TRIM(nome)) = 'manutencao' OR LOWER(TRIM(nome)) = 'manutenção'");
-    db.run("INSERT OR IGNORE INTO departamentos (nome) VALUES ('Manutenção')");
+    
+    // Inserir Manutenção apenas se não foi excluído
+    db.run("INSERT INTO departamentos (nome) SELECT 'Manutenção' WHERE NOT EXISTS (SELECT 1 FROM departamentos WHERE nome='Manutenção') AND NOT EXISTS (SELECT 1 FROM departamentos_excluidos WHERE nome='Manutenção')");
+    
     const cargosManut = [
         'Aux. de Manutenção',
         'Ass. de Manutenção 1',
@@ -8077,7 +8080,7 @@ db.serialize(() => {
         'Sup. de Manutenção'
     ];
     cargosManut.forEach(nome => {
-        db.run("INSERT OR IGNORE INTO cargos (nome, departamento) VALUES (?, 'Manutenção')", [nome]);
+        db.run("INSERT INTO cargos (nome, departamento) SELECT ?, 'Manutenção' WHERE NOT EXISTS (SELECT 1 FROM cargos WHERE nome=?) AND NOT EXISTS (SELECT 1 FROM cargos_excluidos WHERE nome=?)", [nome, nome, nome]);
     });
 });
 
