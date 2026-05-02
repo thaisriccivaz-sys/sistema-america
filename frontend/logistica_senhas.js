@@ -52,10 +52,6 @@ function initLogisticaSenhas() {
                         <option value="inativo">🔴 Inativo</option>
                     </select>
                 </div>
-                <div style="position:relative;">
-                    <i class="ph ph-funnel" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1rem;"></i>
-                    <input type="text" id="filter-senha-link" placeholder="Filtrar por Link..." oninput="filtrarSenhasMulti()" style="width:100%;padding:0.6rem 0.75rem 0.6rem 2.2rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;background:#fff;">
-                </div>
             </div>
         </div>
 
@@ -235,25 +231,22 @@ function filtrarSenhasMulti() {
     const fServico = document.getElementById('filter-senha-servico')?.value.toLowerCase().trim() || '';
     const fUsuario = document.getElementById('filter-senha-usuario')?.value.toLowerCase().trim() || '';
     const fColaborador = document.getElementById('filter-senha-colaborador')?.value.toLowerCase().trim() || '';
-    const fLink = document.getElementById('filter-senha-link')?.value.toLowerCase().trim() || '';
     const fStatus = document.getElementById('filter-senha-status')?.value || '';
 
     const filtradas = senhasLogisticaList.filter(s => {
         let matchServico = true;
         let matchUsuario = true;
         let matchColaborador = true;
-        let matchLink = true;
         let matchStatus = true;
 
         if (fServico) matchServico = s.servico && s.servico.toLowerCase().includes(fServico);
         if (fUsuario) matchUsuario = s.usuario && s.usuario.toLowerCase().includes(fUsuario);
         if (fColaborador) matchColaborador = s.nome && s.nome.toLowerCase().includes(fColaborador);
-        if (fLink) matchLink = s.link && s.link.toLowerCase().includes(fLink);
         if (fStatus === 'ativo') matchStatus = s.colab_status !== 'Desligado';
         if (fStatus === 'inativo') matchStatus = s.colab_status === 'Desligado';
 
         let matchTab = (s.tipo === currentSenhaTab || (!s.tipo && currentSenhaTab === 'compartilhada'));
-        return matchServico && matchUsuario && matchColaborador && matchLink && matchStatus && matchTab;
+        return matchServico && matchUsuario && matchColaborador && matchStatus && matchTab;
     });
 
     renderSenhasTable(filtradas);
