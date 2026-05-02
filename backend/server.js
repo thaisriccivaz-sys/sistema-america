@@ -4369,6 +4369,7 @@ app.get('/api/cargos', authenticateToken, (req, res) => {
 
 app.post('/api/cargos', authenticateToken, (req, res) => {
     const { nome, documentos_obrigatorios, departamento } = req.body;
+    const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
     db.run("INSERT INTO cargos (nome, documentos_obrigatorios, departamento) VALUES (?, ?, ?)",
         [nome, documentos_obrigatorios || "", departamento || ""], function (err) {
             if (err) {
@@ -4377,21 +4378,26 @@ app.post('/api/cargos', authenticateToken, (req, res) => {
                 }
                 return res.status(400).json({ error: err.message });
             }
-            res.status(201).json({ id: this.lastID, nome });
+            const newId = this.lastID;
+            db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
+                [loggedUser, 'Cargos', 'Inclusão', '', nome, newId]);
+            res.status(201).json({ id: newId, nome });
         });
 });
 
 app.put('/api/cargos/:id', authenticateToken, (req, res) => {
     const { nome, documentos_obrigatorios, departamento } = req.body;
+    const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
     console.log(`Recebida alteração para cargo ${req.params.id}:`, { nome, documentos_obrigatorios, departamento });
 
-    db.get("SELECT nome FROM cargos WHERE id = ?", [req.params.id], (err, row) => {
+    db.get("SELECT * FROM cargos WHERE id = ?", [req.params.id], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
 
         let query = "UPDATE cargos SET documentos_obrigatorios = ?, departamento = ?";
         let params = [documentos_obrigatorios || "", departamento || ""];
 
-        if (row && row.nome.trim().toUpperCase() !== 'MOTORISTA') {
+        const nomeMotorista = row && row.nome.trim().toUpperCase() === 'MOTORISTA';
+        if (!nomeMotorista) {
             query += ", nome = ?";
             params.push(nome.trim());
         }
@@ -4407,12 +4413,33 @@ app.put('/api/cargos/:id', authenticateToken, (req, res) => {
                 return res.status(500).json({ error: updateErr.message });
             }
             console.log("Cargo atualizado no banco. Rows affected:", this.changes);
+
+            // Auditoria: registrar campos alterados
+            const changes = [];
+            if (row && !nomeMotorista && row.nome !== nome.trim()) {
+                changes.push({ campo: 'Nome do Cargo', old: row.nome, new: nome.trim() });
+            }
+            if (row && row.departamento !== (departamento || '')) {
+                changes.push({ campo: 'Departamento', old: row.departamento || '', new: departamento || '' });
+            }
+            if (row && row.documentos_obrigatorios !== (documentos_obrigatorios || '')) {
+                changes.push({ campo: 'Documentos Obrigatórios', old: row.documentos_obrigatorios || '', new: documentos_obrigatorios || '' });
+            }
+            if (changes.length === 0) {
+                changes.push({ campo: 'Atualização', old: '', new: nome || (row && row.nome) || '' });
+            }
+            changes.forEach(c => {
+                db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
+                    [loggedUser, 'Cargos', c.campo, c.old, c.new, req.params.id]);
+            });
+
             res.json({ message: 'Cargo atualizado com sucesso' });
         });
     });
 });
 
 app.delete('/api/cargos/:id', authenticateToken, (req, res) => {
+    const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
     db.get("SELECT nome FROM cargos WHERE id = ?", [req.params.id], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
         if (!row) return res.status(404).json({ error: 'Cargo não encontrado.' });
@@ -4426,11 +4453,12 @@ app.delete('/api/cargos/:id', authenticateToken, (req, res) => {
                 return res.status(409).json({ error: `Não é possível excluir o cargo "${row.nome}" pois há ${count.total} colaborador(es) cadastrado(s) com ele.` });
             }
             db.serialize(() => {
-                // Registra na blacklist para que o seed nao recrie
                 db.run("INSERT OR IGNORE INTO cargos_excluidos (nome) VALUES (?)", [row.nome]);
                 db.run("DELETE FROM cargo_documentos WHERE cargo_id = ?", [req.params.id]);
                 db.run("DELETE FROM cargos WHERE id = ?", [req.params.id], function (delErr) {
                     if (delErr) return res.status(500).json({ error: delErr.message });
+                    db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
+                        [loggedUser, 'Cargos', 'Exclusão', row.nome, '', req.params.id]);
                     res.json({ message: 'Cargo removido permanentemente.' });
                 });
             });
@@ -4452,10 +4480,15 @@ app.get('/api/cargos/:id/documentos', authenticateToken, (req, res) => {
 // Adicionar um documento a um cargo (idempotente - INSERT OR IGNORE)
 app.post('/api/cargos/:id/documentos', authenticateToken, (req, res) => {
     const { documento } = req.body;
+    const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
     if (!documento) return res.status(400).json({ error: 'documento obrigatório' });
     db.run("INSERT OR IGNORE INTO cargo_documentos (cargo_id, documento) VALUES (?, ?)",
         [req.params.id, documento], function (err) {
             if (err) return res.status(500).json({ error: err.message });
+            if (this.changes > 0) {
+                db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
+                    [loggedUser, 'Cargos', 'Documento Adicionado', '', documento, req.params.id]);
+            }
             res.json({ ok: true, added: this.changes > 0 });
         });
 });
@@ -4463,10 +4496,15 @@ app.post('/api/cargos/:id/documentos', authenticateToken, (req, res) => {
 // Remover um documento de um cargo
 app.delete('/api/cargos/:id/documentos', authenticateToken, (req, res) => {
     const { documento } = req.body;
+    const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
     if (!documento) return res.status(400).json({ error: 'documento obrigatório' });
     db.run("DELETE FROM cargo_documentos WHERE cargo_id = ? AND documento = ?",
         [req.params.id, documento], function (err) {
             if (err) return res.status(500).json({ error: err.message });
+            if (this.changes > 0) {
+                db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
+                    [loggedUser, 'Cargos', 'Documento Removido', documento, '', req.params.id]);
+            }
             res.json({ ok: true, removed: this.changes > 0 });
         });
 });
