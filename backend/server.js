@@ -43,6 +43,8 @@ const db = require('./database');
 
 // Excluir Contrato Academia de teste do Abner Abrahão
 db.run("DELETE FROM documentos WHERE document_type = 'Contrato Academia' AND colaborador_id IN (SELECT id FROM colaboradores WHERE nome_completo LIKE '%Abner Abrahão%')");
+// Excluir Contrato Faculdade de teste da Debora
+db.run("DELETE FROM documentos WHERE document_type = 'Contrato Faculdade' AND colaborador_id IN (SELECT id FROM colaboradores WHERE nome_completo LIKE '%Débora%')");
 
 db.run("DELETE FROM geradores WHERE nome = 'AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO'");
 db.run("DELETE FROM geradores WHERE nome = 'Termo de Responsabilidade de Chaves'");
