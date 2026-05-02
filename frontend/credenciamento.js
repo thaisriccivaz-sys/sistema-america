@@ -1023,10 +1023,15 @@ window.renderLogisticaCredenciamentoPage = function() {
 window._historicoCredSort = { col: 'data', dir: 'asc' }; // Estado da ordenação
 
 window.filtrarHistoricoCred = function() {
-    const elGlobal = document.getElementById('filtro-pesquisa-cred');
     const elOs = document.getElementById('filtro-pesquisa-os-cred');
-    const termoGlobal = elGlobal ? (elGlobal.value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') : '';
+    const elCliente = document.getElementById('filtro-pesquisa-cliente-cred');
+    const elEndereco = document.getElementById('filtro-pesquisa-endereco-cred');
+    const elEmail = document.getElementById('filtro-pesquisa-email-cred');
+    
     const termoOs = elOs ? (elOs.value || '').toLowerCase().trim() : '';
+    const termoCliente = elCliente ? (elCliente.value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') : '';
+    const termoEndereco = elEndereco ? (elEndereco.value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') : '';
+    const termoEmail = elEmail ? (elEmail.value || '').toLowerCase().trim() : '';
     
     const rows = document.querySelectorAll('#tbody-credenciamentos tr');
     let lastRowMatch = true;
@@ -1038,11 +1043,23 @@ window.filtrarHistoricoCred = function() {
         }
         
         const osText = row.cells[0].textContent.toLowerCase().trim();
-        const textoGlobal = (row.textContent).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        let cName = '', cEmail = '', cEnd = '';
+        
+        if (row.cells[1] && row.cells[1].children.length >= 3) {
+            cName = row.cells[1].children[0].textContent.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            cEmail = row.cells[1].children[1].textContent.toLowerCase().trim();
+            cEnd = row.cells[1].children[2].textContent.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        } else {
+            cName = row.cells[1].textContent.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            cEmail = cName;
+            cEnd = cName;
+        }
         
         let match = true;
-        if (termoGlobal && !textoGlobal.includes(termoGlobal)) match = false;
         if (termoOs && !osText.includes(termoOs)) match = false;
+        if (termoCliente && !cName.includes(termoCliente)) match = false;
+        if (termoEmail && !cEmail.includes(termoEmail)) match = false;
+        if (termoEndereco && !cEnd.includes(termoEndereco)) match = false;
         
         row.style.display = match ? '' : 'none';
         lastRowMatch = match;
