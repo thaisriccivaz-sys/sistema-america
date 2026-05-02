@@ -9086,65 +9086,84 @@ function gerarShortCode() {
 }
 
 // ── UPLOAD DE VÍDEO (autenticado) ────────────────────────────────────────────
-app.post('/api/logistica/os/upload-video', authenticateToken, multerVideo.single('video'), (req, res) => {
+// Configura Cloudinary apenas se as variáveis de ambiente existirem
+let cloudinary = null;
+try {
+    if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET) {
+        cloudinary = require('cloudinary').v2;
+        cloudinary.config({
+            cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+            api_key:    process.env.CLOUDINARY_API_KEY,
+            api_secret: process.env.CLOUDINARY_API_SECRET,
+        });
+        console.log('[Cloudinary] Configurado com sucesso.');
+    } else {
+        console.warn('[Cloudinary] Variáveis não encontradas. Upload local ativado como fallback.');
+    }
+} catch(e) {
+    console.error('[Cloudinary] Erro ao configurar:', e.message);
+}
+
+app.post('/api/logistica/os/upload-video', authenticateToken, multerVideo.single('video'), async (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
-
-    const token = req._videoToken || path.basename(req.file.filename, path.extname(req.file.filename));
     const { os_id, numero_os } = req.body;
-    const shortCode = gerarShortCode();
-
-    db.run(
-        `INSERT INTO os_videos (token, short_code, os_id, numero_os, nome_original, mime_type, tamanho, caminho_arquivo)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [token, shortCode, os_id || null, numero_os || null, req.file.originalname, req.file.mimetype, req.file.size, req.file.path],
-        function (err) {
-            if (err) return res.status(500).json({ error: err.message });
+    try {
+        let linkFinal = '';
+        if (cloudinary) {
+            // Upload permanente no Cloudinary (persiste entre redeploys)
+            const result = await cloudinary.uploader.upload(req.file.path, {
+                resource_type: 'video',
+                folder: 'os_videos',
+                use_filename: true,
+                unique_filename: true,
+            });
+            linkFinal = result.secure_url;
+            try { fs.unlinkSync(req.file.path); } catch(_) {}
+        } else {
+            // Fallback local
+            const token = req._videoToken || path.basename(req.file.filename, path.extname(req.file.filename));
+            const shortCode = gerarShortCode();
+            await new Promise((resolve, reject) => {
+                db.run(
+                    `INSERT INTO os_videos (token, short_code, os_id, numero_os, nome_original, mime_type, tamanho, caminho_arquivo)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [token, shortCode, os_id || null, numero_os || null, req.file.originalname, req.file.mimetype, req.file.size, req.file.path],
+                    (err) => err ? reject(err) : resolve()
+                );
+            });
             const baseUrl = `${req.protocol}://${req.get('host')}`;
-            const linkPublico = `${baseUrl}/api/video/${token}`;
-            const linkCurto  = `${baseUrl}/v/${shortCode}`;
-            
-            const handleResponse = () => res.json({ ok: true, token, short_code: shortCode, link: linkPublico, short_link: linkCurto, nome: req.file.originalname });
-
-            if (numero_os) {
-                db.get('SELECT link_video FROM os_logistica WHERE numero_os = ?', [numero_os], (errSelect, row) => {
-                    let newLinks = [linkCurto];
-                    if (row && row.link_video) {
-                        try {
-                            const parsed = JSON.parse(row.link_video);
-                            if (Array.isArray(parsed)) newLinks = [...parsed, linkCurto];
-                            else newLinks = [row.link_video, linkCurto];
-                        } catch(e) {
-                            if (row.link_video.trim() !== '') {
-                                newLinks = row.link_video.split(',').map(s=>s.trim()).filter(Boolean);
-                                newLinks.push(linkCurto);
-                            }
-                        }
-                    }
-                    db.run('UPDATE os_logistica SET link_video = ? WHERE numero_os = ?', [JSON.stringify(newLinks), numero_os], handleResponse);
-                });
-            } else if (os_id) {
-                db.get('SELECT link_video FROM os_logistica WHERE id = ?', [os_id], (errSelect, row) => {
-                    let newLinks = [linkCurto];
-                    if (row && row.link_video) {
-                        try {
-                            const parsed = JSON.parse(row.link_video);
-                            if (Array.isArray(parsed)) newLinks = [...parsed, linkCurto];
-                            else newLinks = [row.link_video, linkCurto];
-                        } catch(e) {
-                            if (row.link_video.trim() !== '') {
-                                newLinks = row.link_video.split(',').map(s=>s.trim()).filter(Boolean);
-                                newLinks.push(linkCurto);
-                            }
-                        }
-                    }
-                    db.run('UPDATE os_logistica SET link_video = ? WHERE id = ?', [JSON.stringify(newLinks), os_id], handleResponse);
-                });
-            } else {
-                handleResponse();
-            }
+            linkFinal = `${baseUrl}/v/${shortCode}`;
         }
-    );
+
+        // Acumula links na OS como JSON array
+        const salvarLink = (campo, valor) => new Promise((resolve, reject) => {
+            db.get(`SELECT link_video FROM os_logistica WHERE ${campo} = ?`, [valor], (errSel, row) => {
+                let newLinks = [linkFinal];
+                if (row && row.link_video) {
+                    try {
+                        const parsed = JSON.parse(row.link_video);
+                        newLinks = Array.isArray(parsed) ? [...parsed, linkFinal] : [row.link_video, linkFinal];
+                    } catch(_) {
+                        newLinks = row.link_video.split(',').map(s => s.trim()).filter(Boolean);
+                        newLinks.push(linkFinal);
+                    }
+                }
+                db.run(`UPDATE os_logistica SET link_video = ? WHERE ${campo} = ?`, [JSON.stringify(newLinks), valor],
+                    (err) => err ? reject(err) : resolve());
+            });
+        });
+
+        if (numero_os) await salvarLink('numero_os', numero_os);
+        else if (os_id) await salvarLink('id', os_id);
+
+        res.json({ ok: true, link: linkFinal, short_link: linkFinal, nome: req.file.originalname });
+    } catch(e) {
+        console.error('[Upload Vídeo] Erro:', e.message);
+        res.status(500).json({ error: 'Erro ao processar upload: ' + e.message });
+    }
 });
+
+
 
 // ── ROTA CURTA PÚBLICA: /v/:code → redireciona para streaming ─────────────────
 // Link amigável para compartilhar (ex: /v/abc123)
