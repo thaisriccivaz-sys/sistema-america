@@ -996,7 +996,7 @@ window._renderizarTabelaHistorico = function(dados) {
             <td style="font-size:0.85rem;">${statusBadge}</td>
             <td style="text-align:right; white-space:nowrap;">
                 <button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="toggleCredDetails(this, 'log-cred-det-${cred.id}')" title="Ver Detalhes"><i class="ph ph-caret-down"></i></button>
-                ${cred.status === 'solicitado' ? `<button class="btn btn-primary btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.abrirModalCumprirSolicitacao('${cred.id}')"><i class="ph ph-plus"></i> Atender</button>` : (cred.token ? `<button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.reenviarEmailCredenciamento('${cred.id}')"><i class="ph ph-envelope-simple"></i> Reenviar</button>` : '')}
+                ${cred.status === 'solicitado' ? `<button class="btn btn-primary btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.abrirModalCumprirSolicitacao('${cred.id}')"><i class="ph ph-plus"></i> Atender</button>` : (cred.token ? `<button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.reenviarEmailCredenciamento('${cred.id}', '${cred.cliente_email}')"><i class="ph ph-envelope-simple"></i> Reenviar</button>` : '')}
             </td>
         </tr>
         <tr id="log-cred-det-${cred.id}" style="display:none; background:#f8fafc;">
@@ -1076,11 +1076,16 @@ window.limparListaCredenciamentos = async function() {
     }
 };
 
-window.reenviarEmailCredenciamento = async function(id) {
-    if (!confirm('Deseja reenviar o e-mail do credenciamento para o cliente?')) return;
+window.reenviarEmailCredenciamento = async function(id, emailAtual) {
+    const novoEmail = prompt('Deseja reenviar o e-mail do credenciamento? Se quiser alterar o e-mail do cliente, edite abaixo:', emailAtual || '');
+    if (novoEmail === null) return;
     try {
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
-        const res = await fetch(`/api/credenciamentos/${id}/reenviar`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } });
+        const res = await fetch(`/api/credenciamentos/${id}/reenviar`, { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ novoEmail: novoEmail })
+        });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
         alert('E-mail reenviado com sucesso!');

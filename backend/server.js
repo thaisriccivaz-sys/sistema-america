@@ -10083,6 +10083,14 @@ app.post('/api/credenciamentos/:id/reenviar', authenticateToken, (req, res) => {
         if (err || !cred) return res.status(500).json({ error: 'Credenciamento não encontrado' });
         if (!cred.token) return res.status(400).json({ error: 'Este credenciamento ainda não possui um link gerado pela logística.' });
         
+        const { novoEmail } = req.body || {};
+        const emailToUse = novoEmail ? novoEmail.trim() : cred.cliente_email;
+
+        if (novoEmail && novoEmail.trim() !== cred.cliente_email) {
+            db.run('UPDATE credenciamentos SET cliente_email = ? WHERE id = ?', [emailToUse, cred.id], () => {});
+            cred.cliente_email = emailToUse;
+        }
+
         const baseUrl = process.env.PUBLIC_URL || `${req.protocol}://${req.get('host')}`;
         const link = `${baseUrl}/credenciamento-publico.html?token=${cred.token}`;
         const logoUrl = `${baseUrl}/assets/logo-header.png`;
@@ -10091,7 +10099,7 @@ app.post('/api/credenciamentos/:id/reenviar', authenticateToken, (req, res) => {
         
         const mailOptions = {
             from: process.env.EMAIL_USER,
-            to: cred.cliente_email,
+            to: emailToUse,
             subject: 'Credenciamento de Equipe - América Rental (Reenvio)',
             html: `<div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; padding: 20px; border-radius: 8px;">
                         <div style="text-align: center; margin-bottom: 20px;">

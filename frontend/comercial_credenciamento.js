@@ -407,7 +407,7 @@ window.ordenarHistoricoComCred = function(coluna, forceDir = null) {
         if (cred.status === 'solicitado') {
             acoes = `<button class="btn btn-warning btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.abrirModalSolicitarCredenciamento('${cred.id}')" title="Editar Solicitação"><i class="ph ph-pencil-simple"></i></button>`;
         } else if (cred.token) {
-            acoes = `<button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.reenviarEmailCredenciamento('${cred.id}')" title="Reenviar E-mail"><i class="ph ph-envelope-simple"></i></button>`;
+            acoes = `<button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.reenviarEmailCredenciamento('${cred.id}', '${cred.cliente_email}')" title="Reenviar E-mail"><i class="ph ph-envelope-simple"></i></button>`;
         }
         
         const dtLimite = cred.data_limite_envio ? new Date(cred.data_limite_envio).toLocaleDateString('pt-BR') : '-';
