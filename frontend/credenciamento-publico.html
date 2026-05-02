@@ -307,7 +307,8 @@
 
                 // Licenças
                 (_credData.licencas || []).filter(l => l.file_name).forEach(l => {
-                    const fname = `Licencas/${sanitize(l.nome)}.pdf`;
+                    const compName = sanitize(l.empresa || 'America Rental');
+                    const fname = `Licencas ${compName}/${sanitize(l.nome)}.pdf`;
                     fetches.push(
                         fetch(`/api/publico/credenciamento/${_token}/licenca/${l.id}`)
                             .then(r => r.ok ? r.blob() : null)

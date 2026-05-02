@@ -503,14 +503,11 @@ async function validarVencimentosCredenciamento() {
     const hoje = new Date(); hoje.setHours(0,0,0,0);
     const erros = [];
     
-    // Obter quais documentos foram solicitados
     let requiredValues = [];
     const containerDocs = document.getElementById('cred-docs-exigidos') || document.getElementById('comerc-docs-exigidos');
     if (containerDocs) {
         requiredValues = Array.from(containerDocs.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
     } else {
-        // Se estiver num contexto onde não acha o form (ex: pipeline), pega os exigidos do state atual
-        // Mas por padrão o enviarCredenciamento sempre pega do formulário visível.
         if (window._credSolicitacaoId && window._historicoCredDados) {
             const dados = window._historicoCredDados.find(c => String(c.id) === String(window._credSolicitacaoId));
             if (dados && dados.docs_exigidos) {
@@ -532,16 +529,22 @@ async function validarVencimentosCredenciamento() {
         return null;
     };
 
+    const docNamesReadable = {
+        'cnh': 'CNH', 'cpf': 'CPF', 'aso': 'ASO', 'ficha_registro': 'Ficha de Registro',
+        'treinamento': 'Carteira de Vacinação', 'epi': 'Ficha de EPI',
+        'contrato_esocial': 'Contrato e-social', 'nr1': 'NR1 / Ordem de Serviço'
+    };
+
     // 1. Validar licenças selecionadas
     for (const id of credenciamentoState.selecionadosLicencas) {
         const lic = credenciamentoState.licencas.find(l => String(l.id) === id);
         if (lic && lic.validade) {
             if (new Date(lic.validade + 'T12:00:00') < hoje)
-                erros.push(`Licença "${lic.nome}" está VENCIDA (${lic.validade.split('-').reverse().join('/')})`);
+                erros.push(`A licença "${lic.nome}" da empresa ${lic.empresa || 'América Rental'} está VENCIDA (${lic.validade.split('-').reverse().join('/')}).`);
         }
     }
 
-    // 2. Validar documentos com vencimento dos colaboradores selecionados (apenas os exigidos)
+    // 2. Validar documentos dos colaboradores selecionados
     if (credenciamentoState.selecionadosColabs.length > 0) {
         try {
             const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
@@ -550,14 +553,25 @@ async function validarVencimentosCredenciamento() {
                 const res = await fetch(`/api/colaboradores/${idStr}/documentos`, { headers: { 'Authorization': `Bearer ${token}` } });
                 if (!res.ok) continue;
                 const docs = await res.json();
-                for (const doc of (docs || [])) {
-                    if (doc.vencimento && new Date(doc.vencimento + 'T12:00:00') < hoje) {
-                        const val = mapDocTypeToValue(doc.document_type);
-                        // Somente bloqueia se o documento estiver na lista de exigidos!
-                        if (val && requiredValues.includes(val)) {
-                            const nome = c ? c.nome_completo : `ID ${idStr}`;
-                            erros.push(`Documento "${doc.document_type}" de ${nome} está VENCIDO (${doc.vencimento.split('-').reverse().join('/')})`);
-                        }
+                
+                const isMotorista = c && c.cargo && c.cargo.toUpperCase().includes('MOTORISTA');
+                const nomeColab = c ? c.nome_completo : `ID ${idStr}`;
+
+                for (const reqDoc of requiredValues) {
+                    if (reqDoc === 'cnh' && !isMotorista) continue;
+                    if (reqDoc === 'cpf' && isMotorista) continue;
+
+                    const docFound = (docs || []).find(d => {
+                        const val = mapDocTypeToValue(d.document_type);
+                        return val === reqDoc;
+                    });
+
+                    const docName = docNamesReadable[reqDoc] || reqDoc;
+
+                    if (!docFound) {
+                        erros.push(`O documento "${docName}" do colaborador(a) ${nomeColab} é INEXISTENTE. Contacte o setor de RH para atualização.`);
+                    } else if (docFound.vencimento && new Date(docFound.vencimento + 'T12:00:00') < hoje) {
+                        erros.push(`O documento "${docName}" do colaborador(a) ${nomeColab} está VENCIDO (${docFound.vencimento.split('-').reverse().join('/')}). Contacte o setor de RH.`);
                     }
                 }
             }
