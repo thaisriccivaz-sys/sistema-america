@@ -1,4 +1,11 @@
 
+function formatUTCDate(dateStr) {
+    if (!dateStr) return 'Data não registrada';
+    const isoStr = dateStr.includes('T') ? dateStr : dateStr.replace(' ', 'T');
+    const finalStr = isoStr.endsWith('Z') ? isoStr : isoStr + 'Z';
+    return new Date(finalStr).toLocaleString('pt-BR');
+}
+
 window._switchLicencaTabCred = function(empresa) {
     document.querySelectorAll('.cred-lic-tab-btn').forEach(btn => {
         if (btn.getAttribute('data-emp') === empresa) {
@@ -799,8 +806,7 @@ window.carregarHistoricoCredenciamento = async function() {
             let docs = []; try { docs = JSON.parse(cred.docs_exigidos || '[]'); } catch(e){}
             
             // Format Data/Hora do Envio
-            const dt = new Date(cred.created_at);
-            const dtFormatada = dt.toLocaleDateString('pt-BR') + ' às ' + dt.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+            const dtFormatada = formatUTCDate(cred.created_at).replace(',', ' às');
             
             // Textos resumos
             const docNames = {
@@ -843,8 +849,7 @@ window.carregarHistoricoCredenciamento = async function() {
         } else if (expirado) {
             statusBadge = `<span style="color:#dc2626; font-weight:600;"><i class="ph ph-x-circle"></i> Expirado</span>`;
         } else if (cred.acessado_em) {
-            const acessDt = new Date(cred.acessado_em);
-            const acessStr = acessDt.toLocaleDateString('pt-BR') + ' às ' + acessDt.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+            const acessStr = formatUTCDate(cred.acessado_em).replace(',', ' às');
             statusBadge = `<span style="color:#16a34a; font-weight:600;"><i class="ph ph-check-circle"></i> Acessado</span>`;
         } else {
             statusBadge = `<span style="color:#4f46e5; font-weight:600;"><i class="ph ph-paper-plane-right"></i> Enviado</span>`;
@@ -870,8 +875,8 @@ window.carregarHistoricoCredenciamento = async function() {
 
         const solNome = cred.sol_nome_usuario || cred.sol_username || cred.solicitado_por_nome || 'Usuário Comercial';
         const envNome = cred.env_nome_usuario || cred.env_username || cred.enviado_por_nome || 'Usuário Logística';
-        const solDataStr = cred.created_at ? new Date(cred.created_at).toLocaleString('pt-BR') : 'Data não registrada';
-        const envDataStr = cred.enviado_em ? new Date(cred.enviado_em).toLocaleString('pt-BR') : 'Data não registrada';
+        const solDataStr = cred.created_at ? formatUTCDate(cred.created_at) : 'Data não registrada';
+        const envDataStr = cred.enviado_em ? formatUTCDate(cred.enviado_em) : 'Data não registrada';
 
         let alertaCepHtml = '';
         if (cred.endereco_instalacao) {
@@ -971,7 +976,7 @@ window.carregarHistoricoCredenciamento = async function() {
                             <div style="padding:10px; background:#f0fdf4; color:#166534; border-radius:6px; font-size:0.8rem; display:inline-block; border:1px solid #bbf7d0;">
                                 <i class="ph ph-check-circle"></i> Link acessado pelo cliente
                                 <div style="margin-top:4px; font-weight:600;">
-                                    <i class="ph ph-clock"></i> Acessado em: ${new Date(cred.acessado_em).toLocaleString('pt-BR')}
+                                    <i class="ph ph-clock"></i> Acessado em: ${formatUTCDate(cred.acessado_em)}
                                 </div>
                             </div>
                         ` : `
@@ -1018,13 +1023,29 @@ window.renderLogisticaCredenciamentoPage = function() {
 window._historicoCredSort = { col: 'data', dir: 'asc' }; // Estado da ordenação
 
 window.filtrarHistoricoCred = function() {
-    const termo = (document.getElementById('filtro-pesquisa-cred').value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    const rows = document.querySelectorAll('#tbody-historico-cred tr');
+    const elGlobal = document.getElementById('filtro-pesquisa-cred');
+    const elOs = document.getElementById('filtro-pesquisa-os-cred');
+    const termoGlobal = elGlobal ? (elGlobal.value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') : '';
+    const termoOs = elOs ? (elOs.value || '').toLowerCase().trim() : '';
+    
+    const rows = document.querySelectorAll('#tbody-credenciamentos tr');
+    let lastRowMatch = true;
+    
     rows.forEach(row => {
-        // Ignora a linha de "Carregando"
-        if (row.cells.length === 1) return;
-        const texto = (row.cells[0].textContent + ' ' + row.cells[1].textContent).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-        row.style.display = texto.includes(termo) ? '' : 'none';
+        if (row.cells.length === 1) {
+            if (!lastRowMatch) row.style.display = 'none';
+            return;
+        }
+        
+        const osText = row.cells[0].textContent.toLowerCase().trim();
+        const textoGlobal = (row.cells[1].textContent).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        
+        let match = true;
+        if (termoGlobal && !textoGlobal.includes(termoGlobal)) match = false;
+        if (termoOs && !osText.includes(termoOs)) match = false;
+        
+        row.style.display = match ? '' : 'none';
+        lastRowMatch = match;
     });
 };
 
@@ -1109,8 +1130,7 @@ window._renderizarTabelaHistorico = function(dados) {
         if (expirado) {
             statusBadge = `<span style="color:#dc2626; font-weight:600;"><i class="ph ph-x-circle"></i> Expirado</span>`;
         } else if (cred.acessado_em) {
-            const acessDt = new Date(cred.acessado_em);
-            const acessStr = acessDt.toLocaleDateString('pt-BR') + ' às ' + acessDt.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+            const acessStr = formatUTCDate(cred.acessado_em).replace(',', ' às');
             statusBadge = `<span style="color:#16a34a; font-weight:600;"><i class="ph ph-check-circle"></i> Acessado</span>`;
         } else {
             statusBadge = `<span style="color:#4f46e5; font-weight:600;"><i class="ph ph-paper-plane-right"></i> Enviado</span>`;

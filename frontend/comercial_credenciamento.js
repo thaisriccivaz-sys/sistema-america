@@ -1,4 +1,11 @@
 
+function formatUTCDate(dateStr) {
+    if (!dateStr) return 'Data não registrada';
+    const isoStr = dateStr.includes('T') ? dateStr : dateStr.replace(' ', 'T');
+    const finalStr = isoStr.endsWith('Z') ? isoStr : isoStr + 'Z';
+    return new Date(finalStr).toLocaleString('pt-BR');
+}
+
 window.renderAvatar = function(nome, foto, b64) {
     const initial = (nome || 'U')[0].toUpperCase();
     if (b64) return `<img src="${b64}" style="width:36px; height:36px; border-radius:50%; object-fit:cover;">`;
@@ -375,8 +382,8 @@ window.ordenarHistoricoComCred = function(coluna) {
 
         const solNome = cred.sol_nome_usuario || cred.sol_username || cred.solicitado_por_nome || 'Usuário Comercial';
         const envNome = cred.env_nome_usuario || cred.env_username || cred.enviado_por_nome || 'Usuário Logística';
-        const solDataStr = cred.created_at ? new Date(cred.created_at).toLocaleString('pt-BR') : 'Data não registrada';
-        const envDataStr = cred.enviado_em ? new Date(cred.enviado_em).toLocaleString('pt-BR') : 'Data não registrada';
+        const solDataStr = cred.created_at ? formatUTCDate(cred.created_at) : 'Data não registrada';
+        const envDataStr = cred.enviado_em ? formatUTCDate(cred.enviado_em) : 'Data não registrada';
 
         let alertaCepHtml = '';
         if (cred.endereco_instalacao) {
@@ -474,7 +481,7 @@ window.ordenarHistoricoComCred = function(coluna) {
                             <div style="padding:10px; background:#f0fdf4; color:#166534; border-radius:6px; font-size:0.8rem; display:inline-block; border:1px solid #bbf7d0;">
                                 <i class="ph ph-check-circle"></i> Link acessado pelo cliente
                                 <div style="margin-top:4px; font-weight:600;">
-                                    <i class="ph ph-clock"></i> Acessado em: ${new Date(cred.acessado_em).toLocaleString('pt-BR')}
+                                    <i class="ph ph-clock"></i> Acessado em: ${formatUTCDate(cred.acessado_em)}
                                 </div>
                             </div>
                         ` : `

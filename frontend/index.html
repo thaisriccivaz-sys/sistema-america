@@ -1769,10 +1769,16 @@
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
                             <div style="display:flex; align-items:center; gap: 15px; flex-wrap: wrap;">
                                 <h3><i class="ph ph-list-dashes"></i> Minhas Solicitações</h3>
+                                <div style="display:flex; gap:10px;">
+                                <div style="position:relative;">
+                                    <i class="ph ph-hash" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#94a3b8;"></i>
+                                    <input type="text" id="filtro-pesquisa-os-com-cred" class="form-control" placeholder="Nº da OS" onkeyup="window.filtrarHistoricoComCred()" style="width: 120px; padding: 6px 12px 6px 30px;">
+                                </div>
                                 <div style="position:relative;">
                                     <i class="ph ph-magnifying-glass" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#94a3b8;"></i>
-                                    <input type="text" id="filtro-pesquisa-com-cred" class="form-control" placeholder="Buscar OS, cliente ou e-mail..." onkeyup="window.filtrarHistoricoComCred()" style="width: 300px; padding: 6px 12px 6px 30px;">
+                                    <input type="text" id="filtro-pesquisa-com-cred" class="form-control" placeholder="Buscar cliente ou e-mail..." onkeyup="window.filtrarHistoricoComCred()" style="width: 250px; padding: 6px 12px 6px 30px;">
                                 </div>
+                              </div>
                             </div>
                             <button class="btn btn-danger" style="padding: 4px 12px; font-size: 12px; margin-right: 8px;" onclick="window.limparListaCredenciamentos()"><i class="ph ph-trash"></i> Limpar Lista</button>
                             <button class="btn btn-outline" style="padding: 4px 12px; font-size: 12px; display: none;" onclick="window.carregarHistoricoComCred()">
@@ -2330,10 +2336,16 @@
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
                             <div style="display:flex; align-items:center; gap: 15px; flex-wrap: wrap;">
                                 <h3><i class="ph ph-clock-counter-clockwise"></i> Histórico de Envios</h3>
+                                <div style="display:flex; gap:10px;">
+                                <div style="position:relative;">
+                                    <i class="ph ph-hash" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#94a3b8;"></i>
+                                    <input type="text" id="filtro-pesquisa-os-cred" class="form-control" placeholder="Nº da OS" onkeyup="window.filtrarHistoricoCred()" style="width: 120px; padding: 6px 12px 6px 30px;">
+                                </div>
                                 <div style="position:relative;">
                                     <i class="ph ph-magnifying-glass" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#94a3b8;"></i>
-                                    <input type="text" id="filtro-pesquisa-cred" class="form-control" placeholder="Buscar OS, cliente, e-mail..." onkeyup="window.filtrarHistoricoCred()" style="width: 300px; padding: 6px 12px 6px 30px;">
+                                    <input type="text" id="filtro-pesquisa-cred" class="form-control" placeholder="Buscar cliente ou e-mail..." onkeyup="window.filtrarHistoricoCred()" style="width: 250px; padding: 6px 12px 6px 30px;">
                                 </div>
+                              </div>
                             </div>
                             <div style="display:flex; gap: 10px;">
                                 <button class="btn btn-danger" style="padding: 4px 12px; font-size: 12px; margin-right: 8px;" onclick="window.limparListaCredenciamentos()"><i class="ph ph-trash"></i> Limpar Lista</button>
