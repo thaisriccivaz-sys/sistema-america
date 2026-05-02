@@ -1038,7 +1038,7 @@ window.filtrarHistoricoCred = function() {
         }
         
         const osText = row.cells[0].textContent.toLowerCase().trim();
-        const textoGlobal = (row.cells[1].textContent).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const textoGlobal = (row.textContent).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
         
         let match = true;
         if (termoGlobal && !textoGlobal.includes(termoGlobal)) match = false;

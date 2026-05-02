@@ -270,12 +270,29 @@ window.carregarHistoricoComCred = async function() {
 }
 
 window.filtrarHistoricoComCred = function() {
-    const termo = (document.getElementById('filtro-pesquisa-com-cred').value || '').toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '');
+    const elGlobal = document.getElementById('filtro-pesquisa-com-cred');
+    const elOs = document.getElementById('filtro-pesquisa-os-com-cred');
+    const termoGlobal = elGlobal ? (elGlobal.value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') : '';
+    const termoOs = elOs ? (elOs.value || '').toLowerCase().trim() : '';
+    
     const rows = document.querySelectorAll('#tbody-comercial-cred tr');
+    let lastRowMatch = true;
+    
     rows.forEach(row => {
-        if (row.cells.length === 1) return;
-        const texto = (row.cells[0].textContent + ' ' + row.cells[1].textContent).toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '');
-        row.style.display = texto.includes(termo) ? '' : 'none';
+        if (row.cells.length === 1) {
+            if (!lastRowMatch) row.style.display = 'none';
+            return;
+        }
+        
+        const osText = row.cells[0].textContent.toLowerCase().trim();
+        const textoGlobal = (row.textContent).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        
+        let match = true;
+        if (termoGlobal && !textoGlobal.includes(termoGlobal)) match = false;
+        if (termoOs && !osText.includes(termoOs)) match = false;
+        
+        row.style.display = match ? '' : 'none';
+        lastRowMatch = match;
     });
 }
 
