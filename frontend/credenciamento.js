@@ -964,8 +964,7 @@ window._renderizarTabelaHistorico = function(dados) {
         
         let statusBadge = '';
         if (cred.status === 'solicitado') {
-            const dtLim = cred.data_limite_envio ? new Date(cred.data_limite_envio).toLocaleDateString('pt-BR') : '-';
-            statusBadge = `<span style="color:#eab308; font-weight:600;"><i class="ph ph-clock"></i> Solicitado (Limite: ${dtLim})</span>`;
+            statusBadge = `<span style="color:#eab308; font-weight:600;"><i class="ph ph-clock"></i> Solicitado</span>`;
         } else if (expirado) {
             statusBadge = `<span style="color:#dc2626; font-weight:600;"><i class="ph ph-x-circle"></i> Expirado</span>`;
         } else if (cred.acessado_em) {
