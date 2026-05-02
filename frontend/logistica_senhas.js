@@ -20,11 +20,19 @@ function initLogisticaSenhas() {
         </div>
 
         <div class="card p-4">
-            <div class="mb-3" style="position:relative; max-width: 400px;">
-                <i class="ph ph-magnifying-glass" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1rem;"></i>
-                <input type="text" id="search-senhas" placeholder="Pesquisar por serviço, usuário ou link..."
-                    oninput="filtrarSenhas(this.value)"
-                    style="width:100%;padding:0.6rem 0.75rem 0.6rem 2.2rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.95rem;outline:none;box-sizing:border-box;">
+            <div class="form-grid mb-3" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                <div style="position:relative;">
+                    <i class="ph ph-funnel" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1rem;"></i>
+                    <input type="text" id="filter-senha-servico" placeholder="Filtrar por Serviço..." oninput="filtrarSenhasMulti()" style="width:100%;padding:0.6rem 0.75rem 0.6rem 2.2rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;">
+                </div>
+                <div style="position:relative;">
+                    <i class="ph ph-funnel" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1rem;"></i>
+                    <input type="text" id="filter-senha-usuario" placeholder="Filtrar por Usuário..." oninput="filtrarSenhasMulti()" style="width:100%;padding:0.6rem 0.75rem 0.6rem 2.2rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;">
+                </div>
+                <div style="position:relative;">
+                    <i class="ph ph-funnel" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1rem;"></i>
+                    <input type="text" id="filter-senha-link" placeholder="Filtrar por Link..." oninput="filtrarSenhasMulti()" style="width:100%;padding:0.6rem 0.75rem 0.6rem 2.2rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;">
+                </div>
             </div>
             <div class="table-responsive">
                 <table class="table">
@@ -163,17 +171,23 @@ function renderSenhasTable(senhas) {
     });
 }
 
-function filtrarSenhas(termo) {
-    termo = termo.toLowerCase().trim();
-    if (!termo) {
-        renderSenhasTable(senhasLogisticaList);
-        return;
-    }
-    const filtradas = senhasLogisticaList.filter(s => 
-        (s.servico && s.servico.toLowerCase().includes(termo)) ||
-        (s.usuario && s.usuario.toLowerCase().includes(termo)) ||
-        (s.link && s.link.toLowerCase().includes(termo))
-    );
+function filtrarSenhasMulti() {
+    const fServico = document.getElementById('filter-senha-servico')?.value.toLowerCase().trim() || '';
+    const fUsuario = document.getElementById('filter-senha-usuario')?.value.toLowerCase().trim() || '';
+    const fLink = document.getElementById('filter-senha-link')?.value.toLowerCase().trim() || '';
+
+    const filtradas = senhasLogisticaList.filter(s => {
+        let matchServico = true;
+        let matchUsuario = true;
+        let matchLink = true;
+
+        if (fServico) matchServico = s.servico && s.servico.toLowerCase().includes(fServico);
+        if (fUsuario) matchUsuario = s.usuario && s.usuario.toLowerCase().includes(fUsuario);
+        if (fLink) matchLink = s.link && s.link.toLowerCase().includes(fLink);
+
+        return matchServico && matchUsuario && matchLink;
+    });
+
     renderSenhasTable(filtradas);
 }
 
