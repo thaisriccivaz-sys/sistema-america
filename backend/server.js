@@ -7894,7 +7894,15 @@ db.run(`CREATE TABLE IF NOT EXISTS experiencia_notificacoes_pendentes (
     lido INTEGER DEFAULT 0
 )`);
 
-db.run(`CREATE TABLE IF NOT EXISTS logistica_notificacoes_pendentes (
+db.run(`CREATE TABLE IF NOT EXISTS comercial_notificacoes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            usuario_id INTEGER,
+            mensagem TEXT,
+            tipo TEXT,
+            lida INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+    CREATE TABLE IF NOT EXISTS logistica_notificacoes_pendentes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     tipo TEXT,
     dados TEXT,
@@ -9872,7 +9880,8 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
                     console.error('Erro ao enviar e-mail de credenciamento:', error.message);
                 });
 
-                res.json({ message: 'E-mail de credenciamento enviado com sucesso.', link });
+                db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo) VALUES (?, ?, 'credenciamento_enviado')", [cred.solicitado_por_id, `A Logística enviou o credenciamento da OS ${cred.os} para o cliente ${cred.cliente_nome}.`]);
+         res.json({ message: 'E-mail de credenciamento enviado com sucesso.', link });
             }
         );
     });
@@ -10051,6 +10060,60 @@ app.get('/api/logistica/credenciamentos', authenticateToken, (req, res) => {
             return;
         }
         res.json(rows || []);
+    });
+});
+
+
+// --- NOTIFICACOES COMERCIAL ---
+app.get('/api/comercial/notificacoes/pendentes', authenticateToken, (req, res) => {
+    db.all('SELECT * FROM comercial_notificacoes WHERE lida = 0 AND usuario_id = ? ORDER BY created_at ASC', [req.user.id], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+app.put('/api/comercial/notificacoes/:id/lida', authenticateToken, (req, res) => {
+    db.run('UPDATE comercial_notificacoes SET lida = 1 WHERE id = ?', [req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true });
+    });
+});
+
+app.post('/api/credenciamentos/:id/reenviar', authenticateToken, (req, res) => {
+    db.get('SELECT * FROM credenciamentos WHERE id = ?', [req.params.id], (err, cred) => {
+        if (err || !cred) return res.status(500).json({ error: 'Credenciamento não encontrado' });
+        if (!cred.token) return res.status(400).json({ error: 'Este credenciamento ainda não possui um link gerado pela logística.' });
+        
+        const baseUrl = process.env.PUBLIC_URL || `${req.protocol}://${req.get('host')}`;
+        const link = `${baseUrl}/credenciamento-publico.html?token=${cred.token}`;
+        const logoUrl = `${baseUrl}/assets/logo-header.png`;
+        
+        const validUntil = new Date(cred.valid_until);
+        
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: cred.cliente_email,
+            subject: 'Credenciamento de Equipe - América Rental (Reenvio)',
+            html: `<div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; padding: 20px; border-radius: 8px;">
+                        <div style="text-align: center; margin-bottom: 20px;">
+                            <img src="${logoUrl}" alt="América Rental" style="max-height: 60px;">
+                        </div>
+                        <h2 style="color: #2d9e5f; text-align: center;">Credenciamento de Equipe Liberado</h2>
+                        <p>Olá <b>${cred.cliente_nome}</b>,</p>
+                        <p>Abaixo está o link para acesso aos documentos da equipe alocada para sua obra/evento.</p>
+                        <div style="text-align: center; margin: 30px 0;">
+                            <a href="${link}" style="background: #2d9e5f; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+                                Acessar Prontuários e Documentos
+                            </a>
+                        </div>
+                        <p style="text-align: center; font-size: 12px; color: #999;">
+                            <i>Este link expira automaticamente em ${validUntil.toLocaleDateString('pt-BR')}.</i>
+                        </p>
+                    </div>`
+        };
+        
+        sendMailHelper(mailOptions).then(() => {
+            res.json({ message: 'E-mail reenviado com sucesso.' });
+        }).catch(e => res.status(500).json({ error: e.message }));
     });
 });
 

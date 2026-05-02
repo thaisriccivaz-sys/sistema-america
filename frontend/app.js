@@ -11427,6 +11427,40 @@ setInterval(checkExperienciaNotificacoes, 60000);
 setTimeout(checkExperienciaNotificacoes, 5000); // first check after 5s
 
 
+
+// --- POLLING: Notificacoes de Comercial ---
+const _comNotifSeen = new Set();
+async function checkComercialNotificacoes() {
+    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+    if (!token) return;
+
+    try {
+        const resp = await fetch('/api/comercial/notificacoes/pendentes', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!resp.ok) return;
+        const notificacoes = await resp.json();
+
+        for (const notif of notificacoes) {
+            if (!_comNotifSeen.has(notif.id)) {
+                _comNotifSeen.add(notif.id);
+                // Mostrar Toast verde (cor da logística #16a34a)
+                showToast(notif.mensagem, 'success');
+                
+                // Marcar como lida
+                fetch(`/api/comercial/notificacoes/${notif.id}/lida`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }).catch(()=>{});
+            }
+        }
+    } catch(err) {
+        // ignora silently
+    }
+}
+setInterval(checkComercialNotificacoes, 60000);
+setTimeout(checkComercialNotificacoes, 3000);
+
 // --- POLLING: Notificacoes de Logistica ---
 const _logNotifSeen = new Set();
 async function checkLogisticaNotificacoes() {

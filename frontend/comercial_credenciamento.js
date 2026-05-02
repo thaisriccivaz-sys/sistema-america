@@ -327,7 +327,7 @@ window.ordenarHistoricoComCred = function(coluna) {
         
         let statusBadge = '';
         if (cred.status === 'solicitado') {
-            statusBadge = `<span style="color:#eab308; font-weight:600;"><i class="ph ph-clock"></i> Solicitado em ${dtFormatada}</span>`;
+            statusBadge = `<span style="color:#eab308; font-weight:600;"><i class="ph ph-clock"></i> Solicitado</span>`;
         } else if (cred.status === 'enviado') {
             statusBadge = `<span style="color:#4f46e5; font-weight:600;"><i class="ph ph-paper-plane-right"></i> Enviado</span>`;
         } else if (new Date() > new Date(cred.valid_until)) {
@@ -366,6 +366,8 @@ window.ordenarHistoricoComCred = function(coluna) {
         let acoes = '';
         if (cred.status === 'solicitado') {
             acoes = `<button class="btn btn-warning btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.abrirModalSolicitarCredenciamento('${cred.id}')" title="Editar Solicitação"><i class="ph ph-pencil-simple"></i></button>`;
+        } else if (cred.token) {
+            acoes = `<button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.reenviarEmailCredenciamento('${cred.id}')" title="Reenviar E-mail"><i class="ph ph-envelope-simple"></i></button>`;
         }
         
         const dtLimite = cred.data_limite_envio ? new Date(cred.data_limite_envio).toLocaleDateString('pt-BR') : '-';
@@ -424,6 +426,14 @@ window.ordenarHistoricoComCred = function(coluna) {
             <td colspan="8" style="padding:15px; font-size:0.85rem; border-left:3px solid #7048e8;">
                 ${alertaCepHtml}
                 <div style="display:flex; flex-wrap:wrap; gap:30px;">
+                    <div style="flex:1; min-width:250px;">
+                        <div style="color:#64748b; font-weight:600; margin-bottom:4px;">⏱️ Status Detalhado:</div>
+                        <div style="color:#334155; font-size:0.8rem; line-height:1.6;">
+                            <b>Solicitado em:</b> ${solDataStr} (por ${solNome})<br>
+                            ${cred.enviado_em ? `<b>Enviado em:</b> ${new Date(cred.enviado_em).toLocaleString('pt-BR')} (por ${envNome})<br>` : ''}
+                            ${cred.acessado_em ? `<b>Acessado em:</b> ${new Date(cred.acessado_em).toLocaleString('pt-BR')}<br>` : ''}
+                        </div>
+                    </div>
                     <div style="flex:1; min-width:250px;">
                         <div style="color:#64748b; font-weight:600; margin-bottom:4px;">📄 Documentos Solicitados:</div>
                         <div style="color:#334155;">${docsFormatted}</div>

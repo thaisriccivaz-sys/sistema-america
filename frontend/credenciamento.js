@@ -847,9 +847,9 @@ window.carregarHistoricoCredenciamento = async function() {
         } else if (cred.acessado_em) {
             const acessDt = new Date(cred.acessado_em);
             const acessStr = acessDt.toLocaleDateString('pt-BR') + ' às ' + acessDt.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
-            statusBadge = `<span style="color:#16a34a; font-weight:600;"><i class="ph ph-check-circle"></i> Acessado em ${acessStr}</span>`;
+            statusBadge = `<span style="color:#16a34a; font-weight:600;"><i class="ph ph-check-circle"></i> Acessado</span>`;
         } else {
-            statusBadge = `<span style="color:#4f46e5; font-weight:600;"><i class="ph ph-paper-plane-right"></i> Enviado em ${dtFormatada}</span>`;
+            statusBadge = `<span style="color:#4f46e5; font-weight:600;"><i class="ph ph-paper-plane-right"></i> Enviado</span>`;
         }
 
         // Adicionar o botao toggle
@@ -925,6 +925,14 @@ window.carregarHistoricoCredenciamento = async function() {
             <td colspan="6" style="padding:15px; font-size:0.85rem; border-left:3px solid #7048e8;">
                 ${alertaCepHtml}
                 <div style="display:flex; flex-wrap:wrap; gap:30px;">
+                    <div style="flex:1; min-width:250px;">
+                        <div style="color:#64748b; font-weight:600; margin-bottom:4px;">⏱️ Status Detalhado:</div>
+                        <div style="color:#334155; font-size:0.8rem; line-height:1.6;">
+                            <b>Solicitado em:</b> ${solDataStr} (por ${solNome})<br>
+                            ${cred.enviado_em ? `<b>Enviado em:</b> ${new Date(cred.enviado_em).toLocaleString('pt-BR')} (por ${envNome})<br>` : ''}
+                            ${cred.acessado_em ? `<b>Acessado em:</b> ${new Date(cred.acessado_em).toLocaleString('pt-BR')}<br>` : ''}
+                        </div>
+                    </div>
                     <div style="flex:1; min-width:250px;">
                         <div style="color:#64748b; font-weight:600; margin-bottom:4px;">📄 Documentos Solicitados:</div>
                         <div style="color:#334155;">${docsFormatted}</div>
@@ -1112,9 +1120,9 @@ window._renderizarTabelaHistorico = function(dados) {
         } else if (cred.acessado_em) {
             const acessDt = new Date(cred.acessado_em);
             const acessStr = acessDt.toLocaleDateString('pt-BR') + ' às ' + acessDt.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
-            statusBadge = `<span style="color:#16a34a; font-weight:600;"><i class="ph ph-check-circle"></i> Acessado em ${acessStr}</span>`;
+            statusBadge = `<span style="color:#16a34a; font-weight:600;"><i class="ph ph-check-circle"></i> Acessado</span>`;
         } else {
-            statusBadge = `<span style="color:#4f46e5; font-weight:600;"><i class="ph ph-paper-plane-right"></i> Enviado em ${dtFormatada}</span>`;
+            statusBadge = `<span style="color:#4f46e5; font-weight:600;"><i class="ph ph-paper-plane-right"></i> Enviado</span>`;
         }
 
         return `
@@ -1174,5 +1182,18 @@ window.limparListaCredenciamentos = async function() {
         }
     } catch (err) {
         showToast(err.message, 'error');
+    }
+};
+
+window.reenviarEmailCredenciamento = async function(id) {
+    if (!confirm('Deseja reenviar o e-mail do credenciamento para o cliente?')) return;
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const res = await fetch(`/api/credenciamentos/${id}/reenviar`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        alert('E-mail reenviado com sucesso!');
+    } catch(err) {
+        alert('Erro ao reenviar e-mail: ' + err.message);
     }
 };
