@@ -231,7 +231,7 @@ function salvarSenha(e) {
         method: method,
         headers: { 
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + localStorage.getItem('token')
+            'Authorization': 'Bearer ' + localStorage.getItem('erp_token')
         },
         body: JSON.stringify(payload)
     })
@@ -266,7 +266,7 @@ function excluirSenha(id) {
         if (result.isConfirmed) {
             fetch('/api/logistica/senhas/' + id, {
                 method: 'DELETE',
-                headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+                headers: { 'Authorization': 'Bearer ' + localStorage.getItem('erp_token') }
             })
             .then(r => r.json())
             .then(data => {
