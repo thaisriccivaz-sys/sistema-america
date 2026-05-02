@@ -13755,108 +13755,76 @@ setInterval(() => {
 }, 500);
 
 // === INJEÇÃO ROBUSTA DE BOTÕES DE HISTÓRICO ===
-// Garante que os botões apareçam em todas as telas mesmo com cache do index.html
+// === INJEÇÃO ROBUSTA DE BOTÕES DE HISTÓRICO ===
 (function _injectHistoryButtons() {
-    const BTN_ID = 'injected-history-btn';
 
-    // Mapa: viewId → seletor do container de botões do header
-    const viewsConfig = [
-        {
-            viewId: 'view-cargos',
-            // insere após o div cargo-header-actions
-            insertAfter: '#cargo-header-actions',
-        },
-        {
-            viewId: 'view-faculdade',
-            // insere no page-header flex-between (filho direto)
-            appendTo: '#view-faculdade .page-header.flex-between',
-        },
-        {
-            viewId: 'view-ficha-epi',
-            // tenta inserir no div de botões que criamos; se não existir, appenda no header
-            appendTo: '#view-ficha-epi .page-header.flex-between',
-        },
-    ];
-
-    function makeBtn(onclick) {
+    function makeBtn(onclickFn) {
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'btn btn-secondary';
-        btn.id = BTN_ID;
+        btn.setAttribute('data-hist-btn', '1');
         btn.title = 'Histórico de Alterações';
-        btn.style.cssText = 'display:flex;align-items:center;gap:6px;border-color:#cbd5e1;color:#475569;white-space:nowrap;';
+        btn.style.cssText = 'display:flex;align-items:center;gap:6px;border-color:#cbd5e1;color:#475569;white-space:nowrap;flex-shrink:0;';
         btn.innerHTML = '<i class="ph ph-clock-counter-clockwise"></i> Histórico';
-        btn.onclick = onclick;
+        btn.onclick = onclickFn;
         return btn;
     }
 
-    function ensureBtn(viewId, container, onclick) {
-        const view = document.getElementById(viewId);
-        if (!view || !view.classList.contains('active')) return;
-        if (container.querySelector(`#${BTN_ID}, [data-hist-injected]`)) return; // já existe
+    function hasHistBtn(container) {
+        // Considera tanto botões injetados quanto os já existentes no HTML
+        return !!(container.querySelector('[data-hist-btn]') ||
+                  container.querySelector('[onclick*="showHistoryPopup"]') ||
+                  container.querySelector('[onclick*="abrirHistoricoSenhas"]') ||
+                  Array.from(container.querySelectorAll('button')).find(b =>
+                      b.textContent.includes('Histórico') && b.textContent.trim().length < 30));
+    }
+
+    // Injeta botão no header de uma view estática (ex: Cargos, Faculdade, EPI)
+    function injectStaticView(viewSelector, onclick) {
+        const header = document.querySelector(viewSelector + '.active .page-header');
+        if (!header || hasHistBtn(header)) return;
+        header.appendChild(makeBtn(onclick));
+    }
+
+    // Injeta botão em header dinâmico baseado em texto do container de botões
+    function injectDynamicHeader(viewSelector, btnGroupSelector, onclick, prepend) {
+        const view = document.querySelector(viewSelector + '.active');
+        if (!view) return;
+        const container = btnGroupSelector ? view.querySelector(btnGroupSelector) : view.querySelector('.page-header');
+        if (!container || hasHistBtn(container)) return;
         const btn = makeBtn(onclick);
-        btn.dataset.histInjected = '1';
-        container.appendChild(btn);
+        if (prepend) container.insertBefore(btn, container.firstChild);
+        else container.appendChild(btn);
     }
 
     setInterval(() => {
-        // Cargos
-        const cargoHeader = document.querySelector('#view-cargos.active #cargo-header-actions');
-        if (cargoHeader && !cargoHeader.parentElement.querySelector('[data-hist-injected]')) {
-            const btn = makeBtn(() => window.showHistoryPopup());
-            btn.dataset.histInjected = '1';
-            cargoHeader.insertAdjacentElement('afterend', btn);
-        }
+        // Cargos — header estático no index.html
+        injectStaticView('#view-cargos', () => window.showHistoryPopup());
 
-        // Faculdade
-        const facHeader = document.querySelector('#view-faculdade.active .page-header.flex-between');
-        if (facHeader && !facHeader.querySelector('[data-hist-injected]')) {
-            const btn = makeBtn(() => window.showHistoryPopup());
-            btn.dataset.histInjected = '1';
-            facHeader.appendChild(btn);
-        }
+        // Faculdade — header estático no index.html
+        injectStaticView('#view-faculdade', () => window.showHistoryPopup());
 
-        // EPI
-        const epiHeader = document.querySelector('#view-ficha-epi.active .page-header.flex-between');
-        if (epiHeader && !epiHeader.querySelector('[data-hist-injected]')) {
-            const btn = makeBtn(() => window.showHistoryPopup());
-            btn.dataset.histInjected = '1';
-            epiHeader.appendChild(btn);
-        }
+        // EPI — header estático no index.html
+        injectStaticView('#view-ficha-epi', () => window.showHistoryPopup());
 
-        // Avaliações (renderizado por JS — injeta no header dinâmico)
-        const avalContainer = document.querySelector('#view-gerenciar-avaliacoes.active #gerenciar-avaliacoes-container');
-        if (avalContainer && !avalContainer.querySelector('[data-hist-injected]')) {
-            // Procura o div com flex justify-content:space-between que tem o botão "Novo Template"
-            const headerFlex = Array.from(avalContainer.querySelectorAll('div')).find(d =>
-                d.style.justifyContent === 'space-between' && d.querySelector('button')
-            );
-            if (headerFlex && !headerFlex.querySelector('[data-hist-injected]')) {
-                const btn = makeBtn(() => window.showHistoryPopup());
-                btn.dataset.histInjected = '1';
-                headerFlex.insertBefore(btn, headerFlex.firstChild);
+        // Avaliações — header renderizado por JS no #gerenciar-avaliacoes-container
+        const avalView = document.querySelector('#view-gerenciar-avaliacoes.active');
+        if (avalView) {
+            const avalHeader = avalView.querySelector('.page-header') ||
+                               avalView.querySelector('[style*="space-between"]');
+            if (avalHeader && !hasHistBtn(avalHeader)) {
+                avalHeader.appendChild(makeBtn(() => window.showHistoryPopup()));
             }
         }
 
-        // Dissídio
-        const dissidioHeader = document.querySelector('#view-dissidio.active .page-header.flex-between');
-        if (dissidioHeader && !dissidioHeader.querySelector('[data-hist-injected]')) {
-            const btn = makeBtn(() => window.showHistoryPopup());
-            btn.dataset.histInjected = '1';
-            dissidioHeader.appendChild(btn);
-        }
+        // Dissídio — header renderizado por JS
+        injectStaticView('#view-dissidio', () => window.showHistoryPopup());
 
-        // Cofre de Senhas
-        const senhasHeader = document.querySelector('#logistica-senhas-container .page-header.flex-between');
-        if (senhasHeader && !senhasHeader.querySelector('[data-hist-injected]')) {
-            const actionsDiv = senhasHeader.querySelector('div[style*="display: flex"]') || senhasHeader.querySelector('div');
-            const btn = makeBtn(() => typeof window.abrirHistoricoSenhas === 'function' ? window.abrirHistoricoSenhas() : null);
-            btn.dataset.histInjected = '1';
-            if (actionsDiv) {
-                actionsDiv.insertBefore(btn, actionsDiv.firstChild);
-            } else {
-                senhasHeader.appendChild(btn);
-            }
+        // Cofre de Senhas — header renderizado por initLogisticaSenhas()
+        const senhasHeader = document.querySelector('#logistica-senhas-container .page-header');
+        if (senhasHeader && !hasHistBtn(senhasHeader)) {
+            const actionsDiv = senhasHeader.querySelector('div:last-child') || senhasHeader;
+            actionsDiv.insertBefore(makeBtn(() => typeof window.abrirHistoricoSenhas === 'function' ? window.abrirHistoricoSenhas() : null), actionsDiv.firstChild);
         }
     }, 800);
 })();
