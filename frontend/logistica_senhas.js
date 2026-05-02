@@ -119,7 +119,7 @@ function carregarSenhas() {
         data.forEach(s => uniqueServicos.add(s.servico));
         atualizarDatalist();
 
-        renderSenhasTable(data);
+        filtrarSenhasMulti();
     })
     .catch(err => {
         console.error('Erro ao carregar senhas:', err);
