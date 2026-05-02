@@ -8629,13 +8629,30 @@ window.renderContratosAvulso = async function(container) {
         const docsUsados = new Set();
         let combinedHtml = '';
 
+        // --- MUDANÇA: Ordenar TODOS os documentos já gerados do mais novo para o mais antigo ---
+        let allExistingDocs = [...filteredDocs];
+        
+        const _normFR = s => (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+        const fichaRegistroDoc = docs.find(d => 
+            (d.tab_name === '01_FICHA_CADASTRAL' || d.tab_name === 'CONTRATOS_AVULSOS') &&
+            (_normFR(d.document_type).includes('ficha de registro') || _normFR(d.document_type).includes('ficha cadastral'))
+        );
+        
+        if (fichaRegistroDoc && !allExistingDocs.some(d => d.id === fichaRegistroDoc.id)) {
+            allExistingDocs.push(fichaRegistroDoc);
+        }
+
+        // Ordena descending por ID
+        allExistingDocs.sort((a, b) => b.id - a.id);
+
+        if (allExistingDocs.length > 0) {
+            combinedHtml += window.buildContratosSignatureRows(assinaturas, allExistingDocs, viewedColaborador);
+            allExistingDocs.forEach(d => docsUsados.add(d.id));
+        }
+
         for (const g of autoGeradores) {
             const docMatch = _findDocForGerador(g);
-            if (docMatch) {
-                // Gerador já tem documento: renderiza a linha do doc no lugar da linha pendente
-                docsUsados.add(docMatch.id);
-                combinedHtml += window.buildContratosSignatureRows(assinaturas, [docMatch], viewedColaborador);
-            } else {
+            if (!docMatch) {
                 // Gerador pendente: renderiza a linha de perfil aguardando geração
                 const escNome = (g.nome||'').replace(/'/g,"\\'").replace(/"/g, "&quot;");
                 combinedHtml += `
@@ -8663,20 +8680,8 @@ window.renderContratosAvulso = async function(container) {
             }
         }
 
-        // Docs avulsos (sem gerador correspondente no perfil) ficam no final
-        const avulsosDocs = filteredDocs.filter(d => !docsUsados.has(d.id));
-        if (avulsosDocs.length > 0) {
-            combinedHtml += window.buildContratosSignatureRows(assinaturas, avulsosDocs, viewedColaborador);
-        }
-
         // ── Slot especial: Ficha de Registro (upload-only, não gerado por template) ──
-        const _normFR = s => (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
-        const fichaRegistroDoc = [...filteredDocs, ...docs.filter(d => d.tab_name === '01_FICHA_CADASTRAL')]
-            .find(d => _normFR(d.document_type).includes('ficha de registro') || _normFR(d.document_type).includes('ficha cadastral'));
-        if (fichaRegistroDoc) {
-            docsUsados.add(fichaRegistroDoc.id);
-            combinedHtml += window.buildContratosSignatureRows(assinaturas, [fichaRegistroDoc], viewedColaborador);
-        } else {
+        if (!docsUsados.has(fichaRegistroDoc?.id) && !fichaRegistroDoc) {
             // Slot vazio: exibe linha para anexar
             combinedHtml += `
             <div style="display:flex; align-items:center; justify-content:space-between; padding:0.65rem 0.75rem; border:1.5px dashed #64748b; border-radius:8px; background:#f8fafc; gap:0.75rem;">
@@ -9498,6 +9503,27 @@ window.abrirModalGerarContrato = function() {
                         </div>
                     </div>
                 </div>
+                <!-- CAMPOS EXTRAS PARA DESCONTO -->
+                <div id="ca-extra-fields-desconto" style="display:none; padding:1rem; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:8px;">
+                    <div style="font-weight:600; font-size:0.85rem; color:#0f172a; margin-bottom:0.75rem;"><i class="ph ph-receipt"></i> Detalhes do Desconto</div>
+                    <div style="display:flex; flex-direction:column; gap:0.6rem;">
+                        <div>
+                            <label style="font-size:0.75rem;font-weight:600;color:#475569;">Descrição do Desconto</label>
+                            <input type="text" id="ca-desconto-descricao" placeholder="Ex: Multa de Trânsito..." style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;">
+                        </div>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem;">
+                            <div>
+                                <label style="font-size:0.75rem;font-weight:600;color:#475569;">Valor Total (R$)</label>
+                                <input type="text" id="ca-desconto-valor" placeholder="0,00" onkeyup="window.calcParcelaDescontoCA()" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;">
+                            </div>
+                            <div>
+                                <label style="font-size:0.75rem;font-weight:600;color:#475569;">Qtd. Parcelas</label>
+                                <input type="number" id="ca-desconto-parcelas" value="1" min="1" onchange="window.calcParcelaDescontoCA()" onkeyup="window.calcParcelaDescontoCA()" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;">
+                            </div>
+                        </div>
+                        <div id="ca-desconto-valor-parcelamento" style="font-size:0.8rem;font-weight:700;color:#2563eb;margin-top:0.25rem;">Valor de cada parcela: R$ 0,00</div>
+                    </div>
+                </div>
                 <div id="ca-msg" style="display:none;"></div>
                 <div style="display:flex;justify-content:flex-end;gap:0.75rem;">
                     <button onclick="document.getElementById('modal-contrato-avulso').remove()" class="btn btn-secondary">Cancelar</button>
@@ -9539,6 +9565,28 @@ window.abrirModalGerarContrato = function() {
         if (search) search.value = nome;
         if (hidden) hidden.value = id;
         if (dd)     dd.style.display = 'none';
+
+        const extras = document.getElementById('ca-extra-fields-desconto');
+        if (extras) {
+            const isDesconto = nome.toUpperCase().includes('DESCONTO EM FOLHA');
+            extras.style.display = isDesconto ? 'block' : 'none';
+            if (isDesconto) {
+                document.getElementById('ca-desconto-descricao').value = '';
+                document.getElementById('ca-desconto-valor').value = '';
+                document.getElementById('ca-desconto-parcelas').value = '1';
+                if(window.calcParcelaDescontoCA) window.calcParcelaDescontoCA();
+            }
+        }
+    };
+
+    window.calcParcelaDescontoCA = function() {
+        let valStr = document.getElementById('ca-desconto-valor')?.value || '0';
+        valStr = valStr.replace(',', '.');
+        const valor = parseFloat(valStr) || 0;
+        const parcelas = parseInt(document.getElementById('ca-desconto-parcelas')?.value) || 1;
+        const vp = (valor / parcelas).toFixed(2).replace('.', ',');
+        const vpEl = document.getElementById('ca-desconto-valor-parcelamento');
+        if(vpEl) vpEl.innerText = 'Valor de cada parcela: R$ ' + vp;
     };
 
     setTimeout(() => {
@@ -9565,13 +9613,24 @@ window.gerarContratoAvulso = async function() {
     btn.disabled = true;
 
     try {
+        let requestBody = {
+            colaborador_id: viewedColaborador.id,
+            colabId: viewedColaborador.id
+        };
+
+        const gNome = document.getElementById('ca-gerador-search')?.value || '';
+        if (gNome.toUpperCase().includes('DESCONTO EM FOLHA')) {
+            requestBody.desconto_descricao = document.getElementById('ca-desconto-descricao')?.value || 'Não informado';
+            requestBody.desconto_valor = document.getElementById('ca-desconto-valor')?.value || '0,00';
+            requestBody.desconto_parcelas = document.getElementById('ca-desconto-parcelas')?.value || '1';
+            const vpEl = document.getElementById('ca-desconto-valor-parcelamento');
+            requestBody.desconto_valor_parcela = vpEl ? vpEl.innerText.replace('Valor de cada parcela: R$ ', '') : '0,00';
+        }
+
         const res = await fetch(`${API_URL}/geradores/${geradorId}/gerar`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
-            body: JSON.stringify({
-                colaborador_id: viewedColaborador.id,
-                colabId: viewedColaborador.id
-            })
+            body: JSON.stringify(requestBody)
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Erro ao gerar documento');
