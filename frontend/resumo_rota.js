@@ -154,7 +154,7 @@ window.rrListarHistorico = async function() {
         
         sel.innerHTML = '<option value="">Selecione um resumo anterior...</option>';
         _rrHistoricoList.forEach(h => {
-            sel.innerHTML += \`<option value="\${h.id}">\${h.nome} (\${h.usuario_nome || 'Auto'})</option>\`;
+            sel.innerHTML += `<option value="${h.id}">${h.nome} (${h.usuario_nome || 'Auto'})</option>`;
         });
         if (_rrCurrentId) sel.value = _rrCurrentId;
     } catch (e) {
@@ -247,7 +247,7 @@ window.rrImportarPlanilha = async function(input) {
     });
     
     const dateStr = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
-    const nomeResumo = \`\${dateStr} \${isNoturno ? 'NOTURNO' : 'PADRÃO'}\`;
+    const nomeResumo = `${dateStr} ${isNoturno ? 'NOTURNO' : 'PADRÃO'}`;
     
     // Salvar no backend
     try {
@@ -270,7 +270,7 @@ window.rrImportarPlanilha = async function(input) {
     _rrRenderCorpo();
     const btn = document.getElementById('rr-btn-exportar');
     if (btn) btn.style.display = 'flex';
-    showToast(\`✅ \${_rrVeiculos.length} veículos carregados e salvos!\`, 'success');
+    showToast(`✅ ${_rrVeiculos.length} veículos carregados e salvos!`, 'success');
 };
 
 // ══════════════════════════════════════════════════════════════
@@ -427,7 +427,7 @@ window.rrExportarExcel = async function() {
         const colA = `${v.veiculo} - Saída`;
         
         // Pega do textarea na tela (se existir) para pegar edições manuais
-        const ta = document.querySelector(\`.rr-textarea-edit[data-index="\${i}"]\`);
+        const ta = document.querySelector(`.rr-textarea-edit[data-index="${i}"]`);
         const colB = ta ? ta.value : _rrMontarColB(v);
 
         const row  = ws.addRow([colA, colB]);
