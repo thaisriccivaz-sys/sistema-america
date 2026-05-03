@@ -1309,7 +1309,7 @@ async function pipelineExcluirSelecionadas() {
 
     try {
         const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
-        const ids = Array.from(_pipelineSelecionados);
+        const ids = Array.from(_pipelineSelecionados.keys());
         const resp = await fetch('/api/logistica/pipeline/excluir-selecionadas', {
             method: 'DELETE',
             headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
