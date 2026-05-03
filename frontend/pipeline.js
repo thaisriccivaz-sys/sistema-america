@@ -499,7 +499,7 @@ async function pipelineExportarExcel(registrosOverride) {
     };
     function abreviarDias(dias) {
         if (!Array.isArray(dias) || !dias.length) return '';
-        return dias.map(d => ABREV_DIA[d.toLowerCase()] || d.toLowerCase().substring(0,3)).join(', ');
+        return dias.map(d => (ABREV_DIA[d.toLowerCase()] || d.toLowerCase().substring(0,3)).toUpperCase()).join(', ');
     }
 
     // ── Títulos EXATOS das colunas (A–Z) ────────────────────────────────
@@ -548,10 +548,9 @@ async function pipelineExportarExcel(registrosOverride) {
 
     registros.forEach(r => {
         const ts = (r.tipo_servico || '').toLowerCase();
-        // Mostrar dias da semana apenas para manutenção obra/evento e avulsa obra/evento
+        // Mostrar dias da semana apenas para manutenção recorrente (obra/evento)
         const isManutObraEvento  = (ts.includes('manut') && !ts.includes('avulsa')) && (ts.includes('obra') || ts.includes('evento'));
-        const isAvulsaObraEvento = ts.includes('avulsa') && (ts.includes('obra') || ts.includes('evento'));
-        const mostrarDias = isManutObraEvento || isAvulsaObraEvento;
+        const mostrarDias = isManutObraEvento;
 
         // Inferir tipo de contrato (obra/evento) para colorir linhas de manutenção avulsa
         let tipoContratoXls = (r.tipo_os || '').toLowerCase();
