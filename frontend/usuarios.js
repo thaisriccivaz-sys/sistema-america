@@ -511,7 +511,7 @@ const MENU_HIERARQUIA = [
     },
     {
         modulo: 'Logística', icone: 'ph-truck', cor: '#2b8a3e',
-        grupos: [{ titulo: 'Telas', telas: ['logistica-pipeline', 'logistica-rota-redonda', 'logistica-resumo-rota', 'logistica-frota', 'logistica-multas', 'logistica-credenciamento', 'logistica-senhas'] }]
+        grupos: [{ titulo: 'Telas', telas: ['logistica-pipeline', 'logistica-rota-redonda', 'logistica-resumo-rota', 'logistica-frota', 'logistica-multas', 'logistica-credenciamento', 'logistica-senhas', 'logistica-itinerantes'] }]
     },
     {
         modulo: 'Financeiro', icone: 'ph-currency-dollar', cor: '#1864ab',
