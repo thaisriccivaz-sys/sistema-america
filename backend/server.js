@@ -3662,11 +3662,15 @@ app.get('/api/logistica/senhas/historico', authenticateToken, (req, res) => {
 // RESUMO DE ROTA
 // ==========================================
 
-// GET /api/logistica/resumo-rota - Lista histórico
+// GET /api/logistica/resumo-rota - Lista histórico (limpa automaticamente > 6 meses)
 app.get('/api/logistica/resumo-rota', authenticateToken, (req, res) => {
-    db.all("SELECT id, nome, criado_em, usuario_nome FROM logistica_resumo_rota ORDER BY id DESC", [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows || []);
+    // Limpa registros com mais de 6 meses antes de listar
+    db.run("DELETE FROM logistica_resumo_rota WHERE criado_em < datetime('now', '-6 months')", [], (delErr) => {
+        if (delErr) console.error('[RR] Erro ao limpar histórico antigo:', delErr.message);
+        db.all("SELECT id, nome, criado_em, usuario_nome FROM logistica_resumo_rota ORDER BY id DESC", [], (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json(rows || []);
+        });
     });
 });
 
@@ -3678,11 +3682,11 @@ app.get('/api/logistica/resumo-rota/:id', authenticateToken, (req, res) => {
     });
 });
 
-// POST /api/logistica/resumo-rota - Salva um novo resumo ou atualiza existente
+// POST /api/logistica/resumo-rota - Salva um novo resumo
 app.post('/api/logistica/resumo-rota', authenticateToken, (req, res) => {
     const { id, nome, dados } = req.body;
-    const dadosStr = JSON.stringify(dados);
-    
+    const dadosStr = typeof dados === 'string' ? dados : JSON.stringify(dados);
+
     if (id) {
         db.run("UPDATE logistica_resumo_rota SET dados = ? WHERE id = ?", [dadosStr, id], function(err) {
             if (err) return res.status(500).json({ error: err.message });
