@@ -389,59 +389,61 @@ window.rrImportarPlanilha = async function(input) {
     _rrCurrentId = null;
 
     // --- INSIGHT 1: CAPACIDADE DE CARGA ---
-    let frotaMap = {};
+    let frotaMap = {}; // chave: placa normalizada (sem hifens), valor: capacidade_carga
     try {
         const resFrota = await fetch('/api/frota/veiculos', { headers: _rrAuthHeaders() });
         if(resFrota.ok) {
             const list = await resFrota.json();
-            list.forEach(v => { frotaMap[v.placa] = parseInt(v.capacidade_carga) || 0; });
+            list.forEach(item => {
+                // Ex: 'BXR4663' ou 'BXR-4663' -> 'BXR4663'
+                const placaNorm = (item.placa || '').replace(/[-\s]/g, '').toUpperCase();
+                frotaMap[placaNorm] = parseInt(item.capacidade_carga) || 0;
+            });
         }
     } catch(e) {
         console.error('Erro ao buscar dados da frota para insights', e);
     }
 
-    _rrVeiculos.forEach(v => {
-        let maxCarga = frotaMap[v.veiculo] || 0;
-        if (maxCarga === 0) return; // Veículo não tem carga cadastrada no BD (ou é ilimitada)
+    // Helper: soma quantidades de todos os produtos de uma OS
+    function _rrSomaProdutos(os) {
+        const prods = (os.produtos && os.produtos.length > 0) ? os.produtos : [os.produto];
+        let total = 0;
+        prods.forEach(prodStr => { const p = _rrParseProduto(prodStr); if (p) total += p.qtd; });
+        return total;
+    }
 
-        // 1. Carrega o veículo inicialmente com TODAS as entregas
+    _rrVeiculos.forEach(v => {
+        // Extrai placa do campo veiculo: ex 'BXR-4663 DELIVERY (TER)' -> 'BXR4663'
+        const placaNorm = (v.veiculo || '').split(' ')[0].replace(/[-\s]/g, '').toUpperCase();
+        let maxCarga = frotaMap[placaNorm] || 0;
+        if (maxCarga === 0) return; // Sem capacidade cadastrada, sem verificação
+
+        // 1. Carga inicial: total de itens a ENTREGAR (saem do galpão no caminhão)
         let totalEntregas = 0;
-        v.os.forEach(os => {
-            if (os.tipo === 'ENTREGA') {
-                const p = _rrParseProduto(os.produto);
-                if (p) totalEntregas += p.qtd;
-            }
-        });
+        v.os.forEach(os => { if (os.tipo === 'ENTREGA') totalEntregas += _rrSomaProdutos(os); });
 
         let cargaAtual = totalEntregas;
         let sobrecarga = false;
         let erroAtingido = 0;
 
-        // Já excede logo na saída?
-        if (cargaAtual > maxCarga) {
-            sobrecarga = true;
-            erroAtingido = cargaAtual;
-        }
+        // Já estoura na saída?
+        if (cargaAtual > maxCarga) { sobrecarga = true; erroAtingido = cargaAtual; }
 
-        // 2. Simula o andamento da rota visita por visita
+        // 2. Simula visita a visita na ordem da planilha
         v.os.forEach(os => {
             if (sobrecarga) return;
-            const p = _rrParseProduto(os.produto);
-            if (!p) return;
-            
+            const qtd = _rrSomaProdutos(os);
+            if (!qtd) return;
             if (os.tipo === 'ENTREGA') {
-                cargaAtual -= p.qtd; // descarregou
+                cargaAtual -= qtd;
             } else if (os.tipo === 'RETIRADA') {
-                cargaAtual += p.qtd; // carregou mais
-                if (cargaAtual > maxCarga) {
-                    sobrecarga = true;
-                    erroAtingido = cargaAtual;
-                }
+                cargaAtual += qtd;
+                if (cargaAtual > maxCarga) { sobrecarga = true; erroAtingido = cargaAtual; }
             }
         });
 
         if (sobrecarga) {
-            v.alertaCarga = `Atenção: A capacidade deste veículo é de ${maxCarga} itens. A carga projetada atingiu ${erroAtingido} itens durante o percurso! (Verifique a ordem de entregas e retiradas).`;
+            v.alertaCarga = `⚠️ Capacidade excedida! Este veículo suporta ${maxCarga} itens, mas a rota projeta ${erroAtingido} itens simultâneos. Verifique a ordem de entregas e retiradas.`;
         }
     });
 
