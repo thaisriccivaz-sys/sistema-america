@@ -9939,6 +9939,14 @@ db.serialize(() => {
 // FROTA DE VEÍCULOS
 // =====================================================================
 
+// GET - lista leve de colaboradores com foto (usada pelo Resumo de Rota)
+app.get('/api/colaboradores/resumo', authenticateToken, (req, res) => {
+    db.all("SELECT id, nome_completo, foto_base64 FROM colaboradores WHERE status != 'Desligado' ORDER BY nome_completo ASC", [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
 // GET - listar todos os veículos da frota
 app.get('/api/frota/veiculos', authenticateToken, (req, res) => {
     db.all('SELECT id, placa, marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo, capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_filename, created_at, updated_at FROM frota_veiculos ORDER BY placa ASC', [], (err, rows) => {

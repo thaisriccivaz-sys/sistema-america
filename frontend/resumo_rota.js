@@ -388,23 +388,44 @@ window.rrImportarPlanilha = async function(input) {
     _rrVeiculos  = Object.values(map);
     _rrCurrentId = null;
 
-    // --- INSIGHT 1: CAPACIDADE DE CARGA ---
-    let frotaMap = {}; // chave: placa normalizada (sem hifens), valor: capacidade_carga
+    // --- CARREGAR FOTOS E CAPACIDADES EM PARALELO ---
+    let frotaMap = {}; // placa_norm -> capacidade_carga
+    let fotoMap  = {}; // nome_lower -> foto_base64
     try {
-        const resFrota = await fetch('/api/frota/veiculos', { headers: _rrAuthHeaders() });
-        if(resFrota.ok) {
+        const [resFrota, resColab] = await Promise.all([
+            fetch('/api/frota/veiculos',      { headers: _rrAuthHeaders() }),
+            fetch('/api/colaboradores/resumo', { headers: _rrAuthHeaders() }),
+        ]);
+        if (resFrota.ok) {
             const list = await resFrota.json();
             list.forEach(item => {
-                // Ex: 'BXR4663' ou 'BXR-4663' -> 'BXR4663'
                 const placaNorm = (item.placa || '').replace(/[-\s]/g, '').toUpperCase();
-                frotaMap[placaNorm] = parseInt(item.capacidade_carga) || 0;
+                frotaMap[placaNorm] = { carga: parseInt(item.capacidade_carga) || 0, temCadastro: item.capacidade_carga !== null && item.capacidade_carga !== '' };
             });
         }
+        if (resColab.ok) {
+            const list = await resColab.json();
+            list.forEach(c => { fotoMap[(c.nome_completo || '').toLowerCase().trim()] = c.foto_base64 || null; });
+        }
     } catch(e) {
-        console.error('Erro ao buscar dados da frota para insights', e);
+        console.error('[RR] Erro ao buscar dados para insights', e);
     }
 
-    // Helper: soma quantidades de todos os produtos de uma OS
+    // Salvar foto e capacidade nos objetos de veículo
+    _rrVeiculos.forEach(v => {
+        // Fotos dos tripulantes
+        v._fotoMotorista = fotoMap[(v.motorista || '').toLowerCase().trim()] || null;
+        v._fotoAjudante  = fotoMap[(v.ajudante  || '').toLowerCase().trim()] || null;
+
+        // Capacidade
+        const placaNorm = (v.veiculo || '').split(' ')[0].replace(/[-\s]/g, '').toUpperCase();
+        const info = frotaMap[placaNorm];
+        v._maxCarga = info ? info.carga : null;
+        v._temCadastroCarga = info ? info.temCadastro : false;
+    });
+
+    // --- INSIGHT 1: CAPACIDADE DE CARGA ---
+    // Helper: soma todos os produtos de uma OS
     function _rrSomaProdutos(os) {
         const prods = (os.produtos && os.produtos.length > 0) ? os.produtos : [os.produto];
         let total = 0;
@@ -413,12 +434,8 @@ window.rrImportarPlanilha = async function(input) {
     }
 
     _rrVeiculos.forEach(v => {
-        // Extrai placa do campo veiculo: ex 'BXR-4663 DELIVERY (TER)' -> 'BXR4663'
-        const placaNorm = (v.veiculo || '').split(' ')[0].replace(/[-\s]/g, '').toUpperCase();
-        let maxCarga = frotaMap[placaNorm] || 0;
-        if (maxCarga === 0) return; // Sem capacidade cadastrada, sem verificação
+        if (!v._temCadastroCarga || v._maxCarga <= 0) return; // Sem capacidade cadastrada ou sem limite
 
-        // 1. Carga inicial: total de itens a ENTREGAR (saem do galpão no caminhão)
         let totalEntregas = 0;
         v.os.forEach(os => { if (os.tipo === 'ENTREGA') totalEntregas += _rrSomaProdutos(os); });
 
@@ -426,10 +443,8 @@ window.rrImportarPlanilha = async function(input) {
         let sobrecarga = false;
         let erroAtingido = 0;
 
-        // Já estoura na saída?
-        if (cargaAtual > maxCarga) { sobrecarga = true; erroAtingido = cargaAtual; }
+        if (cargaAtual > v._maxCarga) { sobrecarga = true; erroAtingido = cargaAtual; }
 
-        // 2. Simula visita a visita na ordem da planilha
         v.os.forEach(os => {
             if (sobrecarga) return;
             const qtd = _rrSomaProdutos(os);
@@ -438,14 +453,15 @@ window.rrImportarPlanilha = async function(input) {
                 cargaAtual -= qtd;
             } else if (os.tipo === 'RETIRADA') {
                 cargaAtual += qtd;
-                if (cargaAtual > maxCarga) { sobrecarga = true; erroAtingido = cargaAtual; }
+                if (cargaAtual > v._maxCarga) { sobrecarga = true; erroAtingido = cargaAtual; }
             }
         });
 
         if (sobrecarga) {
-            v.alertaCarga = `⚠️ Capacidade excedida! Este veículo suporta ${maxCarga} itens, mas a rota projeta ${erroAtingido} itens simultâneos. Verifique a ordem de entregas e retiradas.`;
+            v.alertaCarga = `⚠️ Capacidade excedida! Este veículo suporta ${v._maxCarga} banheiros, mas a rota projeta ${erroAtingido} simultâneos. Verifique a ordem de entregas e retiradas.`;
         }
     });
+
 
     // Nome sugerido
     let isNoturno = false;
@@ -485,6 +501,23 @@ function _rrRenderCorpo() {
         const nLines = (colB.match(/\n/g) || []).length + 2;
         const h      = Math.max(120, nLines * 20);
         
+        // Avatar helper
+        const _avatar = (foto, nome) => foto
+            ? `<img src="${foto}" title="${nome}" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.6);">`
+            : `<div title="${nome}" style="width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;color:#fff;border:2px solid rgba(255,255,255,0.4);">${(nome||'?')[0].toUpperCase()}</div>`;
+
+        const fotosMot = v.motorista ? `<div style="display:flex;align-items:center;gap:6px;">${_avatar(v._fotoMotorista, v.motorista)}<span style="font-size:0.78rem;color:rgba(255,255,255,0.9);">${v.motorista}</span></div>` : '';
+        const fotosAju = v.ajudante  ? `<div style="display:flex;align-items:center;gap:6px;">${_avatar(v._fotoAjudante,  v.ajudante)}<span style="font-size:0.78rem;color:rgba(255,255,255,0.9);">${v.ajudante}</span></div>` : '';
+        const fotosDiv = (fotosMot || fotosAju) ? `<div style="display:flex;gap:12px;align-items:center;">${fotosMot}${fotosAju}</div>` : '';
+
+        // Badge de capacidade
+        let capacidadeBadge = '';
+        if (v._maxCarga > 0) {
+            capacidadeBadge = `<span style="background:rgba(255,255,255,0.15);border-radius:6px;padding:3px 10px;font-size:0.8rem;color:#fff;"><i class="ph ph-truck"></i> Carga máx: ${v._maxCarga}</span>`;
+        } else if (!v._temCadastroCarga) {
+            capacidadeBadge = `<span style="background:rgba(255,165,0,0.3);border-radius:6px;padding:3px 10px;font-size:0.8rem;color:#ffe0a0;" title="Cadastre a capacidade na tela Frota"><i class="ph ph-warning"></i> Cap. não cadastrada</span>`;
+        }
+
         const badgeAlerta = v.alertaCarga 
             ? `<div style="background:#fef2f2;color:#dc2626;padding:10px 18px;border-bottom:1px solid #fecaca;font-size:0.85rem;font-weight:700;display:flex;align-items:center;gap:8px;">
                  <i class="ph ph-warning" style="font-size:1.1rem;"></i> ${v.alertaCarga}
@@ -493,9 +526,15 @@ function _rrRenderCorpo() {
 
         return `
         <div style="background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.07);margin-bottom:16px;overflow:hidden;border:1px solid #e2e8f0;">
-            <div style="background:#2d9e5f;padding:12px 18px;display:flex;justify-content:space-between;align-items:center;">
-                <div style="color:#fff;font-weight:700;font-size:1rem;">${colA}</div>
-                <div style="background:rgba(255,255,255,0.2);border-radius:6px;padding:4px 12px;color:#fff;font-size:0.85rem;">${total} OS</div>
+            <div style="background:#2d9e5f;padding:12px 18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                <div style="display:flex;flex-direction:column;gap:8px;">
+                    <div style="color:#fff;font-weight:700;font-size:1rem;">${colA}</div>
+                    ${fotosDiv}
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                    ${capacidadeBadge}
+                    <div style="background:rgba(255,255,255,0.2);border-radius:6px;padding:4px 12px;color:#fff;font-size:0.85rem;">${total} OS</div>
+                </div>
             </div>
             ${badgeAlerta}
             <div style="padding:14px 18px;background:#f8fafc;">
