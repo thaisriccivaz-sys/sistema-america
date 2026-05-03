@@ -11,7 +11,7 @@ window.renderItinerantesPage = function() {
                 <div>
                     <h2 style="margin:0; display:flex; align-items:center; gap:10px; color:#1e293b; font-size:1.4rem;">
                         <i class="ph-bold ph-bluetooth" style="color:#2d9e5f; background:#ecfdf5; padding:8px; border-radius:8px;"></i> 
-                        Painel de Tags Bluetooth
+                        Clientes Itinerantes
                     </h2>
                     <p style="margin:8px 0 0; color:#64748b; font-size:0.95rem;">
                         Gerencie todos os seus links do <strong>Encontre Meu Dispositivo</strong> em um só lugar.
