@@ -177,7 +177,8 @@ window._rrDefaultNomeResumo  = '';
 
 // ── Token helper ───────────────────────────────────────────────
 function _rrAuthHeaders() {
-    return { 'Authorization': 'Bearer ' + (localStorage.getItem('token') || '') };
+    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+    return { 'Authorization': 'Bearer ' + token };
 }
 
 // ══════════════════════════════════════════════════════════════
