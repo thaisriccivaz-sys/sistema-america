@@ -360,6 +360,63 @@ window.rrImportarPlanilha = async function(input) {
     _rrVeiculos  = Object.values(map);
     _rrCurrentId = null;
 
+    // --- INSIGHT 1: CAPACIDADE DE CARGA ---
+    let frotaMap = {};
+    try {
+        const resFrota = await fetch('/api/frota/veiculos', { headers: _rrAuthHeaders() });
+        if(resFrota.ok) {
+            const list = await resFrota.json();
+            list.forEach(v => { frotaMap[v.placa] = parseInt(v.capacidade_carga) || 0; });
+        }
+    } catch(e) {
+        console.error('Erro ao buscar dados da frota para insights', e);
+    }
+
+    _rrVeiculos.forEach(v => {
+        let maxCarga = frotaMap[v.veiculo] || 0;
+        if (maxCarga === 0) return; // Veículo não tem carga cadastrada no BD (ou é ilimitada)
+
+        // 1. Carrega o veículo inicialmente com TODAS as entregas
+        let totalEntregas = 0;
+        v.os.forEach(os => {
+            if (os.tipo === 'ENTREGA') {
+                const p = _rrParseProduto(os.produto);
+                if (p) totalEntregas += p.qtd;
+            }
+        });
+
+        let cargaAtual = totalEntregas;
+        let sobrecarga = false;
+        let erroAtingido = 0;
+
+        // Já excede logo na saída?
+        if (cargaAtual > maxCarga) {
+            sobrecarga = true;
+            erroAtingido = cargaAtual;
+        }
+
+        // 2. Simula o andamento da rota visita por visita
+        v.os.forEach(os => {
+            if (sobrecarga) return;
+            const p = _rrParseProduto(os.produto);
+            if (!p) return;
+            
+            if (os.tipo === 'ENTREGA') {
+                cargaAtual -= p.qtd; // descarregou
+            } else if (os.tipo === 'RETIRADA') {
+                cargaAtual += p.qtd; // carregou mais
+                if (cargaAtual > maxCarga) {
+                    sobrecarga = true;
+                    erroAtingido = cargaAtual;
+                }
+            }
+        });
+
+        if (sobrecarga) {
+            v.alertaCarga = `Atenção: A capacidade deste veículo é de ${maxCarga} itens. A carga projetada atingiu ${erroAtingido} itens durante o percurso! (Verifique a ordem de entregas e retiradas).`;
+        }
+    });
+
     // Nome sugerido
     let isNoturno = false;
     _rrVeiculos.forEach(v => v.os.forEach(o => {
@@ -397,12 +454,20 @@ function _rrRenderCorpo() {
         const total  = v.os.length;
         const nLines = (colB.match(/\n/g) || []).length + 2;
         const h      = Math.max(120, nLines * 20);
+        
+        const badgeAlerta = v.alertaCarga 
+            ? `<div style="background:#fef2f2;color:#dc2626;padding:10px 18px;border-bottom:1px solid #fecaca;font-size:0.85rem;font-weight:700;display:flex;align-items:center;gap:8px;">
+                 <i class="ph ph-warning" style="font-size:1.1rem;"></i> ${v.alertaCarga}
+               </div>` 
+            : '';
+
         return `
         <div style="background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.07);margin-bottom:16px;overflow:hidden;border:1px solid #e2e8f0;">
             <div style="background:#2d9e5f;padding:12px 18px;display:flex;justify-content:space-between;align-items:center;">
                 <div style="color:#fff;font-weight:700;font-size:1rem;">${colA}</div>
                 <div style="background:rgba(255,255,255,0.2);border-radius:6px;padding:4px 12px;color:#fff;font-size:0.85rem;">${total} OS</div>
             </div>
+            ${badgeAlerta}
             <div style="padding:14px 18px;background:#f8fafc;">
                 <textarea class="rr-textarea-edit" data-index="${i}" spellcheck="false"
                     style="width:100%;height:${h}px;border:1px solid #cbd5e1;border-radius:6px;padding:12px;font-size:0.85rem;color:#1e293b;line-height:1.7;font-family:monospace;resize:vertical;outline:none;box-sizing:border-box;"
