@@ -141,8 +141,8 @@ window.rrImportarPlanilha = async function(input) {
 
     rows.forEach(r => {
         const veiculo   = (r[7]  || '').toString().trim();
-        const motorista = (r[5]  || '').toString().trim(); // campo "Motorista"
-        const copiloto  = (r[6]  || '').toString().trim(); // campo "Co-pilotos" (é quem dirige)
+        const motorista = (r[5]  || '').toString().trim(); // Coluna E = Motorista
+        const ajudante  = (r[6]  || '').toString().trim(); // Coluna F = Ajudante (Co-pilotos)
         const cliente   = (r[8]  || '').toString().trim();
         const endereco  = (r[9]  || '').toString().trim();
         const etaRaw    = r[10];
@@ -155,16 +155,16 @@ window.rrImportarPlanilha = async function(input) {
         const notas     = (r[36] || '').toString().trim();
         const numOS     = (r[3]  || '').toString().trim();
 
-        if (!veiculo && !copiloto) return;
+        if (!veiculo) return;
 
-        const placaKey = veiculo || 'SEM VEÍCULO';
+        const placaKey = veiculo;
 
         if (!veiculosMap[placaKey]) {
             veiculosMap[placaKey] = {
-                veiculo:    placaKey,
-                motorista:  motorista || copiloto, // quem dirige (campo motorista ou copiloto)
-                ajudante:   motorista && copiloto ? motorista : '', // se ambos preenchidos, motorista é ajudante
-                clientes:   [],
+                veiculo:   placaKey,
+                motorista: motorista,
+                ajudante:  ajudante,
+                clientes:  [],
             };
         }
 
