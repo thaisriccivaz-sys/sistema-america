@@ -1,81 +1,118 @@
 // ══════════════════════════════════════════════════════════════
 //  RESUMO DE ROTA  –  Logística América Rental
-//  Lê o relatório do SimpliRoute e gera resumo por veículo
+//  Gera planilha única com 1 linha por veículo
 // ══════════════════════════════════════════════════════════════
 
-// Mapa de equipamentos: código_simpliRoute → { nome completo, ícone }
-const RR_EQUIP = {
-    'STD O':            { nome: 'STD OBRA',              icon: '💙' },
-    'STD E':            { nome: 'STD EVENTO',             icon: '💜' },
-    'LX O':             { nome: 'LX OBRA',               icon: '🟦' },
-    'LX E':             { nome: 'LX EVENTO',             icon: '🟪' },
-    'SLX O':            { nome: 'SLX OBRA',              icon: '🔵' },
-    'SLX E':            { nome: 'SLX EVENTO',            icon: '🟣' },
-    'EXL O':            { nome: 'EXL OBRA',              icon: '🔵' },
-    'EXL E':            { nome: 'EXL EVENTO',            icon: '🟣' },
-    'PCD O':            { nome: 'PCD OBRA',              icon: '♿' },
-    'PCD E':            { nome: 'PCD EVENTO',            icon: '🧑🏾‍🦽' },
-    'CHUVEIRO O':       { nome: 'CHUVEIRO OBRA',         icon: '🚿' },
-    'CHUVEIRO E':       { nome: 'CHUVEIRO EVENTO',       icon: '🚿' },
-    'HIDRAULICO O':     { nome: 'HIDRÁULICO OBRA',       icon: '🚽' },
-    'HIDRAULICO E':     { nome: 'HIDRÁULICO EVENTO',     icon: '🚽' },
-    'MICTORIO O':       { nome: 'MICTÓRIO OBRA',         icon: '💦' },
-    'MICTORIO E':       { nome: 'MICTÓRIO EVENTO',       icon: '💦' },
-    'PIA II O':         { nome: 'PBII OBRA',             icon: '🧼' },
-    'PIA II E':         { nome: 'PBII EVENTO',           icon: '🧼' },
-    'PIA III O':        { nome: 'PBIII OBRA',            icon: '🧼' },
-    'PIA III E':        { nome: 'PBIII EVENTO',          icon: '🧼' },
+// ── Mapeamento de equipamentos (código SimpliRoute → nome completo + ícone) ──
+const RR_EQ = {
+    'STD O':  { nome: 'STD OBRA',              icon: '💙' },
+    'STD E':  { nome: 'STD EVENTO',            icon: '💜' },
+    'LX O':   { nome: 'LX OBRA',              icon: '🟦' },
+    'LX E':   { nome: 'LX EVENTO',            icon: '🟪' },
+    'ELX O':  { nome: 'ELX OBRA',             icon: '🔵' },
+    'ELX E':  { nome: 'ELX EVENTO',           icon: '🟣' },
+    'SLX O':  { nome: 'ELX OBRA',             icon: '🔵' },
+    'SLX E':  { nome: 'ELX EVENTO',           icon: '🟣' },
+    'PCD O':  { nome: 'PCD OBRA',             icon: '♿' },
+    'PCD E':  { nome: 'PCD EVENTO',           icon: '🧑🏾‍🦽' },
+    'CHUVEIRO O':  { nome: 'CHUVEIRO OBRA',   icon: '🚿' },
+    'CHUVEIRO E':  { nome: 'CHUVEIRO EVENTO', icon: '🚿' },
+    'HIDRAULICO O':{ nome: 'HIDRÁULICO OBRA', icon: '🚽' },
+    'HIDRAULICO E':{ nome: 'HIDRÁULICO EVENTO',icon:'🚽' },
+    'MICTORIO O':  { nome: 'MICTÓRIO OBRA',   icon: '💦' },
+    'MICTORIO E':  { nome: 'MICTÓRIO EVENTO', icon: '💦' },
+    'PIA II O':    { nome: 'PBII OBRA',        icon: '🧼' },
+    'PIA II E':    { nome: 'PBII EVENTO',      icon: '🧼' },
+    'PIA III O':   { nome: 'PBIII OBRA',       icon: '🧼' },
+    'PIA III E':   { nome: 'PBIII EVENTO',     icon: '🧼' },
     'GUARITA INDIVIDUAL O': { nome: 'GUARITA INDIVIDUAL OBRA',  icon: '⬜' },
-    'GUARITA INDIVIDUAL E': { nome: 'GUARITA INDIVIDUAL EVENTO', icon: '⬜' },
-    'GUARITA DUPLA O':  { nome: 'GUARITA DUPLA OBRA',   icon: '⚪' },
-    'GUARITA DUPLA E':  { nome: 'GUARITA DUPLA EVENTO', icon: '⚪' },
-    'LIMPA FOSSA':      { nome: 'LIMPA FOSSA',           icon: '💧' },
-    'VISITA TECNICA':   { nome: 'VISITA TÉCNICA',        icon: '⚙️' },
-    'CARRINHO':         { nome: 'CARRINHO',              icon: '🛞' },
+    'GUARITA INDIVIDUAL E': { nome: 'GUARITA INDIVIDUAL EVENTO',icon: '⬜' },
+    'GUARITA DUPLA O': { nome: 'GUARITA DUPLA OBRA',   icon: '⚪' },
+    'GUARITA DUPLA E': { nome: 'GUARITA DUPLA EVENTO', icon: '⚪' },
+    'LIMPA FOSSA':    { nome: 'LIMPA FOSSA',    icon: '💧' },
+    'VISITA TECNICA': { nome: 'VISITA TÉCNICA', icon: '⚙️' },
+    'CARRINHO':       { nome: 'CARRINHO',       icon: '🛞' },
 };
 
-// Converte fração decimal do dia em HH:MM
-function _rrFracToTime(v) {
-    if (!v && v !== 0) return '';
-    const h = Math.floor(v * 24);
-    const m = Math.round((v * 24 - h) * 60);
-    return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+// ── Ícones de variáveis (obs) ──────────────────────────────────
+const RR_VAR_ICONS = {
+    'LEVAR CARRINHO':       '🛒',
+    'NOTURNO':              '🌘',
+    'INFORMACOES IMPORTANTES': '🚨',
+    'INFORMAÇÕES IMPORTANTES': '🚨',
+    'ATENCAO AO HORARIO':   '⏰',
+    'ATENÇÃO AO HORÁRIO':   '⏰',
+    'LEVAR EXTENSORA':      '🌀',
+    'VAC':                  '🏗️',
+    'CARRETINHA':           '🔗',
+    'LEVAR EPI':            '🦺',
+    'TROCA DE CABINE':      '♻️',
+    'INTEGRACAO':           '👷',
+    'INTEGRAÇÃO':           '👷',
+    'APOIO DE SUCCAO':      '💧',
+    'AVULSO':               '❗',
+};
+
+// ── Resolve ícone de obs a partir do texto da obs ou nome de variável ──
+function _rrObsIcon(obsText) {
+    const up = (obsText || '').toUpperCase();
+    for (const [key, icon] of Object.entries(RR_VAR_ICONS)) {
+        if (up.includes(key)) return icon;
+    }
+    return '';
 }
 
-// Tenta encontrar info do equipamento pelo código do SimpliRoute
-function _rrEquipInfo(codigo) {
+// ── Resolve equipamento a partir do código do SimpliRoute ──────
+function _rrEquip(codigo) {
     const c = (codigo || '').trim().toUpperCase();
-    // busca exata
-    if (RR_EQUIP[c]) return RR_EQUIP[c];
-    // busca parcial (startsWith)
-    for (const [key, val] of Object.entries(RR_EQUIP)) {
-        if (c.startsWith(key)) return val;
+    if (RR_EQ[c]) return RR_EQ[c];
+    for (const [k, v] of Object.entries(RR_EQ)) {
+        if (c.startsWith(k)) return v;
     }
+    return { nome: c, icon: '' };
+}
+
+// ── Classifica tipo de serviço ─────────────────────────────────
+function _rrTipoServico(notas) {
+    const s = (notas || '').toUpperCase();
+    if (s.includes('ENTREGA'))              return 'ENTREGA';
+    if (s.includes('RETIRADA'))             return 'RETIRADA';
+    if (s.includes('MANUTENCAO AVULSA') || s.includes('MANUTENÇÃO AVULSA')) return 'AVULSA';
+    if (s.includes('MANUTENCAO') || s.includes('MANUTENÇÃO')) return 'MANUTENCAO';
+    return 'OUTROS';
+}
+
+// ── Parseia produto da coluna Notas: "1  STD O" → { qtd:1, codigo:'STD O' } ──
+function _rrParseProduto(prodStr) {
+    const s = (prodStr || '').trim();
+    const m = s.match(/^(\d+)\s+(.+)/);
+    if (m) return { qtd: parseInt(m[1]), codigo: m[2].trim() };
     return null;
 }
 
-// Parseia a coluna "Notas" do SimpliRoute:
-// formato: "TIPO SERVICO | QTD PRODUTO | FREQ X DIAS | obs | ID: XXXX"
+// ── Parseia coluna Notas: "TIPO | QTD PROD | FREQ | OBS | ID: X" ──
 function _rrParseNotas(notas) {
     const parts = (notas || '').split('|').map(p => p.trim());
     return {
         servico: parts[0] || '',
-        produto:  parts[1] || '',
-        freq:     parts[2] || '',
-        id_os:    (parts[4] || '').replace('ID:', '').trim(),
+        produto: parts[1] || '',
+        freq:    parts[2] || '',
+        obs:     parts[3] || '',
+        id:      (parts[4] || '').replace('ID:', '').trim(),
     };
 }
 
-// Estado do módulo
-let _rrDados = []; // array de objetos por veículo
+// ── Estado global ──────────────────────────────────────────────
+let _rrVeiculos = [];
 
-// ── Renderiza a tela ────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+//  RENDER DA TELA
+// ══════════════════════════════════════════════════════════════
 window.renderResumoRota = function() {
     const container = document.getElementById('resumo-rota-container');
     if (!container) return;
-
     container.innerHTML = `
-    <div style="background:linear-gradient(135deg,#1a3c2e 0%,#2d9e5f 100%);padding:20px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+    <div style="background:linear-gradient(135deg,#1a3c2e,#2d9e5f);padding:20px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
         <div style="display:flex;align-items:center;gap:14px;">
             <div style="background:rgba(255,255,255,0.15);border-radius:12px;padding:10px 14px;">
                 <i class="ph ph-list-bullets" style="font-size:1.8rem;color:#fff;"></i>
@@ -86,9 +123,9 @@ window.renderResumoRota = function() {
             </div>
         </div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-            <label id="rr-btn-importar" style="background:#fff;color:#2d9e5f;border:none;border-radius:8px;padding:9px 18px;font-weight:700;font-size:0.9rem;cursor:pointer;display:flex;align-items:center;gap:7px;box-shadow:0 2px 8px rgba(0,0,0,0.15);">
+            <label style="background:#fff;color:#2d9e5f;border-radius:8px;padding:9px 18px;font-weight:700;font-size:0.9rem;cursor:pointer;display:flex;align-items:center;gap:7px;box-shadow:0 2px 8px rgba(0,0,0,0.15);">
                 <i class="ph ph-upload-simple"></i> Importar Planilha SimpliRoute
-                <input type="file" id="rr-file-input" accept=".xlsx" style="display:none;" onchange="window.rrImportarPlanilha(this)">
+                <input type="file" accept=".xlsx" style="display:none;" onchange="window.rrImportarPlanilha(this)">
             </label>
             <button id="rr-btn-exportar" onclick="window.rrExportarExcel()" style="background:rgba(255,255,255,0.2);color:#fff;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:9px 18px;font-weight:700;font-size:0.9rem;cursor:pointer;display:none;align-items:center;gap:7px;">
                 <i class="ph ph-microsoft-excel-logo"></i> Exportar Resumo
@@ -98,256 +135,249 @@ window.renderResumoRota = function() {
     <div id="rr-corpo" style="padding:20px;"></div>`;
 };
 
-// ── Importa e processa a planilha ──────────────────────────────
+// ══════════════════════════════════════════════════════════════
+//  IMPORTAR E PROCESSAR
+// ══════════════════════════════════════════════════════════════
 window.rrImportarPlanilha = async function(input) {
     const file = input.files[0];
     if (!file) return;
-
     const buf = await file.arrayBuffer();
-    const wb  = ExcelJS.Workbook ? null : null; // usamos a lib já carregada na página
-
-    // Usa a lib xlsx se disponível, senão ExcelJS
     let rows = [];
     try {
-        // Tenta via SheetJS (xlsx) via CDN global — não está disponível neste sistema.
-        // Usamos ExcelJS que já está carregado no index.html
-        const workbook = new ExcelJS.Workbook();
-        await workbook.xlsx.load(buf);
-        const ws = workbook.worksheets[0];
-        ws.eachRow((row, rowNumber) => {
-            if (rowNumber === 1) return; // pula header
-            rows.push(row.values); // row.values é 1-indexed (index 0 é null)
-        });
+        const wb = new ExcelJS.Workbook();
+        await wb.xlsx.load(buf);
+        const ws = wb.worksheets[0];
+        ws.eachRow((row, n) => { if (n > 1) rows.push(row.values); }); // 1-indexed
     } catch(e) {
         showToast('Erro ao ler planilha: ' + e.message, 'error');
         return;
     }
+    if (!rows.length) { showToast('Planilha vazia.', 'error'); return; }
 
-    if (!rows.length) {
-        showToast('Planilha vazia ou formato inválido.', 'error');
-        return;
-    }
+    // Colunas SimpliRoute (ExcelJS 1-indexed):
+    // r[5]=Motorista(E), r[6]=Ajudante(F), r[7]=Veículo(G), r[8]=Cliente(H)
+    // r[29]=Observações, r[36]=Notas
 
-    // Índices das colunas do SimpliRoute (1-based porque ExcelJS usa row.values 1-indexed):
-    // 1=ID visita, 2=TrackingID, 3=RefID(OS), 4=DataPrevista, 5=Motorista,
-    // 6=Copilotos, 7=Veículo, 8=Título(cliente), 9=Endereço, 10=ETA, 11=ETD,
-    // 12=Checkin,13=Checkout,14=Resp,15=TempoEst,16=TempoReal,17=Antec,18=Atraso,
-    // 19=Lat,20=Lng,21=CheckoutLat,22=CheckoutLng,
-    // 23=Load1,24=Load2,25=Load3,26=Load4,
-    // 27=Estado,28=Comentários,29=Observações,30=Janela1Ini,31=Janela1Fim,
-    // 32=Janela2Ini,33=Janela2Fim,34=HabNec,35=HabAd,36=Notas,...
-
-    const veiculosMap = {};
-
+    const map = {};
     rows.forEach(r => {
         const veiculo   = (r[7]  || '').toString().trim();
-        const motorista = (r[5]  || '').toString().trim(); // Coluna E = Motorista
-        const ajudante  = (r[6]  || '').toString().trim(); // Coluna F = Ajudante (Co-pilotos)
-        const cliente   = (r[8]  || '').toString().trim();
-        const endereco  = (r[9]  || '').toString().trim();
-        const etaRaw    = r[10];
-        const etdRaw    = r[11];
-        const load1     = (r[23] || '').toString().trim();
-        const load2     = (r[24] || '').toString().trim();
-        const load3     = (r[25] || '').toString().trim();
-        const load4     = (r[26] || '').toString().trim();
-        const observ    = (r[29] || '').toString().trim();
-        const notas     = (r[36] || '').toString().trim();
-        const numOS     = (r[3]  || '').toString().trim();
-
         if (!veiculo) return;
+        const motorista = (r[5]  || '').toString().trim();
+        const ajudante  = (r[6]  || '').toString().trim();
+        const cliente   = (r[8]  || '').toString().trim();
+        const obsCol    = (r[29] || '').toString().trim(); // coluna Observações
+        const notas     = (r[36] || '').toString().trim(); // coluna Notas
 
-        const placaKey = veiculo;
-
-        if (!veiculosMap[placaKey]) {
-            veiculosMap[placaKey] = {
-                veiculo:   placaKey,
-                motorista: motorista,
-                ajudante:  ajudante,
-                clientes:  [],
-            };
+        if (!map[veiculo]) {
+            map[veiculo] = { veiculo, motorista, ajudante, os: [] };
         }
 
-        const parsed = _rrParseNotas(notas);
-        const eta    = typeof etaRaw === 'number' ? _rrFracToTime(etaRaw) : (etaRaw || '');
-        const etd    = typeof etdRaw === 'number' ? _rrFracToTime(etdRaw) : (etdRaw || '');
+        const p = _rrParseNotas(notas);
+        // obs: tenta coluna Observações, senão parts[3] das Notas
+        const obsText = obsCol || p.obs;
 
-        // Produto: pega da coluna Load (quantidade + código) ou das Notas
-        let produtoStr = '';
-        const loads = [load1, load2, load3, load4].filter(Boolean);
-        if (loads.length) {
-            produtoStr = loads.join(' / ');
-        } else if (parsed.produto) {
-            produtoStr = parsed.produto;
-        }
-
-        // Ícone do produto
-        let prodIcon = '';
-        if (produtoStr) {
-            // tenta pegar o código depois do número
-            const m = produtoStr.match(/^\d+\s+(.+)/);
-            const codigo = m ? m[1].trim() : produtoStr;
-            const eq = _rrEquipInfo(codigo);
-            if (eq) prodIcon = eq.icon;
-        }
-
-        veiculosMap[placaKey].clientes.push({
-            os:       numOS,
-            cliente:  cliente,
-            endereco: endereco,
-            servico:  parsed.servico,
-            produto:  produtoStr,
-            prodIcon: prodIcon,
-            freq:     parsed.freq,
-            eta:      eta,
-            etd:      etd,
-            observ:   observ,
+        map[veiculo].os.push({
+            cliente,
+            tipo:   _rrTipoServico(p.servico),
+            servico: p.servico,
+            produto: p.produto,
+            obs:    obsText,
         });
     });
 
-    _rrDados = Object.values(veiculosMap);
+    _rrVeiculos = Object.values(map);
     _rrRenderCorpo();
-
-    const btnExp = document.getElementById('rr-btn-exportar');
-    if (btnExp) btnExp.style.display = 'flex';
-    showToast(`✅ ${_rrDados.length} veículos carregados com sucesso!`, 'success');
+    const btn = document.getElementById('rr-btn-exportar');
+    if (btn) btn.style.display = 'flex';
+    showToast(`✅ ${_rrVeiculos.length} veículos carregados!`, 'success');
 };
 
-// ── Renderiza os cards de veículos ─────────────────────────────
+// ══════════════════════════════════════════════════════════════
+//  MONTAR TEXTO DA COLUNA B (multi-linha por veículo)
+// ══════════════════════════════════════════════════════════════
+function _rrMontarColB(v) {
+    const lines = [];
+
+    // ── 1. OBS PARA MOTORISTA ──────────────────────────────────
+    const obsLinhas = [];
+    v.os.forEach(os => {
+        if (!os.obs) return;
+        const icon = _rrObsIcon(os.obs);
+        const nomeAbrev = (os.cliente || '').substring(0, 15).trim();
+        obsLinhas.push(`${icon ? icon + ' ' : ''}${nomeAbrev}: ${os.obs.toUpperCase()}`);
+    });
+    if (obsLinhas.length) {
+        lines.push(...obsLinhas);
+        lines.push('');
+    }
+
+    // ── 2. ENTREGAS ────────────────────────────────────────────
+    const entregas = v.os.filter(o => o.tipo === 'ENTREGA');
+    if (entregas.length) {
+        // Agrupa por produto
+        const agrupado = _rrAgruparProdutos(entregas);
+        // Determina tipo (OBRA / EVENTO)
+        const tipoStr = _rrTipoObraEvento(entregas);
+        const iconEntrega = '💚';
+        lines.push(`${iconEntrega} ENTREGA ${tipoStr}:`);
+        for (const [nomeProd, { qtd, icon }] of Object.entries(agrupado)) {
+            lines.push(`   ${icon}${qtd} ${nomeProd}`);
+        }
+        lines.push('');
+    }
+
+    // ── 3. RETIRADAS ───────────────────────────────────────────
+    const retiradas = v.os.filter(o => o.tipo === 'RETIRADA');
+    if (retiradas.length) {
+        const agrupado = _rrAgruparProdutos(retiradas);
+        const tipoStr = _rrTipoObraEvento(retiradas);
+        lines.push(`⭕ RETIRADA ${tipoStr}:`);
+        for (const [nomeProd, { qtd, icon }] of Object.entries(agrupado)) {
+            lines.push(`   ${icon}${qtd} ${nomeProd}`);
+        }
+        lines.push('');
+    }
+
+    // ── 4. OUTROS SERVIÇOS (avulsa, reparo, visita, etc.) ──────
+    const outros = v.os.filter(o => o.tipo === 'OUTROS' || o.tipo === 'AVULSA');
+    if (outros.length) {
+        outros.forEach(o => {
+            lines.push(o.servico.toUpperCase());
+        });
+        lines.push('');
+    }
+
+    // ── 5. MANUTENÇÕES ─────────────────────────────────────────
+    const manutencoes = v.os.filter(o => o.tipo === 'MANUTENCAO');
+    if (manutencoes.length) {
+        const agrupado = _rrAgruparProdutos(manutencoes);
+        const tipoStr = _rrTipoObraEvento(manutencoes);
+        lines.push(`MANUTENCAO ${tipoStr}:`);
+        for (const [nomeProd, { qtd, icon }] of Object.entries(agrupado)) {
+            lines.push(`   ${icon}${qtd} × ${nomeProd}`);
+        }
+        lines.push('');
+    }
+
+    // ── 6. MOTORISTA / AJUDANTE ────────────────────────────────
+    if (v.motorista) lines.push(`Motorista: ${v.motorista}`);
+    if (v.ajudante)  lines.push(`Ajudante: ${v.ajudante}`);
+
+    return lines.join('\n');
+}
+
+// Agrupa produtos de uma lista de OS e soma qtd
+function _rrAgruparProdutos(lista) {
+    const ag = {};
+    lista.forEach(os => {
+        const prod = _rrParseProduto(os.produto);
+        if (!prod) return;
+        const eq   = _rrEquip(prod.codigo);
+        const nome = eq.nome || prod.codigo;
+        if (!ag[nome]) ag[nome] = { qtd: 0, icon: eq.icon };
+        ag[nome].qtd += prod.qtd;
+    });
+    return ag;
+}
+
+// Retorna 'OBRA' ou 'EVENTO' com base no serviço
+function _rrTipoObraEvento(lista) {
+    const s = lista.map(o => (o.servico || '').toUpperCase()).join(' ');
+    if (s.includes('EVENTO')) return 'EVENTO';
+    return 'OBRA';
+}
+
+// ══════════════════════════════════════════════════════════════
+//  RENDER PREVIEW NA TELA
+// ══════════════════════════════════════════════════════════════
 function _rrRenderCorpo() {
     const corpo = document.getElementById('rr-corpo');
     if (!corpo) return;
-
-    if (!_rrDados.length) {
-        corpo.innerHTML = `<div style="text-align:center;padding:60px;color:#94a3b8;">
-            <i class="ph ph-list-bullets" style="font-size:3rem;"></i>
-            <p style="margin-top:12px;font-size:1rem;">Nenhum dado carregado. Importe uma planilha do SimpliRoute.</p>
-        </div>`;
+    if (!_rrVeiculos.length) {
+        corpo.innerHTML = `<div style="text-align:center;padding:60px;color:#94a3b8;"><i class="ph ph-list-bullets" style="font-size:3rem;"></i><p>Nenhum dado. Importe a planilha do SimpliRoute.</p></div>`;
         return;
     }
 
-    corpo.innerHTML = _rrDados.map((v, vi) => {
-        const totalOS = v.clientes.length;
-        const linhas = v.clientes.map((c, ci) => {
-            const obsCell = c.observ ? `<span style="color:#b45309;font-style:italic;">${c.observ}</span>` : '';
-            const freqCell = c.freq ? `<span style="background:#e0f2fe;color:#0369a1;border-radius:4px;padding:2px 6px;font-size:0.75rem;font-weight:600;">${c.freq}</span>` : '';
-            return `<tr style="border-bottom:1px solid #f1f5f9;">
-                <td style="padding:7px 10px;font-weight:600;color:#1e293b;white-space:nowrap;">${c.os || '-'}</td>
-                <td style="padding:7px 10px;font-weight:600;color:#1e293b;max-width:200px;">${c.cliente}</td>
-                <td style="padding:7px 10px;color:#475569;font-size:0.82rem;max-width:220px;">${c.endereco}</td>
-                <td style="padding:7px 10px;color:#1e293b;font-size:0.85rem;">${c.servico}</td>
-                <td style="padding:7px 10px;font-size:0.85rem;">${c.prodIcon} ${c.produto}</td>
-                <td style="padding:7px 10px;">${freqCell}</td>
-                <td style="padding:7px 10px;white-space:nowrap;color:#2d9e5f;font-weight:600;">${c.eta}${c.etd ? ' – '+c.etd : ''}</td>
-                <td style="padding:7px 10px;font-size:0.8rem;">${obsCell}</td>
-            </tr>`;
-        }).join('');
-
+    corpo.innerHTML = _rrVeiculos.map(v => {
+        const colA = `${v.veiculo} - Saída`;
+        const colB = _rrMontarColB(v);
+        const colBHtml = colB.replace(/\n/g, '<br>');
+        const total = v.os.length;
         return `
-        <div style="background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.07);margin-bottom:20px;overflow:hidden;border:1px solid #e2e8f0;">
-            <!-- Cabeçalho do veículo -->
-            <div style="background:linear-gradient(90deg,#1a3c2e,#2d9e5f);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
-                <div style="display:flex;align-items:center;gap:14px;">
-                    <div style="background:rgba(255,255,255,0.2);border-radius:8px;padding:8px 12px;text-align:center;">
-                        <i class="ph ph-truck" style="font-size:1.4rem;color:#fff;display:block;"></i>
-                    </div>
-                    <div>
-                        <div style="color:#fff;font-size:1.1rem;font-weight:700;">${v.veiculo}</div>
-                        <div style="color:rgba(255,255,255,0.85);font-size:0.85rem;">
-                            <i class="ph ph-user"></i> ${v.motorista || '—'}
-                            ${v.ajudante ? ` &nbsp;|&nbsp; <i class="ph ph-users"></i> Ajudante: ${v.ajudante}` : ''}
-                        </div>
-                    </div>
-                </div>
-                <div style="background:rgba(255,255,255,0.2);border-radius:8px;padding:6px 16px;color:#fff;font-weight:700;font-size:1rem;">
-                    ${totalOS} OS
-                </div>
+        <div style="background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.07);margin-bottom:16px;overflow:hidden;border:1px solid #e2e8f0;">
+            <div style="background:linear-gradient(90deg,#1a3c2e,#2d9e5f);padding:12px 18px;display:flex;justify-content:space-between;align-items:center;">
+                <div style="color:#fff;font-weight:700;font-size:1rem;">${colA}</div>
+                <div style="background:rgba(255,255,255,0.2);border-radius:6px;padding:4px 12px;color:#fff;font-size:0.85rem;">${total} OS</div>
             </div>
-            <!-- Tabela de clientes -->
-            <div style="overflow-x:auto;">
-                <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
-                    <thead>
-                        <tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;">
-                            <th style="padding:8px 10px;text-align:left;color:#64748b;font-weight:600;font-size:0.78rem;white-space:nowrap;">OS</th>
-                            <th style="padding:8px 10px;text-align:left;color:#64748b;font-weight:600;font-size:0.78rem;">CLIENTE</th>
-                            <th style="padding:8px 10px;text-align:left;color:#64748b;font-weight:600;font-size:0.78rem;">ENDEREÇO</th>
-                            <th style="padding:8px 10px;text-align:left;color:#64748b;font-weight:600;font-size:0.78rem;">SERVIÇO</th>
-                            <th style="padding:8px 10px;text-align:left;color:#64748b;font-weight:600;font-size:0.78rem;">PRODUTO</th>
-                            <th style="padding:8px 10px;text-align:left;color:#64748b;font-weight:600;font-size:0.78rem;">FREQUÊNCIA</th>
-                            <th style="padding:8px 10px;text-align:left;color:#64748b;font-weight:600;font-size:0.78rem;">HORÁRIO</th>
-                            <th style="padding:8px 10px;text-align:left;color:#64748b;font-weight:600;font-size:0.78rem;">OBSERVAÇÕES</th>
-                        </tr>
-                    </thead>
-                    <tbody>${linhas}</tbody>
-                </table>
-            </div>
+            <div style="padding:14px 18px;font-size:0.85rem;color:#1e293b;line-height:1.7;white-space:pre-wrap;font-family:monospace;">${colBHtml}</div>
         </div>`;
     }).join('');
 }
 
-// ── Exporta planilha de resumo ─────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+//  EXPORTAR EXCEL — PLANILHA ÚNICA, UMA LINHA POR VEÍCULO
+// ══════════════════════════════════════════════════════════════
 window.rrExportarExcel = async function() {
-    if (!_rrDados.length) {
+    if (!_rrVeiculos.length) {
         showToast('Importe a planilha do SimpliRoute primeiro.', 'error');
         return;
     }
 
-    const workbook = new ExcelJS.Workbook();
-    workbook.creator = 'América Rental';
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'América Rental';
+    const ws = wb.addWorksheet('Resumo de Rota');
 
-    _rrDados.forEach(v => {
-        // nome da aba: placa limitada a 31 chars (limite do Excel)
-        const nomeAba = v.veiculo.replace(/[\\\/\?\*\[\]]/g, '').substring(0, 31);
-        const ws = workbook.addWorksheet(nomeAba);
+    // Cabeçalho
+    const hdr = ws.addRow(['PLACA / VEÍCULO', 'RESUMO']);
+    hdr.getCell(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    hdr.getCell(2).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    hdr.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A3C2E' } };
+    hdr.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A3C2E' } };
+    hdr.height = 20;
 
-        // Linha de cabeçalho do veículo
-        ws.addRow([`VEÍCULO: ${v.veiculo}`, `MOTORISTA: ${v.motorista}`, v.ajudante ? `AJUDANTE: ${v.ajudante}` : '']);
-        ws.getRow(1).font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } };
-        ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A3C2E' } };
-        ws.getRow(1).height = 22;
+    // Uma linha por veículo
+    _rrVeiculos.forEach((v, i) => {
+        const colA = `${v.veiculo} - Saída`;
+        const colB = _rrMontarColB(v);
+        const row  = ws.addRow([colA, colB]);
 
-        // Linha em branco
-        ws.addRow([]);
+        // Col A: placa
+        row.getCell(1).font  = { bold: true };
+        row.getCell(1).alignment = { vertical: 'top', wrapText: true };
 
-        // Cabeçalhos das colunas
-        const header = ws.addRow(['OS', 'CLIENTE', 'ENDEREÇO', 'SERVIÇO', 'PRODUTO', 'FREQUÊNCIA', 'ETA', 'ETD', 'OBSERVAÇÕES']);
-        header.eachCell(cell => {
-            cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2D9E5F' } };
-            cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        // Col B: resumo multi-linha
+        row.getCell(2).alignment = { vertical: 'top', wrapText: true };
+
+        // Altura proporcional ao número de linhas no resumo
+        const numLinhas = (colB.match(/\n/g) || []).length + 1;
+        row.height = Math.max(15, numLinhas * 15);
+
+        // Zebra
+        if (i % 2 === 0) {
+            row.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0FBF4' } };
+            row.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0FBF4' } };
+        }
+
+        // Bordas
+        ['A','B'].forEach(col => {
+            const cell = ws.getCell(`${col}${i + 2}`);
+            cell.border = {
+                top:    { style: 'thin', color: { argb: 'FFCBD5E1' } },
+                bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+                left:   { style: 'thin', color: { argb: 'FFCBD5E1' } },
+                right:  { style: 'thin', color: { argb: 'FFCBD5E1' } },
+            };
         });
-
-        // Dados
-        v.clientes.forEach(c => {
-            const row = ws.addRow([
-                c.os,
-                c.cliente,
-                c.endereco,
-                c.servico,
-                `${c.prodIcon ? c.prodIcon + ' ' : ''}${c.produto}`,
-                c.freq,
-                c.eta,
-                c.etd,
-                c.observ,
-            ]);
-            row.getCell(1).font = { bold: true };
-        });
-
-        // Larguras
-        ws.getColumn(1).width = 10;
-        ws.getColumn(2).width = 35;
-        ws.getColumn(3).width = 40;
-        ws.getColumn(4).width = 22;
-        ws.getColumn(5).width = 20;
-        ws.getColumn(6).width = 20;
-        ws.getColumn(7).width = 8;
-        ws.getColumn(8).width = 8;
-        ws.getColumn(9).width = 35;
     });
 
-    const buf = await workbook.xlsx.writeBuffer();
+    // Larguras das colunas
+    ws.getColumn(1).width = 35;
+    ws.getColumn(2).width = 70;
+
+    // Download
+    const buf  = await wb.xlsx.writeBuffer();
     const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const hoje = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
     saveAs(blob, `Resumo_Rota_${hoje}.xlsx`);
-    showToast('✅ Planilha exportada com sucesso!', 'success');
+    showToast('✅ Planilha exportada!', 'success');
 };
