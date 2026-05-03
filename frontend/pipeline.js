@@ -164,8 +164,17 @@ function pipelineRenderCard(os) {
         ${prods.map(p => pipelineRenderProd(p)).join('')}
         </div>` : '';
 
-    const obsHtml = _obs.trim()
-        ? `<div style="margin-top:5px;background:#fef9c3;border-radius:5px;padding:3px 8px;font-size:0.68rem;color:#854d0e;">📝 ${_obs}</div>` : '';
+    const _obsMotorista = _fixMojibake(os.observacoes || '');
+    const _obsInterna   = _fixMojibake(os.observacoes_internas || '');
+
+    const obsMotoristaHtml = _obsMotorista.trim()
+        ? `<div onclick="window.pipelineEditarObsMotorista(event, ${os.id})" style="cursor:pointer;margin-top:5px;background:#e0f2fe;border-radius:5px;padding:3px 8px;font-size:0.68rem;color:#0369a1;border:1px solid #bae6fd;transition:all 0.15s;" onmouseover="this.style.background='#bae6fd'" onmouseout="this.style.background='#e0f2fe'" title="Editar Obs do Motorista">📝 ${_obsMotorista}</div>` 
+        : `<div onclick="window.pipelineEditarObsMotorista(event, ${os.id})" style="cursor:pointer;margin-top:5px;font-size:0.68rem;color:#94a3b8;border:1px dashed #cbd5e1;padding:2px 6px;border-radius:4px;display:inline-block;transition:all 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'" title="Adicionar Obs do Motorista">+ 📝 Add Obs Motorista</div>`;
+
+    const obsInternaHtml = _obsInterna.trim()
+        ? `<div style="margin-top:5px;background:#fef9c3;border-radius:5px;padding:3px 8px;font-size:0.68rem;color:#854d0e;border:1px solid #fde047;">🔒 ${_obsInterna}</div>` : '';
+
+    const obsHtml = obsMotoristaHtml + obsInternaHtml;
 
     // 📦 compra interna ao lado do nome do cliente
     const isCompra = vars.some(v => v.trim().toUpperCase().includes('COMPRA'));
@@ -1151,5 +1160,56 @@ window.pipelineEditarTipoContrato = async function(event, osId, tipoServicoAtual
             console.error('Erro ao atualizar tipo de contrato:', e);
             Swal.fire('Erro', 'Ocorreu um erro ao tentar alterar o tipo de contrato.', 'error');
         }
+    }
+};
+
+window.pipelineEditarObsMotorista = async function(e, id) {
+    e.stopPropagation(); // Evita abrir o modal da OS
+
+    let osData = null;
+    for (const key of ['manutencao','entrega','retirada','avulso']) {
+        const found = (_pipelineDados[key] || []).find(o => o.id === id);
+        if (found) { osData = found; break; }
+    }
+    
+    if (!osData) return;
+
+    const currentObs = typeof _fixMojibake === 'function' ? _fixMojibake(osData.observacoes || '') : (osData.observacoes || '');
+
+    const { value: novaObs, isConfirmed } = await Swal.fire({
+        title: 'Observação do Motorista',
+        input: 'textarea',
+        inputValue: currentObs,
+        inputPlaceholder: 'Digite a observação...',
+        showCancelButton: true,
+        confirmButtonText: 'Salvar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#2d9e5f'
+    });
+
+    if (!isConfirmed) return;
+
+    const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+    try {
+        const resp = await fetch('/api/logistica/os/'+id+'/observacoes', {
+            method: 'PATCH',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token 
+            },
+            body: JSON.stringify({ observacoes: novaObs })
+        });
+        
+        const data = await resp.json();
+        if (data.ok) {
+            osData.observacoes = novaObs;
+            if (typeof pipelineRenderKanban === 'function') pipelineRenderKanban(_pipelineDados);
+            if (typeof showToast === 'function') showToast('Observação salva!', 'success');
+        } else {
+            throw new Error(data.error || 'Erro desconhecido');
+        }
+    } catch(err) {
+        console.error('[Pipeline] Erro ao salvar observação:', err);
+        if (typeof showToast === 'function') showToast('Erro ao salvar: ' + err.message, 'error');
     }
 };

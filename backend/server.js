@@ -9634,6 +9634,28 @@ app.put('/api/logistica/os/:id', authenticateToken, (req, res) => {
     });
 });
 
+// PATCH /api/logistica/os/:id/observacoes — Atualiza apenas a obs do motorista
+app.patch('/api/logistica/os/:id/observacoes', authenticateToken, (req, res) => {
+    const { observacoes } = req.body;
+    const osId = req.params.id;
+    const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
+
+    db.get(`SELECT observacoes, numero_os, cliente FROM os_logistica WHERE id = ?`, [osId], (errOld, oldRow) => {
+        if (errOld || !oldRow) return res.status(500).json({ error: 'OS não encontrada.' });
+        
+        db.run(`UPDATE os_logistica SET observacoes = ?, atualizado_em = datetime('now') WHERE id = ?`, [observacoes, osId], function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            
+            if (oldRow.observacoes !== observacoes) {
+                db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
+                    [loggedUser, 'OS Logística', 'Observações (Pipeline)', oldRow.observacoes || '', observacoes || '', osId]);
+            }
+            res.json({ ok: true });
+        });
+    });
+});
+
+
 
 // DELETE /api/logistica/os/:id — Excluir OS
 app.delete('/api/logistica/os/:id', authenticateToken, (req, res) => {
