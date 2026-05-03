@@ -513,28 +513,52 @@ async function _rrGerarExcel() {
     hdr.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A3C2E' } };
     hdr.height = 20;
 
+    let currentRowIdx = 2;
     _rrVeiculos.forEach((v, i) => {
-        const colA = `${v.veiculo} - Saída`;
+        // --- Linha 1: Saída ---
+        const colA_saida = `${v.veiculo} - Saída`;
         const colB = v.colBEditado || _rrMontarColB(v);
-        const row  = ws.addRow([colA, colB]);
+        const rowSaida  = ws.addRow([colA_saida, colB]);
 
-        row.getCell(1).font = { bold: true };
-        row.getCell(1).alignment = { vertical: 'top', wrapText: true };
-        row.getCell(2).alignment = { vertical: 'top', wrapText: true };
-        row.height = Math.max(15, ((colB.match(/\n/g) || []).length + 1) * 15);
+        rowSaida.getCell(1).font = { bold: true };
+        rowSaida.getCell(1).alignment = { vertical: 'top', wrapText: true };
+        rowSaida.getCell(2).alignment = { vertical: 'top', wrapText: true };
+        rowSaida.height = Math.max(15, ((colB.match(/\n/g) || []).length + 1) * 15);
 
+        // --- Linha 2: Retorno ---
+        const colA_retorno = `${v.veiculo} - Retorno`;
+        const rowRetorno = ws.addRow([colA_retorno, '']);
+        
+        rowRetorno.getCell(1).font = { bold: true };
+        rowRetorno.getCell(1).alignment = { vertical: 'top', wrapText: true };
+        rowRetorno.getCell(2).alignment = { vertical: 'top', wrapText: true };
+        rowRetorno.height = 30; // Altura extra para observações de retorno escritas à mão
+
+        // Zebra (por veículo)
         if (i % 2 === 0) {
-            row.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0FBF4' } };
-            row.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0FBF4' } };
+            rowSaida.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0FBF4' } };
+            rowSaida.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0FBF4' } };
+            rowRetorno.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0FBF4' } };
+            rowRetorno.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0FBF4' } };
         }
+
+        // Bordas
         ['A', 'B'].forEach(col => {
-            ws.getCell(`${col}${i + 2}`).border = {
+            ws.getCell(`${col}${currentRowIdx}`).border = {
+                top:    { style: 'thin', color: { argb: 'FFCBD5E1' } },
+                bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+                left:   { style: 'thin', color: { argb: 'FFCBD5E1' } },
+                right:  { style: 'thin', color: { argb: 'FFCBD5E1' } },
+            };
+            ws.getCell(`${col}${currentRowIdx + 1}`).border = {
                 top:    { style: 'thin', color: { argb: 'FFCBD5E1' } },
                 bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } },
                 left:   { style: 'thin', color: { argb: 'FFCBD5E1' } },
                 right:  { style: 'thin', color: { argb: 'FFCBD5E1' } },
             };
         });
+
+        currentRowIdx += 2;
     });
 
     ws.getColumn(1).width = 35;
