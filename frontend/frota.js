@@ -181,6 +181,79 @@ function renderTabelaFrota() {
   }).join('');
 }
 
+window.exportarFrotaExcel = async function() {
+  if (!window._frotaDados || window._frotaDados.length === 0) {
+    alert('Nenhum veículo para exportar.');
+    return;
+  }
+  
+  if (typeof ExcelJS === 'undefined') {
+    alert('Biblioteca ExcelJS não carregada.');
+    return;
+  }
+
+  try {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Frota');
+
+    const HEADERS = [
+      'Placa',
+      'Marca / Modelo / Versão',
+      'Cor Predominante',
+      'Ano Modelo',
+      'Exercício',
+      'RENAVAM',
+      'Capacidade Tanque (L)',
+      'Capacidade Carga (KG)',
+      'Tipo de Veículo',
+      'Altura c/ Banheiro',
+      'Altura s/ Banheiro',
+      'Largura c/ Banheiro',
+      'Largura s/ Banheiro',
+      'Profundidade c/ Banheiro',
+      'Profundidade s/ Banheiro'
+    ];
+
+    const headerRow = worksheet.addRow(HEADERS);
+    headerRow.font = { bold: true };
+    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1D5DB' } };
+
+    window._frotaDados.forEach(v => {
+      worksheet.addRow([
+        v.placa || '',
+        v.marca_modelo_versao || '',
+        v.cor_predominante || '',
+        v.ano_modelo || '',
+        v.exercicio || '',
+        v.renavam || '',
+        v.capacidade_tanque || '',
+        v.capacidade_carga || '',
+        v.tipo_veiculo || '',
+        v.altura_com_banheiro || '',
+        v.altura_sem_banheiro || '',
+        v.largura_com_banheiro || '',
+        v.largura_sem_banheiro || '',
+        v.profundidade_com_banheiro || '',
+        v.profundidade_sem_banheiro || ''
+      ]);
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Frota_Veiculos_${new Date().toISOString().slice(0,10)}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error('Erro ao exportar excel da frota:', err);
+    alert('Erro ao gerar o Excel: ' + err.message);
+  }
+};
+
 window.initFrotaVeiculos = async function() {
   const c = document.getElementById('frota-veiculos-container'); if (!c) return;
   await carregarPDFjs();
@@ -199,6 +272,7 @@ window.initFrotaVeiculos = async function() {
     <i class="ph ph-magnifying-glass" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;"></i>
     <input type="text" placeholder="Buscar veículo..." onkeyup="window.filtrarFrota(this.value)" style="padding:0.6rem 1rem 0.6rem 2.2rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.88rem;width:250px;outline:none;" onfocus="this.style.borderColor='#2d9e5f'" onblur="this.style.borderColor='#cbd5e1'">
   </div>
+  <button onclick="window.exportarFrotaExcel()" style="background:#f8fafc;color:#475569;border:1px solid #cbd5e1;border-radius:8px;padding:0.6rem 1.2rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;"><i class="ph ph-download-simple"></i> Baixar Excel</button>
   <button onclick="window.abrirModalFrota(null)" style="background:#2d9e5f;color:#fff;border:none;border-radius:8px;padding:0.6rem 1.2rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;"><i class="ph ph-plus"></i> Novo Veículo</button>
 </div>
 </div>
