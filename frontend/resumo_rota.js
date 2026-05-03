@@ -104,6 +104,8 @@ function _rrParseNotas(notas) {
 
 // ── Estado global ──────────────────────────────────────────────
 let _rrVeiculos = [];
+let _rrCurrentId = null;
+let _rrHistoricoList = [];
 
 // ══════════════════════════════════════════════════════════════
 //  RENDER DA TELA
@@ -119,12 +121,16 @@ window.renderResumoRota = function() {
             </div>
             <div>
                 <h2 style="margin:0;color:#fff;font-size:1.4rem;font-weight:700;">Resumo de Rota</h2>
-                <p style="margin:0;color:rgba(255,255,255,0.75);font-size:0.82rem;">Importe o relatório do SimpliRoute para gerar o resumo por veículo</p>
+                <div style="display:flex; gap:10px; align-items:center; margin-top:4px;">
+                    <select id="rr-historico-select" onchange="window.rrCarregarHistorico(this.value)" style="padding:4px 8px; border-radius:4px; border:none; outline:none; font-size:0.85rem; color:#1e293b; background:#fff; cursor:pointer;">
+                        <option value="">Carregando histórico...</option>
+                    </select>
+                </div>
             </div>
         </div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
             <label style="background:#fff;color:#2d9e5f;border-radius:8px;padding:9px 18px;font-weight:700;font-size:0.9rem;cursor:pointer;display:flex;align-items:center;gap:7px;box-shadow:0 2px 8px rgba(0,0,0,0.15);">
-                <i class="ph ph-upload-simple"></i> Importar Planilha SimpliRoute
+                <i class="ph ph-upload-simple"></i> Importar Nova Planilha
                 <input type="file" accept=".xlsx" style="display:none;" onchange="window.rrImportarPlanilha(this)">
             </label>
             <button id="rr-btn-exportar" onclick="window.rrExportarExcel()" style="background:rgba(255,255,255,0.2);color:#fff;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:9px 18px;font-weight:700;font-size:0.9rem;cursor:pointer;display:none;align-items:center;gap:7px;">
@@ -133,6 +139,51 @@ window.renderResumoRota = function() {
         </div>
     </div>
     <div id="rr-corpo" style="padding:20px;"></div>`;
+    
+    window.rrListarHistorico();
+};
+
+window.rrListarHistorico = async function() {
+    try {
+        const res = await fetch('/api/logistica/resumo-rota', { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } });
+        if (!res.ok) throw new Error();
+        _rrHistoricoList = await res.json();
+        
+        const sel = document.getElementById('rr-historico-select');
+        if (!sel) return;
+        
+        sel.innerHTML = '<option value="">Selecione um resumo anterior...</option>';
+        _rrHistoricoList.forEach(h => {
+            sel.innerHTML += \`<option value="\${h.id}">\${h.nome} (\${h.usuario_nome || 'Auto'})</option>\`;
+        });
+        if (_rrCurrentId) sel.value = _rrCurrentId;
+    } catch (e) {
+        console.error('Erro ao listar histórico', e);
+    }
+};
+
+window.rrCarregarHistorico = async function(id) {
+    if (!id) {
+        _rrVeiculos = [];
+        _rrCurrentId = null;
+        _rrRenderCorpo();
+        document.getElementById('rr-btn-exportar').style.display = 'none';
+        return;
+    }
+    
+    try {
+        const res = await fetch('/api/logistica/resumo-rota/' + id, { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } });
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        
+        _rrVeiculos = JSON.parse(data.dados || '[]');
+        _rrCurrentId = data.id;
+        _rrRenderCorpo();
+        document.getElementById('rr-btn-exportar').style.display = 'flex';
+        showToast('Resumo carregado!', 'success');
+    } catch (e) {
+        showToast('Erro ao carregar resumo.', 'error');
+    }
 };
 
 // ══════════════════════════════════════════════════════════════
@@ -186,10 +237,40 @@ window.rrImportarPlanilha = async function(input) {
     });
 
     _rrVeiculos = Object.values(map);
+    
+    // Determinar nome do histórico
+    let isNoturno = false;
+    _rrVeiculos.forEach(v => {
+        v.os.forEach(o => {
+            if (o.obs && _rrObsIcon(o.obs) === '🌘') isNoturno = true;
+        });
+    });
+    
+    const dateStr = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
+    const nomeResumo = \`\${dateStr} \${isNoturno ? 'NOTURNO' : 'PADRÃO'}\`;
+    
+    // Salvar no backend
+    try {
+        const res = await fetch('/api/logistica/resumo-rota', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
+            body: JSON.stringify({ nome: nomeResumo, dados: _rrVeiculos })
+        });
+        const data = await res.json();
+        if (data.success) {
+            _rrCurrentId = data.id;
+            await window.rrListarHistorico();
+            const sel = document.getElementById('rr-historico-select');
+            if (sel) sel.value = _rrCurrentId;
+        }
+    } catch (e) {
+        console.error('Erro ao salvar resumo', e);
+    }
+
     _rrRenderCorpo();
     const btn = document.getElementById('rr-btn-exportar');
     if (btn) btn.style.display = 'flex';
-    showToast(`✅ ${_rrVeiculos.length} veículos carregados!`, 'success');
+    showToast(\`✅ \${_rrVeiculos.length} veículos carregados e salvos!\`, 'success');
 };
 
 // ══════════════════════════════════════════════════════════════
@@ -294,22 +375,28 @@ function _rrRenderCorpo() {
     const corpo = document.getElementById('rr-corpo');
     if (!corpo) return;
     if (!_rrVeiculos.length) {
-        corpo.innerHTML = `<div style="text-align:center;padding:60px;color:#94a3b8;"><i class="ph ph-list-bullets" style="font-size:3rem;"></i><p>Nenhum dado. Importe a planilha do SimpliRoute.</p></div>`;
+        corpo.innerHTML = `<div style="text-align:center;padding:60px;color:#94a3b8;"><i class="ph ph-list-bullets" style="font-size:3rem;"></i><p>Nenhum dado. Importe a planilha do SimpliRoute ou selecione um histórico.</p></div>`;
         return;
     }
 
-    corpo.innerHTML = _rrVeiculos.map(v => {
+    corpo.innerHTML = _rrVeiculos.map((v, i) => {
         const colA = `${v.veiculo} - Saída`;
         const colB = _rrMontarColB(v);
-        const colBHtml = colB.replace(/\n/g, '<br>');
         const total = v.os.length;
+        
+        // Ajusta a altura inicial do textarea baseado no número de linhas
+        const numLinhas = (colB.match(/\n/g) || []).length + 2;
+        const h = Math.max(120, numLinhas * 20);
+        
         return `
         <div style="background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.07);margin-bottom:16px;overflow:hidden;border:1px solid #e2e8f0;">
             <div style="background:#2d9e5f;padding:12px 18px;display:flex;justify-content:space-between;align-items:center;">
                 <div style="color:#fff;font-weight:700;font-size:1rem;">${colA}</div>
                 <div style="background:rgba(255,255,255,0.2);border-radius:6px;padding:4px 12px;color:#fff;font-size:0.85rem;">${total} OS</div>
             </div>
-            <div style="padding:14px 18px;font-size:0.85rem;color:#1e293b;line-height:1.7;white-space:pre-wrap;font-family:monospace;">${colBHtml}</div>
+            <div style="padding:14px 18px; background:#f8fafc;">
+                <textarea class="rr-textarea-edit" data-index="${i}" spellcheck="false" style="width:100%; height:${h}px; border:1px solid #cbd5e1; border-radius:6px; padding:12px; font-size:0.85rem; color:#1e293b; line-height:1.7; font-family:monospace; resize:vertical; outline:none;" onfocus="this.style.borderColor='#2d9e5f';this.style.boxShadow='0 0 0 3px rgba(45,158,95,0.1)'" onblur="this.style.borderColor='#cbd5e1';this.style.boxShadow='none'">${colB}</textarea>
+            </div>
         </div>`;
     }).join('');
 }
@@ -338,7 +425,11 @@ window.rrExportarExcel = async function() {
     // Uma linha por veículo
     _rrVeiculos.forEach((v, i) => {
         const colA = `${v.veiculo} - Saída`;
-        const colB = _rrMontarColB(v);
+        
+        // Pega do textarea na tela (se existir) para pegar edições manuais
+        const ta = document.querySelector(\`.rr-textarea-edit[data-index="\${i}"]\`);
+        const colB = ta ? ta.value : _rrMontarColB(v);
+
         const row  = ws.addRow([colA, colB]);
 
         // Col A: placa

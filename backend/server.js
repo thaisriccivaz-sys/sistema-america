@@ -99,6 +99,18 @@ db.run(`
     )
 `);
 
+// Migração: Histórico de Resumos de Rota
+db.run(`
+    CREATE TABLE IF NOT EXISTS logistica_resumo_rota (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nome TEXT NOT NULL,
+        dados TEXT,
+        criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+        usuario_id INTEGER,
+        usuario_nome TEXT
+    )
+`);
+
 // Blacklist de cargos e departamentos excluidos manualmente (impede que o seed os recrie)
 db.run("CREATE TABLE IF NOT EXISTS cargos_excluidos (nome TEXT PRIMARY KEY)");
 db.run("CREATE TABLE IF NOT EXISTS departamentos_excluidos (nome TEXT PRIMARY KEY)", () => {
@@ -3644,6 +3656,45 @@ app.get('/api/logistica/senhas/historico', authenticateToken, (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows || []);
     });
+});
+
+// ==========================================
+// RESUMO DE ROTA
+// ==========================================
+
+// GET /api/logistica/resumo-rota - Lista histórico
+app.get('/api/logistica/resumo-rota', authenticateToken, (req, res) => {
+    db.all("SELECT id, nome, criado_em, usuario_nome FROM logistica_resumo_rota ORDER BY id DESC", [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+// GET /api/logistica/resumo-rota/:id - Pega dados de um resumo específico
+app.get('/api/logistica/resumo-rota/:id', authenticateToken, (req, res) => {
+    db.get("SELECT * FROM logistica_resumo_rota WHERE id = ?", [req.params.id], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(row || {});
+    });
+});
+
+// POST /api/logistica/resumo-rota - Salva um novo resumo ou atualiza existente
+app.post('/api/logistica/resumo-rota', authenticateToken, (req, res) => {
+    const { id, nome, dados } = req.body;
+    const dadosStr = JSON.stringify(dados);
+    
+    if (id) {
+        db.run("UPDATE logistica_resumo_rota SET dados = ? WHERE id = ?", [dadosStr, id], function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true, id: id });
+        });
+    } else {
+        db.run("INSERT INTO logistica_resumo_rota (nome, dados, usuario_id, usuario_nome) VALUES (?, ?, ?, ?)",
+            [nome, dadosStr, req.user.id, req.user.nome || req.user.username], function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true, id: this.lastID });
+        });
+    }
 });
 
 // GET /api/logistica/multas — lista todas as multas
