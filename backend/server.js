@@ -11058,44 +11058,43 @@ app.post('/api/itinerantes/localizacoes', authenticateToken, express.json(), asy
     try {
         const https = require('https');
 
-        // Monta string de cookies no formato HTTP
-        const cookieStr = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+        // Filtra apenas cookies do domínio Google
+        const cookieStr = cookies
+            .filter(c => c.domain && c.domain.includes('google'))
+            .map(c => `${c.name}=${c.value}`)
+            .join('; ');
 
-        // Endpoint interno do Google Maps Location Sharing (reverse-engineered)
-        // O Google retorna um array de people/devices com latência, lat, lng, etc.
-        const options = {
-            hostname: 'maps.googleapis.com',
-            path: '/maps/api/shared_location/update',
-            method: 'GET',
-            headers: {
-                'Cookie': cookieStr,
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36',
-                'Accept': '*/*',
-                'Referer': 'https://maps.google.com/'
-            }
-        };
+        if (!cookieStr) {
+            return res.status(400).json({ error: 'Nenhum cookie do Google encontrado. Exporte em maps.google.com.' });
+        }
 
-        // Busca usando o endpoint de People/Devices que o Google Maps Web usa
+        // Endpoint correto — usado internamente pelo Google Maps Web (reverse-engineered)
+        // A URL com pb= populado retorna os dados de location sharing
         const rawData = await new Promise((resolve, reject) => {
-            const url = `https://www.google.com/maps/preview/locationsharing/read?authuser=0&hl=pt&gl=BR&pb=`;
-            const fetch = require('https');
-            const urlObj = new URL(url);
-
-            const req2 = fetch.request({
+            const urlStr = 'https://www.google.com/maps/rpc/locationsharing/read?authuser=0&hl=pt-BR&gl=BR&pb=!1m7!8m6!1m3!1i14!2i8413!3i5680!2i6!3x4095!2m9!1e0!2sm!3m5!1e0!2b1!5e8!7e41!11e4!3e0&_=1';
+            const urlObj = new URL(urlStr);
+            const req2 = https.request({
                 hostname: urlObj.hostname,
                 path: urlObj.pathname + urlObj.search,
                 method: 'GET',
                 headers: {
                     'Cookie': cookieStr,
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                    'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
-                    'Referer': 'https://maps.google.com/',
-                    'sec-fetch-site': 'same-origin',
-                    'sec-fetch-mode': 'cors'
+                    'Accept': '*/*',
+                    'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
+                    'Referer': 'https://www.google.com/maps/',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'sec-fetch-dest': 'empty',
+                    'sec-fetch-mode': 'cors',
+                    'sec-fetch-site': 'same-origin'
                 }
             }, (resp) => {
+                // 301/302 = redirecionamento para login = cookies expirados
+                if (resp.statusCode === 301 || resp.statusCode === 302) {
+                    return resolve({ body: '', status: resp.statusCode });
+                }
                 let body = '';
+                resp.setEncoding('utf8');
                 resp.on('data', chunk => body += chunk);
                 resp.on('end', () => resolve({ body, status: resp.statusCode }));
             });
@@ -11103,15 +11102,27 @@ app.post('/api/itinerantes/localizacoes', authenticateToken, express.json(), asy
             req2.end();
         });
 
-        if (rawData.status === 401 || rawData.status === 403) {
+        console.log('[Itinerantes] HTTP status:', rawData.status);
+        if (rawData.body) console.log('[Itinerantes] Preview:', rawData.body.substring(0, 200));
+
+        if (rawData.status === 301 || rawData.status === 302 || rawData.status === 401 || rawData.status === 403) {
             return res.status(401).json({ error: 'Sessão expirada. Atualize os cookies da sua conta Google.' });
         }
 
-        // O Google retorna uma string que começa com ")]}'," — precisamos remover e parsear
-        let jsonStr = rawData.body;
-        // Remove o prefixo de segurança anti-XSS que o Google usa
-        const prefixIdx = jsonStr.indexOf('[');
-        if (prefixIdx > 0) jsonStr = jsonStr.substring(prefixIdx);
+        // O Google retorna prefixo anti-XSS: ")]}',\n" antes do JSON
+        let jsonStr = (rawData.body || '').replace(/^\)\]\}'\n?/, '').trim();
+
+        // Se vier HTML = não está autenticado
+        if (!jsonStr || jsonStr.startsWith('<')) {
+            console.error('[Itinerantes] Google retornou HTML — cookies inválidos.');
+            return res.status(401).json({ error: 'Sessão inválida. Exporte os cookies novamente em guia anônima logada em maps.google.com.' });
+        }
+
+        if (!jsonStr.startsWith('[')) {
+            const firstBracket = jsonStr.indexOf('[');
+            if (firstBracket >= 0) jsonStr = jsonStr.substring(firstBracket);
+            else return res.status(502).json({ error: 'Resposta inesperada do Google.', debug: jsonStr.substring(0, 100) });
+        }
 
         let parsed;
         try {
