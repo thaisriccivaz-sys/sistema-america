@@ -9941,7 +9941,7 @@ db.serialize(() => {
 
 // GET - lista leve de colaboradores com foto (usada pelo Resumo de Rota)
 app.get('/api/colaboradores/resumo', authenticateToken, (req, res) => {
-    db.all("SELECT id, nome_completo, foto_base64 FROM colaboradores WHERE status != 'Desligado' ORDER BY nome_completo ASC", [], (err, rows) => {
+    db.all("SELECT id, nome_completo FROM colaboradores WHERE status != 'Desligado' ORDER BY nome_completo ASC", [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows || []);
     });

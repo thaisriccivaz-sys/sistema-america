@@ -405,7 +405,8 @@ window.rrImportarPlanilha = async function(input) {
         }
         if (resColab.ok) {
             const list = await resColab.json();
-            list.forEach(c => { fotoMap[(c.nome_completo || '').toLowerCase().trim()] = c.foto_base64 || null; });
+            // Usa URL do endpoint de foto (suporta foto_base64 E foto_path)
+            list.forEach(c => { fotoMap[(c.nome_completo || '').toLowerCase().trim()] = `/api/colaboradores/foto/${c.id}`; });
         }
     } catch(e) {
         console.error('[RR] Erro ao buscar dados para insights', e);
