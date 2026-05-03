@@ -957,7 +957,7 @@ function renderPipelinePage() {
         <div style="display:flex;align-items:center;gap:5px;">
           <label style="color:#475569;font-size:0.78rem;font-weight:600;">Cliente:</label>
           <input type="text" id="pipe-filtro-cliente" placeholder="Cliente"
-            style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;width:160px;background:white;color:#1e293b;outline:none;"
+            style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;width:240px;background:white;color:#1e293b;outline:none;"
             oninput="_pipelineSalvarFiltros();buscarPipelineDebounced()">
         </div>
         <!-- Contrato -->
@@ -994,7 +994,7 @@ function renderPipelinePage() {
         <div style="display:flex;align-items:center;gap:5px;">
           <label style="color:#475569;font-size:0.78rem;font-weight:600;">Endereço:</label>
           <input type="text" id="pipe-filtro-endereco" placeholder="Endereço"
-            style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;width:160px;background:white;color:#1e293b;outline:none;"
+            style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;width:300px;background:white;color:#1e293b;outline:none;"
             oninput="_pipelineSalvarFiltros();buscarPipelineDebounced()">
         </div>
         <!-- Tipo OS -->
