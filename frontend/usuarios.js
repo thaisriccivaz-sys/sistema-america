@@ -20,6 +20,7 @@ const TELAS_SISTEMA = [
     // Módulo Logística
     { modulo: 'Logística', pagina_id: 'logistica-pipeline',     pagina_nome: 'Pipeline OS',   icone: 'ph-kanban' },
     { modulo: 'Logística', pagina_id: 'logistica-rota-redonda', pagina_nome: 'Rota Redonda', icone: 'ph-map-trifold' },
+    { modulo: 'Logística', pagina_id: 'logistica-resumo-rota',  pagina_nome: 'Resumo de Rota', icone: 'ph-list-numbers' },
     { modulo: 'Logística', pagina_id: 'logistica-frota',        pagina_nome: 'Frota',         icone: 'ph-truck' },
     { modulo: 'Logística', pagina_id: 'logistica-multas',       pagina_nome: 'Multas',         icone: 'ph-receipt' },
     { modulo: 'Logística', pagina_id: 'logistica-credenciamento', pagina_nome: 'Credenciamento', icone: 'ph-identification-card' },
