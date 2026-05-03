@@ -613,20 +613,18 @@ async function pipelineExportarExcel(registrosOverride) {
             return `📸 Vídeo: ${full}`;
         });
 
-        // Linha 2: Ícone da variável + OBSERVAÇÕES (em maiúscula)
-        const obsStr = (r.observacoes || '').trim().toUpperCase();
+        // Linha 2: Ícones das variáveis + OBSERVAÇÕES (em maiúscula, sem nome do cliente)
+        let obsStr = (r.observacoes || '').trim().toUpperCase();
+        const clienteUp = (r.cliente || '').trim().toUpperCase();
+        if (clienteUp && obsStr.startsWith(clienteUp)) {
+            // Remove o nome do cliente e os dois pontos/hífenes/espaços do início
+            obsStr = obsStr.substring(clienteUp.length).replace(/^[\s:-]+/, '').trim();
+        }
+        
         let obsComIcone = '';
-        if (obsStr) {
-            // Encontra o ícone associado à primeira variável que casar
-            let iconeObs = '';
-            for (const v of variaveisArr) {
-                const vUp = (v || '').trim().toUpperCase();
-                for (const [key, style] of Object.entries(PIPELINE_VARS_CORES)) {
-                    if (vUp.includes(key)) { iconeObs = style.icon; break; }
-                }
-                if (iconeObs) break;
-            }
-            obsComIcone = (iconeObs ? iconeObs + ' ' : '') + obsStr;
+        if (obsStr || icVar) {
+            // Adiciona todos os ícones de variáveis (icVar) na frente
+            obsComIcone = (icVar ? icVar + ' ' : '') + obsStr;
         }
 
         // Linha 3: NOME DO SERVIÇO — sem ícone para Entrega e Manutenção Recorrente
