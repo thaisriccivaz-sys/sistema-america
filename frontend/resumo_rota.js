@@ -133,6 +133,9 @@ window.renderResumoRota = function() {
                 <i class="ph ph-upload-simple"></i> Importar Nova Planilha
                 <input type="file" accept=".xlsx" style="display:none;" onchange="window.rrImportarPlanilha(this)">
             </label>
+            <button id="rr-btn-baixar-original" onclick="window.rrBaixarOriginal()" style="background:rgba(255,255,255,0.2);color:#fff;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:9px 18px;font-weight:700;font-size:0.9rem;cursor:pointer;display:none;align-items:center;gap:7px;">
+                <i class="ph ph-download-simple"></i> Planilha Original
+            </button>
             <button id="rr-btn-exportar" onclick="window.rrExportarExcel()" style="background:rgba(255,255,255,0.2);color:#fff;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:9px 18px;font-weight:700;font-size:0.9rem;cursor:pointer;display:none;align-items:center;gap:7px;">
                 <i class="ph ph-microsoft-excel-logo"></i> Exportar Resumo
             </button>
@@ -176,14 +179,39 @@ window.rrCarregarHistorico = async function(id) {
         if (!res.ok) throw new Error();
         const data = await res.json();
         
-        _rrVeiculos = JSON.parse(data.dados || '[]');
+        const dadosObj = JSON.parse(data.dados || '[]');
+        if (Array.isArray(dadosObj)) {
+            _rrVeiculos = dadosObj;
+            window._rrOriginalFileBase64 = null;
+            window._rrOriginalFileName = null;
+        } else {
+            _rrVeiculos = dadosObj.veiculos || [];
+            window._rrOriginalFileBase64 = dadosObj.originalFileBase64 || null;
+            window._rrOriginalFileName = dadosObj.originalFileName || null;
+        }
+
         _rrCurrentId = data.id;
         _rrRenderCorpo();
         document.getElementById('rr-btn-exportar').style.display = 'flex';
+        const btnOrig = document.getElementById('rr-btn-baixar-original');
+        if (btnOrig) btnOrig.style.display = window._rrOriginalFileBase64 ? 'flex' : 'none';
         showToast('Resumo carregado!', 'success');
     } catch (e) {
         showToast('Erro ao carregar resumo.', 'error');
     }
+};
+
+window.rrBaixarOriginal = function() {
+    if (!window._rrOriginalFileBase64) {
+        showToast('Planilha original não encontrada neste histórico.', 'error');
+        return;
+    }
+    const a = document.createElement('a');
+    a.href = window._rrOriginalFileBase64;
+    a.download = window._rrOriginalFileName || 'SimpliRoute_Original.xlsx';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
 };
 
 // ══════════════════════════════════════════════════════════════
@@ -192,6 +220,15 @@ window.rrCarregarHistorico = async function(id) {
 window.rrImportarPlanilha = async function(input) {
     const file = input.files[0];
     if (!file) return;
+
+    // Guardar original em Base64
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        window._rrOriginalFileBase64 = e.target.result;
+        window._rrOriginalFileName = file.name;
+    };
+    reader.readAsDataURL(file);
+
     const buf = await file.arrayBuffer();
     let rows = [];
     try {
@@ -247,30 +284,17 @@ window.rrImportarPlanilha = async function(input) {
     });
     
     const dateStr = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
-    const nomeResumo = `${dateStr} ${isNoturno ? 'NOTURNO' : 'PADRÃO'}`;
+    window._rrDefaultNomeResumo = `${dateStr} ${isNoturno ? 'NOTURNO' : 'PADRÃO'}`;
     
-    // Salvar no backend
-    try {
-        const res = await fetch('/api/logistica/resumo-rota', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
-            body: JSON.stringify({ nome: nomeResumo, dados: _rrVeiculos })
-        });
-        const data = await res.json();
-        if (data.success) {
-            _rrCurrentId = data.id;
-            await window.rrListarHistorico();
-            const sel = document.getElementById('rr-historico-select');
-            if (sel) sel.value = _rrCurrentId;
-        }
-    } catch (e) {
-        console.error('Erro ao salvar resumo', e);
-    }
+    _rrCurrentId = null; // Zera o ID pois é um novo importe não salvo
 
     _rrRenderCorpo();
     const btn = document.getElementById('rr-btn-exportar');
     if (btn) btn.style.display = 'flex';
-    showToast(`✅ ${_rrVeiculos.length} veículos carregados e salvos!`, 'success');
+    const btnOrig = document.getElementById('rr-btn-baixar-original');
+    if (btnOrig) btnOrig.style.display = 'none'; // Ainda não salvou
+    
+    showToast(`✅ ${_rrVeiculos.length} veículos carregados! Edite e exporte para salvar.`, 'success');
 };
 
 // ══════════════════════════════════════════════════════════════
@@ -299,8 +323,7 @@ function _rrMontarColB(v) {
         const agrupado = _rrAgruparProdutos(entregas);
         // Determina tipo (OBRA / EVENTO)
         const tipoStr = _rrTipoObraEvento(entregas);
-        const iconEntrega = '💚';
-        lines.push(`${iconEntrega} ENTREGA ${tipoStr}:`);
+        lines.push(`ENTREGA ${tipoStr}:`);
         for (const [nomeProd, { qtd, icon }] of Object.entries(agrupado)) {
             lines.push(`   ${icon}${qtd} ${nomeProd}`);
         }
@@ -410,6 +433,52 @@ window.rrExportarExcel = async function() {
         return;
     }
 
+    // Captura edições do usuário na tela
+    _rrVeiculos.forEach((v, i) => {
+        const ta = document.querySelector(`.rr-textarea-edit[data-index="${i}"]`);
+        if (ta) v.colBEditado = ta.value;
+    });
+
+    const { value: nomeFinal, isConfirmed } = await Swal.fire({
+        title: 'Salvar Resumo de Rota',
+        input: 'text',
+        inputLabel: 'Nome do resumo',
+        inputValue: window._rrDefaultNomeResumo || 'Resumo de Rota',
+        showCancelButton: true,
+        confirmButtonText: 'Exportar & Salvar',
+        cancelButtonText: 'Cancelar'
+    });
+
+    if (!isConfirmed) return;
+
+    // Salvar no backend (Histórico)
+    try {
+        const payload = { 
+            nome: nomeFinal || 'Resumo', 
+            dados: {
+                veiculos: _rrVeiculos,
+                originalFileBase64: window._rrOriginalFileBase64 || null,
+                originalFileName: window._rrOriginalFileName || null
+            }
+        };
+        const res = await fetch('/api/logistica/resumo-rota', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+            _rrCurrentId = data.id;
+            await window.rrListarHistorico();
+            const sel = document.getElementById('rr-historico-select');
+            if (sel) sel.value = _rrCurrentId;
+            const btnOrig = document.getElementById('rr-btn-baixar-original');
+            if (btnOrig) btnOrig.style.display = window._rrOriginalFileBase64 ? 'flex' : 'none';
+        }
+    } catch (e) {
+        console.error('Erro ao salvar resumo', e);
+    }
+
     const wb = new ExcelJS.Workbook();
     wb.creator = 'América Rental';
     const ws = wb.addWorksheet('Resumo de Rota');
@@ -426,9 +495,8 @@ window.rrExportarExcel = async function() {
     _rrVeiculos.forEach((v, i) => {
         const colA = `${v.veiculo} - Saída`;
         
-        // Pega do textarea na tela (se existir) para pegar edições manuais
-        const ta = document.querySelector(`.rr-textarea-edit[data-index="${i}"]`);
-        const colB = ta ? ta.value : _rrMontarColB(v);
+        // Se houver edição na tela, usa a edição. Caso contrário gera a string padrão.
+        const colB = v.colBEditado || _rrMontarColB(v);
 
         const row  = ws.addRow([colA, colB]);
 
