@@ -953,6 +953,13 @@ function renderPipelinePage() {
             style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;width:85px;background:white;color:#1e293b;outline:none;"
             oninput="_pipelineSalvarFiltros();buscarPipelineDebounced()">
         </div>
+        <!-- Cliente -->
+        <div style="display:flex;align-items:center;gap:5px;">
+          <label style="color:#475569;font-size:0.78rem;font-weight:600;">Cliente:</label>
+          <input type="text" id="pipe-filtro-cliente" placeholder="Cliente"
+            style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;width:160px;background:white;color:#1e293b;outline:none;"
+            oninput="_pipelineSalvarFiltros();buscarPipelineDebounced()">
+        </div>
         <!-- Contrato -->
         <div style="display:flex;align-items:center;gap:5px;">
           <label style="color:#475569;font-size:0.78rem;font-weight:600;">Contrato:</label>
@@ -980,13 +987,15 @@ function renderPipelinePage() {
             style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;background:white;color:#1e293b;outline:none;"
             onchange="_pipelineSalvarFiltros();buscarPipeline()">
         </div>
-        <!-- Dia: pílulas coloridas (Oculto) -->
-        <div style="display:none;align-items:center;gap:5px;">
-          <label style="color:#475569;font-size:0.78rem;font-weight:600;">Dia:</label>
-          <div id="pipe-filtro-dia-group" style="display:flex;gap:3px;flex-wrap:wrap;">
-            ${[['','Todos','#64748b'],['Segunda','Seg','#ef4444'],['Terça','Ter','#f97316'],['Quarta','Qua','#ca8a04'],['Quinta','Qui','#16a34a'],['Sexta','Sex','#3b82f6'],['Sábado','Sáb','#8b5cf6'],['Domingo','Dom','#ec4899']].map(([val,label,cor])=>`<button type="button" onclick="_pipeFiltrarDia('${val}')" id="pipe-dia-${val||'todos'}" style="border:1.5px solid ${cor};border-radius:20px;padding:3px 9px;font-size:0.75rem;font-weight:700;cursor:pointer;background:white;color:${cor};transition:all 0.15s;">${label}</button>`).join('')}
-          </div>
-          <input type="hidden" id="pipe-filtro-dia" value="">
+
+        <div style="flex-basis: 100%; height: 0; margin: 0;"></div> <!-- QUEBRA DE LINHA -->
+
+        <!-- Endereço -->
+        <div style="display:flex;align-items:center;gap:5px;">
+          <label style="color:#475569;font-size:0.78rem;font-weight:600;">Endereço:</label>
+          <input type="text" id="pipe-filtro-endereco" placeholder="Endereço"
+            style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;width:160px;background:white;color:#1e293b;outline:none;"
+            oninput="_pipelineSalvarFiltros();buscarPipelineDebounced()">
         </div>
         <!-- Tipo OS -->
         <div style="display:flex;align-items:center;gap:5px;">
@@ -1004,20 +1013,17 @@ function renderPipelinePage() {
           </div>
           <input type="hidden" id="pipe-filtro-turno" value="">
         </div>
-        <!-- Botões à direita + Endereço + Cliente -->
+        <!-- Dia: pílulas coloridas (Oculto) -->
+        <div style="display:none;align-items:center;gap:5px;">
+          <label style="color:#475569;font-size:0.78rem;font-weight:600;">Dia:</label>
+          <div id="pipe-filtro-dia-group" style="display:flex;gap:3px;flex-wrap:wrap;">
+            ${[['','Todos','#64748b'],['Segunda','Seg','#ef4444'],['Terça','Ter','#f97316'],['Quarta','Qua','#ca8a04'],['Quinta','Qui','#16a34a'],['Sexta','Sex','#3b82f6'],['Sábado','Sáb','#8b5cf6'],['Domingo','Dom','#ec4899']].map(([val,label,cor])=>`<button type="button" onclick="_pipeFiltrarDia('${val}')" id="pipe-dia-${val||'todos'}" style="border:1.5px solid ${cor};border-radius:20px;padding:3px 9px;font-size:0.75rem;font-weight:700;cursor:pointer;background:white;color:${cor};transition:all 0.15s;">${label}</button>`).join('')}
+          </div>
+          <input type="hidden" id="pipe-filtro-dia" value="">
+        </div>
+
+        <!-- Botões à direita -->
         <div style="margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-          <div style="display:flex;align-items:center;gap:5px;">
-            <label style="color:#475569;font-size:0.78rem;font-weight:600;">Endereço:</label>
-            <input type="text" id="pipe-filtro-endereco" placeholder="Endereço"
-              style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;width:160px;background:white;color:#1e293b;outline:none;"
-              oninput="_pipelineSalvarFiltros();buscarPipelineDebounced()">
-          </div>
-          <div style="display:flex;align-items:center;gap:5px;">
-            <label style="color:#475569;font-size:0.78rem;font-weight:600;">Cliente:</label>
-            <input type="text" id="pipe-filtro-cliente" placeholder="Cliente"
-              style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:0.8rem;width:160px;background:white;color:#1e293b;outline:none;"
-              oninput="_pipelineSalvarFiltros();buscarPipelineDebounced()">
-          </div>
           <span id="pipeline-total-badge" style="background:#e2e8f0;color:#475569;border-radius:20px;padding:3px 12px;font-size:0.78rem;font-weight:700;">—</span>
           <button id="pipeline-btn-simpli" onclick="pipelineExportarInteligente()" title="Exportar SimpliRoute"
             style="background:#16a34a;border:none;border-radius:7px;padding:6px 14px;color:white;font-weight:700;cursor:pointer;font-size:0.82rem;display:flex;align-items:center;gap:5px;">
@@ -1027,12 +1033,6 @@ function renderPipelinePage() {
             style="background:white;border:1px solid #cbd5e1;border-radius:7px;padding:6px 12px;color:#ef4444;font-weight:700;cursor:pointer;font-size:0.82rem;">
             ✕
           </button>
-          <!-- Botão ocultado a pedido do usuário
-          <button onclick="pipelineLimparTodasOS()" title="Apagar TODAS as OS cadastradas no sistema"
-            style="background:#dc2626;border:none;border-radius:7px;padding:6px 12px;color:white;font-weight:700;cursor:pointer;font-size:0.82rem;display:flex;align-items:center;gap:5px;margin-left:4px;">
-            <i class="ph ph-trash" style="font-size:1rem;"></i> Apagar Todas as OS
-          </button>
-          -->
         </div>
       </div>
 
