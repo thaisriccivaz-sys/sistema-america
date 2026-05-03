@@ -647,12 +647,10 @@ async function pipelineExportarExcel(registrosOverride) {
         }
         const nomeServico = ((iconeServico ? iconeServico + ' ' : '') + (r.tipo_servico || '').trim().toUpperCase());
 
-        // Linha 4: PRODUTOS — "IC QTD NOME" (ícone do produto)
+        // Linha 4: PRODUTOS — "QTD NOME" (sem ícone do produto, a pedido do usuário)
         const prodStr = produtosArr.map(p => {
             const desc = (p.desc || '').trim().toUpperCase();
-            // Tenta ícone com nome exato, depois variante OBRA
-            const ic = PIPELINE_EQ_ICONS[desc] || PIPELINE_EQ_ICONS[desc.replace(/ EVENTO$/, ' OBRA')] || '';
-            return `${ic ? ic + ' ' : ''}${p.qtd} ${desc}`;
+            return `${p.qtd} ${desc}`;
         }).join('\n');
 
         // Linha 5: Quantidade de manutenções - DIAS DA SEMANA
