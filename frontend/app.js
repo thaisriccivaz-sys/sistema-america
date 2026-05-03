@@ -463,6 +463,7 @@ const BREADCRUMB_MAP = {
     'logistica-frota':        { path: 'Frota',                                                     code: 'LOG005' },
     'logistica-credenciamento': { path: 'Credenciamento',                                          code: 'LOG006' },
     'logistica-senhas':       { path: 'Cofre de Senhas',                                           code: 'LOG007' },
+    'logistica-resumo-rota':  { path: 'Resumo de Rota',                                            code: 'LOG008' },
     // Comercial
     'comercial-credenciamento': { path: 'Solicitar Credencial',                                    code: 'COM001' },
 };
@@ -650,6 +651,7 @@ const TAB_META = {
     // Logística - Verde
     'logistica-em-breve':     { color: '#2d9e5f', icon: 'ph-truck',          title: 'Logística' },
     'logistica-rota-redonda': { color: '#2d9e5f', icon: 'ph-map-trifold',   title: 'Rota Redonda' },
+    'logistica-resumo-rota':  { color: '#2d9e5f', icon: 'ph-list-bullets',  title: 'Resumo de Rota' },
     'logistica-frota-resumo':  { color: '#1e3a5f', icon: 'ph-truck',          title: 'Resumo de Frota' },
     'logistica-pipeline':    { color: '#2d9e5f', icon: 'ph-kanban',       title: 'Pipeline' },
     'logistica-entregas':             { color: '#2d9e5f', icon: 'ph-package',       title: 'Entregas' },
@@ -839,6 +841,8 @@ function navigateTo(target) {
         if (typeof renderFrotaResumo === 'function') setTimeout(() => renderFrotaResumo(), 80);
     } else if (target === 'logistica-pipeline') {
         if (typeof renderPipelinePage === 'function') setTimeout(() => renderPipelinePage(), 80);
+    } else if (target === 'logistica-resumo-rota') {
+        if (typeof window.renderResumoRota === 'function') setTimeout(() => window.renderResumoRota(), 80);
     } else if (target === 'logistica-multas') {
         if (typeof initMultasLogistica === 'function') setTimeout(() => initMultasLogistica(), 80);
     } else if (target === 'logistica-frota') {
