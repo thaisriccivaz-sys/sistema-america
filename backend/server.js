@@ -11161,7 +11161,19 @@ app.post('/api/itinerantes/localizacoes', authenticateToken, express.json(), asy
             }
         }).filter(Boolean).filter(t => t.lat !== null && t.lng !== null);
 
-        res.json({ tags, total: tags.length, atualizado: new Date().toISOString() });
+        // Se não encontrou tags, devolve a estrutura bruta para diagnóstico
+        const debugInfo = tags.length === 0 ? {
+            rawLength: Array.isArray(parsed) ? parsed.length : 'não é array',
+            nivel0: Array.isArray(parsed[0]) ? `array com ${parsed[0].length} itens` : typeof parsed[0],
+            nivel1: Array.isArray(parsed[1]) ? `array com ${parsed[1].length} itens` : typeof parsed[1],
+            nivel2: Array.isArray(parsed[2]) ? `array com ${parsed[2].length} itens` : typeof parsed[2],
+            nivel3: Array.isArray(parsed[3]) ? `array com ${parsed[3].length} itens` : typeof parsed[3],
+            rawPreview: JSON.stringify(parsed).substring(0, 500)
+        } : null;
+
+        console.log('[Itinerantes] Tags encontradas:', tags.length, debugInfo ? '| Debug:' + JSON.stringify(debugInfo).substring(0,200) : '');
+
+        res.json({ tags, total: tags.length, atualizado: new Date().toISOString(), debug: debugInfo });
 
     } catch (err) {
         console.error('[Itinerantes] Erro:', err);

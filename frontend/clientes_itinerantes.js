@@ -293,6 +293,23 @@ window.itinerantesAtualizarLocalizacoes = async function() {
         const data = await resp.json();
         _itinerantesTags = data.tags || [];
 
+        // Debug: se 0 tags, mostra estrutura da resposta do Google no console e na tela
+        if (_itinerantesTags.length === 0 && data.debug) {
+            console.warn('[Itinerantes] 0 tags — estrutura da resposta do Google:', data.debug);
+            const empty = document.getElementById('itin-empty');
+            if (empty) empty.innerHTML = `
+                <i class="ph ph-bug" style="font-size:2rem;margin-bottom:8px;opacity:0.4;color:#f59e0b;"></i>
+                <p style="margin:0;font-size:0.78rem;color:#94a3b8;text-align:left;padding:4px;">
+                    <strong style="color:#f59e0b;">Conectado, mas sem tags.</strong><br><br>
+                    <strong>Estrutura Google (níveis):</strong><br>
+                    • nivel0: ${data.debug.nivel0}<br>
+                    • nivel1: ${data.debug.nivel1}<br>
+                    • nivel2: ${data.debug.nivel2}<br>
+                    • nivel3: ${data.debug.nivel3}<br><br>
+                    <span style="word-break:break-all;font-size:0.68rem;color:#64748b;">${(data.debug.rawPreview||'').substring(0,300)}</span>
+                </p>`;
+        }
+
         if (badge) {
             badge.innerHTML = '🟢 Conectado — ' + _itinerantesTags.length + ' tag(s)';
             badge.style.background = '#14532d'; badge.style.color = '#86efac';
