@@ -1055,7 +1055,7 @@ function renderPipelinePage() {
             <i class="ph ph-upload-simple" style="font-size:1rem;"></i> Importar OS
           </button>
           <button onclick="pipelineExcluirSelecionadas()" title="Excluir OS(s) selecionada(s) permanentemente"
-            style="background:#ef4444;border:none;border-radius:7px;padding:6px 14px;color:white;font-weight:700;cursor:pointer;font-size:0.82rem;display:flex;align-items:center;gap:5px;">
+            style="background:#eab308;border:none;border-radius:7px;padding:6px 14px;color:white;font-weight:700;cursor:pointer;font-size:0.82rem;display:flex;align-items:center;gap:5px;">
             <i class="ph ph-trash" style="font-size:1rem;"></i> Excluir
           </button>
           <button onclick="pipelineLimparFiltros()" title="Limpar filtros"
