@@ -613,13 +613,25 @@ async function pipelineExportarExcel(registrosOverride) {
             return `📸 Vídeo: ${full}`;
         });
 
-        // Linha 2: Ícones das variáveis + OBSERVAÇÕES (em maiúscula, sem nome do cliente)
-        let obsStr = (r.observacoes || '').trim().toUpperCase();
-        const clienteUp = (r.cliente || '').trim().toUpperCase();
-        if (clienteUp && obsStr.startsWith(clienteUp)) {
-            // Remove o nome do cliente e os dois pontos/hífenes/espaços do início
-            obsStr = obsStr.substring(clienteUp.length).replace(/^[\s:-]+/, '').trim();
+        // Helper para remover o prefixo do nome do cliente da observação
+        function stripClientPrefix(text, clientName) {
+            let t = (text || '').trim().toUpperCase();
+            const c = (clientName || '').trim().toUpperCase();
+            if (!t || !c) return t;
+            if (t.startsWith(c)) return t.substring(c.length).replace(/^[\s:-]+/, '').trim();
+            const firstWord = c.split(' ')[0];
+            if (firstWord && firstWord.length > 2 && t.startsWith(firstWord)) {
+                const match = t.match(/^[^:\-]*[:\-]/);
+                if (match && match[0].length <= firstWord.length + 15) {
+                    return t.substring(match[0].length).trim();
+                }
+            }
+            return t;
         }
+
+        // Linha 2: Ícones das variáveis + OBSERVAÇÕES (em maiúscula, sem nome do cliente)
+        let obsStr = stripClientPrefix(r.observacoes, r.cliente);
+        let obsIntStr = stripClientPrefix(r.observacoes_internas, r.cliente);
         
         let obsComIcone = '';
         if (obsStr || icVar) {
@@ -672,7 +684,7 @@ async function pipelineExportarExcel(registrosOverride) {
         const habilidades = Array.isArray(r.habilidades) ? r.habilidades.join(', ') : (r.habilidades || '');
 
         const rowData = [
-            r.observacoes_internas || '', // A Obs Internas
+            (icVar ? icVar + ' ' : '') + obsIntStr, // A Obs Internas (com ícones tbm e sem nome do cliente)
             titulo,                  // B Titulo
             endereco,                // C Endereço completo
             r.tanque || r.carga || '',// D Carga
