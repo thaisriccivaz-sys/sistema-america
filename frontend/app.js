@@ -464,6 +464,7 @@ const BREADCRUMB_MAP = {
     'logistica-credenciamento': { path: 'Credenciamento',                                          code: 'LOG006' },
     'logistica-senhas':       { path: 'Cofre de Senhas',                                           code: 'LOG007' },
     'logistica-resumo-rota':  { path: 'Resumo de Rota',                                            code: 'LOG008' },
+    'logistica-itinerantes':  { path: 'Clientes Itinerantes',                                      code: 'LOG009' },
     // Comercial
     'comercial-credenciamento': { path: 'Solicitar Credencial',                                    code: 'COM001' },
 };
