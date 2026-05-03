@@ -9883,6 +9883,18 @@ app.post('/api/logistica/importar-excel', authenticateToken, multerMemory.single
     });
 });
 
+// DELETE /api/logistica/pipeline/excluir-selecionadas - Remove OSs em massa por ID
+app.delete('/api/logistica/pipeline/excluir-selecionadas', authenticateToken, express.json(), (req, res) => {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'Nenhum ID fornecido.' });
+
+    const placeholders = ids.map(() => '?').join(',');
+    db.run(`DELETE FROM os_logistica WHERE id IN (${placeholders})`, ids, function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: `${this.changes} OS(s) removida(s) com sucesso.`, changes: this.changes });
+    });
+});
+
 // DELETE /api/logistica/pipeline/limpar - Remove todas as OS
 app.delete('/api/logistica/pipeline/limpar', authenticateToken, (req, res) => {
     // ATENÇÃO: Isso vai remover permanentemente TODAS as OS da base

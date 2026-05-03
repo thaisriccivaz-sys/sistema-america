@@ -1051,8 +1051,12 @@ function renderPipelinePage() {
             <i class="ph ph-file-xls" style="font-size:1rem;"></i> <span id="pipeline-btn-simpli-txt">SimpliRoute</span>
           </button>
           <button onclick="pipelineAbrirModalImportar()" title="Importar OS via Excel"
-            style="background:#6366f1;border:none;border-radius:7px;padding:6px 14px;color:white;font-weight:700;cursor:pointer;font-size:0.82rem;display:flex;align-items:center;gap:5px;">
+            style="display:none;background:#6366f1;border:none;border-radius:7px;padding:6px 14px;color:white;font-weight:700;cursor:pointer;font-size:0.82rem;align-items:center;gap:5px;">
             <i class="ph ph-upload-simple" style="font-size:1rem;"></i> Importar OS
+          </button>
+          <button onclick="pipelineExcluirSelecionadas()" title="Excluir OS(s) selecionada(s) permanentemente"
+            style="background:#ef4444;border:none;border-radius:7px;padding:6px 14px;color:white;font-weight:700;cursor:pointer;font-size:0.82rem;display:flex;align-items:center;gap:5px;">
+            <i class="ph ph-trash" style="font-size:1rem;"></i> Excluir
           </button>
           <button onclick="pipelineLimparFiltros()" title="Limpar filtros"
             style="background:white;border:1px solid #cbd5e1;border-radius:7px;padding:6px 12px;color:#ef4444;font-weight:700;cursor:pointer;font-size:0.82rem;">
@@ -1293,5 +1297,32 @@ async function pipelineImportarExcel() {
         if (bar) { bar.style.width = '100%'; bar.style.background = '#ef4444'; }
         if (status) status.textContent = 'Erro: ' + err.message;
         console.error('[Pipeline] Erro ao importar:', err);
+    }
+}
+
+async function pipelineExcluirSelecionadas() {
+    if (_pipelineSelecionados.size === 0) {
+        if (typeof showToast === 'function') showToast('Selecione pelo menos uma OS para excluir.', 'error');
+        return;
+    }
+    if (!confirm('Tem certeza que deseja excluir PERMANENTEMENTE as ' + _pipelineSelecionados.size + ' OS(s) selecionada(s)? Essa acao nao pode ser desfeita.')) return;
+
+    try {
+        const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+        const ids = Array.from(_pipelineSelecionados);
+        const resp = await fetch('/api/logistica/pipeline/excluir-selecionadas', {
+            method: 'DELETE',
+            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids })
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Erro no servidor');
+        
+        if (typeof showToast === 'function') showToast(data.message, 'success');
+        pipelineLimparSelecao();
+        buscarPipeline();
+    } catch (err) {
+        if (typeof showToast === 'function') showToast('Erro ao excluir: ' + err.message, 'error');
+        console.error('[Pipeline] Erro ao excluir OSs:', err);
     }
 }
