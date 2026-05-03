@@ -1,474 +1,135 @@
-// ============================================================
-// CLIENTES ITINERANTES — Frontend Module
-// Exibe localização em tempo real de tags Google Maps
-// via reverse-engineering do endpoint não-oficial do Google.
-// ============================================================
+let _itinLinks = JSON.parse(localStorage.getItem('itin_links') || '[]');
 
 window.renderItinerantesPage = function() {
-    const container = document.getElementById('itinerantes-container');
-    if (!container) return;
-
-    container.innerHTML = `
-    <div style="display:flex; flex-direction:column; height:calc(100vh - 90px); background:#0f172a; overflow:hidden;">
-
-        <!-- HEADER -->
-        <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 20px;
-                    background:linear-gradient(135deg, #1e3a2f 0%, #14532d 100%);
-                    border-bottom:2px solid #22c55e33; flex-shrink:0;">
-            <div style="display:flex; align-items:center; gap:12px;">
-                <div style="width:38px;height:38px;border-radius:50%;background:#22c55e22;border:2px solid #22c55e;
-                            display:flex;align-items:center;justify-content:center;">
-                    <i class="ph ph-map-pin-line" style="color:#22c55e;font-size:1.3rem;"></i>
-                </div>
+    const view = document.getElementById('view-logistica-itinerantes');
+    if (!view) return;
+    
+    // Clear the view
+    view.innerHTML = `
+        <div style="padding: 20px; max-width: 1200px; margin: 0 auto; min-height: 80vh; background:#f8fafc;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 30px; background:#fff; padding:20px; border-radius:12px; box-shadow:0 2px 4px rgba(0,0,0,0.02); border:1px solid #e2e8f0;">
                 <div>
-                    <h2 style="margin:0;color:#f0fdf4;font-size:1.1rem;font-weight:800;">📍 Clientes Itinerantes</h2>
-                    <p style="margin:0;color:#86efac;font-size:0.75rem;">Rastreamento em tempo real via Google Location Sharing</p>
-                </div>
-            </div>
-            <div style="display:flex;gap:10px;align-items:center;">
-                <span id="itin-status-badge" style="font-size:0.72rem;padding:4px 12px;border-radius:20px;
-                    background:#334155;color:#94a3b8;font-weight:600;">
-                    ⚪ Desconectado
-                </span>
-                <button onclick="itinerantesAtualizarLocalizacoes()"
-                    style="background:#22c55e;border:none;border-radius:8px;padding:7px 16px;
-                           color:white;font-weight:700;cursor:pointer;font-size:0.82rem;
-                           display:flex;align-items:center;gap:6px;transition:all 0.2s;"
-                    onmouseover="this.style.background='#16a34a'" onmouseout="this.style.background='#22c55e'">
-                    <i class="ph ph-arrows-clockwise"></i> Atualizar
-                </button>
-                <button onclick="itinerantesAbrirConfiguracoes()"
-                    style="background:#334155;border:none;border-radius:8px;padding:7px 14px;
-                           color:#e2e8f0;font-weight:600;cursor:pointer;font-size:0.82rem;
-                           display:flex;align-items:center;gap:6px;"
-                    onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#334155'">
-                    <i class="ph ph-gear"></i> Configurar Cookies
-                </button>
-            </div>
-        </div>
-
-        <!-- LAYOUT: sidebar de tags + mapa -->
-        <div style="display:flex; flex:1; overflow:hidden;">
-
-            <!-- SIDEBAR: lista de tags -->
-            <div style="width:300px; flex-shrink:0; background:#1e293b; border-right:1px solid #334155;
-                        display:flex; flex-direction:column; overflow:hidden;">
-                <div style="padding:12px 16px; border-bottom:1px solid #334155;">
-                    <input id="itin-search" type="text" placeholder="🔍 Buscar tag..."
-                        oninput="itinerantesFiltrarLista(this.value)"
-                        style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:8px;
-                               padding:7px 12px;color:#e2e8f0;font-size:0.82rem;outline:none;box-sizing:border-box;">
-                </div>
-                <div id="itin-lista" style="flex:1;overflow-y:auto;padding:8px;">
-                    <div id="itin-empty" style="display:flex;flex-direction:column;align-items:center;justify-content:center;
-                             height:200px;color:#64748b;text-align:center;padding:20px;">
-                        <i class="ph ph-map-pin" style="font-size:2.5rem;margin-bottom:10px;opacity:0.4;"></i>
-                        <p style="margin:0;font-size:0.82rem;">Nenhuma tag encontrada.<br>Configure seus cookies e clique em <strong>Atualizar</strong>.</p>
-                    </div>
-                </div>
-                <div style="padding:10px 16px;border-top:1px solid #334155;background:#0f172a;">
-                    <p id="itin-info" style="margin:0;color:#64748b;font-size:0.72rem;text-align:center;">
-                        Atualização automática a cada 5 min
+                    <h2 style="margin:0; display:flex; align-items:center; gap:10px; color:#1e293b; font-size:1.4rem;">
+                        <i class="ph-bold ph-bluetooth" style="color:#2d9e5f; background:#ecfdf5; padding:8px; border-radius:8px;"></i> 
+                        Painel de Tags Bluetooth
+                    </h2>
+                    <p style="margin:8px 0 0; color:#64748b; font-size:0.95rem;">
+                        Gerencie todos os seus links do <strong>Encontre Meu Dispositivo</strong> em um só lugar.
                     </p>
                 </div>
+                <button onclick="itinerantesAbrirModalNovo()" 
+                    style="background:#2d9e5f; color:#fff; border:none; padding:12px 24px; border-radius:8px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:8px; font-size:0.95rem; box-shadow:0 4px 6px -1px rgba(45,158,95,0.2);"
+                    onmouseover="this.style.background='#22c55e'" onmouseout="this.style.background='#2d9e5f'">
+                    <i class="ph-bold ph-plus"></i> Adicionar Tag
+                </button>
             </div>
-
-            <!-- MAPA -->
-            <div style="flex:1;position:relative;">
-                <div id="itin-mapa" style="width:100%;height:100%;"></div>
-                <!-- Overlay de instrução inicial -->
-                <div id="itin-overlay" style="position:absolute;inset:0;background:#0f172a;
-                     display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10;">
-                    <div style="text-align:center;max-width:420px;padding:30px;">
-                        <div style="font-size:3.5rem;margin-bottom:16px;">🗺️</div>
-                        <h3 style="color:#f0fdf4;margin-bottom:12px;font-size:1.3rem;">Bem-vindo ao Rastreamento</h3>
-                        <p style="color:#94a3b8;font-size:0.9rem;line-height:1.6;margin-bottom:24px;">
-                            Para ver a localização dos seus clientes itinerantes, você precisa fornecer
-                            os <strong style="color:#22c55e;">cookies da sua conta Google</strong>
-                            que tem acesso ao compartilhamento de localização.
-                        </p>
-                        <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;
-                                    padding:16px;text-align:left;margin-bottom:20px;">
-                            <p style="color:#f59e0b;font-size:0.8rem;font-weight:700;margin:0 0 8px;">
-                                📋 Como obter seus Cookies:
-                            </p>
-                            <ol style="color:#94a3b8;font-size:0.78rem;margin:0;padding-left:18px;line-height:1.8;">
-                                <li>Abra <strong style="color:#60a5fa;">maps.google.com</strong> no Chrome</li>
-                                <li>Faça login na conta com as tags</li>
-                                <li>Instale a extensão <strong style="color:#60a5fa;">EditThisCookie</strong></li>
-                                <li>Exporte os cookies e cole abaixo</li>
-                            </ol>
-                        </div>
-                        <button onclick="itinerantesAbrirConfiguracoes()"
-                            style="background:#22c55e;border:none;border-radius:10px;padding:12px 28px;
-                                   color:white;font-weight:800;cursor:pointer;font-size:0.95rem;
-                                   display:inline-flex;align-items:center;gap:8px;">
-                            <i class="ph ph-gear-six"></i> Configurar Cookies Agora
-                        </button>
-                    </div>
-                </div>
+            
+            <div id="itin-links-grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px;">
+                <!-- Links rendered here -->
             </div>
         </div>
-    </div>`;
-
-    // Carrega o Leaflet se ainda não estiver
-    if (typeof L === 'undefined') {
-        _itinerantesCarregarLeaflet(() => {
-            _itinerantesIniciarMapa();
-            _itinerantesVerificarConfigurado();
-        });
-    } else {
-        _itinerantesIniciarMapa();
-        _itinerantesVerificarConfigurado();
-    }
+    `;
+    itinerantesRenderizarGrid();
 };
 
-// ── Leaflet lazy loader ──────────────────────────────────────────────
-function _itinerantesCarregarLeaflet(callback) {
-    if (!document.getElementById('leaflet-css')) {
-        const link = document.createElement('link');
-        link.id = 'leaflet-css';
-        link.rel = 'stylesheet';
-        link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-        document.head.appendChild(link);
-    }
-    if (!document.getElementById('leaflet-js')) {
-        const script = document.createElement('script');
-        script.id = 'leaflet-js';
-        script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-        script.onload = callback;
-        document.head.appendChild(script);
-    } else {
-        callback();
-    }
-}
-
-// ── Mapa Leaflet ─────────────────────────────────────────────────────
-let _itinerantesMapObj = null;
-let _itinerantesMarkers = {};
-let _itinerantesTags = [];
-let _itinerantesAutoRefreshInterval = null;
-
-function _itinerantesIniciarMapa() {
-    const el = document.getElementById('itin-mapa');
-    if (!el || _itinerantesMapObj) {
-        if (_itinerantesMapObj) _itinerantesMapObj.invalidateSize();
+window.itinerantesRenderizarGrid = function() {
+    const grid = document.getElementById('itin-links-grid');
+    if (!grid) return;
+    
+    if (_itinLinks.length === 0) {
+        grid.innerHTML = `
+            <div style="grid-column: 1 / -1; text-align:center; padding: 80px 20px; background:#fff; border:2px dashed #cbd5e1; border-radius:16px;">
+                <i class="ph-bold ph-link" style="font-size:3.5rem; color:#cbd5e1; margin-bottom:15px;"></i>
+                <h3 style="margin:0 0 10px; color:#475569; font-size:1.3rem;">Nenhuma tag cadastrada</h3>
+                <p style="margin:0 auto; color:#64748b; font-size:1rem; max-width:400px; line-height:1.5;">
+                    Clique no botão acima para colar os links que você gerou no aplicativo <strong>Encontre Meu Dispositivo</strong>.
+                </p>
+            </div>
+        `;
         return;
     }
-    _itinerantesMapObj = L.map('itin-mapa', { zoomControl: true }).setView([-23.5505, -46.6333], 11);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
-        subdomains: 'abcd', maxZoom: 19
-    }).addTo(_itinerantesMapObj);
-}
+    
+    grid.innerHTML = _itinLinks.map(link => `
+        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:20px; box-shadow:0 2px 4px rgba(0,0,0,0.02); display:flex; flex-direction:column; justify-content:space-between; transition:all 0.2s; position:relative;"
+             onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 8px 16px rgba(0,0,0,0.04)'; this.style.borderColor='#cbd5e1';"
+             onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.02)'; this.style.borderColor='#e2e8f0';">
+            
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px;">
+                <div style="display:flex; align-items:center; gap:14px;">
+                    <div style="background:#f8fafc; color:#3b82f6; width:48px; height:48px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.4rem; border:1px solid #e2e8f0;">
+                        <i class="ph-bold ph-map-pin-line"></i>
+                    </div>
+                    <div>
+                        <h4 style="margin:0; color:#1e293b; font-size:1.1rem;">${link.nome}</h4>
+                        <span style="color:#64748b; font-size:0.8rem;">Tag Bluetooth (Google)</span>
+                    </div>
+                </div>
+                <button onclick="itinerantesExcluir('${link.id}')" style="background:#f8fafc; border:1px solid transparent; color:#94a3b8; cursor:pointer; width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; transition:all 0.2s;" title="Excluir Tag" onmouseover="this.style.background='#fef2f2'; this.style.color='#ef4444'; this.style.borderColor='#fecaca';" onmouseout="this.style.background='#f8fafc'; this.style.color='#94a3b8'; this.style.borderColor='transparent';">
+                    <i class="ph-bold ph-trash" style="font-size:1.1rem;"></i>
+                </button>
+            </div>
+            
+            <button onclick="window.open('${link.url}', '_blank')" 
+                style="background:#f1f5f9; border:1px solid #e2e8f0; color:#334155; padding:12px; border-radius:8px; width:100%; cursor:pointer; font-weight:600; font-size:0.95rem; display:flex; align-items:center; justify-content:center; gap:8px; transition:all 0.2s;" 
+                onmouseover="this.style.background='#3b82f6'; this.style.color='#fff'; this.style.borderColor='#3b82f6';" 
+                onmouseout="this.style.background='#f1f5f9'; this.style.color='#334155'; this.style.borderColor='#e2e8f0';">
+                <i class="ph-bold ph-arrow-square-out"></i> Localizar no Mapa
+            </button>
+        </div>
+    `).join('');
+};
 
-// ── Verificar se já configurado ─────────────────────────────────────
-function _itinerantesVerificarConfigurado() {
-    const cookies = localStorage.getItem('itin_google_cookies');
-    if (cookies) {
-        document.getElementById('itin-overlay').style.display = 'none';
-        document.getElementById('itin-status-badge').innerHTML = '🟡 Configurado';
-        document.getElementById('itin-status-badge').style.background = '#78350f';
-        document.getElementById('itin-status-badge').style.color = '#fbbf24';
-        itinerantesAtualizarLocalizacoes();
-        // Auto-refresh a cada 5 minutos
-        if (_itinerantesAutoRefreshInterval) clearInterval(_itinerantesAutoRefreshInterval);
-        _itinerantesAutoRefreshInterval = setInterval(itinerantesAtualizarLocalizacoes, 5 * 60 * 1000);
-    }
-}
-
-// ── Abrir modal de configuração de cookies ───────────────────────────
-window.itinerantesAbrirConfiguracoes = function() {
-    const saved = localStorage.getItem('itin_google_cookies') || '';
+window.itinerantesAbrirModalNovo = function() {
     const modal = document.createElement('div');
-    modal.id = 'modal-itin-config';
-    modal.style.cssText = `position:fixed;inset:0;background:#000a;z-index:9999;
-        display:flex;align-items:center;justify-content:center;padding:20px;`;
+    modal.id = 'modal-itin-novo';
+    modal.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.6); z-index:9999; display:flex; align-items:center; justify-content:center; padding:20px; backdrop-filter:blur(2px);';
     modal.innerHTML = `
-    <div style="background:#1e293b;border-radius:16px;border:1px solid #334155;
-                width:100%;max-width:620px;max-height:90vh;overflow-y:auto;box-shadow:0 25px 50px #000a;">
-        <div style="padding:20px 24px;border-bottom:1px solid #334155;display:flex;justify-content:space-between;align-items:center;">
-            <div>
-                <h3 style="margin:0;color:#f0fdf4;font-size:1.1rem;">⚙️ Configurar Cookies Google</h3>
-                <p style="margin:4px 0 0;color:#64748b;font-size:0.75rem;">
-                    Necessário para acessar o compartilhamento de localização da sua conta
-                </p>
+        <div style="background:#fff; width:100%; max-width:500px; border-radius:16px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1); overflow:hidden; animation: slideDown 0.3s ease;">
+            <div style="padding:20px 24px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; background:#f8fafc;">
+                <h3 style="margin:0; color:#1e293b; font-size:1.15rem; display:flex; align-items:center; gap:8px;">
+                    <i class="ph-bold ph-link" style="color:#2d9e5f;"></i> Adicionar Nova Tag
+                </h3>
+                <i class="ph-bold ph-x" style="cursor:pointer; color:#64748b; font-size:1.2rem;" onclick="document.getElementById('modal-itin-novo').remove()" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#64748b'"></i>
             </div>
-            <button onclick="document.getElementById('modal-itin-config').remove()"
-                style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:1.5rem;">✕</button>
-        </div>
-        <div style="padding:20px 24px;">
-            <!-- Instruções -->
-            <div style="background:#0f172a;border-radius:10px;padding:16px;margin-bottom:16px;border:1px solid #1e3a5f;">
-                <p style="color:#60a5fa;font-size:0.82rem;font-weight:700;margin:0 0 10px;">
-                    📥 Como exportar os cookies (método fácil):
-                </p>
-                <ol style="color:#94a3b8;font-size:0.78rem;margin:0;padding-left:18px;line-height:2;">
-                    <li>No Chrome, abra <strong style="color:#60a5fa;">chrome://extensions</strong></li>
-                    <li>Instale a extensão <strong style="color:#60a5fa;">"Export Cookie JSON File for Puppeteer"</strong></li>
-                    <li>Vá para <strong style="color:#60a5fa;">maps.google.com</strong> logado na conta com as tags</li>
-                    <li>Clique no ícone da extensão → <strong style="color:#60a5fa;">Export Cookies</strong></li>
-                    <li>Abra o arquivo .json gerado, copie todo o conteúdo e cole abaixo</li>
-                </ol>
-            </div>
-            <label style="color:#e2e8f0;font-size:0.82rem;font-weight:600;display:block;margin-bottom:6px;">
-                Cole o JSON de cookies aqui:
-            </label>
-            <textarea id="itin-cookies-input" rows="10"
-                style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:8px;
-                       padding:12px;color:#e2e8f0;font-size:0.75rem;font-family:monospace;
-                       resize:vertical;outline:none;box-sizing:border-box;"
-                placeholder='[{"name":"SID","value":"...","domain":".google.com",...}, ...]'>${saved}</textarea>
-            <div style="display:flex;gap:10px;margin-top:14px;justify-content:flex-end;">
-                <button onclick="document.getElementById('modal-itin-config').remove()"
-                    style="background:#334155;border:none;border-radius:8px;padding:9px 18px;
-                           color:#e2e8f0;font-weight:600;cursor:pointer;font-size:0.82rem;">
-                    Cancelar
-                </button>
-                <button onclick="itinerantesSalvarCookies()"
-                    style="background:#22c55e;border:none;border-radius:8px;padding:9px 20px;
-                           color:white;font-weight:700;cursor:pointer;font-size:0.82rem;">
-                    💾 Salvar e Conectar
-                </button>
-            </div>
-
-            <!-- Tags Ocultas -->
-            <div style="margin-top:24px;border-top:1px solid #334155;padding-top:16px;">
-                <h4 style="color:#94a3b8;font-size:0.85rem;margin:0 0 10px;">Tags Ocultadas</h4>
-                <div id="itin-hidden-tags-list" style="display:flex;flex-wrap:wrap;gap:8px;">
-                    ${_itinHiddenTags.length === 0 ? '<span style="color:#64748b;font-size:0.75rem;">Nenhuma tag ocultada.</span>' : ''}
-                    ${_itinHiddenTags.map(nome => `
-                        <div style="background:#334155;border-radius:6px;padding:4px 10px;display:flex;align-items:center;gap:6px;font-size:0.75rem;color:#f1f5f9;">
-                            ${nome}
-                            <i class="ph-bold ph-eye" onclick="itinerantesRestaurarTag('${nome}')"
-                               style="cursor:pointer;color:#60a5fa;" title="Restaurar para a tela principal"></i>
-                        </div>
-                    `).join('')}
+            <div style="padding:24px;">
+                <div style="margin-bottom:20px;">
+                    <label style="display:block; margin-bottom:8px; color:#475569; font-weight:600; font-size:0.9rem;">Nome do Cliente / Aparelho</label>
+                    <input type="text" id="itin-input-nome" placeholder="Ex: Caminhão 02 - João Silva" style="width:100%; padding:12px 16px; border:1px solid #cbd5e1; border-radius:8px; font-size:0.95rem; outline:none; transition:all 0.2s;" onfocus="this.style.borderColor='#2d9e5f'; this.style.boxShadow='0 0 0 3px rgba(45,158,95,0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';">
+                </div>
+                <div style="margin-bottom:28px;">
+                    <label style="display:block; margin-bottom:8px; color:#475569; font-weight:600; font-size:0.9rem;">Link de Compartilhamento</label>
+                    <textarea id="itin-input-url" placeholder="Cole aqui o link gerado pelo Google..." style="width:100%; padding:12px 16px; border:1px solid #cbd5e1; border-radius:8px; font-size:0.9rem; min-height:100px; resize:vertical; outline:none; transition:all 0.2s;" onfocus="this.style.borderColor='#2d9e5f'; this.style.boxShadow='0 0 0 3px rgba(45,158,95,0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';"></textarea>
+                    <p style="margin:8px 0 0; color:#94a3b8; font-size:0.75rem;">O link deve começar com <em>https://www.google.com/android/find/...</em></p>
+                </div>
+                <div style="display:flex; justify-content:flex-end; gap:12px;">
+                    <button onclick="document.getElementById('modal-itin-novo').remove()" style="background:#f1f5f9; color:#475569; border:none; padding:12px 20px; border-radius:8px; font-weight:600; cursor:pointer; font-size:0.95rem; transition:all 0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">Cancelar</button>
+                    <button onclick="itinerantesSalvar()" style="background:#2d9e5f; color:#fff; border:none; padding:12px 24px; border-radius:8px; font-weight:600; cursor:pointer; font-size:0.95rem; transition:all 0.2s;" onmouseover="this.style.background='#22c55e'" onmouseout="this.style.background='#2d9e5f'">Salvar Tag</button>
                 </div>
             </div>
         </div>
-    </div>`;
+    `;
     document.body.appendChild(modal);
+    setTimeout(() => { document.getElementById('itin-input-nome').focus(); }, 100);
 };
 
-window.itinerantesSalvarCookies = function() {
-    const raw = document.getElementById('itin-cookies-input').value.trim();
-    if (!raw) { alert('Cole os cookies antes de salvar.'); return; }
-    try {
-        JSON.parse(raw); // valida JSON
-        localStorage.setItem('itin_google_cookies', raw);
-        document.getElementById('modal-itin-config').remove();
-        document.getElementById('itin-overlay').style.display = 'none';
-        if (typeof showToast === 'function') showToast('Cookies salvos! Buscando localizações...', 'success');
-        _itinerantesVerificarConfigurado();
-    } catch(e) {
-        alert('JSON inválido. Verifique o conteúdo e tente novamente.\n\n' + e.message);
-    }
+window.itinerantesSalvar = function() {
+    const nome = document.getElementById('itin-input-nome').value.trim();
+    const url = document.getElementById('itin-input-url').value.trim();
+    
+    if (!nome) return alert('Por favor, digite um nome para identificar a tag.');
+    if (!url || !url.includes('google.com')) return alert('Por favor, cole um link válido do Google.');
+    
+    const id = 'tag_' + Date.now();
+    _itinLinks.push({ id, nome, url });
+    localStorage.setItem('itin_links', JSON.stringify(_itinLinks));
+    
+    document.getElementById('modal-itin-novo').remove();
+    itinerantesRenderizarGrid();
 };
 
-// ── Atualizar localizações via API backend ───────────────────────────
-window.itinerantesAtualizarLocalizacoes = async function() {
-    const badge = document.getElementById('itin-status-badge');
-    if (badge) { badge.innerHTML = '🔄 Buscando...'; badge.style.background = '#1e3a5f'; badge.style.color = '#60a5fa'; }
-
-    const cookies = localStorage.getItem('itin_google_cookies');
-    if (!cookies) {
-        if (badge) { badge.innerHTML = '⚪ Desconectado'; badge.style.background = '#334155'; badge.style.color = '#94a3b8'; }
-        return;
-    }
-
-    try {
-        const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
-        const resp = await fetch('/api/itinerantes/localizacoes', {
-            method: 'POST',
-            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ cookies: JSON.parse(cookies) })
-        });
-
-        if (!resp.ok) {
-            const err = await resp.json().catch(() => ({}));
-            throw new Error(err.error || 'Erro ao buscar localizações');
-        }
-
-        const data = await resp.json();
-        _itinerantesTags = data.tags || [];
-
-        // Debug: se 0 tags, mostra estrutura da resposta do Google no console e na tela
-        if (_itinerantesTags.length === 0 && data.debug) {
-            console.warn('[Itinerantes] 0 tags — estrutura da resposta do Google:', data.debug);
-            const empty = document.getElementById('itin-empty');
-            if (empty) empty.innerHTML = `
-                <i class="ph ph-bug" style="font-size:2rem;margin-bottom:8px;opacity:0.4;color:#f59e0b;"></i>
-                <p style="margin:0;font-size:0.78rem;color:#94a3b8;text-align:left;padding:4px;">
-                    <strong style="color:#f59e0b;">Conectado, mas sem tags.</strong><br><br>
-                    <strong>Estrutura Google (níveis):</strong><br>
-                    • nivel0: ${data.debug.nivel0}<br>
-                    • nivel1: ${data.debug.nivel1}<br>
-                    • nivel2: ${data.debug.nivel2}<br>
-                    • nivel3: ${data.debug.nivel3}<br><br>
-                    <span style="word-break:break-all;font-size:0.68rem;color:#64748b;">${(data.debug.rawPreview||'').substring(0,300)}</span>
-                </p>`;
-        }
-
-        if (badge) {
-            badge.innerHTML = '🟢 Conectado — ' + _itinerantesTags.length + ' tag(s)';
-            badge.style.background = '#14532d'; badge.style.color = '#86efac';
-        }
-
-        const info = document.getElementById('itin-info');
-        if (info) info.textContent = 'Última atualização: ' + new Date().toLocaleTimeString('pt-BR');
-
-        itinerantesFiltrarLista(document.getElementById('itin-search') ? document.getElementById('itin-search').value : '');
-        document.getElementById('itin-overlay').style.display = 'none';
-
-    } catch(err) {
-        console.error('[Itinerantes]', err);
-        if (badge) { badge.innerHTML = '🔴 Erro: ' + err.message.substring(0, 40); badge.style.background = '#450a0a'; badge.style.color = '#fca5a5'; }
-        if (typeof showToast === 'function') showToast('Erro ao buscar localizações: ' + err.message, 'error');
-    }
-};
-
-// ── Renderizar lista de tags no sidebar ─────────────────────────────
-function _itinerantesRenderizarLista(tags) {
-    const lista = document.getElementById('itin-lista');
-    const empty = document.getElementById('itin-empty');
-    if (!lista) return;
-
-    if (!tags || tags.length === 0) {
-        if (empty) empty.style.display = 'flex';
-        return;
-    }
-    if (empty) empty.style.display = 'none';
-
-    lista.innerHTML = tags.map((tag, i) => {
-        const deltaMin = tag.timestamp ? Math.round((Date.now() - tag.timestamp) / 60000) : null;
-        const tempoStr = deltaMin === null ? 'Desconhecido' : deltaMin < 1 ? 'Agora' : deltaMin + ' min atrás';
-        const corStatus = deltaMin === null ? '#64748b' : deltaMin < 5 ? '#22c55e' : deltaMin < 30 ? '#f59e0b' : '#ef4444';
-
-        return `
-        <div class="itin-card" data-idx="${i}"
-            onclick="itinerantesIrParaTag(${i})"
-            style="background:#0f172a;border:1px solid #1e293b;border-radius:10px;
-                   padding:10px 12px;margin-bottom:8px;cursor:pointer;transition:all 0.18s;"
-            onmouseover="this.style.borderColor='#22c55e44';this.style.background='#1e293b'"
-            onmouseout="this.style.borderColor='#1e293b';this.style.background='#0f172a'">
-            <div style="display:flex;align-items:center;gap:10px;">
-                <div style="width:36px;height:36px;border-radius:50%;background:${tag.photoUrl ? 'transparent' : '#1e3a5f'};
-                            display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;border:2px solid ${corStatus};">
-                    ${tag.photoUrl 
-                        ? `<img src="${tag.photoUrl}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.innerHTML='<i class=\\'ph ph-user\\' style=\\'color:#60a5fa;font-size:1.1rem;\\'></i>'">`
-                        : `<i class="ph ph-device-mobile" style="color:#60a5fa;font-size:1.1rem;"></i>`}
-                </div>
-                <div style="flex:1;min-width:0;">
-                    <p style="margin:0;color:#f0fdf4;font-size:0.85rem;font-weight:700;
-                               white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                        ${tag.nome || 'Tag ' + (i+1)}
-                    </p>
-                    <p style="margin:2px 0 0;color:#64748b;font-size:0.72rem;
-                               white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                        📍 ${tag.endereco || (tag.lat ? tag.lat.toFixed(4) + ', ' + tag.lng.toFixed(4) : 'Sem localização')}
-                    </p>
-                </div>
-                <div style="text-align:right;flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
-                    <div style="display:flex;align-items:center;gap:4px;">
-                        <div style="width:8px;height:8px;border-radius:50%;background:${corStatus};"></div>
-                        <span style="color:${corStatus};font-size:0.68rem;font-weight:600;">${tempoStr}</span>
-                    </div>
-                    <button onclick="itinerantesOcultarTag(event, '${tag.nome}')" title="Ocultar tag"
-                        style="background:none;border:none;color:#64748b;cursor:pointer;padding:2px;border-radius:4px;"
-                        onmouseover="this.style.background='#ef444422';this.style.color='#ef4444'"
-                        onmouseout="this.style.background='none';this.style.color='#64748b'">
-                        <i class="ph-bold ph-eye-slash"></i>
-                    </button>
-                </div>
-            </div>
-        </div>`;
-    }).join('');
-}
-
-// ── Filtrar lista ─────────────────────────────────────────────────────
-window.itinerantesFiltrarLista = function(query) {
-    const q = (query || '').toLowerCase();
-    const filtered = _itinerantesTags.filter(t => {
-        if (_itinHiddenTags.includes(t.nome)) return false;
-        return (t.nome || '').toLowerCase().includes(q) || (t.endereco || '').toLowerCase().includes(q);
-    });
-    _itinerantesRenderizarLista(filtered);
-    _itinerantesRenderizarMapa(filtered);
-};
-
-// ── Renderizar marcadores no mapa ────────────────────────────────────
-function _itinerantesRenderizarMapa(tags) {
-    if (!_itinerantesMapObj) return;
-
-    // Remove marcadores antigos
-    Object.values(_itinerantesMarkers).forEach(m => m.remove());
-    _itinerantesMarkers = {};
-
-    const bounds = [];
-
-    tags.forEach((tag, i) => {
-        if (!tag.lat || !tag.lng) return;
-
-        const markerHtml = `
-            <div style="background:#1e293b;border:2.5px solid #22c55e;border-radius:50%;
-                        width:36px;height:36px;display:flex;align-items:center;justify-content:center;
-                        box-shadow:0 0 12px #22c55e88;overflow:hidden;">
-                ${tag.photoUrl 
-                    ? `<img src="${tag.photoUrl}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'">`
-                    : `<span style="color:#22c55e;font-size:1rem;">📍</span>`}
-            </div>`;
-
-        const icon = L.divIcon({ html: markerHtml, className: '', iconSize: [36, 36], iconAnchor: [18, 18] });
-
-        const deltaMin = tag.timestamp ? Math.round((Date.now() - tag.timestamp) / 60000) : null;
-        const tempoStr = deltaMin === null ? 'Desconhecido' : deltaMin < 1 ? 'Agora mesmo' : `${deltaMin} min atrás`;
-
-        const popup = `
-            <div style="font-family:Inter,sans-serif;min-width:180px;">
-                <p style="margin:0 0 4px;font-weight:800;font-size:0.92rem;">${tag.nome || 'Tag ' + (i+1)}</p>
-                <p style="margin:0 0 4px;font-size:0.78rem;color:#64748b;">🕐 ${tempoStr}</p>
-                ${tag.endereco ? `<p style="margin:0;font-size:0.78rem;color:#334155;">📍 ${tag.endereco}</p>` : ''}
-                ${tag.bateria !== null && tag.bateria !== undefined ? `<p style="margin:4px 0 0;font-size:0.78rem;">🔋 ${tag.bateria}%</p>` : ''}
-            </div>`;
-
-        const marker = L.marker([tag.lat, tag.lng], { icon }).addTo(_itinerantesMapObj);
-        marker.bindPopup(popup);
-        _itinerantesMarkers[i] = marker;
-        bounds.push([tag.lat, tag.lng]);
-    });
-
-    if (bounds.length > 0) {
-        _itinerantesMapObj.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
-    }
-}
-
-// ── Ir para tag específica no mapa ───────────────────────────────────
-window.itinerantesIrParaTag = function(idx) {
-    const tag = _itinerantesTags[idx];
-    if (!tag || !tag.lat || !_itinerantesMapObj) return;
-    _itinerantesMapObj.setView([tag.lat, tag.lng], 16, { animate: true });
-    if (_itinerantesMarkers[idx]) _itinerantesMarkers[idx].openPopup();
-};
-
-let _itinHiddenTags = [];
-try { _itinHiddenTags = JSON.parse(localStorage.getItem('itin_hidden_tags') || '[]'); } catch(e){}
-
-window.itinerantesOcultarTag = function(e, nomeTag) {
-    e.stopPropagation();
-    if (confirm('Ocultar este dispositivo da tela? Você pode restaurá-lo depois nas Configurações.')) {
-        if (!_itinHiddenTags.includes(nomeTag)) {
-            _itinHiddenTags.push(nomeTag);
-            localStorage.setItem('itin_hidden_tags', JSON.stringify(_itinHiddenTags));
-            itinerantesFiltrarLista(document.getElementById('itin-search').value);
-        }
-    }
-};
-
-window.itinerantesRestaurarTag = function(nomeTag) {
-    _itinHiddenTags = _itinHiddenTags.filter(n => n !== nomeTag);
-    localStorage.setItem('itin_hidden_tags', JSON.stringify(_itinHiddenTags));
-    document.getElementById('modal-itin-config').remove();
-    itinerantesAbrirConfiguracoes();
-    itinerantesFiltrarLista(document.getElementById('itin-search').value);
+window.itinerantesExcluir = function(id) {
+    if (!confirm('Deseja realmente excluir este atalho de tag?')) return;
+    _itinLinks = _itinLinks.filter(t => t.id !== id);
+    localStorage.setItem('itin_links', JSON.stringify(_itinLinks));
+    itinerantesRenderizarGrid();
 };
