@@ -42,6 +42,9 @@ async function sendMailHelper(opts) {
 
 const db = require('./database');
 
+// AUTO-PATCH: Corrige OSs importadas sem data_os (ex: Entrega/Retirada da primeira importação noturna)
+db.run("UPDATE os_logistica SET data_os = date('now') WHERE data_os IS NULL");
+
 // Excluir Contrato Academia de teste do Abner Abrahão
 db.run("DELETE FROM documentos WHERE document_type = 'Contrato Academia' AND colaborador_id IN (SELECT id FROM colaboradores WHERE nome_completo LIKE '%Abner Abrahão%')");
 // Excluir Contrato Faculdade de teste da Debora
@@ -9821,9 +9824,9 @@ app.post('/api/logistica/importar-excel', authenticateToken, multerMemory.single
     let done = 0;
 
     const stmt = db.prepare(`INSERT INTO os_logistica 
-        (numero_os, tipo_os, cliente, endereco, lat, lng, turno, hora_inicio, hora_fim, 
+        (numero_os, tipo_os, cliente, endereco, lat, lng, turno, data_os, hora_inicio, hora_fim, 
          observacoes_internas, telefone, email, tipo_servico, dias_semana, produtos, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
 
     keys.forEach(id => {
         const rows = uniqueMap[id];
@@ -9834,6 +9837,7 @@ app.post('/api/logistica/importar-excel', authenticateToken, multerMemory.single
         const endereco   = r['Endereço completo'] || r['Endereco completo'] || '';
         const lat        = r['Latitude'] || null;
         const lng        = r['Longitude'] || null;
+        const data_os    = r['Janela de data inicial'] || r['Data'] || new Date().toISOString().split('T')[0];
         const hora_inicio = r['Janela de horário inicial'] || r['Janela de horario inicial'] || (turno === 'Noturno' ? '18:00' : '07:00');
         const hora_fim   = r['Janela de horário final']   || r['Janela de horario final']   || (turno === 'Noturno' ? '05:00' : '18:00');
         const obs_int    = r['Observacoes_Internas'] || '';
@@ -9864,7 +9868,7 @@ app.post('/api/logistica/importar-excel', authenticateToken, multerMemory.single
         });
         const diasJson = JSON.stringify(Array.from(diasSet));
 
-        stmt.run(id, tipo_serv, cliente, endereco, lat, lng, turno, hora_inicio, hora_fim,
+        stmt.run(id, tipo_serv, cliente, endereco, lat, lng, turno, data_os, hora_inicio, hora_fim,
             obs_int, telefone, email, tipo_serv, diasJson, finalProdutos, 'ativo',
             function(err) {
                 if (err) { console.error('[ImportarExcel] Erro OS', id, err.message); erros++; }
@@ -9957,12 +9961,21 @@ app.get('/api/logistica/pipeline', authenticateToken, (req, res) => {
                 let dias = [];
                 try { dias = JSON.parse(r.dias_semana || '[]'); } catch (e) { }
 
+                const normalizeDay = (d) => d.toLowerCase().replace('-feira', '').normalize('NFD').replace(/[\u0300-\u036f]/g, "").substring(0,3);
+
                 if (diaFiltroStr) {
-                    return dias.some(d => d.toLowerCase().startsWith(diaFiltroStr));
+                    return dias.some(d => normalizeDay(d).startsWith(diaFiltroStr));
                 }
 
                 if (diasRange.size === 0) return true;
-                return dias.some(d => diasRange.has(d));
+                return dias.some(d => {
+                    const nd = normalizeDay(d);
+                    for (const dr of diasRange) {
+                        const ndr = normalizeDay(dr);
+                        if (nd.startsWith(ndr) || ndr.startsWith(nd)) return true;
+                    }
+                    return false;
+                });
             } else {
                 // Pontual: filtra por data_os
                 if (diaFiltroStr) return false; // Serviços pontuais não tem dia de semana
