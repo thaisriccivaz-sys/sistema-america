@@ -429,23 +429,49 @@ window.rrExportarExcel = async function() {
         if (ta) v.colBEditado = ta.value;
     });
 
-    // Popup para nome
-    const { value: nomeFinal, isConfirmed } = await Swal.fire({
-        title: 'Salvar Resumo de Rota',
-        input: 'text',
-        inputLabel: 'Nome do resumo',
-        inputValue: window._rrDefaultNomeResumo || 'Resumo de Rota',
-        showCancelButton: true,
-        confirmButtonText: 'Exportar & Salvar',
-        cancelButtonText: 'Cancelar',
-        confirmButtonColor: '#2d9e5f',
-    });
-    if (!isConfirmed) return;
+    // ── Se já veio do histórico, apenas baixa sem pedir nome ou salvar ──
+    if (_rrCurrentId) {
+        await _rrGerarExcel();
+        return;
+    }
+
+    // ── Novo importe: verifica nome duplicado ─────────────────────────
+    const nomeDefault = window._rrDefaultNomeResumo || 'Resumo de Rota';
+    const nomeExistente = _rrHistoricoList.find(h => h.nome === nomeDefault);
+
+    let nomeFinal;
+    if (nomeExistente) {
+        const { value, isConfirmed } = await Swal.fire({
+            title: 'Nome já utilizado',
+            html: `Já existe um resumo salvo com o nome <b>"${nomeDefault}"</b>.<br>Deseja salvar com um nome diferente?`,
+            input: 'text',
+            inputValue: nomeDefault + ' (2)',
+            showCancelButton: true,
+            confirmButtonText: 'Salvar com novo nome',
+            cancelButtonText: 'Só baixar (sem salvar)',
+            confirmButtonColor: '#2d9e5f',
+        });
+        if (!isConfirmed) { await _rrGerarExcel(); return; }
+        nomeFinal = value || nomeDefault + ' (2)';
+    } else {
+        const { value, isConfirmed } = await Swal.fire({
+            title: 'Salvar Resumo de Rota',
+            input: 'text',
+            inputLabel: 'Nome do resumo',
+            inputValue: nomeDefault,
+            showCancelButton: true,
+            confirmButtonText: 'Exportar & Salvar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#2d9e5f',
+        });
+        if (!isConfirmed) return;
+        nomeFinal = value || nomeDefault;
+    }
 
     // Salvar no banco
     try {
         const payload = {
-            nome: nomeFinal || 'Resumo',
+            nome: nomeFinal,
             dados: {
                 veiculos: _rrVeiculos,
                 originalFileBase64: window._rrOriginalFileBase64 || null,
@@ -465,15 +491,17 @@ window.rrExportarExcel = async function() {
             if (sel) sel.value = _rrCurrentId;
             const btnOrig = document.getElementById('rr-btn-baixar-original');
             if (btnOrig) btnOrig.style.display = window._rrOriginalFileBase64 ? 'flex' : 'none';
-        } else {
-            console.error('[RR] Erro ao salvar:', data);
         }
     } catch (e) {
         console.error('[RR] Erro ao salvar resumo:', e);
         showToast('Aviso: não foi possível salvar no histórico.', 'error');
     }
 
-    // Gerar Excel
+    await _rrGerarExcel();
+};
+
+// ── Gera e baixa o arquivo Excel ───────────────────────────────
+async function _rrGerarExcel() {
     const wb = new ExcelJS.Workbook();
     wb.creator = 'América Rental';
     const ws = wb.addWorksheet('Resumo de Rota');
