@@ -9781,6 +9781,104 @@ function isRecorrente(tipoServico) {
     return isManutencao || isVac;
 }
 
+// POST /api/logistica/importar-excel - Importa OS em massa de planilha Excel
+const multerMemory = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
+app.post('/api/logistica/importar-excel', authenticateToken, multerMemory.single('file'), (req, res) => {
+    if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+    const turno = req.body.turno || 'Noturno';
+
+    let data;
+    try {
+        const xlsx = require('xlsx');
+        const wb = xlsx.read(req.file.buffer, { type: 'buffer' });
+        const sheetName = wb.SheetNames.includes('OS') ? 'OS' : wb.SheetNames[0];
+        data = xlsx.utils.sheet_to_json(wb.Sheets[sheetName]);
+    } catch(e) {
+        return res.status(400).json({ error: 'Erro ao ler o arquivo Excel: ' + e.message });
+    }
+
+    if (!data || data.length === 0) return res.status(400).json({ error: 'Planilha vazia ou sem dados.' });
+
+    const productRegex = /([0-9]+)\s+(STD|LX|ELX|EXL|SLX|PNE|MICTORIO|GUARITA|LAVATORIO|PIA|BEBEDOURO|PBII)/ig;
+    const daysMap = { 'SEGUNDA': 'Segunda-feira', 'TERCA': 'Terca-feira', 'QUARTA': 'Quarta-feira', 'QUINTA': 'Quinta-feira', 'SEXTA': 'Sexta-feira', 'SABADO': 'Sabado', 'DOMINGO': 'Domingo' };
+
+    // Agrupa linhas por ID de referencia
+    const uniqueMap = {};
+    data.forEach(r => {
+        const idRaw = r['Identificação de referência'] || r['Identificacao de referencia'] || r['ID'] || '';
+        const id = String(idRaw).trim();
+        if (id && id !== 'undefined') {
+            if (!uniqueMap[id]) uniqueMap[id] = [];
+            uniqueMap[id].push(r);
+        }
+    });
+
+    const keys = Object.keys(uniqueMap);
+    if (keys.length === 0) return res.status(400).json({ error: 'Nenhum ID de referência válido encontrado na planilha.' });
+
+    let inseridos = 0;
+    let erros = 0;
+    let done = 0;
+
+    const stmt = db.prepare(`INSERT INTO os_logistica 
+        (numero_os, tipo_os, cliente, endereco, lat, lng, turno, hora_inicio, hora_fim, 
+         observacoes_internas, telefone, email, tipo_servico, dias_semana, produtos, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+
+    keys.forEach(id => {
+        const rows = uniqueMap[id];
+        const r = rows[0];
+
+        // Remove emojis do título
+        let cliente = (r['Titulo'] || r['Nome'] || '').replace(/[\u{1F300}-\u{1F9FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}]/gu, '').trim();
+        const endereco   = r['Endereço completo'] || r['Endereco completo'] || '';
+        const lat        = r['Latitude'] || null;
+        const lng        = r['Longitude'] || null;
+        const hora_inicio = r['Janela de horário inicial'] || r['Janela de horario inicial'] || (turno === 'Noturno' ? '18:00' : '07:00');
+        const hora_fim   = r['Janela de horário final']   || r['Janela de horario final']   || (turno === 'Noturno' ? '05:00' : '18:00');
+        const obs_int    = r['Observacoes_Internas'] || '';
+        const telefone   = r['Telefone de contato'] || '';
+        const email      = r['Correio eletrônico de contato'] || r['Correio eletronico de contato'] || '';
+        const tipo_serv  = r['Tipo de visita'] || '';
+
+        // Produtos — agrega todas as linhas do mesmo ID
+        const prodMap = {};
+        rows.forEach(row => {
+            const anot = row['Anotações2'] || row['Anotacoes2'] || '';
+            const matches = [...anot.matchAll(productRegex)];
+            matches.forEach(m => {
+                let desc = m[2].toUpperCase();
+                if (desc === 'SLX') desc = 'EXL';
+                if (desc === 'PIA') desc = 'PBII';
+                if (!prodMap[desc]) prodMap[desc] = 0;
+                prodMap[desc] += parseInt(m[1]);
+            });
+        });
+        const finalProdutos = JSON.stringify(Object.keys(prodMap).map(k => ({ qtd: prodMap[k], desc: k })));
+
+        // Dias da semana
+        const diasSet = new Set();
+        rows.forEach(row => {
+            const anot = (row['Anotações2'] || row['Anotacoes2'] || '').toUpperCase();
+            for (const d in daysMap) { if (anot.includes(d)) diasSet.add(daysMap[d]); }
+        });
+        const diasJson = JSON.stringify(Array.from(diasSet));
+
+        stmt.run(id, tipo_serv, cliente, endereco, lat, lng, turno, hora_inicio, hora_fim,
+            obs_int, telefone, email, tipo_serv, diasJson, finalProdutos, 'ativo',
+            function(err) {
+                if (err) { console.error('[ImportarExcel] Erro OS', id, err.message); erros++; }
+                else inseridos++;
+                done++;
+                if (done === keys.length) {
+                    stmt.finalize();
+                    res.json({ inseridos, erros, total: keys.length });
+                }
+            }
+        );
+    });
+});
+
 // DELETE /api/logistica/pipeline/limpar - Remove todas as OS
 app.delete('/api/logistica/pipeline/limpar', authenticateToken, (req, res) => {
     // ATENÇÃO: Isso vai remover permanentemente TODAS as OS da base

@@ -642,9 +642,11 @@ async function pipelineExportarExcel(registrosOverride) {
         let obsIntStr = stripClientPrefix(r.observacoes_internas, r.cliente);
         
         let obsComIcone = '';
-        if (obsStr || icVar) {
+        let combinacaoObs = [obsStr, obsIntStr].filter(Boolean).join(' | ');
+
+        if (combinacaoObs || icVar) {
             // Adiciona todos os ícones de variáveis (icVar) na frente
-            obsComIcone = (icVar ? icVar + ' ' : '') + obsStr;
+            obsComIcone = (icVar ? icVar + ' ' : '') + combinacaoObs;
         }
 
         // Linha 3: NOME DO SERVIÇO — sem ícone para Entrega e Manutenção Recorrente
@@ -1048,6 +1050,10 @@ function renderPipelinePage() {
             style="background:#16a34a;border:none;border-radius:7px;padding:6px 14px;color:white;font-weight:700;cursor:pointer;font-size:0.82rem;display:flex;align-items:center;gap:5px;">
             <i class="ph ph-file-xls" style="font-size:1rem;"></i> <span id="pipeline-btn-simpli-txt">SimpliRoute</span>
           </button>
+          <button onclick="pipelineAbrirModalImportar()" title="Importar OS via Excel"
+            style="background:#6366f1;border:none;border-radius:7px;padding:6px 14px;color:white;font-weight:700;cursor:pointer;font-size:0.82rem;display:flex;align-items:center;gap:5px;">
+            <i class="ph ph-upload-simple" style="font-size:1rem;"></i> Importar OS
+          </button>
           <button onclick="pipelineLimparFiltros()" title="Limpar filtros"
             style="background:white;border:1px solid #cbd5e1;border-radius:7px;padding:6px 12px;color:#ef4444;font-weight:700;cursor:pointer;font-size:0.82rem;">
             ✕
@@ -1214,3 +1220,78 @@ window.pipelineEditarObsMotorista = async function(e, id) {
         if (typeof showToast === 'function') showToast('Erro ao salvar: ' + err.message, 'error');
     }
 };
+
+// IMPORTACAO EM MASSA VIA EXCEL
+function pipelineAbrirModalImportar() {
+    const old = document.getElementById('modal-importar-os');
+    if (old) old.remove();
+    const modal = document.createElement('div');
+    modal.id = 'modal-importar-os';
+    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999;display:flex;align-items:center;justify-content:center;';
+    modal.innerHTML = '<div style="background:white;border-radius:16px;padding:2rem;width:500px;max-width:95vw;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">' +
+        '<h3 style="margin:0;font-size:1.1rem;font-weight:800;color:#1e293b;">Importar OS via Excel</h3>' +
+        '<button onclick="document.getElementById(\'modal-importar-os\').remove()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#94a3b8;">X</button>' +
+        '</div>' +
+        '<div style="background:#f8fafc;border:2px dashed #cbd5e1;border-radius:10px;padding:1.5rem;text-align:center;margin-bottom:1.2rem;">' +
+        '<p style="margin:0 0 1rem;color:#475569;font-size:0.88rem;">Selecione a planilha Excel (aba OS) do sistema legado.</p>' +
+        '<input type="file" id="importar-os-file" accept=".xlsx,.xls" style="border:1px solid #cbd5e1;border-radius:8px;padding:6px 12px;font-size:0.85rem;width:100%;box-sizing:border-box;">' +
+        '</div>' +
+        '<div style="margin-bottom:1.2rem;">' +
+        '<label style="font-size:0.82rem;font-weight:700;color:#475569;display:block;margin-bottom:6px;">Turno das OSs importadas:</label>' +
+        '<div style="display:flex;gap:8px;">' +
+        '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:0.88rem;"><input type="radio" name="importar-turno" value="Diurno"> Diurno</label>' +
+        '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:0.88rem;"><input type="radio" name="importar-turno" value="Noturno" checked> Noturno</label>' +
+        '</div></div>' +
+        '<div id="importar-os-progress" style="display:none;margin-bottom:1rem;">' +
+        '<div style="background:#e2e8f0;border-radius:999px;height:8px;">' +
+        '<div id="importar-os-bar" style="background:#6366f1;border-radius:999px;height:8px;width:0%;transition:width 0.3s;"></div>' +
+        '</div><p id="importar-os-status" style="margin:6px 0 0;font-size:0.82rem;color:#475569;text-align:center;">Processando...</p>' +
+        '</div>' +
+        '<div style="display:flex;gap:8px;justify-content:flex-end;">' +
+        '<button onclick="document.getElementById(\'modal-importar-os\').remove()" style="background:white;border:1px solid #cbd5e1;border-radius:8px;padding:8px 20px;font-weight:600;cursor:pointer;color:#475569;">Cancelar</button>' +
+        '<button onclick="pipelineImportarExcel()" style="background:#6366f1;border:none;border-radius:8px;padding:8px 22px;font-weight:700;cursor:pointer;color:white;">Importar</button>' +
+        '</div></div>';
+    document.body.appendChild(modal);
+    modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
+}
+
+async function pipelineImportarExcel() {
+    const fileInput = document.getElementById('importar-os-file');
+    const turnoRadio = document.querySelector("input[name='importar-turno']:checked");
+    const progressDiv = document.getElementById('importar-os-progress');
+    const bar = document.getElementById('importar-os-bar');
+    const status = document.getElementById('importar-os-status');
+    if (!fileInput || !fileInput.files[0]) {
+        if (typeof showToast === 'function') showToast('Selecione um arquivo Excel.', 'error');
+        return;
+    }
+    const turno = turnoRadio ? turnoRadio.value : 'Noturno';
+    if (progressDiv) progressDiv.style.display = 'block';
+    if (bar) bar.style.width = '10%';
+    if (status) status.textContent = 'Enviando...';
+    try {
+        const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        formData.append('turno', turno);
+        if (bar) bar.style.width = '30%';
+        if (status) status.textContent = 'Processando no servidor...';
+        const resp = await fetch('/api/logistica/importar-excel', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token }, body: formData });
+        if (bar) bar.style.width = '80%';
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Erro no servidor');
+        if (bar) bar.style.width = '100%';
+        if (status) status.textContent = data.inseridos + ' OSs importadas! (' + data.erros + ' erros)';
+        setTimeout(function() {
+            const m = document.getElementById('modal-importar-os');
+            if (m) m.remove();
+            buscarPipeline();
+            if (typeof showToast === 'function') showToast(data.inseridos + ' OSs importadas!', 'success');
+        }, 1800);
+    } catch(err) {
+        if (bar) { bar.style.width = '100%'; bar.style.background = '#ef4444'; }
+        if (status) status.textContent = 'Erro: ' + err.message;
+        console.error('[Pipeline] Erro ao importar:', err);
+    }
+}
