@@ -910,16 +910,17 @@ window.pipelineLimparTodasOS = async function() {
 };
 
 function _pipelineSalvarFiltros() {
-    _pipelineFiltros.os        = document.getElementById('pipe-filtro-os')?.value        || '';
-    _pipelineFiltros.contrato  = document.getElementById('pipe-filtro-contrato')?.value  || '';
-    _pipelineFiltros.dataDe    = document.getElementById('pipe-filtro-data-de')?.value   || '';
-    _pipelineFiltros.dataAte   = document.getElementById('pipe-filtro-data-ate')?.value  || '';
-    _pipelineFiltros.dia       = document.getElementById('pipe-filtro-dia')?.value       || '';
-    _pipelineFiltros.tipoOs    = document.getElementById('pipe-filtro-tipo-os')?.value   || '';
-    _pipelineFiltros.turno     = document.getElementById('pipe-filtro-turno')?.value     || '';
-    _pipelineFiltros.endereco  = document.getElementById('pipe-filtro-endereco')?.value  || '';
-    _pipelineFiltros.cliente   = document.getElementById('pipe-filtro-cliente')?.value   || '';
-    _pipelineFiltros.servico   = document.getElementById('pipe-filtro-servico')?.value   || '';
+    const el = id => document.getElementById(id);
+    if (el('pipe-filtro-os'))        _pipelineFiltros.os        = el('pipe-filtro-os').value;
+    if (el('pipe-filtro-contrato'))  _pipelineFiltros.contrato  = el('pipe-filtro-contrato').value;
+    if (el('pipe-filtro-data-de'))   _pipelineFiltros.dataDe    = el('pipe-filtro-data-de').value;
+    if (el('pipe-filtro-data-ate'))  _pipelineFiltros.dataAte   = el('pipe-filtro-data-ate').value;
+    if (el('pipe-filtro-dia'))       _pipelineFiltros.dia       = el('pipe-filtro-dia').value;
+    if (el('pipe-filtro-tipo-os'))   _pipelineFiltros.tipoOs    = el('pipe-filtro-tipo-os').value;
+    if (el('pipe-filtro-turno'))     _pipelineFiltros.turno     = el('pipe-filtro-turno').value;
+    if (el('pipe-filtro-endereco'))  _pipelineFiltros.endereco  = el('pipe-filtro-endereco').value;
+    if (el('pipe-filtro-cliente'))   _pipelineFiltros.cliente   = el('pipe-filtro-cliente').value;
+    if (el('pipe-filtro-servico'))   _pipelineFiltros.servico   = el('pipe-filtro-servico').value;
 }
 
 function _pipelineRestaurarFiltros(hoje, nextYear) {
