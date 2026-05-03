@@ -1110,3 +1110,332 @@ window.reenviarEmailCredenciamento = async function(id, emailAtual) {
         alert('Erro ao reenviar e-mail: ' + err.message);
     }
 };
+
+// ══════════════════════════════════════════════════════════════════════════════
+// FUNCIONALIDADE: SOLICITAR DOCUMENTOS
+// ══════════════════════════════════════════════════════════════════════════════
+
+let _solDocState = {
+    colaboradores: [],
+    veiculos: [],
+    colabsSelecionados: new Set(),
+    veiculosSelecionados: new Set(),
+    step: 1 // 1=form, 2=selecao, 3=resultado
+};
+
+window.abrirModalSolicitarDocumentos = async function() {
+    // Injeta o modal se não existir
+    if (!document.getElementById('modal-solicitar-docs')) {
+        const div = document.createElement('div');
+        div.id = 'modal-solicitar-docs';
+        div.style.cssText = 'display:none; position:fixed; inset:0; background:rgba(15,23,42,0.65); z-index:9999; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(3px);';
+        div.innerHTML = `
+        <div style="background:#fff; border-radius:16px; width:100%; max-width:680px; max-height:92vh; display:flex; flex-direction:column; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25); overflow:hidden;">
+            <!-- Header -->
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:20px 24px; border-bottom:1px solid #e2e8f0; background:#f8fafc; flex-shrink:0;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <div style="background:#ede9fe; color:#7c3aed; width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1.2rem;">
+                        <i class="ph-bold ph-file-text"></i>
+                    </div>
+                    <div>
+                        <h3 style="margin:0; color:#1e293b; font-size:1.1rem;" id="sol-docs-titulo">Solicitar Documentos</h3>
+                        <p style="margin:0; color:#64748b; font-size:0.8rem;" id="sol-docs-subtitulo">Informe os dados do cliente e da OS</p>
+                    </div>
+                </div>
+                <button onclick="fecharModalSolicitarDocumentos()" style="background:transparent; border:none; color:#94a3b8; cursor:pointer; font-size:1.4rem; line-height:1;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#94a3b8'">
+                    <i class="ph-bold ph-x"></i>
+                </button>
+            </div>
+
+            <!-- Body -->
+            <div id="sol-docs-body" style="flex:1; overflow-y:auto; padding:24px;">
+                <!-- Step 1: Dados da OS -->
+                <div id="sol-step-1">
+                    <div style="margin-bottom:18px;">
+                        <label style="display:block; margin-bottom:6px; color:#475569; font-weight:600; font-size:0.88rem;">Nome do Cliente</label>
+                        <input type="text" id="sol-docs-cliente" placeholder="Ex: Construtora ABC Ltda" style="width:100%; padding:10px 14px; border:1.5px solid #cbd5e1; border-radius:8px; font-size:0.95rem; outline:none; box-sizing:border-box;" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#cbd5e1'">
+                    </div>
+                    <div style="margin-bottom:24px;">
+                        <label style="display:block; margin-bottom:6px; color:#475569; font-weight:600; font-size:0.88rem;">Número da OS</label>
+                        <input type="text" id="sol-docs-os" placeholder="Ex: OS-2024-001" style="width:100%; padding:10px 14px; border:1.5px solid #cbd5e1; border-radius:8px; font-size:0.95rem; outline:none; box-sizing:border-box;" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#cbd5e1'">
+                    </div>
+                    <button onclick="solDocsProximo()" style="width:100%; background:#7c3aed; color:#fff; border:none; padding:13px; border-radius:8px; font-weight:700; font-size:1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;" onmouseover="this.style.background='#6d28d9'" onmouseout="this.style.background='#7c3aed'">
+                        Próximo <i class="ph-bold ph-arrow-right"></i>
+                    </button>
+                </div>
+
+                <!-- Step 2: Seleção -->
+                <div id="sol-step-2" style="display:none;">
+                    <!-- Abas -->
+                    <div style="display:flex; gap:8px; margin-bottom:16px; border-bottom:2px solid #e2e8f0; padding-bottom:-2px;">
+                        <button id="sol-tab-colabs" onclick="solDocsSwitchTab('colabs')" style="padding:8px 18px; border:none; border-bottom:3px solid #7c3aed; background:transparent; color:#7c3aed; font-weight:700; cursor:pointer; font-size:0.9rem; margin-bottom:-2px;">
+                            <i class="ph ph-users"></i> Colaboradores <span id="sol-badge-colabs" style="background:#ede9fe; color:#7c3aed; border-radius:10px; padding:1px 7px; font-size:0.75rem; margin-left:4px;">0</span>
+                        </button>
+                        <button id="sol-tab-veics" onclick="solDocsSwitchTab('veics')" style="padding:8px 18px; border:none; border-bottom:3px solid transparent; background:transparent; color:#64748b; font-weight:600; cursor:pointer; font-size:0.9rem; margin-bottom:-2px;">
+                            <i class="ph ph-truck"></i> Veículos <span id="sol-badge-veics" style="background:#f1f5f9; color:#64748b; border-radius:10px; padding:1px 7px; font-size:0.75rem; margin-left:4px;">0</span>
+                        </button>
+                    </div>
+
+                    <!-- Painel Colaboradores -->
+                    <div id="sol-panel-colabs">
+                        <input type="text" placeholder="🔍 Buscar colaborador..." oninput="solDocsFiltrar('sol-lista-colabs', this.value)" style="width:100%; padding:9px 12px; border:1.5px solid #e2e8f0; border-radius:8px; margin-bottom:10px; font-size:0.9rem; box-sizing:border-box; outline:none;" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e2e8f0'">
+                        <div id="sol-lista-colabs" style="max-height:300px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px;">
+                            <p style="text-align:center; padding:20px; color:#94a3b8;">Carregando...</p>
+                        </div>
+                    </div>
+
+                    <!-- Painel Veículos -->
+                    <div id="sol-panel-veics" style="display:none;">
+                        <input type="text" placeholder="🔍 Buscar placa ou modelo..." oninput="solDocsFiltrar('sol-lista-veics', this.value)" style="width:100%; padding:9px 12px; border:1.5px solid #e2e8f0; border-radius:8px; margin-bottom:10px; font-size:0.9rem; box-sizing:border-box; outline:none;" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e2e8f0'">
+                        <div id="sol-lista-veics" style="max-height:300px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px;">
+                            <p style="text-align:center; padding:20px; color:#94a3b8;">Carregando...</p>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; gap:10px; margin-top:16px;">
+                        <button onclick="solDocsVoltar()" style="flex:1; background:#f1f5f9; color:#475569; border:1px solid #e2e8f0; padding:12px; border-radius:8px; font-weight:600; cursor:pointer;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
+                            <i class="ph ph-arrow-left"></i> Voltar
+                        </button>
+                        <button onclick="solDocsGerarResultado()" style="flex:2; background:#7c3aed; color:#fff; border:none; padding:12px; border-radius:8px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;" onmouseover="this.style.background='#6d28d9'" onmouseout="this.style.background='#7c3aed'">
+                            <i class="ph-bold ph-file-text"></i> Solicitar Documentos
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 3: Resultado -->
+                <div id="sol-step-3" style="display:none;">
+                    <div id="sol-resultado-card" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:20px; font-family:monospace; font-size:0.88rem; white-space:pre-wrap; color:#1e293b; line-height:1.7;"></div>
+                    <div style="display:flex; gap:10px; margin-top:16px;">
+                        <button onclick="solDocsVoltar2()" style="flex:1; background:#f1f5f9; color:#475569; border:1px solid #e2e8f0; padding:12px; border-radius:8px; font-weight:600; cursor:pointer;">
+                            <i class="ph ph-arrow-left"></i> Voltar
+                        </button>
+                        <button onclick="solDocsCopiar()" id="btn-sol-copiar" style="flex:2; background:#16a34a; color:#fff; border:none; padding:12px; border-radius:8px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
+                            <i class="ph-bold ph-copy"></i> Copiar Conteúdo
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+        document.body.appendChild(div);
+    }
+
+    // Reset state
+    _solDocState.colabsSelecionados = new Set();
+    _solDocState.veiculosSelecionados = new Set();
+    _solDocState.step = 1;
+
+    document.getElementById('sol-docs-cliente').value = '';
+    document.getElementById('sol-docs-os').value = '';
+    solDocsMostrarStep(1);
+    document.getElementById('modal-solicitar-docs').style.display = 'flex';
+    setTimeout(() => document.getElementById('sol-docs-cliente').focus(), 150);
+};
+
+window.fecharModalSolicitarDocumentos = function() {
+    const m = document.getElementById('modal-solicitar-docs');
+    if (m) m.style.display = 'none';
+};
+
+window.solDocsProximo = async function() {
+    const cliente = document.getElementById('sol-docs-cliente').value.trim();
+    const os = document.getElementById('sol-docs-os').value.trim();
+    if (!cliente) { document.getElementById('sol-docs-cliente').focus(); return; }
+    if (!os) { document.getElementById('sol-docs-os').focus(); return; }
+
+    solDocsMostrarStep(2);
+    document.getElementById('sol-docs-subtitulo').textContent = `${cliente} — OS ${os}`;
+
+    // Carregar dados
+    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+    try {
+        const [rC, rV] = await Promise.all([
+            fetch('/api/colaboradores', { headers: { 'Authorization': `Bearer ${token}` } }),
+            fetch('/api/frota/veiculos', { headers: { 'Authorization': `Bearer ${token}` } })
+        ]);
+        _solDocState.colaboradores = ((await rC.json()) || []).filter(c => {
+            const s = (c.status || '').toLowerCase();
+            return s === 'ativo' || s === 'férias' || s === 'ferias' || s === 'afastado';
+        });
+        _solDocState.veiculos = (await rV.json()) || [];
+    } catch(e) {
+        _solDocState.colaboradores = [];
+        _solDocState.veiculos = [];
+    }
+
+    solDocsRenderColabs();
+    solDocsRenderVeics();
+    solDocsSwitchTab('colabs');
+};
+
+window.solDocsVoltar = function() { solDocsMostrarStep(1); };
+window.solDocsVoltar2 = function() { solDocsMostrarStep(2); };
+
+function solDocsMostrarStep(n) {
+    _solDocState.step = n;
+    document.getElementById('sol-step-1').style.display = n === 1 ? 'block' : 'none';
+    document.getElementById('sol-step-2').style.display = n === 2 ? 'block' : 'none';
+    document.getElementById('sol-step-3').style.display = n === 3 ? 'block' : 'none';
+    const subtitulos = ['Informe os dados do cliente e da OS', '', ''];
+    if (n === 1) document.getElementById('sol-docs-subtitulo').textContent = subtitulos[0];
+}
+
+window.solDocsSwitchTab = function(tab) {
+    const isColabs = tab === 'colabs';
+    document.getElementById('sol-panel-colabs').style.display = isColabs ? 'block' : 'none';
+    document.getElementById('sol-panel-veics').style.display = isColabs ? 'none' : 'block';
+
+    const tColabs = document.getElementById('sol-tab-colabs');
+    const tVeics = document.getElementById('sol-tab-veics');
+    tColabs.style.borderBottomColor = isColabs ? '#7c3aed' : 'transparent';
+    tColabs.style.color = isColabs ? '#7c3aed' : '#64748b';
+    tColabs.style.fontWeight = isColabs ? '700' : '600';
+    tVeics.style.borderBottomColor = isColabs ? 'transparent' : '#7c3aed';
+    tVeics.style.color = isColabs ? '#64748b' : '#7c3aed';
+    tVeics.style.fontWeight = isColabs ? '600' : '700';
+};
+
+function solDocsRenderColabs() {
+    const list = document.getElementById('sol-lista-colabs');
+    if (!list) return;
+    if (!_solDocState.colaboradores.length) {
+        list.innerHTML = '<p style="text-align:center;padding:20px;color:#94a3b8;">Nenhum colaborador ativo.</p>';
+        return;
+    }
+    list.innerHTML = _solDocState.colaboradores.map(c => {
+        const isMotorista = c.cargo && c.cargo.toUpperCase().includes('MOTORISTA');
+        const tag = isMotorista ? `<span style="background:#dbeafe;color:#1d4ed8;font-size:0.7rem;padding:1px 6px;border-radius:8px;font-weight:600;">Motorista</span>` : '';
+        return `<label class="sol-item" style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid #f1f5f9;cursor:pointer;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+            <input type="checkbox" value="${c.id}" onchange="solDocsToggleColab(this)" ${_solDocState.colabsSelecionados.has(String(c.id)) ? 'checked' : ''} style="accent-color:#7c3aed;width:16px;height:16px;cursor:pointer;">
+            <span style="flex:1;font-size:0.9rem;color:#1e293b;">${c.nome_completo} ${tag}</span>
+            <span style="font-size:0.75rem;color:#94a3b8;">${c.cargo || ''}</span>
+        </label>`;
+    }).join('');
+    solDocsAtualizarBadge();
+}
+
+function solDocsRenderVeics() {
+    const list = document.getElementById('sol-lista-veics');
+    if (!list) return;
+    if (!_solDocState.veiculos.length) {
+        list.innerHTML = '<p style="text-align:center;padding:20px;color:#94a3b8;">Nenhum veículo cadastrado.</p>';
+        return;
+    }
+    list.innerHTML = _solDocState.veiculos.map(v => `
+        <label class="sol-item" style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid #f1f5f9;cursor:pointer;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+            <input type="checkbox" value="${v.id}" onchange="solDocsToggleVeic(this)" ${_solDocState.veiculosSelecionados.has(String(v.id)) ? 'checked' : ''} style="accent-color:#7c3aed;width:16px;height:16px;cursor:pointer;">
+            <span style="font-weight:700;font-size:0.9rem;color:#1e293b;">${v.placa}</span>
+            <span style="flex:1;font-size:0.85rem;color:#64748b;">— ${v.marca_modelo_versao || 'Sem modelo'}</span>
+        </label>`).join('');
+    solDocsAtualizarBadge();
+}
+
+window.solDocsToggleColab = function(cb) {
+    if (cb.checked) _solDocState.colabsSelecionados.add(String(cb.value));
+    else _solDocState.colabsSelecionados.delete(String(cb.value));
+    solDocsAtualizarBadge();
+};
+
+window.solDocsToggleVeic = function(cb) {
+    if (cb.checked) _solDocState.veiculosSelecionados.add(String(cb.value));
+    else _solDocState.veiculosSelecionados.delete(String(cb.value));
+    solDocsAtualizarBadge();
+};
+
+function solDocsAtualizarBadge() {
+    const bc = document.getElementById('sol-badge-colabs');
+    const bv = document.getElementById('sol-badge-veics');
+    const nc = _solDocState.colabsSelecionados.size;
+    const nv = _solDocState.veiculosSelecionados.size;
+    if (bc) {
+        bc.textContent = nc;
+        bc.style.background = nc > 0 ? '#ede9fe' : '#f1f5f9';
+        bc.style.color = nc > 0 ? '#7c3aed' : '#64748b';
+    }
+    if (bv) {
+        bv.textContent = nv;
+        bv.style.background = nv > 0 ? '#ede9fe' : '#f1f5f9';
+        bv.style.color = nv > 0 ? '#7c3aed' : '#64748b';
+    }
+}
+
+window.solDocsFiltrar = function(containerId, termo) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const t = termo.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    container.querySelectorAll('.sol-item').forEach(el => {
+        const txt = el.textContent.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        el.style.display = txt.includes(t) ? 'flex' : 'none';
+    });
+};
+
+window.solDocsGerarResultado = function() {
+    const cliente = document.getElementById('sol-docs-cliente').value.trim();
+    const os = document.getElementById('sol-docs-os').value.trim();
+
+    const colabs = [..._solDocState.colabsSelecionados].map(id => _solDocState.colaboradores.find(c => String(c.id) === id)).filter(Boolean);
+    const veics = [..._solDocState.veiculosSelecionados].map(id => _solDocState.veiculos.find(v => String(v.id) === id)).filter(Boolean);
+
+    if (!colabs.length && !veics.length) {
+        alert('Selecione ao menos um colaborador ou veículo.');
+        return;
+    }
+
+    const linhas = [];
+    linhas.push(`📋 SOLICITAÇÃO DE DOCUMENTOS`);
+    linhas.push(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+    linhas.push(`Cliente: ${cliente}`);
+    linhas.push(`OS: ${os}`);
+    linhas.push(``);
+
+    if (colabs.length) {
+        linhas.push(`👷 COLABORADORES (${colabs.length})`);
+        linhas.push(`─────────────────────────────`);
+        colabs.forEach((c, i) => {
+            const isMotorista = c.cargo && c.cargo.toUpperCase().includes('MOTORISTA');
+            linhas.push(`${i + 1}. ${c.nome_completo}`);
+            linhas.push(`   CPF: ${c.cpf || 'Não cadastrado'}`);
+            if (isMotorista) {
+                linhas.push(`   CNH: ${c.cnh || 'Não cadastrada'}`);
+            }
+            if (i < colabs.length - 1) linhas.push('');
+        });
+        linhas.push('');
+    }
+
+    if (veics.length) {
+        linhas.push(`🚛 VEÍCULOS (${veics.length})`);
+        linhas.push(`─────────────────────────────`);
+        veics.forEach((v, i) => {
+            linhas.push(`${i + 1}. Placa: ${v.placa} — ${v.marca_modelo_versao || 'Sem modelo'}`);
+        });
+    }
+
+    const texto = linhas.join('\n');
+    document.getElementById('sol-resultado-card').textContent = texto;
+    solDocsMostrarStep(3);
+    document.getElementById('sol-docs-titulo').textContent = 'Documentos Necessários';
+    document.getElementById('sol-docs-subtitulo').textContent = `${colabs.length} colaborador(es) · ${veics.length} veículo(s)`;
+};
+
+window.solDocsCopiar = async function() {
+    const texto = document.getElementById('sol-resultado-card').textContent;
+    try {
+        await navigator.clipboard.writeText(texto);
+        const btn = document.getElementById('btn-sol-copiar');
+        btn.innerHTML = '<i class="ph-bold ph-check-circle"></i> Copiado!';
+        btn.style.background = '#15803d';
+        setTimeout(() => {
+            btn.innerHTML = '<i class="ph-bold ph-copy"></i> Copiar Conteúdo';
+            btn.style.background = '#16a34a';
+        }, 2500);
+    } catch(e) {
+        // Fallback para navegadores sem clipboard API
+        const ta = document.createElement('textarea');
+        ta.value = texto;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        alert('Conteúdo copiado!');
+    }
+};
