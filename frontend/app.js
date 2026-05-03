@@ -853,6 +853,8 @@ function navigateTo(target) {
         if (typeof window.initFrotaVeiculos === 'function') setTimeout(() => window.initFrotaVeiculos(), 80);
     } else if (target === 'logistica-credenciamento') {
         if (typeof window.carregarHistoricoCredenciamento === 'function') setTimeout(() => window.carregarHistoricoCredenciamento(), 80);
+    } else if (target === 'logistica-itinerantes') {
+        if (typeof window.renderItinerantesPage === 'function') setTimeout(() => window.renderItinerantesPage(), 80);
     } else if (target === 'comercial-credenciamento') {
         if (typeof window.carregarHistoricoComCred === 'function') setTimeout(() => window.carregarHistoricoComCred(), 80);
     } else if (target === 'licencas') {
