@@ -10231,7 +10231,8 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
 
                 // Build HTML...
                 let htmlCols = (colaboradores || []).map(c => {
-                    return `<li><b>${c.nome || c.nome_completo}</b></li>`;
+                    const cpfInfo = c.cpf ? ` - CPF: ${c.cpf}` : '';
+                    return `<li><b>${c.nome || c.nome_completo}</b>${cpfInfo}</li>`;
                 }).join('');
                 let htmlVeics = (veiculos || []).map(v => {
                     return `<li><b>${v.placa}</b> - ${v.marca_modelo_versao}</li>`;
@@ -10356,8 +10357,9 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
 
                 let htmlCols = (colaboradores || []).map(c => {
                     const cData = colabData.find(col => col.id === c.id);
-                    const cpfInfo = cData && cData.cpf ? ` - CPF: ${cData.cpf}` : '';
-                    return `<li>${c.nome}${cpfInfo}</li>`;
+                    const docCpf = c.cpf || (cData && cData.cpf) || '';
+                    const cpfInfo = docCpf ? ` - CPF: ${docCpf}` : '';
+                    return `<li><b>${c.nome || c.nome_completo}</b>${cpfInfo}</li>`;
                 }).join('');
                 let htmlVeic = (veiculos || []).map(v => `<li>Placa: ${v.placa} - ${v.modelo}</li>`).join('');
 

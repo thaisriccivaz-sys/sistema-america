@@ -626,7 +626,7 @@ window.gerarEnviarCredenciamento = async function() {
         os: osValue,
         colaboradores: credenciamentoState.selecionadosColabs.map(idStr => {
             const c = credenciamentoState.colaboradores.find(col => String(col.id) === idStr);
-            return { id: parseInt(idStr), nome: c ? c.nome_completo : idStr };
+            return { id: parseInt(idStr), nome: c ? c.nome_completo : idStr, cpf: c ? c.cpf : '' };
         }),
         veiculos: credenciamentoState.selecionadosVeic.map(idStr => {
             const v = credenciamentoState.veiculos.find(ve => String(ve.id) === idStr);
@@ -954,10 +954,22 @@ window._renderizarTabelaHistorico = function(dados) {
             ? `<span title="${veics.map(v => '• ' + v.placa + ' (CRLV)').join('&#10;')}" style="cursor:help; border-bottom:1px dotted #94a3b8; font-weight:600; color:#0f172a;">Enviados (${veics.length})</span>` 
             : '<span style="color:#94a3b8;">Nenhum</span>';
             
-        const licencasText = licencas.length > 0 
-            ? `<span title="${licencas.map(l => '• ' + l.nome).join('&#10;')}" style="cursor:help; border-bottom:1px dotted #94a3b8; font-weight:600; color:#0f172a;">Enviadas (${licencas.length})</span>` 
-            : '<span style="color:#94a3b8;">Nenhuma</span>';
+        const licencasText = licencas.length > 0 ? 'Sim' : 'Não';
         
+        const licGroups = {};
+        licencas.forEach(l => {
+            const comp = l.empresa || 'América Rental';
+            if (!licGroups[comp]) licGroups[comp] = [];
+            licGroups[comp].push(l.nome);
+        });
+        
+        let licsFormatted = '';
+        if (Object.keys(licGroups).length > 0) {
+            licsFormatted = Object.entries(licGroups).map(([comp, nomes]) => `<b>${comp}:</b> ${nomes.join(' - ')}`).join('<br>');
+        } else {
+            licsFormatted = '<span style="color:#94a3b8;font-style:italic;">Nenhuma licença</span>';
+        }
+
         // Status do Link
         const validade = new Date(cred.valid_until);
         const expirado = new Date() > validade;
@@ -1004,6 +1016,10 @@ window._renderizarTabelaHistorico = function(dados) {
                     <div style="flex:1; min-width:250px;">
                         <div style="color:#64748b; font-weight:600; margin-bottom:4px;">📄 Documentos Solicitados:</div>
                         <div style="color:#334155;">${docs.length ? docs.map(d => window.docNames ? window.docNames[d] || d : d).join(' - ') : '<span style="color:#94a3b8;font-style:italic;">Nenhum documento específico</span>'}</div>
+                    </div>
+                    <div style="flex:1; min-width:250px;">
+                        <div style="color:#64748b; font-weight:600; margin-bottom:4px;">🏷️ Licenças Solicitadas:</div>
+                        <div style="color:#334155; line-height:1.6;">${licsFormatted}</div>
                     </div>
                 </div>
                 ${cred.observacoes ? `<div style="margin-top:15px; padding-top:10px; border-top:1px solid #e2e8f0;"><span style="color:#64748b; font-weight:600;">📝 Observações:</span> <span style="color:#475569;">${cred.observacoes}</span></div>` : ''}
