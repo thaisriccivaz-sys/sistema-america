@@ -112,7 +112,7 @@ window.renderResumoRota = function() {
     const container = document.getElementById('resumo-rota-container');
     if (!container) return;
     container.innerHTML = `
-    <div style="background:linear-gradient(135deg,#1a3c2e,#2d9e5f);padding:20px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+    <div style="background:#2d9e5f;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
         <div style="display:flex;align-items:center;gap:14px;">
             <div style="background:rgba(255,255,255,0.15);border-radius:12px;padding:10px 14px;">
                 <i class="ph ph-list-bullets" style="font-size:1.8rem;color:#fff;"></i>
@@ -305,7 +305,7 @@ function _rrRenderCorpo() {
         const total = v.os.length;
         return `
         <div style="background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.07);margin-bottom:16px;overflow:hidden;border:1px solid #e2e8f0;">
-            <div style="background:linear-gradient(90deg,#1a3c2e,#2d9e5f);padding:12px 18px;display:flex;justify-content:space-between;align-items:center;">
+            <div style="background:#2d9e5f;padding:12px 18px;display:flex;justify-content:space-between;align-items:center;">
                 <div style="color:#fff;font-weight:700;font-size:1rem;">${colA}</div>
                 <div style="background:rgba(255,255,255,0.2);border-radius:6px;padding:4px 12px;color:#fff;font-size:0.85rem;">${total} OS</div>
             </div>
