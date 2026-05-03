@@ -435,7 +435,7 @@ window.rrImportarPlanilha = async function(input) {
     }
 
     _rrVeiculos.forEach(v => {
-        if (!v._temCadastroCarga || v._maxCarga <= 0) return; // Sem capacidade cadastrada ou sem limite
+        if (!v._temCadastroCarga) return; // Sem capacidade cadastrada no sistema, sem verificação
 
         let totalEntregas = 0;
         v.os.forEach(os => { if (os.tipo === 'ENTREGA') totalEntregas += _rrSomaProdutos(os); });
@@ -513,9 +513,10 @@ function _rrRenderCorpo() {
 
         // Badge de capacidade
         let capacidadeBadge = '';
-        if (v._maxCarga > 0) {
+        if (v._temCadastroCarga) {
+            // Mostra a capacidade cadastrada, inclusive se for 0 (não carrega nada)
             capacidadeBadge = `<span style="background:rgba(255,255,255,0.15);border-radius:6px;padding:3px 10px;font-size:0.8rem;color:#fff;"><i class="ph ph-truck"></i> Carga máx: ${v._maxCarga}</span>`;
-        } else if (!v._temCadastroCarga) {
+        } else {
             capacidadeBadge = `<span style="background:rgba(255,165,0,0.3);border-radius:6px;padding:3px 10px;font-size:0.8rem;color:#ffe0a0;" title="Cadastre a capacidade na tela Frota"><i class="ph ph-warning"></i> Cap. não cadastrada</span>`;
         }
 
