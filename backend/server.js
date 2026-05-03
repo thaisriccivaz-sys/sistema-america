@@ -1949,6 +1949,15 @@ app.get('/api/colaboradores', authenticateToken, (req, res) => {
     });
 });
 
+// GET - lista leve de colaboradores com foto (usada pelo Resumo de Rota)
+// IMPORTANTE: deve ficar ANTES de /api/colaboradores/:id para nao ser capturada como id='resumo'
+app.get('/api/colaboradores/resumo', authenticateToken, (req, res) => {
+    db.all("SELECT id, nome_completo FROM colaboradores WHERE status != 'Desligado' ORDER BY nome_completo ASC", [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
 app.get('/api/colaboradores/:id', authenticateToken, (req, res) => {
     db.get('SELECT * FROM colaboradores WHERE id = ?', [req.params.id], (err, row) => {
         if (err || !row) return res.status(err ? 500 : 404).json({ error: err ? err.message : 'Não encontrado' });
@@ -9939,13 +9948,6 @@ db.serialize(() => {
 // FROTA DE VEÍCULOS
 // =====================================================================
 
-// GET - lista leve de colaboradores com foto (usada pelo Resumo de Rota)
-app.get('/api/colaboradores/resumo', authenticateToken, (req, res) => {
-    db.all("SELECT id, nome_completo FROM colaboradores WHERE status != 'Desligado' ORDER BY nome_completo ASC", [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows || []);
-    });
-});
 
 // GET - listar todos os veículos da frota
 app.get('/api/frota/veiculos', authenticateToken, (req, res) => {

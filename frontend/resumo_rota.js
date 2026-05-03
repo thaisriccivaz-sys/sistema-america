@@ -459,7 +459,7 @@ window.rrImportarPlanilha = async function(input) {
         });
 
         if (sobrecarga) {
-            v.alertaCarga = `⚠️ Capacidade excedida! Este veículo suporta ${v._maxCarga} banheiros, mas a rota projeta ${erroAtingido} simultâneos. Verifique a ordem de entregas e retiradas.`;
+            v.alertaCarga = `Capacidade excedida! Este veículo suporta ${v._maxCarga} banheiros, mas a rota projeta ${erroAtingido} simultâneos. Verifique a rota.`;
         }
     });
 
