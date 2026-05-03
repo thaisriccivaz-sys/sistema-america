@@ -84,22 +84,49 @@ function _rrParseProduto(p) {
 
 function _rrParseNotas(notas) {
     const parts = (notas || '').split('|').map(p => p.trim());
+    const servico = parts[0] || '';
+    
+    // Identificar quais parts são produtos (começa com número seguido de letras, ex: '1  STD O', '1  GUARITA INDIVIDUAL O')
+    // e quais são frequência ('2 X SEGUNDA, QUINTA') ou observações
+    const prodParts = [];
+    let obs = '';
+    for (let i = 1; i < parts.length; i++) {
+        const p = parts[i];
+        if (!p) continue;
+        // Frequência: '2 X SEGUNDA...' ou '1 X SEGUNDA'
+        if (/^\d+\s+X\s+/i.test(p)) continue;
+        // ID da OS
+        if (/^ID:\s*/i.test(p)) continue;
+        // Produto: começa com dígito(s) seguido de espaço e texto de produto
+        if (/^\d+\s+\S/.test(p)) {
+            prodParts.push(p);
+        } else {
+            // Observação livre
+            if (!obs) obs = p;
+        }
+    }
+
     return {
-        servico: parts[0] || '',
-        produto: parts[1] || '',
-        obs:     parts[3] || '',
+        servico,
+        produto:  prodParts[0] || '',
+        produtos: prodParts,       // todos os produtos (pode ser mais de 1)
+        obs,
     };
 }
 
 function _rrAgruparProdutos(lista) {
     const ag = {};
     lista.forEach(os => {
-        const prod = _rrParseProduto(os.produto);
-        if (!prod) return;
-        const eq = _rrEquip(prod.codigo);
-        const nome = eq.nome || prod.codigo;
-        if (!ag[nome]) ag[nome] = { qtd: 0, icon: eq.icon };
-        ag[nome].qtd += prod.qtd;
+        // Suporta array de produtos (novo) ou produto único (retrocompativel)
+        const prods = (os.produtos && os.produtos.length > 0) ? os.produtos : [os.produto];
+        prods.forEach(prodStr => {
+            const prod = _rrParseProduto(prodStr);
+            if (!prod) return;
+            const eq = _rrEquip(prod.codigo);
+            const nome = eq.nome || prod.codigo;
+            if (!ag[nome]) ag[nome] = { qtd: 0, icon: eq.icon };
+            ag[nome].qtd += prod.qtd;
+        });
     });
     return ag;
 }
@@ -353,6 +380,7 @@ window.rrImportarPlanilha = async function(input) {
             tipo:    _rrTipoServico(p.servico),
             servico: p.servico,
             produto: p.produto,
+            produtos: p.produtos,
             obs:     obsCol || p.obs,
         });
     });
