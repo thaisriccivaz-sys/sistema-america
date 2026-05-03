@@ -231,6 +231,21 @@ window.itinerantesAbrirConfiguracoes = function() {
                     💾 Salvar e Conectar
                 </button>
             </div>
+
+            <!-- Tags Ocultas -->
+            <div style="margin-top:24px;border-top:1px solid #334155;padding-top:16px;">
+                <h4 style="color:#94a3b8;font-size:0.85rem;margin:0 0 10px;">Tags Ocultadas</h4>
+                <div id="itin-hidden-tags-list" style="display:flex;flex-wrap:wrap;gap:8px;">
+                    ${_itinHiddenTags.length === 0 ? '<span style="color:#64748b;font-size:0.75rem;">Nenhuma tag ocultada.</span>' : ''}
+                    ${_itinHiddenTags.map(nome => `
+                        <div style="background:#334155;border-radius:6px;padding:4px 10px;display:flex;align-items:center;gap:6px;font-size:0.75rem;color:#f1f5f9;">
+                            ${nome}
+                            <i class="ph-bold ph-eye" onclick="itinerantesRestaurarTag('${nome}')"
+                               style="cursor:pointer;color:#60a5fa;" title="Restaurar para a tela principal"></i>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
         </div>
     </div>`;
     document.body.appendChild(modal);
@@ -286,8 +301,7 @@ window.itinerantesAtualizarLocalizacoes = async function() {
         const info = document.getElementById('itin-info');
         if (info) info.textContent = 'Última atualização: ' + new Date().toLocaleTimeString('pt-BR');
 
-        _itinerantesRenderizarLista(_itinerantesTags);
-        _itinerantesRenderizarMapa(_itinerantesTags);
+        itinerantesFiltrarLista(document.getElementById('itin-search') ? document.getElementById('itin-search').value : '');
         document.getElementById('itin-overlay').style.display = 'none';
 
     } catch(err) {
@@ -338,9 +352,17 @@ function _itinerantesRenderizarLista(tags) {
                         📍 ${tag.endereco || (tag.lat ? tag.lat.toFixed(4) + ', ' + tag.lng.toFixed(4) : 'Sem localização')}
                     </p>
                 </div>
-                <div style="text-align:right;flex-shrink:0;">
-                    <div style="width:8px;height:8px;border-radius:50%;background:${corStatus};margin:0 auto 4px;"></div>
-                    <span style="color:${corStatus};font-size:0.68rem;font-weight:600;">${tempoStr}</span>
+                <div style="text-align:right;flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+                    <div style="display:flex;align-items:center;gap:4px;">
+                        <div style="width:8px;height:8px;border-radius:50%;background:${corStatus};"></div>
+                        <span style="color:${corStatus};font-size:0.68rem;font-weight:600;">${tempoStr}</span>
+                    </div>
+                    <button onclick="itinerantesOcultarTag(event, '${tag.nome}')" title="Ocultar tag"
+                        style="background:none;border:none;color:#64748b;cursor:pointer;padding:2px;border-radius:4px;"
+                        onmouseover="this.style.background='#ef444422';this.style.color='#ef4444'"
+                        onmouseout="this.style.background='none';this.style.color='#64748b'">
+                        <i class="ph-bold ph-eye-slash"></i>
+                    </button>
                 </div>
             </div>
         </div>`;
@@ -350,11 +372,12 @@ function _itinerantesRenderizarLista(tags) {
 // ── Filtrar lista ─────────────────────────────────────────────────────
 window.itinerantesFiltrarLista = function(query) {
     const q = (query || '').toLowerCase();
-    const filtered = _itinerantesTags.filter(t =>
-        (t.nome || '').toLowerCase().includes(q) ||
-        (t.endereco || '').toLowerCase().includes(q)
-    );
+    const filtered = _itinerantesTags.filter(t => {
+        if (_itinHiddenTags.includes(t.nome)) return false;
+        return (t.nome || '').toLowerCase().includes(q) || (t.endereco || '').toLowerCase().includes(q);
+    });
     _itinerantesRenderizarLista(filtered);
+    _itinerantesRenderizarMapa(filtered);
 };
 
 // ── Renderizar marcadores no mapa ────────────────────────────────────
@@ -409,4 +432,26 @@ window.itinerantesIrParaTag = function(idx) {
     if (!tag || !tag.lat || !_itinerantesMapObj) return;
     _itinerantesMapObj.setView([tag.lat, tag.lng], 16, { animate: true });
     if (_itinerantesMarkers[idx]) _itinerantesMarkers[idx].openPopup();
+};
+
+let _itinHiddenTags = [];
+try { _itinHiddenTags = JSON.parse(localStorage.getItem('itin_hidden_tags') || '[]'); } catch(e){}
+
+window.itinerantesOcultarTag = function(e, nomeTag) {
+    e.stopPropagation();
+    if (confirm('Ocultar este dispositivo da tela? Você pode restaurá-lo depois nas Configurações.')) {
+        if (!_itinHiddenTags.includes(nomeTag)) {
+            _itinHiddenTags.push(nomeTag);
+            localStorage.setItem('itin_hidden_tags', JSON.stringify(_itinHiddenTags));
+            itinerantesFiltrarLista(document.getElementById('itin-search').value);
+        }
+    }
+};
+
+window.itinerantesRestaurarTag = function(nomeTag) {
+    _itinHiddenTags = _itinHiddenTags.filter(n => n !== nomeTag);
+    localStorage.setItem('itin_hidden_tags', JSON.stringify(_itinHiddenTags));
+    document.getElementById('modal-itin-config').remove();
+    itinerantesAbrirConfiguracoes();
+    itinerantesFiltrarLista(document.getElementById('itin-search').value);
 };
