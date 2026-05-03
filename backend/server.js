@@ -11044,6 +11044,120 @@ app.get('/api/publico/credenciamento/:token/epi/:epiId', (req, res) => {
     });
 });
 
+// ══════════════════════════════════════════════════════════════════════
+// CLIENTES ITINERANTES — Endpoint de Localização Google Maps
+// Usa engenharia reversa (cookie-based) para buscar localizações
+// compartilhadas na conta Google do usuário.
+// ══════════════════════════════════════════════════════════════════════
+app.post('/api/itinerantes/localizacoes', authenticateToken, express.json(), async (req, res) => {
+    const { cookies } = req.body;
+    if (!Array.isArray(cookies) || cookies.length === 0) {
+        return res.status(400).json({ error: 'Cookies inválidos ou ausentes.' });
+    }
+
+    try {
+        const https = require('https');
+
+        // Monta string de cookies no formato HTTP
+        const cookieStr = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+
+        // Endpoint interno do Google Maps Location Sharing (reverse-engineered)
+        // O Google retorna um array de people/devices com latência, lat, lng, etc.
+        const options = {
+            hostname: 'maps.googleapis.com',
+            path: '/maps/api/shared_location/update',
+            method: 'GET',
+            headers: {
+                'Cookie': cookieStr,
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36',
+                'Accept': '*/*',
+                'Referer': 'https://maps.google.com/'
+            }
+        };
+
+        // Busca usando o endpoint de People/Devices que o Google Maps Web usa
+        const rawData = await new Promise((resolve, reject) => {
+            const url = `https://www.google.com/maps/preview/locationsharing/read?authuser=0&hl=pt&gl=BR&pb=`;
+            const fetch = require('https');
+            const urlObj = new URL(url);
+
+            const req2 = fetch.request({
+                hostname: urlObj.hostname,
+                path: urlObj.pathname + urlObj.search,
+                method: 'GET',
+                headers: {
+                    'Cookie': cookieStr,
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+                    'Referer': 'https://maps.google.com/',
+                    'sec-fetch-site': 'same-origin',
+                    'sec-fetch-mode': 'cors'
+                }
+            }, (resp) => {
+                let body = '';
+                resp.on('data', chunk => body += chunk);
+                resp.on('end', () => resolve({ body, status: resp.statusCode }));
+            });
+            req2.on('error', reject);
+            req2.end();
+        });
+
+        if (rawData.status === 401 || rawData.status === 403) {
+            return res.status(401).json({ error: 'Sessão expirada. Atualize os cookies da sua conta Google.' });
+        }
+
+        // O Google retorna uma string que começa com ")]}'," — precisamos remover e parsear
+        let jsonStr = rawData.body;
+        // Remove o prefixo de segurança anti-XSS que o Google usa
+        const prefixIdx = jsonStr.indexOf('[');
+        if (prefixIdx > 0) jsonStr = jsonStr.substring(prefixIdx);
+
+        let parsed;
+        try {
+            parsed = JSON.parse(jsonStr);
+        } catch (e) {
+            console.error('[Itinerantes] Falha ao parsear resposta do Google:', jsonStr.substring(0, 300));
+            return res.status(502).json({ error: 'Resposta inválida do Google. Os cookies podem ter expirado.' });
+        }
+
+        // Estrutura do Google Location Sharing: parsed[0] é array de pessoas/devices
+        const pessoas = Array.isArray(parsed[0]) ? parsed[0] : [];
+
+        const tags = pessoas.map(p => {
+            try {
+                // p[0][0] = ID da pessoa
+                // p[0][1] = Nome
+                // p[0][6][1] = URL da foto de perfil
+                // p[1][0] = Latitude * 1e-7
+                // p[1][1] = Longitude * 1e-7
+                // p[1][2] = Precisão em metros
+                // p[1][6] = Timestamp da última atualização (ms)
+                // p[1][4] = Endereço/localização textual
+                // p[1][3] = Nível de bateria (0-4 aprox) — ou null
+                const nome = p[0]?.[1] || p[0]?.[3] || 'Desconhecido';
+                const photoUrl = p[0]?.[6]?.[1] || null;
+                const lat = p[1]?.[0] ? p[1][0] / 1e7 : null;
+                const lng = p[1]?.[1] ? p[1][1] / 1e7 : null;
+                const timestamp = p[1]?.[6] ? parseInt(p[1][6]) : null;
+                const endereco = p[1]?.[4] || null;
+                const bateriaRaw = p[1]?.[3];
+                const bateria = (bateriaRaw !== null && bateriaRaw !== undefined) ? Math.round(bateriaRaw * 25) : null;
+
+                return { nome, photoUrl, lat, lng, timestamp, endereco, bateria };
+            } catch (e) {
+                return null;
+            }
+        }).filter(Boolean).filter(t => t.lat !== null && t.lng !== null);
+
+        res.json({ tags, total: tags.length, atualizado: new Date().toISOString() });
+
+    } catch (err) {
+        console.error('[Itinerantes] Erro:', err);
+        res.status(500).json({ error: 'Erro interno ao buscar localizações: ' + err.message });
+    }
+});
+
 app.listen(PORT, () => {
 
     console.log(`Servidor rodando na porta ${PORT}`);

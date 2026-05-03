@@ -115,6 +115,7 @@
                     <a href="#" class="nav-item" data-target="logistica-credenciamento" onclick="navigateTo('logistica-credenciamento'); return false;"><i class="ph ph-identification-card"></i> Credenciamento</a>
                     <a href="#" class="nav-item" data-target="logistica-senhas" onclick="navigateTo('logistica-senhas'); return false;"><i class="ph ph-lock-key"></i> Cofre de Senhas</a>
                     <a href="#" class="nav-item" data-target="logistica-entregas" onclick="navigateTo('logistica-entregas'); return false;"><i class="ph ph-package"></i> Entregas</a>
+                    <a href="#" class="nav-item" data-target="logistica-itinerantes" onclick="navigateTo('logistica-itinerantes'); return false;"><i class="ph ph-map-pin-line"></i> Clientes Itinerantes</a>
                 </div>
             </div>
 
@@ -222,6 +223,11 @@
             <!-- Content Area -->
             <main class="content-area" style="padding-bottom: 38px;">
 <!-- Módulo Logística: Entregas -->
+    <!-- VIEW: CLIENTES ITINERANTES -->
+    <section id="view-logistica-itinerantes" class="content-view" style="padding:0;">
+        <div id="itinerantes-container"></div>
+    </section>
+
     <div id="view-logistica-entregas" class="content-view" style=" padding: 20px;">
         <h2 style="margin-bottom: 20px; color: #1e293b;">Entregas Agendadas</h2>
         
@@ -3257,6 +3263,7 @@
     <script src="dissidio.js?v=2"></script>
     <script src="ferias.js?v=3"></script>
     <script src="pipeline.js?v=1777778840432"></script>
+    <script src="clientes_itinerantes.js?v=1"></script>
     <script src="multas_logistica.js?v=30"></script>
     <script src="frota.js?v=4"></script>
     <script src="logistica_senhas.js?v=13"></script>

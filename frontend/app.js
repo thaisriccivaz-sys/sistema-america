@@ -659,6 +659,7 @@ const TAB_META = {
     'logistica-frota':       { color: '#2d9e5f', icon: 'ph-truck',        title: 'Frota' },
     'logistica-credenciamento': { color: '#2d9e5f', icon: 'ph-identification-card', title: 'Credenciamento' },
     'logistica-senhas':       { color: '#2d9e5f', icon: 'ph-lock-key',             title: 'Cofre de Senhas' },
+    'logistica-itinerantes':  { color: '#2d9e5f', icon: 'ph-map-pin-line',         title: 'Clientes Itinerantes' },
     // Financeiro - Azul
     'financeiro-em-breve':    { color: '#1971c2', icon: 'ph-currency-dollar', title: 'Financeiro' },
     // Comercial - Roxo
@@ -737,6 +738,9 @@ window.navigateToTab = function(tabId) {
       }
       if (tab.target === 'logistica-credenciamento' && typeof window.carregarHistoricoCredenciamento === 'function') {
           setTimeout(() => window.carregarHistoricoCredenciamento(), 80);
+      }
+      if (tab.target === 'logistica-itinerantes' && typeof window.renderItinerantesPage === 'function') {
+          setTimeout(() => window.renderItinerantesPage(), 80);
       }
     // Se a aba tem dados de colaborador (prontuário ou form), restaura o viewedColaborador
     if (tab._colaboradorData) {
