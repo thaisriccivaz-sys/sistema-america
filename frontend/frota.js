@@ -175,11 +175,39 @@ function renderTabelaFrota() {
 <td style="padding:10px 12px;">${v.capacidade_carga?v.capacidade_carga+' kg':'-'}</td>
 <td style="padding:10px 12px;">${v.tipo_veiculo||''}</td>
 <td style="padding:10px 12px;text-align:center;white-space:nowrap;">
+${v.crlv_filename ? `<button onclick="window.visualizarCRLV(${v.id})" style="background:#0891b2;color:#fff;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;margin-right:4px;" title="Visualizar CRLV"><i class="ph ph-file-pdf"></i></button>` : `<button disabled style="background:#cbd5e1;color:#fff;border:none;border-radius:6px;padding:5px 10px;cursor:not-allowed;margin-right:4px;" title="Sem CRLV"><i class="ph ph-file-pdf"></i></button>`}
 <button onclick="window.abrirModalFrota(${v.id})" style="background:#2563eb;color:#fff;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;margin-right:4px;" title="Editar"><i class="ph ph-pencil"></i></button>
 <button onclick="window.excluirVeiculoFrota(${v.id},'${v.placa}')" style="background:#dc2626;color:#fff;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;" title="Excluir"><i class="ph ph-trash"></i></button>
 </td></tr>`;
   }).join('');
 }
+
+window.visualizarCRLV = async function(id) {
+  const tok = window.currentToken || localStorage.getItem('token');
+  try {
+    const res = await fetch(`/api/frota/veiculos/${id}/crlv`, { headers: { Authorization: 'Bearer ' + tok } });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erro ao baixar CRLV');
+    if (!data.crlv_base64) throw new Error('Documento não encontrado.');
+
+    let base64Data = data.crlv_base64;
+    if (base64Data.includes(',')) {
+      base64Data = base64Data.split(',')[1];
+    }
+    
+    const byteCharacters = atob(base64Data);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+  } catch (err) {
+    alert('Erro ao visualizar CRLV: ' + err.message);
+  }
+};
 
 window.exportarFrotaExcel = async function() {
   if (!window._frotaDados || window._frotaDados.length === 0) {
