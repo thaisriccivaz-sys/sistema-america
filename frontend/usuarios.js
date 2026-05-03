@@ -25,6 +25,7 @@ const TELAS_SISTEMA = [
     { modulo: 'Logística', pagina_id: 'logistica-multas',       pagina_nome: 'Multas',         icone: 'ph-receipt' },
     { modulo: 'Logística', pagina_id: 'logistica-credenciamento', pagina_nome: 'Credenciamento', icone: 'ph-identification-card' },
     { modulo: 'Logística', pagina_id: 'logistica-senhas',         pagina_nome: 'Cofre de Senhas', icone: 'ph-lock-key' },
+    { modulo: 'Logística', pagina_id: 'logistica-itinerantes',    pagina_nome: 'Clientes Itinerantes', icone: 'ph-map-pin-line' },
     // Módulo Financeiro
     { modulo: 'Financeiro', pagina_id: 'financeiro-em-breve', pagina_nome: 'Financeiro (Em breve)', icone: 'ph-currency-dollar' },
     // Módulo Comercial
