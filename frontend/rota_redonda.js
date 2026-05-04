@@ -4075,8 +4075,16 @@ function _rrMontarDrawerHistorico() {
             return;
         }
 
-        const CORES = { ENTREGA:'#16a34a', RETIRADA:'#dc2626', MANUTENCAO:'#d97706', REPARO:'#7c3aed', VISITA:'#0ea5e9', LIMPA:'#0891b2', SUCCAO:'#0284c7' };
-        const getCor = ts => { if (!ts) return '#94a3b8'; const u = ts.toUpperCase(); for (const [k,v] of Object.entries(CORES)) if (u.includes(k)) return v; return '#64748b'; };
+        const ESTILO_SVC = svc => {
+            const u = (svc || '').toUpperCase();
+            if (u.includes('ENTREGA'))                          return { bg: '#dcfce7', text: '#15803d' };  // Verde
+            if (u.includes('RETIRADA'))                         return { bg: '#fef9c3', text: '#a16207' };  // Amarelo
+            if (u.includes('MANUTENCAO') || u.includes('MANUTENÇÃO')) {
+                if (u.includes('AVULSA') || u.includes('AVULSO')) return { bg: '#fff', text: '#64748b' };  // Branco/avulso
+                return { bg: '#f1f5f9', text: '#64748b' };                                                 // Cinza/recorrente
+            }
+            return { bg: '#fff', text: '#64748b' };                                                        // Branco/demais
+        };
         const fmtData = ds => { if (!ds) return '—'; const [y,m,d] = ds.split('-'); return (d&&m&&y) ? `${d}/${m}/${y}` : ds; };
         const tipoIco = t => t === 'Evento' ? '🎉' : t === 'Obra' ? '🏗️' : '';
         const turnoIco = t => t === 'noturno' ? '🌙 Noturno' : t === 'diurno' ? '☀️ Diurno' : (t || '—');
@@ -4087,15 +4095,15 @@ function _rrMontarDrawerHistorico() {
         };
 
         tbody.innerHTML = lista.map((os, i) => {
-            const cor = getCor(os.tipo_servico);
-            const bg = i % 2 === 0 ? '#fff' : '#fafafa';
+            const est = ESTILO_SVC(os.tipo_servico);
+            const bgRow = i % 2 === 0 ? '#fff' : '#fafafa';
             const cli = _fc(os.cliente || '—');
             const end = _fc(os.endereco || '—');
             const svc = _fc(os.tipo_servico || '—');
             const tur = _fc(os.turno || '');
             const tip = _fc(os.tipo_os || '');
-            return `<tr style="background:${bg}; border-bottom:1px solid #f1f5f9; cursor:pointer; transition:background 0.1s;"
-                onmouseover="this.style.background='#f0fdf4'" onmouseout="this.style.background='${bg}'"
+            return `<tr style="background:${bgRow}; border-bottom:1px solid #f1f5f9; cursor:pointer; transition:background 0.1s;"
+                onmouseover="this.style.background='#f0fdf4'" onmouseout="this.style.background='${bgRow}'"
                 title="Clique para carregar no formulário"
                 onclick="window._rrCarregarOsDrawer(${os.id})"
             >
@@ -4104,7 +4112,9 @@ function _rrMontarDrawerHistorico() {
                 <td style="padding:5px 10px; white-space:nowrap;">${tipoIco(tip)} ${tip || '—'}</td>
                 <td style="padding:5px 10px; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${cli}">${cli}</td>
                 <td style="padding:5px 10px; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#475569;" title="${end}">${end}</td>
-                <td style="padding:5px 10px; white-space:nowrap;"><span style="background:${cor}18; color:${cor}; border-radius:4px; padding:2px 7px; font-weight:600;">${svc}</span></td>
+                <td style="padding:5px 10px; white-space:nowrap;">
+                    <span style="background:${est.bg}; color:${est.text}; border:1px solid ${est.text}22; border-radius:4px; padding:2px 8px; font-weight:700; font-size:0.72rem;">${svc}</span>
+                </td>
                 <td style="padding:5px 10px; white-space:nowrap; color:#475569;">${turnoIco(tur)}</td>
             </tr>`;
         }).join('');
