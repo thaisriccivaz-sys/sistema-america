@@ -83,33 +83,51 @@ function _rrParseProduto(p) {
 }
 
 function _rrParseNotas(notas) {
-    const parts = (notas || '').split('|').map(p => p.trim());
-    const servico = parts[0] || '';
-    
-    // Identificar quais parts são produtos (começa com número seguido de letras, ex: '1  STD O', '1  GUARITA INDIVIDUAL O')
-    // e quais são frequência ('2 X SEGUNDA, QUINTA') ou observações
+    // Formato real do SimpliRoute:
+    // Linha 1: Observação livre (ex: "IR DE CARRETINHA")
+    // Linha 2: Tipo de serviço (ex: "ENTREGA EVENTO" / "⭕ RETIRADA EVENTO TOTAL")
+    // Linha 3: Produto com qtd (ex: "18 STD EVENTO")
+    // Pode haver múltiplas linhas de produto
+
+    // Normaliza quebras de linha (\r\r\n → \n)
+    const normalizado = (notas || '')
+        .replace(/\r\r\n/g, '\n')
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n');
+
+    const linhas = normalizado.split('\n').map(l => l.trim()).filter(Boolean);
+
+    let servico  = '';
+    let obs      = '';
     const prodParts = [];
-    let obs = '';
-    for (let i = 1; i < parts.length; i++) {
-        const p = parts[i];
-        if (!p) continue;
-        // Frequência: '2 X SEGUNDA...' ou '1 X SEGUNDA'
-        if (/^\d+\s+X\s+/i.test(p)) continue;
-        // ID da OS
-        if (/^ID:\s*/i.test(p)) continue;
-        // Produto: começa com dígito(s) seguido de espaço e texto de produto
-        if (/^\d+\s+\S/.test(p)) {
-            prodParts.push(p);
-        } else {
-            // Observação livre
-            if (!obs) obs = p;
+
+    for (const linha of linhas) {
+        const upLinha = linha.toUpperCase();
+
+        // Linha de tipo de serviço
+        if (upLinha.includes('ENTREGA')  || upLinha.includes('RETIRADA') ||
+            upLinha.includes('MANUTENCAO') || upLinha.includes('MANUTENÇÃO') ||
+            upLinha.includes('VISITA')   || upLinha.includes('LIMPA FOSSA') ||
+            upLinha.includes('SUCCAO')   || upLinha.includes('SUCÇÃO')) {
+            if (!servico) servico = linha;
+            continue;
         }
+
+        // Linha de produto: começa com número(s) seguido de espaço e texto
+        // Ex: "18 STD EVENTO", "1 LX O", "22 STD EVENTO"
+        if (/^\d+\s+\S/.test(linha)) {
+            prodParts.push(linha);
+            continue;
+        }
+
+        // Resto é observação livre
+        if (!obs) obs = linha;
     }
 
     return {
         servico,
         produto:  prodParts[0] || '',
-        produtos: prodParts,       // todos os produtos (pode ser mais de 1)
+        produtos: prodParts,
         obs,
     };
 }
@@ -364,17 +382,28 @@ window.rrImportarPlanilha = async function(input) {
 
     const map = {};
     rows.forEach(r => {
+        // ExcelJS row.values é 1-based
+        // Col 7  = Veículo
+        // Col 5  = Motorista
+        // Col 6  = Co-pilotos (Ajudante)
+        // Col 8  = Título (cliente / nome da OS)
+        // Col 29 = Observações
+        // Col 36 = Notas (tipo de serviço + produto)
         const veiculo   = (r[7]  || '').toString().trim();
         if (!veiculo) return;
-        const motorista = (r[5]  || '').toString().trim();
-        const ajudante  = (r[6]  || '').toString().trim();
-        const cliente   = (r[8]  || '').toString().trim();
+        const motorista = (r[5]  || '').toString().replace(/^[\p{Emoji}\u{1F300}-\u{1FFFF}\u2600-\u26FF\u2700-\u27BF\s]+/u, '').trim();
+        const ajudante  = (r[6]  || '').toString().replace(/^[\p{Emoji}\u{1F300}-\u{1FFFF}\u2600-\u26FF\u2700-\u27BF\s]+/u, '').trim();
+        const cliente   = (r[8]  || '').toString().replace(/^[\p{Emoji}\u{1F300}-\u{1FFFF}\u2600-\u26FF\u2700-\u27BF\s🌘🌓⭕💜🔗]+/u, '').trim();
         const obsCol    = (r[29] || '').toString().trim();
         const notas     = (r[36] || '').toString().trim();
 
         if (!map[veiculo]) map[veiculo] = { veiculo, motorista, ajudante, os: [] };
+        // Atualiza motorista se estiver vazio (primeiras linhas podem ter emoji diferente)
+        if (!map[veiculo].motorista && motorista) map[veiculo].motorista = motorista;
+        if (!map[veiculo].ajudante  && ajudante)  map[veiculo].ajudante  = ajudante;
 
         const p = _rrParseNotas(notas);
+        if (!p.servico && !p.produtos.length && !p.obs) return; // linha sem info relevante
         map[veiculo].os.push({
             cliente,
             tipo:    _rrTipoServico(p.servico),
