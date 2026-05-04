@@ -10449,7 +10449,7 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
                 }).join('');
 
                 const mailOptions = {
-                    from: '"América Rental (Logística)" <multas@americarental.com.br>',
+                    from: process.env.EMAIL_USER,
                     to: cred.cliente_email,
                     subject: `Credenciamento de Equipe - América Rental`,
                     html: `
@@ -10578,9 +10578,25 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
                 if (licencas && licencas.length > 0) {
                     const licRows = licencas.map(l => {
                         const valStr = l.validade ? l.validade.split('-').reverse().join('/') : 'Sem vencimento';
-                        return `<li><b>${l.nome}</b> (${l.empresa}) — Válida até: ${valStr}</li>`;
+                        return `<tr>
+                            <td style="padding:6px 10px; border-bottom:1px solid #e2e8f0;"><b>${l.nome}</b></td>
+                            <td style="padding:6px 10px; border-bottom:1px solid #e2e8f0; color:#475569;">${l.empresa || 'América Rental'}</td>
+                            <td style="padding:6px 10px; border-bottom:1px solid #e2e8f0; color:#475569;">${valStr}</td>
+                        </tr>`;
                     }).join('');
-                    htmlLicencas = `<h3>Licenças da Empresa</h3><ul>${licRows}</ul>`;
+                    htmlLicencas = `
+                    <h3 style="margin-top:20px; color:#0f172a;">Licenças da Empresa</h3>
+                    <p style="font-size:13px; color:#64748b;">Os arquivos das licenças estão disponíveis para download no link abaixo.</p>
+                    <table style="width:100%; border-collapse:collapse; font-size:13px; margin-bottom:10px;">
+                        <thead>
+                            <tr style="background:#f1f5f9;">
+                                <th style="padding:8px 10px; text-align:left; color:#334155;">Documento</th>
+                                <th style="padding:8px 10px; text-align:left; color:#334155;">Empresa</th>
+                                <th style="padding:8px 10px; text-align:left; color:#334155;">Validade</th>
+                            </tr>
+                        </thead>
+                        <tbody>${licRows}</tbody>
+                    </table>`;
                 }
 
 
@@ -10604,7 +10620,7 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
                                 ${htmlVeic ? `<h3>Veículos</h3><ul>${htmlVeic}</ul>` : ''}
                                 ${htmlLicencas}
                                 
-                                <p>Para baixar os documentos correspondentes (RG, CNH, ASO, CRLV, etc.), acesse o link seguro abaixo. <b>O link é válido por 7 dias.</b></p>
+                                <p>Para baixar os documentos correspondentes, acesse o link seguro abaixo. <b>O link é válido por 7 dias.</b></p>
                                 <div style="text-align: center; margin: 30px 0;">
                                     <a href="${link}" style="background:#16a34a;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;display:inline-block;">Acessar e Baixar Documentos</a>
                                 </div>
