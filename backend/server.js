@@ -10465,14 +10465,16 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
                     return `<li><b>${v.placa}</b> - ${v.marca_modelo_versao}</li>`;
                 }).join('');
 
+                const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+
                 const mailOptions = {
                     from: `"América Rental (Logística)" <${process.env.EMAIL_USER}>`,
                     to: cred.cliente_email,
                     subject: `Credenciamento de Equipe - América Rental`,
                     html: `
-                    <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; padding: 20px; border-radius: 8px;">
-                        <div style="text-align: center; margin-bottom: 20px;">
-                            <img src="${logoUrl}" alt="América Rental" style="max-height: 60px;">
+                    <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow:hidden;">
+                        <div style="text-align: center; margin-bottom: 0;">
+                            <img src="cid:cred-logo" alt="América Rental" style="width:100%; max-height:120px; display:block; object-fit:cover;">
                         </div>
                         <h2 style="color: #2d9e5f; text-align: center;">Credenciamento de Equipe Liberado</h2>
                         <p>Olá <b>${cred.cliente_nome}</b>,</p>
@@ -10580,7 +10582,7 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
 
                 const baseUrl = process.env.PUBLIC_URL || `${req.protocol}://${req.get('host')}`;
                 const link = `${baseUrl}/credenciamento-publico.html?token=${token}`;
-                const logoUrl = `${baseUrl}/assets/logo-header.png`;
+                const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
 
                 let htmlCols = (colaboradores || []).map(c => {
                     const cData = colabData.find(col => col.id === c.id);
@@ -10624,7 +10626,7 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
                     html: `
                         <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
                             <div style="background-color: #fff; padding: 0;">
-                                <img src="${logoUrl}" alt="América Rental" style="width: 100%; display: block; max-height: 120px; object-fit: cover;" onerror="this.style.display='none'">
+                                <img src="cid:cred-logo" alt="América Rental" style="width: 100%; display: block; max-height: 120px; object-fit: cover;">
                             </div>
                             <div style="background-color: #16a34a; padding: 15px; text-align: center; color: white;">
                                 <h2 style="margin: 0; font-size: 20px;">Credenciamento de Equipe e Veículos</h2>
@@ -10648,6 +10650,9 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
                         </div>
                     `
                 };
+                mailOptions.attachments = [
+                    { filename: 'logo.png', path: logoPath, cid: 'cred-logo' }
+                ];
 
                 try {
                     const transporter = require('nodemailer').createTransport(SMTP_CONFIG);
@@ -10754,7 +10759,10 @@ app.post('/api/credenciamentos/:id/reenviar', authenticateToken, (req, res) => {
                         <p style="text-align: center; font-size: 12px; color: #999;">
                             <i>Este link expira automaticamente em ${validUntil.toLocaleDateString('pt-BR')}.</i>
                         </p>
-                    </div>`
+                    </div>`,
+                    attachments: [
+                        { filename: 'logo.png', path: logoPath, cid: 'cred-logo' }
+                    ]
         };
         
         db.run('UPDATE credenciamentos SET enviado_em = CURRENT_TIMESTAMP, enviado_por_id = ? WHERE id = ?', [req.user.id, req.params.id], function(errUpdate) {

@@ -3968,19 +3968,18 @@ function _rrMontarDrawerHistorico() {
     wrapper.id = 'rr-hist-wrapper';
     wrapper.style.cssText = [
         'position:fixed',
-        'bottom:0',
-        'left:55px',   /* respeita a sidebar */
+        'bottom:32px',          /* fica ACIMA da barra verde "Caminho" (≈32px) */
+        'left:60px',            /* respeita a sidebar */
         'right:0',
-        'z-index:900',
+        'z-index:9500',         /* sempre por cima de tudo */
         'display:flex',
         'flex-direction:column',
         'align-items:flex-start',
-        'pointer-events:none',   /* passa cliques por baixo quando fechado */
     ].join(';');
 
     wrapper.innerHTML = `
         <!-- BOTÃO SETA -->
-        <div id="rr-hist-btn-row" style="pointer-events:auto; padding:0 0 0 12px;">
+        <div id="rr-hist-btn-row" style="padding:0 0 0 12px;">
             <button id="rr-hist-toggle-btn"
                 title="Histórico de OS"
                 style="
@@ -4005,13 +4004,13 @@ function _rrMontarDrawerHistorico() {
         <!-- PAINEL DE HISTÓRICO -->
         <div id="rr-hist-panel"
             style="
-                pointer-events:auto;
                 width:100%; background:#fff;
                 border-top:2px solid #16a34a;
-                box-shadow:0 -4px 20px rgba(0,0,0,0.10);
+                box-shadow:0 -4px 20px rgba(0,0,0,0.12);
                 max-height:0; overflow:hidden;
-                transition:max-height 0.3s cubic-bezier(.4,0,.2,1);
+                transition:max-height 0.32s cubic-bezier(.4,0,.2,1);
                 display:flex; flex-direction:column;
+                order:-1;
             "
         >
             <!-- Header do painel -->
