@@ -665,7 +665,7 @@ window.rrExportarExcel = async function() {
     await _rrGerarExcel();
 };
 
-// ── Gera e baixa o arquivo Excel com DUAS tabelas ──────────────
+// ── Gera e baixa o arquivo Excel ──────────────
 async function _rrGerarExcel() {
     const wb = new ExcelJS.Workbook();
     wb.creator = 'América Rental';
@@ -690,15 +690,7 @@ async function _rrGerarExcel() {
     const borderThin = { style: 'thin', color: { argb: 'FFCBD5E1' } };
     const borderStyle = { top: borderThin, bottom: borderThin, left: borderThin, right: borderThin };
 
-    // ═══════════════════════════════════════════════════════════
-    //  TABELA 1 — Formato SimpliRoute
-    // ═══════════════════════════════════════════════════════════
-    const tit1 = ws.addRow(['TABELA 1 — FORMATO SIMPLIROUTE (importar direto no sistema de rotas)']);
-    tit1.getCell(1).font = { bold: true, size: 11, color: { argb: 'FFFFFFFF' } };
-    tit1.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F4C2F' } };
-    ws.mergeCells(`A1:Z1`);
-    tit1.height = 18;
-
+    // Adiciona os cabeçalhos na linha 1
     const hdr1 = ws.addRow(SR_HEADERS);
     SR_HEADERS.forEach((_, ci) => {
         const cell = hdr1.getCell(ci + 1);
@@ -709,7 +701,6 @@ async function _rrGerarExcel() {
     });
     hdr1.height = 22;
 
-    let rowIdx = 3; // próxima linha disponível (1-based)
     _rrVeiculos.forEach((v, i) => {
         const colB = v.colBEditado || _rrMontarColB(v);
         const nLines = (colB.match(/\n/g) || []).length + 1;
@@ -749,82 +740,23 @@ async function _rrGerarExcel() {
             });
         }
         [1, LAT_COL, LON_COL].forEach(c => { rowRetorno.getCell(c).border = borderStyle; });
-
-        rowIdx += 2;
     });
 
-    // Larguras Tabela 1
+    // Larguras
     ws.getColumn(1).width = 38;  // A: Titulo
+    ws.getColumn(2).width = 20;  // B: endereço completo
+    ws.getColumn(3).width = 15;  // C: Carga
+    ws.getColumn(4).width = 15;  // D: Janela inicial
+    ws.getColumn(5).width = 15;  // E: Janela final
+    ws.getColumn(6).width = 15;  // F: Tempo de serviço
     ws.getColumn(ANOTACOES_COL).width = 70; // G: Anotações/Resumo
     ws.getColumn(LAT_COL).width = 20; // H: Latitude
     ws.getColumn(LON_COL).width = 20; // I: Longitude
-    // Demais colunas: largura pequena
-    for (let c = 2; c <= 26; c++) {
-        if (![1, ANOTACOES_COL, LAT_COL, LON_COL].includes(c)) ws.getColumn(c).width = 12;
+    
+    // Demais colunas com largura padrão
+    for (let c = 10; c <= 26; c++) {
+        ws.getColumn(c).width = 12;
     }
-
-    // ═══════════════════════════════════════════════════════════
-    //  3 LINHAS EM BRANCO de separação
-    // ═══════════════════════════════════════════════════════════
-    ws.addRow([]);
-    ws.addRow([]);
-    const sepRow = ws.addRow(['─'.repeat(80)]);
-    sepRow.getCell(1).font = { color: { argb: 'FFCBD5E1' } };
-    ws.addRow([]);
-
-    // ═══════════════════════════════════════════════════════════
-    //  TABELA 2 — Formato simples (Placa + Resumo)
-    // ═══════════════════════════════════════════════════════════
-    const tit2Row = ws.addRow(['TABELA 2 — RESUMO SIMPLIFICADO (leitura rápida)']);
-    tit2Row.getCell(1).font = { bold: true, size: 11, color: { argb: 'FFFFFFFF' } };
-    tit2Row.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F4C2F' } };
-    ws.mergeCells(`A${tit2Row.number}:B${tit2Row.number}`);
-    tit2Row.height = 18;
-
-    const hdr2 = ws.addRow(['PLACA / VEÍCULO', 'RESUMO']);
-    hdr2.getCell(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    hdr2.getCell(2).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    hdr2.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: darkGreen };
-    hdr2.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: darkGreen };
-    hdr2.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
-    hdr2.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' };
-    hdr2.height = 20;
-
-    _rrVeiculos.forEach((v, i) => {
-        const colB   = v.colBEditado || _rrMontarColB(v);
-        const nLines = (colB.match(/\n/g) || []).length + 1;
-        const rowH   = Math.max(15, nLines * 15);
-        const zebra  = i % 2 === 0 ? lightGreen : null;
-
-        // Saída
-        const rowSaida = ws.addRow([`${v.veiculo} - Saída`, colB]);
-        rowSaida.getCell(1).font = { bold: true };
-        rowSaida.getCell(1).alignment = { vertical: 'top', wrapText: true };
-        rowSaida.getCell(2).alignment = { vertical: 'top', wrapText: true };
-        rowSaida.height = rowH;
-        if (zebra) {
-            rowSaida.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: zebra };
-            rowSaida.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: zebra };
-        }
-        rowSaida.getCell(1).border = borderStyle;
-        rowSaida.getCell(2).border = borderStyle;
-
-        // Retorno
-        const rowRetorno = ws.addRow([`${v.veiculo} - Retorno`, '']);
-        rowRetorno.getCell(1).font = { bold: true };
-        rowRetorno.getCell(1).alignment = { vertical: 'top', wrapText: true };
-        rowRetorno.getCell(2).alignment = { vertical: 'top', wrapText: true };
-        rowRetorno.height = 30;
-        if (zebra) {
-            rowRetorno.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: zebra };
-            rowRetorno.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: zebra };
-        }
-        rowRetorno.getCell(1).border = borderStyle;
-        rowRetorno.getCell(2).border = borderStyle;
-    });
-
-    // Col B da Tabela 2 precisa ser larga para o resumo. Na Tabela 1 ela é o Endereço (que também pode ser grande).
-    ws.getColumn(2).width = 70;
 
     const buf  = await wb.xlsx.writeBuffer();
     const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
