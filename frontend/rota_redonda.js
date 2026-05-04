@@ -3954,205 +3954,199 @@ function renderRotaRedonda() {
     container.innerHTML = html;
     atualizarUI();
     atualizarBloqueio();
-    // Remove drawer antigo (de outra tela) e reinjetar
-    document.getElementById('rr-historico-drawer')?.remove();
-    document.getElementById('rr-historico-btn')?.remove();
-    setTimeout(_rrInjetarDrawerHistoricoOS, 200);
+    _rrMontarDrawerHistorico();
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
 // DRAWER DE HISTÓRICO DE OS
 // ══════════════════════════════════════════════════════════════════════════════
+function _rrMontarDrawerHistorico() {
+    // Remove instâncias anteriores para evitar duplicação
+    document.getElementById('rr-hist-wrapper')?.remove();
 
-function _rrInjetarDrawerHistoricoOS() {
-    // Evita duplicação
-    if (document.getElementById('rr-historico-drawer')) return;
+    const wrapper = document.createElement('div');
+    wrapper.id = 'rr-hist-wrapper';
+    wrapper.style.cssText = [
+        'position:fixed',
+        'bottom:0',
+        'left:55px',   /* respeita a sidebar */
+        'right:0',
+        'z-index:900',
+        'display:flex',
+        'flex-direction:column',
+        'align-items:flex-start',
+        'pointer-events:none',   /* passa cliques por baixo quando fechado */
+    ].join(';');
 
-    // ── Botão seta (canto inferior esquerdo) ───────────────────────────────────
-    const btnSeta = document.createElement('button');
-    btnSeta.id = 'rr-historico-btn';
-    btnSeta.title = 'Histórico de OS';
-    btnSeta.style.cssText = `
-        position: fixed;
-        bottom: 18px;
-        left: 18px;
-        z-index: 1100;
-        width: 38px;
-        height: 38px;
-        border-radius: 50%;
-        border: 1.5px solid #cbd5e1;
-        background: #f8fafc;
-        color: #94a3b8;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.10);
-        transition: background 0.18s, color 0.18s, border-color 0.18s;
-        font-size: 1.1rem;
-    `;
-    btnSeta.innerHTML = '<i class="ph ph-caret-up-bold"></i>';
-    btnSeta.onmouseenter = () => { btnSeta.style.background = '#e2e8f0'; btnSeta.style.color = '#475569'; };
-    btnSeta.onmouseleave = () => { btnSeta.style.background = '#f8fafc'; btnSeta.style.color = '#94a3b8'; };
-
-    // ── Drawer ────────────────────────────────────────────────────────────────
-    const drawer = document.createElement('div');
-    drawer.id = 'rr-historico-drawer';
-    drawer.style.cssText = `
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        z-index: 1050;
-        height: 0;
-        max-height: 55vh;
-        background: #fff;
-        border-top: 2px solid #e2e8f0;
-        box-shadow: 0 -4px 24px rgba(0,0,0,0.10);
-        overflow: hidden;
-        transition: height 0.3s cubic-bezier(.4,0,.2,1);
-        display: flex;
-        flex-direction: column;
-    `;
-    drawer.innerHTML = `
-        <div id="rr-historico-header" style="display:flex; align-items:center; justify-content:space-between; padding:10px 18px 8px; border-bottom:1px solid #f1f5f9; flex-shrink:0; background:#f8fafc;">
-            <span style="font-weight:700; font-size:0.85rem; color:#334155; display:flex; align-items:center; gap:6px;">
-                <i class="ph ph-clock-counter-clockwise" style="color:#64748b; font-size:1rem;"></i>
+    wrapper.innerHTML = `
+        <!-- BOTÃO SETA -->
+        <div id="rr-hist-btn-row" style="pointer-events:auto; padding:0 0 0 12px;">
+            <button id="rr-hist-toggle-btn"
+                title="Histórico de OS"
+                style="
+                    display:flex; align-items:center; gap:6px;
+                    background:#f1f5f9; border:1.5px solid #cbd5e1;
+                    border-bottom:none; border-radius:8px 8px 0 0;
+                    padding:4px 14px; cursor:pointer;
+                    color:#64748b; font-size:0.75rem; font-weight:600;
+                    box-shadow:0 -2px 8px rgba(0,0,0,0.06);
+                    transition:background 0.15s, color 0.15s;
+                "
+                onmouseenter="this.style.background='#e2e8f0'; this.style.color='#334155';"
+                onmouseleave="this.style.background='#f1f5f9'; this.style.color='#64748b';"
+                onclick="window._rrToggleHistorico()"
+            >
+                <i id="rr-hist-icon" class="ph ph-caret-up-bold" style="font-size:0.9rem;"></i>
                 Histórico de OS
-                <span id="rr-historico-badge" style="background:#e2e8f0; color:#64748b; font-size:0.7rem; font-weight:600; border-radius:99px; padding:1px 8px;"></span>
-            </span>
-            <div style="display:flex; align-items:center; gap:8px;">
-                <input id="rr-historico-filtro" type="text" placeholder="Buscar OS, cliente..." style="border:1px solid #e2e8f0; border-radius:6px; padding:4px 10px; font-size:0.78rem; color:#334155; outline:none; width:200px; height:26px;">
-                <button onclick="window._rrFecharDrawerHistorico()" style="background:none; border:none; cursor:pointer; color:#94a3b8; font-size:1.1rem; display:flex; align-items:center; padding:2px;" title="Fechar">
-                    <i class="ph ph-caret-down-bold"></i>
-                </button>
+                <span id="rr-hist-count" style="background:#e2e8f0; border-radius:99px; padding:1px 7px; font-size:0.68rem;"></span>
+            </button>
+        </div>
+
+        <!-- PAINEL DE HISTÓRICO -->
+        <div id="rr-hist-panel"
+            style="
+                pointer-events:auto;
+                width:100%; background:#fff;
+                border-top:2px solid #16a34a;
+                box-shadow:0 -4px 20px rgba(0,0,0,0.10);
+                max-height:0; overflow:hidden;
+                transition:max-height 0.3s cubic-bezier(.4,0,.2,1);
+                display:flex; flex-direction:column;
+            "
+        >
+            <!-- Header do painel -->
+            <div style="display:flex; align-items:center; gap:10px; padding:8px 16px; border-bottom:1px solid #f1f5f9; flex-shrink:0; background:#f8fafc;">
+                <i class="ph ph-clock-counter-clockwise" style="color:#16a34a; font-size:1rem;"></i>
+                <span style="font-weight:700; font-size:0.82rem; color:#1e293b;">Histórico de Ordens de Serviço</span>
+                <input id="rr-hist-search" type="text" placeholder="Buscar por OS, cliente, endereço..."
+                    style="margin-left:auto; border:1px solid #e2e8f0; border-radius:6px; padding:4px 10px; font-size:0.75rem; width:240px; height:26px; outline:none; color:#334155;"
+                    oninput="window._rrFiltrarHistorico(this.value)"
+                />
+            </div>
+            <!-- Tabela -->
+            <div id="rr-hist-table-wrap" style="overflow-y:auto; max-height:280px; flex:1;">
+                <table style="width:100%; border-collapse:collapse; font-size:0.75rem;">
+                    <thead>
+                        <tr style="background:#f1f5f9; position:sticky; top:0; z-index:2;">
+                            <th style="padding:6px 10px; text-align:left; color:#475569; font-weight:700; white-space:nowrap;">OS</th>
+                            <th style="padding:6px 10px; text-align:left; color:#475569; font-weight:700;">Data</th>
+                            <th style="padding:6px 10px; text-align:left; color:#475569; font-weight:700;">Tipo</th>
+                            <th style="padding:6px 10px; text-align:left; color:#475569; font-weight:700;">Cliente</th>
+                            <th style="padding:6px 10px; text-align:left; color:#475569; font-weight:700;">Endereço</th>
+                            <th style="padding:6px 10px; text-align:left; color:#475569; font-weight:700;">Serviço</th>
+                            <th style="padding:6px 10px; text-align:left; color:#475569; font-weight:700;">Turno</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rr-hist-tbody">
+                        <tr><td colspan="7" style="text-align:center; padding:20px; color:#94a3b8;">Carregando...</td></tr>
+                    </tbody>
+                </table>
             </div>
         </div>
-        <div id="rr-historico-lista" style="overflow-y:auto; flex:1; padding:8px 12px;"></div>
     `;
 
-    document.body.appendChild(btnSeta);
-    document.body.appendChild(drawer);
+    document.body.appendChild(wrapper);
 
-    let _drawerAberto = false;
-    let _rrOsCache = [];
+    // ── Estado ────────────────────────────────────────────────────────────────
+    let _aberto = false;
+    let _dados = [];
 
-    function _renderLista(filtro = '') {
-        const lista = document.getElementById('rr-historico-lista');
-        if (!lista) return;
-        const term = filtro.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    // ── Renderiza linhas da tabela ─────────────────────────────────────────────
+    function _renderLinhas(filtro) {
+        const tbody = document.getElementById('rr-hist-tbody');
+        if (!tbody) return;
+        const term = (filtro || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const lista = term
+            ? _dados.filter(os => {
+                const t = [os.numero_os, os.cliente, os.endereco, os.tipo_servico, os.contrato]
+                    .filter(Boolean).join(' ').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                return t.includes(term);
+              })
+            : _dados;
 
-        const filtradas = _rrOsCache.filter(os => {
-            if (!term) return true;
-            const campos = [os.numero_os, os.cliente, os.endereco, os.tipo_servico, os.tipo_os, os.contrato]
-                .filter(Boolean).join(' ').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-            return campos.includes(term);
-        });
-
-        if (filtradas.length === 0) {
-            lista.innerHTML = '<p style="color:#94a3b8; font-size:0.8rem; text-align:center; padding:24px 0;">Nenhuma OS encontrada.</p>';
+        if (!lista.length) {
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:16px; color:#94a3b8;">Nenhuma OS encontrada.</td></tr>`;
             return;
         }
 
-        const TIPO_CORES = {
-            'ENTREGA': '#16a34a', 'RETIRADA': '#dc2626', 'MANUTENCAO': '#d97706',
-            'REPARO': '#7c3aed', 'VISITA': '#0ea5e9', 'LIMPA': '#0891b2', 'SUCCAO': '#0284c7'
-        };
-        const getTipoCor = (ts) => {
-            if (!ts) return '#64748b';
-            ts = ts.toUpperCase();
-            for (const [k, v] of Object.entries(TIPO_CORES)) {
-                if (ts.includes(k)) return v;
-            }
-            return '#64748b';
-        };
-        const formatData = (ds) => {
-            if (!ds) return '—';
-            const [y, m, d] = ds.split('-');
-            return d && m && y ? `${d}/${m}/${y}` : ds;
-        };
+        const CORES = { ENTREGA:'#16a34a', RETIRADA:'#dc2626', MANUTENCAO:'#d97706', REPARO:'#7c3aed', VISITA:'#0ea5e9', LIMPA:'#0891b2', SUCCAO:'#0284c7' };
+        const getCor = ts => { if (!ts) return '#94a3b8'; const u = ts.toUpperCase(); for (const [k,v] of Object.entries(CORES)) if (u.includes(k)) return v; return '#64748b'; };
+        const fmtData = ds => { if (!ds) return '—'; const [y,m,d] = ds.split('-'); return (d&&m&&y) ? `${d}/${m}/${y}` : ds; };
+        const tipoIco = t => t === 'Evento' ? '🎉' : t === 'Obra' ? '🏗️' : '';
+        const turnoIco = t => t === 'noturno' ? '🌙 Noturno' : t === 'diurno' ? '☀️ Diurno' : (t || '—');
 
-        lista.innerHTML = filtradas.map(os => {
-            const cor = getTipoCor(os.tipo_servico);
-            const tipoOs = os.tipo_os === 'Evento' ? '🎉' : os.tipo_os === 'Obra' ? '🏗️' : '';
-            const prods = (() => {
-                try { const p = JSON.parse(os.produtos || '[]'); return p.length > 0 ? p.map(x => `${x.qtd}× ${x.desc}`).join(', ') : ''; } catch { return ''; }
-            })();
-            const turnoIcon = os.turno === 'noturno' ? '🌙' : os.turno === 'diurno' ? '☀️' : '';
-            return `
-            <div style="display:flex; align-items:center; gap:10px; padding:7px 8px; border-radius:8px; border-bottom:1px solid #f1f5f9; cursor:pointer; transition:background 0.12s;"
-                onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''"
-                onclick="window._rrCarregarOsDrawer(${os.id})" title="Carregar esta OS no formulário">
-                <div style="flex-shrink:0; width:4px; height:44px; border-radius:4px; background:${cor};"></div>
-                <div style="flex-shrink:0; min-width:60px;">
-                    <div style="font-weight:700; font-size:0.78rem; color:#1e293b;">${os.numero_os || '—'}</div>
-                    <div style="font-size:0.68rem; color:#94a3b8;">${formatData(os.data_os)}</div>
-                </div>
-                <div style="flex:1; min-width:0; overflow:hidden;">
-                    <div style="font-size:0.8rem; font-weight:600; color:#334155; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${tipoOs} ${os.cliente || '—'}</div>
-                    <div style="font-size:0.69rem; color:#64748b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${os.endereco || ''}</div>
-                </div>
-                <div style="flex-shrink:0; text-align:right; min-width:120px; max-width:160px;">
-                    <div style="font-size:0.7rem; font-weight:600; color:${cor}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${turnoIcon} ${os.tipo_servico || '—'}</div>
-                    <div style="font-size:0.65rem; color:#94a3b8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${prods}">${prods || ''}</div>
-                </div>
-            </div>`;
+        tbody.innerHTML = lista.map((os, i) => {
+            const cor = getCor(os.tipo_servico);
+            const bg = i % 2 === 0 ? '#fff' : '#fafafa';
+            return `<tr style="background:${bg}; border-bottom:1px solid #f1f5f9; cursor:pointer; transition:background 0.1s;"
+                onmouseover="this.style.background='#f0fdf4'" onmouseout="this.style.background='${bg}'"
+                title="Clique para carregar no formulário"
+                onclick="window._rrCarregarOsDrawer(${os.id})"
+            >
+                <td style="padding:5px 10px; font-weight:700; color:#1e293b; white-space:nowrap;">${os.numero_os || '—'}</td>
+                <td style="padding:5px 10px; color:#64748b; white-space:nowrap;">${fmtData(os.data_os)}</td>
+                <td style="padding:5px 10px; white-space:nowrap;">${tipoIco(os.tipo_os)} ${os.tipo_os || '—'}</td>
+                <td style="padding:5px 10px; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${os.cliente||''}">${os.cliente || '—'}</td>
+                <td style="padding:5px 10px; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#475569;" title="${os.endereco||''}">${os.endereco || '—'}</td>
+                <td style="padding:5px 10px; white-space:nowrap;"><span style="background:${cor}18; color:${cor}; border-radius:4px; padding:2px 7px; font-weight:600;">${os.tipo_servico || '—'}</span></td>
+                <td style="padding:5px 10px; white-space:nowrap; color:#475569;">${turnoIco(os.turno)}</td>
+            </tr>`;
         }).join('');
     }
 
-    async function _abrirDrawer() {
-        drawer.style.height = '55vh';
-        _drawerAberto = true;
-        btnSeta.querySelector('i').className = 'ph ph-caret-down-bold';
-        document.getElementById('rr-historico-lista').innerHTML = '<p style="color:#94a3b8; font-size:0.8rem; text-align:center; padding:24px 0;">Carregando...</p>';
-
+    // ── Carrega dados da API ───────────────────────────────────────────────────
+    async function _carregar() {
         try {
             const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
-            const res = await fetch('/api/logistica/os/buscar', { headers: { 'Authorization': `Bearer ${token}` } });
-            const data = await res.json();
-            _rrOsCache = Array.isArray(data) ? data : [];
-            const badge = document.getElementById('rr-historico-badge');
-            if (badge) badge.textContent = _rrOsCache.length;
-            _renderLista(document.getElementById('rr-historico-filtro')?.value || '');
-        } catch (e) {
-            document.getElementById('rr-historico-lista').innerHTML = '<p style="color:#ef4444; font-size:0.8rem; text-align:center; padding:24px 0;">Erro ao carregar histórico.</p>';
+            const res = await fetch('/api/logistica/os/buscar', { headers: { Authorization: `Bearer ${token}` } });
+            _dados = await res.json();
+            if (!Array.isArray(_dados)) _dados = [];
+            const count = document.getElementById('rr-hist-count');
+            if (count) count.textContent = _dados.length;
+            _renderLinhas(document.getElementById('rr-hist-search')?.value || '');
+        } catch {
+            const tbody = document.getElementById('rr-hist-tbody');
+            if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:16px; color:#ef4444;">Erro ao carregar.</td></tr>`;
         }
     }
 
-    function _fecharDrawer() {
-        drawer.style.height = '0';
-        _drawerAberto = false;
-        btnSeta.querySelector('i').className = 'ph ph-caret-up-bold';
-    }
-
-    window._rrFecharDrawerHistorico = _fecharDrawer;
-
-    btnSeta.onclick = () => {
-        if (_drawerAberto) _fecharDrawer();
-        else _abrirDrawer();
+    // ── Toggle público ────────────────────────────────────────────────────────
+    window._rrToggleHistorico = function() {
+        const panel = document.getElementById('rr-hist-panel');
+        const icon  = document.getElementById('rr-hist-icon');
+        if (!panel) return;
+        _aberto = !_aberto;
+        panel.style.maxHeight = _aberto ? '360px' : '0';
+        if (icon) icon.className = _aberto ? 'ph ph-caret-down-bold' : 'ph ph-caret-up-bold';
+        if (_aberto && _dados.length === 0) _carregar();
     };
 
-    // Filtro em tempo real
-    document.getElementById('rr-historico-filtro').oninput = (e) => _renderLista(e.target.value);
-
-    // Clique fora fecha
-    document.addEventListener('mousedown', (e) => {
-        if (_drawerAberto && !drawer.contains(e.target) && e.target !== btnSeta && !btnSeta.contains(e.target)) {
-            _fecharDrawer();
-        }
-    });
+    window._rrFiltrarHistorico = filtro => _renderLinhas(filtro);
 }
 
-// Expõe globalmente para ser chamado na inicialização da tela
-window._rrInjetarDrawerHistoricoOS = _rrInjetarDrawerHistoricoOS;
-
-// ── Auto-injetar ao renderizar (hook no atualizarUI) ─────────────────────────
-const _rrAtualizarUIOriginal = typeof atualizarUI !== 'undefined' ? atualizarUI : null;
-// Garante injeção quando a página for montada
-document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(_rrInjetarDrawerHistoricoOS, 500);
-});
-// Chamado também pelo navigateTo / renderizarRotaRedonda
-window._rrOnRotaRedondaReady = function() {
-    setTimeout(_rrInjetarDrawerHistoricoOS, 300);
+window._rrCarregarOsDrawer = function(id) {
+    // Apenas fecha o drawer (carregamento da OS já existe no sistema via busca)
+    const panel = document.getElementById('rr-hist-panel');
+    const icon  = document.getElementById('rr-hist-icon');
+    if (panel) panel.style.maxHeight = '0';
+    if (icon) icon.className = 'ph ph-caret-up-bold';
+    // Preenche o campo de OS e aciona busca
+    const inputOs = document.getElementById('rr-input-os');
+    if (inputOs) {
+        // Busca o numero_os do cache global (se disponível) ou pelo id
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        fetch(`/api/logistica/os/${id}`, { headers: { Authorization: `Bearer ${token}` } })
+            .then(r => r.json())
+            .then(os => {
+                if (os && os.numero_os) {
+                    inputOs.value = os.numero_os;
+                    inputOs.dispatchEvent(new Event('input'));
+                    // Aciona busca via o botão de busca existente
+                    const btnBuscar = document.getElementById('btn-buscar-os');
+                    if (btnBuscar) btnBuscar.click();
+                }
+            }).catch(() => {});
+    }
 };
+
+
