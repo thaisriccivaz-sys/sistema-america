@@ -725,7 +725,9 @@ window.navigateToTab = function(tabId) {
     // Restaurar o estado da view correspondente
     document.querySelectorAll('.content-view').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (tab.target !== 'logistica-pipeline') {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
     const targetView = document.getElementById(`view-${tab.target}`);
     if (targetView) targetView.classList.add('active');
     const targetNavObj = document.querySelector(`[data-target="${tab.target}"]`);
@@ -806,7 +808,9 @@ function navigateTo(target) {
 
     document.querySelectorAll('.content-view').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (target !== 'logistica-pipeline') {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
     
     const targetView = document.getElementById(`view-${target}`);
     if (targetView) targetView.classList.add('active');
