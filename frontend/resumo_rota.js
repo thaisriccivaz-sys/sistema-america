@@ -184,7 +184,7 @@ function _rrMontarColB(v) {
         const ag = _rrAgruparProdutos(retiradas);
         lines.push(`⭕ RETIRADA ${_rrTipoObraEvento(retiradas)}:`);
         for (const [nome, { qtd, icon }] of Object.entries(ag))
-            lines.push(`   ${icon}${qtd} ${nome}`);
+            lines.push(`   ${qtd} ${nome}`);
         lines.push('');
     }
 
@@ -201,7 +201,7 @@ function _rrMontarColB(v) {
         const ag = _rrAgruparProdutos(manut);
         lines.push(`MANUTENCAO ${_rrTipoObraEvento(manut)}:`);
         for (const [nome, { qtd, icon }] of Object.entries(ag))
-            lines.push(`   ${icon}${qtd} × ${nome}`);
+            lines.push(`   ${qtd} × ${nome}`);
         lines.push('');
     }
 
