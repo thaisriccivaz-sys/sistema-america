@@ -558,14 +558,27 @@ function _rrRenderCorpo() {
         const nLines = (colB.match(/\n/g) || []).length + 2;
         const h      = Math.max(120, nLines * 20);
         
-        // Avatar helper
+        // Helper de avatar (foto ou inicial)
         const _avatar = (foto, nome) => foto
-            ? `<img src="${foto}" title="${nome}" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.6);">`
-            : `<div title="${nome}" style="width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;color:#fff;border:2px solid rgba(255,255,255,0.4);">${(nome||'?')[0].toUpperCase()}</div>`;
+            ? `<img src="${foto}" title="${nome||''}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.6);">`
+            : `<div style="width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:0.9rem;font-weight:700;color:#fff;border:1px dashed rgba(255,255,255,0.5);">${(nome&&nome.trim()) ? nome.trim()[0].toUpperCase() : '+'}</div>`;
 
-        const fotosMot = v.motorista ? `<div style="display:flex;align-items:center;gap:6px;">${_avatar(v._fotoMotorista, v.motorista)}<span style="font-size:0.78rem;color:rgba(255,255,255,0.9);">${v.motorista}</span></div>` : '';
-        const fotosAju = v.ajudante  ? `<div style="display:flex;align-items:center;gap:6px;">${_avatar(v._fotoAjudante,  v.ajudante)}<span style="font-size:0.78rem;color:rgba(255,255,255,0.9);">${v.ajudante}</span></div>` : '';
-        const fotosDiv = (fotosMot || fotosAju) ? `<div style="display:flex;gap:12px;align-items:center;">${fotosMot}${fotosAju}</div>` : '';
+        // Helper de input editável inline (sempre visível, inclusive se vazio)
+        const _inp = (campo, val, placeholder) =>
+            `<input value="${(val||'').replace(/"/g,'&quot;')}" placeholder="${placeholder}"
+                style="font-size:0.78rem;color:#fff;background:rgba(0,0,0,0.12);border:none;border-bottom:1px dashed rgba(255,255,255,0.5);outline:none;width:150px;padding:2px 5px;border-radius:3px;"
+                onfocus="this.style.background='rgba(0,0,0,0.25)'"
+                onblur="this.style.background='rgba(0,0,0,0.12)'"
+                onchange="window._rrAtualizarVeiculo(${i},'${campo}',this.value)"
+                title="Editar ${placeholder}">`;
+
+        const fotosMot = `<div style="display:flex;align-items:center;gap:6px;" title="Motorista">
+            ${_avatar(v._fotoMotorista, v.motorista)}
+            ${_inp('motorista', v.motorista, 'Motorista...')}</div>`;
+        const fotosAju = `<div style="display:flex;align-items:center;gap:6px;" title="Ajudante">
+            ${_avatar(v._fotoAjudante, v.ajudante)}
+            ${_inp('ajudante', v.ajudante, 'Ajudante...')}</div>`;
+        const fotosDiv = `<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;">${fotosMot}${fotosAju}</div>`;
 
         // Badge de capacidade
         let capacidadeBadge = '';
@@ -586,7 +599,16 @@ function _rrRenderCorpo() {
         <div style="background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.07);margin-bottom:16px;overflow:hidden;border:1px solid #e2e8f0;">
             <div style="background:#2d9e5f;padding:12px 18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
                 <div style="display:flex;flex-direction:column;gap:8px;">
-                    <div style="color:#fff;font-weight:700;font-size:1rem;">${colA}</div>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <i class="ph ph-truck" style="color:rgba(255,255,255,0.7);font-size:0.9rem;"></i>
+                        <input value="${v.veiculo.replace(/"/g,'&quot;')}"
+                            style="color:#fff;font-weight:700;font-size:1rem;background:transparent;border:none;border-bottom:1px dashed rgba(255,255,255,0.4);outline:none;min-width:120px;max-width:240px;"
+                            onfocus="this.style.borderBottomColor='rgba(255,255,255,0.9)'"
+                            onblur="this.style.borderBottomColor='rgba(255,255,255,0.4)'"
+                            onchange="window._rrAtualizarVeiculo(${i},'veiculo',this.value)"
+                            title="Editar placa / veículo">
+                        <span style="color:rgba(255,255,255,0.6);font-size:0.9rem;">- Saída</span>
+                    </div>
                     ${fotosDiv}
                 </div>
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
@@ -605,6 +627,31 @@ function _rrRenderCorpo() {
         </div>`;
     }).join('');
 }
+
+// ── Atualiza veiculo/motorista/ajudante diretamente na estrutura de dados ──────
+window._rrAtualizarVeiculo = function(idx, campo, valor) {
+    if (!_rrVeiculos[idx]) return;
+    _rrVeiculos[idx][campo] = valor;
+
+    // Sincroniza no textarea de colB (motorista e ajudante aparecem no final do texto)
+    if (campo === 'motorista' || campo === 'ajudante') {
+        const ta = document.querySelector(`.rr-textarea-edit[data-index="${idx}"]`);
+        if (ta) {
+            const label  = campo === 'motorista' ? 'Motorista' : 'Ajudante';
+            const regex  = new RegExp(`^${label}: .+$`, 'm');
+            let txt = ta.value;
+            if (regex.test(txt)) {
+                txt = valor
+                    ? txt.replace(regex, `${label}: ${valor}`)
+                    : txt.replace(regex, '').replace(/\n{3,}/g, '\n\n');
+            } else if (valor) {
+                txt = txt.trimEnd() + `\n${label}: ${valor}`;
+            }
+            ta.value = txt;
+            _rrVeiculos[idx].colBEditado = txt;
+        }
+    }
+};
 
 // ══════════════════════════════════════════════════════════════
 //  EXPORTAR EXCEL E SALVAR NO HISTÓRICO
