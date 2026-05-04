@@ -15,9 +15,8 @@ window.renderLogisticaSinistros = async function() {
     // carrega colaboradores para busca (só uma vez por sessão)
     if (_logSinListaColabs.length === 0) {
         try {
-            const token = window.currentToken || localStorage.getItem('erp_token');
-            const res = await fetch(`${API_URL}/colaboradores`, { headers: { 'Authorization': `Bearer ${token}` } });
-            if (res.ok) _logSinListaColabs = await res.json();
+            const data = await apiGet('/colaboradores');
+            if (Array.isArray(data)) _logSinListaColabs = data;
         } catch(e) { console.error('[LogSinistros] erro ao carregar colaboradores', e); }
     }
 
@@ -97,7 +96,7 @@ window.logSinFiltrarColabs = function(val) {
 
 /* ── Selecionar colaborador e carregar seus sinistros ──────────── */
 window.logSinSelecionarColab = async function(colabId) {
-    const colab = _logSinListaColabs.find(c => c.id === colabId);
+    const colab = _logSinListaColabs.find(c => c.id == colabId);
     if (!colab) return;
 
     _logSinColabSelecionado = colab;
