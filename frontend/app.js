@@ -456,6 +456,7 @@ const BREADCRUMB_MAP = {
     'dissidio':               { path: 'Dissídio',                                                  code: 'RHDIS01' },
     'ferias':                 { path: 'Controle de Férias',                                        code: 'RHFER01' },
     // Logística
+    'logistica-dashboard':    { path: 'Dashboard Logística',                                        code: 'LOG000' },
     'logistica-rota-redonda': { path: 'Rota Redonda',                                              code: 'LOG001' },
     'logistica-frota-resumo': { path: 'Resumo de Frota',                                            code: 'LOG002' },
     'logistica-pipeline':     { path: 'Pipeline OS',                                               code: 'LOG003' },
@@ -651,6 +652,7 @@ const TAB_META = {
     'form-usuario':           { color: '#d9480f', icon: 'ph-user-gear',      title: 'Cadastro de Usuário' },
     // Logística - Verde
     'logistica-em-breve':     { color: '#2d9e5f', icon: 'ph-truck',          title: 'Logística' },
+    'logistica-dashboard':    { color: '#2d9e5f', icon: 'ph-chart-bar',      title: 'Dashboard Logística' },
     'logistica-rota-redonda': { color: '#2d9e5f', icon: 'ph-map-trifold',   title: 'Rota Redonda' },
     'logistica-resumo-rota':  { color: '#2d9e5f', icon: 'ph-list-bullets',  title: 'Resumo de Rota' },
     'logistica-frota-resumo':  { color: '#1e3a5f', icon: 'ph-truck',          title: 'Resumo de Frota' },
@@ -728,6 +730,9 @@ window.navigateToTab = function(tabId) {
     if (targetNavObj) targetNavObj.classList.add('active');
     updateBreadcrumb(tab.target);
       // Module-specific render hooks
+      if (tab.target === 'logistica-dashboard' && typeof window.renderLogisticaDashboard === 'function') {
+          setTimeout(() => window.renderLogisticaDashboard(), 80);
+      }
       if (tab.target === 'logistica-frota-resumo' && typeof renderFrotaResumo === 'function') {
           setTimeout(() => renderFrotaResumo(), 50);
       }
@@ -842,6 +847,8 @@ function navigateTo(target) {
         if (typeof window.renderFerias === 'function') window.renderFerias();
     } else if (target === 'dissidio') {
         if (typeof window.renderDissidio === 'function') window.renderDissidio();
+    } else if (target === 'logistica-dashboard') {
+        if (typeof window.renderLogisticaDashboard === 'function') setTimeout(() => window.renderLogisticaDashboard(), 80);
     } else if (target === 'logistica-frota-resumo') {
         if (typeof renderFrotaResumo === 'function') setTimeout(() => renderFrotaResumo(), 80);
     } else if (target === 'logistica-pipeline') {

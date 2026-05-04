@@ -18,6 +18,7 @@ const TELAS_SISTEMA = [
     { modulo: 'RH', pagina_id: 'gerenciar-avaliacoes',   pagina_nome: 'Avaliações', icone: 'ph-clipboard-text' },
     { modulo: 'RH', pagina_id: 'dissidio',               pagina_nome: 'Dissídio', icone: 'ph-trend-up' },
     // Módulo Logística
+    { modulo: 'Logística', pagina_id: 'logistica-dashboard',    pagina_nome: 'Dashboard Logística', icone: 'ph-chart-bar' },
     { modulo: 'Logística', pagina_id: 'logistica-pipeline',     pagina_nome: 'Pipeline OS',   icone: 'ph-kanban' },
     { modulo: 'Logística', pagina_id: 'logistica-rota-redonda', pagina_nome: 'Rota Redonda', icone: 'ph-map-trifold' },
     { modulo: 'Logística', pagina_id: 'logistica-resumo-rota',  pagina_nome: 'Resumo de Rota', icone: 'ph-list-numbers' },

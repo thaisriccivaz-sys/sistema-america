@@ -107,6 +107,7 @@
                 </button>
                 <div class="dept-submenu">
                     <div class="dept-submenu-header" style="color:#2d9e5f;"><i class="ph ph-truck"></i> Logística</div>
+                    <a href="#" class="nav-item" data-target="logistica-dashboard" onclick="navigateTo('logistica-dashboard'); return false;"><i class="ph ph-chart-bar"></i> Dashboard</a>
                     <a href="#" class="nav-item" data-target="logistica-pipeline" onclick="navigateTo('logistica-pipeline'); return false;"><i class="ph ph-kanban"></i> Pipeline</a>
                     <a href="#" class="nav-item" data-target="logistica-rota-redonda" onclick="navigateTo('logistica-rota-redonda'); return false;"><i class="ph ph-map-trifold"></i> Rota Redonda</a>
                     <a href="#" class="nav-item" data-target="logistica-resumo-rota" onclick="navigateTo('logistica-resumo-rota'); return false;"><i class="ph ph-list-bullets"></i> Resumo de Rota</a>
@@ -223,6 +224,11 @@
             <!-- Content Area -->
             <main class="content-area" style="padding-bottom: 38px;">
 <!-- Módulo Logística: Entregas -->
+    <!-- VIEW: DASHBOARD DE LOGÍSTICA -->
+    <section id="view-logistica-dashboard" class="content-view" style="padding:0; background:#f1f5f9;">
+        <div id="logistica-dashboard-container"></div>
+    </section>
+
     <!-- VIEW: CLIENTES ITINERANTES -->
     <section id="view-logistica-itinerantes" class="content-view" style="padding:0;">
         <div id="itinerantes-container"></div>
@@ -3272,6 +3278,7 @@
     <script src="logistica_senhas.js?v=13"></script>
     <script src="credenciamento.js"></script>
     <script src="comercial_credenciamento.js"></script>
+    <script src="logistica_dashboard.js?v=1"></script>
     <script src="licencas.js?v=1"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
