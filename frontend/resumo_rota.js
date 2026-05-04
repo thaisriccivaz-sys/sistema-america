@@ -59,12 +59,14 @@ function _rrObsIcon(t) {
 }
 
 function _rrEquip(codigo) {
-    const c = (codigo || '').trim().toUpperCase();
+    const original = (codigo || '').trim().toUpperCase();
+    const c = original.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    
     if (RR_EQ[c]) return RR_EQ[c];
     for (const [k, v] of Object.entries(RR_EQ)) {
         if (c.startsWith(k)) return v;
     }
-    return { nome: c, icon: '' };
+    return { nome: original, icon: '' };
 }
 
 function _rrTipoServico(s) {
