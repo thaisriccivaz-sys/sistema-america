@@ -4169,28 +4169,31 @@ function _rrMontarDrawerHistorico() {
     });
 }
 
-window._rrCarregarOsDrawer = function(id) {
-    // Apenas fecha o drawer (carregamento da OS já existe no sistema via busca)
+window._rrCarregarOsDrawer = async function(id) {
+    // Fecha o drawer
     const panel = document.getElementById('rr-hist-panel');
     const icon  = document.getElementById('rr-hist-icon');
     if (panel) panel.style.maxHeight = '0';
     if (icon) icon.className = 'ph ph-caret-up-bold';
-    // Preenche o campo de OS e aciona busca
-    const inputOs = document.getElementById('rr-input-os');
-    if (inputOs) {
-        // Busca o numero_os do cache global (se disponível) ou pelo id
+
+    try {
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
-        fetch(`/api/logistica/os/${id}`, { headers: { Authorization: `Bearer ${token}` } })
-            .then(r => r.json())
-            .then(os => {
-                if (os && os.numero_os) {
-                    inputOs.value = os.numero_os;
-                    inputOs.dispatchEvent(new Event('input'));
-                    // Aciona busca via o botão de busca existente
-                    const btnBuscar = document.getElementById('btn-buscar-os');
-                    if (btnBuscar) btnBuscar.click();
-                }
-            }).catch(() => {});
+        const res = await fetch(`/api/logistica/os/${id}`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const os = await res.json();
+        if (!os || !os.id) throw new Error('OS não encontrada');
+
+        // Carrega direto no formulário, sem modal e sem bloqueio do geocode
+        if (typeof window._carregarRegistroNaTela === 'function') {
+            window._carregarRegistroNaTela(os);
+        }
+        if (typeof mostrarToastAviso === 'function') mostrarToastAviso(`✅ OS ${os.numero_os} carregada.`);
+
+    } catch(e) {
+        console.error('[Drawer] Erro ao carregar OS:', e);
+        if (typeof mostrarToastAviso === 'function') mostrarToastAviso('Erro ao carregar OS. Tente novamente.');
     }
 };
 
