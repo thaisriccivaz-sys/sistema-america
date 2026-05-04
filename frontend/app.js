@@ -722,12 +722,22 @@ window.navigateToTab = function(tabId) {
     if (!tab) return;
     appOpenTabs.forEach(t => t.active = (t.tabId === tabId));
     renderAppTabs();
+    // Salvar o scroll do Pipeline se ele estiver aberto no momento
+    const pipeView = document.getElementById('view-logistica-pipeline');
+    if (pipeView && pipeView.classList.contains('active')) {
+        window._pipelineScrollY = window.scrollY;
+    }
+
     // Restaurar o estado da view correspondente
     document.querySelectorAll('.content-view').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+    
     if (tab.target !== 'logistica-pipeline') {
         window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else if (typeof window._pipelineScrollY !== 'undefined') {
+        window.scrollTo({ top: window._pipelineScrollY, behavior: 'instant' });
     }
+
     const targetView = document.getElementById(`view-${tab.target}`);
     if (targetView) targetView.classList.add('active');
     const targetNavObj = document.querySelector(`[data-target="${tab.target}"]`);
@@ -806,10 +816,19 @@ function navigateTo(target) {
         }
     }
 
+    // Salvar o scroll do Pipeline se ele estiver aberto no momento
+    const pipeView = document.getElementById('view-logistica-pipeline');
+    if (pipeView && pipeView.classList.contains('active')) {
+        window._pipelineScrollY = window.scrollY;
+    }
+
     document.querySelectorAll('.content-view').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+    
     if (target !== 'logistica-pipeline') {
         window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else if (typeof window._pipelineScrollY !== 'undefined') {
+        window.scrollTo({ top: window._pipelineScrollY, behavior: 'instant' });
     }
     
     const targetView = document.getElementById(`view-${target}`);
