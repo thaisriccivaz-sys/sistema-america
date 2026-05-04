@@ -1660,21 +1660,30 @@ app.get('/api/dashboard', authenticateToken, (req, res) => {
     const stats = { total: 0, ativos: 0, ferias: 0, afastados: 0, desligados: 0, aguardando: 0, iniciado: 0 };
     const today = new Date().toISOString().split('T')[0];
 
-    db.all('SELECT status, ferias_programadas_inicio, ferias_programadas_fim FROM colaboradores', [], (err, rows) => {
+    db.all('SELECT status, ferias_programadas_inicio, ferias_programadas_fim, ferias_fracionadas, ferias_fracionadas_tipo, ferias_fracionadas_inicio2, ferias_fracionadas_fim2 FROM colaboradores', [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
 
         rows.forEach(row => {
             stats.total += 1;
             let effectiveStatus = row.status || 'Ativo';
 
-            // Lógica de férias automática: Se status é Ativo/Férias e hoje está no período, muda para Férias
+            // Lógica de férias automática: considera 1º e 2º período
             if (effectiveStatus === 'Ativo' || effectiveStatus === 'Férias') {
-                if (row.ferias_programadas_inicio && row.ferias_programadas_fim) {
-                    if (today >= row.ferias_programadas_inicio && today <= row.ferias_programadas_fim) {
-                        effectiveStatus = 'Férias';
-                    } else if (effectiveStatus === 'Férias') {
-                        effectiveStatus = 'Ativo';
-                    }
+                const ini1 = row.ferias_programadas_inicio;
+                const fim1 = row.ferias_programadas_fim;
+                const em1  = ini1 && fim1 && today >= ini1 && today <= fim1;
+
+                const usaFrac2 = row.ferias_fracionadas === 'Sim' && row.ferias_fracionadas_tipo === 'Tirada';
+                const ini2 = usaFrac2 ? row.ferias_fracionadas_inicio2 : null;
+                const fim2 = usaFrac2 ? row.ferias_fracionadas_fim2 : null;
+                const em2  = ini2 && fim2 && today >= ini2 && today <= fim2;
+
+                if (em1 || em2) {
+                    effectiveStatus = 'Férias';
+                } else if (effectiveStatus === 'Férias') {
+                    // Volta a Ativo apenas após o término de TODOS os períodos
+                    const ultimoFim = [fim1, fim2].filter(Boolean).sort().pop();
+                    if (ultimoFim && today > ultimoFim) effectiveStatus = 'Ativo';
                 }
             }
 

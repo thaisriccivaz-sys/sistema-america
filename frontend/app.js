@@ -6851,17 +6851,27 @@ function getEffectiveStatus(c) {
     
     // Se está "Ativo" ou "Férias", verificamos as datas para saber se deve mostrar Férias
     if (status === 'Ativo' || status === 'Férias') {
-        if (c.ferias_programadas_inicio && c.ferias_programadas_fim) {
-            const today = new Date().toISOString().split('T')[0];
-            if (today >= c.ferias_programadas_inicio && today <= c.ferias_programadas_fim) {
-                return 'Férias';
-            }
-        }
-    }
-    // Se o status era Férias mas saiu do período e não mudou manualmente para outra coisa, volta a ser Ativo
-    if (status === 'Férias' && c.ferias_programadas_fim) {
         const today = new Date().toISOString().split('T')[0];
-        if (today > c.ferias_programadas_fim) return 'Ativo';
+
+        // 1º período
+        const ini1 = c.ferias_programadas_inicio;
+        const fim1 = c.ferias_programadas_fim;
+        const em1  = ini1 && fim1 && today >= ini1 && today <= fim1;
+
+        // 2º período (apenas quando fracionada = Sim + tirada)
+        const ini2 = (c.ferias_fracionadas === 'Sim' && c.ferias_fracionadas_tipo === 'Tirada')
+            ? c.ferias_fracionadas_inicio2 : null;
+        const fim2 = (c.ferias_fracionadas === 'Sim' && c.ferias_fracionadas_tipo === 'Tirada')
+            ? c.ferias_fracionadas_fim2 : null;
+        const em2  = ini2 && fim2 && today >= ini2 && today <= fim2;
+
+        if (em1 || em2) return 'Férias';
+
+        // Voltou de férias: apenas retorna Ativo se hoje é posterior ao fim de TODOS os períodos válidos
+        if (status === 'Férias') {
+            const ultimoFim = [fim1, fim2].filter(Boolean).sort().pop();
+            if (ultimoFim && today > ultimoFim) return 'Ativo';
+        }
     }
 
     return status;
