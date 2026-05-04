@@ -121,7 +121,7 @@ function renderLicencasContent() {
     const hoje = new Date(); hoje.setHours(0,0,0,0);
 
     // Status helper
-    const SEM_VALIDADE_NOMES = ['cnpj', 'inscrição estadual', 'inscricao estadual', 'inscrição municipal', 'inscricao municipal', 'ltcat'];
+    const SEM_VALIDADE_NOMES = ['cnpj', 'inscrição estadual', 'inscricao estadual', 'inscrição municipal', 'inscricao municipal', 'ltcat', 'contrato'];
     const isSemValidade = (nome) => SEM_VALIDADE_NOMES.some(s => nome.toLowerCase().includes(s));
 
     const getStatus = (validade, nome, temArquivo) => {
@@ -270,7 +270,7 @@ window.uploadLicenca = async function(input, empresa, nome) {
     
     const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
     const nLow = nome.toLowerCase();
-    const semValidade = nLow.includes('cnpj') || nLow.includes('inscrição estadual') || nLow.includes('inscricao estadual') || nLow.includes('inscrição municipal') || nLow.includes('inscricao municipal') || nLow.includes('ltcat');
+    const semValidade = nLow.includes('cnpj') || nLow.includes('inscrição estadual') || nLow.includes('inscricao estadual') || nLow.includes('inscrição municipal') || nLow.includes('inscricao municipal') || nLow.includes('ltcat') || nLow.includes('contrato');
     
     let venc = '';
     
@@ -331,7 +331,7 @@ window.uploadLicenca = async function(input, empresa, nome) {
 // ── Modal atualizar licença ──────────────────────────────────
 window.editLicencaModal = async function(empresa, nome, id, valAtual) {
     const nLow = nome.toLowerCase();
-    const semValidade = nLow.includes('cnpj') || nLow.includes('inscrição estadual') || nLow.includes('inscricao estadual') || nLow.includes('inscrição municipal') || nLow.includes('inscricao municipal') || nLow.includes('ltcat');
+    const semValidade = nLow.includes('cnpj') || nLow.includes('inscrição estadual') || nLow.includes('inscricao estadual') || nLow.includes('inscrição municipal') || nLow.includes('inscricao municipal') || nLow.includes('ltcat') || nLow.includes('contrato');
     let venc = '';
     
     if (!semValidade) {
