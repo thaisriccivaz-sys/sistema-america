@@ -4073,10 +4073,20 @@ function _rrMontarDrawerHistorico() {
         const fmtData = ds => { if (!ds) return '—'; const [y,m,d] = ds.split('-'); return (d&&m&&y) ? `${d}/${m}/${y}` : ds; };
         const tipoIco = t => t === 'Evento' ? '🎉' : t === 'Obra' ? '🏗️' : '';
         const turnoIco = t => t === 'noturno' ? '🌙 Noturno' : t === 'diurno' ? '☀️ Diurno' : (t || '—');
+        // Correção de encoding: converte mojibake Latin-1→UTF-8 (problema recorrente no banco)
+        const _fc = s => {
+            if (!s || typeof s !== 'string') return s || '';
+            try { return decodeURIComponent(escape(s)); } catch(e) { return s; }
+        };
 
         tbody.innerHTML = lista.map((os, i) => {
             const cor = getCor(os.tipo_servico);
             const bg = i % 2 === 0 ? '#fff' : '#fafafa';
+            const cli = _fc(os.cliente || '—');
+            const end = _fc(os.endereco || '—');
+            const svc = _fc(os.tipo_servico || '—');
+            const tur = _fc(os.turno || '');
+            const tip = _fc(os.tipo_os || '');
             return `<tr style="background:${bg}; border-bottom:1px solid #f1f5f9; cursor:pointer; transition:background 0.1s;"
                 onmouseover="this.style.background='#f0fdf4'" onmouseout="this.style.background='${bg}'"
                 title="Clique para carregar no formulário"
@@ -4084,11 +4094,11 @@ function _rrMontarDrawerHistorico() {
             >
                 <td style="padding:5px 10px; font-weight:700; color:#1e293b; white-space:nowrap;">${os.numero_os || '—'}</td>
                 <td style="padding:5px 10px; color:#64748b; white-space:nowrap;">${fmtData(os.data_os)}</td>
-                <td style="padding:5px 10px; white-space:nowrap;">${tipoIco(os.tipo_os)} ${os.tipo_os || '—'}</td>
-                <td style="padding:5px 10px; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${os.cliente||''}">${os.cliente || '—'}</td>
-                <td style="padding:5px 10px; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#475569;" title="${os.endereco||''}">${os.endereco || '—'}</td>
-                <td style="padding:5px 10px; white-space:nowrap;"><span style="background:${cor}18; color:${cor}; border-radius:4px; padding:2px 7px; font-weight:600;">${os.tipo_servico || '—'}</span></td>
-                <td style="padding:5px 10px; white-space:nowrap; color:#475569;">${turnoIco(os.turno)}</td>
+                <td style="padding:5px 10px; white-space:nowrap;">${tipoIco(tip)} ${tip || '—'}</td>
+                <td style="padding:5px 10px; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${cli}">${cli}</td>
+                <td style="padding:5px 10px; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#475569;" title="${end}">${end}</td>
+                <td style="padding:5px 10px; white-space:nowrap;"><span style="background:${cor}18; color:${cor}; border-radius:4px; padding:2px 7px; font-weight:600;">${svc}</span></td>
+                <td style="padding:5px 10px; white-space:nowrap; color:#475569;">${turnoIco(tur)}</td>
             </tr>`;
         }).join('');
     }
