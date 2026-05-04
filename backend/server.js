@@ -10449,7 +10449,7 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
                 }).join('');
 
                 const mailOptions = {
-                    from: process.env.EMAIL_USER,
+                    from: `"América Rental (Logística)" <${process.env.EMAIL_USER}>`,
                     to: cred.cliente_email,
                     subject: `Credenciamento de Equipe - América Rental`,
                     html: `
