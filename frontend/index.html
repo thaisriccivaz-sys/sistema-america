@@ -117,6 +117,7 @@
                     <a href="#" class="nav-item" data-target="logistica-senhas" onclick="navigateTo('logistica-senhas'); return false;"><i class="ph ph-lock-key"></i> Cofre de Senhas</a>
                     <a href="#" class="nav-item" data-target="logistica-entregas" onclick="navigateTo('logistica-entregas'); return false;"><i class="ph ph-package"></i> Entregas</a>
                     <a href="#" class="nav-item" data-target="logistica-itinerantes" onclick="navigateTo('logistica-itinerantes'); return false;"><i class="ph ph-map-pin-line"></i> Clientes Itinerantes</a>
+                    <a href="#" class="nav-item" data-target="logistica-sinistros" onclick="navigateTo('logistica-sinistros'); return false;"><i class="ph ph-car-crash"></i> Sinistros</a>
                 </div>
             </div>
 
@@ -227,6 +228,11 @@
     <!-- VIEW: DASHBOARD DE LOGÍSTICA -->
     <section id="view-logistica-dashboard" class="content-view" style="padding:0; background:#f1f5f9;">
         <div id="logistica-dashboard-container"></div>
+    </section>
+
+    <!-- VIEW: SINISTROS LOGÍSTICA -->
+    <section id="view-logistica-sinistros" class="content-view" style="padding:0; background:#f8fafc;">
+        <div id="logistica-sinistros-container"></div>
     </section>
 
     <!-- VIEW: CLIENTES ITINERANTES -->
@@ -3279,6 +3285,7 @@
     <script src="credenciamento.js"></script>
     <script src="comercial_credenciamento.js"></script>
     <script src="logistica_dashboard.js?v=2"></script>
+    <script src="logistica_sinistros.js?v=1"></script>
     <script src="licencas.js?v=1"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
