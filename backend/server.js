@@ -11262,6 +11262,7 @@ app.post('/api/licencas/extrair-validade', authenticateToken, uploadFoto.single(
                             let dFinal = new Date(dObj);
                             if (docNome.includes('PCMSO')) dFinal.setFullYear(dFinal.getFullYear() + 1);
                             if (docNome.includes('CND') && docNome.includes('MUNICIPAL')) dFinal.setDate(dFinal.getDate() + 30);
+                            if (docNome.includes('CND') && docNome.includes('ESTADUAL')) dFinal.setMonth(dFinal.getMonth() + 6);
                             maxDateStr = `${dFinal.getFullYear()}-${String(dFinal.getMonth() + 1).padStart(2, '0')}-${String(dFinal.getDate()).padStart(2, '0')}`;
                         }
                     }
@@ -11278,6 +11279,7 @@ app.post('/api/licencas/extrair-validade', authenticateToken, uploadFoto.single(
                 const dFinal = new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
                 if (docNome.includes('PCMSO')) dFinal.setFullYear(dFinal.getFullYear() + 1);
                 if (docNome.includes('CND') && docNome.includes('MUNICIPAL')) dFinal.setDate(dFinal.getDate() + 30);
+                if (docNome.includes('CND') && docNome.includes('ESTADUAL')) dFinal.setMonth(dFinal.getMonth() + 6);
                 const Y = dFinal.getFullYear(), M = String(dFinal.getMonth() + 1).padStart(2, '0'), D = String(dFinal.getDate()).padStart(2, '0');
                 return res.json({ validade: `${Y}-${M}-${D}` });
             }
