@@ -4041,6 +4041,7 @@ function _rrMontarDrawerHistorico() {
                             <th style="padding:6px 10px; text-align:left; color:#475569; font-weight:700;">Endereço</th>
                             <th style="padding:6px 10px; text-align:left; color:#475569; font-weight:700;">Serviço</th>
                             <th style="padding:6px 10px; text-align:left; color:#475569; font-weight:700;">Turno</th>
+                            <th style="padding:6px 10px; text-align:left; color:#475569; font-weight:700;">Dias</th>
                         </tr>
                     </thead>
                     <tbody id="rr-hist-tbody">
@@ -4071,7 +4072,7 @@ function _rrMontarDrawerHistorico() {
             : _dados;
 
         if (!lista.length) {
-            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:16px; color:#94a3b8;">Nenhuma OS encontrada.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:16px; color:#94a3b8;">Nenhuma OS encontrada.</td></tr>`;
             return;
         }
 
@@ -4086,8 +4087,31 @@ function _rrMontarDrawerHistorico() {
             return { bg: '#fff', text: '#64748b' };                                                        // Branco/demais
         };
         const fmtData = ds => { if (!ds) return '—'; const [y,m,d] = ds.split('-'); return (d&&m&&y) ? `${d}/${m}/${y}` : ds; };
-        const tipoIco = t => t === 'Evento' ? '🎉' : t === 'Obra' ? '🏗️' : '';
+        
+        const fmtTipo = t => {
+            const up = (t || '').toUpperCase();
+            if (up === 'OBRA') return `<span style="background:#156EB6; color:white; padding:2px 8px; border-radius:12px; font-weight:600; font-size:0.75rem;">Obra</span>`;
+            if (up === 'EVENTO') return `<span style="background:#8E24AA; color:white; padding:2px 8px; border-radius:12px; font-weight:600; font-size:0.75rem;">Evento</span>`;
+            return t || '—';
+        };
+        
         const turnoIco = t => t === 'noturno' ? '🌙 Noturno' : t === 'diurno' ? '☀️ Diurno' : (t || '—');
+        
+        const _DIA_C = {'Seg':'#ef4444','Ter':'#f97316','Qua':'#ca8a04','Qui':'#16a34a','Sex':'#3b82f6','Sáb':'#8b5cf6','Dom':'#ec4899'};
+        const fmtDias = diasRaw => {
+            if (!diasRaw) return '—';
+            let dias = [];
+            if (Array.isArray(diasRaw)) dias = diasRaw;
+            else {
+                try { dias = JSON.parse(diasRaw); } catch(e) {}
+            }
+            if (!Array.isArray(dias) || dias.length === 0) return '—';
+            return `<div style="display:flex; gap:2px; flex-wrap:wrap;">` + dias.map(d => {
+                const cor = _DIA_C[d] || '#64748b';
+                return `<span style="background:${cor}; color:white; border-radius:4px; padding:2px 4px; font-size:0.65rem; font-weight:bold;">${d.substring(0,3)}</span>`;
+            }).join('') + `</div>`;
+        };
+
         // Correção de encoding: converte mojibake Latin-1→UTF-8 (problema recorrente no banco)
         const _fc = s => {
             if (!s || typeof s !== 'string') return s || '';
@@ -4109,13 +4133,14 @@ function _rrMontarDrawerHistorico() {
             >
                 <td style="padding:5px 10px; font-weight:700; color:#1e293b; white-space:nowrap;">${os.numero_os || '—'}</td>
                 <td style="padding:5px 10px; color:#64748b; white-space:nowrap;">${fmtData(os.data_os)}</td>
-                <td style="padding:5px 10px; white-space:nowrap;">${tipoIco(tip)} ${tip || '—'}</td>
+                <td style="padding:5px 10px; white-space:nowrap;">${fmtTipo(tip)}</td>
                 <td style="padding:5px 10px; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${cli}">${cli}</td>
                 <td style="padding:5px 10px; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#475569;" title="${end}">${end}</td>
                 <td style="padding:5px 10px; white-space:nowrap;">
                     <span style="background:${est.bg}; color:${est.text}; border:1px solid ${est.text}22; border-radius:4px; padding:2px 8px; font-weight:700; font-size:0.72rem;">${svc}</span>
                 </td>
                 <td style="padding:5px 10px; white-space:nowrap; color:#475569;">${turnoIco(tur)}</td>
+                <td style="padding:5px 10px; white-space:nowrap;">${fmtDias(os.dias_semana)}</td>
             </tr>`;
         }).join('');
     }
