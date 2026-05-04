@@ -122,6 +122,11 @@ function _rrParseNotas(notas) {
             continue;
         }
 
+        // Ignorar linha de dias da semana do Pipeline (ex: "2X - TER, SEX")
+        if (/^\d+X\s*-/.test(upLinha)) {
+            continue;
+        }
+
         // Resto é observação livre
         if (!obs) obs = linha;
     }
