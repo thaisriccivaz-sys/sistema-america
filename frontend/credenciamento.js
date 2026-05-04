@@ -598,10 +598,7 @@ window.gerarEnviarCredenciamento = async function() {
         alert('Por favor, preencha o nome e e-mail do cliente.');
         return;
     }
-    if (credenciamentoState.selecionadosColabs.length === 0 && credenciamentoState.selecionadosVeic.length === 0) {
-        alert('Por favor, selecione ao menos um colaborador ou veículo para credenciar.');
-        return;
-    }
+
 
     const btn = document.getElementById('btn-enviar-cred');
     const originalHTML = btn ? btn.innerHTML : '';
