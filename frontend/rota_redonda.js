@@ -3785,7 +3785,7 @@ function renderRotaRedonda() {
                 <!-- HORÁRIOS E DIAS -->
                 <div style="display: flex; gap: 0.5rem; align-items: center; background: #f8fafc; padding: 0.4rem 0.5rem; border-radius: 6px; border: 1px solid #e2e8f0; flex-wrap: wrap;">
                     <label style="display:flex; align-items:center; gap:2px; font-size:0.75rem; color:#475569; cursor:pointer;"><input type="checkbox" id="rr-chk-diurno"> Diurno</label>
-                    <label style="display:flex; align-items:center; gap:2px; font-size:0.75rem; color:#475569; cursor:pointer;"><input type="checkbox" id="rr-chk-noturno" onchange="atualizarIconesCliente()"> Noturno</label>
+                    <label style="display:flex; align-items:center; gap:2px; font-size:0.75rem; color:#475569; cursor:pointer;"><input type="checkbox" id="rr-chk-noturno" onchange="(function(chk){ atualizarIconesCliente(); if(chk.checked){ var hi=document.getElementById('rr-input-hora-inicio'); var hf=document.getElementById('rr-input-hora-fim'); if(hi&&!hi.value) hi.value='20:00'; if(hf&&!hf.value) hf.value='23:00'; } })(this)"> Noturno</label>
                     <div style="width: 1px; height: 16px; background: #cbd5e1; margin: 0 2px;"></div>
                     <span style="font-size: 0.75rem; font-weight: 600; color:#475569;">Horário:</span>
                     <input type="time" id="rr-input-hora-inicio" style="${inputStyle} width: 75px;"> às 
@@ -3928,8 +3928,8 @@ function renderRotaRedonda() {
             <!-- MAPA E RESUMO RIGHT COL -->
             <div style="display: flex; flex-direction: column; flex: 1; min-width: 0;">
                 <div id="rr-mapa-container" style="background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 6px; height: 100%; display: flex; flex-direction: column; position: relative; overflow: hidden;">
-                    <!-- Header do Mapa -->
-                    <div style="background: rgba(255,255,255,0.97); padding: 0.4rem 0.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; flex-shrink:0;">
+                    <!-- Header do Mapa (botões ocultos por padrão) -->
+                    <div style="background: rgba(255,255,255,0.97); padding: 0.4rem 0.5rem; display: none; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; flex-shrink:0;">
                         <span style="font-size:0.75rem; font-weight:700; color:#475569; display:flex; align-items:center; gap:4px;"><i class="ph ph-map-pin" style="color:#0ea5e9;"></i> Localização <span style="font-size:0.65rem; background:#f0fdf4; color:#16a34a; border-radius:4px; padding:1px 5px; font-weight:600; margin-left:4px;">OpenStreetMap</span></span>
                         <button onclick="if(window.osState?.lat&&window.osState?.lng)window.open('https://www.openstreetmap.org/?mlat='+osState.lat+'&mlon='+osState.lng+'#map=17/'+osState.lat+'/'+osState.lng,'_blank');" style="background:#3b82f6; color:white; padding:2px 8px; font-size:0.7rem; border-radius:4px; border:none; cursor:pointer; font-weight:600;">
                             <i class="ph ph-arrows-out"></i> Ampliar
