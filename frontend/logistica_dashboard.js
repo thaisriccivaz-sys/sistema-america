@@ -299,6 +299,7 @@ function _renderChartMotoristaBanheiros(os) {
 
     // Canvas dinâmico baseado no número de motoristas
     canvas.width = Math.max(sorted.length * 50, 400);
+    canvas.height = 260;
 
     _dashCharts['motorista'] = new Chart(canvas, {
         type: 'bar',
