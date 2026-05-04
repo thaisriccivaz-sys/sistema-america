@@ -4223,3 +4223,17 @@ window._rrCarregarOsDrawer = async function(id) {
 };
 
 
+
+setInterval(() => {
+    const w = document.getElementById('rr-hist-wrapper');
+    if (!w) return;
+    const viewRota = document.getElementById('view-logistica-rota-redonda');
+    const viewPipe = document.getElementById('view-logistica-pipeline');
+    const isRotaAtiva = viewRota && viewRota.offsetParent !== null;
+    const isPipeAtiva = viewPipe && viewPipe.offsetParent !== null;
+    if (isRotaAtiva || isPipeAtiva) {
+        if (w.style.display === 'none') w.style.display = 'block';
+    } else {
+        if (w.style.display !== 'none') w.style.display = 'none';
+    }
+}, 500);
