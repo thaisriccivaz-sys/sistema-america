@@ -487,6 +487,13 @@ db.run("ALTER TABLE colaboradores ADD COLUMN tamanho_calcado TEXT", (err) => {
     if (err && !err.message.includes('duplicate column')) console.error(err);
 });
 
+// MIGRATION: Férias Fracionadas
+['ferias_fracionadas', 'ferias_fracionadas_tipo', 'ferias_fracionadas_inicio2', 'ferias_fracionadas_fim2'].forEach(col => {
+    db.run(`ALTER TABLE colaboradores ADD COLUMN ${col} TEXT`, (err) => {
+        if (err && !err.message.includes('duplicate column')) console.error(`[Migration] ${col}:`, err.message);
+    });
+});
+
 
 // MIGRATION: Garantir que os geradores baseados em perfil do colaborador existam no banco
 const GERADORES_PERFIL = [
@@ -2043,7 +2050,7 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
         'terapia_participa', 'terapia_data_inicio',
         'celular_participa', 'celular_data',
         'chaves_participa', 'chaves_data',
-        'ferias_programadas_inicio', 'ferias_programadas_fim', 'alergias', 'aso_email_enviado', 'aso_exame_data', 'aso_assinafy_link', 'aso_exames_assinafy_link',
+        'ferias_programadas_inicio', 'ferias_programadas_fim', 'ferias_fracionadas', 'ferias_fracionadas_tipo', 'ferias_fracionadas_inicio2', 'ferias_fracionadas_fim2', 'alergias', 'aso_email_enviado', 'aso_exame_data', 'aso_assinafy_link', 'aso_exames_assinafy_link',
         'adiantamento_salarial', 'adiantamento_valor', 'insalubridade', 'insalubridade_valor',
         'conjuge_nome', 'conjuge_cpf',
         'santander_ficha_data',
@@ -2462,7 +2469,7 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
         'terapia_participa', 'terapia_data_inicio',
         'celular_participa', 'celular_data',
         'chaves_participa', 'chaves_data',
-        'ferias_programadas_inicio', 'ferias_programadas_fim', 'alergias', 'aso_email_enviado', 'aso_exame_data', 'aso_assinafy_link', 'aso_exames_assinafy_link',
+        'ferias_programadas_inicio', 'ferias_programadas_fim', 'ferias_fracionadas', 'ferias_fracionadas_tipo', 'ferias_fracionadas_inicio2', 'ferias_fracionadas_fim2', 'alergias', 'aso_email_enviado', 'aso_exame_data', 'aso_assinafy_link', 'aso_exames_assinafy_link',
         'adiantamento_salarial', 'adiantamento_valor', 'insalubridade', 'insalubridade_valor',
         'conjuge_nome', 'conjuge_cpf',
         'santander_ficha_data',

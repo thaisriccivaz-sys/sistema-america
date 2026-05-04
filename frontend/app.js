@@ -2068,6 +2068,46 @@ window.calculateVacationDays = function() {
     if (admissaoEl?.value) window.updateVacationInfo(admissaoEl.value);
 }
 
+// === FÉRIAS FRACIONADAS ===
+window.toggleFeriasFracionadas = function(val) {
+    const sec = document.getElementById('section-ferias-fracionadas');
+    if (!sec) return;
+    sec.style.display = val === 'Sim' ? 'block' : 'none';
+    if (val !== 'Sim') {
+        // Limpar tipo e segunda data ao desativar
+        const tipoN = document.querySelector('input[name="ferias_fracionadas_tipo"][value="Vendida"]');
+        if (tipoN) tipoN.checked = false;
+        const tipoT = document.querySelector('input[name="ferias_fracionadas_tipo"][value="Tirada"]');
+        if (tipoT) tipoT.checked = false;
+        window.toggleFeriasFracionadasTipo('');
+    }
+};
+
+window.toggleFeriasFracionadasTipo = function(val) {
+    const sec2 = document.getElementById('section-ferias-segunda-data');
+    if (!sec2) return;
+    sec2.style.display = val === 'Tirada' ? 'block' : 'none';
+    if (val !== 'Tirada') {
+        const i2 = document.getElementById('colab-ferias-fracionadas-inicio2');
+        const f2 = document.getElementById('colab-ferias-fracionadas-fim2');
+        const d2 = document.getElementById('colab-ferias-fracionadas-dias2');
+        if (i2) i2.value = '';
+        if (f2) f2.value = '';
+        if (d2) d2.value = '-';
+    }
+};
+
+window.calcularTotalFeriasFracionadas = function() {
+    const i2 = document.getElementById('colab-ferias-fracionadas-inicio2')?.value;
+    const f2 = document.getElementById('colab-ferias-fracionadas-fim2')?.value;
+    const d2 = document.getElementById('colab-ferias-fracionadas-dias2');
+    if (!i2 || !f2 || !d2) return;
+    const start = new Date(i2), end = new Date(f2);
+    if (isNaN(start) || isNaN(end)) { d2.value = '-'; return; }
+    const diff = Math.ceil((end - start) / 86400000) + 1;
+    d2.value = diff >= 0 ? `${diff} ${diff === 1 ? 'dia' : 'dias'}` : 'Data Inválida';
+};
+
 // --- DASHBOARD ---
 let chartAtestadosInst = null;
 let chartFaltasInst = null;
@@ -3054,6 +3094,13 @@ window.resetFormColaborador = function() {
     if (document.getElementById('colab-ferias-programadas-inicio')) document.getElementById('colab-ferias-programadas-inicio').value = '';
     if (document.getElementById('colab-ferias-programadas-fim')) document.getElementById('colab-ferias-programadas-fim').value = '';
     if (document.getElementById('colab-ferias-total-dias')) document.getElementById('colab-ferias-total-dias').value = '-';
+    // Reset Férias Fracionadas
+    const ffNao = document.querySelector('input[name="ferias_fracionadas_check"][value="Não"]');
+    if (ffNao) { ffNao.checked = true; }
+    if (typeof window.toggleFeriasFracionadas === 'function') window.toggleFeriasFracionadas('Não');
+    if (document.getElementById('colab-ferias-fracionadas-inicio2')) document.getElementById('colab-ferias-fracionadas-inicio2').value = '';
+    if (document.getElementById('colab-ferias-fracionadas-fim2')) document.getElementById('colab-ferias-fracionadas-fim2').value = '';
+    if (document.getElementById('colab-ferias-fracionadas-dias2')) document.getElementById('colab-ferias-fracionadas-dias2').value = '-';
     
     // Reset Alergias e novos campos
     if (document.getElementById('colab-alergias')) document.getElementById('colab-alergias').value = '';
@@ -3338,6 +3385,19 @@ window.editColaborador = async function(id) {
         if(document.getElementById('colab-ferias-programadas-fim')) document.getElementById('colab-ferias-programadas-fim').value = c.ferias_programadas_fim || '';
         if(typeof updateVacationInfo === 'function') updateVacationInfo(admDate);
         if(typeof calculateVacationDays === 'function') calculateVacationDays();
+
+        // Férias Fracionadas
+        const ffVal = c.ferias_fracionadas || 'Não';
+        const ffRadio = document.querySelector(`input[name="ferias_fracionadas_check"][value="${ffVal}"]`);
+        if (ffRadio) { ffRadio.checked = true; window.toggleFeriasFracionadas(ffVal); }
+        const ffTipo = c.ferias_fracionadas_tipo || '';
+        if (ffTipo) {
+            const ffTipoRadio = document.querySelector(`input[name="ferias_fracionadas_tipo"][value="${ffTipo}"]`);
+            if (ffTipoRadio) { ffTipoRadio.checked = true; window.toggleFeriasFracionadasTipo(ffTipo); }
+        }
+        if (document.getElementById('colab-ferias-fracionadas-inicio2')) document.getElementById('colab-ferias-fracionadas-inicio2').value = c.ferias_fracionadas_inicio2 || '';
+        if (document.getElementById('colab-ferias-fracionadas-fim2')) document.getElementById('colab-ferias-fracionadas-fim2').value = c.ferias_fracionadas_fim2 || '';
+        if (typeof window.calcularTotalFeriasFracionadas === 'function') window.calcularTotalFeriasFracionadas();
 
         // Alergias
         if (document.getElementById('colab-alergias')) {
@@ -3719,6 +3779,10 @@ if (formColab) {
             })).filter(x => x.chave_id),
             ferias_programadas_inicio: document.getElementById('colab-ferias-programadas-inicio') ? document.getElementById('colab-ferias-programadas-inicio').value : null,
             ferias_programadas_fim: document.getElementById('colab-ferias-programadas-fim') ? document.getElementById('colab-ferias-programadas-fim').value : null,
+            ferias_fracionadas: document.querySelector('input[name="ferias_fracionadas_check"]:checked')?.value || 'Não',
+            ferias_fracionadas_tipo: document.querySelector('input[name="ferias_fracionadas_tipo"]:checked')?.value || null,
+            ferias_fracionadas_inicio2: document.getElementById('colab-ferias-fracionadas-inicio2') ? document.getElementById('colab-ferias-fracionadas-inicio2').value || null : null,
+            ferias_fracionadas_fim2: document.getElementById('colab-ferias-fracionadas-fim2') ? document.getElementById('colab-ferias-fracionadas-fim2').value || null : null,
             adiantamento_salarial: document.querySelector('input[name="adiantamento_check"]:checked')?.value || 'Não',
             adiantamento_valor: document.getElementById('colab-adiantamento-valor') ? document.getElementById('colab-adiantamento-valor').value : null,
             insalubridade: document.querySelector('input[name="insalubridade_check"]:checked')?.value || 'Não',

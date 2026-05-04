@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ferias.js — Módulo de Controle de Férias
  * Versão 3.0 — Barra de progresso inteligente, status por concessão, marker de agendamento
  */
@@ -536,6 +536,30 @@
                 const tagBg   = emCurso ? '#f3e8ff'  : passadas ? '#f1f5f9'  : '#e0f2fe';
                 const tagIcon = emCurso ? 'ph-island' : passadas ? 'ph-check-circle' : 'ph-calendar';
                 const tagLabel = emCurso ? 'Em curso' : passadas ? 'Concluídas' : '';
+
+                // 2ª Data (férias fracionadas tiradas)
+                let frac2Html = '';
+                if (c.ferias_fracionadas === 'Sim' && c.ferias_fracionadas_tipo === 'Tirada' && c.ferias_fracionadas_inicio2) {
+                    const fIni2 = parseDate(c.ferias_fracionadas_inicio2);
+                    const fFim2 = c.ferias_fracionadas_fim2 ? parseDate(c.ferias_fracionadas_fim2) : null;
+                    const dias2 = (fIni2 && fFim2) ? diffDays(fIni2, fFim2) + 1 : null;
+                    const emCurso2 = fIni2 && fFim2 && hoje >= fIni2 && hoje <= fFim2;
+                    const tag2Cor = emCurso2 ? '#7c3aed' : '#8b5cf6';
+                    const tag2Bg  = emCurso2 ? '#f3e8ff' : '#f5f3ff';
+                    frac2Html = `<div style="margin-top:4px; display:flex; align-items:center; gap:5px;">
+                        <span style="font-size:0.67rem;font-weight:800;color:#8b5cf6;background:#f5f3ff;border-radius:4px;padding:1px 5px;border:1px solid #ddd6fe;">2ª fração</span>
+                        <span style="display:inline-flex;align-items:center;gap:4px;background:${tag2Bg};color:${tag2Cor};border-radius:6px;padding:3px 8px;font-size:0.77rem;font-weight:600;">
+                            <i class="ph ph-calendar-blank"></i>
+                            ${fmt(c.ferias_fracionadas_inicio2)}${c.ferias_fracionadas_fim2 ? ' → ' + fmt(c.ferias_fracionadas_fim2) : ''}
+                        </span>
+                        ${dias2 ? `<span style="font-size:0.73rem;color:#94a3b8;">${dias2}d</span>` : ''}
+                    </div>`;
+                } else if (c.ferias_fracionadas === 'Sim' && c.ferias_fracionadas_tipo === 'Vendida') {
+                    frac2Html = `<div style="margin-top:4px;">
+                        <span style="font-size:0.67rem;font-weight:800;color:#d97706;background:#fef3c7;border-radius:4px;padding:1px 5px;border:1px solid #fde68a;">Fração vendida</span>
+                    </div>`;
+                }
+
                 ferias_col = `<div>
                     <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
                         <span style="display:inline-flex;align-items:center;gap:4px;background:${tagBg};color:${tagCor};border-radius:6px;padding:3px 8px;font-size:0.77rem;font-weight:600;">
@@ -545,6 +569,7 @@
                         ${dias ? `<span style="font-size:0.73rem;color:#94a3b8;">${dias}d</span>` : ''}
                         ${tagLabel ? `<span style="font-size:0.7rem;font-weight:700;color:${tagCor};">${tagLabel}</span>` : ''}
                     </div>
+                    ${frac2Html}
                 </div>`;
             }
 
