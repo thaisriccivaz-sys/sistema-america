@@ -601,6 +601,100 @@ async function pipelineExportarExcel(registrosOverride) {
         const iconesTitulo = [icHab, icVar].filter(Boolean).join('');
         const titulo = (iconesTitulo ? iconesTitulo + ' ' : '') + (r.cliente || '').trim();
 
+        // --- INÍCIO: Cálculo Dinâmico de Cargas e Tempo de Serviço ---
+        let totalCargaVeiculo = 0;
+        let totalCargaTanque = 0;
+
+        for (const p of produtosArr) {
+            const equipamento = (p.desc || p.produto || '').trim().toUpperCase();
+            const quantidade = parseInt(p.qtd) || 0;
+            if (!equipamento) continue;
+
+            let cargaVeic = 0;
+            let cargaTanq = 0;
+
+            if (equipamento.includes('LIMPA FOSSA')) {
+                cargaTanq = 33 * quantidade;
+            } else if (!isManutObraEvento && !ts.includes('manut') && !ts.includes('manutenção')) {
+                if (equipamento.includes('OBRA')) {
+                    if (['STD OBRA', 'LX OBRA', 'EXL OBRA', 'GUARITA INDIVIDUAL OBRA', 'PBII OBRA', 'PBIII OBRA', 'CHUVEIRO OBRA', 'HIDRÁULICO OBRA'].includes(equipamento)) {
+                        cargaVeic = quantidade;
+                    } else if (['GUARITA DUPLA OBRA', 'PCD OBRA'].includes(equipamento)) {
+                        cargaVeic = 2 * quantidade;
+                    } else if (equipamento === 'MICTÓRIO OBRA') {
+                        let calc = Math.ceil(quantidade * 0.3333);
+                        cargaVeic = (calc % 2 !== 0) ? calc + 1 : calc;
+                    }
+                } else if (equipamento.includes('EVENTO')) {
+                    if (['STD EVENTO', 'LX EVENTO', 'EXL EVENTO', 'GUARITA INDIVIDUAL EVENTO', 'PIA II EVENTO', 'PIA III EVENTO', 'CHUVEIRO EVENTO', 'HIDRÁULICO EVENTO'].includes(equipamento)) {
+                        cargaVeic = quantidade;
+                    } else if (['GUARITA DUPLA EVENTO', 'PCD EVENTO'].includes(equipamento)) {
+                        cargaVeic = 2 * quantidade;
+                    } else if (equipamento === 'MICTÓRIO EVENTO') {
+                        let calc = Math.ceil(quantidade * 0.3333);
+                        cargaVeic = (calc % 2 !== 0) ? calc + 1 : calc;
+                    } else {
+                        cargaVeic = quantidade;
+                    }
+                }
+            }
+
+            if (ts.includes('manut') || ts.includes('manutenção') || ts.includes('retirada') || ts.includes('troca')) {
+                if (equipamento.includes('EVENTO')) {
+                    if (['STD EVENTO', 'LX EVENTO', 'EXL EVENTO', 'PCD EVENTO', 'CHUVEIRO EVENTO', 'HIDRÁULICO EVENTO'].includes(equipamento)) {
+                        cargaTanq = 5 * quantidade;
+                    } else if (equipamento === 'MICTÓRIO EVENTO') {
+                        cargaTanq = 10 * quantidade;
+                    } else if (['PIA II EVENTO', 'PIA III EVENTO'].includes(equipamento)) {
+                        cargaTanq = 1 * quantidade;
+                    } else {
+                        cargaTanq = quantidade;
+                    }
+                } else if (equipamento.includes('OBRA') || equipamento.includes('AVULSA')) {
+                    if (['STD OBRA', 'LX OBRA', 'EXL OBRA', 'PBII OBRA', 'PBIII OBRA', 'CHUVEIRO OBRA', 'HIDRÁULICO OBRA'].includes(equipamento)) {
+                        cargaTanq = 1 * quantidade;
+                    } else if (equipamento === 'MICTÓRIO OBRA') {
+                        cargaTanq = 4 * quantidade;
+                    } else {
+                        cargaTanq = quantidade;
+                    }
+                } else {
+                    cargaTanq = quantidade;
+                }
+            }
+
+            totalCargaVeiculo += cargaVeic;
+            totalCargaTanque += cargaTanq;
+        }
+
+        let valTanque = '', valCarroceria = '', valCarretinha = '';
+        if (ts.includes('manut') || ts.includes('manutenção')) {
+            valTanque = totalCargaTanque > 0 ? String(totalCargaTanque) : '0';
+            valCarroceria = '0';
+            valCarretinha = '0';
+        } else {
+            if (totalCargaVeiculo <= 12) {
+                valCarroceria = totalCargaVeiculo > 0 ? String(totalCargaVeiculo) : '0';
+                valCarretinha = '0';
+            } else {
+                valCarroceria = '0';
+                valCarretinha = String(totalCargaVeiculo);
+            }
+            if (ts.includes('retirada') || ts.includes('troca')) {
+                valTanque = totalCargaTanque > 0 ? String(totalCargaTanque) : '0';
+            } else {
+                valTanque = '0';
+            }
+        }
+
+        let baseMin = (ts.includes('manutencao') || ts.includes('manutenção')) ? 0 : 10;
+        const totalItens = produtosArr.reduce((acc, p) => acc + (parseInt(p.qtd) || 0), 0);
+        const totalMin = baseMin + (5 * totalItens);
+        const hh = String(Math.floor(totalMin / 60)).padStart(2, '0');
+        const mm = String(totalMin % 60).padStart(2, '0');
+        const valTempoServico = `${hh}:${mm}`;
+        // --- FIM: Cálculo Dinâmico de Cargas e Tempo de Serviço ---
+
         // B: Endereço completo
         const endereco = [r.endereco, r.complemento, r.cep ? `CEP: ${r.cep}` : ''].filter(Boolean).join(', ');
 
@@ -695,10 +789,10 @@ async function pipelineExportarExcel(registrosOverride) {
             (icVar ? icVar + ' ' : '') + obsIntStr, // A Obs Internas (com ícones tbm e sem nome do cliente)
             titulo,                  // B Titulo
             endereco,                // C Endereço completo
-            r.tanque || r.carga || '',// D Carga
+            valTanque,               // D Carga (Tanque)
             r.hora_inicio || '',     // E Janela de horário inicial
             r.hora_fim    || '',     // F Janela de horário final
-            r.tempo_servico || '',   // G Tempo de serviço
+            valTempoServico,         // G Tempo de serviço
             anotacoes,               // H Anotações2
             lat,                     // I Latitude
             lng,                     // J Longitude
@@ -709,8 +803,8 @@ async function pipelineExportarExcel(registrosOverride) {
             '',                      // O Pessoa de contato — não preencher
             '',                      // P Janela de horário inicial 2 — não preencher
             '',                      // Q Janela de horário final 2 — não preencher
-            r.carroceria || '',      // R Capacidade 2 — Carroceria
-            r.carretinha || '',      // S Capacidade 3 — Carretinha
+            valCarroceria,           // R Capacidade 2 — Carroceria
+            valCarretinha,           // S Capacidade 3 — Carretinha
             '',                      // T Prioridade — não preencher
             '',                      // U SMS — não preencher
             r.email || '',           // V Correio eletrônico de contato
