@@ -26,10 +26,27 @@ const SMTP_CONFIG = {
 // Injeta headers que reduzem chance de cair em spam em todos os envios.
 const _globalTransporter = nodemailer.createTransport(SMTP_CONFIG);
 async function sendMailHelper(opts) {
+    // Gera versão texto puro automaticamente a partir do HTML se não fornecida
+    // Isso reduz significativamente a chance de cair em spam
+    let textPlain = opts.text;
+    if (!textPlain && opts.html) {
+        textPlain = opts.html
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/<\/p>/gi, '\n\n')
+            .replace(/<\/div>/gi, '\n')
+            .replace(/<\/h[1-6]>/gi, '\n\n')
+            .replace(/<\/li>/gi, '\n')
+            .replace(/<[^>]+>/g, '')
+            .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ').replace(/&#10;/g, '\n')
+            .replace(/[ \t]{2,}/g, ' ')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
+    }
     return _globalTransporter.sendMail({
         ...opts,
         from: opts.from || '"America Rental" <americasistema48@gmail.com>',
         replyTo: opts.replyTo || 'americasistema48@gmail.com',
+        text: textPlain,
         headers: {
             'X-Mailer': 'America-Rental-ERP/1.0',
             'X-Priority': '3',
@@ -5708,11 +5725,11 @@ app.post('/api/send-atestado-contabilidade', authenticateToken, async (req, res)
 
         // Textos dinâmicos conforme período
         const emailTitulo = ehEsocial
-            ? '📋 Atestado Médico — Inclusão eSocial'
-            : '📋 Atestado Médico — Controle Interno';
+            ? '📋 Documento RH — Afastamento para eSocial'
+            : '📋 Documento RH — Controle de Afastamento';
         const emailSubject = ehEsocial
-            ? `Atestado Médico eSocial — ${colab.nome_completo} (${cidCode})`
-            : `Atestado Médico (Controle) — ${colab.nome_completo} (${cidCode})`;
+            ? `Documento RH enviado por América Rental — ${colab.nome_completo} (eSocial)`
+            : `Documento RH enviado por América Rental — ${colab.nome_completo} (Controle)`;
         const emailIntro = ehEsocial
             ? `Encaminhamos o atestado médico do colaborador abaixo para <strong>inclusão no cadastro do eSocial</strong>, pois o período de afastamento é de <strong style="color:#0f4c81;">${duracaoDias} dia(s)</strong>, atingindo o limite de 16 dias exigido pelo eSocial.`
             : `Encaminhamos o atestado médico do colaborador abaixo <strong>apenas para controle interno</strong>. O período de afastamento de <strong>${duracaoDias > 0 ? duracaoDias + ' dia(s)' : tipo}</strong> não atinge o mínimo de 16 dias exigido pelo eSocial e <strong>não requer lançamento</strong>.`;
