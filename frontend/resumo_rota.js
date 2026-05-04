@@ -665,68 +665,173 @@ window.rrExportarExcel = async function() {
     await _rrGerarExcel();
 };
 
-// ── Gera e baixa o arquivo Excel ───────────────────────────────
+// ── Gera e baixa o arquivo Excel com DUAS tabelas ──────────────
 async function _rrGerarExcel() {
     const wb = new ExcelJS.Workbook();
     wb.creator = 'América Rental';
     const ws = wb.addWorksheet('Resumo de Rota');
 
-    const hdr = ws.addRow(['PLACA / VEÍCULO', 'RESUMO']);
-    hdr.getCell(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    hdr.getCell(2).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    hdr.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A3C2E' } };
-    hdr.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A3C2E' } };
-    hdr.height = 20;
+    // ─── Cabeçalhos exatos do SimpliRoute (43 colunas) ──────────
+    // Coluna A (índice 0) = placa do veículo
+    // Coluna AJ (índice 35, 1-based col 36) = Notas = resumo
+    const SR_HEADERS = [
+        'ID da visita','Tracking ID','Referência ID','Data prevista',
+        'Motorista','Co-pilotos','Veículo','Título','Endereço','ETA','ETD',
+        'Checkin','Checkout','Responsável','Tempo de serviço estimado',
+        'Tempo de serviço realme','Antecipação','Atraso','Latitude','Longitude',
+        'Checkout latitude','Checkout longitude','Load','Load 2','Load 3','Load 4',
+        'Estado','Comentários','Observações',
+        'Janela de horário Inicial 1','Janela de horário Final 1',
+        'Janela de horário Inicial 2','Janela de horário Final 2',
+        'Habilidades necessárias','Habilidades adicionais',
+        'Notas',                           // col AJ (1-based 36)
+        'Nome de contato','Telefone de contato','Correio eletrônico de contato',
+        'ID da rota','ID da conta','Nome da conta','Nome de quem assinou:'
+    ];
+    const AJ_COL = 36; // 1-based index of "Notas" = column AJ
 
-    let currentRowIdx = 2;
+    const darkGreen = { argb: 'FF1A3C2E' };
+    const lightGreen = { argb: 'FFF0FBF4' };
+    const borderThin = { style: 'thin', color: { argb: 'FFCBD5E1' } };
+    const borderStyle = { top: borderThin, bottom: borderThin, left: borderThin, right: borderThin };
+
+    // ═══════════════════════════════════════════════════════════
+    //  TABELA 1 — Formato SimpliRoute
+    // ═══════════════════════════════════════════════════════════
+    // Linha de título
+    const tit1 = ws.addRow(['TABELA 1 — FORMATO SIMPLIROUTE (importar direto no sistema de rotas)']);
+    tit1.getCell(1).font = { bold: true, size: 11, color: { argb: 'FFFFFFFF' } };
+    tit1.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F4C2F' } };
+    ws.mergeCells(`A1:AQ1`);
+    tit1.height = 18;
+
+    // Cabeçalho
+    const hdr1 = ws.addRow(SR_HEADERS);
+    SR_HEADERS.forEach((_, ci) => {
+        const cell = hdr1.getCell(ci + 1);
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: darkGreen };
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        cell.border = borderStyle;
+    });
+    hdr1.height = 22;
+
+    let rowIdx = 3; // próxima linha disponível (1-based)
     _rrVeiculos.forEach((v, i) => {
-        // --- Linha 1: Saída ---
-        const colA_saida = `${v.veiculo} - Saída`;
         const colB = v.colBEditado || _rrMontarColB(v);
-        const rowSaida  = ws.addRow([colA_saida, colB]);
+        const nLines = (colB.match(/\n/g) || []).length + 1;
+        const rowH   = Math.max(20, nLines * 14);
+        const zebra  = i % 2 === 0 ? lightGreen : null;
 
+        // --- Saída ---
+        const dataSaida = new Array(43).fill('');
+        dataSaida[0]       = `${v.veiculo} - Saída`;
+        dataSaida[4]       = v.motorista || '';   // Motorista
+        dataSaida[5]       = v.ajudante  || '';   // Co-pilotos
+        dataSaida[6]       = v.veiculo   || '';   // Veículo
+        dataSaida[AJ_COL - 1] = colB;            // Notas = resumo (0-based = 35)
+
+        const rowSaida = ws.addRow(dataSaida);
+        rowSaida.getCell(1).font = { bold: true, size: 9 };
+        rowSaida.getCell(AJ_COL).alignment = { vertical: 'top', wrapText: true };
+        rowSaida.height = rowH;
+        if (zebra) {
+            [1, AJ_COL].forEach(c => {
+                rowSaida.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: zebra };
+            });
+        }
+        [1, AJ_COL].forEach(c => { rowSaida.getCell(c).border = borderStyle; });
+
+        // --- Retorno ---
+        const dataRetorno = new Array(43).fill('');
+        dataRetorno[0] = `${v.veiculo} - Retorno`;
+        dataRetorno[6] = v.veiculo || '';
+
+        const rowRetorno = ws.addRow(dataRetorno);
+        rowRetorno.getCell(1).font = { bold: true, size: 9 };
+        rowRetorno.height = 30;
+        if (zebra) {
+            rowRetorno.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: zebra };
+        }
+        rowRetorno.getCell(1).border = borderStyle;
+
+        rowIdx += 2;
+    });
+
+    // Larguras Tabela 1
+    ws.getColumn(1).width  = 38;  // A: placa
+    ws.getColumn(5).width  = 22;  // E: Motorista
+    ws.getColumn(6).width  = 22;  // F: Co-pilotos
+    ws.getColumn(7).width  = 22;  // G: Veículo
+    ws.getColumn(AJ_COL).width = 70; // AJ: Notas/Resumo
+    // Demais colunas: largura pequena
+    for (let c = 2; c <= 43; c++) {
+        if (![1, 5, 6, 7, AJ_COL].includes(c)) ws.getColumn(c).width = 12;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  3 LINHAS EM BRANCO de separação
+    // ═══════════════════════════════════════════════════════════
+    ws.addRow([]);
+    ws.addRow([]);
+    const sepRow = ws.addRow(['─'.repeat(80)]);
+    sepRow.getCell(1).font = { color: { argb: 'FFCBD5E1' } };
+    ws.addRow([]);
+
+    // ═══════════════════════════════════════════════════════════
+    //  TABELA 2 — Formato simples (Placa + Resumo)
+    // ═══════════════════════════════════════════════════════════
+    const tit2Row = ws.addRow(['TABELA 2 — RESUMO SIMPLIFICADO (leitura rápida)']);
+    tit2Row.getCell(1).font = { bold: true, size: 11, color: { argb: 'FFFFFFFF' } };
+    tit2Row.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F4C2F' } };
+    ws.mergeCells(`A${tit2Row.number}:B${tit2Row.number}`);
+    tit2Row.height = 18;
+
+    const hdr2 = ws.addRow(['PLACA / VEÍCULO', 'RESUMO']);
+    hdr2.getCell(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    hdr2.getCell(2).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    hdr2.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: darkGreen };
+    hdr2.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: darkGreen };
+    hdr2.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+    hdr2.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' };
+    hdr2.height = 20;
+
+    _rrVeiculos.forEach((v, i) => {
+        const colB   = v.colBEditado || _rrMontarColB(v);
+        const nLines = (colB.match(/\n/g) || []).length + 1;
+        const rowH   = Math.max(15, nLines * 15);
+        const zebra  = i % 2 === 0 ? lightGreen : null;
+
+        // Saída
+        const rowSaida = ws.addRow([`${v.veiculo} - Saída`, colB]);
         rowSaida.getCell(1).font = { bold: true };
         rowSaida.getCell(1).alignment = { vertical: 'top', wrapText: true };
         rowSaida.getCell(2).alignment = { vertical: 'top', wrapText: true };
-        rowSaida.height = Math.max(15, ((colB.match(/\n/g) || []).length + 1) * 15);
+        rowSaida.height = rowH;
+        if (zebra) {
+            rowSaida.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: zebra };
+            rowSaida.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: zebra };
+        }
+        rowSaida.getCell(1).border = borderStyle;
+        rowSaida.getCell(2).border = borderStyle;
 
-        // --- Linha 2: Retorno ---
-        const colA_retorno = `${v.veiculo} - Retorno`;
-        const rowRetorno = ws.addRow([colA_retorno, '']);
-        
+        // Retorno
+        const rowRetorno = ws.addRow([`${v.veiculo} - Retorno`, '']);
         rowRetorno.getCell(1).font = { bold: true };
         rowRetorno.getCell(1).alignment = { vertical: 'top', wrapText: true };
         rowRetorno.getCell(2).alignment = { vertical: 'top', wrapText: true };
-        rowRetorno.height = 30; // Altura extra para observações de retorno escritas à mão
-
-        // Zebra (por veículo)
-        if (i % 2 === 0) {
-            rowSaida.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0FBF4' } };
-            rowSaida.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0FBF4' } };
-            rowRetorno.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0FBF4' } };
-            rowRetorno.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0FBF4' } };
+        rowRetorno.height = 30;
+        if (zebra) {
+            rowRetorno.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: zebra };
+            rowRetorno.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: zebra };
         }
-
-        // Bordas
-        ['A', 'B'].forEach(col => {
-            ws.getCell(`${col}${currentRowIdx}`).border = {
-                top:    { style: 'thin', color: { argb: 'FFCBD5E1' } },
-                bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } },
-                left:   { style: 'thin', color: { argb: 'FFCBD5E1' } },
-                right:  { style: 'thin', color: { argb: 'FFCBD5E1' } },
-            };
-            ws.getCell(`${col}${currentRowIdx + 1}`).border = {
-                top:    { style: 'thin', color: { argb: 'FFCBD5E1' } },
-                bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } },
-                left:   { style: 'thin', color: { argb: 'FFCBD5E1' } },
-                right:  { style: 'thin', color: { argb: 'FFCBD5E1' } },
-            };
-        });
-
-        currentRowIdx += 2;
+        rowRetorno.getCell(1).border = borderStyle;
+        rowRetorno.getCell(2).border = borderStyle;
     });
 
-    ws.getColumn(1).width = 35;
+    // Col B da Tabela 2 já herdou width=70 da Tabela 1 (mesma coluna B)
+    // (ws.getColumn(2).width já está 70 implicitamente pela Tabela 1 ser mais larga em outras colunas)
+    // Força a largura da col B para a Tabela 2
     ws.getColumn(2).width = 70;
 
     const buf  = await wb.xlsx.writeBuffer();
@@ -734,4 +839,5 @@ async function _rrGerarExcel() {
     const hoje = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
     saveAs(blob, `Resumo_Rota_${hoje}.xlsx`);
     showToast('✅ Planilha exportada e salva no histórico!', 'success');
-};
+}
+
