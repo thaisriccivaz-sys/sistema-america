@@ -3785,7 +3785,7 @@ function renderRotaRedonda() {
                 <!-- HORÁRIOS E DIAS -->
                 <div style="display: flex; gap: 0.5rem; align-items: center; background: #f8fafc; padding: 0.4rem 0.5rem; border-radius: 6px; border: 1px solid #e2e8f0; flex-wrap: wrap;">
                     <label style="display:flex; align-items:center; gap:2px; font-size:0.75rem; color:#475569; cursor:pointer;"><input type="checkbox" id="rr-chk-diurno"> Diurno</label>
-                    <label style="display:flex; align-items:center; gap:2px; font-size:0.75rem; color:#475569; cursor:pointer;"><input type="checkbox" id="rr-chk-noturno" onchange="(function(chk){ atualizarIconesCliente(); if(chk.checked){ var hi=document.getElementById('rr-input-hora-inicio'); var hf=document.getElementById('rr-input-hora-fim'); if(hi&&!hi.value) hi.value='20:00'; if(hf&&!hf.value) hf.value='23:00'; } })(this)"> Noturno</label>
+                    <label style="display:flex; align-items:center; gap:2px; font-size:0.75rem; color:#475569; cursor:pointer;"><input type="checkbox" id="rr-chk-noturno" onchange="(function(chk){ atualizarIconesCliente(); if(chk.checked){ var hi=document.getElementById('rr-input-hora-inicio'); var hf=document.getElementById('rr-input-hora-fim'); if(hi) hi.value='20:00'; if(hf) hf.value='23:00'; } })(this)"> Noturno</label>
                     <div style="width: 1px; height: 16px; background: #cbd5e1; margin: 0 2px;"></div>
                     <span style="font-size: 0.75rem; font-weight: 600; color:#475569;">Horário:</span>
                     <input type="time" id="rr-input-hora-inicio" style="${inputStyle} width: 75px;"> às 
