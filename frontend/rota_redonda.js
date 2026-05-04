@@ -1575,9 +1575,11 @@ function exibirModalAgendaEndereco(data, enderecoAtual) {
     const renderTabela = (lista, cor, semDist = false) => {
         if (!lista.length) return '';
         return lista.map(os => {
-            const dias = parseDiasFront(os.dias_semana);
+            const diasRaw = parseDiasFront(os.dias_semana);
+            const dias = diasRaw.map(normalizarDia).filter(Boolean);
             const pills = DIAS_ALL.map(d => {
-                const ativo = dias.includes(d);
+                const dNorm = normalizarDia(d) || d;
+                const ativo = dias.includes(dNorm) || diasRaw.includes(d);
                 return `<span style="display:inline-flex;align-items:center;justify-content:center;min-width:32px;height:22px;border-radius:5px;font-size:0.65rem;font-weight:700;background:${ativo?(colorMap[d]||cor):'#f1f5f9'};color:${ativo?'white':'#94a3b8'};margin:1px;">${d}</span>`;
             }).join('');
             const distCell = os.distancia_km !== undefined
