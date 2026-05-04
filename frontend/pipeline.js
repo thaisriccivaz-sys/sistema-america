@@ -669,21 +669,21 @@ async function pipelineExportarExcel(registrosOverride) {
 
         let valTanque = '', valCarroceria = '', valCarretinha = '';
         if (ts.includes('manut') || ts.includes('manutenção')) {
-            valTanque = totalCargaTanque > 0 ? String(totalCargaTanque) : '0';
-            valCarroceria = '0';
-            valCarretinha = '0';
+            valTanque = totalCargaTanque > 0 ? String(totalCargaTanque) : '';
+            valCarroceria = '';
+            valCarretinha = '';
         } else {
             if (totalCargaVeiculo <= 12) {
-                valCarroceria = totalCargaVeiculo > 0 ? String(totalCargaVeiculo) : '0';
-                valCarretinha = '0';
+                valCarroceria = totalCargaVeiculo > 0 ? String(totalCargaVeiculo) : '';
+                valCarretinha = '';
             } else {
-                valCarroceria = '0';
+                valCarroceria = '';
                 valCarretinha = String(totalCargaVeiculo);
             }
             if (ts.includes('retirada') || ts.includes('troca')) {
-                valTanque = totalCargaTanque > 0 ? String(totalCargaTanque) : '0';
+                valTanque = totalCargaTanque > 0 ? String(totalCargaTanque) : '';
             } else {
-                valTanque = '0';
+                valTanque = '';
             }
         }
 
