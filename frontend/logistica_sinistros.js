@@ -258,20 +258,29 @@ window.logSinAbrirModalColaborador = function() {
         alert('Selecione um colaborador antes de criar um sinistro.');
         return;
     }
-    // Reaproveitamos o modal do sinistros.js, mas injetamos o colaborador como viewedColaborador temporário
-    window._logSin_viewedBackup = window.viewedColaborador;
-    window.viewedColaborador = _logSinColabSelecionado;
+    try {
+        // Injeta o colaborador selecionado na variável global usada pelo sinistros.js
+        // (é um 'let' em app.js, precisa ser atribuído diretamente)
+        viewedColaborador = _logSinColabSelecionado;
 
-    // Sobrescreve _recarregarListaSinistros temporariamente para recarregar a lista da logística
-    window._logSin_recarregarBackup = window._recarregarListaSinistros;
-    window._recarregarListaSinistros = async function(colabId) {
-        await window.logSinCarregarLista(colabId);
-        // Restaura
-        window.viewedColaborador = window._logSin_viewedBackup;
-        window._recarregarListaSinistros = window._logSin_recarregarBackup;
-    };
+        // Sobrescreve _recarregarListaSinistros para recarregar a lista da logística ao finalizar
+        const _backupRecarregar = window._recarregarListaSinistros;
+        const _backupViewed    = null; // viewedColaborador será restaurado abaixo
 
-    window.abrirModalNovoSinistro();
+        window._recarregarListaSinistros = async function(colabId) {
+            // Recarrega a lista de logística
+            await window.logSinCarregarLista(colabId);
+            // Restaura viewedColaborador para null (saiu do contexto do prontuário)
+            viewedColaborador = null;
+            // Restaura o _recarregarListaSinistros original
+            window._recarregarListaSinistros = _backupRecarregar;
+        };
+
+        window.abrirModalNovoSinistro();
+    } catch(e) {
+        console.error('[LogSinistros] Erro ao abrir modal:', e);
+        alert('Erro ao abrir modal de sinistro: ' + e.message);
+    }
 };
 
 /* ── Ações: gerar, ver, excluir, assinar (delegam ao sinistros.js) ─ */
@@ -290,39 +299,33 @@ window.logSinGerarDocumento = async function(sinId, colabId) {
 };
 
 window.logSinVerDocumento = async function(sinId, colabId) {
-    // Usa o verDocumentoSinistro do sinistros.js, precisa do viewedColaborador definido
-    window._logSin_viewedBackup = window.viewedColaborador;
-    window.viewedColaborador = _logSinColabSelecionado;
+    const _backup = viewedColaborador;
+    viewedColaborador = _logSinColabSelecionado;
     await window.verDocumentoSinistro(sinId, colabId);
-    window.viewedColaborador = window._logSin_viewedBackup;
+    viewedColaborador = _backup;
 };
 
 window.logSinAbrirAssinaturaTestemunhas = async function(sinId, colabId) {
-    window._logSin_viewedBackup = window.viewedColaborador;
-    window.viewedColaborador = _logSinColabSelecionado;
-
-    // Sobrescreve _recarregarListaSinistros para recarregar lista da logística
-    window._logSin_recarregarBackup = window._recarregarListaSinistros;
+    const _backupViewed    = viewedColaborador;
+    const _backupRecarregar = window._recarregarListaSinistros;
+    viewedColaborador = _logSinColabSelecionado;
     window._recarregarListaSinistros = async function(cId) {
         await window.logSinCarregarLista(cId);
-        window.viewedColaborador = window._logSin_viewedBackup;
-        window._recarregarListaSinistros = window._logSin_recarregarBackup;
+        viewedColaborador = _backupViewed;
+        window._recarregarListaSinistros = _backupRecarregar;
     };
-
     await window.abrirModalAssinaturaTestemunhasSinistro(sinId, colabId);
 };
 
 window.logSinAbrirAssinaturaCondutor = async function(sinId, colabId) {
-    window._logSin_viewedBackup = window.viewedColaborador;
-    window.viewedColaborador = _logSinColabSelecionado;
-
-    window._logSin_recarregarBackup = window._recarregarListaSinistros;
+    const _backupViewed    = viewedColaborador;
+    const _backupRecarregar = window._recarregarListaSinistros;
+    viewedColaborador = _logSinColabSelecionado;
     window._recarregarListaSinistros = async function(cId) {
         await window.logSinCarregarLista(cId);
-        window.viewedColaborador = window._logSin_viewedBackup;
-        window._recarregarListaSinistros = window._logSin_recarregarBackup;
+        viewedColaborador = _backupViewed;
+        window._recarregarListaSinistros = _backupRecarregar;
     };
-
     await window.abrirModalAssinaturaCondutorSinistro(sinId, colabId);
 };
 
