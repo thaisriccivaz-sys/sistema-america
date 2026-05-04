@@ -219,6 +219,8 @@ let _rrHistoricoList   = [];
 window._rrOriginalFileBase64 = null;
 window._rrOriginalFileName   = null;
 window._rrDefaultNomeResumo  = '';
+window._rrColabFotoMap       = {};
+window._rrColabNomes         = [];
 
 // ── Token helper ───────────────────────────────────────────────
 function _rrAuthHeaders() {
@@ -266,6 +268,17 @@ window.renderResumoRota = function() {
         </div>
     </div>
     <div id="rr-corpo" style="padding:20px;"></div>`;
+
+    if (!document.getElementById('rr-colabs-list')) {
+        const dl = document.createElement('datalist');
+        dl.id = 'rr-colabs-list';
+        document.body.appendChild(dl);
+    }
+    if (!window._rrColabNomes.length) {
+        window._rrCarregarDicionarioColaboradores();
+    } else {
+        window._rrAtualizarDatalistColabs();
+    }
 
     _rrRenderCorpo();
     window.rrListarHistorico();
@@ -563,9 +576,9 @@ function _rrRenderCorpo() {
             ? `<img src="${foto}" title="${nome||''}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.6);">`
             : `<div style="width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:0.9rem;font-weight:700;color:#fff;border:1px dashed rgba(255,255,255,0.5);">${(nome&&nome.trim()) ? nome.trim()[0].toUpperCase() : '+'}</div>`;
 
-        // Helper de input editável inline (sempre visível, inclusive se vazio)
+        // Helper de input editável inline (sempre visível, inclusive se vazio) com datalist
         const _inp = (campo, val, placeholder) =>
-            `<input value="${(val||'').replace(/"/g,'&quot;')}" placeholder="${placeholder}"
+            `<input value="${(val||'').replace(/"/g,'&quot;')}" placeholder="${placeholder}" list="rr-colabs-list"
                 style="font-size:0.78rem;color:#fff;background:rgba(0,0,0,0.12);border:none;border-bottom:1px dashed rgba(255,255,255,0.5);outline:none;width:150px;padding:2px 5px;border-radius:3px;"
                 onfocus="this.style.background='rgba(0,0,0,0.25)'"
                 onblur="this.style.background='rgba(0,0,0,0.12)'"
@@ -573,10 +586,10 @@ function _rrRenderCorpo() {
                 title="Editar ${placeholder}">`;
 
         const fotosMot = `<div style="display:flex;align-items:center;gap:6px;" title="Motorista">
-            ${_avatar(v._fotoMotorista, v.motorista)}
+            <span id="rr-avatar-mot-${i}">${_avatar(v._fotoMotorista, v.motorista)}</span>
             ${_inp('motorista', v.motorista, 'Motorista...')}</div>`;
         const fotosAju = `<div style="display:flex;align-items:center;gap:6px;" title="Ajudante">
-            ${_avatar(v._fotoAjudante, v.ajudante)}
+            <span id="rr-avatar-aju-${i}">${_avatar(v._fotoAjudante, v.ajudante)}</span>
             ${_inp('ajudante', v.ajudante, 'Ajudante...')}</div>`;
         const fotosDiv = `<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;">${fotosMot}${fotosAju}</div>`;
 
@@ -633,8 +646,29 @@ window._rrAtualizarVeiculo = function(idx, campo, valor) {
     if (!_rrVeiculos[idx]) return;
     _rrVeiculos[idx][campo] = valor;
 
-    // Sincroniza no textarea de colB (motorista e ajudante aparecem no final do texto)
     if (campo === 'motorista' || campo === 'ajudante') {
+        const fotoKey = campo === 'motorista' ? '_fotoMotorista' : '_fotoAjudante';
+        const spanId  = campo === 'motorista' ? `rr-avatar-mot-${idx}` : `rr-avatar-aju-${idx}`;
+        const nomeLower = (valor || '').trim().toLowerCase();
+        
+        // Atualiza a foto se houver correspondência exata no datalist
+        if (window._rrColabFotoMap && window._rrColabFotoMap[nomeLower]) {
+            _rrVeiculos[idx][fotoKey] = window._rrColabFotoMap[nomeLower];
+        } else {
+            _rrVeiculos[idx][fotoKey] = null; // Remove foto se apagou ou não achou
+        }
+
+        // Atualiza o DOM do avatar diretamente (preserva foco/tab)
+        const spanEl = document.getElementById(spanId);
+        if (spanEl) {
+            const f = _rrVeiculos[idx][fotoKey];
+            const n = valor;
+            spanEl.innerHTML = f 
+                ? `<img src="${f}" title="${n||''}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.6);">`
+                : `<div style="width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:0.9rem;font-weight:700;color:#fff;border:1px dashed rgba(255,255,255,0.5);">${(n&&n.trim()) ? n.trim()[0].toUpperCase() : '+'}</div>`;
+        }
+
+        // Sincroniza no textarea de colB
         const ta = document.querySelector(`.rr-textarea-edit[data-index="${idx}"]`);
         if (ta) {
             const label  = campo === 'motorista' ? 'Motorista' : 'Ajudante';
@@ -651,6 +685,37 @@ window._rrAtualizarVeiculo = function(idx, campo, valor) {
             _rrVeiculos[idx].colBEditado = txt;
         }
     }
+};
+
+window._rrCarregarDicionarioColaboradores = async function() {
+    try {
+        const res = await fetch('/api/colaboradores/resumo', { headers: _rrAuthHeaders() });
+        if (!res.ok) return;
+        const list = await res.json();
+        window._rrColabNomes = [];
+        window._rrColabFotoMap = {};
+        list.forEach(c => {
+            const nome = (c.nome_completo || '').trim();
+            if (nome) {
+                window._rrColabNomes.push(nome);
+                window._rrColabFotoMap[nome.toLowerCase()] = `/api/colaboradores/foto/${c.id}`;
+            }
+        });
+        window._rrAtualizarDatalistColabs();
+    } catch(e) {
+        console.error('[RR] Erro ao carregar dicionário de colaboradores globais', e);
+    }
+};
+
+window._rrAtualizarDatalistColabs = function() {
+    const dl = document.getElementById('rr-colabs-list');
+    if (!dl) return;
+    dl.innerHTML = '';
+    window._rrColabNomes.forEach(nome => {
+        const opt = document.createElement('option');
+        opt.value = nome;
+        dl.appendChild(opt);
+    });
 };
 
 // ══════════════════════════════════════════════════════════════
