@@ -2306,7 +2306,7 @@ async function loadColaboradores() {
     }
 }
 
-window._colabSortCol = null;
+window._colabSortCol = 'nome';
 window._colabSortDir = 'asc';
 
 window.colabToggleSort = function(col) {
