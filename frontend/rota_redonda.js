@@ -2770,6 +2770,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         mostrarToastAviso('✅ Ambas as OS da Troca foram salvas (Entrega e Retirada)!');
                     }
                     exibirModalSucessoOS(firstId, payloadsParaEnviar[0]);
+                    // Atualiza histórico automaticamente
+                    if (typeof window._rrRecarregarHistorico === 'function') window._rrRecarregarHistorico();
                 } else if (salvosComSucesso > 0) {
                     mostrarToastAviso(`Atenção: Salvo parcialmente. Falhas: ${errorMsgs.join(', ')}`);
                 } else {
@@ -4005,7 +4007,6 @@ function _rrMontarDrawerHistorico() {
         <div id="rr-hist-panel"
             style="
                 width:100%; background:#fff;
-                border-top:2px solid #16a34a;
                 box-shadow:0 -4px 20px rgba(0,0,0,0.12);
                 max-height:0; overflow:hidden;
                 transition:max-height 0.32s cubic-bezier(.4,0,.2,1);
@@ -4130,7 +4131,26 @@ function _rrMontarDrawerHistorico() {
         if (_aberto && _dados.length === 0) _carregar();
     };
 
+    // ── Recarrega dados sem fechar (chamado automaticamente ao salvar OS) ─────
+    window._rrRecarregarHistorico = function() {
+        _carregar(); // atualiza cache e re-renderiza
+    };
+
     window._rrFiltrarHistorico = filtro => _renderLinhas(filtro);
+
+    // ── Fechar ao clicar fora do drawer ───────────────────────────────────────
+    document.addEventListener('mousedown', function _rrClickFora(e) {
+        if (!_aberto) return;
+        const wrapper = document.getElementById('rr-hist-wrapper');
+        if (wrapper && !wrapper.contains(e.target)) {
+            // Clicou fora: fechar
+            const panel = document.getElementById('rr-hist-panel');
+            const icon  = document.getElementById('rr-hist-icon');
+            if (panel) panel.style.maxHeight = '0';
+            if (icon) icon.className = 'ph ph-caret-up-bold';
+            _aberto = false;
+        }
+    });
 }
 
 window._rrCarregarOsDrawer = function(id) {
