@@ -11439,7 +11439,7 @@ function verificarLicencasVencimentoCron() {
                 const diffDias = Math.ceil((dataValidade - hoje) / 86400000);
 
                 // Regras de envio
-                const envio3Meses = ['PCMSO', 'ALVARÁ', 'AVCB', 'CADRI', 'CLI', 'Licença de Operação', 'CETESB', 'LTCAT', 'LI - Licença de Instalação', 'LO - Licença de Operação', 'Declaração de Contrato', 'Declaração de Vigência', 'Contrato', 'Alvará', 'LO'];
+                const envio3Meses = ['PCMSO', 'ALVARÁ', 'AVCB', 'CADRI', 'CLI', 'Licença de Operação', 'CETESB', 'LTCAT', 'LI - Licença de Instalação', 'LO - Licença de Operação', 'Declaração de Contrato', 'Contrato', 'Alvará', 'LO'];
                 const envioDia = ['CND Estadual', 'CND Federal', 'CND Municipal', 'CND Trabalhista', 'CTF IBAMA'];
 
                 const nomeNorm = lic.nome.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();

@@ -25,7 +25,7 @@ const LICENCAS_CONFIG = {
         icon: 'ph-leaf',
         docs: [
             'CLI - Alvará', 'AVCB', 'CADRI', 'Cartão CNPJ', 'CTF IBAMA',
-            'Declaração de Contrato', 'Declaração de Vigência',
+            'Declaração de Contrato',
             'LI - Licença de Instalação', 'LO - CETESB'
         ]
     },
