@@ -108,13 +108,17 @@ window.renderLogisticaDashboard = async function() {
                 <h3 style="margin:0 0 1rem; font-size:0.95rem; font-weight:700; color:#1e293b; display:flex; align-items:center; gap:8px;">
                     <i class="ph ph-calendar-check" style="color:#2d9e5f;"></i> Atendimentos por Dia da Semana
                 </h3>
-                <canvas id="chart-dias-semana" height="220"></canvas>
+                <div style="position: relative; height: 260px; width: 100%;">
+                    <canvas id="chart-dias-semana"></canvas>
+                </div>
             </div>
             <div class="dash-card" style="background:#fff; border-radius:14px; border:1px solid #e2e8f0; box-shadow:0 2px 10px rgba(0,0,0,0.05); padding:1.25rem;">
                 <h3 style="margin:0 0 1rem; font-size:0.95rem; font-weight:700; color:#1e293b; display:flex; align-items:center; gap:8px;">
                     <i class="ph ph-chart-pie" style="color:#7c3aed;"></i> Tipos de Serviço
                 </h3>
-                <canvas id="chart-tipos-servico" height="220"></canvas>
+                <div style="position: relative; height: 260px; width: 100%;">
+                    <canvas id="chart-tipos-servico"></canvas>
+                </div>
             </div>
         </div>
 
@@ -124,7 +128,9 @@ window.renderLogisticaDashboard = async function() {
                 <i class="ph ph-toilet" style="color:#06b6d4;"></i> Serviços e Banheiros por Motorista
             </h3>
             <div style="overflow-x:auto;">
-                <canvas id="chart-motorista-banheiros" height="180"></canvas>
+                <div style="position: relative; height: 260px; min-width: 600px;">
+                    <canvas id="chart-motorista-banheiros"></canvas>
+                </div>
             </div>
         </div>
 
