@@ -671,24 +671,19 @@ async function _rrGerarExcel() {
     wb.creator = 'América Rental';
     const ws = wb.addWorksheet('Resumo de Rota');
 
-    // ─── Cabeçalhos exatos do SimpliRoute (43 colunas) ──────────
-    // Coluna A (índice 0) = placa do veículo
-    // Coluna AJ (índice 35, 1-based col 36) = Notas = resumo
+    // ─── Cabeçalhos exatos da nova planilha de exemplo (26 colunas) ──────────
     const SR_HEADERS = [
-        'ID da visita','Tracking ID','Referência ID','Data prevista',
-        'Motorista','Co-pilotos','Veículo','Título','Endereço','ETA','ETD',
-        'Checkin','Checkout','Responsável','Tempo de serviço estimado',
-        'Tempo de serviço realme','Antecipação','Atraso','Latitude','Longitude',
-        'Checkout latitude','Checkout longitude','Load','Load 2','Load 3','Load 4',
-        'Estado','Comentários','Observações',
-        'Janela de horário Inicial 1','Janela de horário Final 1',
-        'Janela de horário Inicial 2','Janela de horário Final 2',
-        'Habilidades necessárias','Habilidades adicionais',
-        'Notas',                           // col AJ (1-based 36)
-        'Nome de contato','Telefone de contato','Correio eletrônico de contato',
-        'ID da rota','ID da conta','Nome da conta','Nome de quem assinou:'
+        "Titulo*    Solicitado", "endereço completo*    Solicitado", "Carga",
+        "Janela de horário inicial", "Janela de horário final", "Tempo de serviço",
+        "Anotações", "Latitude", "Longitude", "Identificação de referência",
+        "Habilidade necessária", "Habilidade opcional", "Pessoa de contato",
+        "Telefone de contato", "Janela de horário inicial 2", "Janela de horário final 2",
+        "Capacidade 2", "Capacidade 3", "Prioridade", "SMS", "Correio eletrônico de contato",
+        "Carga pick", "Carga pick 2", "Carga pick 3", "Data agendada", "Tipo de visita"
     ];
-    const AJ_COL = 36; // 1-based index of "Notas" = column AJ
+    const ANOTACOES_COL = 7; // 1-based index of "Anotações" = column G
+    const LAT_COL = 8;       // 1-based index of "Latitude" = column H
+    const LON_COL = 9;       // 1-based index of "Longitude" = column I
 
     const darkGreen = { argb: 'FF1A3C2E' };
     const lightGreen = { argb: 'FFF0FBF4' };
@@ -698,14 +693,12 @@ async function _rrGerarExcel() {
     // ═══════════════════════════════════════════════════════════
     //  TABELA 1 — Formato SimpliRoute
     // ═══════════════════════════════════════════════════════════
-    // Linha de título
     const tit1 = ws.addRow(['TABELA 1 — FORMATO SIMPLIROUTE (importar direto no sistema de rotas)']);
     tit1.getCell(1).font = { bold: true, size: 11, color: { argb: 'FFFFFFFF' } };
     tit1.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F4C2F' } };
-    ws.mergeCells(`A1:AQ1`);
+    ws.mergeCells(`A1:Z1`);
     tit1.height = 18;
 
-    // Cabeçalho
     const hdr1 = ws.addRow(SR_HEADERS);
     SR_HEADERS.forEach((_, ci) => {
         const cell = hdr1.getCell(ci + 1);
@@ -724,49 +717,50 @@ async function _rrGerarExcel() {
         const zebra  = i % 2 === 0 ? lightGreen : null;
 
         // --- Saída ---
-        const dataSaida = new Array(43).fill('');
-        dataSaida[0]       = `${v.veiculo} - Saída`;
-        dataSaida[4]       = v.motorista || '';   // Motorista
-        dataSaida[5]       = v.ajudante  || '';   // Co-pilotos
-        dataSaida[6]       = v.veiculo   || '';   // Veículo
-        dataSaida[AJ_COL - 1] = colB;            // Notas = resumo (0-based = 35)
+        const dataSaida = new Array(26).fill('');
+        dataSaida[0] = `${v.veiculo} - Saída`; // Coluna A (Titulo)
+        dataSaida[ANOTACOES_COL - 1] = colB;            // Coluna G
+        dataSaida[LAT_COL - 1] = '-23.433853765885214'; // Coluna H
+        dataSaida[LON_COL - 1] = '-46.42011440858504';  // Coluna I
 
         const rowSaida = ws.addRow(dataSaida);
         rowSaida.getCell(1).font = { bold: true, size: 9 };
-        rowSaida.getCell(AJ_COL).alignment = { vertical: 'top', wrapText: true };
+        rowSaida.getCell(ANOTACOES_COL).alignment = { vertical: 'top', wrapText: true };
         rowSaida.height = rowH;
         if (zebra) {
-            [1, AJ_COL].forEach(c => {
+            [1, ANOTACOES_COL, LAT_COL, LON_COL].forEach(c => {
                 rowSaida.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: zebra };
             });
         }
-        [1, AJ_COL].forEach(c => { rowSaida.getCell(c).border = borderStyle; });
+        [1, ANOTACOES_COL, LAT_COL, LON_COL].forEach(c => { rowSaida.getCell(c).border = borderStyle; });
 
         // --- Retorno ---
-        const dataRetorno = new Array(43).fill('');
+        const dataRetorno = new Array(26).fill('');
         dataRetorno[0] = `${v.veiculo} - Retorno`;
-        dataRetorno[6] = v.veiculo || '';
+        dataRetorno[LAT_COL - 1] = '-23.433853765885214'; // Coluna H
+        dataRetorno[LON_COL - 1] = '-46.42011440858504';  // Coluna I
 
         const rowRetorno = ws.addRow(dataRetorno);
         rowRetorno.getCell(1).font = { bold: true, size: 9 };
         rowRetorno.height = 30;
         if (zebra) {
-            rowRetorno.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: zebra };
+            [1, LAT_COL, LON_COL].forEach(c => {
+                rowRetorno.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: zebra };
+            });
         }
-        rowRetorno.getCell(1).border = borderStyle;
+        [1, LAT_COL, LON_COL].forEach(c => { rowRetorno.getCell(c).border = borderStyle; });
 
         rowIdx += 2;
     });
 
     // Larguras Tabela 1
-    ws.getColumn(1).width  = 38;  // A: placa
-    ws.getColumn(5).width  = 22;  // E: Motorista
-    ws.getColumn(6).width  = 22;  // F: Co-pilotos
-    ws.getColumn(7).width  = 22;  // G: Veículo
-    ws.getColumn(AJ_COL).width = 70; // AJ: Notas/Resumo
+    ws.getColumn(1).width = 38;  // A: Titulo
+    ws.getColumn(ANOTACOES_COL).width = 70; // G: Anotações/Resumo
+    ws.getColumn(LAT_COL).width = 20; // H: Latitude
+    ws.getColumn(LON_COL).width = 20; // I: Longitude
     // Demais colunas: largura pequena
-    for (let c = 2; c <= 43; c++) {
-        if (![1, 5, 6, 7, AJ_COL].includes(c)) ws.getColumn(c).width = 12;
+    for (let c = 2; c <= 26; c++) {
+        if (![1, ANOTACOES_COL, LAT_COL, LON_COL].includes(c)) ws.getColumn(c).width = 12;
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -829,9 +823,7 @@ async function _rrGerarExcel() {
         rowRetorno.getCell(2).border = borderStyle;
     });
 
-    // Col B da Tabela 2 já herdou width=70 da Tabela 1 (mesma coluna B)
-    // (ws.getColumn(2).width já está 70 implicitamente pela Tabela 1 ser mais larga em outras colunas)
-    // Força a largura da col B para a Tabela 2
+    // Col B da Tabela 2 precisa ser larga para o resumo. Na Tabela 1 ela é o Endereço (que também pode ser grande).
     ws.getColumn(2).width = 70;
 
     const buf  = await wb.xlsx.writeBuffer();
