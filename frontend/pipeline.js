@@ -1042,6 +1042,11 @@ function renderPipelinePage() {
     const container = document.getElementById('pipeline-container');
     if (!container) return;
     
+    // Evitar recarregar/limpar a tela se o DOM já estiver montado (navegação de abas)
+    if (container.innerHTML.trim() !== '') {
+        return;
+    }
+    
     const hoje = new Date();
     // Usa data LOCAL (evita UTC que avança 1 dia à noite no fuso Brasil)
     const pad = n => String(n).padStart(2, '0');
@@ -1151,6 +1156,10 @@ function renderPipelinePage() {
           <button onclick="pipelineExcluirSelecionadas()" title="Excluir OS(s) selecionada(s) permanentemente"
             style="display:none;background:#eab308;border:none;border-radius:7px;padding:6px 14px;color:white;font-weight:700;cursor:pointer;font-size:0.82rem;align-items:center;gap:5px;">
             <i class="ph ph-trash" style="font-size:1rem;"></i> Excluir
+          </button>
+          <button onclick="buscarPipeline()" title="Atualizar pipeline com os filtros atuais"
+            style="background:#3b82f6;border:none;border-radius:7px;padding:6px 14px;color:white;font-weight:700;cursor:pointer;font-size:0.82rem;display:flex;align-items:center;gap:5px;">
+            <i class="ph ph-arrows-clockwise" style="font-size:1rem;"></i> Atualizar
           </button>
           <button onclick="pipelineLimparFiltros()" title="Limpar filtros"
             style="background:white;border:1px solid #cbd5e1;border-radius:7px;padding:6px 12px;color:#ef4444;font-weight:700;cursor:pointer;font-size:0.82rem;">
