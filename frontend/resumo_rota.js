@@ -251,6 +251,10 @@ window.renderResumoRota = function() {
                 <i class="ph ph-upload-simple"></i> Importar Planilha
                 <input type="file" accept=".xlsx" style="display:none;" onchange="window.rrImportarPlanilha(this)">
             </label>
+            <button id="rr-btn-limpar-resumo" onclick="window.rrLimparResumo()"
+                style="background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:9px 18px;font-weight:700;font-size:0.9rem;cursor:pointer;display:flex;align-items:center;gap:7px;" title="Limpa o resumo atual da tela">
+                <i class="ph ph-eraser"></i> Limpar
+            </button>
             <button id="rr-btn-exportar" onclick="window.rrExportarExcel()"
                 style="background:rgba(255,255,255,0.2);color:#fff;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:9px 18px;font-weight:700;font-size:0.9rem;cursor:pointer;display:none;align-items:center;gap:7px;">
                 <i class="ph ph-microsoft-excel-logo"></i> Exportar Resumo
@@ -355,9 +359,32 @@ window.rrBaixarOriginal = function() {
 // ══════════════════════════════════════════════════════════════
 //  IMPORTAR E PROCESSAR
 // ══════════════════════════════════════════════════════════════
+// Limpa o resumo atual sem recarregar a página
+window.rrLimparResumo = function() {
+    _rrVeiculos  = [];
+    _rrCurrentId = null;
+    window._rrOriginalFileBase64 = null;
+    window._rrOriginalFileName   = null;
+    _rrRenderCorpo();
+    const btnExp  = document.getElementById('rr-btn-exportar');
+    const btnOrig = document.getElementById('rr-btn-baixar-original');
+    if (btnExp)  btnExp.style.display  = 'none';
+    if (btnOrig) btnOrig.style.display = 'none';
+    const sel = document.getElementById('rr-historico-select');
+    if (sel) sel.value = '';
+    showToast('Resumo limpo.', 'success');
+};
+
 window.rrImportarPlanilha = async function(input) {
     const file = input.files[0];
     if (!file) return;
+
+    // Limpa o resumo atual antes de carregar a nova planilha
+    _rrVeiculos  = [];
+    _rrCurrentId = null;
+    window._rrOriginalFileBase64 = null;
+    window._rrOriginalFileName   = null;
+    _rrRenderCorpo(); // mostra estado vazio enquanto processa
 
     // Salvar Base64 do arquivo original para histórico
     const reader = new FileReader();

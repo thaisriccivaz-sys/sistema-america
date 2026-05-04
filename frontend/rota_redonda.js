@@ -2222,8 +2222,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const horaFim = document.getElementById('rr-input-hora-fim');
             if (isChecked) {
                 if (diurno) diurno.checked = false;
-                if (horaInicio) { horaInicio.value = ''; horaInicio.style.background = ''; }
-                if (horaFim) { horaFim.value = ''; horaFim.style.background = ''; }
+                if (horaInicio) { horaInicio.value = '20:00'; horaInicio.style.background = '#fefce8'; }
+                if (horaFim)    { horaFim.value    = '23:00'; horaFim.style.background    = '#fefce8'; }
             }
         }
         // Auto-seleciona ATENÇÃO AO HORÁRIO apenas quando o usuário editar o horário após marcar Diurno
@@ -2245,6 +2245,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!document.getElementById('view-logistica-rota-redonda')?.classList.contains('active')) return;
         if (e.target.id === 'rr-input-obs') autoSelecionarPorObs();
 
+        // Endereço sempre em maiúsculas
+        if (e.target.id === 'rr-input-endereco') {
+            const pos = e.target.selectionStart;
+            e.target.value = e.target.value.toUpperCase();
+            e.target.setSelectionRange(pos, pos);
+        }
         if (e.target.id === 'rr-input-endereco') {
             const q = e.target.value.trim();
             const sugg = document.getElementById('rr-endereco-suggestions');
