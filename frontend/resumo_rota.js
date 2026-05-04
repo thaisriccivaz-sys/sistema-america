@@ -852,10 +852,12 @@ async function _rrGerarExcel() {
         const nLines = (colB.match(/\n/g) || []).length + 1;
         const rowH   = Math.max(20, nLines * 14);
         const zebra  = i % 2 === 0 ? lightGreen : null;
+        const enderecoBase = `Rua Salto da Divisa, ${97 + i} - Pq. Alvorada - Guarulhos`;
 
         // --- Saída ---
         const dataSaida = new Array(26).fill('');
         dataSaida[0] = `${v.veiculo} - Saída`; // Coluna A (Titulo)
+        dataSaida[1] = enderecoBase;                    // Coluna B
         dataSaida[ANOTACOES_COL - 1] = colB;            // Coluna G
         dataSaida[LAT_COL - 1] = '-23.433853765885214'; // Coluna H
         dataSaida[LON_COL - 1] = '-46.42011440858504';  // Coluna I
@@ -865,15 +867,16 @@ async function _rrGerarExcel() {
         rowSaida.getCell(ANOTACOES_COL).alignment = { vertical: 'top', wrapText: true };
         rowSaida.height = rowH;
         if (zebra) {
-            [1, ANOTACOES_COL, LAT_COL, LON_COL].forEach(c => {
+            [1, 2, ANOTACOES_COL, LAT_COL, LON_COL].forEach(c => {
                 rowSaida.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: zebra };
             });
         }
-        [1, ANOTACOES_COL, LAT_COL, LON_COL].forEach(c => { rowSaida.getCell(c).border = borderStyle; });
+        [1, 2, ANOTACOES_COL, LAT_COL, LON_COL].forEach(c => { rowSaida.getCell(c).border = borderStyle; });
 
         // --- Retorno ---
         const dataRetorno = new Array(26).fill('');
         dataRetorno[0] = `${v.veiculo} - Retorno`;
+        dataRetorno[1] = enderecoBase;                    // Coluna B
         dataRetorno[LAT_COL - 1] = '-23.433853765885214'; // Coluna H
         dataRetorno[LON_COL - 1] = '-46.42011440858504';  // Coluna I
 
@@ -881,11 +884,11 @@ async function _rrGerarExcel() {
         rowRetorno.getCell(1).font = { bold: true, size: 9 };
         rowRetorno.height = 30;
         if (zebra) {
-            [1, LAT_COL, LON_COL].forEach(c => {
+            [1, 2, LAT_COL, LON_COL].forEach(c => {
                 rowRetorno.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: zebra };
             });
         }
-        [1, LAT_COL, LON_COL].forEach(c => { rowRetorno.getCell(c).border = borderStyle; });
+        [1, 2, LAT_COL, LON_COL].forEach(c => { rowRetorno.getCell(c).border = borderStyle; });
     });
 
     // Larguras
