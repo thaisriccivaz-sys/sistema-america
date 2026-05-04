@@ -736,7 +736,7 @@ async function pipelineExportarExcel(registrosOverride) {
         let obsIntStr = stripClientPrefix(r.observacoes_internas, r.cliente);
         
         let obsComIcone = '';
-        let combinacaoObs = [obsStr, obsIntStr].filter(Boolean).join(' | ');
+        let combinacaoObs = [obsStr].filter(Boolean).join(' | ');
 
         if (combinacaoObs || icVar) {
             // Adiciona todos os ícones de variáveis (icVar) na frente
