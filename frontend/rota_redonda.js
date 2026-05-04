@@ -1474,11 +1474,14 @@ function carregarRegistroNaTela(os) {
     set('rr-input-hora-fim',    os.hora_fim);
 
     // Dias da semana
-    const diasSalvos = parseJsonFront(os.dias_semana);
+    const diasSalvosRaw = parseJsonFront(os.dias_semana);
+    const mNormalizar = { 'seg':'Seg','ter':'Ter','qua':'Qua','qui':'Qui','sex':'Sex','sab':'Sáb','sáb':'Sáb','dom':'Dom' };
+    const diasSalvosNorm = diasSalvosRaw.map(d => mNormalizar[(d||'').toLowerCase().substring(0,3)] || d);
+    
     const diasMap = { 'Seg': 'rr-chk-seg', 'Ter': 'rr-chk-ter', 'Qua': 'rr-chk-qua', 'Qui': 'rr-chk-qui', 'Sex': 'rr-chk-sex', 'Sáb': 'rr-chk-sab', 'Dom': 'rr-chk-dom' };
     Object.entries(diasMap).forEach(([d, id]) => {
         const el = document.getElementById(id);
-        if (el) el.checked = diasSalvos.includes(d);
+        if (el) el.checked = diasSalvosNorm.includes(d) || diasSalvosRaw.includes(d);
     });
 
     const btnDuplicar = document.getElementById('btn-duplicar-os-form');
