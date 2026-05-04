@@ -629,10 +629,12 @@ window.gerarEnviarCredenciamento = async function() {
             const v = credenciamentoState.veiculos.find(ve => String(ve.id) === idStr);
             return { id: parseInt(idStr), placa: v ? v.placa : idStr, modelo: v ? v.marca_modelo_versao : '' };
         }),
-        licencas: credenciamentoState.selecionadosLicencas.map(id => {
-            const l = credenciamentoState.licencas.find(x => String(x.id) === id);
-            return l ? { id: l.id, nome: l.nome, empresa: l.empresa, validade: l.validade } : null;
-        }).filter(Boolean),
+        licencas: Array.from(document.querySelectorAll('input[name="cred_licencas"]:checked')).map(cb => ({
+            id: cb.value,
+            nome: cb.dataset.nome || '',
+            empresa: cb.dataset.empresa || '',
+            validade: cb.dataset.validade || null
+        })),
         docs_exigidos: Array.from(document.querySelectorAll('#cred-docs-exigidos input:checked')).map(cb => cb.value)
     };
 
