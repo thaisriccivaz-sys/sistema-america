@@ -2135,18 +2135,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const observer = new MutationObserver((mutations) => {
         mutations.forEach((mutation) => {
             if (mutation.target.id === 'view-logistica-rota-redonda' && mutation.target.classList.contains('active')) {
-                // Sempre limpa e re-renderiza ao abrir a tela (equivale ao limparCampos() do Flutter)
-                osState.produtos = [];
-                osState.tiposServico = new Set();
-      osState.acoes = new Set();
-                osState.clienteConfirmado = false;
-                osState.clienteNome = '';
-                osState.enderecoSelecionado = '';
-                osState.tipoOs = ''; // reseta escolha Obra/Evento
-                // Remove conteudo anterior e renderiza do zero
                 const c = document.getElementById('rota-redonda-container');
-                if (c) c.innerHTML = '';
-                renderRotaRedonda();
+                if (c && !c.innerHTML.trim()) {
+                    renderRotaRedonda();
+                }
             }
         });
     });
