@@ -3954,7 +3954,205 @@ function renderRotaRedonda() {
     container.innerHTML = html;
     atualizarUI();
     atualizarBloqueio();
+    // Remove drawer antigo (de outra tela) e reinjetar
+    document.getElementById('rr-historico-drawer')?.remove();
+    document.getElementById('rr-historico-btn')?.remove();
+    setTimeout(_rrInjetarDrawerHistoricoOS, 200);
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// DRAWER DE HISTÓRICO DE OS
+// ══════════════════════════════════════════════════════════════════════════════
 
+function _rrInjetarDrawerHistoricoOS() {
+    // Evita duplicação
+    if (document.getElementById('rr-historico-drawer')) return;
 
+    // ── Botão seta (canto inferior esquerdo) ───────────────────────────────────
+    const btnSeta = document.createElement('button');
+    btnSeta.id = 'rr-historico-btn';
+    btnSeta.title = 'Histórico de OS';
+    btnSeta.style.cssText = `
+        position: fixed;
+        bottom: 18px;
+        left: 18px;
+        z-index: 1100;
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        border: 1.5px solid #cbd5e1;
+        background: #f8fafc;
+        color: #94a3b8;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+        transition: background 0.18s, color 0.18s, border-color 0.18s;
+        font-size: 1.1rem;
+    `;
+    btnSeta.innerHTML = '<i class="ph ph-caret-up-bold"></i>';
+    btnSeta.onmouseenter = () => { btnSeta.style.background = '#e2e8f0'; btnSeta.style.color = '#475569'; };
+    btnSeta.onmouseleave = () => { btnSeta.style.background = '#f8fafc'; btnSeta.style.color = '#94a3b8'; };
+
+    // ── Drawer ────────────────────────────────────────────────────────────────
+    const drawer = document.createElement('div');
+    drawer.id = 'rr-historico-drawer';
+    drawer.style.cssText = `
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 1050;
+        height: 0;
+        max-height: 55vh;
+        background: #fff;
+        border-top: 2px solid #e2e8f0;
+        box-shadow: 0 -4px 24px rgba(0,0,0,0.10);
+        overflow: hidden;
+        transition: height 0.3s cubic-bezier(.4,0,.2,1);
+        display: flex;
+        flex-direction: column;
+    `;
+    drawer.innerHTML = `
+        <div id="rr-historico-header" style="display:flex; align-items:center; justify-content:space-between; padding:10px 18px 8px; border-bottom:1px solid #f1f5f9; flex-shrink:0; background:#f8fafc;">
+            <span style="font-weight:700; font-size:0.85rem; color:#334155; display:flex; align-items:center; gap:6px;">
+                <i class="ph ph-clock-counter-clockwise" style="color:#64748b; font-size:1rem;"></i>
+                Histórico de OS
+                <span id="rr-historico-badge" style="background:#e2e8f0; color:#64748b; font-size:0.7rem; font-weight:600; border-radius:99px; padding:1px 8px;"></span>
+            </span>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <input id="rr-historico-filtro" type="text" placeholder="Buscar OS, cliente..." style="border:1px solid #e2e8f0; border-radius:6px; padding:4px 10px; font-size:0.78rem; color:#334155; outline:none; width:200px; height:26px;">
+                <button onclick="window._rrFecharDrawerHistorico()" style="background:none; border:none; cursor:pointer; color:#94a3b8; font-size:1.1rem; display:flex; align-items:center; padding:2px;" title="Fechar">
+                    <i class="ph ph-caret-down-bold"></i>
+                </button>
+            </div>
+        </div>
+        <div id="rr-historico-lista" style="overflow-y:auto; flex:1; padding:8px 12px;"></div>
+    `;
+
+    document.body.appendChild(btnSeta);
+    document.body.appendChild(drawer);
+
+    let _drawerAberto = false;
+    let _rrOsCache = [];
+
+    function _renderLista(filtro = '') {
+        const lista = document.getElementById('rr-historico-lista');
+        if (!lista) return;
+        const term = filtro.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+        const filtradas = _rrOsCache.filter(os => {
+            if (!term) return true;
+            const campos = [os.numero_os, os.cliente, os.endereco, os.tipo_servico, os.tipo_os, os.contrato]
+                .filter(Boolean).join(' ').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            return campos.includes(term);
+        });
+
+        if (filtradas.length === 0) {
+            lista.innerHTML = '<p style="color:#94a3b8; font-size:0.8rem; text-align:center; padding:24px 0;">Nenhuma OS encontrada.</p>';
+            return;
+        }
+
+        const TIPO_CORES = {
+            'ENTREGA': '#16a34a', 'RETIRADA': '#dc2626', 'MANUTENCAO': '#d97706',
+            'REPARO': '#7c3aed', 'VISITA': '#0ea5e9', 'LIMPA': '#0891b2', 'SUCCAO': '#0284c7'
+        };
+        const getTipoCor = (ts) => {
+            if (!ts) return '#64748b';
+            ts = ts.toUpperCase();
+            for (const [k, v] of Object.entries(TIPO_CORES)) {
+                if (ts.includes(k)) return v;
+            }
+            return '#64748b';
+        };
+        const formatData = (ds) => {
+            if (!ds) return '—';
+            const [y, m, d] = ds.split('-');
+            return d && m && y ? `${d}/${m}/${y}` : ds;
+        };
+
+        lista.innerHTML = filtradas.map(os => {
+            const cor = getTipoCor(os.tipo_servico);
+            const tipoOs = os.tipo_os === 'Evento' ? '🎉' : os.tipo_os === 'Obra' ? '🏗️' : '';
+            const prods = (() => {
+                try { const p = JSON.parse(os.produtos || '[]'); return p.length > 0 ? p.map(x => `${x.qtd}× ${x.desc}`).join(', ') : ''; } catch { return ''; }
+            })();
+            const turnoIcon = os.turno === 'noturno' ? '🌙' : os.turno === 'diurno' ? '☀️' : '';
+            return `
+            <div style="display:flex; align-items:center; gap:10px; padding:7px 8px; border-radius:8px; border-bottom:1px solid #f1f5f9; cursor:pointer; transition:background 0.12s;"
+                onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''"
+                onclick="window._rrCarregarOsDrawer(${os.id})" title="Carregar esta OS no formulário">
+                <div style="flex-shrink:0; width:4px; height:44px; border-radius:4px; background:${cor};"></div>
+                <div style="flex-shrink:0; min-width:60px;">
+                    <div style="font-weight:700; font-size:0.78rem; color:#1e293b;">${os.numero_os || '—'}</div>
+                    <div style="font-size:0.68rem; color:#94a3b8;">${formatData(os.data_os)}</div>
+                </div>
+                <div style="flex:1; min-width:0; overflow:hidden;">
+                    <div style="font-size:0.8rem; font-weight:600; color:#334155; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${tipoOs} ${os.cliente || '—'}</div>
+                    <div style="font-size:0.69rem; color:#64748b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${os.endereco || ''}</div>
+                </div>
+                <div style="flex-shrink:0; text-align:right; min-width:120px; max-width:160px;">
+                    <div style="font-size:0.7rem; font-weight:600; color:${cor}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${turnoIcon} ${os.tipo_servico || '—'}</div>
+                    <div style="font-size:0.65rem; color:#94a3b8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${prods}">${prods || ''}</div>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    async function _abrirDrawer() {
+        drawer.style.height = '55vh';
+        _drawerAberto = true;
+        btnSeta.querySelector('i').className = 'ph ph-caret-down-bold';
+        document.getElementById('rr-historico-lista').innerHTML = '<p style="color:#94a3b8; font-size:0.8rem; text-align:center; padding:24px 0;">Carregando...</p>';
+
+        try {
+            const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+            const res = await fetch('/api/logistica/os/buscar', { headers: { 'Authorization': `Bearer ${token}` } });
+            const data = await res.json();
+            _rrOsCache = Array.isArray(data) ? data : [];
+            const badge = document.getElementById('rr-historico-badge');
+            if (badge) badge.textContent = _rrOsCache.length;
+            _renderLista(document.getElementById('rr-historico-filtro')?.value || '');
+        } catch (e) {
+            document.getElementById('rr-historico-lista').innerHTML = '<p style="color:#ef4444; font-size:0.8rem; text-align:center; padding:24px 0;">Erro ao carregar histórico.</p>';
+        }
+    }
+
+    function _fecharDrawer() {
+        drawer.style.height = '0';
+        _drawerAberto = false;
+        btnSeta.querySelector('i').className = 'ph ph-caret-up-bold';
+    }
+
+    window._rrFecharDrawerHistorico = _fecharDrawer;
+
+    btnSeta.onclick = () => {
+        if (_drawerAberto) _fecharDrawer();
+        else _abrirDrawer();
+    };
+
+    // Filtro em tempo real
+    document.getElementById('rr-historico-filtro').oninput = (e) => _renderLista(e.target.value);
+
+    // Clique fora fecha
+    document.addEventListener('mousedown', (e) => {
+        if (_drawerAberto && !drawer.contains(e.target) && e.target !== btnSeta && !btnSeta.contains(e.target)) {
+            _fecharDrawer();
+        }
+    });
+}
+
+// Expõe globalmente para ser chamado na inicialização da tela
+window._rrInjetarDrawerHistoricoOS = _rrInjetarDrawerHistoricoOS;
+
+// ── Auto-injetar ao renderizar (hook no atualizarUI) ─────────────────────────
+const _rrAtualizarUIOriginal = typeof atualizarUI !== 'undefined' ? atualizarUI : null;
+// Garante injeção quando a página for montada
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(_rrInjetarDrawerHistoricoOS, 500);
+});
+// Chamado também pelo navigateTo / renderizarRotaRedonda
+window._rrOnRotaRedondaReady = function() {
+    setTimeout(_rrInjetarDrawerHistoricoOS, 300);
+};
