@@ -5684,7 +5684,7 @@ window.renderASOTab = function(container, filteredDocs) {
                 </div>
                 <div class="input-group" style="flex:1; min-width:200px; margin-bottom:0;">
                     <label style="font-size:0.75rem; font-weight:700;">Destinatário</label>
-                    <input type="email" id="aso-email-dest-tab" value="thais.ricci@americarental.com.br"
+                    <input type="text" id="aso-email-dest-tab" value="recepcao@iacimedtrab.com.br;cobranca@iacimedtrab.com.br"
                            style="padding:0.5rem; font-size:0.85rem; height:38px;">
                 </div>
                 <button class="btn btn-primary" id="btn-enviar-aso-email-tab"
@@ -5729,7 +5729,7 @@ window.sendASOEmailTab = async function() {
 
         const res = await apiPost('/send-aso-email', {
             colaborador_id: viewedColaborador.id,
-            email_to: destinatario,
+            email_to: destinatario.replace(/;/g, ','),
             data_exame: dataExame,
             tipo_exame: tipoExame,
             cc: ['rh@americarental.com.br', 'rh2@americarental.com.br']
