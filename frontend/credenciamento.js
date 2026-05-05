@@ -569,12 +569,19 @@ async function validarVencimentosCredenciamento() {
                     if (reqDoc === 'cnh' && !isMotorista) continue;
                     if (reqDoc === 'cpf' && isMotorista) continue;
 
+                    const docName = docNamesReadable[reqDoc] || reqDoc;
+
+                    if (reqDoc === 'foto_colaborador') {
+                        if (!c.foto_base64 && !c.foto_path) {
+                            erros.push(`O documento "${docName}" do colaborador(a) ${nomeColab} é INEXISTENTE. Contacte o setor de RH para atualização.`);
+                        }
+                        continue;
+                    }
+
                     const docFound = (docs || []).find(d => {
                         const val = mapDocTypeToValue(d.document_type);
                         return val === reqDoc;
                     });
-
-                    const docName = docNamesReadable[reqDoc] || reqDoc;
 
                     if (!docFound) {
                         erros.push(`O documento "${docName}" do colaborador(a) ${nomeColab} é INEXISTENTE. Contacte o setor de RH para atualização.`);

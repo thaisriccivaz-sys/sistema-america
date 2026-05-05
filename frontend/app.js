@@ -4005,16 +4005,19 @@ window.openProntuario = async function(id, nome, cargo, cpf, sexo = '', admissao
 
     // Foto no Prontuário
     const fotoImg = document.getElementById('prontuario-foto-img');
+    const fotoLink = document.getElementById('prontuario-foto-link');
     const fotoPlaceholder = document.getElementById('prontuario-photo-placeholder');
     if (fotoImg && fotoPlaceholder) {
         const fotoSrc = viewedColaborador.foto_base64 || 
             (viewedColaborador.foto_path ? `${API_URL.replace('/api', '')}/${viewedColaborador.foto_path}?t=${Date.now()}` : null);
         if (fotoSrc) {
             fotoImg.src = fotoSrc;
+            if (fotoLink) fotoLink.href = fotoSrc;
             fotoImg.style.display = 'block';
             fotoPlaceholder.style.display = 'none';
         } else {
             fotoImg.style.display = 'none';
+            if (fotoLink) fotoLink.removeAttribute('href');
             fotoPlaceholder.style.display = 'flex';
         }
     }
@@ -4058,9 +4061,12 @@ window.uploadFotoProntuario = async function(input) {
             if (updated) {
                 viewedColaborador = updated;
                 const fotoImg = document.getElementById('prontuario-foto-img');
+                const fotoLink = document.getElementById('prontuario-foto-link');
                 const fotoPlaceholder = document.getElementById('prontuario-photo-placeholder');
                 if (fotoImg && fotoPlaceholder) {
-                    fotoImg.src = `${API_URL.replace('/api', '')}/${updated.foto_path}?t=${Date.now()}`;
+                    const newSrc = `${API_URL.replace('/api', '')}/${updated.foto_path}?t=${Date.now()}`;
+                    fotoImg.src = newSrc;
+                    if (fotoLink) fotoLink.href = newSrc;
                     fotoImg.style.display = 'block';
                     fotoPlaceholder.style.display = 'none';
                 }
