@@ -179,68 +179,65 @@
                 falta:      { bg: '#dc262622', color: '#dc2626', label: 'Falta' },
             };
 
-            const dayHeaders = diasRenderEsc.map(d => {
-                const nm = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][d.getDay()];
-                const isH = isoDate(d) === hoje;
-                return `<th style="padding:6px 10px; font-size:0.78rem; font-weight:700; text-transform:uppercase;
-                    color:${isH?'#008000':'#475569'}; border-bottom:2px solid ${isH?'#008000':'#e2e8f0'};
-                    background:${isH?'#f0fdf4':'#f8fafc'}; white-space:nowrap;">${nm} ${d.getDate()}</th>`;
-            }).join('');
-
-            const rows_esc = (agendaEscalaData || []).map(colab => {
-                const foto = colab.foto_base64
-                    ? `<img src="${colab.foto_base64}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">`
-                    : `<div style="width:28px;height:28px;border-radius:50%;background:#e2e8f0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#475569;flex-shrink:0;">${(colab.nome_completo||'?').charAt(0).toUpperCase()}</div>`;
-
-                const diasCells = diasRenderEsc.map(d => {
-                    const dateStr = isoDate(d);
-                    const diaInfo = (colab.dias || []).find(x => x.data === dateStr);
-                    const status = diaInfo ? diaInfo.status : 'disponivel';
-                    const st = STATUS_STYLE[status] || STATUS_STYLE.disponivel;
-                    const label = status === 'disponivel' && (colab.horario_entrada || colab.horario_saida)
-                        ? `${colab.horario_entrada||''}${colab.horario_saida?'-'+colab.horario_saida:''}`
-                        : st.label;
-                    return `<td style="text-align:center; padding:4px 6px;">
-                        <div style="background:${st.bg};color:${st.color};border-radius:6px;padding:3px 6px;font-size:0.7rem;font-weight:700;white-space:nowrap;">${label}</div>
-                    </td>`;
-                }).join('');
-
-                return `<tr style="border-bottom:1px solid #f1f5f9;">
-                    <td style="padding:6px 10px; white-space:nowrap;">
-                        <div style="display:flex;align-items:center;gap:8px;">
-                            ${foto}
-                            <div>
-                                <div style="font-size:0.82rem;font-weight:700;color:#1e293b;">${(colab.nome_completo||'').split(' ').slice(0,2).join(' ')}</div>
-                                <div style="font-size:0.7rem;color:#64748b;">${colab.cargo||colab.departamento||''}</div>
-                            </div>
-                        </div>
-                    </td>
-                    ${diasCells}
-                </tr>`;
-            }).join('');
 
             const disponiveisHoje = (agendaEscalaData || []).filter(c => {
                 const diaInfo = (c.dias||[]).find(x => x.data === hoje);
                 return !diaInfo || diaInfo.status === 'disponivel';
             }).length;
 
-            cells = `<div style="overflow-x:auto; margin-top:0;">
-                <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
-                    <span style="background:#008000;color:#fff;border-radius:8px;padding:5px 14px;font-size:0.82rem;font-weight:700;"><i class="ph ph-user-check"></i> ${disponiveisHoje} disponíveis hoje</span>
-                    <span style="font-size:0.78rem;color:#64748b;"><i class="ph ph-info"></i> Verde = disponível | Cinza = folga | Laranja = férias | Amarelo = afastado | Vermelho = falta</span>
-                </div>
-                <table style="width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
-                    <thead>
-                        <tr>
-                            <th style="padding:8px 12px;font-size:0.78rem;font-weight:700;color:#475569;text-align:left;background:#f8fafc;border-bottom:2px solid #e2e8f0;">Colaborador</th>
-                            ${dayHeaders}
-                        </tr>
-                    </thead>
-                    <tbody>${rows_esc || '<tr><td colspan="99" style="text-align:center;padding:24px;color:#94a3b8;">Nenhum colaborador operacional encontrado.</td></tr>'}</tbody>
-                </table>
-            </div>`;
+            const escCells = diasRenderEsc.map(dObj => {
+                const dateStr = isoDate(dObj);
+                const isHoje = dateStr === hoje;
+                const curDayName = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][dObj.getDay()];
 
-            // Retorna HTML com o container de escala
+                const colabChips = (agendaEscalaData || []).map(colab => {
+                    const diaInfo = (colab.dias || []).find(x => x.data === dateStr);
+                    const status  = diaInfo ? diaInfo.status : 'disponivel';
+                    const st = STATUS_STYLE[status] || STATUS_STYLE.disponivel;
+
+                    const nome1 = (colab.nome_completo || '').split(' ').slice(0,2).join(' ');
+                    const inicial = (colab.nome_completo || '?').charAt(0).toUpperCase();
+                    const fotoHTML = colab.foto_base64
+                        ? `<img src="${colab.foto_base64}" style="width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0;border:2px solid ${st.border};" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+                        : '';
+                    const avatarHTML = `<div style="width:26px;height:26px;border-radius:50%;background:${st.bg};border:2px solid ${st.border};display:${colab.foto_base64?'none':'flex'};align-items:center;justify-content:center;font-size:11px;font-weight:800;color:${st.color};flex-shrink:0;">${inicial}</div>`;
+
+                    const horario = (status === 'disponivel' && (colab.horario_entrada || colab.horario_saida))
+                        ? `<span style="font-size:0.58rem;color:${st.color};opacity:0.8;">${colab.horario_entrada||''}${colab.horario_saida?'-'+colab.horario_saida:''}</span>`
+                        : `<span style="font-size:0.58rem;color:${st.color};opacity:0.75;">${st.label}</span>`;
+
+                    return `<div style="display:flex;align-items:center;gap:5px;padding:4px 7px;margin-bottom:3px;border-radius:8px;background:${st.bg};border:1px solid ${st.border};">
+                        ${fotoHTML}${avatarHTML}
+                        <div style="overflow:hidden;">
+                            <div style="font-size:0.72rem;font-weight:700;color:${st.color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px;">${nome1}</div>
+                            ${horario}
+                        </div>
+                    </div>`;
+                }).join('');
+
+                return `<div class="ag-cell ag-esc-cell ${isHoje?'ag-hoje':''}" style="min-height:350px;padding:10px;background:#fff;border-radius:10px;border:2px solid ${isHoje?'#008000':'transparent'};">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                        <div style="font-size:0.75rem;color:${isHoje?'#008000':'#64748b'};text-transform:uppercase;font-weight:700;">${curDayName}</div>
+                        <div style="font-size:0.85rem;font-weight:700;color:${isHoje?'#fff':'#475569'};${isHoje?'background:#008000;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.75rem;':''}">
+                            ${dObj.getDate()}
+                        </div>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:0;">${colabChips || '<div style="font-size:0.7rem;color:#cbd5e1;padding:8px 0;">Sem colaboradores</div>'}</div>
+                </div>`;
+            }).join('');
+
+            cells = `<div style="margin-bottom:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                <span style="background:#008000;color:#fff;border-radius:8px;padding:5px 14px;font-size:0.82rem;font-weight:700;display:flex;align-items:center;gap:5px;"><i class="ph ph-user-check"></i> ${disponiveisHoje} disponíveis hoje</span>
+                <span style="font-size:0.75rem;color:#64748b;display:flex;align-items:center;gap:6px;">
+                    <span style="background:#008000;color:#fff;border-radius:4px;padding:1px 7px;font-weight:700;font-size:0.7rem;">verde</span> disponível
+                    <span style="background:#fff7ed;color:#ea580c;border:1px solid #fdba74;border-radius:4px;padding:1px 7px;font-weight:700;font-size:0.7rem;">laranja</span> férias
+                    <span style="background:#fefce8;color:#ca8a04;border:1px solid #fde68a;border-radius:4px;padding:1px 7px;font-weight:700;font-size:0.7rem;">amarelo</span> afastado
+                    <span style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;border-radius:4px;padding:1px 7px;font-weight:700;font-size:0.7rem;">vermelho</span> falta
+                    <span style="background:#f1f5f9;color:#94a3b8;border:1px solid #e2e8f0;border-radius:4px;padding:1px 7px;font-weight:700;font-size:0.7rem;">cinza</span> folga
+                </span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;">${escCells}</div>`;
+
             return `<div class="ag-wrap">
                 <div class="ag-header">
                     <div class="ag-header-left">
@@ -258,6 +255,7 @@
                         </div>
                     </div>
                 </div>
+                <div class="ag-weekdays"><div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div></div>
                 ${cells}
             </div><div id="ag-modal-overlay" style="display:none;" onclick="fecharAgendaModal(event)"><div class="ag-modal" onclick="event.stopPropagation()"><div class="ag-modal-header"><span id="ag-modal-title">Novo Card</span><button onclick="fecharAgendaModal()" class="ag-modal-close"><i class="ph ph-x"></i></button></div><div class="ag-modal-body" id="ag-modal-body"></div></div></div>`;
         }
