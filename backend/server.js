@@ -5521,7 +5521,25 @@ app.post('/api/faltas', authenticateToken, (req, res) => {
         [colaborador_id, data_falta, turno || 'Dia todo', observacao || '', avisado_previamente || 'Não'],
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
-            res.json({ id: this.lastID, colaborador_id, data_falta, turno: turno || 'Dia todo', observacao: observacao || '', avisado_previamente: avisado_previamente || 'Não' });
+            const insertedId = this.lastID;
+            
+            // Logica de disparo de popup
+            db.get("SELECT nome_completo FROM colaboradores WHERE id = ?", [colaborador_id], (errC, rowC) => {
+                const nomeColab = rowC && rowC.nome_completo ? rowC.nome_completo : 'Colaborador não identificado';
+                db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'aviso_faltas'", [], (errConfig, rowsConfig) => {
+                    if (!errConfig && rowsConfig && rowsConfig.length > 0) {
+                        const msg = `O colaborador ${nomeColab} teve uma falta adicionada no dia ${data_falta.split('-').reverse().join('/')}.`;
+                        const dados = JSON.stringify({ colaborador_id, data_falta, id: insertedId });
+                        
+                        rowsConfig.forEach(cfg => {
+                            db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", 
+                                [cfg.usuario_id, 'aviso_faltas', msg, dados]);
+                        });
+                    }
+                });
+            });
+
+            res.json({ id: insertedId, colaborador_id, data_falta, turno: turno || 'Dia todo', observacao: observacao || '', avisado_previamente: avisado_previamente || 'Não' });
         }
     );
 });
@@ -8513,7 +8531,15 @@ app.post('/api/experiencia/publico/submit', (req, res) => {
                     db.run(`UPDATE experiencia_formularios SET respostas = ?, pontuacao = ?, situacao_avaliacao = ?, comentarios = ?, responsavel_nome = ?, situacao = 'finalizado', atualizado_em = datetime('now') WHERE id = ?`,
                         [JSON.stringify(respostas), pontuacao, situacao_avaliacao, comentarios, colab.responsavel_nome, exist.id], (err3) => {
                             if (err3) return res.status(500).json({ error: err3.message });
-                            db.run(`INSERT INTO experiencia_notificacoes_pendentes (tipo, dados) VALUES (?, ?)`, ['formulario_finalizado', JSON.stringify({ colaborador_nome: colab.nome_completo, departamento: colab.departamento, resultado: situacao_avaliacao, pontuacao })]);
+                            db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'formulario_experiencia'", [], (errC, rowsC) => {
+                                if (!errC && rowsC && rowsC.length > 0) {
+                                    const msg = `O gestor enviou o formulário de experiência finalizado.`;
+                                    const dados = JSON.stringify({ colaborador_nome: colab.nome_completo, departamento: colab.departamento, resultado: situacao_avaliacao, pontuacao });
+                                    rowsC.forEach(c => {
+                                        db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [c.usuario_id, 'formulario_experiencia', msg, dados]);
+                                    });
+                                }
+                            });
                             gerarESalvarPDFExperiencia(colab, respostas, pontuacao, situacao_avaliacao, comentarios);
                             res.json({ ok: true, responsavel_nome: colab.responsavel_nome, colaborador_nome: colab.nome_completo });
                         });
@@ -8521,7 +8547,15 @@ app.post('/api/experiencia/publico/submit', (req, res) => {
                     db.run(`INSERT INTO experiencia_formularios (colaborador_id, responsavel_nome, respostas, pontuacao, situacao_avaliacao, comentarios, situacao) VALUES (?, ?, ?, ?, ?, ?, 'finalizado')`,
                         [colab.id, colab.responsavel_nome, JSON.stringify(respostas), pontuacao, situacao_avaliacao, comentarios], function (err3) {
                             if (err3) return res.status(500).json({ error: err3.message });
-                            db.run(`INSERT INTO experiencia_notificacoes_pendentes (tipo, dados) VALUES (?, ?)`, ['formulario_finalizado', JSON.stringify({ colaborador_nome: colab.nome_completo, departamento: colab.departamento, resultado: situacao_avaliacao, pontuacao })]);
+                            db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'formulario_experiencia'", [], (errC, rowsC) => {
+                                if (!errC && rowsC && rowsC.length > 0) {
+                                    const msg = `O gestor enviou o formulário de experiência finalizado.`;
+                                    const dados = JSON.stringify({ colaborador_nome: colab.nome_completo, departamento: colab.departamento, resultado: situacao_avaliacao, pontuacao });
+                                    rowsC.forEach(c => {
+                                        db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [c.usuario_id, 'formulario_experiencia', msg, dados]);
+                                    });
+                                }
+                            });
                             gerarESalvarPDFExperiencia(colab, respostas, pontuacao, situacao_avaliacao, comentarios);
                             res.json({ ok: true, form_id: this.lastID, responsavel_nome: colab.responsavel_nome, colaborador_nome: colab.nome_completo });
                         });
@@ -8691,6 +8725,22 @@ app.put('/api/experiencia/notificacoes/:id/lida', authenticateToken, (req, res) 
     });
 });
 
+
+// GET /api/notificacoes/me
+app.get('/api/notificacoes/me', authenticateToken, (req, res) => {
+    db.all("SELECT * FROM notificacoes_usuarios WHERE usuario_id = ? AND lida = 0 ORDER BY criado_em DESC LIMIT 20", [req.user.id], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+// PUT /api/notificacoes/me/:id/lida
+app.put('/api/notificacoes/me/:id/lida', authenticateToken, (req, res) => {
+    db.run("UPDATE notificacoes_usuarios SET lida = 1 WHERE id = ? AND usuario_id = ?", [req.params.id, req.user.id], (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: 'Lida' });
+    });
+});
 
 // GET /api/diretoria/notificacoes/pendentes
 app.get('/api/diretoria/notificacoes/pendentes', authenticateToken, (req, res) => {

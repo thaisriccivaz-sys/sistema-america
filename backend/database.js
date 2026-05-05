@@ -420,6 +420,20 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     FOREIGN KEY(usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
                 )
             `);
+            
+            // Tabela para Notificações Pessoais de Usuários
+            db.run(`
+                CREATE TABLE IF NOT EXISTS notificacoes_usuarios (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    usuario_id INTEGER NOT NULL,
+                    tipo TEXT,
+                    mensagem TEXT,
+                    dados TEXT,
+                    lida INTEGER DEFAULT 0,
+                    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY(usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+                )
+            `);
 
             // Inserir Cargo "Motorista" fixo se não existir e não tiver sido excluído
             db.run("CREATE TABLE IF NOT EXISTS cargos_excluidos (nome TEXT PRIMARY KEY)", () => {

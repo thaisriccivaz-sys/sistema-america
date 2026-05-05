@@ -7,7 +7,7 @@ const TIPOS_NOTIFICACAO = [
     { id: 'credenciamento_acessado', nome: 'Credenciamento Acessado', icone: 'ph-eye' },
     { id: 'documentos_assinados', nome: 'Documentos Assinados', icone: 'ph-signature' },
     { id: 'aviso_faltas', nome: 'Aviso de Faltas', icone: 'ph-warning' },
-    { id: 'sistema_comunicacao', nome: 'Comunicações do Sistema', icone: 'ph-megaphone' }
+    { id: 'formulario_experiencia', nome: 'Formulário de Experiência Preenchido', icone: 'ph-clipboard-text' }
 ];
 
 let globalUsuariosConfig = [];

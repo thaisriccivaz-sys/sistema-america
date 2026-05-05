@@ -12124,6 +12124,82 @@ async function checkLogisticaNotificacoes() {
 setInterval(checkLogisticaNotificacoes, 60000);
 setTimeout(checkLogisticaNotificacoes, 5000);
 
+// --- POLLING: Notificacoes por Usuario (Configuraveis) ---
+const _userNotifSeen = new Set();
+async function checkUserNotificacoes() {
+    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+    if (!token) return;
+
+    try {
+        const resp = await fetch('/api/notificacoes/me', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!resp.ok) return;
+        const notifs = await resp.json();
+        
+        for (const notif of notifs) {
+            if (_userNotifSeen.has(notif.id)) continue;
+            _userNotifSeen.add(notif.id);
+            
+            try {
+                let bg, icon, color, titulo, navTarget;
+                if (notif.tipo === 'aviso_faltas') {
+                    bg = '#fffbeb'; color = '#d97706'; icon = 'ph-warning'; titulo = 'Aviso de Faltas'; navTarget = 'multas'; // placeholder ou logistica-agenda
+                } else if (notif.tipo === 'formulario_experiencia') {
+                    bg = '#dbeafe'; color = '#1d4ed8'; icon = 'ph-clipboard-text'; titulo = 'Experiência'; navTarget = 'experiencia';
+                } else {
+                    bg = '#f1f5f9'; color = '#475569'; icon = 'ph-bell-ringing'; titulo = 'Notificação'; navTarget = 'dashboard';
+                }
+                
+                const popup = document.createElement('div');
+                popup.style.cssText = `
+                    position:fixed; bottom:24px; left:24px; z-index:99999;
+                    background:#fff; border-radius:16px; padding:1.5rem;
+                    box-shadow: 0 20px 60px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05);
+                    max-width:380px; animation: slideInLeft 0.4s ease-out;
+                    border-left: 4px solid ${color};
+                `;
+                popup.innerHTML = `
+                    <div style="display:flex;align-items:flex-start;gap:1rem;">
+                        <div style="width:44px;height:44px;border-radius:12px;background:${bg};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.4rem;color:${color};">
+                            <i class="ph ${icon}"></i>
+                        </div>
+                        <div style="flex:1;">
+                            <div style="font-weight:700;font-size:0.9rem;color:#0f172a;margin-bottom:4px;">
+                                <i class="ph ph-bell" style="color:${color};"></i> ${titulo}
+                            </div>
+                            <div style="color:#64748b;font-size:0.8rem;line-height:1.4;">
+                                ${notif.mensagem}
+                            </div>
+                            <div style="display:flex;gap:8px;margin-top:12px;">
+                                <button onclick="window.markUserNotifLida('${notif.id}'); navigateTo('${navTarget}'); this.closest('[data-notif-id]').remove();" 
+                                    style="flex:1;padding:6px 12px;background:${color};color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.8rem;">
+                                    Ver Detalhes
+                                </button>
+                                <button onclick="window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove();" 
+                                    style="padding:6px 12px;background:#f1f5f9;color:#334155;border:none;border-radius:8px;cursor:pointer;font-size:0.8rem;">
+                                    X 
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                popup.setAttribute('data-notif-id', notif.id);
+                document.body.appendChild(popup);
+                setTimeout(() => { if (popup.parentNode) popup.remove(); }, 30000);
+            } catch(parseErr) { }
+        }
+    } catch(e) { }
+}
+
+window.markUserNotifLida = function(id) {
+    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+    fetch('/api/notificacoes/me/' + id + '/lida', { method: 'PUT', headers: { 'Authorization': 'Bearer ' + token } }).catch(()=>{});
+};
+
+setInterval(checkUserNotificacoes, 60000);
+setTimeout(checkUserNotificacoes, 8000);
+
 // --- LÓGICA RENDER PDF (PDF.js) ---
 
 async function renderPdfToContainer(pdfUrl, containerId, onScrollEnd) {
