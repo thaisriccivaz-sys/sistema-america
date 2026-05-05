@@ -10925,6 +10925,9 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
                 if (cred.solicitado_por_id) {
                     db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo, dados) VALUES (?, ?, 'credenciamento_acessado', ?)", [cred.solicitado_por_id, `O cliente ${cred.cliente_nome} acessou o link do credenciamento da OS ${cred.os || '-'}.`, JSON.stringify({ cliente_nome: cred.cliente_nome, remetente: 'Cliente' })]);
                 }
+                if (cred.enviado_por_id && cred.enviado_por_id !== cred.solicitado_por_id) {
+                    db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo, dados) VALUES (?, ?, 'credenciamento_acessado', ?)", [cred.enviado_por_id, `O cliente ${cred.cliente_nome} acessou o link do credenciamento da OS ${cred.os || '-'}.`, JSON.stringify({ cliente_nome: cred.cliente_nome, remetente: 'Cliente' })]);
+                }
             });
         }
 

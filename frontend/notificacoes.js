@@ -3,8 +3,6 @@
 // Define the notification types available in the system
 const TIPOS_NOTIFICACAO = [
     { id: 'credenciamento_solicitado', nome: 'Solicitação de Credenciamento', icone: 'ph-identification-card' },
-    { id: 'credenciamento_enviado', nome: 'Credenciamento Enviado', icone: 'ph-paper-plane-tilt' },
-    { id: 'credenciamento_acessado', nome: 'Credenciamento Acessado', icone: 'ph-eye' },
     { id: 'documentos_assinados', nome: 'Documentos Assinados', icone: 'ph-signature' },
     { id: 'aviso_faltas', nome: 'Aviso de Faltas', icone: 'ph-warning' },
     { id: 'formulario_experiencia', nome: 'Formulário de Experiência Preenchido', icone: 'ph-clipboard-text' }
