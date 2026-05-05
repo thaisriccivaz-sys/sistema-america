@@ -11394,7 +11394,7 @@ app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
                     });
                 }
                 
-                db.all(`SELECT id, nome_completo, aso_exame_data FROM colaboradores WHERE status = 'Ativo' AND departamento = 'Comercial' AND aso_exame_data IS NOT NULL AND aso_exame_data != ''`, [], (errAso, asoColabs) => {
+                db.all(`SELECT id, nome_completo, aso_exame_data FROM colaboradores WHERE status = 'Ativo' AND aso_exame_data IS NOT NULL AND aso_exame_data != ''`, [], (errAso, asoColabs) => {
                     const asoCards = [];
                     if (!errAso) {
                         (asoColabs || []).forEach(c => {
@@ -11422,6 +11422,14 @@ app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
                 });
             });
         });
+    });
+});
+
+// POST - limpar testes (todos manuais)
+app.post('/api/logistica/agenda/clear', authenticateToken, (req, res) => {
+    db.run("DELETE FROM logistica_agenda", [], (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ ok: true });
     });
 });
 

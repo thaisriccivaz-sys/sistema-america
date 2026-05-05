@@ -71,6 +71,20 @@
         if (!r.ok) throw new Error(await r.text());
     }
 
+    window.limparTestesAgenda = async function() {
+        if (!confirm('Tem certeza que deseja apagar TODOS os cards criados manualmente (reuniões, avisos, testes)?\n\nEssa ação deixará apenas os cards automáticos gerados pelo RH (Férias, Afastamentos, ASO).')) return;
+        try {
+            const r = await fetch(`${API}/logistica/agenda/clear`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${window.currentToken}` }
+            });
+            if (!r.ok) throw new Error(await r.text());
+            window.renderAgendaLogistica();
+        } catch(e) {
+            alert('Erro ao limpar testes: ' + e.message);
+        }
+    };
+
     // ── Renderização principal ──────────────────────────────────
     window.renderAgendaLogistica = async function() {
         const container = document.getElementById('logistica-agenda-container');
@@ -234,6 +248,7 @@
                         <button class="ag-view-btn ${agendaViewMode==='semana'?'active':''}" onclick="agendaSetView('semana')">Semana</button>
                         <button class="ag-view-btn ${agendaViewMode==='mes'?'active':''}" onclick="agendaSetView('mes')">Mês</button>
                     </div>
+                    <button class="ag-nav-btn" onclick="limparTestesAgenda()" style="color: #dc2626; border-color: #fca5a5;"><i class="ph ph-trash"></i> Limpar Testes</button>
                     <button class="ag-btn-novo" onclick="abrirNovoCard('')"><i class="ph ph-plus"></i> Novo Card</button>
                 </div>
             </div>
