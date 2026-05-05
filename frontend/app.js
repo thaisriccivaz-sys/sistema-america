@@ -1505,12 +1505,18 @@ window.toggleFormEscalaTipo = function() {
     if (tipo === 'escala_uma_folga') {
         if(boxUmaFolga) boxUmaFolga.style.display = 'block';
         if(boxFolgas) boxFolgas.style.display = 'none';
-        if(boxCiclo) boxCiclo.style.display = 'block';
+        if(boxCiclo) { boxCiclo.style.display = 'block'; atualizarLabelCiclo('folga'); }
         document.querySelectorAll('.cb-folga-colab').forEach(cb => cb.checked = false);
     } else if (tipo === 'escala_duas_folgas') {
         if(boxFolgas) boxFolgas.style.display = 'block';
         if(boxUmaFolga) boxUmaFolga.style.display = 'none';
-        if(boxCiclo) boxCiclo.style.display = 'block';
+        if(boxCiclo) { boxCiclo.style.display = 'block'; atualizarLabelCiclo('folga'); }
+        document.querySelectorAll('.cb-uma-folga-colab').forEach(cb => cb.checked = false);
+    } else if (tipo === 'escala_12x36') {
+        if(boxFolgas) boxFolgas.style.display = 'none';
+        if(boxUmaFolga) boxUmaFolga.style.display = 'none';
+        if(boxCiclo) { boxCiclo.style.display = 'block'; atualizarLabelCiclo('12x36'); }
+        document.querySelectorAll('.cb-folga-colab').forEach(cb => cb.checked = false);
         document.querySelectorAll('.cb-uma-folga-colab').forEach(cb => cb.checked = false);
     } else {
         if(boxFolgas) boxFolgas.style.display = 'none';
@@ -1547,6 +1553,25 @@ window.toggleFormEscalaTipo = function() {
 
     calcularHorarioSaida();
 }
+
+// Atualiza o título e descrição do bloco de ciclo conforme o tipo de escala
+window.atualizarLabelCiclo = function(modo) {
+    const lbl = document.querySelector('#colab-box-ciclo-domingo label');
+    const small = document.querySelector('#colab-box-ciclo-domingo small');
+    if (!lbl || !small) return;
+    if (modo === '12x36') {
+        lbl.innerHTML = '<i class="ph ph-calendar-blank"></i> 12x36 — Data de início do ciclo';
+        small.innerHTML = '<i class="ph ph-info"></i> Informe o <strong>primeiro dia de trabalho</strong> desta pessoa. '
+            + 'O sistema alterna automaticamente: <strong>1 dia trabalha → 1 dia folga (36h)</strong>.<br>'
+            + 'Sem essa data o colaborador aparece sempre como disponível na agenda.';
+    } else {
+        lbl.innerHTML = '<i class="ph ph-calendar-blank"></i> Domingo de Lei — Data de Referência do Ciclo';
+        small.innerHTML = '<i class="ph ph-info"></i> Informe um <strong>domingo</strong> onde o ciclo começa (<em>1º domingo trabalhado</em>). '
+            + 'A cada 3 domingos, o sistema automaticamente marca o 3º como <strong>Domingo de Lei</strong> (folga obrigatória).<br>'
+            + 'Para Folga 2 dias: na semana do Domingo de Lei, o 2º dia fixo se torna trabalho para manter a carga horária.<br>'
+            + 'Para Folga 1 dia: o Domingo de Lei é somado à folga fixa (semana com menos horas — legal).';
+    }
+};
 
 
 window.toggleTipoDocumento = function() {
@@ -3407,7 +3432,13 @@ window.editColaborador = async function(id) {
             }
             // Carregar data de referência do ciclo de domingos
             const cicloEl = document.getElementById('colab-escala-ciclo-inicio');
-            if (cicloEl) cicloEl.value = c.escala_ciclo_inicio || '';
+            if (cicloEl) {
+                cicloEl.value = c.escala_ciclo_inicio || '';
+                // Atualizar label conforme tipo de escala
+                if (typeof window.atualizarLabelCiclo === 'function') {
+                    window.atualizarLabelCiclo(c.escala_tipo === 'escala_12x36' ? '12x36' : 'folga');
+                }
+            }
         }
 
         // toggleMotorista ANTES de carregar CNH — se chamado depois limpa os campos

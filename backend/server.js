@@ -11600,6 +11600,18 @@ app.get('/api/logistica/escala', authenticateToken, (req, res) => {
                     const d = new Date(dateStr + 'T12:00:00');
                     const dow = d.getDay(); // 0=dom, 1=seg..6=sab
 
+                    // ── 12x36: ciclo alternado (dia trabalha / dia folga) ──────────
+                    if (escalaStr.includes('12x36')) {
+                        if (c.escala_ciclo_inicio) {
+                            const ciclo12 = new Date(c.escala_ciclo_inicio + 'T12:00:00');
+                            const diffMs = d - ciclo12;
+                            if (diffMs < 0) return false; // antes do início do ciclo: disponível
+                            const diffDias = Math.round(diffMs / (1000 * 60 * 60 * 24));
+                            return diffDias % 2 === 1; // par = trabalha, ímpar = folga (36h)
+                        }
+                        return false; // sem data de referência: sempre disponível
+                    }
+
                     // ── Verificar Domingo de Lei ───────────────────────────────────
                     if (dow === 0 && isDomingoDeLei(dateStr)) {
                         return true; // domingo é folga
@@ -11628,9 +11640,6 @@ app.get('/api/logistica/escala', authenticateToken, (req, res) => {
                     }
                     if (escalaStr.includes('6x1') || escalaStr.includes('6 x 1')) {
                         return dow === 0;
-                    }
-                    if (escalaStr.includes('12x36')) {
-                        return false;
                     }
                     return dow === 0; // padrão
                 };
