@@ -9485,13 +9485,10 @@ window.uploadContratoExterno = async function(input) {
                     
                     const dt = new Date();
                     const horaEnvio = dt.toLocaleDateString() + ' às ' + dt.toLocaleTimeString();
-                    if (typeof Swal !== 'undefined') Swal.fire('Sucesso!', `Documento anexado e enviado para assinatura em ${horaEnvio}`, 'success');
-                    else if (typeof showToast !== 'undefined') showToast(`Enviado para assinatura em ${horaEnvio}`, 'success');
+                    return { action: 'assinatura', horaEnvio: horaEnvio };
                 } else {
-                    if (typeof showToast !== 'undefined') showToast('Documento anexado no Prontuário!', 'success');
+                    return { action: 'anexado' };
                 }
-
-                return true;
             } catch(err) {
                 Swal.showValidationMessage(err.message);
                 return false;
@@ -9500,6 +9497,12 @@ window.uploadContratoExterno = async function(input) {
     });
 
     if (modalResult.isConfirmed) {
+        const res = modalResult.value;
+        if (res && res.action === 'assinatura') {
+            Swal.fire('Sucesso!', `Documento anexado e enviado para assinatura em ${res.horaEnvio}`, 'success');
+        } else {
+            if (typeof showToast !== 'undefined') showToast('Documento anexado no Prontuário!', 'success');
+        }
         await window._reloadContratosContainer();
     }
 };
