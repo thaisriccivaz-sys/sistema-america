@@ -541,6 +541,33 @@ const db = new sqlite3.Database(dbPath, (err) => {
             db.run(`UPDATE os_logistica SET produtos = REPLACE(produtos, '"SLX"', '"ELX"') WHERE produtos LIKE '%"SLX"%'`, (err) => {});
             db.run(`UPDATE os_logistica SET produtos = REPLACE(produtos, '"EXL"', '"ELX"') WHERE produtos LIKE '%"EXL"%'`, (err) => {});
 
+            // Migration: Atualizar contratos das OS a partir da planilha
+            try {
+                const fs = require('fs');
+                const path = require('path');
+                const migPath = path.join(__dirname, 'contratos_migracao.json');
+                if (fs.existsSync(migPath)) {
+                    const contratos = JSON.parse(fs.readFileSync(migPath, 'utf8'));
+                    db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='migracao_contratos_feita'", (err, row) => {
+                        if (!row) {
+                            db.run("CREATE TABLE migracao_contratos_feita (id INTEGER PRIMARY KEY)", () => {
+                                let count = 0;
+                                contratos.forEach(c => {
+                                    db.run("UPDATE os_logistica SET contrato = ? WHERE numero_os = ?", [c.contrato, c.os], (errUpdate) => {
+                                        if (errUpdate && !errUpdate.message.includes('no such table')) {
+                                            console.error('[MIGRAÇÃO] Erro ao atualizar contrato OS:', c.os, errUpdate.message);
+                                        }
+                                    });
+                                });
+                                console.log(`[MIGRAÇÃO] Rotina de vinculação iniciada para ${contratos.length} OSs com contratos.`);
+                            });
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error('[MIGRAÇÃO] Erro ao processar contratos_migracao.json', e.message);
+            }
+
             // Migration: adicionar coluna 'categoria' à tabela epi_templates
             db.run(`ALTER TABLE epi_templates ADD COLUMN categoria TEXT DEFAULT 'Outros'`, (err) => {});
             // Migration: atualizar categoria dos templates existentes pelo nome
