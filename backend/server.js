@@ -11394,7 +11394,7 @@ app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
                     });
                 }
                 
-                db.all(`SELECT id, nome_completo, aso_exame_data FROM colaboradores WHERE status = 'Ativo' AND aso_exame_data IS NOT NULL AND aso_exame_data != ''`, [], (errAso, asoColabs) => {
+                db.all(`SELECT id, nome_completo, aso_exame_data FROM colaboradores WHERE status = 'Ativo' AND departamento NOT IN ('ESCRITÓRIO', 'RH', 'Comercial', 'Financeiro', 'Administrativo', 'Diretoria') AND aso_exame_data IS NOT NULL AND aso_exame_data != ''`, [], (errAso, asoColabs) => {
                     const asoCards = [];
                     if (!errAso) {
                         (asoColabs || []).forEach(c => {
@@ -11408,7 +11408,7 @@ app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
                                     data: dataStr,
                                     tipo: 'aso',
                                     titulo: 'ASO: ' + c.nome_completo.split(' ')[0],
-                                    descricao: 'Exame ASO agendado para ' + c.nome_completo + ' (Comercial)',
+                                    descricao: 'Exame ASO agendado para ' + c.nome_completo,
                                     horario: '',
                                     setor: 'logistica',
                                     responsaveis: '[]',
@@ -11418,7 +11418,35 @@ app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
                             }
                         });
                     }
-                    res.json([...(rows || []), ...feriasCards, ...afastadoCards, ...asoCards]);
+
+                    // Faltas de colaboradores operacionais
+                    db.all(`SELECT f.colaborador_id, f.data_falta, f.turno, c.nome_completo
+                            FROM faltas f
+                            JOIN colaboradores c ON f.colaborador_id = c.id
+                            WHERE c.status = 'Ativo'
+                            AND c.departamento NOT IN ('ESCRITÓRIO', 'RH', 'Comercial', 'Financeiro', 'Administrativo', 'Diretoria')`, [], (errFaltas, faltasRows) => {
+                        const faltaCards = [];
+                        if (!errFaltas) {
+                            (faltasRows || []).forEach(f => {
+                                if (f.data_falta) {
+                                    faltaCards.push({
+                                        id: 'falta_' + f.colaborador_id + '_' + f.data_falta,
+                                        is_auto: true,
+                                        data: f.data_falta,
+                                        tipo: 'falta',
+                                        titulo: 'Falta: ' + f.nome_completo.split(' ')[0],
+                                        descricao: 'Falta registrada para ' + f.nome_completo + (f.turno ? ' - ' + f.turno : ''),
+                                        horario: '',
+                                        setor: 'logistica',
+                                        responsaveis: '[]',
+                                        referente_ids: '[]',
+                                        acoes: '[]'
+                                    });
+                                }
+                            });
+                        }
+                        res.json([...(rows || []), ...feriasCards, ...afastadoCards, ...asoCards, ...faltaCards]);
+                    });
                 });
             });
         });
