@@ -13,7 +13,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
 });
 
 // 1. Procurar a colaboradora
-db.get(`SELECT id, nome_completo FROM colaboradores WHERE nome_completo LIKE '%Beatriz Batista Alves%'`, (err, colab) => {
+db.get(`SELECT id, nome FROM colaboradores WHERE nome LIKE '%Beatriz Batista Alves%'`, (err, colab) => {
     if (err) {
         console.error('Erro ao buscar colaboradora:', err);
         db.close();
@@ -25,7 +25,7 @@ db.get(`SELECT id, nome_completo FROM colaboradores WHERE nome_completo LIKE '%B
         return;
     }
     
-    console.log(`Colaboradora encontrada: ${colab.nome_completo} (ID: ${colab.id})`);
+    console.log(`Colaboradora encontrada: ${colab.nome} (ID: ${colab.id})`);
 
     // 2. Buscar o documento
     db.all(`SELECT id, document_type, assinafy_id FROM documentos WHERE colaborador_id = ? AND document_type LIKE '%ACORDO DE COMPENSAÇÃO%'`, [colab.id], (err, docs) => {
