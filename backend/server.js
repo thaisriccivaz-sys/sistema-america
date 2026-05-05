@@ -11266,8 +11266,10 @@ db.run(`CREATE TABLE IF NOT EXISTS logistica_agenda (
     titulo TEXT,
     descricao TEXT,
     data TEXT NOT NULL,
+    horario TEXT DEFAULT '',
     tipo TEXT DEFAULT 'aviso',
     responsaveis TEXT DEFAULT '[]',
+    referente_ids TEXT DEFAULT '[]',
     acoes TEXT DEFAULT '[]',
     criado_por TEXT,
     criado_em DATETIME DEFAULT (datetime('now','localtime')),
@@ -11275,6 +11277,13 @@ db.run(`CREATE TABLE IF NOT EXISTS logistica_agenda (
 )`, (err) => {
     if (err && !err.message.includes('already exists')) console.error('[Agenda] Erro na criação da tabela:', err.message);
 });
+
+// Auto-migrate: adicionar colunas novas se tabela já existe
+setTimeout(() => {
+    ['ALTER TABLE logistica_agenda ADD COLUMN horario TEXT DEFAULT \'\';',
+     'ALTER TABLE logistica_agenda ADD COLUMN referente_ids TEXT DEFAULT \'[]\';'
+    ].forEach(q => db.run(q, () => {}));
+}, 1500);
 
 // GET – lista cards do mês
 app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
@@ -11297,16 +11306,15 @@ app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
 
 // POST – criar card
 app.post('/api/logistica/agenda', authenticateToken, express.json(), (req, res) => {
-    const { titulo, descricao, data, tipo, responsaveis, acoes, setor } = req.body;
+    const { titulo, descricao, data, horario, tipo, responsaveis, referente_ids, acoes, setor } = req.body;
     if (!data) return res.status(400).json({ error: 'Data obrigatória.' });
     const criado_por = req.user ? (req.user.username || '') : '';
-    db.run(`INSERT INTO logistica_agenda (setor, titulo, descricao, data, tipo, responsaveis, acoes, criado_por, criado_em, atualizado_em)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now','localtime'), datetime('now','localtime'))`,
-        [setor || 'logistica', titulo || '', descricao || '', data, tipo || 'aviso',
-         JSON.stringify(responsaveis || []), JSON.stringify(acoes || []), criado_por],
+    db.run(`INSERT INTO logistica_agenda (setor, titulo, descricao, data, horario, tipo, responsaveis, referente_ids, acoes, criado_por, criado_em, atualizado_em)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now','localtime'), datetime('now','localtime'))`,
+        [setor || 'logistica', titulo || '', descricao || '', data, horario || '', tipo || 'aviso',
+         JSON.stringify(responsaveis || []), JSON.stringify(referente_ids || []), JSON.stringify(acoes || []), criado_por],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
-            // Disparar e-mails se ação solicitada
             db.get('SELECT * FROM logistica_agenda WHERE id = ?', [this.lastID], (e2, row) => {
                 if (row) dispararAcoesAgenda(row).catch(()=>{});
             });
@@ -11317,11 +11325,11 @@ app.post('/api/logistica/agenda', authenticateToken, express.json(), (req, res) 
 
 // PUT – atualizar card
 app.put('/api/logistica/agenda/:id', authenticateToken, express.json(), (req, res) => {
-    const { titulo, descricao, data, tipo, responsaveis, acoes, setor } = req.body;
-    db.run(`UPDATE logistica_agenda SET titulo=?, descricao=?, data=?, tipo=?, responsaveis=?, acoes=?, setor=?,
+    const { titulo, descricao, data, horario, tipo, responsaveis, referente_ids, acoes, setor } = req.body;
+    db.run(`UPDATE logistica_agenda SET titulo=?, descricao=?, data=?, horario=?, tipo=?, responsaveis=?, referente_ids=?, acoes=?, setor=?,
             atualizado_em=datetime('now','localtime') WHERE id=?`,
-        [titulo || '', descricao || '', data, tipo || 'aviso',
-         JSON.stringify(responsaveis || []), JSON.stringify(acoes || []),
+        [titulo || '', descricao || '', data, horario || '', tipo || 'aviso',
+         JSON.stringify(responsaveis || []), JSON.stringify(referente_ids || []), JSON.stringify(acoes || []),
          setor || 'logistica', req.params.id],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
