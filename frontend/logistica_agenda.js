@@ -24,8 +24,8 @@
     const TIPOS = [
         { value: 'reuniao', label: 'Reunião', icon: 'ph-users', color: '#2563eb' },
         { value: 'tarefa', label: 'Tarefa', icon: 'ph-check-square-offset', color: '#16a34a' },
-        { value: 'aviso', label: 'Aviso Geral', icon: 'ph-warning-circle', color: '#9333ea' },
-        { value: 'falta', label: 'Aviso de Falta', icon: 'ph-x-circle', color: '#dc2626' },
+        { value: 'aviso', label: 'Aviso', icon: 'ph-warning-circle', color: '#9333ea' },
+        { value: 'falta', label: 'Falta', icon: 'ph-x-circle', color: '#dc2626' },
         { value: 'afastado', label: 'Afastado', icon: 'ph-first-aid', color: '#ca8a04' },
         { value: 'ferias',  label: 'Férias', icon: 'ph-airplane-tilt', color: '#ea580c' },
         { value: 'outro',   label: 'Outro',           icon: 'ph-calendar',      color: '#6b7280' },
@@ -146,11 +146,10 @@
             const limit = agendaViewMode === 'mes' ? 3 : 999;
             const badges = cardsDay.slice(0, limit).map(c => {
                 const t = getTipo(c.tipo);
-                const hora = c.horario ? `<span style="opacity:0.8;margin-right:4px;font-weight:700;">${c.horario}</span>` : '';
                 return `<div class="ag-badge" style="background:${t.color}22;color:${t.color};border-left:3px solid ${t.color};"
                     onclick="abrirCardDetalhes(event, '${c.id}')" title="${c.titulo||t.label}">
                     <i class="ph ${t.icon}" style="font-size:0.8rem;flex-shrink:0;"></i>
-                    ${hora}<span style="overflow:hidden;text-overflow:ellipsis;">${(c.titulo||t.label)}</span>
+                    <span style="overflow:hidden;text-overflow:ellipsis;">${(c.titulo||t.label)}</span>
                 </div>`;
             }).join('');
             const mais = cardsDay.length > limit ? `<div class="ag-mais">+${cardsDay.length - limit} mais</div>` : '';
@@ -319,8 +318,8 @@
             Swal.fire('Erro', 'Card não encontrado na lista atual. Atualize a página.', 'error');
             return;
         }
-        if (card.is_ferias) {
-            Swal.fire('Informação', 'Este é um aviso automático de férias. Para editar o período, acesse o Prontuário Digital do colaborador.', 'info');
+        if (card.is_auto) {
+            Swal.fire('Informação', 'Este é um aviso automático do sistema. Para editar o período, acesse o Prontuário Digital do colaborador.', 'info');
             return;
         }
         mostrarFormCard(card);
@@ -348,7 +347,7 @@
         try { acoesSel        = JSON.parse(card.acoes || '[]'); } catch(e){}
         const tipoAtual = card.tipo || 'aviso';
 
-        const tiposHTML = TIPOS.filter(t => t.value !== 'ferias' && t.value !== 'outro').map(t => {
+        const tiposHTML = TIPOS.filter(t => t.value !== 'ferias' && t.value !== 'outro' && t.value !== 'afastado').map(t => {
             const ativo = tipoAtual === t.value;
             return `<div class="ag-tipo-btn ${ativo?'active':''}"
                 style="${ativo?`background:${t.color};border-color:${t.color};color:#fff;`:''}"
@@ -396,7 +395,7 @@
             </div>
             <div class="ag-field">
                 <label>Título</label>
-                <input type="text" id="ag-titulo" placeholder="Ex: Reunião de equipe, Falta do João..." value="${card.titulo||''}">
+                <input type="text" id="ag-titulo" placeholder="Ex: Reunião de equipe..." value="${card.titulo || getTipo(tipoAtual).label}">
             </div>
             <div class="ag-row2">
                 <div class="ag-field">
@@ -458,6 +457,12 @@
     };
 
     window.agendaSelectTipo = function(val, color) {
+        const titInput = document.getElementById('ag-titulo');
+        const oldTypeObj = TIPOS.find(t => t.label === titInput.value);
+        if (!titInput.value || oldTypeObj) {
+            titInput.value = getTipo(val).label;
+        }
+        
         document.getElementById('ag-tipo-val').value = val;
         document.querySelectorAll('.ag-tipo-btn').forEach(b => {
             b.classList.remove('active');

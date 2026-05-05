@@ -11316,12 +11316,12 @@ app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
                     const dataStr = current.toISOString().split('T')[0];
                     feriasCards.push({
                         id: 'f_' + c.id + '_' + dataStr,
-                        is_ferias: true,
+                        is_auto: true,
                         data: dataStr,
                         tipo: 'ferias',
                         titulo: 'Férias: ' + c.nome_completo.split(' ')[0],
                         descricao: 'Período de férias agendado para ' + c.nome_completo,
-                        horario: '', // Omitir a palavra 'Integral'
+                        horario: '',
                         setor: 'logistica',
                         responsaveis: '[]',
                         referente_ids: '[]',
@@ -11330,7 +11330,46 @@ app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
                     current.setDate(current.getDate() + 1);
                 }
             });
-            res.json([...(rows || []), ...feriasCards]);
+            
+            db.all(`SELECT d.colaborador_id, d.atestado_inicio, d.atestado_fim, c.nome_completo 
+                    FROM documentos d 
+                    JOIN colaboradores c ON d.colaborador_id = c.id
+                    WHERE d.tab_name = 'Atestados' 
+                    AND d.atestado_tipo = 'dias'
+                    AND d.atestado_inicio IS NOT NULL 
+                    AND d.atestado_fim IS NOT NULL
+                    AND c.status = 'Ativo'
+                    AND c.departamento != 'ESCRITÓRIO'`, [], (errAtest, atestados) => {
+                
+                const afastadoCards = [];
+                if (!errAtest) {
+                    (atestados || []).forEach(a => {
+                        let current = new Date(a.atestado_inicio + 'T12:00:00');
+                        const end = new Date(a.atestado_fim + 'T12:00:00');
+                        if (isNaN(current.getTime()) || isNaN(end.getTime())) return;
+                        
+                        while (current <= end) {
+                            const dataStr = current.toISOString().split('T')[0];
+                            afastadoCards.push({
+                                id: 'a_' + a.colaborador_id + '_' + dataStr,
+                                is_auto: true,
+                                data: dataStr,
+                                tipo: 'afastado',
+                                titulo: 'Afastado: ' + a.nome_completo.split(' ')[0],
+                                descricao: 'Afastamento médico para ' + a.nome_completo,
+                                horario: '',
+                                setor: 'logistica',
+                                responsaveis: '[]',
+                                referente_ids: '[]',
+                                acoes: '[]'
+                            });
+                            current.setDate(current.getDate() + 1);
+                        }
+                    });
+                }
+                
+                res.json([...(rows || []), ...feriasCards, ...afastadoCards]);
+            });
         });
     });
 });
