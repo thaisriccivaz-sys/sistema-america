@@ -5666,7 +5666,7 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
             ]
         };
 
-        sendMailHelper(mailOptions, (error, info) => {
+        transporter.sendMail(mailOptions, (error, info) => {
             if (error) {
                 console.error('ERRO NODEMAILER:', error);
                 return res.status(500).json({ sucesso: false, error: `Erro SMTP: ${error.message}` });
