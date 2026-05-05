@@ -4,10 +4,11 @@
 (function() {
     const API = '/api';
     let agendaCurrentDate = new Date();
-    let agendaViewMode = 'semana'; // 'dia', 'semana', 'mes'
+    let agendaViewMode = 'semana'; // 'dia', 'semana', 'mes', 'escala'
     let agendaFilterTipo = '';
     let agendaCards = [];
     let agendaColabs = [];
+    let agendaEscalaData = [];
 
     function isoDate(d) {
         return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
@@ -23,12 +24,11 @@
 
     const TIPOS = [
         { value: 'reuniao', label: 'Reunião', icon: 'ph-users', color: '#2563eb' },
-        { value: 'tarefa', label: 'Tarefa', icon: 'ph-check-square-offset', color: '#16a34a' },
+        { value: 'tarefa', label: 'Tarefa', icon: 'ph-check-square-offset', color: '#00cec8' },
         { value: 'aviso', label: 'Aviso', icon: 'ph-warning-circle', color: '#9333ea' },
         { value: 'falta', label: 'Falta', icon: 'ph-x-circle', color: '#dc2626' },
         { value: 'afastado', label: 'Afastado', icon: 'ph-first-aid', color: '#ca8a04' },
         { value: 'ferias',  label: 'Férias', icon: 'ph-airplane-tilt', color: '#ea580c' },
-        { value: 'aso',     label: 'Exame ASO', icon: 'ph-heartbeat', color: '#ec4899' },
         { value: 'outro',   label: 'Outro',           icon: 'ph-calendar',      color: '#6b7280' },
     ];
     function getTipo(v) { return TIPOS.find(t => t.value === v) || TIPOS[6]; }
@@ -44,6 +44,16 @@
     async function carregarCards(inicio, fim) {
         try {
             const r = await fetch(`${API}/logistica/agenda?inicio=${inicio}&fim=${fim}`, {
+                headers: { Authorization: `Bearer ${window.currentToken}` }
+            });
+            if (!r.ok) return [];
+            return await r.json();
+        } catch(e) { return []; }
+    }
+
+    async function carregarEscala(inicio, fim) {
+        try {
+            const r = await fetch(`${API}/logistica/escala?inicio=${inicio}&fim=${fim}`, {
                 headers: { Authorization: `Bearer ${window.currentToken}` }
             });
             if (!r.ok) return [];
@@ -109,6 +119,9 @@
         }
 
         agendaCards = await carregarCards(inicio, fim);
+        if (agendaViewMode === 'escala') {
+            agendaEscalaData = await carregarEscala(inicio, fim);
+        }
         container.innerHTML = buildAgendaHTML();
     };
 
@@ -148,6 +161,108 @@
         }
 
         let cells = '';
+
+        // ─── MODO ESCALA ────────────────────────────────────────────
+        if (agendaViewMode === 'escala') {
+            const diasRenderEsc = [];
+            let curEsc = new Date(diasRender[0] || new Date());
+            // Reusa diasRender calculado acima
+            for (const d of diasRender) {
+                if (d) diasRenderEsc.push(d);
+            }
+
+            const STATUS_STYLE = {
+                disponivel: { bg: '#008000', color: '#fff', label: 'Disponível' },
+                folga:      { bg: '#e2e8f0', color: '#64748b', label: 'Folga' },
+                ferias:     { bg: '#ea580c22', color: '#ea580c', label: 'Férias' },
+                afastado:   { bg: '#ca8a0422', color: '#ca8a04', label: 'Afastado' },
+                falta:      { bg: '#dc262622', color: '#dc2626', label: 'Falta' },
+            };
+
+            const dayHeaders = diasRenderEsc.map(d => {
+                const nm = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][d.getDay()];
+                const isH = isoDate(d) === hoje;
+                return `<th style="padding:6px 10px; font-size:0.78rem; font-weight:700; text-transform:uppercase;
+                    color:${isH?'#008000':'#475569'}; border-bottom:2px solid ${isH?'#008000':'#e2e8f0'};
+                    background:${isH?'#f0fdf4':'#f8fafc'}; white-space:nowrap;">${nm} ${d.getDate()}</th>`;
+            }).join('');
+
+            const rows_esc = (agendaEscalaData || []).map(colab => {
+                const foto = colab.foto_base64
+                    ? `<img src="${colab.foto_base64}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">`
+                    : `<div style="width:28px;height:28px;border-radius:50%;background:#e2e8f0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#475569;flex-shrink:0;">${(colab.nome_completo||'?').charAt(0).toUpperCase()}</div>`;
+
+                const diasCells = diasRenderEsc.map(d => {
+                    const dateStr = isoDate(d);
+                    const diaInfo = (colab.dias || []).find(x => x.data === dateStr);
+                    const status = diaInfo ? diaInfo.status : 'disponivel';
+                    const st = STATUS_STYLE[status] || STATUS_STYLE.disponivel;
+                    const label = status === 'disponivel' && (colab.horario_entrada || colab.horario_saida)
+                        ? `${colab.horario_entrada||''}${colab.horario_saida?'-'+colab.horario_saida:''}`
+                        : st.label;
+                    return `<td style="text-align:center; padding:4px 6px;">
+                        <div style="background:${st.bg};color:${st.color};border-radius:6px;padding:3px 6px;font-size:0.7rem;font-weight:700;white-space:nowrap;">${label}</div>
+                    </td>`;
+                }).join('');
+
+                return `<tr style="border-bottom:1px solid #f1f5f9;">
+                    <td style="padding:6px 10px; white-space:nowrap;">
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            ${foto}
+                            <div>
+                                <div style="font-size:0.82rem;font-weight:700;color:#1e293b;">${(colab.nome_completo||'').split(' ').slice(0,2).join(' ')}</div>
+                                <div style="font-size:0.7rem;color:#64748b;">${colab.cargo||colab.departamento||''}</div>
+                            </div>
+                        </div>
+                    </td>
+                    ${diasCells}
+                </tr>`;
+            }).join('');
+
+            const disponiveisHoje = (agendaEscalaData || []).filter(c => {
+                const diaInfo = (c.dias||[]).find(x => x.data === hoje);
+                return !diaInfo || diaInfo.status === 'disponivel';
+            }).length;
+
+            cells = `<div style="overflow-x:auto; margin-top:0;">
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+                    <span style="background:#008000;color:#fff;border-radius:8px;padding:5px 14px;font-size:0.82rem;font-weight:700;"><i class="ph ph-user-check"></i> ${disponiveisHoje} disponíveis hoje</span>
+                    <span style="font-size:0.78rem;color:#64748b;"><i class="ph ph-info"></i> Verde = disponível | Cinza = folga | Laranja = férias | Amarelo = afastado | Vermelho = falta</span>
+                </div>
+                <table style="width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+                    <thead>
+                        <tr>
+                            <th style="padding:8px 12px;font-size:0.78rem;font-weight:700;color:#475569;text-align:left;background:#f8fafc;border-bottom:2px solid #e2e8f0;">Colaborador</th>
+                            ${dayHeaders}
+                        </tr>
+                    </thead>
+                    <tbody>${rows_esc || '<tr><td colspan="99" style="text-align:center;padding:24px;color:#94a3b8;">Nenhum colaborador operacional encontrado.</td></tr>'}</tbody>
+                </table>
+            </div>`;
+
+            // Retorna HTML com o container de escala
+            return `<div class="ag-wrap">
+                <div class="ag-header">
+                    <div class="ag-header-left">
+                        <button class="ag-nav-btn" onclick="agendaNav(-1)"><i class="ph ph-caret-left"></i></button>
+                        <h2 class="ag-titulo">${titulo}</h2>
+                        <button class="ag-nav-btn" onclick="agendaNav(1)"><i class="ph ph-caret-right"></i></button>
+                        <button class="ag-nav-btn ag-hoje-btn" onclick="agendaIrHoje()"><i class="ph ph-calendar-blank"></i> Hoje</button>
+                    </div>
+                    <div class="ag-header-right">
+                        <div class="ag-view-toggles">
+                            <button class="ag-view-btn ${agendaViewMode==='dia'?'active':''}" onclick="agendaSetView('dia')">Dia</button>
+                            <button class="ag-view-btn ${agendaViewMode==='semana'?'active':''}" onclick="agendaSetView('semana')">Semana</button>
+                            <button class="ag-view-btn ${agendaViewMode==='mes'?'active':''}" onclick="agendaSetView('mes')">Mês</button>
+                            <button class="ag-view-btn active" style="background:#008000;color:#fff;" onclick="agendaSetView('escala')"><i class="ph ph-calendar-check"></i> Escala</button>
+                        </div>
+                    </div>
+                </div>
+                ${cells}
+            </div><div id="ag-modal-overlay" style="display:none;" onclick="fecharAgendaModal(event)"><div class="ag-modal" onclick="event.stopPropagation()"><div class="ag-modal-header"><span id="ag-modal-title">Novo Card</span><button onclick="fecharAgendaModal()" class="ag-modal-close"><i class="ph ph-x"></i></button></div><div class="ag-modal-body" id="ag-modal-body"></div></div></div>`;
+        }
+        // ─────────────────────────────────────────────────────────────
+
         for (const dObj of diasRender) {
             if (!dObj) {
                 cells += `<div class="ag-cell ag-empty"></div>`;
@@ -241,12 +356,13 @@
                 <div class="ag-header-right">
                     <select id="ag-filter-tipo" class="ag-nav-btn" onchange="agendaSetFilter(this.value)" style="margin-right: 12px; outline:none; font-weight:600;">
                         <option value="">Todos os Cards</option>
-                        ${TIPOS.filter(t => t.value !== 'outro').map(t => `<option value="${t.value}" ${agendaFilterTipo === t.value ? 'selected' : ''}>${t.label}</option>`).join('')}
+                        ${TIPOS.filter(t => t.value !== 'outro' && t.value !== 'aso').map(t => `<option value="${t.value}" ${agendaFilterTipo === t.value ? 'selected' : ''}>${t.label}</option>`).join('')}
                     </select>
                     <div class="ag-view-toggles">
                         <button class="ag-view-btn ${agendaViewMode==='dia'?'active':''}" onclick="agendaSetView('dia')">Dia</button>
                         <button class="ag-view-btn ${agendaViewMode==='semana'?'active':''}" onclick="agendaSetView('semana')">Semana</button>
                         <button class="ag-view-btn ${agendaViewMode==='mes'?'active':''}" onclick="agendaSetView('mes')">Mês</button>
+                        <button class="ag-view-btn ${agendaViewMode==='escala'?'active':''}" style="${agendaViewMode==='escala'?'background:#008000;color:#fff;':'color:#008000;font-weight:700;'}" onclick="agendaSetView('escala')"><i class="ph ph-calendar-check"></i> Escala</button>
                     </div>
                     <button class="ag-nav-btn" onclick="limparTestesAgenda()" style="color: #dc2626; border-color: #fca5a5;"><i class="ph ph-trash"></i> Limpar Testes</button>
                     <button class="ag-btn-novo" onclick="abrirNovoCard('')"><i class="ph ph-plus"></i> Novo Card</button>
@@ -265,7 +381,11 @@
                 </div>
                 <div class="ag-modal-body" id="ag-modal-body"></div>
             </div>
-        </div>
+        </div>`;
+    }
+
+    function buildStylesHTML() {
+        return `
 
         <style>
         .ag-wrap{padding:1.5rem;min-height:100%;background:#f0f4f8;}

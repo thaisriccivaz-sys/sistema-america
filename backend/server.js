@@ -11445,11 +11445,156 @@ app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
                                 }
                             });
                         }
-                        res.json([...(rows || []), ...feriasCards, ...afastadoCards, ...asoCards, ...faltaCards]);
+                        res.json([...(rows || []), ...feriasCards, ...afastadoCards, ...faltaCards]);
                     });
                 });
             });
         });
+    });
+});
+
+// GET – Escala operacional: retorna colaboradores ativos do operacional com dados de escala e ausências no período
+app.get('/api/logistica/escala', authenticateToken, (req, res) => {
+    const { inicio, fim } = req.query;
+    if (!inicio || !fim) return res.status(400).json({ error: 'Informe inicio e fim.' });
+
+    const DEPTS_EXCLUIDOS = ['ESCRITÓRIO', 'RH', 'Comercial', 'Financeiro', 'Administrativo', 'Diretoria'];
+    const excStr = DEPTS_EXCLUIDOS.map(() => '?').join(',');
+
+    db.all(`SELECT id, nome_completo, cargo, departamento, foto_base64, foto_path,
+                   escala_tipo, escala_folgas, horario_entrada, horario_saida
+            FROM colaboradores WHERE status = 'Ativo'
+            AND departamento NOT IN (${excStr})
+            ORDER BY nome_completo`, DEPTS_EXCLUIDOS, (err, colabs) => {
+        if (err) return res.status(500).json({ error: err.message });
+
+        // Coletar ausências no período (férias, atestados, faltas)
+        const promises = [];
+
+        // Férias
+        promises.push(new Promise(resolve => {
+            const ids = (colabs || []).map(c => c.id);
+            if (!ids.length) return resolve([]);
+            const ph = ids.map(() => '?').join(',');
+            db.all(`SELECT id, ferias_programadas_inicio, ferias_programadas_fim FROM colaboradores
+                    WHERE id IN (${ph}) AND ferias_programadas_inicio IS NOT NULL AND ferias_programadas_inicio != ''`, ids, (e, rows) => {
+                const ausFeriasSet = {};
+                (rows || []).forEach(r => {
+                    if (!r.ferias_programadas_inicio || !r.ferias_programadas_fim) return;
+                    let cur = new Date(r.ferias_programadas_inicio + 'T12:00:00');
+                    const end = new Date(r.ferias_programadas_fim + 'T12:00:00');
+                    while (cur <= end) {
+                        const d = cur.toISOString().split('T')[0];
+                        if (!ausFeriasSet[r.id]) ausFeriasSet[r.id] = {};
+                        ausFeriasSet[r.id][d] = 'ferias';
+                        cur.setDate(cur.getDate() + 1);
+                    }
+                });
+                resolve(ausFeriasSet);
+            });
+        }));
+
+        // Atestados
+        promises.push(new Promise(resolve => {
+            const ids = (colabs || []).map(c => c.id);
+            if (!ids.length) return resolve([]);
+            const ph = ids.map(() => '?').join(',');
+            db.all(`SELECT colaborador_id, atestado_inicio, atestado_fim FROM documentos
+                    WHERE colaborador_id IN (${ph}) AND tab_name = 'Atestados' AND atestado_tipo = 'dias'
+                    AND atestado_inicio IS NOT NULL AND atestado_fim IS NOT NULL`, ids, (e, rows) => {
+                const ausAtestSet = {};
+                (rows || []).forEach(r => {
+                    if (!r.atestado_inicio || !r.atestado_fim) return;
+                    let cur = new Date(r.atestado_inicio + 'T12:00:00');
+                    const end = new Date(r.atestado_fim + 'T12:00:00');
+                    while (cur <= end) {
+                        const d = cur.toISOString().split('T')[0];
+                        if (!ausAtestSet[r.colaborador_id]) ausAtestSet[r.colaborador_id] = {};
+                        ausAtestSet[r.colaborador_id][d] = 'afastado';
+                        cur.setDate(cur.getDate() + 1);
+                    }
+                });
+                resolve(ausAtestSet);
+            });
+        }));
+
+        // Faltas
+        promises.push(new Promise(resolve => {
+            const ids = (colabs || []).map(c => c.id);
+            if (!ids.length) return resolve([]);
+            const ph = ids.map(() => '?').join(',');
+            db.all(`SELECT colaborador_id, data_falta FROM faltas
+                    WHERE colaborador_id IN (${ph}) AND data_falta >= ? AND data_falta <= ?`,
+                [...ids, inicio, fim], (e, rows) => {
+                const ausFaltasSet = {};
+                (rows || []).forEach(r => {
+                    if (!ausFaltasSet[r.colaborador_id]) ausFaltasSet[r.colaborador_id] = {};
+                    ausFaltasSet[r.colaborador_id][r.data_falta] = 'falta';
+                });
+                resolve(ausFaltasSet);
+            });
+        }));
+
+        Promise.all(promises).then(([ferSet, atestSet, faltSet]) => {
+            // Gerar lista de datas no range
+            const datas = [];
+            let cur = new Date(inicio + 'T12:00:00');
+            const endDate = new Date(fim + 'T12:00:00');
+            while (cur <= endDate) {
+                datas.push(cur.toISOString().split('T')[0]);
+                cur.setDate(cur.getDate() + 1);
+            }
+
+            // Para cada colaborador, calcular disponibilidade por dia
+            const result = (colabs || []).map(c => {
+                const ausencias = { ...((ferSet || {})[c.id] || {}), ...((atestSet || {})[c.id] || {}), ...((faltSet || {})[c.id] || {}) };
+
+                // Parse da escala
+                const escalaStr = (c.escala_tipo || '').toLowerCase();
+                const folgas = (c.escala_folgas || '').toLowerCase();
+
+                // Determinar dias de folga com base na escala
+                const getFolga = (dateStr) => {
+                    const d = new Date(dateStr + 'T12:00:00');
+                    const dow = d.getDay(); // 0=dom, 1=seg..6=sab
+                    if (escalaStr.includes('5x2') || escalaStr.includes('5 x 2')) {
+                        return dow === 0 || dow === 6;
+                    }
+                    if (escalaStr.includes('6x1') || escalaStr.includes('6 x 1')) {
+                        return dow === 0;
+                    }
+                    if (escalaStr.includes('12x36')) {
+                        return false; // sem folga fixada, mostrar sempre
+                    }
+                    // Sem escala definida: considerar seg-sab (folga domingo)
+                    return dow === 0;
+                };
+
+                const diasInfo = datas.map(data => {
+                    const ausencia = ausencias[data] || null;
+                    const folga = getFolga(data);
+                    let status = 'disponivel';
+                    if (folga) status = 'folga';
+                    if (ausencia) status = ausencia;
+                    return { data, status };
+                });
+
+                return {
+                    id: c.id,
+                    nome_completo: c.nome_completo,
+                    cargo: c.cargo,
+                    departamento: c.departamento,
+                    foto_base64: c.foto_base64,
+                    foto_path: c.foto_path,
+                    horario_entrada: c.horario_entrada,
+                    horario_saida: c.horario_saida,
+                    escala_tipo: c.escala_tipo,
+                    dias: diasInfo
+                };
+            });
+
+            res.json(result);
+        }).catch(e => res.status(500).json({ error: e.message }));
     });
 });
 
