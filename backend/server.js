@@ -448,6 +448,7 @@ db.run(`CREATE TABLE IF NOT EXISTS licencas (
         // Adicionar colunas caso a tabela já exista
         db.run("ALTER TABLE licencas ADD COLUMN last_alert_date TEXT", (err1) => { });
         db.run("ALTER TABLE licencas ADD COLUMN alerta_3_meses_enviado INTEGER DEFAULT 0", (err2) => { });
+        db.run("ALTER TABLE licencas ADD COLUMN last_popup_date TEXT", (err3) => { });
     }
 });
 
@@ -12198,6 +12199,22 @@ function verificarLicencasVencimentoCron() {
                 if (deveEnviar) {
                     await dispararEmailLicenca(lic, diffDias, emailDestino);
                     db.run('UPDATE licencas SET last_alert_date = ? WHERE id = ?', [new Date().toISOString(), lic.id]);
+                }
+
+                // Popup logic for expired licenses (every day while expired)
+                const hojeStr = hoje.toISOString().split('T')[0];
+                if (diffDias <= 0 && lic.last_popup_date !== hojeStr) {
+                    db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'licenca_vencida'", [], (errC, rowsC) => {
+                        if (!errC && rowsC && rowsC.length > 0) {
+                            const msg = `A licença ${lic.nome} venceu no dia ${lic.validade.split('-').reverse().join('/')}.`;
+                            const dados = JSON.stringify({ nome_licenca: lic.nome, data_vencimento: lic.validade, id: lic.id });
+                            rowsC.forEach(c => {
+                                db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)",
+                                    [c.usuario_id, 'licenca_vencida', msg, dados]);
+                            });
+                            db.run('UPDATE licencas SET last_popup_date = ? WHERE id = ?', [hojeStr, lic.id]);
+                        }
+                    });
                 }
             }
         });

@@ -5,7 +5,8 @@ const TIPOS_NOTIFICACAO = [
     { id: 'credenciamento_solicitado', nome: 'Solicitação de Credenciamento', icone: 'ph-identification-card' },
     { id: 'documentos_assinados', nome: 'Documentos Assinados', icone: 'ph-signature' },
     { id: 'aviso_faltas', nome: 'Aviso de Faltas', icone: 'ph-warning' },
-    { id: 'formulario_experiencia', nome: 'Formulário de Experiência Preenchido', icone: 'ph-clipboard-text' }
+    { id: 'formulario_experiencia', nome: 'Formulário de Experiência Preenchido', icone: 'ph-clipboard-text' },
+    { id: 'licenca_vencida', nome: 'Aviso de Licença Vencida', icone: 'ph-warning-circle' }
 ];
 
 let globalUsuariosConfig = [];
