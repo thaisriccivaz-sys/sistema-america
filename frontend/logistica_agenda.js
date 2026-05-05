@@ -22,15 +22,15 @@
     }
 
     const TIPOS = [
-        { value: 'aviso',   label: 'Aviso Geral',    icon: 'ph-bell',          color: '#f59e0b' },
-        { value: 'falta',   label: 'Aviso de Falta', icon: 'ph-user-minus',    color: '#ef4444' },
-        { value: 'reuniao', label: 'Reunião',         icon: 'ph-users',         color: '#3b82f6' },
-        { value: 'tarefa',  label: 'Tarefa',          icon: 'ph-check-square',  color: '#10b981' },
-        { value: 'email',   label: 'Envio de E-mail', icon: 'ph-envelope',      color: '#8b5cf6' },
-        { value: 'ferias',  label: 'Férias',          icon: 'ph-airplane-tilt', color: '#d97706' },
+        { value: 'reuniao', label: 'Reunião', icon: 'ph-users', color: '#2563eb' },
+        { value: 'tarefa', label: 'Tarefa', icon: 'ph-check-square-offset', color: '#16a34a' },
+        { value: 'aviso', label: 'Aviso Geral', icon: 'ph-warning-circle', color: '#9333ea' },
+        { value: 'falta', label: 'Aviso de Falta', icon: 'ph-x-circle', color: '#dc2626' },
+        { value: 'afastado', label: 'Afastado', icon: 'ph-first-aid', color: '#ca8a04' },
+        { value: 'ferias',  label: 'Férias', icon: 'ph-airplane-tilt', color: '#ea580c' },
         { value: 'outro',   label: 'Outro',           icon: 'ph-calendar',      color: '#6b7280' },
     ];
-    function getTipo(v) { return TIPOS.find(t => t.value === v) || TIPOS[5]; }
+    function getTipo(v) { return TIPOS.find(t => t.value === v) || TIPOS[6]; }
 
     async function carregarColabs() {
         try {
@@ -186,7 +186,7 @@
                 <div class="ag-header-right">
                     <select id="ag-filter-tipo" class="ag-nav-btn" onchange="agendaSetFilter(this.value)" style="margin-right: 12px; outline:none; font-weight:600;">
                         <option value="">Todos os Cards</option>
-                        ${TIPOS.map(t => `<option value="${t.value}" ${agendaFilterTipo === t.value ? 'selected' : ''}>${t.label}</option>`).join('')}
+                        ${TIPOS.filter(t => t.value !== 'outro').map(t => `<option value="${t.value}" ${agendaFilterTipo === t.value ? 'selected' : ''}>${t.label}</option>`).join('')}
                     </select>
                     <div class="ag-view-toggles">
                         <button class="ag-view-btn ${agendaViewMode==='dia'?'active':''}" onclick="agendaSetView('dia')">Dia</button>
@@ -314,8 +314,11 @@
 
     window.abrirCardDetalhes = function(e, id) {
         if (e) e.stopPropagation();
-        const card = agendaCards.find(c => c.id == id);
-        if (!card) return;
+        const card = agendaCards.find(c => String(c.id) === String(id));
+        if (!card) {
+            Swal.fire('Erro', 'Card não encontrado na lista atual. Atualize a página.', 'error');
+            return;
+        }
         if (card.is_ferias) {
             Swal.fire('Informação', 'Este é um aviso automático de férias. Para editar o período, acesse o Prontuário Digital do colaborador.', 'info');
             return;
@@ -345,7 +348,7 @@
         try { acoesSel        = JSON.parse(card.acoes || '[]'); } catch(e){}
         const tipoAtual = card.tipo || 'aviso';
 
-        const tiposHTML = TIPOS.map(t => {
+        const tiposHTML = TIPOS.filter(t => t.value !== 'ferias' && t.value !== 'outro').map(t => {
             const ativo = tipoAtual === t.value;
             return `<div class="ag-tipo-btn ${ativo?'active':''}"
                 style="${ativo?`background:${t.color};border-color:${t.color};color:#fff;`:''}"

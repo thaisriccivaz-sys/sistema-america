@@ -2771,12 +2771,12 @@ function renderColaboradores(lista) {
 
             <!-- Status Pills -->
             <button class="btn-tipo-cadastro" data-status="" onclick="selecionarTipoCadastro(this, '')" style="padding:0.25rem 0.65rem; border:none; border-radius:999px; font-size:0.78rem; font-weight:600; cursor:pointer; background:#e2e8f0; color:#475569; display:flex; gap:3px; align-items:center; transition:0.2s; white-space:nowrap;">Todos</button>
-            <button class="btn-tipo-cadastro" data-status="Processo iniciado" onclick="selecionarTipoCadastro(this, 'Processo iniciado')" style="padding:0.25rem 0.65rem; border:none; border-radius:999px; font-size:0.78rem; font-weight:600; cursor:pointer; background:#f3e8ff; color:#7e22ce; display:flex; gap:3px; align-items:center; transition:0.2s; opacity:0.5; white-space:nowrap;"><i class="ph ph-play-circle"></i> Iniciado</button>
-            <button class="btn-tipo-cadastro" data-status="Aguardando início" onclick="selecionarTipoCadastro(this, 'Aguardando início')" style="padding:0.25rem 0.65rem; border:none; border-radius:999px; font-size:0.78rem; font-weight:600; cursor:pointer; background:#cbd5e1; color:#334155; display:flex; gap:3px; align-items:center; transition:0.2s; opacity:0.5; white-space:nowrap;"><i class="ph ph-hourglass-high"></i> Aguardando</button>
-            <button class="btn-tipo-cadastro" data-status="Ativo" onclick="selecionarTipoCadastro(this, 'Ativo')" style="padding:0.25rem 0.65rem; border:none; border-radius:999px; font-size:0.78rem; font-weight:600; cursor:pointer; background:#dcfce7; color:#166534; display:flex; gap:3px; align-items:center; transition:0.2s; opacity:0.5; white-space:nowrap;"><i class="ph ph-check-circle"></i> Ativo</button>
-            <button class="btn-tipo-cadastro" data-status="Afastado" onclick="selecionarTipoCadastro(this, 'Afastado')" style="padding:0.25rem 0.65rem; border:none; border-radius:999px; font-size:0.78rem; font-weight:600; cursor:pointer; background:#ffedd5; color:#c2410c; display:flex; gap:3px; align-items:center; transition:0.2s; opacity:0.5; white-space:nowrap;"><i class="ph ph-first-aid"></i> Afastado</button>
-            <button class="btn-tipo-cadastro" data-status="Férias" onclick="selecionarTipoCadastro(this, 'Férias')" style="padding:0.25rem 0.65rem; border:none; border-radius:999px; font-size:0.78rem; font-weight:600; cursor:pointer; background:#dbeafe; color:#1e40af; display:flex; gap:3px; align-items:center; transition:0.2s; opacity:0.5; white-space:nowrap;"><i class="ph ph-airplane-tilt"></i> Férias</button>
-            <button class="btn-tipo-cadastro" data-status="Desligado" onclick="selecionarTipoCadastro(this, 'Desligado')" style="padding:0.25rem 0.65rem; border:none; border-radius:999px; font-size:0.78rem; font-weight:600; cursor:pointer; background:#fee2e2; color:#b91c1c; display:flex; gap:3px; align-items:center; transition:0.2s; opacity:0.5; white-space:nowrap;"><i class="ph ph-x-circle"></i> Desligado</button>
+            <button class="btn-tipo-cadastro" data-status="Processo iniciado" onclick="selecionarTipoCadastro(this, 'Processo iniciado')" style="padding:0.25rem 0.65rem; border:none; border-radius:999px; font-size:0.78rem; font-weight:600; cursor:pointer; background:#e7f5ff; color:#1864ab; display:flex; gap:3px; align-items:center; transition:0.2s; opacity:0.5; white-space:nowrap;"><i class="ph ph-play-circle"></i> Iniciado</button>
+            <button class="btn-tipo-cadastro" data-status="Aguardando início" onclick="selecionarTipoCadastro(this, 'Aguardando início')" style="padding:0.25rem 0.65rem; border:none; border-radius:999px; font-size:0.78rem; font-weight:600; cursor:pointer; background:#f1f3f5; color:#495057; display:flex; gap:3px; align-items:center; transition:0.2s; opacity:0.5; white-space:nowrap;"><i class="ph ph-hourglass-high"></i> Aguardando</button>
+            <button class="btn-tipo-cadastro" data-status="Ativo" onclick="selecionarTipoCadastro(this, 'Ativo')" style="padding:0.25rem 0.65rem; border:none; border-radius:999px; font-size:0.78rem; font-weight:600; cursor:pointer; background:#e8f5e9; color:#196b36; display:flex; gap:3px; align-items:center; transition:0.2s; opacity:0.5; white-space:nowrap;"><i class="ph ph-check-circle"></i> Ativo</button>
+            <button class="btn-tipo-cadastro" data-status="Afastado" onclick="selecionarTipoCadastro(this, 'Afastado')" style="padding:0.25rem 0.65rem; border:none; border-radius:999px; font-size:0.78rem; font-weight:600; cursor:pointer; background:#faeed9; color:#eaa15f; display:flex; gap:3px; align-items:center; transition:0.2s; opacity:0.5; white-space:nowrap;"><i class="ph ph-first-aid"></i> Afastado</button>
+            <button class="btn-tipo-cadastro" data-status="Férias" onclick="selecionarTipoCadastro(this, 'Férias')" style="padding:0.25rem 0.65rem; border:none; border-radius:999px; font-size:0.78rem; font-weight:600; cursor:pointer; background:#ffedd5; color:#c2410c; display:flex; gap:3px; align-items:center; transition:0.2s; opacity:0.5; white-space:nowrap;"><i class="ph ph-airplane-tilt"></i> Férias</button>
+            <button class="btn-tipo-cadastro" data-status="Desligado" onclick="selecionarTipoCadastro(this, 'Desligado')" style="padding:0.25rem 0.65rem; border:none; border-radius:999px; font-size:0.78rem; font-weight:600; cursor:pointer; background:#fceeee; color:#ba7881; display:flex; gap:3px; align-items:center; transition:0.2s; opacity:0.5; white-space:nowrap;"><i class="ph ph-x-circle"></i> Desligado</button>
 
             <div style="width:1px; height:20px; background:#e2e8f0; flex-shrink:0; margin:0 2px;"></div>
 
@@ -3009,11 +3009,11 @@ function renderTabelaColaboradores(lista) {
                         let statusHtml = '';
                         const effectiveStatus = getEffectiveStatus(c);
                         if (effectiveStatus === 'Aguardando início') statusHtml = `<div style="background:#f1f3f5;color:#495057;border:2px solid #adb5bd;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-clock"></i> Aguardando</div>`;
-                        else if (effectiveStatus === 'Processo iniciado') statusHtml = `<div style="background:#e7f5ff;color:#1864ab;border:2px solid #1864ab;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-hourglass"></i> Iniciado</div>`;
+                        else if (effectiveStatus === 'Processo iniciado') statusHtml = `<div style="background:#e7f5ff;color:#1864ab;border:2px solid #1864ab;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-play-circle"></i> Iniciado</div>`;
                         else if (effectiveStatus === 'Ativo') statusHtml = `<div style="background:#e8f5e9;color:#196b36;border:2px solid #196b36;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-check-circle"></i> Ativo</div>`;
-                        else if (effectiveStatus === 'Férias') statusHtml = `<div style="background:#fdf7e3;color:#c2aa72;border:2px solid #c2aa72;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-airplane-tilt"></i> Férias</div>`;
-                        else if (effectiveStatus === 'Afastado') statusHtml = `<div style="background:#faeed9;color:#eaa15f;border:2px solid transparent;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-warning"></i> Afastado</div>`;
-                        else if (effectiveStatus === 'Desligado') statusHtml = `<div style="background:#fceeee;color:#ba7881;border:2px solid transparent;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-x-circle"></i> Desligado</div>`;
+                        else if (effectiveStatus === 'Férias') statusHtml = `<div style="background:#ffedd5;color:#c2410c;border:2px solid #c2410c;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-airplane-tilt"></i> Férias</div>`;
+                        else if (effectiveStatus === 'Afastado') statusHtml = `<div style="background:#faeed9;color:#eaa15f;border:2px solid #eaa15f;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-first-aid"></i> Afastado</div>`;
+                        else if (effectiveStatus === 'Desligado') statusHtml = `<div style="background:#fceeee;color:#ba7881;border:2px solid #ba7881;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-x-circle"></i> Desligado</div>`;
                         else if (effectiveStatus === 'Incompleto') statusHtml = `<div style="background:#f8f9fa;color:#6c757d;border:2px solid transparent;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-pencil-simple"></i> Incompleto</div>`;
                         else statusHtml = `<div style="background:#f1f3f5;color:#495057;border:2px solid #adb5bd;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-clock"></i> Aguardando</div>`;
 
@@ -3993,11 +3993,11 @@ window.openProntuario = async function(id, nome, cargo, cpf, sexo = '', admissao
         const s = getEffectiveStatus(viewedColaborador || { status });
         let statusHtml = '';
         if (s === 'Aguardando início') statusHtml = `<div style="background:#f1f3f5;color:#495057;border:2px solid #adb5bd;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-clock"></i> Aguardando</div>`;
-        else if (s === 'Processo iniciado') statusHtml = `<div style="background:#e7f5ff;color:#1864ab;border:2px solid #1864ab;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-hourglass"></i> Iniciado</div>`;
+        else if (s === 'Processo iniciado') statusHtml = `<div style="background:#e7f5ff;color:#1864ab;border:2px solid #1864ab;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-play-circle"></i> Iniciado</div>`;
         else if (s === 'Ativo') statusHtml = `<div style="background:#e8f5e9;color:#196b36;border:2px solid #196b36;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-check-circle"></i> Ativo</div>`;
-        else if (s === 'Férias') statusHtml = `<div style="background:#fdf7e3;color:#c2aa72;border:2px solid #c2aa72;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-airplane-tilt"></i> Férias</div>`;
-        else if (s === 'Afastado') statusHtml = `<div style="background:#faeed9;color:#eaa15f;border:2px solid transparent;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-warning"></i> Afastado</div>`;
-        else if (s === 'Desligado') statusHtml = `<div style="background:#fceeee;color:#ba7881;border:2px solid transparent;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-x-circle"></i> Desligado</div>`;
+        else if (s === 'Férias') statusHtml = `<div style="background:#ffedd5;color:#c2410c;border:2px solid #c2410c;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-airplane-tilt"></i> Férias</div>`;
+        else if (s === 'Afastado') statusHtml = `<div style="background:#faeed9;color:#eaa15f;border:2px solid #eaa15f;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-first-aid"></i> Afastado</div>`;
+        else if (s === 'Desligado') statusHtml = `<div style="background:#fceeee;color:#ba7881;border:2px solid #ba7881;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-x-circle"></i> Desligado</div>`;
         else if (s === 'Incompleto') statusHtml = `<div style="background:#f8f9fa;color:#6c757d;border:2px solid transparent;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-pencil-simple"></i> Incompleto</div>`;
         else statusHtml = `<div style="background:#f1f3f5;color:#495057;border:2px solid #adb5bd;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-clock"></i> Aguardando</div>`;
         statusDisplay.innerHTML = statusHtml;
@@ -4718,7 +4718,7 @@ window.renderTabContent = function(tabId, tabTitle, preventScroll = false) {
         }
     } else if (tabId === 'Contratos') {
         
-        renderContratosTab(listContainer);
+        renderContratosTab(listContainer, searchTerm);
     } else if (tabId === '00.CheckList') {
         renderCargoDocsChecklist(listContainer);
     } else if (tabId === 'ASO') {
@@ -8805,11 +8805,11 @@ window.uploadAdmissaoAvulso = async function(geradorId, colabId, fileInput) {
 };
 
 // ===== ABA CONTRATOS (PRONTUÁRIO DIGITAL) — apenas Outros Contratos =====
-window.renderContratosTab = async function(container) {
+window.renderContratosTab = async function(container, searchTerm = '') {
     if (!viewedColaborador) return;
     container.innerHTML = '<p class="text-muted" style="padding:0.5rem;"><i class="ph ph-spinner ph-spin"></i> Carregando geradores...</p>';
     // Vai direto para Outros Contratos — sem sub-aba de Admissão
-    await window.renderContratosAvulso(container);
+    await window.renderContratosAvulso(container, searchTerm);
 };
 
 // Helper: recarrega a aba Contratos no container correto
@@ -8822,8 +8822,9 @@ window._reloadContratosContainer = async function() {
     let ct = document.getElementById('docs-list-container') ||
              document.getElementById('tab-dynamic-content');
     if (ct && caList) {
+        const searchTerm = document.getElementById('doc-search-input')?.value.toLowerCase() || '';
         ct.innerHTML = '<p class="text-muted" style="padding:0.5rem;"><i class="ph ph-spinner ph-spin"></i> Atualizando...</p>';
-        await window.renderContratosAvulso(ct);
+        await window.renderContratosAvulso(ct, searchTerm);
     }
 };
 
@@ -8866,7 +8867,7 @@ window._avaliarRegraGerador = function(g, colab, deptNome) {
     return true;
 };
 
-window.renderContratosAvulso = async function(container) {
+window.renderContratosAvulso = async function(container, searchTerm = '') {
     if (!viewedColaborador || !container) return;
     container.innerHTML = '<p class="text-muted"><i class="ph ph-spinner ph-spin"></i> Carregando Documentos...</p>';
     try {
@@ -8983,6 +8984,12 @@ window.renderContratosAvulso = async function(container) {
 
         // --- MUDANÇA: Ordenar TODOS os documentos já gerados do mais novo para o mais antigo ---
         let allExistingDocs = [...filteredDocs];
+
+        if (searchTerm) {
+            const st = searchTerm.toLowerCase();
+            allExistingDocs = allExistingDocs.filter(d => (d.document_type||'').toLowerCase().includes(st) || (d.file_name||'').toLowerCase().includes(st));
+            autoGeradores = autoGeradores.filter(g => (g.nome||'').toLowerCase().includes(st));
+        }
         
         const _normFR = s => (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
         const fichaRegistroDoc = docs.find(d => 
