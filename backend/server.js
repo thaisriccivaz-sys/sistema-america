@@ -11500,7 +11500,8 @@ app.get('/api/logistica/escala', authenticateToken, (req, res) => {
             if (!ids.length) return resolve([]);
             const ph = ids.map(() => '?').join(',');
             db.all(`SELECT colaborador_id, atestado_inicio, atestado_fim FROM documentos
-                    WHERE colaborador_id IN (${ph}) AND tab_name = 'Atestados' AND atestado_tipo = 'dias'
+                    WHERE colaborador_id IN (${ph}) 
+                    AND (tab_name LIKE '%ATESTADO%' OR document_type LIKE '%Atestado%' OR tab_name = 'Atestados')
                     AND atestado_inicio IS NOT NULL AND atestado_fim IS NOT NULL`, ids, (e, rows) => {
                 const ausAtestSet = {};
                 (rows || []).forEach(r => {
@@ -11547,7 +11548,7 @@ app.get('/api/logistica/escala', authenticateToken, (req, res) => {
 
             // Para cada colaborador, calcular disponibilidade por dia
             const result = (colabs || []).map(c => {
-                const ausencias = { ...((ferSet || {})[c.id] || {}), ...((atestSet || {})[c.id] || {}), ...((faltSet || {})[c.id] || {}) };
+                const ausencias = { ...((faltSet || {})[c.id] || {}), ...((atestSet || {})[c.id] || {}), ...((ferSet || {})[c.id] || {}) };
 
                 // Parse da escala
                 const escalaStr = (c.escala_tipo || '').toLowerCase();
