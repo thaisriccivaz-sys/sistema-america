@@ -5740,7 +5740,10 @@ window.sendASOEmailTab = async function() {
             // Recarregar aba para mostrar aviso
             viewedColaborador.aso_email_enviado = res.data_envio;
             viewedColaborador.aso_exame_data    = res.data_agendada;
-            const activeTab = document.querySelector('#tabs-list li.active');
+            if (res.new_doc && typeof currentDocs !== 'undefined') {
+                currentDocs.push(res.new_doc);
+            }
+            const activeTab = document.querySelector('.tab-menu li.active');
             if (activeTab) renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
         } else {
             throw new Error(res.error || 'Erro no servidor');
@@ -5750,7 +5753,7 @@ window.sendASOEmailTab = async function() {
             window.location.href = `mailto:${destinatario}?cc=rh@americarental.com.br,rh2@americarental.com.br&subject=Exame Médico - ${viewedColaborador.nome_completo || viewedColaborador.nome}&body=${encodeURIComponent(mailBody)}`;
         }
     } finally {
-        if (btn) { btn.disabled = false; btn.innerHTML = originalContent; }
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-paper-plane-tilt"></i> Enviar Solicitação'; }
     }
 };
 
@@ -11238,11 +11241,13 @@ window.sendASOEmail = async function() {
             colaborador_id: viewedColaborador.id,
             email_to: destinatario,
             data_exame: dataExame,
+            tipo_exame: 'Admissional',
             cc: ['rh@americarental.com.br', 'rh2@americarental.com.br']
         });
         
         if (res.sucesso) {
             alert('E-mail enviado com sucesso pelo servidor!');
+            if (res.new_doc && typeof currentDocs !== 'undefined') currentDocs.push(res.new_doc);
             // Mostrar aviso em verde
             const asoNotice = document.getElementById('aso-email-notice');
             const asoNoticeDate = document.getElementById('aso-notice-date');

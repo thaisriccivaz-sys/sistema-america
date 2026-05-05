@@ -5683,7 +5683,24 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
 
             db.run('UPDATE colaboradores SET aso_email_enviado = ?, aso_exame_data = ? WHERE id = ?', [dataEnvioStr, dataAgendadaStr, colaborador_id], (err) => {
                 if (err) console.error('Erro ao salvar aso_email_enviado/aso_exame_data:', err);
-                res.json({ sucesso: true, message: 'E-mail enviado com sucesso', data_envio: dataEnvioStr, data_agendada: dataAgendadaStr });
+                
+                const tipoASO = `ASO ${tipoExameStr}`;
+                db.run(`INSERT INTO documentos (colaborador_id, tab_name, document_type, year) VALUES (?, ?, ?, ?)`,
+                    [colaborador_id, 'ASO', tipoASO, y],
+                    function(insertErr) {
+                        if (insertErr) console.error('Erro ao inserir documento ASO:', insertErr);
+                        const newDoc = {
+                            id: this.lastID,
+                            colaborador_id,
+                            tab_name: 'ASO',
+                            document_type: tipoASO,
+                            year: y,
+                            file_path: null,
+                            file_name: null
+                        };
+                        res.json({ sucesso: true, message: 'E-mail enviado com sucesso', data_envio: dataEnvioStr, data_agendada: dataAgendadaStr, new_doc: newDoc });
+                    }
+                );
             });
         });
     });
