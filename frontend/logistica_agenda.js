@@ -146,7 +146,7 @@
                 const t = getTipo(c.tipo);
                 const hora = c.horario ? `<span style="opacity:0.8;margin-right:4px;font-weight:700;">${c.horario}</span>` : '';
                 return `<div class="ag-badge" style="background:${t.color}22;color:${t.color};border-left:3px solid ${t.color};"
-                    onclick="event.stopPropagation();abrirCardDetalhes(${c.id})" title="${c.titulo||t.label}">
+                    onclick="abrirCardDetalhes(event, ${c.id})" title="${c.titulo||t.label}">
                     <i class="ph ${t.icon}" style="font-size:0.8rem;flex-shrink:0;"></i>
                     ${hora}<span style="overflow:hidden;text-overflow:ellipsis;">${(c.titulo||t.label)}</span>
                 </div>`;
@@ -301,7 +301,8 @@
 
     window.abrirNovoCard = function(dateStr) { mostrarFormCard({ data: dateStr }); };
 
-    window.abrirCardDetalhes = function(id) {
+    window.abrirCardDetalhes = function(e, id) {
+        if (e) e.stopPropagation();
         const card = agendaCards.find(c => c.id === id);
         if (!card) return;
         mostrarFormCard(card);
@@ -382,7 +383,11 @@
                 </div>
                 <div class="ag-field">
                     <label>Horário</label>
-                    <input type="time" id="ag-horario" value="${card.horario||''}">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <input type="time" id="ag-horario-ini" value="${(card.horario||'').split(' - ')[0]||''}" style="flex:1;">
+                        <span style="color:#64748b;font-weight:600;">até</span>
+                        <input type="time" id="ag-horario-fim" value="${(card.horario||'').split(' - ')[1]||''}" style="flex:1;">
+                    </div>
                 </div>
             </div>
             <div class="ag-field">
@@ -468,15 +473,21 @@
     window.agendaSalvarCard = async function(idExistente) {
         const titulo    = document.getElementById('ag-titulo')?.value.trim();
         const data      = document.getElementById('ag-data')?.value;
-        const horario   = document.getElementById('ag-horario')?.value || '';
+        
+        const hIni = document.getElementById('ag-horario-ini')?.value;
+        const hFim = document.getElementById('ag-horario-fim')?.value;
+        let horario = '';
+        if (hIni && hFim) horario = `${hIni} - ${hFim}`;
+        else if (hIni) horario = hIni;
+
         const descricao = document.getElementById('ag-descricao')?.value.trim();
         const tipo      = document.getElementById('ag-tipo-val')?.value || 'aviso';
 
         if (!data) { showToast('Selecione uma data para o card.', 'error'); return; }
 
-        const responsaveis  = JSON.stringify(Array.from(document.querySelectorAll('#ag-resp-list [data-id]')).map(c => parseInt(c.dataset.id)));
-        const referente_ids = JSON.stringify(Array.from(document.querySelectorAll('#ag-ref-list [data-id]')).map(c => parseInt(c.dataset.id)));
-        const acoes         = JSON.stringify(Array.from(document.querySelectorAll('#ag-acoes-grid .ag-acao-item.selected')).map(el => el.querySelector('input').value));
+        const responsaveis  = Array.from(document.querySelectorAll('#ag-resp-list [data-id]')).map(c => parseInt(c.dataset.id));
+        const referente_ids = Array.from(document.querySelectorAll('#ag-ref-list [data-id]')).map(c => parseInt(c.dataset.id));
+        const acoes         = Array.from(document.querySelectorAll('#ag-acoes-grid .ag-acao-item.selected')).map(el => el.querySelector('input').value);
 
         const payload = { titulo, data, horario, descricao, tipo, responsaveis, referente_ids, acoes, setor: 'logistica' };
         if (idExistente) payload.id = idExistente;
