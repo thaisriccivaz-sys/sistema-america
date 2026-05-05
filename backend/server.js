@@ -11394,7 +11394,32 @@ app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
                     });
                 }
                 
-                res.json([...(rows || []), ...feriasCards, ...afastadoCards]);
+                db.all(`SELECT id, nome_completo, aso_exame_data FROM colaboradores WHERE status = 'Ativo' AND departamento = 'Comercial' AND aso_exame_data IS NOT NULL AND aso_exame_data != ''`, [], (errAso, asoColabs) => {
+                    const asoCards = [];
+                    if (!errAso) {
+                        (asoColabs || []).forEach(c => {
+                            // aso_exame_data is DD/MM/YYYY
+                            const [d, m, y] = c.aso_exame_data.split('/');
+                            if (d && m && y) {
+                                const dataStr = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+                                asoCards.push({
+                                    id: 'aso_' + c.id + '_' + dataStr,
+                                    is_auto: true,
+                                    data: dataStr,
+                                    tipo: 'aso',
+                                    titulo: 'ASO: ' + c.nome_completo.split(' ')[0],
+                                    descricao: 'Exame ASO agendado para ' + c.nome_completo + ' (Comercial)',
+                                    horario: '',
+                                    setor: 'logistica',
+                                    responsaveis: '[]',
+                                    referente_ids: '[]',
+                                    acoes: '[]'
+                                });
+                            }
+                        });
+                    }
+                    res.json([...(rows || []), ...feriasCards, ...afastadoCards, ...asoCards]);
+                });
             });
         });
     });
