@@ -467,6 +467,7 @@ const BREADCRUMB_MAP = {
     'logistica-senhas':       { path: 'Cofre de Senhas',                                           code: 'LOG007' },
     'logistica-resumo-rota':  { path: 'Resumo de Rota',                                            code: 'LOG008' },
     'logistica-itinerantes':  { path: 'Clientes Itinerantes',                                      code: 'LOG009' },
+    'logistica-agenda':       { path: 'Agenda Logística',                                           code: 'LOG011' },
     // Comercial
     'comercial-credenciamento': { path: 'Solicitar Credencial',                                    code: 'COM001' },
 };
@@ -603,7 +604,7 @@ function updateBreadcrumb(key) {
     const starBtn = document.getElementById('btn-star-page');
     if (starBtn && entryObj) {
         starBtn.style.color = pageColor;
-        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-pipeline' || key === 'logistica-frota' || key === 'logistica-credenciamento' || key === 'logistica-senhas' || key === 'comercial-credenciamento' || key === 'departamentos';
+        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-pipeline' || key === 'logistica-frota' || key === 'logistica-credenciamento' || key === 'logistica-senhas' || key === 'comercial-credenciamento' || key === 'departamentos' || key === 'logistica-agenda';
         if (isSimplePage) {
             starBtn.style.display = 'flex';
         } else {
@@ -665,6 +666,7 @@ const TAB_META = {
     'logistica-credenciamento': { color: '#2d9e5f', icon: 'ph-identification-card', title: 'Credenciamento' },
     'logistica-senhas':       { color: '#2d9e5f', icon: 'ph-lock-key',             title: 'Cofre de Senhas' },
     'logistica-itinerantes':  { color: '#2d9e5f', icon: 'ph-map-pin-line',         title: 'Clientes Itinerantes' },
+    'logistica-agenda':       { color: '#2d9e5f', icon: 'ph-calendar-check',       title: 'Agenda' },
     // Financeiro - Azul
     'financeiro-em-breve':    { color: '#1971c2', icon: 'ph-currency-dollar', title: 'Financeiro' },
     // Comercial - Roxo
@@ -764,6 +766,9 @@ window.navigateToTab = function(tabId) {
       }
       if (tab.target === 'logistica-itinerantes' && typeof window.renderItinerantesPage === 'function') {
           setTimeout(() => window.renderItinerantesPage(), 80);
+      }
+      if (tab.target === 'logistica-agenda' && typeof window.renderAgendaLogistica === 'function') {
+          setTimeout(() => window.renderAgendaLogistica(), 80);
       }
     // Se a aba tem dados de colaborador (prontuário ou form), restaura o viewedColaborador
     if (tab._colaboradorData) {
@@ -893,6 +898,8 @@ function navigateTo(target) {
         if (typeof window.carregarHistoricoCredenciamento === 'function') setTimeout(() => window.carregarHistoricoCredenciamento(), 80);
     } else if (target === 'logistica-itinerantes') {
         if (typeof window.renderItinerantesPage === 'function') setTimeout(() => window.renderItinerantesPage(), 80);
+    } else if (target === 'logistica-agenda') {
+        if (typeof window.renderAgendaLogistica === 'function') setTimeout(() => window.renderAgendaLogistica(), 80);
     } else if (target === 'comercial-credenciamento') {
         if (typeof window.carregarHistoricoComCred === 'function') setTimeout(() => window.carregarHistoricoComCred(), 80);
     } else if (target === 'licencas') {

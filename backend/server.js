@@ -11238,6 +11238,144 @@ app.post('/api/itinerantes/localizacoes', authenticateToken, express.json(), asy
     }
 });
 
+// ═══════════════════════════════════════════════════════════════
+// AGENDA LOGÍSTICA
+// ═══════════════════════════════════════════════════════════════
+
+// Auto-criação da tabela
+db.run(`CREATE TABLE IF NOT EXISTS logistica_agenda (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    setor TEXT DEFAULT 'logistica',
+    titulo TEXT,
+    descricao TEXT,
+    data TEXT NOT NULL,
+    tipo TEXT DEFAULT 'aviso',
+    responsaveis TEXT DEFAULT '[]',
+    acoes TEXT DEFAULT '[]',
+    criado_por TEXT,
+    criado_em DATETIME DEFAULT (datetime('now','localtime')),
+    atualizado_em DATETIME DEFAULT (datetime('now','localtime'))
+)`, (err) => {
+    if (err && !err.message.includes('already exists')) console.error('[Agenda] Erro na criação da tabela:', err.message);
+});
+
+// GET – lista cards do mês
+app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
+    const { ano, mes, setor } = req.query;
+    let where = '1=1';
+    const params = [];
+    if (ano && mes) {
+        const anoN = parseInt(ano), mesN = parseInt(mes);
+        const inicio = `${anoN}-${String(mesN).padStart(2,'0')}-01`;
+        const fim = `${anoN}-${String(mesN).padStart(2,'0')}-31`;
+        where += ' AND data >= ? AND data <= ?';
+        params.push(inicio, fim);
+    }
+    if (setor) { where += ' AND setor = ?'; params.push(setor); }
+    db.all(`SELECT * FROM logistica_agenda WHERE ${where} ORDER BY data, id`, params, (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+// POST – criar card
+app.post('/api/logistica/agenda', authenticateToken, express.json(), (req, res) => {
+    const { titulo, descricao, data, tipo, responsaveis, acoes, setor } = req.body;
+    if (!data) return res.status(400).json({ error: 'Data obrigatória.' });
+    const criado_por = req.user ? (req.user.username || '') : '';
+    db.run(`INSERT INTO logistica_agenda (setor, titulo, descricao, data, tipo, responsaveis, acoes, criado_por, criado_em, atualizado_em)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now','localtime'), datetime('now','localtime'))`,
+        [setor || 'logistica', titulo || '', descricao || '', data, tipo || 'aviso',
+         JSON.stringify(responsaveis || []), JSON.stringify(acoes || []), criado_por],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            // Disparar e-mails se ação solicitada
+            db.get('SELECT * FROM logistica_agenda WHERE id = ?', [this.lastID], (e2, row) => {
+                if (row) dispararAcoesAgenda(row).catch(()=>{});
+            });
+            res.json({ id: this.lastID, ok: true });
+        }
+    );
+});
+
+// PUT – atualizar card
+app.put('/api/logistica/agenda/:id', authenticateToken, express.json(), (req, res) => {
+    const { titulo, descricao, data, tipo, responsaveis, acoes, setor } = req.body;
+    db.run(`UPDATE logistica_agenda SET titulo=?, descricao=?, data=?, tipo=?, responsaveis=?, acoes=?, setor=?,
+            atualizado_em=datetime('now','localtime') WHERE id=?`,
+        [titulo || '', descricao || '', data, tipo || 'aviso',
+         JSON.stringify(responsaveis || []), JSON.stringify(acoes || []),
+         setor || 'logistica', req.params.id],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ ok: true });
+        }
+    );
+});
+
+// DELETE – excluir card
+app.delete('/api/logistica/agenda/:id', authenticateToken, (req, res) => {
+    db.run('DELETE FROM logistica_agenda WHERE id = ?', [req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ ok: true });
+    });
+});
+
+// Helper: disparar ações (e-mail) de um card da agenda
+async function dispararAcoesAgenda(card) {
+    let acoes = [];
+    try { acoes = JSON.parse(card.acoes || '[]'); } catch(e) {}
+    if (!acoes.includes('enviar_email')) return;
+
+    let responsaveisIds = [];
+    try { responsaveisIds = JSON.parse(card.responsaveis || '[]'); } catch(e) {}
+    if (responsaveisIds.length === 0) return;
+
+    const placeholders = responsaveisIds.map(() => '?').join(',');
+    db.all(`SELECT nome_completo, email_corporativo FROM colaboradores WHERE id IN (${placeholders}) AND email_corporativo IS NOT NULL AND email_corporativo != ''`,
+        responsaveisIds, async (err, colabs) => {
+            if (err || !colabs || colabs.length === 0) return;
+
+            const tipo_label = {aviso:'Aviso Geral',falta:'Aviso de Falta',reuniao:'Reunião',tarefa:'Tarefa',email:'Envio de E-mail',outro:'Outro'}[card.tipo] || card.tipo;
+            const dataFmt = card.data ? card.data.split('-').reverse().join('/') : '';
+            const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+            const transporter = nodemailer.createTransport(SMTP_CONFIG);
+
+            for (const c of colabs) {
+                const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #eee;">
+                    <div style="background:linear-gradient(135deg,#1e293b,#334155);padding:20px;text-align:center;">
+                        <img src="cid:logo-agenda" style="max-height:60px;" alt="América Rental">
+                    </div>
+                    <div style="padding:24px;">
+                        <h2 style="color:#2d9e5f;margin-top:0;">📅 Agenda Logística — ${tipo_label}</h2>
+                        <p>Olá, <strong>${c.nome_completo}</strong>!</p>
+                        <p>Você foi marcado como responsável em um item da agenda do dia <strong>${dataFmt}</strong>.</p>
+                        <div style="background:#f0fdf4;border-left:4px solid #2d9e5f;border-radius:8px;padding:16px;margin:16px 0;">
+                            <p style="margin:4px 0;"><strong>Tipo:</strong> ${tipo_label}</p>
+                            ${card.titulo ? `<p style="margin:4px 0;"><strong>Título:</strong> ${card.titulo}</p>` : ''}
+                            ${card.descricao ? `<p style="margin:4px 0;"><strong>Descrição:</strong> ${card.descricao}</p>` : ''}
+                        </div>
+                        <p style="color:#64748b;font-size:0.9em;">Acesse o sistema para mais detalhes.</p>
+                        <p style="margin-top:24px;color:#94a3b8;font-size:0.85em;">Atenciosamente,<br>Sistema América Rental</p>
+                    </div>
+                </div>`;
+                try {
+                    await sendMailHelper({
+                        from: `"Agenda América Rental" <${SMTP_CONFIG.auth.user}>`,
+                        to: c.email_corporativo,
+                        subject: `[Agenda ${dataFmt}] ${card.titulo || tipo_label}`,
+                        html,
+                        attachments: [{ filename:'logo.png', path: logoPath, cid:'logo-agenda' }]
+                    });
+                    console.log(`[Agenda] E-mail enviado para ${c.email_corporativo}`);
+                } catch(e2) {
+                    console.error('[Agenda] Erro ao enviar e-mail:', e2.message);
+                }
+            }
+        }
+    );
+}
+
 app.listen(PORT, () => {
 
     console.log(`Servidor rodando na porta ${PORT}`);

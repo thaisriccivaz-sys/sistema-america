@@ -118,6 +118,7 @@
                     <a href="#" class="nav-item" data-target="logistica-entregas" onclick="navigateTo('logistica-entregas'); return false;"><i class="ph ph-package"></i> Entregas</a>
                     <a href="#" class="nav-item" data-target="logistica-itinerantes" onclick="navigateTo('logistica-itinerantes'); return false;"><i class="ph ph-map-pin-line"></i> Clientes Itinerantes</a>
                     <a href="#" class="nav-item" data-target="logistica-sinistros" onclick="navigateTo('logistica-sinistros'); return false;"><i class="ph ph-car-crash"></i> Sinistros</a>
+                    <a href="#" class="nav-item" data-target="logistica-agenda" onclick="navigateTo('logistica-agenda'); return false;"><i class="ph ph-calendar-check"></i> Agenda</a>
                 </div>
             </div>
 
@@ -228,6 +229,11 @@
     <!-- VIEW: DASHBOARD DE LOGÍSTICA -->
     <section id="view-logistica-dashboard" class="content-view" style="padding:0; background:#f1f5f9;">
         <div id="logistica-dashboard-container"></div>
+    </section>
+
+    <!-- VIEW: AGENDA LOGISTICA -->
+    <section id="view-logistica-agenda" class="content-view" style="padding:0; background:#f0f4f8;">
+        <div id="logistica-agenda-container"></div>
     </section>
 
     <!-- VIEW: SINISTROS LOGÍSTICA -->
@@ -3399,6 +3405,7 @@
     <style>
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     </style>
+    <script src="logistica_agenda.js"></script>
 </body>
 </html>
 
