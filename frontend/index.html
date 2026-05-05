@@ -20,6 +20,7 @@
     <script src="experiencia.js?v=1" defer></script>
     <script src="entregas.js" defer></script>
     <script src="resumo_rota.js?v=1777778840433" defer></script>
+    <script src="notificacoes.js" defer></script>
 </head>
 <body>
     
@@ -171,6 +172,7 @@
                     <a href="#" class="nav-item" data-target="certificado-digital"><i class="ph ph-certificate"></i> Certificado Digital</a>
                     <a href="#" class="nav-item" data-target="homologacao"><i class="ph ph-database"></i> Homologação</a>
                     <a href="#" class="nav-item" data-target="departamentos"><i class="ph ph-buildings"></i> Departamentos</a>
+                    <a href="#" class="nav-item" data-target="notificacoes"><i class="ph ph-bell-ringing"></i> Notificações</a>
                 </div>
             </div>
 
@@ -524,6 +526,29 @@
                                 <tbody id="table-departamentos"></tbody>
                             </table>
                         </div>
+                </section>
+
+                <section id="view-notificacoes" class="content-view">
+                    <div class="page-header flex-between" style="position: sticky; top: 60px; z-index: 20; background: var(--bg-main); padding: 1rem 0; margin-top: -1.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color);">
+                        <div style="display: flex; align-items: center; gap: 1.5rem;">
+                            <div style="width: 80px; height: 80px; border-radius: 50%; border: 2px dashed #cbd5e0; display: flex; align-items: center; justify-content: center; background: #fff5f5; color: #d9480f; font-size: 2rem;">
+                                <i class="ph ph-bell-ringing"></i>
+                            </div>
+                            <div>
+                                <h2 style="margin: 0; font-size: 1.4rem;">Configuração de Notificações</h2>
+                                <p style="margin: 4px 0 0; color: #64748b; font-size: 0.85rem;">Selecione os usuários que receberão alertas e popups para cada tipo de aviso no sistema.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card p-4">
+                        <div id="notificacoes-container" style="display: flex; flex-direction: column; gap: 1.5rem;">
+                            <!-- Preenchido via JS -->
+                        </div>
+                        <div style="margin-top: 1.5rem; display: flex; justify-content: flex-end;">
+                            <button class="btn btn-primary" onclick="window.salvarConfigNotificacoes()"><i class="ph ph-floppy-disk"></i> Salvar Configurações</button>
+                        </div>
+                    </div>
                 </section>
 
                 <!-- VIEW: INTEGRA�!ÒO -->

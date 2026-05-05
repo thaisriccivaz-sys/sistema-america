@@ -409,6 +409,18 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 )
             `);
 
+            // Tabela de Configurações de Notificações
+            db.run(`
+                CREATE TABLE IF NOT EXISTS config_notificacoes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    tipo TEXT NOT NULL,
+                    usuario_id INTEGER NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(tipo, usuario_id),
+                    FOREIGN KEY(usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+                )
+            `);
+
             // Inserir Cargo "Motorista" fixo se não existir e não tiver sido excluído
             db.run("CREATE TABLE IF NOT EXISTS cargos_excluidos (nome TEXT PRIMARY KEY)", () => {
                 db.run("INSERT INTO cargos (nome) SELECT 'Motorista' WHERE NOT EXISTS (SELECT 1 FROM cargos WHERE nome='Motorista') AND NOT EXISTS (SELECT 1 FROM cargos_excluidos WHERE nome='Motorista')");

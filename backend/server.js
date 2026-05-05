@@ -6909,6 +6909,38 @@ app.delete('/api/usuarios/:id', authenticateToken, (req, res) => {
         res.json({ message: 'Usuário inativado' });
     });
 });
+// --- CONFIGURAÇÕES DE NOTIFICAÇÕES (POPUP) ---
+app.get('/api/config-notificacoes', authenticateToken, (req, res) => {
+    db.all('SELECT tipo, usuario_id FROM config_notificacoes', [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+app.post('/api/config-notificacoes', authenticateToken, (req, res) => {
+    const { tipo, usuarios } = req.body; // usuarios = array of usuario_id
+    if (!tipo || !Array.isArray(usuarios)) return res.status(400).json({ error: 'Dados inválidos' });
+    
+    db.serialize(() => {
+        db.run('DELETE FROM config_notificacoes WHERE tipo = ?', [tipo], (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            
+            if (usuarios.length > 0) {
+                const placeholders = usuarios.map(() => '(?, ?)').join(',');
+                const values = [];
+                usuarios.forEach(uid => {
+                    values.push(tipo, uid);
+                });
+                db.run(`INSERT INTO config_notificacoes (tipo, usuario_id) VALUES ${placeholders}`, values, (err2) => {
+                    if (err2) return res.status(500).json({ error: err2.message });
+                    res.json({ message: 'Configurações salvas' });
+                });
+            } else {
+                res.json({ message: 'Configurações salvas' });
+            }
+        });
+    });
+});
 
 
 app.get('/api/wipe-credenciamentos', (req, res) => {
