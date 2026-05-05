@@ -18,15 +18,18 @@ setTimeout(() => {
         
         console.log(`Colaboradora encontrada: ${colab.nome_completo} (ID: ${colab.id})`);
 
-        // 2. Buscar o documento
-        db.all(`SELECT id, document_type, assinafy_id FROM documentos WHERE colaborador_id = ? AND document_type LIKE '%ACORDO DE COMPENSAÇÃO%'`, [colab.id], (err, docs) => {
+        // 2. Buscar o documento (ignorando acentos usando LIKE generico)
+        db.all(`SELECT id, document_type, file_name, assinafy_id FROM documentos WHERE colaborador_id = ? AND document_type LIKE '%ACORDO DE COMPENSA%'`, [colab.id], (err, docs) => {
             if (err) {
                 console.error('Erro ao buscar documentos:', err);
                 return;
             }
 
             if (docs.length === 0) {
-                console.log('Nenhum documento encontrado com esse nome para a colaboradora.');
+                console.log('Nenhum documento encontrado com esse nome para a colaboradora. Buscando todos os documentos dela para debug...');
+                db.all(`SELECT id, document_type FROM documentos WHERE colaborador_id = ?`, [colab.id], (err2, allDocs) => {
+                    console.log('Documentos reais desta colaboradora:', allDocs);
+                });
                 return;
             }
 
