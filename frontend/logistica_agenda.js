@@ -324,17 +324,17 @@
                     <button class="ag-nav-btn ag-hoje-btn" onclick="agendaIrHoje()"><i class="ph ph-calendar-blank"></i> Hoje</button>
                 </div>
                 <div class="ag-header-right">
+                    <button class="ag-nav-btn ${agendaFilterTipo === 'escala' ? 'ag-escala-active' : ''}" onclick="agendaSetFilter(agendaFilterTipo === 'escala' ? '' : 'escala')" style="${agendaFilterTipo === 'escala' ? 'background:#1a7a46;color:#fff;border-color:#1a7a46;' : 'color:#1a7a46;border-color:#1a7a46;font-weight:600;'}"><i class="ph ph-users"></i> Escala Operacional</button>
                     <select id="ag-filter-tipo" class="ag-nav-btn" onchange="agendaSetFilter(this.value)" style="outline:none; font-weight:600;">
                         <option value="">Todos os Cards</option>
                         ${TIPOS.filter(t => t.value !== 'outro' && t.value !== 'aso').map(t => `<option value="${t.value}" ${agendaFilterTipo === t.value ? 'selected' : ''}>${t.label}</option>`).join('')}
-                        <option value="escala" ${agendaFilterTipo === 'escala' ? 'selected' : ''}>🗓️ Escala Operacional</option>
                     </select>
                     <div class="ag-view-toggles">
                         <button class="ag-view-btn ${agendaViewMode==='dia'?'active':''}" onclick="agendaSetView('dia')">Dia</button>
                         <button class="ag-view-btn ${agendaViewMode==='semana'?'active':''}" onclick="agendaSetView('semana')">Semana</button>
                         <button class="ag-view-btn ${agendaViewMode==='mes'?'active':''}" onclick="agendaSetView('mes')">Mês</button>
                     </div>
-                    <button class="ag-nav-btn" onclick="limparTestesAgenda()" style="color: #dc2626; border-color: #fca5a5;"><i class="ph ph-trash"></i> Limpar Testes</button>
+                    <button class="ag-nav-btn" onclick="limparTestesAgenda()" style="display:none; color: #dc2626; border-color: #fca5a5;"><i class="ph ph-trash"></i> Limpar Testes</button>
                     <button class="ag-btn-novo" onclick="abrirNovoCard('')"><i class="ph ph-plus"></i> Novo Card</button>
                 </div>
             </div>
