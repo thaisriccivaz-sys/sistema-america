@@ -10549,7 +10549,8 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
         const docNamesReadable = {
             'cnh': 'CNH', 'cpf': 'CPF', 'aso': 'ASO', 'ficha_registro': 'Ficha de Registro',
             'treinamento': 'Carteira de Vacinação', 'epi': 'Ficha de EPI',
-            'contrato_esocial': 'Contrato e-social', 'nr1': 'NR1 / Ordem de Serviço'
+            'contrato_esocial': 'Contrato e-social', 'nr1': 'NR1 / Ordem de Serviço',
+            'foto_colaborador': 'Foto do Colaborador'
         };
 
         // Se há exigências de documentos, validar para cada colaborador
@@ -10568,6 +10569,13 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
                 for (let reqDoc of docs_exigidos) {
                     if (reqDoc === 'cnh' && !isMotorista) continue; // Não exige CNH se não for motorista
                     if (reqDoc === 'cpf' && isMotorista) continue;  // Não exige CPF separado se for motorista
+
+                    if (reqDoc === 'foto_colaborador') {
+                        if (!colabObj || (!colabObj.foto_base64 && !colabObj.foto_path)) {
+                            return res.status(400).json({ error: `O e-mail não foi enviado pois o colaborador(a) ${cNome} não tem o documento "${docNamesReadable[reqDoc] || reqDoc}" cadastrado no sistema. Contacte o setor de RH.` });
+                        }
+                        continue;
+                    }
 
                     const acceptableNames = (docMap[reqDoc] || [reqDoc]).map(x =>
                         x.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()

@@ -4012,7 +4012,7 @@ window.openProntuario = async function(id, nome, cargo, cpf, sexo = '', admissao
             (viewedColaborador.foto_path ? `${API_URL.replace('/api', '')}/${viewedColaborador.foto_path}?t=${Date.now()}` : null);
         if (fotoSrc) {
             fotoImg.src = fotoSrc;
-            if (fotoLink) fotoLink.href = fotoSrc;
+            if (fotoLink) fotoLink.href = `${API_URL.replace('/api', '')}/api/colaboradores/foto/${viewedColaborador.id}`;
             fotoImg.style.display = 'block';
             fotoPlaceholder.style.display = 'none';
         } else {
@@ -4066,7 +4066,7 @@ window.uploadFotoProntuario = async function(input) {
                 if (fotoImg && fotoPlaceholder) {
                     const newSrc = `${API_URL.replace('/api', '')}/${updated.foto_path}?t=${Date.now()}`;
                     fotoImg.src = newSrc;
-                    if (fotoLink) fotoLink.href = newSrc;
+                    if (fotoLink) fotoLink.href = `${API_URL.replace('/api', '')}/api/colaboradores/foto/${updated.id}`;
                     fotoImg.style.display = 'block';
                     fotoPlaceholder.style.display = 'none';
                 }
