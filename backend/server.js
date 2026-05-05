@@ -11553,20 +11553,50 @@ app.get('/api/logistica/escala', authenticateToken, (req, res) => {
                 const escalaStr = (c.escala_tipo || '').toLowerCase();
                 const folgas = (c.escala_folgas || '').toLowerCase();
 
-                // Determinar dias de folga com base na escala
+                // Mapeamento de nome do dia → getDay() index (0=Dom)
+                const DIA_MAP = {
+                    'dom': 0, 'domingo': 0,
+                    'seg': 1, 'segunda': 1,
+                    'ter': 2, 'terça': 2, 'terca': 2,
+                    'qua': 3, 'quarta': 3,
+                    'qui': 4, 'quinta': 4,
+                    'sex': 5, 'sexta': 5,
+                    'sáb': 6, 'sab': 6, 'sabado': 6, 'sábado': 6
+                };
+
+                // Dias de folga explícitos cadastrados (campo escala_folgas é JSON array ex: ["Qua"])
+                let folgasExplicitas = [];
+                try {
+                    const parsed = JSON.parse(c.escala_folgas || '[]');
+                    folgasExplicitas = Array.isArray(parsed)
+                        ? parsed.map(f => String(f).trim().toLowerCase())
+                        : [String(parsed).trim().toLowerCase()];
+                } catch(e) {
+                    // fallback: tratar como string simples separada por vírgula
+                    folgasExplicitas = (c.escala_folgas || '').split(/[,;]+/).map(f => f.trim().toLowerCase()).filter(Boolean);
+                }
+                const folgasDow = folgasExplicitas.map(f => DIA_MAP[f]).filter(v => v !== undefined);
+
                 const getFolga = (dateStr) => {
                     const d = new Date(dateStr + 'T12:00:00');
                     const dow = d.getDay(); // 0=dom, 1=seg..6=sab
+
+                    // Se tem folgas explícitas cadastradas (qualquer tipo de escala), usar elas
+                    if (folgasDow.length > 0) {
+                        return folgasDow.includes(dow);
+                    }
+
+                    // Fallback por tipo de escala
                     if (escalaStr.includes('5x2') || escalaStr.includes('5 x 2')) {
-                        return dow === 0 || dow === 6;
+                        return dow === 0 || dow === 6; // sab e dom
                     }
                     if (escalaStr.includes('6x1') || escalaStr.includes('6 x 1')) {
-                        return dow === 0;
+                        return dow === 0; // dom por padrão
                     }
                     if (escalaStr.includes('12x36')) {
-                        return false; // sem folga fixada, mostrar sempre
+                        return false; // escala variável, sem folga fixa
                     }
-                    // Sem escala definida: considerar seg-sab (folga domingo)
+                    // Sem escala definida: considerar folga domingo
                     return dow === 0;
                 };
 
