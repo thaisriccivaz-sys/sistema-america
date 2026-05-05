@@ -147,22 +147,47 @@
             const badges = cardsDay.slice(0, limit).map(c => {
                 const t = getTipo(c.tipo);
                 let tituloDisplay = c.titulo || t.label;
+                let fotosHTML = '';
+                
                 try {
-                    const refs = JSON.parse(c.referente_ids || '[]');
-                    if (refs && refs.length > 0) {
-                        const nomesRefs = refs.map(id => {
-                            const col = agendaColabs.find(x => String(x.id) === String(id));
-                            return col ? col.nome_completo.split(' ').slice(0, 2).join(' ') : '';
-                        }).filter(Boolean);
-                        if (nomesRefs.length > 0) {
-                            tituloDisplay += `: ${nomesRefs.join(', ')}`;
+                    let colabsEnvolvidos = [];
+                    
+                    if (c.is_auto) {
+                        const colabId = String(c.id).split('_')[1];
+                        if (colabId) colabsEnvolvidos.push(colabId);
+                    } else {
+                        const refs = JSON.parse(c.referente_ids || '[]');
+                        if (refs && refs.length > 0) {
+                            const nomesRefs = [];
+                            refs.forEach(id => {
+                                const col = agendaColabs.find(x => String(x.id) === String(id));
+                                if (col) nomesRefs.push(col.nome_completo.split(' ').slice(0, 2).join(' '));
+                            });
+                            if (nomesRefs.length > 0) {
+                                tituloDisplay += `: ${nomesRefs.join(', ')}`;
+                            }
+                            colabsEnvolvidos = refs;
                         }
+                    }
+
+                    if (colabsEnvolvidos.length > 0) {
+                        fotosHTML = `<div style="display:flex; align-items:center; gap:2px; margin-right:4px;">` + 
+                        colabsEnvolvidos.map(id => {
+                            const col = agendaColabs.find(x => String(x.id) === String(id));
+                            if (!col) return '';
+                            if (col.foto) {
+                                return `<img src="${col.foto}" style="width:16px;height:16px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1px solid ${t.color};" title="${col.nome_completo}">`;
+                            } else {
+                                const init = col.nome_completo.charAt(0).toUpperCase();
+                                return `<div style="width:16px;height:16px;border-radius:50%;background:#fff;color:${t.color};border:1px solid ${t.color};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;" title="${col.nome_completo}">${init}</div>`;
+                            }
+                        }).join('') + `</div>`;
                     }
                 } catch(e) {}
                 
                 return `<div class="ag-badge" style="background:${t.color}22;color:${t.color};border-left:3px solid ${t.color};"
                     onclick="abrirCardDetalhes(event, '${c.id}')" title="${tituloDisplay}">
-                    <i class="ph ${t.icon}" style="font-size:0.8rem;flex-shrink:0;"></i>
+                    ${fotosHTML || `<i class="ph ${t.icon}" style="font-size:0.8rem;flex-shrink:0;margin-right:2px;"></i>`}
                     <span style="overflow:hidden;text-overflow:ellipsis;">${tituloDisplay}</span>
                 </div>`;
             }).join('');
