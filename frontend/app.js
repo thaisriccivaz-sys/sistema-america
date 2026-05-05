@@ -9418,7 +9418,24 @@ window.uploadContratoExterno = async function(input) {
 
     const modalResult = await Swal.fire({
         title: '<i class="ph ph-file-plus"></i> Anexar Contrato',
-        html: '<div style="text-align:left;display:flex;flex-direction:column;gap:0.75rem;padding:0.25rem 0;"><div><label style="font-size:0.82rem;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Nome do Documento</label><input id="swal-doctype" class="swal2-input" style="margin:0;width:100%;box-sizing:border-box;" placeholder="Ex: Acordo de Confidencialidade"></div></div>',
+        html: `
+            <div style="text-align:left;display:flex;flex-direction:column;gap:1.2rem;padding:0.25rem 0;">
+                <div>
+                    <label style="font-size:0.85rem;font-weight:700;color:#374151;display:block;margin-bottom:6px;">Nome do Documento</label>
+                    <input id="swal-doctype" class="swal2-input" style="margin:0;width:100%;box-sizing:border-box;" placeholder="Ex: Acordo de Confidencialidade">
+                </div>
+                <div>
+                    <label style="font-size:0.85rem;font-weight:700;color:#374151;display:block;margin-bottom:6px;">Exige assinatura do colaborador?</label>
+                    <div style="display:flex; gap:1.5rem;">
+                        <label style="display:flex; align-items:center; gap:0.4rem; cursor:pointer; font-size:0.9rem;">
+                            <input type="radio" name="swal-assinatura" value="sim" style="width:16px;height:16px;accent-color:#2563eb;"> Sim
+                        </label>
+                        <label style="display:flex; align-items:center; gap:0.4rem; cursor:pointer; font-size:0.9rem;">
+                            <input type="radio" name="swal-assinatura" value="nao" checked style="width:16px;height:16px;accent-color:#2563eb;"> Não
+                        </label>
+                    </div>
+                </div>
+            </div>`,
         focusConfirm: false,
         showCancelButton: true,
         confirmButtonText: '<i class="ph ph-upload-simple"></i> Anexar',
@@ -9435,13 +9452,15 @@ window.uploadContratoExterno = async function(input) {
             if (docType) docType = docType.trim();
             if (!docType) { Swal.showValidationMessage('Informe o nome do documento'); return false; }
 
+            var reqAssinatura = document.querySelector('input[name="swal-assinatura"]:checked').value;
+
             var formData = new FormData();
             formData.append('file', file);
             formData.append('tab_name', 'CONTRATOS_AVULSOS');
             formData.append('document_type', docType);
             formData.append('colaborador_id', viewedColaborador.id);
             formData.append('colaborador_nome', viewedColaborador.nome_completo || '');
-            formData.append('assinafy_status', 'NAO_EXIGE');
+            formData.append('assinafy_status', reqAssinatura === 'sim' ? 'Pendente' : 'NAO_EXIGE');
 
             try {
                 var res = await fetch(API_URL + '/documentos', {
@@ -9451,7 +9470,27 @@ window.uploadContratoExterno = async function(input) {
                 });
                 var data = await res.json().catch(function() { return {}; });
                 if (!res.ok) throw new Error(data.error || 'Falha ao anexar PDF');
-                if (typeof showToast !== 'undefined') showToast('Documento anexado no Prontuário!', 'success');
+
+                if (reqAssinatura === 'sim') {
+                    const assRes = await fetch(API_URL + '/assinafy/upload', {
+                        method: 'POST',
+                        headers: { 
+                            'Authorization': 'Bearer ' + currentToken,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ document_id: data.id, colaborador_id: viewedColaborador.id })
+                    });
+                    const assData = await assRes.json().catch(e=>({}));
+                    if (!assRes.ok) throw new Error(assData.error || 'Falha ao enviar para o Assinafy');
+                    
+                    const dt = new Date();
+                    const horaEnvio = dt.toLocaleDateString() + ' às ' + dt.toLocaleTimeString();
+                    if (typeof Swal !== 'undefined') Swal.fire('Sucesso!', `Documento anexado e enviado para assinatura em ${horaEnvio}`, 'success');
+                    else if (typeof showToast !== 'undefined') showToast(`Enviado para assinatura em ${horaEnvio}`, 'success');
+                } else {
+                    if (typeof showToast !== 'undefined') showToast('Documento anexado no Prontuário!', 'success');
+                }
+
                 return true;
             } catch(err) {
                 Swal.showValidationMessage(err.message);
