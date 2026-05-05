@@ -28,6 +28,7 @@ const TELAS_SISTEMA = [
     { modulo: 'Logística', pagina_id: 'logistica-senhas',         pagina_nome: 'Cofre de Senhas', icone: 'ph-lock-key' },
     { modulo: 'Logística', pagina_id: 'logistica-itinerantes',    pagina_nome: 'Clientes Itinerantes', icone: 'ph-map-pin-line' },
     { modulo: 'Logística', pagina_id: 'logistica-sinistros',       pagina_nome: 'Sinistros Logística',  icone: 'ph-car-crash' },
+    { modulo: 'Logística', pagina_id: 'logistica-agenda',         pagina_nome: 'Agenda Logística', icone: 'ph-calendar' },
     // Módulo Financeiro
     { modulo: 'Financeiro', pagina_id: 'financeiro-em-breve', pagina_nome: 'Financeiro (Em breve)', icone: 'ph-currency-dollar' },
     // Módulo Comercial
@@ -513,7 +514,7 @@ const MENU_HIERARQUIA = [
     },
     {
         modulo: 'Logística', icone: 'ph-truck', cor: '#2b8a3e',
-        grupos: [{ titulo: 'Telas', telas: ['logistica-pipeline', 'logistica-rota-redonda', 'logistica-resumo-rota', 'logistica-frota', 'logistica-multas', 'logistica-credenciamento', 'logistica-senhas', 'logistica-itinerantes'] }]
+        grupos: [{ titulo: 'Telas', telas: ['logistica-pipeline', 'logistica-rota-redonda', 'logistica-resumo-rota', 'logistica-frota', 'logistica-multas', 'logistica-credenciamento', 'logistica-senhas', 'logistica-itinerantes', 'logistica-sinistros', 'logistica-agenda'] }]
     },
     {
         modulo: 'Financeiro', icone: 'ph-currency-dollar', cor: '#1864ab',
