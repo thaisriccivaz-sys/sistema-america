@@ -19,6 +19,9 @@ async function initNotificacoesView() {
         
         container.innerHTML = '<div style="text-align:center; padding: 2rem; color: #94a3b8;">Carregando configurações...</div>';
         
+        const token = localStorage.getItem('token');
+        if (!token) throw new Error('Usuário não autenticado');
+
         // 1. Fetch Users
         const resUsers = await fetch(`${API_URL}/usuarios`, {
             headers: { 'Authorization': `Bearer ${token}` }
@@ -105,6 +108,7 @@ window.salvarConfigNotificacoes = async function() {
     });
     
     try {
+        const token = localStorage.getItem('token');
         const btn = document.querySelector('#view-notificacoes .btn-primary');
         const btnOriginal = btn.innerHTML;
         btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...';
