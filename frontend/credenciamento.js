@@ -533,13 +533,14 @@ async function validarVencimentosCredenciamento() {
         if (d.includes('epi')) return 'epi';
         if (d.includes('contrato') || d.includes('social')) return 'contrato_esocial';
         if (d.includes('nr1') || d.includes('ordem de serv')) return 'nr1';
+        if (d.includes('foto')) return 'foto_colaborador';
         return null;
     };
 
     const docNamesReadable = {
         'cnh': 'CNH', 'cpf': 'CPF', 'aso': 'ASO', 'ficha_registro': 'Ficha de Registro',
         'treinamento': 'Carteira de Vacinação', 'epi': 'Ficha de EPI',
-        'contrato_esocial': 'Contrato e-social', 'nr1': 'NR1 / Ordem de Serviço'
+        'contrato_esocial': 'Contrato e-social', 'nr1': 'NR1 / Ordem de Serviço', 'foto_colaborador': 'Foto do Colaborador'
     };
 
     // 1. Validar licenças selecionadas

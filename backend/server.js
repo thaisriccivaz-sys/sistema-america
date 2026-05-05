@@ -10835,6 +10835,15 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
             });
         });
 
+        // Buscar foto_base64 dos colaboradores
+        const colabFotoPromise = new Promise((resolve) => {
+            if (colabIds.length === 0) return resolve([]);
+            const placeholders = colabIds.map(() => '?').join(',');
+            db.all(`SELECT id, foto_base64, foto_path FROM colaboradores WHERE id IN (${placeholders})`, colabIds, (err, rows) => {
+                resolve(rows || []);
+            });
+        });
+
         // Buscar fichas de EPI ativas (tabela separada)
         const epiPromise = new Promise((resolve) => {
             if (colabIds.length === 0) return resolve([]);
@@ -10872,7 +10881,7 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
             db.all(`SELECT id, file_name FROM licencas WHERE id IN (${ph})`, licencaIds, (err, rows) => resolve(rows || []));
         });
 
-        Promise.all([colabDocsPromise, veicDocsPromise, licencasDbPromise, epiPromise]).then(([docs, frotas, licencasDb, epiDocs]) => {
+        Promise.all([colabDocsPromise, veicDocsPromise, licencasDbPromise, epiPromise, colabFotoPromise]).then(([docs, frotas, licencasDb, epiDocs, colabFotos]) => {
             // Merge EPI docs with regular docs (deduplicate by colaborador_id - keep only one EPI per collab)
             const docsComEPI = [...docs];
             epiDocs.forEach(ed => {
@@ -10894,8 +10903,12 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
                 'treinamento': ['Carteira de vacinacao', 'Carteira de vacinação', 'Carteira de Vacina', 'vacina'],
                 'epi': ['Ficha de EPI Assinada', 'Ficha de EPI', 'ficha epi', 'epi'],
                 'contrato_esocial': ['Contrato e-social', 'contrato esocial', 'e-social', 'esocial'],
-                'nr1': ['NR1', 'NR 1', 'Ordem de Servico', 'Ordem de Serviço', 'OS', 'ordem servico']
+                'nr1': ['NR1', 'NR 1', 'Ordem de Servico', 'Ordem de Serviço', 'OS', 'ordem servico'],
+                'foto_colaborador': ['Foto do Colaborador', 'foto colaborador', 'foto']
             };
+
+            // Verificar se foto foi exigida
+            const fotoExigida = docsExigidos.includes('foto_colaborador');
 
             // Montar conjunto de nomes aceitos (normalizados sem acento)
             const norm = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
@@ -10924,30 +10937,34 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
             res.json({
                 cliente_nome: cred.cliente_nome,
                 validade: cred.valid_until,
-                colaboradores: colabs.map(c => ({
-                    ...c,
-                    documentos: (() => {
-                        const filtrados = docsComEPI
-                            .filter(d => d.colaborador_id === c.id && isPermitido(d))
-                            .map(d => ({
-                                id: d.id,
-                                tipo: d.document_type,
-                                nome_arquivo: d.file_name,
-                                tem_assinado: !!d.signed_file_path,
-                                _chave: getChaveDoc(d),
-                                is_epi: !!d._is_epi_ficha
-                            }));
-                        // Deduplicar: se dois documentos mapeiam para a mesma chave (ex: NR1 e Ordem de Serviço),
-                        // manter apenas o primeiro (mais recente pelo id desc já que o DB retorna em ordem)
-                        const vistos = new Set();
-                        return filtrados.filter(d => {
-                            const key = d._chave || d.tipo; // fallback: usar tipo literal
-                            if (vistos.has(key)) return false;
-                            vistos.add(key);
-                            return true;
-                        }).map(({ _chave, ...rest }) => rest); // remover campo interno _chave
-                    })()
-                })),
+                colaboradores: colabs.map(c => {
+                    const fotoRow = colabFotos.find(f => String(f.id) === String(c.id));
+                    const foto_base64 = fotoExigida ? (fotoRow ? fotoRow.foto_base64 || null : null) : null;
+                    return {
+                        ...c,
+                        foto_base64,
+                        documentos: (() => {
+                            const filtrados = docsComEPI
+                                .filter(d => d.colaborador_id === c.id && isPermitido(d))
+                                .map(d => ({
+                                    id: d.id,
+                                    tipo: d.document_type,
+                                    nome_arquivo: d.file_name,
+                                    tem_assinado: !!d.signed_file_path,
+                                    _chave: getChaveDoc(d),
+                                    is_epi: !!d._is_epi_ficha
+                                }));
+                            // Deduplicar
+                            const vistos = new Set();
+                            return filtrados.filter(d => {
+                                const key = d._chave || d.tipo;
+                                if (vistos.has(key)) return false;
+                                vistos.add(key);
+                                return true;
+                            }).map(({ _chave, ...rest }) => rest);
+                        })()
+                    };
+                }),
                 veiculos: veics.map(v => {
                     const f = frotas.find(fr => fr.id === v.id);
                     return {
