@@ -11303,7 +11303,36 @@ app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
     if (setor) { where += ' AND setor = ?'; params.push(setor); }
     db.all(`SELECT * FROM logistica_agenda WHERE ${where} ORDER BY data, id`, params, (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
-        res.json(rows || []);
+        
+        db.all(`SELECT id, nome_completo, ferias_programadas_inicio, ferias_programadas_fim FROM colaboradores WHERE status = 'Ativo' AND ferias_programadas_inicio IS NOT NULL AND ferias_programadas_fim IS NOT NULL AND ferias_programadas_inicio != ''`, [], (errColab, colabs) => {
+            if (errColab) return res.json(rows || []);
+            
+            const feriasCards = [];
+            (colabs || []).forEach(c => {
+                let current = new Date(c.ferias_programadas_inicio + 'T12:00:00');
+                const end = new Date(c.ferias_programadas_fim + 'T12:00:00');
+                if (isNaN(current.getTime()) || isNaN(end.getTime())) return;
+                
+                while (current <= end) {
+                    const dataStr = current.toISOString().split('T')[0];
+                    feriasCards.push({
+                        id: 'f_' + c.id + '_' + dataStr,
+                        is_ferias: true,
+                        data: dataStr,
+                        tipo: 'ferias',
+                        titulo: 'Férias: ' + c.nome_completo.split(' ')[0],
+                        descricao: 'Período de férias agendado para ' + c.nome_completo,
+                        horario: 'Integral',
+                        setor: 'logistica',
+                        responsaveis: '[]',
+                        referente_ids: '[]',
+                        acoes: '[]'
+                    });
+                    current.setDate(current.getDate() + 1);
+                }
+            });
+            res.json([...(rows || []), ...feriasCards]);
+        });
     });
 });
 

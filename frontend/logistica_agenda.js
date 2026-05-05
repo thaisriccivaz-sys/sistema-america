@@ -26,6 +26,7 @@
         { value: 'reuniao', label: 'Reunião',         icon: 'ph-users',         color: '#3b82f6' },
         { value: 'tarefa',  label: 'Tarefa',          icon: 'ph-check-square',  color: '#10b981' },
         { value: 'email',   label: 'Envio de E-mail', icon: 'ph-envelope',      color: '#8b5cf6' },
+        { value: 'ferias',  label: 'Férias',          icon: 'ph-airplane-tilt', color: '#f43f5e' },
         { value: 'outro',   label: 'Outro',           icon: 'ph-calendar',      color: '#6b7280' },
     ];
     function getTipo(v) { return TIPOS.find(t => t.value === v) || TIPOS[5]; }
@@ -146,7 +147,7 @@
                 const t = getTipo(c.tipo);
                 const hora = c.horario ? `<span style="opacity:0.8;margin-right:4px;font-weight:700;">${c.horario}</span>` : '';
                 return `<div class="ag-badge" style="background:${t.color}22;color:${t.color};border-left:3px solid ${t.color};"
-                    onclick="abrirCardDetalhes(event, ${c.id})" title="${c.titulo||t.label}">
+                    onclick="abrirCardDetalhes(event, '${c.id}')" title="${c.titulo||t.label}">
                     <i class="ph ${t.icon}" style="font-size:0.8rem;flex-shrink:0;"></i>
                     ${hora}<span style="overflow:hidden;text-overflow:ellipsis;">${(c.titulo||t.label)}</span>
                 </div>`;
@@ -303,8 +304,12 @@
 
     window.abrirCardDetalhes = function(e, id) {
         if (e) e.stopPropagation();
-        const card = agendaCards.find(c => c.id === id);
+        const card = agendaCards.find(c => c.id == id);
         if (!card) return;
+        if (card.is_ferias) {
+            Swal.fire('Informação', 'Este é um aviso automático de férias. Para editar o período, acesse o Prontuário Digital do colaborador.', 'info');
+            return;
+        }
         mostrarFormCard(card);
     };
 
