@@ -11826,6 +11826,40 @@ app.delete('/api/logistica/agenda/:id', authenticateToken, (req, res) => {
 async function dispararAcoesAgenda(card) {
     let acoes = [];
     try { acoes = JSON.parse(card.acoes || '[]'); } catch(e) {}
+    let referente_ids = [];
+    try { referente_ids = JSON.parse(card.referente_ids || '[]'); } catch(e) {}
+    
+    // Notificação de Aviso de Falta (para o RH) - Regra Absoluta da Tela de Notificações e Inserção no Prontuário
+    if (card.tipo === 'falta' && referente_ids.length > 0) {
+        // 1. Inserir a falta no prontuário do RH
+        referente_ids.forEach(colab_id => {
+            db.run('INSERT INTO faltas (colaborador_id, data_falta, turno, observacao, avisado_previamente) VALUES (?, ?, ?, ?, ?)',
+                [colab_id, card.data, 'Dia todo', card.descricao || 'Falta registrada via Agenda da Logística', 'Não'],
+                function(errFalta) {
+                    if (errFalta) console.error("Erro ao inserir falta via Agenda:", errFalta.message);
+                }
+            );
+        });
+
+        // 2. Disparar notificação para quem deve receber "aviso_faltas"
+        db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'aviso_faltas'", [], (errConfig, rowsConfig) => {
+            if (!errConfig && rowsConfig && rowsConfig.length > 0) {
+                const placeholders = referente_ids.map(() => '?').join(',');
+                db.all(`SELECT id, nome_completo FROM colaboradores WHERE id IN (${placeholders})`, referente_ids, (errColabs, colabs) => {
+                    if (!errColabs && colabs && colabs.length > 0) {
+                        const nomes = colabs.map(c => c.nome_completo.split(' ').slice(0, 2).join(' ')).join(', ');
+                        const msg = `O(s) colaborador(es) ${nomes} teve/tiveram uma falta (Agenda) no dia ${card.data.split('-').reverse().join('/')}.`;
+                        const dados = JSON.stringify({ origem: 'agenda', data_falta: card.data, id: card.id });
+                        rowsConfig.forEach(cfg => {
+                            db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)",
+                                [cfg.usuario_id, 'aviso_faltas', msg, dados]);
+                        });
+                    }
+                });
+            }
+        });
+    }
+
     if (!acoes.includes('enviar_email')) return;
 
     let responsaveisIds = [];
