@@ -4,7 +4,8 @@
 (function() {
     const API = '/api';
     let agendaCurrentDate = new Date();
-    let agendaViewMode = 'mes'; // 'dia', 'semana', 'mes'
+    let agendaViewMode = 'semana'; // 'dia', 'semana', 'mes'
+    let agendaFilterTipo = '';
     let agendaCards = [];
     let agendaColabs = [];
 
@@ -26,7 +27,7 @@
         { value: 'reuniao', label: 'Reunião',         icon: 'ph-users',         color: '#3b82f6' },
         { value: 'tarefa',  label: 'Tarefa',          icon: 'ph-check-square',  color: '#10b981' },
         { value: 'email',   label: 'Envio de E-mail', icon: 'ph-envelope',      color: '#8b5cf6' },
-        { value: 'ferias',  label: 'Férias',          icon: 'ph-airplane-tilt', color: '#f43f5e' },
+        { value: 'ferias',  label: 'Férias',          icon: 'ph-airplane-tilt', color: '#d97706' },
         { value: 'outro',   label: 'Outro',           icon: 'ph-calendar',      color: '#6b7280' },
     ];
     function getTipo(v) { return TIPOS.find(t => t.value === v) || TIPOS[5]; }
@@ -139,7 +140,7 @@
             }
             const dateStr = isoDate(dObj);
             const isHoje = dateStr === hoje;
-            const cardsDay = agendaCards.filter(c => c.data === dateStr)
+            const cardsDay = agendaCards.filter(c => c.data === dateStr && (!agendaFilterTipo || c.tipo === agendaFilterTipo))
                 .sort((a, b) => (a.horario || '').localeCompare(b.horario || ''));
 
             const limit = agendaViewMode === 'mes' ? 3 : 999;
@@ -183,6 +184,10 @@
                     <button class="ag-nav-btn ag-hoje-btn" onclick="agendaIrHoje()"><i class="ph ph-calendar-blank"></i> Hoje</button>
                 </div>
                 <div class="ag-header-right">
+                    <select id="ag-filter-tipo" class="ag-nav-btn" onchange="agendaSetFilter(this.value)" style="margin-right: 12px; outline:none; font-weight:600;">
+                        <option value="">Todos os Cards</option>
+                        ${TIPOS.map(t => `<option value="${t.value}" ${agendaFilterTipo === t.value ? 'selected' : ''}>${t.label}</option>`).join('')}
+                    </select>
                     <div class="ag-view-toggles">
                         <button class="ag-view-btn ${agendaViewMode==='dia'?'active':''}" onclick="agendaSetView('dia')">Dia</button>
                         <button class="ag-view-btn ${agendaViewMode==='semana'?'active':''}" onclick="agendaSetView('semana')">Semana</button>
@@ -300,6 +305,11 @@
         window.renderAgendaLogistica();
     };
 
+    window.agendaSetFilter = function(tipo) {
+        agendaFilterTipo = tipo;
+        window.renderAgendaLogistica();
+    };
+
     window.abrirNovoCard = function(dateStr) { mostrarFormCard({ data: dateStr }); };
 
     window.abrirCardDetalhes = function(e, id) {
@@ -315,13 +325,17 @@
 
     // ── Modal de formulário ─────────────────────────────────────
     function mostrarFormCard(card) {
-        const overlay = document.getElementById('ag-modal-overlay');
-        const body    = document.getElementById('ag-modal-body');
-        const titleEl = document.getElementById('ag-modal-title');
-        if (!overlay || !body) return;
+        try {
+            const overlay = document.getElementById('ag-modal-overlay');
+            const body    = document.getElementById('ag-modal-body');
+            const titleEl = document.getElementById('ag-modal-title');
+            if (!overlay || !body) {
+                console.error('Modal elements not found!');
+                return;
+            }
 
-        const isEdicao  = !!card.id;
-        titleEl.textContent = isEdicao ? 'Editar Card' : 'Novo Card';
+            const isEdicao  = !!card.id;
+            titleEl.textContent = isEdicao ? 'Editar Card' : 'Novo Card';
 
         let responsaveisSel = [];
         let referentesSel   = [];
@@ -427,7 +441,11 @@
                 </button>
             </div>`;
 
-        overlay.style.display = 'flex';
+            overlay.style.display = 'flex';
+        } catch (err) {
+            console.error('Erro em mostrarFormCard:', err);
+            Swal.fire('Erro', 'Ocorreu um erro ao abrir o card: ' + err.message, 'error');
+        }
     }
 
     window.fecharAgendaModal = function(e) {

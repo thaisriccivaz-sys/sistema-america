@@ -11303,8 +11303,7 @@ app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
     if (setor) { where += ' AND setor = ?'; params.push(setor); }
     db.all(`SELECT * FROM logistica_agenda WHERE ${where} ORDER BY data, id`, params, (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
-        
-        db.all(`SELECT id, nome_completo, ferias_programadas_inicio, ferias_programadas_fim FROM colaboradores WHERE status = 'Ativo' AND ferias_programadas_inicio IS NOT NULL AND ferias_programadas_fim IS NOT NULL AND ferias_programadas_inicio != ''`, [], (errColab, colabs) => {
+        db.all(`SELECT id, nome_completo, ferias_programadas_inicio, ferias_programadas_fim FROM colaboradores WHERE status = 'Ativo' AND departamento != 'ESCRITÓRIO' AND ferias_programadas_inicio IS NOT NULL AND ferias_programadas_fim IS NOT NULL AND ferias_programadas_inicio != ''`, [], (errColab, colabs) => {
             if (errColab) return res.json(rows || []);
             
             const feriasCards = [];
@@ -11322,7 +11321,7 @@ app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
                         tipo: 'ferias',
                         titulo: 'Férias: ' + c.nome_completo.split(' ')[0],
                         descricao: 'Período de férias agendado para ' + c.nome_completo,
-                        horario: 'Integral',
+                        horario: '', // Omitir a palavra 'Integral'
                         setor: 'logistica',
                         responsaveis: '[]',
                         referente_ids: '[]',
