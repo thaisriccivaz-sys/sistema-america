@@ -172,7 +172,7 @@ function renderTabelaFrota() {
 <td style="padding:10px 12px;"><span style="${exStyle}">${alerta?'⚠️ ':''}${exStr}</span></td>
 <td style="padding:10px 12px;">${v.renavam||''}</td>
 <td style="padding:10px 12px;">${v.capacidade_tanque?v.capacidade_tanque+' L':'-'}</td>
-<td style="padding:10px 12px;">${v.capacidade_carga?v.capacidade_carga+' kg':'-'}</td>
+<td style="padding:10px 12px;">${v.capacidade_carga?v.capacidade_carga+' un':'-'}</td>
 <td style="padding:10px 12px;">${v.tipo_veiculo||''}</td>
 <td style="padding:10px 12px;text-align:center;white-space:nowrap;">
 ${v.crlv_filename ? `<button onclick="window.visualizarCRLV(${v.id})" style="background:#0891b2;color:#fff;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;margin-right:4px;" title="Visualizar CRLV"><i class="ph ph-file-pdf"></i></button>` : `<button disabled style="background:#cbd5e1;color:#fff;border:none;border-radius:6px;padding:5px 10px;cursor:not-allowed;margin-right:4px;" title="Sem CRLV"><i class="ph ph-file-pdf"></i></button>`}
@@ -232,7 +232,7 @@ window.exportarFrotaExcel = async function() {
       'Exercício',
       'RENAVAM',
       'Capacidade Tanque (L)',
-      'Capacidade Carga (KG)',
+      'Capacidade Carga (un)',
       'Tipo de Veículo',
       'Altura c/ Banheiro',
       'Altura s/ Banheiro',
@@ -370,7 +370,7 @@ ${alertaHtml}
 <div>${lbl('Exercício (Ano Validade)')}${inp('fv-exercicio',v.exercicio,'2025')}</div>
 <div>${lbl('Código RENAVAM')}${inp('fv-renavam',v.renavam,'00000000000')}</div>
 <div>${lbl('Capacidade Tanque (L)')}${inp('fv-tanque',v.capacidade_tanque,'','number')}</div>
-<div>${lbl('Capacidade Carga (kg)')}${inp('fv-carga',v.capacidade_carga,'','number')}</div>
+<div>${lbl('Capacidade Carga (un)')}${inp('fv-carga',v.capacidade_carga,'','number')}</div>
 <div>${lbl('Tipo de Veículo')}<select id="fv-tipo" style="width:100%;padding:.55rem;border:1px solid #e2e8f0;border-radius:8px;background:#fff;box-sizing:border-box;font-size:.85rem;">${optT}</select></div>
 </div>
 <p style="font-weight:700;color:#334155;margin:0 0 .6rem;font-size:.88rem;border-bottom:2px solid #e2e8f0;padding-bottom:.3rem;">📐 Medidas</p>
