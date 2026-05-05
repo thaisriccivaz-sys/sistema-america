@@ -12160,10 +12160,10 @@ async function checkUserNotificacoes() {
                 
                 const popup = document.createElement('div');
                 popup.style.cssText = `
-                    position:fixed; bottom:24px; left:24px; z-index:99999;
+                    position:fixed; bottom:24px; right:24px; z-index:99999;
                     background:#fff; border-radius:16px; padding:1.5rem;
                     box-shadow: 0 20px 60px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05);
-                    max-width:380px; animation: slideInLeft 0.4s ease-out;
+                    max-width:380px; animation: slideInRight 0.4s ease-out;
                     border-left: 4px solid ${color};
                 `;
                 
