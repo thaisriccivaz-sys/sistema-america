@@ -12142,9 +12142,16 @@ async function checkUserNotificacoes() {
             _userNotifSeen.add(notif.id);
             
             try {
+                let dados = {};
+                try { dados = JSON.parse(notif.dados || '{}'); } catch(e) {}
+                
                 let bg, icon, color, titulo, navTarget;
                 if (notif.tipo === 'aviso_faltas') {
-                    bg = '#fffbeb'; color = '#d97706'; icon = 'ph-warning'; titulo = 'Aviso de Faltas'; navTarget = 'multas'; // placeholder ou logistica-agenda
+                    if (dados.origem === 'agenda') {
+                        bg = '#dcfce7'; color = '#16a34a'; icon = 'ph-calendar-x'; titulo = 'Aviso de Falta'; navTarget = 'logistica-agenda';
+                    } else {
+                        bg = '#fffbeb'; color = '#d97706'; icon = 'ph-warning'; titulo = 'Aviso de Falta'; navTarget = 'colaboradores';
+                    }
                 } else if (notif.tipo === 'formulario_experiencia') {
                     bg = '#dbeafe'; color = '#1d4ed8'; icon = 'ph-clipboard-text'; titulo = 'Experiência'; navTarget = 'experiencia';
                 } else {
@@ -12159,18 +12166,36 @@ async function checkUserNotificacoes() {
                     max-width:380px; animation: slideInLeft 0.4s ease-out;
                     border-left: 4px solid ${color};
                 `;
+                
+                let contentHTML = '';
+                if (notif.tipo === 'aviso_faltas') {
+                    const nomeColab = dados.nome_colab || 'Colaborador não identificado';
+                    const dataFaltaFmt = dados.data_falta ? dados.data_falta.split('-').reverse().join('/') : '';
+                    contentHTML = `
+                        <div style="font-weight:800;font-size:1.2rem;color:${color};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">
+                            <i class="ph ${icon}"></i> ${titulo}
+                        </div>
+                        <div style="color:#0f172a;font-weight:600;font-size:1rem;margin-bottom:4px;">${nomeColab}</div>
+                        <div style="color:#64748b;font-size:0.85rem;"><i class="ph ph-calendar"></i> Data: ${dataFaltaFmt}</div>
+                    `;
+                } else {
+                    contentHTML = `
+                        <div style="font-weight:700;font-size:0.9rem;color:#0f172a;margin-bottom:4px;">
+                            <i class="ph ph-bell" style="color:${color};"></i> ${titulo}
+                        </div>
+                        <div style="color:#64748b;font-size:0.8rem;line-height:1.4;">
+                            ${notif.mensagem}
+                        </div>
+                    `;
+                }
+                
                 popup.innerHTML = `
                     <div style="display:flex;align-items:flex-start;gap:1rem;">
                         <div style="width:44px;height:44px;border-radius:12px;background:${bg};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.4rem;color:${color};">
                             <i class="ph ${icon}"></i>
                         </div>
                         <div style="flex:1;">
-                            <div style="font-weight:700;font-size:0.9rem;color:#0f172a;margin-bottom:4px;">
-                                <i class="ph ph-bell" style="color:${color};"></i> ${titulo}
-                            </div>
-                            <div style="color:#64748b;font-size:0.8rem;line-height:1.4;">
-                                ${notif.mensagem}
-                            </div>
+                            ${contentHTML}
                             <div style="display:flex;gap:8px;margin-top:12px;">
                                 <button onclick="window.markUserNotifLida('${notif.id}'); navigateTo('${navTarget}'); this.closest('[data-notif-id]').remove();" 
                                     style="flex:1;padding:6px 12px;background:${color};color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.8rem;">

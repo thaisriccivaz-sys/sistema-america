@@ -5529,7 +5529,7 @@ app.post('/api/faltas', authenticateToken, (req, res) => {
                 db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'aviso_faltas'", [], (errConfig, rowsConfig) => {
                     if (!errConfig && rowsConfig && rowsConfig.length > 0) {
                         const msg = `O colaborador ${nomeColab} teve uma falta adicionada no dia ${data_falta.split('-').reverse().join('/')}.`;
-                        const dados = JSON.stringify({ colaborador_id, data_falta, id: insertedId });
+                        const dados = JSON.stringify({ colaborador_id, data_falta, id: insertedId, nome_colab: nomeColab });
                         
                         rowsConfig.forEach(cfg => {
                             db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", 
@@ -11849,7 +11849,7 @@ async function dispararAcoesAgenda(card) {
                     if (!errColabs && colabs && colabs.length > 0) {
                         const nomes = colabs.map(c => c.nome_completo.split(' ').slice(0, 2).join(' ')).join(', ');
                         const msg = `O(s) colaborador(es) ${nomes} teve/tiveram uma falta (Agenda) no dia ${card.data.split('-').reverse().join('/')}.`;
-                        const dados = JSON.stringify({ origem: 'agenda', data_falta: card.data, id: card.id });
+                        const dados = JSON.stringify({ origem: 'agenda', data_falta: card.data, id: card.id, nome_colab: nomes });
                         rowsConfig.forEach(cfg => {
                             db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)",
                                 [cfg.usuario_id, 'aviso_faltas', msg, dados]);
