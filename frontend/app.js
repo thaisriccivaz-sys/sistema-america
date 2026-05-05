@@ -14349,6 +14349,7 @@ window.showHistoryPopup = async function() {
         const viewAvaliacoes = document.getElementById('view-gerenciar-avaliacoes');
         const viewDissidio = document.getElementById('view-dissidio');
         const viewRotaRedonda = document.getElementById('rota-redonda-container');
+        const viewAgenda = document.getElementById('view-logistica-agenda');
 
         const isColabActive = (viewPront && viewPront.classList.contains('active')) || 
                               (viewAdm && viewAdm.classList.contains('active')) ||
@@ -14361,6 +14362,7 @@ window.showHistoryPopup = async function() {
         const isAvaliacoesActive = viewAvaliacoes && viewAvaliacoes.classList.contains('active');
         const isDissidioActive = viewDissidio && viewDissidio.classList.contains('active');
         const isRotaRedondaActive = viewRotaRedonda && viewRotaRedonda.offsetParent !== null;
+        const isAgendaActive = viewAgenda && viewAgenda.classList.contains('active');
 
         if (isColabActive && viewedColaborador && viewedColaborador.id) {
             // Prontuário ou Admissão de um colaborador específico
@@ -14388,6 +14390,9 @@ window.showHistoryPopup = async function() {
         } else if (isDissidioActive) {
             url += `?programa=Dissídio`;
             labelText = 'Tela: Dissídio Coletivo';
+        } else if (isAgendaActive) {
+            url += `?programa=Agenda Logística`;
+            labelText = 'Tela: Agenda Logística';
         } else if (isRotaRedondaActive) {
             url += `?programa=OS Logística`;
             labelText = 'Tela: Rota Redonda — Histórico Geral';
@@ -14440,6 +14445,7 @@ setInterval(() => {
 
     // Logística
     const viewSenhas = document.getElementById('logistica-senhas-container');
+    const viewAgenda = document.getElementById('view-logistica-agenda');
 
     const isColabActive = (viewPront    && viewPront.classList.contains('active')) ||
                           (viewAdms     && viewAdms.classList.contains('active'))  ||
@@ -14452,6 +14458,7 @@ setInterval(() => {
     const isEpiActive       = viewEpi        && viewEpi.classList.contains('active');
     const isAvaliacoesActive = viewAvaliacoes && viewAvaliacoes.classList.contains('active');
     const isDissidioActive  = viewDissidio   && viewDissidio.classList.contains('active');
+    const isAgendaActive    = viewAgenda     && viewAgenda.classList.contains('active');
 
     // Cofre de Senhas — container visível (não tem classe active, verifica display)
     const isSenhasActive = viewSenhas && viewSenhas.offsetParent !== null;
@@ -14462,7 +14469,7 @@ setInterval(() => {
 
     const shouldShow = isColabActive || isGerActive || isCargosActive ||
                        isFaculdadeActive || isEpiActive || isAvaliacoesActive ||
-                       isDissidioActive || isSenhasActive || isRotaRedondaActive;
+                       isDissidioActive || isSenhasActive || isRotaRedondaActive || isAgendaActive;
 
     btnHistory.style.display = shouldShow ? 'flex' : 'none';
 

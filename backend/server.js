@@ -11792,10 +11792,13 @@ app.post('/api/logistica/agenda', authenticateToken, express.json(), (req, res) 
          JSON.stringify(responsaveis || []), JSON.stringify(referente_ids || []), JSON.stringify(acoes || []), criado_por],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
-            db.get('SELECT * FROM logistica_agenda WHERE id = ?', [this.lastID], (e2, row) => {
+            const insertedId = this.lastID;
+            db.get('SELECT * FROM logistica_agenda WHERE id = ?', [insertedId], (e2, row) => {
                 if (row) dispararAcoesAgenda(row).catch(()=>{});
             });
-            res.json({ id: this.lastID, ok: true });
+            db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
+                [criado_por, 'Agenda Logística', 'Criação de Card', null, `Card: ${titulo || ''} (${data})`, insertedId]);
+            res.json({ id: insertedId, ok: true });
         }
     );
 });
@@ -11810,6 +11813,8 @@ app.put('/api/logistica/agenda/:id', authenticateToken, express.json(), (req, re
          setor || 'logistica', req.params.id],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
+            db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
+                [req.user ? req.user.username : '', 'Agenda Logística', 'Edição de Card', null, `Editou o card: ${titulo || ''}`, req.params.id]);
             res.json({ ok: true });
         }
     );
@@ -11819,6 +11824,8 @@ app.put('/api/logistica/agenda/:id', authenticateToken, express.json(), (req, re
 app.delete('/api/logistica/agenda/:id', authenticateToken, (req, res) => {
     db.run('DELETE FROM logistica_agenda WHERE id = ?', [req.params.id], function(err) {
         if (err) return res.status(500).json({ error: err.message });
+        db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
+            [req.user ? req.user.username : '', 'Agenda Logística', 'Exclusão de Card', null, `Excluiu o card ID: ${req.params.id}`, req.params.id]);
         res.json({ ok: true });
     });
 });
