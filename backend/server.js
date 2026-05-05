@@ -11462,7 +11462,7 @@ app.get('/api/logistica/escala', authenticateToken, (req, res) => {
     const excStr = DEPTS_EXCLUIDOS.map(() => '?').join(',');
 
     db.all(`SELECT id, nome_completo, cargo, departamento, foto_base64, foto_path,
-                   escala_tipo, escala_folgas, horario_entrada, horario_saida
+                   escala_tipo, escala_folgas, escala_ciclo_inicio, horario_entrada, horario_saida
             FROM colaboradores WHERE status = 'Ativo'
             AND departamento NOT IN (${excStr})
             ORDER BY nome_completo`, DEPTS_EXCLUIDOS, (err, colabs) => {
@@ -11572,32 +11572,67 @@ app.get('/api/logistica/escala', authenticateToken, (req, res) => {
                         ? parsed.map(f => String(f).trim().toLowerCase())
                         : [String(parsed).trim().toLowerCase()];
                 } catch(e) {
-                    // fallback: tratar como string simples separada por vírgula
                     folgasExplicitas = (c.escala_folgas || '').split(/[,;]+/).map(f => f.trim().toLowerCase()).filter(Boolean);
                 }
                 const folgasDow = folgasExplicitas.map(f => DIA_MAP[f]).filter(v => v !== undefined);
+
+                // ── LÓGICA DOMINGO DE LEI ──────────────────────────────────────────
+                // Ciclo: domingo 0 = trabalha, 1 = trabalha, 2 = FOLGA, 3 = trabalha...
+                const temCiclo = c.escala_ciclo_inicio && (escalaStr.includes('uma_folga') || escalaStr.includes('duas_folgas') || escalaStr.includes('folga'));
+                const cicloBase = temCiclo ? new Date(c.escala_ciclo_inicio + 'T12:00:00') : null;
+
+                // Índice do último dia fixo de folga (para Tipo B: é o 2º dia que "cede" ao domingo)
+                const ultimoFolgaDow = folgasDow.length >= 2 ? folgasDow[folgasDow.length - 1] : null;
+
+                const isDomingoDeLei = (dateStr) => {
+                    if (!temCiclo || !cicloBase) return false;
+                    const d = new Date(dateStr + 'T12:00:00');
+                    if (d.getDay() !== 0) return false; // só testa domingos
+                    // Contar quantos domingos desde o ciclo_inicio
+                    const diffMs = d - cicloBase;
+                    if (diffMs < 0) return false; // antes do ciclo
+                    const diffDias = Math.round(diffMs / (1000 * 60 * 60 * 24));
+                    const nDomingo = Math.round(diffDias / 7);
+                    return nDomingo % 3 === 2; // 0=trab, 1=trab, 2=folga, 3=trab...
+                };
 
                 const getFolga = (dateStr) => {
                     const d = new Date(dateStr + 'T12:00:00');
                     const dow = d.getDay(); // 0=dom, 1=seg..6=sab
 
-                    // Se tem folgas explícitas cadastradas (qualquer tipo de escala), usar elas
+                    // ── Verificar Domingo de Lei ───────────────────────────────────
+                    if (dow === 0 && isDomingoDeLei(dateStr)) {
+                        return true; // domingo é folga
+                    }
+
+                    // ── Para Tipo B (2 folgas): na semana do domingo de lei,
+                    //    o último dia fixo de folga vira trabalho (compensação)
+                    if (ultimoFolgaDow !== null && dow === ultimoFolgaDow) {
+                        // Calcular se o domingo desta semana é Domingo de Lei
+                        const thisSunday = new Date(dateStr + 'T12:00:00');
+                        thisSunday.setDate(thisSunday.getDate() - dow); // retrocede ao domingo da semana
+                        const thisSundayStr = thisSunday.toISOString().split('T')[0];
+                        if (isDomingoDeLei(thisSundayStr)) {
+                            return false; // o 2º dia fixo TRABALHA nesta semana (domingo folga)
+                        }
+                    }
+
+                    // ── Folgas fixas do cadastro ───────────────────────────────────
                     if (folgasDow.length > 0) {
                         return folgasDow.includes(dow);
                     }
 
-                    // Fallback por tipo de escala
+                    // ── Fallback por tipo de escala ────────────────────────────────
                     if (escalaStr.includes('5x2') || escalaStr.includes('5 x 2')) {
-                        return dow === 0 || dow === 6; // sab e dom
+                        return dow === 0 || dow === 6;
                     }
                     if (escalaStr.includes('6x1') || escalaStr.includes('6 x 1')) {
-                        return dow === 0; // dom por padrão
+                        return dow === 0;
                     }
                     if (escalaStr.includes('12x36')) {
-                        return false; // escala variável, sem folga fixa
+                        return false;
                     }
-                    // Sem escala definida: considerar folga domingo
-                    return dow === 0;
+                    return dow === 0; // padrão
                 };
 
                 const diasInfo = datas.map(data => {
@@ -11619,6 +11654,7 @@ app.get('/api/logistica/escala', authenticateToken, (req, res) => {
                     horario_entrada: c.horario_entrada,
                     horario_saida: c.horario_saida,
                     escala_tipo: c.escala_tipo,
+                    escala_ciclo_inicio: c.escala_ciclo_inicio || null,
                     dias: diasInfo
                 };
             });

@@ -1500,18 +1500,22 @@ window.toggleFormEscalaTipo = function() {
     const outSaida  = document.getElementById('colab-saida');
 
     const boxUmaFolga = document.getElementById('colab-box-uma-folga');
+    const boxCiclo = document.getElementById('colab-box-ciclo-domingo');
 
     if (tipo === 'escala_uma_folga') {
         if(boxUmaFolga) boxUmaFolga.style.display = 'block';
         if(boxFolgas) boxFolgas.style.display = 'none';
+        if(boxCiclo) boxCiclo.style.display = 'block';
         document.querySelectorAll('.cb-folga-colab').forEach(cb => cb.checked = false);
     } else if (tipo === 'escala_duas_folgas') {
         if(boxFolgas) boxFolgas.style.display = 'block';
         if(boxUmaFolga) boxUmaFolga.style.display = 'none';
+        if(boxCiclo) boxCiclo.style.display = 'block';
         document.querySelectorAll('.cb-uma-folga-colab').forEach(cb => cb.checked = false);
     } else {
         if(boxFolgas) boxFolgas.style.display = 'none';
         if(boxUmaFolga) boxUmaFolga.style.display = 'none';
+        if(boxCiclo) boxCiclo.style.display = 'none';
         document.querySelectorAll('.cb-folga-colab').forEach(cb => cb.checked = false);
         document.querySelectorAll('.cb-uma-folga-colab').forEach(cb => cb.checked = false);
     }
@@ -3393,16 +3397,17 @@ window.editColaborador = async function(id) {
             if (c.escala_folgas) {
                 try {
                     const folgasArr = JSON.parse(c.escala_folgas);
-                    // Carrega para a escala de 2 folgas
                     document.querySelectorAll('.cb-folga-colab').forEach(cb => {
                         cb.checked = folgasArr.includes(cb.value);
                     });
-                    // Carrega para a escala de 1 folga
                     document.querySelectorAll('.cb-uma-folga-colab').forEach(cb => {
                         cb.checked = folgasArr.includes(cb.value);
                     });
                 } catch(e) { console.error('Erro ao ler folgas:', e); }
             }
+            // Carregar data de referência do ciclo de domingos
+            const cicloEl = document.getElementById('colab-escala-ciclo-inicio');
+            if (cicloEl) cicloEl.value = c.escala_ciclo_inicio || '';
         }
 
         // toggleMotorista ANTES de carregar CNH — se chamado depois limpa os campos
@@ -3789,6 +3794,7 @@ if (formColab) {
             banco_conta: document.getElementById('colab-banco-conta') ? document.getElementById('colab-banco-conta').value : null,
             escala_tipo: document.getElementById('colab-escala-padrao') ? document.getElementById('colab-escala-padrao').value : null,
             escala_folgas: null,
+            escala_ciclo_inicio: document.getElementById('colab-escala-ciclo-inicio') ? (document.getElementById('colab-escala-ciclo-inicio').value || null) : null,
             meio_transporte: document.getElementById('colab-meio-transporte') ? document.getElementById('colab-meio-transporte').value : null,
             valor_transporte: document.getElementById('colab-valor-transporte') ? document.getElementById('colab-valor-transporte').value : null,
             alergias: document.getElementById('colab-alergias') ? document.getElementById('colab-alergias').value : null,
