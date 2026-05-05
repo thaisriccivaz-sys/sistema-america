@@ -1804,9 +1804,15 @@ function parseOsText(texto) {
 
         // 💡Observações:--
         else if (l.includes('💡Observações:') || l.includes('Observações:')) {
-            const v = extrairValor(l, /💡?Observa[cç][õo]es:/i);
+            let v = extrairValor(l, /💡?Observa[cç][õo]es:/i);
             if (!eVazio(v) && v !== '--') {
-                resultado.observacoesInternas = v.replace(/Ignorar.*/i, '').replace(/-.*campo.*/i, '').trim();
+                v = v.replace(/Ignorar.*/i, '').replace(/-.*campo.*/i, '').trim();
+                // Remove nome do cliente antigo ex: "QUALITY: INTEGRACAO..." vira "INTEGRACAO..."
+                const idx = v.indexOf(':');
+                if (idx !== -1) {
+                    v = v.substring(idx + 1).trim();
+                }
+                resultado.observacoesInternas = v;
             }
         }
     }

@@ -527,6 +527,14 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 });
             });
 
+            // Migration: Remover nome do cliente (tudo antes de ':') das observações de logística
+            db.run(`UPDATE os_logistica SET observacoes = trim(substr(observacoes, instr(observacoes, ':') + 1)) WHERE observacoes LIKE '%:%'`, (err) => {
+                if (err && !err.message.includes('no such table')) console.error('[MIGRAÇÃO] Erro obs:', err.message);
+            });
+            db.run(`UPDATE os_logistica SET observacoes_internas = trim(substr(observacoes_internas, instr(observacoes_internas, ':') + 1)) WHERE observacoes_internas LIKE '%:%'`, (err) => {
+                if (err && !err.message.includes('no such table')) console.error('[MIGRAÇÃO] Erro obs_internas:', err.message);
+            });
+
             // Migration: adicionar coluna 'categoria' à tabela epi_templates
             db.run(`ALTER TABLE epi_templates ADD COLUMN categoria TEXT DEFAULT 'Outros'`, (err) => {});
             // Migration: atualizar categoria dos templates existentes pelo nome
