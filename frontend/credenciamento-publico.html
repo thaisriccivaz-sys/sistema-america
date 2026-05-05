@@ -140,22 +140,22 @@
                                 ${c.documentos.map(d => {
                                 const docUrl = d.is_epi
                                     ? null
-                                    : \`/api/publico/credenciamento/\${token}/doc/\${d.id}\`;
-                                return \`
+                                    : `/api/publico/credenciamento/${token}/doc/${d.id}`;
+                                return `
                                 <div class="flex items-center justify-between bg-white p-2 border rounded shadow-sm">
-                                    <span class="text-sm font-medium text-gray-700 truncate mr-2" title="\${d.tipo}">
-                                        <i class="far fa-file-pdf text-red-500 mr-1"></i> \${d.tipo}
+                                    <span class="text-sm font-medium text-gray-700 truncate mr-2" title="${d.tipo}">
+                                        <i class="far fa-file-pdf text-red-500 mr-1"></i> ${d.tipo}
                                     </span>
-                                    \${docUrl
-                                        ? \`<a href="\${docUrl}" target="_blank" class="btn-download text-xs" title="Baixar">
+                                    ${docUrl
+                                        ? `<a href="${docUrl}" target="_blank" class="btn-download text-xs" title="Baixar">
                                                <i class="fas fa-download"></i>
-                                           </a>\`
-                                        : \`<button onclick="gerarEpiPDF(\${d.id}, '\${token}', '\${sanitize(c.nome)}')"
+                                           </a>`
+                                        : `<button onclick="gerarEpiPDF(${d.id}, '${token}', '${sanitize(c.nome)}')"
                                                    class="btn-download text-xs" title="Gerar e baixar PDF da Ficha de EPI">
                                                <i class="fas fa-download"></i> Baixar
-                                           </button>\`
+                                           </button>`
                                     }
-                                </div>\`;
+                                </div>`;
                               }).join('')}
                               `
                             : '<p class="text-gray-500 text-sm italic col-span-full">Nenhum documento anexado ao prontuário.</p>'}

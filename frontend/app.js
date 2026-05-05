@@ -5673,6 +5673,15 @@ window.renderASOTab = function(container, filteredDocs) {
                     <input type="date" id="aso-exame-data-tab" style="padding:0.5rem; font-size:0.85rem; height:38px;"
                            value="${exameData ? exameData.split('/').reverse().join('-') : ''}">
                 </div>
+                <div class="input-group" style="width:180px; flex-shrink:0; margin-bottom:0;">
+                    <label style="font-size:0.75rem; font-weight:700;">Tipo de Exame</label>
+                    <select id="aso-tipo-exame-tab" class="form-control" style="padding:0.5rem; font-size:0.85rem; height:38px;">
+                        <option value="Admissional">Admissional</option>
+                        <option value="Demissional">Demissional</option>
+                        <option value="Retorno ao trabalho">Retorno ao trabalho</option>
+                        <option value="Periódico">Periódico</option>
+                    </select>
+                </div>
                 <div class="input-group" style="flex:1; min-width:200px; margin-bottom:0;">
                     <label style="font-size:0.75rem; font-weight:700;">Destinatário</label>
                     <input type="email" id="aso-email-dest-tab" value="thais.ricci@americarental.com.br"
@@ -5699,6 +5708,7 @@ window.sendASOEmailTab = async function() {
     if (!viewedColaborador) { alert('Colaborador não selecionado.'); return; }
 
     const dataExame  = document.getElementById('aso-exame-data-tab').value;
+    const tipoExame  = document.getElementById('aso-tipo-exame-tab').value;
     const destinatario = document.getElementById('aso-email-dest-tab').value;
     if (!dataExame) { alert('Selecione a data do exame.'); return; }
 
