@@ -5715,9 +5715,13 @@ window.sendASOEmailTab = async function() {
     const [y, m, d] = dataExame.split('-');
     const dt = `${d}/${m}/${y}`;
     const cargo = (viewedColaborador.cargo || '').toLowerCase();
-    const exames = cargo.includes('motorista')
-        ? 'Exames Complementares, acuidade visual, E.E.G, E.C.G e Glicemia.'
-        : 'Exame Padrão';
+    const tipoExameUpper = (tipoExame || '').toLowerCase();
+    const isMotorista = cargo.includes('motorista');
+    const tipoComExamesCompl = ['admissional', 'periódico', 'periodico', 'periódico'];
+    const examesCompl = isMotorista && tipoComExamesCompl.some(t => tipoExameUpper.includes(t))
+        ? 'Audiometria, Acuidade Visual, E.E.G, E.C.G e Glicemia.'
+        : '';
+    const exames = examesCompl ? `Exame Padrão\nExames Complementares: ${examesCompl}` : 'Exame Padrão';
 
     const mailBody = `Título: Exame Médico\n\nSegue abaixo as informações para a realização do exame do colaborador.\n\nData: ${dt}\nNome: ${viewedColaborador.nome_completo || viewedColaborador.nome}\nCPF: ${viewedColaborador.cpf || '-'}\nFunção: ${viewedColaborador.cargo || '-'}\nDepartamento: ${viewedColaborador.departamento || '-'}\n\nExames:\n${exames}\n\n⚠️ IMPORTANTE:\nApós o exame ficar pronto, favor enviar o documento por e-mail para: rh@americarental.com.br`;
 
@@ -11225,9 +11229,10 @@ window.sendASOEmail = async function() {
     const [y, m, d] = dataExame.split('-');
     const dt = `${d}/${m}/${y}`;
     const cargo = (viewedColaborador.cargo || '').toLowerCase();
-    const exames = cargo.includes('motorista') 
-        ? 'Exames Complementares, acuidade visual, E.E.G, E.C.G e Glicemia.' 
-        : 'Exame Padrão';
+    const tipoAdmUpper = 'admissional';
+    const isMotoristaAdm = cargo.includes('motorista');
+    const examesCompl2 = isMotoristaAdm ? 'Audiometria, Acuidade Visual, E.E.G, E.C.G e Glicemia.' : '';
+    const exames = examesCompl2 ? `Exame Padrão\nExames Complementares: ${examesCompl2}` : 'Exame Padrão';
 
     const mailBody = `Título: Exame Admissional\n\nSegue abaixo as informações para a realização do exame Admissional do colaborador que deve comparecer.\n\nData: ${dt}\n\nNome: ${viewedColaborador.nome_completo}\nCPF: ${viewedColaborador.cpf}\nFunção: ${viewedColaborador.cargo || '-'}\nDepartamento: ${viewedColaborador.departamento || '-'}\n\nExames:\n${exames}\n\n⚠️ IMPORTANTE:\nApós o exame ficar pronto, favor enviar o documento por e-mail diretamente para: rh@americarental.com.br`;
 
