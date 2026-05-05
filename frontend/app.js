@@ -5731,6 +5731,7 @@ window.sendASOEmailTab = async function() {
             colaborador_id: viewedColaborador.id,
             email_to: destinatario,
             data_exame: dataExame,
+            tipo_exame: tipoExame,
             cc: ['rh@americarental.com.br', 'rh2@americarental.com.br']
         });
 
