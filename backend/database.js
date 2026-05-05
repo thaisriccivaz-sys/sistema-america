@@ -535,6 +535,12 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 if (err && !err.message.includes('no such table')) console.error('[MIGRAÇÃO] Erro obs_internas:', err.message);
             });
 
+            // Migration: Atualizar nomes de produtos SLX e EXL para ELX
+            db.run(`UPDATE os_logistica SET produtos = REPLACE(produtos, '"SLX ', '"ELX ') WHERE produtos LIKE '%"SLX %'`, (err) => {});
+            db.run(`UPDATE os_logistica SET produtos = REPLACE(produtos, '"EXL ', '"ELX ') WHERE produtos LIKE '%"EXL %'`, (err) => {});
+            db.run(`UPDATE os_logistica SET produtos = REPLACE(produtos, '"SLX"', '"ELX"') WHERE produtos LIKE '%"SLX"%'`, (err) => {});
+            db.run(`UPDATE os_logistica SET produtos = REPLACE(produtos, '"EXL"', '"ELX"') WHERE produtos LIKE '%"EXL"%'`, (err) => {});
+
             // Migration: adicionar coluna 'categoria' à tabela epi_templates
             db.run(`ALTER TABLE epi_templates ADD COLUMN categoria TEXT DEFAULT 'Outros'`, (err) => {});
             // Migration: atualizar categoria dos templates existentes pelo nome

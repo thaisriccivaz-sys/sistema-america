@@ -24,8 +24,8 @@ const EQUIPAMENTOS_DICT = {
     'STD EVENTO':             { icone: '💜', codigo: 'STD E' },
     'LX OBRA':                { icone: '🟦', codigo: 'LX O' },
     'LX EVENTO':              { icone: '🟣', codigo: 'LX E' },
-    'EXL OBRA':               { icone: '🔵', codigo: 'EXL O' },
-    'EXL EVENTO':             { icone: '🟣', codigo: 'EXL E' },
+    'ELX OBRA':               { icone: '🔵', codigo: 'ELX O' },
+    'ELX EVENTO':             { icone: '🟣', codigo: 'ELX E' },
     'PCD OBRA':               { icone: '♿',  codigo: 'PCD O' },
     'PCD EVENTO':             { icone: '♿', codigo: 'PCD E' },
     'CHUVEIRO OBRA':          { icone: '🚿', codigo: 'CHUVEIRO O' },
@@ -167,7 +167,7 @@ function calcularCargaTotalFromLista() {
         if (!isManutencao) {
             if (equipamento.includes('OBRA')) {
                 switch (equipamento) {
-                    case 'STD OBRA': case 'LX OBRA': case 'EXL OBRA':
+                    case 'STD OBRA': case 'LX OBRA': case 'ELX OBRA':
                     case 'GUARITA INDIVIDUAL OBRA': case 'PBII OBRA': case 'PBIII OBRA':
                     case 'CHUVEIRO OBRA': case 'HIDRÁULICO OBRA':
                         cargaVeic = quantidade; break;
@@ -180,7 +180,7 @@ function calcularCargaTotalFromLista() {
                 }
             } else if (equipamento.includes('EVENTO')) {
                 switch (equipamento) {
-                    case 'STD EVENTO': case 'LX EVENTO': case 'EXL EVENTO':
+                    case 'STD EVENTO': case 'LX EVENTO': case 'ELX EVENTO':
                     case 'GUARITA INDIVIDUAL EVENTO': case 'PIA II EVENTO': case 'PIA III EVENTO':
                     case 'CHUVEIRO EVENTO': case 'HIDRÁULICO EVENTO':
                         cargaVeic = quantidade; break;
@@ -197,7 +197,7 @@ function calcularCargaTotalFromLista() {
         if (isManutencao || tipoServico.includes('RETIRADA') || tipoServico.includes('TROCA')) {
             if (equipamento.includes('EVENTO')) {
                 switch (equipamento) {
-                    case 'STD EVENTO': case 'LX EVENTO': case 'EXL EVENTO':
+                    case 'STD EVENTO': case 'LX EVENTO': case 'ELX EVENTO':
                     case 'PCD EVENTO': case 'CHUVEIRO EVENTO': case 'HIDRÁULICO EVENTO':
                         cargaTanq = 5 * quantidade; break;
                     case 'MICTÓRIO EVENTO':
@@ -209,7 +209,7 @@ function calcularCargaTotalFromLista() {
                 }
             } else if (equipamento.includes('OBRA') || equipamento.includes('AVULSA')) {
                 switch (equipamento) {
-                    case 'STD OBRA': case 'LX OBRA': case 'EXL OBRA':
+                    case 'STD OBRA': case 'LX OBRA': case 'ELX OBRA':
                     case 'PBII OBRA': case 'PBIII OBRA':
                     case 'CHUVEIRO OBRA': case 'HIDRÁULICO OBRA':
                         cargaTanq = 1 * quantidade; break;
@@ -287,8 +287,8 @@ function calcularCamposPorProduto(produtoAdicionado) {
         if (isManutencao) {
             if (tipoServico.includes('EVENTO')) {
                 switch (equipamento) {
-                    case 'STD EVENTO': case 'LX EVENTO': case 'EXL EVENTO':
-                    case 'SLX EVENTO': case 'PCD EVENTO': case 'CHUVEIRO EVENTO':
+                    case 'STD EVENTO': case 'LX EVENTO': case 'ELX EVENTO':
+                    case 'ELX EVENTO': case 'PCD EVENTO': case 'CHUVEIRO EVENTO':
                     case 'HIDRÁULICO EVENTO':
                         cargaTanque = 5 * quantidade; break;
                     case 'MICTÓRIO EVENTO':
@@ -299,7 +299,7 @@ function calcularCamposPorProduto(produtoAdicionado) {
                 }
             } else if (tipoServico.includes('OBRA') || tipoServico.includes('AVULSA')) {
                 switch (equipamento) {
-                    case 'STD OBRA': case 'LX OBRA': case 'EXL OBRA': case 'SLX OBRA':
+                    case 'STD OBRA': case 'LX OBRA': case 'ELX OBRA': case 'ELX OBRA':
                     case 'PBII OBRA': case 'PBIII OBRA': case 'CHUVEIRO OBRA':
                     case 'HIDRÁULICO OBRA':
                         cargaTanque = 1 * quantidade; break;
@@ -313,7 +313,7 @@ function calcularCamposPorProduto(produtoAdicionado) {
         } else {
             if (equipamento.includes('OBRA')) {
                 switch (equipamento) {
-                    case 'STD OBRA': case 'LX OBRA': case 'EXL OBRA': case 'SLX OBRA':
+                    case 'STD OBRA': case 'LX OBRA': case 'ELX OBRA': case 'ELX OBRA':
                     case 'GUARITA INDIVIDUAL OBRA': case 'PIA II OBRA': case 'PIA III OBRA':
                     case 'HIDRÁULICO OBRA': case 'CHUVEIRO OBRA': case 'PBII OBRA': case 'PBIII OBRA':
                         cargaTanque = quantidade; break;
@@ -324,7 +324,7 @@ function calcularCamposPorProduto(produtoAdicionado) {
                 }
             } else if (equipamento.includes('EVENTO')) {
                 switch (equipamento) {
-                    case 'STD EVENTO': case 'LX EVENTO': case 'EXL EVENTO': case 'SLX EVENTO':
+                    case 'STD EVENTO': case 'LX EVENTO': case 'ELX EVENTO': case 'ELX EVENTO':
                     case 'GUARITA INDIVIDUAL EVENTO': case 'PIA II EVENTO': case 'PIA III EVENTO':
                     case 'HIDRÁULICO EVENTO': case 'CHUVEIRO EVENTO':
                         cargaTanque = quantidade; break;
@@ -1845,7 +1845,7 @@ function parseProdutosString(rawStr, tipoOs) {
         
         const MAP_PROD = {
             'STD': 'STD', 'STANDARD': 'STD', 'STANDARDS': 'STD',
-            'LX': 'LX', 'EXL': 'EXL', 'SLX': 'SLX',
+            'LX': 'LX', 'ELX': 'ELX', 'EXL': 'ELX', 'SLX': 'ELX',
             'PCD': 'PCD', 'PCDS': 'PCD',
             'CHUVEIRO': 'CHUVEIRO', 'CHUVEIROS': 'CHUVEIRO',
             'HIDRAULICO': 'HIDRÁULICO', 'HIDRAULICOS': 'HIDRÁULICO', 'HIDRAU': 'HIDRÁULICO',
@@ -3217,8 +3217,8 @@ function aplicarHabilidadesDoServico(wipeManuals = false) {
         'HIDRÁULICO EVENTO':  'LEVAR CARRINHO',
         'CHUVEIRO OBRA':      'LEVAR CARRINHO',
         'CHUVEIRO EVENTO':    'LEVAR CARRINHO',
-        'EXL OBRA':           'LEVAR CARRINHO',
-        'EXL EVENTO':         'LEVAR CARRINHO',
+        'ELX OBRA':           'LEVAR CARRINHO',
+        'ELX EVENTO':         'LEVAR CARRINHO',
     };
 
     // 1) Habilidades base do serviço
