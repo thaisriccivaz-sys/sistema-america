@@ -175,8 +175,10 @@
                         colabsEnvolvidos.map(id => {
                             const col = agendaColabs.find(x => String(x.id) === String(id));
                             if (!col) return '';
-                            if (col.foto) {
-                                return `<img src="${col.foto}" style="width:16px;height:16px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1px solid ${t.color};" title="${col.nome_completo}">`;
+                            if (col.foto_base64 || col.foto_path) {
+                                const fotoUrl = col.foto_base64 || `/api/colaboradores/foto/${col.id}`;
+                                return `<img src="${fotoUrl}" style="width:16px;height:16px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1px solid ${t.color};" title="${col.nome_completo}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                                <div style="width:16px;height:16px;border-radius:50%;background:#fff;color:${t.color};border:1px solid ${t.color};display:none;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;" title="${col.nome_completo}">${col.nome_completo.charAt(0).toUpperCase()}</div>`;
                             } else {
                                 const init = col.nome_completo.charAt(0).toUpperCase();
                                 return `<div style="width:16px;height:16px;border-radius:50%;background:#fff;color:${t.color};border:1px solid ${t.color};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;" title="${col.nome_completo}">${init}</div>`;
