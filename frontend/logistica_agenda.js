@@ -381,11 +381,7 @@
                 </div>
                 <div class="ag-modal-body" id="ag-modal-body"></div>
             </div>
-        </div>`;
-    }
-
-    function buildStylesHTML() {
-        return `
+        </div>
 
         <style>
         .ag-wrap{padding:1.5rem;min-height:100%;background:#f0f4f8;}
@@ -396,7 +392,7 @@
         .ag-nav-btn{background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:6px 12px;cursor:pointer;color:#475569;font-size:.88rem;display:flex;align-items:center;gap:4px;transition:all .2s;}
         .ag-nav-btn:hover{background:#2d9e5f;color:#fff;border-color:#2d9e5f;}
         .ag-hoje-btn{font-weight:600;}
-        .ag-view-toggles { display: flex; background: #e2e8f0; border-radius: 8px; overflow: hidden; margin-right: 12px; padding: 2px; }
+        .ag-view-toggles { display: flex; background: #e2e8f0; border-radius: 8px; overflow: hidden; margin-right: 0; padding: 2px; }
         .ag-view-btn { border: none; background: transparent; border-radius: 6px; padding: 6px 14px; cursor: pointer; font-size: 0.85rem; font-weight: 600; color: #64748b; transition: all 0.2s; }
         .ag-view-btn.active { background: #fff; color: #2d9e5f; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .ag-btn-novo{background:linear-gradient(135deg,#2d9e5f,#1a7a46);color:#fff;border:none;border-radius:10px;padding:8px 18px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;box-shadow:0 2px 8px rgba(45,158,95,.35);transition:all .2s;}
@@ -422,7 +418,6 @@
         .ag-badges.mode-semana .ag-badge { font-size: 0.78rem; padding: 6px 8px; margin-bottom: 2px; }
         .ag-badges.mode-dia .ag-badge { font-size: 0.9rem; padding: 10px 14px; margin-bottom: 4px; border-radius: 8px; border-left-width: 4px !important; }
         .ag-mais{font-size:.65rem;color:#94a3b8;font-style:italic;margin-top:1px;}
-        
         #ag-modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(3px);}
         .ag-modal{background:#fff;border-radius:16px;width:100%;max-width:600px;max-height:92vh;overflow-y:auto;box-shadow:0 25px 60px rgba(0,0,0,.3);animation:agSlideIn .25s ease;}
         @keyframes agSlideIn{from{transform:translateY(-20px);opacity:0}to{transform:translateY(0);opacity:1}}
