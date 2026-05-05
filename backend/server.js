@@ -11635,6 +11635,19 @@ app.get('/api/logistica/escala', authenticateToken, (req, res) => {
                     }
 
                     // ── Fallback por tipo de escala ────────────────────────────────
+                    if (escalaStr.includes('sab_alternado') || escalaStr.includes('sabado_alternado')) {
+                        if (dow === 0) return true; // domingo é folga fixa
+                        if (dow === 6 && c.escala_ciclo_inicio) {
+                            // Contar quantos sábados desde o sábado de referência
+                            const sabRef = new Date(c.escala_ciclo_inicio + 'T12:00:00');
+                            const d = new Date(dateStr + 'T12:00:00');
+                            const diffMs = d - sabRef;
+                            if (diffMs < 0) return false; // antes da referência
+                            const diffSemanas = Math.round(diffMs / (1000 * 60 * 60 * 24 * 7));
+                            return diffSemanas % 2 === 1; // 0=trabalha, 1=folga, 2=trabalha...
+                        }
+                        return false; // dias de semana: nunca folga por esta regra
+                    }
                     if (escalaStr.includes('5x2') || escalaStr.includes('5 x 2')) {
                         return dow === 0 || dow === 6;
                     }

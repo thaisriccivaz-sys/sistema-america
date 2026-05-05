@@ -9,6 +9,7 @@
     let agendaCards = [];
     let agendaColabs = [];
     let agendaEscalaData = [];
+    let agendaEscalaFiltroStatus = 'todos'; // 'todos','disponivel','folga','ferias','afastado','falta'
 
     function isoDate(d) {
         return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
@@ -121,8 +122,26 @@
         agendaCards = await carregarCards(inicio, fim);
         if (agendaFilterTipo === 'escala') {
             agendaEscalaData = await carregarEscala(inicio, fim);
+            // Enriquecer com faltas registradas nos cards da agenda
+            const faltaCards = agendaCards.filter(c => c.tipo === 'falta');
+            faltaCards.forEach(fc => {
+                const refs = (() => { try { return JSON.parse(fc.referente_ids || '[]'); } catch(e){ return []; } })();
+                refs.forEach(colabId => {
+                    const colab = agendaEscalaData.find(c => String(c.id) === String(colabId));
+                    if (colab) {
+                        const dia = (colab.dias || []).find(d => d.data === fc.data);
+                        if (dia && dia.status === 'disponivel') dia.status = 'falta';
+                        else if (!dia) colab.dias = [...(colab.dias||[]), { data: fc.data, status: 'falta' }];
+                    }
+                });
+            });
         }
         container.innerHTML = buildAgendaHTML();
+    };
+
+    window.agendaSetEscalaFiltro = function(status) {
+        agendaEscalaFiltroStatus = status;
+        window.renderAgendaLogistica();
     };
 
     function buildAgendaHTML() {
@@ -180,15 +199,19 @@
             const isHoje = dateStr === hoje;
             // Se filtro Escala: ignorar cards normais e mostrar chips de colaboradores
             if (agendaFilterTipo === 'escala') {
-                const disponiveisHoje = (agendaEscalaData || []).filter(c => {
-                    const di = (c.dias||[]).find(x => x.data === hoje); return !di || di.status === 'disponivel';
-                }).length;
                 let headerText = '';
                 if (agendaViewMode === 'semana') {
                     const nm = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][dObj.getDay()];
                     headerText = `<div style="font-size:0.75rem;color:${isHoje?'#008000':'#64748b'};text-transform:uppercase;font-weight:700;">${nm}</div>`;
                 }
-                const colabChips = (agendaEscalaData || []).map(colab => {
+                // Filtrar colaboradores pelo status selecionado
+                const colabsFiltrados = (agendaEscalaData || []).filter(colab => {
+                    if (agendaEscalaFiltroStatus === 'todos') return true;
+                    const diaInfo = (colab.dias || []).find(x => x.data === dateStr);
+                    const status = diaInfo ? diaInfo.status : 'disponivel';
+                    return status === agendaEscalaFiltroStatus;
+                });
+                const colabChips = colabsFiltrados.map(colab => {
                     const diaInfo = (colab.dias || []).find(x => x.data === dateStr);
                     const status  = diaInfo ? diaInfo.status : 'disponivel';
                     const st = ESC_STYLE[status] || ESC_STYLE.disponivel;
@@ -198,7 +221,6 @@
                         ? `<img src="${colab.foto_base64}" style="width:20px;height:20px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1.5px solid ${st.border};" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
                         : '';
                     const avatarHTML = `<div style="width:20px;height:20px;border-radius:50%;background:${st.bg};border:1.5px solid ${st.border};display:${colab.foto_base64?'none':'flex'};align-items:center;justify-content:center;font-size:9px;font-weight:800;color:${st.color};flex-shrink:0;">${inicial}</div>`;
-                    const label = (status === 'disponivel' && colab.horario_entrada) ? colab.horario_entrada : (ESC_STYLE[status]||ESC_STYLE.disponivel).border.replace('#','');
                     const sublabel = status === 'disponivel' && colab.horario_entrada
                         ? `${colab.horario_entrada}${colab.horario_saida?'-'+colab.horario_saida:''}`
                         : ({disponivel:'Disponível',folga:'Folga',ferias:'Férias',afastado:'Afastado',falta:'Falta'}[status]||'');
@@ -316,9 +338,25 @@
                     <button class="ag-btn-novo" onclick="abrirNovoCard('')"><i class="ph ph-plus"></i> Novo Card</button>
                 </div>
             </div>
-            ${weekdaysHTML}
+            ${agendaFilterTipo === 'escala' ? `<div id="ag-escala-filtro-bar" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:0.6rem 0;margin-bottom:0.75rem;">
+            <span style="font-size:0.75rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-right:4px;">Mostrar:</span>
+            ${[
+                {k:'todos',    label:'Todos',      color:'#334155', bg:'#f1f5f9'},
+                {k:'disponivel',label:'🟢 Escalados',color:'#16a34a', bg:'#dcfce7'},
+                {k:'folga',    label:'⚪ Folga',    color:'#94a3b8', bg:'#f1f5f9'},
+                {k:'ferias',   label:'🟠 Férias',   color:'#ea580c', bg:'#fff7ed'},
+                {k:'afastado', label:'🟡 Afastado', color:'#ca8a04', bg:'#fefce8'},
+                {k:'falta',    label:'🔴 Falta',    color:'#dc2626', bg:'#fef2f2'},
+            ].map(f => `<button onclick="agendaSetEscalaFiltro('${f.k}')"
+                style="border:1.5px solid ${agendaEscalaFiltroStatus===f.k?f.color:'#e2e8f0'};background:${agendaEscalaFiltroStatus===f.k?f.bg:'#fff'};color:${agendaEscalaFiltroStatus===f.k?f.color:'#64748b'};border-radius:20px;padding:4px 14px;font-size:0.8rem;font-weight:${agendaEscalaFiltroStatus===f.k?'700':'500'};cursor:pointer;transition:all .15s;">${f.label}</button>`
+            ).join('')}
+        </div>` : ''}
+        ${weekdaysHTML}
             <div class="ag-grid grid-${agendaViewMode}">${cells}</div>
         </div>
+
+        <!-- Barra de sub-filtro de status (só aparece na view Escala) -->
+        
 
         <!-- Modal de Card -->
         <div id="ag-modal-overlay" style="display:none;" onclick="fecharAgendaModal(event)">

@@ -1518,6 +1518,12 @@ window.toggleFormEscalaTipo = function() {
         if(boxCiclo) { boxCiclo.style.display = 'block'; atualizarLabelCiclo('12x36'); }
         document.querySelectorAll('.cb-folga-colab').forEach(cb => cb.checked = false);
         document.querySelectorAll('.cb-uma-folga-colab').forEach(cb => cb.checked = false);
+    } else if (tipo === 'padrao_sab_alternado') {
+        if(boxFolgas) boxFolgas.style.display = 'none';
+        if(boxUmaFolga) boxUmaFolga.style.display = 'none';
+        if(boxCiclo) { boxCiclo.style.display = 'block'; atualizarLabelCiclo('sab_alternado'); }
+        document.querySelectorAll('.cb-folga-colab').forEach(cb => cb.checked = false);
+        document.querySelectorAll('.cb-uma-folga-colab').forEach(cb => cb.checked = false);
     } else {
         if(boxFolgas) boxFolgas.style.display = 'none';
         if(boxUmaFolga) boxUmaFolga.style.display = 'none';
@@ -1564,6 +1570,11 @@ window.atualizarLabelCiclo = function(modo) {
         small.innerHTML = '<i class="ph ph-info"></i> Informe o <strong>primeiro dia de trabalho</strong> desta pessoa. '
             + 'O sistema alterna automaticamente: <strong>1 dia trabalha → 1 dia folga (36h)</strong>.<br>'
             + 'Sem essa data o colaborador aparece sempre como disponível na agenda.';
+    } else if (modo === 'sab_alternado') {
+        lbl.innerHTML = '<i class="ph ph-calendar-blank"></i> Sábados Alternados — Data de referência';
+        small.innerHTML = '<i class="ph ph-info"></i> Informe um <strong>sábado trabalhado</strong> de referência. '
+            + 'O sistema alterna automaticamente: <strong>sábado trabalha → sábado folga → sábado trabalha...</strong><br>'
+            + 'Sem essa data o sistema não saberá qual sábado é folga.';
     } else {
         lbl.innerHTML = '<i class="ph ph-calendar-blank"></i> Domingo de Lei — Data de Referência do Ciclo';
         small.innerHTML = '<i class="ph ph-info"></i> Informe um <strong>domingo</strong> onde o ciclo começa (<em>1º domingo trabalhado</em>). '
@@ -3436,7 +3447,10 @@ window.editColaborador = async function(id) {
                 cicloEl.value = c.escala_ciclo_inicio || '';
                 // Atualizar label conforme tipo de escala
                 if (typeof window.atualizarLabelCiclo === 'function') {
-                    window.atualizarLabelCiclo(c.escala_tipo === 'escala_12x36' ? '12x36' : 'folga');
+                    const modo = c.escala_tipo === 'escala_12x36' ? '12x36'
+                               : c.escala_tipo === 'padrao_sab_alternado' ? 'sab_alternado'
+                               : 'folga';
+                    window.atualizarLabelCiclo(modo);
                 }
             }
         }
