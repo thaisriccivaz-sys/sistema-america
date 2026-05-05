@@ -5743,7 +5743,7 @@ window.sendASOEmailTab = async function() {
             if (res.new_doc && typeof currentDocs !== 'undefined') {
                 currentDocs.push(res.new_doc);
             }
-            const activeTab = document.querySelector('.tab-menu li.active');
+            const activeTab = document.querySelector('#tabs-list li.active');
             if (activeTab) renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
         } else {
             throw new Error(res.error || 'Erro no servidor');
