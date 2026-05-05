@@ -1,9 +1,10 @@
 // ═══════════════════════════════════════════════════════════════
-// MÓDULO: AGENDA LOGÍSTICA v2
+// MÓDULO: AGENDA LOGÍSTICA v3
 // ═══════════════════════════════════════════════════════════════
 (function() {
     const API = '/api';
     let agendaCurrentDate = new Date();
+    let agendaViewMode = 'mes'; // 'dia', 'semana', 'mes'
     let agendaCards = [];
     let agendaColabs = [];
 
@@ -12,6 +13,12 @@
     }
     function daysInMonth(y, m) { return new Date(y, m+1, 0).getDate(); }
     function firstDayOfMonth(y, m) { return new Date(y, m, 1).getDay(); }
+    function getStartOfWeek(d) {
+        const dt = new Date(d);
+        const day = dt.getDay();
+        dt.setDate(dt.getDate() - day);
+        return dt;
+    }
 
     const TIPOS = [
         { value: 'aviso',   label: 'Aviso Geral',    icon: 'ph-bell',          color: '#f59e0b' },
@@ -31,9 +38,9 @@
         } catch(e) {}
     }
 
-    async function carregarCards(ano, mes) {
+    async function carregarCards(inicio, fim) {
         try {
-            const r = await fetch(`${API}/logistica/agenda?ano=${ano}&mes=${mes+1}`, {
+            const r = await fetch(`${API}/logistica/agenda?inicio=${inicio}&fim=${fim}`, {
                 headers: { Authorization: `Bearer ${window.currentToken}` }
             });
             if (!r.ok) return [];
@@ -66,58 +73,125 @@
         const container = document.getElementById('logistica-agenda-container');
         if (!container) return;
         await carregarColabs();
-        const ano = agendaCurrentDate.getFullYear();
-        const mes = agendaCurrentDate.getMonth();
-        agendaCards = await carregarCards(ano, mes);
-        container.innerHTML = buildAgendaHTML(ano, mes);
+        
+        let inicio, fim;
+        if (agendaViewMode === 'mes') {
+            const ano = agendaCurrentDate.getFullYear();
+            const mes = agendaCurrentDate.getMonth();
+            inicio = `${ano}-${String(mes+1).padStart(2,'0')}-01`;
+            fim = `${ano}-${String(mes+1).padStart(2,'0')}-${daysInMonth(ano, mes)}`;
+        } else if (agendaViewMode === 'semana') {
+            const start = getStartOfWeek(agendaCurrentDate);
+            const end = new Date(start);
+            end.setDate(end.getDate() + 6);
+            inicio = isoDate(start);
+            fim = isoDate(end);
+        } else {
+            inicio = isoDate(agendaCurrentDate);
+            fim = inicio;
+        }
+
+        agendaCards = await carregarCards(inicio, fim);
+        container.innerHTML = buildAgendaHTML();
     };
 
-    function buildAgendaHTML(ano, mes) {
+    function buildAgendaHTML() {
+        let diasRender = [];
+        const dt = new Date(agendaCurrentDate);
+        const ano = dt.getFullYear();
+        const mes = dt.getMonth();
         const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-        const dias = daysInMonth(ano, mes);
-        const primeiro = firstDayOfMonth(ano, mes);
+        const dayNames = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+        let titulo = '';
         const hoje = isoDate(new Date());
 
-        let cells = '';
-        for (let i = 0; i < primeiro; i++) cells += `<div class="ag-cell ag-empty"></div>`;
+        if (agendaViewMode === 'mes') {
+            titulo = `${meses[mes]} ${ano}`;
+            const dias = daysInMonth(ano, mes);
+            const primeiro = firstDayOfMonth(ano, mes);
+            for (let i = 0; i < primeiro; i++) diasRender.push(null);
+            for (let d = 1; d <= dias; d++) diasRender.push(new Date(ano, mes, d));
+        } else if (agendaViewMode === 'semana') {
+            const start = getStartOfWeek(dt);
+            const end = new Date(start);
+            end.setDate(end.getDate() + 6);
+            if (start.getMonth() === end.getMonth()) {
+                titulo = `${start.getDate()} a ${end.getDate()} de ${meses[start.getMonth()]} ${start.getFullYear()}`;
+            } else {
+                titulo = `${start.getDate()} de ${meses[start.getMonth()]} a ${end.getDate()} de ${meses[end.getMonth()]} ${end.getFullYear()}`;
+            }
+            for (let i = 0; i < 7; i++) {
+                const cur = new Date(start);
+                cur.setDate(cur.getDate() + i);
+                diasRender.push(cur);
+            }
+        } else if (agendaViewMode === 'dia') {
+            titulo = `${dayNames[dt.getDay()]}, ${dt.getDate()} de ${meses[dt.getMonth()]} ${dt.getFullYear()}`;
+            diasRender.push(new Date(dt));
+        }
 
-        for (let d = 1; d <= dias; d++) {
-            const dateStr = `${ano}-${String(mes+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        let cells = '';
+        for (const dObj of diasRender) {
+            if (!dObj) {
+                cells += `<div class="ag-cell ag-empty"></div>`;
+                continue;
+            }
+            const dateStr = isoDate(dObj);
             const isHoje = dateStr === hoje;
             const cardsDay = agendaCards.filter(c => c.data === dateStr)
                 .sort((a, b) => (a.horario || '').localeCompare(b.horario || ''));
 
-            const badges = cardsDay.slice(0,3).map(c => {
+            const limit = agendaViewMode === 'mes' ? 3 : 999;
+            const badges = cardsDay.slice(0, limit).map(c => {
                 const t = getTipo(c.tipo);
-                const hora = c.horario ? `<span style="opacity:0.8;margin-right:2px;">${c.horario}</span>` : '';
+                const hora = c.horario ? `<span style="opacity:0.8;margin-right:4px;font-weight:700;">${c.horario}</span>` : '';
                 return `<div class="ag-badge" style="background:${t.color}22;color:${t.color};border-left:3px solid ${t.color};"
                     onclick="event.stopPropagation();abrirCardDetalhes(${c.id})" title="${c.titulo||t.label}">
-                    <i class="ph ${t.icon}" style="font-size:0.7rem;flex-shrink:0;"></i>
-                    ${hora}<span style="overflow:hidden;text-overflow:ellipsis;">${(c.titulo||t.label).substring(0,18)}</span>
+                    <i class="ph ${t.icon}" style="font-size:0.8rem;flex-shrink:0;"></i>
+                    ${hora}<span style="overflow:hidden;text-overflow:ellipsis;">${(c.titulo||t.label)}</span>
                 </div>`;
             }).join('');
-            const mais = cardsDay.length > 3 ? `<div class="ag-mais">+${cardsDay.length-3} mais</div>` : '';
+            const mais = cardsDay.length > limit ? `<div class="ag-mais">+${cardsDay.length - limit} mais</div>` : '';
 
-            cells += `<div class="ag-cell ${isHoje?'ag-hoje':''}" data-date="${dateStr}" onclick="abrirNovoCard('${dateStr}')">
-                <div class="ag-day-num ${isHoje?'ag-hoje-num':''}">${d}</div>
-                <div class="ag-badges">${badges}${mais}</div>
+            let headerText = '';
+            if (agendaViewMode === 'semana') {
+                const curDayName = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][dObj.getDay()];
+                headerText = `<div style="font-size:0.75rem; color:#64748b; text-transform:uppercase; font-weight:700;">${curDayName}</div>`;
+            }
+
+            cells += `<div class="ag-cell ${isHoje?'ag-hoje':''} mode-${agendaViewMode}" data-date="${dateStr}" onclick="abrirNovoCard('${dateStr}')">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px;">
+                    ${headerText}
+                    <div class="ag-day-num ${isHoje?'ag-hoje-num':''}">${dObj.getDate()}</div>
+                </div>
+                <div class="ag-badges mode-${agendaViewMode}">${badges}${mais}</div>
             </div>`;
+        }
+
+        let weekdaysHTML = '';
+        if (agendaViewMode === 'mes') {
+            weekdaysHTML = `<div class="ag-weekdays"><div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div></div>`;
         }
 
         return `<div class="ag-wrap">
             <div class="ag-header">
                 <div class="ag-header-left">
-                    <button class="ag-nav-btn" onclick="agendaNavMes(-1)"><i class="ph ph-caret-left"></i></button>
-                    <h2 class="ag-titulo">${meses[mes]} ${ano}</h2>
-                    <button class="ag-nav-btn" onclick="agendaNavMes(1)"><i class="ph ph-caret-right"></i></button>
+                    <button class="ag-nav-btn" onclick="agendaNav(-1)"><i class="ph ph-caret-left"></i></button>
+                    <h2 class="ag-titulo">${titulo}</h2>
+                    <button class="ag-nav-btn" onclick="agendaNav(1)"><i class="ph ph-caret-right"></i></button>
                     <button class="ag-nav-btn ag-hoje-btn" onclick="agendaIrHoje()"><i class="ph ph-calendar-blank"></i> Hoje</button>
                 </div>
                 <div class="ag-header-right">
+                    <div class="ag-view-toggles">
+                        <button class="ag-view-btn ${agendaViewMode==='dia'?'active':''}" onclick="agendaSetView('dia')">Dia</button>
+                        <button class="ag-view-btn ${agendaViewMode==='semana'?'active':''}" onclick="agendaSetView('semana')">Semana</button>
+                        <button class="ag-view-btn ${agendaViewMode==='mes'?'active':''}" onclick="agendaSetView('mes')">Mês</button>
+                    </div>
                     <button class="ag-btn-novo" onclick="abrirNovoCard('')"><i class="ph ph-plus"></i> Novo Card</button>
                 </div>
             </div>
-            <div class="ag-weekdays"><div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div></div>
-            <div class="ag-grid">${cells}</div>
+            ${weekdaysHTML}
+            <div class="ag-grid grid-${agendaViewMode}">${cells}</div>
         </div>
 
         <!-- Modal de Card -->
@@ -135,24 +209,38 @@
         .ag-wrap{padding:1.5rem;min-height:100%;background:#f0f4f8;}
         .ag-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;flex-wrap:wrap;gap:.5rem;}
         .ag-header-left{display:flex;align-items:center;gap:.5rem;}
+        .ag-header-right{display:flex;align-items:center;}
         .ag-titulo{font-size:1.4rem;font-weight:700;color:#1e293b;margin:0;min-width:180px;text-align:center;}
         .ag-nav-btn{background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:6px 12px;cursor:pointer;color:#475569;font-size:.88rem;display:flex;align-items:center;gap:4px;transition:all .2s;}
         .ag-nav-btn:hover{background:#2d9e5f;color:#fff;border-color:#2d9e5f;}
         .ag-hoje-btn{font-weight:600;}
+        .ag-view-toggles { display: flex; background: #e2e8f0; border-radius: 8px; overflow: hidden; margin-right: 12px; padding: 2px; }
+        .ag-view-btn { border: none; background: transparent; border-radius: 6px; padding: 6px 14px; cursor: pointer; font-size: 0.85rem; font-weight: 600; color: #64748b; transition: all 0.2s; }
+        .ag-view-btn.active { background: #fff; color: #2d9e5f; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .ag-btn-novo{background:linear-gradient(135deg,#2d9e5f,#1a7a46);color:#fff;border:none;border-radius:10px;padding:8px 18px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;box-shadow:0 2px 8px rgba(45,158,95,.35);transition:all .2s;}
         .ag-btn-novo:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(45,158,95,.45);}
         .ag-weekdays{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font-weight:600;font-size:.8rem;color:#64748b;text-transform:uppercase;letter-spacing:.05em;padding-bottom:.4rem;border-bottom:2px solid #e2e8f0;margin-bottom:.5rem;}
-        .ag-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
-        .ag-cell{background:#fff;border-radius:10px;min-height:110px;padding:6px;cursor:pointer;transition:all .2s;border:2px solid transparent;position:relative;overflow:hidden;}
+        .ag-grid.grid-mes { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+        .ag-grid.grid-semana { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+        .ag-grid.grid-dia { display: grid; grid-template-columns: 1fr; gap: 8px; }
+        .ag-cell{background:#fff;border-radius:10px;padding:6px;cursor:pointer;transition:all .2s;border:2px solid transparent;position:relative;overflow:hidden;}
         .ag-cell:hover{border-color:#2d9e5f;box-shadow:0 2px 8px rgba(45,158,95,.15);}
         .ag-cell.ag-empty{background:transparent;cursor:default;border:none;}
         .ag-cell.ag-hoje{border-color:#2d9e5f;background:#f0fdf4;}
-        .ag-day-num{font-size:.85rem;font-weight:600;color:#475569;margin-bottom:4px;}
+        .ag-cell.mode-mes { min-height: 110px; }
+        .ag-cell.mode-semana { min-height: 350px; padding: 10px; }
+        .ag-cell.mode-dia { min-height: 450px; padding: 16px; }
+        .ag-day-num{font-size:.85rem;font-weight:600;color:#475569;}
+        .ag-cell.mode-dia .ag-day-num { display: none; }
         .ag-hoje-num{background:#2d9e5f;color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.78rem;}
-        .ag-badges{display:flex;flex-direction:column;gap:2px;}
-        .ag-badge{font-size:.68rem;padding:2px 5px;border-radius:4px;font-weight:600;display:flex;align-items:center;gap:3px;cursor:pointer;overflow:hidden;white-space:nowrap;}
+        .ag-badges{display:flex;flex-direction:column;gap:4px;}
+        .ag-badge{padding:4px 6px;border-radius:6px;font-weight:600;display:flex;align-items:center;gap:4px;cursor:pointer;overflow:hidden;white-space:nowrap;}
         .ag-badge:hover{filter:brightness(.92);}
+        .ag-badges.mode-mes .ag-badge { font-size: 0.68rem; padding:2px 5px; border-radius:4px; }
+        .ag-badges.mode-semana .ag-badge { font-size: 0.78rem; padding: 6px 8px; margin-bottom: 2px; }
+        .ag-badges.mode-dia .ag-badge { font-size: 0.9rem; padding: 10px 14px; margin-bottom: 4px; border-radius: 8px; border-left-width: 4px !important; }
         .ag-mais{font-size:.65rem;color:#94a3b8;font-style:italic;margin-top:1px;}
+        
         #ag-modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(3px);}
         .ag-modal{background:#fff;border-radius:16px;width:100%;max-width:600px;max-height:92vh;overflow-y:auto;box-shadow:0 25px 60px rgba(0,0,0,.3);animation:agSlideIn .25s ease;}
         @keyframes agSlideIn{from{transform:translateY(-20px);opacity:0}to{transform:translateY(0);opacity:1}}
@@ -190,12 +278,24 @@
     }
 
     // ── Navegação ───────────────────────────────────────────────
-    window.agendaNavMes = function(delta) {
-        agendaCurrentDate.setMonth(agendaCurrentDate.getMonth() + delta);
+    window.agendaNav = function(delta) {
+        if (agendaViewMode === 'mes') {
+            agendaCurrentDate.setMonth(agendaCurrentDate.getMonth() + delta);
+        } else if (agendaViewMode === 'semana') {
+            agendaCurrentDate.setDate(agendaCurrentDate.getDate() + (delta * 7));
+        } else if (agendaViewMode === 'dia') {
+            agendaCurrentDate.setDate(agendaCurrentDate.getDate() + delta);
+        }
         window.renderAgendaLogistica();
     };
+    
     window.agendaIrHoje = function() {
         agendaCurrentDate = new Date();
+        window.renderAgendaLogistica();
+    };
+
+    window.agendaSetView = function(mode) {
+        agendaViewMode = mode;
         window.renderAgendaLogistica();
     };
 
@@ -336,7 +436,6 @@
         if (btn) { btn.classList.add('active'); btn.style.background = color; btn.style.borderColor = color; btn.style.color = '#fff'; }
     };
 
-    // Adicionar chip (resp ou ref)
     window.agendaAddChip = function(tipo, id) {
         if (!id) return;
         const listId = tipo === 'resp' ? 'ag-resp-list' : 'ag-ref-list';

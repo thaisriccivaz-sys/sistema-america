@@ -11287,15 +11287,18 @@ setTimeout(() => {
 
 // GET – lista cards do mês
 app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
-    const { ano, mes, setor } = req.query;
+    const { ano, mes, setor, inicio, fim } = req.query;
     let where = '1=1';
     const params = [];
-    if (ano && mes) {
-        const anoN = parseInt(ano), mesN = parseInt(mes);
-        const inicio = `${anoN}-${String(mesN).padStart(2,'0')}-01`;
-        const fim = `${anoN}-${String(mesN).padStart(2,'0')}-31`;
+    if (inicio && fim) {
         where += ' AND data >= ? AND data <= ?';
         params.push(inicio, fim);
+    } else if (ano && mes) {
+        const anoN = parseInt(ano), mesN = parseInt(mes);
+        const dInicio = `${anoN}-${String(mesN).padStart(2,'0')}-01`;
+        const dFim = `${anoN}-${String(mesN).padStart(2,'0')}-31`;
+        where += ' AND data >= ? AND data <= ?';
+        params.push(dInicio, dFim);
     }
     if (setor) { where += ' AND setor = ?'; params.push(setor); }
     db.all(`SELECT * FROM logistica_agenda WHERE ${where} ORDER BY data, id`, params, (err, rows) => {
