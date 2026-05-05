@@ -52,24 +52,27 @@ async function initNotificacoesView() {
             const selectedUsers = configByTipo[tipo.id] || [];
             
             html += `
-                <div class="config-notificacao-item" style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; background: #fff;">
-                    <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
-                        <div style="width: 32px; height: 32px; border-radius: 6px; background: #fff5f5; color: #d9480f; display: flex; align-items: center; justify-content: center;">
-                            <i class="ph ${tipo.icone}" style="font-size: 1.2rem;"></i>
+                <div class="config-notificacao-item" style="border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; display: flex; flex-direction: column;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 1rem; cursor: pointer; user-select: none;" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'; this.querySelector('.arrow').style.transform = this.nextElementSibling.style.display === 'none' ? 'rotate(0deg)' : 'rotate(180deg)'">
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <div style="width: 32px; height: 32px; border-radius: 6px; background: #fff5f5; color: #d9480f; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                <i class="ph ${tipo.icone}" style="font-size: 1.2rem;"></i>
+                            </div>
+                            <h3 style="margin: 0; font-size: 1rem; color: #334155; line-height: 1.2;">${tipo.nome}</h3>
                         </div>
-                        <h3 style="margin: 0; font-size: 1.1rem; color: #334155;">${tipo.nome}</h3>
+                        <i class="ph ph-caret-down arrow" style="color: #94a3b8; transition: transform 0.2s;"></i>
                     </div>
                     
-                    <div style="margin-left: 44px;">
-                        <label style="font-size: 0.85rem; font-weight: 600; color: #64748b; margin-bottom: 0.5rem; display: block;">Usuários que recebem:</label>
-                        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                    <div class="notif-users-list" style="display: none; border-top: 1px solid #e2e8f0; padding: 1rem; background: #f8fafc; border-radius: 0 0 8px 8px; max-height: 300px; overflow-y: auto;">
+                        <label style="font-size: 0.85rem; font-weight: 600; color: #64748b; margin-bottom: 0.75rem; display: block;">Selecione os usuários:</label>
+                        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
             `;
             
             // Checkboxes para cada usuário
             globalUsuariosConfig.forEach(u => {
                 const isChecked = selectedUsers.includes(u.id) ? 'checked' : '';
                 html += `
-                    <label class="user-checkbox-label" style="display: flex; align-items: center; gap: 0.5rem; background: #f8fafc; padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid #e2e8f0; cursor: pointer; user-select: none;">
+                    <label class="user-checkbox-label" style="display: flex; align-items: center; gap: 0.5rem; background: #fff; padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid #cbd5e1; cursor: pointer; user-select: none; transition: background 0.2s;">
                         <input type="checkbox" class="config-notif-cb" data-tipo="${tipo.id}" data-uid="${u.id}" ${isChecked}>
                         <span style="font-size: 0.9rem; color: #475569;">${u.nome || u.username}</span>
                     </label>
