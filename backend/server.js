@@ -10690,7 +10690,7 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
     };
 
     if (colabIds.length > 0) {
-        db.all(`SELECT id, nome_completo, cpf, cargo FROM colaboradores WHERE id IN (${colabIds.join(',')})`, (err, colabRows) => {
+        db.all(`SELECT id, nome_completo, cpf, cargo, foto_base64, foto_path FROM colaboradores WHERE id IN (${colabIds.join(',')})`, (err, colabRows) => {
             if (err) return res.status(500).json({ error: err.message });
             db.all(`SELECT colaborador_id, document_type, tab_name FROM documentos WHERE colaborador_id IN (${colabIds.join(',')})`, (err2, docRows) => {
                 if (err2) return res.status(500).json({ error: err2.message });
