@@ -146,10 +146,24 @@
             const limit = agendaViewMode === 'mes' ? 3 : 999;
             const badges = cardsDay.slice(0, limit).map(c => {
                 const t = getTipo(c.tipo);
+                let tituloDisplay = c.titulo || t.label;
+                try {
+                    const refs = JSON.parse(c.referente_ids || '[]');
+                    if (refs && refs.length > 0) {
+                        const nomesRefs = refs.map(id => {
+                            const col = agendaColabs.find(x => String(x.id) === String(id));
+                            return col ? col.nome_completo.split(' ').slice(0, 2).join(' ') : '';
+                        }).filter(Boolean);
+                        if (nomesRefs.length > 0) {
+                            tituloDisplay += `: ${nomesRefs.join(', ')}`;
+                        }
+                    }
+                } catch(e) {}
+                
                 return `<div class="ag-badge" style="background:${t.color}22;color:${t.color};border-left:3px solid ${t.color};"
-                    onclick="abrirCardDetalhes(event, '${c.id}')" title="${c.titulo||t.label}">
+                    onclick="abrirCardDetalhes(event, '${c.id}')" title="${tituloDisplay}">
                     <i class="ph ${t.icon}" style="font-size:0.8rem;flex-shrink:0;"></i>
-                    <span style="overflow:hidden;text-overflow:ellipsis;">${(c.titulo||t.label)}</span>
+                    <span style="overflow:hidden;text-overflow:ellipsis;">${tituloDisplay}</span>
                 </div>`;
             }).join('');
             const mais = cardsDay.length > limit ? `<div class="ag-mais">+${cardsDay.length - limit} mais</div>` : '';
