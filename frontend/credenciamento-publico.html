@@ -125,27 +125,39 @@
                     <h4 class="font-bold text-lg text-gray-800">${c.nome}</h4>
                 </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                        ${c.documentos.length > 0
-                            ? c.documentos.map(d => {
+                        ${(c.documentos.length > 0 || c.foto_base64)
+                            ? `
+                                ${c.foto_base64 ? `
+                                <div class="flex items-center justify-between bg-white p-2 border rounded shadow-sm">
+                                    <span class="text-sm font-medium text-gray-700 truncate mr-2" title="Foto do Colaborador">
+                                        <i class="far fa-image text-blue-500 mr-1"></i> Foto do Colaborador
+                                    </span>
+                                    <a href="${c.foto_base64}" download="Foto_${sanitize(c.nome)}.jpg" class="btn-download text-xs" title="Baixar Foto">
+                                        <i class="fas fa-download"></i>
+                                    </a>
+                                </div>
+                                ` : ''}
+                                ${c.documentos.map(d => {
                                 const docUrl = d.is_epi
                                     ? null
-                                    : `/api/publico/credenciamento/${token}/doc/${d.id}`;
-                                return `
+                                    : \`/api/publico/credenciamento/\${token}/doc/\${d.id}\`;
+                                return \`
                                 <div class="flex items-center justify-between bg-white p-2 border rounded shadow-sm">
-                                    <span class="text-sm font-medium text-gray-700 truncate mr-2" title="${d.tipo}">
-                                        <i class="far fa-file-pdf text-red-500 mr-1"></i> ${d.tipo}
+                                    <span class="text-sm font-medium text-gray-700 truncate mr-2" title="\${d.tipo}">
+                                        <i class="far fa-file-pdf text-red-500 mr-1"></i> \${d.tipo}
                                     </span>
-                                    ${docUrl
-                                        ? `<a href="${docUrl}" target="_blank" class="btn-download text-xs" title="Baixar">
+                                    \${docUrl
+                                        ? \`<a href="\${docUrl}" target="_blank" class="btn-download text-xs" title="Baixar">
                                                <i class="fas fa-download"></i>
-                                           </a>`
-                                        : `<button onclick="gerarEpiPDF(${d.id}, '${token}', '${sanitize(c.nome)}')"
+                                           </a>\`
+                                        : \`<button onclick="gerarEpiPDF(\${d.id}, '\${token}', '\${sanitize(c.nome)}')"
                                                    class="btn-download text-xs" title="Gerar e baixar PDF da Ficha de EPI">
                                                <i class="fas fa-download"></i> Baixar
-                                           </button>`
+                                           </button>\`
                                     }
-                                </div>`;
-                              }).join('')
+                                </div>\`;
+                              }).join('')}
+                              `
                             : '<p class="text-gray-500 text-sm italic col-span-full">Nenhum documento anexado ao prontuário.</p>'}
                     </div>
                 </div>
@@ -277,6 +289,16 @@
                 // Documentos dos colaboradores
                 (_credData.colaboradores || []).forEach(c => {
                     const nomeColab = sanitize(c.nome);
+                    
+                    if (c.foto_base64 && c.foto_base64.includes('base64,')) {
+                        const base64Data = c.foto_base64.split('base64,')[1];
+                        const mimeMatch = c.foto_base64.match(/data:image\/([a-zA-Z0-9]+);/);
+                        const ext = mimeMatch ? mimeMatch[1] : 'jpg';
+                        const fname = `Colaboradores/${nomeColab}/Foto.${ext}`;
+                        zip.file(fname, base64Data, {base64: true});
+                        totalAdded++;
+                    }
+
                     (c.documentos || []).forEach(d => {
                         const fname = `Colaboradores/${nomeColab}/${sanitize(d.tipo)}.pdf`;
                         if (d.is_epi) {
