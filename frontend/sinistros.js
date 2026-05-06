@@ -82,8 +82,9 @@ window._renderSinistroCard = function(s, colabId, container) {
         `;
     }
 
-    const r = window.currentUser?.role?.toLowerCase() || '';
-    const p = window.currentUser?.perfil?.toLowerCase() || '';
+    const userRef = typeof currentUser !== 'undefined' ? currentUser : (window.currentUser || {});
+    const r = userRef?.role?.toLowerCase() || '';
+    const p = userRef?.perfil?.toLowerCase() || '';
     const isRH = ['rh', 'admin', 'administrador', 'diretoria'].includes(r) || ['rh', 'admin', 'administrador', 'diretoria'].includes(p);
 
     let actionsHtml = '';

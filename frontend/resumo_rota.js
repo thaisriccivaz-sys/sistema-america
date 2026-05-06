@@ -464,13 +464,12 @@ window.rrImportarPlanilha = async function(input) {
     _rrVeiculos  = Object.values(map);
     _rrCurrentId = null;
 
-    // --- DETECTAR DATA DA ROTA (coluna D = col 4 em ExcelJS 1-based) ---
+    // --- DETECTAR DATA DA ROTA (col 25 = "Data agendada" na planilha do SimpliRoute) ---
     let _rrDataRota = null;
     for (const r of rows) {
-        // Tenta col 4 (D) primeiro — data de agendamento do serviço
-        const candidates = [r[4], r[25]]; // col D, col Y ("Data agendada" do SimpliRoute)
-        for (const dataCell of candidates) {
-            if (!dataCell) continue;
+        const dataCell = r[25]; // col 25 = "Data agendada"
+        if (dataCell) {
+            // Pode ser uma Date (ExcelJS converte automaticamente) ou string "DD/MM/YYYY"
             let dt = null;
             if (dataCell instanceof Date) {
                 dt = dataCell.toISOString().split('T')[0];
@@ -482,9 +481,8 @@ window.rrImportarPlanilha = async function(input) {
                 // Formato YYYY-MM-DD
                 else if (/^\d{4}-\d{2}-\d{2}$/.test(s)) dt = s;
             }
-            if (dt && dt >= '2020-01-01') { _rrDataRota = dt; break; }
+            if (dt) { _rrDataRota = dt; break; }
         }
-        if (_rrDataRota) break;
     }
     // Se não achou na planilha, usa data de hoje
     if (!_rrDataRota) {
