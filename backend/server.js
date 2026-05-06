@@ -11548,9 +11548,10 @@ app.get('/api/logistica/escala', authenticateToken, (req, res) => {
     const excStr = DEPTS_EXCLUIDOS.map(() => '?').join(',');
 
     db.all(`SELECT id, nome_completo, cargo, departamento, foto_base64, foto_path,
-                   escala_tipo, escala_folgas, escala_ciclo_inicio, horario_entrada, horario_saida
-            FROM colaboradores WHERE status = 'Ativo'
+                   escala_tipo, escala_folgas, escala_ciclo_inicio, horario_entrada, horario_saida, status
+            FROM colaboradores WHERE status IN ('Ativo','Afastado','Férias')
             AND departamento NOT IN (${excStr})
+            AND (tipo_contrato IS NULL OR tipo_contrato != 'Intermitente')
             ORDER BY nome_completo`, DEPTS_EXCLUIDOS, (err, colabs) => {
         if (err) return res.status(500).json({ error: err.message });
 
