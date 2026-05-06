@@ -21,7 +21,7 @@ const FormData = require('form-data');
 const db       = require('./database');
 
 // ─── CONFIGURAÇÃO ────────────────────────────────────────────────────────────
-const API_KEY    = 'AxaT-FiXBckHqEYV0s_MtUhLF3pReRz3dX4zVpC173vmjDwzLGHYtDJuQje4-4Pd';
+const API_KEY    = '6mPX9DpdGQkzF2VOCokYQARRMIUgq5ddyKOucKvaSm8y9DIin9TN0UfxrOL_bHyt';
 const ACCOUNT_ID = '10237785fb23cf473d54845a013e';
 const HOSTNAME   = 'api.assinafy.com.br';
 
