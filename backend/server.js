@@ -11781,6 +11781,162 @@ app.post('/api/logistica/agenda/clear', authenticateToken, (req, res) => {
     });
 });
 
+// GET - Disponibilidade de colaboradores para o Resumo de Rota por data
+// Query: ?data=YYYY-MM-DD&nomes=Nome1,Nome2,...
+app.get('/api/logistica/disponibilidade-rota', authenticateToken, (req, res) => {
+    const { data, nomes } = req.query;
+    if (!data || !nomes) return res.status(400).json({ error: 'Informe data e nomes.' });
+
+    const nomesArr = nomes.split(',').map(n => n.trim().toLowerCase()).filter(Boolean);
+    if (!nomesArr.length) return res.json({});
+
+    const DIA_MAP = {
+        'dom': 0, 'domingo': 0, 'seg': 1, 'segunda': 1,
+        'ter': 2, 'terça': 2, 'terca': 2, 'qua': 3, 'quarta': 3,
+        'qui': 4, 'quinta': 4, 'sex': 5, 'sexta': 5,
+        'sáb': 6, 'sab': 6, 'sabado': 6, 'sábado': 6
+    };
+
+    // Função de folga reutilizada do endpoint de escala
+    function calcFolga(c, dateStr) {
+        const escalaStr = (c.escala_tipo || '').toLowerCase();
+        let folgasExplicitas = [];
+        try {
+            const parsed = JSON.parse(c.escala_folgas || '[]');
+            folgasExplicitas = Array.isArray(parsed) ? parsed.map(f => String(f).trim().toLowerCase()) : [String(parsed).trim().toLowerCase()];
+        } catch(e2) {
+            folgasExplicitas = (c.escala_folgas || '').split(/[,;]+/).map(f => f.trim().toLowerCase()).filter(Boolean);
+        }
+        const folgasDow = folgasExplicitas.map(f => DIA_MAP[f]).filter(v => v !== undefined);
+        const d = new Date(dateStr + 'T12:00:00');
+        const dow = d.getDay();
+        const temCiclo = c.escala_ciclo_inicio && (escalaStr.includes('uma_folga') || escalaStr.includes('duas_folgas') || escalaStr.includes('folga'));
+        const cicloBase = temCiclo ? new Date(c.escala_ciclo_inicio + 'T12:00:00') : null;
+        const ultimoFolgaDow = folgasDow.length >= 2 ? folgasDow[folgasDow.length - 1] : null;
+
+        const isDomingoDeLei = (ds) => {
+            if (!temCiclo || !cicloBase) return false;
+            const dd = new Date(ds + 'T12:00:00');
+            if (dd.getDay() !== 0) return false;
+            const diffMs = dd - cicloBase;
+            if (diffMs < 0) return false;
+            const diffDias = Math.round(diffMs / (1000 * 60 * 60 * 24));
+            const nDomingo = Math.round(diffDias / 7);
+            return nDomingo % 3 === 2;
+        };
+
+        if (escalaStr.includes('12x36')) {
+            if (c.escala_ciclo_inicio) {
+                const ciclo12 = new Date(c.escala_ciclo_inicio + 'T12:00:00');
+                const diffMs = d - ciclo12;
+                if (diffMs < 0) return false;
+                const diffDias = Math.round(diffMs / (1000 * 60 * 60 * 24));
+                return diffDias % 2 === 1;
+            }
+            return false;
+        }
+        if (dow === 0 && isDomingoDeLei(dateStr)) return true;
+        if (ultimoFolgaDow !== null && dow === ultimoFolgaDow) {
+            const thisSunday = new Date(dateStr + 'T12:00:00');
+            thisSunday.setDate(thisSunday.getDate() - dow);
+            if (isDomingoDeLei(thisSunday.toISOString().split('T')[0])) return false;
+        }
+        if (folgasDow.length > 0) return folgasDow.includes(dow);
+        if (escalaStr.includes('5x2') || escalaStr.includes('5 x 2')) return dow === 0 || dow === 6;
+        if (escalaStr.includes('6x1') || escalaStr.includes('6 x 1')) return dow === 0;
+        return dow === 0;
+    }
+
+    db.all(`SELECT id, nome_completo, status, escala_tipo, escala_folgas, escala_ciclo_inicio,
+                   ferias_programadas_inicio, ferias_programadas_fim
+            FROM colaboradores WHERE LOWER(TRIM(nome_completo)) IN (${nomesArr.map(() => '?').join(',')})`,
+        nomesArr, (err, colabs) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!colabs || !colabs.length) return res.json({});
+
+        const ids = colabs.map(c => c.id);
+        const ph = ids.map(() => '?').join(',');
+
+        const pAtestado = new Promise(resolve => {
+            db.all(`SELECT colaborador_id, atestado_inicio, atestado_fim FROM documentos
+                    WHERE colaborador_id IN (${ph})
+                    AND (tab_name LIKE '%ATESTADO%' OR document_type LIKE '%Atestado%' OR tab_name = 'Atestados')
+                    AND atestado_inicio <= ? AND atestado_fim >= ?`, [...ids, data, data], (e, rows) => {
+                const set = {};
+                (rows || []).forEach(r => { set[r.colaborador_id] = true; });
+                resolve(set);
+            });
+        });
+
+        const pFalta = new Promise(resolve => {
+            db.all(`SELECT colaborador_id FROM faltas WHERE colaborador_id IN (${ph}) AND data_falta = ?`,
+                [...ids, data], (e, rows) => {
+                const set = {};
+                (rows || []).forEach(r => { set[r.colaborador_id] = true; });
+                resolve(set);
+            });
+        });
+
+        // Agenda: falta/ausencia marcada na agenda da logística para essa data com nome do colaborador
+        const pAgenda = new Promise(resolve => {
+            db.all(`SELECT referente_ids, tipo FROM logistica_agenda WHERE data = ? AND tipo IN ('falta','afastamento')`, [data], (e, rows) => {
+                const idsAgenda = new Set();
+                (rows || []).forEach(r => {
+                    try {
+                        const refs = JSON.parse(r.referente_ids || '[]');
+                        refs.forEach(rid => idsAgenda.add(Number(rid)));
+                    } catch(ex) {}
+                });
+                resolve(idsAgenda);
+            });
+        });
+
+        Promise.all([pAtestado, pFalta, pAgenda]).then(([atestSet, faltSet, agendaSet]) => {
+            const result = {};
+            colabs.forEach(c => {
+                const nomeKey = (c.nome_completo || '').toLowerCase().trim();
+                let status = 'disponivel';
+                let motivo = '';
+
+                // Status do sistema (Férias, Afastado no campo status)
+                const statusSistema = (c.status || '').toLowerCase();
+                if (statusSistema === 'férias' || statusSistema === 'ferias') {
+                    status = 'ferias';
+                    motivo = 'Em Férias (status cadastro)';
+                } else if (statusSistema === 'afastado') {
+                    status = 'afastado';
+                    motivo = 'Afastado (status cadastro)';
+                }
+
+                // Férias programadas por período
+                if (c.ferias_programadas_inicio && c.ferias_programadas_fim) {
+                    if (data >= c.ferias_programadas_inicio && data <= c.ferias_programadas_fim) {
+                        status = 'ferias';
+                        motivo = 'Férias programadas';
+                    }
+                }
+
+                // Atestado no período
+                if (atestSet[c.id]) { status = 'afastado'; motivo = 'Afastado / Atestado'; }
+
+                // Falta registrada
+                if (faltSet[c.id]) { status = 'falta'; motivo = 'Falta registrada no dia'; }
+
+                // Agenda logística
+                if (agendaSet.has(c.id)) { status = 'falta'; motivo = 'Ausência lançada na Agenda'; }
+
+                // Folga da escala (só se ainda disponível)
+                if (status === 'disponivel') {
+                    if (calcFolga(c, data)) { status = 'folga'; motivo = 'Dia de folga (escala)'; }
+                }
+
+                result[nomeKey] = { status, motivo, nome: c.nome_completo };
+            });
+            res.json(result);
+        });
+    });
+});
+
 // POST – criar card
 app.post('/api/logistica/agenda', authenticateToken, express.json(), (req, res) => {
     const { titulo, descricao, data, horario, tipo, responsaveis, referente_ids, acoes, setor } = req.body;

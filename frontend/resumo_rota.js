@@ -464,6 +464,32 @@ window.rrImportarPlanilha = async function(input) {
     _rrVeiculos  = Object.values(map);
     _rrCurrentId = null;
 
+    // --- DETECTAR DATA DA ROTA (col 25 = "Data agendada" na planilha do SimpliRoute) ---
+    let _rrDataRota = null;
+    for (const r of rows) {
+        const dataCell = r[25]; // col 25 = "Data agendada"
+        if (dataCell) {
+            // Pode ser uma Date (ExcelJS converte automaticamente) ou string "DD/MM/YYYY"
+            let dt = null;
+            if (dataCell instanceof Date) {
+                dt = dataCell.toISOString().split('T')[0];
+            } else {
+                const s = String(dataCell).trim();
+                // Formato DD/MM/YYYY ou DD-MM-YYYY
+                const m = s.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})$/);
+                if (m) dt = `${m[3]}-${m[2]}-${m[1]}`;
+                // Formato YYYY-MM-DD
+                else if (/^\d{4}-\d{2}-\d{2}$/.test(s)) dt = s;
+            }
+            if (dt) { _rrDataRota = dt; break; }
+        }
+    }
+    // Se não achou na planilha, usa data de hoje
+    if (!_rrDataRota) {
+        const hoje = new Date();
+        _rrDataRota = hoje.toISOString().split('T')[0];
+    }
+
     // --- CARREGAR FOTOS E CAPACIDADES EM PARALELO ---
     let frotaMap = {}; // placa_norm -> capacidade_carga
     let fotoMap  = {}; // nome_lower -> foto_base64
@@ -545,8 +571,41 @@ window.rrImportarPlanilha = async function(input) {
     _rrVeiculos.forEach(v => v.os.forEach(o => {
         if (o.obs && _rrObsIcon(o.obs) === '🌘') isNoturno = true;
     }));
-    const dateStr = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
+    const dateStr = (_rrDataRota
+        ? new Date(_rrDataRota + 'T12:00:00').toLocaleDateString('pt-BR')
+        : new Date().toLocaleDateString('pt-BR')).replace(/\//g, '-');
     window._rrDefaultNomeResumo = dateStr + ' ' + (isNoturno ? 'NOTURNO' : 'PADRÃO');
+    window._rrDataRotaAtual = _rrDataRota;
+
+    // --- INSIGHT 2: DISPONIBILIDADE DE COLABORADORES ---
+    // Coletar todos os nomes únicos de motoristas e ajudantes
+    const nomesRota = new Set();
+    _rrVeiculos.forEach(v => {
+        if (v.motorista && v.motorista.trim()) nomesRota.add(v.motorista.trim());
+        if (v.ajudante  && v.ajudante.trim())  nomesRota.add(v.ajudante.trim());
+    });
+
+    if (nomesRota.size > 0 && _rrDataRota) {
+        const nomesParam = Array.from(nomesRota).join(',');
+        try {
+            const resDisp = await fetch(
+                `/api/logistica/disponibilidade-rota?data=${_rrDataRota}&nomes=${encodeURIComponent(nomesParam)}`,
+                { headers: _rrAuthHeaders() }
+            );
+            if (resDisp.ok) {
+                const dispMap = await resDisp.json();
+                // Armazenar disponibilidade em cada veículo
+                _rrVeiculos.forEach(v => {
+                    const motKey = (v.motorista || '').trim().toLowerCase();
+                    const ajuKey = (v.ajudante  || '').trim().toLowerCase();
+                    v._dispMotorista = dispMap[motKey] || null;
+                    v._dispAjudante  = dispMap[ajuKey] || null;
+                });
+            }
+        } catch(e) {
+            console.warn('[RR] Não foi possível verificar disponibilidade:', e.message);
+        }
+    }
 
     _rrRenderCorpo();
     const btnExportar = document.getElementById('rr-btn-exportar');
@@ -571,7 +630,16 @@ function _rrRenderCorpo() {
         return;
     }
 
-    corpo.innerHTML = _rrVeiculos.map((v, i) => {
+    // Mostrar data da rota detectada
+    const dataRota = window._rrDataRotaAtual;
+    const dataRotaLabel = dataRota
+        ? `<div style="background:#e0f2fe;color:#0369a1;padding:8px 20px;font-size:0.83rem;font-weight:600;display:flex;align-items:center;gap:8px;border-bottom:1px solid #bae6fd;">
+               <i class="ph ph-calendar-check"></i> Data da rota detectada: <b>${new Date(dataRota + 'T12:00:00').toLocaleDateString('pt-BR', {weekday:'long', year:'numeric', month:'long', day:'numeric'})}</b>
+               — Verificando disponibilidade dos colaboradores para este dia
+           </div>`
+        : '';
+
+    corpo.innerHTML = dataRotaLabel + _rrVeiculos.map((v, i) => {
         const colA   = `${v.veiculo} - Saída`;
         const colB   = v.colBEditado || _rrMontarColB(v);
         const total  = v.os.length;
@@ -615,6 +683,28 @@ function _rrRenderCorpo() {
                </div>` 
             : '';
 
+        // Badge de disponibilidade por colaborador
+        const _dispInfo = (disp, nome) => {
+            if (!disp || !nome || !nome.trim()) return null;
+            const { status, motivo } = disp;
+            if (status === 'disponivel') return null; // só alerta se indisponível
+            const configs = {
+                'ferias':   { bg: '#eff6ff', cor: '#1d4ed8', icon: 'ph-airplane-tilt', label: 'Férias' },
+                'afastado': { bg: '#fff7ed', cor: '#c2410c', icon: 'ph-bandaids',       label: 'Afastado' },
+                'falta':    { bg: '#fef9c3', cor: '#854d0e', icon: 'ph-user-minus',     label: 'Falta' },
+                'folga':    { bg: '#f0fdf4', cor: '#15803d', icon: 'ph-moon',           label: 'Folga' },
+            };
+            const cfg = configs[status] || { bg: '#f1f5f9', cor: '#475569', icon: 'ph-question', label: status };
+            return `<div style="background:${cfg.bg};color:${cfg.cor};padding:8px 16px;border-bottom:1px solid rgba(0,0,0,0.06);font-size:0.82rem;font-weight:600;display:flex;align-items:center;gap:8px;">
+                <i class="${cfg.icon}" style="font-size:1rem;"></i>
+                <span><b>${nome}</b> — ${cfg.label}${motivo && motivo !== cfg.label ? ': ' + motivo : ''}</span>
+            </div>`;
+        };
+
+        const _motDisp = _dispInfo(v._dispMotorista, v.motorista);
+        const _ajuDisp = _dispInfo(v._dispAjudante,  v.ajudante);
+        const badgeDisp = [_motDisp, _ajuDisp].filter(Boolean).join('');
+
         return `
         <div style="background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.07);margin-bottom:16px;overflow:hidden;border:1px solid #e2e8f0;">
             <div style="background:#2d9e5f;padding:12px 18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
@@ -637,6 +727,7 @@ function _rrRenderCorpo() {
                 </div>
             </div>
             ${badgeAlerta}
+            ${badgeDisp}
             <div style="padding:14px 18px;background:#f8fafc;">
                 <textarea class="rr-textarea-edit" data-index="${i}" spellcheck="false"
                     style="width:100%;height:${h}px;border:1px solid #cbd5e1;border-radius:6px;padding:12px;font-size:0.85rem;color:#1e293b;line-height:1.7;font-family:monospace;resize:vertical;outline:none;box-sizing:border-box;"
