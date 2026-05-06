@@ -25,7 +25,7 @@ window.renderLogisticaSinistros = async function() {
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
             <div style="display:flex; align-items:center; gap:14px;">
                 <div style="background:linear-gradient(135deg,#059669,#047857); width:52px; height:52px; border-radius:14px; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 14px rgba(5,150,105,0.3);">
-                    <i class="ph ph-car-crash" style="font-size:1.7rem; color:#fff;"></i>
+                    <i class="ph ph-traffic-cone" style="font-size:1.7rem; color:#fff;"></i>
                 </div>
                 <div>
                     <h1 style="margin:0; font-size:1.5rem; font-weight:800; color:#0f172a;">Sinistros</h1>
@@ -39,8 +39,8 @@ window.renderLogisticaSinistros = async function() {
 
         <!-- Lista global de sinistros -->
         <div style="margin-bottom:1rem; position:relative;">
-            <i class="ph ph-magnifying-glass" style="position:absolute; left:12px; top:10px; color:#94a3b8; font-size:1.1rem;"></i>
-            <input type="text" id="log-sin-search" placeholder="Buscar sinistro por nome do colaborador ou BO..." onkeyup="window.logSinFiltrarLista()" class="form-control" style="padding-left:36px; border-radius:8px;">
+            <i class="ph ph-magnifying-glass" style="position:absolute; left:12px; top:12px; color:#94a3b8; font-size:1.1rem;"></i>
+            <input type="text" id="log-sin-search" placeholder="Buscar sinistro por nome do colaborador ou BO..." onkeyup="window.logSinFiltrarLista()" class="form-control" style="padding:12px 12px 12px 36px; border-radius:8px; height:auto;">
         </div>
         <div id="log-sin-lista-area">
             <div style="text-align:center; padding:3rem; color:#94a3b8;">
@@ -82,7 +82,7 @@ window.logSinCarregarListaGeral = async function() {
     if (sinistros.length === 0) {
         area.innerHTML = `
             <div style="text-align:center; padding:3rem; background:#fff; border-radius:12px; border:2px dashed #e2e8f0;">
-                <i class="ph ph-car-crash" style="font-size:3rem; color:#cbd5e1; margin-bottom:1rem; display:block;"></i>
+                <i class="ph ph-traffic-cone" style="font-size:3rem; color:#cbd5e1; margin-bottom:1rem; display:block;"></i>
                 <h5 style="color:#475569; font-weight:600; margin-bottom:0.5rem;">Nenhum sinistro registrado</h5>
                 <p style="color:#94a3b8; font-size:0.9rem; margin:0;">Clique em "Novo Sinistro" para registrar um Boletim de Ocorrência.</p>
             </div>`;
@@ -193,7 +193,7 @@ window.logSinAbrirModalNovo = function() {
         m.innerHTML = `
             <div class="modal-content" style="max-width:640px;">
                 <div class="modal-header">
-                    <h3><i class="ph ph-car-crash" style="color:#059669;"></i> Registrar Novo Sinistro</h3>
+                    <h3><i class="ph ph-traffic-cone" style="color:#059669;"></i> Registrar Novo Sinistro</h3>
                     <button onclick="document.getElementById('modal-logistica-novo-sinistro').style.display='none'" class="btn-close"><i class="ph ph-x"></i></button>
                 </div>
                 <div class="modal-body">
@@ -256,9 +256,9 @@ window.logSinAbrirModalNovo = function() {
                         </div>
 
                         <div style="background:#f0f9ff; padding:1rem; border-radius:8px; border:1px solid #bae6fd; margin-bottom:1rem;">
-                            <p style="margin:0 0 10px; font-weight:600; font-size:0.9rem; color:#0369a1;"><i class="ph ph-camera"></i> Anexar Fotos e Vídeos do Veículo</p>
+                            <p style="margin:0 0 10px; font-weight:600; font-size:0.9rem; color:#0369a1;"><i class="ph ph-camera"></i> Anexar Fotos e Vídeos do Veículo - Fotos e Vídeos dos ítens danificados</p>
                             <p style="font-size:0.8rem; color:#0ea5e9; margin-bottom:8px;">Selecione uma ou mais imagens/vídeos que comprovem a avaria (Máx. 500MB).</p>
-                            <input type="file" id="log-sin-midias-file" multiple accept="image/*,video/*" class="form-control" style="font-size:0.8rem;">
+                            <input type="file" id="log-sin-midias-file" multiple accept="image/*,video/*" class="form-control" style="padding:10px; font-size:0.8rem;">
                         </div>
 
                         <div class="alert alert-warning" style="font-size: 0.85rem; margin-bottom: 1rem;">
@@ -415,13 +415,18 @@ window.logSinSalvarFinal = async function() {
                 const mfData = new FormData();
                 mfData.append('file', filesMidia[i]);
                 try {
-                    await fetch(`${API_URL}/sinistros/${sinId}/midia`, {
+                    const rMidia = await fetch(`${API_URL}/sinistros/${sinId}/midia`, {
                         method: 'POST',
                         headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` },
                         body: mfData
                     });
+                    if (!rMidia.ok) {
+                        const err = await rMidia.json();
+                        throw new Error(err.error || 'Erro ao enviar mídia.');
+                    }
                 } catch(e) {
                     console.error('Falha ao enviar mídia:', e);
+                    alert('Falha ao enviar arquivo ' + filesMidia[i].name + ': ' + e.message);
                 }
             }
         }
