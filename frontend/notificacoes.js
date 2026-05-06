@@ -6,7 +6,8 @@ const TIPOS_NOTIFICACAO = [
     { id: 'documentos_assinados', nome: 'Documentos Assinados', icone: 'ph-signature' },
     { id: 'aviso_faltas', nome: 'Aviso de Faltas', icone: 'ph-warning' },
     { id: 'formulario_experiencia', nome: 'Formulário de Experiência Preenchido', icone: 'ph-clipboard-text' },
-    { id: 'licenca_vencida', nome: 'Aviso de Licença Vencida', icone: 'ph-warning-circle' }
+    { id: 'licenca_vencida', nome: 'Aviso de Licença Vencida', icone: 'ph-warning-circle' },
+    { id: 'novo_sinistro', nome: 'Novo Sinistro Registrado', icone: 'ph-car-crash' }
 ];
 
 let globalUsuariosConfig = [];

@@ -6806,6 +6806,12 @@ window.deleteDoc = async function(docId, btnEl) {
     }
 }
 
+window.abrirArquivoOneDrive = function(path) {
+    if (!path) return alert('Caminho do arquivo não fornecido.');
+    const token = localStorage.getItem('erp_token');
+    window.open(`${API_URL}/onedrive/download?path=${encodeURIComponent(path)}&token=${token}`, '_blank');
+};
+
 window.viewDoc = async function(docId) {
     try {
         // Buscar info do documento para decidir o que mostrar
@@ -12156,6 +12162,8 @@ async function checkUserNotificacoes() {
                     bg = '#fef2f2'; color = '#ef4444'; icon = 'ph-warning-circle'; titulo = 'Licença Vencida'; navTarget = 'admin'; // Navigates to admin panel or wherever licencas are managed
                 } else if (notif.tipo === 'formulario_experiencia') {
                     bg = '#dbeafe'; color = '#1d4ed8'; icon = 'ph-clipboard-text'; titulo = 'Experiência'; navTarget = 'experiencia';
+                } else if (notif.tipo === 'novo_sinistro') {
+                    bg = '#fef3c7'; color = '#d97706'; icon = 'ph-car-crash'; titulo = 'Novo Sinistro'; navTarget = 'colaboradores';
                 } else {
                     bg = '#f1f5f9'; color = '#475569'; icon = 'ph-bell-ringing'; titulo = 'Notificação'; navTarget = 'dashboard';
                 }

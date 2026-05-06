@@ -1,4 +1,4 @@
-﻿const { Client } = require('@microsoft/microsoft-graph-client');
+const { Client } = require('@microsoft/microsoft-graph-client');
 require('isomorphic-fetch');
 const msal = require('@azure/msal-node');
 
@@ -194,11 +194,33 @@ async function listChildren(folderPath) {
     }
 }
 
+/**
+ * Obtém URL de download temporária de um arquivo
+ */
+async function getDownloadUrl(filePath) {
+    if (!CLIENT_ID) return null;
+    try {
+        const client = await getGraphClient();
+        const driveId = DRIVE_ID;
+        const drivePrefix = driveId ? `/drives/${driveId}/root` : `/users/${USER_ID}/drive/root`;
+        
+        const encodedPath = filePath.split('/').map(p => encodeURIComponent(p)).join('/');
+        const endpoint = `${drivePrefix}:/${encodedPath}`;
+        
+        const result = await client.api(endpoint).get();
+        return result['@microsoft.graph.downloadUrl'];
+    } catch (e) {
+        console.error(`[OneDrive Debug] Falha ao obter URL de download de ${filePath}:`, e.message);
+        throw e;
+    }
+}
+
 module.exports = {
     uploadToOneDrive,
     ensureFolder,
     ensurePath,
     getAccessToken,
     getGraphClient,
-    listChildren
+    listChildren,
+    getDownloadUrl
 };

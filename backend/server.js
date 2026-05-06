@@ -2195,6 +2195,23 @@ app.get('/api/maintenance/db-info', authenticateToken, (req, res) => {
 /**
  * ROTA DE DIAGNÃ“STICO: Testar Conexão OneDrive
  */
+app.get('/api/onedrive/download', authenticateToken, async (req, res) => {
+    try {
+        const path = req.query.path;
+        if (!path) return res.status(400).json({ error: 'Caminho não fornecido' });
+        
+        if (typeof onedrive === 'undefined') return res.status(500).json({ error: 'Módulo onedrive não inicializado' });
+        
+        const downloadUrl = await onedrive.getDownloadUrl(path);
+        
+        if (!downloadUrl) throw new Error('Não foi possível gerar a URL de download para este arquivo.');
+        
+        res.redirect(downloadUrl);
+    } catch (e) {
+        res.status(500).send('Erro ao abrir arquivo: ' + e.message);
+    }
+});
+
 app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) => {
     try {
         const config = {
@@ -3216,6 +3233,17 @@ app.post('/api/colaboradores/:id/sinistros', authenticateToken, multerUploadMemo
                         }
                     } catch (e) { console.error('Erro OneDrive:', e); }
                 }
+
+                // Notificar usuarios configurados
+                db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'novo_sinistro'", [], (errC, rowsC) => {
+                    if (!errC && rowsC && rowsC.length > 0) {
+                        const msg = `Novo sinistro registrado para ${colab.nome_completo || 'Colaborador'}`;
+                        const dadosStr = JSON.stringify({ sinistro_id: sinId, colaborador_id: id });
+                        rowsC.forEach(c => {
+                            db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [c.usuario_id, 'novo_sinistro', msg, dadosStr]);
+                        });
+                    }
+                });
 
                 res.json({ sucesso: true, id: sinId, targetDir });
             });
