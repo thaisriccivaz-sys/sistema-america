@@ -92,7 +92,10 @@ window._renderSinistroCard = function(s, colabId, container) {
         const u = JSON.parse(localStorage.getItem('erp_user')) || {};
         const r = (u.role || '').toLowerCase();
         const p = (u.perfil || '').toLowerCase();
-        isRH = ['rh', 'admin', 'administrador', 'diretoria'].includes(r) || ['rh', 'admin', 'administrador', 'diretoria'].includes(p);
+        const d = (u.departamento || '').toLowerCase();
+        const g = (u.grupo_nome || '').toLowerCase();
+        const rhTerms = ['rh', 'admin', 'administrador', 'diretoria'];
+        isRH = rhTerms.includes(r) || rhTerms.includes(p) || rhTerms.includes(d) || rhTerms.includes(g) || window.isTopAdmin;
     } catch(e) {}
 
     let actionsHtml = '';
