@@ -276,6 +276,7 @@ db.run(`CREATE TABLE IF NOT EXISTS sinistros (
         db.run('ALTER TABLE sinistros ADD COLUMN data_assinatura_condutor DATETIME', (e) => {});
         db.run('ALTER TABLE sinistros ADD COLUMN usuario_abertura TEXT', (e) => {});
         db.run('ALTER TABLE sinistros ADD COLUMN midias_paths TEXT', (e) => {});
+        db.run('ALTER TABLE sinistros ADD COLUMN valor_total TEXT', (e) => {});
     }
 });
 
@@ -3640,6 +3641,49 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
             htmlFinal = `<html><head><meta charset="UTF-8"><style>body{font-family:Arial,sans-serif;margin:0;padding:0;font-size:13px;line-height:1.6;}strong{font-weight:700;}</style></head><body>` + htmlFinal + `</body></html>`;
         }
 
+
+        // Anexar imagens
+        try {
+            const onedrive = require('./utils/onedrive');
+            if (onedrive) {
+                let orcs = []; try { orcs = JSON.parse(sin.orcamentos_paths || '[]'); }catch(e){}
+                let mids = []; try { mids = JSON.parse(sin.midias_paths || '[]'); }catch(e){}
+                let anxs = [];
+                if (sin.boletim_path) anxs.push(sin.boletim_path);
+                anxs.push(...orcs, ...mids);
+                
+                if (anxs.length > 0) {
+                    let anxHtml = '<div style="page-break-before: always; margin-top: 2rem; width: 100%;"><h2 style="text-align:center; font-size: 1.2rem; margin-bottom: 1rem; color: #333;">ANEXOS DO SINISTRO</h2>';
+                    let added = false;
+                    for (let p of anxs) {
+                        if (!p) continue;
+                        const ext = (p.split('.').pop() || '').toLowerCase();
+                        if (['jpg','jpeg','png','webp','gif'].includes(ext)) {
+                            try {
+                                const dlUrl = await onedrive.getDownloadUrl(p);
+                                if (dlUrl) {
+                                    const imgRes = await fetch(dlUrl);
+                                    if (imgRes.ok) {
+                                        const arrayBuffer = await imgRes.arrayBuffer();
+                                        const b64 = Buffer.from(arrayBuffer).toString('base64');
+                                        const mime = ext === 'png' ? 'image/png' : (ext === 'webp' ? 'image/webp' : (ext === 'gif' ? 'image/gif' : 'image/jpeg'));
+                                        anxHtml += `<div style="text-align:center; margin-bottom: 2rem; width: 100%;"><img src="data:${mime};base64,${b64}" style="max-width:100%; max-height:800px; object-fit:contain; border: 1px solid #ccc; padding: 4px;" /></div>`;
+                                        added = true;
+                                    }
+                                }
+                            } catch(e) {}
+                        } else if (ext === 'pdf') {
+                            anxHtml += `<div style="text-align:center; margin-bottom: 2rem; padding: 1rem; border: 1px solid #ccc; background: #f9f9f9;"><p><strong>Anexo PDF:</strong> Este documento possui um anexo em PDF armazenado na nuvem.</p></div>`;
+                            added = true;
+                        }
+                    }
+                    anxHtml += '</div>';
+                    if (added && htmlFinal.includes('</body>')) {
+                        htmlFinal = htmlFinal.replace('</body>', anxHtml + '</body>');
+                    }
+                }
+            }
+        } catch(e) { console.error('Erro ao anexar imagens:', e); }
 
         // Salvar HTML
         db.run('UPDATE sinistros SET documento_html = ? WHERE id = ?', [htmlFinal, sin.id]);
