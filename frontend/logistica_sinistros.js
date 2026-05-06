@@ -33,7 +33,7 @@ window.renderLogisticaSinistros = async function() {
                     <p style="margin:0; color:#64748b; font-size:0.85rem;">Boletins de Ocorrência · Logística</p>
                 </div>
             </div>
-            <button id="log-sin-btn-novo" onclick="window.logSinAbrirModalColaborador()" style="background:#d97706; color:#fff; border:none; padding:10px 20px; border-radius:8px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px; font-size:0.9rem; opacity:0.5; pointer-events:none;" disabled>
+            <button id="log-sin-btn-novo" onclick="window.logSinAbrirModalColaborador()" style="background:#d97706; color:#fff; border:none; padding:10px 20px; border-radius:8px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px; font-size:0.9rem;">
                 <i class="ph ph-plus"></i> Novo Sinistro
             </button>
         </div>
@@ -254,25 +254,37 @@ window._logSinRenderCard = function(s, colabId, container) {
 /* ── Modal: seleção de colaborador para o novo sinistro ─────────── */
 window.logSinAbrirModalColaborador = function() {
     if (!_logSinColabSelecionado) {
-        alert('Selecione um colaborador antes de criar um sinistro.');
+        // Destaca o campo de busca para o usuário selecionar primeiro
+        const input = document.getElementById('log-sin-busca-colab');
+        if (input) {
+            input.style.borderColor = '#d97706';
+            input.focus();
+            setTimeout(() => { input.style.borderColor = '#e2e8f0'; }, 2500);
+        }
+        if (typeof Toastify !== 'undefined') {
+            Toastify({ text: 'Selecione um colaborador antes de criar um sinistro.', backgroundColor: '#d97706', duration: 3000 }).showToast();
+        } else {
+            alert('Selecione um colaborador antes de criar um sinistro.');
+        }
         return;
     }
     try {
-        // Injeta o colaborador selecionado na variável global usada pelo sinistros.js
-        // (é um 'let' em app.js, precisa ser atribuído diretamente)
+        // Define o colaborador no contexto global (necessário para salvarSinistroFinal e assinaturas)
         viewedColaborador = _logSinColabSelecionado;
 
-        // Sobrescreve _recarregarListaSinistros para recarregar a lista da logística ao finalizar
         const _backupRecarregar = window._recarregarListaSinistros;
-        const _backupViewed    = null; // viewedColaborador será restaurado abaixo
 
         window._recarregarListaSinistros = async function(colabId) {
             // Recarrega a lista de logística
             await window.logSinCarregarLista(colabId);
-            // Restaura viewedColaborador para null (saiu do contexto do prontuário)
-            viewedColaborador = null;
-            // Restaura o _recarregarListaSinistros original
-            window._recarregarListaSinistros = _backupRecarregar;
+            // Só restaura viewedColaborador se nenhum modal de sinistro estiver aberto
+            const modalAberto = document.getElementById('modal-novo-sinistro')?.style?.display !== 'none'
+                             || !!document.getElementById('modal-testemunhas-sinistro')
+                             || !!document.getElementById('modal-condutor-sinistro');
+            if (!modalAberto) {
+                viewedColaborador = null;
+                window._recarregarListaSinistros = _backupRecarregar;
+            }
         };
 
         window.abrirModalNovoSinistro();
