@@ -89,33 +89,19 @@ window._renderSinistroCard = function(s, colabId, container) {
     let actionsHtml = '';
     if (s.status === 'assinado') {
         actionsHtml = `<button class="btn btn-sm" onclick="window.verDocumentoSinistro(${s.id}, ${colabId})" style="color:#0284c7; background:#e0f2fe; border:none;"><i class="ph ph-eye"></i> Ver Documento</button>`;
-    } else if (s.status === 'assinado_testemunhas') {
-        // Aguardando apenas assinatura do condutor
-        actionsHtml = `<div style="display:flex;gap:0.5rem;flex-wrap:wrap;">`;
-        if (isRH) actionsHtml += `<button class="btn btn-sm" onclick="window.abrirFinalizarSinistro(${s.id}, ${colabId})" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border:none;font-weight:600;"><i class="ph ph-flag-checkered"></i> Assinar Condutor</button>`;
-        actionsHtml += `<button class="btn btn-sm" onclick="window.verDocumentoSinistro(${s.id}, ${colabId})" style="color:#64748b;background:#f1f5f9;border:none;"><i class="ph ph-eye"></i> Preview</button></div>`;
-    } else if (!s.processo_iniciado || !s.documento_html) {
-        if (s.desconto === 'Não') {
-            actionsHtml = `<div style="display:flex;gap:0.5rem;width:100%;justify-content:space-between;align-items:center;"><span style="font-size:0.85rem; color:#64748b;"><i class="ph ph-check-circle"></i> Apenas Registro (BO Anexado)</span> <button class="btn btn-sm btn-outline-danger" onclick="window.excluirSinistro(${s.id}, ${colabId})" style="color:#ef4444; border:1px solid #ef4444; background:transparent;"><i class="ph ph-trash"></i> Excluir</button></div>`;
-        } else {
-            actionsHtml = `<div style="display:flex;gap:0.5rem;width:100%;justify-content:flex-end;">`;
-            if (isRH) {
-                actionsHtml += `<button class="btn btn-sm" onclick="window.abrirFinalizarSinistro(${s.id}, ${colabId})" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border:none;font-weight:600;"><i class="ph ph-flag-checkered"></i> Finalizar Sinistro</button>`;
-            }
-            actionsHtml += `<button class="btn btn-sm" onclick="window.gerarDocumentoSinistro(${s.id}, ${colabId})" style="color:#0284c7; background:#e0f2fe; border:none;"><i class="ph ph-file-text"></i> Gerar Documento</button>`;
-            if (!bloqueado) actionsHtml += ` <button class="btn btn-sm btn-outline-danger" onclick="window.excluirSinistro(${s.id}, ${colabId})" style="color:#ef4444; border:1px solid #ef4444; background:transparent;"><i class="ph ph-trash"></i> Excluir</button>`;
-            actionsHtml += `</div>`;
-        }
     } else {
-        actionsHtml = `<div style="display:flex; gap:0.5rem; flex-wrap:wrap;">`;
-        if (isRH && !condutorOk) {
-            actionsHtml += `<button class="btn btn-sm" onclick="window.abrirFinalizarSinistro(${s.id}, ${colabId})" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border:none;font-weight:600;padding:6px 14px;"><i class="ph ph-flag-checkered"></i> Finalizar Sinistro</button>`;
+        actionsHtml = `<div style="display:flex;gap:0.5rem;flex-wrap:wrap;justify-content:flex-end;width:100%;">`;
+        if (isRH) {
+            let label = s.documento_html ? 'Continuar Finalização' : 'Finalizar Sinistro';
+            if (s.status === 'assinado_testemunhas') label = 'Assinar Condutor';
+            actionsHtml += `<button class="btn btn-sm" onclick="window.abrirFinalizarSinistro(${s.id}, ${colabId})" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border:none;font-weight:600;padding:6px 14px;"><i class="ph ph-flag-checkered"></i> ${label}</button>`;
         }
-        if (!testemunhasOk) {
-            actionsHtml += `<button class="btn btn-sm btn-primary" onclick="window.abrirModalAssinaturaTestemunhasSinistro(${s.id}, ${colabId})" style="background:#a78bfa; border:none;"><i class="ph ph-pen"></i> Assinar Testemunhas</button>`;
+        if (s.documento_html) {
+            actionsHtml += `<button class="btn btn-sm" onclick="window.verDocumentoSinistro(${s.id}, ${colabId})" style="color:#64748b;background:#f1f5f9;border:none;"><i class="ph ph-eye"></i> Preview</button>`;
         }
-        actionsHtml += `<button class="btn btn-sm" onclick="window.verDocumentoSinistro(${s.id}, ${colabId})" style="color:#64748b; background:#f1f5f9; border:none;"><i class="ph ph-eye"></i> Preview</button>`;
-        if (!bloqueado) actionsHtml += `<button class="btn btn-sm btn-outline-danger" onclick="window.excluirSinistro(${s.id}, ${colabId})" style="color:#ef4444; border:1px solid #ef4444; background:transparent; margin-left: auto;"><i class="ph ph-trash"></i> Excluir</button>`;
+        if (isRH && s.status !== 'assinado_testemunhas') {
+            actionsHtml += `<button class="btn btn-sm btn-outline-danger" onclick="window.excluirSinistro(${s.id}, ${colabId})" style="color:#ef4444; border:1px solid #ef4444; background:transparent;"><i class="ph ph-trash"></i> Excluir</button>`;
+        }
         actionsHtml += `</div>`;
     }
 
