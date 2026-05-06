@@ -268,12 +268,14 @@ db.run(`CREATE TABLE IF NOT EXISTS sinistros (
     assinatura_condutor_base64 TEXT,
     data_assinatura_condutor DATETIME,
     usuario_abertura TEXT,
+    midias_paths TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 )`, (err) => { 
     if (err) console.error('Erro tabela sinistros:', err);
     else {
         db.run('ALTER TABLE sinistros ADD COLUMN data_assinatura_condutor DATETIME', (e) => {});
         db.run('ALTER TABLE sinistros ADD COLUMN usuario_abertura TEXT', (e) => {});
+        db.run('ALTER TABLE sinistros ADD COLUMN midias_paths TEXT', (e) => {});
     }
 });
 
@@ -589,7 +591,19 @@ cargosDeptosSync.forEach(([cNome, cDepto]) => {
 });
 
 // Reativado a Sincronização do OneDrive (via SharePoint)
-const onedrive = require('./utils/onedrive');
+let onedrive = null;
+try {
+    onedrive = require('./utils/onedrive');
+} catch (e) {
+    console.error('Falha ao carregar modulo onedrive:', e);
+}
+
+let r2 = null;
+try {
+    r2 = require('./utils/r2');
+} catch (e) {
+    console.error('Falha ao carregar modulo R2:', e);
+}
 
 // --- CONFIGURAÃ‡ÃƒO DE PASTAS PADRÃƒO ---
 const FOLDERS = [
@@ -629,7 +643,7 @@ async function syncColaboradorOneDrive(nomeCompleto) {
         return { sucesso: false, error: "OneDrive não configurado" };
     }
 
-    // Calcula o caminho ANTES para retornar na resposta
+    // Calcula o caminho ANTERIOR para retornar na resposta
     const nomePasta = formatarNome(nomeCompleto);
     // V21: Usando ID do SharePoint diretamente. O Drive ID já é a pasta 'Documentos - America Rental'.
     const onedriveBasePath = "RH/1.Colaboradores/Sistema";
@@ -2277,7 +2291,7 @@ app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) =>
                 const items = await client.api(`${drivePrefix}:/${encodedBasePath}:/children`).get();
                 basePathItems = items.value.map(i => i.name);
             } catch (pErr) {
-                basePathItems = [`âš ï¸ Erro no caminho: ${pErr.message}`];
+                basePathItems = [`âš ï¸  Erro no caminho: ${pErr.message}`];
             }
         } catch (dErr) {
             driveInfo = { name: "ERRO", error: dErr.message };
@@ -3249,6 +3263,58 @@ app.post('/api/colaboradores/:id/sinistros', authenticateToken, multerUploadMemo
             });
 
     } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Upload multer de media com limite maior
+const multerMediaStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const tmpDir = require('os').tmpdir();
+        cb(null, tmpDir);
+    },
+    filename: (req, file, cb) => {
+        cb(null, 'r2_midia_' + Date.now() + '_' + file.originalname.replace(/[^a-zA-Z0-9.]/g, '_'));
+    }
+});
+const uploadMediaFile = multer({ storage: multerMediaStorage, limits: { fileSize: 500 * 1024 * 1024 } }); // 500MB
+
+app.post('/api/sinistros/:id/midia', authenticateToken, uploadMediaFile.single('file'), async (req, res) => {
+    try {
+        const sinId = req.params.id;
+        if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+        if (!r2 || !r2.isReady()) return res.status(500).json({ error: 'R2 Storage não configurado.' });
+
+        const sinistro = await new Promise((resolve, reject) => {
+            db.get('SELECT * FROM sinistros WHERE id = ?', [sinId], (err, row) => err ? reject(err) : resolve(row));
+        });
+        if (!sinistro) return res.status(404).json({ error: 'Sinistro não encontrado.' });
+
+        const fileExt = req.file.originalname.split('.').pop();
+        const r2Key = `sinistros/${sinId}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const contentType = req.file.mimetype;
+
+        const publicUrl = await r2.uploadToR2(r2Key, req.file.path, contentType);
+
+        let midias = [];
+        try {
+            if (sinistro.midias_paths) midias = JSON.parse(sinistro.midias_paths);
+        } catch (e) {}
+        
+        midias.push({
+            url: publicUrl,
+            nome: req.file.originalname,
+            tipo: contentType,
+            data: new Date().toISOString()
+        });
+
+        db.run('UPDATE sinistros SET midias_paths = ? WHERE id = ?', [JSON.stringify(midias), sinId], (err) => {
+            require('fs').unlink(req.file.path, () => {});
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ sucesso: true, url: publicUrl });
+        });
+    } catch (e) {
+        if (req.file && req.file.path) require('fs').unlink(req.file.path, () => {});
         res.status(500).json({ error: e.message });
     }
 });

@@ -38,6 +38,10 @@ window.renderLogisticaSinistros = async function() {
         </div>
 
         <!-- Lista global de sinistros -->
+        <div style="margin-bottom:1rem; position:relative;">
+            <i class="ph ph-magnifying-glass" style="position:absolute; left:12px; top:10px; color:#94a3b8; font-size:1.1rem;"></i>
+            <input type="text" id="log-sin-search" placeholder="Buscar sinistro por nome do colaborador ou BO..." onkeyup="window.logSinFiltrarLista()" class="form-control" style="padding-left:36px; border-radius:8px;">
+        </div>
         <div id="log-sin-lista-area">
             <div style="text-align:center; padding:3rem; color:#94a3b8;">
                 <i class="ph ph-spinner ph-spin" style="font-size:2rem;"></i>
@@ -47,6 +51,19 @@ window.renderLogisticaSinistros = async function() {
     </div>`;
 
     await window.logSinCarregarListaGeral();
+};
+
+window.logSinFiltrarLista = function() {
+    const termo = document.getElementById('log-sin-search').value.toLowerCase();
+    const cards = document.querySelectorAll('#log-sin-cards > div');
+    cards.forEach(card => {
+        const txt = card.innerText.toLowerCase();
+        if (txt.includes(termo)) {
+            card.style.display = 'flex';
+        } else {
+            card.style.display = 'none';
+        }
+    });
 };
 
 /* ── Carregar lista global de sinistros ─────────────────── */
@@ -102,6 +119,26 @@ window._logSinRenderCardGeral = function(s, container) {
         } catch(e) {}
     }
 
+    let midiasHtml = '';
+    if (s.midias_paths) {
+        try {
+            const midias = JSON.parse(s.midias_paths);
+            if (Array.isArray(midias) && midias.length > 0) {
+                midiasHtml = '<div style="margin-top:8px; display:flex; flex-wrap:wrap; gap:8px;">';
+                midias.forEach(m => {
+                    if (m.tipo.startsWith('image/')) {
+                        midiasHtml += `<a href="${m.url}" target="_blank" style="display:block; width:80px; height:80px; border-radius:8px; overflow:hidden; border:1px solid #cbd5e1;"><img src="${m.url}" style="width:100%; height:100%; object-fit:cover;"></a>`;
+                    } else if (m.tipo.startsWith('video/')) {
+                        midiasHtml += `<a href="${m.url}" target="_blank" style="display:flex; align-items:center; justify-content:center; width:80px; height:80px; border-radius:8px; background:#1e293b; color:#fff; font-size:2rem;"><i class="ph ph-play-circle"></i></a>`;
+                    } else {
+                        midiasHtml += `<a href="${m.url}" target="_blank" style="display:flex; align-items:center; justify-content:center; width:80px; height:80px; border-radius:8px; background:#f1f5f9; color:#475569; font-size:2rem;"><i class="ph ph-file"></i></a>`;
+                    }
+                });
+                midiasHtml += '</div>';
+            }
+        } catch(e) {}
+    }
+
     const aberturaTxt = s.usuario_abertura ? `Aberto por: <b>${s.usuario_abertura}</b>` : 'Aberto via Sistema';
     const dataCriacao = s.created_at ? new Date(s.created_at).toLocaleString('pt-BR') : '—';
     const assinCondutorTxt = s.data_assinatura_condutor ? `Assinado em: ${new Date(s.data_assinatura_condutor).toLocaleString('pt-BR')}` : 'Não assinado';
@@ -134,6 +171,7 @@ window._logSinRenderCardGeral = function(s, container) {
                     <p style="margin:0 0 6px 0;"><strong>Anexos:</strong></p>
                     ${s.boletim_path ? `<a href="javascript:void(0)" onclick="window.abrirArquivoOneDrive('${s.boletim_path}')" style="display:inline-flex; align-items:center; gap:4px; font-size:0.8rem; color:#d97706; background:#fef3c7; padding:4px 8px; border-radius:4px; text-decoration:none; margin-bottom:6px;"><i class="ph ph-file-pdf"></i> Visualizar Boletim de Ocorrência</a><br/>` : ''}
                     ${orcamentosLinks}
+                    ${midiasHtml}
                 </div>
             </div>
         </div>
@@ -215,6 +253,12 @@ window.logSinAbrirModalNovo = function() {
                                 </div>
                                 <button type="button" class="btn btn-sm" onclick="window._addLogSinOrcField()" style="margin-top:8px; width:100%; border:1px dashed #cbd5e1; background:#fff; color:#475569;"><i class="ph ph-plus"></i> Adicionar mais orçamentos</button>
                             </div>
+                        </div>
+
+                        <div style="background:#f0f9ff; padding:1rem; border-radius:8px; border:1px solid #bae6fd; margin-bottom:1rem;">
+                            <p style="margin:0 0 10px; font-weight:600; font-size:0.9rem; color:#0369a1;"><i class="ph ph-camera"></i> Anexar Fotos e Vídeos do Veículo</p>
+                            <p style="font-size:0.8rem; color:#0ea5e9; margin-bottom:8px;">Selecione uma ou mais imagens/vídeos que comprovem a avaria (Máx. 500MB).</p>
+                            <input type="file" id="log-sin-midias-file" multiple accept="image/*,video/*" class="form-control" style="font-size:0.8rem;">
                         </div>
 
                         <div class="alert alert-warning" style="font-size: 0.85rem; margin-bottom: 1rem;">
@@ -343,6 +387,9 @@ window.logSinSalvarFinal = async function() {
         formData.append('orcamentos_base64', JSON.stringify(orcsBase64));
     }
 
+    const midiasInput = document.getElementById('log-sin-midias-file');
+    const filesMidia = midiasInput && midiasInput.files ? Array.from(midiasInput.files) : [];
+
     const btn = document.querySelector('#log-sinistro-step-2 button.btn-primary');
     const oldText = btn.innerHTML;
     btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Registrando...';
@@ -357,6 +404,27 @@ window.logSinSalvarFinal = async function() {
         const data = await res.json();
         
         if (!res.ok) throw new Error(data.error || 'Erro ao registrar sinistro.');
+
+        const sinId = data.id;
+
+        // Upload media files to R2
+        if (filesMidia.length > 0 && sinId) {
+            btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando Mídias...';
+            for (let i = 0; i < filesMidia.length; i++) {
+                btn.innerHTML = `<i class="ph ph-spinner ph-spin"></i> Enviando Mídias (${i+1}/${filesMidia.length})...`;
+                const mfData = new FormData();
+                mfData.append('file', filesMidia[i]);
+                try {
+                    await fetch(`${API_URL}/sinistros/${sinId}/midia`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` },
+                        body: mfData
+                    });
+                } catch(e) {
+                    console.error('Falha ao enviar mídia:', e);
+                }
+            }
+        }
 
         if (typeof Toastify !== 'undefined') Toastify({ text: 'Sinistro registrado com sucesso!', backgroundColor: '#10b981' }).showToast();
         

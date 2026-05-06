@@ -7,6 +7,7 @@
     "start": "node backend/server.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1043.0",
     "@azure/msal-node": "^5.1.1",
     "@microsoft/microsoft-graph-client": "^3.0.7",
     "@signpdf/placeholder-plain": "^3.3.0",
