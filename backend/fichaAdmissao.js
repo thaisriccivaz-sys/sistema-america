@@ -7,7 +7,11 @@ function getFichaAdmissaoHtml(colaborador, baseUrl) {
         if (!val) return 'R$ 0,00';
         if (typeof val === 'number') return new Intl.NumberFormat('pt-BR', {style: 'currency', currency: 'BRL'}).format(val);
         if (typeof val === 'string' && val.includes('R$')) return val;
-        let numStr = String(val).replace(/\./g, '').replace(',', '.').replace(/[^\d.-]/g, '');
+        let numStr = String(val);
+        if (numStr.includes(',')) {
+            numStr = numStr.replace(/\./g, '').replace(',', '.');
+        }
+        numStr = numStr.replace(/[^\d.-]/g, '');
         let num = parseFloat(numStr);
         if (isNaN(num)) return val;
         return new Intl.NumberFormat('pt-BR', {style: 'currency', currency: 'BRL'}).format(num);
