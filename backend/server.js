@@ -11548,8 +11548,8 @@ app.get('/api/logistica/escala', authenticateToken, (req, res) => {
     const excStr = DEPTS_EXCLUIDOS.map(() => '?').join(',');
 
     db.all(`SELECT id, nome_completo, cargo, departamento, foto_base64, foto_path,
-                   escala_tipo, escala_folgas, escala_ciclo_inicio, horario_entrada, horario_saida
-            FROM colaboradores WHERE status = 'Ativo'
+                   escala_tipo, escala_folgas, escala_ciclo_inicio, horario_entrada, horario_saida, status
+            FROM colaboradores WHERE status IN ('Ativo','Afastado','Férias')
             AND departamento NOT IN (${excStr})
             ORDER BY nome_completo`, DEPTS_EXCLUIDOS, (err, colabs) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -11634,7 +11634,22 @@ app.get('/api/logistica/escala', authenticateToken, (req, res) => {
 
             // Para cada colaborador, calcular disponibilidade por dia
             const result = (colabs || []).map(c => {
-                const ausencias = { ...((faltSet || {})[c.id] || {}), ...((atestSet || {})[c.id] || {}), ...((ferSet || {})[c.id] || {}) };
+                const statusCad = (c.status || '').toLowerCase();
+                const isAfastadoCadastro = statusCad === 'afastado';
+                const isFeriasCadastro   = statusCad === 'f\u00e9rias' || statusCad === 'ferias';
+                const ausencias = {
+                    ...((faltSet || {})[c.id] || {}),
+                    ...((atestSet || {})[c.id] || {}),
+                    ...((ferSet || {})[c.id] || {})
+                };
+                // Status afastado no cadastro: todos os dias do per\u00edodo ficam amarelos
+                if (isAfastadoCadastro) {
+                    datas.forEach(d => { ausencias[d] = 'afastado'; });
+                }
+                // Status f\u00e9rias no cadastro: todos os dias do per\u00edodo ficam laranja
+                if (isFeriasCadastro) {
+                    datas.forEach(d => { if (!ausencias[d] || ausencias[d] === 'disponivel') ausencias[d] = 'ferias'; });
+                }
 
                 // Parse da escala
                 const escalaStr = (c.escala_tipo || '').toLowerCase();
@@ -11877,28 +11892,21 @@ app.get('/api/logistica/disponibilidade-rota', authenticateToken, (req, res) => 
             });
         });
 
-        // Agenda: falta/ausencia marcada na agenda da logística para essa data referente ao colaborador
+        // Agenda: falta/ausencia marcada na agenda da logística para essa data com nome do colaborador
         const pAgenda = new Promise(resolve => {
-            db.all(`SELECT referente_ids, tipo FROM logistica_agenda WHERE data = ? AND tipo IN ('falta','afastado','ferias')`, [data], (e, rows) => {
-                const agendaMap = new Map(); // id -> tipo
+            db.all(`SELECT referente_ids, tipo FROM logistica_agenda WHERE data = ? AND tipo IN ('falta','afastamento')`, [data], (e, rows) => {
+                const idsAgenda = new Set();
                 (rows || []).forEach(r => {
                     try {
                         const refs = JSON.parse(r.referente_ids || '[]');
-                        refs.forEach(rid => {
-                            const idNum = Number(rid);
-                            // Prioridade: falta > afastado > ferias
-                            const prev = agendaMap.get(idNum);
-                            if (!prev || r.tipo === 'falta' || (r.tipo === 'afastado' && prev === 'ferias')) {
-                                agendaMap.set(idNum, r.tipo);
-                            }
-                        });
+                        refs.forEach(rid => idsAgenda.add(Number(rid)));
                     } catch(ex) {}
                 });
-                resolve(agendaMap);
+                resolve(idsAgenda);
             });
         });
 
-        Promise.all([pAtestado, pFalta, pAgenda]).then(([atestSet, faltSet, agendaMap]) => {
+        Promise.all([pAtestado, pFalta, pAgenda]).then(([atestSet, faltSet, agendaSet]) => {
             const result = {};
             colabs.forEach(c => {
                 const nomeKey = (c.nome_completo || '').toLowerCase().trim();
@@ -11926,16 +11934,11 @@ app.get('/api/logistica/disponibilidade-rota', authenticateToken, (req, res) => 
                 // Atestado no período
                 if (atestSet[c.id]) { status = 'afastado'; motivo = 'Afastado / Atestado'; }
 
-                // Falta registrada na tabela de faltas
+                // Falta registrada
                 if (faltSet[c.id]) { status = 'falta'; motivo = 'Falta registrada no dia'; }
 
-                // Agenda logística — respeita o tipo do card (falta, afastado ou ferias)
-                if (agendaMap.has(c.id)) {
-                    const tipoAgenda = agendaMap.get(c.id);
-                    if (tipoAgenda === 'falta') { status = 'falta'; motivo = 'Falta lançada na Agenda Logística'; }
-                    else if (tipoAgenda === 'afastado') { status = 'afastado'; motivo = 'Afastamento lançado na Agenda Logística'; }
-                    else if (tipoAgenda === 'ferias' && status === 'disponivel') { status = 'ferias'; motivo = 'Férias lançadas na Agenda Logística'; }
-                }
+                // Agenda logística
+                if (agendaSet.has(c.id)) { status = 'falta'; motivo = 'Ausência lançada na Agenda'; }
 
                 // Folga da escala (só se ainda disponível)
                 if (status === 'disponivel') {
