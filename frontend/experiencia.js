@@ -3,7 +3,7 @@
 // ===========================================================
 
 let _experienciaLista = [];
-let _expStatFilter = '';
+let _expStatFilter = 'em_experiencia';
 let _expSortField = '';
 let _expSortAsc = true;
 
@@ -35,7 +35,10 @@ function filterExperienciaList(searchVal) {
         const matchSituacao = !situacaoFiltro || (c.formulario_situacao || 'pendente') === situacaoFiltro;
         
         let matchStat = true;
-        if (_expStatFilter === 'aprovados') {
+        if (_expStatFilter === 'em_experiencia') {
+            // Apenas quem ainda não tem resultado finalizado (nem aprovado, nem reprovado)
+            matchStat = c.formulario_resultado !== 'Aprovado' && c.formulario_resultado !== 'Reprovado';
+        } else if (_expStatFilter === 'aprovados') {
             matchStat = c.formulario_resultado === 'Aprovado';
         } else if (_expStatFilter === 'reprovados') {
             matchStat = c.formulario_resultado === 'Reprovado';
@@ -49,6 +52,7 @@ function filterExperienciaList(searchVal) {
                 } else matchStat = false;
             } else matchStat = false;
         }
+        // _expStatFilter === '' => todos, sem filtro de stat
 
         return matchSearch && matchSituacao && matchStat;
     });
@@ -78,17 +82,18 @@ function filterExperienciaList(searchVal) {
 window.filterExperienciaList = filterExperienciaList;
 
 function updateExperienciaUIState() {
-    // Atualizar cartões
+    // Atualizar cartões (agora 5 cards: em_experiencia, vencendo, aprovados, reprovados, todos)
     const cards = document.querySelectorAll('#exp-stats-row .card');
     cards.forEach((card, idx) => {
         card.style.border = '1px solid #e2e8f0';
         card.style.background = '#fff';
         card.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
         
-        const isSelected = (idx === 0 && _expStatFilter === '') ||
+        const isSelected = (idx === 0 && _expStatFilter === 'em_experiencia') ||
                            (idx === 1 && _expStatFilter === 'vencendo') ||
                            (idx === 2 && _expStatFilter === 'aprovados') ||
-                           (idx === 3 && _expStatFilter === 'reprovados');
+                           (idx === 3 && _expStatFilter === 'reprovados') ||
+                           (idx === 4 && _expStatFilter === '');
         if (isSelected) {
             card.style.border = '2px solid #3b82f6';
             card.style.background = '#f8fafc';
@@ -584,7 +589,7 @@ window.dispararEmailsExperiencia = async function() {
 
 function updateExperienciaStats(lista) {
     const hoje = new Date(); hoje.setHours(0,0,0,0);
-    let vencendo = 0, aprovados = 0, reprovados = 0;
+    let vencendo = 0, aprovados = 0, reprovados = 0, emExperiencia = 0;
     lista.forEach(c => {
         if (c.prazo2_fim) {
             const fim = parseDateBR_or_ISO(c.prazo2_fim);
@@ -594,12 +599,14 @@ function updateExperienciaStats(lista) {
             }
         }
         if (c.formulario_resultado === 'Aprovado') aprovados++;
-        if (c.formulario_resultado === 'Reprovado') reprovados++;
+        else if (c.formulario_resultado === 'Reprovado') reprovados++;
+        else emExperiencia++; // Não tem resultado final: ainda em experiência
     });
     const el = s => document.getElementById(s);
-    if (el('exp-stat-total')) el('exp-stat-total').textContent = lista.length;
-    if (el('exp-stat-vencendo')) el('exp-stat-vencendo').textContent = vencendo;
-    if (el('exp-stat-aprovados')) el('exp-stat-aprovados').textContent = aprovados;
+    if (el('exp-stat-total'))      el('exp-stat-total').textContent = emExperiencia;
+    if (el('exp-stat-todos'))      el('exp-stat-todos').textContent = lista.length;
+    if (el('exp-stat-vencendo'))   el('exp-stat-vencendo').textContent = vencendo;
+    if (el('exp-stat-aprovados'))  el('exp-stat-aprovados').textContent = aprovados;
     if (el('exp-stat-reprovados')) el('exp-stat-reprovados').textContent = reprovados;
 }
 
