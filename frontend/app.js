@@ -12208,7 +12208,11 @@ async function checkUserNotificacoes() {
                         </div>
                     `;
                 }
-                
+                let btnOnClick = `window.markUserNotifLida('${notif.id}'); navigateTo('${navTarget}'); this.closest('[data-notif-id]').remove();`;
+                if (notif.tipo === 'novo_sinistro' && dados.colaborador_id) {
+                    btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); if (window.userPermissions && window.userPermissions.includes('colaboradores')) { window.verProntuarioColaborador('${dados.colaborador_id}', 'Sinistros'); } else { navigateTo('dashboard'); }`;
+                }
+
                 popup.innerHTML = `
                     <div style="display:flex;align-items:flex-start;gap:1rem;">
                         <div style="width:44px;height:44px;border-radius:12px;background:${bg};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.4rem;color:${color};">
@@ -12217,7 +12221,7 @@ async function checkUserNotificacoes() {
                         <div style="flex:1;">
                             ${contentHTML}
                             <div style="display:flex;gap:8px;margin-top:12px;">
-                                <button onclick="window.markUserNotifLida('${notif.id}'); navigateTo('${navTarget}'); this.closest('[data-notif-id]').remove();" 
+                                <button onclick="${btnOnClick}" 
                                     style="flex:1;padding:6px 12px;background:${color};color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.8rem;">
                                     Ver Detalhes
                                 </button>
