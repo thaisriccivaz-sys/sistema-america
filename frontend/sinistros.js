@@ -77,6 +77,8 @@ window._renderSinistroCard = function(s, colabId, container) {
         `;
     }
 
+    const isRH = window.currentUser && (window.currentUser.role === 'rh' || window.currentUser.role === 'admin' || window.currentUser.role === 'diretoria' || window.currentUser.perfil === 'rh' || window.currentUser.perfil === 'admin' || window.currentUser.perfil === 'diretoria');
+
     let actionsHtml = '';
     if (s.status === 'assinado') {
         actionsHtml = `<button class="btn btn-sm" onclick="window.verDocumentoSinistro(${s.id}, ${colabId})" style="color:#0284c7; background:#e0f2fe; border:none;"><i class="ph ph-eye"></i> Ver Documento</button>`;
@@ -84,21 +86,28 @@ window._renderSinistroCard = function(s, colabId, container) {
         if (s.desconto === 'Não') {
             actionsHtml = `<div style="display:flex;gap:0.5rem;width:100%;justify-content:space-between;align-items:center;"><span style="font-size:0.85rem; color:#64748b;"><i class="ph ph-check-circle"></i> Apenas Registro (BO Anexado)</span> <button class="btn btn-sm btn-outline-danger" onclick="window.excluirSinistro(${s.id}, ${colabId})" style="color:#ef4444; border:1px solid #ef4444; background:transparent;"><i class="ph ph-trash"></i> Excluir</button></div>`;
         } else {
-            actionsHtml = `<div style="display:flex;gap:0.5rem;width:100%;justify-content:flex-end;"><button class="btn btn-sm" onclick="window.gerarDocumentoSinistro(${s.id}, ${colabId})" style="color:#0284c7; background:#e0f2fe; border:none;"><i class="ph ph-file-text"></i> Gerar Documento</button> <button class="btn btn-sm btn-outline-danger" onclick="window.excluirSinistro(${s.id}, ${colabId})" style="color:#ef4444; border:1px solid #ef4444; background:transparent;"><i class="ph ph-trash"></i> Excluir</button></div>`;
+            actionsHtml = `<div style="display:flex;gap:0.5rem;width:100%;justify-content:flex-end;">`;
+            if (isRH) {
+                actionsHtml += `<button class="btn btn-sm" onclick="window.abrirFinalizarSinistro(${s.id}, ${colabId})" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border:none;font-weight:600;"><i class="ph ph-flag-checkered"></i> Finalizar Sinistro</button>`;
+            }
+            actionsHtml += `<button class="btn btn-sm" onclick="window.gerarDocumentoSinistro(${s.id}, ${colabId})" style="color:#0284c7; background:#e0f2fe; border:none;"><i class="ph ph-file-text"></i> Gerar Documento</button> <button class="btn btn-sm btn-outline-danger" onclick="window.excluirSinistro(${s.id}, ${colabId})" style="color:#ef4444; border:1px solid #ef4444; background:transparent;"><i class="ph ph-trash"></i> Excluir</button>`;
+            actionsHtml += `</div>`;
         }
     } else {
         const testOk = s.assinatura_testemunha1_base64 && s.assinatura_testemunha2_base64;
         const condOk = s.assinatura_condutor_base64;
-        actionsHtml = `<div style="display:flex; gap:0.5rem;">`;
+        actionsHtml = `<div style="display:flex; gap:0.5rem; flex-wrap:wrap;">`;
+        if (isRH && !condOk) {
+            actionsHtml += `<button class="btn btn-sm" onclick="window.abrirFinalizarSinistro(${s.id}, ${colabId})" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border:none;font-weight:600;padding:6px 14px;"><i class="ph ph-flag-checkered"></i> Finalizar Sinistro</button>`;
+        }
         if (!testOk) {
             actionsHtml += `<button class="btn btn-sm btn-primary" onclick="window.abrirModalAssinaturaTestemunhasSinistro(${s.id}, ${colabId})" style="background:#a78bfa; border:none;"><i class="ph ph-pen"></i> Assinar Testemunhas</button>`;
-        } else if (!condOk) {
-            actionsHtml += `<button class="btn btn-sm btn-primary" onclick="window.abrirModalAssinaturaCondutorSinistro(${s.id}, ${colabId})" style="background:#f59e0b; border:none;"><i class="ph ph-pen"></i> Assinar Condutor</button>`;
         }
         actionsHtml += `<button class="btn btn-sm" onclick="window.verDocumentoSinistro(${s.id}, ${colabId})" style="color:#64748b; background:#f1f5f9; border:none;"><i class="ph ph-eye"></i> Preview</button>`;
         actionsHtml += `<button class="btn btn-sm btn-outline-danger" onclick="window.excluirSinistro(${s.id}, ${colabId})" style="color:#ef4444; border:1px solid #ef4444; background:transparent; margin-left: auto;"><i class="ph ph-trash"></i> Excluir</button>`;
         actionsHtml += `</div>`;
     }
+
 
     let orcamentosLinks = '';
     if (s.orcamentos_paths) {
@@ -852,3 +861,241 @@ window._calcSinParcela = function() {
     // Guarda o valor formatado num atributo oculto no elemento de parcelas
     document.getElementById('sin-parcelas').dataset.valor_parcela = vParcela.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
 };
+
+// =========================================================
+// MODAL: FINALIZAR SINISTRO (RH) — Resumo + Termo + Assinatura Presencial
+// =========================================================
+
+window.abrirFinalizarSinistro = async function(sinId, colabId) {
+    const existing = document.getElementById('modal-finalizar-sinistro');
+    if (existing) existing.remove();
+
+    // Busca dados do sinistro
+    const sinistros = await apiGet(`/colaboradores/${colabId}/sinistros`);
+    let s = sinistros.find(x => x.id == sinId);
+    if (!s) return alert('Sinistro não encontrado.');
+
+    const colabName = viewedColaborador?.nome_completo || 'Colaborador';
+
+    // Gera/atualiza documento
+    const rGen = await fetch(`${API_URL}/colaboradores/${colabId}/sinistros/${sinId}/gerar-documento`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` }
+    });
+    const genData = await rGen.json();
+    const docHtml = genData.html || s.documento_html || '';
+
+    // Formata valores
+    const valorParc = s.valor_parcela
+        ? `R$ ${parseFloat(String(s.valor_parcela).replace(',','.')).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}`
+        : '—';
+    const parcelas = s.parcelas || 1;
+
+    const modal = document.createElement('div');
+    modal.id = 'modal-finalizar-sinistro';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,0.7);display:flex;align-items:stretch;';
+    modal.innerHTML = `
+        <div style="width:100%;max-width:100%;height:100vh;display:flex;flex-direction:column;background:#0f172a;overflow:hidden;">
+            <!-- Header -->
+            <div style="flex-shrink:0;background:linear-gradient(90deg,#7c3aed,#4f46e5);padding:0.9rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <i class="ph ph-flag-checkered" style="font-size:1.4rem;color:#fff;"></i>
+                    <h3 style="margin:0;color:#fff;font-size:1rem;font-weight:700;">Finalizar Sinistro #${s.id} — ${colabName}</h3>
+                </div>
+                <button onclick="document.getElementById('modal-finalizar-sinistro').remove()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;border-radius:8px;padding:6px 16px;cursor:pointer;font-size:0.9rem;">✕ Fechar</button>
+            </div>
+
+            <!-- Corpo: documento à esquerda, painel à direita -->
+            <div style="flex:1;display:flex;overflow:hidden;">
+
+                <!-- Preview do Documento -->
+                <div style="flex:1;overflow-y:auto;background:#e2e8f0;padding:1.5rem;">
+                    <div style="background:white;margin:0 auto;width:21cm;min-height:29.7cm;padding:0;box-shadow:0 4px 24px rgba(0,0,0,0.18);border:1px solid #ddd;overflow:hidden;">
+                        ${docHtml}
+                    </div>
+                </div>
+
+                <!-- Painel lateral direito -->
+                <div style="width:380px;flex-shrink:0;background:#1e293b;overflow-y:auto;display:flex;flex-direction:column;gap:0;border-left:1px solid rgba(255,255,255,0.08);">
+
+                    <!-- Resumo Financeiro -->
+                    <div style="padding:1.25rem 1.5rem;border-bottom:1px solid rgba(255,255,255,0.1);">
+                        <p style="color:#94a3b8;font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 1rem;">📋 Resumo do Desconto</p>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+                            <div style="background:#0f172a;border-radius:10px;padding:0.9rem;text-align:center;">
+                                <p style="color:#94a3b8;font-size:0.7rem;margin:0 0 4px;text-transform:uppercase;">Parcelas</p>
+                                <p style="color:#a78bfa;font-size:1.6rem;font-weight:800;margin:0;">${parcelas}x</p>
+                            </div>
+                            <div style="background:#0f172a;border-radius:10px;padding:0.9rem;text-align:center;">
+                                <p style="color:#94a3b8;font-size:0.7rem;margin:0 0 4px;text-transform:uppercase;">Valor/Parcela</p>
+                                <p style="color:#34d399;font-size:1.1rem;font-weight:800;margin:0;">${valorParc}</p>
+                            </div>
+                        </div>
+                        ${s.desconto === 'Sim' ? `
+                        <div style="background:#0f172a;border-radius:10px;padding:0.75rem 1rem;margin-top:0.75rem;display:flex;align-items:center;gap:8px;">
+                            <i class="ph ph-info" style="color:#60a5fa;font-size:1rem;"></i>
+                            <span style="color:#cbd5e1;font-size:0.82rem;">Desconto autorizado em folha de pagamento</span>
+                        </div>` : ''}
+                    </div>
+
+                    <!-- Assinatura Presencial -->
+                    <div style="padding:1.25rem 1.5rem;flex:1;display:flex;flex-direction:column;gap:1rem;">
+                        <p style="color:#94a3b8;font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin:0;">✍️ Assinatura Presencial</p>
+                        <div style="background:#0f172a;border-radius:10px;padding:1rem;">
+                            <label style="color:#e2e8f0;font-size:0.85rem;font-weight:600;display:block;margin-bottom:8px;">
+                                Assinatura de: <span style="color:#f59e0b;">${colabName}</span>
+                            </label>
+                            <div style="border:2px dashed #f59e0b;border-radius:8px;background:#0f172a;overflow:hidden;">
+                                <canvas id="sin-finalizar-canvas" style="width:100%;height:160px;cursor:crosshair;display:block;background:#fff;"></canvas>
+                            </div>
+                            <button type="button" onclick="window._sinLimparCanvasFinalizar()" style="margin-top:6px;background:transparent;border:1px solid #475569;color:#94a3b8;border-radius:6px;padding:4px 12px;font-size:0.78rem;cursor:pointer;">
+                                <i class="ph ph-eraser"></i> Limpar
+                            </button>
+                        </div>
+
+                        <div style="background:#0f172a;border-radius:10px;padding:1rem;">
+                            <label style="color:#e2e8f0;font-size:0.85rem;font-weight:600;display:block;margin-bottom:8px;">
+                                <i class="ph ph-users" style="color:#a78bfa;"></i> Testemunhas (opcional)
+                            </label>
+                            <div id="fin-sin-testemunhas-container" style="display:flex;flex-direction:column;gap:0.75rem;">
+                                <div>
+                                    <label style="color:#94a3b8;font-size:0.75rem;display:block;margin-bottom:4px;">Testemunha 1</label>
+                                    <select id="fin-sin-t1-nome" class="form-control" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;margin-bottom:6px;"><option value="">Selecione...</option></select>
+                                    <div style="border:1px dashed #475569;border-radius:6px;background:#fff;overflow:hidden;">
+                                        <canvas id="fin-sin-canvas-t1" style="width:100%;height:90px;cursor:crosshair;display:block;"></canvas>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style="color:#94a3b8;font-size:0.75rem;display:block;margin-bottom:4px;">Testemunha 2 <span style="color:#475569;">(opcional)</span></label>
+                                    <select id="fin-sin-t2-nome" class="form-control" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;margin-bottom:6px;"><option value="">Selecione...</option></select>
+                                    <div style="border:1px dashed #475569;border-radius:6px;background:#fff;overflow:hidden;">
+                                        <canvas id="fin-sin-canvas-t2" style="width:100%;height:90px;cursor:crosshair;display:block;"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Botão Finalizar -->
+                        <button id="btn-finalizar-sinistro-confirm" onclick="window.confirmarFinalizarSinistro(${sinId}, ${colabId})"
+                            style="padding:1rem;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border:none;border-radius:12px;font-weight:700;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:auto;">
+                            <i class="ph ph-check-circle"></i> Confirmar e Finalizar Sinistro
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    // Carrega testemunhas nos selects
+    try {
+        const colabs = await apiGet('/colaboradores') || [];
+        const outros = colabs.filter(c => String(c.id) !== String(colabId));
+        let opts = '<option value="">Selecione...</option>';
+        outros.forEach(c => {
+            const nome = c.nome_completo || c.nome || '';
+            if (nome) opts += `<option value="${nome}">${nome}</option>`;
+        });
+        ['fin-sin-t1-nome', 'fin-sin-t2-nome'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = opts;
+        });
+    } catch(e) { console.error('Erro ao carregar testemunhas:', e); }
+
+    // Configura todos os canvas
+    setTimeout(() => {
+        ['sin-finalizar-canvas', 'fin-sin-canvas-t1', 'fin-sin-canvas-t2'].forEach(id => window._sinSetupCanvas(id));
+    }, 250);
+
+    // Guarda doc html para uso posterior
+    window._finalizarSinistroDocHtml = docHtml;
+};
+
+window._sinLimparCanvasFinalizar = function() {
+    const canvas = document.getElementById('sin-finalizar-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+};
+
+window.confirmarFinalizarSinistro = async function(sinId, colabId) {
+    if (!window._sinCanvasTemConteudo('sin-finalizar-canvas')) {
+        return alert('O colaborador precisa assinar o campo de assinatura antes de finalizar.');
+    }
+
+    const btn = document.getElementById('btn-finalizar-sinistro-confirm');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Finalizando...'; }
+
+    try {
+        const colabName = viewedColaborador?.nome_completo || 'Colaborador';
+        const assinaturaBase64 = document.getElementById('sin-finalizar-canvas').toDataURL('image/png');
+
+        const t1Nome = document.getElementById('fin-sin-t1-nome')?.value || '';
+        const t2Nome = document.getElementById('fin-sin-t2-nome')?.value || '';
+        const t1Ass = window._sinCanvasTemConteudo('fin-sin-canvas-t1')
+            ? document.getElementById('fin-sin-canvas-t1').toDataURL('image/png') : null;
+        const t2Ass = window._sinCanvasTemConteudo('fin-sin-canvas-t2')
+            ? document.getElementById('fin-sin-canvas-t2').toDataURL('image/png') : null;
+
+        let docHtml = window._finalizarSinistroDocHtml || '';
+
+        // Injeta assinatura do condutor
+        const injectCondutor = `
+            <div style="margin-top:20px;padding:10px;border-top:2px solid #e2e8f0;">
+                <p style="font-weight:700;font-size:11px;">ASSINATURA DO CONDUTOR:</p>
+                <div style="text-align:center;width:200px;">
+                    <img src="${assinaturaBase64}" style="max-width:180px;max-height:60px;border-bottom:1px solid #000;">
+                    <p style="font-size:10px;margin:2px 0;">${colabName}</p>
+                </div>
+            </div>`;
+
+        // Injeta testemunhas (se houver)
+        let injectTest = '';
+        if (t1Nome && t1Ass) {
+            injectTest = `
+                <div style="margin-top:16px;padding:10px;border-top:2px solid #e2e8f0;">
+                    <p style="font-weight:700;font-size:11px;">ASSINATURAS DAS TESTEMUNHAS:</p>
+                    <div style="display:flex;gap:20px;">
+                        <div style="text-align:center;">
+                            <img src="${t1Ass}" style="max-width:180px;max-height:60px;border-bottom:1px solid #000;">
+                            <p style="font-size:10px;margin:2px 0;">${t1Nome}</p>
+                        </div>
+                        ${t2Ass && t2Nome ? `<div style="text-align:center;">
+                            <img src="${t2Ass}" style="max-width:180px;max-height:60px;border-bottom:1px solid #000;">
+                            <p style="font-size:10px;margin:2px 0;">${t2Nome}</p>
+                        </div>` : ''}
+                    </div>
+                </div>`;
+        }
+
+        docHtml = docHtml.replace('</body>', injectCondutor + injectTest + '</body>');
+
+        // Salva assinatura do condutor (que finaliza o sinistro)
+        const res = await fetch(`${API_URL}/colaboradores/${colabId}/sinistros/${sinId}/assinar-condutor`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` },
+            body: JSON.stringify({
+                assinatura_base64: assinaturaBase64,
+                documento_html: docHtml,
+                // Testemunhas opcionais
+                t1_nome: t1Nome || null,
+                t1_base64: t1Ass || null,
+                t2_nome: t2Nome || null,
+                t2_base64: t2Ass || null
+            })
+        });
+        const data = await res.json();
+        if (!data.sucesso) throw new Error(data.error || 'Erro ao finalizar.');
+
+        document.getElementById('modal-finalizar-sinistro').remove();
+        if (typeof Toastify !== 'undefined') {
+            Toastify({ text: '✅ Sinistro finalizado e assinado com sucesso!', backgroundColor: '#059669', duration: 4000 }).showToast();
+        }
+        await window._recarregarListaSinistros(colabId);
+
+    } catch(e) {
+        alert('Erro ao finalizar: ' + e.message);
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-check-circle"></i> Confirmar e Finalizar Sinistro'; }
+    }
+};
+
