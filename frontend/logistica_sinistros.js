@@ -248,31 +248,10 @@ window.logSinAbrirModalNovo = function() {
                             <label style="cursor:pointer;"><input type="radio" name="log-sin-desconto" value="Não" checked onclick="window.toggleLogSinistroDesconto(false)"> Não</label>
                         </div>
 
-                        <div id="area-log-sinistro-desconto" style="display:none; background:#f8fafc; padding:1rem; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:1rem;">
-                            <div class="input-group">
-                                <label>Tipo do Sinistro</label>
-                                <select id="log-sin-tipo-sinistro" class="form-control">
-                                    <option value="Danos em Terceiros e Nosso">Danos em Terceiros e Nosso</option>
-                                    <option value="Danos em Terceiros">Danos em Terceiros</option>
-                                    <option value="Danos no Nosso Veículo">Danos no Nosso Veículo</option>
-                                    <option value="Outros Danos">Outros Danos</option>
-                                </select>
-                            </div>
-                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
-                                <div class="input-group">
-                                    <label>Valor Total do Desconto (R$)</label>
-                                    <input type="text" id="log-sin-valor-total" class="form-control" placeholder="0,00" oninput="window._calcLogSinParcela()">
-                                </div>
-                                <div class="input-group">
-                                    <label>Parcelamento</label>
-                                    <select id="log-sin-parcelas" class="form-control" onchange="window._calcLogSinParcela()">
-                                        <option value="1">1x</option>
-                                        <option value="2">2x</option>
-                                        <option value="3">3x</option>
-                                    </select>
-                                    <small id="log-sin-valor-parcela-display" style="display:block; margin-top:4px; font-weight:600; color:#059669;">Parcela: R$ 0,00</small>
-                                </div>
-                            </div>
+                        <div id="area-log-sinistro-desconto" style="display:none; background:#fff3cd; padding:0.85rem 1rem; border-radius:8px; border:1px solid #fcd34d; margin-bottom:1rem;">
+                            <p style="margin:0; font-size:0.85rem; color:#92400e;">
+                                <i class="ph ph-info"></i> O valor, tipo e parcelamento do desconto serão definidos pelo <strong>RH</strong> ao finalizar o sinistro.
+                            </p>
                         </div>
                         
                         <div style="background:#f8fafc; padding:1rem; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:1rem;">
@@ -442,12 +421,7 @@ window.logSinSalvarFinal = async function() {
     formData.append('placa', document.getElementById('log-sin-placa').value || '');
     formData.append('desconto', desconto);
 
-    if (desconto === 'Sim') {
-        formData.append('tipo_sinistro', document.getElementById('log-sin-tipo-sinistro').value);
-        formData.append('parcelas', document.getElementById('log-sin-parcelas').value);
-        formData.append('valor_parcela', document.getElementById('log-sin-parcelas').dataset.valor_parcela || '0,00');
-        formData.append('valor_total', document.getElementById('log-sin-valor-total').value);
-    }
+    // Valor/parcelas serão definidos pelo RH ao finalizar
 
     // Orçamentos
     const fileInputs = document.querySelectorAll('input[name="log_sin_orc_file"]');

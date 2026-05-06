@@ -918,24 +918,44 @@ window.abrirFinalizarSinistro = async function(sinId, colabId) {
                 <!-- Painel lateral direito -->
                 <div style="width:380px;flex-shrink:0;background:#1e293b;overflow-y:auto;display:flex;flex-direction:column;gap:0;border-left:1px solid rgba(255,255,255,0.08);">
 
-                    <!-- Resumo Financeiro -->
+                    <!-- Dados do Desconto (preenchido pelo RH) -->
                     <div style="padding:1.25rem 1.5rem;border-bottom:1px solid rgba(255,255,255,0.1);">
-                        <p style="color:#94a3b8;font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 1rem;">📋 Resumo do Desconto</p>
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
-                            <div style="background:#0f172a;border-radius:10px;padding:0.9rem;text-align:center;">
-                                <p style="color:#94a3b8;font-size:0.7rem;margin:0 0 4px;text-transform:uppercase;">Parcelas</p>
-                                <p style="color:#a78bfa;font-size:1.6rem;font-weight:800;margin:0;">${parcelas}x</p>
+                        <p style="color:#94a3b8;font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 1rem;">📋 Dados do Desconto</p>
+                        <div style="display:flex;flex-direction:column;gap:0.75rem;">
+                            <div>
+                                <label style="color:#94a3b8;font-size:0.72rem;text-transform:uppercase;display:block;margin-bottom:4px;">Tipo do Sinistro</label>
+                                <select id="fin-sin-tipo" style="width:100%;padding:8px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-size:0.9rem;">
+                                    <option value="Danos em Terceiros e Nosso" ${(s.tipo_sinistro||'') === 'Danos em Terceiros e Nosso' ? 'selected' : ''}>Danos em Terceiros e Nosso</option>
+                                    <option value="Danos em Terceiros" ${(s.tipo_sinistro||'') === 'Danos em Terceiros' ? 'selected' : ''}>Danos em Terceiros</option>
+                                    <option value="Danos no Nosso Veículo" ${(s.tipo_sinistro||'') === 'Danos no Nosso Veículo' ? 'selected' : ''}>Danos no Nosso Veículo</option>
+                                    <option value="Outros Danos" ${(s.tipo_sinistro||'') === 'Outros Danos' ? 'selected' : ''}>Outros Danos</option>
+                                </select>
                             </div>
-                            <div style="background:#0f172a;border-radius:10px;padding:0.9rem;text-align:center;">
-                                <p style="color:#94a3b8;font-size:0.7rem;margin:0 0 4px;text-transform:uppercase;">Valor/Parcela</p>
-                                <p style="color:#34d399;font-size:1.1rem;font-weight:800;margin:0;">${valorParc}</p>
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+                                <div>
+                                    <label style="color:#94a3b8;font-size:0.72rem;text-transform:uppercase;display:block;margin-bottom:4px;">Valor Total (R$)</label>
+                                    <input type="text" id="fin-sin-valor-total" value="${s.valor_total || ''}" placeholder="0,00"
+                                        style="width:100%;padding:8px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-size:0.9rem;"
+                                        oninput="window._calcFinSinParcela()">
+                                </div>
+                                <div>
+                                    <label style="color:#94a3b8;font-size:0.72rem;text-transform:uppercase;display:block;margin-bottom:4px;">Parcelas</label>
+                                    <select id="fin-sin-parcelas" style="width:100%;padding:8px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-size:0.9rem;"
+                                        onchange="window._calcFinSinParcela()">
+                                        <option value="1" ${parseInt(s.parcelas||1)===1?'selected':''}>1x</option>
+                                        <option value="2" ${parseInt(s.parcelas||1)===2?'selected':''}>2x</option>
+                                        <option value="3" ${parseInt(s.parcelas||1)===3?'selected':''}>3x</option>
+                                        <option value="4" ${parseInt(s.parcelas||1)===4?'selected':''}>4x</option>
+                                        <option value="5" ${parseInt(s.parcelas||1)===5?'selected':''}>5x</option>
+                                        <option value="6" ${parseInt(s.parcelas||1)===6?'selected':''}>6x</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div style="background:#0f172a;border-radius:8px;padding:0.75rem;text-align:center;">
+                                <p style="color:#94a3b8;font-size:0.7rem;margin:0 0 2px;text-transform:uppercase;">Valor por Parcela</p>
+                                <p id="fin-sin-parcela-display" style="color:#34d399;font-size:1.3rem;font-weight:800;margin:0;">R$ 0,00</p>
                             </div>
                         </div>
-                        ${s.desconto === 'Sim' ? `
-                        <div style="background:#0f172a;border-radius:10px;padding:0.75rem 1rem;margin-top:0.75rem;display:flex;align-items:center;gap:8px;">
-                            <i class="ph ph-info" style="color:#60a5fa;font-size:1rem;"></i>
-                            <span style="color:#cbd5e1;font-size:0.82rem;">Desconto autorizado em folha de pagamento</span>
-                        </div>` : ''}
                     </div>
 
                     <!-- Assinatura Presencial -->
@@ -987,6 +1007,9 @@ window.abrirFinalizarSinistro = async function(sinId, colabId) {
     `;
     document.body.appendChild(modal);
 
+    // Recalcula a exibição da parcela ao abrir
+    setTimeout(() => window._calcFinSinParcela(), 300);
+
     // Carrega testemunhas nos selects
     try {
         const colabs = await apiGet('/colaboradores') || [];
@@ -1016,6 +1039,15 @@ window._sinLimparCanvasFinalizar = function() {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+};
+
+window._calcFinSinParcela = function() {
+    const vTotalStr = document.getElementById('fin-sin-valor-total')?.value || '0';
+    const vTotalRaw = parseFloat(vTotalStr.replace(/[^0-9,]/g,'').replace(',','.')) || 0;
+    const qtd = parseInt(document.getElementById('fin-sin-parcelas')?.value) || 1;
+    const vParcela = vTotalRaw / qtd;
+    const el = document.getElementById('fin-sin-parcela-display');
+    if (el) el.innerText = 'R$ ' + vParcela.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
 };
 
 window.confirmarFinalizarSinistro = async function(sinId, colabId) {
@@ -1070,6 +1102,12 @@ window.confirmarFinalizarSinistro = async function(sinId, colabId) {
 
         docHtml = docHtml.replace('</body>', injectCondutor + injectTest + '</body>');
 
+        const tipoSinistro = document.getElementById('fin-sin-tipo')?.value || '';
+        const valorTotal = document.getElementById('fin-sin-valor-total')?.value || '';
+        const qtdParcelas = document.getElementById('fin-sin-parcelas')?.value || '1';
+        const valorParcRaw = parseFloat(valorTotal.replace(/[^0-9,]/g,'').replace(',','.')) / parseInt(qtdParcelas);
+        const valorParcela = isNaN(valorParcRaw) ? '0,00' : valorParcRaw.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+
         // Salva assinatura do condutor (que finaliza o sinistro)
         const res = await fetch(`${API_URL}/colaboradores/${colabId}/sinistros/${sinId}/assinar-condutor`, {
             method: 'POST',
@@ -1077,7 +1115,10 @@ window.confirmarFinalizarSinistro = async function(sinId, colabId) {
             body: JSON.stringify({
                 assinatura_base64: assinaturaBase64,
                 documento_html: docHtml,
-                // Testemunhas opcionais
+                tipo_sinistro: tipoSinistro,
+                parcelas: parseInt(qtdParcelas),
+                valor_parcela: valorParcela,
+                valor_total: valorTotal,
                 t1_nome: t1Nome || null,
                 t1_base64: t1Ass || null,
                 t2_nome: t2Nome || null,

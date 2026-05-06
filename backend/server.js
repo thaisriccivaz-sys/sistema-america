@@ -3749,11 +3749,13 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/assinar-testemunhas', aut
 app.post('/api/colaboradores/:id/sinistros/:sinistroId/assinar-condutor', authenticateToken, async (req, res) => {
     try {
         const { id, sinistroId } = req.params;
-        const { assinatura_base64, documento_html } = req.body;
+        const { assinatura_base64, documento_html, tipo_sinistro, parcelas, valor_parcela, valor_total } = req.body;
 
         await new Promise((resolve, reject) =>
-            db.run(`UPDATE sinistros SET assinatura_condutor_base64=?, documento_html=?, assinaturas_finalizadas=1, status='assinado', data_assinatura_condutor=CURRENT_TIMESTAMP WHERE id=?`,
-                [assinatura_base64, documento_html, sinistroId],
+            db.run(`UPDATE sinistros SET assinatura_condutor_base64=?, documento_html=?, assinaturas_finalizadas=1, status='assinado', data_assinatura_condutor=CURRENT_TIMESTAMP,
+                tipo_sinistro=COALESCE(?, tipo_sinistro), parcelas=COALESCE(?, parcelas), valor_parcela=COALESCE(?, valor_parcela), valor_total=COALESCE(?, valor_total)
+                WHERE id=?`,
+                [assinatura_base64, documento_html, tipo_sinistro || null, parcelas || null, valor_parcela || null, valor_total || null, sinistroId],
                 err => err ? reject(err) : resolve())
         );
 
