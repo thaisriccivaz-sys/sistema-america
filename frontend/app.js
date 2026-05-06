@@ -14044,8 +14044,9 @@ window.loadAssinaturasDigitais = async function() {
             return;
         }
 
-        // Coletar tipos únicos de documentos e statuses para filtros
+        // Coletar tipos únicos de documentos, colaboradores e statuses para filtros
         const tipos = [...new Set(dados.map(d => d.nome_documento).filter(Boolean))].sort();
+        const colabs = [...new Set(dados.map(d => d.colaborador_nome).filter(Boolean))].sort();
         const statuses = ['Todos', 'Assinado', 'Pendente'];
 
         const fmtDate = (v) => {
@@ -14062,10 +14063,18 @@ window.loadAssinaturasDigitais = async function() {
         <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
             <!-- Filtros -->
             <div style="padding:1rem 1.25rem;border-bottom:1px solid #f1f5f9;display:flex;gap:0.75rem;flex-wrap:wrap;align-items:center;background:#f8fafc;">
-                <div style="display:flex;align-items:center;gap:0.5rem;flex:1;min-width:200px;">
+                <div style="display:flex;align-items:center;gap:0.5rem;flex:1;min-width:220px;border:1px solid #e2e8f0;border-radius:6px;padding:0.4rem 0.75rem;background:#fff;">
+                    <i class="ph ph-user" style="color:#94a3b8;"></i>
+                    <input type="text" id="ass-filter-colab" list="ass-colab-list" placeholder="Filtrar por Colaborador..." oninput="window.filtrarAssinaturas()" autocomplete="off"
+                        style="border:none;outline:none;font-size:0.85rem;width:100%;background:transparent;color:#334155;">
+                    <datalist id="ass-colab-list">
+                        ${colabs.map(c => `<option value="${c}">`).join('')}
+                    </datalist>
+                </div>
+                <div style="display:flex;align-items:center;gap:0.5rem;flex:1;min-width:180px;border:1px solid #e2e8f0;border-radius:6px;padding:0.4rem 0.75rem;background:#fff;">
                     <i class="ph ph-magnifying-glass" style="color:#94a3b8;"></i>
-                    <input type="text" id="ass-search" placeholder="Buscar colaborador ou documento..." oninput="window.filtrarAssinaturas()" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" onblur="this.setAttribute('readonly', 'readonly')"
-                        style="border:none;outline:none;font-size:0.9rem;width:100%;background:transparent;color:#334155;">
+                    <input type="text" id="ass-search" placeholder="Buscar documento..." oninput="window.filtrarAssinaturas()" autocomplete="off"
+                        style="border:none;outline:none;font-size:0.85rem;width:100%;background:transparent;color:#334155;">
                 </div>
                 <select id="ass-filter-status" onchange="window.filtrarAssinaturas()"
                     style="border:1px solid #e2e8f0;border-radius:6px;padding:0.4rem 0.75rem;font-size:0.85rem;color:#334155;background:#fff;cursor:pointer;">
@@ -14130,17 +14139,17 @@ window.setStatusOutroMeio = async function(id, source) {
 window.filtrarAssinaturas = function() {
     const dados = window._assinaturasData || [];
     const search = (document.getElementById('ass-search')?.value || '').toLowerCase();
+    const filterColab = (document.getElementById('ass-filter-colab')?.value || '').toLowerCase();
     const filterStatus = document.getElementById('ass-filter-status')?.value || '';
     const filterTipo = document.getElementById('ass-filter-tipo')?.value || '';
     const token = window._assinaturaToken || window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
 
     const filtered = dados.filter(d => {
-        const matchSearch = !search || 
-            (d.colaborador_nome || '').toLowerCase().includes(search) ||
-            (d.nome_documento || '').toLowerCase().includes(search);
+        const matchSearch = !search || (d.nome_documento || '').toLowerCase().includes(search);
+        const matchColab = !filterColab || (d.colaborador_nome || '').toLowerCase().includes(filterColab);
         const matchStatus = !filterStatus || d.assinafy_status === filterStatus;
         const matchTipo = !filterTipo || d.nome_documento === filterTipo;
-        return matchSearch && matchStatus && matchTipo;
+        return matchSearch && matchColab && matchStatus && matchTipo;
     });
 
     const label = document.getElementById('ass-count-label');
