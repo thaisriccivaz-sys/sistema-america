@@ -594,10 +594,10 @@
                 <div class="ag-acoes-grid" id="ag-acoes-grid">${acoesHTML}</div>
             </div>
             <div class="ag-footer">
-                ${isEdicao?`<button class="ag-btn-del" onclick="agendaExcluirCard(${card.id})"><i class="ph ph-trash"></i> Excluir</button>`:''}
+                ${isEdicao?`<button class="ag-btn-del" onclick="agendaExcluirCard(${card.id})"><i class="ph ph-trash"></i> Excluir Card</button>`:''}
                 <button class="ag-btn-cancel" onclick="fecharAgendaModal()">Cancelar</button>
                 <button class="ag-btn-save" onclick="agendaSalvarCard(${card.id||'null'})">
-                    <i class="ph ph-floppy-disk"></i> ${isEdicao?'Salvar':'Criar Card'}
+                    <i class="ph ph-floppy-disk"></i> ${isEdicao?'Editar Card':'Criar Card'}
                 </button>
             </div>`;
 
