@@ -24,7 +24,7 @@ window.renderLogisticaSinistros = async function() {
         <!-- Header -->
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
             <div style="display:flex; align-items:center; gap:14px;">
-                <div style="background:linear-gradient(135deg,#d97706,#b45309); width:52px; height:52px; border-radius:14px; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 14px rgba(217,119,6,0.3);">
+                <div style="background:linear-gradient(135deg,#059669,#047857); width:52px; height:52px; border-radius:14px; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 14px rgba(5,150,105,0.3);">
                     <i class="ph ph-car-crash" style="font-size:1.7rem; color:#fff;"></i>
                 </div>
                 <div>
@@ -32,7 +32,7 @@ window.renderLogisticaSinistros = async function() {
                     <p style="margin:0; color:#64748b; font-size:0.85rem;">Boletins de Ocorrência · Logística</p>
                 </div>
             </div>
-            <button onclick="window.logSinAbrirModalNovo()" style="background:#d97706; color:#fff; border:none; padding:10px 20px; border-radius:8px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px; font-size:0.9rem;">
+            <button onclick="window.logSinAbrirModalNovo()" style="background:#059669; color:#fff; border:none; padding:10px 20px; border-radius:8px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px; font-size:0.9rem;">
                 <i class="ph ph-plus"></i> Novo Sinistro
             </button>
         </div>
@@ -151,7 +151,7 @@ window._logSinRenderCardGeral = function(s, container) {
                     <i class="ph ph-caret-right"></i>
                 </button>
                 <div>
-                    <h5 style="margin:0; font-size:1.1rem; color:#0f172a; font-weight:700;"><i class="ph ph-user" style="color:#d97706;"></i> ${s.nome_completo || 'Colaborador Desconhecido'}</h5>
+                    <h5 style="margin:0; font-size:1.1rem; color:#0f172a; font-weight:700;"><i class="ph ph-user" style="color:#059669;"></i> ${s.nome_completo || 'Colaborador Desconhecido'}</h5>
                     <p style="margin:4px 0 0; font-size:0.85rem; color:#64748b;"><i class="ph ph-file-text"></i> BO: ${s.numero_boletim || 'N/A'} &nbsp;|&nbsp; <i class="ph ph-calendar"></i> Ocorrido: ${s.data_hora || '—'}</p>
                     <p style="margin:4px 0 0; font-size:0.85rem; color:#64748b;">${s.veiculo || '—'} &nbsp;|&nbsp; Placa: ${s.placa || '—'}</p>
                 </div>
@@ -169,7 +169,7 @@ window._logSinRenderCardGeral = function(s, container) {
                 </div>
                 <div>
                     <p style="margin:0 0 6px 0;"><strong>Anexos:</strong></p>
-                    ${s.boletim_path ? `<a href="javascript:void(0)" onclick="window.abrirArquivoOneDrive('${s.boletim_path}')" style="display:inline-flex; align-items:center; gap:4px; font-size:0.8rem; color:#d97706; background:#fef3c7; padding:4px 8px; border-radius:4px; text-decoration:none; margin-bottom:6px;"><i class="ph ph-file-pdf"></i> Visualizar Boletim de Ocorrência</a><br/>` : ''}
+                    ${s.boletim_path ? `<a href="javascript:void(0)" onclick="window.abrirArquivoOneDrive('${s.boletim_path}')" style="display:inline-flex; align-items:center; gap:4px; font-size:0.8rem; color:#059669; background:#dcfce7; padding:4px 8px; border-radius:4px; text-decoration:none; margin-bottom:6px;"><i class="ph ph-file-pdf"></i> Visualizar Boletim de Ocorrência</a><br/>` : ''}
                     ${orcamentosLinks}
                     ${midiasHtml}
                 </div>
@@ -193,7 +193,7 @@ window.logSinAbrirModalNovo = function() {
         m.innerHTML = `
             <div class="modal-content" style="max-width:640px;">
                 <div class="modal-header">
-                    <h3><i class="ph ph-car-crash" style="color:#d97706;"></i> Registrar Novo Sinistro</h3>
+                    <h3><i class="ph ph-car-crash" style="color:#059669;"></i> Registrar Novo Sinistro</h3>
                     <button onclick="document.getElementById('modal-logistica-novo-sinistro').style.display='none'" class="btn-close"><i class="ph ph-x"></i></button>
                 </div>
                 <div class="modal-body">
@@ -210,7 +210,7 @@ window.logSinAbrirModalNovo = function() {
                             <label>Arquivo do BO *</label>
                             <input type="file" id="log-sinistro-file-bo" accept=".pdf,image/*" class="form-control">
                         </div>
-                        <button type="button" class="btn btn-primary" onclick="window.logSinProcessarLeituraBO()" style="width:100%; margin-top:0.5rem; background:#d97706; border-color:#b45309;">
+                        <button type="button" class="btn btn-primary" onclick="window.logSinProcessarLeituraBO()" style="width:100%; margin-top:0.5rem; background:#059669; border-color:#047857;">
                             <i class="ph ph-scan"></i> Analisar BO e Continuar
                         </button>
                     </div>

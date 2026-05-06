@@ -12163,7 +12163,7 @@ async function checkUserNotificacoes() {
                 } else if (notif.tipo === 'formulario_experiencia') {
                     bg = '#dbeafe'; color = '#1d4ed8'; icon = 'ph-clipboard-text'; titulo = 'Experiência'; navTarget = 'experiencia';
                 } else if (notif.tipo === 'novo_sinistro') {
-                    bg = '#fef3c7'; color = '#d97706'; icon = 'ph-car-crash'; titulo = 'Novo Sinistro'; navTarget = 'colaboradores';
+                    bg = '#dcfce7'; color = '#059669'; icon = 'ph-car-crash'; titulo = 'Novo Sinistro (Logística)'; navTarget = 'colaboradores';
                 } else {
                     bg = '#f1f5f9'; color = '#475569'; icon = 'ph-bell-ringing'; titulo = 'Notificação'; navTarget = 'dashboard';
                 }
