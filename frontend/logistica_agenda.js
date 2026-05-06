@@ -535,15 +535,8 @@
             </div>` : '';
         }).join('');
 
-        const ACOES = [
-            { value: 'enviar_email',      label: 'Enviar e-mail para os responsáveis', icon: 'ph-envelope' },
-            { value: 'notificar_sistema', label: 'Notificação no sistema',              icon: 'ph-bell'     },
-        ];
-        const acoesHTML = ACOES.map(a => `
-            <div class="ag-acao-item ${acoesSel.includes(a.value)?'selected':''}" onclick="agendaToggleAcao('${a.value}',this)">
-                <input type="checkbox" ${acoesSel.includes(a.value)?'checked':''} onclick="event.stopPropagation()" value="${a.value}">
-                <i class="ph ${a.icon}"></i><span>${a.label}</span>
-            </div>`).join('');
+        // Ações ocultas — regra de notificação gerenciada globalmente pelo sistema de notificações
+
 
         body.innerHTML = `
             <div class="ag-field">
@@ -573,14 +566,13 @@
                 <label>Descrição / Observação</label>
                 <textarea id="ag-descricao" placeholder="Descreva o que deve ser registrado...">${card.descricao||''}</textarea>
             </div>
-            <div class="ag-field">
-                <label><i class="ph ph-user-gear" style="color:#0284c7;margin-right:4px;"></i>Responsáveis pelo card</label>
-                <select id="ag-resp-select" onchange="agendaAddChip('resp',this.value);this.value=''">
-                    <option value="">— Adicionar responsável —</option>
-                    ${colabOptions}
-                </select>
-                <div class="ag-chips-list" id="ag-resp-list">${respChips}</div>
-            </div>
+            <!-- Responsáveis ocultos: gerenciados pelo sistema -->
+            <div style="display:none" id="ag-resp-list-hidden">${respChips}</div>
+            <select id="ag-resp-select" style="display:none" onchange="agendaAddChip('resp',this.value);this.value=''">
+                <option value="">— Adicionar responsável —</option>
+                ${colabOptions}
+            </select>
+            <div class="ag-chips-list" id="ag-resp-list" style="display:none"></div>
             <div class="ag-field">
                 <label><i class="ph ph-user" style="color:#92400e;margin-right:4px;"></i>Card referente à</label>
                 <select id="ag-ref-select" onchange="agendaAddChip('ref',this.value);this.value=''">
@@ -589,10 +581,8 @@
                 </select>
                 <div class="ag-chips-list" id="ag-ref-list">${refChips}</div>
             </div>
-            <div class="ag-field">
-                <label>Ações a disparar na data</label>
-                <div class="ag-acoes-grid" id="ag-acoes-grid">${acoesHTML}</div>
-            </div>
+            <!-- Ações ocultas: gerenciadas pelo sistema de notificações -->
+
             <div class="ag-footer">
                 ${isEdicao?`<button class="ag-btn-del" onclick="agendaExcluirCard(${card.id})"><i class="ph ph-trash"></i> Excluir Card</button>`:''}
                 <button class="ag-btn-cancel" onclick="fecharAgendaModal()">Cancelar</button>
