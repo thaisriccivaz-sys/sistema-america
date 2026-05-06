@@ -1073,8 +1073,10 @@ async function pollAdmissaoAssinaturas() {
                     return dt.download_link || dt.download_url || dt.file_url || dt.document_pdf || null;
                 };
 
-                // Status do Assinafy que indicam assinatura completa (incluindo 'certificated' v1 e '4')
-                const isSigned = ['completed', 'signed', 'concluded', 'finalizado', 'assinado', 'certificat', '4'].some(s => statusRaw.includes(s) || statusRaw === '4');
+                // Status do Assinafy que indicam assinatura EFETIVAMENTE completa.
+                // ATENÇÃO: 'completed' significa que o envelope foi CRIADO com sucesso (ainda aguardando assinatura).
+                // Apenas 'certificated' e o código '4' indicam que TODOS assinaram e o certificado foi emitido.
+                const isSigned = statusRaw.includes('certificat') || statusRaw === '4';
                 if (!isSigned) {
                     console.log(`[POLL-ADMISSAO] Doc ${doc.assinafy_id} ? status="${statusRaw}" (ainda pendente)`);
                     continue;
@@ -1193,16 +1195,22 @@ async function pollAdmissaoAssinaturas() {
                     }
                 }
 
-                // Atualizar banco de acordo com a origem do documento
-                // Atualizar banco em AMBAS as tabelas, pois o mesmo documento pode existir nas duas
-                db.run(
-                    `UPDATE admissao_assinaturas SET assinafy_status = 'Assinado', assinado_em = CURRENT_TIMESTAMP, signed_file_path = ? WHERE assinafy_id = ?`,
-                    [signedPath, doc.assinafy_id]
-                );
-                db.run(
-                    `UPDATE documentos SET assinafy_status = 'Assinado', signed_file_path = ?, assinafy_signed_at = CURRENT_TIMESTAMP WHERE assinafy_id = ?`,
-                    [signedPath, doc.assinafy_id]
-                );
+                // PROTEÇÃO: só marca 'Assinado' se o PDF assinado foi efetivamente baixado.
+                // Sem PDF, significa que o Assinafy ainda não gerou o certificado (falso positivo).
+                if (!finalBuffer) {
+                    console.warn(`[POLL-ADMISSAO] ⚠ Doc ${doc.assinafy_id} retornou status de assinado mas sem PDF disponível. Mantendo como Pendente.`);
+                } else {
+                    // Atualizar banco em AMBAS as tabelas, pois o mesmo documento pode existir nas duas
+                    db.run(
+                        `UPDATE admissao_assinaturas SET assinafy_status = 'Assinado', assinado_em = CURRENT_TIMESTAMP, signed_file_path = ? WHERE assinafy_id = ?`,
+                        [signedPath, doc.assinafy_id]
+                    );
+                    db.run(
+                        `UPDATE documentos SET assinafy_status = 'Assinado', signed_file_path = ?, assinafy_signed_at = CURRENT_TIMESTAMP WHERE assinafy_id = ?`,
+                        [signedPath, doc.assinafy_id]
+                    );
+                    console.log(`[POLL-ADMISSAO] ✅ Banco atualizado como Assinado para assinafy_id=${doc.assinafy_id}`);
+                }
             } catch (e) {
                 console.warn(`[POLL-ADMISSAO] Erro ao verificar doc ${doc.assinafy_id}: ${e.message}`);
             }
@@ -1487,7 +1495,8 @@ app.post('/api/admissao-assinaturas/verificar-status', authenticateToken, async 
                 if (!docInfo) continue;
                 const docData = docInfo.data || docInfo;
                 const statusRaw = String(docData?.status || docData?.status_id || '').toLowerCase();
-                const isSigned = ['completed', 'signed', 'concluded', 'finalizado', 'assinado', 'certificated', '4'].some(s => statusRaw.includes(s) || statusRaw === '4');
+                // Apenas 'certificated' e código '4' indicam assinatura efetiva. 'completed' = envelope criado, ainda aguardando.
+                const isSigned = statusRaw.includes('certificat') || statusRaw === '4';
 
                 console.log(`[VERIF] Doc ${doc.assinafy_id} ? "${statusRaw}" ? signed=${isSigned}`);
 
@@ -6378,11 +6387,13 @@ app.post('/api/documentos/:id/sync-assinafy', authenticateToken, async (req, res
         let newStatus = doc.assinafy_status;
         let pStatus = (documentData.status || documentData.status_id || '').toString().toLowerCase();
 
-        // status possíveis no assinafy: certificated, completed, pending, waiting_signatures, error
-        if (pStatus.includes('certificat') || pStatus.includes('complet') || pStatus === '4' || pStatus === 'assinado' || pStatus === 'concluído') {
+        // status possíveis no assinafy: certificated (assinado), completed (envelope criado, aguardando), pending, waiting_signatures, error
+        // CORREÇÃO: 'completed' indica que o envelope foi CRIADO com sucesso, NÃO que foi assinado!
+        // Apenas 'certificated' e código numérico '4' indicam assinatura efetiva de TODOS os signatários.
+        if (pStatus.includes('certificat') || pStatus === '4') {
             newStatus = 'Assinado';
-        } else if (pStatus.includes('pend') || pStatus.includes('wait') || pStatus === '2' || pStatus === '3') {
-            newStatus = 'Pendente';
+        } else if (pStatus.includes('complet') || pStatus.includes('pend') || pStatus.includes('wait') || pStatus === '2' || pStatus === '3') {
+            newStatus = 'Aguardando';
         } else if (pStatus.includes('error') || pStatus.includes('fail')) {
             newStatus = 'Erro';
         }
