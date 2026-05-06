@@ -241,6 +241,39 @@ window.logSinAbrirModalNovo = function() {
                         </div>
 
                         <hr style="border-color:#e2e8f0; margin:1.25rem 0;"/>
+
+                        <p style="font-weight:600; color:#1e293b; margin-bottom:0.75rem;"><i class="ph ph-question"></i> Vai ser necessário realizar algum desconto?</p>
+                        <div style="display:flex; gap:1.5rem; margin-bottom:1rem;">
+                            <label style="cursor:pointer;"><input type="radio" name="log-sin-desconto" value="Sim" onclick="window.toggleLogSinistroDesconto(true)"> Sim</label>
+                            <label style="cursor:pointer;"><input type="radio" name="log-sin-desconto" value="Não" checked onclick="window.toggleLogSinistroDesconto(false)"> Não</label>
+                        </div>
+
+                        <div id="area-log-sinistro-desconto" style="display:none; background:#f8fafc; padding:1rem; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:1rem;">
+                            <div class="input-group">
+                                <label>Tipo do Sinistro</label>
+                                <select id="log-sin-tipo-sinistro" class="form-control">
+                                    <option value="Danos em Terceiros e Nosso">Danos em Terceiros e Nosso</option>
+                                    <option value="Danos em Terceiros">Danos em Terceiros</option>
+                                    <option value="Danos no Nosso Veículo">Danos no Nosso Veículo</option>
+                                    <option value="Outros Danos">Outros Danos</option>
+                                </select>
+                            </div>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+                                <div class="input-group">
+                                    <label>Valor Total do Desconto (R$)</label>
+                                    <input type="text" id="log-sin-valor-total" class="form-control" placeholder="0,00" oninput="window._calcLogSinParcela()">
+                                </div>
+                                <div class="input-group">
+                                    <label>Parcelamento</label>
+                                    <select id="log-sin-parcelas" class="form-control" onchange="window._calcLogSinParcela()">
+                                        <option value="1">1x</option>
+                                        <option value="2">2x</option>
+                                        <option value="3">3x</option>
+                                    </select>
+                                    <small id="log-sin-valor-parcela-display" style="display:block; margin-top:4px; font-weight:600; color:#059669;">Parcela: R$ 0,00</small>
+                                </div>
+                            </div>
+                        </div>
                         
                         <div style="background:#f8fafc; padding:1rem; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:1rem;">
                             <p style="margin:0 0 10px; font-weight:600; font-size:0.9rem;"><i class="ph ph-paperclip"></i> Anexar Orçamentos</p>
@@ -264,7 +297,7 @@ window.logSinAbrirModalNovo = function() {
                         </div>
 
                         <div class="alert alert-warning" style="font-size: 0.85rem; margin-bottom: 1rem;">
-                            <i class="ph ph-warning"></i> Assinaturas e acordos de desconto devem ser realizados exclusivamente pelo departamento de Recursos Humanos. O RH será notificado deste registro.
+                            <i class="ph ph-warning"></i> Assinaturas e acordos de desconto devem ser finalizados exclusivamente pelo departamento de Recursos Humanos. O RH será notificado deste registro e fará a coleta da assinatura do colaborador.
                         </div>
 
                         <button type="button" class="btn btn-primary" onclick="window.logSinSalvarFinal()" style="width:100%; background:#059669; border:none;">
@@ -377,12 +410,28 @@ window.logSinProcessarLeituraBO = async function() {
     }
 };
 
+window.toggleLogSinistroDesconto = function(show) {
+    document.getElementById('area-log-sinistro-desconto').style.display = show ? 'block' : 'none';
+};
+
+window._calcLogSinParcela = function() {
+    const vTotalStr = document.getElementById('log-sin-valor-total').value || '0';
+    const vTotalRaw = parseFloat(vTotalStr.replace(/[^0-9,]/g,'').replace(',','.')) || 0;
+    const qtd = parseInt(document.getElementById('log-sin-parcelas').value) || 1;
+    const vParcela = vTotalRaw / qtd;
+    
+    document.getElementById('log-sin-valor-parcela-display').innerText = 'Parcela: R$ ' + vParcela.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+    document.getElementById('log-sin-parcelas').dataset.valor_parcela = vParcela.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+};
+
 window.logSinSalvarFinal = async function() {
     const colabId = document.getElementById('log-sin-colab-select').value;
     if (!colabId) return alert('Colaborador não selecionado.');
 
     const fileBO = document.getElementById('log-sinistro-file-bo').files[0];
     if (!fileBO) return alert('O arquivo do BO não foi encontrado. Volte ao passo anterior.');
+
+    const desconto = document.querySelector('input[name="log-sin-desconto"]:checked').value;
 
     const formData = new FormData();
     formData.append('arquivo', fileBO);
@@ -391,8 +440,14 @@ window.logSinSalvarFinal = async function() {
     formData.append('natureza', document.getElementById('log-sin-natureza').value || '');
     formData.append('veiculo', document.getElementById('log-sin-veiculo').value || '');
     formData.append('placa', document.getElementById('log-sin-placa').value || '');
-    // Logística apenas registra, sem descontos definidos
-    formData.append('desconto', 'Não');
+    formData.append('desconto', desconto);
+
+    if (desconto === 'Sim') {
+        formData.append('tipo_sinistro', document.getElementById('log-sin-tipo-sinistro').value);
+        formData.append('parcelas', document.getElementById('log-sin-parcelas').value);
+        formData.append('valor_parcela', document.getElementById('log-sin-parcelas').dataset.valor_parcela || '0,00');
+        formData.append('valor_total', document.getElementById('log-sin-valor-total').value);
+    }
 
     // Orçamentos
     const fileInputs = document.querySelectorAll('input[name="log_sin_orc_file"]');
