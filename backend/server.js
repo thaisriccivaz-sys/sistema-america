@@ -11877,21 +11877,28 @@ app.get('/api/logistica/disponibilidade-rota', authenticateToken, (req, res) => 
             });
         });
 
-        // Agenda: falta/ausencia marcada na agenda da logística para essa data com nome do colaborador
+        // Agenda: falta/ausencia marcada na agenda da logística para essa data referente ao colaborador
         const pAgenda = new Promise(resolve => {
-            db.all(`SELECT referente_ids, tipo FROM logistica_agenda WHERE data = ? AND tipo IN ('falta','afastamento')`, [data], (e, rows) => {
-                const idsAgenda = new Set();
+            db.all(`SELECT referente_ids, tipo FROM logistica_agenda WHERE data = ? AND tipo IN ('falta','afastado','ferias')`, [data], (e, rows) => {
+                const agendaMap = new Map(); // id -> tipo
                 (rows || []).forEach(r => {
                     try {
                         const refs = JSON.parse(r.referente_ids || '[]');
-                        refs.forEach(rid => idsAgenda.add(Number(rid)));
+                        refs.forEach(rid => {
+                            const idNum = Number(rid);
+                            // Prioridade: falta > afastado > ferias
+                            const prev = agendaMap.get(idNum);
+                            if (!prev || r.tipo === 'falta' || (r.tipo === 'afastado' && prev === 'ferias')) {
+                                agendaMap.set(idNum, r.tipo);
+                            }
+                        });
                     } catch(ex) {}
                 });
-                resolve(idsAgenda);
+                resolve(agendaMap);
             });
         });
 
-        Promise.all([pAtestado, pFalta, pAgenda]).then(([atestSet, faltSet, agendaSet]) => {
+        Promise.all([pAtestado, pFalta, pAgenda]).then(([atestSet, faltSet, agendaMap]) => {
             const result = {};
             colabs.forEach(c => {
                 const nomeKey = (c.nome_completo || '').toLowerCase().trim();
@@ -11919,11 +11926,16 @@ app.get('/api/logistica/disponibilidade-rota', authenticateToken, (req, res) => 
                 // Atestado no período
                 if (atestSet[c.id]) { status = 'afastado'; motivo = 'Afastado / Atestado'; }
 
-                // Falta registrada
+                // Falta registrada na tabela de faltas
                 if (faltSet[c.id]) { status = 'falta'; motivo = 'Falta registrada no dia'; }
 
-                // Agenda logística
-                if (agendaSet.has(c.id)) { status = 'falta'; motivo = 'Ausência lançada na Agenda'; }
+                // Agenda logística — respeita o tipo do card (falta, afastado ou ferias)
+                if (agendaMap.has(c.id)) {
+                    const tipoAgenda = agendaMap.get(c.id);
+                    if (tipoAgenda === 'falta') { status = 'falta'; motivo = 'Falta lançada na Agenda Logística'; }
+                    else if (tipoAgenda === 'afastado') { status = 'afastado'; motivo = 'Afastamento lançado na Agenda Logística'; }
+                    else if (tipoAgenda === 'ferias' && status === 'disponivel') { status = 'ferias'; motivo = 'Férias lançadas na Agenda Logística'; }
+                }
 
                 // Folga da escala (só se ainda disponível)
                 if (status === 'disponivel') {
