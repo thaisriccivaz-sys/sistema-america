@@ -6,6 +6,11 @@ window._recarregarListaSinistros = async function(colabId) {
     if (tabContent && typeof window.renderSinistrosTab === 'function') {
         await window.renderSinistrosTab(tabContent);
     }
+    
+    // Se estiver na tela da Logística, atualiza a lista lá também
+    if (document.getElementById('log-sinistros-list') && typeof window.logSinCarregarPainel === 'function') {
+        await window.logSinCarregarPainel();
+    }
 };
 
 window.renderSinistrosTab = async function(container) {
