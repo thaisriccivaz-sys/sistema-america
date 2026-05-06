@@ -187,7 +187,7 @@ window._renderSinistroCard = function(s, colabId, container) {
 
         <div style="background:#f8fafc; border-top:1px dashed #cbd5e1; padding-top:0.75rem; display:flex; justify-content:space-between; align-items:center; margin-top:0.5rem;">
             <div style="font-size:0.8rem; color:#475569;">
-                <strong>Desconto:</strong> ${s.processo_iniciado ? (s.desconto === 'Sim' ? 'Sim (' + (s.parcelas || 1) + 'x de ' + (s.valor_parcela || 'R$ 0,00') + ')' : 'Não') : '<span style="color:#f59e0b;">Aguardando RH</span>'}<br/>
+                ${s.processo_iniciado ? `<strong>Desconto:</strong> ${s.desconto === 'Sim' ? 'Sim (' + (s.parcelas || 1) + 'x de ' + (s.valor_parcela || 'R$ 0,00') + ')' : 'Não'}<br/>` : ''}
                 ${s.tipo_sinistro ? `<strong>Tipo:</strong> ${s.tipo_sinistro}` : ''}
             </div>
             ${actionsHtml}

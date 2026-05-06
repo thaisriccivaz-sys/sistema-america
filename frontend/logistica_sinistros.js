@@ -175,7 +175,7 @@ window._logSinRenderCardGeral = function(s, container) {
         
         <div style="background:#f8fafc; border-top:1px dashed #cbd5e1; padding-top:0.75rem; display:flex; justify-content:space-between; align-items:center; margin-top:0.5rem;">
             <div style="font-size:0.8rem; color:#475569;">
-                <strong>Desconto:</strong> ${s.processo_iniciado ? (s.desconto === 'Sim' ? 'Sim (' + (s.parcelas || 1) + 'x)' : 'Não') : '<span style="color:#f59e0b;">Aguardando RH</span>'}<br/>
+                ${s.processo_iniciado ? `<strong>Desconto:</strong> ${s.desconto === 'Sim' ? 'Sim (' + (s.parcelas || 1) + 'x)' : 'Não'}<br/>` : ''}
                 ${s.tipo_sinistro ? `<strong>Tipo:</strong> ${s.tipo_sinistro}` : ''}
             </div>
         </div>
@@ -249,11 +249,7 @@ window.logSinAbrirModalNovo = function() {
 
                         <hr style="border-color:#e2e8f0; margin:1.25rem 0;"/>
 
-                        <div id="area-log-sinistro-desconto" style="background:#fff3cd; padding:0.85rem 1rem; border-radius:8px; border:1px solid #fcd34d; margin-bottom:1rem;">
-                            <p style="margin:0; font-size:0.85rem; color:#92400e;">
-                                <i class="ph ph-info"></i> O valor, tipo e parcelamento do desconto serão definidos pelo <strong>RH</strong> ao finalizar o sinistro.
-                            </p>
-                        </div>
+                        <div id="area-log-sinistro-desconto" style="display:none;"></div>
                         
                         <div style="background:#f8fafc; padding:1rem; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:1rem;">
                             <p style="margin:0 0 10px; font-weight:600; font-size:0.9rem;"><i class="ph ph-paperclip"></i> Anexar Orçamentos</p>
