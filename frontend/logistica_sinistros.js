@@ -140,32 +140,6 @@ window._logSinRenderCardGeral = function(s, container) {
     const dataCriacao = s.created_at ? new Date(s.created_at).toLocaleString('pt-BR') : '—';
     const assinCondutorTxt = s.data_assinatura_condutor ? `Assinado em: ${new Date(s.data_assinatura_condutor).toLocaleString('pt-BR')}` : 'Não assinado';
 
-    const userRef = typeof currentUser !== 'undefined' ? currentUser : (window.currentUser || {});
-    const r = userRef?.role?.toLowerCase() || '';
-    const p = userRef?.perfil?.toLowerCase() || '';
-    const isRH = ['rh', 'admin', 'administrador', 'diretoria'].includes(r) || ['rh', 'admin', 'administrador', 'diretoria'].includes(p);
-
-    let actionsHtml = '';
-    const colabId = s.colaborador_id;
-    if (s.status === 'assinado') {
-        actionsHtml = `<button class="btn btn-sm" onclick="window.verDocumentoSinistro(${s.id}, ${colabId})" style="color:#0284c7; background:#e0f2fe; border:none;"><i class="ph ph-eye"></i> Ver Documento</button>`;
-    } else {
-        actionsHtml = `<div style="display:flex;gap:0.5rem;flex-wrap:wrap;justify-content:flex-end;width:100%;">`;
-        if (isRH) {
-            let label = s.documento_html ? 'Continuar Finalização' : 'Finalizar Sinistro';
-            if (s.status === 'assinado_testemunhas') label = 'Assinar Condutor';
-            actionsHtml += `<button class="btn btn-sm" onclick="window.abrirFinalizarSinistro(${s.id}, ${colabId})" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border:none;font-weight:600;padding:6px 14px;"><i class="ph ph-flag-checkered"></i> ${label}</button>`;
-        }
-        if (s.documento_html) {
-            actionsHtml += `<button class="btn btn-sm" onclick="window.verDocumentoSinistro(${s.id}, ${colabId})" style="color:#64748b;background:#f1f5f9;border:none;"><i class="ph ph-eye"></i> Preview</button>`;
-        }
-        if (isRH && s.status !== 'assinado_testemunhas') {
-            actionsHtml += `<button class="btn btn-sm btn-outline-danger" onclick="window.excluirSinistro(${s.id}, ${colabId})" style="color:#ef4444; border:1px solid #ef4444; background:transparent;"><i class="ph ph-trash"></i> Excluir</button>`;
-        }
-        actionsHtml += `</div>`;
-    }
-
-
     card.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:flex-start;">
             <div style="display:flex; gap:12px;">
@@ -201,10 +175,9 @@ window._logSinRenderCardGeral = function(s, container) {
         
         <div style="background:#f8fafc; border-top:1px dashed #cbd5e1; padding-top:0.75rem; display:flex; justify-content:space-between; align-items:center; margin-top:0.5rem;">
             <div style="font-size:0.8rem; color:#475569;">
-                <strong>Desconto:</strong> ${s.desconto || 'Não'} ${s.desconto === 'Sim' && s.parcelas ? `(${s.parcelas}x de ${s.valor_parcela || ''})` : ''}<br/>
+                <strong>Desconto:</strong> ${s.processo_iniciado ? (s.desconto === 'Sim' ? 'Sim (' + (s.parcelas || 1) + 'x)' : 'Não') : '<span style="color:#f59e0b;">Aguardando RH</span>'}<br/>
                 ${s.tipo_sinistro ? `<strong>Tipo:</strong> ${s.tipo_sinistro}` : ''}
             </div>
-            ${actionsHtml}
         </div>
     `;
 
