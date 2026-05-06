@@ -3723,6 +3723,19 @@ async function salvarPDFSinistroNoOneDrive(colaboradorId, sinistroId, htmlDoc, n
     }
 }
 
+app.put('/api/colaboradores/:id/sinistros/:sinistroId/dados-financeiros', authenticateToken, async (req, res) => {
+    try {
+        const { sinistroId } = req.params;
+        const { tipo_sinistro, valor_total, parcelas, valor_parcela } = req.body;
+        await new Promise((resolve, reject) =>
+            db.run(`UPDATE sinistros SET tipo_sinistro=?, valor_total=?, parcelas=?, valor_parcela=?, processo_iniciado=1 WHERE id=?`,
+                [tipo_sinistro, valor_total, parcelas, valor_parcela, sinistroId],
+                err => err ? reject(err) : resolve())
+        );
+        res.json({ sucesso: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/colaboradores/:id/sinistros/:sinistroId/assinar-testemunhas', authenticateToken, async (req, res) => {
     try {
         const { id, sinistroId } = req.params;
