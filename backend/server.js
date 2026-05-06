@@ -11993,7 +11993,7 @@ app.get('/api/logistica/escala', authenticateToken, (req, res) => {
                         }
                         return false; // dias de semana: nunca folga por esta regra
                     }
-                    if (escalaStr.includes('5x2') || escalaStr.includes('5 x 2')) {
+                    if (escalaStr.includes('seg_sexta') || escalaStr.includes('5x2') || escalaStr.includes('5 x 2')) {
                         return dow === 0 || dow === 6;
                     }
                     if (escalaStr.includes('6x1') || escalaStr.includes('6 x 1')) {
@@ -12100,7 +12100,7 @@ app.get('/api/logistica/disponibilidade-rota', authenticateToken, (req, res) => 
             if (isDomingoDeLei(thisSunday.toISOString().split('T')[0])) return false;
         }
         if (folgasDow.length > 0) return folgasDow.includes(dow);
-        if (escalaStr.includes('5x2') || escalaStr.includes('5 x 2')) return dow === 0 || dow === 6;
+        if (escalaStr.includes('seg_sexta') || escalaStr.includes('5x2') || escalaStr.includes('5 x 2')) return dow === 0 || dow === 6;
         if (escalaStr.includes('6x1') || escalaStr.includes('6 x 1')) return dow === 0;
         return dow === 0;
     }
