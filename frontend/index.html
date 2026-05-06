@@ -2862,6 +2862,53 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- CARD: Ferramenta Admin - Assinaturas com Falso Positivo -->
+                    <div class="card" style="margin-bottom: 20px; border-left: 4px solid #d9480f;">
+                        <div class="card-header border-bottom" style="background:#fff8f5;">
+                            <h3 class="card-title" style="color:#d9480f;">
+                                <i class="ph ph-warning"></i> Correção de Assinaturas — Falso Positivo
+                            </h3>
+                            <p style="margin:4px 0 0; color:#64748b; font-size:0.85rem;">
+                                Identifica documentos marcados como "Assinado" no sistema mas sem PDF assinado real. Permite revertê-los para "Aguardando" e reenviar para assinatura.
+                            </p>
+                        </div>
+                        <div class="card-body" style="padding:1.25rem;">
+                            <div style="display:flex; gap:10px; align-items:flex-end; margin-bottom:1rem; flex-wrap:wrap;">
+                                <div style="flex:1; min-width:200px;">
+                                    <label style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Colaborador (deixe em branco para auditoria geral)</label>
+                                    <select id="admin-audit-colab-select" class="form-control" style="font-size:0.9rem;">
+                                        <option value="">— Todos os colaboradores —</option>
+                                    </select>
+                                </div>
+                                <button class="btn btn-secondary" onclick="window.adminAuditarAssinaturas()" style="white-space:nowrap;">
+                                    <i class="ph ph-magnifying-glass"></i> Auditar
+                                </button>
+                                <button class="btn" onclick="window.adminResetarTodosColab()" style="background:#d9480f;color:#fff;white-space:nowrap;" id="btn-admin-reset-todos" disabled>
+                                    <i class="ph ph-arrow-counter-clockwise"></i> Reverter Todos do Colaborador
+                                </button>
+                            </div>
+
+                            <div id="admin-audit-result" style="display:none;">
+                                <div id="admin-audit-summary" style="margin-bottom:0.75rem;padding:0.6rem 1rem;border-radius:8px;font-size:0.9rem;font-weight:600;"></div>
+                                <div style="overflow-x:auto;">
+                                    <table class="data-table" style="width:100%;font-size:0.85rem;">
+                                        <thead>
+                                            <tr>
+                                                <th>Colaborador</th>
+                                                <th>Documento</th>
+                                                <th>Tabela</th>
+                                                <th>Assinafy ID</th>
+                                                <th>Data Status</th>
+                                                <th style="width:130px;">Ação</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="admin-audit-tbody"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </section>
 
             </main>
