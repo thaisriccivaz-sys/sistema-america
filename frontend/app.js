@@ -655,7 +655,7 @@ const TAB_META = {
     // Logística - Verde
     'logistica-em-breve':     { color: '#2d9e5f', icon: 'ph-truck',          title: 'Logística' },
     'logistica-dashboard':    { color: '#2d9e5f', icon: 'ph-chart-bar',      title: 'Dashboard Logística' },
-    'logistica-sinistros':     { color: '#d97706', icon: 'ph-car-crash',      title: 'Sinistros Logística' },
+    'logistica-sinistros':     { color: '#059669', icon: 'ph-warning',      title: 'Sinistros Logística' },
     'logistica-rota-redonda': { color: '#2d9e5f', icon: 'ph-map-trifold',   title: 'Rota Redonda' },
     'logistica-resumo-rota':  { color: '#2d9e5f', icon: 'ph-list-bullets',  title: 'Resumo de Rota' },
     'logistica-frota-resumo':  { color: '#1e3a5f', icon: 'ph-truck',          title: 'Resumo de Frota' },
@@ -12163,7 +12163,7 @@ async function checkUserNotificacoes() {
                 } else if (notif.tipo === 'formulario_experiencia') {
                     bg = '#dbeafe'; color = '#1d4ed8'; icon = 'ph-clipboard-text'; titulo = 'Experiência'; navTarget = 'experiencia';
                 } else if (notif.tipo === 'novo_sinistro') {
-                    bg = '#dcfce7'; color = '#059669'; icon = 'ph-car-crash'; titulo = 'Novo Sinistro (Logística)'; navTarget = 'colaboradores';
+                    bg = '#dcfce7'; color = '#059669'; icon = 'ph-warning'; titulo = 'Novo Sinistro (Logística)'; navTarget = 'colaboradores';
                 } else {
                     bg = '#f1f5f9'; color = '#475569'; icon = 'ph-bell-ringing'; titulo = 'Notificação'; navTarget = 'dashboard';
                 }
@@ -15390,7 +15390,7 @@ window.renderMultasMotoristaTab = async function(container) {
     if (multas.length === 0) {
         const vazio = document.createElement('div');
         vazio.className = 'alert alert-info';
-        vazio.innerHTML = '<i class="ph ph-traffic-cone"></i> Nenhuma multa registrada para este colaborador.';
+        vazio.innerHTML = '<i class="ph ph-warning"></i> Nenhuma multa registrada para este colaborador.';
         container.appendChild(vazio);
         return;
     }

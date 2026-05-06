@@ -44,7 +44,7 @@ window.renderSinistrosTab = async function(container) {
     if (sinistros.length === 0) {
         listaContainer.innerHTML = `
             <div style="text-align:center; padding:3rem; background:#f8fafc; border-radius:12px; border:2px dashed #e2e8f0;">
-                <i class="ph ph-traffic-cone" style="font-size:3rem; color:#cbd5e1; margin-bottom:1rem; display:block;"></i>
+                <i class="ph ph-warning" style="font-size:3rem; color:#cbd5e1; margin-bottom:1rem; display:block;"></i>
                 <h5 style="color:#475569; font-weight:600; margin-bottom:0.5rem;">Nenhum sinistro registrado</h5>
                 <p style="color:#94a3b8; font-size:0.9rem; margin:0;">Clique em "Novo Sinistro" para anexar um Boletim de Ocorrência.</p>
             </div>
@@ -197,7 +197,7 @@ window.abrirModalNovoSinistro = function() {
         m.innerHTML = `
             <div class="modal-content" style="max-width:640px;">
                 <div class="modal-header">
-                    <h3><i class="ph ph-traffic-cone" style="color:#059669;"></i> Registrar Novo Sinistro</h3>
+                    <h3><i class="ph ph-warning" style="color:#059669;"></i> Registrar Novo Sinistro</h3>
                     <button onclick="document.getElementById('modal-novo-sinistro').style.display='none'" class="btn-close"><i class="ph ph-x"></i></button>
                 </div>
                 <div class="modal-body">

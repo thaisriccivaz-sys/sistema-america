@@ -25,7 +25,7 @@ window.renderLogisticaSinistros = async function() {
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
             <div style="display:flex; align-items:center; gap:14px;">
                 <div style="background:linear-gradient(135deg,#059669,#047857); width:52px; height:52px; border-radius:14px; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 14px rgba(5,150,105,0.3);">
-                    <i class="ph ph-traffic-cone" style="font-size:1.7rem; color:#fff;"></i>
+                    <i class="ph ph-warning" style="font-size:1.7rem; color:#fff;"></i>
                 </div>
                 <div>
                     <h1 style="margin:0; font-size:1.5rem; font-weight:800; color:#0f172a;">Sinistros</h1>
@@ -82,7 +82,7 @@ window.logSinCarregarListaGeral = async function() {
     if (sinistros.length === 0) {
         area.innerHTML = `
             <div style="text-align:center; padding:3rem; background:#fff; border-radius:12px; border:2px dashed #e2e8f0;">
-                <i class="ph ph-traffic-cone" style="font-size:3rem; color:#cbd5e1; margin-bottom:1rem; display:block;"></i>
+                <i class="ph ph-warning" style="font-size:3rem; color:#cbd5e1; margin-bottom:1rem; display:block;"></i>
                 <h5 style="color:#475569; font-weight:600; margin-bottom:0.5rem;">Nenhum sinistro registrado</h5>
                 <p style="color:#94a3b8; font-size:0.9rem; margin:0;">Clique em "Novo Sinistro" para registrar um Boletim de Ocorrência.</p>
             </div>`;
@@ -193,7 +193,7 @@ window.logSinAbrirModalNovo = function() {
         m.innerHTML = `
             <div class="modal-content" style="max-width:640px;">
                 <div class="modal-header">
-                    <h3><i class="ph ph-traffic-cone" style="color:#059669;"></i> Registrar Novo Sinistro</h3>
+                    <h3><i class="ph ph-warning" style="color:#059669;"></i> Registrar Novo Sinistro</h3>
                     <button onclick="document.getElementById('modal-logistica-novo-sinistro').style.display='none'" class="btn-close"><i class="ph ph-x"></i></button>
                 </div>
                 <div class="modal-body">
