@@ -267,7 +267,7 @@ window.abrirModalNovoSinistro = function() {
                         <div id="area-sinistro-desconto" style="display:none; background:#f8fafc; padding:1rem; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:1rem;">
                             <div class="input-group">
                                 <label>Tipo do Sinistro</label>
-                                <select id="sin-tipo-sinistro" class="form-control">
+                                <select id="sin-tipo-sinistro" class="form-control" style="width:100%;">
                                     <option value="Danos em Terceiros e Nosso">Danos em Terceiros e Nosso</option>
                                     <option value="Danos em Terceiros">Danos em Terceiros</option>
                                     <option value="Danos no Nosso Veículo">Danos no Nosso Veículo</option>
@@ -609,7 +609,7 @@ window.abrirModalAssinaturaTestemunhasSinistro = async function(sinId, colabId) 
                         ${docHtmlFresh}
                     </div>
                 </div>
-                <div style="width:360px;background:#fff;overflow-y:auto;padding:1.5rem 1.5rem 6rem;display:flex;flex-direction:column;gap:1.25rem;border-left:1px solid #e2e8f0;flex-shrink:0;">
+                <div style="width:460px;background:#fff;overflow-y:auto;padding:1.5rem 1.5rem 6rem;display:flex;flex-direction:column;gap:1.25rem;border-left:1px solid #e2e8f0;flex-shrink:0;">
                     <div>
                         <label style="font-weight:700;font-size:0.85rem;display:block;margin-bottom:6px;">Testemunha 1</label>
                         <select id="sin-t1-nome" class="form-control" style="width:100%;margin-bottom:8px;">${options}</select>
@@ -650,7 +650,7 @@ window._sinSetupCanvas = function(canvasId) {
     if (!canvas) return;
     // Ajusta tamanho real do canvas ao layout
     canvas.width = canvas.offsetWidth || canvas.clientWidth || 300;
-    canvas.height = canvas.offsetHeight || canvas.clientHeight || 130;
+    canvas.height = canvas.offsetHeight || canvas.clientHeight || 250;
     const ctx = canvas.getContext('2d');
     ctx.strokeStyle = '#1e293b';
     ctx.lineWidth = 2;
@@ -770,7 +770,7 @@ window.abrirModalAssinaturaCondutorSinistro = async function(sinId, colabId) {
                         ${s.documento_html}
                     </div>
                 </div>
-                <div style="width:360px;background:#fff;overflow-y:auto;padding:1.5rem 1.5rem 6rem;display:flex;flex-direction:column;gap:1.25rem;border-left:1px solid #e2e8f0;flex-shrink:0;">
+                <div style="width:460px;background:#fff;overflow-y:auto;padding:1.5rem 1.5rem 6rem;display:flex;flex-direction:column;gap:1.25rem;border-left:1px solid #e2e8f0;flex-shrink:0;">
                     <div>
                         <label style="font-weight:700;font-size:0.85rem;display:block;margin-bottom:6px;">Assinatura de: <span style="color:#d97706;">${colabName}</span></label>
                         <div style="border:2px dashed #fcd34d;background:#f8fafc;border-radius:8px;">

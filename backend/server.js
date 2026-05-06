@@ -3432,10 +3432,11 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
         // Busca todos os geradores de Sinistro e acha o mais proximo ao tipo_sinistro
         const normalize = s => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, '').trim();
         const tipoNorm = normalize(sin.tipo_sinistro);
-        const todosGeradores = await new Promise((resolve) => db.all("SELECT * FROM geradores WHERE nome LIKE '%Sinistro%'", [], (e, r) => resolve(r || [])));
+        const todosGeradores = await new Promise((resolve) => db.all("SELECT * FROM geradores WHERE nome LIKE '%Sinistro%' OR nome LIKE '%sinistro%'", [], (e, r) => resolve(r || [])));
         console.log('[Sinistro] tipo_sinistro:', JSON.stringify(sin.tipo_sinistro), '| geradores disponiveis:', todosGeradores.map(g => g.nome));
         let gerador = todosGeradores.find(g => normalize(g.nome).includes(tipoNorm))
             || todosGeradores.find(g => tipoNorm.split(' ').filter(w => w.length > 3).every(w => normalize(g.nome).includes(w)))
+            || todosGeradores[0] // fallback: pega o primeiro gerador de sinistro disponível
             || null;
         console.log('[Sinistro] gerador escolhido:', gerador ? gerador.nome : 'NENHUM');
 
@@ -3642,48 +3643,70 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
         }
 
 
-        // Anexar imagens
+        // Anexar imagens e mídias ao documento
         try {
-            const onedrive = require('./utils/onedrive');
-            if (onedrive) {
-                let orcs = []; try { orcs = JSON.parse(sin.orcamentos_paths || '[]'); }catch(e){}
-                let mids = []; try { mids = JSON.parse(sin.midias_paths || '[]'); }catch(e){}
-                let anxs = [];
-                if (sin.boletim_path) anxs.push(sin.boletim_path);
-                anxs.push(...orcs, ...mids);
-                
-                if (anxs.length > 0) {
-                    let anxHtml = '<div style="page-break-before: always; margin-top: 2rem; width: 100%;"><h2 style="text-align:center; font-size: 1.2rem; margin-bottom: 1rem; color: #333;">ANEXOS DO SINISTRO</h2>';
-                    let added = false;
-                    for (let p of anxs) {
-                        if (!p) continue;
-                        const ext = (p.split('.').pop() || '').toLowerCase();
-                        if (['jpg','jpeg','png','webp','gif'].includes(ext)) {
-                            try {
-                                const dlUrl = await onedrive.getDownloadUrl(p);
-                                if (dlUrl) {
-                                    const imgRes = await fetch(dlUrl);
-                                    if (imgRes.ok) {
-                                        const arrayBuffer = await imgRes.arrayBuffer();
-                                        const b64 = Buffer.from(arrayBuffer).toString('base64');
-                                        const mime = ext === 'png' ? 'image/png' : (ext === 'webp' ? 'image/webp' : (ext === 'gif' ? 'image/gif' : 'image/jpeg'));
-                                        anxHtml += `<div style="text-align:center; margin-bottom: 2rem; width: 100%;"><img src="data:${mime};base64,${b64}" style="max-width:100%; max-height:800px; object-fit:contain; border: 1px solid #ccc; padding: 4px;" /></div>`;
-                                        added = true;
-                                    }
-                                }
-                            } catch(e) {}
-                        } else if (ext === 'pdf') {
-                            anxHtml += `<div style="text-align:center; margin-bottom: 2rem; padding: 1rem; border: 1px solid #ccc; background: #f9f9f9;"><p><strong>Anexo PDF:</strong> Este documento possui um anexo em PDF armazenado na nuvem.</p></div>`;
-                            added = true;
+            let anxsHtml = '';
+            let added = false;
+
+            // 1) Orçamentos: armazenados como paths do OneDrive (strings)
+            let orcs = []; try { orcs = JSON.parse(sin.orcamentos_paths || '[]'); } catch(e) {}
+            for (let p of orcs) {
+                if (!p || typeof p !== 'string') continue;
+                const ext = (p.split('.').pop() || '').toLowerCase().split('?')[0];
+                if (['jpg','jpeg','png','webp','gif'].includes(ext)) {
+                    try {
+                        const dlUrl = await require('./utils/onedrive').getDownloadUrl(p);
+                        if (dlUrl) {
+                            const imgRes = await fetch(dlUrl);
+                            if (imgRes.ok) {
+                                const b64 = Buffer.from(await imgRes.arrayBuffer()).toString('base64');
+                                const mime = ext === 'png' ? 'image/png' : (ext === 'webp' ? 'image/webp' : 'image/jpeg');
+                                anxsHtml += `<div style="text-align:center;margin-bottom:1.5rem;"><p style="font-size:0.8rem;color:#666;margin-bottom:4px;">Orçamento</p><img src="data:${mime};base64,${b64}" style="max-width:100%;max-height:900px;object-fit:contain;border:1px solid #ccc;"/></div>`;
+                                added = true;
+                            }
                         }
-                    }
-                    anxHtml += '</div>';
-                    if (added && htmlFinal.includes('</body>')) {
-                        htmlFinal = htmlFinal.replace('</body>', anxHtml + '</body>');
-                    }
+                    } catch(e) { console.error('[Anexo ORC OneDrive]', e.message); }
+                } else if (ext === 'pdf') {
+                    anxsHtml += `<div style="text-align:center;margin-bottom:1.5rem;padding:1rem;border:1px solid #ccc;background:#f9f9f9;"><p><strong>Orçamento (PDF):</strong> arquivo PDF anexado ao sinistro.</p></div>`;
+                    added = true;
                 }
             }
-        } catch(e) { console.error('Erro ao anexar imagens:', e); }
+
+            // 2) Mídias: armazenadas como objetos {url, tipo, nome} com URL pública do R2
+            let mids = []; try { mids = JSON.parse(sin.midias_paths || '[]'); } catch(e) {}
+            for (let m of mids) {
+                if (!m) continue;
+                const url = typeof m === 'string' ? m : m.url;
+                const tipo = typeof m === 'object' ? (m.tipo || '') : '';
+                if (!url) continue;
+                const ext = (url.split('.').pop() || '').toLowerCase().split('?')[0];
+                const isImage = tipo.startsWith('image/') || ['jpg','jpeg','png','webp','gif'].includes(ext);
+                const isVideo = tipo.startsWith('video/');
+                if (isImage) {
+                    try {
+                        const imgRes = await fetch(url);
+                        if (imgRes.ok) {
+                            const b64 = Buffer.from(await imgRes.arrayBuffer()).toString('base64');
+                            const mime = tipo || 'image/jpeg';
+                            anxsHtml += `<div style="text-align:center;margin-bottom:1.5rem;"><p style="font-size:0.8rem;color:#666;margin-bottom:4px;">Foto do dano${m.nome ? ' — ' + m.nome : ''}</p><img src="data:${mime};base64,${b64}" style="max-width:100%;max-height:900px;object-fit:contain;border:1px solid #ccc;"/></div>`;
+                            added = true;
+                        }
+                    } catch(e) { console.error('[Anexo MIDIA R2]', e.message); }
+                } else if (isVideo) {
+                    anxsHtml += `<div style="text-align:center;margin-bottom:1.5rem;padding:1rem;border:1px solid #ccc;background:#f9f9f9;"><p><strong>Vídeo do dano${m.nome ? ' — ' + m.nome : ''}:</strong> disponível em <a href="${url}" target="_blank">${url}</a></p></div>`;
+                    added = true;
+                }
+            }
+
+            if (added) {
+                const sectionHtml = `<div style="page-break-before:always;margin-top:2rem;padding:1rem 2rem;"><h2 style="text-align:center;font-size:1.1rem;margin-bottom:1.5rem;color:#333;border-bottom:2px solid #333;padding-bottom:0.5rem;">ANEXOS DO SINISTRO</h2>${anxsHtml}</div>`;
+                if (htmlFinal.includes('</body>')) {
+                    htmlFinal = htmlFinal.replace('</body>', sectionHtml + '</body>');
+                } else {
+                    htmlFinal += sectionHtml;
+                }
+            }
+        } catch(e) { console.error('[Anexar imagens sinistro]', e.message); }
 
         // Salvar HTML
         db.run('UPDATE sinistros SET documento_html = ? WHERE id = ?', [htmlFinal, sin.id]);
