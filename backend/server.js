@@ -5118,18 +5118,25 @@ app.post('/api/admissao-assinaturas/enviar-lote', authenticateToken, async (req,
         );
 
         // Se já existe com assinafy_id (já enviado para Assinafy), NÃO re-enviar
-        if (existente && existente.assinafy_id && ['Pendente', 'Aguardando', 'Assinado'].includes(existente.assinafy_status)) {
+        // EXCEÇÃO: se está como 'Assinado' mas sem signed_file_path, é falso positivo → permite reenvio
+        const estaAssinadoSemPdf = existente?.assinafy_status === 'Assinado' && !existente?.signed_file_path;
+        if (existente && existente.assinafy_id && ['Pendente', 'Aguardando', 'Assinado'].includes(existente.assinafy_status) && !estaAssinadoSemPdf) {
             console.log(`[ADMISSAO-DEDUP] Documento "${gerador.nome}" já foi enviado (status: ${existente.assinafy_status}). Pulando.`);
             return { id: geradorId, nome: gerador.nome, ok: true, jaEnviado: true, url: existente.assinafy_url };
         }
+        if (estaAssinadoSemPdf) {
+            console.log(`[ADMISSAO-DEDUP] Documento "${gerador.nome}" está como Assinado mas sem PDF (falso positivo). Permitindo reenvio.`);
+        }
 
         const existenteDoc = await new Promise((resolve, reject) =>
-            db.get(`SELECT id, assinafy_status, assinafy_id FROM documentos WHERE colaborador_id = ? AND document_type = ? AND tab_name = 'CONTRATOS' ORDER BY id DESC LIMIT 1`,
+            db.get(`SELECT id, assinafy_status, assinafy_id, signed_file_path FROM documentos WHERE colaborador_id = ? AND document_type = ? AND tab_name = 'CONTRATOS' ORDER BY id DESC LIMIT 1`,
                 [colaborador_id, gerador.nome], (err, row) => err ? reject(err) : resolve(row))
         );
 
         // Se doc já tem assinafy_id ativo, não duplicar
-        if (existenteDoc && existenteDoc.assinafy_id && ['Pendente', 'Aguardando', 'Assinado'].includes(existenteDoc.assinafy_status)) {
+        // EXCEÇÃO: falso positivo (Assinado sem PDF real) → permite reenvio
+        const docEstaAssinadoSemPdf = existenteDoc?.assinafy_status === 'Assinado' && !existenteDoc?.signed_file_path;
+        if (existenteDoc && existenteDoc.assinafy_id && ['Pendente', 'Aguardando', 'Assinado'].includes(existenteDoc.assinafy_status) && !docEstaAssinadoSemPdf) {
             console.log(`[ADMISSAO-DEDUP] Doc "${gerador.nome}" já tem assinafy_id no banco. Pulando.`);
             return { id: geradorId, nome: gerador.nome, ok: true, jaEnviado: true };
         }
