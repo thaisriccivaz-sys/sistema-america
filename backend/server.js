@@ -792,7 +792,7 @@ const BASE_UPLOAD_PATH = BASE_PATH; // Mantendo compatibilidade
 
 // Configuração Assinafy (Preencha aqui com sua chave de API e Account ID)
 const ASSINAFY_CONFIG = {
-    apiKey: 'AxaT-FiXBckHqEYV0s_MtUhLF3pReRz3dX4zVpC173vmjDwzLGHYtDJuQje4-4Pd',
+    apiKey: 'tiDa93XjarKXAj2eBfxlVPJHHz2F2OV7PUgGoa_sO7sCOVbCU3P2gi7dRgxOrXGM',
     accountId: '10237785fb23cf473d54845a013e',
     baseUrl: 'https://api.assinafy.com.br/v1'
 };
