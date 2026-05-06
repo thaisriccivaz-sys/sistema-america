@@ -114,22 +114,19 @@ window._renderSinistroCard = function(s, colabId, container) {
         } catch(e) {}
     }
 
-    let midiasHtml = '';
+    let midiasLinks = '';
     if (s.midias_paths) {
         try {
             const midias = JSON.parse(s.midias_paths);
             if (Array.isArray(midias) && midias.length > 0) {
-                midiasHtml = '<div style="margin-top:8px; display:flex; flex-wrap:wrap; gap:8px;">';
-                midias.forEach(m => {
-                    if (m.tipo.startsWith('image/')) {
-                        midiasHtml += `<a href="${m.url}" target="_blank" style="display:block; width:80px; height:80px; border-radius:8px; overflow:hidden; border:1px solid #cbd5e1;"><img src="${m.url}" style="width:100%; height:100%; object-fit:cover;"></a>`;
-                    } else if (m.tipo.startsWith('video/')) {
-                        midiasHtml += `<a href="${m.url}" target="_blank" style="display:flex; align-items:center; justify-content:center; width:80px; height:80px; border-radius:8px; background:#1e293b; color:#fff; font-size:2rem;"><i class="ph ph-play-circle"></i></a>`;
-                    } else {
-                        midiasHtml += `<a href="${m.url}" target="_blank" style="display:flex; align-items:center; justify-content:center; width:80px; height:80px; border-radius:8px; background:#f1f5f9; color:#475569; font-size:2rem;"><i class="ph ph-file"></i></a>`;
-                    }
-                });
-                midiasHtml += '</div>';
+                midiasLinks = midias.map((m, idx) => {
+                    const isVideo = m.tipo && m.tipo.startsWith('video/');
+                    const texto = isVideo ? `Vídeo do dano ${idx + 1}` : `Foto do dano ${idx + 1}`;
+                    const icone = 'ph-paperclip';
+                    return `<a href="${m.url}" target="_blank" style="display:inline-flex; align-items:center; gap:4px; font-size:0.8rem; color:#0369a1; background:#f0f9ff; padding:4px 8px; border-radius:4px; text-decoration:none; margin-right:4px;">
+                        <i class="ph ${icone}"></i> ${texto}
+                    </a>`;
+                }).join('');
             }
         } catch(e) {}
     }
@@ -167,7 +164,7 @@ window._renderSinistroCard = function(s, colabId, container) {
                     <p style="margin:0 0 6px 0;"><strong>Anexos:</strong></p>
                     ${s.boletim_path ? `<a href="javascript:void(0)" onclick="window.abrirArquivoOneDrive('${s.boletim_path}')" style="display:inline-flex; align-items:center; gap:4px; font-size:0.8rem; color:#d97706; background:#fef3c7; padding:4px 8px; border-radius:4px; text-decoration:none; margin-bottom:6px;"><i class="ph ph-file-pdf"></i> Visualizar Boletim de Ocorrência</a><br/>` : ''}
                     ${orcamentosLinks}
-                    ${midiasHtml}
+                    ${midiasLinks}
                 </div>
             </div>
         </div>
