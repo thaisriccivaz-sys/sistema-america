@@ -3512,10 +3512,10 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
         }
 
         // Substituições via placeholders {{}} ou {} (gerador padrão)
-        htmlFinal = htmlFinal.replace(/\{NOME_COMPLETO\}|\{NOME_COLABORADOR\}|\{COLABORADOR\}/gi, colabNome);
-        htmlFinal = htmlFinal.replace(/\{CPF\}/gi, colab.cpf || '');
-        htmlFinal = htmlFinal.replace(/\{RG\}/gi, colab.rg || '');
-        htmlFinal = htmlFinal.replace(/\{CARGO\}|\{FUNCAO\}/gi, colab.cargo || colab.funcao || '');
+        htmlFinal = htmlFinal.replace(/\{NOME_COMPLETO\}|\{NOME_COLABORADOR\}|\{COLABORADOR\}|\{\{NOME_COMPLETO\}\}|\{\{COLABORADOR\}\}/gi, colabNome);
+        htmlFinal = htmlFinal.replace(/\{CPF\}|\{\{CPF\}\}/gi, colab.cpf || '');
+        htmlFinal = htmlFinal.replace(/\{RG\}|\{\{RG\}\}/gi, colab.rg || '');
+        htmlFinal = htmlFinal.replace(/\{CARGO\}|\{FUNCAO\}|\{\{CARGO\}\}|\{\{FUNCAO\}\}/gi, colab.cargo || colab.funcao || '');
         htmlFinal = htmlFinal.replace(/\{SINISTRO_BO\}|\{BO_NUMERO\}|\{NUMERO_BO\}/gi, sin.numero_boletim || '');
         htmlFinal = htmlFinal.replace(/\{SINISTRO_DATA\}|\{DATA_BO\}|\{DATA_OCORRENCIA\}/gi, sin.data_hora || '');
         htmlFinal = htmlFinal.replace(/\{SINISTRO_NATUREZA\}|\{NATUREZA\}/gi, sin.natureza || '');
@@ -3526,6 +3526,16 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
         htmlFinal = htmlFinal.replace(/\{VALOR_TOTAL\}|\{VALOR_DANO\}/gi, sin.desconto_valor || sin.valor_parcela || '');
         htmlFinal = htmlFinal.replace(/\{SINISTRO_TIPO\}|\{TIPO_SINISTRO\}/gi, sin.tipo_sinistro || '');
         htmlFinal = htmlFinal.replace(/\{SINISTRO_CONDICOES\}|\{DESCRICAO_DESCONTO\}/gi, `${sin.parcelas || 1}x de ${sin.valor_parcela || ''}`);
+        // Substituições com chaves duplas (padrão {{CAMPO}})
+        const dataAtualFmt = new Date().toLocaleDateString('pt-BR');
+        htmlFinal = htmlFinal.replace(/\{\{DATA_ATUAL\}\}/gi, dataAtualFmt);
+        htmlFinal = htmlFinal.replace(/\{\{DATA_OCORRENCIA\}\}/gi, sin.data_hora || '');
+        htmlFinal = htmlFinal.replace(/\{\{BO_NUMERO\}\}|\{\{NUMERO_BO\}\}/gi, sin.numero_boletim || '');
+        htmlFinal = htmlFinal.replace(/\{\{SINISTRO_TIPO\}\}|\{\{TIPO_SINISTRO\}\}/gi, sin.tipo_sinistro || '');
+        htmlFinal = htmlFinal.replace(/\{\{PLACA\}\}/gi, sin.placa || '');
+        htmlFinal = htmlFinal.replace(/\{\{VEICULO\}\}|\{\{MARCA_MODELO\}\}/gi, sin.veiculo || '');
+        htmlFinal = htmlFinal.replace(/\{\{VALOR_PARCELA\}\}/gi, sin.valor_parcela || '');
+        htmlFinal = htmlFinal.replace(/\{\{QTDE_PARCELAS\}\}/gi, String(sin.parcelas || 1));
 
         // ===== SUBSTITUIÇÃO INTELIGENTE DE CAMPOS BLANK NO HTML =====
         // Separa data e hora da string "DD/MM/YYYY às HH:MM"
@@ -3716,11 +3726,15 @@ async function salvarPDFSinistroNoOneDrive(colaboradorId, sinistroId, htmlDoc, n
 app.post('/api/colaboradores/:id/sinistros/:sinistroId/assinar-testemunhas', authenticateToken, async (req, res) => {
     try {
         const { id, sinistroId } = req.params;
-        const { t1_nome, t1_base64, t2_nome, t2_base64, html_atualizado } = req.body;
+        const { t1_nome, t1_base64, t2_nome, t2_base64, html_atualizado, finalizar_sem_condutor } = req.body;
+
+        const novoStatus = finalizar_sem_condutor ? 'assinado_testemunhas' : undefined;
 
         await new Promise((resolve, reject) =>
             db.run(`UPDATE sinistros SET assinatura_testemunha1_nome=?, assinatura_testemunha1_base64=?, 
-                    assinatura_testemunha2_nome=?, assinatura_testemunha2_base64=?, documento_html=? WHERE id=?`,
+                    assinatura_testemunha2_nome=?, assinatura_testemunha2_base64=?, documento_html=?
+                    ${novoStatus ? ", status='assinado_testemunhas'" : ''}
+                    WHERE id=?`,
                 [t1_nome, t1_base64, t2_nome, t2_base64, html_atualizado, sinistroId],
                 err => err ? reject(err) : resolve())
         );

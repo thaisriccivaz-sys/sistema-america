@@ -367,7 +367,9 @@ window.logSinProcessarLeituraBO = async function() {
 
         document.getElementById('log-sin-bo').value = boletimData.boletim || '';
         document.getElementById('log-sin-data').value = boletimData.data_hora || '';
-        document.getElementById('log-sin-natureza').value = boletimData.natureza || '';
+        // Limpa "Crime Consumado..." da natureza antes de preencher
+        const naturezaLimpa = (boletimData.natureza || '').replace(/Crime\s+Consumado[^\-]*\-?\s*/gi, '').trim();
+        document.getElementById('log-sin-natureza').value = naturezaLimpa;
         document.getElementById('log-sin-veiculo').value = boletimData.marca_modelo || '';
         document.getElementById('log-sin-placa').value = boletimData.placa || '';
 

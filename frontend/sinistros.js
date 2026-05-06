@@ -60,10 +60,15 @@ window._renderSinistroCard = function(s, colabId, container) {
     card.style = 'background:#fff; border-radius:12px; border:1px solid #e2e8f0; padding:1.25rem; box-shadow:0 1px 3px rgba(0,0,0,0.05); display:flex; flex-direction:column; gap:1rem;';
 
     const statusMap = {
-        'pendente': { text: 'Aguardando Assinaturas', color: '#f59e0b', bg: '#fef3c7' },
-        'assinado': { text: 'Finalizado e Assinado', color: '#10b981', bg: '#d1fae5' }
+        'pendente':             { text: 'Aguardando Assinaturas',         color: '#f59e0b', bg: '#fef3c7' },
+        'assinado_testemunhas': { text: 'Assinado pelas Testemunhas',       color: '#8b5cf6', bg: '#ede9fe' },
+        'assinado':             { text: 'Finalizado e Assinado',            color: '#10b981', bg: '#d1fae5' }
     };
     const st = statusMap[s.status] || { text: s.status, color: '#64748b', bg: '#f1f5f9' };
+
+    const testemunhasOk = s.assinatura_testemunha1_base64;
+    const condutorOk    = s.assinatura_condutor_base64;
+    const bloqueado     = !!(testemunhasOk); // após testemunhas, não editar
 
     let signStatus = '';
     if (s.processo_iniciado && s.status !== 'assinado') {
@@ -71,7 +76,7 @@ window._renderSinistroCard = function(s, colabId, container) {
         const condOk = s.assinatura_condutor_base64;
         signStatus = `
             <div style="display:flex; gap:0.5rem; margin-top:0.5rem;">
-                <span style="font-size:0.75rem; padding:2px 8px; border-radius:4px; ${testOk ? 'background:#dcfce7; color:#166534;' : 'background:#fee2e2; color:#b91c1c;'}"><i class="ph ${testOk ? 'ph-check' : 'ph-x'}"></i> Testemunhas</span>
+                <span style="font-size:0.75rem; padding:2px 8px; border-radius:4px; ${testemunhasOk ? 'background:#dcfce7; color:#166534;' : 'background:#fee2e2; color:#b91c1c;'}"><i class="ph ${testemunhasOk ? 'ph-check' : 'ph-x'}"></i> Testemunhas</span>
                 <span style="font-size:0.75rem; padding:2px 8px; border-radius:4px; ${condOk ? 'background:#dcfce7; color:#166534;' : 'background:#fee2e2; color:#b91c1c;'}"><i class="ph ${condOk ? 'ph-check' : 'ph-x'}"></i> Condutor</span>
             </div>
         `;
@@ -82,6 +87,11 @@ window._renderSinistroCard = function(s, colabId, container) {
     let actionsHtml = '';
     if (s.status === 'assinado') {
         actionsHtml = `<button class="btn btn-sm" onclick="window.verDocumentoSinistro(${s.id}, ${colabId})" style="color:#0284c7; background:#e0f2fe; border:none;"><i class="ph ph-eye"></i> Ver Documento</button>`;
+    } else if (s.status === 'assinado_testemunhas') {
+        // Aguardando apenas assinatura do condutor
+        actionsHtml = `<div style="display:flex;gap:0.5rem;flex-wrap:wrap;">`;
+        if (isRH) actionsHtml += `<button class="btn btn-sm" onclick="window.abrirFinalizarSinistro(${s.id}, ${colabId})" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border:none;font-weight:600;"><i class="ph ph-flag-checkered"></i> Assinar Condutor</button>`;
+        actionsHtml += `<button class="btn btn-sm" onclick="window.verDocumentoSinistro(${s.id}, ${colabId})" style="color:#64748b;background:#f1f5f9;border:none;"><i class="ph ph-eye"></i> Preview</button></div>`;
     } else if (!s.processo_iniciado || !s.documento_html) {
         if (s.desconto === 'Não') {
             actionsHtml = `<div style="display:flex;gap:0.5rem;width:100%;justify-content:space-between;align-items:center;"><span style="font-size:0.85rem; color:#64748b;"><i class="ph ph-check-circle"></i> Apenas Registro (BO Anexado)</span> <button class="btn btn-sm btn-outline-danger" onclick="window.excluirSinistro(${s.id}, ${colabId})" style="color:#ef4444; border:1px solid #ef4444; background:transparent;"><i class="ph ph-trash"></i> Excluir</button></div>`;
@@ -90,21 +100,20 @@ window._renderSinistroCard = function(s, colabId, container) {
             if (isRH) {
                 actionsHtml += `<button class="btn btn-sm" onclick="window.abrirFinalizarSinistro(${s.id}, ${colabId})" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border:none;font-weight:600;"><i class="ph ph-flag-checkered"></i> Finalizar Sinistro</button>`;
             }
-            actionsHtml += `<button class="btn btn-sm" onclick="window.gerarDocumentoSinistro(${s.id}, ${colabId})" style="color:#0284c7; background:#e0f2fe; border:none;"><i class="ph ph-file-text"></i> Gerar Documento</button> <button class="btn btn-sm btn-outline-danger" onclick="window.excluirSinistro(${s.id}, ${colabId})" style="color:#ef4444; border:1px solid #ef4444; background:transparent;"><i class="ph ph-trash"></i> Excluir</button>`;
+            actionsHtml += `<button class="btn btn-sm" onclick="window.gerarDocumentoSinistro(${s.id}, ${colabId})" style="color:#0284c7; background:#e0f2fe; border:none;"><i class="ph ph-file-text"></i> Gerar Documento</button>`;
+            if (!bloqueado) actionsHtml += ` <button class="btn btn-sm btn-outline-danger" onclick="window.excluirSinistro(${s.id}, ${colabId})" style="color:#ef4444; border:1px solid #ef4444; background:transparent;"><i class="ph ph-trash"></i> Excluir</button>`;
             actionsHtml += `</div>`;
         }
     } else {
-        const testOk = s.assinatura_testemunha1_base64 && s.assinatura_testemunha2_base64;
-        const condOk = s.assinatura_condutor_base64;
         actionsHtml = `<div style="display:flex; gap:0.5rem; flex-wrap:wrap;">`;
-        if (isRH && !condOk) {
+        if (isRH && !condutorOk) {
             actionsHtml += `<button class="btn btn-sm" onclick="window.abrirFinalizarSinistro(${s.id}, ${colabId})" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border:none;font-weight:600;padding:6px 14px;"><i class="ph ph-flag-checkered"></i> Finalizar Sinistro</button>`;
         }
-        if (!testOk) {
+        if (!testemunhasOk) {
             actionsHtml += `<button class="btn btn-sm btn-primary" onclick="window.abrirModalAssinaturaTestemunhasSinistro(${s.id}, ${colabId})" style="background:#a78bfa; border:none;"><i class="ph ph-pen"></i> Assinar Testemunhas</button>`;
         }
         actionsHtml += `<button class="btn btn-sm" onclick="window.verDocumentoSinistro(${s.id}, ${colabId})" style="color:#64748b; background:#f1f5f9; border:none;"><i class="ph ph-eye"></i> Preview</button>`;
-        actionsHtml += `<button class="btn btn-sm btn-outline-danger" onclick="window.excluirSinistro(${s.id}, ${colabId})" style="color:#ef4444; border:1px solid #ef4444; background:transparent; margin-left: auto;"><i class="ph ph-trash"></i> Excluir</button>`;
+        if (!bloqueado) actionsHtml += `<button class="btn btn-sm btn-outline-danger" onclick="window.excluirSinistro(${s.id}, ${colabId})" style="color:#ef4444; border:1px solid #ef4444; background:transparent; margin-left: auto;"><i class="ph ph-trash"></i> Excluir</button>`;
         actionsHtml += `</div>`;
     }
 
@@ -143,6 +152,8 @@ window._renderSinistroCard = function(s, colabId, container) {
     const aberturaTxt = s.usuario_abertura ? `Aberto por: <b>${s.usuario_abertura}</b>` : 'Aberto via Sistema';
     const dataCriacao = s.created_at ? new Date(s.created_at).toLocaleString('pt-BR') : '—';
     const assinCondutorTxt = s.data_assinatura_condutor ? `Assinado em: ${new Date(s.data_assinatura_condutor).toLocaleString('pt-BR')}` : 'Não assinado';
+    // Limpa prefixo "Crime Consumado..." da natureza para exibição
+    const naturezaDisplay = (s.natureza || '').replace(/Crime\s+Consumado[^\-]*\-?\s*/gi, '').trim() || s.natureza || '—';
 
     card.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:flex-start;">
@@ -153,7 +164,7 @@ window._renderSinistroCard = function(s, colabId, container) {
                 </button>
                 <div>
                     <h5 style="margin:0; font-size:1.1rem; color:#0f172a; font-weight:700;"><i class="ph ph-file-text" style="color:#d97706;"></i> BO: ${s.numero_boletim || 'N/A'}</h5>
-                    <p style="margin:4px 0 0; font-size:0.85rem; color:#64748b;"><i class="ph ph-calendar"></i> Ocorrido: ${s.data_hora || '—'} &nbsp;|&nbsp; ${s.natureza || 'Sem Natureza'}</p>
+                    <p style="margin:4px 0 0; font-size:0.85rem; color:#64748b;"><i class="ph ph-calendar"></i> Ocorrido: ${s.data_hora || '—'} &nbsp;|&nbsp; ${naturezaDisplay}</p>
                     <p style="margin:4px 0 0; font-size:0.85rem; color:#64748b;">${s.veiculo || '—'} &nbsp;|&nbsp; Placa: ${s.placa || '—'}</p>
                     ${signStatus}
                 </div>
@@ -613,8 +624,11 @@ window.abrirModalAssinaturaTestemunhasSinistro = async function(sinId, colabId) 
                             <canvas id="sin-canvas-t2" style="width:100%;height:130px;cursor:crosshair;display:block;"></canvas>
                         </div>
                     </div>
-                    <button type="button" id="btn-conf-t-sin" onclick="window.salvarAssinaturaTestemunhasSinistro(${sinId}, ${colabId})" style="padding:0.85rem;background:#2563eb;color:#fff;border:none;border-radius:10px;font-weight:700;font-size:1rem;cursor:pointer;">
+                    <button type="button" id="btn-conf-t-sin" onclick="window.salvarAssinaturaTestemunhasSinistro(${sinId}, ${colabId}, false)" style="padding:0.85rem;background:#2563eb;color:#fff;border:none;border-radius:10px;font-weight:700;font-size:1rem;cursor:pointer;">
                         <i class="ph ph-check"></i> Salvar Assinaturas
+                    </button>
+                    <button type="button" onclick="window.salvarAssinaturaTestemunhasSinistro(${sinId}, ${colabId}, true)" style="padding:0.75rem;background:#7c3aed;color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.9rem;cursor:pointer;margin-top:4px;">
+                        <i class="ph ph-flag-checkered"></i> Finalizar (sem assinatura do condutor)
                     </button>
                 </div>
             </div>
@@ -671,7 +685,7 @@ window._sinCanvasTemConteudo = function(canvasId) {
     return false;
 };
 
-window.salvarAssinaturaTestemunhasSinistro = async function(sinId, colabId) {
+window.salvarAssinaturaTestemunhasSinistro = async function(sinId, colabId, finalizarSemCondutor = false) {
     const t1Nome = document.getElementById('sin-t1-nome').value;
     const t2Nome = document.getElementById('sin-t2-nome')?.value || '';
     const c1 = document.getElementById('sin-canvas-t1');
@@ -709,13 +723,14 @@ window.salvarAssinaturaTestemunhasSinistro = async function(sinId, colabId) {
         const res = await fetch(`${API_URL}/colaboradores/${colabId}/sinistros/${sinId}/assinar-testemunhas`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` },
-            body: JSON.stringify({ t1_nome: t1Nome, t1_base64: t1Ass, t2_nome: t2Nome || null, t2_base64: t2Ass, html_atualizado: docHtml })
+            body: JSON.stringify({ t1_nome: t1Nome, t1_base64: t1Ass, t2_nome: t2Nome || null, t2_base64: t2Ass, html_atualizado: docHtml, finalizar_sem_condutor: finalizarSemCondutor })
         });
         const data = await res.json();
         if (!data.sucesso) throw new Error(data.error);
 
         document.getElementById('modal-testemunhas-sinistro').remove();
-        if (typeof Toastify !== 'undefined') Toastify({ text: 'Testemunhas assinadas!', backgroundColor: '#059669' }).showToast();
+        const msg = finalizarSemCondutor ? 'Sinistro finalizado pelas testemunhas!' : 'Testemunhas assinadas!';
+        if (typeof Toastify !== 'undefined') Toastify({ text: msg, backgroundColor: '#059669' }).showToast();
         await window._recarregarListaSinistros(colabId);
     } catch(e) {
         alert('Erro: ' + e.message);
