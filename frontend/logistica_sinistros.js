@@ -175,7 +175,7 @@ window._logSinRenderCardGeral = function(s, container) {
         
         <div style="background:#f8fafc; border-top:1px dashed #cbd5e1; padding-top:0.75rem; display:flex; justify-content:space-between; align-items:center; margin-top:0.5rem;">
             <div style="font-size:0.8rem; color:#475569;">
-                ${s.processo_iniciado ? `<strong>Desconto:</strong> ${s.desconto === 'Sim' ? 'Sim (' + (s.parcelas || 1) + 'x)' : 'Não'}<br/>` : ''}
+                ${(s.processo_iniciado && (s.valor_total || s.documento_html || s.status !== 'pendente')) ? `<strong>Desconto:</strong> ${s.desconto === 'Sim' ? 'Sim (' + (s.parcelas || 1) + 'x)' : 'Não'}<br/>` : ''}
                 ${s.tipo_sinistro ? `<strong>Tipo:</strong> ${s.tipo_sinistro}` : ''}
             </div>
         </div>

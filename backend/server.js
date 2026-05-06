@@ -3320,7 +3320,7 @@ app.post('/api/colaboradores/:id/sinistros', authenticateToken, multerUploadMemo
         const usuarioAbertura = req.user ? (req.user.nome || req.user.username) : 'Sistema';
 
         db.run(stmt, [id, body.numero_boletim, body.data_hora, body.natureza, body.placa, body.veiculo,
-            body.desconto, body.parcelas || 1, body.valor_parcela, body.tipo_sinistro, docOnedrivePath, body.desconto === 'Sim' ? 1 : 0, usuarioAbertura],
+            body.desconto, body.parcelas || null, body.valor_parcela, body.tipo_sinistro, docOnedrivePath, 0, usuarioAbertura],
             async function (err) {
                 if (err) return res.status(500).json({ error: err.message });
                 const sinId = this.lastID;

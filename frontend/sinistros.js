@@ -87,12 +87,13 @@ window._renderSinistroCard = function(s, colabId, container) {
         `;
     }
 
-    let userCache = {};
-    try { userCache = JSON.parse(localStorage.getItem('erp_user')) || {}; } catch(e) {}
-    const userRef = typeof currentUser !== 'undefined' && currentUser ? currentUser : (window.currentUser || userCache);
-    const r = userRef?.role?.toLowerCase() || '';
-    const p = userRef?.perfil?.toLowerCase() || '';
-    const isRH = ['rh', 'admin', 'administrador', 'diretoria'].includes(r) || ['rh', 'admin', 'administrador', 'diretoria'].includes(p);
+    let isRH = false;
+    try {
+        const u = JSON.parse(localStorage.getItem('erp_user')) || {};
+        const r = (u.role || '').toLowerCase();
+        const p = (u.perfil || '').toLowerCase();
+        isRH = ['rh', 'admin', 'administrador', 'diretoria'].includes(r) || ['rh', 'admin', 'administrador', 'diretoria'].includes(p);
+    } catch(e) {}
 
     let actionsHtml = '';
     if (s.status === 'assinado') {
@@ -187,7 +188,7 @@ window._renderSinistroCard = function(s, colabId, container) {
 
         <div style="background:#f8fafc; border-top:1px dashed #cbd5e1; padding-top:0.75rem; display:flex; justify-content:space-between; align-items:center; margin-top:0.5rem;">
             <div style="font-size:0.8rem; color:#475569;">
-                ${s.processo_iniciado ? `<strong>Desconto:</strong> ${s.desconto === 'Sim' ? 'Sim (' + (s.parcelas || 1) + 'x de ' + (s.valor_parcela || 'R$ 0,00') + ')' : 'Não'}<br/>` : ''}
+                ${(s.processo_iniciado && (s.valor_total || s.documento_html || s.status !== 'pendente')) ? `<strong>Desconto:</strong> ${s.desconto === 'Sim' ? 'Sim (' + (s.parcelas || 1) + 'x de ' + (s.valor_parcela || 'R$ 0,00') + ')' : 'Não'}<br/>` : ''}
                 ${s.tipo_sinistro ? `<strong>Tipo:</strong> ${s.tipo_sinistro}` : ''}
             </div>
             ${actionsHtml}
