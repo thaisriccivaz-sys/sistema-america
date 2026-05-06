@@ -1003,14 +1003,14 @@ app.get('/api/admin/auditar-assinaturas', authenticateToken, (req, res) => {
                d.assinafy_id, d.assinafy_status, d.signed_file_path, d.assinafy_signed_at as data_status
         FROM documentos d
         JOIN colaboradores c ON c.id = d.colaborador_id
-        WHERE d.assinafy_status = 'Assinado' AND (d.signed_file_path IS NULL OR d.signed_file_path = '' OR d.signed_file_path = 'null') AND d.assinafy_id IS NOT NULL
+        WHERE d.assinafy_status = 'Assinado' AND d.assinafy_id IS NOT NULL
         ${whereColab}
         UNION ALL
         SELECT 'admissao_assinaturas' as tabela, aa.id, c.nome_completo, aa.nome_documento,
                aa.assinafy_id, aa.assinafy_status, aa.signed_file_path, aa.assinado_em as data_status
         FROM admissao_assinaturas aa
         JOIN colaboradores c ON c.id = aa.colaborador_id
-        WHERE aa.assinafy_status = 'Assinado' AND (aa.signed_file_path IS NULL OR aa.signed_file_path = '' OR aa.signed_file_path = 'null') AND aa.assinafy_id IS NOT NULL
+        WHERE aa.assinafy_status = 'Assinado' AND aa.assinafy_id IS NOT NULL
         ${whereColab}
         ORDER BY nome_completo, nome_documento
     `, params.length === 1 ? [...params, ...params] : params, (err, rows) => {
@@ -1032,7 +1032,7 @@ app.post('/api/admin/resetar-assinatura-falsa', authenticateToken, async (req, r
             // Tabela documentos
             const docsFP = await new Promise((resolve, reject) =>
                 db.all(`SELECT id, document_type as nome FROM documentos
-                        WHERE colaborador_id = ? AND assinafy_status = 'Assinado' AND (signed_file_path IS NULL OR signed_file_path = '' OR signed_file_path = 'null') AND assinafy_id IS NOT NULL`,
+                        WHERE colaborador_id = ? AND assinafy_status = 'Assinado' AND assinafy_id IS NOT NULL`,
                     [colaborador_id], (err, rows) => err ? reject(err) : resolve(rows))
             );
             for (const d of docsFP) {
@@ -1046,7 +1046,7 @@ app.post('/api/admin/resetar-assinatura-falsa', authenticateToken, async (req, r
             // Tabela admissao_assinaturas
             const admFP = await new Promise((resolve, reject) =>
                 db.all(`SELECT id, nome_documento as nome FROM admissao_assinaturas
-                        WHERE colaborador_id = ? AND assinafy_status = 'Assinado' AND (signed_file_path IS NULL OR signed_file_path = '' OR signed_file_path = 'null') AND assinafy_id IS NOT NULL`,
+                        WHERE colaborador_id = ? AND assinafy_status = 'Assinado' AND assinafy_id IS NOT NULL`,
                     [colaborador_id], (err, rows) => err ? reject(err) : resolve(rows))
             );
             for (const d of admFP) {
@@ -1065,12 +1065,12 @@ app.post('/api/admin/resetar-assinatura-falsa', authenticateToken, async (req, r
 
             if (tabela === 'documentos') {
                 await new Promise((resolve, reject) =>
-                    db.run(`UPDATE documentos SET assinafy_status = 'Aguardando', signed_file_path = NULL, assinafy_signed_at = NULL WHERE id = ? AND assinafy_status = 'Assinado' AND (signed_file_path IS NULL OR signed_file_path = '' OR signed_file_path = 'null')`,
+                    db.run(`UPDATE documentos SET assinafy_status = 'Aguardando', signed_file_path = NULL, assinafy_signed_at = NULL WHERE id = ? AND assinafy_status = 'Assinado'`,
                         [doc_id], err => err ? reject(err) : resolve())
                 );
             } else {
                 await new Promise((resolve, reject) =>
-                    db.run(`UPDATE admissao_assinaturas SET assinafy_status = 'Aguardando', signed_file_path = NULL, assinado_em = NULL WHERE id = ? AND assinafy_status = 'Assinado' AND (signed_file_path IS NULL OR signed_file_path = '' OR signed_file_path = 'null')`,
+                    db.run(`UPDATE admissao_assinaturas SET assinafy_status = 'Aguardando', signed_file_path = NULL, assinado_em = NULL WHERE id = ? AND assinafy_status = 'Assinado'`,
                         [doc_id], err => err ? reject(err) : resolve())
                 );
             }
