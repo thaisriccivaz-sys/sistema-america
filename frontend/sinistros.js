@@ -1,4 +1,4 @@
-﻿// ABA SINISTROS - PROCESSOS DE BOLETINS DE OCORRÊNCIA
+// ABA SINISTROS - PROCESSOS DE BOLETINS DE OCORRÊNCIA
 // Segue o padrão de renderMultasMotoristaTab em app.js
 
 window._recarregarListaSinistros = async function(colabId) {
@@ -82,7 +82,9 @@ window._renderSinistroCard = function(s, colabId, container) {
         `;
     }
 
-    const isRH = window.currentUser && (window.currentUser.role === 'rh' || window.currentUser.role === 'admin' || window.currentUser.role === 'diretoria' || window.currentUser.perfil === 'rh' || window.currentUser.perfil === 'admin' || window.currentUser.perfil === 'diretoria');
+    const r = window.currentUser?.role?.toLowerCase() || '';
+    const p = window.currentUser?.perfil?.toLowerCase() || '';
+    const isRH = ['rh', 'admin', 'administrador', 'diretoria'].includes(r) || ['rh', 'admin', 'administrador', 'diretoria'].includes(p);
 
     let actionsHtml = '';
     if (s.status === 'assinado') {

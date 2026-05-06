@@ -242,13 +242,7 @@ window.logSinAbrirModalNovo = function() {
 
                         <hr style="border-color:#e2e8f0; margin:1.25rem 0;"/>
 
-                        <p style="font-weight:600; color:#1e293b; margin-bottom:0.75rem;"><i class="ph ph-question"></i> Vai ser necessário realizar algum desconto?</p>
-                        <div style="display:flex; gap:1.5rem; margin-bottom:1rem;">
-                            <label style="cursor:pointer;"><input type="radio" name="log-sin-desconto" value="Sim" onclick="window.toggleLogSinistroDesconto(true)"> Sim</label>
-                            <label style="cursor:pointer;"><input type="radio" name="log-sin-desconto" value="Não" checked onclick="window.toggleLogSinistroDesconto(false)"> Não</label>
-                        </div>
-
-                        <div id="area-log-sinistro-desconto" style="display:none; background:#fff3cd; padding:0.85rem 1rem; border-radius:8px; border:1px solid #fcd34d; margin-bottom:1rem;">
+                        <div id="area-log-sinistro-desconto" style="background:#fff3cd; padding:0.85rem 1rem; border-radius:8px; border:1px solid #fcd34d; margin-bottom:1rem;">
                             <p style="margin:0; font-size:0.85rem; color:#92400e;">
                                 <i class="ph ph-info"></i> O valor, tipo e parcelamento do desconto serão definidos pelo <strong>RH</strong> ao finalizar o sinistro.
                             </p>
@@ -412,7 +406,8 @@ window.logSinSalvarFinal = async function() {
     const fileBO = document.getElementById('log-sinistro-file-bo').files[0];
     if (!fileBO) return alert('O arquivo do BO não foi encontrado. Volte ao passo anterior.');
 
-    const desconto = document.querySelector('input[name="log-sin-desconto"]:checked').value;
+    const temDesconto = 'Sim'; // Sempre passamos Sim para o RH avaliar
+    const parcelas = temDesconto === 'Sim' ? (document.getElementById('log-sin-parcelas')?.value || 1) : null;
 
     const formData = new FormData();
     formData.append('arquivo', fileBO);
@@ -421,7 +416,7 @@ window.logSinSalvarFinal = async function() {
     formData.append('natureza', document.getElementById('log-sin-natureza').value || '');
     formData.append('veiculo', document.getElementById('log-sin-veiculo').value || '');
     formData.append('placa', document.getElementById('log-sin-placa').value || '');
-    formData.append('desconto', desconto);
+    formData.append('desconto', temDesconto);
 
     // Valor/parcelas serão definidos pelo RH ao finalizar
 
