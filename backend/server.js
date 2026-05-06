@@ -991,6 +991,99 @@ app.get('/api/get-system-logs', (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }) }
 });
 
+// ─── ADMIN: Auditar assinaturas com falso-positivo ───────────────────────────
+// GET /api/admin/auditar-assinaturas?colaborador_id=X  (ou sem param = todos)
+app.get('/api/admin/auditar-assinaturas', authenticateToken, (req, res) => {
+    const { colaborador_id } = req.query;
+    const whereColab = colaborador_id ? 'AND c.id = ?' : '';
+    const params = colaborador_id ? [colaborador_id] : [];
+
+    db.all(`
+        SELECT 'documentos' as tabela, d.id, c.nome_completo, d.document_type as nome_documento,
+               d.assinafy_id, d.assinafy_status, d.signed_file_path, d.assinafy_signed_at as data_status
+        FROM documentos d
+        JOIN colaboradores c ON c.id = d.colaborador_id
+        WHERE d.assinafy_status = 'Assinado' AND d.signed_file_path IS NULL AND d.assinafy_id IS NOT NULL
+        ${whereColab}
+        UNION ALL
+        SELECT 'admissao_assinaturas' as tabela, aa.id, c.nome_completo, aa.nome_documento,
+               aa.assinafy_id, aa.assinafy_status, aa.signed_file_path, aa.assinado_em as data_status
+        FROM admissao_assinaturas aa
+        JOIN colaboradores c ON c.id = aa.colaborador_id
+        WHERE aa.assinafy_status = 'Assinado' AND aa.signed_file_path IS NULL AND aa.assinafy_id IS NOT NULL
+        ${whereColab}
+        ORDER BY nome_completo, nome_documento
+    `, params.length === 1 ? [...params, ...params] : params, (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ total: rows.length, registros: rows });
+    });
+});
+
+// POST /api/admin/resetar-assinatura-falsa
+// Body: { colaborador_id: X } ou { doc_id: Y, tabela: 'documentos'|'admissao_assinaturas' }
+app.post('/api/admin/resetar-assinatura-falsa', authenticateToken, async (req, res) => {
+    const { colaborador_id, doc_id, tabela } = req.body;
+
+    try {
+        const resetados = [];
+
+        // Modo 1: resetar todos os falsos-positivos de um colaborador
+        if (colaborador_id && !doc_id) {
+            // Tabela documentos
+            const docsFP = await new Promise((resolve, reject) =>
+                db.all(`SELECT id, document_type as nome FROM documentos
+                        WHERE colaborador_id = ? AND assinafy_status = 'Assinado' AND signed_file_path IS NULL AND assinafy_id IS NOT NULL`,
+                    [colaborador_id], (err, rows) => err ? reject(err) : resolve(rows))
+            );
+            for (const d of docsFP) {
+                await new Promise((resolve, reject) =>
+                    db.run(`UPDATE documentos SET assinafy_status = 'Aguardando', signed_file_path = NULL, assinafy_signed_at = NULL WHERE id = ?`,
+                        [d.id], err => err ? reject(err) : resolve())
+                );
+                resetados.push({ tabela: 'documentos', id: d.id, nome: d.nome });
+            }
+
+            // Tabela admissao_assinaturas
+            const admFP = await new Promise((resolve, reject) =>
+                db.all(`SELECT id, nome_documento as nome FROM admissao_assinaturas
+                        WHERE colaborador_id = ? AND assinafy_status = 'Assinado' AND signed_file_path IS NULL AND assinafy_id IS NOT NULL`,
+                    [colaborador_id], (err, rows) => err ? reject(err) : resolve(rows))
+            );
+            for (const d of admFP) {
+                await new Promise((resolve, reject) =>
+                    db.run(`UPDATE admissao_assinaturas SET assinafy_status = 'Aguardando', signed_file_path = NULL, assinado_em = NULL WHERE id = ?`,
+                        [d.id], err => err ? reject(err) : resolve())
+                );
+                resetados.push({ tabela: 'admissao_assinaturas', id: d.id, nome: d.nome });
+            }
+        }
+
+        // Modo 2: resetar um documento específico
+        if (doc_id && tabela) {
+            const tabelaValida = ['documentos', 'admissao_assinaturas'].includes(tabela);
+            if (!tabelaValida) return res.status(400).json({ error: 'Tabela inválida' });
+
+            if (tabela === 'documentos') {
+                await new Promise((resolve, reject) =>
+                    db.run(`UPDATE documentos SET assinafy_status = 'Aguardando', signed_file_path = NULL, assinafy_signed_at = NULL WHERE id = ? AND assinafy_status = 'Assinado' AND signed_file_path IS NULL`,
+                        [doc_id], err => err ? reject(err) : resolve())
+                );
+            } else {
+                await new Promise((resolve, reject) =>
+                    db.run(`UPDATE admissao_assinaturas SET assinafy_status = 'Aguardando', signed_file_path = NULL, assinado_em = NULL WHERE id = ? AND assinafy_status = 'Assinado' AND signed_file_path IS NULL`,
+                        [doc_id], err => err ? reject(err) : resolve())
+                );
+            }
+            resetados.push({ tabela, id: doc_id });
+        }
+
+        console.log(`[ADMIN] Assinaturas revertidas:`, resetados);
+        res.json({ ok: true, resetados, total: resetados.length });
+    } catch (e) {
+        console.error('[ADMIN] Erro ao resetar assinaturas:', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
 
 app.get('/api/check-pfx', (req, res) => {
     try {
