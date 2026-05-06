@@ -11975,8 +11975,10 @@ app.get('/api/logistica/escala', authenticateToken, (req, res) => {
                     }
 
                     // ── Folgas fixas do cadastro ───────────────────────────────────
-                    if (folgasDow.length > 0) {
-                        return folgasDow.includes(dow);
+                    if (escalaStr.includes('escala_uma_folga') || escalaStr.includes('escala_duas_folgas')) {
+                        if (folgasDow.length > 0) {
+                            return folgasDow.includes(dow);
+                        }
                     }
 
                     // ── Fallback por tipo de escala ────────────────────────────────
