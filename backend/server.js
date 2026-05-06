@@ -266,8 +266,16 @@ db.run(`CREATE TABLE IF NOT EXISTS sinistros (
     assinatura_testemunha2_nome TEXT,
     assinatura_testemunha2_base64 TEXT,
     assinatura_condutor_base64 TEXT,
+    data_assinatura_condutor DATETIME,
+    usuario_abertura TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-)`, (err) => { if (err) console.error('Erro tabela sinistros:', err); });
+)`, (err) => { 
+    if (err) console.error('Erro tabela sinistros:', err);
+    else {
+        db.run('ALTER TABLE sinistros ADD COLUMN data_assinatura_condutor DATETIME', (e) => {});
+        db.run('ALTER TABLE sinistros ADD COLUMN usuario_abertura TEXT', (e) => {});
+    }
+});
 
 db.run(`CREATE TABLE IF NOT EXISTS multas (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -3043,6 +3051,20 @@ app.put('/api/colaboradores/:id/santander-status', authenticateToken, (req, res)
 // ROTAS DE SINISTROS
 // =============================================================================
 
+app.get('/api/logistica/sinistros', authenticateToken, (req, res) => {
+    // Fetch all sinistros globally, joined with colaborador to get nome and cpf
+    const sql = `
+        SELECT s.*, c.nome_completo, c.cpf
+        FROM sinistros s
+        LEFT JOIN colaboradores c ON s.colaborador_id = c.id
+        ORDER BY s.created_at DESC
+    `;
+    db.all(sql, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
 app.get('/api/colaboradores/:id/sinistros', authenticateToken, (req, res) => {
     db.all('SELECT * FROM sinistros WHERE colaborador_id = ? ORDER BY created_at DESC', [req.params.id], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -3156,15 +3178,16 @@ app.post('/api/colaboradores/:id/sinistros', authenticateToken, multerUploadMemo
         }
 
         const stmt = `INSERT INTO sinistros (colaborador_id, numero_boletim, data_hora, natureza, placa, veiculo,
-            desconto, parcelas, valor_parcela, tipo_sinistro, boletim_path, processo_iniciado) 
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`;
+            desconto, parcelas, valor_parcela, tipo_sinistro, boletim_path, processo_iniciado, usuario_abertura) 
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`;
 
         // Nome padrão do doc: Sinistro_Datadoocorrido_Nome_do_Colaborador.pdf
         const pnome = 'BO_Sinistro_' + (pastaDataStr || dataFormatada).replace(/-/g, '') + '_' + nomeFormatado + '.pdf';
         const docOnedrivePath = targetDir + '/' + pnome;
+        const usuarioAbertura = req.user ? (req.user.nome || req.user.username) : 'Sistema';
 
         db.run(stmt, [id, body.numero_boletim, body.data_hora, body.natureza, body.placa, body.veiculo,
-            body.desconto, body.parcelas || 1, body.valor_parcela, body.tipo_sinistro, docOnedrivePath, body.desconto === 'Sim' ? 1 : 0],
+            body.desconto, body.parcelas || 1, body.valor_parcela, body.tipo_sinistro, docOnedrivePath, body.desconto === 'Sim' ? 1 : 0, usuarioAbertura],
             async function (err) {
                 if (err) return res.status(500).json({ error: err.message });
                 const sinId = this.lastID;
@@ -3533,7 +3556,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/assinar-condutor', authen
         const { assinatura_base64, documento_html } = req.body;
 
         await new Promise((resolve, reject) =>
-            db.run(`UPDATE sinistros SET assinatura_condutor_base64=?, documento_html=?, assinaturas_finalizadas=1, status='assinado' WHERE id=?`,
+            db.run(`UPDATE sinistros SET assinatura_condutor_base64=?, documento_html=?, assinaturas_finalizadas=1, status='assinado', data_assinatura_condutor=CURRENT_TIMESTAMP WHERE id=?`,
                 [assinatura_base64, documento_html, sinistroId],
                 err => err ? reject(err) : resolve())
         );

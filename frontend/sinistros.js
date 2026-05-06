@@ -100,17 +100,58 @@ window._renderSinistroCard = function(s, colabId, container) {
         actionsHtml += `</div>`;
     }
 
+    let orcamentosLinks = '';
+    if (s.orcamentos_paths) {
+        try {
+            const orcs = JSON.parse(s.orcamentos_paths);
+            if (Array.isArray(orcs) && orcs.length > 0) {
+                orcamentosLinks = orcs.map((path, idx) => 
+                    `<a href="javascript:void(0)" onclick="window.abrirArquivoOneDrive('${path}')" style="display:inline-flex; align-items:center; gap:4px; font-size:0.8rem; color:#0284c7; background:#e0f2fe; padding:4px 8px; border-radius:4px; text-decoration:none; margin-right:4px;">
+                        <i class="ph ph-paperclip"></i> Orçamento ${idx + 1}
+                    </a>`
+                ).join('');
+            }
+        } catch(e) {}
+    }
+
+    const aberturaTxt = s.usuario_abertura ? `Aberto por: <b>${s.usuario_abertura}</b>` : 'Aberto via Sistema';
+    const dataCriacao = s.created_at ? new Date(s.created_at).toLocaleString('pt-BR') : '—';
+    const assinCondutorTxt = s.data_assinatura_condutor ? `Assinado em: ${new Date(s.data_assinatura_condutor).toLocaleString('pt-BR')}` : 'Não assinado';
+
     card.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-            <div>
-                <h5 style="margin:0; font-size:1.1rem; color:#0f172a; font-weight:700;"><i class="ph ph-file-text" style="color:#d97706;"></i> BO: ${s.numero_boletim || 'N/A'}</h5>
-                <p style="margin:4px 0 0; font-size:0.85rem; color:#64748b;"><i class="ph ph-calendar"></i> Ocorrido: ${s.data_hora || '—'} &nbsp;|&nbsp; ${s.natureza || 'Sem Natureza'}</p>
-                <p style="margin:4px 0 0; font-size:0.85rem; color:#64748b;">${s.veiculo || '—'} &nbsp;|&nbsp; Placa: ${s.placa || '—'}</p>
-                ${signStatus}
+            <div style="display:flex; gap:12px;">
+                <!-- Setinha de expansão -->
+                <button onclick="this.parentElement.parentElement.nextElementSibling.style.display = this.parentElement.parentElement.nextElementSibling.style.display === 'none' ? 'block' : 'none'; this.querySelector('i').classList.toggle('ph-caret-right'); this.querySelector('i').classList.toggle('ph-caret-down');" style="background:none; border:none; cursor:pointer; padding:4px; color:#64748b; font-size:1.2rem;">
+                    <i class="ph ph-caret-right"></i>
+                </button>
+                <div>
+                    <h5 style="margin:0; font-size:1.1rem; color:#0f172a; font-weight:700;"><i class="ph ph-file-text" style="color:#d97706;"></i> BO: ${s.numero_boletim || 'N/A'}</h5>
+                    <p style="margin:4px 0 0; font-size:0.85rem; color:#64748b;"><i class="ph ph-calendar"></i> Ocorrido: ${s.data_hora || '—'} &nbsp;|&nbsp; ${s.natureza || 'Sem Natureza'}</p>
+                    <p style="margin:4px 0 0; font-size:0.85rem; color:#64748b;">${s.veiculo || '—'} &nbsp;|&nbsp; Placa: ${s.placa || '—'}</p>
+                    ${signStatus}
+                </div>
             </div>
             <span style="display:inline-block; padding:4px 10px; border-radius:20px; font-size:0.75rem; font-weight:600; color:${st.color}; background:${st.bg};">${st.text}</span>
         </div>
-        <div style="background:#f8fafc; border-top:1px dashed #cbd5e1; padding-top:0.75rem; display:flex; justify-content:space-between; align-items:center;">
+        
+        <!-- Detalhes Expansíveis -->
+        <div style="display:none; padding-top:1rem; margin-top:0.5rem; border-top:1px dashed #e2e8f0;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; font-size:0.85rem; color:#475569;">
+                <div>
+                    <p style="margin:0 0 6px 0;"><i class="ph ph-info"></i> ${aberturaTxt}</p>
+                    <p style="margin:0 0 6px 0;"><i class="ph ph-clock"></i> Registrado no sistema: ${dataCriacao}</p>
+                    <p style="margin:0 0 6px 0;"><i class="ph ph-pen"></i> Assinatura do Colaborador: ${assinCondutorTxt}</p>
+                </div>
+                <div>
+                    <p style="margin:0 0 6px 0;"><strong>Anexos:</strong></p>
+                    ${s.boletim_path ? `<a href="javascript:void(0)" onclick="window.abrirArquivoOneDrive('${s.boletim_path}')" style="display:inline-flex; align-items:center; gap:4px; font-size:0.8rem; color:#d97706; background:#fef3c7; padding:4px 8px; border-radius:4px; text-decoration:none; margin-bottom:6px;"><i class="ph ph-file-pdf"></i> Visualizar Boletim de Ocorrência</a><br/>` : ''}
+                    ${orcamentosLinks}
+                </div>
+            </div>
+        </div>
+
+        <div style="background:#f8fafc; border-top:1px dashed #cbd5e1; padding-top:0.75rem; display:flex; justify-content:space-between; align-items:center; margin-top:0.5rem;">
             <div style="font-size:0.8rem; color:#475569;">
                 <strong>Desconto:</strong> ${s.desconto || 'Não'} ${s.desconto === 'Sim' ? `(${s.parcelas}x de ${s.valor_parcela})` : ''}<br/>
                 ${s.tipo_sinistro ? `<strong>Tipo:</strong> ${s.tipo_sinistro}` : ''}
