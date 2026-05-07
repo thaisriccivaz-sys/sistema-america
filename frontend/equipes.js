@@ -124,6 +124,7 @@ function _renderAll(el) {
       </div>
     </div>
     <div id="equipes-board">${_renderBoard()}</div>
+    <div id="equipes-summary"></div>
   </div>
 
   <!-- Modal nova equipe -->
@@ -145,13 +146,56 @@ function _renderAll(el) {
   `;
 }
 
+function _eqAlertas(membros) {
+  const alertas = [];
+  if (membros.length === 0) return alertas;
+  if (!membros.some(m => m.funcao === 'motorista')) alertas.push({ tipo: 'erro', msg: 'Sem motorista' });
+  if (!membros.some(m => ['ajudante','reserva'].includes(m.funcao))) alertas.push({ tipo: 'aviso', msg: 'Sem ajudante' });
+  if (membros.length > 4) alertas.push({ tipo: 'aviso', msg: `Excesso: ${membros.length} membros` });
+  return alertas;
+}
+
+function _eqStatus(membros) {
+  if (membros.length === 0) return { cor: '#ef4444', label: 'Incompleta' };
+  const temMotorista = membros.some(m => m.funcao === 'motorista');
+  const temAjudante  = membros.some(m => ['ajudante','reserva'].includes(m.funcao));
+  if (temMotorista && temAjudante) return { cor: '#22c55e', label: 'Completa' };
+  if (temMotorista || temAjudante) return { cor: '#f59e0b', label: 'Atenção' };
+  return { cor: '#ef4444', label: 'Incompleta' };
+}
+
 function _renderBoard(busca) {
   const b = (busca || _busca || '').toLowerCase();
+  // Summary bar
+  const totalEquipes = _equipes.length;
+  const incompletas = _equipes.filter(e => _eqStatus(e.membros).label !== 'Completa').length;
+  const totalMembros = _equipes.reduce((acc, e) => acc + e.membros.length, 0);
+
+  const summaryEl = document.getElementById('equipes-summary');
+  if (summaryEl) {
+    summaryEl.style.cssText = 'display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:1rem;flex-shrink:0;';
+    summaryEl.innerHTML = `
+      <div style="background:#dcfce7;border:1px solid #bbf7d0;border-radius:8px;padding:.4rem .9rem;font-size:.78rem;font-weight:700;color:#15803d;display:flex;align-items:center;gap:5px;">
+        <i class="ph ph-users"></i> ${totalMembros} colaboradores distribuídos
+      </div>
+      <div style="background:${incompletas===0?'#dcfce7':'#fef3c7'};border:1px solid ${incompletas===0?'#bbf7d0':'#fde68a'};border-radius:8px;padding:.4rem .9rem;font-size:.78rem;font-weight:700;color:${incompletas===0?'#15803d':'#92400e'};display:flex;align-items:center;gap:5px;">
+        <i class="ph ph-${incompletas===0?'check-circle':'warning'}"></i> ${incompletas === 0 ? 'Todas equipes completas' : `${incompletas} equipe${incompletas>1?'s':''} incompleta${incompletas>1?'s':''}`}
+      </div>
+      <div style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;padding:.4rem .9rem;font-size:.78rem;font-weight:700;color:#475569;display:flex;align-items:center;gap:5px;">
+        <i class="ph ph-layout"></i> ${totalEquipes} equipes
+      </div>`;
+  }
+
   return _equipes.map(eq => {
-    const membros = b ? eq.membros.filter(m => m.nome.toLowerCase().includes(b)) : eq.membros;
-    const completa = membros.some(m => m.funcao === 'motorista') && membros.some(m => m.funcao === 'ajudante');
-    const indicadorCor = membros.length === 0 ? '#ef4444' : completa ? '#22c55e' : '#f59e0b';
-    return `
+    const membros = b ? eq.membros.filter(m => (m.nome_completo||m.nome||'').toLowerCase().includes(b)) : eq.membros;
+    const { cor: indicadorCor } = _eqStatus(membros);
+    const alertas = _eqAlertas(membros);
+    const alertasHtml = alertas.map(a =>
+      `<div style="padding:3px 8px;font-size:.68rem;font-weight:700;background:${a.tipo==='erro'?'#fee2e2':'#fef3c7'};color:${a.tipo==='erro'?'#991b1b':'#92400e'};display:flex;align-items:center;gap:4px;">
+        <i class="ph ph-${a.tipo==='erro'?'x-circle':'warning'}"></i>${a.msg}
+      </div>`
+    ).join('');
+
     <div class="eq-col" data-equipe-id="${eq.id}">
       <div class="eq-col-header" style="background:${eq.cor};">
         <div class="eq-col-title">
@@ -163,6 +207,7 @@ function _renderBoard(busca) {
           <span class="eq-badge">${membros.length}</span>
         </div>
       </div>
+      ${alertasHtml}
     <div class="eq-col-body" id="eq-body-${eq.id}"
       ondragover="event.preventDefault();window._eqDragOver(event,${eq.id})"
       ondragleave="window._eqDragLeave(event)"
@@ -192,26 +237,36 @@ function _renderCard(m) {
   const fs = FUNC_STYLE[m.funcao] || FUNC_STYLE.ajudante;
   const sc = STATUS_COR[m.status] || '#22c55e';
   const afastado = m.status === 'afastado';
-  const iniciais = (m.nome_completo || m.nome || '?').split(' ').slice(0,2).map(p => p[0]).join('').toUpperCase();
+  const nomeRaw = m.nome_completo || m.nome || '?';
+  const emExp = nomeRaw.toLowerCase().includes('experi') || m.status === 'experiencia';
+  const nome = nomeRaw.replace(/\s*\(Experi[^)]*\)/i,'').replace(/\s*\(E\)/i,'').trim();
+  const iniciais = nome.split(' ').slice(0,2).map(p => p[0]).join('').toUpperCase();
   const avatarBg = ['#6366f1','#8b5cf6','#ec4899','#14b8a6','#f97316','#84cc16'][(m.colaborador_id||m.id) % 6];
+  const borderStyle = afastado ? 'border-color:#fca5a5;background:#fff5f5;' : emExp ? 'border-color:#fde68a;background:#fffbeb;' : '';
+  const avatarBorder = afastado ? 'border-color:#ef4444;border-width:2px;' : emExp ? 'border-color:#f59e0b;border-width:2px;' : '';
   const avatarHtml = _eq_fotoSrc(m)
-    ? `<img class="eq-avatar" src="${_eq_fotoSrc(m)}" alt="${m.nome_completo||m.nome}" style="${afastado?'border-color:#ef4444;border-width:2px;':''}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
-       <div class="eq-avatar-placeholder" style="background:${avatarBg};display:none;${afastado?'border:2px solid #ef4444;':''}">${iniciais}</div>`
-    : `<div class="eq-avatar-placeholder" style="background:${avatarBg};${afastado?'border:2px solid #ef4444;':''}">${iniciais}</div>`;
-  const nome = m.nome_completo || m.nome || '?';
+    ? `<img class="eq-avatar" src="${_eq_fotoSrc(m)}" alt="${nome}" style="${avatarBorder}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+       <div class="eq-avatar-placeholder" style="background:${avatarBg};display:none;">${iniciais}</div>`
+    : `<div class="eq-avatar-placeholder" style="background:${avatarBg};${avatarBorder}">${iniciais}</div>`;
   return `
   <div class="eq-card" data-membro-id="${m.colaborador_id||m.id}" data-equipe-id="${m.equipe_id}"
     draggable="true"
     ondragstart="window._eqDragStart(event,${m.colaborador_id||m.id},${m.equipe_id})"
     ondragend="window._eqDragEnd(event)"
-    style="${afastado?'border-color:#fca5a5;background:#fff5f5;':''}">
+    style="${borderStyle}">
     ${avatarHtml}
     <div class="eq-card-info">
-      <div class="eq-card-name">${nome}</div>
+      <div class="eq-card-name">${nome}${emExp?` <span style="font-size:.58rem;background:#fde68a;color:#92400e;border-radius:3px;padding:0 3px;font-weight:800;">EXP</span>`:''}</div>
       <span class="eq-card-func" style="background:${fs.bg};color:${fs.color};">${fs.label}</span>
+      ${m.escala ? `<div class="eq-card-escala">${m.escala}</div>` : (m.cargo ? `<div class="eq-card-escala">${m.cargo}</div>` : '')}
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+      <div class="eq-status-dot" title="${m.status||'ativo'}" style="background:${sc};"></div>
+      <button onclick="event.stopPropagation();window._eqRemoverMembro(${m.colaborador_id||m.id},${m.equipe_id})" style="background:none;border:none;cursor:pointer;color:#cbd5e1;font-size:.75rem;padding:0;" title="Remover">×</button>
+    </div>
   </div>`;
-
 }
+
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
 window._equipesSearch = function(val) {
