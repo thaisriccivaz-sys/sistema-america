@@ -11,16 +11,67 @@ const COLUNAS_DEFAULT = [
   { id: 6, nome: 'Líderes',    horario: 'Variável',     cor: '#b45309', icone: 'ph-star',        membros: [] },
 ];
 
-let _equipes = JSON.parse(JSON.stringify(COLUNAS_DEFAULT));
+let _equipes = [];
 let _busca = '';
 
 // ── Drag state ───────────────────────────────────────────────────────────────
 let _drag = { membroId: null, origemEquipeId: null };
 
-window.initEquipes = function () {
+// ── API helpers ───────────────────────────────────────────────────────────────
+const _eq_apiBase = () => (window.API_URL || '/api');
+const _eq_headers = () => ({ 'Content-Type': 'application/json', 'Authorization': `Bearer ${window.currentToken}` });
+async function _eq_get(path) {
+  const r = await fetch(_eq_apiBase() + path, { headers: _eq_headers() });
+  return r.json();
+}
+async function _eq_post(path, body) {
+  const r = await fetch(_eq_apiBase() + path, { method: 'POST', headers: _eq_headers(), body: JSON.stringify(body) });
+  return r.json();
+}
+async function _eq_patch(path, body) {
+  const r = await fetch(_eq_apiBase() + path, { method: 'PATCH', headers: _eq_headers(), body: JSON.stringify(body) });
+  return r.json();
+}
+async function _eq_del(path) {
+  const r = await fetch(_eq_apiBase() + path, { method: 'DELETE', headers: _eq_headers() });
+  return r.json();
+}
+
+function _eq_fotoSrc(m) {
+  if (m.foto_base64) return 'data:image/jpeg;base64,' + m.foto_base64;
+  if (m.foto_path) return _eq_apiBase() + `/colaboradores/${m.colaborador_id}/foto`;
+  return null;
+}
+
+window.initEquipes = async function () {
   const el = document.getElementById('equipes-container');
   if (!el) return;
+  // Render skeleton first
   _renderAll(el);
+  _mostrarSkeleton();
+  try {
+    _equipes = await _eq_get('/equipes');
+    // Se não houver equipes, criar as padrão no backend
+    if (_equipes.length === 0) {
+      const defaults = [
+        { nome: 'Equipe 07h', horario: 'Entra às 07h', cor: '#2563eb', ordem: 1 },
+        { nome: 'Equipe 09h', horario: 'Entra às 09h', cor: '#7c3aed', ordem: 2 },
+        { nome: 'Noturno',    horario: '20h às 05h',   cor: '#0f172a', ordem: 3 },
+        { nome: 'Reserva',    horario: 'Conforme escala', cor: '#db2777', ordem: 4 },
+        { nome: 'Intermitentes', horario: 'Variável',  cor: '#ea580c', ordem: 5 },
+        { nome: 'Líderes',    horario: 'Variável',     cor: '#b45309', ordem: 6 },
+      ];
+      for (const d of defaults) {
+        const eq = await _eq_post('/equipes', d);
+        if (eq.id) _equipes.push({ ...d, ...eq, membros: [] });
+      }
+    }
+  } catch(e) {
+    console.error('[EQUIPES]', e);
+    _equipes = JSON.parse(JSON.stringify(COLUNAS_DEFAULT));
+  }
+  const board = document.getElementById('equipes-board');
+  if (board) board.innerHTML = _renderBoard();
 };
 
 function _renderAll(el) {
@@ -141,24 +192,23 @@ function _renderCard(m) {
   const fs = FUNC_STYLE[m.funcao] || FUNC_STYLE.ajudante;
   const sc = STATUS_COR[m.status] || '#22c55e';
   const afastado = m.status === 'afastado';
-  const iniciais = (m.nome || '?').split(' ').slice(0,2).map(p => p[0]).join('').toUpperCase();
-  const avatarBg = ['#6366f1','#8b5cf6','#ec4899','#14b8a6','#f97316','#84cc16'][m.id % 6];
-  const avatarHtml = m.foto
-    ? `<img class="eq-avatar" src="${m.foto}" alt="${m.nome}" style="${afastado?'border-color:#ef4444;border-width:2px;':''}">`
+  const iniciais = (m.nome_completo || m.nome || '?').split(' ').slice(0,2).map(p => p[0]).join('').toUpperCase();
+  const avatarBg = ['#6366f1','#8b5cf6','#ec4899','#14b8a6','#f97316','#84cc16'][(m.colaborador_id||m.id) % 6];
+  const avatarHtml = _eq_fotoSrc(m)
+    ? `<img class="eq-avatar" src="${_eq_fotoSrc(m)}" alt="${m.nome_completo||m.nome}" style="${afastado?'border-color:#ef4444;border-width:2px;':''}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+       <div class="eq-avatar-placeholder" style="background:${avatarBg};display:none;${afastado?'border:2px solid #ef4444;':''}">${iniciais}</div>`
     : `<div class="eq-avatar-placeholder" style="background:${avatarBg};${afastado?'border:2px solid #ef4444;':''}">${iniciais}</div>`;
+  const nome = m.nome_completo || m.nome || '?';
   return `
-  <div class="eq-card" data-membro-id="${m.id}" data-equipe-id="${m.equipe_id}"
+  <div class="eq-card" data-membro-id="${m.colaborador_id||m.id}" data-equipe-id="${m.equipe_id}"
     draggable="true"
-    ondragstart="window._eqDragStart(event,${m.id},${m.equipe_id})"
+    ondragstart="window._eqDragStart(event,${m.colaborador_id||m.id},${m.equipe_id})"
     ondragend="window._eqDragEnd(event)"
     style="${afastado?'border-color:#fca5a5;background:#fff5f5;':''}">
     ${avatarHtml}
     <div class="eq-card-info">
-      <div class="eq-card-name">${m.nome}</div>
+      <div class="eq-card-name">${nome}</div>
       <span class="eq-card-func" style="background:${fs.bg};color:${fs.color};">${fs.label}</span>
-      ${m.escala ? `<div class="eq-card-escala">${m.escala}</div>` : ''}
-    </div>
-    <div class="eq-status-dot" title="${m.status||'ativo'}" style="background:${sc};"></div>
   </div>`;
 
 }
@@ -175,16 +225,18 @@ window._equipesNovaEquipe = function() {
   if (m) m.style.display = 'flex';
 };
 
-window._equipesConfirmarNova = function() {
+window._equipesConfirmarNova = async function() {
   const nome = document.getElementById('eq-modal-nome').value.trim();
   const horario = document.getElementById('eq-modal-horario').value.trim();
   const cor = document.getElementById('eq-modal-cor').value;
   if (!nome) { alert('Informe o nome da equipe'); return; }
-  const newId = Date.now();
-  _equipes.push({ id: newId, nome, horario: horario || 'Variável', cor, icone: 'ph-users', membros: [] });
-  document.getElementById('eq-modal').style.display = 'none';
-  const board = document.getElementById('equipes-board');
-  if (board) board.innerHTML = _renderBoard();
+  try {
+    const eq = await _eq_post('/equipes', { nome, horario: horario || 'Variável', cor, ordem: _equipes.length + 1 });
+    _equipes.push({ ...eq, membros: [] });
+    document.getElementById('eq-modal').style.display = 'none';
+    const board = document.getElementById('equipes-board');
+    if (board) board.innerHTML = _renderBoard();
+  } catch(e) { alert('Erro ao criar equipe: ' + e.message); }
 };
 
 window._equipesSalvar = function() {
@@ -227,7 +279,7 @@ window._eqDragLeave = function(ev) {
   }
 };
 
-window._eqDrop = function(ev, equipeDestinoId) {
+window._eqDrop = async function(ev, equipeDestinoId) {
   ev.preventDefault();
   const body = document.getElementById(`eq-body-${equipeDestinoId}`);
   if (body) body.classList.remove('drag-over');
@@ -235,24 +287,37 @@ window._eqDrop = function(ev, equipeDestinoId) {
   const { membroId, origemEquipeId } = _drag;
   if (!membroId || equipeDestinoId === origemEquipeId) return;
 
-  // Encontrar e mover o membro no estado
   const origem = _equipes.find(e => e.id === origemEquipeId);
   const destino = _equipes.find(e => e.id === equipeDestinoId);
   if (!origem || !destino) return;
 
-  const idx = origem.membros.findIndex(m => m.id === membroId);
+  const idx = origem.membros.findIndex(m => (m.colaborador_id||m.id) === membroId);
   if (idx === -1) return;
 
   const [membro] = origem.membros.splice(idx, 1);
   membro.equipe_id = equipeDestinoId;
   destino.membros.push(membro);
 
-  // Re-renderizar só as duas colunas afetadas
   _reRenderColuna(origemEquipeId);
   _reRenderColuna(equipeDestinoId);
 
-  if (typeof window.showToast === 'function') {
-    window.showToast(`${membro.nome} movido para ${destino.nome}`, 'success');
+  // Salvar no backend
+  try {
+    await _eq_patch('/equipes/mover', {
+      colaborador_id: membro.colaborador_id || membro.id,
+      equipe_origem_id: origemEquipeId,
+      equipe_destino_id: equipeDestinoId,
+      funcao: membro.funcao
+    });
+    if (typeof window.showToast === 'function') window.showToast(`${membro.nome_completo||membro.nome} movido para ${destino.nome}`, 'success');
+  } catch(e) {
+    console.error('[EQUIPES] Erro ao mover:', e);
+    // Reverter
+    destino.membros.splice(destino.membros.findIndex(m => (m.colaborador_id||m.id) === membroId), 1);
+    membro.equipe_id = origemEquipeId;
+    origem.membros.push(membro);
+    _reRenderColuna(origemEquipeId);
+    _reRenderColuna(equipeDestinoId);
   }
 
   _drag = { membroId: null, origemEquipeId: null };
@@ -279,18 +344,82 @@ function _reRenderColuna(equipeId) {
     : '<div class="eq-empty"><i class="ph ph-users" style="font-size:1.5rem;display:block;margin-bottom:4px;"></i>Sem membros</div>';
 }
 
-window._equipesAdicionarMembro = function(equipeId) {
-  // Placeholder — será expandido na integração com backend
-  const nome = prompt('Nome do colaborador (temporário):');
-  if (!nome) return;
-  const eq = _equipes.find(e => e.id === equipeId);
-  if (!eq) return;
-  eq.membros.push({
-    id: Date.now(), equipe_id: equipeId, nome,
-    funcao: 'ajudante', status: 'ativo', escala: '', foto: null
-  });
-  const board = document.getElementById('equipes-board');
-  if (board) board.innerHTML = _renderBoard();
+window._equipesAdicionarMembro = async function(equipeId) {
+  // Buscar colaboradores sem equipe
+  let semEquipe = [];
+  try { semEquipe = await _eq_get('/equipes/colaboradores-sem-equipe'); } catch(e) {}
+
+  const modal = document.createElement('div');
+  modal.id = 'eq-add-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;display:flex;align-items:center;justify-content:center;';
+  const nomesOptions = semEquipe.map(c =>
+    `<option value="${c.id}">${c.nome_completo} — ${c.cargo||''}</option>`
+  ).join('');
+  modal.innerHTML = `
+  <div style="background:#fff;border-radius:16px;padding:1.5rem;width:420px;max-width:95vw;">
+    <h3 style="margin:0 0 1rem;font-size:1rem;font-weight:800;">Adicionar colaborador</h3>
+    ${semEquipe.length === 0 ? '<p style="color:#94a3b8;font-size:.85rem;">Todos os colaboradores já estão em uma equipe.</p>' : `
+    <label style="font-size:.8rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Colaborador</label>
+    <select id="eq-add-colab" style="width:100%;height:38px;border:1.5px solid #e2e8f0;border-radius:8px;padding:0 .6rem;font-size:.85rem;">
+      <option value="">Selecione...</option>${nomesOptions}
+    </select>
+    <label style="font-size:.8rem;font-weight:600;color:#475569;display:block;margin:1rem 0 4px;">Função</label>
+    <select id="eq-add-funcao" style="width:100%;height:38px;border:1.5px solid #e2e8f0;border-radius:8px;padding:0 .6rem;font-size:.85rem;">
+      <option value="motorista">Motorista</option>
+      <option value="ajudante">Ajudante</option>
+      <option value="reserva">Reserva</option>
+      <option value="intermitente">Intermitente</option>
+      <option value="lider">Líder</option>
+    </select>
+    <label style="font-size:.8rem;font-weight:600;color:#475569;display:block;margin:1rem 0 4px;">Escala</label>
+    <input id="eq-add-escala" placeholder="Ex: Seg a Sex" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:.5rem .6rem;font-size:.85rem;box-sizing:border-box;">`}
+    <div style="display:flex;gap:.75rem;justify-content:flex-end;margin-top:1.25rem;">
+      <button onclick="this.closest('#eq-add-modal').remove()" style="height:36px;padding:0 1rem;background:#f1f5f9;color:#475569;border:none;border-radius:8px;font-size:.85rem;cursor:pointer;">Cancelar</button>
+      ${semEquipe.length > 0 ? `<button onclick="window._eqConfirmarAdicionar(${equipeId})" style="height:36px;padding:0 1rem;background:#0f172a;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:.85rem;cursor:pointer;">Adicionar</button>` : ''}
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
 };
+
+window._eqConfirmarAdicionar = async function(equipeId) {
+  const colabId = parseInt(document.getElementById('eq-add-colab')?.value);
+  const funcao  = document.getElementById('eq-add-funcao')?.value || 'ajudante';
+  const escala  = document.getElementById('eq-add-escala')?.value || '';
+  if (!colabId) { alert('Selecione um colaborador'); return; }
+  try {
+    await _eq_post(`/equipes/${equipeId}/membros`, { colaborador_id: colabId, funcao, escala });
+    document.getElementById('eq-add-modal')?.remove();
+    // Recarregar equipes
+    _equipes = await _eq_get('/equipes');
+    const board = document.getElementById('equipes-board');
+    if (board) board.innerHTML = _renderBoard();
+  } catch(e) { alert('Erro ao adicionar: ' + e.message); }
+};
+
+window._eqRemoverMembro = async function(colaboradorId, equipeId) {
+  if (!confirm('Remover colaborador desta equipe?')) return;
+  try {
+    await _eq_del(`/equipes/${equipeId}/membros/${colaboradorId}`);
+    _equipes = await _eq_get('/equipes');
+    const board = document.getElementById('equipes-board');
+    if (board) board.innerHTML = _renderBoard();
+    if (typeof window.showToast === 'function') window.showToast('Colaborador removido da equipe', 'success');
+  } catch(e) { alert('Erro ao remover: ' + e.message); }
+};
+
+function _mostrarSkeleton() {
+  const board = document.getElementById('equipes-board');
+  if (!board) return;
+  board.innerHTML = Array(6).fill(0).map(() => `
+  <div style="width:240px;min-width:240px;background:#e2e8f0;border-radius:14px;height:320px;animation:eq-pulse 1.5s ease-in-out infinite;">
+    <div style="height:70px;background:#cbd5e1;border-radius:12px 12px 0 0;"></div>
+    <div style="padding:.75rem;display:flex;flex-direction:column;gap:.5rem;">
+      ${Array(3).fill('<div style="height:56px;background:#e2e8f0;border-radius:8px;"></div>').join('')}
+    </div>
+  </div>`).join('');
+  const style = document.createElement('style');
+  style.textContent = '@keyframes eq-pulse{0%,100%{opacity:1}50%{opacity:.5}}';
+  document.head.appendChild(style);
+}
 
 })();
