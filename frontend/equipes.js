@@ -358,8 +358,15 @@ function _renderCard(m) {
   if (st === 'férias') st = 'ferias';
   const isLaranja = st === 'afastado' || st === 'ferias' || st === 'férias';
   const nomeRaw = m.nome_completo || m.nome || '?';
+  // Experiencia: admitido ha menos de 90 dias OU tipo_contrato contem "experi"
   const isContratoExp = (m.tipo_contrato || '').toLowerCase().includes('experi');
-  const emExp = nomeRaw.toLowerCase().includes('experi') || st === 'experiencia' || isContratoExp;
+  let isAdmissaoExp = false;
+  if (m.data_admissao) {
+    const admDate = new Date(m.data_admissao + 'T00:00:00');
+    const diffDias = (new Date() - admDate) / (1000 * 60 * 60 * 24);
+    if (diffDias >= 0 && diffDias <= 90) isAdmissaoExp = true;
+  }
+  const emExp = st === 'experiencia' || isContratoExp || isAdmissaoExp;
   if (emExp && !isLaranja) st = 'experiencia';
   const sc = STATUS_COR[st] || '#22c55e';
   const nome = nomeRaw.replace(/\s*\(Experi[^)]*\)/i,'').replace(/\s*\(E\)/i,'').trim();
