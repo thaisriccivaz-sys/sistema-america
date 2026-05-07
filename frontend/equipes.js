@@ -327,8 +327,8 @@ const STATUS_COR = { ativo: '#22c55e', folga: '#94a3b8', ferias: '#3b82f6', afas
 
 function _renderCard(m) {
   const fs = FUNC_STYLE[m.funcao] || FUNC_STYLE.ajudante;
-  const sc = STATUS_COR[m.status] || '#22c55e';
-  const st = (m.status || '').toLowerCase();
+  const st = (m.colab_status || m.status || '').toLowerCase();
+  const sc = STATUS_COR[st] || '#22c55e';
   const isLaranja = st === 'afastado' || st === 'ferias' || st === 'férias';
   const nomeRaw = m.nome_completo || m.nome || '?';
   const emExp = nomeRaw.toLowerCase().includes('experi') || st === 'experiencia';
@@ -364,7 +364,7 @@ function _renderCard(m) {
       ${m.escala ? `<div class="eq-card-escala">${m.escala}</div>` : ''}
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
-      <div class="eq-status-dot" title="${m.status||'ativo'}" style="background:${sc};"></div>
+      <div class="eq-status-dot" title="${st||'ativo'}" style="background:${sc};"></div>
       <button onclick="event.stopPropagation();window._eqRemoverMembro(${m.colaborador_id||m.id},${m.equipe_id})" style="background:none;border:none;cursor:pointer;color:#cbd5e1;font-size:.75rem;padding:0;" title="Remover">×</button>
     </div>
   </div>`;

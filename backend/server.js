@@ -2315,7 +2315,7 @@ app.patch('/api/equipes/:id/membros/:colaborador_id', authenticateToken, (req, r
 
 // ── GET /api/equipes/colaboradores-sem-equipe ─────────────────────────────────
 app.get('/api/equipes/colaboradores-sem-equipe', authenticateToken, (req, res) => {
-    db.all(`SELECT c.id, c.nome_completo, c.cargo, c.foto_base64, c.foto_path, c.cnh_categoria
+    db.all(`SELECT c.id, c.nome_completo, c.cargo, c.foto_base64, c.foto_path, c.cnh_categoria, c.status as colab_status
         FROM colaboradores c
         LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento)) OR LOWER(TRIM(d.nome)) = LOWER(TRIM(c.cargo))
         WHERE c.status != 'Desligado'
