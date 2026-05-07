@@ -2087,7 +2087,168 @@ console.log('[Migration] Pensão Alimentícia encoding fix applied');
 
 
 // --- ROTAS DE COLABORADORES ---
+// ─────────────────────────────────────────────────────────────────────────────
+// EQUIPES (TEAMS MODULE)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// MIGRATION: tabelas de equipes
+db.run(`CREATE TABLE IF NOT EXISTS equipes (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome        TEXT NOT NULL,
+    tipo        TEXT DEFAULT 'rota',
+    cor         TEXT DEFAULT '#2563eb',
+    icone       TEXT DEFAULT 'ph-users',
+    descricao   TEXT,
+    ordem       INTEGER DEFAULT 0,
+    ativa       INTEGER DEFAULT 1,
+    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+)`, err => { if (err) console.error('[EQUIPES] Erro tabela equipes:', err.message); else console.log('[EQUIPES] Tabela equipes OK.'); });
+
+db.run(`CREATE TABLE IF NOT EXISTS equipes_membros (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    equipe_id       INTEGER NOT NULL,
+    colaborador_id  INTEGER NOT NULL,
+    funcao          TEXT DEFAULT 'motorista',
+    escala          TEXT,
+    observacao      TEXT,
+    ordem           INTEGER DEFAULT 0,
+    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(equipe_id, colaborador_id)
+)`, err => { if (err) console.error('[EQUIPES] Erro tabela equipes_membros:', err.message); else console.log('[EQUIPES] Tabela equipes_membros OK.'); });
+
+// ── GET /api/equipes ──────────────────────────────────────────────────────────
+app.get('/api/equipes', authenticateToken, (req, res) => {
+    db.all(`SELECT e.*,
+        (SELECT COUNT(*) FROM equipes_membros em WHERE em.equipe_id = e.id) as total_membros
+        FROM equipes e WHERE e.ativa = 1 ORDER BY e.ordem ASC, e.id ASC`, [], (err, equipes) => {
+        if (err) return res.status(500).json({ error: err.message });
+
+        // Para cada equipe, buscar membros com dados do colaborador
+        const promises = equipes.map(eq => new Promise((resolve) => {
+            db.all(`SELECT em.*, c.nome_completo, c.cargo, c.foto_base64, c.foto_path, c.status as colab_status
+                FROM equipes_membros em
+                JOIN colaboradores c ON c.id = em.colaborador_id
+                WHERE em.equipe_id = ?
+                ORDER BY em.funcao ASC, em.ordem ASC`, [eq.id], (err2, membros) => {
+                eq.membros = membros || [];
+                resolve(eq);
+            });
+        }));
+
+        Promise.all(promises).then(result => res.json(result));
+    });
+});
+
+// ── POST /api/equipes ─────────────────────────────────────────────────────────
+app.post('/api/equipes', authenticateToken, (req, res) => {
+    const { nome, tipo = 'rota', cor = '#2563eb', icone = 'ph-users', descricao = '', ordem = 0 } = req.body;
+    if (!nome) return res.status(400).json({ error: 'Nome é obrigatório' });
+    db.run(`INSERT INTO equipes (nome, tipo, cor, icone, descricao, ordem) VALUES (?,?,?,?,?,?)`,
+        [nome, tipo, cor, icone, descricao, ordem], function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ id: this.lastID, nome, tipo, cor, icone, descricao, ordem, membros: [] });
+        });
+});
+
+// ── PUT /api/equipes/:id ──────────────────────────────────────────────────────
+app.put('/api/equipes/:id', authenticateToken, (req, res) => {
+    const { nome, tipo, cor, icone, descricao, ordem } = req.body;
+    db.run(`UPDATE equipes SET nome=COALESCE(?,nome), tipo=COALESCE(?,tipo), cor=COALESCE(?,cor),
+        icone=COALESCE(?,icone), descricao=COALESCE(?,descricao), ordem=COALESCE(?,ordem),
+        updated_at=datetime('now') WHERE id=?`,
+        [nome, tipo, cor, icone, descricao, ordem, req.params.id], function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ sucesso: true });
+        });
+});
+
+// ── DELETE /api/equipes/:id ───────────────────────────────────────────────────
+app.delete('/api/equipes/:id', authenticateToken, (req, res) => {
+    db.run('DELETE FROM equipes_membros WHERE equipe_id = ?', [req.params.id], () => {
+        db.run('UPDATE equipes SET ativa = 0 WHERE id = ?', [req.params.id], function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ sucesso: true });
+        });
+    });
+});
+
+// ── POST /api/equipes/:id/membros ─────────────────────────────────────────────
+app.post('/api/equipes/:id/membros', authenticateToken, (req, res) => {
+    const { colaborador_id, funcao = 'motorista', escala = '', observacao = '', ordem = 0 } = req.body;
+    if (!colaborador_id) return res.status(400).json({ error: 'colaborador_id obrigatório' });
+    // Remove de qualquer outra equipe do MESMO tipo antes de adicionar
+    db.get('SELECT tipo FROM equipes WHERE id = ?', [req.params.id], (err, eq) => {
+        db.run(`INSERT OR REPLACE INTO equipes_membros (equipe_id, colaborador_id, funcao, escala, observacao, ordem)
+            VALUES (?,?,?,?,?,?)`, [req.params.id, colaborador_id, funcao, escala, observacao, ordem],
+            function(err2) {
+                if (err2) return res.status(500).json({ error: err2.message });
+                res.json({ sucesso: true, id: this.lastID });
+            });
+    });
+});
+
+// ── DELETE /api/equipes/:id/membros/:colaborador_id ───────────────────────────
+app.delete('/api/equipes/:id/membros/:colaborador_id', authenticateToken, (req, res) => {
+    db.run('DELETE FROM equipes_membros WHERE equipe_id = ? AND colaborador_id = ?',
+        [req.params.id, req.params.colaborador_id], function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ sucesso: true });
+        });
+});
+
+// ── PATCH /api/equipes/mover ──────────────────────────────────────────────────
+// Move um colaborador de uma equipe para outra (ou apenas muda a função)
+app.patch('/api/equipes/mover', authenticateToken, (req, res) => {
+    const { colaborador_id, equipe_origem_id, equipe_destino_id, funcao, escala, observacao } = req.body;
+    if (!colaborador_id || !equipe_destino_id) return res.status(400).json({ error: 'Campos obrigatórios: colaborador_id, equipe_destino_id' });
+
+    const doMove = () => {
+        db.run(`INSERT OR REPLACE INTO equipes_membros (equipe_id, colaborador_id, funcao, escala, observacao)
+            VALUES (?,?,?,?,?)`, [equipe_destino_id, colaborador_id, funcao || 'motorista', escala || '', observacao || ''],
+            function(err2) {
+                if (err2) return res.status(500).json({ error: err2.message });
+                res.json({ sucesso: true });
+            });
+    };
+
+    if (equipe_origem_id && equipe_origem_id !== equipe_destino_id) {
+        db.run('DELETE FROM equipes_membros WHERE equipe_id = ? AND colaborador_id = ?',
+            [equipe_origem_id, colaborador_id], doMove);
+    } else {
+        doMove();
+    }
+});
+
+// ── PATCH /api/equipes/:id/membros/:colaborador_id ────────────────────────────
+app.patch('/api/equipes/:id/membros/:colaborador_id', authenticateToken, (req, res) => {
+    const { funcao, escala, observacao } = req.body;
+    db.run(`UPDATE equipes_membros SET funcao=COALESCE(?,funcao), escala=COALESCE(?,escala),
+        observacao=COALESCE(?,observacao) WHERE equipe_id=? AND colaborador_id=?`,
+        [funcao, escala, observacao, req.params.id, req.params.colaborador_id], function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ sucesso: true });
+        });
+});
+
+// ── GET /api/equipes/colaboradores-sem-equipe ─────────────────────────────────
+app.get('/api/equipes/colaboradores-sem-equipe', authenticateToken, (req, res) => {
+    db.all(`SELECT c.id, c.nome_completo, c.cargo, c.foto_base64, c.foto_path
+        FROM colaboradores c
+        WHERE c.status != 'Desligado'
+        AND c.id NOT IN (SELECT colaborador_id FROM equipes_membros)
+        ORDER BY c.nome_completo ASC`, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+console.log('[EQUIPES] Endpoints registrados.');
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 app.get('/api/colaboradores', authenticateToken, (req, res) => {
+
     const query = `
         SELECT c.*,
             (SELECT COUNT(*) FROM faltas f 
