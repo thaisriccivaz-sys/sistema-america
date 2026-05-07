@@ -297,7 +297,7 @@ function _renderBoard(busca) {
         ondragover="event.preventDefault();window._eqDragOver(event,${eq.id})"
         ondragleave="window._eqDragLeave(event)"
         ondrop="window._eqDrop(event,${eq.id})"
-        style="${isEquipePadrao ? 'flex-direction:row; flex-wrap:wrap; align-content:flex-start; background: linear-gradient(to right, transparent calc(50% - 1px), #e2e8f0 calc(50% - 1px), #e2e8f0 calc(50% + 1px), transparent calc(50% + 1px));' : ''}">
+        style="${isEquipePadrao ? `flex-direction:row; flex-wrap:wrap; align-content:flex-start; background: linear-gradient(to right, transparent calc(50% - 1px), ${eq.cor} calc(50% - 1px), ${eq.cor} calc(50% + 1px), transparent calc(50% + 1px));` : ''}">
         ${emPares ? _renderParesHtml(membros, b, isEquipePadrao) : (membros.length ? membros.map(m => _renderCard(m)).join('') : '<div class="eq-empty"><i class="ph ph-users" style="font-size:1.5rem;display:block;margin-bottom:4px;"></i>Sem membros</div>')}
       </div>
       <div class="eq-col-footer">
