@@ -490,20 +490,42 @@ window._eqCardDrop = async function(event, alvoId, alvoEquipeId) {
 
   try {
     if (origemEquipeId === alvoEquipeId && origemEquipeId !== 0) {
-      // Mesma equipe - reordenar
       const eq = _equipes.find(e => e.id === alvoEquipeId);
-      const isMot1 = eq.membros.find(m => (m.colaborador_id||m.id) === membroId && (m.funcao === 'motorista' || (m.cargo||'').toLowerCase().includes('motorista')));
-      const isMot2 = eq.membros.find(m => (m.colaborador_id||m.id) === alvoId && (m.funcao === 'motorista' || (m.cargo||'').toLowerCase().includes('motorista')));
+      const m1 = eq.membros.find(m => (m.colaborador_id||m.id) === membroId);
+      const m2 = eq.membros.find(m => (m.colaborador_id||m.id) === alvoId);
       
+      const isMot1 = m1.funcao === 'motorista' || (m1.cargo||'').toLowerCase().includes('motorista');
+      const isMot2 = m2.funcao === 'motorista' || (m2.cargo||'').toLowerCase().includes('motorista');
+      
+      const o1 = m1._renderedOrdem !== undefined ? m1._renderedOrdem : (m1.ordem || 0);
+      const o2 = m2._renderedOrdem !== undefined ? m2._renderedOrdem : (m2.ordem || 0);
+
+      if (typeof window.showToast === 'function') window.showToast('Trocando posições...', 'info');
+
       if ((isMot1 && isMot2) || (!isMot1 && !isMot2)) {
-         if (typeof window.showToast === 'function') window.showToast('Reordenando equipe...', 'info');
-         await _eq_patch('/equipes/trocar', { membro_id: membroId, alvo_id: alvoId });
-         await window.initEquipes(false);
+         if (o1 === o2) {
+             const idx1 = eq.membros.indexOf(m1);
+             const idx2 = eq.membros.indexOf(m2);
+             eq.membros[idx1] = m2;
+             eq.membros[idx2] = m1;
+             eq.membros.forEach((m, i) => { m.ordem = i; });
+         } else {
+             m1.ordem = o2;
+             m2.ordem = o1;
+             eq.membros.forEach(m => {
+                 if (m !== m1 && m !== m2) m.ordem = m._renderedOrdem !== undefined ? m._renderedOrdem : (m.ordem || 0);
+             });
+         }
       } else {
-         if (typeof window.showToast === 'function') window.showToast('Trocando funções...', 'info');
-         await _eq_patch('/equipes/trocar', { membro_id: membroId, alvo_id: alvoId });
-         await window.initEquipes(false);
+         const tempF = m1.funcao; m1.funcao = m2.funcao; m2.funcao = tempF;
+         m1.ordem = o2; m2.ordem = o1;
+         eq.membros.forEach(m => {
+             if (m !== m1 && m !== m2) m.ordem = m._renderedOrdem !== undefined ? m._renderedOrdem : (m.ordem || 0);
+         });
       }
+      const payload = eq.membros.map(x => ({ colaborador_id: x.colaborador_id||x.id, funcao: x.funcao, ordem: x.ordem }));
+      await _eq_patch('/equipes/reordenar', { equipe_id: alvoEquipeId, membros_ids: payload });
+      await window.initEquipes(false);
     } else {
       if (typeof window.showToast === 'function') window.showToast('Trocando posições...', 'info');
       await _eq_patch('/equipes/trocar', { membro_id: membroId, alvo_id: alvoId });
@@ -527,7 +549,11 @@ window._eqEmptySlotDrop = async function(event, equipeId, funcao, ordem) {
       if (m) {
         m.ordem = ordem;
         m.funcao = funcao;
-        const payload = eq.membros.map(x => ({ colaborador_id: x.colaborador_id||x.id, funcao: x.funcao, ordem: x.ordem }));
+        const payload = eq.membros.map(x => ({ 
+            colaborador_id: x.colaborador_id||x.id, 
+            funcao: x.funcao, 
+            ordem: x === m ? ordem : (x._renderedOrdem !== undefined ? x._renderedOrdem : (x.ordem||0)) 
+        }));
         if (typeof window.showToast === 'function') window.showToast('Reposicionando...', 'info');
         await _eq_patch('/equipes/reordenar', { equipe_id: equipeId, membros_ids: payload });
         await window.initEquipes(false);
@@ -551,12 +577,27 @@ window._eqDrop = async function(ev, equipeDestinoId) {
   if (!membroId) return;
   if (equipeDestinoId === origemEquipeId) return;
 
+  // Função helper para congelar os espaços atuais
+  const getLockedPayload = (equipe, ignoreId = null) => {
+      return equipe.membros
+          .filter(x => (x.colaborador_id||x.id) !== ignoreId)
+          .map(x => ({
+              colaborador_id: x.colaborador_id||x.id,
+              funcao: x.funcao,
+              ordem: x._renderedOrdem !== undefined ? x._renderedOrdem : (x.ordem||0)
+          }));
+  };
+
   // ── Soltar em "Fora de Equipe" (id=0) → remover da equipe ──
   if (equipeDestinoId === 0) {
     const origem = _equipes.find(e => e.id === origemEquipeId);
     if (!origem) return;
     const idx = origem.membros.findIndex(m => (m.colaborador_id||m.id) === membroId);
     if (idx === -1) return;
+    
+    const payload = getLockedPayload(origem, membroId);
+    if (payload.length > 0) await _eq_patch('/equipes/reordenar', { equipe_id: origemEquipeId, membros_ids: payload });
+
     const [membro] = origem.membros.splice(idx, 1);
     _semEquipe.push({ ...membro, id: membro.colaborador_id||membro.id });
     _reRenderFora();
@@ -576,13 +617,21 @@ window._eqDrop = async function(ev, equipeDestinoId) {
     const idx = _semEquipe.findIndex(m => m.id === membroId);
     if (idx === -1) return;
     const [colab] = _semEquipe.splice(idx, 1);
-    const novoMembro = { ...colab, colaborador_id: colab.id, funcao: 'ajudante', escala: '', equipe_id: equipeDestinoId };
+    
+    let maxO = -1;
+    destino.membros.forEach(m => {
+        const mPos = m._renderedOrdem !== undefined ? m._renderedOrdem : (m.ordem||0);
+        if(mPos > maxO) maxO = mPos;
+    });
+    const novoMembro = { ...colab, colaborador_id: colab.id, funcao: 'ajudante', escala: '', equipe_id: equipeDestinoId, ordem: maxO + 1 };
+    
     destino.membros.push(novoMembro);
     _reRenderFora();
     _reRenderColuna(equipeDestinoId);
     try {
-      await _eq_post(`/equipes/${equipeDestinoId}/membros`, { colaborador_id: colab.id, funcao: 'ajudante' });
+      await _eq_patch('/equipes/mover', { colaborador_id: colab.id, equipe_origem_id: origemEquipeId, equipe_destino_id: equipeDestinoId, funcao: 'ajudante', ordem: maxO + 1 });
       if (typeof window.showToast === 'function') window.showToast(`${colab.nome_completo} adicionado a ${destino.nome}`, 'success');
+      await window.initEquipes(false);
     } catch(e) { console.error('[EQUIPES] Erro ao adicionar:', e); }
     _drag = { membroId: null, origemEquipeId: null };
     return;
@@ -594,14 +643,27 @@ window._eqDrop = async function(ev, equipeDestinoId) {
   if (!origem || !destino) return;
   const idx = origem.membros.findIndex(m => (m.colaborador_id||m.id) === membroId);
   if (idx === -1) return;
+
+  const payloadOrigem = getLockedPayload(origem, membroId);
+  if (payloadOrigem.length > 0) await _eq_patch('/equipes/reordenar', { equipe_id: origemEquipeId, membros_ids: payloadOrigem });
+
   const [membro] = origem.membros.splice(idx, 1);
   membro.equipe_id = equipeDestinoId;
+  
+  let maxO = -1;
+  destino.membros.forEach(m => {
+      const mPos = m._renderedOrdem !== undefined ? m._renderedOrdem : (m.ordem||0);
+      if(mPos > maxO) maxO = mPos;
+  });
+  membro.ordem = maxO + 1;
+  
   destino.membros.push(membro);
   _reRenderColuna(origemEquipeId);
   _reRenderColuna(equipeDestinoId);
   try {
-    await _eq_patch('/equipes/mover', { colaborador_id: membro.colaborador_id||membro.id, equipe_origem_id: origemEquipeId, equipe_destino_id: equipeDestinoId, funcao: membro.funcao });
+    await _eq_patch('/equipes/mover', { colaborador_id: membro.colaborador_id||membro.id, equipe_origem_id: origemEquipeId, equipe_destino_id: equipeDestinoId, funcao: membro.funcao, ordem: maxO + 1 });
     if (typeof window.showToast === 'function') window.showToast(`${membro.nome_completo||membro.nome} movido para ${destino.nome}`, 'success');
+    await window.initEquipes(false);
   } catch(e) {
     destino.membros.splice(destino.membros.findIndex(m => (m.colaborador_id||m.id) === membroId), 1);
     membro.equipe_id = origemEquipeId;
@@ -651,11 +713,13 @@ function _renderParesHtml(membros, b, isEquipePadrao = false) {
       let pos = o;
       while(motoristasMap[pos]) pos++;
       motoristasMap[pos] = m;
+      m._renderedOrdem = pos;
       if (pos > maxOrdem) maxOrdem = pos;
     } else {
       let pos = o;
       while(ajudantesMap[pos]) pos++;
       ajudantesMap[pos] = m;
+      m._renderedOrdem = pos;
       if (pos > maxOrdem) maxOrdem = pos;
     }
   });
