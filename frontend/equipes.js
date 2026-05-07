@@ -91,7 +91,7 @@ function _renderAll(el) {
     .eq-btn-primary:hover { background:#1e293b; }
     .eq-btn-sec { height:38px; padding:0 1.1rem; background:#fff; color:#334155; border:1.5px solid #e2e8f0; border-radius:8px; font-weight:600; font-size:.85rem; cursor:pointer; display:flex; align-items:center; gap:6px; transition:border-color .15s; }
     .eq-btn-sec:hover { border-color:#94a3b8; }
-    #equipes-board { display:flex; gap:1.25rem; overflow-y:auto; overflow-x:hidden; flex-wrap:wrap; padding-bottom:1rem; flex:1; min-height:0; align-items:flex-start; align-content:flex-start; }
+    #equipes-board { display:flex; gap:2rem; overflow-y:auto; overflow-x:hidden; flex-wrap:wrap; padding-bottom:1rem; flex:1; min-height:0; align-items:flex-start; align-content:flex-start; }
     #equipes-board::-webkit-scrollbar { width:6px; }
     #equipes-board::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:3px; }
     .eq-col { width:200px; min-width:200px; background:#f8fafc; border-radius:14px; border:1.5px solid #e2e8f0; display:flex; flex-direction:column; flex-shrink:0; max-height:calc(100vh - 180px); }
