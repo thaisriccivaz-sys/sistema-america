@@ -2235,9 +2235,11 @@ app.patch('/api/equipes/:id/membros/:colaborador_id', authenticateToken, (req, r
 app.get('/api/equipes/colaboradores-sem-equipe', authenticateToken, (req, res) => {
     db.all(`SELECT c.id, c.nome_completo, c.cargo, c.foto_base64, c.foto_path
         FROM colaboradores c
+        LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento)) OR LOWER(TRIM(d.nome)) = LOWER(TRIM(c.cargo))
         WHERE c.status != 'Desligado'
-        AND c.departamento IN ('EXTERNO', 'PÁTIO', 'MOTORISTA FREE', 'Logística')
         AND c.id NOT IN (SELECT colaborador_id FROM equipes_membros)
+        AND (d.tipo = 'Operacional' OR (d.id IS NULL AND c.departamento IN ('EXTERNO', 'PÁTIO', 'MOTORISTA FREE')))
+        GROUP BY c.id
         ORDER BY c.nome_completo ASC`, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows || []);
