@@ -2139,6 +2139,11 @@ db.get("SELECT COUNT(*) as c FROM equipes WHERE nome = 'Equipe 07h' OR nome = 'E
             )
         `, () => {
             console.log('[MIGRATION] Equipes duplicadas removidas (se existiam).');
+            db.get("SELECT COUNT(*) as c FROM equipes WHERE nome = 'Ajudantes noturnos 12x36'", (err, row) => {
+                if (!err && row && row.c === 0) {
+                    db.run("INSERT INTO equipes (nome, descricao, cor, ordem) VALUES ('Ajudantes noturnos 12x36', '', '#14b8a6', 8)");
+                }
+            });
         });
     }
 });

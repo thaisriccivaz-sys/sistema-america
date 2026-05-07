@@ -62,7 +62,8 @@ window.initEquipes = async function () {
         { nome: 'Equipe Intermitente', descricao: '', cor: '#f59e0b', ordem: 4 },
         { nome: 'Equipe Reserva', descricao: '', cor: '#db2777', ordem: 5 },
         { nome: 'Ajudante pátio', descricao: '', cor: '#10b981', ordem: 6 },
-        { nome: 'Líderes', descricao: '', cor: '#64748b', ordem: 7 }
+        { nome: 'Líderes', descricao: '', cor: '#64748b', ordem: 7 },
+        { nome: 'Ajudantes noturnos 12x36', descricao: '', cor: '#14b8a6', ordem: 8 }
       ];
       for (const d of defaults) {
         const eq = await _eq_post('/equipes', d);
