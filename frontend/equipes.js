@@ -40,8 +40,7 @@ async function _eq_del(path) {
 }
 
 function _eq_fotoSrc(m) {
-  if (m.foto_base64) return 'data:image/jpeg;base64,' + m.foto_base64;
-  if (m.foto_path || m.colaborador_id || m.id) return _eq_apiBase() + `/colaboradores/foto/${m.colaborador_id || m.id}`;
+  if (m.colaborador_id || m.id) return _eq_apiBase() + `/colaboradores/foto/${m.colaborador_id || m.id}`;
   return null;
 }
 
