@@ -99,7 +99,7 @@ function _renderAll(el) {
     .eq-col-title { font-size:.85rem; font-weight:800; color:#fff; margin:0; display:flex; align-items:center; justify-content:space-between; gap:6px; }
     .eq-col-sub { display:none; }
     .eq-badge { background:rgba(255,255,255,.25); border-radius:10px; padding:1px 8px; font-weight:700; font-size:.72rem; }
-    .eq-col-body { padding:.6rem; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:.5rem; min-height:80px; }
+    .eq-col-body { padding:.4rem; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:4px; min-height:80px; }
     .eq-col-body::-webkit-scrollbar { width:4px; }
     .eq-col-body::-webkit-scrollbar-thumb { background:#e2e8f0; border-radius:2px; }
     .eq-col-body.drag-over { background:#eff6ff; border:2px dashed #6366f1; border-radius:8px; }
@@ -564,7 +564,7 @@ function _renderParesHtml(membros, b) {
   const rows = Math.max(maxOrdem + 1, 1) + 1;
   let html = '';
   for (let i = 0; i < rows; i++) {
-    html += '<div style="display:flex; gap:6px; margin-bottom:6px;">';
+    html += '<div style="display:flex; gap:4px; margin-bottom:2px;">';
     
     html += `<div style="flex:1; min-width:0;" ondragover="event.preventDefault();" ondrop="window._eqEmptySlotDrop(event, ${eqId}, 'motorista', ${i})">`;
     html += motoristasMap[i] ? _renderCard(motoristasMap[i]) : `<div class="eq-empty" style="height:100%;min-height:48px;background:#f1f5f9;border-radius:10px;border:1.5px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:.65rem;font-weight:700;">S/ Motorista</div>`;
