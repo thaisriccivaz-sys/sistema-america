@@ -2257,15 +2257,32 @@ app.patch('/api/equipes/trocar', authenticateToken, (req, res) => {
     });
 });
 
+// ── PATCH /api/equipes/reordenar ──────────────────────────────────────────────
+app.patch('/api/equipes/reordenar', authenticateToken, (req, res) => {
+    const { equipe_id, membros_ids } = req.body;
+    if (!equipe_id || !Array.isArray(membros_ids)) return res.status(400).json({error: 'Dados inválidos'});
+    
+    db.serialize(() => {
+        const stmt = db.prepare('UPDATE equipes_membros SET ordem=?, funcao=? WHERE equipe_id=? AND colaborador_id=?');
+        membros_ids.forEach(m => {
+            stmt.run([m.ordem, m.funcao, equipe_id, m.colaborador_id]);
+        });
+        stmt.finalize((err) => {
+            if (err) return res.status(500).json({error: err.message});
+            res.json({ success: true });
+        });
+    });
+});
+
 // ── PATCH /api/equipes/mover ──────────────────────────────────────────────────
 // Move um colaborador de uma equipe para outra (ou apenas muda a função)
 app.patch('/api/equipes/mover', authenticateToken, (req, res) => {
-    const { colaborador_id, equipe_origem_id, equipe_destino_id, funcao, escala, observacao } = req.body;
+    const { colaborador_id, equipe_origem_id, equipe_destino_id, funcao, escala, observacao, ordem } = req.body;
     if (!colaborador_id || !equipe_destino_id) return res.status(400).json({ error: 'Campos obrigatórios: colaborador_id, equipe_destino_id' });
 
     const doMove = () => {
-        db.run(`INSERT OR REPLACE INTO equipes_membros (equipe_id, colaborador_id, funcao, escala, observacao)
-            VALUES (?,?,?,?,?)`, [equipe_destino_id, colaborador_id, funcao || 'motorista', escala || '', observacao || ''],
+        db.run(`INSERT OR REPLACE INTO equipes_membros (equipe_id, colaborador_id, funcao, escala, observacao, ordem)
+            VALUES (?,?,?,?,?,?)`, [equipe_destino_id, colaborador_id, funcao || 'motorista', escala || '', observacao || '', ordem || 0],
             function(err2) {
                 if (err2) return res.status(500).json({ error: err2.message });
                 res.json({ sucesso: true });

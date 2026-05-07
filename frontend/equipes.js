@@ -102,17 +102,17 @@ function _renderAll(el) {
     .eq-col-body::-webkit-scrollbar { width:4px; }
     .eq-col-body::-webkit-scrollbar-thumb { background:#e2e8f0; border-radius:2px; }
     .eq-col-body.drag-over { background:#eff6ff; border:2px dashed #6366f1; border-radius:8px; }
-    .eq-card { background:#fff; border-radius:10px; border:1.5px solid #f1f5f9; padding:.6rem .75rem; box-shadow:0 1px 3px rgba(0,0,0,.06); display:flex; align-items:center; gap:.6rem; cursor:grab; transition:box-shadow .15s, transform .15s, opacity .15s; user-select:none; }
+    .eq-card { background:#fff; border-radius:10px; border:1.5px solid #f1f5f9; padding:.4rem .5rem; box-shadow:0 1px 3px rgba(0,0,0,.06); display:flex; align-items:center; gap:.4rem; cursor:grab; transition:box-shadow .15s, transform .15s, opacity .15s; user-select:none; }
     .eq-card:hover { box-shadow:0 4px 12px rgba(0,0,0,.1); transform:translateY(-1px); }
     .eq-card.dragging { opacity:.4; transform:scale(.97); box-shadow:none; cursor:grabbing; }
-    .eq-avatar { width:38px; height:38px; border-radius:50%; object-fit:cover; flex-shrink:0; border:2px solid #e2e8f0; }
-    .eq-avatar-placeholder { width:38px; height:38px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:.9rem; color:#fff; }
+    .eq-avatar { width:30px; height:30px; border-radius:50%; object-fit:cover; flex-shrink:0; border:2px solid #e2e8f0; }
+    .eq-avatar-placeholder { width:30px; height:30px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:.7rem; color:#fff; }
     .eq-card-info { flex:1; min-width:0; }
-    .eq-card-name { font-size:.8rem; font-weight:700; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .eq-card-func { font-size:.64rem; font-weight:700; padding:1px 6px; border-radius:8px; display:inline-block; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
-    .eq-card-escala { font-size:.68rem; color:#94a3b8; margin-top:1px; }
+    .eq-card-name { font-size:.7rem; font-weight:700; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .eq-card-func { font-size:.56rem; font-weight:700; padding:1px 5px; border-radius:8px; display:inline-block; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+    .eq-card-escala { font-size:.65rem; color:#94a3b8; margin-top:1px; }
     .eq-status-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
-    .eq-empty { text-align:center; padding:1.5rem .5rem; color:#cbd5e1; font-size:.8rem; }
+    .eq-empty { text-align:center; padding:1.5rem .5rem; color:#cbd5e1; font-size:.7rem; }
     .eq-col-footer { padding:.5rem; border-top:1px solid #f1f5f9; }
     .eq-add-btn { width:100%; background:transparent; border:1.5px dashed #cbd5e1; border-radius:8px; color:#94a3b8; font-size:.8rem; padding:.5rem; cursor:pointer; transition:all .15s; display:flex; align-items:center; justify-content:center; gap:5px; }
     .eq-add-btn:hover { border-color:#6366f1; color:#6366f1; background:#f5f3ff; }
@@ -389,11 +389,56 @@ window._eqCardDrop = async function(event, alvoId, alvoEquipeId) {
   if (!membroId || membroId === alvoId) return;
 
   try {
-    if (typeof window.showToast === 'function') window.showToast('Trocando posições...', 'info');
-    await _eq_patch('/equipes/trocar', { membro_id: membroId, alvo_id: alvoId });
-    await window._loadEquipes();
+    if (origemEquipeId === alvoEquipeId && origemEquipeId !== 0) {
+      // Mesma equipe - reordenar
+      const eq = _equipes.find(e => e.id === alvoEquipeId);
+      const isMot1 = eq.membros.find(m => (m.colaborador_id||m.id) === membroId && (m.funcao === 'motorista' || (m.cargo||'').toLowerCase().includes('motorista')));
+      const isMot2 = eq.membros.find(m => (m.colaborador_id||m.id) === alvoId && (m.funcao === 'motorista' || (m.cargo||'').toLowerCase().includes('motorista')));
+      
+      if ((isMot1 && isMot2) || (!isMot1 && !isMot2)) {
+         if (typeof window.showToast === 'function') window.showToast('Reordenando equipe...', 'info');
+         await _eq_patch('/equipes/trocar', { membro_id: membroId, alvo_id: alvoId });
+         await window._loadEquipes();
+      } else {
+         if (typeof window.showToast === 'function') window.showToast('Trocando funções...', 'info');
+         await _eq_patch('/equipes/trocar', { membro_id: membroId, alvo_id: alvoId });
+         await window._loadEquipes();
+      }
+    } else {
+      if (typeof window.showToast === 'function') window.showToast('Trocando posições...', 'info');
+      await _eq_patch('/equipes/trocar', { membro_id: membroId, alvo_id: alvoId });
+      await window._loadEquipes();
+    }
   } catch(e) {
     alert('Erro ao trocar: ' + e.message);
+  }
+};
+
+window._eqEmptySlotDrop = async function(event, equipeId, funcao, ordem) {
+  event.stopPropagation();
+  event.preventDefault();
+  const { membroId, origemEquipeId } = _drag;
+  if (!membroId) return;
+
+  try {
+    if (origemEquipeId === equipeId && origemEquipeId !== 0) {
+      const eq = _equipes.find(e => e.id === equipeId);
+      const m = eq.membros.find(x => (x.colaborador_id||x.id) === membroId);
+      if (m) {
+        m.ordem = ordem;
+        m.funcao = funcao;
+        const payload = eq.membros.map(x => ({ colaborador_id: x.colaborador_id||x.id, funcao: x.funcao, ordem: x.ordem }));
+        if (typeof window.showToast === 'function') window.showToast('Reposicionando...', 'info');
+        await _eq_patch('/equipes/reordenar', { equipe_id: equipeId, membros_ids: payload });
+        await window._loadEquipes();
+      }
+    } else {
+      if (typeof window.showToast === 'function') window.showToast('Adicionando na posição...', 'info');
+      await _eq_patch('/equipes/mover', { colaborador_id: membroId, equipe_origem_id: origemEquipeId, equipe_destino_id: equipeId, funcao, ordem });
+      await window._loadEquipes();
+    }
+  } catch(e) {
+    alert('Erro: ' + e.message);
   }
 };
 
@@ -493,14 +538,41 @@ function _renderParesHtml(membros, b) {
   if (!membros.length) return '<div class="eq-empty"><i class="ph ph-users" style="font-size:1.5rem;display:block;margin-bottom:4px;"></i>Sem membros</div>';
   if (b) return membros.map(m => _renderCard(m)).join('');
 
-  const motoristas = membros.filter(m => (m.cargo||'').toLowerCase().includes('motorista'));
-  const ajudantes = membros.filter(m => !(m.cargo||'').toLowerCase().includes('motorista'));
-  const rows = Math.max(motoristas.length, ajudantes.length);
+  const motoristasMap = {};
+  const ajudantesMap = {};
+  let maxOrdem = -1;
+
+  membros.forEach(m => {
+    const isMot = (m.cargo||'').toLowerCase().includes('motorista') || m.funcao === 'motorista';
+    const o = m.ordem || 0;
+    if (o > maxOrdem) maxOrdem = o;
+    if (isMot) {
+      let pos = o;
+      while(motoristasMap[pos]) pos++;
+      motoristasMap[pos] = m;
+      if (pos > maxOrdem) maxOrdem = pos;
+    } else {
+      let pos = o;
+      while(ajudantesMap[pos]) pos++;
+      ajudantesMap[pos] = m;
+      if (pos > maxOrdem) maxOrdem = pos;
+    }
+  });
+
+  const eqId = membros[0].equipe_id;
+  const rows = Math.max(maxOrdem + 1, 1) + 1;
   let html = '';
   for (let i = 0; i < rows; i++) {
     html += '<div style="display:flex; gap:6px; margin-bottom:8px;">';
-    html += '<div style="flex:1; min-width:0;">' + (motoristas[i] ? _renderCard(motoristas[i]) : '<div class="eq-empty" style="height:100%;min-height:60px;background:#f1f5f9;border-radius:10px;border:1.5px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:.7rem;font-weight:700;">S/ Motorista</div>') + '</div>';
-    html += '<div style="flex:1; min-width:0;">' + (ajudantes[i] ? _renderCard(ajudantes[i]) : '<div class="eq-empty" style="height:100%;min-height:60px;background:#f1f5f9;border-radius:10px;border:1.5px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:.7rem;font-weight:700;">S/ Ajudante</div>') + '</div>';
+    
+    html += `<div style="flex:1; min-width:0;" ondragover="event.preventDefault();" ondrop="window._eqEmptySlotDrop(event, ${eqId}, 'motorista', ${i})">`;
+    html += motoristasMap[i] ? _renderCard(motoristasMap[i]) : `<div class="eq-empty" style="height:100%;min-height:60px;background:#f1f5f9;border-radius:10px;border:1.5px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:.7rem;font-weight:700;">S/ Motorista</div>`;
+    html += '</div>';
+
+    html += `<div style="flex:1; min-width:0;" ondragover="event.preventDefault();" ondrop="window._eqEmptySlotDrop(event, ${eqId}, 'ajudante', ${i})">`;
+    html += ajudantesMap[i] ? _renderCard(ajudantesMap[i]) : `<div class="eq-empty" style="height:100%;min-height:60px;background:#f1f5f9;border-radius:10px;border:1.5px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:.7rem;font-weight:700;">S/ Ajudante</div>`;
+    html += '</div>';
+
     html += '</div>';
   }
   return html;
