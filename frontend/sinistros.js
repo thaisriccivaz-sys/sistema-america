@@ -519,21 +519,10 @@ window.gerarDocumentoSinistro = async function(sinId, colabId) {
 };
 
 window.verDocumentoSinistro = async function(sinId, colabId) {
-    // Sempre regera o documento para garantir o template do Gerador
-    const rGen = await fetch(`${API_URL}/colaboradores/${colabId}/sinistros/${sinId}/gerar-documento`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` }
-    });
-    if (!rGen.ok) {
-        const errData = await rGen.json().catch(() => ({}));
-        return alert('Erro ao gerar documento: ' + (errData.error || rGen.status));
-    }
-    const genData = await rGen.json();
-    const htmlFinal = genData.html;
-
-    const modalBody = document.getElementById('preview-doc-body');
-    if (modalBody) {
-        modalBody.innerHTML = htmlFinal;
+    const showModal = (html) => {
+        const modalBody = document.getElementById('preview-doc-body');
+        if (!modalBody) return alert('Visualizador padrão não encontrado.');
+        modalBody.innerHTML = html;
         document.getElementById('preview-doc-title').textContent = 'Visualização — Sinistro';
         const btns = document.getElementById('preview-doc-buttons');
         if (btns) {
@@ -543,10 +532,31 @@ window.verDocumentoSinistro = async function(sinId, colabId) {
                 <button class="btn btn-secondary" onclick="document.getElementById('modal-preview-doc').style.display='none'"><i class="ph ph-x"></i> Fechar</button>`;
         }
         document.getElementById('modal-preview-doc').style.display = 'block';
-    } else {
-        alert('Visualizador padrão não encontrado.');
+    };
+
+    // Para documentos já assinados, usa o HTML salvo (preserva assinaturas)
+    try {
+        const sinistros = await apiGet(`/colaboradores/${colabId}/sinistros`);
+        const sin = sinistros ? sinistros.find(x => x.id == sinId) : null;
+        if (sin && sin.status === 'assinado' && sin.documento_html) {
+            showModal(sin.documento_html);
+            return;
+        }
+    } catch(e) { /* continua para regerar */ }
+
+    // Documentos não assinados: regera para garantir template atualizado
+    const rGen = await fetch(`${API_URL}/colaboradores/${colabId}/sinistros/${sinId}/gerar-documento`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` }
+    });
+    if (!rGen.ok) {
+        const errData = await rGen.json().catch(() => ({}));
+        return alert('Erro ao gerar documento: ' + (errData.error || rGen.status));
     }
+    const genData = await rGen.json();
+    showModal(genData.html);
 };
+
 
 // =========================================================
 // MODAIS DE ASSINATURA - TESTEMUNHAS
