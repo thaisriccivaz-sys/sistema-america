@@ -196,7 +196,7 @@ function _renderBoard(busca) {
       </div>`
     ).join('');
 
-    <div class="eq-col" data-equipe-id="${eq.id}">
+    return `<div class="eq-col" data-equipe-id="${eq.id}">
       <div class="eq-col-header" style="background:${eq.cor};">
         <div class="eq-col-title">
           <span class="eq-indicator" style="background:${indicadorCor};border:2px solid rgba(255,255,255,.5);"></span>
