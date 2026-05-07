@@ -90,8 +90,8 @@ function _renderAll(el) {
     .eq-btn-primary:hover { background:#1e293b; }
     .eq-btn-sec { height:38px; padding:0 1.1rem; background:#fff; color:#334155; border:1.5px solid #e2e8f0; border-radius:8px; font-weight:600; font-size:.85rem; cursor:pointer; display:flex; align-items:center; gap:6px; transition:border-color .15s; }
     .eq-btn-sec:hover { border-color:#94a3b8; }
-    #equipes-board { display:flex; gap:1rem; overflow-x:auto; padding-bottom:1rem; flex:1; min-height:0; align-items:flex-start; }
-    #equipes-board::-webkit-scrollbar { height:6px; }
+    #equipes-board { display:flex; gap:1rem; overflow-y:auto; overflow-x:hidden; flex-wrap:wrap; padding-bottom:1rem; flex:1; min-height:0; align-items:flex-start; align-content:flex-start; }
+    #equipes-board::-webkit-scrollbar { width:6px; }
     #equipes-board::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:3px; }
     .eq-col { width:240px; min-width:240px; background:#f8fafc; border-radius:14px; border:1.5px solid #e2e8f0; display:flex; flex-direction:column; flex-shrink:0; max-height:calc(100vh - 180px); }
     .eq-col-header { padding:.9rem 1rem .7rem; border-radius:12px 12px 0 0; }
@@ -286,6 +286,11 @@ function _renderCard(m) {
   const avatarBg = ['#6366f1','#8b5cf6','#ec4899','#14b8a6','#f97316','#84cc16'][(m.colaborador_id||m.id) % 6];
   const borderStyle = afastado ? 'border-color:#fca5a5;background:#fff5f5;' : emExp ? 'border-color:#fde68a;background:#fffbeb;' : '';
   const avatarBorder = afastado ? 'border-color:#ef4444;border-width:2px;' : emExp ? 'border-color:#f59e0b;border-width:2px;' : '';
+  const isMotorista = (m.cargo || '').toLowerCase().includes('motorista');
+  const labelText = m.cargo ? `${m.cargo}${isMotorista && m.cnh_categoria ? ` (${m.cnh_categoria})` : ''}` : (m.funcao === 'motorista' ? 'Motorista' : 'Ajudante');
+  const badgeBg = isMotorista ? '#dbeafe' : '#f1f5f9';
+  const badgeColor = isMotorista ? '#1d4ed8' : '#475569';
+
   const avatarHtml = _eq_fotoSrc(m)
     ? `<img class="eq-avatar" src="${_eq_fotoSrc(m)}" alt="${nome}" style="${avatarBorder}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
        <div class="eq-avatar-placeholder" style="background:${avatarBg};display:none;">${iniciais}</div>`
@@ -299,9 +304,8 @@ function _renderCard(m) {
     ${avatarHtml}
     <div class="eq-card-info">
       <div class="eq-card-name">${nome}${emExp?` <span style="font-size:.58rem;background:#fde68a;color:#92400e;border-radius:3px;padding:0 3px;font-weight:800;">EXP</span>`:''}</div>
-      <span class="eq-card-func" style="background:${fs.bg};color:${fs.color};">${fs.label}</span>
+      <span class="eq-card-func" style="background:${badgeBg};color:${badgeColor};">${labelText}</span>
       ${m.escala ? `<div class="eq-card-escala">${m.escala}</div>` : ''}
-      ${m.cargo ? `<div class="eq-card-escala">${m.cargo}${m.cargo.toLowerCase().includes('motorista') && m.cnh_categoria ? ` (${m.cnh_categoria})` : ''}</div>` : ''}
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
       <div class="eq-status-dot" title="${m.status||'ativo'}" style="background:${sc};"></div>
