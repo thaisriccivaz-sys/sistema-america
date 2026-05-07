@@ -14,6 +14,9 @@ const COLUNAS_DEFAULT = [
 let _equipes = JSON.parse(JSON.stringify(COLUNAS_DEFAULT));
 let _busca = '';
 
+// ── Drag state ───────────────────────────────────────────────────────────────
+let _drag = { membroId: null, origemEquipeId: null };
+
 window.initEquipes = function () {
   const el = document.getElementById('equipes-container');
   if (!el) return;
@@ -43,8 +46,10 @@ function _renderAll(el) {
     .eq-col-body { padding:.6rem; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:.5rem; min-height:80px; }
     .eq-col-body::-webkit-scrollbar { width:4px; }
     .eq-col-body::-webkit-scrollbar-thumb { background:#e2e8f0; border-radius:2px; }
-    .eq-card { background:#fff; border-radius:10px; border:1.5px solid #f1f5f9; padding:.6rem .75rem; box-shadow:0 1px 3px rgba(0,0,0,.06); display:flex; align-items:center; gap:.6rem; cursor:grab; transition:box-shadow .15s, transform .15s; }
+    .eq-col-body.drag-over { background:#eff6ff; border:2px dashed #6366f1; border-radius:8px; }
+    .eq-card { background:#fff; border-radius:10px; border:1.5px solid #f1f5f9; padding:.6rem .75rem; box-shadow:0 1px 3px rgba(0,0,0,.06); display:flex; align-items:center; gap:.6rem; cursor:grab; transition:box-shadow .15s, transform .15s, opacity .15s; user-select:none; }
     .eq-card:hover { box-shadow:0 4px 12px rgba(0,0,0,.1); transform:translateY(-1px); }
+    .eq-card.dragging { opacity:.4; transform:scale(.97); box-shadow:none; cursor:grabbing; }
     .eq-avatar { width:38px; height:38px; border-radius:50%; object-fit:cover; flex-shrink:0; border:2px solid #e2e8f0; }
     .eq-avatar-placeholder { width:38px; height:38px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:.9rem; color:#fff; }
     .eq-card-info { flex:1; min-width:0; }
@@ -107,7 +112,10 @@ function _renderBoard(busca) {
           <span class="eq-badge">${membros.length}</span>
         </div>
       </div>
-      <div class="eq-col-body" id="eq-body-${eq.id}">
+    <div class="eq-col-body" id="eq-body-${eq.id}"
+      ondragover="event.preventDefault();window._eqDragOver(event,${eq.id})"
+      ondragleave="window._eqDragLeave(event)"
+      ondrop="window._eqDrop(event,${eq.id})">
         ${membros.length ? membros.map(m => _renderCard(m)).join('') : '<div class="eq-empty"><i class="ph ph-users" style="font-size:1.5rem;display:block;margin-bottom:4px;"></i>Sem membros</div>'}
       </div>
       <div class="eq-col-footer">
@@ -139,7 +147,11 @@ function _renderCard(m) {
     ? `<img class="eq-avatar" src="${m.foto}" alt="${m.nome}" style="${afastado?'border-color:#ef4444;border-width:2px;':''}">`
     : `<div class="eq-avatar-placeholder" style="background:${avatarBg};${afastado?'border:2px solid #ef4444;':''}">${iniciais}</div>`;
   return `
-  <div class="eq-card" data-membro-id="${m.id}" data-equipe-id="${m.equipe_id}" style="${afastado?'border-color:#fca5a5;background:#fff5f5;':''}">
+  <div class="eq-card" data-membro-id="${m.id}" data-equipe-id="${m.equipe_id}"
+    draggable="true"
+    ondragstart="window._eqDragStart(event,${m.id},${m.equipe_id})"
+    ondragend="window._eqDragEnd(event)"
+    style="${afastado?'border-color:#fca5a5;background:#fff5f5;':''}">
     ${avatarHtml}
     <div class="eq-card-info">
       <div class="eq-card-name">${m.nome}</div>
@@ -148,6 +160,7 @@ function _renderCard(m) {
     </div>
     <div class="eq-status-dot" title="${m.status||'ativo'}" style="background:${sc};"></div>
   </div>`;
+
 }
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
@@ -178,6 +191,93 @@ window._equipesSalvar = function() {
   if (typeof window.showToast === 'function') window.showToast('Alterações salvas!', 'success');
   else alert('Alterações salvas!');
 };
+
+// ── Drag & Drop handlers ──────────────────────────────────────────────────────
+window._eqDragStart = function(ev, membroId, equipeId) {
+  _drag.membroId = membroId;
+  _drag.origemEquipeId = equipeId;
+  ev.dataTransfer.effectAllowed = 'move';
+  ev.dataTransfer.setData('text/plain', membroId);
+  // Marca o card como sendo arrastado (via timeout p/ browser renderizar antes)
+  setTimeout(() => {
+    const el = document.querySelector(`[data-membro-id="${membroId}"]`);
+    if (el) el.classList.add('dragging');
+  }, 0);
+};
+
+window._eqDragEnd = function(ev) {
+  document.querySelectorAll('.eq-card.dragging').forEach(el => el.classList.remove('dragging'));
+  document.querySelectorAll('.eq-col-body.drag-over').forEach(el => el.classList.remove('drag-over'));
+};
+
+window._eqDragOver = function(ev, equipeId) {
+  ev.preventDefault();
+  ev.dataTransfer.dropEffect = 'move';
+  const body = document.getElementById(`eq-body-${equipeId}`);
+  if (body && !body.classList.contains('drag-over')) {
+    document.querySelectorAll('.eq-col-body.drag-over').forEach(el => el.classList.remove('drag-over'));
+    body.classList.add('drag-over');
+  }
+};
+
+window._eqDragLeave = function(ev) {
+  // Só remove se o mouse saiu para fora da coluna (não para um filho)
+  if (ev.currentTarget && !ev.currentTarget.contains(ev.relatedTarget)) {
+    ev.currentTarget.classList.remove('drag-over');
+  }
+};
+
+window._eqDrop = function(ev, equipeDestinoId) {
+  ev.preventDefault();
+  const body = document.getElementById(`eq-body-${equipeDestinoId}`);
+  if (body) body.classList.remove('drag-over');
+
+  const { membroId, origemEquipeId } = _drag;
+  if (!membroId || equipeDestinoId === origemEquipeId) return;
+
+  // Encontrar e mover o membro no estado
+  const origem = _equipes.find(e => e.id === origemEquipeId);
+  const destino = _equipes.find(e => e.id === equipeDestinoId);
+  if (!origem || !destino) return;
+
+  const idx = origem.membros.findIndex(m => m.id === membroId);
+  if (idx === -1) return;
+
+  const [membro] = origem.membros.splice(idx, 1);
+  membro.equipe_id = equipeDestinoId;
+  destino.membros.push(membro);
+
+  // Re-renderizar só as duas colunas afetadas
+  _reRenderColuna(origemEquipeId);
+  _reRenderColuna(equipeDestinoId);
+
+  if (typeof window.showToast === 'function') {
+    window.showToast(`${membro.nome} movido para ${destino.nome}`, 'success');
+  }
+
+  _drag = { membroId: null, origemEquipeId: null };
+};
+
+function _reRenderColuna(equipeId) {
+  const eq = _equipes.find(e => e.id === equipeId);
+  if (!eq) return;
+  // Atualiza o badge de contagem no header
+  const badge = document.querySelector(`[data-equipe-id="${equipeId}"] .eq-badge`);
+  if (badge) badge.textContent = eq.membros.length;
+  // Atualiza o indicador de completude
+  const completa = eq.membros.some(m => m.funcao === 'motorista') && eq.membros.some(m => m.funcao === 'ajudante');
+  const indicadorCor = eq.membros.length === 0 ? '#ef4444' : completa ? '#22c55e' : '#f59e0b';
+  const indicator = document.querySelector(`[data-equipe-id="${equipeId}"] .eq-indicator`);
+  if (indicator) indicator.style.background = indicadorCor;
+  // Re-renderiza o corpo
+  const body = document.getElementById(`eq-body-${equipeId}`);
+  if (!body) return;
+  const b = _busca.toLowerCase();
+  const membros = b ? eq.membros.filter(m => m.nome.toLowerCase().includes(b)) : eq.membros;
+  body.innerHTML = membros.length
+    ? membros.map(m => _renderCard(m)).join('')
+    : '<div class="eq-empty"><i class="ph ph-users" style="font-size:1.5rem;display:block;margin-bottom:4px;"></i>Sem membros</div>';
+}
 
 window._equipesAdicionarMembro = function(equipeId) {
   // Placeholder — será expandido na integração com backend
