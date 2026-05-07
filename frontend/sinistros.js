@@ -986,6 +986,8 @@ window._abrirTelaAssinaturaSinistro = async function(sinId, colabId, docHtml, s)
     const modal = document.createElement('div');
     modal.id = 'modal-finalizar-sinistro';
     modal.style.cssText = 'position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,0.7);display:flex;align-items:stretch;';
+    // IMPORTANTE: salva o docHtml para uso no _finSalvarTestemunhas
+    window._finalizarSinistroDocHtml = docHtml;
     modal.innerHTML = `
         <div style="width:100%;height:100vh;display:flex;flex-direction:column;background:#0f172a;overflow:hidden;">
             <div style="flex-shrink:0;background:linear-gradient(90deg,#7c3aed,#4f46e5);padding:0.9rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
@@ -1000,7 +1002,7 @@ window._abrirTelaAssinaturaSinistro = async function(sinId, colabId, docHtml, s)
             </div>
             <div style="flex:1;display:flex;overflow:hidden;">
                 <div style="flex:1;overflow-y:auto;background:#e2e8f0;padding:1.5rem;">
-                    <div style="background:white;margin:0 auto;width:21cm;min-height:29.7cm;padding:0;box-shadow:0 4px 24px rgba(0,0,0,0.18);border:1px solid #ddd;overflow:hidden;">
+                    <div id="fin-doc-preview" style="background:white;margin:0 auto;width:21cm;min-height:29.7cm;padding:0;box-shadow:0 4px 24px rgba(0,0,0,0.18);border:1px solid #ddd;overflow:hidden;">
                         ${docHtml}
                     </div>
                 </div>
@@ -1072,6 +1074,29 @@ window._sinLimparCanvas = function(id) {
 window._sinLimparCanvasFinalizar = function() { window._sinLimparCanvas('fin-canvas-condutor'); };
 window._calcFinSinParcela = function() {};
 
+// Helper: converte canvases de PDFs renderizados em <img> PNG no HTML salvo
+window._flattenDocHtmlPdfCanvases = function(docHtml) {
+    // Cria um div oculto com o HTML, converte os canvases do preview real (já renderizados pelo PDF.js)
+    // e injeta como <img> no HTML que vai para o servidor
+    const previewDiv = document.getElementById('fin-doc-preview');
+    if (!previewDiv) return docHtml; // sem preview, retorna original
+    const liveCanvases = previewDiv.querySelectorAll('canvas.sin-pdf-canvas');
+    if (!liveCanvases.length) return docHtml; // sem canvases PDF, retorna original
+    // Substitui cada canvas no HTML por um <img> com o conteúdo da canvas
+    let flatHtml = docHtml;
+    liveCanvases.forEach((canvas, idx) => {
+        const imgSrc = canvas.toDataURL('image/jpeg', 0.85); // JPEG mais compacto que PNG
+        // Substitui a canvas correspondente (por ordem de aparição) por img
+        flatHtml = flatHtml.replace(
+            /<canvas class="sin-pdf-canvas"[^>]*><\/canvas>/i,
+            `<img src="${imgSrc}" style="width:100%;display:block;" />`
+        );
+    });
+    // Remove atributos data-pdf-b64 enormes (já renderizados)
+    flatHtml = flatHtml.replace(/\sdata-pdf-b64="[^"]*"/g, ' data-pdf-rendered="true"');
+    return flatHtml;
+};
+
 window._finSalvarTestemunhas = async function(sinId, colabId, finalizarSemCondutor) {
     const t1Nome = document.getElementById('fin-t1-nome').value;
     if (!t1Nome) return alert('Selecione pelo menos a Testemunha 1.');
@@ -1080,8 +1105,13 @@ window._finSalvarTestemunhas = async function(sinId, colabId, finalizarSemCondut
     const t2Nome = document.getElementById('fin-t2-nome')?.value || '';
     const t2Ass = window._sinCanvasTemConteudo('fin-canvas-t2') ? document.getElementById('fin-canvas-t2').toDataURL('image/png') : null;
     let docHtml = window._finalizarSinistroDocHtml || '';
+    // Tenta usar o HTML do preview ao vivo (inclui canvases já renderizados pelo PDF.js)
+    const previewDiv = document.getElementById('fin-doc-preview');
+    if (previewDiv) docHtml = previewDiv.innerHTML;
+    // Flatten canvases PDF → img (para integridade do documento salvo)
+    docHtml = window._flattenDocHtmlPdfCanvases(docHtml);
     const injectTest = `<div style="margin-top:16px;padding:10px;border-top:2px solid #e2e8f0;"><p style="font-weight:700;font-size:11px;">ASSINATURAS DAS TESTEMUNHAS:</p><div style="display:flex;gap:20px;"><div style="text-align:center;"><img src="${t1Ass}" style="max-width:180px;max-height:60px;border-bottom:1px solid #000;"><p style="font-size:10px;margin:2px 0;">${t1Nome}</p></div>${t2Ass&&t2Nome?`<div style="text-align:center;"><img src="${t2Ass}" style="max-width:180px;max-height:60px;border-bottom:1px solid #000;"><p style="font-size:10px;margin:2px 0;">${t2Nome}</p></div>`:''}</div></div>`;
-    docHtml = docHtml.replace('</body>', injectTest + '</body>');
+    docHtml = docHtml.includes('</body>') ? docHtml.replace('</body>', injectTest + '</body>') : docHtml + injectTest;
     window._finalizarSinistroDocHtml = docHtml;
     const btn = document.getElementById('btn-fin-testemunhas');
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...'; }
