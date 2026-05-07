@@ -161,7 +161,13 @@ function _renderAll(el) {
   </style>
   <div id="equipes-wrapper">
     <div id="equipes-header">
-      <h2><i class="ph ph-users-three" style="color:#6366f1;font-size:1.6rem;"></i> Equipes</h2>
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <h2><i class="ph ph-users-three" style="color:#6366f1;font-size:1.6rem;"></i> Equipes</h2>
+        <div style="display:flex;gap:12px;font-size:0.75rem;align-items:center;color:#64748b;">
+          <div style="display:flex;align-items:center;gap:4px;"><div style="width:10px;height:10px;border-radius:2px;background:#fff7ed;border:1.5px solid #fb923c;"></div> Afastados / Férias</div>
+          <div style="display:flex;align-items:center;gap:4px;"><div style="width:10px;height:10px;border-radius:2px;background:#fffbeb;border:1.5px solid #fde68a;"></div> Experiência</div>
+        </div>
+      </div>
       <input id="equipes-search" type="text" placeholder="Buscar colaborador..." oninput="window._equipesSearch(this.value)">
       <div style="margin-left:auto;display:flex;gap:.5rem;flex-wrap:wrap;">
         <button class="eq-btn-sec" onclick="window._equipesNovaEquipe()"><i class="ph ph-plus"></i> Criar equipe</button>
@@ -348,10 +354,12 @@ function _renderCard(m) {
   }
 
   if (st === 'férias') st = 'ferias';
-  const sc = STATUS_COR[st] || '#22c55e';
   const isLaranja = st === 'afastado' || st === 'ferias' || st === 'férias';
   const nomeRaw = m.nome_completo || m.nome || '?';
-  const emExp = nomeRaw.toLowerCase().includes('experi') || st === 'experiencia';
+  const isContratoExp = (m.tipo_contrato || '').toLowerCase().includes('experiência') || (m.tipo_contrato || '').toLowerCase().includes('experiencia');
+  const emExp = nomeRaw.toLowerCase().includes('experi') || st === 'experiencia' || isContratoExp;
+  if (emExp && !isLaranja) st = 'experiencia';
+  const sc = STATUS_COR[st] || '#22c55e';
   const nome = nomeRaw.replace(/\s*\(Experi[^)]*\)/i,'').replace(/\s*\(E\)/i,'').trim();
   const iniciais = nome.split(' ').slice(0,2).map(p => p[0]).join('').toUpperCase();
   const avatarBg = ['#6366f1','#8b5cf6','#ec4899','#14b8a6','#f97316','#84cc16'][(m.colaborador_id||m.id) % 6];
