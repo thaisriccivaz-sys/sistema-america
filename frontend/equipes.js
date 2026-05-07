@@ -297,7 +297,7 @@ function _renderBoard(busca) {
         ondragover="event.preventDefault();window._eqDragOver(event,${eq.id})"
         ondragleave="window._eqDragLeave(event)"
         ondrop="window._eqDrop(event,${eq.id})"
-        style="${isEquipePadrao ? `flex-direction:row; flex-wrap:wrap; align-content:flex-start; background: linear-gradient(to right, transparent calc(50% - 1px), ${eq.cor} calc(50% - 1px), ${eq.cor} calc(50% + 1px), transparent calc(50% + 1px));` : ''}">
+        style="${isEquipePadrao ? `flex-direction:row; flex-wrap:wrap; align-content:flex-start; column-gap:8px; background: linear-gradient(to right, transparent calc(50% - 1px), ${eq.cor} calc(50% - 1px), ${eq.cor} calc(50% + 1px), transparent calc(50% + 1px));` : ''}">
         ${emPares ? _renderParesHtml(membros, b, isEquipePadrao) : (membros.length ? membros.map(m => _renderCard(m)).join('') : '<div class="eq-empty"><i class="ph ph-users" style="font-size:1.5rem;display:block;margin-bottom:4px;"></i>Sem membros</div>')}
       </div>
       <div class="eq-col-footer">
@@ -642,7 +642,7 @@ function _renderParesHtml(membros, b, isEquipePadrao = false) {
   const rows = Math.max(maxOrdem + 1, 1) + 1;
   let html = '';
   for (let i = 0; i < rows; i++) {
-    html += `<div style="display:flex; gap:4px; margin-bottom:2px;${isEquipePadrao ? ' width: calc(50% - 2px);' : ''}">`;
+    html += `<div style="display:flex; gap:4px; margin-bottom:2px;${isEquipePadrao ? ' width: calc(50% - 4px);' : ''}">`;
     
     html += `<div style="flex:1; min-width:0;" ondragover="window._eqCardDragOver(event,this.querySelector('.eq-empty'),false)" ondragleave="window._eqCardDragLeave(event,this.querySelector('.eq-empty'))" ondrop="window._eqEmptySlotDrop(event, ${eqId}, 'motorista', ${i})">`;
     html += motoristasMap[i] ? _renderCard(motoristasMap[i]) : `<div class="eq-empty" style="position:relative;height:46px;box-sizing:border-box;background:#f1f5f9;border-radius:10px;border:1.5px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:.65rem;font-weight:700;">S/ Motorista</div>`;
