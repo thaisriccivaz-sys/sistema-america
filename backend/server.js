@@ -11,70 +11,9 @@ const pdfParse = require('pdf-parse');
 const cron = require('node-cron');
 const cloudinary = require('cloudinary').v2;
 
-// ── PDF → Imagens via Puppeteer ──────────────────────────────────────────────
-// Converte cada página de um PDF em um PNG base64.
-// Usa o Puppeteer que já vem como dependência do html-pdf-node.
-async function pdfToImages(pdfBuffer) {
-    let puppeteer;
-    try { puppeteer = require('puppeteer'); }
-    catch(e) {
-        try { puppeteer = require('html-pdf-node/node_modules/puppeteer'); }
-        catch(e2) { throw new Error('Puppeteer não disponível: ' + e2.message); }
-    }
-    const b64Pdf = pdfBuffer.toString('base64');
-    const browser = await puppeteer.launch({
-        headless: 'new',
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
-    });
-    try {
-        // 1. Descobre quantas páginas o PDF tem via pdfParse
-        let pageCount = 1;
-        try { const pd = await require('pdf-parse')(pdfBuffer); pageCount = pd.numpages || 1; } catch(e) {}
-
-        // 2. Para cada página, cria uma página Puppeteer que renderiza o PDF via pdfjs-cdn
-        const images = [];
-        for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
-            const page = await browser.newPage();
-            await page.setViewport({ width: 794, height: 1123, deviceScaleFactor: 1.5 });
-            const html = `<!DOCTYPE html><html><head><style>
-                body { margin:0; background:#fff; }
-                canvas { display:block; width:100%; }
-            </style></head><body>
-            <canvas id="c"></canvas>
-            <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-            <script>
-                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-                (async()=>{
-                    const data = atob('${b64Pdf}');
-                    const arr = new Uint8Array(data.length);
-                    for(let i=0;i<data.length;i++) arr[i]=data.charCodeAt(i);
-                    const pdf = await pdfjsLib.getDocument({data:arr}).promise;
-                    const pg = await pdf.getPage(${pageNum});
-                    const vp = pg.getViewport({scale:1.5});
-                    const c = document.getElementById('c');
-                    c.width=vp.width; c.height=vp.height;
-                    const ctx = c.getContext('2d');
-                    await pg.render({canvasContext:ctx,viewport:vp}).promise;
-                    document.title='done';
-                })();
-            </script>
-            </body></html>`;
-            await page.setContent(html, { waitUntil: 'networkidle2', timeout: 30000 });
-            // Aguarda renderização terminar (título muda para 'done')
-            await page.waitForFunction("document.title === 'done'", { timeout: 20000 }).catch(()=>{});
-            const canvas = await page.$('canvas');
-            const imgBuf = canvas
-                ? await canvas.screenshot({ type: 'png' })
-                : await page.screenshot({ type: 'png', fullPage: true });
-            images.push('data:image/png;base64,' + imgBuf.toString('base64'));
-            await page.close();
-        }
-        return images;
-    } finally {
-        await browser.close();
-    }
-}
-
+// ── PDF helpers ─────────────────────────────────────────────────────────────
+// Nota: conversão PDF→imagem via Puppeteer desabilitada (OOM em 512MB).
+// PDFs são exibidos via <embed> no documento HTML.
 
 // --- CONFIGURAÃ‡ÃƒO SMTP (Preencher com dados reais para o e-mail funcionar) ---
 const SMTP_CONFIG = {
@@ -3737,23 +3676,10 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
                 return buf ? buf.toString('base64') : null;
             };
 
-            // Helper: converte buffer PDF em imagens HTML (uma por página)
+            // Helper: converte buffer PDF em HTML com embed (leve, sem Puppeteer)
             const pdfBufToImgHtml = async (buf, label) => {
-                let html = '';
-                try {
-                    const images = await pdfToImages(buf);
-                    images.forEach((imgB64, i) => {
-                        html += `<div style="page-break-before:${i===0?'always':'always'};width:100%;text-align:center;margin-bottom:0;">`;
-                        if (i === 0) html += `<p style="font-size:0.85rem;font-weight:700;color:#333;margin:6px 0;text-align:center;">${label}</p>`;
-                        html += `<img src="${imgB64}" style="width:100%;display:block;border:none;"/></div>`;
-                    });
-                } catch(e) {
-                    console.error('[pdfToImages]', e.message);
-                    // Fallback: embed
-                    const b64 = buf.toString('base64');
-                    html = `<div style="page-break-before:always;width:100%;"><p style="font-size:0.85rem;font-weight:700;color:#333;margin-bottom:6px;text-align:center;">${label}</p><embed src="data:application/pdf;base64,${b64}" type="application/pdf" style="width:100%;height:1100px;border:1px solid #ccc;display:block;" /></div>`;
-                }
-                return html;
+                const b64 = buf.toString('base64');
+                return `<div style="page-break-before:always;width:100%;margin-bottom:0;"><p style="font-size:0.85rem;font-weight:700;color:#333;margin:6px 0;text-align:center;">${label}</p><embed src="data:application/pdf;base64,${b64}" type="application/pdf" style="width:100%;height:1100px;border:1px solid #ccc;display:block;" /></div>`;
             };
 
             // 0) Boletim de Ocorrência (PDF do OneDrive)
