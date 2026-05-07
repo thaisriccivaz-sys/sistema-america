@@ -94,7 +94,7 @@ function _renderAll(el) {
     #equipes-board { display:flex; gap:1rem; overflow-y:auto; overflow-x:hidden; flex-wrap:wrap; padding-bottom:1rem; flex:1; min-height:0; align-items:flex-start; align-content:flex-start; }
     #equipes-board::-webkit-scrollbar { width:6px; }
     #equipes-board::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:3px; }
-    .eq-col { width:240px; min-width:240px; background:#f8fafc; border-radius:14px; border:1.5px solid #e2e8f0; display:flex; flex-direction:column; flex-shrink:0; max-height:calc(100vh - 180px); }
+    .eq-col { width:200px; min-width:200px; background:#f8fafc; border-radius:14px; border:1.5px solid #e2e8f0; display:flex; flex-direction:column; flex-shrink:0; max-height:calc(100vh - 180px); }
     .eq-col-header { padding:.6rem .8rem; border-radius:12px 12px 0 0; }
     .eq-col-title { font-size:.85rem; font-weight:800; color:#fff; margin:0; display:flex; align-items:center; justify-content:space-between; gap:6px; }
     .eq-col-sub { display:none; }
