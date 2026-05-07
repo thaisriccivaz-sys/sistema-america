@@ -56,6 +56,23 @@ window.initEquipes = async function (showSkeleton = true) {
       _eq_get('/equipes'),
       _eq_get('/equipes/colaboradores-sem-equipe')
     ]);
+
+    const orderMap = {
+      'Equipe Padrão': 1,
+      'Equipe folga 2d semana': 2,
+      'Ajudante pátio': 3,
+      'Equipe Noturna': 4,
+      'Equipe Intermitente': 5,
+      'Equipe Reserva': 6,
+      'Líderes': 7,
+      'Ajudantes noturnos 12x36': 8
+    };
+    _equipes.forEach(eq => {
+      if (orderMap[eq.nome]) {
+        eq.ordem = orderMap[eq.nome];
+      }
+    });
+    _equipes.sort((a, b) => a.ordem - b.ordem);
     if (_equipes.length === 0) {
       const defaults = [
         { nome: 'Equipe Padrão', descricao: '', cor: '#2563eb', ordem: 1 },
