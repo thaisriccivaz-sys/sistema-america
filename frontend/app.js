@@ -463,6 +463,7 @@ const BREADCRUMB_MAP = {
     'logistica-pipeline':     { path: 'Pipeline OS',                                               code: 'LOG003' },
     'logistica-multas':       { path: 'Multas',                                                    code: 'LOG004' },
     'logistica-multas-monaco': { path: 'Multas Mônaco',                                             code: 'LOG012' },
+    'logistica-equipes':       { path: 'Equipes',                                                    code: 'LOG013' },
     'logistica-frota':        { path: 'Frota',                                                     code: 'LOG005' },
     'logistica-credenciamento': { path: 'Credenciamento',                                          code: 'LOG006' },
     'logistica-senhas':       { path: 'Cofre de Senhas',                                           code: 'LOG007' },
@@ -605,7 +606,7 @@ function updateBreadcrumb(key) {
     const starBtn = document.getElementById('btn-star-page');
     if (starBtn && entryObj) {
         starBtn.style.color = pageColor;
-        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-multas-monaco' || key === 'logistica-pipeline' || key === 'logistica-frota' || key === 'logistica-credenciamento' || key === 'logistica-senhas' || key === 'comercial-credenciamento' || key === 'departamentos' || key === 'logistica-agenda';
+        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-multas-monaco' || key === 'logistica-equipes' || key === 'logistica-pipeline' || key === 'logistica-frota' || key === 'logistica-credenciamento' || key === 'logistica-senhas' || key === 'comercial-credenciamento' || key === 'departamentos' || key === 'logistica-agenda';
         if (isSimplePage) {
             starBtn.style.display = 'flex';
         } else {
@@ -664,6 +665,7 @@ const TAB_META = {
     'logistica-entregas':             { color: '#2d9e5f', icon: 'ph-package',       title: 'Entregas' },
     'logistica-multas':      { color: '#2d9e5f', icon: 'ph-receipt',      title: 'Multas' },
     'logistica-multas-monaco': { color: '#dc2626', icon: 'ph-car',         title: 'Multas Mônaco' },
+    'logistica-equipes':        { color: '#6366f1', icon: 'ph-users-three', title: 'Equipes' },
     'logistica-frota':       { color: '#2d9e5f', icon: 'ph-truck',        title: 'Frota' },
     'logistica-credenciamento': { color: '#2d9e5f', icon: 'ph-identification-card', title: 'Credenciamento' },
     'logistica-senhas':       { color: '#2d9e5f', icon: 'ph-lock-key',             title: 'Cofre de Senhas' },
@@ -896,6 +898,8 @@ function navigateTo(target) {
         if (typeof initMultasLogistica === 'function') setTimeout(() => initMultasLogistica(), 80);
     } else if (target === 'logistica-multas-monaco') {
         if (typeof window.initMultasMonaco === 'function') setTimeout(() => window.initMultasMonaco(), 80);
+    } else if (target === 'logistica-equipes') {
+        if (typeof window.initEquipes === 'function') setTimeout(() => window.initEquipes(), 80);
     } else if (target === 'logistica-frota') {
         if (typeof window.initFrotaVeiculos === 'function') setTimeout(() => window.initFrotaVeiculos(), 80);
     } else if (target === 'logistica-credenciamento') {
