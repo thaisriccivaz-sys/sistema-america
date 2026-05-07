@@ -375,6 +375,12 @@ window._equipesSearch = function(val) {
   _busca = val;
   const board = document.getElementById('equipes-board');
   if (board) board.innerHTML = _renderBoard(val);
+  
+  _reRenderFora();
+  const reservaEq = _equipes.find(e => e.nome === 'Equipe Reserva');
+  if (reservaEq) {
+    _reRenderColuna(reservaEq.id);
+  }
 };
 
 window._equipesNovaEquipe = function() {
@@ -663,14 +669,14 @@ function _reRenderColuna(equipeId) {
   const eq = _equipes.find(e => e.id === equipeId);
   if (!eq) return;
   const { cor: indicadorCor } = _eqStatus(eq.membros);
+  const b = _busca.toLowerCase();
+  const membros = b ? eq.membros.filter(m => (m.nome_completo||m.nome||'').toLowerCase().includes(b)) : eq.membros;
   const badge = document.querySelector(`[data-equipe-id="${equipeId}"] .eq-badge`);
-  if (badge) badge.textContent = eq.membros.length;
+  if (badge) badge.textContent = membros.length;
   const indicator = document.querySelector(`[data-equipe-id="${equipeId}"] .eq-indicator`);
   if (indicator) indicator.style.background = indicadorCor;
   const body = document.getElementById(`eq-body-${equipeId}`);
   if (!body) return;
-  const b = _busca.toLowerCase();
-  const membros = b ? eq.membros.filter(m => (m.nome_completo||m.nome||'').toLowerCase().includes(b)) : eq.membros;
   const emPares = ['Equipe Padrão', 'Equipe folga 2d semana', 'Equipe Noturna'].includes(eq.nome);
   const isEquipePadrao = eq.nome === 'Equipe Padrão';
 
@@ -730,12 +736,12 @@ function _renderParesHtml(membros, b, isEquipePadrao = false) {
 function _reRenderFora() {
   const foraCol = document.querySelector('.eq-col[data-equipe-id="0"]');
   if (!foraCol) return;
-  const badge = foraCol.querySelector('.eq-badge');
-  if (badge) badge.textContent = _semEquipe.length;
-  const body = document.getElementById('eq-body-0');
-  if (!body) return;
   const b = _busca.toLowerCase();
   const lista = b ? _semEquipe.filter(m => (m.nome_completo||'').toLowerCase().includes(b)) : _semEquipe;
+  const badge = foraCol.querySelector('.eq-badge');
+  if (badge) badge.textContent = lista.length;
+  const body = document.getElementById('eq-body-0');
+  if (!body) return;
   body.innerHTML = lista.map(m => _renderCard({ ...m, equipe_id: 0 })).join('') || '<div class="eq-empty"><i class="ph ph-check-circle" style="font-size:1.5rem;display:block;margin-bottom:4px;color:#22c55e;"></i>Todos em equipes!</div>';
 }
 
