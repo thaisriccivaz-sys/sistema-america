@@ -47,8 +47,10 @@ function _eq_fotoSrc(m) {
 window.initEquipes = async function (showSkeleton = true) {
   const el = document.getElementById('equipes-container');
   if (!el) return;
-  _renderAll(el);
-  if (showSkeleton) _mostrarSkeleton();
+  if (showSkeleton || !document.getElementById('equipes-wrapper')) {
+    _renderAll(el);
+    if (showSkeleton) _mostrarSkeleton();
+  }
   try {
     [_equipes, _semEquipe] = await Promise.all([
       _eq_get('/equipes'),
@@ -57,11 +59,11 @@ window.initEquipes = async function (showSkeleton = true) {
     if (_equipes.length === 0) {
       const defaults = [
         { nome: 'Equipe Padrão', descricao: '', cor: '#2563eb', ordem: 1 },
-        { nome: 'Equipe folga 2d semana', descricao: '', cor: '#0ea5e9', ordem: 3 },
+        { nome: 'Equipe folga 2d semana', descricao: '', cor: '#0ea5e9', ordem: 2 },
+        { nome: 'Ajudante pátio', descricao: '', cor: '#10b981', ordem: 3 },
         { nome: 'Equipe Noturna', descricao: '', cor: '#4f46e5', ordem: 4 },
         { nome: 'Equipe Intermitente', descricao: '', cor: '#f59e0b', ordem: 5 },
         { nome: 'Equipe Reserva', descricao: '', cor: '#db2777', ordem: 6 },
-        { nome: 'Ajudante pátio', descricao: '', cor: '#10b981', ordem: 2 },
         { nome: 'Líderes', descricao: '', cor: '#64748b', ordem: 7 },
         { nome: 'Ajudantes noturnos 12x36', descricao: '', cor: '#14b8a6', ordem: 8 }
       ];
@@ -75,9 +77,21 @@ window.initEquipes = async function (showSkeleton = true) {
     _equipes = JSON.parse(JSON.stringify(COLUNAS_DEFAULT));
     _semEquipe = [];
   }
-  _renderFora(); // popula sidebar
+  
+  const sidebar = document.getElementById('equipes-sidebar');
   const board = document.getElementById('equipes-board');
-  if (board) board.innerHTML = _renderBoard();
+  const sidebarScroll = sidebar ? sidebar.scrollTop : 0;
+  const boardScroll = board ? board.scrollTop : 0;
+
+  _renderFora(); // popula sidebar
+
+  const newSidebar = document.getElementById('equipes-sidebar');
+  if (newSidebar) newSidebar.scrollTop = sidebarScroll;
+
+  if (board) {
+    board.innerHTML = _renderBoard();
+    board.scrollTop = boardScroll;
+  }
 };
 
 function _renderAll(el) {
