@@ -167,7 +167,7 @@ function _renderAll(el) {
       <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:220px;max-width:420px;">
         <input id="equipes-search" type="text" placeholder="Buscar colaborador..." oninput="window._equipesSearch(this.value)" style="flex:1;">
         <div style="display:flex;gap:8px;font-size:0.72rem;align-items:center;white-space:nowrap;">
-          <div style="display:flex;align-items:center;gap:4px;color:#64748b;"><div style="width:10px;height:10px;border-radius:2px;background:#fff7ed;border:1.5px solid #fb923c;"></div> Afastado/Férias</div>
+          <div style="display:flex;align-items:center;gap:4px;color:#64748b;"><div style="width:10px;height:10px;border-radius:2px;background:#faf5ff;border:1.5px solid #a855f7;"></div> Afastado/Férias</div>
           <div style="display:flex;align-items:center;gap:4px;color:#64748b;"><div style="width:10px;height:10px;border-radius:2px;background:#fefce8;border:1.5px solid #eab308;"></div> Experiência</div>
         </div>
       </div>
@@ -331,7 +331,7 @@ const FUNC_STYLE = {
   lider:        { bg: '#fef3c7', color: '#92400e', label: 'Líder' },
 };
 
-const STATUS_COR = { ativo: '#22c55e', folga: '#94a3b8', ferias: '#3b82f6', afastado: '#ef4444', experiencia: '#eab308' };
+const STATUS_COR = { ativo: '#22c55e', folga: '#94a3b8', ferias: '#8b5cf6', afastado: '#8b5cf6', experiencia: '#eab308' };
 
 function _renderCard(m) {
   const fs = FUNC_STYLE[m.funcao] || FUNC_STYLE.ajudante;
@@ -372,8 +372,8 @@ function _renderCard(m) {
   const nome = nomeRaw.replace(/\s*\(Experi[^)]*\)/i,'').replace(/\s*\(E\)/i,'').trim();
   const iniciais = nome.split(' ').slice(0,2).map(p => p[0]).join('').toUpperCase();
   const avatarBg = ['#6366f1','#8b5cf6','#ec4899','#14b8a6','#f97316','#84cc16'][(m.colaborador_id||m.id) % 6];
-  const borderStyle = isLaranja ? 'border-color:#fb923c;background:#fff7ed;' : emExp ? 'border-color:#eab308;background:#fefce8;' : '';
-  const avatarBorder = isLaranja ? 'border-color:#f97316;border-width:2px;' : emExp ? 'border-color:#ca8a04;border-width:2px;' : '';
+  const borderStyle = isLaranja ? 'border-color:#a855f7;background:#faf5ff;' : emExp ? 'border-color:#eab308;background:#fefce8;' : '';
+  const avatarBorder = isLaranja ? 'border-color:#9333ea;border-width:2px;' : emExp ? 'border-color:#ca8a04;border-width:2px;' : '';
   const isMotorista = (m.cargo || '').toLowerCase().includes('motorista');
   let baseCargo = m.cargo || (m.funcao === 'motorista' ? 'Motorista' : 'Ajudante');
   baseCargo = baseCargo.replace(/Motorista/i, 'Mot.').replace(/Ajudante/i, 'Aj.');
