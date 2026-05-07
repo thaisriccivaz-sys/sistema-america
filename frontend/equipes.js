@@ -327,16 +327,36 @@ const STATUS_COR = { ativo: '#22c55e', folga: '#94a3b8', ferias: '#3b82f6', afas
 
 function _renderCard(m) {
   const fs = FUNC_STYLE[m.funcao] || FUNC_STYLE.ajudante;
-  const st = (m.colab_status || m.status || '').toLowerCase();
+  let st = (m.colab_status || m.status || '').toLowerCase();
+  
+  if (m.ferias_programadas_inicio && m.ferias_programadas_fim) {
+    const parseData = (d) => {
+      if (!d) return null;
+      if (d.includes('/')) {
+        const p = d.split('/');
+        return new Date(`${p[2]}-${p[1]}-${p[0]}T00:00:00`);
+      }
+      return new Date(`${d}T00:00:00`);
+    };
+    const ini = parseData(m.ferias_programadas_inicio);
+    const fim = parseData(m.ferias_programadas_fim);
+    const hoje = new Date();
+    hoje.setHours(0,0,0,0);
+    if (ini && fim && hoje >= ini && hoje <= fim) {
+      st = 'ferias';
+    }
+  }
+
+  if (st === 'férias') st = 'ferias';
   const sc = STATUS_COR[st] || '#22c55e';
-  const isRoxo = st === 'afastado' || st === 'ferias' || st === 'férias';
+  const isLaranja = st === 'afastado' || st === 'ferias' || st === 'férias';
   const nomeRaw = m.nome_completo || m.nome || '?';
   const emExp = nomeRaw.toLowerCase().includes('experi') || st === 'experiencia';
   const nome = nomeRaw.replace(/\s*\(Experi[^)]*\)/i,'').replace(/\s*\(E\)/i,'').trim();
   const iniciais = nome.split(' ').slice(0,2).map(p => p[0]).join('').toUpperCase();
   const avatarBg = ['#6366f1','#8b5cf6','#ec4899','#14b8a6','#f97316','#84cc16'][(m.colaborador_id||m.id) % 6];
-  const borderStyle = isRoxo ? 'border-color:#d8b4fe;background:#faf5ff;' : emExp ? 'border-color:#fde68a;background:#fffbeb;' : '';
-  const avatarBorder = isRoxo ? 'border-color:#a855f7;border-width:2px;' : emExp ? 'border-color:#f59e0b;border-width:2px;' : '';
+  const borderStyle = isLaranja ? 'border-color:#fb923c;background:#fff7ed;' : emExp ? 'border-color:#fde68a;background:#fffbeb;' : '';
+  const avatarBorder = isLaranja ? 'border-color:#f97316;border-width:2px;' : emExp ? 'border-color:#f59e0b;border-width:2px;' : '';
   const isMotorista = (m.cargo || '').toLowerCase().includes('motorista');
   let baseCargo = m.cargo || (m.funcao === 'motorista' ? 'Motorista' : 'Ajudante');
   baseCargo = baseCargo.replace(/Motorista/i, 'Mot.').replace(/Ajudante/i, 'Aj.');
