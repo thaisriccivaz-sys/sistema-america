@@ -57,11 +57,11 @@ window.initEquipes = async function (showSkeleton = true) {
     if (_equipes.length === 0) {
       const defaults = [
         { nome: 'Equipe Padrão', descricao: '', cor: '#2563eb', ordem: 1 },
-        { nome: 'Equipe folga 2d semana', descricao: '', cor: '#0ea5e9', ordem: 2 },
-        { nome: 'Equipe Noturna', descricao: '', cor: '#4f46e5', ordem: 3 },
-        { nome: 'Equipe Intermitente', descricao: '', cor: '#f59e0b', ordem: 4 },
-        { nome: 'Equipe Reserva', descricao: '', cor: '#db2777', ordem: 5 },
-        { nome: 'Ajudante pátio', descricao: '', cor: '#10b981', ordem: 6 },
+        { nome: 'Equipe folga 2d semana', descricao: '', cor: '#0ea5e9', ordem: 3 },
+        { nome: 'Equipe Noturna', descricao: '', cor: '#4f46e5', ordem: 4 },
+        { nome: 'Equipe Intermitente', descricao: '', cor: '#f59e0b', ordem: 5 },
+        { nome: 'Equipe Reserva', descricao: '', cor: '#db2777', ordem: 6 },
+        { nome: 'Ajudante pátio', descricao: '', cor: '#10b981', ordem: 2 },
         { nome: 'Líderes', descricao: '', cor: '#64748b', ordem: 7 },
         { nome: 'Ajudantes noturnos 12x36', descricao: '', cor: '#14b8a6', ordem: 8 }
       ];
@@ -84,7 +84,7 @@ function _renderAll(el) {
   el.innerHTML = `
   <style>
     #equipes-wrapper { display:flex; flex-direction:column; height:100%; font-family:'Inter',sans-serif; }
-    #equipes-header { display:flex; align-items:center; gap:.75rem; flex-wrap:wrap; padding:.25rem 0 1rem; flex-shrink:0; }
+    #equipes-header { display:flex; align-items:center; gap:.75rem; flex-wrap:wrap; padding:.25rem 0 .25rem; flex-shrink:0; }
     #equipes-header h2 { margin:0; font-size:1.4rem; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:8px; }
     #equipes-search { flex:1; min-width:200px; max-width:300px; height:38px; border:1.5px solid #e2e8f0; border-radius:8px; padding:0 .75rem 0 2.2rem; font-size:.88rem; background:#f8fafc url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%2394a3b8' viewBox='0 0 256 256'%3E%3Cpath d='M229.66,218.34l-50.07-50.07a88.19,88.19,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.31ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z'/%3E%3C/svg%3E") .6rem center no-repeat; }
     #equipes-search:focus { outline:none; border-color:#6366f1; }
@@ -223,7 +223,7 @@ function _renderFora() {
       const membrosRes = _busca ? reservaEq.membros.filter(m => (m.nome_completo||m.nome||'').toLowerCase().includes(_busca.toLowerCase())) : reservaEq.membros;
       const { cor: indRes } = _eqStatus(membrosRes);
       const cardsRes = membrosRes.map(m => _renderCard(m)).join('');
-      sidebarHtml += `<div class="eq-col" data-equipe-id="${reservaEq.id}" style="flex:1;">
+      sidebarHtml += `<div class="eq-col" data-equipe-id="${reservaEq.id}">
         <div class="eq-col-header" style="background:${reservaEq.cor};">
           <div class="eq-col-title">
             <div style="display:flex; align-items:center; gap:6px;">
@@ -256,17 +256,8 @@ function _renderBoard(busca) {
 
   const summaryEl = document.getElementById('equipes-summary');
   if (summaryEl) {
-    summaryEl.style.cssText = 'display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:1rem;flex-shrink:0;';
-    summaryEl.innerHTML = `
-      <div style="background:#dcfce7;border:1px solid #bbf7d0;border-radius:8px;padding:.4rem .9rem;font-size:.78rem;font-weight:700;color:#15803d;display:flex;align-items:center;gap:5px;">
-        <i class="ph ph-users"></i> ${totalMembros} colaboradores distribuídos
-      </div>
-      <div style="background:${incompletas===0?'#dcfce7':'#fef3c7'};border:1px solid ${incompletas===0?'#bbf7d0':'#fde68a'};border-radius:8px;padding:.4rem .9rem;font-size:.78rem;font-weight:700;color:${incompletas===0?'#15803d':'#92400e'};display:flex;align-items:center;gap:5px;">
-        <i class="ph ph-${incompletas===0?'check-circle':'warning'}"></i> ${incompletas === 0 ? 'Todas equipes completas' : `${incompletas} equipe${incompletas>1?'s':''} incompleta${incompletas>1?'s':''}`}
-      </div>
-      <div style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;padding:.4rem .9rem;font-size:.78rem;font-weight:700;color:#475569;display:flex;align-items:center;gap:5px;">
-        <i class="ph ph-layout"></i> ${totalEquipes} equipes
-      </div>`;
+    summaryEl.style.cssText = 'display:none;';
+    summaryEl.innerHTML = '';
   }
 
   return _equipes.filter(eq => eq.nome !== 'Equipe Reserva').map(eq => {
