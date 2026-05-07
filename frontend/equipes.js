@@ -109,7 +109,7 @@ function _renderAll(el) {
     .eq-avatar-placeholder { width:38px; height:38px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:.9rem; color:#fff; }
     .eq-card-info { flex:1; min-width:0; }
     .eq-card-name { font-size:.8rem; font-weight:700; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .eq-card-func { font-size:.7rem; font-weight:600; padding:1px 7px; border-radius:8px; display:inline-block; margin-top:2px; }
+    .eq-card-func { font-size:.64rem; font-weight:700; padding:1px 6px; border-radius:8px; display:inline-block; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
     .eq-card-escala { font-size:.68rem; color:#94a3b8; margin-top:1px; }
     .eq-status-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
     .eq-empty { text-align:center; padding:1.5rem .5rem; color:#cbd5e1; font-size:.8rem; }
