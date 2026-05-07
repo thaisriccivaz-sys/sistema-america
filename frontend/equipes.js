@@ -41,7 +41,7 @@ async function _eq_del(path) {
 
 function _eq_fotoSrc(m) {
   if (m.foto_base64) return 'data:image/jpeg;base64,' + m.foto_base64;
-  if (m.foto_path) return _eq_apiBase() + `/colaboradores/${m.colaborador_id}/foto`;
+  if (m.foto_path || m.colaborador_id || m.id) return _eq_apiBase() + `/colaboradores/foto/${m.colaborador_id || m.id}`;
   return null;
 }
 
@@ -174,7 +174,7 @@ function _renderFora() {
   const cards = lista.map(m => {
     const iniciais = (m.nome_completo||'?').split(' ').slice(0,2).map(p=>p[0]).join('').toUpperCase();
     const avatarBg = ['#94a3b8','#64748b','#78716c','#6b7280','#71717a','#737373'][m.id % 6];
-    const fotoUrl = _eq_apiBase() + `/colaboradores/${m.id}/foto`;
+    const fotoUrl = _eq_apiBase() + `/colaboradores/foto/${m.id}`;
     const avatarHtml = `<img class="eq-avatar" src="${fotoUrl}" alt="${m.nome_completo}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"><div class="eq-avatar-placeholder" style="background:${avatarBg};display:none;">${iniciais}</div>`;
     return `<div class="eq-card" data-membro-id="${m.id}" data-equipe-id="0"
       draggable="true"
@@ -473,7 +473,7 @@ function _reRenderFora() {
   body.innerHTML = lista.map(m => {
     const iniciais = (m.nome_completo||'?').split(' ').slice(0,2).map(p=>p[0]).join('').toUpperCase();
     const avatarBg = ['#94a3b8','#64748b','#78716c','#6b7280','#71717a','#737373'][m.id % 6];
-    const fotoUrl = _eq_apiBase() + `/colaboradores/${m.id}/foto`;
+    const fotoUrl = _eq_apiBase() + `/colaboradores/foto/${m.id}`;
     const avatarHtml = `<img class="eq-avatar" src="${fotoUrl}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"><div class="eq-avatar-placeholder" style="background:${avatarBg};display:none;">${iniciais}</div>`;
     return `<div class="eq-card" data-membro-id="${m.id}" data-equipe-id="0" draggable="true"
       ondragstart="window._eqDragStart(event,${m.id},0)" ondragend="window._eqDragEnd(event)" style="opacity:.85;">

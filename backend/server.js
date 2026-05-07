@@ -2236,6 +2236,7 @@ app.get('/api/equipes/colaboradores-sem-equipe', authenticateToken, (req, res) =
     db.all(`SELECT c.id, c.nome_completo, c.cargo, c.foto_base64, c.foto_path
         FROM colaboradores c
         WHERE c.status != 'Desligado'
+        AND (c.departamento != 'ESCRITÓRIO' OR c.departamento IS NULL)
         AND c.id NOT IN (SELECT colaborador_id FROM equipes_membros)
         ORDER BY c.nome_completo ASC`, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
