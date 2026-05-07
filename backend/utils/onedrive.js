@@ -215,6 +215,24 @@ async function getDownloadUrl(filePath) {
     }
 }
 
+/**
+ * Converte um arquivo do OneDrive para JPEG via Graph API (suporta PDF, DOCX, etc.)
+ * Retorna uma string data:image/jpeg;base64,...
+ */
+async function getFileAsJpeg(filePath) {
+    if (!CLIENT_ID) return null;
+    const token = await getAccessToken();
+    const encodedPath = filePath.split('/').map(p => encodeURIComponent(p)).join('/');
+    const url = `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/root:/${encodedPath}:/content?format=jpg`;
+    const res = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${token}` },
+        redirect: 'follow'
+    });
+    if (!res.ok) throw new Error(`Graph PDF→JPG falhou: ${res.status} ${res.statusText}`);
+    const buffer = Buffer.from(await res.arrayBuffer());
+    return `data:image/jpeg;base64,${buffer.toString('base64')}`;
+}
+
 module.exports = {
     uploadToOneDrive,
     ensureFolder,
@@ -222,5 +240,6 @@ module.exports = {
     getAccessToken,
     getGraphClient,
     listChildren,
-    getDownloadUrl
+    getDownloadUrl,
+    getFileAsJpeg
 };

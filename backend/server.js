@@ -3430,7 +3430,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
         if (!sin || !colab) throw new Error('Não encontrado.');
 
         // Busca todos os geradores de Sinistro e acha o mais proximo ao tipo_sinistro
-        const normalize = s => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, '').trim();
+        const normalize = s => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
         const tipoNorm = normalize(sin.tipo_sinistro);
         const todosGeradores = await new Promise((resolve) => db.all("SELECT * FROM geradores WHERE nome LIKE '%Sinistro%' OR nome LIKE '%sinistro%'", [], (e, r) => resolve(r || [])));
         console.log('[Sinistro] tipo_sinistro:', JSON.stringify(sin.tipo_sinistro), '| geradores disponiveis:', todosGeradores.map(g => g.nome));
@@ -3667,8 +3667,15 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
                         }
                     } catch(e) { console.error('[Anexo ORC OneDrive]', e.message); }
                 } else if (ext === 'pdf') {
-                    anxsHtml += `<div style="text-align:center;margin-bottom:1.5rem;padding:1rem;border:1px solid #ccc;background:#f9f9f9;"><p><strong>Orçamento (PDF):</strong> arquivo PDF anexado ao sinistro.</p></div>`;
-                    added = true;
+                    try {
+                        const jpegB64 = await require('./utils/onedrive').getFileAsJpeg(p);
+                        anxsHtml += `<div style="text-align:center;margin-bottom:1.5rem;"><p style="font-size:0.8rem;color:#666;margin-bottom:4px;">Orçamento (documento)</p><img src="${jpegB64}" style="max-width:100%;max-height:900px;object-fit:contain;border:1px solid #ccc;"/></div>`;
+                        added = true;
+                    } catch(e) {
+                        console.error('[Anexo ORC PDF→JPG]', e.message);
+                        anxsHtml += `<div style="text-align:center;margin-bottom:1.5rem;padding:1rem;border:1px solid #ccc;background:#f9f9f9;"><p><strong>Orçamento (PDF):</strong> arquivo PDF anexado ao sinistro.</p></div>`;
+                        added = true;
+                    }
                 }
             }
 
