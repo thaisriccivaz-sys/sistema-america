@@ -95,9 +95,9 @@ function _renderAll(el) {
     #equipes-board::-webkit-scrollbar { width:6px; }
     #equipes-board::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:3px; }
     .eq-col { width:240px; min-width:240px; background:#f8fafc; border-radius:14px; border:1.5px solid #e2e8f0; display:flex; flex-direction:column; flex-shrink:0; max-height:calc(100vh - 180px); }
-    .eq-col-header { padding:.9rem 1rem .7rem; border-radius:12px 12px 0 0; }
-    .eq-col-title { font-size:.95rem; font-weight:800; color:#fff; margin:0; display:flex; align-items:center; gap:6px; }
-    .eq-col-sub { font-size:.72rem; color:rgba(255,255,255,.75); margin-top:3px; display:flex; align-items:center; justify-content:space-between; }
+    .eq-col-header { padding:.6rem .8rem; border-radius:12px 12px 0 0; }
+    .eq-col-title { font-size:.85rem; font-weight:800; color:#fff; margin:0; display:flex; align-items:center; justify-content:space-between; gap:6px; }
+    .eq-col-sub { display:none; }
     .eq-badge { background:rgba(255,255,255,.25); border-radius:10px; padding:1px 8px; font-weight:700; font-size:.72rem; }
     .eq-col-body { padding:.6rem; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:.5rem; min-height:80px; }
     .eq-col-body::-webkit-scrollbar { width:4px; }
@@ -187,8 +187,12 @@ function _renderFora() {
   }).join('');
   return `<div class="eq-col" data-equipe-id="0" style="border:2px dashed #cbd5e1;background:#f8fafc;">
     <div class="eq-col-header" style="background:#64748b;">
-      <div class="eq-col-title"><span class="eq-indicator" style="background:#94a3b8;border:2px solid rgba(255,255,255,.4);"></span> Fora de Equipe</div>
-      <div class="eq-col-sub"><span>Sem equipe definida</span><span class="eq-badge">${lista.length}</span></div>
+      <div class="eq-col-title">
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span class="eq-indicator" style="background:#94a3b8;border:2px solid rgba(255,255,255,.4);"></span> Fora de Equipe
+        </div>
+        <span class="eq-badge">${lista.length}</span>
+      </div>
     </div>
     <div class="eq-col-body" id="eq-body-0"
       ondragover="event.preventDefault();window._eqDragOver(event,0)"
@@ -233,16 +237,14 @@ function _renderBoard(busca) {
     ).join('');
 
     const emPares = ['Equipe Padrão', 'Equipe folga 2d semana', 'Equipe Noturna'].includes(eq.nome);
-    const colWidth = emPares ? 'width: 320px; min-width: 320px;' : '';
+    const colWidth = emPares ? 'width: 300px; min-width: 300px;' : '';
 
     return `<div class="eq-col" data-equipe-id="${eq.id}" style="${colWidth}">
       <div class="eq-col-header" style="background:${eq.cor};">
         <div class="eq-col-title">
-          <span class="eq-indicator" style="background:${indicadorCor};border:2px solid rgba(255,255,255,.5);"></span>
-          ${eq.nome}
-        </div>
-        <div class="eq-col-sub">
-          <span>${eq.descricao || ''}</span>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span class="eq-indicator" style="background:${indicadorCor};border:2px solid rgba(255,255,255,.5);"></span> ${eq.nome}
+          </div>
           <span class="eq-badge">${membros.length}</span>
         </div>
       </div>
