@@ -75,8 +75,9 @@ window.initEquipes = async function (showSkeleton = true) {
     _equipes = JSON.parse(JSON.stringify(COLUNAS_DEFAULT));
     _semEquipe = [];
   }
+  _renderFora(); // popula sidebar
   const board = document.getElementById('equipes-board');
-  if (board) board.innerHTML = _renderFora() + _renderBoard();
+  if (board) board.innerHTML = _renderBoard();
 };
 
 function _renderAll(el) {
