@@ -11903,7 +11903,26 @@ app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
                                 }
                             });
                         }
-                        res.json([...(rows || []), ...feriasCards, ...afastadoCards, ...faltaCards]);
+                        // Deduplicar: não mostrar auto-card de falta se já existe card manual na agenda para o mesmo colaborador e data
+                        const faltaKeysManuais = new Set();
+                        (rows || []).forEach(card => {
+                            if (card.tipo === 'falta') {
+                                try {
+                                    const refs = JSON.parse(card.referente_ids || '[]');
+                                    refs.forEach(cid => faltaKeysManuais.add(String(cid) + '_' + card.data));
+                                } catch(e) {}
+                            }
+                        });
+                        const faltaCardsDedup = faltaCards.filter(fc => {
+                            // fc.id formato: 'falta_COLABID_DATE'
+                            const parts = (fc.id || '').split('_');
+                            if (parts.length >= 3) {
+                                const key = parts[1] + '_' + parts[2];
+                                return !faltaKeysManuais.has(key);
+                            }
+                            return true;
+                        });
+                        res.json([...(rows || []), ...feriasCards, ...afastadoCards, ...faltaCardsDedup]);
                     });
                 });
             });
@@ -12392,14 +12411,17 @@ async function dispararAcoesAgenda(card) {
     
     // Notificação de Aviso de Falta (para o RH) - Regra Absoluta da Tela de Notificações e Inserção no Prontuário
     if (card.tipo === 'falta' && referente_ids.length > 0) {
-        // 1. Inserir a falta no prontuário do RH
+        // 1. Inserir a falta no prontuário do RH (apenas se ainda não existir para a mesma data)
         referente_ids.forEach(colab_id => {
-            db.run('INSERT INTO faltas (colaborador_id, data_falta, turno, observacao, avisado_previamente) VALUES (?, ?, ?, ?, ?)',
-                [colab_id, card.data, 'Dia todo', card.descricao || 'Falta registrada via Agenda da Logística', 'Não'],
-                function(errFalta) {
-                    if (errFalta) console.error("Erro ao inserir falta via Agenda:", errFalta.message);
-                }
-            );
+            db.get('SELECT id FROM faltas WHERE colaborador_id = ? AND data_falta = ?', [colab_id, card.data], (errChk, existente) => {
+                if (errChk || existente) return; // já existe, não duplicar
+                db.run('INSERT INTO faltas (colaborador_id, data_falta, turno, observacao, avisado_previamente) VALUES (?, ?, ?, ?, ?)',
+                    [colab_id, card.data, 'Dia todo', card.descricao || 'Falta registrada via Agenda da Logística', 'Não'],
+                    function(errFalta) {
+                        if (errFalta) console.error("Erro ao inserir falta via Agenda:", errFalta.message);
+                    }
+                );
+            });
         });
 
         // 2. Disparar notificação para quem deve receber "aviso_faltas"
