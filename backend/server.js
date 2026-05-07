@@ -2223,6 +2223,40 @@ app.delete('/api/equipes/:id/membros/:colaborador_id', authenticateToken, (req, 
         });
 });
 
+// ── PATCH /api/equipes/trocar ────────────────────────────────────────────────────────
+// Troca dois colaboradores de lugar (incluindo função e ordem)
+app.patch('/api/equipes/trocar', authenticateToken, (req, res) => {
+    const { membro_id, alvo_id } = req.body;
+    if (!membro_id || !alvo_id) return res.status(400).json({error: 'IDs inválidos'});
+
+    db.get('SELECT equipe_id, funcao, escala, observacao, ordem FROM equipes_membros WHERE colaborador_id = ?', [membro_id], (err, m1) => {
+        const _m1 = m1 || { equipe_id: null, funcao: 'ajudante', escala: '', observacao: '', ordem: 0 };
+        
+        db.get('SELECT equipe_id, funcao, escala, observacao, ordem FROM equipes_membros WHERE colaborador_id = ?', [alvo_id], (err2, m2) => {
+            const _m2 = m2 || { equipe_id: null, funcao: 'ajudante', escala: '', observacao: '', ordem: 0 };
+            
+            db.serialize(() => {
+                // Delete both from current teams to avoid UNIQUE constraint errors
+                db.run('DELETE FROM equipes_membros WHERE colaborador_id IN (?, ?)', [membro_id, alvo_id]);
+                
+                // Insert m1 into m2's spot
+                if (_m2.equipe_id) {
+                    db.run('INSERT INTO equipes_membros (equipe_id, colaborador_id, funcao, escala, observacao, ordem) VALUES (?, ?, ?, ?, ?, ?)', 
+                        [_m2.equipe_id, membro_id, _m2.funcao, _m2.escala, _m2.observacao, _m2.ordem]);
+                }
+                
+                // Insert m2 into m1's spot
+                if (_m1.equipe_id) {
+                    db.run('INSERT INTO equipes_membros (equipe_id, colaborador_id, funcao, escala, observacao, ordem) VALUES (?, ?, ?, ?, ?, ?)', 
+                        [_m1.equipe_id, alvo_id, _m1.funcao, _m1.escala, _m1.observacao, _m1.ordem]);
+                }
+                
+                res.json({ success: true });
+            });
+        });
+    });
+});
+
 // ── PATCH /api/equipes/mover ──────────────────────────────────────────────────
 // Move um colaborador de uma equipe para outra (ou apenas muda a função)
 app.patch('/api/equipes/mover', authenticateToken, (req, res) => {

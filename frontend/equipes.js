@@ -300,6 +300,8 @@ function _renderCard(m) {
     draggable="true"
     ondragstart="window._eqDragStart(event,${m.colaborador_id||m.id},${m.equipe_id})"
     ondragend="window._eqDragEnd(event)"
+    ondrop="window._eqCardDrop(event,${m.colaborador_id||m.id},${m.equipe_id})"
+    ondragover="event.preventDefault();"
     style="${borderStyle}">
     ${avatarHtml}
     <div class="eq-card-info">
@@ -378,6 +380,20 @@ window._eqDragLeave = function(ev) {
   // Só remove se o mouse saiu para fora da coluna (não para um filho)
   if (ev.currentTarget && !ev.currentTarget.contains(ev.relatedTarget)) {
     ev.currentTarget.classList.remove('drag-over');
+  }
+};
+window._eqCardDrop = async function(event, alvoId, alvoEquipeId) {
+  event.stopPropagation();
+  event.preventDefault();
+  const { membroId, origemEquipeId } = _drag;
+  if (!membroId || membroId === alvoId) return;
+
+  try {
+    if (typeof window.showToast === 'function') window.showToast('Trocando posições...', 'info');
+    await _eq_patch('/equipes/trocar', { membro_id: membroId, alvo_id: alvoId });
+    await window._loadEquipes();
+  } catch(e) {
+    alert('Erro ao trocar: ' + e.message);
   }
 };
 
@@ -505,7 +521,11 @@ function _reRenderFora() {
     const fotoUrl = _eq_apiBase() + `/colaboradores/foto/${m.id}`;
     const avatarHtml = `<img class="eq-avatar" src="${fotoUrl}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"><div class="eq-avatar-placeholder" style="background:${avatarBg};display:none;">${iniciais}</div>`;
     return `<div class="eq-card" data-membro-id="${m.id}" data-equipe-id="0" draggable="true"
-      ondragstart="window._eqDragStart(event,${m.id},0)" ondragend="window._eqDragEnd(event)" style="opacity:.85;">
+      ondragstart="window._eqDragStart(event,${m.id},0)" 
+      ondragend="window._eqDragEnd(event)" 
+      ondrop="window._eqCardDrop(event,${m.id},0)"
+      ondragover="event.preventDefault();"
+      style="opacity:.85;">
       ${avatarHtml}
       <div class="eq-card-info">
         <div class="eq-card-name">${m.nome_completo||'?'}</div>
