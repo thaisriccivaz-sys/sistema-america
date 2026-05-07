@@ -570,11 +570,11 @@ function _renderParesHtml(membros, b, isEquipePadrao = false) {
     html += `<div style="display:flex; gap:4px; margin-bottom:2px;${isEquipePadrao ? ' width: calc(50% - 2px);' : ''}">`;
     
     html += `<div style="flex:1; min-width:0;" ondragover="event.preventDefault();" ondrop="window._eqEmptySlotDrop(event, ${eqId}, 'motorista', ${i})">`;
-    html += motoristasMap[i] ? _renderCard(motoristasMap[i]) : `<div class="eq-empty" style="height:100%;min-height:48px;background:#f1f5f9;border-radius:10px;border:1.5px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:.65rem;font-weight:700;">S/ Motorista</div>`;
+    html += motoristasMap[i] ? _renderCard(motoristasMap[i]) : `<div class="eq-empty" style="height:100%;min-height:38px;background:#f1f5f9;border-radius:10px;border:1.5px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:.65rem;font-weight:700;">S/ Motorista</div>`;
     html += '</div>';
 
     html += `<div style="flex:1; min-width:0;" ondragover="event.preventDefault();" ondrop="window._eqEmptySlotDrop(event, ${eqId}, 'ajudante', ${i})">`;
-    html += ajudantesMap[i] ? _renderCard(ajudantesMap[i]) : `<div class="eq-empty" style="height:100%;min-height:48px;background:#f1f5f9;border-radius:10px;border:1.5px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:.65rem;font-weight:700;">S/ Ajudante</div>`;
+    html += ajudantesMap[i] ? _renderCard(ajudantesMap[i]) : `<div class="eq-empty" style="height:100%;min-height:38px;background:#f1f5f9;border-radius:10px;border:1.5px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:.65rem;font-weight:700;">S/ Ajudante</div>`;
     html += '</div>';
 
     html += '</div>';
