@@ -358,8 +358,7 @@ function _renderCard(m) {
   if (st === 'férias') st = 'ferias';
   const isLaranja = st === 'afastado' || st === 'ferias' || st === 'férias';
   const nomeRaw = m.nome_completo || m.nome || '?';
-  const isContratoExp = (m.tipo_contrato || '').toLowerCase().includes('experi')
-    || (m.periodo_experiencia_fim && m.periodo_experiencia_fim !== '' && m.status !== 'Desligado');
+  const isContratoExp = (m.tipo_contrato || '').toLowerCase().includes('experi');
   const emExp = nomeRaw.toLowerCase().includes('experi') || st === 'experiencia' || isContratoExp;
   if (emExp && !isLaranja) st = 'experiencia';
   const sc = STATUS_COR[st] || '#22c55e';
