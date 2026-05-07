@@ -2124,6 +2124,22 @@ db.get("SELECT COUNT(*) as c FROM equipes WHERE nome = 'Equipe 07h' OR nome = 'E
         db.run("DELETE FROM equipes", () => {
             console.log('[MIGRATION] Equipes antigas limpas com sucesso. Frontend irá recriar as novas.');
         });
+    } else {
+        // Se não tem antigas, remove duplicadas geradas por concorrência
+        db.run(`
+            DELETE FROM equipes_membros
+            WHERE equipe_id NOT IN (
+                SELECT MIN(id) FROM equipes GROUP BY nome
+            )
+        `);
+        db.run(`
+            DELETE FROM equipes
+            WHERE id NOT IN (
+                SELECT MIN(id) FROM equipes GROUP BY nome
+            )
+        `, () => {
+            console.log('[MIGRATION] Equipes duplicadas removidas (se existiam).');
+        });
     }
 });
 
