@@ -2157,7 +2157,7 @@ app.get('/api/equipes', authenticateToken, (req, res) => {
 
         // Para cada equipe, buscar membros com dados do colaborador
         const promises = equipes.map(eq => new Promise((resolve) => {
-            db.all(`SELECT em.*, c.nome_completo, c.cargo, c.foto_base64, c.foto_path, c.status as colab_status, c.cnh_categoria, c.ferias_programadas_inicio, c.ferias_programadas_fim, c.tipo_contrato
+            db.all(`SELECT em.*, c.nome_completo, c.cargo, c.foto_base64, c.foto_path, c.status as colab_status, c.cnh_categoria, c.ferias_programadas_inicio, c.ferias_programadas_fim, c.tipo_contrato, c.periodo_experiencia_fim
                 FROM equipes_membros em
                 JOIN colaboradores c ON c.id = em.colaborador_id
                 WHERE em.equipe_id = ?
@@ -2315,7 +2315,7 @@ app.patch('/api/equipes/:id/membros/:colaborador_id', authenticateToken, (req, r
 
 // ── GET /api/equipes/colaboradores-sem-equipe ─────────────────────────────────
 app.get('/api/equipes/colaboradores-sem-equipe', authenticateToken, (req, res) => {
-    db.all(`SELECT c.id, c.nome_completo, c.cargo, c.foto_base64, c.foto_path, c.cnh_categoria, c.status as colab_status, c.ferias_programadas_inicio, c.ferias_programadas_fim, c.tipo_contrato
+    db.all(`SELECT c.id, c.nome_completo, c.cargo, c.foto_base64, c.foto_path, c.cnh_categoria, c.status as colab_status, c.ferias_programadas_inicio, c.ferias_programadas_fim, c.tipo_contrato, c.periodo_experiencia_fim
         FROM colaboradores c
         LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento)) OR LOWER(TRIM(d.nome)) = LOWER(TRIM(c.cargo))
         WHERE c.status != 'Desligado'
