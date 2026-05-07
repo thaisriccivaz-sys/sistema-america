@@ -329,14 +329,14 @@ function _renderCard(m) {
   const fs = FUNC_STYLE[m.funcao] || FUNC_STYLE.ajudante;
   const st = (m.colab_status || m.status || '').toLowerCase();
   const sc = STATUS_COR[st] || '#22c55e';
-  const isLaranja = st === 'afastado' || st === 'ferias' || st === 'férias';
+  const isRoxo = st === 'afastado' || st === 'ferias' || st === 'férias';
   const nomeRaw = m.nome_completo || m.nome || '?';
   const emExp = nomeRaw.toLowerCase().includes('experi') || st === 'experiencia';
   const nome = nomeRaw.replace(/\s*\(Experi[^)]*\)/i,'').replace(/\s*\(E\)/i,'').trim();
   const iniciais = nome.split(' ').slice(0,2).map(p => p[0]).join('').toUpperCase();
   const avatarBg = ['#6366f1','#8b5cf6','#ec4899','#14b8a6','#f97316','#84cc16'][(m.colaborador_id||m.id) % 6];
-  const borderStyle = isLaranja ? 'border-color:#fb923c;background:#fff7ed;' : emExp ? 'border-color:#fde68a;background:#fffbeb;' : '';
-  const avatarBorder = isLaranja ? 'border-color:#f97316;border-width:2px;' : emExp ? 'border-color:#f59e0b;border-width:2px;' : '';
+  const borderStyle = isRoxo ? 'border-color:#d8b4fe;background:#faf5ff;' : emExp ? 'border-color:#fde68a;background:#fffbeb;' : '';
+  const avatarBorder = isRoxo ? 'border-color:#a855f7;border-width:2px;' : emExp ? 'border-color:#f59e0b;border-width:2px;' : '';
   const isMotorista = (m.cargo || '').toLowerCase().includes('motorista');
   let baseCargo = m.cargo || (m.funcao === 'motorista' ? 'Motorista' : 'Ajudante');
   baseCargo = baseCargo.replace(/Motorista/i, 'Mot.').replace(/Ajudante/i, 'Aj.');
