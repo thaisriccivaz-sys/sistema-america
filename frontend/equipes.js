@@ -211,23 +211,7 @@ function _eqStatus(membros) {
 function _renderFora() {
   const b = _busca.toLowerCase();
   const lista = b ? _semEquipe.filter(m => (m.nome_completo||'').toLowerCase().includes(b)) : _semEquipe;
-  const cards = lista.map(m => {
-    const iniciais = (m.nome_completo||'?').split(' ').slice(0,2).map(p=>p[0]).join('').toUpperCase();
-    const avatarBg = ['#94a3b8','#64748b','#78716c','#6b7280','#71717a','#737373'][m.id % 6];
-    const fotoUrl = _eq_apiBase() + `/colaboradores/foto/${m.id}`;
-    const avatarHtml = `<img class="eq-avatar" src="${fotoUrl}" alt="${m.nome_completo}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"><div class="eq-avatar-placeholder" style="background:${avatarBg};display:none;">${iniciais}</div>`;
-    return `<div class="eq-card" data-membro-id="${m.id}" data-equipe-id="0"
-      draggable="true"
-      ondragstart="window._eqDragStart(event,${m.id},0)"
-      ondragend="window._eqDragEnd(event)"
-      style="opacity:.85;">
-      ${avatarHtml}
-      <div class="eq-card-info">
-        <div class="eq-card-name">${m.nome_completo||'?'}</div>
-        <span class="eq-card-func" style="background:#f1f5f9;color:#64748b;">${m.cargo||'Operacional'}</span>
-      </div>
-    </div>`;
-  }).join('');
+  const cards = lista.map(m => _renderCard({ ...m, equipe_id: 0 })).join('');
   const foraHtml = `<div class="eq-col" data-equipe-id="0" style="border:2px dashed #cbd5e1;background:#f8fafc;">
     <div class="eq-col-header" style="background:#64748b;">
       <div class="eq-col-title">
@@ -243,7 +227,7 @@ function _renderFora() {
       ondrop="window._eqDrop(event,0)">
       ${cards || '<div class="eq-empty"><i class="ph ph-check-circle" style="font-size:1.5rem;display:block;margin-bottom:4px;color:#22c55e;"></i>Todos em equipes!</div>'}
     </div>
-    <div class="eq-col-footer"><div style="text-align:center;font-size:.72rem;color:#94a3b8;padding:.25rem;">Arraste para uma equipe</div></div>
+    <div class="eq-col-footer" ondragover="event.preventDefault();" ondrop="window._eqDrop(event,0)"><div style="text-align:center;font-size:.72rem;color:#94a3b8;padding:.25rem;">Arraste para uma equipe</div></div>
   </div>`;
   // Renderiza na sidebar: Fora de Equipe + Equipe Reserva empilhados
   const sidebar = document.getElementById('equipes-sidebar');
@@ -269,7 +253,7 @@ function _renderFora() {
           ondrop="window._eqDrop(event,${reservaEq.id})">
           ${cardsRes || '<div class="eq-empty"><i class="ph ph-users" style="font-size:1.5rem;display:block;margin-bottom:4px;"></i>Sem membros</div>'}
         </div>
-        <div class="eq-col-footer">
+        <div class="eq-col-footer" ondragover="event.preventDefault();" ondrop="window._eqDrop(event,${reservaEq.id})">
           <button class="eq-add-btn" onclick="window._equipesAdicionarMembro(${reservaEq.id})"><i class="ph ph-plus"></i> Adicionar</button>
         </div>
       </div>`;
@@ -322,7 +306,7 @@ function _renderBoard(busca) {
         style="${isEquipePadrao ? `flex-direction:row; flex-wrap:wrap; align-content:flex-start; column-gap:8px; background: linear-gradient(to right, transparent calc(50% - 1px), ${eq.cor} calc(50% - 1px), ${eq.cor} calc(50% + 1px), transparent calc(50% + 1px));` : ''}">
         ${emPares ? _renderParesHtml(membros, b, isEquipePadrao) : (membros.length ? membros.map(m => _renderCard(m)).join('') : '<div class="eq-empty"><i class="ph ph-users" style="font-size:1.5rem;display:block;margin-bottom:4px;"></i>Sem membros</div>')}
       </div>
-      <div class="eq-col-footer">
+      <div class="eq-col-footer" ondragover="event.preventDefault();" ondrop="window._eqDrop(event,${eq.id})">
         <button class="eq-add-btn" onclick="window._equipesAdicionarMembro(${eq.id})">
           <i class="ph ph-plus"></i> Adicionar
         </button>
@@ -752,23 +736,7 @@ function _reRenderFora() {
   if (!body) return;
   const b = _busca.toLowerCase();
   const lista = b ? _semEquipe.filter(m => (m.nome_completo||'').toLowerCase().includes(b)) : _semEquipe;
-  body.innerHTML = lista.map(m => {
-    const iniciais = (m.nome_completo||'?').split(' ').slice(0,2).map(p=>p[0]).join('').toUpperCase();
-    const avatarBg = ['#94a3b8','#64748b','#78716c','#6b7280','#71717a','#737373'][m.id % 6];
-    const fotoUrl = _eq_apiBase() + `/colaboradores/foto/${m.id}`;
-    const avatarHtml = `<img class="eq-avatar" src="${fotoUrl}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"><div class="eq-avatar-placeholder" style="background:${avatarBg};display:none;">${iniciais}</div>`;
-    return `<div class="eq-card" data-membro-id="${m.id}" data-equipe-id="0" draggable="true"
-      ondragstart="window._eqDragStart(event,${m.id},0)" 
-      ondragend="window._eqDragEnd(event)" 
-      ondrop="window._eqCardDrop(event,${m.id},0)"
-      ondragover="event.preventDefault();"
-      style="opacity:.85;">
-      ${avatarHtml}
-      <div class="eq-card-info">
-        <div class="eq-card-name">${m.nome_completo||'?'}</div>
-        <span class="eq-card-func" style="background:#f1f5f9;color:#64748b;">${m.cargo ? m.cargo + (m.cargo.toLowerCase().includes('motorista') && m.cnh_categoria ? ` (${m.cnh_categoria})` : '') : 'Operacional'}</span>
-      </div></div>`;
-  }).join('') || '<div class="eq-empty"><i class="ph ph-check-circle" style="font-size:1.5rem;display:block;margin-bottom:4px;color:#22c55e;"></i>Todos em equipes!</div>';
+  body.innerHTML = lista.map(m => _renderCard({ ...m, equipe_id: 0 })).join('') || '<div class="eq-empty"><i class="ph ph-check-circle" style="font-size:1.5rem;display:block;margin-bottom:4px;color:#22c55e;"></i>Todos em equipes!</div>';
 }
 
 window._equipesAdicionarMembro = async function(equipeId) {
