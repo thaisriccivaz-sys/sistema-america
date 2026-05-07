@@ -174,10 +174,8 @@ function _renderFora() {
   const cards = lista.map(m => {
     const iniciais = (m.nome_completo||'?').split(' ').slice(0,2).map(p=>p[0]).join('').toUpperCase();
     const avatarBg = ['#94a3b8','#64748b','#78716c','#6b7280','#71717a','#737373'][m.id % 6];
-    const fotoSrc = m.foto_base64 ? 'data:image/jpeg;base64,'+m.foto_base64 : null;
-    const avatarHtml = fotoSrc
-      ? `<img class="eq-avatar" src="${fotoSrc}" alt="${m.nome_completo}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"><div class="eq-avatar-placeholder" style="background:${avatarBg};display:none;">${iniciais}</div>`
-      : `<div class="eq-avatar-placeholder" style="background:${avatarBg};">${iniciais}</div>`;
+    const fotoUrl = _eq_apiBase() + `/colaboradores/${m.id}/foto`;
+    const avatarHtml = `<img class="eq-avatar" src="${fotoUrl}" alt="${m.nome_completo}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"><div class="eq-avatar-placeholder" style="background:${avatarBg};display:none;">${iniciais}</div>`;
     return `<div class="eq-card" data-membro-id="${m.id}" data-equipe-id="0"
       draggable="true"
       ondragstart="window._eqDragStart(event,${m.id},0)"
@@ -475,10 +473,8 @@ function _reRenderFora() {
   body.innerHTML = lista.map(m => {
     const iniciais = (m.nome_completo||'?').split(' ').slice(0,2).map(p=>p[0]).join('').toUpperCase();
     const avatarBg = ['#94a3b8','#64748b','#78716c','#6b7280','#71717a','#737373'][m.id % 6];
-    const fotoSrc = m.foto_base64 ? 'data:image/jpeg;base64,'+m.foto_base64 : null;
-    const avatarHtml = fotoSrc
-      ? `<img class="eq-avatar" src="${fotoSrc}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"><div class="eq-avatar-placeholder" style="background:${avatarBg};display:none;">${iniciais}</div>`
-      : `<div class="eq-avatar-placeholder" style="background:${avatarBg};">${iniciais}</div>`;
+    const fotoUrl = _eq_apiBase() + `/colaboradores/${m.id}/foto`;
+    const avatarHtml = `<img class="eq-avatar" src="${fotoUrl}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"><div class="eq-avatar-placeholder" style="background:${avatarBg};display:none;">${iniciais}</div>`;
     return `<div class="eq-card" data-membro-id="${m.id}" data-equipe-id="0" draggable="true"
       ondragstart="window._eqDragStart(event,${m.id},0)" ondragend="window._eqDragEnd(event)" style="opacity:.85;">
       ${avatarHtml}
