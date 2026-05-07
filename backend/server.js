@@ -2117,6 +2117,16 @@ db.run(`CREATE TABLE IF NOT EXISTS equipes_membros (
     UNIQUE(equipe_id, colaborador_id)
 )`, err => { if (err) console.error('[EQUIPES] Erro tabela equipes_membros:', err.message); else console.log('[EQUIPES] Tabela equipes_membros OK.'); });
 
+// MIGRATION: Limpar equipes antigas (Equipe 07h, etc) para forçar as novas
+db.get("SELECT COUNT(*) as c FROM equipes WHERE nome = 'Equipe 07h' OR nome = 'Equipe 09h'", (err, row) => {
+    if (!err && row && row.c > 0) {
+        db.run("DELETE FROM equipes_membros");
+        db.run("DELETE FROM equipes", () => {
+            console.log('[MIGRATION] Equipes antigas limpas com sucesso. Frontend irá recriar as novas.');
+        });
+    }
+});
+
 // ── GET /api/equipes ──────────────────────────────────────────────────────────
 app.get('/api/equipes', authenticateToken, (req, res) => {
     db.all(`SELECT e.*,
