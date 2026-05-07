@@ -3312,8 +3312,8 @@ app.post('/api/colaboradores/:id/sinistros', authenticateToken, multerUploadMemo
         }
 
         const stmt = `INSERT INTO sinistros (colaborador_id, numero_boletim, data_hora, natureza, placa, veiculo,
-            desconto, parcelas, valor_parcela, tipo_sinistro, boletim_path, processo_iniciado, usuario_abertura) 
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`;
+            desconto, parcelas, valor_parcela, valor_total, tipo_sinistro, boletim_path, processo_iniciado, usuario_abertura) 
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
 
         // Nome padrão do doc: Sinistro_Datadoocorrido_Nome_do_Colaborador.pdf
         const pnome = 'BO_Sinistro_' + (pastaDataStr || dataFormatada).replace(/-/g, '') + '_' + nomeFormatado + '.pdf';
@@ -3321,7 +3321,7 @@ app.post('/api/colaboradores/:id/sinistros', authenticateToken, multerUploadMemo
         const usuarioAbertura = req.user ? (req.user.nome || req.user.username) : 'Sistema';
 
         db.run(stmt, [id, body.numero_boletim, body.data_hora, body.natureza, body.placa, body.veiculo,
-            body.desconto, body.parcelas || null, body.valor_parcela, body.tipo_sinistro, docOnedrivePath, 0, usuarioAbertura],
+            body.desconto, body.parcelas || null, body.valor_parcela, body.valor_total || null, body.tipo_sinistro, docOnedrivePath, 0, usuarioAbertura],
             async function (err) {
                 if (err) return res.status(500).json({ error: err.message });
                 const sinId = this.lastID;
@@ -3525,7 +3525,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
         htmlFinal = htmlFinal.replace(/\{SINISTRO_VEICULO\}|\{VEICULO\}|\{MARCA_MODELO\}/gi, sin.veiculo || '');
         htmlFinal = htmlFinal.replace(/\{SINISTRO_PARCELAS\}|\{QTDE_PARCELAS\}/gi, String(sin.parcelas || 1));
         htmlFinal = htmlFinal.replace(/\{SINISTRO_VALOR_PARCELA\}|\{VALOR_PARCELA\}/gi, sin.valor_parcela || '');
-        htmlFinal = htmlFinal.replace(/\{VALOR_TOTAL\}|\{VALOR_DANO\}/gi, sin.desconto_valor || sin.valor_parcela || '');
+        htmlFinal = htmlFinal.replace(/\{VALOR_TOTAL\}|\{VALOR_DANO\}/gi, sin.valor_total || sin.valor_parcela || '');
         htmlFinal = htmlFinal.replace(/\{SINISTRO_TIPO\}|\{TIPO_SINISTRO\}/gi, sin.tipo_sinistro || '');
         htmlFinal = htmlFinal.replace(/\{SINISTRO_CONDICOES\}|\{DESCRICAO_DESCONTO\}/gi, `${sin.parcelas || 1}x de ${sin.valor_parcela || ''}`);
         // Substituições com chaves duplas (padrão {{CAMPO}})
@@ -3595,16 +3595,26 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
         );
 
         // 6. Valor
-        const valorTotal = sin.desconto_valor
+        const valorTotal = sin.valor_total
             || (sin.valor_parcela && sin.parcelas ? (parseFloat((sin.valor_parcela || '0').replace(',', '.')) * (sin.parcelas || 1)).toFixed(2).replace('.', ',') : sin.valor_parcela)
             || '';
 
+        // Padrão: Valor total do dano
         htmlFinal = htmlFinal.replace(
             /(Valor\s+total[^:]*:[\s\S]{0,80}?R\$[\s\S]{0,50}?)_{3,}/gi,
             `$1 <strong>${valorTotal}</strong>`
         );
-        htmlFinal = htmlFinal.replace( // Variante se faltar R$ na linha
+        htmlFinal = htmlFinal.replace(
             /(Valor\s+total[^:]*:[\s\S]{0,80}?)_{3,}/gi,
+            `$1 R$ <strong>${valorTotal}</strong>`
+        );
+        // Padrão: Valor do dano
+        htmlFinal = htmlFinal.replace(
+            /(Valor\s+do\s+dano[^:]*:[\s\S]{0,80}?R\$[\s\S]{0,50}?)_{3,}/gi,
+            `$1 <strong>${valorTotal}</strong>`
+        );
+        htmlFinal = htmlFinal.replace(
+            /(Valor\s+do\s+dano[^:]*:[\s\S]{0,80}?)_{3,}/gi,
             `$1 R$ <strong>${valorTotal}</strong>`
         );
 
@@ -3647,6 +3657,27 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
         try {
             let anxsHtml = '';
             let added = false;
+            const onedrive = require('./utils/onedrive');
+
+            // Helper: baixa arquivo do OneDrive e retorna base64
+            const downloadToB64 = async (path) => {
+                const dlUrl = await onedrive.getDownloadUrl(path);
+                if (!dlUrl) return null;
+                const res = await fetch(dlUrl);
+                if (!res.ok) return null;
+                return Buffer.from(await res.arrayBuffer()).toString('base64');
+            };
+
+            // 0) Boletim de Ocorrência (PDF do OneDrive)
+            if (sin.boletim_path) {
+                try {
+                    const b64 = await downloadToB64(sin.boletim_path);
+                    if (b64) {
+                        anxsHtml += `<div style="width:100%;margin-bottom:2rem;page-break-inside:avoid;"><p style="font-size:0.85rem;font-weight:700;color:#333;margin-bottom:6px;text-align:center;">BOLETIM DE OCORRÊNCIA</p><embed src="data:application/pdf;base64,${b64}" type="application/pdf" style="width:100%;height:1100px;border:1px solid #ccc;display:block;" /></div>`;
+                        added = true;
+                    }
+                } catch(e) { console.error('[Anexo BO]', e.message); }
+            }
 
             // 1) Orçamentos: armazenados como paths do OneDrive (strings)
             let orcs = []; try { orcs = JSON.parse(sin.orcamentos_paths || '[]'); } catch(e) {}
@@ -3655,27 +3686,21 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
                 const ext = (p.split('.').pop() || '').toLowerCase().split('?')[0];
                 if (['jpg','jpeg','png','webp','gif'].includes(ext)) {
                     try {
-                        const dlUrl = await require('./utils/onedrive').getDownloadUrl(p);
-                        if (dlUrl) {
-                            const imgRes = await fetch(dlUrl);
-                            if (imgRes.ok) {
-                                const b64 = Buffer.from(await imgRes.arrayBuffer()).toString('base64');
-                                const mime = ext === 'png' ? 'image/png' : (ext === 'webp' ? 'image/webp' : 'image/jpeg');
-                                anxsHtml += `<div style="text-align:center;margin-bottom:1.5rem;"><p style="font-size:0.8rem;color:#666;margin-bottom:4px;">Orçamento</p><img src="data:${mime};base64,${b64}" style="max-width:100%;max-height:900px;object-fit:contain;border:1px solid #ccc;"/></div>`;
-                                added = true;
-                            }
+                        const b64 = await downloadToB64(p);
+                        if (b64) {
+                            const mime = ext === 'png' ? 'image/png' : (ext === 'webp' ? 'image/webp' : 'image/jpeg');
+                            anxsHtml += `<div style="text-align:center;margin-bottom:1.5rem;"><p style="font-size:0.8rem;color:#666;margin-bottom:4px;">Orçamento</p><img src="data:${mime};base64,${b64}" style="max-width:100%;max-height:900px;object-fit:contain;border:1px solid #ccc;"/></div>`;
+                            added = true;
                         }
-                    } catch(e) { console.error('[Anexo ORC OneDrive]', e.message); }
+                    } catch(e) { console.error('[Anexo ORC imagem]', e.message); }
                 } else if (ext === 'pdf') {
                     try {
-                        const jpegB64 = await require('./utils/onedrive').getFileAsJpeg(p);
-                        anxsHtml += `<div style="text-align:center;margin-bottom:1.5rem;"><p style="font-size:0.8rem;color:#666;margin-bottom:4px;">Orçamento (documento)</p><img src="${jpegB64}" style="max-width:100%;max-height:900px;object-fit:contain;border:1px solid #ccc;"/></div>`;
-                        added = true;
-                    } catch(e) {
-                        console.error('[Anexo ORC PDF→JPG]', e.message);
-                        anxsHtml += `<div style="text-align:center;margin-bottom:1.5rem;padding:1rem;border:1px solid #ccc;background:#f9f9f9;"><p><strong>Orçamento (PDF):</strong> arquivo PDF anexado ao sinistro.</p></div>`;
-                        added = true;
-                    }
+                        const b64 = await downloadToB64(p);
+                        if (b64) {
+                            anxsHtml += `<div style="width:100%;margin-bottom:1.5rem;page-break-inside:avoid;"><p style="font-size:0.8rem;color:#666;margin-bottom:4px;text-align:center;">Orçamento (PDF)</p><embed src="data:application/pdf;base64,${b64}" type="application/pdf" style="width:100%;height:1100px;border:1px solid #ccc;display:block;" /></div>`;
+                            added = true;
+                        }
+                    } catch(e) { console.error('[Anexo ORC PDF]', e.message); }
                 }
             }
 

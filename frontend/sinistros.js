@@ -609,7 +609,7 @@ window.abrirModalAssinaturaTestemunhasSinistro = async function(sinId, colabId) 
                         ${docHtmlFresh}
                     </div>
                 </div>
-                <div style="width:460px;background:#fff;overflow-y:auto;padding:1.5rem 1.5rem 6rem;display:flex;flex-direction:column;gap:1.25rem;border-left:1px solid #e2e8f0;flex-shrink:0;">
+                <div style="width:580px;background:#fff;overflow-y:auto;padding:1.5rem 1.5rem 6rem;display:flex;flex-direction:column;gap:1.25rem;border-left:1px solid #e2e8f0;flex-shrink:0;">
                     <div>
                         <label style="font-weight:700;font-size:0.85rem;display:block;margin-bottom:6px;">Testemunha 1</label>
                         <select id="sin-t1-nome" class="form-control" style="width:100%;margin-bottom:8px;">${options}</select>
