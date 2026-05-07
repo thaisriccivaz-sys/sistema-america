@@ -614,14 +614,14 @@ window.abrirModalAssinaturaTestemunhasSinistro = async function(sinId, colabId) 
                         <label style="font-weight:700;font-size:0.85rem;display:block;margin-bottom:6px;">Testemunha 1</label>
                         <select id="sin-t1-nome" class="form-control" style="width:100%;margin-bottom:8px;">${options}</select>
                         <div style="border:2px dashed #cbd5e1;background:#f8fafc;border-radius:8px;">
-                            <canvas id="sin-canvas-t1" style="width:100%;height:200px;cursor:crosshair;display:block;"></canvas>
+                            <canvas id="sin-canvas-t1" style="width:100%;height:400px;cursor:crosshair;display:block;" height="400"></canvas>
                         </div>
                     </div>
                     <div>
                         <label style="font-weight:700;font-size:0.85rem;display:block;margin-bottom:6px;">Testemunha 2 <span style="font-weight:400;color:#94a3b8;">(opcional)</span></label>
                         <select id="sin-t2-nome" class="form-control" style="width:100%;margin-bottom:8px;">${options}</select>
                         <div style="border:2px dashed #cbd5e1;background:#f8fafc;border-radius:8px;">
-                            <canvas id="sin-canvas-t2" style="width:100%;height:200px;cursor:crosshair;display:block;"></canvas>
+                            <canvas id="sin-canvas-t2" style="width:100%;height:400px;cursor:crosshair;display:block;" height="400"></canvas>
                         </div>
                     </div>
                     <button type="button" id="btn-conf-t-sin" onclick="window.salvarAssinaturaTestemunhasSinistro(${sinId}, ${colabId}, false)" style="padding:0.85rem;background:#2563eb;color:#fff;border:none;border-radius:10px;font-weight:700;font-size:1rem;cursor:pointer;">
@@ -650,7 +650,7 @@ window._sinSetupCanvas = function(canvasId) {
     if (!canvas) return;
     // Ajusta tamanho real do canvas ao layout
     canvas.width = canvas.offsetWidth || canvas.clientWidth || 300;
-    canvas.height = canvas.offsetHeight || canvas.clientHeight || 250;
+    canvas.height = canvas.offsetHeight || canvas.clientHeight || 400;
     const ctx = canvas.getContext('2d');
     ctx.strokeStyle = '#1e293b';
     ctx.lineWidth = 2;
@@ -774,7 +774,7 @@ window.abrirModalAssinaturaCondutorSinistro = async function(sinId, colabId) {
                     <div>
                         <label style="font-weight:700;font-size:0.85rem;display:block;margin-bottom:6px;">Assinatura de: <span style="color:#d97706;">${colabName}</span></label>
                         <div style="border:2px dashed #fcd34d;background:#f8fafc;border-radius:8px;">
-                            <canvas id="sin-canvas-condutor" style="width:100%;height:250px;cursor:crosshair;display:block;"></canvas>
+                            <canvas id="sin-canvas-condutor" style="width:100%;height:350px;cursor:crosshair;display:block;" height="350"></canvas>
                         </div>
                     </div>
                     <button type="button" id="btn-conf-con-sin" onclick="window.salvarAssinaturaCondutorSinistro(${sinId}, ${colabId})" style="padding:0.85rem;background:#2563eb;color:#fff;border:none;border-radius:10px;font-weight:700;font-size:1rem;cursor:pointer;">
@@ -1001,7 +1001,7 @@ window._abrirTelaAssinaturaSinistro = async function(sinId, colabId, docHtml, s)
                             <label style="color:#94a3b8;font-size:0.75rem;display:block;margin-bottom:4px;">Testemunha 1 *</label>
                             <select id="fin-t1-nome" class="form-control" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;margin-bottom:6px;width:100%;"><option value="">Selecione...</option></select>
                             <div style="border:1px dashed #475569;border-radius:6px;background:#fff;overflow:hidden;">
-                                <canvas id="fin-canvas-t1" style="width:100%;height:200px;cursor:crosshair;display:block;"></canvas>
+                                <canvas id="fin-canvas-t1" style="width:100%;height:400px;cursor:crosshair;display:block;" height="400"></canvas>
                             </div>
                             <button onclick="window._sinLimparCanvas('fin-canvas-t1')" style="margin-top:4px;background:transparent;border:1px solid #475569;color:#94a3b8;border-radius:6px;padding:3px 10px;font-size:0.75rem;cursor:pointer;"><i class="ph ph-eraser"></i> Limpar</button>
                         </div>
@@ -1009,7 +1009,7 @@ window._abrirTelaAssinaturaSinistro = async function(sinId, colabId, docHtml, s)
                             <label style="color:#94a3b8;font-size:0.75rem;display:block;margin-bottom:4px;">Testemunha 2 <span style="color:#475569;">(opcional)</span></label>
                             <select id="fin-t2-nome" class="form-control" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;margin-bottom:6px;width:100%;"><option value="">Selecione...</option></select>
                             <div style="border:1px dashed #475569;border-radius:6px;background:#fff;overflow:hidden;">
-                                <canvas id="fin-canvas-t2" style="width:100%;height:200px;cursor:crosshair;display:block;"></canvas>
+                                <canvas id="fin-canvas-t2" style="width:100%;height:400px;cursor:crosshair;display:block;" height="400"></canvas>
                             </div>
                             <button onclick="window._sinLimparCanvas('fin-canvas-t2')" style="margin-top:4px;background:transparent;border:1px solid #475569;color:#94a3b8;border-radius:6px;padding:3px 10px;font-size:0.75rem;cursor:pointer;"><i class="ph ph-eraser"></i> Limpar</button>
                         </div>
@@ -1029,7 +1029,7 @@ window._abrirTelaAssinaturaSinistro = async function(sinId, colabId, docHtml, s)
                         <div style="background:#0f172a;border-radius:10px;padding:1rem;">
                             <label style="color:#e2e8f0;font-size:0.85rem;font-weight:600;display:block;margin-bottom:8px;">Assinatura de: <span style="color:#f59e0b;">${colabName}</span></label>
                             <div style="border:2px dashed #f59e0b;border-radius:8px;overflow:hidden;">
-                                <canvas id="fin-canvas-condutor" style="width:100%;height:250px;cursor:crosshair;display:block;background:#fff;"></canvas>
+                                <canvas id="fin-canvas-condutor" style="width:100%;height:350px;cursor:crosshair;display:block;background:#fff;" height="350"></canvas>
                             </div>
                             <button onclick="window._sinLimparCanvas('fin-canvas-condutor')" style="margin-top:6px;background:transparent;border:1px solid #475569;color:#94a3b8;border-radius:6px;padding:4px 12px;font-size:0.78rem;cursor:pointer;"><i class="ph ph-eraser"></i> Limpar</button>
                         </div>
