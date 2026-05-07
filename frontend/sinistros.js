@@ -150,8 +150,8 @@ window._renderSinistroCard = function(s, colabId, container) {
     }
 
     const aberturaTxt = s.usuario_abertura ? `Aberto por: <b>${s.usuario_abertura}</b>` : 'Aberto via Sistema';
-    const dataCriacao = s.created_at ? new Date(s.created_at).toLocaleString('pt-BR') : '—';
-    const assinCondutorTxt = s.data_assinatura_condutor ? `Assinado em: ${new Date(s.data_assinatura_condutor).toLocaleString('pt-BR')}` : 'Não assinado';
+    const dataCriacao = s.created_at ? new Date((s.created_at + 'Z').replace(' Z','Z').replace(' ', 'T')).toLocaleString('pt-BR') : '—';
+    const assinCondutorTxt = s.data_assinatura_condutor ? `Assinado em: ${new Date((s.data_assinatura_condutor + 'Z').replace(' Z','Z').replace(' ', 'T')).toLocaleString('pt-BR')}` : 'Não assinado';
     // Limpa prefixo "Crime Consumado..." da natureza para exibição
     const naturezaDisplay = (s.natureza || '').replace(/Crime\s+Consumado[^\-]*\-?\s*/gi, '').trim() || s.natureza || '—';
 
