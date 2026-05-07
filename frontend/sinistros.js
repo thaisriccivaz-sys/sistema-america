@@ -658,9 +658,21 @@ window.abrirModalAssinaturaTestemunhasSinistro = async function(sinId, colabId) 
 // PDF.js client-side renderer para anexos de PDF nos sinistros
 // =====================================================================
 (function() {
-    var CDNJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-    var WRKR  = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    var PDFJS_BASE = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/';
+    var DEFAULT_VER = '2.16.105';
     var _loading = false;
+
+    function getVersion() {
+        // Detecta versão já carregada; se não tiver, usa o default
+        return (typeof pdfjsLib !== 'undefined' && pdfjsLib.version) ? pdfjsLib.version : DEFAULT_VER;
+    }
+    function getWorkerUrl() {
+        return PDFJS_BASE + getVersion() + '/pdf.worker.min.js';
+    }
+    function getCdnUrl() {
+        // Carrega a mesma versão que já está na página se disponível, senão DEFAULT_VER
+        return PDFJS_BASE + getVersion() + '/pdf.min.js';
+    }
 
     window._renderSinPdfs = async function(rootEl) {
         var root = rootEl || document;
@@ -673,13 +685,14 @@ window.abrirModalAssinaturaTestemunhasSinistro = async function(sinId, colabId) 
             _loading = true;
             await new Promise((res, rej) => {
                 var sc = document.createElement('script');
-                sc.src = CDNJS;
-                sc.onload = () => { _loading = false; pdfjsLib.GlobalWorkerOptions.workerSrc = WRKR; res(); };
+                sc.src = getCdnUrl();
+                sc.onload = () => { _loading = false; pdfjsLib.GlobalWorkerOptions.workerSrc = getWorkerUrl(); res(); };
                 sc.onerror = rej;
                 document.head.appendChild(sc);
             });
         }
-        pdfjsLib.GlobalWorkerOptions.workerSrc = WRKR;
+        // Sempre usa o worker compatível com a versão carregada na página
+        pdfjsLib.GlobalWorkerOptions.workerSrc = getWorkerUrl();
 
         for (var i = 0; i < containers.length; i++) {
             var c = containers[i];
@@ -1223,10 +1236,9 @@ window._finMostrarAssinaturaCondutor = function() {
 
 window._finFinalizar = async function(sinId, colabId, comCondutor) {
     const colabName = viewedColaborador?.nome_completo || 'Colaborador';
-    // Usa o HTML do preview ao vivo para capturar estado atual (com canvases PDF já renderizados)
+    // USA _finalizarSinistroDocHtml — já contém as assinaturas das testemunhas injetadas
+    // NÃO lê do previewDiv.innerHTML pois ele mostra o documento original (sem sigs das testemunhas no DOM)
     let docHtml = window._finalizarSinistroDocHtml || '';
-    const previewDiv = document.getElementById('fin-doc-preview');
-    if (previewDiv) docHtml = window._flattenDocHtmlPdfCanvases(previewDiv.innerHTML);
     let assinaturaBase64 = null;
     if (comCondutor) {
         if (!window._sinCanvasTemConteudo('fin-canvas-condutor')) return alert('O colaborador precisa assinar.');
