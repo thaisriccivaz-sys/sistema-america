@@ -56,12 +56,13 @@ window.initEquipes = async function () {
     ]);
     if (_equipes.length === 0) {
       const defaults = [
-        { nome: 'Equipe 07h', descricao: 'Entra às 07h', cor: '#2563eb', ordem: 1 },
-        { nome: 'Equipe 09h', horario: 'Entra às 09h', cor: '#7c3aed', ordem: 2 },
-        { nome: 'Noturno',    horario: '20h às 05h',   cor: '#0f172a', ordem: 3 },
-        { nome: 'Reserva',    horario: 'Conforme escala', cor: '#db2777', ordem: 4 },
-        { nome: 'Intermitentes', horario: 'Variável',  cor: '#ea580c', ordem: 5 },
-        { nome: 'Líderes',    horario: 'Variável',     cor: '#b45309', ordem: 6 },
+        { nome: 'Equipe Padrão', descricao: '', cor: '#2563eb', ordem: 1 },
+        { nome: 'Equipe folga 2d semana', descricao: '', cor: '#0ea5e9', ordem: 2 },
+        { nome: 'Equipe Noturna', descricao: '', cor: '#4f46e5', ordem: 3 },
+        { nome: 'Equipe Intermitente', descricao: '', cor: '#f59e0b', ordem: 4 },
+        { nome: 'Equipe Reserva', descricao: '', cor: '#db2777', ordem: 5 },
+        { nome: 'Ajudante pátio', descricao: '', cor: '#10b981', ordem: 6 },
+        { nome: 'Líderes', descricao: '', cor: '#64748b', ordem: 7 }
       ];
       for (const d of defaults) {
         const eq = await _eq_post('/equipes', d);
@@ -234,7 +235,10 @@ function _renderBoard(busca) {
       </div>`
     ).join('');
 
-    return `<div class="eq-col" data-equipe-id="${eq.id}">
+    const emPares = ['Equipe Padrão', 'Equipe folga 2d semana', 'Equipe Noturna'].includes(eq.nome);
+    const colWidth = emPares ? 'width: 480px; min-width: 480px;' : '';
+
+    return `<div class="eq-col" data-equipe-id="${eq.id}" style="${colWidth}">
       <div class="eq-col-header" style="background:${eq.cor};">
         <div class="eq-col-title">
           <span class="eq-indicator" style="background:${indicadorCor};border:2px solid rgba(255,255,255,.5);"></span>
@@ -250,7 +254,7 @@ function _renderBoard(busca) {
       ondragover="event.preventDefault();window._eqDragOver(event,${eq.id})"
       ondragleave="window._eqDragLeave(event)"
       ondrop="window._eqDrop(event,${eq.id})">
-        ${membros.length ? membros.map(m => _renderCard(m)).join('') : '<div class="eq-empty"><i class="ph ph-users" style="font-size:1.5rem;display:block;margin-bottom:4px;"></i>Sem membros</div>'}
+        ${emPares ? _renderParesHtml(membros, b) : (membros.length ? membros.map(m => _renderCard(m)).join('') : '<div class="eq-empty"><i class="ph ph-users" style="font-size:1.5rem;display:block;margin-bottom:4px;"></i>Sem membros</div>')}
       </div>
       <div class="eq-col-footer">
         <button class="eq-add-btn" onclick="window._equipesAdicionarMembro(${eq.id})">
@@ -456,9 +460,30 @@ function _reRenderColuna(equipeId) {
   if (!body) return;
   const b = _busca.toLowerCase();
   const membros = b ? eq.membros.filter(m => (m.nome_completo||m.nome||'').toLowerCase().includes(b)) : eq.membros;
-  body.innerHTML = membros.length
-    ? membros.map(m => _renderCard(m)).join('')
-    : '<div class="eq-empty"><i class="ph ph-users" style="font-size:1.5rem;display:block;margin-bottom:4px;"></i>Sem membros</div>';
+  const emPares = ['Equipe Padrão', 'Equipe folga 2d semana', 'Equipe Noturna'].includes(eq.nome);
+
+  body.innerHTML = emPares 
+    ? _renderParesHtml(membros, b)
+    : (membros.length
+        ? membros.map(m => _renderCard(m)).join('')
+        : '<div class="eq-empty"><i class="ph ph-users" style="font-size:1.5rem;display:block;margin-bottom:4px;"></i>Sem membros</div>');
+}
+
+function _renderParesHtml(membros, b) {
+  if (!membros.length) return '<div class="eq-empty"><i class="ph ph-users" style="font-size:1.5rem;display:block;margin-bottom:4px;"></i>Sem membros</div>';
+  if (b) return membros.map(m => _renderCard(m)).join('');
+
+  const motoristas = membros.filter(m => (m.cargo||'').toLowerCase().includes('motorista'));
+  const ajudantes = membros.filter(m => !(m.cargo||'').toLowerCase().includes('motorista'));
+  const rows = Math.max(motoristas.length, ajudantes.length);
+  let html = '';
+  for (let i = 0; i < rows; i++) {
+    html += '<div style="display:flex; gap:6px; margin-bottom:8px;">';
+    html += '<div style="flex:1; min-width:0;">' + (motoristas[i] ? _renderCard(motoristas[i]) : '<div class="eq-empty" style="height:100%;min-height:60px;background:#f1f5f9;border-radius:10px;border:1.5px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:.7rem;font-weight:700;">S/ Motorista</div>') + '</div>';
+    html += '<div style="flex:1; min-width:0;">' + (ajudantes[i] ? _renderCard(ajudantes[i]) : '<div class="eq-empty" style="height:100%;min-height:60px;background:#f1f5f9;border-radius:10px;border:1.5px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:.7rem;font-weight:700;">S/ Ajudante</div>') + '</div>';
+    html += '</div>';
+  }
+  return html;
 }
 
 function _reRenderFora() {
