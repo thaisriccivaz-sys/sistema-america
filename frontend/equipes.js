@@ -52,6 +52,8 @@ window.initEquipes = async function (showSkeleton = true) {
     if (showSkeleton) _mostrarSkeleton();
   }
   try {
+    // Dispara verificacao de ferias para mover colaboradores automaticamente
+    fetch(_eq_apiBase() + '/equipes/verificar-ferias', { method: 'POST', headers: _eq_headers() }).catch(()=>{});
     [_equipes, _semEquipe] = await Promise.all([
       _eq_get('/equipes'),
       _eq_get('/equipes/colaboradores-sem-equipe')
@@ -151,7 +153,8 @@ function _renderAll(el) {
     .eq-empty { text-align:center; padding:1.5rem .5rem; color:#cbd5e1; font-size:.7rem; }
     .eq-col-footer { padding:.5rem; border-top:1px solid #f1f5f9; }
     .eq-add-btn { width:100%; background:transparent; border:1.5px dashed #cbd5e1; border-radius:8px; color:#94a3b8; font-size:.8rem; padding:.5rem; cursor:pointer; transition:all .15s; display:flex; align-items:center; justify-content:center; gap:5px; }
-    .eq-add-btn:hover { border-color:#6366f1; color:#6366f1; background:#f5f3ff; }
+    .eq-add-btn:hover { border-color:#2d9e5f; color:#2d9e5f; background:#f0fdf4; }
+    .eq-col-footer.drag-over-zone .eq-add-btn, .eq-col-footer.drag-over-zone { border-color:#2d9e5f!important; background:#f0fdf4!important; color:#2d9e5f!important; }
     .eq-indicator { width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:4px; }
     .eq-card.drag-swap-over { box-shadow:0 0 0 2px #6366f1; }
     .eq-card.drag-add-over  { box-shadow:0 0 0 2px #22c55e; }
@@ -162,7 +165,7 @@ function _renderAll(el) {
   <div id="equipes-wrapper">
     <div id="equipes-header">
       <div style="display:flex;flex-direction:column;gap:2px;">
-        <h2><i class="ph ph-users-three" style="color:#6366f1;font-size:1.6rem;"></i> Equipes</h2>
+        <h2><i class="ph ph-users-three" style="color:#2d9e5f;font-size:1.6rem;"></i> Equipes</h2>
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:220px;max-width:420px;">
         <input id="equipes-search" type="text" placeholder="Buscar colaborador..." oninput="window._equipesSearch(this.value)" style="flex:1;">
@@ -235,7 +238,10 @@ function _renderFora() {
       ondrop="window._eqDrop(event,0)">
       ${cards || '<div class="eq-empty"><i class="ph ph-check-circle" style="font-size:1.5rem;display:block;margin-bottom:4px;color:#22c55e;"></i>Todos em equipes!</div>'}
     </div>
-    <div class="eq-col-footer" ondragover="event.preventDefault();" ondrop="window._eqDrop(event,0)"><div style="text-align:center;font-size:.72rem;color:#94a3b8;padding:.25rem;">Arraste para uma equipe</div></div>
+    <div class="eq-col-footer"
+      ondragover="event.preventDefault(); this.classList.add('drag-over-zone');"
+      ondragleave="this.classList.remove('drag-over-zone');"
+      ondrop="this.classList.remove('drag-over-zone'); window._eqDrop(event,0)"><div style="text-align:center;font-size:.72rem;color:#94a3b8;padding:.25rem;">Arraste para uma equipe</div></div>
   </div>`;
   // Renderiza na sidebar: Fora de Equipe + Equipe Reserva empilhados
   const sidebar = document.getElementById('equipes-sidebar');
@@ -261,7 +267,10 @@ function _renderFora() {
           ondrop="window._eqDrop(event,${reservaEq.id})">
           ${cardsRes || '<div class="eq-empty"><i class="ph ph-users" style="font-size:1.5rem;display:block;margin-bottom:4px;"></i>Sem membros</div>'}
         </div>
-        <div class="eq-col-footer" ondragover="event.preventDefault();" ondrop="window._eqDrop(event,${reservaEq.id})">
+        <div class="eq-col-footer"
+          ondragover="event.preventDefault(); this.classList.add('drag-over-zone');"
+          ondragleave="this.classList.remove('drag-over-zone');"
+          ondrop="this.classList.remove('drag-over-zone'); window._eqDrop(event,${reservaEq.id})">
           <button class="eq-add-btn" onclick="window._equipesAdicionarMembro(${reservaEq.id})"><i class="ph ph-plus"></i> Adicionar</button>
         </div>
       </div>`;
@@ -314,7 +323,10 @@ function _renderBoard(busca) {
         style="${isEquipePadrao ? `flex-direction:row; flex-wrap:wrap; align-content:flex-start; column-gap:8px; background: linear-gradient(to right, transparent calc(50% - 1px), ${eq.cor} calc(50% - 1px), ${eq.cor} calc(50% + 1px), transparent calc(50% + 1px));` : ''}">
         ${emPares ? _renderParesHtml(membros, b, isEquipePadrao) : (membros.length ? membros.map(m => _renderCard(m)).join('') : '<div class="eq-empty"><i class="ph ph-users" style="font-size:1.5rem;display:block;margin-bottom:4px;"></i>Sem membros</div>')}
       </div>
-      <div class="eq-col-footer" ondragover="event.preventDefault();" ondrop="window._eqDrop(event,${eq.id})">
+      <div class="eq-col-footer"
+        ondragover="event.preventDefault(); this.classList.add('drag-over-zone');"
+        ondragleave="this.classList.remove('drag-over-zone');"
+        ondrop="this.classList.remove('drag-over-zone'); window._eqDrop(event,${eq.id})">
         <button class="eq-add-btn" onclick="window._equipesAdicionarMembro(${eq.id})">
           <i class="ph ph-plus"></i> Adicionar
         </button>
@@ -393,6 +405,7 @@ function _renderCard(m) {
     ondrop="window._eqCardDrop(event,${m.colaborador_id||m.id},${m.equipe_id})"
     ondragover="window._eqCardDragOver(event,this,true)"
     ondragleave="window._eqCardDragLeave(event,this)"
+    title="${[m.escala_tipo ? 'Escala: ' + m.escala_tipo : '', m.horario_entrada && m.horario_saida ? 'Horário: ' + m.horario_entrada + ' – ' + m.horario_saida : m.horario_entrada ? 'Entrada: ' + m.horario_entrada : ''].filter(Boolean).join(' | ') || ''}"
     style="position:relative;${borderStyle}">
     ${avatarHtml}
     <div class="eq-card-info">
